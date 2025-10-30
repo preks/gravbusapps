@@ -167,14 +167,16 @@ export const InboxView: React.FC<InboxViewProps> = ({
   }, [currentTasks, searchQuery, filterType])
 
   // Count tasks by type for badges
+  // Note: For Blinks and Approvals, we show count from loaded tasks since we don't have
+  // total counts from API for these filter types (they are client-side filters)
   const taskCounts = useMemo(() => {
     return {
-      all: tasks.length,
-      blinks: tasks.filter(isBlinkTask).length,
-      approvals: tasks.filter(isApprovalTask).length,
-      completed: completedTasks.length
+      all: totalCount, // Use total count from API, not paginated count
+      blinks: tasks.filter(isBlinkTask).length, // Client-side filter count
+      approvals: tasks.filter(isApprovalTask).length, // Client-side filter count
+      completed: completedTotalCount // Use total completed count from API
     }
-  }, [tasks, completedTasks])
+  }, [tasks, totalCount, completedTotalCount])
 
   if (currentIsLoading && currentTasks.length === 0) {
     return <LoadingSkeleton count={5} type="task" />

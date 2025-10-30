@@ -127,12 +127,12 @@ export const EveryBox: React.FC<EveryBoxProps> = ({ prefixDataTestId = 'every-bo
     <ThemeProvider defaultTheme="light">
       <ErrorBoundary>
         <div
-          className="gba:h-screen gba:flex gba:flex-col gba:overflow-hidden gba:p-6"
+          className="gba:h-screen gba:flex gba:flex-col gba:overflow-hidden gba:pt-6 gba:px-6"
           data-testid={`${prefixDataTestId}-container`}
         >
-          <div className="gba:container gba:mx-auto gba:max-w-7xl gba:flex gba:flex-col gba:h-full">
+          <div className="gba:container gba:mx-auto gba:max-w-[96rem] gba:flex gba:flex-col gba:h-full">
             <Card className="gba:flex gba:flex-col gba:h-full gba:overflow-hidden">
-              <CardContent className="gba:p-4 gba:flex gba:flex-col gba:h-full gba:overflow-hidden">
+              <CardContent className="gba:p-4 gba:flex gba:flex-col gba:h-full gba:overflow-hidden gba:pb-0">
                 {/* Header */}
                 <div className="gba:mb-3 gba:flex gba:items-center gba:justify-between">
                   <div>
@@ -229,7 +229,6 @@ export const EveryBox: React.FC<EveryBoxProps> = ({ prefixDataTestId = 'every-bo
             open={isQuickTaskModalOpen}
             onOpenChange={setIsQuickTaskModalOpen}
             accessToken={context.accessToken}
-            currentUserId={context.userInfo?.id}
             onSubmit={handleQuickTaskSubmit}
             title="Blink"
             description="Create and assign a quick task instantly"

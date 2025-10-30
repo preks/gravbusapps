@@ -1,81 +1,30 @@
 /**
  * TaskDetailDialog Component
- * Displays detailed task information for both Kogito and CFlow tasks
+ * Minimal general task information view - specific task templates will have dedicated views
  */
 
-import React, { useMemo } from 'react'
-import {
-  Card,
-  CardContent,
-  CardHeader,
-  Badge,
-  Button,
-  Separator,
-  Alert,
-  AlertDescription,
-  Avatar,
-  AvatarImage,
-  AvatarFallback
-} from '@newwork/nw-design-system'
-import { CheckCircle, User, Calendar, Info, Zap, X } from 'lucide-react'
+import React from 'react'
+import { Card, CardContent, CardHeader, Badge, Button, Alert, AlertDescription } from '@newwork/nw-design-system'
+import { CheckCircle, Info, Zap, X, ExternalLink } from 'lucide-react'
 import { message } from 'antd'
 import { UnifiedTask } from '../types'
 import {
-  formatDateTime,
   getPriorityBadgeVariant,
   getTaskStatusBadgeVariant,
   formatTaskStatus,
   formatPriority
 } from '../utils/taskFormatters'
 import { navigateTo } from '@/common/utils/navigationUtils'
-import { useEmployeeAvatar } from '../hooks/useEmployeeAvatar'
-import { base64ToObjectURL } from '../utils/avatarUtils'
 import { env } from '@/common/env/EnvUtils'
+import { AbsenceApprovalDetails } from './task-details/AbsenceApprovalDetails'
 
 interface TaskDetailDialogProps {
   task: UnifiedTask | null
   onClose: () => void
   onTaskUpdated: () => void
-  onTaskCompleted?: (taskId: string) => void // Callback to remove task from list immediately
+  onTaskCompleted?: (taskId: string) => void
   accessToken: string
   userId?: string
-}
-
-/**
- * InitiatorInfo - Shows task initiator with avatar and name
- */
-interface InitiatorInfoProps {
-  initiatorUserId: string
-  accessToken: string
-}
-
-const InitiatorInfo: React.FC<InitiatorInfoProps> = ({ initiatorUserId, accessToken }) => {
-  const { employeeData } = useEmployeeAvatar(accessToken, initiatorUserId)
-
-  // Get display name and initials
-  const displayName =
-    employeeData?.displayName || `${employeeData?.firstName || ''} ${employeeData?.lastName || ''}`.trim() || 'Unknown'
-  const initials = employeeData
-    ? `${employeeData.firstName?.[0] || ''}${employeeData.lastName?.[0] || ''}`.toUpperCase()
-    : '?'
-
-  // Convert base64 avatar to URL
-  const avatarUrl = useMemo(() => {
-    if (employeeData?.pictureThumbnail) {
-      return base64ToObjectURL(employeeData.pictureThumbnail)
-    }
-    return undefined
-  }, [employeeData?.pictureThumbnail])
-
-  return (
-    <div className="gba:flex gba:items-center gba:gap-2">
-      <Avatar className="gba:h-8 gba:w-8">
-        {avatarUrl ? <AvatarImage src={avatarUrl} alt={displayName} /> : null}
-        <AvatarFallback className="gba:text-xs">{initials}</AvatarFallback>
-      </Avatar>
-      <div className="gba:font-medium gba:text-sm">{displayName}</div>
-    </div>
-  )
 }
 
 export const TaskDetailDialog: React.FC<TaskDetailDialogProps> = ({
@@ -202,34 +151,17 @@ export const TaskDetailDialog: React.FC<TaskDetailDialogProps> = ({
   // Get task description/message
   const taskDescription = task.description || task.message
 
-  // Get creation/scheduled date
-  const scheduledDate = task.scheduledAt || task.createdAt
-
-  // Get task inputs/context data
-  const taskInputs = task.sourceMetadata?.inputs || task.inputs
-
   // Check if task has an endpoint to open
   const hasEndpoint = !!task.sourceMetadata?.endpoint
 
   // Check if this is a blink (quick-task)
-  // Tags are stored at the top level of UnifiedTask, not in sourceMetadata
   const isBlinkTask = task.source === 'cflow' && task.tags?.app === 'quick-task'
 
-  // Get initiator ID from flow metadata
-  // CFlow uses 'creatorUserId' field in sourceMetadata
-  const initiatorUserId = task.sourceMetadata?.creatorUserId as string | undefined
-
-  // Debug: Log task data for completed tasks
-  if (task.status === 'COMPLETED') {
-    console.log('[TaskDetailDialog] Completed task data:', {
-      id: task.id,
-      status: task.status,
-      completedAt: task.completedAt,
-      source: task.source,
-      hasCompletedAt: !!task.completedAt,
-      taskObject: task
-    })
-  }
+  // Check if this is an approval task (from Kogito)
+  // Approval tasks typically have names starting with "approve" or contain "approval"
+  const isApprovalTask =
+    task.source === 'kogito' &&
+    (task.name?.toLowerCase().includes('approve') || task.title?.toLowerCase().includes('approval'))
 
   return (
     <Card className="gba:h-full gba:flex gba:flex-col gba:shadow-lg" data-testid="task-detail-dialog">
@@ -275,126 +207,80 @@ export const TaskDetailDialog: React.FC<TaskDetailDialogProps> = ({
         </div>
       </CardHeader>
 
-      {/* Scrollable Content */}
+      {/* Scrollable Content - Route to specific task detail views */}
       <CardContent className="gba:flex-1 gba:overflow-y-auto gba:pt-6">
-        <div className="gba:space-y-4">
-          {/* Task Details Grid - Compact version */}
-          <div className="gba:flex gba:flex-wrap gba:gap-4 gba:text-sm">
-            {/* Initiator (for CFlow tasks) */}
-            {initiatorUserId && (
-              <div className="gba:flex gba:items-center gba:gap-2">
-                <User className="gba:h-4 gba:w-4 gba:text-muted-foreground" />
-                <span className="gba:text-muted-foreground">From:</span>
-                <InitiatorInfo initiatorUserId={initiatorUserId} accessToken={accessToken} />
-              </div>
+        {/* Kogito approval tasks: Show dedicated approval view */}
+        {isApprovalTask && task.status !== 'COMPLETED' ? (
+          <AbsenceApprovalDetails
+            task={task}
+            accessToken={accessToken}
+            onTaskCompleted={onTaskCompleted}
+            onTaskUpdated={onTaskUpdated}
+            onClose={onClose}
+          />
+        ) : (
+          <div className="gba:space-y-6">
+            {/* Brief description if available */}
+            {taskDescription && (
+              <p className="gba:text-base gba:leading-relaxed gba:text-muted-foreground">{taskDescription}</p>
             )}
 
-            {/* Scheduled/Created Date */}
-            {scheduledDate && (
-              <div className="gba:flex gba:items-center gba:gap-2">
-                <Calendar className="gba:h-4 gba:w-4 gba:text-muted-foreground" />
-                <span className="gba:text-muted-foreground">Scheduled:</span>
-                <span className="gba:font-medium" data-testid="task-detail-scheduled">
-                  {formatDateTime(scheduledDate)}
-                </span>
-              </div>
-            )}
-
-            {/* Due Date */}
-            {task.dueDate && (
-              <div className="gba:flex gba:items-center gba:gap-2">
-                <Calendar className="gba:h-4 gba:w-4 gba:text-muted-foreground" />
-                <span className="gba:text-muted-foreground">Due:</span>
-                <span className="gba:font-medium" data-testid="task-detail-due-date">
-                  {formatDateTime(task.dueDate)}
-                </span>
-              </div>
-            )}
-
-            {/* Completed Date - Only show for completed tasks */}
-            {task.status === 'COMPLETED' && task.completedAt && (
-              <div className="gba:flex gba:items-center gba:gap-2">
-                <Calendar className="gba:h-4 gba:w-4 gba:text-success" />
-                <span className="gba:text-success">Completed:</span>
-                <span className="gba:font-medium gba:text-success" data-testid="task-detail-completed-at">
-                  {formatDateTime(task.completedAt)}
-                </span>
-              </div>
-            )}
-          </div>
-
-          {/* Description/Message */}
-          {taskDescription && (
-            <>
-              <Separator />
-              <div>
-                <h4 className="gba:font-semibold gba:mb-3 gba:text-lg">Description</h4>
-                <p className="gba:text-sm gba:leading-relaxed gba:text-muted-foreground">{taskDescription}</p>
-              </div>
-            </>
-          )}
-
-          {/* Task inputs/context data */}
-          {taskInputs && typeof taskInputs === 'object' && Object.keys(taskInputs).length > 0 && (
-            <>
-              <Separator />
-              <div>
-                <h4 className="gba:font-semibold gba:mb-3 gba:text-lg">Task Context</h4>
-                <div className="gba:bg-muted gba:p-4 gba:rounded-lg gba:space-y-3">
-                  {Object.entries(taskInputs).map(([key, value]) => (
-                    <div key={key} className="gba:flex gba:gap-3">
-                      <span className="gba:text-sm gba:font-medium gba:text-muted-foreground gba:min-w-[140px]">
-                        {key}:
-                      </span>
-                      <span className="gba:text-sm gba:flex-1 gba:break-words">
-                        {typeof value === 'object' ? JSON.stringify(value) : String(value)}
-                      </span>
-                    </div>
-                  ))}
-                </div>
-              </div>
-            </>
-          )}
-
-          {/* Info Alert */}
-          {!hasEndpoint && !isBlinkTask && (
+            {/* Info Alert - Different task templates have dedicated views */}
             <Alert>
               <Info className="gba:h-4 gba:w-4" />
               <AlertDescription className="gba:text-sm">
-                This task can be viewed and managed from here. Use the task list to perform actions on it.
+                {hasEndpoint ? (
+                  <>
+                    Click <strong>Open Task</strong> below to view full details and take action in the dedicated task
+                    screen.
+                  </>
+                ) : isBlinkTask ? (
+                  <>This is a quick Blink task. You can complete it directly from here.</>
+                ) : (
+                  <>
+                    This task will open in its dedicated view where you can see all details and take appropriate
+                    actions.
+                  </>
+                )}
               </AlertDescription>
             </Alert>
-          )}
-        </div>
+          </div>
+        )}
       </CardContent>
 
-      {/* Action buttons - Fixed at bottom */}
-      <div className="gba:border-t gba:p-4 gba:flex gba:gap-2 gba:justify-end gba:bg-muted/30">
-        <Button variant="outline" onClick={onClose} data-testid="task-detail-cancel-button">
-          Close
-        </Button>
-
-        {/* Primary action for Blink tasks: Complete directly */}
-        {isBlinkTask && task.status !== 'COMPLETED' && (
-          <Button
-            onClick={handleCompleteBlinkTask}
-            disabled={isCompleting}
-            data-testid="task-detail-complete-button"
-            className="gba:bg-gradient-to-r gba:from-blue-600 gba:to-indigo-600 gba:text-white"
-          >
-            <CheckCircle className="gba:mr-2 gba:h-4 gba:w-4" />
-            {isCompleting ? 'Completing...' : 'Complete Task'}
+      {/* Action buttons - Fixed at bottom (hidden for tasks with dedicated detail views) */}
+      {!(isApprovalTask && task.status !== 'COMPLETED') && (
+        <div className="gba:border-t gba:p-4 gba:flex gba:gap-2 gba:justify-end gba:bg-muted/30">
+          <Button variant="outline" onClick={onClose} data-testid="task-detail-cancel-button">
+            Close
           </Button>
-        )}
 
-        {/* Primary action for other tasks: Open in dedicated screen */}
-        {!isBlinkTask && hasEndpoint && task.status !== 'COMPLETED' && (
-          <Button onClick={handleOpenTask} data-testid="task-detail-open-button">
-            <CheckCircle className="gba:mr-2 gba:h-4 gba:w-4" />
-            Open Task
-          </Button>
-        )}
-      </div>
+          {/* Primary action for Blink tasks: Complete directly */}
+          {isBlinkTask && task.status !== 'COMPLETED' && (
+            <Button
+              onClick={handleCompleteBlinkTask}
+              disabled={isCompleting}
+              data-testid="task-detail-complete-button"
+              className="gba:bg-gradient-to-r gba:from-blue-600 gba:to-indigo-600 gba:text-white"
+            >
+              <CheckCircle className="gba:mr-2 gba:h-4 gba:w-4" />
+              {isCompleting ? 'Completing...' : 'Complete Task'}
+            </Button>
+          )}
+
+          {/* Primary action for tasks with endpoint: Open in dedicated screen */}
+          {hasEndpoint && task.status !== 'COMPLETED' && (
+            <Button
+              onClick={handleOpenTask}
+              data-testid="task-detail-open-button"
+              className="gba:flex gba:items-center gba:gap-2"
+            >
+              <ExternalLink className="gba:h-4 gba:w-4" />
+              Open Task
+            </Button>
+          )}
+        </div>
+      )}
     </Card>
   )
 }

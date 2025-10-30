@@ -128,9 +128,9 @@ export const FlowCard: React.FC<FlowCardProps> = memo(({ flow, onView, accessTok
                     data-testid="flow-blink-badge"
                   >
                     <Zap className="gba:h-3 gba:w-3 gba:mr-1" />
-                    {!isSelected && 'Blink'}
+                    Blink
                   </Badge>
-                  {!isSelected && visibleAssigneeIds.length > 0 && (
+                  {visibleAssigneeIds.length > 0 && (
                     <div className="gba:flex gba:items-center gba:gap-1.5" data-testid="flow-blink-assignees">
                       <ArrowRight className="gba:h-4 gba:w-4 gba:text-muted-foreground" />
                       <div className="gba:flex gba:items-center gba:-space-x-2">
@@ -150,37 +150,35 @@ export const FlowCard: React.FC<FlowCardProps> = memo(({ flow, onView, accessTok
                   )}
                 </>
               )}
-              {!isSelected && isServiceRequest && (
+              {isServiceRequest && (
                 <Badge variant="secondary" data-testid="flow-service-badge">
                   <FileText className="gba:h-3 gba:w-3 gba:mr-1" />
                   Service Request
                 </Badge>
               )}
-              {!isSelected && isExpenseFlow && (
+              {isExpenseFlow && (
                 <Badge variant="secondary" data-testid="flow-expense-badge">
                   <DollarSign className="gba:h-3 gba:w-3 gba:mr-1" />
                   Expenses
                 </Badge>
               )}
-              {!isSelected && isAbsenceRequest && (
+              {isAbsenceRequest && (
                 <Badge variant="secondary" data-testid="flow-absence-badge">
                   <Calendar className="gba:h-3 gba:w-3 gba:mr-1" />
                   Absences
                 </Badge>
               )}
-              {!isSelected && (
-                <Badge variant={getFlowStatusBadgeVariant(flow.status)} data-testid="flow-status-badge">
-                  {formatFlowStatus(flow.status)}
-                </Badge>
-              )}
+              <Badge variant={getFlowStatusBadgeVariant(flow.status)} data-testid="flow-status-badge">
+                {formatFlowStatus(flow.status)}
+              </Badge>
             </div>
 
             <h3 className="gba:font-semibold gba:text-sm gba:mb-1 gba:truncate" data-testid="flow-title">
               {flow.templateName}
             </h3>
 
-            {/* Show assignee completion for all blinks (both single and multi-user) - Hide when selected */}
-            {!isSelected && shouldShowAssigneeProgress && (
+            {/* Show assignee completion for all blinks (both single and multi-user) */}
+            {shouldShowAssigneeProgress && (
               <div className="gba:mb-1.5">
                 <div className="gba:flex gba:items-center gba:gap-1.5 gba:text-xs gba:mb-0.5">
                   <Users className="gba:h-3.5 gba:w-3.5 gba:text-muted-foreground" />
@@ -196,8 +194,8 @@ export const FlowCard: React.FC<FlowCardProps> = memo(({ flow, onView, accessTok
               </div>
             )}
 
-            {/* Show step progress for non-blink flows only - Hide when selected */}
-            {!isSelected && !shouldShowAssigneeProgress && flow.totalSteps > 0 && (
+            {/* Show step progress for non-blink flows only */}
+            {!shouldShowAssigneeProgress && flow.totalSteps > 0 && (
               <div className="gba:mb-1.5">
                 <div className="gba:flex gba:items-center gba:justify-between gba:text-xs gba:text-muted-foreground gba:mb-0.5">
                   <span>Progress</span>
@@ -209,17 +207,15 @@ export const FlowCard: React.FC<FlowCardProps> = memo(({ flow, onView, accessTok
               </div>
             )}
 
-            {!isSelected && (
-              <div className="gba:flex gba:items-center gba:gap-4 gba:text-xs gba:text-muted-foreground">
-                <div className="gba:flex gba:items-center gba:gap-1">
-                  <Calendar className="gba:h-3 gba:w-3" />
-                  <span data-testid="flow-started-at">Started {formatRelativeTime(flow.startedAt)}</span>
-                </div>
-                {flow.completedAt && (
-                  <span data-testid="flow-completed-at">Completed {formatDateTime(flow.completedAt)}</span>
-                )}
+            <div className="gba:flex gba:items-center gba:gap-4 gba:text-xs gba:text-muted-foreground">
+              <div className="gba:flex gba:items-center gba:gap-1">
+                <Calendar className="gba:h-3 gba:w-3" />
+                <span data-testid="flow-started-at">Started {formatRelativeTime(flow.startedAt)}</span>
               </div>
-            )}
+              {flow.completedAt && (
+                <span data-testid="flow-completed-at">Completed {formatDateTime(flow.completedAt)}</span>
+              )}
+            </div>
           </div>
         </div>
       </CardContent>

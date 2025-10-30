@@ -5,10 +5,9 @@
 
 import React, { useMemo } from 'react'
 import {
-  Dialog,
-  DialogContent,
-  DialogHeader,
-  DialogTitle,
+  Card,
+  CardContent,
+  CardHeader,
   Badge,
   Button,
   Separator,
@@ -17,7 +16,7 @@ import {
   AvatarImage,
   AvatarFallback
 } from '@newwork/nw-design-system'
-import { Calendar, CheckCircle, Circle, Users, Clock } from 'lucide-react'
+import { Calendar, CheckCircle, Circle, Users, Clock, X } from 'lucide-react'
 import { Flow } from '../types'
 import {
   formatDateTime,
@@ -30,7 +29,6 @@ import { base64ToObjectURL } from '../utils/avatarUtils'
 
 interface FlowDetailDialogProps {
   flow: Flow | null
-  open: boolean
   onClose: () => void
   accessToken: string
 }
@@ -144,18 +142,35 @@ const InitiatorInfo: React.FC<InitiatorInfoProps> = ({ initiatorUserId, accessTo
   )
 }
 
-export const FlowDetailDialog: React.FC<FlowDetailDialogProps> = ({ flow, open, onClose, accessToken }) => {
+export const FlowDetailDialog: React.FC<FlowDetailDialogProps> = ({ flow, onClose, accessToken }) => {
   if (!flow) return null
 
   const progressPercentage = flow.totalSteps > 0 ? Math.round((flow.currentStep / flow.totalSteps) * 100) : 0
 
   return (
-    <Dialog open={open} onOpenChange={onClose}>
-      <DialogContent className="gba:max-w-2xl gba:max-h-[80vh] gba:overflow-y-auto" data-testid="flow-detail-dialog">
-        <DialogHeader>
-          <DialogTitle data-testid="flow-detail-title">{flow.templateName}</DialogTitle>
-        </DialogHeader>
+    <Card className="gba:h-full gba:flex gba:flex-col gba:shadow-lg" data-testid="flow-detail-dialog">
+      {/* Header with Close Button */}
+      <CardHeader className="gba:border-b gba:pb-4">
+        <div className="gba:flex gba:items-start gba:justify-between gba:gap-4">
+          <div className="gba:flex-1">
+            <h2 className="gba:text-2xl gba:font-bold gba:mb-3" data-testid="flow-detail-title">
+              {flow.templateName}
+            </h2>
+          </div>
+          <Button
+            variant="ghost"
+            size="icon"
+            onClick={onClose}
+            className="gba:rounded-full gba:hover:bg-muted gba:flex-shrink-0"
+            data-testid="flow-detail-close-button"
+          >
+            <X className="gba:h-5 gba:w-5" />
+          </Button>
+        </div>
+      </CardHeader>
 
+      {/* Scrollable Content */}
+      <CardContent className="gba:flex-1 gba:overflow-y-auto gba:pt-6">
         <div className="gba:space-y-4">
           {/* Status Badge */}
           <div className="gba:flex gba:items-center gba:gap-2">
@@ -319,15 +334,8 @@ export const FlowDetailDialog: React.FC<FlowDetailDialogProps> = ({ flow, open, 
               </div>
             </>
           )}
-
-          {/* Action buttons */}
-          <div className="gba:flex gba:gap-2 gba:justify-end">
-            <Button variant="outline" onClick={onClose} data-testid="flow-detail-close-button">
-              Close
-            </Button>
-          </div>
         </div>
-      </DialogContent>
-    </Dialog>
+      </CardContent>
+    </Card>
   )
 }

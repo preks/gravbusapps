@@ -186,8 +186,14 @@ export function applyFilters(tasks: UnifiedTask[], filters: ParsedTaskFilters): 
         break
       case 'createdAt':
       default:
-        aValue = a.createdAt || a.scheduledAt ? new Date(a.createdAt || a.scheduledAt!).getTime() : 0
-        bValue = b.createdAt || b.scheduledAt ? new Date(b.createdAt || b.scheduledAt!).getTime() : 0
+        // For completed tasks, sort by completedAt; otherwise use createdAt/scheduledAt
+        if (a.status === 'COMPLETED' && b.status === 'COMPLETED') {
+          aValue = a.completedAt ? new Date(a.completedAt).getTime() : 0
+          bValue = b.completedAt ? new Date(b.completedAt).getTime() : 0
+        } else {
+          aValue = a.createdAt || a.scheduledAt ? new Date(a.createdAt || a.scheduledAt!).getTime() : 0
+          bValue = b.createdAt || b.scheduledAt ? new Date(b.createdAt || b.scheduledAt!).getTime() : 0
+        }
         break
     }
 

@@ -231,12 +231,7 @@ export const OutboxView: React.FC<OutboxViewProps> = ({ flows, isLoading, error,
         }`}
       >
         {selectedFlow && (
-          <FlowDetailDialog
-            flow={selectedFlow}
-            open={!!selectedFlow}
-            onClose={() => setSelectedFlow(null)}
-            accessToken={accessToken}
-          />
+          <FlowDetailDialog flow={selectedFlow} onClose={() => setSelectedFlow(null)} accessToken={accessToken} />
         )}
       </div>
     </div>
