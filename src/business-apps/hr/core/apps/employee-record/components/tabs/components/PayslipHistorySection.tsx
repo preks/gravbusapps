@@ -19,12 +19,14 @@ import {
   SelectTrigger,
   SelectValue,
   SelectContent,
-  SelectItem
+  SelectItem,
+  toast
 } from '@newwork/nw-design-system'
 import { PiDownload, PiMagnifyingGlass, PiEye } from 'react-icons/pi'
 import { EmployeePayslip } from '../../../types/compensationTypes'
 import { getTranslationFromI18nKeyAndLabel } from '../../../../../../../../common/utils/windowUtils'
 import { getPayslipStatusLabel, getPayslipStatusVariant } from '../../../types/compensationEnums'
+import { sanitizeFilename } from '../../../../../../../../common/utils/textUtils'
 
 interface PayslipHistorySectionProps {
   payslips: EmployeePayslip[]
@@ -87,18 +89,53 @@ const PayslipHistorySection: React.FC<PayslipHistorySectionProps> = ({ payslips,
     setCurrentPage(1)
   }, [searchQuery, selectedYear])
 
-  // Handle view
+  // Handle view - opens document in new tab for viewing
   const handleView = (payslip: EmployeePayslip) => {
-    alert(
-      `View payslip for ${payslip.monthName}\nGross Amount: ${formatCurrency(payslip.grossAmount, payslip.currency.code)}`
-    )
+    if (!payslip.documentUrl) {
+      toast.warning(
+        getTranslationFromI18nKeyAndLabel(
+          'lowcoder:compensation.payslip.no_document',
+          'Payslip document is not available at the moment.'
+        )
+      )
+      return
+    }
+    window.open(payslip.documentUrl, '_blank', 'noopener,noreferrer')
   }
 
-  // Handle download
+  // Handle download - triggers actual file download
   const handleDownload = (payslip: EmployeePayslip) => {
-    alert(
-      `Download payslip for ${payslip.monthName}\nGross Amount: ${formatCurrency(payslip.grossAmount, payslip.currency.code)}`
-    )
+    if (!payslip.documentUrl) {
+      toast.warning(
+        getTranslationFromI18nKeyAndLabel(
+          'lowcoder:compensation.payslip.no_document',
+          'Payslip document is not available at the moment.'
+        )
+      )
+      return
+    }
+
+    try {
+      // Generate safe filename
+      const filename = sanitizeFilename(`payslip-${payslip.payPeriod || payslip.fiscalYear}.pdf`)
+
+      // Create download link
+      const link = document.createElement('a')
+      link.href = payslip.documentUrl
+      link.download = filename
+      link.setAttribute('rel', 'noopener noreferrer')
+      document.body.appendChild(link)
+      link.click()
+      link.remove()
+    } catch (error) {
+      console.error('Error downloading payslip:', error)
+      toast.warning(
+        getTranslationFromI18nKeyAndLabel(
+          'lowcoder:compensation.payslip.download_failed',
+          'Failed to download payslip. Please try again.'
+        )
+      )
+    }
   }
 
   return (
