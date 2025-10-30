@@ -16,3 +16,6 @@ export * from './useInvestmentReports'
 
 // Data Integration Hook (combines multiple data sources)
 export * from './useInvestmentDataIntegration'
+
+// Prospect Rejection Reasons Hook
+export * from './useProspectRejectionReasons'

@@ -63,6 +63,7 @@ export enum FlowContextName {
   investmentLeadEntity = 'investmentLeadEntity',
   investmentLeadCreate = 'investmentLeadCreate',
   investmentLeadUpdate = 'investmentLeadUpdate',
+  investmentLeadReject = 'investmentLeadReject',
 
   /// Investment Accounts
   investmentAccountEntity = 'investmentAccountEntity',
@@ -80,6 +81,7 @@ export enum FlowContextName {
   investmentOpportunityUpdate = 'investmentOpportunityUpdate',
   investmentOpportunityStageTransition = 'investmentOpportunityStageTransition',
   investmentOpportunityConditionUpdate = 'investmentOpportunityConditionUpdate',
+  investmentOpportunityReject = 'investmentOpportunityReject',
 
   /// Investment Activities
 
