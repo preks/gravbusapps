@@ -92,14 +92,25 @@ export const AmountField: React.FC<AmountFieldProps> = ({
   useEffect(() => {
     const currentValueStr = String(watchedAmount || '')
 
+    console.log('[AmountField OCR Debug]', {
+      index,
+      watchedAmount,
+      currentValueStr,
+      previousValue: previousValueRef.current
+    })
+
     // Only process if value changed
     if (previousValueRef.current !== currentValueStr && watchedAmount) {
       previousValueRef.current = currentValueStr
+
+      console.log('[AmountField OCR] Value changed, processing...')
 
       // Check if we have a form value that looks like it came from OCR (unformatted number)
       if (/^[\d,.]+$/.test(currentValueStr)) {
         const numValue =
           typeof watchedAmount === 'number' ? watchedAmount : parseFloat(String(watchedAmount).replace(',', '.'))
+
+        console.log('[AmountField OCR] Parsed numValue:', numValue)
 
         if (!isNaN(numValue) && numValue > 0) {
           const platformFormatted = formatNumberFunction(String(numValue), '0.00[,]00')
@@ -111,14 +122,23 @@ export const AmountField: React.FC<AmountFieldProps> = ({
           const finalDisplay =
             platformFormatted && platformFormatted !== String(numValue) ? platformFormatted : intlFormatted
 
+          console.log('[AmountField OCR] Formatting:', {
+            platformFormatted,
+            intlFormatted,
+            finalDisplay,
+            willUpdate: currentValueStr !== finalDisplay
+          })
+
           // Only update if format is different
           if (currentValueStr !== finalDisplay) {
             // Use setTimeout to avoid updating during render
             setTimeout(() => {
+              console.log('[AmountField OCR] Setting formatted value and calling onAmountChange')
               form.setFieldsValue({ [`amount-${index}`]: finalDisplay })
               previousValueRef.current = finalDisplay
               // IMPORTANT: Notify parent component of the numeric value for validation
               onAmountChange(numValue)
+              console.log('[AmountField OCR] onAmountChange called with:', numValue)
             }, 100)
           }
         }
