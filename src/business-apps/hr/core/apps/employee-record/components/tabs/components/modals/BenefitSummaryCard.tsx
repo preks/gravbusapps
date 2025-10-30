@@ -1,7 +1,8 @@
 import React from 'react'
 import { getTranslationFromI18nKeyAndLabel } from '@/common/utils/windowUtils'
 import { BenefitCatalogItem } from '../../../../types/benefitCatalogTypes'
-import { formatCurrency, formatDate } from '../../../../utils/utils'
+import { formatCurrencyString } from '@/common/utils/numberFormatter'
+import { formatForDisplay } from '@/common/utils/dateFormatter'
 
 interface BenefitSummaryCardProps {
   benefit: BenefitCatalogItem
@@ -29,7 +30,12 @@ const BenefitSummaryCard: React.FC<BenefitSummaryCardProps> = ({ benefit }) => {
           <span className="gba:font-medium">
             {getTranslationFromI18nKeyAndLabel('lowcoder:compensation.value', 'Value')}:
           </span>{' '}
-          {formatCurrency(benefit.yearlyAmount)} / year
+          {formatCurrencyString(benefit.yearlyAmount, {
+            currency: 'EUR',
+            minimumFractionDigits: 0,
+            maximumFractionDigits: 0
+          })}{' '}
+          / year
         </div>
       )}
 
@@ -38,7 +44,7 @@ const BenefitSummaryCard: React.FC<BenefitSummaryCardProps> = ({ benefit }) => {
           <span className="gba:font-medium">
             {getTranslationFromI18nKeyAndLabel('lowcoder:compensation.start_date', 'Start Date')}:
           </span>{' '}
-          {formatDate(benefit.startDate)}
+          {formatForDisplay(benefit.startDate)}
         </div>
       )}
     </div>
