@@ -68,8 +68,8 @@ export const AmountField: React.FC<AmountFieldProps> = ({
       }
     }
 
-    const num = parseFloat(cleaned)
-    if (isNaN(num)) {
+    const num = Number.parseFloat(cleaned)
+    if (Number.isNaN(num)) {
       return
     }
 
@@ -90,8 +90,8 @@ export const AmountField: React.FC<AmountFieldProps> = ({
 
   const parseNumericValue = (value: any): number | null => {
     if (typeof value === 'number') return value
-    const parsed = parseFloat(String(value).replace(',', '.'))
-    return !isNaN(parsed) && parsed > 0 ? parsed : null
+    const parsed = Number.parseFloat(String(value).replace(',', '.'))
+    return !Number.isNaN(parsed) && parsed > 0 ? parsed : null
   }
 
   const formatAmountForLocale = (numValue: number): string => {
@@ -169,9 +169,9 @@ export const AmountField: React.FC<AmountFieldProps> = ({
 
         form.setFieldsValue({ [`amount-${index}`]: value })
 
-        // Parse for immediate validation (normalize comma to period for parseFloat)
+        // Parse for immediate validation (normalize comma to period for Number.parseFloat)
         const normalizedValue = value.replace(',', '.')
-        onAmountChange(parseFloat(normalizedValue) || 0)
+        onAmountChange(Number.parseFloat(normalizedValue) || 0)
       }}
       onBlur={handleAmountBlur}
       required={true}
