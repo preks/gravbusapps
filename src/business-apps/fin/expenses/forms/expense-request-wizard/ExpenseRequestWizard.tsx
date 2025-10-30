@@ -181,7 +181,7 @@ const ExpenseRequestWizardContent: React.FC<BusinessAppContextProps> = ({ access
   }
 
   // useEffect for initial screen setup ONLY
-  const hasInitializedRef = React.useRef(false)
+  const hasInitializedRef = React.useRef<boolean>(false)
   useEffect(() => {
     if (!loading && expenseRequestData && !hasInitializedRef.current) {
       setInitialScreen(additionalData, expenseRequestData, isTrip, setCurrentScreen, currentScreen)
