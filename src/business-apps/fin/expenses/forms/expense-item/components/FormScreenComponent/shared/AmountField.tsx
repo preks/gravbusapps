@@ -31,6 +31,9 @@ export const AmountField: React.FC<AmountFieldProps> = ({
   const { t } = useTranslation()
   const previousValueRef = useRef<string | undefined>()
 
+  // Watch the form field value to detect OCR changes
+  const watchedAmount = Form.useWatch(`amount-${index}`, form)
+
   const handleAmountBlur = () => {
     const currentValue = form.getFieldValue(`amount-${index}`)
 
@@ -87,19 +90,16 @@ export const AmountField: React.FC<AmountFieldProps> = ({
 
   // Format amount when it changes from external source (e.g., OCR from receipt)
   useEffect(() => {
-    const currentFormValue = form.getFieldValue(`amount-${index}`)
-    const currentValueStr = String(currentFormValue || '')
+    const currentValueStr = String(watchedAmount || '')
 
     // Only process if value changed
-    if (previousValueRef.current !== currentValueStr && currentFormValue) {
+    if (previousValueRef.current !== currentValueStr && watchedAmount) {
       previousValueRef.current = currentValueStr
 
       // Check if we have a form value that looks like it came from OCR (unformatted number)
       if (/^[\d,.]+$/.test(currentValueStr)) {
         const numValue =
-          typeof currentFormValue === 'number'
-            ? currentFormValue
-            : parseFloat(String(currentFormValue).replace(',', '.'))
+          typeof watchedAmount === 'number' ? watchedAmount : parseFloat(String(watchedAmount).replace(',', '.'))
 
         if (!isNaN(numValue) && numValue > 0) {
           const platformFormatted = formatNumberFunction(String(numValue), '0.00[,]00')
@@ -124,7 +124,7 @@ export const AmountField: React.FC<AmountFieldProps> = ({
         }
       }
     }
-  })
+  }, [watchedAmount, form, index, onAmountChange])
 
   const renderAmountInput = () => (
     <InputField
