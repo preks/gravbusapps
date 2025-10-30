@@ -366,7 +366,7 @@ export const LeadView: React.FC<LeadViewProps> = context => {
           },
           actions: (
             <AppAction
-              contextsArray={[FlowContextName.investmentCreateLead]}
+              contextsArray={[FlowContextName.investmentLeadCreate]}
               accessToken={accessToken}
               data-testid="add-lead-action-wrapper"
               emptyStateBehavior="hide"

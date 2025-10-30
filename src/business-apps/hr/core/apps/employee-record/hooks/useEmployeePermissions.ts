@@ -4,13 +4,16 @@ import usePermissionCheck, { ResourcePermissionMap } from '../../../../../../com
 export const TAB_KEYS = {
   summary: 'summary',
   details: 'details',
+  timeTracking: 'timeTracking',
   employment: 'employment',
   documents: 'documents',
   performance: 'performance',
   feedback: 'feedback',
   absences: 'absences',
   skills: 'skills',
-  serviceRequests: 'serviceRequests'
+  serviceRequests: 'serviceRequests',
+  changeLog: 'changeLog',
+  hrNotes: 'hrNotes'
 }
 
 // Section key constants for the employee record app
@@ -144,6 +147,11 @@ const employeeTabPermissionMap: Record<string, ResourcePermissionMap> = {
     resource: 'employee_document_development',
     permission: 'read'
   },
+  [TAB_KEYS.timeTracking]: {
+    domain: 'employee',
+    resource: 'employee_time',
+    permission: 'read'
+  },
   [TAB_KEYS.absences]: {
     domain: 'employee',
     resource: 'employee_absence',
@@ -172,6 +180,16 @@ const employeeTabPermissionMap: Record<string, ResourcePermissionMap> = {
     }
   },
   [TAB_KEYS.serviceRequests]: {
+    domain: 'employee',
+    resource: 'employee',
+    permission: 'read'
+  },
+  [TAB_KEYS.changeLog]: {
+    domain: 'employee',
+    resource: 'employee',
+    permission: 'read'
+  },
+  [TAB_KEYS.hrNotes]: {
     domain: 'employee',
     resource: 'employee',
     permission: 'read'

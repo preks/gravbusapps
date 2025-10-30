@@ -22,12 +22,11 @@ import {
   SelectTrigger,
   SelectValue
 } from '@newwork/nw-design-system'
-import { FileText, AlignLeft } from 'lucide-react'
+import { FileText, AlignLeft, Info } from 'lucide-react'
 import { FlowRenderer } from '@/business-apps/flow/common/components'
 import { FlowStep, FlowStepType, AssignmentMode } from '../../types/flowTemplate'
 import { FlowTemplate } from '@/common/network/flows/FlowTemplateClient'
 import { useFlowTemplateClient } from '@/common/network/flows/useFlowTemplateClient'
-import { BasicConfiguration } from '../steps/BasicConfiguration'
 import { InputFieldsContent, InputFieldsTrigger } from '../steps/InputFieldsConfiguration'
 import { LinksContent, LinksTrigger } from '../steps/LinksConfiguration'
 import { TagConfiguration } from '../steps/TagConfiguration'
@@ -154,6 +153,15 @@ export const FlowDesigner: React.FC<FlowDesignerProps> = ({
     setSelectedStepIndex(i => Math.max(0, i - 1))
   }
 
+  const handleReorderSteps = (fromIndex: number, toIndex: number) => {
+    setSteps(prev => {
+      const newSteps = [...prev]
+      const [draggedStep] = newSteps.splice(fromIndex, 1)
+      newSteps.splice(toIndex, 0, draggedStep)
+      return newSteps
+    })
+  }
+
   // Save handler - implements template ID immutability
   const handleSave = async () => {
     if (!templateName.trim()) {
@@ -195,8 +203,6 @@ export const FlowDesigner: React.FC<FlowDesignerProps> = ({
           await flowTemplateClient.createTemplate(templateData)
         }
       }
-
-      console.log(`Template ${isEditMode ? 'updated' : 'created'} successfully`)
     } catch (error) {
       console.error('Error saving template:', error)
       setSaveError(error instanceof Error ? error.message : 'Failed to save template')
@@ -227,17 +233,6 @@ export const FlowDesigner: React.FC<FlowDesignerProps> = ({
                 Cancel
               </Button>
             )}
-            <Button variant="outline" data-testid={`${testId}-add-step`} onClick={addStepBelow}>
-              Add Step
-            </Button>
-            <Button
-              variant="outline"
-              data-testid={`${testId}-remove-step`}
-              onClick={removeSelectedStep}
-              disabled={steps.length <= 1}
-            >
-              Remove Step
-            </Button>
             <Button onClick={handleSave} disabled={isSaving || !templateName.trim()} data-testid={`${testId}-save`}>
               {isSaving ? (
                 <>
@@ -260,13 +255,14 @@ export const FlowDesigner: React.FC<FlowDesignerProps> = ({
           </div>
         )}
 
-        {/* Template Information */}
-        <Card className="gba:mb-6">
-          <CardHeader>
-            <CardTitle>Template Information</CardTitle>
-          </CardHeader>
-          <CardContent>
-            <div className="gba:grid gba:grid-cols-1 md:gba:grid-cols-2 gba:gap-6">
+        {/* Template Information and Tags Row */}
+        <div className="gba:grid gba:grid-cols-1 gba:lg:grid-cols-5 gba:gap-6 gba:mb-6">
+          {/* Template Information Card */}
+          <Card className="gba:lg:col-span-3">
+            <CardHeader>
+              <CardTitle>Template Information</CardTitle>
+            </CardHeader>
+            <CardContent>
               <div className="gba:space-y-4">
                 <div className="gba:space-y-2">
                   <Label htmlFor="template-name" className="gba:flex gba:items-center gba:gap-2">
@@ -296,19 +292,32 @@ export const FlowDesigner: React.FC<FlowDesignerProps> = ({
                   />
                 </div>
               </div>
+            </CardContent>
+          </Card>
 
-              {/* Tag Configuration Section */}
-              <div className="gba:space-y-2">
-                <TagConfiguration
-                  tags={templateTags}
-                  onTagsChange={setTemplateTags}
-                  accessToken={accessToken}
-                  data-testid={`${testId}-tag-configuration`}
-                />
-              </div>
-            </div>
-          </CardContent>
-        </Card>
+          {/* Tags Card */}
+          <Card className="gba:lg:col-span-2">
+            <CardHeader>
+              <CardTitle className="gba:flex gba:items-center gba:gap-2">
+                Tags
+                <div className="gba:group gba:relative">
+                  <Info className="gba:h-4 gba:w-4 gba:text-gray-400 gba:cursor-help" />
+                  <div className="gba:absolute gba:bottom-full gba:left-1/2 gba:transform gba:-translate-x-1/2 gba:mb-2 gba:px-3 gba:py-2 gba:bg-gray-900 gba:text-white gba:text-xs gba:rounded gba:opacity-0 gba:pointer-events-none group-hover:gba:opacity-100 gba:transition-opacity gba:duration-200 gba:z-[100] gba:max-w-xs gba:text-center gba:whitespace-normal">
+                    Tags control template visibility in different parts of the application
+                  </div>
+                </div>
+              </CardTitle>
+            </CardHeader>
+            <CardContent>
+              <TagConfiguration
+                tags={templateTags}
+                onTagsChange={setTemplateTags}
+                accessToken={accessToken}
+                data-testid={`${testId}-tag-configuration`}
+              />
+            </CardContent>
+          </Card>
+        </div>
 
         <div className="gba:grid gba:grid-cols-1 gba:lg:grid-cols-5 gba:gap-6">
           {/* Canvas - 60% width */}
@@ -321,6 +330,7 @@ export const FlowDesigner: React.FC<FlowDesignerProps> = ({
                 steps={steps}
                 selectedStepIndex={selectedStepIndex}
                 onSelectStep={setSelectedStepIndex}
+                onReorderSteps={handleReorderSteps}
                 mode="edit"
                 data-testid={`${testId}-renderer`}
               />
@@ -333,8 +343,22 @@ export const FlowDesigner: React.FC<FlowDesignerProps> = ({
               <CardTitle>Step Configuration</CardTitle>
             </CardHeader>
             <CardContent className="gba:h-[calc(75vh-64px)] gba:flex gba:flex-col">
-              <div className="gba:mb-3 gba:flex-none" style={{ color: 'var(--color-text-secondary)' }}>
-                Selected: Step {selectedStepIndex + 1}
+              <div className="gba:mb-3 gba:flex gba:items-center gba:justify-between gba:flex-none">
+                <div style={{ color: 'var(--color-text-secondary)' }}>Selected: Step {selectedStepIndex + 1}</div>
+                <div className="gba:flex gba:gap-2">
+                  <Button size="sm" variant="outline" data-testid={`${testId}-add-step`} onClick={addStepBelow}>
+                    Add Step
+                  </Button>
+                  <Button
+                    size="sm"
+                    variant="outline"
+                    data-testid={`${testId}-remove-step`}
+                    onClick={removeSelectedStep}
+                    disabled={steps.length <= 1}
+                  >
+                    Remove Step
+                  </Button>
+                </div>
               </div>
               <Tabs
                 value={activeTab}

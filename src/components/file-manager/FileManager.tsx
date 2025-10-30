@@ -647,7 +647,7 @@ export const FileManager: React.FC<FileManagerProps> = ({
               {/* New Folder AppAction - uses createCustomerDocument flow context */}
               <AppAction
                 accessToken={context.accessToken}
-                contextsArray={[FlowContextName.createCustomerDocument]}
+                contextsArray={[FlowContextName.customerDocumentCreate]}
                 externalContextData={{
                   accountId: entity.type === 'account' ? entity.id : undefined,
                   account: entity.type === 'account' ? entity.id : undefined,
@@ -673,7 +673,7 @@ export const FileManager: React.FC<FileManagerProps> = ({
               {/* Upload Files AppAction - uses createCustomerDocument flow context */}
               <AppAction
                 accessToken={context.accessToken}
-                contextsArray={[FlowContextName.createCustomerDocument]}
+                contextsArray={[FlowContextName.customerDocumentCreate]}
                 externalContextData={{
                   accountId: entity.type === 'account' ? entity.id : undefined,
                   account: entity.type === 'account' ? entity.id : undefined,

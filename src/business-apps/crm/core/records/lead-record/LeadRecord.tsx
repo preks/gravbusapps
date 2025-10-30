@@ -336,7 +336,7 @@ const LeadRecordContent: React.FC<LeadRecordContentProps> = ({ leadId, onBack, f
 
   const taskActionProps = useMemo(
     () => ({
-      contextsArray: [FlowContextName.createCustomerTask],
+      contextsArray: [FlowContextName.customerTaskCreate],
       externalContextData: {
         leadId,
         lead: leadId,
@@ -355,7 +355,7 @@ const LeadRecordContent: React.FC<LeadRecordContentProps> = ({ leadId, onBack, f
 
   const approvalActionProps = useMemo(
     () => ({
-      contextsArray: [FlowContextName.createCustomerTask],
+      contextsArray: [FlowContextName.customerTaskCreate],
       externalContextData: {
         leadId,
         lead: leadId,

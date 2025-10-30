@@ -496,7 +496,7 @@ const ExitOpportunities: React.FC<ExitOpportunitiesProps> = ({
           ),
           actions: (
             <AppAction
-              contextsArray={[FlowContextName.investmentCreateOpportunity]}
+              contextsArray={[FlowContextName.investmentOpportunityCreate]}
               accessToken={accessToken}
               data-testid="exit-opportunities-add-action"
               emptyStateBehavior="hide"
