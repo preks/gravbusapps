@@ -45,7 +45,15 @@ export const useCompensationData = (employeeId: string, accessToken: string) => 
   const graphqlClient = useGraphqlClient(accessToken)
 
   const fetchCompensationData = useCallback(async () => {
-    if (!employeeId || !accessToken) {
+    // Early validation
+    if (!employeeId) {
+      setError('No employee ID provided')
+      setLoading(false)
+      return
+    }
+
+    if (!accessToken) {
+      setError('No access token provided')
       setLoading(false)
       return
     }
@@ -54,10 +62,15 @@ export const useCompensationData = (employeeId: string, accessToken: string) => 
       setLoading(true)
       setError(null)
 
-      // ✅ FETCH REAL DATA from EmployeeWorkingCondition
+      // Fetch data from GraphQL
       const result = await graphqlClient.request<any>(GET_EMPLOYEE_COMPENSATION_DATA, {
         employeeId
       })
+
+      // Validate response
+      if (!result) {
+        throw new Error('No data received from server')
+      }
 
       // Extract working condition data
       const workingCondition = result?.EmployeeWorkingCondition?.[0]
@@ -66,7 +79,7 @@ export const useCompensationData = (employeeId: string, accessToken: string) => 
         console.warn('No working condition found for employee:', employeeId)
       }
 
-      // ✅ Extract compensation band from employee position
+      // Extract compensation band from employee position
       const employeePosition = result?.EmployeePosition?.[0]
       const jobLevel = employeePosition?.jobPosition?.jobLevel
       const compensationBandData = jobLevel?.compensationBand
@@ -104,15 +117,15 @@ export const useCompensationData = (employeeId: string, accessToken: string) => 
               id: 'annual',
               value: 'Annually'
             },
-            compensationBand, // ✅ Now populated from EmployeePosition → JobLevel → CompensationBand
-            effectiveDate: workingCondition.hireDate, // Using hireDate as the effective date
-            endDate: workingCondition.exitDate, // Using exitDate as end date
-            // Additional fields from working condition
+            compensationBand, // Now populated from EmployeePosition → JobLevel → CompensationBand
+            effectiveDate: workingCondition.hireDate,
+            endDate: workingCondition.exitDate,
+
             monthlyGrossSalary: workingCondition.monthlyGrossSalary
           }
         : null
 
-      // ✅ Extract bonuses from GraphQL response
+      // Extract bonuses from GraphQL response
       const bonuses: EmployeeBonus[] = (result?.EmployeeBonus || []).map((bonus: any) => ({
         id: bonus.id,
         employeeId: bonus.employeeId,
@@ -128,7 +141,7 @@ export const useCompensationData = (employeeId: string, accessToken: string) => 
         notes: bonus.notes || ''
       }))
 
-      // ✅ Extract benefits from GraphQL response
+      // Extract benefits from GraphQL response
       const benefits: EmployeeBenefit[] = (result?.EmployeeBenefit || []).map((benefit: any) => ({
         id: benefit.id,
         employeeId: benefit.employeeId,
@@ -150,7 +163,6 @@ export const useCompensationData = (employeeId: string, accessToken: string) => 
       }))
 
       // Calculate total bonuses for current year (YTD)
-      // ✅ UPDATED: Now includes PENDING_COMPENSATION and APPROVED_COMPENSATION
       const currentYear = new Date().getFullYear()
       const totalBonusesYTD = bonuses
         .filter(bonus => {
@@ -160,7 +172,6 @@ export const useCompensationData = (employeeId: string, accessToken: string) => 
         .reduce((sum, bonus) => sum + bonus.amount, 0)
 
       // Count active benefits
-      // ✅ UPDATED: Now uses ACTIVE_BENEFIT enum value
       const activeBenefitsCount = benefits.filter(benefit => isBenefitActive(benefit.benefitStatus)).length
 
       // Set current compensation data
@@ -172,7 +183,7 @@ export const useCompensationData = (employeeId: string, accessToken: string) => 
         benefits
       })
 
-      // ✅ FETCH COMPENSATION HISTORY from EmployeeWorkingCondition
+      // FETCH COMPENSATION HISTORY from EmployeeWorkingCondition
       const historyResult = await graphqlClient.request<any>(GET_EMPLOYEE_COMPENSATION_HISTORY, {
         employeeId
       })
@@ -191,7 +202,7 @@ export const useCompensationData = (employeeId: string, accessToken: string) => 
         monthlyGrossSalary: wc.monthlyGrossSalary
       }))
 
-      // ✅ REAL DATA: Extract bonus history from GraphQL response
+      // Extract bonus history from GraphQL response
       const bonusHistory: EmployeeBonus[] = (historyResult?.EmployeeBonus || []).map((bonus: any) => ({
         id: bonus.id,
         employeeId: bonus.employeeId,
@@ -207,7 +218,7 @@ export const useCompensationData = (employeeId: string, accessToken: string) => 
         notes: bonus.notes || ''
       }))
 
-      // ✅ REAL DATA: Extract payslip history from GraphQL response with computed monthName
+      // Extract payslip history from GraphQL response with computed monthName
       const payslipHistory: EmployeePayslip[] = (historyResult?.EmployeePayslip || []).map((payslip: any) => {
         // Compute monthName from payPeriod (format: "YYYY-MM") or paymentDate as fallback
         let monthName = ''
@@ -250,7 +261,7 @@ export const useCompensationData = (employeeId: string, accessToken: string) => 
         }
       })
 
-      // 🔄 TODO: Replace with real growth data when EmployeeCareerMilestone table is created
+      // TODO: Replace with real growth data when EmployeeCareerMilestone table is created
       const growthData = getMockGrowthData()
 
       // Set history data
@@ -262,9 +273,26 @@ export const useCompensationData = (employeeId: string, accessToken: string) => 
       })
     } catch (err) {
       console.error('Error fetching compensation data:', err)
-      setError(err instanceof Error ? err.message : 'Failed to fetch compensation data')
 
-      // Set empty data on error
+      // Provide user-friendly error messages
+      let errorMessage = 'Failed to load compensation data'
+
+      if (err instanceof Error) {
+        // Check for specific error types
+        if (err.message.includes('fetch') || err.message.includes('network')) {
+          errorMessage = 'Network error. Please check your connection and try again.'
+        } else if (err.message.includes('No data received')) {
+          errorMessage = 'Unable to retrieve compensation data. Please try again later.'
+        } else if (err.message.includes('401') || err.message.includes('unauthorized')) {
+          errorMessage = 'Your session has expired. Please refresh the page.'
+        } else if (err.message) {
+          errorMessage = err.message
+        }
+      }
+
+      setError(errorMessage)
+
+      // Clear data on error
       setCompensationData(null)
       setHistoryData(null)
     } finally {
