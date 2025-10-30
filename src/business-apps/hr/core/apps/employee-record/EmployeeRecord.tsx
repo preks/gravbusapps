@@ -167,7 +167,8 @@ const EmployeeRecordContent: React.FC<EmployeeRecordContentProps> = ({
   const [activeTab, setActiveTab] = useState(initialActiveTab)
   const activeStructureId = getCurrentActiveStructureId()
   const feedbackTabFeatureFlag = useFeature('dev.employee-record.feedback.enabled')
-  const changeLogTabFeatureFlag = useFeature('dev.employee-record.changelog.enabled')
+  // const changeLogTabFeatureFlag = useFeature('dev.employee-record.changelog.enabled')
+  const changeLogTabFeatureFlag = true
   const timeTrackingTabFeatureFlag = useFeature('dev.employee-record.timetracking.enabled')
 
   // Update URL when active tab changes

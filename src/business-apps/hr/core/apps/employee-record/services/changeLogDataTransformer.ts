@@ -47,6 +47,7 @@ export class ChangeLogDataTransformer {
             id: `communication-${comm.id}`,
             fieldName: 'Communication',
             fieldCategory: 'address',
+            fieldDetail: comm?.channel?.value ? `Channel: ${comm.channel.value}` : undefined,
             previousValue: this.formatCommunicationValue(employee.communication[index - 1]),
             newValue: this.formatCommunicationValue(comm),
             timestamp: comm.updatedAt || comm.createdAt,

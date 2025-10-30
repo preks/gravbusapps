@@ -11,6 +11,7 @@ export interface ChangeLogEntry {
   id: string
   fieldName: string
   fieldCategory: string
+  fieldDetail?: string
   previousValue: string | null
   newValue: string | null
   timestamp: string
@@ -52,6 +53,8 @@ export const ChangeLogTab: React.FC<ChangeLogTabProps> = ({ employeeId, employee
   const [filteredEntries, setFilteredEntries] = useState<ChangeLogEntry[]>([])
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)
+  const [groupBy, setGroupBy] = useState<'date' | 'category'>('date')
+  const [sortOrder, setSortOrder] = useState<'asc' | 'desc'>('desc')
   const [filters, setFilters] = useState<ChangeLogFilters>({
     fieldCategory: [],
     dateRange: { from: null, to: null },
@@ -303,7 +306,61 @@ export const ChangeLogTab: React.FC<ChangeLogTabProps> = ({ employeeId, employee
         actorNames={availableActors}
       />
 
-      {/* Change Log Entries grouped by day */}
+      {/* Group/Sort controls */}
+      <div className="gba:flex gba:justify-end">
+        <div className="gba:flex gba:items-center gba:gap-3">
+          <label htmlFor="changelog-group-by" className="gba:text-sm gba:text-muted-foreground">
+            {getTranslationFromI18nKeyAndLabel('lowcoder:changelog_tab.group_by', 'Group by')}
+          </label>
+          <select
+            id="changelog-group-by"
+            value={groupBy}
+            onChange={e => setGroupBy((e.target.value as 'date' | 'category') || 'date')}
+            className="gba:h-8 gba:w-[140px] gba:rounded gba:border gba:border-input gba:px-3 gba:py-1 gba:text-sm"
+            data-testid="changelog-group-by-select"
+          >
+            <option value="date">
+              {getTranslationFromI18nKeyAndLabel('lowcoder:changelog_tab.group_by.date', 'Date')}
+            </option>
+            <option value="category">
+              {getTranslationFromI18nKeyAndLabel('lowcoder:changelog_tab.group_by.category', 'Category')}
+            </option>
+          </select>
+
+          <label htmlFor="changelog-sort" className="gba:text-sm gba:text-muted-foreground">
+            {getTranslationFromI18nKeyAndLabel('lowcoder:changelog_tab.sort', 'Sort')}
+          </label>
+          <select
+            id="changelog-sort"
+            value={sortOrder}
+            onChange={e => setSortOrder((e.target.value as 'asc' | 'desc') || 'desc')}
+            className="gba:h-8 gba:w-[160px] gba:rounded gba:border gba:border-input gba:px-3 gba:py-1 gba:text-sm"
+            data-testid="changelog-sort-select"
+          >
+            {groupBy === 'date' ? (
+              <>
+                <option value="desc">
+                  {getTranslationFromI18nKeyAndLabel('lowcoder:changelog_tab.sort.newest_first', 'Newest first')}
+                </option>
+                <option value="asc">
+                  {getTranslationFromI18nKeyAndLabel('lowcoder:changelog_tab.sort.oldest_first', 'Oldest first')}
+                </option>
+              </>
+            ) : (
+              <>
+                <option value="asc">
+                  {getTranslationFromI18nKeyAndLabel('lowcoder:changelog_tab.sort.category_az', 'Category A–Z')}
+                </option>
+                <option value="desc">
+                  {getTranslationFromI18nKeyAndLabel('lowcoder:changelog_tab.sort.category_za', 'Category Z–A')}
+                </option>
+              </>
+            )}
+          </select>
+        </div>
+      </div>
+
+      {/* Change Log Entries grouped */}
       {(() => {
         if (filteredEntries.length === 0) {
           return (
@@ -320,25 +377,54 @@ export const ChangeLogTab: React.FC<ChangeLogTabProps> = ({ employeeId, employee
 
         const groups = filteredEntries.reduce((acc: Record<string, ChangeLogEntry[]>, entry) => {
           const dateKey = new Date(entry.timestamp).toISOString().split('T')[0]
-          if (!acc[dateKey]) acc[dateKey] = []
-          acc[dateKey].push(entry)
+          const categoryKey = entry.fieldCategory || 'other'
+          const key = groupBy === 'date' ? dateKey : categoryKey
+          if (!acc[key]) acc[key] = []
+          acc[key].push(entry)
           return acc
         }, {})
 
-        const sortedKeys = Object.keys(groups).sort((a, b) => (a > b ? -1 : 1))
+        const sortedKeys = Object.keys(groups).sort((a, b) => {
+          if (groupBy === 'date') {
+            // a and b are YYYY-MM-DD strings
+            const comp = a > b ? -1 : 1
+            return sortOrder === 'desc' ? comp : -comp
+          }
+          // category grouping
+          const comp = a.localeCompare(b)
+          return sortOrder === 'asc' ? comp : -comp
+        })
 
         return (
           <div className="gba:flex gba:flex-col gba:gap-8">
             {sortedKeys.map(dateKey => (
               <div key={dateKey} className="gba:flex gba:flex-col gba:gap-4">
                 <div className="gba:flex gba:items-center gba:justify-between gba:py-2 gba:border-b gba:border-border">
-                  <div className="gba:text-lg gba:font-semibold">{formatDate(new Date(dateKey), 'date.short')}</div>
-                  <div className="gba:text-sm gba:text-muted-foreground">{groups[dateKey].length} changes</div>
+                  <div className="gba:text-lg gba:font-semibold">
+                    {groupBy === 'date'
+                      ? formatDate(new Date(dateKey), 'date.short')
+                      : dateKey.charAt(0).toUpperCase() + dateKey.slice(1)}
+                  </div>
+                  <div className="gba:text-sm gba:text-muted-foreground">
+                    {(() => {
+                      const count = groups[dateKey].length
+                      const label =
+                        count === 1
+                          ? getTranslationFromI18nKeyAndLabel('lowcoder:changelog_tab.labels.change', 'change')
+                          : getTranslationFromI18nKeyAndLabel('lowcoder:changelog_tab.labels.changes', 'changes')
+                      return `${count} ${label}`
+                    })()}
+                  </div>
                 </div>
                 <div className="gba:grid gba:grid-cols-1 gba:md:grid-cols-2 gba:lg:grid-cols-3 gba:gap-6">
-                  {groups[dateKey].map(entry => (
-                    <ChangeLogEntry key={entry.id} entry={entry} />
-                  ))}
+                  {[...groups[dateKey]]
+                    .sort((a, b) => {
+                      const diff = new Date(a.timestamp).getTime() - new Date(b.timestamp).getTime()
+                      return sortOrder === 'desc' ? -diff : diff
+                    })
+                    .map(entry => (
+                      <ChangeLogEntry key={entry.id} entry={entry} />
+                    ))}
                 </div>
               </div>
             ))}

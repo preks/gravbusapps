@@ -30,6 +30,7 @@ export const ChangeLogEntry: React.FC<ChangeLogEntryProps> = ({ entry }) => {
             <div className="gba:flex-1">
               <h4 className="gba:font-bold gba:text-xl gba:mb-1">{entry.fieldName}</h4>
               <div className="gba:text-sm gba:text-muted-foreground">{categoryInfo?.label}</div>
+              {entry.fieldDetail && <div className="gba:text-sm gba:text-muted-foreground">{entry.fieldDetail}</div>}
             </div>
             <div className="gba:flex gba:items-center gba:gap-2">
               {entry.changeOrigin.isAIGenerated && (
@@ -72,7 +73,8 @@ export const ChangeLogEntry: React.FC<ChangeLogEntryProps> = ({ entry }) => {
           {/* Footer */}
           <div className="gba:mt-4 gba:flex gba:justify-between gba:items-center gba:text-sm gba:text-muted-foreground">
             <div className="gba:flex gba:items-center gba:gap-3">
-              Created By {entry.changedBy.userName || entry.changedBy.userId}
+              {getTranslationFromI18nKeyAndLabel('lowcoder:changelog_tab.privacy.created_by', 'Created by')}{' '}
+              {entry.changedBy.userName || entry.changedBy.userId}
             </div>
             <span className="gba:text-xs">FLOW: {entry.changeOrigin.flowName}</span>
           </div>

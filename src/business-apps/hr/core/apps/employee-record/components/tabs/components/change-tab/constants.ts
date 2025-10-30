@@ -1,8 +1,11 @@
 import { getTranslationFromI18nKeyAndLabel } from '@/common/utils/windowUtils'
 
 export const FIELD_CATEGORIES = [
-  { value: 'personal', label: getTranslationFromI18nKeyAndLabel('changelog.categories.personal', 'Personal Info') },
-  { value: 'address', label: getTranslationFromI18nKeyAndLabel('changelog.categories.address', 'Address & Contact') },
+  { value: 'personal', label: getTranslationFromI18nKeyAndLabel('changelog.categories.personal', 'Personal Data') },
+  {
+    value: 'address',
+    label: getTranslationFromI18nKeyAndLabel('changelog.categories.address', 'Address & Communication')
+  },
   { value: 'org', label: getTranslationFromI18nKeyAndLabel('changelog.categories.org', 'Org Assignment') },
   { value: 'working', label: getTranslationFromI18nKeyAndLabel('changelog.categories.working', 'Working Conditions') },
   { value: 'financial', label: getTranslationFromI18nKeyAndLabel('changelog.categories.financial', 'Financial') },
