@@ -3,6 +3,7 @@ import { useTranslation } from 'react-i18next'
 import { InputField, SelectField } from '@newwork/gravity-ui-catalog'
 import { Form } from 'antd'
 import { Currency } from '../../../types'
+import { getCurrentActiveUserLocale, formatNumberFunction } from '@/common/utils/windowUtils'
 
 interface AmountFieldProps {
   index: number
@@ -29,6 +30,60 @@ export const AmountField: React.FC<AmountFieldProps> = ({
 }) => {
   const { t } = useTranslation()
 
+  const handleAmountBlur = () => {
+    const currentValue = form.getFieldValue(`amount-${index}`)
+
+    if (currentValue === undefined || currentValue === null || String(currentValue).trim() === '') {
+      return
+    }
+
+    const valueStr = String(currentValue).trim()
+
+    // Remove non-numeric characters except decimal separators (both . and ,)
+    let cleaned = valueStr.replace(/[^0-9,.-]/g, '')
+
+    // Find the last occurrence of . or ,
+    const lastCommaIndex = cleaned.lastIndexOf(',')
+    const lastPeriodIndex = cleaned.lastIndexOf('.')
+    const lastSepIndex = Math.max(lastCommaIndex, lastPeriodIndex)
+
+    // If we have separators, the rightmost one is the decimal separator
+    if (lastSepIndex > -1) {
+      // Check if it's followed by 1-2 digits (typical decimal pattern)
+      const afterSep = cleaned.substring(lastSepIndex + 1)
+      const isDecimalSeparator = /^\d{1,2}$/.test(afterSep)
+
+      if (isDecimalSeparator) {
+        // This is the decimal separator - convert to period and remove all others
+        const beforeDecimal = cleaned.substring(0, lastSepIndex).replace(/[,.]/g, '')
+        const afterDecimal = afterSep
+        cleaned = `${beforeDecimal}.${afterDecimal}`
+      } else {
+        // No clear decimal separator, remove all
+        cleaned = cleaned.replace(/[,.]/g, '')
+      }
+    }
+
+    const num = parseFloat(cleaned)
+    if (isNaN(num)) {
+      return
+    }
+
+    // Format using platform i18n formatting
+    const platformFormatted = formatNumberFunction(String(num), '0.00[,]00')
+
+    // Fallback to Intl.NumberFormat for locale-specific formatting
+    const intlFormatted = new Intl.NumberFormat(getCurrentActiveUserLocale() || 'en-US', {
+      minimumFractionDigits: 2,
+      maximumFractionDigits: 2
+    }).format(num)
+
+    const finalDisplay = platformFormatted && platformFormatted !== String(num) ? platformFormatted : intlFormatted
+
+    form.setFieldsValue({ [`amount-${index}`]: finalDisplay })
+    onAmountChange(num)
+  }
+
   const renderAmountInput = () => (
     <InputField
       label={t('lowcoder:create_expense_item.change_expense_item_container.current_amount_label', 'Amount')}
@@ -45,24 +100,22 @@ export const AmountField: React.FC<AmountFieldProps> = ({
       onChange={field => {
         let value = String(field.value)
 
-        // Handle both period and comma as decimal separators
+        // Limit to 2 decimal places (accept both . and , as decimal separator)
         if (value.includes('.') || value.includes(',')) {
           const sep = value.includes('.') ? '.' : ','
           const parts = value.split(sep)
-
-          // Limit to 2 decimal places
           if (parts[1] && parts[1].length > 2) {
             value = `${parts[0]}${sep}${parts[1].substring(0, 2)}`
           }
         }
 
-        // Update form field with user input (keep original separator for display)
         form.setFieldsValue({ [`amount-${index}`]: value })
 
-        // Normalize comma to period for calculation
+        // Parse for immediate validation (normalize comma to period for parseFloat)
         const normalizedValue = value.replace(',', '.')
         onAmountChange(parseFloat(normalizedValue) || 0)
       }}
+      onBlur={handleAmountBlur}
       required={true}
     />
   )

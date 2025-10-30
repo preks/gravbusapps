@@ -5,7 +5,12 @@ import { Form } from 'antd'
 import { ExpenseGroup, ExpenseType, CostCenter, Currency, CustomField } from './types'
 import { useExpensePlanItem } from './context/ExpensePlanItemContext'
 import { Alert } from 'antd'
-import { getCurrentActiveUserLocale, getDateFormat, getCatalogValue } from '@/common/utils/windowUtils'
+import {
+  getCurrentActiveUserLocale,
+  getDateFormat,
+  getCatalogValue,
+  formatNumberFunction
+} from '@/common/utils/windowUtils'
 
 interface ExpensePlanItemFormProps {
   form: any
@@ -40,6 +45,59 @@ export const ExpensePlanItemForm: React.FC<ExpensePlanItemFormProps> = ({
   const { isFormDisabled, expenseRuleError, isEditMode } = useExpensePlanItem()
 
   const [formIsValid, setFormIsValid] = useState(false)
+
+  const handleAmountBlur = () => {
+    const currentValue = form.getFieldValue('amount')
+
+    if (currentValue === undefined || currentValue === null || String(currentValue).trim() === '') {
+      return
+    }
+
+    const valueStr = String(currentValue).trim()
+
+    // Remove non-numeric characters except decimal separators (both . and ,)
+    let cleaned = valueStr.replace(/[^0-9,.-]/g, '')
+
+    // Find the last occurrence of . or ,
+    const lastCommaIndex = cleaned.lastIndexOf(',')
+    const lastPeriodIndex = cleaned.lastIndexOf('.')
+    const lastSepIndex = Math.max(lastCommaIndex, lastPeriodIndex)
+
+    // If we have separators, the rightmost one is the decimal separator
+    if (lastSepIndex > -1) {
+      // Check if it's followed by 1-2 digits (typical decimal pattern)
+      const afterSep = cleaned.substring(lastSepIndex + 1)
+      const isDecimalSeparator = /^\d{1,2}$/.test(afterSep)
+
+      if (isDecimalSeparator) {
+        // This is the decimal separator - convert to period and remove all others
+        const beforeDecimal = cleaned.substring(0, lastSepIndex).replace(/[,.]/g, '')
+        const afterDecimal = afterSep
+        cleaned = `${beforeDecimal}.${afterDecimal}`
+      } else {
+        // No clear decimal separator, remove all
+        cleaned = cleaned.replace(/[,.]/g, '')
+      }
+    }
+
+    const num = parseFloat(cleaned)
+    if (isNaN(num)) {
+      return
+    }
+
+    // Format using platform i18n formatting
+    const platformFormatted = formatNumberFunction(String(num), '0.00[,]00')
+
+    // Fallback to Intl.NumberFormat for locale-specific formatting
+    const intlFormatted = new Intl.NumberFormat(getCurrentActiveUserLocale() || 'en-US', {
+      minimumFractionDigits: 2,
+      maximumFractionDigits: 2
+    }).format(num)
+
+    const finalDisplay = platformFormatted && platformFormatted !== String(num) ? platformFormatted : intlFormatted
+
+    form.setFieldsValue({ amount: finalDisplay })
+  }
 
   return (
     <Form
@@ -282,20 +340,18 @@ export const ExpensePlanItemForm: React.FC<ExpensePlanItemFormProps> = ({
                 onChange={field => {
                   let value = String(field.value)
 
-                  // Handle both period and comma as decimal separators
+                  // Limit to 2 decimal places (accept both . and , as decimal separator)
                   if (value.includes('.') || value.includes(',')) {
                     const sep = value.includes('.') ? '.' : ','
                     const parts = value.split(sep)
-
-                    // Limit to 2 decimal places
                     if (parts[1] && parts[1].length > 2) {
                       value = `${parts[0]}${sep}${parts[1].substring(0, 2)}`
                     }
                   }
 
-                  // Update form field with user input (keep original separator for display)
                   form.setFieldsValue({ amount: value })
                 }}
+                onBlur={handleAmountBlur}
                 required={true}
               />
             </Form.Item>
