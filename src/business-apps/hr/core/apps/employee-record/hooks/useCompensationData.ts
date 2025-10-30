@@ -209,12 +209,29 @@ export const useCompensationData = (employeeId: string, accessToken: string) => 
 
       // ✅ REAL DATA: Extract payslip history from GraphQL response with computed monthName
       const payslipHistory: EmployeePayslip[] = (historyResult?.EmployeePayslip || []).map((payslip: any) => {
-        // Compute monthName from payPeriod (format: "YYYY-MM")
+        // Compute monthName from payPeriod (format: "YYYY-MM") or paymentDate as fallback
         let monthName = ''
         if (payslip.payPeriod) {
           const [year, month] = payslip.payPeriod.split('-')
-          const date = new Date(parseInt(year), parseInt(month) - 1, 1)
-          monthName = date.toLocaleDateString('en-US', { month: 'long', year: 'numeric' })
+          const yearNum = parseInt(year)
+          const monthNum = parseInt(month)
+          if (!isNaN(yearNum) && !isNaN(monthNum) && monthNum >= 1 && monthNum <= 12) {
+            const date = new Date(yearNum, monthNum - 1, 1)
+            monthName = date.toLocaleDateString('en-US', { month: 'long', year: 'numeric' })
+          }
+        }
+
+        // Fallback to paymentDate if payPeriod is invalid
+        if (!monthName && payslip.paymentDate) {
+          const date = new Date(payslip.paymentDate)
+          if (!isNaN(date.getTime())) {
+            monthName = date.toLocaleDateString('en-US', { month: 'long', year: 'numeric' })
+          }
+        }
+
+        // Final fallback to fiscal year if available
+        if (!monthName && payslip.fiscalYear) {
+          monthName = `Year ${payslip.fiscalYear}`
         }
 
         return {
@@ -229,7 +246,7 @@ export const useCompensationData = (employeeId: string, accessToken: string) => 
           status: payslip.status,
           documentUrl: payslip.documentUrl,
           fiscalYear: payslip.fiscalYear,
-          monthName
+          monthName: monthName || 'Unknown Period'
         }
       })
 
