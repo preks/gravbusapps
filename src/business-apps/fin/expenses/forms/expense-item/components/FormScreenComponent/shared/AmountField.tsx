@@ -3,7 +3,11 @@ import { useTranslation } from 'react-i18next'
 import { InputField, SelectField } from '@newwork/gravity-ui-catalog'
 import { Form } from 'antd'
 import { Currency } from '../../../types'
-import { getCurrentActiveUserLocale, formatNumberFunction } from '@/common/utils/windowUtils'
+import {
+  parseNumericValue,
+  formatAmountForLocale,
+  parseAndFormatAmount
+} from '@/business-apps/fin/expenses/utils/amountFormatting'
 
 interface AmountFieldProps {
   index: number
@@ -41,67 +45,13 @@ export const AmountField: React.FC<AmountFieldProps> = ({
       return
     }
 
-    const valueStr = String(currentValue).trim()
-
-    // Remove non-numeric characters except decimal separators (both . and ,)
-    let cleaned = valueStr.replaceAll(/[^0-9,.-]/g, '')
-
-    // Find the last occurrence of . or ,
-    const lastCommaIndex = cleaned.lastIndexOf(',')
-    const lastPeriodIndex = cleaned.lastIndexOf('.')
-    const lastSepIndex = Math.max(lastCommaIndex, lastPeriodIndex)
-
-    // If we have separators, the rightmost one is the decimal separator
-    if (lastSepIndex > -1) {
-      // Check if it's followed by 1-2 digits (typical decimal pattern)
-      const afterSep = cleaned.substring(lastSepIndex + 1)
-      const isDecimalSeparator = /^\d{1,2}$/.test(afterSep)
-
-      if (isDecimalSeparator) {
-        // This is the decimal separator - convert to period and remove all others
-        const beforeDecimal = cleaned.substring(0, lastSepIndex).replaceAll(/[,.]/g, '')
-        const afterDecimal = afterSep
-        cleaned = `${beforeDecimal}.${afterDecimal}`
-      } else {
-        // No clear decimal separator, remove all
-        cleaned = cleaned.replaceAll(/[,.]/g, '')
-      }
-    }
-
-    const num = Number.parseFloat(cleaned)
-    if (Number.isNaN(num)) {
+    const result = parseAndFormatAmount(String(currentValue))
+    if (!result) {
       return
     }
 
-    // Format using platform i18n formatting
-    const platformFormatted = formatNumberFunction(String(num), '0.00[,]00')
-
-    // Fallback to Intl.NumberFormat for locale-specific formatting
-    const intlFormatted = new Intl.NumberFormat(getCurrentActiveUserLocale() || 'en-US', {
-      minimumFractionDigits: 2,
-      maximumFractionDigits: 2
-    }).format(num)
-
-    const finalDisplay = platformFormatted && platformFormatted !== String(num) ? platformFormatted : intlFormatted
-
-    form.setFieldsValue({ [`amount-${index}`]: finalDisplay })
-    onAmountChange(num)
-  }
-
-  const parseNumericValue = (value: any): number | null => {
-    if (typeof value === 'number') return value
-    const parsed = Number.parseFloat(String(value).replace(',', '.'))
-    return !Number.isNaN(parsed) && parsed > 0 ? parsed : null
-  }
-
-  const formatAmountForLocale = (numValue: number): string => {
-    const locale = getCurrentActiveUserLocale() || 'en-US'
-    const platformFormatted = formatNumberFunction(String(numValue), '0.00[,]00')
-    const intlFormatted = new Intl.NumberFormat(locale, {
-      minimumFractionDigits: 2,
-      maximumFractionDigits: 2
-    }).format(numValue)
-    return platformFormatted && platformFormatted !== String(numValue) ? platformFormatted : intlFormatted
+    form.setFieldsValue({ [`amount-${index}`]: result.formattedValue })
+    onAmountChange(result.numValue)
   }
 
   const updateFormWithFormattedValue = (numValue: number, finalDisplay: string) => {
