@@ -109,8 +109,7 @@ const BenefitsPerksSection: React.FC<BenefitsPerksProps> = ({
   /**
    * Handle view benefit details action (Phase 4)
    */
-  const handleViewDetails = (benefit: BenefitCatalogItem) => {
-    console.log('View benefit details:', benefit)
+  const handleViewDetails = () => {
     // TODO: Implement in Phase 4 - Open details modal
   }
 
