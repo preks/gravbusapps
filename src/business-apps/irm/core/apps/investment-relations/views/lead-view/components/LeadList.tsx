@@ -67,7 +67,7 @@ export const LeadList: React.FC<LeadListProps> = ({
 
   // Helper function to get contact display name
   const getContactName = (lead: InvestmentLead) => {
-    return `${lead.firstName || ''} ${lead.lastName || ''}`.trim() || '-'
+    return `${String(lead.firstName || '')} ${String(lead.lastName || '')}`.trim() || '-'
   }
 
   // Helper function to get owner display name
@@ -76,7 +76,7 @@ export const LeadList: React.FC<LeadListProps> = ({
       return lead.ownerEmployee.displayName
     }
     if (lead.ownerEmployee?.firstName || lead.ownerEmployee?.lastName) {
-      return `${lead.ownerEmployee.firstName || ''} ${lead.ownerEmployee.lastName || ''}`.trim()
+      return `${String(lead.ownerEmployee.firstName || '')} ${String(lead.ownerEmployee.lastName || '')}`.trim()
     }
     return '-'
   }

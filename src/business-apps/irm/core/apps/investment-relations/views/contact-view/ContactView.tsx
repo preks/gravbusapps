@@ -1,301 +1,83 @@
-import React, { useState, useCallback, useEffect, useMemo } from 'react'
-import { Button, Spinner, Alert } from '@newwork/nw-design-system'
-import { Plus } from 'lucide-react'
+import React, { useMemo } from 'react'
+import { Button, DataDisplay, DataTable, Spinner } from '@newwork/nw-design-system'
+import { Plus, Download, Trash2 } from 'lucide-react'
 import { BusinessAppContextProps } from '@/common/BusinessAppContext'
-import { useGetInvestmentContacts } from '@/common/data/investment/hooks/useInvestmentContacts'
 import type { InvestmentContact } from '@/common/data/investment/types'
-import type { InvestmentContactQueryVariables } from '@/common/data/investment/queries/investmentContactQueries'
-import { DataContainer } from '@/components/layout/dataContainer/DataContainer'
 import { ContactStatistics } from './components/ContactStatistics'
-import { ContactList } from './components/ContactList'
-import { ColumnConfig } from '@/components/dataController'
-import { useInvestmentContactFilters } from './hooks/useInvestmentContactFilters'
 import { AppAction } from '@/components/app-action/AppAction'
+import { AppActionMenu } from '@/components/app-action-menu/AppActionMenu'
 import { FlowContextName } from '@/common/types/FlowRegistryTypes'
+import { navigateTo } from '@/common/utils/navigationUtils'
 import { getTranslationFromI18nKeyAndLabel } from '@/common/utils/windowUtils'
+import { useContactData } from './hooks/useContactData'
+import { useContactFilterOptions } from './hooks/useContactFilterOptions'
+import { createContactColumns, createContactSortableColumns, contactFilterConfig } from './config'
 
 export type ContactViewProps = BusinessAppContextProps
 
 export const ContactView: React.FC<ContactViewProps> = context => {
   const { accessToken } = context
 
-  // Read initial filters/search from URL (before first render)
-  const getInitialFromUrl = () => {
-    const urlParams = new URLSearchParams(window.location.search)
-    const filters: string[] = []
-    const pushAll = (key: string, prefix: string) => {
-      urlParams.getAll(key).forEach(v => v && filters.push(`${prefix}:${v}`))
+  // Data management
+  const contactData = useContactData(context)
+
+  // Filter options
+  const filterOptions = useContactFilterOptions(context)
+
+  // Create columns
+  const contactColumns = useMemo(() => createContactColumns(), [])
+
+  // Dynamic filter configuration
+  const dynamicFilterConfig = useMemo(() => {
+    const config = { ...contactFilterConfig }
+
+    // Update Owner filter with dynamic data
+    const contactFiltersGroup = config.groups.find(g => g.id === 'contact-filters')
+    if (contactFiltersGroup && filterOptions.owners.length > 0) {
+      const ownerFilter = contactFiltersGroup.filters.find(f => f.id === 'owners')
+      if (ownerFilter && ownerFilter.config && 'options' in ownerFilter.config) {
+        ownerFilter.config.options = filterOptions.owners
+      }
     }
-    pushAll('contactType', 'type')
-    pushAll('owner', 'owner')
-    pushAll('account', 'account')
-    pushAll('department', 'department')
-    const search = urlParams.get('search') || ''
-    return { search, filters }
+
+    // Update Contact Type filter with dynamic data
+    if (contactFiltersGroup && filterOptions.contactTypes.length > 0) {
+      const contactTypeFilter = contactFiltersGroup.filters.find(f => f.id === 'contactTypes')
+      if (contactTypeFilter && contactTypeFilter.config && 'options' in contactTypeFilter.config) {
+        contactTypeFilter.config.options = filterOptions.contactTypes
+      }
+    }
+
+    // Update Account filter with dynamic data
+    if (contactFiltersGroup && filterOptions.accounts.length > 0) {
+      const accountFilter = contactFiltersGroup.filters.find(f => f.id === 'accounts')
+      if (accountFilter && accountFilter.config && 'options' in accountFilter.config) {
+        accountFilter.config.options = filterOptions.accounts
+      }
+    }
+
+    return config
+  }, [filterOptions])
+
+  // Transform data to flatten nested objects for DataTable
+  const transformedContactData = useMemo(() => {
+    return contactData.data.map(contact => ({
+      ...contact,
+      ownerEmployeeName: contact.ownerEmployee?.displayName || ''
+    }))
+  }, [contactData.data])
+
+  // Handle row click
+  const handleRowClick = (contact: InvestmentContact) => {
+    navigateTo(`/platform/irm/contact-record?contactId=${contact.id}`)
   }
-  const initial = getInitialFromUrl()
 
-  // State management
-  const [searchTerm, setSearchTerm] = useState(initial.search)
-  const [currentPage, setCurrentPage] = useState(1)
-  const [pageSize] = useState(20)
-  type SortOrder = 'ASC' | 'DESC' | undefined
-  const [sortField, setSortField] = useState<string | undefined>('createdAt')
-  const [sortOrder, setSortOrder] = useState<SortOrder>('DESC')
-  const [selectedFilters, setSelectedFilters] = useState<string[]>(initial.filters)
-  // const [showDataFilter, setShowDataFilter] = useState(false);
-  const { filterGroups, filterLabelMap, handleFilterChange, birthDateAfter, birthDateBefore, filtersInitialized } =
-    useInvestmentContactFilters(context, selectedFilters, setSelectedFilters)
-
-  // Hooks for data fetching
-  const { fetchInvestmentContacts } = useGetInvestmentContacts(context)
-
-  // Data state
-  const [contacts, setContacts] = useState<InvestmentContact[]>([])
-  const [totalCount, setTotalCount] = useState(0)
-  const [isLoading, setIsLoading] = useState(true)
-  const [error, setError] = useState<string | null>(null)
-
-  // Column visibility configuration
-  const [columnConfig, setColumnConfig] = useState<ColumnConfig[]>(() => [
-    { id: 'actions', label: 'Actions', visible: true, disabled: true },
-    { id: 'contact', label: 'Contact', visible: true },
-    { id: 'contactInfo', label: 'Contact Info', visible: true },
-    { id: 'type', label: 'Type', visible: true },
-    { id: 'position', label: 'Position', visible: true },
-    { id: 'department', label: 'Department', visible: true },
-    { id: 'owner', label: 'Owner', visible: true },
-    { id: 'created', label: 'Creation Date', visible: true }
-  ])
-
-  // Get visible columns for passing to table
-  const visibleColumns = columnConfig.filter(col => col.visible).map(col => col.id)
-
-  // Handle column visibility change
-  const handleColumnVisibilityChange = useCallback((columnId: string, visible: boolean) => {
-    setColumnConfig(prev => prev.map(col => (col.id === columnId ? { ...col, visible } : col)))
-  }, [])
-
-  // Build query variables
-  const queryVariables: InvestmentContactQueryVariables = useMemo(() => {
-    const vars: Partial<InvestmentContactQueryVariables> = {}
-    const ownerIds: string[] = []
-    const accountIds: string[] = []
-    const fullNames: string[] = []
-    const typeVals: string[] = []
-    const departmentVals: string[] = []
-    let hasEmail = false,
-      missingEmail = false,
-      hasPhone = false,
-      missingPhone = false
-
-    selectedFilters.forEach(f => {
-      if (f.startsWith('owner:')) ownerIds.push(f.slice(6))
-      else if (f.startsWith('contact:')) fullNames.push(f.slice(8))
-      else if (f.startsWith('account:')) accountIds.push(f.slice(8))
-      else if (f.startsWith('type:')) typeVals.push(f.slice(5))
-      else if (f.startsWith('department:')) departmentVals.push(f.slice(11))
-      else if (f === 'info:HAS_EMAIL') hasEmail = true
-      else if (f === 'info:MISSING_EMAIL') missingEmail = true
-      else if (f === 'info:HAS_PHONE') hasPhone = true
-      else if (f === 'info:MISSING_PHONE') missingPhone = true
-    })
-
-    if (ownerIds.length) vars.ownerEmployeeIds = ownerIds
-    if (accountIds.length) vars.accountIds = accountIds
-    if (fullNames.length) vars.fullNames = fullNames
-    if (typeVals.length) vars.contactTypes = typeVals
-    if (departmentVals.length) vars.departments = departmentVals
-
-    return {
-      limit: pageSize,
-      offset: (currentPage - 1) * pageSize,
-      search: searchTerm.trim() || undefined,
-      ...(sortField && sortOrder
-        ? {
-            orderBy: [
-              { field: sortField, direction: sortOrder === 'ASC' ? 'ASC_NULLS_LAST' : 'DESC_NULLS_LAST' }
-            ] as any
-          }
-        : {}),
-      ...(birthDateAfter ? { birthDateFrom: birthDateAfter } : {}),
-      ...(birthDateBefore ? { birthDateTo: birthDateBefore } : {}),
-      ...(hasEmail ? { hasEmail: true } : {}),
-      ...(missingEmail ? { missingEmail: true } : {}),
-      ...(hasPhone ? { hasPhone: true } : {}),
-      ...(missingPhone ? { missingPhone: true } : {}),
-      ...vars
-    }
-  }, [currentPage, pageSize, searchTerm, sortField, sortOrder, selectedFilters, birthDateAfter, birthDateBefore])
-
-  // Load data
-  const loadData = useCallback(async () => {
-    if (!accessToken || !filtersInitialized) return
-
-    setIsLoading(true)
-    setError(null)
-
-    try {
-      const result = await fetchInvestmentContacts(queryVariables)
-      setContacts(result.InvestmentContact || [])
-      setTotalCount(result.InvestmentContactAggregate?.aggregate?.count || 0)
-    } catch (err) {
-      setError(err instanceof Error ? err.message : 'Unknown error occurred')
-    } finally {
-      setIsLoading(false)
-    }
-  }, [accessToken, filtersInitialized, fetchInvestmentContacts, queryVariables])
-
-  // Load data on mount and when variables change
-  useEffect(() => {
-    loadData()
-  }, [loadData])
-
-  // Listen for process events and refresh data when investment contact processes complete
-  useEffect(() => {
-    const handleProcessEvent = (event: any) => {
-      try {
-        // Check for successful completion from different event structures (MATCHING ACCOUNT VIEW PATTERN)
-        if (event.detail?.resolution === 'success') {
-          loadData() // Refresh contact list data
-          return
-        }
-
-        // Also check for different event structure
-        const response = event.detail?.response
-        if (response?.detail?.resolution === 'success' || response?.investmentContact) {
-          loadData()
-          return
-        }
-
-        // For continue events, check if payload contains successful data
-        if (event.type === 'com.newwork.process.continue' && event.detail?.payload) {
-          loadData()
-        }
-      } catch (err) {
-        // Log process event handling errors with context
-        console.error('ContactView: Error handling process event:', {
-          eventType: event?.type || 'unknown',
-          error: err instanceof Error ? err.message : String(err),
-          stack: err instanceof Error ? err.stack : undefined
-        })
-      }
-    }
-
-    // Listen to multiple possible event names (following Investment Account pattern exactly)
-    const eventNames = [
-      'com.newwork.process.taskCompletion',
-      'com.newwork.process.completion',
-      'com.newwork.process.continue', // ✅ This is what our form dispatches!
-      'com.newwork.process.processCompletion',
-      'processCompletion',
-      'taskCompletion',
-      'taskCompleted',
-      'processCompleted',
-      'task-completion',
-      'process-completion'
-    ]
-
-    // Add event listeners
-    eventNames.forEach(eventName => {
-      window.addEventListener(eventName, handleProcessEvent)
-      document.addEventListener(eventName, handleProcessEvent)
-    })
-
-    // Cleanup event listeners
-    return () => {
-      eventNames.forEach(eventName => {
-        window.removeEventListener(eventName, handleProcessEvent)
-        document.removeEventListener(eventName, handleProcessEvent)
-      })
-    }
-  }, [loadData])
-
-  // Handle search
-  const handleSearch = useCallback((value: string) => {
-    setSearchTerm(value)
-    setCurrentPage(1) // Reset to first page on search
-  }, [])
-
-  // Handle pagination
-  const handlePageChange = useCallback((page: number) => {
-    setCurrentPage(page)
-  }, [])
-
-  // Handle sorting
-  const handleSort = useCallback(
-    (field: string) => {
-      if (sortField !== field) {
-        setSortField(field)
-        setSortOrder('ASC')
-        return
-      }
-      if (sortOrder === 'ASC') {
-        setSortOrder('DESC')
-      } else if (sortOrder === 'DESC') {
-        setSortField(undefined)
-        setSortOrder(undefined)
-      } else {
-        setSortOrder('ASC')
-      }
-    },
-    [sortField, sortOrder]
-  )
-
-  const handleSetFilter = useCallback((filters: string[]) => {
-    setSelectedFilters(filters)
-    setCurrentPage(1)
-  }, [])
-
-  // Sync selected filters and search to URL params
-  useEffect(() => {
-    const urlParams = new URLSearchParams(window.location.search)
-
-    const setList = (key: string, values: string[]) => {
-      urlParams.delete(key)
-      values.forEach(v => urlParams.append(key, v))
-    }
-
-    const collect = (prefix: string) =>
-      selectedFilters.filter(f => f.startsWith(`${prefix}:`)).map(f => f.slice(prefix.length + 1))
-
-    setList('owner', collect('owner'))
-    setList('contact', collect('contact'))
-    setList('account', collect('account'))
-    setList('type', collect('type'))
-    setList('department', collect('department'))
-
-    if (searchTerm) urlParams.set('search', searchTerm)
-    else urlParams.delete('search')
-
-    const newUrl = `${window.location.pathname}?${urlParams.toString()}`
-    window.history.replaceState({}, '', newUrl)
-  }, [selectedFilters, searchTerm])
-
-  // const toggleDataFilter = useCallback(() => {
-  //   setShowDataFilter(prev => !prev);
-  // }, []);
-
-  // Loading state
-  if (isLoading && contacts.length === 0) {
+  // Initial loading state
+  if (contactData.loading && contactData.data.length === 0 && !filterOptions.isLoading) {
     return (
       <div className="gba:flex gba:items-center gba:justify-center gba:h-64">
         <Spinner size="lg" />
       </div>
-    )
-  }
-
-  // Error state
-  if (error) {
-    return (
-      <Alert variant="destructive" className="gba:mb-4">
-        <div className="gba:flex gba:items-center gba:justify-between">
-          <span>Error loading contacts: {error}</span>
-          <Button variant="outline" size="sm" onClick={loadData}>
-            Retry
-          </Button>
-        </div>
-      </Alert>
     )
   }
 
@@ -310,68 +92,138 @@ export const ContactView: React.FC<ContactViewProps> = context => {
           </div>
         </div>
 
-        {/* Statistics Cards (server-based, separate fetch) */}
+        {/* Statistics Cards */}
         <ContactStatistics {...context} />
       </div>
 
-      {/* Data Container with Contact List */}
-      <DataContainer
-        dataControllerProps={{
-          search: searchTerm,
-          setSearch: handleSearch,
-          debounceDelay: 500,
-          filter: selectedFilters,
-          setFilter: handleSetFilter,
-          filterLabelMap,
-          listTitle: (
-            <div className="gba:flex gba:items-center gba:gap-4">
-              <div className="gba:flex gba:items-center gba:gap-2">
-                <span>Contacts</span>
-                <span className="gba:flex gba:items-center gba:gap-2">
-                  <span className="gba:text-gray-500">({totalCount})</span>
-                </span>
-              </div>
-            </div>
-          ),
-          columnVisibility: {
-            columns: columnConfig,
-            onColumnVisibilityChange: handleColumnVisibilityChange,
-            'data-testid': 'investment-contacts-column-visibility'
-          },
-          actions: (
-            <AppAction
-              contextsArray={[FlowContextName.investmentCreateContact]}
-              accessToken={accessToken}
-              data-testid="add-contact-action"
-              emptyStateBehavior="hide"
-            >
-              <Button size="sm" variant="default" data-testid="add-contact-button" type="button">
-                <Plus size={16} />
-                {getTranslationFromI18nKeyAndLabel('crm:contact.addContact', 'Add Contact')}
-              </Button>
-            </AppAction>
-          )
-        }}
-        dataFilterProps={{
-          filterGroups,
-          onFilterChange: handleFilterChange
-        }}
-        dataBody={
-          <ContactList
-            contacts={contacts}
-            isLoading={isLoading}
-            totalCount={totalCount}
-            currentPage={currentPage}
-            pageSize={pageSize}
-            onPageChange={handlePageChange}
-            onSort={handleSort}
-            sortField={sortField}
-            sortOrder={sortOrder}
-            visibleColumns={visibleColumns}
-            {...context}
-          />
+      {/* Data Display with DataTable */}
+      <DataDisplay
+        titleSections={[
+          {
+            id: 'all',
+            label: 'All Contacts',
+            metadata: { count: contactData.total, subtitle: 'All investment contacts' }
+          }
+        ]}
+        currentSection="all"
+        onSectionChange={() => {}} // Single tab, no section change needed
+        primaryAction={
+          <AppAction
+            contextsArray={[FlowContextName.createInvestmentContact]}
+            accessToken={accessToken}
+            data-testid="add-contact-action"
+            emptyStateBehavior="hide"
+            deferMainContextRequestsUntilClick={false}
+          >
+            <Button size="sm" variant="default" data-testid="add-contact-button" type="button">
+              <Plus size={16} />
+              {getTranslationFromI18nKeyAndLabel('crm:contact.addContact', 'Add Contact')}
+            </Button>
+          </AppAction>
         }
-      />
+        searchValue={contactData.search}
+        searchPlaceholder="Search contacts..."
+        onSearchChange={contactData.setSearch}
+        filters={contactData.filters}
+        filterConfiguration={dynamicFilterConfig}
+        onFilterChange={newFilters => {
+          contactData.setFilters(newFilters)
+        }}
+        enableLiveFiltering={true}
+        filterSheetTitle="Filter Investment Contacts"
+        filterSheetDescription="Apply filters to narrow down the investment contact list"
+        toolbarDensity="default"
+        sorting={contactData.sorting}
+        sortableColumns={createContactSortableColumns()}
+        onSortingChange={contactData.setSorting}
+        availableColumns={contactColumns.map(col => ({
+          id: col.id!,
+          label: col.header as string
+        }))}
+        visibleColumns={contactData.visibleColumns}
+        onVisibleColumnsChange={contactData.setVisibleColumns}
+        selectedCount={contactData.selectedRows.length}
+        bulkActions={[
+          {
+            id: 'export',
+            label: 'Export Selected',
+            icon: <Download className="gba:w-4 gba:h-4" />,
+            variant: 'secondary' as const,
+            onClick: () => {
+              console.log('Export selected contacts:', contactData.selectedRows)
+            }
+          },
+          {
+            id: 'delete',
+            label: 'Delete Selected',
+            icon: <Trash2 className="gba:w-4 gba:h-4" />,
+            variant: 'destructive' as const,
+            onClick: () => {
+              console.log('Delete selected contacts:', contactData.selectedRows)
+            }
+          }
+        ]}
+        onClearSelection={() => contactData.setSelectedRows([])}
+      >
+        <DataTable<InvestmentContact>
+          data={transformedContactData}
+          columns={contactColumns.filter(col => contactData.visibleColumns.includes(col.id!))}
+          loading={contactData.loading}
+          error={contactData.error?.message}
+          totalCount={contactData.total}
+          sorting={contactData.sorting}
+          onSortingChange={contactData.setSorting}
+          pagination={contactData.pagination}
+          onPaginationChange={contactData.setPagination}
+          selectedRows={contactData.selectedRows}
+          onSelectionChange={contactData.setSelectedRows}
+          enablePagination
+          enableSorting
+          enableSelection={false}
+          enableColumnPinning
+          enableResizing={false}
+          rowsPerPageOptions={[10, 20, 50, 100]}
+          showPageNumbers
+          maxVisiblePages={7}
+          emptyMessage="No investment contacts found"
+          actions={row => (
+            <AppActionMenu
+              data-testid={`contact-actions-menu-${row.original.id}`}
+              contextsArray={[FlowContextName.investmentContactEntity]}
+              externalContextData={{ contactId: row.original.id }}
+              prefixDataTestId="investment-contact-actions"
+              accessToken={accessToken}
+              emptyStateBehavior="enable"
+              deferMainContextRequestsUntilClick
+            >
+              <Button
+                size="icon"
+                variant="ghost"
+                aria-label="Contact actions"
+                data-testid={`contact-actions-trigger-${row.original.id}`}
+                onClick={e => e.stopPropagation()}
+              >
+                <svg
+                  xmlns="http://www.w3.org/2000/svg"
+                  width="16"
+                  height="16"
+                  viewBox="0 0 24 24"
+                  fill="none"
+                  stroke="currentColor"
+                  strokeWidth="2"
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                >
+                  <circle cx="12" cy="12" r="1" />
+                  <circle cx="12" cy="5" r="1" />
+                  <circle cx="12" cy="19" r="1" />
+                </svg>
+              </Button>
+            </AppActionMenu>
+          )}
+          onRowClick={handleRowClick}
+        />
+      </DataDisplay>
     </div>
   )
 }

@@ -1,343 +1,102 @@
-import React, { useState, useCallback, useEffect, useMemo } from 'react'
-import { Button, Spinner, Alert } from '@newwork/nw-design-system'
-import { Plus } from 'lucide-react'
+import React, { useMemo } from 'react'
+import { Button, DataDisplay, DataTable, Spinner } from '@newwork/nw-design-system'
+import { Plus, Download, Trash2 } from 'lucide-react'
 import { BusinessAppContextProps } from '@/common/BusinessAppContext'
-import { useGetInvestmentAccounts } from '@/common/data/investment/hooks/useInvestmentAccounts'
 import type { InvestmentAccount } from '@/common/data/investment/types'
-import type { InvestmentAccountQueryVariables } from '@/common/data/investment/queries/investmentAccountQueries'
-import { DataContainer } from '@/components/layout/dataContainer/DataContainer'
 import { AccountStatistics } from './components/AccountStatistics'
-import { AccountList } from './components/AccountList'
-import { ColumnConfig } from '@/components/dataController'
 import { AppAction } from '@/components/app-action/AppAction'
+import { AppActionMenu } from '@/components/app-action-menu/AppActionMenu'
 import { FlowContextName } from '@/common/types/FlowRegistryTypes'
-import { useInvestmentAccountFilters } from './hooks/useInvestmentAccountFilters'
+import { navigateTo } from '@/common/utils/navigationUtils'
 import { getTranslationFromI18nKeyAndLabel } from '@/common/utils/windowUtils'
+import { useAccountData } from './hooks/useAccountData'
+import { useAccountFilterOptions } from './hooks/useAccountFilterOptions'
+import { createAccountColumns, createAccountSortableColumns, accountFilterConfig } from './config'
 
 export type AccountViewProps = BusinessAppContextProps
 
 export const AccountView: React.FC<AccountViewProps> = context => {
   const { accessToken } = context
 
-  // Read initial filters/search from URL (before first render)
-  const getInitialFromUrl = () => {
-    const urlParams = new URLSearchParams(window.location.search)
-    const filters: string[] = []
-    const pushAll = (key: string, prefix: string) => {
-      urlParams.getAll(key).forEach(v => v && filters.push(`${prefix}:${v}`))
+  // Data management
+  const accountData = useAccountData(context)
+
+  // Filter options
+  const filterOptions = useAccountFilterOptions(context)
+
+  // Create columns
+  const accountColumns = useMemo(() => createAccountColumns(), [])
+
+  // Dynamic filter configuration
+  const dynamicFilterConfig = useMemo(() => {
+    const config = { ...accountFilterConfig }
+
+    // Update Owner filter with dynamic data
+    const accountFiltersGroup = config.groups.find(g => g.id === 'account-filters')
+    if (accountFiltersGroup && filterOptions.owners.length > 0) {
+      const ownerFilter = accountFiltersGroup.filters.find(f => f.id === 'owners')
+      if (ownerFilter && ownerFilter.config && 'options' in ownerFilter.config) {
+        ownerFilter.config.options = filterOptions.owners
+      }
     }
-    pushAll('owner', 'owner')
-    pushAll('industry', 'industry')
-    pushAll('legalForm', 'legalForm')
-    pushAll('companySize', 'companySize')
-    pushAll('annualRevenueBand', 'annualRevenueBand')
-    pushAll('company', 'company')
-    pushAll('location', 'location')
-    pushAll('status', 'status')
-    const search = urlParams.get('search') || ''
-    return { search, filters }
+
+    // Update Industry filter with dynamic data
+    if (accountFiltersGroup && filterOptions.industries.length > 0) {
+      const industryFilter = accountFiltersGroup.filters.find(f => f.id === 'industries')
+      if (industryFilter && industryFilter.config && 'options' in industryFilter.config) {
+        industryFilter.config.options = filterOptions.industries
+      }
+    }
+
+    // Update Legal Form filter with dynamic data
+    if (accountFiltersGroup && filterOptions.legalForms.length > 0) {
+      const legalFormFilter = accountFiltersGroup.filters.find(f => f.id === 'legalForms')
+      if (legalFormFilter && legalFormFilter.config && 'options' in legalFormFilter.config) {
+        legalFormFilter.config.options = filterOptions.legalForms
+      }
+    }
+
+    // Update Company Size filter with dynamic data
+    if (accountFiltersGroup && filterOptions.companySizes.length > 0) {
+      const companySizeFilter = accountFiltersGroup.filters.find(f => f.id === 'companySizes')
+      if (companySizeFilter && companySizeFilter.config && 'options' in companySizeFilter.config) {
+        companySizeFilter.config.options = filterOptions.companySizes
+      }
+    }
+
+    // Update Revenue Band filter with dynamic data
+    if (accountFiltersGroup && filterOptions.revenueBands.length > 0) {
+      const revenueBandFilter = accountFiltersGroup.filters.find(f => f.id === 'revenueBands')
+      if (revenueBandFilter && revenueBandFilter.config && 'options' in revenueBandFilter.config) {
+        revenueBandFilter.config.options = filterOptions.revenueBands
+      }
+    }
+
+    return config
+  }, [filterOptions])
+
+  // Transform data to flatten nested objects for DataTable
+  const transformedAccountData = useMemo(() => {
+    return accountData.data.map(account => ({
+      ...account,
+      industryValue: account.industryClass?.value || account.industryClass?.code || '',
+      legalFormValue: account.legalForm?.value || account.legalForm?.code || '',
+      companySizeValue: account.companySize?.value || account.companySize?.code || '',
+      ownerEmployeeName: account.ownerEmployee?.displayName || ''
+    }))
+  }, [accountData.data])
+
+  // Handle row click
+  const handleRowClick = (account: InvestmentAccount) => {
+    navigateTo(`/platform/irm/account-record?accountId=${account.id}`)
   }
-  const initial = getInitialFromUrl()
 
-  // State management
-  type SortOrder = 'ASC' | 'DESC' | undefined
-  const [searchTerm, setSearchTerm] = useState(initial.search)
-  const [currentPage, setCurrentPage] = useState(1)
-  const [pageSize] = useState(20)
-  const [sortField, setSortField] = useState<string | undefined>('createdAt')
-  const [sortOrder, setSortOrder] = useState<SortOrder>('DESC')
-  const [selectedFilters, setSelectedFilters] = useState<string[]>(initial.filters)
-  // const [showDataFilter, setShowDataFilter] = useState(false);
-
-  // Hooks for data fetching
-  const { fetchInvestmentAccounts } = useGetInvestmentAccounts(context)
-  const { filterGroups, filterLabelMap, handleFilterChange, createdAfter, createdBefore, filtersInitialized } =
-    useInvestmentAccountFilters(context, selectedFilters, setSelectedFilters)
-
-  // Data state
-  const [accounts, setAccounts] = useState<InvestmentAccount[]>([])
-  const [totalCount, setTotalCount] = useState(0)
-  const [isLoading, setIsLoading] = useState(true)
-  const [error, setError] = useState<string | null>(null)
-
-  // Column visibility configuration
-  const [columnConfig, setColumnConfig] = useState<ColumnConfig[]>(() => [
-    { id: 'actions', label: 'Actions', visible: true, disabled: true },
-    { id: 'account', label: 'Account', visible: true },
-    { id: 'contact', label: 'Contact Info', visible: true },
-    { id: 'location', label: 'Location', visible: true },
-    { id: 'industry', label: 'Industry', visible: true },
-    { id: 'legalForm', label: 'Legal Form', visible: true },
-    { id: 'size', label: 'Company Size', visible: false },
-    { id: 'revenue', label: 'Revenue', visible: false },
-    { id: 'owner', label: 'Owner', visible: true },
-    { id: 'created', label: 'Creation Date', visible: true }
-  ])
-
-  // Get visible columns for passing to table
-  const visibleColumns = columnConfig.filter(col => col.visible).map(col => col.id)
-
-  // Handle column visibility change
-  const handleColumnVisibilityChange = useCallback((columnId: string, visible: boolean) => {
-    setColumnConfig(prev => prev.map(col => (col.id === columnId ? { ...col, visible } : col)))
-  }, [])
-
-  // Build query variables
-  const queryVariables: InvestmentAccountQueryVariables = useMemo(() => {
-    const vars: Partial<InvestmentAccountQueryVariables> = {}
-    const ownerIds: string[] = []
-    const industryIds: string[] = []
-    const legalFormIds: string[] = []
-    const sizeIds: string[] = []
-    const revenueIds: string[] = []
-    const names: string[] = []
-    const geoPresence: string[] = []
-    let hasWebsite = false,
-      missingWebsite = false,
-      hasEmail = false,
-      missingEmail = false,
-      hasPhone = false,
-      missingPhone = false,
-      hasContact = false,
-      missingContact = false,
-      isActive = false,
-      isInactive = false
-
-    selectedFilters.forEach(f => {
-      if (f.startsWith('owner:')) ownerIds.push(f.slice(6))
-      else if (f.startsWith('industry:')) {
-        const val = f.slice(9)
-        if (val.includes(':'))
-          (vars as any).industryClassCodes = [...((vars as any).industryClassCodes || []), val.split(':').pop()!]
-        else industryIds.push(val)
-      } else if (f.startsWith('legalForm:')) {
-        const val = f.slice(10)
-        if (val.includes(':'))
-          (vars as any).legalFormCodes = [...((vars as any).legalFormCodes || []), val.split(':').pop()!]
-        else legalFormIds.push(val)
-      } else if (f.startsWith('companySize:')) {
-        const val = f.slice(12)
-        if (val.includes(':'))
-          (vars as any).companySizeCodes = [...((vars as any).companySizeCodes || []), val.split(':').pop()!]
-        else sizeIds.push(val)
-      } else if (f.startsWith('annualRevenueBand:')) {
-        const val = f.slice(18)
-        if (val.includes(':'))
-          (vars as any).accountAnnualRevenueBandCodes = [
-            ...((vars as any).accountAnnualRevenueBandCodes || []),
-            val.split(':').pop()!
-          ]
-        else revenueIds.push(val)
-      } else if (f.startsWith('company:')) names.push(f.slice(8))
-      else if (f.startsWith('location:')) geoPresence.push(f.slice(9))
-      else if (f === 'status:active') isActive = true
-      else if (f === 'status:inactive') isInactive = true
-      else if (f === 'has:website') hasWebsite = true
-      else if (f === 'missing:website') missingWebsite = true
-      else if (f === 'has:email') hasEmail = true
-      else if (f === 'missing:email') missingEmail = true
-      else if (f === 'has:phone') hasPhone = true
-      else if (f === 'missing:phone') missingPhone = true
-      else if (f === 'has:contact') hasContact = true
-      else if (f === 'missing:contact') missingContact = true
-    })
-
-    if (ownerIds.length) vars.ownerEmployeeIds = ownerIds
-    if (industryIds.length) vars.industryClassIds = industryIds
-    if (legalFormIds.length) vars.legalFormIds = legalFormIds
-    if (sizeIds.length) vars.companySizeIds = sizeIds
-    if (revenueIds.length) vars.accountAnnualRevenueBandIds = revenueIds
-    if (names.length) vars.names = names
-    if (geoPresence.length) vars.geographicPresenceValues = geoPresence
-
-    const base: InvestmentAccountQueryVariables = {
-      limit: pageSize,
-      offset: (currentPage - 1) * pageSize,
-      search: searchTerm.trim() || undefined,
-      ...(sortField && sortOrder
-        ? {
-            orderBy: [
-              { field: sortField, direction: sortOrder === 'ASC' ? 'ASC_NULLS_LAST' : 'DESC_NULLS_LAST' }
-            ] as any
-          }
-        : {}),
-      ...(createdAfter ? { createdAtFrom: createdAfter } : {}),
-      ...(createdBefore ? { createdAtTo: createdBefore } : {}),
-      ...(hasWebsite ? { hasWebsite: true } : {}),
-      ...(missingWebsite ? { missingWebsite: true } : {}),
-      ...(hasEmail ? { hasEmail: true } : {}),
-      ...(missingEmail ? { missingEmail: true } : {}),
-      ...(hasPhone ? { hasPhone: true } : {}),
-      ...(missingPhone ? { missingPhone: true } : {}),
-      ...(hasContact ? { hasContact: true } : {}),
-      ...(missingContact ? { missingContact: true } : {}),
-      ...(isActive ? { isActive: true } : {}),
-      ...(isInactive ? { isInactive: true } : {}),
-      ...vars
-    }
-    return base
-  }, [currentPage, pageSize, searchTerm, sortField, sortOrder, selectedFilters, createdAfter, createdBefore])
-
-  // Load data
-  const loadData = useCallback(async () => {
-    if (!accessToken || !filtersInitialized) return
-
-    setIsLoading(true)
-    setError(null)
-
-    try {
-      const result = await fetchInvestmentAccounts(queryVariables)
-      setAccounts(result.InvestmentAccount || [])
-      setTotalCount(result.InvestmentAccountAggregate?.aggregate?.count || 0)
-    } catch (err) {
-      setError(err instanceof Error ? err.message : 'Unknown error occurred')
-    } finally {
-      setIsLoading(false)
-    }
-  }, [accessToken, filtersInitialized, fetchInvestmentAccounts, queryVariables])
-
-  // Listen for process events and refresh data when investment account processes complete
-  useEffect(() => {
-    const handleProcessEvent = (event: any) => {
-      try {
-        // Check for successful completion from different event structures
-        if (event.detail?.resolution === 'success') {
-          loadData() // Refresh account list data
-          return
-        }
-
-        // Also check for different event structure
-        const response = event.detail?.response
-        if (response?.detail?.resolution === 'success' || response?.investmentAccount) {
-          loadData()
-          return
-        }
-
-        // For continue events, check if payload contains successful data
-        if (event.type === 'com.newwork.process.continue' && event.detail?.payload) {
-          loadData()
-        }
-      } catch {
-        // Silently handle errors in process event handling
-      }
-    }
-
-    // Listen to multiple possible event names (following Investment Record pattern)
-    const eventNames = [
-      'com.newwork.process.taskCompletion',
-      'com.newwork.process.completion',
-      'com.newwork.process.continue', // ✅ This is what our form dispatches!
-      'com.newwork.process.processCompletion',
-      'processCompletion',
-      'taskCompletion',
-      'taskCompleted',
-      'processCompleted',
-      'task-completion',
-      'process-completion'
-    ]
-
-    eventNames.forEach(eventName => {
-      window.addEventListener(eventName, handleProcessEvent as EventListener)
-    })
-
-    return () => {
-      eventNames.forEach(eventName => {
-        window.removeEventListener(eventName, handleProcessEvent as EventListener)
-      })
-    }
-  }, [loadData])
-
-  // Load data on mount and when variables change
-  useEffect(() => {
-    loadData()
-  }, [loadData])
-
-  // Handle search
-  const handleSearch = useCallback((value: string) => {
-    setSearchTerm(value)
-    setCurrentPage(1) // Reset to first page on search
-  }, [])
-
-  // Handle pagination
-  const handlePageChange = useCallback((page: number) => {
-    setCurrentPage(page)
-  }, [])
-
-  // Handle sorting
-  const handleSort = useCallback(
-    (field: string) => {
-      if (sortField !== field) {
-        setSortField(field)
-        setSortOrder('ASC')
-        return
-      }
-      if (sortOrder === 'ASC') {
-        setSortOrder('DESC')
-      } else if (sortOrder === 'DESC') {
-        setSortField(undefined)
-        setSortOrder(undefined)
-      } else {
-        setSortOrder('ASC')
-      }
-    },
-    [sortField, sortOrder]
-  )
-
-  const handleSetFilter = useCallback((filters: string[]) => {
-    setSelectedFilters(filters)
-    setCurrentPage(1)
-  }, [])
-
-  // (Initial values already taken from URL above)
-
-  // Sync selected filters and search to URL params
-  useEffect(() => {
-    const urlParams = new URLSearchParams(window.location.search)
-
-    const setList = (key: string, values: string[]) => {
-      urlParams.delete(key)
-      values.forEach(v => urlParams.append(key, v))
-    }
-
-    const collect = (prefix: string) =>
-      selectedFilters.filter(f => f.startsWith(`${prefix}:`)).map(f => f.slice(prefix.length + 1))
-
-    setList('owner', collect('owner'))
-    setList('industry', collect('industry'))
-    setList('legalForm', collect('legalForm'))
-    setList('companySize', collect('companySize'))
-    setList('annualRevenueBand', collect('annualRevenueBand'))
-    setList('company', collect('company'))
-    setList('location', collect('location'))
-    setList('status', collect('status'))
-
-    if (searchTerm) urlParams.set('search', searchTerm)
-    else urlParams.delete('search')
-
-    const newUrl = `${window.location.pathname}?${urlParams.toString()}`
-    window.history.replaceState({}, '', newUrl)
-  }, [selectedFilters, searchTerm])
-
-  // Loading state
-  if (isLoading && accounts.length === 0) {
+  // Initial loading state
+  if (accountData.loading && accountData.data.length === 0 && !filterOptions.isLoading) {
     return (
       <div className="gba:flex gba:items-center gba:justify-center gba:h-64">
         <Spinner size="lg" />
       </div>
-    )
-  }
-
-  // Error state
-  if (error) {
-    return (
-      <Alert variant="destructive" className="gba:mb-4">
-        <div className="gba:flex gba:items-center gba:justify-between">
-          <span>Error loading accounts: {error}</span>
-          <Button variant="outline" size="sm" onClick={loadData}>
-            Retry
-          </Button>
-        </div>
-      </Alert>
     )
   }
 
@@ -352,69 +111,138 @@ export const AccountView: React.FC<AccountViewProps> = context => {
           </div>
         </div>
 
-        {/* Statistics Cards (server-based, separate fetch) */}
+        {/* Statistics Cards */}
         <AccountStatistics {...context} />
       </div>
 
-      {/* Data Container with Account List */}
-      <DataContainer
-        dataControllerProps={{
-          search: searchTerm,
-          setSearch: handleSearch,
-          debounceDelay: 500,
-          filter: selectedFilters,
-          setFilter: handleSetFilter,
-          filterLabelMap,
-          listTitle: (
-            <div className="gba:flex gba:items-center gba:gap-4">
-              <div className="gba:flex gba:items-center gba:gap-2">
-                <span>Accounts</span>
-                <span className="gba:text-gray-500">({totalCount})</span>
-              </div>
-            </div>
-          ),
-          columnVisibility: {
-            columns: columnConfig,
-            onColumnVisibilityChange: handleColumnVisibilityChange,
-            'data-testid': 'investment-accounts-column-visibility'
-          },
-          actions: (
-            <AppAction
-              contextsArray={[FlowContextName.investmentCreateAccount]}
-              accessToken={accessToken}
-              data-testid="add-account-action"
-              emptyStateBehavior="hide"
-            >
-              <Button size="sm" variant="default" data-testid="add-account-button" type="button">
-                <Plus size={16} />
-                {getTranslationFromI18nKeyAndLabel('crm:account.addAccount', 'Add Account')}
-              </Button>
-            </AppAction>
-          )
-        }}
-        dataFilterProps={{
-          filterGroups,
-          onFilterChange: handleFilterChange
-        }}
-        dataBody={
-          <AccountList
-            accounts={accounts}
-            searchTerm={searchTerm}
-            onSearchChange={handleSearch}
-            isLoading={isLoading}
-            totalCount={totalCount}
-            currentPage={currentPage}
-            pageSize={pageSize}
-            onPageChange={handlePageChange}
-            onSort={handleSort}
-            sortField={sortField}
-            sortOrder={sortOrder}
-            onClearFilters={() => setSelectedFilters([])}
-            visibleColumns={visibleColumns}
-            {...context}
-          />
+      {/* Data Display with DataTable */}
+      <DataDisplay
+        titleSections={[
+          {
+            id: 'all',
+            label: 'All Accounts',
+            metadata: { count: accountData.total, subtitle: 'All investment accounts' }
+          }
+        ]}
+        currentSection="all"
+        onSectionChange={() => {}} // Single tab, no section change needed
+        primaryAction={
+          <AppAction
+            contextsArray={[FlowContextName.createInvestmentAccount]}
+            accessToken={accessToken}
+            data-testid="add-account-action"
+            emptyStateBehavior="hide"
+            deferMainContextRequestsUntilClick={false}
+          >
+            <Button size="sm" variant="default" data-testid="add-account-button" type="button">
+              <Plus size={16} />
+              {getTranslationFromI18nKeyAndLabel('crm:account.addAccount', 'Add Account')}
+            </Button>
+          </AppAction>
         }
-      />
+        searchValue={accountData.search}
+        searchPlaceholder="Search accounts..."
+        onSearchChange={accountData.setSearch}
+        filters={accountData.filters}
+        filterConfiguration={dynamicFilterConfig}
+        onFilterChange={newFilters => {
+          accountData.setFilters(newFilters)
+        }}
+        enableLiveFiltering={true}
+        filterSheetTitle="Filter Investment Accounts"
+        filterSheetDescription="Apply filters to narrow down the investment account list"
+        toolbarDensity="default"
+        sorting={accountData.sorting}
+        sortableColumns={createAccountSortableColumns()}
+        onSortingChange={accountData.setSorting}
+        availableColumns={accountColumns.map(col => ({
+          id: col.id!,
+          label: col.header as string
+        }))}
+        visibleColumns={accountData.visibleColumns}
+        onVisibleColumnsChange={accountData.setVisibleColumns}
+        selectedCount={accountData.selectedRows.length}
+        bulkActions={[
+          {
+            id: 'export',
+            label: 'Export Selected',
+            icon: <Download className="gba:w-4 gba:h-4" />,
+            variant: 'secondary' as const,
+            onClick: () => {
+              console.log('Export selected accounts:', accountData.selectedRows)
+            }
+          },
+          {
+            id: 'delete',
+            label: 'Delete Selected',
+            icon: <Trash2 className="gba:w-4 gba:h-4" />,
+            variant: 'destructive' as const,
+            onClick: () => {
+              console.log('Delete selected accounts:', accountData.selectedRows)
+            }
+          }
+        ]}
+        onClearSelection={() => accountData.setSelectedRows([])}
+      >
+        <DataTable<InvestmentAccount>
+          data={transformedAccountData}
+          columns={accountColumns.filter(col => accountData.visibleColumns.includes(col.id!))}
+          loading={accountData.loading}
+          error={accountData.error?.message}
+          totalCount={accountData.total}
+          sorting={accountData.sorting}
+          onSortingChange={accountData.setSorting}
+          pagination={accountData.pagination}
+          onPaginationChange={accountData.setPagination}
+          selectedRows={accountData.selectedRows}
+          onSelectionChange={accountData.setSelectedRows}
+          enablePagination
+          enableSorting
+          enableSelection={false}
+          enableColumnPinning
+          enableResizing={false}
+          rowsPerPageOptions={[10, 20, 50, 100]}
+          showPageNumbers
+          maxVisiblePages={7}
+          emptyMessage="No investment accounts found"
+          actions={row => (
+            <AppActionMenu
+              data-testid={`account-actions-menu-${row.original.id}`}
+              contextsArray={[FlowContextName.investmentAccountEntity]}
+              externalContextData={{ accountId: row.original.id }}
+              prefixDataTestId="investment-account-actions"
+              accessToken={accessToken}
+              emptyStateBehavior="enable"
+              deferMainContextRequestsUntilClick
+            >
+              <Button
+                size="icon"
+                variant="ghost"
+                aria-label="Account actions"
+                data-testid={`account-actions-trigger-${row.original.id}`}
+                onClick={e => e.stopPropagation()}
+              >
+                <svg
+                  xmlns="http://www.w3.org/2000/svg"
+                  width="16"
+                  height="16"
+                  viewBox="0 0 24 24"
+                  fill="none"
+                  stroke="currentColor"
+                  strokeWidth="2"
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                >
+                  <circle cx="12" cy="12" r="1" />
+                  <circle cx="12" cy="5" r="1" />
+                  <circle cx="12" cy="19" r="1" />
+                </svg>
+              </Button>
+            </AppActionMenu>
+          )}
+          onRowClick={handleRowClick}
+        />
+      </DataDisplay>
     </div>
   )
 }

@@ -1,238 +1,201 @@
+'use client'
+
 import React, { useState, useCallback, useEffect, useMemo } from 'react'
-import { Button, Alert } from '@newwork/nw-design-system'
+import { Sheet, SheetContent, SheetHeader, SheetTitle, DataDisplay, DataTable, Button } from '@newwork/nw-design-system'
 import { Plus } from 'lucide-react'
 import { BusinessAppContextProps } from '@/common/BusinessAppContext'
-import { useGetInvestmentLeads } from '@/common/data/investment/hooks/useInvestmentLeads'
 import type { InvestmentLead } from '@/common/data/investment/types'
-import type { InvestmentLeadQueryVariables } from '@/common/data/investment/queries/investmentLeadQueries'
-import { DataContainer } from '@/components/layout/dataContainer/DataContainer'
+import { useLeadData } from './hooks/useLeadData'
 import { LeadStatistics } from './components/LeadStatistics'
-import { LeadList } from './components/LeadList'
-import { ColumnConfig } from '@/components/dataController'
+import { createLeadColumns, createLeadSortableColumns } from './config/leadColumns'
+import { leadFilterConfig } from './config/leadFilters'
+import { useLeadFilterOptions } from './hooks/useLeadFilterOptions'
 import { AppAction } from '@/components/app-action/AppAction'
+import { AppActionMenu } from '@/components/app-action-menu/AppActionMenu'
 import { FlowContextName } from '@/common/types/FlowRegistryTypes'
-import { useInvestmentLeadFilters } from './hooks/useInvestmentLeadFilters'
 import { getTranslationFromI18nKeyAndLabel } from '@/common/utils/windowUtils'
+import { navigateTo } from '@/common/utils/navigationUtils'
 
 export type LeadViewProps = BusinessAppContextProps
 
 export const LeadView: React.FC<LeadViewProps> = context => {
   const { accessToken } = context
 
-  // Read initial filters/search from URL synchronously
-  const getInitialFromUrl = () => {
-    const urlParams = new URLSearchParams(window.location.search)
-    const filters: string[] = []
-    const pushAll = (key: string, prefix: string) => {
-      urlParams.getAll(key).forEach(v => v && filters.push(`${prefix}:${v}`))
+  // Selected lead for detail view (if needed in future)
+  const [selectedLead, setSelectedLead] = useState<InvestmentLead | null>(null)
+
+  // Get dynamic filter data
+  const { statuses, ratings, sources, owners, countries, regions, cities } = useLeadFilterOptions(context)
+
+  // Create dynamic filter configuration
+  const dynamicFilterConfig = useMemo(() => {
+    const config = { ...leadFilterConfig }
+
+    // Update Status filter with dynamic data
+    const statusGroup = config.groups.find(g => g.id === 'status-group')
+    if (statusGroup && statuses.length > 0) {
+      const statusFilter = statusGroup.filters.find(f => f.id === 'leadStatuses')
+      if (statusFilter && statusFilter.config && 'options' in statusFilter.config) {
+        statusFilter.config.options = statuses.map(status => ({
+          id: status.id,
+          label: status.value
+        }))
+      }
     }
-    pushAll('leadStatus', 'status')
-    pushAll('leadRating', 'rating')
-    pushAll('leadSource', 'source')
-    pushAll('owner', 'owner')
-    pushAll('country', 'country')
-    pushAll('region', 'region')
-    pushAll('city', 'city')
-    pushAll('company', 'company')
-    pushAll('contact', 'contact')
-    const search = urlParams.get('search') || ''
-    return { search, filters }
+
+    // Update Rating filter with dynamic data
+    const ratingGroup = config.groups.find(g => g.id === 'rating-group')
+    if (ratingGroup && ratings.length > 0) {
+      const ratingFilter = ratingGroup.filters.find(f => f.id === 'leadRatings')
+      if (ratingFilter && ratingFilter.config && 'options' in ratingFilter.config) {
+        ratingFilter.config.options = ratings.map(rating => ({
+          id: rating.id,
+          label: rating.value
+        }))
+      }
+    }
+
+    // Update Source filter with dynamic data
+    const sourceGroup = config.groups.find(g => g.id === 'source-group')
+    if (sourceGroup && sources.length > 0) {
+      const sourceFilter = sourceGroup.filters.find(f => f.id === 'leadSources')
+      if (sourceFilter && sourceFilter.config && 'options' in sourceFilter.config) {
+        sourceFilter.config.options = sources.map(source => ({
+          id: source.id,
+          label: source.value
+        }))
+      }
+    }
+
+    // Update Owner filter with dynamic data
+    const ownerGroup = config.groups.find(g => g.id === 'owner-group')
+    if (ownerGroup && owners.length > 0) {
+      const ownerFilter = ownerGroup.filters.find(f => f.id === 'owners')
+      if (ownerFilter && ownerFilter.config && 'options' in ownerFilter.config) {
+        ownerFilter.config.options = owners.map(owner => ({
+          id: owner.id,
+          label: owner.value
+        }))
+      }
+    }
+
+    // Update Geography filters with dynamic data
+    const geographyGroup = config.groups.find(g => g.id === 'geography-group')
+    if (geographyGroup) {
+      if (countries.length > 0) {
+        const countryFilter = geographyGroup.filters.find(f => f.id === 'countries')
+        if (countryFilter && countryFilter.config && 'options' in countryFilter.config) {
+          countryFilter.config.options = countries.map(country => ({
+            id: country.id,
+            label: country.value
+          }))
+        }
+      }
+
+      if (regions.length > 0) {
+        const regionFilter = geographyGroup.filters.find(f => f.id === 'regions')
+        if (regionFilter && regionFilter.config && 'options' in regionFilter.config) {
+          regionFilter.config.options = regions.map(region => ({
+            id: region.id,
+            label: region.value
+          }))
+        }
+      }
+
+      if (cities.length > 0) {
+        const cityFilter = geographyGroup.filters.find(f => f.id === 'cities')
+        if (cityFilter && cityFilter.config && 'options' in cityFilter.config) {
+          cityFilter.config.options = cities.map(city => ({
+            id: city.id,
+            label: city.value
+          }))
+        }
+      }
+    }
+
+    return config
+  }, [statuses, ratings, sources, owners, countries, regions, cities])
+
+  // Data hook for lead list
+  const leadData = useLeadData(context)
+
+  // Get columns
+  const leadColumns = useMemo(() => createLeadColumns(), [])
+
+  // Helper function to safely convert to string
+  const safeString = (value: any): string => {
+    if (value === null || value === undefined) return ''
+    if (typeof value === 'string') return value
+    if (typeof value === 'object') return ''
+    return String(value)
   }
-  const initial = getInitialFromUrl()
 
-  // State management
-  const [searchTerm, setSearchTerm] = useState(initial.search)
-  const [currentPage, setCurrentPage] = useState(1)
-  const [pageSize] = useState(20)
-  type SortOrder = 'ASC' | 'DESC' | undefined
-  const [sortField, setSortField] = useState<string | undefined>('createdAt')
-  const [sortOrder, setSortOrder] = useState<SortOrder>('DESC')
-  const [selectedFilters, setSelectedFilters] = useState<string[]>(initial.filters)
-  // const [showDataFilter, setShowDataFilter] = useState(false);
+  // Transform lead data to flatten catalog objects for DataTable
+  const transformedLeadData = useMemo(() => {
+    return leadData.data.map(lead => ({
+      ...lead,
+      leadStatusValue: safeString(lead.leadStatus?.value || lead.leadStatus?.code),
+      leadRatingValue: safeString(lead.leadRating?.value),
+      leadSourceValue: safeString(lead.leadSource?.value),
+      ownerEmployeeName: safeString(lead.ownerEmployee?.displayName),
+      cityValue: safeString(lead.locality)
+    }))
+  }, [leadData.data])
 
-  // Column visibility configuration
-  const [columnConfig, setColumnConfig] = useState<ColumnConfig[]>(() => [
-    { id: 'actions', label: 'Actions', visible: true, disabled: true },
-    { id: 'lead', label: 'Lead', visible: true },
-    { id: 'contact', label: 'Contact Info', visible: true },
-    { id: 'address', label: 'Address', visible: true },
-    { id: 'status', label: 'Status', visible: true },
-    { id: 'rating', label: 'Rating', visible: true },
-    { id: 'source', label: 'Source', visible: true },
-    { id: 'owner', label: 'Owner', visible: true },
-    { id: 'created', label: 'Creation Date', visible: true }
-  ])
-
-  // Get visible columns for passing to table
-  const visibleColumns = columnConfig.filter(col => col.visible).map(col => col.id)
-
-  // Handle column visibility change
-  const handleColumnVisibilityChange = useCallback((columnId: string, visible: boolean) => {
-    setColumnConfig(prev => prev.map(col => (col.id === columnId ? { ...col, visible } : col)))
-  }, [])
-
-  const { filterGroups, filterLabelMap, handleFilterChange, createdAfter, createdBefore } = useInvestmentLeadFilters(
-    context,
-    selectedFilters,
-    setSelectedFilters
-  )
-
-  // Hooks for data fetching
-  const { fetchInvestmentLeads } = useGetInvestmentLeads(context)
-
-  // Data state
-  const [leads, setLeads] = useState<InvestmentLead[]>([])
-  const [totalCount, setTotalCount] = useState(0)
-  const [isLoading, setIsLoading] = useState(true)
-  const [error, setError] = useState<string | null>(null)
-
-  // Lead statistics refresh function (will be defined by LeadStatistics component)
+  // Statistics refresh function
   const [refreshStats, setRefreshStats] = useState<(() => void) | null>(null)
 
-  // Build query variables
-  const queryVariables: InvestmentLeadQueryVariables = useMemo(() => {
-    const filterVars: Partial<InvestmentLeadQueryVariables> = {}
-    const statusIds: string[] = []
-    const statusCodes: string[] = []
-    const ownerIds: string[] = []
-    const ratingIds: string[] = []
-    const sourceIds: string[] = []
-    const countryIds: string[] = []
-    const companyNames: string[] = []
-    const regions: string[] = []
-    const localities: string[] = []
-    const contactFullNames: string[] = []
-    let sensitive: boolean | undefined = undefined
-    selectedFilters.forEach(f => {
-      if (f.startsWith('status:')) {
-        const val = f.slice(7)
-        if (val.includes(':')) statusCodes.push(val)
-        else statusIds.push(val)
-      } else if (f.startsWith('owner:')) ownerIds.push(f.slice(6))
-      else if (f.startsWith('rating:')) ratingIds.push(f.slice(7))
-      else if (f.startsWith('source:')) sourceIds.push(f.slice(7))
-      else if (f.startsWith('country:')) countryIds.push(f.slice(8))
-      else if (f.startsWith('company:')) companyNames.push(f.slice(8))
-      else if (f.startsWith('region:')) regions.push(f.slice(7))
-      else if (f.startsWith('city:')) localities.push(f.slice(5))
-      else if (f.startsWith('contact:')) contactFullNames.push(f.slice(8))
-      else if (f === 'sensitive:true') sensitive = true
-      else if (f === 'sensitive:false') sensitive = false
-    })
-    if (statusIds.length) filterVars.leadStatusIds = statusIds
-    if (statusCodes.length) {
-      const normalized = statusCodes.map(c => {
-        const parts = String(c).split(':')
-        return parts.length ? parts[parts.length - 1] : String(c)
-      })
-      ;(filterVars as any).leadStatusCodes = normalized
-    }
-    if (ownerIds.length) filterVars.ownerEmployeeIds = ownerIds
-    if (ratingIds.length) (filterVars as any).leadRatingIds = ratingIds
-    if (sourceIds.length) (filterVars as any).leadSourceIds = sourceIds
-    if (countryIds.length) (filterVars as any).countryIds = countryIds
-    if (companyNames.length) (filterVars as any).companyNames = companyNames
-    if (regions.length) (filterVars as any).regions = regions
-    if (localities.length) (filterVars as any).localities = localities
-    if (contactFullNames.length) (filterVars as any).contactFullNames = contactFullNames
-    if (typeof sensitive === 'boolean') filterVars.sensitive = sensitive
-    return {
-      limit: pageSize,
-      offset: (currentPage - 1) * pageSize,
-      search: searchTerm.trim() || undefined,
-      ...(sortField && sortOrder
-        ? {
-            orderBy: (sortField === 'leadCombined'
-              ? [
-                  { field: 'firstName', direction: sortOrder === 'ASC' ? 'ASC_NULLS_LAST' : 'DESC_NULLS_LAST' },
-                  { field: 'lastName', direction: 'ASC_NULLS_LAST' },
-                  { field: 'companyName', direction: sortOrder === 'ASC' ? 'ASC_NULLS_LAST' : 'DESC_NULLS_LAST' }
-                ]
-              : [{ field: sortField, direction: sortOrder === 'ASC' ? 'ASC_NULLS_LAST' : 'DESC_NULLS_LAST' }]) as any
-          }
-        : {}),
-      ...(createdAfter ? { createdAtFrom: createdAfter } : {}),
-      ...(createdBefore ? { createdAtTo: createdBefore } : {}),
-      ...filterVars
-    }
-  }, [currentPage, pageSize, searchTerm, sortField, sortOrder, selectedFilters, createdAfter, createdBefore])
+  // Handle lead selection
+  const handleSelectLead = useCallback((lead: InvestmentLead) => {
+    setSelectedLead(lead)
+  }, [])
 
-  // Load data
-  const loadData = useCallback(async () => {
-    if (!accessToken) return
+  // Handle row click - navigate to lead record
+  const handleRowClick = useCallback(
+    (lead: InvestmentLead) => {
+      navigateTo(`/platform/irm/lead-record?leadId=${lead.id}`)
+      handleSelectLead(lead)
+    },
+    [handleSelectLead]
+  )
 
-    setIsLoading(true)
-    setError(null)
-
-    try {
-      const result = await fetchInvestmentLeads(queryVariables)
-      setLeads(result.InvestmentLead || [])
-      setTotalCount(result.InvestmentLeadAggregate?.aggregate?.count || 0)
-    } catch (err) {
-      setError(err instanceof Error ? err.message : 'Unknown error occurred')
-    } finally {
-      setIsLoading(false)
-    }
-  }, [accessToken, fetchInvestmentLeads, queryVariables])
-
-  // Load data on mount and when variables change
-  useEffect(() => {
-    loadData()
-  }, [loadData])
-
-  // Listen for process events and refresh data when investment lead processes complete
+  // Process completion event handling
   useEffect(() => {
     const handleProcessEvent = (event: any) => {
       try {
-        // Check for successful completion from different event structures
+        // Check for successful completion
         if (event.detail?.resolution === 'success') {
-          loadData() // Refresh lead list data
-          if (refreshStats) {
-            refreshStats() // Also refresh statistics if available
-          }
+          leadData.refetch?.()
+          if (refreshStats) refreshStats()
           return
         }
 
         // Also check for different event structure
         const response = event.detail?.response
         if (response?.detail?.resolution === 'success' || response?.investmentLead) {
-          loadData()
-          if (refreshStats) {
-            refreshStats()
-          }
+          leadData.refetch?.()
+          if (refreshStats) refreshStats()
           return
         }
 
-        // For continue events, check if payload contains successful data
+        // For continue events
         if (event.type === 'com.newwork.process.continue' && event.detail?.payload) {
-          loadData()
-          if (refreshStats) {
-            refreshStats()
-          }
+          leadData.refetch?.()
+          if (refreshStats) refreshStats()
         }
-      } catch (err) {
-        // Log process event handling errors with context
-        console.error('LeadView: Error handling process event:', {
-          eventType: event?.type || 'unknown',
-          eventDetail: event?.detail,
-          error: err instanceof Error ? err.message : err,
-          stack: err instanceof Error ? err.stack : undefined
-        })
+      } catch {
+        // Silently handle errors in process completion
       }
     }
 
-    // Listen to multiple possible event names (following Investment Record pattern)
     const eventNames = [
       'com.newwork.process.taskCompletion',
       'com.newwork.process.completion',
-      'com.newwork.process.continue', // ✅ This is what our form dispatches!
+      'com.newwork.process.continue',
       'com.newwork.process.processCompletion',
       'processCompletion',
-      'taskCompletion',
-      'taskCompleted',
-      'processCompleted',
-      'task-completion',
-      'process-completion'
+      'leadCompletion',
+      'leadCompleted'
     ]
 
     eventNames.forEach(eventName => {
@@ -244,169 +207,198 @@ export const LeadView: React.FC<LeadViewProps> = context => {
         window.removeEventListener(eventName, handleProcessEvent as EventListener)
       })
     }
-  }, [loadData, refreshStats])
-
-  // (Initial values already applied above)
-
-  // Handle search
-  const handleSearch = useCallback((value: string) => {
-    setSearchTerm(value)
-    setCurrentPage(1) // Reset to first page on search
-  }, [])
-
-  // Handle pagination
-  const handlePageChange = useCallback((page: number) => {
-    setCurrentPage(page)
-  }, [])
-
-  // Handle sorting
-  const handleSort = useCallback(
-    (field: string) => {
-      if (sortField !== field) {
-        setSortField(field)
-        setSortOrder('ASC')
-        return
-      }
-      if (sortOrder === 'ASC') {
-        setSortOrder('DESC')
-      } else if (sortOrder === 'DESC') {
-        setSortField(undefined)
-        setSortOrder(undefined)
-      } else {
-        setSortOrder('ASC')
-      }
-    },
-    [sortField, sortOrder]
-  )
-
-  const handleSetFilter = useCallback((filters: string[]) => {
-    setSelectedFilters(filters)
-    setCurrentPage(1)
-  }, [])
-
-  // Sync selected filters and search to URL params
-  useEffect(() => {
-    const urlParams = new URLSearchParams(window.location.search)
-
-    const setList = (key: string, values: string[]) => {
-      urlParams.delete(key)
-      values.forEach(v => urlParams.append(key, v))
-    }
-
-    const collect = (prefix: string) =>
-      selectedFilters.filter(f => f.startsWith(`${prefix}:`)).map(f => f.slice(prefix.length + 1))
-
-    setList('leadStatus', collect('status'))
-    setList('leadRating', collect('rating'))
-    setList('leadSource', collect('source'))
-    setList('owner', collect('owner'))
-    setList('country', collect('country'))
-    setList('region', collect('region'))
-    setList('city', collect('city'))
-    setList('company', collect('company'))
-    setList('contact', collect('contact'))
-
-    if (searchTerm) urlParams.set('search', searchTerm)
-    else urlParams.delete('search')
-
-    const newUrl = `${window.location.pathname}?${urlParams.toString()}`
-    window.history.replaceState({}, '', newUrl)
-  }, [selectedFilters, searchTerm])
-
-  // const toggleDataFilter = useCallback(() => {
-  //   setShowDataFilter(prev => !prev);
-  // }, []);
-
-  // No full-screen spinner to avoid big refresh on search clear
-
-  // Error state
-  if (error) {
-    return (
-      <Alert variant="destructive" className="gba:mb-4">
-        <div className="gba:flex gba:items-center gba:justify-between">
-          <span>Error loading leads: {error}</span>
-          <Button variant="outline" size="sm" onClick={loadData}>
-            Retry
-          </Button>
-        </div>
-      </Alert>
-    )
-  }
+  }, [leadData.refetch, refreshStats])
 
   return (
-    <div data-testid="investment-leads-view">
-      {/* Header */}
-      <div className="gba:mb-6">
-        <div className="gba:flex gba:items-center gba:justify-between gba:mb-4">
+    <div data-testid="investment-leads-view" className="gba:p-6">
+      <div className="gba:mb-8" data-testid="investment-leads-header">
+        <div className="gba:flex gba:justify-between gba:items-start" data-testid="investment-leads-title-section">
           <div>
-            <h1 className="gba:text-2xl gba:font-bold gba:text-gray-900">Investment Leads</h1>
-            <p className="gba:text-gray-600">Manage investment lead generation and qualification</p>
+            <h1
+              className="gba:text-4xl gba:font-bold gba:text-black gba:mb-3 gba:tracking-tight"
+              data-testid="investment-leads-title"
+            >
+              Investment Leads
+            </h1>
+            <p
+              className="gba:text-lg gba:text-gray-500 gba:font-normal gba:leading-relaxed"
+              data-testid="investment-leads-subtitle"
+            >
+              Manage investment lead generation and qualification
+            </p>
           </div>
         </div>
-
-        {/* Statistics Cards (server-based, separate fetch) */}
-        <LeadStatistics {...context} onRefreshReady={setRefreshStats} />
       </div>
 
-      {/* Data Container with Lead List */}
-      <DataContainer
-        dataControllerProps={{
-          search: searchTerm,
-          setSearch: handleSearch,
-          debounceDelay: 500,
-          filter: selectedFilters,
-          setFilter: handleSetFilter,
-          filterLabelMap,
-          listTitle: 'Leads',
-          listAmount: totalCount,
-          columnVisibility: {
-            columns: columnConfig,
-            onColumnVisibilityChange: handleColumnVisibilityChange,
-            'data-testid': 'investment-leads-column-visibility'
+      {/* Statistics - decoupled from table data */}
+      <LeadStatistics {...context} onRefreshReady={setRefreshStats} />
+
+      {/* Data Display with DataTable */}
+      <DataDisplay
+        // Title sections for integrated look
+        titleSections={[
+          {
+            id: 'all',
+            label: 'All Leads',
+            metadata: {
+              count: leadData.total,
+              subtitle: 'All investment leads'
+            }
+          }
+        ]}
+        currentSection="all"
+        // Primary action - Add Lead
+        primaryAction={
+          <AppAction
+            contextsArray={[FlowContextName.createInvestmentLead]}
+            accessToken={accessToken}
+            emptyStateBehavior="hide"
+            deferMainContextRequestsUntilClick={false}
+          >
+            <Button variant="default" size="sm">
+              <Plus className="gba:w-4 gba:h-4" />
+              {getTranslationFromI18nKeyAndLabel('crm:lead.addLead', 'Add Lead')}
+            </Button>
+          </AppAction>
+        }
+        // Search
+        searchValue={leadData.search}
+        searchPlaceholder="Search leads..."
+        onSearchChange={leadData.setSearch}
+        // Filters
+        filters={leadData.filters}
+        filterConfiguration={dynamicFilterConfig}
+        onFilterChange={newFilters => {
+          leadData.setFilters(newFilters)
+        }}
+        // Live filtering for real-time updates
+        enableLiveFiltering={true}
+        // Custom filter sheet labels
+        filterSheetTitle="Filter Investment Leads"
+        filterSheetDescription="Apply filters to narrow down the investment lead list"
+        // Toolbar density
+        toolbarDensity="default"
+        // Sorting
+        sorting={leadData.sorting}
+        sortableColumns={createLeadSortableColumns()}
+        onSortingChange={leadData.setSorting}
+        // Column visibility
+        availableColumns={leadColumns.map(col => ({
+          id: col.id!,
+          label: col.header as string
+        }))}
+        visibleColumns={leadData.visibleColumns}
+        onVisibleColumnsChange={leadData.setVisibleColumns}
+        // Selection & bulk actions
+        selectedCount={leadData.selectedRows.length}
+        bulkActions={[
+          {
+            id: 'export',
+            label: 'Export Selected',
+            onClick: () => console.log('Export selected leads:', leadData.selectedRows)
           },
-          actions: (
-            <AppAction
-              contextsArray={[FlowContextName.investmentCreateLead]}
+          {
+            id: 'assign',
+            label: 'Bulk Assign',
+            onClick: () => console.log('Bulk assign leads:', leadData.selectedRows)
+          },
+          {
+            id: 'delete',
+            label: 'Delete Selected',
+            onClick: () => console.log('Delete selected leads:', leadData.selectedRows)
+          }
+        ]}
+        onClearSelection={() => leadData.setSelectedRows([])}
+      >
+        <DataTable<InvestmentLead>
+          // Data
+          data={transformedLeadData}
+          columns={leadColumns.filter(col => leadData.visibleColumns.includes(col.id!))}
+          loading={leadData.loading}
+          error={leadData.error?.message}
+          totalCount={leadData.total}
+          // Controlled State
+          sorting={leadData.sorting}
+          onSortingChange={leadData.setSorting}
+          pagination={leadData.pagination}
+          onPaginationChange={leadData.setPagination}
+          selectedRows={leadData.selectedRows}
+          onSelectionChange={leadData.setSelectedRows}
+          // Features
+          enablePagination
+          enableSorting
+          enableSelection={false}
+          enableColumnPinning
+          enableResizing={false}
+          // UI
+          rowsPerPageOptions={[10, 20, 50, 100]}
+          showPageNumbers
+          maxVisiblePages={7}
+          emptyMessage="No investment leads found"
+          // Row Actions - Using AppActionMenu for flow integration
+          actions={row => (
+            <AppActionMenu
+              data-testid={`lead-actions-menu-${row.original.id}`}
+              contextsArray={[FlowContextName.investmentLeadEntity]}
+              externalContextData={{ leadId: row.original.id }}
+              prefixDataTestId="investment-lead-actions"
               accessToken={accessToken}
-              data-testid="add-lead-action-wrapper"
-              emptyStateBehavior="hide"
+              emptyStateBehavior="enable"
+              deferMainContextRequestsUntilClick
             >
               <Button
-                size="sm"
-                variant="default"
-                data-testid="add-lead-button"
-                type="button"
-                style={{ gap: 'var(--nw-spacing-xs)' }}
+                size="icon"
+                variant="ghost"
+                aria-label="Lead actions"
+                data-testid={`lead-actions-trigger-${row.original.id}`}
+                onClick={e => e.stopPropagation()}
               >
-                <Plus style={{ width: 'var(--nw-icon-size-sm)', height: 'var(--nw-icon-size-sm)' }} />
-                {getTranslationFromI18nKeyAndLabel('crm:lead.addLead', 'Add Lead')}
+                <svg
+                  className="gba:w-4 gba:h-4 gba:text-gray-600"
+                  fill="none"
+                  stroke="currentColor"
+                  viewBox="0 0 24 24"
+                >
+                  <path
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                    strokeWidth={2}
+                    d="M12 5v.01M12 12v.01M12 19v.01M12 6a1 1 0 110-2 1 1 0 010 2zm0 7a1 1 0 110-2 1 1 0 010 2zm0 7a1 1 0 110-2 1 1 0 010 2z"
+                  />
+                </svg>
               </Button>
-            </AppAction>
-          )
-        }}
-        dataFilterProps={{
-          filterGroups,
-          onFilterChange: handleFilterChange
-        }}
-        dataBody={
-          <LeadList
-            leads={leads}
-            searchTerm={searchTerm}
-            onSearchChange={handleSearch}
-            isLoading={isLoading}
-            totalCount={totalCount}
-            currentPage={currentPage}
-            pageSize={pageSize}
-            onPageChange={handlePageChange}
-            onSort={handleSort}
-            sortField={sortField || 'createdAt'}
-            sortOrder={sortOrder || 'ASC'}
-            onClearFilters={() => setSelectedFilters([])}
-            visibleColumns={visibleColumns}
-            {...context}
-          />
-        }
-      />
+            </AppActionMenu>
+          )}
+          // Row Click
+          onRowClick={handleRowClick}
+        />
+      </DataDisplay>
+
+      {/* Lead Details Sheet (optional - for future enhancement) */}
+      {selectedLead && (
+        <Sheet
+          open={!!selectedLead}
+          onOpenChange={open => {
+            if (!open) setSelectedLead(null)
+          }}
+          title="Lead Details"
+        >
+          <SheetContent className="gba:!w-[500px] gba:sm:!w-[500px] gba:!max-w-[90vw] gba:p-0 gba:flex gba:flex-col">
+            <SheetHeader className="gba:px-6 gba:py-6 gba:border-b gba:border-border gba:shrink-0">
+              <SheetTitle className="gba:text-xl gba:font-semibold gba:text-left">
+                {selectedLead?.firstName || selectedLead?.companyName || 'Lead Details'}
+              </SheetTitle>
+            </SheetHeader>
+            <div className="gba:flex-1 gba:overflow-hidden gba:px-6">
+              <div className="gba:p-4">
+                <p className="gba:text-sm gba:text-muted-foreground">
+                  Lead details will be displayed here in a future update.
+                </p>
+              </div>
+            </div>
+          </SheetContent>
+        </Sheet>
+      )}
     </div>
   )
 }

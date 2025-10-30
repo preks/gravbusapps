@@ -189,8 +189,8 @@ export const useInvestmentLeadFilters = (
         )
         const uniq = new Map<string, { firstName: string; lastName: string }>()
         ;(res.InvestmentLead || []).forEach(l => {
-          const f = (l.firstName || '').trim()
-          const s = (l.lastName || '').trim()
+          const f = String(l.firstName || '').trim()
+          const s = String(l.lastName || '').trim()
           const key = `${f}|${s}`
           if (!uniq.has(key)) uniq.set(key, { firstName: f, lastName: s })
         })
@@ -288,7 +288,7 @@ export const useInvestmentLeadFilters = (
           InvestmentLead: Array<{ region?: { id?: string; code?: string; value?: string } | null }>
         }>(query)
         ;(res.InvestmentLead || []).forEach(r => {
-          const val = (r.region?.value || r.region?.code || '').trim()
+          const val = String(r.region?.value || r.region?.code || '').trim()
           if (val) values.add(val)
         })
         setRegions(Array.from(values))
@@ -319,7 +319,8 @@ export const useInvestmentLeadFilters = (
         const set = new Set<string>()
         const res = await graphqlClient.request<{ InvestmentLead: Array<{ locality?: string }> }>(query)
         ;(res.InvestmentLead || []).forEach(r => {
-          if (r.locality?.trim()) set.add(r.locality.trim())
+          const locality = String(r.locality || '').trim()
+          if (locality) set.add(locality)
         })
         setCities(Array.from(set))
       } catch (e) {
