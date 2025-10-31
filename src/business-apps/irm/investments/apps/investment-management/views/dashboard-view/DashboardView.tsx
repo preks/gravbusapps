@@ -25,16 +25,6 @@ interface DashboardViewProps extends BusinessAppContextProps {
   onNavigateToInvestments?: (subTab?: string) => void
 }
 
-// Helper function to format currency
-const formatCurrency = (amount: number, currency: string = 'EUR'): string => {
-  return new Intl.NumberFormat('de-DE', {
-    style: 'currency',
-    currency: currency,
-    minimumFractionDigits: 0,
-    maximumFractionDigits: 0
-  }).format(amount)
-}
-
 // Helper function to format group names for display
 const formatGroupName = (groupName: string): string => {
   if (groupName === 'RealEstate') {
@@ -146,16 +136,20 @@ const DashboardView: React.FC<DashboardViewProps> = ({
         const currencies = new Set<string>()
         result?.Investment?.forEach((inv: Investment) => {
           if (inv.currency) {
+            const currency = inv.currency as any
             let currencyCode: string | null = null
-            if (typeof inv.currency === 'string') {
-              const parts = inv.currency.split(':')
+
+            if (typeof currency === 'string') {
+              const parts = currency.split(':')
               currencyCode = parts[parts.length - 1] || null
-            } else if (typeof inv.currency === 'object' && inv.currency !== null) {
-              const currencyObj = inv.currency as any
-              const currencyStr = currencyObj.code || currencyObj.value
-              const parts = currencyStr?.split(':') || []
-              currencyCode = parts[parts.length - 1] || null
+            } else if (typeof currency === 'object' && currency !== null) {
+              const currencyStr = currency.code || currency.value
+              if (currencyStr) {
+                const parts = String(currencyStr).split(':')
+                currencyCode = parts[parts.length - 1] || null
+              }
             }
+
             if (currencyCode) {
               currencies.add(currencyCode)
             }
@@ -411,7 +405,6 @@ const DashboardView: React.FC<DashboardViewProps> = ({
                 calculateTrendData={calculateTrendData}
                 masterCurrency={masterCurrency}
                 availableCurrencies={availableCurrencies}
-                formatCurrency={formatCurrency}
               />
             ))
           )}

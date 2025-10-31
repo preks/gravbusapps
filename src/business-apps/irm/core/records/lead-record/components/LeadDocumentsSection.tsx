@@ -39,7 +39,7 @@ export const LeadDocumentsSection: React.FC<LeadDocumentsSectionProps> = ({ lead
         expirationDate: doc.expirationDate,
         documentType: doc.documentType,
         documentGroup: doc.documentGroup,
-        file: doc.file,
+        file: doc.file || (doc as any)?.fileInfo?.fileId,
         mimeType: doc.mimeType,
         fileSize: doc.fileSize,
         createdBy: doc.createdBy,

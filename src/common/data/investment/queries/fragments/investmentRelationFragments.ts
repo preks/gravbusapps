@@ -84,6 +84,10 @@ export const INVESTMENT_LEAD = `
         companySize {
           ${CATALOG_ENTRY}
         }
+        accountAnnualRevenueBand {
+          ${CATALOG_ENTRY}
+        }
+        accountAnnualRevenueBandRef
         country {
           ${CATALOG_ENTRY}
         }

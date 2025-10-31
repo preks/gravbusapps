@@ -1,64 +1,146 @@
 import React from 'react'
-import { Combobox, Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@newwork/nw-design-system'
-import { BusinessAppContextProps } from '@/common/BusinessAppContext'
+import {
+  Combobox,
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+  useFormField
+} from '@newwork/nw-design-system'
+import { useFormContext } from 'react-hook-form'
 
 type Variant = 'combobox' | 'select'
 
-export interface CatalogSelectProps extends Partial<BusinessAppContextProps> {
-  catalogInstanceId: string // unique instance id from config (e.g. "birthCountry", "residenceCountry")
+export interface CatalogSelectProps {
+  // Self-registration config props (optional - if provided, registers automatically)
+  catalogIdentifier?: string // e.g. "Country:v1" - triggers auto-registration
+  prefetch?: boolean // include in batch prefetch
+  pageSize?: number // default 25
+  parentField?: string // dependency on parent catalog
+  childField?: string // bi-directional dependency
+  requireSourceForEnable?: boolean // disable until source has value
+  filterField?: string | Array<{ from: string; on: string }> // external filtering: "formField:catalogField" or array
+
+  // UI props
   variant?: Variant // optional; auto-detected when using provider
   value?: string | null
-  onValueChange?: (value: string | null) => void
-  onSearch?: (q: string) => void // override; otherwise provider wiring
-  loading?: boolean // override; otherwise provider wiring
-  options?: Array<{ value: string; label: string | React.ReactNode }> // override
-  hasMore?: boolean // override
-  onLoadMore?: () => void // override
-  placeholder?: string
-  searchPlaceholder?: string
-  disabled?: boolean
-  className?: string
+  onValueChange?: (value: string) => void // ✅ Always returns empty string instead of null
   ['data-testid']?: string
 }
 
-import { useCatalogSelectController } from './CatalogSelectProvider'
+import { useCatalogSelectController, CatalogSelectContext } from './CatalogSelectProvider'
 
 const CatalogSelect: React.FC<CatalogSelectProps> = ({
+  // Self-registration config props
+  catalogIdentifier,
+  prefetch,
+  pageSize,
+  parentField,
+  childField,
+  requireSourceForEnable,
+  filterField,
+  // UI props
   variant,
-  catalogInstanceId,
   value,
   onValueChange,
-  onSearch,
-  loading,
-  options,
-  hasMore,
-  onLoadMore,
-  placeholder = 'Select... ',
-  searchPlaceholder = 'Type to search... ',
-  disabled,
-  className,
-  'data-testid': dataTestId
+  'data-testid': dataTestId,
+  ...props
 }) => {
-  // Try to wire up via provider
-  const controller = useCatalogSelectController(catalogInstanceId)
+  // Get registration API from context
+  const context = React.useContext(CatalogSelectContext)
+
+  // Try to get form context for validation trigger (optional)
+  const formContext = useFormContext()
+  const formState = formContext?.formState
+
+  // Auto-detect field name from FormField context
+  let fieldName: string | undefined
+  try {
+    const fieldContext = useFormField()
+    fieldName = fieldContext?.name
+  } catch {
+    // Not inside a FormField, that's ok
+  }
+
+  // Parse filterField: string "formField:catalogField" or array
+  const parsedFilterField = React.useMemo(() => {
+    if (!filterField) return undefined
+    if (typeof filterField === 'string') {
+      const [from, on] = filterField.split(':')
+      return [{ from, on }]
+    }
+    return filterField
+  }, [filterField])
+
+  // ✅ Self-registration: Register ONCE on mount
+  const registeredRef = React.useRef(false)
+  React.useLayoutEffect(() => {
+    if (!registeredRef.current && catalogIdentifier && context?.registerCatalog && fieldName) {
+      context.registerCatalog({
+        id: fieldName,
+        catalogIdentifier,
+        prefetch,
+        pageSize,
+        parentField,
+        childField,
+        requireSourceForEnable,
+        filterField: parsedFilterField
+      })
+      registeredRef.current = true
+    }
+  }, [
+    fieldName,
+    catalogIdentifier,
+    prefetch,
+    pageSize,
+    parentField,
+    childField,
+    requireSourceForEnable,
+    parsedFilterField
+    // NOTE: context NOT in deps to avoid infinite loops
+  ])
+
+  // Wire up via provider
+  const controller = useCatalogSelectController(fieldName || '')
   const wiredVariant = variant ?? controller?.variant ?? 'combobox'
-  const wiredOptions = options ?? controller?.options ?? []
-  const wiredLoading = loading ?? controller?.loading ?? false
-  const wiredHasMore = hasMore ?? controller?.hasMore ?? false
-  const wiredOnLoadMore = onLoadMore ?? controller?.onLoadMore
-  const wiredOnSearch = onSearch ?? controller?.onSearch
-  const wiredDisabled = disabled ?? controller?.disabled ?? false
-  const wiredControllerValue = controller?.value ?? null
+  const wiredOptions = controller?.options ?? []
+  const wiredLoading = controller?.loading ?? false
+  const wiredHasMore = controller?.hasMore ?? false
+  const wiredOnLoadMore = controller?.onLoadMore
+  const wiredOnSearch = controller?.onSearch
+  const wiredDisabled = controller?.disabled ?? false
+  const wiredControllerValue = controller?.value ?? ''
   const effectiveValue = value !== undefined ? value : wiredControllerValue
+
+  // Initial sync: Set controller value from form's initial value (only once on mount)
+  const hasInitializedRef = React.useRef(false)
+  React.useEffect(() => {
+    if (!hasInitializedRef.current && controller?.setValue && effectiveValue) {
+      controller.setValue(effectiveValue)
+      hasInitializedRef.current = true
+    }
+  }, [controller, effectiveValue, fieldName])
 
   // If parent passes a controlled value but provider updates internally (e.g., bi-directional auto-select),
   // sync the controlled prop back by invoking onValueChange to keep external state in sync.
+  // BUT: Only sync Controller → Form, not Form → Controller (to avoid overwriting initial form values)
   const isControlled = value !== undefined
+  const lastControllerValueRef = React.useRef<string>(wiredControllerValue)
+
   React.useEffect(() => {
     if (!isControlled || !onValueChange) return
 
-    // Simple sync: if controller and controlled values differ, notify parent
+    // Only sync if CONTROLLER changed (not if form changed)
     const ctrl = wiredControllerValue
+    const lastCtrl = lastControllerValueRef.current
+
+    // Update tracked value
+    lastControllerValueRef.current = ctrl
+
+    // Only proceed if controller actually changed
+    if (ctrl === lastCtrl) return
+
     const controlled = value
 
     // Normalize both values for comparison (null vs '' are equivalent)
@@ -66,10 +148,10 @@ const CatalogSelect: React.FC<CatalogSelectProps> = ({
     const normalizedControlled = controlled || ''
 
     if (normalizedCtrl !== normalizedControlled) {
-      onValueChange(ctrl)
+      onValueChange(normalizedCtrl)
     }
-  }, [isControlled, onValueChange, wiredControllerValue, value])
-  const testId = dataTestId || `catalog-select-${catalogInstanceId}-${wiredVariant}`
+  }, [isControlled, onValueChange, wiredControllerValue, value, fieldName])
+  const testId = dataTestId || `catalog-select-${fieldName}-${wiredVariant}`
 
   // Do not force a no-op search; rely on prefetched options and sentinel observer
   const observerRef = React.useRef<IntersectionObserver | null>(null)
@@ -115,52 +197,25 @@ const CatalogSelect: React.FC<CatalogSelectProps> = ({
     return wiredOptions.map(o => ({ value: String(o.value), label: typeof o.label === 'string' ? o.label : '' }))
   }, [wiredOptions])
 
-  // Use a more stable key that doesn't change during search
-  const stableKey = `${catalogInstanceId}-${wiredVariant}-${wiredDisabled ? 'd' : 'e'}`
+  // Use a stable key that doesn't change during search or loading
+  const stableKey = `${fieldName}-${wiredVariant}`
 
-  // Ensure stable handlers so internal Combobox can call latest callbacks even if it captured initial ones
-  const onLoadMoreRef = React.useRef<typeof wiredOnLoadMore | undefined>(wiredOnLoadMore)
-  const onSearchRef = React.useRef<typeof wiredOnSearch | undefined>(wiredOnSearch)
-  React.useEffect(() => {
-    onLoadMoreRef.current = wiredOnLoadMore
-  }, [wiredOnLoadMore])
-  React.useEffect(() => {
-    onSearchRef.current = wiredOnSearch
-  }, [wiredOnSearch])
+  // Stable handlers for internal Combobox
   const handleLoadMore = React.useCallback(() => {
-    const fn = onLoadMoreRef.current
-    if (fn) fn()
-  }, [catalogInstanceId, wiredHasMore])
+    wiredOnLoadMore?.()
+  }, [wiredOnLoadMore])
+
   const handleSearch = React.useCallback(
     (q: string) => {
-      const fn = onSearchRef.current
-      if (fn) fn(q)
+      wiredOnSearch?.(q)
     },
-    [catalogInstanceId]
+    [wiredOnSearch]
   )
-
-  // Debug effect to track component mount and option changes
-  React.useEffect(() => {
-    return () => {}
-  }, []) // Empty deps = mount/unmount only
-
-  React.useEffect(() => {}, [
-    catalogInstanceId,
-    wiredVariant,
-    wiredOptions.length,
-    wiredHasMore,
-    wiredLoading,
-    wiredDisabled,
-    effectiveValue,
-    wiredControllerValue,
-    value,
-    isControlled,
-    onValueChange
-  ])
 
   const handleExternalValueChange = React.useCallback(
     (v: string | null | undefined) => {
-      const normalized: string | null = v && v.length > 0 ? v : null
+      // ✅ For React Hook Form, use empty string instead of null for string fields
+      const normalized = v && v.length > 0 ? v : ''
       if (controller?.setValue) {
         controller.setValue(normalized)
       }
@@ -169,16 +224,27 @@ const CatalogSelect: React.FC<CatalogSelectProps> = ({
     [controller, onValueChange]
   )
 
+  // Trigger validation when field becomes disabled (if form context available)
+  React.useEffect(() => {
+    if (wiredDisabled && fieldName && formContext && formState?.isSubmitted) {
+      // Trigger validation after a tick to allow value to clear first
+      const timer = setTimeout(() => {
+        formContext.trigger(fieldName)
+      }, 0)
+      return () => clearTimeout(timer)
+    }
+  }, [wiredDisabled, fieldName, formContext, formState?.isSubmitted])
+
   if (wiredVariant === 'combobox') {
     return (
       <Combobox
         key={stableKey}
-        className={`gba:w-full gba:h-auto ${className || ''}`}
+        className="gba:w-full gba:h-auto"
         options={comboboxOptions}
         value={effectiveValue || ''}
         onValueChange={v => handleExternalValueChange(v)}
-        placeholder={placeholder}
-        searchPlaceholder={searchPlaceholder}
+        placeholder="Select..."
+        searchPlaceholder="Type to search..."
         emptyText={wiredLoading ? 'Loading...' : 'No results'}
         onSearch={handleSearch}
         searchDebounce={300}
@@ -188,6 +254,7 @@ const CatalogSelect: React.FC<CatalogSelectProps> = ({
         data-testid={testId}
         align="start"
         disabled={wiredDisabled}
+        {...props}
       />
     )
   }
@@ -199,13 +266,17 @@ const CatalogSelect: React.FC<CatalogSelectProps> = ({
       onValueChange={v => handleExternalValueChange(v)}
       disabled={wiredDisabled}
     >
-      <SelectTrigger className={`gba:w-full ${className || ''}`} data-testid={testId}>
-        <SelectValue placeholder={placeholder} />
+      <SelectTrigger className="gba:w-full" data-testid={testId} {...props}>
+        <SelectValue placeholder="Select..." />
       </SelectTrigger>
-      <SelectContent style={{ maxHeight: '300px', overflowY: 'auto' }}>
+      <SelectContent className="gba:max-h-[300px] gba:overflow-y-auto">
         {wiredOptions.map(opt => (
-          <SelectItem key={String(opt.value)} value={String(opt.value)}>
-            {opt.label as any}
+          <SelectItem
+            key={String(opt.value)}
+            value={String(opt.value)}
+            data-testid={`${testId}-item-${String(opt.value)}`}
+          >
+            {opt.label}
           </SelectItem>
         ))}
         {wiredHasMore ? (

@@ -301,7 +301,9 @@ const AllInvestmentsList: React.FC<AllInvestmentsListProps> = context => {
       } else {
         // Handle individual filter removal - find which filters were removed and remove them
         const removedFilters = selectedFilters.filter(f => !filters.includes(f))
-        removedFilters.forEach(filterId => removeFilter(filterId))
+        removedFilters.forEach(filterId => {
+          removeFilter(filterId)
+        })
       }
     },
     [clearAllFilters, selectedFilters, removeFilter]
@@ -364,7 +366,7 @@ const AllInvestmentsList: React.FC<AllInvestmentsListProps> = context => {
         ),
         actions: (
           <AppAction
-            contextsArray={[FlowContextName.createInvestment]}
+            contextsArray={[FlowContextName.investmentCreate]}
             externalContextData={{
               fromView: 'investments',
               fromSubView: 'overview'

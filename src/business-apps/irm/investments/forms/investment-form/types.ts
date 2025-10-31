@@ -4,6 +4,7 @@ import {
   RealEstateInvestmentData,
   LiquidFundInvestmentData
 } from '@/common/data/investment/payloads/investmentPayloads'
+import { EmployeeLiteOption } from '@/common/data/employee/useEmployeeSearch'
 
 // Nested form structure matching API payload structure exactly
 // react-hook-form handles nested structures perfectly with dot notation (e.g., "investment.name")
@@ -42,7 +43,7 @@ export interface InvestmentContextState {
 
   // Data collections
   investmentGroups: SelectOption[]
-  employeePositions: SelectOption[]
+  employeePositions: EmployeeLiteOption[]
   // Note: accounts now accessed via centralized fetchInvestmentAccounts function
 }
 

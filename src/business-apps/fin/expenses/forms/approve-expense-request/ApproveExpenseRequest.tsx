@@ -38,8 +38,8 @@ const ApproveExpenseRequestContent: React.FC<BusinessAppContextProps> = ({ acces
 
   // Handle modal close events to prevent task removal
   useEffect(() => {
-    const handleBeforeUnload = (event: BeforeUnloadEvent) => {
-      // Prevent default close behavior and dispatch cancel event
+    const handleBeforeUnload = () => {
+      // Dispatch cancel event when user closes/refreshes the page
       try {
         dispatchProcessContinueEvent('pse_cancel', {
           event: 'pse_cancel',
@@ -49,11 +49,9 @@ const ApproveExpenseRequestContent: React.FC<BusinessAppContextProps> = ({ acces
             messageKey: 'The approval process has been canceled.'
           }
         })
-      } catch {
-        console.error('Error canceling process:', processError)
+      } catch (err) {
+        console.error('Error canceling process:', err)
       }
-      event.preventDefault()
-      event.returnValue = ''
     }
 
     // Listen for beforeunload event (browser close, refresh, navigation)

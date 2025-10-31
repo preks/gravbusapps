@@ -5,13 +5,12 @@ import { env } from '@/common/env/EnvUtils'
 import { getTranslationFromI18nKeyAndLabel } from '@/common/utils/windowUtils'
 import {
   Toaster,
+  toast,
   Button,
   Alert,
   Spinner,
   Dialog,
   DialogContent,
-  DialogHeader,
-  DialogTitle,
   Card,
   CardContent,
   Select,
@@ -20,7 +19,6 @@ import {
   SelectTrigger,
   SelectValue
 } from '@newwork/nw-design-system'
-import { toast } from 'sonner'
 import { AlertTriangle, RefreshCw, Play } from 'lucide-react'
 import { MockDataProvider } from '../../providers/MockDataProvider'
 import { TemplateCard, LaunchConfiguration, EmptyState, SimulationWizard } from './components'
@@ -161,14 +159,6 @@ export const FlowLauncher: React.FC<FlowLauncherProps> = ({
     } else {
       console.error('Template missing ID field:', template)
     }
-  }
-
-  // Handle parameter change
-  const handleParameterChange = (parameterName: string, value: string) => {
-    setLaunchParameters(prev => ({
-      ...prev,
-      [parameterName]: value
-    }))
   }
 
   // Initiator selection is now in the header (top-right)

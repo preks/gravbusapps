@@ -124,6 +124,7 @@ export interface OpportunitiesAnalytics {
     percentage: number
   }[]
   opportunitiesByPipeline: {
+    pipelineId: string
     pipeline: string
     count: number
     value: number

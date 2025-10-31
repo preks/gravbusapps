@@ -101,7 +101,6 @@ const OpportunityFormComponent: React.FC = () => {
 
       // Determine change mode based on whether we have an ID
       const changeMode = formValues.id ? 'UPDATE' : 'INSERT'
-      const isUpdate = changeMode === 'UPDATE'
 
       // Include ID and version for updates
       if (formValues.id) {
@@ -141,14 +140,13 @@ const OpportunityFormComponent: React.FC = () => {
         }
       })
 
-      // ✅ UPDATED: Create payload structure with opportunityContacts for UPDATE, contactIds for CREATE
+      // ✅ UPDATED: Create payload structure with opportunityContacts for both CREATE and UPDATE
       const payload = {
         investmentOpportunity: {
           ...investmentOpportunityPayload,
-          opportunityContacts: isUpdate ? opportunityContacts : undefined // Only for updates
+          opportunityContacts: opportunityContacts // Include for both create and update
         },
-        changeMode: changeMode,
-        contactIds: isUpdate ? undefined : opportunityContacts.map(oc => oc.contact) // For CREATE mode only
+        changeMode: changeMode
       }
 
       // Dispatch process continue event FIRST (like account form)

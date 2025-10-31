@@ -15,6 +15,7 @@ export interface ReportFiltersState {
   columnConfig: ColumnConfig[]
   visibleColumns: string[]
   selectedCurrencies: string[]
+  availableCurrencies: string[]
 }
 
 export interface ReportFiltersCallbacks {
@@ -24,6 +25,7 @@ export interface ReportFiltersCallbacks {
   handleTransposeToggle: () => void
   handleColumnVisibilityChange: (columnId: string, visible: boolean) => void
   handleCurrencyChange: (currencies: string[]) => void
+  handleAvailableCurrenciesUpdate: (currencies: string[]) => void
 }
 
 export interface UseReportFiltersReturn extends ReportFiltersState, ReportFiltersCallbacks {
@@ -39,7 +41,14 @@ export interface UseReportFiltersReturn extends ReportFiltersState, ReportFilter
 
 /**
  * Shared hook for report filter state management across all investment report types
- * Handles date range filtering and column visibility
+ * Handles date range filtering, column visibility, and currency filtering
+ *
+ * Features:
+ * - Date range filtering (start/end dates)
+ * - Currency multi-select filtering
+ * - Available currencies tracking (populated by child components)
+ * - Column visibility management
+ * - Table transpose toggle
  */
 export const useReportFilters = (initialColumns?: ColumnConfig[]): UseReportFiltersReturn => {
   const [startDate, setStartDate] = useState<dayjs.Dayjs | null>(null)
@@ -47,6 +56,7 @@ export const useReportFilters = (initialColumns?: ColumnConfig[]): UseReportFilt
   const [isTransposed, setIsTransposed] = useState(false)
   const [filtersInitialized, setFiltersInitialized] = useState(false)
   const [selectedCurrencies, setSelectedCurrencies] = useState<string[]>([])
+  const [availableCurrencies, setAvailableCurrencies] = useState<Set<string>>(new Set())
 
   // Column visibility management
   const [columnConfig, setColumnConfig] = useState<ColumnConfig[]>(initialColumns || [])
@@ -106,6 +116,16 @@ export const useReportFilters = (initialColumns?: ColumnConfig[]): UseReportFilt
     setSelectedCurrencies(currencies)
   }, [])
 
+  const handleAvailableCurrenciesUpdate = useCallback((currencies: string[]) => {
+    setAvailableCurrencies(prev => {
+      const updated = new Set(prev)
+      for (const id of currencies) {
+        updated.add(id)
+      }
+      return updated
+    })
+  }, [])
+
   const handleClearFilters = useCallback(() => {
     setStartDate(null)
     setEndDate(null)
@@ -134,12 +154,14 @@ export const useReportFilters = (initialColumns?: ColumnConfig[]): UseReportFilt
     columnConfig,
     visibleColumns,
     selectedCurrencies,
+    availableCurrencies: Array.from(availableCurrencies),
     // Callbacks
     handleStartDateChange,
     handleEndDateChange,
     handleTransposeToggle,
     handleColumnVisibilityChange,
     handleCurrencyChange,
+    handleAvailableCurrenciesUpdate,
     handleClearFilters,
     // Computed values
     computedFilters,

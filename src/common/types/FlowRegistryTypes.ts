@@ -1,29 +1,38 @@
 export enum FlowContextName {
+  // Intranet
+  articleEntity = 'contentEntity',
+  articleCreate = 'contentCreate',
+  articleUpdate = 'contentUpdate',
+  articleDelete = 'contentDelete',
+  contentLikeUpdate = 'contentLikeUpdate',
+  contentCommentCreate = 'contentCommentCreate',
+
   // Human Resources
   employeeEntity = 'employeeEntity',
   jobPositionEntity = 'jobPositionEntity',
 
+  // HR Notes
+  hrNoteCreate = 'createEmployeeNote',
+  hrNoteUpdate = 'updateEmployeeNote',
+  hrNoteDelete = 'deleteEmployeeNote',
+
   // Customer Relations
 
   /// Customer Leads
-  leadEntity = 'custopmerLeadEntity', // TODO: Obsolete
   customerLeadEntity = 'customerLeadEntity',
   customerLeadCreate = 'customerLeadCreate',
 
   /// Customer Accounts
-  accountEntity = 'customerAccountEntity', // TODO: Obsolete
-  customerAccountEntity = 'customerAccountEntity', // TODO: Check
+  customerAccountEntity = 'customerAccountEntity',
   customerAccountCreate = 'customerAccountCreate', // TODO: Replace startProcess
   customerAccountUpdate = 'customerAccountUpdate', // TODO: Replace startProcess
 
   /// Customer Contacts
-  contactEntity = 'customerContactEntity', // TODO: Rename
   customerContactEntity = 'customerContactEntity',
   customerContactCreate = 'customerContactCreate', // TODO: Replace startProcess
   customerContactUpdate = 'customerContactUpdate', // TODO: Replace startProcess
 
   /// Customer Opportunities
-  opportunityEntity = 'customerOpportunityEntity', // TODO: Obsolete
   customerOpportunityEntity = 'customerOpportunityEntity',
   customerOpportunityCreate = 'customerOpportunityCreate', // TODO: Replace startProcess
   customerOpportunityUpdate = 'customerOpportunityUpdate', // TODO: Replace startProcess
@@ -47,40 +56,42 @@ export enum FlowContextName {
   customerNoteDelete = 'customerNoteDelete',
 
   /// Customer Documents
-  createCustomerDocument = 'customerDocumentCreate',
+  customerDocumentCreate = 'customerDocumentCreate',
 
   customerTaskEntity = 'customerTaskEntity',
-  createCustomerTask = 'customerTaskCreate',
+  customerTaskCreate = 'customerTaskCreate',
   customerTaskDelete = 'customerTaskDelete',
 
   // Investment Relations
 
   /// Investment Leads
   investmentLeadEntity = 'investmentLeadEntity',
-  createInvestmentLead = 'investmentLeadCreate',
-  updateInvestmentLead = 'investmentLeadUpdate',
+  investmentLeadCreate = 'investmentLeadCreate',
+  investmentLeadUpdate = 'investmentLeadUpdate',
+  investmentLeadReject = 'investmentLeadReject',
 
   /// Investment Accounts
   investmentAccountEntity = 'investmentAccountEntity',
-  createInvestmentAccount = 'investmentAccountCreate',
-  updateInvestmentAccount = 'investmentAccountUpdate',
+  investmentAccountCreate = 'investmentAccountCreate',
+  investmentAccountUpdate = 'investmentAccountUpdate',
 
   /// Investment Contacts
   investmentContactEntity = 'investmentContactEntity',
-  createInvestmentContact = 'investmentContactCreate',
-  updateInvestmentContact = 'investmentContactUpdate',
+  investmentContactCreate = 'investmentContactCreate',
+  investmentContactUpdate = 'investmentContactUpdate',
 
   /// Investment Opportunities
   investmentOpportunityEntity = 'investmentOpportunityEntity',
-  createInvestmentOpportunity = 'investmentOpportunityCreate',
-  updateInvestmentOpportunity = 'investmentOpportunityUpdate',
+  investmentOpportunityCreate = 'investmentOpportunityCreate',
+  investmentOpportunityUpdate = 'investmentOpportunityUpdate',
   investmentOpportunityStageTransition = 'investmentOpportunityStageTransition',
   investmentOpportunityConditionUpdate = 'investmentOpportunityConditionUpdate',
+  investmentOpportunityReject = 'investmentOpportunityReject',
 
   /// Investment Activities
 
   investmentActivityEntity = 'investmentActivityEntity',
-  createInvestmentActivity = 'investmentActivityCreate',
+  investmentActivityCreate = 'investmentActivityCreate',
   investmentActivityDelete = 'investmentActivityDelete',
 
   /// Investment Tasks
@@ -103,7 +114,6 @@ export enum FlowContextName {
   investmentDocumentDelete = 'investmentDocumentDelete',
 
   /// Investments
-  createInvestment = 'investmentCreate', // TODO: Obsolete
   investmentCreate = 'investmentCreate', // TODO: Replace startProcess
   investmentEntity = 'investmentEntity',
   investmentTileUpdate = 'investmentTileUpdate',

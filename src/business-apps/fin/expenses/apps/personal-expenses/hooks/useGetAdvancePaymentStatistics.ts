@@ -53,7 +53,14 @@ export const useGetAdvancePaymentStatistics = (
     const previousMonthEnd = now.subtract(1, 'month').endOf('month').toISOString()
 
     // Skip duplicate identical requests
-    const signature = JSON.stringify({ employeeId, currencyRef, currentMonthStart, currentMonthEnd, previousMonthStart, previousMonthEnd })
+    const signature = JSON.stringify({
+      employeeId,
+      currencyRef,
+      currentMonthStart,
+      currentMonthEnd,
+      previousMonthStart,
+      previousMonthEnd
+    })
     if (signature === lastSignatureRef.current) {
       return
     }

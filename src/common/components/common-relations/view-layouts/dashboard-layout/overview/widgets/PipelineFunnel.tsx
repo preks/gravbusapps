@@ -1,6 +1,21 @@
 import React, { useMemo } from 'react'
-import { Card, CardContent, CardHeader, CardTitle, CardDescription, IconAvatar } from '@newwork/nw-design-system'
-import { ChartConfig, ChartContainer, ChartTooltip, ChartTooltipContent } from '@newwork/nw-design-system'
+import {
+  Card,
+  CardContent,
+  CardHeader,
+  CardTitle,
+  CardDescription,
+  IconAvatar,
+  Select,
+  SelectTrigger,
+  SelectValue,
+  SelectContent,
+  SelectItem,
+  ChartConfig,
+  ChartContainer,
+  ChartTooltip,
+  ChartTooltipContent
+} from '@newwork/nw-design-system'
 import { FunnelChart, Funnel, LabelList } from 'recharts'
 import { FunnelSimpleIcon } from '@phosphor-icons/react'
 
@@ -17,10 +32,24 @@ export interface PipelineFunnelProps {
   description?: string
   headerIcon?: React.ReactNode
   moduleColor?: string
+  availableCurrencies?: string[]
+  selectedCurrency?: string
+  onCurrencyChange?: (currency: string) => void
 }
 
 const formatCurrency = (amount: number, currencyCode: string = 'EUR'): string => {
   try {
+    // Use compact notation for large numbers
+    const abs = Math.abs(amount)
+    if (abs >= 1_000_000) {
+      return new Intl.NumberFormat('en-US', {
+        style: 'currency',
+        currency: currencyCode,
+        notation: 'compact',
+        minimumFractionDigits: 0,
+        maximumFractionDigits: 1
+      }).format(amount)
+    }
     return new Intl.NumberFormat('en-US', {
       style: 'currency',
       currency: currencyCode,
@@ -39,15 +68,40 @@ const toKey = (value: string): string =>
     .replace(/[^a-z0-9-]/g, '')
 
 // Custom label renderer for funnel elements
-const renderCustomLabel = (entry: any) => {
-  const { payload, count, originalValue, value: dataValue, x, y, width, height } = entry
-  // Always use originalValue if available, otherwise use the stage value from payload
-  const displayValue =
-    originalValue !== undefined
-      ? originalValue
-      : payload?.originalValue !== undefined
-        ? payload.originalValue
-        : dataValue
+// Uses a closure to access chartData and match by multiple methods
+const renderCustomLabel = (chartData: any[], currencyCode: string) => (props: any) => {
+  const { x, y, width, height, name, value, index } = props
+
+  // Try multiple ways to find the matching data item
+  let dataItem = null
+
+  // Method 1: Match by name (stage key)
+  if (name && !dataItem) {
+    dataItem = chartData.find(item => item.stage === name)
+  }
+
+  // Method 2: Match by index (most reliable for FunnelChart)
+  if (index !== undefined && !dataItem) {
+    dataItem = chartData[index]
+  }
+
+  // Method 3: Match by value as fallback
+  if (value && !dataItem) {
+    dataItem = chartData.find(item => item.value === value)
+  }
+
+  // If we still can't find the data, don't render anything
+  if (!dataItem) {
+    return null
+  }
+
+  const count = dataItem.count || 0
+  const originalValue = dataItem.originalValue || 0
+
+  // Safety check - don't render if no valid data
+  if (!originalValue || Number.isNaN(originalValue) || originalValue === 0) {
+    return null
+  }
 
   return (
     <g>
@@ -57,9 +111,14 @@ const renderCustomLabel = (entry: any) => {
         textAnchor="middle"
         dominantBaseline="middle"
         className="gba:fill-white gba:text-sm gba:font-bold"
-        style={{ textShadow: '1px 1px 2px rgba(0,0,0,0.5)' }}
+        style={{
+          stroke: 'hsl(0 0% 0%)',
+          strokeWidth: '2px',
+          strokeLinejoin: 'round',
+          paintOrder: 'stroke fill'
+        }}
       >
-        {formatCurrency(displayValue)}
+        {formatCurrency(originalValue, currencyCode)}
       </text>
       <text
         x={x + width / 2}
@@ -67,7 +126,12 @@ const renderCustomLabel = (entry: any) => {
         textAnchor="middle"
         dominantBaseline="middle"
         className="gba:fill-white gba:text-xs gba:opacity-90"
-        style={{ textShadow: '1px 1px 2px rgba(0,0,0,0.5)' }}
+        style={{
+          stroke: 'hsl(0 0% 0%)',
+          strokeWidth: '1.5px',
+          strokeLinejoin: 'round',
+          paintOrder: 'stroke fill'
+        }}
       >
         {count} opp{count !== 1 ? 's' : ''}
       </text>
@@ -80,7 +144,10 @@ export const PipelineFunnel: React.FC<PipelineFunnelProps> = ({
   title = 'All Pipeline - Current Year',
   description = 'Opportunity progression by stage',
   headerIcon,
-  moduleColor = 'default'
+  moduleColor = 'default',
+  availableCurrencies = ['EUR'],
+  selectedCurrency = 'EUR',
+  onCurrencyChange
 }) => {
   const dataKey = 'value'
   const nameKey = 'stage'
@@ -142,10 +209,27 @@ export const PipelineFunnel: React.FC<PipelineFunnelProps> = ({
     <Card className="gba:h-full">
       <CardHeader className="gba:flex gba:items-center gba:gap-3">
         {headerIcon ?? <IconAvatar icon={FunnelSimpleIcon} variant={moduleColor as any} size="md" decorative={true} />}
-        <div>
+        <div className="gba:flex-1">
           <CardTitle>{title}</CardTitle>
           <CardDescription>{description}</CardDescription>
         </div>
+        {availableCurrencies && availableCurrencies.length > 1 && onCurrencyChange && (
+          <div className="gba:flex gba:items-center gba:gap-2">
+            <span className="gba:text-sm gba:text-muted-foreground">Currency:</span>
+            <Select value={selectedCurrency} onValueChange={onCurrencyChange}>
+              <SelectTrigger className="gba:w-[100px]">
+                <SelectValue placeholder="Select currency" />
+              </SelectTrigger>
+              <SelectContent>
+                {availableCurrencies.map(currency => (
+                  <SelectItem key={currency} value={currency}>
+                    {currency}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          </div>
+        )}
       </CardHeader>
       <CardContent>
         {aggregatedFunnel && aggregatedFunnel.length > 0 ? (
@@ -162,7 +246,7 @@ export const PipelineFunnel: React.FC<PipelineFunnelProps> = ({
                     cy="50%"
                     isAnimationActive={true}
                   >
-                    <LabelList content={renderCustomLabel} />
+                    <LabelList content={renderCustomLabel(chartData, selectedCurrency)} />
                   </Funnel>
                   <ChartTooltip content={<ChartTooltipContent hideLabel labelKey={dataKey} nameKey={nameKey} />} />
                 </FunnelChart>
@@ -199,7 +283,9 @@ export const PipelineFunnel: React.FC<PipelineFunnelProps> = ({
                       </span>
                     </div>
                     <div className="gba:text-right">
-                      <div className="gba:font-medium gba:text-gray-900">{formatCurrency(stage.value)}</div>
+                      <div className="gba:font-medium gba:text-gray-900">
+                        {formatCurrency(stage.value, selectedCurrency)}
+                      </div>
                       <div className="gba:text-xs gba:text-gray-500">
                         {stage.count} opp{stage.count !== 1 ? 's' : ''}
                       </div>
