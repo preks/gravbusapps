@@ -76,7 +76,7 @@ export function StageDialog() {
 
   return (
     <div className="gba:fixed gba:inset-0 gba:bg-black/50 gba:flex gba:items-center gba:justify-center gba:p-4 gba:z-50">
-      <div className="gba:bg-white gba:dark:bg-gray-800 gba:rounded-lg gba:shadow-lg gba:max-w-md gba:w-full">
+      <div className="gba:bg-hsl(var(--background)) gba:dark:bg-gray-800 gba:rounded-lg gba:shadow-lg gba:max-w-md gba:w-full">
         <div className="gba:p-6">
           <h2 className="gba:text-xl gba:font-semibold gba:mb-4">{title}</h2>
           <form onSubmit={handleSubmit}>
@@ -151,7 +151,7 @@ export function StageDialog() {
                 </button>
                 <button
                   type="submit"
-                  className="gba:px-4 gba:py-2 gba:bg-blue-600 gba:text-white gba:rounded-md gba:text-sm gba:font-medium gba:hover:bg-blue-700"
+                  className="gba:px-4 gba:py-2 gba:bg-blue-600 gba:text-hsl(var(--background)) gba:rounded-md gba:text-sm gba:font-medium gba:hover:bg-blue-700"
                 >
                   {isEditing ? 'Update' : 'Add'}
                 </button>

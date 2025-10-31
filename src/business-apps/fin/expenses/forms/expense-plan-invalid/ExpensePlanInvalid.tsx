@@ -65,11 +65,16 @@ const ExpensePlanInvalidContent: React.FC<ExpensePlanInvalidContentProps> = ({ o
       <Divider style={{ margin: '0 0 46px 0' }} data-testid="expense-plan-invalid-divider" />
 
       <div
-        style={{ backgroundColor: '#f8d8e4', padding: '16px 24px', borderRadius: '4px', marginBottom: '32px' }}
+        style={{
+          backgroundColor: 'destructive-secondary',
+          padding: '16px 24px',
+          borderRadius: '4px',
+          marginBottom: '32px'
+        }}
         data-testid="expense-plan-invalid-validation-container"
       >
         <h3
-          style={{ fontSize: '14px', fontWeight: 700, color: '#ff0000', marginBottom: '8px' }}
+          style={{ fontSize: '14px', fontWeight: 700, color: 'destructive', marginBottom: '8px' }}
           data-testid="expense-plan-invalid-validation-title"
         >
           {getTranslationFromI18nKeyAndLabel(
@@ -78,7 +83,7 @@ const ExpensePlanInvalidContent: React.FC<ExpensePlanInvalidContentProps> = ({ o
           )}
         </h3>
         <p
-          style={{ fontSize: '14px', color: '#595959', margin: 0 }}
+          style={{ fontSize: '14px', color: 'foreground', margin: 0 }}
           data-testid="expense-plan-invalid-validation-message"
         >
           {getTranslationFromI18nKeyAndLabel(
@@ -138,7 +143,7 @@ const ExpensePlanInvalid: React.FC<BusinessAppContextProps> = () => {
           )
         }
       })
-    } catch (processError) {
+    } catch {
       showToast(
         getTranslationFromI18nKeyAndLabel(
           'lowcoder:create_expense_type_item.error_flows_message',

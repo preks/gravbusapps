@@ -51,7 +51,7 @@ export const useGetAdvancePaymentForApproval = (accessToken: string) => {
         AdvancePaymentByPk: AdvancePaymentData
       }>(GET_ADVANCE_PAYMENT_FOR_APPROVAL, { paymentId })
       return result.AdvancePaymentByPk
-    } catch (error) {
+    } catch {
       console.error('Error fetching advance payment data:', error)
       throw error
     }

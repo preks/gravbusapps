@@ -66,7 +66,7 @@ export const useLeadFilters = (context: BusinessAppContextProps) => {
   const [leadRatingSearch, setLeadRatingSearch] = useState('')
   const [leadSourceSearch, setLeadSourceSearch] = useState('')
   const [industrySearch, setIndustrySearch] = useState('')
-  const [companySizeSearch, setCompanySizeSearch] = useState('')
+  const [companySizeSearch] = useState('')
   const [ownerSearch, setOwnerSearch] = useState('')
   const [contactSearch, setContactSearch] = useState('')
   const [companySearch, setCompanySearch] = useState('')
@@ -455,38 +455,6 @@ export const useLeadFilters = (context: BusinessAppContextProps) => {
     },
     [stableOptions.industryOptions, industryLoading, industryError, industrySearch, selectedFilters]
   )
-
-  // Company size doesn't need backend search as it's predefined
-  const getCompanySizeFilters = useCallback(
-    (search: string) => {
-      // Only update search state if it has actually changed to prevent infinite loops
-      if (search !== companySizeSearch) {
-        setCompanySizeSearch(search)
-      }
-
-      const searchValue = search.trim().toLowerCase()
-
-      const filtered = searchValue
-        ? stableOptions.companySizeOptions.filter(option => {
-            const name = option.name ? option.name.toLowerCase() : ''
-            return name.includes(searchValue)
-          })
-        : stableOptions.companySizeOptions
-
-      return {
-        filters: filtered.map(option => ({
-          id: option.id,
-          label: option.name,
-          value: option.name,
-          selected: selectedFilters.includes(option.id)
-        })),
-        loading: companySizeLoading,
-        error: companySizeError
-      }
-    },
-    [stableOptions.companySizeOptions, companySizeLoading, companySizeError, companySizeSearch, selectedFilters]
-  )
-
   const getOwnerFilters = useCallback(
     (search: string) => {
       // Only update search state if it has actually changed to prevent infinite loops
@@ -656,17 +624,6 @@ export const useLeadFilters = (context: BusinessAppContextProps) => {
         selected: selectedFilters.includes(option.id)
       })),
     [stableOptions.industryOptions, selectedFilters]
-  )
-
-  const companySizeFilterOptions: DataFilter[] = useMemo(
-    () =>
-      stableOptions.companySizeOptions.map((option: any) => ({
-        id: option.id,
-        label: option.name,
-        value: option.name,
-        selected: selectedFilters.includes(option.id)
-      })),
-    [stableOptions.companySizeOptions, selectedFilters]
   )
 
   const ownerFilterOptions: DataFilter[] = useMemo(

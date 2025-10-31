@@ -53,7 +53,7 @@ const AmountCurrencySection: React.FC<AmountCurrencySectionProps> = ({
             'lowcoder:calculation_allowance_code_list.calculation_allowance_code_modal.current_amount_label',
             'Amount'
           )}
-          <span className="gba:text-[#707070]"> *</span>
+          <span className="gba:text-muted-foreground"> *</span>
         </label>
         <AmountInput
           value={amount}
@@ -75,7 +75,7 @@ const AmountCurrencySection: React.FC<AmountCurrencySectionProps> = ({
             'lowcoder:create_expense_item.change_expense_item_container.current_currency_label',
             'Currency'
           )}
-          <span className="gba:text-[#707070]"> *</span>
+          <span className="gba:text-muted-foreground"> *</span>
         </label>
         <Select
           value={currency}

@@ -186,12 +186,6 @@ const EmployeeSearchableSelect: React.FC<EmployeeSearchableSelectProps> = ({
     }
   }, [isOpen])
 
-  // Create display value for selected employee
-  const getDisplayValue = () => {
-    if (!displayOption) return placeholder
-    return displayOption.name || 'Unknown Employee'
-  }
-
   // Custom employee option renderer
   const EmployeeSelectItem: React.FC<{ employee: SelectOption }> = ({ employee }) => (
     <div className="gba:flex gba:items-center gba:gap-3 gba:p-2 gba:w-full">

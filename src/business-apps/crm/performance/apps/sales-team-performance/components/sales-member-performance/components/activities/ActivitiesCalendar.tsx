@@ -39,12 +39,7 @@ dayjs.extend(localeData)
 
 const DATA_TEST_ID_PREFIX = 'EmployeeActivitiesCalendar'
 
-export const ActivitiesCalendar: React.FC<ActivitiesTableProps> = ({
-  employeeId,
-  accessToken,
-  userInfo: _userInfo,
-  onTotalChange
-}) => {
+export const ActivitiesCalendar: React.FC<ActivitiesTableProps> = ({ employeeId, accessToken, onTotalChange }) => {
   const [currentDate, setCurrentDate] = useState(dayjs())
   const [hookError, setHookError] = useState<string | null>(null)
 
@@ -410,7 +405,7 @@ export const ActivitiesCalendar: React.FC<ActivitiesTableProps> = ({
               key={index}
               className={`
                 gba:min-h-[140px] gba:p-2 gba:border-b gba:border-r last:gba:border-r-0 gba:relative
-                ${dayInfo.isCurrentMonth ? 'gba:bg-white' : 'gba:bg-gray-50'}
+                ${dayInfo.isCurrentMonth ? 'gba:bg-hsl(var(--background))' : 'gba:bg-gray-50'}
                 ${dayInfo.isToday ? 'gba:bg-blue-50' : ''}
               `}
               data-testid={`${DATA_TEST_ID_PREFIX}-day-${dayInfo.date.format('YYYY-MM-DD')}`}

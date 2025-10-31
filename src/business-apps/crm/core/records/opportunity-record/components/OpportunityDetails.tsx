@@ -222,7 +222,7 @@ export const OpportunityDetails: React.FC<OpportunityDetailsProps> = ({
             sortedStageConditions.map(condition => (
               <div
                 key={condition.id}
-                className="gba:p-4 gba:rounded-lg gba:border gba:border-gray-200 gba:bg-white hover:gba:bg-gray-50 gba:transition-colors"
+                className="gba:p-4 gba:rounded-lg gba:border gba:border-gray-200 gba:bg-hsl(var(--background)) hover:gba:bg-gray-50 gba:transition-colors"
                 data-testid={`stage-condition-${condition.id}`}
               >
                 {/* Header with Status Icon and Title */}
@@ -268,15 +268,15 @@ export const OpportunityDetails: React.FC<OpportunityDetailsProps> = ({
                           {hoveredConditionId === condition.stageConditionStatusId ? (
                             // Hover State Icon (opposite of current state)
                             condition.isCompleted ? (
-                              <CloseCircleFilled className="gba:text-2xl" style={{ color: '#f59e0b' }} />
+                              <CloseCircleFilled className="gba:text-2xl gba:text-warning" />
                             ) : (
-                              <CheckCircleFilled className="gba:text-2xl" style={{ color: '#16a34a' }} />
+                              <CheckCircleFilled className="gba:text-2xl gba:text-success" />
                             )
                           ) : // Default State Icon
                           condition.isCompleted ? (
-                            <CheckCircleFilled className="gba:text-2xl" style={{ color: '#16a34a' }} />
+                            <CheckCircleFilled className="gba:text-2xl gba:text-success" />
                           ) : (
-                            <CloseCircleFilled className="gba:text-2xl" style={{ color: '#9ca3af' }} />
+                            <CloseCircleFilled className="gba:text-2xl gba:text-muted-foreground" />
                           )}
                         </div>
                       </AppActionMenu>

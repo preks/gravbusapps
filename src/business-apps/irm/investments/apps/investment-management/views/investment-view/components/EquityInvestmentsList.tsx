@@ -123,7 +123,7 @@ const EquityInvestmentsList: React.FC<EquityInvestmentsListProps> = props => {
       const result = await fetchInvestments(queryVariables)
       setInvestments(result.Investment || [])
       setTotalCount(result.InvestmentAggregate?.aggregate?.count || 0)
-    } catch (err) {
+    } catch {
       // Error loading investments
     }
   }, [accessToken, fetchInvestments, queryVariables])
@@ -164,7 +164,7 @@ const EquityInvestmentsList: React.FC<EquityInvestmentsListProps> = props => {
         if (event.type === 'com.newwork.process.continue' && event.detail?.payload) {
           loadData()
         }
-      } catch (err) {
+      } catch {
         // Error handling process completion
       }
     }
@@ -218,7 +218,11 @@ const EquityInvestmentsList: React.FC<EquityInvestmentsListProps> = props => {
   // Adapter function for DataFilter component
   const handleFilterChange = useCallback(
     (filterId: string, selected: boolean) => {
-      selected ? addFilter(filterId) : removeFilter(filterId)
+      if (selected) {
+        addFilter(filterId)
+      } else {
+        removeFilter(filterId)
+      }
     },
     [addFilter, removeFilter]
   )
@@ -233,7 +237,9 @@ const EquityInvestmentsList: React.FC<EquityInvestmentsListProps> = props => {
       } else {
         // Handle individual filter removal - find which filters were removed and remove them
         const removedFilters = selectedFilters.filter((f: any) => !filters.includes(f))
-        removedFilters.forEach((filterId: any) => removeFilter(filterId))
+        removedFilters.forEach((filterId: any) => {
+          removeFilter(filterId)
+        })
       }
     },
     [clearAllFilters, selectedFilters, removeFilter]
@@ -276,7 +282,7 @@ const EquityInvestmentsList: React.FC<EquityInvestmentsListProps> = props => {
         ),
         actions: (
           <AppAction
-            contextsArray={[FlowContextName.createInvestment]}
+            contextsArray={[FlowContextName.investmentCreate]}
             externalContextData={{
               investmentGroup: 'InvestmentGroup:v1:EQUITY',
               fromView: 'investments',

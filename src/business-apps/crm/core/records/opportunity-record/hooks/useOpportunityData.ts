@@ -285,7 +285,6 @@ export const useOpportunityData = (opportunityId: string, accessToken: string) =
         fetchDocuments()
       })()
     }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [opportunityId, accessToken])
 
   return {

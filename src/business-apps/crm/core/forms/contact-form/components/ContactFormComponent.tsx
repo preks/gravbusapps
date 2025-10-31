@@ -19,7 +19,6 @@ const ContactFormComponent: React.FC = () => {
     onCancel,
     isLoading,
     error,
-    businessAppContext,
     accountSuggestions,
     searchAccounts,
     loadMoreAccounts,

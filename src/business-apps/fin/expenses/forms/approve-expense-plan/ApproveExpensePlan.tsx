@@ -34,13 +34,11 @@ const ApproveExpensePlanContent: React.FC<BusinessAppContextProps> = ({ accessTo
   const [showWarning, setShowWarning] = useState(false)
 
   const { expensePlan, loading, error, refetch } = useExpensePlanData({ planId, accessToken })
-
   const handleApprove = async () => {
     setSubmitting(true)
     try {
       // Conditionally add absence object for TRIP plans
-      const isTrip = expensePlan?.requestType?.code === REQUEST_TYPES.TRIP
-
+      const isTrip = expensePlan?.requestType?.code.toLowerCase() === REQUEST_TYPES.TRIP
       // Create approval payload
       const approvalPayload = {
         event: 'pse_approve',
@@ -83,9 +81,6 @@ const ApproveExpensePlanContent: React.FC<BusinessAppContextProps> = ({ accessTo
 
     setSubmitting(true)
     try {
-      // Conditionally add absence object for TRIP plans
-      const isTrip = expensePlan?.requestType?.code === REQUEST_TYPES.TRIP
-
       // Create approval payload
       const approvalPayload = {
         event: 'pse_reject',
@@ -95,22 +90,8 @@ const ApproveExpensePlanContent: React.FC<BusinessAppContextProps> = ({ accessTo
           commentType: 'APPROVE_COMMENT',
           authorEmployee: userInfo?.employeeDetails?.employeeId,
           expensePlan: expensePlan?.id
-        },
-        ...(isTrip
-          ? {
-              employeeAbsence: {
-                typeRef: 'AbsenceType:v1:A101',
-                employeeId: expensePlan?.employee?.id,
-                startDate: expensePlan?.startDate,
-                endDate: expensePlan?.endDate,
-                description: expensePlan?.description,
-                substituteEmployee: '',
-                status: 'APPROVED'
-              }
-            }
-          : {})
+        }
       }
-
       // Dispatch the approval event
       dispatchProcessContinueEvent('pse_reject', approvalPayload)
     } catch (err) {
@@ -140,7 +121,7 @@ const ApproveExpensePlanContent: React.FC<BusinessAppContextProps> = ({ accessTo
           <button
             onClick={refetch}
             style={{ marginTop: 'var(--nw-spacing-2)' }}
-            className="gba:px-3 gba:py-1 gba:bg-red-600 gba:text-white gba:rounded gba:text-sm"
+            className="gba:px-3 gba:py-1 gba:bg-red-600 gba:text-background gba:rounded gba:text-sm"
           >
             Retry
           </button>

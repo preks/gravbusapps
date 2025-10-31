@@ -3,7 +3,7 @@ import { ApprovalRequest } from '../types'
 import { createApprovalPayload } from '../utils/approvalPayloadCreator'
 import { getTabByKey } from '../constants/approvalTabs'
 import { env } from '@/common/env/EnvUtils'
-import { toast } from 'sonner'
+import { toast } from '@newwork/nw-design-system'
 import { getTranslationFromI18nKeyAndLabel } from '@/common/utils/windowUtils'
 
 interface UseApprovalHandlingProps {
@@ -311,7 +311,7 @@ export const useApprovalHandling = ({
         } else {
           failedTasks.push({ id: task.id, error: result.error || 'Unknown error' })
         }
-      } catch (error) {
+      } catch {
         const errorMessage =
           error instanceof Error
             ? error.message
@@ -365,7 +365,7 @@ export const useApprovalHandling = ({
       showSummaryToasts(approvedCount, failedTasks)
 
       return { success: true, approvedCount, failedCount: failedTasks.length }
-    } catch (error) {
+    } catch {
       const errorMessage =
         error instanceof Error
           ? error.message

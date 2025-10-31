@@ -41,7 +41,7 @@ const CampaignsTimelineAnalysis: React.FC<CampaignsAnalyticsComponentProps> = ({
     if (active && payload && payload.length) {
       const data = payload[0].payload
       return (
-        <div className="gba:bg-white gba:p-3 gba:border gba:rounded-lg gba:shadow-lg">
+        <div className="gba:bg-hsl(var(--background)) gba:p-3 gba:border gba:rounded-lg gba:shadow-lg">
           <p className="gba:font-semibold gba:mb-2">{label}</p>
           <div className="gba:space-y-1">
             <p className="gba:text-sm">
@@ -154,7 +154,7 @@ const CampaignsTimelineAnalysis: React.FC<CampaignsAnalyticsComponentProps> = ({
                   <Line
                     type="monotone"
                     dataKey="cumulativeCampaigns"
-                    stroke="#1890ff"
+                    stroke="hsl(var(--primary))"
                     name="Campaigns"
                     strokeWidth={2}
                     dot={{ r: 3 }}
@@ -165,7 +165,7 @@ const CampaignsTimelineAnalysis: React.FC<CampaignsAnalyticsComponentProps> = ({
                   <Line
                     type="monotone"
                     dataKey="cumulativeLeads"
-                    stroke="#52c41a"
+                    stroke="hsl(var(--success))"
                     name="Leads"
                     strokeWidth={2}
                     dot={{ r: 3 }}
@@ -176,7 +176,7 @@ const CampaignsTimelineAnalysis: React.FC<CampaignsAnalyticsComponentProps> = ({
                   <Line
                     type="monotone"
                     dataKey="cumulativeAccounts"
-                    stroke="#722ed1"
+                    stroke="hsl(var(--accent))"
                     name="Accounts"
                     strokeWidth={2}
                     dot={{ r: 3 }}
@@ -187,7 +187,7 @@ const CampaignsTimelineAnalysis: React.FC<CampaignsAnalyticsComponentProps> = ({
                   <Line
                     type="monotone"
                     dataKey="cumulativeContacts"
-                    stroke="#fa8c16"
+                    stroke="hsl(var(--warning))"
                     name="Contacts"
                     strokeWidth={2}
                     dot={{ r: 3 }}
@@ -198,7 +198,7 @@ const CampaignsTimelineAnalysis: React.FC<CampaignsAnalyticsComponentProps> = ({
                   <Line
                     type="monotone"
                     dataKey="cumulativeOpportunities"
-                    stroke="#f5222d"
+                    stroke="hsl(var(--destructive))"
                     name="Opportunities"
                     strokeWidth={2}
                     dot={{ r: 3 }}

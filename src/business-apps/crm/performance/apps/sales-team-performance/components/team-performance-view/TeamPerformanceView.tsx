@@ -59,7 +59,7 @@ export const TeamPerformanceView: React.FC<TeamPerformanceViewProps> = ({
   )
 
   // Use existing hooks but filter for specific team
-  const { members, total, isLoading, error: dataError, loadPage, refetch } = useSalesTeamDataIntegration(context)
+  const { members, total, isLoading, error: dataError, refetch } = useSalesTeamDataIntegration(context)
 
   // Trigger initial data load (same pattern as main component)
   useEffect(() => {
@@ -81,7 +81,7 @@ export const TeamPerformanceView: React.FC<TeamPerformanceViewProps> = ({
     })
   }, [members, isLoading, dataError, context.accessToken, total])
 
-  const { trends, refetch: refetchTrends } = useSalesTeamTrendData(accessToken)
+  const { trends } = useSalesTeamTrendData(accessToken)
 
   // Log loading state for debugging
   useEffect(() => {
@@ -170,7 +170,7 @@ export const TeamPerformanceView: React.FC<TeamPerformanceViewProps> = ({
         title: 'Team Revenue',
         value: formatCurrency(teamKPIs.totalRevenue),
         prefix: <PiCurrencyDollar />,
-        color: '#10b981',
+        color: 'hsl(var(--success))',
         description: `${teamKPIs.revenueVsCompany >= 0 ? '+' : ''}${teamKPIs.revenueVsCompany.toFixed(1)}% vs company average`,
         valueIsString: true,
         trend: {
@@ -208,7 +208,7 @@ export const TeamPerformanceView: React.FC<TeamPerformanceViewProps> = ({
         title: 'Avg Revenue per Member',
         value: formatCurrency(teamKPIs.totalRevenue / teamKPIs.memberCount),
         prefix: <PiTrendUp />,
-        color: '#ff9500',
+        color: 'hsl(var(--warning))',
         description: 'Average revenue contribution',
         valueIsString: true
       }
@@ -267,7 +267,10 @@ export const TeamPerformanceView: React.FC<TeamPerformanceViewProps> = ({
   }
 
   return (
-    <div className="gba:bg-white gba:min-h-screen gba:p-6 gba:space-y-6" data-testid={DATA_TEST_ID_PREFIX}>
+    <div
+      className="gba:bg-hsl(var(--background)) gba:min-h-screen gba:p-6 gba:space-y-6"
+      data-testid={DATA_TEST_ID_PREFIX}
+    >
       {/* Header Section */}
       <div
         className="gba:bg-gradient-to-r gba:from-blue-50 gba:to-indigo-50 gba:rounded-lg gba:p-6"
@@ -341,7 +344,7 @@ export const TeamPerformanceView: React.FC<TeamPerformanceViewProps> = ({
         <div data-testid={`${DATA_TEST_ID_PREFIX}-overview-content`} className="gba:space-y-8">
           {/* Team Members List */}
           <DataContainer
-            contentBackground="white"
+            contentBackground="hsl(var(--background))"
             dataControllerProps={{
               search,
               setSearch,

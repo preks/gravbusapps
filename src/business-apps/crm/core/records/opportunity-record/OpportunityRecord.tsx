@@ -34,9 +34,7 @@ const OpportunityRecordContent: React.FC<OpportunityRecordContentProps> = ({
     loading,
     error,
     opportunityStages,
-    opportunityStatuses,
     loadingStages,
-    loadingStatuses,
     stagesError,
     refetchOpportunityData
   } = useOpportunityData(opportunityId, props.accessToken)
@@ -113,9 +111,9 @@ const OpportunityRecordContent: React.FC<OpportunityRecordContentProps> = ({
 
   return (
     <div
-      className="gba:opportunity-details-container"
+      className="gba:opportunity-details-container gba:bg-background"
       data-testid="opportunity-record-detail"
-      style={{ backgroundColor: 'white', padding: '16px' }}
+      style={{ padding: '16px' }}
     >
       <div className="gba:back-navigation" style={{ marginBottom: '16px' }}>
         <button
@@ -159,21 +157,21 @@ const OpportunityRecordContent: React.FC<OpportunityRecordContentProps> = ({
 
       {/* Show stages error */}
       {stagesError && (
-        <div style={{ textAlign: 'center', padding: '20px', color: '#ff4d4f' }}>
+        <div className="gba:text-destructive" style={{ textAlign: 'center', padding: '20px' }}>
           <p>Failed to load pipeline stages: {stagesError}</p>
         </div>
       )}
 
       {/* Show info when no salesPipelineRef */}
       {!opportunityData?.salesPipelineRef && !loadingStages && (
-        <div style={{ textAlign: 'center', padding: '20px', color: '#8c8c8c' }}>
+        <div className="gba:text-muted-foreground" style={{ textAlign: 'center', padding: '20px' }}>
           <p>No sales pipeline assigned to this opportunity</p>
         </div>
       )}
 
       <div className="gba:opportunity-details-content" data-testid="opportunity-details-content">
         <Tabs value={activeTab} onValueChange={setActiveTab} className="gba:w-full">
-          <TabsList className="gba:bg-white gba:border gba:mb-6">
+          <TabsList className="gba:bg-hsl(var(--background)) gba:border gba:mb-6">
             <TabsTrigger value="overview" data-testid="overview-tab">
               <UserOutlined className="gba:mr-2" />
               Overview
@@ -290,7 +288,7 @@ const OpportunityRecord: React.FC<OpportunityRecordProps> = props => {
           <p className="gba:text-gray-500 gba:mb-4">Please provide an opportunity ID via props or URL parameter</p>
           <button
             onClick={handleBack}
-            className="gba:mt-4 gba:px-4 gba:py-2 gba:bg-blue-500 gba:text-white gba:rounded"
+            className="gba:mt-4 gba:px-4 gba:py-2 gba:bg-blue-500 gba:text-hsl(var(--background)) gba:rounded"
           >
             {getBackButtonText()}
           </button>

@@ -6,6 +6,7 @@ import { ExpenseGroup, ExpenseType, CostCenter, Currency, CustomField } from './
 import { useExpensePlanItem } from './context/ExpensePlanItemContext'
 import { Alert } from 'antd'
 import { getCurrentActiveUserLocale, getDateFormat, getCatalogValue } from '@/common/utils/windowUtils'
+import { parseAndFormatAmount } from '@/business-apps/fin/expenses/utils/amountFormatting'
 
 interface ExpensePlanItemFormProps {
   form: any
@@ -40,6 +41,21 @@ export const ExpensePlanItemForm: React.FC<ExpensePlanItemFormProps> = ({
   const { isFormDisabled, expenseRuleError, isEditMode } = useExpensePlanItem()
 
   const [formIsValid, setFormIsValid] = useState(false)
+
+  const handleAmountBlur = () => {
+    const currentValue = form.getFieldValue('amount')
+
+    if (currentValue === undefined || currentValue === null || String(currentValue).trim() === '') {
+      return
+    }
+
+    const result = parseAndFormatAmount(String(currentValue))
+    if (!result) {
+      return
+    }
+
+    form.setFieldsValue({ amount: result.formattedValue })
+  }
 
   return (
     <Form
@@ -148,7 +164,10 @@ export const ExpensePlanItemForm: React.FC<ExpensePlanItemFormProps> = ({
           >
             <SelectField
               allowClear
-              label={t('lowcoder:create_expense_item.change_expense_item_container.current_expense_group_label', 'Expense Group')}
+              label={t(
+                'lowcoder:create_expense_item.change_expense_item_container.current_expense_group_label',
+                'Expense Group'
+              )}
               name="expenseGroup"
               placeholder={t(
                 'lowcoder:create_expense_item.change_expense_item_container.current_expense_group_placeholder',
@@ -190,7 +209,10 @@ export const ExpensePlanItemForm: React.FC<ExpensePlanItemFormProps> = ({
           >
             <SelectField
               allowClear
-              label={t('lowcoder:create_expense_item.change_expense_item_container.current_expense_type_label', 'Expense Type')}
+              label={t(
+                'lowcoder:create_expense_item.change_expense_item_container.current_expense_type_label',
+                'Expense Type'
+              )}
               name="expenseType"
               placeholder={t(
                 'lowcoder:create_expense_item.change_expense_item_container.current_expense_type_placeholder',
@@ -266,26 +288,28 @@ export const ExpensePlanItemForm: React.FC<ExpensePlanItemFormProps> = ({
               <InputField
                 label={t('lowcoder:create_expense_item.change_expense_item_container.current_amount_label', 'Amount')}
                 name="amount"
-                type="number"
-                step="0.01"
-                min="0"
-                className="gba:[&>input[type=number]]:appearance-textfield 
-         gba:[&>input[type=number]::-webkit-inner-spin-button]:appearance-none 
-         gba:[&>input[type=number]::-webkit-inner-spin-button]:m-0 
-         gba:[&>input[type=number]::-webkit-outer-spin-button]:appearance-none 
-         gba:[&>input[type=number]::-webkit-outer-spin-button]:m-0"
-                placeholder={t('lowcoder:create_expense_item.change_expense_item_container.current_amount_placeholder', 'Enter Amount')}
+                type="text"
+                inputMode="decimal"
+                placeholder={t(
+                  'lowcoder:create_expense_item.change_expense_item_container.current_amount_placeholder',
+                  'Enter Amount'
+                )}
                 data-testid="amount-input"
                 onChange={field => {
-                  let value = field.value as string
-                  if (value.includes('.')) {
-                    const parts = value.split('.')
+                  let value = String(field.value)
+
+                  // Limit to 2 decimal places (accept both . and , as decimal separator)
+                  if (value.includes('.') || value.includes(',')) {
+                    const sep = value.includes('.') ? '.' : ','
+                    const parts = value.split(sep)
                     if (parts[1] && parts[1].length > 2) {
-                      value = `${parts[0]}.${parts[1].substring(0, 2)}`
+                      value = `${parts[0]}${sep}${parts[1].substring(0, 2)}`
                     }
                   }
+
                   form.setFieldsValue({ amount: value })
                 }}
+                onBlur={handleAmountBlur}
                 required={true}
               />
             </Form.Item>
@@ -307,9 +331,15 @@ export const ExpensePlanItemForm: React.FC<ExpensePlanItemFormProps> = ({
             >
               <SelectField
                 allowClear
-                label={t('lowcoder:create_expense_item.change_expense_item_container.current_currency_label', 'Currency')}
+                label={t(
+                  'lowcoder:create_expense_item.change_expense_item_container.current_currency_label',
+                  'Currency'
+                )}
                 name="currency"
-                placeholder={t('lowcoder:create_expense_item.change_expense_item_container.current_currency_placeholder', 'Select Currency')}
+                placeholder={t(
+                  'lowcoder:create_expense_item.change_expense_item_container.current_currency_placeholder',
+                  'Select Currency'
+                )}
                 disabled={!!form.getFieldValue('fixedCurrency')}
                 data-testid="currency-select"
                 isDataSorted={false}
@@ -347,9 +377,15 @@ export const ExpensePlanItemForm: React.FC<ExpensePlanItemFormProps> = ({
           >
             <SelectField
               allowClear
-              label={t('lowcoder:create_expense_request.expense_request_container.current_cost_center_label', 'Cost Center')}
+              label={t(
+                'lowcoder:create_expense_request.expense_request_container.current_cost_center_label',
+                'Cost Center'
+              )}
               name="costCenter"
-              placeholder={t('lowcoder:create_expense_request.expense_request_container.current_cost_center_placeholder', 'Select Cost Center')}
+              placeholder={t(
+                'lowcoder:create_expense_request.expense_request_container.current_cost_center_placeholder',
+                'Select Cost Center'
+              )}
               data-testid="cost-center-select"
               data={costCenters.map(center => ({
                 id: center.id,
@@ -380,7 +416,12 @@ export const ExpensePlanItemForm: React.FC<ExpensePlanItemFormProps> = ({
       {/* Spacer to push content to the bottom */}
       <div className="gba:flex-grow" data-testid="expense-plan-item-spacer" />
 
-      <Divider color="#EFEFEF" horizontal size={1} className="gba:mt-[30px] gba:mb-[30px]" data-testid="form-divider" />
+      <Divider
+        className="gba:mt-[30px] gba:mb-[30px] gba:border-border"
+        horizontal
+        size={1}
+        data-testid="form-divider"
+      />
       <div
         className="gba:flex gba:justify-between gba:py-4"
         style={{ width: '100%' }}

@@ -206,8 +206,8 @@ export const TasksSection: React.FC<TasksSectionProps> = ({ opportunityId, conte
 
   return (
     <div
+      className="gba:bg-background"
       style={{
-        backgroundColor: 'white',
         borderRadius: '8px',
         border: '1px solid #f0f0f0',
         overflow: 'hidden',
@@ -227,7 +227,7 @@ export const TasksSection: React.FC<TasksSectionProps> = ({ opportunityId, conte
         </div>
         <AppAction
           accessToken={context.accessToken}
-          contextsArray={[FlowContextName.createCustomerTask]}
+          contextsArray={[FlowContextName.customerTaskCreate]}
           externalContextData={{ opportunityId }}
           prefixDataTestId="opportunity-tasks"
           emptyStateBehavior="enable"
@@ -279,7 +279,7 @@ export const TasksSection: React.FC<TasksSectionProps> = ({ opportunityId, conte
                   >
                     <div style={{ flex: 1 }}>
                       {task.description && <div style={{ marginBottom: '4px' }}>{task.description}</div>}
-                      <div style={{ fontSize: '12px', color: '#8c8c8c' }}>
+                      <div className="gba:text-muted-foreground" style={{ fontSize: '12px' }}>
                         {getPriorityValue(task.priority)} priority • {getTypeValue(task.type)}
                         {task.dueDate && (
                           <span
@@ -316,7 +316,7 @@ export const TasksSection: React.FC<TasksSectionProps> = ({ opportunityId, conte
         )}
 
         {!loading && !error && tasks.length === 0 && (
-          <div style={{ textAlign: 'center', padding: '40px 0', color: '#8c8c8c' }}>
+          <div className="gba:text-muted-foreground" style={{ textAlign: 'center', padding: '40px 0' }}>
             <div style={{ fontSize: '16px', marginBottom: '8px' }}>No tasks yet</div>
             <div style={{ fontSize: '14px' }}>Add tasks to track your progress with this opportunity</div>
           </div>

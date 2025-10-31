@@ -38,8 +38,8 @@ const ApproveExpenseRequestContent: React.FC<BusinessAppContextProps> = ({ acces
 
   // Handle modal close events to prevent task removal
   useEffect(() => {
-    const handleBeforeUnload = (event: BeforeUnloadEvent) => {
-      // Prevent default close behavior and dispatch cancel event
+    const handleBeforeUnload = () => {
+      // Dispatch cancel event when user closes/refreshes the page
       try {
         dispatchProcessContinueEvent('pse_cancel', {
           event: 'pse_cancel',
@@ -49,11 +49,9 @@ const ApproveExpenseRequestContent: React.FC<BusinessAppContextProps> = ({ acces
             messageKey: 'The approval process has been canceled.'
           }
         })
-      } catch (processError) {
-        console.error('Error canceling process:', processError)
+      } catch (err) {
+        console.error('Error canceling process:', err)
       }
-      event.preventDefault()
-      event.returnValue = ''
     }
 
     // Listen for beforeunload event (browser close, refresh, navigation)
@@ -151,7 +149,7 @@ const ApproveExpenseRequestContent: React.FC<BusinessAppContextProps> = ({ acces
           <button
             onClick={refetch}
             style={{ marginTop: 'var(--nw-spacing-2)' }}
-            className="gba:px-3 gba:py-1 gba:bg-red-600 gba:text-white gba:rounded gba:text-sm"
+            className="gba:px-3 gba:py-1 gba:bg-red-600 gba:text-background gba:rounded gba:text-sm"
           >
             Retry
           </button>

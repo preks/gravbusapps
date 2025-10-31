@@ -66,7 +66,6 @@ export const OpportunityStatistics: React.FC<OpportunityStatisticsProps> = ({ ..
     }
     load()
     // Run once on mount; hooks are memoized with useCallback
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [])
 
   // Custom formatter that only abbreviates millions and billions, not thousands

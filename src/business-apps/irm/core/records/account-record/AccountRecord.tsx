@@ -87,7 +87,7 @@ const InvestmentAccountRecordContent: React.FC<AccountRecordContentProps> = ({ a
   const aiSummaryHook = useAccountAiSummary(accountId, props.accessToken)
   const aiBookletHook = useGenerateAIBooklet(accountId, props.accessToken, {
     outputFileName: 'ma_booklet_generated.xlsx',
-    maxQuestions: 14
+    maxQuestions: 300
   })
 
   const handleTabChange = useCallback((value: string) => {

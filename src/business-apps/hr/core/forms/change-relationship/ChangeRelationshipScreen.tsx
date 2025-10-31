@@ -12,7 +12,7 @@ import {
   FileUpload
 } from '@newwork/nw-design-system'
 import { BusinessAppContextProps } from '@/common/BusinessAppContext'
-import { getTranslationFromI18nKeyAndLabel } from '@/common/utils/windowUtils'
+import { getTranslationFromI18nKeyAndLabel, formatDateToISO } from '@/common/utils/windowUtils'
 import { formatDataTestId } from '@/common/utils/formatDataTestId'
 import flowSmall from '@/assets/icons/flowSmall.svg'
 import AppActionForm from '@/components/app-action-form/AppActionForm'
@@ -235,7 +235,7 @@ const ChangeRelationshipScreen: React.FC<BusinessAppContextProps> = ({ additiona
       lastName: lastName.trim() || undefined,
       phoneNumber: phoneNumber.trim() || undefined,
       typeRef: relationshipTypeId || undefined,
-      birthDate: birthDate ? dayjs(birthDate).toISOString() : undefined,
+      birthDate: birthDate ? (formatDateToISO(new Date(birthDate)) as string) : undefined,
       emergencyContact: isEmergencyContact,
       relationshipDocument: uploadedDocumentId
     } as any
@@ -248,8 +248,6 @@ const ChangeRelationshipScreen: React.FC<BusinessAppContextProps> = ({ additiona
     const idSelected = relationshipTypeId.toLowerCase()
     const shouldShowCongrats =
       idSelected.includes('child') || idSelected.includes('marriage') || idSelected.includes('mariage')
-
-    console.log(relationshipTypeOptions, 'relationshipTypeOptions')
 
     if (shouldShowCongrats) {
       // Show Congratulations modal first and resolve payload after user confirms

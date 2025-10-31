@@ -197,10 +197,10 @@ const SearchableSelect: React.FC<SearchableSelectProps> = ({
           data-testid={dataTestId}
           open={isOpen}
         >
-          <SelectTrigger className="gba:border-gray-300 gba:bg-white">
+          <SelectTrigger className="gba:border-gray-300 gba:bg-hsl(var(--background))">
             <SelectValue placeholder={placeholder}>{displayOption ? displayOption.label : placeholder}</SelectValue>
           </SelectTrigger>
-          <SelectContent className="gba:border-gray-300 gba:bg-white">
+          <SelectContent className="gba:border-gray-300 gba:bg-hsl(var(--background))">
             {/* Search input */}
             <div className="gba:p-2 gba:border-b gba:border-gray-200" onClick={handleSearchClick}>
               <div className="gba:relative">
@@ -213,7 +213,7 @@ const SearchableSelect: React.FC<SearchableSelectProps> = ({
                   onKeyDown={handleSearchKeyDown}
                   onClick={handleSearchClick}
                   placeholder="Search..."
-                  className="gba:border-gray-300 gba:bg-white gba:text-sm"
+                  className="gba:border-gray-300 gba:bg-hsl(var(--background)) gba:text-sm"
                   style={{
                     paddingLeft: '28px'
                   }}

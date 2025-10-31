@@ -14,7 +14,6 @@ import {
 import { BusinessAppContextProps } from '@/common/BusinessAppContext'
 import { useGetInvestments } from '@/common/data/investment/hooks/useInvestments'
 import { formatDate } from '@/common/data/investment'
-import { formatCurrencyParts } from '@/common/utils/numberFormatter'
 import type { Investment } from '@/common/data/investment/types/investmentTypes'
 import type { InvestmentQueryVariables } from '@/common/data/investment/queries/investmentQueries'
 import { DataContainer } from '@/components/layout/dataContainer/DataContainer'
@@ -87,23 +86,6 @@ const LiquidFundInvestmentsList: React.FC<LiquidFundInvestmentsListProps> = cont
             ))}
         </div>
       </TableHead>
-    )
-  }
-
-  const renderAmount = (amount: number | undefined, currency?: string) => {
-    if (typeof amount !== 'number') return <span className="gba:text-gray-400">-</span>
-    const { number, symbol } = formatCurrencyParts(amount, {
-      currency,
-      minimumFractionDigits: 0,
-      maximumFractionDigits: 2
-    })
-    return (
-      <div className="gba:w-full gba:flex gba:justify-end gba:items-baseline">
-        <span className="gba:text-sm gba:[font-variant-numeric:tabular-nums]">{number}</span>
-        <span className="gba:text-xs gba:text-gray-400 gba:inline-block gba:text-right gba:shrink-0 gba:w-[5ch]">
-          {symbol}
-        </span>
-      </div>
     )
   }
 
@@ -301,7 +283,11 @@ const LiquidFundInvestmentsList: React.FC<LiquidFundInvestmentsListProps> = cont
   // Adapter function for DataFilter component
   const handleFilterChange = useCallback(
     (filterId: string, selected: boolean) => {
-      selected ? addFilter(filterId) : removeFilter(filterId)
+      if (selected) {
+        addFilter(filterId)
+      } else {
+        removeFilter(filterId)
+      }
     },
     [addFilter, removeFilter]
   )
@@ -316,7 +302,9 @@ const LiquidFundInvestmentsList: React.FC<LiquidFundInvestmentsListProps> = cont
       } else {
         // Handle individual filter removal - find which filters were removed and remove them
         const removedFilters = selectedFilters.filter(f => !filters.includes(f))
-        removedFilters.forEach(filterId => removeFilter(filterId))
+        removedFilters.forEach(filterId => {
+          removeFilter(filterId)
+        })
       }
     },
     [clearAllFilters, selectedFilters, removeFilter]
@@ -373,7 +361,7 @@ const LiquidFundInvestmentsList: React.FC<LiquidFundInvestmentsListProps> = cont
         ),
         actions: (
           <AppAction
-            contextsArray={[FlowContextName.createInvestment]}
+            contextsArray={[FlowContextName.investmentCreate]}
             externalContextData={{
               investmentGroup: 'InvestmentGroup:v1:LIQUID_FUND',
               fromView: 'investments',

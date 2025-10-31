@@ -12,7 +12,7 @@ export const formatCurrency = (amount: number, currencyCode: string): string => 
       minimumFractionDigits: 2,
       maximumFractionDigits: 2
     }).format(amount)
-  } catch (error) {
+  } catch {
     console.error('Error formatting currency:', error)
     return `${amount.toFixed(2)} ${currencyCode}`
   }
@@ -43,7 +43,7 @@ export const formatDate = (dateString: string): string => {
       month: 'short',
       day: 'numeric'
     })
-  } catch (error) {
+  } catch {
     console.error('Error formatting date:', error)
     return dateString
   }

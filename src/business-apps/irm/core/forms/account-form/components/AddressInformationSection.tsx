@@ -11,7 +11,6 @@ const prefixDataTestId = 'AccountForm'
 const AddressInformationSection: React.FC = () => {
   const {
     formValues,
-    setFormValues,
     countriesRegions,
     countriesRegionsLoading,
     countriesRegionsError,
@@ -111,26 +110,7 @@ const AddressInformationSection: React.FC = () => {
         type="button"
         variant="ghost"
         onClick={() => setIsExpanded(!isExpanded)}
-        className="gba:w-full gba:px-4 gba:py-2 gba:transition-colors gba:flex gba:items-center gba:justify-between gba:text-left gba:rounded-lg gba:text-sm"
-        style={{
-          background: 'linear-gradient(to right, #fed7aa, #fdba74)',
-          transition: 'all 0.3s ease',
-          border: '0',
-          borderWidth: '0',
-          borderStyle: 'none',
-          borderColor: 'transparent',
-          outline: 'none',
-          outlineWidth: '0',
-          outlineStyle: 'none',
-          boxShadow: 'none',
-          borderRadius: '12px'
-        }}
-        onMouseEnter={e => {
-          e.currentTarget.style.background = 'linear-gradient(to right, #fdba74, #fb923c)'
-        }}
-        onMouseLeave={e => {
-          e.currentTarget.style.background = 'linear-gradient(to right, #fed7aa, #fdba74)'
-        }}
+        className="gba:w-full gba:px-4 gba:py-2 gba:transition-all gba:flex gba:items-center gba:justify-between gba:text-left gba:rounded-xl gba:text-sm gba:bg-warning-secondary hover:gba:bg-warning gba:border-0"
         data-testid={formatDataTestId(prefixDataTestId, 'address-info-toggle')}
       >
         <div className="gba:flex gba:items-center gba:gap-2 gba:flex-1">

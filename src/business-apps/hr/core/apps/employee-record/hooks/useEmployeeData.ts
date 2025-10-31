@@ -1,6 +1,7 @@
 import { useEffect, useCallback, useState } from 'react'
 import { useGraphqlClient } from '../../../../../../common/network/graphql/useGraphQLClient'
 import { getCurrentActiveUserLocale } from '../../../../../../common/utils/windowUtils'
+import { getTranslatedValue } from '../utils/formatters'
 
 /**
  * GraphQL query to fetch employee data including:
@@ -12,6 +13,16 @@ import { getCurrentActiveUserLocale } from '../../../../../../common/utils/windo
  */
 export const GET_EMPLOYEE_DATA = /*sql*/ `
  query GetEmployeeData($employeeId: uuid!, $structureId: uuid, $hasStructureId: Boolean!, $activeUserLocale: String!) {
+ Catalog(where: {identifier: {_eq: "AcademicTitle"}}) {
+    id
+    catalogEntries {
+      id
+      value
+      translations(where: {localeCode: {_eq: $activeUserLocale}}) {
+        value
+      }
+    }
+  }
   EmployeePosition(where: {employeeId: {_eq: $employeeId}}) {
     id
     organizationalUnitId
@@ -89,6 +100,7 @@ export const GET_EMPLOYEE_DATA = /*sql*/ `
       workspace
       version
       pictureThumbnail
+      userId
       additionalProperties
       skills(where: {isDeleted: {_eq: false}}) {
         level
@@ -104,12 +116,21 @@ export const GET_EMPLOYEE_DATA = /*sql*/ `
       salutation {
         value
         id
+        translations(where: {localeCode: {_eq: $activeUserLocale}}) {
+          value
+        }
       }
       maritalStatus {
         id
         value
+        translations(where: {localeCode: {_eq: $activeUserLocale}}) {
+          value
+        }
       }
       gender {
+        translations(where: {localeCode: {_eq: $activeUserLocale}}) {
+          value
+        }
         value
         id
       }
@@ -365,6 +386,14 @@ export const useEmployeeData = (
     }
   }
 
+  if (employee?.academicTitleRef) {
+    const employeeAcademicTitles = new Set(employee?.academicTitleRef ?? [])
+    const filteredAcademicTitles =
+      data?.Catalog?.[0]?.catalogEntries?.filter(academicTitle => employeeAcademicTitles.has(academicTitle.id)) ?? []
+    const translatedAcademicTitles = filteredAcademicTitles.map(academicTitle => getTranslatedValue(academicTitle))
+    employee.academicTitleRef = translatedAcademicTitles.join(' ')
+  }
+
   return {
     employeeData: data,
     employee,
@@ -382,6 +411,16 @@ export const useEmployeeData = (
  * Types for employee data response
  */
 export interface EmployeeData {
+  Catalog: {
+    id: string
+    catalogEntries: {
+      id: string
+      value: string
+      translations: {
+        value: string
+      }[]
+    }[]
+  }[]
   EmployeePosition: EmployeePosition[]
   Subordinates: {
     employee: {
@@ -419,6 +458,7 @@ export interface Employee {
   workspace: string
   version: number
   pictureThumbnail: string
+  userId?: string
   skills: EmployeeSkill[]
   additionalProperties: {
     email: string
@@ -437,7 +477,7 @@ export interface Employee {
   lastName: string
   displayName: string
   ethnicity: CodeValue
-  birthPlace: CodeValue
+  birthPlace: string
   nationality: CodeValue
   language: CodeValue
   jobHistories: JobHistory[]

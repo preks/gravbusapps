@@ -1,4 +1,4 @@
-import React, { useMemo, useCallback, useEffect } from 'react'
+import React, { useMemo, useCallback } from 'react'
 import { FileTextOutlined, DollarOutlined, CalendarOutlined, BankOutlined } from '@ant-design/icons'
 import { WidgetGroup, WidgetItem } from '@/components/widget-group'
 import { useGetAdvancePaymentStatistics } from '../../../hooks/useGetAdvancePaymentStatistics'
@@ -19,7 +19,6 @@ interface AdvancePaymentStatisticsProps extends BusinessAppContextProps {
 const AdvancePaymentStatistics: React.FC<AdvancePaymentStatisticsProps> = ({
   statsLoading = false,
   statsError = null,
-  fetchAdvancePaymentStatistics = () => Promise.resolve(),
   onWidgetClick,
   activeWidgetKey,
   selectedCurrencyRef = 'Currency:v1:EUR',
@@ -46,17 +45,7 @@ const AdvancePaymentStatistics: React.FC<AdvancePaymentStatisticsProps> = ({
   const isLoading = statsLoading || hookLoading
   const error = statsError || hookError
 
-  // Ensure statistics are fetched when component mounts or currency changes
-  useEffect(() => {
-    if (stableContextProps.accessToken && stableContextProps.userInfo?.employeeDetails?.employeeId) {
-      fetchStatistics()
-    }
-  }, [
-    stableContextProps.accessToken,
-    stableContextProps.userInfo?.employeeDetails?.employeeId,
-    selectedCurrencyRef,
-    fetchStatistics
-  ])
+  // Fetching is handled inside the hook; avoid duplicate calls from here
 
   // Calculate current month name
   const currentMonthName = dayjs().format('MMMM')

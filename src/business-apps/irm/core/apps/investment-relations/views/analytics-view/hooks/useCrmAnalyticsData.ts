@@ -85,7 +85,7 @@ export const useCrmAnalyticsData = (context: BusinessAppContextProps) => {
 
 // Transform functions
 const transformOverviewData = (
-  overview: any,
+  _overview: any,
   leads: any,
   accounts: any,
   opportunities: any,
@@ -196,7 +196,7 @@ const transformLeadsData = (data: any): LeadsAnalytics => {
   }))
 
   // Create lead lifecycle time series data with daily granularity (we'll filter in component)
-  const leadsOverTime = createLeadLifecycleTimeSeriesData(leads, 'daily') // Generate daily dataset for past year
+  const leadsOverTime = createLeadLifecycleTimeSeriesData(leads) // Generate daily dataset for past year
   const convertedLeads = data.convertedLeads?.aggregate?.count || 0
   const conversionRate = totalLeads > 0 ? Math.round((convertedLeads / totalLeads) * 100) : 0
   return {
@@ -329,12 +329,26 @@ const transformOpportunitiesData = (data: any): OpportunitiesAnalytics => {
     percentage: totalOpportunities > 0 ? Math.round((group.count / totalOpportunities) * 100) : 0
   }))
 
-  // Group by pipeline
-  const pipelineGroups = groupByFieldWithValue(opportunities, 'opportunityPipeline', 'value', 'estimatedAmount')
-  const opportunitiesByPipeline = pipelineGroups.map(group => ({
-    pipeline: group.key || 'Unknown',
+  // Group by pipeline - need both ID and name for filtering
+  type PipelineGroupType = { id: string; name: string; count: number; value: number }
+  const pipelineGroupsMap = opportunities.reduce((acc: Map<string, PipelineGroupType>, opp: any) => {
+    const pipelineId = opp.opportunityPipeline?.id || 'unknown'
+    const pipelineName = opp.opportunityPipeline?.value || 'Unknown'
+
+    if (!acc.has(pipelineId)) {
+      acc.set(pipelineId, { id: pipelineId, name: pipelineName, count: 0, value: 0 })
+    }
+    const existing = acc.get(pipelineId)!
+    existing.count += 1
+    existing.value += opp.estimatedAmount || 0
+    return acc
+  }, new Map<string, PipelineGroupType>())
+
+  const opportunitiesByPipeline = (Array.from(pipelineGroupsMap.values()) as PipelineGroupType[]).map(group => ({
+    pipelineId: group.id,
+    pipeline: group.name,
     count: group.count,
-    value: group.totalValue,
+    value: group.value,
     percentage: totalOpportunities > 0 ? Math.round((group.count / totalOpportunities) * 100) : 0
   }))
 
@@ -558,7 +572,7 @@ const createAccountLifecycleTimeSeriesData = (accounts: any[]) => {
     }))
 }
 
-const createLeadLifecycleTimeSeriesData = (leads: any[], timeFilter: string = 'quarter') => {
+const createLeadLifecycleTimeSeriesData = (leads: any[]) => {
   // Always generate daily data for the past year to support all time filters
   const endDate = new Date()
   const startDate = new Date()

@@ -158,7 +158,7 @@ const AffectedExpensesTable: React.FC<AffectedExpensesTableProps> = ({
                       <PaginationItem>
                         <PaginationLink
                           onClick={() => onPageChange(p)}
-                          className={p === currentPage ? 'gba:bg-blue-500 gba:text-white' : 'gba:cursor-pointer'}
+                          className={p === currentPage ? 'gba:bg-blue-500 gba:text-background' : 'gba:cursor-pointer'}
                           data-testid={`${dataTestId}-pagination-page-${p}`}
                         >
                           {p}

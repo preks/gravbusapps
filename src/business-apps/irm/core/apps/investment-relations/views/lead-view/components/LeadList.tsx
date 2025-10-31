@@ -46,8 +46,6 @@ export interface LeadListProps extends BusinessAppContextProps {
 export const LeadList: React.FC<LeadListProps> = ({
   leads,
   searchTerm,
-  onSearchChange,
-  isLoading = false,
   totalCount,
   currentPage,
   pageSize,
@@ -55,7 +53,6 @@ export const LeadList: React.FC<LeadListProps> = ({
   onSort,
   sortField,
   sortOrder,
-  onClearFilters,
   visibleColumns = ['actions', 'lead', 'contact', 'address', 'status', 'rating', 'source', 'owner', 'created'],
   ...context
 }) => {

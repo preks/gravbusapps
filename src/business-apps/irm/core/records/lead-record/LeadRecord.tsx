@@ -28,12 +28,16 @@ import InvestmentSection from '@/common/components/common-relations/record-secti
 import ActivitySection from '@/common/components/common-relations/record-sections/activity-section/ActivitySection'
 import NoteSection from '@/common/components/common-relations/record-sections/note-section/NoteSection'
 import TaskSection from '@/common/components/common-relations/record-sections/task-section/TaskSection'
+import { transformTaskOrApproval } from '@/common/components/common-relations/record-sections/task-section/utils/taskMappers'
 import SectionWrapper from '@/common/components/common-relations/record-sections/section-card/SectionCard'
 import { AiActions, AiAction } from '@/common/components/common-relations/record-sections/header-section/ai-actions'
 import { useAiSummary } from './hooks/useAiSummary'
 import { AppActionButton } from '@/components/app-action-button/AppActionButton'
+import { AppAction } from '@/components/app-action/AppAction'
 import { Bot, Flag } from 'lucide-react'
 import type { TaskReference } from '@/common/components/common-relations/detail-sheets/task-detail-sheet'
+import { useProspectRejectionReasons } from '@/common/data/investment/hooks/useProspectRejectionReasons'
+import type { RejectionReason } from '@/common/data/investment/types/rejectionReasonTypes'
 
 interface LeadRecordContentProps extends BusinessAppContextProps {
   leadId: string
@@ -80,6 +84,11 @@ const InvestmentLeadRecordContent: React.FC<LeadRecordContentProps> = ({ leadId,
   const [approvals, setApprovals] = useState<any[]>([])
   const [sectionsLoading, setSectionsLoading] = useState(true)
   const [sectionsError, setSectionsError] = useState<string | null>(null)
+
+  // State for rejection reasons
+  const [rejectionReasons, setRejectionReasons] = useState<RejectionReason[]>([])
+  const [rejectionReasonsError, setRejectionReasonsError] = useState<string | null>(null)
+  const { fetchByLead } = useProspectRejectionReasons(props)
 
   // Build reference URLs for IRM context
   const buildReferenceUrl = (reference: TaskReference): string => {
@@ -163,6 +172,28 @@ const InvestmentLeadRecordContent: React.FC<LeadRecordContentProps> = ({ leadId,
     loadSectionData()
   }, [loadSectionData])
 
+  // Load rejection reasons function
+  const loadRejectionReasons = useCallback(async () => {
+    if (!leadId || !props.accessToken) return
+    setRejectionReasonsError(null)
+    try {
+      const reasons = await fetchByLead(leadId)
+      setRejectionReasons(reasons)
+    } catch (err) {
+      const errorMessage =
+        err instanceof Error
+          ? err.message
+          : getTranslationFromI18nKeyAndLabel('rejection.error.loadFailed', 'Failed to load rejection reasons')
+      setRejectionReasonsError(errorMessage)
+      setRejectionReasons([])
+    }
+  }, [leadId, props.accessToken, fetchByLead])
+
+  // Load rejection reasons on mount
+  useEffect(() => {
+    loadRejectionReasons()
+  }, [loadRejectionReasons])
+
   const getBackButtonText = () => {
     if (fromEntity === 'investment-relations') {
       return 'Back to Investment Relations'
@@ -172,20 +203,18 @@ const InvestmentLeadRecordContent: React.FC<LeadRecordContentProps> = ({ leadId,
 
   // Listen for process completion events to refresh lead data (including status updates)
   useEffect(() => {
-    const handleProcessCompletion = (event: any) => {
+    const handleProcessCompletion = async (event: any) => {
       try {
         // Check for successful completion
         if (event.detail?.resolution === 'success') {
-          refetch()
-          loadSectionData() // Also refresh section data
+          await Promise.all([refetch(), loadSectionData(), loadRejectionReasons()])
           return
         }
 
         // Also check for different event structure
         const response = event.detail?.response
         if (response?.detail?.resolution === 'success' || response?.lead) {
-          refetch()
-          loadSectionData() // Also refresh section data
+          await Promise.all([refetch(), loadSectionData(), loadRejectionReasons()])
         }
       } catch (err) {
         console.error('Error handling process completion in LeadRecord:', err)
@@ -215,7 +244,64 @@ const InvestmentLeadRecordContent: React.FC<LeadRecordContentProps> = ({ leadId,
         window.removeEventListener(eventName, handleProcessCompletion as EventListener)
       })
     }
-  }, [leadId, refetch])
+  }, [leadId, refetch, loadSectionData, loadRejectionReasons])
+
+  // Rejection reasons badge - MUST be defined before headerTitle
+  const rejectionReasonsBadge = useMemo(() => {
+    if (!props.accessToken || !leadId) return null
+
+    // Show error state if rejection reasons failed to load
+    if (rejectionReasonsError) {
+      return (
+        <TooltipProvider>
+          <Tooltip>
+            <TooltipTrigger asChild>
+              <Badge
+                variant="destructive"
+                className="gba:cursor-pointer gba:hover:opacity-80"
+                data-testid="lead-rejection-reasons-error-badge"
+                onClick={loadRejectionReasons}
+              >
+                {getTranslationFromI18nKeyAndLabel('rejection.badge.error', 'Error Loading Reasons')}
+              </Badge>
+            </TooltipTrigger>
+            <TooltipContent>
+              <p>{rejectionReasonsError}</p>
+              <p className="gba:text-xs gba:mt-1">
+                {getTranslationFromI18nKeyAndLabel('rejection.tooltip.retry', 'Click to retry')}
+              </p>
+            </TooltipContent>
+          </Tooltip>
+        </TooltipProvider>
+      )
+    }
+
+    // Determine badge variant and text based on rejection reasons
+    const hasReasons = rejectionReasons.length > 0
+    const badgeVariant = hasReasons ? 'destructive' : 'secondary'
+    const badgeText = hasReasons
+      ? getTranslationFromI18nKeyAndLabel('rejection.badge.rejected', 'Rejected')
+      : getTranslationFromI18nKeyAndLabel('rejection.badge.noReasons', 'No Rejection Reason')
+
+    return (
+      <AppAction
+        contextsArray={[FlowContextName.investmentLeadReject]}
+        externalContextData={{ leadId }}
+        prefixDataTestId="lead-rejection-reasons"
+        accessToken={props.accessToken}
+        emptyStateBehavior="enable"
+        deferMainContextRequestsUntilClick
+      >
+        <Badge
+          variant={badgeVariant}
+          className="gba:cursor-pointer gba:hover:opacity-80"
+          data-testid="lead-rejection-reasons-badge"
+        >
+          {badgeText}
+        </Badge>
+      </AppAction>
+    )
+  }, [props.accessToken, leadId, rejectionReasons, rejectionReasonsError, loadRejectionReasons])
 
   // Prepare header content for RecordLayout - MUST be before conditional returns
   const headerTitle = (
@@ -243,6 +329,7 @@ const InvestmentLeadRecordContent: React.FC<LeadRecordContentProps> = ({ leadId,
           </Tooltip>
         </TooltipProvider>
       )}
+      {rejectionReasonsBadge}
     </div>
   )
 
@@ -416,9 +503,10 @@ const InvestmentLeadRecordContent: React.FC<LeadRecordContentProps> = ({ leadId,
                           industry:
                             leadData.industryClass?.value || leadData.industryClass?.code || leadData.industryClass,
                           size: leadData.companySize?.value || leadData.companySize?.code || leadData.companySize,
-                          revenue: leadData.annualRevenue?.value || leadData.annualRevenue,
+                          revenue: leadData.accountAnnualRevenueBand?.value || leadData.accountAnnualRevenueBand?.code,
                           // Add numberOfEmployees for AccountSection compatibility
-                          numberOfEmployees: leadData.companySize
+                          numberOfEmployees: leadData.companySize,
+                          annualRevenue: leadData.accountAnnualRevenueBand
                         }
                       : {
                           name: getTranslationFromI18nKeyAndLabel('crm.account.companyName', 'Company Name'),
@@ -505,7 +593,7 @@ const InvestmentLeadRecordContent: React.FC<LeadRecordContentProps> = ({ leadId,
                     activitiesError: sectionsError,
                     onReloadActivities: loadSectionData,
                     activitySectionActionProps: {
-                      contextsArray: [FlowContextName.createInvestmentActivity],
+                      contextsArray: [FlowContextName.investmentActivityCreate],
                       externalContextData: { leadId },
                       prefixDataTestId: 'lead-activities'
                     },
@@ -566,62 +654,12 @@ const InvestmentLeadRecordContent: React.FC<LeadRecordContentProps> = ({ leadId,
                     ...props,
                     leadId: leadId,
                     buildReferenceUrl,
-                    tasks: tasks.map(task => ({
-                      id: task.id,
-                      title:
-                        task.name ||
-                        task.displayName ||
-                        getTranslationFromI18nKeyAndLabel('crm.tasks.untitled', 'Untitled Task'),
-                      description: task.description,
-                      createdAt: task.createdAt,
-                      due: task.dueDate,
-                      assignee: task.assignedEmployee?.displayName || task.assignedEmployee?.fullName,
-                      statusCode: task.taskStatus?.value?.toUpperCase() as any,
-                      taskStatus: task.taskStatus,
-                      taskPriority: task.taskPriority,
-                      assigneeEmployee: task.assignedEmployee,
-                      taskTiming: task.taskTiming,
-                      startDate: task.startDate,
-                      creatorEmployee: task.creatorEmployee,
-                      documents: task.documents,
-                      reference: task.lead
-                        ? {
-                            type: 'lead' as const,
-                            id: task.lead.id,
-                            name:
-                              `${task.lead.firstName || ''} ${task.lead.lastName || ''}`.trim() ||
-                              task.lead.code ||
-                              'Lead'
-                          }
-                        : task.account
-                          ? {
-                              type: 'account' as const,
-                              id: task.account.id,
-                              name: task.account.name || task.account.code || 'Account'
-                            }
-                          : task.contact
-                            ? {
-                                type: 'contact' as const,
-                                id: task.contact.id,
-                                name:
-                                  `${task.contact.firstName || ''} ${task.contact.lastName || ''}`.trim() ||
-                                  task.contact.code ||
-                                  'Contact'
-                              }
-                            : task.opportunity
-                              ? {
-                                  type: 'opportunity' as const,
-                                  id: task.opportunity.id,
-                                  name: task.opportunity.name || task.opportunity.code || 'Opportunity'
-                                }
-                              : task.investment
-                                ? {
-                                    type: 'investment' as const,
-                                    id: task.investment.id,
-                                    name: task.investment.name || task.investment.code || 'Investment'
-                                  }
-                                : undefined
-                    })),
+                    tasks: tasks.map(task =>
+                      transformTaskOrApproval(
+                        task,
+                        getTranslationFromI18nKeyAndLabel('crm.tasks.untitled', 'Untitled Task')
+                      )
+                    ),
                     taskActionProps: {
                       contextsArray: [FlowContextName.investmentTaskCreate],
                       externalContextData: { leadId },
@@ -644,62 +682,12 @@ const InvestmentLeadRecordContent: React.FC<LeadRecordContentProps> = ({ leadId,
                     sectionTitle: 'Approval Tasks',
                     leadId: leadId,
                     buildReferenceUrl,
-                    tasks: approvals.map(approval => ({
-                      id: approval.id,
-                      title:
-                        approval.name ||
-                        approval.displayName ||
-                        getTranslationFromI18nKeyAndLabel('crm.approvals.request', 'Approval Request'),
-                      description: approval.description,
-                      createdAt: approval.createdAt,
-                      due: approval.dueDate,
-                      assignee: approval.assignedEmployee?.displayName || approval.assignedEmployee?.fullName,
-                      statusCode: approval.taskStatus?.value?.toUpperCase() as any,
-                      taskStatus: approval.taskStatus,
-                      taskPriority: approval.taskPriority,
-                      assigneeEmployee: approval.assignedEmployee,
-                      taskTiming: approval.taskTiming,
-                      startDate: approval.startDate,
-                      creatorEmployee: approval.creatorEmployee,
-                      documents: approval.documents,
-                      reference: approval.lead
-                        ? {
-                            type: 'lead' as const,
-                            id: approval.lead.id,
-                            name:
-                              `${approval.lead.firstName || ''} ${approval.lead.lastName || ''}`.trim() ||
-                              approval.lead.code ||
-                              'Lead'
-                          }
-                        : approval.account
-                          ? {
-                              type: 'account' as const,
-                              id: approval.account.id,
-                              name: approval.account.name || approval.account.code || 'Account'
-                            }
-                          : approval.contact
-                            ? {
-                                type: 'contact' as const,
-                                id: approval.contact.id,
-                                name:
-                                  `${approval.contact.firstName || ''} ${approval.contact.lastName || ''}`.trim() ||
-                                  approval.contact.code ||
-                                  'Contact'
-                              }
-                            : approval.opportunity
-                              ? {
-                                  type: 'opportunity' as const,
-                                  id: approval.opportunity.id,
-                                  name: approval.opportunity.name || approval.opportunity.code || 'Opportunity'
-                                }
-                              : approval.investment
-                                ? {
-                                    type: 'investment' as const,
-                                    id: approval.investment.id,
-                                    name: approval.investment.name || approval.investment.code || 'Investment'
-                                  }
-                                : undefined
-                    })),
+                    tasks: approvals.map(approval =>
+                      transformTaskOrApproval(
+                        approval,
+                        getTranslationFromI18nKeyAndLabel('crm.approvals.request', 'Approval Request')
+                      )
+                    ),
                     taskEntityActionProps: {
                       contextsArray: [FlowContextName.investmentTaskEntity],
                       externalContextData: { leadId },

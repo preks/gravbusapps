@@ -41,7 +41,16 @@ export interface ContactTaskData {
     lastName?: string
     displayName?: string
     fullName?: string
+    pictureThumbnail?: string
   }
+  documents?: {
+    id: string
+    name: string
+    file?: string
+    fileInfo?: any
+    mimeType?: string
+    fileSize?: number
+  }[]
 }
 
 export interface ContactTaskResponse {
@@ -83,6 +92,15 @@ export const GET_CONTACT_TASKS = (): string => {
           lastName
           displayName
           fullName
+          pictureThumbnail
+        }
+        documents(where: { isDeleted: { _eq: false } }) {
+          id
+          name
+          file
+          fileInfo
+          mimeType
+          fileSize
         }
       }
     }

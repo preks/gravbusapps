@@ -122,17 +122,23 @@ export const ContactInformation: React.FC<ContactInformationProps> = ({ opportun
     <Card title="Contact" style={{ width: '100%', height: '100%' }} data-testid="opportunity-contact-information-card">
       <div>
         <div style={{ marginBottom: '16px' }} data-testid="opportunity-contact-first-name">
-          <div style={{ fontSize: '14px', color: '#8c8c8c', marginBottom: '4px' }}>First Name</div>
+          <div className="gba:text-sm gba:text-muted-foreground" style={{ marginBottom: '4px' }}>
+            First Name
+          </div>
           <div style={{ fontSize: '16px', fontWeight: '500' }}>{getContactField('firstName')}</div>
         </div>
 
         <div style={{ marginBottom: '16px' }} data-testid="opportunity-contact-last-name">
-          <div style={{ fontSize: '14px', color: '#8c8c8c', marginBottom: '4px' }}>Last Name</div>
+          <div className="gba:text-sm gba:text-muted-foreground" style={{ marginBottom: '4px' }}>
+            Last Name
+          </div>
           <div style={{ fontSize: '16px', fontWeight: '500' }}>{getContactField('lastName')}</div>
         </div>
 
         <div style={{ marginBottom: '16px' }} data-testid="opportunity-contact-email">
-          <div style={{ fontSize: '14px', color: '#8c8c8c', marginBottom: '4px' }}>Email</div>
+          <div className="gba:text-sm gba:text-muted-foreground" style={{ marginBottom: '4px' }}>
+            Email
+          </div>
           <div style={{ fontSize: '16px', fontWeight: '500' }}>
             {(() => {
               const email = getContactField('email')
@@ -141,7 +147,7 @@ export const ContactInformation: React.FC<ContactInformationProps> = ({ opportun
               return (
                 <a
                   href={`mailto:${email}`}
-                  style={{ color: '#3b82f6', textDecoration: 'none' }}
+                  className="gba:text-primary gba:no-underline"
                   data-testid="opportunity-contact-email-link"
                 >
                   {email}
@@ -152,7 +158,9 @@ export const ContactInformation: React.FC<ContactInformationProps> = ({ opportun
         </div>
 
         <div style={{ marginBottom: '16px' }} data-testid="opportunity-contact-phone">
-          <div style={{ fontSize: '14px', color: '#8c8c8c', marginBottom: '4px' }}>Phone Number</div>
+          <div className="gba:text-sm gba:text-muted-foreground" style={{ marginBottom: '4px' }}>
+            Phone Number
+          </div>
           <div style={{ fontSize: '16px', fontWeight: '500' }}>
             {(() => {
               const phone = getContactField('phone') || getContactField('phoneNumber')
@@ -161,7 +169,7 @@ export const ContactInformation: React.FC<ContactInformationProps> = ({ opportun
               return (
                 <a
                   href={`tel:${phone}`}
-                  style={{ color: '#3b82f6', textDecoration: 'none' }}
+                  className="gba:text-primary gba:no-underline"
                   data-testid="opportunity-contact-phone-link"
                 >
                   {phone}
@@ -172,14 +180,18 @@ export const ContactInformation: React.FC<ContactInformationProps> = ({ opportun
         </div>
 
         <div style={{ marginBottom: '16px' }} data-testid="opportunity-contact-job-title">
-          <div style={{ fontSize: '14px', color: '#8c8c8c', marginBottom: '4px' }}>Job Title</div>
+          <div className="gba:text-sm gba:text-muted-foreground" style={{ marginBottom: '4px' }}>
+            Job Title
+          </div>
           <div style={{ fontSize: '16px', fontWeight: '500' }}>
             {getContactField('jobTitle') || getContactField('position')}
           </div>
         </div>
 
         <div data-testid="opportunity-contact-created-at">
-          <div style={{ fontSize: '14px', color: '#8c8c8c', marginBottom: '4px' }}>Created At</div>
+          <div className="gba:text-sm gba:text-muted-foreground" style={{ marginBottom: '4px' }}>
+            Created At
+          </div>
           <div style={{ fontSize: '16px', fontWeight: '500' }}>{getCreatedAt()}</div>
         </div>
       </div>

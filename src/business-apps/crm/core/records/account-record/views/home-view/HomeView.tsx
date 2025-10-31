@@ -154,7 +154,7 @@ const HomeView: React.FC<HomeViewProps> = ({ accountId, accountData, ...props })
 
   const taskActionProps = useMemo(
     () => ({
-      contextsArray: [FlowContextName.createCustomerTask],
+      contextsArray: [FlowContextName.customerTaskCreate],
       externalContextData: { accountId },
       prefixDataTestId: 'account-task'
     }),
@@ -163,7 +163,7 @@ const HomeView: React.FC<HomeViewProps> = ({ accountId, accountData, ...props })
 
   const approvalActionProps = useMemo(
     () => ({
-      contextsArray: [FlowContextName.createCustomerTask],
+      contextsArray: [FlowContextName.customerTaskCreate],
       externalContextData: {
         accountId,
         typeRef: 'SalesTaskType:v1:APPROVAL',

@@ -49,11 +49,7 @@ const CampaignHeader: React.FC<CampaignHeaderProps> = ({ campaign, isLoading, ac
 
   if (isLoading) {
     return (
-      <div
-        className="gba:p-6"
-        data-testid="campaign-header-loading"
-        style={{ backgroundColor: 'white', borderRadius: '8px' }}
-      >
+      <div className="gba:p-6 gba:bg-background" data-testid="campaign-header-loading" style={{ borderRadius: '8px' }}>
         <div className="gba:flex gba:justify-center gba:items-center gba:h-32">
           <Spinner size="lg" />
         </div>
@@ -63,11 +59,7 @@ const CampaignHeader: React.FC<CampaignHeaderProps> = ({ campaign, isLoading, ac
 
   if (!campaign) {
     return (
-      <div
-        className="gba:p-6"
-        data-testid="campaign-header-error"
-        style={{ backgroundColor: 'white', borderRadius: '8px' }}
-      >
+      <div className="gba:p-6 gba:bg-background" data-testid="campaign-header-error" style={{ borderRadius: '8px' }}>
         <div className="gba:text-center" style={{ color: 'var(--color-text-secondary)' }}>
           {getTranslationFromI18nKeyAndLabel('campaign.header.notFound', 'Campaign not found')}
         </div>
@@ -79,8 +71,8 @@ const CampaignHeader: React.FC<CampaignHeaderProps> = ({ campaign, isLoading, ac
 
   return (
     <div
-      className="gba:account-header"
-      style={{ marginBottom: '24px', backgroundColor: 'white', borderRadius: '8px', padding: '20px' }}
+      className="gba:account-header gba:bg-background"
+      style={{ marginBottom: '24px', borderRadius: '8px', padding: '20px' }}
     >
       <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
         <div style={{ display: 'flex', alignItems: 'center', gap: '16px' }}>
@@ -92,8 +84,8 @@ const CampaignHeader: React.FC<CampaignHeaderProps> = ({ campaign, isLoading, ac
               {campaign.name}
             </div>
             <div
+              className="gba:text-muted-foreground"
               style={{
-                color: '#8c8c8c',
                 fontSize: '14px',
                 display: 'flex',
                 flexDirection: 'row',

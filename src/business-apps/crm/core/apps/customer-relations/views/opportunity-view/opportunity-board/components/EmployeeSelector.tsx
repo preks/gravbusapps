@@ -81,7 +81,7 @@ export const EmployeeSelector: React.FC<EmployeeSelectorProps> = ({
     <div className="gba:relative gba:w-64" data-testid="employee-selector">
       {/* Trigger */}
       <div
-        className={`gba:flex gba:flex-wrap gba:items-center gba:gap-1 gba:p-2 gba:border gba:border-gray-300 gba:rounded-md gba:bg-white gba:cursor-pointer gba:min-h-[40px] ${disabled || loading ? 'gba:bg-gray-50 gba:cursor-not-allowed' : 'gba:hover:border-gray-400'}`}
+        className={`gba:flex gba:flex-wrap gba:items-center gba:gap-1 gba:p-2 gba:border gba:border-gray-300 gba:rounded-md gba:bg-hsl(var(--background)) gba:cursor-pointer gba:min-h-[40px] ${disabled || loading ? 'gba:bg-gray-50 gba:cursor-not-allowed' : 'gba:hover:border-gray-400'}`}
         data-testid="employee-selector-trigger"
         onClick={() => {
           if (!disabled && !loading) setIsOpen(prev => !prev)
@@ -115,7 +115,7 @@ export const EmployeeSelector: React.FC<EmployeeSelectorProps> = ({
 
       {/* Dropdown */}
       {isOpen && (
-        <div className="gba:absolute gba:top-full gba:left-0 gba:right-0 gba:mt-1 gba:bg-white gba:border gba:border-gray-300 gba:rounded-md gba:shadow-lg gba:max-h-60 gba:overflow-y-auto">
+        <div className="gba:absolute gba:top-full gba:left-0 gba:right-0 gba:mt-1 gba:bg-hsl(var(--background)) gba:border gba:border-gray-300 gba:rounded-md gba:shadow-lg gba:max-h-60 gba:overflow-y-auto">
           {loading ? (
             <div className="gba:flex gba:items-center gba:justify-center gba:p-4">
               <Spinner size="sm" />
@@ -148,7 +148,9 @@ export const EmployeeSelector: React.FC<EmployeeSelectorProps> = ({
                       className={`gba:w-4 gba:h-4 gba:border gba:rounded ${selectedEmployeeIds.includes(employee.id) ? 'gba:bg-blue-600 gba:border-blue-600' : 'gba:border-gray-300'}`}
                     >
                       {selectedEmployeeIds.includes(employee.id) && (
-                        <div className="gba:text-white gba:text-xs gba:text-center gba:leading-4">✓</div>
+                        <div className="gba:text-hsl(var(--background)) gba:text-xs gba:text-center gba:leading-4">
+                          ✓
+                        </div>
                       )}
                     </div>
                     <span className="gba:text-sm">{employee.displayName}</span>

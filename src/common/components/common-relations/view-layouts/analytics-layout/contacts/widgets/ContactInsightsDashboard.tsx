@@ -98,11 +98,11 @@ export const ContactInsightsDashboard: React.FC<ContactInsightsDashboardProps> =
           <div>
             <h4 className="gba:text-lg gba:font-semibold gba:mb-4">Contacts by Type</h4>
             <ChartContainer config={chartConfig} className="gba:w-full gba:h-[300px]">
-              <BarChart data={data.contactsByType}>
-                <XAxis dataKey="type" angle={-45} textAnchor="end" height={80} />
-                <YAxis />
+              <BarChart data={data.contactsByType} margin={{ bottom: 80, left: 40 }}>
+                <XAxis dataKey="type" angle={-45} textAnchor="end" height={80} tick={{ fontSize: 11 }} interval={0} />
+                <YAxis tick={{ fontSize: 11 }} />
                 <ChartTooltip content={<ChartTooltipContent />} />
-                <Bar dataKey="count" fill="var(--color-count)" />
+                <Bar dataKey="count" fill="var(--color-count)" radius={[2, 2, 0, 0]} />
               </BarChart>
             </ChartContainer>
           </div>

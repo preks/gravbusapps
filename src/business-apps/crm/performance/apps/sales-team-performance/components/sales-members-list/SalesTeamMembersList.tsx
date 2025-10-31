@@ -1,4 +1,4 @@
-import React, { useCallback, useState, useMemo, useRef } from 'react'
+import React, { useCallback, useState, useMemo } from 'react'
 import {
   Avatar,
   AvatarFallback,
@@ -57,9 +57,7 @@ export const SalesTeamMembersList: React.FC<SalesMembersListProps> = props => {
     total = 0,
     currentPage = 1,
     pageSize = 20,
-    onSearchChange,
-    onPaginationChange,
-    ...contextProps
+    onPaginationChange
   } = props
 
   // Remove local state for search, currentPage, pageSize
@@ -68,8 +66,6 @@ export const SalesTeamMembersList: React.FC<SalesMembersListProps> = props => {
   // const [pageSize, setPageSize] = useState(20);
   const [sortField, setSortField] = useState('totalRevenue')
   const [sortOrder, setSortOrder] = useState<'ASC' | 'DESC'>('DESC')
-  const [searchExpanded, setSearchExpanded] = useState(false)
-  const inputRef = useRef<HTMLInputElement>(null)
 
   // Use props data only, do not fetch here
   const rawMembers = propsMembers || []
@@ -156,10 +152,6 @@ export const SalesTeamMembersList: React.FC<SalesMembersListProps> = props => {
   // }, [shouldFetchData, accessToken, currentPage, pageSize, search, loadPage]);
 
   // Handlers use props
-  const handleSearchChange = (value: string) => {
-    if (onSearchChange) onSearchChange(value)
-  }
-
   const handlePaginationChange = (page: number, newPageSize?: number) => {
     if (onPaginationChange) onPaginationChange(page, newPageSize)
   }
@@ -230,31 +222,6 @@ export const SalesTeamMembersList: React.FC<SalesMembersListProps> = props => {
     if (score >= 70) return 'warning'
     if (score >= 60) return 'secondary'
     return 'destructive'
-  }
-
-  // Get activity score color based on performance
-  const getActivityScoreColor = (score: number): string => {
-    if (score >= 90) return 'gba:text-green-600'
-    if (score >= 75) return 'gba:text-blue-600'
-    if (score >= 60) return 'gba:text-yellow-600'
-    return 'gba:text-red-600'
-  }
-
-  // Get progress bar color based on activity score
-  const getProgressColor = (score: number): string => {
-    if (score >= 90) return 'bg-green-500'
-    if (score >= 75) return 'bg-blue-500'
-    if (score >= 60) return 'bg-yellow-500'
-    return 'bg-red-500'
-  }
-
-  const handleExpand = () => {
-    setSearchExpanded(true)
-    setTimeout(() => inputRef.current?.focus(), 100)
-  }
-
-  const handleBlur = () => {
-    if (!search) setSearchExpanded(false)
   }
 
   // Loading state

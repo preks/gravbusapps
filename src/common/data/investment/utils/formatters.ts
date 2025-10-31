@@ -3,19 +3,16 @@
  * All formatting uses src/common/utils - this file provides backward compatibility only
  */
 
-import {
-  formatCompactNumber,
-  formatCompactCurrency,
-  formatPercentage as commonFormatPercentage,
-  extractCurrencyCode as commonExtractCurrencyCode
-} from '@/common/utils/numberFormatter'
+import { formatCompactCurrency, extractCurrencyCode } from '@/common/utils/numberFormatter'
 import { formatForDisplay } from '@/common/utils/dateFormatter'
 
 // Re-export common utilities for backward compatibility
-export const extractCurrencyCode = commonExtractCurrencyCode
-export const formatPercentage = commonFormatPercentage
-export const formatLargeNumber = formatCompactNumber
-export const formatNumber = formatCompactNumber
+export {
+  extractCurrencyCode,
+  formatPercentage,
+  formatAmount as formatLargeNumber,
+  formatAmount as formatNumber
+} from '@/common/utils/numberFormatter'
 
 /**
  * Format currency with investment-specific defaults

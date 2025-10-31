@@ -4,7 +4,6 @@ import { TeamOutlined, PercentageOutlined, ClockCircleOutlined, RiseOutlined } f
 import { LeadLifecycleChart, TimeFilter } from './widgets/LeadLifecycleChart'
 import { LeadVelocityAnalysis } from './widgets/LeadVelocityAnalysis'
 import { LeadsBySourcePie } from './widgets/LeadsBySourcePie'
-import { LeadsBySourceTypePie } from './widgets/LeadsBySourceTypePie'
 import { LeadsByStatusPie } from './widgets/LeadsByStatusPie'
 import TopLeadOwners from './widgets/TopLeadOwners'
 import { LeadQualityMatrix } from './widgets/LeadQualityMatrix'
@@ -37,7 +36,6 @@ export interface LeadsTabLayoutProps {
   selectedTimeFilter: TimeFilter
   onTimeFilterChange: (filter: TimeFilter) => void
   leadsBySource: Array<{ source: string; count: number; percentage?: number }>
-  leadsBySourceType: Array<{ sourceType: string; count: number }>
   leadsByStatus: Array<{ status: string; count: number }>
   topOwners: Array<{ employeeId: string; employeeName: string; leadCount: number; conversionRate: number }>
   leadsByRating?: Array<{ rating: string; count: number; percentage?: number }>
@@ -56,7 +54,6 @@ export const LeadsTabLayout: React.FC<LeadsTabLayoutProps> = ({
   selectedTimeFilter,
   onTimeFilterChange,
   leadsBySource,
-  leadsBySourceType,
   leadsByStatus,
   topOwners,
   leadsByRating,
@@ -296,12 +293,11 @@ export const LeadsTabLayout: React.FC<LeadsTabLayoutProps> = ({
         moduleColor={moduleColor}
       />
 
-      <div className="gba:grid gba:grid-cols-1 gba:gap-4 gba:md:grid-cols-2 gba:lg:grid-cols-3">
+      <div className="gba:grid gba:grid-cols-1 gba:gap-4 gba:md:grid-cols-2">
         <LeadsBySourcePie
           data={leadsBySource.map(s => ({ source: s.source, count: s.count }))}
           moduleColor={moduleColor}
         />
-        <LeadsBySourceTypePie data={leadsBySourceType} moduleColor={moduleColor} />
         <LeadsByStatusPie data={leadsByStatus} moduleColor={moduleColor} />
       </div>
 

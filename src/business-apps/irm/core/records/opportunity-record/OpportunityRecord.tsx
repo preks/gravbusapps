@@ -1,5 +1,14 @@
-import React, { useState, useEffect, useMemo } from 'react'
-import { Spinner, Button, RecordLayout, Badge } from '@newwork/nw-design-system'
+import React, { useState, useEffect, useMemo, useCallback } from 'react'
+import {
+  Spinner,
+  Button,
+  RecordLayout,
+  Badge,
+  Tooltip,
+  TooltipProvider,
+  TooltipTrigger,
+  TooltipContent
+} from '@newwork/nw-design-system'
 import {
   User,
   FileText,
@@ -18,8 +27,11 @@ import { getOpportunityStatusBadgeVariant } from '@/common/utils/badgeUtils'
 import { useAiSummary } from './hooks/useAiSummary'
 import { AiActions, AiAction } from '@/common/components/common-relations/record-sections/header-section/ai-actions'
 import { AppActionButton } from '@/components/app-action-button/AppActionButton'
+import { AppAction } from '@/components/app-action/AppAction'
 import { Bot } from 'lucide-react'
 import type { TaskReference } from '@/common/components/common-relations/detail-sheets/task-detail-sheet'
+import { useProspectRejectionReasons } from '@/common/data/investment/hooks/useProspectRejectionReasons'
+import type { RejectionReason } from '@/common/data/investment/types/rejectionReasonTypes'
 import ConditionSection from '@/common/components/common-relations/record-sections/condition-section/ConditionSection'
 import InvestmentSection from '@/common/components/common-relations/record-sections/investment-section/InvestmentSection'
 import { OpportunityStageProgression } from './components/OpportunityStageProgression'
@@ -29,6 +41,7 @@ import ContactSection from '@/common/components/common-relations/record-sections
 import ActivitySection from '@/common/components/common-relations/record-sections/activity-section/ActivitySection'
 import NoteSection from '@/common/components/common-relations/record-sections/note-section/NoteSection'
 import TaskSection from '@/common/components/common-relations/record-sections/task-section/TaskSection'
+import { transformTaskOrApproval } from '@/common/components/common-relations/record-sections/task-section/utils/taskMappers'
 import SectionWrapper from '@/common/components/common-relations/record-sections/section-card/SectionCard'
 import {
   DocumentSection,
@@ -138,6 +151,11 @@ const InvestmentOpportunityRecordContent: React.FC<OpportunityRecordContentProps
   const [documentsLoading, setDocumentsLoading] = useState(false)
   const [documentsError, setDocumentsError] = useState<string | null>(null)
 
+  // State for rejection reasons
+  const [rejectionReasons, setRejectionReasons] = useState<RejectionReason[]>([])
+  const [rejectionReasonsError, setRejectionReasonsError] = useState<string | null>(null)
+  const { fetchByOpportunity } = useProspectRejectionReasons(props)
+
   const loadActivities = async () => {
     if (!opportunityId) return
 
@@ -246,7 +264,7 @@ const InvestmentOpportunityRecordContent: React.FC<OpportunityRecordContentProps
               code: doc.documentGroup.code
             }
           : null,
-        file: doc.file || null,
+        file: doc.file || (doc as any)?.fileInfo?.fileId || null,
         mimeType: doc.mimeType || null,
         fileSize: doc.fileSize,
         createdBy: doc.createdBy || null,
@@ -276,6 +294,28 @@ const InvestmentOpportunityRecordContent: React.FC<OpportunityRecordContentProps
     loadDocuments()
   }, [opportunityId])
 
+  // Load rejection reasons function
+  const loadRejectionReasons = useCallback(async () => {
+    if (!opportunityId || !props.accessToken) return
+    setRejectionReasonsError(null)
+    try {
+      const reasons = await fetchByOpportunity(opportunityId)
+      setRejectionReasons(reasons)
+    } catch (err) {
+      const errorMessage =
+        err instanceof Error
+          ? err.message
+          : getTranslationFromI18nKeyAndLabel('rejection.error.loadFailed', 'Failed to load rejection reasons')
+      setRejectionReasonsError(errorMessage)
+      setRejectionReasons([])
+    }
+  }, [opportunityId, props.accessToken, fetchByOpportunity])
+
+  // Load rejection reasons on mount
+  useEffect(() => {
+    loadRejectionReasons()
+  }, [loadRejectionReasons])
+
   useProcessCompletion({
     onSuccess: () => {
       refetchOpportunityData()
@@ -283,6 +323,7 @@ const InvestmentOpportunityRecordContent: React.FC<OpportunityRecordContentProps
       loadNotes()
       loadTasksAndApprovals()
       loadDocuments()
+      loadRejectionReasons() // Refresh rejection reasons after process completion
     }
   })
 
@@ -392,7 +433,7 @@ const InvestmentOpportunityRecordContent: React.FC<OpportunityRecordContentProps
 
   const activityActionProps = useMemo(
     () => ({
-      contextsArray: [FlowContextName.createInvestmentActivity],
+      contextsArray: [FlowContextName.investmentActivityCreate],
       externalContextData: {
         opportunityId,
         opportunity: opportunityId,
@@ -402,6 +443,63 @@ const InvestmentOpportunityRecordContent: React.FC<OpportunityRecordContentProps
     }),
     [opportunityId]
   )
+
+  // Rejection reasons badge - MUST be defined before headerTitle
+  const rejectionReasonsBadge = useMemo(() => {
+    if (!props.accessToken || !opportunityId) return null
+
+    // Show error state if rejection reasons failed to load
+    if (rejectionReasonsError) {
+      return (
+        <TooltipProvider>
+          <Tooltip>
+            <TooltipTrigger asChild>
+              <Badge
+                variant="destructive"
+                className="gba:cursor-pointer gba:hover:opacity-80"
+                data-testid="opportunity-rejection-reasons-error-badge"
+                onClick={loadRejectionReasons}
+              >
+                {getTranslationFromI18nKeyAndLabel('rejection.badge.error', 'Error Loading Reasons')}
+              </Badge>
+            </TooltipTrigger>
+            <TooltipContent>
+              <p>{rejectionReasonsError}</p>
+              <p className="gba:text-xs gba:mt-1">
+                {getTranslationFromI18nKeyAndLabel('rejection.tooltip.retry', 'Click to retry')}
+              </p>
+            </TooltipContent>
+          </Tooltip>
+        </TooltipProvider>
+      )
+    }
+
+    // Determine badge variant and text based on rejection reasons
+    const hasReasons = rejectionReasons.length > 0
+    const badgeVariant = hasReasons ? 'destructive' : 'secondary'
+    const badgeText = hasReasons
+      ? getTranslationFromI18nKeyAndLabel('rejection.badge.rejected', 'Rejected')
+      : getTranslationFromI18nKeyAndLabel('rejection.badge.noReasons', 'No Rejection Reason')
+
+    return (
+      <AppAction
+        contextsArray={[FlowContextName.investmentOpportunityReject]}
+        externalContextData={{ opportunityId }}
+        prefixDataTestId="opportunity-rejection-reasons"
+        accessToken={props.accessToken}
+        emptyStateBehavior="enable"
+        deferMainContextRequestsUntilClick
+      >
+        <Badge
+          variant={badgeVariant}
+          className="gba:cursor-pointer gba:hover:opacity-80"
+          data-testid="opportunity-rejection-reasons-badge"
+        >
+          {badgeText}
+        </Badge>
+      </AppAction>
+    )
+  }, [props.accessToken, opportunityId, rejectionReasons, rejectionReasonsError, loadRejectionReasons])
 
   // Memoize RecordLayout data to prevent unnecessary re-renders (must be before early returns)
   const headerMeta = useMemo(
@@ -785,59 +883,12 @@ const InvestmentOpportunityRecordContent: React.FC<OpportunityRecordContentProps
                     ...props,
                     opportunityId: opportunityId,
                     buildReferenceUrl,
-                    tasks: tasks.map(task => ({
-                      id: task.id,
-                      title: task.name,
-                      description: task.description,
-                      createdAt: task.createdAt,
-                      due: task.dueDate,
-                      assignee: task.assignedEmployee?.displayName || task.assignedEmployee?.fullName,
-                      statusCode: task.taskStatus?.value?.toUpperCase() as any,
-                      taskStatus: task.taskStatus,
-                      taskPriority: task.taskPriority,
-                      assigneeEmployee: task.assignedEmployee,
-                      taskTiming: task.taskTiming,
-                      startDate: task.startDate,
-                      creatorEmployee: task.creatorEmployee,
-                      documents: task.documents,
-                      reference: task.lead
-                        ? {
-                            type: 'lead' as const,
-                            id: task.lead.id,
-                            name:
-                              `${task.lead.firstName || ''} ${task.lead.lastName || ''}`.trim() ||
-                              task.lead.code ||
-                              'Lead'
-                          }
-                        : task.account
-                          ? {
-                              type: 'account' as const,
-                              id: task.account.id,
-                              name: task.account.name || task.account.code || 'Account'
-                            }
-                          : task.contact
-                            ? {
-                                type: 'contact' as const,
-                                id: task.contact.id,
-                                name:
-                                  `${task.contact.firstName || ''} ${task.contact.lastName || ''}`.trim() ||
-                                  task.contact.code ||
-                                  'Contact'
-                              }
-                            : task.opportunity
-                              ? {
-                                  type: 'opportunity' as const,
-                                  id: task.opportunity.id,
-                                  name: task.opportunity.name || task.opportunity.code || 'Opportunity'
-                                }
-                              : task.investment
-                                ? {
-                                    type: 'investment' as const,
-                                    id: task.investment.id,
-                                    name: task.investment.name || task.investment.code || 'Investment'
-                                  }
-                                : undefined
-                    })),
+                    tasks: tasks.map(task =>
+                      transformTaskOrApproval(
+                        task,
+                        getTranslationFromI18nKeyAndLabel('crm.tasks.untitled', 'Untitled Task')
+                      )
+                    ),
                     taskActionProps: {
                       ...taskActionProps,
                       emptyStateBehavior: 'enable'
@@ -857,59 +908,12 @@ const InvestmentOpportunityRecordContent: React.FC<OpportunityRecordContentProps
                     ...props,
                     sectionTitle: 'Approval Tasks',
                     buildReferenceUrl,
-                    tasks: approvals.map(approval => ({
-                      id: approval.id,
-                      title: approval.name,
-                      description: approval.description,
-                      createdAt: approval.createdAt,
-                      due: approval.dueDate,
-                      assignee: approval.assignedEmployee?.displayName || approval.assignedEmployee?.fullName,
-                      statusCode: approval.taskStatus?.value?.toUpperCase() as any,
-                      taskStatus: approval.taskStatus,
-                      taskPriority: approval.taskPriority,
-                      assigneeEmployee: approval.assignedEmployee,
-                      taskTiming: approval.taskTiming,
-                      startDate: approval.startDate,
-                      creatorEmployee: approval.creatorEmployee,
-                      documents: approval.documents,
-                      reference: approval.lead
-                        ? {
-                            type: 'lead' as const,
-                            id: approval.lead.id,
-                            name:
-                              `${approval.lead.firstName || ''} ${approval.lead.lastName || ''}`.trim() ||
-                              approval.lead.code ||
-                              'Lead'
-                          }
-                        : approval.account
-                          ? {
-                              type: 'account' as const,
-                              id: approval.account.id,
-                              name: approval.account.name || approval.account.code || 'Account'
-                            }
-                          : approval.contact
-                            ? {
-                                type: 'contact' as const,
-                                id: approval.contact.id,
-                                name:
-                                  `${approval.contact.firstName || ''} ${approval.contact.lastName || ''}`.trim() ||
-                                  approval.contact.code ||
-                                  'Contact'
-                              }
-                            : approval.opportunity
-                              ? {
-                                  type: 'opportunity' as const,
-                                  id: approval.opportunity.id,
-                                  name: approval.opportunity.name || approval.opportunity.code || 'Opportunity'
-                                }
-                              : approval.investment
-                                ? {
-                                    type: 'investment' as const,
-                                    id: approval.investment.id,
-                                    name: approval.investment.name || approval.investment.code || 'Investment'
-                                  }
-                                : undefined
-                    })),
+                    tasks: approvals.map(approval =>
+                      transformTaskOrApproval(
+                        approval,
+                        getTranslationFromI18nKeyAndLabel('crm.approvals.request', 'Approval Request')
+                      )
+                    ),
                     taskActionProps: {
                       ...approvalActionProps,
                       emptyStateBehavior: 'enable'
@@ -1061,7 +1065,12 @@ const InvestmentOpportunityRecordContent: React.FC<OpportunityRecordContentProps
         headerIcon={LightbulbIcon}
         headerCategory="OPPORTUNITY"
         onBack={onBack}
-        headerTitle={opportunity.name}
+        headerTitle={
+          <div className="gba:flex gba:items-center gba:gap-2">
+            <span>{opportunity.name}</span>
+            {rejectionReasonsBadge}
+          </div>
+        }
         headerMeta={headerMeta}
         headerActions={headerActions}
         headerActionButton={headerActionButton}
