@@ -260,15 +260,9 @@ export const FormScreenComponent: React.FC<FormScreenComponentProps> = ({
             <Form.Item className="gba:mb-0" data-testid="total-amount-form-item">
               <InputField
                 label={t('lowcoder:create_expense_item.change_expense_item_container.current_amount_label', 'Amount')}
-                className="gba:[&>input[type=number]]:appearance-textfield 
-         gba:[&>input[type=number]::-webkit-inner-spin-button]:appearance-none 
-         gba:[&>input[type=number]::-webkit-inner-spin-button]:m-0 
-         gba:[&>input[type=number]::-webkit-outer-spin-button]:appearance-none 
-         gba:[&>input[type=number]::-webkit-outer-spin-button]:m-0"
                 name="amount"
-                type="number"
-                step="0.01"
-                min="0"
+                type="text"
+                inputMode="decimal"
                 data-testid="total-amount-input"
                 value={calculateTotal().toFixed(2)}
                 placeholder={t(

@@ -18,8 +18,14 @@ async function findAllScreenDirectories() {
   const formIndexFiles = await glob('src/business-apps/**/forms/*/index.ts', {
     nodir: true
   })
+  const popupIndexFiles = await glob('src/business-apps/**/popups/*/index.ts', {
+    nodir: true
+  })
+  const recordIndexFiles = await glob('src/business-apps/**/records/*/index.ts', {
+    nodir: true
+  })
 
-  const allIndexFiles = [...appIndexFiles, ...formIndexFiles]
+  const allIndexFiles = [...appIndexFiles, ...formIndexFiles, ...popupIndexFiles, ...recordIndexFiles]
   const uniqueDirs = new Set()
 
   for (const filePath of allIndexFiles) {
