@@ -15,6 +15,7 @@ import {
   Button
 } from '@newwork/nw-design-system'
 import { File, Upload, X } from 'lucide-react'
+import { env } from '../../../../../common/env/EnvUtils'
 import { useForm } from 'react-hook-form'
 import { AppActionForm } from '@/components/app-action-form/AppActionForm'
 import { BusinessAppContextProps } from '@/common/BusinessAppContext'
@@ -71,6 +72,7 @@ const DocumentPopup: React.FC<DocumentPopupProps> = ({ initialValues = {}, ...pr
 
     let entityType: InvestmentDocumentEntityType = 'account'
     let entityId = ''
+
     if (accountId) {
       entityType = 'account'
       entityId = String(accountId)
@@ -149,6 +151,12 @@ const DocumentPopup: React.FC<DocumentPopupProps> = ({ initialValues = {}, ...pr
   const [parentLoading, setParentLoading] = useState<boolean>(false)
   const graphqlClient = useGraphQLClient(props.accessToken || '')
 
+  const [aiLoading, setAiLoading] = useState<boolean>(false)
+  const [aiError, setAiError] = useState<string | null>(null)
+  const [aiSuggestion, setAiSuggestion] = useState<{ type?: string; group?: string } | null>(null)
+  const [aiApplied, setAiApplied] = useState<boolean>(false)
+  const [applyTypeAfterGroup, setApplyTypeAfterGroup] = useState<string | null>(null)
+
   const isUpdateMode = !!(initialValues as any)?.investmentDocument?.id
 
   // Populate form with initial values when in update mode
@@ -192,10 +200,97 @@ const DocumentPopup: React.FC<DocumentPopupProps> = ({ initialValues = {}, ...pr
     if (renameMode || watchedFolder) return
     const currentType = form.getValues('documentTypeRef')
     const hasGroup = !!form.getValues('documentGroupRef')
+    if (applyTypeAfterGroup) return
     if (hasGroup && !currentType && Array.isArray(filteredDocumentTypes) && filteredDocumentTypes.length > 0) {
       form.setValue('documentTypeRef', filteredDocumentTypes[0].id)
     }
-  }, [filteredDocumentTypes, form, renameMode, watchedFolder])
+  }, [filteredDocumentTypes, form, renameMode, watchedFolder, applyTypeAfterGroup])
+
+  useEffect(() => {
+    if (renameMode || watchedFolder) return
+    form.setValue('documentTypeRef', '', { shouldDirty: true, shouldValidate: true, shouldTouch: true })
+  }, [watchedDocumentGroupRef, form, renameMode, watchedFolder])
+
+  const watchedFile = form.watch('file')
+  useEffect(() => {
+    const run = async () => {
+      if (renameMode || watchedFolder) return
+      const f = watchedFile as File | null
+      if (!f) return
+      setAiLoading(true)
+      setAiError(null)
+      setAiApplied(false)
+      setAiSuggestion(null)
+      try {
+        const fd = new FormData()
+        fd.append('file', f as unknown as Blob)
+        fd.append('llm_model', 'gpt-4.1')
+        const flowbotBase = env('NEXT_PUBLIC_FLOWBOT')
+        const res = await fetch(`${flowbotBase}/flowbot/document-autoclassify/classify`, {
+          method: 'POST',
+          headers: props.accessToken ? { Authorization: `Bearer ${props.accessToken}` } : undefined,
+          body: fd
+        })
+        if (!res.ok) {
+          throw new Error(`classify failed: ${res.status}`)
+        }
+        const data = (await res.json()) as { type?: string; group?: string }
+        setAiSuggestion({ type: data?.type, group: data?.group })
+      } catch {
+        setAiError('Failed to auto-classify')
+      } finally {
+        setAiLoading(false)
+      }
+    }
+    run()
+  }, [watchedFile, renameMode, watchedFolder, props.accessToken])
+
+  useEffect(() => {
+    if (renameMode || watchedFolder) return
+    if (!aiSuggestion || aiApplied) return
+    const hasGroup = !!form.getValues('documentGroupRef')
+    if (!hasGroup && aiSuggestion.group) {
+      const match = documentGroups.find(
+        g => (g?.value || '').toString().trim().toLowerCase() === aiSuggestion.group!.toString().trim().toLowerCase()
+      )
+      if (match?.id) {
+        form.setValue('documentGroupRef', match.id)
+      }
+    }
+  }, [aiSuggestion, aiApplied, documentGroups, form, renameMode, watchedFolder])
+
+  useEffect(() => {
+    if (renameMode || watchedFolder) return
+    if (!aiSuggestion) return
+    const hasType = !!form.getValues('documentTypeRef')
+    if (!hasType && aiSuggestion.type) {
+      const matchT = filteredDocumentTypes.find(
+        t => (t?.value || '').toString().trim().toLowerCase() === aiSuggestion.type!.toString().trim().toLowerCase()
+      )
+      if (matchT?.id) {
+        form.setValue('documentTypeRef', matchT.id)
+        setAiApplied(true)
+      }
+    }
+  }, [aiSuggestion, aiApplied, filteredDocumentTypes, form, renameMode, watchedFolder])
+
+  useEffect(() => {
+    if (renameMode || watchedFolder) return
+    if (!applyTypeAfterGroup) return
+    const current = form.getValues('documentTypeRef')
+    if (current) {
+      setApplyTypeAfterGroup(null)
+      return
+    }
+    const t = filteredDocumentTypes.find(
+      x => (x?.value || '').toString().trim().toLowerCase() === applyTypeAfterGroup.toString().trim().toLowerCase()
+    )
+    if (t?.id) {
+      form.setValue('documentTypeRef', t.id, { shouldDirty: true, shouldValidate: true, shouldTouch: true })
+      setAiApplied(true)
+      setApplyTypeAfterGroup(null)
+    }
+  }, [filteredDocumentTypes, applyTypeAfterGroup, form, renameMode, watchedFolder])
 
   useEffect(() => {
     if (renameMode) return // no need to load folders for simple rename
@@ -682,6 +777,59 @@ const DocumentPopup: React.FC<DocumentPopupProps> = ({ initialValues = {}, ...pr
               )}
             />
 
+            <div className="gba:text-sm gba:text-muted-foreground">
+              {aiLoading && <span>Detecting document group and type…</span>}
+              {!aiLoading && aiError && <span>{aiError}</span>}
+              {!aiLoading && !aiError && aiSuggestion && (
+                <div className="gba:flex gba:flex-col gba:gap-1">
+                  <span>
+                    AI suggestion: Group = <strong>{aiSuggestion.group || '—'}</strong>, Type ={' '}
+                    <strong>{aiSuggestion.type || '—'}</strong>
+                  </span>
+                  <div className="gba:flex gba:gap-2">
+                    <Button
+                      type="button"
+                      variant="secondary"
+                      size="sm"
+                      onClick={async () => {
+                        if (aiSuggestion?.group) {
+                          const g = documentGroups.find(
+                            x =>
+                              (x?.value || '').toString().trim().toLowerCase() ===
+                              aiSuggestion.group!.toString().trim().toLowerCase()
+                          )
+                          if (g?.id)
+                            form.setValue('documentGroupRef', g.id, {
+                              shouldDirty: true,
+                              shouldValidate: true,
+                              shouldTouch: true
+                            })
+                        }
+                        if (aiSuggestion?.type) {
+                          const t0 = filteredDocumentTypes.find(
+                            x =>
+                              (x?.value || '').toString().trim().toLowerCase() ===
+                              aiSuggestion.type!.toString().trim().toLowerCase()
+                          )
+                          if (t0?.id) {
+                            form.setValue('documentTypeRef', t0.id, {
+                              shouldDirty: true,
+                              shouldValidate: true,
+                              shouldTouch: true
+                            })
+                            setAiApplied(true)
+                          }
+                          setApplyTypeAfterGroup(aiSuggestion.type)
+                        }
+                      }}
+                    >
+                      Apply suggestion
+                    </Button>
+                  </div>
+                </div>
+              )}
+            </div>
+
             <FormField
               control={form.control}
               name="documentGroupRef"
@@ -722,8 +870,27 @@ const DocumentPopup: React.FC<DocumentPopupProps> = ({ initialValues = {}, ...pr
                   <FormLabel>Document Type</FormLabel>
                   <FormControl>
                     <Select
+                      key={watchedDocumentGroupRef || 'no-group'}
                       value={field.value || undefined}
-                      onValueChange={field.onChange}
+                      onValueChange={value => {
+                        field.onChange(value)
+                        if (applyTypeAfterGroup) {
+                          const t0 = filteredDocumentTypes.find(
+                            x =>
+                              (x?.value || '').toString().trim().toLowerCase() ===
+                              applyTypeAfterGroup!.toString().trim().toLowerCase()
+                          )
+                          if (t0?.id) {
+                            form.setValue('documentTypeRef', t0.id, {
+                              shouldDirty: true,
+                              shouldValidate: true,
+                              shouldTouch: true
+                            })
+                            setAiApplied(true)
+                          }
+                          setApplyTypeAfterGroup('')
+                        }
+                      }}
                       data-testid={formatDataTestId(prefixDataTestId, 'DocumentTypeSelect')}
                     >
                       <SelectTrigger disabled={!watchedDocumentGroupRef}>
