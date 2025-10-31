@@ -242,15 +242,6 @@ export const QuickTaskFormFields: React.FC<QuickTaskFormFieldsProps> = ({
                   />
                 )}
               </FormControl>
-              {assigneeSelector.mode === 'employee-search' && (
-                <p className="gba:text-xs gba:text-gray-500 gba:mt-1">
-                  {getLabel(
-                    labels.assigneeHint,
-                    'quickTask.field.assignee.hint',
-                    'Type to search employees by name (max 20 results).'
-                  )}
-                </p>
-              )}
               <FormMessage />
             </FormItem>
           )}

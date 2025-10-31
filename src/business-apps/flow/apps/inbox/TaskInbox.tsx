@@ -47,7 +47,7 @@ import { BusinessAppContextProps } from '@/common/BusinessAppContext'
 import { env } from '@/common/env/EnvUtils'
 import { TaskDetailsTab } from './components'
 import { FlowManagement } from '../../common/components'
-import { QuickTaskModal, QuickTaskFormData } from '../../common/components/flow-quick-task'
+import { QuickTaskModal, QuickTaskFormData, QuickTaskFlowService } from '../../common/components/flow-quick-task'
 
 // Remove unused Ant Design destructuring
 
@@ -491,9 +491,6 @@ const TaskInbox: React.FC<TaskInboxProps> = ({ prefixDataTestId = 'TaskInbox', a
   // Handle Quick Task submission
   const handleQuickTaskSubmit = async (data: QuickTaskFormData) => {
     try {
-      // Import required service
-      const { QuickTaskFlowService } = await import('../../common/components/flow-quick-task')
-
       // Execute the quick task using the service method
       await QuickTaskFlowService.executeQuickTask({
         formData: data,
