@@ -1,6 +1,11 @@
 /**
  * useInboxTasks Hook
  * Fetches tasks from both CFlow and Kogito using the unified API
+ *
+ * OPTIMIZATION:
+ * - Fetch 4 batches upfront (400 tasks) for accurate count
+ * - Smart polling: updates in background without disrupting UI
+ * - Client-side pagination from merged results
  */
 
 import { useState, useCallback, useEffect, useRef } from 'react'
@@ -10,114 +15,215 @@ import { UnifiedTask } from '@/business-apps/core/every/apps/every-api/types'
 
 interface UseInboxTasksResult {
   tasks: UnifiedTask[]
-  totalCount: number // Total count of all tasks (not just loaded)
+  totalCount: number
   isLoading: boolean
   error: string | null
   refetch: () => Promise<void>
   loadMore: () => Promise<void>
   hasMore: boolean
+  hasNewTasks: boolean
+  backgroundRefresh: () => Promise<void>
+  clearNewTasksFlag: () => void
 }
 
 export const useInboxTasks = (context: BusinessAppContextProps): UseInboxTasksResult => {
-  const [tasks, setTasks] = useState<UnifiedTask[]>([])
+  const [allFetchedTasks, setAllFetchedTasks] = useState<UnifiedTask[]>([])
+  const [displayedTasks, setDisplayedTasks] = useState<UnifiedTask[]>([])
   const [totalCount, setTotalCount] = useState(0)
   const [isLoading, setIsLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
-  const [currentOffset, setCurrentOffset] = useState(0)
+  const [currentPage, setCurrentPage] = useState(1)
+  const [hasMoreToFetch, setHasMoreToFetch] = useState(true)
+  const [hasNewTasks, setHasNewTasks] = useState(false)
 
-  // Use Keycloak user ID for CFlow tasks (they are assigned by Keycloak ID, not employee ID)
   const userId = context.userInfo?.id || ''
-
-  // Track whether we've made the initial fetch
   const hasInitialFetchRef = useRef(false)
-
-  // Track last task data to avoid unnecessary re-renders
-  const lastTaskDataRef = useRef<string>('')
+  const lastTaskIdsRef = useRef<Set<string>>(new Set())
 
   const ITEMS_PER_PAGE = 50
+  const FETCH_SIZE = 50 // Fetch 50 from each source (100 total per fetch)
+  const INITIAL_BATCH_COUNT = 4 // Fetch 4 batches initially (400 tasks)
 
   /**
-   * Load tasks from unified API
+   * Fetch a batch of tasks
    */
-  const loadTasks = useCallback(
-    async (append = false) => {
+  const fetchBatch = useCallback(
+    async (offset: number): Promise<{ tasks: UnifiedTask[]; hasMore: boolean }> => {
       if (!userId) {
-        console.log('[EveryBox] No userId available, skipping inbox tasks fetch')
-        setIsLoading(false)
-        return
+        return { tasks: [], hasMore: false }
       }
 
-      setIsLoading(true)
-      setError(null)
+      const response = await fetchAllUserTasks(userId, context.accessToken || '', {
+        assignedOnly: true,
+        limit: FETCH_SIZE,
+        offset,
+        sortBy: 'createdAt',
+        sortOrder: 'desc'
+      })
 
-      try {
-        const offset = append ? currentOffset : 0
-        console.log(`[EveryBox] Fetching unified tasks for user: ${userId}, offset: ${offset}`)
-
-        // Use the unified API to fetch tasks from both sources
-        const response = await fetchAllUserTasks(userId, context.accessToken || '', {
-          assignedOnly: true, // Only fetch tasks assigned to this user
-          limit: ITEMS_PER_PAGE,
-          offset,
-          sortBy: 'createdAt',
-          sortOrder: 'desc'
-        })
-
-        console.log(`[EveryBox] Fetched ${response.tasks.length} tasks, total: ${response.totalCount}`)
-
-        // Log source breakdown
-        const kogitoCount = response.tasks.filter(t => t.source === 'kogito').length
-        const cflowCount = response.tasks.filter(t => t.source === 'cflow').length
-        console.log(`[EveryBox] Kogito tasks: ${kogitoCount}, CFlow tasks: ${cflowCount}`)
-
-        // Only update state if data has actually changed (optimization for polling)
-        const newTaskData = JSON.stringify({
-          tasks: response.tasks.map(t => ({ id: t.id, status: t.status, createdAt: t.createdAt })),
-          totalCount: response.totalCount
-        })
-
-        if (newTaskData !== lastTaskDataRef.current || append) {
-          console.log('[EveryBox] Task data changed, updating state')
-          lastTaskDataRef.current = newTaskData
-          setTasks(prev => (append ? [...prev, ...response.tasks] : response.tasks))
-          setTotalCount(response.totalCount)
-          setCurrentOffset(append ? offset + response.tasks.length : response.tasks.length)
-        } else {
-          console.log('[EveryBox] No changes in task data, skipping state update')
-        }
-
-        // Log any warnings or errors
-        if (response.warnings && response.warnings.length > 0) {
-          console.warn('[EveryBox] Warnings:', response.warnings)
-        }
-        if (response.errors && response.errors.length > 0) {
-          console.error('[EveryBox] Errors:', response.errors)
-        }
-      } catch (err) {
-        const errorMessage = err instanceof Error ? err.message : 'Failed to load tasks'
-        setError(errorMessage)
-        console.error('[EveryBox] Error loading inbox tasks:', err)
-      } finally {
-        setIsLoading(false)
-      }
+      const hasMore = response.tasks.length >= FETCH_SIZE
+      return { tasks: response.tasks, hasMore }
     },
-    [userId, context.accessToken, currentOffset]
+    [userId, context.accessToken]
   )
 
   /**
-   * Load more tasks (pagination)
+   * Load initial batches (4 batches = ~400 tasks for accurate count)
    */
-  const loadMore = useCallback(async () => {
-    await loadTasks(true)
-  }, [loadTasks])
+  const loadInitial = useCallback(async () => {
+    if (!userId) {
+      setIsLoading(false)
+      return
+    }
+
+    setIsLoading(true)
+    setError(null)
+
+    try {
+      console.log(`[EveryBox] Loading ${INITIAL_BATCH_COUNT} initial batches (~${INITIAL_BATCH_COUNT * 100} tasks)`)
+
+      // Fetch multiple batches in parallel for accurate count
+      const batchPromises = []
+      for (let i = 0; i < INITIAL_BATCH_COUNT; i++) {
+        batchPromises.push(fetchBatch(i * FETCH_SIZE))
+      }
+
+      const batches = await Promise.all(batchPromises)
+
+      // Merge all tasks
+      const allTasks = batches.flatMap(b => b.tasks)
+
+      // Sort globally by timestamp (newest first)
+      const sortedTasks = allTasks.sort((a, b) => {
+        const aTime = new Date(a.createdAt || a.scheduledAt || 0).getTime()
+        const bTime = new Date(b.createdAt || b.scheduledAt || 0).getTime()
+        return bTime - aTime
+      })
+
+      console.log(`[EveryBox] Merged and sorted ${sortedTasks.length} tasks`)
+
+      // Store task IDs for change detection
+      lastTaskIdsRef.current = new Set(sortedTasks.map(t => t.id))
+
+      setAllFetchedTasks(sortedTasks)
+      setDisplayedTasks(sortedTasks.slice(0, ITEMS_PER_PAGE))
+      setCurrentPage(1)
+      setTotalCount(sortedTasks.length)
+      setHasMoreToFetch(batches[batches.length - 1].hasMore)
+    } catch (err) {
+      const errorMessage = err instanceof Error ? err.message : 'Failed to load tasks'
+      setError(errorMessage)
+      console.error('[EveryBox] Error loading inbox tasks:', err)
+    } finally {
+      setIsLoading(false)
+    }
+  }, [userId, fetchBatch])
 
   /**
-   * Refetch from start
+   * Background refresh - detects new tasks without disrupting UI
+   */
+  const backgroundRefresh = useCallback(async () => {
+    if (!userId || isLoading) {
+      return
+    }
+
+    try {
+      console.log('[EveryBox] Background refresh: checking for new tasks')
+
+      // Fetch only first batch to check for new tasks
+      const batch = await fetchBatch(0)
+
+      if (batch.tasks.length === 0) {
+        return
+      }
+
+      // Check if there are any new task IDs
+      const newTaskIds = new Set(batch.tasks.map(t => t.id))
+      const hasNewTasksDetected = Array.from(newTaskIds).some(id => !lastTaskIdsRef.current.has(id))
+
+      if (hasNewTasksDetected) {
+        console.log('[EveryBox] ✨ New tasks detected! Setting flag for user notification')
+        setHasNewTasks(true)
+      } else {
+        console.log('[EveryBox] No new tasks detected')
+      }
+    } catch (err) {
+      console.error('[EveryBox] Background refresh failed (non-critical):', err)
+    }
+  }, [userId, isLoading, fetchBatch])
+
+  /**
+   * Manual refetch - user-triggered full reload
    */
   const refetch = useCallback(async () => {
-    setCurrentOffset(0)
-    await loadTasks(false)
-  }, [loadTasks])
+    setHasNewTasks(false)
+    setAllFetchedTasks([])
+    setDisplayedTasks([])
+    setCurrentPage(1)
+    setHasMoreToFetch(true)
+    lastTaskIdsRef.current.clear()
+    await loadInitial()
+  }, [loadInitial])
+
+  /**
+   * Clear new tasks flag (when user clicks "Load new tasks")
+   */
+  const clearNewTasksFlag = useCallback(() => {
+    setHasNewTasks(false)
+    refetch()
+  }, [refetch])
+
+  /**
+   * Load more tasks
+   */
+  const loadMore = useCallback(async () => {
+    const nextPage = currentPage + 1
+    const startIdx = (nextPage - 1) * ITEMS_PER_PAGE
+    const endIdx = startIdx + ITEMS_PER_PAGE
+
+    // Serve from cache if available
+    if (endIdx <= allFetchedTasks.length) {
+      console.log('[EveryBox] ⚡ Serving from cache')
+      setDisplayedTasks(allFetchedTasks.slice(0, endIdx))
+      setCurrentPage(nextPage)
+      return
+    }
+
+    // Need to fetch more
+    if (!hasMoreToFetch) {
+      console.log('[EveryBox] No more tasks to fetch')
+      return
+    }
+
+    setIsLoading(true)
+    try {
+      console.log('[EveryBox] 📡 Fetching more tasks from backend')
+
+      const nextOffset = allFetchedTasks.length
+      const batch = await fetchBatch(nextOffset)
+
+      const newAllTasks = [...allFetchedTasks, ...batch.tasks]
+      const sortedTasks = newAllTasks.sort((a, b) => {
+        const aTime = new Date(a.createdAt || a.scheduledAt || 0).getTime()
+        const bTime = new Date(b.createdAt || b.scheduledAt || 0).getTime()
+        return bTime - aTime
+      })
+
+      // Update task IDs
+      lastTaskIdsRef.current = new Set(sortedTasks.map(t => t.id))
+
+      setAllFetchedTasks(sortedTasks)
+      setDisplayedTasks(sortedTasks.slice(0, endIdx))
+      setCurrentPage(nextPage)
+      setTotalCount(sortedTasks.length)
+      setHasMoreToFetch(batch.hasMore)
+    } catch (err) {
+      console.error('[EveryBox] Error loading more tasks:', err)
+      setError(err instanceof Error ? err.message : 'Failed to load more')
+    } finally {
+      setIsLoading(false)
+    }
+  }, [currentPage, allFetchedTasks, hasMoreToFetch, fetchBatch])
 
   /**
    * Initial fetch on mount
@@ -125,19 +231,22 @@ export const useInboxTasks = (context: BusinessAppContextProps): UseInboxTasksRe
   useEffect(() => {
     if (!hasInitialFetchRef.current && userId) {
       hasInitialFetchRef.current = true
-      loadTasks(false)
+      loadInitial()
     }
-  }, [userId, loadTasks])
+  }, [userId, loadInitial])
 
-  const hasMore = currentOffset < totalCount
+  const hasMore = displayedTasks.length < allFetchedTasks.length || hasMoreToFetch
 
   return {
-    tasks,
+    tasks: displayedTasks,
     totalCount,
     isLoading,
     error,
     refetch,
     loadMore,
-    hasMore
+    hasMore,
+    hasNewTasks,
+    backgroundRefresh,
+    clearNewTasksFlag
   }
 }

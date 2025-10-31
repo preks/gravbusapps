@@ -145,9 +145,11 @@ export class FlowMetricsClient extends RestClient {
 
   /**
    * Get a specific flow execution task by ID
+   * @param processInstanceId - The process instance (execution) ID
+   * @param taskId - The task ID
    */
-  async getFlowExecutionTask(taskId: string): Promise<FlowExecutionTask> {
-    return this.get<FlowExecutionTask>(`/flow-executions/tasks/${taskId}`)
+  async getFlowExecutionTask(processInstanceId: string, taskId: string): Promise<FlowExecutionTask> {
+    return this.get<FlowExecutionTask>(`/flow-executions/${processInstanceId}/tasks/${taskId}`)
   }
 
   /**

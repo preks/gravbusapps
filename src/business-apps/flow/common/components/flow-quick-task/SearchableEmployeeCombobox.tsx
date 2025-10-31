@@ -80,17 +80,13 @@ export const SearchableEmployeeCombobox: React.FC<SearchableEmployeeComboboxProp
   // even when they're filtered out by search (includes avatarUrl)
   const allSeenOptionsRef = React.useRef<Map<string, (typeof options)[0] & { avatarUrl?: string }>>(new Map())
 
-  // Trigger search when search value changes
+  // Trigger search when search value changes (debounced by parent)
   useEffect(() => {
     onSearchChange(searchValue)
   }, [searchValue, onSearchChange])
 
-  // Trigger initial search when dropdown opens
-  useEffect(() => {
-    if (open && searchValue === '') {
-      onSearchChange('')
-    }
-  }, [open, searchValue, onSearchChange])
+  // No longer trigger search on dropdown open - let the parent component handle initial load
+  // The parent (useQuickTaskForm) already fetches on mount, so we don't need to refetch when opening
 
   // Process current options and update cache synchronously
   const optionsWithAvatarUrls = useMemo(() => {

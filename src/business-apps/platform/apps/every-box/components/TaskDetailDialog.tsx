@@ -5,7 +5,7 @@
 
 import React from 'react'
 import { Card, CardContent, CardHeader, Badge, Button, Alert, AlertDescription } from '@newwork/nw-design-system'
-import { CheckCircle, Info, Zap, X, ExternalLink } from 'lucide-react'
+import { CheckCircle, Info, Zap, X, ExternalLink, ChevronDown, ChevronUp } from 'lucide-react'
 import { message } from 'antd'
 import { UnifiedTask } from '../types'
 import {
@@ -17,6 +17,7 @@ import {
 import { navigateTo } from '@/common/utils/navigationUtils'
 import { env } from '@/common/env/EnvUtils'
 import { AbsenceApprovalDetails } from './task-details/AbsenceApprovalDetails'
+import { useTaskDetails } from '../hooks/useTaskDetails'
 
 interface TaskDetailDialogProps {
   task: UnifiedTask | null
@@ -36,6 +37,102 @@ export const TaskDetailDialog: React.FC<TaskDetailDialogProps> = ({
   userId
 }) => {
   const [isCompleting, setIsCompleting] = React.useState(false)
+  const [showRawData, setShowRawData] = React.useState(false)
+  const [showVariables, setShowVariables] = React.useState(false)
+
+  // Extract domain, processName, and processInstanceId from endpoint URL for Kogito tasks
+  // Endpoint format: /processes/{domain}/{processName}/{processInstanceId}/{taskName}/{taskId}
+  const extractProcessInfo = (endpoint?: string) => {
+    if (!endpoint) return { domain: null, processName: null, processInstanceId: null }
+
+    try {
+      // Handle both full URLs and path-only strings
+      const pathname = endpoint.startsWith('http') ? new URL(endpoint).pathname : endpoint
+      const pathSegments = pathname.split('/').filter(Boolean)
+
+      // Format: ['processes', 'domain', 'processName', 'processInstanceId', 'taskName', 'taskId']
+      if (pathSegments.length >= 6 && pathSegments[0] === 'processes') {
+        return {
+          domain: pathSegments[1],
+          processName: pathSegments[2],
+          processInstanceId: pathSegments[3]
+        }
+      }
+    } catch (error) {
+      console.warn('[TaskDetailDialog] Failed to extract process info from endpoint:', error)
+    }
+
+    return { domain: null, processName: null, processInstanceId: null }
+  }
+
+  const processInfo = React.useMemo(() => {
+    const fromEndpoint = extractProcessInfo(task?.sourceMetadata?.endpoint as string)
+
+    // Try direct fields first, then fallback to endpoint extraction
+    const result = {
+      domain: fromEndpoint.domain,
+      processName: fromEndpoint.processName,
+      processInstanceId:
+        task?.sourceMetadata?.processInstanceId ||
+        task?.workflowMeta?.rootWorkflowId ||
+        fromEndpoint.processInstanceId ||
+        null
+    }
+
+    console.log('[TaskDetailDialog] Process info extraction:', {
+      taskId: task?.id,
+      endpoint: task?.sourceMetadata?.endpoint,
+      extracted: result
+    })
+
+    return result
+  }, [task])
+
+  // Fetch detailed task data for Kogito tasks using Kogito Processes API
+  const { taskDetails, isLoading: isLoadingDetails } = useTaskDetails({
+    taskId: task?.id || null,
+    domain: processInfo.domain,
+    processName: processInfo.processName,
+    processInstanceId: processInfo.processInstanceId,
+    accessToken,
+    userId: userId || null,
+    source: task?.source || 'cflow',
+    enabled: !!task && task.source === 'kogito'
+  })
+
+  // Log comparison between list data and detailed data
+  React.useEffect(() => {
+    if (taskDetails && task) {
+      console.log('[TaskDetailDialog] 📊 Data Comparison:')
+      console.log('  List Data (from inbox - FlowMetrics API):', {
+        hasInputs: !!(task.sourceMetadata as any)?.inputs,
+        inputsKeys: (task.sourceMetadata as any)?.inputs ? Object.keys((task.sourceMetadata as any).inputs) : [],
+        sourceMetadata: task.sourceMetadata
+      })
+      console.log('  Detail Data (from Kogito Processes API):', {
+        hasParameters: !!(taskDetails as any).parameters,
+        parametersKeys: (taskDetails as any).parameters ? Object.keys((taskDetails as any).parameters) : [],
+        hasResults: !!(taskDetails as any).results,
+        resultsKeys: (taskDetails as any).results ? Object.keys((taskDetails as any).results) : [],
+        fullDetails: taskDetails
+      })
+
+      // Check for differences
+      const listInputsKeys = (task.sourceMetadata as any)?.inputs
+        ? Object.keys((task.sourceMetadata as any).inputs)
+        : []
+      const detailParametersKeys = (taskDetails as any).parameters ? Object.keys((taskDetails as any).parameters) : []
+      const hasNewData = detailParametersKeys.length > listInputsKeys.length
+      const hasParameters = detailParametersKeys.length > 0
+
+      console.log('[TaskDetailDialog] 🔍 Analysis:', {
+        hasNewData,
+        hasParameters,
+        parametersCount: detailParametersKeys.length,
+        listInputsCount: listInputsKeys.length
+      })
+    }
+  }, [taskDetails, task])
 
   if (!task) return null
 
@@ -244,6 +341,96 @@ export const TaskDetailDialog: React.FC<TaskDetailDialogProps> = ({
                 )}
               </AlertDescription>
             </Alert>
+
+            {/* Additional Task Data - Parameters (Kogito only) */}
+            {task.source === 'kogito' && taskDetails && (
+              <div className="gba:space-y-4">
+                {/* Parameters Section (business data) */}
+                {(taskDetails as any).parameters && Object.keys((taskDetails as any).parameters).length > 0 && (
+                  <div className="gba:border gba:rounded-lg gba:overflow-hidden">
+                    <button
+                      onClick={() => setShowVariables(!showVariables)}
+                      className="gba:w-full gba:px-4 gba:py-3 gba:bg-muted/50 gba:flex gba:items-center gba:justify-between gba:hover:bg-muted gba:transition-colors"
+                      data-testid="task-detail-parameters-toggle"
+                    >
+                      <div className="gba:flex gba:items-center gba:gap-2">
+                        <span className="gba:font-medium gba:text-sm">Task Parameters</span>
+                        <Badge variant="secondary" className="gba:text-xs">
+                          {Object.keys((taskDetails as any).parameters).length} fields
+                        </Badge>
+                      </div>
+                      {showVariables ? (
+                        <ChevronUp className="gba:h-4 gba:w-4 gba:text-muted-foreground" />
+                      ) : (
+                        <ChevronDown className="gba:h-4 gba:w-4 gba:text-muted-foreground" />
+                      )}
+                    </button>
+                    {showVariables && (
+                      <div
+                        className="gba:p-4 gba:bg-muted/20 gba:max-h-96 gba:overflow-y-auto"
+                        data-testid="task-detail-parameters-content"
+                      >
+                        <pre className="gba:text-xs gba:whitespace-pre-wrap gba:font-mono">
+                          {JSON.stringify((taskDetails as any).parameters, null, 2)}
+                        </pre>
+                      </div>
+                    )}
+                  </div>
+                )}
+
+                {/* Loading indicator for detailed data */}
+                {isLoadingDetails && (
+                  <Alert>
+                    <Info className="gba:h-4 gba:w-4" />
+                    <AlertDescription className="gba:text-sm">Loading additional task details...</AlertDescription>
+                  </Alert>
+                )}
+
+                {/* Raw Task Data (Debug) */}
+                <div className="gba:border gba:rounded-lg gba:overflow-hidden">
+                  <button
+                    onClick={() => setShowRawData(!showRawData)}
+                    className="gba:w-full gba:px-4 gba:py-3 gba:bg-muted/50 gba:flex gba:items-center gba:justify-between gba:hover:bg-muted gba:transition-colors"
+                    data-testid="task-detail-raw-data-toggle"
+                  >
+                    <div className="gba:flex gba:items-center gba:gap-2">
+                      <span className="gba:font-medium gba:text-sm">Raw Task Data</span>
+                      <Badge variant="outline" className="gba:text-xs">
+                        Debug
+                      </Badge>
+                    </div>
+                    {showRawData ? (
+                      <ChevronUp className="gba:h-4 gba:w-4 gba:text-muted-foreground" />
+                    ) : (
+                      <ChevronDown className="gba:h-4 gba:w-4 gba:text-muted-foreground" />
+                    )}
+                  </button>
+                  {showRawData && (
+                    <div
+                      className="gba:p-4 gba:bg-muted/20 gba:max-h-96 gba:overflow-y-auto"
+                      data-testid="task-detail-raw-data-content"
+                    >
+                      <div className="gba:space-y-4">
+                        <div>
+                          <div className="gba:font-medium gba:text-sm gba:mb-2">List Data (Inbox):</div>
+                          <pre className="gba:text-xs gba:whitespace-pre-wrap gba:font-mono">
+                            {JSON.stringify(task, null, 2)}
+                          </pre>
+                        </div>
+                        {taskDetails && (
+                          <div>
+                            <div className="gba:font-medium gba:text-sm gba:mb-2">Detailed Data (Single-Task):</div>
+                            <pre className="gba:text-xs gba:whitespace-pre-wrap gba:font-mono">
+                              {JSON.stringify(taskDetails, null, 2)}
+                            </pre>
+                          </div>
+                        )}
+                      </div>
+                    </div>
+                  )}
+                </div>
+              </div>
+            )}
           </div>
         )}
       </CardContent>

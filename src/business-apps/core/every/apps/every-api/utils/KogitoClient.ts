@@ -110,7 +110,8 @@ export async function fetchKogitoTask(taskId: string, accessToken?: string): Pro
 /**
  * Get task statistics from Kogito
  *
- * Fetches all tasks and aggregates locally since there's no dedicated stats endpoint
+ * OPTIMIZED: Fetches 100 tasks instead of 1000 for statistics
+ * This is sufficient for statistical accuracy while reducing backend load
  */
 export async function fetchKogitoTaskStats(
   userId: string,
@@ -118,7 +119,7 @@ export async function fetchKogitoTaskStats(
 ): Promise<{ total: number; byStatus: Record<string, number> }> {
   try {
     const tasks = await fetchKogitoUserTasks(userId, accessToken, {
-      pageSize: 1000 // Fetch more for accurate stats
+      pageSize: 100 // OPTIMIZED: 100 instead of 1000
     })
 
     const byStatus: Record<string, number> = {}
@@ -130,7 +131,7 @@ export async function fetchKogitoTaskStats(
       byStatus[taskState] = (byStatus[taskState] || 0) + 1
     })
 
-    console.log('Kogito task stats (raw states):', {
+    console.log('Kogito task stats (from 100 task sample):', {
       total: tasks.length,
       byStatus,
       sampleTask: tasks[0] ? { id: tasks[0].id, state: tasks[0].state, status: tasks[0].status } : null

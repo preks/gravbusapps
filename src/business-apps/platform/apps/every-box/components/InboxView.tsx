@@ -1,6 +1,10 @@
 /**
  * InboxView Component
  * Displays inbox tasks with search, filters, and grouping
+ *
+ * URL Parameters:
+ * - taskId: ID of the selected task to open directly
+ *   Example: ?taskId=abc-123 will open the task detail panel for task with ID "abc-123"
  */
 
 import React, { useState, useMemo, useEffect, useCallback } from 'react'
@@ -25,6 +29,8 @@ interface InboxViewProps extends BusinessAppContextProps {
   onRefresh: () => void
   onLoadMore: () => void
   hasMore: boolean
+  hasNewTasks: boolean
+  onLoadNewTasks: () => void
   // Completed tasks props
   completedTasks: UnifiedTask[]
   completedTotalCount: number
@@ -33,6 +39,32 @@ interface InboxViewProps extends BusinessAppContextProps {
   onCompletedRefresh: () => void
   onCompletedLoadMore: () => void
   completedHasMore: boolean
+  hasNewCompletedTasks: boolean
+  onLoadNewCompletedTasks: () => void
+}
+
+/**
+ * Get initial task ID from URL
+ */
+const getInitialTaskId = (): string | null => {
+  const urlParams = new URLSearchParams(window.location.search)
+  return urlParams.get('taskId')
+}
+
+/**
+ * Update URL with task ID
+ */
+const updateTaskUrl = (taskId: string | null) => {
+  const urlParams = new URLSearchParams(window.location.search)
+
+  if (taskId) {
+    urlParams.set('taskId', taskId)
+  } else {
+    urlParams.delete('taskId')
+  }
+
+  const newUrl = `${window.location.pathname}?${urlParams.toString()}`
+  window.history.replaceState({}, '', newUrl)
 }
 
 export const InboxView: React.FC<InboxViewProps> = ({
@@ -43,6 +75,8 @@ export const InboxView: React.FC<InboxViewProps> = ({
   onRefresh,
   onLoadMore,
   hasMore,
+  hasNewTasks,
+  onLoadNewTasks,
   completedTasks,
   completedTotalCount,
   completedIsLoading,
@@ -50,6 +84,8 @@ export const InboxView: React.FC<InboxViewProps> = ({
   onCompletedRefresh,
   onCompletedLoadMore,
   completedHasMore,
+  hasNewCompletedTasks,
+  onLoadNewCompletedTasks,
   ...context
 }) => {
   const [searchQuery, setSearchQuery] = useState('')
@@ -57,6 +93,7 @@ export const InboxView: React.FC<InboxViewProps> = ({
   const [filterType, setFilterType] = useState<TaskFilterType>('all')
   const [localTasks, setLocalTasks] = useState<UnifiedTask[]>(tasks)
   const [localCompletedTasks, setLocalCompletedTasks] = useState<UnifiedTask[]>(completedTasks)
+  const [isInitialized, setIsInitialized] = useState(false)
 
   // Sync local tasks with props
   useEffect(() => {
@@ -67,6 +104,59 @@ export const InboxView: React.FC<InboxViewProps> = ({
     setLocalCompletedTasks(completedTasks)
   }, [completedTasks])
 
+  // Initialize selected task from URL when tasks are loaded
+  useEffect(() => {
+    if (!isInitialized && tasks.length > 0 && !isLoading) {
+      const taskIdFromUrl = getInitialTaskId()
+      if (taskIdFromUrl) {
+        // Search in both active and completed tasks
+        const allTasks = [...tasks, ...completedTasks]
+        const taskToSelect = allTasks.find(t => t.id === taskIdFromUrl)
+        if (taskToSelect) {
+          setSelectedTask(taskToSelect)
+          // Switch to completed filter if the task is completed
+          if (taskToSelect.status === 'COMPLETED' && completedTasks.some(t => t.id === taskIdFromUrl)) {
+            setFilterType('completed')
+          }
+        }
+      }
+      setIsInitialized(true)
+    }
+  }, [tasks, completedTasks, isLoading, isInitialized])
+
+  // Handle browser back/forward navigation
+  useEffect(() => {
+    const handlePopState = () => {
+      const taskIdFromUrl = getInitialTaskId()
+      if (taskIdFromUrl) {
+        const allTasks = [...localTasks, ...localCompletedTasks]
+        const taskToSelect = allTasks.find(t => t.id === taskIdFromUrl)
+        if (taskToSelect) {
+          setSelectedTask(taskToSelect)
+        } else {
+          setSelectedTask(null)
+        }
+      } else {
+        setSelectedTask(null)
+      }
+    }
+
+    window.addEventListener('popstate', handlePopState)
+    return () => window.removeEventListener('popstate', handlePopState)
+  }, [localTasks, localCompletedTasks])
+
+  // Handler to select a task and update URL
+  const handleSelectTask = useCallback((task: UnifiedTask | null) => {
+    setSelectedTask(task)
+    updateTaskUrl(task?.id || null)
+  }, [])
+
+  // Handler to close task detail
+  const handleCloseTask = useCallback(() => {
+    setSelectedTask(null)
+    updateTaskUrl(null)
+  }, [])
+
   // Handler to remove task immediately after completion and refresh completed tasks
   const handleTaskCompleted = useCallback(
     (taskId: string) => {
@@ -76,10 +166,13 @@ export const InboxView: React.FC<InboxViewProps> = ({
 
       console.log('[InboxView] Task completed locally, removed from inbox. Refreshing completed tasks...')
 
+      // Close the task detail and clear URL
+      handleCloseTask()
+
       // Refresh completed tasks from backend using dedicated endpoint
       onCompletedRefresh()
     },
-    [onCompletedRefresh]
+    [onCompletedRefresh, handleCloseTask]
   )
 
   /**
@@ -167,16 +260,19 @@ export const InboxView: React.FC<InboxViewProps> = ({
   }, [currentTasks, searchQuery, filterType])
 
   // Count tasks by type for badges
-  // Note: For Blinks and Approvals, we show count from loaded tasks since we don't have
-  // total counts from API for these filter types (they are client-side filters)
+  // Note: Shows counts from loaded tasks. Adds "+" suffix if more tasks exist
   const taskCounts = useMemo(() => {
     return {
-      all: totalCount, // Use total count from API, not paginated count
-      blinks: tasks.filter(isBlinkTask).length, // Client-side filter count
-      approvals: tasks.filter(isApprovalTask).length, // Client-side filter count
-      completed: completedTotalCount // Use total completed count from API
+      all: totalCount,
+      allHasMore: hasMore,
+      blinks: tasks.filter(isBlinkTask).length,
+      blinksHasMore: hasMore, // Blinks might exist in un-fetched tasks
+      approvals: tasks.filter(isApprovalTask).length,
+      approvalsHasMore: hasMore, // Approvals might exist in un-fetched tasks
+      completed: completedTotalCount,
+      completedHasMore: completedHasMore
     }
-  }, [tasks, totalCount, completedTotalCount])
+  }, [tasks, totalCount, hasMore, completedTotalCount, completedHasMore])
 
   if (currentIsLoading && currentTasks.length === 0) {
     return <LoadingSkeleton count={5} type="task" />
@@ -190,6 +286,31 @@ export const InboxView: React.FC<InboxViewProps> = ({
           selectedTask ? 'gba:w-[45%]' : 'gba:w-full'
         }`}
       >
+        {/* New Tasks Notification Banner */}
+        {((filterType === 'all' && hasNewTasks) || (filterType === 'completed' && hasNewCompletedTasks)) && (
+          <Alert className="gba:border-info gba:bg-info-secondary" data-testid="new-tasks-banner">
+            <AlertTitle className="gba:flex gba:items-center gba:justify-between">
+              <span className="gba:flex gba:items-center gba:gap-2">
+                <Zap className="gba:h-4 gba:w-4 gba:text-info-foreground" />
+                <span className="gba:text-info-foreground">New tasks available</span>
+              </span>
+              <Button
+                size="sm"
+                variant="default"
+                onClick={filterType === 'completed' ? onLoadNewCompletedTasks : onLoadNewTasks}
+                data-testid="load-new-tasks-button"
+              >
+                Load new tasks
+              </Button>
+            </AlertTitle>
+            <AlertDescription className="gba:text-info-secondary-foreground">
+              {filterType === 'completed'
+                ? 'New completed tasks have arrived. Click to refresh and see them.'
+                : 'New tasks have arrived. Click to refresh and see them.'}
+            </AlertDescription>
+          </Alert>
+        )}
+
         {/* Search and Actions */}
         <div className="gba:flex gba:items-center gba:gap-4">
           <div className="gba:relative gba:flex-1">
@@ -227,6 +348,7 @@ export const InboxView: React.FC<InboxViewProps> = ({
             All
             <Badge variant="secondary" className="gba:ml-2">
               {taskCounts.all}
+              {taskCounts.allHasMore ? '+' : ''}
             </Badge>
           </Button>
           <Button
@@ -241,6 +363,7 @@ export const InboxView: React.FC<InboxViewProps> = ({
             {taskCounts.blinks > 0 && (
               <Badge variant="secondary" className="gba:ml-2">
                 {taskCounts.blinks}
+                {taskCounts.blinksHasMore ? '+' : ''}
               </Badge>
             )}
           </Button>
@@ -256,6 +379,7 @@ export const InboxView: React.FC<InboxViewProps> = ({
             {taskCounts.approvals > 0 && (
               <Badge variant="secondary" className="gba:ml-2">
                 {taskCounts.approvals}
+                {taskCounts.approvalsHasMore ? '+' : ''}
               </Badge>
             )}
           </Button>
@@ -271,6 +395,7 @@ export const InboxView: React.FC<InboxViewProps> = ({
             {taskCounts.completed > 0 && (
               <Badge variant="secondary" className="gba:ml-2">
                 {taskCounts.completed}
+                {taskCounts.completedHasMore ? '+' : ''}
               </Badge>
             )}
           </Button>
@@ -308,7 +433,7 @@ export const InboxView: React.FC<InboxViewProps> = ({
                   <TaskCard
                     key={task.id}
                     task={task}
-                    onView={setSelectedTask}
+                    onView={handleSelectTask}
                     employeeMap={employeeMap}
                     isSelected={selectedTask?.id === task.id}
                   />
@@ -319,7 +444,8 @@ export const InboxView: React.FC<InboxViewProps> = ({
               {!searchQuery.trim() && (
                 <div className="gba:flex gba:items-center gba:justify-between gba:pt-4 gba:border-t gba:mt-4">
                   <p className="gba:text-sm gba:text-muted-foreground">
-                    Showing {filteredTasks.length} of {currentTotalCount} tasks
+                    Showing {filteredTasks.length} of {currentTotalCount}
+                    {currentHasMore ? '+' : ''} tasks
                   </p>
                   {currentHasMore && (
                     <Button
@@ -349,7 +475,7 @@ export const InboxView: React.FC<InboxViewProps> = ({
         {selectedTask && (
           <TaskDetailDialog
             task={selectedTask}
-            onClose={() => setSelectedTask(null)}
+            onClose={handleCloseTask}
             onTaskUpdated={onRefresh}
             onTaskCompleted={handleTaskCompleted}
             accessToken={context.accessToken}

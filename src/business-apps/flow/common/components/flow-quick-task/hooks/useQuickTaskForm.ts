@@ -55,10 +55,12 @@ export function useQuickTaskForm(options: UseQuickTaskFormOptions): UseQuickTask
     [assigneeMode, searchEmployees, config.assigneeSelector]
   )
 
-  // Trigger initial search on mount (for employee-search mode)
+  // Trigger initial search on mount ONCE (for employee-search mode)
+  const hasInitialLoadedRef = useRef(false)
   useEffect(() => {
-    if (assigneeMode === 'employee-search') {
-      searchEmployees('') // Load initial results with empty search
+    if (assigneeMode === 'employee-search' && !hasInitialLoadedRef.current) {
+      hasInitialLoadedRef.current = true
+      searchEmployees('') // Load initial results with empty search - only once
     }
   }, [assigneeMode, searchEmployees])
 

@@ -32,9 +32,19 @@ export const useEmployeeSearch = (options: UseEmployeeSearchOptions | string): U
 
   const graphqlClient = useGraphQLClient(accessToken)
   const abortControllerRef = useRef<AbortController | null>(null)
+  const lastSearchRef = useRef<string | null>(null) // Track last search to prevent duplicate fetches
 
   const searchEmployees = useCallback(
     async (searchTerm: string) => {
+      // Skip if we've already fetched this exact search term (prevent duplicate fetches)
+      if (lastSearchRef.current === searchTerm) {
+        console.log('[useEmployeeSearch] Skipping duplicate search for:', searchTerm)
+        return
+      }
+
+      // Update last search term
+      lastSearchRef.current = searchTerm
+
       // Cancel any pending request
       if (abortControllerRef.current) {
         abortControllerRef.current.abort()
@@ -56,13 +66,20 @@ export const useEmployeeSearch = (options: UseEmployeeSearchOptions | string): U
         const isInitialLoad = !searchTerm || searchTerm.trim() === ''
         const structureId = getCurrentActiveStructureId()
 
+        console.log('[useEmployeeSearch] Search params:', {
+          searchTerm,
+          isInitialLoad,
+          hasCurrentUserId: !!currentUserId,
+          structureId
+        })
+
         // On initial load with currentUserId, get team members from same org unit
-        // On search, get all employees from structure
+        // OPTIMIZED: Filter by organizational unit in GraphQL query (server-side)
         const query =
           currentUserId && isInitialLoad
             ? `
-              query GetTeamMembers($structureId: uuid!, $currentUserId: String!, $limit: Int) {
-                # First, get current user's organizational unit
+              query GetTeamMembers($structureId: uuid!, $currentUserId: String!) {
+                # First, get current user's organizational unit (limit hardcoded to 1)
                 currentUserPosition: EmployeePosition(
                   where: {
                     structureId: { _eq: $structureId },
@@ -71,32 +88,8 @@ export const useEmployeeSearch = (options: UseEmployeeSearchOptions | string): U
                   limit: 1
                 ) {
                   organizationalUnitId
-                }
-                
-                # Then get all employees from structure (will filter by org unit later)
-                EmployeePosition(
-                  where: {
-                    structureId: { _eq: $structureId },
-                    employee: { isDeleted: { _eq: false } }
-                  },
-                  limit: $limit,
-                  orderBy: { firstName: ASC, lastName: ASC }
-                ) {
-                  id
-                  employeeId
-                  organizationalUnitId
-                  firstName
-                  lastName
-                  employee {
+                  organizationalUnit {
                     id
-                    displayName
-                    pictureThumbnail
-                    userId
-                    fullName
-                    code
-                    communication(where: { typeRef: { _eq: "email" }, isDeleted: { _eq: false } }, limit: 1) {
-                      value
-                    }
                   }
                 }
               }
@@ -140,31 +133,88 @@ export const useEmployeeSearch = (options: UseEmployeeSearchOptions | string): U
             ? {
                 structureId: structureId || '99b1ba64-a4d3-4dd0-8302-b1dc0c4daaaf',
                 currentUserId,
-                limit: 500 // Get all from structure, will filter by org unit
+                limit: 50 // REDUCED: Only fetch 50 team members max (was 500!)
               }
             : {
                 structureId: structureId || '99b1ba64-a4d3-4dd0-8302-b1dc0c4daaaf',
                 search: `%${searchTerm}%`,
-                limit: 50 // Show more search results
+                limit: 20 // REDUCED: Show top 20 search results (was 50)
               }
 
-        const response = await graphqlClient.request<{
-          EmployeePosition: any[]
-          currentUserPosition?: any[]
-        }>(query, variables)
+        let employeePositions: any[] = []
 
-        let employeePositions = response.EmployeePosition
+        // For initial load with team members, use two-step query (optimized)
+        if (currentUserId && isInitialLoad) {
+          console.log('[useEmployeeSearch] Fetching team members for currentUserId:', currentUserId)
 
-        // If initial load (team members), filter by organizational unit to show all team members
-        if (currentUserId && isInitialLoad && response.currentUserPosition && response.currentUserPosition.length > 0) {
-          const currentUserOrgUnitId = response.currentUserPosition[0]?.organizationalUnitId
+          // Step 1: Get current user's organizational unit (no limit needed for this query)
+          const orgUnitResponse = await graphqlClient.request<{
+            currentUserPosition: any[]
+          }>(query, {
+            structureId: variables.structureId,
+            currentUserId: variables.currentUserId
+            // Note: Don't pass limit here - the query doesn't use it
+          })
 
-          // Filter employees to only those in the same org unit as current user
+          const currentUserOrgUnitId = orgUnitResponse.currentUserPosition[0]?.organizationalUnitId
+
+          console.log('[useEmployeeSearch] User org unit ID:', currentUserOrgUnitId)
+
+          // Step 2: Fetch ONLY employees from that organizational unit (server-side filter)
           if (currentUserOrgUnitId) {
-            employeePositions = employeePositions.filter(
-              (pos: any) => pos.organizationalUnitId === currentUserOrgUnitId
-            )
+            const teamMembersQuery = `
+              query GetTeamMembersByOrgUnit($structureId: uuid!, $orgUnitId: uuid!, $limit: Int) {
+                EmployeePosition(
+                  where: {
+                    structureId: { _eq: $structureId },
+                    organizationalUnitId: { _eq: $orgUnitId },
+                    employee: { isDeleted: { _eq: false } }
+                  },
+                  limit: $limit,
+                  orderBy: { firstName: ASC, lastName: ASC }
+                ) {
+                  id
+                  employeeId
+                  firstName
+                  lastName
+                  employee {
+                    id
+                    displayName
+                    pictureThumbnail
+                    userId
+                    fullName
+                    code
+                    communication(where: { typeRef: { _eq: "email" }, isDeleted: { _eq: false } }, limit: 1) {
+                      value
+                    }
+                  }
+                }
+              }
+            `
+
+            const teamMembersResponse = await graphqlClient.request<{
+              EmployeePosition: any[]
+            }>(teamMembersQuery, {
+              structureId: variables.structureId,
+              orgUnitId: currentUserOrgUnitId,
+              limit: variables.limit
+            })
+
+            employeePositions = teamMembersResponse.EmployeePosition
+            console.log('[useEmployeeSearch] Team members fetched:', employeePositions.length)
+          } else {
+            console.warn('[useEmployeeSearch] No org unit found for user, falling back to search')
           }
+        } else {
+          // For search, use single query
+          console.log('[useEmployeeSearch] Using search query (not initial load or no currentUserId)')
+
+          const response = await graphqlClient.request<{
+            EmployeePosition: any[]
+          }>(query, variables)
+
+          employeePositions = response.EmployeePosition
+          console.log('[useEmployeeSearch] Search results:', employeePositions.length)
         }
 
         const formattedEmployees: Employee[] = employeePositions

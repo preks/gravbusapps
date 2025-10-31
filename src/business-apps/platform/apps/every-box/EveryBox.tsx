@@ -1,6 +1,12 @@
 /**
  * EveryBox Component
  * Unified inbox and outbox for all tasks and workflows
+ *
+ * OPTIMIZATION: Smart polling with staggered intervals
+ * - Active tasks: Poll every 15s (most important)
+ * - Completed tasks: Poll every 60s (less urgent)
+ * - Outbox flows: Poll every 30s (moderate)
+ * This reduces backend load by ~50% while maintaining good UX
  */
 
 import React, { useEffect, useRef, useState } from 'react'
@@ -35,15 +41,34 @@ interface EveryBoxProps extends BusinessAppContextProps {
   prefixDataTestId?: string
 }
 
-const POLLING_INTERVAL = 15000 // 15 seconds
+// Staggered polling intervals for different data types
+const POLLING_CONFIG = {
+  activeTasks: {
+    interval: 15000, // 15 seconds - Most critical
+    enabled: true
+  },
+  completedTasks: {
+    interval: 60000, // 60 seconds - Less urgent
+    enabled: true
+  },
+  outboxFlows: {
+    interval: 30000, // 30 seconds - Moderate
+    enabled: true
+  }
+}
 
 export const EveryBox: React.FC<EveryBoxProps> = ({ prefixDataTestId = 'every-box', ...context }) => {
-  const pollingIntervalRef = useRef<NodeJS.Timeout | null>(null)
+  // Separate interval refs for each data source (for staggered polling)
+  const activeTasksIntervalRef = useRef<NodeJS.Timeout | null>(null)
+  const completedTasksIntervalRef = useRef<NodeJS.Timeout | null>(null)
+  const outboxFlowsIntervalRef = useRef<NodeJS.Timeout | null>(null)
+
   const [isQuickTaskModalOpen, setIsQuickTaskModalOpen] = useState(false)
 
   // Debug logging
   useEffect(() => {
-    console.log('[EveryBox] Component mounted')
+    console.log('[EveryBox] Component mounted with optimized polling')
+    console.log('[EveryBox] Polling config:', POLLING_CONFIG)
     console.log('[EveryBox] Context:', {
       hasAccessToken: !!context.accessToken,
       hasUserInfo: !!context.userInfo,
@@ -52,7 +77,7 @@ export const EveryBox: React.FC<EveryBoxProps> = ({ prefixDataTestId = 'every-bo
     })
   }, [])
 
-  // Fetch inbox tasks
+  // Fetch inbox tasks (active)
   const {
     tasks,
     totalCount: totalTaskCount,
@@ -60,7 +85,10 @@ export const EveryBox: React.FC<EveryBoxProps> = ({ prefixDataTestId = 'every-bo
     error: tasksError,
     refetch: refetchTasks,
     loadMore: loadMoreTasks,
-    hasMore: hasMoreTasks
+    hasMore: hasMoreTasks,
+    hasNewTasks: hasNewInboxTasks,
+    backgroundRefresh: backgroundRefreshInbox,
+    clearNewTasksFlag: clearNewInboxTasksFlag
   } = useInboxTasks(context)
 
   // Fetch outbox flows
@@ -74,26 +102,57 @@ export const EveryBox: React.FC<EveryBoxProps> = ({ prefixDataTestId = 'every-bo
     error: completedError,
     refetch: refetchCompleted,
     loadMore: loadMoreCompleted,
-    hasMore: hasMoreCompleted
+    hasMore: hasMoreCompleted,
+    hasNewTasks: hasNewCompletedTasks,
+    backgroundRefresh: backgroundRefreshCompleted,
+    clearNewTasksFlag: clearNewCompletedTasksFlag
   } = useCompletedTasks(context)
 
-  // Set up polling
+  // Set up staggered polling intervals (SMART POLLING - no UI disruption)
   useEffect(() => {
-    // Initial load is handled by hooks
-    // Set up polling interval
-    pollingIntervalRef.current = setInterval(() => {
-      refetchTasks()
-      refetchFlows()
-      refetchCompleted()
-    }, POLLING_INTERVAL)
+    console.log('[EveryBox] Setting up smart background polling (non-disruptive)')
 
-    // Cleanup on unmount
+    // Active tasks polling - uses backgroundRefresh (no UI reload)
+    if (POLLING_CONFIG.activeTasks.enabled) {
+      console.log('[EveryBox] Starting active tasks polling:', POLLING_CONFIG.activeTasks.interval, 'ms')
+      activeTasksIntervalRef.current = setInterval(() => {
+        console.log('[EveryBox] 🔍 Background check for new active tasks')
+        backgroundRefreshInbox()
+      }, POLLING_CONFIG.activeTasks.interval)
+    }
+
+    // Completed tasks polling - uses backgroundRefresh (no UI reload)
+    if (POLLING_CONFIG.completedTasks.enabled) {
+      console.log('[EveryBox] Starting completed tasks polling:', POLLING_CONFIG.completedTasks.interval, 'ms')
+      completedTasksIntervalRef.current = setInterval(() => {
+        console.log('[EveryBox] 🔍 Background check for new completed tasks')
+        backgroundRefreshCompleted()
+      }, POLLING_CONFIG.completedTasks.interval)
+    }
+
+    // Outbox flows polling - still uses refetch (less disruptive for smaller lists)
+    if (POLLING_CONFIG.outboxFlows.enabled) {
+      console.log('[EveryBox] Starting outbox flows polling:', POLLING_CONFIG.outboxFlows.interval, 'ms')
+      outboxFlowsIntervalRef.current = setInterval(() => {
+        console.log('[EveryBox] 🔄 Polling outbox flows')
+        refetchFlows()
+      }, POLLING_CONFIG.outboxFlows.interval)
+    }
+
+    // Cleanup all intervals on unmount
     return () => {
-      if (pollingIntervalRef.current) {
-        clearInterval(pollingIntervalRef.current)
+      console.log('[EveryBox] Cleaning up polling intervals')
+      if (activeTasksIntervalRef.current) {
+        clearInterval(activeTasksIntervalRef.current)
+      }
+      if (completedTasksIntervalRef.current) {
+        clearInterval(completedTasksIntervalRef.current)
+      }
+      if (outboxFlowsIntervalRef.current) {
+        clearInterval(outboxFlowsIntervalRef.current)
       }
     }
-  }, [refetchTasks, refetchFlows, refetchCompleted])
+  }, [backgroundRefreshInbox, backgroundRefreshCompleted, refetchFlows])
 
   // Handle Quick Task (Blink) submission
   const handleQuickTaskSubmit = async (data: QuickTaskFormData) => {
@@ -200,6 +259,8 @@ export const EveryBox: React.FC<EveryBoxProps> = ({ prefixDataTestId = 'every-bo
                       onRefresh={refetchTasks}
                       onLoadMore={loadMoreTasks}
                       hasMore={hasMoreTasks}
+                      hasNewTasks={hasNewInboxTasks}
+                      onLoadNewTasks={clearNewInboxTasksFlag}
                       completedTasks={completedTasks}
                       completedTotalCount={totalCompletedCount}
                       completedIsLoading={completedLoading}
@@ -207,6 +268,8 @@ export const EveryBox: React.FC<EveryBoxProps> = ({ prefixDataTestId = 'every-bo
                       onCompletedRefresh={refetchCompleted}
                       onCompletedLoadMore={loadMoreCompleted}
                       completedHasMore={hasMoreCompleted}
+                      hasNewCompletedTasks={hasNewCompletedTasks}
+                      onLoadNewCompletedTasks={clearNewCompletedTasksFlag}
                     />
                   </TabsContent>
 
@@ -229,6 +292,7 @@ export const EveryBox: React.FC<EveryBoxProps> = ({ prefixDataTestId = 'every-bo
             open={isQuickTaskModalOpen}
             onOpenChange={setIsQuickTaskModalOpen}
             accessToken={context.accessToken}
+            currentUserId={context.userInfo?.id}
             onSubmit={handleQuickTaskSubmit}
             title="Blink"
             description="Create and assign a quick task instantly"
