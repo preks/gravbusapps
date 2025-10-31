@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react'
+import React, { useState, useEffect, useMemo } from 'react'
 import { Calendar, Button, Typography, Space, Tag, Spin, message, Alert, Drawer } from 'antd'
 import type { Dayjs } from 'dayjs'
 import dayjs from 'dayjs'
@@ -12,6 +12,7 @@ import ExpensePlanDetails from '../expense-plans-tab/ExpensePlanDetails'
 import ExpenseRequestDetails from '../expense-requests-tab/ExpenseRequestDetails'
 import { getTranslationFromI18nKeyAndLabel } from '@/common/utils/windowUtils'
 import { formatCurrencyDisplay } from '../../../utils'
+import { getTranslatedMonthName } from '../../../utils/monthTranslationUtils'
 
 interface CalendarExpenseItem {
   id: string
@@ -23,6 +24,17 @@ interface CalendarExpenseItem {
   status: string
   type: 'expense' | 'plan' | 'request'
 }
+
+// Translated day names using the same translation keys as absence hub
+const getTranslatedDayNames = () => [
+  getTranslationFromI18nKeyAndLabel('lowcoder:absence_hub.day_sun', 'Sun'),
+  getTranslationFromI18nKeyAndLabel('lowcoder:absence_hub.day_mon', 'Mon'),
+  getTranslationFromI18nKeyAndLabel('lowcoder:absence_hub.day_tue', 'Tue'),
+  getTranslationFromI18nKeyAndLabel('lowcoder:absence_hub.day_wed', 'Wed'),
+  getTranslationFromI18nKeyAndLabel('lowcoder:absence_hub.day_thu', 'Thu'),
+  getTranslationFromI18nKeyAndLabel('lowcoder:absence_hub.day_fri', 'Fri'),
+  getTranslationFromI18nKeyAndLabel('lowcoder:absence_hub.day_sat', 'Sat')
+]
 
 const getStatusColor = (status: CalendarExpenseItem['status']): string => {
   switch (status) {
@@ -40,6 +52,24 @@ const getStatusColor = (status: CalendarExpenseItem['status']): string => {
 }
 
 const ExpenseCalendarTab: React.FC<BusinessAppContextProps> = props => {
+  // Memoize translated day names
+  const translatedDayNames = useMemo(() => getTranslatedDayNames(), [])
+
+  // Override day names in calendar header with translated versions
+  useEffect(() => {
+    // Find all day header cells in the calendar
+    const calendarElement = document.querySelector('.gba-expense-calendar-tab .ant-picker-calendar')
+    if (calendarElement) {
+      const dayHeaders = calendarElement.querySelectorAll('.ant-picker-calendar-weekday')
+      dayHeaders.forEach((header, index) => {
+        if (index < translatedDayNames.length) {
+          // Ant Design Calendar uses index-based day headers, where 0=Sun, 1=Mon, etc.
+          // But our translatedDayNames array starts with Sun
+          header.textContent = translatedDayNames[index]
+        }
+      })
+    }
+  }, [translatedDayNames])
   const {
     items: rawExpenseItems,
     isLoading: isLoadingExpenses,
@@ -421,7 +451,7 @@ const ExpenseCalendarTab: React.FC<BusinessAppContextProps> = props => {
           <Calendar
             cellRender={cellRender}
             headerRender={({ value, onChange }) => {
-              const currentMonth = value.format('MMMM')
+              const currentMonth = getTranslatedMonthName(value.toDate())
               const currentYear = value.format('YYYY')
               return (
                 <div

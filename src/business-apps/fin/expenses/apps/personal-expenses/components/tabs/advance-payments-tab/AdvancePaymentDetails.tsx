@@ -4,7 +4,7 @@ import { Badge } from '@newwork/nw-design-system'
 import { AdvancePayment } from '../../../hooks/useGetAdvancePayments'
 import { getAdvancePaymentStatusDisplay } from '../../../utils'
 import { BusinessAppContextProps } from '@/common/BusinessAppContext'
-import { getTranslationFromI18nKeyAndLabel } from '@/common/utils/windowUtils'
+import { getTranslationFromI18nKeyAndLabel, getCatalogValue } from '@/common/utils/windowUtils'
 import { formatCurrencyDisplay } from '../../../utils'
 
 interface AdvancePaymentDetailsProps extends BusinessAppContextProps {
@@ -129,7 +129,21 @@ const AdvancePaymentDetails: React.FC<AdvancePaymentDetailsProps> = ({ payment }
               </span>
               <span className="gba:text-sm gba:text-gray-900">
                 {payment.paymentMethod
-                  ? formatPaymentMethod(String(payment.paymentMethod))
+                  ? typeof payment.paymentMethod === 'object' &&
+                    payment.paymentMethod !== null &&
+                    'value' in payment.paymentMethod
+                    ? getCatalogValue(payment.paymentMethod)
+                    : String(payment.paymentMethod) === 'DIRECT_DEPOSIT'
+                      ? getTranslationFromI18nKeyAndLabel(
+                          'lowcoder:initiate_expense_plan.create_expense_plan.payment_method_select_direct_deposit',
+                          'Direct Deposit'
+                        )
+                      : String(payment.paymentMethod) === 'CASH_PAYMENT'
+                        ? getTranslationFromI18nKeyAndLabel(
+                            'lowcoder:initiate_expense_plan.create_expense_plan.payment_method_select_cash_payment',
+                            'Cash Payment'
+                          )
+                        : formatPaymentMethod(String(payment.paymentMethod))
                   : getTranslationFromI18nKeyAndLabel('lowcoder:personal_expenses.not_specified', 'Not specified')}
               </span>
             </div>

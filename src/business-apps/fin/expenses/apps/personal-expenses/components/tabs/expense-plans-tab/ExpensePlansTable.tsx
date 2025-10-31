@@ -763,7 +763,9 @@ const ExpensePlansTable: React.FC<ExpensePlansTableProps> = React.memo(props => 
                   {`${totalCount} ${getTranslationFromI18nKeyAndLabel('lowcoder:team_expenses_page.dashboard_tab.expense_plans', 'Expense Plans')}`}
                 </div>
                 <div className="gba:flex gba:items-center gba:space-x-2">
-                  <p className="gba:text-sm gba:font-medium">Rows per page</p>
+                  <p className="gba:text-sm gba:font-medium">
+                    {getTranslationFromI18nKeyAndLabel('lowcoder:personal_expenses.rows_per_page', 'Rows per page')}
+                  </p>
                   <select
                     value={pageSize}
                     onChange={e => handlePagination(1, Number(e.target.value))}
@@ -840,7 +842,10 @@ const ExpensePlansTable: React.FC<ExpensePlansTableProps> = React.memo(props => 
                 ? [
                     {
                       id: 'currency',
-                      title: getTranslationFromI18nKeyAndLabel('lowcoder:expense_item_list.currency', 'Currency'),
+                      title: getTranslationFromI18nKeyAndLabel(
+                        'lowcoder:create_expense_item.change_expense_item_container.current_currency_label',
+                        'Currency'
+                      ),
                       filters: currencyFilters
                     }
                   ]

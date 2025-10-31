@@ -10,7 +10,7 @@ export interface ExpensePlanStatisticsData {
   previousMonthTotal: number
   totalEstimated: number
   pendingApproval: number
-  topDestination: string
+  topDestination: string | any // Can be string or catalog entry object
   // Add closed plans data
   currentMonthClosedPlans: number
   previousMonthClosedPlans: number
@@ -82,13 +82,28 @@ export const useGetExpensePlanStatistics = (
           )
           .filter(Boolean)
 
-        let topDestination = 'N/A'
+        let topDestination: string | any = 'N/A'
         if (allRegions.length > 0) {
+          // Keep original frequency counting logic with string values
           const frequencyMap = allRegions.reduce((acc: Record<string, number>, region: string) => {
             acc[region] = (acc[region] || 0) + 1
             return acc
           }, {})
-          topDestination = Object.keys(frequencyMap).reduce((a, b) => (frequencyMap[a] > frequencyMap[b] ? a : b))
+          const mostFrequentValue = Object.keys(frequencyMap).reduce((a, b) =>
+            frequencyMap[a] > frequencyMap[b] ? a : b
+          )
+
+          // Find the corresponding catalog entry for translation (preserve original string logic)
+          const allRegionObjects = destinationPlans.flatMap((plan: any) =>
+            plan.expenseRequestTrip.map((trip: any) => trip.travelRegion).filter(Boolean)
+          )
+          const matchingCatalogEntry = allRegionObjects.find((region: any) => {
+            const translation = region?.translations?.[0]?.value
+            return (translation || region?.value) === mostFrequentValue
+          })
+
+          // Return catalog entry if found for translation, otherwise return the string value
+          topDestination = matchingCatalogEntry || mostFrequentValue
         }
 
         return { count, totalEstimated, pendingApproval, topDestination }
