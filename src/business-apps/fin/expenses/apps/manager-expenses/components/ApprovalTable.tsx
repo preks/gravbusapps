@@ -59,6 +59,7 @@ const ApprovalTable: React.FC<ApprovalTableProps> = ({
   onApprovalSuccess
 }) => {
   const rawTasks = tasks
+  console.log('rawTasks1111112', rawTasks)
   const approvalRequests = mapFlowTasksToApprovalRequests(tasks)
 
   const { isApproving, approvalError, handleApproveClick } = useApprovalHandling({

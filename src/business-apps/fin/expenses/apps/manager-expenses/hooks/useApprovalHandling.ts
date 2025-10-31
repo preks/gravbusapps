@@ -141,6 +141,7 @@ export const useApprovalHandling = ({
     }
     const taskData = await getResponse.json()
     const entityId = extractEntityIdFromTaskData(ctx.tabKeyLocal, taskData)
+    console.log('entityId', entityId)
     if (!entityId) {
       throw new Error(
         getTranslationFromI18nKeyAndLabel(
@@ -313,8 +314,8 @@ export const useApprovalHandling = ({
         }
       } catch {
         const errorMessage =
-          error instanceof Error
-            ? error.message
+          Error instanceof Error
+            ? Error.message
             : getTranslationFromI18nKeyAndLabel('lowcoder:approvals.unknown_error', 'Unknown error')
         failedTasks.push({ id: task.id, error: errorMessage })
       } finally {
@@ -355,7 +356,8 @@ export const useApprovalHandling = ({
         userInfo,
         rawTasks
       )
-
+      console.log('approvalPayload', approvalPayload)
+      console.log('0000', rawTasks)
       setTotalToApprove(selectedTasks.length)
       setCurrentProgressIndex(0)
 
@@ -367,8 +369,8 @@ export const useApprovalHandling = ({
       return { success: true, approvedCount, failedCount: failedTasks.length }
     } catch {
       const errorMessage =
-        error instanceof Error
-          ? error.message
+        Error instanceof Error
+          ? Error.message
           : getTranslationFromI18nKeyAndLabel('lowcoder:approvals.failed_to_approve', 'Failed to approve tasks')
       setApprovalError(errorMessage)
 
