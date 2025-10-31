@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react'
+import React from 'react'
 import {
   Label,
   Select,
@@ -9,10 +9,11 @@ import {
   Spinner
 } from '@newwork/nw-design-system'
 import { AppWindow, FolderTree } from 'lucide-react'
-import { useCatalogManagerClient } from '@/common/network/catalogs/useCatalogManagerClient'
-import { CatalogEntry } from '@/common/types/CatalogTypes'
 import { FlowTags } from '@/business-apps/flow/types'
 import { getTranslationFromI18nKeyAndLabel } from '@/common/utils/windowUtils'
+import { useCatalogLoader } from './hooks/useCatalogLoader'
+import { handleAppChange, handleCategoryChange } from './utils/tagHandlers'
+import { formatCatalogEntry, createCatalogValue } from './utils/catalogFormatters'
 
 interface TagConfigurationProps {
   tags?: FlowTags
@@ -27,17 +28,6 @@ export const TagConfiguration: React.FC<TagConfigurationProps> = ({
   accessToken,
   'data-testid': testId = 'tag-configuration'
 }) => {
-  const catalogClient = useCatalogManagerClient(accessToken)
-
-  // State for catalog entries
-  const [appCatalogEntries, setAppCatalogEntries] = useState<CatalogEntry[]>([])
-  const [serviceCategoryEntries, setServiceCategoryEntries] = useState<CatalogEntry[]>([])
-  const [digitalWorkplaceCategoryEntries, setDigitalWorkplaceCategoryEntries] = useState<CatalogEntry[]>([])
-  const [isLoadingApps, setIsLoadingApps] = useState(false)
-  const [isLoadingServiceCategories, setIsLoadingServiceCategories] = useState(false)
-  const [isLoadingDigitalWorkplaceCategories, setIsLoadingDigitalWorkplaceCategories] = useState(false)
-  const [error, setError] = useState<string | null>(null)
-
   // Current tag values - handle both string and array formats
   const selectedApp = tags.app || ''
   const selectedServiceCategory = Array.isArray(tags.serviceCategory)
@@ -49,145 +39,39 @@ export const TagConfiguration: React.FC<TagConfigurationProps> = ({
   const isServicePortalSelected = selectedApp === 'AppCatalog:1:SVC'
   const isDigitalWorkplaceSelected = selectedApp === 'AppCatalog:1:DWP'
 
-  // Generic catalog loader function
-  const loadCatalog = async (
-    catalogIdentifier: string,
-    setEntries: (entries: CatalogEntry[]) => void,
-    setLoading: (loading: boolean) => void,
-    errorMessage: string
-  ) => {
-    try {
-      setLoading(true)
-      setError(null)
+  // Load catalogs using the custom hook
+  const {
+    entries: appCatalogEntries,
+    isLoading: isLoadingApps,
+    error: appError
+  } = useCatalogLoader({
+    catalogIdentifier: 'AppCatalog',
+    accessToken,
+    enabled: true
+  })
 
-      const response = await catalogClient.getCatalogEntriesList(
-        { catalogIdentifier, version: '1' },
-        {
-          limit: 100,
-          includeChildCatalogEntries: true,
-          returnTotalRecords: true
-        }
-      )
+  const {
+    entries: serviceCategoryEntries,
+    isLoading: isLoadingServiceCategories,
+    error: serviceCategoryError
+  } = useCatalogLoader({
+    catalogIdentifier: 'ServicePortalCategory',
+    accessToken,
+    enabled: isServicePortalSelected
+  })
 
-      setEntries(response.data || [])
-    } catch (err) {
-      console.error(`Error loading ${catalogIdentifier} catalog:`, err)
-      setError(errorMessage)
-    } finally {
-      setLoading(false)
-    }
-  }
+  const {
+    entries: digitalWorkplaceCategoryEntries,
+    isLoading: isLoadingDigitalWorkplaceCategories,
+    error: digitalWorkplaceCategoryError
+  } = useCatalogLoader({
+    catalogIdentifier: 'DigitalWorkplaceFlowCategory',
+    accessToken,
+    enabled: isDigitalWorkplaceSelected
+  })
 
-  // Load app catalog entries
-  useEffect(() => {
-    if (accessToken) {
-      loadCatalog('AppCatalog', setAppCatalogEntries, setIsLoadingApps, 'Failed to load app catalog entries')
-    }
-  }, [accessToken, catalogClient])
-
-  // Load service category catalog entries when service portal is selected
-  useEffect(() => {
-    if (!isServicePortalSelected) {
-      setServiceCategoryEntries([])
-      return
-    }
-
-    if (accessToken && isServicePortalSelected) {
-      loadCatalog(
-        'ServicePortalCategory',
-        setServiceCategoryEntries,
-        setIsLoadingServiceCategories,
-        'Failed to load service category entries'
-      )
-    }
-  }, [accessToken, isServicePortalSelected, catalogClient])
-
-  // Load digital workplace category catalog entries when digital workplace is selected
-  useEffect(() => {
-    if (!isDigitalWorkplaceSelected) {
-      setDigitalWorkplaceCategoryEntries([])
-      return
-    }
-
-    if (accessToken && isDigitalWorkplaceSelected) {
-      loadCatalog(
-        'DigitalWorkplaceFlowCategory',
-        setDigitalWorkplaceCategoryEntries,
-        setIsLoadingDigitalWorkplaceCategories,
-        'Failed to load digital workplace category entries'
-      )
-    }
-  }, [accessToken, isDigitalWorkplaceSelected, catalogClient])
-
-  // Handle app selection change
-  const handleAppChange = (value: string) => {
-    const newTags = { ...tags }
-
-    // Handle clear selection
-    if (value === '__NONE__') {
-      delete newTags.app
-      // Also clear service category if app is cleared
-      if (newTags.serviceCategory) {
-        delete newTags.serviceCategory
-      }
-      // Also clear digital workplace category if app is cleared
-      if (newTags.digitalWorkplaceCategory) {
-        delete newTags.digitalWorkplaceCategory
-      }
-    } else {
-      newTags.app = value
-      // Clear service category if not service portal
-      if (value !== 'AppCatalog:1:SVC' && newTags.serviceCategory) {
-        delete newTags.serviceCategory
-      }
-      // Clear digital workplace category if not digital workplace
-      if (value !== 'AppCatalog:1:DWP' && newTags.digitalWorkplaceCategory) {
-        delete newTags.digitalWorkplaceCategory
-      }
-    }
-
-    onTagsChange(newTags)
-  }
-
-  // Handle service category change
-  const handleServiceCategoryChange = (value: string) => {
-    const newTags = { ...tags }
-
-    // Handle clear selection
-    if (value === '__NONE__') {
-      delete newTags.serviceCategory
-    } else {
-      // Store as string (preferred format) for compatibility
-      newTags.serviceCategory = value
-    }
-
-    onTagsChange(newTags)
-  }
-
-  // Handle digital workplace category change
-  const handleDigitalWorkplaceCategoryChange = (value: string) => {
-    const newTags = { ...tags }
-
-    // Handle clear selection
-    if (value === '__NONE__') {
-      delete newTags.digitalWorkplaceCategory
-    } else {
-      // Store as string (preferred format) for compatibility
-      newTags.digitalWorkplaceCategory = value
-    }
-
-    onTagsChange(newTags)
-  }
-
-  // Format catalog entry for display
-  const formatCatalogEntry = (entry: CatalogEntry): string => {
-    return entry.value || entry.code || entry.id
-  }
-
-  // Create catalog entry value (format: CatalogName:Version:Code)
-  const createCatalogValue = (catalogName: string, version: string, code: string): string => {
-    return `${catalogName}:${version}:${code}`
-  }
+  // Combine errors
+  const error = appError || serviceCategoryError || digitalWorkplaceCategoryError
 
   return (
     <div className="gba:space-y-4" data-testid={testId}>
@@ -203,7 +87,11 @@ export const TagConfiguration: React.FC<TagConfigurationProps> = ({
           <AppWindow className="gba:h-4 gba:w-4" />
           {getTranslationFromI18nKeyAndLabel('flow.creator.tags.app', 'Application')}
         </Label>
-        <Select value={selectedApp || '__NONE__'} onValueChange={handleAppChange} disabled={isLoadingApps}>
+        <Select
+          value={selectedApp || '__NONE__'}
+          onValueChange={value => handleAppChange(value, tags, onTagsChange)}
+          disabled={isLoadingApps}
+        >
           <SelectTrigger id="app-select" className="gba:w-full" data-testid={`${testId}-app-select`}>
             <SelectValue placeholder={isLoadingApps ? 'Loading applications...' : 'Select an application'} />
           </SelectTrigger>
@@ -246,7 +134,7 @@ export const TagConfiguration: React.FC<TagConfigurationProps> = ({
           </Label>
           <Select
             value={selectedServiceCategory || '__NONE__'}
-            onValueChange={handleServiceCategoryChange}
+            onValueChange={value => handleCategoryChange(value, 'serviceCategory', tags, onTagsChange)}
             disabled={isLoadingServiceCategories}
           >
             <SelectTrigger
@@ -301,7 +189,7 @@ export const TagConfiguration: React.FC<TagConfigurationProps> = ({
           </Label>
           <Select
             value={selectedDigitalWorkplaceCategory || '__NONE__'}
-            onValueChange={handleDigitalWorkplaceCategoryChange}
+            onValueChange={value => handleCategoryChange(value, 'digitalWorkplaceCategory', tags, onTagsChange)}
             disabled={isLoadingDigitalWorkplaceCategories}
           >
             <SelectTrigger
