@@ -115,13 +115,13 @@ const ChangeRelationshipScreen: React.FC<BusinessAppContextProps> = ({ additiona
     if (trimmed.length === 0) {
       return getTranslationFromI18nKeyAndLabel(
         'lowcoder:change_relationship.container_relationship.phone_required_error',
-        'The Phone Number field is required. Please enter a phone number'
+        'The Phone Number field is required. Please enter a phone number.'
       )
     }
     if (!regexTest.test(trimmed)) {
       return getTranslationFromI18nKeyAndLabel(
         'lowcoder:change_relationship.container_relationship.phone_only_numbers_error',
-        'The Phone Number field is invalid. Please use only numbers'
+        'The Phone Number field is invalid. Please use only numbers.'
       )
     }
     return ''
