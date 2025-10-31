@@ -49,103 +49,73 @@ export const TagConfiguration: React.FC<TagConfigurationProps> = ({
   const isServicePortalSelected = selectedApp === 'AppCatalog:1:SVC'
   const isDigitalWorkplaceSelected = selectedApp === 'AppCatalog:1:DWP'
 
+  // Generic catalog loader function
+  const loadCatalog = async (
+    catalogIdentifier: string,
+    setEntries: (entries: CatalogEntry[]) => void,
+    setLoading: (loading: boolean) => void,
+    errorMessage: string
+  ) => {
+    try {
+      setLoading(true)
+      setError(null)
+
+      const response = await catalogClient.getCatalogEntriesList(
+        { catalogIdentifier, version: '1' },
+        {
+          limit: 100,
+          includeChildCatalogEntries: true,
+          returnTotalRecords: true
+        }
+      )
+
+      setEntries(response.data || [])
+    } catch (err) {
+      console.error(`Error loading ${catalogIdentifier} catalog:`, err)
+      setError(errorMessage)
+    } finally {
+      setLoading(false)
+    }
+  }
+
   // Load app catalog entries
   useEffect(() => {
-    const loadAppCatalog = async () => {
-      try {
-        setIsLoadingApps(true)
-        setError(null)
-
-        const response = await catalogClient.getCatalogEntriesList(
-          { catalogIdentifier: 'AppCatalog', version: '1' },
-          {
-            limit: 100,
-            includeChildCatalogEntries: true,
-            returnTotalRecords: true
-          }
-        )
-
-        setAppCatalogEntries(response.data || [])
-      } catch (err) {
-        console.error('Error loading app catalog:', err)
-        setError('Failed to load app catalog entries')
-      } finally {
-        setIsLoadingApps(false)
-      }
-    }
-
     if (accessToken) {
-      loadAppCatalog()
+      loadCatalog('AppCatalog', setAppCatalogEntries, setIsLoadingApps, 'Failed to load app catalog entries')
     }
   }, [accessToken, catalogClient])
 
   // Load service category catalog entries when service portal is selected
   useEffect(() => {
-    const loadServiceCategoryCatalog = async () => {
-      if (!isServicePortalSelected) {
-        setServiceCategoryEntries([])
-        return
-      }
-
-      try {
-        setIsLoadingServiceCategories(true)
-        setError(null)
-
-        const response = await catalogClient.getCatalogEntriesList(
-          { catalogIdentifier: 'ServicePortalCategory', version: '1' },
-          {
-            limit: 100,
-            includeChildCatalogEntries: true,
-            returnTotalRecords: true
-          }
-        )
-
-        setServiceCategoryEntries(response.data || [])
-      } catch (err) {
-        console.error('Error loading service category catalog:', err)
-        setError('Failed to load service category entries')
-      } finally {
-        setIsLoadingServiceCategories(false)
-      }
+    if (!isServicePortalSelected) {
+      setServiceCategoryEntries([])
+      return
     }
 
     if (accessToken && isServicePortalSelected) {
-      loadServiceCategoryCatalog()
+      loadCatalog(
+        'ServicePortalCategory',
+        setServiceCategoryEntries,
+        setIsLoadingServiceCategories,
+        'Failed to load service category entries'
+      )
     }
   }, [accessToken, isServicePortalSelected, catalogClient])
 
   // Load digital workplace category catalog entries when digital workplace is selected
   useEffect(() => {
-    const loadDigitalWorkplaceCategoryCatalog = async () => {
-      if (!isDigitalWorkplaceSelected) {
-        setDigitalWorkplaceCategoryEntries([])
-        return
-      }
-
-      try {
-        setIsLoadingDigitalWorkplaceCategories(true)
-        setError(null)
-
-        const response = await catalogClient.getCatalogEntriesList(
-          { catalogIdentifier: 'DigitalWorkplaceFlowCategory', version: '1' },
-          {
-            limit: 100,
-            includeChildCatalogEntries: true,
-            returnTotalRecords: true
-          }
-        )
-
-        setDigitalWorkplaceCategoryEntries(response.data || [])
-      } catch (err) {
-        console.error('Error loading digital workplace category catalog:', err)
-        setError('Failed to load digital workplace category entries')
-      } finally {
-        setIsLoadingDigitalWorkplaceCategories(false)
-      }
+    if (!isDigitalWorkplaceSelected) {
+      setDigitalWorkplaceCategoryEntries([])
+      return
     }
 
     if (accessToken && isDigitalWorkplaceSelected) {
-      loadDigitalWorkplaceCategoryCatalog()
+      loadCatalog(
+        'DigitalWorkplaceFlowCategory',
+        setDigitalWorkplaceCategoryEntries,
+        setIsLoadingDigitalWorkplaceCategories,
+        'Failed to load digital workplace category entries'
+      )
     }
   }, [accessToken, isDigitalWorkplaceSelected, catalogClient])
 
