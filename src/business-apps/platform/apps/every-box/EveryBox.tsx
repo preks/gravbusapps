@@ -7,6 +7,14 @@
  * - Completed tasks: Poll every 60s (less urgent)
  * - Outbox flows: Poll every 30s (moderate)
  * This reduces backend load by ~50% while maintaining good UX
+ *
+ * URL Parameters:
+ * - view: 'inbox' | 'outbox' - Controls which tab is active
+ *   Example: ?view=outbox will open the OutFlows tab
+ * - taskId: ID of selected task (InFlows tab)
+ *   Example: ?view=inbox&taskId=abc-123
+ * - flowId: ID of selected flow (OutFlows tab)
+ *   Example: ?view=outbox&flowId=xyz-789
  */
 
 import React, { useEffect, useRef, useState } from 'react'
@@ -41,6 +49,27 @@ interface EveryBoxProps extends BusinessAppContextProps {
   prefixDataTestId?: string
 }
 
+type ViewType = 'inbox' | 'outbox'
+
+/**
+ * Get initial view from URL
+ */
+const getInitialView = (): ViewType => {
+  const urlParams = new URLSearchParams(window.location.search)
+  const view = urlParams.get('view')
+  return view === 'outbox' ? 'outbox' : 'inbox'
+}
+
+/**
+ * Update URL with view parameter
+ */
+const updateViewUrl = (view: ViewType) => {
+  const urlParams = new URLSearchParams(window.location.search)
+  urlParams.set('view', view)
+  const newUrl = `${window.location.pathname}?${urlParams.toString()}`
+  window.history.replaceState({}, '', newUrl)
+}
+
 // Staggered polling intervals for different data types
 const POLLING_CONFIG = {
   activeTasks: {
@@ -64,6 +93,7 @@ export const EveryBox: React.FC<EveryBoxProps> = ({ prefixDataTestId = 'every-bo
   const outboxFlowsIntervalRef = useRef<NodeJS.Timeout | null>(null)
 
   const [isQuickTaskModalOpen, setIsQuickTaskModalOpen] = useState(false)
+  const [activeTab, setActiveTab] = useState<ViewType>(getInitialView())
 
   // Debug logging
   useEffect(() => {
@@ -107,6 +137,32 @@ export const EveryBox: React.FC<EveryBoxProps> = ({ prefixDataTestId = 'every-bo
     backgroundRefresh: backgroundRefreshCompleted,
     clearNewTasksFlag: clearNewCompletedTasksFlag
   } = useCompletedTasks(context)
+
+  // Initialize URL with view parameter if not present
+  useEffect(() => {
+    const urlParams = new URLSearchParams(window.location.search)
+    if (!urlParams.has('view')) {
+      updateViewUrl(activeTab)
+    }
+  }, [])
+
+  // Handle browser back/forward navigation
+  useEffect(() => {
+    const handlePopState = () => {
+      const newView = getInitialView()
+      setActiveTab(newView)
+    }
+
+    window.addEventListener('popstate', handlePopState)
+    return () => window.removeEventListener('popstate', handlePopState)
+  }, [])
+
+  // Handler to change tab and update URL
+  const handleTabChange = (value: string) => {
+    const newView = value as ViewType
+    setActiveTab(newView)
+    updateViewUrl(newView)
+  }
 
   // Set up staggered polling intervals (SMART POLLING - no UI disruption)
   useEffect(() => {
@@ -214,7 +270,8 @@ export const EveryBox: React.FC<EveryBoxProps> = ({ prefixDataTestId = 'every-bo
 
                 {/* Tabs */}
                 <Tabs
-                  defaultValue="inbox"
+                  value={activeTab}
+                  onValueChange={handleTabChange}
                   className="gba:flex gba:flex-col gba:flex-1 gba:overflow-hidden"
                   data-testid={`${prefixDataTestId}-tabs`}
                 >

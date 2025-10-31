@@ -1,9 +1,13 @@
 /**
  * OutboxView Component
  * Displays outbox flows with search and filtering
+ *
+ * URL Parameters:
+ * - flowId: ID of the selected flow to open directly
+ *   Example: ?flowId=abc-123 will open the flow detail panel for flow with ID "abc-123"
  */
 
-import React, { useState, useMemo } from 'react'
+import React, { useState, useMemo, useEffect, useCallback } from 'react'
 import { Input, Button, Badge, Alert, AlertTitle, AlertDescription } from '@newwork/nw-design-system'
 import { Search, RefreshCw, Zap, FileText } from 'lucide-react'
 import { Flow } from '../types'
@@ -23,10 +27,35 @@ interface OutboxViewProps {
   accessToken: string
 }
 
+/**
+ * Get initial flow ID from URL
+ */
+const getInitialFlowId = (): string | null => {
+  const urlParams = new URLSearchParams(window.location.search)
+  return urlParams.get('flowId')
+}
+
+/**
+ * Update URL with flow ID
+ */
+const updateFlowUrl = (flowId: string | null) => {
+  const urlParams = new URLSearchParams(window.location.search)
+
+  if (flowId) {
+    urlParams.set('flowId', flowId)
+  } else {
+    urlParams.delete('flowId')
+  }
+
+  const newUrl = `${window.location.pathname}?${urlParams.toString()}`
+  window.history.replaceState({}, '', newUrl)
+}
+
 export const OutboxView: React.FC<OutboxViewProps> = ({ flows, isLoading, error, onRefresh, accessToken }) => {
   const [searchQuery, setSearchQuery] = useState('')
   const [selectedFlow, setSelectedFlow] = useState<Flow | null>(null)
   const [filterType, setFilterType] = useState<FlowFilterType>('all')
+  const [isInitialized, setIsInitialized] = useState(false)
 
   // Helper functions to categorize flows
   const isBlinkFlow = (flow: Flow): boolean => {
@@ -57,6 +86,52 @@ export const OutboxView: React.FC<OutboxViewProps> = ({ flows, isLoading, error,
 
     return false
   }
+
+  // Initialize selected flow from URL when flows are loaded
+  useEffect(() => {
+    if (!isInitialized && flows.length > 0 && !isLoading) {
+      const flowIdFromUrl = getInitialFlowId()
+      if (flowIdFromUrl) {
+        const flowToSelect = flows.find(f => f.id === flowIdFromUrl)
+        if (flowToSelect) {
+          setSelectedFlow(flowToSelect)
+        }
+      }
+      setIsInitialized(true)
+    }
+  }, [flows, isLoading, isInitialized])
+
+  // Handle browser back/forward navigation
+  useEffect(() => {
+    const handlePopState = () => {
+      const flowIdFromUrl = getInitialFlowId()
+      if (flowIdFromUrl) {
+        const flowToSelect = flows.find(f => f.id === flowIdFromUrl)
+        if (flowToSelect) {
+          setSelectedFlow(flowToSelect)
+        } else {
+          setSelectedFlow(null)
+        }
+      } else {
+        setSelectedFlow(null)
+      }
+    }
+
+    window.addEventListener('popstate', handlePopState)
+    return () => window.removeEventListener('popstate', handlePopState)
+  }, [flows])
+
+  // Handler to select a flow and update URL
+  const handleSelectFlow = useCallback((flow: Flow | null) => {
+    setSelectedFlow(flow)
+    updateFlowUrl(flow?.id || null)
+  }, [])
+
+  // Handler to close flow detail
+  const handleCloseFlow = useCallback(() => {
+    setSelectedFlow(null)
+    updateFlowUrl(null)
+  }, [])
 
   // Filter and sort flows
   const filteredFlows = useMemo(() => {
@@ -212,7 +287,7 @@ export const OutboxView: React.FC<OutboxViewProps> = ({ flows, isLoading, error,
                 <FlowCard
                   key={flow.id}
                   flow={flow}
-                  onView={setSelectedFlow}
+                  onView={handleSelectFlow}
                   accessToken={accessToken}
                   isSelected={selectedFlow?.id === flow.id}
                 />
@@ -230,9 +305,7 @@ export const OutboxView: React.FC<OutboxViewProps> = ({ flows, isLoading, error,
             : 'gba:translate-x-full gba:opacity-0 gba:w-0 gba:pointer-events-none'
         }`}
       >
-        {selectedFlow && (
-          <FlowDetailDialog flow={selectedFlow} onClose={() => setSelectedFlow(null)} accessToken={accessToken} />
-        )}
+        {selectedFlow && <FlowDetailDialog flow={selectedFlow} onClose={handleCloseFlow} accessToken={accessToken} />}
       </div>
     </div>
   )
