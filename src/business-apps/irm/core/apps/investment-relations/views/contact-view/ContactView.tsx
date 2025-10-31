@@ -7,7 +7,6 @@ import { ContactStatistics } from './components/ContactStatistics'
 import { AppAction } from '@/components/app-action/AppAction'
 import { AppActionMenu } from '@/components/app-action-menu/AppActionMenu'
 import { FlowContextName } from '@/common/types/FlowRegistryTypes'
-import { navigateTo } from '@/common/utils/navigationUtils'
 import { getTranslationFromI18nKeyAndLabel } from '@/common/utils/windowUtils'
 import { useContactData } from './hooks/useContactData'
 import { useContactFilterOptions } from './hooks/useContactFilterOptions'
@@ -68,8 +67,10 @@ export const ContactView: React.FC<ContactViewProps> = context => {
   }, [contactData.data])
 
   // Handle row click
+  // Disable row click navigation to allow AppActionMenu flows to open modals
   const handleRowClick = (contact: InvestmentContact) => {
-    navigateTo(`/platform/irm/contact-record?contactId=${contact.id}`)
+    // Don't navigate - allows action menu flows to work properly
+    console.log('Contact selected:', contact.id)
   }
 
   // Initial loading state
@@ -109,13 +110,14 @@ export const ContactView: React.FC<ContactViewProps> = context => {
         onSectionChange={() => {}} // Single tab, no section change needed
         primaryAction={
           <AppAction
-            contextsArray={[FlowContextName.createInvestmentContact]}
+            contextsArray={[FlowContextName.investmentContactCreate]}
+            externalContextData={{}}
             accessToken={accessToken}
             data-testid="add-contact-action"
             emptyStateBehavior="hide"
             deferMainContextRequestsUntilClick={false}
           >
-            <Button size="sm" variant="default" data-testid="add-contact-button" type="button">
+            <Button variant="default" data-testid="add-contact-button">
               <Plus size={16} />
               {getTranslationFromI18nKeyAndLabel('crm:contact.addContact', 'Add Contact')}
             </Button>

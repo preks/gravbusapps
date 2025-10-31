@@ -7,7 +7,6 @@ import { AccountStatistics } from './components/AccountStatistics'
 import { AppAction } from '@/components/app-action/AppAction'
 import { AppActionMenu } from '@/components/app-action-menu/AppActionMenu'
 import { FlowContextName } from '@/common/types/FlowRegistryTypes'
-import { navigateTo } from '@/common/utils/navigationUtils'
 import { getTranslationFromI18nKeyAndLabel } from '@/common/utils/windowUtils'
 import { useAccountData } from './hooks/useAccountData'
 import { useAccountFilterOptions } from './hooks/useAccountFilterOptions'
@@ -87,8 +86,10 @@ export const AccountView: React.FC<AccountViewProps> = context => {
   }, [accountData.data])
 
   // Handle row click
+  // Disable row click navigation to allow AppActionMenu flows to open modals
   const handleRowClick = (account: InvestmentAccount) => {
-    navigateTo(`/platform/irm/account-record?accountId=${account.id}`)
+    // Don't navigate - allows action menu flows to work properly
+    console.log('Account selected:', account.id)
   }
 
   // Initial loading state
@@ -128,13 +129,14 @@ export const AccountView: React.FC<AccountViewProps> = context => {
         onSectionChange={() => {}} // Single tab, no section change needed
         primaryAction={
           <AppAction
-            contextsArray={[FlowContextName.createInvestmentAccount]}
+            contextsArray={[FlowContextName.investmentAccountCreate]}
+            externalContextData={{}}
             accessToken={accessToken}
             data-testid="add-account-action"
             emptyStateBehavior="hide"
             deferMainContextRequestsUntilClick={false}
           >
-            <Button size="sm" variant="default" data-testid="add-account-button" type="button">
+            <Button variant="default" data-testid="add-account-button">
               <Plus size={16} />
               {getTranslationFromI18nKeyAndLabel('crm:account.addAccount', 'Add Account')}
             </Button>

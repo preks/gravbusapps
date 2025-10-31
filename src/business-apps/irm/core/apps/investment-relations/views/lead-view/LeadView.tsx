@@ -14,7 +14,6 @@ import { AppAction } from '@/components/app-action/AppAction'
 import { AppActionMenu } from '@/components/app-action-menu/AppActionMenu'
 import { FlowContextName } from '@/common/types/FlowRegistryTypes'
 import { getTranslationFromI18nKeyAndLabel } from '@/common/utils/windowUtils'
-import { navigateTo } from '@/common/utils/navigationUtils'
 
 export type LeadViewProps = BusinessAppContextProps
 
@@ -150,10 +149,11 @@ export const LeadView: React.FC<LeadViewProps> = context => {
     setSelectedLead(lead)
   }, [])
 
-  // Handle row click - navigate to lead record
+  // Handle row click - open lead details sheet (no navigation)
   const handleRowClick = useCallback(
     (lead: InvestmentLead) => {
-      navigateTo(`/platform/irm/lead-record?leadId=${lead.id}`)
+      // Don't navigate - this allows AppActionMenu flows to open modals
+      // and row clicks will open the detail sheet
       handleSelectLead(lead)
     },
     [handleSelectLead]
@@ -250,12 +250,13 @@ export const LeadView: React.FC<LeadViewProps> = context => {
         // Primary action - Add Lead
         primaryAction={
           <AppAction
-            contextsArray={[FlowContextName.createInvestmentLead]}
+            contextsArray={[FlowContextName.investmentLeadCreate]}
+            externalContextData={{}}
             accessToken={accessToken}
             emptyStateBehavior="hide"
             deferMainContextRequestsUntilClick={false}
           >
-            <Button variant="default" size="sm">
+            <Button variant="default">
               <Plus className="gba:w-4 gba:h-4" />
               {getTranslationFromI18nKeyAndLabel('crm:lead.addLead', 'Add Lead')}
             </Button>

@@ -129,7 +129,15 @@ export const GET_INVESTMENT_CONTACTS = (variables: InvestmentContactQueryVariabl
   const where = buildInvestmentContactWhereCondition(variables)
 
   const orderByClause = variables.orderBy?.length
-    ? `orderBy: [${variables.orderBy.map(o => `{ ${o.field}: ${o.direction} }`).join(', ')}]`
+    ? `orderBy: [${variables.orderBy
+        .map(o => {
+          const f = o.field
+          if (f === 'ownerEmployee') {
+            return `{ ownerEmployee: { displayName: ${o.direction} } }`
+          }
+          return `{ ${f}: ${o.direction} }`
+        })
+        .join(', ')}]`
     : 'orderBy: [{ fullName: ASC }]'
 
   return `

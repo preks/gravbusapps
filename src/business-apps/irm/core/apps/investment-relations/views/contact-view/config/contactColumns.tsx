@@ -125,7 +125,7 @@ export const createContactColumns = (): ColumnDef<InvestmentContact>[] => [
     }
   },
   {
-    id: 'owner',
+    id: 'ownerEmployee',
     accessorFn: row => row.ownerEmployee?.displayName || '',
     header: 'Owner',
     size: 180,
@@ -202,6 +202,7 @@ export const createContactSortableColumns = () => {
     { id: 'phone', label: 'Phone' },
     { id: 'jobPosition', label: 'Position' },
     { id: 'department', label: 'Department' },
+    { id: 'ownerEmployee', label: 'Owner' },
     { id: 'createdAt', label: 'Created Date' },
     { id: 'updatedAt', label: 'Updated Date' }
   ]

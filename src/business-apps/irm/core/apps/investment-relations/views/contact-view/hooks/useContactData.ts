@@ -62,8 +62,8 @@ export function useContactData(context: BusinessAppContextProps): UseContactData
     'type',
     'jobPosition',
     'department',
-    'owner',
-    'created'
+    'ownerEmployee',
+    'createdAt'
   ])
 
   // Track initial loading separately from subsequent operations
