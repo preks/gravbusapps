@@ -14,16 +14,8 @@ import { CatalogEntry } from '@/common/types/CatalogTypes'
 import { FlowTags } from '@/business-apps/flow/types'
 import { getTranslationFromI18nKeyAndLabel } from '@/common/utils/windowUtils'
 
-// Extended interface to handle mixed tag formats
-interface MixedFormatTags {
-  [key: string]: string | string[] | undefined
-  app?: string
-  serviceCategory?: string | string[]
-  digitalWorkplaceCategory?: string | string[]
-}
-
 interface TagConfigurationProps {
-  tags?: MixedFormatTags
+  tags?: FlowTags
   onTagsChange: (tags: FlowTags) => void
   accessToken: string
   'data-testid'?: string
@@ -134,7 +126,6 @@ export const TagConfiguration: React.FC<TagConfigurationProps> = ({
         setIsLoadingDigitalWorkplaceCategories(true)
         setError(null)
 
-        console.log('[TagConfiguration] Fetching DigitalWorkplaceFlowCategory catalog...')
         const response = await catalogClient.getCatalogEntriesList(
           { catalogIdentifier: 'DigitalWorkplaceFlowCategory', version: '1' },
           {
@@ -144,10 +135,9 @@ export const TagConfiguration: React.FC<TagConfigurationProps> = ({
           }
         )
 
-        console.log('[TagConfiguration] Digital Workplace categories loaded:', response.data?.length || 0)
         setDigitalWorkplaceCategoryEntries(response.data || [])
       } catch (err) {
-        console.error('[TagConfiguration] Error loading digital workplace category catalog:', err)
+        console.error('Error loading digital workplace category catalog:', err)
         setError('Failed to load digital workplace category entries')
       } finally {
         setIsLoadingDigitalWorkplaceCategories(false)
@@ -186,7 +176,7 @@ export const TagConfiguration: React.FC<TagConfigurationProps> = ({
       }
     }
 
-    onTagsChange(newTags as FlowTags)
+    onTagsChange(newTags)
   }
 
   // Handle service category change
@@ -201,7 +191,7 @@ export const TagConfiguration: React.FC<TagConfigurationProps> = ({
       newTags.serviceCategory = value
     }
 
-    onTagsChange(newTags as FlowTags)
+    onTagsChange(newTags)
   }
 
   // Handle digital workplace category change
@@ -216,7 +206,7 @@ export const TagConfiguration: React.FC<TagConfigurationProps> = ({
       newTags.digitalWorkplaceCategory = value
     }
 
-    onTagsChange(newTags as FlowTags)
+    onTagsChange(newTags)
   }
 
   // Format catalog entry for display
