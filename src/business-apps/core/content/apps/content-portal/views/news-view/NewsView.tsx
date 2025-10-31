@@ -1,14 +1,14 @@
 import React, { useState, useMemo } from 'react'
 import { useTranslation, Button, Alert, AlertTitle, AlertDescription } from '@newwork/nw-design-system'
 import { useContentEntries, useUserContentReactions, toIntranetContent } from '@/common/data/content'
-import { ContentRole } from '@/common/data/content/types/contentEnums'
+import { ContentRole, ContentGroup } from '@/common/data/content/types/contentEnums'
 import ContentCard from '../../components/cards/ContentCard'
 import SearchInput from '../../components/shared/SearchInput'
 import NavigationTagList from '../../components/shared/NavigationTagList'
 import Banner, { BannerVariant } from '../../components/shared/Banner'
 import { AppAction } from '@/components/app-action'
 import { FlowContextName } from '@/common/types/FlowRegistryTypes'
-import { NEWS_CATEGORIES, ALL_TAG, contentGroupMapper, NEWS } from '../../constants/contentConstants'
+import { NEWS_CATEGORIES, ALL_TAG } from '../../constants/contentConstants'
 import { updateTags } from '../../utils/contentUtils'
 import { BusinessAppContextProps } from '@/common/BusinessAppContext'
 import translations from '../../_i18n'
@@ -46,7 +46,7 @@ const NewsView: React.FC<NewsViewProps> = ({
   const queryParams = useMemo(
     () => ({
       role: ContentRole.ROOT,
-      contentGroupRef: contentGroupMapper[NEWS],
+      contentGroupRef: ContentGroup.NEWS,
       search: searchQuery,
       limit,
       offset,
@@ -160,7 +160,7 @@ const NewsView: React.FC<NewsViewProps> = ({
               <SearchInput onSearch={handleSearch} />
               <AppAction
                 contextsArray={[FlowContextName.contentEntryCreate]}
-                externalContextData={{ contentGroup: contentGroupMapper[NEWS] }}
+                externalContextData={{ contentGroup: ContentGroup.NEWS }}
                 accessToken={accessToken}
                 emptyStateBehavior="enable"
                 deferMainContextRequestsUntilClick

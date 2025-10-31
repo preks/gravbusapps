@@ -83,10 +83,19 @@ const buildContentEntryWhereClause = (params: ContentEntryQueryParams): string =
 
 /**
  * Build ORDER BY clause
+ * Supports both direct field sorting and aggregate sorting
  */
 const buildOrderByClause = (params: ContentEntryQueryParams): string => {
   const sortBy = params.sortBy || 'createdAt'
   const sortOrder = params.sortOrder || 'DESC'
+
+  // Handle aggregate sorting (e.g., "contentEntryReactionAggregate.count")
+  if (sortBy.includes('.')) {
+    const [aggregateName, aggregateField] = sortBy.split('.')
+    return `orderBy: { ${aggregateName}: { ${aggregateField}: ${sortOrder} } }`
+  }
+
+  // Regular field sorting
   return `orderBy: { ${sortBy}: ${sortOrder} }`
 }
 

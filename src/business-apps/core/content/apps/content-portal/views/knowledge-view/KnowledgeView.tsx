@@ -1,13 +1,12 @@
 import React, { useState, useMemo } from 'react'
 import { useTranslation, Button, Alert, AlertTitle, AlertDescription, Card } from '@newwork/nw-design-system'
 import { useContentEntries, useUserContentReactions, toIntranetContent } from '@/common/data/content'
-import { ContentRole } from '@/common/data/content/types/contentEnums'
+import { ContentRole, ContentGroup } from '@/common/data/content/types/contentEnums'
 import ContentCard from '../../components/cards/ContentCard'
 import SearchInput from '../../components/shared/SearchInput'
 import Banner, { BannerVariant } from '../../components/shared/Banner'
 import { AppAction } from '@/components/app-action'
 import { FlowContextName } from '@/common/types/FlowRegistryTypes'
-import { contentGroupMapper, KNOWLEDGE_BASE } from '../../constants/contentConstants'
 import { BusinessAppContextProps } from '@/common/BusinessAppContext'
 import { useKnowledgeCategories } from '../../hooks/useKnowledgeCategories'
 import { BookOpen, ChevronRight, Folder } from 'lucide-react'
@@ -47,7 +46,7 @@ const KnowledgeView: React.FC<KnowledgeViewProps> = ({
   const queryParams = useMemo(
     () => ({
       role: ContentRole.ROOT,
-      contentGroupRef: contentGroupMapper[KNOWLEDGE_BASE],
+      contentGroupRef: ContentGroup.KNOWLEDGE,
       categoryRefs: selectedCategoryRef ? [selectedCategoryRef] : undefined,
       search: searchQuery,
       limit,
@@ -127,15 +126,13 @@ const KnowledgeView: React.FC<KnowledgeViewProps> = ({
         <div className="gba:mb-6 gba:py-6 gba:flex gba:justify-between gba:items-center gba:gap-4">
           <div className="gba:flex gba:items-center gba:gap-3">
             <BookOpen className="gba:w-8 gba:h-8 gba:text-primary" />
-            <h1 className="gba:text-3xl gba:font-bold gba:text-foreground">
-              {t('knowledge-base-title', 'Knowledge Base')}
-            </h1>
+            <h1 className="gba:text-3xl gba:font-bold gba:text-foreground">{t('knowledge-welcome-title')}</h1>
           </div>
           <div className="gba:flex gba:gap-2 gba:items-center">
             <SearchInput onSearch={handleSearch} placeholder={t('search_knowledge')} className="gba:w-[300px]" />
             <AppAction
               contextsArray={[FlowContextName.contentEntryCreate]}
-              externalContextData={{ contentGroup: contentGroupMapper[KNOWLEDGE_BASE] }}
+              externalContextData={{ contentGroup: ContentGroup.KNOWLEDGE }}
               accessToken={accessToken}
               emptyStateBehavior="enable"
               deferMainContextRequestsUntilClick
@@ -152,11 +149,11 @@ const KnowledgeView: React.FC<KnowledgeViewProps> = ({
           <div className="gba:sticky gba:top-4 gba:h-fit">
             <Card className="gba:p-4">
               <h3 className="gba:text-sm gba:font-semibold gba:mb-4 gba:text-muted-foreground gba:uppercase">
-                {t('categories', 'Categories')}
+                {t('categories')}
               </h3>
 
               {categoriesLoading ? (
-                <div className="gba:text-sm gba:text-muted-foreground gba:py-2">{t('loading', 'Loading...')}</div>
+                <div className="gba:text-sm gba:text-muted-foreground gba:py-2">{t('loading')}</div>
               ) : (
                 <nav className="gba:space-y-1">
                   <button
@@ -170,7 +167,7 @@ const KnowledgeView: React.FC<KnowledgeViewProps> = ({
                   >
                     <span className="gba:flex gba:items-center gba:gap-2">
                       <Folder className="gba:w-4 gba:h-4" />
-                      {t('all_articles', 'All Articles')}
+                      {t('all_articles')}
                     </span>
                     <ChevronRight className="gba:w-4 gba:h-4" />
                   </button>
@@ -207,7 +204,7 @@ const KnowledgeView: React.FC<KnowledgeViewProps> = ({
                   onClick={() => handleCategoryClick(null)}
                   className="gba:hover:text-foreground gba:transition-colors"
                 >
-                  {t('knowledge', 'Knowledge')}
+                  {t('knowledge')}
                 </button>
                 <ChevronRight className="gba:w-4 gba:h-4" />
                 <span className="gba:text-foreground gba:font-medium">{selectedCategory.value}</span>

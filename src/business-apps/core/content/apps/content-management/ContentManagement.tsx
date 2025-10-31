@@ -1,73 +1,252 @@
-import React, { useState, useMemo } from 'react'
+import React, { useState, useCallback } from 'react'
 import { BusinessAppContextProps } from '@/common/BusinessAppContext'
-import { useTranslation } from 'react-i18next'
-import { Spinner, Alert, AlertTitle, AlertDescription, Button } from '@newwork/nw-design-system'
-import { useContentEntries } from '@/common/data/content'
-import ContentListView from './components/ContentListView'
+import { DataDisplay, DataTable, Button, Sheet, SheetContent, SheetHeader, SheetTitle } from '@newwork/nw-design-system'
+import { useContentData } from './hooks/useContentData'
+import { createContentColumns, createContentSortableColumns } from './config/contentColumns'
+import { contentFilterConfigAll, contentFilterConfigSpecific } from './config/contentFilters'
+import { AppAction } from '@/components/app-action/AppAction'
+import { FlowContextName } from '@/common/types/FlowRegistryTypes'
+import { PlusIcon } from '@phosphor-icons/react'
+import type { ContentEntry } from '@/common/data/content/types/contentTypes'
 
 type ContentManagementProps = BusinessAppContextProps
 
 const ContentManagement: React.FC<ContentManagementProps> = context => {
-  const { t } = useTranslation('content')
-  const [pagination, setPagination] = useState({ pageSize: 20, page: 1 })
-  const [search, setSearch] = useState('')
-  const [sorter, setSorter] = useState<{ field: string; order: 'ascend' | 'descend' }>({
-    field: 'createdAt',
-    order: 'descend'
-  })
+  const { accessToken } = context
 
-  const offset = (pagination.page - 1 || 0) * pagination.pageSize
+  // Section state
+  const [currentSection, setCurrentSection] = useState<'all' | 'news' | 'knowledge' | 'document' | 'question'>('all')
+  const [selectedContent, setSelectedContent] = useState<ContentEntry | null>(null)
 
-  // Build query params for central data hook
-  const queryParams = useMemo(
-    () => ({
-      limit: pagination.pageSize,
-      offset,
-      search,
-      sortBy: sorter.field,
-      sortOrder: sorter.order === 'ascend' ? 'ASC' : 'DESC'
-    }),
-    [pagination.pageSize, offset, search, sorter.field, sorter.order]
-  )
+  // Data hooks for each section - each maintains its own state
+  const allContent = useContentData({ type: 'all', accessToken: accessToken || '' })
+  const newsContent = useContentData({ type: 'news', accessToken: accessToken || '' })
+  const knowledgeContent = useContentData({ type: 'knowledge', accessToken: accessToken || '' })
+  const documentContent = useContentData({ type: 'document', accessToken: accessToken || '' })
+  const questionContent = useContentData({ type: 'question', accessToken: accessToken || '' })
 
-  // Use central content data hook
-  const { entries, totalCount, isLoading, error, refetch } = useContentEntries(queryParams, context.accessToken)
+  // Get current section data
+  const current =
+    currentSection === 'all'
+      ? allContent
+      : currentSection === 'news'
+        ? newsContent
+        : currentSection === 'knowledge'
+          ? knowledgeContent
+          : currentSection === 'document'
+            ? documentContent
+            : questionContent
 
-  if (error) {
-    return (
-      <div className="gba:p-6" data-testid="content-management-error">
-        <Alert variant="destructive">
-          <AlertTitle>{t('error_loading_contents')}</AlertTitle>
-          <AlertDescription>
-            <Button onClick={refetch} variant="outline" className="gba:mt-2">
-              {t('retry')}
-            </Button>
-          </AlertDescription>
-        </Alert>
-      </div>
-    )
+  // Create columns
+  const columns = createContentColumns({ accessToken: accessToken || '' })
+
+  // Handle section change
+  const handleSectionChange = useCallback((section: string) => {
+    setCurrentSection(section as 'all' | 'news' | 'knowledge' | 'document' | 'question')
+  }, [])
+
+  // Handle content selection
+  const handleSelectContent = useCallback((entry: ContentEntry) => {
+    setSelectedContent(entry)
+  }, [])
+
+  // Get filter configuration based on current section
+  const getFilterConfig = () => {
+    return currentSection === 'all' ? contentFilterConfigAll : contentFilterConfigSpecific
   }
 
   return (
-    <div className="gba:px-7 gba:pt-6" data-testid="content-management">
-      {isLoading && (
-        <div className="gba:flex gba:justify-center gba:items-center gba:py-10">
-          <Spinner />
+    <div className="gba:p-6" data-testid="content-management">
+      {/* Header */}
+      <div className="gba:mb-8" data-testid="content-management-header">
+        <div className="gba:flex gba:justify-between gba:items-start">
+          <div>
+            <h1 className="gba:text-4xl gba:font-bold gba:text-black gba:mb-3 gba:tracking-tight">
+              Content Management
+            </h1>
+            <p className="gba:text-lg gba:text-gray-500 gba:font-normal gba:leading-relaxed">
+              Manage and moderate content entries across all groups
+            </p>
+          </div>
         </div>
-      )}
-      {!isLoading && (
-        <ContentListView
-          entries={entries}
-          totalCount={totalCount}
-          pagination={pagination}
-          setPagination={setPagination}
-          search={search}
-          setSearch={setSearch}
-          sorter={sorter}
-          setSorter={setSorter}
-          accessToken={context.accessToken || ''}
+      </div>
+
+      {/* Data Display with Multiple Sections */}
+      <DataDisplay
+        // Section tabs with counts - each section maintains its own count
+        titleSections={[
+          {
+            id: 'all',
+            label: 'All Content',
+            metadata: {
+              count: allContent.total,
+              subtitle: 'All content types'
+            }
+          },
+          {
+            id: 'news',
+            label: 'News',
+            metadata: {
+              count: newsContent.total,
+              subtitle: 'News articles'
+            }
+          },
+          {
+            id: 'knowledge',
+            label: 'Knowledge',
+            metadata: {
+              count: knowledgeContent.total,
+              subtitle: 'Knowledge base'
+            }
+          },
+          {
+            id: 'document',
+            label: 'Documents',
+            metadata: {
+              count: documentContent.total,
+              subtitle: 'Document library'
+            }
+          },
+          {
+            id: 'question',
+            label: 'Questions',
+            metadata: {
+              count: questionContent.total,
+              subtitle: 'Q&A forum'
+            }
+          }
+        ]}
+        currentSection={currentSection}
+        onSectionChange={handleSectionChange}
+        // Primary action - Add Content
+        primaryAction={
+          <AppAction
+            contextsArray={[FlowContextName.contentEntryCreate]}
+            externalContextData={{}}
+            accessToken={accessToken || ''}
+            emptyStateBehavior="hide"
+            deferMainContextRequestsUntilClick={false}
+          >
+            <Button variant="default">
+              <PlusIcon className="gba:w-4 gba:h-4" />
+              Add Content
+            </Button>
+          </AppAction>
+        }
+        // Search
+        searchValue={current.search}
+        searchPlaceholder="Search content..."
+        onSearchChange={current.setSearch}
+        // Filters
+        filters={current.filters}
+        filterConfiguration={getFilterConfig()}
+        onFilterChange={current.setFilters}
+        enableLiveFiltering={true}
+        filterSheetTitle="Filter Content"
+        filterSheetDescription="Apply filters to narrow down the content list"
+        toolbarDensity="default"
+        // Sorting
+        sorting={current.sorting}
+        sortableColumns={createContentSortableColumns()}
+        onSortingChange={current.setSorting}
+        // Column visibility
+        availableColumns={columns.map(col => ({
+          id: col.id!,
+          label: col.header as string
+        }))}
+        visibleColumns={current.visibleColumns}
+        onVisibleColumnsChange={current.setVisibleColumns}
+        // Selection & bulk actions
+        selectedCount={current.selectedRows.length}
+        bulkActions={[
+          {
+            id: 'export',
+            label: 'Export Selected',
+            onClick: () => console.log('Export selected:', current.selectedRows)
+          },
+          {
+            id: 'delete',
+            label: 'Delete Selected',
+            onClick: () => console.log('Delete selected:', current.selectedRows)
+          }
+        ]}
+        onClearSelection={() => current.setSelectedRows([])}
+      >
+        {/* DataTable dynamically renders based on current section */}
+        <DataTable<ContentEntry>
+          data={current.data}
+          columns={columns.filter(col => current.visibleColumns.includes(col.id!))}
+          loading={current.loading}
+          error={current.error?.message}
+          totalCount={current.total}
+          sorting={current.sorting}
+          onSortingChange={current.setSorting}
+          pagination={current.pagination}
+          onPaginationChange={current.setPagination}
+          selectedRows={current.selectedRows}
+          onSelectionChange={current.setSelectedRows}
+          enablePagination
+          enableSorting
+          enableSelection={false}
+          enableColumnPinning
+          enableResizing={false}
+          rowsPerPageOptions={[10, 20, 50, 100]}
+          showPageNumbers
+          maxVisiblePages={7}
+          emptyMessage="No content entries found"
+          onRowClick={handleSelectContent}
+          data-testid={`content-table-${currentSection}`}
         />
-      )}
+      </DataDisplay>
+
+      {/* Content Details Sheet */}
+      <Sheet
+        open={!!selectedContent}
+        onOpenChange={open => {
+          if (!open) setSelectedContent(null)
+        }}
+        title="Content Details"
+      >
+        <SheetContent className="gba:!w-[600px] gba:sm:!w-[600px] gba:!max-w-[90vw] gba:p-0 gba:flex gba:flex-col">
+          <SheetHeader className="gba:px-6 gba:py-6 gba:border-b gba:border-border gba:shrink-0">
+            <SheetTitle className="gba:text-xl gba:font-semibold gba:text-left">
+              {selectedContent?.title || 'Content Details'}
+            </SheetTitle>
+          </SheetHeader>
+          <div className="gba:flex-1 gba:overflow-auto gba:px-6 gba:py-4">
+            {selectedContent ? (
+              <div className="gba:space-y-4">
+                <div>
+                  <h3 className="gba:text-sm gba:font-medium gba:text-muted-foreground">Description</h3>
+                  <p className="gba:mt-1">{selectedContent.description || 'No description'}</p>
+                </div>
+                <div>
+                  <h3 className="gba:text-sm gba:font-medium gba:text-muted-foreground">Author</h3>
+                  <p className="gba:mt-1">
+                    {selectedContent.creatorEmployee?.displayName ||
+                      selectedContent.creatorEmployee?.firstName ||
+                      'Unknown'}
+                  </p>
+                </div>
+                <div>
+                  <h3 className="gba:text-sm gba:font-medium gba:text-muted-foreground">Created</h3>
+                  <p className="gba:mt-1">{new Date(selectedContent.createdAt).toLocaleString()}</p>
+                </div>
+                {selectedContent.reactionCount !== undefined && (
+                  <div>
+                    <h3 className="gba:text-sm gba:font-medium gba:text-muted-foreground">Engagement</h3>
+                    <p className="gba:mt-1">
+                      {selectedContent.reactionCount} reactions, {selectedContent.commentCount || 0} comments
+                    </p>
+                  </div>
+                )}
+              </div>
+            ) : (
+              <div className="gba:text-center gba:text-muted-foreground">No content selected</div>
+            )}
+          </div>
+        </SheetContent>
+      </Sheet>
     </div>
   )
 }

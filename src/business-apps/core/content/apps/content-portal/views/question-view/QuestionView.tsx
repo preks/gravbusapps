@@ -2,14 +2,14 @@ import React, { useState, useMemo } from 'react'
 import { useTranslation, Button, Alert, AlertTitle, AlertDescription, Badge } from '@newwork/nw-design-system'
 import { MessageCircle, Eye } from 'lucide-react'
 import { useContentEntries, toIntranetContent, useUserContentReactions } from '@/common/data/content'
-import { ContentRole } from '@/common/data/content/types/contentEnums'
+import { ContentRole, ContentGroup } from '@/common/data/content/types/contentEnums'
 import { VoteButtons, type VoteState } from '@/common/components/common-content'
 import SearchInput from '../../components/shared/SearchInput'
 import NavigationTagList from '../../components/shared/NavigationTagList'
 import Banner, { BannerVariant } from '../../components/shared/Banner'
 import { AppAction } from '@/components/app-action'
 import { FlowContextName } from '@/common/types/FlowRegistryTypes'
-import { QUESTION_CATEGORIES, ALL_TAG, contentGroupMapper, QUESTION } from '../../constants/contentConstants'
+import { QUESTION_CATEGORIES, ALL_TAG } from '../../constants/contentConstants'
 import { updateTags } from '../../utils/contentUtils'
 import translations from '../../_i18n'
 import { navigateTo, buildPlatformUrl } from '@/common/utils/navigationUtils'
@@ -56,7 +56,7 @@ const QuestionView: React.FC<QuestionViewProps> = ({
   const queryParams = useMemo(
     () => ({
       role: ContentRole.ROOT,
-      contentGroupRef: contentGroupMapper[QUESTION],
+      contentGroupRef: ContentGroup.QUESTION,
       search: searchQuery,
       limit,
       offset,
@@ -210,7 +210,7 @@ const QuestionView: React.FC<QuestionViewProps> = ({
               <SearchInput onSearch={handleSearch} placeholder={t('search_questions')} />
               <AppAction
                 contextsArray={[FlowContextName.contentEntryCreate]}
-                externalContextData={{ contentGroup: contentGroupMapper[QUESTION] }}
+                externalContextData={{ contentGroup: ContentGroup.QUESTION }}
                 accessToken={accessToken}
                 emptyStateBehavior="enable"
                 deferMainContextRequestsUntilClick

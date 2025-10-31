@@ -1,9 +1,6 @@
 import React from 'react'
 import { ContentEntry } from '@/common/data/content/types/contentTypes'
-import {
-  QUESTION_MODULE,
-  KNOWLEDGE_BASE_MODULE
-} from '@/business-apps/core/content/apps/content-portal/constants/contentConstants'
+import { ContentGroup } from '@/common/data/content/types/contentEnums'
 import ArticleView from './ArticleView'
 import QuestionView from './QuestionView'
 import KnowledgeArticleView from './KnowledgeArticleView'
@@ -29,8 +26,8 @@ const ContentPage: React.FC<ContentPageProps> = ({
   reactionCatalogMap
 }) => {
   // Determine which view to render based on contentGroupRef
-  const isQuestion = item.contentGroupRef === QUESTION_MODULE
-  const isKnowledge = item.contentGroupRef === KNOWLEDGE_BASE_MODULE
+  const isQuestion = item.contentGroupRef === ContentGroup.QUESTION
+  const isKnowledge = item.contentGroupRef === ContentGroup.KNOWLEDGE
 
   if (isQuestion) {
     return (
