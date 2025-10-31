@@ -124,6 +124,15 @@ export const GET_INVESTMENT_LEAD_PREFILL_DATA = `
       requiredCapitalAmount
       forecastedProfitAmount
       annualNetColdRent
+      
+      # Real Estate Specific Fields
+      buildingYear
+      size
+      sizeMeasurementUnitRef
+      sizeMeasurementUnit {
+        id
+        value
+      }
     }
   }
 `
