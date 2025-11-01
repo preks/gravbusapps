@@ -21,3 +21,7 @@ search = Căutare
 # Common messages
 no_results = Nu s-au găsit rezultate
 no_data = Nu sunt date disponibile
+items-count = { $count ->
+    [one] { $count } item selected
+   *[other] { $count } items selected
+}

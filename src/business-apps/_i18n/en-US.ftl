@@ -21,3 +21,7 @@ search = Search
 # Common messages
 no_results = No results found
 no_data = No data available
+items-count = { $count ->
+    [one] { $count } item selected
+   *[other] { $count } items selected
+}

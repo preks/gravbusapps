@@ -9,11 +9,14 @@ import NavigationTagList from '../../components/shared/NavigationTagList'
 import Banner, { BannerVariant } from '../../components/shared/Banner'
 import { AppAction } from '@/components/app-action'
 import { FlowContextName } from '@/common/types/FlowRegistryTypes'
-import { QUESTION_CATEGORIES, ALL_TAG } from '../../constants/contentConstants'
 import { updateTags } from '../../utils/contentUtils'
 import translations from '../../_i18n'
 import { navigateTo, buildPlatformUrl } from '@/common/utils/navigationUtils'
 import type { UserInfoProps } from '@/common/BusinessAppContext'
+
+// Local constants
+const ALL_TAG = 'All'
+const QUESTION_CATEGORIES = ['Technical', 'Process', 'General']
 
 interface QuestionViewProps {
   accessToken?: string

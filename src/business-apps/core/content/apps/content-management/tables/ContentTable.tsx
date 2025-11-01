@@ -57,5 +57,4 @@ export const ContentTable: React.FC<ContentTableProps> = ({ type, accessToken, o
     />
   )
 }
-
 export default ContentTable

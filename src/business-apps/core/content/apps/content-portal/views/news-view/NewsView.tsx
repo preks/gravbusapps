@@ -8,10 +8,13 @@ import NavigationTagList from '../../components/shared/NavigationTagList'
 import Banner, { BannerVariant } from '../../components/shared/Banner'
 import { AppAction } from '@/components/app-action'
 import { FlowContextName } from '@/common/types/FlowRegistryTypes'
-import { NEWS_CATEGORIES, ALL_TAG } from '../../constants/contentConstants'
 import { updateTags } from '../../utils/contentUtils'
 import { BusinessAppContextProps } from '@/common/BusinessAppContext'
 import translations from '../../_i18n'
+
+// Local constants
+const ALL_TAG = 'All'
+const NEWS_CATEGORIES = ['Achievements', 'Company Updates', 'Tech News']
 
 interface NewsViewProps extends BusinessAppContextProps {
   hideBanner?: boolean

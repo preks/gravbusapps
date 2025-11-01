@@ -1,4 +1,3 @@
-import { ALL_TAG, MAX_SIZE, MAX_IMAGE_SIZE_MB } from '../constants/contentConstants'
 import type { TFunction } from 'i18next'
 import { Content } from '../types/content.types'
 import { toast } from 'sonner'
@@ -10,6 +9,13 @@ const SHARES_WEIGHT = 3
 
 // Reading time constants
 const WORDS_PER_MINUTE = 225
+
+// File size constants
+const MAX_IMAGE_SIZE_MB = 1
+const MAX_SIZE = MAX_IMAGE_SIZE_MB * 1024 * 1024 // 1MB in bytes
+
+// Tag constants
+const ALL_TAG = 'All'
 
 export const copyUrlToClipboard = (message: string, contentId?: string) => {
   const url = contentId ? `${window.location.href}/${contentId}` : window.location.href
