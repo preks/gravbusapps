@@ -93,9 +93,10 @@ terms-of-service =
     line breaks and formatting.
 
 ## 11. SPECIAL CHARACTERS
-# Escaping special characters
-curly-braces = Use \{ and \} for literal braces
-backslash = Path: C:\\Users\\Documents
+# Using quoted text to escape special characters
+curly-braces = Use {"{"} and {"}"} for literal braces
+backslash = Path: {"C:\\Users\\Documents"}
+non-breaking-space = Privacy{"\u00A0"}Policy
 
 ## 12. COMMENTS
 # This is a comment - it won't be shown to users

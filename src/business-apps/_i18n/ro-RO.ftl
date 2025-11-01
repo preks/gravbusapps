@@ -93,9 +93,10 @@ terms-of-service =
     întreruperile de linie și formatarea.
 
 ## 11. CARACTERE SPECIALE
-# Escapare caractere speciale
-curly-braces = Folosește \{ și \} pentru acolade literale
-backslash = Cale: C:\\Users\\Documents
+# Utilizare text citat pentru caractere speciale
+curly-braces = Folosește {"{"} și {"}"} pentru acolade literale
+backslash = Cale: {"C:\\Users\\Documents"}
+non-breaking-space = Confidențialitate{"\u00A0"}Politică
 
 ## 12. COMENTARII
 # Acesta este un comentariu - nu va fi afișat utilizatorilor

@@ -91,9 +91,10 @@ terms-of-service =
     Zeilenumbrüche und Formatierung beibehält.
 
 ## 11. SONDERZEICHEN
-# Escaping von Sonderzeichen
-curly-braces = Verwende \{ und \} für echte geschweifte Klammern
-backslash = Pfad: C:\\Benutzer\\Dokumente
+# Verwendung von quoted text für Sonderzeichen
+curly-braces = Verwende {"{"} und {"}"} für echte geschweifte Klammern
+backslash = Pfad: {"C:\\Benutzer\\Dokumente"}
+non-breaking-space = Datenschutz{"\u00A0"}Richtlinie
 
 ## 12. KOMMENTARE
 # Dies ist ein Kommentar - wird Benutzern nicht angezeigt
