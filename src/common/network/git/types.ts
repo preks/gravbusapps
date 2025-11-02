@@ -28,6 +28,12 @@ export interface GitFileContent {
 export interface GitCommitResult {
   sha?: string
   url?: string
+  message?: string
+}
+
+export interface GitPushResult {
+  success: boolean
+  sha?: string
 }
 
 export interface GitPullRequest {
@@ -58,9 +64,23 @@ export interface GitClient {
   readFile(path: string, branch: string): Promise<GitFileContent>
 
   /**
-   * Write/update file content
+   * Write/update file content (creates a commit)
    */
   writeFile(branch: string, path: string, content: string, message: string): Promise<GitCommitResult>
+
+  /**
+   * Commit multiple files at once
+   */
+  commitFiles(
+    branch: string,
+    files: Array<{ path: string; content: string }>,
+    message: string
+  ): Promise<GitCommitResult>
+
+  /**
+   * Push commits to remote
+   */
+  push(branch: string): Promise<GitPushResult>
 
   /**
    * Ensure a branch exists (create if not)

@@ -38,6 +38,17 @@ export function setFileMeta(ast: F.Resource, meta: FileMeta) {
   else ast.body.unshift(comment)
 }
 
+/**
+ * Update file metadata (non-destructive merge)
+ */
+export function updateFileMeta(ast: F.Resource, meta: Partial<FileMeta>): F.Resource {
+  const existing = getFileMeta(ast) || {}
+  const updated = { ...existing, ...meta }
+  const cloned = parseFTL(serializeFTL(ast))
+  setFileMeta(cloned, updated)
+  return cloned
+}
+
 export function listMessageIds(ast: F.Resource): string[] {
   const ids: string[] = []
 

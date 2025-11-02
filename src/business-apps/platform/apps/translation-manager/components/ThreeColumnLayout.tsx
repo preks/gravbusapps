@@ -31,7 +31,7 @@ const ThreeColumnLayout: React.FC<ThreeColumnLayoutProps> = ({ scopes, translati
   // Get current scope
   const currentScope = useMemo(() => scopes.find(s => s.path === selectedScope), [scopes, selectedScope])
 
-  // Get all keys for selected scope
+  // Get all keys for selected scope with review status
   const keys = useMemo(() => {
     if (!currentScope) return []
 
@@ -46,12 +46,23 @@ const ThreeColumnLayout: React.FC<ThreeColumnLayoutProps> = ({ scopes, translati
 
     return Array.from(allKeys)
       .sort()
-      .map(id => ({
-        id,
-        hasIssues: false, // TODO: Implement issue detection
-        isComplete: true // TODO: Implement completion check
-      }))
-  }, [currentScope, translationFiles.files])
+      .map(id => {
+        // Check if key needs review (any file needs review)
+        const needsReview = currentScope.files.some(filePath => {
+          const file = translationFiles.files.get(filePath)
+          return file?.needsReview || false
+        })
+
+        // Check if key is reviewed (in cache)
+        const isReviewed = translationCache.isKeyReviewed(id)
+
+        return {
+          id,
+          needsReview,
+          isReviewed
+        }
+      })
+  }, [currentScope, translationFiles.files, translationCache])
 
   // Get patterns for selected key (ALL locales or filtered)
   const { localePatterns, availableVariables, allLocales } = useMemo(() => {
@@ -113,11 +124,15 @@ const ThreeColumnLayout: React.FC<ThreeColumnLayoutProps> = ({ scopes, translati
   const handlePatternChange = (locale: string, newPattern: any) => {
     if (!selectedKey || !currentScope) return
 
-    // Cache the change
-    translationCache.cacheTranslation(selectedKey, locale, newPattern)
+    // Find file path
+    const filePath = currentScope.files.find(f => f.includes(`${locale}.ftl`)) || ''
+    if (!filePath) return
+
+    // Cache the change WITH filePath for tracking touched files
+    translationCache.cacheTranslation(selectedKey, locale, newPattern, filePath)
 
     // Also update in translationFiles for immediate UI feedback
-    const file = translationFiles.files.get(currentScope.files.find(f => f.includes(`${locale}.ftl`)) || '')
+    const file = translationFiles.files.get(filePath)
 
     if (file) {
       const updatedAST = parseFTL(file.content)
@@ -193,7 +208,7 @@ const ThreeColumnLayout: React.FC<ThreeColumnLayoutProps> = ({ scopes, translati
       {/* Main Content */}
       <div className="gba:flex gba:gap-4 gba:flex-1 gba:overflow-hidden">
         {/* Column 1: File Tree */}
-        <div className="gba:w-64 gba:flex-shrink-0">
+        <div className="gba:w-64 gba:flex-shrink-0 gba:overflow-y-auto">
           <ScopeTree
             scopes={scopes}
             isLoading={isLoading}
@@ -209,7 +224,7 @@ const ThreeColumnLayout: React.FC<ThreeColumnLayoutProps> = ({ scopes, translati
         {viewMode === 'single' && selectedScope && (
           <>
             {/* Column 2: Key List */}
-            <div className="gba:w-80 gba:flex-shrink-0">
+            <div className="gba:w-80 gba:flex-shrink-0 gba:overflow-y-auto">
               <TranslationKeyList
                 keys={keys}
                 selectedKey={selectedKey}
@@ -221,7 +236,7 @@ const ThreeColumnLayout: React.FC<ThreeColumnLayoutProps> = ({ scopes, translati
 
             {/* Column 3: Editor Panel */}
             {selectedKey && (
-              <div className="gba:flex-1">
+              <div className="gba:flex-1 gba:overflow-y-auto">
                 <TranslationEditorPanel
                   keyId={selectedKey}
                   localePatterns={localePatterns}
@@ -238,7 +253,7 @@ const ThreeColumnLayout: React.FC<ThreeColumnLayoutProps> = ({ scopes, translati
 
         {/* View Mode: All Keys Table */}
         {viewMode === 'table' && selectedScope && currentScope && (
-          <div className="gba:flex-1">
+          <div className="gba:flex-1 gba:overflow-y-auto">
             <TranslationsTable
               scope={currentScope}
               translationFiles={translationFiles}

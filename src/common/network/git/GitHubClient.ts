@@ -1,4 +1,12 @@
-import type { GitClient, GitConfig, GitTreeEntry, GitFileContent, GitCommitResult, GitPullRequest } from './types'
+import type {
+  GitClient,
+  GitConfig,
+  GitTreeEntry,
+  GitFileContent,
+  GitCommitResult,
+  GitPullRequest,
+  GitPushResult
+} from './types'
 
 /**
  * GitHubClient - Implements Git operations for GitHub REST API v3
@@ -69,6 +77,16 @@ export class GitHubClient implements GitClient {
 
   // @ts-expect-error - Placeholder implementation
   async writeFile(): Promise<GitCommitResult> {
+    throw new Error('GitHubClient: Not implemented yet')
+  }
+
+  // @ts-expect-error - Placeholder implementation
+  async commitFiles(): Promise<GitCommitResult> {
+    throw new Error('GitHubClient: Not implemented yet')
+  }
+
+  // @ts-expect-error - Placeholder implementation
+  async push(): Promise<GitPushResult> {
     throw new Error('GitHubClient: Not implemented yet')
   }
 

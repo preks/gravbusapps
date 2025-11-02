@@ -1,4 +1,12 @@
-import type { GitClient, GitConfig, GitTreeEntry, GitFileContent, GitCommitResult, GitPullRequest } from './types'
+import type {
+  GitClient,
+  GitConfig,
+  GitTreeEntry,
+  GitFileContent,
+  GitCommitResult,
+  GitPullRequest,
+  GitPushResult
+} from './types'
 
 /**
  * BitbucketClient - Implements Git operations for Bitbucket Cloud API v2
@@ -101,6 +109,37 @@ export class BitbucketClient implements GitClient {
   }
 
   /**
+   * Ensure a branch exists, create if not
+   */
+  async ensureBranch(branchName: string, fromBranch?: string): Promise<void> {
+    try {
+      // Check if branch exists
+      await this.getBranchCommit(branchName)
+      console.log(`[BitbucketClient] Branch ${branchName} already exists`)
+    } catch {
+      // Branch doesn't exist, create it
+      console.log(`[BitbucketClient] Creating branch ${branchName} from ${fromBranch || this.config.branch}`)
+
+      const sourceBranch = fromBranch || this.config.branch
+      const sourceCommit = await this.getBranchCommit(sourceBranch)
+
+      const url = `${this.api}/repositories/${this.config.workspace}/${this.config.repo}/refs/branches`
+      await this.fetch(url, {
+        method: 'POST',
+        body: JSON.stringify({
+          name: branchName,
+          target: { hash: sourceCommit }
+        })
+      })
+
+      // Clear cache and fetch new branch
+      this.branchCommitCache.delete(branchName)
+      await this.getBranchCommit(branchName)
+      console.log(`[BitbucketClient] Branch ${branchName} created successfully`)
+    }
+  }
+
+  /**
    * Get tree structure recursively
    * Optimized to fetch all content in minimal requests
    */
@@ -200,22 +239,36 @@ export class BitbucketClient implements GitClient {
   }
 
   /**
-   * Ensure branch exists, create if not
+   * Commit multiple files at once
+   * Note: Bitbucket API requires individual commits per file
    */
-  async ensureBranch(branch: string, fromBranch: string): Promise<void> {
-    try {
-      await this.getBranchCommit(branch)
-      console.log(`[BitbucketClient] Branch "${branch}" already exists`)
-    } catch {
-      console.log(`[BitbucketClient] Creating branch "${branch}" from "${fromBranch}"`)
-      const keepFile = '.i18n-keep'
-      await this.writeFile(
-        branch,
-        keepFile,
-        `Branch created at ${new Date().toISOString()}`,
-        `chore: create branch ${branch}`
-      )
+  async commitFiles(
+    branch: string,
+    files: Array<{ path: string; content: string }>,
+    message: string
+  ): Promise<GitCommitResult> {
+    console.log(`[BitbucketClient] commitFiles: ${files.length} files to branch ${branch}`)
+
+    // Bitbucket doesn't support batch commits via API, so we commit each file
+    // The last commit result will be returned
+    let lastResult: GitCommitResult = {}
+
+    for (const file of files) {
+      lastResult = await this.writeFile(branch, file.path, file.content, message)
     }
+
+    return { ...lastResult, message }
+  }
+
+  /**
+   * Push commits to remote
+   * Note: Bitbucket Cloud API auto-pushes on writeFile, so this is a no-op
+   */
+  async push(branch: string): Promise<GitPushResult> {
+    console.log(`[BitbucketClient] push: branch ${branch} (auto-pushed by API)`)
+    // Bitbucket Cloud API automatically pushes when using writeFile
+    // No explicit push needed
+    return { success: true }
   }
 
   /**

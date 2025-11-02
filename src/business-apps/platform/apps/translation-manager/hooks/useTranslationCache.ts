@@ -17,6 +17,7 @@ interface TranslationCache {
   scopePath: string
   translations: CachedTranslation[]
   reviews: CachedReview[]
+  touchedFiles: string[] // Track which files have been edited
 }
 
 const CACHE_KEY = 'translation-manager-cache'
@@ -39,19 +40,19 @@ export function useTranslationCache(scopePath: string | null) {
       if (stored) {
         const allCaches: TranslationCache[] = JSON.parse(stored)
         const scopeCache = allCaches.find(c => c.scopePath === scopePath)
-        setCache(scopeCache || { scopePath, translations: [], reviews: [] })
+        setCache(scopeCache || { scopePath, translations: [], reviews: [], touchedFiles: [] })
       } else {
-        setCache({ scopePath, translations: [], reviews: [] })
+        setCache({ scopePath, translations: [], reviews: [], touchedFiles: [] })
       }
     } catch (e) {
       console.error('[useTranslationCache] Failed to load cache:', e)
-      setCache({ scopePath, translations: [], reviews: [] })
+      setCache({ scopePath, translations: [], reviews: [], touchedFiles: [] })
     }
   }, [scopePath])
 
   // Save translation change to cache
   const cacheTranslation = useCallback(
-    (keyId: string, locale: string, value: any) => {
+    (keyId: string, locale: string, value: any, filePath: string) => {
       if (!cache) return
 
       const updated: TranslationCache = {
@@ -59,7 +60,8 @@ export function useTranslationCache(scopePath: string | null) {
         translations: [
           ...cache.translations.filter(t => !(t.keyId === keyId && t.locale === locale)),
           { keyId, locale, value, timestamp: Date.now() }
-        ]
+        ],
+        touchedFiles: cache.touchedFiles.includes(filePath) ? cache.touchedFiles : [...cache.touchedFiles, filePath]
       }
 
       setCache(updated)
@@ -110,6 +112,12 @@ export function useTranslationCache(scopePath: string | null) {
     return cache.reviews.filter(r => r.reviewed).map(r => r.keyId)
   }, [cache])
 
+  // Get touched files
+  const getTouchedFiles = useCallback((): string[] => {
+    if (!cache) return []
+    return cache.touchedFiles
+  }, [cache])
+
   // Clear cache for current scope
   const clearCache = useCallback(() => {
     if (!cache) return
@@ -121,7 +129,7 @@ export function useTranslationCache(scopePath: string | null) {
         const filtered = allCaches.filter(c => c.scopePath !== cache.scopePath)
         localStorage.setItem(CACHE_KEY, JSON.stringify(filtered))
       }
-      setCache({ scopePath: cache.scopePath, translations: [], reviews: [] })
+      setCache({ scopePath: cache.scopePath, translations: [], reviews: [], touchedFiles: [] })
     } catch (e) {
       console.error('[useTranslationCache] Failed to clear cache:', e)
     }
@@ -133,6 +141,7 @@ export function useTranslationCache(scopePath: string | null) {
     getCachedTranslation,
     isKeyReviewed,
     getReviewedKeys,
+    getTouchedFiles,
     clearCache
   }
 }
@@ -154,5 +163,42 @@ function saveToLocalStorage(updated: TranslationCache) {
     localStorage.setItem(CACHE_KEY, JSON.stringify(allCaches))
   } catch (e) {
     console.error('[saveToLocalStorage] Failed to save cache:', e)
+  }
+}
+
+/**
+ * Get all touched files across all scopes (for global review status)
+ */
+export function getAllTouchedFiles(): string[] {
+  try {
+    const stored = localStorage.getItem(CACHE_KEY)
+    if (!stored) return []
+
+    const allCaches: TranslationCache[] = JSON.parse(stored)
+    const allFiles = allCaches.flatMap(c => c.touchedFiles)
+    return [...new Set(allFiles)] // Remove duplicates
+  } catch (e) {
+    console.error('[getAllTouchedFiles] Failed to load cache:', e)
+    return []
+  }
+}
+
+/**
+ * Get all reviewed keys for a specific file path
+ */
+export function getReviewedKeysForFile(filePath: string): string[] {
+  try {
+    const stored = localStorage.getItem(CACHE_KEY)
+    if (!stored) return []
+
+    const allCaches: TranslationCache[] = JSON.parse(stored)
+    // Find the scope cache that contains this file
+    const scopeCache = allCaches.find(c => c.touchedFiles.includes(filePath))
+    if (!scopeCache) return []
+
+    return scopeCache.reviews.filter(r => r.reviewed).map(r => r.keyId)
+  } catch (e) {
+    console.error('[getReviewedKeysForFile] Failed to load cache:', e)
+    return []
   }
 }

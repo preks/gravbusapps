@@ -49,25 +49,25 @@ const TranslationEditorPanel: React.FC<TranslationEditorPanelProps> = ({
       </CardHeader>
 
       <CardContent className="gba:flex-1 gba:overflow-y-auto gba:p-6 gba:space-y-4">
-        {/* All locales */}
+        {/* All locales - ALL EDITABLE */}
         {localePatterns.map(({ locale, pattern, isSource, needsReview }) => (
           <div key={locale} className="gba:space-y-2">
             <div className="gba:flex gba:items-center gba:gap-2">
               <Badge variant={isSource ? 'default' : 'secondary'} className="gba:text-xs gba:font-mono">
                 {locale}
               </Badge>
-              {isSource && <span className="gba:text-xs gba:text-muted-foreground">Source (read-only)</span>}
+              {isSource && <span className="gba:text-xs gba:text-muted-foreground">Source</span>}
               {needsReview && (
                 <Badge variant="warning" className="gba:text-xs">
                   Needs Review
                 </Badge>
               )}
             </div>
-            <div className={`gba:p-4 gba:rounded-md ${isSource ? 'gba:bg-muted' : 'gba:border gba:bg-background'}`}>
+            <div className="gba:p-4 gba:rounded-md gba:border gba:bg-background">
               <EditableTranslationField
                 value={pattern}
                 onChange={newPattern => onPatternChange(locale, newPattern)}
-                disabled={isSource}
+                disabled={false}
                 availableVariables={availableVariables}
               />
             </div>

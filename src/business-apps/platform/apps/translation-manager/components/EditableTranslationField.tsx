@@ -29,7 +29,15 @@ export const EditableTranslationField: React.FC<EditableTranslationFieldProps> =
 
       for (const elem of pattern.elements) {
         if (elem.type === 'TextElement') {
-          html += elem.value
+          // Preserve trailing/leading spaces with &nbsp;
+          let text = elem.value
+          // Replace trailing spaces with nbsp
+          text = text.replace(/ +$/g, match => '&nbsp;'.repeat(match.length))
+          // Replace leading spaces with nbsp
+          text = text.replace(/^ +/g, match => '&nbsp;'.repeat(match.length))
+          // Replace multiple consecutive spaces with nbsp (keep readability)
+          text = text.replace(/  +/g, match => '&nbsp;'.repeat(match.length))
+          html += text
         } else if (elem.type === 'Placeable') {
           const expr = elem.expression
 

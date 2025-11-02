@@ -3,8 +3,8 @@ import { Card, CardContent, Input, Badge } from '@newwork/nw-design-system'
 
 interface TranslationKey {
   id: string
-  hasIssues: boolean
-  isComplete: boolean
+  needsReview: boolean
+  isReviewed: boolean
 }
 
 interface TranslationKeyListProps {
@@ -55,13 +55,13 @@ const TranslationKeyList: React.FC<TranslationKeyListProps> = ({
               <code className="gba:text-xs gba:flex-1 gba:truncate">{key.id}</code>
 
               <div className="gba:flex gba:gap-1">
-                {key.hasIssues && (
-                  <Badge variant="destructive" className="gba:text-xs gba:px-1 gba:py-0">
-                    !
+                {key.needsReview && (
+                  <Badge variant="warning" className="gba:text-xs gba:px-1.5 gba:py-0">
+                    Review
                   </Badge>
                 )}
-                {key.isComplete && (
-                  <Badge variant="success" className="gba:text-xs gba:px-1 gba:py-0">
+                {key.isReviewed && (
+                  <Badge variant="success" className="gba:text-xs gba:px-1.5 gba:py-0">
                     ✓
                   </Badge>
                 )}

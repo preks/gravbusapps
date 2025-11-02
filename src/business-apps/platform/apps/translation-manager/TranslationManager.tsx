@@ -1,10 +1,17 @@
-import React, { useMemo, useEffect } from 'react'
+import React, { useMemo, useEffect, useState } from 'react'
 import { Card, CardContent, Button, Alert, AlertDescription, Progress } from '@newwork/nw-design-system'
 import ThreeColumnLayout from './components/ThreeColumnLayout'
+import ReviewStatusBar from './components/ReviewStatusBar'
 import type { GitConfig } from '@/common/network/git'
+import { useGitClient } from '@/common/network/git'
 import { useTranslationTree } from './hooks/useTranslationTree'
 import { useTranslationFiles } from './hooks/useTranslationFiles'
+import { useSaveTranslations } from './hooks/useSaveTranslations'
+import { usePublishTranslations } from './hooks/usePublishTranslations'
+import { getAllTouchedFiles, getReviewedKeysForFile } from './hooks/useTranslationCache'
 import { env } from '@/common/env/EnvUtils'
+
+const REVIEW_BRANCH = 'feature/NO-TICKET_translation_review'
 
 export type CommitTemplates = {
   branchTemplate: string
@@ -64,6 +71,8 @@ function getEnvConfig(): GitConfig | null {
 }
 
 const TranslationManager: React.FC<TranslationManagerProps> = ({ initial }) => {
+  const [successMessage, setSuccessMessage] = useState<string | null>(null)
+
   // Stable config with useMemo
   const config = useMemo(() => {
     const envConfig = getEnvConfig()
@@ -73,11 +82,59 @@ const TranslationManager: React.FC<TranslationManagerProps> = ({ initial }) => {
     return { ...envConfig, ...initial } as GitConfig
   }, [initial])
 
+  // Git client
+  const gitClient = useGitClient(config)
+
   // Use translation tree hook
   const translationTree = useTranslationTree(config, config?.branch || 'main')
 
   // Use translation files hook (for parallel loading progress)
   const translationFiles = useTranslationFiles(config)
+
+  // Use save and publish hooks
+  const { save, isSaving, error: saveError } = useSaveTranslations(config, translationFiles)
+  const { publish, isPublishing, error: publishError } = usePublishTranslations(config, translationFiles)
+
+  // Calculate review status
+  const { overallStatus, branchStatus } = useMemo(() => {
+    const touchedFiles = getAllTouchedFiles()
+
+    // Overall status (all files in repo)
+    const allFiles = translationFiles.files
+    const totalFiles = allFiles.size
+    const filesWithMeta = Array.from(allFiles.values()).filter(f => f.meta)
+    const reviewedFiles = filesWithMeta.filter(f => !f.needsReview).length
+    const needsReview = filesWithMeta.filter(f => f.needsReview).length
+
+    // Branch status (only touched files)
+    const touchedFilesCount = touchedFiles.length
+    const reviewedTouchedFiles = touchedFiles.filter(filePath => {
+      const file = allFiles.get(filePath)
+      if (!file) return false
+
+      // File is reviewed if all keys are marked as reviewed
+      const reviewedKeys = getReviewedKeysForFile(filePath)
+      const allKeys = [...file.ast.body].filter((e: any) => e.type === 'Message').map((e: any) => e.id.name)
+
+      return allKeys.length > 0 && allKeys.every(key => reviewedKeys.includes(key))
+    }).length
+
+    const canCreatePR = touchedFilesCount > 0 && reviewedTouchedFiles === touchedFilesCount
+
+    return {
+      overallStatus: { totalFiles, reviewedFiles, needsReview },
+      branchStatus: { touchedFiles: touchedFilesCount, reviewedFiles: reviewedTouchedFiles, canCreatePR }
+    }
+  }, [translationFiles.files])
+
+  // Ensure review branch exists on mount
+  useEffect(() => {
+    if (gitClient && config) {
+      gitClient.ensureBranch(REVIEW_BRANCH, config.branch).catch(err => {
+        console.error('[TranslationManager] Failed to ensure review branch:', err)
+      })
+    }
+  }, [gitClient, config])
 
   // Load ALL files immediately after tree is loaded (ONCE!)
   useEffect(() => {
@@ -87,6 +144,28 @@ const TranslationManager: React.FC<TranslationManagerProps> = ({ initial }) => {
       translationFiles.loadFiles(allFiles, config.branch)
     }
   }, [translationTree.isLoading, translationTree.scopes.length, config?.branch]) // ← NO translationFiles!
+
+  // Handle commit (save + push)
+  const handleCommit = async () => {
+    try {
+      await save()
+      setSuccessMessage(`✓ Changes committed to ${REVIEW_BRANCH}`)
+      setTimeout(() => setSuccessMessage(null), 5000)
+    } catch (err) {
+      console.error('[TranslationManager] Commit failed:', err)
+    }
+  }
+
+  // Handle PR creation (save + push + PR)
+  const handleCreatePR = async () => {
+    try {
+      const result = await publish()
+      setSuccessMessage(`✓ PR created: ${result.prUrl}`)
+      setTimeout(() => setSuccessMessage(null), 10000)
+    } catch (err) {
+      console.error('[TranslationManager] PR creation failed:', err)
+    }
+  }
 
   const handleRefresh = () => {
     window.location.reload()
@@ -112,6 +191,32 @@ const TranslationManager: React.FC<TranslationManagerProps> = ({ initial }) => {
           Refresh
         </Button>
       </div>
+
+      {/* Review Status Bar */}
+      {!translationFiles.isLoading && (
+        <ReviewStatusBar
+          overallStatus={overallStatus}
+          branchStatus={branchStatus}
+          onCommit={handleCommit}
+          onCreatePR={handleCreatePR}
+          isCommitting={isSaving}
+          isCreatingPR={isPublishing}
+        />
+      )}
+
+      {/* Success message */}
+      {successMessage && (
+        <Alert variant="default">
+          <AlertDescription>{successMessage}</AlertDescription>
+        </Alert>
+      )}
+
+      {/* Error messages */}
+      {(saveError || publishError) && (
+        <Alert variant="destructive">
+          <AlertDescription>{saveError || publishError}</AlertDescription>
+        </Alert>
+      )}
 
       {/* Error display */}
       {translationTree.error && (

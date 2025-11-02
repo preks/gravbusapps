@@ -16,7 +16,8 @@ import {
   TableRow,
   TableHead,
   TableCell,
-  Skeleton
+  Skeleton,
+  Badge
 } from '@newwork/nw-design-system'
 import type { TranslationScope } from '../hooks/useTranslationTree'
 import type { UseTranslationFilesResult } from '../hooks/useTranslationFiles'
@@ -24,7 +25,7 @@ import { parseFTL, listMessageIds, getMessagePattern, setMessagePattern, getFile
 import { extractVariablesFromMessage } from '../utils/variableExtractor'
 import { EditableTranslationField } from './EditableTranslationField'
 
-type Row = { id: string; patterns: Record<string, any | null>; variables: string[] }
+type Row = { id: string; patterns: Record<string, any | null>; variables: string[]; needsReview: boolean }
 
 interface TranslationsTableProps {
   scope: TranslationScope
@@ -89,7 +90,15 @@ const TranslationsTable: React.FC<TranslationsTableProps> = ({ scope, translatio
         }
       }
 
-      table.push({ id, patterns, variables: Array.from(allVariables).sort() })
+      table.push({
+        id,
+        patterns,
+        variables: Array.from(allVariables).sort(),
+        needsReview: scope.files.some(filePath => {
+          const file = translationFiles.files.get(filePath)
+          return file?.needsReview || false
+        })
+      })
     }
 
     console.log('[TranslationsTable] Final rows:', table.length)
@@ -180,22 +189,46 @@ const TranslationsTable: React.FC<TranslationsTableProps> = ({ scope, translatio
                 </TableRow>
               </TableHeader>
               <TableBody>
-                {rows.map(r => (
-                  <TableRow key={r.id}>
-                    <TableCell>
-                      <code className="gba:text-xs">{r.id}</code>
-                    </TableCell>
-                    {locales.map(lc => (
-                      <TableCell key={lc}>
-                        <EditableTranslationField
-                          value={r.patterns[lc]}
-                          onChange={newPattern => setCell(r.id, lc, newPattern)}
-                          availableVariables={r.variables}
-                        />
+                {rows.map(r => {
+                  return (
+                    <TableRow key={r.id}>
+                      <TableCell>
+                        <code className="gba:text-xs">{r.id}</code>
                       </TableCell>
-                    ))}
-                  </TableRow>
-                ))}
+                      {locales.map(lc => {
+                        const file = translationFiles.files.get(scope.files.find(f => f.includes(`${lc}.ftl`)) || '')
+                        const needsReview = file?.needsReview || false
+                        const isKeyInReviewedKeys = file?.meta?.reviewedKeys?.includes(r.id) || false
+
+                        return (
+                          <TableCell key={lc}>
+                            <div className="gba:space-y-2">
+                              {/* Status badges per translation */}
+                              <div className="gba:flex gba:gap-1 gba:mb-1">
+                                {needsReview && (
+                                  <Badge variant="warning" className="gba:text-xs gba:px-1.5 gba:py-0">
+                                    Review
+                                  </Badge>
+                                )}
+                                {isKeyInReviewedKeys && (
+                                  <Badge variant="success" className="gba:text-xs gba:px-1.5 gba:py-0">
+                                    ✓
+                                  </Badge>
+                                )}
+                              </div>
+                              {/* Editable field */}
+                              <EditableTranslationField
+                                value={r.patterns[lc]}
+                                onChange={newPattern => setCell(r.id, lc, newPattern)}
+                                availableVariables={r.variables}
+                              />
+                            </div>
+                          </TableCell>
+                        )
+                      })}
+                    </TableRow>
+                  )
+                })}
               </TableBody>
             </Table>
           )}
