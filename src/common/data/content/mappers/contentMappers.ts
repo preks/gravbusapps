@@ -290,7 +290,30 @@ export const filterEntriesByDateRange = (entries: ContentEntry[], startDate?: Da
  * Map ContentEntry to legacy Content format (for backward compatibility)
  * Used during migration period for Intranet views
  */
-export const toIntranetContent = (entry: ContentEntry): any => {
+export interface IntranetContent {
+  articleId: string
+  title: string
+  content: string
+  previewText: string
+  contentImage?: string | null
+  createdAt?: string | null
+  createdAtText?: string
+  timeToRead?: number | null
+  allowReaction: boolean
+  allowComment: boolean
+  reactionsCount: number
+  commentsCount: number
+  feedbacksCount?: number
+  tags: string[]
+  tagNames: string[]
+  categories: string[]
+  contentType?: string
+  authorFullName: string
+  displayAuthor: boolean
+  status?: string
+}
+
+export const toIntranetContent = (entry: ContentEntry): IntranetContent => {
   return {
     articleId: entry.id,
     title: entry.title,
@@ -303,6 +326,7 @@ export const toIntranetContent = (entry: ContentEntry): any => {
     allowComment: entry.allowComment,
     reactionsCount: entry.reactionCount || 0,
     commentsCount: entry.commentCount || 0,
+    feedbacksCount: 0, // TODO: Add view count tracking
     tags: entry.tagNames || [],
     tagNames: entry.tagNames || [],
     categories: entry.categoryNames || [],

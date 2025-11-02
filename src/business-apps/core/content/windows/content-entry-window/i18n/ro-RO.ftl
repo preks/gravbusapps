@@ -1,6 +1,8 @@
 # Actions
 create-content = Creează Conținut
 update-content = Actualizează Conținutul
+upload-image = Încarcă Imagine
+remove-image = Elimină Imaginea
 
 # Fields
 title = Titlu
@@ -16,9 +18,27 @@ author = Autor
 display-author = Afișează Autorul
 allow-comments = Permite Comentarii
 allow-reactions = Permite Reacții
+allow-answers = Permite Răspunsuri
 schedule-publication = Programează Publicarea
 start-date = Data de Început
 end-date = Data de Sfârșit
+description = Descriere
+summary = Rezumat
+summary-placeholder = Rezumat scurt pentru căutare și listări...
+
+# Question-specific fields
+question-title = Titlu Întrebare
+question-title-placeholder = Care este întrebarea ta?
+question-title-hint = Fii specific și clar. Întreabă ca și cum ai întreba o persoană.
+question-details = Detalii Întrebare
+question-details-placeholder = Include toate detaliile relevante, ce ai încercat și contextul specific...
+question-details-hint = Oferă suficient context pentru ca alții să înțeleagă și să răspundă.
+
+# Document-specific fields
+document-area-name = Nume Zonă Documente
+document-area-name-placeholder = de ex., Documente HR, Contracte Juridice, Politici...
+document-area-description-placeholder = Descrieți ce fel de documente vor fi stocate în această zonă...
+document-area-description-hint = Ajută pe alții să înțeleagă scopul acestei zone de documente
 
 # Validations
 title-required = Titlul este obligatoriu

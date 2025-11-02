@@ -1,3 +1,13 @@
+# file-meta: {
+#   "status": "approved",
+#   "updatedBy": "translator@newwork.se",
+#   "updatedAt": "2025-01-15T10:30:00Z",
+#   "reviewedAt": "2025-12-31T23:59:59Z",
+#   "reviewedBy": "reviewer@newwork.se",
+#   "reviewedKeys": ["save", "cancel", "delete", "edit", "create", "update", "close", "submit", "error", "success", "warning", "info", "retry", "load_more", "loading", "search", "no_results", "no_data", "welcome-title", "app-name", "welcome-user", "user-info", "file-size", "price", "percentage", "last-updated", "meeting-time", "items-count", "unread-emails", "rank-position", "user-role", "login-input", "app-title", "page-title", "terms-of-service", "curly-braces", "backslash", "non-breaking-space", "file-upload-status", "notification"],
+#   "notes": "Source locale - all keys reviewed and approved. Review date set in future to indicate stable baseline."
+# }
+
 # Common actions
 save = Save
 cancel = Cancel

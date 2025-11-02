@@ -1,3 +1,13 @@
+# file-meta: {
+#   "status": "proposed",
+#   "updatedBy": "translator-ro@newwork.se",
+#   "updatedAt": "2025-01-25T16:45:00Z",
+#   "reviewedAt": "2025-01-10T12:00:00Z",
+#   "reviewedBy": "reviewer-ro@newwork.se",
+#   "reviewedKeys": [],
+#   "notes": "Recent updates not yet reviewed. File was last reviewed 2 weeks ago but has been updated since then. Needs complete review pass."
+# }
+
 # Common actions
 save = Salvează
 cancel = Anulează

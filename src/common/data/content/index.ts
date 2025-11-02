@@ -11,6 +11,7 @@ export * from './queries'
 
 // Mappers
 export * from './mappers'
+export type { IntranetContent } from './mappers/contentMappers'
 
 // Hooks
 export * from './hooks'

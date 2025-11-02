@@ -10,22 +10,29 @@ import type { ContentEntry } from '@/common/data/content/types/contentTypes'
 export interface DocumentArea extends ContentEntry {
   documentCount: number
   totalSize: number
+  categoryCount: number
 }
 
 /**
  * Hook to fetch document areas (Content Entries)
  * Uses central useContentEntries hook
+ *
+ * @param accessToken - Access token for authentication
+ * @param contentTypeRef - Optional content type filter
+ * @param categoryRefs - Optional category filters (can be multiple)
  */
-export const useDocumentAreas = (accessToken: string) => {
-  // Memoize params to prevent infinite re-renders (like NewsView does)
+export const useDocumentAreas = (accessToken: string, contentTypeRef?: string | null, categoryRefs?: string[]) => {
+  // Memoize params to prevent infinite re-renders
   const queryParams = useMemo(
     () => ({
       role: ContentRole.ROOT,
       contentGroupRef: 'ContentGroup:v1:DOCUMENT',
+      contentTypeRef: contentTypeRef || undefined,
+      categoryRefs: categoryRefs && categoryRefs.length > 0 ? categoryRefs : undefined,
       sortBy: 'title' as const,
       sortOrder: 'ASC' as const
     }),
-    [] // Empty deps - these params never change
+    [contentTypeRef, categoryRefs]
   )
 
   // Fetch Content Entries for DOCUMENTS group
@@ -37,7 +44,8 @@ export const useDocumentAreas = (accessToken: string) => {
       entries.map(entry => ({
         ...entry,
         documentCount: entry.contentDocuments?.length || 0,
-        totalSize: entry.contentDocuments?.reduce((sum, doc) => sum + (doc.fileSize || 0), 0) || 0
+        totalSize: entry.contentDocuments?.reduce((sum, doc) => sum + (doc.fileSize || 0), 0) || 0,
+        categoryCount: entry.contentEntryCategory?.length || 0
       })),
     [entries]
   )
@@ -79,7 +87,7 @@ export const useFolderContents = (accessToken: string, contentEntryId: string | 
       sortBy: 'title' as const,
       sortOrder: 'ASC' as const
     }
-  }, [paramsKey]) // Depends on serialized key, not individual values
+  }, [paramsKey])
 
   // Track if params actually changed
   useEffect(() => {

@@ -1,35 +1,12 @@
 import { useState, useEffect, useCallback } from 'react'
-import { useGraphQLClient } from '@/common/network/graphql/useGraphQLClient'
+import { useCatalogEntries } from '@/common/data/catalog'
 
-// FIXED: Define query inline (old ContentQueries.ts deleted)
-const GET_CONTENT_TYPES_QUERY = `
-  query GetContentTypes {
-    CatalogEntry(
-      where: {
-        catalog: {
-          identifier: { _eq: "ContentType" }
-          version: { _eq: "v1" }
-        }
-        isDeleted: { _neq: true }
-      }
-      orderBy: { displayOrder: ASC }
-    ) {
-      id
-      code
-      value
-      parentEntryId
-    }
-  }
-`
+const CATALOG_IDENTIFIER = 'ContentType'
 
 export interface SelectOption {
   id: string
   name: string
   parentEntryId?: string
-}
-
-interface ContentTypesData {
-  CatalogEntry: { id: string; code: string; value: string; parentEntryId?: string }[] // FIXED: Use CatalogEntry
 }
 
 export interface UseContentTypesResult {
@@ -40,21 +17,15 @@ export interface UseContentTypesResult {
 }
 
 /**
- * Mapper to transform content group IDs to display names
+ * Hook to load Content Types from catalog
+ * Uses central useCatalogEntries hook - no hardcoded mappings
  */
-const contentGroupDisplayMapper: Record<string, string> = {
-  'ContentGroup:v1:KNOWLEDGE': 'Knowledge',
-  'ContentGroup:v1:NEWS': 'News',
-  'ContentGroup:v1:INTRANET': 'Intranet',
-  'ContentGroup:v1:DOCUMENT': 'Document'
-}
-
 export const useContentTypes = (accessToken?: string): UseContentTypesResult => {
   const [typeValues, setTypeValues] = useState<SelectOption[]>([])
   const [isLoading, setIsLoading] = useState(true)
   const [error, setError] = useState<any>(null)
 
-  const graphqlClient = useGraphQLClient(accessToken)
+  const { fetchCatalogEntriesByIdentifier } = useCatalogEntries({ accessToken })
 
   const fetchTypes = useCallback(async () => {
     if (!accessToken) {
@@ -66,22 +37,19 @@ export const useContentTypes = (accessToken?: string): UseContentTypesResult => 
     setError(null)
 
     try {
-      const result = await graphqlClient.request<ContentTypesData>(GET_CONTENT_TYPES_QUERY)
-
-      const types = result?.CatalogEntry || [] // FIXED: Use CatalogEntry
-      const formattedTypes = types.map(entry => {
-        // Map the parent entry ID to a display name if it exists in the mapper
-        const mappedParentId =
-          entry.parentEntryId && entry.parentEntryId in contentGroupDisplayMapper
-            ? contentGroupDisplayMapper[entry.parentEntryId]
-            : entry.parentEntryId
-
-        return {
-          id: entry.id,
-          name: entry.value, // FIXED: Use value (display name)
-          parentEntryId: mappedParentId
-        }
+      const result = await fetchCatalogEntriesByIdentifier(CATALOG_IDENTIFIER, {
+        limit: 100,
+        offset: 0
       })
+
+      // Sort by displayOrder for consistent ordering
+      const sorted = result.entries.sort((a, b) => (a.displayOrder || 0) - (b.displayOrder || 0))
+
+      const formattedTypes = sorted.map(entry => ({
+        id: entry.id,
+        name: entry.value,
+        parentEntryId: entry.parentEntryId
+      }))
 
       setTypeValues(formattedTypes)
     } catch (err) {
@@ -90,7 +58,7 @@ export const useContentTypes = (accessToken?: string): UseContentTypesResult => 
     } finally {
       setIsLoading(false)
     }
-  }, [accessToken, graphqlClient])
+  }, [accessToken, fetchCatalogEntriesByIdentifier])
 
   useEffect(() => {
     fetchTypes()

@@ -1,11 +1,11 @@
-import { mergeTranslations, createPrefixedTranslations, type I18nModule } from '@/common/utils/localizationUtils'
-import parentTranslations from '../../../_i18n'
+import translations from '../../../_i18n'
 
-import deDE from './de-DE.ftl?raw'
 import enUS from './en-US.ftl?raw'
+import deDE from './de-DE.ftl?raw'
 import roRO from './ro-RO.ftl?raw'
 
-const ownTranslations: I18nModule = createPrefixedTranslations(deDE, enUS, roRO, 'core-content-content-entry-window-')
-const entryWindowTranslations: I18nModule = mergeTranslations(parentTranslations, ownTranslations)
-
-export default entryWindowTranslations
+export default {
+  enUS: translations.enUS + '\n' + enUS,
+  deDE: translations.deDE + '\n' + deDE,
+  roRO: translations.roRO + '\n' + roRO
+} as { enUS: string; deDE: string; roRO: string }

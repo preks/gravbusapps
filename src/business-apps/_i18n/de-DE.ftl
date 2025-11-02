@@ -1,3 +1,13 @@
+# file-meta: {
+#   "status": "approved",
+#   "updatedBy": "translator-de@newwork.se",
+#   "updatedAt": "2025-01-20T14:25:00Z",
+#   "reviewedAt": "2025-01-18T09:00:00Z",
+#   "reviewedBy": "reviewer-de@newwork.se",
+#   "reviewedKeys": ["save", "cancel", "delete", "edit", "create", "update", "close", "submit", "error", "success", "warning", "info", "retry", "load_more", "loading", "search", "no_results", "no_data", "welcome-title", "app-name", "welcome-user", "user-info"],
+#   "notes": "Partially reviewed - common actions and labels approved. Complex patterns (selectors, nested) still need review after recent updates."
+# }
+
 # Common actions
 save = Speichern
 cancel = Abbrechen

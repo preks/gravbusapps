@@ -1,6 +1,7 @@
 import { useState, useCallback } from 'react'
 import type { ContentEntry } from '@/common/data/content/types/contentTypes'
 import type { ContentDocument } from '@/common/data/content/types/contentTypes'
+import type { CatalogEntry } from '@/common/network/graphql/commonTypes'
 
 /**
  * Breadcrumb item for navigation
@@ -8,38 +9,90 @@ import type { ContentDocument } from '@/common/data/content/types/contentTypes'
 export interface Breadcrumb {
   id: string
   title: string
-  type: 'area' | 'folder'
+  type: 'type' | 'category' | 'area' | 'folder'
 }
 
 /**
  * Hook for managing document navigation state
  *
- * Handles:
- * - Current document area (Content Entry)
- * - Current folder path
- * - Breadcrumb trail
- * - Navigation actions
+ * Hierarchy:
+ * 1. ContentType (e.g., "Contracts", "Policies")
+ * 2. Categories (optional filtering, multiple per area)
+ * 3. ContentEntries (Document Areas)
+ * 4. ContentDocuments (Folders & Files)
  */
 export const useDocumentNavigation = () => {
+  const [currentType, setCurrentType] = useState<CatalogEntry | null>(null)
+  const [selectedCategories, setSelectedCategories] = useState<string[]>([])
   const [currentArea, setCurrentArea] = useState<ContentEntry | null>(null)
   const [currentFolderId, setCurrentFolderId] = useState<string | null>(null)
   const [breadcrumbs, setBreadcrumbs] = useState<Breadcrumb[]>([])
 
   /**
-   * Select a document area (Content Entry)
-   * Resets folder navigation to root
+   * Select a content type (top level)
+   * Resets all lower levels
    */
-  const selectArea = useCallback((area: ContentEntry) => {
-    setCurrentArea(area)
+  const selectType = useCallback((type: CatalogEntry) => {
+    setCurrentType(type)
+    setSelectedCategories([])
+    setCurrentArea(null)
     setCurrentFolderId(null)
     setBreadcrumbs([
       {
-        id: area.id,
-        title: area.title || 'Untitled Area',
-        type: 'area'
+        id: type.id,
+        title: type.value || 'Untitled Type',
+        type: 'type'
       }
     ])
   }, [])
+
+  /**
+   * Toggle category filter
+   * Multiple categories can be selected
+   */
+  const toggleCategory = useCallback((categoryId: string) => {
+    setSelectedCategories(prev => {
+      const isSelected = prev.includes(categoryId)
+      return isSelected ? prev.filter(id => id !== categoryId) : [...prev, categoryId]
+    })
+    // Note: Categories are filters, not breadcrumb items
+  }, [])
+
+  /**
+   * Clear all category filters
+   */
+  const clearCategories = useCallback(() => {
+    setSelectedCategories([])
+  }, [])
+
+  /**
+   * Select a document area (Content Entry)
+   * Resets folder navigation to root
+   */
+  const selectArea = useCallback(
+    (area: ContentEntry) => {
+      setCurrentArea(area)
+      setCurrentFolderId(null)
+
+      // Build breadcrumbs: type + area
+      const newBreadcrumbs: Breadcrumb[] = []
+      if (currentType) {
+        newBreadcrumbs.push({
+          id: currentType.id,
+          title: currentType.value || 'Untitled Type',
+          type: 'type'
+        })
+      }
+      newBreadcrumbs.push({
+        id: area.id,
+        title: area.title || 'Untitled Area',
+        type: 'area'
+      })
+
+      setBreadcrumbs(newBreadcrumbs)
+    },
+    [currentType]
+  )
 
   /**
    * Navigate into a folder
@@ -61,8 +114,6 @@ export const useDocumentNavigation = () => {
 
   /**
    * Navigate up one level (back button)
-   * If at folder level -> go to parent folder or area root
-   * If at area level -> clear selection
    */
   const navigateUp = useCallback(() => {
     const newBreadcrumbs = breadcrumbs.slice(0, -1)
@@ -70,15 +121,18 @@ export const useDocumentNavigation = () => {
 
     if (newBreadcrumbs.length === 0) {
       // No breadcrumbs left -> clear everything
+      setCurrentType(null)
       setCurrentArea(null)
       setCurrentFolderId(null)
+      setSelectedCategories([])
     } else {
       const lastItem = newBreadcrumbs[newBreadcrumbs.length - 1]
       if (lastItem.type === 'folder') {
-        // Navigate to parent folder
         setCurrentFolderId(lastItem.id)
-      } else {
-        // Navigate to area root (no folder selected)
+      } else if (lastItem.type === 'area') {
+        setCurrentFolderId(null)
+      } else if (lastItem.type === 'type') {
+        setCurrentArea(null)
         setCurrentFolderId(null)
       }
     }
@@ -86,7 +140,6 @@ export const useDocumentNavigation = () => {
 
   /**
    * Navigate to specific breadcrumb item
-   * Used when clicking on breadcrumb links
    */
   const navigateToBreadcrumb = useCallback(
     (index: number) => {
@@ -94,9 +147,13 @@ export const useDocumentNavigation = () => {
       setBreadcrumbs(newBreadcrumbs)
 
       const targetItem = newBreadcrumbs[newBreadcrumbs.length - 1]
-      if (targetItem.type === 'area') {
+
+      if (targetItem.type === 'type') {
+        setCurrentArea(null)
         setCurrentFolderId(null)
-      } else {
+      } else if (targetItem.type === 'area') {
+        setCurrentFolderId(null)
+      } else if (targetItem.type === 'folder') {
         setCurrentFolderId(targetItem.id)
       }
     },
@@ -104,9 +161,11 @@ export const useDocumentNavigation = () => {
   )
 
   /**
-   * Reset navigation (go back to area selection)
+   * Reset navigation (go back to type selection)
    */
   const reset = useCallback(() => {
+    setCurrentType(null)
+    setSelectedCategories([])
     setCurrentArea(null)
     setCurrentFolderId(null)
     setBreadcrumbs([])
@@ -114,11 +173,16 @@ export const useDocumentNavigation = () => {
 
   return {
     // State
+    currentType,
+    selectedCategories,
     currentArea,
     currentFolderId,
     breadcrumbs,
 
     // Actions
+    selectType,
+    toggleCategory,
+    clearCategories,
     selectArea,
     navigateToFolder,
     navigateUp,

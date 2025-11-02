@@ -1,11 +1,11 @@
 import React, { useCallback, useEffect, useState, useRef, useMemo } from 'react'
-import { Content } from '../../types/content.types'
+import type { IntranetContent } from '@/common/data/content/mappers/contentMappers'
 import { useTranslation } from 'react-i18next'
 import { ChevronLeft, ChevronRight } from 'lucide-react'
 import { navigateTo, buildPlatformUrl } from '@/common/utils/navigationUtils'
 
 interface ContentCarouselProps {
-  articles: Content[]
+  articles: IntranetContent[]
   className?: string
   currentTab?: string
 }

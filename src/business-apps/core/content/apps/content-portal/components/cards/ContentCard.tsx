@@ -1,7 +1,7 @@
 import React from 'react'
 import { useTranslation, Badge, Button } from '@newwork/nw-design-system'
 import { MessageCircle, Share2 } from 'lucide-react'
-import { Content } from '../../types/content.types'
+import type { IntranetContent } from '@/common/data/content/mappers/contentMappers'
 import { copyUrlToClipboard, calculateReadingTime } from '../../utils/contentUtils'
 import { navigateTo, buildPlatformUrl } from '@/common/utils/navigationUtils'
 import { ReactionPicker, type ReactionSummary } from '@/common/components/common-content'
@@ -12,9 +12,9 @@ import translations from '../../_i18n'
 export type ContentCardVariant = 'news' | 'knowledge' | 'intranet' | 'document'
 
 interface ContentCardProps extends BusinessAppContextProps {
-  item: Content
+  item: IntranetContent
   variant: ContentCardVariant
-  onClick?: (item: Content) => void
+  onClick?: (item: IntranetContent) => void
   className?: string
   featured?: boolean
   currentTab?: string

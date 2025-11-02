@@ -123,7 +123,7 @@ Intranet
 
 **Main Query:** `GET_ALL_CONTENTS_QUERY`
 
-- Filters: search, articleGroupRef, articleTypeRef, tags, creationDate
+- Filters: search, contentGroupRef, contentTypeRef, tags, creationDate
 - Sorting: field + order (ascend/descend)
 - Pagination: offset + limit
 - Returns: ArticleEmployeeView + Aggregate Count
@@ -144,7 +144,7 @@ const { data, totalCount, isLoading, error, refetch } = useContents(
     offset: 0,
     limit: 20,
     search: 'query',
-    articleGroupRef: 'ArticleGroup:v1:NEWS',
+    contentGroupRef: 'ContentGroup:v1:NEWS',
     sorter: { field: 'createdAt', order: 'descend' }
   },
   accessToken
@@ -286,7 +286,7 @@ Die Content-Plattform benötigt folgende Backend-Endpoints:
 1. `ArticleEmployeeView` - Main content query
 2. `ArticleEmployeeViewAggregate` - Count aggregation
 3. `Tag` - Tags list
-4. `ArticleGroup` - Content groups
+4. `ContentGroup` - Content groups
 5. `ArticleType` - Content types/categories
 
 ### GraphQL Mutations (for Forms - not yet implemented):

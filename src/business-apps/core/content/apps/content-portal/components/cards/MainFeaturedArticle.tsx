@@ -1,5 +1,5 @@
 import React from 'react'
-import { Content } from '../../types/content.types'
+import type { IntranetContent } from '@/common/data/content/mappers/contentMappers'
 import { useTranslation, Badge } from '@newwork/nw-design-system'
 import { MessageSquare, Share2 } from 'lucide-react'
 import { toast } from 'sonner'
@@ -7,8 +7,8 @@ import { navigateTo, buildPlatformUrl } from '@/common/utils/navigationUtils'
 import translations from '../../_i18n'
 
 interface MainFeaturedArticleProps {
-  item: Content
-  onClick?: (item: Content) => void
+  item: IntranetContent
+  onClick?: (item: IntranetContent) => void
   currentTab?: string
   reactionSummary?: { [emoji: string]: { emoji: string; count: number; userReacted: boolean } }
 }

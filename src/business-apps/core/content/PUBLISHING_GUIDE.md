@@ -177,7 +177,7 @@ Die Apps benötigen folgende GraphQL Queries:
 - `ArticleEmployeeView` - Main content query
 - `ArticleEmployeeViewAggregate` - Count aggregation
 - `Tag` - Tags list
-- `ArticleGroup` - Content groups
+- `ContentGroup` - Content groups
 - `ArticleType` - Content types
 
 ### Expected Data
@@ -188,7 +188,7 @@ ArticleEmployeeView {
   title
   previewText
   content
-  articleGroupRef  # "ArticleGroup:v1:NEWS|INTRANET|KNOWLEDGE|DOCUMENT"
+  contentGroupRef  # "ContentGroup:v1:NEWS|INTRANET|KNOWLEDGE|DOCUMENT"
   articleTypeRef   # "ArticleType:v1:CATEGORY_NAME"
   contentImage
   author {
