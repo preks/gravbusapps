@@ -1,4 +1,4 @@
-import React, { useEffect, useRef } from 'react'
+import React, { useEffect, useRef, useCallback } from 'react'
 import { useTranslation } from 'react-i18next'
 import { Button, DateInputField, Divider, InputField, SelectField, Switch } from '@newwork/gravity-ui-catalog'
 import { Form, Row, Col } from 'antd'
@@ -127,6 +127,48 @@ export const FormScreenComponent: React.FC<FormScreenComponentProps> = ({
     positionsCount: positions.length,
     timestamp: new Date().toISOString()
   })
+
+  // Memoize the submit handler to prevent re-creating on every render
+  const handleCreateClick = useCallback(
+    async (e: React.MouseEvent) => {
+      console.log('🔘 Create button clicked')
+      e.stopPropagation()
+      e.preventDefault()
+
+      // Use requestAnimationFrame for smoother visual transition
+      requestAnimationFrame(() => {
+        console.log('📐 First requestAnimationFrame')
+        requestAnimationFrame(async () => {
+          console.log('📐 Second requestAnimationFrame - starting validation')
+          try {
+            // Validate without scroll to prevent DOM jumping
+            await form.validateFields()
+            console.log('✅ Validation passed')
+
+            // Check for expense rule errors
+            if (expenseRuleError) {
+              console.log('❌ Expense rule error exists')
+              return
+            }
+
+            console.log('🚀 Calling handleSubmit')
+            handleSubmit()
+          } catch (errorInfo) {
+            console.log('❌ Validation failed:', errorInfo)
+            // Form validation failed - scroll to first error smoothly
+            const firstErrorField = (errorInfo as any)?.errorFields?.[0]?.name?.[0]
+            if (firstErrorField) {
+              const element = document.querySelector(`[name="${firstErrorField}"]`)
+              if (element) {
+                element.scrollIntoView({ behavior: 'smooth', block: 'center' })
+              }
+            }
+          }
+        })
+      })
+    },
+    [form, expenseRuleError, handleSubmit]
+  )
 
   return (
     <div ref={formRef}>
@@ -437,43 +479,7 @@ export const FormScreenComponent: React.FC<FormScreenComponentProps> = ({
           </Button>
           <Button
             variant="primary"
-            onClick={async e => {
-              console.log('🔘 Create button clicked')
-              e.stopPropagation()
-              e.preventDefault()
-
-              // Use requestAnimationFrame for smoother visual transition
-              requestAnimationFrame(() => {
-                console.log('📐 First requestAnimationFrame')
-                requestAnimationFrame(async () => {
-                  console.log('📐 Second requestAnimationFrame - starting validation')
-                  try {
-                    // Validate without scroll to prevent DOM jumping
-                    await form.validateFields()
-                    console.log('✅ Validation passed')
-
-                    // Check for expense rule errors
-                    if (expenseRuleError) {
-                      console.log('❌ Expense rule error exists')
-                      return
-                    }
-
-                    console.log('🚀 Calling handleSubmit')
-                    handleSubmit()
-                  } catch (errorInfo) {
-                    console.log('❌ Validation failed:', errorInfo)
-                    // Form validation failed - scroll to first error smoothly
-                    const firstErrorField = errorInfo?.errorFields?.[0]?.name?.[0]
-                    if (firstErrorField) {
-                      const element = document.querySelector(`[name="${firstErrorField}"]`)
-                      if (element) {
-                        element.scrollIntoView({ behavior: 'smooth', block: 'center' })
-                      }
-                    }
-                  }
-                })
-              })
-            }}
+            onClick={handleCreateClick}
             disabled={isProcessingFiles}
             className="gba:min-w-[100px] gba:border-2 gba:text-base gba:font-semibold gba:px-4"
             style={{ borderRadius: '22px', width: 'auto', height: '40px' }}
