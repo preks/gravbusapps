@@ -1,0 +1,416 @@
+import type { ColumnDef } from '@tanstack/react-table'
+import { Badge, Avatar, AvatarImage, AvatarFallback } from '@newwork/nw-design-system'
+import { Building2, Calendar } from 'lucide-react'
+import { navigateTo } from '@/common/utils/navigationUtils'
+
+// Generic opportunity interface that both Investment and Customer opportunities implement
+export interface GenericOpportunityForColumns {
+  id: string
+  name: string
+  estimatedAmount?: number | null
+  currency?: { code?: string } | null
+  opportunityPipeline?: { id: string; code?: string; value?: string } | null
+  opportunityPipelineLabel?: string
+  salesPipeline?: { id: string; code?: string; value?: string } | null
+  salesPipelineLabel?: string
+  opportunityPipelineStage?: { id: string; code?: string; value?: string; alternativeCode?: string } | null
+  opportunityPipelineStageLabel?: string
+  salesPipelineStage?: { id: string; code?: string; value?: string; alternativeCode?: string } | null
+  salesPipelineStageLabel?: string
+  opportunityStatus?: { id: string; code?: string; value?: string; alternativeCode?: string } | null
+  opportunityStatusLabel?: string
+  closeDate?: string | null
+  account?: { id: string; name: string; pictureThumbnail?: string | null; pictureThumbnailUrl?: string | null } | null
+  ownerEmployee?: {
+    id: string
+    displayName?: string | null
+    firstName?: string | null
+    lastName?: string | null
+    pictureThumbnail?: string | null
+  } | null
+  createdAt?: string | null
+}
+
+// Helper function to get owner display name
+export const getOwnerName = (opportunity: GenericOpportunityForColumns) => {
+  if (opportunity.ownerEmployee?.displayName) {
+    return opportunity.ownerEmployee.displayName
+  }
+  if (opportunity.ownerEmployee?.firstName || opportunity.ownerEmployee?.lastName) {
+    return `${opportunity.ownerEmployee.firstName || ''} ${opportunity.ownerEmployee.lastName || ''}`.trim()
+  }
+  return '-'
+}
+
+// Helper function to get stage color based on alternativeCode
+export const getStageColor = (
+  alternativeCode?: string
+): 'default' | 'secondary' | 'destructive' | 'outline' | 'success' | 'warning' | 'info' => {
+  if (!alternativeCode) return 'outline'
+
+  switch (alternativeCode.toUpperCase()) {
+    case 'DISCOVERY':
+      return 'info'
+    case 'QUALIFICATION':
+      return 'warning'
+    case 'NEGOTIATION':
+      return 'secondary'
+    case 'CLOSED_WON':
+      return 'success'
+    case 'CLOSED_LOST':
+      return 'destructive'
+    default:
+      return 'outline'
+  }
+}
+
+// Helper function to get status color based on alternativeCode
+export const getStatusColor = (
+  alternativeCode?: string
+): 'default' | 'secondary' | 'destructive' | 'outline' | 'success' | 'warning' | 'info' => {
+  if (!alternativeCode) return 'outline'
+
+  switch (alternativeCode.toUpperCase()) {
+    case 'ACTIVE':
+    case 'IN_PROGRESS':
+    case 'OPEN':
+      return 'info'
+    case 'WON':
+    case 'CLOSED_WON':
+    case 'SUCCESS':
+      return 'success'
+    case 'LOST':
+    case 'CLOSED_LOST':
+    case 'FAILED':
+      return 'destructive'
+    case 'ON_HOLD':
+    case 'PAUSED':
+      return 'warning'
+    case 'QUALIFIED':
+      return 'secondary'
+    default:
+      return 'outline'
+  }
+}
+
+// Extract currency symbol
+export const getCurrencySymbol = (currencyCode?: string): string => {
+  try {
+    const code = currencyCode || 'EUR'
+    const parts = new Intl.NumberFormat(undefined, {
+      style: 'currency',
+      currency: code,
+      currencyDisplay: 'narrowSymbol'
+    }).formatToParts(0)
+    return parts.find(p => p.type === 'currency')?.value || code
+  } catch {
+    return '€'
+  }
+}
+
+export const formatCurrencyNumberOnly = (amount: number, currencyCode?: string): string => {
+  try {
+    const code = currencyCode || 'EUR'
+    const parts = new Intl.NumberFormat(undefined, {
+      style: 'currency',
+      currency: code,
+      minimumFractionDigits: 0,
+      maximumFractionDigits: 2
+    }).formatToParts(amount)
+    return parts
+      .filter(p => p.type !== 'currency')
+      .map(p => p.value)
+      .join('')
+  } catch {
+    return new Intl.NumberFormat(undefined, {
+      minimumFractionDigits: 0,
+      maximumFractionDigits: 2
+    }).format(amount)
+  }
+}
+
+export const formatDate = (dateString: string): string => {
+  try {
+    return new Date(dateString).toLocaleDateString(undefined, {
+      year: 'numeric',
+      month: 'short',
+      day: 'numeric'
+    })
+  } catch {
+    return dateString
+  }
+}
+
+export function createOpportunityColumns<T extends GenericOpportunityForColumns>(
+  buildAccountUrl: (accountId: string) => string
+): ColumnDef<T>[] {
+  return [
+    {
+      id: 'opportunity',
+      accessorKey: 'name',
+      header: 'Opportunity',
+      size: 250,
+      minSize: 200,
+      maxSize: 400,
+      cell: ({ row }) => (
+        <div className="gba:font-medium gba:text-sm gba:truncate" data-testid={`opportunity-name-${row.original.id}`}>
+          {row.original.name}
+        </div>
+      )
+    },
+    {
+      id: 'amount',
+      accessorKey: 'estimatedAmount',
+      header: 'Amount',
+      size: 150,
+      minSize: 120,
+      maxSize: 200,
+      meta: {
+        type: 'currency' as const,
+        currency: 'EUR',
+        align: 'right' as const
+      },
+      cell: ({ row }) => {
+        if (!row.original.estimatedAmount) {
+          return <div className="gba:text-right gba:text-gray-400">-</div>
+        }
+
+        const formattedValue = new Intl.NumberFormat(undefined, {
+          style: 'currency',
+          currency: row.original.currency?.code || 'EUR',
+          minimumFractionDigits: 0,
+          maximumFractionDigits: 0
+        }).format(row.original.estimatedAmount)
+
+        return (
+          <div
+            className="gba:text-right gba:text-sm gba:font-mono gba:truncate"
+            data-testid={`opportunity-amount-${row.original.id}`}
+          >
+            {formattedValue}
+          </div>
+        )
+      }
+    },
+    {
+      id: 'pipeline',
+      accessorKey: 'opportunityPipeline',
+      header: 'Pipeline',
+      size: 150,
+      minSize: 120,
+      maxSize: 200,
+      cell: ({ row }) => (
+        <span className="gba:text-sm gba:truncate gba:block" data-testid={`opportunity-pipeline-${row.original.id}`}>
+          {row.original.opportunityPipelineLabel ||
+            row.original.opportunityPipeline?.value ||
+            row.original.opportunityPipeline?.code ||
+            row.original.salesPipelineLabel ||
+            row.original.salesPipeline?.value ||
+            row.original.salesPipeline?.code ||
+            '-'}
+        </span>
+      )
+    },
+    {
+      id: 'stage',
+      accessorKey: 'opportunityPipelineStage',
+      header: 'Stage',
+      size: 150,
+      minSize: 120,
+      maxSize: 200,
+      cell: ({ row }) => {
+        const stage = row.original.opportunityPipelineStage || row.original.salesPipelineStage
+        const stageLabel =
+          row.original.opportunityPipelineStageLabel ||
+          row.original.salesPipelineStageLabel ||
+          stage?.value ||
+          stage?.code ||
+          '-'
+
+        return (
+          <>
+            {stage ? (
+              <Badge
+                variant={getStageColor(stage?.alternativeCode)}
+                data-testid={`opportunity-stage-${row.original.id}`}
+              >
+                {stageLabel}
+              </Badge>
+            ) : (
+              <span className="gba:text-gray-400">-</span>
+            )}
+          </>
+        )
+      }
+    },
+    {
+      id: 'status',
+      accessorKey: 'opportunityStatus',
+      header: 'Status',
+      size: 120,
+      minSize: 100,
+      maxSize: 150,
+      cell: ({ row }) => (
+        <>
+          {row.original.opportunityStatus ? (
+            <Badge
+              variant={getStatusColor(row.original.opportunityStatus?.alternativeCode)}
+              data-testid={`opportunity-status-${row.original.id}`}
+            >
+              {row.original.opportunityStatusLabel ||
+                row.original.opportunityStatus?.value ||
+                row.original.opportunityStatus?.code ||
+                '-'}
+            </Badge>
+          ) : (
+            <span className="gba:text-gray-400">-</span>
+          )}
+        </>
+      )
+    },
+    {
+      id: 'closeDate',
+      accessorKey: 'closeDate',
+      header: 'Close Date',
+      size: 150,
+      minSize: 130,
+      maxSize: 180,
+      meta: {
+        type: 'date' as const
+      },
+      cell: ({ row }) =>
+        row.original.closeDate ? (
+          <div className="gba:flex gba:items-center gba:gap-2 gba:truncate">
+            <Calendar className="gba:h-4 gba:w-4 gba:text-gray-400 gba:shrink-0" />
+            <span className="gba:text-sm gba:truncate">{formatDate(row.original.closeDate)}</span>
+          </div>
+        ) : (
+          <span className="gba:text-gray-400">-</span>
+        )
+    },
+    {
+      id: 'account',
+      accessorKey: 'account',
+      header: 'Account',
+      size: 200,
+      minSize: 180,
+      maxSize: 280,
+      cell: ({ row }) => {
+        if (!row.original.account) {
+          return <span className="gba:text-gray-400">-</span>
+        }
+
+        const account = row.original.account
+        const imageUrl = account.pictureThumbnail
+          ? `data:image/gif;base64,${account.pictureThumbnail}`
+          : account.pictureThumbnailUrl || undefined
+
+        return (
+          <button
+            type="button"
+            onClick={e => {
+              e.stopPropagation()
+              navigateTo(buildAccountUrl(account.id))
+            }}
+            className="gba:flex gba:items-center gba:gap-3 gba:cursor-pointer gba:group gba:bg-transparent gba:border-0 gba:p-0 gba:w-full gba:text-left"
+            data-testid={`opportunity-account-link-${row.original.id}`}
+          >
+            <Avatar className="gba:w-8 gba:h-8 gba:outline gba:outline-2 gba:outline-offset-2 gba:outline-transparent gba:group-hover:[outline-color:var(--nw-color-primary-500)] gba:transition-all">
+              {imageUrl && <AvatarImage src={imageUrl} alt={account.name} />}
+              <AvatarFallback>
+                <Building2 className="gba:h-4 gba:w-4" />
+              </AvatarFallback>
+            </Avatar>
+            <div className="gba:min-w-0 gba:flex-1">
+              <div className="gba:font-medium gba:truncate gba:text-sm gba:group-hover:gba:text-primary gba:transition-colors">
+                {account.name}
+              </div>
+            </div>
+          </button>
+        )
+      }
+    },
+    {
+      id: 'owner',
+      accessorKey: 'ownerEmployee',
+      header: 'Owner',
+      size: 180,
+      minSize: 160,
+      maxSize: 240,
+      cell: ({ row }) => {
+        if (!row.original.ownerEmployee) {
+          return <span className="gba:text-gray-400">-</span>
+        }
+
+        const owner = row.original.ownerEmployee
+        const imageUrl = owner.pictureThumbnail ? `data:image/gif;base64,${owner.pictureThumbnail}` : undefined
+        const ownerName = getOwnerName(row.original)
+
+        return (
+          <button
+            type="button"
+            onClick={e => {
+              e.stopPropagation()
+              navigateTo(`/platform/employee-record?employeeId=${owner.id}`)
+            }}
+            className="gba:flex gba:items-center gba:gap-3 gba:cursor-pointer gba:group gba:bg-transparent gba:border-0 gba:p-0 gba:w-full gba:text-left"
+            data-testid={`opportunity-owner-link-${row.original.id}`}
+          >
+            <Avatar className="gba:w-8 gba:h-8 gba:outline gba:outline-2 gba:outline-offset-2 gba:outline-transparent gba:group-hover:[outline-color:var(--nw-color-primary-500)] gba:transition-all">
+              {imageUrl && <AvatarImage src={imageUrl} alt={ownerName} />}
+              <AvatarFallback>
+                {ownerName === '-'
+                  ? 'O'
+                  : ownerName
+                      .split(' ')
+                      .map((n: string) => n[0])
+                      .join('')
+                      .toUpperCase()}
+              </AvatarFallback>
+            </Avatar>
+            <div className="gba:min-w-0 gba:flex-1">
+              <div className="gba:font-medium gba:truncate gba:text-sm gba:group-hover:gba:text-primary gba:transition-colors">
+                {ownerName}
+              </div>
+            </div>
+          </button>
+        )
+      }
+    },
+    {
+      id: 'created',
+      accessorKey: 'createdAt',
+      header: 'Created',
+      size: 150,
+      minSize: 130,
+      maxSize: 180,
+      meta: {
+        type: 'date' as const
+      },
+      cell: ({ row }) =>
+        row.original.createdAt ? (
+          <div className="gba:flex gba:items-center gba:gap-2 gba:truncate">
+            <Calendar className="gba:h-4 gba:w-4 gba:text-gray-400 gba:shrink-0" />
+            <span className="gba:text-sm gba:truncate">{formatDate(row.original.createdAt)}</span>
+          </div>
+        ) : (
+          <span className="gba:text-gray-400">-</span>
+        )
+    }
+  ]
+}
+
+export const createOpportunitySortableColumns = () => {
+  // Use column IDs (not GraphQL field names) - mapping happens in OpportunityView
+  return [
+    { id: 'opportunity', label: 'Opportunity' },
+    { id: 'amount', label: 'Amount' },
+    { id: 'pipeline', label: 'Pipeline' },
+    { id: 'stage', label: 'Stage' },
+    { id: 'status', label: 'Status' },
+    { id: 'closeDate', label: 'Close Date' },
+    { id: 'account', label: 'Account' },
+    { id: 'owner', label: 'Owner' },
+    { id: 'created', label: 'Created' }
+  ]
+}
