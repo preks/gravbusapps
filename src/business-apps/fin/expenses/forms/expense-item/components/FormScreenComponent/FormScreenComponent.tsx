@@ -385,9 +385,10 @@ export const FormScreenComponent: React.FC<FormScreenComponentProps> = ({
               }
 
               // Use setTimeout to prevent visual twitch from loading state change
+              // Small delay allows browser to complete click animation
               setTimeout(() => {
                 handleSubmit()
-              }, 0)
+              }, 50)
             } catch {
               // Form validation failed - Ant Design will show the error messages
               // Errors are already displayed on the fields
