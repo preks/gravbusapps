@@ -75,7 +75,8 @@ export const useOpportunityFormFieldClearing = () => {
       const updates: any = {}
       if (formValues.stakePercentage) updates.stakePercentage = ''
       if (formValues.marketValue) updates.marketValue = ''
-      if (formValues.initialInvestmentAmount) updates.initialInvestmentAmount = ''
+      // Note: initialInvestmentAmount is NOT cleared here because it's shared with Real Estate types
+      // It's handled by the dedicated initialInvestmentAmount clearing logic below
 
       if (Object.keys(updates).length > 0) {
         Object.keys(updates).forEach(field => {
@@ -188,7 +189,8 @@ export const useOpportunityFormFieldClearing = () => {
     ) {
       const updates: any = {}
       if (formValues.requiredCapitalAmount) updates.requiredCapitalAmount = ''
-      if (formValues.forecastedProfitAmount) updates.forecastedProfitAmount = ''
+      // Note: forecastedProfitAmount is NOT cleared here because it's shared with Others type
+      // It's handled by the dedicated forecastedProfitAmount clearing logic below
 
       if (Object.keys(updates).length > 0) {
         Object.keys(updates).forEach(field => {

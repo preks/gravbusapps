@@ -123,8 +123,19 @@ export const AppActionMenu: React.FC<AppActionMenuProps> = React.memo(props => {
     [onMenuClose, onOpenChange]
   )
 
+  // Handle click events to prevent propagation
+  const handleContainerClick = React.useCallback((e: React.MouseEvent<HTMLDivElement>) => {
+    e.stopPropagation()
+  }, [])
+
   return (
-    <div data-testid={containerTestId} style={style} onMouseEnter={onMouseEnter} onMouseLeave={onMouseLeave}>
+    <div
+      data-testid={containerTestId}
+      style={style}
+      onMouseEnter={onMouseEnter}
+      onMouseLeave={onMouseLeave}
+      onClick={handleContainerClick}
+    >
       <ActionMenu
         {...actionMenuProps}
         actions={combinedData}
