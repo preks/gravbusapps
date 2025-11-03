@@ -770,7 +770,6 @@ export const ExpenseItemProvider: React.FC<ExpenseItemProviderProps> = ({
   }
 
   const handleSubmitWrapper = async (): Promise<void> => {
-    console.log('📝 handleSubmitWrapper called - starting submission')
     return await handleSubmit(
       form,
       positions,

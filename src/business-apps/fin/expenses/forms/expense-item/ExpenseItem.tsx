@@ -97,16 +97,6 @@ const ExpenseItem: React.FC<BusinessAppContextProps & ExpenseItemProps> = ({
       isEditMode
     } = useExpenseItem()
 
-    // DEBUG: Log when ExpenseItemContent re-renders
-    console.log('🔄 ExpenseItemContent render:', {
-      currentStep,
-      loading,
-      isEditMode,
-      fileListLength: fileList.length,
-      positionsLength: positions.length,
-      timestamp: new Date().toISOString()
-    })
-
     // Modified handleCancel to use onClose callback if provided
     // Do NOT refetch when cancelling to preserve selected items in the wizard
     const handleCancelWithCallback = () => {
