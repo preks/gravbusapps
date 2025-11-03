@@ -136,37 +136,39 @@ export const createApprovalPayload = (
         }
       }
 
-    case 'handout-payment':
+    case 'handout-payment': {
+      const rawTask = rawTasks.find(t => t.id === entityId)
+      const advancePayment = rawTask?.inputs?.advancePayment
       return {
         advancePayment: {
-          id: rawTasks.find(t => t.id === entityId)?.inputs?.advancePayment?.id || '',
-          version: rawTasks.find(t => t.id === entityId)?.inputs?.advancePayment?.version || 0,
-          amount: rawTasks.find(t => t.id === entityId)?.inputs?.advancePayment?.amount || 0,
-          transactionDate: rawTasks.find(t => t.id === entityId)?.inputs?.advancePayment?.transactionDate || '',
-          transactionNumber: rawTasks.find(t => t.id === entityId)?.inputs?.advancePayment?.transactionNumber || '',
-          transactionConfirmed:
-            rawTasks.find(t => t.id === entityId)?.inputs?.advancePayment?.transactionConfirmed || false,
-          transactionConfirmedByEmployee:
-            rawTasks.find(t => t.id === entityId)?.inputs?.advancePayment?.transactionConfirmedByEmployee || ''
+          id: advancePayment?.id || '',
+          version: advancePayment?.version || 0,
+          amount: advancePayment?.amount || 0,
+          transactionDate: advancePayment?.transactionDate || '',
+          transactionNumber: advancePayment?.transactionNumber || '',
+          transactionConfirmed: advancePayment?.transactionConfirmed || false,
+          transactionConfirmedByEmployee: advancePayment?.transactionConfirmedByEmployee || ''
         },
         event: 'pse_approve'
       }
+    }
 
-    case 'transfer-payment':
+    case 'transfer-payment': {
+      const rawTask = rawTasks.find(t => t.id === entityId)
+      const advancePayment = rawTask?.inputs?.advancePayment
       return {
         advancePayment: {
-          id: rawTasks.find(t => t.id === entityId)?.inputs?.advancePayment?.id || '',
-          version: rawTasks.find(t => t.id === entityId)?.inputs?.advancePayment?.version || 0,
-          amount: rawTasks.find(t => t.id === entityId)?.inputs?.advancePayment?.amount || 0,
-          transactionDate: rawTasks.find(t => t.id === entityId)?.inputs?.advancePayment?.transactionDate || '',
-          transactionNumber: rawTasks.find(t => t.id === entityId)?.inputs?.advancePayment?.transactionNumber || '',
-          transactionConfirmed:
-            rawTasks.find(t => t.id === entityId)?.inputs?.advancePayment?.transactionConfirmed || false,
-          transactionConfirmedByEmployee:
-            rawTasks.find(t => t.id === entityId)?.inputs?.advancePayment?.transactionConfirmedByEmployee || ''
+          id: advancePayment?.id || '',
+          version: advancePayment?.version || 0,
+          amount: advancePayment?.amount || 0,
+          transactionDate: advancePayment?.transactionDate || '',
+          transactionNumber: advancePayment?.transactionNumber || '',
+          transactionConfirmed: advancePayment?.transactionConfirmed || false,
+          transactionConfirmedByEmployee: advancePayment?.transactionConfirmedByEmployee || ''
         },
         event: 'pse_approve'
       }
+    }
 
     default:
       throw new Error(`Unknown tab type: ${tabConfig.key}`)

@@ -311,10 +311,10 @@ export const useApprovalHandling = ({
         } else {
           failedTasks.push({ id: task.id, error: result.error || 'Unknown error' })
         }
-      } catch {
+      } catch (err) {
         const errorMessage =
-          Error instanceof Error
-            ? Error.message
+          err instanceof Error
+            ? err.message
             : getTranslationFromI18nKeyAndLabel('lowcoder:approvals.unknown_error', 'Unknown error')
         failedTasks.push({ id: task.id, error: errorMessage })
       } finally {
@@ -364,10 +364,10 @@ export const useApprovalHandling = ({
       showSummaryToasts(approvedCount, failedTasks)
 
       return { success: true, approvedCount, failedCount: failedTasks.length }
-    } catch {
+    } catch (err) {
       const errorMessage =
-        Error instanceof Error
-          ? Error.message
+        err instanceof Error
+          ? err.message
           : getTranslationFromI18nKeyAndLabel('lowcoder:approvals.failed_to_approve', 'Failed to approve tasks')
       setApprovalError(errorMessage)
 
