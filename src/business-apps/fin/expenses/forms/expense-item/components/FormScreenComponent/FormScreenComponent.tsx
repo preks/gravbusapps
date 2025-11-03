@@ -372,25 +372,27 @@ export const FormScreenComponent: React.FC<FormScreenComponentProps> = ({
             e.stopPropagation()
             e.preventDefault()
 
-            // Defer everything (validation + submit) to prevent visual jumps
-            setTimeout(async () => {
-              try {
-                await form.validateFields({
-                  validateMessages: undefined,
-                  scroll: { behavior: 'smooth', block: 'center' }
-                })
+            // Use requestAnimationFrame for smoother visual transition
+            requestAnimationFrame(() => {
+              requestAnimationFrame(async () => {
+                try {
+                  await form.validateFields({
+                    validateMessages: undefined,
+                    scroll: { behavior: 'smooth', block: 'center' }
+                  })
 
-                // Check for expense rule errors
-                if (expenseRuleError) {
-                  return
+                  // Check for expense rule errors
+                  if (expenseRuleError) {
+                    return
+                  }
+
+                  handleSubmit()
+                } catch {
+                  // Form validation failed - Ant Design will show the error messages
+                  // Errors are already displayed on the fields
                 }
-
-                handleSubmit()
-              } catch {
-                // Form validation failed - Ant Design will show the error messages
-                // Errors are already displayed on the fields
-              }
-            }, 50)
+              })
+            })
           }}
           disabled={isProcessingFiles}
           className="gba:min-w-[100px] gba:border-2 gba:text-base gba:font-semibold gba:px-4"
