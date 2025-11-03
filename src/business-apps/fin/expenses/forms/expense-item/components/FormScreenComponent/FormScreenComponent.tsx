@@ -373,7 +373,10 @@ export const FormScreenComponent: React.FC<FormScreenComponentProps> = ({
 
             // Validate form before submission
             try {
-              await form.validateFields()
+              await form.validateFields({
+                validateMessages: undefined,
+                scroll: { behavior: 'smooth', block: 'center' }
+              })
 
               // Check for expense rule errors
               if (expenseRuleError) {
@@ -381,9 +384,9 @@ export const FormScreenComponent: React.FC<FormScreenComponentProps> = ({
               }
 
               handleSubmit()
-            } catch (error) {
+            } catch {
               // Form validation failed - Ant Design will show the error messages
-              console.log('Form validation failed:', error)
+              // Errors are already displayed on the fields
             }
           }}
           disabled={isProcessingFiles}
