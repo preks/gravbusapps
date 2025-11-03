@@ -12,9 +12,9 @@ export enum FlowContextName {
   jobPositionEntity = 'jobPositionEntity',
 
   // HR Notes
-  hrNoteCreate = 'createEmployeeNote',
-  hrNoteUpdate = 'updateEmployeeNote',
-  hrNoteDelete = 'deleteEmployeeNote',
+  createEmployeeNote = 'createEmployeeNote',
+  updateEmployeeNote = 'updateEmployeeNote',
+  deleteEmployeeNote = 'deleteEmployeeNote',
 
   // Customer Relations
 

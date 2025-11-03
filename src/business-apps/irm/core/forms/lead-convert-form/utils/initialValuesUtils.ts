@@ -179,6 +179,11 @@ export const getOpportunityInitialValues = (leadData: any): Partial<InvestmentOp
     requiredCapitalAmount: leadData.requiredCapitalAmount?.toString() || '',
     annualNetColdRent: leadData.annualNetColdRent?.toString() || '',
 
+    // Real Estate Specific Fields (from InvestmentLead)
+    buildingYear: leadData.buildingYear?.toString() || '',
+    size: leadData.size?.toString() || '',
+    measurementUnit: leadData.sizeMeasurementUnitRef || leadData.sizeMeasurementUnit?.id || '',
+
     // Catalog references (use both Ref and ID for maximum compatibility)
     investmentGroupRef: leadData.investmentGroupRef || leadData.investmentGroup?.id || '',
     investmentRoleRef: leadData.investmentRoleRef || leadData.investmentRole?.id || '',

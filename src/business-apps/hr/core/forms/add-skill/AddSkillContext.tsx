@@ -3,7 +3,7 @@ import { BusinessAppContextProps } from '@/common/BusinessAppContext'
 import { useGraphQLClient } from '@/common/network/graphql/useGraphQLClient'
 import { ADD_SKILL_QUERY, SEARCH_SKILLS_QUERY, GET_SKILLS_BY_NAMES } from './AddSkillQueries'
 import { useRestClient } from '@/common/network/rest/useRestClient'
-import { getCurrentActiveStructureId } from '@/common/utils/windowUtils'
+
 import { env } from '@/common/env/EnvUtils'
 
 export interface SkillRecord {
@@ -18,19 +18,15 @@ export interface EmployeeSkillLink {
   skill: SkillRecord
 }
 
-export interface BasicEmployee {
+export interface DetailedEmployee {
   id: string
   firstName: string
   lastName: string
-}
-
-export interface DetailedEmployee extends BasicEmployee {
   skills: EmployeeSkillLink[]
 }
 
 export interface AddSkillDataResponse {
   employee: DetailedEmployee
-  allEmployees: BasicEmployee[]
 }
 
 interface AddSkillContextValue {
@@ -73,9 +69,8 @@ export const AddSkillProvider: React.FC<ProviderProps> = ({ children, accessToke
     setIsLoading(true)
     setError(null)
     try {
-      const structureId = getCurrentActiveStructureId()
-      type AddSkillQueryVariables = { id: string; structureId: string }
-      const variables: AddSkillQueryVariables = { id: employeeId, structureId }
+      type AddSkillQueryVariables = { id: string }
+      const variables: AddSkillQueryVariables = { id: employeeId }
       const response = await graphqlClient.request<AddSkillDataResponse>(ADD_SKILL_QUERY, variables)
       setData(response)
     } catch (e: unknown) {
