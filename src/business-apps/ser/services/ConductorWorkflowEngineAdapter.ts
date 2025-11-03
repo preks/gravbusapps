@@ -19,6 +19,12 @@ const API_BASE =
   (env('NEXT_PUBLIC_CUSTOM_FLOW_ENGINE_API_URL') || 'https://newwork-dev.newwork.com/flow-engine') + '/api'
 
 /**
+ * Services app catalog identifier for filtering service desk tickets
+ * This ensures only tickets from the Services app are shown in the service desk
+ */
+const SERVICES_APP_TAG = 'AppCatalog:1:SVC'
+
+/**
  * ConductorWorkflowEngineAdapter - Integrates Services+ with Custom Flow Engine
  *
  * This adapter bridges the Services+ WorkflowEngine interface with the Custom Flow Engine
@@ -1201,6 +1207,7 @@ export class ConductorWorkflowEngineAdapter implements WorkflowEngine {
 
   /**
    * Get completed tickets for a user
+   * Filters by Services app tag to show only service desk tickets
    */
   async getCompletedTickets(options?: {
     limit?: number
@@ -1212,6 +1219,8 @@ export class ConductorWorkflowEngineAdapter implements WorkflowEngine {
       const params = new URLSearchParams()
       if (options?.limit) params.set('limit', options.limit.toString())
       if (options?.offset) params.set('offset', options.offset.toString())
+      // Filter by Services app tag at the database level for better performance
+      params.set('tags.app', SERVICES_APP_TAG)
 
       const result = await this.makeRequest(`/tasks/user/${this.currentUserId}/completed?${params.toString()}`)
 
@@ -1759,18 +1768,23 @@ export class ConductorWorkflowEngineAdapter implements WorkflowEngine {
   /**
    * Get real active tickets for a specific desk from custom-flow-engine
    * Uses the SAME API as what actually works for claiming
+   * Filters by Services app tag to show only service desk tickets
    */
   // eslint-disable-next-line @typescript-eslint/no-unused-vars
   async getDeskTickets(desk: StepReceiver, _userId?: string): Promise<StepInstance[]> {
     try {
-      // Use the actual custom-flow-engine API that we know works
-      const response = await fetch(`${this.flowEngineBaseUrl}/tasks/user/${this.currentUserId}`, {
-        method: 'GET',
-        headers: {
-          'Content-Type': 'application/json',
-          Authorization: `Bearer ${this.accessToken}`
+      // Use the actual custom-flow-engine API with tag filtering for Services app
+      // This filters at the database level for better performance
+      const response = await fetch(
+        `${this.flowEngineBaseUrl}/tasks/user/${this.currentUserId}?tags.app=${SERVICES_APP_TAG}`,
+        {
+          method: 'GET',
+          headers: {
+            'Content-Type': 'application/json',
+            Authorization: `Bearer ${this.accessToken}`
+          }
         }
-      })
+      )
 
       if (!response.ok) {
         throw new Error(`Failed to get user tasks: ${response.status} ${response.statusText}`)
