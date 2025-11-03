@@ -370,6 +370,7 @@ export const FormScreenComponent: React.FC<FormScreenComponentProps> = ({
           variant="primary"
           onClick={async e => {
             e.stopPropagation()
+            e.preventDefault()
 
             // Validate form before submission
             try {
@@ -383,7 +384,10 @@ export const FormScreenComponent: React.FC<FormScreenComponentProps> = ({
                 return
               }
 
-              handleSubmit()
+              // Use setTimeout to prevent visual twitch from loading state change
+              setTimeout(() => {
+                handleSubmit()
+              }, 0)
             } catch {
               // Form validation failed - Ant Design will show the error messages
               // Errors are already displayed on the fields
