@@ -1,4 +1,4 @@
-import React, { useState } from 'react'
+import React from 'react'
 import { useTranslation } from 'react-i18next'
 import { Button, DateInputField, Divider, InputField, SelectField, Switch } from '@newwork/gravity-ui-catalog'
 import { Form, Row, Col } from 'antd'
@@ -66,23 +66,12 @@ export const FormScreenComponent: React.FC<FormScreenComponentProps> = ({
   const { t } = useTranslation()
   const { isProcessingFiles, isFormDisabled, expenseRuleError, handleCurrencyChange, isEditMode } = useExpenseItem()
 
-  const [formIsValid, setFormIsValid] = useState(false)
-
   return (
     <Form
       form={form}
       layout="vertical"
       data-testid="expense-form"
       className="gba:flex gba:flex-col gba:flex-grow"
-      onFieldsChange={() => {
-        const isFormValidValue = form.getFieldsError().every((fieldErr: any) => fieldErr.errors.length === 0)
-        setFormIsValid(isFormValidValue)
-      }}
-      onValuesChange={() => {
-        form.validateFields()
-        const isFormValidValue = form.getFieldsError().every((fieldErr: any) => fieldErr.errors.length === 0)
-        setFormIsValid(isFormValidValue)
-      }}
       validateTrigger={['onChange', 'onBlur']}
       initialValues={{
         date: new Date(),
@@ -379,11 +368,25 @@ export const FormScreenComponent: React.FC<FormScreenComponentProps> = ({
         </Button>
         <Button
           variant="primary"
-          onClick={e => {
+          onClick={async e => {
             e.stopPropagation()
-            handleSubmit()
+
+            // Validate form before submission
+            try {
+              await form.validateFields()
+
+              // Check for expense rule errors
+              if (expenseRuleError) {
+                return
+              }
+
+              handleSubmit()
+            } catch (error) {
+              // Form validation failed - Ant Design will show the error messages
+              console.log('Form validation failed:', error)
+            }
           }}
-          disabled={isProcessingFiles || !formIsValid || !!expenseRuleError}
+          disabled={isProcessingFiles}
           className="gba:min-w-[100px] gba:border-2 gba:text-base gba:font-semibold gba:px-4"
           style={{ borderRadius: '22px', width: 'auto', height: '40px' }}
           data-testid="submit-button"
