@@ -322,18 +322,20 @@ const ConfigOpportunityLayout = <TOpportunity extends { id: string } = any, TQue
     }
   }, [accessToken, config, boardPipelineId, boardFilters, boardSearch, context.userInfo?.employeeDetails?.employeeId])
 
+  // Set default board pipeline FIRST
+  useEffect(() => {
+    if (pipelines && pipelines.length > 0 && !boardPipelineId) {
+      setBoardPipelineId(pipelines[0].id)
+    }
+  }, [pipelines, boardPipelineId])
+
   // Initial parallel load: Load BOTH list and board data for badge counts
   useEffect(() => {
-    if (!accessToken || !isInitialLoad) return
+    if (!accessToken || !isInitialLoad || !boardPipelineId) return
 
     const loadBothSections = async () => {
-      // Load list data
-      loadListData(true)
-
-      // Load board data once pipeline is set
-      if (boardPipelineId) {
-        loadBoardData()
-      }
+      // Load both sections in parallel
+      await Promise.all([loadListData(true), loadBoardData()])
     }
 
     loadBothSections()
@@ -343,13 +345,13 @@ const ConfigOpportunityLayout = <TOpportunity extends { id: string } = any, TQue
   useEffect(() => {
     if (isInitialLoad || !accessToken || currentSection !== 'list') return
     loadListData(false)
-  }, [queryVariables, currentSection, isInitialLoad, accessToken, loadListData])
+  }, [queryVariables, isInitialLoad, accessToken, loadListData])
 
   // Reload board data when filters/search change (only when board is active, skip initial load)
   useEffect(() => {
     if (isInitialLoad || !accessToken || currentSection !== 'board' || !boardPipelineId) return
     loadBoardData()
-  }, [boardPipelineId, boardFilters, boardSearch, currentSection, isInitialLoad, accessToken, loadBoardData])
+  }, [boardPipelineId, boardFilters, boardSearch, isInitialLoad, accessToken, loadBoardData])
 
   // Process Completion Handlers
   const handleProcessComplete = useCallback(() => {
@@ -460,13 +462,6 @@ const ConfigOpportunityLayout = <TOpportunity extends { id: string } = any, TQue
     )
   }, [currentSection, boardPipelineId, pipelines])
 
-  // Set default board pipeline
-  useEffect(() => {
-    if (pipelines && pipelines.length > 0 && !boardPipelineId) {
-      setBoardPipelineId(pipelines[0].id)
-    }
-  }, [pipelines, boardPipelineId])
-
   return (
     <div data-testid={dataTestId}>
       {/* Statistics */}
@@ -480,14 +475,16 @@ const ConfigOpportunityLayout = <TOpportunity extends { id: string } = any, TQue
             id: 'list',
             label: getTranslationFromI18nKeyAndLabel('common:listView', 'List'),
             metadata: {
-              count: totalCount
+              count: totalCount,
+              isLoading: isLoading
             }
           },
           {
             id: 'board',
             label: getTranslationFromI18nKeyAndLabel('common:boardView', 'Board'),
             metadata: {
-              count: boardOpportunities.length
+              count: boardOpportunities.length,
+              isLoading: boardLoading
             }
           }
         ]}
