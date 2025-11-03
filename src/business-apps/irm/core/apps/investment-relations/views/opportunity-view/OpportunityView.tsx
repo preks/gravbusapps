@@ -100,7 +100,8 @@ export const OpportunityView: React.FC<OpportunityViewProps> = context => {
 
       flowContexts: {
         entityContext: FlowContextName.investmentOpportunityEntity,
-        createContext: FlowContextName.investmentOpportunityCreate
+        createContext: FlowContextName.investmentOpportunityCreate,
+        createContextData: { dealType: 'INVESTMENT_DEAL' }
       },
 
       buildRecordUrl: (id: string) =>

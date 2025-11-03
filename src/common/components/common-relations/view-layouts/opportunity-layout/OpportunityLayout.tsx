@@ -95,6 +95,7 @@ export interface OpportunityViewConfig<TOpportunity extends { id: string }, TQue
   flowContexts: {
     entityContext: FlowContextName
     createContext: FlowContextName
+    createContextData?: Record<string, any> // Optional external context data for create action
   }
 
   buildRecordUrl: (id: string) => string
@@ -517,6 +518,7 @@ const ConfigOpportunityLayout = <TOpportunity extends { id: string } = any, TQue
           (hideCreate ? undefined : (
             <AppAction
               contextsArray={[config.flowContexts.createContext]}
+              externalContextData={config.flowContexts.createContextData}
               accessToken={accessToken}
               data-testid="add-opportunity-action"
               emptyStateBehavior="hide"
