@@ -19,7 +19,6 @@ export const createApprovalPayload = (
   }
 
   const firstSelectedTaskId = tasks[0].id
-  console.log('tasks', tasks)
   const firstSelectedTask = tasks.find(task => task.id === firstSelectedTaskId)
 
   if (!firstSelectedTask) {
@@ -27,7 +26,6 @@ export const createApprovalPayload = (
   }
 
   const getEntityId = (task: any, tabKey: string) => {
-    console.log('variables', task.variables)
     let entityId = null
     if (task.variables) {
       switch (tabKey) {
@@ -44,20 +42,15 @@ export const createApprovalPayload = (
           entityId = task.variables.handoutPaymentId || task.variables.paymentId || task.variables.handoutPayment?.id
           break
         case 'transfer-payment':
-          console.log('88888', task.variables)
           entityId = task.variables.transferPaymentId || task.variables.paymentId || task.variables.transferPayment?.id
           break
       }
       if (entityId) {
-        console.log('77777', entityId)
         return entityId
       }
-      console.log('99999', entityId)
     }
-    console.log('101010', entityId)
     // If not found in variables, extract process instance ID from endpoint
     if (task.endpoint) {
-      console.log('intra if endpoint', task.endpoint)
       const endpointParts = task.endpoint.split('/')
       const processNames = [
         'approveExpensePlan',
@@ -85,20 +78,17 @@ export const createApprovalPayload = (
 
       if (processNameIndex !== -1 && endpointParts[processNameIndex + 1]) {
         entityId = endpointParts[processNameIndex + 1]
-        console.log('intra if entityId nested', entityId)
       }
     }
 
     // Fallback to processInstanceId if available
     if (!entityId && task.processInstanceId) {
-      console.log('intra if', task.processInstanceId)
       entityId = task.processInstanceId
     }
 
     // Final fallback to task ID
     if (!entityId) {
       entityId = task.id
-      console.log('intra if entityId final', entityId)
     }
 
     return entityId
@@ -108,10 +98,6 @@ export const createApprovalPayload = (
     rawTasks.find(t => t.id === firstSelectedTask.id),
     tabConfig.key
   )
-  console.log('66666', tabConfig.key)
-  console.log('2222', entityId)
-  console.log('3333', rawTasks)
-  console.log('4444', firstSelectedTask)
   // Create payload based on tab type
   switch (tabConfig.key) {
     case 'expense-plan':
@@ -151,10 +137,6 @@ export const createApprovalPayload = (
       }
 
     case 'handout-payment':
-      console.log(
-        '113334111',
-        rawTasks.find(t => t.id === entityId)
-      )
       return {
         advancePayment: {
           id: rawTasks.find(t => t.id === entityId)?.inputs?.advancePayment?.id || '',
@@ -171,24 +153,17 @@ export const createApprovalPayload = (
       }
 
     case 'transfer-payment':
-      console.log(
-        '111111',
-        rawTasks.find(t => t.processInstanceId === entityId)
-      )
       return {
         advancePayment: {
-          id: rawTasks.find(t => t.processInstanceId === entityId)?.inputs?.advancePayment?.id || '',
-          version: rawTasks.find(t => t.processInstanceId === entityId)?.inputs?.advancePayment?.version || 0,
-          amount: rawTasks.find(t => t.processInstanceId === entityId)?.inputs?.advancePayment?.amount || 0,
-          transactionDate:
-            rawTasks.find(t => t.processInstanceId === entityId)?.inputs?.advancePayment?.transactionDate || '',
-          transactionNumber:
-            rawTasks.find(t => t.processInstanceId === entityId)?.inputs?.advancePayment?.transactionNumber || '',
+          id: rawTasks.find(t => t.id === entityId)?.inputs?.advancePayment?.id || '',
+          version: rawTasks.find(t => t.id === entityId)?.inputs?.advancePayment?.version || 0,
+          amount: rawTasks.find(t => t.id === entityId)?.inputs?.advancePayment?.amount || 0,
+          transactionDate: rawTasks.find(t => t.id === entityId)?.inputs?.advancePayment?.transactionDate || '',
+          transactionNumber: rawTasks.find(t => t.id === entityId)?.inputs?.advancePayment?.transactionNumber || '',
           transactionConfirmed:
-            rawTasks.find(t => t.processInstanceId === entityId)?.inputs?.advancePayment?.transactionConfirmed || false,
+            rawTasks.find(t => t.id === entityId)?.inputs?.advancePayment?.transactionConfirmed || false,
           transactionConfirmedByEmployee:
-            rawTasks.find(t => t.processInstanceId === entityId)?.inputs?.advancePayment
-              ?.transactionConfirmedByEmployee || ''
+            rawTasks.find(t => t.id === entityId)?.inputs?.advancePayment?.transactionConfirmedByEmployee || ''
         },
         event: 'pse_approve'
       }

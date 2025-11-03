@@ -141,7 +141,6 @@ export const useApprovalHandling = ({
     }
     const taskData = await getResponse.json()
     const entityId = extractEntityIdFromTaskData(ctx.tabKeyLocal, taskData)
-    console.log('entityId', entityId)
     if (!entityId) {
       throw new Error(
         getTranslationFromI18nKeyAndLabel(
@@ -356,8 +355,6 @@ export const useApprovalHandling = ({
         userInfo,
         rawTasks
       )
-      console.log('approvalPayload', approvalPayload)
-      console.log('0000', rawTasks)
       setTotalToApprove(selectedTasks.length)
       setCurrentProgressIndex(0)
 
