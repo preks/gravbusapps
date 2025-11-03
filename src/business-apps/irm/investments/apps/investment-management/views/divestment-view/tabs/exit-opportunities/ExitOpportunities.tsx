@@ -497,6 +497,9 @@ const ExitOpportunities: React.FC<ExitOpportunitiesProps> = ({
           actions: (
             <AppAction
               contextsArray={[FlowContextName.investmentOpportunityCreate]}
+              externalContextData={{
+                dealType: 'DIVESTMENT_DEAL' // ✅ Lock to DIVESTMENT_DEAL for Investment Management
+              }}
               accessToken={accessToken}
               data-testid="exit-opportunities-add-action"
               emptyStateBehavior="hide"
