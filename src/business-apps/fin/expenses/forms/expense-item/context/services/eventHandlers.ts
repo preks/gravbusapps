@@ -271,6 +271,7 @@ export const handleSubmit = async (
   dispatchProcessContinueEventIfEnabled?: (event: string, payload: any) => boolean
 ) => {
   try {
+    console.log('⏳ setLoading(true) - Starting submission process')
     setLoading(true)
 
     await form.validateFields()
@@ -439,6 +440,7 @@ export const handleSubmit = async (
   } catch {
     showToast(t('lowcoder:create_expense_type_item.error_flows', 'Error in flow process'), 'error')
   } finally {
+    console.log('✅ setLoading(false) - Submission process complete')
     setLoading(false)
   }
 }
