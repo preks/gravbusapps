@@ -72,31 +72,29 @@ export const FormScreenComponent: React.FC<FormScreenComponentProps> = ({
       e.stopPropagation()
       e.preventDefault()
 
-      // Use requestAnimationFrame for smoother visual transition
-      requestAnimationFrame(() => {
-        requestAnimationFrame(async () => {
-          try {
-            // Validate without scroll to prevent DOM jumping
-            await form.validateFields()
+      // Defer validation to next tick to prevent visual jumps
+      setTimeout(async () => {
+        try {
+          // Validate without scroll to prevent DOM jumping
+          await form.validateFields()
 
-            // Check for expense rule errors
-            if (expenseRuleError) {
-              return
-            }
+          // Check for expense rule errors
+          if (expenseRuleError) {
+            return
+          }
 
-            handleSubmit()
-          } catch (errorInfo) {
-            // Form validation failed - scroll to first error smoothly
-            const firstErrorField = (errorInfo as any)?.errorFields?.[0]?.name?.[0]
-            if (firstErrorField) {
-              const element = document.querySelector(`[name="${firstErrorField}"]`)
-              if (element) {
-                element.scrollIntoView({ behavior: 'smooth', block: 'center' })
-              }
+          handleSubmit()
+        } catch (errorInfo) {
+          // Form validation failed - scroll to first error smoothly
+          const firstErrorField = (errorInfo as any)?.errorFields?.[0]?.name?.[0]
+          if (firstErrorField) {
+            const element = document.querySelector(`[name="${firstErrorField}"]`)
+            if (element) {
+              element.scrollIntoView({ behavior: 'smooth', block: 'center' })
             }
           }
-        })
-      })
+        }
+      }, 0)
     },
     [form, expenseRuleError, handleSubmit]
   )
