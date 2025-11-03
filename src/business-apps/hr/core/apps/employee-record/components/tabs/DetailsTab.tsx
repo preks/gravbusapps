@@ -1,11 +1,10 @@
 'use client'
 
-import React, { useMemo } from 'react'
+import React from 'react'
 import dayjs from 'dayjs'
 import { Card } from '@newwork/gravity-ui-catalog'
 import { Employee } from '../../hooks/useEmployeeData'
-import { formatPhoneNumber } from '../../utils/formatters'
-import { useGetAcademicTitles } from '../../../../hooks/useGetAcademicTitles'
+import { formatPhoneNumber, getTranslatedValue } from '../../utils/formatters'
 import { getTranslationFromI18nKeyAndLabel } from '../../../../../../../common/utils/windowUtils'
 import useEmployeePermissions, { SECTION_KEYS } from '../../hooks/useEmployeePermissions'
 import { AppActionMenu } from '@/components/app-action-menu/AppActionMenu'
@@ -32,45 +31,15 @@ const DetailsTab: React.FC<DetailsTabProps> = ({ employee, accessToken, employee
 
   // Check permissions for sections
   const { isSectionVisible } = useEmployeePermissions(employeeIdForPermissions, accessToken)
-  // Fetch academic titles from catalog
-  const { titles: academicTitles, loading: loadingTitles } = useGetAcademicTitles(accessToken)
-
-  // Find the academic titles that match the employee's title references
-  const academicTitleName = useMemo(() => {
-    if (loadingTitles) {
-      return ''
-    }
-
-    if (
-      !employee.academicTitleRef ||
-      !Array.isArray(employee.academicTitleRef) ||
-      employee.academicTitleRef.length === 0 ||
-      academicTitles.length === 0
-    ) {
-      // Return the raw academicTitleRef if it's a string, or join them if it's an array
-      return Array.isArray(employee.academicTitleRef)
-        ? employee.academicTitleRef.join(', ')
-        : employee.academicTitleRef || ''
-    }
-
-    // Find all matching titles by ID in the academicTitles array
-    const matchingTitles = employee.academicTitleRef.map(titleRef => {
-      const match = academicTitles.find(title => title.id === titleRef || title.id.includes(titleRef))
-      return match ? match.value : titleRef
-    })
-
-    // Join all titles with a comma
-    return matchingTitles.join(', ')
-  }, [employee.academicTitleRef, academicTitles, loadingTitles])
 
   const personalData = [
     {
       label: 'Salutation',
-      value: employee.salutation?.value || ''
+      value: employee.salutation?.translations?.[0]?.value || employee.salutation?.value || ''
     },
     {
       label: 'Academic Titles',
-      value: academicTitleName || ''
+      value: employee.academicTitleRef || ''
     },
     {
       label: 'First Name',
@@ -96,22 +65,22 @@ const DetailsTab: React.FC<DetailsTabProps> = ({ employee, accessToken, employee
     },
     {
       label: 'Place of Birth',
-      value: employee.birthPlace?.value || '',
+      value: employee.birthPlace || '',
       sectionKey: SECTION_KEYS.details.personalInfoPrivate
     },
     {
       label: 'Nationality',
-      value: employee.nationality?.translations?.[0]?.value || employee.nationality?.value || '',
+      value: getTranslatedValue(employee.nationality),
       sectionKey: SECTION_KEYS.details.personalInfoPrivate
     },
     {
       label: 'Gender',
-      value: employee.gender?.value || '',
+      value: getTranslatedValue(employee.gender),
       sectionKey: SECTION_KEYS.details.personalInfoPrivate
     },
     {
       label: 'Marital Status',
-      value: employee.maritalStatus?.value || '',
+      value: getTranslatedValue(employee.maritalStatus),
       sectionKey: SECTION_KEYS.details.personalInfoPrivate
     }
   ]
@@ -212,21 +181,20 @@ const DetailsTab: React.FC<DetailsTabProps> = ({ employee, accessToken, employee
   const privateCommunicationData = getPrivateCommunication()
 
   // Prepare emergency contact data
-  const getEmergencyContact = () => {
-    const emergencyContact = employee.relationship?.find(rel => rel.isEmergencyContact)
 
-    return [
+  const getEmergencyContact = () => {
+    const emergencyContacts = employee.relationship?.filter(rel => rel.isEmergencyContact)
+
+    return emergencyContacts.map(contact => [
       {
         label: 'Contact Name',
-        value: emergencyContact
-          ? `${emergencyContact.firstName || ''} ${emergencyContact.lastName || ''}`.trim() || ''
-          : ''
+        value: emergencyContacts ? `${contact.firstName || ''} ${contact.lastName || ''}`.trim() || '' : ''
       },
       {
         label: 'Phone Number',
-        value: emergencyContact?.phoneNumber ? formatPhoneNumber(emergencyContact.phoneNumber) : ''
+        value: contact?.phoneNumber ? formatPhoneNumber(contact.phoneNumber) : ''
       }
-    ]
+    ])
   }
 
   const emergencyContactData = getEmergencyContact()
@@ -415,9 +383,13 @@ const DetailsTab: React.FC<DetailsTabProps> = ({ employee, accessToken, employee
           <div className="gba:mb-6 gba:border-b gba:border-border gba:pb-2">
             <h3 className="gba:text-xl gba:font-semibold gba:text-info">Emergency Contact</h3>
           </div>
-          {renderDataItems(
-            emergencyContactData.map(item => ({ ...item, sectionKey: SECTION_KEYS.details.relationships }))
-          )}
+          <div className="gba:flex gba:flex-col gba:gap-2">
+            {emergencyContactData.map((items, idx) => (
+              <div key={`emergency-contact-${idx}`}>
+                {renderDataItems(items.map(item => ({ ...item, sectionKey: SECTION_KEYS.details.relationships })))}
+              </div>
+            ))}
+          </div>
         </Card>
 
         {/* Payroll Data Card has been moved to EmploymentTab */}

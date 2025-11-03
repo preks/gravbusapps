@@ -12,6 +12,7 @@ export interface CustomerOpportunityQueryVariables {
   ids?: string[]
   search?: string
   accountIds?: string[]
+  contactIds?: string[]
   stageIds?: string[]
   stageValues?: string[]
   pipelineIds?: string[]
@@ -32,49 +33,108 @@ export interface CustomerOpportunityQueryVariables {
   }>
 }
 
+// Helper: Build search clause
+const buildSearchClause = (searchTerm: string): string => {
+  const q = searchTerm.trim()
+  const isNumber = !isNaN(Number(q))
+  const numericValue = isNumber ? Number(q) : 0
+  const numericFields = isNumber
+    ? `, { estimatedAmount: { _eq: ${numericValue} } }, { winningChance: { _eq: ${numericValue} } }`
+    : ''
+
+  return `, _or: [
+    { name: { _ilike: "%${q}%" } },
+    { code: { _ilike: "%${q}%" } },
+    { notesSummary: { _ilike: "%${q}%" } },
+    { account: { name: { _ilike: "%${q}%" } } },
+    { ownerEmployee: { firstName: { _ilike: "%${q}%" } } },
+    { ownerEmployee: { lastName: { _ilike: "%${q}%" } } },
+    { ownerEmployee: { displayName: { _ilike: "%${q}%" } } },
+    { salesPipelineStage: { value: { _ilike: "%${q}%" } } },
+    { salesPipeline: { value: { _ilike: "%${q}%" } } },
+    { opportunityStatus: { value: { _ilike: "%${q}%" } } }
+    ${numericFields}
+  ]`
+}
+
+// Helper: Format IDs for GraphQL IN clause
+const formatIds = (ids: string[]): string => ids.map(id => `"${id}"`).join(', ')
+
+// Helper: Format values for GraphQL IN clause
+const formatValues = (values: string[]): string => values.map(v => `"${v}"`).join(', ')
+
+// Helper: Build ID filter clauses
+const buildIdFiltersClause = (variables: CustomerOpportunityQueryVariables): string => {
+  const clauses: string[] = []
+
+  if (variables.accountIds?.length) {
+    const formattedIds = formatIds(variables.accountIds)
+    clauses.push(`, account: { id: { _in: [${formattedIds}] } }`)
+  }
+  if (variables.contactIds?.length) {
+    const formattedIds = formatIds(variables.contactIds)
+    clauses.push(`, OpportunityContact: { contact: { id: { _in: [${formattedIds}] } } }`)
+  }
+  if (variables.stageIds?.length) {
+    const formattedIds = formatIds(variables.stageIds)
+    clauses.push(`, salesPipelineStage: { id: { _in: [${formattedIds}] } }`)
+  }
+  if (variables.stageValues?.length) {
+    const formattedValues = formatValues(variables.stageValues)
+    clauses.push(
+      `, _or: [ { stage: { _in: [${formattedValues}] } }, { salesPipelineStage: { value: { _in: [${formattedValues}] } } } ]`
+    )
+  }
+  if (variables.pipelineIds?.length) {
+    const formattedIds = formatIds(variables.pipelineIds)
+    clauses.push(`, salesPipeline: { id: { _in: [${formattedIds}] } }`)
+  }
+  if (variables.statusIds?.length) {
+    const formattedIds = formatIds(variables.statusIds)
+    clauses.push(`, opportunityStatus: { id: { _in: [${formattedIds}] } }`)
+  }
+  if (variables.currencyIds?.length) {
+    const formattedIds = formatIds(variables.currencyIds)
+    clauses.push(`, currency: { id: { _in: [${formattedIds}] } }`)
+  }
+  if (variables.ownerEmployeeIds?.length) {
+    const formattedIds = formatIds(variables.ownerEmployeeIds)
+    clauses.push(`, ownerEmployee: { id: { _in: [${formattedIds}] } }`)
+  }
+
+  return clauses.join('')
+}
+
 export const buildCustomerOpportunityWhereCondition = (variables: CustomerOpportunityQueryVariables = {}) => {
   let whereClause = 'where: { isDeleted: { _eq: false }'
 
   if (variables.search?.trim()) {
-    const q = variables.search.trim()
-    const isNumber = !isNaN(Number(q))
-    whereClause += `, _or: [
-      { name: { _ilike: "%${q}%" } },
-      { code: { _ilike: "%${q}%" } },
-      { notesSummary: { _ilike: "%${q}%" } },
-      { account: { name: { _ilike: "%${q}%" } } },
-      { ownerEmployee: { firstName: { _ilike: "%${q}%" } } },
-      { ownerEmployee: { lastName: { _ilike: "%${q}%" } } },
-      { ownerEmployee: { displayName: { _ilike: "%${q}%" } } },
-      { salesPipelineStage: { value: { _ilike: "%${q}%" } } },
-      { salesPipeline: { value: { _ilike: "%${q}%" } } },
-      { opportunityStatus: { value: { _ilike: "%${q}%" } } }
-      ${isNumber ? `, { estimatedAmount: { _eq: ${Number(q)} } }, { winningChance: { _eq: ${Number(q)} } }` : ''}
-    ]`
+    whereClause += buildSearchClause(variables.search)
   }
 
-  if (variables.accountIds?.length)
-    whereClause += `, account: { id: { _in: [${variables.accountIds.map(id => `"${id}"`).join(', ')}] } }`
-  if (variables.stageIds?.length)
-    whereClause += `, salesPipelineStage: { id: { _in: [${variables.stageIds.map(id => `"${id}"`).join(', ')}] } }`
-  if (variables.stageValues?.length)
-    whereClause += `, _or: [ { stage: { _in: [${variables.stageValues.map(v => `"${v}"`).join(', ')}] } }, { salesPipelineStage: { value: { _in: [${variables.stageValues.map(v => `"${v}"`).join(', ')}] } } } ]`
-  if (variables.pipelineIds?.length)
-    whereClause += `, salesPipeline: { id: { _in: [${variables.pipelineIds.map(id => `"${id}"`).join(', ')}] } }`
-  if (variables.statusIds?.length)
-    whereClause += `, opportunityStatus: { id: { _in: [${variables.statusIds.map(id => `"${id}"`).join(', ')}] } }`
-  if (variables.currencyIds?.length)
-    whereClause += `, currency: { id: { _in: [${variables.currencyIds.map(id => `"${id}"`).join(', ')}] } }`
-  if (variables.ownerEmployeeIds?.length)
-    whereClause += `, ownerEmployee: { id: { _in: [${variables.ownerEmployeeIds.map(id => `"${id}"`).join(', ')}] } }`
+  whereClause += buildIdFiltersClause(variables)
 
-  // Ranged filters for estimatedAmount and winningChance (multiple OR ranges)
+  // Ranged filters for estimatedAmount (treat null as 0) and winningChance (multiple OR ranges)
   if (variables.estimatedAmountRanges?.length) {
-    const orConditions = variables.estimatedAmountRanges.map(range => {
+    const orConditions = variables.estimatedAmountRanges.flatMap(range => {
+      const conditions: string[] = []
       const parts: string[] = []
+
       if (range.min !== undefined) parts.push(`_gte: ${range.min}`)
       if (range.max !== undefined) parts.push(`_lte: ${range.max}`)
-      return `{ estimatedAmount: { ${parts.join(', ')} } }`
+
+      // Add the actual value condition
+      if (parts.length > 0) {
+        conditions.push(`{ estimatedAmount: { ${parts.join(', ')} } }`)
+      }
+
+      // If range includes 0, also include null values (null treated as 0)
+      const includesZero = (range.min === undefined || range.min === 0) && (range.max === undefined || range.max >= 0)
+      if (includesZero) {
+        conditions.push(`{ estimatedAmount: { _isNull: true } }`)
+      }
+
+      return conditions
     })
     whereClause += `, _or: [${orConditions.join(', ')}]`
   }
@@ -89,8 +149,15 @@ export const buildCustomerOpportunityWhereCondition = (variables: CustomerOpport
   }
   if (variables.forecastedProfitBetween)
     whereClause += `, forecastedProfitAmount: { _gte: ${variables.forecastedProfitBetween[0]}, _lte: ${variables.forecastedProfitBetween[1]} }`
-  if (variables.closeDateFrom) whereClause += `, closeDate: { _gte: "${variables.closeDateFrom}" }`
-  if (variables.closeDateTo) whereClause += `, closeDate: { _lte: "${variables.closeDateTo}" }`
+
+  // Close Date Filter - handle both conditions properly
+  if (variables.closeDateFrom && variables.closeDateTo) {
+    whereClause += `, closeDate: { _gte: "${variables.closeDateFrom}", _lte: "${variables.closeDateTo}" }`
+  } else if (variables.closeDateFrom) {
+    whereClause += `, closeDate: { _gte: "${variables.closeDateFrom}" }`
+  } else if (variables.closeDateTo) {
+    whereClause += `, closeDate: { _lte: "${variables.closeDateTo}" }`
+  }
 
   whereClause += ' }'
   return whereClause
@@ -107,8 +174,12 @@ export const GET_CUSTOMER_OPPORTUNITIES = (variables: CustomerOpportunityQueryVa
           if (f === 'ownerEmployee') return `{ ownerEmployee: { displayName: ${o.direction} } }`
           if (f === 'account') return `{ account: { name: ${o.direction} } }`
           if (f === 'estimatedAmount' || f === 'winningChance') {
-            const dir = o.direction === 'ASC' ? 'ASC_NULLS_FIRST' : 'DESC_NULLS_LAST'
-            return `{ ${f}: ${dir} }`
+            // Use NULLS_LAST for both directions to keep nulls at the end
+            return `{ ${f}: ${o.direction} }`
+          }
+          // CatalogEntry fields need nested sorting by value
+          if (f === 'salesPipeline' || f === 'salesPipelineStage' || f === 'opportunityStatus') {
+            return `{ ${f}: { value: ${o.direction} } }`
           }
           // Only direct scalar fields allowed otherwise
           return `{ ${f}: ${o.direction} }`

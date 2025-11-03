@@ -6,6 +6,7 @@ import { useEmployeePermissions } from './hooks/useEmployeePermissions'
 import ProfileHeader from './components/ProfileHeader'
 import { ScreenBody, Spinner, notification, Tabs } from '@newwork/gravity-ui-catalog'
 import { ProfileLayout } from '@/components/layout/profileLayout'
+import { useScopePermissionCheck } from '@/common/hooks/useScopePermissionCheck'
 import {
   PiUser,
   PiIdentificationCard,
@@ -16,7 +17,8 @@ import {
   PiCalendar,
   PiGraduationCap,
   PiClockCounterClockwise,
-  PiReceipt
+  PiReceipt,
+  PiNotebook
 } from 'react-icons/pi'
 
 // Tab components
@@ -30,8 +32,9 @@ import AbsencesTab from './components/tabs/AbsencesTab'
 import SkillsTab from './components/tabs/SkillsTab'
 import ChangeLogTab from './components/tabs/ChangeLogTab'
 import ServiceRequestsTab from './components/tabs/ServiceRequestsTab'
+import HrNotesTab from './components/tabs/HrNotesTab'
 import { BusinessAppContextProps } from '../../../../../common/BusinessAppContext'
-import { getCurrentActiveStructureId } from '@/common/utils/windowUtils'
+import { getCurrentActiveStructureId, getTranslationFromI18nKeyAndLabel } from '@/common/utils/windowUtils'
 import { useFeature } from '@/common/hooks/useFeature'
 import TimeTrackingTab from './components/tabs/TimeTrackingTab'
 
@@ -51,7 +54,8 @@ const TAB_KEYS = {
   absences: 'absences',
   skills: 'skills',
   changeLog: 'changeLog',
-  serviceRequests: 'serviceRequests'
+  serviceRequests: 'serviceRequests',
+  hrNotes: 'hrNotes'
 }
 
 // Helper to read URL parameters
@@ -251,6 +255,13 @@ const EmployeeRecordContent: React.FC<EmployeeRecordContentProps> = ({
 
   // Get employee permissions
   const { tabPermissions } = useEmployeePermissions(employeeIdToShow, accessToken)
+
+  // Check scope permission for HR Notes tab
+  const {
+    hasPermission: hasNotesScopePermission,
+    loading: scopePermissionLoading,
+    error: scopePermissionError
+  } = useScopePermissionCheck('/platform/employee-record', 'employee-record-notes', accessToken)
 
   const isSelfView: boolean = !!(currentUserEmployeeId && employeeIdToShow === currentUserEmployeeId)
 
@@ -475,18 +486,42 @@ const EmployeeRecordContent: React.FC<EmployeeRecordContentProps> = ({
             isSelfView={isSelfView}
           />
         )
+      },
+      {
+        key: TAB_KEYS.hrNotes,
+        label: (
+          <div className="gba:flex gba:items-center gba:gap-2">
+            <PiNotebook className="gba:text-xl gba:inline-block gba:align-middle" />
+            <span className="gba:inline-block gba:align-middle">
+              {getTranslationFromI18nKeyAndLabel('lowcoder:hr_notes.tab_name', 'HR Notes')}
+            </span>
+          </div>
+        ),
+        children: (
+          <HrNotesTab
+            accessToken={accessToken}
+            employeeId={employeeIdToShow}
+            employeeName={employee?.displayName || 'Employee'}
+            userInfo={userInfo}
+            additionalData={additionalData}
+          />
+        )
       }
     ]
     // ONLY when not viewing own profile
     return allTabs.filter(tab => {
       const tabKey = tab.key as string
 
-      // If viewing own profile, always show all tabs
+      if (tabKey === TAB_KEYS.hrNotes && isSelfView) {
+        return false
+      }
+
+      // If viewing own profile, show all other tabs
       if (isSelfView) {
         return true
       }
 
-      // If not viewing own profile and tab is employment, documents, absences, changeLog, or serviceRequests, check permissions
+      // If not viewing own profile and tab is employment, documents, absences, changeLog, serviceRequests, or timeTracking, check permissions
       if (
         tabKey === TAB_KEYS.employment ||
         tabKey === TAB_KEYS.documents ||
@@ -497,6 +532,22 @@ const EmployeeRecordContent: React.FC<EmployeeRecordContentProps> = ({
       ) {
         // Check if user has permission to see this tab
         return tabPermissions?.[tabKey]?.hasAccess === true
+      }
+
+      // For HR Notes tab, check scope permission in addition to regular permission
+      if (tabKey === TAB_KEYS.hrNotes) {
+        if (scopePermissionLoading) {
+          return false
+        }
+        const hasRegularPermission = tabPermissions?.[tabKey]?.hasAccess === true
+        const hasScope = hasNotesScopePermission === true
+
+        // User must have both regular permission AND scope permission
+        // If scope check fails with error, still show tab if regular permission exists (graceful degradation)
+        if (scopePermissionError && hasRegularPermission) {
+          return true
+        }
+        return hasRegularPermission && hasScope
       }
 
       // Always show other tabs
@@ -514,7 +565,7 @@ const EmployeeRecordContent: React.FC<EmployeeRecordContentProps> = ({
       onChange={setActiveTab}
       items={tabItems.map(item => ({ key: item.key, label: item.label }))}
       className="gba:w-full"
-      destroyInactiveTabPane
+      destroyOnHidden
     />
   )
 
