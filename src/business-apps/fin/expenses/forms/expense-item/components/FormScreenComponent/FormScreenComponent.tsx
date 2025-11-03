@@ -376,10 +376,8 @@ export const FormScreenComponent: React.FC<FormScreenComponentProps> = ({
             requestAnimationFrame(() => {
               requestAnimationFrame(async () => {
                 try {
-                  await form.validateFields({
-                    validateMessages: undefined,
-                    scroll: { behavior: 'smooth', block: 'center' }
-                  })
+                  // Validate without scroll to prevent DOM jumping
+                  await form.validateFields()
 
                   // Check for expense rule errors
                   if (expenseRuleError) {
@@ -387,9 +385,15 @@ export const FormScreenComponent: React.FC<FormScreenComponentProps> = ({
                   }
 
                   handleSubmit()
-                } catch {
-                  // Form validation failed - Ant Design will show the error messages
-                  // Errors are already displayed on the fields
+                } catch (errorInfo) {
+                  // Form validation failed - scroll to first error smoothly
+                  const firstErrorField = errorInfo?.errorFields?.[0]?.name?.[0]
+                  if (firstErrorField) {
+                    const element = document.querySelector(`[name="${firstErrorField}"]`)
+                    if (element) {
+                      element.scrollIntoView({ behavior: 'smooth', block: 'center' })
+                    }
+                  }
                 }
               })
             })
