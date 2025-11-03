@@ -1,4 +1,15 @@
-import type { CatalogEntry, EmployeeRef } from '@/common/network/graphql/commonTypes'
+import type { CatalogEntry } from '@/common/network/graphql/commonTypes'
+import type { EmployeeRef } from '@/common/data/employee/types/employeeBaseTypes'
+/**
+ * Generic Account reference that supports both Investment and Customer accounts
+ */
+export interface GenericAccountRef {
+  id: string
+  name?: string
+  code?: string
+  pictureThumbnail?: string // InvestmentAccount uses this
+  pictureThumbnailUrl?: string // CustomerAccount uses this
+}
 
 /**
  * Generic Opportunity interface that supports both Investment and Customer opportunities
@@ -21,6 +32,9 @@ export interface GenericOpportunity {
   // Employee reference
   ownerEmployee?: EmployeeRef
 
+  // Account reference
+  account?: GenericAccountRef
+
   // Timestamps
   createdAt?: string
   updatedAt?: string
@@ -35,6 +49,7 @@ export interface OpportunitySectionProps<T extends GenericOpportunity = GenericO
   error?: string | null
   onRetry?: () => void
   recordUrlBuilder: (opportunityId: string) => string
+  accountUrlBuilder?: (accountId: string) => string // Optional, for account navigation
   className?: string
   'data-testid'?: string
 }

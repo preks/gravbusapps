@@ -78,6 +78,8 @@ This variable is **ignored** when `PUBLISH_ALL_SCREENS=true`.
 
 - Scans `src/business-apps/**/apps/*/index.ts`
 - Scans `src/business-apps/**/forms/*/index.ts`
+- Scans `src/business-apps/**/popups/*/index.ts`
+- Scans `src/business-apps/**/records/*/index.ts`
 - Generates a list of all screen paths
 - Filters out any missing/deleted screens
 
@@ -89,7 +91,7 @@ For each screen:
   - Skips resource URL sync (forms use direct screenKey)
   - Syncs screen configuration from dev to prod
   - Preserves namespace information
-- **App Screens** (contains `/apps/`):
+- **App Screens, Popups, and Records** (contains `/apps/`, `/popups/`, or `/records/`):
   - Searches for resource URL in dev
   - Syncs resource URL to prod with same ID (if `SKIP_RESOURCE_URL_SYNC=false`)
   - Syncs screen configuration from dev to prod
@@ -122,7 +124,7 @@ For each screen:
 ⚠️  WARNING: This will publish EVERY screen in the repository!
 
 🔍 Discovering all screens in repository...
-📋 Found 127 screens to publish:
+📋 Found 150 screens to publish:
 ────────────────────────────────────────────────────────────────────────────────
 📱 Apps: 98
    - crm/common/apps/account-record
@@ -137,9 +139,19 @@ For each screen:
    - crm/common/forms/contact-form
    - hr/core/forms/employee-form
    ... (more forms)
+
+🪟 Popups: 15
+   - crm/investments/popups/investment-popup
+   - hr/core/popups/employee-select-popup
+   ... (more popups)
+
+📄 Records: 8
+   - crm/common/records/opportunity-record
+   - hr/core/records/employee-record
+   ... (more records)
 ────────────────────────────────────────────────────────────────────────────────
 
-✅ Verified 127 existing screens
+✅ Verified 150 existing screens
 📄 Screen list written to: all-screens.txt
 
 🚀 Starting production publishing process...
@@ -155,12 +167,12 @@ For each screen:
 ────────────────────────────────────────────────────────────────────────────────
 🔢 Build number: 1234
 🎯 Publish version: 1234
-📈 Total screens processed: 127
-✅ Successfully published: 127
+📈 Total screens processed: 150
+✅ Successfully published: 150
 ❌ Failed: 0
 
 🎉 Production publishing completed successfully!
-✨ All 127 screen(s) were published without errors.
+✨ All 150 screen(s) were published without errors.
 ```
 
 ## Timing Estimates

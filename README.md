@@ -73,7 +73,16 @@ npm run publish:screen -- /hr/employee-screens/EmployeeDirectory -r
 npm run publish:all:screens
 ```
 
-This command will discover and publish ALL screens (apps and forms) in the repository to the dev environment.
+This command will discover and publish ALL screens in the repository to the dev environment.
+
+**Supported Screen Types:**
+
+- 📱 **Apps** (`**/apps/*/index.ts`) - Main application screens
+- 📝 **Forms** (`**/forms/*/index.ts`) - Form screens for workflows
+- 🪟 **Popups** (`**/popups/*/index.ts`) - Modal/popup screens
+- 📄 **Records** (`**/records/*/index.ts`) - Record detail screens
+
+For more details about screen types, see [Supported Screen Types](./docs/supported-screen-types.md).
 
 ### Publish to Production
 
