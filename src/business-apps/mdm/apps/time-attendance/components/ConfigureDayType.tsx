@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useMemo } from 'react'
+import React, { useState, useEffect, useMemo, useCallback } from 'react'
 import {
   Card,
   CardContent,
@@ -137,6 +137,7 @@ const ConfigureDayType: React.FC<ConfigureDayTypeProps> = ({
   const restClient = useRestClient(env('NEXT_PUBLIC_KOGITO_PROCESSES_ENDPOINT'))
   const [loading, setLoading] = useState(false)
   const [currentDayTypeVersion, setCurrentDayTypeVersion] = useState<TransformedDayTypeVersion | null>(dayTypeVersion)
+  const [overlapWarning, setOverlapWarning] = useState<string | null>(null)
 
   // Update currentDayTypeVersion when dayTypeVersion prop changes
   useEffect(() => {
