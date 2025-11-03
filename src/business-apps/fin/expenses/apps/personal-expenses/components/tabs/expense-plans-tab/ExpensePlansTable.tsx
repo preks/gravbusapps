@@ -486,7 +486,7 @@ const ExpensePlansTable: React.FC<ExpensePlansTableProps> = React.memo(props => 
                                       }
                                     ]
                                   : []),
-                                ...(record.status === 'APPROVED' || ((record as any)?.expenseRequest?.length ?? 0) > 0
+                                ...(record.status === 'APPROVED'
                                   ? [
                                       {
                                         category: getTranslationFromI18nKeyAndLabel(

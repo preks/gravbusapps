@@ -110,7 +110,8 @@ export const useFormFieldClearing = () => {
     if (hasLoadedDependentTypes && !(isRealEstateGroup && isProjectDevelopmentType)) {
       const updates: any = {}
       if (formValues.requiredCapitalAmount) updates.requiredCapitalAmount = ''
-      if (formValues.forecastedProfitAmount) updates.forecastedProfitAmount = ''
+      // Note: forecastedProfitAmount is NOT cleared here because it's shared with Others type
+      // It's handled by the dedicated forecastedProfitAmount clearing logic below
 
       if (Object.keys(updates).length > 0) {
         setFormValues(updates)

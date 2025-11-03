@@ -8,8 +8,15 @@ import { DEAL_TYPES } from '../../types'
 const prefixDataTestId = 'InvestmentOpportunityForm'
 
 const DealTypePipelineSection: React.FC = () => {
-  const { formValues, setFormValues, pipelines, pipelineStages, pipelineStagesLoading, refetchStages } =
-    useOpportunityFormContext()
+  const {
+    formValues,
+    setFormValues,
+    pipelines,
+    pipelineStages,
+    pipelineStagesLoading,
+    refetchStages,
+    isDealTypeLocked // ✅ NEW: Get lock state
+  } = useOpportunityFormContext()
 
   // Ref to track previous pipeline to detect changes
   const previousPipelineRef = useRef<string>(formValues.pipeline)
@@ -59,33 +66,35 @@ const DealTypePipelineSection: React.FC = () => {
 
   return (
     <div className="gba:space-y-6">
-      {/* Deal Type */}
-      <div className="gba:space-y-2">
-        <Label htmlFor="dealType" className="gba:block gba:text-sm gba:font-medium gba:text-gray-900">
-          {getTranslationFromI18nKeyAndLabel('opportunity.dealType.label', 'Deal Type')}
-        </Label>
-        <Select
-          value={formValues.dealType || ''}
-          onValueChange={value => handleInputChange('dealType', value)}
-          data-testid={formatDataTestId(prefixDataTestId, 'deal-type')}
-        >
-          <SelectTrigger className="gba:border-gray-300 gba:bg-white">
-            <SelectValue
-              placeholder={getTranslationFromI18nKeyAndLabel(
-                'opportunity.dealType.placeholder',
-                'Please select deal type...'
-              )}
-            />
-          </SelectTrigger>
-          <SelectContent>
-            {DEAL_TYPES.map(dealType => (
-              <SelectItem key={dealType.id} value={dealType.value}>
-                {dealType.label}
-              </SelectItem>
-            ))}
-          </SelectContent>
-        </Select>
-      </div>
+      {/* Deal Type - Only show when not locked */}
+      {!isDealTypeLocked && (
+        <div className="gba:space-y-2">
+          <Label htmlFor="dealType" className="gba:block gba:text-sm gba:font-medium gba:text-gray-900">
+            {getTranslationFromI18nKeyAndLabel('opportunity.dealType.label', 'Deal Type')}
+          </Label>
+          <Select
+            value={formValues.dealType || ''}
+            onValueChange={value => handleInputChange('dealType', value)}
+            data-testid={formatDataTestId(prefixDataTestId, 'deal-type')}
+          >
+            <SelectTrigger className="gba:border-gray-300 gba:bg-white">
+              <SelectValue
+                placeholder={getTranslationFromI18nKeyAndLabel(
+                  'opportunity.dealType.placeholder',
+                  'Please select deal type...'
+                )}
+              />
+            </SelectTrigger>
+            <SelectContent>
+              {DEAL_TYPES.map(dealType => (
+                <SelectItem key={dealType.id} value={dealType.value}>
+                  {dealType.label}
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+        </div>
+      )}
 
       {/* Pipeline and Stage - Side by Side */}
       <div className="gba:grid gba:grid-cols-1 gba:gap-6 gba:md:grid-cols-2">

@@ -1,5 +1,6 @@
 import React, { useMemo } from 'react'
 import { Badge } from '@newwork/nw-design-system'
+import { GripVertical, UserCheck, UserPlus } from 'lucide-react'
 
 import ReactFlow, {
   Node,
@@ -22,21 +23,57 @@ export interface FlowRendererProps {
   steps: FlowStep[]
   selectedStepIndex?: number | null
   onSelectStep?: (index: number) => void
+  onReorderSteps?: (fromIndex: number, toIndex: number) => void
   mode?: 'view' | 'edit'
   'data-testid'?: string
 }
 
 // Custom node component for React Flow
 const StepNode = ({ data }: { data: any }) => {
+  const [isDragOver, setIsDragOver] = React.useState(false)
+
   const getSelectionBgClass = (selected: boolean) => {
     return selected ? 'gba:bg-blue-50 gba:border-blue-500' : 'gba:bg-gray-50 gba:border-gray-300'
   }
 
+  const handleDragStart = (e: React.DragEvent) => {
+    e.stopPropagation() // Prevent React Flow from handling this
+    e.dataTransfer.effectAllowed = 'move'
+    e.dataTransfer.setData('stepIndex', data.index.toString())
+  }
+
+  const handleDragOver = (e: React.DragEvent) => {
+    e.preventDefault()
+    e.stopPropagation() // Prevent React Flow from handling this
+    e.dataTransfer.dropEffect = 'move'
+    setIsDragOver(true)
+  }
+
+  const handleDragLeave = () => {
+    setIsDragOver(false)
+  }
+
+  const handleDrop = (e: React.DragEvent) => {
+    e.preventDefault()
+    e.stopPropagation() // Prevent React Flow from handling this
+    setIsDragOver(false)
+    const fromIndex = Number.parseInt(e.dataTransfer.getData('stepIndex'), 10)
+    if (fromIndex !== data.index && data.onReorder) {
+      data.onReorder(fromIndex, data.index)
+    }
+  }
+
   return (
-    <div
-      className={`gba:border-2 gba:rounded-lg gba:p-3 gba:w-[240px] gba:h-[130px] gba:transition-all gba:duration-200 gba:shadow-sm gba:cursor-pointer ${getSelectionBgClass(data.selected)} ${
+    <button
+      type="button"
+      draggable={data.mode === 'edit'}
+      onDragStart={handleDragStart}
+      onDragOver={handleDragOver}
+      onDragLeave={handleDragLeave}
+      onDrop={handleDrop}
+      className={`nopan nodrag gba:border-2 gba:rounded-lg gba:p-3 gba:w-[240px] gba:h-[130px] gba:transition-all gba:duration-200 gba:shadow-sm gba:cursor-pointer ${getSelectionBgClass(data.selected)} ${
         data.selected ? 'gba:shadow-md gba:scale-105' : ''
-      }`}
+      } ${isDragOver ? 'gba:opacity-50 gba:border-blue-400 gba:bg-blue-100' : ''}`}
       onClick={() => data?.onSelect?.(data.index)}
     >
       {/* Properly positioned handles for center connections */}
@@ -63,20 +100,48 @@ const StepNode = ({ data }: { data: any }) => {
         }}
       />
 
-      {/* Type Badge Header */}
-      <div className="gba:flex gba:items-center gba:gap-2 gba:mb-2">
-        <Badge
-          variant="outline"
-          className={`gba:text-xs gba:border-0 ${
-            data.selected ? 'gba:bg-blue-500 gba:text-white' : 'gba:bg-gray-400 gba:text-white'
-          }`}
-        >
-          {data.type}
-        </Badge>
+      {/* Type Badge Header with Drag Handle */}
+      <div className="gba:flex gba:items-center gba:justify-between gba:mb-2">
+        <div className="gba:flex gba:items-center gba:gap-2">
+          {data.mode === 'edit' && (
+            <GripVertical className="gba:h-4 gba:w-4 gba:text-gray-400 gba:cursor-grab active:gba:cursor-grabbing" />
+          )}
+          <Badge
+            variant="outline"
+            className={`gba:text-xs gba:border-0 ${
+              data.selected ? 'gba:bg-blue-500 gba:text-white' : 'gba:bg-gray-400 gba:text-white'
+            }`}
+          >
+            {data.type}
+          </Badge>
+        </div>
+        {/* Assignment Mode Badge - Aligned Right */}
+        {data.assignmentMode && (
+          <Badge
+            variant="outline"
+            className={`gba:text-xs gba:flex gba:items-center gba:gap-1 ${
+              data.assignmentMode === 'ASSIGN'
+                ? 'gba:bg-green-100 gba:text-green-700 gba:border-green-300'
+                : 'gba:bg-purple-100 gba:text-purple-700 gba:border-purple-300'
+            }`}
+          >
+            {data.assignmentMode === 'ASSIGN' ? (
+              <>
+                <UserPlus className="gba:h-3 gba:w-3" />
+                Assign
+              </>
+            ) : (
+              <>
+                <UserCheck className="gba:h-3 gba:w-3" />
+                Claim
+              </>
+            )}
+          </Badge>
+        )}
       </div>
 
       {/* Step Title - Single line with ellipsis */}
-      <div className="gba:font-semibold gba:text-base gba:mb-2 gba:line-clamp-1 gba:text-gray-900">
+      <div className="gba:font-semibold gba:text-base gba:mb-1 gba:line-clamp-1 gba:text-gray-900">
         {data.title || `Step ${data.index + 1}`}
       </div>
 
@@ -87,15 +152,14 @@ const StepNode = ({ data }: { data: any }) => {
 
       {/* Step Number */}
       <div
-        className="gba:absolute gba:-top-2 gba:-left-2 gba:w-6 gba:h-6 gba:rounded-full gba:flex gba:items-center gba:justify-center gba:text-xs gba:font-bold"
+        className="gba:absolute gba:-top-2 gba:-left-2 gba:w-6 gba:h-6 gba:rounded-full gba:flex gba:items-center gba:justify-center gba:text-xs gba:font-bold gba:text-white"
         style={{
-          backgroundColor: data.selected ? '#3b82f6' : '#6b7280',
-          color: 'white'
+          backgroundColor: data.selected ? '#3b82f6' : '#6b7280'
         }}
       >
         {data.index + 1}
       </div>
-    </div>
+    </button>
   )
 }
 
@@ -103,6 +167,7 @@ export const FlowRenderer: React.FC<FlowRendererProps> = ({
   steps,
   selectedStepIndex = null,
   onSelectStep,
+  onReorderSteps,
   mode = 'view',
   'data-testid': testId = 'flow-renderer'
 }) => {
@@ -116,9 +181,12 @@ export const FlowRenderer: React.FC<FlowRendererProps> = ({
         title: step.title,
         type: step.type || 'USER_TASK',
         message: step.message,
+        assignmentMode: step.assignment?.assignmentMode,
         index,
         selected: selectedStepIndex === index,
-        onSelect: (idx: number) => onSelectStep?.(idx)
+        onSelect: (idx: number) => onSelectStep?.(idx),
+        onReorder: onReorderSteps,
+        mode
       },
       style: {
         background: 'transparent',
@@ -145,7 +213,7 @@ export const FlowRenderer: React.FC<FlowRendererProps> = ({
       }
     }))
     return { nodes, edges }
-  }, [steps, selectedStepIndex, onSelectStep])
+  }, [steps, selectedStepIndex, onSelectStep, onReorderSteps, mode])
 
   const [flowNodes, setNodes, onNodesChange] = useNodesState(nodes)
   const [flowEdges, setEdges, onEdgesChange] = useEdgesState(edges)
