@@ -15,6 +15,9 @@ const ChangePrivateCommunicationScreen: React.FC<BusinessAppContextProps> = cont
   const [valueType, setValueType] = useState<string | undefined>(undefined)
   const [value, setValue] = useState<string>('')
   const [purpose, setPurpose] = useState<string>('PRIVATE')
+  const [channelTouched, setChannelTouched] = useState(false)
+  const [typeTouched, setTypeTouched] = useState(false)
+  const [valueTouched, setValueTouched] = useState(false)
   const [baseline, setBaseline] = useState<{
     channelRef?: string
     typeRefId?: string
@@ -244,11 +247,88 @@ const ChangePrivateCommunicationScreen: React.FC<BusinessAppContextProps> = cont
     }
   }, [hasPrimaryForSelection, valueType, secondaryTypeId, channelType, purpose])
 
-  const validateForm = () => {
-    if (!isValid) {
-      return [getTranslationFromI18nKeyAndLabel('lowcoder:communication_form.enterValue', 'Enter Value')]
+  const normalizedChannelType = useMemo(() => {
+    const selected = channels.find(c => c.id === channelType)
+    const raw = (selected?.label || selected?.value || '').toString()
+    return raw.split(':').pop()?.trim() || ''
+  }, [channels, channelType])
+
+  const valueValidationMessage = useMemo(() => {
+    const type = normalizedChannelType
+    const v = (value || '').trim()
+    switch (type.toLowerCase()) {
+      case 'phone':
+      case 'mobile':
+      case 'fax':
+      case 'pager':
+        if (/^\+?\d+$/.test(v)) return ''
+        return getTranslationFromI18nKeyAndLabel(
+          'lowcoder:communication_form.phone_number_error_message',
+          `Please enter a valid ${type.toLowerCase()} number, including country code if applicable.`,
+          { validNumber: type.toLowerCase(), interpolation: { escapeValue: false } }
+        )
+      case 'email':
+      case 'e-mail':
+        if (/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(v)) return ''
+        return getTranslationFromI18nKeyAndLabel(
+          'lowcoder:communication_form.email_error_message',
+          'Please enter a valid email address (e.g., example@domain.com).'
+        )
+      case 'messenger':
+        if (v !== '') return ''
+        return getTranslationFromI18nKeyAndLabel(
+          'lowcoder:communication_form.messenger_error_message',
+          'Please enter a valid messenger username or ID.'
+        )
+      case 'social media':
+      case 'slack':
+      case 'xing':
+      case 'linkedin':
+      case 'facebook':
+      case 'instagram':
+      case 'youtube':
+      case 'x':
+        if (
+          /^(https?:\/\/)?([a-zA-Z0-9\u00C0-\uFFFF-]+\.)+[a-zA-Z\u00C0-\uFFFF-]{2,}(\/[a-zA-Z0-9\u00C0-\uFFFF-._~%]*)*\/?$/.test(
+            v
+          )
+        )
+          return ''
+        return getTranslationFromI18nKeyAndLabel(
+          'lowcoder:communication_form.social_media_error_message',
+          'Please enter a valid social media profile URL (e.g., https://www.example.com/profile).'
+        )
+      default:
+        if (v !== '') return ''
+        return getTranslationFromI18nKeyAndLabel(
+          'lowcoder:communication_form.channel_type_error_message',
+          'Choose a valid channel type.'
+        )
     }
-    return null
+  }, [normalizedChannelType, value, getTranslationFromI18nKeyAndLabel])
+
+  const channelRequiredMessage = useMemo(() => {
+    if (channelType) return ''
+    return getTranslationFromI18nKeyAndLabel(
+      'lowcoder:communication_form.channel_error_message',
+      'The Channel field is required. Please select the communication channel.'
+    )
+  }, [channelType, getTranslationFromI18nKeyAndLabel])
+
+  const typeRequiredMessage = useMemo(() => {
+    if (valueType) return ''
+    return getTranslationFromI18nKeyAndLabel(
+      'lowcoder:communication_form.type_error_message',
+      'The Type field is required. Please select the communication type.'
+    )
+  }, [valueType, getTranslationFromI18nKeyAndLabel])
+
+  const validateForm = () => {
+    const errors: string[] = []
+    if (!channelType) errors.push(channelRequiredMessage)
+    if (!valueType) errors.push(typeRequiredMessage)
+    if (valueValidationMessage) errors.push(valueValidationMessage)
+    return errors.length > 0 ? errors : null
   }
 
   const handlePreSubmit = async () => {
@@ -312,7 +392,14 @@ const ChangePrivateCommunicationScreen: React.FC<BusinessAppContextProps> = cont
             <div className="gba:text-sm gba:font-medium gba:text-muted-foreground">
               {getTranslationFromI18nKeyAndLabel('lowcoder:communication_form.channelType', 'Channel Type')}*
             </div>
-            <Select value={channelType} onValueChange={setChannelType} disabled={loading}>
+            <Select
+              value={channelType}
+              onValueChange={v => {
+                setChannelTouched(true)
+                setChannelType(v)
+              }}
+              disabled={loading}
+            >
               <SelectTrigger className="gba:w-full" data-testid="flw_changePrivateCommunication_currentChannelType">
                 <SelectValue
                   placeholder={getTranslationFromI18nKeyAndLabel(
@@ -329,6 +416,11 @@ const ChangePrivateCommunicationScreen: React.FC<BusinessAppContextProps> = cont
                 ))}
               </SelectContent>
             </Select>
+            {channelTouched && channelRequiredMessage && (
+              <div className="gba:mt-1 gba:text-destructive" data-testid="change-communication-channel-error">
+                {channelRequiredMessage}
+              </div>
+            )}
           </div>
 
           {/* Type */}
@@ -336,7 +428,14 @@ const ChangePrivateCommunicationScreen: React.FC<BusinessAppContextProps> = cont
             <div className="gba:text-sm gba:font-medium gba:text-muted-foreground">
               {getTranslationFromI18nKeyAndLabel('lowcoder:communication_form.type', 'Type')}*
             </div>
-            <Select value={valueType} onValueChange={setValueType} disabled={loading}>
+            <Select
+              value={valueType}
+              onValueChange={v => {
+                setTypeTouched(true)
+                setValueType(v)
+              }}
+              disabled={loading}
+            >
               <SelectTrigger className="gba:w-full" data-testid="flw_changePrivateCommunication_currentType">
                 <SelectValue
                   placeholder={getTranslationFromI18nKeyAndLabel(
@@ -357,6 +456,11 @@ const ChangePrivateCommunicationScreen: React.FC<BusinessAppContextProps> = cont
                 })}
               </SelectContent>
             </Select>
+            {typeTouched && typeRequiredMessage && (
+              <div className="gba:mt-1 gba:text-destructive" data-testid="change-communication-type-error">
+                {typeRequiredMessage}
+              </div>
+            )}
           </div>
 
           {/* Purpose */}
@@ -393,8 +497,14 @@ const ChangePrivateCommunicationScreen: React.FC<BusinessAppContextProps> = cont
               placeholder={getTranslationFromI18nKeyAndLabel('lowcoder:communication_form.enterValue', 'Enter Value')}
               value={value}
               onChange={(e: React.ChangeEvent<HTMLInputElement>) => setValue(e.target.value)}
+              onBlur={() => setValueTouched(true)}
               data-testid="flw_changePrivateCommunication_currentValue"
             />
+            {valueTouched && valueValidationMessage && (
+              <div className="gba:mt-1 gba:text-destructive" data-testid="flw_changePrivateCommunication_valueError">
+                {valueValidationMessage}
+              </div>
+            )}
           </div>
         </div>
 

@@ -181,21 +181,20 @@ const DetailsTab: React.FC<DetailsTabProps> = ({ employee, accessToken, employee
   const privateCommunicationData = getPrivateCommunication()
 
   // Prepare emergency contact data
-  const getEmergencyContact = () => {
-    const emergencyContact = employee.relationship?.find(rel => rel.isEmergencyContact)
 
-    return [
+  const getEmergencyContact = () => {
+    const emergencyContacts = employee.relationship?.filter(rel => rel.isEmergencyContact)
+
+    return emergencyContacts.map(contact => [
       {
         label: 'Contact Name',
-        value: emergencyContact
-          ? `${emergencyContact.firstName || ''} ${emergencyContact.lastName || ''}`.trim() || ''
-          : ''
+        value: emergencyContacts ? `${contact.firstName || ''} ${contact.lastName || ''}`.trim() || '' : ''
       },
       {
         label: 'Phone Number',
-        value: emergencyContact?.phoneNumber ? formatPhoneNumber(emergencyContact.phoneNumber) : ''
+        value: contact?.phoneNumber ? formatPhoneNumber(contact.phoneNumber) : ''
       }
-    ]
+    ])
   }
 
   const emergencyContactData = getEmergencyContact()
@@ -384,9 +383,13 @@ const DetailsTab: React.FC<DetailsTabProps> = ({ employee, accessToken, employee
           <div className="gba:mb-6 gba:border-b gba:border-border gba:pb-2">
             <h3 className="gba:text-xl gba:font-semibold gba:text-info">Emergency Contact</h3>
           </div>
-          {renderDataItems(
-            emergencyContactData.map(item => ({ ...item, sectionKey: SECTION_KEYS.details.relationships }))
-          )}
+          <div className="gba:flex gba:flex-col gba:gap-2">
+            {emergencyContactData.map((items, idx) => (
+              <div key={`emergency-contact-${idx}`}>
+                {renderDataItems(items.map(item => ({ ...item, sectionKey: SECTION_KEYS.details.relationships })))}
+              </div>
+            ))}
+          </div>
         </Card>
 
         {/* Payroll Data Card has been moved to EmploymentTab */}
