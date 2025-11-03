@@ -1,0 +1,67 @@
+/**
+ * Query helper functions for opportunity views
+ * Shared between CRM and IRM opportunity filtering
+ */
+
+interface OpportunityQueryVars {
+  stageIds?: string[]
+  statusIds?: string[]
+  pipelineIds?: string[]
+  ownerEmployeeIds?: string[]
+  accountIds?: string[]
+  estimatedAmountRanges?: Array<{ min?: number; max?: number }>
+  closeDateFrom?: string
+  closeDateTo?: string
+}
+
+export const applyBasicFilters = <T extends OpportunityQueryVars>(vars: T, selectedFilters: Record<string, any>) => {
+  if (selectedFilters.stage?.length > 0) vars.stageIds = selectedFilters.stage
+  if (selectedFilters.status?.length > 0) vars.statusIds = selectedFilters.status
+  if (selectedFilters.pipeline?.length > 0) vars.pipelineIds = selectedFilters.pipeline
+  if (selectedFilters.owner?.length > 0) vars.ownerEmployeeIds = selectedFilters.owner
+  if (selectedFilters.account?.length > 0) vars.accountIds = selectedFilters.account
+}
+
+export const applyAmountFilter = <T extends OpportunityQueryVars>(vars: T, amountFilter: any) => {
+  if (!amountFilter || typeof amountFilter !== 'object') return
+
+  const min = amountFilter.min ?? null
+  const max = amountFilter.max ?? null
+
+  if (min !== null || max !== null) {
+    vars.estimatedAmountRanges = [
+      {
+        ...(min !== null && { min }),
+        ...(max !== null && { max })
+      }
+    ]
+  }
+}
+
+export const parseDateString = (dateFilter: string): { from?: string; to?: string } => {
+  const dates = dateFilter
+    .split(',')
+    .map(d => d.trim())
+    .filter(Boolean)
+  if (dates.length === 1) {
+    return { from: dates[0], to: dates[0] }
+  }
+  if (dates.length === 2) {
+    return { from: dates[0] || undefined, to: dates[1] || undefined }
+  }
+  return {}
+}
+
+export const applyDateFilter = <T extends OpportunityQueryVars>(vars: T, dateFilter: any) => {
+  if (!dateFilter) return
+
+  if (typeof dateFilter === 'string') {
+    const { from, to } = parseDateString(dateFilter)
+    if (from) vars.closeDateFrom = from
+    if (to) vars.closeDateTo = to
+  } else if (Array.isArray(dateFilter)) {
+    const [start, end] = dateFilter
+    if (start) vars.closeDateFrom = start
+    if (end) vars.closeDateTo = end
+  }
+}

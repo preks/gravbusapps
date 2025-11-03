@@ -2,6 +2,7 @@ import { resolve } from 'path'
 import { defineConfig, loadEnv, type PluginOption } from 'vite'
 import react from '@vitejs/plugin-react'
 import tailwindCSS from '@tailwindcss/vite'
+import browserEcho from '@browser-echo/vite'
 import fs from 'fs' // For synchronous file system operations
 import { readFile, rename as fsRename } from 'fs/promises' // For asynchronous file system operations in the plugin
 import crypto from 'crypto'
@@ -302,7 +303,20 @@ if (globalThis.__APP_BUILD_INFO__) {
                 }
               }
             }
-          }
+          },
+          // Browser console log forwarding
+          browserEcho({
+            include: ['log', 'info', 'warn', 'error', 'debug'],
+            // Terminal output
+            enabled: true,
+            // Enable file logging with rotation
+            fileLog: {
+              enabled: true,
+              dir: './logs' // Store in dedicated logs directory
+            },
+            // Stack trace configuration
+            stackMode: 'condensed'
+          })
         ]
       : [])
   ]

@@ -1,19 +1,13 @@
-import React, { useCallback, useEffect, useMemo, useState } from 'react'
+import { useCallback, useEffect, useState } from 'react'
 import { BusinessAppContextProps } from '@/common/BusinessAppContext'
 import { useGraphQLClient } from '@/common/network/graphql/useGraphQLClient'
-import type { DataFilterGroup } from '@/components/data-filter/DataFilter'
-import { DateRangeFilter } from '@/business-apps/crm/core/apps/customer-relations/views/lead-view/components/DateRangeFilter'
 
 interface SimpleItem {
   id: string
   label: string
 }
 
-export const useInvestmentOpportunityFilters = (
-  context: BusinessAppContextProps,
-  selectedFilters: string[],
-  setSelectedFilters: (filters: string[]) => void
-) => {
+export const useInvestmentOpportunityFilters = (context: BusinessAppContextProps) => {
   const graphqlClient = useGraphQLClient(context.accessToken)
 
   const [owners, setOwners] = useState<SimpleItem[]>([])
@@ -21,9 +15,7 @@ export const useInvestmentOpportunityFilters = (
   const [pipelines, setPipelines] = useState<SimpleItem[]>([])
   const [accounts, setAccounts] = useState<SimpleItem[]>([])
   const [statuses, setStatuses] = useState<SimpleItem[]>([])
-
-  const [closeAfter, setCloseAfter] = useState<string | undefined>(undefined)
-  const [closeBefore, setCloseBefore] = useState<string | undefined>(undefined)
+  const [amountRange, setAmountRange] = useState<{ min: number; max: number }>({ min: 0, max: 1000000 })
 
   const loadOwners = useCallback(async () => {
     if (!context.accessToken) return
@@ -146,95 +138,42 @@ export const useInvestmentOpportunityFilters = (
     }
   }, [context.accessToken, graphqlClient])
 
+  const loadAmountRange = useCallback(async () => {
+    if (!context.accessToken) return
+    try {
+      const res = await graphqlClient.request<{
+        InvestmentOpportunityAggregate: {
+          aggregate: {
+            min: { estimatedAmount: number | null }
+            max: { estimatedAmount: number | null }
+          } | null
+        }
+      }>(`
+        query GetOppAmountRange {
+          InvestmentOpportunityAggregate(where: { isDeleted: { _eq: false } }) {
+            aggregate {
+              min { estimatedAmount }
+              max { estimatedAmount }
+            }
+          }
+        }
+      `)
+      const minAmount = res?.InvestmentOpportunityAggregate?.aggregate?.min?.estimatedAmount ?? 0
+      const maxAmount = res?.InvestmentOpportunityAggregate?.aggregate?.max?.estimatedAmount ?? 1000000
+      setAmountRange({ min: Math.floor(minAmount), max: Math.ceil(maxAmount) })
+    } catch {
+      setAmountRange({ min: 0, max: 1000000 })
+    }
+  }, [context.accessToken, graphqlClient])
+
   useEffect(() => {
     loadOwners()
     loadStages()
     loadPipelines()
     loadAccounts()
     loadStatuses()
-  }, [loadOwners, loadStages, loadPipelines, loadAccounts, loadStatuses])
+    loadAmountRange()
+  }, [loadOwners, loadStages, loadPipelines, loadAccounts, loadStatuses, loadAmountRange])
 
-  const filterLabelMap = useMemo(() => {
-    const map: Record<string, string> = {}
-    owners.forEach(o => (map[`owner:${o.id}`] = o.label))
-    stages.forEach(s => (map[`stage:${s.id}`] = s.label))
-    pipelines.forEach(p => (map[`pipeline:${p.id}`] = p.label))
-    accounts.forEach(a => (map[`account:${a.id}`] = a.label))
-    statuses.forEach(s => (map[`status:${s.id}`] = s.label))
-    return map
-  }, [owners, stages, pipelines, accounts, statuses])
-
-  const filterGroups: DataFilterGroup[] = useMemo(
-    () => [
-      {
-        id: 'closeDate',
-        title: 'Close Date',
-        customComponent: React.createElement(DateRangeFilter, {
-          createdAfter: closeAfter,
-          createdBefore: closeBefore,
-          onDateRangeChange: (after?: string, before?: string) => {
-            setCloseAfter(after)
-            setCloseBefore(before)
-          },
-          className: 'gba:border-0 gba:shadow-none gba:p-0 gba:bg-transparent'
-        }),
-        hideSearch: true
-      } as any,
-      {
-        id: 'owners',
-        title: 'Owner',
-        filters: owners.map(o => ({
-          id: `owner:${o.id}`,
-          label: o.label,
-          selected: selectedFilters.includes(`owner:${o.id}`)
-        }))
-      },
-      {
-        id: 'stage',
-        title: 'Stage',
-        filters: stages.map(s => ({
-          id: `stage:${s.id}`,
-          label: s.label,
-          selected: selectedFilters.includes(`stage:${s.id}`)
-        }))
-      },
-      {
-        id: 'pipeline',
-        title: 'Pipeline',
-        filters: pipelines.map(p => ({
-          id: `pipeline:${p.id}`,
-          label: p.label,
-          selected: selectedFilters.includes(`pipeline:${p.id}`)
-        }))
-      },
-      {
-        id: 'accounts',
-        title: 'Account',
-        filters: accounts.map(a => ({
-          id: `account:${a.id}`,
-          label: a.label,
-          selected: selectedFilters.includes(`account:${a.id}`)
-        }))
-      },
-      {
-        id: 'statuses',
-        title: 'Status',
-        filters: statuses.map(s => ({
-          id: `status:${s.id}`,
-          label: s.label,
-          selected: selectedFilters.includes(`status:${s.id}`)
-        }))
-      }
-    ],
-    [owners, stages, pipelines, accounts, statuses, selectedFilters, closeAfter, closeBefore]
-  )
-
-  const handleFilterChange = useCallback(
-    (filterId: string, selected: boolean) => {
-      setSelectedFilters(selected ? [...selectedFilters, filterId] : selectedFilters.filter(f => f !== filterId))
-    },
-    [selectedFilters, setSelectedFilters]
-  )
-
-  return { filterGroups, filterLabelMap, handleFilterChange, closeAfter, closeBefore }
+  return { owners, stages, pipelines, accounts, statuses, amountRange }
 }

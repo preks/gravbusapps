@@ -9,6 +9,7 @@ export const CUSTOMER_ACCOUNT_REF = `
     id
     code
     name
+    pictureThumbnailUrl
     annualRevenue {
       ${CATALOG_ENTRY}
     }

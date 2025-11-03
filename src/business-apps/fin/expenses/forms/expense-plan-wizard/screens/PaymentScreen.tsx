@@ -85,9 +85,9 @@ const PaymentScreen: React.FC<PaymentScreenProps> = props => {
         paymentMethod: paymentMethodValue
       })
     } else {
-      // Default values
+      // Default values - leave amount empty so placeholder shows
       form.setFieldsValue({
-        amount: formatNumberFunction('0.00', '0.00[,]00'),
+        amount: '',
         currency: currency
         // Don't set paymentMethod initially so placeholder shows
       })
@@ -546,6 +546,12 @@ const PaymentScreen: React.FC<PaymentScreenProps> = props => {
                       }
                     }
                     form.setFieldsValue({ amount: value })
+
+                    // Normalize for state storage (replace comma with period)
+                    const normalizedValue = value.replace(',', '.')
+                    setAmount(normalizedValue)
+
+                    // Validate and handle errors
                     handleAmountChange({ ...field, value })
                   }}
                   onBlur={handleAmountBlur}
