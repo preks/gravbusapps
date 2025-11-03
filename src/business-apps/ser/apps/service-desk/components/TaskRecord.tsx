@@ -145,7 +145,6 @@ export const TaskRecord: React.FC<TaskRecordProps> = ({ taskId, accessToken, use
   const [isLoadingStepData, setIsLoadingStepData] = useState(false)
   const [step0Data, setStep0Data] = useState<any>(null)
   const [isLoadingStep0Data, setIsLoadingStep0Data] = useState(false)
-  const [isAssignModalOpen, setIsAssignModalOpen] = useState(false)
   const [isReassignModalOpen, setIsReassignModalOpen] = useState(false)
 
   // Load task data
@@ -160,7 +159,6 @@ export const TaskRecord: React.FC<TaskRecordProps> = ({ taskId, accessToken, use
     claimTicket,
     unclaimTicket,
     assignTicket,
-    assignToUserTicket,
     completeTicket,
     rejectTicket,
     addComment,
@@ -459,7 +457,7 @@ export const TaskRecord: React.FC<TaskRecordProps> = ({ taskId, accessToken, use
     }
   }
 
-  // Handle task reassignment to another user (for already claimed/assigned tickets)
+  // Handle task reassignment to another user (works for both claimed and unclaimed tickets)
   const handleReassignTask = async (targetUserId: string) => {
     if (!ticket) return
 
@@ -472,23 +470,6 @@ export const TaskRecord: React.FC<TaskRecordProps> = ({ taskId, accessToken, use
       await loadAvailableActions()
     } catch (error) {
       console.error('Failed to reassign ticket:', error)
-      throw error // Re-throw to let the modal handle the error display
-    }
-  }
-
-  // Handle task assignment to user (for unclaimed tickets - workaround: claim + reassign)
-  const handleAssignToUser = async (targetUserId: string) => {
-    if (!ticket) return
-
-    try {
-      console.log(`[TaskRecord] Assigning unclaimed ticket ${ticket.id} to user ${targetUserId}`)
-      await assignToUserTicket(ticket.id, targetUserId)
-      message.success('Ticket assigned successfully')
-
-      // Refresh available actions after assignment
-      await loadAvailableActions()
-    } catch (error) {
-      console.error('Failed to assign ticket:', error)
       throw error // Re-throw to let the modal handle the error display
     }
   }
@@ -1294,22 +1275,7 @@ export const TaskRecord: React.FC<TaskRecordProps> = ({ taskId, accessToken, use
                         </Button>
                       )}
 
-                      {/* Assign to User button - show for unclaimed tickets (workaround: claim + reassign) */}
-                      {availableActions?.canClaim && !ticket.claimedByUserId && !ticket.assignedToUserId && (
-                        <Button
-                          variant="outline"
-                          size="sm"
-                          onClick={() => setIsAssignModalOpen(true)}
-                          disabled={isActionLoading}
-                          className="gba:gap-2"
-                          data-testid="assign-to-user-button"
-                        >
-                          <UserCheckIcon className="gba:w-4 gba:h-4" />
-                          Assign to User
-                        </Button>
-                      )}
-
-                      {/* Reassign Ticket button - show when reassign action is available */}
+                      {/* Reassign Ticket button - works for both claimed and unclaimed tickets */}
                       {availableActions?.canReassign && (
                         <Button
                           variant="outline"
@@ -1765,22 +1731,7 @@ export const TaskRecord: React.FC<TaskRecordProps> = ({ taskId, accessToken, use
         </div>
       </PageLayout>
 
-      {/* Assign to User Modal - for unclaimed tickets */}
-      <AssignTaskModal
-        open={isAssignModalOpen}
-        onOpenChange={setIsAssignModalOpen}
-        onAssign={handleAssignToUser}
-        taskId={ticket.id}
-        taskName={ticket.name || 'Untitled Task'}
-        currentAssigneeId={undefined} // Unclaimed tickets have no current assignee
-        currentAssigneeName={undefined}
-        accessToken={accessToken}
-        modalTitle="Assign Ticket to User"
-        modalDescription="Select a user to assign this unclaimed ticket to. The ticket will be assigned to the selected user."
-        buttonText="Assign Ticket"
-      />
-
-      {/* Reassign Ticket Modal - for already claimed/assigned tickets */}
+      {/* Reassign Ticket Modal - works for both claimed and unclaimed tickets */}
       <AssignTaskModal
         open={isReassignModalOpen}
         onOpenChange={setIsReassignModalOpen}
@@ -1796,9 +1747,13 @@ export const TaskRecord: React.FC<TaskRecordProps> = ({ taskId, accessToken, use
               : undefined
         }
         accessToken={accessToken}
-        modalTitle="Reassign Ticket to User"
-        modalDescription="Select a user to reassign this ticket to. The ticket will be reassigned to the selected user."
-        buttonText="Reassign Ticket"
+        modalTitle={ticket.claimedByUserId || ticket.assignedToUserId ? 'Reassign Ticket' : 'Assign Ticket'}
+        modalDescription={
+          ticket.claimedByUserId || ticket.assignedToUserId
+            ? 'Select a user to reassign this ticket to. The ticket will be reassigned to the selected user.'
+            : 'Select a user to assign this ticket to. The ticket will be assigned to the selected user.'
+        }
+        buttonText={ticket.claimedByUserId || ticket.assignedToUserId ? 'Reassign Ticket' : 'Assign Ticket'}
       />
     </div>
   )
