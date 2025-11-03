@@ -23,6 +23,7 @@ export interface EmployeeData {
   firstName: string
   lastName: string
   displayName?: string
+  pictureThumbnail?: string | null
 }
 
 export interface EmployeeNoteResponse {
@@ -67,6 +68,7 @@ export const useGetEmployeeNotes = (context: BusinessAppContextProps) => {
               firstName
               lastName
               displayName
+              pictureThumbnail
             }
           }
         `

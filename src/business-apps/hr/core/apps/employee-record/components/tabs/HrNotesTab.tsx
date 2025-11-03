@@ -13,13 +13,29 @@ import {
   AlertDialogTitle
 } from '@newwork/nw-design-system'
 import { PlusOutlined, SearchOutlined, EditOutlined, DeleteOutlined } from '@ant-design/icons'
-import { PiChatCircle } from 'react-icons/pi'
+import { Avatar } from '@newwork/gravity-ui-catalog'
 import { useGetEmployeeNotes } from '../../queries/EmployeeNoteQueries'
 import type { EmployeeNoteData } from '../../queries/EmployeeNoteQueries'
 import { BusinessAppContextProps } from '@/common/BusinessAppContext'
 import { startProcess } from '@/common/utils/start-process'
 import { useEmployeeNoteApi } from '../../hooks/useEmployeeNoteApi'
 import { getTranslationFromI18nKeyAndLabel, formatDate } from '@/common/utils/windowUtils'
+import { AppActionMenu } from '@/components/app-action-menu/AppActionMenu'
+import { FlowContextName } from '@/common/types/FlowRegistryTypes'
+
+const toAvatarSrc = (thumb?: string | null): string | undefined => {
+  if (!thumb) return undefined
+  const t = thumb.trim()
+  if (!t) return undefined
+  if (t.startsWith('http://') || t.startsWith('https://')) return t
+  if (t.startsWith('data:image')) return t
+  const sig = t.slice(0, 12)
+  let mime = 'image/jpeg'
+  if (sig.startsWith('iVBORw0KGgo')) mime = 'image/png'
+  else if (sig.startsWith('R0lGOD')) mime = 'image/gif'
+  else if (sig.startsWith('Qk')) mime = 'image/bmp'
+  return `data:${mime};base64,${t}`
+}
 
 interface HrNotesTabProps extends BusinessAppContextProps {
   employeeId: string
@@ -29,6 +45,7 @@ interface HrNotesTabProps extends BusinessAppContextProps {
 export const HrNotesTab: React.FC<HrNotesTabProps> = props => {
   const { employeeId, employeeName } = props
   const [notes, setNotes] = useState<NoteItem[]>([])
+  const [employees, setEmployees] = useState<any[]>([])
   const [, setLoading] = useState(true)
   const [searchQuery, setSearchQuery] = useState('')
   const [deletingNoteId, setDeletingNoteId] = useState<string | null>(null)
@@ -62,11 +79,13 @@ export const HrNotesTab: React.FC<HrNotesTabProps> = props => {
           noteText: note.notes || '',
           createdAt: note.createdAt,
           createdBy: creatorName,
+          createdByUserId: note.createdBy,
           version: note.version
         }
       })
 
       setNotes(transformedNotes)
+      setEmployees(result.Employee || [])
     } catch (err) {
       console.error('Failed to load notes:', err)
     } finally {
@@ -97,68 +116,86 @@ export const HrNotesTab: React.FC<HrNotesTabProps> = props => {
     if (filteredNotes.length > 0) {
       return (
         <div className="gba:space-y-3">
-          {filteredNotes.map(note => (
-            <div
-              key={note.id}
-              className="gba:bg-card gba:border gba:border-border gba:rounded-lg gba:p-4 gba:space-y-2"
-              data-testid={`hr-note-card-${note.id}`}
-            >
-              <div className="gba:flex gba:items-start gba:justify-between">
-                <div className="gba:flex gba:items-start gba:gap-3 gba:flex-1">
-                  <PiChatCircle
-                    className="gba:text-muted-foreground gba:mt-1 gba:flex-shrink-0"
-                    style={{ fontSize: 24, display: 'block' }}
-                  />
-                  <div className="gba:flex-1">
-                    <div className="gba:mb-3">
-                      <h4 className="gba:font-semibold gba:text-foreground">
-                        {getTranslationFromI18nKeyAndLabel('lowcoder:hr_notes.note_from', 'Note from')}{' '}
-                        {note.createdBy || getTranslationFromI18nKeyAndLabel('lowcoder:hr_notes.unknown', 'Unknown')}{' '}
-                        {getTranslationFromI18nKeyAndLabel('lowcoder:hr_notes.note_on', 'on')}{' '}
-                        {formatDate(note.createdAt, 'date.short') || ''}
-                      </h4>
+          {filteredNotes.map(note => {
+            const noteAuthor = employees?.find((emp: any) => emp.userId === (note as any).createdByUserId)
+            const authorName =
+              note.createdBy || getTranslationFromI18nKeyAndLabel('lowcoder:hr_notes.unknown', 'Unknown')
+            const authorAvatar = noteAuthor?.pictureThumbnail || null
+            const authorInitials = `${noteAuthor?.firstName?.[0] || ''}${noteAuthor?.lastName?.[0] || ''}`.trim()
+
+            return (
+              <div
+                key={note.id}
+                className="gba:bg-card gba:border gba:border-border gba:rounded-lg gba:p-4 gba:space-y-2"
+                data-testid={`hr-note-card-${note.id}`}
+              >
+                <div className="gba:flex gba:items-start gba:justify-between">
+                  <div className="gba:flex gba:items-start gba:gap-3 gba:flex-1">
+                    <div className="gba:shrink-0 gba:mt-1" data-testid="note-avatar-container">
+                      <Avatar
+                        src={toAvatarSrc(authorAvatar)}
+                        initials={authorInitials}
+                        alt={authorName}
+                        // @ts-expect-error gravity-ui-catalog Avatar allows non-typed contentType
+                        contentType={authorAvatar ? 'image' : 'initials'}
+                        // @ts-expect-error gravity-ui-catalog Avatar supports numeric/string size tokens
+                        size="lg"
+                        // @ts-expect-error gravity-ui-catalog Avatar supports circle shape
+                        shape="circle"
+                        // @ts-expect-error gravity-ui-catalog Avatar supports appearance prop
+                        appearance="gradient"
+                      />
                     </div>
-                    <p className="gba:text-sm gba:text-muted-foreground">{note.noteText}</p>
+                    <div className="gba:flex-1">
+                      <div className="gba:mb-3">
+                        <h4 className="gba:font-semibold gba:text-foreground">
+                          {getTranslationFromI18nKeyAndLabel('lowcoder:hr_notes.note_from', 'Note from')} {authorName}{' '}
+                          {getTranslationFromI18nKeyAndLabel('lowcoder:hr_notes.note_on', 'on')}{' '}
+                          {formatDate(note.createdAt, 'date.short') || ''}
+                        </h4>
+                      </div>
+                      <p className="gba:text-sm gba:text-muted-foreground">{note.noteText}</p>
+                    </div>
+                  </div>
+                  <div className="gba:flex gba:gap-2">
+                    <Button
+                      variant="ghost"
+                      size="icon"
+                      onClick={() => {
+                        const noteVersion = (note as any).version !== undefined ? (note as any).version : 0
+                        startProcess({
+                          processName: 'createEmployeeNote',
+                          domain: 'employee',
+                          payload: {
+                            employeeId: employeeId,
+                            noteId: note.id,
+                            notes: note.noteText,
+                            version: noteVersion
+                          },
+                          builderType: 'NATIVE_SCREEN'
+                        })
+                      }}
+                      data-testid={`hr-note-edit-${note.id}`}
+                    >
+                      <EditOutlined style={{ fontSize: 18 }} />
+                    </Button>
+                    <Button
+                      variant="ghost"
+                      size="icon"
+                      data-testid={`hr-note-delete-${note.id}`}
+                      disabled={deletingNoteId === note.id}
+                      onClick={() => {
+                        setNoteToDelete(note)
+                        setDeleteDialogOpen(true)
+                      }}
+                    >
+                      <DeleteOutlined style={{ fontSize: 18 }} />
+                    </Button>
                   </div>
                 </div>
-                <div className="gba:flex gba:gap-2">
-                  <Button
-                    variant="ghost"
-                    size="icon"
-                    onClick={() => {
-                      const noteVersion = (note as any).version !== undefined ? (note as any).version : 0
-                      startProcess({
-                        processName: 'createEmployeeNote',
-                        domain: 'employee',
-                        payload: {
-                          employeeId: employeeId,
-                          noteId: note.id,
-                          notes: note.noteText,
-                          version: noteVersion
-                        },
-                        builderType: 'NATIVE_SCREEN'
-                      })
-                    }}
-                    data-testid={`hr-note-edit-${note.id}`}
-                  >
-                    <EditOutlined style={{ fontSize: 18 }} />
-                  </Button>
-                  <Button
-                    variant="ghost"
-                    size="icon"
-                    data-testid={`hr-note-delete-${note.id}`}
-                    disabled={deletingNoteId === note.id}
-                    onClick={() => {
-                      setNoteToDelete(note)
-                      setDeleteDialogOpen(true)
-                    }}
-                  >
-                    <DeleteOutlined style={{ fontSize: 18 }} />
-                  </Button>
-                </div>
               </div>
-            </div>
-          ))}
+            )
+          })}
         </div>
       )
     }
@@ -228,23 +265,21 @@ export const HrNotesTab: React.FC<HrNotesTabProps> = props => {
           </p>
         </div>
         <div className="gba:flex gba:gap-3">
-          <Button
-            onClick={() => {
-              startProcess({
-                processName: 'createEmployeeNote',
-                domain: 'employee',
-                payload: {
-                  employeeId: employeeId
-                },
-                builderType: 'NATIVE_SCREEN'
-              })
-            }}
-            variant="outline"
+          <AppActionMenu
             data-testid="add-note-button"
+            contextsArray={[FlowContextName.createEmployeeNote]}
+            externalContextData={{
+              employeeId: employeeId
+            }}
+            prefixDataTestId="add-note"
+            accessToken={props.accessToken}
+            autoExecuteSingleAction={true}
           >
-            <PlusOutlined className="gba:mr-2" style={{ fontSize: 18 }} />
-            {getTranslationFromI18nKeyAndLabel('lowcoder:hr_notes.add_note', 'Add Note')}
-          </Button>
+            <div className="gba:flex gba:items-center gba:gap-2 gba:cursor-pointer gba:text-foreground gba:hover:text-foreground/80 gba:font-normal gba:text-base">
+              <PlusOutlined className="gba:h-5 gba:w-5 gba:text-foreground" />
+              {getTranslationFromI18nKeyAndLabel('lowcoder:hr_notes.add_note', 'Add Note')}
+            </div>
+          </AppActionMenu>
         </div>
       </div>
 

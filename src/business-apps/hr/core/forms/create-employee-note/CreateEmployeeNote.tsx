@@ -54,6 +54,8 @@ const CreateEmployeeNoteContent: React.FC<BusinessAppContextProps> = (context: B
 
   const isEditMode = !!noteId
 
+  const [isSubmitting, setIsSubmitting] = React.useState(false)
+
   const { updateEmployeeNote } = useEmployeeNoteApi(context)
 
   const form = useForm<CreateEmployeeNoteFormValues>({
@@ -96,8 +98,8 @@ const CreateEmployeeNoteContent: React.FC<BusinessAppContextProps> = (context: B
 
   const isSubmitDisabled = useMemo(() => {
     const notes = form.watch('notes')
-    return !notes?.trim()
-  }, [form.watch('notes')])
+    return !notes?.trim() || isSubmitting
+  }, [form.watch('notes'), isSubmitting])
 
   const handleCreateSubmit = async (values: CreateEmployeeNoteFormValues) => {
     const employeeIdToUse = values.employeeId || employeeId
@@ -180,7 +182,7 @@ const CreateEmployeeNoteContent: React.FC<BusinessAppContextProps> = (context: B
   }
 
   const formFields = (
-    <div className="gba:flex-1 gba:space-y-4 gba:px-6">
+    <div className="gba:flex-1 gba:space-y-4">
       <FormField
         control={form.control}
         name="notes"
@@ -201,7 +203,6 @@ const CreateEmployeeNoteContent: React.FC<BusinessAppContextProps> = (context: B
               data-testid="notes-textarea"
               className="gba:w-full"
               rows={6}
-              maxLength={1000}
             />
           </FormItem>
         )}
@@ -258,12 +259,19 @@ const CreateEmployeeNoteContent: React.FC<BusinessAppContextProps> = (context: B
                   variant="default"
                   disabled={isSubmitDisabled}
                   onClick={async () => {
+                    if (isSubmitting) return
                     const isValid = await form.trigger()
                     if (!isValid) {
                       return
                     }
-                    const values = form.getValues()
-                    await handleEditSubmit(values)
+                    setIsSubmitting(true)
+                    try {
+                      const values = form.getValues()
+                      await handleEditSubmit(values)
+                    } catch (error) {
+                      setIsSubmitting(false)
+                      throw error
+                    }
                   }}
                 >
                   {getTranslationFromI18nKeyAndLabel('lowcoder:hr_notes.update_note', 'Update Note')}
@@ -313,13 +321,20 @@ const CreateEmployeeNoteContent: React.FC<BusinessAppContextProps> = (context: B
                   variant="default"
                   disabled={isSubmitDisabled}
                   onClick={async () => {
+                    if (isSubmitting) return
                     const isValid = await form.trigger()
                     if (!isValid) {
                       return
                     }
-                    const values = form.getValues()
-                    const result = await handleCreateSubmit(values)
-                    dispatchProcessContinueEvent('pse_submit', result)
+                    setIsSubmitting(true)
+                    try {
+                      const values = form.getValues()
+                      const result = await handleCreateSubmit(values)
+                      dispatchProcessContinueEvent('pse_submit', result)
+                    } catch (error) {
+                      setIsSubmitting(false)
+                      throw error
+                    }
                   }}
                 >
                   {getTranslationFromI18nKeyAndLabel('lowcoder:hr_notes.add_note', 'Add Note')}
