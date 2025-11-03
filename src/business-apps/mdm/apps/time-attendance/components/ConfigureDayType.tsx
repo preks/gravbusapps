@@ -37,6 +37,7 @@ import DayTypeSetup from './DayTypeSetup'
 import { TransformedDayTypeVersion } from '../types/day-type-versions'
 import { FieldTypeOption } from '../types/day-type-version-details'
 import { formatDate, getTranslationFromI18nKeyAndLabel } from '@/common/utils/windowUtils'
+import { Alert, AlertTitle, AlertDescription } from '@newwork/nw-design-system'
 
 export interface ConfigureDayTypeProps {
   dayTypeVersion: TransformedDayTypeVersion | null
@@ -363,6 +364,71 @@ const ConfigureDayType: React.FC<ConfigureDayTypeProps> = ({
     findVersionWithoutEndDate,
     findNextPlannedVersion
   ])
+
+  // Find the latest version for a given dayType
+  const findLatestVersion = useCallback(
+    (dayTypeId: string): TransformedDayTypeVersion | null => {
+      if (!dayTypeId) return null
+
+      // Filter versions for this dayType
+      const versionsForDayType = dayTypeVersions.filter(
+        version => version.dayType?.id === dayTypeId && version.id !== currentDayTypeVersion?.id
+      )
+
+      if (versionsForDayType.length === 0) return null
+
+      // Sort by activeTo descending (most recent first) or by activeFrom if activeTo is null
+      const sortedVersions = [...versionsForDayType].sort((a, b) => {
+        const dateA = a.activeTo ? new Date(a.activeTo).getTime() : new Date(a.activeFrom || '').getTime()
+        const dateB = b.activeTo ? new Date(b.activeTo).getTime() : new Date(b.activeFrom || '').getTime()
+        return dateB - dateA // Descending order
+      })
+
+      return sortedVersions[0] || null
+    },
+    [dayTypeVersions, currentDayTypeVersion]
+  )
+
+  // Check for date overlap when creating a new version
+  useEffect(() => {
+    const isNewVersion = !currentDayTypeVersion || !currentDayTypeVersion.id || currentDayTypeVersion.id === ''
+    if (!isNewVersion) {
+      setOverlapWarning(null)
+      return
+    }
+
+    const dayTypeId = form.watch('dayType')
+    const validFrom = form.watch('validFrom')
+
+    if (!dayTypeId || !validFrom) {
+      setOverlapWarning(null)
+      return
+    }
+
+    const latestVersion = findLatestVersion(dayTypeId)
+    if (!latestVersion || !latestVersion.activeTo) {
+      setOverlapWarning(null)
+      return
+    }
+
+    const newValidFrom = new Date(validFrom)
+    const latestValidTo = new Date(latestVersion.activeTo)
+
+    // Check if new validFrom is before or equal to latest validTo (overlap)
+    if (newValidFrom <= latestValidTo) {
+      // Calculate suggested start date (one day after latest validTo)
+      const suggestedDate = new Date(latestValidTo)
+      suggestedDate.setDate(suggestedDate.getDate() + 1)
+      const suggestedDateStr = suggestedDate.toISOString().split('T')[0]
+
+      setOverlapWarning(
+        `A version already exists for this period. The existing version ends on ${latestValidTo.toLocaleDateString()}. ` +
+          `Please either modify the existing version or create the new version starting from ${suggestedDateStr}.`
+      )
+    } else {
+      setOverlapWarning(null)
+    }
+  }, [form.watch('dayType'), form.watch('validFrom'), currentDayTypeVersion, findLatestVersion])
 
   // Helper function to convert date string (YYYY-MM-DD) to ISO 8601 Instant format
   const convertDateToInstant = (dateString: string): string => {
