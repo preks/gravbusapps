@@ -1726,14 +1726,17 @@ export class ConductorWorkflowEngineAdapter implements WorkflowEngine {
 
   /**
    * Enhanced getMyRequests with optional userId parameter
+   * Filters by Services app tag to show only service portal requests
    */
   async getMyRequests(userId?: string): Promise<SubmittedRequest[]> {
     const targetUserId = userId || this.currentUserId
     try {
       console.log(`[ConductorAdapter] Getting requests for user: ${targetUserId}`)
 
-      // Step 1: Get list of flows initiated by the user
-      const listResponse = await this.makeRequest(`/flows/user/${targetUserId}/initiated?limit=50&offset=0`)
+      // Step 1: Get list of flows initiated by the user, filtered by Services app tag
+      const listResponse = await this.makeRequest(
+        `/flows/user/${targetUserId}/initiated?limit=50&offset=0&tag.app=${SERVICES_APP_TAG}`
+      )
 
       const flows = listResponse.data?.flows || listResponse.flows || []
       console.log(`[ConductorAdapter] Found ${flows.length} flows for user ${targetUserId}`)
