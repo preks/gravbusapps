@@ -226,6 +226,17 @@ export const formatCurrencyString = (
 }
 
 /**
+ * Simple currency formatter (non-compact) with basic signature for backward compatibility
+ * @param amount - The amount to format
+ * @param currency - Currency code or catalog reference (e.g., 'EUR' or 'Currency:v1:EUR')
+ * @returns Formatted currency string
+ */
+export const formatCurrency = (amount: number | null | undefined, currency: string = 'EUR'): string => {
+  const currencyCode = extractCurrencyCode(currency)
+  return formatCurrencyString(amount, { currency: currencyCode, maximumFractionDigits: 2 })
+}
+
+/**
  * Convenience: returns a single string with compact currency (1.2M, etc.) honoring locale.
  */
 export const formatCurrencyCompact = (

@@ -1,4 +1,4 @@
-import React, { useState } from 'react'
+import React, { useCallback } from 'react'
 import { useTranslation } from 'react-i18next'
 import { Button, DateInputField, Divider, InputField, SelectField, Switch } from '@newwork/gravity-ui-catalog'
 import { Form, Row, Col } from 'antd'
@@ -66,7 +66,38 @@ export const FormScreenComponent: React.FC<FormScreenComponentProps> = ({
   const { t } = useTranslation()
   const { isProcessingFiles, isFormDisabled, expenseRuleError, handleCurrencyChange, isEditMode } = useExpenseItem()
 
-  const [formIsValid, setFormIsValid] = useState(false)
+  // Memoize the submit handler to prevent re-creating on every render
+  const handleCreateClick = useCallback(
+    async (e: React.MouseEvent) => {
+      e.stopPropagation()
+      e.preventDefault()
+
+      // Defer validation to next tick to prevent visual jumps
+      setTimeout(async () => {
+        try {
+          // Validate without scroll to prevent DOM jumping
+          await form.validateFields()
+
+          // Check for expense rule errors
+          if (expenseRuleError) {
+            return
+          }
+
+          handleSubmit()
+        } catch (errorInfo) {
+          // Form validation failed - scroll to first error smoothly
+          const firstErrorField = (errorInfo as any)?.errorFields?.[0]?.name?.[0]
+          if (firstErrorField) {
+            const element = document.querySelector(`[name="${firstErrorField}"]`)
+            if (element) {
+              element.scrollIntoView({ behavior: 'smooth', block: 'center' })
+            }
+          }
+        }
+      }, 0)
+    },
+    [form, expenseRuleError, handleSubmit]
+  )
 
   return (
     <Form
@@ -74,15 +105,6 @@ export const FormScreenComponent: React.FC<FormScreenComponentProps> = ({
       layout="vertical"
       data-testid="expense-form"
       className="gba:flex gba:flex-col gba:flex-grow"
-      onFieldsChange={() => {
-        const isFormValidValue = form.getFieldsError().every((fieldErr: any) => fieldErr.errors.length === 0)
-        setFormIsValid(isFormValidValue)
-      }}
-      onValuesChange={() => {
-        form.validateFields()
-        const isFormValidValue = form.getFieldsError().every((fieldErr: any) => fieldErr.errors.length === 0)
-        setFormIsValid(isFormValidValue)
-      }}
       validateTrigger={['onChange', 'onBlur']}
       initialValues={{
         date: new Date(),
@@ -379,11 +401,8 @@ export const FormScreenComponent: React.FC<FormScreenComponentProps> = ({
         </Button>
         <Button
           variant="primary"
-          onClick={e => {
-            e.stopPropagation()
-            handleSubmit()
-          }}
-          disabled={isProcessingFiles || !formIsValid || !!expenseRuleError}
+          onClick={handleCreateClick}
+          disabled={isProcessingFiles}
           className="gba:min-w-[100px] gba:border-2 gba:text-base gba:font-semibold gba:px-4"
           style={{ borderRadius: '22px', width: 'auto', height: '40px' }}
           data-testid="submit-button"
