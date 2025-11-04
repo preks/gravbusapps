@@ -1,18 +1,5 @@
 import React, { useMemo, useEffect, useState, useCallback } from 'react'
-import {
-  Card,
-  CardContent,
-  CardHeader,
-  CardTitle,
-  Button,
-  Input,
-  Label,
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue
-} from '@newwork/nw-design-system'
+import { Card, CardContent, CardHeader, CardTitle, Button, Input, Label } from '@newwork/nw-design-system'
 import type { FlowProposalOutput } from '../types/models'
 import { useFormSubmission } from './FormSubmissionContext'
 
@@ -139,25 +126,25 @@ const SchemaField: React.FC<SchemaFieldProps> = ({ name, path, schema, required,
           )
 
           return (
-            <Select
+            <select
+              id={controlId}
+              className="gba:w-full gba:rounded-md gba:border gba:border-border gba:bg-card gba:px-3 gba:py-2 gba:text-sm gba:text-foreground focus:gba:outline-none focus:gba:ring-2 focus:gba:ring-primary disabled:gba:cursor-not-allowed disabled:gba:opacity-50"
               value={selectedOptionId}
-              onValueChange={newValue => {
-                const selected = options.find(opt => opt.id === String(newValue))
-                onChange(selected ? selected.rawValue : newValue)
+              onChange={e => {
+                const selected = options.find(opt => opt.id === e.target.value)
+                onChange(selected ? selected.rawValue : e.target.value)
               }}
               disabled={disabled}
             >
-              <SelectTrigger className="gba:w-full">
-                <SelectValue placeholder={`Select ${String(label)}`} />
-              </SelectTrigger>
-              <SelectContent>
-                {options.map((option, idx) => (
-                  <SelectItem key={`${controlId}-option-${idx}`} value={String(option.id)}>
-                    {String(option.label)}
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
+              <option value="" disabled>
+                Select {String(label)}
+              </option>
+              {options.map((option, idx) => (
+                <option key={`${controlId}-opt-${idx}`} value={String(option.id)}>
+                  {String(option.label)}
+                </option>
+              ))}
+            </select>
           )
         }
 
