@@ -32,8 +32,37 @@ interface SchemaFieldProps {
   onChange: (value: any) => void
 }
 
+const sanitizeControlId = (value: string): string => value.replace(/[^a-zA-Z0-9-_:.]/g, '-').toLowerCase()
+
+const deepEquals = (a: unknown, b: unknown): boolean => {
+  try {
+    return JSON.stringify(a) === JSON.stringify(b)
+  } catch (error) {
+    console.error('[EveryAI][DynamicFormDisplay] Failed deep comparison', error)
+    return a === b
+  }
+}
+
+const toDisplayString = (value: unknown): string => {
+  if (typeof value === 'string') return value
+  if (typeof value === 'number' || typeof value === 'boolean') return String(value)
+  if (value == null) return ''
+  try {
+    return JSON.stringify(value)
+  } catch {
+    return String(value)
+  }
+}
+
+const toOptionId = (value: unknown): string => {
+  if (typeof value === 'string') return value
+  if (typeof value === 'number' || typeof value === 'boolean') return String(value)
+  return toDisplayString(value)
+}
+
 const SchemaField: React.FC<SchemaFieldProps> = ({ name, path, schema, required, disabled, value, onChange }) => {
   const fieldPath = path ? `${path}.${name}` : name
+  const controlId = sanitizeControlId(fieldPath)
 
   // Format field label
   const formatFieldName = (name: string): string => {
@@ -79,34 +108,62 @@ const SchemaField: React.FC<SchemaFieldProps> = ({ name, path, schema, required,
     return null
   }
 
+  const rawFieldType = schema?.type
+  const fieldType = Array.isArray(rawFieldType)
+    ? (rawFieldType.find(type => typeof type === 'string' && type !== 'null') ?? rawFieldType[0])
+    : (rawFieldType ?? (schema?.oneOf || schema?.enum ? 'string' : schema?.properties ? 'object' : undefined))
+
   const renderField = () => {
-    switch (schema.type) {
-      case 'string':
-        if (schema.enum || schema.oneOf) {
-          const options = schema.enum
-            ? schema.enum.map((option: string) => ({ value: option, label: option }))
-            : schema.oneOf?.map((option: any) => ({ value: option.const, label: option.title || option.const })) || []
+    switch (fieldType) {
+      case 'string': {
+        const rawEnumOptions = schema.enum ?? null
+        const rawOneOfOptions = schema.oneOf ?? null
+
+        if (rawEnumOptions || rawOneOfOptions) {
+          const options = (rawEnumOptions || rawOneOfOptions || []).map((option: any, index: number) => {
+            const rawValue = rawEnumOptions ? option : (option?.const ?? option?.value ?? option)
+            const id = toOptionId(rawValue ?? index)
+            const labelText = rawEnumOptions ? toDisplayString(option) : (option?.title ?? toDisplayString(rawValue))
+            return {
+              id,
+              label: labelText,
+              rawValue
+            }
+          })
+
+          const selectedOptionId =
+            options.find(opt => deepEquals(opt.rawValue, value))?.id ??
+            (value === undefined || value === null ? '' : toOptionId(value))
 
           return (
-            <Select value={value || ''} onValueChange={onChange} disabled={disabled}>
+            <Select
+              value={selectedOptionId}
+              onValueChange={newValue => {
+                const selected = options.find(opt => opt.id === newValue)
+                onChange(selected ? selected.rawValue : newValue)
+              }}
+              disabled={disabled}
+            >
               <SelectTrigger className="gba:w-full">
                 <SelectValue placeholder={`Select ${label}`} />
               </SelectTrigger>
               <SelectContent>
-                {options.map((opt: any) => (
-                  <SelectItem key={opt.value} value={opt.value}>
-                    {opt.label}
+                {options.map(option => (
+                  <SelectItem key={option.id} value={option.id}>
+                    {option.label}
                   </SelectItem>
                 ))}
               </SelectContent>
             </Select>
           )
-        } else if (schema.format === 'date-time') {
+        }
+
+        if (schema.format === 'date-time') {
           const formatDateForInput = (dateValue: string | undefined) => {
             if (!dateValue) return ''
             try {
               const date = new Date(dateValue)
-              if (isNaN(date.getTime())) return ''
+              if (Number.isNaN(date.getTime())) return ''
               const year = date.getFullYear()
               const month = String(date.getMonth() + 1).padStart(2, '0')
               const day = String(date.getDate()).padStart(2, '0')
@@ -120,13 +177,14 @@ const SchemaField: React.FC<SchemaFieldProps> = ({ name, path, schema, required,
 
           return (
             <Input
+              id={controlId}
               type="datetime-local"
-              value={formatDateForInput(value)}
+              value={formatDateForInput(typeof value === 'string' ? value : undefined)}
               onChange={e => {
                 const inputValue = e.target.value
                 if (inputValue) {
                   const date = new Date(inputValue)
-                  if (!isNaN(date.getTime())) {
+                  if (!Number.isNaN(date.getTime())) {
                     onChange(date.toISOString())
                   }
                 } else {
@@ -136,23 +194,29 @@ const SchemaField: React.FC<SchemaFieldProps> = ({ name, path, schema, required,
               disabled={disabled}
             />
           )
-        } else {
-          return (
-            <Input
-              type="text"
-              placeholder={label}
-              value={value || ''}
-              onChange={e => onChange(e.target.value)}
-              disabled={disabled}
-            />
-          )
         }
+
+        return (
+          <Input
+            id={controlId}
+            type="text"
+            placeholder={label}
+            value={typeof value === 'string' ? value : (value ?? '')}
+            onChange={e => onChange(e.target.value)}
+            disabled={disabled}
+          />
+        )
+      }
       case 'number':
         return (
           <Input
+            id={controlId}
             type="number"
-            value={value || ''}
-            onChange={e => onChange(e.target.valueAsNumber)}
+            value={typeof value === 'number' ? value : (value ?? '')}
+            onChange={e => {
+              const inputValue = e.target.value
+              onChange(inputValue === '' ? null : Number(inputValue))
+            }}
             disabled={disabled}
           />
         )
@@ -161,38 +225,46 @@ const SchemaField: React.FC<SchemaFieldProps> = ({ name, path, schema, required,
           <div className="gba:flex gba:items-center">
             <input
               type="checkbox"
-              id={fieldPath}
+              id={controlId}
               checked={!!value}
               onChange={e => onChange(e.target.checked)}
               disabled={disabled}
               className="gba:h-4 gba:w-4 gba:rounded gba:border-border"
             />
-            <Label htmlFor={fieldPath} className="gba:ml-2">
+            <Label htmlFor={controlId} className="gba:ml-2">
               {label}
             </Label>
           </div>
         )
-      case 'object':
+      case 'object': {
+        if (!schema.properties) {
+          return <div className="gba:text-sm gba:text-muted-foreground">No fields available</div>
+        }
+
         return (
           <div className="gba:border gba:border-border gba:rounded-md gba:p-4 gba:space-y-4">
             <p className="gba:text-sm gba:font-medium">{label}</p>
-            {schema.properties &&
-              Object.entries(schema.properties).map(([propName, propSchema]: [string, any]) => (
-                <SchemaField
-                  key={`${fieldPath}.${propName}`}
-                  name={propName}
-                  path={fieldPath}
-                  schema={propSchema}
-                  required={schema.required?.includes(propName)}
-                  disabled={disabled}
-                  value={value?.[propName]}
-                  onChange={newValue => onChange({ ...value, [propName]: newValue })}
-                />
-              ))}
+            {Object.entries(schema.properties).map(([propName, propSchema]: [string, any]) => (
+              <SchemaField
+                key={`${fieldPath}.${propName}`}
+                name={propName}
+                path={fieldPath}
+                schema={propSchema}
+                required={schema.required?.includes(propName)}
+                disabled={disabled}
+                value={value?.[propName]}
+                onChange={newValue => onChange({ ...value, [propName]: newValue })}
+              />
+            ))}
           </div>
         )
+      }
       default:
-        return <div>Unsupported field type: {schema.type}</div>
+        return (
+          <div className="gba:text-sm gba:text-muted-foreground">
+            Unsupported field type: {toDisplayString(fieldType)}
+          </div>
+        )
     }
   }
 
@@ -202,7 +274,7 @@ const SchemaField: React.FC<SchemaFieldProps> = ({ name, path, schema, required,
 
   return (
     <div className="gba:mb-4">
-      <Label htmlFor={fieldPath} className="gba:mb-1 gba:block">
+      <Label htmlFor={controlId} className="gba:mb-1 gba:block">
         {label} {required && <span className="gba:text-destructive">*</span>}
       </Label>
       {renderField()}
@@ -445,18 +517,27 @@ export const DynamicFormDisplay: React.FC<DynamicFormDisplayProps> = ({ data, on
                 return null
               }
 
-              return (
-                <SchemaField
-                  key={fieldName}
-                  name={fieldName}
-                  path=""
-                  schema={fieldSchema}
-                  required={schema.required?.includes(fieldName) || false}
-                  disabled={isCompleted}
-                  value={formData[fieldName]}
-                  onChange={value => setFormData(prev => ({ ...prev, [fieldName]: value }))}
-                />
-              )
+              try {
+                return (
+                  <SchemaField
+                    key={fieldName}
+                    name={fieldName}
+                    path=""
+                    schema={fieldSchema}
+                    required={schema.required?.includes(fieldName) || false}
+                    disabled={isCompleted}
+                    value={formData[fieldName]}
+                    onChange={value => setFormData(prev => ({ ...prev, [fieldName]: value }))}
+                  />
+                )
+              } catch (error) {
+                console.error('[EveryAI][DynamicFormDisplay] failed to render field', fieldName, error)
+                return (
+                  <div key={`field-error-${fieldName}`} className="gba:text-sm gba:text-destructive">
+                    Unable to render field "{fieldName}". Please contact support.
+                  </div>
+                )
+              }
             })}
           </div>
 
