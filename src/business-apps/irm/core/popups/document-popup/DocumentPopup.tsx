@@ -23,6 +23,8 @@ import { formatDataTestId } from '@/common/utils/formatDataTestId'
 import { useDocumentCatalogs } from '@/business-apps/crm/core/forms/document-upload-form/hooks/useDocumentCatalogs' // TODO: Extract to common urgent
 import { fileClient } from '@/common/network/files/FileClient'
 import { useGraphQLClient } from '@/common/network/graphql/useGraphQLClient'
+import { useRestClient } from '@/common/network/rest/useRestClient'
+import { getTranslationFromI18nKeyAndLabel } from '@/common/utils/windowUtils'
 
 export type InvestmentDocumentEntityType = 'account' | 'contact' | 'lead' | 'opportunity' | 'investment'
 
@@ -150,6 +152,7 @@ const DocumentPopup: React.FC<DocumentPopupProps> = ({ initialValues = {}, ...pr
   const [parentFolders, setParentFolders] = useState<{ id: string; name: string }[]>([])
   const [parentLoading, setParentLoading] = useState<boolean>(false)
   const graphqlClient = useGraphQLClient(props.accessToken || '')
+  const flowbotRest = useRestClient(env('NEXT_PUBLIC_FLOWBOT'))
 
   const [aiLoading, setAiLoading] = useState<boolean>(false)
   const [aiError, setAiError] = useState<string | null>(null)
@@ -225,19 +228,14 @@ const DocumentPopup: React.FC<DocumentPopupProps> = ({ initialValues = {}, ...pr
         const fd = new FormData()
         fd.append('file', f as unknown as Blob)
         fd.append('llm_model', 'gpt-4.1')
-        const flowbotBase = env('NEXT_PUBLIC_FLOWBOT')
-        const res = await fetch(`${flowbotBase}/flowbot/document-autoclassify/classify`, {
-          method: 'POST',
-          headers: props.accessToken ? { Authorization: `Bearer ${props.accessToken}` } : undefined,
-          body: fd
+        const data: any = await flowbotRest.post('/flowbot/document-autoclassify/classify', fd, {
+          headers: props.accessToken ? { Authorization: `Bearer ${props.accessToken}` } : undefined
         })
-        if (!res.ok) {
-          throw new Error(`classify failed: ${res.status}`)
-        }
-        const data = (await res.json()) as { type?: string; group?: string }
+
         setAiSuggestion({ type: data?.type, group: data?.group })
-      } catch {
-        setAiError('Failed to auto-classify')
+      } catch (err) {
+        console.error('Flowbot classify failed', err)
+        setAiError(getTranslationFromI18nKeyAndLabel('crm.documents.ai.failed', 'Failed to auto-classify'))
       } finally {
         setAiLoading(false)
       }
@@ -778,12 +776,22 @@ const DocumentPopup: React.FC<DocumentPopupProps> = ({ initialValues = {}, ...pr
             />
 
             <div className="gba:text-sm gba:text-muted-foreground">
-              {aiLoading && <span>Detecting document group and type…</span>}
+              {aiLoading && (
+                <span>
+                  {getTranslationFromI18nKeyAndLabel(
+                    'crm.documents.ai.detecting',
+                    'Detecting document group and type…'
+                  )}
+                </span>
+              )}
               {!aiLoading && aiError && <span>{aiError}</span>}
               {!aiLoading && !aiError && aiSuggestion && (
                 <div className="gba:flex gba:flex-col gba:gap-1">
                   <span>
-                    AI suggestion: Group = <strong>{aiSuggestion.group || '—'}</strong>, Type ={' '}
+                    {getTranslationFromI18nKeyAndLabel('crm.documents.ai.suggestion', 'AI suggestion:')}{' '}
+                    {getTranslationFromI18nKeyAndLabel('crm.documents.group', 'Group')} ={' '}
+                    <strong>{aiSuggestion.group || '—'}</strong>,{' '}
+                    {getTranslationFromI18nKeyAndLabel('crm.documents.type', 'Type')} ={' '}
                     <strong>{aiSuggestion.type || '—'}</strong>
                   </span>
                   <div className="gba:flex gba:gap-2">
@@ -823,7 +831,7 @@ const DocumentPopup: React.FC<DocumentPopupProps> = ({ initialValues = {}, ...pr
                         }
                       }}
                     >
-                      Apply suggestion
+                      {getTranslationFromI18nKeyAndLabel('crm.common.applySuggestion', 'Apply suggestion')}
                     </Button>
                   </div>
                 </div>
@@ -875,10 +883,9 @@ const DocumentPopup: React.FC<DocumentPopupProps> = ({ initialValues = {}, ...pr
                       onValueChange={value => {
                         field.onChange(value)
                         if (applyTypeAfterGroup) {
+                          const desired = (applyTypeAfterGroup ?? '').toString().trim().toLowerCase()
                           const t0 = filteredDocumentTypes.find(
-                            x =>
-                              (x?.value || '').toString().trim().toLowerCase() ===
-                              applyTypeAfterGroup!.toString().trim().toLowerCase()
+                            x => (x?.value || '').toString().trim().toLowerCase() === desired
                           )
                           if (t0?.id) {
                             form.setValue('documentTypeRef', t0.id, {
