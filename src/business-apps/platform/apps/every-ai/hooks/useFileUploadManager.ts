@@ -1,4 +1,5 @@
 import { useCallback, useMemo, useState } from 'react'
+// @ts-expect-error - uuid types may not be available
 import { v4 as uuidv4 } from 'uuid'
 
 type UploadedFile = {

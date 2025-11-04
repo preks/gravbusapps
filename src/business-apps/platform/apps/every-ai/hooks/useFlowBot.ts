@@ -1,4 +1,5 @@
 import { useState, useEffect, useCallback, useMemo, useRef } from 'react'
+// @ts-expect-error - uuid types may not be available
 import { v4 as uuidv4 } from 'uuid'
 import type { ConversationTurn, OutputItem, FileMeta } from '../types/models'
 import { getCurrentPageContext } from '../utils/pageContext'
@@ -195,10 +196,17 @@ export function useFlowBot(accessToken: string) {
     if (state.conversation.length === 0) {
       return prechatSuggestions
     }
-    return (
-      state.conversation?.findLast(t => t.side === 'agent')?.outputs.find(output => output.type === 'answer')
-        ?.nextStepProposals ?? []
-    )
+    // Find last agent turn (reverse find)
+    for (let i = state.conversation.length - 1; i >= 0; i--) {
+      const turn = state.conversation[i]
+      if (turn.side === 'agent') {
+        const answerOutput = turn.outputs.find((output: OutputItem) => output.type === 'answer')
+        if (answerOutput && answerOutput.type === 'answer') {
+          return answerOutput.nextStepProposals ?? []
+        }
+      }
+    }
+    return []
   }, [state.conversation, prechatSuggestions])
 
   const pushTurn = useCallback((turn: ConversationTurn) => {
@@ -451,13 +459,20 @@ export function useFlowBot(accessToken: string) {
       const form = new FormData()
       form.append('current_page_context', JSON.stringify(currentPageContext))
 
+      // Add timeout to prevent long waits
+      const controller = new AbortController()
+      const timeoutId = setTimeout(() => controller.abort(), 3000) // 3 second timeout
+
       const res = await fetch(`${baseUrl}/flowbot/api/agent/prechat-suggestions`, {
         method: 'POST',
         headers: {
           Authorization: `Bearer ${accessToken}`
         },
-        body: form
+        body: form,
+        signal: controller.signal
       })
+
+      clearTimeout(timeoutId)
 
       if (!res.ok) {
         throw new Error(`Failed to fetch prechat suggestions: ${res.statusText}`)
@@ -469,6 +484,7 @@ export function useFlowBot(accessToken: string) {
       setPrechatSuggestions(suggestions.slice(0, 4))
     } catch (error) {
       console.error('Failed to fetch prechat suggestions:', error)
+      // Silently fail - no suggestions is better than showing loading forever
       setPrechatSuggestions([])
     } finally {
       setIsPrechatLoading(false)

@@ -5,6 +5,7 @@ import { ChatInput } from './components/ChatInput'
 import { FormSubmissionProvider } from './components/FormSubmissionContext'
 import { OutputItemRenderer } from './components/OutputRenderers'
 import { AvatarWithInitials } from './components/shared/AvatarWithInitials'
+import { useCurrentUserPicture } from './hooks/useCurrentUserPicture'
 import type { UserTurn, AgentTurn, OutputItem } from './types/models'
 import ReactMarkdown from 'react-markdown'
 import remarkGfm from 'remark-gfm'
@@ -51,6 +52,9 @@ export const EveryAI: React.FC<EveryAIProps> = props => {
   const { conversation, isLoading, sendMessage, clearConversation, nextStepProposals, isPrechatLoading } =
     useFlowBot(accessToken)
 
+  // Fetch current user's picture
+  const { pictureThumbnail } = useCurrentUserPicture(userInfo?.employeeDetails?.employeeId, accessToken)
+
   const extendedConversation = useMemo(() => {
     // Don't add loading if conversation already has it
     const lastTurn = conversation[conversation.length - 1]
@@ -92,17 +96,20 @@ export const EveryAI: React.FC<EveryAIProps> = props => {
           />
         </div>
 
-        {/* Header with gradient and glow */}
+        {/* Premium Professional Header */}
         <div className="gba:flex-shrink-0 gba:border-b gba:border-border gba:bg-card gba:backdrop-blur-sm gba:relative gba:z-10">
-          <div className="gba:p-6">
+          {/* Subtle gradient accent line */}
+          <div className="gba:h-1 gba:w-full gba:bg-gradient-to-r gba:from-primary gba:via-info gba:to-success" />
+
+          <div className="gba:px-6 gba:py-5">
             <div className="gba:flex gba:items-center gba:justify-between">
               <div className="gba:flex gba:items-center gba:gap-4">
-                {/* Premium AI Icon with gradient */}
+                {/* Sophisticated AI Icon */}
                 <div className="gba:relative">
-                  <div className="gba:absolute gba:inset-0 gba:bg-gradient-to-br gba:from-primary gba:to-info gba:rounded-full gba:blur-lg gba:opacity-50 gba:animate-pulse" />
-                  <div className="gba:h-12 gba:w-12 gba:bg-gradient-to-br gba:from-primary gba:to-info gba:rounded-full gba:flex gba:items-center gba:justify-center gba:relative gba:shadow-lg">
+                  <div className="gba:absolute gba:inset-0 gba:bg-gradient-to-br gba:from-primary/20 gba:to-info/20 gba:rounded-2xl gba:blur-xl gba:opacity-50" />
+                  <div className="gba:h-14 gba:w-14 gba:bg-gradient-to-br gba:from-primary gba:to-info gba:rounded-2xl gba:flex gba:items-center gba:justify-center gba:relative gba:shadow-xl gba:border gba:border-primary/20">
                     <svg
-                      className="gba:h-6 gba:w-6 gba:text-primary-foreground"
+                      className="gba:h-7 gba:w-7 gba:text-primary-foreground"
                       fill="none"
                       stroke="currentColor"
                       viewBox="0 0 24 24"
@@ -118,22 +125,24 @@ export const EveryAI: React.FC<EveryAIProps> = props => {
                 </div>
 
                 <div>
-                  <h1 className="gba:text-2xl gba:font-bold gba:bg-gradient-to-r gba:from-primary gba:via-info gba:to-success gba:bg-clip-text gba:text-transparent">
+                  <h1 className="gba:text-2xl gba:font-bold gba:bg-gradient-to-r gba:from-primary gba:via-info gba:to-success gba:bg-clip-text gba:text-transparent gba:tracking-tight">
                     EveryAI
                   </h1>
-                  <p className="gba:text-sm gba:text-muted-foreground gba:font-medium">
-                    Your intelligent assistant, powered by advanced AI
+                  <p className="gba:text-sm gba:text-muted-foreground gba:font-medium gba:mt-0.5">
+                    Intelligent Assistant for Enterprise Operations
                   </p>
                 </div>
               </div>
 
-              {/* AI Badge */}
-              <div className="gba:inline-flex gba:items-center gba:gap-1.5 gba:px-3 gba:py-1.5 gba:rounded-full gba:bg-gradient-to-r gba:from-primary gba:to-info gba:text-primary-foreground gba:text-xs gba:font-semibold gba:shadow-lg">
-                <svg className="gba:h-3.5 gba:w-3.5 gba:animate-pulse" fill="currentColor" viewBox="0 0 24 24">
-                  <circle cx="12" cy="12" r="3" />
-                  <circle cx="12" cy="12" r="8" opacity="0.3" />
-                </svg>
-                <span>AI POWERED</span>
+              {/* Professional AI Status Badge */}
+              <div className="gba:inline-flex gba:items-center gba:gap-2 gba:px-4 gba:py-2 gba:rounded-xl gba:bg-gradient-to-r gba:from-primary/10 gba:to-info/10 gba:border gba:border-primary/20 gba:backdrop-blur-sm">
+                <div className="gba:relative gba:h-2 gba:w-2">
+                  <div className="gba:absolute gba:inset-0 gba:bg-success gba:rounded-full gba:animate-pulse" />
+                  <div className="gba:absolute gba:inset-0 gba:bg-success gba:rounded-full gba:blur-sm" />
+                </div>
+                <span className="gba:text-xs gba:font-semibold gba:bg-gradient-to-r gba:from-primary gba:to-info gba:bg-clip-text gba:text-transparent">
+                  AI Active
+                </span>
               </div>
             </div>
           </div>
@@ -170,19 +179,63 @@ export const EveryAI: React.FC<EveryAIProps> = props => {
                 entire platform.
               </p>
 
-              {/* Feature highlights */}
+              {/* Feature highlights with icons */}
               <div className="gba:grid gba:grid-cols-3 gba:gap-4 gba:max-w-2xl gba:mb-8">
                 {[
-                  { icon: '🚀', label: 'Instant Answers' },
-                  { icon: '📊', label: 'Data Insights' },
-                  { icon: '⚡', label: 'Automation' }
+                  {
+                    icon: (
+                      <svg className="gba:h-6 gba:w-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path
+                          strokeLinecap="round"
+                          strokeLinejoin="round"
+                          strokeWidth={2}
+                          d="M13 10V3L4 14h7v7l9-11h-7z"
+                        />
+                      </svg>
+                    ),
+                    label: 'Instant Answers'
+                  },
+                  {
+                    icon: (
+                      <svg className="gba:h-6 gba:w-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path
+                          strokeLinecap="round"
+                          strokeLinejoin="round"
+                          strokeWidth={2}
+                          d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z"
+                        />
+                      </svg>
+                    ),
+                    label: 'Data Insights'
+                  },
+                  {
+                    icon: (
+                      <svg className="gba:h-6 gba:w-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path
+                          strokeLinecap="round"
+                          strokeLinejoin="round"
+                          strokeWidth={2}
+                          d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z"
+                        />
+                        <path
+                          strokeLinecap="round"
+                          strokeLinejoin="round"
+                          strokeWidth={2}
+                          d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"
+                        />
+                      </svg>
+                    ),
+                    label: 'Automation'
+                  }
                 ].map((feature, idx) => (
                   <div
                     key={idx}
-                    className="gba:flex gba:flex-col gba:items-center gba:gap-2 gba:p-4 gba:rounded-xl gba:bg-card gba:border gba:border-border hover:gba:border-primary gba:transition-all gba:shadow-sm hover:gba:shadow-md"
+                    className="gba:flex gba:flex-col gba:items-center gba:gap-3 gba:p-5 gba:rounded-xl gba:bg-card gba:border gba:border-border hover:gba:border-primary gba:transition-all gba:shadow-sm hover:gba:shadow-md gba:group"
                   >
-                    <span className="gba:text-2xl">{feature.icon}</span>
-                    <span className="gba:text-sm gba:font-medium gba:text-foreground">{feature.label}</span>
+                    <div className="gba:h-12 gba:w-12 gba:rounded-xl gba:bg-gradient-to-br gba:from-primary/10 gba:to-info/10 gba:flex gba:items-center gba:justify-center gba:text-primary group-hover:gba:scale-110 gba:transition-transform">
+                      {feature.icon}
+                    </div>
+                    <span className="gba:text-sm gba:font-semibold gba:text-foreground">{feature.label}</span>
                   </div>
                 ))}
               </div>
@@ -268,7 +321,7 @@ export const EveryAI: React.FC<EveryAIProps> = props => {
                               <AvatarWithInitials
                                 firstName={userInfo.employeeDetails.firstName || ''}
                                 lastName={userInfo.employeeDetails.lastName || ''}
-                                pictureThumbnail={undefined}
+                                pictureThumbnail={pictureThumbnail}
                                 size={36}
                               />
                             </div>

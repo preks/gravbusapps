@@ -99,7 +99,7 @@ export const ChatInput: React.FC<ChatInputProps> = ({
                   key={idx}
                   onClick={() => {
                     setValue(text)
-                    focusTextarea()
+                    setTimeout(() => handleSend(), 100)
                   }}
                   className="gba:group gba:w-full gba:text-left gba:text-sm gba:leading-6 gba:rounded-xl gba:border gba:border-border gba:bg-card hover:gba:bg-accent gba:px-4 gba:py-2.5 gba:transition-all hover:gba:shadow-md hover:gba:border-primary/50 gba:relative gba:overflow-hidden"
                   data-testid={`suggestion-${idx}`}
