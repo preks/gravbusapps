@@ -402,6 +402,14 @@ export const DynamicFormDisplay: React.FC<DynamicFormDisplayProps> = ({ data, on
     return Object.entries(schema.properties)
   }, [schema])
 
+  useEffect(() => {
+    console.debug('[EveryAI][DynamicFormDisplay] schema', schema)
+
+    console.debug('[EveryAI][DynamicFormDisplay] fields', fields)
+
+    console.debug('[EveryAI][DynamicFormDisplay] formData', formData)
+  }, [schema, fields, formData])
+
   const isSubmitted = currentFormState.isSubmitted || uiState.isSubmitted
   const isCancelled = currentFormState.isCancelled || uiState.isCancelled
   const isLoading = currentFormState.isLoading || uiState.isLoading
@@ -431,18 +439,25 @@ export const DynamicFormDisplay: React.FC<DynamicFormDisplayProps> = ({ data, on
       <CardContent className="gba:p-6">
         <form onSubmit={handleSubmit} className={isCompleted ? 'gba:opacity-60 gba:pointer-events-none' : ''}>
           <div className="gba:space-y-4">
-            {fields.map(([fieldName, fieldSchema]) => (
-              <SchemaField
-                key={fieldName}
-                name={fieldName}
-                path=""
-                schema={fieldSchema}
-                required={schema.required?.includes(fieldName) || false}
-                disabled={isCompleted}
-                value={formData[fieldName]}
-                onChange={value => setFormData(prev => ({ ...prev, [fieldName]: value }))}
-              />
-            ))}
+            {fields.map(([fieldName, fieldSchema]) => {
+              if (fieldSchema == null || typeof fieldSchema !== 'object') {
+                console.warn('[EveryAI][DynamicFormDisplay] skipping non-object schema field', fieldName, fieldSchema)
+                return null
+              }
+
+              return (
+                <SchemaField
+                  key={fieldName}
+                  name={fieldName}
+                  path=""
+                  schema={fieldSchema}
+                  required={schema.required?.includes(fieldName) || false}
+                  disabled={isCompleted}
+                  value={formData[fieldName]}
+                  onChange={value => setFormData(prev => ({ ...prev, [fieldName]: value }))}
+                />
+              )
+            })}
           </div>
 
           {isSubmitted && (
