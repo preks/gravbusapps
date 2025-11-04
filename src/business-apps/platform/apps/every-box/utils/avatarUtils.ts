@@ -30,8 +30,7 @@ export const base64ToObjectURL = (base64Data: string): string | undefined => {
     // Create blob and generate Object URL
     const blob = new Blob([bytes], { type: 'image/jpeg' })
     return URL.createObjectURL(blob)
-  } catch (error) {
-    console.error('Failed to convert base64 to Object URL:', error)
+  } catch (_error) {
     return undefined
   }
 }

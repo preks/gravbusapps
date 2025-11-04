@@ -63,13 +63,6 @@ export const useTaskDetails = ({
     setError(null)
 
     try {
-      console.log('[useTaskDetails] Fetching task details via Kogito Processes API:', {
-        domain,
-        processName,
-        processInstanceId,
-        userId,
-        taskId
-      })
 
       const client = new FlowClient()
       client.setAccessToken(accessToken)
@@ -77,31 +70,21 @@ export const useTaskDetails = ({
       // Fetch all tasks for this process instance
       const response = await client.getOpenedTaskFlow(domain, processName, processInstanceId, userId)
 
-      console.log('[useTaskDetails] Received tasks response:', {
-        tasksCount: response.tasks?.length || 0,
-        tasks: response.tasks
-      })
+      // Handle both response formats: array directly OR { tasks: [...] }
+      const tasksArray = Array.isArray(response) ? response : response.tasks || []
+
 
       // Find the specific task by ID
-      const taskDetail = response.tasks?.find(t => t.id === taskId)
+      const taskDetail = tasksArray.find(t => t.id === taskId)
 
       if (taskDetail) {
-        console.log('[useTaskDetails] Found task details:', {
-          taskId,
-          hasParameters: !!(taskDetail as any).parameters,
-          parametersKeys: (taskDetail as any).parameters ? Object.keys((taskDetail as any).parameters) : [],
-          hasResults: !!(taskDetail as any).results,
-          fullDetails: taskDetail
-        })
         setTaskDetails(taskDetail)
       } else {
-        console.warn('[useTaskDetails] Task not found in response:', taskId)
         setError('Task not found in process instance')
       }
     } catch (err) {
       const errorMessage = err instanceof Error ? err.message : 'Failed to fetch task details'
       setError(errorMessage)
-      console.error('[useTaskDetails] Error fetching task details:', err)
     } finally {
       setIsLoading(false)
     }

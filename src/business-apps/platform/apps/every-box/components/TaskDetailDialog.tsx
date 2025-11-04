@@ -4,7 +4,7 @@
  */
 
 import React from 'react'
-import { Card, CardContent, CardHeader, Badge, Button, Alert, AlertDescription } from '@newwork/nw-design-system'
+import { Card, CardContent, CardHeader, Badge, Button, Alert, AlertDescription, AlertTitle } from '@newwork/nw-design-system'
 import { CheckCircle, Info, Zap, X, ExternalLink, ChevronDown, ChevronUp } from 'lucide-react'
 import { message } from 'antd'
 import { UnifiedTask } from '../types'
@@ -17,6 +17,9 @@ import {
 import { navigateTo } from '@/common/utils/navigationUtils'
 import { env } from '@/common/env/EnvUtils'
 import { AbsenceApprovalDetails } from './task-details/AbsenceApprovalDetails'
+import { ExpenseApprovalDetails } from './task-details/ExpenseApprovalDetails'
+import { ExpensePlanApprovalDetails } from './task-details/ExpensePlanApprovalDetails'
+import { SickLeaveAcknowledgementDetails } from './task-details/SickLeaveAcknowledgementDetails'
 import { useTaskDetails } from '../hooks/useTaskDetails'
 
 interface TaskDetailDialogProps {
@@ -26,6 +29,8 @@ interface TaskDetailDialogProps {
   onTaskCompleted?: (taskId: string) => void
   accessToken: string
   userId?: string
+  employeeId?: string // Employee ID for approval comments
+  userInfo?: any // User info for team absence calendar
 }
 
 export const TaskDetailDialog: React.FC<TaskDetailDialogProps> = ({
@@ -34,7 +39,9 @@ export const TaskDetailDialog: React.FC<TaskDetailDialogProps> = ({
   onTaskUpdated,
   onTaskCompleted,
   accessToken,
-  userId
+  userId,
+  employeeId,
+  userInfo
 }) => {
   const [isCompleting, setIsCompleting] = React.useState(false)
   const [showRawData, setShowRawData] = React.useState(false)
@@ -58,8 +65,7 @@ export const TaskDetailDialog: React.FC<TaskDetailDialogProps> = ({
           processInstanceId: pathSegments[3]
         }
       }
-    } catch (error) {
-      console.warn('[TaskDetailDialog] Failed to extract process info from endpoint:', error)
+    } catch (_error) {
     }
 
     return { domain: null, processName: null, processInstanceId: null }
@@ -68,22 +74,18 @@ export const TaskDetailDialog: React.FC<TaskDetailDialogProps> = ({
   const processInfo = React.useMemo(() => {
     const fromEndpoint = extractProcessInfo(task?.sourceMetadata?.endpoint as string)
 
-    // Try direct fields first, then fallback to endpoint extraction
+    // CRITICAL: Use endpoint extraction FIRST, as direct fields might contain taskId instead of processInstanceId
+    // Only fallback to direct fields if endpoint extraction fails
     const result = {
       domain: fromEndpoint.domain,
       processName: fromEndpoint.processName,
       processInstanceId:
-        task?.sourceMetadata?.processInstanceId ||
-        task?.workflowMeta?.rootWorkflowId ||
         fromEndpoint.processInstanceId ||
+        task?.workflowMeta?.rootWorkflowId ||
+        task?.sourceMetadata?.processInstanceId ||
         null
     }
 
-    console.log('[TaskDetailDialog] Process info extraction:', {
-      taskId: task?.id,
-      endpoint: task?.sourceMetadata?.endpoint,
-      extracted: result
-    })
 
     return result
   }, [task])
@@ -100,49 +102,10 @@ export const TaskDetailDialog: React.FC<TaskDetailDialogProps> = ({
     enabled: !!task && task.source === 'kogito'
   })
 
-  // Log comparison between list data and detailed data
-  React.useEffect(() => {
-    if (taskDetails && task) {
-      console.log('[TaskDetailDialog] 📊 Data Comparison:')
-      console.log('  List Data (from inbox - FlowMetrics API):', {
-        hasInputs: !!(task.sourceMetadata as any)?.inputs,
-        inputsKeys: (task.sourceMetadata as any)?.inputs ? Object.keys((task.sourceMetadata as any).inputs) : [],
-        sourceMetadata: task.sourceMetadata
-      })
-      console.log('  Detail Data (from Kogito Processes API):', {
-        hasParameters: !!(taskDetails as any).parameters,
-        parametersKeys: (taskDetails as any).parameters ? Object.keys((taskDetails as any).parameters) : [],
-        hasResults: !!(taskDetails as any).results,
-        resultsKeys: (taskDetails as any).results ? Object.keys((taskDetails as any).results) : [],
-        fullDetails: taskDetails
-      })
-
-      // Check for differences
-      const listInputsKeys = (task.sourceMetadata as any)?.inputs
-        ? Object.keys((task.sourceMetadata as any).inputs)
-        : []
-      const detailParametersKeys = (taskDetails as any).parameters ? Object.keys((taskDetails as any).parameters) : []
-      const hasNewData = detailParametersKeys.length > listInputsKeys.length
-      const hasParameters = detailParametersKeys.length > 0
-
-      console.log('[TaskDetailDialog] 🔍 Analysis:', {
-        hasNewData,
-        hasParameters,
-        parametersCount: detailParametersKeys.length,
-        listInputsCount: listInputsKeys.length
-      })
-    }
-  }, [taskDetails, task])
-
   if (!task) return null
 
   const handleCompleteBlinkTask = async () => {
     if (!task.id || !task.flowId || !userId) {
-      console.error('[EveryBox] Missing required data for task completion:', {
-        taskId: task.id,
-        flowId: task.flowId,
-        userId
-      })
       alert('Unable to complete task: missing user information.')
       return
     }
@@ -167,11 +130,9 @@ export const TaskDetailDialog: React.FC<TaskDetailDialogProps> = ({
 
       if (!response.ok) {
         const errorData = await response.json().catch(() => ({ error: 'Unknown error' }))
-        console.error('[EveryBox] Task completion failed:', errorData)
         throw new Error(errorData.error || 'Failed to complete task')
       }
 
-      console.log('[EveryBox] Blink task completed successfully')
 
       // Show success message
       message.success({
@@ -190,7 +151,6 @@ export const TaskDetailDialog: React.FC<TaskDetailDialogProps> = ({
       // Close the dialog
       onClose()
     } catch (err) {
-      console.error('[EveryBox] Error completing blink task:', err)
       const errorMessage = err instanceof Error ? err.message : 'Failed to complete task'
       message.error({
         content: `Failed to complete task: ${errorMessage}`,
@@ -206,20 +166,17 @@ export const TaskDetailDialog: React.FC<TaskDetailDialogProps> = ({
     if (task.source === 'kogito' && task.sourceMetadata?.endpoint) {
       try {
         const endpoint = task.sourceMetadata.endpoint as string
-        console.log('[EveryBox] Opening Kogito task via endpoint:', endpoint)
 
         // Extract just the path from the endpoint URL
         // Format: /processes/{domain}/{processName}/{processInstanceId}/{taskName}/{taskId}
         const url = new URL(endpoint)
         const endpointPath = url.pathname
 
-        console.log('[EveryBox] Navigating to path:', endpointPath)
 
         // Navigate to the endpoint path - platform's routing should handle it
         navigateTo(endpointPath)
         onClose()
-      } catch (err) {
-        console.error('[EveryBox] Error opening Kogito task:', err)
+      } catch (_err) {
       }
       return
     }
@@ -228,22 +185,25 @@ export const TaskDetailDialog: React.FC<TaskDetailDialogProps> = ({
     if (task.source === 'cflow' && task.sourceMetadata?.endpoint && !isBlinkTask) {
       try {
         const endpoint = task.sourceMetadata.endpoint as string
-        console.log('[EveryBox] Opening CFlow task via endpoint:', endpoint)
 
         const url = new URL(endpoint)
         navigateTo(url.pathname)
         onClose()
-      } catch (err) {
-        console.error('[EveryBox] Error opening CFlow task:', err)
+      } catch (_err) {
       }
       return
     }
 
-    console.warn('[EveryBox] No endpoint available for task:', task)
   }
 
   // Get task title
-  const taskTitle = task.title || task.name || 'Untitled Task'
+  // For Kogito tasks, prefer referenceTaskName (most descriptive with context)
+  // Then fallback to nodeName, title, or name
+  // For CFlow tasks, use title or name
+  const taskTitle =
+    task.source === 'kogito'
+      ? task.referenceTaskName || task.sourceMetadata?.nodeName || task.name || 'Untitled Task'
+      : task.title || task.name || 'Untitled Task'
 
   // Get task description/message
   const taskDescription = task.description || task.message
@@ -254,19 +214,31 @@ export const TaskDetailDialog: React.FC<TaskDetailDialogProps> = ({
   // Check if this is a blink (quick-task)
   const isBlinkTask = task.source === 'cflow' && task.tags?.app === 'quick-task'
 
+  // Check if this is a sick leave acknowledgement task
+  const isSickLeaveAcknowledgement =
+    task.source === 'kogito' && task.name?.toLowerCase().includes('acknowledgesickleave')
+
   // Check if this is an approval task (from Kogito)
   // Approval tasks typically have names starting with "approve" or contain "approval"
   const isApprovalTask =
     task.source === 'kogito' &&
     (task.name?.toLowerCase().includes('approve') || task.title?.toLowerCase().includes('approval'))
 
+  // Detect specific approval task types
+  const isExpenseApproval = task.source === 'kogito' && task.name?.toLowerCase().includes('approveexpenserequest')
+  const isExpensePlanApproval = task.source === 'kogito' && task.name?.toLowerCase().includes('approveexpenseplan')
+  const isAbsenceApproval =
+    task.source === 'kogito' &&
+    (task.name?.toLowerCase().includes('approveemployeevacation') ||
+      task.name?.toLowerCase().includes('approveabsence'))
+
   return (
     <Card className="gba:h-full gba:flex gba:flex-col gba:shadow-lg" data-testid="task-detail-dialog">
       {/* Header with Close Button */}
-      <CardHeader className="gba:border-b gba:pb-4">
+      <CardHeader className="gba:border-b gba:pb-3 gba:pt-3">
         <div className="gba:flex gba:items-start gba:justify-between gba:gap-4">
           <div className="gba:flex-1">
-            <h2 className="gba:text-2xl gba:font-bold gba:mb-3" data-testid="task-detail-title">
+            <h2 className="gba:text-xl gba:font-bold gba:mb-2" data-testid="task-detail-title">
               {taskTitle}
             </h2>
             {/* Badges */}
@@ -305,16 +277,62 @@ export const TaskDetailDialog: React.FC<TaskDetailDialogProps> = ({
       </CardHeader>
 
       {/* Scrollable Content - Route to specific task detail views */}
-      <CardContent className="gba:flex-1 gba:overflow-y-auto gba:pt-6">
-        {/* Kogito approval tasks: Show dedicated approval view */}
-        {isApprovalTask && task.status !== 'COMPLETED' ? (
-          <AbsenceApprovalDetails
+      <CardContent className="gba:flex-1 gba:overflow-y-auto gba:pt-4 gba:px-4">
+        {/* Sick Leave Acknowledgement: Show dedicated acknowledgement view */}
+        {isSickLeaveAcknowledgement && taskDetails ? (
+          <SickLeaveAcknowledgementDetails
             task={task}
+            taskDetails={taskDetails}
             accessToken={accessToken}
-            onTaskCompleted={onTaskCompleted}
+            userInfo={userInfo}
+            onTaskCompleted={onTaskCompleted || (() => {})}
             onTaskUpdated={onTaskUpdated}
             onClose={onClose}
           />
+        ) : /* Kogito approval tasks: Show dedicated approval view for both active and completed */
+        isApprovalTask ? (
+          <>
+            {isExpenseApproval && taskDetails ? (
+              <ExpenseApprovalDetails
+                task={task}
+                taskDetails={taskDetails}
+                accessToken={accessToken}
+                onTaskCompleted={onTaskCompleted || (() => {})}
+                onTaskUpdated={onTaskUpdated}
+                onClose={onClose}
+                employeeId={employeeId}
+              />
+            ) : isExpensePlanApproval && taskDetails ? (
+              <ExpensePlanApprovalDetails
+                task={task}
+                taskDetails={taskDetails}
+                accessToken={accessToken}
+                onTaskCompleted={onTaskCompleted || (() => {})}
+                onTaskUpdated={onTaskUpdated}
+                onClose={onClose}
+                employeeId={employeeId}
+              />
+            ) : isAbsenceApproval ? (
+              <AbsenceApprovalDetails
+                task={task}
+                accessToken={accessToken}
+                userInfo={userInfo}
+                onTaskCompleted={onTaskCompleted}
+                onTaskUpdated={onTaskUpdated}
+                onClose={onClose}
+              />
+            ) : (
+              <div className="gba:p-6">
+                <Alert>
+                  <Info className="gba:h-4 gba:w-4" />
+                  <AlertTitle>Approval Task</AlertTitle>
+                  <AlertDescription>
+                    This is an approval task but we don't have a specific view for it yet. Task: {task.name}
+                  </AlertDescription>
+                </Alert>
+              </div>
+            )}
+          </>
         ) : (
           <div className="gba:space-y-6">
             {/* Brief description if available */}
@@ -435,8 +453,8 @@ export const TaskDetailDialog: React.FC<TaskDetailDialogProps> = ({
         )}
       </CardContent>
 
-      {/* Action buttons - Fixed at bottom (hidden for tasks with dedicated detail views) */}
-      {!(isApprovalTask && task.status !== 'COMPLETED') && (
+      {/* Action buttons - Fixed at bottom (hidden for approval/acknowledgement tasks with dedicated detail views) */}
+      {!isApprovalTask && !isSickLeaveAcknowledgement && (
         <div className="gba:border-t gba:p-4 gba:flex gba:gap-2 gba:justify-end gba:bg-muted/30">
           <Button variant="outline" onClick={onClose} data-testid="task-detail-cancel-button">
             Close

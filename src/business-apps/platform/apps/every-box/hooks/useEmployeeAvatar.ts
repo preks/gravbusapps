@@ -72,7 +72,6 @@ export const useEmployeeAvatar = (accessToken: string, id?: string) => {
 
       try {
         // Try querying by userId first (Kogito tasks use userId)
-        console.log('[useEmployeeAvatar] Trying to fetch by userId:', id);
         const userIdResult = await graphqlClient.request<{
           Employee: EmployeeAvatarData[];
         }>(GET_EMPLOYEE_AVATAR_BY_USER_ID, {
@@ -83,7 +82,6 @@ export const useEmployeeAvatar = (accessToken: string, id?: string) => {
 
         // If not found by userId, try by employeeId (CFlow might use employeeId)
         if (!employee) {
-          console.log('[useEmployeeAvatar] Not found by userId, trying employeeId:', id);
           const employeeIdResult = await graphqlClient.request<{
             EmployeePosition: Array<{
               employee: EmployeeAvatarData;
@@ -96,21 +94,11 @@ export const useEmployeeAvatar = (accessToken: string, id?: string) => {
         }
 
         if (employee) {
-          console.log('[useEmployeeAvatar] Employee found:', {
-            id,
-            employeeName: `${employee.firstName} ${employee.lastName}`,
-            hasPictureThumbnail: !!employee.pictureThumbnail,
-            pictureThumbnailLength: employee.pictureThumbnail?.length || 0,
-            pictureThumbnailStart: employee.pictureThumbnail?.substring(0, 50),
-            startsWithBrace: employee.pictureThumbnail?.startsWith('{')
-          });
           setEmployeeData(employee);
         } else {
-          console.log('[useEmployeeAvatar] No employee found for:', id);
           setEmployeeData(null);
         }
       } catch (err) {
-        console.error('Error fetching employee avatar:', err);
         setError(err instanceof Error ? err.message : 'Failed to fetch employee');
         setEmployeeData(null);
       } finally {

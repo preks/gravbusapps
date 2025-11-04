@@ -97,14 +97,6 @@ export const EveryBox: React.FC<EveryBoxProps> = ({ prefixDataTestId = 'every-bo
 
   // Debug logging
   useEffect(() => {
-    console.log('[EveryBox] Component mounted with optimized polling')
-    console.log('[EveryBox] Polling config:', POLLING_CONFIG)
-    console.log('[EveryBox] Context:', {
-      hasAccessToken: !!context.accessToken,
-      hasUserInfo: !!context.userInfo,
-      employeeId: context.userInfo?.employeeDetails?.employeeId,
-      userInfoStructure: context.userInfo
-    })
   }, [])
 
   // Fetch inbox tasks (active)
@@ -166,38 +158,30 @@ export const EveryBox: React.FC<EveryBoxProps> = ({ prefixDataTestId = 'every-bo
 
   // Set up staggered polling intervals (SMART POLLING - no UI disruption)
   useEffect(() => {
-    console.log('[EveryBox] Setting up smart background polling (non-disruptive)')
 
     // Active tasks polling - uses backgroundRefresh (no UI reload)
     if (POLLING_CONFIG.activeTasks.enabled) {
-      console.log('[EveryBox] Starting active tasks polling:', POLLING_CONFIG.activeTasks.interval, 'ms')
       activeTasksIntervalRef.current = setInterval(() => {
-        console.log('[EveryBox] 🔍 Background check for new active tasks')
         backgroundRefreshInbox()
       }, POLLING_CONFIG.activeTasks.interval)
     }
 
     // Completed tasks polling - uses backgroundRefresh (no UI reload)
     if (POLLING_CONFIG.completedTasks.enabled) {
-      console.log('[EveryBox] Starting completed tasks polling:', POLLING_CONFIG.completedTasks.interval, 'ms')
       completedTasksIntervalRef.current = setInterval(() => {
-        console.log('[EveryBox] 🔍 Background check for new completed tasks')
         backgroundRefreshCompleted()
       }, POLLING_CONFIG.completedTasks.interval)
     }
 
     // Outbox flows polling - still uses refetch (less disruptive for smaller lists)
     if (POLLING_CONFIG.outboxFlows.enabled) {
-      console.log('[EveryBox] Starting outbox flows polling:', POLLING_CONFIG.outboxFlows.interval, 'ms')
       outboxFlowsIntervalRef.current = setInterval(() => {
-        console.log('[EveryBox] 🔄 Polling outbox flows')
         refetchFlows()
       }, POLLING_CONFIG.outboxFlows.interval)
     }
 
     // Cleanup all intervals on unmount
     return () => {
-      console.log('[EveryBox] Cleaning up polling intervals')
       if (activeTasksIntervalRef.current) {
         clearInterval(activeTasksIntervalRef.current)
       }
@@ -228,11 +212,10 @@ export const EveryBox: React.FC<EveryBoxProps> = ({ prefixDataTestId = 'every-bo
 
       // Refresh the task lists in the background (don't wait for them)
       // This allows the modal to close immediately
-      Promise.all([refetchTasks(), refetchFlows(), refetchCompleted()]).catch(err => {
-        console.error('[EveryBox] Failed to refresh task lists:', err)
+      Promise.all([refetchTasks(), refetchFlows(), refetchCompleted()]).catch(() => {
+        // Ignore errors in background refresh
       })
     } catch (error) {
-      console.error('[EveryBox] Failed to create Blink:', error)
       message.error(`Failed to create Blink: ${error instanceof Error ? error.message : 'Unknown error'}`)
       throw error // Re-throw to prevent modal from closing on error
     }
@@ -242,21 +225,19 @@ export const EveryBox: React.FC<EveryBoxProps> = ({ prefixDataTestId = 'every-bo
     <ThemeProvider defaultTheme="light">
       <ErrorBoundary>
         <div
-          className="gba:h-screen gba:flex gba:flex-col gba:overflow-hidden gba:pt-6 gba:px-6"
+          className="gba:h-full gba:flex gba:flex-col gba:overflow-hidden"
           data-testid={`${prefixDataTestId}-container`}
         >
-          <div className="gba:container gba:mx-auto gba:max-w-[96rem] gba:flex gba:flex-col gba:h-full">
-            <Card className="gba:flex gba:flex-col gba:h-full gba:overflow-hidden">
-              <CardContent className="gba:p-4 gba:flex gba:flex-col gba:h-full gba:overflow-hidden gba:pb-0">
-                {/* Header */}
-                <div className="gba:mb-3 gba:flex gba:items-center gba:justify-between">
-                  <div>
-                    <h1 className="gba:text-xl gba:font-bold" data-testid={`${prefixDataTestId}-title`}>
-                      EveryBox
-                    </h1>
-                  </div>
+          <div className="gba:h-full gba:flex gba:flex-col gba:relative">
+            <Card className="gba:flex gba:flex-col gba:h-full gba:overflow-hidden gba:border-0 gba:shadow-none">
+              <CardContent className="gba:p-0 gba:flex gba:flex-col gba:h-full gba:overflow-hidden">
+                {/* Floating Header - Absolute positioned to not take vertical space */}
+                <div className="gba:absolute gba:top-2 gba:left-0 gba:right-0 gba:z-10 gba:flex gba:items-center gba:justify-between gba:pl-[42px] gba:pr-[46px]">
+                  <h1 className="gba:text-lg gba:font-bold gba:text-foreground" data-testid={`${prefixDataTestId}-title`}>
+                    EveryBox
+                  </h1>
 
-                  {/* Blink Button */}
+                  {/* Blink Button - Aligned with content right edge */}
                   <Button
                     onClick={() => setIsQuickTaskModalOpen(true)}
                     className="gba:bg-gradient-to-r gba:from-blue-600 gba:to-indigo-600 hover:gba:from-blue-700 hover:gba:to-indigo-700 gba:text-white gba:shadow-lg"
@@ -268,14 +249,14 @@ export const EveryBox: React.FC<EveryBoxProps> = ({ prefixDataTestId = 'every-bo
                   </Button>
                 </div>
 
-                {/* Tabs */}
+                {/* Tabs - Now starts from top with full height */}
                 <Tabs
                   value={activeTab}
                   onValueChange={handleTabChange}
-                  className="gba:flex gba:flex-col gba:flex-1 gba:overflow-hidden"
+                  className="gba:flex gba:flex-col gba:h-full gba:overflow-hidden gba:pt-10"
                   data-testid={`${prefixDataTestId}-tabs`}
                 >
-                  <TabsList className="gba:mb-3 gba:flex-shrink-0">
+                  <TabsList className="gba:mb-2 gba:flex-shrink-0 gba:ml-3">
                     <TabsTrigger
                       value="inbox"
                       data-testid={`${prefixDataTestId}-inbox-tab`}
@@ -306,7 +287,7 @@ export const EveryBox: React.FC<EveryBoxProps> = ({ prefixDataTestId = 'every-bo
                     </TabsTrigger>
                   </TabsList>
 
-                  <TabsContent value="inbox" className="gba:flex-1 gba:overflow-hidden">
+                  <TabsContent value="inbox" className="gba:flex-1 gba:overflow-hidden gba:px-3">
                     <InboxView
                       {...context}
                       tasks={tasks}
@@ -330,7 +311,7 @@ export const EveryBox: React.FC<EveryBoxProps> = ({ prefixDataTestId = 'every-bo
                     />
                   </TabsContent>
 
-                  <TabsContent value="outbox" className="gba:flex-1 gba:overflow-hidden">
+                  <TabsContent value="outbox" className="gba:flex-1 gba:overflow-hidden gba:px-3">
                     <OutboxView
                       flows={flows}
                       isLoading={flowsLoading}

@@ -42,24 +42,12 @@ export const useKogitoProcess = ({ task, accessToken, onSuccess, onError }: UseK
       // processInstanceId is typically the 3rd segment (after 'processes', domain, processName)
       if (pathSegments.length >= 4 && pathSegments[0] === 'processes') {
         processInstanceId = pathSegments[3]
-        console.log('[useKogitoProcess] Extracted processInstanceId from endpoint:', processInstanceId)
       }
-    } catch (error) {
-      console.warn('[useKogitoProcess] Failed to extract processInstanceId from endpoint:', error)
+    } catch (_error) {
     }
   }
 
   // Debug: Log task structure to help find processInstanceId and endpoint
-  console.log('[useKogitoProcess] Task structure:', {
-    taskId: task.id,
-    hasSourceMetadata: !!task.sourceMetadata,
-    endpoint: task.sourceMetadata?.endpoint,
-    sourceMetadata: task.sourceMetadata,
-    taskName: task.name,
-    taskReferenceName: (task as any).referenceName,
-    processInstanceId: processInstanceId,
-    fullTask: task
-  })
 
   /**
    * Continue the Kogito process with the provided payload
@@ -70,7 +58,6 @@ export const useKogitoProcess = ({ task, accessToken, onSuccess, onError }: UseK
     async ({ domain, processName, payload }: ContinueProcessOptions) => {
       if (!processInstanceId) {
         const error = new Error('Cannot complete task: missing process instance ID')
-        console.error('[useKogitoProcess] Missing processInstanceId - Full task:', task)
         message.error(error.message)
         onError?.(error)
         return Promise.reject(error)
@@ -95,10 +82,8 @@ export const useKogitoProcess = ({ task, accessToken, onSuccess, onError }: UseK
           // Task name is the 5th segment (index 4)
           if (pathSegments.length >= 6 && pathSegments[0] === 'processes') {
             taskName = pathSegments[4]
-            console.log('[useKogitoProcess] Extracted taskName from endpoint:', taskName)
           }
-        } catch (error) {
-          console.warn('[useKogitoProcess] Failed to extract taskName from endpoint:', error)
+        } catch (_error) {
         }
       }
 
@@ -106,10 +91,8 @@ export const useKogitoProcess = ({ task, accessToken, onSuccess, onError }: UseK
       if (taskName === 'Task') {
         if (task.name) {
           taskName = task.name
-          console.log('[useKogitoProcess] Using task.name as taskName:', taskName)
         } else if ((task as any).referenceName) {
           taskName = (task as any).referenceName
-          console.log('[useKogitoProcess] Using task.referenceName as taskName:', taskName)
         }
       }
 
@@ -121,24 +104,13 @@ export const useKogitoProcess = ({ task, accessToken, onSuccess, onError }: UseK
           const payload = JSON.parse(atob(tokenParts[1]))
           userId = payload.sub || ''
         }
-      } catch (error) {
-        console.warn('[useKogitoProcess] Failed to extract userId from token:', error)
+      } catch (_error) {
       }
 
       // Build the Kogito task completion endpoint (matching gravity-platform pattern)
       const kogitoBaseUrl = env('NEXT_PUBLIC_NEWWORK_PLATFORM_API_URL') || 'https://newwork-dev.newwork.com'
       const completionEndpoint = `${kogitoBaseUrl}/processes/${domain}/${processName}/${processInstanceId}/${taskName}/${task.id}`
 
-      console.log('[useKogitoProcess] Completing Kogito task (direct HTTP):', {
-        domain,
-        processName,
-        processInstanceId,
-        taskName,
-        taskId: task.id,
-        userId,
-        endpoint: completionEndpoint,
-        payload
-      })
 
       try {
         const response = await fetch(`${completionEndpoint}?phase=complete${userId ? `&user=${userId}` : ''}`, {
@@ -156,14 +128,12 @@ export const useKogitoProcess = ({ task, accessToken, onSuccess, onError }: UseK
         }
 
         const result = await response.json()
-        console.log('[useKogitoProcess] Task completed successfully:', result)
 
         // Call success callback
         onSuccess?.()
         return Promise.resolve(result)
       } catch (error) {
         const err = error instanceof Error ? error : new Error('Unknown error')
-        console.error('[useKogitoProcess] Error completing task:', err)
         message.error(`Failed to complete task: ${err.message}`)
         onError?.(err)
         return Promise.reject(err)

@@ -9,10 +9,12 @@ import { ThumbsUp, XCircle, MessageSquare, User } from 'lucide-react'
 import { message } from 'antd'
 import { UnifiedTask } from '../../types'
 import { useKogitoProcess } from '../../hooks/useKogitoProcess'
+import { TeamAbsenceCalendar } from '../TeamAbsenceCalendar'
 
 interface AbsenceApprovalDetailsProps {
   task: UnifiedTask
   accessToken: string
+  userInfo?: any
   onTaskCompleted?: (taskId: string) => void
   onTaskUpdated: () => void
   onClose: () => void
@@ -21,6 +23,7 @@ interface AbsenceApprovalDetailsProps {
 export const AbsenceApprovalDetails: React.FC<AbsenceApprovalDetailsProps> = ({
   task,
   accessToken,
+  userInfo,
   onTaskCompleted,
   onTaskUpdated,
   onClose
@@ -37,19 +40,19 @@ export const AbsenceApprovalDetails: React.FC<AbsenceApprovalDetailsProps> = ({
     onSuccess: () => {
       // Callbacks handled in handleApprove/handleReject
     },
-    onError: error => {
-      console.error('[AbsenceApproval] Process error:', error)
+    onError: () => {
+      // Error handling done in handleApprove/handleReject
     }
   })
 
   const taskInputs = task.sourceMetadata?.inputs || task.inputs
   const employeeAbsence = taskInputs?.employeeAbsence as any
   const creatorName = taskInputs?.creatorName as string | undefined
+  const supervisorId = userInfo?.employeeDetails?.employeeId
 
   const handleApprove = async () => {
     setIsApproving(true)
     try {
-      console.log('[AbsenceApproval] Approving absence request')
 
       // Use the exact same payload structure as the platform
       await continueProcess({
@@ -76,7 +79,6 @@ export const AbsenceApprovalDetails: React.FC<AbsenceApprovalDetailsProps> = ({
         onClose()
       }, 500)
     } catch (err) {
-      console.error('[AbsenceApproval] Error approving:', err)
       const errorMessage = err instanceof Error ? err.message : 'Failed to approve'
       message.error({
         content: `Failed to approve: ${errorMessage}`,
@@ -99,7 +101,6 @@ export const AbsenceApprovalDetails: React.FC<AbsenceApprovalDetailsProps> = ({
 
     setIsRejecting(true)
     try {
-      console.log('[AbsenceApproval] Rejecting absence request')
 
       // Use the exact same payload structure as the platform
       await continueProcess({
@@ -126,7 +127,6 @@ export const AbsenceApprovalDetails: React.FC<AbsenceApprovalDetailsProps> = ({
         onClose()
       }, 500)
     } catch (err) {
-      console.error('[AbsenceApproval] Error rejecting:', err)
       const errorMessage = err instanceof Error ? err.message : 'Failed to reject'
       message.error({
         content: `Failed to reject: ${errorMessage}`,
@@ -232,62 +232,80 @@ export const AbsenceApprovalDetails: React.FC<AbsenceApprovalDetailsProps> = ({
         </>
       )}
 
-      {/* Comment Section */}
-      <div>
-        <div className="gba:flex gba:items-center gba:gap-2 gba:mb-3">
-          <MessageSquare className="gba:h-4 gba:w-4" />
-          <Label htmlFor="approval-comment" className="gba:text-sm gba:font-medium">
-            Add Comment {showComment && '(Required for rejection)'}
-          </Label>
-          <Switch
-            id="approval-comment"
-            checked={showComment}
-            onCheckedChange={checked => {
-              setShowComment(checked)
-              if (!checked) {
-                setComment('')
-              }
-            }}
+      {/* Team Absence Calendar - Show team coverage during this absence period */}
+      {employeeAbsence?.startDate && employeeAbsence?.endDate && supervisorId && (
+        <>
+          <TeamAbsenceCalendar
+            accessToken={accessToken}
+            supervisorId={supervisorId}
+            startDate={employeeAbsence.startDate}
+            endDate={employeeAbsence.endDate}
           />
-        </div>
-        {showComment && (
-          <Textarea
-            rows={3}
-            placeholder="Add your approval comment or rejection reason..."
-            value={comment}
-            onChange={e => setComment(e.target.value)}
-            maxLength={500}
-            className="gba:w-full"
-            data-testid="absence-approval-comment-input"
-          />
-        )}
-      </div>
+          <Separator />
+        </>
+      )}
 
-      {/* Action Buttons */}
-      <div
-        className="gba:flex gba:gap-2 gba:flex-wrap gba:justify-end gba:pt-4 gba:border-t"
-        style={{ borderColor: 'var(--color-border-default)' }}
-      >
-        <Button
-          variant="destructive"
-          onClick={handleReject}
-          disabled={isRejecting || isApproving}
-          data-testid="absence-reject-button"
-          className="gba:flex gba:items-center gba:gap-2"
-        >
-          <XCircle className="gba:h-4 gba:w-4" />
-          {isRejecting ? 'Rejecting...' : 'Reject'}
-        </Button>
-        <Button
-          onClick={handleApprove}
-          disabled={isApproving || isRejecting}
-          data-testid="absence-approve-button"
-          className="gba:flex gba:items-center gba:gap-2 gba:bg-success gba:text-success-foreground hover:gba:bg-success/90"
-        >
-          <ThumbsUp className="gba:h-4 gba:w-4" />
-          {isApproving ? 'Approving...' : 'Approve'}
-        </Button>
-      </div>
+      {/* Comment Section and Action Buttons (only for non-completed tasks) */}
+      {task.status !== 'COMPLETED' && (
+        <>
+          {/* Comment Section */}
+          <div>
+            <div className="gba:flex gba:items-center gba:gap-2 gba:mb-3">
+              <MessageSquare className="gba:h-4 gba:w-4" />
+              <Label htmlFor="approval-comment" className="gba:text-sm gba:font-medium">
+                Add Comment {showComment && '(Required for rejection)'}
+              </Label>
+              <Switch
+                id="approval-comment"
+                checked={showComment}
+                onCheckedChange={checked => {
+                  setShowComment(checked)
+                  if (!checked) {
+                    setComment('')
+                  }
+                }}
+              />
+            </div>
+            {showComment && (
+              <Textarea
+                rows={3}
+                placeholder="Add your approval comment or rejection reason..."
+                value={comment}
+                onChange={e => setComment(e.target.value)}
+                maxLength={500}
+                className="gba:w-full"
+                data-testid="absence-approval-comment-input"
+              />
+            )}
+          </div>
+
+          {/* Action Buttons */}
+          <div
+            className="gba:flex gba:gap-2 gba:flex-wrap gba:justify-end gba:pt-4 gba:border-t"
+            style={{ borderColor: 'var(--color-border-default)' }}
+          >
+            <Button
+              variant="destructive"
+              onClick={handleReject}
+              disabled={isRejecting || isApproving}
+              data-testid="absence-reject-button"
+              className="gba:flex gba:items-center gba:gap-2"
+            >
+              <XCircle className="gba:h-4 gba:w-4" />
+              {isRejecting ? 'Rejecting...' : 'Reject'}
+            </Button>
+            <Button
+              onClick={handleApprove}
+              disabled={isApproving || isRejecting}
+              data-testid="absence-approve-button"
+              className="gba:flex gba:items-center gba:gap-2 gba:bg-success gba:text-success-foreground hover:gba:bg-success/90"
+            >
+              <ThumbsUp className="gba:h-4 gba:w-4" />
+              {isApproving ? 'Approving...' : 'Approve'}
+            </Button>
+          </div>
+        </>
+      )}
     </div>
   )
 }

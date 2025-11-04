@@ -48,8 +48,7 @@ const base64ToObjectURL = (base64Data: string): string | undefined => {
 
     // Create Object URL (this will be cached by the browser!)
     return URL.createObjectURL(blob)
-  } catch (error) {
-    console.error('[useEmployeeAvatarsBatch] Failed to create Object URL:', error)
+  } catch (_error) {
     return undefined
   }
 }
@@ -136,15 +135,11 @@ export const useEmployeeAvatarsBatch = (accessToken: string, userIds: string[], 
 
       // If everything is cached, just update state without loading
       if (missingUserIds.length === 0 && missingEmployeeIds.length === 0) {
-        console.log(`[useEmployeeAvatarsBatch] ✅ All ${cachedMap.size} employees found in cache - no API call needed`)
         setEmployeeMap(cachedMap)
         setError(null)
         return
       }
 
-      console.log(
-        `[useEmployeeAvatarsBatch] Cache hit: ${cachedMap.size}, Cache miss: ${missingUserIds.length + missingEmployeeIds.length} - fetching missing...`
-      )
 
       setIsLoading(true)
       setError(null)
@@ -196,7 +191,6 @@ export const useEmployeeAvatarsBatch = (accessToken: string, userIds: string[], 
 
         setEmployeeMap(map)
       } catch (err) {
-        console.error('[useEmployeeAvatarsBatch] Error fetching employees:', err)
         setError(err instanceof Error ? err.message : 'Failed to fetch employees')
         setEmployeeMap(new Map())
       } finally {

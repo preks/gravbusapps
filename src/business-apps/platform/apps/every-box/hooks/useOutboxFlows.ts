@@ -26,18 +26,15 @@ export const useOutboxFlows = (context: BusinessAppContextProps) => {
    */
   const fetchInitiatedFlows = useCallback(async (): Promise<Flow[]> => {
     if (!userId) {
-      console.log('[EveryBox] No userId available, skipping outbox flows fetch')
       return []
     }
 
-    const startTime = performance.now()
+    const _startTime = performance.now()
     try {
-      console.log(`[EveryBox] 🚀 START Fetching outbox flows for user: ${userId}`)
       // Reduce limit to 50 and add timeout to prevent 524 errors
       const url = `${FLOW_ENGINE_API}/api/flows/user/${userId}/initiated?limit=50&offset=0`
-      console.log(`[EveryBox] Outbox Flow Engine URL: ${url}`)
 
-      const fetchStart = performance.now()
+      const _fetchStart = performance.now()
 
       // Add timeout to prevent hanging requests
       const controller = new AbortController()
@@ -53,11 +50,9 @@ export const useOutboxFlows = (context: BusinessAppContextProps) => {
 
       clearTimeout(timeoutId)
 
-      const fetchEnd = performance.now()
-      console.log(`[EveryBox] ⏱️ Outbox API response time: ${(fetchEnd - fetchStart).toFixed(0)}ms`)
+      const _fetchEnd = performance.now()
 
       if (!response.ok) {
-        console.error(`[EveryBox] Outbox API error: ${response.status} ${response.statusText}`)
         if (response.status === 524) {
           throw new Error('Flow engine is taking too long to respond. Please try again.')
         }
@@ -68,21 +63,16 @@ export const useOutboxFlows = (context: BusinessAppContextProps) => {
       // API response structure: { status: "success", data: { flows: [...], totalCount: N } }
       const rawFlows: any[] = data.data?.flows || []
 
-      const endTime = performance.now()
-      console.log(
-        `[EveryBox] ✅ DONE Fetched ${rawFlows.length} flows from outbox in ${(endTime - startTime).toFixed(0)}ms`
-      )
+      const _endTime = performance.now()
 
       return rawFlows.map(flow => transformFlow(flow))
     } catch (err) {
-      const endTime = performance.now()
+      const _endTime = performance.now()
 
       if (err instanceof Error && err.name === 'AbortError') {
-        console.error(`[EveryBox] ❌ Request timeout after ${(endTime - startTime).toFixed(0)}ms`)
         throw new Error('Request timed out. The server is taking too long to respond.')
       }
 
-      console.error(`[EveryBox] ❌ Error fetching initiated flows after ${(endTime - startTime).toFixed(0)}ms:`, err)
       throw err
     }
   }, [userId, context.accessToken])
@@ -114,16 +104,13 @@ export const useOutboxFlows = (context: BusinessAppContextProps) => {
       )
 
       if (newFlowData !== lastFlowDataRef.current) {
-        console.log('[EveryBox] Flow data changed, updating state')
         lastFlowDataRef.current = newFlowData
         setFlows(groupedFlows)
       } else {
-        console.log('[EveryBox] No changes in flow data, skipping state update')
       }
     } catch (err) {
       const errorMessage = err instanceof Error ? err.message : 'Failed to load flows'
       setError(errorMessage)
-      console.error('Error loading outbox flows:', err)
     } finally {
       setIsLoading(false)
     }

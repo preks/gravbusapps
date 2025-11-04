@@ -80,7 +80,6 @@ export const useInboxTasks = (context: BusinessAppContextProps): UseInboxTasksRe
     setError(null)
 
     try {
-      console.log(`[EveryBox] Loading ${INITIAL_BATCH_COUNT} initial batches (~${INITIAL_BATCH_COUNT * 100} tasks)`)
 
       // Fetch multiple batches in parallel for accurate count
       const batchPromises = []
@@ -100,7 +99,6 @@ export const useInboxTasks = (context: BusinessAppContextProps): UseInboxTasksRe
         return bTime - aTime
       })
 
-      console.log(`[EveryBox] Merged and sorted ${sortedTasks.length} tasks`)
 
       // Store task IDs for change detection
       lastTaskIdsRef.current = new Set(sortedTasks.map(t => t.id))
@@ -113,7 +111,6 @@ export const useInboxTasks = (context: BusinessAppContextProps): UseInboxTasksRe
     } catch (err) {
       const errorMessage = err instanceof Error ? err.message : 'Failed to load tasks'
       setError(errorMessage)
-      console.error('[EveryBox] Error loading inbox tasks:', err)
     } finally {
       setIsLoading(false)
     }
@@ -128,7 +125,6 @@ export const useInboxTasks = (context: BusinessAppContextProps): UseInboxTasksRe
     }
 
     try {
-      console.log('[EveryBox] Background refresh: checking for new tasks')
 
       // Fetch only first batch to check for new tasks
       const batch = await fetchBatch(0)
@@ -142,13 +138,10 @@ export const useInboxTasks = (context: BusinessAppContextProps): UseInboxTasksRe
       const hasNewTasksDetected = Array.from(newTaskIds).some(id => !lastTaskIdsRef.current.has(id))
 
       if (hasNewTasksDetected) {
-        console.log('[EveryBox] ✨ New tasks detected! Setting flag for user notification')
         setHasNewTasks(true)
       } else {
-        console.log('[EveryBox] No new tasks detected')
       }
-    } catch (err) {
-      console.error('[EveryBox] Background refresh failed (non-critical):', err)
+    } catch (_err) {
     }
   }, [userId, isLoading, fetchBatch])
 
@@ -183,7 +176,6 @@ export const useInboxTasks = (context: BusinessAppContextProps): UseInboxTasksRe
 
     // Serve from cache if available
     if (endIdx <= allFetchedTasks.length) {
-      console.log('[EveryBox] ⚡ Serving from cache')
       setDisplayedTasks(allFetchedTasks.slice(0, endIdx))
       setCurrentPage(nextPage)
       return
@@ -191,13 +183,11 @@ export const useInboxTasks = (context: BusinessAppContextProps): UseInboxTasksRe
 
     // Need to fetch more
     if (!hasMoreToFetch) {
-      console.log('[EveryBox] No more tasks to fetch')
       return
     }
 
     setIsLoading(true)
     try {
-      console.log('[EveryBox] 📡 Fetching more tasks from backend')
 
       const nextOffset = allFetchedTasks.length
       const batch = await fetchBatch(nextOffset)
@@ -218,7 +208,6 @@ export const useInboxTasks = (context: BusinessAppContextProps): UseInboxTasksRe
       setTotalCount(sortedTasks.length)
       setHasMoreToFetch(batch.hasMore)
     } catch (err) {
-      console.error('[EveryBox] Error loading more tasks:', err)
       setError(err instanceof Error ? err.message : 'Failed to load more')
     } finally {
       setIsLoading(false)

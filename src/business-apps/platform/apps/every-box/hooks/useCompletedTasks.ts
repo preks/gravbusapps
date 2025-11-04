@@ -73,7 +73,6 @@ export const useCompletedTasks = (context: BusinessAppContextProps): UseComplete
     setError(null)
 
     try {
-      console.log(`[EveryBox Completed] Loading ${INITIAL_BATCH_COUNT} initial batches`)
 
       const batchPromises = []
       for (let i = 0; i < INITIAL_BATCH_COUNT; i++) {
@@ -89,7 +88,6 @@ export const useCompletedTasks = (context: BusinessAppContextProps): UseComplete
         return bTime - aTime
       })
 
-      console.log(`[EveryBox Completed] Merged and sorted ${sortedTasks.length} tasks`)
 
       lastTaskIdsRef.current = new Set(sortedTasks.map(t => t.id))
 
@@ -101,7 +99,6 @@ export const useCompletedTasks = (context: BusinessAppContextProps): UseComplete
     } catch (err) {
       const errorMessage = err instanceof Error ? err.message : 'Failed to load completed tasks'
       setError(errorMessage)
-      console.error('[EveryBox Completed] Error loading tasks:', err)
     } finally {
       setIsLoading(false)
     }
@@ -113,7 +110,6 @@ export const useCompletedTasks = (context: BusinessAppContextProps): UseComplete
     }
 
     try {
-      console.log('[EveryBox Completed] Background refresh: checking for new tasks')
 
       const batch = await fetchBatch(0)
 
@@ -125,11 +121,9 @@ export const useCompletedTasks = (context: BusinessAppContextProps): UseComplete
       const hasNewTasksDetected = Array.from(newTaskIds).some(id => !lastTaskIdsRef.current.has(id))
 
       if (hasNewTasksDetected) {
-        console.log('[EveryBox Completed] ✨ New completed tasks detected!')
         setHasNewTasks(true)
       }
-    } catch (err) {
-      console.error('[EveryBox Completed] Background refresh failed (non-critical):', err)
+    } catch (_err) {
     }
   }, [userId, isLoading, fetchBatch])
 
@@ -154,20 +148,17 @@ export const useCompletedTasks = (context: BusinessAppContextProps): UseComplete
     const endIdx = startIdx + ITEMS_PER_PAGE
 
     if (endIdx <= allFetchedTasks.length) {
-      console.log('[EveryBox Completed] ⚡ Serving from cache')
       setDisplayedTasks(allFetchedTasks.slice(0, endIdx))
       setCurrentPage(nextPage)
       return
     }
 
     if (!hasMoreToFetch) {
-      console.log('[EveryBox Completed] No more tasks to fetch')
       return
     }
 
     setIsLoading(true)
     try {
-      console.log('[EveryBox Completed] 📡 Fetching more tasks from backend')
 
       const nextOffset = allFetchedTasks.length
       const batch = await fetchBatch(nextOffset)
@@ -187,7 +178,6 @@ export const useCompletedTasks = (context: BusinessAppContextProps): UseComplete
       setTotalCount(sortedTasks.length)
       setHasMoreToFetch(batch.hasMore)
     } catch (err) {
-      console.error('[EveryBox Completed] Error loading more tasks:', err)
       setError(err instanceof Error ? err.message : 'Failed to load more')
     } finally {
       setIsLoading(false)

@@ -164,7 +164,6 @@ export const InboxView: React.FC<InboxViewProps> = ({
       setLocalTasks(prev => prev.filter(t => t.id !== taskId))
       setLocalCompletedTasks(prev => prev.filter(t => t.id !== taskId))
 
-      console.log('[InboxView] Task completed locally, removed from inbox. Refreshing completed tasks...')
 
       // Close the task detail and clear URL
       handleCloseTask()
@@ -234,6 +233,76 @@ export const InboxView: React.FC<InboxViewProps> = ({
   // Batch fetch all employee avatars in one request (handles both userIds and employeeIds)
   const { employeeMap } = useEmployeeAvatarsBatch(context.accessToken || '', userIds, employeeIds)
 
+  // Keyboard navigation: Arrow keys to navigate through tasks
+  useEffect(() => {
+    if (!selectedTask) return
+
+    const handleKeyDown = (e: KeyboardEvent) => {
+      // Only handle arrow keys when a task is selected
+      if (e.key !== 'ArrowUp' && e.key !== 'ArrowDown') return
+
+      // Don't interfere if user is typing in an input/textarea
+      const target = e.target as HTMLElement
+      if (
+        target.tagName === 'INPUT' ||
+        target.tagName === 'TEXTAREA' ||
+        target.isContentEditable
+      ) {
+        return
+      }
+
+      e.preventDefault()
+
+      // Get current filtered tasks
+      const currentFilteredTasks = filterType === 'completed' ? localCompletedTasks : localTasks
+      let tasksToNavigate = currentFilteredTasks
+
+      // Apply same filtering logic as filteredTasks
+      if (filterType !== 'completed') {
+        if (filterType === 'blinks') {
+          tasksToNavigate = tasksToNavigate.filter(isBlinkTask)
+        } else if (filterType === 'approvals') {
+          tasksToNavigate = tasksToNavigate.filter(isApprovalTask)
+        }
+      }
+
+      // Apply search filter if active
+      if (searchQuery.trim()) {
+        tasksToNavigate = filterTasksBySearch(tasksToNavigate, searchQuery, employeeMap)
+      }
+
+      // Find current task index
+      const currentIndex = tasksToNavigate.findIndex(t => t.id === selectedTask.id)
+      if (currentIndex === -1) return
+
+      // Calculate next index based on arrow key
+      let nextIndex: number
+      if (e.key === 'ArrowUp') {
+        nextIndex = currentIndex > 0 ? currentIndex - 1 : currentIndex // Stop at top
+      } else {
+        // ArrowDown
+        nextIndex = currentIndex < tasksToNavigate.length - 1 ? currentIndex + 1 : currentIndex // Stop at bottom
+      }
+
+      // Select the next task
+      const nextTask = tasksToNavigate[nextIndex]
+      if (nextTask) {
+        handleSelectTask(nextTask)
+      }
+    }
+
+    window.addEventListener('keydown', handleKeyDown)
+    return () => window.removeEventListener('keydown', handleKeyDown)
+  }, [
+    selectedTask,
+    localTasks,
+    localCompletedTasks,
+    filterType,
+    searchQuery,
+    employeeMap,
+    handleSelectTask
+  ])
+
   // Filter tasks (tasks are already sorted by date from the API)
   const filteredTasks = useMemo(() => {
     let result = currentTasks
@@ -279,11 +348,11 @@ export const InboxView: React.FC<InboxViewProps> = ({
   }
 
   return (
-    <div className="gba:flex gba:gap-4 gba:h-full gba:overflow-hidden" data-testid="inbox-view">
+    <div className="gba:flex gba:gap-3 gba:h-full gba:overflow-hidden" data-testid="inbox-view">
       {/* Master Panel - Task List */}
       <div
-        className={`gba:flex gba:flex-col gba:gap-4 gba:h-full gba:transition-all gba:duration-500 gba:ease-in-out ${
-          selectedTask ? 'gba:w-[45%]' : 'gba:w-full'
+        className={`gba:flex gba:flex-col gba:gap-3 gba:h-full gba:transition-all gba:duration-500 gba:ease-in-out ${
+          selectedTask ? 'gba:w-[40%]' : 'gba:w-full'
         }`}
       >
         {/* New Tasks Notification Banner */}
@@ -335,18 +404,18 @@ export const InboxView: React.FC<InboxViewProps> = ({
           </Button>
         </div>
 
-        {/* Task Type Filters */}
-        <div className="gba:flex gba:items-center gba:gap-2 gba:flex-wrap" data-testid="inbox-filter-buttons">
+        {/* Task Type Filters - Compact for single line */}
+        <div className="gba:flex gba:items-center gba:gap-1.5" data-testid="inbox-filter-buttons">
           <Button
             variant={filterType === 'all' ? 'default' : 'outline'}
             size="sm"
             onClick={() => setFilterType('all')}
             data-testid="inbox-filter-all"
-            className="gba:flex gba:items-center gba:gap-2"
+            className="gba:flex gba:items-center gba:gap-1.5 gba:px-2.5"
           >
-            <Inbox className="gba:h-4 gba:w-4" />
+            <Inbox className="gba:h-3.5 gba:w-3.5" />
             All
-            <Badge variant="secondary" className="gba:ml-2">
+            <Badge variant="secondary" className="gba:ml-1 gba:px-1.5 gba:py-0 gba:text-xs">
               {taskCounts.all}
               {taskCounts.allHasMore ? '+' : ''}
             </Badge>
@@ -356,12 +425,12 @@ export const InboxView: React.FC<InboxViewProps> = ({
             size="sm"
             onClick={() => setFilterType('blinks')}
             data-testid="inbox-filter-blinks"
-            className="gba:flex gba:items-center gba:gap-2"
+            className="gba:flex gba:items-center gba:gap-1.5 gba:px-2.5"
           >
-            <Zap className="gba:h-4 gba:w-4" />
+            <Zap className="gba:h-3.5 gba:w-3.5" />
             Blinks
             {taskCounts.blinks > 0 && (
-              <Badge variant="secondary" className="gba:ml-2">
+              <Badge variant="secondary" className="gba:ml-1 gba:px-1.5 gba:py-0 gba:text-xs">
                 {taskCounts.blinks}
                 {taskCounts.blinksHasMore ? '+' : ''}
               </Badge>
@@ -372,12 +441,12 @@ export const InboxView: React.FC<InboxViewProps> = ({
             size="sm"
             onClick={() => setFilterType('approvals')}
             data-testid="inbox-filter-approvals"
-            className="gba:flex gba:items-center gba:gap-2"
+            className="gba:flex gba:items-center gba:gap-1.5 gba:px-2.5"
           >
-            <CheckCircle className="gba:h-4 gba:w-4" />
+            <CheckCircle className="gba:h-3.5 gba:w-3.5" />
             Approvals
             {taskCounts.approvals > 0 && (
-              <Badge variant="secondary" className="gba:ml-2">
+              <Badge variant="secondary" className="gba:ml-1 gba:px-1.5 gba:py-0 gba:text-xs">
                 {taskCounts.approvals}
                 {taskCounts.approvalsHasMore ? '+' : ''}
               </Badge>
@@ -388,12 +457,12 @@ export const InboxView: React.FC<InboxViewProps> = ({
             size="sm"
             onClick={() => setFilterType('completed')}
             data-testid="inbox-filter-completed"
-            className="gba:flex gba:items-center gba:gap-2"
+            className="gba:flex gba:items-center gba:gap-1.5 gba:px-2.5"
           >
-            <CheckCheck className="gba:h-4 gba:w-4" />
+            <CheckCheck className="gba:h-3.5 gba:w-3.5" />
             Completed
             {taskCounts.completed > 0 && (
-              <Badge variant="secondary" className="gba:ml-2">
+              <Badge variant="secondary" className="gba:ml-1 gba:px-1.5 gba:py-0 gba:text-xs">
                 {taskCounts.completed}
                 {taskCounts.completedHasMore ? '+' : ''}
               </Badge>
@@ -428,7 +497,7 @@ export const InboxView: React.FC<InboxViewProps> = ({
             />
           ) : (
             <>
-              <div className="gba:space-y-1.5" data-testid="inbox-task-list">
+              <div className="gba:space-y-0" data-testid="inbox-task-list">
                 {filteredTasks.map(task => (
                   <TaskCard
                     key={task.id}
@@ -436,6 +505,7 @@ export const InboxView: React.FC<InboxViewProps> = ({
                     onView={handleSelectTask}
                     employeeMap={employeeMap}
                     isSelected={selectedTask?.id === task.id}
+                    isDetailViewOpen={!!selectedTask}
                   />
                 ))}
               </div>
@@ -468,7 +538,7 @@ export const InboxView: React.FC<InboxViewProps> = ({
       <div
         className={`gba:flex-1 gba:transition-all gba:duration-500 gba:ease-in-out gba:overflow-hidden ${
           selectedTask
-            ? 'gba:translate-x-0 gba:opacity-100 gba:w-[55%]'
+            ? 'gba:translate-x-0 gba:opacity-100 gba:w-[60%]'
             : 'gba:translate-x-full gba:opacity-0 gba:w-0 gba:pointer-events-none'
         }`}
       >
@@ -480,6 +550,8 @@ export const InboxView: React.FC<InboxViewProps> = ({
             onTaskCompleted={handleTaskCompleted}
             accessToken={context.accessToken}
             userId={context.userInfo?.id}
+            employeeId={context.userInfo?.employeeDetails?.employeeId}
+            userInfo={context.userInfo}
           />
         )}
       </div>

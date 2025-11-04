@@ -9,15 +9,17 @@ import { Clock, AlertTriangle, User, Zap } from 'lucide-react'
 import { UnifiedTask } from '../types'
 import { formatRelativeTime, formatDateTime, isOverdue, isDueSoon } from '../utils/taskFormatters'
 import { EmployeeAvatarData } from '../hooks/useEmployeeAvatarsBatch'
+import { getModuleInfo } from '../utils/moduleIcons'
 
 interface TaskCardProps {
   task: UnifiedTask
   onView: (task: UnifiedTask) => void
   employeeMap: Map<string, EmployeeAvatarData>
   isSelected?: boolean
+  isDetailViewOpen?: boolean
 }
 
-export const TaskCard: React.FC<TaskCardProps> = memo(({ task, onView, employeeMap, isSelected = false }) => {
+export const TaskCard: React.FC<TaskCardProps> = memo(({ task, onView, employeeMap, isSelected = false, isDetailViewOpen = false }) => {
   const overdue = isOverdue(task.dueDate)
   const dueSoon = isDueSoon(task.dueDate)
 
@@ -46,6 +48,8 @@ export const TaskCard: React.FC<TaskCardProps> = memo(({ task, onView, employeeM
   }
 
   const moduleName = task.source === 'kogito' ? getModuleName(task.type) : null
+  const moduleInfo = getModuleInfo(task.name, task.type)
+  const ModuleIcon = moduleInfo.icon
 
   // Get task name/title
   // For Kogito tasks, prefer referenceName (most descriptive with context)
@@ -90,7 +94,7 @@ export const TaskCard: React.FC<TaskCardProps> = memo(({ task, onView, employeeM
 
   return (
     <Card
-      className={`gba:cursor-pointer gba:hover:shadow-md gba:transition-all gba:duration-300 nw:py-1 ${
+      className={`gba:cursor-pointer gba:hover:shadow-md gba:transition-all gba:duration-300 nw:py-0 ${
         isSelected
           ? 'gba:border-primary gba:border-2 gba:shadow-lg gba:bg-primary/5'
           : 'gba:border gba:hover:border-primary/50'
@@ -98,11 +102,11 @@ export const TaskCard: React.FC<TaskCardProps> = memo(({ task, onView, employeeM
       onClick={() => onView(task)}
       data-testid={`task-card-${task.id}`}
     >
-      <CardContent className="gba:px-4 gba:py-1">
+      <CardContent className="gba:px-4 gba:py-0">
         <div className="gba:flex gba:items-center gba:gap-4">
           {/* Left side: Avatar, creator info, task title, source badge */}
           <div
-            className="gba:flex gba:items-center gba:gap-2 gba:flex-1 gba:min-w-0"
+            className="gba:flex gba:items-center gba:gap-3 gba:flex-1 gba:min-w-0"
             data-testid="task-creator-section"
           >
             <Avatar className="gba:h-8 gba:w-8 gba:flex-shrink-0" data-testid="task-creator-avatar">
@@ -110,21 +114,8 @@ export const TaskCard: React.FC<TaskCardProps> = memo(({ task, onView, employeeM
                 src={employeeData?.avatarUrl} // Use cached Object URL for browser-level caching
                 alt={creatorName}
                 onLoad={() => {
-                  console.log('[TaskCard] 🖼️ Avatar image loaded (browser-cached):', {
-                    taskId: task.id,
-                    creatorId,
-                    creatorName,
-                    usedObjectURL: !!employeeData?.avatarUrl,
-                    originalDataSize: employeeData?.pictureThumbnail?.length || 0
-                  })
                 }}
                 onError={() => {
-                  console.error('[TaskCard] ❌ Avatar image failed to load:', {
-                    taskId: task.id,
-                    creatorId,
-                    creatorName,
-                    hadAvatarUrl: !!employeeData?.avatarUrl
-                  })
                 }}
               />
               <AvatarFallback className="gba:text-xs gba:font-medium gba:bg-gradient-to-br gba:from-blue-500 gba:to-purple-600 gba:text-white">
@@ -163,12 +154,16 @@ export const TaskCard: React.FC<TaskCardProps> = memo(({ task, onView, employeeM
                 </div>
               ) : null}
             </div>
+            {/* Module Icon - Vertically centered with title and description */}
+            <span title={moduleInfo.name} className="gba:flex-shrink-0 gba:self-center">
+              <ModuleIcon className={`gba:h-5 gba:w-5 ${moduleInfo.color}`} />
+            </span>
             <div className="gba:flex gba:flex-col gba:gap-0.5 gba:flex-1 gba:min-w-0">
               <div className="gba:flex gba:items-center gba:gap-2">
-                <span className="gba:text-base gba:font-semibold gba:truncate gba:px-2" data-testid="task-title">
+                <span className="gba:text-base gba:font-semibold gba:truncate" data-testid="task-title">
                   {taskTitle}
                 </span>
-                {!isSelected && (
+                {!isDetailViewOpen && (
                   <>
                     <Badge variant="outline" data-testid="task-source-badge" className="gba:flex-shrink-0">
                       {getSourceBadgeText(task.source)}

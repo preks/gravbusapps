@@ -156,6 +156,7 @@ export const CompletedView: React.FC<CompletedViewProps> = ({
         onTaskUpdated={onRefresh}
         accessToken={context.accessToken}
         userId={context.userInfo?.id}
+        userInfo={context.userInfo}
       />
     </div>
   )

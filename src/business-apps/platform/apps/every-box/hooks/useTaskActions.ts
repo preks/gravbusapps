@@ -6,7 +6,6 @@
 import { useState, useCallback } from 'react';
 import { BusinessAppContextProps } from '@/common/BusinessAppContext';
 import { env } from '@/common/env/EnvUtils';
-import { TaskActionPayload } from '../types';
 
 const FLOW_ENGINE_API = env('NEXT_PUBLIC_CUSTOM_FLOW_ENGINE_API_URL') || 'https://newwork-dev.newwork.com/flow-engine';
 
@@ -46,7 +45,6 @@ export const useTaskActions = (context: BusinessAppContextProps) => {
       } catch (err) {
         const errorMessage = err instanceof Error ? err.message : 'Failed to complete task';
         setError(errorMessage);
-        console.error('Error completing task:', err);
         return false;
       } finally {
         setIsPerforming(false);
@@ -84,7 +82,6 @@ export const useTaskActions = (context: BusinessAppContextProps) => {
       } catch (err) {
         const errorMessage = err instanceof Error ? err.message : 'Failed to reassign task';
         setError(errorMessage);
-        console.error('Error reassigning task:', err);
         return false;
       } finally {
         setIsPerforming(false);
@@ -123,7 +120,6 @@ export const useTaskActions = (context: BusinessAppContextProps) => {
       } catch (err) {
         const errorMessage = err instanceof Error ? err.message : 'Failed to reject task';
         setError(errorMessage);
-        console.error('Error rejecting task:', err);
         return false;
       } finally {
         setIsPerforming(false);
@@ -162,7 +158,6 @@ export const useTaskActions = (context: BusinessAppContextProps) => {
       } catch (err) {
         const errorMessage = err instanceof Error ? err.message : 'Failed to add comment';
         setError(errorMessage);
-        console.error('Error adding comment:', err);
         return false;
       } finally {
         setIsPerforming(false);
