@@ -9,6 +9,9 @@ import {
 } from '../types/dashboardTypes'
 import { extractCurrencyCode, formatCurrencyCompact } from '@/common/utils/numberFormatter'
 
+// Re-export extractCurrencyCode from central utils for backward compatibility
+export { extractCurrencyCode }
+
 /**
  * Format currency value for display with compact formatting for large numbers
  * Uses central numberFormatter with skipThousands=true to show thousands as full numbers
