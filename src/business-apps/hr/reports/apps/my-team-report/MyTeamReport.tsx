@@ -237,7 +237,7 @@ export const MyTeamReport: React.FC<BusinessAppContextProps> = (props: BusinessA
         contentHeader={
           <div data-testid="team-report-kpi-container" className="gba:pb-4">
             {Object.entries(widgetsByRow).map(([rowNumber, rowWidgets]) => (
-              <div key={rowNumber} className={rowNumber !== '1' ? 'gba:mt-4' : ''}>
+              <div key={rowNumber} className={rowNumber === '1' ? '' : 'gba:mt-4'}>
                 <WidgetGroup
                   widgets={rowWidgets}
                   isLoading={loading || catalogLoading}
