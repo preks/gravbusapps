@@ -178,10 +178,7 @@ const ExpensePlanStatistics: React.FC<ExpensePlanStatisticsProps> = ({
       {
         key: 'top-destinations',
         title: getTranslationFromI18nKeyAndLabel('lowcoder:personal_expenses.top_destination', 'Top Destination'),
-        value:
-          topDestination && topDestination !== 'N/A' && typeof topDestination === 'object'
-            ? getCatalogValue(topDestination)
-            : topDestination,
+        value: topDestination && topDestination !== 'N/A' ? getCatalogValue(topDestination) : topDestination,
         prefix: <CompassOutlined />,
         color: '#722ed1',
         span: { xs: 24, sm: 12, md: 6 },

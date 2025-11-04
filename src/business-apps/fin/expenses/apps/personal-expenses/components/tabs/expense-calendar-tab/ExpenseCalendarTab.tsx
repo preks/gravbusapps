@@ -1,5 +1,5 @@
-import React, { useState, useEffect, useMemo } from 'react'
-import { Calendar, Button, Typography, Space, Tag, Spin, message, Alert, Drawer } from 'antd'
+import React, { useState, useEffect, useMemo, useCallback } from 'react'
+import { Calendar, Button, Typography, Space, Spin, message, Alert, Drawer, ConfigProvider, Tooltip } from 'antd'
 import type { Dayjs } from 'dayjs'
 import dayjs from 'dayjs'
 import { LeftOutlined, RightOutlined } from '@ant-design/icons'
@@ -10,9 +10,30 @@ import { useGetExpenseRequests, ExpenseRequest } from '../../../hooks/useGetExpe
 import ExpenseItemDetails from '../expense-items-tab/ExpenseItemDetails'
 import ExpensePlanDetails from '../expense-plans-tab/ExpensePlanDetails'
 import ExpenseRequestDetails from '../expense-requests-tab/ExpenseRequestDetails'
-import { getTranslationFromI18nKeyAndLabel } from '@/common/utils/windowUtils'
+import { getTranslationFromI18nKeyAndLabel, getCurrentActiveUserLocale, formatDate } from '@/common/utils/windowUtils'
 import { formatCurrencyDisplay } from '../../../utils'
+import { Badge } from '@newwork/nw-design-system'
+import {
+  getExpenseItemStatusDisplay,
+  getExpensePlanStatusDisplay,
+  getExpenseRequestStatusDisplay
+} from '../../../utils'
 import { getTranslatedMonthName } from '../../../utils/monthTranslationUtils'
+
+// Import dayjs locales and plugins
+import 'dayjs/locale/en'
+import 'dayjs/locale/de'
+import 'dayjs/locale/ro'
+import localeData from 'dayjs/plugin/localeData'
+import updateLocale from 'dayjs/plugin/updateLocale'
+dayjs.extend(localeData)
+dayjs.extend(updateLocale)
+
+// Import Ant Design locales
+import enUS from 'antd/locale/en_US'
+import deDE from 'antd/locale/de_DE'
+// Import Romanian locale
+import roRO from 'antd/locale/ro_RO'
 
 interface CalendarExpenseItem {
   id: string
@@ -25,51 +46,106 @@ interface CalendarExpenseItem {
   type: 'expense' | 'plan' | 'request'
 }
 
-// Translated day names using the same translation keys as absence hub
-const getTranslatedDayNames = () => [
-  getTranslationFromI18nKeyAndLabel('lowcoder:absence_hub.day_sun', 'Sun'),
-  getTranslationFromI18nKeyAndLabel('lowcoder:absence_hub.day_mon', 'Mon'),
-  getTranslationFromI18nKeyAndLabel('lowcoder:absence_hub.day_tue', 'Tue'),
-  getTranslationFromI18nKeyAndLabel('lowcoder:absence_hub.day_wed', 'Wed'),
-  getTranslationFromI18nKeyAndLabel('lowcoder:absence_hub.day_thu', 'Thu'),
-  getTranslationFromI18nKeyAndLabel('lowcoder:absence_hub.day_fri', 'Fri'),
-  getTranslationFromI18nKeyAndLabel('lowcoder:absence_hub.day_sat', 'Sat')
-]
+// Create fully patched Romanian locale for Ant Design Calendar
+const createRomanianLocale = () => {
+  // Romanian weekday names (short)
+  const weekdaysShort = ['Du', 'Lu', 'Ma', 'Mi', 'Jo', 'Vi', 'Sâ']
 
-const getStatusColor = (status: CalendarExpenseItem['status']): string => {
-  switch (status) {
-    case 'PENDING':
-      return 'orange'
-    case 'APPROVED':
-      return 'blue'
-    case 'PAID':
-      return 'green'
-    case 'REJECTED':
-      return 'red'
-    default:
-      return 'default'
+  // Romanian month names (short)
+  const monthsShort = ['Ian', 'Feb', 'Mar', 'Apr', 'Mai', 'Iun', 'Iul', 'Aug', 'Sep', 'Oct', 'Noi', 'Dec']
+
+  // Patch rc-picker locale fields that Calendar uses
+  const patchedLang = {
+    ...roRO.DatePicker?.lang,
+    locale: 'ro_RO',
+    weekdaysShort,
+    weekdaysMin: weekdaysShort,
+    weekdays: weekdaysShort,
+    monthsShort,
+    months: monthsShort,
+    // Additional rc-picker fields that might be needed
+    shortWeekDays: weekdaysShort,
+    shortMonths: monthsShort
+  }
+
+  return {
+    ...roRO,
+    DatePicker: {
+      ...(roRO.DatePicker || {}),
+      lang: patchedLang
+    },
+    Calendar: {
+      ...(roRO.Calendar || {}),
+      lang: patchedLang
+    }
   }
 }
 
-const ExpenseCalendarTab: React.FC<BusinessAppContextProps> = props => {
-  // Memoize translated day names
-  const translatedDayNames = useMemo(() => getTranslatedDayNames(), [])
+// Map user locale to dayjs locale and Ant Design locale
+const getLocaleConfig = (userLocale: string) => {
+  const baseLocale = userLocale.split('-')[0].toLowerCase()
 
-  // Override day names in calendar header with translated versions
-  useEffect(() => {
-    // Find all day header cells in the calendar
-    const calendarElement = document.querySelector('.gba-expense-calendar-tab .ant-picker-calendar')
-    if (calendarElement) {
-      const dayHeaders = calendarElement.querySelectorAll('.ant-picker-calendar-weekday')
-      dayHeaders.forEach((header, index) => {
-        if (index < translatedDayNames.length) {
-          // Ant Design Calendar uses index-based day headers, where 0=Sun, 1=Mon, etc.
-          // But our translatedDayNames array starts with Sun
-          header.textContent = translatedDayNames[index]
-        }
-      })
+  // Map to dayjs locale
+  const dayjsLocaleMap: Record<string, string> = {
+    en: 'en',
+    de: 'de',
+    ro: 'ro'
+  }
+
+  // Map to Ant Design locale object
+  const antdLocaleMap: Record<string, any> = {
+    en: enUS,
+    de: deDE,
+    ro: createRomanianLocale()
+  }
+
+  const dayjsLocale = dayjsLocaleMap[baseLocale] || 'en'
+  const antdLocale = antdLocaleMap[baseLocale] || enUS
+
+  return { dayjsLocale, antdLocale }
+}
+
+// Status color is handled via nw-design-system Badge variants using existing mapping helpers
+
+const ExpenseCalendarTab: React.FC<BusinessAppContextProps> = props => {
+  // Remove any native title tooltips on ancestors when hovering an event card
+  const stripNativeTitle = useCallback((e: React.MouseEvent<HTMLElement>) => {
+    let el: HTMLElement | null = e.currentTarget as HTMLElement
+    // Traverse up a few levels to catch rc-picker cell wrappers
+    for (let i = 0; i < 8 && el; i++) {
+      if (el.hasAttribute('title')) {
+        el.removeAttribute('title')
+      }
+      el = el.parentElement
     }
-  }, [translatedDayNames])
+  }, [])
+  // Get user locale and configure dayjs + Ant Design locales
+  const userLocale = getCurrentActiveUserLocale() || 'en-US'
+
+  const { dayjsLocale, antdLocale } = useMemo(() => {
+    return getLocaleConfig(userLocale)
+  }, [userLocale])
+
+  // Set dayjs locale globally and ensure it's applied
+  useEffect(() => {
+    if (dayjsLocale) {
+      // If Romanian, update dayjs locale with proper weekday and month names
+      if (dayjsLocale === 'ro') {
+        dayjs.updateLocale('ro', {
+          weekdaysShort: ['Du', 'Lu', 'Ma', 'Mi', 'Jo', 'Vi', 'Sâ'],
+          weekdaysMin: ['Du', 'Lu', 'Ma', 'Mi', 'Jo', 'Vi', 'Sâ'],
+          monthsShort: ['Ian', 'Feb', 'Mar', 'Apr', 'Mai', 'Iun', 'Iul', 'Aug', 'Sep', 'Oct', 'Noi', 'Dec']
+        })
+      }
+
+      dayjs.locale(dayjsLocale)
+      // Also ensure the calendar value uses the correct locale
+      setCalendarValue(prev => prev.locale(dayjsLocale))
+    }
+  }, [dayjsLocale])
+
+  // Track calendar value to trigger updates when month changes
+  const [calendarValue, setCalendarValue] = useState<Dayjs>(dayjs().locale(dayjsLocale))
   const {
     items: rawExpenseItems,
     isLoading: isLoadingExpenses,
@@ -327,6 +403,8 @@ const ExpenseCalendarTab: React.FC<BusinessAppContextProps> = props => {
               cursor: item.type === 'expense' || item.type === 'plan' || item.type === 'request' ? 'pointer' : 'default'
             }}
             onClick={() => handleCalendarItemClick(item)}
+            onMouseEnter={stripNativeTitle}
+            onMouseMove={stripNativeTitle}
           >
             <div
               style={{
@@ -344,9 +422,47 @@ const ExpenseCalendarTab: React.FC<BusinessAppContextProps> = props => {
                 style={{ fontSize: '0.75em', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}
               >
                 <span>{formatCurrencyDisplay(item.totalAmount, item.currencyCode)}</span>
-                <Tag color={getStatusColor(item.status)} style={{ margin: 0, fontSize: '0.7em', padding: '0 4px' }}>
-                  {item.status}
-                </Tag>
+                {(() => {
+                  const statusConfig =
+                    item.type === 'plan'
+                      ? getExpensePlanStatusDisplay(item.status)
+                      : item.type === 'request'
+                        ? getExpenseRequestStatusDisplay(item.status)
+                        : getExpenseItemStatusDisplay(item.status)
+
+                  const label = statusConfig.label
+                  const dateText = (() => {
+                    try {
+                      return formatDate(value.toDate(), 'date.short')
+                    } catch {
+                      return value.format('L')
+                    }
+                  })()
+                  const tooltipContent = (
+                    <div>
+                      <div>{label}</div>
+                      <div>{dateText}</div>
+                    </div>
+                  )
+                  return (
+                    <Tooltip title={tooltipContent} placement="topRight">
+                      <span>
+                        <Badge
+                          variant={(statusConfig as any).badgeVariant || 'outline'}
+                          style={{
+                            display: 'inline-block',
+                            maxWidth: '90px',
+                            overflow: 'hidden',
+                            textOverflow: 'ellipsis',
+                            whiteSpace: 'nowrap'
+                          }}
+                        >
+                          {label}
+                        </Badge>
+                      </span>
+                    </Tooltip>
+                  )
+                })()}
               </div>
             )}
           </li>
@@ -448,43 +564,64 @@ const ExpenseCalendarTab: React.FC<BusinessAppContextProps> = props => {
       )}
       {!(isLoadingExpenses || isLoadingPlans || isLoadingRequests) &&
         !(expensesError || plansError || requestsError) && (
-          <Calendar
-            cellRender={cellRender}
-            headerRender={({ value, onChange }) => {
-              const currentMonth = getTranslatedMonthName(value.toDate())
-              const currentYear = value.format('YYYY')
-              return (
-                <div
-                  style={{
-                    padding: '8px 12px',
-                    display: 'flex',
-                    justifyContent: 'space-between',
-                    alignItems: 'center',
-                    borderBottom: '1px solid #f0f0f0'
-                  }}
-                >
-                  <Typography.Title
-                    level={4}
-                    style={{ margin: 0 }}
-                  >{`${currentMonth} ${currentYear}`}</Typography.Title>
-                  <Space>
-                    <Button
-                      shape="circle"
-                      icon={<LeftOutlined />}
-                      onClick={() => onChange(value.subtract(1, 'month'))}
-                      aria-label="Previous month"
-                    />
-                    <Button
-                      shape="circle"
-                      icon={<RightOutlined />}
-                      onClick={() => onChange(value.add(1, 'month'))}
-                      aria-label="Next month"
-                    />
-                  </Space>
-                </div>
-              )
-            }}
-          />
+          <ConfigProvider locale={antdLocale}>
+            <Calendar
+              value={calendarValue}
+              onPanelChange={value => {
+                setCalendarValue(value)
+              }}
+              onChange={value => {
+                setCalendarValue(value)
+              }}
+              cellRender={cellRender}
+              headerRender={({ value, onChange }) => {
+                // Update calendar value state when month changes
+                if (!value.isSame(calendarValue, 'month')) {
+                  setCalendarValue(value)
+                }
+                const currentMonth = getTranslatedMonthName(value.toDate())
+                const currentYear = value.format('YYYY')
+                return (
+                  <div
+                    style={{
+                      padding: '8px 12px',
+                      display: 'flex',
+                      justifyContent: 'space-between',
+                      alignItems: 'center',
+                      borderBottom: '1px solid #f0f0f0'
+                    }}
+                  >
+                    <Typography.Title
+                      level={4}
+                      style={{ margin: 0 }}
+                    >{`${currentMonth} ${currentYear}`}</Typography.Title>
+                    <Space>
+                      <Button
+                        shape="circle"
+                        icon={<LeftOutlined />}
+                        onClick={() => {
+                          const newValue = value.subtract(1, 'month')
+                          setCalendarValue(newValue)
+                          onChange(newValue)
+                        }}
+                        aria-label="Previous month"
+                      />
+                      <Button
+                        shape="circle"
+                        icon={<RightOutlined />}
+                        onClick={() => {
+                          const newValue = value.add(1, 'month')
+                          setCalendarValue(newValue)
+                          onChange(newValue)
+                        }}
+                        aria-label="Next month"
+                      />
+                    </Space>
+                  </div>
+                )
+              }}
+            />
+          </ConfigProvider>
         )}
       <Drawer
         title={
