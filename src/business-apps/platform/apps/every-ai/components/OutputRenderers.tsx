@@ -372,31 +372,83 @@ export const CalendarDisplay: React.FC<{ data: CalendarViewData }> = ({ data }) 
   )
 }
 
-// File Display
+// Premium File Display with prominent download button
 export const FileDisplay: React.FC<{ data: { filename: string; mimeType: string; content: string } }> = ({ data }) => {
+  const getFileIcon = (mimeType: string) => {
+    if (mimeType.includes('excel') || mimeType.includes('spreadsheet')) {
+      return (
+        <svg className="gba:h-10 gba:w-10 gba:text-success" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <path
+            strokeLinecap="round"
+            strokeLinejoin="round"
+            strokeWidth={2}
+            d="M9 17v-2m3 2v-4m3 4v-6m2 10H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"
+          />
+        </svg>
+      )
+    }
+    if (mimeType.includes('pdf')) {
+      return (
+        <svg className="gba:h-10 gba:w-10 gba:text-destructive" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <path
+            strokeLinecap="round"
+            strokeLinejoin="round"
+            strokeWidth={2}
+            d="M7 21h10a2 2 0 002-2V9.414a1 1 0 00-.293-.707l-5.414-5.414A1 1 0 0012.586 3H7a2 2 0 00-2 2v14a2 2 0 002 2z"
+          />
+        </svg>
+      )
+    }
+    return (
+      <svg className="gba:h-10 gba:w-10 gba:text-primary" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+        <path
+          strokeLinecap="round"
+          strokeLinejoin="round"
+          strokeWidth={2}
+          d="M7 21h10a2 2 0 002-2V9.414a1 1 0 00-.293-.707l-5.414-5.414A1 1 0 0012.586 3H7a2 2 0 00-2 2v14a2 2 0 002 2z"
+        />
+      </svg>
+    )
+  }
+
+  const getFileSize = () => {
+    const bytes = Math.ceil((data.content.length * 3) / 4) // Approximate base64 size
+    if (bytes < 1024) return `${bytes} B`
+    if (bytes < 1024 * 1024) return `${(bytes / 1024).toFixed(1)} KB`
+    return `${(bytes / (1024 * 1024)).toFixed(1)} MB`
+  }
+
   return (
-    <Card data-testid="file-display">
-      <CardContent className="gba:p-4">
-        <div className="gba:flex gba:items-center gba:gap-3">
-          <svg className="gba:h-8 gba:w-8 gba:text-primary" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-            <path
-              strokeLinecap="round"
-              strokeLinejoin="round"
-              strokeWidth={2}
-              d="M7 21h10a2 2 0 002-2V9.414a1 1 0 00-.293-.707l-5.414-5.414A1 1 0 0012.586 3H7a2 2 0 00-2 2v14a2 2 0 002 2z"
-            />
-          </svg>
-          <div className="gba:flex-1">
-            <p className="gba:text-sm gba:font-medium">{data.filename}</p>
-            <p className="gba:text-xs gba:text-muted-foreground">{data.mimeType}</p>
+    <Card
+      className="gba:border-2 gba:shadow-lg gba:overflow-hidden gba:group hover:gba:shadow-xl gba:transition-all"
+      data-testid="file-display"
+    >
+      <CardContent className="gba:p-6">
+        <div className="gba:flex gba:items-start gba:gap-4">
+          <div className="gba:flex-shrink-0 gba:h-16 gba:w-16 gba:rounded-xl gba:bg-gradient-to-br gba:from-muted/50 gba:to-muted/30 gba:flex gba:items-center gba:justify-center gba:border-2 gba:border-border group-hover:gba:border-primary/50 gba:transition-all">
+            {getFileIcon(data.mimeType)}
           </div>
-          <a
-            href={`data:${data.mimeType};base64,${data.content}`}
-            download={data.filename}
-            className="gba:text-sm gba:text-primary hover:gba:underline"
-          >
-            Download
-          </a>
+          <div className="gba:flex-1 gba:min-w-0">
+            <h4 className="gba:text-base gba:font-bold gba:text-foreground gba:mb-1 gba:truncate">{data.filename}</h4>
+            <p className="gba:text-sm gba:text-muted-foreground gba:mb-3">
+              {data.mimeType.split('/').pop()?.toUpperCase() || 'FILE'} • {getFileSize()}
+            </p>
+            <a
+              href={`data:${data.mimeType};base64,${data.content}`}
+              download={data.filename}
+              className="gba:inline-flex gba:items-center gba:gap-2 gba:px-4 gba:py-2 gba:rounded-xl gba:bg-gradient-to-r gba:from-primary gba:to-info gba:text-primary-foreground gba:font-semibold gba:shadow-md hover:gba:shadow-lg gba:transition-all gba:text-sm"
+            >
+              <svg className="gba:h-5 gba:w-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                  strokeWidth={2}
+                  d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4"
+                />
+              </svg>
+              <span>Download File</span>
+            </a>
+          </div>
         </div>
       </CardContent>
     </Card>
