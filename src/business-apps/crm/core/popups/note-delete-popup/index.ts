@@ -1,3 +1,3 @@
-export { NoteDeletePopup as default } from '@/common/components/common-relations/popups/note-delete-popup'
-export { NoteDeletePopup } from '@/common/components/common-relations/popups/note-delete-popup'
-export type { NoteDeletePopupProps } from '@/common/components/common-relations/popups/note-delete-popup'
+export { NoteDeletePopup as default } from './NoteDeletePopup'
+export { NoteDeletePopup } from './NoteDeletePopup'
+export type { NoteDeletePopupProps } from './NoteDeletePopup'

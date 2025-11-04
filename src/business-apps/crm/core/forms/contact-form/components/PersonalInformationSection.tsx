@@ -7,7 +7,6 @@ import {
   SelectItem,
   SelectTrigger,
   SelectValue,
-  Textarea,
   Card,
   CardContent,
   Button,
@@ -51,12 +50,9 @@ const PersonalInformationSection: React.FC = () => {
     showMoreLanguages
   } = useContactFormContext()
 
-  // Simple effect to load more academic titles when needed
+  // Auto-load academic titles when needed
   useEffect(() => {
     if (academicTitlesNeedsMoreData && !academicTitlesLoading && academicTitlesHasMore) {
-      console.log(
-        `🚀 Auto-loading more academic titles from API (${academicTitlesTotalFetched} fetched so far, loading 100 more)`
-      )
       loadMoreAcademicTitles()
     }
   }, [
@@ -67,33 +63,27 @@ const PersonalInformationSection: React.FC = () => {
     loadMoreAcademicTitles
   ])
 
-  // Simple effect to load more languages when needed
+  // Auto-load languages when needed
   useEffect(() => {
     if (languagesNeedsMoreData && !languagesLoading && languagesHasMore) {
-      console.log(`🚀 Auto-loading more languages from API (${languagesTotalFetched} fetched so far, loading 100 more)`)
       loadMoreLanguages()
     }
   }, [languagesNeedsMoreData, languagesLoading, languagesHasMore, languagesTotalFetched, loadMoreLanguages])
 
-  // When dropdowns open, show more if we have them cached
+  // Show more academic titles when dropdown opens
   useEffect(() => {
     if (
       isAcademicTitleOpen &&
       academicTitlesDisplayCount < academicTitlesTotalFetched &&
       academicTitlesTotalFetched > 5
     ) {
-      console.log(
-        `🚀 Academic Title dropdown opened - showing more from cache (${academicTitlesDisplayCount}/${academicTitlesTotalFetched})`
-      )
       showMoreAcademicTitles()
     }
   }, [isAcademicTitleOpen, academicTitlesDisplayCount, academicTitlesTotalFetched, showMoreAcademicTitles])
 
+  // Show more languages when dropdown opens
   useEffect(() => {
     if (isLanguageOpen && languagesDisplayCount < languagesTotalFetched && languagesTotalFetched > 5) {
-      console.log(
-        `🚀 Language dropdown opened - showing more from cache (${languagesDisplayCount}/${languagesTotalFetched})`
-      )
       showMoreLanguages()
     }
   }, [isLanguageOpen, languagesDisplayCount, languagesTotalFetched, showMoreLanguages])
@@ -112,16 +102,11 @@ const PersonalInformationSection: React.FC = () => {
       }}
     >
       <Button
+        type="button"
         variant="ghost"
         onClick={() => setIsExpanded(!isExpanded)}
-        className="gba:w-full gba:px-4 gba:py-2 gba:transition-colors gba:flex gba:items-center gba:justify-between gba:text-left gba:rounded-lg gba:text-sm gba:bg-gradient-to-r gba:from-success-secondary gba:to-success"
+        className="gba:w-full gba:px-4 gba:py-2 gba:transition-all gba:flex gba:items-center gba:justify-between gba:text-left gba:rounded-xl gba:text-sm gba:bg-success-secondary hover:gba:bg-success gba:border-0"
         style={{
-          transition: 'all 0.3s ease',
-          border: '0',
-          borderWidth: '0',
-          borderStyle: 'none',
-          borderColor: 'transparent',
-          outline: 'none',
           outlineWidth: '0',
           outlineStyle: 'none',
           boxShadow: 'none',
@@ -144,7 +129,7 @@ const PersonalInformationSection: React.FC = () => {
 
       {isExpanded && (
         <CardContent
-          className="gba:space-y-6 gba:bg-hsl(var(--background)) gba:border-0 gba:p-4 gba:mt-0"
+          className="gba:space-y-6 gba:bg-white gba:border-0 gba:p-4 gba:mt-0"
           style={{
             border: '0',
             borderWidth: '0',
@@ -162,16 +147,16 @@ const PersonalInformationSection: React.FC = () => {
 
           {/* Academic Title and Language - Side by side */}
           <div className="gba:grid gba:grid-cols-1 gba:gap-6 gba:md:grid-cols-2">
-            {/* Academic Title dropdown like Country */}
+            {/* Academic Title dropdown */}
             <div className="gba:space-y-2">
               <Label className="gba:text-sm gba:font-medium gba:text-gray-900">Academic Title</Label>
               <Select
                 value={formValues.academicTitleRef}
-                onValueChange={value => setFormValues({ academicTitleRef: value })} // Store ID
+                onValueChange={value => setFormValues({ academicTitleRef: value })}
                 onOpenChange={setIsAcademicTitleOpen}
                 data-testid={formatDataTestId(prefixDataTestId, 'AcademicTitleSelect')}
               >
-                <SelectTrigger className="gba:border-gray-300 gba:bg-hsl(var(--background))">
+                <SelectTrigger className="gba:border-gray-300 gba:bg-white">
                   <SelectValue placeholder="Please Select..." />
                 </SelectTrigger>
                 <SelectContent
@@ -180,30 +165,28 @@ const PersonalInformationSection: React.FC = () => {
                 >
                   {academicTitles.map((title, index) => (
                     <SelectItem key={`${title.id}-${index}`} value={String(title.id)}>
-                      {' '}
-                      {/* Use ID as string value */}
                       {title.label}
                     </SelectItem>
                   ))}
                   {academicTitlesLoading && (
-                    <div className="gba:px-3 gba:py-2 gba:text-sm gba:text-blue-600 gba:text-center gba:font-medium">
-                      🔄 Loading more academic titles...
+                    <div className="gba:px-3 gba:py-2 gba:text-sm gba:text-gray-600 gba:text-center gba:font-medium">
+                      Load more
                     </div>
                   )}
                 </SelectContent>
               </Select>
             </div>
 
-            {/* Language dropdown like Country */}
+            {/* Language dropdown */}
             <div className="gba:space-y-2">
               <Label className="gba:text-sm gba:font-medium gba:text-gray-900">Language</Label>
               <Select
                 value={formValues.languageRef}
-                onValueChange={value => setFormValues({ languageRef: value })} // Store ID
+                onValueChange={value => setFormValues({ languageRef: value })}
                 onOpenChange={setIsLanguageOpen}
                 data-testid={formatDataTestId(prefixDataTestId, 'LanguageSelect')}
               >
-                <SelectTrigger className="gba:border-gray-300 gba:bg-hsl(var(--background))">
+                <SelectTrigger className="gba:border-gray-300 gba:bg-white">
                   <SelectValue placeholder="Please Select..." />
                 </SelectTrigger>
                 <SelectContent
@@ -212,14 +195,12 @@ const PersonalInformationSection: React.FC = () => {
                 >
                   {languages.map((language, index) => (
                     <SelectItem key={`${language.id}-${index}`} value={String(language.id)}>
-                      {' '}
-                      {/* Use ID as string value */}
                       {language.label}
                     </SelectItem>
                   ))}
                   {languagesLoading && (
-                    <div className="gba:px-3 gba:py-2 gba:text-sm gba:text-blue-600 gba:text-center gba:font-medium">
-                      🔄 Loading more languages...
+                    <div className="gba:px-3 gba:py-2 gba:text-sm gba:text-gray-600 gba:text-center gba:font-medium">
+                      Load more
                     </div>
                   )}
                 </SelectContent>
@@ -235,65 +216,8 @@ const PersonalInformationSection: React.FC = () => {
               type="date"
               value={formValues.birthDate}
               onChange={e => setFormValues({ birthDate: e.target.value })}
-              className="gba:border-gray-300 gba:bg-hsl(var(--background))"
+              className="gba:border-gray-300 gba:bg-white"
               data-testid={formatDataTestId(prefixDataTestId, 'BirthDateInput')}
-            />
-          </div>
-
-          {/* Picture URL */}
-          <div className="gba:space-y-2">
-            <Label className="gba:text-sm gba:font-medium gba:text-gray-900">Picture URL</Label>
-            <Input
-              name="pictureUrl"
-              type="url"
-              value={formValues.pictureUrl}
-              onChange={e => setFormValues({ pictureUrl: e.target.value })}
-              placeholder="Please Enter..."
-              className="gba:border-gray-300 gba:bg-hsl(var(--background))"
-              data-testid={formatDataTestId(prefixDataTestId, 'PictureUrlInput')}
-            />
-          </div>
-
-          {/* LinkedIn and XING URLs - Side by side */}
-          <div className="gba:grid gba:grid-cols-1 gba:gap-6 gba:md:grid-cols-2">
-            <div className="gba:space-y-2">
-              <Label className="gba:text-sm gba:font-medium gba:text-gray-900">LinkedIn Profile</Label>
-              <Input
-                name="linkedinUrl"
-                type="url"
-                value={formValues.linkedinUrl}
-                onChange={e => setFormValues({ linkedinUrl: e.target.value })}
-                placeholder="Please Enter..."
-                className="gba:border-gray-300 gba:bg-hsl(var(--background))"
-                data-testid={formatDataTestId(prefixDataTestId, 'LinkedinUrlInput')}
-              />
-            </div>
-
-            <div className="gba:space-y-2">
-              <Label className="gba:text-sm gba:font-medium gba:text-gray-900">XING Profile</Label>
-              <Input
-                name="xingUrl"
-                type="url"
-                value={formValues.xingUrl}
-                onChange={e => setFormValues({ xingUrl: e.target.value })}
-                placeholder="Please Enter..."
-                className="gba:border-gray-300 gba:bg-hsl(var(--background))"
-                data-testid={formatDataTestId(prefixDataTestId, 'XingUrlInput')}
-              />
-            </div>
-          </div>
-
-          {/* Bio */}
-          <div className="gba:space-y-2">
-            <Label className="gba:text-sm gba:font-medium gba:text-gray-900">Bio</Label>
-            <Textarea
-              name="bio"
-              value={formValues.bio}
-              onChange={e => setFormValues({ bio: e.target.value })}
-              placeholder="Please Enter..."
-              rows={3}
-              className="gba:border-gray-300 gba:bg-hsl(var(--background))"
-              data-testid={formatDataTestId(prefixDataTestId, 'BioTextarea')}
             />
           </div>
         </CardContent>

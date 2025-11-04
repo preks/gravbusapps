@@ -72,6 +72,7 @@ export const GET_SALES_TASKS = (): string => {
         priorityRef
         assignedEmployeeId
         type {
+          code
           value
         }
         priority {

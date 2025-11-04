@@ -131,6 +131,40 @@ export interface OpportunityResponse {
   updatedAt: string
 }
 
+export interface OpportunityContactResponse {
+  id: string
+  version?: number
+  contactType?: string
+  contactId: string
+  contact: {
+    id: string
+    version?: number
+    firstName: string
+    lastName: string
+    email?: string
+    phone?: string
+    jobTitle?: string
+    department?: string
+    contactType?: string
+    pictureUrl?: string
+    academicTitle?: {
+      id: string
+      value: string
+      code: string
+    }
+    communicationChannels?: Array<{
+      id: string
+      communicationChannelRef: string
+      value: string
+    }>
+  }
+}
+
+export interface GetOpportunityByIdResponse {
+  Opportunity: OpportunityResponse[]
+  OpportunityContact?: OpportunityContactResponse[]
+}
+
 export const GET_OPPORTUNITY_BY_ID = `
   query GetOpportunityById($id: uuid!) {
     Opportunity(where: { id: {_eq: $id}, isDeleted: {_eq: false} }) {
@@ -177,6 +211,9 @@ export const GET_OPPORTUNITY_BY_ID = `
         id
         version
         name
+        email
+        phone
+        website
         industryRef
         industry {
           id
@@ -211,7 +248,6 @@ export const GET_OPPORTUNITY_BY_ID = `
           type
           code
         }
-        website
         ownerEmployee {
           firstName
           lastName
@@ -254,6 +290,34 @@ export const GET_OPPORTUNITY_BY_ID = `
       }
       createdAt
       updatedAt
+    }
+    OpportunityContact(where: { opportunityId: { _eq: $id }, isDeleted: { _eq: false } }) {
+      id
+      version
+      contactType
+      contactId
+      contact {
+        id
+        version
+        firstName
+        lastName
+        email
+        phone
+        jobTitle
+        department
+        contactType
+        pictureUrl
+        academicTitle {
+          id
+          value
+          code
+        }
+        communicationChannels(where: { isDeleted: { _eq: false } }) {
+          id
+          communicationChannelRef
+          value
+        }
+      }
     }
   }
 `

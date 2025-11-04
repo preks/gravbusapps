@@ -18,6 +18,7 @@ interface ContactFormContextValue {
   setFormValues: (updates: Partial<ContactFormValues>) => void
   onSubmit: (values: ContactFormValues) => Promise<void>
   onCancel: () => Promise<void>
+  hideActions: boolean
   isLoading: boolean
   error: string | null
 
@@ -74,6 +75,7 @@ interface ContactFormProviderProps {
   initialValues?: Partial<ContactFormValues>
   onSubmit?: (values: ContactFormValues) => Promise<void>
   onCancel?: () => Promise<void>
+  hideActions?: boolean
 }
 
 export const ContactFormProvider: React.FC<ContactFormProviderProps> = ({
@@ -81,7 +83,8 @@ export const ContactFormProvider: React.FC<ContactFormProviderProps> = ({
   businessAppContext,
   initialValues = {},
   onSubmit = async () => {},
-  onCancel = async () => {}
+  onCancel = async () => {},
+  hideActions = false
 }) => {
   // Form state
   const [formValues, setFormValuesState] = useState<ContactFormValues>({
@@ -633,62 +636,107 @@ export const ContactFormProvider: React.FC<ContactFormProviderProps> = ({
     [searchEmployees]
   )
 
-  const value: ContactFormContextValue = {
-    // Form state
-    formValues,
-    setFormValues,
-    onSubmit,
-    onCancel,
+  const value: ContactFormContextValue = React.useMemo(
+    () => ({
+      // Form state
+      formValues,
+      setFormValues,
+      onSubmit,
+      onCancel,
+      hideActions,
 
-    // Loading states (include contact data loading)
-    isLoading: isLoading || contactDataLoading,
-    error: error || contactDataError,
+      // Loading states (include contact data loading)
+      isLoading: isLoading || contactDataLoading,
+      error: error || contactDataError,
 
-    // Employee positions
-    employeePositions,
-    employeePositionsLoading,
-    employeePositionsError,
-    employeePositionsHasMore,
-    loadMoreEmployeePositions,
-    searchEmployeePositions,
+      // Employee positions
+      employeePositions,
+      employeePositionsLoading,
+      employeePositionsError,
+      employeePositionsHasMore,
+      loadMoreEmployeePositions,
+      searchEmployeePositions,
 
-    // Account suggestions (using GraphQL hook like opportunity form)
-    accountSuggestions: accountSuggestions,
-    searchAccounts: searchAccountsWrapper,
-    loadMoreAccounts: loadMoreAccountsWrapper,
-    accountsHasMore: accountsHasMore,
-    accountsLoading: accountsLoading,
+      // Account suggestions (using GraphQL hook like opportunity form)
+      accountSuggestions: accountSuggestions,
+      searchAccounts: searchAccountsWrapper,
+      loadMoreAccounts: loadMoreAccountsWrapper,
+      accountsHasMore: accountsHasMore,
+      accountsLoading: accountsLoading,
 
-    // Campaign suggestions (using GraphQL hook)
-    campaignSuggestions: campaignSuggestions,
-    searchCampaigns: searchCampaignsWrapper,
-    loadMoreCampaigns: loadMoreCampaignsWrapper,
-    campaignsHasMore: campaignsHasMore,
-    campaignsLoading: campaignsLoading,
+      // Campaign suggestions (using GraphQL hook)
+      campaignSuggestions: campaignSuggestions,
+      searchCampaigns: searchCampaignsWrapper,
+      loadMoreCampaigns: loadMoreCampaignsWrapper,
+      campaignsHasMore: campaignsHasMore,
+      campaignsLoading: campaignsLoading,
 
-    // Academic Titles (using AcademicTitle catalog)
-    academicTitles: academicTitlesHook.options,
-    academicTitlesLoading: academicTitlesHook.loading,
-    academicTitlesError: academicTitlesHook.error,
-    academicTitlesHasMore: academicTitlesHook.hasMore,
-    searchAcademicTitles: academicTitlesHook.search,
-    loadMoreAcademicTitles: academicTitlesHook.loadMore,
+      // Academic Titles (using AcademicTitle catalog)
+      academicTitles: academicTitlesHook.options,
+      academicTitlesLoading: academicTitlesHook.loading,
+      academicTitlesError: academicTitlesHook.error,
+      academicTitlesHasMore: academicTitlesHook.hasMore,
+      searchAcademicTitles: academicTitlesHook.search,
+      loadMoreAcademicTitles: academicTitlesHook.loadMore,
 
-    // Languages (using Languages catalog)
-    languages: languagesHook.options,
-    languagesLoading: languagesHook.loading,
-    languagesError: languagesHook.error,
-    languagesHasMore: languagesHook.hasMore,
-    searchLanguages: languagesHook.search,
-    loadMoreLanguages: languagesHook.loadMore,
+      // Languages (using Languages catalog)
+      languages: languagesHook.options,
+      languagesLoading: languagesHook.loading,
+      languagesError: languagesHook.error,
+      languagesHasMore: languagesHook.hasMore,
+      searchLanguages: languagesHook.search,
+      loadMoreLanguages: languagesHook.loadMore,
 
-    // Static dropdown options
-    contactTypes,
-    departments,
+      // Static dropdown options
+      contactTypes,
+      departments,
 
-    // Business app context for child components
-    businessAppContext
-  }
+      // Business app context for child components
+      businessAppContext
+    }),
+    [
+      formValues,
+      setFormValues,
+      onSubmit,
+      onCancel,
+      hideActions,
+      isLoading,
+      contactDataLoading,
+      error,
+      contactDataError,
+      employeePositions,
+      employeePositionsLoading,
+      employeePositionsError,
+      employeePositionsHasMore,
+      loadMoreEmployeePositions,
+      searchEmployeePositions,
+      accountSuggestions,
+      searchAccountsWrapper,
+      loadMoreAccountsWrapper,
+      accountsHasMore,
+      accountsLoading,
+      campaignSuggestions,
+      searchCampaignsWrapper,
+      loadMoreCampaignsWrapper,
+      campaignsHasMore,
+      campaignsLoading,
+      academicTitlesHook.options,
+      academicTitlesHook.loading,
+      academicTitlesHook.error,
+      academicTitlesHook.hasMore,
+      academicTitlesHook.search,
+      academicTitlesHook.loadMore,
+      languagesHook.options,
+      languagesHook.loading,
+      languagesHook.error,
+      languagesHook.hasMore,
+      languagesHook.search,
+      languagesHook.loadMore,
+      contactTypes,
+      departments,
+      businessAppContext
+    ]
+  )
 
   return <ContactFormContext.Provider value={value}>{children}</ContactFormContext.Provider>
 }

@@ -60,7 +60,12 @@ export const useOpportunityData = (opportunityId: string, accessToken: string) =
 
       if (result && result.Opportunity && result.Opportunity.length > 0) {
         const rawOpportunityData = result.Opportunity[0]
-        setOpportunityData(rawOpportunityData)
+        // Attach OpportunityContact data to the opportunity
+        const enhancedOpportunityData = {
+          ...rawOpportunityData,
+          opportunityContacts: result.OpportunityContact || []
+        }
+        setOpportunityData(enhancedOpportunityData)
 
         // Set stage condition statuses if available
         if (rawOpportunityData.stageConditionStatuses) {
@@ -112,7 +117,7 @@ export const useOpportunityData = (opportunityId: string, accessToken: string) =
           },
           accountId: rawOpportunityData.account?.id || '',
           account: rawOpportunityData.account
-            ? {
+            ? ({
                 id: rawOpportunityData.account.id,
                 version: rawOpportunityData.account.version || '1',
                 name: rawOpportunityData.account.name || '',
@@ -147,7 +152,7 @@ export const useOpportunityData = (opportunityId: string, accessToken: string) =
                       lastName: rawOpportunityData.account.ownerEmployee.lastName
                     }
                   : undefined
-              }
+              } as any)
             : null,
           contact: {
             id: '',

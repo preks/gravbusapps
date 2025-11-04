@@ -6,6 +6,7 @@ export interface Address {
   city: string
   region: string
   country: string
+  version?: number // ✅ ADDED - For optimistic locking during updates
 }
 
 export interface AccountFormValues {
@@ -14,11 +15,9 @@ export interface AccountFormValues {
 
   // Company Information
   accountName: string
-  parentAccount: string
   legalForm: string
   industry: string
   website: string
-  description: string
 
   // Campaign Information
   salesCampaignId: string // Campaign ID for backend
@@ -26,7 +25,7 @@ export interface AccountFormValues {
   // Contact Information
   phone: string
   email: string
-  fax: string
+  contactIds: Array<string | { id: string; name: string }> // ✅ ADDED - Related contacts (matching IRM pattern)
 
   // Dynamic Addresses Information
   addresses: Address[]
@@ -44,17 +43,13 @@ export interface AccountFormValues {
   // Financial Information
   annualRevenue: string
   numberOfEmployees: string
-  currency: string
-
-  // Additional Information
-  timeZone: string
   foundationDate: string
-  tickerSymbol: string
-  sicCode: string
 
   // System fields
   id?: string
   version?: number
+  code?: string // ✅ ADDED - Internal reference code
+  businessKey?: string // ✅ ADDED - Business key for external systems
 
   // Legacy fields for backward compatibility
   address?: string
@@ -87,7 +82,5 @@ export interface AccountContextState {
   legalForms: SelectOption[]
   industries: SelectOption[]
   countries: SelectOption[]
-  currencies: SelectOption[]
-  timeZones: SelectOption[]
   numberOfEmployeesOptions: SelectOption[]
 }
