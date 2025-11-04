@@ -1,8 +1,9 @@
-import React from 'react'
+import React, { useEffect, useRef } from 'react'
 import { useTranslation } from 'react-i18next'
 import { InputField, SelectField } from '@newwork/gravity-ui-catalog'
 import { Form } from 'antd'
 import { Currency } from '../../../types'
+import { formatAmountForLocale, parseAndFormatAmount } from '@/business-apps/fin/expenses/utils/amountFormatting'
 
 interface AmountFieldProps {
   index: number
@@ -28,37 +29,91 @@ export const AmountField: React.FC<AmountFieldProps> = ({
   onCurrencyChange
 }) => {
   const { t } = useTranslation()
+  const previousAmountValueRef = useRef<number | undefined>(amountValue)
+  const isUserEditingRef = useRef(false)
+
+  const handleAmountBlur = () => {
+    const currentValue = form.getFieldValue(`amount-${index}`)
+
+    if (currentValue === undefined || currentValue === null || String(currentValue).trim() === '') {
+      return
+    }
+
+    const result = parseAndFormatAmount(String(currentValue))
+    if (!result) {
+      return
+    }
+
+    form.setFieldsValue({ [`amount-${index}`]: result.formattedValue })
+    onAmountChange(result.numValue)
+    isUserEditingRef.current = false
+  }
+
+  // Format amount when it changes from external source (e.g., OCR from receipt)
+  // Only trigger when amountValue prop changes (not on user input)
+  useEffect(() => {
+    // Skip if user is actively editing
+    if (isUserEditingRef.current) {
+      return
+    }
+
+    // Only process if amountValue changed from external source (OCR)
+    if (amountValue === previousAmountValueRef.current) {
+      return
+    }
+
+    previousAmountValueRef.current = amountValue
+
+    // Skip if no value
+    if (!amountValue || amountValue === 0) {
+      return
+    }
+
+    // Format the OCR value
+    const finalDisplay = formatAmountForLocale(amountValue)
+
+    setTimeout(() => {
+      form.setFieldsValue({ [`amount-${index}`]: finalDisplay })
+      onAmountChange(amountValue)
+      form.validateFields([`amount-${index}`])
+    }, 100)
+  }, [amountValue, form, index, onAmountChange])
 
   const renderAmountInput = () => (
     <InputField
       label={t('lowcoder:create_expense_item.change_expense_item_container.current_amount_label', 'Amount')}
-      className="gba:[&>input[type=number]]:appearance-textfield 
-         gba:[&>input[type=number]::-webkit-inner-spin-button]:appearance-none 
-         gba:[&>input[type=number]::-webkit-inner-spin-button]:m-0 
-         gba:[&>input[type=number]::-webkit-outer-spin-button]:appearance-none 
-         gba:[&>input[type=number]::-webkit-outer-spin-button]:m-0"
       disabled={isProcessingFiles}
       name={`amount-${index}`}
       data-testid={`amount-input-${index}`}
-      type="number"
-      step="0.01"
-      min="0"
+      type="text"
+      inputMode="decimal"
       value={amountValue}
       placeholder={t(
         'lowcoder:create_expense_item.change_expense_item_container.current_amount_placeholder',
         'Enter Amount'
       )}
       onChange={field => {
-        let value = field.value as string
-        if (value.includes('.')) {
-          const parts = value.split('.')
+        // Mark that user is actively editing (prevents useEffect from interfering)
+        isUserEditingRef.current = true
+
+        let value = String(field.value)
+
+        // Limit to 2 decimal places (accept both . and , as decimal separator)
+        if (value.includes('.') || value.includes(',')) {
+          const sep = value.includes('.') ? '.' : ','
+          const parts = value.split(sep)
           if (parts[1] && parts[1].length > 2) {
-            value = `${parts[0]}.${parts[1].substring(0, 2)}`
+            value = `${parts[0]}${sep}${parts[1].substring(0, 2)}`
           }
         }
+
         form.setFieldsValue({ [`amount-${index}`]: value })
-        onAmountChange(parseFloat(value) || 0)
+
+        // Parse for immediate validation (normalize comma to period for Number.parseFloat)
+        const normalizedValue = value.replace(',', '.')
+        onAmountChange(Number.parseFloat(normalizedValue) || 0)
       }}
+      onBlur={handleAmountBlur}
       required={true}
     />
   )

@@ -26,7 +26,7 @@ import {
 } from 'react-icons/pi'
 import { WidgetGroup, WidgetItem } from '@/components/widget-group'
 import { BusinessAppContextProps } from '@/common/BusinessAppContext'
-import { formatCurrency } from '@/business-apps/crm/common/utils/currencyUtils'
+import { formatCurrency } from '@/common/utils/numberFormatter'
 import { TeamInfo } from '../../types/userRoles'
 import { useTeamPerformanceData } from '../../hooks/useTeamPerformanceData'
 import {

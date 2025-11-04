@@ -65,6 +65,54 @@ npm run publish:screen -- /hr/employee-screens/EmployeeDirectory --resource
 npm run publish:screen -- /hr/employee-screens/EmployeeDirectory -r
 ```
 
+### Publish All Screens to Dev
+
+**Usage:**
+
+```bash
+npm run publish:all:screens
+```
+
+This command will discover and publish ALL screens in the repository to the dev environment.
+
+**Supported Screen Types:**
+
+- 📱 **Apps** (`**/apps/*/index.ts`) - Main application screens
+- 📝 **Forms** (`**/forms/*/index.ts`) - Form screens for workflows
+- 🪟 **Popups** (`**/popups/*/index.ts`) - Modal/popup screens
+- 📄 **Records** (`**/records/*/index.ts`) - Record detail screens
+
+For more details about screen types, see [Supported Screen Types](./docs/supported-screen-types.md).
+
+### Publish to Production
+
+#### Via Bitbucket Pipeline (Recommended)
+
+Production publishing is typically done through Bitbucket Pipelines:
+
+1. **Automatic Publishing** (on merge to `main`): Only changed screens are published
+2. **Manual Publishing with Specific Screens**:
+   - Go to Pipelines → Run pipeline → `publish-manual-prod`
+   - Set `SCREENS_TO_PUBLISH` to a comma-separated list
+3. **Manual Publishing of ALL Screens**:
+   - Go to Pipelines → Run pipeline → `publish-manual-prod`
+   - Set `PUBLISH_ALL_SCREENS` to `true`
+   - See [Publishing All Screens to Production](./docs/publish-all-screens-to-prod.md) for details
+
+#### Local Testing (Requires Production Credentials)
+
+```bash
+# Test publishing all screens to production locally
+npm run publish:prod:all
+```
+
+**⚠️ Warning:** Local production publishing requires all production environment variables to be configured in your `.env` file.
+
+For detailed information about production publishing options, see:
+
+- [Publishing All Screens to Production](./docs/publish-all-screens-to-prod.md)
+- [Production Deployment Comprehensive Sync](./docs/production-deployment-comprehensive-sync.md)
+
 ## Project Structure
 
 - `src/` - Source files
