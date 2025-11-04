@@ -1,5 +1,5 @@
 import React from 'react'
-import { Card, CardContent, CardHeader, CardTitle } from '@newwork/nw-design-system'
+import { Card, CardContent, CardHeader, CardTitle, Button } from '@newwork/nw-design-system'
 import type {
   OutputItem,
   AnswerOutput,
@@ -9,7 +9,8 @@ import type {
   BarGraphData,
   ScatterGraphData,
   CalendarViewData,
-  EntityData
+  EntityData,
+  FlowProposalOutput
 } from '../types/models'
 import ReactMarkdown from 'react-markdown'
 import remarkGfm from 'remark-gfm'
@@ -29,6 +30,117 @@ import IrmNoteDisplay from './entities/IrmNoteDisplay'
 import IrmDocumentDisplay from './entities/IrmDocumentDisplay'
 import EntityLink, { markdownUrlTransform } from './links/EntityLink'
 import NavigationDisplay from './displays/NavigationDisplay'
+
+interface FlowProposalBoundaryProps {
+  data: FlowProposalOutput
+  sendMessage?: (message: string, files: File[]) => void
+  children: React.ReactNode
+}
+
+interface FlowProposalBoundaryState {
+  hasError: boolean
+  error?: Error
+}
+
+class FlowProposalBoundary extends React.Component<FlowProposalBoundaryProps, FlowProposalBoundaryState> {
+  constructor(props: FlowProposalBoundaryProps) {
+    super(props)
+    this.state = { hasError: false }
+  }
+
+  static getDerivedStateFromError(error: Error): FlowProposalBoundaryState {
+    return { hasError: true, error }
+  }
+
+  componentDidCatch(error: Error, info: React.ErrorInfo) {
+    console.error('[EveryAI][FlowProposalBoundary] Failed to render flow proposal', error, info)
+  }
+
+  handleRetry = () => {
+    this.setState({ hasError: false, error: undefined })
+  }
+
+  handleSubmitAsIs = () => {
+    const { data, sendMessage } = this.props
+    if (!sendMessage) return
+
+    const payload = {
+      action: 'form_submission',
+      flow_name: data.flow_name || '',
+      module_name: data.module_name || '',
+      uuid: data.uuid || '',
+      data: {
+        flow: data.arguments?.flow || {},
+        ...(data.arguments?.task ? { task: data.arguments.task } : {})
+      }
+    }
+
+    try {
+      const message = JSON.stringify(payload, null, 2)
+      sendMessage(message, [])
+      this.setState({ hasError: false, error: undefined })
+    } catch (err) {
+      console.error('[EveryAI][FlowProposalBoundary] Failed to serialise submission payload', err, payload)
+    }
+  }
+
+  handleCancel = () => {
+    const { sendMessage } = this.props
+    sendMessage?.('Cancel', [])
+    this.setState({ hasError: false, error: undefined })
+  }
+
+  render() {
+    const { hasError, error } = this.state
+
+    if (hasError) {
+      return (
+        <Card
+          className="gba:border-2 gba:border-warning/40 gba:bg-warning-secondary/40 gba:shadow-lg"
+          data-testid="flow-proposal-fallback"
+        >
+          <CardHeader>
+            <div className="gba:flex gba:items-center gba:gap-2">
+              <svg className="gba:h-5 gba:w-5 gba:text-warning" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                  strokeWidth={2.5}
+                  d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"
+                />
+              </svg>
+              <CardTitle className="gba:text-warning">Form temporarily unavailable</CardTitle>
+            </div>
+          </CardHeader>
+          <CardContent className="gba:space-y-4">
+            <p className="gba:text-sm gba:text-muted-foreground">
+              I couldn&rsquo;t render the workflow form safely. You can submit the request with the suggested values or
+              cancel and try again.
+            </p>
+            {error?.message && (
+              <div className="gba:text-xs gba:text-muted-foreground gba:bg-muted/50 gba:p-3 gba:rounded-md gba:border gba:border-border/60">
+                <strong>Error details:</strong> {error.message}
+              </div>
+            )}
+            <div className="gba:flex gba:flex-wrap gba:gap-3">
+              <Button className="gba:bg-success" onClick={this.handleSubmitAsIs}>
+                Submit as suggested
+              </Button>
+              <Button variant="outline" onClick={this.handleRetry}>
+                Retry form
+              </Button>
+              <Button variant="destructive" onClick={this.handleCancel}>
+                Cancel
+              </Button>
+            </div>
+          </CardContent>
+        </Card>
+      )
+    }
+
+    return this.props.children as React.ReactElement
+  }
+}
 
 // Premium Loading Display with AI animation
 export const LoadingDisplay: React.FC = () => {
@@ -529,7 +641,11 @@ export const OutputItemRenderer: React.FC<{
           </Card>
         )
       }
-      return <DynamicFormDisplay data={item} onCancel={() => {}} sendMessage={sendMessage} />
+      return (
+        <FlowProposalBoundary data={item} sendMessage={sendMessage}>
+          <DynamicFormDisplay data={item} onCancel={() => sendMessage?.('Cancel', [])} sendMessage={sendMessage} />
+        </FlowProposalBoundary>
+      )
     default:
       return null
   }
