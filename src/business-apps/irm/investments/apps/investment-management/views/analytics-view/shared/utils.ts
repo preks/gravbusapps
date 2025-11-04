@@ -13,12 +13,13 @@ export {
   formatNumber
 } from '@/common/data/investment'
 
-// Import currency utilities from central numberFormatter
+// Import all currency utilities from central numberFormatter
 export {
   extractCurrencyCode,
   formatCurrencyCompact,
   getCurrencySymbol,
-  validateCurrencyCode
+  safeCurrencyExtraction,
+  extractAvailableCurrencies
 } from '@/common/utils/numberFormatter'
 
 // Use formatCurrencyCompact with skipThousands=true as formatCurrency for investment views
@@ -27,9 +28,6 @@ export const formatCurrency = (amount: number, currency: string = 'EUR'): string
   const currencyCode = extractCurrencyCode(currency)
   return formatCurrencyCompactBase(amount, currencyCode, undefined, 1, true) // skipThousands=true
 }
-
-// Re-export investment-specific utilities from the new shared/utils folder
-export { safeCurrencyExtraction, extractAvailableCurrencies } from './utils/currencyUtils'
 
 export {
   calculateDurationYears,
