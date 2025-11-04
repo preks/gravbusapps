@@ -1,5 +1,4 @@
 import { useState, useEffect, useCallback, useMemo, useRef } from 'react'
-// @ts-expect-error - uuid types may not be available
 import { v4 as uuidv4 } from 'uuid'
 import type { ConversationTurn, OutputItem, FileMeta } from '../types/models'
 import { getCurrentPageContext } from '../utils/pageContext'
