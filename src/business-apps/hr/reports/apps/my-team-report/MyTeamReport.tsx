@@ -4,6 +4,7 @@ import { PageLayout } from '@/components/layout/pageLayout'
 import { DataContainer } from '@/components/layout/dataContainer'
 import { DataController, DataControllerProps } from '@/components/dataController'
 import { useGetEmployeesReport, Employee } from './hooks/useGetEmployeesReport'
+import { useCatalogEntries } from './hooks/useCatalogEntries'
 import { calculateAverageTenure } from './utils/employeeUtils'
 import { applyEmployeeFilters } from './utils/filterUtils'
 import { generateKpiCards, matchesKpi as kpiMatcher } from './utils/kpiUtils'
@@ -28,10 +29,13 @@ export const MyTeamReport: React.FC<BusinessAppContextProps> = (props: BusinessA
 
   const {
     employees: allEmployees,
+    workingConditions,
     loading,
     error,
     retry
   } = useGetEmployeesReport({ accessToken: accessToken || '', userInfo })
+
+  const { contractTypes, employmentTypes, loading: catalogLoading } = useCatalogEntries(accessToken || '')
 
   const averageTenureFormatted = useMemo(() => {
     return calculateAverageTenure(allEmployees).formatted
@@ -43,20 +47,38 @@ export const MyTeamReport: React.FC<BusinessAppContextProps> = (props: BusinessA
     return undefined
   }
 
-  const widgets: WidgetItem[] = useMemo(() => {
-    const kpiCards = generateKpiCards(allEmployees, averageTenureFormatted)
+  const kpiCards = useMemo(() => {
+    return generateKpiCards(allEmployees, averageTenureFormatted, workingConditions, contractTypes, employmentTypes)
+  }, [allEmployees, averageTenureFormatted, workingConditions, contractTypes, employmentTypes])
 
-    return kpiCards.map(kpi => ({
-      key: kpi.key,
-      title: kpi.label,
-      value: kpi.value,
-      prefix: getKpiIcon(kpi.key),
-      color: '#1890ff',
-      span: { xs: 24, sm: 12, lg: 6 },
-      description: kpi.subLabel,
-      onClick: () => setActiveKpi(kpi.key)
-    }))
-  }, [allEmployees, averageTenureFormatted])
+  // Organize widgets by rows
+  const widgetsByRow = useMemo(() => {
+    const rows: Record<number, WidgetItem[]> = {}
+
+    kpiCards.forEach(kpi => {
+      const row = kpi.row || 1
+      if (!rows[row]) {
+        rows[row] = []
+      }
+      rows[row].push({
+        key: kpi.key,
+        title: kpi.label,
+        value: kpi.value,
+        prefix: getKpiIcon(kpi.key),
+        color: '#1890ff',
+        span: { xs: 24, sm: 12, lg: 6 },
+        description: kpi.subLabel,
+        onClick: () => setActiveKpi(kpi.key)
+      })
+    })
+
+    return rows
+  }, [kpiCards])
+
+  // Flatten widgets for backwards compatibility with filtering logic
+  const widgets: WidgetItem[] = useMemo(() => {
+    return Object.values(widgetsByRow).flat()
+  }, [widgetsByRow])
 
   const { sortConfig, handleSort } = useSort()
 
@@ -214,19 +236,24 @@ export const MyTeamReport: React.FC<BusinessAppContextProps> = (props: BusinessA
         className="gba:[&_[data-testid=page-layout-content-header]]:!border-b-0 gba:[&_[data-testid=page-layout-header]]:!border-b-0"
         contentHeader={
           <div data-testid="team-report-kpi-container" className="gba:pb-4">
-            <WidgetGroup
-              widgets={widgets}
-              isLoading={loading}
-              error={error}
-              onRetry={retry}
-              onWidgetClick={handleWidgetClick}
-              skeletonCount={6}
-              emptyText={getTranslationFromI18nKeyAndLabel(
-                'lowcoder:team_report_kpi.no_data_available',
-                'No KPI data available.'
-              )}
-              data-testid="team-report-kpi"
-            />
+            {Object.entries(widgetsByRow).map(([rowNumber, rowWidgets]) => (
+              <div key={rowNumber} className={rowNumber !== '1' ? 'gba:mt-4' : ''}>
+                <WidgetGroup
+                  widgets={rowWidgets}
+                  isLoading={loading || catalogLoading}
+                  error={error}
+                  onRetry={retry}
+                  onWidgetClick={handleWidgetClick}
+                  cardsClassName="gba:!grid-cols-1 gba:md:!grid-cols-3 gba:lg:!grid-cols-5"
+                  skeletonCount={6}
+                  emptyText={getTranslationFromI18nKeyAndLabel(
+                    'lowcoder:team_report_kpi.no_data_available',
+                    'No KPI data available.'
+                  )}
+                  data-testid={`team-report-kpi-row-${rowNumber}`}
+                />
+              </div>
+            ))}
           </div>
         }
         contentContainer={
