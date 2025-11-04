@@ -91,7 +91,7 @@ export const ServiceTicketDisplay: React.FC<ServiceTicketDisplayProps> = ({
               const catalogPromises = catalogIds.map(async catalogId => {
                 try {
                   console.log('[ServiceTicket] Resolving catalog:', catalogId)
-                  const entry = await catalogClient.getCatalogEntry(catalogId)
+                  const entry = await catalogClient.getCatalogEntryById(catalogId)
 
                   console.log('[ServiceTicket] Resolved catalog:', catalogId, entry)
                   return { id: catalogId, label: entry.label || entry.value || catalogId }
