@@ -1,5 +1,5 @@
 import { useEffect, useCallback, useState } from 'react'
-import { useGraphqlClient } from '@/common/network/graphql/useGraphQLClient'
+import { useGraphQLClient } from '@/common/network/graphql/useGraphQLClient'
 import {
   GET_EMPLOYEE_COMPENSATION_DATA,
   GET_EMPLOYEE_COMPENSATION_HISTORY,
@@ -42,7 +42,7 @@ export const useCompensationData = (employeeId: string, accessToken: string) => 
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
 
-  const graphqlClient = useGraphqlClient(accessToken)
+  const graphqlClient = useGraphQLClient(accessToken)
 
   const fetchCompensationData = useCallback(async () => {
     // Early validation
