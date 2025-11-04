@@ -196,10 +196,75 @@ export const formatCurrencyParts = (
   }
 }
 
-/** Get only the currency symbol for a code (narrowSymbol). */
-export const getCurrencySymbol = (currencyCode?: string, locale?: string): string => {
+/**
+ * Convert Unicode code point string to actual character
+ * @param unicodeString - String like "U+20AC" or "U+0024"
+ * @returns The actual Unicode character
+ */
+function convertUnicodeCodePoint(unicodeString: string): string {
+  const unicodeMatch = unicodeString.match(/^U\+([0-9A-Fa-f]{4,6})$/)
+  if (unicodeMatch) {
+    const codePoint = parseInt(unicodeMatch[1], 16)
+    return String.fromCodePoint(codePoint)
+  }
+  return unicodeString
+}
+
+/**
+ * Get currency symbol from either a currency code string or a catalog entry object
+ * Handles both direct currency codes and catalog objects with symbol information
+ *
+ * @param currencyOrCode - Either a currency code string ('EUR') or catalog entry object
+ * @param locale - Optional locale for formatting (only used when passing currency code)
+ * @returns The currency symbol
+ *
+ * @example
+ * // From currency code string
+ * getCurrencySymbol('EUR') // Returns '€'
+ * getCurrencySymbol('USD') // Returns '$'
+ *
+ * // From catalog object with direct symbol
+ * getCurrencySymbol({ code: 'EUR', additionalValue1: '€' }) // Returns '€'
+ * getCurrencySymbol({ code: 'USD', additionalValue1: '$' }) // Returns '$'
+ *
+ * // From catalog object with Unicode code point
+ * getCurrencySymbol({ code: 'EUR', additionalValue1: 'U+20AC' }) // Returns '€'
+ * getCurrencySymbol({ code: 'USD', additionalValue1: 'U+0024' }) // Returns '$'
+ *
+ * // Fallback scenarios
+ * getCurrencySymbol({ code: 'EUR', additionalValue1: '' }) // Returns 'EUR'
+ * getCurrencySymbol({ code: 'GBP' }) // Returns 'GBP'
+ */
+export function getCurrencySymbol(
+  currencyOrCode?:
+    | string
+    | {
+        code?: string
+        additionalValue1?: string
+        value?: string
+      }
+    | null,
+  locale?: string
+): string {
+  // Handle null/undefined
+  if (!currencyOrCode) {
+    return ''
+  }
+
+  // Handle catalog object format
+  if (typeof currencyOrCode === 'object') {
+    // Use additionalValue1 if available (this typically contains the symbol)
+    if (currencyOrCode.additionalValue1 && currencyOrCode.additionalValue1.trim() !== '') {
+      const rawSymbol = currencyOrCode.additionalValue1.trim()
+      return convertUnicodeCodePoint(rawSymbol)
+    }
+    // Fall back to code
+    return currencyOrCode.code || ''
+  }
+
+  // Handle currency code string format
   try {
-    const code = currencyCode || 'EUR'
+    const code = currencyOrCode || 'EUR'
     const parts = new Intl.NumberFormat(resolveLocale(locale), {
       style: 'currency',
       currency: code,
