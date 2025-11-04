@@ -3,13 +3,25 @@ import { WidgetGroup, WidgetItem } from '@/components/widget-group'
 import { DollarCircleOutlined, RiseOutlined, TeamOutlined, PercentageOutlined } from '@ant-design/icons'
 import { BusinessAppContextProps } from '@/common/BusinessAppContext'
 import { useRealEstateKPIIntegration } from '../../analytics-view/real-estate-analytics/hooks/useRealEstateKPIIntegration'
-import { formatCurrency, calculateChange } from '../../analytics-view/shared/utils/formatters'
-import { formatPercentage } from '@/common/utils/numberFormatter'
+import { formatCurrencyCompact, formatPercentage } from '@/common/utils/numberFormatter'
 
 type RealEstateInvestmentStatisticsProps = BusinessAppContextProps
 
 export const RealEstateInvestmentStatistics: React.FC<RealEstateInvestmentStatisticsProps> = ({ ...context }) => {
   const { current: kpis, previous: previousKpis, isLoading, error, refetch } = useRealEstateKPIIntegration(context)
+
+  // Calculate percentage change between current and previous values
+  const calculateChange = (current: number, previous: number): { value: string; positive: boolean } => {
+    if (previous === 0) {
+      return { value: current > 0 ? '+100%' : '0%', positive: current > 0 }
+    }
+    const change = ((current - previous) / Math.abs(previous)) * 100
+    const formattedChange = Math.abs(change).toFixed(1)
+    return {
+      value: `${change >= 0 ? '+' : '-'}${formattedChange}%`,
+      positive: change >= 0
+    }
+  }
 
   const widgets: WidgetItem[] = [
     {
@@ -29,7 +41,7 @@ export const RealEstateInvestmentStatistics: React.FC<RealEstateInvestmentStatis
     {
       key: 'total-amount-invested',
       title: 'Total Amount Invested',
-      value: formatCurrency(kpis.totalAmountInvested),
+      value: formatCurrencyCompact(kpis.totalAmountInvested, 'EUR', undefined, 1, true),
       prefix: <DollarCircleOutlined />,
       color: '#52c41a',
       valueIsString: true,
@@ -44,7 +56,7 @@ export const RealEstateInvestmentStatistics: React.FC<RealEstateInvestmentStatis
     {
       key: 'total-market-value',
       title: 'Total Market Value',
-      value: formatCurrency(kpis.totalMarketValue),
+      value: formatCurrencyCompact(kpis.totalMarketValue, 'EUR', undefined, 1, true),
       prefix: <RiseOutlined />,
       color: '#faad14',
       valueIsString: true,

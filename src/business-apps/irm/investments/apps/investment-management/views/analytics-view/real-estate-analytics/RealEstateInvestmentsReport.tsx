@@ -26,10 +26,61 @@ import { useGetInvestments } from '@/common/data/investment'
 import type { Investment } from '@/common/data/investment'
 import { useRealEstateKPIIntegration } from './hooks'
 import { RealEstateDistributionCharts, RealEstateTimelineCharts, RealEstateAnalyticsCharts } from './components'
-import { calculateChange, formatCurrency } from '../shared/utils/formatters'
-import { getInvestmentStatusColor, getRiskLevelColor } from '../shared/utils/colorMappers'
-import { safeCurrencyExtraction, formatPercentage } from '@/common/utils/numberFormatter'
+import {
+  safeCurrencyExtraction,
+  formatPercentage,
+  formatCurrencyCompact,
+  extractCurrencyCode
+} from '@/common/utils/numberFormatter'
 import type { RealEstateInvestmentSummary } from '../shared/types'
+
+// Helper functions for investment-specific business logic
+const calculateChange = (current: number, previous: number): { value: string; positive: boolean } => {
+  if (previous === 0) {
+    return { value: current > 0 ? '+100%' : '0%', positive: current > 0 }
+  }
+  const change = ((current - previous) / Math.abs(previous)) * 100
+  const formattedChange = Math.abs(change).toFixed(1)
+  return {
+    value: `${change >= 0 ? '+' : '-'}${formattedChange}%`,
+    positive: change >= 0
+  }
+}
+
+const formatCurrency = (amount: number, currency: string = 'EUR'): string => {
+  const currencyCode = extractCurrencyCode(currency)
+  return formatCurrencyCompact(amount, currencyCode, undefined, 1, true)
+}
+
+const getInvestmentStatusColor = (status: string): string => {
+  switch (status?.toLowerCase()) {
+    case 'active':
+      return 'green'
+    case 'inactive':
+      return 'red'
+    case 'pending':
+      return 'orange'
+    case 'completed':
+      return 'blue'
+    case 'cancelled':
+      return 'gray'
+    default:
+      return 'blue'
+  }
+}
+
+const getRiskLevelColor = (riskLevel: string): string => {
+  switch (riskLevel?.toLowerCase()) {
+    case 'low':
+      return 'green'
+    case 'medium':
+      return 'orange'
+    case 'high':
+      return 'red'
+    default:
+      return 'blue'
+  }
+}
 
 // Legacy interface - kept for compatibility
 export interface RealEstateInvestmentKPIs {
