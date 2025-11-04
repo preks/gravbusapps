@@ -11,6 +11,8 @@ import type {
   TaskHolidayPolicy
 } from './investmentEnums'
 import type { FileInfo } from '@/common/types/FileTypes'
+import type { InvestmentAccountRef } from './investmentAccountTypes'
+import type { InvestmentContactRef } from './investmentContactTypes'
 
 // Forward declaration for InvestmentRef to avoid circular dependencies
 export interface InvestmentRef {
@@ -26,61 +28,6 @@ export interface InvestmentRef {
     displayOrder?: number
     investmentRole?: CatalogEntry
   }>
-}
-
-// Forward declarations for reference types to avoid circular dependencies
-export interface InvestmentAccountRef {
-  id: string
-  code: string
-  name: string
-  // Fields used in investment queries (inline account selection)
-  email?: string
-  phone?: string
-  website?: string
-  foundationDate?: string // ISO date string
-  geographicPresence?: string
-  picture?: string
-  pictureThumbnail?: string
-  // Address information
-  addresses?: Array<{
-    id: string
-    addressType?: string
-    addressLine?: any // Jsonb
-    postalCode?: string
-    locality?: string
-    region?: CatalogEntry
-    country?: CatalogEntry
-  }>
-  // Catalog references (inline)
-  legalForm?: CatalogEntry
-  companySize?: CatalogEntry
-  accountAnnualRevenueBand?: CatalogEntry
-  industryClass?: CatalogEntry
-  // Employee reference (inline selections)
-  ownerEmployee?: EmployeeRef
-  // Inline relation selection used in queries
-  investmentAccountContact?: Array<{
-    contactType?: ContactType
-    contact?: InvestmentContactRef
-  }>
-}
-
-export interface InvestmentContactRef {
-  id: string
-  code: string
-  firstName?: string
-  lastName?: string
-  fullName?: string
-  // Fields used in nested contact selection within accountContact
-  email?: string
-  phone?: string
-  department?: string
-  jobPosition?: string
-  picture?: string
-  pictureThumbnail?: string
-  // Catalog references
-  academicTitle?: CatalogEntry
-  salutation?: CatalogEntry
 }
 
 export interface InvestmentOpportunityRef {
@@ -178,125 +125,6 @@ export interface BaseInvestmentLead extends BaseEntity {
   size?: number
   sizeMeasurementUnit?: CatalogEntry
   sizeMeasurementUnitRef?: string
-}
-
-// investment_account table
-export interface BaseInvestmentAccount extends BaseEntity {
-  id: string
-
-  // Common Fields (from nw_common_relations.account)
-  code?: string
-  name: string
-  foundationDate?: string // ISO date string
-  liquidationDate?: string // ISO date string
-  website?: string
-  email?: string
-  phone?: string
-  picture?: string
-  pictureThumbnail?: string
-  mission?: string
-  geographicPresence?: string
-  specialty?: string
-  notesSummary?: string
-
-  // Additional fields from GraphQL schema
-  businessKey?: string
-  additionalProperties?: any // Jsonb
-  processInstanceId?: string
-  synchronizedAt?: string // timestamptz
-
-  // Address information
-  addresses?: Array<{
-    id: string
-    addressType?: string
-    addressLine?: any // Jsonb
-    postalCode?: string
-    locality?: string
-    region?: CatalogEntry
-    country?: CatalogEntry
-  }>
-
-  // Communication channels
-  communicationChannels?: Array<
-    {
-      id: string
-      source?: string
-      value?: string
-      valueExtension?: string
-      communicationChannel?: CatalogEntry
-      communicationChannelRef?: string
-      accountId?: string // uuid
-      contactId?: string // uuid
-      leadId?: string // uuid
-      opportunityId?: string // uuid
-      additionalProperties?: any // Jsonb
-      businessKey?: string
-      processInstanceId?: string
-      synchronizedAt?: string // timestamptz
-    } & BaseEntity
-  >
-
-  // Catalog references
-  legalForm?: CatalogEntry
-  companySize?: CatalogEntry
-  industryClass?: CatalogEntry
-  accountAnnualRevenueBand?: CatalogEntry
-  timeZone?: CatalogEntry
-
-  // Entity references (using Ref types)
-  ownerEmployee?: EmployeeRef
-
-  // Address relationships
-  investmentAddress?: BaseInvestmentAddress[]
-}
-
-// investment_contact table
-export interface BaseInvestmentContact extends BaseEntity {
-  id: string
-
-  // Common Fields (from nw_common_relations.contact)
-  code?: string
-  type?: ContactType
-  firstName?: string
-  lastName?: string
-  fullName?: string
-  jobPosition?: string
-  department?: string
-  birthDate?: string // ISO date string // ISO date string
-  email?: string
-  phone?: string
-  picture?: string
-  pictureThumbnail?: string
-  description?: string
-  notesSummary?: string
-
-  // Communication channels
-  communicationChannels?: Array<
-    {
-      id: string
-      source?: string
-      value?: string
-      valueExtension?: string
-      communicationChannel?: CatalogEntry
-      communicationChannelRef?: string
-      accountId?: string // uuid
-      contactId?: string // uuid
-      leadId?: string // uuid
-      opportunityId?: string // uuid
-      additionalProperties?: any // Jsonb
-      businessKey?: string
-      processInstanceId?: string
-      synchronizedAt?: string // timestamptz
-    } & BaseEntity
-  >
-
-  // Catalog references
-  salutation?: CatalogEntry
-  academicTitle?: CatalogEntry
-  language?: CatalogEntry
-
-  // Entity references (using Ref types)
-  ownerEmployee?: EmployeeRef
 }
 
 // investment_account_contact table

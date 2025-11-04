@@ -11,13 +11,23 @@ import {
 export interface CustomerAccountQueryVariables {
   ids?: string[]
   search?: string
-  industryClassIds?: string[]
-  companySizeIds?: string[]
+  // Catalog filters (using correct field names for Customer Accounts)
+  industryIds?: string[]
   legalFormIds?: string[]
+  companySizeIds?: string[]
+  revenueBandIds?: string[]
+  // Legacy support for Investment Account field names
+  industryClassIds?: string[]
   annualRevenueIds?: string[]
   ownerEmployeeIds?: string[]
+  recordStates?: string[]
+  countryIds?: string[]
+  regionIds?: string[]
+  cities?: string[]
   names?: string[]
   geographicPresenceValues?: string[]
+  createdAfter?: string
+  createdBefore?: string
   createdAtFrom?: string
   createdAtTo?: string
   foundationDateFrom?: string
@@ -47,36 +57,74 @@ export const buildCustomerAccountWhereCondition = (variables: CustomerAccountQue
     orConditions.push(
       `{ name: { _ilike: "%${q}%" } }`,
       `{ code: { _ilike: "%${q}%" } }`,
-      `{ email: { _ilike: "%${q}%" } }`,
-      `{ phone: { _ilike: "%${q}%" } }`,
       `{ website: { _ilike: "%${q}%" } }`,
-      `{ geographicPresence: { _ilike: "%${q}%" } }`
+      `{ communicationChannels: { value: { _ilike: "%${q}%" } } }`
     )
   }
 
+  // Industry filter (supports both 'industry' and 'industryClass' field names)
+  if (variables.industryIds?.length) {
+    andConditions.push(`{ industry: { id: { _in: [${variables.industryIds.map(id => `"${id}"`).join(', ')}] } } }`)
+  }
   if (variables.industryClassIds?.length) {
-    andConditions.push(
-      `{ industryClass: { id: { _in: [${variables.industryClassIds.map(id => `"${id}"`).join(', ')}] } } }`
-    )
+    andConditions.push(`{ industry: { id: { _in: [${variables.industryClassIds.map(id => `"${id}"`).join(', ')}] } } }`)
   }
-  if (variables.companySizeIds?.length) {
-    andConditions.push(
-      `{ companySize: { id: { _in: [${variables.companySizeIds.map(id => `"${id}"`).join(', ')}] } } }`
-    )
-  }
+
+  // Legal Form filter
   if (variables.legalFormIds?.length) {
     andConditions.push(`{ legalForm: { id: { _in: [${variables.legalFormIds.map(id => `"${id}"`).join(', ')}] } } }`)
+  }
+
+  // Company Size filter (supports both 'numberOfEmployees' and 'companySize')
+  if (variables.companySizeIds?.length) {
+    andConditions.push(
+      `{ numberOfEmployees: { id: { _in: [${variables.companySizeIds.map(id => `"${id}"`).join(', ')}] } } }`
+    )
+  }
+
+  // Annual Revenue filter (supports both 'annualRevenue' and legacy)
+  if (variables.revenueBandIds?.length) {
+    andConditions.push(
+      `{ annualRevenue: { id: { _in: [${variables.revenueBandIds.map(id => `"${id}"`).join(', ')}] } } }`
+    )
   }
   if (variables.annualRevenueIds?.length) {
     andConditions.push(
       `{ annualRevenue: { id: { _in: [${variables.annualRevenueIds.map(id => `"${id}"`).join(', ')}] } } }`
     )
   }
+
+  // Owner filter
   if (variables.ownerEmployeeIds?.length) {
     andConditions.push(
       `{ ownerEmployee: { id: { _in: [${variables.ownerEmployeeIds.map(id => `"${id}"`).join(', ')}] } } }`
     )
   }
+
+  // Record State filter
+  if (variables.recordStates?.length) {
+    andConditions.push(`{ recordState: { _in: [${variables.recordStates.map(s => `"${s}"`).join(', ')}] } }`)
+  }
+
+  // Country filter (from addresses)
+  if (variables.countryIds?.length) {
+    andConditions.push(
+      `{ crmAddress: { country: { id: { _in: [${variables.countryIds.map(id => `"${id}"`).join(', ')}] } } } }`
+    )
+  }
+
+  // Region filter (from addresses)
+  if (variables.regionIds?.length) {
+    andConditions.push(
+      `{ crmAddress: { region: { id: { _in: [${variables.regionIds.map(id => `"${id}"`).join(', ')}] } } } }`
+    )
+  }
+
+  // City filter
+  if (variables.cities?.length) {
+    andConditions.push(`{ crmAddress: { city: { _in: [${variables.cities.map(c => `"${c}"`).join(', ')}] } } }`)
+  }
+
   if (variables.names?.length) {
     andConditions.push(`{ name: { _in: [${variables.names.map(n => `"${n}"`).join(', ')}] } }`)
   }
@@ -86,10 +134,13 @@ export const buildCustomerAccountWhereCondition = (variables: CustomerAccountQue
     )
   }
 
-  if (variables.createdAtFrom || variables.createdAtTo) {
+  // Date filters (support both createdAfter/Before and createdAtFrom/To)
+  const createdFrom = variables.createdAfter || variables.createdAtFrom
+  const createdTo = variables.createdBefore || variables.createdAtTo
+  if (createdFrom || createdTo) {
     const parts: string[] = []
-    if (variables.createdAtFrom) parts.push(`_gte: "${variables.createdAtFrom}"`)
-    if (variables.createdAtTo) parts.push(`_lte: "${variables.createdAtTo}"`)
+    if (createdFrom) parts.push(`_gte: "${createdFrom}"`)
+    if (createdTo) parts.push(`_lte: "${createdTo}"`)
     andConditions.push(`{ createdAt: { ${parts.join(', ')} } }`)
   }
   if (variables.foundationDateFrom || variables.foundationDateTo) {
@@ -102,10 +153,22 @@ export const buildCustomerAccountWhereCondition = (variables: CustomerAccountQue
   if (variables.hasWebsite) andConditions.push(`{ website: { _isNull: false, _neq: "" } }`)
   if (variables.missingWebsite)
     andConditions.push(`{ _or: [ { website: { _isNull: true } }, { website: { _eq: "" } } ] }`)
-  if (variables.hasEmail) andConditions.push(`{ email: { _isNull: false, _neq: "" } }`)
-  if (variables.missingEmail) andConditions.push(`{ _or: [ { email: { _isNull: true } }, { email: { _eq: "" } } ] }`)
-  if (variables.hasPhone) andConditions.push(`{ phone: { _isNull: false, _neq: "" } }`)
-  if (variables.missingPhone) andConditions.push(`{ _or: [ { phone: { _isNull: true } }, { phone: { _eq: "" } } ] }`)
+  if (variables.hasEmail)
+    andConditions.push(
+      `{ communicationChannels: { communicationChannel: { alternativeCode: { _eq: "EMAIL" } }, value: { _isNull: false, _neq: "" } } }`
+    )
+  if (variables.missingEmail)
+    andConditions.push(
+      `{ _not: { communicationChannels: { communicationChannel: { alternativeCode: { _eq: "EMAIL" } } } } }`
+    )
+  if (variables.hasPhone)
+    andConditions.push(
+      `{ communicationChannels: { communicationChannel: { alternativeCode: { _eq: "PHONE" } }, value: { _isNull: false, _neq: "" } } }`
+    )
+  if (variables.missingPhone)
+    andConditions.push(
+      `{ _not: { communicationChannels: { communicationChannel: { alternativeCode: { _eq: "PHONE" } } } } }`
+    )
 
   if (orConditions.length) whereClause += `, _or: [${orConditions.join(', ')}]`
   if (andConditions.length) whereClause += `, _and: [${andConditions.join(', ')}]`

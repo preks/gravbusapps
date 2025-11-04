@@ -1,3 +1,3 @@
-export { LeadLayout, type LeadLayoutProps, type LeadViewConfig } from './LeadLayout'
+export { LeadLayout, type LeadLayoutProps } from './LeadLayout'
 export { LeadListLayout, type LeadListLayoutProps } from './LeadListLayout'
-export { DefaultLeadRowActions } from './LeadLayoutHelpers'
+export * from './config'

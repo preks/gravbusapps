@@ -1,137 +1,280 @@
-import { useState, useEffect } from 'react'
+// Investment Account Filters hook with lazy loading
+import { useState, useCallback } from 'react'
 import { BusinessAppContextProps } from '@/common/BusinessAppContext'
-import { useGetInvestmentAccounts } from '@/common/data/investment/hooks/useInvestmentAccounts'
+import { useGraphQLClient } from '@/common/network/graphql/useGraphQLClient'
 import { useCatalogManagerClient } from '@/common/network/catalogs/useCatalogManagerClient'
+import type { InvestmentAccountFilters } from '@/common/data/investment/types/investmentAccountTypes'
+import {
+  PREFETCH_ALL_FILTERS_QUERY,
+  SEARCH_OWNERS_QUERY,
+  SEARCH_INDUSTRIES_QUERY,
+  SEARCH_LEGAL_FORMS_QUERY,
+  SEARCH_COMPANY_SIZES_QUERY,
+  SEARCH_REVENUE_BANDS_QUERY
+} from '../queries/accountFilterFragments'
 
-interface FilterOptions {
-  owners: Array<{ id: string; label: string }>
-  industries: Array<{ id: string; label: string }>
-  legalForms: Array<{ id: string; label: string }>
-  companySizes: Array<{ id: string; label: string }>
-  revenueBands: Array<{ id: string; label: string }>
-  isLoading: boolean
+interface FilterOption {
+  id: string
+  label: string
 }
 
-export const useAccountFilterOptions = (context: BusinessAppContextProps): FilterOptions => {
+interface PrefetchResponse {
+  owners: Array<{ ownerEmployee: { id: string; displayName?: string; firstName?: string; lastName?: string } | null }>
+  industries: Array<{ industryClass: { id: string; code?: string; value?: string } | null }>
+  legalForms: Array<{ legalForm: { id: string; code?: string; value?: string } | null }>
+  companySizes: Array<{ companySize: { id: string; code?: string; value?: string } | null }>
+  revenueBands: Array<{ accountAnnualRevenueBand: { id: string; code?: string; value?: string } | null }>
+}
+
+export const useAccountFilterOptions = (context: BusinessAppContextProps): InvestmentAccountFilters => {
   const { accessToken } = context
-  const { fetchInvestmentAccounts } = useGetInvestmentAccounts(context)
+  const graphqlClient = useGraphQLClient(accessToken)
   const catalogClient = useCatalogManagerClient(accessToken)
 
-  const [owners, setOwners] = useState<Array<{ id: string; label: string }>>([])
-  const [industries, setIndustries] = useState<Array<{ id: string; label: string }>>([])
-  const [legalForms, setLegalForms] = useState<Array<{ id: string; label: string }>>([])
-  const [companySizes, setCompanySizes] = useState<Array<{ id: string; label: string }>>([])
-  const [revenueBands, setRevenueBands] = useState<Array<{ id: string; label: string }>>([])
-  const [isLoading, setIsLoading] = useState(true)
+  const [owners, setOwners] = useState<FilterOption[]>([])
+  const [industries, setIndustries] = useState<FilterOption[]>([])
+  const [legalForms, setLegalForms] = useState<FilterOption[]>([])
+  const [companySizes, setCompanySizes] = useState<FilterOption[]>([])
+  const [revenueBands, setRevenueBands] = useState<FilterOption[]>([])
+  const [countries, setCountries] = useState<FilterOption[]>([])
+  const [regions] = useState<FilterOption[]>([])
+  const [cities] = useState<FilterOption[]>([])
+  const [isLoading, setIsLoading] = useState(false)
 
-  useEffect(() => {
-    const loadFilterOptions = async () => {
-      if (!accessToken) return
+  // Prefetch initial filter options (first 10 distinct values per filter)
+  const prefetchFilters = useCallback(async () => {
+    if (!accessToken) return
+
+    setIsLoading(true)
+
+    try {
+      // Combined GraphQL query for all filters (limit 10 each)
+      const graphqlRes = await graphqlClient.request<PrefetchResponse>(PREFETCH_ALL_FILTERS_QUERY)
+
+      // Process owners
+      const ownerItems = (graphqlRes.owners || [])
+        .filter(r => r.ownerEmployee)
+        .map(r => {
+          const emp = r.ownerEmployee!
+          const name = emp.displayName || `${emp.firstName || ''} ${emp.lastName || ''}`.trim() || 'Unknown'
+          return { id: emp.id, label: name }
+        })
+      setOwners(ownerItems)
+
+      // Process industries
+      const industryItems = (graphqlRes.industries || [])
+        .filter(r => r.industryClass)
+        .map(r => ({
+          id: r.industryClass!.id,
+          label: r.industryClass!.value || r.industryClass!.code || r.industryClass!.id
+        }))
+      setIndustries(industryItems)
+
+      // Process legal forms
+      const legalFormItems = (graphqlRes.legalForms || [])
+        .filter(r => r.legalForm)
+        .map(r => ({
+          id: r.legalForm!.id,
+          label: r.legalForm!.value || r.legalForm!.code || r.legalForm!.id
+        }))
+      setLegalForms(legalFormItems)
+
+      // Process company sizes
+      const companySizeItems = (graphqlRes.companySizes || [])
+        .filter(r => r.companySize)
+        .map(r => ({
+          id: r.companySize!.id,
+          label: r.companySize!.value || r.companySize!.code || r.companySize!.id
+        }))
+      setCompanySizes(companySizeItems)
+
+      // Process revenue bands
+      const revenueBandItems = (graphqlRes.revenueBands || [])
+        .filter(r => r.accountAnnualRevenueBand)
+        .map(r => ({
+          id: r.accountAnnualRevenueBand!.id,
+          label: r.accountAnnualRevenueBand!.value || r.accountAnnualRevenueBand!.code || r.accountAnnualRevenueBand!.id
+        }))
+      setRevenueBands(revenueBandItems)
+
+      // Load countries from Catalog API (limit 10)
+      const countriesResp = await catalogClient.getCatalogEntriesList(
+        { catalogIdentifier: 'Country', version: 'v1' },
+        { limit: 10, offset: 0, returnTotalRecords: false, includeChildCatalogEntries: false }
+      )
+      setCountries((countriesResp?.data || []).map((e: any) => ({ id: e.id, label: e.value || e.code })))
+    } catch (error) {
+      console.error('Error prefetching investment account filters:', error)
+    } finally {
+      setIsLoading(false)
+    }
+  }, [accessToken, catalogClient, graphqlClient])
+
+  // Search owners with query
+  const searchOwners = useCallback(
+    async (query: string): Promise<FilterOption[]> => {
+      if (!accessToken) return []
 
       try {
-        setIsLoading(true)
+        const res = await graphqlClient.request<{
+          InvestmentAccount: Array<{
+            ownerEmployee: { id: string; displayName?: string; firstName?: string; lastName?: string } | null
+          }>
+        }>(SEARCH_OWNERS_QUERY(query))
 
-        // Fetch unique owners from accounts
-        const accountsData = await fetchInvestmentAccounts({
-          limit: 1000,
-          offset: 0
-        })
+        const results = (res.InvestmentAccount || [])
+          .filter(r => r.ownerEmployee)
+          .map(r => {
+            const emp = r.ownerEmployee!
+            const name = emp.displayName || `${emp.firstName || ''} ${emp.lastName || ''}`.trim() || 'Unknown'
+            return { id: emp.id, label: name }
+          })
 
-        // Extract unique owners
-        const uniqueOwners = new Map<string, string>()
-        accountsData.InvestmentAccount?.forEach(account => {
-          if (account.ownerEmployee?.id) {
-            const name =
-              account.ownerEmployee.displayName ||
-              `${account.ownerEmployee.firstName || ''} ${account.ownerEmployee.lastName || ''}`.trim()
-            if (name) {
-              uniqueOwners.set(account.ownerEmployee.id, name)
-            }
-          }
-        })
-
-        setOwners(
-          Array.from(uniqueOwners.entries())
-            .map(([id, label]) => ({ id, label }))
-            .sort((a, b) => a.label.localeCompare(b.label))
-        )
-
-        // Fetch catalog entries for Industry Class
-        try {
-          const industryResponse = await catalogClient.getCatalogEntriesList(
-            { catalogIdentifier: 'IndustryClass', version: 'v1' },
-            { limit: 1000, offset: 0, returnTotalRecords: false, includeChildCatalogEntries: false }
-          )
-          const items = (industryResponse?.data || []).map((entry: any) => ({
-            id: entry.id,
-            label: entry.value || entry.code || ''
-          }))
-          setIndustries(items.filter((opt: any) => opt.label).sort((a: any, b: any) => a.label.localeCompare(b.label)))
-        } catch (err) {
-          console.error('Error fetching industry catalog:', err)
-          setIndustries([])
-        }
-
-        // Fetch catalog entries for Legal Form
-        try {
-          const legalFormResponse = await catalogClient.getCatalogEntriesList(
-            { catalogIdentifier: 'LegalForm', version: 'v1' },
-            { limit: 1000, offset: 0, returnTotalRecords: false, includeChildCatalogEntries: false }
-          )
-          const items = (legalFormResponse?.data || []).map((entry: any) => ({
-            id: entry.id,
-            label: entry.value || entry.code || ''
-          }))
-          setLegalForms(items.filter((opt: any) => opt.label).sort((a: any, b: any) => a.label.localeCompare(b.label)))
-        } catch (err) {
-          console.error('Error fetching legal form catalog:', err)
-          setLegalForms([])
-        }
-
-        // Fetch catalog entries for Company Size
-        try {
-          const companySizeResponse = await catalogClient.getCatalogEntriesList(
-            { catalogIdentifier: 'CompanySize', version: 'v1' },
-            { limit: 1000, offset: 0, returnTotalRecords: false, includeChildCatalogEntries: false }
-          )
-          const items = (companySizeResponse?.data || []).map((entry: any) => ({
-            id: entry.id,
-            label: entry.value || entry.code || ''
-          }))
-          setCompanySizes(
-            items.filter((opt: any) => opt.label).sort((a: any, b: any) => a.label.localeCompare(b.label))
-          )
-        } catch (err) {
-          console.error('Error fetching company size catalog:', err)
-          setCompanySizes([])
-        }
-
-        // Fetch catalog entries for Revenue Band
-        try {
-          const revenueBandResponse = await catalogClient.getCatalogEntriesList(
-            { catalogIdentifier: 'AccountAnnualRevenueBand', version: 'v1' },
-            { limit: 1000, offset: 0, returnTotalRecords: false, includeChildCatalogEntries: false }
-          )
-          const items = (revenueBandResponse?.data || []).map((entry: any) => ({
-            id: entry.id,
-            label: entry.value || entry.code || ''
-          }))
-          setRevenueBands(
-            items.filter((opt: any) => opt.label).sort((a: any, b: any) => a.label.localeCompare(b.label))
-          )
-        } catch (err) {
-          console.error('Error fetching revenue band catalog:', err)
-          setRevenueBands([])
-        }
+        setOwners(results)
+        return results
       } catch (error) {
-        console.error('Error loading filter options:', error)
-      } finally {
-        setIsLoading(false)
+        console.error('Error searching investment owners:', error)
+        return []
       }
-    }
+    },
+    [accessToken, graphqlClient]
+  )
 
-    loadFilterOptions()
-  }, [accessToken, fetchInvestmentAccounts, catalogClient])
+  // Search industries with query
+  const searchIndustries = useCallback(
+    async (query: string): Promise<FilterOption[]> => {
+      if (!accessToken) return []
+
+      try {
+        const res = await graphqlClient.request<{
+          InvestmentAccount: Array<{ industryClass: { id: string; code?: string; value?: string } | null }>
+        }>(SEARCH_INDUSTRIES_QUERY(query))
+
+        const results = (res.InvestmentAccount || [])
+          .filter(r => r.industryClass)
+          .map(r => ({
+            id: r.industryClass!.id,
+            label: r.industryClass!.value || r.industryClass!.code || r.industryClass!.id
+          }))
+
+        setIndustries(results)
+        return results
+      } catch (error) {
+        console.error('Error searching industries:', error)
+        return []
+      }
+    },
+    [accessToken, graphqlClient]
+  )
+
+  // Search legal forms with query
+  const searchLegalForms = useCallback(
+    async (query: string): Promise<FilterOption[]> => {
+      if (!accessToken) return []
+
+      try {
+        const res = await graphqlClient.request<{
+          InvestmentAccount: Array<{ legalForm: { id: string; code?: string; value?: string } | null }>
+        }>(SEARCH_LEGAL_FORMS_QUERY(query))
+
+        const results = (res.InvestmentAccount || [])
+          .filter(r => r.legalForm)
+          .map(r => ({
+            id: r.legalForm!.id,
+            label: r.legalForm!.value || r.legalForm!.code || r.legalForm!.id
+          }))
+
+        setLegalForms(results)
+        return results
+      } catch (error) {
+        console.error('Error searching legal forms:', error)
+        return []
+      }
+    },
+    [accessToken, graphqlClient]
+  )
+
+  // Search company sizes with query
+  const searchCompanySizes = useCallback(
+    async (query: string): Promise<FilterOption[]> => {
+      if (!accessToken) return []
+
+      try {
+        const res = await graphqlClient.request<{
+          InvestmentAccount: Array<{ companySize: { id: string; code?: string; value?: string } | null }>
+        }>(SEARCH_COMPANY_SIZES_QUERY(query))
+
+        const results = (res.InvestmentAccount || [])
+          .filter(r => r.companySize)
+          .map(r => ({
+            id: r.companySize!.id,
+            label: r.companySize!.value || r.companySize!.code || r.companySize!.id
+          }))
+
+        setCompanySizes(results)
+        return results
+      } catch (error) {
+        console.error('Error searching company sizes:', error)
+        return []
+      }
+    },
+    [accessToken, graphqlClient]
+  )
+
+  // Search revenue bands with query
+  const searchRevenueBands = useCallback(
+    async (query: string): Promise<FilterOption[]> => {
+      if (!accessToken) return []
+
+      try {
+        const res = await graphqlClient.request<{
+          InvestmentAccount: Array<{ accountAnnualRevenueBand: { id: string; code?: string; value?: string } | null }>
+        }>(SEARCH_REVENUE_BANDS_QUERY(query))
+
+        const results = (res.InvestmentAccount || [])
+          .filter(r => r.accountAnnualRevenueBand)
+          .map(r => ({
+            id: r.accountAnnualRevenueBand!.id,
+            label:
+              r.accountAnnualRevenueBand!.value || r.accountAnnualRevenueBand!.code || r.accountAnnualRevenueBand!.id
+          }))
+
+        setRevenueBands(results)
+        return results
+      } catch (error) {
+        console.error('Error searching revenue bands:', error)
+        return []
+      }
+    },
+    [accessToken, graphqlClient]
+  )
+
+  // Search countries with query (uses Catalog API)
+  const searchCountries = useCallback(
+    async (query: string): Promise<FilterOption[]> => {
+      if (!accessToken) return []
+
+      try {
+        const resp = await catalogClient.getCatalogEntriesList(
+          { catalogIdentifier: 'Country', version: 'v1' },
+          {
+            limit: 50,
+            offset: 0,
+            returnTotalRecords: false,
+            includeChildCatalogEntries: false,
+            searchCriteria: query
+          }
+        )
+        const results = (resp?.data || []).map((e: any) => ({ id: e.id, label: e.value || e.code }))
+        setCountries(results)
+        return results
+      } catch (error) {
+        console.error('Error searching countries:', error)
+        return []
+      }
+    },
+    [accessToken, catalogClient]
+  )
 
   return {
     owners,
@@ -139,6 +282,16 @@ export const useAccountFilterOptions = (context: BusinessAppContextProps): Filte
     legalForms,
     companySizes,
     revenueBands,
-    isLoading
+    countries,
+    regions,
+    cities,
+    isLoading,
+    prefetchFilters,
+    searchOwners,
+    searchIndustries,
+    searchLegalForms,
+    searchCompanySizes,
+    searchRevenueBands,
+    searchCountries
   }
 }

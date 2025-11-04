@@ -27,8 +27,6 @@ import {
 // Import base types for related entities
 import type { BaseInvestmentTask, BaseInvestmentActivity, BaseInvestmentNote, BaseInvestmentDocument } from '../types'
 
-// Note: InvestmentLeadQueryVariables is imported from queries
-
 // Response interfaces
 export interface InvestmentLeadQueryResponse {
   InvestmentLead: BaseInvestmentLead[]
@@ -37,6 +35,11 @@ export interface InvestmentLeadQueryResponse {
       count: number
     }
   }
+}
+
+export interface InvestmentLeadListData {
+  leads: InvestmentLead[]
+  total: number
 }
 
 export interface InvestmentLeadByIdData {
@@ -59,6 +62,49 @@ export interface InvestmentNoteQueryResponse {
 export interface InvestmentDocumentQueryResponse {
   InvestmentDocument: BaseInvestmentDocument[]
 }
+
+/**
+ * Main hook for Investment Leads (matches Customer Leads structure)
+ */
+export const useInvestmentLeads = (context: BusinessAppContextProps) => {
+  const graphqlClient = useGraphQLClient(context.accessToken)
+
+  const fetchInvestmentLeads = useCallback(
+    async (variables: InvestmentLeadQueryVariables = {}): Promise<InvestmentLeadListData> => {
+      const query = GET_INVESTMENT_LEADS(variables)
+      const result = await graphqlClient.request<InvestmentLeadQueryResponse>(query)
+      const leads = result.InvestmentLead.map(toInvestmentLead)
+      const total = result.InvestmentLeadAggregate?.aggregate?.count || 0
+      return { leads, total }
+    },
+    [graphqlClient]
+  )
+
+  const fetchInvestmentLeadById = useCallback(
+    async (id: string): Promise<InvestmentLead | null> => {
+      const query = GET_INVESTMENT_LEAD_BY_ID(id)
+      const result = await graphqlClient.request<{ InvestmentLead: BaseInvestmentLead[] }>(query)
+      const base = result.InvestmentLead?.[0]
+      return base ? toInvestmentLead(base) : null
+    },
+    [graphqlClient]
+  )
+
+  const searchInvestmentLeads = useCallback(
+    async (variables: InvestmentLeadQueryVariables): Promise<InvestmentLead[]> => {
+      const query = GET_INVESTMENT_LEADS(variables)
+      const result = await graphqlClient.request<{ InvestmentLead: BaseInvestmentLead[] }>(query)
+      return result.InvestmentLead.map(toInvestmentLead)
+    },
+    [graphqlClient]
+  )
+
+  return { fetchInvestmentLeads, fetchInvestmentLeadById, searchInvestmentLeads }
+}
+
+// =====================================================
+// LEGACY HOOKS (for backwards compatibility)
+// =====================================================
 
 // Hook for getting investment leads with full details
 export const useGetInvestmentLeads = (context: BusinessAppContextProps) => {

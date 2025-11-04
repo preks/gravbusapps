@@ -1,64 +1,51 @@
-// Investment Lead Mappers - Transform base type to enhanced type with computed fields
+/**
+ * Investment Lead Mappers
+ * Transform BaseInvestmentLead to InvestmentLead with computed UI fields
+ */
 
-import { BaseInvestmentLead, InvestmentLead } from '../types'
+import type { BaseInvestmentLead, InvestmentLead } from '../types/investmentLeadTypes'
+import { mapInvestmentLeadToCommon } from '@/common/data/relations/mappers/leadMapper'
 
 /**
- * Transform BaseInvestmentLead (GraphQL response) to InvestmentLead (enhanced with computed fields)
+ * Transform BaseInvestmentLead to InvestmentLead
+ * Adds computed fields for UI display
  */
 export function toInvestmentLead(base: BaseInvestmentLead): InvestmentLead {
-  // Extract labels from catalog entries (only using fields that exist in BaseInvestmentLead)
-  const salutationLabel = base.salutation?.value || base.salutation?.code
-  const academicTitleLabel = base.academicTitle?.value || base.academicTitle?.code
-  const legalFormLabel = base.legalForm?.value || base.legalForm?.code
-  const companySizeLabel = base.companySize?.value || base.companySize?.code
-  const industryClassLabel = base.industryClass?.value || base.industryClass?.code
-  const accountAnnualRevenueBandLabel = base.accountAnnualRevenueBand?.value || base.accountAnnualRevenueBand?.code
-  const countryLabel = base.country?.value || base.country?.code
-  const regionLabel = base.region?.value || base.region?.code
-  const timeZoneLabel = base.timeZone?.value || base.timeZone?.code
-  const leadRatingLabel = base.leadRating?.value || base.leadRating?.code
-  const leadStatusLabel = base.leadStatus?.value || base.leadStatus?.code
-  const leadSourceLabel = base.leadSource?.value || base.leadSource?.code
+  // First map to CommonLead structure
+  const common = mapInvestmentLeadToCommon(base)
 
-  // Investment-related labels
-  const investmentGroupLabel = base.investmentGroup?.value || base.investmentGroup?.code
-  const investmentTypeLabel = base.investmentType?.value || base.investmentType?.code
-  const investmentRoleLabel = base.investmentRole?.value || base.investmentRole?.code
-  const investmentStakeTypeLabel = base.investmentStakeType?.value || base.investmentStakeType?.code
-
-  // Employee label
-  const ownerDisplayName =
-    base.ownerEmployee?.displayName ||
-    `${base.ownerEmployee?.firstName || ''} ${base.ownerEmployee?.lastName || ''}`.trim()
-
-  // Create computed fields (only using fields that exist in BaseInvestmentLead)
-  const fullName = [salutationLabel, academicTitleLabel, base.firstName, base.lastName].filter(Boolean).join(' ').trim()
-
-  const companyName = base.companyName || ''
-  const displayName = fullName || companyName || base.email || `Lead ${base.id}`
-
+  // Then add computed UI fields
   return {
     ...base,
-
-    // Only include fields defined in InvestmentLead interface
-    displayName,
-    fullName,
-    salutationLabel,
-    academicTitleLabel,
-    legalFormLabel,
-    companySizeLabel,
-    industryClassLabel,
-    accountAnnualRevenueBandLabel,
-    countryLabel,
-    regionLabel,
-    timeZoneLabel,
-    leadRatingLabel,
-    leadStatusLabel,
-    leadSourceLabel,
-    investmentGroupLabel,
-    investmentTypeLabel,
-    investmentRoleLabel,
-    investmentStakeTypeLabel,
-    ownerDisplayName
+    ...common,
+    displayName: getDisplayName(base),
+    salutationLabel: base.salutation?.value,
+    leadRatingLabel: base.leadRating?.value,
+    leadStatusLabel: base.leadStatus?.value,
+    leadSourceLabel: base.leadSource?.value,
+    industryClassLabel: base.industryClass?.value,
+    ownerDisplayName: getOwnerDisplayName(base)
   }
+}
+
+function getDisplayName(lead: BaseInvestmentLead): string {
+  if (lead.fullName) return lead.fullName
+
+  const name = `${lead.firstName || ''} ${lead.lastName || ''}`.trim()
+  if (name) return name
+
+  if (lead.companyName) return lead.companyName
+
+  return 'Unnamed Lead'
+}
+
+function getOwnerDisplayName(lead: BaseInvestmentLead): string | undefined {
+  if (!lead.ownerEmployee) return undefined
+
+  if (lead.ownerEmployee.displayName) {
+    return lead.ownerEmployee.displayName
+  }
+
+  const name = `${lead.ownerEmployee.firstName || ''} ${lead.ownerEmployee.lastName || ''}`.trim()
+  return name || undefined
 }

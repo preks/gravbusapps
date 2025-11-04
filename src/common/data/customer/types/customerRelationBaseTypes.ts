@@ -2,40 +2,12 @@
 // These should match the DBML schema exactly without any computed fields
 import type { CatalogEntry, BaseEntity } from '@/common/network/graphql/commonTypes'
 import type { EmployeeRef } from '@/common/data/employee/types/employeeBaseTypes'
-import type { ContactType, AddressType } from './customerEnums'
+import type { ContactType } from './customerEnums'
 import type { FileInfo } from '@/common/types/FileTypes'
+import type { CustomerAccountRef } from './customerAccountTypes'
+import type { CustomerContactRef } from './customerContactTypes'
 
-// Forward declarations for reference types to avoid circular dependencies
-export interface CustomerAccountRef {
-  id: string
-  code: string
-  name: string
-  // Fields used in customer queries (inline account selection)
-  email?: string
-  phone?: string
-  website?: string
-  picture?: string
-  pictureThumbnail?: string
-  annualRevenue?: CatalogEntry
-  // Employee reference (inline selections)
-  ownerEmployee?: EmployeeRef
-}
-
-export interface CustomerContactRef {
-  id: string
-  code: string
-  firstName?: string
-  lastName?: string
-  fullName?: string
-  // Fields used in nested contact selection
-  email?: string
-  phone?: string
-  department?: string
-  jobPosition?: string
-  picture?: string
-  pictureThumbnail?: string
-}
-
+// Reference types for other entities
 export interface CustomerOpportunityRef {
   id: string
   code: string
@@ -62,61 +34,6 @@ export interface CustomerDocumentRef {
 // =====================================================
 // CUSTOMER RELATIONS ENTITIES (from DBML)
 // =====================================================
-
-// crm_account table
-export interface BaseCustomerAccount extends BaseEntity {
-  id: string
-
-  // Common Account Fields
-  code?: string
-  name?: string
-  email?: string
-  phone?: string
-  foundationDate?: string // ISO date string
-  liquidationDate?: string // ISO date string
-  website?: string
-  picture?: string
-  pictureThumbnail?: string
-  mission?: string
-  geographicPresence?: string
-  specialty?: string
-
-  // Catalog references
-  legalForm?: CatalogEntry
-  annualRevenue?: CatalogEntry
-  companySize?: CatalogEntry
-  industryClass?: CatalogEntry
-
-  // Employee reference
-  ownerEmployee?: EmployeeRef
-}
-
-// crm_contact table
-export interface BaseCustomerContact extends BaseEntity {
-  id: string
-
-  // Common Contact Fields
-  code?: string
-  firstName?: string
-  lastName?: string
-  fullName?: string
-  email?: string
-  phone?: string
-  birthDate?: string // ISO date string
-  department?: string
-  description?: string
-  jobPosition?: string
-  picture?: string
-  pictureThumbnail?: string
-
-  // Catalog references
-  academicTitle?: CatalogEntry
-  salutation?: CatalogEntry
-  language?: CatalogEntry
-
-  // Employee reference
-  ownerEmployee?: EmployeeRef
-}
 
 // crm_opportunity table
 export interface BaseCustomerOpportunity extends BaseEntity {
@@ -295,31 +212,25 @@ export interface BaseCustomerDocument extends BaseEntity {
   opportunity?: CustomerOpportunityRef
 }
 
-// Address type for related entities
+// Address type for related entities (CrmAddress)
 export interface BaseCustomerAddress extends BaseEntity {
   id: string
-  addressType?: AddressType
-  addressLine?: any // Jsonb
-  street?: string
-  houseNumber?: string
-  houseNumberAddition?: string
-  postalCode?: string
+  addressType?: string
+  addressLine?: string
   city?: string
-  state?: string
-  regionCode?: string
+  postalCode?: string
 
   // Catalog references
+  region?: CatalogEntry
   country?: CatalogEntry
-  timeZone?: CatalogEntry
 }
 
-// Communication channel type
+// Communication channel type (SalesCommunicationChannel)
 export interface BaseCustomerCommunicationChannel extends BaseEntity {
   id: string
-  type?: string
+  communicationChannel?: CatalogEntry
   value?: string
-  verified?: boolean
-  verificationDate?: string // ISO date string
+  valueExtension?: string
 
   // Related entity references
   account?: CustomerAccountRef

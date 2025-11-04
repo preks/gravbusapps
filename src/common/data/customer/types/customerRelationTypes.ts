@@ -1,8 +1,6 @@
 // Enhanced types that extend base types and add computed fields for CRM customer relation entities
 
 import {
-  BaseCustomerAccount,
-  BaseCustomerContact,
   BaseCustomerLead,
   BaseCustomerOpportunity,
   BaseCustomerAddress,
@@ -15,27 +13,9 @@ import {
   BaseCustomerOpportunityContact
 } from './customerRelationBaseTypes'
 
-// Enhanced CustomerAccount type with computed fields
-export interface CustomerAccount extends BaseCustomerAccount {
-  // Computed display fields only
-  displayName: string
-  legalFormLabel?: string
-  companySizeLabel?: string
-  industryClassLabel?: string
-  annualRevenueLabel?: string
-  ownerDisplayName?: string
-}
-
-// Enhanced CustomerContact type with computed fields
-export interface CustomerContact extends BaseCustomerContact {
-  // Computed display fields only
-  displayName: string
-  fullName: string
-  salutationLabel?: string
-  academicTitleLabel?: string
-  languageLabel?: string
-  ownerDisplayName?: string
-}
+// Re-export CustomerAccount and CustomerContact from specific files
+export type { CustomerAccount } from './customerAccountTypes'
+export type { CustomerContact } from './customerContactTypes'
 
 // Enhanced CustomerLead type with computed fields
 export interface CustomerLead extends BaseCustomerLead {

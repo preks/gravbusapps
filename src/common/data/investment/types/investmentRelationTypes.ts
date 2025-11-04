@@ -1,8 +1,6 @@
 // Enhanced types that extend base types and add computed fields for CRM relation entities
 
 import {
-  BaseInvestmentAccount,
-  BaseInvestmentContact,
   BaseInvestmentLead,
   BaseInvestmentOpportunity,
   BaseInvestmentAddress,
@@ -17,28 +15,9 @@ import {
   BaseInvestmentOpportunityStageCondition
 } from './investmentRelationBaseTypes'
 
-// Enhanced InvestmentAccount type with computed fields
-export interface InvestmentAccount extends BaseInvestmentAccount {
-  // Computed display fields only
-  displayName: string
-  legalFormLabel?: string
-  companySizeLabel?: string
-  industryClassLabel?: string
-  accountAnnualRevenueBandLabel?: string
-  timeZoneLabel?: string
-  ownerDisplayName?: string
-}
-
-// Enhanced InvestmentContact type with computed fields
-export interface InvestmentContact extends BaseInvestmentContact {
-  // Computed display fields only
-  displayName: string
-  fullName: string
-  salutationLabel?: string
-  academicTitleLabel?: string
-  languageLabel?: string
-  ownerDisplayName?: string
-}
+// Re-export InvestmentAccount and InvestmentContact from specific files
+export type { InvestmentAccount } from './investmentAccountTypes'
+export type { InvestmentContact } from './investmentContactTypes'
 
 // Enhanced InvestmentLead type with computed fields
 export interface InvestmentLead extends BaseInvestmentLead {

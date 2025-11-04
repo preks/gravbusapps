@@ -188,8 +188,20 @@ export const INVESTMENT_CONTACT = `
     ${AUDIT_FIELDS}
     
     # Communication channels
-    communicationChannels {
+    communicationChannels(where: { isDeleted: { _eq: false } }) {
         ${INVESTMENT_COMMUNICATION_CHANNEL}
+    }
+    
+    # Investment Account Contacts (many-to-many with accounts - INVESTMENT-SPECIFIC NAME)
+    investmentAccountContact(where: { isDeleted: { _eq: false } }) {
+      id
+      contactType
+      account {
+        id
+        name
+        picture
+        pictureThumbnail
+      }
     }
     
     # Catalog relationships

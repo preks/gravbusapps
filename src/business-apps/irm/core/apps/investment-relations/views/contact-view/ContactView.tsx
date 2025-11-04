@@ -1,114 +1,300 @@
-import { useMemo } from 'react'
+import { useState, useCallback, useEffect, useMemo } from 'react'
+import { Button } from '@newwork/nw-design-system'
+import type { ColumnDef } from '@tanstack/react-table'
 import { BusinessAppContextProps } from '@/common/BusinessAppContext'
-import { useGetInvestmentContacts } from '@/common/data/investment/hooks/useInvestmentContacts'
-import { ContactLayout, type ContactViewConfig } from '@/common/components/common-relations/view-layouts/contact-layout'
-import type { InvestmentContact } from '@/common/data/investment/types'
+import { ContactLayout } from '@/common/components/common-relations/view-layouts/contact-layout'
+import type { CommonContact } from '@/common/data/relations/types/commonContactTypes'
+import {
+  defaultContactColumns,
+  defaultContactSortableColumns,
+  defaultVisibleContactColumns,
+  defaultAvailableContactColumns,
+  defaultContactFilterConfig
+} from '@/common/components/common-relations/view-layouts/contact-layout/config'
+import { useInvestmentContacts } from '@/common/data/investment/hooks/useInvestmentContacts'
 import type { InvestmentContactQueryVariables } from '@/common/data/investment/queries/investmentContactQueries'
 import { FlowContextName } from '@/common/types/FlowRegistryTypes'
-import {
-  createContactColumns,
-  createContactSortableColumns
-} from '@/common/components/common-relations/view-layouts/contact-layout/config'
-import { contactFilterConfig } from '@/common/components/common-relations/view-layouts/contact-layout/config'
-import { useContactFilterOptions } from '../contact-view/hooks/useContactFilterOptions'
-import { ContactStatistics } from '../contact-view/components/ContactStatistics'
-import {
-  applyBasicFilters,
-  applyDateFilter
-} from '@/common/components/common-relations/view-layouts/contact-layout/utils/queryHelpers'
+import { buildPlatformUrl, navigateTo } from '@/common/utils/navigationUtils'
+import { AppAction } from '@/components/app-action/AppAction'
+import { AppActionMenu } from '@/components/app-action-menu/AppActionMenu'
+import { useProcessCompletion } from '@/common/hooks/useProcessCompletion'
 
 export type ContactViewProps = BusinessAppContextProps
 
+/**
+ * Get sorting configuration for Investment Contacts
+ * Handles nested sorting for catalog entries and relations
+ */
+const getSortingConfig = (columnId: string, descending: boolean) => {
+  const direction = descending ? 'DESC_NULLS_LAST' : 'ASC_NULLS_LAST'
+
+  const sortMapping: Record<string, any> = {
+    // Direct fields
+    contact: [
+      { field: 'firstName', direction },
+      { field: 'lastName', direction }
+    ],
+    firstName: [{ field: 'firstName', direction }],
+    lastName: [{ field: 'lastName', direction }],
+    fullName: [{ field: 'fullName', direction }],
+    department: [{ field: 'department', direction }],
+    jobPosition: [{ field: 'jobPosition', direction }],
+    createdAt: [{ field: 'createdAt', direction }],
+    updatedAt: [{ field: 'updatedAt', direction }],
+
+    // Owner Employee - sort by displayName
+    ownerEmployee: [
+      {
+        field: { ownerEmployee: { displayName: direction } } as any,
+        direction
+      }
+    ]
+  }
+
+  return sortMapping[columnId] || null
+}
+
 export const ContactView: React.FC<ContactViewProps> = context => {
-  const { fetchInvestmentContacts } = useGetInvestmentContacts(context)
+  const { accessToken } = context
 
-  const config: ContactViewConfig<InvestmentContact, InvestmentContactQueryVariables> = useMemo(
-    () => ({
-      contextType: 'investment',
+  // Data Hooks
+  const { fetchInvestmentContacts } = useInvestmentContacts(context)
 
-      fetchContacts: async (variables: InvestmentContactQueryVariables) => {
-        const result = await fetchInvestmentContacts(variables)
-        return {
-          contacts: result.InvestmentContact || [],
-          total: result.InvestmentContactAggregate?.aggregate?.count || 0
-        }
-      },
+  // View State
+  const [contacts, setContacts] = useState<CommonContact[]>([])
+  const [totalCount, setTotalCount] = useState(0)
+  const [isLoading, setIsLoading] = useState(true)
+  const [error, setError] = useState<string | null>(null)
+  const [isInitialLoad, setIsInitialLoad] = useState(true)
 
-      filterDataHook: useContactFilterOptions,
+  // Filter State
+  const [searchTerm, setSearchTerm] = useState('')
+  const [selectedFilters, setSelectedFilters] = useState<Record<string, any>>({})
 
-      createColumns: createContactColumns as any,
-      createSortableColumns: createContactSortableColumns,
+  // Table State
+  const [sorting, setSorting] = useState<Array<{ id: string; desc: boolean }>>([{ id: 'createdAt', desc: true }])
+  const [pagination, setPagination] = useState({ pageIndex: 0, pageSize: 20 })
+  const [visibleColumns, setVisibleColumns] = useState<string[]>(defaultVisibleContactColumns)
 
-      mapColumnToGraphQLField: (columnId: string): string => {
-        const mapping: Record<string, string> = {
-          firstName: 'firstName',
-          lastName: 'lastName',
-          email: 'email',
-          phone: 'phone',
-          jobPosition: 'jobPosition',
-          department: 'department',
-          ownerEmployee: 'ownerEmployee',
-          createdAt: 'createdAt',
-          updatedAt: 'updatedAt'
-        }
-        return mapping[columnId] || 'createdAt'
-      },
+  // Columns: Use default columns
+  const columns = useMemo<ColumnDef<CommonContact>[]>(() => {
+    return defaultContactColumns()
+  }, [])
 
-      baseFilterConfig: contactFilterConfig,
+  // Filter Configuration: Use static config (TODO: implement dynamic filters)
+  const filterConfig = useMemo(() => {
+    return defaultContactFilterConfig
+  }, [])
 
-      buildQueryVariables: (params: {
-        pagination: { pageIndex: number; pageSize: number }
-        searchTerm: string
-        selectedFilters: Record<string, any>
-        sorting: Array<{ id: string; desc: boolean }>
-        mapColumnToGraphQLField: (columnId: string) => string
-      }) => {
-        const vars: InvestmentContactQueryVariables = {
-          limit: params.pagination.pageSize,
-          offset: params.pagination.pageIndex * params.pagination.pageSize,
-          search: params.searchTerm.trim() || undefined
-        }
+  // Query Variables
+  const queryVariables = useMemo(() => {
+    const vars: InvestmentContactQueryVariables = {
+      limit: pagination.pageSize,
+      offset: pagination.pageIndex * pagination.pageSize,
+      search: searchTerm.trim() || undefined
+    }
 
-        applyBasicFilters(vars, params.selectedFilters)
-        applyDateFilter(vars, params.selectedFilters)
+    // Apply basic filters
+    if (selectedFilters.ownerEmployeeIds?.length) {
+      vars.ownerEmployeeIds = selectedFilters.ownerEmployeeIds
+    }
+    if (selectedFilters.academicTitleIds?.length) {
+      vars.academicTitleIds = selectedFilters.academicTitleIds
+    }
+    if (selectedFilters.salutationIds?.length) {
+      vars.salutationIds = selectedFilters.salutationIds
+    }
+    if (selectedFilters.languageIds?.length) {
+      vars.languageIds = selectedFilters.languageIds
+    }
+    if (selectedFilters.accountIds?.length) {
+      vars.accountIds = selectedFilters.accountIds
+    }
+    if (selectedFilters.departments?.length) {
+      vars.departments = selectedFilters.departments
+    }
 
-        if (params.sorting.length > 0) {
-          vars.orderBy = [
-            {
-              field: params.mapColumnToGraphQLField(params.sorting[0].id) as any,
-              direction: params.sorting[0].desc ? 'DESC_NULLS_LAST' : 'ASC_NULLS_LAST'
-            }
-          ]
-        } else {
-          vars.orderBy = [{ field: 'createdAt' as any, direction: 'DESC_NULLS_LAST' }]
-        }
+    // Apply date filters
+    if (selectedFilters.createdAtFrom) {
+      vars.createdAtFrom = selectedFilters.createdAtFrom
+    }
+    if (selectedFilters.createdAtTo) {
+      vars.createdAtTo = selectedFilters.createdAtTo
+    }
 
-        return vars
-      },
+    // Apply sorting
+    if (sorting.length > 0) {
+      const sortConfig = getSortingConfig(sorting[0].id, sorting[0].desc)
 
-      flowContexts: {
-        entityContext: FlowContextName.investmentContactEntity,
-        createContext: FlowContextName.investmentContactCreate
-      },
+      console.log('=== [IRM SORTING DEBUG] ===', {
+        columnId: sorting[0].id,
+        sortConfig,
+        direction: sorting[0].desc ? 'DESC' : 'ASC'
+      })
 
-      renderStatistics: ({ context: ctx }) => {
-        return <ContactStatistics {...ctx} />
-      },
+      if (sortConfig) {
+        vars.orderBy = sortConfig
+      }
+    } else {
+      vars.orderBy = [{ field: 'createdAt' as any, direction: 'DESC_NULLS_LAST' }]
+    }
 
-      processCompletionEvents: [
-        'com.newwork.process.taskCompletion',
-        'com.newwork.process.completion',
-        'com.newwork.process.continue',
-        'com.newwork.process.processCompletion',
-        'processCompletion',
-        'contactCompletion',
-        'contactCompleted'
-      ]
-    }),
-    [context, fetchInvestmentContacts]
+    console.log('=== [IRM QUERY VARIABLES DEBUG] ===', vars)
+
+    return vars
+  }, [pagination, searchTerm, selectedFilters, sorting])
+
+  // Load Data
+  const loadData = useCallback(
+    async (showLoading: boolean = true) => {
+      if (!accessToken) return
+
+      if (showLoading) setIsLoading(true)
+      setError(null)
+
+      try {
+        const result = await fetchInvestmentContacts(queryVariables)
+
+        console.log('=== [IRM CONTACTS LOADED DEBUG] ===', {
+          totalContacts: result.contacts?.length || 0,
+          totalCount: result.total || 0,
+          firstContact: result.contacts?.[0],
+          firstContactCommunicationChannels: result.contacts?.[0]?.communicationChannels,
+          firstContactAccountContacts: result.contacts?.[0]?.accountContacts,
+          firstContactInvestmentAccountContact: result.contacts?.[0]?.investmentAccountContact
+        })
+
+        setContacts(result.contacts || [])
+        setTotalCount(result.total || 0)
+      } catch (err) {
+        console.error('=== [IRM LOAD ERROR] ===', err)
+        setError(err instanceof Error ? err.message : 'Unknown error occurred')
+      } finally {
+        if (showLoading) setIsLoading(false)
+        setIsInitialLoad(false)
+      }
+    },
+    [accessToken, fetchInvestmentContacts, queryVariables]
   )
 
-  return <ContactLayout context={context} config={config} dataTestId="investment-contact-view" />
+  // Initial load
+  useEffect(() => {
+    if (!accessToken || !isInitialLoad) return
+    loadData(true)
+  }, [accessToken, isInitialLoad, loadData])
+
+  // Reload data when filters/search/sort change (skip initial load)
+  useEffect(() => {
+    if (isInitialLoad || !accessToken) return
+    loadData(false)
+  }, [queryVariables, isInitialLoad, accessToken, loadData])
+
+  // Process Completion Handlers
+  const handleProcessComplete = useCallback(() => {
+    loadData(false)
+  }, [loadData])
+
+  useProcessCompletion({ onSuccess: handleProcessComplete })
+
+  useEffect(() => {
+    const events = ['taskCompletion', 'contactCompletion']
+    const handlers = events.map(eventName => {
+      const handler = () => handleProcessComplete()
+      globalThis.addEventListener(eventName, handler)
+      return { eventName, handler }
+    })
+
+    return () => {
+      for (const { eventName, handler } of handlers) {
+        globalThis.removeEventListener(eventName, handler)
+      }
+    }
+  }, [handleProcessComplete])
+
+  // Event Handlers
+  const handleSearch = useCallback((value: string) => {
+    setSearchTerm(value)
+    setPagination(prev => ({ ...prev, pageIndex: 0 }))
+  }, [])
+
+  const handleFilterChange = useCallback((filters: Record<string, any>) => {
+    setSelectedFilters(filters)
+    setPagination(prev => ({ ...prev, pageIndex: 0 }))
+  }, [])
+
+  const handleRowClick = useCallback((contact: CommonContact) => {
+    const url = buildPlatformUrl('/platform/irm/contact-record', { contactId: contact.id })
+    navigateTo(url)
+  }, [])
+
+  // Row Actions
+  const renderRowActions = useCallback(
+    (row: { original: CommonContact }) => (
+      <AppActionMenu
+        contextsArray={[FlowContextName.investmentContactEntity]}
+        externalContextData={{ contactId: row.original.id }}
+        prefixDataTestId="contact-actions"
+        accessToken={accessToken}
+        emptyStateBehavior="enable"
+        deferMainContextRequestsUntilClick
+      >
+        <Button variant="ghost" size="icon" data-testid={`contact-actions-${row.original.id}`}>
+          <svg className="gba:h-4 gba:w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+            <path
+              strokeLinecap="round"
+              strokeLinejoin="round"
+              strokeWidth={2}
+              d="M12 5v.01M12 12v.01M12 19v.01M12 6a1 1 0 110-2 1 1 0 010 2zm0 7a1 1 0 110-2 1 1 0 010 2zm0 7a1 1 0 110-2 1 1 0 010 2z"
+            />
+          </svg>
+        </Button>
+      </AppActionMenu>
+    ),
+    [accessToken]
+  )
+
+  // Primary Action (Add Button)
+  const primaryAction = useMemo(
+    () => (
+      <AppAction
+        data-testid="contact-create-button"
+        contextsArray={[FlowContextName.investmentContactCreate]}
+        prefixDataTestId="contact-create"
+        accessToken={accessToken}
+        emptyStateBehavior="enable"
+      >
+        <Button>Add Contact</Button>
+      </AppAction>
+    ),
+    [accessToken]
+  )
+
+  return (
+    <ContactLayout
+      contacts={contacts}
+      totalCount={totalCount}
+      loading={isLoading}
+      error={error}
+      columns={columns}
+      visibleColumns={visibleColumns}
+      availableColumns={defaultAvailableContactColumns}
+      onVisibleColumnsChange={setVisibleColumns}
+      searchTerm={searchTerm}
+      onSearchChange={handleSearch}
+      filterConfig={filterConfig}
+      selectedFilters={selectedFilters}
+      onFilterChange={handleFilterChange}
+      sorting={sorting}
+      onSortingChange={setSorting}
+      sortableColumns={defaultContactSortableColumns}
+      pagination={pagination}
+      onPaginationChange={setPagination}
+      onRowClick={handleRowClick}
+      renderRowActions={renderRowActions}
+      primaryAction={primaryAction}
+      dataTestId="investment-contact-view"
+    />
+  )
 }
 
 export default ContactView

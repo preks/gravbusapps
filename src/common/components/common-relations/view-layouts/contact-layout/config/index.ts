@@ -1,2 +1,7 @@
-export { createContactColumns, createContactSortableColumns } from './contactColumns'
-export { contactFilterConfig } from './contactFilters'
+export {
+  defaultContactColumns,
+  defaultContactSortableColumns,
+  defaultVisibleContactColumns,
+  defaultAvailableContactColumns
+} from './defaultContactColumns'
+export { defaultContactFilterConfig } from './defaultContactFilters'

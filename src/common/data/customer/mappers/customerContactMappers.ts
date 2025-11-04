@@ -1,11 +1,16 @@
 // Customer Contact Mapper - Transform base type to enhanced type with computed fields
 
 import { BaseCustomerContact, CustomerContact } from '../types'
+import { mapCustomerContactToCommon } from '@/common/data/relations/mappers/contactMapper'
 
 /**
  * Transform BaseCustomerContact (GraphQL response) to CustomerContact (enhanced with computed fields)
+ * Also maps to CommonContact structure via contactMapper
  */
 export function toCustomerContact(base: BaseCustomerContact): CustomerContact {
+  // First, map to CommonContact structure (handles field name mappings)
+  const common = mapCustomerContactToCommon(base)
+
   // Extract labels from catalog entries
   const salutationLabel = base.salutation?.value || base.salutation?.code
   const academicTitleLabel = base.academicTitle?.value || base.academicTitle?.code
@@ -19,7 +24,7 @@ export function toCustomerContact(base: BaseCustomerContact): CustomerContact {
   const displayName = fullName || base.code || `Contact ${base.id}`
 
   return {
-    ...base,
+    ...common,
 
     // Computed UI fields (only those defined in CustomerContact interface)
     displayName,

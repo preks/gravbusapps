@@ -258,6 +258,32 @@ export function useGetInvestmentContacts(
   return { fetchInvestmentContacts }
 }
 
+// Simplified hook alias for ContactView compatibility
+export const useInvestmentContacts = (context: BusinessAppContextProps) => {
+  const graphqlClient = useGraphQLClient(context.accessToken)
+
+  const fetchInvestmentContacts = useCallback(
+    async (
+      variables: InvestmentContactQueryVariables = {}
+    ): Promise<{ contacts: InvestmentContact[]; total: number }> => {
+      const query = GET_INVESTMENT_CONTACTS(variables)
+
+      try {
+        const result = await graphqlClient.request<InvestmentContactQueryResponse>(query)
+        const contacts = result.InvestmentContact.map(toInvestmentContact)
+        const total = result.InvestmentContactAggregate?.aggregate?.count || 0
+        return { contacts, total }
+      } catch (error) {
+        console.error('Error fetching investment contacts:', error)
+        throw error
+      }
+    },
+    [graphqlClient]
+  )
+
+  return { fetchInvestmentContacts }
+}
+
 // Hook for getting investment contact by ID
 export const useGetInvestmentContactById = (context: BusinessAppContextProps) => {
   const graphqlClient = useGraphQLClient(context.accessToken)

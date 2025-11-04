@@ -1,10 +1,10 @@
-import React from 'react'
 import type { ColumnDef } from '@tanstack/react-table'
-import { Badge, Avatar, AvatarImage, AvatarFallback } from '@newwork/nw-design-system'
+import { Avatar, AvatarImage, AvatarFallback } from '@newwork/nw-design-system'
 import { Building2, Mail, Phone, Globe, Calendar, MapPin } from 'lucide-react'
 import { navigateTo } from '@/common/utils/navigationUtils'
 import { formatAddress } from '@/common/utils/addressFormatter'
 import { formatCurrencyParts } from '@/common/utils/numberFormatter'
+import type { CommonAccount } from '@/common/data/relations/types/commonAccountTypes'
 
 // Helper to safely convert values to strings
 const safeString = (value: any): string => {
@@ -29,46 +29,8 @@ const formatDate = (dateString: string | null | undefined): string => {
   }
 }
 
-// Generic Account interface for columns
-interface BaseAccount {
-  id: string
-  name?: string | null
-  email?: string | null
-  phone?: string | null
-  website?: string | null
-  geographicPresence?: string | null
-  investmentAddress?: Array<{
-    addressType?: string
-    addressLine?: { lines: string[] } | null
-    locality?: string | null
-    postalCode?: string | null
-    region?: { value?: string } | null
-    country?: { value?: string } | null
-  }> | null
-  addresses?: Array<{
-    type?: string
-    street?: string | null
-    city?: string | null
-    postalCode?: string | null
-    region?: { value?: string } | null
-    country?: { value?: string } | null
-  }> | null
-  industryClass?: { value?: string; code?: string } | null
-  legalForm?: { value?: string; code?: string } | null
-  companySize?: { value?: string; code?: string } | null
-  accountAnnualRevenueBand?: { value?: string; code?: string } | null
-  ownerEmployee?: {
-    id: string
-    displayName?: string
-    firstName?: string
-    lastName?: string
-    pictureThumbnail?: string
-  } | null
-  createdAt?: string | null
-}
-
 // Helper function to get owner display name
-const getOwnerName = (account: BaseAccount) => {
+const getOwnerName = (account: CommonAccount) => {
   if (account.ownerEmployee?.displayName) {
     return safeString(account.ownerEmployee.displayName)
   }
@@ -96,8 +58,9 @@ const renderAmount = (amount: number, currencyCode?: string) => {
 }
 
 // Render revenue (band code may be a single number or a range "min-max")
-const renderRevenueCell = (account: BaseAccount) => {
-  const band = account.accountAnnualRevenueBand
+const renderRevenueCell = (account: CommonAccount) => {
+  // CommonAccount has: annualRevenueBand (correct name)
+  const band = account.annualRevenueBand
   if (!band?.code && !band?.value) {
     return <span className="gba:text-gray-400">-</span>
   }
@@ -138,7 +101,13 @@ const renderRevenueCell = (account: BaseAccount) => {
   )
 }
 
-export const createAccountColumns = <TAccount extends BaseAccount>(): ColumnDef<TAccount>[] => [
+/**
+ * Default Account Columns - Base columns that work for both Customer and Investment Accounts
+ * Uses CommonAccount (the CORRECT structure)
+ * Accounts must be mapped via accountMapper before passing to these columns
+ * These can be extended or overridden in context-specific views
+ */
+export const defaultAccountColumns: ColumnDef<CommonAccount>[] = [
   {
     id: 'name',
     accessorFn: row => safeString(row.name),
@@ -165,7 +134,16 @@ export const createAccountColumns = <TAccount extends BaseAccount>(): ColumnDef<
   },
   {
     id: 'email',
-    accessorFn: row => safeString(row.email),
+    accessorFn: row => {
+      // Future: all use communicationChannels
+      if (row.communicationChannels?.length) {
+        const email = row.communicationChannels.find(
+          ch => ch.communicationChannel?.alternativeCode?.toUpperCase() === 'EMAIL'
+        )
+        return safeString(email?.value)
+      }
+      return ''
+    },
     header: 'Contact Info',
     size: 200,
     minSize: 180,
@@ -174,34 +152,48 @@ export const createAccountColumns = <TAccount extends BaseAccount>(): ColumnDef<
     cell: ({ row }) => {
       const contactInfo = []
 
-      if (row.original.email) {
+      // Helper to get communication channel by type
+      const getChannel = (type: string) => {
+        return row.original.communicationChannels?.find(
+          ch => ch.communicationChannel?.alternativeCode?.toUpperCase() === type.toUpperCase()
+        )
+      }
+
+      // Email from communicationChannels
+      const emailChannel = getChannel('EMAIL')
+      if (emailChannel?.value) {
         contactInfo.push(
           <div key="email" className="gba:flex gba:items-center gba:gap-2 gba:mb-1 gba:min-w-0">
             <Mail className="gba:w-4 gba:h-4 gba:text-gray-500 gba:shrink-0" />
-            <span className="gba:text-sm gba:truncate" title={safeString(row.original.email)}>
-              {safeString(row.original.email)}
+            <span className="gba:text-sm gba:truncate" title={safeString(emailChannel.value)}>
+              {safeString(emailChannel.value)}
             </span>
           </div>
         )
       }
 
-      if (row.original.phone) {
+      // Phone from communicationChannels
+      const phoneChannel = getChannel('PHONE')
+      if (phoneChannel?.value) {
         contactInfo.push(
           <div key="phone" className="gba:flex gba:items-center gba:gap-2 gba:mb-1 gba:min-w-0">
             <Phone className="gba:w-4 gba:h-4 gba:text-gray-500 gba:shrink-0" />
-            <span className="gba:text-sm gba:truncate" title={safeString(row.original.phone)}>
-              {safeString(row.original.phone)}
+            <span className="gba:text-sm gba:truncate" title={safeString(phoneChannel.value)}>
+              {safeString(phoneChannel.value)}
             </span>
           </div>
         )
       }
 
-      if (row.original.website) {
+      // Website from communicationChannels or direct field
+      const websiteChannel = getChannel('WEBSITE')
+      const websiteValue = websiteChannel?.value || row.original.website
+      if (websiteValue) {
         contactInfo.push(
           <div key="website" className="gba:flex gba:items-center gba:gap-2 gba:min-w-0">
             <Globe className="gba:w-4 gba:h-4 gba:text-gray-500 gba:shrink-0" />
-            <span className="gba:text-sm gba:truncate" title={safeString(row.original.website)}>
-              {safeString(row.original.website)}
+            <span className="gba:text-sm gba:truncate" title={safeString(websiteValue)}>
+              {safeString(websiteValue)}
             </span>
           </div>
         )
@@ -215,29 +207,35 @@ export const createAccountColumns = <TAccount extends BaseAccount>(): ColumnDef<
     }
   },
   {
-    id: 'geographicPresence',
-    accessorKey: 'geographicPresence',
+    id: 'location',
+    accessorFn: row => {
+      // CommonAccount has: addresses (with locality)
+      const primaryAddress = row.addresses?.find(addr => addr.addressType === 'PRIMARY_ADDRESS') || row.addresses?.[0]
+
+      if (primaryAddress) {
+        const locality = (primaryAddress as any).locality
+        const country = primaryAddress.country?.value
+        return `${locality || ''} ${country || ''}`.trim()
+      }
+      return ''
+    },
     header: 'Location',
     size: 200,
     minSize: 150,
     maxSize: 300,
     enableResizing: false,
     cell: ({ row }) => {
-      // Try investmentAddress first (Investment Relations)
+      // CommonAccount has: addresses (standardized)
       const primaryAddress =
-        row.original.investmentAddress?.find(addr => addr.addressType === 'PRIMARY_ADDRESS') ||
-        row.original.investmentAddress?.[0] ||
-        // Try addresses (Customer Relations)
-        row.original.addresses?.find(addr => addr.type === 'PRIMARY') ||
-        row.original.addresses?.[0]
+        row.original.addresses?.find(addr => addr.addressType === 'PRIMARY_ADDRESS') || row.original.addresses?.[0]
 
       if (primaryAddress) {
         const addressString = formatAddress({
           addressLine: (primaryAddress as any).addressLine || null,
-          locality: (primaryAddress as any).locality || (primaryAddress as any).city,
-          postalCode: primaryAddress.postalCode,
-          country: primaryAddress.country?.value,
-          region: primaryAddress.region?.value
+          locality: (primaryAddress as any).locality,
+          postalCode: primaryAddress.postalCode || undefined,
+          country: primaryAddress.country?.value || undefined,
+          region: primaryAddress.region?.value || undefined
         })
 
         if (addressString) {
@@ -261,21 +259,6 @@ export const createAccountColumns = <TAccount extends BaseAccount>(): ColumnDef<
         }
       }
 
-      // Fallback to geographicPresence
-      if (row.original.geographicPresence) {
-        return (
-          <div className="gba:flex gba:items-start gba:gap-2 gba:min-w-0">
-            <MapPin className="gba:w-4 gba:h-4 gba:text-gray-500 gba:shrink-0 gba:mt-0.5" />
-            <div
-              className="gba:text-sm gba:text-gray-700 gba:truncate"
-              title={safeString(row.original.geographicPresence)}
-            >
-              {safeString(row.original.geographicPresence)}
-            </div>
-          </div>
-        )
-      }
-
       return (
         <div className="gba:flex gba:items-start gba:gap-2">
           <MapPin className="gba:w-4 gba:h-4 gba:text-gray-500 gba:shrink-0 gba:mt-0.5" />
@@ -293,16 +276,19 @@ export const createAccountColumns = <TAccount extends BaseAccount>(): ColumnDef<
     maxSize: 180,
     enableResizing: false,
     cell: ({ row }) => {
+      // CommonAccount has: industryClass (correct name)
       if (!row.original.industryClass) {
         return <span className="gba:text-gray-400">-</span>
       }
       const industryValue = safeString(row.original.industryClass.value || row.original.industryClass.code)
       return (
-        <Badge variant="secondary" data-testid={`industry-cell-${row.original.id}`}>
-          <span className="gba:truncate" title={industryValue}>
-            {industryValue}
-          </span>
-        </Badge>
+        <span
+          className="gba:text-sm gba:truncate gba:block"
+          title={industryValue}
+          data-testid={`industry-cell-${row.original.id}`}
+        >
+          {industryValue}
+        </span>
       )
     }
   },
@@ -320,11 +306,13 @@ export const createAccountColumns = <TAccount extends BaseAccount>(): ColumnDef<
       }
       const legalFormValue = safeString(row.original.legalForm.value || row.original.legalForm.code)
       return (
-        <Badge variant="secondary" data-testid={`legal-form-cell-${row.original.id}`}>
-          <span className="gba:truncate" title={legalFormValue}>
-            {legalFormValue}
-          </span>
-        </Badge>
+        <span
+          className="gba:text-sm gba:truncate gba:block"
+          title={legalFormValue}
+          data-testid={`legal-form-cell-${row.original.id}`}
+        >
+          {legalFormValue}
+        </span>
       )
     }
   },
@@ -337,16 +325,19 @@ export const createAccountColumns = <TAccount extends BaseAccount>(): ColumnDef<
     maxSize: 140,
     enableResizing: false,
     cell: ({ row }) => {
+      // CommonAccount has: companySize (correct name)
       if (!row.original.companySize) {
         return <span className="gba:text-gray-400">-</span>
       }
       const sizeValue = safeString(row.original.companySize.value || row.original.companySize.code)
       return (
-        <Badge variant="outline" data-testid={`size-cell-${row.original.id}`}>
-          <span className="gba:truncate" title={sizeValue}>
-            {sizeValue}
-          </span>
-        </Badge>
+        <span
+          className="gba:text-sm gba:truncate gba:block"
+          title={sizeValue}
+          data-testid={`size-cell-${row.original.id}`}
+        >
+          {sizeValue}
+        </span>
       )
     }
   },
@@ -438,12 +429,48 @@ export const createAccountColumns = <TAccount extends BaseAccount>(): ColumnDef<
   }
 ]
 
-export const createAccountSortableColumns = () => {
-  return [
-    { id: 'name', label: 'Account Name' },
-    { id: 'email', label: 'Email' },
-    { id: 'phone', label: 'Phone' },
-    { id: 'createdAt', label: 'Created Date' },
-    { id: 'updatedAt', label: 'Updated Date' }
-  ]
-}
+/**
+ * Default sortable columns
+ */
+export const defaultAccountSortableColumns = [
+  { id: 'name', label: 'Account Name' },
+  { id: 'email', label: 'Email' },
+  { id: 'phone', label: 'Phone' },
+  { id: 'location', label: 'Location' },
+  { id: 'industryClass', label: 'Industry' },
+  { id: 'legalForm', label: 'Legal Form' },
+  { id: 'size', label: 'Size' },
+  { id: 'revenue', label: 'Revenue' },
+  { id: 'ownerEmployee', label: 'Owner' },
+  { id: 'createdAt', label: 'Created Date' },
+  { id: 'updatedAt', label: 'Updated Date' }
+]
+
+/**
+ * Default visible columns
+ */
+export const defaultVisibleAccountColumns = [
+  'name',
+  'email',
+  'location',
+  'industryClass',
+  'legalForm',
+  'size',
+  'ownerEmployee',
+  'createdAt'
+]
+
+/**
+ * Default available columns for column selector
+ */
+export const defaultAvailableAccountColumns = [
+  { id: 'name', label: 'Account' },
+  { id: 'email', label: 'Contact Info' },
+  { id: 'location', label: 'Location' },
+  { id: 'industryClass', label: 'Industry' },
+  { id: 'legalForm', label: 'Legal Form' },
+  { id: 'size', label: 'Size' },
+  { id: 'revenue', label: 'Revenue' },
+  { id: 'ownerEmployee', label: 'Owner' },
+  { id: 'createdAt', label: 'Created' }
+]

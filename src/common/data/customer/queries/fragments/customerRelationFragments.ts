@@ -19,10 +19,45 @@ export const CUSTOMER_ACCOUNT = `
     id
     code
     name
+    website
     ${AUDIT_FIELDS}
+    
+    # Communication Channels
+    communicationChannels(where: { isDeleted: { _eq: false } }) {
+      id
+      communicationChannel {
+        ${CATALOG_ENTRY}
+      }
+      value
+      valueExtension
+    }
+    
+    # Addresses
+    addresses: crmAddress(where: { isDeleted: { _eq: false } }) {
+      id
+      addressType
+      addressLine
+      city
+      postalCode
+      region {
+        ${CATALOG_ENTRY}
+      }
+      country {
+        ${CATALOG_ENTRY}
+      }
+    }
     
     # Catalog relationships
     annualRevenue {
+      ${CATALOG_ENTRY}
+    }
+    industry {
+      ${CATALOG_ENTRY}
+    }
+    legalForm {
+      ${CATALOG_ENTRY}
+    }
+    numberOfEmployees {
       ${CATALOG_ENTRY}
     }
     
@@ -49,12 +84,42 @@ export const CUSTOMER_CONTACT = `
     code
     firstName
     lastName
-    email
+    fullName
+    jobPosition
+    department
     birthDate
+    description
+    picture
+    pictureThumbnail
     ${AUDIT_FIELDS}
+    
+    # Communication Channels
+    communicationChannels(where: { isDeleted: { _eq: false } }) {
+      id
+      communicationChannel {
+        ${CATALOG_ENTRY}
+      }
+      value
+      valueExtension
+    }
+    
+    # Account Contacts (many-to-many with accounts)
+    accountContacts(where: { isDeleted: { _eq: false } }) {
+      id
+      contactType
+      account {
+        id
+        name
+        picture
+        pictureThumbnail
+      }
+    }
     
     # Catalog relationships
     academicTitle {
+      ${CATALOG_ENTRY}
+    }
+    salutation {
       ${CATALOG_ENTRY}
     }
     language {

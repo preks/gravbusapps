@@ -1,16 +1,7 @@
-// Export all customer types
-
-// Base types
+// Customer Relation Types - Main exports
+export * from './customerAccountTypes'
+export * from './customerContactTypes'
+export * from './customerLeadTypes'
 export * from './customerRelationBaseTypes'
-
-// Enhanced types
 export * from './customerRelationTypes'
-
-// Team performance base types
-export * from './customerTeamPerformanceBaseTypes'
-
-// Team performance enhanced types
-export * from './customerTeamPerformanceTypes'
-
-// Enums
 export * from './customerEnums'

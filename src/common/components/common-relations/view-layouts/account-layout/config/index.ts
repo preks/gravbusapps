@@ -1,2 +1,9 @@
-export { createAccountColumns, createAccountSortableColumns } from './accountColumns'
-export { accountFilterConfig } from './accountFilters'
+// Default Account Configuration Exports
+export {
+  defaultAccountColumns,
+  defaultAccountSortableColumns,
+  defaultVisibleAccountColumns,
+  defaultAvailableAccountColumns
+} from './defaultAccountColumns'
+
+export { defaultAccountFilterConfig } from './defaultAccountFilters'

@@ -1,12 +1,10 @@
-/**
- * Query helper utilities for Account views
- */
+import type { InvestmentAccountQueryVariables } from '@/common/data/investment/queries/investmentAccountQueries'
 
 /**
- * Apply basic filter fields to query variables
+ * Apply basic filter fields to Investment Account query variables
  */
-export const applyBasicFilters = <T extends Record<string, any>>(
-  vars: T,
+export const applyBasicFilters = (
+  vars: InvestmentAccountQueryVariables,
   selectedFilters: Record<string, any>
 ): void => {
   // Owner filter
@@ -14,13 +12,13 @@ export const applyBasicFilters = <T extends Record<string, any>>(
     vars.ownerEmployeeIds = selectedFilters.owners
   }
 
-  // Industry filter
+  // Industry filter (Investment uses industryClassIds)
   if (
     selectedFilters.industries &&
     Array.isArray(selectedFilters.industries) &&
     selectedFilters.industries.length > 0
   ) {
-    vars.industryIds = selectedFilters.industries
+    vars.industryClassIds = selectedFilters.industries
   }
 
   // Legal Form filter
@@ -41,13 +39,22 @@ export const applyBasicFilters = <T extends Record<string, any>>(
     vars.companySizeIds = selectedFilters.companySizes
   }
 
-  // Revenue Band filter
+  // Revenue Band filter (Investment uses accountAnnualRevenueBandIds)
   if (
     selectedFilters.revenueBands &&
     Array.isArray(selectedFilters.revenueBands) &&
     selectedFilters.revenueBands.length > 0
   ) {
-    vars.revenueBandIds = selectedFilters.revenueBands
+    vars.accountAnnualRevenueBandIds = selectedFilters.revenueBands
+  }
+
+  // Record State filter (Status)
+  if (
+    selectedFilters.recordStates &&
+    Array.isArray(selectedFilters.recordStates) &&
+    selectedFilters.recordStates.length > 0
+  ) {
+    vars.recordStates = selectedFilters.recordStates
   }
 
   // Geography filters
@@ -93,9 +100,9 @@ export const applyBasicFilters = <T extends Record<string, any>>(
 }
 
 /**
- * Apply date range filters to query variables
+ * Apply date range filters to Investment Account query variables
  */
-export const applyDateFilter = <T extends Record<string, any>>(vars: T, selectedFilters: Record<string, any>): void => {
+export const applyDateFilter = (vars: InvestmentAccountQueryVariables, selectedFilters: Record<string, any>): void => {
   if (selectedFilters.createdAfter) {
     vars.createdAfter = selectedFilters.createdAfter
   }
@@ -103,4 +110,26 @@ export const applyDateFilter = <T extends Record<string, any>>(vars: T, selected
   if (selectedFilters.createdBefore) {
     vars.createdBefore = selectedFilters.createdBefore
   }
+}
+
+/**
+ * Map column IDs to GraphQL field names for Investment Accounts
+ */
+export const mapColumnToGraphQLField = (columnId: string): string => {
+  const mapping: Record<string, string> = {
+    name: 'name',
+    email: 'email',
+    phone: 'phone',
+    location: 'geographicPresence',
+    geographicPresence: 'geographicPresence',
+    industryClass: 'industryClass',
+    legalForm: 'legalForm',
+    size: 'companySize',
+    companySize: 'companySize',
+    revenue: 'accountAnnualRevenueBand',
+    ownerEmployee: 'ownerEmployee',
+    createdAt: 'createdAt',
+    updatedAt: 'updatedAt'
+  }
+  return mapping[columnId] || 'createdAt'
 }

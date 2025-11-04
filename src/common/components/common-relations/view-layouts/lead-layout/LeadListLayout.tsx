@@ -1,8 +1,8 @@
-import React from 'react'
 import { DataTable } from '@newwork/nw-design-system'
 import type { ColumnDef } from '@tanstack/react-table'
+import type { CommonLead } from '@/common/data/relations/types/commonLeadTypes'
 
-export interface LeadListLayoutProps<T = any> {
+export interface LeadListLayoutProps<T extends CommonLead = CommonLead> {
   // Data
   data: T[]
   loading?: boolean
@@ -30,7 +30,7 @@ export interface LeadListLayoutProps<T = any> {
   dataTestId?: string
 }
 
-export function LeadListLayout<T = any>(props: Readonly<LeadListLayoutProps<T>>) {
+export function LeadListLayout<T extends CommonLead = CommonLead>(props: Readonly<LeadListLayoutProps<T>>) {
   const {
     data,
     loading = false,

@@ -1,12 +1,17 @@
 // Investment Contact Mappers - Transform base type to enhanced type with computed fields
 
 import { BaseInvestmentContact, InvestmentContact } from '../types'
+import { mapInvestmentContactToCommon } from '@/common/data/relations/mappers/contactMapper'
 
 /**
  * Transform BaseInvestmentContact (GraphQL response) to InvestmentContact (enhanced with computed fields)
+ * Also maps to CommonContact structure via contactMapper
  */
 export function toInvestmentContact(base: BaseInvestmentContact): InvestmentContact {
-  // Extract labels from catalog entries (only using fields that exist in BaseInvestmentContact)
+  // First, map to CommonContact structure (handles field name mappings)
+  const common = mapInvestmentContactToCommon(base)
+
+  // Extract labels from catalog entries
   const salutationLabel = base.salutation?.value || base.salutation?.code
   const academicTitleLabel = base.academicTitle?.value || base.academicTitle?.code
   const languageLabel = base.language?.value || base.language?.code
@@ -16,15 +21,15 @@ export function toInvestmentContact(base: BaseInvestmentContact): InvestmentCont
     base.ownerEmployee?.displayName ||
     `${base.ownerEmployee?.firstName || ''} ${base.ownerEmployee?.lastName || ''}`.trim()
 
-  // Create computed fields (only using fields that exist in BaseInvestmentContact)
+  // Create computed fields
   const fullName = [salutationLabel, academicTitleLabel, base.firstName, base.lastName].filter(Boolean).join(' ').trim()
 
   const displayName = fullName || base.email || `Contact ${base.id}`
 
   return {
-    ...base,
+    ...common,
 
-    // Only include fields defined in InvestmentContact interface
+    // Computed UI fields (only those defined in InvestmentContact interface)
     displayName,
     fullName,
     salutationLabel,

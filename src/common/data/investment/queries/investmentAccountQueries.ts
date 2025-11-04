@@ -15,16 +15,24 @@ export interface InvestmentAccountQueryVariables {
   search?: string
   industryClassIds?: string[]
   industryClassCodes?: string[]
+  industryIds?: string[]
   companySizeIds?: string[]
   companySizeCodes?: string[]
   legalFormIds?: string[]
   legalFormCodes?: string[]
   accountAnnualRevenueBandIds?: string[]
   accountAnnualRevenueBandCodes?: string[]
+  revenueBandIds?: string[]
   ownerEmployeeIds?: string[]
+  recordStates?: string[]
+  countryIds?: string[]
+  regionIds?: string[]
+  cities?: string[]
   names?: string[]
   geographicPresenceValues?: string[]
   // Created timestamps
+  createdAfter?: string
+  createdBefore?: string
   createdAtFrom?: string
   createdAtTo?: string
   foundationDateFrom?: string
@@ -71,10 +79,10 @@ export const buildInvestmentAccountWhereCondition = (variables: InvestmentAccoun
   }
 
   // Filter by specific fields
-  if (variables.industryClassIds?.length) {
-    andConditions.push(
-      `{ industryClass: { id: { _in: [${variables.industryClassIds.map(id => `"${id}"`).join(', ')}] } } }`
-    )
+  // Industry filter (supports both industryIds and industryClassIds)
+  const industryFilterIds = variables.industryIds || variables.industryClassIds
+  if (industryFilterIds?.length) {
+    andConditions.push(`{ industryClass: { id: { _in: [${industryFilterIds.map(id => `"${id}"`).join(', ')}] } } }`)
   }
   if (variables.industryClassCodes?.length) {
     andConditions.push(
@@ -82,6 +90,7 @@ export const buildInvestmentAccountWhereCondition = (variables: InvestmentAccoun
     )
   }
 
+  // Company Size filter
   if (variables.companySizeIds?.length) {
     andConditions.push(
       `{ companySize: { id: { _in: [${variables.companySizeIds.map(id => `"${id}"`).join(', ')}] } } }`
@@ -93,6 +102,7 @@ export const buildInvestmentAccountWhereCondition = (variables: InvestmentAccoun
     )
   }
 
+  // Legal Form filter
   if (variables.legalFormIds?.length) {
     andConditions.push(`{ legalForm: { id: { _in: [${variables.legalFormIds.map(id => `"${id}"`).join(', ')}] } } }`)
   }
@@ -100,9 +110,11 @@ export const buildInvestmentAccountWhereCondition = (variables: InvestmentAccoun
     andConditions.push(`{ legalForm: { code: { _in: [${variables.legalFormCodes.map(c => `"${c}"`).join(', ')}] } } }`)
   }
 
-  if (variables.accountAnnualRevenueBandIds?.length) {
+  // Revenue Band filter (supports both revenueBandIds and accountAnnualRevenueBandIds)
+  const revenueFilterIds = variables.revenueBandIds || variables.accountAnnualRevenueBandIds
+  if (revenueFilterIds?.length) {
     andConditions.push(
-      `{ accountAnnualRevenueBand: { id: { _in: [${variables.accountAnnualRevenueBandIds.map(id => `"${id}"`).join(', ')}] } } }`
+      `{ accountAnnualRevenueBand: { id: { _in: [${revenueFilterIds.map(id => `"${id}"`).join(', ')}] } } }`
     )
   }
   if (variables.accountAnnualRevenueBandCodes?.length) {
@@ -111,9 +123,36 @@ export const buildInvestmentAccountWhereCondition = (variables: InvestmentAccoun
     )
   }
 
+  // Owner filter
   if (variables.ownerEmployeeIds?.length) {
     andConditions.push(
       `{ ownerEmployee: { id: { _in: [${variables.ownerEmployeeIds.map(id => `"${id}"`).join(', ')}] } } }`
+    )
+  }
+
+  // Record State filter
+  if (variables.recordStates?.length) {
+    andConditions.push(`{ recordState: { _in: [${variables.recordStates.map(s => `"${s}"`).join(', ')}] } }`)
+  }
+
+  // Country filter (from investmentAddress)
+  if (variables.countryIds?.length) {
+    andConditions.push(
+      `{ investmentAddress: { country: { id: { _in: [${variables.countryIds.map(id => `"${id}"`).join(', ')}] } } } }`
+    )
+  }
+
+  // Region filter (from investmentAddress)
+  if (variables.regionIds?.length) {
+    andConditions.push(
+      `{ investmentAddress: { region: { id: { _in: [${variables.regionIds.map(id => `"${id}"`).join(', ')}] } } } }`
+    )
+  }
+
+  // City filter
+  if (variables.cities?.length) {
+    andConditions.push(
+      `{ investmentAddress: { locality: { _in: [${variables.cities.map(c => `"${c}"`).join(', ')}] } } }`
     )
   }
 
@@ -127,11 +166,13 @@ export const buildInvestmentAccountWhereCondition = (variables: InvestmentAccoun
     )
   }
 
-  // CreatedAt range
-  if (variables.createdAtFrom || variables.createdAtTo) {
+  // CreatedAt range (support both createdAfter/Before and createdAtFrom/To)
+  const createdFrom = variables.createdAfter || variables.createdAtFrom
+  const createdTo = variables.createdBefore || variables.createdAtTo
+  if (createdFrom || createdTo) {
     const parts: string[] = []
-    if (variables.createdAtFrom) parts.push(`_gte: "${variables.createdAtFrom}"`)
-    if (variables.createdAtTo) parts.push(`_lte: "${variables.createdAtTo}"`)
+    if (createdFrom) parts.push(`_gte: "${createdFrom}"`)
+    if (createdTo) parts.push(`_lte: "${createdTo}"`)
     andConditions.push(`{ createdAt: { ${parts.join(', ')} } }`)
   }
 
