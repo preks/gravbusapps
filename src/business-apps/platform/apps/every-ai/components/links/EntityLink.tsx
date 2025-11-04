@@ -8,6 +8,7 @@ import IntranetLinkChip from './IntranetLinkChip'
 import InvestmentOpportunityLinkChip from './InvestmentOpportunityLinkChip'
 import InvestmentAccountLinkChip from './InvestmentAccountLinkChip'
 import InvestmentLeadChip from './InvestmentLeadChip'
+import SandboxFileLinkChip from './SandboxFileLinkChip'
 
 export const SUPPORTED_PROTOCOLS = [
   'employee',
@@ -19,7 +20,8 @@ export const SUPPORTED_PROTOCOLS = [
   'intranet',
   'investment_opportunity',
   'investment_account',
-  'investment_lead'
+  'investment_lead',
+  'sandbox'
 ]
 
 export function markdownUrlTransform(url: string): string {
@@ -97,6 +99,15 @@ const EntityLink: React.FC<EntityLinkProps> = ({ href, accessToken, children }) 
   // Investment lead protocol: return chip
   if (protocol === 'investment_lead' && url) {
     return <InvestmentLeadChip investmentLeadId={url} token={accessToken} />
+  }
+
+  // Sandbox file protocol: return download button
+  if (protocol === 'sandbox' && url) {
+    return (
+      <SandboxFileLinkChip filePath={url} token={accessToken}>
+        {children}
+      </SandboxFileLinkChip>
+    )
   }
 
   // Regular links
