@@ -330,50 +330,51 @@ export const EveryAI: React.FC<EveryAIProps> = props => {
                       )}
                     </div>
                   )
-                }
-
-                const agentTurn = turn as AgentTurn
-                return (
-                  <div
-                    key={turnKey}
-                    className="gba:self-start gba:w-full gba:flex gba:items-start gba:gap-3 gba:animate-in gba:slide-in-from-left"
-                    data-testid="chat-agent-turn"
-                  >
-                    <div className="gba:relative gba:flex-shrink-0">
-                      <div className="gba:absolute gba:inset-0 gba:bg-gradient-to-br gba:from-primary gba:to-info gba:rounded-full gba:blur-md gba:opacity-40 gba:animate-pulse" />
-                      <div className="gba:h-10 gba:w-10 gba:bg-gradient-to-br gba:from-primary gba:to-info gba:rounded-full gba:flex gba:items-center gba:justify-center gba:relative gba:shadow-lg">
-                        <svg
-                          className="gba:h-5 gba:w-5 gba:text-primary-foreground"
-                          fill="none"
-                          stroke="currentColor"
-                          viewBox="0 0 24 24"
-                        >
-                          <path
-                            strokeLinecap="round"
-                            strokeLinejoin="round"
-                            strokeWidth={2.5}
-                            d="M13 10V3L4 14h7v7l9-11h-7z"
-                          />
-                        </svg>
+                } else {
+                  // Agent turn
+                  const agentTurn = turn as AgentTurn
+                  return (
+                    <div
+                      key={turnKey}
+                      className="gba:self-start gba:w-full gba:flex gba:items-start gba:gap-3 gba:animate-in gba:slide-in-from-left"
+                      data-testid="chat-agent-turn"
+                    >
+                      <div className="gba:relative gba:flex-shrink-0">
+                        <div className="gba:absolute gba:inset-0 gba:bg-gradient-to-br gba:from-primary gba:to-info gba:rounded-full gba:blur-md gba:opacity-40 gba:animate-pulse" />
+                        <div className="gba:h-10 gba:w-10 gba:bg-gradient-to-br gba:from-primary gba:to-info gba:rounded-full gba:flex gba:items-center gba:justify-center gba:relative gba:shadow-lg">
+                          <svg
+                            className="gba:h-5 gba:w-5 gba:text-primary-foreground"
+                            fill="none"
+                            stroke="currentColor"
+                            viewBox="0 0 24 24"
+                          >
+                            <path
+                              strokeLinecap="round"
+                              strokeLinejoin="round"
+                              strokeWidth={2.5}
+                              d="M13 10V3L4 14h7v7l9-11h-7z"
+                            />
+                          </svg>
+                        </div>
+                      </div>
+                      <div className="gba:flex-1 gba:flex gba:flex-col gba:gap-4">
+                        {agentTurn.outputs?.map((output, outputIdx) => {
+                          const outputKey = isFlowProposalOutput(output)
+                            ? `flow_proposal-${output.uuid}`
+                            : `output-${idx}-${outputIdx}-${output.type}`
+                          return (
+                            <OutputItemRenderer
+                              key={outputKey}
+                              item={output}
+                              accessToken={accessToken}
+                              sendMessage={sendMessage}
+                            />
+                          )
+                        })}
                       </div>
                     </div>
-                    <div className="gba:flex-1 gba:flex gba:flex-col gba:gap-4">
-                      {agentTurn.outputs?.map((output, outputIdx) => {
-                        const outputKey = isFlowProposalOutput(output)
-                          ? `flow_proposal-${output.uuid}`
-                          : `output-${idx}-${outputIdx}-${output.type}`
-                        return (
-                          <OutputItemRenderer
-                            key={outputKey}
-                            item={output}
-                            accessToken={accessToken}
-                            sendMessage={sendMessage}
-                          />
-                        )
-                      })}
-                    </div>
-                  </div>
-                )
+                  )
+                }
               })}
             </div>
           )}
