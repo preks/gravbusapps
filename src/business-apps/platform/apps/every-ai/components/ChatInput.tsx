@@ -82,9 +82,9 @@ export const ChatInput: React.FC<ChatInputProps> = ({
       className={`gba:flex gba:flex-col gba:gap-3 ${disabled ? 'gba:opacity-50 gba:pointer-events-none' : ''} ${className || ''}`}
       data-testid="chat-input"
     >
-      {/* Premium AI Suggestions */}
+      {/* Compact AI Suggestions */}
       {suggestions && suggestions.length > 0 && (
-        <div className="gba:flex gba:flex-col gba:gap-2">
+        <div className="gba:flex gba:flex-wrap gba:gap-2">
           {isPrechatLoading ? (
             <div className="gba:flex gba:items-center gba:gap-2 gba:text-sm gba:text-muted-foreground">
               <div className="gba:animate-spin gba:rounded-full gba:h-4 gba:w-4 gba:border-2 gba:border-primary gba:border-t-transparent" />
