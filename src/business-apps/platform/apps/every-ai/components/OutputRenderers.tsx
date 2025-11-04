@@ -27,6 +27,7 @@ import CrmDocumentDisplay from './entities/CrmDocumentDisplay'
 import IrmNoteDisplay from './entities/IrmNoteDisplay'
 import IrmDocumentDisplay from './entities/IrmDocumentDisplay'
 import EntityLink, { markdownUrlTransform } from './links/EntityLink'
+import NavigationDisplay from './displays/NavigationDisplay'
 
 // Premium Loading Display with AI animation
 export const LoadingDisplay: React.FC = () => {
@@ -468,6 +469,8 @@ function renderDisplayData(item: DisplayData, idx: number, accessToken: string) 
       return <ScatterGraphDisplay key={idx} data={item} />
     case 'calendar':
       return <CalendarDisplay key={idx} data={item} />
+    case 'navigation':
+      return <NavigationDisplay key={idx} data={item} />
     case 'entity':
       return renderEntity(item, accessToken)
     case 'file':

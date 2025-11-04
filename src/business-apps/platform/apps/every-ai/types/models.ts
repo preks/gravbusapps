@@ -114,6 +114,13 @@ export type CalendarViewData = {
   description: string
 }
 
+export type NavigationData = {
+  type: 'navigation'
+  url: string
+  description: string
+  reason: string
+}
+
 export type DisplayData =
   | TextBlockData
   | TableData
@@ -122,6 +129,7 @@ export type DisplayData =
   | EntityData
   | FileData
   | CalendarViewData
+  | NavigationData
 
 export type NextStepProposal = {
   heading: string
