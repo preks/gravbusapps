@@ -24,7 +24,7 @@ import { useLiquidFundDataIntegration } from './hooks/useLiquidFundDataIntegrati
 import { useLiquidFundKPIIntegration } from './hooks/useLiquidFundKPIIntegration'
 import { LiquidFundKPICards } from './components/LiquidFundKPICards'
 import { LiquidFundDistributionCharts, LiquidFundTimelineCharts, LiquidFundAnalyticsCharts } from './components'
-import { safeCurrencyExtraction } from '../shared/utils'
+import { safeCurrencyExtraction } from '@/common/utils/numberFormatter'
 
 // Interface definition moved to shared/types.ts - keeping legacy export for compatibility
 

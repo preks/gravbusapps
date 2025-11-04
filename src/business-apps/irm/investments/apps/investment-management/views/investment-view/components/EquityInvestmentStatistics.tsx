@@ -3,7 +3,7 @@ import { WidgetGroup, WidgetItem } from '@/components/widget-group'
 import { DollarCircleOutlined, RiseOutlined, BankOutlined, TeamOutlined } from '@ant-design/icons'
 import { BusinessAppContextProps } from '@/common/BusinessAppContext'
 import { useEquityKPIIntegration } from '../../analytics-view/equity-analytics/hooks/useEquityKPIIntegration'
-import { formatCurrency, calculateChange } from '../../analytics-view/shared/utils'
+import { formatCurrency, calculateChange } from '../../analytics-view/shared/utils/formatters'
 
 type EquityInvestmentStatisticsProps = BusinessAppContextProps
 

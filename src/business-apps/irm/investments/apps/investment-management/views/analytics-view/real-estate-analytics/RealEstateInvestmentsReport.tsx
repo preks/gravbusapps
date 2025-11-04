@@ -26,14 +26,9 @@ import { useGetInvestments } from '@/common/data/investment'
 import type { Investment } from '@/common/data/investment'
 import { useRealEstateKPIIntegration } from './hooks'
 import { RealEstateDistributionCharts, RealEstateTimelineCharts, RealEstateAnalyticsCharts } from './components'
-import {
-  calculateChange,
-  formatCurrency,
-  formatPercentage,
-  safeCurrencyExtraction,
-  getInvestmentStatusColor,
-  getRiskLevelColor
-} from '../shared/utils'
+import { calculateChange, formatCurrency } from '../shared/utils/formatters'
+import { getInvestmentStatusColor, getRiskLevelColor } from '../shared/utils/colorMappers'
+import { safeCurrencyExtraction, formatPercentage } from '@/common/utils/numberFormatter'
 import type { RealEstateInvestmentSummary } from '../shared/types'
 
 // Legacy interface - kept for compatibility

@@ -40,14 +40,10 @@ interface InvestmentWithSpecializations extends Investment {
   }>
 }
 import { useEquityKPIIntegration, useEquityAvailableCurrencies } from './hooks'
-import {
-  calculateChange,
-  getInvestmentStatusColor,
-  getRiskLevelColor,
-  getInvestmentRoleColor,
-  safeCurrencyExtraction,
-  formatDuration
-} from '../shared/utils'
+import { calculateChange } from '../shared/utils/formatters'
+import { getInvestmentStatusColor, getRiskLevelColor, getInvestmentRoleColor } from '../shared/utils/colorMappers'
+import { safeCurrencyExtraction } from '@/common/utils/numberFormatter'
+import { formatDuration } from '../shared/utils/dateUtils'
 import type { EquityInvestmentSummary } from '../shared/types'
 import { EquityTimelineCharts, EquityAnalyticsCharts, EquityDistributionCharts } from './components'
 

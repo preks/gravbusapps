@@ -3,7 +3,8 @@ import { WidgetGroup, WidgetItem } from '@/components/widget-group'
 import { DollarCircleOutlined, RiseOutlined, TeamOutlined, PercentageOutlined } from '@ant-design/icons'
 import { BusinessAppContextProps } from '@/common/BusinessAppContext'
 import { useRealEstateKPIIntegration } from '../../analytics-view/real-estate-analytics/hooks/useRealEstateKPIIntegration'
-import { formatCurrency, formatPercentage, calculateChange } from '../../analytics-view/shared/utils'
+import { formatCurrency, calculateChange } from '../../analytics-view/shared/utils/formatters'
+import { formatPercentage } from '@/common/utils/numberFormatter'
 
 type RealEstateInvestmentStatisticsProps = BusinessAppContextProps
 

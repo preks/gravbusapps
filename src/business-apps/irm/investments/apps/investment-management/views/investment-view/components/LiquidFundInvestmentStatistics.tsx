@@ -3,7 +3,7 @@ import { WidgetGroup, WidgetItem } from '@/components/widget-group'
 import { DollarCircleOutlined, RiseOutlined, TeamOutlined, BankOutlined } from '@ant-design/icons'
 import { BusinessAppContextProps } from '@/common/BusinessAppContext'
 import { useLiquidFundKPIIntegration } from '../../analytics-view/liquid-fund-analytics/hooks/useLiquidFundKPIIntegration'
-import { formatCurrency, calculateChange } from '../../analytics-view/shared/utils'
+import { formatCurrency, calculateChange } from '../../analytics-view/shared/utils/formatters'
 
 type LiquidFundInvestmentStatisticsProps = BusinessAppContextProps
 
