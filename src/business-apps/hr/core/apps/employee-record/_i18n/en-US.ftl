@@ -1,0 +1,257 @@
+# Compensation Feature - English Translations
+
+# Main Tab
+compensation-title = Compensation
+compensation-description = View compensation details, salary history, bonuses, and benefits
+compensation-error-title = Error loading compensation data
+compensation-error-retry = Retry
+
+# Sub-Tabs
+tab-current-compensation = Current Compensation
+tab-compensation-history = Compensation History
+tab-growth = Growth
+
+# Current Compensation View
+current-base-salary = Base Salary
+current-total-bonuses-ytd = Total Bonuses (YTD)
+current-benefits-value = Benefits Value
+current-active-benefits = Active Benefits
+current-bonus = bonus
+current-bonuses = bonuses
+current-annually = Annually
+
+# Compensation Band
+band-title = Compensation Band
+band-name = Band Name
+band-salary-range = Salary Range
+band-pay-grade = Pay Grade
+band-level = Level
+band-loading = Loading compensation band...
+band-no-band-assigned = No compensation band assigned. Compensation bands are linked through job levels.
+
+# Pay History View
+history-compensation-title = Compensation History
+history-bonus-title = Bonus History
+history-payslip-title = Payslip History
+history-loading-compensation = Loading compensation history...
+history-loading-bonus = Loading bonus history...
+history-loading-payslip = Loading payslip history...
+history-no-compensation = No compensation history available
+history-no-bonus = No bonus history available
+history-no-payslip = No payslips available
+
+# Growth View
+growth-total-growth = Total Growth
+growth-avg-annual-increase = Avg Annual Increase
+growth-career-milestones = Career Milestones
+growth-significant-events = Significant events
+growth-per-year-over = Per year over { $years } years
+growth-timeline-title = Compensation Growth Timeline
+growth-timeline-description = Last { $years } years of compensation progression
+growth-loading-chart = Loading chart...
+growth-loading-milestones = Loading milestone data...
+growth-milestones-title = Career Milestones
+growth-milestones-description = Timeline of significant compensation events
+
+# Total Rewards
+rewards-title = Total Rewards 360°
+rewards-description = Complete compensation package breakdown
+rewards-breakdown-title = Compensation Breakdown
+rewards-breakdown-description = Detailed breakdown by category
+rewards-visual-breakdown = Visual Breakdown
+rewards-visual-description = Compensation distribution chart
+rewards-total-annual-value = Total Annual Value
+rewards-base-salary = Base Salary
+rewards-bonuses-ytd = Bonuses (YTD)
+rewards-benefits = Benefits
+rewards-stock-options = Stock Options
+rewards-loading = Loading total rewards...
+rewards-no-data = No compensation data available
+rewards-package-description = Your total rewards package includes base salary, bonuses, benefits, and stock options
+
+# Benefits & Perks
+benefits-catalog-title = Benefits Catalog
+benefits-active-count = { $count } active
+benefits-available-count = { $count } available
+benefits-total-count = { $count } total
+benefits-search-placeholder = Search benefits...
+benefits-loading = Loading benefits catalog...
+benefits-error-title = Error Loading Benefits
+benefits-error-retry = Retry
+benefits-no-catalog-title = No Benefits Available
+benefits-no-catalog-description = No benefits are currently available in the catalog.
+benefits-no-results-title = No Benefits Found
+benefits-no-results-description = No benefits match your search criteria.
+benefits-clear-search = Clear Search
+benefits-active-section-title = Active Benefits ({ $count })
+benefits-available-section-title = Available Benefits ({ $count })
+
+# Benefit Card
+benefit-status-active = Active
+benefit-status-pending = Pending
+benefit-status-available = Available
+benefit-request-button = Request
+benefit-deactivate-button = Deactivate
+benefit-view-details = View Details
+benefit-provider = Provider
+benefit-value-yearly = Yearly Value
+benefit-no-provider = No provider specified
+
+# Payslip History
+payslip-title = Payslip History
+payslip-search-placeholder = Search payslips...
+payslip-filter-all-years = All Years
+payslip-loading = Loading payslip history...
+payslip-no-results = No payslips available
+payslip-no-results-filtered = No payslips found matching your filters
+payslip-month = Month
+payslip-year = Year
+payslip-gross-amount = Gross Amount
+payslip-status = Status
+payslip-view-button-title = View Payslip
+payslip-download-button-title = Download Payslip
+payslip-showing = Showing { $start } to { $end } of { $total } payslips
+payslip-pagination-prev = Previous
+payslip-pagination-next = Next
+payslip-no-document = Payslip document is not available at the moment.
+payslip-download-failed = Failed to download payslip. Please try again.
+
+# Request Benefit Modal
+modal-request-title = Request Benefit
+modal-request-description = Complete the form below to request this benefit
+modal-request-provider-label = Benefit Provider
+modal-request-provider-placeholder = Select a provider
+modal-request-value-label = Yearly Benefit Value (Optional)
+modal-request-value-placeholder = Enter estimated yearly value
+modal-request-value-help = Optional: Estimated annual value of this benefit
+modal-request-start-date-label = Start Date
+modal-request-justification-label = Justification
+modal-request-justification-placeholder = Explain why you need this benefit...
+modal-request-justification-help = Minimum { $min } characters, maximum { $max } characters
+modal-request-submit-button = Submit Request
+modal-request-cancel-button = Cancel
+modal-request-submitting = Submitting...
+modal-request-success = Benefit request submitted successfully
+
+# Deactivate Benefit Modal
+modal-deactivate-title = Deactivate Benefit
+modal-deactivate-description = You are about to deactivate this benefit
+modal-deactivate-warning = This will end your enrollment in this benefit program.
+modal-deactivate-provider-label = Provider
+modal-deactivate-current-value = Current Yearly Value
+modal-deactivate-start-date-label = Start Date
+modal-deactivate-end-date-label = End Date
+modal-deactivate-end-date-help = Date when this benefit will be deactivated
+modal-deactivate-reason-label = Reason for Deactivation
+modal-deactivate-reason-placeholder = Select a reason
+modal-deactivate-additional-info-label = Additional Information (Optional)
+modal-deactivate-additional-info-placeholder = Provide any additional details...
+modal-deactivate-additional-info-help = Optional: Additional context for deactivation
+modal-deactivate-submit-button = Deactivate Benefit
+modal-deactivate-cancel-button = Cancel
+modal-deactivate-submitting = Processing...
+modal-deactivate-success = Benefit deactivated successfully
+
+# Form Validation
+validation-provider-required = Provider is required
+validation-start-date-required = Start date is required
+validation-end-date-required = End date is required
+validation-justification-required = Justification is required
+validation-justification-min-length = Justification must be at least { $min } characters
+validation-justification-max-length = Justification must not exceed { $max } characters
+validation-reason-required = Reason is required
+validation-date-future = Start date must be in the future
+validation-date-past = End date must be in the past or today
+
+# Table Headers (reusable)
+table-effective-date = Effective Date
+table-base-salary = Base Salary
+table-compensation-band = Compensation Band
+table-pay-grade = Pay Grade
+table-notes = Notes
+table-date = Date
+table-amount = Amount
+table-type = Type
+table-fiscal-year = Fiscal Year
+table-status = Status
+table-month = Month
+table-year = Year
+table-gross-amount = Gross Amount
+table-view = View
+table-download = Download
+table-to = to
+
+# Status Labels (from enums)
+status-pending = Pending
+status-approved = Approved
+status-paid = Paid
+status-rejected = Rejected
+status-active = Active
+status-inactive = Inactive
+status-draft = Draft
+status-finalized = Finalized
+status-cancelled = Cancelled
+
+# Loading States
+loading-compensation-data = Loading compensation data...
+loading-compensation-history = Loading compensation history...
+loading-bonus-history = Loading bonus history...
+loading-payslip-history = Loading payslip history...
+loading-benefits = Loading benefits...
+loading-chart = Loading chart...
+loading-milestones = Loading milestones...
+
+# Empty States
+empty-compensation-band = No compensation band assigned
+empty-compensation-history = No compensation history available
+empty-bonus-history = No bonus history available
+empty-payslip-history = No payslip history available
+empty-benefits-catalog = No benefits available
+
+# Common Actions
+action-retry = Retry
+action-clear-filters = Clear Filters
+action-view-details = View Details
+action-submit = Submit
+action-cancel = Cancel
+action-request = Request
+action-deactivate = Deactivate
+action-download = Download
+action-view = View
+action-close = Close
+
+# Benefits Catalog Section
+benefit-per-year = /yr
+benefits-catalog-summary = {$active} active · {$available} available · {$total} total
+benefits-catalog-search-placeholder = Search benefits...
+benefits-catalog-loading = Loading benefits catalog...
+benefits-catalog-error-title = Error Loading Benefits
+benefits-catalog-retry = Retry
+benefits-active-section-title = Active Benefits ({$count})
+benefits-available-section-title = Available Benefits ({$count})
+
+# Payslip Section
+payslip-search-placeholder = Search payslips...
+payslip-filter-all-years = All Years
+payslip-loading = Loading payslip history...
+payslip-no-results = No payslips found matching your filters
+payslip-no-data = No payslips available
+payslip-table-month = Month
+payslip-table-year = Year
+payslip-table-gross-amount = Gross Amount
+payslip-table-status = Status
+payslip-table-view = View
+payslip-table-download = Download
+payslip-view-tooltip = View Payslip
+payslip-download-tooltip = Download Payslip
+
+# Modal Form Fields
+modal-request-benefit-type-label = Benefit Type
+modal-character-count = {$current} / {$max} characters
+modal-character-minimum = (minimum {$min} characters)
+
+# Deactivation Reasons
+modal-deactivate-reason-no_longer_needed = No longer needed
+modal-deactivate-reason-found_alternative = Found alternative
+modal-deactivate-reason-cost_reduction = Cost reduction
+modal-deactivate-reason-other = Other (please specify)
