@@ -122,8 +122,10 @@ const SchemaField: React.FC<SchemaFieldProps> = ({ name, path, schema, required,
         if (rawEnumOptions || rawOneOfOptions) {
           const options = (rawEnumOptions || rawOneOfOptions || []).map((option: any, index: number) => {
             const rawValue = rawEnumOptions ? option : (option?.const ?? option?.value ?? option)
-            const id = toOptionId(rawValue ?? index)
-            const labelText = rawEnumOptions ? toDisplayString(option) : (option?.title ?? toDisplayString(rawValue))
+            const id = String(toOptionId(rawValue ?? index))
+            const labelText = String(
+              rawEnumOptions ? toDisplayString(option) : (option?.title ?? toDisplayString(rawValue))
+            )
             return {
               id,
               label: labelText,
@@ -131,26 +133,27 @@ const SchemaField: React.FC<SchemaFieldProps> = ({ name, path, schema, required,
             }
           })
 
-          const selectedOptionId =
+          const selectedOptionId = String(
             options.find(opt => deepEquals(opt.rawValue, value))?.id ??
-            (value === undefined || value === null ? '' : toOptionId(value))
+              (value === undefined || value === null ? '' : toOptionId(value))
+          )
 
           return (
             <Select
               value={selectedOptionId}
               onValueChange={newValue => {
-                const selected = options.find(opt => opt.id === newValue)
+                const selected = options.find(opt => opt.id === String(newValue))
                 onChange(selected ? selected.rawValue : newValue)
               }}
               disabled={disabled}
             >
               <SelectTrigger className="gba:w-full">
-                <SelectValue placeholder={`Select ${label}`} />
+                <SelectValue placeholder={`Select ${String(label)}`} />
               </SelectTrigger>
               <SelectContent>
-                {options.map(option => (
-                  <SelectItem key={option.id} value={option.id}>
-                    {option.label}
+                {options.map((option, idx) => (
+                  <SelectItem key={`${controlId}-option-${idx}`} value={String(option.id)}>
+                    {String(option.label)}
                   </SelectItem>
                 ))}
               </SelectContent>
@@ -201,7 +204,7 @@ const SchemaField: React.FC<SchemaFieldProps> = ({ name, path, schema, required,
             id={controlId}
             type="text"
             placeholder={label}
-            value={typeof value === 'string' ? value : (value ?? '')}
+            value={String(typeof value === 'string' ? value : (value ?? ''))}
             onChange={e => onChange(e.target.value)}
             disabled={disabled}
           />
@@ -212,7 +215,7 @@ const SchemaField: React.FC<SchemaFieldProps> = ({ name, path, schema, required,
           <Input
             id={controlId}
             type="number"
-            value={typeof value === 'number' ? value : (value ?? '')}
+            value={typeof value === 'number' ? String(value) : String(value ?? '')}
             onChange={e => {
               const inputValue = e.target.value
               onChange(inputValue === '' ? null : Number(inputValue))
@@ -232,7 +235,7 @@ const SchemaField: React.FC<SchemaFieldProps> = ({ name, path, schema, required,
               className="gba:h-4 gba:w-4 gba:rounded gba:border-border"
             />
             <Label htmlFor={controlId} className="gba:ml-2">
-              {label}
+              {String(label)}
             </Label>
           </div>
         )
@@ -243,14 +246,14 @@ const SchemaField: React.FC<SchemaFieldProps> = ({ name, path, schema, required,
 
         return (
           <div className="gba:border gba:border-border gba:rounded-md gba:p-4 gba:space-y-4">
-            <p className="gba:text-sm gba:font-medium">{label}</p>
+            <p className="gba:text-sm gba:font-medium">{String(label)}</p>
             {Object.entries(schema.properties).map(([propName, propSchema]: [string, any]) => (
               <SchemaField
                 key={`${fieldPath}.${propName}`}
                 name={propName}
                 path={fieldPath}
                 schema={propSchema}
-                required={schema.required?.includes(propName)}
+                required={schema.required?.includes(propName) || false}
                 disabled={disabled}
                 value={value?.[propName]}
                 onChange={newValue => onChange({ ...value, [propName]: newValue })}
@@ -275,7 +278,7 @@ const SchemaField: React.FC<SchemaFieldProps> = ({ name, path, schema, required,
   return (
     <div className="gba:mb-4">
       <Label htmlFor={controlId} className="gba:mb-1 gba:block">
-        {label} {required && <span className="gba:text-destructive">*</span>}
+        {String(label)} {required && <span className="gba:text-destructive">*</span>}
       </Label>
       {renderField()}
     </div>
