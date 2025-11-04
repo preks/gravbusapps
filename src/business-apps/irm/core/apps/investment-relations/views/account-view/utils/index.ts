@@ -1,14 +1,13 @@
 // Utility functions for the Investment Relations Account View
+import { formatCurrencyString } from '@/common/utils/numberFormatter'
 
 /**
  * Format currency amount with proper formatting
+ * Uses central numberFormatter for consistency
  */
 export const formatCurrency = (amount: number | undefined, currency: string = 'EUR'): string => {
   if (amount === undefined || amount === null) return '-'
-  return new Intl.NumberFormat('en-US', {
-    style: 'currency',
-    currency: currency
-  }).format(amount)
+  return formatCurrencyString(amount, { currency, maximumFractionDigits: 2 })
 }
 
 /**
