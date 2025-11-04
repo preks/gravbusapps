@@ -79,10 +79,12 @@ const GrowthMilestoneCard: React.FC<GrowthMilestoneCardProps> = ({ t, growthData
       <Card data-testid="growth-milestones-card">
         <CardHeader>
           <CardTitle>{t('growth-milestones-title')}</CardTitle>
-          <CardDescription>Loading milestones...</CardDescription>
+          <CardDescription>{t('growth-milestones-loading')}</CardDescription>
         </CardHeader>
         <CardContent>
-          <div className="gba:text-center gba:text-muted-foreground gba:py-8">Loading milestone data...</div>
+          <div className="gba:text-center gba:text-muted-foreground gba:py-8">
+            {t('growth-milestones-loading-data')}
+          </div>
         </CardContent>
       </Card>
     )
@@ -96,14 +98,12 @@ const GrowthMilestoneCard: React.FC<GrowthMilestoneCardProps> = ({ t, growthData
   return (
     <Card data-testid="growth-milestones-card">
       <CardHeader>
-        <CardTitle>
-          {getTranslationFromI18nKeyAndLabel('lowcoder:compensation.career_milestones', 'Career Milestones')}
-        </CardTitle>
-        <CardDescription>Timeline of significant compensation events</CardDescription>
+        <CardTitle>{t('growth-milestones-title')}</CardTitle>
+        <CardDescription>{t('growth-milestones-description')}</CardDescription>
       </CardHeader>
       <CardContent>
         {sortedMilestones.length === 0 ? (
-          <div className="gba:text-center gba:text-muted-foreground gba:py-8">No milestones recorded yet.</div>
+          <div className="gba:text-center gba:text-muted-foreground gba:py-8">{t('growth-milestones-empty')}</div>
         ) : (
           <div className="gba:space-y-4">
             {sortedMilestones.map(milestone => (
@@ -113,7 +113,7 @@ const GrowthMilestoneCard: React.FC<GrowthMilestoneCardProps> = ({ t, growthData
                 data-testid={`milestone-item-${milestone.id}`}
               >
                 {/* Icon */}
-                <div className={`gba:flex-shrink-0 gba:p-3 gba:rounded-lg ${getMilestoneColor(milestone.type)}`}>
+                <div className={`gba:shrink-0 gba:p-3 gba:rounded-lg ${getMilestoneColor(milestone.type)}`}>
                   {getMilestoneIcon(milestone.type)}
                 </div>
 
@@ -137,7 +137,7 @@ const GrowthMilestoneCard: React.FC<GrowthMilestoneCardProps> = ({ t, growthData
                     </div>
 
                     {/* Amount Change */}
-                    <div className="gba:text-right gba:flex-shrink-0">
+                    <div className="gba:text-right gba:shrink-0">
                       {milestone.previousAmount && milestone.previousAmount > 0 ? (
                         <>
                           <div className="gba:text-lg gba:font-bold gba:text-success">
@@ -178,7 +178,9 @@ const GrowthMilestoneCard: React.FC<GrowthMilestoneCardProps> = ({ t, growthData
                             })}
                           </div>
                           <div className="gba:text-xs gba:text-muted-foreground gba:mt-1">
-                            {milestone.type === 'Bonus Payout' ? 'Bonus' : 'Addition'}
+                            {milestone.type === 'Bonus Payout'
+                              ? t('growth-milestone-bonus')
+                              : t('growth-milestone-addition')}
                           </div>
                         </>
                       ) : (
@@ -191,7 +193,9 @@ const GrowthMilestoneCard: React.FC<GrowthMilestoneCardProps> = ({ t, growthData
                               maximumFractionDigits: 0
                             })}
                           </div>
-                          <div className="gba:text-xs gba:text-muted-foreground gba:mt-1">Starting point</div>
+                          <div className="gba:text-xs gba:text-muted-foreground gba:mt-1">
+                            {t('growth-milestone-starting-point')}
+                          </div>
                         </>
                       )}
                     </div>
