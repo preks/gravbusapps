@@ -60,7 +60,7 @@ export const ConversationRenderer: React.FC<ConversationRendererProps> = ({
 
           return (
             <div key={turnKey} className="gba:flex gba:flex-col gba:items-end gba:gap-2" data-testid="chat-user-turn">
-              {turn.files?.length && turn.files.length > 0 && (
+              {turn.files && turn.files.length > 0 && (
                 <div className="gba:flex gba:flex-wrap gba:gap-2">
                   {turn.files.map(f => (
                     <div
