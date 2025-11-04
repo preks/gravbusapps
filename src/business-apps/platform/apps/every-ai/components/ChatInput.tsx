@@ -97,30 +97,32 @@ export const ChatInput: React.FC<ChatInputProps> = ({
               return (
                 <button
                   key={idx}
-                  onClick={() => {
-                    setValue(text)
-                    setTimeout(() => handleSend(), 100)
+                  onClick={e => {
+                    e.preventDefault()
+                    e.stopPropagation()
+                    // Send directly - one click!
+                    onSend(
+                      text,
+                      files.map(f => f.file),
+                      false,
+                      isSearching,
+                      undefined
+                    )
+                    clearFiles()
+                    setIsSearching(false)
                   }}
-                  className="gba:group gba:w-full gba:text-left gba:text-sm gba:leading-6 gba:rounded-xl gba:border gba:border-border gba:bg-card hover:gba:bg-accent gba:px-4 gba:py-2.5 gba:transition-all hover:gba:shadow-md hover:gba:border-primary/50 gba:relative gba:overflow-hidden"
+                  className="gba:group gba:inline-flex gba:items-center gba:gap-1.5 gba:text-xs gba:leading-tight gba:rounded-lg gba:border gba:border-border gba:bg-card hover:gba:bg-accent gba:px-2.5 gba:py-1.5 gba:transition-all hover:gba:shadow-sm hover:gba:border-primary/50"
                   data-testid={`suggestion-${idx}`}
                 >
-                  <div className="gba:absolute gba:inset-0 gba:bg-gradient-to-r gba:from-primary/5 gba:to-info/5 gba:opacity-0 group-hover:gba:opacity-100 gba:transition-opacity" />
-                  <span className="gba:relative gba:flex gba:items-center gba:gap-2">
-                    <svg
-                      className="gba:h-4 gba:w-4 gba:text-muted-foreground group-hover:gba:text-primary gba:transition-colors"
-                      fill="none"
-                      stroke="currentColor"
-                      viewBox="0 0 24 24"
-                    >
-                      <path
-                        strokeLinecap="round"
-                        strokeLinejoin="round"
-                        strokeWidth={2}
-                        d="M13 10V3L4 14h7v7l9-11h-7z"
-                      />
-                    </svg>
-                    <span className="gba:text-foreground">{label}</span>
-                  </span>
+                  <svg
+                    className="gba:h-3 gba:w-3 gba:text-muted-foreground group-hover:gba:text-primary gba:transition-colors gba:flex-shrink-0"
+                    fill="none"
+                    stroke="currentColor"
+                    viewBox="0 0 24 24"
+                  >
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 10V3L4 14h7v7l9-11h-7z" />
+                  </svg>
+                  <span className="gba:text-foreground gba:truncate">{label}</span>
                 </button>
               )
             })
