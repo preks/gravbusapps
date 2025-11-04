@@ -21,6 +21,7 @@ import OpportunityDisplay from './entities/OpportunityDisplay'
 import CompanyDisplay from './entities/CompanyDisplay'
 import ExpenseDisplay from './entities/ExpenseDisplay'
 import AbsenceDisplay from './entities/AbsenceDisplay'
+import BlinkDisplay from './entities/BlinkDisplay'
 import ServiceTicketDisplay from './entities/ServiceTicketDisplay'
 import CrmNoteDisplay from './entities/CrmNoteDisplay'
 import CrmDocumentDisplay from './entities/CrmDocumentDisplay'
@@ -258,8 +259,17 @@ function renderEntity(item: EntityData, accessToken: string) {
     case 'investment_account':
       return <CompanyDisplay key={item.id} companyId={item.id} accessToken={accessToken} operation={item.operation} />
     case 'expense_request':
+    case 'expense_plan':
     case 'expense_item':
-      return <ExpenseDisplay key={item.id} expenseId={item.id} accessToken={accessToken} operation={item.operation} />
+      return (
+        <ExpenseDisplay
+          key={item.id}
+          expenseId={item.id}
+          accessToken={accessToken}
+          operation={item.operation}
+          entityType={item.entity as 'expense_request' | 'expense_plan' | 'expense_item'}
+        />
+      )
     case 'investment_lead':
       return <LeadDisplay key={item.id} leadId={item.id} accessToken={accessToken} operation={item.operation} />
     case 'investment_contact':
@@ -267,6 +277,9 @@ function renderEntity(item: EntityData, accessToken: string) {
     case 'absence':
     case 'employee_absence':
       return <AbsenceDisplay key={item.id} absenceId={item.id} accessToken={accessToken} operation={item.operation} />
+    case 'blink':
+    case 'quick_task':
+      return <BlinkDisplay key={item.id} blinkId={item.id} accessToken={accessToken} operation={item.operation} />
     case 'service_ticket':
       return (
         <ServiceTicketDisplay

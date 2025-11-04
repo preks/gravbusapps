@@ -87,16 +87,17 @@ ai-assistant/
 
 ### Entity Support (100% Complete)
 
-| Entity Type             | Status | GraphQL Integration         |
-| ----------------------- | ------ | --------------------------- |
-| **Employee**            | ✅     | employees_by_pk             |
-| **Lead**                | ✅     | customerLeads_by_pk         |
-| **Contact**             | ✅     | customerContacts_by_pk      |
-| **Opportunity**         | ✅     | customerOpportunities_by_pk |
-| **Company/Account**     | ✅     | customerAccounts_by_pk      |
-| **Expense**             | ✅     | employeeExpenses_by_pk      |
-| **Investment Entities** | ✅     | Mapped to CRM equivalents   |
-| **Fallback Handler**    | ✅     | Generic entity display      |
+| Entity Type             | Status | GraphQL Integration                      |
+| ----------------------- | ------ | ---------------------------------------- |
+| **Employee**            | ✅     | employees_by_pk                          |
+| **Lead**                | ✅     | customerLeads_by_pk                      |
+| **Contact**             | ✅     | customerContacts_by_pk                   |
+| **Opportunity**         | ✅     | customerOpportunities_by_pk              |
+| **Company/Account**     | ✅     | customerAccounts_by_pk                   |
+| **Expense**             | ✅     | ExpenseRequest, ExpensePlan, ExpenseItem |
+| **Blink (Quick Task)**  | ✅     | CFlow API integration                    |
+| **Investment Entities** | ✅     | Mapped to CRM equivalents                |
+| **Fallback Handler**    | ✅     | Generic entity display                   |
 
 ### Advanced Features
 

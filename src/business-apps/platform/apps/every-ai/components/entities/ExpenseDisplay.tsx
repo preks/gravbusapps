@@ -6,18 +6,26 @@ interface ExpenseDisplayProps {
   expenseId: string
   accessToken: string
   operation?: 'create' | 'update' | 'delete' | 'read'
+  entityType?: 'expense_request' | 'expense_item' | 'expense_plan'
 }
 
 interface Expense {
   id: string
   title: string
+  code?: string
   totalAmount?: number
   currency?: string
+  currencyRef?: string
   status?: string
   submissionDate?: string
+  expenseDate?: string
+  requestDate?: string
+  planDate?: string
+  startDate?: string
+  endDate?: string
 }
 
-export const ExpenseDisplay: React.FC<ExpenseDisplayProps> = ({ expenseId, accessToken, operation }) => {
+export const ExpenseDisplay: React.FC<ExpenseDisplayProps> = ({ expenseId, accessToken, operation, entityType }) => {
   const [expense, setExpense] = useState<Expense | null>(null)
   const [isLoading, setIsLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
@@ -29,28 +37,106 @@ export const ExpenseDisplay: React.FC<ExpenseDisplayProps> = ({ expenseId, acces
       setError(null)
 
       try {
-        const query = `
-          query GetExpense($id: uuid!) {
-            employeeExpenses_by_pk(id: $id) {
+        // Try all three expense types: ExpenseRequest, ExpensePlan, ExpenseItem
+        let query: string
+        let resultKey: string
+
+        console.log('Fetching expense with ID:', expenseId, 'Type:', entityType || 'auto-detect')
+
+        // First, try to fetch as ExpenseRequest
+        query = `
+          query GetExpenseRequest($id: uuid!) {
+            ExpenseRequest(where: {id: {_eq: $id}, isDeleted: {_eq: false}}) {
               id
               title
               totalAmount
-              currency
+              currencyRef
               status
-              submissionDate
+              requestDate
+              code
+              startDate
+              endDate
             }
           }
         `
+        resultKey = 'ExpenseRequest'
+        let result = await graphqlClient.request<{
+          ExpenseRequest?: Expense[]
+          ExpensePlan?: Expense[]
+          ExpenseItem?: Expense[]
+        }>(query, { id: expenseId })
+        console.log('ExpenseRequest query result:', result)
 
-        const result = await graphqlClient.request<{ employeeExpenses_by_pk: Expense }>(query, { id: expenseId })
+        // If no ExpenseRequest found, try ExpensePlan
+        if (!result.ExpenseRequest || result.ExpenseRequest.length === 0) {
+          console.log('Not found as ExpenseRequest, trying ExpensePlan...')
+          query = `
+            query GetExpensePlan($id: uuid!) {
+              ExpensePlan(where: {id: {_eq: $id}, isDeleted: {_eq: false}}) {
+                id
+                title
+                totalAmount
+                currencyRef
+                status
+                planDate
+                code
+                startDate
+                endDate
+              }
+            }
+          `
+          resultKey = 'ExpensePlan'
+          result = await graphqlClient.request<{
+            ExpenseRequest?: Expense[]
+            ExpensePlan?: Expense[]
+            ExpenseItem?: Expense[]
+          }>(query, { id: expenseId })
+          console.log('ExpensePlan query result:', result)
+        }
 
-        if (result.employeeExpenses_by_pk) {
-          setExpense(result.employeeExpenses_by_pk)
+        // If no ExpensePlan found, try ExpenseItem
+        if (
+          (!result.ExpenseRequest || result.ExpenseRequest.length === 0) &&
+          (!result.ExpensePlan || result.ExpensePlan.length === 0)
+        ) {
+          console.log('Not found as ExpensePlan, trying ExpenseItem...')
+          query = `
+            query GetExpenseItem($id: uuid!) {
+              ExpenseItem(where: {id: {_eq: $id}, isDeleted: {_eq: false}}) {
+                id
+                title
+                totalAmount
+                currencyRef
+                status
+                expenseDate
+                code
+              }
+            }
+          `
+          resultKey = 'ExpenseItem'
+          result = await graphqlClient.request<{
+            ExpenseRequest?: Expense[]
+            ExpensePlan?: Expense[]
+            ExpenseItem?: Expense[]
+          }>(query, { id: expenseId })
+          console.log('ExpenseItem query result:', result)
+        }
+
+        const expenseArray = result[resultKey as keyof typeof result]
+        if (expenseArray && expenseArray.length > 0) {
+          const expenseData = expenseArray[0]
+          console.log('Expense found:', expenseData, 'Type:', resultKey)
+          setExpense({
+            ...expenseData,
+            currency: expenseData.currencyRef,
+            submissionDate: expenseData.expenseDate || expenseData.requestDate || expenseData.planDate
+          })
         } else {
+          console.log('No expense found in ExpenseRequest, ExpensePlan, or ExpenseItem')
           setError('Expense not found')
         }
       } catch (err) {
-        console.error('Error fetching expense:', err)
+        console.error('Error fetching expense:', err, 'Expense ID:', expenseId)
         setError('Failed to load expense')
       } finally {
         setIsLoading(false)
@@ -60,7 +146,7 @@ export const ExpenseDisplay: React.FC<ExpenseDisplayProps> = ({ expenseId, acces
     if (expenseId && accessToken) {
       fetchExpense()
     }
-  }, [expenseId, accessToken, graphqlClient])
+  }, [expenseId, accessToken, graphqlClient, entityType])
 
   const getOperationBadge = () => {
     switch (operation) {
