@@ -59,6 +59,7 @@ export class ChangeLogService {
         'employee.changePictureFlow',
         'employee.changeAddress',
         'employee.changeBankAccount',
+        'employee.changeCommunication',
         'employee.changeEmployeePrivateCommunication',
         'employee.changeEmployeeSkills',
         'employee.changePersonalInformation',
@@ -96,7 +97,7 @@ export class ChangeLogService {
       // Map each task to ChangeLogEntry, but keep only those referencing this employeeId in variables/inputs
       const entries = allTasks
         .map(task => this.taskToChangeLogEntry(task))
-        .filter((entry): entry is ChangeLogEntry => Boolean(entry))
+        .filter(ChangeLogService.isNonNullChangeLogEntry)
 
       return {
         entries,
@@ -167,9 +168,6 @@ export class ChangeLogService {
       const employeeData = this.graphqlClient ? data?.Employee?.[0] : data.data?.Employee?.[0]
       const entries = ChangeLogDataTransformer.transformEmployeeData(employeeData)
 
-      console.log(employeeData, 'employeeData')
-      console.log(entries, 'entries')
-
       return {
         entries,
         totalCount: entries.length,
@@ -180,6 +178,11 @@ export class ChangeLogService {
       // Propagate the error instead of silently returning empty data
       throw new Error(`Failed to fetch change log data: ${error instanceof Error ? error.message : 'Unknown error'}`)
     }
+  }
+
+  // Type guard for filtering out nullish entries from task mapping
+  private static isNonNullChangeLogEntry(value: ChangeLogEntry | null | undefined): value is ChangeLogEntry {
+    return Boolean(value)
   }
 
   // (summary-based transformer removed; we now use flow-executions/tasks per process)
@@ -214,6 +217,7 @@ export class ChangeLogService {
       'employee.changePictureFlow': { category: 'personal' },
       'employee.changeAddress': { category: 'address' },
       'employee.changeBankAccount': { category: 'personal' },
+      'employee.changeCommunication': { category: 'address' },
       'employee.changeEmployeePrivateCommunication': { category: 'address' },
       'employee.changeEmployeeSkills': { category: 'skills' },
       changeEmployeeSkills: { category: 'skills' },
@@ -235,6 +239,12 @@ export class ChangeLogService {
         categoryValue = 'documents'
       } else if (/skill/i.test(referenceName) || /skill/i.test(processName)) {
         categoryValue = 'skills'
+      } else if (
+        /address/i.test(referenceName) ||
+        /communication/i.test(referenceName) ||
+        /address|communication/i.test(processName)
+      ) {
+        categoryValue = 'address'
       }
     }
     if (!categoryValue) categoryValue = 'personal'
