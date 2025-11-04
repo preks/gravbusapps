@@ -67,6 +67,8 @@ export const ServiceTicketDisplay: React.FC<ServiceTicketDisplayProps> = ({
 
         const taskData = await response.json()
 
+        console.log('[ServiceTicket] Fetched task data:', taskData)
+
         if (taskData) {
           setTicket(taskData)
 
@@ -88,9 +90,13 @@ export const ServiceTicketDisplay: React.FC<ServiceTicketDisplayProps> = ({
             try {
               const catalogPromises = catalogIds.map(async catalogId => {
                 try {
+                  console.log('[ServiceTicket] Resolving catalog:', catalogId)
                   const entry = await catalogClient.getCatalogEntry(catalogId)
-                  return { id: catalogId, label: entry.label || catalogId }
-                } catch {
+
+                  console.log('[ServiceTicket] Resolved catalog:', catalogId, entry)
+                  return { id: catalogId, label: entry.label || entry.value || catalogId }
+                } catch (err) {
+                  console.warn('[ServiceTicket] Failed to resolve catalog:', catalogId, err)
                   return { id: catalogId, label: catalogId }
                 }
               })
@@ -100,6 +106,8 @@ export const ServiceTicketDisplay: React.FC<ServiceTicketDisplayProps> = ({
               resolvedCatalogs.forEach(({ id, label }) => {
                 labels[id] = label
               })
+
+              console.log('[ServiceTicket] All resolved labels:', labels)
               setCatalogLabels(labels)
             } catch (err) {
               console.warn('Failed to resolve some catalog entries', err)
