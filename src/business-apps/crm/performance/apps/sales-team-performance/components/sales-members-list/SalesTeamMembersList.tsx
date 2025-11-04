@@ -19,7 +19,7 @@ import {
 import { PiUser, PiArrowUp, PiArrowDown } from 'react-icons/pi'
 import { AppActionButton } from '@/components/app-action-button/AppActionButton'
 import { FlowContextName } from '@/common/types/FlowRegistryTypes'
-import { formatCurrency } from '@/business-apps/crm/common/utils/currencyUtils'
+import { formatCurrency } from '@/common/utils/numberFormatter'
 import { SalesTeamMember } from './types'
 import { navigateTo, buildPlatformUrl } from '@/common/utils/navigationUtils'
 

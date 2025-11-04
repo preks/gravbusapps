@@ -116,6 +116,11 @@ export interface WidgetGroupProps {
    * Test ID for the widget group container
    */
   'data-testid'?: string
+
+  /**
+   * Custom className for the SectionKpiCards grid container
+   */
+  cardsClassName?: string
 }
 
 /**
@@ -193,6 +198,7 @@ export const WidgetGroup: React.FC<WidgetGroupProps> = ({
   error = null,
   onRetry,
   onWidgetClick,
+  cardsClassName,
   className = 'gba:py-2',
   skeletonCount = 4,
   emptyText = 'No data available',
@@ -331,32 +337,35 @@ export const WidgetGroup: React.FC<WidgetGroupProps> = ({
             cursor: 'default'
           }}
           onClick={e => {
-            // Calculate which card was clicked based on mouse position
-            const rect = e.currentTarget.getBoundingClientRect()
-            const x = e.clientX - rect.left
-            const cardWidth = rect.width / 4 // Assuming 4 cards per row
-            const cardIndex = Math.floor(x / cardWidth)
+            // Find which card was clicked by traversing up from the click target
+            const target = e.target as HTMLElement
+            const cardElement = target.closest('[data-widget-key]')
 
-            if (cardIndex >= 0 && cardIndex < widgets.length) {
-              const widgetKey = widgets[cardIndex].key
-              if (onWidgetClick) {
-                onWidgetClick(widgetKey)
-              }
-              // Also call individual widget onClick if it exists
-              if (widgets[cardIndex]?.onClick) {
-                widgets[cardIndex].onClick()
+            if (cardElement) {
+              const widgetKey = cardElement.getAttribute('data-widget-key')
+              if (widgetKey) {
+                const widgetIndex = widgets.findIndex(w => w.key === widgetKey)
+                if (widgetIndex >= 0 && widgetIndex < widgets.length) {
+                  if (onWidgetClick) {
+                    onWidgetClick(widgetKey)
+                  }
+                  // Also call individual widget onClick if it exists
+                  if (widgets[widgetIndex]?.onClick) {
+                    widgets[widgetIndex].onClick()
+                  }
+                }
               }
             }
           }}
           data-testid={`${dataTestId}-clickable-container`}
         >
           <div ref={cardsRef} className="widget-group-cards">
-            <SectionKpiCards cards={kpiCards} data-testid={`${dataTestId}-cards`} />
+            <SectionKpiCards cards={kpiCards} className={cardsClassName} data-testid={`${dataTestId}-cards`} />
           </div>
         </div>
       ) : (
         // Use SectionKpiCards directly when no click functionality is needed
-        <SectionKpiCards cards={kpiCards} data-testid={`${dataTestId}-cards`} />
+        <SectionKpiCards cards={kpiCards} className={cardsClassName} data-testid={`${dataTestId}-cards`} />
       )}
     </div>
   )

@@ -22,7 +22,7 @@ import { useSalesTeamTrendData } from './components/sales-members-list/hooks/use
 import { useUserRole } from './hooks/useUserRole'
 import { useTeamsData } from './hooks/useTeamsData'
 import { BusinessAppContextProps } from '@/common/BusinessAppContext'
-import { formatCurrency } from '@/business-apps/crm/common/utils/currencyUtils'
+import { formatCurrency } from '@/common/utils/numberFormatter'
 import { SalesTeamPerformanceData, SalesTeamMember } from './components/sales-members-list/types'
 import { DataContainer } from '@/components/layout/dataContainer'
 
