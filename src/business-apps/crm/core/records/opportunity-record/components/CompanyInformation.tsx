@@ -1,7 +1,7 @@
 import React from 'react'
 import { Card } from 'antd'
 import { Opportunity } from '../types'
-import { formatCurrency } from '@/business-apps/crm/common/utils/currencyUtils'
+import { formatCurrency } from '@/common/utils/numberFormatter'
 
 interface CompanyInformationProps {
   opportunity: Opportunity
