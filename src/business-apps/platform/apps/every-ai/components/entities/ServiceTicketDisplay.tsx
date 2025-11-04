@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react'
 import { Card, CardContent } from '@newwork/nw-design-system'
-import { useGraphQLClient } from '@/common/network/graphql/useGraphQLClient'
+import { env } from '@/common/env'
 
 interface ServiceTicketDisplayProps {
   serviceTicketId: string
@@ -10,15 +10,20 @@ interface ServiceTicketDisplayProps {
 
 interface ServiceTicket {
   id: string
-  title: string | null
-  status: string | null
-  code: string | null
-  businessKey: string | null
-  processInstanceId: string | null
-  recordState: string | null
-  updatedAt: string | null
-  createdAt: string | null
-  additionalProperties: Record<string, unknown> | null
+  name?: string
+  status?: string
+  assignee?: string
+  workflowId?: string
+  workflowMeta?: {
+    rootWorkflowId?: string
+  }
+  tags?: Record<string, any>
+  templateName?: string
+  assignment?: {
+    currentStatus?: string
+  }
+  createdAt?: string
+  updatedAt?: string
 }
 
 export const ServiceTicketDisplay: React.FC<ServiceTicketDisplayProps> = ({
@@ -29,7 +34,6 @@ export const ServiceTicketDisplay: React.FC<ServiceTicketDisplayProps> = ({
   const [ticket, setTicket] = useState<ServiceTicket | null>(null)
   const [isLoading, setIsLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
-  const graphqlClient = useGraphQLClient(accessToken)
 
   useEffect(() => {
     const fetchTicket = async () => {
@@ -37,29 +41,25 @@ export const ServiceTicketDisplay: React.FC<ServiceTicketDisplayProps> = ({
       setError(null)
 
       try {
-        const query = `
-          query GetServiceTicket($id: uuid!) {
-            ServiceTicketByPk(id: $id) {
-              id
-              title
-              status
-              code
-              businessKey
-              processInstanceId
-              recordState
-              updatedAt
-              createdAt
-              additionalProperties
-            }
-          }
-        `
+        const baseUrl = env('NEXT_PUBLIC_BASE_URL') || 'https://newwork-dev.newwork.com'
+        const url = `${baseUrl}/every-api/v1/flows/outbox/${serviceTicketId}`
 
-        const result = await graphqlClient.request<{ ServiceTicketByPk: ServiceTicket }>(query, {
-          id: serviceTicketId
+        const response = await fetch(url, {
+          method: 'GET',
+          headers: {
+            Authorization: `Bearer ${accessToken}`,
+            'Content-Type': 'application/json'
+          }
         })
 
-        if (result.ServiceTicketByPk) {
-          setTicket(result.ServiceTicketByPk)
+        if (!response.ok) {
+          throw new Error(`Failed to fetch service ticket: ${response.statusText}`)
+        }
+
+        const data = await response.json()
+
+        if (data.status === 'success' && data.data) {
+          setTicket(data.data)
         } else {
           setError('Service ticket not found')
         }
@@ -74,7 +74,7 @@ export const ServiceTicketDisplay: React.FC<ServiceTicketDisplayProps> = ({
     if (serviceTicketId && accessToken) {
       fetchTicket()
     }
-  }, [serviceTicketId, accessToken, graphqlClient])
+  }, [serviceTicketId, accessToken])
 
   if (isLoading) {
     return (
@@ -98,7 +98,7 @@ export const ServiceTicketDisplay: React.FC<ServiceTicketDisplayProps> = ({
 
   if (!ticket) return null
 
-  const formatDateTime = (value: string | null) => {
+  const formatDateTime = (value?: string) => {
     if (!value) return null
     try {
       return new Intl.DateTimeFormat(undefined, {
@@ -111,70 +111,74 @@ export const ServiceTicketDisplay: React.FC<ServiceTicketDisplayProps> = ({
     }
   }
 
-  const additionalDetails =
-    ticket.additionalProperties && typeof ticket.additionalProperties === 'object'
-      ? Object.entries(ticket.additionalProperties ?? {})
-      : []
+  const getOperationBadge = () => {
+    switch (operation) {
+      case 'create':
+        return { text: 'Created', color: 'gba:bg-success-secondary gba:text-success' }
+      case 'update':
+        return { text: 'Updated', color: 'gba:bg-info-secondary gba:text-info' }
+      case 'delete':
+        return { text: 'Deleted', color: 'gba:bg-destructive-secondary gba:text-destructive' }
+      case 'read':
+        return { text: 'Read', color: 'gba:bg-muted gba:text-muted-foreground' }
+      default:
+        return undefined
+    }
+  }
+
+  const operationBadge = getOperationBadge()
+  const title = ticket.name || ticket.templateName || 'Service Ticket'
+  const taskTags = ticket.tags || {}
 
   return (
-    <Card className="gba:w-full gba:rounded-2xl hover:gba:bg-accent" data-testid="service-ticket-display">
+    <Card
+      className="gba:w-full gba:rounded-2xl hover:gba:bg-accent gba:border-2 gba:shadow-lg"
+      data-testid="service-ticket-display"
+    >
       <CardContent className="gba:p-6">
         <div className="gba:flex gba:items-start gba:justify-between gba:mb-4">
-          <span className="gba:text-lg gba:font-semibold">Service Ticket</span>
-          {operation && (
-            <span className="gba:bg-info-secondary gba:text-info gba:text-sm gba:font-medium gba:px-2.5 gba:py-0.5 gba:rounded-xl gba:capitalize">
-              {operation}
+          <div className="gba:flex gba:items-center gba:gap-3">
+            <div className="gba:h-12 gba:w-12 gba:rounded-full gba:bg-info-secondary gba:flex gba:items-center gba:justify-center">
+              <svg className="gba:h-6 gba:w-6 gba:text-info" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                  strokeWidth={2}
+                  d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2"
+                />
+              </svg>
+            </div>
+            <div>
+              <h4 className="gba:text-lg gba:font-bold gba:text-foreground">{title}</h4>
+              <p className="gba:text-sm gba:text-muted-foreground">Service Request</p>
+            </div>
+          </div>
+          {operationBadge && (
+            <span className={`gba:text-sm gba:font-medium gba:px-3 gba:py-1 gba:rounded-xl ${operationBadge.color}`}>
+              {operationBadge.text}
             </span>
           )}
         </div>
 
         <div className="gba:space-y-3">
-          {ticket.title && (
-            <div>
-              <div className="gba:text-muted-foreground gba:text-sm">Title</div>
-              <div className="gba:text-foreground gba:text-base gba:font-bold">{ticket.title}</div>
-            </div>
-          )}
-
           {ticket.status && (
             <div>
               <div className="gba:text-muted-foreground gba:text-sm">Status</div>
-              <div className="gba:text-foreground gba:text-sm">{ticket.status}</div>
+              <div className="gba:text-foreground gba:text-base gba:font-medium">{ticket.status}</div>
             </div>
           )}
 
-          {ticket.code && (
+          {ticket.assignee && (
             <div>
-              <div className="gba:text-muted-foreground gba:text-sm">Code</div>
-              <div className="gba:text-foreground gba:text-sm">{ticket.code}</div>
+              <div className="gba:text-muted-foreground gba:text-sm">Assignee</div>
+              <div className="gba:text-foreground gba:text-sm">{ticket.assignee}</div>
             </div>
           )}
 
-          {ticket.businessKey && (
+          {ticket.workflowId && (
             <div>
-              <div className="gba:text-muted-foreground gba:text-sm">Business Key</div>
-              <div className="gba:text-foreground gba:text-sm">{ticket.businessKey}</div>
-            </div>
-          )}
-
-          {ticket.recordState && (
-            <div>
-              <div className="gba:text-muted-foreground gba:text-sm">Record State</div>
-              <div className="gba:text-foreground gba:text-sm">{ticket.recordState}</div>
-            </div>
-          )}
-
-          {ticket.processInstanceId && (
-            <div>
-              <div className="gba:text-muted-foreground gba:text-sm">Process Instance ID</div>
-              <div className="gba:text-foreground gba:text-sm">{ticket.processInstanceId}</div>
-            </div>
-          )}
-
-          {formatDateTime(ticket.updatedAt) && (
-            <div>
-              <div className="gba:text-muted-foreground gba:text-sm">Updated</div>
-              <div className="gba:text-foreground gba:text-sm">{formatDateTime(ticket.updatedAt)}</div>
+              <div className="gba:text-muted-foreground gba:text-sm">Workflow ID</div>
+              <div className="gba:text-foreground gba:text-sm gba:font-mono gba:text-xs">{ticket.workflowId}</div>
             </div>
           )}
 
@@ -185,11 +189,18 @@ export const ServiceTicketDisplay: React.FC<ServiceTicketDisplayProps> = ({
             </div>
           )}
 
-          {additionalDetails.length > 0 && (
+          {formatDateTime(ticket.updatedAt) && (
             <div>
-              <div className="gba:text-muted-foreground gba:text-sm">Additional Details</div>
-              <div className="gba:mt-2 gba:space-y-2">
-                {additionalDetails.map(([key, value]) => (
+              <div className="gba:text-muted-foreground gba:text-sm">Updated</div>
+              <div className="gba:text-foreground gba:text-sm">{formatDateTime(ticket.updatedAt)}</div>
+            </div>
+          )}
+
+          {Object.keys(taskTags).length > 0 && (
+            <div>
+              <div className="gba:text-muted-foreground gba:text-sm gba:mb-2">Task Details</div>
+              <div className="gba:space-y-2">
+                {Object.entries(taskTags).map(([key, value]) => (
                   <div key={key} className="gba:flex gba:flex-col">
                     <span className="gba:text-xs gba:text-muted-foreground">{key}</span>
                     <span className="gba:text-sm gba:text-foreground">
