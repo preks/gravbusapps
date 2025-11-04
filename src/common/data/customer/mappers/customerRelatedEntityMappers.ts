@@ -42,6 +42,11 @@ const createCatalogEntryFromRef = (ref: string | undefined): CatalogEntry | unde
  * Transform BaseCustomerTask (GraphQL response) to CustomerTask (enhanced with computed fields)
  */
 export function toCustomerTask(base: BaseCustomerTask): CustomerTask {
+  // Extract labels from catalog entries
+  const taskTypeLabel = base.type?.value || base.type?.code || (base as any).typeRef || undefined
+  const taskPriorityLabel = base.priority?.value || base.priority?.code || (base as any).priorityRef || undefined
+  const taskStatusLabel = base.status?.value || base.status?.code || (base as any).statusRef || undefined
+
   // Employee display names
   const creatorDisplayName =
     base.creatorEmployee?.displayName ||

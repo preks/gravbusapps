@@ -69,16 +69,16 @@ const TaskStatistics: React.FC<TaskStatisticsProps> = ({
   ]
 
   return (
-    <div data-testid="task-statistics-container">
-      <WidgetGroup
-        widgets={widgets}
-        isLoading={isLoading}
-        error={error}
-        onRetry={onRetry}
-        skeletonCount={4}
-        emptyText="No task statistics available."
-        data-testid="task-statistics"
-      />
+    <div data-testid="task-statistics-container" className="gba:flex gba:gap-4 gba:mb-6">
+      {/* My Tasks Card */}
+      <Card className="gba:flex-1 gba:p-6 gba:min-h-[160px]">
+        {renderCardContent('My Tasks', <User className="gba:text-blue-500" />, myTasks)}
+      </Card>
+
+      {/* Team Tasks Card */}
+      <Card className="gba:flex-1 gba:p-6 gba:min-h-[160px]">
+        {renderCardContent('Team Tasks', <Users className="gba:text-blue-500" />, teamTasks)}
+      </Card>
     </div>
   )
 }

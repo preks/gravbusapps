@@ -334,7 +334,7 @@ const ContactPersonalInfo: React.FC<ContactPersonalInfoProps> = ({
                       data-testid="contact-linkedin-link"
                       title="LinkedIn Profile"
                     >
-                      LinkedIn
+                      {value}
                     </a>
                   ) : null
               },
@@ -352,7 +352,7 @@ const ContactPersonalInfo: React.FC<ContactPersonalInfoProps> = ({
                       data-testid="contact-xing-link"
                       title="XING Profile"
                     >
-                      XING
+                      {value}
                     </a>
                   ) : null
               }

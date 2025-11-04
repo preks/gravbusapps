@@ -4,6 +4,7 @@ import { DollarOutlined, TrophyOutlined, RiseOutlined, ClockCircleOutlined } fro
 // import type { InvestmentOpportunity } from '@/common/data/investment/types';
 import { BusinessAppContextProps } from '@/common/BusinessAppContext'
 import { useOpportunityStatisticsQueries } from '../queries/OpportunityStatisticsQueries'
+import { formatCurrencyCompact } from '@/common/utils/numberFormatter'
 
 type OpportunityStatisticsProps = BusinessAppContextProps
 
@@ -68,44 +69,6 @@ export const OpportunityStatistics: React.FC<OpportunityStatisticsProps> = ({ ..
     // Run once on mount; hooks are memoized with useCallback
   }, [])
 
-  // Custom formatter that only abbreviates millions and billions, not thousands
-  const formatCurrency = (amount: number): string => {
-    if (amount === undefined || amount === null || !isFinite(amount)) return '-'
-
-    const abs = Math.abs(amount)
-    const sign = amount < 0 ? '-' : ''
-
-    if (abs >= 1_000_000_000) {
-      // Billions
-      const formatted = new Intl.NumberFormat('en-US', {
-        style: 'currency',
-        currency: 'USD',
-        maximumFractionDigits: 1,
-        minimumFractionDigits: 0
-      }).format(abs / 1_000_000_000)
-      return `${sign}${formatted}B`
-    }
-
-    if (abs >= 1_000_000) {
-      // Millions
-      const formatted = new Intl.NumberFormat('en-US', {
-        style: 'currency',
-        currency: 'USD',
-        maximumFractionDigits: 1,
-        minimumFractionDigits: 0
-      }).format(abs / 1_000_000)
-      return `${sign}${formatted}M`
-    }
-
-    // Thousands and below - show as normal currency
-    return new Intl.NumberFormat('en-US', {
-      style: 'currency',
-      currency: 'USD',
-      maximumFractionDigits: 0,
-      minimumFractionDigits: 0
-    }).format(amount)
-  }
-
   // Helper function to format trend percentage with proper sign
   const formatTrendPercent = (changePercent: number): string => {
     const sign = changePercent >= 0 ? '+' : ''
@@ -131,7 +94,7 @@ export const OpportunityStatistics: React.FC<OpportunityStatisticsProps> = ({ ..
     {
       key: 'total-pipeline-value',
       title: 'Total Pipeline Value',
-      value: formatCurrency(value.current),
+      value: formatCurrencyCompact(value.current, 'USD', undefined, 1, true),
       prefix: <DollarOutlined />,
       color: '#52c41a',
       valueIsString: true,

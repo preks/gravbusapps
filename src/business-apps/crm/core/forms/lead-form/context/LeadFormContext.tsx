@@ -13,7 +13,8 @@ import {
   INDUSTRY_CATALOG,
   COUNTRY_CATALOG,
   EMPLOYEE_SIZE_CATALOG,
-  REVENUE_SIZE_CATALOG
+  REVENUE_SIZE_CATALOG,
+  ACADEMIC_TITLE_CATALOG
 } from '../hooks/useLeadCatalogs'
 import { useAccountsData } from '../hooks/useAccountsData'
 import { useSalesCampaignsGraphQL } from '../../../../common/hooks/useSalesCampaignsGraphQL' // TODO: Extract
@@ -103,6 +104,18 @@ interface LeadFormContextValue extends LeadContextState {
   loadMoreCountries: () => void
   showMoreCountries: () => void
 
+  // Academic Titles
+  academicTitles: SelectOption[]
+  academicTitlesLoading: boolean
+  academicTitlesError: string | null
+  academicTitlesHasMore: boolean
+  academicTitlesNeedsMoreData: boolean
+  academicTitlesDisplayCount: number
+  academicTitlesTotalFetched: number
+  searchAcademicTitles: (search: string) => void
+  loadMoreAcademicTitles: () => void
+  showMoreAcademicTitles: () => void
+
   // Employee Size catalog
   employeeSizes: SelectOption[]
   employeeSizesLoading: boolean
@@ -122,6 +135,7 @@ interface LeadFormContextValue extends LeadContextState {
   addressLineCount: number
   addAddressLine: () => void
   removeAddressLine: () => void
+  removeAddressLineAtIndex: (lineIndex: number) => void
 
   // Address management (new dynamic structure)
   addAddress: () => void
@@ -458,6 +472,14 @@ export const LeadFormProvider: React.FC<LeadFormProviderProps> = ({
     [businessAppContext.accessToken]
   )
 
+  const academicTitlesConfig = useMemo(
+    () => ({
+      accessToken: businessAppContext.accessToken,
+      catalogIdentifier: ACADEMIC_TITLE_CATALOG
+    }),
+    [businessAppContext.accessToken]
+  )
+
   const employeeSizesConfig = useMemo(
     () => ({
       accessToken: businessAppContext.accessToken,
@@ -480,10 +502,11 @@ export const LeadFormProvider: React.FC<LeadFormProviderProps> = ({
   const legalFormsHook = useSearchableCatalog(legalFormsConfig)
   const industriesHook = useSearchableCatalog(industriesConfig)
   const countriesHook = useSearchableCatalog(countriesConfig)
+  const academicTitlesHook = useSearchableCatalog(academicTitlesConfig)
   const employeeSizesHook = useSearchableCatalog(employeeSizesConfig)
   const revenueSizesHook = useSearchableCatalog(revenueSizesConfig)
 
-  // Initialize data on mount
+  // Initialize data on mount - using ref to ensure one-time initialization
   const hasInitialized = useRef(false)
   useEffect(() => {
     if (businessAppContext.accessToken && !hasInitialized.current) {
@@ -494,10 +517,22 @@ export const LeadFormProvider: React.FC<LeadFormProviderProps> = ({
       legalFormsHook.initialize()
       industriesHook.initialize()
       countriesHook.initialize()
+      academicTitlesHook.initialize()
       employeeSizesHook.initialize()
       revenueSizesHook.initialize()
     }
-  }, [businessAppContext.accessToken])
+  }, [
+    businessAppContext.accessToken,
+    leadSourcesHook,
+    leadStatusesHook,
+    leadRatingsHook,
+    legalFormsHook,
+    industriesHook,
+    countriesHook,
+    academicTitlesHook,
+    employeeSizesHook,
+    revenueSizesHook
+  ])
 
   // Auto-select current user once their employee data has loaded (only for new leads, not editing)
   useEffect(() => {
@@ -588,6 +623,29 @@ export const LeadFormProvider: React.FC<LeadFormProviderProps> = ({
       setFormValuesState(prev => ({ ...prev, ...updates }))
     }
   }, [addressLineCount])
+
+  const removeAddressLineAtIndex = useCallback(
+    (lineIndex: number) => {
+      if (addressLineCount > 1 && lineIndex >= 1 && lineIndex <= addressLineCount) {
+        const newCount = addressLineCount - 1
+        setAddressLineCount(newCount)
+
+        // Shift all subsequent lines up
+        const updates: any = {}
+        for (let i = lineIndex; i < addressLineCount; i++) {
+          const currentField = `addressLine${i}` as keyof LeadFormValues
+          const nextField = `addressLine${i + 1}` as keyof LeadFormValues
+          updates[currentField] = (formValues[nextField] as string) || ''
+        }
+        // Clear the last line
+        const lastField = `addressLine${addressLineCount}` as keyof LeadFormValues
+        updates[lastField] = ''
+
+        setFormValuesState((prev: LeadFormValues) => ({ ...prev, ...updates }))
+      }
+    },
+    [addressLineCount, formValues]
+  )
 
   const setFormValues = useCallback((updates: Partial<LeadFormValues>) => {
     setFormValuesState(prev => ({ ...prev, ...updates }))
@@ -690,159 +748,218 @@ export const LeadFormProvider: React.FC<LeadFormProviderProps> = ({
     formValues.country
   ])
 
-  const contextValue: LeadFormContextValue = {
-    // Form state
-    formValues,
-    setFormValues,
-    onSubmit,
-    onCancel,
-    accessToken: businessAppContext.accessToken,
+  const contextValue: LeadFormContextValue = useMemo(
+    () => ({
+      // Form state
+      formValues,
+      setFormValues,
+      onSubmit,
+      onCancel,
+      accessToken: businessAppContext.accessToken,
 
-    // Global state
-    isLoading,
-    error,
+      // Global state
+      isLoading,
+      error,
 
-    // Employee positions
-    employeePositions,
-    employeePositionsLoading: employeePositionsLoading || currentUserLoading,
-    employeePositionsError: employeePositionsError || currentUserError,
-    employeePositionsHasMore,
-    loadMoreEmployeePositions,
-    searchEmployeePositions: searchEmployees,
+      // Employee positions
+      employeePositions,
+      employeePositionsLoading: employeePositionsLoading || currentUserLoading,
+      employeePositionsError: employeePositionsError || currentUserError,
+      employeePositionsHasMore,
+      loadMoreEmployeePositions,
+      searchEmployeePositions: searchEmployees,
 
-    // Lead Sources
-    leadSources: leadSourcesHook.allOptions,
-    leadSourcesLoading: leadSourcesHook.loading,
-    leadSourcesError: leadSourcesHook.error,
-    leadSourcesHasMore: leadSourcesHook.hasMore,
-    leadSourcesNeedsMoreData: leadSourcesHook.needsMoreData,
-    leadSourcesDisplayCount: leadSourcesHook.displayCount,
-    leadSourcesTotalFetched: leadSourcesHook.totalFetched,
-    searchLeadSources: leadSourcesHook.search,
-    loadMoreLeadSources: leadSourcesHook.loadMore,
-    showMoreLeadSources: leadSourcesHook.showMore,
+      // Lead Sources
+      leadSources: leadSourcesHook.allOptions,
+      leadSourcesLoading: leadSourcesHook.loading,
+      leadSourcesError: leadSourcesHook.error,
+      leadSourcesHasMore: leadSourcesHook.hasMore,
+      leadSourcesNeedsMoreData: leadSourcesHook.needsMoreData,
+      leadSourcesDisplayCount: leadSourcesHook.displayCount,
+      leadSourcesTotalFetched: leadSourcesHook.totalFetched,
+      searchLeadSources: leadSourcesHook.search,
+      loadMoreLeadSources: leadSourcesHook.loadMore,
+      showMoreLeadSources: leadSourcesHook.showMore,
 
-    // Lead Statuses
-    leadStatuses: leadStatusesHook.allOptions,
-    leadStatusesLoading: leadStatusesHook.loading,
-    leadStatusesError: leadStatusesHook.error,
-    leadStatusesHasMore: leadStatusesHook.hasMore,
-    leadStatusesNeedsMoreData: leadStatusesHook.needsMoreData,
-    leadStatusesDisplayCount: leadStatusesHook.displayCount,
-    leadStatusesTotalFetched: leadStatusesHook.totalFetched,
-    searchLeadStatuses: leadStatusesHook.search,
-    loadMoreLeadStatuses: leadStatusesHook.loadMore,
-    showMoreLeadStatuses: leadStatusesHook.showMore,
+      // Lead Statuses
+      leadStatuses: leadStatusesHook.allOptions,
+      leadStatusesLoading: leadStatusesHook.loading,
+      leadStatusesError: leadStatusesHook.error,
+      leadStatusesHasMore: leadStatusesHook.hasMore,
+      leadStatusesNeedsMoreData: leadStatusesHook.needsMoreData,
+      leadStatusesDisplayCount: leadStatusesHook.displayCount,
+      leadStatusesTotalFetched: leadStatusesHook.totalFetched,
+      searchLeadStatuses: leadStatusesHook.search,
+      loadMoreLeadStatuses: leadStatusesHook.loadMore,
+      showMoreLeadStatuses: leadStatusesHook.showMore,
 
-    // Lead Ratings
-    leadRatings: leadRatingsHook.allOptions,
-    leadRatingsLoading: leadRatingsHook.loading,
-    leadRatingsError: leadRatingsHook.error,
-    leadRatingsHasMore: leadRatingsHook.hasMore,
-    leadRatingsNeedsMoreData: leadRatingsHook.needsMoreData,
-    leadRatingsDisplayCount: leadRatingsHook.displayCount,
-    leadRatingsTotalFetched: leadRatingsHook.totalFetched,
-    searchLeadRatings: leadRatingsHook.search,
-    loadMoreLeadRatings: leadRatingsHook.loadMore,
-    showMoreLeadRatings: leadRatingsHook.showMore,
+      // Lead Ratings
+      leadRatings: leadRatingsHook.allOptions,
+      leadRatingsLoading: leadRatingsHook.loading,
+      leadRatingsError: leadRatingsHook.error,
+      leadRatingsHasMore: leadRatingsHook.hasMore,
+      leadRatingsNeedsMoreData: leadRatingsHook.needsMoreData,
+      leadRatingsDisplayCount: leadRatingsHook.displayCount,
+      leadRatingsTotalFetched: leadRatingsHook.totalFetched,
+      searchLeadRatings: leadRatingsHook.search,
+      loadMoreLeadRatings: leadRatingsHook.loadMore,
+      showMoreLeadRatings: leadRatingsHook.showMore,
 
-    // Legal forms
-    legalForms: legalFormsHook.allOptions,
-    legalFormsLoading: legalFormsHook.loading,
-    legalFormsError: legalFormsHook.error,
-    legalFormsHasMore: legalFormsHook.hasMore,
-    legalFormsNeedsMoreData: legalFormsHook.needsMoreData,
-    legalFormsDisplayCount: legalFormsHook.displayCount,
-    legalFormsTotalFetched: legalFormsHook.totalFetched,
-    searchLegalForms: legalFormsHook.search,
-    loadMoreLegalForms: legalFormsHook.loadMore,
-    showMoreLegalForms: legalFormsHook.showMore,
+      // Legal forms
+      legalForms: legalFormsHook.allOptions,
+      legalFormsLoading: legalFormsHook.loading,
+      legalFormsError: legalFormsHook.error,
+      legalFormsHasMore: legalFormsHook.hasMore,
+      legalFormsNeedsMoreData: legalFormsHook.needsMoreData,
+      legalFormsDisplayCount: legalFormsHook.displayCount,
+      legalFormsTotalFetched: legalFormsHook.totalFetched,
+      searchLegalForms: legalFormsHook.search,
+      loadMoreLegalForms: legalFormsHook.loadMore,
+      showMoreLegalForms: legalFormsHook.showMore,
 
-    // Industries
-    industries: industriesHook.allOptions,
-    industriesLoading: industriesHook.loading,
-    industriesError: industriesHook.error,
-    industriesHasMore: industriesHook.hasMore,
-    industriesNeedsMoreData: industriesHook.needsMoreData,
-    industriesDisplayCount: industriesHook.displayCount,
-    industriesTotalFetched: industriesHook.totalFetched,
-    searchIndustries: industriesHook.search,
-    loadMoreIndustries: industriesHook.loadMore,
-    showMoreIndustries: industriesHook.showMore,
+      // Industries
+      industries: industriesHook.allOptions,
+      industriesLoading: industriesHook.loading,
+      industriesError: industriesHook.error,
+      industriesHasMore: industriesHook.hasMore,
+      industriesNeedsMoreData: industriesHook.needsMoreData,
+      industriesDisplayCount: industriesHook.displayCount,
+      industriesTotalFetched: industriesHook.totalFetched,
+      searchIndustries: industriesHook.search,
+      loadMoreIndustries: industriesHook.loadMore,
+      showMoreIndustries: industriesHook.showMore,
 
-    // Countries
-    countries: countriesHook.allOptions,
-    countriesLoading: countriesHook.loading,
-    countriesError: countriesHook.error,
-    countriesHasMore: countriesHook.hasMore,
-    countriesNeedsMoreData: countriesHook.needsMoreData,
-    countriesDisplayCount: countriesHook.displayCount,
-    countriesTotalFetched: countriesHook.totalFetched,
-    searchCountries: countriesHook.search,
-    loadMoreCountries: countriesHook.loadMore,
-    showMoreCountries: countriesHook.showMore,
+      // Countries
+      countries: countriesHook.allOptions,
+      countriesLoading: countriesHook.loading,
+      countriesError: countriesHook.error,
+      countriesHasMore: countriesHook.hasMore,
+      countriesNeedsMoreData: countriesHook.needsMoreData,
+      countriesDisplayCount: countriesHook.displayCount,
+      countriesTotalFetched: countriesHook.totalFetched,
+      searchCountries: countriesHook.search,
+      loadMoreCountries: countriesHook.loadMore,
+      showMoreCountries: countriesHook.showMore,
 
-    // Employee Sizes
-    employeeSizes: employeeSizesHook.allOptions,
-    employeeSizesLoading: employeeSizesHook.loading,
-    employeeSizesError: employeeSizesHook.error,
-    employeeSizesHasMore: employeeSizesHook.hasMore,
-    employeeSizesNeedsMoreData: employeeSizesHook.needsMoreData,
-    employeeSizesDisplayCount: employeeSizesHook.displayCount,
-    employeeSizesTotalFetched: employeeSizesHook.totalFetched,
-    searchEmployeeSizes: employeeSizesHook.search,
-    loadMoreEmployeeSizes: employeeSizesHook.loadMore,
-    showMoreEmployeeSizes: employeeSizesHook.showMore,
+      // Academic Titles
+      academicTitles: academicTitlesHook.allOptions,
+      academicTitlesLoading: academicTitlesHook.loading,
+      academicTitlesError: academicTitlesHook.error,
+      academicTitlesHasMore: academicTitlesHook.hasMore,
+      academicTitlesNeedsMoreData: academicTitlesHook.needsMoreData,
+      academicTitlesDisplayCount: academicTitlesHook.displayCount,
+      academicTitlesTotalFetched: academicTitlesHook.totalFetched,
+      searchAcademicTitles: academicTitlesHook.search,
+      loadMoreAcademicTitles: academicTitlesHook.loadMore,
+      showMoreAcademicTitles: academicTitlesHook.showMore,
 
-    // Revenue Sizes
-    revenueSizes: revenueSizesHook.allOptions,
-    revenueSizesLoading: revenueSizesHook.loading,
-    revenueSizesError: revenueSizesHook.error,
-    revenueSizesHasMore: revenueSizesHook.hasMore,
-    revenueSizesNeedsMoreData: revenueSizesHook.needsMoreData,
-    revenueSizesDisplayCount: revenueSizesHook.displayCount,
-    revenueSizesTotalFetched: revenueSizesHook.totalFetched,
-    searchRevenueSizes: revenueSizesHook.search,
-    loadMoreRevenueSizes: revenueSizesHook.loadMore,
-    showMoreRevenueSizes: revenueSizesHook.showMore,
+      // Employee Sizes
+      employeeSizes: employeeSizesHook.allOptions,
+      employeeSizesLoading: employeeSizesHook.loading,
+      employeeSizesError: employeeSizesHook.error,
+      employeeSizesHasMore: employeeSizesHook.hasMore,
+      employeeSizesNeedsMoreData: employeeSizesHook.needsMoreData,
+      employeeSizesDisplayCount: employeeSizesHook.displayCount,
+      employeeSizesTotalFetched: employeeSizesHook.totalFetched,
+      searchEmployeeSizes: employeeSizesHook.search,
+      loadMoreEmployeeSizes: employeeSizesHook.loadMore,
+      showMoreEmployeeSizes: employeeSizesHook.showMore,
 
-    // Static data
-    timeZones: [], // Not currently used but required by interface
+      // Revenue Sizes
+      revenueSizes: revenueSizesHook.allOptions,
+      revenueSizesLoading: revenueSizesHook.loading,
+      revenueSizesError: revenueSizesHook.error,
+      revenueSizesHasMore: revenueSizesHook.hasMore,
+      revenueSizesNeedsMoreData: revenueSizesHook.needsMoreData,
+      revenueSizesDisplayCount: revenueSizesHook.displayCount,
+      revenueSizesTotalFetched: revenueSizesHook.totalFetched,
+      searchRevenueSizes: revenueSizesHook.search,
+      loadMoreRevenueSizes: revenueSizesHook.loadMore,
+      showMoreRevenueSizes: revenueSizesHook.showMore,
 
-    // Company autocomplete
-    accountSuggestions: accountState.accounts,
-    searchAccounts: searchAccountsWrapper,
-    loadMoreAccounts: loadMoreAccountsWrapper,
-    accountsHasMore: accountState.hasMore,
-    accountsLoading: accountState.isLoading,
+      // Static data
+      timeZones: [], // Not currently used but required by interface
 
-    // Address lines
-    addressLineCount,
-    addAddressLine,
-    removeAddressLine,
+      // Company autocomplete
+      accountSuggestions: accountState.accounts,
+      searchAccounts: searchAccountsWrapper,
+      loadMoreAccounts: loadMoreAccountsWrapper,
+      accountsHasMore: accountState.hasMore,
+      accountsLoading: accountState.isLoading,
 
-    // Address management (new dynamic structure)
-    addAddress,
-    removeAddress,
-    updateAddress,
-    addAddressLineToAddress,
-    removeAddressLineFromAddress,
+      // Address lines
+      addressLineCount,
+      addAddressLine,
+      removeAddressLine,
+      removeAddressLineAtIndex,
 
-    // Business app context for child components
-    businessAppContext,
+      // Address management (new dynamic structure)
+      addAddress,
+      removeAddress,
+      updateAddress,
+      addAddressLineToAddress,
+      removeAddressLineFromAddress,
 
-    // Sales Campaigns
-    salesCampaigns: salesCampaignsOptions,
-    salesCampaignsLoading: salesCampaignsLoading,
-    salesCampaignsError: salesCampaignsError,
-    salesCampaignsHasMore: salesCampaignsHasMore,
-    salesCampaignsNeedsMoreData: salesCampaignsHasMore, // Assuming needsMoreData is the same as hasMore for now
-    salesCampaignsDisplayCount: salesCampaignsOptions.length,
-    salesCampaignsTotalFetched: salesCampaignsOptions.length,
-    searchSalesCampaigns: searchSalesCampaignsWrapper,
-    loadMoreSalesCampaigns: loadMoreSalesCampaignsWrapper,
-    showMoreSalesCampaigns: () => {} // No showMore for this hook
-  }
+      // Business app context for child components
+      businessAppContext,
+
+      // Sales Campaigns
+      salesCampaigns: salesCampaignsOptions,
+      salesCampaignsLoading: salesCampaignsLoading,
+      salesCampaignsError: salesCampaignsError,
+      salesCampaignsHasMore: salesCampaignsHasMore,
+      salesCampaignsNeedsMoreData: salesCampaignsHasMore, // Assuming needsMoreData is the same as hasMore for now
+      salesCampaignsDisplayCount: salesCampaignsOptions.length,
+      salesCampaignsTotalFetched: salesCampaignsOptions.length,
+      searchSalesCampaigns: searchSalesCampaignsWrapper,
+      loadMoreSalesCampaigns: loadMoreSalesCampaignsWrapper,
+      showMoreSalesCampaigns: () => {} // No showMore for this hook
+    }),
+    [
+      formValues,
+      setFormValues,
+      onSubmit,
+      onCancel,
+      businessAppContext,
+      isLoading,
+      error,
+      employeePositions,
+      employeePositionsLoading,
+      currentUserLoading,
+      employeePositionsError,
+      currentUserError,
+      employeePositionsHasMore,
+      loadMoreEmployeePositions,
+      searchEmployees,
+      leadSourcesHook,
+      leadStatusesHook,
+      leadRatingsHook,
+      legalFormsHook,
+      industriesHook,
+      countriesHook,
+      academicTitlesHook,
+      employeeSizesHook,
+      revenueSizesHook,
+      accountState,
+      searchAccountsWrapper,
+      loadMoreAccountsWrapper,
+      addressLineCount,
+      addAddressLine,
+      removeAddressLine,
+      removeAddressLineAtIndex,
+      addAddress,
+      removeAddress,
+      updateAddress,
+      addAddressLineToAddress,
+      removeAddressLineFromAddress,
+      salesCampaignsOptions,
+      salesCampaignsLoading,
+      salesCampaignsError,
+      salesCampaignsHasMore,
+      searchSalesCampaignsWrapper,
+      loadMoreSalesCampaignsWrapper
+    ]
+  )
 
   return <LeadFormContext.Provider value={contextValue}>{children}</LeadFormContext.Provider>
 }

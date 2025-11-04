@@ -12,7 +12,7 @@ import {
   LiquidFundTypeSelectSegment,
   DynamicSegment
 } from './segments'
-import { getCurrencySymbol } from '@/common/utils/currencyUtils'
+import { getCurrencySymbol } from '@/common/utils/numberFormatter'
 import { useCatalogManagerClient } from '@/common/network/catalogs/useCatalogManagerClient'
 import { useGetInvestmentById, useGetInvestmentOpportunityById } from '@/common/data/investment'
 import { getInvestmentGroupFromContext } from '../utils/investmentDataTransformer'

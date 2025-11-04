@@ -14,11 +14,26 @@ export interface ContactData {
   xingUrl?: string
   bio?: string
   contactType?: string
+  birthDate?: string
   version?: number
   academicTitle?: {
     id: string
     value: string
   }
+  language?: {
+    id: string
+    value: string
+  }
+  communicationChannels?: Array<{
+    id: string
+    communicationChannelRef: string
+    value: string
+    communicationChannel?: {
+      id: string
+      code: string
+      value: string
+    }
+  }>
   updatedAt?: string
   createdAt?: string
   accountId?: string
@@ -58,14 +73,27 @@ export const GET_CONTACT_BY_ID = `
       phone
       jobTitle
       department
-      linkedinUrl
-      xingUrl
       bio
       contactType
+      birthDate
       version
       academicTitle {
         id
         value
+      }
+      language {
+        id
+        value
+      }
+      communicationChannels(where: { isDeleted: { _eq: false } }) {
+        id
+        communicationChannelRef
+        value
+        communicationChannel {
+          id
+          code
+          value
+        }
       }
       updatedAt
       createdAt

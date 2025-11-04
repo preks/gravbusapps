@@ -15,7 +15,7 @@ import {
 import { TrendingUp, TrendingDown, Minus } from 'lucide-react'
 import { type LucideIcon } from 'lucide-react'
 import { Investment } from '@/common/data/investment/types/investmentTypes'
-import { formatCurrencyCompact } from '../../../utils/currencyUtils'
+import { formatCurrencyCompact, extractCurrencyCode } from '@/common/utils/numberFormatter'
 
 // Type definitions
 export interface SubType {
@@ -114,7 +114,7 @@ const InvestmentBreakdownCard: React.FC<InvestmentBreakdownCardProps> = ({
 
       return {
         name: typeName,
-        amount: formatCurrencyCompact(total, selectedCurrency),
+        amount: formatCurrencyCompact(total, extractCurrencyCode(selectedCurrency), undefined, 1, true),
         percentage: `${percentage.toFixed(1)}%`
       }
     })
@@ -218,7 +218,7 @@ const InvestmentBreakdownCard: React.FC<InvestmentBreakdownCardProps> = ({
         <div className="gba:mb-4">
           <p className="gba:text-sm gba:text-gray-600 gba:mb-1">Total Invested</p>
           <p className="gba:text-2xl gba:font-bold gba:text-gray-900">
-            {formatCurrencyCompact(totalInvested, selectedCurrency)}
+            {formatCurrencyCompact(totalInvested, extractCurrencyCode(selectedCurrency), undefined, 1, true)}
           </p>
         </div>
 

@@ -1,13 +1,12 @@
 /**
- * Custom currency formatter that only abbreviates millions and billions, not thousands
- * Follows the compact formatting requirement: thousands stay as full numbers,
- * millions get "M" suffix, billions get "B" suffix
+ * Currency utility functions for CRM module
  */
+
 /**
  * Extracts ISO currency code from API currency strings like "Currency:v1:EUR"
  * Fallback to default if extraction fails or input is falsy
  */
-const extractCurrencyCode = (currencyInput: string, fallback: string = 'EUR'): string => {
+export const extractCurrencyCode = (currencyInput: string, fallback: string = 'EUR'): string => {
   if (!currencyInput) return fallback
 
   // Handle API format like "Currency:v1:EUR"
@@ -29,8 +28,14 @@ const extractCurrencyCode = (currencyInput: string, fallback: string = 'EUR'): s
   return fallback
 }
 
-export const formatCurrencyCompact = (amount: number, currency: string = 'EUR'): string => {
-  if (amount === undefined || amount === null || !isFinite(amount)) return '-'
+/**
+ * Format currency amount with compact notation for large numbers
+ * - Billions get "B" suffix (€1.2B)
+ * - Millions get "M" suffix (€91.9M)
+ * - Thousands and below show as normal currency (€1,500)
+ */
+export const formatCurrency = (amount: number, currency: string = 'EUR'): string => {
+  if (amount === undefined || amount === null || !Number.isFinite(amount)) return '-'
 
   // Extract ISO currency code from API format
   const currencyCode = extractCurrencyCode(currency)
@@ -67,12 +72,4 @@ export const formatCurrencyCompact = (amount: number, currency: string = 'EUR'):
     maximumFractionDigits: 0,
     minimumFractionDigits: 0
   }).format(amount)
-}
-
-/**
- * Legacy formatter for backward compatibility
- * @deprecated Use formatCurrencyCompact instead
- */
-export const formatCurrency = (amount: number, currency: string = 'EUR'): string => {
-  return formatCurrencyCompact(amount, currency)
 }

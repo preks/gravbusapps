@@ -105,12 +105,11 @@ export interface BaseCustomerTask extends CommonTask {
   comment?: string
   templateStartDate?: string
 
-  // Catalog references (legacy)
-  taskType?: CatalogEntry
-  taskPriority?: CatalogEntry
-  taskStatus?: CatalogEntry
-
-  // Reference fields (String IDs - SalesTask schema)
+  // Catalog references (actual database field names)
+  type?: CatalogEntry
+  priority?: CatalogEntry
+  status?: CatalogEntry
+  // Reference fields (string IDs)
   typeRef?: string
   priorityRef?: string
   statusRef?: string
