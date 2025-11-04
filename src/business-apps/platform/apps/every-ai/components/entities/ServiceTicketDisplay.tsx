@@ -11,14 +11,17 @@ interface ServiceTicketDisplayProps {
 interface ServiceTicket {
   id: string
   name?: string
+  title?: string
   status?: string
   assignee?: string
-  workflowId?: string
+  flowId?: string
   workflowMeta?: {
     rootWorkflowId?: string
+    templateName?: string
   }
+  outputData?: Record<string, any>
+  inputData?: Record<string, any>
   tags?: Record<string, any>
-  templateName?: string
   assignment?: {
     currentStatus?: string
   }
@@ -42,13 +45,14 @@ export const ServiceTicketDisplay: React.FC<ServiceTicketDisplayProps> = ({
 
       try {
         const baseUrl = env('NEXT_PUBLIC_BASE_URL') || 'https://newwork-dev.newwork.com'
-        const url = `${baseUrl}/every-api/v1/flows/outbox/${serviceTicketId}`
+        const url = `${baseUrl}/flow-engine/api/tasks/${serviceTicketId}`
 
         const response = await fetch(url, {
           method: 'GET',
           headers: {
             Authorization: `Bearer ${accessToken}`,
-            'Content-Type': 'application/json'
+            'Content-Type': 'application/json',
+            accept: 'application/json'
           }
         })
 
@@ -56,10 +60,10 @@ export const ServiceTicketDisplay: React.FC<ServiceTicketDisplayProps> = ({
           throw new Error(`Failed to fetch service ticket: ${response.statusText}`)
         }
 
-        const data = await response.json()
+        const taskData = await response.json()
 
-        if (data.status === 'success' && data.data) {
-          setTicket(data.data)
+        if (taskData) {
+          setTicket(taskData)
         } else {
           setError('Service ticket not found')
         }
@@ -127,8 +131,8 @@ export const ServiceTicketDisplay: React.FC<ServiceTicketDisplayProps> = ({
   }
 
   const operationBadge = getOperationBadge()
-  const title = ticket.name || ticket.templateName || 'Service Ticket'
-  const taskTags = ticket.tags || {}
+  const title = ticket.title || ticket.name || ticket.workflowMeta?.templateName || 'Service Ticket'
+  const taskDetails = { ...(ticket.tags || {}), ...(ticket.inputData || {}), ...(ticket.outputData || {}) }
 
   return (
     <Card
@@ -175,10 +179,10 @@ export const ServiceTicketDisplay: React.FC<ServiceTicketDisplayProps> = ({
             </div>
           )}
 
-          {ticket.workflowId && (
+          {ticket.flowId && (
             <div>
               <div className="gba:text-muted-foreground gba:text-sm">Workflow ID</div>
-              <div className="gba:text-foreground gba:text-sm gba:font-mono gba:text-xs">{ticket.workflowId}</div>
+              <div className="gba:text-foreground gba:text-sm gba:font-mono gba:text-xs">{ticket.flowId}</div>
             </div>
           )}
 
@@ -196,11 +200,11 @@ export const ServiceTicketDisplay: React.FC<ServiceTicketDisplayProps> = ({
             </div>
           )}
 
-          {Object.keys(taskTags).length > 0 && (
+          {Object.keys(taskDetails).length > 0 && (
             <div>
               <div className="gba:text-muted-foreground gba:text-sm gba:mb-2">Task Details</div>
               <div className="gba:space-y-2">
-                {Object.entries(taskTags).map(([key, value]) => (
+                {Object.entries(taskDetails).map(([key, value]) => (
                   <div key={key} className="gba:flex gba:flex-col">
                     <span className="gba:text-xs gba:text-muted-foreground">{key}</span>
                     <span className="gba:text-sm gba:text-foreground">
