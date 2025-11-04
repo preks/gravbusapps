@@ -93,10 +93,3 @@ export function extractAvailableCurrencies<T>(investments: T[], currencyGetter: 
 
   return Array.from(currencies).sort((a, b) => a.localeCompare(b))
 }
-
-// Re-export commonly used generic functions from central utilities
-export {
-  getCurrencySymbol,
-  validateCurrencyCode,
-  formatCurrencyString as formatCurrencyDisplay
-} from '@/common/utils/numberFormatter'

@@ -29,7 +29,7 @@ export const formatCurrency = (amount: number, currency: string = 'EUR'): string
 }
 
 // Re-export investment-specific utilities from the new shared/utils folder
-export { safeCurrencyExtraction, extractAvailableCurrencies, formatCurrencyDisplay } from './utils/currencyUtils'
+export { safeCurrencyExtraction, extractAvailableCurrencies } from './utils/currencyUtils'
 
 export {
   calculateDurationYears,
