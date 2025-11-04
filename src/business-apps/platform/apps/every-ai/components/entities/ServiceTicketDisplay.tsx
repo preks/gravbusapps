@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react'
 import { Card, CardContent } from '@newwork/nw-design-system'
 import { env } from '@/common/env/EnvUtils'
+import { useCatalogManagerClient } from '@/common/network/catalogs/useCatalogManagerClient'
 
 interface ServiceTicketDisplayProps {
   serviceTicketId: string
@@ -10,21 +11,23 @@ interface ServiceTicketDisplayProps {
 
 interface ServiceTicket {
   id: string
-  name?: string
+  flowId?: string
+  flowName?: string
   title?: string
+  message?: string
   status?: string
   assignee?: string
-  flowId?: string
-  workflowMeta?: {
-    rootWorkflowId?: string
-    templateName?: string
+  type?: string
+  assignment?: {
+    assignedTo?: string
+    currentStatus?: string
   }
   outputData?: Record<string, any>
   inputData?: Record<string, any>
   tags?: Record<string, any>
-  assignment?: {
-    currentStatus?: string
-  }
+  dueDate?: string
+  scheduledAt?: string
+  completedAt?: string
   createdAt?: string
   updatedAt?: string
 }
@@ -37,6 +40,8 @@ export const ServiceTicketDisplay: React.FC<ServiceTicketDisplayProps> = ({
   const [ticket, setTicket] = useState<ServiceTicket | null>(null)
   const [isLoading, setIsLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
+  const [catalogLabels, setCatalogLabels] = useState<Record<string, string>>({})
+  const catalogClient = useCatalogManagerClient(accessToken)
 
   useEffect(() => {
     const fetchTicket = async () => {
@@ -64,6 +69,42 @@ export const ServiceTicketDisplay: React.FC<ServiceTicketDisplayProps> = ({
 
         if (taskData) {
           setTicket(taskData)
+
+          // Resolve catalog entries from tags
+          const catalogIds: string[] = []
+          const catalogMapping: Record<string, string> = {}
+
+          if (taskData.tags) {
+            Object.entries(taskData.tags).forEach(([key, value]) => {
+              if (typeof value === 'string' && value.includes(':')) {
+                catalogIds.push(value)
+                catalogMapping[value] = key
+              }
+            })
+          }
+
+          // Fetch catalog labels
+          if (catalogIds.length > 0) {
+            try {
+              const catalogPromises = catalogIds.map(async catalogId => {
+                try {
+                  const entry = await catalogClient.getCatalogEntry(catalogId)
+                  return { id: catalogId, label: entry.label || catalogId }
+                } catch {
+                  return { id: catalogId, label: catalogId }
+                }
+              })
+
+              const resolvedCatalogs = await Promise.all(catalogPromises)
+              const labels: Record<string, string> = {}
+              resolvedCatalogs.forEach(({ id, label }) => {
+                labels[id] = label
+              })
+              setCatalogLabels(labels)
+            } catch (err) {
+              console.warn('Failed to resolve some catalog entries', err)
+            }
+          }
         } else {
           setError('Service ticket not found')
         }
@@ -78,7 +119,7 @@ export const ServiceTicketDisplay: React.FC<ServiceTicketDisplayProps> = ({
     if (serviceTicketId && accessToken) {
       fetchTicket()
     }
-  }, [serviceTicketId, accessToken])
+  }, [serviceTicketId, accessToken, catalogClient])
 
   if (isLoading) {
     return (
@@ -131,8 +172,27 @@ export const ServiceTicketDisplay: React.FC<ServiceTicketDisplayProps> = ({
   }
 
   const operationBadge = getOperationBadge()
-  const title = ticket.title || ticket.name || ticket.workflowMeta?.templateName || 'Service Ticket'
-  const taskDetails = { ...(ticket.tags || {}), ...(ticket.inputData || {}), ...(ticket.outputData || {}) }
+  const displayTitle = ticket.flowName || ticket.title || 'Service Ticket'
+  const subtitle = ticket.title || ticket.message || ''
+
+  // Merge form data
+  const formData = { ...(ticket.inputData || {}), ...(ticket.outputData || {}) }
+
+  // Process tags with catalog resolution
+  const tagDetails: Array<{ key: string; value: string; label: string }> = []
+  if (ticket.tags) {
+    Object.entries(ticket.tags).forEach(([key, value]) => {
+      const valueStr = String(value)
+      const displayValue = catalogLabels[valueStr] || valueStr
+      const formattedKey = key
+        .replace(/([A-Z])/g, ' $1')
+        .trim()
+        .split(' ')
+        .map(word => word.charAt(0).toUpperCase() + word.slice(1))
+        .join(' ')
+      tagDetails.push({ key: formattedKey, value: valueStr, label: displayValue })
+    })
+  }
 
   return (
     <Card
@@ -153,8 +213,8 @@ export const ServiceTicketDisplay: React.FC<ServiceTicketDisplayProps> = ({
               </svg>
             </div>
             <div>
-              <h4 className="gba:text-lg gba:font-bold gba:text-foreground">{title}</h4>
-              <p className="gba:text-sm gba:text-muted-foreground">Service Request</p>
+              <h4 className="gba:text-lg gba:font-bold gba:text-foreground">{displayTitle}</h4>
+              <p className="gba:text-sm gba:text-muted-foreground">{subtitle || 'Service Request'}</p>
             </div>
           </div>
           {operationBadge && (
@@ -172,39 +232,32 @@ export const ServiceTicketDisplay: React.FC<ServiceTicketDisplayProps> = ({
             </div>
           )}
 
-          {ticket.assignee && (
+          {(ticket.assignee || ticket.assignment?.assignedTo) && (
             <div>
               <div className="gba:text-muted-foreground gba:text-sm">Assignee</div>
-              <div className="gba:text-foreground gba:text-sm">{ticket.assignee}</div>
+              <div className="gba:text-foreground gba:text-sm">{ticket.assignee || ticket.assignment?.assignedTo}</div>
             </div>
           )}
 
-          {ticket.flowId && (
+          {tagDetails.length > 0 && (
             <div>
-              <div className="gba:text-muted-foreground gba:text-sm">Workflow ID</div>
-              <div className="gba:text-foreground gba:text-sm gba:font-mono gba:text-xs">{ticket.flowId}</div>
-            </div>
-          )}
-
-          {formatDateTime(ticket.createdAt) && (
-            <div>
-              <div className="gba:text-muted-foreground gba:text-sm">Created</div>
-              <div className="gba:text-foreground gba:text-sm">{formatDateTime(ticket.createdAt)}</div>
-            </div>
-          )}
-
-          {formatDateTime(ticket.updatedAt) && (
-            <div>
-              <div className="gba:text-muted-foreground gba:text-sm">Updated</div>
-              <div className="gba:text-foreground gba:text-sm">{formatDateTime(ticket.updatedAt)}</div>
-            </div>
-          )}
-
-          {Object.keys(taskDetails).length > 0 && (
-            <div>
-              <div className="gba:text-muted-foreground gba:text-sm gba:mb-2">Task Details</div>
+              <div className="gba:text-muted-foreground gba:text-sm gba:mb-2">Category</div>
               <div className="gba:space-y-2">
-                {Object.entries(taskDetails).map(([key, value]) => (
+                {tagDetails.map(({ key, label }) => (
+                  <div key={key} className="gba:flex gba:flex-col">
+                    <span className="gba:text-xs gba:text-muted-foreground">{key}</span>
+                    <span className="gba:text-sm gba:text-foreground gba:font-medium">{label}</span>
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
+
+          {Object.keys(formData).length > 0 && (
+            <div>
+              <div className="gba:text-muted-foreground gba:text-sm gba:mb-2">Request Details</div>
+              <div className="gba:space-y-2">
+                {Object.entries(formData).map(([key, value]) => (
                   <div key={key} className="gba:flex gba:flex-col">
                     <span className="gba:text-xs gba:text-muted-foreground">{key}</span>
                     <span className="gba:text-sm gba:text-foreground">
@@ -213,6 +266,27 @@ export const ServiceTicketDisplay: React.FC<ServiceTicketDisplayProps> = ({
                   </div>
                 ))}
               </div>
+            </div>
+          )}
+
+          {formatDateTime(ticket.completedAt) && (
+            <div>
+              <div className="gba:text-muted-foreground gba:text-sm">Completed</div>
+              <div className="gba:text-foreground gba:text-sm">{formatDateTime(ticket.completedAt)}</div>
+            </div>
+          )}
+
+          {formatDateTime(ticket.dueDate) && (
+            <div>
+              <div className="gba:text-muted-foreground gba:text-sm">Due Date</div>
+              <div className="gba:text-foreground gba:text-sm">{formatDateTime(ticket.dueDate)}</div>
+            </div>
+          )}
+
+          {ticket.flowId && (
+            <div>
+              <div className="gba:text-muted-foreground gba:text-sm">Workflow ID</div>
+              <div className="gba:text-foreground gba:text-sm gba:font-mono gba:text-xs">{ticket.flowId}</div>
             </div>
           )}
         </div>
