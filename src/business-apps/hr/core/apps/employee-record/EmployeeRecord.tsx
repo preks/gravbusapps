@@ -26,7 +26,7 @@ import {
 import SummaryTab from './components/tabs/SummaryTab'
 import DetailsTab from './components/tabs/DetailsTab'
 import EmploymentTab from './components/tabs/EmploymentTab'
-import CompensationTab from './components/tabs/CompensationTab'
+import { CompensationTab } from './components/tabs/compensation'
 import DocumentsTab from './components/tabs/DocumentsTab'
 import PerformanceTab from './components/tabs/PerformanceTab'
 import FeedbackTab from './components/tabs/FeedbackTab'
@@ -173,10 +173,7 @@ const EmployeeRecordContent: React.FC<EmployeeRecordContentProps> = ({
   // Track active tab for the UI
   const [activeTab, setActiveTab] = useState(initialActiveTab)
   const activeStructureId = getCurrentActiveStructureId()
-  const feedbackTabFeatureFlag = useFeature('dev.employee-record.feedback.enabled')
-  const changeLogTabFeatureFlag = useFeature('dev.employee-record.changelog.enabled')
-  const timeTrackingTabFeatureFlag = useFeature('dev.employee-record.timetracking.enabled')
-  const compensationTabFeatureFlag = useFeature('dev.employee-record.compensation.enabled')
+  const devFeatureFlag = useFeature('dev.enabled')
 
   // Update URL when active tab changes
   useEffect(() => {
@@ -311,7 +308,7 @@ const EmployeeRecordContent: React.FC<EmployeeRecordContentProps> = ({
           />
         )
       },
-      ...(timeTrackingTabFeatureFlag
+      ...(devFeatureFlag
         ? [
             {
               key: TAB_KEYS.timeTracking,
@@ -351,7 +348,7 @@ const EmployeeRecordContent: React.FC<EmployeeRecordContentProps> = ({
           />
         )
       },
-      ...(compensationTabFeatureFlag
+      ...(devFeatureFlag
         ? [
             {
               key: TAB_KEYS.compensation,
@@ -447,7 +444,7 @@ const EmployeeRecordContent: React.FC<EmployeeRecordContentProps> = ({
           />
         )
       },
-      ...(feedbackTabFeatureFlag
+      ...(devFeatureFlag
         ? [
             {
               key: TAB_KEYS.feedback,
@@ -470,7 +467,7 @@ const EmployeeRecordContent: React.FC<EmployeeRecordContentProps> = ({
             }
           ]
         : []),
-      ...(changeLogTabFeatureFlag
+      ...(devFeatureFlag
         ? [
             {
               key: TAB_KEYS.changeLog,
