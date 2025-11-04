@@ -66,37 +66,6 @@ export const ChangeLogEntry: React.FC<ChangeLogEntryProps> = ({ entry }) => {
             <DataDetails title={entry.fieldName} onClose={() => setOpen(false)} className="gba:px-6">
               <div className="gba:space-y-4">
                 <div className="gba:space-y-3">
-                  <div className="gba:py-2 gba:px-1">
-                    <p className="gba:text-base gba:font-semibold gba:text-foreground">
-                      {getTranslationFromI18nKeyAndLabel(
-                        'lowcoder:changelog_tab.labels.previous_value',
-                        'Previous Value'
-                      )}
-                    </p>
-                    <p className="gba:text-sm gba:text-foreground">
-                      {entry.isMasked
-                        ? getTranslationFromI18nKeyAndLabel(
-                            'lowcoder:changelog_tab.privacy.hidden',
-                            'Hidden for privacy'
-                          )
-                        : entry.previousValue ||
-                          getTranslationFromI18nKeyAndLabel('lowcoder:changelog_tab.common.not_available', 'N/A')}
-                    </p>
-                  </div>
-                  <div className="gba:py-2 gba:px-1">
-                    <p className="gba:text-base gba:font-semibold gba:text-foreground">
-                      {getTranslationFromI18nKeyAndLabel('lowcoder:changelog_tab.labels.new_value', 'New Value')}
-                    </p>
-                    <p className="gba:text-sm gba:text-foreground">
-                      {entry.isMasked
-                        ? getTranslationFromI18nKeyAndLabel(
-                            'lowcoder:changelog_tab.privacy.hidden',
-                            'Hidden for privacy'
-                          )
-                        : entry.newValue ||
-                          getTranslationFromI18nKeyAndLabel('lowcoder:changelog_tab.common.not_available', 'N/A')}
-                    </p>
-                  </div>
                   {(() => {
                     const channel = entry.channelName || (entry.fieldDetail || '').replace(/^Channel:\s*/i, '')
                     return channel ? (

@@ -3,6 +3,7 @@ import { env } from '@/common/env/EnvUtils'
 import ChangeLogDataTransformer from './changeLogDataTransformer'
 import ChangeLogVisibilityRules from './changeLogVisibilityRules'
 import { CHANGE_LOG_QUERIES } from './changeLogQueries'
+import { FlowMetricsClient } from '@/common/network/flow-metrics/FlowMetricsClient'
 
 export interface ChangeLogApiResponse {
   entries: ChangeLogEntry[]
@@ -51,12 +52,63 @@ export class ChangeLogService {
    * Fetch data from FLOW audit system
    */
   private async fetchFromFlowAudit(): Promise<ChangeLogApiResponse> {
-    // FLOW audit system is not available in the current schema
-    // Return empty data to trigger the fallback to version comparison
-    return {
-      entries: [],
-      totalCount: 0,
-      hasMore: false
+    try {
+      const flowMetricsClient = new FlowMetricsClient(this.config.accessToken)
+
+      const PROCESS_NAMES = [
+        'employee.changePictureFlow',
+        'employee.changeAddress',
+        'employee.changeBankAccount',
+        'employee.changeEmployeePrivateCommunication',
+        'employee.changeEmployeeSkills',
+        'employee.changePersonalInformation',
+        'employee.changeRelationship',
+        'employee.updateEmployeeWorkingHours',
+        'employee.uploadEmployeeDocument'
+      ] as const
+
+      // Execute all process-specific requests in parallel
+      const requests = PROCESS_NAMES.map(processName =>
+        flowMetricsClient
+          .getFlowExecutionTasks({
+            cockpitPage: 'ALL',
+            size: 100,
+            page: 0,
+            field: 'PRIORITY',
+            direction: 'DESC',
+            filterProcessName: processName,
+            state: 'Closed'
+          })
+          .catch(() => ({ processingStates: [], content: [], totalCount: 0 }))
+      )
+
+      const results = await Promise.all(requests)
+
+      // Flatten tasks from different possible response shapes
+      const allTasks: any[] = results.flatMap((r: any) =>
+        Array.isArray(r?.processingStates) && r.processingStates.length > 0
+          ? r.processingStates
+          : Array.isArray(r?.content)
+            ? r.content
+            : []
+      )
+
+      // Map each task to ChangeLogEntry, but keep only those referencing this employeeId in variables/inputs
+      const entries = allTasks
+        .map(task => this.taskToChangeLogEntry(task))
+        .filter((entry): entry is ChangeLogEntry => Boolean(entry))
+
+      return {
+        entries,
+        totalCount: entries.length,
+        hasMore: false
+      }
+    } catch {
+      return {
+        entries: [],
+        totalCount: 0,
+        hasMore: false
+      }
     }
   }
 
@@ -130,6 +182,85 @@ export class ChangeLogService {
     }
   }
 
+  // (summary-based transformer removed; we now use flow-executions/tasks per process)
+
+  /**
+   * Convert a Flow Execution Task to a ChangeLogEntry when it relates to the current employee.
+   */
+  private taskToChangeLogEntry(task: any): ChangeLogEntry | null {
+    const variables = task?.variables || task?.inputs || {}
+
+    const maybeEmployeeIds: string[] = [
+      variables.employeeId,
+      variables.idEmployee,
+      variables.employee_id,
+      variables?.employee?.id
+    ].filter(Boolean)
+
+    if (maybeEmployeeIds.length > 0 && !maybeEmployeeIds.includes(this.config.employeeId)) {
+      return null
+    }
+
+    const processName: string = task?.processDefinitionId || task?.processName || task?.customFlowId || ''
+
+    const timestamp =
+      task?.lastUpdate || task?.completed || task?.createdAt || task?.started || new Date().toISOString()
+
+    // Use referenceName as the title
+    const referenceName: string = task?.referenceName || task?.name || 'Employee Update'
+
+    // Map process to a stable category value for filtering
+    const mapping: Record<string, { category: string }> = {
+      'employee.changePictureFlow': { category: 'personal' },
+      'employee.changeAddress': { category: 'address' },
+      'employee.changeBankAccount': { category: 'personal' },
+      'employee.changeEmployeePrivateCommunication': { category: 'address' },
+      'employee.changeEmployeeSkills': { category: 'skills' },
+      changeEmployeeSkills: { category: 'skills' },
+      enterEmployeeSkills: { category: 'skills' },
+      'employee.changePersonalInformation': { category: 'personal' },
+      'employee.changeRelationship': { category: 'personal' },
+      'employee.updateEmployeeWorkingHours': { category: 'employment' },
+      'employee.uploadEmployeeDocument': { category: 'documents' },
+      // Additional synonyms/variants we have seen
+      'employee.uploadDocument': { category: 'documents' },
+      uploadEmployeeDocument: { category: 'documents' },
+      uploadDocument: { category: 'documents' }
+    }
+    const mapKey = Object.keys(mapping).find(k => processName?.includes(k)) || ''
+    let categoryValue = mapping[mapKey]?.category
+    // Heuristic fallback: infer from human-readable name
+    if (!categoryValue) {
+      if (/document/i.test(referenceName) || /document/i.test(processName)) {
+        categoryValue = 'documents'
+      } else if (/skill/i.test(referenceName) || /skill/i.test(processName)) {
+        categoryValue = 'skills'
+      }
+    }
+    if (!categoryValue) categoryValue = 'personal'
+
+    return {
+      id: task?.id || `${processName}-${timestamp}`,
+      fieldName: referenceName,
+      fieldCategory: categoryValue,
+      previousValue: null,
+      newValue: variables?.newValue || null,
+      timestamp,
+      changedBy: {
+        userId: task?.creatorUserId || task?.actualOwner || 'system',
+        userName: task?.creatorName || task?.ownerName || task?.actualOwner || 'System',
+        userRole: 'System'
+      },
+      changeOrigin: {
+        flowId: task?.processInstanceId || task?.customFlowId || processName || 'flow-execution',
+        flowName: task?.name || processName || referenceName,
+        isSystemGenerated: true,
+        isAIGenerated: false
+      },
+      isVisible: true,
+      isMasked: false
+    }
+  }
   /**
    * Export change log data as CSV
    */

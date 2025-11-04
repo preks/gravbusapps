@@ -73,11 +73,14 @@ export const ChangeLogTab: React.FC<ChangeLogTabProps> = ({ employeeId, employee
     setError(null)
 
     try {
-      const changeLogService = createChangeLogService({
-        accessToken,
-        employeeId,
-        userRole
-      })
+      const changeLogService = createChangeLogService(
+        {
+          accessToken,
+          employeeId,
+          userRole
+        },
+        graphqlClient
+      )
 
       const response = await changeLogService.fetchChangeLogEntries(50)
 
@@ -222,11 +225,14 @@ export const ChangeLogTab: React.FC<ChangeLogTabProps> = ({ employeeId, employee
     if (userRole !== 'admin' && userRole !== 'hr_manager') return
 
     try {
-      const changeLogService = createChangeLogService({
-        accessToken,
-        employeeId,
-        userRole
-      })
+      const changeLogService = createChangeLogService(
+        {
+          accessToken,
+          employeeId,
+          userRole
+        },
+        graphqlClient
+      )
 
       const blob = await changeLogService.exportChangeLog()
       const url = window.URL.createObjectURL(blob)
@@ -311,7 +317,7 @@ export const ChangeLogTab: React.FC<ChangeLogTabProps> = ({ employeeId, employee
       <div className="gba:flex gba:justify-end">
         <div className="gba:flex gba:items-center gba:gap-3">
           <label htmlFor="changelog-group-by" className="gba:text-sm gba:text-muted-foreground">
-            {getTranslationFromI18nKeyAndLabel('lowcoder:changelog_tab.group_by', 'Group by')}
+            {getTranslationFromI18nKeyAndLabel('lowcoder:changelog_tab.group_by.title', 'Group by')}
           </label>
           <select
             id="changelog-group-by"
@@ -329,7 +335,7 @@ export const ChangeLogTab: React.FC<ChangeLogTabProps> = ({ employeeId, employee
           </select>
 
           <label htmlFor="changelog-sort" className="gba:text-sm gba:text-muted-foreground">
-            {getTranslationFromI18nKeyAndLabel('lowcoder:changelog_tab.sort', 'Sort')}
+            {getTranslationFromI18nKeyAndLabel('lowcoder:changelog_tab.sort.title', 'Sort')}
           </label>
           <select
             id="changelog-sort"

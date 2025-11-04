@@ -14,25 +14,12 @@ interface ChangeLogFiltersProps {
   actorNames?: string[]
 }
 
-// FIELD_CATEGORIES imported from constants
-
 // Dynamic actor options provided by parent; we always include System
 
 // Get available field categories based on user role
 const getAvailableFieldCategories = (userRole: string) => {
-  const allCategories = [
-    'personal',
-    'address',
-    'org',
-    'working',
-    'financial',
-    'skills',
-    'performance',
-    'absence',
-    'emergency'
-  ]
+  const allCategories = ['personal', 'address', 'org', 'employment', 'financial', 'skills', 'documents']
 
-  // Filter based on user role
   switch (userRole) {
     case 'admin':
     case 'hr_manager':
@@ -41,7 +28,8 @@ const getAvailableFieldCategories = (userRole: string) => {
       return allCategories.filter(cat => cat !== 'financial')
     case 'employee':
     default:
-      return allCategories.filter(cat => !['financial', 'org', 'working'].includes(cat))
+      // Employees can see Employment; hide only Financial and Org
+      return allCategories.filter(cat => !['financial', 'org'].includes(cat))
   }
 }
 
