@@ -14,15 +14,15 @@ import {
   House
 } from '@phosphor-icons/react'
 import { BusinessAppContextProps } from '@/common/BusinessAppContext'
-import { LeadList } from './views/lead-view'
-import { AccountList } from './views/account-view'
-import { ContactList } from './views/contact-view'
+import { LeadView } from './views/lead-view'
+import { AccountView } from './views/account-view'
+import { ContactView } from './views/contact-view'
 import { OpportunityView } from './views/opportunity-view'
 import { DashboardView } from './views/dashboard-view'
 import { AnalyticsView } from './views/analytics-view'
 import { useSalesDashboard } from './views/dashboard-view/hooks/useSalesDashboard'
 import { DateRange } from './views/dashboard-view/types/dashboardTypes'
-import CampaignManagement from './views/campaign-view/CampaignManagement'
+import CampaignView from './views/campaign-view'
 import { TaskView } from './views/task-view'
 import { MODULE_COLORS } from '@/common/constants/ui'
 
@@ -219,25 +219,25 @@ export const CustomerRelations: React.FC<CustomerRelationsProps> = context => {
       case 'leads':
         return (
           <div data-testid="leads-tab-content">
-            <LeadList {...context} sourceApp="CRM" />
+            <LeadView {...context} />
           </div>
         )
       case 'accounts':
         return (
           <div data-testid="accounts-tab-content">
-            <AccountList {...context} sourceApp="CRM" />
+            <AccountView {...context} />
           </div>
         )
       case 'contacts':
         return (
           <div data-testid="contacts-tab-content">
-            <ContactList {...context} sourceApp="CRM" />
+            <ContactView {...context} />
           </div>
         )
       case 'campaigns':
         return (
           <div data-testid="campaigns-tab-content">
-            <CampaignManagement {...context} />
+            <CampaignView {...context} />
           </div>
         )
       case 'opportunities':

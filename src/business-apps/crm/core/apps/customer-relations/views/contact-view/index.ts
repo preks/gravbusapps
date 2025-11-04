@@ -1,10 +1,7 @@
-export { default as ContactList } from './ContactList'
-export { default as ContactTable } from './components/ContactTable'
-export { ContactStatisticsWithTrend } from './components/ContactStatistics'
-export { useContactListData } from './hooks/useContactListData'
-export { useContactStatisticsWithTrend } from './hooks/useContactStatisticsWithTrend'
-export { useContactFilters } from './hooks/useContactFilters'
-export type { Contact, UseContactListDataReturn } from './types'
+// ContactView using ContactLayout from common-relations
+export { ContactView as default } from './ContactView'
+export { ContactView } from './ContactView'
+export type { ContactViewProps } from './ContactView'
 
-// Default export for the main component
-export { default } from './ContactList'
+// Re-export components
+export { ContactStatisticsWithTrend } from './components/ContactStatistics'

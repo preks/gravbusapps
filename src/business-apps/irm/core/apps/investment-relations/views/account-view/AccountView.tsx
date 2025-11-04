@@ -1,252 +1,115 @@
-import React, { useMemo } from 'react'
-import { Button, DataDisplay, DataTable, Spinner } from '@newwork/nw-design-system'
-import { Plus, Download, Trash2 } from 'lucide-react'
+import { useMemo } from 'react'
 import { BusinessAppContextProps } from '@/common/BusinessAppContext'
+import { useGetInvestmentAccounts } from '@/common/data/investment/hooks/useInvestmentAccounts'
+import { AccountLayout, type AccountViewConfig } from '@/common/components/common-relations/view-layouts/account-layout'
 import type { InvestmentAccount } from '@/common/data/investment/types'
-import { AccountStatistics } from './components/AccountStatistics'
-import { AppAction } from '@/components/app-action/AppAction'
-import { AppActionMenu } from '@/components/app-action-menu/AppActionMenu'
+import type { InvestmentAccountQueryVariables } from '@/common/data/investment/queries/investmentAccountQueries'
 import { FlowContextName } from '@/common/types/FlowRegistryTypes'
-import { getTranslationFromI18nKeyAndLabel } from '@/common/utils/windowUtils'
-import { useAccountData } from './hooks/useAccountData'
-import { useAccountFilterOptions } from './hooks/useAccountFilterOptions'
-import { createAccountColumns, createAccountSortableColumns, accountFilterConfig } from './config'
+import {
+  createAccountColumns,
+  createAccountSortableColumns
+} from '@/common/components/common-relations/view-layouts/account-layout/config'
+import { accountFilterConfig } from '@/common/components/common-relations/view-layouts/account-layout/config'
+import { useAccountFilterOptions } from '../account-view/hooks/useAccountFilterOptions'
+import { AccountStatistics } from '../account-view/components/AccountStatistics'
+import {
+  applyBasicFilters,
+  applyDateFilter
+} from '@/common/components/common-relations/view-layouts/account-layout/utils/queryHelpers'
 
 export type AccountViewProps = BusinessAppContextProps
 
 export const AccountView: React.FC<AccountViewProps> = context => {
-  const { accessToken } = context
+  const { fetchInvestmentAccounts } = useGetInvestmentAccounts(context)
 
-  // Data management
-  const accountData = useAccountData(context)
+  const config: AccountViewConfig<InvestmentAccount, InvestmentAccountQueryVariables> = useMemo(
+    () => ({
+      contextType: 'investment',
 
-  // Filter options
-  const filterOptions = useAccountFilterOptions(context)
-
-  // Create columns
-  const accountColumns = useMemo(() => createAccountColumns(), [])
-
-  // Dynamic filter configuration
-  const dynamicFilterConfig = useMemo(() => {
-    const config = { ...accountFilterConfig }
-
-    // Update Owner filter with dynamic data
-    const accountFiltersGroup = config.groups.find(g => g.id === 'account-filters')
-    if (accountFiltersGroup && filterOptions.owners.length > 0) {
-      const ownerFilter = accountFiltersGroup.filters.find(f => f.id === 'owners')
-      if (ownerFilter && ownerFilter.config && 'options' in ownerFilter.config) {
-        ownerFilter.config.options = filterOptions.owners
-      }
-    }
-
-    // Update Industry filter with dynamic data
-    if (accountFiltersGroup && filterOptions.industries.length > 0) {
-      const industryFilter = accountFiltersGroup.filters.find(f => f.id === 'industries')
-      if (industryFilter && industryFilter.config && 'options' in industryFilter.config) {
-        industryFilter.config.options = filterOptions.industries
-      }
-    }
-
-    // Update Legal Form filter with dynamic data
-    if (accountFiltersGroup && filterOptions.legalForms.length > 0) {
-      const legalFormFilter = accountFiltersGroup.filters.find(f => f.id === 'legalForms')
-      if (legalFormFilter && legalFormFilter.config && 'options' in legalFormFilter.config) {
-        legalFormFilter.config.options = filterOptions.legalForms
-      }
-    }
-
-    // Update Company Size filter with dynamic data
-    if (accountFiltersGroup && filterOptions.companySizes.length > 0) {
-      const companySizeFilter = accountFiltersGroup.filters.find(f => f.id === 'companySizes')
-      if (companySizeFilter && companySizeFilter.config && 'options' in companySizeFilter.config) {
-        companySizeFilter.config.options = filterOptions.companySizes
-      }
-    }
-
-    // Update Revenue Band filter with dynamic data
-    if (accountFiltersGroup && filterOptions.revenueBands.length > 0) {
-      const revenueBandFilter = accountFiltersGroup.filters.find(f => f.id === 'revenueBands')
-      if (revenueBandFilter && revenueBandFilter.config && 'options' in revenueBandFilter.config) {
-        revenueBandFilter.config.options = filterOptions.revenueBands
-      }
-    }
-
-    return config
-  }, [filterOptions])
-
-  // Transform data to flatten nested objects for DataTable
-  const transformedAccountData = useMemo(() => {
-    return accountData.data.map(account => ({
-      ...account,
-      industryValue: account.industryClass?.value || account.industryClass?.code || '',
-      legalFormValue: account.legalForm?.value || account.legalForm?.code || '',
-      companySizeValue: account.companySize?.value || account.companySize?.code || '',
-      ownerEmployeeName: account.ownerEmployee?.displayName || ''
-    }))
-  }, [accountData.data])
-
-  // Handle row click
-  // Disable row click navigation to allow AppActionMenu flows to open modals
-  const handleRowClick = (account: InvestmentAccount) => {
-    // Don't navigate - allows action menu flows to work properly
-    console.log('Account selected:', account.id)
-  }
-
-  // Initial loading state
-  if (accountData.loading && accountData.data.length === 0 && !filterOptions.isLoading) {
-    return (
-      <div className="gba:flex gba:items-center gba:justify-center gba:h-64">
-        <Spinner size="lg" />
-      </div>
-    )
-  }
-
-  return (
-    <div data-testid="investment-accounts-view">
-      {/* Header */}
-      <div className="gba:mb-6">
-        <div className="gba:flex gba:items-center gba:justify-between gba:mb-4">
-          <div>
-            <h1 className="gba:text-2xl gba:font-bold gba:text-gray-900">Investment Accounts</h1>
-            <p className="gba:text-gray-600">Manage investment client accounts and relationships</p>
-          </div>
-        </div>
-
-        {/* Statistics Cards */}
-        <AccountStatistics {...context} />
-      </div>
-
-      {/* Data Display with DataTable */}
-      <DataDisplay
-        titleSections={[
-          {
-            id: 'all',
-            label: 'All Accounts',
-            metadata: { count: accountData.total, subtitle: 'All investment accounts' }
-          }
-        ]}
-        currentSection="all"
-        onSectionChange={() => {}} // Single tab, no section change needed
-        primaryAction={
-          <AppAction
-            contextsArray={[FlowContextName.investmentAccountCreate]}
-            externalContextData={{}}
-            accessToken={accessToken}
-            data-testid="add-account-action"
-            emptyStateBehavior="hide"
-            deferMainContextRequestsUntilClick={false}
-          >
-            <Button variant="default" data-testid="add-account-button">
-              <Plus size={16} />
-              {getTranslationFromI18nKeyAndLabel('crm:account.addAccount', 'Add Account')}
-            </Button>
-          </AppAction>
+      fetchAccounts: async (variables: InvestmentAccountQueryVariables) => {
+        const result = await fetchInvestmentAccounts(variables)
+        return {
+          accounts: result.InvestmentAccount || [],
+          total: result.InvestmentAccountAggregate?.aggregate?.count || 0
         }
-        searchValue={accountData.search}
-        searchPlaceholder="Search accounts..."
-        onSearchChange={accountData.setSearch}
-        filters={accountData.filters}
-        filterConfiguration={dynamicFilterConfig}
-        onFilterChange={newFilters => {
-          accountData.setFilters(newFilters)
-        }}
-        enableLiveFiltering={true}
-        filterSheetTitle="Filter Investment Accounts"
-        filterSheetDescription="Apply filters to narrow down the investment account list"
-        toolbarDensity="default"
-        sorting={accountData.sorting}
-        sortableColumns={createAccountSortableColumns()}
-        onSortingChange={accountData.setSorting}
-        availableColumns={accountColumns.map(col => ({
-          id: col.id!,
-          label: col.header as string
-        }))}
-        visibleColumns={accountData.visibleColumns}
-        onVisibleColumnsChange={accountData.setVisibleColumns}
-        selectedCount={accountData.selectedRows.length}
-        bulkActions={[
-          {
-            id: 'export',
-            label: 'Export Selected',
-            icon: <Download className="gba:w-4 gba:h-4" />,
-            variant: 'secondary' as const,
-            onClick: () => {
-              console.log('Export selected accounts:', accountData.selectedRows)
+      },
+
+      filterDataHook: useAccountFilterOptions,
+
+      createColumns: createAccountColumns as any,
+      createSortableColumns: createAccountSortableColumns,
+
+      mapColumnToGraphQLField: (columnId: string): string => {
+        const mapping: Record<string, string> = {
+          name: 'name',
+          email: 'email',
+          phone: 'phone',
+          geographicPresence: 'geographicPresence',
+          industryClass: 'industryClass',
+          legalForm: 'legalForm',
+          companySize: 'companySize',
+          ownerEmployee: 'ownerEmployee',
+          createdAt: 'createdAt',
+          updatedAt: 'updatedAt'
+        }
+        return mapping[columnId] || 'createdAt'
+      },
+
+      baseFilterConfig: accountFilterConfig,
+
+      buildQueryVariables: (params: {
+        pagination: { pageIndex: number; pageSize: number }
+        searchTerm: string
+        selectedFilters: Record<string, any>
+        sorting: Array<{ id: string; desc: boolean }>
+        mapColumnToGraphQLField: (columnId: string) => string
+      }) => {
+        const vars: InvestmentAccountQueryVariables = {
+          limit: params.pagination.pageSize,
+          offset: params.pagination.pageIndex * params.pagination.pageSize,
+          search: params.searchTerm.trim() || undefined
+        }
+
+        applyBasicFilters(vars, params.selectedFilters)
+        applyDateFilter(vars, params.selectedFilters)
+
+        if (params.sorting.length > 0) {
+          vars.orderBy = [
+            {
+              field: params.mapColumnToGraphQLField(params.sorting[0].id) as any,
+              direction: params.sorting[0].desc ? 'DESC_NULLS_LAST' : 'ASC_NULLS_LAST'
             }
-          },
-          {
-            id: 'delete',
-            label: 'Delete Selected',
-            icon: <Trash2 className="gba:w-4 gba:h-4" />,
-            variant: 'destructive' as const,
-            onClick: () => {
-              console.log('Delete selected accounts:', accountData.selectedRows)
-            }
-          }
-        ]}
-        onClearSelection={() => accountData.setSelectedRows([])}
-      >
-        <DataTable<InvestmentAccount>
-          data={transformedAccountData}
-          columns={accountColumns.filter(col => accountData.visibleColumns.includes(col.id!))}
-          loading={accountData.loading}
-          error={accountData.error?.message}
-          totalCount={accountData.total}
-          sorting={accountData.sorting}
-          onSortingChange={accountData.setSorting}
-          pagination={accountData.pagination}
-          onPaginationChange={accountData.setPagination}
-          selectedRows={accountData.selectedRows}
-          onSelectionChange={accountData.setSelectedRows}
-          enablePagination
-          enableSorting
-          enableSelection={false}
-          enableColumnPinning
-          enableResizing={false}
-          rowsPerPageOptions={[10, 20, 50, 100]}
-          showPageNumbers
-          maxVisiblePages={7}
-          emptyMessage="No investment accounts found"
-          actions={row => (
-            <AppActionMenu
-              data-testid={`account-actions-menu-${row.original.id}`}
-              contextsArray={[FlowContextName.investmentAccountEntity]}
-              externalContextData={{ accountId: row.original.id }}
-              prefixDataTestId="investment-account-actions"
-              accessToken={accessToken}
-              emptyStateBehavior="enable"
-              deferMainContextRequestsUntilClick
-            >
-              <Button
-                size="icon"
-                variant="ghost"
-                aria-label="Account actions"
-                data-testid={`account-actions-trigger-${row.original.id}`}
-                onClick={e => e.stopPropagation()}
-              >
-                <svg
-                  xmlns="http://www.w3.org/2000/svg"
-                  width="16"
-                  height="16"
-                  viewBox="0 0 24 24"
-                  fill="none"
-                  stroke="currentColor"
-                  strokeWidth="2"
-                  strokeLinecap="round"
-                  strokeLinejoin="round"
-                >
-                  <circle cx="12" cy="12" r="1" />
-                  <circle cx="12" cy="5" r="1" />
-                  <circle cx="12" cy="19" r="1" />
-                </svg>
-              </Button>
-            </AppActionMenu>
-          )}
-          onRowClick={handleRowClick}
-        />
-      </DataDisplay>
-    </div>
+          ]
+        } else {
+          vars.orderBy = [{ field: 'createdAt' as any, direction: 'DESC_NULLS_LAST' }]
+        }
+
+        return vars
+      },
+
+      flowContexts: {
+        entityContext: FlowContextName.investmentAccountEntity,
+        createContext: FlowContextName.investmentAccountCreate
+      },
+
+      renderStatistics: ({ context: ctx }) => {
+        return <AccountStatistics {...ctx} />
+      },
+
+      processCompletionEvents: [
+        'com.newwork.process.taskCompletion',
+        'com.newwork.process.completion',
+        'com.newwork.process.continue',
+        'com.newwork.process.processCompletion',
+        'processCompletion',
+        'accountCompletion',
+        'accountCompleted'
+      ]
+    }),
+    [context, fetchInvestmentAccounts]
   )
+
+  return <AccountLayout context={context} config={config} dataTestId="investment-account-view" />
 }
 
 export default AccountView

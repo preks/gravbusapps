@@ -23,26 +23,7 @@ const CampaignStatistics: React.FC<CampaignStatisticsProps> = ({
     return `${days} days`
   }
 
-  // Mock trend data (in a real app, this would come from historical data)
-  const getTrendData = (currentValue: number, metric: string) => {
-    // Simulate trend data - in reality, this would be calculated from historical data
-    const mockPreviousValues = {
-      totalCampaigns: Math.max(0, currentValue - Math.floor(Math.random() * 5)),
-      activeCampaigns: Math.max(0, currentValue - Math.floor(Math.random() * 3)),
-      completedCampaigns: Math.max(0, currentValue - Math.floor(Math.random() * 4)),
-      averageDuration: Math.max(0, currentValue - Math.floor(Math.random() * 10))
-    }
-
-    const previousValue = mockPreviousValues[metric as keyof typeof mockPreviousValues] || 0
-    const change = currentValue - previousValue
-    const changePercent = previousValue > 0 ? (change / previousValue) * 100 : 0
-
-    return {
-      value: `${change > 0 ? '+' : ''}${changePercent.toFixed(1)}%`,
-      positive: change > 0,
-      description: `vs last period`
-    }
-  }
+  // Note: Trends removed for simplicity - can be added back when historical data is available
 
   // Transform stats data into widgets format
   const widgets: WidgetItem[] = [
@@ -53,8 +34,7 @@ const CampaignStatistics: React.FC<CampaignStatisticsProps> = ({
       prefix: <ChartBar />,
       color: '#1890ff',
       span: { xs: 24, sm: 12, lg: 6 },
-      description: 'All campaigns in the system',
-      trend: getTrendData(statistics.totalCampaigns, 'totalCampaigns')
+      description: 'All campaigns in the system'
     },
     {
       key: 'active-campaigns',
@@ -63,8 +43,7 @@ const CampaignStatistics: React.FC<CampaignStatisticsProps> = ({
       prefix: <Play />,
       color: '#52c41a',
       span: { xs: 24, sm: 12, lg: 6 },
-      description: 'Currently running campaigns',
-      trend: getTrendData(statistics.activeCampaigns, 'activeCampaigns')
+      description: 'Currently running campaigns'
     },
     {
       key: 'completed-campaigns',
@@ -73,8 +52,7 @@ const CampaignStatistics: React.FC<CampaignStatisticsProps> = ({
       prefix: <CheckCircle />,
       color: '#722ed1',
       span: { xs: 24, sm: 12, lg: 6 },
-      description: 'Successfully finished campaigns',
-      trend: getTrendData(statistics.completedCampaigns, 'completedCampaigns')
+      description: 'Successfully finished campaigns'
     },
     {
       key: 'average-duration',
@@ -84,8 +62,7 @@ const CampaignStatistics: React.FC<CampaignStatisticsProps> = ({
       prefix: <Clock />,
       color: '#fa8c16',
       span: { xs: 24, sm: 12, lg: 6 },
-      description: 'Average campaign duration in days',
-      trend: getTrendData(statistics.averageDuration, 'averageDuration')
+      description: 'Average campaign duration'
     }
   ]
 

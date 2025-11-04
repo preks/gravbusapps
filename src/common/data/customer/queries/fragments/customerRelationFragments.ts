@@ -154,37 +154,22 @@ export const CUSTOMER_LEAD = `
 // CRM RELATED ENTITIES (TASK / ACTIVITY / NOTE / DOCUMENT)
 // ==========================================
 
+import { COMMON_TASK_FIELDS } from '@/common/data/relations/queries/commonTaskFragments'
+
 export const CUSTOMER_TASK = `
-    id
+    ${COMMON_TASK_FIELDS}
+    
+    # Customer-specific fields
     version
     additionalProperties
-    code
-    name
-    description
     comment
-    startDate
-    dueDate
-    endDate
     templateStartDate
-    ${AUDIT_FIELDS}
     
-    # Reference fields
+    # Reference fields (String IDs only - SalesTask schema doesn't have catalog objects)
     typeRef
     priorityRef
     statusRef
     timingType
-    
-    # User references
-    creatorUserId
-    assignedUserId
-    
-    # Employee references
-    creatorEmployee {
-      ${EMPLOYEE_REF}
-    }
-    assignedEmployee {
-      ${EMPLOYEE_REF}
-    }
     
     # Task template reference
     salesTaskTemplate {

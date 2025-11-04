@@ -6,11 +6,11 @@ import { Task, TaskEmployee } from '@/common/components/common-relations/detail-
 import {
   getTaskStatusBadgeVariant,
   getTaskPriorityBadgeVariant,
-  getTaskTypeBadgeVariant,
   getReferenceTypeBadgeVariant
 } from '../utils/taskBadgeUtils'
 import dayjs from 'dayjs'
 import { navigateTo, buildPlatformUrl } from '@/common/utils/navigationUtils'
+import { getCatalogEntryValue } from '@/common/data/catalog/utils/catalogTranslationUtils'
 
 const formatDate = (dateString: string) => dayjs(dateString).format('MM/DD/YYYY')
 
@@ -23,18 +23,25 @@ const convertToOwnerEmployee = (taskEmployee: TaskEmployee) => ({
   pictureThumbnail: taskEmployee.pictureThumbnail
 })
 
-const getTimingTypeIcon = (timingType?: string) => {
-  if (!timingType)
+const getTimingTypeIcon = (task: any) => {
+  // Try to get timing type from different possible fields
+  const timingType = task.timingType || task.taskTiming
+
+  if (!timingType) {
     return { icon: <Clock className="gba:h-4 gba:w-4 gba:text-gray-400" />, tooltip: 'No timing type specified' }
-  switch (timingType.toUpperCase()) {
+  }
+
+  const timingStr = typeof timingType === 'string' ? timingType : String(timingType)
+
+  switch (timingStr.toUpperCase()) {
     case 'DEADLINE':
       return {
-        icon: <Clock className="gba:h-4 gba:w-4 gba:text-red-500" />,
+        icon: <Clock className="gba:h-4 gba:w-4 gba:text-destructive" />,
         tooltip: 'Deadline - Complete by this date'
       }
     case 'SCHEDULED':
       return {
-        icon: <Calendar className="gba:h-4 gba:w-4 gba:text-blue-500" />,
+        icon: <Calendar className="gba:h-4 gba:w-4 gba:text-info" />,
         tooltip: 'Scheduled - Execute on this specific date'
       }
     default:
@@ -99,35 +106,52 @@ export const createTaskColumns = (): ColumnDef<Task>[] => [
     accessorKey: 'type',
     header: 'Type',
     size: 120,
-    cell: ({ row }) => (
-      <Badge variant={getTaskTypeBadgeVariant(row.original.type)}>
-        {row.original.type.charAt(0).toUpperCase() + row.original.type.slice(1).toLowerCase()}
-      </Badge>
-    )
+    cell: ({ row }) => {
+      // Use taskTypeLabel from mapper or extract from catalog entry
+      const typeValue =
+        (row.original as any).taskTypeLabel ||
+        (typeof row.original.type === 'string' ? row.original.type : getCatalogEntryValue(row.original.type as any))
+
+      if (!typeValue) return <span className="gba:text-gray-400">-</span>
+
+      return <span className="gba:text-sm">{typeValue}</span>
+    }
   },
   {
     id: 'priority',
     accessorKey: 'priority',
     header: 'Priority',
     size: 120,
-    cell: ({ row }) => (
-      <Badge variant={getTaskPriorityBadgeVariant(row.original.priority)}>
-        {row.original.priority.charAt(0).toUpperCase() + row.original.priority.slice(1).toLowerCase()}
-      </Badge>
-    )
+    cell: ({ row }) => {
+      // Use taskPriorityLabel from mapper or extract from catalog entry
+      const priorityValue =
+        (row.original as any).taskPriorityLabel ||
+        (typeof row.original.priority === 'string'
+          ? row.original.priority
+          : getCatalogEntryValue(row.original.priority as any))
+
+      if (!priorityValue) return <span className="gba:text-gray-400">-</span>
+
+      return <Badge variant={getTaskPriorityBadgeVariant(priorityValue)}>{priorityValue}</Badge>
+    }
   },
   {
     id: 'status',
     accessorKey: 'status',
     header: 'Status',
     size: 120,
-    cell: ({ row }) => (
-      <Badge variant={getTaskStatusBadgeVariant(row.original.status)}>
-        {row.original.status === 'in_progress'
-          ? 'In Progress'
-          : row.original.status.charAt(0).toUpperCase() + row.original.status.slice(1)}
-      </Badge>
-    )
+    cell: ({ row }) => {
+      // Use taskStatusLabel from mapper or extract from catalog entry
+      const statusValue =
+        (row.original as any).taskStatusLabel ||
+        (typeof row.original.status === 'string'
+          ? row.original.status
+          : getCatalogEntryValue(row.original.status as any))
+
+      if (!statusValue) return <span className="gba:text-gray-400">-</span>
+
+      return <Badge variant={getTaskStatusBadgeVariant(statusValue)}>{statusValue}</Badge>
+    }
   },
   {
     id: 'reference',
@@ -135,7 +159,8 @@ export const createTaskColumns = (): ColumnDef<Task>[] => [
     header: 'Reference',
     size: 200,
     cell: ({ row }) => {
-      if (!row.original.reference) {
+      const reference = row.original.reference
+      if (!reference || !reference.name) {
         return <span className="gba:text-gray-400">No reference</span>
       }
 
@@ -144,18 +169,16 @@ export const createTaskColumns = (): ColumnDef<Task>[] => [
           className="gba:cursor-pointer gba:hover:bg-gray-50 gba:p-2 gba:rounded gba:transition-colors"
           onClick={e => {
             e.stopPropagation()
-            handleReferenceClick(row.original.reference)
+            handleReferenceClick(reference)
           }}
           data-testid={`task-reference-link-${row.original.id}`}
         >
-          <div className="gba:font-medium gba:text-sm">{row.original.reference.name}</div>
+          <div className="gba:font-medium gba:text-sm">{reference.name}</div>
           <div className="gba:flex gba:items-center gba:gap-1 gba:mt-1">
-            <Badge variant={getReferenceTypeBadgeVariant(row.original.reference.type)} className="gba:text-xs">
-              {row.original.reference.type.charAt(0).toUpperCase() + row.original.reference.type.slice(1)}
+            <Badge variant={getReferenceTypeBadgeVariant(reference.type)} className="gba:text-xs">
+              {reference.type ? reference.type.charAt(0).toUpperCase() + reference.type.slice(1) : '-'}
             </Badge>
-            {row.original.reference.description && (
-              <span className="gba:text-xs gba:text-gray-500">{row.original.reference.description}</span>
-            )}
+            {reference.description && <span className="gba:text-xs gba:text-gray-500">{reference.description}</span>}
           </div>
         </div>
       )
@@ -166,21 +189,27 @@ export const createTaskColumns = (): ColumnDef<Task>[] => [
     accessorKey: 'dueDate',
     header: 'Schedule / Due Date',
     size: 150,
-    cell: ({ row }) => (
-      <div className="gba:flex gba:items-center gba:gap-2">
-        <TooltipProvider>
-          <Tooltip>
-            <TooltipTrigger asChild>
-              <div className="gba:flex gba:items-center">{getTimingTypeIcon(row.original.timingType).icon}</div>
-            </TooltipTrigger>
-            <TooltipContent>
-              <p>{getTimingTypeIcon(row.original.timingType).tooltip}</p>
-            </TooltipContent>
-          </Tooltip>
-        </TooltipProvider>
-        <span className="gba:text-sm">{formatDate(row.original.dueDate)}</span>
-      </div>
-    )
+    cell: ({ row }) => {
+      if (!row.original.dueDate) {
+        return <span className="gba:text-gray-400">-</span>
+      }
+      const timingIcon = getTimingTypeIcon(row.original)
+      return (
+        <div className="gba:flex gba:items-center gba:gap-2">
+          <TooltipProvider>
+            <Tooltip>
+              <TooltipTrigger asChild>
+                <div className="gba:flex gba:items-center gba:shrink-0">{timingIcon.icon}</div>
+              </TooltipTrigger>
+              <TooltipContent>
+                <p>{timingIcon.tooltip}</p>
+              </TooltipContent>
+            </Tooltip>
+          </TooltipProvider>
+          <span className="gba:text-sm">{formatDate(row.original.dueDate)}</span>
+        </div>
+      )
+    }
   },
   {
     id: 'createdBy',

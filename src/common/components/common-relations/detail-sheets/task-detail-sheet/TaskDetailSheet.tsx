@@ -151,7 +151,9 @@ export const TaskDetailSheet: React.FC<TaskDetailSheetProps> = ({
               <Badge variant={getTaskStatusBadgeVariant(task.status)}>
                 {task.status === 'in_progress'
                   ? 'In Progress'
-                  : task.status.charAt(0).toUpperCase() + task.status.slice(1)}
+                  : task.status
+                    ? task.status.charAt(0).toUpperCase() + task.status.slice(1)
+                    : '-'}
               </Badge>
               {isOverdue && (
                 <Badge variant="destructive" className="gba:ml-2">

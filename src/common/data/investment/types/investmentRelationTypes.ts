@@ -172,15 +172,14 @@ export interface InvestmentTaskTemplate extends BaseInvestmentTaskTemplate {
 export interface InvestmentTask extends BaseInvestmentTask {
   // Computed display fields only
   displayName: string
-  taskTypeLabel?: string
-  taskPriorityLabel?: string
-  taskStatusLabel?: string
   creatorDisplayName?: string
   assignedDisplayName?: string
   accountDisplayName?: string
   contactDisplayName?: string
   leadDisplayName?: string
   opportunityDisplayName?: string
+  reference?: any
+  // taskType, taskPriority, taskStatus inherited from Base as CatalogEntry objects
 }
 
 // Enhanced InvestmentOpportunityStageCondition type with computed fields

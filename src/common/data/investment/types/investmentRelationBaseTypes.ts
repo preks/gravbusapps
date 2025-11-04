@@ -541,31 +541,22 @@ export interface BaseInvestmentTaskTemplate extends BaseEntity {
 }
 
 // investment_task table
-export interface BaseInvestmentTask extends BaseEntity {
-  id: string
+import { CommonTask } from '@/common/data/relations/types/commonTaskTypes'
 
-  // Common Fields (from nw_common_relations.task)
-  code?: string
-  name?: string
+export interface BaseInvestmentTask extends CommonTask {
+  // Investment-specific fields
   source?: SourceTable
-  description?: string
-  templateStartDate?: string // ISO date string
-  startDate?: string // ISO date string
-  dueDate?: string // ISO date string
-  endDate?: string // ISO date string
+  templateStartDate?: string
   taskTiming?: TaskTiming
+  taskTypeRef?: string
 
-  // Catalog references
+  // Catalog references (InvestmentTask has full catalog objects)
   taskType?: CatalogEntry
   taskPriority?: CatalogEntry
   taskStatus?: CatalogEntry
 
-  // Entity references (using Ref types)
+  // Related entity references (Investment-specific)
   investment?: InvestmentRef
-  creatorEmployee?: EmployeeRef
-  assignedEmployee?: EmployeeRef
-  creatorUserId?: string
-  assignedUserId?: string
   taskTemplate?: BaseInvestmentTaskTemplate
   account?: InvestmentAccountRef
   contact?: InvestmentContactRef

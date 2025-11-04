@@ -71,9 +71,7 @@ export interface CustomerOpportunity extends BaseCustomerOpportunity {
 export interface CustomerTask extends BaseCustomerTask {
   // Computed display fields only
   displayName: string
-  taskTypeLabel?: string
-  taskPriorityLabel?: string
-  taskStatusLabel?: string
+  // taskType, taskPriority, taskStatus inherited from Base (already CatalogEntry in Base)
   creatorDisplayName?: string
   assignedDisplayName?: string
   taskTiming?: string
@@ -84,6 +82,7 @@ export interface CustomerTask extends BaseCustomerTask {
   contactDisplayName?: string
   leadDisplayName?: string
   opportunityDisplayName?: string
+  reference?: any
 }
 
 // Enhanced CustomerActivity type with computed fields

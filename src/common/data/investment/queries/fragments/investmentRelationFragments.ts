@@ -406,19 +406,17 @@ export const INVESTMENT_OPPORTUNITY = `
     }
 `
 
+import { COMMON_TASK_FIELDS } from '@/common/data/relations/queries/commonTaskFragments'
+
 export const INVESTMENT_TASK = `
-    id
-    code
-    name
-    description
-    startDate
-    dueDate
-    endDate
+    ${COMMON_TASK_FIELDS}
+    
+    # Investment-specific fields
     taskTiming
     taskTypeRef
-    ${AUDIT_FIELDS}
+    templateStartDate
 
-    # Catalog references
+    # Catalog references (InvestmentTask has full catalog objects)
     taskType {
       ${CATALOG_ENTRY}
     }
@@ -427,14 +425,6 @@ export const INVESTMENT_TASK = `
     }
     taskStatus {
       ${CATALOG_ENTRY}
-    }
-
-    # Employee references
-    creatorEmployee {
-      ${EMPLOYEE_REF}
-    }
-    assignedEmployee {
-      ${EMPLOYEE_REF}
     }
 
     # Entity references

@@ -11,16 +11,37 @@ import {
   CustomerDocument
 } from '../types'
 
+import type { CatalogEntry } from '@/common/network/graphql/commonTypes'
+
+/**
+ * Helper to create mock CatalogEntry from ref string
+ * Converts "SalesTaskPriority:v1:HIGH" to { id: "...", type: "HIGH", value: "High", code: "HIGH" }
+ */
+const createCatalogEntryFromRef = (ref: string | undefined): CatalogEntry | undefined => {
+  if (!ref) return undefined
+
+  // Split by ":" and get last part (the type/code)
+  const parts = ref.split(':')
+  const type = parts[parts.length - 1] || ref
+
+  // Convert SCREAMING_SNAKE_CASE to Title Case for value
+  const value = type
+    .split('_')
+    .map(word => word.charAt(0).toUpperCase() + word.slice(1).toLowerCase())
+    .join(' ')
+
+  return {
+    id: ref,
+    code: type,
+    type: type,
+    value: value
+  } as CatalogEntry
+}
+
 /**
  * Transform BaseCustomerTask (GraphQL response) to CustomerTask (enhanced with computed fields)
  */
 export function toCustomerTask(base: BaseCustomerTask): CustomerTask {
-  // Extract labels from catalog entries
-  const taskTypeLabel = base.taskType?.value || base.taskType?.code || (base as any).typeRef || undefined
-  const taskPriorityLabel =
-    base.taskPriority?.value || base.taskPriority?.code || (base as any).priorityRef || undefined
-  const taskStatusLabel = base.taskStatus?.value || base.taskStatus?.code || (base as any).statusRef || undefined
-
   // Employee display names
   const creatorDisplayName =
     base.creatorEmployee?.displayName ||
@@ -45,12 +66,29 @@ export function toCustomerTask(base: BaseCustomerTask): CustomerTask {
   const formattedStartDate = base.startDate ? new Date(base.startDate).toLocaleDateString() : undefined
   const formattedEndDate = base.endDate ? new Date(base.endDate).toLocaleDateString() : undefined
 
+  // Build task reference from related entities
+  let taskReference: any = undefined
+  if (base.opportunity?.id) {
+    taskReference = { type: 'opportunity', id: base.opportunity.id, name: opportunityDisplayName }
+  } else if (base.account?.id) {
+    taskReference = { type: 'account', id: base.account.id, name: accountDisplayName }
+  } else if (base.lead?.id) {
+    taskReference = { type: 'lead', id: base.lead.id, name: leadDisplayName }
+  } else if (base.contact?.id) {
+    taskReference = { type: 'contact', id: base.contact.id, name: contactDisplayName }
+  }
+
+  // Convert string refs to CatalogEntry objects
+  const taskType = createCatalogEntryFromRef((base as any).typeRef)
+  const taskPriority = createCatalogEntryFromRef((base as any).priorityRef)
+  const taskStatus = createCatalogEntryFromRef((base as any).statusRef)
+
   return {
     ...base,
+    taskType, // Override base.taskType with converted CatalogEntry
+    taskPriority, // Override base.taskPriority with converted CatalogEntry
+    taskStatus, // Override base.taskStatus with converted CatalogEntry
     displayName,
-    taskTypeLabel,
-    taskPriorityLabel,
-    taskStatusLabel,
     creatorDisplayName,
     assignedDisplayName,
     accountDisplayName,
@@ -59,7 +97,8 @@ export function toCustomerTask(base: BaseCustomerTask): CustomerTask {
     opportunityDisplayName,
     formattedDueDate,
     formattedStartDate,
-    formattedEndDate
+    formattedEndDate,
+    reference: taskReference
   }
 }
 

@@ -15,11 +15,6 @@ import {
  * Transform BaseInvestmentTask (GraphQL response) to InvestmentTask (enhanced with computed fields)
  */
 export function toInvestmentTask(base: BaseInvestmentTask): InvestmentTask {
-  // Extract labels from catalog entries
-  const taskTypeLabel = base.taskType?.value || base.taskType?.code
-  const taskPriorityLabel = base.taskPriority?.value || base.taskPriority?.code
-  const taskStatusLabel = base.taskStatus?.value || base.taskStatus?.code
-
   // Employee display names
   const creatorDisplayName =
     base.creatorEmployee?.displayName ||
@@ -39,18 +34,32 @@ export function toInvestmentTask(base: BaseInvestmentTask): InvestmentTask {
   // Create computed display name
   const displayName = base.name || base.code || `Task ${base.id}`
 
+  // Build task reference from related entities
+  let taskReference: any = undefined
+  if (base.opportunity?.id) {
+    taskReference = { type: 'opportunity', id: base.opportunity.id, name: opportunityDisplayName }
+  } else if (base.account?.id) {
+    taskReference = { type: 'account', id: base.account.id, name: accountDisplayName }
+  } else if (base.lead?.id) {
+    taskReference = { type: 'lead', id: base.lead.id, name: leadDisplayName }
+  } else if (base.contact?.id) {
+    taskReference = { type: 'contact', id: base.contact.id, name: contactDisplayName }
+  } else if (base.investment?.id) {
+    const investmentName = base.investment.name || base.investment.code || 'Investment'
+    taskReference = { type: 'investment', id: base.investment.id, name: investmentName }
+  }
+
   return {
     ...base,
     displayName,
-    taskTypeLabel,
-    taskPriorityLabel,
-    taskStatusLabel,
     creatorDisplayName,
     assignedDisplayName,
     accountDisplayName,
     contactDisplayName,
     leadDisplayName,
-    opportunityDisplayName
+    opportunityDisplayName,
+    reference: taskReference
+    // taskType, taskPriority, taskStatus bleiben als CatalogEntry Objekte!
   }
 }
 

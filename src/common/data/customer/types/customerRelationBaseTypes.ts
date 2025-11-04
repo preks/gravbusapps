@@ -181,33 +181,25 @@ export interface BaseCustomerLead extends BaseEntity {
 }
 
 // sales_task table
-export interface BaseCustomerTask extends BaseEntity {
-  id: string
+import { CommonTask } from '@/common/data/relations/types/commonTaskTypes'
 
-  // Task Fields
-  code?: string
-  name?: string
-  description?: string
+export interface BaseCustomerTask extends CommonTask {
+  // Customer-specific fields
   comment?: string
-  startDate?: string // ISO date string
-  dueDate?: string // ISO date string
-  endDate?: string // ISO date string
+  templateStartDate?: string
 
-  // Catalog references
-  taskType?: CatalogEntry // legacy
-  taskPriority?: CatalogEntry // legacy
-  taskStatus?: CatalogEntry // legacy
-  // Updated schema reference fields
+  // Catalog references (legacy)
+  taskType?: CatalogEntry
+  taskPriority?: CatalogEntry
+  taskStatus?: CatalogEntry
+
+  // Reference fields (String IDs - SalesTask schema)
   typeRef?: string
   priorityRef?: string
   statusRef?: string
   timingType?: string
 
-  // Employee references
-  creatorEmployee?: EmployeeRef
-  assignedEmployee?: EmployeeRef
-
-  // Related entity references
+  // Related entity references (Customer-specific)
   account?: CustomerAccountRef
   contact?: CustomerContactRef
   lead?: CustomerLeadRef
