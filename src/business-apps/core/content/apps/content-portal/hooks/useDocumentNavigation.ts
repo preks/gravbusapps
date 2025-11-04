@@ -70,9 +70,14 @@ export const useDocumentNavigation = () => {
    * Resets folder navigation to root
    */
   const selectArea = useCallback(
-    (area: ContentEntry) => {
+    (area: ContentEntry | null) => {
       setCurrentArea(area)
       setCurrentFolderId(null)
+
+      if (!area) {
+        setBreadcrumbs([])
+        return
+      }
 
       // Build breadcrumbs: type + area
       const newBreadcrumbs: Breadcrumb[] = []
@@ -99,14 +104,14 @@ export const useDocumentNavigation = () => {
    * Adds folder to breadcrumb trail
    */
   const navigateToFolder = useCallback((folder: ContentDocument) => {
-    if (!folder.id || !folder.name) return
+    if (!folder.id) return
 
     setCurrentFolderId(folder.id)
     setBreadcrumbs(prev => [
       ...prev,
       {
         id: folder.id,
-        title: folder.name || 'Untitled Folder',
+        title: folder.name || 'Unnamed Folder',
         type: 'folder'
       }
     ])

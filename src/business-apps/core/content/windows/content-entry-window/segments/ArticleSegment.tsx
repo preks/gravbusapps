@@ -15,7 +15,7 @@ import {
 import { Image } from '@phosphor-icons/react'
 import ReactQuill from 'react-quill'
 import { ContentEntryFormValues } from '../ContentEntryWindow'
-import translations from '../i18n'
+import translations from '../_i18n'
 
 interface ArticleSegmentProps {
   control: Control<ContentEntryFormValues>

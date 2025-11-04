@@ -2,7 +2,7 @@ import React, { useState } from 'react'
 import { useTranslation } from 'react-i18next'
 import { Alert, AlertTitle, AlertDescription } from '@newwork/nw-design-system'
 import { MessageCircle } from 'lucide-react'
-import { useContentComments, CommentWithReplies } from '../../hooks/useContentComments'
+import { useContentComments, CommentWithReplies } from '@/common/data/content'
 import CommentForm from './CommentForm'
 import CommentItem from './CommentItem'
 import CommentThreadView from './CommentThreadView'
@@ -10,6 +10,7 @@ import CommentThreadView from './CommentThreadView'
 export interface CommentSectionProps {
   articleId: string
   allowComment: boolean
+  commentCount: number
   accessToken: string
   currentUserId: string | undefined
   employeeId: string
@@ -19,13 +20,14 @@ export interface CommentSectionProps {
 export const CommentSection: React.FC<CommentSectionProps> = ({
   articleId,
   allowComment,
+  commentCount,
   accessToken,
   currentUserId,
   employeeId,
   'data-testid': dataTestId = 'comment-section'
 }) => {
   const { t } = useTranslation('content')
-  const { comments, allComments, isLoading, error, refetch } = useContentComments(articleId, accessToken)
+  const { comments, isLoading, error, refetch } = useContentComments(articleId, accessToken)
   const [viewingThread, setViewingThread] = useState<CommentWithReplies | null>(null)
 
   if (!allowComment) {
@@ -64,7 +66,7 @@ export const CommentSection: React.FC<CommentSectionProps> = ({
       <div className="gba:flex gba:items-center gba:gap-2">
         <MessageCircle className="gba:w-5 gba:h-5 gba:text-foreground" />
         <h2 className="gba:text-xl gba:font-semibold gba:text-foreground">
-          {t('comments', 'Comments')} ({allComments.length})
+          {t('comments', 'Comments')} ({commentCount})
         </h2>
       </div>
 

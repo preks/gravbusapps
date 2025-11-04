@@ -20,7 +20,7 @@ import { CatalogSelect } from '@/components/catalog-select'
 import { ContentRole, ContentGroup } from '@/common/data/content/types/contentEnums'
 import { buildContentEntryPayload } from '@/common/data/content/payloads'
 import { ArticleSegment, QuestionSegment, DocumentSegment } from './segments'
-import translations from './i18n'
+import translations from './_i18n'
 
 export interface ContentEntryWindowProps extends BusinessAppContextProps {
   contentId?: string
@@ -55,7 +55,8 @@ const ContentEntryWindowContent: React.FC<ContentEntryWindowProps> = context => 
   const [imageInfo, setImageInfo] = useState<{ name: string; size: string } | null>(null)
 
   // Extract contentGroupRef from props or additionalData
-  const extractedContentGroupRef = context.contentGroupRef || context.additionalData?.contentGroupRef
+  const extractedContentGroupRef =
+    context.contentGroupRef || context.additionalData?.contentGroupRef || context.additionalData?.contentGroup
 
   // Author info from context
   const authorName = useMemo(() => {

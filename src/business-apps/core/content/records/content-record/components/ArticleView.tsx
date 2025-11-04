@@ -2,7 +2,7 @@ import React from 'react'
 import { useTranslation } from '@newwork/nw-design-system'
 import { Badge } from '@newwork/nw-design-system'
 import { ContentEntry } from '@/common/data/content/types/contentTypes'
-import { CommentSection } from '@/business-apps/core/content/components/interactions'
+import { CommentSection } from '@/business-apps/core/content/records/content-record/components/interactions'
 import ContentInfoSection from './ContentInfoSection'
 import translations from '../_i18n'
 
@@ -93,6 +93,7 @@ const ArticleView: React.FC<ArticleViewProps> = ({
           <CommentSection
             articleId={item.id}
             allowComment={item.allowComment}
+            commentCount={item.commentCount || 0}
             accessToken={accessToken}
             employeeId={employeeId}
             currentUserId={userId}

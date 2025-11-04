@@ -3,10 +3,10 @@ import { useTranslation } from '@newwork/nw-design-system'
 import { Badge, Button, Alert, AlertTitle, AlertDescription } from '@newwork/nw-design-system'
 import { MessageCircle, CheckCircle, Share2 } from 'lucide-react'
 import { ContentEntry } from '@/common/data/content/types/contentTypes'
-import { useContentComments, CommentWithReplies } from '../../../hooks/useContentComments'
+import { useContentComments, CommentWithReplies } from '@/common/data/content'
 import { useUserContentReactions } from '@/common/data/content'
 import { VoteButtons, type VoteState } from '@/common/components/common-content'
-import CommentThreadView from '@/business-apps/core/content/components/interactions/CommentThreadView'
+import CommentThreadView from '@/business-apps/core/content/records/content-record/components/interactions/CommentThreadView'
 import AnswerForm from './AnswerForm'
 import translations from '../_i18n'
 
@@ -237,7 +237,7 @@ const QuestionView: React.FC<QuestionViewProps> = ({
           <div className="gba:flex gba:items-center gba:gap-2">
             <MessageCircle className="gba:w-5 gba:h-5 gba:text-foreground" />
             <h2 className="gba:text-xl gba:font-semibold gba:text-foreground">
-              {answers.length} {answers.length === 1 ? t('answer') : t('answers')}
+              {item.commentCount || 0} {(item.commentCount || 0) === 1 ? t('answer') : t('answers')}
             </h2>
           </div>
 

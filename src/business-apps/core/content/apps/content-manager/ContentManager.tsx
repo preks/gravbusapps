@@ -9,9 +9,9 @@ import { FlowContextName } from '@/common/types/FlowRegistryTypes'
 import { PlusIcon } from '@phosphor-icons/react'
 import type { ContentEntry } from '@/common/data/content/types/contentTypes'
 
-type ContentManagementProps = BusinessAppContextProps
+type ContentManagerProps = BusinessAppContextProps
 
-const ContentManagement: React.FC<ContentManagementProps> = context => {
+const ContentManager: React.FC<ContentManagerProps> = context => {
   const { accessToken } = context
 
   // Section state
@@ -251,4 +251,4 @@ const ContentManagement: React.FC<ContentManagementProps> = context => {
   )
 }
 
-export default ContentManagement
+export default ContentManager

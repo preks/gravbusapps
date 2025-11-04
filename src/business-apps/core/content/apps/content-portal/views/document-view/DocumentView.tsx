@@ -1,15 +1,16 @@
 import React from 'react'
-import { useTranslation, Button, Badge, Card, Separator } from '@newwork/nw-design-system'
-import { ChevronRight, FileText, Folder, FolderTree, X } from 'lucide-react'
+import { useTranslation, Button, Badge, Card, Skeleton } from '@newwork/nw-design-system'
+import { ChevronRight, FileText, Folder, Home, Download, Eye } from 'lucide-react'
 import Banner, { BannerVariant } from '../../components/shared/Banner'
 import { BusinessAppContextProps } from '@/common/BusinessAppContext'
 import { useDocumentNavigation } from '../../hooks/useDocumentNavigation'
 import { useDocumentAreas, useFolderContents } from '../../hooks/useDocumentData'
-import { useContentTypes } from '../../hooks/useContentTypes'
-import { useCatalogEntries } from '@/common/data/catalog'
+import { ContentGroup } from '@/common/data/content/types/contentEnums'
 import translations from '../../_i18n'
 import { AppAction } from '@/components/app-action'
 import { FlowContextName } from '@/common/types/FlowRegistryTypes'
+import { buildFileUrl } from '@/common/utils/fileUtils'
+import { useProcessCompletion } from '@/common/hooks/useProcessCompletion'
 
 interface DocumentViewProps extends BusinessAppContextProps {
   hideBanner?: boolean
@@ -19,60 +20,105 @@ interface DocumentViewProps extends BusinessAppContextProps {
 }
 
 /**
- * Document View - Complete Document Management System
+ * Document View - Hierarchical Document Management
  *
- * New Hierarchy:
- * 1. ContentTypes (e.g., "Contracts", "Policies", "Manuals")
- * 2. Categories (optional multi-select filtering)
- * 3. ContentEntries (Document Areas)
- * 4. ContentDocuments (Folders & Files)
+ * Hierarchy:
+ * 1. ContentEntries (Document Areas) - shown as cards
+ * 2. Folders (hierarchical)
+ * 3. Documents (files)
  */
 const DocumentView: React.FC<DocumentViewProps> = ({ accessToken, hideBanner = false }) => {
   const { t } = useTranslation(translations)
   const navigation = useDocumentNavigation()
 
-  // Load ContentTypes and Categories
-  const { typeValues: contentTypes, isLoading: typesLoading } = useContentTypes(accessToken)
-  const { fetchCatalogEntriesByIdentifier } = useCatalogEntries({ accessToken })
-  const [categories, setCategories] = React.useState<Array<{ id: string; value: string }>>([])
-  const [categoriesLoading, setCategoriesLoading] = React.useState(false)
-
-  // Load categories
-  React.useEffect(() => {
-    const loadCategories = async () => {
-      if (!accessToken) return
-      setCategoriesLoading(true)
-      try {
-        const result = await fetchCatalogEntriesByIdentifier('ContentCategory', { limit: 100, offset: 0 })
-        setCategories(result.entries.map(e => ({ id: e.id, value: e.value })))
-      } catch (err) {
-        console.error('Error loading categories:', err)
-      } finally {
-        setCategoriesLoading(false)
-      }
-    }
-    loadCategories()
-  }, [accessToken, fetchCatalogEntriesByIdentifier])
-
-  // Fetch document areas (filtered by type and categories)
+  // Fetch document areas (ContentEntries with DOCUMENT group)
   const {
     areas,
     isLoading: areasLoading,
-    error: areasError
-  } = useDocumentAreas(accessToken, navigation.currentType?.id, navigation.selectedCategories)
+    error: areasError,
+    refetch: refetchAreas
+  } = useDocumentAreas(accessToken, null, [])
 
   // Fetch folders/documents for current location
   const {
     folders,
     documents,
     isLoading: contentsLoading,
-    error: contentsError
+    error: contentsError,
+    refetch: refetchContents
   } = useFolderContents(accessToken, navigation.currentArea?.id || null, navigation.currentFolderId)
+
+  // Listen for process completion to refresh data
+  useProcessCompletion({
+    onSuccess: () => {
+      refetchAreas()
+      refetchContents()
+    }
+  })
+
+  // File handlers
+  const handleDownloadFile = (doc: any) => {
+    if (!doc.fileInfo) {
+      console.error('No fileInfo available for document:', doc)
+      return
+    }
+
+    try {
+      // Build correct file URL using fileUtils
+      const fileUrl = buildFileUrl(doc.fileInfo)
+
+      // Create temporary link element for download
+      const link = document.createElement('a')
+      link.href = fileUrl
+      link.download = doc.fileInfo.fileMetadata?.originalFileName || doc.name || 'download'
+      link.target = '_blank'
+      document.body.appendChild(link)
+      link.click()
+      document.body.removeChild(link)
+    } catch (error) {
+      console.error('Error downloading file:', error)
+    }
+  }
+
+  const handlePreviewFile = (doc: any) => {
+    if (!doc.fileInfo) {
+      console.error('No fileInfo available for document:', doc)
+      return
+    }
+
+    try {
+      // Build correct file URL using fileUtils
+      const fileUrl = buildFileUrl(doc.fileInfo)
+      window.open(fileUrl, '_blank')
+    } catch (error) {
+      console.error('Error previewing file:', error)
+    }
+  }
+
+  const formatFileSize = (bytes?: number) => {
+    if (!bytes) return ''
+    const kb = bytes / 1024
+    if (kb < 1024) return `${kb.toFixed(1)} KB`
+    const mb = kb / 1024
+    return `${mb.toFixed(1)} MB`
+  }
+
+  const formatDate = (dateString?: string) => {
+    if (!dateString) return ''
+    const date = new Date(dateString)
+    return date.toLocaleDateString('en-US', { year: 'numeric', month: 'short', day: 'numeric' })
+  }
+
+  // Build breadcrumb items from navigation breadcrumbs
+  const breadcrumbItems = navigation.breadcrumbs.map((crumb, index) => ({
+    label: crumb.title,
+    onClick: () => navigation.navigateToBreadcrumb(index)
+  }))
 
   return (
     <div className="gba:relative gba:min-h-screen gba:flex gba:flex-col gba:w-full" data-testid="document-view">
       {/* Banner */}
-      {!hideBanner && (
+      {!hideBanner && !navigation.currentArea && (
         <div className="gba:w-full">
           <Banner
             variant={BannerVariant.DOCUMENT}
@@ -82,379 +128,297 @@ const DocumentView: React.FC<DocumentViewProps> = ({ accessToken, hideBanner = f
         </div>
       )}
 
-      {/* Main Content Area */}
-      <div className="gba:flex gba:flex-1 gba:w-full gba:max-w-[1440px] gba:mx-auto gba:px-4 gba:py-6 gba:gap-6">
-        {/* Left Sidebar - Types > Areas Navigation */}
-        <div className="gba:w-[280px] gba:shrink-0">
-          <div className="gba:sticky gba:top-6 gba:space-y-4">
-            {/* Content Types Section */}
-            <div>
-              <h3 className="gba:text-lg gba:font-semibold gba:mb-4 gba:flex gba:items-center gba:gap-2">
-                <FolderTree className="gba:w-5 gba:h-5" />
-                {t('document_types')}
-              </h3>
-
-              {typesLoading && (
-                <div className="gba:flex gba:justify-center gba:py-8">
-                  <div className="gba:animate-spin gba:rounded-full gba:h-8 gba:w-8 gba:border-b-2 gba:border-primary"></div>
-                </div>
-              )}
-
-              {!typesLoading && contentTypes.length > 0 && (
-                <div className="gba:space-y-2">
-                  {contentTypes
-                    .filter(type => type.parentEntryId === 'ContentGroup:v1:DOCUMENT')
-                    .map(type => (
-                      <button
-                        key={type.id}
-                        onClick={() => navigation.selectType(type as any)}
-                        className={`gba:w-full gba:text-left gba:p-3 gba:rounded-lg gba:transition-colors gba:flex gba:items-center gba:justify-between ${
-                          navigation.currentType?.id === type.id
-                            ? 'gba:bg-primary gba:text-primary-foreground'
-                            : 'gba:bg-muted gba:hover:bg-muted/80'
-                        }`}
-                        data-testid={`type-button-${type.id}`}
-                      >
-                        <span className="gba:flex gba:items-center gba:gap-2">
-                          <FileText className="gba:w-4 gba:h-4" />
-                          <span className="gba:font-medium">{type.name}</span>
-                        </span>
-                        <ChevronRight className="gba:w-4 gba:h-4" />
-                      </button>
-                    ))}
-                </div>
-              )}
-            </div>
-
-            {/* Document Areas Section (shown when type is selected) */}
-            {navigation.currentType && (
-              <>
-                <Separator />
-                <div>
-                  <h3 className="gba:text-sm gba:font-semibold gba:mb-3 gba:flex gba:items-center gba:gap-2 gba:text-muted-foreground">
-                    <Folder className="gba:w-4 gba:h-4" />
-                    {t('document_areas')}
-                  </h3>
-
-                  {areasLoading && (
-                    <div className="gba:flex gba:justify-center gba:py-4">
-                      <div className="gba:animate-spin gba:rounded-full gba:h-6 gba:w-6 gba:border-b-2 gba:border-primary"></div>
-                    </div>
-                  )}
-
-                  {areasError && (
-                    <div className="gba:text-sm gba:text-destructive gba:p-3 gba:border gba:border-destructive gba:rounded-lg">
-                      {t('error_loading_areas')}
-                    </div>
-                  )}
-
-                  {!areasLoading && !areasError && areas.length === 0 && (
-                    <div className="gba:text-sm gba:text-muted-foreground gba:text-center gba:py-4">
-                      {t('no_document_areas')}
-                    </div>
-                  )}
-
-                  {!areasLoading && !areasError && areas.length > 0 && (
-                    <div className="gba:space-y-1">
-                      {areas.map(area => (
-                        <button
-                          key={area.id}
-                          onClick={() => navigation.selectArea(area)}
-                          className={`gba:w-full gba:text-left gba:p-2 gba:rounded-md gba:transition-colors gba:text-sm ${
-                            navigation.currentArea?.id === area.id
-                              ? 'gba:bg-primary gba:text-primary-foreground'
-                              : 'gba:bg-card gba:hover:bg-accent'
-                          }`}
-                          data-testid={`area-button-${area.id}`}
-                        >
-                          <div className="gba:flex gba:items-center gba:gap-2">
-                            <span>📚</span>
-                            <div className="gba:flex-1 gba:min-w-0">
-                              <div className="gba:font-medium gba:truncate">{area.title}</div>
-                              <div className="gba:text-xs gba:opacity-75 gba:mt-0.5">
-                                {area.documentCount} {t('documents')}
-                              </div>
-                            </div>
-                          </div>
-                        </button>
-                      ))}
-                    </div>
-                  )}
-                </div>
-              </>
+      {/* ContentEntry Header (when selected) */}
+      {navigation.currentArea && (
+        <div className="gba:w-full gba:bg-gradient-to-r gba:from-primary gba:to-primary/80 gba:text-primary-foreground">
+          {navigation.currentArea.picture && (
+            <div
+              className="gba:w-full gba:h-48 gba:bg-cover gba:bg-center"
+              style={{ backgroundImage: `url(${navigation.currentArea.picture})` }}
+            />
+          )}
+          <div className="gba:max-w-[1440px] gba:mx-auto gba:px-6 gba:py-8">
+            <Button
+              variant="ghost"
+              size="sm"
+              onClick={() => navigation.selectArea(null)}
+              className="gba:mb-4 gba:text-primary-foreground gba:hover:bg-primary-foreground/20"
+            >
+              <Home className="gba:w-4 gba:h-4 gba:mr-2" />
+              {t('back_to_areas')}
+            </Button>
+            <h1 className="gba:text-4xl gba:font-bold gba:mb-2">{navigation.currentArea.title}</h1>
+            {navigation.currentArea.preview && (
+              <p className="gba:text-lg gba:opacity-90">{navigation.currentArea.preview}</p>
             )}
           </div>
         </div>
+      )}
 
-        {/* Right Content - Categories Filter + Documents */}
-        <div className="gba:flex-1 gba:min-w-0">
-          {!navigation.currentType ? (
-            <>
-              {/* Header with Create Action */}
-              <div className="gba:flex gba:items-center gba:justify-end gba:mb-6">
-                <AppAction
-                  contextsArray={[FlowContextName.contentEntryCreate]}
-                  externalContextData={{
-                    contentGroup: 'ContentGroup:v1:DOCUMENT'
-                  }}
-                  accessToken={accessToken}
-                  emptyStateBehavior="enable"
-                  deferMainContextRequestsUntilClick
-                  data-testid="document-view-create-area-top"
-                >
-                  <Button>{t('create_document_area')}</Button>
-                </AppAction>
-              </div>
+      {/* Main Content */}
+      <div className="gba:max-w-[1440px] gba:mx-auto gba:px-6 gba:py-6 gba:w-full">
+        {/* Level 1: Document Areas (Cards) */}
+        {!navigation.currentArea && (
+          <div>
+            <div className="gba:flex gba:items-center gba:justify-between gba:mb-6">
+              <h2 className="gba:text-2xl gba:font-bold">{t('document_areas')}</h2>
+              <AppAction
+                contextsArray={[FlowContextName.contentEntryCreate]}
+                externalContextData={{ contentGroup: ContentGroup.DOCUMENT }}
+                accessToken={accessToken}
+                emptyStateBehavior="enable"
+                deferMainContextRequestsUntilClick
+                data-testid="create-document-area-button"
+              >
+                <Button>{t('create_area')}</Button>
+              </AppAction>
+            </div>
 
-              {/* Empty State */}
-              <div className="gba:flex gba:flex-col gba:items-center gba:justify-center gba:h-[400px] gba:text-center">
-                <div className="gba:text-6xl gba:mb-4">📋</div>
-                <h3 className="gba:text-xl gba:font-semibold gba:mb-2">{t('select_document_type')}</h3>
-                <p className="gba:text-muted-foreground gba:max-w-md">{t('select_document_type_description')}</p>
+            {areasLoading && (
+              <div className="gba:grid gba:grid-cols-1 md:gba:grid-cols-2 lg:gba:grid-cols-3 gba:gap-6">
+                {[1, 2, 3, 4, 5, 6].map(i => (
+                  <Card key={i} className="gba:overflow-hidden">
+                    <Skeleton className="gba:h-40 gba:w-full" />
+                    <div className="gba:p-6 gba:space-y-3">
+                      <Skeleton className="gba:h-6 gba:w-3/4" />
+                      <Skeleton className="gba:h-4 gba:w-full" />
+                      <Skeleton className="gba:h-4 gba:w-2/3" />
+                    </div>
+                  </Card>
+                ))}
               </div>
-            </>
-          ) : !navigation.currentArea ? (
-            <>
-              {/* Header with Create Action */}
-              <div className="gba:flex gba:items-center gba:justify-between gba:mb-6">
-                <div>
-                  <h2 className="gba:text-xl gba:font-semibold gba:flex gba:items-center gba:gap-2">
-                    <FileText className="gba:w-5 gba:h-5" />
-                    {navigation.currentType?.value}
-                  </h2>
-                  <p className="gba:text-sm gba:text-muted-foreground gba:mt-1">
-                    {t('select_or_create_document_area')}
-                  </p>
-                </div>
-                <AppAction
-                  contextsArray={[FlowContextName.contentEntryCreate]}
-                  externalContextData={{
-                    contentGroup: 'ContentGroup:v1:DOCUMENT',
-                    contentType: navigation.currentType?.id
-                  }}
-                  accessToken={accessToken}
-                  emptyStateBehavior="enable"
-                  deferMainContextRequestsUntilClick
-                  data-testid="document-view-create-area"
-                >
-                  <Button>{t('create_document_area')}</Button>
-                </AppAction>
-              </div>
+            )}
 
-              {/* Category Filter Bar */}
-              {!categoriesLoading && categories.length > 0 && (
-                <Card className="gba:p-4 gba:mb-6">
-                  <div className="gba:flex gba:items-center gba:justify-between gba:mb-3">
-                    <h4 className="gba:text-sm gba:font-semibold">{t('filter_by_categories')}</h4>
-                    {navigation.selectedCategories.length > 0 && (
-                      <Button
-                        variant="ghost"
-                        size="sm"
-                        onClick={navigation.clearCategories}
-                        className="gba:h-7 gba:px-2"
-                        data-testid="clear-categories"
-                      >
-                        {t('clear_all')}
-                      </Button>
+            {areasError && (
+              <div className="gba:text-center gba:py-12 gba:text-destructive">{t('error_loading_areas')}</div>
+            )}
+
+            {!areasLoading && !areasError && areas.length === 0 && (
+              <div className="gba:text-center gba:py-12">
+                <Folder className="gba:w-16 gba:h-16 gba:text-muted-foreground gba:mb-4 gba:mx-auto" />
+                <p className="gba:text-muted-foreground">{t('no_document_areas')}</p>
+              </div>
+            )}
+
+            {!areasLoading && !areasError && areas.length > 0 && (
+              <div className="gba:grid gba:grid-cols-1 md:gba:grid-cols-2 lg:gba:grid-cols-3 gba:gap-6">
+                {areas.map(area => (
+                  <Card
+                    key={area.id}
+                    className="gba:cursor-pointer gba:transition-all gba:hover:shadow-lg gba:hover:-translate-y-1"
+                    onClick={() => navigation.selectArea(area)}
+                    data-testid={`area-card-${area.id}`}
+                  >
+                    {area.picture && (
+                      <div
+                        className="gba:w-full gba:h-40 gba:bg-cover gba:bg-center gba:rounded-t-lg"
+                        style={{ backgroundImage: `url(${area.picture})` }}
+                      />
                     )}
-                  </div>
-                  <div className="gba:flex gba:flex-wrap gba:gap-2">
-                    {categories.map(category => {
-                      const isSelected = navigation.selectedCategories.includes(category.id)
-                      return (
-                        <Badge
-                          key={category.id}
-                          variant={isSelected ? 'default' : 'outline'}
-                          className="gba:cursor-pointer gba:transition-colors gba:px-3 gba:py-1"
-                          onClick={() => navigation.toggleCategory(category.id, category.value)}
-                          data-testid={`category-filter-${category.id}`}
-                        >
-                          {category.value}
-                          {isSelected && <X className="gba:ml-1 gba:w-3 gba:h-3" />}
-                        </Badge>
-                      )
-                    })}
-                  </div>
-                </Card>
-              )}
+                    <div className="gba:p-6">
+                      <h3 className="gba:text-xl gba:font-semibold gba:mb-2 gba:flex gba:items-center gba:gap-2">
+                        <Folder className="gba:w-5 gba:h-5 gba:text-primary" />
+                        {area.title}
+                      </h3>
+                      {area.preview && (
+                        <p className="gba:text-sm gba:text-muted-foreground gba:line-clamp-3">{area.preview}</p>
+                      )}
+                    </div>
+                  </Card>
+                ))}
+              </div>
+            )}
+          </div>
+        )}
 
-              {/* Empty State - Select Area */}
-              {areas.length === 0 && !areasLoading && (
-                <div className="gba:flex gba:flex-col gba:items-center gba:justify-center gba:h-[300px] gba:text-center">
-                  <div className="gba:text-6xl gba:mb-4">📁</div>
-                  <h3 className="gba:text-xl gba:font-semibold gba:mb-2">{t('no_document_areas')}</h3>
-                  <p className="gba:text-muted-foreground gba:max-w-md">{t('create_first_document_area')}</p>
-                </div>
-              )}
-
-              {/* Areas Grid View */}
-              {areas.length > 0 && !areasLoading && (
-                <div className="gba:grid gba:grid-cols-3 gba:gap-4">
-                  {areas.map(area => (
+        {/* Level 2+: File Explorer (Folders & Documents) */}
+        {navigation.currentArea && (
+          <div>
+            {/* Breadcrumbs */}
+            {breadcrumbItems.length > 0 && (
+              <div className="gba:flex gba:items-center gba:gap-2 gba:mb-6 gba:text-sm">
+                {breadcrumbItems.map((crumb, index) => (
+                  <React.Fragment key={index}>
+                    {index > 0 && <ChevronRight className="gba:w-4 gba:h-4 gba:text-muted-foreground" />}
                     <button
-                      key={area.id}
-                      onClick={() => navigation.selectArea(area)}
-                      className="gba:p-6 gba:bg-card gba:border gba:border-border gba:rounded-lg gba:text-left gba:transition-all gba:hover:shadow-md gba:hover:border-primary"
-                      data-testid={`area-card-${area.id}`}
+                      onClick={crumb.onClick}
+                      className="gba:text-muted-foreground hover:gba:text-foreground gba:transition-colors"
                     >
-                      <div className="gba:flex gba:items-start gba:gap-3">
-                        <span className="gba:text-4xl">📚</span>
-                        <div className="gba:flex-1 gba:min-w-0">
-                          <h3 className="gba:font-semibold gba:text-lg gba:truncate gba:mb-2">{area.title}</h3>
-                          <div className="gba:flex gba:gap-4 gba:text-sm gba:text-muted-foreground">
-                            <span>
-                              {area.documentCount} {t('documents')}
-                            </span>
-                            {area.categoryCount > 0 && (
-                              <span>
-                                {area.categoryCount} {t('categories')}
-                              </span>
-                            )}
+                      {crumb.label}
+                    </button>
+                  </React.Fragment>
+                ))}
+              </div>
+            )}
+
+            {/* Toolbar */}
+            <div className="gba:flex gba:items-center gba:justify-between gba:mb-4">
+              <h2 className="gba:text-lg gba:font-semibold">
+                {navigation.currentFolderId
+                  ? navigation.breadcrumbs[navigation.breadcrumbs.length - 1]?.title || t('folder')
+                  : t('all_items')}
+              </h2>
+              <div className="gba:flex gba:gap-2">
+                <AppAction
+                  contextsArray={[FlowContextName.contentDocumentCreate]}
+                  externalContextData={{ contentEntryId: navigation.currentArea.id }}
+                  accessToken={accessToken}
+                  emptyStateBehavior="enable"
+                  deferMainContextRequestsUntilClick
+                  data-testid="create-document-button"
+                >
+                  <Button size="sm">{t('create_document')}</Button>
+                </AppAction>
+              </div>
+            </div>
+
+            {/* Loading State */}
+            {contentsLoading && (
+              <div className="gba:bg-card gba:border gba:border-border gba:rounded-lg gba:overflow-hidden">
+                {/* Table Header */}
+                <div className="gba:grid gba:grid-cols-[1fr_150px_150px_80px] gba:gap-4 gba:px-6 gba:py-3 gba:bg-muted/50 gba:border-b gba:border-border gba:text-sm gba:font-medium gba:text-muted-foreground">
+                  <div>{t('name') || 'Name'}</div>
+                  <div>{t('modified') || 'Modified'}</div>
+                  <div>{t('size') || 'Size'}</div>
+                  <div>{t('actions') || 'Actions'}</div>
+                </div>
+                {/* Skeleton Rows */}
+                <div>
+                  {[1, 2, 3, 4, 5].map(i => (
+                    <div
+                      key={i}
+                      className="gba:grid gba:grid-cols-[1fr_150px_150px_80px] gba:gap-4 gba:px-6 gba:py-4 gba:border-b gba:border-border last:gba:border-b-0"
+                    >
+                      <div className="gba:flex gba:items-center gba:gap-3">
+                        <Skeleton className="gba:w-5 gba:h-5" />
+                        <Skeleton className="gba:h-4 gba:w-48" />
+                      </div>
+                      <Skeleton className="gba:h-4 gba:w-24" />
+                      <Skeleton className="gba:h-4 gba:w-16" />
+                      <div className="gba:flex gba:gap-2">
+                        <Skeleton className="gba:h-8 gba:w-8" />
+                        <Skeleton className="gba:h-8 gba:w-8" />
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
+
+            {/* Error State */}
+            {contentsError && (
+              <div className="gba:text-center gba:py-12 gba:text-destructive">{t('error_loading_contents')}</div>
+            )}
+
+            {/* Empty State */}
+            {!contentsLoading && !contentsError && folders.length === 0 && documents.length === 0 && (
+              <div className="gba:text-center gba:py-12">
+                <FileText className="gba:w-16 gba:h-16 gba:text-muted-foreground gba:mb-4 gba:mx-auto" />
+                <p className="gba:text-muted-foreground">{t('no_items')}</p>
+              </div>
+            )}
+
+            {/* File Manager List */}
+            {!contentsLoading && !contentsError && (folders.length > 0 || documents.length > 0) && (
+              <div className="gba:bg-card gba:border gba:border-border gba:rounded-lg gba:overflow-hidden">
+                {/* Table Header */}
+                <div className="gba:grid gba:grid-cols-[1fr_150px_150px_80px] gba:gap-4 gba:px-6 gba:py-3 gba:bg-muted/50 gba:border-b gba:border-border gba:text-sm gba:font-medium gba:text-muted-foreground">
+                  <div>{t('name') || 'Name'}</div>
+                  <div>{t('modified') || 'Modified'}</div>
+                  <div>{t('size') || 'Size'}</div>
+                  <div>{t('actions') || 'Actions'}</div>
+                </div>
+
+                {/* Folders */}
+                {folders.map(folder => (
+                  <button
+                    key={folder.id}
+                    onClick={() => navigation.navigateToFolder(folder)}
+                    className="gba:w-full gba:grid gba:grid-cols-[1fr_150px_150px_80px] gba:gap-4 gba:px-6 gba:py-4 gba:border-b gba:border-border last:gba:border-b-0 gba:transition-colors hover:gba:bg-accent gba:text-left"
+                    data-testid={`folder-${folder.id}`}
+                  >
+                    <div className="gba:flex gba:items-center gba:gap-3 gba:min-w-0">
+                      <Folder className="gba:w-5 gba:h-5 gba:text-primary gba:shrink-0" />
+                      <span className="gba:font-medium gba:truncate">{folder.name || 'Unnamed Folder'}</span>
+                    </div>
+                    <div className="gba:text-sm gba:text-muted-foreground gba:flex gba:items-center">
+                      {formatDate(folder.updatedAt || folder.createdAt)}
+                    </div>
+                    <div className="gba:text-sm gba:text-muted-foreground gba:flex gba:items-center">-</div>
+                    <div className="gba:flex gba:items-center gba:gap-2">
+                      <ChevronRight className="gba:w-4 gba:h-4 gba:text-muted-foreground" />
+                    </div>
+                  </button>
+                ))}
+
+                {/* Documents */}
+                {documents.map(doc => {
+                  const originalFileName = doc.fileInfo?.fileMetadata?.originalFileName
+                  const displayName = originalFileName || doc.name || 'Unnamed File'
+                  const fileExtension = originalFileName
+                    ? originalFileName.split('.').pop()?.toUpperCase()
+                    : doc.fileInfo?.fileMetadata?.mimeType?.split('/')[1]?.toUpperCase()
+                  const fileSize = doc.fileInfo?.fileMetadata?.size as number | undefined
+
+                  return (
+                    <div
+                      key={doc.id}
+                      className="gba:grid gba:grid-cols-[1fr_150px_150px_80px] gba:gap-4 gba:px-6 gba:py-4 gba:border-b gba:border-border last:gba:border-b-0 gba:transition-colors hover:gba:bg-accent"
+                      data-testid={`document-${doc.id}`}
+                    >
+                      <div className="gba:flex gba:items-center gba:gap-3 gba:min-w-0">
+                        <FileText className="gba:w-5 gba:h-5 gba:text-muted-foreground gba:shrink-0" />
+                        <div className="gba:min-w-0 gba:flex-1">
+                          <div className="gba:font-medium gba:truncate" title={displayName}>
+                            {displayName}
                           </div>
+                          {doc.description && (
+                            <div className="gba:text-xs gba:text-muted-foreground gba:truncate">{doc.description}</div>
+                          )}
                         </div>
                       </div>
-                    </button>
-                  ))}
-                </div>
-              )}
-            </>
-          ) : (
-            <>
-              {/* Header with Breadcrumb + Action Buttons */}
-              <div className="gba:flex gba:items-center gba:justify-between gba:mb-6">
-                {/* Breadcrumb Navigation */}
-                <div className="gba:flex gba:items-center gba:gap-2 gba:text-sm">
-                  {navigation.breadcrumbs.map((crumb, index) => (
-                    <React.Fragment key={crumb.id}>
-                      {index > 0 && <span className="gba:text-muted-foreground">/</span>}
-                      <button
-                        onClick={() => navigation.navigateToBreadcrumb(index)}
-                        className={`gba:font-medium gba:transition-colors gba:flex gba:items-center gba:gap-1 ${
-                          index === navigation.breadcrumbs.length - 1
-                            ? 'gba:text-foreground'
-                            : 'gba:text-primary gba:hover:underline'
-                        }`}
-                        data-testid={`breadcrumb-${index}`}
-                      >
-                        {crumb.type === 'type' && <FileText className="gba:w-4 gba:h-4" />}
-                        {crumb.type === 'area' && <span>📚</span>}
-                        {crumb.type === 'folder' && <span>📁</span>}
-                        <span>{crumb.title}</span>
-                      </button>
-                    </React.Fragment>
-                  ))}
-                </div>
-
-                {/* Action Buttons */}
-                <div className="gba:flex gba:gap-2">
-                  <AppAction
-                    contextsArray={[FlowContextName.contentDocumentCreate]}
-                    externalContextData={{
-                      contentEntryId: navigation.currentArea?.id,
-                      parentFolderId: navigation.currentFolderId
-                    }}
-                    accessToken={accessToken}
-                    emptyStateBehavior="enable"
-                    deferMainContextRequestsUntilClick
-                    data-testid="document-view-create-document"
-                  >
-                    <Button>{t('create_document')}</Button>
-                  </AppAction>
-                </div>
+                      <div className="gba:text-sm gba:text-muted-foreground gba:flex gba:items-center">
+                        {formatDate(doc.updatedAt)}
+                      </div>
+                      <div className="gba:text-sm gba:text-muted-foreground gba:flex gba:items-center">
+                        <div className="gba:flex gba:items-center gba:gap-1">
+                          <span>{formatFileSize(fileSize)}</span>
+                          {fileExtension && (
+                            <Badge variant="secondary" className="gba:text-xs gba:px-1 gba:py-0">
+                              {fileExtension}
+                            </Badge>
+                          )}
+                        </div>
+                      </div>
+                      <div className="gba:flex gba:items-center gba:gap-1">
+                        <Button
+                          size="sm"
+                          variant="ghost"
+                          onClick={() => handlePreviewFile(doc)}
+                          className="gba:h-8 gba:w-8 gba:p-0"
+                          title={t('preview') || 'Preview'}
+                          data-testid={`document-preview-${doc.id}`}
+                        >
+                          <Eye className="gba:w-4 gba:h-4" />
+                        </Button>
+                        <Button
+                          size="sm"
+                          variant="ghost"
+                          onClick={() => handleDownloadFile(doc)}
+                          className="gba:h-8 gba:w-8 gba:p-0"
+                          title={t('download') || 'Download'}
+                          data-testid={`document-download-${doc.id}`}
+                        >
+                          <Download className="gba:w-4 gba:h-4" />
+                        </Button>
+                      </div>
+                    </div>
+                  )
+                })}
               </div>
-
-              {/* Loading State */}
-              {contentsLoading && (
-                <div className="gba:flex gba:justify-center gba:py-12">
-                  <div className="gba:animate-spin gba:rounded-full gba:h-12 gba:w-12 gba:border-b-2 gba:border-primary"></div>
-                </div>
-              )}
-
-              {/* Error State */}
-              {contentsError && (
-                <div className="gba:text-sm gba:text-destructive gba:p-6 gba:border gba:border-destructive gba:rounded-lg">
-                  {t('error_loading_contents')}
-                </div>
-              )}
-
-              {/* Empty State */}
-              {!contentsLoading && !contentsError && folders.length === 0 && documents.length === 0 && (
-                <div className="gba:flex gba:flex-col gba:items-center gba:justify-center gba:py-12 gba:text-center">
-                  <div className="gba:text-4xl gba:mb-4">📂</div>
-                  <h3 className="gba:text-lg gba:font-semibold gba:mb-2">{t('no_content_yet')}</h3>
-                  <p className="gba:text-muted-foreground gba:max-w-md gba:mb-6">{t('no_content_yet_description')}</p>
-                </div>
-              )}
-
-              {/* Folders + Documents Grid */}
-              {!contentsLoading && !contentsError && (folders.length > 0 || documents.length > 0) && (
-                <div className="gba:space-y-6">
-                  {/* Folders Section */}
-                  {folders.length > 0 && (
-                    <div>
-                      <h3 className="gba:text-sm gba:font-medium gba:text-muted-foreground gba:mb-3">{t('folders')}</h3>
-                      <div className="gba:grid gba:grid-cols-4 gba:gap-4">
-                        {folders.map(folder => (
-                          <button
-                            key={folder.id}
-                            onClick={() => navigation.navigateToFolder(folder)}
-                            className="gba:p-4 gba:bg-card gba:border gba:border-border gba:rounded-lg gba:text-left gba:transition-all gba:hover:shadow-md gba:hover:border-primary"
-                            data-testid={`folder-${folder.id}`}
-                          >
-                            <div className="gba:flex gba:items-start gba:gap-3">
-                              <span className="gba:text-3xl">📁</span>
-                              <div className="gba:flex-1 gba:min-w-0">
-                                <div className="gba:font-medium gba:truncate">{folder.name}</div>
-                                <div className="gba:text-xs gba:text-muted-foreground gba:mt-1">
-                                  {folder.childDocuments?.length || 0} {t('items')}
-                                </div>
-                              </div>
-                            </div>
-                          </button>
-                        ))}
-                      </div>
-                    </div>
-                  )}
-
-                  {/* Documents Section */}
-                  {documents.length > 0 && (
-                    <div>
-                      <h3 className="gba:text-sm gba:font-medium gba:text-muted-foreground gba:mb-3">
-                        {t('documents')}
-                      </h3>
-                      <div className="gba:grid gba:grid-cols-4 gba:gap-4">
-                        {documents.map(doc => {
-                          const originalFileName = doc.fileInfo?.fileMetadata?.originalFileName
-                          const fileExtension = originalFileName
-                            ? originalFileName.split('.').pop()?.toUpperCase()
-                            : doc.fileInfo?.fileMetadata?.mimeType?.split('/')[1]?.toUpperCase()
-
-                          return (
-                            <div
-                              key={doc.id}
-                              className="gba:p-4 gba:bg-card gba:border gba:border-border gba:rounded-lg gba:transition-all gba:hover:shadow-md"
-                              data-testid={`document-${doc.id}`}
-                            >
-                              <div className="gba:flex gba:items-start gba:gap-3">
-                                <span className="gba:text-3xl">📄</span>
-                                <div className="gba:flex-1 gba:min-w-0">
-                                  <div className="gba:font-medium gba:truncate">{doc.name}</div>
-                                  <div className="gba:text-xs gba:text-muted-foreground gba:mt-1">
-                                    {fileExtension || 'FILE'}
-                                  </div>
-                                </div>
-                              </div>
-                            </div>
-                          )
-                        })}
-                      </div>
-                    </div>
-                  )}
-                </div>
-              )}
-            </>
-          )}
-        </div>
+            )}
+          </div>
+        )}
       </div>
     </div>
   )

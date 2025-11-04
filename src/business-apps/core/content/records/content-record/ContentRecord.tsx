@@ -105,12 +105,22 @@ const ContentRecord: React.FC<ContentRecordProps> = context => {
     loadReactions()
   }, [context.accessToken, context.reactionCatalogMap, context.allowedReactions])
 
-  // Get the tab parameter to know which tab to return to
+  // Get the tab parameter to know which tab to return to and determine count type
   const fromTab = useMemo(() => {
     return new URLSearchParams(window.location.search).get('tab') || 'intranet'
   }, [])
 
-  const { entry: item, isLoading, error } = useContentEntry(contentId, { accessToken: context.accessToken })
+  // Questions use child count (direct answers only), everything else uses descendant count (all nested)
+  const useChildCount = fromTab === 'questions'
+
+  const {
+    entry: item,
+    isLoading,
+    error
+  } = useContentEntry(contentId, {
+    accessToken: context.accessToken,
+    useChildCount
+  })
 
   const handleBackClick = () => {
     const url = buildPlatformUrl('/platform/content/intranet', { tab: fromTab })

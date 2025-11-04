@@ -36,6 +36,10 @@ recent_content = Aktuelle Inhalte
 latest_announcements = Neueste Ankündigungen
 featured_news = Aktuelle Nachrichten
 trending_now = Angesagt
+all_articles = Alle Artikel
+categories = Kategorien
+recent_articles = Aktuelle Artikel
+more_articles = Weitere Artikel
 
 # Buttons
 create_article = Artikel erstellen

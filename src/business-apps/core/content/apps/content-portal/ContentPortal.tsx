@@ -251,7 +251,7 @@ const ContentPortal: React.FC<ContentPortalProps> = context => {
           </div>
         </div>
 
-        <TabSwitchContent value="home" data-testid="intranet-content-home">
+        <TabSwitchContent value="home" data-testid="intranet-content-home" keepMounted>
           <HomeView
             accessToken={context.accessToken}
             userInfo={context.userInfo}
@@ -263,7 +263,7 @@ const ContentPortal: React.FC<ContentPortalProps> = context => {
           />
         </TabSwitchContent>
 
-        <TabSwitchContent value="news" data-testid="intranet-content-news">
+        <TabSwitchContent value="news" data-testid="intranet-content-news" keepMounted>
           <NewsView
             accessToken={context.accessToken}
             userInfo={context.userInfo}
@@ -274,7 +274,7 @@ const ContentPortal: React.FC<ContentPortalProps> = context => {
           />
         </TabSwitchContent>
 
-        <TabSwitchContent value="knowledge" data-testid="intranet-content-knowledge">
+        <TabSwitchContent value="knowledge" data-testid="intranet-content-knowledge" keepMounted>
           <KnowledgeView
             accessToken={context.accessToken}
             userInfo={context.userInfo}
@@ -286,7 +286,7 @@ const ContentPortal: React.FC<ContentPortalProps> = context => {
           />
         </TabSwitchContent>
 
-        <TabSwitchContent value="documents" data-testid="intranet-content-documents">
+        <TabSwitchContent value="documents" data-testid="intranet-content-documents" keepMounted>
           <DocumentView
             accessToken={context.accessToken}
             userInfo={context.userInfo}
@@ -297,7 +297,7 @@ const ContentPortal: React.FC<ContentPortalProps> = context => {
           />
         </TabSwitchContent>
 
-        <TabSwitchContent value="questions" data-testid="intranet-content-questions">
+        <TabSwitchContent value="questions" data-testid="intranet-content-questions" keepMounted>
           <QuestionView
             accessToken={context.accessToken}
             userInfo={context.userInfo}

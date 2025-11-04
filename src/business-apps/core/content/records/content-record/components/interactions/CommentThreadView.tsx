@@ -2,7 +2,7 @@ import React from 'react'
 import { useTranslation } from 'react-i18next'
 import { Button, Card, CardContent, CardHeader } from '@newwork/nw-design-system'
 import { ArrowLeft, MessageCircle } from 'lucide-react'
-import { CommentWithReplies } from '../../hooks/useContentComments'
+import { CommentWithReplies } from '@/common/data/content'
 import CommentItem from './CommentItem'
 
 export interface CommentThreadViewProps {

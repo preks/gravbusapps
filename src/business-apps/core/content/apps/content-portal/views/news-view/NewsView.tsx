@@ -1,20 +1,24 @@
 import React, { useState, useMemo } from 'react'
-import { useTranslation, Button, Alert, AlertTitle, AlertDescription } from '@newwork/nw-design-system'
+import { useTranslation, Button, Alert, AlertTitle, AlertDescription, Skeleton } from '@newwork/nw-design-system'
 import { useContentEntries, useUserContentReactions, toIntranetContent } from '@/common/data/content'
 import { ContentRole, ContentGroup } from '@/common/data/content/types/contentEnums'
 import ContentCard from '../../components/cards/ContentCard'
+import ContentCardSkeleton from '../../components/skeletons/ContentCardSkeleton'
 import SearchInput from '../../components/shared/SearchInput'
 import NavigationTagList from '../../components/shared/NavigationTagList'
 import Banner, { BannerVariant } from '../../components/shared/Banner'
 import { AppAction } from '@/components/app-action'
 import { FlowContextName } from '@/common/types/FlowRegistryTypes'
-import { updateTags } from '../../utils/contentUtils'
 import { BusinessAppContextProps } from '@/common/BusinessAppContext'
+import { useContentTypes } from '../../hooks/useContentTypes'
+import { useCatalogEntries } from '@/common/data/catalog'
+import { useProcessCompletion } from '@/common/hooks/useProcessCompletion'
+import { useInfiniteScroll } from '@/common/hooks/useInfiniteScroll'
 import translations from '../../_i18n'
 
 // Local constants
 const ALL_TAG = 'All'
-const NEWS_CATEGORIES = ['Achievements', 'Company Updates', 'Tech News']
+const PAGE_SIZE = 20
 
 interface NewsViewProps extends BusinessAppContextProps {
   hideBanner?: boolean
@@ -22,9 +26,6 @@ interface NewsViewProps extends BusinessAppContextProps {
   allowedReactions?: string[]
   reactionCatalogMap?: Record<string, string>
 }
-
-const DEFAULT_PAGE_SIZE = 11
-const NEXT_PAGE_SIZE = 10
 
 const NewsView: React.FC<NewsViewProps> = ({
   accessToken,
@@ -35,34 +36,83 @@ const NewsView: React.FC<NewsViewProps> = ({
   reactionCatalogMap
 }) => {
   const { t } = useTranslation(translations)
-  const [page, setPage] = useState(1)
+  const [loadedCount, setLoadedCount] = useState(PAGE_SIZE)
   const [searchQuery, setSearchQuery] = useState('')
-  const [categories, setCategories] = useState<{ label: string; checked: boolean }[]>([
-    { label: ALL_TAG, checked: true },
-    ...NEWS_CATEGORIES.map(category => ({ label: category, checked: false }))
-  ])
+  const [selectedContentTypeRef, setSelectedContentTypeRef] = useState<string | null>(null)
 
-  const offset = page === 1 ? 0 : DEFAULT_PAGE_SIZE + (page - 2) * NEXT_PAGE_SIZE
-  const limit = page === 1 ? DEFAULT_PAGE_SIZE : NEXT_PAGE_SIZE
+  // Fetch ContentGroup NEWS entry to get its ID
+  const { fetchCatalogEntriesByIdentifier } = useCatalogEntries({ accessToken })
+  const [newsGroupId, setNewsGroupId] = useState<string | null>(null)
 
-  // Memoize params to prevent infinite re-renders
+  // Load NEWS ContentGroup ID
+  React.useEffect(() => {
+    const loadNewsGroupId = async () => {
+      try {
+        const result = await fetchCatalogEntriesByIdentifier('ContentGroup', {
+          limit: 1,
+          offset: 0
+        })
+        const newsEntry = result.entries.find(entry => entry.code === 'NEWS')
+        if (newsEntry) {
+          setNewsGroupId(newsEntry.id)
+        }
+      } catch (err) {
+        console.error('Error loading NEWS group ID:', err)
+      }
+    }
+    if (accessToken) {
+      loadNewsGroupId()
+    }
+  }, [accessToken, fetchCatalogEntriesByIdentifier])
+
+  // Load ContentTypes for NEWS
+  const { types: contentTypes } = useContentTypes({ accessToken }, newsGroupId)
+
+  // Build categories from ContentTypes
+  const categories = useMemo(() => {
+    const allTag = { label: ALL_TAG, checked: selectedContentTypeRef === null }
+    const typeTags = contentTypes.map(type => ({
+      label: type.value || 'Unnamed',
+      checked: selectedContentTypeRef === type.id
+    }))
+    return [allTag, ...typeTags]
+  }, [contentTypes, selectedContentTypeRef])
+
+  // Featured content (independent of search) - always shows latest
+  const featuredQueryParams = useMemo(
+    () => ({
+      role: ContentRole.ROOT,
+      contentGroupRef: ContentGroup.NEWS,
+      limit: 2,
+      offset: 0,
+      sortBy: 'createdAt' as const,
+      sortOrder: 'DESC' as const
+    }),
+    []
+  )
+
+  // Search/browsing content
   const queryParams = useMemo(
     () => ({
       role: ContentRole.ROOT,
       contentGroupRef: ContentGroup.NEWS,
+      contentTypeRef: selectedContentTypeRef || undefined,
       search: searchQuery,
-      limit,
-      offset,
+      limit: loadedCount,
+      offset: 0,
       sortBy: 'createdAt' as const,
       sortOrder: 'DESC' as const
     }),
-    [searchQuery, limit, offset]
+    [searchQuery, loadedCount, selectedContentTypeRef]
   )
 
-  // Use central content data - FIXED: correct parameter order
+  // Featured entries - not affected by search
+  const { entries: featuredEntries, refetch: refetchFeatured } = useContentEntries(featuredQueryParams, accessToken)
+
+  // Main content entries - affected by search
   const { entries, totalCount, isLoading, error, refetch } = useContentEntries(queryParams, accessToken)
 
-  // Batch fetch reactions
+  // Batch fetch reactions for main content
   const articleIds = useMemo(() => entries.map(entry => entry.id), [entries])
   const { reactionsByArticle, refetch: refetchReactions } = useUserContentReactions({
     contentEntryIds: articleIds,
@@ -70,30 +120,43 @@ const NewsView: React.FC<NewsViewProps> = ({
     accessToken
   })
 
+  // Listen for process completion to refresh data
+  useProcessCompletion({
+    onSuccess: () => {
+      refetchFeatured()
+      refetch()
+      refetchReactions()
+    }
+  })
+
   // Convert to legacy format
   const data = useMemo(() => entries.map(toIntranetContent), [entries])
-
-  const featuredArticles = page === 1 && data.length > 0 ? data.slice(0, 2) : []
-  const otherArticles =
-    page === 1 && data.length > 2
-      ? data.slice(2)
-      : data.filter(article => !featuredArticles.some(featured => featured.articleId === article.articleId))
+  const featuredData = useMemo(() => featuredEntries.map(toIntranetContent), [featuredEntries])
+  const featuredArticles = featuredData.slice(0, 2)
+  const otherArticles = data
 
   const hasMore = entries.length > 0 && entries.length < totalCount
 
+  // Infinite scroll
+  const sentinelRef = useInfiniteScroll({
+    onLoadMore: () => setLoadedCount(prev => prev + PAGE_SIZE),
+    hasMore,
+    isLoading
+  })
+
   const handleSearch = (query: string) => {
     setSearchQuery(query)
-    setPage(1)
+    setLoadedCount(PAGE_SIZE)
   }
 
   const handleCategoryClick = (label: string) => {
-    const updatedCategories = updateTags(categories, label)
-    setCategories(updatedCategories)
-    setPage(1)
-  }
-
-  const loadMore = () => {
-    setPage(prev => prev + 1)
+    if (label === ALL_TAG) {
+      setSelectedContentTypeRef(null)
+    } else {
+      const selectedType = contentTypes.find(type => type.value === label)
+      setSelectedContentTypeRef(selectedType?.id || null)
+    }
+    setLoadedCount(PAGE_SIZE)
   }
 
   if (error) {
@@ -124,7 +187,16 @@ const NewsView: React.FC<NewsViewProps> = ({
       )}
 
       <div className="gba:w-full gba:max-w-[1300px] gba:mx-auto gba:mb-10 gba:px-4">
-        {featuredArticles.length > 0 && (
+        {isLoading ? (
+          <>
+            <div className="gba:w-full gba:mb-6 gba:py-4">
+              <Skeleton className="gba:h-8 gba:w-48" />
+            </div>
+            <div className="gba:grid gba:grid-cols-2 gba:gap-6 gba:mb-10">
+              <ContentCardSkeleton variant="featured" count={2} />
+            </div>
+          </>
+        ) : featuredArticles.length > 0 ? (
           <>
             <div className="gba:w-full gba:mb-6 gba:py-4">
               <h2 className="gba:text-2xl gba:font-semibold gba:text-foreground">{t('featured_news')}</h2>
@@ -147,7 +219,7 @@ const NewsView: React.FC<NewsViewProps> = ({
               ))}
             </div>
           </>
-        )}
+        ) : null}
 
         <div className="gba:w-full gba:mb-6">
           <div className="gba:grid gba:grid-cols-[1fr_280px] gba:gap-6 gba:mb-4">
@@ -176,35 +248,28 @@ const NewsView: React.FC<NewsViewProps> = ({
         </div>
 
         <div className="gba:grid gba:grid-cols-1 gba:gap-6 gba:mb-6">
-          {otherArticles.map(item => (
-            <ContentCard
-              key={item.articleId}
-              item={item}
-              variant="news"
-              currentTab={currentTab}
-              accessToken={accessToken}
-              userInfo={userInfo}
-              allowedReactions={allowedReactions}
-              reactionCatalogMap={reactionCatalogMap}
-              reactionSummary={reactionsByArticle[item.articleId] || {}}
-              onReactionsRefetch={refetchReactions}
-            />
-          ))}
+          {isLoading ? (
+            <ContentCardSkeleton variant="horizontal" count={5} />
+          ) : (
+            otherArticles.map(item => (
+              <ContentCard
+                key={item.articleId}
+                item={item}
+                variant="news"
+                currentTab={currentTab}
+                accessToken={accessToken}
+                userInfo={userInfo}
+                allowedReactions={allowedReactions}
+                reactionCatalogMap={reactionCatalogMap}
+                reactionSummary={reactionsByArticle[item.articleId] || {}}
+                onReactionsRefetch={refetchReactions}
+              />
+            ))
+          )}
         </div>
 
-        {hasMore && (
-          <div className="gba:flex gba:justify-center gba:w-full gba:mt-6 gba:mb-4">
-            <Button
-              variant="default"
-              className="gba:w-[280px]"
-              onClick={loadMore}
-              disabled={isLoading}
-              data-testid="news-view-load-more"
-            >
-              {t('load_more')}
-            </Button>
-          </div>
-        )}
+        {/* Infinite scroll sentinel */}
+        {hasMore && <div ref={sentinelRef} className="gba:h-4" />}
 
         {!isLoading && data.length === 0 && (
           <div className="gba:text-center gba:py-12">

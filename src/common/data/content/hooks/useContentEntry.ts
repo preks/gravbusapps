@@ -22,12 +22,14 @@ interface ContentEntryResponse {
 
 /**
  * Hook to fetch single content entry with all relations
+ * @param useChildCount - If true, counts only direct answers (for Questions). If false, counts all nested comments
  */
 export const useContentEntry = (
   id: string,
   options?: {
     includeChildren?: boolean
     accessToken?: string
+    useChildCount?: boolean
   }
 ): UseContentEntryResult => {
   const [entry, setEntry] = useState<ContentEntry | null>(null)
@@ -47,7 +49,7 @@ export const useContentEntry = (
     setError(null)
 
     try {
-      const query = buildContentEntryQuery(id)
+      const query = buildContentEntryQuery(id, options?.useChildCount || false)
       const response = await graphqlClient.request<ContentEntryResponse>(query)
 
       if (response.ContentEntry && response.ContentEntry.length > 0) {
@@ -65,7 +67,8 @@ export const useContentEntry = (
           contentDocument: baseEntry.contentDocument,
           contentEntryReaction: baseEntry.contentEntryReaction,
           childContentEntries: childContentEntry,
-          descendantContentEntryAggregate: (baseEntry as any).descendantContentEntryAggregate
+          descendantContentEntryAggregate: (baseEntry as any).descendantContentEntryAggregate,
+          childContentEntryAggregate: (baseEntry as any).childContentEntryAggregate
         })
 
         setEntry(mappedEntry)
@@ -79,7 +82,7 @@ export const useContentEntry = (
     } finally {
       setIsLoading(false)
     }
-  }, [id, options?.includeChildren, options?.accessToken])
+  }, [id, options?.includeChildren, options?.accessToken, options?.useChildCount])
 
   useEffect(() => {
     fetchEntry()

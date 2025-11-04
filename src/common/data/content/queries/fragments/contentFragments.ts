@@ -5,6 +5,7 @@
 
 // Import catalog entry fragment from catalog data
 import { CATALOG_ENTRY_REF } from '@/common/data/catalog/queries/catalogFragments'
+import { ContentRole } from '../../types/contentEnums'
 
 /**
  * Employee reference fragment
@@ -184,6 +185,38 @@ export const CONTENT_ENTRY_REACTION_FRAGMENT = `
 `
 
 /**
+ * Descendant aggregate for counting ALL nested comments (for News, Knowledge, Documents)
+ */
+export const DESCENDANT_COMMENT_COUNT_FRAGMENT = `
+  descendantContentEntryAggregate(
+    where: {
+      role: { _eq: "${ContentRole.COMMENT}" }
+      isDeleted: { _eq: false }
+    }
+  ) {
+    aggregate {
+      count
+    }
+  }
+`
+
+/**
+ * Child aggregate for counting DIRECT answers only (for Questions)
+ */
+export const CHILD_ANSWER_COUNT_FRAGMENT = `
+  childContentEntryAggregate(
+    where: {
+      role: { _eq: "${ContentRole.COMMENT}" }
+      isDeleted: { _eq: false }
+    }
+  ) {
+    aggregate {
+      count
+    }
+  }
+`
+
+/**
  * Full content entry with all relations
  */
 export const CONTENT_ENTRY_FULL_FRAGMENT = `
@@ -200,6 +233,7 @@ export const CONTENT_ENTRY_FULL_FRAGMENT = `
   contentEntryReaction {
     ${CONTENT_ENTRY_REACTION_FRAGMENT}
   }
+  ${DESCENDANT_COMMENT_COUNT_FRAGMENT}
 `
 
 /**

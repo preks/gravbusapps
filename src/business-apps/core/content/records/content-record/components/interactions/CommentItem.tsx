@@ -1,7 +1,7 @@
 import React, { useState } from 'react'
 import { Button, Avatar, AvatarFallback } from '@newwork/nw-design-system'
 import { MessageCircle, ChevronUp, ArrowBigUp } from 'lucide-react'
-import { CommentWithReplies } from '../../hooks/useContentComments'
+import { CommentWithReplies } from '@/common/data/content'
 import CommentForm from './CommentForm'
 import dayjs from 'dayjs'
 import relativeTime from 'dayjs/plugin/relativeTime'

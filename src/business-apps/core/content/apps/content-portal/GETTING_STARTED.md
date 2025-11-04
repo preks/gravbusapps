@@ -75,7 +75,7 @@ Verwaltungsoberfläche für alle Content-Typen:
 ```
 BusinessAppContextProps (accessToken)
   ↓
-Intranet.tsx / ContentManagement.tsx
+Intranet.tsx / ContentManager.tsx
   ↓
 Feed Components (NewsFeed, IntranetFeed, etc.)
   ↓

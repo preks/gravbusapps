@@ -7,12 +7,14 @@ import type {
   ContentDocumentQueryParams,
   ContentReactionQueryParams
 } from '../types/contentTypes'
+import { ContentRole } from '../types/contentEnums'
 import {
   CONTENT_ENTRY_WITH_CATALOGS_FRAGMENT,
-  CONTENT_ENTRY_FULL_FRAGMENT,
   CONTENT_DOCUMENT_FRAGMENT,
   CONTENT_ENTRY_REACTION_FRAGMENT,
-  CATALOG_ENTRY_FRAGMENT
+  CATALOG_ENTRY_FRAGMENT,
+  DESCENDANT_COMMENT_COUNT_FRAGMENT,
+  CHILD_ANSWER_COUNT_FRAGMENT
 } from './fragments/contentFragments'
 
 /**
@@ -101,13 +103,16 @@ const buildOrderByClause = (params: ContentEntryQueryParams): string => {
 
 /**
  * Query content entries with filters
- * NOTE: includeChildren is not used here - use separate query for children/comments
+ * @param params - Query parameters
+ * @param useChildCount - If true, uses childContentEntryAggregate (direct answers for Questions)
+ *                        If false, uses descendantContentEntryAggregate (all nested comments)
  */
-export const buildContentEntriesQuery = (params: ContentEntryQueryParams = {}): string => {
+export const buildContentEntriesQuery = (params: ContentEntryQueryParams = {}, useChildCount = false): string => {
   const limit = params.limit || 20
   const offset = params.offset || 0
   const whereClause = buildContentEntryWhereClause(params)
   const orderByClause = buildOrderByClause(params)
+  const commentCountFragment = useChildCount ? CHILD_ANSWER_COUNT_FRAGMENT : DESCENDANT_COMMENT_COUNT_FRAGMENT
 
   return `
     query getContentEntries {
@@ -135,16 +140,7 @@ export const buildContentEntriesQuery = (params: ContentEntryQueryParams = {}): 
         contentEntryReaction {
           ${CONTENT_ENTRY_REACTION_FRAGMENT}
         }
-        descendantContentEntryAggregate(
-          where: {
-            role: { _eq: "COMMENT" }
-            isDeleted: { _eq: false }
-          }
-        ) {
-          aggregate {
-            count
-          }
-        }
+        ${commentCountFragment}
       }
       ContentEntryAggregate(${whereClause}) {
         aggregate {
@@ -157,9 +153,13 @@ export const buildContentEntriesQuery = (params: ContentEntryQueryParams = {}): 
 
 /**
  * Query single content entry with full details
- * NOTE: To load comments/children, make a separate query with parentContentEntryId filter
+ * @param id - Content entry ID
+ * @param useChildCount - If true, uses childContentEntryAggregate (direct answers for Questions)
+ *                        If false, uses descendantContentEntryAggregate (all nested comments)
  */
-export const buildContentEntryQuery = (id: string): string => {
+export const buildContentEntryQuery = (id: string, useChildCount = false): string => {
+  const commentCountFragment = useChildCount ? CHILD_ANSWER_COUNT_FRAGMENT : DESCENDANT_COMMENT_COUNT_FRAGMENT
+
   return `
     query getContentEntry {
       ContentEntry(
@@ -168,17 +168,28 @@ export const buildContentEntryQuery = (id: string): string => {
           isDeleted: { _eq: false }
         }
       ) {
-        ${CONTENT_ENTRY_FULL_FRAGMENT}
-        descendantContentEntryAggregate(
-          where: {
-            role: { _eq: "COMMENT" }
-            isDeleted: { _eq: false }
-          }
-        ) {
-          aggregate {
-            count
+        ${CONTENT_ENTRY_WITH_CATALOGS_FRAGMENT}
+        contentEntryCategory {
+          id
+          contentCategoryRef
+          contentCategory {
+            ${CATALOG_ENTRY_FRAGMENT}
           }
         }
+        contentEntryTag {
+          id
+          contentTagRef
+          contentTag {
+            ${CATALOG_ENTRY_FRAGMENT}
+          }
+        }
+        contentDocument {
+          ${CONTENT_DOCUMENT_FRAGMENT}
+        }
+        contentEntryReaction {
+          ${CONTENT_ENTRY_REACTION_FRAGMENT}
+        }
+        ${commentCountFragment}
       }
     }
   `
@@ -230,7 +241,9 @@ export const buildContentDocumentsQuery = (params: ContentDocumentQueryParams): 
 
   if (params.parentDocumentId !== undefined) {
     if (params.parentDocumentId === null) {
-      conditions.push(`parentDocumentId: { _is_null: true }`)
+      // For root level, exclude documents that have a parentDocumentId
+      // Since _is_null doesn't work for UUID, we need to filter client-side OR use a different approach
+      // For now, don't add a filter - we'll filter all documents and show root ones
     } else {
       conditions.push(`parentDocumentId: { _eq: "${params.parentDocumentId}" }`)
     }
@@ -324,7 +337,7 @@ export const buildContentStatisticsQuery = (): string => {
     query getContentStatistics {
       totalEntries: ContentEntryAggregate(
         where: { 
-          role: { _eq: "ROOT" }
+          role: { _eq: "${ContentRole.ROOT}" }
           isDeleted: { _eq: false }
         }
       ) {
@@ -334,7 +347,7 @@ export const buildContentStatisticsQuery = (): string => {
       }
       totalComments: ContentEntryAggregate(
         where: { 
-          role: { _eq: "COMMENT" }
+          role: { _eq: "${ContentRole.COMMENT}" }
           isDeleted: { _eq: false }
         }
       ) {

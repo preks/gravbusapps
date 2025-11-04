@@ -36,6 +36,10 @@ recent_content = Conținut recent
 latest_announcements = Ultimele anunțuri
 featured_news = Știri de top
 trending_now = În tendințe acum
+all_articles = Toate articolele
+categories = Categorii
+recent_articles = Articole recente
+more_articles = Mai multe articole
 
 # Buttons
 create_article = Creează articol

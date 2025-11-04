@@ -36,6 +36,10 @@ recent_content = Recent Content
 latest_announcements = Latest Announcements
 featured_news = Featured News
 trending_now = Trending Now
+all_articles = All Articles
+categories = Categories
+recent_articles = Recent Articles
+more_articles = More Articles
 
 # Buttons
 create_article = Create Article

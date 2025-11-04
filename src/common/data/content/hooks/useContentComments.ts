@@ -4,13 +4,14 @@
  */
 import { useState, useEffect, useCallback, useMemo } from 'react'
 import { useGraphQLClient } from '@/common/network/graphql/useGraphQLClient'
-import { ContentRole } from '@/common/data/content/types/contentEnums'
-import type { ContentEntry } from '@/common/data/content/types/contentTypes'
-import { mapBaseToContentEntry } from '@/common/data/content/mappers/contentMappers'
+import { ContentRole } from '../types/contentEnums'
+import type { ContentEntry } from '../types/contentTypes'
+import { mapBaseToContentEntry } from '../mappers/contentMappers'
 import {
   CONTENT_ENTRY_WITH_CATALOGS_FRAGMENT,
-  CONTENT_ENTRY_REACTION_FRAGMENT
-} from '@/common/data/content/queries/fragments/contentFragments'
+  CONTENT_ENTRY_REACTION_FRAGMENT,
+  DESCENDANT_COMMENT_COUNT_FRAGMENT
+} from '../queries/fragments/contentFragments'
 
 export interface CommentWithReplies extends ContentEntry {
   replies: CommentWithReplies[]
@@ -43,6 +44,7 @@ const buildContentCommentsQuery = (contentEntryId: string): string => {
         contentEntryReaction {
           ${CONTENT_ENTRY_REACTION_FRAGMENT}
         }
+        ${DESCENDANT_COMMENT_COUNT_FRAGMENT}
       }
       ContentEntryAggregate(
         where: {
@@ -101,7 +103,9 @@ export const useContentComments = (
             contentEntryCategory: entry.contentEntryCategory,
             contentEntryTag: entry.contentEntryTag,
             contentDocument: entry.contentDocument,
-            contentEntryReaction: entry.contentEntryReaction
+            contentEntryReaction: entry.contentEntryReaction,
+            descendantContentEntryAggregate: entry.descendantContentEntryAggregate,
+            childContentEntryAggregate: entry.childContentEntryAggregate
           })
         ) || []
 

@@ -1,16 +1,22 @@
 import React, { useState, useMemo } from 'react'
-import { useTranslation, Button, Alert, AlertTitle, AlertDescription, Card } from '@newwork/nw-design-system'
+import { useTranslation, Button, Alert, AlertTitle, AlertDescription, Card, Skeleton } from '@newwork/nw-design-system'
 import { useContentEntries, useUserContentReactions, toIntranetContent } from '@/common/data/content'
 import { ContentRole, ContentGroup } from '@/common/data/content/types/contentEnums'
 import ContentCard from '../../components/cards/ContentCard'
+import ContentCardSkeleton from '../../components/skeletons/ContentCardSkeleton'
 import SearchInput from '../../components/shared/SearchInput'
 import Banner, { BannerVariant } from '../../components/shared/Banner'
 import { AppAction } from '@/components/app-action'
 import { FlowContextName } from '@/common/types/FlowRegistryTypes'
 import { BusinessAppContextProps } from '@/common/BusinessAppContext'
 import { useKnowledgeCategories } from '../../hooks/useKnowledgeCategories'
-import { BookOpen, ChevronRight, Folder } from 'lucide-react'
+import { useProcessCompletion } from '@/common/hooks/useProcessCompletion'
+import { useInfiniteScroll } from '@/common/hooks/useInfiniteScroll'
+import { BookOpen, ChevronRight, Folder, Eye } from 'lucide-react'
+import { navigateTo, buildPlatformUrl } from '@/common/utils/navigationUtils'
 import translations from '../../_i18n'
+
+const PAGE_SIZE = 20
 
 interface KnowledgeViewProps extends BusinessAppContextProps {
   onNavigate?: (tab: string) => void
@@ -19,9 +25,6 @@ interface KnowledgeViewProps extends BusinessAppContextProps {
   allowedReactions?: string[]
   reactionCatalogMap?: Record<string, string>
 }
-
-const DEFAULT_PAGE_SIZE = 18
-const NEXT_PAGE_SIZE = 12
 
 const KnowledgeView: React.FC<KnowledgeViewProps> = ({
   accessToken,
@@ -32,15 +35,12 @@ const KnowledgeView: React.FC<KnowledgeViewProps> = ({
   reactionCatalogMap
 }) => {
   const { t } = useTranslation(translations)
-  const [page, setPage] = useState(1)
+  const [loadedCount, setLoadedCount] = useState(PAGE_SIZE)
   const [searchQuery, setSearchQuery] = useState('')
   const [selectedCategoryRef, setSelectedCategoryRef] = useState<string | null>(null)
 
   // Load categories from catalog
   const { categories, isLoading: categoriesLoading } = useKnowledgeCategories({ accessToken })
-
-  const offset = page === 1 ? 0 : DEFAULT_PAGE_SIZE + (page - 2) * NEXT_PAGE_SIZE
-  const limit = page === 1 ? DEFAULT_PAGE_SIZE : NEXT_PAGE_SIZE
 
   // Memoize params to prevent infinite re-renders
   const queryParams = useMemo(
@@ -49,12 +49,12 @@ const KnowledgeView: React.FC<KnowledgeViewProps> = ({
       contentGroupRef: ContentGroup.KNOWLEDGE,
       categoryRefs: selectedCategoryRef ? [selectedCategoryRef] : undefined,
       search: searchQuery,
-      limit,
-      offset,
+      limit: loadedCount,
+      offset: 0,
       sortBy: 'createdAt' as const,
       sortOrder: 'DESC' as const
     }),
-    [selectedCategoryRef, searchQuery, limit, offset]
+    [selectedCategoryRef, searchQuery, loadedCount]
   )
 
   // Use central content data
@@ -68,27 +68,55 @@ const KnowledgeView: React.FC<KnowledgeViewProps> = ({
     accessToken
   })
 
+  // Listen for process completion to refresh data
+  useProcessCompletion({
+    onSuccess: () => {
+      refetch()
+      refetchReactions()
+    }
+  })
+
   // Convert to legacy format
   const data = useMemo(() => entries.map(toIntranetContent), [entries])
 
   const hasMore = entries.length > 0 && entries.length < totalCount
 
+  // Infinite scroll
+  const sentinelRef = useInfiniteScroll({
+    onLoadMore: () => setLoadedCount(prev => prev + PAGE_SIZE),
+    hasMore,
+    isLoading
+  })
+
   const handleSearch = (query: string) => {
     setSearchQuery(query)
-    setPage(1)
+    setLoadedCount(PAGE_SIZE)
   }
 
   const handleCategoryClick = (categoryRef: string | null) => {
     setSelectedCategoryRef(categoryRef)
-    setPage(1)
-  }
-
-  const loadMore = () => {
-    setPage(prev => prev + 1)
+    setLoadedCount(PAGE_SIZE)
   }
 
   // Get selected category name for breadcrumb
   const selectedCategory = categories.find(cat => cat.id === selectedCategoryRef)
+
+  // Featured articles (first 3 for wiki-style display with content)
+  const featuredArticles = useMemo(() => entries.slice(0, 3), [entries])
+  const regularArticles = useMemo(() => entries.slice(3), [entries])
+
+  const handleArticleClick = (entryId: string) => {
+    const url = buildPlatformUrl('/platform/content/intranet/content-record', {
+      contentId: entryId,
+      tab: currentTab
+    })
+    navigateTo(url)
+  }
+
+  const truncateText = (text: string, maxLength: number) => {
+    if (!text || text.length <= maxLength) return text
+    return text.substring(0, maxLength) + '...'
+  }
 
   if (error) {
     return (
@@ -211,39 +239,146 @@ const KnowledgeView: React.FC<KnowledgeViewProps> = ({
               </div>
             )}
 
-            {/* Articles Grid */}
-            <div className="gba:grid gba:grid-cols-3 gba:gap-4 gba:mb-8">
-              {data.map(item => (
-                <ContentCard
-                  key={item.articleId}
-                  item={item}
-                  variant="knowledge"
-                  currentTab={currentTab}
-                  accessToken={accessToken}
-                  userInfo={userInfo}
-                  allowedReactions={allowedReactions}
-                  reactionCatalogMap={reactionCatalogMap}
-                  reactionSummary={reactionsByArticle[item.articleId] || {}}
-                  onReactionsRefetch={refetchReactions}
-                />
-              ))}
-
-              {!isLoading && data.length === 0 && (
-                <div className="gba:col-span-3 gba:text-center gba:py-12">
-                  <p className="gba:text-muted-foreground">
-                    {searchQuery ? t('no_search_results') : t('no_knowledge_found')}
-                  </p>
+            {/* Featured Articles Section - Wiki Style with Content Preview */}
+            {isLoading ? (
+              <div className="gba:mb-8">
+                <Skeleton className="gba:h-6 gba:w-48 gba:mb-4" />
+                <div className="gba:space-y-4">
+                  <ContentCardSkeleton variant="horizontal" count={3} />
                 </div>
-              )}
-            </div>
+              </div>
+            ) : featuredArticles.length > 0 && page === 1 && !searchQuery ? (
+              <div className="gba:mb-8">
+                <h2 className="gba:text-xl gba:font-semibold gba:mb-4 gba:text-foreground">{t('recent_articles')}</h2>
+                <div className="gba:space-y-4">
+                  {featuredArticles.map(entry => (
+                    <Card
+                      key={entry.id}
+                      className="gba:p-6 gba:cursor-pointer gba:hover:shadow-lg gba:transition-shadow"
+                      onClick={() => handleArticleClick(entry.id)}
+                      data-testid={`featured-article-${entry.id}`}
+                    >
+                      <div className="gba:flex gba:gap-6">
+                        {entry.picture && (
+                          <div className="gba:w-48 gba:h-32 gba:rounded-lg gba:overflow-hidden gba:shrink-0">
+                            <img
+                              src={entry.picture}
+                              alt={entry.title || ''}
+                              className="gba:w-full gba:h-full gba:object-cover"
+                            />
+                          </div>
+                        )}
+                        <div className="gba:flex-1">
+                          <h3 className="gba:text-2xl gba:font-bold gba:mb-2 gba:text-foreground gba:hover:text-primary gba:transition-colors">
+                            {entry.title}
+                          </h3>
+                          {entry.previewText && (
+                            <p className="gba:text-sm gba:text-muted-foreground gba:mb-3 gba:italic">
+                              {truncateText(entry.previewText, 150)}
+                            </p>
+                          )}
+                          {entry.description && (
+                            <div
+                              className="gba:text-foreground gba:leading-relaxed gba:mb-4"
+                              dangerouslySetInnerHTML={{
+                                __html: truncateText(entry.description.replace(/<[^>]*>/g, ''), 300)
+                              }}
+                            />
+                          )}
+                          <div className="gba:flex gba:items-center gba:gap-4 gba:text-sm gba:text-muted-foreground">
+                            <div className="gba:flex gba:items-center gba:gap-1">
+                              <Eye className="gba:w-4 gba:h-4" />
+                              <span>{entry.viewCount || 0} views</span>
+                            </div>
+                            {entry.reactionCount && entry.reactionCount > 0 && (
+                              <span className="gba:flex gba:items-center gba:gap-1">
+                                <span>❤️</span>
+                                {entry.reactionCount}
+                              </span>
+                            )}
+                            {entry.createdAt && (
+                              <span>
+                                {new Date(entry.createdAt).toLocaleDateString('en-US', {
+                                  year: 'numeric',
+                                  month: 'short',
+                                  day: 'numeric'
+                                })}
+                              </span>
+                            )}
+                          </div>
+                        </div>
+                      </div>
+                    </Card>
+                  ))}
+                </div>
+              </div>
+            ) : null}
 
-            {hasMore && (
-              <div className="gba:flex gba:justify-center gba:w-full gba:mt-6 gba:mb-4">
-                <Button variant="default" className="gba:w-56" onClick={loadMore} disabled={isLoading}>
-                  {t('load_more')}
-                </Button>
+            {/* Regular Articles Grid */}
+            {isLoading ? (
+              <div className="gba:mb-4">
+                <Skeleton className="gba:h-6 gba:w-48 gba:mb-4" />
+                <div className="gba:grid gba:grid-cols-3 gba:gap-4 gba:mb-8">
+                  <ContentCardSkeleton count={9} />
+                </div>
+              </div>
+            ) : regularArticles.length > 0 ? (
+              <div className="gba:mb-4">
+                <h2 className="gba:text-xl gba:font-semibold gba:mb-4 gba:text-foreground">
+                  {page === 1 && !searchQuery ? t('more_articles') : t('all_articles')}
+                </h2>
+                <div className="gba:grid gba:grid-cols-3 gba:gap-4 gba:mb-8">
+                  {regularArticles.map(entry => {
+                    const item = toIntranetContent(entry)
+                    return (
+                      <ContentCard
+                        key={item.articleId}
+                        item={item}
+                        variant="knowledge"
+                        currentTab={currentTab}
+                        accessToken={accessToken}
+                        userInfo={userInfo}
+                        allowedReactions={allowedReactions}
+                        reactionCatalogMap={reactionCatalogMap}
+                        reactionSummary={reactionsByArticle[item.articleId] || {}}
+                        onReactionsRefetch={refetchReactions}
+                      />
+                    )
+                  })}
+                </div>
+              </div>
+            ) : null}
+
+            {/* Show all articles in grid if searching or not on first page */}
+            {(searchQuery || page > 1) && data.length > 0 && (
+              <div className="gba:grid gba:grid-cols-3 gba:gap-4 gba:mb-8">
+                {data.map(item => (
+                  <ContentCard
+                    key={item.articleId}
+                    item={item}
+                    variant="knowledge"
+                    currentTab={currentTab}
+                    accessToken={accessToken}
+                    userInfo={userInfo}
+                    allowedReactions={allowedReactions}
+                    reactionCatalogMap={reactionCatalogMap}
+                    reactionSummary={reactionsByArticle[item.articleId] || {}}
+                    onReactionsRefetch={refetchReactions}
+                  />
+                ))}
               </div>
             )}
+
+            {!isLoading && data.length === 0 && (
+              <div className="gba:col-span-3 gba:text-center gba:py-12">
+                <p className="gba:text-muted-foreground">
+                  {searchQuery ? t('no_search_results') : t('no_knowledge_found')}
+                </p>
+              </div>
+            )}
+
+            {/* Infinite scroll sentinel */}
+            {hasMore && <div ref={sentinelRef} className="gba:h-4" />}
           </div>
         </div>
       </div>

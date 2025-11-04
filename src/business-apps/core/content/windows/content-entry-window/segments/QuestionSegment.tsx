@@ -12,7 +12,7 @@ import {
   useTranslation
 } from '@newwork/nw-design-system'
 import { ContentEntryFormValues } from '../ContentEntryWindow'
-import translations from '../i18n'
+import translations from '../_i18n'
 
 interface QuestionSegmentProps {
   control: Control<ContentEntryFormValues>

@@ -13,7 +13,7 @@ import {
 } from '@newwork/nw-design-system'
 import { Image } from '@phosphor-icons/react'
 import { ContentEntryFormValues } from '../ContentEntryWindow'
-import translations from '../i18n'
+import translations from '../_i18n'
 
 interface DocumentSegmentProps {
   control: Control<ContentEntryFormValues>

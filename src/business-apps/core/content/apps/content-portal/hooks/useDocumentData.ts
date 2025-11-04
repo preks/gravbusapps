@@ -22,6 +22,9 @@ export interface DocumentArea extends ContentEntry {
  * @param categoryRefs - Optional category filters (can be multiple)
  */
 export const useDocumentAreas = (accessToken: string, contentTypeRef?: string | null, categoryRefs?: string[]) => {
+  // Serialize categoryRefs to prevent reference instability
+  const categoryRefsKey = useMemo(() => JSON.stringify(categoryRefs || []), [categoryRefs])
+
   // Memoize params to prevent infinite re-renders
   const queryParams = useMemo(
     () => ({
@@ -32,7 +35,7 @@ export const useDocumentAreas = (accessToken: string, contentTypeRef?: string | 
       sortBy: 'title' as const,
       sortOrder: 'ASC' as const
     }),
-    [contentTypeRef, categoryRefs]
+    [contentTypeRef, categoryRefsKey]
   )
 
   // Fetch Content Entries for DOCUMENTS group
@@ -83,7 +86,7 @@ export const useFolderContents = (accessToken: string, contentEntryId: string | 
 
     return {
       contentEntryId,
-      parentDocuments: folderId ? [folderId] : undefined,
+      parentDocumentId: folderId || null, // Use null for root level documents
       sortBy: 'title' as const,
       sortOrder: 'ASC' as const
     }
@@ -95,10 +98,23 @@ export const useFolderContents = (accessToken: string, contentEntryId: string | 
   }, [paramsKey])
 
   // Fetch documents (both folders and files)
-  const { documents, isLoading, error, refetch } = useContentDocuments(params, accessToken)
+  const { documents: allDocuments, isLoading, error, refetch } = useContentDocuments(params, accessToken)
 
   // Filter out results if no contentEntryId (empty state)
   const shouldShowResults = contentEntryId !== null
+
+  // Filter documents based on parentDocumentId (client-side filtering for root level)
+  const documents = useMemo(() => {
+    if (!shouldShowResults) return []
+
+    // If folderId is null, show only root-level documents (those without a parent)
+    if (folderId === null) {
+      return allDocuments.filter(doc => !doc.parentDocumentId)
+    }
+
+    // Otherwise, the query already filtered by parentDocumentId
+    return allDocuments
+  }, [allDocuments, folderId, shouldShowResults])
 
   // Split into folders and files only if we have a valid contentEntryId
   const folders = useMemo(

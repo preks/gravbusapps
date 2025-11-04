@@ -1,5 +1,5 @@
 import React, { useState, useMemo } from 'react'
-import { useTranslation, Button, Alert, AlertTitle, AlertDescription } from '@newwork/nw-design-system'
+import { useTranslation, Button, Alert, AlertTitle, AlertDescription, Skeleton, Card } from '@newwork/nw-design-system'
 import { useContentEntries, useUserContentReactions, toIntranetContent } from '@/common/data/content'
 import { ContentRole } from '@/common/data/content/types/contentEnums'
 import ContentCard from '../../components/cards/ContentCard'
@@ -7,8 +7,13 @@ import SearchInput from '../../components/shared/SearchInput'
 import Banner, { BannerVariant } from '../../components/shared/Banner'
 import ContentCarousel from '../../components/shared/ContentCarousel'
 import TrendingNow from '../../components/cards/TrendingNow'
+import ContentCardSkeleton from '../../components/skeletons/ContentCardSkeleton'
 import { BusinessAppContextProps } from '@/common/BusinessAppContext'
+import { useProcessCompletion } from '@/common/hooks/useProcessCompletion'
+import { useInfiniteScroll } from '@/common/hooks/useInfiniteScroll'
 import translations from '../../_i18n'
+
+const PAGE_SIZE = 20
 
 interface HomeViewProps extends BusinessAppContextProps {
   onNavigate?: (tab: string) => void
@@ -17,9 +22,6 @@ interface HomeViewProps extends BusinessAppContextProps {
   allowedReactions?: string[]
   reactionCatalogMap?: Record<string, string>
 }
-
-const DEFAULT_PAGE_SIZE = 12
-const NEXT_PAGE_SIZE = 10
 
 const HomeView: React.FC<HomeViewProps> = ({
   accessToken,
@@ -30,31 +32,41 @@ const HomeView: React.FC<HomeViewProps> = ({
   reactionCatalogMap
 }) => {
   const { t } = useTranslation(translations)
-  const [page, setPage] = useState(1)
+  const [loadedCount, setLoadedCount] = useState(PAGE_SIZE)
   const [searchQuery, setSearchQuery] = useState('')
 
-  const offset = page === 1 ? 0 : DEFAULT_PAGE_SIZE + (page - 2) * NEXT_PAGE_SIZE
-  const limit = page === 1 ? DEFAULT_PAGE_SIZE : NEXT_PAGE_SIZE
-
-  // Memoize params to prevent infinite re-renders
-  // Home View shows ALL content groups, sorted by newest first
-  const queryParams = useMemo(
+  // Featured content (independent of search) - always shows latest
+  const featuredQueryParams = useMemo(
     () => ({
       role: ContentRole.ROOT,
-      // No contentGroupRef - show all groups (News, Knowledge, Documents, etc.)
-      search: searchQuery,
-      limit,
-      offset,
+      limit: 12,
+      offset: 0,
       sortBy: 'createdAt' as const,
       sortOrder: 'DESC' as const
     }),
-    [searchQuery, limit, offset]
+    []
   )
 
-  // Use central content data - FIXED: correct parameter order & role
+  // Search/browsing content
+  const queryParams = useMemo(
+    () => ({
+      role: ContentRole.ROOT,
+      search: searchQuery,
+      limit: loadedCount,
+      offset: 0,
+      sortBy: 'createdAt' as const,
+      sortOrder: 'DESC' as const
+    }),
+    [searchQuery, loadedCount]
+  )
+
+  // Featured entries (carousel + trending) - not affected by search
+  const { entries: featuredEntries, refetch: refetchFeatured } = useContentEntries(featuredQueryParams, accessToken)
+
+  // Main content entries - affected by search
   const { entries, totalCount, isLoading, error, refetch } = useContentEntries(queryParams, accessToken)
 
-  // Batch fetch reactions
+  // Batch fetch reactions for main content
   const articleIds = useMemo(() => entries.map(entry => entry.id), [entries])
   const { reactionsByArticle, refetch: refetchReactions } = useUserContentReactions({
     contentEntryIds: articleIds,
@@ -62,12 +74,29 @@ const HomeView: React.FC<HomeViewProps> = ({
     accessToken
   })
 
+  // Listen for process completion to refresh data
+  useProcessCompletion({
+    onSuccess: () => {
+      refetchFeatured()
+      refetch()
+      refetchReactions()
+    }
+  })
+
   // Convert to legacy format
   const data = useMemo(() => entries.map(toIntranetContent), [entries])
-  const topArticles = useMemo(() => data.slice(0, 5), [data])
+  const featuredData = useMemo(() => featuredEntries.map(toIntranetContent), [featuredEntries])
+  const topArticles = useMemo(() => featuredData.slice(0, 5), [featuredData])
   const remainingArticles = useMemo(() => data.slice(5), [data])
 
   const hasMore = entries.length > 0 && entries.length < totalCount
+
+  // Infinite scroll
+  const sentinelRef = useInfiniteScroll({
+    onLoadMore: () => setLoadedCount(prev => prev + PAGE_SIZE),
+    hasMore,
+    isLoading
+  })
 
   const formattedDate = useMemo(() => {
     const now = new Date()
@@ -89,11 +118,7 @@ const HomeView: React.FC<HomeViewProps> = ({
 
   const handleSearch = (query: string) => {
     setSearchQuery(query)
-    setPage(1)
-  }
-
-  const loadMore = () => {
-    setPage(prev => prev + 1)
+    setLoadedCount(PAGE_SIZE)
   }
 
   if (error) {
@@ -135,7 +160,38 @@ const HomeView: React.FC<HomeViewProps> = ({
       )}
 
       <div className="gba:w-full gba:max-w-[1300px] gba:mx-auto gba:mb-10 gba:px-4">
-        {data.length > 0 && (
+        {/* Featured Section - Always visible, not affected by search */}
+        {isLoading ? (
+          <>
+            <div className="gba:mb-6 gba:mt-6">
+              <Skeleton className="gba:h-10 gba:w-64" />
+            </div>
+            <div className="gba:grid gba:grid-cols-[1fr_280px] gba:gap-6 gba:mb-8 gba:items-start">
+              <Card className="gba:p-6 gba:h-80">
+                <div className="gba:space-y-4">
+                  <Skeleton className="gba:h-8 gba:w-3/4" />
+                  <Skeleton className="gba:h-4 gba:w-full" />
+                  <Skeleton className="gba:h-4 gba:w-full" />
+                  <Skeleton className="gba:h-4 gba:w-2/3" />
+                </div>
+              </Card>
+              <Card className="gba:p-4 gba:h-80">
+                <Skeleton className="gba:h-6 gba:w-32 gba:mb-4" />
+                <div className="gba:space-y-4">
+                  {[1, 2, 3].map(i => (
+                    <div key={i} className="gba:flex gba:gap-3">
+                      <Skeleton className="gba:w-16 gba:h-16 gba:rounded-md" />
+                      <div className="gba:flex-1 gba:space-y-2">
+                        <Skeleton className="gba:h-4 gba:w-full" />
+                        <Skeleton className="gba:h-3 gba:w-20" />
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              </Card>
+            </div>
+          </>
+        ) : featuredEntries.length > 0 ? (
           <>
             <div className="gba:mb-6 gba:mt-6">
               <h2 className="gba:text-2xl gba:md:text-3xl gba:text-foreground gba:font-semibold">
@@ -144,20 +200,20 @@ const HomeView: React.FC<HomeViewProps> = ({
             </div>
 
             {/* Carousel and Trending Now Section */}
-            <div className="gba:grid gba:grid-cols-[1fr_280px] gba:gap-6 gba:mb-8">
+            <div className="gba:grid gba:grid-cols-[1fr_280px] gba:gap-6 gba:mb-8 gba:items-start">
               <div>
                 <ContentCarousel articles={topArticles} currentTab={currentTab} />
               </div>
               <div>
                 <TrendingNow
-                  entries={entries}
-                  className="gba:bg-card gba:border gba:border-border gba:rounded-lg gba:shadow-sm gba:h-full"
+                  entries={featuredEntries}
+                  className="gba:bg-card gba:border gba:border-border"
                   currentTab={currentTab}
                 />
               </div>
             </div>
           </>
-        )}
+        ) : null}
 
         <div className="gba:w-full gba:flex gba:justify-center gba:mb-8 gba:mt-6">
           <div className="gba:w-full gba:max-w-[80%]">
@@ -169,42 +225,37 @@ const HomeView: React.FC<HomeViewProps> = ({
           <h2 className="gba:text-2xl gba:md:text-3xl gba:text-foreground gba:font-semibold">{t('recent_content')}</h2>
         </div>
 
-        <div className="gba:grid gba:grid-cols-2 gba:gap-6 gba:mb-8">
-          {remainingArticles.length > 0 ? (
-            remainingArticles.map(item => (
-              <ContentCard
-                key={item.articleId}
-                item={item}
-                variant="intranet"
-                currentTab={currentTab}
-                accessToken={accessToken}
-                userInfo={userInfo}
-                allowedReactions={allowedReactions}
-                reactionCatalogMap={reactionCatalogMap}
-                reactionSummary={reactionsByArticle[item.articleId] || {}}
-                onReactionsRefetch={refetchReactions}
-              />
-            ))
-          ) : (
-            <div className="gba:col-span-2 gba:text-center gba:text-muted-foreground gba:py-8">
-              {t('no_more_articles')}
-            </div>
-          )}
-        </div>
-
-        {hasMore && (
-          <div className="gba:flex gba:justify-center gba:w-full gba:mt-6 gba:mb-4">
-            <Button
-              variant="default"
-              className="gba:w-[280px]"
-              onClick={loadMore}
-              disabled={isLoading}
-              data-testid="intranet-view-load-more"
-            >
-              {t('load_more')}
-            </Button>
+        {isLoading ? (
+          <div className="gba:grid gba:grid-cols-2 gba:gap-6 gba:mb-8">
+            <ContentCardSkeleton count={6} />
+          </div>
+        ) : (
+          <div className="gba:grid gba:grid-cols-2 gba:gap-6 gba:mb-8">
+            {remainingArticles.length > 0 ? (
+              remainingArticles.map(item => (
+                <ContentCard
+                  key={item.articleId}
+                  item={item}
+                  variant="intranet"
+                  currentTab={currentTab}
+                  accessToken={accessToken}
+                  userInfo={userInfo}
+                  allowedReactions={allowedReactions}
+                  reactionCatalogMap={reactionCatalogMap}
+                  reactionSummary={reactionsByArticle[item.articleId] || {}}
+                  onReactionsRefetch={refetchReactions}
+                />
+              ))
+            ) : (
+              <div className="gba:col-span-2 gba:text-center gba:text-muted-foreground gba:py-8">
+                {t('no_more_articles')}
+              </div>
+            )}
           </div>
         )}
+
+        {/* Infinite scroll sentinel */}
+        {hasMore && <div ref={sentinelRef} className="gba:h-4" />}
 
         {!isLoading && data.length === 0 && (
           <div className="gba:text-center gba:py-12">

@@ -1,6 +1,15 @@
 import React, { useState, useMemo } from 'react'
-import { useTranslation, Button, Alert, AlertTitle, AlertDescription, Badge } from '@newwork/nw-design-system'
-import { MessageCircle, Eye } from 'lucide-react'
+import {
+  useTranslation,
+  Button,
+  Alert,
+  AlertTitle,
+  AlertDescription,
+  Badge,
+  Skeleton,
+  Card
+} from '@newwork/nw-design-system'
+import { MessageCircle } from 'lucide-react'
 import { useContentEntries, toIntranetContent, useUserContentReactions } from '@/common/data/content'
 import { ContentRole, ContentGroup } from '@/common/data/content/types/contentEnums'
 import { VoteButtons, type VoteState } from '@/common/components/common-content'
@@ -9,14 +18,17 @@ import NavigationTagList from '../../components/shared/NavigationTagList'
 import Banner, { BannerVariant } from '../../components/shared/Banner'
 import { AppAction } from '@/components/app-action'
 import { FlowContextName } from '@/common/types/FlowRegistryTypes'
-import { updateTags } from '../../utils/contentUtils'
+import { useContentTypes } from '../../hooks/useContentTypes'
+import { useCatalogEntries } from '@/common/data/catalog'
+import { useProcessCompletion } from '@/common/hooks/useProcessCompletion'
+import { useInfiniteScroll } from '@/common/hooks/useInfiniteScroll'
 import translations from '../../_i18n'
 import { navigateTo, buildPlatformUrl } from '@/common/utils/navigationUtils'
 import type { UserInfoProps } from '@/common/BusinessAppContext'
 
 // Local constants
 const ALL_TAG = 'All'
-const QUESTION_CATEGORIES = ['Technical', 'Process', 'General']
+const PAGE_SIZE = 20
 
 interface QuestionViewProps {
   accessToken?: string
@@ -27,9 +39,6 @@ interface QuestionViewProps {
   reactionCatalogMap?: Record<string, string>
 }
 
-const DEFAULT_PAGE_SIZE = 15
-const NEXT_PAGE_SIZE = 10
-
 const QuestionView: React.FC<QuestionViewProps> = ({
   accessToken,
   userInfo,
@@ -38,39 +47,73 @@ const QuestionView: React.FC<QuestionViewProps> = ({
   reactionCatalogMap = {}
 }) => {
   const { t } = useTranslation(translations)
-  const [page, setPage] = useState(1)
+  const [loadedCount, setLoadedCount] = useState(PAGE_SIZE)
   const [searchQuery, setSearchQuery] = useState('')
-  const [categories, setCategories] = useState<{ label: string; checked: boolean }[]>([
-    { label: ALL_TAG, checked: true },
-    ...QUESTION_CATEGORIES.map(category => ({ label: category, checked: false }))
-  ])
+  const [selectedContentTypeRef, setSelectedContentTypeRef] = useState<string | null>(null)
 
   const employeeId = userInfo?.employeeDetails?.employeeId || ''
+
+  // Fetch ContentGroup QUESTION entry to get its ID
+  const { fetchCatalogEntriesByIdentifier } = useCatalogEntries({ accessToken: accessToken || '' })
+  const [questionGroupId, setQuestionGroupId] = useState<string | null>(null)
+
+  // Load QUESTION ContentGroup ID
+  React.useEffect(() => {
+    const loadQuestionGroupId = async () => {
+      try {
+        const result = await fetchCatalogEntriesByIdentifier('ContentGroup', {
+          limit: 1,
+          offset: 0
+        })
+        const questionEntry = result.entries.find(entry => entry.code === 'QUESTION')
+        if (questionEntry) {
+          setQuestionGroupId(questionEntry.id)
+        }
+      } catch (err) {
+        console.error('Error loading QUESTION group ID:', err)
+      }
+    }
+    if (accessToken) {
+      loadQuestionGroupId()
+    }
+  }, [accessToken, fetchCatalogEntriesByIdentifier])
+
+  // Load ContentTypes for QUESTION
+  const { types: contentTypes } = useContentTypes({ accessToken: accessToken || '' }, questionGroupId)
+
+  // Build categories from ContentTypes
+  const categories = useMemo(() => {
+    const allTag = { label: ALL_TAG, checked: selectedContentTypeRef === null }
+    const typeTags = contentTypes.map(type => ({
+      label: type.value || 'Unnamed',
+      checked: selectedContentTypeRef === type.id
+    }))
+    return [allTag, ...typeTags]
+  }, [contentTypes, selectedContentTypeRef])
 
   // Find catalog IDs for +1 and -1 reactions from the map
   // The map has entries like: '+1' -> 'ContentReaction:v1:+1'
   const upvoteCatalogId = reactionCatalogMap['+1'] || ''
   const downvoteCatalogId = reactionCatalogMap['-1'] || ''
 
-  const offset = page === 1 ? 0 : DEFAULT_PAGE_SIZE + (page - 2) * NEXT_PAGE_SIZE
-  const limit = page === 1 ? DEFAULT_PAGE_SIZE : NEXT_PAGE_SIZE
-
   // Memoize params to prevent infinite re-renders
   const queryParams = useMemo(
     () => ({
       role: ContentRole.ROOT,
       contentGroupRef: ContentGroup.QUESTION,
+      contentTypeRef: selectedContentTypeRef || undefined,
       search: searchQuery,
-      limit,
-      offset,
+      limit: loadedCount,
+      offset: 0,
       sortBy: 'createdAt' as const,
       sortOrder: 'DESC' as const
     }),
-    [searchQuery, limit, offset]
+    [searchQuery, loadedCount, selectedContentTypeRef]
   )
 
   // Use central content data - FIXED: correct parameter order
-  const { entries, totalCount, isLoading, error, refetch } = useContentEntries(queryParams, accessToken)
+  // Use childCount for Questions (only direct answers, not nested replies)
+  const { entries, totalCount, isLoading, error, refetch } = useContentEntries(queryParams, accessToken, true)
 
   // Batch fetch reactions
   const articleIds = useMemo(() => entries.map(entry => entry.id), [entries])
@@ -80,10 +123,25 @@ const QuestionView: React.FC<QuestionViewProps> = ({
     accessToken: accessToken || ''
   })
 
+  // Listen for process completion to refresh data
+  useProcessCompletion({
+    onSuccess: () => {
+      refetch()
+      refetchReactions()
+    }
+  })
+
   // Convert to legacy format
   const data = useMemo(() => entries.map(toIntranetContent), [entries])
 
   const hasMore = entries.length > 0 && entries.length < totalCount
+
+  // Infinite scroll
+  const sentinelRef = useInfiniteScroll({
+    onLoadMore: () => setLoadedCount(prev => prev + PAGE_SIZE),
+    hasMore,
+    isLoading
+  })
 
   // Calculate vote counts for each question
   const getVoteCounts = (contentEntryId: string) => {
@@ -133,17 +191,17 @@ const QuestionView: React.FC<QuestionViewProps> = ({
 
   const handleSearch = (query: string) => {
     setSearchQuery(query)
-    setPage(1)
+    setLoadedCount(PAGE_SIZE)
   }
 
   const handleCategoryClick = (label: string) => {
-    const updatedCategories = updateTags(categories, label)
-    setCategories(updatedCategories)
-    setPage(1)
-  }
-
-  const loadMore = () => {
-    setPage(prev => prev + 1)
+    if (label === ALL_TAG) {
+      setSelectedContentTypeRef(null)
+    } else {
+      const selectedType = contentTypes.find(type => type.value === label)
+      setSelectedContentTypeRef(selectedType?.id || null)
+    }
+    setLoadedCount(PAGE_SIZE)
   }
 
   const handleQuestionClick = (question: any) => {
@@ -226,94 +284,102 @@ const QuestionView: React.FC<QuestionViewProps> = ({
         </div>
 
         <div className="gba:space-y-4 gba:mb-8">
-          {data.map(question => {
-            const votes: VoteState = getVoteCounts(question.articleId)
-            return (
-              <div
-                key={question.articleId}
-                className="gba:bg-card gba:rounded-lg gba:shadow-sm hover:gba:shadow-md gba:transition gba:border gba:border-border gba:p-6 gba:cursor-pointer"
-                onClick={() => handleQuestionClick(question)}
-                data-testid={`question-item-${question.articleId}`}
-              >
-                <div className="gba:flex gba:gap-4">
-                  {/* Vote section */}
-                  <div onClick={e => e.stopPropagation()}>
-                    <VoteButtons
-                      contentEntryId={question.articleId}
-                      initialVoteState={votes}
-                      upvoteCatalogId={upvoteCatalogId}
-                      downvoteCatalogId={downvoteCatalogId}
-                      accessToken={accessToken || ''}
-                      employeeId={employeeId}
-                      size="md"
-                      onVoteComplete={handleVoteSuccess}
-                      data-testid={`question-vote-${question.articleId}`}
-                    />
+          {isLoading ? (
+            <>
+              {[1, 2, 3, 4, 5].map(i => (
+                <Card key={i} className="gba:p-6">
+                  <div className="gba:flex gba:gap-4">
+                    <div className="gba:flex gba:flex-col gba:items-center gba:gap-2">
+                      <Skeleton className="gba:h-8 gba:w-12" />
+                      <Skeleton className="gba:h-6 gba:w-12" />
+                    </div>
+                    <div className="gba:flex-1 gba:space-y-3">
+                      <Skeleton className="gba:h-6 gba:w-3/4" />
+                      <Skeleton className="gba:h-4 gba:w-full" />
+                      <Skeleton className="gba:h-4 gba:w-2/3" />
+                      <div className="gba:flex gba:gap-4 gba:mt-4">
+                        <Skeleton className="gba:h-4 gba:w-24" />
+                        <Skeleton className="gba:h-4 gba:w-24" />
+                        <Skeleton className="gba:h-4 gba:w-24" />
+                      </div>
+                    </div>
                   </div>
-
-                  {/* Question content */}
-                  <div className="gba:flex-1">
-                    <div className="gba:flex gba:items-center gba:gap-2 gba:mb-2">
-                      <Badge variant={getStatusVariant(question.status)} className="gba:text-xs">
-                        {question.status || 'OPEN'}
-                      </Badge>
-                      {question.tagNames?.slice(0, 3).map((tag: string, idx: number) => (
-                        <Badge key={idx} variant="outline" className="gba:text-xs">
-                          {tag}
-                        </Badge>
-                      ))}
+                </Card>
+              ))}
+            </>
+          ) : (
+            data.map(question => {
+              const votes: VoteState = getVoteCounts(question.articleId)
+              return (
+                <div
+                  key={question.articleId}
+                  className="gba:bg-card gba:rounded-lg gba:shadow-sm hover:gba:shadow-md gba:transition gba:border gba:border-border gba:p-6 gba:cursor-pointer"
+                  onClick={() => handleQuestionClick(question)}
+                  data-testid={`question-item-${question.articleId}`}
+                >
+                  <div className="gba:flex gba:gap-4">
+                    {/* Vote section */}
+                    <div onClick={e => e.stopPropagation()}>
+                      <VoteButtons
+                        contentEntryId={question.articleId}
+                        initialVoteState={votes}
+                        upvoteCatalogId={upvoteCatalogId}
+                        downvoteCatalogId={downvoteCatalogId}
+                        accessToken={accessToken || ''}
+                        employeeId={employeeId}
+                        size="md"
+                        onVoteComplete={handleVoteSuccess}
+                        data-testid={`question-vote-${question.articleId}`}
+                      />
                     </div>
 
-                    <h3 className="gba:text-xl gba:font-bold gba:text-foreground gba:mb-2 hover:gba:text-primary gba:transition">
-                      {question.title}
-                    </h3>
-
-                    <p className="gba:text-muted-foreground gba:mb-4 gba:line-clamp-2">{question.previewText}</p>
-
-                    <div className="gba:flex gba:items-center gba:gap-4 gba:text-sm gba:text-muted-foreground">
-                      <div className="gba:flex gba:items-center gba:gap-1">
-                        <MessageCircle className="gba:w-4 gba:h-4" />
-                        <span>
-                          {question.commentsCount || 0} {t('answers')}
-                        </span>
+                    {/* Question content */}
+                    <div className="gba:flex-1">
+                      <div className="gba:flex gba:items-center gba:gap-2 gba:mb-2">
+                        <Badge variant={getStatusVariant(question.status || '')} className="gba:text-xs">
+                          {question.status || 'OPEN'}
+                        </Badge>
+                        {question.tagNames?.slice(0, 3).map((tag: string, idx: number) => (
+                          <Badge key={idx} variant="outline" className="gba:text-xs">
+                            {tag}
+                          </Badge>
+                        ))}
                       </div>
-                      <div className="gba:flex gba:items-center gba:gap-1">
-                        <Eye className="gba:w-4 gba:h-4" />
+
+                      <h3 className="gba:text-xl gba:font-bold gba:text-foreground gba:mb-2 hover:gba:text-primary gba:transition">
+                        {question.title}
+                      </h3>
+
+                      <p className="gba:text-muted-foreground gba:mb-4 gba:line-clamp-2">{question.previewText}</p>
+
+                      <div className="gba:flex gba:items-center gba:gap-4 gba:text-sm gba:text-muted-foreground">
+                        <div className="gba:flex gba:items-center gba:gap-1">
+                          <MessageCircle className="gba:w-4 gba:h-4" />
+                          <span>
+                            {question.commentsCount || 0} {t('answers')}
+                          </span>
+                        </div>
+                        <span>•</span>
                         <span>
-                          {question.feedbacksCount || 0} {t('views')}
+                          {t('asked_by')} {question.authorFullName || 'Unknown'}
                         </span>
+                        {question.createdAtText && (
+                          <>
+                            <span>•</span>
+                            <span>{question.createdAtText}</span>
+                          </>
+                        )}
                       </div>
-                      <span>•</span>
-                      <span>
-                        {t('asked_by')} {question.authorFullName || 'Unknown'}
-                      </span>
-                      {question.createdAtText && (
-                        <>
-                          <span>•</span>
-                          <span>{question.createdAtText}</span>
-                        </>
-                      )}
                     </div>
                   </div>
                 </div>
-              </div>
-            )
-          })}
+              )
+            })
+          )}
         </div>
 
-        {hasMore && (
-          <div className="gba:flex gba:justify-center gba:w-full gba:mt-6 gba:mb-4">
-            <Button
-              variant="default"
-              className="gba:w-[280px]"
-              onClick={loadMore}
-              disabled={isLoading}
-              data-testid="question-view-load-more"
-            >
-              {t('load_more')}
-            </Button>
-          </div>
-        )}
+        {/* Infinite scroll sentinel */}
+        {hasMore && <div ref={sentinelRef} className="gba:h-4" />}
 
         {!isLoading && data.length === 0 && (
           <div className="gba:text-center gba:py-12 gba:bg-card gba:rounded-lg gba:border gba:border-border">

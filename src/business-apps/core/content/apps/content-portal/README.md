@@ -42,7 +42,7 @@
 
 ### Content Management App
 
-- ✅ `apps/content-management/ContentManagement.tsx` - Management app with pagination and search
+- ✅ `apps/content-management/ContentManager.tsx` - Management app with pagination and search
 - ✅ `apps/content-management/components/ContentListView.tsx` - Content list view with table
 - ✅ `wrapped-entries/core/every/apps/content-management.ts` - Wrapped entry
 
@@ -93,7 +93,7 @@
 
 - ⏳ Integration of Feed components into Intranet.tsx
 - ⏳ Translations setup (i18n keys)
-- ⏳ AppActionButton integration in ContentManagement
+- ⏳ AppActionButton integration in ContentManager
 - ⏳ Full data-testid coverage
 - ⏳ Error handling improvements
 - ⏳ Loading state improvements
