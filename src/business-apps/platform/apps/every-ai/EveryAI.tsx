@@ -52,11 +52,11 @@ export const EveryAI: React.FC<EveryAIProps> = props => {
   }
 
   return (
-    <FormSubmissionProvider>
-      <div
-        className={`gba:h-full gba:flex gba:flex-col gba:bg-background gba:relative gba:overflow-hidden ${className || ''}`}
-        data-testid="every-ai-app"
-      >
+    <div
+      className={`gba:h-full gba:flex gba:flex-col gba:bg-background gba:relative gba:overflow-hidden ${className || ''}`}
+      data-testid="every-ai-app"
+    >
+      <FormSubmissionProvider>
         {/* Animated background gradient */}
         <div className="gba:absolute gba:inset-0 gba:pointer-events-none gba:opacity-30">
           <div
@@ -235,8 +235,8 @@ export const EveryAI: React.FC<EveryAIProps> = props => {
             placeholder="Ask EveryAI anything..."
           />
         </div>
-      </div>
-    </FormSubmissionProvider>
+      </FormSubmissionProvider>
+    </div>
   )
 }
 
