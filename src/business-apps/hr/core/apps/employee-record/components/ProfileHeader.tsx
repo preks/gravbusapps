@@ -522,16 +522,18 @@ const ProfileHeader: React.FC<BusinessAppContextProps & ProfileHeaderProps> = ({
                             <div className="gba:text-sm gba:font-semibold gba:text-foreground gba:text-left">Teams</div>
                             <div className="gba:text-sm gba:text-foreground">
                               <div className="gba:flex gba:flex-wrap gba:gap-2 gba:mt-1">
-                                {employee.employeePosition.matrixUnitEmployees.map((teamItem: MatrixUnitEmployee) => (
-                                  <TagItem
-                                    key={teamItem.matrixUnit.id}
-                                    icon={<TeamOutlined className="gba:h-4 gba:w-4 gba:text-muted-foreground" />}
-                                    label={teamItem.matrixUnit.name}
-                                    bgColorClass="gba:bg-info-secondary"
-                                    textColorClass="gba:text-info"
-                                    testId={`team-${teamItem.matrixUnit.id}`}
-                                  />
-                                ))}
+                                {employee.employeePosition.matrixUnitEmployees.map(
+                                  (teamItem: MatrixUnitEmployee, index: number) => (
+                                    <TagItem
+                                      key={teamItem.matrixUnit?.id || `team-${index}`}
+                                      icon={<TeamOutlined className="gba:h-4 gba:w-4 gba:text-muted-foreground" />}
+                                      label={teamItem.matrixUnit.name}
+                                      bgColorClass="gba:bg-info-secondary"
+                                      textColorClass="gba:text-info"
+                                      testId={`team-${teamItem.matrixUnit.id}`}
+                                    />
+                                  )
+                                )}
                               </div>
                             </div>
                           </div>
@@ -552,9 +554,9 @@ const ProfileHeader: React.FC<BusinessAppContextProps & ProfileHeaderProps> = ({
                             employee.employeePosition.employeeCapabilities.filter(cap => cap.capability).length > 0 ? (
                               employee.employeePosition.employeeCapabilities
                                 .filter(capItem => capItem.capability)
-                                .map((capItem: EmployeeCapability) => (
+                                .map((capItem: EmployeeCapability, index: number) => (
                                   <TagItem
-                                    key={capItem.capability!.id}
+                                    key={capItem.capability?.id || `capability-${index}`}
                                     icon={<PiBookmarks className="gba:h-4 gba:w-4 gba:text-muted-foreground" />}
                                     label={capItem.capability!.name}
                                     bgColorClass="gba:bg-success-secondary"
@@ -586,9 +588,9 @@ const ProfileHeader: React.FC<BusinessAppContextProps & ProfileHeaderProps> = ({
                             {employee.skills?.filter(skill => skill.skill).length > 0 ? (
                               employee.skills
                                 .filter(skillItem => skillItem.skill)
-                                .map((skillItem: EmployeeSkill) => (
+                                .map((skillItem: EmployeeSkill, index: number) => (
                                   <TagItem
-                                    key={skillItem.skill.id}
+                                    key={skillItem.skill?.id || `skill-${index}`}
                                     icon={<StarIcon className="gba:h-4 gba:w-4 gba:text-muted-foreground" />}
                                     label={skillItem.skill.name}
                                     bgColorClass="gba:bg-info-secondary"

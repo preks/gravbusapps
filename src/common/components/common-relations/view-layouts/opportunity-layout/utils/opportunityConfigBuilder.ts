@@ -1,4 +1,5 @@
-import type { OpportunityViewConfig, OpportunityBoardFilters } from '../OpportunityLayout'
+import type { OpportunityViewConfig } from '../OpportunityLayout'
+import type { OpportunityBoardFilters } from '../config/opportunityBoardTypes'
 import { FlowContextName } from '@/common/types/FlowRegistryTypes'
 import { buildPlatformUrl } from '@/common/utils/navigationUtils'
 import { formatNumberFunction } from '@/common/utils/windowUtils'
@@ -9,6 +10,8 @@ import { opportunityFilterConfig } from '../config/opportunityFilters'
 
 export interface OpportunityConfigBuilderOptions<TOpportunity, TQueryVariables> {
   contextType: 'customer' | 'investment'
+
+  extendQueryVariables?: (vars: TQueryVariables) => TQueryVariables
 
   fetchOpportunities: (variables: TQueryVariables) => Promise<{
     opportunities?: TOpportunity[]
@@ -25,6 +28,7 @@ export interface OpportunityConfigBuilderOptions<TOpportunity, TQueryVariables> 
   flowContexts: {
     entity: FlowContextName
     create: FlowContextName
+    createContextData?: Record<string, any>
   }
 
   urlPaths: {
@@ -36,7 +40,7 @@ export interface OpportunityConfigBuilderOptions<TOpportunity, TQueryVariables> 
   boardConfig: {
     pipelineCatalog: string
     pipelineStageCatalog: string
-    opportunityType: string
+    opportunityType: 'CustomerOpportunity' | 'InvestmentOpportunity'
     processName: string
     processDomain: string
     preferForecastedProfit?: boolean
@@ -109,12 +113,15 @@ export const createOpportunityConfig = <TOpportunity extends { id: string }, TQu
         vars.orderBy = [{ field: 'createdAt' as any, direction: 'DESC_NULLS_LAST' }]
       }
 
-      return vars as TQueryVariables
+      return options.extendQueryVariables
+        ? options.extendQueryVariables(vars as TQueryVariables)
+        : (vars as TQueryVariables)
     },
 
     flowContexts: {
       entityContext: options.flowContexts.entity,
-      createContext: options.flowContexts.create
+      createContext: options.flowContexts.create,
+      ...(options.flowContexts.createContextData && { createContextData: options.flowContexts.createContextData })
     },
 
     buildRecordUrl: (id: string) =>
@@ -171,7 +178,9 @@ export const createOpportunityConfig = <TOpportunity extends { id: string }, TQu
         }
       }
 
-      const result = await options.fetchBoardOpportunities(variables)
+      const extendedVars = options.extendQueryVariables ? options.extendQueryVariables(variables) : variables
+
+      const result = await options.fetchBoardOpportunities(extendedVars)
       return options.extractBoardOpportunities(result)
     },
 

@@ -56,24 +56,3 @@ export function getCurrencySymbol(
   // Fall back to code
   return currency.code || ''
 }
-
-/**
- * Get currency symbol from currencyRef (catalog entry ID)
- * This requires loading the catalog entry
- *
- * @param currencyRef - The currency catalog entry reference (e.g., "Currency:v1:EUR")
- * @returns The currency code extracted from the reference
- *
- * @example
- * getCurrencyCodeFromRef('Currency:v1:EUR') // Returns 'EUR'
- * getCurrencyCodeFromRef('Currency:v1:USD') // Returns 'USD'
- */
-export function getCurrencyCodeFromRef(currencyRef: string): string {
-  if (!currencyRef) {
-    return ''
-  }
-
-  // Extract code from reference format "Currency:v1:CODE"
-  const parts = currencyRef.split(':')
-  return parts[parts.length - 1] || ''
-}
