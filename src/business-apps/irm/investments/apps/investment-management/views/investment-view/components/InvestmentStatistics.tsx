@@ -3,7 +3,7 @@ import { WidgetGroup, WidgetItem } from '@/components/widget-group'
 import { DollarOutlined, RiseOutlined, PercentageOutlined, PieChartOutlined } from '@ant-design/icons'
 import { BusinessAppContextProps } from '@/common/BusinessAppContext'
 import { useInvestmentKPIIntegration } from '../hooks/useInvestmentKPIIntegration'
-import { formatCurrencyCompact } from '../../../utils/currencyUtils'
+import { formatCurrencyCompact } from '@/common/utils/numberFormatter'
 
 type InvestmentStatisticsProps = BusinessAppContextProps
 
@@ -114,7 +114,7 @@ export const InvestmentStatistics: React.FC<InvestmentStatisticsProps> = ({ ...c
     {
       key: 'total-invested',
       title: 'Total Invested',
-      value: formatCurrencyCompact(totalInvested),
+      value: formatCurrencyCompact(totalInvested, 'EUR', undefined, 1, true),
       prefix: <DollarOutlined />,
       color: '#52c41a',
       valueIsString: true,
@@ -144,7 +144,7 @@ export const InvestmentStatistics: React.FC<InvestmentStatisticsProps> = ({ ...c
     {
       key: 'total-market-value',
       title: 'Total Market Value',
-      value: formatCurrencyCompact(totalMarketValue),
+      value: formatCurrencyCompact(totalMarketValue, 'EUR', undefined, 1, true),
       prefix: <RiseOutlined />,
       color: '#722ed1',
       valueIsString: true,

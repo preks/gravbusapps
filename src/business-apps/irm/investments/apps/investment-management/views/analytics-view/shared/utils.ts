@@ -5,7 +5,6 @@
 
 // Re-export all investment utilities from central location
 export {
-  extractCurrencyCode,
   formatPercentage,
   formatDate,
   formatDisplayDate,
@@ -14,17 +13,23 @@ export {
   formatNumber
 } from '@/common/data/investment'
 
-// Use the formatCurrencyCompact from investment-management utils
-export { formatCurrencyCompact as formatCurrency } from '../../../utils/currencyUtils'
-
-// Re-export utilities from the new shared/utils folder
+// Import currency utilities from central numberFormatter
 export {
-  safeCurrencyExtraction,
-  extractAvailableCurrencies,
-  formatCurrencyDisplay,
+  extractCurrencyCode,
+  formatCurrencyCompact,
   getCurrencySymbol,
   validateCurrencyCode
-} from './utils/currencyUtils'
+} from '@/common/utils/numberFormatter'
+
+// Use formatCurrencyCompact with skipThousands=true as formatCurrency for investment views
+import { formatCurrencyCompact as formatCurrencyCompactBase, extractCurrencyCode } from '@/common/utils/numberFormatter'
+export const formatCurrency = (amount: number, currency: string = 'EUR'): string => {
+  const currencyCode = extractCurrencyCode(currency)
+  return formatCurrencyCompactBase(amount, currencyCode, undefined, 1, true) // skipThousands=true
+}
+
+// Re-export investment-specific utilities from the new shared/utils folder
+export { safeCurrencyExtraction, extractAvailableCurrencies, formatCurrencyDisplay } from './utils/currencyUtils'
 
 export {
   calculateDurationYears,

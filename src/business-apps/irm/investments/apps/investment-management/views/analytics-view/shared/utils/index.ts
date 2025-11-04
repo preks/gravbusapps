@@ -4,15 +4,9 @@
  * Provides currency, date, data filtering, and chart utilities.
  */
 
-// Currency utilities
-export {
-  extractCurrencyCode,
-  safeCurrencyExtraction,
-  extractAvailableCurrencies,
-  formatCurrencyDisplay,
-  getCurrencySymbol,
-  validateCurrencyCode
-} from './currencyUtils'
+// Currency utilities (generic ones from central, investment-specific from local)
+export { extractCurrencyCode, getCurrencySymbol, validateCurrencyCode } from '@/common/utils/numberFormatter'
+export { safeCurrencyExtraction, extractAvailableCurrencies, formatCurrencyDisplay } from './currencyUtils'
 
 // Date utilities
 export {
@@ -52,4 +46,5 @@ export {
 } from './chartUtils.tsx'
 
 // Re-export commonly used utilities from parent shared/utils.ts for convenience
-export { formatCurrencyCompact, formatCurrency, calculateChange } from '../utils'
+export { formatCurrency, calculateChange } from '../utils'
+export { formatCurrencyCompact } from '@/common/utils/numberFormatter'

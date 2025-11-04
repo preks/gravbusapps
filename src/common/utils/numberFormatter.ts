@@ -51,7 +51,8 @@ export const formatAmount = (value: number | null | undefined, decimals: number 
 export const formatCompactCurrency = (
   amount: number | null | undefined,
   currencyCode: string = 'USD',
-  maximumFractionDigits: number = 1
+  maximumFractionDigits: number = 1,
+  skipThousands: boolean = false
 ): string => {
   if (amount === null || amount === undefined || !isFinite(amount as number)) {
     return new Intl.NumberFormat(undefined, {
@@ -76,7 +77,9 @@ export const formatCompactCurrency = (
   if (abs >= 1_000_000_000_000) return `${sign}${format(abs / 1_000_000_000_000)}T`
   if (abs >= 1_000_000_000) return `${sign}${format(abs / 1_000_000_000)}B`
   if (abs >= 1_000_000) return `${sign}${format(abs / 1_000_000)}M`
-  if (abs >= 1_000) return `${sign}${format(abs / 1_000)}K`
+
+  // Skip thousands abbreviation if requested (used by investment management views)
+  if (!skipThousands && abs >= 1_000) return `${sign}${format(abs / 1_000)}K`
 
   return new Intl.NumberFormat(undefined, {
     style: 'currency',
@@ -238,12 +241,18 @@ export const formatCurrency = (amount: number | null | undefined, currency: stri
 
 /**
  * Convenience: returns a single string with compact currency (1.2M, etc.) honoring locale.
+ * @param amount - The amount to format
+ * @param currency - Currency code (e.g., 'EUR', 'USD') or catalog format (e.g., 'Currency:v1:EUR')
+ * @param locale - Optional locale override
+ * @param maximumFractionDigits - Maximum decimal places (default: 1)
+ * @param skipThousands - If true, don't abbreviate thousands (shows €1,500 instead of €1.5K)
  */
 export const formatCurrencyCompact = (
   amount: number | null | undefined,
   currency: string = 'EUR',
   locale?: string,
-  maximumFractionDigits: number = 1
+  maximumFractionDigits: number = 1,
+  skipThousands: boolean = false
 ): string => {
   if (amount === null || amount === undefined || !isFinite(amount as number)) {
     return new Intl.NumberFormat(resolveLocale(locale), {
@@ -265,13 +274,44 @@ export const formatCurrencyCompact = (
   if (abs >= 1_000_000_000_000) return `${sign}${format(abs / 1_000_000_000_000)}T`
   if (abs >= 1_000_000_000) return `${sign}${format(abs / 1_000_000_000)}B`
   if (abs >= 1_000_000) return `${sign}${format(abs / 1_000_000)}M`
-  if (abs >= 1_000) return `${sign}${format(abs / 1_000)}K`
+
+  // Skip thousands abbreviation if requested (used by investment management views)
+  if (!skipThousands && abs >= 1_000) return `${sign}${format(abs / 1_000)}K`
+
   return new Intl.NumberFormat(resolveLocale(locale), {
     style: 'currency',
     currency,
     maximumFractionDigits: 0,
     minimumFractionDigits: 0
   }).format(amount as number)
+}
+
+/**
+ * Validates if a currency code is valid ISO 4217 format.
+ * @param currencyCode - The currency code to validate (e.g., 'EUR', 'USD', 'GBP')
+ * @returns True if valid, false otherwise
+ *
+ * @example
+ * validateCurrencyCode('EUR')     // true
+ * validateCurrencyCode('USD')     // true
+ * validateCurrencyCode('INVALID') // false
+ * validateCurrencyCode('eu')      // false (must be uppercase)
+ */
+export const validateCurrencyCode = (currencyCode: string): boolean => {
+  if (!currencyCode || typeof currencyCode !== 'string') return false
+  if (currencyCode.length !== 3) return false
+  if (!/^[A-Z]{3}$/.test(currencyCode)) return false
+
+  // Try to format with the currency code - if it fails, it's invalid
+  try {
+    new Intl.NumberFormat('en-US', {
+      style: 'currency',
+      currency: currencyCode
+    }).format(0)
+    return true
+  } catch {
+    return false
+  }
 }
 
 /** Wrapper to use platform number mask formatting when available. */
