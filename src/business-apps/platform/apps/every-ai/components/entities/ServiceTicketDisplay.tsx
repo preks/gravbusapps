@@ -10,16 +10,15 @@ interface ServiceTicketDisplayProps {
 
 interface ServiceTicket {
   id: string
-  flowName: string | null
   title: string | null
-  message: string | null
-  assignee: string | null
+  status: string | null
+  code: string | null
+  businessKey: string | null
+  processInstanceId: string | null
+  recordState: string | null
   updatedAt: string | null
-  outputData: {
-    description?: string
-    priority?: string
-    category?: string
-  } | null
+  createdAt: string | null
+  additionalProperties: Record<string, unknown> | null
 }
 
 export const ServiceTicketDisplay: React.FC<ServiceTicketDisplayProps> = ({
@@ -40,23 +39,27 @@ export const ServiceTicketDisplay: React.FC<ServiceTicketDisplayProps> = ({
       try {
         const query = `
           query GetServiceTicket($id: uuid!) {
-            serviceTickets_by_pk(id: $id) {
+            ServiceTicketByPk(id: $id) {
               id
-              flowName
               title
-              message
-              assignee
+              status
+              code
+              businessKey
+              processInstanceId
+              recordState
               updatedAt
+              createdAt
+              additionalProperties
             }
           }
         `
 
-        const result = await graphqlClient.request<{ serviceTickets_by_pk: ServiceTicket }>(query, {
+        const result = await graphqlClient.request<{ ServiceTicketByPk: ServiceTicket }>(query, {
           id: serviceTicketId
         })
 
-        if (result.serviceTickets_by_pk) {
-          setTicket(result.serviceTickets_by_pk)
+        if (result.ServiceTicketByPk) {
+          setTicket(result.ServiceTicketByPk)
         } else {
           setError('Service ticket not found')
         }
@@ -95,6 +98,24 @@ export const ServiceTicketDisplay: React.FC<ServiceTicketDisplayProps> = ({
 
   if (!ticket) return null
 
+  const formatDateTime = (value: string | null) => {
+    if (!value) return null
+    try {
+      return new Intl.DateTimeFormat(undefined, {
+        dateStyle: 'medium',
+        timeStyle: 'short'
+      }).format(new Date(value))
+    } catch (err) {
+      console.warn('Failed to format date value', err)
+      return value
+    }
+  }
+
+  const additionalDetails =
+    ticket.additionalProperties && typeof ticket.additionalProperties === 'object'
+      ? Object.entries(ticket.additionalProperties ?? {})
+      : []
+
   return (
     <Card className="gba:w-full gba:rounded-2xl hover:gba:bg-accent" data-testid="service-ticket-display">
       <CardContent className="gba:p-6">
@@ -108,13 +129,6 @@ export const ServiceTicketDisplay: React.FC<ServiceTicketDisplayProps> = ({
         </div>
 
         <div className="gba:space-y-3">
-          {ticket.flowName && (
-            <div>
-              <div className="gba:text-muted-foreground gba:text-sm">Flow Name</div>
-              <div className="gba:text-foreground gba:text-base gba:font-bold">{ticket.flowName}</div>
-            </div>
-          )}
-
           {ticket.title && (
             <div>
               <div className="gba:text-muted-foreground gba:text-sm">Title</div>
@@ -122,24 +136,68 @@ export const ServiceTicketDisplay: React.FC<ServiceTicketDisplayProps> = ({
             </div>
           )}
 
-          {ticket.message && (
+          {ticket.status && (
             <div>
-              <div className="gba:text-muted-foreground gba:text-sm">Message</div>
-              <div className="gba:text-foreground gba:text-sm">{ticket.message}</div>
+              <div className="gba:text-muted-foreground gba:text-sm">Status</div>
+              <div className="gba:text-foreground gba:text-sm">{ticket.status}</div>
             </div>
           )}
 
-          {ticket.assignee && (
+          {ticket.code && (
             <div>
-              <div className="gba:text-muted-foreground gba:text-sm">Assignee</div>
-              <div className="gba:text-foreground gba:text-sm">{ticket.assignee}</div>
+              <div className="gba:text-muted-foreground gba:text-sm">Code</div>
+              <div className="gba:text-foreground gba:text-sm">{ticket.code}</div>
             </div>
           )}
 
-          {ticket.updatedAt && (
+          {ticket.businessKey && (
+            <div>
+              <div className="gba:text-muted-foreground gba:text-sm">Business Key</div>
+              <div className="gba:text-foreground gba:text-sm">{ticket.businessKey}</div>
+            </div>
+          )}
+
+          {ticket.recordState && (
+            <div>
+              <div className="gba:text-muted-foreground gba:text-sm">Record State</div>
+              <div className="gba:text-foreground gba:text-sm">{ticket.recordState}</div>
+            </div>
+          )}
+
+          {ticket.processInstanceId && (
+            <div>
+              <div className="gba:text-muted-foreground gba:text-sm">Process Instance ID</div>
+              <div className="gba:text-foreground gba:text-sm">{ticket.processInstanceId}</div>
+            </div>
+          )}
+
+          {formatDateTime(ticket.updatedAt) && (
             <div>
               <div className="gba:text-muted-foreground gba:text-sm">Updated</div>
-              <div className="gba:text-foreground gba:text-sm">{ticket.updatedAt}</div>
+              <div className="gba:text-foreground gba:text-sm">{formatDateTime(ticket.updatedAt)}</div>
+            </div>
+          )}
+
+          {formatDateTime(ticket.createdAt) && (
+            <div>
+              <div className="gba:text-muted-foreground gba:text-sm">Created</div>
+              <div className="gba:text-foreground gba:text-sm">{formatDateTime(ticket.createdAt)}</div>
+            </div>
+          )}
+
+          {additionalDetails.length > 0 && (
+            <div>
+              <div className="gba:text-muted-foreground gba:text-sm">Additional Details</div>
+              <div className="gba:mt-2 gba:space-y-2">
+                {additionalDetails.map(([key, value]) => (
+                  <div key={key} className="gba:flex gba:flex-col">
+                    <span className="gba:text-xs gba:text-muted-foreground">{key}</span>
+                    <span className="gba:text-sm gba:text-foreground">
+                      {typeof value === 'object' && value !== null ? JSON.stringify(value) : String(value)}
+                    </span>
+                  </div>
+                ))}
+              </div>
             </div>
           )}
         </div>
