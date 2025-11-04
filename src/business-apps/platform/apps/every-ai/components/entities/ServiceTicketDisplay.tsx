@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react'
 import { Card, CardContent } from '@newwork/nw-design-system'
-import { env } from '@/common/env'
+import { env } from '@/common/env/EnvUtils'
 
 interface ServiceTicketDisplayProps {
   serviceTicketId: string
