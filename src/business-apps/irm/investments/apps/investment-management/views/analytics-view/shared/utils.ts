@@ -3,15 +3,14 @@
  * Centralized utilities used across all analytics components
  */
 
-// Re-export all investment utilities from central location
+// Import utilities from their actual sources (not via re-export layers)
 export {
   formatPercentage,
-  formatDate,
-  formatDisplayDate,
-  getStatusColor,
-  formatLargeNumber,
-  formatNumber
-} from '@/common/data/investment'
+  formatAmount as formatLargeNumber,
+  formatAmount as formatNumber
+} from '@/common/utils/numberFormatter'
+
+export { formatDate, formatDisplayDate, getStatusColor } from '@/common/data/investment/utils/formatters'
 
 // Import all currency utilities from central numberFormatter
 export {
