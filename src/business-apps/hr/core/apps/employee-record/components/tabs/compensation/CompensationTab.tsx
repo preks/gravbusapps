@@ -39,7 +39,7 @@ const CompensationTab: React.FC<JobsCompensationTabProps> = ({ employee, employe
   const empId = employeeId || employee.id
 
   // Feature flag for Growth tab
-  const growthTabEnabled = !!useFeature(Feature.HCM.CompensationGrowth.Key)
+  const growthTabEnabled = Boolean(useFeature(Feature.HCM.CompensationGrowth.Key))
 
   // Fetch compensation data
   const { loading, error, compensationData, historyData, refetch } = useCompensationData(empId, accessToken)
