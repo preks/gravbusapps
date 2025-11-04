@@ -1,4 +1,4 @@
-import React from 'react'
+import React, { useMemo, useCallback } from 'react'
 import { LeadFormProvider } from './context/LeadFormContext'
 import LeadFormComponent from './components/LeadFormComponent'
 import { LeadFormValues } from './types'
@@ -12,12 +12,38 @@ interface LeadFormProps {
 
 const LeadForm: React.FC<BusinessAppContextProps & LeadFormProps> = ({
   initialValues,
-  onSubmit = async () => {},
-  onCancel = async () => {},
+  onSubmit,
+  onCancel,
   accessToken,
   userInfo,
   additionalData
 }) => {
+  // Memoize callbacks to prevent unnecessary re-renders
+  const handleSubmit = useCallback(
+    async (values: LeadFormValues) => {
+      if (onSubmit) {
+        await onSubmit(values)
+      }
+    },
+    [onSubmit]
+  )
+
+  const handleCancel = useCallback(async () => {
+    if (onCancel) {
+      await onCancel()
+    }
+  }, [onCancel])
+
+  // Memoize businessAppContext to prevent unnecessary re-renders
+  const businessAppContext: BusinessAppContextProps = useMemo(
+    () => ({
+      accessToken,
+      userInfo,
+      additionalData
+    }),
+    [accessToken, userInfo, additionalData]
+  )
+
   if (!accessToken) {
     return (
       <div className="gba:p-6 gba:text-center">
@@ -28,18 +54,12 @@ const LeadForm: React.FC<BusinessAppContextProps & LeadFormProps> = ({
     )
   }
 
-  const businessAppContext: BusinessAppContextProps = {
-    accessToken,
-    userInfo,
-    additionalData
-  }
-
   return (
     <LeadFormProvider
       businessAppContext={businessAppContext}
       initialValues={initialValues}
-      onSubmit={onSubmit}
-      onCancel={onCancel}
+      onSubmit={handleSubmit}
+      onCancel={handleCancel}
     >
       <LeadFormComponent />
     </LeadFormProvider>

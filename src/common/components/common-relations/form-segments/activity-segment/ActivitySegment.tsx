@@ -104,7 +104,14 @@ export interface ActivitySegmentProps {
 
   // Callbacks
   onFilesChange?: (files: File[]) => void
-  existingDocuments?: Array<{ id: string; name?: string; version?: number }>
+  existingDocuments?: Array<{
+    id: string
+    name?: string
+    version?: number
+    mimeType?: string
+    fileSize?: number
+    fileInfo?: any
+  }>
   onDocumentRemove?: (documentId: string) => void
 
   // Render props for Ant Design compatibility
@@ -241,8 +248,8 @@ const ActivitySegment: React.FC<ActivitySegmentProps> = ({
       existingDocuments.map(doc => ({
         id: doc.id,
         name: doc.name || 'Unnamed Document',
-        size: 0,
-        type: '',
+        size: doc.fileSize || doc.fileInfo?.fileMetadata?.fileSize || 0,
+        type: doc.mimeType || doc.fileInfo?.fileMetadata?.mimeType || '',
         url: doc.id
       })),
     [existingDocuments]
@@ -339,7 +346,7 @@ const ActivitySegment: React.FC<ActivitySegmentProps> = ({
   }
 
   return (
-    <>
+    <div className="gba:space-y-4">
       {/* Title */}
       <FormField
         control={form.control}
@@ -347,7 +354,7 @@ const ActivitySegment: React.FC<ActivitySegmentProps> = ({
         render={({ field }) => (
           <FormItem>
             <FormLabel>
-              {titleLabel} <span style={{ color: 'var(--nw-color-danger-500)' }}>*</span>
+              {titleLabel} <span className="gba:text-destructive gba:font-bold">*</span>
             </FormLabel>
             <FormControl>
               <Input data-testid={`${dataTestId}-title`} maxLength={100} {...field} />
@@ -364,7 +371,7 @@ const ActivitySegment: React.FC<ActivitySegmentProps> = ({
         render={({ field }) => (
           <FormItem>
             <FormLabel>
-              {typeLabel} <span style={{ color: 'var(--nw-color-danger-500)' }}>*</span>
+              {typeLabel} <span className="gba:text-destructive gba:font-bold">*</span>
             </FormLabel>
             <Select onValueChange={field.onChange} value={field.value}>
               <FormControl>
@@ -393,7 +400,7 @@ const ActivitySegment: React.FC<ActivitySegmentProps> = ({
         render={({ field }) => (
           <FormItem>
             <FormLabel>
-              {dateLabel} <span style={{ color: 'var(--nw-color-danger-500)' }}>*</span>
+              {dateLabel} <span className="gba:text-destructive gba:font-bold">*</span>
             </FormLabel>
             <FormControl>
               <Input
@@ -416,7 +423,7 @@ const ActivitySegment: React.FC<ActivitySegmentProps> = ({
           render={({ field }) => (
             <FormItem>
               <FormLabel>
-                {entityLabel || 'Related Entity'} <span style={{ color: 'var(--nw-color-danger-500)' }}>*</span>
+                {entityLabel || 'Related Entity'} <span className="gba:text-destructive gba:font-bold">*</span>
               </FormLabel>
               <FormControl>
                 <EntitySelect
@@ -459,7 +466,7 @@ const ActivitySegment: React.FC<ActivitySegmentProps> = ({
         render={({ field }) => (
           <FormItem>
             <FormLabel>
-              {descriptionLabel} <span style={{ color: 'var(--nw-color-danger-500)' }}>*</span>
+              {descriptionLabel} <span className="gba:text-destructive gba:font-bold">*</span>
             </FormLabel>
             <FormControl>
               <Textarea data-testid={`${dataTestId}-description`} {...field} />
@@ -526,7 +533,7 @@ const ActivitySegment: React.FC<ActivitySegmentProps> = ({
           )}
         />
       )}
-    </>
+    </div>
   )
 }
 

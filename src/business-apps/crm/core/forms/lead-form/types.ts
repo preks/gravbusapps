@@ -17,12 +17,15 @@ export interface LeadFormValues {
   sensitive: boolean
 
   // Contact Information
+  academicTitle?: string // Academic title (PhD, MBA, etc.)
   salutation: string
   firstName: string
   lastName: string
   jobPosition: string // Replaces title
   phone: string
   email: string
+  linkedinUrl?: string // LinkedIn profile URL
+  xingUrl?: string // Xing profile URL
 
   // Company Information
   legalForm: string
@@ -97,6 +100,20 @@ export interface LeadContextState {
   industries: SelectOption[]
   timeZones: SelectOption[]
   countries: SelectOption[]
+
+  // Academic Titles
+  academicTitles: SelectOption[]
+  academicTitlesLoading: boolean
+  academicTitlesError: string | null
+  academicTitlesHasMore: boolean
+  academicTitlesNeedsMoreData: boolean
+  academicTitlesDisplayCount: number
+  academicTitlesTotalFetched: number
+  searchAcademicTitles: (search: string) => void
+  loadMoreAcademicTitles: () => void
+  showMoreAcademicTitles: () => void
+
+  // Employee Sizes
   employeeSizes: SelectOption[]
   employeeSizesLoading: boolean
   employeeSizesError: string | null

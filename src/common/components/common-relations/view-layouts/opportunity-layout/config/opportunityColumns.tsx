@@ -93,6 +93,23 @@ export const getStatusColor = (
   }
 }
 
+// Helper function to format status labels (remove prefixes and convert to Title Case)
+export const formatStatusLabel = (status?: string): string => {
+  if (!status) return '-'
+
+  // Remove common prefixes like OPPORTUNITY_, INVESTMENT_, STATUS_
+  const withoutPrefix = status
+    .replace(/^OPPORTUNITY_/, '')
+    .replace(/^INVESTMENT_/, '')
+    .replace(/^STATUS_/, '')
+
+  // Convert SCREAMING_SNAKE_CASE to Title Case
+  return withoutPrefix
+    .split('_')
+    .map(word => word.charAt(0).toUpperCase() + word.slice(1).toLowerCase())
+    .join(' ')
+}
+
 // Extract currency symbol
 export const getCurrencySymbol = (currencyCode?: string): string => {
   try {
@@ -250,23 +267,34 @@ export function createOpportunityColumns<T extends GenericOpportunityForColumns>
       size: 120,
       minSize: 100,
       maxSize: 150,
-      cell: ({ row }) => (
-        <>
-          {row.original.opportunityStatus ? (
-            <Badge
-              variant={getStatusColor(row.original.opportunityStatus?.alternativeCode)}
-              data-testid={`opportunity-status-${row.original.id}`}
-            >
-              {row.original.opportunityStatusLabel ||
-                row.original.opportunityStatus?.value ||
-                row.original.opportunityStatus?.code ||
-                '-'}
-            </Badge>
-          ) : (
-            <span className="gba:text-gray-400">-</span>
-          )}
-        </>
-      )
+      cell: ({ row }) => {
+        // Only display if opportunityStatus catalog entry exists
+        if (!row.original.opportunityStatus) {
+          return <span className="gba:text-gray-400">-</span>
+        }
+
+        // Priority: opportunityStatusLabel > catalog value > catalog code
+        const rawStatus =
+          row.original.opportunityStatusLabel ||
+          row.original.opportunityStatus?.value ||
+          row.original.opportunityStatus?.code
+
+        if (!rawStatus) {
+          return <span className="gba:text-gray-400">-</span>
+        }
+
+        // Format the status (handles cases like "OPPORTUNITY_OPEN" -> "Open")
+        const statusLabel = formatStatusLabel(rawStatus)
+
+        return (
+          <Badge
+            variant={getStatusColor(row.original.opportunityStatus?.alternativeCode || rawStatus)}
+            data-testid={`opportunity-status-${row.original.id}`}
+          >
+            {statusLabel}
+          </Badge>
+        )
+      }
     },
     {
       id: 'closeDate',

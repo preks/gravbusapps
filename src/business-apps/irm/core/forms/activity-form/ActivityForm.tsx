@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useCallback, useMemo } from 'react'
 import { BusinessAppContextProps } from '@/common/BusinessAppContext'
-import { getTranslationFromI18nKeyAndLabel } from '@/common/utils/windowUtils'
+import { getTranslationFromI18nKeyAndLabel, getCurrentActiveUserLocale } from '@/common/utils/windowUtils'
 import ActivitySegment, {
   Activity,
   createActivitySegmentResolver
@@ -12,6 +12,7 @@ import { useEmployeeSearch } from '@/common/data/employee/useEmployeeSearch'
 import { AppActionForm } from '@/components/app-action-form'
 import { useForm } from 'react-hook-form'
 import { useFileClient } from '@/common/network/files/useFileClient'
+import { LocalizationProvider, type SupportedLocale } from '@newwork/nw-design-system'
 
 const initialFormData: Activity = {
   title: '',
@@ -302,7 +303,7 @@ const ActivityForm: React.FC<ActivityFormProps> = ({ accessToken, userInfo, addi
         : { ...data, documents: allDocuments }
 
       const payload = buildActivityPayload(
-        activityData,
+        activityData as Activity,
         { accessToken, userInfo, additionalData },
         {
           isUpdate: isUpdateMode
@@ -330,62 +331,67 @@ const ActivityForm: React.FC<ActivityFormProps> = ({ accessToken, userInfo, addi
     mode: 'onChange'
   })
 
-  return (
-    <AppActionForm
-      processType={isUpdateMode ? 'update' : 'create'}
-      onSubmit={handleSubmit}
-      onSuccess={handleSuccess}
-      onCancel={onCancel}
-      formData={formData}
-      form={form}
-      validateForm={validateForm}
-      submitButtonText={getTranslationFromI18nKeyAndLabel('crm:common.submit', 'Submit')}
-      cancelButtonText={getTranslationFromI18nKeyAndLabel('crm:common.cancel', 'Cancel')}
-      data-testid="investment-activity-process-dialog"
-    >
-      {/* Investment context header intentionally removed as requested */}
+  // Get locale for LocalizationProvider (needed for FileUpload component)
+  const locale = getCurrentActiveUserLocale() as SupportedLocale
 
-      <ActivitySegment
-        // Let segment load type options from catalog
-        accessToken={accessToken}
-        typeCatalog={{ identifier: INVESTMENT_ACTIVITY_TYPE_CATALOG, version: INVESTMENT_ACTIVITY_TYPE_VERSION }}
-        // Use controlled entity search from hook
-        entities={entities}
-        entitiesLoading={entitiesLoading}
-        entitiesHasMore={entitiesHasMore}
-        onEntityLoadMore={loadMoreEntities}
-        onEntitySearch={handleEntitySearch}
-        showEntitySelection={shouldShowEntitySelection}
-        showOwnerSelection={true}
-        assignees={mergedAssignees}
-        assigneesLoading={employeesLoading}
-        onAssigneeSearch={searchEmployees}
-        assigneesHasMore={employeesHasMore}
-        onAssigneeLoadMore={loadMoreEmployees}
-        initialEntityFromContext={{ accountId, contactId, opportunityId, leadId }}
-        titleLabel={getTranslationFromI18nKeyAndLabel('crm:salesActivity.title', 'Title')}
-        typeLabel={getTranslationFromI18nKeyAndLabel('crm:salesActivity.type', 'Type')}
-        dateLabel={getTranslationFromI18nKeyAndLabel('crm:salesActivity.date', 'Date & Time')}
-        descriptionLabel={getTranslationFromI18nKeyAndLabel('crm:salesActivity.description', 'Description')}
-        uploadFileLabel={getTranslationFromI18nKeyAndLabel('crm:salesActivity.uploadFile', 'Attach Documents')}
-        entityLabel={getTranslationFromI18nKeyAndLabel('crm:salesActivity.relatedEntity', 'Related Entity')}
-        // File upload handlers
-        onFilesChange={(files: File[]) => {
-          setFormData(prev => ({
-            ...prev,
-            _pendingFiles: [...(prev._pendingFiles || []), ...files]
-          }))
-        }}
-        existingDocuments={formData.documents || []}
-        onDocumentRemove={(documentId: string) => {
-          setFormData(prev => ({
-            ...prev,
-            documents: prev.documents?.filter(doc => doc.id !== documentId) || []
-          }))
-        }}
-        data-testid="activity-segment"
-      />
-    </AppActionForm>
+  return (
+    <LocalizationProvider locale={locale}>
+      <AppActionForm
+        processType={isUpdateMode ? 'update' : 'create'}
+        onSubmit={handleSubmit}
+        onSuccess={handleSuccess}
+        onCancel={onCancel}
+        formData={formData}
+        form={form}
+        validateForm={validateForm}
+        submitButtonText={getTranslationFromI18nKeyAndLabel('crm:common.submit', 'Submit')}
+        cancelButtonText={getTranslationFromI18nKeyAndLabel('crm:common.cancel', 'Cancel')}
+        data-testid="investment-activity-process-dialog"
+      >
+        {/* Investment context header intentionally removed as requested */}
+
+        <ActivitySegment
+          // Let segment load type options from catalog
+          accessToken={accessToken}
+          typeCatalog={{ identifier: INVESTMENT_ACTIVITY_TYPE_CATALOG, version: INVESTMENT_ACTIVITY_TYPE_VERSION }}
+          // Use controlled entity search from hook
+          entities={entities}
+          entitiesLoading={entitiesLoading}
+          entitiesHasMore={entitiesHasMore}
+          onEntityLoadMore={loadMoreEntities}
+          onEntitySearch={handleEntitySearch}
+          showEntitySelection={shouldShowEntitySelection}
+          showOwnerSelection={true}
+          assignees={mergedAssignees}
+          assigneesLoading={employeesLoading}
+          onAssigneeSearch={searchEmployees}
+          assigneesHasMore={employeesHasMore}
+          onAssigneeLoadMore={loadMoreEmployees}
+          initialEntityFromContext={{ accountId, contactId, opportunityId, leadId }}
+          titleLabel={getTranslationFromI18nKeyAndLabel('crm:salesActivity.title', 'Title')}
+          typeLabel={getTranslationFromI18nKeyAndLabel('crm:salesActivity.type', 'Type')}
+          dateLabel={getTranslationFromI18nKeyAndLabel('crm:salesActivity.date', 'Date & Time')}
+          descriptionLabel={getTranslationFromI18nKeyAndLabel('crm:salesActivity.description', 'Description')}
+          uploadFileLabel={getTranslationFromI18nKeyAndLabel('crm:salesActivity.uploadFile', 'Attach Documents')}
+          entityLabel={getTranslationFromI18nKeyAndLabel('crm:salesActivity.relatedEntity', 'Related Entity')}
+          // File upload handlers
+          onFilesChange={(files: File[]) => {
+            setFormData(prev => ({
+              ...prev,
+              _pendingFiles: [...(prev._pendingFiles || []), ...files]
+            }))
+          }}
+          existingDocuments={formData.documents || []}
+          onDocumentRemove={(documentId: string) => {
+            setFormData(prev => ({
+              ...prev,
+              documents: prev.documents?.filter(doc => doc.id !== documentId) || []
+            }))
+          }}
+          data-testid="activity-segment"
+        />
+      </AppActionForm>
+    </LocalizationProvider>
   )
 }
 

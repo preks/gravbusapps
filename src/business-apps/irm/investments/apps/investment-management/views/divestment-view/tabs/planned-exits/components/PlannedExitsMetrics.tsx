@@ -4,7 +4,7 @@ import { getTranslationFromI18nKeyAndLabel } from '@/common/utils/windowUtils'
 import { WidgetGroup, WidgetItem } from '@/components/widget-group'
 import { BusinessAppContextProps } from '@/common/BusinessAppContext'
 import { useGetInvestments } from '@/common/data/investment'
-import { formatCurrencyCompact } from '../../../../../utils/currencyUtils'
+import { formatCurrencyCompact, extractCurrencyCode } from '@/common/utils/numberFormatter'
 
 interface PlannedExitsMetrics {
   totalCount: number
@@ -169,7 +169,13 @@ const PlannedExitsMetrics: React.FC<PlannedExitsMetricsProps> = ({ context }) =>
         {
           key: 'total-investment-value',
           title: getTranslationFromI18nKeyAndLabel('total_investment_value', 'Total Investment Value'),
-          value: formatCurrencyCompact(metrics.totalInvestmentValue, metrics.currencyCode),
+          value: formatCurrencyCompact(
+            metrics.totalInvestmentValue,
+            extractCurrencyCode(metrics.currencyCode),
+            undefined,
+            1,
+            true
+          ),
           valueIsString: true,
           prefix: <TrendingUp className="gba:h-5 gba:w-5" style={{ color: 'var(--nw-color-primary-500)' }} />,
           color: 'var(--nw-color-primary-500)', // Blue theme for investments
@@ -184,7 +190,13 @@ const PlannedExitsMetrics: React.FC<PlannedExitsMetricsProps> = ({ context }) =>
         {
           key: 'total-market-value',
           title: getTranslationFromI18nKeyAndLabel('total_market_value', 'Total Market Value'),
-          value: formatCurrencyCompact(metrics.totalMarketValue, metrics.currencyCode),
+          value: formatCurrencyCompact(
+            metrics.totalMarketValue,
+            extractCurrencyCode(metrics.currencyCode),
+            undefined,
+            1,
+            true
+          ),
           valueIsString: true,
           prefix: <DollarSign className="gba:h-5 gba:w-5" style={{ color: 'var(--nw-color-success-500)' }} />,
           color: 'var(--nw-color-success-500)', // Green theme for money

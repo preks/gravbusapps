@@ -151,7 +151,9 @@ export const HomeView: React.FC<HomeViewProps> = ({
                 department: contact?.department,
                 linkedinUrl: contact?.linkedinUrl,
                 xingUrl: contact?.xingUrl,
-                bio: contact?.bio
+                bio: contact?.bio,
+                academicTitle: contact?.academicTitle,
+                communicationChannels: contact?.communicationChannels
               },
               contactId: contact?.id,
               actionButtonProps: {
@@ -303,7 +305,7 @@ export const HomeView: React.FC<HomeViewProps> = ({
                 prefixDataTestId: 'contact-approval-entity',
                 emptyStateBehavior: 'enable'
               },
-              sectionTitle: getTranslationFromI18nKeyAndLabel('crm.customers.approvals.title', 'Approvals'),
+              sectionTitle: getTranslationFromI18nKeyAndLabel('crm.customers.approvals.title', 'Approval Tasks'),
               'data-testid': 'contact-approvals-section'
             }
           }
@@ -322,6 +324,7 @@ export const HomeView: React.FC<HomeViewProps> = ({
               ...props,
               notes: notes.map(note => ({
                 id: note.id,
+                version: note.version,
                 noteTitle: note.noteTitle,
                 noteText: note.noteText,
                 createdAt: note.createdAt,
@@ -332,7 +335,12 @@ export const HomeView: React.FC<HomeViewProps> = ({
                 ...noteActionProps,
                 emptyStateBehavior: 'enable'
               },
-              noteEntityActionProps: noteActionProps,
+              noteEntityActionProps: {
+                contextsArray: [FlowContextName.customerNoteEntity],
+                externalContextData: { contactId },
+                prefixDataTestId: 'contact-note-entity',
+                emptyStateBehavior: 'enable'
+              },
               'data-testid': 'contact-notes-section'
             }
           }

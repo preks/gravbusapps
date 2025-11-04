@@ -84,7 +84,7 @@ export const useCountriesRegions = (context: BusinessAppContextProps): UseCountr
 
   // Load initial countries page
   const loadCountriesPage = useCallback(
-    (searchTerm: string = '', offset: number = 0, isLoadMore: boolean = false) => {
+    (searchTerm: string = '', offset: number = 0, isLoadMore: boolean = false, selectedCountryId?: string) => {
       if (!fullCountriesData.length) return
 
       setIsLoading(!isLoadMore) // Only show loading on initial load
@@ -109,8 +109,19 @@ export const useCountriesRegions = (context: BusinessAppContextProps): UseCountr
       // Apply pagination
       const startIndex = offset
       const endIndex = offset + COUNTRIES_PAGE_SIZE
-      const pageCountries = filteredCountries.slice(startIndex, endIndex)
+      let pageCountries = filteredCountries.slice(startIndex, endIndex)
       const hasMore = endIndex < filteredCountries.length
+
+      // ✅ CRITICAL: Ensure selected country is always in the displayed options
+      if (selectedCountryId && !isLoadMore && !searchTerm.trim()) {
+        const selectedCountry = filteredCountries.find(c => c.id === selectedCountryId)
+        const isSelectedInPage = pageCountries.some(c => c.id === selectedCountryId)
+
+        if (selectedCountry && !isSelectedInPage) {
+          // Add selected country at the beginning
+          pageCountries = [selectedCountry, ...pageCountries].slice(0, COUNTRIES_PAGE_SIZE)
+        }
+      }
 
       if (isLoadMore) {
         setDisplayedCountries(prev => [...prev, ...pageCountries])
@@ -135,9 +146,21 @@ export const useCountriesRegions = (context: BusinessAppContextProps): UseCountr
   // Load initial countries page when data is ready
   useEffect(() => {
     if (fullCountriesData.length > 0 && displayedCountries.length === 0) {
-      loadCountriesPage('', 0, false)
+      // ✅ Pass selected country to ensure it's included in initial options
+      loadCountriesPage('', 0, false, selectedCountryCode || undefined)
     }
-  }, [fullCountriesData, displayedCountries.length, loadCountriesPage])
+  }, [fullCountriesData, displayedCountries.length, loadCountriesPage, selectedCountryCode])
+
+  // ✅ CRITICAL: Reload countries page when selected country changes (to ensure it's visible in the dropdown)
+  useEffect(() => {
+    if (selectedCountryCode && fullCountriesData.length > 0 && displayedCountries.length > 0) {
+      const isSelectedInDisplayed = displayedCountries.some(c => c.id === selectedCountryCode)
+      if (!isSelectedInDisplayed && !countrySearchTerm.trim()) {
+        // Reload the first page with the selected country included
+        loadCountriesPage('', 0, false, selectedCountryCode)
+      }
+    }
+  }, [selectedCountryCode, fullCountriesData.length, displayedCountries, countrySearchTerm, loadCountriesPage])
 
   // Use displayed countries from pagination
   const countries = displayedCountries

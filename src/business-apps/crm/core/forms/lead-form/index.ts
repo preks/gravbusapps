@@ -6,8 +6,6 @@ export { default as LeadFormComponent } from './components/LeadFormComponent'
 export { default as LeadInformationSection } from './components/LeadInformationSection'
 export { default as ContactInformationSection } from './components/ContactInformationSection'
 export { default as CompanyInformationSection } from './components/CompanyInformationSection'
-export { default as AddressInformationSection } from './components/AddressInformationSection'
-export { default as DescriptionSection } from './components/DescriptionSection'
 export { default as OwnerSelector } from './components/OwnerSelector'
 export { default as EmployeeSelectionModal } from './components/EmployeeSelectionModal'
 

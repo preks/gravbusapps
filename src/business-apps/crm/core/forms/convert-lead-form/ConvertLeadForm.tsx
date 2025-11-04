@@ -1,577 +1,402 @@
-import React, { useEffect, useState, useCallback } from 'react'
-import { Form } from 'antd'
-import {
-  Card,
-  CardContent,
-  CardHeader,
-  CardTitle,
-  Label,
-  Input as DesignInput,
-  Checkbox as DesignCheckbox,
-  Button as DesignButton,
-  Separator,
-  Spinner,
-  Toaster,
-  toast
-} from '@newwork/nw-design-system'
-import SearchableSelect from './components/SearchableSelect'
-import AccountSection from './components/AccountSection'
-import ContactSection from './components/ContactSection'
-import OpportunitySection from './components/OpportunitySection'
-import { BusinessAppContextProps } from '@/common/BusinessAppContext'
-import { useEmployeePositions } from '../lead-form/hooks/useEmployeePositions'
-import { useAccountsGraphQL } from '../opportunity-form/hooks/useAccountsGraphQL'
-import { useSearchableCatalog } from '../lead-form/hooks/useSearchableCatalog'
-import { COUNTRY_CATALOG } from '../lead-form/hooks/useLeadCatalogs'
-
-// Define SelectOption interface for SearchableSelect
-interface SelectOption {
-  id: string | number
-  value: string
-  label: string
-  name: string
-  extraInfo?: {
-    pictureThumbnail?: string
-    jobPosition?: string
-    organizationalUnit?: string
-  }
-}
-import { dispatchProcessContinueEvent } from '@/common/utils/processEventUtils'
+import { useState, useCallback, useMemo } from 'react'
+import { useForm } from 'react-hook-form'
+import { zodResolver } from '@hookform/resolvers/zod'
+import { Spinner, type WizardStep } from '@newwork/nw-design-system'
 import { getTranslationFromI18nKeyAndLabel } from '@/common/utils/windowUtils'
-import { useGraphqlClient } from '@/common/network/graphql/useGraphQLClient'
-import { catalogManagerClient } from '@/common/network/catalogs/CatalogManagerClient'
+import { AppActionForm } from '@/components/app-action-form'
 
-// Note: Replaced Select with Combobox from design system
+// Import types
+import { ConvertLeadFormData, convertLeadSchema, ConvertLeadFormProps } from './types'
 
-export type ConvertLeadFormProps = BusinessAppContextProps
+// Import hooks
+import { useAccountsList, useContactsList, useLeadData } from './hooks'
 
-const LEAD_QUERY = `
-  query GetLead($leadId: uuid!) {
-    Lead(where: {id: {_eq: $leadId}}) {
-        id
-        name
-        email
-        account {
-            id
-            ownerEmployeeId
-            ownerEmployee {
-                id
-                firstName
-                lastName
-            }
-        }
-        leadSource {
-            value
-        }
-        status {
-            value
-        }
-        academicTitle {
-            value
-        }
-        academicTitleRef
-        firstName
-        lastName
-        position
-        companyName
-        companyEmail
-        companyPhone
-        addresses {
-        addressLine
-        city
-        country {
-            id
-            value
-            code
-        }
-        region {
-            id
-            value
-            code
-        }
-        postalCode
-        }
+// Import utilities
+import {
+  getAccountInitialValues,
+  getContactInitialValues,
+  getOpportunityInitialValues,
+  createSubmissionPayload,
+  submitConversionForm,
+  cancelConversionForm,
+  checkFormReadiness,
+  setValidationErrors
+} from './utils'
+
+// Import components
+import { ChoicesStep, CreateAccountStep, CreateContactStep, CreateOpportunityStep } from './components'
+
+// Import form types
+import { AccountFormValues } from '../account-form/types'
+import { ContactFormValues } from '../contact-form/types'
+import { OpportunityFormValues } from '../opportunity-form/types'
+
+export const ConvertLeadForm = ({ accessToken, userInfo, additionalData, onSuccess }: ConvertLeadFormProps) => {
+  // React Hook Form setup
+  const form = useForm<ConvertLeadFormData>({
+    resolver: zodResolver(convertLeadSchema),
+    defaultValues: {
+      accountOption: 'create',
+      contactOption: 'create',
+      createOpportunity: false,
+      // Initialize other fields as empty to ensure validation fails initially
+      selectedAccountId: '',
+      selectedAccountName: '',
+      accountName: '',
+      accountOwner: '',
+      selectedContactId: '',
+      selectedContactName: '',
+      contactFirstName: '',
+      contactLastName: '',
+      contactEmail: '',
+      opportunityName: ''
     }
-  }
-`
+  })
 
-// Note: Removed opportunity search queries since we only create new opportunities
+  // Store complete form data from wrappers for payload construction
+  const [completeAccountData, setCompleteAccountData] = useState<Partial<AccountFormValues>>({})
+  const [completeContactData, setCompleteContactData] = useState<Partial<ContactFormValues>>({})
+  const [completeOpportunityData, setCompleteOpportunityData] = useState<Partial<OpportunityFormValues>>({})
 
-export const ConvertLeadForm: React.FC<ConvertLeadFormProps> = props => {
-  const { accessToken, additionalData } = props
-  const [form] = Form.useForm()
-  const [leadData, setLeadData] = useState<any>(null)
-  const [loading, setLoading] = useState(true)
-  const [submitting, setSubmitting] = useState(false)
-  const [accountOption, setAccountOption] = useState('match')
-  const [contactOption, setContactOption] = useState('match')
-  const [createOpportunity, setCreateOpportunity] = useState(false)
+  // Watch form values for legacy compatibility
+  const formData = form.watch()
 
-  const [selectedAccount, setSelectedAccount] = useState<string | undefined>(undefined)
-  const [selectedAccountOwnerEmployee, setSelectedAccountOwnerEmployee] = useState<string | undefined>(undefined)
-  const [selectedContact, setSelectedContact] = useState<string | undefined>(undefined)
+  // Load lead data
+  const { leadData, loading, actualLeadId } = useLeadData(accessToken, additionalData)
 
-  // Separate employee positions state for each section (Opportunity only - others moved to sections)
-
-  // Opportunity Owner Employee State
+  // Use dropdown hooks with infinite scrolling
   const {
-    employeePositions: opportunityEmployeePositionsData,
-    loading: opportunityEmployeePositionsLoading,
-    error: opportunityEmployeePositionsError,
-    hasMore: opportunityEmployeePositionsHasMore,
-    loadMore: loadMoreOpportunityEmployeePositions,
-    searchEmployees: searchOpportunityEmployeePositions
-  } = useEmployeePositions({ accessToken })
+    accounts,
+    isLoading: isLoadingAccounts,
+    hasMore: hasMoreAccounts,
+    searchAccounts,
+    loadMoreAccounts
+  } = useAccountsList(accessToken)
 
-  // Transform employee positions to SelectOption format for opportunity section
-  // Note: Using employeeId instead of employee position id for owner assignments
-  const opportunityEmployeePositions: SelectOption[] = opportunityEmployeePositionsData.map(emp => ({
-    id: emp.employeeId,
-    value: emp.employeeId,
-    label: `${emp?.firstName} ${emp?.lastName}`,
-    name: `${emp?.firstName} ${emp?.lastName}`,
-    extraInfo: {
-      pictureThumbnail: emp.employee.pictureThumbnail || undefined,
-      jobPosition: emp.jobPosition?.name || 'No Position',
-      organizationalUnit: emp.organizationalUnit?.name || 'No Unit'
-    }
-  }))
+  const {
+    contacts,
+    isLoading: isLoadingContacts,
+    hasMore: hasMoreContacts,
+    searchContacts,
+    loadMoreContacts
+  } = useContactsList(accessToken)
 
-  // Handle account selection with owner employee
-  const handleSelectedAccountChange = useCallback(
-    (accountId: string | undefined, ownerEmployeeId: string | undefined) => {
-      setSelectedAccount(accountId)
-      setSelectedAccountOwnerEmployee(ownerEmployeeId)
+  // Form handlers for each step
+  const handleAccountFormSubmit = useCallback(
+    async (values: AccountFormValues) => {
+      console.log('Account form submitted:', values)
+      // Map AccountFormValues to individual form fields
+      form.setValue('accountName', values.accountName)
+      form.setValue('accountOwner', values.owner)
+      form.setValue('accountLegalForm', values.legalForm)
+      form.setValue('accountIndustry', values.industry)
+      // CRM-specific: Sales Campaign
+      if (values.salesCampaignId) {
+        form.setValue('accountSalesCampaign', values.salesCampaignId)
+      }
+      form.setValue('accountOption', 'create')
+      // Don't submit here, just store the data
     },
-    []
+    [form]
   )
 
-  // Track current pipeline for stages refetching (same as opportunity form)
+  // Auto-save handler for account form changes
+  const handleAccountFormChange = useCallback(
+    (values: Partial<AccountFormValues>) => {
+      // Store complete account data for payload construction
+      setCompleteAccountData(prev => ({ ...prev, ...values }))
 
-  // Country hook for searchable dropdown in opportunity sections (account/contact moved to sections)
-  const countriesHook = useSearchableCatalog({
+      // Map basic fields to form for validation
+      if (values.accountName !== undefined) form.setValue('accountName', values.accountName)
+      if (values.owner !== undefined) form.setValue('accountOwner', values.owner)
+      if (values.legalForm !== undefined) form.setValue('accountLegalForm', values.legalForm)
+      if (values.industry !== undefined) form.setValue('accountIndustry', values.industry)
+      // CRM-specific: Sales Campaign
+      if (values.salesCampaignId !== undefined) form.setValue('accountSalesCampaign', values.salesCampaignId)
+      form.setValue('accountOption', 'create')
+    },
+    [form]
+  )
+
+  // Auto-save handler for contact form changes
+  const handleContactFormChange = useCallback(
+    (values: Partial<ContactFormValues>) => {
+      // Store complete contact data for payload construction
+      setCompleteContactData(prev => ({ ...prev, ...values }))
+
+      // Map basic fields to form for validation
+      if (values.firstName !== undefined) form.setValue('contactFirstName', values.firstName)
+      if (values.lastName !== undefined) form.setValue('contactLastName', values.lastName)
+      if (values.email !== undefined) form.setValue('contactEmail', values.email)
+      if (values.ownerEmployeeId !== undefined) form.setValue('contactOwnerEmployeeId', values.ownerEmployeeId)
+      // CRM-specific: Sales Campaign
+      if (values.salesCampaignId !== undefined) form.setValue('contactSalesCampaign', values.salesCampaignId)
+      form.setValue('contactOption', 'create')
+    },
+    [form]
+  )
+
+  // Auto-save handler for opportunity form changes
+  const handleOpportunityFormChange = useCallback(
+    (values: Partial<OpportunityFormValues>) => {
+      // Store complete opportunity data for payload construction
+      setCompleteOpportunityData(prev => ({ ...prev, ...values }))
+
+      // Map basic fields to form for validation
+      if (values.name !== undefined) form.setValue('opportunityName', values.name)
+      if (values.owner !== undefined) form.setValue('opportunityOwner', values.owner)
+      if (values.pipeline !== undefined) form.setValue('opportunityPipeline', values.pipeline)
+      if (values.status !== undefined) form.setValue('opportunityPipelineStage', values.status)
+      if (values.estimatedAmount !== undefined) form.setValue('opportunityEstimatedAmount', values.estimatedAmount)
+      if (values.currency !== undefined) form.setValue('opportunityCurrency', values.currency)
+      // CRM-specific: Sales Campaign
+      if (values.salesCampaignId !== undefined) form.setValue('opportunitySalesCampaign', values.salesCampaignId)
+      form.setValue('createOpportunity', true)
+    },
+    [form]
+  )
+
+  const handleContactFormSubmit = useCallback(
+    async (values: ContactFormValues) => {
+      console.log('Contact form submitted:', values)
+      // Map ContactFormValues to individual form fields
+      form.setValue('contactFirstName', values.firstName)
+      form.setValue('contactLastName', values.lastName)
+      form.setValue('contactEmail', values.email)
+      form.setValue('contactOwnerEmployeeId', values.ownerEmployeeId)
+      // CRM-specific: Sales Campaign
+      if (values.salesCampaignId) {
+        form.setValue('contactSalesCampaign', values.salesCampaignId)
+      }
+      form.setValue('contactOption', 'create')
+      // Don't submit here, just store the data
+    },
+    [form]
+  )
+
+  const handleOpportunityFormSubmit = useCallback(
+    async (values: OpportunityFormValues) => {
+      console.log('Opportunity form submitted:', values)
+      // Map OpportunityFormValues to individual form fields
+      form.setValue('opportunityName', values.name)
+      form.setValue('opportunityOwner', values.owner)
+      form.setValue('opportunityPipeline', values.pipeline)
+      form.setValue('opportunityPipelineStage', values.status)
+      form.setValue('opportunityEstimatedAmount', values.estimatedAmount)
+      form.setValue('opportunityCurrency', values.currency)
+      // CRM-specific: Sales Campaign
+      if (values.salesCampaignId) {
+        form.setValue('opportunitySalesCampaign', values.salesCampaignId)
+      }
+      form.setValue('createOpportunity', true)
+      // Don't submit here, just store the data
+    },
+    [form]
+  )
+
+  // Helper function to check if form is ready for conversion - using watch for reactivity
+  const formValues = form.watch()
+  const isFormReadyForConversion = useCallback((): boolean => {
+    return checkFormReadiness(formValues)
+  }, [formValues])
+
+  // Create dynamic wizard steps based on user choices
+  const wizardSteps: WizardStep<ConvertLeadFormData>[] = useMemo(() => {
+    const steps: WizardStep<ConvertLeadFormData>[] = []
+
+    // Step 1: Always present - Choice step with all options
+    steps.push({
+      id: 'choices',
+      title: 'Convert Lead',
+      description: 'Choose how to convert this lead',
+      fields: [
+        'accountOption',
+        'selectedAccountId',
+        'selectedAccountName',
+        'contactOption',
+        'selectedContactId',
+        'selectedContactName',
+        'createOpportunity'
+      ],
+      content: (
+        <ChoicesStep
+          form={form}
+          accounts={accounts}
+          isLoadingAccounts={isLoadingAccounts}
+          hasMoreAccounts={hasMoreAccounts}
+          searchAccounts={searchAccounts}
+          loadMoreAccounts={loadMoreAccounts}
+          contacts={contacts}
+          isLoadingContacts={isLoadingContacts}
+          hasMoreContacts={hasMoreContacts}
+          searchContacts={searchContacts}
+          loadMoreContacts={loadMoreContacts}
+        />
+      )
+    })
+
+    // Step 2: Account Creation (if user chose to create new account)
+    if (form.watch('accountOption') === 'create') {
+      steps.push({
+        id: 'create-account',
+        title: 'Create Account',
+        description: 'Enter new account details',
+        fields: [], // Empty fields array - nested form handles its own validation
+        content: (
+          <CreateAccountStep
+            key={`account-step-${actualLeadId}`}
+            accessToken={accessToken}
+            userInfo={userInfo}
+            additionalData={additionalData}
+            loading={loading}
+            leadData={leadData}
+            actualLeadId={actualLeadId}
+            accountInitialValues={getAccountInitialValues(leadData)}
+            onFormChange={handleAccountFormChange}
+            onSubmit={handleAccountFormSubmit}
+          />
+        )
+      })
+    }
+
+    // Step N: Contact Creation (if user chose to create new contact)
+    if (form.watch('contactOption') === 'create') {
+      steps.push({
+        id: 'create-contact',
+        title: 'Create Contact',
+        description: 'Enter new contact details',
+        fields: [], // Empty fields array - nested form handles its own validation
+        content: (
+          <CreateContactStep
+            key={`contact-step-${actualLeadId}`}
+            accessToken={accessToken}
+            userInfo={userInfo}
+            additionalData={additionalData}
+            loading={loading}
+            leadData={leadData}
+            actualLeadId={actualLeadId}
+            contactInitialValues={getContactInitialValues(leadData)}
+            onFormChange={handleContactFormChange}
+            onSubmit={handleContactFormSubmit}
+          />
+        )
+      })
+    }
+
+    // Step N: Opportunity Creation (if user chose to create opportunity)
+    if (form.watch('createOpportunity')) {
+      steps.push({
+        id: 'create-opportunity',
+        title: 'Create Opportunity',
+        description: 'Enter new opportunity details',
+        fields: [], // Empty fields array - nested form handles its own validation
+        content: (
+          <CreateOpportunityStep
+            key={`opportunity-step-${actualLeadId}`}
+            accessToken={accessToken}
+            userInfo={userInfo}
+            additionalData={additionalData}
+            loading={loading}
+            leadData={leadData}
+            actualLeadId={actualLeadId}
+            opportunityInitialValues={getOpportunityInitialValues(leadData)}
+            onFormChange={handleOpportunityFormChange}
+            onSubmit={handleOpportunityFormSubmit}
+          />
+        )
+      })
+    }
+
+    return steps
+  }, [
+    form,
+    formData,
     accessToken,
-    catalogIdentifier: COUNTRY_CATALOG
-  })
+    userInfo,
+    additionalData,
+    loading,
+    leadData,
+    actualLeadId,
+    accounts,
+    isLoadingAccounts,
+    hasMoreAccounts,
+    searchAccounts,
+    loadMoreAccounts,
+    contacts,
+    isLoadingContacts,
+    hasMoreContacts,
+    searchContacts,
+    loadMoreContacts,
+    handleAccountFormChange,
+    handleAccountFormSubmit,
+    handleContactFormChange,
+    handleContactFormSubmit,
+    handleOpportunityFormChange,
+    handleOpportunityFormSubmit
+  ])
 
-  // Accounts GraphQL hook for opportunity section (same as opportunity form)
-  const {
-    options: simpleAccounts,
-    loading: simpleAccountsLoading,
-    error: simpleAccountsError,
-    hasMore: simpleAccountsHasMore,
-    search: searchSimpleAccounts,
-    loadMore: loadMoreSimpleAccounts
-  } = useAccountsGraphQL({
-    accessToken
-  })
+  const handleSubmit = useCallback(
+    async (data: ConvertLeadFormData): Promise<any> => {
+      console.log('🚀 Convert Lead Form Submission Started')
+      console.log('Form data:', data)
+      console.log('Complete Account Data:', completeAccountData)
+      console.log('Complete Contact Data:', completeContactData)
+      console.log('Complete Opportunity Data:', completeOpportunityData)
 
-  // Only allow countries with string labels (same as lead form)
-  const stringCountries = countriesHook.allOptions.filter(c => typeof c.label === 'string')
+      // Guard clause: Check if form is ready for conversion
+      const isReady = isFormReadyForConversion()
+      console.log('Is form ready for conversion?', isReady)
 
-  // Note: Employee search is now handled by useEmployeePositions hook
-
-  // Catalog states
-  const [catalogsLoading, setCatalogsLoading] = useState(true)
-
-  const graphQLClient = useGraphqlClient(accessToken)
-
-  // Initialize catalog manager with access token
-  useEffect(() => {
-    if (accessToken) {
-      catalogManagerClient.setAccessToken(accessToken)
-    }
-  }, [accessToken])
-
-  // Initialize catalog hooks on mount (opportunity section only - others moved to sections)
-  useEffect(() => {
-    if (accessToken) {
-      if (countriesHook) {
-        countriesHook.initialize()
+      if (!isReady) {
+        console.error('❌ Form validation failed')
+        setValidationErrors(form, formValues)
+        throw new Error('Form validation failed')
       }
-    }
-  }, [accessToken])
 
-  // Add process completion listener
-  useEffect(() => {
-    const handler = async (event: any) => {
-      try {
-        const response = event.detail?.response
-        if (response) {
-          toast.success('Lead converted successfully')
-          setSubmitting(false)
-        }
-      } catch (err: any) {
-        console.error('Error in process completion:', err)
-        toast.error(err?.message || 'Failed to convert lead')
-        setSubmitting(false)
-      }
-    }
+      // Create submission payload
+      console.log('📦 Creating submission payload...')
+      const payload = createSubmissionPayload(
+        data,
+        completeAccountData,
+        completeContactData,
+        completeOpportunityData,
+        actualLeadId,
+        leadData // Pass lead data for owner fallback
+      )
 
-    window.addEventListener('com.newwork.process.taskCompletion', handler as EventListener)
+      console.log('✅ Payload created:', payload)
 
-    return () => {
-      window.removeEventListener('com.newwork.process.taskCompletion', handler as EventListener)
-    }
+      // Submit the form (AppActionForm will handle the process event dispatch)
+      console.log('📤 Submitting conversion form...')
+      submitConversionForm(payload, onSuccess)
+
+      console.log('✅ Conversion form submitted successfully')
+
+      // Return success result for AppActionForm
+      // AppActionForm will automatically dispatch the process continue event
+      return payload
+    },
+    [
+      actualLeadId,
+      leadData,
+      isFormReadyForConversion,
+      formValues,
+      form,
+      formData,
+      completeAccountData,
+      completeContactData,
+      completeOpportunityData
+    ]
+  )
+
+  // Cancel function following CRM convert lead form pattern
+  const handleDirectCancel = useCallback(() => {
+    cancelConversionForm()
   }, [])
 
-  // Load catalogs
-  useEffect(() => {
-    async function loadCatalogs() {
-      setCatalogsLoading(true)
-      try {
-        const [currenciesResponse, countriesResponse, regionsResponse, academicTitlesResponse] = await Promise.all([
-          catalogManagerClient.getCatalogEntriesList({
-            catalogIdentifier: 'Currency',
-            version: 'v1'
-          }),
-          catalogManagerClient.getCatalogEntriesList({
-            catalogIdentifier: 'Country',
-            version: 'v1'
-          }),
-          catalogManagerClient.getCatalogEntriesList(
-            { catalogIdentifier: 'CountryRegion', version: 'v1' },
-            {
-              limit: 20,
-              offset: 0,
-              returnTotalRecords: true,
-              includeChildCatalogEntries: true
-            }
-          ),
-          catalogManagerClient.getCatalogEntriesList({
-            catalogIdentifier: 'AcademicTitle',
-            version: 'v1'
-          })
-        ])
-
-        setCurrencies(currenciesResponse.data || [])
-        setCountries(countriesResponse.data || [])
-        setRegions(regionsResponse.data || [])
-        setAcademicTitles(academicTitlesResponse.data || [])
-      } catch (error) {
-        console.error('Error loading catalogs:', error)
-      } finally {
-        setCatalogsLoading(false)
-      }
-    }
-
-    if (accessToken) {
-      loadCatalogs()
-    }
-  }, [accessToken])
-
-  useEffect(() => {
-    const leadId = additionalData?.leadId || additionalData?.psi_taskPayload?.psi_initialParameters?.leadId
-    async function fetchLead() {
-      setLoading(true)
-      try {
-        const data = await graphQLClient.request(LEAD_QUERY, {
-          leadId: leadId
-        })
-        setLeadData(data?.Lead?.[0] || null)
-      } catch {
-        setLeadData(null)
-      } finally {
-        setLoading(false)
-      }
-    }
-    if (additionalData?.leadId || additionalData?.psi_taskPayload.psi_initialParameters.leadId) fetchLead()
-  }, [additionalData?.leadId, additionalData?.psi_taskPayload?.psi_initialParameters?.leadId, graphQLClient])
-
-  // Note: Employee data is now loaded via useEmployeePositions hook
-  // Contacts moved to ContactSection component
-
-  // Contact debugging moved to ContactSection component
-
-  // Note: Pre-filling removed - data structure access issues
-
-  // Contact functions moved to ContactSection component
-
-  // Contact search effects moved to ContactSection component
-
-  // Note: Employee search is now handled by useEmployeePositions hook via searchEmployeePositions function
-
-  // Note: Removed opportunity search function since we only create new opportunities
-
-  // Debounced contact search moved to ContactSection component
-  // Note: Employee search debouncing is now handled internally by useEmployeePositions hook
-
-  // Helper function to check if address has meaningful data
-  const hasAddressData = (address: any) => {
+  if (loading) {
     return (
-      address &&
-      (address.addressLine ||
-        address.addressLine2 ||
-        address.city ||
-        address.postalCode ||
-        address.countryRef ||
-        address.regionRef ||
-        address.region)
-    )
-  }
-
-  // Helper function to format address with all required fields
-  const formatAddress = (address: any) => {
-    if (!address) return null
-    return {
-      addressLine: address.addressLine || null,
-      city: address.city || null,
-      postalCode: address.postalCode || null,
-      countryRef: address.countryRef || null,
-      regionRef: address.regionRef || null
-    }
-  }
-
-  const handleSubmit = (values: any) => {
-    setSubmitting(true)
-    try {
-      const payload: any = {
-        leadId: additionalData?.leadId
-      }
-
-      // Handle Account
-      if (accountOption === 'match' && selectedAccount) {
-        payload.account = {
-          id: selectedAccount,
-          ownerEmployee: selectedAccountOwnerEmployee || null
-        }
-      } else if (accountOption === 'new') {
-        payload.account = {
-          name: values.newAccountName,
-          legalFormRef: values.accountLegalForm || null,
-          industryRef: values.accountIndustry || null,
-          description: values.accountDescription || null,
-          sourceApp: values.accountSourceApp || 'CRM',
-          foundationDate: values.accountFoundationDate ? new Date(values.accountFoundationDate).toISOString() : null,
-          website: values.accountWebsite || null,
-          // Contact Information
-          email: values.accountEmail || null,
-          phone: values.accountPhone || null,
-          fax: values.accountFax || null,
-          // Financial Information
-          annualRevenueRef: values.accountAnnualRevenue || null,
-          numberOfEmployeesRef: values.accountNumberOfEmployees || null,
-          currencyRef: values.accountCurrency || null,
-          //   timeZoneRef: values.accountTimeZone || null,
-          tickerSymbol: values.accountTickerSymbol || null,
-          sicCodeRef: values.accountSicCode || null,
-          ownerEmployee: values.accountOwnerEmployee || null
-          // addresses: hasAddressData(values.accountAddresses)
-          //   ? [formatEnhancedAddress(values.accountAddresses)]
-          //   : [],
-        }
-      }
-
-      // Handle Contact
-      if (contactOption === 'match' && selectedContact) {
-        payload.contact = {
-          id: selectedContact
-        }
-      } else if (contactOption === 'new') {
-        payload.contact = {
-          code: values.contactCode || null,
-          firstName: values.newContactFirstName,
-          lastName: values.newContactLastName,
-          academicTitleRef: values.contactAcademicTitle || null,
-          languageRef: values.contactLanguage || null,
-          email: values.newContactEmail || null,
-          phone: values.newContactPhone || null,
-          fax: values.contactFax || null,
-          linkedinUrl: values.contactLinkedinUrl || null,
-          xingUrl: values.contactXingUrl || null,
-          jobTitle: values.contactJobTitle || null,
-          department: values.contactDepartment || null,
-          contactType: values.contactType || null,
-          sourceApp: values.contactSourceApp || 'CRM',
-          workExperienceYears: values.contactWorkExperienceYears || 0,
-          birthDate: values.contactBirthDate ? new Date(values.contactBirthDate).toISOString() : null,
-          pictureUrl: values.contactPictureUrl || null,
-          bio: values.contactBio || null,
-          notesSummary: values.contactNotesSummary || null,
-          account: values.contactCompanyId || null, // Company/Account ID
-          ownerEmployee: values.contactOwnerEmployee || null,
-          addresses: hasAddressData(values.contactAddresses) ? [formatAddress(values.contactAddresses)] : []
-        }
-      }
-
-      // Handle Opportunity
-      if (createOpportunity) {
-        payload.opportunity = {
-          additionalProperties: null,
-          name: values.opportunityName,
-          lastInteraction: values.opportunityLastInteraction
-            ? new Date(values.opportunityLastInteraction).toISOString()
-            : null,
-          closeDate: values.opportunityExpectedCloseDate
-            ? new Date(values.opportunityExpectedCloseDate).toISOString()
-            : null,
-          estimatedAmount: values.opportunityEstimatedAmount || 0,
-          winningChance: values.opportunityWinningChance || 0,
-          currencyRef: values.opportunityCurrency || null,
-          sourceApp: values.opportunitySourceApp || 'CRM',
-          salesPipelineRef: values.opportunityPipeline || null,
-          salesPipelineStageRef: values.opportunitySalesPipelineStage || null,
-          status: values.opportunityStatus || null,
-          ownerEmployee: values.opportunityOwnerEmployee || null,
-          notesSummary: values.opportunityNoteSummary || null
-        }
-      }
-
-      dispatchProcessContinueEvent('pse_submit', payload)
-    } catch (error) {
-      console.error('Error submitting convert lead form:', error)
-      toast.error('Failed to convert lead')
-      setSubmitting(false)
-    }
-  }
-
-  const handleCancel = () => {
-    dispatchProcessContinueEvent('pse_pause', {})
-  }
-
-  /* eslint-disable @typescript-eslint/no-unused-vars */
-  const renderAddressForm = (prefix: string, label: string) => (
-    <div className="gba:mb-4">
-      <h5 className="gba:text-lg gba:font-semibold gba:mb-3 gba:text-gray-900">{label}</h5>
-      <div className="gba:grid gba:grid-cols-1 gba:md:grid-cols-2 gba:gap-2 gba:space-y-2">
-        {/* Country and Region - First row */}
-        <div>
-          <Form.Item
-            name={[prefix, 'countryRef']}
-            label={getTranslationFromI18nKeyAndLabel('crm:address.country', 'Country')}
-          >
-            <SearchableSelect
-              name={`${prefix}-countryRef`}
-              value={form.getFieldValue([prefix, 'countryRef'])}
-              placeholder={getTranslationFromI18nKeyAndLabel('crm:address.selectCountry', 'Select Country')}
-              options={stringCountries as any}
-              loading={countriesHook.loading}
-              hasMore={countriesHook.hasMore}
-              onSearch={countriesHook.search}
-              onLoadMore={countriesHook.loadMore}
-              onChange={value => {
-                form.setFieldsValue({
-                  [prefix]: {
-                    ...form.getFieldValue(prefix),
-                    countryRef: value
-                  }
-                })
-              }}
-              error={countriesHook.error}
-              data-testid={`${prefix}-country-select`}
-            />
-          </Form.Item>
-        </div>
-        <div>
-          <Form.Item
-            name={[prefix, 'region']}
-            label={getTranslationFromI18nKeyAndLabel('crm:address.regionState', 'Region/State')}
-          >
-            <DesignInput
-              data-testid={`${prefix}-region-input`}
-              placeholder={getTranslationFromI18nKeyAndLabel(
-                'crm:address.regionPlaceholder',
-                'Enter region or state...'
-              )}
-              className="gba:h-11 gba:px-3 gba:text-sm"
-            />
-          </Form.Item>
-        </div>
-
-        {/* Address Lines - Full width */}
-        <div className="gba:md:col-span-2">
-          <Form.Item
-            name={[prefix, 'addressLine']}
-            label={getTranslationFromI18nKeyAndLabel('crm:address.addressLine1', 'Address Line 1')}
-          >
-            <DesignInput
-              data-testid={`${prefix}-address-line-1`}
-              placeholder={getTranslationFromI18nKeyAndLabel(
-                'crm:address.addressLine1Placeholder',
-                'Enter street address...'
-              )}
-              className="gba:h-11 gba:px-3 gba:text-sm"
-            />
-          </Form.Item>
-        </div>
-        <div className="gba:md:col-span-2">
-          <Form.Item
-            name={[prefix, 'addressLine2']}
-            label={getTranslationFromI18nKeyAndLabel('crm:address.addressLine2', 'Address Line 2')}
-          >
-            <DesignInput
-              data-testid={`${prefix}-address-line-2`}
-              placeholder={getTranslationFromI18nKeyAndLabel(
-                'crm:address.addressLine2Placeholder',
-                'Apartment, suite, unit, etc. (optional)'
-              )}
-              className="gba:h-11 gba:px-3 gba:text-sm"
-            />
-          </Form.Item>
-        </div>
-
-        {/* Postal Code and City - Second row */}
-        <div>
-          <Form.Item
-            name={[prefix, 'postalCode']}
-            label={getTranslationFromI18nKeyAndLabel('crm:address.postalCode', 'Postal Code')}
-          >
-            <DesignInput
-              data-testid={`${prefix}-postal-code`}
-              placeholder={getTranslationFromI18nKeyAndLabel(
-                'crm:address.postalCodePlaceholder',
-                'Enter postal code...'
-              )}
-              className="gba:h-11 gba:px-3 gba:text-sm"
-            />
-          </Form.Item>
-        </div>
-        <div>
-          <Form.Item name={[prefix, 'city']} label={getTranslationFromI18nKeyAndLabel('crm:address.city', 'City')}>
-            <DesignInput
-              data-testid={`${prefix}-city`}
-              placeholder={getTranslationFromI18nKeyAndLabel('crm:address.cityPlaceholder', 'Enter city...')}
-              className="gba:h-11 gba:px-3 gba:text-sm"
-            />
-          </Form.Item>
-        </div>
-      </div>
-    </div>
-  )
-
-  // Separate address form for opportunity section without country and region
-  const renderOpportunityAddressForm = (prefix: string, label: string) => (
-    <div className="gba:mb-4">
-      <h5 className="gba:text-lg gba:font-semibold gba:mb-3 gba:text-gray-900">{label}</h5>
-      <div className="gba:grid gba:grid-cols-1 gba:md:grid-cols-2 gba:gap-2 gba:space-y-2">
-        <div className="gba:md:col-span-2">
-          <Form.Item
-            name={[prefix, 'addressLine']}
-            label={getTranslationFromI18nKeyAndLabel('crm:address.addressLine', 'Address Line')}
-          >
-            <DesignInput data-testid={`${prefix}-address-line`} className="gba:h-11 gba:px-3 gba:text-sm" />
-          </Form.Item>
-        </div>
-        <div>
-          <Form.Item name={[prefix, 'city']} label={getTranslationFromI18nKeyAndLabel('crm:address.city', 'City')}>
-            <DesignInput data-testid={`${prefix}-city`} className="gba:h-11 gba:px-3 gba:text-sm" />
-          </Form.Item>
-        </div>
-        <div>
-          <Form.Item
-            name={[prefix, 'postalCode']}
-            label={getTranslationFromI18nKeyAndLabel('crm:address.postalCode', 'Postal Code')}
-          >
-            <DesignInput data-testid={`${prefix}-postal-code`} className="gba:h-11 gba:px-3 gba:text-sm" />
-          </Form.Item>
-        </div>
-      </div>
-    </div>
-  )
-
-  if (loading || catalogsLoading) {
-    return (
-      <div className="gba:p-6 gba:text-center" data-testid="loading-container">
+      <div className="gba:p-6 gba:text-center" data-testid="convert-lead-loading">
         <Spinner className="gba:w-8 gba:h-8" />
         <div className="gba:mt-4">
           <p className="gba:text-sm gba:text-gray-600">
@@ -583,177 +408,38 @@ export const ConvertLeadForm: React.FC<ConvertLeadFormProps> = props => {
   }
 
   return (
-    <div
-      className="gba:p-6 gba:bg-hsl(var(--background)) gba:rounded-lg gba:shadow-md"
-      data-testid="convert-lead-form-container"
+    <AppActionForm
+      processType="create"
+      formType="wizard"
+      onSubmit={data => {
+        console.log('🎯 AppActionForm onSubmit triggered with data:', data)
+
+        // Double-check validation before allowing submission
+        const isReady = isFormReadyForConversion()
+        console.log('Pre-submission check - Is form ready?', isReady)
+
+        if (!isReady) {
+          console.error('❌ Pre-submission validation failed')
+          return Promise.reject(new Error('Form validation failed'))
+        }
+
+        console.log('✅ Pre-submission validation passed, calling handleSubmit')
+        return handleSubmit(data)
+      }}
+      onSuccess={onSuccess}
+      onCancel={handleDirectCancel}
+      formData={formData}
+      form={form}
+      wizardSteps={wizardSteps}
+      showStepIndicator={true}
+      allowStepJumping={false}
+      submitButtonText={getTranslationFromI18nKeyAndLabel('crm:convertLead.convertLead', 'Convert Lead')}
+      cancelButtonText={getTranslationFromI18nKeyAndLabel('common:button.cancel', 'Cancel')}
+      data-testid="convert-lead-process-dialog"
     >
-      <Form
-        form={form}
-        layout="vertical"
-        onFinish={handleSubmit}
-        data-testid="convert-lead-form"
-        initialValues={{
-          accountSourceApp: 'IRM',
-          contactSourceApp: 'IRM',
-          opportunityWinningChance: 50,
-          opportunitySourceApp: 'IRM'
-        }}
-      >
-        <h1
-          className="gba:text-3xl gba:font-black gba:mb-6 gba:text-center gba:text-gray-900"
-          style={{
-            fontSize: '2rem',
-            fontWeight: '900',
-            lineHeight: '1.2',
-            marginBottom: '1.5rem',
-            textAlign: 'center'
-          }}
-          className="gba:text-foreground"
-        >
-          {getTranslationFromI18nKeyAndLabel('crm:convertLead.title', 'Convert Lead')}
-        </h1>
-
-        {/* Lead Information Display */}
-        <Card className="gba:mb-4" data-testid="lead-info-card">
-          <CardHeader>
-            <CardTitle className="gba:text-lg gba:font-semibold">
-              {getTranslationFromI18nKeyAndLabel('crm:convertLead.leadInfo', 'Lead Information')}
-            </CardTitle>
-          </CardHeader>
-          <CardContent>
-            <div className="gba:grid gba:grid-cols-1 gba:md:grid-cols-2 gba:gap-2">
-              <div className="gba:space-y-2">
-                <span className="gba:text-sm gba:font-medium gba:text-gray-600">
-                  {getTranslationFromI18nKeyAndLabel('crm:lead.name', 'Name')}
-                </span>
-                <div className="gba:font-medium gba:text-base gba:text-gray-900" data-testid="lead-name">
-                  {leadData?.name || `${leadData?.firstName} ${leadData?.lastName}`}
-                </div>
-              </div>
-              <div className="gba:space-y-2">
-                <span className="gba:text-sm gba:font-medium gba:text-gray-600">
-                  {getTranslationFromI18nKeyAndLabel('crm:lead.company', 'Company')}
-                </span>
-                <div className="gba:font-medium gba:text-base gba:text-gray-900" data-testid="lead-company">
-                  {leadData?.companyName}
-                </div>
-              </div>
-              <div className="gba:space-y-2">
-                <span className="gba:text-sm gba:font-medium gba:text-gray-600">
-                  {getTranslationFromI18nKeyAndLabel('crm:lead.email', 'Email')}
-                </span>
-                <div className="gba:font-medium gba:text-base gba:text-gray-900" data-testid="lead-email">
-                  {leadData?.email}
-                </div>
-              </div>
-              <div className="gba:space-y-2">
-                <span className="gba:text-sm gba:font-medium gba:text-gray-600">
-                  {getTranslationFromI18nKeyAndLabel('crm:lead.phone', 'Phone')}
-                </span>
-                <div className="gba:font-medium gba:text-base gba:text-gray-900" data-testid="lead-phone">
-                  {leadData?.phone}
-                </div>
-              </div>
-            </div>
-          </CardContent>
-        </Card>
-
-        <Separator className="gba:my-6" />
-
-        {/* Account Section */}
-        <AccountSection
-          accessToken={accessToken}
-          form={form}
-          accountOption={accountOption}
-          setAccountOption={setAccountOption}
-          selectedAccount={selectedAccount}
-          setSelectedAccount={setSelectedAccount}
-          onSelectedAccountChange={handleSelectedAccountChange}
-        />
-
-        <Separator className="gba:my-6" />
-
-        {/* Contact Section */}
-        <ContactSection
-          accessToken={accessToken}
-          form={form}
-          contactOption={contactOption}
-          setContactOption={setContactOption}
-          selectedContact={selectedContact}
-          setSelectedContact={setSelectedContact}
-          simpleAccounts={simpleAccounts}
-          simpleAccountsLoading={simpleAccountsLoading}
-          simpleAccountsHasMore={simpleAccountsHasMore}
-          searchSimpleAccounts={searchSimpleAccounts}
-          loadMoreSimpleAccounts={loadMoreSimpleAccounts}
-          simpleAccountsError={simpleAccountsError}
-        />
-
-        <Separator className="gba:my-6" />
-
-        {/* Create Opportunity Checkbox */}
-        <Card className="gba:mb-4" data-testid="create-opportunity-card">
-          <CardContent className="gba:p-4">
-            <div className="gba:flex gba:items-center gba:space-x-4">
-              <DesignCheckbox
-                id="create-opportunity-checkbox"
-                checked={createOpportunity}
-                onCheckedChange={checked => {
-                  setCreateOpportunity(checked === true)
-                }}
-                data-testid="create-opportunity-checkbox"
-              />
-              <Label
-                htmlFor="create-opportunity-checkbox"
-                className="gba:text-sm gba:font-medium gba:text-gray-900 gba:cursor-pointer"
-                style={{ marginLeft: '5px' }}
-              >
-                {getTranslationFromI18nKeyAndLabel('crm:convertLead.createOpportunity', 'Create Opportunity')}
-              </Label>
-            </div>
-          </CardContent>
-        </Card>
-
-        {/* Opportunity Section - Only show if createOpportunity is checked */}
-        {createOpportunity && (
-          <OpportunitySection
-            accessToken={accessToken}
-            form={form}
-            opportunityEmployeePositions={opportunityEmployeePositions}
-            opportunityEmployeePositionsLoading={opportunityEmployeePositionsLoading}
-            opportunityEmployeePositionsHasMore={opportunityEmployeePositionsHasMore}
-            loadMoreOpportunityEmployeePositions={loadMoreOpportunityEmployeePositions}
-            searchOpportunityEmployeePositions={searchOpportunityEmployeePositions}
-            opportunityEmployeePositionsError={opportunityEmployeePositionsError}
-          />
-        )}
-
-        {/* Form Actions */}
-        <div className="gba:flex gba:justify-end gba:gap-3 gba:pt-6">
-          <DesignButton
-            type="button"
-            variant="outline"
-            onClick={handleCancel}
-            className="gba:min-w-[120px] gba:h-11"
-            data-testid="convert-lead-cancel-button"
-            disabled={submitting}
-          >
-            {getTranslationFromI18nKeyAndLabel('common:button.cancel', 'Cancel')}
-          </DesignButton>
-          <DesignButton
-            type="submit"
-            className="gba:min-w-[120px] gba:h-11"
-            data-testid="convert-lead-submit-button"
-            disabled={submitting}
-          >
-            {submitting
-              ? getTranslationFromI18nKeyAndLabel('crm:convertLead.converting', 'Converting...')
-              : getTranslationFromI18nKeyAndLabel('crm:convertLead.convertLead', 'Convert Lead')}
-          </DesignButton>
-        </div>
-      </Form>
-      <Toaster />
-    </div>
+      {/* Children required by AppActionForm - content is handled by wizard steps */}
+      <div />
+    </AppActionForm>
   )
 }
 
