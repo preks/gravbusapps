@@ -26,7 +26,6 @@ import translations from '../../../_i18n'
 interface JobsCompensationTabProps extends BusinessAppContextProps {
   employee: Employee
   employeeId?: string
-  isSelfView: boolean
 }
 
 /**

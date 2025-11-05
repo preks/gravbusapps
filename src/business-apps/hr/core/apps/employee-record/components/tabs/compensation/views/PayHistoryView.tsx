@@ -43,6 +43,134 @@ const PayHistoryView: React.FC<PayHistoryViewProps> = ({
 }) => {
   const { compensationHistory, bonusHistory, payslipHistory } = historyData
 
+  /**
+   * Render compensation history content based on loading state and data availability
+   */
+  const renderCompensationHistoryContent = () => {
+    // Loading state
+    if (loading) {
+      return (
+        <div className="gba:text-center gba:text-muted-foreground gba:py-8">{t('history-loading-compensation')}</div>
+      )
+    }
+
+    // Empty state
+    if (compensationHistory.length === 0) {
+      return <div className="gba:text-center gba:text-muted-foreground gba:py-8">{t('history-no-compensation')}</div>
+    }
+
+    // Content - display compensation history table
+    return (
+      <Table data-testid="salary-history-table">
+        <TableHeader>
+          <TableRow>
+            <TableHead>{t('table-effective-date')}</TableHead>
+            <TableHead>{t('table-base-salary')}</TableHead>
+            <TableHead>{t('table-compensation-band')}</TableHead>
+            <TableHead>{t('table-pay-grade')}</TableHead>
+            <TableHead>{t('table-notes')}</TableHead>
+          </TableRow>
+        </TableHeader>
+        <TableBody>
+          {compensationHistory.map(record => (
+            <TableRow key={record.id} data-testid={`salary-history-row-${record.id}`}>
+              <TableCell>
+                <div className="gba:font-medium">
+                  {dayjs(record.effectiveDate).locale(locale).format('MMM D, YYYY')}
+                </div>
+                {record.endDate && (
+                  <div className="gba:text-xs gba:text-muted-foreground">
+                    to {dayjs(record.endDate).locale(locale).format('MMM D, YYYY')}
+                  </div>
+                )}
+              </TableCell>
+              <TableCell>
+                <div className="gba:font-semibold gba:text-foreground">
+                  {formatCurrencyString(record.baseSalary, {
+                    currency: record.currency.code,
+                    locale: locale,
+                    minimumFractionDigits: 0,
+                    maximumFractionDigits: 0
+                  })}
+                </div>
+                <div className="gba:text-xs gba:text-muted-foreground">{t('current-annually')}</div>
+              </TableCell>
+              <TableCell>{record.compensationBand ? record.compensationBand.name : '-'}</TableCell>
+              <TableCell>
+                {record.compensationBand ? (
+                  <Badge variant="outline">Level {record.compensationBand.payGrade}</Badge>
+                ) : (
+                  '-'
+                )}
+              </TableCell>
+              <TableCell>
+                <div className="gba:text-sm gba:text-muted-foreground">{record.notes || '-'}</div>
+              </TableCell>
+            </TableRow>
+          ))}
+        </TableBody>
+      </Table>
+    )
+  }
+
+  /**
+   * Render bonus history content based on loading state and data availability
+   */
+  const renderBonusHistoryContent = () => {
+    // Loading state
+    if (loading) {
+      return <div className="gba:text-center gba:text-muted-foreground gba:py-8">{t('history-loading-bonus')}</div>
+    }
+
+    // Empty state
+    if (bonusHistory.length === 0) {
+      return <div className="gba:text-center gba:text-muted-foreground gba:py-8">{t('history-no-bonus')}</div>
+    }
+
+    // Content - display bonus history table
+    return (
+      <Table data-testid="bonus-history-table">
+        <TableHeader>
+          <TableRow>
+            <TableHead>{t('table-date')}</TableHead>
+            <TableHead>{t('table-amount')}</TableHead>
+            <TableHead>{t('table-type')}</TableHead>
+            <TableHead>{t('table-fiscal-year')}</TableHead>
+            <TableHead>{t('table-status')}</TableHead>
+            <TableHead>{t('table-notes')}</TableHead>
+          </TableRow>
+        </TableHeader>
+        <TableBody>
+          {bonusHistory.map(bonus => (
+            <TableRow key={bonus.id} data-testid={`bonus-history-row-${bonus.id}`}>
+              <TableCell>{dayjs(bonus.paymentDate).locale(locale).format('MMM D, YYYY')}</TableCell>
+              <TableCell>
+                <div className="gba:font-semibold gba:text-success">
+                  {formatCurrencyString(bonus.amount, {
+                    currency: bonus.currency.code,
+                    locale: locale,
+                    minimumFractionDigits: 0,
+                    maximumFractionDigits: 0
+                  })}
+                </div>
+              </TableCell>
+              <TableCell>{bonus.bonusType.value}</TableCell>
+              <TableCell>{bonus.fiscalYear}</TableCell>
+              <TableCell>
+                <Badge variant={getCompensationStatusVariant(bonus.status)}>
+                  {getCompensationStatusLabel(bonus.status)}
+                </Badge>
+              </TableCell>
+              <TableCell>
+                <div className="gba:text-sm gba:text-muted-foreground">{bonus.notes || '-'}</div>
+              </TableCell>
+            </TableRow>
+          ))}
+        </TableBody>
+      </Table>
+    )
+  }
+
   return (
     <div className="gba:space-y-6" data-testid="compensation-history-view">
       {/* Compensation History Section */}
@@ -50,65 +178,7 @@ const PayHistoryView: React.FC<PayHistoryViewProps> = ({
         <CardHeader>
           <CardTitle>{t('history-compensation-title')}</CardTitle>
         </CardHeader>
-        <CardContent>
-          {loading ? (
-            <div className="gba:text-center gba:text-muted-foreground gba:py-8">
-              {t('history-loading-compensation')}
-            </div>
-          ) : compensationHistory.length === 0 ? (
-            <div className="gba:text-center gba:text-muted-foreground gba:py-8">{t('history-no-compensation')}</div>
-          ) : (
-            <Table data-testid="salary-history-table">
-              <TableHeader>
-                <TableRow>
-                  <TableHead>{t('table-effective-date')}</TableHead>
-                  <TableHead>{t('table-base-salary')}</TableHead>
-                  <TableHead>{t('table-compensation-band')}</TableHead>
-                  <TableHead>{t('table-pay-grade')}</TableHead>
-                  <TableHead>{t('table-notes')}</TableHead>
-                </TableRow>
-              </TableHeader>
-              <TableBody>
-                {compensationHistory.map(record => (
-                  <TableRow key={record.id} data-testid={`salary-history-row-${record.id}`}>
-                    <TableCell>
-                      <div className="gba:font-medium">
-                        {dayjs(record.effectiveDate).locale(locale).format('MMM D, YYYY')}
-                      </div>
-                      {record.endDate && (
-                        <div className="gba:text-xs gba:text-muted-foreground">
-                          to {dayjs(record.endDate).locale(locale).format('MMM D, YYYY')}
-                        </div>
-                      )}
-                    </TableCell>
-                    <TableCell>
-                      <div className="gba:font-semibold gba:text-foreground">
-                        {formatCurrencyString(record.baseSalary, {
-                          currency: record.currency.code,
-                          locale: locale,
-                          minimumFractionDigits: 0,
-                          maximumFractionDigits: 0
-                        })}
-                      </div>
-                      <div className="gba:text-xs gba:text-muted-foreground">{t('current-annually')}</div>
-                    </TableCell>
-                    <TableCell>{record.compensationBand ? record.compensationBand.name : '-'}</TableCell>
-                    <TableCell>
-                      {record.compensationBand ? (
-                        <Badge variant="outline">Level {record.compensationBand.payGrade}</Badge>
-                      ) : (
-                        '-'
-                      )}
-                    </TableCell>
-                    <TableCell>
-                      <div className="gba:text-sm gba:text-muted-foreground">{record.notes || '-'}</div>
-                    </TableCell>
-                  </TableRow>
-                ))}
-              </TableBody>
-            </Table>
-          )}
-        </CardContent>
+        <CardContent>{renderCompensationHistoryContent()}</CardContent>
       </Card>
 
       {/* Payslip History Section */}
@@ -127,53 +197,7 @@ const PayHistoryView: React.FC<PayHistoryViewProps> = ({
         <CardHeader>
           <CardTitle>{t('history-bonus-title')}</CardTitle>
         </CardHeader>
-        <CardContent>
-          {loading ? (
-            <div className="gba:text-center gba:text-muted-foreground gba:py-8">{t('history-loading-bonus')}</div>
-          ) : bonusHistory.length === 0 ? (
-            <div className="gba:text-center gba:text-muted-foreground gba:py-8">{t('history-no-bonus')}</div>
-          ) : (
-            <Table data-testid="bonus-history-table">
-              <TableHeader>
-                <TableRow>
-                  <TableHead>{t('table-date')}</TableHead>
-                  <TableHead>{t('table-amount')}</TableHead>
-                  <TableHead>{t('table-type')}</TableHead>
-                  <TableHead>{t('table-fiscal-year')}</TableHead>
-                  <TableHead>{t('table-status')}</TableHead>
-                  <TableHead>{t('table-notes')}</TableHead>
-                </TableRow>
-              </TableHeader>
-              <TableBody>
-                {bonusHistory.map(bonus => (
-                  <TableRow key={bonus.id} data-testid={`bonus-history-row-${bonus.id}`}>
-                    <TableCell>{dayjs(bonus.paymentDate).locale(locale).format('MMM D, YYYY')}</TableCell>
-                    <TableCell>
-                      <div className="gba:font-semibold gba:text-success">
-                        {formatCurrencyString(bonus.amount, {
-                          currency: bonus.currency.code,
-                          locale: locale,
-                          minimumFractionDigits: 0,
-                          maximumFractionDigits: 0
-                        })}
-                      </div>
-                    </TableCell>
-                    <TableCell>{bonus.bonusType.value}</TableCell>
-                    <TableCell>{bonus.fiscalYear}</TableCell>
-                    <TableCell>
-                      <Badge variant={getCompensationStatusVariant(bonus.status)}>
-                        {getCompensationStatusLabel(bonus.status)}
-                      </Badge>
-                    </TableCell>
-                    <TableCell>
-                      <div className="gba:text-sm gba:text-muted-foreground">{bonus.notes || '-'}</div>
-                    </TableCell>
-                  </TableRow>
-                ))}
-              </TableBody>
-            </Table>
-          )}
-        </CardContent>
+        <CardContent>{renderBonusHistoryContent()}</CardContent>
       </Card>
     </div>
   )
