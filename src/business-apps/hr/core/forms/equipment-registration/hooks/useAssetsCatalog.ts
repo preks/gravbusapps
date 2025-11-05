@@ -2,29 +2,22 @@ import { useState, useEffect, useCallback } from 'react'
 import { BusinessAppContextProps } from '@/common/BusinessAppContext'
 import { useCatalogManagerClient } from '@/common/network/catalogs/useCatalogManagerClient'
 
-export interface CatalogOption {
+export interface AssetOption {
   id: string
   value: string
   label: string
   code: string
 }
 
-export interface UseCatalogReturn {
-  options: CatalogOption[]
-  isLoading: boolean
-  error: string | null
-}
-
-export const useCurrencyCatalog = (context: BusinessAppContextProps): UseCatalogReturn => {
-  const [options, setOptions] = useState<CatalogOption[]>([])
+export const useAssetsCatalog = (context: BusinessAppContextProps) => {
+  const [options, setOptions] = useState<AssetOption[]>([])
   const [isLoading, setIsLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
 
   const catalogClient = useCatalogManagerClient(context.accessToken)
 
-  const fetchCurrencies = useCallback(async () => {
+  const fetchAssets = useCallback(async () => {
     if (!context.accessToken) {
-      setIsLoading(false)
       return
     }
 
@@ -34,40 +27,42 @@ export const useCurrencyCatalog = (context: BusinessAppContextProps): UseCatalog
     try {
       const response = await catalogClient.getCatalogEntriesList(
         {
-          catalogIdentifier: 'Currency',
+          catalogIdentifier: 'AssetCategory',
           version: 'v1'
         },
         {
-          limit: 200, // Get all currencies
+          limit: 100,
           offset: 0,
           returnTotalRecords: true,
           includeChildCatalogEntries: true
         }
       )
 
-      const currencyOptions = (response.data || []).map(entry => ({
+      const assetOptions = response.data.map(entry => ({
         id: entry.id,
         value: entry.id,
-        label: `${entry.code} - ${entry.value}`,
-        code: entry.code || entry.value
+        label: entry.value,
+        code: entry.code
       }))
 
-      setOptions(currencyOptions)
+      setOptions(assetOptions)
     } catch (err) {
-      console.error('Error fetching currencies:', err)
-      setError(err instanceof Error ? err.message : 'Failed to fetch currencies')
+      console.error('Error fetching asset categories:', err)
+      setError(err instanceof Error ? err.message : 'Failed to fetch asset categories')
+      setOptions([])
     } finally {
       setIsLoading(false)
     }
-  }, [context.accessToken]) // Removed catalogClient from dependencies
+  }, [catalogClient, context.accessToken])
 
   useEffect(() => {
-    fetchCurrencies()
-  }, [fetchCurrencies]) // Only depend on fetchCurrencies (which already depends on accessToken)
+    fetchAssets()
+  }, [fetchAssets])
 
   return {
     options,
     isLoading,
-    error
+    error,
+    refetch: fetchAssets
   }
 }

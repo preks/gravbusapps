@@ -1,5 +1,5 @@
 /**
- * RegisterAsset Form
+ * EquipmentRegistration Form
  * Form for registering new equipment in the inventory
  */
 
@@ -47,24 +47,22 @@ const formSchema = z.object({
 
 type FormValues = z.infer<typeof formSchema>
 
-interface RegisterAssetProps extends BusinessAppContextProps {
+interface EquipmentRegistrationProps extends BusinessAppContextProps {
   onSuccess?: () => void
 }
 
-export const RegisterAsset: React.FC<RegisterAssetProps> = ({ onSuccess, ...props }) => {
+export const EquipmentRegistration: React.FC<EquipmentRegistrationProps> = ({ onSuccess, ...props }) => {
   const [isSubmitting, setIsSubmitting] = useState(false)
 
-  // Use catalog and data hooks
   const { options: currencyOptions, isLoading: currenciesLoading } = useCurrencyCatalog(props)
   const { options: assetOptions, isLoading: assetsLoading } = useAssetsCatalog(props)
   const { options: brandOptions, isLoading: brandsLoading } = useBrandsCatalog(props)
 
-  // Initialize asset service for GraphQL mutations
   const assetService = useAssetService(props)
 
   const form = useForm<FormValues>({
     resolver: zodResolver(formSchema),
-    mode: 'onChange', // Enable validation on change
+    mode: 'onChange',
     defaultValues: {
       category: '',
       brand: '',
@@ -78,26 +76,23 @@ export const RegisterAsset: React.FC<RegisterAssetProps> = ({ onSuccess, ...prop
     }
   })
 
-  // Set default currency once options are loaded
   useEffect(() => {
     if (currencyOptions.length > 0 && !form.getValues('currency')) {
       const eurCurrency = currencyOptions.find(c => c.code === 'EUR' || c.label.includes('EUR'))
       form.setValue('currency', eurCurrency?.value || currencyOptions[0].value)
     }
-  }, [currencyOptions]) // Removed 'form' to prevent infinite loop
+  }, [currencyOptions])
 
-  // Set default asset category once options are loaded
   useEffect(() => {
     if (assetOptions.length > 0 && !form.getValues('category')) {
       const laptopCategory = assetOptions.find(c => c.value === 'Laptop' || c.label.includes('Laptop'))
       form.setValue('category', laptopCategory?.value || assetOptions[0].value)
     }
-  }, [assetOptions]) // Removed 'form' to prevent infinite loop
+  }, [assetOptions])
 
   const onSubmit = async (values: FormValues) => {
     setIsSubmitting(true)
     try {
-      // Create asset using GraphQL service with correct field mappings
       const newAsset = await assetService.createAsset({
         model: values.model,
         serialNumber: values.serialNumber,
@@ -105,20 +100,19 @@ export const RegisterAsset: React.FC<RegisterAssetProps> = ({ onSuccess, ...prop
         warrantyPeriodMonths: values.warrantyPeriodMonths,
         inventoryValue: values.inventoryValue,
         assetStatus: 'AVAILABLE_ASSET',
-        assetBrandRef: values.brand, // Brand catalog ID
-        assetCategoryRef: values.category, // Category catalog ID
-        currencyRef: values.currency, // Currency catalog ID
+        assetBrandRef: values.brand,
+        assetCategoryRef: values.category,
+        currencyRef: values.currency,
         notes: values.notes
       })
 
-      console.log('Asset registered successfully:', newAsset.id)
+      console.log('Equipment registered successfully:', newAsset.id)
 
-      // Call onSuccess callback if provided
       if (onSuccess) {
         onSuccess()
       }
     } catch (error) {
-      console.error('Error registering asset:', error)
+      console.error('Error registering equipment:', error)
       throw error
     } finally {
       setIsSubmitting(false)
@@ -126,11 +120,10 @@ export const RegisterAsset: React.FC<RegisterAssetProps> = ({ onSuccess, ...prop
   }
 
   return (
-    <div data-testid="register-asset-form">
+    <div data-testid="equipment-registration-form">
       <div>
         <Form {...form}>
           <form onSubmit={form.handleSubmit(onSubmit)} className="gba:space-y-4">
-            {/* Category */}
             <FormField
               control={form.control}
               name="category"
@@ -159,7 +152,6 @@ export const RegisterAsset: React.FC<RegisterAssetProps> = ({ onSuccess, ...prop
               )}
             />
 
-            {/* Brand and Model - Side by side */}
             <div className="gba:grid gba:grid-cols-2 gba:gap-4">
               <FormField
                 control={form.control}
@@ -201,7 +193,6 @@ export const RegisterAsset: React.FC<RegisterAssetProps> = ({ onSuccess, ...prop
               />
             </div>
 
-            {/* Serial Number */}
             <FormField
               control={form.control}
               name="serialNumber"
@@ -222,7 +213,6 @@ export const RegisterAsset: React.FC<RegisterAssetProps> = ({ onSuccess, ...prop
               )}
             />
 
-            {/* Acquisition Date and Warranty Period */}
             <div className="gba:grid gba:grid-cols-2 gba:gap-4">
               <FormField
                 control={form.control}
@@ -253,7 +243,6 @@ export const RegisterAsset: React.FC<RegisterAssetProps> = ({ onSuccess, ...prop
               />
             </div>
 
-            {/* Inventory Value and Currency */}
             <div className="gba:grid gba:grid-cols-2 gba:gap-4 gba:items-start">
               <FormField
                 control={form.control}
@@ -307,7 +296,6 @@ export const RegisterAsset: React.FC<RegisterAssetProps> = ({ onSuccess, ...prop
             </div>
             <div className="gba:text-sm gba:text-muted-foreground gba:-mt-3">Purchase or estimated value</div>
 
-            {/* Notes */}
             <FormField
               control={form.control}
               name="notes"
@@ -346,4 +334,4 @@ export const RegisterAsset: React.FC<RegisterAssetProps> = ({ onSuccess, ...prop
   )
 }
 
-export default RegisterAsset
+export default EquipmentRegistration

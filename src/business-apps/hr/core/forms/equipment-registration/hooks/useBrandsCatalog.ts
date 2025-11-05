@@ -1,27 +1,16 @@
-/**
- * useBrandsCatalog Hook
- * Fetches asset brands from the catalog
- */
-
 import { useState, useEffect, useCallback } from 'react'
 import { BusinessAppContextProps } from '@/common/BusinessAppContext'
 import { useCatalogManagerClient } from '@/common/network/catalogs/useCatalogManagerClient'
 
-export interface BrandCatalogOption {
+export interface BrandOption {
   id: string
   value: string
   label: string
   code: string
 }
 
-export interface UseBrandsCatalogReturn {
-  options: BrandCatalogOption[]
-  isLoading: boolean
-  error: string | null
-}
-
-export const useBrandsCatalog = (context: BusinessAppContextProps): UseBrandsCatalogReturn => {
-  const [options, setOptions] = useState<BrandCatalogOption[]>([])
+export const useBrandsCatalog = (context: BusinessAppContextProps) => {
+  const [options, setOptions] = useState<BrandOption[]>([])
   const [isLoading, setIsLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
 
@@ -29,7 +18,6 @@ export const useBrandsCatalog = (context: BusinessAppContextProps): UseBrandsCat
 
   const fetchBrands = useCallback(async () => {
     if (!context.accessToken) {
-      setIsLoading(false)
       return
     }
 
@@ -39,40 +27,42 @@ export const useBrandsCatalog = (context: BusinessAppContextProps): UseBrandsCat
     try {
       const response = await catalogClient.getCatalogEntriesList(
         {
-          catalogIdentifier: 'AssetBrand', // PascalCase to match other catalogs
+          catalogIdentifier: 'AssetBrand',
           version: 'v1'
         },
         {
-          limit: 500, // Get all brands
+          limit: 200,
           offset: 0,
           returnTotalRecords: true,
           includeChildCatalogEntries: true
         }
       )
 
-      const brandOptions = (response.data || []).map(entry => ({
+      const brandOptions = response.data.map(entry => ({
         id: entry.id,
-        value: entry.id, // Use ID as value to match database FK
-        label: entry.value || entry.code,
-        code: entry.code || entry.value
+        value: entry.id,
+        label: entry.value,
+        code: entry.code
       }))
 
       setOptions(brandOptions)
     } catch (err) {
-      console.error('Error fetching asset brands:', err)
-      setError(err instanceof Error ? err.message : 'Failed to fetch asset brands')
+      console.error('Error fetching brands:', err)
+      setError(err instanceof Error ? err.message : 'Failed to fetch brands')
+      setOptions([])
     } finally {
       setIsLoading(false)
     }
-  }, [context.accessToken]) // Removed catalogClient from dependencies
+  }, [catalogClient, context.accessToken])
 
   useEffect(() => {
     fetchBrands()
-  }, [fetchBrands]) // Only depend on fetchBrands (which already depends on accessToken)
+  }, [fetchBrands])
 
   return {
     options,
     isLoading,
-    error
+    error,
+    refetch: fetchBrands
   }
 }
