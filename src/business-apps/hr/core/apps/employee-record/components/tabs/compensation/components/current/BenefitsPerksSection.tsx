@@ -193,8 +193,8 @@ const BenefitsPerksSection: React.FC<BenefitsPerksProps> = ({
               className="gba:text-center gba:text-muted-foreground gba:py-12"
               data-testid="benefits-catalog-empty-catalog"
             >
-              <div className="gba:text-lg gba:font-medium gba:mb-2">No Benefits Available</div>
-              <p className="gba:text-sm">No benefits are currently available in the catalog.</p>
+              <div className="gba:text-lg gba:font-medium gba:mb-2">{t('benefits-catalog-empty-title')}</div>
+              <p className="gba:text-sm">{t('benefits-catalog-empty-description')}</p>
             </div>
           )}
 
@@ -209,8 +209,8 @@ const BenefitsPerksSection: React.FC<BenefitsPerksProps> = ({
                 className="gba:text-center gba:text-muted-foreground gba:py-12"
                 data-testid="benefits-catalog-empty-search"
               >
-                <div className="gba:text-lg gba:font-medium gba:mb-2">No Benefits Found</div>
-                <p className="gba:text-sm">No benefits match your search criteria.</p>
+                <div className="gba:text-lg gba:font-medium gba:mb-2">{t('benefits-catalog-no-results-title')}</div>
+                <p className="gba:text-sm">{t('benefits-catalog-no-results-description')}</p>
                 <Button
                   size="sm"
                   variant="outline"
@@ -220,7 +220,7 @@ const BenefitsPerksSection: React.FC<BenefitsPerksProps> = ({
                   className="gba:mt-4"
                   data-testid="benefits-catalog-clear-search-button"
                 >
-                  Clear Search
+                  {t('benefits-catalog-clear-search')}
                 </Button>
               </div>
             )}

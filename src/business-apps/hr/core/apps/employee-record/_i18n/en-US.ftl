@@ -9,7 +9,6 @@ compensation-error-retry = Retry
 # Sub-Tabs
 tab-current-compensation = Current Compensation
 tab-compensation-history = Compensation History
-tab-growth = Growth
 
 # Current Compensation View
 current-base-salary = Base Salary
@@ -40,28 +39,6 @@ history-no-compensation = No compensation history available
 history-no-bonus = No bonus history available
 history-no-payslip = No payslips available
 
-# Growth View
-growth-total-growth = Total Growth
-growth-avg-annual-increase = Avg Annual Increase
-growth-career-milestones = Career Milestones
-growth-significant-events = Significant events
-growth-per-year-over = Per year over { $years } years
-growth-timeline-title = Compensation Growth Timeline
-growth-timeline-description = Last { $years } years of compensation progression
-growth-timeline-loading = Loading growth data...
-growth-loading-chart = Loading chart...
-growth-chart-total-compensation = Total Compensation
-growth-chart-base-salary = Base Salary
-growth-loading-milestones = Loading milestone data...
-growth-milestones-title = Career Milestones
-growth-milestones-description = Timeline of significant compensation events
-growth-milestones-loading = Loading milestones...
-growth-milestones-loading-data = Loading milestone data...
-growth-milestones-empty = No milestones recorded yet.
-growth-milestone-bonus = Bonus
-growth-milestone-addition = Addition
-growth-milestone-starting-point = Starting point
-
 # Total Rewards
 rewards-title = Total Rewards 360°
 rewards-description = Complete compensation package breakdown
@@ -87,11 +64,11 @@ benefits-search-placeholder = Search benefits...
 benefits-loading = Loading benefits catalog...
 benefits-error-title = Error Loading Benefits
 benefits-error-retry = Retry
-benefits-no-catalog-title = No Benefits Available
-benefits-no-catalog-description = No benefits are currently available in the catalog.
-benefits-no-results-title = No Benefits Found
-benefits-no-results-description = No benefits match your search criteria.
-benefits-clear-search = Clear Search
+benefits-catalog-empty-title = No Benefits Available
+benefits-catalog-empty-description = No benefits are currently available in the catalog.
+benefits-catalog-no-results-title = No Benefits Found
+benefits-catalog-no-results-description = No benefits match your search criteria.
+benefits-catalog-clear-search = Clear Search
 benefits-active-section-title = Active Benefits ({ $count })
 benefits-available-section-title = Available Benefits ({ $count })
 

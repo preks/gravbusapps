@@ -1,10 +1,6 @@
 import { useEffect, useCallback, useState } from 'react'
 import { useGraphQLClient } from '@/common/network/graphql/useGraphQLClient'
-import {
-  GET_EMPLOYEE_COMPENSATION_DATA,
-  GET_EMPLOYEE_COMPENSATION_HISTORY,
-  getMockGrowthData
-} from '../queries/compensationQueries'
+import { GET_EMPLOYEE_COMPENSATION_DATA, GET_EMPLOYEE_COMPENSATION_HISTORY } from '../queries/compensationQueries'
 import {
   CompensationData,
   CompensationHistoryData,
@@ -29,9 +25,6 @@ import { isCompensationStatusActive, isBenefitActive } from '../types/compensati
  * - Bonuses: PENDING_COMPENSATION, APPROVED_COMPENSATION (counted in YTD)
  * - Benefits: ACTIVE_BENEFIT (counted as active)
  * - Payslips: All valid status values displayed
- *
- * 🔄 USING MOCK DATA FOR:
- * - Growth timeline (until EmployeeCareerMilestone table is created)
  *
  * @param employeeId - The employee ID to fetch compensation data for
  * @param accessToken - Access token for API authentication
@@ -262,15 +255,11 @@ export const useCompensationData = (employeeId: string, accessToken: string, loc
         }
       })
 
-      // Note: Using mock data until EmployeeCareerMilestone table is created in backend
-      const growthData = getMockGrowthData()
-
       // Set history data
       setHistoryData({
         compensationHistory,
         bonusHistory,
-        payslipHistory,
-        growthData
+        payslipHistory
       })
     } catch (err) {
       console.error('Error fetching compensation data:', err)

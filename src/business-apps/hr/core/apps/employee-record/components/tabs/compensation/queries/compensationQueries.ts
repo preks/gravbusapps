@@ -214,14 +214,3 @@ export const GET_EMPLOYEE_COMPENSATION_HISTORY = /*sql*/ `
     }
   }
 `
-
-/**
- * Mock data for growth timeline (TEMPORARY)
- *
- * Growth timeline uses mock data until EmployeeCareerMilestone table is created.
- * Mock data generation has been moved to a separate file for better organization.
- *
- * @see src/business-apps/hr/core/apps/employee-record/utils/mockCompensationGrowthData.ts
- * @deprecated Will be replaced with GraphQL queries when EmployeeCareerMilestone table is available
- */
-export { getMockGrowthData } from '../utils/mockCompensationGrowthData'

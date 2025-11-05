@@ -9,7 +9,6 @@ compensation-error-retry = Reîncearcă
 # Sub-Tabs
 tab-current-compensation = Compensație curentă
 tab-compensation-history = Istoricul compensațiilor
-tab-growth = Creștere
 
 # Current Compensation View
 current-base-salary = Salariu de bază
@@ -40,28 +39,6 @@ history-no-compensation = Niciun istoric al compensațiilor disponibil
 history-no-bonus = Niciun istoric al bonusurilor disponibil
 history-no-payslip = Niciun fluture de salariu disponibil
 
-# Growth View
-growth-total-growth = Creștere totală
-growth-avg-annual-increase = Creștere anuală medie
-growth-career-milestones = Pietre de hotar în carieră
-growth-significant-events = Evenimente semnificative
-growth-per-year-over = Pe an peste { $years } ani
-growth-timeline-title = Cronologia creșterii compensației
-growth-timeline-description = Progresia compensației în ultimii { $years } ani
-growth-timeline-loading = Se încarcă datele de creștere...
-growth-loading-chart = Se încarcă graficul...
-growth-chart-total-compensation = Compensație totală
-growth-chart-base-salary = Salariu de bază
-growth-loading-milestones = Se încarcă datele pietrelor de hotar...
-growth-milestones-title = Pietre de hotar în carieră
-growth-milestones-description = Cronologia evenimentelor semnificative de compensare
-growth-milestones-loading = Se încarcă pietrele de hotar...
-growth-milestones-loading-data = Se încarcă datele pietrelor de hotar...
-growth-milestones-empty = Nicio piatră de hotar înregistrată încă.
-growth-milestone-bonus = Bonus
-growth-milestone-addition = Adăugare
-growth-milestone-starting-point = Punct de plecare
-
 # Total Rewards
 rewards-title = Recompense totale 360°
 rewards-description = Defalcarea completă a pachetului de compensare
@@ -87,11 +64,11 @@ benefits-search-placeholder = Căutați beneficii...
 benefits-loading = Se încarcă catalogul de beneficii...
 benefits-error-title = Eroare la încărcarea beneficiilor
 benefits-error-retry = Reîncearcă
-benefits-no-catalog-title = Niciun beneficiu disponibil
-benefits-no-catalog-description = În prezent nu există beneficii disponibile în catalog.
-benefits-no-results-title = Niciun beneficiu găsit
-benefits-no-results-description = Niciun beneficiu nu corespunde criteriilor dvs. de căutare.
-benefits-clear-search = Șterge căutarea
+benefits-catalog-empty-title = Niciun beneficiu disponibil
+benefits-catalog-empty-description = În prezent nu există beneficii disponibile în catalog.
+benefits-catalog-no-results-title = Niciun beneficiu găsit
+benefits-catalog-no-results-description = Niciun beneficiu nu corespunde criteriilor dvs. de căutare.
+benefits-catalog-clear-search = Șterge căutarea
 benefits-active-section-title = Beneficii active ({ $count })
 benefits-available-section-title = Beneficii disponibile ({ $count })
 

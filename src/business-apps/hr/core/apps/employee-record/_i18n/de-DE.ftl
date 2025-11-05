@@ -9,7 +9,6 @@ compensation-error-retry = Erneut versuchen
 # Sub-Tabs
 tab-current-compensation = Aktuelle Vergütung
 tab-compensation-history = Vergütungshistorie
-tab-growth = Wachstum
 
 # Current Compensation View
 current-base-salary = Grundgehalt
@@ -40,28 +39,6 @@ history-no-compensation = Keine Vergütungshistorie verfügbar
 history-no-bonus = Keine Bonushistorie verfügbar
 history-no-payslip = Keine Gehaltsabrechnungen verfügbar
 
-# Growth View
-growth-total-growth = Gesamtwachstum
-growth-avg-annual-increase = Durchschn. jährl. Erhöhung
-growth-career-milestones = Karriere-Meilensteine
-growth-significant-events = Bedeutende Ereignisse
-growth-per-year-over = Pro Jahr über { $years } Jahre
-growth-timeline-title = Vergütungswachstum-Zeitachse
-growth-timeline-description = Vergütungsentwicklung der letzten { $years } Jahre
-growth-timeline-loading = Wachstumsdaten werden geladen...
-growth-loading-chart = Diagramm wird geladen...
-growth-chart-total-compensation = Gesamtvergütung
-growth-chart-base-salary = Grundgehalt
-growth-loading-milestones = Meilensteindaten werden geladen...
-growth-milestones-title = Karriere-Meilensteine
-growth-milestones-description = Zeitachse bedeutender Vergütungsereignisse
-growth-milestones-loading = Meilensteine werden geladen...
-growth-milestones-loading-data = Meilensteindaten werden geladen...
-growth-milestones-empty = Noch keine Meilensteine erfasst.
-growth-milestone-bonus = Bonus
-growth-milestone-addition = Hinzufügung
-growth-milestone-starting-point = Ausgangspunkt
-
 # Total Rewards
 rewards-title = Gesamtvergütung 360°
 rewards-description = Vollständige Aufschlüsselung des Vergütungspakets
@@ -87,11 +64,11 @@ benefits-search-placeholder = Zusatzleistungen suchen...
 benefits-loading = Zusatzleistungs-Katalog wird geladen...
 benefits-error-title = Fehler beim Laden der Zusatzleistungen
 benefits-error-retry = Erneut versuchen
-benefits-no-catalog-title = Keine Zusatzleistungen verfügbar
-benefits-no-catalog-description = Derzeit sind keine Zusatzleistungen im Katalog verfügbar.
-benefits-no-results-title = Keine Zusatzleistungen gefunden
-benefits-no-results-description = Keine Zusatzleistungen entsprechen Ihren Suchkriterien.
-benefits-clear-search = Suche löschen
+benefits-catalog-empty-title = Keine Zusatzleistungen verfügbar
+benefits-catalog-empty-description = Derzeit sind keine Zusatzleistungen im Katalog verfügbar.
+benefits-catalog-no-results-title = Keine Zusatzleistungen gefunden
+benefits-catalog-no-results-description = Keine Zusatzleistungen entsprechen Ihren Suchkriterien.
+benefits-catalog-clear-search = Suche löschen
 benefits-active-section-title = Aktive Zusatzleistungen ({ $count })
 benefits-available-section-title = Verfügbare Zusatzleistungen ({ $count })
 
