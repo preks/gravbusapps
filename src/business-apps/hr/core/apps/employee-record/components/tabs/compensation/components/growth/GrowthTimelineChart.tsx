@@ -160,9 +160,9 @@ const GrowthTimelineChart: React.FC<GrowthTimelineChartProps> = ({
               />
 
               {/* Milestone Markers - Simple colored dots */}
-              {milestonePoints.map((point, index) => (
+              {milestonePoints.map(point => (
                 <ReferenceDot
-                  key={`milestone-${index}`}
+                  key={`milestone-${point.displayDate}`}
                   x={point.displayDate}
                   y={point.totalCompensation}
                   r={5}

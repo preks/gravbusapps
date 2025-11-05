@@ -58,7 +58,7 @@ const PayslipHistorySection: React.FC<PayslipHistorySectionProps> = ({ t, paysli
 
     // Filter by year
     if (selectedYear !== 'all') {
-      filtered = filtered.filter(p => p.fiscalYear === parseInt(selectedYear))
+      filtered = filtered.filter(p => p.fiscalYear === Number.parseInt(selectedYear))
     }
 
     // Filter by search query (month name and year)
@@ -81,6 +81,136 @@ const PayslipHistorySection: React.FC<PayslipHistorySectionProps> = ({ t, paysli
   React.useEffect(() => {
     setCurrentPage(1)
   }, [searchQuery, selectedYear])
+
+  /**
+   * Render payslip content based on loading state and data availability
+   */
+  const renderContent = () => {
+    // Loading state
+    if (loading) {
+      return <div className="gba:text-center gba:text-muted-foreground gba:py-8">{t('payslip-loading')}</div>
+    }
+
+    // Empty state
+    if (filteredPayslips.length === 0) {
+      const hasActiveFilters = searchQuery || selectedYear !== 'all'
+      const emptyMessage = hasActiveFilters ? t('payslip-no-results') : t('payslip-no-data')
+      return <div className="gba:text-center gba:text-muted-foreground gba:py-8">{emptyMessage}</div>
+    }
+
+    // Content with table and pagination
+    return (
+      <>
+        <Table data-testid="payslip-history-table">
+          <TableHeader>
+            <TableRow>
+              <TableHead className="gba:w-[150px]">{t('payslip-table-month')}</TableHead>
+              <TableHead className="gba:w-[100px]">{t('payslip-table-year')}</TableHead>
+              <TableHead className="gba:w-[150px]">{t('payslip-table-gross-amount')}</TableHead>
+              <TableHead className="gba:w-[120px]">{t('payslip-table-status')}</TableHead>
+              <TableHead className="gba:w-[80px] gba:text-center">{t('payslip-table-view')}</TableHead>
+              <TableHead className="gba:w-[80px] gba:text-center">{t('payslip-table-download')}</TableHead>
+            </TableRow>
+          </TableHeader>
+          <TableBody>
+            {paginatedPayslips.map(payslip => {
+              return (
+                <TableRow key={payslip.id} data-testid={`payslip-history-row-${payslip.id}`}>
+                  <TableCell className="gba:w-[150px]">
+                    <div className="gba:font-medium">{payslip.payPeriod || '-'}</div>
+                  </TableCell>
+                  <TableCell className="gba:w-[100px]">
+                    <div className="gba:font-medium">{payslip.fiscalYear || '-'}</div>
+                  </TableCell>
+                  <TableCell className="gba:w-[150px]">
+                    <div className="gba:font-semibold gba:text-foreground">
+                      {formatCurrencyString(payslip.grossAmount, {
+                        currency: payslip.currency.code,
+                        locale: locale,
+                        minimumFractionDigits: 0,
+                        maximumFractionDigits: 0
+                      })}
+                    </div>
+                  </TableCell>
+                  <TableCell className="gba:w-[120px]">
+                    <Badge variant={getPayslipStatusVariant(payslip.status)}>
+                      {getPayslipStatusLabel(payslip.status)}
+                    </Badge>
+                  </TableCell>
+                  <TableCell className="gba:w-[80px] gba:text-center">
+                    <Button
+                      variant="ghost"
+                      size="icon"
+                      onClick={() => handleView(payslip)}
+                      data-testid={`payslip-view-button-${payslip.id}`}
+                      title={t('payslip-view-tooltip')}
+                    >
+                      <PiEye className="gba:w-4 gba:h-4" />
+                    </Button>
+                  </TableCell>
+                  <TableCell className="gba:w-[80px] gba:text-center">
+                    <Button
+                      variant="ghost"
+                      size="icon"
+                      onClick={() => handleDownload(payslip)}
+                      data-testid={`payslip-download-button-${payslip.id}`}
+                      title={t('payslip-download-tooltip')}
+                    >
+                      <PiDownload className="gba:w-4 gba:h-4" />
+                    </Button>
+                  </TableCell>
+                </TableRow>
+              )
+            })}
+          </TableBody>
+        </Table>
+
+        {/* Pagination */}
+        {totalPages > 1 && (
+          <div className="gba:flex gba:items-center gba:justify-between gba:mt-4 gba:pt-4 gba:border-t">
+            <div className="gba:text-sm gba:text-muted-foreground">
+              Showing {(currentPage - 1) * itemsPerPage + 1} to{' '}
+              {Math.min(currentPage * itemsPerPage, filteredPayslips.length)} of {filteredPayslips.length} payslips
+            </div>
+            <div className="gba:flex gba:gap-2">
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={() => setCurrentPage(p => Math.max(1, p - 1))}
+                disabled={currentPage === 1}
+                data-testid="payslip-pagination-prev"
+              >
+                Previous
+              </Button>
+              <div className="gba:flex gba:items-center gba:gap-1">
+                {Array.from({ length: totalPages }, (_, i) => i + 1).map(page => (
+                  <Button
+                    key={page}
+                    variant={currentPage === page ? 'default' : 'outline'}
+                    size="sm"
+                    onClick={() => setCurrentPage(page)}
+                    data-testid={`payslip-pagination-page-${page}`}
+                    className="gba:min-w-[2.5rem]"
+                  >
+                    {page}
+                  </Button>
+                ))}
+              </div>
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={() => setCurrentPage(p => Math.min(totalPages, p + 1))}
+                disabled={currentPage === totalPages}
+                data-testid="payslip-pagination-next"
+              >
+                Next
+              </Button>
+            </div>
+          </div>
+        )}
+      </>
+    )
+  }
 
   // Handle view - opens document in new tab for viewing
   const handleView = (payslip: EmployeePayslip) => {
@@ -151,125 +281,7 @@ const PayslipHistorySection: React.FC<PayslipHistorySectionProps> = ({ t, paysli
           </div>
         </div>
       </CardHeader>
-      <CardContent>
-        {loading ? (
-          <div className="gba:text-center gba:text-muted-foreground gba:py-8">{t('payslip-loading')}</div>
-        ) : filteredPayslips.length === 0 ? (
-          <div className="gba:text-center gba:text-muted-foreground gba:py-8">
-            {searchQuery || selectedYear !== 'all' ? t('payslip-no-results') : t('payslip-no-data')}
-          </div>
-        ) : (
-          <>
-            <Table data-testid="payslip-history-table">
-              <TableHeader>
-                <TableRow>
-                  <TableHead className="gba:w-[150px]">{t('payslip-table-month')}</TableHead>
-                  <TableHead className="gba:w-[100px]">{t('payslip-table-year')}</TableHead>
-                  <TableHead className="gba:w-[150px]">{t('payslip-table-gross-amount')}</TableHead>
-                  <TableHead className="gba:w-[120px]">{t('payslip-table-status')}</TableHead>
-                  <TableHead className="gba:w-[80px] gba:text-center">{t('payslip-table-view')}</TableHead>
-                  <TableHead className="gba:w-[80px] gba:text-center">{t('payslip-table-download')}</TableHead>
-                </TableRow>
-              </TableHeader>
-              <TableBody>
-                {paginatedPayslips.map(payslip => {
-                  return (
-                    <TableRow key={payslip.id} data-testid={`payslip-history-row-${payslip.id}`}>
-                      <TableCell className="gba:w-[150px]">
-                        <div className="gba:font-medium">{payslip.payPeriod || '-'}</div>
-                      </TableCell>
-                      <TableCell className="gba:w-[100px]">
-                        <div className="gba:font-medium">{payslip.fiscalYear || '-'}</div>
-                      </TableCell>
-                      <TableCell className="gba:w-[150px]">
-                        <div className="gba:font-semibold gba:text-foreground">
-                          {formatCurrencyString(payslip.grossAmount, {
-                            currency: payslip.currency.code,
-                            locale: locale,
-                            minimumFractionDigits: 0,
-                            maximumFractionDigits: 0
-                          })}
-                        </div>
-                      </TableCell>
-                      <TableCell className="gba:w-[120px]">
-                        <Badge variant={getPayslipStatusVariant(payslip.status)}>
-                          {getPayslipStatusLabel(payslip.status)}
-                        </Badge>
-                      </TableCell>
-                      <TableCell className="gba:w-[80px] gba:text-center">
-                        <Button
-                          variant="ghost"
-                          size="icon"
-                          onClick={() => handleView(payslip)}
-                          data-testid={`payslip-view-button-${payslip.id}`}
-                          title={t('payslip-view-tooltip')}
-                        >
-                          <PiEye className="gba:w-4 gba:h-4" />
-                        </Button>
-                      </TableCell>
-                      <TableCell className="gba:w-[80px] gba:text-center">
-                        <Button
-                          variant="ghost"
-                          size="icon"
-                          onClick={() => handleDownload(payslip)}
-                          data-testid={`payslip-download-button-${payslip.id}`}
-                          title={t('payslip-download-tooltip')}
-                        >
-                          <PiDownload className="gba:w-4 gba:h-4" />
-                        </Button>
-                      </TableCell>
-                    </TableRow>
-                  )
-                })}
-              </TableBody>
-            </Table>
-
-            {/* Pagination */}
-            {totalPages > 1 && (
-              <div className="gba:flex gba:items-center gba:justify-between gba:mt-4 gba:pt-4 gba:border-t">
-                <div className="gba:text-sm gba:text-muted-foreground">
-                  Showing {(currentPage - 1) * itemsPerPage + 1} to{' '}
-                  {Math.min(currentPage * itemsPerPage, filteredPayslips.length)} of {filteredPayslips.length} payslips
-                </div>
-                <div className="gba:flex gba:gap-2">
-                  <Button
-                    variant="outline"
-                    size="sm"
-                    onClick={() => setCurrentPage(p => Math.max(1, p - 1))}
-                    disabled={currentPage === 1}
-                    data-testid="payslip-pagination-prev"
-                  >
-                    Previous
-                  </Button>
-                  <div className="gba:flex gba:items-center gba:gap-1">
-                    {Array.from({ length: totalPages }, (_, i) => i + 1).map(page => (
-                      <Button
-                        key={page}
-                        variant={currentPage === page ? 'default' : 'outline'}
-                        size="sm"
-                        onClick={() => setCurrentPage(page)}
-                        data-testid={`payslip-pagination-page-${page}`}
-                        className="gba:min-w-[2.5rem]"
-                      >
-                        {page}
-                      </Button>
-                    ))}
-                  </div>
-                  <Button
-                    variant="outline"
-                    size="sm"
-                    onClick={() => setCurrentPage(p => Math.min(totalPages, p + 1))}
-                    disabled={currentPage === totalPages}
-                    data-testid="payslip-pagination-next"
-                  >
-                    Next
-                  </Button>
-                </div>
-              </div>
-            )}
-          </>
-        )}
-      </CardContent>
+      <CardContent>{renderContent()}</CardContent>
     </Card>
   )
 }

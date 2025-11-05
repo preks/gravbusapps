@@ -75,6 +75,58 @@ const GrowthMilestoneCard: React.FC<GrowthMilestoneCardProps> = ({ t, growthData
     return `${value > 0 ? '+' : ''}${value.toFixed(1)}%`
   }
 
+  /**
+   * Render milestone amount display based on milestone type and data
+   */
+  const renderMilestoneAmount = (milestone: GrowthData['milestones'][number]) => {
+    const currencyOptions = {
+      currency: milestone.currency?.code || 'EUR',
+      locale: locale,
+      minimumFractionDigits: 0,
+      maximumFractionDigits: 0
+    }
+
+    // Case 1: Previous amount exists - show change with percentage
+    if (milestone.previousAmount && milestone.previousAmount > 0) {
+      return (
+        <>
+          <div className="gba:text-lg gba:font-bold gba:text-success">
+            {formatCurrencyString(milestone.changeAmount, currencyOptions)}
+          </div>
+          <div className="gba:text-sm gba:text-success">{formatPercentage(milestone.changePercentage)}</div>
+          <div className="gba:text-xs gba:text-muted-foreground gba:mt-1">
+            {formatCurrencyString(milestone.previousAmount, currencyOptions)} →{' '}
+            {formatCurrencyString(milestone.newAmount, currencyOptions)}
+          </div>
+        </>
+      )
+    }
+
+    // Case 2: No previous amount but positive change - show addition
+    if (milestone.changeAmount > 0) {
+      return (
+        <>
+          <div className="gba:text-lg gba:font-bold gba:text-success">
+            +{formatCurrencyString(milestone.changeAmount, currencyOptions)}
+          </div>
+          <div className="gba:text-xs gba:text-muted-foreground gba:mt-1">
+            {milestone.type === 'Bonus Payout' ? t('growth-milestone-bonus') : t('growth-milestone-addition')}
+          </div>
+        </>
+      )
+    }
+
+    // Case 3: Starting point - no previous amount or change
+    return (
+      <>
+        <div className="gba:text-lg gba:font-bold gba:text-foreground">
+          {formatCurrencyString(milestone.newAmount, currencyOptions)}
+        </div>
+        <div className="gba:text-xs gba:text-muted-foreground gba:mt-1">{t('growth-milestone-starting-point')}</div>
+      </>
+    )
+  }
+
   if (loading) {
     return (
       <Card data-testid="growth-milestones-card">
@@ -138,69 +190,7 @@ const GrowthMilestoneCard: React.FC<GrowthMilestoneCardProps> = ({ t, growthData
                     </div>
 
                     {/* Amount Change */}
-                    <div className="gba:text-right gba:shrink-0">
-                      {milestone.previousAmount && milestone.previousAmount > 0 ? (
-                        <>
-                          <div className="gba:text-lg gba:font-bold gba:text-success">
-                            {formatCurrencyString(milestone.changeAmount, {
-                              currency: milestone.currency?.code || 'EUR',
-                              locale: locale,
-                              minimumFractionDigits: 0,
-                              maximumFractionDigits: 0
-                            })}
-                          </div>
-                          <div className="gba:text-sm gba:text-success">
-                            {formatPercentage(milestone.changePercentage)}
-                          </div>
-                          <div className="gba:text-xs gba:text-muted-foreground gba:mt-1">
-                            {formatCurrencyString(milestone.previousAmount, {
-                              currency: milestone.currency?.code || 'EUR',
-                              locale: locale,
-                              minimumFractionDigits: 0,
-                              maximumFractionDigits: 0
-                            })}{' '}
-                            →{' '}
-                            {formatCurrencyString(milestone.newAmount, {
-                              currency: milestone.currency?.code || 'EUR',
-                              locale: locale,
-                              minimumFractionDigits: 0,
-                              maximumFractionDigits: 0
-                            })}
-                          </div>
-                        </>
-                      ) : milestone.changeAmount > 0 ? (
-                        <>
-                          <div className="gba:text-lg gba:font-bold gba:text-success">
-                            +
-                            {formatCurrencyString(milestone.changeAmount, {
-                              currency: milestone.currency?.code || 'EUR',
-                              locale: locale,
-                              minimumFractionDigits: 0,
-                              maximumFractionDigits: 0
-                            })}
-                          </div>
-                          <div className="gba:text-xs gba:text-muted-foreground gba:mt-1">
-                            {milestone.type === 'Bonus Payout'
-                              ? t('growth-milestone-bonus')
-                              : t('growth-milestone-addition')}
-                          </div>
-                        </>
-                      ) : (
-                        <>
-                          <div className="gba:text-lg gba:font-bold gba:text-foreground">
-                            {formatCurrencyString(milestone.newAmount, {
-                              currency: milestone.currency?.code || 'EUR',
-                              locale: locale,
-                              minimumFractionDigits: 0,
-                              maximumFractionDigits: 0
-                            })}
-                          </div>
-                          <div className="gba:text-xs gba:text-muted-foreground gba:mt-1">
-                            {t('growth-milestone-starting-point')}
-                          </div>
-                        </>
-                      )}
-                    </div>
+                    <div className="gba:text-right gba:shrink-0">{renderMilestoneAmount(milestone)}</div>
                   </div>
                 </div>
               </div>
