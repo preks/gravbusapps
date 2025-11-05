@@ -1,5 +1,6 @@
 import React, { useState, useEffect, useCallback } from 'react'
 import { BusinessAppContextProps } from '@/common/BusinessAppContext'
+import { useFeature } from '@/common/hooks/useFeature'
 import { useCatalogManagerClient } from '@/common/network/catalogs/useCatalogManagerClient'
 import { expenseSettingsClient } from '../../utils/ExpenseSettingsClient'
 import { useGetExpenseRuleById } from '../../queries/ExpenseRuleQueries'
@@ -78,6 +79,9 @@ const CalculationRuleForm: React.FC<CalculationRuleFormProps> = ({
   accessToken,
   ...context
 }) => {
+  // Feature flag check
+  const isDevEnabled = useFeature('dev.enabled')
+
   const [formData, setFormData] = useState<CalculationRuleFormData>({
     code: '',
     name: '',
@@ -108,6 +112,11 @@ const CalculationRuleForm: React.FC<CalculationRuleFormProps> = ({
   const [catalogsLoading, setCatalogsLoading] = useState(true)
 
   const catalogClient = useCatalogManagerClient(accessToken)
+
+  // Feature flag guard (only for deployed environments, not local)
+  if (isDevEnabled === false) {
+    return null
+  }
 
   // Set access token on the expense settings client
   useEffect(() => {

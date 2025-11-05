@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react'
 import { PageLayout } from '@newwork/nw-design-system'
 import { BusinessAppContextProps } from '@/common/BusinessAppContext'
 import { getTranslationFromI18nKeyAndLabel } from '@/common/utils/windowUtils'
+// import { useFeature } from '@/common/hooks/useFeature' // TEMP: Disabled for local dev
 import { PiSquaresFour, PiCalculator, PiCar, PiGlobe } from 'react-icons/pi'
 
 // Tab components
@@ -17,7 +18,12 @@ export interface ExpenseSettingsProps extends BusinessAppContextProps {
 }
 
 const ExpenseSettings: React.FC<ExpenseSettingsProps> = context => {
+  console.log('🚀🚀🚀 EXPENSE SETTINGS COMPONENT RENDERING 🚀🚀🚀', context)
   const { prefixDataTestId = '', className = '' } = context
+
+  // TEMPORARY: Feature flag disabled for local development testing
+  // const isDevEnabled = useFeature('dev.enabled')
+  // if (isDevEnabled === false) { ... }
 
   // Define main view options for headerSubViews
   const viewOptions = [

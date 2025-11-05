@@ -11,6 +11,7 @@ import {
   Toaster
 } from '@newwork/nw-design-system'
 import { toast } from 'sonner'
+import { useFeature } from '@/common/hooks/useFeature'
 import { BusinessAppContextProps } from '@/common/BusinessAppContext'
 import { useCatalogManagerClient } from '@/common/network/catalogs/useCatalogManagerClient'
 import { getTranslationFromI18nKeyAndLabel } from '@/common/utils/windowUtils'
@@ -40,6 +41,9 @@ const TravelRegionForm: React.FC<TravelRegionFormProps> = ({
   travelRegionSetName,
   prefixDataTestId = ''
 }) => {
+  // Feature flag check
+  const isDevEnabled = useFeature('dev.enabled')
+
   const [isSubmitting, setIsSubmitting] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const [formData, setFormData] = useState<TravelRegionFormData>({
@@ -48,6 +52,11 @@ const TravelRegionForm: React.FC<TravelRegionFormProps> = ({
     description: '',
     parentCatalogEntryId: travelRegionSetId
   })
+
+  // Feature flag guard
+  if (isDevEnabled === false) {
+    return null
+  }
 
   const catalogClient = useCatalogManagerClient(accessToken)
 

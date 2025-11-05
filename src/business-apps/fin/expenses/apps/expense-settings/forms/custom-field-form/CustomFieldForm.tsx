@@ -1,45 +1,31 @@
-import React, { useState, useEffect } from 'react';
-import { BusinessAppContextProps } from '@/common/BusinessAppContext';
-import { 
-  Form, 
-  Input, 
-  Select, 
-  InputNumber,
-  Button, 
-  Space, 
-  Alert, 
-  Typography, 
-  Card,
-  Row,
-  Col
-} from 'antd';
-import { PiFloppyDisk, PiX, PiWarning } from 'react-icons/pi';
-import { 
-  RuleSource,
-  getRuleSourceOptions
-} from '../../types/ExpenseEnums';
-import { ExpenseRuleCustomField } from '../../types/ExpenseRuleTypes';
-import { useGetExpenseRuleOtherInfoById } from '../../queries/ExpenseRuleQueries';
+import React, { useState, useEffect } from 'react'
+import { BusinessAppContextProps } from '@/common/BusinessAppContext'
+import { useFeature } from '@/common/hooks/useFeature'
+import { Form, Input, Select, InputNumber, Button, Space, Alert, Typography, Card, Row, Col } from 'antd'
+import { PiFloppyDisk, PiX, PiWarning } from 'react-icons/pi'
+import { RuleSource, getRuleSourceOptions } from '../../types/ExpenseEnums'
+import { ExpenseRuleCustomField } from '../../types/ExpenseRuleTypes'
+import { useGetExpenseRuleOtherInfoById } from '../../queries/ExpenseRuleQueries'
 
-const { Title } = Typography;
-const { TextArea } = Input;
-const { Option } = Select;
+const { Title } = Typography
+const { TextArea } = Input
+const { Option } = Select
 
 export interface CustomFieldFormData {
-  id?: string;
-  fieldName: string;
-  fieldValue: string;
-  fieldType: string;
-  ruleSource?: RuleSource;
-  fieldOrder: number;
+  id?: string
+  fieldName: string
+  fieldValue: string
+  fieldType: string
+  ruleSource?: RuleSource
+  fieldOrder: number
 }
 
 interface CustomFieldFormProps extends BusinessAppContextProps {
-  initialData?: ExpenseRuleCustomField;
-  isEditing?: boolean;
-  onSave: (data: CustomFieldFormData) => Promise<void>;
-  onCancel: () => void;
-  loading?: boolean;
+  initialData?: ExpenseRuleCustomField
+  isEditing?: boolean
+  onSave: (data: CustomFieldFormData) => Promise<void>
+  onCancel: () => void
+  loading?: boolean
 }
 
 const CustomFieldForm: React.FC<CustomFieldFormProps> = ({
@@ -50,12 +36,20 @@ const CustomFieldForm: React.FC<CustomFieldFormProps> = ({
   loading = false,
   accessToken
 }) => {
-  const [form] = Form.useForm();
-  const [isSubmitting, setIsSubmitting] = useState(false);
-  const [error, setError] = useState<string | null>(null);
+  // Feature flag check
+  const isDevEnabled = useFeature('dev.enabled')
+
+  const [form] = Form.useForm()
+  const [isSubmitting, setIsSubmitting] = useState(false)
+  const [error, setError] = useState<string | null>(null)
 
   // ✅ NEW: Hook for fetching fresh custom field data
-  const { fetchExpenseRuleOtherInfoById } = useGetExpenseRuleOtherInfoById({ accessToken } as BusinessAppContextProps);
+  const { fetchExpenseRuleOtherInfoById } = useGetExpenseRuleOtherInfoById({ accessToken } as BusinessAppContextProps)
+
+  // Feature flag guard
+  if (isDevEnabled === false) {
+    return null
+  }
 
   // Field type options
   const fieldTypeOptions = [
@@ -65,7 +59,7 @@ const CustomFieldForm: React.FC<CustomFieldFormProps> = ({
     { value: 'DATE', label: 'Date' },
     { value: 'CURRENCY', label: 'Currency' },
     { value: 'PERCENTAGE', label: 'Percentage' }
-  ];
+  ]
 
   // ✅ FIXED: Load fresh data when editing, use initial data when creating
   useEffect(() => {
@@ -73,7 +67,7 @@ const CustomFieldForm: React.FC<CustomFieldFormProps> = ({
       if (isEditing && initialData?.id) {
         // ✅ NEW: For editing, fetch fresh data from the server
         try {
-          const freshData = await fetchExpenseRuleOtherInfoById(initialData.id);
+          const freshData = await fetchExpenseRuleOtherInfoById(initialData.id)
           if (freshData) {
             form.setFieldsValue({
               fieldName: freshData.source || 'Custom Field',
@@ -81,15 +75,15 @@ const CustomFieldForm: React.FC<CustomFieldFormProps> = ({
               fieldType: 'TEXT', // Default value - map from freshData if available
               ruleSource: freshData.source || RuleSource.GENERAL_EXPENSE_RULE,
               fieldOrder: 1 // Default value - map from freshData if available
-            });
-            return;
+            })
+            return
           }
         } catch (error) {
-          console.error('Failed to load fresh custom field data:', error);
+          console.error('Failed to load fresh custom field data:', error)
           // Continue with fallback to initial data
         }
       }
-      
+
       // ✅ Fallback: Use initial data (for creating or if fresh fetch failed)
       if (initialData) {
         form.setFieldsValue({
@@ -98,42 +92,42 @@ const CustomFieldForm: React.FC<CustomFieldFormProps> = ({
           fieldType: initialData.fieldType,
           ruleSource: initialData.ruleSource,
           fieldOrder: initialData.fieldOrder
-        });
+        })
       } else {
         // Set defaults for new custom field
         form.setFieldsValue({
           fieldType: 'TEXT',
           fieldOrder: 1,
           ruleSource: RuleSource.GENERAL_EXPENSE_RULE
-        });
+        })
       }
-    };
+    }
 
-    loadData();
-  }, [initialData?.id, isEditing, form, fetchExpenseRuleOtherInfoById]);
+    loadData()
+  }, [initialData?.id, isEditing, form, fetchExpenseRuleOtherInfoById])
 
   const handleSubmit = async (values: any) => {
-    setIsSubmitting(true);
-    setError(null);
+    setIsSubmitting(true)
+    setError(null)
 
     try {
       const formData: CustomFieldFormData = {
         ...values,
         id: initialData?.id
-      };
+      }
 
-      await onSave(formData);
+      await onSave(formData)
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'Failed to save custom field');
+      setError(err instanceof Error ? err.message : 'Failed to save custom field')
     } finally {
-      setIsSubmitting(false);
+      setIsSubmitting(false)
     }
-  };
+  }
 
   const handleCancel = () => {
-    form.resetFields();
-    onCancel();
-  };
+    form.resetFields()
+    onCancel()
+  }
 
   return (
     <div data-testid="custom-field-form-container">
@@ -154,12 +148,7 @@ const CustomFieldForm: React.FC<CustomFieldFormProps> = ({
           />
         )}
 
-        <Form
-          form={form}
-          layout="vertical"
-          onFinish={handleSubmit}
-          data-testid="custom-field-form"
-        >
+        <Form form={form} layout="vertical" onFinish={handleSubmit} data-testid="custom-field-form">
           <Row gutter={16}>
             <Col xs={24} md={12}>
               <Form.Item
@@ -170,10 +159,7 @@ const CustomFieldForm: React.FC<CustomFieldFormProps> = ({
                   { max: 100, message: 'Field name cannot exceed 100 characters' }
                 ]}
               >
-                <Input 
-                  placeholder="Enter field name (e.g., Max Amount)"
-                  data-testid="custom-field-form-name-input"
-                />
+                <Input placeholder="Enter field name (e.g., Max Amount)" data-testid="custom-field-form-name-input" />
               </Form.Item>
             </Col>
 
@@ -181,14 +167,9 @@ const CustomFieldForm: React.FC<CustomFieldFormProps> = ({
               <Form.Item
                 name="fieldType"
                 label="Field Type"
-                rules={[
-                  { required: true, message: 'Field type is required' }
-                ]}
+                rules={[{ required: true, message: 'Field type is required' }]}
               >
-                <Select
-                  placeholder="Select field type"
-                  data-testid="custom-field-form-type-select"
-                >
+                <Select placeholder="Select field type" data-testid="custom-field-form-type-select">
                   {fieldTypeOptions.map(option => (
                     <Option key={option.value} value={option.value}>
                       {option.label}
@@ -204,14 +185,9 @@ const CustomFieldForm: React.FC<CustomFieldFormProps> = ({
               <Form.Item
                 name="ruleSource"
                 label="Rule Source"
-                rules={[
-                  { required: true, message: 'Rule source is required' }
-                ]}
+                rules={[{ required: true, message: 'Rule source is required' }]}
               >
-                <Select
-                  placeholder="Select rule source"
-                  data-testid="custom-field-form-rule-source-select"
-                >
+                <Select placeholder="Select rule source" data-testid="custom-field-form-rule-source-select">
                   {getRuleSourceOptions().map(option => (
                     <Option key={option.value} value={option.value}>
                       {option.label}
@@ -225,11 +201,9 @@ const CustomFieldForm: React.FC<CustomFieldFormProps> = ({
               <Form.Item
                 name="fieldOrder"
                 label="Display Order"
-                rules={[
-                  { required: true, message: 'Display order is required' }
-                ]}
+                rules={[{ required: true, message: 'Display order is required' }]}
               >
-                <InputNumber 
+                <InputNumber
                   min={1}
                   placeholder="Enter order"
                   style={{ width: '100%' }}
@@ -244,11 +218,9 @@ const CustomFieldForm: React.FC<CustomFieldFormProps> = ({
               <Form.Item
                 name="fieldValue"
                 label="Field Value"
-                rules={[
-                  { required: true, message: 'Field value is required' }
-                ]}
+                rules={[{ required: true, message: 'Field value is required' }]}
               >
-                <TextArea 
+                <TextArea
                   rows={3}
                   placeholder="Enter field value or configuration"
                   data-testid="custom-field-form-value-input"
@@ -268,11 +240,7 @@ const CustomFieldForm: React.FC<CustomFieldFormProps> = ({
               >
                 {isEditing ? 'Update Custom Field' : 'Create Custom Field'}
               </Button>
-              <Button
-                onClick={handleCancel}
-                icon={<PiX />}
-                data-testid="custom-field-form-cancel-button"
-              >
+              <Button onClick={handleCancel} icon={<PiX />} data-testid="custom-field-form-cancel-button">
                 Cancel
               </Button>
             </Space>
@@ -280,7 +248,7 @@ const CustomFieldForm: React.FC<CustomFieldFormProps> = ({
         </Form>
       </Card>
     </div>
-  );
-};
+  )
+}
 
-export default CustomFieldForm; 
+export default CustomFieldForm

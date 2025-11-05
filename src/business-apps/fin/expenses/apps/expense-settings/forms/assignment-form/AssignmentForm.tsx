@@ -1,5 +1,6 @@
 import React, { useState, useEffect, useCallback } from 'react'
 import { BusinessAppContextProps } from '@/common/BusinessAppContext'
+import { useFeature } from '@/common/hooks/useFeature'
 import { useCatalogManagerClient } from '@/common/network/catalogs/useCatalogManagerClient'
 import { useEmployeeSelection } from '../../hooks/useEmployeeSelection'
 import { useCompanySelection } from '../../hooks/useCompanySelection'
@@ -78,6 +79,9 @@ const AssignmentForm: React.FC<AssignmentFormProps> = ({
   onCancel,
   loading = false
 }) => {
+  // Feature flag check
+  const isDevEnabled = useFeature('dev.enabled')
+
   const [formData, setFormData] = useState<AssignmentFormData>({
     cascading: false,
     applicants: false,
@@ -111,6 +115,11 @@ const AssignmentForm: React.FC<AssignmentFormProps> = ({
   const companySelection = useCompanySelection(context)
   const orgUnitSelection = useOrganizationalUnitSelection(context)
   const siteLocationSelection = useSiteLocationSelection(context)
+
+  // Feature flag guard
+  if (isDevEnabled === false) {
+    return null
+  }
 
   // Load catalog data
   const loadCatalogs = useCallback(async () => {

@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState } from 'react'
 import {
   Dialog,
   DialogContent,
@@ -6,34 +6,30 @@ import {
   DialogTitle,
   Button,
   Input,
-  Form,
-  FormItem,
-  FormLabel,
-  FormControl,
-  FormMessage,
   Alert,
   AlertDescription
-} from '@newwork/nw-design-system';
-import { BusinessAppContextProps } from '@/common/BusinessAppContext';
-import { useCatalogManagerClient } from '@/common/network/catalogs/useCatalogManagerClient';
-import { getTranslationFromI18nKeyAndLabel } from '@/common/utils/windowUtils';
+} from '@newwork/nw-design-system'
+import { useFeature } from '@/common/hooks/useFeature'
+import { BusinessAppContextProps } from '@/common/BusinessAppContext'
+import { useCatalogManagerClient } from '@/common/network/catalogs/useCatalogManagerClient'
+import { getTranslationFromI18nKeyAndLabel } from '@/common/utils/windowUtils'
 
 // Custom toast function
 const toast = (message: string, type: 'success' | 'error' = 'success') => {
-  console.log(`[${type.toUpperCase()}] ${message}`);
-};
+  console.log(`[${type.toUpperCase()}] ${message}`)
+}
 
 export interface TravelRegionSetFormData {
-  code: string;
-  value: string;
-  description?: string;
+  code: string
+  value: string
+  description?: string
 }
 
 interface TravelRegionSetFormProps extends BusinessAppContextProps {
-  open: boolean;
-  onClose: () => void;
-  onSave: (data: TravelRegionSetFormData) => void;
-  prefixDataTestId?: string;
+  open: boolean
+  onClose: () => void
+  onSave: (data: TravelRegionSetFormData) => void
+  prefixDataTestId?: string
 }
 
 const TravelRegionSetForm: React.FC<TravelRegionSetFormProps> = ({
@@ -41,28 +37,36 @@ const TravelRegionSetForm: React.FC<TravelRegionSetFormProps> = ({
   open,
   onClose,
   onSave,
-  prefixDataTestId = '',
+  prefixDataTestId = ''
 }) => {
-  const [isSubmitting, setIsSubmitting] = useState(false);
-  const [error, setError] = useState<string | null>(null);
+  // Feature flag check
+  const isDevEnabled = useFeature('dev.enabled')
+
+  const [isSubmitting, setIsSubmitting] = useState(false)
+  const [error, setError] = useState<string | null>(null)
   const [formData, setFormData] = useState<TravelRegionSetFormData>({
     code: '',
     value: '',
     description: ''
-  });
+  })
 
-  const catalogClient = useCatalogManagerClient(accessToken);
+  const catalogClient = useCatalogManagerClient(accessToken)
+
+  // Feature flag guard
+  if (isDevEnabled === false) {
+    return null
+  }
 
   const handleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault();
-    
+    e.preventDefault()
+
     if (!formData.code.trim() || !formData.value.trim()) {
-      setError('Code and Name are required');
-      return;
+      setError('Code and Name are required')
+      return
     }
 
-    setIsSubmitting(true);
-    setError(null);
+    setIsSubmitting(true)
+    setError(null)
 
     try {
       // Create the catalog entry for TravelRegionSet
@@ -76,43 +80,45 @@ const TravelRegionSetForm: React.FC<TravelRegionSetFormProps> = ({
             value: formData.value.trim()
           }
         ]
-      };
+      }
 
-      console.log('🚀 Creating Travel Region Set:', catalogEntry);
-      
-      await catalogClient.createCatalogEntry('TravelRegionSet', 'v1', catalogEntry);
-      
-      toast('Travel Region Set created successfully', 'success');
-      onSave(formData);
-      handleClose();
-      
+      console.log('🚀 Creating Travel Region Set:', catalogEntry)
+
+      await catalogClient.createCatalogEntry('TravelRegionSet', 'v1', catalogEntry)
+
+      toast('Travel Region Set created successfully', 'success')
+      onSave(formData)
+      handleClose()
     } catch (err) {
-      console.error('❌ Error creating Travel Region Set:', err);
-      setError(err instanceof Error ? err.message : 'Failed to create Travel Region Set');
-      toast('Failed to create Travel Region Set', 'error');
+      console.error('❌ Error creating Travel Region Set:', err)
+      setError(err instanceof Error ? err.message : 'Failed to create Travel Region Set')
+      toast('Failed to create Travel Region Set', 'error')
     } finally {
-      setIsSubmitting(false);
+      setIsSubmitting(false)
     }
-  };
+  }
 
   const handleClose = () => {
     setFormData({
       code: '',
       value: '',
       description: ''
-    });
-    setError(null);
-    onClose();
-  };
+    })
+    setError(null)
+    onClose()
+  }
 
   const handleInputChange = (field: keyof TravelRegionSetFormData, value: string) => {
-    setFormData(prev => ({ ...prev, [field]: value }));
-    if (error) setError(null); // Clear error when user starts typing
-  };
+    setFormData(prev => ({ ...prev, [field]: value }))
+    if (error) setError(null) // Clear error when user starts typing
+  }
 
   return (
     <Dialog open={open} onOpenChange={handleClose}>
-      <DialogContent data-testid={`${prefixDataTestId}-travel-region-set-form`} className="gba:max-w-2xl gba:max-h-[85vh]">
+      <DialogContent
+        data-testid={`${prefixDataTestId}-travel-region-set-form`}
+        className="gba:max-w-2xl gba:max-h-[85vh]"
+      >
         <DialogHeader>
           <DialogTitle>
             {getTranslationFromI18nKeyAndLabel('expense-settings:create_travel_region_set', 'Create Travel Region Set')}
@@ -134,7 +140,7 @@ const TravelRegionSetForm: React.FC<TravelRegionSetFormProps> = ({
               <FormControl>
                 <Input
                   value={formData.code}
-                  onChange={(e) => handleInputChange('code', e.target.value)}
+                  onChange={e => handleInputChange('code', e.target.value)}
                   placeholder="Enter unique code (e.g., EU_REGIONS)"
                   data-testid={`${prefixDataTestId}-code-input`}
                   disabled={isSubmitting}
@@ -152,7 +158,7 @@ const TravelRegionSetForm: React.FC<TravelRegionSetFormProps> = ({
               <FormControl>
                 <Input
                   value={formData.value}
-                  onChange={(e) => handleInputChange('value', e.target.value)}
+                  onChange={e => handleInputChange('value', e.target.value)}
                   placeholder="Enter display name (e.g., European Regions)"
                   data-testid={`${prefixDataTestId}-value-input`}
                   disabled={isSubmitting}
@@ -170,7 +176,7 @@ const TravelRegionSetForm: React.FC<TravelRegionSetFormProps> = ({
               <FormControl>
                 <Input
                   value={formData.description}
-                  onChange={(e) => handleInputChange('description', e.target.value)}
+                  onChange={e => handleInputChange('description', e.target.value)}
                   placeholder="Enter optional description"
                   data-testid={`${prefixDataTestId}-description-input`}
                   disabled={isSubmitting}
@@ -181,9 +187,9 @@ const TravelRegionSetForm: React.FC<TravelRegionSetFormProps> = ({
             </FormItem>
 
             <div className="gba:flex gba:justify-end gba:gap-2 gba:pt-4">
-              <Button 
-                type="button" 
-                variant="outline" 
+              <Button
+                type="button"
+                variant="outline"
                 onClick={handleClose}
                 disabled={isSubmitting}
                 size="sm"
@@ -192,24 +198,23 @@ const TravelRegionSetForm: React.FC<TravelRegionSetFormProps> = ({
               >
                 {getTranslationFromI18nKeyAndLabel('expense-settings:cancel', 'Cancel')}
               </Button>
-              <Button 
-                type="submit" 
+              <Button
+                type="submit"
                 disabled={isSubmitting || !formData.code.trim() || !formData.value.trim()}
                 size="sm"
                 className="gba:h-9 gba:text-sm"
                 data-testid={`${prefixDataTestId}-save-button`}
               >
-                {isSubmitting 
-                  ? getTranslationFromI18nKeyAndLabel('expense-settings:creating', 'Creating...') 
-                  : getTranslationFromI18nKeyAndLabel('expense-settings:create', 'Create')
-                }
+                {isSubmitting
+                  ? getTranslationFromI18nKeyAndLabel('expense-settings:creating', 'Creating...')
+                  : getTranslationFromI18nKeyAndLabel('expense-settings:create', 'Create')}
               </Button>
             </div>
           </form>
         </div>
       </DialogContent>
     </Dialog>
-  );
-};
+  )
+}
 
-export default TravelRegionSetForm;
+export default TravelRegionSetForm

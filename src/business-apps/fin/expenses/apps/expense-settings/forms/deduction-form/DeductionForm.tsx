@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react'
 import { BusinessAppContextProps } from '@/common/BusinessAppContext'
+import { useFeature } from '@/common/hooks/useFeature'
 import {
   Card,
   CardHeader,
@@ -48,7 +49,15 @@ const DeductionForm: React.FC<DeductionFormProps> = ({
   loading = false,
   accessToken
 }) => {
+  // Feature flag check
+  const isDevEnabled = useFeature('dev.enabled')
+
   const [isSubmitting, setIsSubmitting] = useState(false)
+
+  // Feature flag guard
+  if (isDevEnabled === false) {
+    return null
+  }
   const [error, setError] = useState<string | null>(null)
 
   // Form state

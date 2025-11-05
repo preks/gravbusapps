@@ -1,5 +1,6 @@
 import React, { useState, useEffect, useMemo } from 'react'
 import dayjs from 'dayjs'
+import { useFeature } from '@/common/hooks/useFeature'
 import {
   Button,
   Input,
@@ -99,8 +100,16 @@ const SortableRow: React.FC<SortableRowProps> = ({ id, children }) => {
 }
 
 const MileageRuleForm: React.FC<MileageRuleFormProps> = ({ initialData, onSubmit, onCancel, accessToken }) => {
+  // Feature flag check
+  const isDevEnabled = useFeature('dev.enabled')
+
   // ✅ NEW: Hook for fetching fresh data when editing
   const { fetchMileageRuleById } = useGetMileageRuleStandaloneById({ accessToken } as BusinessAppContextProps)
+
+  // Feature flag guard
+  if (isDevEnabled === false) {
+    return null
+  }
 
   // Form state
   const [formData, setFormData] = useState<MileageRuleFormData>(() => {

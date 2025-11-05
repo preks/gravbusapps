@@ -1,12 +1,13 @@
 import React, { useState } from 'react'
 import { BusinessAppContextProps } from '@/common/BusinessAppContext'
 import { PageLayout } from '@/components/layout/pageLayout/PageLayout'
-import { Button, Card, CardContent, CardHeader, CardTitle } from '@newwork/nw-design-system'
+import { Button, Card, CardContent, CardHeader, CardTitle, Alert } from '@newwork/nw-design-system'
+import { useFeature } from '@/common/hooks/useFeature'
 import { PiPlus, PiMapPin } from 'react-icons/pi'
 import {
-  TravelRegionSetTestForm,
+  TravelRegionSetForm as TravelRegionSetTestForm,
   TravelRegionSetFormData
-} from '../../forms/travel-region-set-test-form/TravelRegionSetTestForm'
+} from '../expense-settings/forms/travel-region-set-form'
 import { getTranslationFromI18nKeyAndLabel } from '@/common/utils/windowUtils'
 
 export interface TravelRegionSetTestProps extends BusinessAppContextProps {
@@ -19,8 +20,32 @@ const TravelRegionSetTest: React.FC<TravelRegionSetTestProps> = ({
   className,
   prefixDataTestId = 'travel-region-set-test'
 }) => {
+  // Feature flag check (only for deployed environments, not local)
+  const isDevEnabled = useFeature('dev.enabled')
+
   const [isModalVisible, setIsModalVisible] = useState(false)
   const [createdSets, setCreatedSets] = useState<TravelRegionSetFormData[]>([])
+
+  // Only enforce feature flag in deployed environments (when it's explicitly false)
+  // In local development, undefined/null should allow access
+  if (isDevEnabled === false) {
+    return (
+      <PageLayout
+        headerIcon={<PiMapPin className="gba:w-8 gba:h-8" />}
+        headerLabel={getTranslationFromI18nKeyAndLabel('travel-region-set-test:title', 'Travel Region Set Test')}
+        contentContainer={
+          <div className="gba:p-6" data-testid={`${prefixDataTestId}-disabled`}>
+            <Alert variant="destructive">
+              {getTranslationFromI18nKeyAndLabel(
+                'travel-region-set-test:feature-disabled',
+                'This feature is currently under development and not available.'
+              )}
+            </Alert>
+          </div>
+        }
+      />
+    )
+  }
 
   const handleOpenModal = () => {
     setIsModalVisible(true)
