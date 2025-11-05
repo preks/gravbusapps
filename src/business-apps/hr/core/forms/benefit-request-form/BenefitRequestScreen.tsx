@@ -6,7 +6,7 @@ import { BusinessAppContextProps } from '@/common/BusinessAppContext'
 import AppActionForm from '@/components/app-action-form/AppActionForm'
 import { BenefitCatalogItem } from '@/business-apps/hr/core/apps/employee-record/components/tabs/compensation/types/benefitCatalogTypes'
 import { BENEFIT_FORM_VALIDATION } from '@/business-apps/hr/core/apps/employee-record/components/tabs/compensation/constants/benefitFormValidation'
-import { getDefaultStartDate } from '@/business-apps/hr/core/apps/employee-record/components/tabs/compensation/utils/dateUtils'
+import { getDefaultStartDate } from '@/business-apps/hr/core/apps/employee-record/utils/utils'
 import BenefitProviderField from '@/business-apps/hr/core/apps/employee-record/components/tabs/compensation/components/form-fields/BenefitProviderField'
 import BenefitValueField from '@/business-apps/hr/core/apps/employee-record/components/tabs/compensation/components/form-fields/BenefitValueField'
 

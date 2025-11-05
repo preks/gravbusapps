@@ -23,7 +23,7 @@ import {
   getReasonLabel
 } from '@/business-apps/hr/core/apps/employee-record/components/tabs/compensation/constants/benefitDeactivationReasons'
 import { BENEFIT_FORM_VALIDATION } from '@/business-apps/hr/core/apps/employee-record/components/tabs/compensation/constants/benefitFormValidation'
-import { getDefaultEndDate } from '@/business-apps/hr/core/apps/employee-record/components/tabs/compensation/utils/dateUtils'
+import { getDefaultEndDate } from '@/business-apps/hr/core/apps/employee-record/utils/utils'
 import BenefitSummaryCard from '@/business-apps/hr/core/apps/employee-record/components/tabs/compensation/components/modals/BenefitSummaryCard'
 
 export interface BenefitDeactivateScreenProps extends BusinessAppContextProps {
