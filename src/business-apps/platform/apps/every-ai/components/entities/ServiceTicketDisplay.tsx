@@ -2,6 +2,8 @@ import React, { useState, useEffect } from 'react'
 import { Card, CardContent } from '@newwork/nw-design-system'
 import { env } from '@/common/env/EnvUtils'
 import { useCatalogManagerClient } from '@/common/network/catalogs/useCatalogManagerClient'
+import { useGraphQLClient } from '@/common/network/graphql/useGraphQLClient'
+import { AvatarWithInitials } from '../shared/AvatarWithInitials'
 
 interface ServiceTicketDisplayProps {
   serviceTicketId: string
@@ -32,6 +34,13 @@ interface ServiceTicket {
   updatedAt?: string
 }
 
+interface AssigneeEmployee {
+  id: string
+  firstName: string
+  lastName: string
+  pictureThumbnail: string | null
+}
+
 export const ServiceTicketDisplay: React.FC<ServiceTicketDisplayProps> = ({
   serviceTicketId,
   accessToken,
@@ -41,7 +50,9 @@ export const ServiceTicketDisplay: React.FC<ServiceTicketDisplayProps> = ({
   const [isLoading, setIsLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
   const [catalogLabels, setCatalogLabels] = useState<Record<string, string>>({})
+  const [assigneeEmployee, setAssigneeEmployee] = useState<AssigneeEmployee | null>(null)
   const catalogClient = useCatalogManagerClient(accessToken)
+  const graphqlClient = useGraphQLClient(accessToken)
 
   useEffect(() => {
     const fetchTicket = async () => {
@@ -128,6 +139,38 @@ export const ServiceTicketDisplay: React.FC<ServiceTicketDisplayProps> = ({
       fetchTicket()
     }
   }, [serviceTicketId, accessToken, catalogClient])
+
+  // Fetch assignee employee details
+  useEffect(() => {
+    const fetchAssignee = async () => {
+      const assigneeId = ticket?.assignee || ticket?.assignment?.assignedTo
+      if (!assigneeId || !accessToken) return
+
+      try {
+        const query = `
+          query GetEmployeeByUserId($userId: String!) {
+            Employee(where: {userId: {_eq: $userId}}, limit: 1) {
+              id
+              firstName
+              lastName
+              pictureThumbnail
+            }
+          }
+        `
+        const result = await graphqlClient.request<{ Employee: AssigneeEmployee[] }>(query, {
+          userId: assigneeId
+        })
+
+        if (result.Employee && result.Employee.length > 0) {
+          setAssigneeEmployee(result.Employee[0])
+        }
+      } catch (err) {
+        console.warn('[ServiceTicket] Failed to fetch assignee employee:', err)
+      }
+    }
+
+    fetchAssignee()
+  }, [ticket, accessToken, graphqlClient])
 
   if (isLoading) {
     return (
@@ -242,8 +285,26 @@ export const ServiceTicketDisplay: React.FC<ServiceTicketDisplayProps> = ({
 
           {(ticket.assignee || ticket.assignment?.assignedTo) && (
             <div>
-              <div className="gba:text-muted-foreground gba:text-sm">Assignee</div>
-              <div className="gba:text-foreground gba:text-sm">{ticket.assignee || ticket.assignment?.assignedTo}</div>
+              <div className="gba:text-muted-foreground gba:text-sm gba:mb-2">Assignee</div>
+              {assigneeEmployee ? (
+                <div className="gba:flex gba:items-center gba:gap-3">
+                  <AvatarWithInitials
+                    firstName={assigneeEmployee.firstName}
+                    lastName={assigneeEmployee.lastName}
+                    pictureThumbnail={assigneeEmployee.pictureThumbnail}
+                    size={36}
+                  />
+                  <div>
+                    <div className="gba:text-sm gba:font-medium gba:text-foreground">
+                      {assigneeEmployee.firstName} {assigneeEmployee.lastName}
+                    </div>
+                  </div>
+                </div>
+              ) : (
+                <div className="gba:text-foreground gba:text-sm gba:font-mono gba:text-xs">
+                  {ticket.assignee || ticket.assignment?.assignedTo}
+                </div>
+              )}
             </div>
           )}
 
