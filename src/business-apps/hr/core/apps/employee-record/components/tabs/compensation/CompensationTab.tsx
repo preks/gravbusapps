@@ -44,6 +44,9 @@ const CompensationTab: React.FC<JobsCompensationTabProps> = ({ employee, employe
   // Fetch compensation data
   const { loading, error, compensationData, historyData, refetch } = useCompensationData(empId, accessToken)
 
+  // Extract currency code from compensation data
+  const currencyCode = compensationData?.currentCompensation?.currency?.code || 'EUR'
+
   // Handle error state
   if (error) {
     return (
@@ -139,6 +142,7 @@ const CompensationTab: React.FC<JobsCompensationTabProps> = ({ employee, employe
                 growthData={historyData.growthData}
                 loading={loading}
                 locale={currentLocale}
+                currencyCode={currencyCode}
                 accessToken={accessToken}
                 userInfo={userInfo}
               />

@@ -12,6 +12,7 @@ interface GrowthViewProps extends BusinessAppContextProps {
   growthData: GrowthData
   loading: boolean
   locale: string
+  currencyCode?: string
 }
 
 /**
@@ -24,6 +25,7 @@ const GrowthView: React.FC<GrowthViewProps> = ({
   growthData,
   loading,
   locale,
+  currencyCode,
   accessToken,
   userInfo,
   additionalData
@@ -31,7 +33,7 @@ const GrowthView: React.FC<GrowthViewProps> = ({
   return (
     <div className="gba:space-y-6" data-testid="growth-view">
       {/* Growth Statistics KPI Cards */}
-      <GrowthStatistics t={t} growthData={growthData} loading={loading} locale={locale} />
+      <GrowthStatistics t={t} growthData={growthData} loading={loading} locale={locale} currencyCode={currencyCode} />
 
       {/* Timeline Chart */}
       <GrowthTimelineChart t={t} growthData={growthData} loading={loading} locale={locale} />

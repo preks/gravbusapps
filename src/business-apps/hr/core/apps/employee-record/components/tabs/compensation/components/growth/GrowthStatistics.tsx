@@ -1,108 +1,91 @@
 'use client'
 
-import React from 'react'
-import { Card } from '@newwork/nw-design-system'
+import React, { useMemo } from 'react'
 import { PiTrendUp, PiChartLineUp, PiTarget } from 'react-icons/pi'
 import { GrowthData } from '../../types/compensationTypes'
 import { formatCurrencyString } from '@/common/utils/numberFormatter'
+import { WidgetGroup, WidgetItem } from '@/components/widget-group'
 
 interface GrowthStatisticsProps {
   t: (key: string, params?: any) => string
   growthData: GrowthData
   loading: boolean
   locale: string
+  currencyCode?: string
 }
 
 /**
  * Growth Statistics Component
- * Displays KPI cards for compensation growth metrics
+ * Displays KPI cards for compensation growth metrics using WidgetGroup pattern
  */
-const GrowthStatistics: React.FC<GrowthStatisticsProps> = ({ t, growthData, loading, locale }) => {
+const GrowthStatistics: React.FC<GrowthStatisticsProps> = ({
+  t,
+  growthData,
+  loading,
+  locale,
+  currencyCode = 'EUR'
+}) => {
+  const { totalGrowth, averageAnnualIncrease, totalMilestonesCount } = growthData
+
+  // Format percentage for display
   const formatPercentage = (value: number): string => {
     return `${value > 0 ? '+' : ''}${value.toFixed(1)}%`
   }
 
-  const { totalGrowth, averageAnnualIncrease, totalMilestonesCount } = growthData
+  // Format growth range for description
+  const formatGrowthRange = (startAmount: number, currentAmount: number): string => {
+    const start = formatCurrencyString(startAmount, {
+      currency: currencyCode,
+      locale: locale,
+      minimumFractionDigits: 0,
+      maximumFractionDigits: 0
+    })
+    const current = formatCurrencyString(currentAmount, {
+      currency: currencyCode,
+      locale: locale,
+      minimumFractionDigits: 0,
+      maximumFractionDigits: 0
+    })
+    return `${start} → ${current}`
+  }
+
+  // Transform statistics data into widgets format
+  const widgets: WidgetItem[] = useMemo(
+    () => [
+      {
+        key: 'total-growth',
+        title: t('growth-total-growth'),
+        value: formatPercentage(totalGrowth.changePercentage),
+        prefix: <PiTrendUp />,
+        color: '#52c41a',
+        description: formatGrowthRange(totalGrowth.startAmount, totalGrowth.currentAmount),
+        valueIsString: true
+      },
+      {
+        key: 'average-annual-increase',
+        title: t('growth-avg-annual-increase'),
+        value: formatPercentage(averageAnnualIncrease),
+        prefix: <PiChartLineUp />,
+        color: '#1890ff',
+        description: t('growth-per-year-over', { years: 3 }),
+        valueIsString: true
+      },
+      {
+        key: 'career-milestones',
+        title: t('growth-career-milestones'),
+        value: totalMilestonesCount,
+        prefix: <PiTarget />,
+        color: '#722ed1',
+        description: t('growth-significant-events'),
+        valueIsString: false
+      }
+    ],
+    [t, totalGrowth, averageAnnualIncrease, totalMilestonesCount, currencyCode, locale]
+  )
 
   return (
-    <div className="gba:grid gba:grid-cols-1 gba:md:grid-cols-3 gba:gap-4" data-testid="growth-statistics">
-      {/* Total Growth Card */}
-      <Card className="gba:p-6" data-testid="growth-total-card">
-        <div className="gba:flex gba:items-start gba:justify-between">
-          <div className="gba:flex-1">
-            <div className="gba:text-sm gba:text-muted-foreground gba:mb-2">{t('growth-total-growth')}</div>
-            {loading ? (
-              <div className="gba:text-3xl gba:font-bold gba:text-foreground">-</div>
-            ) : (
-              <>
-                <div className="gba:text-3xl gba:font-bold gba:text-foreground">
-                  {formatPercentage(totalGrowth.changePercentage)}
-                </div>
-                <div className="gba:text-xs gba:text-muted-foreground gba:mt-1">
-                  {formatCurrencyString(totalGrowth.startAmount, {
-                    currency: 'EUR',
-                    locale: locale,
-                    minimumFractionDigits: 0,
-                    maximumFractionDigits: 0
-                  })}{' '}
-                  →{' '}
-                  {formatCurrencyString(totalGrowth.currentAmount, {
-                    currency: 'EUR',
-                    locale: locale,
-                    minimumFractionDigits: 0,
-                    maximumFractionDigits: 0
-                  })}
-                </div>
-              </>
-            )}
-          </div>
-          <div className="gba:p-3 gba:rounded-lg gba:bg-success-secondary/20">
-            <PiTrendUp className="gba:w-6 gba:h-6 gba:text-success" />
-          </div>
-        </div>
-      </Card>
-
-      {/* Average Annual Increase Card */}
-      <Card className="gba:p-6" data-testid="growth-annual-card">
-        <div className="gba:flex gba:items-start gba:justify-between">
-          <div className="gba:flex-1">
-            <div className="gba:text-sm gba:text-muted-foreground gba:mb-2">{t('growth-avg-annual-increase')}</div>
-            {loading ? (
-              <div className="gba:text-3xl gba:font-bold gba:text-foreground">-</div>
-            ) : (
-              <>
-                <div className="gba:text-3xl gba:font-bold gba:text-foreground">
-                  {formatPercentage(averageAnnualIncrease)}
-                </div>
-                <div className="gba:text-xs gba:text-muted-foreground gba:mt-1">Per year over 3 years</div>
-              </>
-            )}
-          </div>
-          <div className="gba:p-3 gba:rounded-lg gba:bg-info-secondary/20">
-            <PiChartLineUp className="gba:w-6 gba:h-6 gba:text-info" />
-          </div>
-        </div>
-      </Card>
-
-      {/* Career Milestones Card */}
-      <Card className="gba:p-6" data-testid="growth-milestones-card">
-        <div className="gba:flex gba:items-start gba:justify-between">
-          <div className="gba:flex-1">
-            <div className="gba:text-sm gba:text-muted-foreground gba:mb-2">{t('growth-career-milestones')}</div>
-            {loading ? (
-              <div className="gba:text-3xl gba:font-bold gba:text-foreground">-</div>
-            ) : (
-              <>
-                <div className="gba:text-3xl gba:font-bold gba:text-foreground">{totalMilestonesCount}</div>
-                <div className="gba:text-xs gba:text-muted-foreground gba:mt-1">Significant events</div>
-              </>
-            )}
-          </div>
-          <div className="gba:p-3 gba:rounded-lg gba:bg-primary/10">
-            <PiTarget className="gba:w-6 gba:h-6 gba:text-primary" />
-          </div>
-        </div>
-      </Card>
+    <div data-testid="growth-statistics">
+      <WidgetGroup widgets={widgets} isLoading={loading} skeletonCount={3} />
     </div>
   )
 }
