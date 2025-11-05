@@ -177,7 +177,7 @@ const BenefitsPerksSection: React.FC<BenefitsPerksProps> = ({
                   <h4 className="gba:font-semibold gba:mb-1">{t('benefits-catalog-error-title')}</h4>
                   <p className="gba:text-sm">{error}</p>
                 </div>
-                <Button size="sm" onClick={refetch} variant="outline">
+                <Button size="sm" onClick={refetch} variant="outline" data-testid="benefits-catalog-retry-button">
                   {t('benefits-catalog-retry')}
                 </Button>
               </div>
@@ -215,6 +215,7 @@ const BenefitsPerksSection: React.FC<BenefitsPerksProps> = ({
                     setSearchQuery('')
                   }}
                   className="gba:mt-4"
+                  data-testid="benefits-catalog-clear-search-button"
                 >
                   Clear Search
                 </Button>
