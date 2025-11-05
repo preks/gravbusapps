@@ -107,6 +107,22 @@ benefit-value-yearly = Yearly Value
 benefit-no-provider = No provider specified
 benefit-since = Since
 
+# Benefit Details Modal
+benefit-details-type-info = Benefit Type Information
+benefit-details-code = Code
+benefit-details-category = Category
+benefit-details-provider-info = Provider Information
+benefit-details-provider = Provider
+benefit-details-value-info = Value Information
+benefit-details-yearly-value = Yearly Value
+benefit-details-monthly-value = Monthly Value
+benefit-details-active-period = Active Period
+benefit-details-start-date = Start Date
+benefit-details-end-date = End Date
+benefit-details-notes = Notes
+benefit-details-available-providers = Available Providers
+common-close = Close
+
 # Payslip History
 payslip-title = Payslip History
 payslip-search-placeholder = Search payslips...

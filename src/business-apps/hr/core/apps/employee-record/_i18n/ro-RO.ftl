@@ -107,6 +107,22 @@ benefit-value-yearly = Valoare anuală
 benefit-no-provider = Niciun furnizor specificat
 benefit-since = Din
 
+# Benefit Details Modal
+benefit-details-type-info = Informații despre tipul de beneficiu
+benefit-details-code = Cod
+benefit-details-category = Categorie
+benefit-details-provider-info = Informații despre furnizor
+benefit-details-provider = Furnizor
+benefit-details-value-info = Informații despre valoare
+benefit-details-yearly-value = Valoare anuală
+benefit-details-monthly-value = Valoare lunară
+benefit-details-active-period = Perioadă activă
+benefit-details-start-date = Data de început
+benefit-details-end-date = Data de încheiere
+benefit-details-notes = Note
+benefit-details-available-providers = Furnizori disponibili
+common-close = Închide
+
 # Payslip History
 payslip-title = Istoricul fluturilor de salariu
 payslip-search-placeholder = Căutați fluture de salariu...
