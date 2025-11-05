@@ -4,15 +4,26 @@ import { Button, Alert, AlertDescription, Spinner } from '@newwork/nw-design-sys
 import { formatDataTestId } from '@/common/utils/formatDataTestId'
 import { dispatchProcessContinueEvent } from '@/common/utils/processEventUtils'
 import AccountInformationSection from './AccountInformationSection'
-import CompanyInformationSection from './CompanyInformationSection'
-import ContactInformationSection from './ContactInformationSection'
 import AddressInformationSection from './AddressInformationSection'
 import FinancialInformationSection from './FinancialInformationSection'
+import ContactSelect from '@/common/components/common-relations/selects/contact-select/ContactSelect'
 
 const prefixDataTestId = 'AccountForm'
 
 const AccountFormComponent: React.FC = () => {
-  const { formValues, onSubmit, onCancel, isLoading, error } = useAccountFormContext()
+  const {
+    formValues,
+    onSubmit,
+    onCancel,
+    hideActions,
+    isLoading,
+    error,
+    setFormValues,
+    contacts,
+    contactsLoading,
+    contactsError,
+    searchContacts
+  } = useAccountFormContext()
 
   // Check if all mandatory fields are filled
   const isFormValid = formValues.owner && formValues.legalForm && formValues.accountName
@@ -28,105 +39,129 @@ const AccountFormComponent: React.FC = () => {
       // Determine if this is an update or create operation
       const isUpdate = formValues.id
 
-      // Prepare comprehensive account payload following the API structure
+      // Prepare comprehensive CRM account payload (verified against GraphQL schema)
       const accountPayload: any = {
         sourceApp: 'CRM',
+
+        // Basic Information
         name: toStringOrUndefined(formValues.accountName),
-        parentAccountRef: toStringOrUndefined(formValues.parentAccount),
         legalFormRef: toStringOrUndefined(formValues.legalForm),
         industryRef: toStringOrUndefined(formValues.industry),
         website: toStringOrUndefined(formValues.website),
-        description: toStringOrUndefined(formValues.description),
-        salesCampaign: toStringOrUndefined(formValues.salesCampaignId),
+
+        // Contact Information
         phone: toStringOrUndefined(formValues.phone),
         email: toStringOrUndefined(formValues.email),
-        fax: toStringOrUndefined(formValues.fax),
-        countryRef: toStringOrUndefined(formValues.country),
-        regionRef: toStringOrUndefined(formValues.region),
-        addressLine: undefined, // Will be set from addresses array below
-        postalCode: toStringOrUndefined(formValues.postalCode),
-        city: toStringOrUndefined(formValues.city),
-        annualRevenue: toStringOrUndefined(formValues.annualRevenue),
+
+        // Financial Information
+        annualRevenueRef: toStringOrUndefined(formValues.annualRevenue),
         numberOfEmployeesRef: toStringOrUndefined(formValues.numberOfEmployees),
-        currencyRef: toStringOrUndefined(formValues.currency),
-        //  timeZoneRef: toStringOrUndefined(formValues.timeZone),
         foundationDate: toStringOrUndefined(formValues.foundationDate),
-        tickerSymbol: toStringOrUndefined(formValues.tickerSymbol),
-        sicCode: toStringOrUndefined(formValues.sicCode),
+
+        // Relationships
         ownerEmployee: toStringOrUndefined(formValues.owner),
-        ownerOrganization: undefined // Will be set by backend based on owner employee
+
+        // CRM-specific field (NOT in IRM)
+        salesCampaign: toStringOrUndefined(formValues.salesCampaignId), // ✅ CRM-SPECIFIC
+
+        // Additional properties (JSONB field)
+        additionalProperties: {},
+        tags: []
       }
 
       // For updates, include the account ID and version
       if (isUpdate) {
         accountPayload.id = formValues.id
-        if (formValues.version !== undefined) {
-          accountPayload.version = formValues.version
-        }
+        // ✅ CRITICAL: Version is required for updates - default to 0 if missing
+        accountPayload.version = formValues.version ?? 0
       }
 
-      // Build addresses array from dynamic addresses
-      const addresses: any[] = []
+      // ✅ NEW: Build addresses array (matching IRM pattern)
+      accountPayload.addresses =
+        formValues.addresses
+          ?.filter(
+            addr =>
+              // Only include addresses that have some content
+              addr.addressLines.some(line => line.trim()) ||
+              addr.postalCode.trim() ||
+              addr.city.trim() ||
+              addr.region.trim() ||
+              addr.country.trim()
+          )
+          .map(addr => {
+            const addressPayload: any = {
+              addressType: addr.addressType || 'PRIMARY_ADDRESS',
+              // ✅ CRM: addressLine is a String (join array into single line)
+              addressLine: addr.addressLines.some(line => line.trim())
+                ? addr.addressLines.filter(line => line.trim()).join(', ')
+                : null,
+              postalCode: addr.postalCode.trim() || null,
+              city: addr.city.trim() || null,
+              regionRef: addr.region.trim() || null,
+              countryRef: addr.country.trim() || null
+            }
 
-      // Process dynamic addresses (new implementation)
-      if (formValues.addresses && formValues.addresses.length > 0) {
-        formValues.addresses.forEach(address => {
-          // Filter out empty address lines
-          const nonEmptyLines = address.addressLines.map(line => toStringOrUndefined(line)).filter(line => line)
+            // Only include ID and version when updating an existing address
+            // ✅ CRITICAL: Only include ID if it's a valid UUID (not temporary IDs like "address-0")
+            const isValidUUID = (id: string) => {
+              const uuidRegex = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i
+              return uuidRegex.test(id)
+            }
 
-          nonEmptyLines.forEach(addressLine => {
-            addresses.push({
-              addressType: address.addressType || 'UNKNOWN_ADDRESS',
-              addressLine: addressLine,
-              postalCode: toStringOrUndefined(address.postalCode),
-              city: toStringOrUndefined(address.city),
-              regionRef: toStringOrUndefined(address.region),
-              countryRef: toStringOrUndefined(address.country)
-            })
-          })
+            if (isUpdate && addr.id && addr.id !== 'default-address' && isValidUUID(addr.id)) {
+              addressPayload.id = addr.id
+              if (addr.version !== undefined && addr.version !== null) {
+                addressPayload.version = addr.version
+              }
+            }
 
-          // If no address lines but other address data exists, create one address with empty addressLine
-          if (
-            nonEmptyLines.length === 0 &&
-            (toStringOrUndefined(address.city) ||
-              toStringOrUndefined(address.postalCode) ||
-              toStringOrUndefined(address.region) ||
-              toStringOrUndefined(address.country))
-          ) {
-            addresses.push({
-              addressType: address.addressType || 'UNKNOWN_ADDRESS',
-              addressLine: '',
-              postalCode: toStringOrUndefined(address.postalCode),
-              city: toStringOrUndefined(address.city),
-              regionRef: toStringOrUndefined(address.region),
-              countryRef: toStringOrUndefined(address.country)
-            })
-          }
-        })
-      }
-
-      // Set addresses to null if empty, otherwise use the addresses array
-      accountPayload.addresses = addresses.length > 0 ? addresses : null
-
-      // Set the main addressLine field from the first address (for backward compatibility)
-      if (addresses.length > 0) {
-        accountPayload.addressLine = addresses[0].addressLine
-      } else {
-        accountPayload.addressLine = null
-      }
-
-      accountPayload.tags = []
+            return addressPayload
+          }) || []
 
       // Determine change mode based on whether we have an ID
       const changeMode = isUpdate ? 'UPDATE' : 'INSERT'
 
+      // ✅ NEW: Build accountContacts array with full association objects (matching IRM pattern)
+      const accountContacts = (formValues.contactIds || []).map((contact: any) => {
+        if (typeof contact === 'object' && contact.id) {
+          // Existing association - include association metadata if available
+          const accountContact: any = {
+            contactType: null,
+            account: formValues.id, // Current account ID
+            contact: contact.id
+          }
+
+          // Include association ID and version if it exists (for updates)
+          // Type guard: check if contact has association metadata
+          if (contact.associationId) {
+            accountContact.id = contact.associationId
+            if (contact.associationVersion !== undefined) {
+              accountContact.version = contact.associationVersion
+            }
+          }
+
+          return accountContact
+        }
+
+        // New association - simple format
+        return {
+          contactType: null,
+          account: formValues.id,
+          contact: contact
+        }
+      })
+
+      // ✅ UPDATED: Create clean payload structure with accountContacts for UPDATE, contactIds for CREATE (matching IRM pattern)
       const payload = {
-        account: accountPayload,
-        changeMode: changeMode
+        account: {
+          ...accountPayload,
+          accountContacts: isUpdate ? accountContacts : undefined // Only for updates
+        },
+        changeMode: changeMode,
+        contactIds: isUpdate ? undefined : accountContacts.map((ac: any) => ac.contact) // For CREATE mode only
       }
 
       // Dispatch process continue event on successful submission
-      console.log('✅ Account form dispatching pse_submit event with payload:', payload)
       dispatchProcessContinueEvent('pse_submit', payload)
 
       // Call the onSubmit callback after dispatching the process event
@@ -161,11 +196,19 @@ const AccountFormComponent: React.FC = () => {
           {/* Account Information Section */}
           <AccountInformationSection />
 
-          {/* Company Information Section */}
-          <CompanyInformationSection />
-
-          {/* Contact Information Section */}
-          <ContactInformationSection />
+          {/* Related Contacts Selection - Multiple contacts can be associated */}
+          <div className="gba:space-y-2">
+            <ContactSelect
+              value={formValues.contactIds || []}
+              onChange={contactIds => setFormValues({ contactIds })}
+              dataTestId={formatDataTestId(prefixDataTestId, 'contact-selector')}
+              error={null}
+              contacts={contacts as any} // Type cast to handle SelectOption differences
+              contactsLoading={contactsLoading}
+              contactsError={contactsError}
+              searchContacts={searchContacts}
+            />
+          </div>
 
           {/* Address Information Section */}
           <AddressInformationSection />
@@ -181,29 +224,31 @@ const AccountFormComponent: React.FC = () => {
           )}
         </div>
 
-        {/* Submit and Cancel Buttons - Fixed at bottom */}
-        <div className="gba:mt-6 gba:pt-4 gba:border-t gba:border-gray-200 gba:flex gba:gap-3">
-          <Button
-            variant="secondary"
-            className="gba:flex-1"
-            size="lg"
-            onClick={handleCancel}
-            data-testid={formatDataTestId(prefixDataTestId, 'CancelButton')}
-          >
-            Cancel
-          </Button>
-          <Button
-            variant="default"
-            disabled={!isFormValid}
-            className="gba:flex-1"
-            size="lg"
-            onClick={handleSubmit}
-            data-testid={formatDataTestId(prefixDataTestId, 'SubmitButton')}
-          >
-            {isLoading && <Spinner size="sm" className="gba:mr-2" />}
-            {formValues.id ? 'Update Account' : 'Create Account'}
-          </Button>
-        </div>
+        {/* Submit and Cancel Buttons - Fixed at bottom (hidden in wizard mode) */}
+        {!hideActions && (
+          <div className="gba:mt-6 gba:pt-4 gba:border-t gba:border-gray-200 gba:flex gba:gap-3">
+            <Button
+              variant="secondary"
+              className="gba:flex-1"
+              size="lg"
+              onClick={handleCancel}
+              data-testid={formatDataTestId(prefixDataTestId, 'CancelButton')}
+            >
+              Cancel
+            </Button>
+            <Button
+              variant="default"
+              disabled={!isFormValid}
+              className="gba:flex-1"
+              size="lg"
+              onClick={handleSubmit}
+              data-testid={formatDataTestId(prefixDataTestId, 'SubmitButton')}
+            >
+              {isLoading && <Spinner size="sm" className="gba:mr-2" />}
+              {formValues.id ? 'Update Account' : 'Create Account'}
+            </Button>
+          </div>
+        )}
       </div>
     </div>
   )

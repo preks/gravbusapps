@@ -17,7 +17,7 @@ import { DealHealthMatrix } from './widgets/DealHealthMatrix'
 import { Card, CardContent, CardHeader, CardTitle } from '@newwork/nw-design-system'
 import { OpportunitiesByStageBar } from './widgets/OpportunitiesByStageBar'
 import { OpportunitiesByPipelinePie } from './widgets/OpportunitiesByPipelinePie'
-import { formatCurrencyCompact } from '@/business-apps/irm/investments/apps/investment-management/utils/currencyUtils'
+import { formatCurrencyCompact } from '@/common/utils/numberFormatter'
 
 export interface OpportunitiesTrendData {
   totalOpportunitiesLastMonth: number
@@ -120,7 +120,7 @@ export const OpportunitiesTabLayout: React.FC<OpportunitiesTabLayoutProps> = ({
     {
       key: 'total-value',
       title: selectedPipelineId ? 'Pipeline Value (Filtered)' : 'Total Pipeline Value',
-      value: formatCurrencyCompact(totalValue),
+      value: formatCurrencyCompact(totalValue, 'USD', undefined, 1, true),
       valueIsString: true,
       prefix: <DollarCircleOutlined />,
       description: selectedPipelineId ? 'Combined value in selected pipeline' : 'Combined value of all opportunities',
@@ -129,7 +129,7 @@ export const OpportunitiesTabLayout: React.FC<OpportunitiesTabLayoutProps> = ({
             trend: {
               value: calculatePercentChange(totalValue, trendData.previousPeriodPipelineValue || 0),
               positive: totalValue >= (trendData.previousPeriodPipelineValue || 0),
-              description: `${formatCurrencyCompact(totalValue)} total vs ${formatCurrencyCompact(trendData.previousPeriodPipelineValue || 0)} last month`
+              description: `${formatCurrencyCompact(totalValue, 'USD', undefined, 1, true)} total vs ${formatCurrencyCompact(trendData.previousPeriodPipelineValue || 0, 'USD', undefined, 1, true)} last month`
             }
           }
         : {})
@@ -154,7 +154,7 @@ export const OpportunitiesTabLayout: React.FC<OpportunitiesTabLayoutProps> = ({
     {
       key: 'avg-deal-size',
       title: 'Avg. Deal Size',
-      value: formatCurrencyCompact(trendData?.actualAvgDealSizeThisMonth || avgDealSize),
+      value: formatCurrencyCompact(trendData?.actualAvgDealSizeThisMonth || avgDealSize, 'USD', undefined, 1, true),
       valueIsString: true,
       prefix: <DollarCircleOutlined />,
       description: 'Average opportunity value',
@@ -167,7 +167,7 @@ export const OpportunitiesTabLayout: React.FC<OpportunitiesTabLayoutProps> = ({
               ),
               positive:
                 (trendData.actualAvgDealSizeThisMonth || avgDealSize) >= (trendData.actualAvgDealSizeLastMonth || 0),
-              description: `${formatCurrencyCompact(trendData.actualAvgDealSizeThisMonth || avgDealSize)} this period vs ${formatCurrencyCompact(trendData.actualAvgDealSizeLastMonth || 0)} last month`
+              description: `${formatCurrencyCompact(trendData.actualAvgDealSizeThisMonth || avgDealSize, 'USD', undefined, 1, true)} this period vs ${formatCurrencyCompact(trendData.actualAvgDealSizeLastMonth || 0, 'USD', undefined, 1, true)} last month`
             }
           }
         : {})
@@ -319,7 +319,7 @@ export const OpportunitiesTabLayout: React.FC<OpportunitiesTabLayoutProps> = ({
                     </div>
                   </div>
                   <div className="gba:text-right">
-                    <div className="gba:font-bold">{formatCurrencyCompact(deal.value, 'USD')}</div>
+                    <div className="gba:font-bold">{formatCurrencyCompact(deal.value, 'USD', undefined, 1, true)}</div>
                     <div className="gba:text-sm gba:text-gray-600">Opportunity Value</div>
                   </div>
                 </div>

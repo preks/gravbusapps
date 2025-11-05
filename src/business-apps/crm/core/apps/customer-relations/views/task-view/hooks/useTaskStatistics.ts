@@ -1,211 +1,100 @@
 'use client'
 
-import { useState, useCallback, useEffect, useRef } from 'react'
-import { TaskStatistics } from '@/common/components/common-relations/detail-sheets/task-detail-sheet'
+import { useState, useCallback, useEffect, useMemo } from 'react'
 import { TaskFilters } from './useTaskFilters'
 import { useSalesTaskQueries } from './useSalesTaskQueries'
+import { BusinessAppContextProps } from '@/common/BusinessAppContext'
 
 interface UseTaskStatisticsProps extends TaskFilters {
   accessToken: string
+  userInfo?: BusinessAppContextProps['userInfo']
+}
+
+interface TaskStatisticsData {
+  totalTasks: { value: number }
+  inProgress: { value: number }
+  completed: { value: number }
+  overdue: { value: number }
 }
 
 interface UseTaskStatisticsReturn {
-  statistics: TaskStatistics
+  myTasksStatistics: TaskStatisticsData
+  teamTasksStatistics: TaskStatisticsData
   loading: boolean
   error: Error | null
   refetch: () => void
 }
 
 /**
- * Calculate growth percentage and direction
+ * Helper: Check if a task is overdue
  */
-const calculateGrowth = (
-  current: number,
-  previous: number
-): { growth: number; growthDirection: 'up' | 'down' | 'stable' } => {
-  if (previous === 0) {
-    return {
-      growth: current > 0 ? 100 : 0,
-      growthDirection: current > 0 ? 'up' : 'stable'
-    }
-  }
-
-  const growth = ((current - previous) / previous) * 100
-  let growthDirection: 'up' | 'down' | 'stable' = 'stable'
-
-  if (growth > 2) growthDirection = 'up'
-  else if (growth < -2) growthDirection = 'down'
-
-  return { growth, growthDirection }
+const isTaskOverdue = (task: any): boolean => {
+  return task.dueDate && new Date(task.dueDate) < new Date()
 }
 
 /**
- * Calculate statistics from sales tasks with growth comparison
+ * Helper: Categorize task status
  */
-const calculateStatisticsWithGrowth = (currentTasks: any[], previousTasks: any[], allTasks: any[]): TaskStatistics => {
-  // Calculate current period statistics
-  let currentTotal = 0
-  let currentInProgress = 0
-  let currentCompleted = 0
-  let currentOverdue = 0
+const categorizeTaskStatus = (task: any): 'completed' | 'overdue' | 'in_progress' => {
+  if (task.statusRef) {
+    const statusValue = task.statusRef.split(':').pop()?.toLowerCase()
 
-  currentTasks.forEach(task => {
-    currentTotal++
-
-    if (task.statusRef) {
-      const statusValue = task.statusRef.split(':').pop()?.toLowerCase()
-      switch (statusValue) {
-        case 'completed':
-        case 'done':
-          currentCompleted++
-          break
-        case 'in_progress':
-        case 'active':
-          currentInProgress++
-          break
-        case 'overdue':
-          currentOverdue++
-          break
-        default:
-          if (task.dueDate && new Date(task.dueDate) < new Date()) {
-            currentOverdue++
-          } else {
-            currentInProgress++
-          }
-      }
-    } else {
-      if (task.dueDate && new Date(task.dueDate) < new Date()) {
-        currentOverdue++
-      } else {
-        currentInProgress++
-      }
+    if (statusValue === 'completed' || statusValue === 'done') {
+      return 'completed'
     }
-  })
-
-  // Calculate previous period statistics
-  let previousTotal = 0
-  let previousInProgress = 0
-  let previousCompleted = 0
-  let previousOverdue = 0
-
-  previousTasks.forEach(task => {
-    previousTotal++
-
-    if (task.statusRef) {
-      const statusValue = task.statusRef.split(':').pop()?.toLowerCase()
-      switch (statusValue) {
-        case 'completed':
-        case 'done':
-          previousCompleted++
-          break
-        case 'in_progress':
-        case 'active':
-          previousInProgress++
-          break
-        case 'overdue':
-          previousOverdue++
-          break
-        default:
-          if (task.dueDate && new Date(task.dueDate) < new Date()) {
-            previousOverdue++
-          } else {
-            previousInProgress++
-          }
-      }
-    } else {
-      if (task.dueDate && new Date(task.dueDate) < new Date()) {
-        previousOverdue++
-      } else {
-        previousInProgress++
-      }
+    if (statusValue === 'in_progress' || statusValue === 'active') {
+      return 'in_progress'
     }
-  })
-
-  // Calculate statistics from filtered all tasks (not system-wide)
-  let filteredTotal = 0
-  let filteredInProgress = 0
-  let filteredCompleted = 0
-  let filteredOverdue = 0
-
-  allTasks.forEach(task => {
-    filteredTotal++
-
-    if (task.statusRef) {
-      const statusValue = task.statusRef.split(':').pop()?.toLowerCase()
-      switch (statusValue) {
-        case 'completed':
-        case 'done':
-          filteredCompleted++
-          break
-        case 'in_progress':
-        case 'active':
-          filteredInProgress++
-          break
-        case 'overdue':
-          filteredOverdue++
-          break
-        default:
-          if (task.dueDate && new Date(task.dueDate) < new Date()) {
-            filteredOverdue++
-          } else {
-            filteredInProgress++
-          }
-      }
-    } else {
-      if (task.dueDate && new Date(task.dueDate) < new Date()) {
-        filteredOverdue++
-      } else {
-        filteredInProgress++
-      }
+    if (statusValue === 'overdue') {
+      return 'overdue'
     }
-  })
+  }
 
-  // Calculate growth indicators
-  const totalGrowth = calculateGrowth(currentTotal, previousTotal)
-  const inProgressGrowth = calculateGrowth(currentInProgress, previousInProgress)
-  const completedGrowth = calculateGrowth(currentCompleted, previousCompleted)
-  const overdueGrowth = calculateGrowth(currentOverdue, previousOverdue)
+  // Default: check due date
+  return isTaskOverdue(task) ? 'overdue' : 'in_progress'
+}
+
+/**
+ * Calculate simple statistics from sales tasks (no growth)
+ */
+const calculateSimpleStatistics = (tasks: any[]): TaskStatisticsData => {
+  let total = 0
+  let inProgress = 0
+  let completed = 0
+  let overdue = 0
+
+  for (const task of tasks) {
+    total++
+
+    const category = categorizeTaskStatus(task)
+    if (category === 'completed') {
+      completed++
+    } else if (category === 'overdue') {
+      overdue++
+    } else {
+      inProgress++
+    }
+  }
 
   return {
-    totalTasks: {
-      value: filteredTotal,
-      previousValue: previousTotal,
-      growth: totalGrowth.growth,
-      growthDirection: totalGrowth.growthDirection
-    },
-    inProgress: {
-      value: filteredInProgress,
-      previousValue: previousInProgress,
-      growth: inProgressGrowth.growth,
-      growthDirection: inProgressGrowth.growthDirection
-    },
-    completed: {
-      value: filteredCompleted,
-      previousValue: previousCompleted,
-      growth: completedGrowth.growth,
-      growthDirection: completedGrowth.growthDirection
-    },
-    overdue: {
-      value: filteredOverdue,
-      previousValue: previousOverdue,
-      growth: overdueGrowth.growth,
-      growthDirection: overdueGrowth.growthDirection
-    }
+    totalTasks: { value: total },
+    inProgress: { value: inProgress },
+    completed: { value: completed },
+    overdue: { value: overdue }
   }
 }
 
 export const useTaskStatistics = (props: UseTaskStatisticsProps): UseTaskStatisticsReturn => {
-  const {
-    accessToken,
-    // Extract filter properties to use for tab-specific statistics
-    assignedEmployeeIds,
-    statusRefs,
-    priorityRefs,
-    taskTypes
-  } = props
+  const { accessToken, userInfo } = props
 
   // State
-  const [statistics, setStatistics] = useState<TaskStatistics>({
+  const [myTasksStatistics, setMyTasksStatistics] = useState<TaskStatisticsData>({
+    totalTasks: { value: 0 },
+    inProgress: { value: 0 },
+    completed: { value: 0 },
+    overdue: { value: 0 }
+  })
+  const [teamTasksStatistics, setTeamTasksStatistics] = useState<TaskStatisticsData>({
     totalTasks: { value: 0 },
     inProgress: { value: 0 },
     completed: { value: 0 },
@@ -214,60 +103,44 @@ export const useTaskStatistics = (props: UseTaskStatisticsProps): UseTaskStatist
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState<Error | null>(null)
 
-  // Throttling to prevent excessive requests
-  const lastFetchTime = useRef(0)
-  const FETCH_THROTTLE_MS = 3000 // Only allow refetch every 3 seconds
-
   // GraphQL queries
   const { fetchHistoricalStatistics } = useSalesTaskQueries({ accessToken })
 
-  // Build filter variables for statistics
-  const getFilterVariables = useCallback(() => {
-    const filterVariables: any = {}
-
-    if (assignedEmployeeIds?.length) {
-      filterVariables.assignedEmployeeIds = assignedEmployeeIds
+  // Get current user's employee ID
+  const employeeId = useMemo(() => {
+    if (userInfo?.employeeDetails?.employeeId) {
+      return userInfo.employeeDetails.employeeId
     }
-
-    if (statusRefs?.length) {
-      filterVariables.statusRefs = statusRefs
+    if ((userInfo as any)?.employeeId) {
+      return (userInfo as any).employeeId
     }
-
-    if (priorityRefs?.length) {
-      filterVariables.priorityRefs = priorityRefs
+    if (userInfo?.id) {
+      return userInfo.id
     }
+    return null
+  }, [userInfo])
 
-    if (taskTypes?.length) {
-      filterVariables.taskTypes = taskTypes
-    }
-
-    return filterVariables
-  }, [assignedEmployeeIds, statusRefs, priorityRefs, taskTypes])
-
-  // Fetch statistics with historical comparison (THROTTLED)
+  // Fetch statistics
   const fetchStatistics = useCallback(async () => {
     if (!accessToken) {
       console.warn('No access token provided to useTaskStatistics')
       return
     }
 
-    // Throttle rapid requests
-    const now = Date.now()
-    if (now - lastFetchTime.current < FETCH_THROTTLE_MS) {
-      return // Skip if too recent
-    }
-    lastFetchTime.current = now
-
     setLoading(true)
     setError(null)
 
     try {
-      // Fetch historical data for 30-day comparison with current filters
-      const filterVariables = getFilterVariables()
-      const result = await fetchHistoricalStatistics(30, filterVariables)
+      // Fetch My Tasks statistics (assigned to current user)
+      const myTasksFilters = employeeId ? { assignedEmployeeIds: [employeeId] } : {}
+      const myTasksResult = await fetchHistoricalStatistics(myTasksFilters)
+      const myStats = calculateSimpleStatistics(myTasksResult.allTasks)
+      setMyTasksStatistics(myStats)
 
-      const stats = calculateStatisticsWithGrowth(result.currentTasks, result.previousTasks, result.allTasks)
-      setStatistics(stats)
+      // Fetch Team Tasks statistics (all tasks - no assignedEmployeeIds filter)
+      const teamTasksResult = await fetchHistoricalStatistics({})
+      const teamStats = calculateSimpleStatistics(teamTasksResult.allTasks)
+      setTeamTasksStatistics(teamStats)
     } catch (err) {
       const error = err instanceof Error ? err : new Error('Failed to load task statistics')
       setError(error)
@@ -275,34 +148,24 @@ export const useTaskStatistics = (props: UseTaskStatisticsProps): UseTaskStatist
     } finally {
       setLoading(false)
     }
-  }, [accessToken, fetchHistoricalStatistics, getFilterVariables])
+  }, [accessToken, employeeId, fetchHistoricalStatistics])
 
-  // Refetch function (THROTTLED)
+  // Refetch function
   const refetch = useCallback(() => {
-    const now = Date.now()
-    if (now - lastFetchTime.current < FETCH_THROTTLE_MS) {
-      return // Skip if too recent
-    }
     fetchStatistics()
   }, [fetchStatistics])
 
-  // Auto-reload when accessToken or filters change
+  // Auto-reload when accessToken changes
   useEffect(() => {
     if (accessToken) {
       fetchStatistics()
     }
-  }, [
-    accessToken,
-    fetchStatistics,
-    // Include filter dependencies so statistics update when tab changes
-    assignedEmployeeIds,
-    statusRefs,
-    priorityRefs,
-    taskTypes
-  ])
+  }, [accessToken, fetchStatistics])
 
   return {
-    statistics,
+    statistics: myTasksStatistics, // Return as 'statistics' for backward compatibility
+    myTasksStatistics,
+    teamTasksStatistics,
     loading,
     error,
     refetch

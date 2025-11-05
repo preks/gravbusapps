@@ -15,7 +15,7 @@ import {
   Button
 } from '@newwork/nw-design-system'
 import { Bar, ComposedChart, Line, XAxis, YAxis, CartesianGrid } from 'recharts'
-import { formatCurrencyCompact } from '../../../../utils/currencyUtils'
+import { formatCurrencyCompact, extractCurrencyCode } from '@/common/utils/numberFormatter'
 import { ChartLineUpIcon, TrendUpIcon } from '@phosphor-icons/react'
 import { CurrencyFilter } from '../../shared/components'
 import { useCurrencySync } from '../../shared/hooks'
@@ -47,7 +47,13 @@ const TimelineTooltip: React.FC<TimelineTooltipProps> = ({ active, payload, labe
             <div className="gba:w-3 gba:h-3 gba:rounded-full" style={{ backgroundColor: 'var(--color-total)' }} />
             <span className="gba:font-medium">Total Invested Amount:</span>
             <span className="gba:font-semibold">
-              {formatCurrencyCompact(totalInvestedEntry.value as number, currencyFilter)}
+              {formatCurrencyCompact(
+                totalInvestedEntry.value as number,
+                extractCurrencyCode(currencyFilter),
+                undefined,
+                1,
+                true
+              )}
             </span>
           </div>
         )}
@@ -59,7 +65,13 @@ const TimelineTooltip: React.FC<TimelineTooltipProps> = ({ active, payload, labe
             />
             <span className="gba:font-medium">Total Market Value:</span>
             <span className="gba:font-semibold">
-              {formatCurrencyCompact(marketValueEntry.value as number, currencyFilter)}
+              {formatCurrencyCompact(
+                marketValueEntry.value as number,
+                extractCurrencyCode(currencyFilter),
+                undefined,
+                1,
+                true
+              )}
             </span>
           </div>
         )}
@@ -176,7 +188,13 @@ export const PortfolioTimelineCharts: React.FC<PortfolioTimelineChartsProps> = p
                     orientation="right"
                     tick={{ fontSize: 12 }}
                     tickFormatter={value =>
-                      formatCurrencyCompact(value, performanceCurrencyFilter).replaceAll(/[€$£¥]/g, '')
+                      formatCurrencyCompact(
+                        value,
+                        extractCurrencyCode(performanceCurrencyFilter),
+                        undefined,
+                        1,
+                        true
+                      ).replaceAll(/[€$£¥]/g, '')
                     }
                     label={{ value: 'Amount', angle: 90, position: 'insideRight' }}
                   />
@@ -207,7 +225,13 @@ export const PortfolioTimelineCharts: React.FC<PortfolioTimelineChartsProps> = p
                                 />
                                 <span className="gba:font-medium">Total Investment Amount:</span>
                                 <span className="gba:font-semibold">
-                                  {formatCurrencyCompact(totalEntry.value as number, performanceCurrencyFilter)}
+                                  {formatCurrencyCompact(
+                                    totalEntry.value as number,
+                                    extractCurrencyCode(performanceCurrencyFilter),
+                                    undefined,
+                                    1,
+                                    true
+                                  )}
                                 </span>
                               </div>
                             )}
@@ -286,7 +310,15 @@ export const PortfolioTimelineCharts: React.FC<PortfolioTimelineChartsProps> = p
                   <XAxis dataKey="year" tick={{ fontSize: 12 }} />
                   <YAxis
                     tick={{ fontSize: 12 }}
-                    tickFormatter={value => formatCurrencyCompact(value, valueCurrencyFilter).replaceAll(/[€$£¥]/g, '')}
+                    tickFormatter={value =>
+                      formatCurrencyCompact(
+                        value,
+                        extractCurrencyCode(valueCurrencyFilter),
+                        undefined,
+                        1,
+                        true
+                      ).replaceAll(/[€$£¥]/g, '')
+                    }
                   />
                   <ChartTooltip content={renderValueTooltip} />
                   <ChartLegend content={<ChartLegendContent />} />

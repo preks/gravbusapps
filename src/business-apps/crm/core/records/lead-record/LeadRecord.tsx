@@ -132,14 +132,16 @@ const LeadRecordContent: React.FC<LeadRecordContentProps> = ({ leadId, onBack, f
         (a: any, b: any) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime()
       )
 
-      // Separate regular tasks from approvals
+      // Separate regular tasks from approvals based on taskType catalog entry
       const regularTasks = sortedTasks.filter((task: any) => {
-        const taskTypeValue = task.type?.value || ''
-        return taskTypeValue.toLowerCase() !== 'approval'
+        const taskTypeCode = task?.type?.code || ''
+        const taskTypeValue = task?.type?.value || ''
+        return taskTypeCode?.toUpperCase() !== 'APPROVAL' && taskTypeValue?.toUpperCase() !== 'APPROVAL'
       })
       const approvalTasks = sortedTasks.filter((task: any) => {
-        const taskTypeValue = task.type?.value || ''
-        return taskTypeValue.toLowerCase() === 'approval'
+        const taskTypeCode = task?.type?.code || ''
+        const taskTypeValue = task?.type?.value || ''
+        return taskTypeCode?.toUpperCase() === 'APPROVAL' || taskTypeValue?.toUpperCase() === 'APPROVAL'
       })
 
       setActivities(sortedActivities)
@@ -309,6 +311,10 @@ const LeadRecordContent: React.FC<LeadRecordContentProps> = ({ leadId, onBack, f
         leadId,
         lead: leadId,
         salesActivity: { lead: leadId },
+        // Set current user as default owner
+        ...(props.userInfo?.employeeDetails?.employeeId && {
+          ownerEmployeeId: props.userInfo.employeeDetails.employeeId
+        }),
         // Ensure employee details are present
         ...(props.userInfo?.id && {
           employeeId: props.userInfo.id,
@@ -337,20 +343,11 @@ const LeadRecordContent: React.FC<LeadRecordContentProps> = ({ leadId, onBack, f
   const taskActionProps = useMemo(
     () => ({
       contextsArray: [FlowContextName.customerTaskCreate],
-      externalContextData: {
-        leadId,
-        lead: leadId,
-        salesTask: { lead: leadId },
-        // Ensure employee details are present
-        ...(props.userInfo?.id && {
-          employeeId: props.userInfo.id,
-          userId: props.userInfo.id,
-          employeeDetails: { userId: props.userInfo.id }
-        })
-      },
-      prefixDataTestId: 'lead-task'
+      externalContextData: { leadId },
+      prefixDataTestId: 'lead-task',
+      emptyStateBehavior: 'enable' as const
     }),
-    [leadId, props.userInfo]
+    [leadId]
   )
 
   const approvalActionProps = useMemo(
@@ -358,19 +355,13 @@ const LeadRecordContent: React.FC<LeadRecordContentProps> = ({ leadId, onBack, f
       contextsArray: [FlowContextName.customerTaskCreate],
       externalContextData: {
         leadId,
-        lead: leadId,
         typeRef: 'SalesTaskType:v1:APPROVAL',
-        salesTask: { lead: leadId, type: 'SalesTaskType:v1:APPROVAL' },
-        // Ensure employee details are present
-        ...(props.userInfo?.id && {
-          employeeId: props.userInfo.id,
-          userId: props.userInfo.id,
-          employeeDetails: { userId: props.userInfo.id }
-        })
+        salesTask: { lead: leadId, type: 'SalesTaskType:v1:APPROVAL' }
       },
-      prefixDataTestId: 'lead-approval'
+      prefixDataTestId: 'lead-approval',
+      emptyStateBehavior: 'enable' as const
     }),
-    [leadId, props.userInfo]
+    [leadId]
   )
 
   // Header content with status progression
