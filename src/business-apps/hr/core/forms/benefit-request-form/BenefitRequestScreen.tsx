@@ -145,7 +145,7 @@ const BenefitRequestScreen: React.FC<BenefitRequestScreenProps> = ({
    */
   const handleSubmit = useCallback(async () => {
     // Parse yearly value
-    const yearlyAmountValue = yearlyValue.trim() ? parseFloat(yearlyValue) : 0
+    const yearlyAmountValue = yearlyValue.trim() ? Number.parseFloat(yearlyValue) : 0
 
     // Build and return payload for Kogito process
     return {

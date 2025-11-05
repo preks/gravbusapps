@@ -194,7 +194,7 @@ export const useCompensationData = (employeeId: string, accessToken: string) => 
         employeeId: wc.employeeId,
         baseSalary: wc.annualGrossSalary || 0,
         currency: { id: 'EUR', code: 'EUR', value: 'Euro' },
-        compensationBand: null, // TODO: Query CompensationBand separately if needed
+        compensationBand: null, // Note: CompensationBand could be queried from EmployeePosition if historical band data is needed
         effectiveDate: wc.hireDate, // Using hireDate as the effective date
         endDate: wc.exitDate, // Using exitDate as end date
         changeReason: 'Salary Record',
@@ -224,9 +224,9 @@ export const useCompensationData = (employeeId: string, accessToken: string) => 
         let monthName = ''
         if (payslip.payPeriod) {
           const [year, month] = payslip.payPeriod.split('-')
-          const yearNum = parseInt(year)
-          const monthNum = parseInt(month)
-          if (!isNaN(yearNum) && !isNaN(monthNum) && monthNum >= 1 && monthNum <= 12) {
+          const yearNum = Number.parseInt(year)
+          const monthNum = Number.parseInt(month)
+          if (!Number.isNaN(yearNum) && !Number.isNaN(monthNum) && monthNum >= 1 && monthNum <= 12) {
             const date = new Date(yearNum, monthNum - 1, 1)
             monthName = date.toLocaleDateString('en-US', { month: 'long', year: 'numeric' })
           }
@@ -235,7 +235,7 @@ export const useCompensationData = (employeeId: string, accessToken: string) => 
         // Fallback to paymentDate if payPeriod is invalid
         if (!monthName && payslip.paymentDate) {
           const date = new Date(payslip.paymentDate)
-          if (!isNaN(date.getTime())) {
+          if (!Number.isNaN(date.getTime())) {
             monthName = date.toLocaleDateString('en-US', { month: 'long', year: 'numeric' })
           }
         }
@@ -261,7 +261,7 @@ export const useCompensationData = (employeeId: string, accessToken: string) => 
         }
       })
 
-      // TODO: Replace with real growth data when EmployeeCareerMilestone table is created
+      // Note: Using mock data until EmployeeCareerMilestone table is created in backend
       const growthData = getMockGrowthData()
 
       // Set history data

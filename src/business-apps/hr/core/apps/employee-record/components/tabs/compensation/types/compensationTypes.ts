@@ -176,7 +176,7 @@ export type MilestoneType =
 /**
  * Compensation Milestone Interface
  * Tracks significant compensation events
- * 🔄 TODO: Create EmployeeCareerMilestone table
+ * 🔄 Note: Currently using mock data. Backend EmployeeCareerMilestone table pending implementation
  */
 export interface CompensationMilestone {
   id: string
