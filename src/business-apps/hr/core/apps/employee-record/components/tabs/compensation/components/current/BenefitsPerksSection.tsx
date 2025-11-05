@@ -9,6 +9,7 @@ import { BenefitCatalogItem } from '../../types/benefitCatalogTypes'
 import { DebouncedInput } from '@/components/debounced-input'
 import BenefitRequestScreen from '@/business-apps/hr/core/forms/benefit-request-form'
 import BenefitDeactivateScreen from '@/business-apps/hr/core/forms/benefit-deactivate-form'
+import BenefitDetailsModal from './BenefitDetailsModal'
 
 interface BenefitsPerksProps extends BusinessAppContextProps {
   /**
@@ -58,6 +59,7 @@ const BenefitsPerksSection: React.FC<BenefitsPerksProps> = ({
   const [searchQuery, setSearchQuery] = useState('')
   const [requestModalOpen, setRequestModalOpen] = useState(false)
   const [deactivateModalOpen, setDeactivateModalOpen] = useState(false)
+  const [detailsModalOpen, setDetailsModalOpen] = useState(false)
   const [selectedBenefit, setSelectedBenefit] = useState<BenefitCatalogItem | null>(null)
 
   // Fetch benefits catalog
@@ -116,10 +118,11 @@ const BenefitsPerksSection: React.FC<BenefitsPerksProps> = ({
   }
 
   /**
-   * Handle view benefit details action (Phase 4)
+   * Handle view benefit details action
    */
-  const handleViewDetails = () => {
-    // TODO: Implement in Phase 4 - Open details modal
+  const handleViewDetails = (benefit: BenefitCatalogItem) => {
+    setSelectedBenefit(benefit)
+    setDetailsModalOpen(true)
   }
 
   /**
@@ -185,7 +188,7 @@ const BenefitsPerksSection: React.FC<BenefitsPerksProps> = ({
           )}
 
           {/* Empty State - No Benefits in Catalog */}
-          {!loading && !error && catalogData && catalogData.totalBenefitsCount === 0 && (
+          {!loading && !error && catalogData?.totalBenefitsCount === 0 && (
             <div
               className="gba:text-center gba:text-muted-foreground gba:py-12"
               data-testid="benefits-catalog-empty-catalog"
@@ -282,9 +285,10 @@ const BenefitsPerksSection: React.FC<BenefitsPerksProps> = ({
         </CardContent>
       </Card>
 
-      {/* Forms */}
+      {/* Modals */}
       {selectedBenefit && (
         <>
+          {/* Benefit Request Form */}
           <BenefitRequestScreen
             t={t}
             isOpen={requestModalOpen}
@@ -297,6 +301,7 @@ const BenefitsPerksSection: React.FC<BenefitsPerksProps> = ({
             onSuccess={handleSuccess}
           />
 
+          {/* Benefit Deactivate Form */}
           <BenefitDeactivateScreen
             t={t}
             isOpen={deactivateModalOpen}
@@ -307,6 +312,16 @@ const BenefitsPerksSection: React.FC<BenefitsPerksProps> = ({
             userInfo={userInfo}
             additionalData={additionalData}
             onSuccess={handleSuccess}
+          />
+
+          {/* Benefit Details Modal (Read-only) */}
+          <BenefitDetailsModal
+            t={t}
+            isOpen={detailsModalOpen}
+            onClose={() => setDetailsModalOpen(false)}
+            benefit={selectedBenefit}
+            currencyCode={currencyCode}
+            locale={locale}
           />
         </>
       )}
