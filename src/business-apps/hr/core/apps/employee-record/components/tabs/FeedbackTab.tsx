@@ -3,8 +3,7 @@
 import React, { useState, useEffect } from 'react'
 import { Employee, EmployeeFeedback } from '../../hooks/useEmployeeData'
 import { Card, Avatar } from '@newwork/gravity-ui-catalog'
-import RequestCard from './components/RequestCard'
-import { Empty, Spin, Input, Select, Rate } from 'antd'
+import { Empty, Spin, Input, Select, Rate, Pagination } from 'antd'
 import { useGraphqlClient } from '@/common/network/graphql/useGraphQLClient'
 import { EMPLOYEE_FEEDBACK_REQUESTS_QUERY } from './queries/EmployeeFeedbackRequestQueries'
 import { employeeFeedbackQuery } from '../../queries/feedbackQueries'
@@ -13,10 +12,7 @@ import { FlowContextName } from '@/common/types/FlowRegistryTypes'
 import { getTranslationFromI18nKeyAndLabel, formatDate } from '@/common/utils/windowUtils'
 import { startProcess } from '@/common/utils/start-process'
 import { UserInfoProps } from '../../../../../../../common/BusinessAppContext'
-import { CalendarOutlined, SearchOutlined, DownloadOutlined, DownOutlined, UpOutlined } from '@ant-design/icons'
-import { navigateTo, buildPlatformUrl } from '@/common/utils/navigationUtils'
-import Pill from '@/components/pill/Pill'
-// import { buildPlatformUrl, navigateTo } from '@/common/utils/navigationUtils'
+import { CalendarOutlined, SearchOutlined, DownloadOutlined } from '@ant-design/icons'
 import { useFlowExecutionTasks } from '@/business-apps/fin/expenses/apps/manager-expenses/hooks/useFlowExecutionTasks'
 import { PiPencilSimple } from 'react-icons/pi'
 
@@ -118,8 +114,6 @@ const FeedbackTab: React.FC<FeedbackTabProps> = ({
 }) => {
   // State variables for feedback and requests
   const [localFeedback, setLocalFeedback] = useState<ExtendedEmployeeFeedback[]>([])
-  const [feedbackRequests, setFeedbackRequests] = useState<FeedbackRequest[]>([])
-  const [showAllReceivedRequests, setShowAllReceivedRequests] = useState<boolean>(false)
   // No local state needed for approval tasks in this column
   const [loading, setLoading] = useState<boolean>(false)
   const [error, setError] = useState<string | null>(null)
@@ -156,17 +150,25 @@ const FeedbackTab: React.FC<FeedbackTabProps> = ({
   }
 
   // Load approval tasks (feedback you received to complete)
-  const { tasks: feedbackTasks } = useFlowExecutionTasks({ accessToken, userInfo } as any, {
-    currentPage: 1,
-    pageSize: 20,
-    searchTerm: '',
-    filterTaskName: 'enterRequestedFeedback'
-  })
+  const [receivedCurrentPage, setReceivedCurrentPage] = useState<number>(1)
+  const [receivedPageSize, setReceivedPageSize] = useState<number>(3)
+
+  const { tasks: feedbackTasks, totalCount: receivedTotalCount } = useFlowExecutionTasks(
+    { accessToken, userInfo } as any,
+    {
+      currentPage: receivedCurrentPage,
+      pageSize: receivedPageSize,
+      searchTerm: '',
+      filterTaskName: 'enterRequestedFeedback'
+    }
+  )
 
   // GraphQL: Feedback you requested (second column)
   const [requestedFeedback, setRequestedFeedback] = useState<FeedbackRequest[]>([])
   const [requestsLoadingApproval, setRequestsLoadingApproval] = useState<boolean>(false)
   const [requestsErrorApproval, setRequestsErrorApproval] = useState<string | null>(null)
+  const [requestedCurrentPage, setRequestedCurrentPage] = useState<number>(1)
+  const [requestedPageSize, setRequestedPageSize] = useState<number>(3)
 
   // Query moved to queries/EmployeeFeedbackRequestQueries.ts
 
@@ -208,9 +210,9 @@ const FeedbackTab: React.FC<FeedbackTabProps> = ({
     }
   }, [employee?.id, accessToken])
 
-  // Map flow tasks to FeedbackRequest whenever they change
-  useEffect(() => {
-    const mapped: FeedbackRequest[] = (feedbackTasks || []).map((t: any) => ({
+  // Map flow tasks to FeedbackRequest (memoized to avoid re-computation/loops)
+  const feedbackRequests: FeedbackRequest[] = React.useMemo(() => {
+    return (feedbackTasks || []).map((t: any) => ({
       id: String(t.id),
       requestedOn: t.started || t.createdAt,
       dueDate: t.dueDate,
@@ -225,15 +227,11 @@ const FeedbackTab: React.FC<FeedbackTabProps> = ({
       endpoint: t?.endpoint || null,
       processInstanceId: t?.processInstanceId || null
     }))
-    setFeedbackRequests(mapped)
   }, [feedbackTasks])
 
   useEffect(() => {
     fetchRequestedFeedback()
   }, [employee?.id])
-
-  // Expand/collapse state for approval requests
-  const [showAllApprovalRequests, setShowAllApprovalRequests] = useState<boolean>(false)
 
   // Respond action handler extracted for readability
   const handleRespondClick = React.useCallback(
@@ -430,21 +428,6 @@ const FeedbackTab: React.FC<FeedbackTabProps> = ({
                     'Feedback requests you received'
                   )}
                 </h4>
-                {feedbackRequests.length > 3 && (
-                  <button
-                    type="button"
-                    className="gba:text-blue-600 hover:gba:text-blue-800"
-                    onClick={() => setShowAllReceivedRequests(v => !v)}
-                    data-testid="received-requests-toggle"
-                    aria-label={
-                      showAllReceivedRequests
-                        ? getTranslationFromI18nKeyAndLabel('lowcoder:feedback_tab.collapse', 'Collapse')
-                        : getTranslationFromI18nKeyAndLabel('lowcoder:feedback_tab.expand', 'Expand')
-                    }
-                  >
-                    {showAllReceivedRequests ? <UpOutlined /> : <DownOutlined />}
-                  </button>
-                )}
               </div>
               {loading ? (
                 <div className="gba:flex gba:justify-center gba:items-center gba:h-40">
@@ -460,43 +443,69 @@ const FeedbackTab: React.FC<FeedbackTabProps> = ({
                   )}
                 />
               ) : (
-                <div className="gba:grid gba:grid-cols-1 gba:gap-4 gba:items-stretch">
-                  {(showAllReceivedRequests ? feedbackRequests : feedbackRequests.slice(0, 3)).map(
-                    (request: FeedbackRequest) => (
-                      <RequestCard
-                        key={request.id}
-                        id={request.id}
-                        title={request.taskTitle || 'Enter Requested Employee Feedback'}
-                        subtitle={request.feedbackText || undefined}
-                        creatorName={request.creatorName || null}
-                        highlightCreatorName={false}
-                        dateText={
-                          request.requestedOn
-                            ? getTranslationFromI18nKeyAndLabel(
-                                'lowcoder:feedback_tab.requested_on_date',
-                                `Requested on ${formatDate(request.requestedOn, 'date.short') ?? ''}`
-                              ).replace('{{date}}', formatDate(request.requestedOn, 'date.short') ?? '')
-                            : undefined
-                        }
-                        reviewerAvatars={(request.employeeFeedbackRequestReviewer || []).map(rev => ({
-                          id: rev.id,
-                          firstName: rev.reviewerEmployee?.firstName,
-                          lastName: rev.reviewerEmployee?.lastName,
-                          pictureThumbnail: rev.reviewerEmployee?.employeePosition?.employee?.pictureThumbnail || null
-                        }))}
-                        reviewerNames={request.reviewerNames || undefined}
-                        rightAction={
-                          <div className="gba:flex gba:items-center gba:gap-2 gba:cursor-pointer">
-                            <PiPencilSimple />
-                            {getTranslationFromI18nKeyAndLabel('lowcoder:feedback_tab.respond', 'Respond')}
-                          </div>
-                        }
-                        onRightActionClick={() => handleRespondClick(request)}
-                        dataTestIdPrefix={`received-request`}
-                      />
-                    )
-                  )}
-                </div>
+                <>
+                  <div className="gba:grid gba:grid-cols-1 gba:gap-4 gba:items-stretch">
+                    {feedbackRequests
+                      .slice((receivedCurrentPage - 1) * receivedPageSize, receivedCurrentPage * receivedPageSize)
+                      .map((request: FeedbackRequest) => {
+                        const dateLabel = request.requestedOn
+                          ? (formatDate(request.requestedOn, 'date.short') ?? '')
+                          : ''
+                        return (
+                          <Card
+                            key={request.id}
+                            className="gba:shadow-sm gba:hover:shadow-md gba:transition-shadow gba:p-1"
+                            size="small"
+                            data-testid={`received-request-item-${request.id}`}
+                          >
+                            <div className="gba:flex gba:items-center gba:justify-between gba:min-h-10">
+                              <div className="gba:flex gba:flex-col">
+                                <div className="gba:font-medium" data-testid={`received-request-line-${request.id}`}>
+                                  {getTranslationFromI18nKeyAndLabel(
+                                    'lowcoder:feedback_tab.from_on_text',
+                                    `From ${request.creatorName || ''} on ${dateLabel}`,
+                                    {
+                                      employee: request.creatorName || '',
+                                      date: dateLabel
+                                    }
+                                  )}
+                                </div>
+                              </div>
+                              <div
+                                className="gba:flex gba:items-center gba:gap-2 gba:cursor-pointer"
+                                onClick={() => handleRespondClick(request)}
+                                data-testid={`received-request-respond-button-${request.id}`}
+                                role="button"
+                                tabIndex={0}
+                                onKeyDown={e => {
+                                  if (e.key === 'Enter' || e.key === ' ') {
+                                    e.preventDefault()
+                                    handleRespondClick(request)
+                                  }
+                                }}
+                              >
+                                <PiPencilSimple />
+                                {getTranslationFromI18nKeyAndLabel('lowcoder:feedback_tab.respond', 'Respond')}
+                              </div>
+                            </div>
+                          </Card>
+                        )
+                      })}
+                  </div>
+                  <div className="gba:mt-4 gba:flex gba:justify-end">
+                    <Pagination
+                      current={receivedCurrentPage}
+                      pageSize={receivedPageSize}
+                      total={receivedTotalCount || 0}
+                      onChange={(page, pageSize) => {
+                        setReceivedCurrentPage(page)
+                        setReceivedPageSize(pageSize)
+                      }}
+                      data-testid="received-requests-pagination"
+                      showSizeChanger
+                    />
+                  </div>
+                </>
               )}
             </div>
 
@@ -505,21 +514,6 @@ const FeedbackTab: React.FC<FeedbackTabProps> = ({
                 <h4 className="gba:text-base gba:font-medium">
                   {getTranslationFromI18nKeyAndLabel('lowcoder:feedback_tab.col_requested', 'Feedback you requested')}
                 </h4>
-                {requestedFeedback.length > 3 && (
-                  <button
-                    type="button"
-                    className="gba:text-blue-600 hover:gba:text-blue-800"
-                    onClick={() => setShowAllApprovalRequests(v => !v)}
-                    data-testid="approval-requests-toggle"
-                    aria-label={
-                      showAllApprovalRequests
-                        ? getTranslationFromI18nKeyAndLabel('lowcoder:feedback_tab.collapse', 'Collapse')
-                        : getTranslationFromI18nKeyAndLabel('lowcoder:feedback_tab.expand', 'Expand')
-                    }
-                  >
-                    {showAllApprovalRequests ? <UpOutlined /> : <DownOutlined />}
-                  </button>
-                )}
               </div>
               {requestsLoadingApproval ? (
                 <div className="gba:flex gba:justify-center gba:items-center gba:h-40">
@@ -535,47 +529,54 @@ const FeedbackTab: React.FC<FeedbackTabProps> = ({
                   )}
                 />
               ) : (
-                <div className="gba:grid gba:grid-cols-1 gba:gap-4 gba:items-stretch">
-                  {(showAllApprovalRequests ? requestedFeedback : requestedFeedback.slice(0, 3)).map(request => (
-                    <RequestCard
-                      key={request.id}
-                      id={request.id}
-                      title={getTranslationFromI18nKeyAndLabel(
-                        'lowcoder:feedback_tab.requested_feedback_card_title',
-                        'Requested Feedback'
-                      )}
-                      subtitle={request.feedbackText || undefined}
-                      dateText={
-                        request.requestedOn
-                          ? getTranslationFromI18nKeyAndLabel(
-                              'lowcoder:feedback_tab.requested_on_date',
-                              `Requested on ${formatDate(request.requestedOn, 'date.short') ?? ''}`
-                            ).replace('{{date}}', formatDate(request.requestedOn, 'date.short') ?? '')
-                          : undefined
-                      }
-                      creatorName={request.creatorName || null}
-                      highlightCreatorName={true}
-                      onCreatorClick={
-                        request.creatorEmployeeId
-                          ? () =>
-                              navigateTo(
-                                buildPlatformUrl('/platform/employee-record', {
-                                  employeeId: request.creatorEmployeeId as string
-                                })
-                              )
-                          : undefined
-                      }
-                      dataTestIdPrefix={`approval-request`}
-                      rightAction={(() => {
-                        const state = (request.recordState || '').toString().toLowerCase()
-                        const statusText = state
-                          ? state.charAt(0).toUpperCase() + state.slice(1)
-                          : getTranslationFromI18nKeyAndLabel('lowcoder:feedback_tab.status_unknown', 'Unknown')
-                        return <Pill label={statusText} type="waiting" />
-                      })()}
+                <>
+                  <div className="gba:grid gba:grid-cols-1 gba:gap-4 gba:items-stretch">
+                    {requestedFeedback
+                      .slice((requestedCurrentPage - 1) * requestedPageSize, requestedCurrentPage * requestedPageSize)
+                      .map(request => {
+                        const dateLabel = request.requestedOn
+                          ? (formatDate(request.requestedOn, 'date.short') ?? '')
+                          : ''
+                        const fromName = request.creatorName || '-'
+                        return (
+                          <Card
+                            key={request.id}
+                            className="gba:shadow-sm gba:hover:shadow-md gba:transition-shadow gba:p-1"
+                            size="small"
+                            data-testid={`requested-request-item-${request.id}`}
+                          >
+                            <div className="gba:flex gba:items-center gba:justify-between gba:min-h-10">
+                              <div className="gba:flex gba:flex-col">
+                                <div className="gba:font-medium" data-testid={`requested-request-line-${request.id}`}>
+                                  {getTranslationFromI18nKeyAndLabel(
+                                    'lowcoder:feedback_tab.from_since_text',
+                                    `From ${fromName} since ${dateLabel}`,
+                                    {
+                                      employee: fromName,
+                                      date: dateLabel
+                                    }
+                                  )}
+                                </div>
+                              </div>
+                            </div>
+                          </Card>
+                        )
+                      })}
+                  </div>
+                  <div className="gba:mt-4 gba:flex gba:justify-end">
+                    <Pagination
+                      current={requestedCurrentPage}
+                      pageSize={requestedPageSize}
+                      total={requestedFeedback.length}
+                      onChange={(page, pageSize) => {
+                        setRequestedCurrentPage(page)
+                        setRequestedPageSize(pageSize)
+                      }}
+                      data-testid="requested-requests-pagination"
+                      showSizeChanger
                     />
-                  ))}
-                </div>
+                  </div>
+                </>
               )}
             </div>
           </div>
