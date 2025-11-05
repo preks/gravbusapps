@@ -34,6 +34,58 @@ const CurrentCompensationView: React.FC<CurrentCompensationViewProps> = ({
   const baseSalary = currentCompensation?.baseSalary || 0
   const currencyCode = currentCompensation?.currency?.code || 'EUR'
 
+  /**
+   * Render compensation band content based on loading state and data availability
+   */
+  const renderCompensationBandContent = () => {
+    // Loading state
+    if (loading) {
+      return <div className="gba:text-center gba:text-muted-foreground gba:py-8">{t('band-loading')}</div>
+    }
+
+    // Empty state - no compensation band assigned
+    if (!currentCompensation?.compensationBand) {
+      return (
+        <div className="gba:text-center gba:text-muted-foreground gba:py-8" data-testid="compensation-band-empty-state">
+          {t('band-no-band-assigned')}
+        </div>
+      )
+    }
+
+    // Content - display compensation band details
+    const { compensationBand } = currentCompensation
+    return (
+      <div className="gba:grid gba:grid-cols-1 gba:md:grid-cols-3 gba:gap-4">
+        <div>
+          <div className="gba:text-sm gba:text-muted-foreground gba:mb-1">{t('band-name')}</div>
+          <div className="gba:font-medium gba:text-foreground">{compensationBand.name}</div>
+        </div>
+        <div>
+          <div className="gba:text-sm gba:text-muted-foreground gba:mb-1">{t('band-salary-range')}</div>
+          <div className="gba:font-medium gba:text-foreground">
+            {formatCurrencyString(compensationBand.minSalary, {
+              currency: currencyCode,
+              minimumFractionDigits: 0,
+              maximumFractionDigits: 0
+            })}{' '}
+            -{' '}
+            {formatCurrencyString(compensationBand.maxSalary, {
+              currency: currencyCode,
+              minimumFractionDigits: 0,
+              maximumFractionDigits: 0
+            })}
+          </div>
+        </div>
+        <div>
+          <div className="gba:text-sm gba:text-muted-foreground gba:mb-1">{t('band-pay-grade')}</div>
+          <div className="gba:font-medium gba:text-foreground">
+            {t('band-level')} {compensationBand.payGrade}
+          </div>
+        </div>
+      </div>
+    )
+  }
+
   return (
     <div className="gba:space-y-6" data-testid="current-compensation-view">
       {/* KPI Cards Row */}
@@ -123,47 +175,7 @@ const CurrentCompensationView: React.FC<CurrentCompensationViewProps> = ({
         <CardHeader>
           <CardTitle>{t('band-title')}</CardTitle>
         </CardHeader>
-        <CardContent>
-          {loading ? (
-            <div className="gba:text-center gba:text-muted-foreground gba:py-8">{t('band-loading')}</div>
-          ) : currentCompensation?.compensationBand ? (
-            <div className="gba:grid gba:grid-cols-1 gba:md:grid-cols-3 gba:gap-4">
-              <div>
-                <div className="gba:text-sm gba:text-muted-foreground gba:mb-1">{t('band-name')}</div>
-                <div className="gba:font-medium gba:text-foreground">{currentCompensation.compensationBand.name}</div>
-              </div>
-              <div>
-                <div className="gba:text-sm gba:text-muted-foreground gba:mb-1">{t('band-salary-range')}</div>
-                <div className="gba:font-medium gba:text-foreground">
-                  {formatCurrencyString(currentCompensation.compensationBand.minSalary, {
-                    currency: currencyCode,
-                    minimumFractionDigits: 0,
-                    maximumFractionDigits: 0
-                  })}{' '}
-                  -{' '}
-                  {formatCurrencyString(currentCompensation.compensationBand.maxSalary, {
-                    currency: currencyCode,
-                    minimumFractionDigits: 0,
-                    maximumFractionDigits: 0
-                  })}
-                </div>
-              </div>
-              <div>
-                <div className="gba:text-sm gba:text-muted-foreground gba:mb-1">{t('band-pay-grade')}</div>
-                <div className="gba:font-medium gba:text-foreground">
-                  {t('band-level')} {currentCompensation.compensationBand.payGrade}
-                </div>
-              </div>
-            </div>
-          ) : (
-            <div
-              className="gba:text-center gba:text-muted-foreground gba:py-8"
-              data-testid="compensation-band-empty-state"
-            >
-              {t('band-no-band-assigned')}
-            </div>
-          )}
-        </CardContent>
+        <CardContent>{renderCompensationBandContent()}</CardContent>
       </Card>
     </div>
   )
