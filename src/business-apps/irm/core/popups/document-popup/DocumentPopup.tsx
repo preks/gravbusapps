@@ -228,14 +228,17 @@ const DocumentPopup: React.FC<DocumentPopupProps> = ({ initialValues = {}, ...pr
         const fd = new FormData()
         fd.append('file', f as unknown as Blob)
         fd.append('llm_model', 'gpt-4.1')
-        const data: any = await flowbotRest.post('/flowbot/document-autoclassify/classify', fd, {
+        const resp = await flowbotRest.post('/flowbot/document-autoclassify/classify', fd, {
           headers: props.accessToken ? { Authorization: `Bearer ${props.accessToken}` } : undefined
         })
+        const dataObj = (resp ?? {}) as Record<string, unknown>
+        const type = typeof dataObj.type === 'string' ? dataObj.type : undefined
+        const group = typeof dataObj.group === 'string' ? dataObj.group : undefined
 
-        setAiSuggestion({ type: data?.type, group: data?.group })
+        setAiSuggestion({ type, group })
       } catch (err) {
         console.error('Flowbot classify failed', err)
-        setAiError(getTranslationFromI18nKeyAndLabel('crm.documents.ai.failed', 'Failed to auto-classify'))
+        setAiError(getTranslationFromI18nKeyAndLabel('irm.documents.ai.failed', 'Failed to auto-classify'))
       } finally {
         setAiLoading(false)
       }
@@ -775,23 +778,23 @@ const DocumentPopup: React.FC<DocumentPopupProps> = ({ initialValues = {}, ...pr
               )}
             />
 
-            <div className="gba:text-sm gba:text-muted-foreground">
+            <div className="gba:text-sm gba:text-muted-foreground" data-testid="DocumentPopup-ai-status">
               {aiLoading && (
-                <span>
+                <span data-testid="DocumentPopup-ai-status-loading">
                   {getTranslationFromI18nKeyAndLabel(
-                    'crm.documents.ai.detecting',
+                    'irm.documents.ai.detecting',
                     'Detecting document group and type…'
                   )}
                 </span>
               )}
-              {!aiLoading && aiError && <span>{aiError}</span>}
+              {!aiLoading && aiError && <span data-testid="DocumentPopup-ai-status-error">{aiError}</span>}
               {!aiLoading && !aiError && aiSuggestion && (
-                <div className="gba:flex gba:flex-col gba:gap-1">
+                <div className="gba:flex gba:flex-col gba:gap-1" data-testid="DocumentPopup-ai-status-suggestion">
                   <span>
-                    {getTranslationFromI18nKeyAndLabel('crm.documents.ai.suggestion', 'AI suggestion:')}{' '}
-                    {getTranslationFromI18nKeyAndLabel('crm.documents.group', 'Group')} ={' '}
+                    {getTranslationFromI18nKeyAndLabel('irm.documents.ai.suggestion', 'AI suggestion:')}{' '}
+                    {getTranslationFromI18nKeyAndLabel('irm.documents.group', 'Group')} ={' '}
                     <strong>{aiSuggestion.group || '—'}</strong>,{' '}
-                    {getTranslationFromI18nKeyAndLabel('crm.documents.type', 'Type')} ={' '}
+                    {getTranslationFromI18nKeyAndLabel('irm.documents.type', 'Type')} ={' '}
                     <strong>{aiSuggestion.type || '—'}</strong>
                   </span>
                   <div className="gba:flex gba:gap-2">
@@ -799,6 +802,7 @@ const DocumentPopup: React.FC<DocumentPopupProps> = ({ initialValues = {}, ...pr
                       type="button"
                       variant="secondary"
                       size="sm"
+                      data-testid="DocumentPopup-ai-status-apply-button"
                       onClick={async () => {
                         if (aiSuggestion?.group) {
                           const g = documentGroups.find(
@@ -831,7 +835,7 @@ const DocumentPopup: React.FC<DocumentPopupProps> = ({ initialValues = {}, ...pr
                         }
                       }}
                     >
-                      {getTranslationFromI18nKeyAndLabel('crm.common.applySuggestion', 'Apply suggestion')}
+                      {getTranslationFromI18nKeyAndLabel('irm.documents.ai.applySuggestion', 'Apply suggestion')}
                     </Button>
                   </div>
                 </div>
