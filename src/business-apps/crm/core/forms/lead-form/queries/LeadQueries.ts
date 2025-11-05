@@ -18,6 +18,13 @@ export interface LeadQueryResult {
   companyPhone?: string
   companyWebsite?: string
   createdAt?: string
+  // ✅ Academic Title
+  academicTitleRef?: string
+  academicTitle?: {
+    id: string
+    code: string
+    value: string
+  }
   leadSource?: {
     id: string
     code: string
@@ -50,17 +57,35 @@ export interface LeadQueryResult {
   addresses?: Array<{
     addressLine?: any
     city?: string
+    countryRef?: string // ✅ Added for proper prefilling
     country?: {
       id: string
       value: string
       code: string
     }
+    regionRef?: string // ✅ Added for proper prefilling
     region?: {
       id: string
       value: string
       code: string
     }
     postalCode?: string
+  }>
+  // ✅ Top-level country reference for backward compatibility
+  countryRef?: string
+  country?: {
+    id: string
+    value: string
+    code: string
+  }
+  // ✅ Communication Channels (for LinkedIn, Xing, etc.)
+  communicationChannels?: Array<{
+    id: string
+    communicationChannelRef?: string
+    value?: string
+    communicationChannel?: {
+      code?: string
+    }
   }>
   position?: string
   industryRef?: string
@@ -100,6 +125,13 @@ export const GET_LEAD_BY_ID = `
       companyPhone
       companyWebsite
       createdAt
+      # ✅ Academic Title (for Contact Information Section)
+      academicTitleRef
+      academicTitle {
+        id
+        code
+        value
+      }
       leadSource {
         id
         code
@@ -129,16 +161,38 @@ export const GET_LEAD_BY_ID = `
         id
         name
       }
+      # ✅ Addresses with proper reference IDs for prefilling
       addresses {
         addressLine
         city
+        countryRef
         country {
+          id
           value
+          code
         }
-        postalCode
+        regionRef
         region {
           id
           value
+          code
+        }
+        postalCode
+      }
+      # ✅ Top-level country reference for backward compatibility
+      countryRef
+      country {
+        id
+        value
+        code
+      }
+      # ✅ Communication Channels (for LinkedIn, Xing)
+      communicationChannels {
+        id
+        communicationChannelRef
+        value
+        communicationChannel {
+          code
         }
       }
       position

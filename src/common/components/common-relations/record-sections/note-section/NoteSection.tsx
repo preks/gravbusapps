@@ -21,6 +21,7 @@ export type NoteDocument = {
 
 export type NoteItem = {
   id: string
+  version?: number
   noteTitle: string
   noteText: string
   createdAt: string
@@ -82,25 +83,31 @@ const NoteSection: React.FC<NoteSectionProps> = props => {
       ) : (
         notes.map(note => (
           <Card key={note.id} className="gba:shadow-none gba:border gba:border-gray-200">
-            <CardHeader className="gba:flex gba:flex-row gba:items-center gba:space-y-0 gba:pb-2 gba:gap-2">
-              <CardTitle className="gba:text-base gba:flex-1 gba:truncate">{note.noteTitle}</CardTitle>
-              {noteEntityActionProps && (
-                <AppActionMenu
-                  accessToken={accessToken}
-                  contextsArray={noteEntityActionProps.contextsArray}
-                  externalContextData={{ ...noteEntityActionProps.externalContextData, noteId: note.id }}
-                  prefixDataTestId={`${noteEntityActionProps.prefixDataTestId}-${note.id}`}
-                  deferMainContextRequestsUntilClick={true}
-                  emptyStateBehavior="enable"
-                >
-                  <div
-                    className="gba:flex gba:items-center gba:justify-center gba:h-6 gba:w-6 gba:cursor-pointer gba:rounded gba:hover:bg-gray-100 gba:transition-colors gba:flex-shrink-0"
-                    data-testid={`note-menu-${note.id}`}
+            <CardHeader className="gba:pb-2">
+              <div className="gba:flex gba:flex-row gba:items-center gba:justify-between gba:gap-2 gba:w-full">
+                <CardTitle className="gba:text-base gba:flex-1 gba:truncate gba:min-w-0">{note.noteTitle}</CardTitle>
+                {noteEntityActionProps && (
+                  <AppActionMenu
+                    accessToken={accessToken}
+                    contextsArray={noteEntityActionProps.contextsArray}
+                    externalContextData={{
+                      ...noteEntityActionProps.externalContextData,
+                      noteId: note.id,
+                      version: note.version
+                    }}
+                    prefixDataTestId={`${noteEntityActionProps.prefixDataTestId}-${note.id}`}
+                    deferMainContextRequestsUntilClick={true}
+                    emptyStateBehavior="enable"
                   >
-                    <DotsThreeVertical size={16} />
-                  </div>
-                </AppActionMenu>
-              )}
+                    <div
+                      className="gba:flex gba:items-center gba:justify-center gba:h-6 gba:w-6 gba:cursor-pointer gba:rounded gba:hover:bg-gray-100 gba:transition-colors gba:shrink-0"
+                      data-testid={`note-menu-${note.id}`}
+                    >
+                      <DotsThreeVertical size={16} />
+                    </div>
+                  </AppActionMenu>
+                )}
+              </div>
             </CardHeader>
             <CardContent className="gba:pt-0">
               <p className="gba:text-sm gba:text-gray-700 gba:mb-2">{note.noteText}</p>

@@ -3,12 +3,25 @@ import { WidgetGroup, WidgetItem } from '@/components/widget-group'
 import { DollarCircleOutlined, RiseOutlined, TeamOutlined, BankOutlined } from '@ant-design/icons'
 import { BusinessAppContextProps } from '@/common/BusinessAppContext'
 import { useLiquidFundKPIIntegration } from '../../analytics-view/liquid-fund-analytics/hooks/useLiquidFundKPIIntegration'
-import { formatCurrency, calculateChange } from '../../analytics-view/shared/utils'
+import { formatCurrencyCompact } from '@/common/utils/numberFormatter'
 
 type LiquidFundInvestmentStatisticsProps = BusinessAppContextProps
 
 export const LiquidFundInvestmentStatistics: React.FC<LiquidFundInvestmentStatisticsProps> = ({ ...context }) => {
   const { current: kpis, previous: previousKpis, isLoading, error, refetch } = useLiquidFundKPIIntegration(context)
+
+  // Calculate percentage change between current and previous values
+  const calculateChange = (current: number, previous: number): { value: string; positive: boolean } => {
+    if (previous === 0) {
+      return { value: current > 0 ? '+100%' : '0%', positive: current > 0 }
+    }
+    const change = ((current - previous) / Math.abs(previous)) * 100
+    const formattedChange = Math.abs(change).toFixed(1)
+    return {
+      value: `${change >= 0 ? '+' : '-'}${formattedChange}%`,
+      positive: change >= 0
+    }
+  }
 
   const widgets: WidgetItem[] = [
     {
@@ -28,7 +41,7 @@ export const LiquidFundInvestmentStatistics: React.FC<LiquidFundInvestmentStatis
     {
       key: 'average-investment-value',
       title: 'Average Investment Value',
-      value: formatCurrency(kpis.averageInvestmentValue),
+      value: formatCurrencyCompact(kpis.averageInvestmentValue, 'EUR', undefined, 1, true),
       prefix: <DollarCircleOutlined />,
       color: '#52c41a',
       valueIsString: true,
@@ -43,7 +56,7 @@ export const LiquidFundInvestmentStatistics: React.FC<LiquidFundInvestmentStatis
     {
       key: 'average-market-value',
       title: 'Average Market Value',
-      value: formatCurrency(kpis.averageMarketValue),
+      value: formatCurrencyCompact(kpis.averageMarketValue, 'EUR', undefined, 1, true),
       prefix: <RiseOutlined />,
       color: '#faad14',
       valueIsString: true,
@@ -58,7 +71,7 @@ export const LiquidFundInvestmentStatistics: React.FC<LiquidFundInvestmentStatis
     {
       key: 'total-fund-value',
       title: 'Total Fund Value',
-      value: formatCurrency(kpis.totalMarketValue),
+      value: formatCurrencyCompact(kpis.totalMarketValue, 'EUR', undefined, 1, true),
       prefix: <BankOutlined />,
       color: '#722ed1',
       valueIsString: true,

@@ -52,6 +52,7 @@ export enum FlowContextName {
   customerActivityDelete = 'customerActivityDelete',
 
   /// Customer Notes
+  customerNoteEntity = 'customerNoteEntity',
   customerNoteCreate = 'customerNoteCreate',
   customerNoteDelete = 'customerNoteDelete',
 

@@ -130,7 +130,7 @@ export const GET_CUSTOMER_ACTIVITY_BY_ID = (id: string): string => {
         opportunity { ${CUSTOMER_OPPORTUNITY_REF} }
         
         # Documents relationship
-        customerDocument(where: { isDeleted: { _eq: false } }) {
+        documents(where: { isDeleted: { _eq: false } }) {
           id
           version
           name
