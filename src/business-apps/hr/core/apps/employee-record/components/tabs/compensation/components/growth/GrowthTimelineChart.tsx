@@ -35,13 +35,13 @@ const GrowthTimelineChart: React.FC<GrowthTimelineChartProps> = ({ t, growthData
     () =>
       ({
         totalCompensation: {
-          label: 'Total Compensation'
+          label: t('growth-chart-total-compensation')
         },
         baseSalary: {
-          label: 'Base Salary'
+          label: t('growth-chart-base-salary')
         }
       }) satisfies ChartConfig,
-    []
+    [t]
   )
 
   // Use all data points for smooth line
@@ -59,10 +59,10 @@ const GrowthTimelineChart: React.FC<GrowthTimelineChartProps> = ({ t, growthData
       <Card data-testid="growth-timeline-chart">
         <CardHeader>
           <CardTitle>{t('growth-timeline-title')}</CardTitle>
-          <CardDescription>Loading growth data...</CardDescription>
+          <CardDescription>{t('growth-timeline-loading')}</CardDescription>
         </CardHeader>
         <CardContent className="gba:flex gba:items-center gba:justify-center gba:min-h-[400px]">
-          <div className="gba:text-center gba:text-muted-foreground">Loading chart...</div>
+          <div className="gba:text-center gba:text-muted-foreground">{t('growth-loading-chart')}</div>
         </CardContent>
       </Card>
     )
@@ -71,10 +71,8 @@ const GrowthTimelineChart: React.FC<GrowthTimelineChartProps> = ({ t, growthData
   return (
     <Card data-testid="growth-timeline-chart">
       <CardHeader>
-        <CardTitle>
-          {getTranslationFromI18nKeyAndLabel('lowcoder:compensation.growth_timeline', 'Compensation Growth Timeline')}
-        </CardTitle>
-        <CardDescription>Last 3 years of compensation progression</CardDescription>
+        <CardTitle>{t('growth-timeline-title')}</CardTitle>
+        <CardDescription>{t('growth-timeline-description', { years: 3 })}</CardDescription>
       </CardHeader>
       <CardContent>
         <ChartContainer config={chartConfig} className="gba:w-full gba:h-[400px]">
@@ -109,7 +107,10 @@ const GrowthTimelineChart: React.FC<GrowthTimelineChartProps> = ({ t, growthData
                 content={
                   <ChartTooltipContent
                     formatter={(value: any, name: string) => {
-                      const label = name === 'totalCompensation' ? 'Total Compensation' : 'Base Salary'
+                      const label =
+                        name === 'totalCompensation'
+                          ? t('growth-chart-total-compensation')
+                          : t('growth-chart-base-salary')
                       return [
                         formatCurrencyString(Number(value), {
                           currency: 'EUR',
