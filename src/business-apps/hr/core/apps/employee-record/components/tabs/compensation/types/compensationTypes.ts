@@ -18,6 +18,7 @@ export interface CatalogEntry {
   id: string
   value: string
   code?: string
+  objectValue?: unknown
   translations?: Array<{
     localeCode: string
     value: string
