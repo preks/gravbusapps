@@ -7,6 +7,7 @@ import {
   TabSwitchTrigger,
   TabSwitchContent,
   Alert,
+  Button,
   Toaster,
   useTranslation,
   useLocale
@@ -54,12 +55,15 @@ const CompensationTab: React.FC<JobsCompensationTabProps> = ({ employee, employe
         <Alert variant="destructive">
           <div className="gba:font-semibold">{t('compensation-error-title')}</div>
           <div className="gba:text-sm gba:mt-1">{error}</div>
-          <button
+          <Button
             onClick={refetch}
-            className="gba:mt-3 gba:px-4 gba:py-2 gba:bg-destructive gba:text-destructive-foreground gba:rounded gba:text-sm gba:hover:opacity-90"
+            variant="destructive"
+            size="sm"
+            className="gba:mt-3"
+            data-testid="compensation-error-retry-button"
           >
             {t('compensation-error-retry')}
-          </button>
+          </Button>
         </Alert>
       </div>
     )
