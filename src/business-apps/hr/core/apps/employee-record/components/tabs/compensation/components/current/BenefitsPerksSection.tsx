@@ -241,6 +241,9 @@ const BenefitsPerksSection: React.FC<BenefitsPerksProps> = ({
                     onRequest={handleRequestBenefit}
                     onDeactivate={handleDeactivateBenefit}
                     onViewDetails={handleViewDetails}
+                    accessToken={accessToken}
+                    userInfo={userInfo}
+                    additionalData={additionalData}
                   />
                 ))}
               </div>
@@ -267,6 +270,9 @@ const BenefitsPerksSection: React.FC<BenefitsPerksProps> = ({
                     onRequest={handleRequestBenefit}
                     onDeactivate={handleDeactivateBenefit}
                     onViewDetails={handleViewDetails}
+                    accessToken={accessToken}
+                    userInfo={userInfo}
+                    additionalData={additionalData}
                   />
                 ))}
               </div>

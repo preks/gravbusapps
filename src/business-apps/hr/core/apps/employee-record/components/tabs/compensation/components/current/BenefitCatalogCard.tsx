@@ -4,8 +4,9 @@ import React from 'react'
 import { Card, Badge, Button } from '@newwork/nw-design-system'
 import { BenefitCatalogItem } from '../../types/benefitCatalogTypes'
 import { formatCurrencyString } from '@/common/utils/numberFormatter'
+import { BusinessAppContextProps } from '@/common/BusinessAppContext'
 
-interface BenefitCatalogCardProps {
+interface BenefitCatalogCardProps extends BusinessAppContextProps {
   /**
    * Translation function
    */
