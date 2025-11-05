@@ -72,10 +72,12 @@ const PayHistoryView: React.FC<PayHistoryViewProps> = ({
                 {compensationHistory.map(record => (
                   <TableRow key={record.id} data-testid={`salary-history-row-${record.id}`}>
                     <TableCell>
-                      <div className="gba:font-medium">{dayjs(record.effectiveDate).format('MMM D, YYYY')}</div>
+                      <div className="gba:font-medium">
+                        {dayjs(record.effectiveDate).locale(locale).format('MMM D, YYYY')}
+                      </div>
                       {record.endDate && (
                         <div className="gba:text-xs gba:text-muted-foreground">
-                          to {dayjs(record.endDate).format('MMM D, YYYY')}
+                          to {dayjs(record.endDate).locale(locale).format('MMM D, YYYY')}
                         </div>
                       )}
                     </TableCell>
@@ -145,7 +147,7 @@ const PayHistoryView: React.FC<PayHistoryViewProps> = ({
               <TableBody>
                 {bonusHistory.map(bonus => (
                   <TableRow key={bonus.id} data-testid={`bonus-history-row-${bonus.id}`}>
-                    <TableCell>{dayjs(bonus.paymentDate).format('MMM D, YYYY')}</TableCell>
+                    <TableCell>{dayjs(bonus.paymentDate).locale(locale).format('MMM D, YYYY')}</TableCell>
                     <TableCell>
                       <div className="gba:font-semibold gba:text-success">
                         {formatCurrencyString(bonus.amount, {
