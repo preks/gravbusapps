@@ -781,21 +781,21 @@ const DocumentPopup: React.FC<DocumentPopupProps> = ({ initialValues = {}, ...pr
             <div className="gba:text-sm gba:text-muted-foreground" data-testid="DocumentPopup-ai-status">
               {aiLoading && (
                 <span data-testid="DocumentPopup-ai-status-loading">
-                  {getTranslationFromI18nKeyAndLabel(
-                    'irm.documents.ai.detecting',
-                    'Detecting document group and type…'
-                  )}
+                  {getTranslationFromI18nKeyAndLabel('irm:document.ai.detecting', 'Detecting document group and type…')}
                 </span>
               )}
               {!aiLoading && aiError && <span data-testid="DocumentPopup-ai-status-error">{aiError}</span>}
               {!aiLoading && !aiError && aiSuggestion && (
                 <div className="gba:flex gba:flex-col gba:gap-1" data-testid="DocumentPopup-ai-status-suggestion">
                   <span>
-                    {getTranslationFromI18nKeyAndLabel('irm.documents.ai.suggestion', 'AI suggestion:')}{' '}
-                    {getTranslationFromI18nKeyAndLabel('irm.documents.group', 'Group')} ={' '}
-                    <strong>{aiSuggestion.group || '—'}</strong>,{' '}
-                    {getTranslationFromI18nKeyAndLabel('irm.documents.type', 'Type')} ={' '}
-                    <strong>{aiSuggestion.type || '—'}</strong>
+                    {getTranslationFromI18nKeyAndLabel(
+                      'irm:document.ai.suggestion',
+                      'AI suggestion: Group = {group}, Type = {type}',
+                      {
+                        group: aiSuggestion.group || '—',
+                        type: aiSuggestion.type || '—'
+                      }
+                    )}
                   </span>
                   <div className="gba:flex gba:gap-2">
                     <Button
@@ -835,7 +835,7 @@ const DocumentPopup: React.FC<DocumentPopupProps> = ({ initialValues = {}, ...pr
                         }
                       }}
                     >
-                      {getTranslationFromI18nKeyAndLabel('irm.documents.ai.applySuggestion', 'Apply suggestion')}
+                      {getTranslationFromI18nKeyAndLabel('irm:document.ai.applySuggestion', 'Apply suggestion')}
                     </Button>
                   </div>
                 </div>
