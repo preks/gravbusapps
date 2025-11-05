@@ -82,7 +82,7 @@ const BenefitsPerksSection: React.FC<BenefitsPerksProps> = ({
           benefit.benefitType.toLowerCase().includes(query) ||
           benefit.code.toLowerCase().includes(query) ||
           benefit.description?.toLowerCase().includes(query) ||
-          benefit.provider?.value.toLowerCase().includes(query)
+          benefit.provider?.value?.toLowerCase().includes(query)
       )
     }
 
