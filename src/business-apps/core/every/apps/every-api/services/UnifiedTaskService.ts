@@ -79,17 +79,10 @@ export function parseFilters(filters?: Partial<TaskFilters>): ParsedTaskFilters 
 export function applyFilters(tasks: UnifiedTask[], filters: ParsedTaskFilters): UnifiedTask[] {
   let filtered = [...tasks]
 
-  console.log('applyFilters called with:', {
-    taskCount: tasks.length,
-    sourceFilter: filters.source
-  })
 
   // Filter by source
   if (filters.source && filters.source !== 'all') {
-    console.log('Filtering by source:', filters.source)
-    const beforeCount = filtered.length
     filtered = filtered.filter(task => task.source === filters.source)
-    console.log(`After source filter: ${filtered.length} tasks (filtered out ${beforeCount - filtered.length})`)
   }
 
   // Filter by status
@@ -265,7 +258,6 @@ async function fetchFromBothSources(
           const adapted = adaptCflowTasks(cflowTasks)
           allTasks.push(...adapted)
         } catch (error: any) {
-          console.error('[UnifiedTaskService] CFlow fetch failed', error)
           errors.push({
             source: 'cflow',
             message: 'Failed to fetch custom-flow-engine tasks',
@@ -307,7 +299,6 @@ async function fetchFromBothSources(
           const adapted = adaptKogitoTasks(kogitoTasks, userId)
           allTasks.push(...adapted)
         } catch (error: any) {
-          console.error('[UnifiedTaskService] Kogito fetch failed', error)
           errors.push({
             source: 'kogito',
             message: 'Failed to fetch Kogito tasks',
@@ -334,14 +325,10 @@ export async function fetchAllUserTasks(
   accessToken?: string,
   filters?: Partial<TaskFilters>
 ): Promise<FetchTasksResult> {
-  const startTime = performance.now()
-  console.log('[UnifiedTaskService] 🚀 START Fetching user tasks')
-
   const parsedFilters = parseFilters(filters)
   const warnings: string[] = []
 
   // Fetch batch from both sources
-  console.log(`[UnifiedTaskService] 📡 Fetching batch (50 per source, offset: ${parsedFilters.offset})`)
   const fetchResult = await fetchFromBothSources(
     userId,
     accessToken,
@@ -350,16 +337,7 @@ export async function fetchAllUserTasks(
     FETCH_LIMIT_PER_SOURCE
   )
 
-  const fetchTime = performance.now()
-  console.log(`[UnifiedTaskService] ✅ Fetch completed in ${(fetchTime - startTime).toFixed(0)}ms`)
-
   const allTasks = fetchResult.tasks
-
-  console.log('[UnifiedTaskService] Task breakdown:', {
-    totalTasks: allTasks.length,
-    cflowCount: allTasks.filter(t => t.source === 'cflow').length,
-    kogitoCount: allTasks.filter(t => t.source === 'kogito').length
-  })
 
   // Add warnings if partial results
   if (fetchResult.errors.length > 0 && allTasks.length > 0) {
@@ -368,12 +346,6 @@ export async function fetchAllUserTasks(
 
   // Apply filters (sorting handled by hook)
   const filtered = applyFilters(allTasks, parsedFilters)
-
-  const endTime = performance.now()
-  console.log(`[UnifiedTaskService] ✅ DONE in ${(endTime - startTime).toFixed(0)}ms`, {
-    tasksReturned: filtered.length,
-    errorsCount: fetchResult.errors.length
-  })
 
   return {
     tasks: filtered,
@@ -393,9 +365,6 @@ export async function fetchCompletedUserTasks(
   accessToken?: string,
   filters?: Partial<TaskFilters>
 ): Promise<FetchTasksResult> {
-  const startTime = performance.now()
-  console.log('[UnifiedTaskService] 🚀 START Fetching COMPLETED tasks using dedicated endpoint')
-
   const parsedFilters = parseFilters(filters)
   const config = getApiConfig()
 
@@ -423,19 +392,16 @@ export async function fetchCompletedUserTasks(
     fetchPromises.push(
       (async () => {
         const cflowStart = performance.now()
-        console.log('[UnifiedTaskService] 📡 Starting CFlow COMPLETED API call')
         try {
           const cflowTasks = await fetchCflowCompletedTasks(userId, accessToken, cflowParams)
           const cflowEnd = performance.now()
           timings.cflow = cflowEnd - cflowStart
-          console.log(`[UnifiedTaskService] ✅ CFlow COMPLETED API completed in ${timings.cflow.toFixed(0)}ms`)
 
           const adapted = adaptCflowTasks(cflowTasks)
           allTasks.push(...adapted)
         } catch (error: any) {
           const cflowEnd = performance.now()
           timings.cflow = cflowEnd - cflowStart
-          console.error(`[UnifiedTaskService] ❌ CFlow COMPLETED API failed after ${timings.cflow.toFixed(0)}ms`, error)
           errors.push({
             source: 'cflow',
             message: 'Failed to fetch custom-flow-engine completed tasks',
@@ -472,21 +438,15 @@ export async function fetchCompletedUserTasks(
     fetchPromises.push(
       (async () => {
         const kogitoStart = performance.now()
-        console.log('[UnifiedTaskService] 📡 Starting Kogito COMPLETED API call')
         try {
           const kogitoTasks = await fetchKogitoUserTasks(userId, accessToken, kogitoParams)
           const kogitoEnd = performance.now()
           timings.kogito = kogitoEnd - kogitoStart
-          console.log(`[UnifiedTaskService] ✅ Kogito COMPLETED API completed in ${timings.kogito.toFixed(0)}ms`)
           const adapted = adaptKogitoTasks(kogitoTasks, userId)
           allTasks.push(...adapted)
         } catch (error: any) {
           const kogitoEnd = performance.now()
           timings.kogito = kogitoEnd - kogitoStart
-          console.error(
-            `[UnifiedTaskService] ❌ Kogito COMPLETED API failed after ${timings.kogito.toFixed(0)}ms`,
-            error
-          )
           errors.push({
             source: 'kogito',
             message: 'Failed to fetch Kogito completed tasks',
@@ -503,12 +463,6 @@ export async function fetchCompletedUserTasks(
   // Wait for all fetches to complete
   await Promise.all(fetchPromises)
 
-  console.log('[UnifiedTaskService] Before filtering COMPLETED tasks:', {
-    totalTasks: allTasks.length,
-    sourceFilter: parsedFilters.source,
-    cflowCount: allTasks.filter(t => t.source === 'cflow').length,
-    kogitoCount: allTasks.filter(t => t.source === 'kogito').length
-  })
 
   // Add warnings if partial results
   if (errors.length > 0 && allTasks.length > 0) {
@@ -517,23 +471,8 @@ export async function fetchCompletedUserTasks(
 
   // Apply filters and pagination
   const filtered = applyFilters(allTasks, parsedFilters)
-  console.log('[UnifiedTaskService] After filtering COMPLETED tasks:', {
-    filteredCount: filtered.length,
-    sourceFilter: parsedFilters.source
-  })
 
   const paginated = applyPagination(filtered, parsedFilters)
-
-  const endTime = performance.now()
-  console.log(`[UnifiedTaskService] ✅ DONE Fetched COMPLETED tasks in ${(endTime - startTime).toFixed(0)}ms`, {
-    totalTime: `${(endTime - startTime).toFixed(0)}ms`,
-    cflowTime: timings.cflow ? `${timings.cflow.toFixed(0)}ms` : 'not fetched',
-    kogitoTime: timings.kogito ? `${timings.kogito.toFixed(0)}ms` : 'not fetched',
-    tasksReturned: paginated.length,
-    totalFiltered: filtered.length,
-    errorsCount: errors.length,
-    warningsCount: warnings.length
-  })
 
   return {
     tasks: paginated,
@@ -556,7 +495,6 @@ export async function fetchTaskById(taskId: string, userId: string, accessToken?
       return adapted[0]
     }
   } catch (error) {
-    console.warn('Failed to fetch task from cflow:', error)
   }
 
   // Try Kogito
@@ -567,7 +505,6 @@ export async function fetchTaskById(taskId: string, userId: string, accessToken?
       return adapted[0]
     }
   } catch (error) {
-    console.warn('Failed to fetch task from Kogito:', error)
   }
 
   return null
@@ -643,7 +580,6 @@ export async function fetchTaskStatistics(userId: string, accessToken?: string):
     statistics.bySource.kogito = kogitoStats.total || 0
     statistics.total += kogitoStats.total || 0
 
-    console.log('Kogito stats by status:', kogitoStats.byStatus)
 
     // Aggregate status counts from Kogito
     if (kogitoStats.byStatus) {
@@ -661,7 +597,6 @@ export async function fetchTaskStatistics(userId: string, accessToken?: string):
           statistics.byStatus.cancelled += count
         } else {
           // Log unknown states for debugging
-          console.warn(`Unknown Kogito state in statistics: ${state}, treating as scheduled`)
           statistics.byStatus.scheduled += count
         }
       })
@@ -678,11 +613,6 @@ export async function fetchTaskStatistics(userId: string, accessToken?: string):
     warnings.push('Partial statistics: Some sources failed to respond')
   }
 
-  console.log('Final statistics:', {
-    total: statistics.total,
-    byStatus: statistics.byStatus,
-    bySource: statistics.bySource
-  })
 
   return {
     statistics,

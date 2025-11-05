@@ -47,13 +47,11 @@ export async function everyApiHandler(request: Request, accessToken?: string): P
     // Validate configuration on first request
     const configValidation = validateConfig()
     if (!configValidation.valid) {
-      console.warn('[Every API] Configuration warnings:', configValidation.errors)
     }
 
     // Handle the request
     return await handleTaskRequest(request, accessToken)
   } catch (error) {
-    console.error('[Every API] Unhandled error:', error)
 
     return new Response(
       JSON.stringify({

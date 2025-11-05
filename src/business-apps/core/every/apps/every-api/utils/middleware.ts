@@ -93,12 +93,10 @@ export function extractTaskId(pathname: string): string | null {
  * Log API request
  */
 export function logRequest(method: string, path: string, params?: Record<string, any>): void {
-  console.log(`[Every API] ${method} ${path}`, params ? JSON.stringify(params) : '')
 }
 
 /**
  * Log API error
  */
 export function logError(method: string, path: string, error: any): void {
-  console.error(`[Every API] ERROR ${method} ${path}:`, error)
 }

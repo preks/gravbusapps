@@ -19,7 +19,6 @@ export function getCflowEndpoint(): string {
 export function getFlowMetricsEndpoint(): string {
   const endpoint = env('NEXT_PUBLIC_FLOW_METRICS_ENDPOINT') || env('NEXT_PUBLIC_BASE_URL')
   if (!endpoint) {
-    console.warn('FlowMetrics endpoint not configured.')
     return ''
   }
   return endpoint

@@ -87,7 +87,6 @@ function mapCflowStatus(status: string): TaskStatus {
     case 'CANCELED':
       return 'CANCELLED'
     default:
-      console.warn(`Unknown cflow status: ${status}, defaulting to IN_PROGRESS`)
       return 'IN_PROGRESS'
   }
 }
@@ -122,7 +121,6 @@ function mapKogitoState(state: string): TaskStatus {
     case 'SKIPPED': // Tasks that were skipped in the workflow
       return 'CANCELLED'
     default:
-      console.warn(`Unknown Kogito state: ${state}, defaulting to SCHEDULED`)
       return 'SCHEDULED'
   }
 }
@@ -143,13 +141,6 @@ export function adaptCflowTask(cflowTask: CflowTask): UnifiedTask {
 
   // Debug: Log completedAt field
   if (cflowTask.status === 'COMPLETED') {
-    console.log('[TaskAdapter] Completed task:', {
-      id: cflowTask.id,
-      status: cflowTask.status,
-      completedAt: (cflowTask as any).completedAt,
-      completed_at: (cflowTask as any).completed_at,
-      rawTask: cflowTask
-    })
   }
 
   const unifiedTask: UnifiedTask = {

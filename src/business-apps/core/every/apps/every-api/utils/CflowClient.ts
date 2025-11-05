@@ -82,7 +82,6 @@ export async function fetchCflowUserTasks(
   const params = new URLSearchParams(cleanParams)
   const url = `${endpoint}/api/tasks/user/${userId}${params.toString() ? '?' + params.toString() : ''}`
 
-  console.log('Fetching cflow tasks for user:', userId, 'from:', url)
 
   const headers: HeadersInit = {
     'Content-Type': 'application/json'
@@ -99,7 +98,6 @@ export async function fetchCflowUserTasks(
       signal: AbortSignal.timeout(30000) // 30 second timeout
     })
 
-    console.log('Cflow response status:', response.status, response.statusText)
 
     if (!response.ok) {
       const errorText = await response.text()
@@ -107,11 +105,9 @@ export async function fetchCflowUserTasks(
     }
 
     const data: CflowTasksResponse = await response.json()
-    console.log(`Found ${data.tasks?.length || 0} cflow tasks`)
     return data.tasks || []
   } catch (error) {
     const errorMsg = error instanceof Error ? error.message : String(error)
-    console.error('Failed to fetch cflow tasks:', errorMsg)
     throw new Error(`Custom Flow Engine error: ${errorMsg}`)
   }
 }
@@ -146,7 +142,6 @@ export async function fetchCflowCompletedTasks(
   const params = new URLSearchParams(cleanParams)
   const url = `${endpoint}/api/tasks/user/${userId}/completed${params.toString() ? '?' + params.toString() : ''}`
 
-  console.log('Fetching cflow COMPLETED tasks for user:', userId, 'from:', url)
 
   const headers: HeadersInit = {
     'Content-Type': 'application/json'
@@ -163,7 +158,6 @@ export async function fetchCflowCompletedTasks(
       signal: AbortSignal.timeout(30000) // 30 second timeout
     })
 
-    console.log('Cflow completed tasks response status:', response.status, response.statusText)
 
     if (!response.ok) {
       const errorText = await response.text()
@@ -171,11 +165,9 @@ export async function fetchCflowCompletedTasks(
     }
 
     const data: CflowTasksResponse = await response.json()
-    console.log(`Found ${data.tasks?.length || 0} cflow COMPLETED tasks`)
     return data.tasks || []
   } catch (error) {
     const errorMsg = error instanceof Error ? error.message : String(error)
-    console.error('Failed to fetch cflow completed tasks:', errorMsg)
     throw new Error(`Custom Flow Engine completed tasks error: ${errorMsg}`)
   }
 }
@@ -217,7 +209,6 @@ export async function fetchCflowTask(taskId: string, userId: string, accessToken
     const data = await response.json()
     return data.task || data
   } catch (error) {
-    console.error('Failed to fetch cflow task:', error)
     throw error
   }
 }
@@ -273,10 +264,8 @@ export async function fetchCflowTaskStats(
       }
     })
 
-    console.log('Cflow task stats (calculated from 100 task sample):', statistics)
     return statistics
   } catch (error) {
-    console.error('Failed to fetch cflow task stats:', error)
     throw error
   }
 }

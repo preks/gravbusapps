@@ -42,11 +42,9 @@ export async function fetchKogitoUserTasks(
   params?: KogitoTaskQueryParams
 ): Promise<KogitoTask[]> {
   if (!accessToken) {
-    console.warn('No access token provided for Kogito tasks')
     return []
   }
 
-  console.log('Fetching Kogito tasks for user:', userId, 'via FlowMetricsClient')
 
   try {
     const client = new FlowMetricsClient(accessToken)
@@ -69,19 +67,13 @@ export async function fetchKogitoUserTasks(
       ...(isCompletedRequest && { filterState: ['Closed'] }) // Only for completed tasks
     })
 
-    console.log('Kogito response:', {
-      totalCount: response.totalCount,
-      tasksCount: response.processingStates?.length || response.content?.length || 0
-    })
 
     // Handle both response formats (processingStates or content)
     const tasks = response.processingStates || response.content || []
-    console.log(`Found ${tasks.length} Kogito tasks (cockpitPage: ${isCompletedRequest ? 'ALL' : 'INBOX'})`)
 
     return tasks
   } catch (error) {
     const errorMsg = error instanceof Error ? error.message : String(error)
-    console.error('Failed to fetch Kogito tasks:', errorMsg)
     throw new Error(`Kogito/FlowMetrics error: ${errorMsg}`)
   }
 }
@@ -91,7 +83,6 @@ export async function fetchKogitoUserTasks(
  */
 export async function fetchKogitoTask(taskId: string, accessToken?: string): Promise<KogitoTask | null> {
   if (!accessToken) {
-    console.warn('No access token provided for Kogito task')
     return null
   }
 
@@ -99,10 +90,8 @@ export async function fetchKogitoTask(taskId: string, accessToken?: string): Pro
     const client = new FlowMetricsClient(accessToken)
     const task = await client.getFlowExecutionTask(taskId)
 
-    console.log('Fetched Kogito task:', taskId)
     return task
   } catch (error) {
-    console.error('Failed to fetch Kogito task:', taskId, error)
     return null
   }
 }
@@ -131,18 +120,12 @@ export async function fetchKogitoTaskStats(
       byStatus[taskState] = (byStatus[taskState] || 0) + 1
     })
 
-    console.log('Kogito task stats (from 100 task sample):', {
-      total: tasks.length,
-      byStatus,
-      sampleTask: tasks[0] ? { id: tasks[0].id, state: tasks[0].state, status: tasks[0].status } : null
-    })
 
     return {
       total: tasks.length,
       byStatus
     }
   } catch (error) {
-    console.error('Failed to fetch Kogito task stats:', error)
     return {
       total: 0,
       byStatus: {}
