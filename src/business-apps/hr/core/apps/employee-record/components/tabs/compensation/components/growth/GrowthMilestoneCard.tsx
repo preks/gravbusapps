@@ -64,7 +64,7 @@ const getMilestoneColor = (type: MilestoneType): string => {
 const GrowthMilestoneCard: React.FC<GrowthMilestoneCardProps> = ({ t, growthData, loading, locale }) => {
   // Format date for display
   const formatDate = (dateStr: string): string => {
-    return new Date(dateStr).toLocaleDateString('en-US', {
+    return new Date(dateStr).toLocaleDateString(locale ?? 'en-US', {
       year: 'numeric',
       month: 'long',
       day: 'numeric'

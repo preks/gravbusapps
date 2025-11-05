@@ -105,6 +105,7 @@ benefit-view-details = Details anzeigen
 benefit-provider = Anbieter
 benefit-value-yearly = Jahreswert
 benefit-no-provider = Kein Anbieter angegeben
+benefit-since = Seit
 
 # Payslip History
 payslip-title = Gehaltsabrechnungen

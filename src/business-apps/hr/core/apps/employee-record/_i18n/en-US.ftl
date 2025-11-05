@@ -105,6 +105,7 @@ benefit-view-details = View Details
 benefit-provider = Provider
 benefit-value-yearly = Yearly Value
 benefit-no-provider = No provider specified
+benefit-since = Since
 
 # Payslip History
 payslip-title = Payslip History

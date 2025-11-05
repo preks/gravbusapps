@@ -105,6 +105,7 @@ benefit-view-details = Vezi detalii
 benefit-provider = Furnizor
 benefit-value-yearly = Valoare anuală
 benefit-no-provider = Niciun furnizor specificat
+benefit-since = Din
 
 # Payslip History
 payslip-title = Istoricul fluturilor de salariu

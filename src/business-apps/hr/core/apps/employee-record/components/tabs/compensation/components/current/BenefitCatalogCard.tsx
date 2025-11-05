@@ -167,7 +167,7 @@ const BenefitCatalogCard: React.FC<BenefitCatalogCardProps> = ({
           {benefit.startDate && (
             <div className="gba:text-xs gba:text-muted-foreground">
               {t('benefit-since')}{' '}
-              {new Date(benefit.startDate).toLocaleDateString('en-US', { month: 'short', year: 'numeric' })}
+              {new Date(benefit.startDate).toLocaleDateString(locale ?? 'en-US', { month: 'short', year: 'numeric' })}
             </div>
           )}
         </div>
