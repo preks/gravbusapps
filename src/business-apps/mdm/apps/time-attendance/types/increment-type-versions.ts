@@ -12,11 +12,17 @@ export interface IncrementTypeVersionResponse {
       name: string
       code: string
     } | null
+    incrementTypeVersionDetailAggregate: {
+      aggregate: {
+        count: number
+      }
+    }
   }>
 }
 
 export interface TransformedIncrementTypeVersion {
   id: string
+  increments: number
   activeVersion: string
   activeFrom: string | null
   activeTo: string | null

@@ -7,7 +7,8 @@ import {
   DialogTitle,
   DialogDescription,
   DialogFooter,
-  DialogClose
+  DialogClose,
+  Badge
 } from '@newwork/nw-design-system'
 import { ColumnDef } from '@tanstack/react-table'
 import { Button } from '@newwork/nw-design-system'
@@ -18,6 +19,7 @@ import dayjs from 'dayjs'
 import { useRestClient } from '@/common/network/rest/useRestClient'
 import { env } from '@/common/env/EnvUtils'
 import { TransformedIncrementTypeVersion } from '../../types/increment-type-versions'
+import { getTranslationFromI18nKeyAndLabel } from '@/common/utils/windowUtils'
 
 interface IncrementTypesVersionProps {
   incrementTypeVersions: TransformedIncrementTypeVersion[]
@@ -44,6 +46,7 @@ export const IncrementTypesVersion: React.FC<IncrementTypesVersionProps> = ({
   const [isDeleteDialogOpen, setIsDeleteDialogOpen] = useState(false)
   const [isDeleting, setIsDeleting] = useState(false)
 
+  console.log(incrementTypeVersions, 'incrementTypeVersions')
   const handleSearch = useCallback((value: string) => {
     setSearchTerm(value)
   }, [])
@@ -106,18 +109,56 @@ export const IncrementTypesVersion: React.FC<IncrementTypesVersionProps> = ({
     },
     {
       accessorKey: 'activeFrom',
-      header: 'Active From',
+      header: 'Valid From',
       cell: ({ getValue }) => formatDate((getValue() as string) || '')
     },
     {
       accessorKey: 'activeTo',
-      header: 'Active To',
+      header: 'Valid To',
       cell: ({ getValue }) => formatDate((getValue() as string) || '')
     },
     {
       accessorKey: 'activeVersion',
       header: 'Version',
       cell: ({ getValue }) => getValue() as string
+    },
+    {
+      accessorKey: 'status',
+      header: 'Status',
+      cell: ({ row }) => {
+        const activeFrom = row.original.activeFrom
+        const activeTo = row.original.activeTo
+        const currentDate = new Date()
+        if (activeFrom && activeTo) {
+          if (currentDate >= new Date(activeFrom) && currentDate <= new Date(activeTo)) {
+            return <Badge variant="default">Active</Badge>
+          }
+        }
+        return <Badge variant="outline">Expired</Badge>
+      }
+    },
+    {
+      accessorKey: 'increments',
+      header: 'Increments',
+      cell: ({ getValue }) => {
+        const increments = getValue() as number
+        return (
+          <Badge variant="outline">
+            {`${increments}
+            ${
+              increments === 1
+                ? getTranslationFromI18nKeyAndLabel(
+                    'master-data:hr.time_attendance.increment_types.version.increment',
+                    'Increment'
+                  )
+                : getTranslationFromI18nKeyAndLabel(
+                    'master-data:hr.time_attendance.increment_types.version.increments',
+                    'Increments'
+                  )
+            }`}
+          </Badge>
+        )
+      }
     },
     {
       id: 'actions',

@@ -17,6 +17,11 @@ const GET_INCREMENT_TYPE_VERSIONS_QUERY = `
         name
         code
       }
+      incrementTypeVersionDetailAggregate {
+        aggregate {
+          count
+        }
+      }
     }
   }
 `
@@ -41,6 +46,7 @@ export const useIncrementTypeVersionsData = (context: BusinessAppContextProps): 
     (rawData: IncrementTypeVersionResponse['IncrementTypeVersion']): TransformedIncrementTypeVersion[] => {
       return rawData.map(item => ({
         id: item.id,
+        increments: item.incrementTypeVersionDetailAggregate.aggregate.count,
         activeVersion: item.activeVersion,
         activeFrom: item.activeFrom,
         activeTo: item.activeTo,

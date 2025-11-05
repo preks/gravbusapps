@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useMemo, useCallback } from 'react'
+import React, { useState, useEffect, useMemo } from 'react'
 import {
   Card,
   CardContent,
@@ -38,6 +38,9 @@ import { TransformedDayTypeVersion } from '../types/day-type-versions'
 import { FieldTypeOption } from '../types/day-type-version-details'
 import { formatDate, getTranslationFromI18nKeyAndLabel } from '@/common/utils/windowUtils'
 import { Alert, AlertTitle, AlertDescription } from '@newwork/nw-design-system'
+import { Alert, AlertTitle, AlertDescription } from '@newwork/nw-design-system'
+import { getTranslationFromI18nKeyAndLabel } from '@/common/utils/windowUtils'
+import { useVersionOverlapCheck } from '../hooks/useVersionOverlapCheck'
 
 export interface ConfigureDayTypeProps {
   dayTypeVersion: TransformedDayTypeVersion | null
@@ -137,7 +140,6 @@ const ConfigureDayType: React.FC<ConfigureDayTypeProps> = ({
   const restClient = useRestClient(env('NEXT_PUBLIC_KOGITO_PROCESSES_ENDPOINT'))
   const [loading, setLoading] = useState(false)
   const [currentDayTypeVersion, setCurrentDayTypeVersion] = useState<TransformedDayTypeVersion | null>(dayTypeVersion)
-  const [overlapWarning, setOverlapWarning] = useState<string | null>(null)
 
   // Update currentDayTypeVersion when dayTypeVersion prop changes
   useEffect(() => {
@@ -429,6 +431,15 @@ const ConfigureDayType: React.FC<ConfigureDayTypeProps> = ({
       setOverlapWarning(null)
     }
   }, [form.watch('dayType'), form.watch('validFrom'), currentDayTypeVersion, findLatestVersion])
+  // Check for date overlap when creating a new version
+  const { overlapWarning } = useVersionOverlapCheck({
+    currentVersion: currentDayTypeVersion,
+    allVersions: dayTypeVersions,
+    watch: form.watch,
+    entityIdFieldName: 'dayType',
+    activeFromFieldName: 'activeFrom',
+    getEntityIdFromVersion: version => version.dayType?.id || null
+  })
 
   // Helper function to convert date string (YYYY-MM-DD) to ISO 8601 Instant format
   const convertDateToInstant = (dateString: string): string => {
