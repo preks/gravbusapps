@@ -5,8 +5,7 @@
  */
 
 import React, { useState, useMemo } from 'react'
-import { Asset, AssetStatus, AssetCategory } from '../types'
-import { getCompanyLocations } from '../data/mockData'
+import { Asset, AssetStatus } from '../types'
 import {
   Table,
   TableHeader,
@@ -92,30 +91,15 @@ const formatDate = (dateString: string): string => {
 export const AssetTable: React.FC<AssetTableProps> = ({ assets, isLoading = false, onAssetClick, accessToken }) => {
   const DATA_TEST_ID_PREFIX = 'asset-table'
   const [searchQuery, setSearchQuery] = useState('')
-  const [categoryFilter, setCategoryFilter] = useState<string>('all')
   const [statusFilter, setStatusFilter] = useState<string>('all')
-  const [locationFilter, setLocationFilter] = useState<string>('all')
   const [currentPage, setCurrentPage] = useState(1)
   const pageSize = 10
-
-  // Get company locations
-  const companyLocations = useMemo(() => getCompanyLocations(), [])
 
   // Filter and search assets
   const filteredAssets = useMemo(() => {
     return assets.filter(asset => {
-      // Category filter
-      if (categoryFilter !== 'all' && asset.assetCategory?.value !== categoryFilter) {
-        return false
-      }
-
       // Status filter
       if (statusFilter !== 'all' && asset.assetStatus !== statusFilter) {
-        return false
-      }
-
-      // Location filter
-      if (locationFilter !== 'all' && asset.siteLocation?.name !== locationFilter) {
         return false
       }
 
@@ -136,7 +120,7 @@ export const AssetTable: React.FC<AssetTableProps> = ({ assets, isLoading = fals
 
       return true
     })
-  }, [assets, categoryFilter, statusFilter, locationFilter, searchQuery])
+  }, [assets, statusFilter, searchQuery])
 
   // Pagination
   const paginatedAssets = useMemo(() => {
@@ -161,21 +145,6 @@ export const AssetTable: React.FC<AssetTableProps> = ({ assets, isLoading = fals
           />
         </div>
 
-        {/* Category Filter */}
-        <Select value={categoryFilter} onValueChange={setCategoryFilter}>
-          <SelectTrigger className="gba:w-[180px]" data-testid="asset-category-filter">
-            <SelectValue placeholder="All Categories" />
-          </SelectTrigger>
-          <SelectContent>
-            <SelectItem value="all">All Categories</SelectItem>
-            {Object.values(AssetCategory).map(category => (
-              <SelectItem key={category} value={category}>
-                {category}
-              </SelectItem>
-            ))}
-          </SelectContent>
-        </Select>
-
         {/* Status Filter */}
         <Select value={statusFilter} onValueChange={setStatusFilter}>
           <SelectTrigger className="gba:w-[180px]" data-testid="asset-status-filter">
@@ -186,21 +155,6 @@ export const AssetTable: React.FC<AssetTableProps> = ({ assets, isLoading = fals
             {Object.values(AssetStatus).map(status => (
               <SelectItem key={status} value={status}>
                 {status}
-              </SelectItem>
-            ))}
-          </SelectContent>
-        </Select>
-
-        {/* Location Filter */}
-        <Select value={locationFilter} onValueChange={setLocationFilter}>
-          <SelectTrigger className="gba:w-[180px]" data-testid="asset-location-filter">
-            <SelectValue placeholder="All Locations" />
-          </SelectTrigger>
-          <SelectContent>
-            <SelectItem value="all">All Locations</SelectItem>
-            {companyLocations.map(location => (
-              <SelectItem key={location.id} value={location.name}>
-                {location.name}
               </SelectItem>
             ))}
           </SelectContent>
