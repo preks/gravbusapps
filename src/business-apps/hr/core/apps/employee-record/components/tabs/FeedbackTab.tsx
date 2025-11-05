@@ -5,7 +5,7 @@ import { Employee, EmployeeFeedback } from '../../hooks/useEmployeeData'
 import { Card, Avatar } from '@newwork/gravity-ui-catalog'
 import { Empty, Spin, Input, Select, Rate, Pagination } from 'antd'
 import { useGraphqlClient } from '@/common/network/graphql/useGraphQLClient'
-import { EMPLOYEE_FEEDBACK_REQUESTS_QUERY } from './queries/EmployeeFeedbackRequestQueries'
+import { EMPLOYEE_FEEDBACK_REQUESTS_QUERY_PAGED_WITH_COUNT } from './queries/EmployeeFeedbackRequestQueries'
 import { employeeFeedbackQuery } from '../../queries/feedbackQueries'
 import { AppActionMenu } from '@/components/app-action-menu'
 import { FlowContextName } from '@/common/types/FlowRegistryTypes'
@@ -153,18 +153,21 @@ const FeedbackTab: React.FC<FeedbackTabProps> = ({
   const [receivedCurrentPage, setReceivedCurrentPage] = useState<number>(1)
   const [receivedPageSize, setReceivedPageSize] = useState<number>(3)
 
-  const { tasks: feedbackTasks, totalCount: receivedTotalCount } = useFlowExecutionTasks(
-    { accessToken, userInfo } as any,
-    {
-      currentPage: receivedCurrentPage,
-      pageSize: receivedPageSize,
-      searchTerm: '',
-      filterTaskName: 'enterRequestedFeedback'
-    }
-  )
+  const {
+    tasks: feedbackTasks,
+    totalCount: receivedTotalCount,
+    isLoading: receivedLoading,
+    error: receivedError
+  } = useFlowExecutionTasks({ accessToken, userInfo } as any, {
+    currentPage: receivedCurrentPage,
+    pageSize: receivedPageSize,
+    searchTerm: '',
+    filterTaskName: 'enterRequestedFeedback'
+  })
 
   // GraphQL: Feedback you requested (second column)
   const [requestedFeedback, setRequestedFeedback] = useState<FeedbackRequest[]>([])
+  const [requestedTotalCount, setRequestedTotalCount] = useState<number>(0)
   const [requestsLoadingApproval, setRequestsLoadingApproval] = useState<boolean>(false)
   const [requestsErrorApproval, setRequestsErrorApproval] = useState<string | null>(null)
   const [requestedCurrentPage, setRequestedCurrentPage] = useState<number>(1)
@@ -177,8 +180,10 @@ const FeedbackTab: React.FC<FeedbackTabProps> = ({
     try {
       setRequestsLoadingApproval(true)
       setRequestsErrorApproval(null)
-      const res = await graphQLClient.request<any>(EMPLOYEE_FEEDBACK_REQUESTS_QUERY, {
-        idEmployee: employee.id
+      const res = await graphQLClient.request<any>(EMPLOYEE_FEEDBACK_REQUESTS_QUERY_PAGED_WITH_COUNT, {
+        idEmployee: employee.id,
+        limit: requestedPageSize,
+        offset: (requestedCurrentPage - 1) * requestedPageSize
       })
       const rows: any[] = res?.EmployeeFeedbackRequest || []
       const mapped: FeedbackRequest[] = rows.map((r: any, idx: number) => ({
@@ -192,6 +197,10 @@ const FeedbackTab: React.FC<FeedbackTabProps> = ({
         creatorEmployeeId: r?.requesterEmployee.id || null
       }))
       setRequestedFeedback(mapped)
+      const total = res?.EmployeeFeedbackRequestAggregate?.aggregate?.count
+      setRequestedTotalCount(
+        typeof total === 'number' ? total : (requestedCurrentPage - 1) * requestedPageSize + mapped.length
+      )
     } catch (e: any) {
       setRequestsErrorApproval(e?.message || 'Failed to load requested feedback')
     } finally {
@@ -231,7 +240,7 @@ const FeedbackTab: React.FC<FeedbackTabProps> = ({
 
   useEffect(() => {
     fetchRequestedFeedback()
-  }, [employee?.id])
+  }, [employee?.id, requestedCurrentPage, requestedPageSize])
 
   // Respond action handler extracted for readability
   const handleRespondClick = React.useCallback(
@@ -429,12 +438,12 @@ const FeedbackTab: React.FC<FeedbackTabProps> = ({
                   )}
                 </h4>
               </div>
-              {loading ? (
+              {receivedLoading ? (
                 <div className="gba:flex gba:justify-center gba:items-center gba:h-40">
                   <Spin size="default" />
                 </div>
-              ) : error ? (
-                <div className="gba:text-red-500">{error}</div>
+              ) : receivedError ? (
+                <div className="gba:text-red-500">{receivedError}</div>
               ) : feedbackRequests.length === 0 ? (
                 <Empty
                   description={getTranslationFromI18nKeyAndLabel(
@@ -445,52 +454,51 @@ const FeedbackTab: React.FC<FeedbackTabProps> = ({
               ) : (
                 <>
                   <div className="gba:grid gba:grid-cols-1 gba:gap-4 gba:items-stretch">
-                    {feedbackRequests
-                      .slice((receivedCurrentPage - 1) * receivedPageSize, receivedCurrentPage * receivedPageSize)
-                      .map((request: FeedbackRequest) => {
-                        const dateLabel = request.requestedOn
-                          ? (formatDate(request.requestedOn, 'date.short') ?? '')
-                          : ''
-                        return (
-                          <Card
-                            key={request.id}
-                            className="gba:shadow-sm gba:hover:shadow-md gba:transition-shadow gba:p-1"
-                            size="small"
-                            data-testid={`received-request-item-${request.id}`}
-                          >
-                            <div className="gba:flex gba:items-center gba:justify-between gba:min-h-10">
-                              <div className="gba:flex gba:flex-col">
-                                <div className="gba:font-medium" data-testid={`received-request-line-${request.id}`}>
-                                  {getTranslationFromI18nKeyAndLabel(
-                                    'lowcoder:feedback_tab.from_on_text',
-                                    `From ${request.creatorName || ''} on ${dateLabel}`,
-                                    {
-                                      employee: request.creatorName || '',
-                                      date: dateLabel
+                    {feedbackRequests.map((request: FeedbackRequest) => {
+                      const dateLabel = request.requestedOn ? (formatDate(request.requestedOn, 'date.short') ?? '') : ''
+                      return (
+                        <Card
+                          key={request.id}
+                          className="gba:shadow-sm gba:hover:shadow-md gba:transition-shadow gba:p-1"
+                          size="small"
+                          data-testid={`received-request-item-${request.id}`}
+                        >
+                          <div className="gba:flex gba:items-center gba:justify-between gba:min-h-10">
+                            <div className="gba:flex gba:flex-col">
+                              <div className="gba:font-medium" data-testid={`received-request-line-${request.id}`}>
+                                {getTranslationFromI18nKeyAndLabel(
+                                  'lowcoder:feedback_tab.from_on_text',
+                                  `From ${request.creatorName || ''} on ${dateLabel}`,
+                                  {
+                                    employee: request.creatorName || '',
+                                    date: dateLabel,
+                                    interpolation: {
+                                      escapeValue: false
                                     }
-                                  )}
-                                </div>
-                              </div>
-                              <div
-                                className="gba:flex gba:items-center gba:gap-2 gba:cursor-pointer"
-                                onClick={() => handleRespondClick(request)}
-                                data-testid={`received-request-respond-button-${request.id}`}
-                                role="button"
-                                tabIndex={0}
-                                onKeyDown={e => {
-                                  if (e.key === 'Enter' || e.key === ' ') {
-                                    e.preventDefault()
-                                    handleRespondClick(request)
                                   }
-                                }}
-                              >
-                                <PiPencilSimple />
-                                {getTranslationFromI18nKeyAndLabel('lowcoder:feedback_tab.respond', 'Respond')}
+                                )}
                               </div>
                             </div>
-                          </Card>
-                        )
-                      })}
+                            <div
+                              className="gba:flex gba:items-center gba:gap-2 gba:cursor-pointer"
+                              onClick={() => handleRespondClick(request)}
+                              data-testid={`received-request-respond-button-${request.id}`}
+                              role="button"
+                              tabIndex={0}
+                              onKeyDown={e => {
+                                if (e.key === 'Enter' || e.key === ' ') {
+                                  e.preventDefault()
+                                  handleRespondClick(request)
+                                }
+                              }}
+                            >
+                              <PiPencilSimple />
+                              {getTranslationFromI18nKeyAndLabel('lowcoder:feedback_tab.respond', 'Respond')}
+                            </div>
+                          </div>
+                        </Card>
+                      )
+                    })}
                   </div>
                   <div className="gba:mt-4 gba:flex gba:justify-end">
                     <Pagination
@@ -503,6 +511,7 @@ const FeedbackTab: React.FC<FeedbackTabProps> = ({
                       }}
                       data-testid="received-requests-pagination"
                       showSizeChanger
+                      pageSizeOptions={['3', '10', '20', '50']}
                     />
                   </div>
                 </>
@@ -531,49 +540,49 @@ const FeedbackTab: React.FC<FeedbackTabProps> = ({
               ) : (
                 <>
                   <div className="gba:grid gba:grid-cols-1 gba:gap-4 gba:items-stretch">
-                    {requestedFeedback
-                      .slice((requestedCurrentPage - 1) * requestedPageSize, requestedCurrentPage * requestedPageSize)
-                      .map(request => {
-                        const dateLabel = request.requestedOn
-                          ? (formatDate(request.requestedOn, 'date.short') ?? '')
-                          : ''
-                        const fromName = request.creatorName || '-'
-                        return (
-                          <Card
-                            key={request.id}
-                            className="gba:shadow-sm gba:hover:shadow-md gba:transition-shadow gba:p-1"
-                            size="small"
-                            data-testid={`requested-request-item-${request.id}`}
-                          >
-                            <div className="gba:flex gba:items-center gba:justify-between gba:min-h-10">
-                              <div className="gba:flex gba:flex-col">
-                                <div className="gba:font-medium" data-testid={`requested-request-line-${request.id}`}>
-                                  {getTranslationFromI18nKeyAndLabel(
-                                    'lowcoder:feedback_tab.from_since_text',
-                                    `From ${fromName} since ${dateLabel}`,
-                                    {
-                                      employee: fromName,
-                                      date: dateLabel
+                    {requestedFeedback.map(request => {
+                      const dateLabel = request.requestedOn ? (formatDate(request.requestedOn, 'date.short') ?? '') : ''
+                      const fromName = request.creatorName || '-'
+                      return (
+                        <Card
+                          key={request.id}
+                          className="gba:shadow-sm gba:hover:shadow-md gba:transition-shadow gba:p-1"
+                          size="small"
+                          data-testid={`requested-request-item-${request.id}`}
+                        >
+                          <div className="gba:flex gba:items-center gba:justify-between gba:min-h-10">
+                            <div className="gba:flex gba:flex-col">
+                              <div className="gba:font-medium" data-testid={`requested-request-line-${request.id}`}>
+                                {getTranslationFromI18nKeyAndLabel(
+                                  'lowcoder:feedback_tab.from_since_text',
+                                  `From ${fromName} since ${dateLabel}`,
+                                  {
+                                    employee: fromName,
+                                    date: dateLabel,
+                                    interpolation: {
+                                      escapeValue: false
                                     }
-                                  )}
-                                </div>
+                                  }
+                                )}
                               </div>
                             </div>
-                          </Card>
-                        )
-                      })}
+                          </div>
+                        </Card>
+                      )
+                    })}
                   </div>
                   <div className="gba:mt-4 gba:flex gba:justify-end">
                     <Pagination
                       current={requestedCurrentPage}
                       pageSize={requestedPageSize}
-                      total={requestedFeedback.length}
+                      total={requestedTotalCount}
                       onChange={(page, pageSize) => {
                         setRequestedCurrentPage(page)
                         setRequestedPageSize(pageSize)
                       }}
                       data-testid="requested-requests-pagination"
                       showSizeChanger
+                      pageSizeOptions={['3', '10', '20', '50']}
                     />
                   </div>
                 </>
