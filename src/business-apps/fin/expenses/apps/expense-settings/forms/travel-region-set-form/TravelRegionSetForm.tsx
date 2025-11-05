@@ -7,7 +7,11 @@ import {
   Button,
   Input,
   Alert,
-  AlertDescription
+  AlertDescription,
+  FormControl,
+  FormItem,
+  FormLabel,
+  FormMessage
 } from '@newwork/nw-design-system'
 import { useFeature } from '@/common/hooks/useFeature'
 import { BusinessAppContextProps } from '@/common/BusinessAppContext'
@@ -26,8 +30,10 @@ export interface TravelRegionSetFormData {
 }
 
 interface TravelRegionSetFormProps extends BusinessAppContextProps {
-  open: boolean
-  onClose: () => void
+  open?: boolean
+  isVisible?: boolean
+  onClose?: () => void
+  onCancel?: () => void
   onSave: (data: TravelRegionSetFormData) => void
   prefixDataTestId?: string
 }
@@ -35,10 +41,15 @@ interface TravelRegionSetFormProps extends BusinessAppContextProps {
 const TravelRegionSetForm: React.FC<TravelRegionSetFormProps> = ({
   accessToken,
   open,
+  isVisible,
   onClose,
+  onCancel,
   onSave,
   prefixDataTestId = ''
 }) => {
+  // Support both prop naming conventions
+  const isOpen = open ?? isVisible ?? false
+  const handleCloseModal = onClose ?? onCancel ?? (() => {})
   // Feature flag check
   const isDevEnabled = useFeature('dev.enabled')
 
@@ -105,7 +116,7 @@ const TravelRegionSetForm: React.FC<TravelRegionSetFormProps> = ({
       description: ''
     })
     setError(null)
-    onClose()
+    handleCloseModal()
   }
 
   const handleInputChange = (field: keyof TravelRegionSetFormData, value: string) => {
@@ -114,7 +125,7 @@ const TravelRegionSetForm: React.FC<TravelRegionSetFormProps> = ({
   }
 
   return (
-    <Dialog open={open} onOpenChange={handleClose}>
+    <Dialog open={isOpen} onOpenChange={handleClose}>
       <DialogContent
         data-testid={`${prefixDataTestId}-travel-region-set-form`}
         className="gba:max-w-2xl gba:max-h-[85vh]"
