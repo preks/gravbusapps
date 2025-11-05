@@ -147,11 +147,22 @@ export const useSiteLocations = (context: BusinessAppContextProps, initialPageSi
         if (response.data && response.paging) {
           // New paginated response format
           setTotalCount(response.paging.totalRecords)
-          return response.data
-        } else {
-          // Old format (backward compatibility)
-          setTotalCount((response as unknown as SiteLocationData[]).length || 0)
+          // Ensure response.data is an array
+          if (Array.isArray(response.data)) {
+            return response.data
+          } else {
+            console.warn('Unexpected response format: response.data is not an array', response)
+            return []
+          }
+        } else if (Array.isArray(response)) {
+          // Old format (backward compatibility) - response is directly an array
+          setTotalCount(response.length || 0)
           return response as unknown as SiteLocationData[]
+        } else {
+          // Unexpected response format
+          console.warn('Unexpected response format from site locations API:', response)
+          setTotalCount(0)
+          return []
         }
       } catch (error) {
         console.error('Error fetching site locations:', error)
