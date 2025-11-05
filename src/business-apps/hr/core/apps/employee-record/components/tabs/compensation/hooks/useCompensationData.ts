@@ -35,8 +35,9 @@ import { isCompensationStatusActive, isBenefitActive } from '../types/compensati
  *
  * @param employeeId - The employee ID to fetch compensation data for
  * @param accessToken - Access token for API authentication
+ * @param locale - User locale for date formatting (e.g., 'en-US', 'de-DE', 'fr-FR')
  */
-export const useCompensationData = (employeeId: string, accessToken: string) => {
+export const useCompensationData = (employeeId: string, accessToken: string, locale: string = 'en-US') => {
   const [compensationData, setCompensationData] = useState<CompensationData | null>(null)
   const [historyData, setHistoryData] = useState<CompensationHistoryData | null>(null)
   const [loading, setLoading] = useState(true)
@@ -228,7 +229,7 @@ export const useCompensationData = (employeeId: string, accessToken: string) => 
           const monthNum = Number.parseInt(month)
           if (!Number.isNaN(yearNum) && !Number.isNaN(monthNum) && monthNum >= 1 && monthNum <= 12) {
             const date = new Date(yearNum, monthNum - 1, 1)
-            monthName = date.toLocaleDateString('en-US', { month: 'long', year: 'numeric' })
+            monthName = date.toLocaleDateString(locale, { month: 'long', year: 'numeric' })
           }
         }
 
@@ -236,7 +237,7 @@ export const useCompensationData = (employeeId: string, accessToken: string) => 
         if (!monthName && payslip.paymentDate) {
           const date = new Date(payslip.paymentDate)
           if (!Number.isNaN(date.getTime())) {
-            monthName = date.toLocaleDateString('en-US', { month: 'long', year: 'numeric' })
+            monthName = date.toLocaleDateString(locale, { month: 'long', year: 'numeric' })
           }
         }
 
@@ -298,7 +299,7 @@ export const useCompensationData = (employeeId: string, accessToken: string) => 
     } finally {
       setLoading(false)
     }
-  }, [employeeId, accessToken, graphqlClient])
+  }, [employeeId, accessToken, locale, graphqlClient])
 
   useEffect(() => {
     fetchCompensationData()

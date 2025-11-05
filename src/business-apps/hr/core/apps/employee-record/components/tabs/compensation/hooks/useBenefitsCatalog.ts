@@ -1,18 +1,30 @@
 import { useState, useEffect, useCallback } from 'react'
 import { useGraphQLClient } from '@/common/network/graphql/useGraphQLClient'
-import { GET_BENEFIT_CATALOG, GET_EMPLOYEE_BENEFITS_FOR_CATALOG } from '../queries/benefitCatalogQueries'
+import { useCatalogManagerClient } from '@/common/network/catalogs/useCatalogManagerClient'
+import { GET_EMPLOYEE_BENEFITS_FOR_CATALOG } from '../queries/benefitCatalogQueries'
 import { BenefitCatalogItem, BenefitsCatalogData, CatalogBenefitEntry } from '../types/benefitCatalogTypes'
 import { EmployeeBenefit } from '../types/compensationTypes'
 import { BenefitStatus, isBenefitActive } from '../types/compensationEnums'
+
+// Catalog identifiers
+export const BENEFIT_TYPE_CATALOG = 'BenefitType'
+export const BENEFIT_TYPE_VERSION = 'v1'
+export const BENEFIT_PROVIDER_CATALOG = 'BenefitProvider'
+export const BENEFIT_PROVIDER_VERSION = 'v1'
 
 /**
  * Custom hook to fetch and manage benefits catalog
  *
  * ✅ FEATURES:
- * - Fetches all available benefit types from BenefitType catalog
- * - Fetches employee's current benefits (active/inactive)
+ * - Fetches all available benefit types from BenefitType catalog via Catalog Manager API
+ * - Fetches benefit providers from BenefitProvider catalog via Catalog Manager API
+ * - Fetches employee's current benefits (active/inactive) via GraphQL
  * - Merges data to show which benefits are available vs assigned
  * - Provides action capabilities (request/deactivate)
+ *
+ * ✅ API INTEGRATION:
+ * - Catalog data: Uses useCatalogManagerClient for BenefitType and BenefitProvider
+ * - Employee data: Uses GraphQL for EmployeeBenefit table
  *
  * @param employeeId - The employee ID
  * @param accessToken - Access token for API authentication
@@ -23,6 +35,7 @@ export const useBenefitsCatalog = (employeeId: string, accessToken: string) => {
   const [error, setError] = useState<string | null>(null)
 
   const graphqlClient = useGraphQLClient(accessToken)
+  const catalogClient = useCatalogManagerClient(accessToken)
 
   /**
    * Merge catalog benefits with employee benefits
@@ -78,6 +91,7 @@ export const useBenefitsCatalog = (employeeId: string, accessToken: string) => {
 
   /**
    * Fetch benefits catalog and employee benefits
+   * Uses Catalog Manager API for BenefitType/Provider and GraphQL for employee-specific data
    */
   const fetchBenefitsCatalog = useCallback(async () => {
     if (!employeeId || !accessToken) {
@@ -90,14 +104,40 @@ export const useBenefitsCatalog = (employeeId: string, accessToken: string) => {
       setError(null)
 
       // Fetch catalog benefits and employee benefits in parallel
-      const [catalogResult, employeeResult] = await Promise.all([
-        graphqlClient.request<{ CatalogEntry: CatalogBenefitEntry[] }>(GET_BENEFIT_CATALOG),
+      const [catalogResponse, employeeResult] = await Promise.all([
+        // Use Catalog Manager API for BenefitType catalog with child providers
+        catalogClient.getCatalogEntriesList(
+          {
+            catalogIdentifier: BENEFIT_TYPE_CATALOG,
+            version: BENEFIT_TYPE_VERSION
+          },
+          {
+            limit: 100,
+            offset: 0,
+            returnTotalRecords: true,
+            includeChildCatalogEntries: true // Include BenefitProvider as child entries
+          }
+        ),
+        // Use GraphQL for employee-specific benefits
         graphqlClient.request<{ EmployeeBenefit: EmployeeBenefit[] }>(GET_EMPLOYEE_BENEFITS_FOR_CATALOG, {
           employeeId
         })
       ])
 
-      const catalogEntries = catalogResult?.CatalogEntry || []
+      // Transform catalog response to match expected structure
+      const catalogEntries: CatalogBenefitEntry[] =
+        catalogResponse.data?.map((entry: any) => ({
+          id: entry.id,
+          value: entry.value,
+          code: entry.code,
+          description: entry.description,
+          displayOrder: entry.displayOrder,
+          additionalValue1: entry.additionalValue1,
+          additionalValue2: entry.additionalValue2,
+          additionalValue3: entry.additionalValue3,
+          childEntries: entry.childEntries || []
+        })) || []
+
       const employeeBenefits = employeeResult?.EmployeeBenefit || []
 
       // Merge data
@@ -121,7 +161,7 @@ export const useBenefitsCatalog = (employeeId: string, accessToken: string) => {
     } finally {
       setLoading(false)
     }
-  }, [employeeId, accessToken, graphqlClient, mergeBenefitData])
+  }, [employeeId, accessToken, catalogClient, graphqlClient, mergeBenefitData])
 
   useEffect(() => {
     fetchBenefitsCatalog()
