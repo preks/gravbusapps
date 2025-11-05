@@ -112,7 +112,7 @@ const EntitlementsTable: React.FC<EntitlementsTableProps> = ({ entitlements, pag
             disabled={page <= 1}
             data-testid="entitlements-prev-page"
           >
-            {getTranslationFromI18nKeyAndLabel('lowcoder:list.previous', 'Previous')}
+            {getTranslationFromI18nKeyAndLabel('lowcoder:personal_expenses.previous', 'Previous')}
           </Button>
           <Button
             size="sm"
@@ -121,7 +121,7 @@ const EntitlementsTable: React.FC<EntitlementsTableProps> = ({ entitlements, pag
             disabled={page >= totalPages}
             data-testid="entitlements-next-page"
           >
-            {getTranslationFromI18nKeyAndLabel('lowcoder:list.next', 'Next')}
+            {getTranslationFromI18nKeyAndLabel('lowcoder:personal_expenses.next', 'Next')}
           </Button>
         </div>
       </div>
