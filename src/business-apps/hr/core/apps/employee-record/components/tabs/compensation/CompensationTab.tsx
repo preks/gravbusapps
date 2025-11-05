@@ -119,13 +119,29 @@ const CompensationTab: React.FC<JobsCompensationTabProps> = ({ employee, employe
         </TabSwitchContent>
 
         <TabSwitchContent value="history">
-          {historyData && <PayHistoryView t={t} historyData={historyData} loading={loading} locale={currentLocale} />}
+          {historyData && (
+            <PayHistoryView
+              t={t}
+              historyData={historyData}
+              loading={loading}
+              locale={currentLocale}
+              accessToken={accessToken}
+              userInfo={userInfo}
+            />
+          )}
         </TabSwitchContent>
 
         {growthTabEnabled && (
           <TabSwitchContent value="growth">
             {historyData?.growthData && (
-              <GrowthView t={t} growthData={historyData.growthData} loading={loading} locale={currentLocale} />
+              <GrowthView
+                t={t}
+                growthData={historyData.growthData}
+                loading={loading}
+                locale={currentLocale}
+                accessToken={accessToken}
+                userInfo={userInfo}
+              />
             )}
           </TabSwitchContent>
         )}

@@ -19,8 +19,9 @@ import { getCompensationStatusLabel, getCompensationStatusVariant } from '../typ
 import PayslipHistorySection from '../components/history/PayslipHistorySection'
 import dayjs from 'dayjs'
 import { formatCurrencyString } from '@/common/utils/numberFormatter'
+import { BusinessAppContextProps } from '@/common/BusinessAppContext'
 
-interface PayHistoryViewProps {
+interface PayHistoryViewProps extends BusinessAppContextProps {
   t: (key: string, params?: any) => string
   historyData: CompensationHistoryData
   loading: boolean
@@ -31,7 +32,15 @@ interface PayHistoryViewProps {
  * Compensation History View Component
  * Displays historical compensation changes, payslips, and bonus payments
  */
-const PayHistoryView: React.FC<PayHistoryViewProps> = ({ t, historyData, loading, locale }) => {
+const PayHistoryView: React.FC<PayHistoryViewProps> = ({
+  t,
+  historyData,
+  loading,
+  locale,
+  accessToken,
+  userInfo,
+  additionalData
+}) => {
   const { compensationHistory, bonusHistory, payslipHistory } = historyData
 
   return (
@@ -101,7 +110,15 @@ const PayHistoryView: React.FC<PayHistoryViewProps> = ({ t, historyData, loading
       </Card>
 
       {/* Payslip History Section */}
-      <PayslipHistorySection t={t} payslips={payslipHistory} loading={loading} locale={locale} />
+      <PayslipHistorySection
+        t={t}
+        payslips={payslipHistory}
+        loading={loading}
+        locale={locale}
+        accessToken={accessToken}
+        userInfo={userInfo}
+        additionalData={additionalData}
+      />
 
       {/* Bonus History Section */}
       <Card data-testid="bonus-history-section">

@@ -27,8 +27,9 @@ import { EmployeePayslip } from '../../types/compensationTypes'
 import { getPayslipStatusLabel, getPayslipStatusVariant } from '../../types/compensationEnums'
 import { sanitizeFilename } from '@/common/utils/textUtils'
 import { formatCurrencyString } from '@/common/utils/numberFormatter'
+import { BusinessAppContextProps } from '@/common/BusinessAppContext'
 
-interface PayslipHistorySectionProps {
+interface PayslipHistorySectionProps extends BusinessAppContextProps {
   t: (key: string, params?: any) => string
   payslips: EmployeePayslip[]
   loading: boolean

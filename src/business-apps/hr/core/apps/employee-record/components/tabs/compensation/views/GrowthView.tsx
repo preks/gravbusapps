@@ -5,8 +5,9 @@ import { GrowthData } from '../types/compensationTypes'
 import GrowthStatistics from '../components/growth/GrowthStatistics'
 import GrowthTimelineChart from '../components/growth/GrowthTimelineChart'
 import GrowthMilestoneCard from '../components/growth/GrowthMilestoneCard'
+import { BusinessAppContextProps } from '@/common/BusinessAppContext'
 
-interface GrowthViewProps {
+interface GrowthViewProps extends BusinessAppContextProps {
   t: (key: string, params?: any) => string
   growthData: GrowthData
   loading: boolean
@@ -18,7 +19,15 @@ interface GrowthViewProps {
  * Main container for the compensation growth timeline tab
  * Displays growth statistics, timeline chart, and career milestones
  */
-const GrowthView: React.FC<GrowthViewProps> = ({ t, growthData, loading, locale }) => {
+const GrowthView: React.FC<GrowthViewProps> = ({
+  t,
+  growthData,
+  loading,
+  locale,
+  accessToken,
+  userInfo,
+  additionalData
+}) => {
   return (
     <div className="gba:space-y-6" data-testid="growth-view">
       {/* Growth Statistics KPI Cards */}
@@ -28,7 +37,15 @@ const GrowthView: React.FC<GrowthViewProps> = ({ t, growthData, loading, locale 
       <GrowthTimelineChart t={t} growthData={growthData} loading={loading} locale={locale} />
 
       {/* Career Milestones Timeline */}
-      <GrowthMilestoneCard t={t} growthData={growthData} loading={loading} locale={locale} />
+      <GrowthMilestoneCard
+        t={t}
+        growthData={growthData}
+        loading={loading}
+        locale={locale}
+        accessToken={accessToken}
+        userInfo={userInfo}
+        additionalData={additionalData}
+      />
     </div>
   )
 }

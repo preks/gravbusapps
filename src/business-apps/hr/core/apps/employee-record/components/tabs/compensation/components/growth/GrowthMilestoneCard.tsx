@@ -5,8 +5,9 @@ import { Card, CardHeader, CardTitle, CardDescription, CardContent } from '@neww
 import { PiRocketLaunch, PiTrendUp, PiGift, PiChartLineUp, PiTarget, PiStar, PiChartBar } from 'react-icons/pi'
 import { GrowthData, MilestoneType } from '../../types/compensationTypes'
 import { formatCurrencyString } from '@/common/utils/numberFormatter'
+import { BusinessAppContextProps } from '@/common/BusinessAppContext'
 
-interface GrowthMilestoneCardProps {
+interface GrowthMilestoneCardProps extends BusinessAppContextProps {
   t: (key: string, params?: any) => string
   growthData: GrowthData
   loading: boolean
