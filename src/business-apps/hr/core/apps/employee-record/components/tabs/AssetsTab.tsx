@@ -14,7 +14,9 @@ import {
   TableHead,
   TableHeader,
   TableRow,
-  Alert
+  Alert,
+  AlertTitle,
+  AlertDescription
 } from '@newwork/nw-design-system'
 import { Spin } from '@newwork/gravity-ui-catalog'
 import { Employee } from '../../hooks/useEmployeeData'
@@ -85,10 +87,8 @@ const AssetsTab: React.FC<AssetsTabProps> = ({ employee, accessToken, employeeId
       <div className="gba:p-6" data-testid="assets-error">
         <Alert variant="destructive">
           <PiWarning className="gba:h-4 gba:w-4" />
-          <div>
-            <div className="gba:font-semibold">Error Loading Assets</div>
-            <div className="gba:text-sm">{error}</div>
-          </div>
+          <AlertTitle>Error Loading Assets</AlertTitle>
+          <AlertDescription>{error}</AlertDescription>
         </Alert>
       </div>
     )
