@@ -144,6 +144,7 @@ const GrowthMilestoneCard: React.FC<GrowthMilestoneCardProps> = ({ t, growthData
                           <div className="gba:text-lg gba:font-bold gba:text-success">
                             {formatCurrencyString(milestone.changeAmount, {
                               currency: milestone.currency?.code || 'EUR',
+                              locale: locale,
                               minimumFractionDigits: 0,
                               maximumFractionDigits: 0
                             })}
