@@ -36,7 +36,13 @@ const GrowthView: React.FC<GrowthViewProps> = ({
       <GrowthStatistics t={t} growthData={growthData} loading={loading} locale={locale} currencyCode={currencyCode} />
 
       {/* Timeline Chart */}
-      <GrowthTimelineChart t={t} growthData={growthData} loading={loading} locale={locale} />
+      <GrowthTimelineChart
+        t={t}
+        growthData={growthData}
+        loading={loading}
+        locale={locale}
+        currencyCode={currencyCode}
+      />
 
       {/* Career Milestones Timeline */}
       <GrowthMilestoneCard

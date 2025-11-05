@@ -23,13 +23,33 @@ interface GrowthTimelineChartProps {
   growthData: GrowthData
   loading: boolean
   locale: string
+  currencyCode?: string
 }
 
 /**
  * Growth Timeline Chart Component
  * Interactive line chart showing compensation growth over time
  */
-const GrowthTimelineChart: React.FC<GrowthTimelineChartProps> = ({ t, growthData, loading, locale }) => {
+const GrowthTimelineChart: React.FC<GrowthTimelineChartProps> = ({
+  t,
+  growthData,
+  loading,
+  locale,
+  currencyCode = 'EUR'
+}) => {
+  // Get currency symbol for the given currency code
+  const getCurrencySymbol = (code: string): string => {
+    try {
+      return (
+        new Intl.NumberFormat(locale, { style: 'currency', currency: code })
+          .formatToParts(0)
+          .find(part => part.type === 'currency')?.value || code
+      )
+    } catch {
+      return code
+    }
+  }
+
   // Chart configuration
   const chartConfig = useMemo(
     () =>
@@ -99,7 +119,7 @@ const GrowthTimelineChart: React.FC<GrowthTimelineChartProps> = ({ t, growthData
 
               <YAxis
                 tick={{ fontSize: 12 }}
-                tickFormatter={value => `€${(value / 1000).toFixed(0)}k`}
+                tickFormatter={value => `${getCurrencySymbol(currencyCode)}${(value / 1000).toFixed(0)}k`}
                 className="gba:text-muted-foreground"
               />
 
@@ -113,7 +133,7 @@ const GrowthTimelineChart: React.FC<GrowthTimelineChartProps> = ({ t, growthData
                           : t('growth-chart-base-salary')
                       return [
                         formatCurrencyString(Number(value), {
-                          currency: 'EUR',
+                          currency: currencyCode,
                           locale: locale,
                           minimumFractionDigits: 0,
                           maximumFractionDigits: 0
