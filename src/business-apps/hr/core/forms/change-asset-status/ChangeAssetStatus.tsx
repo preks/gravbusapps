@@ -1,9 +1,9 @@
 /**
  * ChangeAssetStatus Form
- * Form for changing asset status (Repair/Retire)
+ * Form for changing asset status (Under Repair/Retire)
  */
 
-import React, { useState } from 'react'
+import React, { useState, useEffect, useMemo } from 'react'
 import { BusinessAppContextProps } from '@/common/BusinessAppContext'
 import {
   Form,
@@ -24,13 +24,15 @@ import {
   Card,
   CardHeader,
   CardTitle,
-  CardContent
+  CardContent,
+  Spinner
 } from '@newwork/nw-design-system'
 import { useForm } from 'react-hook-form'
 import { z } from 'zod'
 import { zodResolver } from '@hookform/resolvers/zod'
-import { getAssetById, updateAsset } from '../../apps/assets/data/mockData'
 import { AssetStatus } from '../../apps/assets/types'
+import { AssetProcessClient } from '../../apps/assets/services/AssetProcessClient'
+import { useAssetService } from '../../apps/assets/services/useAssetService'
 
 const formSchema = z.object({
   status: z.enum([AssetStatus.UNDER_REPAIR, AssetStatus.RETIRED]),
@@ -43,15 +45,25 @@ type FormValues = z.infer<typeof formSchema>
 export const ChangeAssetStatus: React.FC<BusinessAppContextProps> = props => {
   const [isSubmitting, setIsSubmitting] = useState(false)
   const [submitSuccess, setSubmitSuccess] = useState(false)
+  const [asset, setAsset] = useState<any>(null)
+  const [isLoading, setIsLoading] = useState(true)
+  const [error, setError] = useState<string | null>(null)
 
   // Get assetId from context (passed from AppActionButton)
   const assetId = props.additionalData?.assetId as string
-  const asset = assetId ? getAssetById(assetId) : null
+
+  // Initialize services
+  const { getAsset } = useAssetService(props)
+  const assetProcessClient = useMemo(() => {
+    const client = new AssetProcessClient()
+    client.setAccessToken(props.accessToken)
+    return client
+  }, [props.accessToken])
 
   const form = useForm<FormValues>({
     resolver: zodResolver(formSchema),
     defaultValues: {
-      status: AssetStatus.UNDER_REPAIR,
+      status: AssetStatus.RETIRED,
       notes: '',
       effectiveDate: new Date().toISOString().split('T')[0]
     }
@@ -59,17 +71,43 @@ export const ChangeAssetStatus: React.FC<BusinessAppContextProps> = props => {
 
   const selectedStatus = form.watch('status')
 
+  // Load asset data
+  useEffect(() => {
+    const loadAsset = async () => {
+      if (!assetId) {
+        setError('No asset ID provided')
+        setIsLoading(false)
+        return
+      }
+
+      try {
+        setIsLoading(true)
+        const assetData = await getAsset(assetId)
+        setAsset(assetData)
+      } catch (err) {
+        console.error('Error loading asset:', err)
+        setError('Failed to load asset data')
+      } finally {
+        setIsLoading(false)
+      }
+    }
+
+    loadAsset()
+  }, [assetId, getAsset])
+
   const onSubmit = async (values: FormValues) => {
-    if (!assetId) {
-      console.error('No asset ID provided')
+    if (!assetId || !asset) {
+      console.error('No asset ID or asset data')
       return
     }
 
     setIsSubmitting(true)
     try {
-      // Update asset status
-      updateAsset(assetId, {
-        status: values.status,
+      // Update asset status via Process API
+      await assetProcessClient.updateAsset({
+        id: assetId,
+        version: asset.version,
+        assetStatus: values.status,
         notes: values.notes
       })
 
@@ -88,17 +126,26 @@ export const ChangeAssetStatus: React.FC<BusinessAppContextProps> = props => {
       }, 1500)
     } catch (error) {
       console.error('Error updating asset status:', error)
+      setError('Failed to update asset status')
     } finally {
       setIsSubmitting(false)
     }
   }
 
-  if (!asset) {
+  if (isLoading) {
+    return (
+      <div className="gba:p-6 gba:flex gba:justify-center gba:items-center" data-testid="change-status-loading">
+        <Spinner size="lg" />
+      </div>
+    )
+  }
+
+  if (error || !asset) {
     return (
       <div className="gba:p-6" data-testid="change-status-error">
         <Card>
           <CardContent className="gba:p-6">
-            <p className="gba:text-destructive">Asset not found. Please try again.</p>
+            <p className="gba:text-destructive">{error || 'Asset not found. Please try again.'}</p>
           </CardContent>
         </Card>
       </div>
@@ -126,10 +173,10 @@ export const ChangeAssetStatus: React.FC<BusinessAppContextProps> = props => {
         <CardContent>
           <div className="gba:mb-4 gba:p-4 gba:bg-muted gba:rounded-lg">
             <p className="gba:text-sm gba:font-medium">
-              Asset: {asset.producer} {asset.model}
+              Asset: {asset.assetBrand?.value} {asset.model}
             </p>
             <p className="gba:text-xs gba:text-muted-foreground">Serial: {asset.serialNumber}</p>
-            <p className="gba:text-xs gba:text-muted-foreground">Current Status: {asset.status}</p>
+            <p className="gba:text-xs gba:text-muted-foreground">Current Status: {asset.assetStatus}</p>
           </div>
 
           <Form {...form}>

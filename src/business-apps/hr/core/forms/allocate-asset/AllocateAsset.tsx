@@ -3,7 +3,7 @@
  * Form for allocating an asset to an employee
  */
 
-import React, { useState } from 'react'
+import React, { useState, useEffect } from 'react'
 import { BusinessAppContextProps } from '@/common/BusinessAppContext'
 import {
   Form,
@@ -20,82 +20,101 @@ import {
   SelectValue,
   SelectContent,
   SelectItem,
+  Textarea,
   Card,
   CardHeader,
   CardTitle,
-  CardContent
+  CardContent,
+  Spinner
 } from '@newwork/nw-design-system'
 import { useForm } from 'react-hook-form'
 import { z } from 'zod'
 import { zodResolver } from '@hookform/resolvers/zod'
-import { getAssetById, allocateAsset } from '../../apps/assets/data/mockData'
-import { v4 as uuidv4 } from 'uuid'
+import { useAssetService } from '../../apps/assets/services/useAssetService'
+import { useEmployeeSearch } from './hooks/useEmployeeSearch'
 
 const formSchema = z.object({
   employeeId: z.string().min(1, 'Please select an employee'),
-  employeeName: z.string().min(1, 'Employee name is required'),
   startDate: z.string().min(1, 'Start date is required'),
   expectedEndDate: z.string().optional(),
-  conditionStart: z.string().optional()
+  startAssetConditionRef: z.string().optional(),
+  notes: z.string().optional()
 })
 
 type FormValues = z.infer<typeof formSchema>
 
-// Mock employees - in real implementation, fetch from API
-const mockEmployees = [
-  { id: 'emp-001', name: 'John Doe', department: 'Engineering' },
-  { id: 'emp-002', name: 'Jane Smith', department: 'Marketing' },
-  { id: 'emp-003', name: 'Mike Johnson', department: 'Sales' },
-  { id: 'emp-004', name: 'Sarah Williams', department: 'HR' },
-  { id: 'emp-005', name: 'David Brown', department: 'Finance' }
-]
-
-const conditionOptions = [
-  'Excellent - Brand new device',
-  'Good - Previous user maintained well',
-  'Fair - Shows signs of use',
-  'Poor - Requires attention'
-]
-
 export const AllocateAsset: React.FC<BusinessAppContextProps> = props => {
   const [isSubmitting, setIsSubmitting] = useState(false)
   const [submitSuccess, setSubmitSuccess] = useState(false)
+  const [asset, setAsset] = useState<any>(null)
+  const [isLoading, setIsLoading] = useState(true)
+  const [error, setError] = useState<string | null>(null)
+  const [searchQuery, setSearchQuery] = useState('')
 
   // Get assetId from context (passed from AppActionButton)
   const assetId = props.additionalData?.assetId as string
-  const asset = assetId ? getAssetById(assetId) : null
+
+  // Initialize services
+  const { getAsset, allocateAsset } = useAssetService(props)
+  const {
+    employees,
+    isLoading: employeesLoading,
+    error: employeesError,
+    searchEmployees
+  } = useEmployeeSearch(props.accessToken)
 
   const form = useForm<FormValues>({
     resolver: zodResolver(formSchema),
     defaultValues: {
       employeeId: '',
-      employeeName: '',
       startDate: new Date().toISOString().split('T')[0],
       expectedEndDate: '',
-      conditionStart: 'Good - Previous user maintained well'
+      startAssetConditionRef: '',
+      notes: ''
     }
   })
 
+  // Load asset data
+  useEffect(() => {
+    const loadAsset = async () => {
+      if (!assetId) {
+        setError('No asset ID provided')
+        setIsLoading(false)
+        return
+      }
+
+      try {
+        setIsLoading(true)
+        const assetData = await getAsset(assetId)
+        setAsset(assetData)
+      } catch (err) {
+        console.error('Error loading asset:', err)
+        setError('Failed to load asset data')
+      } finally {
+        setIsLoading(false)
+      }
+    }
+
+    loadAsset()
+  }, [assetId, getAsset])
+
   const onSubmit = async (values: FormValues) => {
-    if (!assetId) {
-      console.error('No asset ID provided')
+    if (!assetId || !asset) {
+      console.error('No asset ID or asset data')
       return
     }
 
     setIsSubmitting(true)
     try {
       // Create allocation
-      const allocation = {
-        id: uuidv4(),
+      await allocateAsset({
         assetId: assetId,
         employeeId: values.employeeId,
-        employeeName: values.employeeName,
         startDate: values.startDate,
-        expectedEndDate: values.expectedEndDate,
-        conditionStart: values.conditionStart
-      }
-
-      allocateAsset(allocation)
+        expectedEndDate: values.expectedEndDate || undefined,
+        startAssetConditionRef: values.startAssetConditionRef || undefined,
+        notes: values.notes || undefined
+      })
 
       setSubmitSuccess(true)
 
@@ -112,25 +131,33 @@ export const AllocateAsset: React.FC<BusinessAppContextProps> = props => {
       }, 1500)
     } catch (error) {
       console.error('Error allocating asset:', error)
+      setError('Failed to allocate asset')
     } finally {
       setIsSubmitting(false)
     }
   }
 
-  const handleEmployeeChange = (employeeId: string) => {
-    const employee = mockEmployees.find(e => e.id === employeeId)
-    if (employee) {
-      form.setValue('employeeId', employee.id)
-      form.setValue('employeeName', employee.name)
+  const handleEmployeeSearch = (value: string) => {
+    setSearchQuery(value)
+    if (value.length >= 2 || value.length === 0) {
+      searchEmployees(value)
     }
   }
 
-  if (!asset) {
+  if (isLoading) {
+    return (
+      <div className="gba:p-6 gba:flex gba:justify-center gba:items-center" data-testid="allocate-asset-loading">
+        <Spinner size="lg" />
+      </div>
+    )
+  }
+
+  if (error && !asset) {
     return (
       <div className="gba:p-6" data-testid="allocate-asset-error">
         <Card>
           <CardContent className="gba:p-6">
-            <p className="gba:text-destructive">Asset not found. Please try again.</p>
+            <p className="gba:text-destructive">{error || 'Asset not found. Please try again.'}</p>
           </CardContent>
         </Card>
       </div>
@@ -149,6 +176,10 @@ export const AllocateAsset: React.FC<BusinessAppContextProps> = props => {
     )
   }
 
+  const filteredEmployees = employees.filter(
+    emp => !searchQuery || emp.name.toLowerCase().includes(searchQuery.toLowerCase())
+  )
+
   return (
     <div className="gba:p-6" data-testid="allocate-asset-form">
       <Card>
@@ -158,10 +189,16 @@ export const AllocateAsset: React.FC<BusinessAppContextProps> = props => {
         <CardContent>
           <div className="gba:mb-4 gba:p-4 gba:bg-muted gba:rounded-lg">
             <p className="gba:text-sm gba:font-medium">
-              Asset: {asset.producer} {asset.model}
+              Asset: {asset.assetBrand?.value} {asset.model}
             </p>
             <p className="gba:text-xs gba:text-muted-foreground">Serial: {asset.serialNumber}</p>
           </div>
+
+          {error && (
+            <div className="gba:mb-4 gba:p-3 gba:bg-destructive/10 gba:text-destructive gba:rounded-md gba:text-sm">
+              {error}
+            </div>
+          )}
 
           <Form {...form}>
             <form onSubmit={form.handleSubmit(onSubmit)} className="gba:space-y-4">
@@ -171,25 +208,47 @@ export const AllocateAsset: React.FC<BusinessAppContextProps> = props => {
                 render={({ field }) => (
                   <FormItem>
                     <FormLabel>Employee *</FormLabel>
-                    <Select onValueChange={handleEmployeeChange} defaultValue={field.value}>
+                    <Select onValueChange={field.onChange} value={field.value} disabled={employeesLoading}>
                       <FormControl>
                         <SelectTrigger data-testid="employee-select">
-                          <SelectValue placeholder="Select an employee" />
+                          <SelectValue placeholder={employeesLoading ? 'Loading employees...' : 'Select an employee'} />
                         </SelectTrigger>
                       </FormControl>
                       <SelectContent>
-                        {mockEmployees.map(employee => (
-                          <SelectItem
-                            key={employee.id}
-                            value={employee.id}
-                            data-testid={`employee-option-${employee.id}`}
-                          >
-                            {employee.name} - {employee.department}
-                          </SelectItem>
-                        ))}
+                        <div className="gba:p-2">
+                          <Input
+                            placeholder="Search employees..."
+                            value={searchQuery}
+                            onChange={e => handleEmployeeSearch(e.target.value)}
+                            className="gba:mb-2"
+                          />
+                        </div>
+                        {filteredEmployees.length === 0 ? (
+                          <div className="gba:p-2 gba:text-sm gba:text-muted-foreground gba:text-center">
+                            {employeesLoading ? 'Loading...' : 'No employees found'}
+                          </div>
+                        ) : (
+                          filteredEmployees.map(employee => (
+                            <SelectItem
+                              key={employee.id}
+                              value={employee.id}
+                              data-testid={`employee-option-${employee.id}`}
+                            >
+                              <div className="gba:flex gba:flex-col">
+                                <span className="gba:font-medium">{employee.name}</span>
+                                {(employee.jobTitle || employee.department) && (
+                                  <span className="gba:text-xs gba:text-muted-foreground">
+                                    {[employee.jobTitle, employee.department].filter(Boolean).join(' • ')}
+                                  </span>
+                                )}
+                              </div>
+                            </SelectItem>
+                          ))
+                        )}
                       </SelectContent>
                     </Select>
                     <FormDescription>Select the employee who will receive this asset</FormDescription>
+                    {employeesError && <p className="gba:text-sm gba:text-destructive">{employeesError}</p>}
                     <FormMessage />
                   </FormItem>
                 )}
@@ -227,25 +286,19 @@ export const AllocateAsset: React.FC<BusinessAppContextProps> = props => {
 
               <FormField
                 control={form.control}
-                name="conditionStart"
+                name="notes"
                 render={({ field }) => (
                   <FormItem>
-                    <FormLabel>Condition at Handover</FormLabel>
-                    <Select onValueChange={field.onChange} defaultValue={field.value}>
-                      <FormControl>
-                        <SelectTrigger data-testid="condition-select">
-                          <SelectValue placeholder="Select condition" />
-                        </SelectTrigger>
-                      </FormControl>
-                      <SelectContent>
-                        {conditionOptions.map(condition => (
-                          <SelectItem key={condition} value={condition} data-testid={`condition-option-${condition}`}>
-                            {condition}
-                          </SelectItem>
-                        ))}
-                      </SelectContent>
-                    </Select>
-                    <FormDescription>Document the asset's condition</FormDescription>
+                    <FormLabel>Notes</FormLabel>
+                    <FormControl>
+                      <Textarea
+                        placeholder="Any additional notes about this allocation..."
+                        className="gba:min-h-[80px]"
+                        {...field}
+                        data-testid="notes-textarea"
+                      />
+                    </FormControl>
+                    <FormDescription>Optional notes about the allocation</FormDescription>
                     <FormMessage />
                   </FormItem>
                 )}
