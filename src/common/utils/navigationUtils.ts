@@ -52,6 +52,8 @@ const PLATFORM_URL_TO_APP_MAPPING: NavigationMapping = {
   '/platform/fin/expenses/backoffice-expenses': 'fin/expenses/apps/backoffice-expenses',
 
   // HR
+  '/platform/hr/absences/manager-absences': 'hr/absences/apps/manager-absences',
+  '/platform/hr/human-resources': 'hr/core/apps/human-resources',
   '/platform/employee-record': 'hr/core/apps/employee-record',
 
   // SALES-DEMO (Service Requests)
@@ -61,6 +63,9 @@ const PLATFORM_URL_TO_APP_MAPPING: NavigationMapping = {
   '/platform/mdm/lead-data': 'mdm/apps/lead-data',
   '/platform/mdm/operation-data': 'mdm/apps/operation-data',
   '/platform/mdm/engagement-data': 'mdm/apps/engagement-data',
+
+  // Platform
+  '/platform/every-box': 'platform/apps/every-box',
 
   // Core
   '/platform/core/content-hub': 'core/content/apps/content-hub',

@@ -4,6 +4,7 @@ import { env } from '@/common/env/EnvUtils'
 export interface FlowExecutionTask {
   id: string
   name: string
+  nodeName?: string
   referenceName?: string
   description?: string
   priority?: number
@@ -57,6 +58,7 @@ export interface FlowExecutionTasksParams {
   filterProcessName?: string
   filterTaskName?: string
   state?: string // Filter by task state (e.g., 'open', 'completed')
+  filterState?: string[] // Filter by task states for HISTORY/ALL cockpitPage (e.g., ['Closed', 'Canceled'])
 }
 
 export class FlowMetricsClient extends RestClient {
@@ -89,7 +91,8 @@ export class FlowMetricsClient extends RestClient {
       taskName,
       filterProcessName,
       filterTaskName,
-      state
+      state,
+      filterState
     } = params
 
     const queryParams: Record<string, string | number> = {
@@ -124,16 +127,32 @@ export class FlowMetricsClient extends RestClient {
       queryParams.searchItem = search
     }
 
-    return this.get<FlowExecutionTasksResponse>('/flow-executions/tasks', {
-      params: queryParams
+    // Build URL with query params
+    const url = new URL('/flow-executions/tasks', this.baseUrl)
+
+    // Add regular query params
+    Object.entries(queryParams).forEach(([key, value]) => {
+      url.searchParams.append(key, String(value))
     })
+
+    // Add filterState array params (each value as separate param)
+    // The API expects multiple filterState parameters like: filterState=Closed&filterState=Canceled
+    if (filterState && filterState.length > 0) {
+      filterState.forEach(state => {
+        url.searchParams.append('filterState', state)
+      })
+    }
+
+    return this.get<FlowExecutionTasksResponse>(url.pathname + url.search)
   }
 
   /**
    * Get a specific flow execution task by ID
+   * @param processInstanceId - The process instance (execution) ID
+   * @param taskId - The task ID
    */
-  async getFlowExecutionTask(taskId: string): Promise<FlowExecutionTask> {
-    return this.get<FlowExecutionTask>(`/flow-executions/tasks/${taskId}`)
+  async getFlowExecutionTask(processInstanceId: string, taskId: string): Promise<FlowExecutionTask> {
+    return this.get<FlowExecutionTask>(`/flow-executions/${processInstanceId}/tasks/${taskId}`)
   }
 
   /**
