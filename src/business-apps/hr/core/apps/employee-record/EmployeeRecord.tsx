@@ -39,6 +39,7 @@ import { BusinessAppContextProps } from '../../../../../common/BusinessAppContex
 import { getCurrentActiveStructureId, getTranslationFromI18nKeyAndLabel } from '@/common/utils/windowUtils'
 import { useFeature } from '@/common/hooks/useFeature'
 import TimeTrackingTab from './components/tabs/TimeTrackingTab'
+import { Feature } from '@/common/types/constants/FeatureHub'
 
 /**
  * Employee Record Module
@@ -173,7 +174,7 @@ const EmployeeRecordContent: React.FC<EmployeeRecordContentProps> = ({
   // Track active tab for the UI
   const [activeTab, setActiveTab] = useState(initialActiveTab)
   const activeStructureId = getCurrentActiveStructureId()
-  const devFeatureFlag = useFeature('dev.enabled')
+  const devFeatureFlag = useFeature(Feature.Dev.Enabled)
 
   // Update URL when active tab changes
   useEffect(() => {
