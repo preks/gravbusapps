@@ -2,22 +2,9 @@
 
 import React from 'react'
 import dayjs from 'dayjs'
-import {
-  Card,
-  CardContent,
-  CardHeader,
-  CardTitle,
-  Badge,
-  Table,
-  TableBody,
-  TableCell,
-  TableHead,
-  TableHeader,
-  TableRow,
-  Alert,
-  AlertTitle,
-  AlertDescription
-} from '@newwork/nw-design-system'
+import { Card, CardContent, CardHeader, CardTitle } from '@newwork/nw-design-system'
+import { Badge } from '@newwork/nw-design-system'
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@newwork/nw-design-system'
 import { Spin } from '@newwork/gravity-ui-catalog'
 import { Employee } from '../../hooks/useEmployeeData'
 import { useEmployeeAssets } from '../../hooks/useEmployeeAssets'
@@ -84,13 +71,17 @@ const AssetsTab: React.FC<AssetsTabProps> = ({ employee, accessToken, employeeId
 
   if (error) {
     return (
-      <div className="gba:p-6" data-testid="assets-error">
-        <Alert variant="destructive">
-          <PiWarning className="gba:h-4 gba:w-4" />
-          <AlertTitle>Error Loading Assets</AlertTitle>
-          <AlertDescription>{error}</AlertDescription>
-        </Alert>
-      </div>
+      <Card data-testid="assets-error">
+        <CardContent className="gba:p-6">
+          <div className="gba:flex gba:items-start gba:gap-3 gba:text-destructive">
+            <PiWarning className="gba:h-5 gba:w-5 gba:mt-0.5" />
+            <div>
+              <div className="gba:font-semibold gba:mb-1">Error Loading Assets</div>
+              <div className="gba:text-sm">{error}</div>
+            </div>
+          </div>
+        </CardContent>
+      </Card>
     )
   }
 
