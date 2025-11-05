@@ -20,7 +20,7 @@ import { useAssets } from './hooks/useAssets'
 import { AssetStatistics } from './components/AssetStatistics'
 import { AssetTable } from './components/AssetTable'
 import { AssetDetailPanel } from './components/AssetDetailPanel'
-import { RegisterAsset } from '../../forms/register-asset/RegisterAsset'
+import { EquipmentRegistration } from '../../forms/equipment-registration/EquipmentRegistration'
 import { Asset, AssetAllocation } from './types'
 import { useAssetService } from './services/useAssetService'
 
@@ -128,7 +128,7 @@ export const Assets: React.FC<BusinessAppContextProps> = props => {
             <DialogTitle>Register New Equipment</DialogTitle>
             <DialogDescription>Add a new asset to the inventory system.</DialogDescription>
           </DialogHeader>
-          <RegisterAsset {...props} onSuccess={handleRegisterSuccess} />
+          <EquipmentRegistration {...props} onSuccess={handleRegisterSuccess} />
         </DialogContent>
       </Dialog>
     </div>
