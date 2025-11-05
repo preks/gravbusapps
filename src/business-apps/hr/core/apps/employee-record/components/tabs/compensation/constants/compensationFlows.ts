@@ -26,7 +26,7 @@
  *
  * **Approval Flow:** Yes, requires manager approval
  *
- * **TODO:** Register in FlowRegistryTypes when backend is ready
+ * **Note:** This flow will be registered in FlowRegistryTypes when Kogito backend is ready
  */
 export const REQUEST_BENEFIT_FLOW = 'requestEmployeeBenefit'
 
@@ -46,7 +46,7 @@ export const REQUEST_BENEFIT_FLOW = 'requestEmployeeBenefit'
  *
  * **Approval Flow:** Conditional, based on benefit type and value
  *
- * **TODO:** Register in FlowRegistryTypes when backend is ready
+ * **Note:** This flow will be registered in FlowRegistryTypes when Kogito backend is ready
  */
 export const DEACTIVATE_BENEFIT_FLOW = 'deactivateEmployeeBenefit'
 

@@ -67,7 +67,7 @@ export const useBenefitsCatalog = (employeeId: string, accessToken: string) => {
           // Action capabilities
           canRequest,
           canDeactivate,
-          isPending: false // TODO: Implement pending status check
+          isPending: false // Note: Pending status will be available when approval workflows are implemented
         }
 
         return catalogItem

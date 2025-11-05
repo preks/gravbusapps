@@ -8,7 +8,7 @@
  * - Generates monthly data points for smooth timeline visualization
  * - Calculates growth statistics (total growth, average annual increase)
  *
- * TODO: Replace with GraphQL queries when EmployeeCareerMilestone table is available
+ * Note: This will be replaced with GraphQL queries when EmployeeCareerMilestone table is implemented in backend
  */
 
 import { CompensationMilestone, CompensationDataPoint, GrowthData } from '../types/compensationTypes'
