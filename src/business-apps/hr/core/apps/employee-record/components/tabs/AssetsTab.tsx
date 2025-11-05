@@ -5,7 +5,7 @@ import dayjs from 'dayjs'
 import { Card, CardContent, CardHeader, CardTitle } from '@newwork/nw-design-system'
 import { Badge } from '@newwork/nw-design-system'
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@newwork/nw-design-system'
-import { Spin } from '@newwork/gravity-ui-catalog'
+import { Spinner } from '@newwork/nw-design-system'
 import { Employee } from '../../hooks/useEmployeeData'
 import { useEmployeeAssets } from '../../hooks/useEmployeeAssets'
 import { PiPackage, PiCalendar, PiWarning } from 'react-icons/pi'
@@ -64,7 +64,7 @@ const AssetsTab: React.FC<AssetsTabProps> = ({ employee, accessToken, employeeId
   if (isLoading) {
     return (
       <div className="gba:flex gba:justify-center gba:items-center gba:py-12" data-testid="assets-loading">
-        <Spin size="large" />
+        <Spinner size="lg" />
       </div>
     )
   }
