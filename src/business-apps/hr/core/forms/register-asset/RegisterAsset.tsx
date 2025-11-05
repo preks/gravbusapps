@@ -254,12 +254,12 @@ export const RegisterAsset: React.FC<RegisterAssetProps> = ({ onSuccess, ...prop
             </div>
 
             {/* Inventory Value and Currency */}
-            <div className="gba:grid gba:grid-cols-3 gba:gap-4 gba:items-start">
+            <div className="gba:grid gba:grid-cols-2 gba:gap-4 gba:items-start">
               <FormField
                 control={form.control}
                 name="inventoryValue"
                 render={({ field }) => (
-                  <FormItem className="gba:col-span-2">
+                  <FormItem>
                     <FormLabel>Inventory Value *</FormLabel>
                     <FormControl>
                       <Input
