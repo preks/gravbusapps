@@ -174,7 +174,7 @@ const EmployeeRecordContent: React.FC<EmployeeRecordContentProps> = ({
   // Track active tab for the UI
   const [activeTab, setActiveTab] = useState(initialActiveTab)
   const activeStructureId = getCurrentActiveStructureId()
-  const devFeatureFlag = useFeature(Feature.Dev.Enabled)
+  const devFeatureFlag = useFeature(Feature.Dev.Enabled.Key)
 
   // Update URL when active tab changes
   useEffect(() => {

@@ -61,7 +61,7 @@ const PlatformFeature = {
 }
 
 const DevFeature = {
-  Enabled: 'dev.enabled'
+  Enabled: { Key: 'dev.enabled' }
 }
 
 export const Feature = {
