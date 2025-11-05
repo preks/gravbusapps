@@ -1,2 +1,7 @@
-export { createTaskColumns, createTaskSortableColumns } from './taskColumns'
+export {
+  createTaskColumns,
+  createTaskSortableColumns,
+  defaultTaskColumnMapping,
+  createTaskColumnToGraphQLMapping
+} from './taskColumns'
 export { taskFilterConfig } from './taskFilters'

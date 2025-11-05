@@ -4,38 +4,9 @@
  */
 
 import type { BaseEntity, CatalogEntry } from '@/common/network/graphql/commonTypes'
-import type { EmployeeRef } from '@/common/data/employee/types/employeeBaseTypes'
+import type { Employee } from '@/common/data/employee/types/employeeBaseTypes'
 import type { CommunicationChannel } from '@/common/data/common/types/commonTypes'
-
-/**
- * Common Account Contact (Many-to-Many Join Table)
- * Used in both CommonAccount and CommonContact
- */
-export interface CommonAccountContact extends BaseEntity {
-  id: string
-  contactType?: string
-  accountId: string
-  contactId: string
-
-  // When used in CommonContact.accountContacts - has account details
-  account?: {
-    id: string
-    name: string
-    picture?: string
-    pictureThumbnail?: string
-  }
-
-  // When used in CommonAccount.contacts - has contact details
-  contact?: {
-    id: string
-    firstName?: string
-    lastName?: string
-    fullName?: string
-    jobPosition?: string
-    picture?: string
-    pictureThumbnail?: string
-  }
-}
+import type { CommonAccountContact } from './commonRelationTypes'
 
 /**
  * Common Contact Interface
@@ -45,6 +16,7 @@ export interface CommonAccountContact extends BaseEntity {
 export interface CommonContact extends BaseEntity {
   id: string
   code?: string
+  type?: string
   firstName?: string
   lastName?: string
   fullName?: string
@@ -52,6 +24,8 @@ export interface CommonContact extends BaseEntity {
   department?: string
   birthDate?: string
   description?: string
+  notesSummary?: string
+  userId?: string
 
   // Pictures (base64 strings - CORRECT)
   picture?: string
@@ -69,11 +43,19 @@ export interface CommonContact extends BaseEntity {
   languageRef?: string
 
   // Employee Reference (CORRECT)
-  ownerEmployee?: EmployeeRef
+  ownerEmployee?: Employee
   ownerEmployeeId?: string
 
   // Account Contacts (CORRECT - many-to-many relationship via join table)
   accountContacts?: CommonAccountContact[]
+
+  // Related entities - forward declarations to avoid circular imports
+  activities?: any[] // CommonActivity[]
+  notes?: any[] // CommonNote[]
+  documents?: any[] // CommonDocument[]
+  tasks?: any[] // CommonTask[]
+  opportunityContacts?: any[] // CommonOpportunityContact[]
+  leads?: any[] // CommonLead[]
 }
 
 /**

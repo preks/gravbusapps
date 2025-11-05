@@ -1,6 +1,6 @@
-// Centralized export for CRM customer-related GraphQL queries
+/**
+ * Customer Queries and Fragments
+ * GraphQL queries and fragments for Customer Relations
+ */
 
-export * from './customerAccountQueries'
-export * from './customerContactQueries'
-export * from './customerLeadQueries'
-export * from './customerOpportunityQueries'
+export * from './customerTaskFragments'

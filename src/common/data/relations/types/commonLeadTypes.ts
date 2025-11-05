@@ -4,7 +4,7 @@
  */
 
 import type { BaseEntity, CatalogEntry } from '@/common/network/graphql/commonTypes'
-import type { EmployeeRef } from '@/common/data/employee/types/employeeBaseTypes'
+import type { Employee } from '@/common/data/employee/types/employeeBaseTypes'
 import type { Address, CommunicationChannel } from '@/common/data/common/types/commonTypes'
 
 /**
@@ -15,39 +15,84 @@ import type { Address, CommunicationChannel } from '@/common/data/common/types/c
 export interface CommonLead extends BaseEntity {
   id: string
   code?: string
+  description?: string
+
+  // Source information
+  leadSourceType?: string
+  sourceIndividualName?: string
+  sourceCompanyName?: string
+
+  // Dates
+  conversionDate?: string
+
+  // Personal information
   firstName?: string
   lastName?: string
   fullName?: string
-  companyName?: string
   jobPosition?: string
   department?: string
-  description?: string
+  companyName?: string
+  companyEmail?: string
+  companyPhone?: string
+  companyWebsite?: string
+  sensitive?: boolean
 
-  // Pictures (base64 strings)
-  picture?: string
-  pictureThumbnail?: string
+  // Contact information (direct fields from GraphQL)
+  email?: string
+  phoneNumber?: string
 
-  // Addresses (standardized with "locality")
-  addresses?: Address[]
+  // Address fields (both domains have these)
+  addressLine?: string | { lines: string[] } | any // CRM: String, IRM: jsonb
+  postalCode?: string
+  locality?: string // IRM uses "locality", CRM uses "city" - normalized to "locality"
 
-  // Communication Channels
-  communicationChannels?: CommunicationChannel[]
-
-  // Catalog References
+  // Catalog References (using IRM naming as standard)
   salutation?: CatalogEntry
   salutationRef?: string
-  source?: CatalogEntry
-  sourceRef?: string
-  status?: CatalogEntry
-  statusRef?: string
-  rating?: CatalogEntry
-  ratingRef?: string
-  industry?: CatalogEntry
-  industryRef?: string
+  academicTitle?: CatalogEntry
+  academicTitleRef?: string
+  timeZone?: CatalogEntry
+  timeZoneRef?: string
+  leadSource?: CatalogEntry
+  leadSourceRef?: string
+  leadStatus?: CatalogEntry
+  leadStatusRef?: string
+  leadRating?: CatalogEntry
+  leadRatingRef?: string
+  industryClass?: CatalogEntry // IRM uses "industryClass", CRM uses "industry"
+  industryClassRef?: string
+  legalForm?: CatalogEntry
+  legalFormRef?: string
+  companySize?: CatalogEntry // IRM uses "companySize", CRM uses "numberOfEmployees"
+  companySizeRef?: string
+  accountAnnualRevenueBand?: CatalogEntry // IRM uses "accountAnnualRevenueBand", CRM uses "annualRevenue"
+  accountAnnualRevenueBandRef?: string
+  country?: CatalogEntry
+  countryRef?: string
+  region?: CatalogEntry
+  regionRef?: string
 
   // Employee Reference
-  ownerEmployee?: EmployeeRef
+  ownerEmployee?: Employee
   ownerEmployeeId?: string
+
+  // Related entities - forward declarations to avoid circular imports
+  activities?: any[] // CommonActivity[]
+  notes?: any[] // CommonNote[]
+  documents?: any[] // CommonDocument[]
+  tasks?: any[] // CommonTask[]
+
+  // Conversion references
+  convertedAccountId?: string
+  convertedAccount?: any // CommonAccount
+  convertedContactId?: string
+  convertedContact?: any // CommonContact
+  convertedOpportunityId?: string
+  convertedOpportunity?: any // CommonOpportunity
+
+  // Computed fields
+  address?: Address
+  communicationChannels?: CommunicationChannel[]
 }
 
 /**

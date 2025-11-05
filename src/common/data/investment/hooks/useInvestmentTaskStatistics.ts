@@ -63,9 +63,19 @@ export const useInvestmentTaskStatistics = (context: BusinessAppContextProps): I
 
       // Calculate my tasks statistics
       const myTasks = myTasksResult.tasks || []
-      const myInProgress = myTasks.filter(t => t.taskStatusLabel?.toLowerCase().includes('progress')).length
-      const myCompleted = myTasks.filter(t => t.taskStatusLabel?.toLowerCase().includes('complete')).length
-      const myOverdue = myTasks.filter(t => t.taskStatusLabel?.toLowerCase().includes('overdue')).length
+      const myInProgress = myTasks.filter(t => {
+        const statusCode = t.taskStatus?.code || t.taskStatus?.type
+        const status = statusCode?.toUpperCase()
+        return status === 'IN_PROGRESS' || status === 'PENDING'
+      }).length
+      const myCompleted = myTasks.filter(t => {
+        const statusCode = t.taskStatus?.code || t.taskStatus?.type
+        return statusCode?.toUpperCase() === 'COMPLETED'
+      }).length
+      const myOverdue = myTasks.filter(t => {
+        const statusCode = t.taskStatus?.code || t.taskStatus?.type
+        return statusCode?.toUpperCase() === 'OVERDUE'
+      }).length
 
       setMyStats({
         totalTasks: { value: myTasks.length },
@@ -76,9 +86,19 @@ export const useInvestmentTaskStatistics = (context: BusinessAppContextProps): I
 
       // Calculate team tasks statistics
       const teamTasks = teamTasksResult.tasks || []
-      const teamInProgress = teamTasks.filter(t => t.taskStatusLabel?.toLowerCase().includes('progress')).length
-      const teamCompleted = teamTasks.filter(t => t.taskStatusLabel?.toLowerCase().includes('complete')).length
-      const teamOverdue = teamTasks.filter(t => t.taskStatusLabel?.toLowerCase().includes('overdue')).length
+      const teamInProgress = teamTasks.filter(t => {
+        const statusCode = t.taskStatus?.code || t.taskStatus?.type
+        const status = statusCode?.toUpperCase()
+        return status === 'IN_PROGRESS' || status === 'PENDING'
+      }).length
+      const teamCompleted = teamTasks.filter(t => {
+        const statusCode = t.taskStatus?.code || t.taskStatus?.type
+        return statusCode?.toUpperCase() === 'COMPLETED'
+      }).length
+      const teamOverdue = teamTasks.filter(t => {
+        const statusCode = t.taskStatus?.code || t.taskStatus?.type
+        return statusCode?.toUpperCase() === 'OVERDUE'
+      }).length
 
       setTeamStats({
         totalTasks: { value: teamTasks.length },

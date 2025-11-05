@@ -8,7 +8,7 @@ import { AppActionMenu } from '@/components/app-action-menu/AppActionMenu'
 import { FlowContextName } from '@/common/types/FlowRegistryTypes'
 import { buildPlatformUrl, navigateTo } from '@/common/utils/navigationUtils'
 import { useProcessCompletion } from '@/common/hooks/useProcessCompletion'
-import type { CommonLead } from '@/common/data/relations/types/commonLeadTypes'
+import type { InvestmentLead } from '@/common/data/investment/types/investmentLeadTypes'
 import type { InvestmentLeadQueryVariables } from '@/common/data/investment/queries/investmentLeadQueries'
 import { useInvestmentLeads } from '@/common/data/investment/hooks/useInvestmentLeads'
 import {
@@ -16,50 +16,20 @@ import {
   defaultLeadSortableColumns,
   defaultVisibleLeadColumns,
   defaultAvailableLeadColumns,
-  defaultLeadFilterConfig
+  createLeadColumnToGraphQLMapping
 } from '@/common/components/common-relations/view-layouts/lead-layout/config'
-import { LeadStatistics } from './components/LeadStatistics'
-import { applyBasicFilters, applyDateFilter } from './utils/investmentLeadQueryHelpers'
+import { defaultLeadFilterConfig } from '@/common/components/common-relations/view-layouts/lead-layout/config'
+import { LeadStatisticsLayout } from '@/common/components/common-relations/view-layouts/lead-layout/components/LeadStatisticsLayout'
+import { applyLeadFilters } from '@/common/components/common-relations/view-layouts/lead-layout/utils/queryHelpers'
+import { useInvestmentLeadStatistics } from '@/common/data/investment/hooks/useInvestmentLeadStatistics'
 
 export type LeadViewProps = BusinessAppContextProps
-
-/**
- * Get sorting configuration for Investment Leads
- * Handles nested sorting for catalog entries and relations
- */
-const getSortingConfig = (columnId: string, descending: boolean) => {
-  const direction = descending ? 'DESC_NULLS_LAST' : 'ASC_NULLS_LAST'
-
-  const sortMapping: Record<string, any> = {
-    // Direct fields
-    lead: [
-      { field: 'firstName', direction },
-      { field: 'lastName', direction }
-    ],
-    firstName: [{ field: 'firstName', direction }],
-    lastName: [{ field: 'lastName', direction }],
-    fullName: [{ field: 'fullName', direction }],
-    companyName: [{ field: 'companyName', direction }],
-    createdAt: [{ field: 'createdAt', direction }],
-    updatedAt: [{ field: 'updatedAt', direction }],
-
-    // Owner Employee - sort by displayName
-    ownerEmployee: [
-      {
-        field: { ownerEmployee: { displayName: direction } } as any,
-        direction
-      }
-    ]
-  }
-
-  return sortMapping[columnId] || null
-}
 
 export const LeadView: React.FC<LeadViewProps> = context => {
   const { accessToken } = context
 
   // State
-  const [leads, setLeads] = useState<CommonLead[]>([])
+  const [leads, setLeads] = useState<InvestmentLead[]>([])
   const [totalCount, setTotalCount] = useState(0)
   const [isLoading, setIsLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
@@ -71,6 +41,10 @@ export const LeadView: React.FC<LeadViewProps> = context => {
 
   // Hooks
   const { fetchInvestmentLeads } = useInvestmentLeads(context)
+  const leadStatistics = useInvestmentLeadStatistics(context)
+
+  // Column to GraphQL mapping (IRM uses default - no overrides needed)
+  const mapColumnToGraphQLField = useMemo(() => createLeadColumnToGraphQLMapping(), [])
 
   // Query Variables
   const queryVariables = useMemo(() => {
@@ -80,21 +54,22 @@ export const LeadView: React.FC<LeadViewProps> = context => {
       search: searchTerm.trim() || undefined
     }
 
-    applyBasicFilters(vars, selectedFilters)
-    applyDateFilter(vars, selectedFilters)
+    applyLeadFilters(vars, selectedFilters)
 
     if (sorting.length > 0) {
-      const sortConfig = getSortingConfig(sorting[0].id, sorting[0].desc)
-
-      if (sortConfig) {
-        vars.orderBy = sortConfig
-      }
+      const sortField = mapColumnToGraphQLField(sorting[0].id)
+      vars.orderBy = [
+        {
+          field: sortField as any,
+          direction: sorting[0].desc ? 'DESC_NULLS_LAST' : 'ASC_NULLS_LAST'
+        }
+      ]
     } else {
       vars.orderBy = [{ field: 'createdAt' as any, direction: 'DESC_NULLS_LAST' }]
     }
 
     return vars
-  }, [pagination, searchTerm, selectedFilters, sorting])
+  }, [pagination, searchTerm, selectedFilters, sorting, mapColumnToGraphQLField])
 
   // Load Data
   const loadData = useCallback(
@@ -106,7 +81,7 @@ export const LeadView: React.FC<LeadViewProps> = context => {
 
       try {
         const result = await fetchInvestmentLeads(queryVariables)
-        setLeads(result.leads || [])
+        setLeads((result.leads as any) || [])
         setTotalCount(result.total || 0)
       } catch (err) {
         setError(err instanceof Error ? err.message : 'Unknown error occurred')
@@ -122,7 +97,14 @@ export const LeadView: React.FC<LeadViewProps> = context => {
     if (accessToken) {
       loadData(true)
     }
-  }, [accessToken, queryVariables, loadData])
+  }, [accessToken, loadData])
+
+  // Reload data without loading state when filters/search/pagination/sorting change
+  useEffect(() => {
+    if (accessToken) {
+      loadData(false)
+    }
+  }, [queryVariables, accessToken, loadData])
 
   // Process completion
   const handleProcessComplete = useCallback(() => {
@@ -165,7 +147,7 @@ export const LeadView: React.FC<LeadViewProps> = context => {
     setPagination(prev => ({ ...prev, pageIndex: 0 }))
   }, [])
 
-  const handleRowClick = useCallback((lead: CommonLead) => {
+  const handleRowClick = useCallback((lead: InvestmentLead) => {
     const url = buildPlatformUrl('/platform/irm/lead-record', {
       leadId: lead.id
     })
@@ -173,11 +155,11 @@ export const LeadView: React.FC<LeadViewProps> = context => {
   }, [])
 
   // Columns
-  const columns = useMemo(() => defaultLeadColumns(), [])
+  const columns = useMemo(() => defaultLeadColumns() as any, [])
 
   // Row Actions
   const renderRowActions = useCallback(
-    (row: { original: CommonLead }) => (
+    (row: { original: InvestmentLead }) => (
       <AppActionMenu
         contextsArray={[FlowContextName.investmentLeadEntity]}
         externalContextData={{ leadId: row.original.id }}
@@ -185,9 +167,13 @@ export const LeadView: React.FC<LeadViewProps> = context => {
         accessToken={accessToken}
         emptyStateBehavior="enable"
         deferMainContextRequestsUntilClick
-        onClick={e => e.stopPropagation()}
       >
-        <Button variant="ghost" size="icon" data-testid={`lead-actions-${row.original.id}`}>
+        <Button
+          variant="ghost"
+          size="icon"
+          data-testid={`lead-actions-${row.original.id}`}
+          onClick={(e: React.MouseEvent) => e.stopPropagation()}
+        >
           <MoreVertical className="gba:h-4 gba:w-4" />
         </Button>
       </AppActionMenu>
@@ -199,7 +185,10 @@ export const LeadView: React.FC<LeadViewProps> = context => {
   const filterConfig = useMemo(() => defaultLeadFilterConfig, [])
 
   // Statistics
-  const renderStatistics = useCallback(() => <LeadStatistics {...context} />, [context])
+  const renderStatistics = useCallback(
+    () => <LeadStatisticsLayout statistics={leadStatistics} data-testid="investment-lead-statistics" />,
+    [leadStatistics]
+  )
 
   // Primary Action
   const primaryAction = useMemo(
@@ -220,7 +209,7 @@ export const LeadView: React.FC<LeadViewProps> = context => {
   )
 
   return (
-    <LeadLayout
+    <LeadLayout<InvestmentLead>
       leads={leads}
       totalCount={totalCount}
       loading={isLoading}

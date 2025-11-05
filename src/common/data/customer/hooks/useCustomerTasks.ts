@@ -4,7 +4,7 @@ import { useGraphQLClient } from '@/common/network/graphql/useGraphQLClient'
 import { BusinessAppContextProps } from '@/common/BusinessAppContext'
 
 // Types
-import type { BaseCustomerTask, CustomerTask } from '../types'
+import type { CustomerTask } from '../types'
 
 // Queries
 import {
@@ -21,18 +21,18 @@ import {
 import { toCustomerTask } from '../mappers'
 
 export interface CustomerTaskListQueryResponse {
-  SalesTask: BaseCustomerTask[]
+  SalesTask: CustomerTask[]
   SalesTaskAggregate: {
     aggregate: { count: number }
   }
 }
 
 export interface CustomerTaskByEntityQueryResponse {
-  SalesTask: BaseCustomerTask[]
+  SalesTask: CustomerTask[]
 }
 
 export interface CustomerTaskByIdQueryResponse {
-  SalesTask: BaseCustomerTask[]
+  SalesTask: CustomerTask[]
 }
 
 export interface CustomerTaskListData {

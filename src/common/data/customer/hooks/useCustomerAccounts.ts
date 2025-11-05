@@ -4,7 +4,7 @@ import { useGraphQLClient } from '@/common/network/graphql/useGraphQLClient'
 import { BusinessAppContextProps } from '@/common/BusinessAppContext'
 
 // Types
-import type { BaseCustomerAccount, CustomerAccount } from '../types'
+import type { CustomerAccount } from '../types'
 
 // Queries
 import {
@@ -18,8 +18,8 @@ import {
 import { toCustomerAccount } from '../mappers/customerAccountMappers'
 
 export interface CustomerAccountListQueryResponse {
-  CustomerAccount: BaseCustomerAccount[]
-  CustomerAccountAggregate: {
+  Account: any[]
+  AccountAggregate: {
     aggregate: { count: number }
   }
 }
@@ -36,8 +36,8 @@ export const useCustomerAccounts = (context: BusinessAppContextProps) => {
     async (variables: CustomerAccountQueryVariables = {}): Promise<CustomerAccountListData> => {
       const query = GET_CUSTOMER_ACCOUNTS(variables)
       const result = await graphqlClient.request<CustomerAccountListQueryResponse>(query)
-      const accounts = result.CustomerAccount.map(toCustomerAccount)
-      const total = result.CustomerAccountAggregate?.aggregate?.count || 0
+      const accounts = result.Account.map(toCustomerAccount)
+      const total = result.AccountAggregate?.aggregate?.count || 0
       return { accounts, total }
     },
     [graphqlClient]
@@ -46,9 +46,9 @@ export const useCustomerAccounts = (context: BusinessAppContextProps) => {
   const fetchCustomerAccountById = useCallback(
     async (id: string): Promise<CustomerAccount | null> => {
       const query = GET_CUSTOMER_ACCOUNT_BY_ID(id)
-      const result = await graphqlClient.request<{ CustomerAccount: BaseCustomerAccount[] }>(query)
-      const base = result.CustomerAccount?.[0]
-      return base ? toCustomerAccount(base) : null
+      const result = await graphqlClient.request<{ Account: any[] }>(query)
+      const raw = result.Account?.[0]
+      return raw ? toCustomerAccount(raw) : null
     },
     [graphqlClient]
   )
@@ -56,8 +56,8 @@ export const useCustomerAccounts = (context: BusinessAppContextProps) => {
   const searchCustomerAccounts = useCallback(
     async (variables: CustomerAccountQueryVariables): Promise<CustomerAccount[]> => {
       const query = SEARCH_CUSTOMER_ACCOUNTS(variables)
-      const result = await graphqlClient.request<{ CustomerAccount: BaseCustomerAccount[] }>(query)
-      return result.CustomerAccount.map(toCustomerAccount)
+      const result = await graphqlClient.request<{ Account: any[] }>(query)
+      return result.Account.map(toCustomerAccount)
     },
     [graphqlClient]
   )

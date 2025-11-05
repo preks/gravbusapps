@@ -3,7 +3,7 @@
 import type { CatalogEntry, BaseEntity } from '@/common/network/graphql/commonTypes'
 import type { EmployeeRef } from '@/common/data/employee/types/employeeBaseTypes'
 import type {
-  InvestmentAccountRef,
+  InvestmentAccount,
   InvestmentOpportunityRef,
   InvestmentRef,
   InvestmentRoleRef
@@ -33,10 +33,10 @@ export interface BaseInvestment extends BaseEntity {
   currency?: CatalogEntry
 
   // Entity references (using Ref types)
-  investmentAccount?: InvestmentAccountRef
+  investmentAccount?: InvestmentAccount
   investmentOpportunity?: InvestmentOpportunityRef
   ownerEmployee?: EmployeeRef
-  loanRecipientInvestmentAccount?: InvestmentAccountRef
+  loanRecipientInvestmentAccount?: InvestmentAccount
 
   // Investment Role relationships (array of roles)
   investmentRole?: InvestmentRoleRef[]
@@ -99,7 +99,7 @@ export interface BaseInvestmentReport extends BaseEntity {
 
   // Entity references (using Ref types)
   investment?: InvestmentRef
-  loanRecipientInvestmentAccount?: InvestmentAccountRef
+  loanRecipientInvestmentAccount?: InvestmentAccount
 
   // Report fields (from investment table)
   plannedExitDate?: string // ISO date string

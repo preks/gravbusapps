@@ -12,6 +12,10 @@ import {
   CardTitle,
   ScrollArea,
   Separator,
+  Sheet,
+  SheetContent,
+  SheetHeader,
+  SheetTitle,
   Tooltip,
   TooltipContent,
   TooltipTrigger
@@ -39,9 +43,13 @@ import {
 } from './utils'
 import dayjs from 'dayjs'
 import { navigateTo, buildPlatformUrl } from '@/common/utils/navigationUtils'
+import { getCatalogEntryValue } from '@/common/data/catalog/utils/catalogTranslationUtils'
+import { CatalogEntry } from '@/common/data/catalog/types/catalogTypes'
 
 interface TaskDetailSheetProps {
-  task: Task
+  task: Task | null
+  open: boolean
+  onOpenChange: (open: boolean) => void
   buildReferenceUrl?: (reference: TaskReference) => string
   'data-testid'?: string
 }
@@ -65,7 +73,47 @@ const FieldRow: React.FC<FieldRowProps> = ({ icon: IconComponent, label, childre
   </div>
 )
 
+/**
+ * TaskDetailSheet with integrated Sheet component
+ * Displays detailed task information in a slide-out panel
+ */
 export const TaskDetailSheet: React.FC<TaskDetailSheetProps> = ({
+  task,
+  open,
+  onOpenChange,
+  buildReferenceUrl,
+  'data-testid': dataTestId
+}) => {
+  return (
+    <Sheet open={open} onOpenChange={onOpenChange} title="Task Details">
+      <SheetContent className="gba:!w-[500px] gba:sm:!w-[500px] gba:!max-w-[90vw] gba:p-0 gba:flex gba:flex-col">
+        <SheetHeader className="gba:px-6 gba:py-6 gba:border-b gba:border-border gba:shrink-0">
+          <SheetTitle className="gba:text-xl gba:font-semibold gba:text-left">
+            {task?.name || 'Task Details'}
+          </SheetTitle>
+        </SheetHeader>
+        <div className="gba:flex-1 gba:overflow-hidden gba:px-6">
+          {task ? (
+            <TaskDetailContent task={task} buildReferenceUrl={buildReferenceUrl} data-testid={dataTestId} />
+          ) : (
+            <div className="gba:p-4 gba:text-center gba:text-muted-foreground">No task selected</div>
+          )}
+        </div>
+      </SheetContent>
+    </Sheet>
+  )
+}
+
+/**
+ * TaskDetailContent - Internal component for rendering task details
+ */
+interface TaskDetailContentProps {
+  task: Task
+  buildReferenceUrl?: (reference: TaskReference) => string
+  'data-testid'?: string
+}
+
+const TaskDetailContent: React.FC<TaskDetailContentProps> = ({
   task,
   buildReferenceUrl,
   'data-testid': dataTestId
@@ -107,9 +155,17 @@ export const TaskDetailSheet: React.FC<TaskDetailSheetProps> = ({
   }
 
   const taskDate = getTaskDate()
-  const isOverdue = !!taskDate && dayjs().isAfter(dayjs(taskDate)) && task.status !== 'completed'
+
+  // Extract status, priority, type from common relation fields (CatalogEntry objects)
+  // Supports both CRM (status/priority/type) and IRM (taskStatus/taskPriority/taskType) naming
+  const taskStatus = (task as any).taskStatus as CatalogEntry
+  const taskPriority = (task as any).taskPriority as CatalogEntry
+  const taskType = (task as any).taskType as CatalogEntry
+
+  const isOverdue = !!taskDate && dayjs().isAfter(dayjs(taskDate)) && taskStatus?.type !== 'COMPLETED'
 
   const handleEmployeeClick = () => {
+    if (!task.assignedTo?.id) return
     const url = buildPlatformUrl('/platform/employee-record', { employeeId: task.assignedTo.id })
     navigateTo(url)
   }
@@ -148,57 +204,71 @@ export const TaskDetailSheet: React.FC<TaskDetailSheetProps> = ({
               label="Status"
               testId={`${dataTestId || DATA_TEST_ID_PREFIX}-status-field`}
             >
-              <Badge variant={getTaskStatusBadgeVariant(task.status)}>
-                {task.status === 'in_progress'
-                  ? 'In Progress'
-                  : task.status
-                    ? task.status.charAt(0).toUpperCase() + task.status.slice(1)
-                    : '-'}
-              </Badge>
-              {isOverdue && (
-                <Badge variant="destructive" className="gba:ml-2">
-                  Overdue
-                </Badge>
+              {taskStatus ? (
+                <>
+                  <Badge variant={getTaskStatusBadgeVariant(taskStatus.type as string)}>
+                    {getCatalogEntryValue(taskStatus)}
+                  </Badge>
+                  {isOverdue && (
+                    <Badge variant="destructive" className="gba:ml-2">
+                      Overdue
+                    </Badge>
+                  )}
+                </>
+              ) : (
+                <span className="gba:text-sm gba:text-muted-foreground">-</span>
               )}
             </FieldRow>
 
             <FieldRow icon={UserIcon} label="Assignee" testId={`${dataTestId || DATA_TEST_ID_PREFIX}-assignee-field`}>
-              <Tooltip>
-                <TooltipTrigger asChild>
-                  <div
-                    className="gba:flex gba:items-center gba:gap-2 gba:cursor-pointer gba:hover:bg-accent gba:px-2 gba:py-1 gba:rounded gba:transition-colors gba:w-fit gba:min-h-[24px]"
-                    onClick={handleEmployeeClick}
-                    data-testid={`${dataTestId || DATA_TEST_ID_PREFIX}-assignee-link`}
-                  >
-                    <Avatar size="sm" className="gba:size-6">
-                      {task.assignedTo.pictureThumbnail && (
-                        <AvatarImage
-                          src={`data:image/gif;base64,${task.assignedTo.pictureThumbnail}`}
-                          alt={task.assignedTo.displayName}
-                        />
-                      )}
-                      <AvatarFallback className="gba:text-xs">
-                        {getInitials(task.assignedTo.firstName || '', task.assignedTo.lastName || '')}
-                      </AvatarFallback>
-                    </Avatar>
-                    <span className="gba:text-sm gba:font-medium">{task.assignedTo.displayName}</span>
-                    <ArrowSquareOutIcon size={12} className="gba:text-muted-foreground" />
-                  </div>
-                </TooltipTrigger>
-                <TooltipContent>View employee profile</TooltipContent>
-              </Tooltip>
+              {task.assignedTo ? (
+                <Tooltip>
+                  <TooltipTrigger asChild>
+                    <div
+                      className="gba:flex gba:items-center gba:gap-2 gba:cursor-pointer gba:hover:bg-accent gba:px-2 gba:py-1 gba:rounded gba:transition-colors gba:w-fit gba:min-h-[24px]"
+                      onClick={handleEmployeeClick}
+                      data-testid={`${dataTestId || DATA_TEST_ID_PREFIX}-assignee-link`}
+                    >
+                      <Avatar size="sm" className="gba:size-6">
+                        {task.assignedTo.pictureThumbnail && (
+                          <AvatarImage
+                            src={`data:image/gif;base64,${task.assignedTo.pictureThumbnail}`}
+                            alt={task.assignedTo.displayName || 'Employee'}
+                          />
+                        )}
+                        <AvatarFallback className="gba:text-xs">
+                          {task.assignedTo.firstName && task.assignedTo.lastName
+                            ? getInitials(task.assignedTo.firstName, task.assignedTo.lastName)
+                            : 'U'}
+                        </AvatarFallback>
+                      </Avatar>
+                      <span className="gba:text-sm gba:font-medium">{task.assignedTo.displayName || 'Unknown'}</span>
+                      <ArrowSquareOutIcon size={12} className="gba:text-muted-foreground" />
+                    </div>
+                  </TooltipTrigger>
+                  <TooltipContent>View employee profile</TooltipContent>
+                </Tooltip>
+              ) : (
+                <span className="gba:text-sm gba:text-muted-foreground gba:px-2 gba:py-1">Unassigned</span>
+              )}
             </FieldRow>
 
             <FieldRow icon={FlagIcon} label="Priority" testId={`${dataTestId || DATA_TEST_ID_PREFIX}-priority-field`}>
-              <Badge variant={getTaskPriorityBadgeVariant(task.priority)}>
-                {task.priority.charAt(0).toUpperCase() + task.priority.slice(1).toLowerCase()}
-              </Badge>
+              {taskPriority ? (
+                <Badge variant={getTaskPriorityBadgeVariant(taskPriority.type)}>
+                  {getCatalogEntryValue(taskPriority)}
+                </Badge>
+              ) : (
+                <span className="gba:text-sm gba:text-muted-foreground">-</span>
+              )}
             </FieldRow>
 
             <FieldRow icon={TagIcon} label="Type" testId={`${dataTestId || DATA_TEST_ID_PREFIX}-type-field`}>
-              <Badge variant={getTaskTypeBadgeVariant(task.type)}>
-                {task.type.charAt(0).toUpperCase() + task.type.slice(1).toLowerCase()}
-              </Badge>
+              {taskType ? (
+                <Badge variant={getTaskTypeBadgeVariant(taskType.type)}>{getCatalogEntryValue(taskType)}</Badge>
+              ) : (
+                <span className="gba:text-sm gba:text-muted-foreground">-</span>
+              )}
             </FieldRow>
 
             <FieldRow icon={LinkIcon} label="Reference" testId={`${dataTestId || DATA_TEST_ID_PREFIX}-reference-field`}>

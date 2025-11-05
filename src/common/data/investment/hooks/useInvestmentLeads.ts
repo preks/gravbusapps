@@ -25,7 +25,7 @@ import {
 } from '../mappers'
 
 // Import base types for related entities
-import type { BaseInvestmentTask, BaseInvestmentActivity, BaseInvestmentNote, BaseInvestmentDocument } from '../types'
+import type { InvestmentTask } from '../types'
 
 // Response interfaces
 export interface InvestmentLeadQueryResponse {
@@ -48,7 +48,7 @@ export interface InvestmentLeadByIdData {
 
 // Response interfaces for related entities
 export interface InvestmentTaskQueryResponse {
-  InvestmentTask: BaseInvestmentTask[]
+  InvestmentTask: InvestmentTask[]
 }
 
 export interface InvestmentActivityQueryResponse {

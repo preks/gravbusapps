@@ -8,7 +8,7 @@ import { AppActionMenu } from '@/components/app-action-menu/AppActionMenu'
 import { FlowContextName } from '@/common/types/FlowRegistryTypes'
 import { buildPlatformUrl, navigateTo } from '@/common/utils/navigationUtils'
 import { useProcessCompletion } from '@/common/hooks/useProcessCompletion'
-import type { CommonLead } from '@/common/data/relations/types/commonLeadTypes'
+import type { CustomerLead } from '@/common/data/customer/types/customerLeadTypes'
 import type { CustomerLeadQueryVariables } from '@/common/data/customer/queries/customerLeadQueries'
 import { useCustomerLeads } from '@/common/data/customer/hooks/useCustomerLeads'
 import {
@@ -16,51 +16,20 @@ import {
   defaultLeadSortableColumns,
   defaultVisibleLeadColumns,
   defaultAvailableLeadColumns,
-  defaultLeadFilterConfig
+  createLeadColumnToGraphQLMapping
 } from '@/common/components/common-relations/view-layouts/lead-layout/config'
-import { LeadStatisticsWithTrend } from './components/LeadStatistics'
+import { defaultLeadFilterConfig } from '@/common/components/common-relations/view-layouts/lead-layout/config'
+import { LeadStatisticsLayout } from '@/common/components/common-relations/view-layouts/lead-layout/components/LeadStatisticsLayout'
+import { applyLeadFilters } from '@/common/components/common-relations/view-layouts/lead-layout/utils/queryHelpers'
 import { useLeadStatisticsWithTrend as useCustomerLeadStatistics } from '@/common/data/customer/hooks/useCustomerLeadStatistics'
-import { applyBasicFilters, applyDateFilter } from './utils/customerLeadQueryHelpers'
 
 export type LeadViewProps = BusinessAppContextProps
-
-/**
- * Get sorting configuration for Customer Leads
- * Handles nested sorting for catalog entries and relations
- */
-const getSortingConfig = (columnId: string, descending: boolean) => {
-  const direction = descending ? 'DESC_NULLS_LAST' : 'ASC_NULLS_LAST'
-
-  const sortMapping: Record<string, any> = {
-    // Direct fields
-    lead: [
-      { field: 'firstName', direction },
-      { field: 'lastName', direction }
-    ],
-    firstName: [{ field: 'firstName', direction }],
-    lastName: [{ field: 'lastName', direction }],
-    fullName: [{ field: 'fullName', direction }],
-    companyName: [{ field: 'companyName', direction }],
-    createdAt: [{ field: 'createdAt', direction }],
-    updatedAt: [{ field: 'updatedAt', direction }],
-
-    // Owner Employee - sort by displayName
-    ownerEmployee: [
-      {
-        field: { ownerEmployee: { displayName: direction } } as any,
-        direction
-      }
-    ]
-  }
-
-  return sortMapping[columnId] || null
-}
 
 export const LeadView: React.FC<LeadViewProps> = context => {
   const { accessToken } = context
 
   // State
-  const [leads, setLeads] = useState<CommonLead[]>([])
+  const [leads, setLeads] = useState<CustomerLead[]>([])
   const [totalCount, setTotalCount] = useState(0)
   const [isLoading, setIsLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
@@ -74,6 +43,18 @@ export const LeadView: React.FC<LeadViewProps> = context => {
   const { fetchCustomerLeads } = useCustomerLeads(context)
   const leadStatistics = useCustomerLeadStatistics({ ...context, sourceApp: 'CRM' })
 
+  // Column to GraphQL mapping (CRM overrides)
+  const mapColumnToGraphQLField = useMemo(
+    () =>
+      createLeadColumnToGraphQLMapping({
+        status: 'leadStatus.value',
+        rating: 'leadRating.value',
+        source: 'leadSource.value',
+        industry: 'industry.value' // CRM uses 'industry' not 'industryClass'
+      }),
+    []
+  )
+
   // Query Variables
   const queryVariables = useMemo(() => {
     const vars: CustomerLeadQueryVariables = {
@@ -82,21 +63,43 @@ export const LeadView: React.FC<LeadViewProps> = context => {
       search: searchTerm.trim() || undefined
     }
 
-    applyBasicFilters(vars, selectedFilters)
-    applyDateFilter(vars, selectedFilters)
+    applyLeadFilters(vars, selectedFilters)
 
     if (sorting.length > 0) {
-      const sortConfig = getSortingConfig(sorting[0].id, sorting[0].desc)
+      const columnId = sorting[0].id
+      const direction = sorting[0].desc ? 'DESC_NULLS_LAST' : 'ASC_NULLS_LAST'
 
-      if (sortConfig) {
-        vars.orderBy = sortConfig
+      // Non-sortable columns
+      if (columnId === 'contactInfo' || columnId === 'location') {
+        // These are computed fields - use default sort
+        vars.orderBy = [{ field: 'createdAt' as any, direction: 'DESC_NULLS_LAST' }]
+      }
+      // Build nested orderBy for catalog/employee fields
+      else if (columnId === 'status') {
+        vars.orderBy = [{ field: { leadStatus: { value: direction as any } }, direction } as any]
+      } else if (columnId === 'rating') {
+        vars.orderBy = [{ field: { leadRating: { value: direction as any } }, direction } as any]
+      } else if (columnId === 'source') {
+        vars.orderBy = [{ field: { leadSource: { value: direction as any } }, direction } as any]
+      } else if (columnId === 'industry') {
+        vars.orderBy = [{ field: { industry: { value: direction as any } }, direction } as any]
+      } else if (columnId === 'ownerEmployee') {
+        vars.orderBy = [{ field: { ownerEmployee: { displayName: direction as any } }, direction } as any]
+      } else if (columnId === 'lead') {
+        vars.orderBy = [
+          { field: 'firstName', direction },
+          { field: 'lastName', direction }
+        ]
+      } else {
+        // Scalar fields
+        vars.orderBy = [{ field: columnId as any, direction }]
       }
     } else {
       vars.orderBy = [{ field: 'createdAt' as any, direction: 'DESC_NULLS_LAST' }]
     }
 
     return vars
-  }, [pagination, searchTerm, selectedFilters, sorting])
+  }, [pagination, searchTerm, selectedFilters, sorting, mapColumnToGraphQLField])
 
   // Load Data
   const loadData = useCallback(
@@ -108,7 +111,7 @@ export const LeadView: React.FC<LeadViewProps> = context => {
 
       try {
         const result = await fetchCustomerLeads(queryVariables)
-        setLeads(result.leads || [])
+        setLeads((result.leads as any) || [])
         setTotalCount(result.total || 0)
       } catch (err) {
         setError(err instanceof Error ? err.message : 'Unknown error occurred')
@@ -124,7 +127,14 @@ export const LeadView: React.FC<LeadViewProps> = context => {
     if (accessToken) {
       loadData(true)
     }
-  }, [accessToken, queryVariables, loadData])
+  }, [accessToken, loadData])
+
+  // Reload data without loading state when filters/search/pagination/sorting change
+  useEffect(() => {
+    if (accessToken) {
+      loadData(false)
+    }
+  }, [queryVariables, accessToken, loadData])
 
   // Process completion
   const handleProcessComplete = useCallback(() => {
@@ -159,7 +169,7 @@ export const LeadView: React.FC<LeadViewProps> = context => {
     setPagination(prev => ({ ...prev, pageIndex: 0 }))
   }, [])
 
-  const handleRowClick = useCallback((lead: CommonLead) => {
+  const handleRowClick = useCallback((lead: CustomerLead) => {
     const url = buildPlatformUrl('/platform/crm/lead-record', {
       leadId: lead.id
     })
@@ -167,11 +177,11 @@ export const LeadView: React.FC<LeadViewProps> = context => {
   }, [])
 
   // Columns
-  const columns = useMemo(() => defaultLeadColumns(), [])
+  const columns = useMemo(() => defaultLeadColumns() as any, [])
 
   // Row Actions
   const renderRowActions = useCallback(
-    (row: { original: CommonLead }) => (
+    (row: { original: CustomerLead }) => (
       <AppActionMenu
         contextsArray={[FlowContextName.customerLeadEntity]}
         externalContextData={{ leadId: row.original.id }}
@@ -179,9 +189,13 @@ export const LeadView: React.FC<LeadViewProps> = context => {
         accessToken={accessToken}
         emptyStateBehavior="enable"
         deferMainContextRequestsUntilClick
-        onClick={e => e.stopPropagation()}
       >
-        <Button variant="ghost" size="icon" data-testid={`lead-actions-${row.original.id}`}>
+        <Button
+          variant="ghost"
+          size="icon"
+          data-testid={`lead-actions-${row.original.id}`}
+          onClick={(e: React.MouseEvent) => e.stopPropagation()}
+        >
           <MoreVertical className="gba:h-4 gba:w-4" />
         </Button>
       </AppActionMenu>
@@ -194,17 +208,8 @@ export const LeadView: React.FC<LeadViewProps> = context => {
 
   // Statistics
   const renderStatistics = useCallback(
-    () =>
-      leadStatistics.trendData ? (
-        <LeadStatisticsWithTrend
-          trendData={leadStatistics.trendData}
-          mostCommonLeadSource="N/A"
-          isLoading={leadStatistics.isLoading}
-          error={leadStatistics.error}
-          onRetry={() => loadData(false)}
-        />
-      ) : null,
-    [leadStatistics, loadData]
+    () => <LeadStatisticsLayout statistics={leadStatistics} data-testid="customer-lead-statistics" />,
+    [leadStatistics]
   )
 
   // Primary Action
@@ -226,7 +231,7 @@ export const LeadView: React.FC<LeadViewProps> = context => {
   )
 
   return (
-    <LeadLayout
+    <LeadLayout<CustomerLead>
       leads={leads}
       totalCount={totalCount}
       loading={isLoading}

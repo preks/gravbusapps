@@ -1,7 +1,7 @@
-// Investment Lead Queries - using shared fragments and generic query helpers
+// Investment Lead Queries
 import { CATALOG_ENTRY } from '@/common/network/graphql/commonFragments'
+import { INVESTMENT_LEAD } from './investmentLeadFragments'
 import {
-  INVESTMENT_LEAD,
   INVESTMENT_CONTACT_REF,
   INVESTMENT_TASK,
   INVESTMENT_ACTIVITY,

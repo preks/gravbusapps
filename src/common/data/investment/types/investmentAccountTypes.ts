@@ -1,138 +1,50 @@
 /**
  * Investment Account Types
- * BaseInvestmentAccount and related reference types
  */
 
-import type { CatalogEntry } from '@/common/network/graphql/commonTypes'
-import type { EmployeeRef } from '@/common/data/employee/types/employeeBaseTypes'
 import type { CommonAccount, CommonAccountFilters } from '@/common/data/relations/types/commonAccountTypes'
-import type { ContactType } from './investmentEnums'
-
-// Forward declaration to avoid circular dependency
-export interface InvestmentContactRef {
-  id: string
-  code: string
-  firstName?: string
-  lastName?: string
-  fullName?: string
-  email?: string
-  phone?: string
-  department?: string
-  jobPosition?: string
-  picture?: string
-  pictureThumbnail?: string
-  academicTitle?: CatalogEntry
-  salutation?: CatalogEntry
-}
-
-// Forward declaration for BaseInvestmentAddress (defined in investmentRelationBaseTypes)
-export interface BaseInvestmentAddress {
-  id: string
-  addressType?: string
-  addressLine?: any
-  postalCode?: string
-  locality?: string
-  region?: CatalogEntry
-  country?: CatalogEntry
-  createdAt?: string
-  updatedAt?: string
-  createdBy?: string
-  updatedBy?: string
-  isDeleted?: boolean
-  version?: number
-}
-
+import type { Investment } from './investmentTypes'
+import type { InvestmentReport } from './investmentReportTypes'
+import type { Address, CommunicationChannel } from '@/common/data/common/types/commonTypes'
+import type { InvestmentOpportunity } from './investmentOpportunityTypes'
+import type { InvestmentLead } from './investmentLeadTypes'
+import type { InvestmentTask } from './investmentTaskTypes'
+import type { InvestmentActivity } from './investmentActivityTypes'
+import type { InvestmentDocument } from './investmentDocumentTypes'
+import type { InvestmentNote } from './investmentNoteTypes'
+import type { InvestmentAccountContact } from './investmentAccountContactTypes'
 /**
- * Investment Account Reference Type
- * Used in nested selections within queries
+ * Investment Account Type
+ * Extends CommonAccount with IRM-specific fields
  */
-export interface InvestmentAccountRef {
-  id: string
-  code: string
-  name: string
-  // Fields used in investment queries (inline account selection)
-  email?: string
-  phone?: string
-  website?: string
-  foundationDate?: string
-  geographicPresence?: string
-  picture?: string
-  pictureThumbnail?: string
-  // Address information
-  addresses?: Array<{
-    id: string
-    addressType?: string
-    addressLine?: any
-    postalCode?: string
-    locality?: string
-    region?: CatalogEntry
-    country?: CatalogEntry
-  }>
-  // Catalog references (inline)
-  legalForm?: CatalogEntry
-  companySize?: CatalogEntry
-  accountAnnualRevenueBand?: CatalogEntry
-  industryClass?: CatalogEntry
-  // Employee reference (inline selections)
-  ownerEmployee?: EmployeeRef
-  // Inline relation selection used in queries
-  investmentAccountContact?: Array<{
-    contactType?: ContactType
-    contact?: InvestmentContactRef
-  }>
-}
+export interface InvestmentAccount extends CommonAccount {
+  // Relation Mappings
+  accountContacts?: InvestmentAccountContact[] // InvestmentAccountContact[] - join table
+  opportunities?: InvestmentOpportunity[]
+  leads?: InvestmentLead[]
+  tasks?: InvestmentTask[]
+  activities?: InvestmentActivity[]
+  documents?: InvestmentDocument[]
+  notes?: InvestmentNote[]
 
-/**
- * Base Investment Account
- * Extends CommonAccount with Investment-specific or not-yet-integrated fields
- */
-export interface BaseInvestmentAccount extends CommonAccount {
-  // Investment-specific fields
-  notesSummary?: string
-  additionalProperties?: any
-  synchronizedAt?: string
-  timeZone?: CatalogEntry
-  timeZoneRef?: string
+  // Mapped arrays for consistent usage
+  investments?: Investment[] // Mapped from investment
+  investmentReports?: InvestmentReport[] // Mapped from investmentReport
 
-  // Fields that DIFFER from CommonAccount (need integration):
+  // IRM uses investment prefix for most relations
+  investmentAddress?: Address[] // InvestmentAddress[]
+  investmentCommunicationChannel?: CommunicationChannel[] // InvestmentCommunicationChannel[]
+  investmentAccountContact?: InvestmentAccountContact[] // InvestmentAccountContact[] - join table
+  investmentOpportunity?: InvestmentOpportunity[] // InvestmentOpportunity[]
+  investmentLead?: InvestmentLead[] // InvestmentLead[]
+  investmentTask?: InvestmentTask[] // InvestmentTask[]
+  investmentActivity?: InvestmentActivity[] // InvestmentActivity[]
+  investmentDocument?: InvestmentDocument[] // InvestmentDocument[]
+  investmentNote?: InvestmentNote[] // InvestmentNote[]
 
-  // TODO Integration: Investment uses "investmentAddress" instead of "addresses"
-  // CommonAccount has: addresses
-  // Investment currently uses:
-  investmentAddress?: BaseInvestmentAddress[]
-
-  // TODO Integration: Investment uses "accountAnnualRevenueBand" instead of "annualRevenueBand"
-  // CommonAccount has: annualRevenueBand
-  // Investment currently uses:
-  accountAnnualRevenueBand?: CatalogEntry
-  accountAnnualRevenueBandRef?: string
-
-  // DEPRECATED - Still in database but should not be used
-  // @deprecated Use communicationChannels instead
-  email?: string
-  // @deprecated Use communicationChannels instead
-  phone?: string
-  // @deprecated Use investmentAddress instead
-  geographicPresence?: string
-
-  // Note: picture, pictureThumbnail already correct in CommonAccount
-  // Note: industryClass, companySize already correct in CommonAccount
-  // Note: communicationChannels already correct in CommonAccount
-}
-
-/**
- * Enhanced Investment Account Type
- * Extends BaseInvestmentAccount with computed UI fields
- */
-export interface InvestmentAccount extends BaseInvestmentAccount {
-  // Computed display fields only
-  displayName: string
-  legalFormLabel?: string
-  companySizeLabel?: string
-  industryClassLabel?: string
-  accountAnnualRevenueBandLabel?: string
-  timeZoneLabel?: string
-  ownerDisplayName?: string
+  // Investment-specific relations (GraphQL field names)
+  investment?: Investment[] // Investment[] - singular in GraphQL query
+  investmentReport?: InvestmentReport[] // InvestmentReport[] - singular in GraphQL query
 }
 
 /**
@@ -141,12 +53,5 @@ export interface InvestmentAccount extends BaseInvestmentAccount {
  */
 // eslint-disable-next-line @typescript-eslint/no-empty-object-type
 export interface InvestmentAccountFilters extends CommonAccountFilters {
-  // Investment-specific filters
-  // TODO Integration: Add investment-related filters
-  // investments?: Array<{ id: string; label: string }>
-  // investmentTypes?: Array<{ id: string; label: string }>
-  // investmentGroups?: Array<{ id: string; label: string }>
-  // Search functions for investment-specific filters
-  // searchInvestments?: (query: string) => Promise<Array<{ id: string; label: string }>>
-  // loadMoreInvestments?: () => Promise<void>
+  // Investment-specific filters can be added here if needed
 }

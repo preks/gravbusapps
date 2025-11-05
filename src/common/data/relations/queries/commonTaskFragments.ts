@@ -14,16 +14,26 @@ export const COMMON_TASK_FIELDS = `
     id
     code
     name
+    source
     description
+    ${AUDIT_FIELDS}
+    
+    # Date fields
+    templateStartDate
     startDate
     dueDate
     endDate
-    ${AUDIT_FIELDS}
+    # NOTE: taskTiming field name differs between domains:
+    # - Investment Relations: taskTiming
+    # - Customer Relations: timingType
+    # TODO: Standardize to taskTiming in future schema migration
     
     # Employee references
+    creatorEmployeeId
     creatorEmployee {
       ${EMPLOYEE_REF}
     }
+    assignedEmployeeId
     assignedEmployee {
       ${EMPLOYEE_REF}
     }
@@ -31,4 +41,22 @@ export const COMMON_TASK_FIELDS = `
     # User IDs
     creatorUserId
     assignedUserId
+    
+    # NOTE: Catalog field names differ between domains:
+    # - Investment Relations: taskType/Ref, taskPriority/Ref, taskStatus/Ref
+    # - Customer Relations: type/Ref, priority/Ref, status/Ref
+    # TODO: Standardize to taskType/taskPriority/taskStatus in future schema migration
+    # (Commented out from common fields - added in domain-specific fragments)
+    
+    # NOTE: Task Template reference field names differ between domains:
+    # - Investment Relations: taskTemplateId, taskTemplate
+    # - Customer Relations: salesTaskTemplateId, salesTaskTemplate
+    # TODO: Standardize to taskTemplateId/taskTemplate in future schema migration
+    # (Commented out from common fields - added in domain-specific fragments)
+    
+    # Entity reference IDs
+    accountId
+    contactId
+    leadId
+    opportunityId
 `

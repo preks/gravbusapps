@@ -4,7 +4,7 @@ import { useGraphQLClient } from '@/common/network/graphql/useGraphQLClient'
 import { BusinessAppContextProps } from '@/common/BusinessAppContext'
 
 // Types
-import type { BaseInvestmentTask, InvestmentTask } from '../types'
+import type { InvestmentTask } from '../types'
 
 // Queries
 import {
@@ -17,7 +17,7 @@ import {
 import { toInvestmentTask } from '../mappers'
 
 export interface InvestmentTaskListQueryResponse {
-  InvestmentTask: BaseInvestmentTask[]
+  InvestmentTask: InvestmentTask[]
   InvestmentTaskAggregate: {
     aggregate: { count: number }
   }
@@ -51,10 +51,9 @@ export const useInvestmentTasks = (context: BusinessAppContextProps) => {
   const fetchInvestmentTaskById = useCallback(
     async (id: string): Promise<InvestmentTask | null> => {
       try {
-        const result = await graphqlClient.request<{ InvestmentTask: BaseInvestmentTask[] }>(
-          GET_INVESTMENT_TASK_BY_ID,
-          { id }
-        )
+        const result = await graphqlClient.request<{ InvestmentTask: InvestmentTask[] }>(GET_INVESTMENT_TASK_BY_ID, {
+          id
+        })
         const first = (result.InvestmentTask || [])[0]
         return first ? toInvestmentTask(first) : null
       } catch (error) {

@@ -1,70 +1,9 @@
 // Investment Related Entity Mappers - Transform base types to enhanced types with computed fields
 
-import {
-  BaseInvestmentTask,
-  BaseInvestmentActivity,
-  BaseInvestmentNote,
-  BaseInvestmentDocument,
-  InvestmentTask,
-  InvestmentActivity,
-  InvestmentNote,
-  InvestmentDocument
-} from '../types'
+import { InvestmentActivity, InvestmentNote, InvestmentDocument } from '../types'
 
 /**
- * Transform BaseInvestmentTask (GraphQL response) to InvestmentTask (enhanced with computed fields)
- */
-export function toInvestmentTask(base: BaseInvestmentTask): InvestmentTask {
-  // Employee display names
-  const creatorDisplayName =
-    base.creatorEmployee?.displayName ||
-    `${base.creatorEmployee?.firstName || ''} ${base.creatorEmployee?.lastName || ''}`.trim()
-  const assignedDisplayName =
-    base.assignedEmployee?.displayName ||
-    `${base.assignedEmployee?.firstName || ''} ${base.assignedEmployee?.lastName || ''}`.trim()
-
-  // Entity display names
-  const accountDisplayName = base.account?.name || base.account?.code
-  const contactDisplayName =
-    base.contact?.fullName || `${base.contact?.firstName || ''} ${base.contact?.lastName || ''}`.trim()
-  const leadDisplayName =
-    base.lead?.firstName && base.lead?.lastName ? `${base.lead.firstName} ${base.lead.lastName}` : base.lead?.code
-  const opportunityDisplayName = base.opportunity?.name || base.opportunity?.code
-
-  // Create computed display name
-  const displayName = base.name || base.code || `Task ${base.id}`
-
-  // Build task reference from related entities
-  let taskReference: any = undefined
-  if (base.opportunity?.id) {
-    taskReference = { type: 'opportunity', id: base.opportunity.id, name: opportunityDisplayName }
-  } else if (base.account?.id) {
-    taskReference = { type: 'account', id: base.account.id, name: accountDisplayName }
-  } else if (base.lead?.id) {
-    taskReference = { type: 'lead', id: base.lead.id, name: leadDisplayName }
-  } else if (base.contact?.id) {
-    taskReference = { type: 'contact', id: base.contact.id, name: contactDisplayName }
-  } else if (base.investment?.id) {
-    const investmentName = base.investment.name || base.investment.code || 'Investment'
-    taskReference = { type: 'investment', id: base.investment.id, name: investmentName }
-  }
-
-  return {
-    ...base,
-    displayName,
-    creatorDisplayName,
-    assignedDisplayName,
-    accountDisplayName,
-    contactDisplayName,
-    leadDisplayName,
-    opportunityDisplayName,
-    reference: taskReference
-    // taskType, taskPriority, taskStatus bleiben als CatalogEntry Objekte!
-  }
-}
-
-/**
- * Transform BaseInvestmentActivity (GraphQL response) to InvestmentActivity (enhanced with computed fields)
+ * Transform InvestmentActivity (GraphQL response) to InvestmentActivity (enhanced with computed fields)
  */
 export function toInvestmentActivity(base: BaseInvestmentActivity): InvestmentActivity {
   // Extract labels from catalog entries

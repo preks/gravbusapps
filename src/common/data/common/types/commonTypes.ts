@@ -22,12 +22,15 @@ export enum CommunicationChannelType {
  */
 export interface Address {
   id: string
+  source?: string
   addressType?: string
   addressLine?: string | { lines: string[] } | any
   locality?: string // Will replace "city"
   postalCode?: string
   region?: CatalogEntry
+  regionRef?: string
   country?: CatalogEntry
+  countryRef?: string
 }
 
 /**
@@ -36,9 +39,11 @@ export interface Address {
  */
 export interface CommunicationChannel {
   id: string
+  source?: string
   communicationChannel?: CatalogEntry & {
     type?: CommunicationChannelType | string // Catalog entry type field
   }
+  communicationChannelRef?: string
   value?: string
   valueExtension?: string
 }

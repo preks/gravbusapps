@@ -63,7 +63,9 @@ export const INVESTMENT_TASK_DESCRIPTORS: Descriptor[] = [
   { key: 'startDateFrom', path: 'startDate', kind: 'dateFrom' },
   { key: 'startDateTo', path: 'startDate', kind: 'dateTo' },
   { key: 'endDateFrom', path: 'endDate', kind: 'dateFrom' },
-  { key: 'endDateTo', path: 'endDate', kind: 'dateTo' }
+  { key: 'endDateTo', path: 'endDate', kind: 'dateTo' },
+  { key: 'createdAtFrom', path: 'createdAt', kind: 'dateFrom' },
+  { key: 'createdAtTo', path: 'createdAt', kind: 'dateTo' }
 ]
 
 export interface InvestmentTaskQueryVariables {
@@ -87,6 +89,8 @@ export interface InvestmentTaskQueryVariables {
   startDateTo?: string
   endDateFrom?: string
   endDateTo?: string
+  createdAtFrom?: string
+  createdAtTo?: string
 
   limit?: number
   offset?: number
@@ -204,3 +208,10 @@ export const GET_INVESTMENT_TASK_BY_ID = `
     }
   }
 `
+
+// Get investment tasks by account ID (alias for backward compatibility)
+export const GET_INVESTMENT_TASKS_BY_ACCOUNT_ID = (accountId: string) => {
+  return GET_INVESTMENT_TASKS({
+    filters: { accountIds: [accountId] }
+  })
+}

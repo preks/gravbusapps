@@ -2,6 +2,3 @@
 export { TaskView as default } from './TaskView'
 export { TaskView } from './TaskView'
 export type { TaskViewProps } from './TaskView'
-
-// Re-export components
-export { default as TaskStatistics } from './components/TaskStatistics'

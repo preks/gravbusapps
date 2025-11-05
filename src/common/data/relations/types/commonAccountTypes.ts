@@ -4,9 +4,8 @@
  */
 
 import type { BaseEntity, CatalogEntry } from '@/common/network/graphql/commonTypes'
-import type { EmployeeRef } from '@/common/data/employee/types/employeeBaseTypes'
+import type { Employee } from '@/common/data/employee/types/employeeBaseTypes'
 import type { Address, CommunicationChannel } from '@/common/data/common/types/commonTypes'
-import type { CommonAccountContact } from './commonContactTypes'
 
 /**
  * Common Account Interface
@@ -14,41 +13,49 @@ import type { CommonAccountContact } from './commonContactTypes'
  * Extended by BaseCustomerAccount and BaseInvestmentAccount
  */
 export interface CommonAccount extends BaseEntity {
+  // Core fields
   id: string
   code?: string
   name?: string
   website?: string
   foundationDate?: string
   liquidationDate?: string
-  mission?: string
-  specialty?: string
+  notesSummary?: string
 
-  // Pictures (base64 strings - CORRECT)
+  // Pictures (base64 strings)
   picture?: string
   pictureThumbnail?: string
 
-  // Addresses (standardized with "locality" - CORRECT)
+  // Addresses (standardized with "locality")
   addresses?: Address[]
 
-  // Communication Channels (CORRECT)
+  // Communication Channels
   communicationChannels?: CommunicationChannel[]
 
-  // Catalog References (CORRECT naming)
-  legalForm?: CatalogEntry
-  legalFormRef?: string
+  // Catalog References (standardized naming)
   industryClass?: CatalogEntry
   industryClassRef?: string
   companySize?: CatalogEntry
   companySizeRef?: string
-  annualRevenueBand?: CatalogEntry
-  annualRevenueBandRef?: string
+  accountAnnualRevenueBand?: CatalogEntry
+  accountAnnualRevenueBandRef?: string
+  legalForm?: CatalogEntry
+  legalFormRef?: string
+  timeZone?: CatalogEntry
+  timeZoneRef?: string
 
-  // Employee Reference (CORRECT)
-  ownerEmployee?: EmployeeRef
+  // Employee Reference
+  ownerEmployee?: Employee
   ownerEmployeeId?: string
 
-  // Contacts (CORRECT - many-to-many relationship via join table)
-  contacts?: CommonAccountContact[]
+  // Related entities (common across CRM and IRM)
+  accountContacts?: any[] // CommonAccountContact[] - many-to-many join table
+  opportunities?: any[] // CommonOpportunity[]
+  leads?: any[] // CommonLead[]
+  tasks?: any[] // CommonTask[]
+  activities?: any[] // CommonActivity[]
+  documents?: any[] // CommonDocument[]
+  notes?: any[] // CommonNote[]
 }
 
 /**

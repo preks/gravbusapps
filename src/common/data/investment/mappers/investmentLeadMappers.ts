@@ -1,51 +1,65 @@
-/**
- * Investment Lead Mappers
- * Transform BaseInvestmentLead to InvestmentLead with computed UI fields
- */
+// Investment Lead Mappers - Transform base types to enhanced types with computed fields
 
-import type { BaseInvestmentLead, InvestmentLead } from '../types/investmentLeadTypes'
-import { mapInvestmentLeadToCommon } from '@/common/data/relations/mappers/leadMapper'
+import { InvestmentLead } from '../types'
+import type { Address, CommunicationChannel } from '@/common/data/common/types/commonTypes'
 
 /**
- * Transform BaseInvestmentLead to InvestmentLead
- * Adds computed fields for UI display
+ * Transform InvestmentLead (GraphQL response) to InvestmentLead (enhanced with computed fields)
  */
-export function toInvestmentLead(base: BaseInvestmentLead): InvestmentLead {
-  // First map to CommonLead structure
-  const common = mapInvestmentLeadToCommon(base)
+export function toInvestmentLead(base: InvestmentLead): InvestmentLead {
+  // Create computed display name
+  const displayName =
+    base.firstName && base.lastName
+      ? `${base.firstName} ${base.lastName}`
+      : base.investmentName || base.companyName || base.code || `Lead ${base.id}`
 
-  // Then add computed UI fields
+  // Build computed address object from scalar fields
+  const address: Address | undefined =
+    base.addressLine || base.postalCode || base.locality || base.country || base.region
+      ? {
+          id: base.id, // Use lead ID as address ID
+          addressType: 'PRIMARY',
+          addressLine: base.addressLine,
+          locality: base.locality,
+          postalCode: base.postalCode,
+          country: base.country,
+          region: base.region
+        }
+      : undefined
+
+  // Build computed communication channels array from email and phoneNumber
+  const communicationChannels: CommunicationChannel[] = []
+
+  if (base.email) {
+    communicationChannels.push({
+      id: `${base.id}-email`,
+      value: base.email,
+      communicationChannel: {
+        id: 'email',
+        code: 'EMAIL',
+        type: 'EMAIL',
+        value: 'Email'
+      }
+    } as CommunicationChannel)
+  }
+
+  if (base.phoneNumber) {
+    communicationChannels.push({
+      id: `${base.id}-phone`,
+      value: base.phoneNumber,
+      communicationChannel: {
+        id: 'phone',
+        code: 'PHONE',
+        type: 'PHONE',
+        value: 'Phone'
+      }
+    } as CommunicationChannel)
+  }
+
   return {
     ...base,
-    ...common,
-    displayName: getDisplayName(base),
-    salutationLabel: base.salutation?.value,
-    leadRatingLabel: base.leadRating?.value,
-    leadStatusLabel: base.leadStatus?.value,
-    leadSourceLabel: base.leadSource?.value,
-    industryClassLabel: base.industryClass?.value,
-    ownerDisplayName: getOwnerDisplayName(base)
+    displayName,
+    address,
+    communicationChannels
   }
-}
-
-function getDisplayName(lead: BaseInvestmentLead): string {
-  if (lead.fullName) return lead.fullName
-
-  const name = `${lead.firstName || ''} ${lead.lastName || ''}`.trim()
-  if (name) return name
-
-  if (lead.companyName) return lead.companyName
-
-  return 'Unnamed Lead'
-}
-
-function getOwnerDisplayName(lead: BaseInvestmentLead): string | undefined {
-  if (!lead.ownerEmployee) return undefined
-
-  if (lead.ownerEmployee.displayName) {
-    return lead.ownerEmployee.displayName
-  }
-
-  const name = `${lead.ownerEmployee.firstName || ''} ${lead.ownerEmployee.lastName || ''}`.trim()
-  return name || undefined
 }

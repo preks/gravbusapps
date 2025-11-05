@@ -1,12 +1,21 @@
 /**
  * Common Task Constants
- *
- * Shared constants and enums for tasks across Customer and Investment relations
+ * Enums and constants shared across Customer and Investment task types
  */
 
 /**
- * Task Priority Types
- * Matches catalog entries in InvestmentTaskPriority and SalesTaskPriority
+ * Task Timing Enum
+ * Represents when a task should be executed
+ */
+export enum TaskTiming {
+  UNKNOWN = 'UNKNOWN_TIMING_TYPE',
+  DEADLINE = 'DEADLINE',
+  SCHEDULED = 'SCHEDULED'
+}
+
+/**
+ * Task Priority Enum
+ * Defines task priority levels
  */
 export enum TaskPriority {
   HIGH = 'HIGH',
@@ -15,32 +24,35 @@ export enum TaskPriority {
 }
 
 /**
- * Task Status Types
- * Matches catalog entries in InvestmentTaskStatus and SalesTaskStatus
+ * Task Status Enum
+ * Defines task status values
  */
 export enum TaskStatus {
-  PENDING = 'PENDING',
+  TODO = 'TODO',
   IN_PROGRESS = 'IN_PROGRESS',
   COMPLETED = 'COMPLETED',
-  OVERDUE = 'OVERDUE'
+  PENDING = 'PENDING',
+  OVERDUE = 'OVERDUE',
+  CANCELLED = 'CANCELLED'
 }
 
 /**
- * Task Timing Types
+ * Task Assignee Type Enum
+ * Defines who should be assigned to a task from a template
  */
-export enum TaskTimingType {
-  DEADLINE = 'DEADLINE',
-  SCHEDULED = 'SCHEDULED',
-  UNKNOWN = 'UNKNOWN_TIMING_TYPE'
+export enum TaskAssigneeType {
+  OWNER = 'OWNER',
+  SPECIFIC_EMPLOYEE = 'SPECIFIC_EMPLOYEE',
+  ROLE = 'ROLE'
 }
 
 /**
- * Task Reference Types
- * Shared reference types between Customer and Investment tasks
+ * Task Holiday Policy Enum
+ * Defines how tasks should be scheduled around holidays
  */
-export enum TaskReferenceType {
-  LEAD = 'lead',
-  ACCOUNT = 'account',
-  CONTACT = 'contact',
-  OPPORTUNITY = 'opportunity'
+export enum TaskHolidayPolicy {
+  SKIP = 'SKIP',
+  MOVE_BEFORE = 'MOVE_BEFORE',
+  MOVE_AFTER = 'MOVE_AFTER',
+  IGNORE = 'IGNORE'
 }

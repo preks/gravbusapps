@@ -73,6 +73,7 @@ export interface BaseEntity {
   activeFrom?: string
   activeTo?: string
   version: number
+  additionalProperties?: any // jsonb
 }
 
 // Note: activeFrom/activeTo are now included in AuditFields

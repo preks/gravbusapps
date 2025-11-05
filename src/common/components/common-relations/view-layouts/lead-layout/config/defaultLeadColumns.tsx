@@ -1,5 +1,5 @@
 import type { ColumnDef } from '@tanstack/react-table'
-import { Badge, Avatar, AvatarImage, AvatarFallback } from '@newwork/nw-design-system'
+import { Badge, Avatar, AvatarFallback, Tooltip, TooltipTrigger, TooltipContent } from '@newwork/nw-design-system'
 import { User, Building2, Calendar, MapPin, Flag } from 'lucide-react'
 import type { CommonLead } from '@/common/data/relations/types/commonLeadTypes'
 import { getLeadName } from '@/common/data/relations/mappers/leadMapper'
@@ -7,6 +7,9 @@ import {
   getCommunicationChannelIcon,
   formatCommunicationChannelValue
 } from '@/common/data/common/utils/communicationChannelUtils'
+import { getCatalogEntryValue } from '@/common/data/catalog/utils/catalogTranslationUtils'
+import { formatAddress } from '@/common/utils/addressFormatter'
+import { navigateTo } from '@/common/utils/navigationUtils'
 
 // Helper to safely convert values to strings
 const safeString = (value: any): string => {
@@ -70,14 +73,11 @@ export const defaultLeadColumns = (): ColumnDef<CommonLead>[] => [
     cell: ({ row }) => {
       const leadName = getLeadName(row.original)
       const companyName = safeString(row.original.companyName)
-      const imageUrl = row.original.pictureThumbnail
-        ? `data:image/gif;base64,${row.original.pictureThumbnail}`
-        : undefined
+      const isSensitive = row.original.sensitive
 
       return (
         <div className="gba:flex gba:items-center gba:gap-3 gba:min-w-0" data-testid={`lead-cell-${row.original.id}`}>
           <Avatar className="gba:w-8 gba:h-8 gba:shrink-0">
-            {imageUrl && <AvatarImage src={imageUrl} alt={leadName} />}
             <AvatarFallback>
               {companyName ? (
                 <Building2 className="gba:h-4 gba:w-4" />
@@ -96,8 +96,18 @@ export const defaultLeadColumns = (): ColumnDef<CommonLead>[] => [
             </AvatarFallback>
           </Avatar>
           <div className="gba:min-w-0 gba:flex-1">
-            <div className="gba:font-medium gba:text-sm gba:truncate" title={leadName}>
-              {leadName}
+            <div className="gba:flex gba:items-center gba:gap-2">
+              <span className="gba:font-medium gba:text-sm gba:truncate" title={leadName}>
+                {leadName}
+              </span>
+              {isSensitive && (
+                <Tooltip>
+                  <TooltipTrigger asChild>
+                    <Flag className="gba:h-3.5 gba:w-3.5 gba:text-warning gba:shrink-0" />
+                  </TooltipTrigger>
+                  <TooltipContent>Sensitive</TooltipContent>
+                </Tooltip>
+              )}
             </div>
             {companyName && (
               <div className="gba:text-xs gba:text-gray-500 gba:truncate" title={companyName}>
@@ -159,9 +169,17 @@ export const defaultLeadColumns = (): ColumnDef<CommonLead>[] => [
   {
     id: 'location',
     accessorFn: row => {
-      const address = row.addresses?.[0]
+      const address = row.address
       if (!address) return ''
-      return `${address.locality || ''} ${address.country?.value || ''}`.trim()
+
+      // Use formatAddress util for proper formatting
+      return formatAddress({
+        addressLine: address.addressLine,
+        locality: address.locality,
+        postalCode: address.postalCode,
+        region: address.region?.value,
+        country: address.country?.value
+      })
     },
     header: 'Location',
     size: 180,
@@ -169,19 +187,28 @@ export const defaultLeadColumns = (): ColumnDef<CommonLead>[] => [
     maxSize: 250,
     enableResizing: false,
     cell: ({ row }) => {
-      const address = row.original.addresses?.[0]
-      if (!address || (!address.locality && !address.country)) {
+      const address = row.original.address
+      if (!address) {
         return <span className="gba:text-gray-400">-</span>
       }
 
-      const location = `${address.locality || ''}, ${address.country?.value || ''}`
-        .replace(/^,\s*/, '')
-        .replace(/,\s*$/, '')
+      // Use formatAddress util for proper formatting
+      const location = formatAddress({
+        addressLine: address.addressLine,
+        locality: address.locality,
+        postalCode: address.postalCode,
+        region: address.region?.value,
+        country: address.country?.value
+      })
+
+      if (!location) {
+        return <span className="gba:text-gray-400">-</span>
+      }
 
       return (
-        <div className="gba:flex gba:items-center gba:gap-2 gba:min-w-0">
-          <MapPin className="gba:w-4 gba:h-4 gba:text-gray-500 gba:shrink-0" />
-          <span className="gba:text-sm gba:truncate" title={location}>
+        <div className="gba:flex gba:items-start gba:gap-2 gba:min-w-0">
+          <MapPin className="gba:w-4 gba:h-4 gba:text-gray-500 gba:shrink-0 gba:mt-0.5" />
+          <span className="gba:text-sm gba:whitespace-pre-line" title={location}>
             {location}
           </span>
         </div>
@@ -190,14 +217,14 @@ export const defaultLeadColumns = (): ColumnDef<CommonLead>[] => [
   },
   {
     id: 'status',
-    accessorFn: row => row.status?.value || '',
+    accessorFn: row => (row.leadStatus ? getCatalogEntryValue(row.leadStatus as any) : ''),
     header: 'Status',
     size: 140,
     minSize: 120,
     maxSize: 180,
     enableResizing: false,
     cell: ({ row }) => {
-      const status = row.original.status?.value
+      const status = row.original.leadStatus ? getCatalogEntryValue(row.original.leadStatus as any) : undefined
       if (!status) {
         return <span className="gba:text-gray-400">-</span>
       }
@@ -213,14 +240,14 @@ export const defaultLeadColumns = (): ColumnDef<CommonLead>[] => [
   },
   {
     id: 'rating',
-    accessorFn: row => row.rating?.value || '',
+    accessorFn: row => (row.leadRating ? getCatalogEntryValue(row.leadRating as any) : ''),
     header: 'Rating',
     size: 120,
     minSize: 100,
     maxSize: 150,
     enableResizing: false,
     cell: ({ row }) => {
-      const rating = row.original.rating?.value
+      const rating = row.original.leadRating ? getCatalogEntryValue(row.original.leadRating as any) : undefined
       if (!rating) {
         return <span className="gba:text-gray-400">-</span>
       }
@@ -235,25 +262,22 @@ export const defaultLeadColumns = (): ColumnDef<CommonLead>[] => [
       }
 
       return (
-        <div className="gba:flex gba:items-center gba:gap-2">
-          <Flag
-            className={`gba:w-4 gba:h-4 ${variant === 'destructive' ? 'gba:text-red-500' : variant === 'warning' ? 'gba:text-orange-500' : 'gba:text-gray-400'}`}
-          />
-          <span className="gba:text-sm">{rating}</span>
-        </div>
+        <Badge variant={variant} data-testid={`lead-rating-${row.original.id}`}>
+          {rating}
+        </Badge>
       )
     }
   },
   {
     id: 'source',
-    accessorFn: row => row.source?.value || '',
+    accessorFn: row => (row.leadSource ? getCatalogEntryValue(row.leadSource as any) : ''),
     header: 'Source',
     size: 140,
     minSize: 120,
     maxSize: 180,
     enableResizing: false,
     cell: ({ row }) => {
-      const source = row.original.source?.value
+      const source = row.original.leadSource ? getCatalogEntryValue(row.original.leadSource as any) : undefined
       if (!source) {
         return <span className="gba:text-gray-400">-</span>
       }
@@ -266,14 +290,14 @@ export const defaultLeadColumns = (): ColumnDef<CommonLead>[] => [
   },
   {
     id: 'industry',
-    accessorFn: row => row.industry?.value || '',
+    accessorFn: row => (row.industryClass ? getCatalogEntryValue(row.industryClass as any) : ''),
     header: 'Industry',
     size: 160,
     minSize: 140,
     maxSize: 220,
     enableResizing: false,
     cell: ({ row }) => {
-      const industry = row.original.industry?.value
+      const industry = row.original.industryClass ? getCatalogEntryValue(row.original.industryClass as any) : undefined
       if (!industry) {
         return <span className="gba:text-gray-400">-</span>
       }
@@ -318,25 +342,40 @@ export const defaultLeadColumns = (): ColumnDef<CommonLead>[] => [
         return <span className="gba:text-gray-400">-</span>
       }
       const ownerName = getOwnerName(row.original)
-      const imageUrl = owner.pictureThumbnail ? `data:image/gif;base64,${owner.pictureThumbnail}` : undefined
 
       return (
-        <div className="gba:flex gba:items-center gba:gap-3 gba:min-w-0">
-          <Avatar className="gba:w-8 gba:h-8 gba:shrink-0">
-            {imageUrl && <AvatarImage src={imageUrl} alt={ownerName} />}
+        <button
+          type="button"
+          onClick={e => {
+            e.stopPropagation()
+            const empId = row.original.ownerEmployee?.id
+            if (empId) {
+              navigateTo(`/platform/employee-record?employeeId=${empId}`)
+            }
+          }}
+          className="gba:flex gba:items-center gba:gap-3 gba:cursor-pointer gba:group gba:bg-transparent gba:border-0 gba:p-0 gba:w-full gba:text-left"
+          data-testid={`owner-link-${row.original.id}`}
+        >
+          <Avatar className="gba:w-8 gba:h-8 gba:outline gba:outline-2 gba:outline-offset-2 gba:outline-transparent gba:group-hover:[outline-color:var(--nw-color-primary-500)] gba:transition-all">
             <AvatarFallback>
-              {ownerName
-                .split(' ')
-                .map(n => n[0] || '')
-                .join('')
-                .toUpperCase()
-                .substring(0, 2)}
+              {(() => {
+                if (ownerName === '-') return 'O'
+                const initials = ownerName
+                  .split(' ')
+                  .map(n => n[0] || '')
+                  .join('')
+                  .toUpperCase()
+                  .substring(0, 2)
+                return initials || 'O'
+              })()}
             </AvatarFallback>
           </Avatar>
           <div className="gba:min-w-0 gba:flex-1">
-            <div className="gba:font-medium gba:truncate gba:text-sm">{ownerName}</div>
+            <div className="gba:font-medium gba:truncate gba:text-sm gba:group-hover:gba:text-primary gba:transition-colors">
+              {ownerName}
+            </div>
           </div>
-        </div>
+        </button>
       )
     }
   }
@@ -347,6 +386,7 @@ export const defaultLeadColumns = (): ColumnDef<CommonLead>[] => [
  * Only include columns that map to actual database fields
  */
 export const defaultLeadSortableColumns = [
+  { id: 'lead', label: 'Lead' },
   { id: 'firstName', label: 'First Name' },
   { id: 'lastName', label: 'Last Name' },
   { id: 'fullName', label: 'Full Name' },
@@ -358,8 +398,49 @@ export const defaultLeadSortableColumns = [
   { id: 'ownerEmployee', label: 'Owner' },
   { id: 'createdAt', label: 'Created Date' },
   { id: 'updatedAt', label: 'Updated Date' }
-  // contactInfo, location are NOT sortable (computed/joined columns)
+  // contactInfo, location are NOT sortable (computed fields)
 ]
+
+/**
+ * Default column mapping for CommonLead
+ * Maps column IDs to GraphQL field paths for sorting
+ */
+export const defaultLeadColumnMapping: Record<string, string> = {
+  // Scalar fields
+  firstName: 'firstName',
+  lastName: 'lastName',
+  fullName: 'fullName',
+  companyName: 'companyName',
+  createdAt: 'createdAt',
+  updatedAt: 'updatedAt',
+
+  // Catalog fields (CommonLead naming with translated value sorting)
+  status: 'leadStatus.value',
+  rating: 'leadRating.value',
+  source: 'leadSource.value',
+  industry: 'industryClass.value',
+
+  // Employee fields (sort by displayName)
+  ownerEmployee: 'ownerEmployee.displayName'
+}
+
+/**
+ * Create column to GraphQL mapping with custom overrides
+ * @param overrides - Custom column ID to GraphQL field mappings
+ * @returns Function that maps column ID to GraphQL field path
+ */
+export const createLeadColumnToGraphQLMapping = (
+  overrides: Record<string, string> = {}
+): ((columnId: string) => string) => {
+  return (columnId: string) => {
+    // Override has priority
+    if (overrides[columnId]) {
+      return overrides[columnId]
+    }
+    // Then default
+    return defaultLeadColumnMapping[columnId] || 'createdAt'
+  }
+}
 
 /**
  * Default visible columns

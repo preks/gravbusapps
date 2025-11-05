@@ -1,53 +1,84 @@
-/**
- * Customer Lead Mappers
- * Transform BaseCustomerLead to CustomerLead with computed UI fields
- */
+// Customer Lead Mappers - Transform base types to enhanced types with computed fields
 
-import type { BaseCustomerLead, CustomerLead } from '../types/customerLeadTypes'
-import { mapCustomerLeadToCommon } from '@/common/data/relations/mappers/leadMapper'
+import { CustomerLead } from '../types'
+import type { Address, CommunicationChannel } from '@/common/data/common/types/commonTypes'
 
 /**
- * Transform BaseCustomerLead to CustomerLead
- * Adds computed fields for UI display
+ * Transform CustomerLead (GraphQL response) to CustomerLead (enhanced with computed fields)
+ *
+ * NOTE: This mapper handles CRM-specific field naming inconsistencies:
+ * - industry → industryClass
+ * - numberOfEmployees → companySize
+ * - annualRevenue → accountAnnualRevenueBand
+ * - city → locality
  */
-export function toCustomerLead(base: BaseCustomerLead): CustomerLead {
-  // First map to CommonLead structure
-  const common = mapCustomerLeadToCommon(base)
+export function toCustomerLead(base: CustomerLead): CustomerLead {
+  // Map CRM field names to CommonLead standard (IRM naming)
+  // Lead.industry → CommonLead.industryClass
+  const industryClass = base.industry
 
-  // Then add computed UI fields
+  // Lead.numberOfEmployees → CommonLead.companySize
+  const companySize = base.numberOfEmployees
+
+  // Lead.annualRevenue → CommonLead.accountAnnualRevenueBand
+  const accountAnnualRevenueBand = base.annualRevenue
+
+  // Lead.city → CommonLead.locality (CRM uses "city")
+  const city = (base as any).city
+  const locality = city
+
+  // Build computed address object from scalar fields
+  const address: Address | undefined =
+    base.addressLine || base.postalCode || city || base.country || base.region
+      ? {
+          id: base.id, // Use lead ID as address ID
+          addressType: 'PRIMARY',
+          addressLine: base.addressLine,
+          locality, // Mapped from city
+          postalCode: base.postalCode,
+          country: base.country,
+          region: base.region
+        }
+      : undefined
+
+  // Build computed communication channels array from email and phoneNumber
+  const communicationChannels: CommunicationChannel[] = []
+
+  if (base.email) {
+    communicationChannels.push({
+      id: `${base.id}-email`,
+      value: base.email,
+      communicationChannel: {
+        id: 'email',
+        code: 'EMAIL',
+        type: 'EMAIL',
+        value: 'Email'
+      }
+    } as CommunicationChannel)
+  }
+
+  if (base.phoneNumber) {
+    communicationChannels.push({
+      id: `${base.id}-phone`,
+      value: base.phoneNumber,
+      communicationChannel: {
+        id: 'phone',
+        code: 'PHONE',
+        type: 'PHONE',
+        value: 'Phone'
+      }
+    } as CommunicationChannel)
+  }
+
   return {
     ...base,
-    ...common,
-    displayName: getDisplayName(base),
-    salutationLabel: base.salutation?.value,
-    academicTitleLabel: base.academicTitle?.value,
-    leadRatingLabel: base.leadRating?.value,
-    leadStatusLabel: base.leadStatus?.value,
-    leadSourceLabel: base.leadSource?.value,
-    industryClassLabel: base.industryClass?.value,
-    companySizeLabel: base.companySize?.value,
-    ownerDisplayName: getOwnerDisplayName(base)
-  }
-}
-
-function getDisplayName(lead: BaseCustomerLead): string {
-  if (lead.fullName) return lead.fullName
-
-  const name = `${lead.firstName || ''} ${lead.lastName || ''}`.trim()
-  if (name) return name
-
-  if (lead.companyName) return lead.companyName
-
-  return 'Unnamed Lead'
-}
-
-function getOwnerDisplayName(lead: BaseCustomerLead): string | undefined {
-  if (!lead.ownerEmployee) return undefined
-
-  if (lead.ownerEmployee.displayName) {
-    return lead.ownerEmployee.displayName
-  }
-
-  const name = `${lead.ownerEmployee.firstName || ''} ${lead.ownerEmployee.lastName || ''}`.trim()
-  return name || undefined
+    // Map CRM fields to CommonLead standard
+    industryClass,
+    companySize,
+    accountAnnualRevenueBand,
+    locality,
+    // Computed fields
+    address,
+    communicationChannels
+  } as any
 }

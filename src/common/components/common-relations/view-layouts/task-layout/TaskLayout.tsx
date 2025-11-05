@@ -8,8 +8,11 @@ import { AppAction } from '@/components/app-action/AppAction'
 import { FlowContextName } from '@/common/types/FlowRegistryTypes'
 import { getTranslationFromI18nKeyAndLabel } from '@/common/utils/windowUtils'
 import { TaskListLayout } from './TaskListLayout'
+import { TaskStatisticsLayout } from './components/TaskStatisticsLayout'
 import { useProcessCompletion } from '@/common/hooks/useProcessCompletion'
 import { DefaultTaskRowActions } from './TaskLayoutHelpers'
+import type { CommonTask, TaskReference } from '@/common/data/relations/types/commonTaskTypes'
+import { TaskDetailSheet } from '@/common/components/common-relations/detail-sheets/task-detail-sheet'
 
 // Helper: Update filter options
 const updateFilterOptions = (
@@ -31,7 +34,13 @@ const updateFilterOptions = (
 
 export type TaskTabKey = 'my' | 'team'
 
-export interface TaskViewConfig<TTask extends { id: string }, TQueryVariables> {
+/**
+ * Task View Configuration
+ * Generic configuration for TaskLayout with domain-specific types
+ * @template TTask - Task type extending CommonTask (e.g., CustomerTask, InvestmentTask)
+ * @template TQueryVariables - GraphQL query variables type
+ */
+export interface TaskViewConfig<TTask extends CommonTask = CommonTask, TQueryVariables = any> {
   fetchMyTasks: (variables: TQueryVariables) => Promise<{
     tasks?: TTask[]
     total?: number
@@ -69,21 +78,39 @@ export interface TaskViewConfig<TTask extends { id: string }, TQueryVariables> {
     createContextData?: Record<string, any>
   }
 
-  renderStatistics: (props: {
-    context: BusinessAppContextProps
-    myTasksCount: number
-    teamTasksCount: number
-    onRefresh: () => void
-  }) => React.ReactNode
+  taskStatistics: {
+    myTasksStatistics: {
+      totalTasks: { value: number }
+      inProgress: { value: number }
+      completed: { value: number }
+      overdue: { value: number }
+    }
+    teamTasksStatistics: {
+      totalTasks: { value: number }
+      inProgress: { value: number }
+      completed: { value: number }
+      overdue: { value: number }
+    }
+    isLoading: boolean
+    error: Error | null
+    refetch: () => void
+  }
 
   processCompletionEvents?: string[]
 
   renderRowActions?: (row: { original: TTask }, accessToken: string, section: TaskTabKey) => React.ReactNode
 
+  buildReferenceUrl?: (reference: TaskReference) => string
+
   onTaskClick?: (task: TTask) => void
 }
 
-export interface TaskLayoutProps<TTask extends { id: string } = any, TQueryVariables = any> {
+/**
+ * Task Layout Props
+ * @template TTask - Task type extending CommonTask (e.g., CustomerTask, InvestmentTask)
+ * @template TQueryVariables - GraphQL query variables type
+ */
+export interface TaskLayoutProps<TTask extends CommonTask = CommonTask, TQueryVariables = any> {
   context: BusinessAppContextProps
   config: TaskViewConfig<TTask, TQueryVariables>
   dataTestId?: string
@@ -94,7 +121,13 @@ export interface TaskLayoutProps<TTask extends { id: string } = any, TQueryVaria
   customPrimaryAction?: React.ReactNode
 }
 
-const ConfigTaskLayout = <TTask extends { id: string } = any, TQueryVariables = any>(
+/**
+ * Generic Task Layout Component
+ * Provides common task management functionality with domain-specific customization
+ * @template TTask - Task type extending CommonTask
+ * @template TQueryVariables - GraphQL query variables type
+ */
+const ConfigTaskLayout = <TTask extends CommonTask = CommonTask, TQueryVariables = any>(
   props: TaskLayoutProps<TTask, TQueryVariables>
 ) => {
   const {
@@ -111,12 +144,27 @@ const ConfigTaskLayout = <TTask extends { id: string } = any, TQueryVariables = 
 
   // View State
   const [currentSection, setCurrentSection] = useState<TaskTabKey>('my')
+  const [selectedTask, setSelectedTask] = useState<TTask | null>(null)
 
-  // Shared State
-  const [searchTerm, setSearchTerm] = useState('')
-  const [selectedFilters, setSelectedFilters] = useState<Record<string, any>>(initialFilters)
-  const [sorting, setSorting] = useState<Array<{ id: string; desc: boolean }>>([{ id: 'createdAt', desc: true }])
-  const [pagination, setPagination] = useState({ pageIndex: 0, pageSize: 20 })
+  // My Tasks State (independent)
+  const [mySearchTerm, setMySearchTerm] = useState('')
+  const [mySelectedFilters, setMySelectedFilters] = useState<Record<string, any>>(initialFilters)
+  const [mySorting, setMySorting] = useState<Array<{ id: string; desc: boolean }>>([{ id: 'createdAt', desc: true }])
+  const [myPagination, setMyPagination] = useState({ pageIndex: 0, pageSize: 20 })
+
+  // Team Tasks State (independent)
+  const [teamSearchTerm, setTeamSearchTerm] = useState('')
+  const [teamSelectedFilters, setTeamSelectedFilters] = useState<Record<string, any>>(initialFilters)
+  const [teamSorting, setTeamSorting] = useState<Array<{ id: string; desc: boolean }>>([
+    { id: 'createdAt', desc: true }
+  ])
+  const [teamPagination, setTeamPagination] = useState({ pageIndex: 0, pageSize: 20 })
+
+  // Computed: Current section's state
+  const searchTerm = currentSection === 'my' ? mySearchTerm : teamSearchTerm
+  const selectedFilters = currentSection === 'my' ? mySelectedFilters : teamSelectedFilters
+  const sorting = currentSection === 'my' ? mySorting : teamSorting
+  const pagination = currentSection === 'my' ? myPagination : teamPagination
 
   // My Tasks Visibility (hide assignedTo column)
   const [myVisibleColumns, setMyVisibleColumns] = useState<string[]>([
@@ -290,20 +338,61 @@ const ConfigTaskLayout = <TTask extends { id: string } = any, TQueryVariables = 
     }
   }, [handleProcessComplete, config.processCompletionEvents])
 
-  // Event Handlers
-  const handleSearch = useCallback((value: string) => {
-    setSearchTerm(value)
-    setPagination(prev => ({ ...prev, pageIndex: 0 }))
-  }, [])
+  // Event Handlers (section-aware)
+  const handleSearch = useCallback(
+    (value: string) => {
+      if (currentSection === 'my') {
+        setMySearchTerm(value)
+        setMyPagination(prev => ({ ...prev, pageIndex: 0 }))
+      } else {
+        setTeamSearchTerm(value)
+        setTeamPagination(prev => ({ ...prev, pageIndex: 0 }))
+      }
+    },
+    [currentSection]
+  )
 
-  const handleFilterUpdate = useCallback((filters: Record<string, any>) => {
-    setSelectedFilters(filters)
-    setPagination(prev => ({ ...prev, pageIndex: 0 }))
-  }, [])
+  const handleFilterUpdate = useCallback(
+    (filters: Record<string, any>) => {
+      if (currentSection === 'my') {
+        setMySelectedFilters(filters)
+        setMyPagination(prev => ({ ...prev, pageIndex: 0 }))
+      } else {
+        setTeamSelectedFilters(filters)
+        setTeamPagination(prev => ({ ...prev, pageIndex: 0 }))
+      }
+    },
+    [currentSection]
+  )
+
+  const handleSortingChange = useCallback(
+    (newSorting: Array<{ id: string; desc: boolean }>) => {
+      if (currentSection === 'my') {
+        setMySorting(newSorting)
+      } else {
+        setTeamSorting(newSorting)
+      }
+    },
+    [currentSection]
+  )
+
+  const handlePaginationChange = useCallback(
+    (newPagination: { pageIndex: number; pageSize: number }) => {
+      if (currentSection === 'my') {
+        setMyPagination(newPagination)
+      } else {
+        setTeamPagination(newPagination)
+      }
+    },
+    [currentSection]
+  )
 
   const handleTaskClick = useCallback(
     (task: TTask) => {
-      // Call custom click handler if provided (e.g. to open sheet)
+      // Open task detail sheet
+      setSelectedTask(task)
+
+      // Also call custom click handler if provided
       if (config.onTaskClick) {
         config.onTaskClick(task)
       }
@@ -360,7 +449,6 @@ const ConfigTaskLayout = <TTask extends { id: string } = any, TQueryVariables = 
               row={row}
               accessToken={accessToken}
               entityContext={config.flowContexts.entityContext}
-              section={currentSection}
             />
           ),
     [config, accessToken, currentSection]
@@ -375,13 +463,18 @@ const ConfigTaskLayout = <TTask extends { id: string } = any, TQueryVariables = 
   return (
     <div data-testid={dataTestId}>
       {/* Statistics */}
-      {!hideStatistics &&
-        config.renderStatistics({
-          context,
-          myTasksCount: myTotalCount,
-          teamTasksCount: teamTotalCount,
-          onRefresh: handleRefreshStatistics
-        })}
+      {!hideStatistics && (
+        <TaskStatisticsLayout
+          myTasksStatistics={config.taskStatistics.myTasksStatistics}
+          teamTasksStatistics={config.taskStatistics.teamTasksStatistics}
+          isLoading={config.taskStatistics.isLoading}
+          error={config.taskStatistics.error}
+          onRetry={() => {
+            config.taskStatistics.refetch()
+            handleRefreshStatistics()
+          }}
+        />
+      )}
 
       {/* DataDisplay with titleSections as Tabs */}
       <DataDisplay
@@ -413,7 +506,7 @@ const ConfigTaskLayout = <TTask extends { id: string } = any, TQueryVariables = 
         onFilterChange={hideFilters ? undefined : handleFilterUpdate}
         sorting={sorting}
         sortableColumns={config.createSortableColumns()}
-        onSortingChange={setSorting}
+        onSortingChange={handleSortingChange}
         availableColumns={availableColumns}
         visibleColumns={visibleColumns}
         onVisibleColumnsChange={setVisibleColumns}
@@ -449,14 +542,25 @@ const ConfigTaskLayout = <TTask extends { id: string } = any, TQueryVariables = 
           totalCount={currentTotal}
           columns={columns.filter(col => visibleColumns.includes(col.id as string))}
           sorting={sorting}
-          onSortingChange={setSorting}
+          onSortingChange={handleSortingChange}
           pagination={pagination}
-          onPaginationChange={setPagination}
+          onPaginationChange={handlePaginationChange}
           actions={rowActions}
           onRowClick={handleTaskClick}
           dataTestId={`${dataTestId}-${currentSection}`}
         />
       </DataDisplay>
+
+      {/* Task Detail Sheet - integrated into layout */}
+      <TaskDetailSheet
+        task={selectedTask as any}
+        open={!!selectedTask}
+        onOpenChange={open => {
+          if (!open) setSelectedTask(null)
+        }}
+        buildReferenceUrl={config.buildReferenceUrl}
+        data-testid={`${dataTestId}-detail-sheet`}
+      />
     </div>
   )
 }

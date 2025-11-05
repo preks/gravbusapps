@@ -33,7 +33,7 @@ export const CUSTOMER_ACCOUNT = `
     }
     
     # Addresses
-    addresses: crmAddress(where: { isDeleted: { _eq: false } }) {
+    addresses(where: { isDeleted: { _eq: false } }) {
       id
       addressType
       addressLine
@@ -170,50 +170,9 @@ export const CUSTOMER_OPPORTUNITY = `
 // ==========================================
 // CRM LEAD FRAGMENTS
 // ==========================================
-
-export const CUSTOMER_LEAD_REF = `
-    id
-    code
-    firstName
-    lastName
-    email
-`
-
-export const CUSTOMER_LEAD = `
-    id
-    code
-    firstName
-    lastName
-    email
-    phoneNumber
-    position
-    companyName
-    companyEmail
-    companyPhone
-    companyWebsite
-    description
-    conversionDate
-    ${AUDIT_FIELDS}
-    
-    # Catalog relationships
-    academicTitle {
-      ${CATALOG_ENTRY}
-    }
-    leadRating {
-      ${CATALOG_ENTRY}
-    }
-    leadStatus {
-      ${CATALOG_ENTRY}
-    }
-    leadSource {
-      ${CATALOG_ENTRY}
-    }
-    
-    # Employee relationship
-    ownerEmployee {
-      ${EMPLOYEE_REF}
-    }
-`
+// Moved to src/common/data/customer/queries/customerLeadFragments.ts
+// Re-export for backwards compatibility
+export { CUSTOMER_LEAD_REF } from '../customerLeadFragments'
 
 // ==========================================
 // CRM RELATED ENTITIES (TASK / ACTIVITY / NOTE / DOCUMENT)

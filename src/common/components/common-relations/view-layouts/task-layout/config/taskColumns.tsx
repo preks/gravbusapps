@@ -12,14 +12,14 @@ import {
 import { Clock, Calendar } from 'lucide-react'
 import { navigateTo } from '@/common/utils/navigationUtils'
 import { getCatalogEntryValue } from '@/common/data/catalog/utils/catalogTranslationUtils'
-import type { Task, TaskEmployee } from '@/common/components/common-relations/detail-sheets/task-detail-sheet'
+import type { CommonTask } from '@/common/data/relations/types/commonTaskTypes'
 import { TaskPriority, TaskStatus } from '@/common/data/relations/constants/commonTaskConstants'
 import dayjs from 'dayjs'
 
 const formatDate = (dateString: string) => dayjs(dateString).format('MM/DD/YYYY')
 
 // Helper function to get employee display name
-const getEmployeeName = (employee: TaskEmployee | null | undefined): string => {
+const getEmployeeName = (employee: CommonTask['assignedEmployee']): string => {
   if (!employee) return '-'
   if (employee.displayName) return employee.displayName
   if (employee.firstName || employee.lastName) {
@@ -75,9 +75,8 @@ const getReferenceTypeBadgeVariant = (type?: string): 'default' | 'secondary' | 
   return 'outline'
 }
 
-const getTimingTypeIcon = (task: any) => {
-  // Try to get timing type from different possible fields
-  const timingType = task.timingType || task.taskTiming
+const getTimingTypeIcon = (task: CommonTask) => {
+  const timingType = task.taskTiming
 
   if (!timingType) {
     return { icon: <Clock className="gba:h-4 gba:w-4 gba:text-gray-400" />, tooltip: 'No timing type specified' }
@@ -101,9 +100,11 @@ const getTimingTypeIcon = (task: any) => {
   }
 }
 
-// Reference click handling removed - should be handled by parent TaskView component
-
-export const createTaskColumns = (): ColumnDef<Task>[] => [
+/**
+ * Default Task Columns based on CommonTask
+ * Views can use these as-is, filter, extend, or completely override
+ */
+export const createTaskColumns = (): ColumnDef<CommonTask>[] => [
   {
     id: 'name',
     accessorKey: 'name',
@@ -117,22 +118,22 @@ export const createTaskColumns = (): ColumnDef<Task>[] => [
   },
   {
     id: 'assignedTo',
-    accessorKey: 'assignedTo',
+    accessorFn: row => getEmployeeName(row.assignedEmployee),
     header: 'Assigned To',
     size: 180,
     cell: ({ row }) => {
-      if (!row.original.assignedTo) {
+      if (!row.original.assignedEmployee) {
         return <span className="gba:text-gray-400">-</span>
       }
 
-      const assigneeName = getEmployeeName(row.original.assignedTo)
+      const assigneeName = getEmployeeName(row.original.assignedEmployee)
 
       return (
         <button
           type="button"
           onClick={e => {
             e.stopPropagation()
-            const empId = row.original.assignedTo?.id
+            const empId = row.original.assignedEmployee?.id
             if (empId) {
               navigateTo(`/platform/employee-record?employeeId=${empId}`)
             }
@@ -141,9 +142,9 @@ export const createTaskColumns = (): ColumnDef<Task>[] => [
           data-testid={`task-assigned-to-link-${row.original.id}`}
         >
           <Avatar className="gba:w-8 gba:h-8 gba:outline gba:outline-2 gba:outline-offset-2 gba:outline-transparent gba:group-hover:[outline-color:var(--nw-color-primary-500)] gba:transition-all">
-            {row.original.assignedTo.pictureThumbnail && (
+            {row.original.assignedEmployee.pictureThumbnail && (
               <AvatarImage
-                src={`data:image/gif;base64,${row.original.assignedTo.pictureThumbnail}`}
+                src={`data:image/gif;base64,${row.original.assignedEmployee.pictureThumbnail}`}
                 alt={assigneeName}
               />
             )}
@@ -170,14 +171,11 @@ export const createTaskColumns = (): ColumnDef<Task>[] => [
   },
   {
     id: 'type',
-    accessorKey: 'type',
+    accessorFn: row => (row.taskType ? getCatalogEntryValue(row.taskType as any) : '-'),
     header: 'Type',
     size: 120,
     cell: ({ row }) => {
-      // Use taskTypeLabel from mapper or extract from catalog entry
-      const typeValue =
-        (row.original as any).taskTypeLabel ||
-        (typeof row.original.type === 'string' ? row.original.type : getCatalogEntryValue(row.original.type as any))
+      const typeValue = row.original.taskType ? getCatalogEntryValue(row.original.taskType as any) : undefined
 
       if (!typeValue) return <span className="gba:text-gray-400">-</span>
 
@@ -186,37 +184,39 @@ export const createTaskColumns = (): ColumnDef<Task>[] => [
   },
   {
     id: 'priority',
-    accessorKey: 'priority',
+    accessorFn: row => (row.taskPriority ? getCatalogEntryValue(row.taskPriority as any) : '-'),
     header: 'Priority',
     size: 120,
     cell: ({ row }) => {
-      const taskPriority = (row.original as any).taskPriority
-      const priorityLabel = taskPriority ? getCatalogEntryValue(taskPriority) : undefined
-      const priorityType = taskPriority?.type
+      const priorityCatalog = row.original.taskPriority
 
-      if (!priorityLabel) return <span className="gba:text-gray-400">-</span>
+      if (!priorityCatalog) return <span className="gba:text-gray-400">-</span>
 
-      return <Badge variant={getTaskPriorityBadgeVariant(priorityType)}>{priorityLabel}</Badge>
+      const priorityValue = getCatalogEntryValue(priorityCatalog as any)
+      const priorityCode = priorityCatalog.type || priorityCatalog.code
+
+      return <Badge variant={getTaskPriorityBadgeVariant(priorityCode)}>{priorityValue}</Badge>
     }
   },
   {
     id: 'status',
-    accessorKey: 'status',
+    accessorFn: row => (row.taskStatus ? getCatalogEntryValue(row.taskStatus as any) : '-'),
     header: 'Status',
     size: 120,
     cell: ({ row }) => {
-      const taskStatus = (row.original as any).taskStatus
-      const statusLabel = taskStatus ? getCatalogEntryValue(taskStatus) : undefined
-      const statusType = taskStatus?.type
+      const statusCatalog = row.original.taskStatus
 
-      if (!statusLabel) return <span className="gba:text-gray-400">-</span>
+      if (!statusCatalog) return <span className="gba:text-gray-400">-</span>
 
-      return <Badge variant={getTaskStatusBadgeVariant(statusType)}>{statusLabel}</Badge>
+      const statusValue = getCatalogEntryValue(statusCatalog as any)
+      const statusCode = statusCatalog.type || statusCatalog.code
+
+      return <Badge variant={getTaskStatusBadgeVariant(statusCode)}>{statusValue}</Badge>
     }
   },
   {
     id: 'reference',
-    accessorKey: 'reference',
+    accessorFn: row => row.reference?.name || 'No reference',
     header: 'Reference',
     size: 200,
     cell: ({ row }) => {
@@ -268,7 +268,7 @@ export const createTaskColumns = (): ColumnDef<Task>[] => [
   },
   {
     id: 'createdBy',
-    accessorKey: 'createdBy',
+    accessorFn: row => getEmployeeName(row.creatorEmployee),
     header: 'Created By',
     size: 150,
     cell: ({ row }) => {
@@ -332,10 +332,54 @@ export const createTaskColumns = (): ColumnDef<Task>[] => [
   }
 ]
 
+/**
+ * Default column mapping for CommonTask
+ * Maps column IDs to GraphQL field paths for sorting
+ */
+export const defaultTaskColumnMapping: Record<string, string> = {
+  // Scalar fields
+  name: 'name',
+  dueDate: 'dueDate',
+  createdAt: 'createdAt',
+  updatedAt: 'updatedAt',
+
+  // Catalog fields (CommonTask naming with translated value sorting)
+  type: 'taskType.value',
+  priority: 'taskPriority.value',
+  status: 'taskStatus.value',
+
+  // Employee fields (sort by displayName)
+  assignedTo: 'assignedEmployee.displayName',
+  createdBy: 'creatorEmployee.displayName'
+}
+
+/**
+ * Create column to GraphQL mapping with custom overrides
+ * @param overrides - Custom column ID to GraphQL field mappings
+ * @returns Function that maps column ID to GraphQL field path
+ */
+export const createTaskColumnToGraphQLMapping = (
+  overrides: Record<string, string> = {}
+): ((columnId: string) => string) => {
+  return (columnId: string) => {
+    // Override has priority
+    if (overrides[columnId]) {
+      return overrides[columnId]
+    }
+    // Then default
+    return defaultTaskColumnMapping[columnId] || 'createdAt'
+  }
+}
+
 export const createTaskSortableColumns = () => {
   const columns = createTaskColumns()
-  return columns.map(col => ({
-    id: col.id!,
-    label: col.header as string
-  }))
+  // Filter out columns that cannot be sorted server-side (computed fields)
+  const nonSortableColumns = ['reference'] // reference is computed client-side
+
+  return columns
+    .filter(col => col.id && !nonSortableColumns.includes(col.id))
+    .map(col => ({
+      id: col.id!,
+      label: col.header as string
+    }))
 }

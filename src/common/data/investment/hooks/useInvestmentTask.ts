@@ -2,7 +2,7 @@
 import { useCallback, useState, useEffect } from 'react'
 import { useGraphQLClient } from '@/common/network/graphql/useGraphQLClient'
 import { BusinessAppContextProps } from '@/common/BusinessAppContext'
-import type { BaseInvestmentTask, InvestmentTask } from '../types'
+import type { InvestmentTask } from '../types'
 import { GET_INVESTMENT_TASK_BY_ID } from '../queries/investmentTaskQueries'
 import { toInvestmentTask } from '../mappers'
 
@@ -26,7 +26,7 @@ export const useInvestmentTask = (context: BusinessAppContextProps, taskId: stri
     setError(null)
 
     try {
-      const result = await graphqlClient.request<{ InvestmentTask: BaseInvestmentTask[] }>(GET_INVESTMENT_TASK_BY_ID, {
+      const result = await graphqlClient.request<{ InvestmentTask: InvestmentTask[] }>(GET_INVESTMENT_TASK_BY_ID, {
         id: taskId
       })
       const first = (result.InvestmentTask || [])[0]

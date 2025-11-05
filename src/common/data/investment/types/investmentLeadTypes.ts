@@ -5,48 +5,65 @@
 
 import type { CatalogEntry } from '@/common/network/graphql/commonTypes'
 import type { CommonLead } from '@/common/data/relations/types/commonLeadTypes'
-
+import type { InvestmentAccount } from './investmentAccountTypes'
+import type { InvestmentContact } from './investmentContactTypes'
+import type { InvestmentTask } from './investmentTaskTypes'
+import type {
+  InvestmentDocument,
+  InvestmentOpportunity,
+  InvestmentActivity,
+  InvestmentNote
+} from './investmentRelationTypes'
 /**
- * Investment Lead Reference
+ * Investment Lead (from GraphQL/Database)
+ * Extends CommonLead with IRM-specific investment fields
  */
-export interface InvestmentLeadRef {
-  id: string
-  code: string
-  firstName?: string
-  lastName?: string
-  email?: string
-}
+export interface InvestmentLead extends CommonLead {
+  // Related entity references (Investment-specific)
+  convertedAccount?: InvestmentAccount
+  convertedContact?: InvestmentContact
+  convertedOpportunity?: InvestmentOpportunity
 
-/**
- * Base Investment Lead (from GraphQL/Database)
- * Extends CommonLead with IRM-specific fields
- */
-export interface BaseInvestmentLead extends CommonLead {
-  type?: LeadType
-  notesSummary?: string
+  activities?: InvestmentActivity[]
+  notes?: InvestmentNote[]
+  documents?: InvestmentDocument[]
+  tasks?: InvestmentTask[]
 
-  // TODO Integration: Investment has different field names
-  email?: string // @deprecated - use communicationChannels
-  phone?: string // @deprecated - use communicationChannels
-  position?: string // Maps to jobPosition in CommonLead
+  // ============================================
+  // IRM-SPECIFIC INVESTMENT FIELDS
+  // ============================================
+  // Investment identification
+  investmentName?: string
+  investmentGroup?: CatalogEntry
+  investmentGroupRef?: string
+  investmentType?: CatalogEntry
+  investmentTypeRef?: string
+  investmentRole?: CatalogEntry
+  investmentRoleRef?: string
+  investmentStakeType?: CatalogEntry
+  investmentStakeTypeRef?: string
 
-  // Investment-specific catalog references
-  salutation?: CatalogEntry
-  leadRating?: CatalogEntry // Maps to rating in CommonLead
-  leadStatus?: CatalogEntry // Maps to status in CommonLead
-  leadSource?: CatalogEntry // Maps to source in CommonLead
-  industryClass?: CatalogEntry // Maps to industry in CommonLead
-}
+  // Financial metrics
+  stakePercentage?: number
+  marketValue?: number
+  initialInvestmentAmount?: number
+  loanAmount?: number
+  loanInterestRate?: number
+  requiredCapitalAmount?: number
+  forecastedProfitAmount?: number
 
-/**
- * Investment Lead (with computed fields for UI)
- */
-export interface InvestmentLead extends BaseInvestmentLead {
-  displayName: string
-  salutationLabel?: string
-  leadRatingLabel?: string
-  leadStatusLabel?: string
-  leadSourceLabel?: string
-  industryClassLabel?: string
-  ownerDisplayName?: string
+  // Real estate specific
+  annualNetColdRent?: number
+  buildingYear?: string
+  size?: number
+  sizeMeasurementUnit?: CatalogEntry
+  sizeMeasurementUnitRef?: string
+
+  // Rejection tracking
+  rejectionReasons?: any[]
+
+  // ============================================
+  // COMPUTED FIELDS (for display/UI purposes)
+  // ============================================
+  displayName?: string
 }

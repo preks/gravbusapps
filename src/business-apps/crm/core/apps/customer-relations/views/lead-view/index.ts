@@ -2,6 +2,3 @@
 export { LeadView as default } from './LeadView'
 export { LeadView } from './LeadView'
 export type { LeadViewProps } from './LeadView'
-
-// Re-export components
-export { LeadStatisticsWithTrend } from './components/LeadStatistics'

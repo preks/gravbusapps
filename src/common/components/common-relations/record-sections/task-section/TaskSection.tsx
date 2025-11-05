@@ -3,10 +3,6 @@ import {
   Button,
   TimelineLayout,
   Badge,
-  Sheet,
-  SheetContent,
-  SheetHeader,
-  SheetTitle,
   Tooltip,
   TooltipContent,
   TooltipProvider,
@@ -431,33 +427,16 @@ const TaskSection: React.FC<TaskSectionProps> = ({ accessToken, tasks, taskEntit
         )}
       </div>
 
-      {/* Task Details Sheet */}
-      <Sheet
+      {/* Task Details Sheet - now self-contained */}
+      <TaskDetailSheet
+        task={selectedTask}
         open={!!selectedTask}
         onOpenChange={open => {
           if (!open) setSelectedTask(null)
         }}
-        title="Task Details"
-      >
-        <SheetContent className="gba:!w-[500px] gba:sm:!w-[500px] gba:!max-w-[90vw] gba:p-0 gba:flex gba:flex-col">
-          <SheetHeader className="gba:px-6 gba:py-6 gba:border-b gba:border-border gba:shrink-0">
-            <SheetTitle className="gba:text-xl gba:font-semibold gba:text-left">
-              {selectedTask?.name || getTranslationFromI18nKeyAndLabel('tasks.taskDetails', 'Task Details')}
-            </SheetTitle>
-          </SheetHeader>
-          <div className="gba:flex-1 gba:overflow-hidden gba:px-6">
-            {selectedTask ? (
-              <TaskDetailSheet
-                task={selectedTask}
-                buildReferenceUrl={buildReferenceUrl}
-                data-testid="task-section-detail-sheet"
-              />
-            ) : (
-              <div className="gba:p-4 gba:text-center gba:text-muted-foreground">No task selected</div>
-            )}
-          </div>
-        </SheetContent>
-      </Sheet>
+        buildReferenceUrl={buildReferenceUrl}
+        data-testid="task-section-detail-sheet"
+      />
     </>
   )
 }

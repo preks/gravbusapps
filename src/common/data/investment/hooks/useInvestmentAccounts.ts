@@ -3,9 +3,8 @@ import { useCallback, useState, useEffect } from 'react'
 import { useGraphQLClient } from '@/common/network/graphql/useGraphQLClient'
 import { BusinessAppContextProps } from '@/common/BusinessAppContext'
 import type {
-  BaseInvestmentAccount,
   InvestmentAccount,
-  BaseInvestmentTask,
+  InvestmentTask,
   BaseInvestmentActivity,
   BaseInvestmentNote,
   BaseInvestmentDocument
@@ -35,7 +34,7 @@ import {
 
 // Response interfaces
 export interface InvestmentAccountQueryResponse {
-  InvestmentAccount: BaseInvestmentAccount[]
+  InvestmentAccount: any[]
   InvestmentAccountAggregate: {
     aggregate: {
       count: number
@@ -283,7 +282,7 @@ export const useGetInvestmentAccountById = (context: BusinessAppContextProps) =>
       try {
         // Use a more specific type that includes the contact relationship
         const result = await graphqlClient.request<{
-          InvestmentAccount: (BaseInvestmentAccount & {
+          InvestmentAccount: (any & {
             investmentAccountContact?: Array<{
               id: string
               contactType?: string
@@ -291,10 +290,10 @@ export const useGetInvestmentAccountById = (context: BusinessAppContextProps) =>
             }>
           })[]
         }>(query)
-        const baseAccount = result.InvestmentAccount[0]
+        const raw = result.InvestmentAccount[0]
 
         return {
-          account: baseAccount ? toInvestmentAccount(baseAccount) : undefined
+          account: raw ? toInvestmentAccount(raw) : undefined
         } as InvestmentAccountByIdData
       } catch (error) {
         console.error('Error fetching investment account by ID:', error)
@@ -350,7 +349,7 @@ export const useGetInvestmentTasksByAccountId = (context: BusinessAppContextProp
       const query = GET_INVESTMENT_TASKS_BY_ACCOUNT_ID(accountId)
 
       try {
-        const result = await graphqlClient.request<{ InvestmentTask: BaseInvestmentTask[] }>(query)
+        const result = await graphqlClient.request<{ InvestmentTask: InvestmentTask[] }>(query)
         // Transform base types to enhanced types using mapper
         return result.InvestmentTask.map(toInvestmentTask)
       } catch (error) {

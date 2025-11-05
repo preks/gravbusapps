@@ -2,6 +2,8 @@ export {
   defaultLeadColumns,
   defaultLeadSortableColumns,
   defaultVisibleLeadColumns,
-  defaultAvailableLeadColumns
+  defaultAvailableLeadColumns,
+  defaultLeadColumnMapping,
+  createLeadColumnToGraphQLMapping
 } from './defaultLeadColumns'
 export { defaultLeadFilterConfig } from './defaultLeadFilters'

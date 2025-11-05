@@ -2,7 +2,7 @@
 import { useCallback, useState, useEffect } from 'react'
 import { useGraphQLClient } from '@/common/network/graphql/useGraphQLClient'
 import { BusinessAppContextProps } from '@/common/BusinessAppContext'
-import type { BaseCustomerTask, CustomerTask } from '../types'
+import type { CustomerTask } from '../types'
 import { GET_CUSTOMER_TASK_BY_ID } from '../queries/customerTaskQueries'
 import { toCustomerTask } from '../mappers'
 
@@ -27,7 +27,7 @@ export const useCustomerTask = (context: BusinessAppContextProps, taskId: string
 
     try {
       const query = GET_CUSTOMER_TASK_BY_ID(taskId)
-      const result = await graphqlClient.request<{ SalesTask: BaseCustomerTask[] }>(query)
+      const result = await graphqlClient.request<{ SalesTask: CustomerTask[] }>(query)
       const tasks = result.SalesTask.map(toCustomerTask)
       setTask(tasks.length > 0 ? tasks[0] : null)
     } catch (err) {

@@ -59,38 +59,36 @@ export const taskFilterConfig: FilterConfiguration = {
       ]
     },
     {
-      id: 'date-group',
-      label: 'Date Range',
+      id: 'due-date-group',
+      label: 'Schedule / Due Date',
       collapsible: true,
       defaultExpanded: false,
       filters: [
         {
-          id: 'createdAfter',
-          field: 'createdAfter',
-          label: 'Created After',
-          type: 'text',
-          config: {}
-        },
+          id: 'dueDateRange',
+          field: 'dueDateRange',
+          label: 'Schedule / Due Date Range',
+          type: 'date',
+          config: {
+            mode: 'range'
+          }
+        }
+      ]
+    },
+    {
+      id: 'created-date-group',
+      label: 'Created Date',
+      collapsible: true,
+      defaultExpanded: false,
+      filters: [
         {
-          id: 'createdBefore',
-          field: 'createdBefore',
-          label: 'Created Before',
-          type: 'text',
-          config: {}
-        },
-        {
-          id: 'dueDateAfter',
-          field: 'dueDateAfter',
-          label: 'Due Date After',
-          type: 'text',
-          config: {}
-        },
-        {
-          id: 'dueDateBefore',
-          field: 'dueDateBefore',
-          label: 'Due Date Before',
-          type: 'text',
-          config: {}
+          id: 'createdDateRange',
+          field: 'createdDateRange',
+          label: 'Created Date Range',
+          type: 'date',
+          config: {
+            mode: 'range'
+          }
         }
       ]
     },

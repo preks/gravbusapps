@@ -1,12 +1,36 @@
-// Customer Lead Queries - using shared fragments
+// Customer Lead Queries
+import { CUSTOMER_LEAD } from './customerLeadFragments'
 import {
-  CUSTOMER_LEAD,
   CUSTOMER_ACCOUNT_REF,
   CUSTOMER_TASK,
   CUSTOMER_SALES_ACTIVITY,
   CUSTOMER_CRM_NOTE,
   CUSTOMER_CRM_DOCUMENT
 } from './fragments/customerRelationFragments'
+
+/**
+ * Build orderBy clause from array of { field, direction }
+ * Handles nested paths like 'leadStatus.value' -> { leadStatus: { value: ASC } }
+ */
+const buildOrderByClause = (orderBy: Array<{ field: string | any; direction: string }>): string => {
+  if (!orderBy || orderBy.length === 0) {
+    return 'orderBy: [{ createdAt: DESC }]'
+  }
+
+  const orderByParts = orderBy.map(o => {
+    // If field is already an object (nested), use it directly
+    if (typeof o.field === 'object') {
+      // Convert to JSON and remove quotes from direction ENUMs
+      return JSON.stringify(o.field)
+        .replace(/"([^"]+)":/g, '$1:') // Remove quotes from keys
+        .replace(/:"(ASC_NULLS_LAST|DESC_NULLS_LAST|ASC|DESC)"/g, ':$1') // Remove quotes from ENUM values
+    }
+    // Otherwise it's a simple field name
+    return `{ ${o.field}: ${o.direction} }`
+  })
+
+  return `orderBy: [${orderByParts.join(', ')}]`
+}
 
 export interface CustomerLeadQueryVariables {
   ids?: string[]
@@ -90,9 +114,7 @@ export const GET_CUSTOMER_LEADS = (variables: CustomerLeadQueryVariables = {}): 
   const limit = Math.min(variables.limit || 50, 100)
   const offset = variables.offset || 0
   const where = buildCustomerLeadWhereCondition(variables)
-  const orderByClause = variables.orderBy?.length
-    ? `orderBy: [${variables.orderBy.map(o => `{ ${o.field}: ${o.direction} }`).join(', ')}]`
-    : 'orderBy: [{ createdAt: DESC }]'
+  const orderByClause = buildOrderByClause(variables.orderBy || [])
 
   return `
     query GetCustomerLeads {

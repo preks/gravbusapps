@@ -52,7 +52,9 @@ export const CUSTOMER_TASK_DESCRIPTORS: Descriptor[] = [
   { key: 'startDateFrom', path: 'startDate', kind: 'dateFrom' },
   { key: 'startDateTo', path: 'startDate', kind: 'dateTo' },
   { key: 'endDateFrom', path: 'endDate', kind: 'dateFrom' },
-  { key: 'endDateTo', path: 'endDate', kind: 'dateTo' }
+  { key: 'endDateTo', path: 'endDate', kind: 'dateTo' },
+  { key: 'createdAtFrom', path: 'createdAt', kind: 'dateFrom' },
+  { key: 'createdAtTo', path: 'createdAt', kind: 'dateTo' }
 ]
 
 export interface CustomerTaskQueryVariables {
@@ -75,6 +77,8 @@ export interface CustomerTaskQueryVariables {
   startDateTo?: string
   endDateFrom?: string
   endDateTo?: string
+  createdAtFrom?: string
+  createdAtTo?: string
 
   limit?: number
   offset?: number

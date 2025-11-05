@@ -123,3 +123,8 @@ export const GET_INVESTMENT_ACTIVITIES = (variables: InvestmentActivityQueryVari
     }
   `
 }
+
+// Get investment activities by account ID (alias for backward compatibility)
+export const GET_INVESTMENT_ACTIVITIES_BY_ACCOUNT_ID = (accountId: string): string => {
+  return GET_INVESTMENT_ACTIVITIES({ accountId })
+}

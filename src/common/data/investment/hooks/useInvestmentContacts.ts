@@ -5,7 +5,7 @@ import { BusinessAppContextProps } from '@/common/BusinessAppContext'
 import type {
   BaseInvestmentContact,
   InvestmentContact,
-  BaseInvestmentTask,
+  InvestmentTask,
   BaseInvestmentActivity,
   BaseInvestmentNote,
   BaseInvestmentDocument
@@ -353,7 +353,7 @@ export const useGetInvestmentTasksByContactId = (context: BusinessAppContextProp
       const query = GET_INVESTMENT_TASKS_BY_CONTACT_ID(contactId)
 
       try {
-        const result = await graphqlClient.request<{ InvestmentTask: BaseInvestmentTask[] }>(query)
+        const result = await graphqlClient.request<{ InvestmentTask: InvestmentTask[] }>(query)
         return result.InvestmentTask.map(toInvestmentTask)
       } catch (error) {
         console.error('Error fetching investment tasks by contact ID:', error)
