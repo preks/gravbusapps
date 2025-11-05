@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useMemo } from 'react'
+import React, { useState, useEffect, useMemo, useCallback } from 'react'
 import {
   Card,
   CardContent,
@@ -31,12 +31,15 @@ import { env } from '@/common/env/EnvUtils'
 import DayTypeSetup from './DayTypeSetup'
 import { TransformedDayTypeVersion } from '../types/day-type-versions'
 import { FieldTypeOption } from '../types/day-type-version-details'
+import { Alert, AlertTitle, AlertDescription } from '@newwork/nw-design-system'
+import { formatDate, getTranslationFromI18nKeyAndLabel } from '@/common/utils/windowUtils'
 
 export interface ConfigureDayTypeProps {
   dayTypeVersion: TransformedDayTypeVersion | null
   onBack: () => void
   prefixDataTestId?: string
   dayTypes?: Array<{ id: string; code: string; name: string; version: number }>
+  dayTypeVersions?: TransformedDayTypeVersion[]
   incrementTypes?: Array<{ id: string; code: string; name: string; version: number }>
   breakTypes?: Array<{ id: string; code: string; name: string; version: number }>
   roundingRules?: Array<{ id: string; code: string; name: string; version: number }>
@@ -46,16 +49,30 @@ export interface ConfigureDayTypeProps {
 }
 
 // Validation schema
-const dayTypeConfigSchema = z.object({
-  dayType: z.string().min(1, 'Day Type is required'),
-  breakRule: z.string().min(1, 'Break Rule is required'),
-  incrementType: z.string().min(1, 'Premium Pay Rule is required'),
-  roundingRule: z.string().min(1, 'Rounding Rule is required'),
-  color: z.string().min(1, 'Color is required'),
-  validFrom: z.string().min(1, 'Valid From is required'),
-  validTo: z.string().min(1, 'Valid To is required'),
-  activeVersion: z.string().min(1, 'Version is required')
-})
+const dayTypeConfigSchema = z
+  .object({
+    dayType: z.string().min(1, 'Day Type is required'),
+    breakRule: z.string().min(1, 'Break Rule is required'),
+    incrementType: z.string().min(1, 'Premium Pay Rule is required'),
+    roundingRule: z.string().min(1, 'Rounding Rule is required'),
+    color: z.string().min(1, 'Color is required'),
+    activeFrom: z.string().min(1, 'Valid From is required'),
+    activeTo: z.string().min(1, 'Valid To is required'),
+    activeVersion: z.string().min(1, 'Version is required')
+  })
+  .refine(
+    data => {
+      if (!data.activeFrom || !data.activeTo) return true
+      return new Date(data.activeTo) >= new Date(data.activeFrom)
+    },
+    {
+      message: getTranslationFromI18nKeyAndLabel(
+        'master-data:hr.time_attendance.day_types.version.valid_to_date_cannot_be_earlier_than_valid_from_date',
+        'End date cannot be earlier than start date'
+      ),
+      path: ['activeTo']
+    }
+  )
 
 export type DayTypeConfigFormData = z.infer<typeof dayTypeConfigSchema>
 
@@ -80,6 +97,7 @@ const ConfigureDayType: React.FC<ConfigureDayTypeProps> = ({
   onBack,
   prefixDataTestId,
   dayTypes = [],
+  dayTypeVersions = [],
   incrementTypes = [],
   breakTypes = [],
   roundingRules = [],
@@ -90,6 +108,7 @@ const ConfigureDayType: React.FC<ConfigureDayTypeProps> = ({
   const restClient = useRestClient(env('NEXT_PUBLIC_KOGITO_PROCESSES_ENDPOINT'))
   const [loading, setLoading] = useState(false)
   const [currentDayTypeVersion, setCurrentDayTypeVersion] = useState<TransformedDayTypeVersion | null>(dayTypeVersion)
+  const [overlapWarning, setOverlapWarning] = useState<string | null>(null)
 
   // Update currentDayTypeVersion when dayTypeVersion prop changes
   useEffect(() => {
@@ -103,10 +122,29 @@ const ConfigureDayType: React.FC<ConfigureDayTypeProps> = ({
       incrementType: currentDayTypeVersion?.incrementType?.id ?? '',
       roundingRule: currentDayTypeVersion?.roundingRule?.id ?? '',
       breakRule: currentDayTypeVersion?.breakType?.id ?? '',
-      color: currentDayTypeVersion?.color ?? ''
+      color: currentDayTypeVersion?.color ?? '',
+      activeFrom: currentDayTypeVersion?.activeFrom ? currentDayTypeVersion.activeFrom.split('T')[0] : '',
+      activeTo: currentDayTypeVersion?.activeTo ? currentDayTypeVersion.activeTo.split('T')[0] : '',
+      activeVersion: currentDayTypeVersion?.activeVersion ?? ''
     },
     mode: 'onChange'
   })
+
+  // Reset form when currentDayTypeVersion changes
+  useEffect(() => {
+    if (currentDayTypeVersion) {
+      form.reset({
+        dayType: currentDayTypeVersion?.dayType?.id ?? '',
+        incrementType: currentDayTypeVersion?.incrementType?.id ?? '',
+        roundingRule: currentDayTypeVersion?.roundingRule?.id ?? '',
+        breakRule: currentDayTypeVersion?.breakType?.id ?? '',
+        color: currentDayTypeVersion?.color ?? '',
+        activeFrom: currentDayTypeVersion?.activeFrom ? currentDayTypeVersion.activeFrom.split('T')[0] : '',
+        activeTo: currentDayTypeVersion?.activeTo ? currentDayTypeVersion.activeTo.split('T')[0] : '',
+        activeVersion: currentDayTypeVersion?.activeVersion ?? ''
+      })
+    }
+  }, [currentDayTypeVersion, form])
 
   // Check if save button should be disabled
   const isSaveDisabled = useMemo(() => {
@@ -126,6 +164,78 @@ const ConfigureDayType: React.FC<ConfigureDayTypeProps> = ({
     // For edit: must have changes (isDirty) and form must be valid
     return !isDirty || !isValid
   }, [loading, form.formState.isValid, form.formState.isDirty, currentDayTypeVersion])
+
+  // Find the latest version for a given dayType
+  const findLatestVersion = useCallback(
+    (dayTypeId: string): TransformedDayTypeVersion | null => {
+      if (!dayTypeId) return null
+
+      // Filter versions for this dayType
+      const versionsForDayType = dayTypeVersions.filter(
+        version => version.dayType?.id === dayTypeId && version.id !== currentDayTypeVersion?.id
+      )
+
+      if (versionsForDayType.length === 0) return null
+
+      // Sort by activeTo descending (most recent first) or by activeFrom if activeTo is null
+      const sortedVersions = [...versionsForDayType].sort((a, b) => {
+        const dateA = a.activeTo ? new Date(a.activeTo).getTime() : new Date(a.activeFrom || '').getTime()
+        const dateB = b.activeTo ? new Date(b.activeTo).getTime() : new Date(b.activeFrom || '').getTime()
+        return dateB - dateA // Descending order
+      })
+      return sortedVersions[0] || null
+    },
+    [dayTypeVersions, currentDayTypeVersion]
+  )
+
+  // Check for date overlap when creating a new version
+  useEffect(() => {
+    const isNewVersion = !currentDayTypeVersion || !currentDayTypeVersion.id || currentDayTypeVersion.id === ''
+    if (!isNewVersion) {
+      setOverlapWarning(null)
+      return
+    }
+
+    const dayTypeId = form.watch('dayType')
+    const activeFrom = form.watch('activeFrom')
+
+    if (!dayTypeId || !activeFrom) {
+      setOverlapWarning(null)
+      return
+    }
+
+    const latestVersion = findLatestVersion(dayTypeId)
+    if (!latestVersion || !latestVersion.activeTo) {
+      setOverlapWarning(null)
+      return
+    }
+
+    const newActiveFrom = new Date(activeFrom)
+    const latestActiveTo = new Date(latestVersion.activeTo)
+
+    // Check if new activeFrom is before or equal to latest activeTo (overlap)
+    if (newActiveFrom <= latestActiveTo) {
+      // Calculate suggested start date (one day after latest activeTo)
+      const suggestedDate = new Date(latestActiveTo)
+      suggestedDate.setDate(suggestedDate.getDate() + 1)
+      const suggestedDateStr = suggestedDate.toISOString().split('T')[0]
+
+      setOverlapWarning(
+        getTranslationFromI18nKeyAndLabel(
+          'master-data:hr.time_attendance.day_types.version.a_version_already_exists_for_this_period',
+          'A version already exists for this period'
+        ) +
+          ` The existing version ends on ${formatDate(latestActiveTo.toLocaleDateString())}. ` +
+          getTranslationFromI18nKeyAndLabel(
+            'master-data:hr.time_attendance.day_types.version.please_either_modify_the_existing_version_or_create_the_new_version_starting_from',
+            'Please either modify the existing version or create the new version starting from'
+          ) +
+          `Please either modify the existing version or create the new version starting from ${formatDate(suggestedDateStr)}.`
+      )
+    } else {
+      setOverlapWarning(null)
+    }
+  }, [form.watch('dayType'), form.watch('activeFrom'), currentDayTypeVersion, findLatestVersion])
 
   // Helper function to convert date string (YYYY-MM-DD) to ISO 8601 Instant format
   const convertDateToInstant = (dateString: string): string => {
@@ -153,8 +263,8 @@ const ConfigureDayType: React.FC<ConfigureDayTypeProps> = ({
           roundingRule: data.roundingRule,
           color: data.color,
           activeVersion: data.activeVersion,
-          activeFrom: convertDateToInstant(data.validFrom),
-          activeTo: convertDateToInstant(data.validTo)
+          activeFrom: convertDateToInstant(data.activeFrom),
+          activeTo: convertDateToInstant(data.activeTo)
         }
       }
 
@@ -237,6 +347,14 @@ const ConfigureDayType: React.FC<ConfigureDayTypeProps> = ({
         </div>
       </div>
 
+      {/* Overlap Warning */}
+      {overlapWarning && (
+        <Alert variant="destructive" data-testid={`${prefixDataTestId || ''}-overlap-warning`}>
+          <AlertTitle>Date Overlap Detected</AlertTitle>
+          <AlertDescription>{overlapWarning}</AlertDescription>
+        </Alert>
+      )}
+
       {/* Day Type Configuration */}
       <Card>
         <CardHeader>
@@ -276,7 +394,7 @@ const ConfigureDayType: React.FC<ConfigureDayTypeProps> = ({
                 />
                 <FormField
                   control={form.control}
-                  name="validFrom"
+                  name="activeFrom"
                   render={({ field }) => (
                     <FormItem>
                       <FormLabel>Valid From</FormLabel>
@@ -294,7 +412,7 @@ const ConfigureDayType: React.FC<ConfigureDayTypeProps> = ({
                 />
                 <FormField
                   control={form.control}
-                  name="validTo"
+                  name="activeTo"
                   render={({ field }) => (
                     <FormItem>
                       <FormLabel>Valid To</FormLabel>

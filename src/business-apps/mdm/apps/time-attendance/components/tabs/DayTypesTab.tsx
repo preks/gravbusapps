@@ -82,6 +82,7 @@ export const DayTypesTab: React.FC<DayTypesProps> = ({ accessToken, prefixDataTe
         onBack={handleBackFromConfigure}
         prefixDataTestId={prefixDataTestId}
         dayTypes={simpleDayTypes}
+        dayTypeVersions={dayTypeVersions}
         incrementTypes={incrementTypes}
         roundingRules={roundingRules}
         breakTypes={breakTypes}

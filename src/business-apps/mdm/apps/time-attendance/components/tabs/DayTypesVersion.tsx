@@ -7,7 +7,8 @@ import {
   DialogTitle,
   DialogDescription,
   DialogFooter,
-  DialogClose
+  DialogClose,
+  Badge
 } from '@newwork/nw-design-system'
 import { ColumnDef } from '@tanstack/react-table'
 import { Button } from '@newwork/nw-design-system'
@@ -18,6 +19,7 @@ import dayjs from 'dayjs'
 import { useRestClient } from '@/common/network/rest/useRestClient'
 import { env } from '@/common/env/EnvUtils'
 import { TransformedDayTypeVersion } from '../../types/day-type-versions'
+import { getTranslationFromI18nKeyAndLabel } from '@/common/utils/windowUtils'
 
 interface DayTypesVersionProps {
   dayTypeVersions: TransformedDayTypeVersion[]
@@ -111,42 +113,55 @@ export const DayTypesVersion: React.FC<DayTypesVersionProps> = ({
       }
     },
     {
-      accessorKey: 'breakType',
-      header: 'Break Type',
-      cell: ({ getValue }) => {
-        const breakType = getValue() as TransformedDayTypeVersion['breakType']
-        return breakType?.name || 'N/A'
-      }
-    },
-    {
-      accessorKey: 'incrementType',
-      header: 'Increment Type',
-      cell: ({ getValue }) => {
-        const incrementType = getValue() as TransformedDayTypeVersion['incrementType']
-        return incrementType?.name || 'N/A'
-      }
-    },
-    {
-      accessorKey: 'roundingRule',
-      header: 'Rounding Rule',
-      cell: ({ getValue }) => {
-        const roundingRule = getValue() as TransformedDayTypeVersion['roundingRule']
-        return roundingRule?.name || 'N/A'
-      }
-    },
-    {
       accessorKey: 'activeFrom',
-      header: 'Active From',
+      header: 'Valid From',
       cell: ({ getValue }) => formatDate((getValue() as string) || '')
     },
     {
       accessorKey: 'activeTo',
-      header: 'Active To',
+      header: 'Valid To',
       cell: ({ getValue }) => formatDate((getValue() as string) || '')
     },
     {
+      accessorKey: 'activeVersion',
+      header: 'Version',
+      cell: ({ getValue }) => {
+        const version = getValue() as TransformedDayTypeVersion['activeVersion']
+        return version || 'N/A'
+      }
+    },
+    {
+      accessorKey: 'status',
+      header: 'Status',
+      cell: ({ row }) => {
+        const activeFrom = row.original.activeFrom
+        const activeTo = row.original.activeTo
+        const currentDate = new Date()
+        if (activeFrom && activeTo) {
+          if (currentDate >= new Date(activeFrom) && currentDate <= new Date(activeTo)) {
+            return (
+              <Badge variant="outline">
+                {getTranslationFromI18nKeyAndLabel(
+                  'master-data:hr.time_attendance.day_types.version.status.active',
+                  'Active'
+                )}
+              </Badge>
+            )
+          }
+        }
+        return (
+          <Badge variant="outline">
+            {getTranslationFromI18nKeyAndLabel(
+              'master-data:hr.time_attendance.day_types.version.status.expired',
+              'Expired'
+            )}
+          </Badge>
+        )
+      }
+    },
+    {
       accessorKey: 'dayTypeVersionDetail',
-      header: 'Details Count',
+      header: 'Fields',
       cell: ({ getValue }) => {
         const details = getValue() as TransformedDayTypeVersion['dayTypeVersionDetail']
         return `${details?.length || 0} details`
