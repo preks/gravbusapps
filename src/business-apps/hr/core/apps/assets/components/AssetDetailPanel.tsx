@@ -49,10 +49,13 @@ const getStatusBadgeVariant = (status: string) => {
   }
 }
 
-const formatCurrency = (amount: number, currency: string): string => {
+const formatCurrency = (amount: number, currency?: string): string => {
+  if (!currency) {
+    return `${amount}`
+  }
   return new Intl.NumberFormat('en-US', {
     style: 'currency',
-    currency: currency || 'EUR',
+    currency: currency,
     minimumFractionDigits: 0,
     maximumFractionDigits: 0
   }).format(amount)
@@ -155,7 +158,7 @@ export const AssetDetailPanel: React.FC<AssetDetailPanelProps> = ({
                 <div className="gba:flex-1">
                   <p className="gba:text-sm gba:font-medium">Inventory Value</p>
                   <p className="gba:text-sm gba:text-muted-foreground" data-testid="asset-value">
-                    {formatCurrency(asset.inventoryValue, asset.currency?.code || 'EUR')}
+                    {formatCurrency(asset.inventoryValue, asset.currency?.code)}
                   </p>
                 </div>
               </div>

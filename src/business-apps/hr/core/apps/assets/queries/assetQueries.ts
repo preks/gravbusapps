@@ -162,7 +162,7 @@ export const GET_ASSET_STATISTICS = `
  */
 export const INSERT_ASSET = `
   mutation InsertAsset($asset: AssetInsertInput!) {
-    insertAssetOne(object: $asset) {
+    insert_Asset_one(object: $asset) {
       ${ASSET_FIELDS}
     }
   }
@@ -173,7 +173,7 @@ export const INSERT_ASSET = `
  */
 export const UPDATE_ASSET = `
   mutation UpdateAsset($id: uuid!, $version: Int!, $changes: AssetSetInput!) {
-    updateAsset(
+    update_Asset(
       where: { id: { _eq: $id }, version: { _eq: $version } }
       _set: $changes
     ) {
@@ -189,7 +189,7 @@ export const UPDATE_ASSET = `
  */
 export const DELETE_ASSET = `
   mutation DeleteAsset($id: uuid!, $version: Int!) {
-    updateAsset(
+    update_Asset(
       where: { id: { _eq: $id }, version: { _eq: $version } }
       _set: { isDeleted: true }
     ) {
@@ -237,7 +237,7 @@ export const GET_CURRENT_ALLOCATION = `
  */
 export const ALLOCATE_ASSET = `
   mutation AllocateAsset($allocation: EmployeeAssetInsertInput!) {
-    insertEmployeeAssetOne(object: $allocation) {
+    insert_EmployeeAsset_one(object: $allocation) {
       ${EMPLOYEE_ASSET_FIELDS}
     }
   }
@@ -253,7 +253,7 @@ export const DEALLOCATE_ASSET = `
     $endDate: date!
     $conditionEnd: String
   ) {
-    updateEmployeeAsset(
+    update_EmployeeAsset(
       where: { id: { _eq: $id }, version: { _eq: $version } }
       _set: { endDate: $endDate, conditionEnd: $conditionEnd }
     ) {

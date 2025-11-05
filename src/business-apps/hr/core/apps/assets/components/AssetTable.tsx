@@ -242,7 +242,9 @@ export const AssetTable: React.FC<AssetTableProps> = ({ assets, isLoading = fals
                       </div>
                     </TableCell>
                     <TableCell data-testid={`asset-value-${asset.id}`}>
-                      {formatCurrency(asset.inventoryValue, asset.currency?.code || 'EUR')}
+                      {asset.currency?.code
+                        ? formatCurrency(asset.inventoryValue, asset.currency.code)
+                        : `${asset.inventoryValue}`}
                     </TableCell>
 
                     {/* Actions Column - Last */}

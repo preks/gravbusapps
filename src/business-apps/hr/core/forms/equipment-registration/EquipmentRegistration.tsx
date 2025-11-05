@@ -3,7 +3,7 @@
  * Form for registering new equipment in the inventory
  */
 
-import React, { useState, useEffect } from 'react'
+import React, { useState, useMemo } from 'react'
 import { BusinessAppContextProps } from '@/common/BusinessAppContext'
 import {
   Form,
@@ -28,13 +28,16 @@ import { zodResolver } from '@hookform/resolvers/zod'
 import { useCurrencyCatalog } from './hooks/useCurrencyCatalog'
 import { useAssetsCatalog } from './hooks/useAssetsCatalog'
 import { useBrandsCatalog } from './hooks/useBrandsCatalog'
-import { useAssetService } from '../../apps/assets/services/useAssetService'
+import { useSiteLocations } from './hooks/useSiteLocations'
+import { AssetProcessClient } from '../../apps/assets/services/AssetProcessClient'
+import { AssetStatus } from '../../apps/assets/types'
 
 const formSchema = z.object({
   category: z.string().min(1, 'Please select a category'),
   brand: z.string().min(1, 'Please select a brand'),
   model: z.string().min(2, 'Model must be at least 2 characters'),
   serialNumber: z.string().min(3, 'Serial number must be at least 3 characters'),
+  location: z.string().optional(),
   acquisitionDate: z.string().min(1, 'Acquisition date is required'),
   warrantyPeriodMonths: z.coerce
     .number()
@@ -57,8 +60,14 @@ export const EquipmentRegistration: React.FC<EquipmentRegistrationProps> = ({ on
   const { options: currencyOptions, isLoading: currenciesLoading } = useCurrencyCatalog(props)
   const { options: assetOptions, isLoading: assetsLoading } = useAssetsCatalog(props)
   const { options: brandOptions, isLoading: brandsLoading } = useBrandsCatalog(props)
+  const { options: locationOptions, isLoading: locationsLoading } = useSiteLocations(props)
 
-  const assetService = useAssetService(props)
+  // Initialize Asset Process Client (memoized for performance)
+  const assetProcessClient = useMemo(() => {
+    const client = new AssetProcessClient()
+    client.setAccessToken(props.accessToken)
+    return client
+  }, [props.accessToken])
 
   const form = useForm<FormValues>({
     resolver: zodResolver(formSchema),
@@ -68,45 +77,33 @@ export const EquipmentRegistration: React.FC<EquipmentRegistrationProps> = ({ on
       brand: '',
       model: '',
       serialNumber: '',
-      acquisitionDate: new Date().toISOString().split('T')[0],
-      warrantyPeriodMonths: 24,
-      inventoryValue: 0,
+      location: '',
+      acquisitionDate: '',
+      warrantyPeriodMonths: undefined,
+      inventoryValue: undefined,
       currency: '',
       notes: ''
     }
   })
 
-  useEffect(() => {
-    if (currencyOptions.length > 0 && !form.getValues('currency')) {
-      const eurCurrency = currencyOptions.find(c => c.code === 'EUR' || c.label.includes('EUR'))
-      form.setValue('currency', eurCurrency?.value || currencyOptions[0].value)
-    }
-  }, [currencyOptions])
-
-  useEffect(() => {
-    if (assetOptions.length > 0 && !form.getValues('category')) {
-      const laptopCategory = assetOptions.find(c => c.value === 'Laptop' || c.label.includes('Laptop'))
-      form.setValue('category', laptopCategory?.value || assetOptions[0].value)
-    }
-  }, [assetOptions])
-
   const onSubmit = async (values: FormValues) => {
     setIsSubmitting(true)
     try {
-      const newAsset = await assetService.createAsset({
+      const response = await assetProcessClient.createAsset({
         model: values.model,
         serialNumber: values.serialNumber,
         acquisitionDate: values.acquisitionDate,
         warrantyPeriodMonths: values.warrantyPeriodMonths,
         inventoryValue: values.inventoryValue,
-        assetStatus: 'AVAILABLE_ASSET',
+        assetStatus: AssetStatus.AVAILABLE,
         assetBrandRef: values.brand,
         assetCategoryRef: values.category,
         currencyRef: values.currency,
+        siteLocationId: values.location || undefined,
         notes: values.notes
       })
 
-      console.log('Equipment registered successfully:', newAsset.id)
+      console.log('Equipment registered successfully via process API:', response.processInstanceId)
 
       if (onSuccess) {
         onSuccess()
@@ -208,6 +205,36 @@ export const EquipmentRegistration: React.FC<EquipmentRegistrationProps> = ({ on
                     />
                   </FormControl>
                   <FormDescription>Unique identifier for this equipment</FormDescription>
+                  <FormMessage />
+                </FormItem>
+              )}
+            />
+
+            <FormField
+              control={form.control}
+              name="location"
+              render={({ field }) => (
+                <FormItem>
+                  <FormLabel>Location</FormLabel>
+                  <Select onValueChange={field.onChange} value={field.value} disabled={locationsLoading}>
+                    <FormControl>
+                      <SelectTrigger data-testid="location-select">
+                        <SelectValue placeholder={locationsLoading ? 'Loading locations...' : 'Select location'} />
+                      </SelectTrigger>
+                    </FormControl>
+                    <SelectContent>
+                      {locationOptions.map(location => (
+                        <SelectItem
+                          key={location.id}
+                          value={location.value}
+                          data-testid={`location-option-${location.code}`}
+                        >
+                          {location.label}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                  <FormDescription>Site location where the equipment is stored</FormDescription>
                   <FormMessage />
                 </FormItem>
               )}
@@ -320,7 +347,12 @@ export const EquipmentRegistration: React.FC<EquipmentRegistrationProps> = ({ on
               <Button
                 type="submit"
                 disabled={
-                  isSubmitting || currenciesLoading || assetsLoading || brandsLoading || !form.formState.isValid
+                  isSubmitting ||
+                  currenciesLoading ||
+                  assetsLoading ||
+                  brandsLoading ||
+                  locationsLoading ||
+                  !form.formState.isValid
                 }
                 data-testid="register-submit-button"
               >

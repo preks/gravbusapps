@@ -173,9 +173,9 @@ export const useAssetService = (context: BusinessAppContextProps) => {
           }
         }
 
-        const result = await graphQLClient.request<{ insertAssetOne: any }>(INSERT_ASSET, variables)
+        const result = await graphQLClient.request<{ insert_Asset_one: any }>(INSERT_ASSET, variables)
 
-        const asset = result.insertAssetOne
+        const asset = result.insert_Asset_one
         return {
           id: asset.id,
           model: asset.model,
@@ -226,9 +226,9 @@ export const useAssetService = (context: BusinessAppContextProps) => {
           }
         }
 
-        const result = await graphQLClient.request<{ updateAssetByPk: any }>(UPDATE_ASSET, variables)
+        const result = await graphQLClient.request<{ update_Asset: { returning: any[] } }>(UPDATE_ASSET, variables)
 
-        const asset = result.updateAssetByPk
+        const asset = result.update_Asset.returning[0]
         return {
           id: asset.id,
           model: asset.model,
@@ -367,9 +367,9 @@ export const useAssetService = (context: BusinessAppContextProps) => {
           }
         }
 
-        const result = await graphQLClient.request<{ insertEmployeeAssetOne: any }>(ALLOCATE_ASSET, variables)
+        const result = await graphQLClient.request<{ insert_EmployeeAsset_one: any }>(ALLOCATE_ASSET, variables)
 
-        const alloc = result.insertEmployeeAssetOne
+        const alloc = result.insert_EmployeeAsset_one
         return {
           id: alloc.id,
           assetId: alloc.assetId,
@@ -411,9 +411,12 @@ export const useAssetService = (context: BusinessAppContextProps) => {
           }
         }
 
-        const result = await graphQLClient.request<{ updateEmployeeAssetByPk: any }>(DEALLOCATE_ASSET, variables)
+        const result = await graphQLClient.request<{ update_EmployeeAsset: { returning: any[] } }>(
+          DEALLOCATE_ASSET,
+          variables
+        )
 
-        const alloc = result.updateEmployeeAssetByPk
+        const alloc = result.update_EmployeeAsset.returning[0]
         return {
           id: alloc.id,
           assetId: alloc.assetId,
