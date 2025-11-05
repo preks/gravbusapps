@@ -156,7 +156,8 @@ export { formatCurrencyString as formatCurrency, extractCurrencyCode } from '@/c
 export { formatForDisplay as formatDate } from '@/common/utils/dateFormatter'
 
 /**
- * Get default start date (first day of next month)
+ * Get default start date for benefit requests
+ * Returns first day of next month (e.g., if today is Nov 5, returns Dec 1)
  */
 export const getDefaultStartDate = (): string => {
   const date = new Date()
@@ -166,11 +167,11 @@ export const getDefaultStartDate = (): string => {
 }
 
 /**
- * Get default end date (last day of current month)
+ * Get default end date for benefit deactivations
+ * Returns last day of current month (e.g., if today is Nov 5, returns Nov 30)
  */
 export const getDefaultEndDate = (): string => {
-  const date = new Date()
-  date.setMonth(date.getMonth() + 1)
-  date.setDate(0) // Last day of current month
-  return date.toISOString().split('T')[0]
+  const now = new Date()
+  const lastDay = new Date(now.getFullYear(), now.getMonth() + 1, 0)
+  return lastDay.toISOString().split('T')[0]
 }
