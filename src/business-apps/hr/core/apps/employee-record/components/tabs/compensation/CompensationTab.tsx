@@ -42,7 +42,11 @@ const CompensationTab: React.FC<JobsCompensationTabProps> = ({ employee, employe
   const growthTabEnabled = Boolean(useFeature(Feature.HCM.CompensationGrowth.Key))
 
   // Fetch compensation data
-  const { loading, error, compensationData, historyData, refetch } = useCompensationData(empId, accessToken)
+  const { loading, error, compensationData, historyData, refetch } = useCompensationData(
+    empId,
+    accessToken,
+    currentLocale
+  )
 
   // Extract currency code from compensation data
   const currencyCode = compensationData?.currentCompensation?.currency?.code || 'EUR'

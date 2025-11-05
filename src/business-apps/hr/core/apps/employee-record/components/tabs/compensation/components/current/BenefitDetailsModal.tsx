@@ -10,11 +10,12 @@ import {
   Button,
   Badge
 } from '@newwork/nw-design-system'
+import { BusinessAppContextProps } from '@/common/BusinessAppContext'
 import { BenefitCatalogItem } from '../../types/benefitCatalogTypes'
 import { formatCurrencyString } from '@/common/utils/numberFormatter'
 import dayjs from 'dayjs'
 
-interface BenefitDetailsModalProps {
+interface BenefitDetailsModalProps extends BusinessAppContextProps {
   /**
    * Translation function
    */

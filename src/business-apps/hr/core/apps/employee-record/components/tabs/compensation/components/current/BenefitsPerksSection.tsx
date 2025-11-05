@@ -322,6 +322,8 @@ const BenefitsPerksSection: React.FC<BenefitsPerksProps> = ({
             benefit={selectedBenefit}
             currencyCode={currencyCode}
             locale={locale}
+            accessToken={accessToken}
+            userInfo={userInfo}
           />
         </>
       )}

@@ -65,12 +65,14 @@ const CurrentCompensationView: React.FC<CurrentCompensationViewProps> = ({
           <div className="gba:font-medium gba:text-foreground">
             {formatCurrencyString(compensationBand.minSalary, {
               currency: currencyCode,
+              locale: locale,
               minimumFractionDigits: 0,
               maximumFractionDigits: 0
             })}{' '}
             -{' '}
             {formatCurrencyString(compensationBand.maxSalary, {
               currency: currencyCode,
+              locale: locale,
               minimumFractionDigits: 0,
               maximumFractionDigits: 0
             })}
