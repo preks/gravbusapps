@@ -10,6 +10,7 @@ import {
   EmployeePayslip
 } from '../types/compensationTypes'
 import { isCompensationStatusActive, isBenefitActive } from '../types/compensationEnums'
+import { extractCurrencyCode } from '@/common/utils/numberFormatter'
 
 /**
  * Custom hook to fetch and manage employee compensation data
@@ -185,7 +186,8 @@ export const useCompensationData = (employeeId: string, accessToken: string, loc
       // Transform working conditions to compensation history
       const compensationHistory = (historyResult?.EmployeeWorkingCondition || []).map((wc: any) => {
         // Derive currency from working condition data, fallback to EUR
-        const currencyCode = wc.currency?.code || wc.currencyRef || 'EUR'
+        // Extract currency code from catalog reference format (e.g., "Currency:v1:EUR" -> "EUR")
+        const currencyCode = wc.currency?.code || extractCurrencyCode(wc.currencyRef)
 
         // Format monthly salary with proper locale and currency
         const monthlySalary = wc.monthlyGrossSalary || 0
@@ -200,7 +202,7 @@ export const useCompensationData = (employeeId: string, accessToken: string, loc
           id: wc.id,
           employeeId: wc.employeeId,
           baseSalary: wc.annualGrossSalary || 0,
-          currency: wc.currency || { id: currencyCode, code: currencyCode, value: 'Euro' },
+          currency: wc.currency || { id: currencyCode, code: currencyCode, value: currencyCode },
           compensationBand: null, // Note: CompensationBand could be queried from EmployeePosition if historical band data is needed
           effectiveDate: wc.hireDate, // Using hireDate as the effective date
           endDate: wc.exitDate, // Using exitDate as end date
