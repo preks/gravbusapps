@@ -122,6 +122,7 @@ export const CONTENT_ENTRY_TAG_FRAGMENT = `
  */
 export const CONTENT_DOCUMENT_FRAGMENT = `
   id
+  version
   parentDocumentId
   folder
   name
@@ -146,6 +147,7 @@ export const CONTENT_DOCUMENT_WITH_CHILDREN_FRAGMENT = `
   ${CONTENT_DOCUMENT_FRAGMENT}
   childDocument {
     id
+    version
     parentDocumentId
     folder
     name

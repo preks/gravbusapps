@@ -26,9 +26,10 @@ question-welcome-subtitle = Fragen stellen und Wissen teilen
 
 # Search placeholders
 search_articles = Artikel durchsuchen...
-search_intranet = Intranet durchsuchen
-search_knowledge = Wissensdatenbank durchsuchen
-search_documents = Dokumente durchsuchen
+search_intranet = Intranet durchsuchen...
+search_news = Nachrichten durchsuchen...
+search_knowledge = Wissensdatenbank durchsuchen...
+search_documents = Bereiche durchsuchen...
 search_questions = Fragen durchsuchen...
 
 # Content sections
@@ -43,8 +44,11 @@ more_articles = Weitere Artikel
 
 # Buttons
 create_article = Artikel erstellen
+publish_news = Nachricht veröffentlichen
 create_document = Dokument erstellen
+create_area = Bereich erstellen
 ask_question = Frage stellen
+back_to_areas = Zurück zu Bereichen
 
 # Empty states
 no_more_articles = Keine weiteren Artikel

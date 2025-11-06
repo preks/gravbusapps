@@ -20,8 +20,14 @@ export interface DocumentArea extends ContentEntry {
  * @param accessToken - Access token for authentication
  * @param contentTypeRef - Optional content type filter
  * @param categoryRefs - Optional category filters (can be multiple)
+ * @param search - Optional search query
  */
-export const useDocumentAreas = (accessToken: string, contentTypeRef?: string | null, categoryRefs?: string[]) => {
+export const useDocumentAreas = (
+  accessToken: string,
+  contentTypeRef?: string | null,
+  categoryRefs?: string[],
+  search?: string
+) => {
   // Serialize categoryRefs to prevent reference instability
   const categoryRefsKey = useMemo(() => JSON.stringify(categoryRefs || []), [categoryRefs])
 
@@ -32,10 +38,11 @@ export const useDocumentAreas = (accessToken: string, contentTypeRef?: string | 
       contentGroupRef: 'ContentGroup:v1:DOCUMENT',
       contentTypeRef: contentTypeRef || undefined,
       categoryRefs: categoryRefs && categoryRefs.length > 0 ? categoryRefs : undefined,
+      search: search || undefined,
       sortBy: 'title' as const,
       sortOrder: 'ASC' as const
     }),
-    [contentTypeRef, categoryRefsKey]
+    [contentTypeRef, categoryRefsKey, search]
   )
 
   // Fetch Content Entries for DOCUMENTS group
@@ -63,7 +70,7 @@ export const useDocumentAreas = (accessToken: string, contentTypeRef?: string | 
 
 /**
  * Hook to fetch folders and documents for current location
- * Uses central useContentDocuments hook with stability fix
+ * Fetches ALL documents for the content entry to enable proper tree view and folder counts
  */
 export const useFolderContents = (accessToken: string, contentEntryId: string | null, folderId: string | null) => {
   // Use ref to track previous params to avoid unnecessary re-fetches
@@ -78,7 +85,7 @@ export const useFolderContents = (accessToken: string, contentEntryId: string | 
     })
   }, [contentEntryId, folderId])
 
-  // Memoize params with stable object reference
+  // Memoize params with stable object reference - fetch ALL documents for the content entry
   const params = useMemo(() => {
     if (!contentEntryId) {
       return { contentEntryId: '' }
@@ -86,24 +93,25 @@ export const useFolderContents = (accessToken: string, contentEntryId: string | 
 
     return {
       contentEntryId,
-      parentDocumentId: folderId || null, // Use null for root level documents
+      // Don't filter by parentDocumentId - fetch all documents to enable tree view and counts
       sortBy: 'title' as const,
       sortOrder: 'ASC' as const
     }
-  }, [paramsKey])
+  }, [contentEntryId]) // Removed folderId from dependencies - we always fetch all documents
 
   // Track if params actually changed
   useEffect(() => {
     prevParamsRef.current = paramsKey
   }, [paramsKey])
 
-  // Fetch documents (both folders and files)
+  // Fetch ALL documents (both folders and files) for the content entry
   const { documents: allDocuments, isLoading, error, refetch } = useContentDocuments(params, accessToken)
 
   // Filter out results if no contentEntryId (empty state)
   const shouldShowResults = contentEntryId !== null
 
-  // Filter documents based on parentDocumentId (client-side filtering for root level)
+  // Filter documents to show only current level (root or specific folder)
+  // But keep allDocuments available for counting children
   const documents = useMemo(() => {
     if (!shouldShowResults) return []
 
@@ -112,8 +120,8 @@ export const useFolderContents = (accessToken: string, contentEntryId: string | 
       return allDocuments.filter(doc => !doc.parentDocumentId)
     }
 
-    // Otherwise, the query already filtered by parentDocumentId
-    return allDocuments
+    // Otherwise, show documents that belong to this specific folder
+    return allDocuments.filter(doc => doc.parentDocumentId === folderId)
   }, [allDocuments, folderId, shouldShowResults])
 
   // Split into folders and files only if we have a valid contentEntryId
@@ -129,6 +137,7 @@ export const useFolderContents = (accessToken: string, contentEntryId: string | 
   return {
     folders,
     documents: files,
+    allDocuments, // Return all documents for proper tree view and folder counting
     isLoading: shouldShowResults && isLoading,
     error: shouldShowResults ? error : null,
     refetch

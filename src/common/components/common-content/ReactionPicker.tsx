@@ -267,7 +267,7 @@ export const ReactionPicker: React.FC<ReactionPickerProps> = ({
                 emojiStyle={EmojiStyle.NATIVE}
                 lazyLoadEmojis={true}
                 skinTonesDisabled={true}
-                allowExpandReactions={false}
+                allowExpandReactions={true}
                 onReactionClick={(emojiData: EmojiClickData) => {
                   // Store selected emoji and execute action
                   selectedEmojiRef.current = emojiData.unified

@@ -1,12 +1,12 @@
 import React, { useState, useMemo } from 'react'
 import { useTranslation, Button, Alert, AlertTitle, AlertDescription, Skeleton, Card } from '@newwork/nw-design-system'
+import { Home as HomeIcon } from 'lucide-react'
 import { useContentEntries, useUserContentReactions, toIntranetContent } from '@/common/data/content'
 import { ContentRole } from '@/common/data/content/types/contentEnums'
 import ContentCard from '../../components/cards/ContentCard'
 import SearchInput from '../../components/shared/SearchInput'
 import Banner, { BannerVariant } from '../../components/shared/Banner'
 import ContentCarousel from '../../components/shared/ContentCarousel'
-import TrendingNow from '../../components/cards/TrendingNow'
 import ContentCardSkeleton from '../../components/skeletons/ContentCardSkeleton'
 import { BusinessAppContextProps } from '@/common/BusinessAppContext'
 import { useProcessCompletion } from '@/common/hooks/useProcessCompletion'
@@ -74,12 +74,23 @@ const HomeView: React.FC<HomeViewProps> = ({
     accessToken
   })
 
+  // Batch fetch reactions for featured/carousel content
+  const featuredArticleIds = useMemo(() => featuredEntries.map(entry => entry.id), [featuredEntries])
+  const { reactionsByArticle: featuredReactionsByArticle, refetch: refetchFeaturedReactions } = useUserContentReactions(
+    {
+      contentEntryIds: featuredArticleIds,
+      currentUserId: userInfo?.id,
+      accessToken
+    }
+  )
+
   // Listen for process completion to refresh data
   useProcessCompletion({
     onSuccess: () => {
       refetchFeatured()
       refetch()
       refetchReactions()
+      refetchFeaturedReactions()
     }
   })
 
@@ -160,68 +171,56 @@ const HomeView: React.FC<HomeViewProps> = ({
       )}
 
       <div className="gba:w-full gba:max-w-[1300px] gba:mx-auto gba:mb-10 gba:px-4">
+        {/* Header with Search */}
+        {isLoading ? (
+          <div className="gba:mb-6 gba:py-6 gba:flex gba:justify-between gba:items-center gba:gap-4">
+            <div className="gba:flex gba:items-center gba:gap-3">
+              <Skeleton className="gba:h-8 gba:w-8 gba:rounded-md" />
+              <Skeleton className="gba:h-9 gba:w-64" />
+            </div>
+            <Skeleton className="gba:h-10 gba:w-[300px]" />
+          </div>
+        ) : (
+          <div className="gba:mb-6 gba:py-6 gba:flex gba:justify-between gba:items-center gba:gap-4">
+            <div className="gba:flex gba:items-center gba:gap-3">
+              <HomeIcon className="gba:w-8 gba:h-8 gba:text-primary" />
+              <h1 className="gba:text-3xl gba:font-bold gba:text-foreground">{t('latest_announcements')}</h1>
+            </div>
+            <SearchInput onSearch={handleSearch} placeholder={t('search_intranet')} className="gba:w-[300px]" />
+          </div>
+        )}
+
         {/* Featured Section - Always visible, not affected by search */}
         {isLoading ? (
-          <>
-            <div className="gba:mb-6 gba:mt-6">
-              <Skeleton className="gba:h-10 gba:w-64" />
-            </div>
-            <div className="gba:grid gba:grid-cols-[1fr_280px] gba:gap-6 gba:mb-8 gba:items-start">
-              <Card className="gba:p-6 gba:h-80">
-                <div className="gba:space-y-4">
-                  <Skeleton className="gba:h-8 gba:w-3/4" />
-                  <Skeleton className="gba:h-4 gba:w-full" />
-                  <Skeleton className="gba:h-4 gba:w-full" />
-                  <Skeleton className="gba:h-4 gba:w-2/3" />
-                </div>
-              </Card>
-              <Card className="gba:p-4 gba:h-80">
-                <Skeleton className="gba:h-6 gba:w-32 gba:mb-4" />
-                <div className="gba:space-y-4">
-                  {[1, 2, 3].map(i => (
-                    <div key={i} className="gba:flex gba:gap-3">
-                      <Skeleton className="gba:w-16 gba:h-16 gba:rounded-md" />
-                      <div className="gba:flex-1 gba:space-y-2">
-                        <Skeleton className="gba:h-4 gba:w-full" />
-                        <Skeleton className="gba:h-3 gba:w-20" />
-                      </div>
-                    </div>
-                  ))}
-                </div>
-              </Card>
-            </div>
-          </>
+          <div className="gba:mb-8">
+            <Card className="gba:p-6 gba:h-80">
+              <div className="gba:space-y-4">
+                <Skeleton className="gba:h-8 gba:w-3/4" />
+                <Skeleton className="gba:h-4 gba:w-full" />
+                <Skeleton className="gba:h-4 gba:w-full" />
+                <Skeleton className="gba:h-4 gba:w-2/3" />
+              </div>
+            </Card>
+          </div>
         ) : featuredEntries.length > 0 ? (
           <>
-            <div className="gba:mb-6 gba:mt-6">
-              <h2 className="gba:text-2xl gba:md:text-3xl gba:text-foreground gba:font-semibold">
-                {t('latest_announcements')}
-              </h2>
-            </div>
-
-            {/* Carousel and Trending Now Section */}
-            <div className="gba:grid gba:grid-cols-[1fr_280px] gba:gap-6 gba:mb-8 gba:items-start">
-              <div>
-                <ContentCarousel articles={topArticles} currentTab={currentTab} />
-              </div>
-              <div>
-                <TrendingNow
-                  entries={featuredEntries}
-                  className="gba:bg-card gba:border gba:border-border"
-                  currentTab={currentTab}
-                />
-              </div>
+            {/* Carousel Section - Centered and narrower */}
+            <div className="gba:mb-8">
+              <ContentCarousel
+                articles={topArticles}
+                currentTab={currentTab}
+                accessToken={accessToken}
+                userInfo={userInfo}
+                allowedReactions={allowedReactions}
+                reactionCatalogMap={reactionCatalogMap}
+                reactionsByArticle={featuredReactionsByArticle}
+                onReactionsRefetch={refetchFeaturedReactions}
+              />
             </div>
           </>
         ) : null}
 
-        <div className="gba:w-full gba:flex gba:justify-center gba:mb-8 gba:mt-6">
-          <div className="gba:w-full gba:max-w-[80%]">
-            <SearchInput onSearch={handleSearch} placeholder={t('search_intranet')} />
-          </div>
-        </div>
-
-        <div className="gba:mb-6">
+        <div className="gba:mb-6 gba:mt-8">
           <h2 className="gba:text-2xl gba:md:text-3xl gba:text-foreground gba:font-semibold">{t('recent_content')}</h2>
         </div>
 

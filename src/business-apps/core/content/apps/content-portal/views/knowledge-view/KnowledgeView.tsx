@@ -39,6 +39,9 @@ const KnowledgeView: React.FC<KnowledgeViewProps> = ({
   const [searchQuery, setSearchQuery] = useState('')
   const [selectedCategoryRef, setSelectedCategoryRef] = useState<string | null>(null)
 
+  // Helper to check if we're showing the initial load
+  const isInitialLoad = loadedCount === PAGE_SIZE
+
   // Load categories from catalog
   const { categories, isLoading: categoriesLoading } = useKnowledgeCategories({ accessToken })
 
@@ -151,25 +154,38 @@ const KnowledgeView: React.FC<KnowledgeViewProps> = ({
 
       <div className="gba:w-full gba:max-w-[1300px] gba:mx-auto gba:mb-10 gba:px-4">
         {/* Wiki-style Header with Search */}
-        <div className="gba:mb-6 gba:py-6 gba:flex gba:justify-between gba:items-center gba:gap-4">
-          <div className="gba:flex gba:items-center gba:gap-3">
-            <BookOpen className="gba:w-8 gba:h-8 gba:text-primary" />
-            <h1 className="gba:text-3xl gba:font-bold gba:text-foreground">{t('knowledge-welcome-title')}</h1>
+        {isLoading ? (
+          <div className="gba:mb-6 gba:py-6 gba:flex gba:justify-between gba:items-center gba:gap-4">
+            <div className="gba:flex gba:items-center gba:gap-3">
+              <Skeleton className="gba:h-8 gba:w-8 gba:rounded-md" />
+              <Skeleton className="gba:h-9 gba:w-64" />
+            </div>
+            <div className="gba:flex gba:gap-2 gba:items-center">
+              <Skeleton className="gba:h-10 gba:w-[300px]" />
+              <Skeleton className="gba:h-10 gba:w-32" />
+            </div>
           </div>
-          <div className="gba:flex gba:gap-2 gba:items-center">
-            <SearchInput onSearch={handleSearch} placeholder={t('search_knowledge')} className="gba:w-[300px]" />
-            <AppAction
-              contextsArray={[FlowContextName.contentEntryCreate]}
-              externalContextData={{ contentGroup: ContentGroup.KNOWLEDGE }}
-              accessToken={accessToken}
-              emptyStateBehavior="enable"
-              deferMainContextRequestsUntilClick
-              data-testid="knowledge-view-create-button"
-            >
-              <Button>{t('create_article')}</Button>
-            </AppAction>
+        ) : (
+          <div className="gba:mb-6 gba:py-6 gba:flex gba:justify-between gba:items-center gba:gap-4">
+            <div className="gba:flex gba:items-center gba:gap-3">
+              <BookOpen className="gba:w-8 gba:h-8 gba:text-primary" />
+              <h1 className="gba:text-3xl gba:font-bold gba:text-foreground">{t('knowledge-welcome-title')}</h1>
+            </div>
+            <div className="gba:flex gba:gap-2 gba:items-center">
+              <SearchInput onSearch={handleSearch} placeholder={t('search_knowledge')} className="gba:w-[300px]" />
+              <AppAction
+                contextsArray={[FlowContextName.contentEntryCreate]}
+                externalContextData={{ contentGroup: ContentGroup.KNOWLEDGE }}
+                accessToken={accessToken}
+                emptyStateBehavior="enable"
+                deferMainContextRequestsUntilClick
+                data-testid="knowledge-view-create-button"
+              >
+                <Button>{t('create_article')}</Button>
+              </AppAction>
+            </div>
           </div>
-        </div>
+        )}
 
         {/* Wiki Layout: Sidebar + Content */}
         <div className="gba:grid gba:grid-cols-[260px_1fr] gba:gap-6">
@@ -247,7 +263,7 @@ const KnowledgeView: React.FC<KnowledgeViewProps> = ({
                   <ContentCardSkeleton variant="horizontal" count={3} />
                 </div>
               </div>
-            ) : featuredArticles.length > 0 && page === 1 && !searchQuery ? (
+            ) : featuredArticles.length > 0 && isInitialLoad && !searchQuery ? (
               <div className="gba:mb-8">
                 <h2 className="gba:text-xl gba:font-semibold gba:mb-4 gba:text-foreground">{t('recent_articles')}</h2>
                 <div className="gba:space-y-4">
@@ -325,7 +341,7 @@ const KnowledgeView: React.FC<KnowledgeViewProps> = ({
             ) : regularArticles.length > 0 ? (
               <div className="gba:mb-4">
                 <h2 className="gba:text-xl gba:font-semibold gba:mb-4 gba:text-foreground">
-                  {page === 1 && !searchQuery ? t('more_articles') : t('all_articles')}
+                  {isInitialLoad && !searchQuery ? t('more_articles') : t('all_articles')}
                 </h2>
                 <div className="gba:grid gba:grid-cols-3 gba:gap-4 gba:mb-8">
                   {regularArticles.map(entry => {
@@ -350,7 +366,7 @@ const KnowledgeView: React.FC<KnowledgeViewProps> = ({
             ) : null}
 
             {/* Show all articles in grid if searching or not on first page */}
-            {(searchQuery || page > 1) && data.length > 0 && (
+            {(searchQuery || !isInitialLoad) && data.length > 0 && (
               <div className="gba:grid gba:grid-cols-3 gba:gap-4 gba:mb-8">
                 {data.map(item => (
                   <ContentCard

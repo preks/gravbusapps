@@ -9,12 +9,11 @@ import {
   Skeleton,
   Card
 } from '@newwork/nw-design-system'
-import { MessageCircle } from 'lucide-react'
+import { MessageCircle, Folder, ChevronRight, HelpCircle } from 'lucide-react'
 import { useContentEntries, toIntranetContent, useUserContentReactions } from '@/common/data/content'
 import { ContentRole, ContentGroup } from '@/common/data/content/types/contentEnums'
 import { VoteButtons, type VoteState } from '@/common/components/common-content'
 import SearchInput from '../../components/shared/SearchInput'
-import NavigationTagList from '../../components/shared/NavigationTagList'
 import Banner, { BannerVariant } from '../../components/shared/Banner'
 import { AppAction } from '@/components/app-action'
 import { FlowContextName } from '@/common/types/FlowRegistryTypes'
@@ -27,7 +26,6 @@ import { navigateTo, buildPlatformUrl } from '@/common/utils/navigationUtils'
 import type { UserInfoProps } from '@/common/BusinessAppContext'
 
 // Local constants
-const ALL_TAG = 'All'
 const PAGE_SIZE = 20
 
 interface QuestionViewProps {
@@ -80,16 +78,6 @@ const QuestionView: React.FC<QuestionViewProps> = ({
 
   // Load ContentTypes for QUESTION
   const { types: contentTypes } = useContentTypes({ accessToken: accessToken || '' }, questionGroupId)
-
-  // Build categories from ContentTypes
-  const categories = useMemo(() => {
-    const allTag = { label: ALL_TAG, checked: selectedContentTypeRef === null }
-    const typeTags = contentTypes.map(type => ({
-      label: type.value || 'Unnamed',
-      checked: selectedContentTypeRef === type.id
-    }))
-    return [allTag, ...typeTags]
-  }, [contentTypes, selectedContentTypeRef])
 
   // Find catalog IDs for +1 and -1 reactions from the map
   // The map has entries like: '+1' -> 'ContentReaction:v1:+1'
@@ -194,13 +182,8 @@ const QuestionView: React.FC<QuestionViewProps> = ({
     setLoadedCount(PAGE_SIZE)
   }
 
-  const handleCategoryClick = (label: string) => {
-    if (label === ALL_TAG) {
-      setSelectedContentTypeRef(null)
-    } else {
-      const selectedType = contentTypes.find(type => type.value === label)
-      setSelectedContentTypeRef(selectedType?.id || null)
-    }
+  const handleCategoryClick = (categoryId: string | null) => {
+    setSelectedContentTypeRef(categoryId)
     setLoadedCount(PAGE_SIZE)
   }
 
@@ -257,18 +240,26 @@ const QuestionView: React.FC<QuestionViewProps> = ({
       )}
 
       <div className="gba:w-full gba:max-w-[1300px] gba:mx-auto gba:mb-10 gba:px-4">
-        <div className="gba:w-full gba:mb-6">
-          <div className="gba:grid gba:grid-cols-[1fr_280px] gba:gap-6 gba:mb-4">
-            <div>
-              <NavigationTagList
-                tags={categories}
-                onTagClick={handleCategoryClick}
-                maxVisibleTags={6}
-                alwaysVisibleTag={ALL_TAG}
-              />
+        {/* Header with Search */}
+        {isLoading ? (
+          <div className="gba:mb-6 gba:py-6 gba:flex gba:justify-between gba:items-center gba:gap-4">
+            <div className="gba:flex gba:items-center gba:gap-3">
+              <Skeleton className="gba:h-8 gba:w-8 gba:rounded-md" />
+              <Skeleton className="gba:h-9 gba:w-64" />
             </div>
-            <div className="gba:flex gba:gap-2">
-              <SearchInput onSearch={handleSearch} placeholder={t('search_questions')} />
+            <div className="gba:flex gba:gap-2 gba:items-center">
+              <Skeleton className="gba:h-10 gba:w-[300px]" />
+              <Skeleton className="gba:h-10 gba:w-32" />
+            </div>
+          </div>
+        ) : (
+          <div className="gba:mb-6 gba:py-6 gba:flex gba:justify-between gba:items-center gba:gap-4">
+            <div className="gba:flex gba:items-center gba:gap-3">
+              <HelpCircle className="gba:w-8 gba:h-8 gba:text-primary" />
+              <h1 className="gba:text-3xl gba:font-bold gba:text-foreground">{t('question-welcome-title')}</h1>
+            </div>
+            <div className="gba:flex gba:gap-2 gba:items-center">
+              <SearchInput onSearch={handleSearch} placeholder={t('search_questions')} className="gba:w-[300px]" />
               <AppAction
                 contextsArray={[FlowContextName.contentEntryCreate]}
                 externalContextData={{ contentGroup: ContentGroup.QUESTION }}
@@ -281,112 +272,163 @@ const QuestionView: React.FC<QuestionViewProps> = ({
               </AppAction>
             </div>
           </div>
-        </div>
-
-        <div className="gba:space-y-4 gba:mb-8">
-          {isLoading ? (
-            <>
-              {[1, 2, 3, 4, 5].map(i => (
-                <Card key={i} className="gba:p-6">
-                  <div className="gba:flex gba:gap-4">
-                    <div className="gba:flex gba:flex-col gba:items-center gba:gap-2">
-                      <Skeleton className="gba:h-8 gba:w-12" />
-                      <Skeleton className="gba:h-6 gba:w-12" />
-                    </div>
-                    <div className="gba:flex-1 gba:space-y-3">
-                      <Skeleton className="gba:h-6 gba:w-3/4" />
-                      <Skeleton className="gba:h-4 gba:w-full" />
-                      <Skeleton className="gba:h-4 gba:w-2/3" />
-                      <div className="gba:flex gba:gap-4 gba:mt-4">
-                        <Skeleton className="gba:h-4 gba:w-24" />
-                        <Skeleton className="gba:h-4 gba:w-24" />
-                        <Skeleton className="gba:h-4 gba:w-24" />
-                      </div>
-                    </div>
-                  </div>
-                </Card>
-              ))}
-            </>
-          ) : (
-            data.map(question => {
-              const votes: VoteState = getVoteCounts(question.articleId)
-              return (
-                <div
-                  key={question.articleId}
-                  className="gba:bg-card gba:rounded-lg gba:shadow-sm hover:gba:shadow-md gba:transition gba:border gba:border-border gba:p-6 gba:cursor-pointer"
-                  onClick={() => handleQuestionClick(question)}
-                  data-testid={`question-item-${question.articleId}`}
-                >
-                  <div className="gba:flex gba:gap-4">
-                    {/* Vote section */}
-                    <div onClick={e => e.stopPropagation()}>
-                      <VoteButtons
-                        contentEntryId={question.articleId}
-                        initialVoteState={votes}
-                        upvoteCatalogId={upvoteCatalogId}
-                        downvoteCatalogId={downvoteCatalogId}
-                        accessToken={accessToken || ''}
-                        employeeId={employeeId}
-                        size="md"
-                        onVoteComplete={handleVoteSuccess}
-                        data-testid={`question-vote-${question.articleId}`}
-                      />
-                    </div>
-
-                    {/* Question content */}
-                    <div className="gba:flex-1">
-                      <div className="gba:flex gba:items-center gba:gap-2 gba:mb-2">
-                        <Badge variant={getStatusVariant(question.status || '')} className="gba:text-xs">
-                          {question.status || 'OPEN'}
-                        </Badge>
-                        {question.tagNames?.slice(0, 3).map((tag: string, idx: number) => (
-                          <Badge key={idx} variant="outline" className="gba:text-xs">
-                            {tag}
-                          </Badge>
-                        ))}
-                      </div>
-
-                      <h3 className="gba:text-xl gba:font-bold gba:text-foreground gba:mb-2 hover:gba:text-primary gba:transition">
-                        {question.title}
-                      </h3>
-
-                      <p className="gba:text-muted-foreground gba:mb-4 gba:line-clamp-2">{question.previewText}</p>
-
-                      <div className="gba:flex gba:items-center gba:gap-4 gba:text-sm gba:text-muted-foreground">
-                        <div className="gba:flex gba:items-center gba:gap-1">
-                          <MessageCircle className="gba:w-4 gba:h-4" />
-                          <span>
-                            {question.commentsCount || 0} {t('answers')}
-                          </span>
-                        </div>
-                        <span>•</span>
-                        <span>
-                          {t('asked_by')} {question.authorFullName || 'Unknown'}
-                        </span>
-                        {question.createdAtText && (
-                          <>
-                            <span>•</span>
-                            <span>{question.createdAtText}</span>
-                          </>
-                        )}
-                      </div>
-                    </div>
-                  </div>
-                </div>
-              )
-            })
-          )}
-        </div>
-
-        {/* Infinite scroll sentinel */}
-        {hasMore && <div ref={sentinelRef} className="gba:h-4" />}
-
-        {!isLoading && data.length === 0 && (
-          <div className="gba:text-center gba:py-12 gba:bg-card gba:rounded-lg gba:border gba:border-border">
-            <MessageCircle className="gba:w-12 gba:h-12 gba:text-muted-foreground gba:mx-auto gba:mb-4" />
-            <p className="gba:text-muted-foreground">{t('no_questions_found')}</p>
-          </div>
         )}
+
+        {/* Sidebar + Content Layout */}
+        <div className="gba:grid gba:grid-cols-[260px_1fr] gba:gap-6">
+          {/* Left Sidebar - Category Navigation */}
+          <div className="gba:sticky gba:top-4 gba:h-fit">
+            <Card className="gba:p-4">
+              <h3 className="gba:text-sm gba:font-semibold gba:mb-4 gba:text-muted-foreground gba:uppercase">
+                {t('categories')}
+              </h3>
+              <nav className="gba:space-y-1">
+                <button
+                  onClick={() => handleCategoryClick(null)}
+                  className={`gba:w-full gba:flex gba:items-center gba:justify-between gba:px-3 gba:py-2 gba:rounded-md gba:text-sm gba:transition-colors ${
+                    selectedContentTypeRef === null
+                      ? 'gba:bg-primary gba:text-primary-foreground'
+                      : 'gba:hover:bg-accent gba:text-foreground'
+                  }`}
+                  data-testid="question-category-all"
+                >
+                  <span className="gba:flex gba:items-center gba:gap-2">
+                    <Folder className="gba:w-4 gba:h-4" />
+                    All
+                  </span>
+                  <ChevronRight className="gba:w-4 gba:h-4" />
+                </button>
+
+                {contentTypes.map(type => (
+                  <button
+                    key={type.id}
+                    onClick={() => handleCategoryClick(type.id)}
+                    className={`gba:w-full gba:flex gba:items-center gba:justify-between gba:px-3 gba:py-2 gba:rounded-md gba:text-sm gba:transition-colors ${
+                      selectedContentTypeRef === type.id
+                        ? 'gba:bg-primary gba:text-primary-foreground'
+                        : 'gba:hover:bg-accent gba:text-foreground'
+                    }`}
+                    data-testid={`question-category-${type.code?.toLowerCase()}`}
+                  >
+                    <span className="gba:flex gba:items-center gba:gap-2">
+                      <Folder className="gba:w-4 gba:h-4" />
+                      {type.value}
+                    </span>
+                    <ChevronRight className="gba:w-4 gba:h-4" />
+                  </button>
+                ))}
+              </nav>
+            </Card>
+          </div>
+
+          {/* Right Content - Questions List */}
+          <div className="gba:space-y-4 gba:mb-8">
+            {isLoading ? (
+              <>
+                {[1, 2, 3, 4, 5].map(i => (
+                  <Card key={i} className="gba:p-4">
+                    <div className="gba:flex gba:gap-3">
+                      <div className="gba:flex gba:flex-col gba:items-center gba:gap-1">
+                        <Skeleton className="gba:h-6 gba:w-10" />
+                        <Skeleton className="gba:h-5 gba:w-10" />
+                      </div>
+                      <div className="gba:flex-1 gba:space-y-2">
+                        <Skeleton className="gba:h-5 gba:w-3/4" />
+                        <Skeleton className="gba:h-3 gba:w-full" />
+                        <Skeleton className="gba:h-3 gba:w-2/3" />
+                        <div className="gba:flex gba:gap-3 gba:mt-3">
+                          <Skeleton className="gba:h-3 gba:w-20" />
+                          <Skeleton className="gba:h-3 gba:w-20" />
+                          <Skeleton className="gba:h-3 gba:w-20" />
+                        </div>
+                      </div>
+                    </div>
+                  </Card>
+                ))}
+              </>
+            ) : (
+              data.map(question => {
+                const votes: VoteState = getVoteCounts(question.articleId)
+                return (
+                  <div
+                    key={question.articleId}
+                    className="gba:bg-card gba:rounded-lg gba:shadow-sm hover:gba:shadow-md gba:transition gba:border gba:border-border gba:p-4 gba:cursor-pointer"
+                    onClick={() => handleQuestionClick(question)}
+                    data-testid={`question-item-${question.articleId}`}
+                  >
+                    <div className="gba:flex gba:gap-3">
+                      {/* Vote section */}
+                      <div onClick={e => e.stopPropagation()}>
+                        <VoteButtons
+                          contentEntryId={question.articleId}
+                          initialVoteState={votes}
+                          upvoteCatalogId={upvoteCatalogId}
+                          downvoteCatalogId={downvoteCatalogId}
+                          accessToken={accessToken || ''}
+                          employeeId={employeeId}
+                          size="sm"
+                          onVoteComplete={handleVoteSuccess}
+                          data-testid={`question-vote-${question.articleId}`}
+                        />
+                      </div>
+
+                      {/* Question content */}
+                      <div className="gba:flex-1">
+                        <div className="gba:flex gba:items-center gba:gap-2 gba:mb-2">
+                          <Badge variant={getStatusVariant(question.status || '')} className="gba:text-xs">
+                            {question.status || 'OPEN'}
+                          </Badge>
+                          {question.tagNames?.slice(0, 3).map((tag: string, idx: number) => (
+                            <Badge key={idx} variant="outline" className="gba:text-xs">
+                              {tag}
+                            </Badge>
+                          ))}
+                        </div>
+
+                        <h3 className="gba:text-lg gba:font-bold gba:text-foreground gba:mb-2 hover:gba:text-primary gba:transition">
+                          {question.title}
+                        </h3>
+
+                        <p className="gba:text-sm gba:text-muted-foreground gba:mb-3 gba:line-clamp-2">
+                          {question.previewText}
+                        </p>
+
+                        <div className="gba:flex gba:items-center gba:gap-4 gba:text-sm gba:text-muted-foreground">
+                          <div className="gba:flex gba:items-center gba:gap-1">
+                            <MessageCircle className="gba:w-4 gba:h-4" />
+                            <span>
+                              {question.commentsCount || 0} {t('answers')}
+                            </span>
+                          </div>
+                          <span>•</span>
+                          <span>
+                            {t('asked_by')} {question.authorFullName || 'Unknown'}
+                          </span>
+                          {question.createdAtText && (
+                            <>
+                              <span>•</span>
+                              <span>{question.createdAtText}</span>
+                            </>
+                          )}
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                )
+              })
+            )}
+
+            {/* Infinite scroll sentinel */}
+            {hasMore && <div ref={sentinelRef} className="gba:h-4" />}
+
+            {!isLoading && data.length === 0 && (
+              <div className="gba:text-center gba:py-12 gba:bg-card gba:rounded-lg gba:border gba:border-border">
+                <MessageCircle className="gba:w-12 gba:h-12 gba:text-muted-foreground gba:mx-auto gba:mb-4" />
+                <p className="gba:text-muted-foreground">{t('no_questions_found')}</p>
+              </div>
+            )}
+          </div>
+        </div>
       </div>
     </div>
   )

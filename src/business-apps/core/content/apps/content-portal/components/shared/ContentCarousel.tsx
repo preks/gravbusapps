@@ -1,16 +1,34 @@
 import React, { useCallback, useEffect, useState, useRef, useMemo } from 'react'
 import type { IntranetContent } from '@/common/data/content/mappers/contentMappers'
 import { useTranslation } from 'react-i18next'
-import { ChevronLeft, ChevronRight } from 'lucide-react'
+import { ChevronLeft, ChevronRight, MessageCircle, Share2 } from 'lucide-react'
 import { navigateTo, buildPlatformUrl } from '@/common/utils/navigationUtils'
+import { ReactionPicker, type ReactionSummary } from '@/common/components/common-content'
+import { Button } from '@newwork/nw-design-system'
+import { BusinessAppContextProps } from '@/common/BusinessAppContext'
+import { copyUrlToClipboard } from '../../utils/contentUtils'
 
-interface ContentCarouselProps {
+interface ContentCarouselProps extends Pick<BusinessAppContextProps, 'accessToken' | 'userInfo'> {
   articles: IntranetContent[]
   className?: string
   currentTab?: string
+  allowedReactions?: string[]
+  reactionCatalogMap?: Record<string, string>
+  reactionsByArticle?: Record<string, ReactionSummary>
+  onReactionsRefetch?: () => void
 }
 
-const ContentCarousel: React.FC<ContentCarouselProps> = ({ articles, className = '', currentTab }) => {
+const ContentCarousel: React.FC<ContentCarouselProps> = ({
+  articles,
+  className = '',
+  currentTab,
+  accessToken,
+  userInfo,
+  allowedReactions,
+  reactionCatalogMap,
+  reactionsByArticle = {},
+  onReactionsRefetch
+}) => {
   const { t } = useTranslation('content')
   const [activeIndex, setActiveIndex] = useState<number>(0)
   const [autoplay, setAutoplay] = useState<boolean>(true)
@@ -81,12 +99,21 @@ const ContentCarousel: React.FC<ContentCarouselProps> = ({ articles, className =
     return date.toLocaleDateString(undefined, { year: 'numeric', month: 'short', day: 'numeric' })
   }
 
-  const handleArticleClick = (article: Content) => {
+  const handleArticleClick = (article: IntranetContent) => {
     const url = buildPlatformUrl('/platform/content/intranet/content-record', {
       contentId: article.articleId,
       ...(currentTab && { tab: currentTab })
     })
     navigateTo(url)
+  }
+
+  const handleShare = (e: React.MouseEvent, article: IntranetContent) => {
+    e.stopPropagation()
+    const url = buildPlatformUrl('/platform/content/intranet/content-record', {
+      contentId: article.articleId,
+      ...(currentTab && { tab: currentTab })
+    })
+    copyUrlToClipboard(window.location.origin + url)
   }
 
   return (
@@ -142,12 +169,47 @@ const ContentCarousel: React.FC<ContentCarouselProps> = ({ articles, className =
                         {article.previewText || article.content?.substring(0, 150)}
                       </p>
                     </div>
-                    <div className="gba:flex gba:items-center">
+                    <div className="gba:flex gba:items-center gba:mb-3">
                       {article.authorFullName && (
                         <span className="gba:text-sm gba:text-muted-foreground">
                           {t('by')} {article.authorFullName}
                         </span>
                       )}
+                    </div>
+
+                    {/* Stats - Reactions, Comments, Share */}
+                    <div className="gba:flex gba:items-center gba:gap-4 gba:pt-3 gba:border-t gba:border-border">
+                      {article.allowReaction && accessToken && (
+                        <div onClick={e => e.stopPropagation()}>
+                          <ReactionPicker
+                            contentEntryId={article.articleId}
+                            reactionSummary={reactionsByArticle[article.articleId] || {}}
+                            allowReaction={article.allowReaction}
+                            accessToken={accessToken}
+                            employeeId={userInfo?.employeeDetails?.employeeId || ''}
+                            onSuccess={onReactionsRefetch}
+                            size="sm"
+                            allowedReactions={allowedReactions}
+                            reactionCatalogMap={reactionCatalogMap}
+                            data-testid={`carousel-reaction-${article.articleId}`}
+                          />
+                        </div>
+                      )}
+                      {article.allowComment && (
+                        <div className="gba:flex gba:items-center gba:gap-1 gba:text-xs gba:text-muted-foreground">
+                          <MessageCircle className="gba:w-4 gba:h-4" />
+                          <span>{article.commentsCount || 0}</span>
+                        </div>
+                      )}
+                      <Button
+                        variant="ghost"
+                        size="sm"
+                        className="gba:ml-auto gba:p-1 gba:h-auto"
+                        onClick={e => handleShare(e, article)}
+                        data-testid={`carousel-share-${article.articleId}`}
+                      >
+                        <Share2 className="gba:w-4 gba:h-4" />
+                      </Button>
                     </div>
                   </div>
                 </div>

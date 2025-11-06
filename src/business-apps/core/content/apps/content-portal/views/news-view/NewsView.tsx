@@ -1,5 +1,6 @@
 import React, { useState, useMemo } from 'react'
 import { useTranslation, Button, Alert, AlertTitle, AlertDescription, Skeleton } from '@newwork/nw-design-system'
+import { Newspaper } from 'lucide-react'
 import { useContentEntries, useUserContentReactions, toIntranetContent } from '@/common/data/content'
 import { ContentRole, ContentGroup } from '@/common/data/content/types/contentEnums'
 import ContentCard from '../../components/cards/ContentCard'
@@ -187,20 +188,46 @@ const NewsView: React.FC<NewsViewProps> = ({
       )}
 
       <div className="gba:w-full gba:max-w-[1300px] gba:mx-auto gba:mb-10 gba:px-4">
+        {/* Header with Search and Action */}
         {isLoading ? (
-          <>
-            <div className="gba:w-full gba:mb-6 gba:py-4">
-              <Skeleton className="gba:h-8 gba:w-48" />
+          <div className="gba:mb-6 gba:py-6 gba:flex gba:justify-between gba:items-center gba:gap-4">
+            <div className="gba:flex gba:items-center gba:gap-3">
+              <Skeleton className="gba:h-8 gba:w-8 gba:rounded-md" />
+              <Skeleton className="gba:h-9 gba:w-64" />
             </div>
-            <div className="gba:grid gba:grid-cols-2 gba:gap-6 gba:mb-10">
-              <ContentCardSkeleton variant="featured" count={2} />
+            <div className="gba:flex gba:gap-2 gba:items-center">
+              <Skeleton className="gba:h-10 gba:w-[300px]" />
+              <Skeleton className="gba:h-10 gba:w-32" />
             </div>
-          </>
+          </div>
+        ) : (
+          <div className="gba:mb-6 gba:py-6 gba:flex gba:justify-between gba:items-center gba:gap-4">
+            <div className="gba:flex gba:items-center gba:gap-3">
+              <Newspaper className="gba:w-8 gba:h-8 gba:text-primary" />
+              <h1 className="gba:text-3xl gba:font-bold gba:text-foreground">{t('featured_news')}</h1>
+            </div>
+            <div className="gba:flex gba:gap-2 gba:items-center">
+              <SearchInput onSearch={handleSearch} placeholder={t('search_news')} className="gba:w-[300px]" />
+              <AppAction
+                contextsArray={[FlowContextName.contentEntryCreate]}
+                externalContextData={{ contentGroup: ContentGroup.NEWS }}
+                accessToken={accessToken}
+                emptyStateBehavior="enable"
+                deferMainContextRequestsUntilClick
+                data-testid="news-view-create-button"
+              >
+                <Button>{t('publish_news')}</Button>
+              </AppAction>
+            </div>
+          </div>
+        )}
+
+        {isLoading ? (
+          <div className="gba:grid gba:grid-cols-2 gba:gap-6 gba:mb-10">
+            <ContentCardSkeleton variant="featured" count={2} />
+          </div>
         ) : featuredArticles.length > 0 ? (
           <>
-            <div className="gba:w-full gba:mb-6 gba:py-4">
-              <h2 className="gba:text-2xl gba:font-semibold gba:text-foreground">{t('featured_news')}</h2>
-            </div>
             <div className="gba:grid gba:grid-cols-2 gba:gap-6 gba:mb-10">
               {featuredArticles.map(item => (
                 <ContentCard
@@ -221,30 +248,14 @@ const NewsView: React.FC<NewsViewProps> = ({
           </>
         ) : null}
 
+        {/* Category Filter */}
         <div className="gba:w-full gba:mb-6">
-          <div className="gba:grid gba:grid-cols-[1fr_280px] gba:gap-6 gba:mb-4">
-            <div>
-              <NavigationTagList
-                tags={categories}
-                onTagClick={handleCategoryClick}
-                maxVisibleTags={6}
-                alwaysVisibleTag={ALL_TAG}
-              />
-            </div>
-            <div className="gba:flex gba:gap-2">
-              <SearchInput onSearch={handleSearch} />
-              <AppAction
-                contextsArray={[FlowContextName.contentEntryCreate]}
-                externalContextData={{ contentGroup: ContentGroup.NEWS }}
-                accessToken={accessToken}
-                emptyStateBehavior="enable"
-                deferMainContextRequestsUntilClick
-                data-testid="news-view-create-button"
-              >
-                <Button>{t('create_article')}</Button>
-              </AppAction>
-            </div>
-          </div>
+          <NavigationTagList
+            tags={categories}
+            onTagClick={handleCategoryClick}
+            maxVisibleTags={6}
+            alwaysVisibleTag={ALL_TAG}
+          />
         </div>
 
         <div className="gba:grid gba:grid-cols-1 gba:gap-6 gba:mb-6">

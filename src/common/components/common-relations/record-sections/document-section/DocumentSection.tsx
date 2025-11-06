@@ -189,9 +189,10 @@ interface DocumentSectionProps extends BusinessAppContextProps {
 
   // Dynamic API configuration for document operations
   apiConfig?: {
-    baseEndpoint: string // e.g., '/investment-relations'
-    entityFieldName: string // e.g., 'opportunity', 'lead', 'account', 'contact'
-    documentFieldName: string // e.g., 'investmentDocument', 'crmDocument'
+    baseEndpoint: string // e.g., '/investment-relations', '/content-relations'
+    entityFieldName: string // e.g., 'opportunity', 'lead', 'account', 'contact', 'contentEntry'
+    documentFieldName: string // e.g., 'investmentDocument', 'crmDocument', 'contentDocument'
+    createEndpoint?: string // e.g., 'createInvestmentDocument', 'createContentDocument' (defaults to 'createInvestmentDocument')
   }
 
   // GraphQL search configuration (optional - if not provided, uses local search only)
@@ -837,6 +838,7 @@ const DocumentSection: React.FC<DocumentSectionProps> = ({
         externalData.accountId ||
         externalData.contactId ||
         externalData.investmentId ||
+        externalData.contentEntryId ||
         ''
 
       if (!entityId) {
@@ -858,7 +860,8 @@ const DocumentSection: React.FC<DocumentSectionProps> = ({
         }
       }
 
-      await restClient.post(`${apiConfig.baseEndpoint}/createInvestmentDocument`, payload, {
+      const createEndpoint = apiConfig.createEndpoint || 'createInvestmentDocument'
+      await restClient.post(`${apiConfig.baseEndpoint}/${createEndpoint}`, payload, {
         headers: { Authorization: `Bearer ${accessToken}` }
       })
 
@@ -1079,6 +1082,7 @@ const DocumentSection: React.FC<DocumentSectionProps> = ({
         externalData.accountId ||
         externalData.contactId ||
         externalData.investmentId ||
+        externalData.contentEntryId ||
         ''
 
       if (!entityId) {
@@ -1096,12 +1100,14 @@ const DocumentSection: React.FC<DocumentSectionProps> = ({
         [apiConfig.entityFieldName]: entityId
       }
 
-      // Use createInvestmentDocument with changeMode: 'UPDATE' like the working implementation
+      // Use create endpoint with changeMode: 'UPDATE' like the working implementation
+      const createEndpoint = apiConfig.createEndpoint || 'createInvestmentDocument'
+
       await restClient.post(
-        `${apiConfig.baseEndpoint}/createInvestmentDocument`,
+        `${apiConfig.baseEndpoint}/${createEndpoint}`,
         {
           changeMode: 'UPDATE',
-          investmentDocument: documentPayload
+          [apiConfig.documentFieldName]: documentPayload
         },
         {
           headers: { Authorization: `Bearer ${accessToken}` }
@@ -1146,6 +1152,7 @@ const DocumentSection: React.FC<DocumentSectionProps> = ({
         externalData.accountId ||
         externalData.contactId ||
         externalData.investmentId ||
+        externalData.contentEntryId ||
         ''
 
       if (!entityId) {
@@ -1163,11 +1170,12 @@ const DocumentSection: React.FC<DocumentSectionProps> = ({
         [apiConfig.entityFieldName]: entityId
       }
 
+      const createEndpoint = apiConfig.createEndpoint || 'createInvestmentDocument'
       await restClient.post(
-        `${apiConfig.baseEndpoint}/createInvestmentDocument`,
+        `${apiConfig.baseEndpoint}/${createEndpoint}`,
         {
           changeMode: 'UPDATE',
-          investmentDocument: documentPayload
+          [apiConfig.documentFieldName]: documentPayload
         },
         {
           headers: { Authorization: `Bearer ${accessToken}` }

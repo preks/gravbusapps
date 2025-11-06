@@ -26,10 +26,11 @@ question-welcome-subtitle = Ask questions and share knowledge
 
 # Search placeholders
 search_articles = Search articles...
-search_intranet = Search Intranet
-search_knowledge = Search Knowledge Base
-search_documents = Search Documents
-search_questions = Search questions...
+search_intranet = Search Intranet...
+search_news = Search News...
+search_knowledge = Search Knowledge...
+search_documents = Search Areas...
+search_questions = Search Questions...
 
 # Content sections
 recent_content = Recent Content
@@ -43,10 +44,13 @@ more_articles = More Articles
 
 # Buttons
 create_article = Create Article
+publish_news = Publish News
 create_document = Create Document
+create_area = Create Area
 ask_question = Ask Question
 create_folder = New Folder
 upload_document = Upload
+back_to_areas = Back to Areas
 
 # Document Management
 document_areas = Document Areas

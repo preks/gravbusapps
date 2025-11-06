@@ -1,7 +1,8 @@
-import React from 'react'
-import { useTranslation, Button, Badge, Card, Skeleton } from '@newwork/nw-design-system'
-import { ChevronRight, FileText, Folder, Home, Download, Eye } from 'lucide-react'
+import React, { useMemo, useState } from 'react'
+import { useTranslation, Button, Card, Skeleton } from '@newwork/nw-design-system'
+import { Folder, Home, FileText } from 'lucide-react'
 import Banner, { BannerVariant } from '../../components/shared/Banner'
+import SearchInput from '../../components/shared/SearchInput'
 import { BusinessAppContextProps } from '@/common/BusinessAppContext'
 import { useDocumentNavigation } from '../../hooks/useDocumentNavigation'
 import { useDocumentAreas, useFolderContents } from '../../hooks/useDocumentData'
@@ -9,8 +10,11 @@ import { ContentGroup } from '@/common/data/content/types/contentEnums'
 import translations from '../../_i18n'
 import { AppAction } from '@/components/app-action'
 import { FlowContextName } from '@/common/types/FlowRegistryTypes'
-import { buildFileUrl } from '@/common/utils/fileUtils'
 import { useProcessCompletion } from '@/common/hooks/useProcessCompletion'
+import {
+  DocumentSection,
+  type DocumentItem
+} from '@/common/components/common-relations/record-sections/document-section'
 
 interface DocumentViewProps extends BusinessAppContextProps {
   hideBanner?: boolean
@@ -24,12 +28,12 @@ interface DocumentViewProps extends BusinessAppContextProps {
  *
  * Hierarchy:
  * 1. ContentEntries (Document Areas) - shown as cards
- * 2. Folders (hierarchical)
- * 3. Documents (files)
+ * 2. DocumentSection component handles folders and documents with full features
  */
-const DocumentView: React.FC<DocumentViewProps> = ({ accessToken, hideBanner = false }) => {
+const DocumentView: React.FC<DocumentViewProps> = ({ accessToken, userInfo, hideBanner = false }) => {
   const { t } = useTranslation(translations)
   const navigation = useDocumentNavigation()
+  const [searchQuery, setSearchQuery] = useState('')
 
   // Fetch document areas (ContentEntries with DOCUMENT group)
   const {
@@ -37,12 +41,11 @@ const DocumentView: React.FC<DocumentViewProps> = ({ accessToken, hideBanner = f
     isLoading: areasLoading,
     error: areasError,
     refetch: refetchAreas
-  } = useDocumentAreas(accessToken, null, [])
+  } = useDocumentAreas(accessToken, null, [], searchQuery)
 
   // Fetch folders/documents for current location
   const {
-    folders,
-    documents,
+    allDocuments,
     isLoading: contentsLoading,
     error: contentsError,
     refetch: refetchContents
@@ -56,64 +59,50 @@ const DocumentView: React.FC<DocumentViewProps> = ({ accessToken, hideBanner = f
     }
   })
 
-  // File handlers
-  const handleDownloadFile = (doc: any) => {
-    if (!doc.fileInfo) {
-      console.error('No fileInfo available for document:', doc)
-      return
-    }
-
-    try {
-      // Build correct file URL using fileUtils
-      const fileUrl = buildFileUrl(doc.fileInfo)
-
-      // Create temporary link element for download
-      const link = document.createElement('a')
-      link.href = fileUrl
-      link.download = doc.fileInfo.fileMetadata?.originalFileName || doc.name || 'download'
-      link.target = '_blank'
-      document.body.appendChild(link)
-      link.click()
-      document.body.removeChild(link)
-    } catch (error) {
-      console.error('Error downloading file:', error)
-    }
+  // Handle search for document areas
+  const handleSearch = (query: string) => {
+    setSearchQuery(query)
   }
 
-  const handlePreviewFile = (doc: any) => {
-    if (!doc.fileInfo) {
-      console.error('No fileInfo available for document:', doc)
-      return
-    }
+  // Transform ALL documents to DocumentItem format for DocumentSection
+  // This includes all folders and files, not just the current level
+  // DocumentSection will handle filtering based on tree/list view
+  const documentItems: DocumentItem[] = useMemo(() => {
+    if (!allDocuments) return []
 
-    try {
-      // Build correct file URL using fileUtils
-      const fileUrl = buildFileUrl(doc.fileInfo)
-      window.open(fileUrl, '_blank')
-    } catch (error) {
-      console.error('Error previewing file:', error)
-    }
-  }
+    return allDocuments.map(doc => {
+      if (doc.folder) {
+        // Folder
+        return {
+          id: doc.id,
+          name: doc.name || 'Unnamed Folder',
+          folder: true,
+          version: doc.version,
+          parentDocument: doc.parentDocumentId || null,
+          createdAt: doc.createdAt
+        }
+      } else {
+        // Document/File
+        const fileName = doc.fileInfo?.fileMetadata?.originalFileName || doc.name || 'Unnamed File'
+        const fileSize =
+          typeof doc.fileInfo?.fileMetadata?.size === 'number' ? doc.fileInfo.fileMetadata.size : undefined
+        const mimeType = doc.fileInfo?.fileMetadata?.mimeType
 
-  const formatFileSize = (bytes?: number) => {
-    if (!bytes) return ''
-    const kb = bytes / 1024
-    if (kb < 1024) return `${kb.toFixed(1)} KB`
-    const mb = kb / 1024
-    return `${mb.toFixed(1)} MB`
-  }
-
-  const formatDate = (dateString?: string) => {
-    if (!dateString) return ''
-    const date = new Date(dateString)
-    return date.toLocaleDateString('en-US', { year: 'numeric', month: 'short', day: 'numeric' })
-  }
-
-  // Build breadcrumb items from navigation breadcrumbs
-  const breadcrumbItems = navigation.breadcrumbs.map((crumb, index) => ({
-    label: crumb.title,
-    onClick: () => navigation.navigateToBreadcrumb(index)
-  }))
+        return {
+          id: doc.id,
+          name: fileName,
+          description: doc.description,
+          folder: false,
+          version: doc.version,
+          parentDocument: doc.parentDocumentId || null,
+          fileInfo: doc.fileInfo,
+          fileSize: fileSize,
+          mimeType: mimeType,
+          createdAt: doc.createdAt
+        }
+      }
+    })
+  }, [allDocuments])
 
   return (
     <div className="gba:relative gba:min-h-screen gba:flex gba:flex-col gba:w-full" data-testid="document-view">
@@ -130,49 +119,77 @@ const DocumentView: React.FC<DocumentViewProps> = ({ accessToken, hideBanner = f
 
       {/* ContentEntry Header (when selected) */}
       {navigation.currentArea && (
-        <div className="gba:w-full gba:bg-gradient-to-r gba:from-primary gba:to-primary/80 gba:text-primary-foreground">
+        <div className="gba:w-full gba:relative">
           {navigation.currentArea.picture && (
             <div
-              className="gba:w-full gba:h-48 gba:bg-cover gba:bg-center"
+              className="gba:w-full gba:h-80 gba:bg-cover gba:bg-center gba:relative"
               style={{ backgroundImage: `url(${navigation.currentArea.picture})` }}
-            />
+            >
+              <div className="gba:absolute gba:inset-0 gba:bg-gradient-to-b gba:from-black/30 gba:to-black/60" />
+            </div>
           )}
-          <div className="gba:max-w-[1440px] gba:mx-auto gba:px-6 gba:py-8">
+          <div className="gba:absolute gba:bottom-0 gba:left-0 gba:right-0 gba:max-w-[1300px] gba:mx-auto gba:px-4 gba:py-8">
             <Button
               variant="ghost"
               size="sm"
               onClick={() => navigation.selectArea(null)}
-              className="gba:mb-4 gba:text-primary-foreground gba:hover:bg-primary-foreground/20"
+              className="gba:mb-4 gba:text-white gba:hover:bg-white/20 [text-shadow:_-1px_-1px_0_#000,_1px_-1px_0_#000,_-1px_1px_0_#000,_1px_1px_0_#000,_0_2px_4px_rgba(0,0,0,0.9)]"
             >
               <Home className="gba:w-4 gba:h-4 gba:mr-2" />
               {t('back_to_areas')}
             </Button>
-            <h1 className="gba:text-4xl gba:font-bold gba:mb-2">{navigation.currentArea.title}</h1>
+            <h1 className="gba:text-4xl gba:font-bold gba:mb-2 gba:text-white [text-shadow:_-1px_-1px_0_#000,_1px_-1px_0_#000,_-1px_1px_0_#000,_1px_1px_0_#000,_0_3px_6px_rgba(0,0,0,0.9)]">
+              {navigation.currentArea.title}
+            </h1>
             {navigation.currentArea.preview && (
-              <p className="gba:text-lg gba:opacity-90">{navigation.currentArea.preview}</p>
+              <p className="gba:text-lg gba:text-white [text-shadow:_-1px_-1px_0_#000,_1px_-1px_0_#000,_-1px_1px_0_#000,_1px_1px_0_#000,_0_2px_4px_rgba(0,0,0,0.9)]">
+                {navigation.currentArea.preview}
+              </p>
             )}
           </div>
         </div>
       )}
 
       {/* Main Content */}
-      <div className="gba:max-w-[1440px] gba:mx-auto gba:px-6 gba:py-6 gba:w-full">
+      <div
+        className={`gba:w-full gba:max-w-[1300px] gba:mx-auto gba:mb-10 gba:px-4 ${navigation.currentArea ? 'gba:mt-8' : ''}`}
+      >
         {/* Level 1: Document Areas (Cards) */}
         {!navigation.currentArea && (
           <div>
-            <div className="gba:flex gba:items-center gba:justify-between gba:mb-6">
-              <h2 className="gba:text-2xl gba:font-bold">{t('document_areas')}</h2>
-              <AppAction
-                contextsArray={[FlowContextName.contentEntryCreate]}
-                externalContextData={{ contentGroup: ContentGroup.DOCUMENT }}
-                accessToken={accessToken}
-                emptyStateBehavior="enable"
-                deferMainContextRequestsUntilClick
-                data-testid="create-document-area-button"
-              >
-                <Button>{t('create_area')}</Button>
-              </AppAction>
-            </div>
+            {/* Header with Search */}
+            {areasLoading ? (
+              <div className="gba:mb-6 gba:py-6 gba:flex gba:justify-between gba:items-center gba:gap-4">
+                <div className="gba:flex gba:items-center gba:gap-3">
+                  <Skeleton className="gba:h-8 gba:w-8 gba:rounded-md" />
+                  <Skeleton className="gba:h-9 gba:w-64" />
+                </div>
+                <div className="gba:flex gba:gap-2 gba:items-center">
+                  <Skeleton className="gba:h-10 gba:w-[300px]" />
+                  <Skeleton className="gba:h-10 gba:w-32" />
+                </div>
+              </div>
+            ) : (
+              <div className="gba:mb-6 gba:py-6 gba:flex gba:justify-between gba:items-center gba:gap-4">
+                <div className="gba:flex gba:items-center gba:gap-3">
+                  <FileText className="gba:w-8 gba:h-8 gba:text-primary" />
+                  <h1 className="gba:text-3xl gba:font-bold gba:text-foreground">{t('document_areas')}</h1>
+                </div>
+                <div className="gba:flex gba:gap-2 gba:items-center">
+                  <SearchInput onSearch={handleSearch} placeholder={t('search_documents')} className="gba:w-[300px]" />
+                  <AppAction
+                    contextsArray={[FlowContextName.contentEntryCreate]}
+                    externalContextData={{ contentGroup: ContentGroup.DOCUMENT }}
+                    accessToken={accessToken}
+                    emptyStateBehavior="enable"
+                    deferMainContextRequestsUntilClick
+                    data-testid="create-document-area-button"
+                  >
+                    <Button>{t('create_area')}</Button>
+                  </AppAction>
+                </div>
+              </div>
+            )}
 
             {areasLoading && (
               <div className="gba:grid gba:grid-cols-1 md:gba:grid-cols-2 lg:gba:grid-cols-3 gba:gap-6">
@@ -231,192 +248,39 @@ const DocumentView: React.FC<DocumentViewProps> = ({ accessToken, hideBanner = f
           </div>
         )}
 
-        {/* Level 2+: File Explorer (Folders & Documents) */}
+        {/* Level 2+: Document Management with Full Features */}
         {navigation.currentArea && (
           <div>
-            {/* Breadcrumbs */}
-            {breadcrumbItems.length > 0 && (
-              <div className="gba:flex gba:items-center gba:gap-2 gba:mb-6 gba:text-sm">
-                {breadcrumbItems.map((crumb, index) => (
-                  <React.Fragment key={index}>
-                    {index > 0 && <ChevronRight className="gba:w-4 gba:h-4 gba:text-muted-foreground" />}
-                    <button
-                      onClick={crumb.onClick}
-                      className="gba:text-muted-foreground hover:gba:text-foreground gba:transition-colors"
-                    >
-                      {crumb.label}
-                    </button>
-                  </React.Fragment>
-                ))}
-              </div>
-            )}
-
-            {/* Toolbar */}
-            <div className="gba:flex gba:items-center gba:justify-between gba:mb-4">
-              <h2 className="gba:text-lg gba:font-semibold">
-                {navigation.currentFolderId
-                  ? navigation.breadcrumbs[navigation.breadcrumbs.length - 1]?.title || t('folder')
-                  : t('all_items')}
-              </h2>
-              <div className="gba:flex gba:gap-2">
-                <AppAction
-                  contextsArray={[FlowContextName.contentDocumentCreate]}
-                  externalContextData={{ contentEntryId: navigation.currentArea.id }}
-                  accessToken={accessToken}
-                  emptyStateBehavior="enable"
-                  deferMainContextRequestsUntilClick
-                  data-testid="create-document-button"
-                >
-                  <Button size="sm">{t('create_document')}</Button>
-                </AppAction>
-              </div>
-            </div>
-
-            {/* Loading State */}
-            {contentsLoading && (
-              <div className="gba:bg-card gba:border gba:border-border gba:rounded-lg gba:overflow-hidden">
-                {/* Table Header */}
-                <div className="gba:grid gba:grid-cols-[1fr_150px_150px_80px] gba:gap-4 gba:px-6 gba:py-3 gba:bg-muted/50 gba:border-b gba:border-border gba:text-sm gba:font-medium gba:text-muted-foreground">
-                  <div>{t('name') || 'Name'}</div>
-                  <div>{t('modified') || 'Modified'}</div>
-                  <div>{t('size') || 'Size'}</div>
-                  <div>{t('actions') || 'Actions'}</div>
-                </div>
-                {/* Skeleton Rows */}
-                <div>
-                  {[1, 2, 3, 4, 5].map(i => (
-                    <div
-                      key={i}
-                      className="gba:grid gba:grid-cols-[1fr_150px_150px_80px] gba:gap-4 gba:px-6 gba:py-4 gba:border-b gba:border-border last:gba:border-b-0"
-                    >
-                      <div className="gba:flex gba:items-center gba:gap-3">
-                        <Skeleton className="gba:w-5 gba:h-5" />
-                        <Skeleton className="gba:h-4 gba:w-48" />
-                      </div>
-                      <Skeleton className="gba:h-4 gba:w-24" />
-                      <Skeleton className="gba:h-4 gba:w-16" />
-                      <div className="gba:flex gba:gap-2">
-                        <Skeleton className="gba:h-8 gba:w-8" />
-                        <Skeleton className="gba:h-8 gba:w-8" />
-                      </div>
-                    </div>
-                  ))}
-                </div>
-              </div>
-            )}
-
-            {/* Error State */}
-            {contentsError && (
-              <div className="gba:text-center gba:py-12 gba:text-destructive">{t('error_loading_contents')}</div>
-            )}
-
-            {/* Empty State */}
-            {!contentsLoading && !contentsError && folders.length === 0 && documents.length === 0 && (
-              <div className="gba:text-center gba:py-12">
-                <FileText className="gba:w-16 gba:h-16 gba:text-muted-foreground gba:mb-4 gba:mx-auto" />
-                <p className="gba:text-muted-foreground">{t('no_items')}</p>
-              </div>
-            )}
-
-            {/* File Manager List */}
-            {!contentsLoading && !contentsError && (folders.length > 0 || documents.length > 0) && (
-              <div className="gba:bg-card gba:border gba:border-border gba:rounded-lg gba:overflow-hidden">
-                {/* Table Header */}
-                <div className="gba:grid gba:grid-cols-[1fr_150px_150px_80px] gba:gap-4 gba:px-6 gba:py-3 gba:bg-muted/50 gba:border-b gba:border-border gba:text-sm gba:font-medium gba:text-muted-foreground">
-                  <div>{t('name') || 'Name'}</div>
-                  <div>{t('modified') || 'Modified'}</div>
-                  <div>{t('size') || 'Size'}</div>
-                  <div>{t('actions') || 'Actions'}</div>
-                </div>
-
-                {/* Folders */}
-                {folders.map(folder => (
-                  <button
-                    key={folder.id}
-                    onClick={() => navigation.navigateToFolder(folder)}
-                    className="gba:w-full gba:grid gba:grid-cols-[1fr_150px_150px_80px] gba:gap-4 gba:px-6 gba:py-4 gba:border-b gba:border-border last:gba:border-b-0 gba:transition-colors hover:gba:bg-accent gba:text-left"
-                    data-testid={`folder-${folder.id}`}
-                  >
-                    <div className="gba:flex gba:items-center gba:gap-3 gba:min-w-0">
-                      <Folder className="gba:w-5 gba:h-5 gba:text-primary gba:shrink-0" />
-                      <span className="gba:font-medium gba:truncate">{folder.name || 'Unnamed Folder'}</span>
-                    </div>
-                    <div className="gba:text-sm gba:text-muted-foreground gba:flex gba:items-center">
-                      {formatDate(folder.updatedAt || folder.createdAt)}
-                    </div>
-                    <div className="gba:text-sm gba:text-muted-foreground gba:flex gba:items-center">-</div>
-                    <div className="gba:flex gba:items-center gba:gap-2">
-                      <ChevronRight className="gba:w-4 gba:h-4 gba:text-muted-foreground" />
-                    </div>
-                  </button>
-                ))}
-
-                {/* Documents */}
-                {documents.map(doc => {
-                  const originalFileName = doc.fileInfo?.fileMetadata?.originalFileName
-                  const displayName = originalFileName || doc.name || 'Unnamed File'
-                  const fileExtension = originalFileName
-                    ? originalFileName.split('.').pop()?.toUpperCase()
-                    : doc.fileInfo?.fileMetadata?.mimeType?.split('/')[1]?.toUpperCase()
-                  const fileSize = doc.fileInfo?.fileMetadata?.size as number | undefined
-
-                  return (
-                    <div
-                      key={doc.id}
-                      className="gba:grid gba:grid-cols-[1fr_150px_150px_80px] gba:gap-4 gba:px-6 gba:py-4 gba:border-b gba:border-border last:gba:border-b-0 gba:transition-colors hover:gba:bg-accent"
-                      data-testid={`document-${doc.id}`}
-                    >
-                      <div className="gba:flex gba:items-center gba:gap-3 gba:min-w-0">
-                        <FileText className="gba:w-5 gba:h-5 gba:text-muted-foreground gba:shrink-0" />
-                        <div className="gba:min-w-0 gba:flex-1">
-                          <div className="gba:font-medium gba:truncate" title={displayName}>
-                            {displayName}
-                          </div>
-                          {doc.description && (
-                            <div className="gba:text-xs gba:text-muted-foreground gba:truncate">{doc.description}</div>
-                          )}
-                        </div>
-                      </div>
-                      <div className="gba:text-sm gba:text-muted-foreground gba:flex gba:items-center">
-                        {formatDate(doc.updatedAt)}
-                      </div>
-                      <div className="gba:text-sm gba:text-muted-foreground gba:flex gba:items-center">
-                        <div className="gba:flex gba:items-center gba:gap-1">
-                          <span>{formatFileSize(fileSize)}</span>
-                          {fileExtension && (
-                            <Badge variant="secondary" className="gba:text-xs gba:px-1 gba:py-0">
-                              {fileExtension}
-                            </Badge>
-                          )}
-                        </div>
-                      </div>
-                      <div className="gba:flex gba:items-center gba:gap-1">
-                        <Button
-                          size="sm"
-                          variant="ghost"
-                          onClick={() => handlePreviewFile(doc)}
-                          className="gba:h-8 gba:w-8 gba:p-0"
-                          title={t('preview') || 'Preview'}
-                          data-testid={`document-preview-${doc.id}`}
-                        >
-                          <Eye className="gba:w-4 gba:h-4" />
-                        </Button>
-                        <Button
-                          size="sm"
-                          variant="ghost"
-                          onClick={() => handleDownloadFile(doc)}
-                          className="gba:h-8 gba:w-8 gba:p-0"
-                          title={t('download') || 'Download'}
-                          data-testid={`document-download-${doc.id}`}
-                        >
-                          <Download className="gba:w-4 gba:h-4" />
-                        </Button>
-                      </div>
-                    </div>
-                  )
-                })}
-              </div>
-            )}
+            <DocumentSection
+              entityId={navigation.currentArea.id}
+              documents={documentItems}
+              isLoading={contentsLoading}
+              error={contentsError ? String(contentsError) : null}
+              onRefresh={refetchContents}
+              accessToken={accessToken}
+              userInfo={userInfo}
+              apiConfig={{
+                baseEndpoint: '/content',
+                entityFieldName: 'contentEntry',
+                documentFieldName: 'contentDocument',
+                createEndpoint: 'createContentDocument'
+              }}
+              uploadActionProps={{
+                contextsArray: [FlowContextName.contentDocumentCreate],
+                externalContextData: { contentEntryId: navigation.currentArea.id },
+                prefixDataTestId: 'content-document-upload'
+              }}
+              createFolderActionProps={{
+                contextsArray: [FlowContextName.contentDocumentCreate],
+                externalContextData: { contentEntryId: navigation.currentArea.id, folder: true },
+                prefixDataTestId: 'content-folder-create'
+              }}
+              deleteActionProps={{
+                contextsArray: [FlowContextName.contentDocumentDelete],
+                externalContextData: { contentEntryId: navigation.currentArea.id },
+                prefixDataTestId: 'content-document-delete'
+              }}
+            />
           </div>
         )}
       </div>

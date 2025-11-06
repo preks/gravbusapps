@@ -26,9 +26,10 @@ question-welcome-subtitle = Pune întrebări și partajează cunoștințe
 
 # Search placeholders
 search_articles = Caută articole...
-search_intranet = Caută în Intranet
-search_knowledge = Caută în baza de cunoștințe
-search_documents = Caută documente
+search_intranet = Caută în Intranet...
+search_news = Caută știri...
+search_knowledge = Caută în baza de cunoștințe...
+search_documents = Caută zone...
 search_questions = Caută întrebări...
 
 # Content sections
@@ -43,8 +44,11 @@ more_articles = Mai multe articole
 
 # Buttons
 create_article = Creează articol
+publish_news = Publică știre
 create_document = Creează document
+create_area = Creează zonă
 ask_question = Pune întrebare
+back_to_areas = Înapoi la Zone
 
 # Empty states
 no_more_articles = Nu mai sunt articole
