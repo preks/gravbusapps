@@ -3,6 +3,7 @@ import { Button, Avatar, AvatarFallback } from '@newwork/nw-design-system'
 import { MessageCircle, ChevronUp, ArrowBigUp } from 'lucide-react'
 import { CommentWithReplies } from '@/common/data/content'
 import CommentForm from './CommentForm'
+import { buildPlatformUrl, navigateTo } from '@/common/utils/navigationUtils'
 import dayjs from 'dayjs'
 import relativeTime from 'dayjs/plugin/relativeTime'
 
@@ -46,6 +47,15 @@ export const CommentItem: React.FC<CommentItemProps> = ({
       .toUpperCase()
       .slice(0, 2) || 'U'
   const formattedDate = dayjs(comment.createdAt).fromNow()
+
+  const handleNameClick = (e: React.MouseEvent) => {
+    e.stopPropagation()
+    const empId = comment.creatorEmployeeId
+    if (empId) {
+      const employeeUrl = buildPlatformUrl('/platform/employee-record', { employeeId: empId })
+      navigateTo(employeeUrl)
+    }
+  }
 
   // Count total replies
   const countTotalReplies = (c: CommentWithReplies): number => {
@@ -104,9 +114,16 @@ export const CommentItem: React.FC<CommentItemProps> = ({
         <div className="gba:flex-1 gba:space-y-1">
           {/* Header */}
           <div className="gba:flex gba:items-center gba:gap-2">
-            <span className="gba:text-sm gba:font-semibold gba:text-foreground">
-              {isOwnComment ? 'You' : displayName}
-            </span>
+            {isOwnComment ? (
+              <span className="gba:text-sm gba:font-semibold gba:text-foreground">You</span>
+            ) : (
+              <span
+                className="gba:text-sm gba:font-semibold gba:text-foreground gba:cursor-pointer hover:gba:text-primary hover:gba:underline"
+                onClick={handleNameClick}
+              >
+                {displayName}
+              </span>
+            )}
             <span className="gba:text-xs gba:text-muted-foreground">{formattedDate}</span>
             {isCollapsed && totalReplies > 0 && (
               <button

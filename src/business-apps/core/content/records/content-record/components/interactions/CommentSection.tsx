@@ -3,6 +3,7 @@ import { useTranslation } from 'react-i18next'
 import { Alert, AlertTitle, AlertDescription, Button } from '@newwork/nw-design-system'
 import { MessageCircle, ChevronDown, ChevronUp } from 'lucide-react'
 import { useContentComments, CommentWithReplies } from '@/common/data/content'
+import { useInfiniteScroll } from '@/common/hooks/useInfiniteScroll'
 import CommentForm from './CommentForm'
 import CommentItem from './CommentItem'
 
@@ -27,15 +28,57 @@ export const CommentSection: React.FC<CommentSectionProps> = ({
 }) => {
   const { t } = useTranslation('content')
   const { comments, isLoading, error, refetch } = useContentComments(articleId, accessToken)
-  const [showAllComments, setShowAllComments] = useState(false)
+  const [visibleCommentsCount, setVisibleCommentsCount] = useState(10)
+  const [expandedComments, setExpandedComments] = useState<Set<string>>(new Set())
+  const [visibleRepliesPerComment, setVisibleRepliesPerComment] = useState<Record<string, number>>({})
 
   if (!allowComment) {
     return null
   }
 
-  // Show only first 3 comments initially
-  const visibleComments = showAllComments ? comments : comments.slice(0, 3)
-  const hasMoreComments = comments.length > 3
+  // Show comments based on visible count
+  const visibleComments = comments.slice(0, visibleCommentsCount)
+  const hasMoreComments = comments.length > visibleCommentsCount
+
+  // Load more comments for infinite scroll
+  const loadMoreComments = () => {
+    setVisibleCommentsCount(prev => prev + 10)
+  }
+
+  // Infinite scroll hook
+  const sentinelRef = useInfiniteScroll({
+    onLoadMore: loadMoreComments,
+    hasMore: hasMoreComments,
+    isLoading: false,
+    threshold: 300
+  })
+
+  const getVisibleReplies = (commentId: string) => {
+    return visibleRepliesPerComment[commentId] || 3
+  }
+
+  const showMoreReplies = (commentId: string) => {
+    setVisibleRepliesPerComment(prev => ({
+      ...prev,
+      [commentId]: (prev[commentId] || 3) + 10
+    }))
+  }
+
+  const toggleReplies = (commentId: string) => {
+    setExpandedComments(prev => {
+      const newSet = new Set(prev)
+      if (newSet.has(commentId)) {
+        newSet.delete(commentId)
+      } else {
+        newSet.add(commentId)
+      }
+      return newSet
+    })
+  }
+
+  const isCommentExpanded = (commentId: string) => {
+    return expandedComments.has(commentId)
+  }
 
   // Flatten all replies to a single level (no nested replies within replies)
   const flattenReplies = (comment: CommentWithReplies): CommentWithReplies[] => {
@@ -106,6 +149,11 @@ export const CommentSection: React.FC<CommentSectionProps> = ({
           <div className="gba:space-y-6" data-testid={`${dataTestId}-list`}>
             {visibleComments.map(comment => {
               const flatReplies = flattenReplies(comment)
+              const isExpanded = isCommentExpanded(comment.id)
+              const visibleRepliesCount = getVisibleReplies(comment.id)
+              const visibleReplies = flatReplies.slice(0, visibleRepliesCount)
+              const hasMoreReplies = flatReplies.length > visibleRepliesCount
+
               return (
                 <div key={comment.id} className="gba:space-y-3">
                   {/* Main Comment */}
@@ -119,10 +167,34 @@ export const CommentSection: React.FC<CommentSectionProps> = ({
                     data-testid={`${dataTestId}-item`}
                   />
 
-                  {/* All Replies Flattened at Same Level */}
+                  {/* Show/Hide Replies Button */}
                   {flatReplies.length > 0 && (
-                    <div className="gba:space-y-3">
-                      {flatReplies.map(reply => (
+                    <div className="gba:ml-8 gba:mt-2">
+                      <Button
+                        variant="ghost"
+                        size="sm"
+                        onClick={() => toggleReplies(comment.id)}
+                        className="gba:text-primary gba:text-xs gba:gap-1"
+                      >
+                        {isExpanded ? (
+                          <>
+                            <ChevronUp className="gba:w-4 gba:h-4" />
+                            Hide {flatReplies.length} {flatReplies.length === 1 ? 'reply' : 'replies'}
+                          </>
+                        ) : (
+                          <>
+                            <ChevronDown className="gba:w-4 gba:h-4" />
+                            Show {flatReplies.length} {flatReplies.length === 1 ? 'reply' : 'replies'}
+                          </>
+                        )}
+                      </Button>
+                    </div>
+                  )}
+
+                  {/* All Replies Flattened at Same Level - only shown when expanded */}
+                  {isExpanded && visibleReplies.length > 0 && (
+                    <div className="gba:ml-8 gba:space-y-3 gba:mt-3">
+                      {visibleReplies.map(reply => (
                         <CommentItem
                           key={reply.id}
                           comment={reply}
@@ -135,6 +207,21 @@ export const CommentSection: React.FC<CommentSectionProps> = ({
                           data-testid={`${dataTestId}-reply`}
                         />
                       ))}
+                      {/* Show More Replies Button */}
+                      {hasMoreReplies && (
+                        <div className="gba:mt-2">
+                          <Button
+                            variant="ghost"
+                            size="sm"
+                            onClick={() => showMoreReplies(comment.id)}
+                            className="gba:text-primary gba:text-xs"
+                          >
+                            <ChevronDown className="gba:w-4 gba:h-4 gba:mr-1" />
+                            Show {Math.min(10, flatReplies.length - visibleRepliesCount)} more{' '}
+                            {flatReplies.length - visibleRepliesCount === 1 ? 'reply' : 'replies'}
+                          </Button>
+                        </div>
+                      )}
                     </div>
                   )}
                 </div>
@@ -142,29 +229,9 @@ export const CommentSection: React.FC<CommentSectionProps> = ({
             })}
           </div>
 
-          {/* Show More / Show Less Button */}
+          {/* Infinite Scroll Sentinel */}
           {hasMoreComments && (
-            <div className="gba:flex gba:justify-center gba:pt-4">
-              <Button
-                variant="outline"
-                size="sm"
-                onClick={() => setShowAllComments(!showAllComments)}
-                className="gba:gap-2"
-                data-testid={`${dataTestId}-toggle-button`}
-              >
-                {showAllComments ? (
-                  <>
-                    <ChevronUp className="gba:w-4 gba:h-4" />
-                    Show less
-                  </>
-                ) : (
-                  <>
-                    <ChevronDown className="gba:w-4 gba:h-4" />
-                    Show {comments.length - 3} more {comments.length - 3 === 1 ? 'comment' : 'comments'}
-                  </>
-                )}
-              </Button>
-            </div>
+            <div ref={sentinelRef} className="gba:h-4 gba:w-full" data-testid={`${dataTestId}-sentinel`} />
           )}
         </>
       )}

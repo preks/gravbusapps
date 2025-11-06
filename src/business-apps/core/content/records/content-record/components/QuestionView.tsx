@@ -6,6 +6,7 @@ import { ContentEntry } from '@/common/data/content/types/contentTypes'
 import { useContentComments, CommentWithReplies } from '@/common/data/content'
 import { useUserContentReactions } from '@/common/data/content'
 import { VoteButtons, type VoteState } from '@/common/components/common-content'
+import { buildPlatformUrl, navigateTo } from '@/common/utils/navigationUtils'
 import CommentForm from './interactions/CommentForm'
 import CommentItem from './interactions/CommentItem'
 import AnswerForm from './AnswerForm'
@@ -32,6 +33,9 @@ const QuestionView: React.FC<QuestionViewProps> = ({
   const { t } = useTranslation(translations)
   const [expandedAnswerId, setExpandedAnswerId] = useState<string | null>(null)
   const [showAnswerForm, setShowAnswerForm] = useState(false)
+  const [visibleCommentsPerAnswer, setVisibleCommentsPerAnswer] = useState<Record<string, number>>({})
+  const [visibleRepliesPerComment, setVisibleRepliesPerComment] = useState<Record<string, number>>({})
+  const [expandedComments, setExpandedComments] = useState<Set<string>>(new Set())
 
   // Find catalog IDs for +1 and -1 reactions from the map
   // The map has entries like: '+1' -> 'ContentReaction:v1:+1'
@@ -121,6 +125,52 @@ const QuestionView: React.FC<QuestionViewProps> = ({
     setExpandedAnswerId(expandedAnswerId === answerId ? null : answerId)
   }
 
+  const handleAuthorClick = (e: React.MouseEvent, employeeId: string | undefined) => {
+    e.stopPropagation()
+    if (employeeId) {
+      const employeeUrl = buildPlatformUrl('/platform/employee-record', { employeeId })
+      navigateTo(employeeUrl)
+    }
+  }
+
+  const getVisibleComments = (answerId: string) => {
+    return visibleCommentsPerAnswer[answerId] || 10
+  }
+
+  const getVisibleReplies = (commentId: string) => {
+    return visibleRepliesPerComment[commentId] || 3
+  }
+
+  const showMoreComments = (answerId: string) => {
+    setVisibleCommentsPerAnswer(prev => ({
+      ...prev,
+      [answerId]: (prev[answerId] || 10) + 10
+    }))
+  }
+
+  const showMoreReplies = (commentId: string) => {
+    setVisibleRepliesPerComment(prev => ({
+      ...prev,
+      [commentId]: (prev[commentId] || 3) + 10
+    }))
+  }
+
+  const toggleReplies = (commentId: string) => {
+    setExpandedComments(prev => {
+      const newSet = new Set(prev)
+      if (newSet.has(commentId)) {
+        newSet.delete(commentId)
+      } else {
+        newSet.add(commentId)
+      }
+      return newSet
+    })
+  }
+
+  const isCommentExpanded = (commentId: string) => {
+    return expandedComments.has(commentId)
+  }
+
   return (
     <div className="gba:overflow-y-auto gba:mb-6" data-testid="question-view">
       <div className="gba:flex gba:flex-col gba:mt-6 gba:max-w-[1000px] gba:mx-auto gba:px-4">
@@ -178,7 +228,12 @@ const QuestionView: React.FC<QuestionViewProps> = ({
                 <div className="gba:flex gba:flex-row gba:items-center">
                   {item.displayCreator && item.creatorDisplayName && (
                     <>
-                      <p className="gba:text-sm gba:font-bold gba:text-foreground">{item.creatorDisplayName}</p>
+                      <p
+                        className="gba:text-sm gba:font-bold gba:text-foreground gba:cursor-pointer hover:gba:text-primary hover:gba:underline"
+                        onClick={e => handleAuthorClick(e, item.creatorEmployeeId)}
+                      >
+                        {item.creatorDisplayName}
+                      </p>
                       <p className="gba:text-sm gba:font-regular gba:mx-3 gba:text-muted-foreground">•</p>
                     </>
                   )}
@@ -309,7 +364,13 @@ const QuestionView: React.FC<QuestionViewProps> = ({
                     {/* Answer Meta */}
                     <div className="gba:flex gba:items-center gba:gap-4 gba:text-sm gba:text-muted-foreground gba:mb-3">
                       <span>
-                        {t('answered_by')} {answer.creatorDisplayName || t('unknown')}
+                        {t('answered_by')}{' '}
+                        <span
+                          className="gba:cursor-pointer hover:gba:text-primary hover:gba:underline"
+                          onClick={e => handleAuthorClick(e, answer.creatorEmployeeId)}
+                        >
+                          {answer.creatorDisplayName || t('unknown')}
+                        </span>
                       </span>
                       {answer.formattedCreatedAt && (
                         <>
@@ -367,7 +428,7 @@ const QuestionView: React.FC<QuestionViewProps> = ({
                         {/* Comments List */}
                         {answer.replies && answer.replies.length > 0 ? (
                           <div className="gba:space-y-4">
-                            {answer.replies.map(comment => {
+                            {answer.replies.slice(0, getVisibleComments(answer.id)).map(comment => {
                               // Flatten replies
                               const flattenReplies = (c: CommentWithReplies): CommentWithReplies[] => {
                                 const allReplies: CommentWithReplies[] = []
@@ -390,6 +451,10 @@ const QuestionView: React.FC<QuestionViewProps> = ({
                               }
 
                               const flatReplies = flattenReplies(comment)
+                              const isExpanded = isCommentExpanded(comment.id)
+                              const visibleRepliesCount = getVisibleReplies(comment.id)
+                              const visibleReplies = flatReplies.slice(0, visibleRepliesCount)
+                              const hasMoreReplies = flatReplies.length > visibleRepliesCount
 
                               return (
                                 <div key={comment.id}>
@@ -404,10 +469,35 @@ const QuestionView: React.FC<QuestionViewProps> = ({
                                     depth={0}
                                     data-testid={`answer-comment-${comment.id}`}
                                   />
-                                  {/* Flattened replies */}
+
+                                  {/* Show/Hide Replies Button */}
                                   {flatReplies.length > 0 && (
-                                    <div className="gba:space-y-3">
-                                      {flatReplies.map(reply => (
+                                    <div className="gba:ml-8 gba:mt-2">
+                                      <Button
+                                        variant="ghost"
+                                        size="sm"
+                                        onClick={() => toggleReplies(comment.id)}
+                                        className="gba:text-primary gba:text-xs gba:gap-1"
+                                      >
+                                        {isExpanded ? (
+                                          <>
+                                            <ChevronUp className="gba:w-4 gba:h-4" />
+                                            Hide {flatReplies.length} {flatReplies.length === 1 ? 'reply' : 'replies'}
+                                          </>
+                                        ) : (
+                                          <>
+                                            <ChevronDown className="gba:w-4 gba:h-4" />
+                                            Show {flatReplies.length} {flatReplies.length === 1 ? 'reply' : 'replies'}
+                                          </>
+                                        )}
+                                      </Button>
+                                    </div>
+                                  )}
+
+                                  {/* Flattened replies - only shown when expanded */}
+                                  {isExpanded && visibleReplies.length > 0 && (
+                                    <div className="gba:ml-8 gba:space-y-3 gba:mt-3">
+                                      {visibleReplies.map(reply => (
                                         <CommentItem
                                           key={reply.id}
                                           comment={reply}
@@ -420,11 +510,41 @@ const QuestionView: React.FC<QuestionViewProps> = ({
                                           data-testid={`answer-reply-${reply.id}`}
                                         />
                                       ))}
+                                      {/* Show More Replies Button */}
+                                      {hasMoreReplies && (
+                                        <div className="gba:mt-2">
+                                          <Button
+                                            variant="ghost"
+                                            size="sm"
+                                            onClick={() => showMoreReplies(comment.id)}
+                                            className="gba:text-primary gba:text-xs"
+                                          >
+                                            <ChevronDown className="gba:w-4 gba:h-4 gba:mr-1" />
+                                            Show {Math.min(10, flatReplies.length - visibleRepliesCount)} more{' '}
+                                            {flatReplies.length - visibleRepliesCount === 1 ? 'reply' : 'replies'}
+                                          </Button>
+                                        </div>
+                                      )}
                                     </div>
                                   )}
                                 </div>
                               )
                             })}
+                            {/* Show More Comments Button */}
+                            {answer.replies.length > getVisibleComments(answer.id) && (
+                              <div className="gba:mt-4">
+                                <Button
+                                  variant="ghost"
+                                  size="sm"
+                                  onClick={() => showMoreComments(answer.id)}
+                                  className="gba:text-primary"
+                                >
+                                  <ChevronDown className="gba:w-4 gba:h-4 gba:mr-2" />
+                                  Show {Math.min(10, answer.replies.length - getVisibleComments(answer.id))} more{' '}
+                                  {answer.replies.length - getVisibleComments(answer.id) === 1 ? 'comment' : 'comments'}
+                                </Button>
+                              </div>
+                            )}
                           </div>
                         ) : (
                           <div className="gba:text-center gba:py-8 gba:text-muted-foreground">
