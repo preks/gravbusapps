@@ -41,6 +41,8 @@ export interface ContactFormValues {
   // System fields
   id?: string
   version?: number
+  businessKey?: string // ✅ ADDED - business key for external systems
+  code?: string // ✅ ADDED - internal code for reference
 
   // Audit fields
   createdAt?: string

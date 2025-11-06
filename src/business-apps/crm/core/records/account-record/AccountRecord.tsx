@@ -8,7 +8,7 @@ import { AppActionButton } from '@/components/app-action-button/AppActionButton'
 import { FlowContextName } from '@/common/types/FlowRegistryTypes'
 import { useAccountData } from './hooks/useAccountData'
 import { OpportunityView } from './views/opportunity-view/OpportunityView'
-import { FileManager } from '@/components/file-manager'
+import { DocumentView } from './views/document-view/DocumentView'
 import { HomeView } from './views/home-view/HomeView'
 
 interface AccountRecordContentProps extends BusinessAppContextProps {
@@ -185,12 +185,7 @@ const AccountRecordContent: React.FC<AccountRecordContentProps> = ({ accountId, 
           icon: <FileText className="gba:mr-2" />,
           content: (
             <div className="gba:col-span-12">
-              <FileManager
-                context={props}
-                entity={{ type: 'account', id: accountId }}
-                ui={{ title: 'Documents' }}
-                data-testid="account-file-manager"
-              />
+              <DocumentView accountId={accountId} context={props} />
             </div>
           )
         }

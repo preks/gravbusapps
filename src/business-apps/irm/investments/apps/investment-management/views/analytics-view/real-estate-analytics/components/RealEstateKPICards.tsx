@@ -3,7 +3,7 @@ import { HomeOutlined, BarChartOutlined, DollarOutlined, BuildOutlined } from '@
 import { WidgetGroup, WidgetItem } from '@/components/widget-group'
 import { getTranslationFromI18nKeyAndLabel } from '@/common/utils/windowUtils'
 import { formatNumber, formatPercentage } from '@/common/data/investment'
-import { formatCurrencyCompact } from '../../../../utils/currencyUtils'
+import { formatCurrencyCompact } from '@/common/utils/numberFormatter'
 
 interface RealEstateKPICardsProps {
   kpis: {
@@ -20,7 +20,7 @@ export const RealEstateKPICards: React.FC<RealEstateKPICardsProps> = ({ kpis, pr
     {
       key: 'total-property-value',
       title: getTranslationFromI18nKeyAndLabel('kpi.totalPropertyValue', 'Total Property Value'),
-      value: formatCurrencyCompact(kpis.totalPropertyValue),
+      value: formatCurrencyCompact(kpis.totalPropertyValue, 'EUR', undefined, 1, true),
       prefix: <HomeOutlined />,
       color: 'var(--nw-color-warning-500)',
       valueIsString: true,
@@ -56,7 +56,7 @@ export const RealEstateKPICards: React.FC<RealEstateKPICardsProps> = ({ kpis, pr
     {
       key: 'total-annual-expenses',
       title: getTranslationFromI18nKeyAndLabel('kpi.totalAnnualExpenses', 'Total Annual Expenses'),
-      value: formatCurrencyCompact(kpis.totalAnnualExpenses),
+      value: formatCurrencyCompact(kpis.totalAnnualExpenses, 'EUR', undefined, 1, true),
       prefix: <DollarOutlined />,
       color: 'var(--nw-color-purple-500)',
       valueIsString: true,

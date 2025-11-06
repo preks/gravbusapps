@@ -14,25 +14,12 @@ interface ChangeLogFiltersProps {
   actorNames?: string[]
 }
 
-// FIELD_CATEGORIES imported from constants
-
 // Dynamic actor options provided by parent; we always include System
 
 // Get available field categories based on user role
 const getAvailableFieldCategories = (userRole: string) => {
-  const allCategories = [
-    'personal',
-    'address',
-    'org',
-    'working',
-    'financial',
-    'skills',
-    'performance',
-    'absence',
-    'emergency'
-  ]
+  const allCategories = ['personal', 'address', 'org', 'employment', 'financial', 'skills', 'documents']
 
-  // Filter based on user role
   switch (userRole) {
     case 'admin':
     case 'hr_manager':
@@ -41,7 +28,8 @@ const getAvailableFieldCategories = (userRole: string) => {
       return allCategories.filter(cat => cat !== 'financial')
     case 'employee':
     default:
-      return allCategories.filter(cat => !['financial', 'org', 'working'].includes(cat))
+      // Employees can see Employment; hide only Financial and Org
+      return allCategories.filter(cat => !['financial', 'org'].includes(cat))
   }
 }
 
@@ -67,8 +55,11 @@ export const ChangeLogFilters: React.FC<ChangeLogFiltersProps> = ({
     }
   }, [debouncedSearch, filters.searchTerm, onFilterChange])
 
+  const inputClass =
+    'gba:h-8 gba:w-full gba:px-3 gba:py-1 gba:text-sm gba:rounded gba:border gba:border-input gba:bg-background gba:text-foreground'
+
   return (
-    <div className="gba:bg-white gba:border gba:border-gray-200 gba:rounded-lg gba:p-4">
+    <div className="gba:bg-card gba:text-card-foreground gba:border gba:border-border gba:rounded-lg gba:p-4">
       <div className="gba:flex gba:items-center gba:mb-4">
         <h3 className="gba:text-lg gba:font-medium gba:m-0">
           {getTranslationFromI18nKeyAndLabel('lowcoder:changelog_tab.filters.title', 'Filters')}
@@ -88,7 +79,7 @@ export const ChangeLogFilters: React.FC<ChangeLogFiltersProps> = ({
             )}
             value={searchLocal}
             onChange={e => setSearchLocal(e.target.value)}
-            className="gba:w-full gba:px-3 gba:py-2 gba:border gba:border-gray-300 gba:rounded-md gba:focus:outline-none gba:focus:ring-2 gba:focus:ring-blue-500"
+            className={inputClass}
           />
         </div>
 
@@ -100,7 +91,7 @@ export const ChangeLogFilters: React.FC<ChangeLogFiltersProps> = ({
           <select
             value={filters.fieldCategory[0] || ''}
             onChange={e => onFilterChange('fieldCategory', e.target.value ? [e.target.value] : [])}
-            className="gba:w-full gba:px-3 gba:py-2 gba:border gba:border-gray-300 gba:rounded-md gba:focus:outline-none gba:focus:ring-2 gba:focus:ring-blue-500"
+            className={inputClass}
           >
             <option value="">
               {getTranslationFromI18nKeyAndLabel('lowcoder:changelog_tab.filters.all_categories', 'All categories')}
@@ -121,7 +112,7 @@ export const ChangeLogFilters: React.FC<ChangeLogFiltersProps> = ({
           <select
             value={filters.changeActor[0] || ''}
             onChange={e => onFilterChange('changeActor', e.target.value ? [e.target.value] : [])}
-            className="gba:w-full gba:px-3 gba:py-2 gba:border gba:border-gray-300 gba:rounded-md gba:focus:outline-none gba:focus:ring-2 gba:focus:ring-blue-500"
+            className={inputClass}
           >
             <option value="">
               {getTranslationFromI18nKeyAndLabel('lowcoder:changelog_tab.filters.all_actors', 'All actors')}
@@ -154,7 +145,7 @@ export const ChangeLogFilters: React.FC<ChangeLogFiltersProps> = ({
                   from: e.target.value ? new Date(e.target.value) : null
                 })
               }
-              className="gba:flex-1 gba:px-3 gba:py-2 gba:border gba:border-gray-300 gba:rounded-md gba:focus:outline-none gba:focus:ring-2 gba:focus:ring-blue-500"
+              className={`gba:flex-1 ${inputClass}`}
             />
             <input
               type="date"
@@ -165,7 +156,7 @@ export const ChangeLogFilters: React.FC<ChangeLogFiltersProps> = ({
                   to: e.target.value ? new Date(e.target.value) : null
                 })
               }
-              className="gba:flex-1 gba:px-3 gba:py-2 gba:border gba:border-gray-300 gba:rounded-md gba:focus:outline-none gba:focus:ring-2 gba:focus:ring-blue-500"
+              className={`gba:flex-1 ${inputClass}`}
             />
           </div>
         </div>
@@ -174,13 +165,14 @@ export const ChangeLogFilters: React.FC<ChangeLogFiltersProps> = ({
       <div className="gba:flex gba:justify-between gba:items-center gba:mt-4">
         <button
           onClick={onClearFilters}
-          className="gba:px-4 gba:py-2 gba:border gba:border-gray-300 gba:rounded-md gba:bg-white gba:cursor-pointer gba:hover:bg-gray-50"
+          className="gba:h-8 gba:px-4 gba:py-1 gba:text-sm gba:border gba:border-input gba:rounded-md gba:bg-background gba:cursor-pointer gba:hover:bg-accent"
         >
           {getTranslationFromI18nKeyAndLabel('lowcoder:changelog_tab.actions.clear_filters', 'Clear Filters')}
         </button>
         <div className="gba:flex gba:items-center gba:gap-2">
-          <span className="gba:text-sm gba:text-gray-500">
-            {filteredEntriesCount} of {totalEntriesCount} changes
+          <span className="gba:text-sm gba:text-muted-foreground">
+            {filteredEntriesCount} {getTranslationFromI18nKeyAndLabel('lowcoder:changelog_tab.labels.of', 'of')}{' '}
+            {totalEntriesCount} {getTranslationFromI18nKeyAndLabel('lowcoder:changelog_tab.labels.changes', 'changes')}
           </span>
         </div>
       </div>

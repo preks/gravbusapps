@@ -67,7 +67,7 @@ const PlanSummaryScreen: React.FC<PlanSummaryScreenProps> = props => {
         } else {
           setCreateBusinessTrip(false) // Default to false if not configured
         }
-      } catch {
+      } catch (error) {
         console.warn('[PlanSummaryScreen] Failed to fetch catalog config:', error)
         setCreateBusinessTrip(false) // Default to false on error
       }

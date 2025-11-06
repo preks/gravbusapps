@@ -14,6 +14,11 @@ export enum FlowContextName {
   employeeEntity = 'employeeEntity',
   jobPositionEntity = 'jobPositionEntity',
 
+  // HR Notes
+  createEmployeeNote = 'createEmployeeNote',
+  updateEmployeeNote = 'updateEmployeeNote',
+  deleteEmployeeNote = 'deleteEmployeeNote',
+
   // Customer Relations
 
   /// Customer Leads
@@ -50,6 +55,7 @@ export enum FlowContextName {
   customerActivityDelete = 'customerActivityDelete',
 
   /// Customer Notes
+  customerNoteEntity = 'customerNoteEntity',
   customerNoteCreate = 'customerNoteCreate',
   customerNoteDelete = 'customerNoteDelete',
 
@@ -66,6 +72,7 @@ export enum FlowContextName {
   investmentLeadEntity = 'investmentLeadEntity',
   investmentLeadCreate = 'investmentLeadCreate',
   investmentLeadUpdate = 'investmentLeadUpdate',
+  investmentLeadReject = 'investmentLeadReject',
 
   /// Investment Accounts
   investmentAccountEntity = 'investmentAccountEntity',
@@ -83,6 +90,7 @@ export enum FlowContextName {
   investmentOpportunityUpdate = 'investmentOpportunityUpdate',
   investmentOpportunityStageTransition = 'investmentOpportunityStageTransition',
   investmentOpportunityConditionUpdate = 'investmentOpportunityConditionUpdate',
+  investmentOpportunityReject = 'investmentOpportunityReject',
 
   /// Investment Activities
 
@@ -148,6 +156,7 @@ export enum FlowContextName {
   employeeRequestFeedback = 'employeeRequestFeedback',
   employeeSkills = 'employeeSkills',
   employeeProfilePicture = 'employeeProfilePicture',
+  employeeAttendanceCorrectionRequest = 'employeeAttendanceCorrectionRequest',
 
   updateEmployeePersonalData = 'updateEmployeePersonalData',
   updateEmployeeAddress = 'updateEmployeeAddress',

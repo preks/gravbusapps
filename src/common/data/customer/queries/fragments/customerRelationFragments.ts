@@ -9,6 +9,7 @@ export const CUSTOMER_ACCOUNT_REF = `
     id
     code
     name
+    pictureThumbnailUrl
     annualRevenue {
       ${CATALOG_ENTRY}
     }
@@ -172,6 +173,16 @@ export const CUSTOMER_TASK = `
     priorityRef
     statusRef
     timingType
+    
+    type {
+      ${CATALOG_ENTRY}
+    }
+    priority {
+      ${CATALOG_ENTRY}
+    }
+    status {
+      ${CATALOG_ENTRY}
+    }
     
     # User references
     creatorUserId

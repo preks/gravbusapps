@@ -1,87 +1,75 @@
-import { formatNumberFunction } from '@/common/utils/windowUtils'
+/**
+ * Currency utility functions for CRM module
+ */
 
 /**
- * Extracts currency code from API format (e.g., "Currency:v1:EUR" -> "EUR")
+ * Extracts ISO currency code from API currency strings like "Currency:v1:EUR"
+ * Fallback to default if extraction fails or input is falsy
  */
-export const extractCurrencyCode = (currencyId: string): string => {
-  return currencyId.split(':').pop() || 'EUR'
-}
+export const extractCurrencyCode = (currencyInput: string, fallback: string = 'EUR'): string => {
+  if (!currencyInput) return fallback
 
-/**
- * Formats currency value with three-character currency code after the amount
- * Uses user's locale for number formatting
- * @param amount - The amount to format
- * @param currencyId - Currency ID in API format or currency code
- * @returns Formatted string like "1,234.56 EUR"
- */
-export const formatCurrency = (amount: number | undefined | null, currencyId: string = 'EUR'): string => {
-  if (amount === undefined || amount === null || isNaN(amount)) {
-    const currencyCode = extractCurrencyCode(currencyId)
-    return `0 ${currencyCode}`
+  // Handle API format like "Currency:v1:EUR"
+  if (currencyInput.includes(':')) {
+    const parts = currencyInput.split(':')
+    const lastPart = parts[parts.length - 1]
+    // Validate that it looks like a 3-letter ISO code
+    if (lastPart && /^[A-Z]{3}$/.test(lastPart)) {
+      return lastPart
+    }
   }
 
-  const currencyCode = extractCurrencyCode(currencyId)
-
-  // Format the number with locale-specific number formatting using windowUtils
-  const formattedNumber = formatNumberFunction(amount, '0,0.00')
-
-  return `${formattedNumber} ${currencyCode}`
-}
-
-/**
- * Formats currency value with specific decimal places
- * @param amount - The amount to format
- * @param currencyId - Currency ID in API format or currency code
- * @param decimalPlaces - Number of decimal places to show
- * @returns Formatted string like "1,234.56 EUR"
- */
-export const formatCurrencyWithDecimals = (
-  amount: number | undefined | null,
-  currencyId: string = 'EUR',
-  decimalPlaces: number = 2
-): string => {
-  if (amount === undefined || amount === null || isNaN(amount)) {
-    const currencyCode = extractCurrencyCode(currencyId)
-    return `0 ${currencyCode}`
+  // If it's already a 3-letter ISO code, use it directly
+  if (/^[A-Z]{3}$/.test(currencyInput)) {
+    return currencyInput
   }
 
-  const currencyCode = extractCurrencyCode(currencyId)
-
-  // Build format string with specified decimal places
-  const formatString = decimalPlaces > 0 ? `0,0.${'0'.repeat(decimalPlaces)}` : '0,0'
-  const formattedNumber = formatNumberFunction(amount, formatString)
-
-  return `${formattedNumber} ${currencyCode}`
+  // Fallback to default
+  return fallback
 }
 
 /**
- * Custom formatter that only abbreviates millions and billions, not thousands
- * Used for large amounts where M/B suffixes are helpful
- * @param amount - The amount to format
- * @param currencyCode - Currency code (e.g., "EUR", "USD")
- * @returns Formatted string like "1.2M EUR" or "5.3B EUR"
+ * Format currency amount with compact notation for large numbers
+ * - Billions get "B" suffix (€1.2B)
+ * - Millions get "M" suffix (€91.9M)
+ * - Thousands and below show as normal currency (€1,500)
  */
-export const formatCurrencyLarge = (amount: number | undefined, currencyCode: string = 'EUR'): string => {
-  if (amount === undefined || amount === null || !isFinite(amount)) return '-'
+export const formatCurrency = (amount: number, currency: string = 'EUR'): string => {
+  if (amount === undefined || amount === null || !Number.isFinite(amount)) return '-'
+
+  // Extract ISO currency code from API format
+  const currencyCode = extractCurrencyCode(currency)
 
   const abs = Math.abs(amount)
   const sign = amount < 0 ? '-' : ''
 
   if (abs >= 1_000_000_000) {
-    // Billions
-    const value = abs / 1_000_000_000
-    const formatted = formatNumberFunction(value, '0,0.0')
-    return `${sign}${formatted}B ${currencyCode}`
+    // Billions - format as "€1.2B"
+    const formatted = new Intl.NumberFormat('en-US', {
+      style: 'currency',
+      currency: currencyCode,
+      maximumFractionDigits: 1,
+      minimumFractionDigits: 0
+    }).format(abs / 1_000_000_000)
+    return `${sign}${formatted}B`
   }
 
   if (abs >= 1_000_000) {
-    // Millions
-    const value = abs / 1_000_000
-    const formatted = formatNumberFunction(value, '0,0.0')
-    return `${sign}${formatted}M ${currencyCode}`
+    // Millions - format as "€91.9M"
+    const formatted = new Intl.NumberFormat('en-US', {
+      style: 'currency',
+      currency: currencyCode,
+      maximumFractionDigits: 1,
+      minimumFractionDigits: 0
+    }).format(abs / 1_000_000)
+    return `${sign}${formatted}M`
   }
 
-  // Thousands and below - show as normal currency
-  const formatted = formatNumberFunction(amount, '0,0')
-  return `${formatted} ${currencyCode}`
+  // Thousands and below - show as normal currency (€1,500)
+  return new Intl.NumberFormat('en-US', {
+    style: 'currency',
+    currency: currencyCode,
+    maximumFractionDigits: 0,
+    minimumFractionDigits: 0
+  }).format(amount)
 }

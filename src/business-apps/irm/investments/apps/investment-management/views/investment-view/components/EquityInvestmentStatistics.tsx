@@ -3,12 +3,25 @@ import { WidgetGroup, WidgetItem } from '@/components/widget-group'
 import { DollarCircleOutlined, RiseOutlined, BankOutlined, TeamOutlined } from '@ant-design/icons'
 import { BusinessAppContextProps } from '@/common/BusinessAppContext'
 import { useEquityKPIIntegration } from '../../analytics-view/equity-analytics/hooks/useEquityKPIIntegration'
-import { formatCurrency, calculateChange } from '../../analytics-view/shared/utils'
+import { formatCurrencyCompact } from '@/common/utils/numberFormatter'
 
 type EquityInvestmentStatisticsProps = BusinessAppContextProps
 
 export const EquityInvestmentStatistics: React.FC<EquityInvestmentStatisticsProps> = ({ ...context }) => {
   const { current: kpis, previous: previousKpis, isLoading, error, refetch } = useEquityKPIIntegration(context)
+
+  // Calculate percentage change between current and previous values
+  const calculateChange = (current: number, previous: number): { value: string; positive: boolean } => {
+    if (previous === 0) {
+      return { value: current > 0 ? '+100%' : '0%', positive: current > 0 }
+    }
+    const change = ((current - previous) / Math.abs(previous)) * 100
+    const formattedChange = Math.abs(change).toFixed(1)
+    return {
+      value: `${change >= 0 ? '+' : '-'}${formattedChange}%`,
+      positive: change >= 0
+    }
+  }
 
   const widgets: WidgetItem[] = [
     {
@@ -28,7 +41,7 @@ export const EquityInvestmentStatistics: React.FC<EquityInvestmentStatisticsProp
     {
       key: 'total-amount-invested',
       title: 'Total Amount Invested',
-      value: formatCurrency(kpis.totalAmountInvested),
+      value: formatCurrencyCompact(kpis.totalAmountInvested, 'EUR', undefined, 1, true),
       prefix: <DollarCircleOutlined />,
       color: '#52c41a',
       valueIsString: true,

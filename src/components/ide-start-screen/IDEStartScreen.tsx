@@ -302,17 +302,11 @@ export const IDEStartScreen: React.FC<IDEStartScreenProps> = ({ businessApps, on
                   <SquaresFour className="gba:text-foreground" />
                   Examples
                 </h4>
-                <div
-                  className="gba:grid gba:gap-6"
-                  style={{
-                    gridTemplateColumns: 'repeat(auto-fill, minmax(300px, 1fr))',
-                    display: 'grid'
-                  }}
-                >
+                <div className="gba:grid gba:grid-cols-1 gba:sm:grid-cols-4 gba:md:grid-cols-8 gba:lg:grid-cols-12 gba:auto-cols-fr gba:auto-rows-min gba:gap-6">
                   {/* Apps */}
                   {exampleItems.apps.length > 0 && (
                     <Card
-                      className="gba:shadow-sm hover:gba:shadow-md gba:transition-shadow"
+                      className="gba:col-span-1 gba:sm:col-span-2 gba:md:col-span-4 gba:lg:col-span-3 gba:shadow-sm hover:gba:shadow-md gba:transition-shadow"
                       style={{ display: 'flex', flexDirection: 'column' }}
                     >
                       <CardContent
@@ -335,7 +329,7 @@ export const IDEStartScreen: React.FC<IDEStartScreenProps> = ({ businessApps, on
                   {/* Forms */}
                   {exampleItems.forms.length > 0 && (
                     <Card
-                      className="gba:shadow-sm hover:gba:shadow-md gba:transition-shadow"
+                      className="gba:col-span-1 gba:sm:col-span-2 gba:md:col-span-4 gba:lg:col-span-3 gba:shadow-sm hover:gba:shadow-md gba:transition-shadow"
                       style={{ display: 'flex', flexDirection: 'column' }}
                     >
                       <CardContent
@@ -358,7 +352,7 @@ export const IDEStartScreen: React.FC<IDEStartScreenProps> = ({ businessApps, on
                   {/* Popups */}
                   {exampleItems.popups.length > 0 && (
                     <Card
-                      className="gba:shadow-sm hover:gba:shadow-md gba:transition-shadow"
+                      className="gba:col-span-1 gba:sm:col-span-2 gba:md:col-span-4 gba:lg:col-span-3 gba:shadow-sm hover:gba:shadow-md gba:transition-shadow"
                       style={{ display: 'flex', flexDirection: 'column' }}
                     >
                       <CardContent
@@ -411,11 +405,11 @@ export const IDEStartScreen: React.FC<IDEStartScreenProps> = ({ businessApps, on
                   <Clock className="gba:text-foreground" />
                   Recently Used
                 </h4>
-                <div className="gba:grid gba:gap-4 gba:grid-cols-5">
+                <div className="gba:grid gba:grid-cols-1 gba:sm:grid-cols-4 gba:md:grid-cols-8 gba:lg:grid-cols-12 gba:auto-cols-fr gba:auto-rows-min gba:gap-4">
                   {getRecentApps().map(app => (
                     <Card
                       key={app.name}
-                      className="gba:shadow-sm hover:gba:shadow-md gba:transition-shadow gba:cursor-pointer"
+                      className="gba:col-span-1 gba:sm:col-span-2 gba:md:col-span-4 gba:lg:col-span-3 gba:shadow-sm hover:gba:shadow-md gba:transition-shadow gba:cursor-pointer"
                     >
                       <CardContent className="gba:p-3">
                         <a
@@ -464,14 +458,14 @@ export const IDEStartScreen: React.FC<IDEStartScreenProps> = ({ businessApps, on
                   <div className="gba:text-secondary-foreground gba:text-lg">No business applications found</div>
                 </div>
               ) : (
-                <div className="gba:grid gba:gap-6 gba:grid-cols-5">
+                <div className="gba:grid gba:grid-cols-1 gba:sm:grid-cols-4 gba:md:grid-cols-8 gba:lg:grid-cols-12 gba:auto-cols-fr gba:auto-rows-min gba:gap-6">
                   {Object.entries(groupedApps).map(([module, subModules]) => {
                     const totalApps = Object.values(subModules).reduce((sum, apps) => sum + apps.length, 0)
 
                     return (
                       <Card
                         key={module}
-                        className="gba:shadow-sm hover:gba:shadow-md gba:transition-shadow gba:flex gba:flex-col gba:h-96"
+                        className="gba:col-span-1 gba:sm:col-span-2 gba:md:col-span-4 gba:lg:col-span-3 gba:shadow-sm hover:gba:shadow-md gba:transition-shadow gba:flex gba:flex-col gba:h-96"
                       >
                         <CardContent className="gba:p-3 gba:flex gba:flex-col gba:flex-1 gba:min-h-0 gba:h-full">
                           <div className="gba:flex gba:items-center gba:justify-between gba:mb-3">

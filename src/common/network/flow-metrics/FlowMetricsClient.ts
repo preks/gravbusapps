@@ -97,8 +97,7 @@ export class FlowMetricsClient extends RestClient {
       size,
       page,
       field,
-      direction,
-      searchItem: search || ''
+      direction
     }
 
     if (userId) {
@@ -119,6 +118,10 @@ export class FlowMetricsClient extends RestClient {
 
     if (state) {
       queryParams.state = state
+    }
+
+    if (search) {
+      queryParams.searchItem = search
     }
 
     return this.get<FlowExecutionTasksResponse>('/flow-executions/tasks', {

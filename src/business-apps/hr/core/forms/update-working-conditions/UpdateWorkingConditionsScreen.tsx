@@ -287,6 +287,8 @@ const UpdateWorkingConditionsScreen: React.FC<BusinessAppContextProps> = context
                 type="date"
                 value={probationEndDate}
                 onChange={(e: any) => setProbationEndDate(e.target.value)}
+                disabled={!startDate || loading}
+                min={startDate || undefined}
                 data-testid="flw_updateWorkingConditions_probationEndDatePicker"
               />
             </div>
@@ -298,6 +300,8 @@ const UpdateWorkingConditionsScreen: React.FC<BusinessAppContextProps> = context
                 type="date"
                 value={endDate}
                 onChange={(e: any) => setEndDate(e.target.value)}
+                disabled={!startDate || loading}
+                min={startDate || undefined}
                 data-testid="flw_updateWorkingConditions_endDatePicker"
               />
             </div>

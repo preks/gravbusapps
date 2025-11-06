@@ -69,7 +69,7 @@ export const GET_TASK_STATISTICS = (variables: TaskStatisticsQueryVariables): st
   const { myTasksFilters, teamTasksFilters } = variables
 
   // Build where conditions for my tasks
-  const myTasksWhere = []
+  const myTasksWhere = ['isDeleted: {_eq: false}']
   if (myTasksFilters?.assignedEmployeeIds?.length) {
     myTasksWhere.push(
       `assignedEmployeeId: {_in: [${myTasksFilters.assignedEmployeeIds.map(id => `"${id}"`).join(', ')}]}`
@@ -107,7 +107,7 @@ export const GET_TASK_STATISTICS = (variables: TaskStatisticsQueryVariables): st
   }
 
   // Build where conditions for team tasks
-  const teamTasksWhere = []
+  const teamTasksWhere = ['isDeleted: {_eq: false}']
   if (teamTasksFilters?.taskStatusIds?.length) {
     teamTasksWhere.push(`taskStatusRef: {_in: [${teamTasksFilters.taskStatusIds.map(id => `"${id}"`).join(', ')}]}`)
   }

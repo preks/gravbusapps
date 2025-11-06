@@ -325,7 +325,7 @@ export const useTimeTrackingData = ({ employeeId, accessToken, workingHours }: U
           recordedTime: '0h',
           breakTime: '1h',
           effectiveTime: '0h',
-          plannedTime: '8h',
+          plannedTime: formatMinutes(getPlannedMinutesForDate(isoNow)),
           differenceTime: '0h',
           manualOverride: false,
           notes: 'Clock-in',
@@ -367,7 +367,7 @@ export const useTimeTrackingData = ({ employeeId, accessToken, workingHours }: U
       const plannedMinutes = getPlannedMinutesForDate(mostRecent.attendanceDateISO)
       // hardcoded 1h break
       const breakMinutes = 60
-      const effectiveMinutes = recordedMinutes + breakMinutes
+      const effectiveMinutes = Math.max(0, recordedMinutes - breakMinutes)
       const diffMs = effectiveMinutes * 60000 - plannedMinutes * 60000
       const diffMinutes = diffMs === 0 ? 0 : Math.sign(diffMs) * Math.ceil(Math.abs(diffMs) / 60000)
 

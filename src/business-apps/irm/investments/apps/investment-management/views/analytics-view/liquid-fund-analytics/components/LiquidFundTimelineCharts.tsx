@@ -12,7 +12,7 @@ import {
   ChartLegendContent
 } from '@newwork/nw-design-system'
 import { Line, XAxis, YAxis, Bar, ComposedChart } from 'recharts'
-import { formatCurrencyCompact } from '../../../../utils/currencyUtils'
+import { formatCurrencyCompact, extractCurrencyCode } from '@/common/utils/numberFormatter'
 import { ChartLineUpIcon, TrendUpIcon } from '@phosphor-icons/react'
 import { BusinessAppContextProps } from '@/common/BusinessAppContext'
 import { CurrencyFilter } from '../../shared/components'
@@ -332,7 +332,9 @@ export const LiquidFundTimelineCharts: React.FC<LiquidFundTimelineChartsProps> =
                   <XAxis dataKey="year" tick={{ fontSize: 12 }} />
                   <YAxis
                     tick={{ fontSize: 12 }}
-                    tickFormatter={value => formatCurrencyCompact(value, valueTrendsCurrency)}
+                    tickFormatter={value =>
+                      formatCurrencyCompact(value, extractCurrencyCode(valueTrendsCurrency), undefined, 1, true)
+                    }
                   />
                   <ChartTooltip content={renderValueTrendsTooltip} />
                   <ChartLegend content={<ChartLegendContent />} />

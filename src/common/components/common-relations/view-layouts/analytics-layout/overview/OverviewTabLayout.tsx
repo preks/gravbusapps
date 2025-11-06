@@ -140,6 +140,9 @@ export const OverviewTabLayout: React.FC<OverviewTabLayoutProps> = ({
             error={pipelineHealth?.error ?? null}
             data={pipelineHealth?.data ?? null}
             moduleColor={moduleColor}
+            pipelines={pipelines}
+            selectedPipelineId={selectedPipelineId}
+            onPipelineChange={onPipelineChange}
           />
         </div>
         <div className="gba:min-w-0 gba:w-full lg:gba:w-1/3" data-testid="geographic-chart-container">
