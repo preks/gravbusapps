@@ -7,7 +7,15 @@ import ProfileHeader from './components/ProfileHeader'
 import { ScreenBody, Spinner, notification, Tabs } from '@newwork/gravity-ui-catalog'
 import { ProfileLayout } from '@/components/layout/profileLayout'
 import { useScopePermissionCheck } from '@/common/hooks/useScopePermissionCheck'
-import { PiUser, PiBriefcase, PiChartBar, PiCalendar, PiClockCounterClockwise, PiReceipt, PiPackage } from 'react-icons/pi'
+import {
+  PiUser,
+  PiBriefcase,
+  PiChartBar,
+  PiCalendar,
+  PiClockCounterClockwise,
+  PiReceipt,
+  PiPackage
+} from 'react-icons/pi'
 import SummaryTab from './components/tabs/SummaryTab'
 import AbsencesTab from './components/tabs/AbsencesTab'
 import ServiceRequestsTab from './components/tabs/ServiceRequestsTab'
@@ -293,23 +301,6 @@ const EmployeeRecordContent: React.FC<EmployeeRecordContentProps> = ({
             }
           ]
         : []),
-              {
-        key: TAB_KEYS.assets,
-        label: (
-          <div className="gba:flex gba:items-center gba:gap-2">
-            <PiPackage className="gba:text-xl gba:inline-block gba:align-middle" />
-            <span className="gba:inline-block gba:align-middle">Assets</span>
-          </div>
-        ),
-        children: (
-          <AssetsTab
-            employee={employee}
-            accessToken={accessToken}
-            employeeId={employeeIdToShow}
-            isSelfView={isSelfView}
-          />
-        )
-      },
       {
         key: TAB_KEYS.absences,
         label: (
