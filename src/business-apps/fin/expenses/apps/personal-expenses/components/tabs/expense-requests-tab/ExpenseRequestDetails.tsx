@@ -37,6 +37,20 @@ const ExpenseRequestDetails: React.FC<ExpenseRequestDetailsProps> = ({
       .join(' ')
   }
 
+  // Translate known request type values with i18n keys; fall back gracefully
+  const translateRequestTypeValue = (raw?: string) => {
+    if (!raw) return 'N/A'
+    const code = raw.includes(':') ? raw.split(':').pop()?.toUpperCase() : raw.toUpperCase()
+    switch (code) {
+      case 'TRIP':
+        return getTranslationFromI18nKeyAndLabel('lowcoder:personal_expenses.trip', 'Trip')
+      case 'EXPENSE':
+        return getTranslationFromI18nKeyAndLabel('lowcoder:personal_expenses.expense', 'Expense')
+      default:
+        return formatTypeLabel(raw)
+    }
+  }
+
   const getRequestType = () => {
     if (selectedItem.requestType?.value) return selectedItem.requestType.value
     if (selectedItem.requestType) return String(selectedItem.requestType)
@@ -221,12 +235,12 @@ const ExpenseRequestDetails: React.FC<ExpenseRequestDetailsProps> = ({
             <div className="gba:flex gba:justify-between gba:items-center">
               <span className="gba:text-sm gba:font-medium gba:text-gray-700">
                 {getTranslationFromI18nKeyAndLabel(
-                  'lowcoder:expense_calculation_rule_modal.affected_expense_modal.request_type',
+                  'lowcoder:expense_calculation_rule.expense_calculation_rule_modal.affected_expense_modal.request_type',
                   'Request Type'
                 )}
               </span>
               <span className="gba:text-sm gba:text-gray-900">
-                {formatTypeLabel(requestTypeLabel ?? getRequestType())}
+                {translateRequestTypeValue(requestTypeLabel ?? getRequestType())}
               </span>
             </div>
 

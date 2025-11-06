@@ -238,7 +238,11 @@ const EmployeeRecordContent: React.FC<EmployeeRecordContentProps> = ({
     loading: scopePermissionLoading,
     error: scopePermissionError
   } = useScopePermissionCheck('/platform/employee-record', 'employee-record-notes', accessToken)
-
+  const absencesScopeCheck = useScopePermissionCheck(
+    '/platform/employee-record',
+    'employee-record-absences',
+    accessToken
+  )
   const isSelfView: boolean = !!(currentUserEmployeeId && employeeIdToShow === currentUserEmployeeId)
 
   const getTabItems = () => {
@@ -402,7 +406,11 @@ const EmployeeRecordContent: React.FC<EmployeeRecordContentProps> = ({
         return true
       }
 
-      if (tabKey === TAB_KEYS.absences || tabKey === TAB_KEYS.serviceRequests || tabKey === TAB_KEYS.timeTracking) {
+      if (tabKey === TAB_KEYS.absences) {
+        return tabPermissions?.[tabKey]?.hasAccess === true || absencesScopeCheck?.hasPermission === true
+      }
+
+      if (tabKey === TAB_KEYS.serviceRequests || tabKey === TAB_KEYS.timeTracking) {
         return tabPermissions?.[tabKey]?.hasAccess === true
       }
 

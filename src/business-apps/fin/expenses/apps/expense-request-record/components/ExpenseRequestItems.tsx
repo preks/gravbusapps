@@ -4,7 +4,7 @@ import { Card, CardHeader, CardTitle, CardContent, Icon } from '@newwork/nw-desi
 import type { ColumnsType } from 'antd/es/table'
 import Pill from '@/components/pill'
 import { ExpenseRequestItem } from '../types/expenseRequestRecord.types'
-import { getTranslationFromI18nKeyAndLabel } from '@/common/utils/windowUtils'
+import { getTranslationFromI18nKeyAndLabel, getCatalogValue } from '@/common/utils/windowUtils'
 import { SectionKpiCards, type KpiCardData } from '@newwork/nw-design-system'
 import { Check } from '@phosphor-icons/react'
 import { formatCurrencyDisplay } from '../../expense-plan-record/utils/currency'
@@ -81,7 +81,16 @@ const ExpenseRequestItems: React.FC<ExpenseRequestItemsProps> = ({ expenseReques
       ),
       dataIndex: 'title',
       key: 'title',
-      render: (text: string) => <span className="gba:font-semibold">{text}</span>
+      render: (text: string, record: ExpenseRequestItem) => {
+        const isGeneratedAllowance =
+          record?.expenseGroup?.value === 'Allowances' &&
+          typeof text === 'string' &&
+          text.trim().toLowerCase() === 'generated allowance'
+        const displayTitle = isGeneratedAllowance
+          ? getTranslationFromI18nKeyAndLabel('lowcoder:personal_expenses.generated_allowance', 'Generated Allowance')
+          : text
+        return <span className="gba:font-semibold">{displayTitle}</span>
+      }
     },
     {
       title: getTranslationFromI18nKeyAndLabel(
@@ -95,8 +104,10 @@ const ExpenseRequestItems: React.FC<ExpenseRequestItemsProps> = ({ expenseReques
         const isMultipositionItem = record?.expensePosition?.length > 1
         if (isAllowance || onePositionItem) {
           const labelText = isAllowance
-            ? getTranslationFromI18nKeyAndLabel('lowcoder:create_expense_type_item.allowance', 'Allowance')
-            : (record?.expensePosition?.[0]?.expenseGroup?.value ?? '-')
+            ? getTranslationFromI18nKeyAndLabel('lowcoder:personal_expenses.allowance', 'Allowance')
+            : getCatalogValue(record?.expensePosition?.[0]?.expenseGroup) ||
+              record?.expensePosition?.[0]?.expenseGroup?.value ||
+              '-'
           return <Pill label={labelText} type="waiting" data-testid={`expense-group-pill-${labelText}`} />
         }
         if (isMultipositionItem) {
@@ -117,7 +128,18 @@ const ExpenseRequestItems: React.FC<ExpenseRequestItemsProps> = ({ expenseReques
     {
       title: getTranslationFromI18nKeyAndLabel('lowcoder:personal_expenses.expense_class', 'Expense Class'),
       dataIndex: ['expenseClass', 'value'],
-      key: 'expenseClass'
+      key: 'expenseClass',
+      render: (text: string, record) => {
+        const entry: any = (record as any)?.expenseClass
+        const hasTranslations = Array.isArray(entry?.translations) && entry.translations.length > 0
+        const translated = hasTranslations ? getCatalogValue(entry) : ''
+        // Normalize raw value before computing fallback
+        const rawValue = (entry?.value ?? text ?? '').toString().trim()
+        const isAllowance = rawValue.toLowerCase() === 'allowance'
+        const allowanceLabel = getTranslationFromI18nKeyAndLabel('lowcoder:personal_expenses.allowance', 'Allowance')
+        const label = translated || (isAllowance ? allowanceLabel : '') || rawValue || '-'
+        return <span>{label}</span>
+      }
     },
     {
       title: getTranslationFromI18nKeyAndLabel('lowcoder:expense_request_list.expense_plan_table.date', 'Date'),
