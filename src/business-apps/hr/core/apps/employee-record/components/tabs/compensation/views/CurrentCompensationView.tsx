@@ -1,7 +1,7 @@
 'use client'
 
 import React from 'react'
-import { Card, CardHeader, CardTitle, CardContent } from '@newwork/nw-design-system'
+import { Card, CardHeader, CardTitle, CardContent, Button } from '@newwork/nw-design-system'
 import { CompensationData } from '../types/compensationTypes'
 import { PiCurrencyEur, PiGift, PiHeartbeat } from 'react-icons/pi'
 import { BusinessAppContextProps } from '@/common/BusinessAppContext'
@@ -56,13 +56,14 @@ const CurrentCompensationView: React.FC<CurrentCompensationViewProps> = ({
             <div className="gba:text-muted-foreground">{error}</div>
             {onRetry && (
               <div className="gba:mt-4">
-                <button
+                <Button
+                  variant="default"
+                  size="default"
                   onClick={onRetry}
-                  className="gba:px-4 gba:py-2 gba:bg-primary gba:text-primary-foreground gba:rounded-md gba:hover:bg-primary/90"
                   data-testid="current-compensation-retry-button"
                 >
                   {t('compensation-error-retry')}
-                </button>
+                </Button>
               </div>
             )}
           </div>

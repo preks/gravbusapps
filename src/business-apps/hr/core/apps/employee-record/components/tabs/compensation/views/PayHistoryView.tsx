@@ -12,7 +12,8 @@ import {
   TableRow,
   TableHead,
   TableCell,
-  Badge
+  Badge,
+  Button
 } from '@newwork/nw-design-system'
 import { CompensationHistoryData } from '../types/compensationTypes'
 import { getCompensationStatusLabel, getCompensationStatusVariant } from '../types/compensationEnums'
@@ -66,13 +67,9 @@ const PayHistoryView: React.FC<PayHistoryViewProps> = ({
             <div className="gba:text-muted-foreground">{error}</div>
             {onRetry && (
               <div className="gba:mt-4">
-                <button
-                  onClick={onRetry}
-                  className="gba:px-4 gba:py-2 gba:bg-primary gba:text-primary-foreground gba:rounded-md gba:hover:bg-primary/90"
-                  data-testid="compensation-history-retry-button"
-                >
+                <Button variant="default" onClick={onRetry} data-testid="compensation-history-retry-button">
                   {t('compensation-error-retry')}
-                </button>
+                </Button>
               </div>
             )}
           </div>
