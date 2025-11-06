@@ -1,7 +1,6 @@
-import React, { useState } from 'react'
-import { Modal } from 'antd'
+import React from 'react'
 import { ReferenceData } from '../types'
-import { useUpdateLeadStatus } from '../hooks/useUpdateLeadStatus'
+import { startProcess } from '@/common/utils/start-process'
 
 interface StatusProgressionProps {
   currentStatus: string
@@ -12,46 +11,20 @@ interface StatusProgressionProps {
   onStatusUpdate?: () => void
 }
 
-export const StatusProgression: React.FC<StatusProgressionProps> = ({
-  currentStatus,
-  statuses,
-  leadId,
-  leadVersion,
-  accessToken,
-  onStatusUpdate
-}) => {
-  const [modalVisible, setModalVisible] = useState(false)
-  const [selectedStatus, setSelectedStatus] = useState<ReferenceData | null>(null)
-
-  const { updateStatus, isLoading } = useUpdateLeadStatus({ accessToken })
-
+export const StatusProgression: React.FC<StatusProgressionProps> = ({ currentStatus, statuses, leadId }) => {
   const handleStatusClick = (status: ReferenceData) => {
-    // Don't show modal if clicking on current status
-    if (status.value.toLowerCase() === currentStatus.toLowerCase()) {
-      return
-    }
+    const statusRef = `SalesLeadStatus:v1:${status.code}`
 
-    setSelectedStatus(status)
-    setModalVisible(true)
-  }
-
-  const handleConfirmStatusChange = async () => {
-    if (!selectedStatus) return
-
-    const statusRef = `SalesLeadStatus:v1:${selectedStatus.code}`
-
-    await updateStatus(leadId, leadVersion, statusRef, selectedStatus.value, () => {
-      setModalVisible(false)
-      setSelectedStatus(null)
-      if (onStatusUpdate) {
-        onStatusUpdate()
-      }
+    startProcess({
+      domain: 'customer-relations',
+      processName: 'saveLead',
+      payload: {
+        leadId,
+        newStatusRef: statusRef,
+        statusDisplayName: status.value
+      },
+      builderType: 'NATIVE_SCREEN'
     })
-  }
-
-  const handleCancelModal = () => {
-    setModalVisible(false)
-    setSelectedStatus(null)
   }
   const getCurrentStatusIndex = () => {
     const currentIndex = statuses.findIndex(
@@ -113,8 +86,8 @@ export const StatusProgression: React.FC<StatusProgressionProps> = ({
               WebkitClipPath: 'polygon(0 0, calc(100% - 12px) 0, 100% 50%, calc(100% - 12px) 100%, 0 100%)',
               cursor: isOpen ? 'default' : 'pointer'
             }}
+            onClick={!isOpen ? () => handleStatusClick(statuses[openIndex]) : undefined}
             data-testid="status-open"
-            onClick={() => !isOpen && handleStatusClick(statuses[openIndex])}
           >
             <div
               style={{
@@ -169,33 +142,36 @@ export const StatusProgression: React.FC<StatusProgressionProps> = ({
             data-testid="status-converted-lost-combined"
           >
             {/* CONVERTED Section */}
-            <div
-              style={{
-                height: '38px',
-                flex: 1,
-                display: 'flex',
-                alignItems: 'center',
-                justifyContent: 'center',
-                fontSize: '14px',
-                fontWeight: '600',
-                backgroundColor: 'transparent',
-                transition: 'all 0.3s ease',
-                cursor: 'pointer'
-              }}
-              data-testid="status-converted"
-              onClick={() => convertedIndex !== -1 && handleStatusClick(statuses[convertedIndex])}
-            >
+            {convertedIndex !== -1 && (
               <div
                 style={{
+                  position: 'relative',
+                  height: '38px',
+                  flex: 1,
                   display: 'flex',
                   alignItems: 'center',
-                  gap: '6px',
-                  padding: '0 12px'
+                  justifyContent: 'center',
+                  fontSize: '14px',
+                  fontWeight: '600',
+                  backgroundColor: 'transparent',
+                  transition: 'all 0.3s ease',
+                  cursor: 'pointer'
                 }}
+                onClick={() => handleStatusClick(statuses[convertedIndex])}
+                data-testid="status-converted"
               >
-                <span style={{ fontSize: '13px' }}>Converted</span>
+                <div
+                  style={{
+                    display: 'flex',
+                    alignItems: 'center',
+                    gap: '6px',
+                    padding: '0 12px'
+                  }}
+                >
+                  <span style={{ fontSize: '13px' }}>Converted</span>
+                </div>
               </div>
-            </div>
+            )}
 
             {/* Divider */}
             <div
@@ -207,117 +183,97 @@ export const StatusProgression: React.FC<StatusProgressionProps> = ({
             />
 
             {/* LOST Section */}
+            {lostIndex !== -1 && (
+              <div
+                style={{
+                  position: 'relative',
+                  height: '38px',
+                  flex: 1,
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  fontSize: '14px',
+                  fontWeight: '600',
+                  backgroundColor: 'transparent',
+                  transition: 'all 0.3s ease',
+                  cursor: 'pointer'
+                }}
+                onClick={() => handleStatusClick(statuses[lostIndex])}
+                data-testid="status-lost"
+              >
+                <div
+                  style={{
+                    display: 'flex',
+                    alignItems: 'center',
+                    gap: '6px',
+                    padding: '0 12px'
+                  }}
+                >
+                  <span style={{ fontSize: '13px' }}>Lost</span>
+                </div>
+              </div>
+            )}
+          </div>
+        ) : (
+          /* If Converted or Lost: Show only the active one (colored) */
+          (isConverted || isLost) &&
+          openIndex !== -1 && (
             <div
               style={{
-                height: '38px',
+                position: 'relative',
+                height: '40px',
                 flex: 1,
                 display: 'flex',
                 alignItems: 'center',
                 justifyContent: 'center',
                 fontSize: '14px',
                 fontWeight: '600',
-                backgroundColor: 'transparent',
+                backgroundColor: isConverted ? '#4CAF50' : isLost ? '#f44336' : 'transparent',
+                color: isConverted || isLost ? 'hsl(var(--background))' : 'hsl(var(--muted-foreground))666',
+                borderRadius: '0 20px 20px 0',
+                marginRight: '0',
                 transition: 'all 0.3s ease',
-                cursor: 'pointer'
+                cursor: 'pointer',
+                clipPath: 'polygon(12px 0, 100% 0, 100% 100%, 12px 100%, 24px 50%)',
+                WebkitClipPath: 'polygon(12px 0, 100% 0, 100% 100%, 12px 100%, 24px 50%)'
               }}
-              data-testid="status-lost"
-              onClick={() => lostIndex !== -1 && handleStatusClick(statuses[lostIndex])}
+              onClick={() => handleStatusClick(statuses[openIndex])}
+              data-testid={isConverted ? 'status-converted' : 'status-lost'}
             >
+              {/* When clicking on an active status, allow changing back to Open */}
               <div
                 style={{
                   display: 'flex',
                   alignItems: 'center',
-                  gap: '6px',
-                  padding: '0 12px'
+                  gap: '8px',
+                  padding: '0 16px'
                 }}
               >
-                <span style={{ fontSize: '13px' }}>Lost</span>
+                {(isConverted || isLost) && (
+                  <span
+                    style={{
+                      fontSize: '14px',
+                      fontWeight: 'bold',
+                      backgroundColor: 'hsl(var(--background) / 0.3)',
+                      borderRadius: '50%',
+                      width: '20px',
+                      height: '20px',
+                      display: 'flex',
+                      alignItems: 'center',
+                      justifyContent: 'center'
+                    }}
+                  >
+                    ✓
+                  </span>
+                )}
+                <span style={{ whiteSpace: 'nowrap' }}>
+                  {isConverted ? statuses[convertedIndex].value : statuses[lostIndex].value}
+                </span>
               </div>
             </div>
-          </div>
-        ) : (
-          /* If Converted or Lost: Show only the active one (colored) */
-          <div
-            style={{
-              position: 'relative',
-              height: '40px',
-              flex: 1,
-              display: 'flex',
-              alignItems: 'center',
-              justifyContent: 'center',
-              fontSize: '14px',
-              fontWeight: '600',
-              backgroundColor: isConverted ? '#4CAF50' : isLost ? '#f44336' : 'transparent',
-              color: isConverted || isLost ? 'hsl(var(--background))' : 'hsl(var(--muted-foreground))666',
-              borderRadius: '0 20px 20px 0',
-              marginRight: '0',
-              transition: 'all 0.3s ease',
-              cursor: 'pointer',
-              clipPath: 'polygon(12px 0, 100% 0, 100% 100%, 12px 100%, 24px 50%)',
-              WebkitClipPath: 'polygon(12px 0, 100% 0, 100% 100%, 12px 100%, 24px 50%)'
-            }}
-            data-testid={isConverted ? 'status-converted' : 'status-lost'}
-            onClick={() => {
-              // When clicking on an active status, show options to change to other statuses
-              if (isConverted && openIndex !== -1) {
-                handleStatusClick(statuses[openIndex])
-              } else if (isLost && openIndex !== -1) {
-                handleStatusClick(statuses[openIndex])
-              }
-            }}
-          >
-            <div
-              style={{
-                display: 'flex',
-                alignItems: 'center',
-                gap: '8px',
-                padding: '0 16px'
-              }}
-            >
-              {(isConverted || isLost) && (
-                <span
-                  style={{
-                    fontSize: '14px',
-                    fontWeight: 'bold',
-                    backgroundColor: 'hsl(var(--background) / 0.3)',
-                    borderRadius: '50%',
-                    width: '20px',
-                    height: '20px',
-                    display: 'flex',
-                    alignItems: 'center',
-                    justifyContent: 'center'
-                  }}
-                >
-                  ✓
-                </span>
-              )}
-              <span style={{ whiteSpace: 'nowrap' }}>
-                {isConverted ? statuses[convertedIndex].value : statuses[lostIndex].value}
-              </span>
-            </div>
-          </div>
+          )
         )}
       </div>
-
-      {/* Status Change Confirmation Modal */}
-      <Modal
-        title="Confirm Status Change"
-        open={modalVisible}
-        onOk={handleConfirmStatusChange}
-        onCancel={handleCancelModal}
-        confirmLoading={isLoading}
-        okText="Confirm"
-        cancelText="Cancel"
-        okType="primary"
-        data-testid="status-change-modal"
-      >
-        <p>
-          Are you sure you want to change the lead status to <strong>{selectedStatus?.value}</strong>?
-        </p>
-        <p style={{ color: 'hsl(var(--muted-foreground))', fontSize: '14px', marginTop: '8px' }}>
-          This action will update the lead's current status and may trigger additional workflows.
-        </p>
-      </Modal>
     </div>
   )
 }

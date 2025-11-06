@@ -21,6 +21,7 @@ export enum FlowContextName {
   /// Customer Leads
   customerLeadEntity = 'customerLeadEntity',
   customerLeadCreate = 'customerLeadCreate',
+  customerSaveLead = 'customerSaveLead', // Status change context
 
   /// Customer Accounts
   customerAccountEntity = 'customerAccountEntity',

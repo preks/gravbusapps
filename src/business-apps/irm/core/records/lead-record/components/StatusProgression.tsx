@@ -13,21 +13,13 @@ interface StatusProgressionProps {
 
 export const StatusProgression: React.FC<StatusProgressionProps> = ({ currentStatus, statuses, leadId }) => {
   const handleStatusClick = (status: ReferenceData) => {
-    // Don't trigger if clicking on current status
-    if (status.value.toLowerCase() === currentStatus.toLowerCase()) {
-      return
-    }
-
-    // Build the status reference
     const statusRef = `InvestmentLeadStatus:v1:${status.code}`
 
-    // Trigger the flow registry popup using startProcess
-    // Note: The popup will fetch the latest lead version from the database
     startProcess({
       domain: 'investment-relations',
       processName: 'saveInvestmentLead',
       payload: {
-        leadId: leadId,
+        leadId,
         newStatusRef: statusRef,
         statusDisplayName: status.value
       },
@@ -93,8 +85,8 @@ export const StatusProgression: React.FC<StatusProgressionProps> = ({ currentSta
               WebkitClipPath: 'polygon(0 0, calc(100% - 12px) 0, 100% 50%, calc(100% - 12px) 100%, 0 100%)',
               cursor: isOpen ? 'default' : 'pointer'
             }}
+            onClick={!isOpen ? () => handleStatusClick(statuses[openIndex]) : undefined}
             data-testid="status-open"
-            onClick={() => !isOpen && handleStatusClick(statuses[openIndex])}
           >
             <div
               style={{
@@ -148,34 +140,37 @@ export const StatusProgression: React.FC<StatusProgressionProps> = ({ currentSta
             data-testid="status-converted-lost-combined"
           >
             {/* CONVERTED Section */}
-            <div
-              style={{
-                height: '38px',
-                flex: 1,
-                display: 'flex',
-                alignItems: 'center',
-                justifyContent: 'center',
-                fontSize: '14px',
-                fontWeight: '600',
-                backgroundColor: 'transparent',
-                color: 'var(--color-muted-foreground)',
-                transition: 'all 0.3s ease',
-                cursor: 'pointer'
-              }}
-              data-testid="status-converted"
-              onClick={() => convertedIndex !== -1 && handleStatusClick(statuses[convertedIndex])}
-            >
+            {convertedIndex !== -1 && (
               <div
                 style={{
+                  position: 'relative',
+                  height: '38px',
+                  flex: 1,
                   display: 'flex',
                   alignItems: 'center',
-                  gap: '6px',
-                  padding: '0 12px'
+                  justifyContent: 'center',
+                  fontSize: '14px',
+                  fontWeight: '600',
+                  backgroundColor: 'transparent',
+                  color: 'var(--color-muted-foreground)',
+                  transition: 'all 0.3s ease',
+                  cursor: 'pointer'
                 }}
+                onClick={() => handleStatusClick(statuses[convertedIndex])}
+                data-testid="status-converted"
               >
-                <span style={{ fontSize: '13px' }}>Converted</span>
+                <div
+                  style={{
+                    display: 'flex',
+                    alignItems: 'center',
+                    gap: '6px',
+                    padding: '0 12px'
+                  }}
+                >
+                  <span style={{ fontSize: '13px' }}>Converted</span>
+                </div>
               </div>
-            </div>
+            )}
 
             {/* Divider */}
             <div
@@ -187,96 +182,96 @@ export const StatusProgression: React.FC<StatusProgressionProps> = ({ currentSta
             />
 
             {/* LOST Section */}
+            {lostIndex !== -1 && (
+              <div
+                style={{
+                  position: 'relative',
+                  height: '38px',
+                  flex: 1,
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  fontSize: '14px',
+                  fontWeight: '600',
+                  backgroundColor: 'transparent',
+                  color: 'var(--color-muted-foreground)',
+                  transition: 'all 0.3s ease',
+                  cursor: 'pointer'
+                }}
+                onClick={() => handleStatusClick(statuses[lostIndex])}
+                data-testid="status-lost"
+              >
+                <div
+                  style={{
+                    display: 'flex',
+                    alignItems: 'center',
+                    gap: '6px',
+                    padding: '0 12px'
+                  }}
+                >
+                  <span style={{ fontSize: '13px' }}>Lost</span>
+                </div>
+              </div>
+            )}
+          </div>
+        ) : (
+          /* If Converted or Lost: Show only the active one (colored) */
+          (isConverted || isLost) &&
+          openIndex !== -1 && (
             <div
               style={{
-                height: '38px',
+                position: 'relative',
+                height: '40px',
                 flex: 1,
                 display: 'flex',
                 alignItems: 'center',
                 justifyContent: 'center',
                 fontSize: '14px',
                 fontWeight: '600',
-                backgroundColor: 'transparent',
-                color: 'var(--color-muted-foreground)',
+                backgroundColor: isConverted ? '#4CAF50' : isLost ? '#f44336' : 'transparent',
+                color: isConverted || isLost ? 'white' : '#666666',
+                borderRadius: '0 20px 20px 0',
+                marginRight: '0',
                 transition: 'all 0.3s ease',
-                cursor: 'pointer'
+                cursor: 'pointer',
+                clipPath: 'polygon(12px 0, 100% 0, 100% 100%, 12px 100%, 24px 50%)',
+                WebkitClipPath: 'polygon(12px 0, 100% 0, 100% 100%, 12px 100%, 24px 50%)'
               }}
-              data-testid="status-lost"
-              onClick={() => lostIndex !== -1 && handleStatusClick(statuses[lostIndex])}
+              onClick={() => handleStatusClick(statuses[openIndex])}
+              data-testid={isConverted ? 'status-converted' : 'status-lost'}
             >
+              {/* When clicking on an active status, allow changing back to Open */}
               <div
                 style={{
                   display: 'flex',
                   alignItems: 'center',
-                  gap: '6px',
-                  padding: '0 12px'
+                  gap: '8px',
+                  padding: '0 16px'
                 }}
               >
-                <span style={{ fontSize: '13px' }}>Lost</span>
+                {(isConverted || isLost) && (
+                  <span
+                    className="gba:bg-primary-foreground/30"
+                    style={{
+                      fontSize: '14px',
+                      fontWeight: 'bold',
+                      borderRadius: '50%',
+                      width: '20px',
+                      height: '20px',
+                      display: 'flex',
+                      alignItems: 'center',
+                      justifyContent: 'center'
+                    }}
+                  >
+                    ✓
+                  </span>
+                )}
+                <span style={{ whiteSpace: 'nowrap' }}>
+                  {isConverted ? statuses[convertedIndex].value : statuses[lostIndex].value}
+                </span>
               </div>
             </div>
-          </div>
-        ) : (
-          /* If Converted or Lost: Show only the active one (colored) */
-          <div
-            style={{
-              position: 'relative',
-              height: '40px',
-              flex: 1,
-              display: 'flex',
-              alignItems: 'center',
-              justifyContent: 'center',
-              fontSize: '14px',
-              fontWeight: '600',
-              backgroundColor: isConverted ? '#4CAF50' : isLost ? '#f44336' : 'transparent',
-              color: isConverted || isLost ? 'white' : '#666666',
-              borderRadius: '0 20px 20px 0',
-              marginRight: '0',
-              transition: 'all 0.3s ease',
-              cursor: 'pointer',
-              clipPath: 'polygon(12px 0, 100% 0, 100% 100%, 12px 100%, 24px 50%)',
-              WebkitClipPath: 'polygon(12px 0, 100% 0, 100% 100%, 12px 100%, 24px 50%)'
-            }}
-            data-testid={isConverted ? 'status-converted' : 'status-lost'}
-            onClick={() => {
-              // When clicking on an active status, show options to change to other statuses
-              if (isConverted && openIndex !== -1) {
-                handleStatusClick(statuses[openIndex])
-              } else if (isLost && openIndex !== -1) {
-                handleStatusClick(statuses[openIndex])
-              }
-            }}
-          >
-            <div
-              style={{
-                display: 'flex',
-                alignItems: 'center',
-                gap: '8px',
-                padding: '0 16px'
-              }}
-            >
-              {(isConverted || isLost) && (
-                <span
-                  className="gba:bg-primary-foreground/30"
-                  style={{
-                    fontSize: '14px',
-                    fontWeight: 'bold',
-                    borderRadius: '50%',
-                    width: '20px',
-                    height: '20px',
-                    display: 'flex',
-                    alignItems: 'center',
-                    justifyContent: 'center'
-                  }}
-                >
-                  ✓
-                </span>
-              )}
-              <span style={{ whiteSpace: 'nowrap' }}>
-                {isConverted ? statuses[convertedIndex].value : statuses[lostIndex].value}
-              </span>
-            </div>
-          </div>
+          )
         )}
       </div>
     </div>
