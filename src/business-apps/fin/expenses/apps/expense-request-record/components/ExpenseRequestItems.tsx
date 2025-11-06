@@ -131,11 +131,13 @@ const ExpenseRequestItems: React.FC<ExpenseRequestItemsProps> = ({ expenseReques
       key: 'expenseClass',
       render: (text: string, record) => {
         const entry: any = (record as any)?.expenseClass
-        const translated = entry.translations.length > 0 ? getCatalogValue(entry) : ''
-        // Fallback: if catalog has no translations and value is "Allowance", use i18n key
-        const isAllowance = (entry?.value || text)?.toString().trim().toLowerCase() === 'allowance'
+        const hasTranslations = Array.isArray(entry?.translations) && entry.translations.length > 0
+        const translated = hasTranslations ? getCatalogValue(entry) : ''
+        // Normalize raw value before computing fallback
+        const rawValue = (entry?.value ?? text ?? '').toString().trim()
+        const isAllowance = rawValue.toLowerCase() === 'allowance'
         const allowanceLabel = getTranslationFromI18nKeyAndLabel('lowcoder:personal_expenses.allowance', 'Allowance')
-        const label = translated || (isAllowance ? allowanceLabel : '') || entry?.value || text || '-'
+        const label = translated || (isAllowance ? allowanceLabel : '') || rawValue || '-'
         return <span>{label}</span>
       }
     },

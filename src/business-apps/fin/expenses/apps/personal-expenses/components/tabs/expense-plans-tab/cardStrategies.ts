@@ -133,10 +133,12 @@ export const getPlanCardStrategies = (ctx: PlanCardContext): Record<string, Card
       if (ctx.topDestination && ctx.topDestination !== 'N/A') {
         // Extract value if it's a catalog entry object (for translation), otherwise use string directly
         const destinationValue =
-          typeof ctx.topDestination === 'object' && ctx.topDestination !== null && ctx.topDestination.value
-            ? ctx.topDestination.value
-            : ctx.topDestination
-        ctx.setDestinationFilter(destinationValue)
+          typeof ctx.topDestination === 'object' && ctx.topDestination !== null && 'value' in ctx.topDestination
+            ? ((ctx.topDestination as { value?: string })?.value ?? null)
+            : typeof ctx.topDestination === 'string'
+              ? ctx.topDestination
+              : null
+        ctx.setDestinationFilter(destinationValue || null)
       } else {
         ctx.setDestinationFilter(null)
       }

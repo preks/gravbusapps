@@ -5,10 +5,10 @@ import type { ExpensePlan } from '../../../../hooks/useGetExpensePlans'
 import type { ExpenseRequest } from '../../../../hooks/useGetExpenseRequests'
 
 const extractCurrency = (code?: string | null): string => {
-  if (!code) return 'N/A'
+  if (!code) return 'EUR'
   const parts = String(code).split(':')
   const last = parts[parts.length - 1]
-  return last || 'N/A'
+  return last || 'EUR'
 }
 
 export const toCalendarItemFromExpense = (item: ExpenseItem): CalendarExpenseItem => ({
