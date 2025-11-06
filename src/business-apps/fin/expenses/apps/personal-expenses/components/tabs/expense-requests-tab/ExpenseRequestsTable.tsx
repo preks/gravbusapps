@@ -625,7 +625,9 @@ const ExpenseRequestsTable: React.FC<ExpenseRequestsTableProps> = React.memo(pro
                     className="gba:flex gba:w-[100px] gba:items-center gba:justify-center gba:text-sm gba:font-medium"
                     data-testid="expense-requests-page-info"
                   >
-                    Page {currentPage} of {Math.ceil(totalCount / pageSize)}
+                    {getTranslationFromI18nKeyAndLabel('lowcoder:personal_expenses.page', 'Page')} {currentPage}{' '}
+                    {getTranslationFromI18nKeyAndLabel('lowcoder:personal_expenses.of', 'of')}{' '}
+                    {Math.ceil(totalCount / pageSize)}
                   </div>
                   <div className="gba:flex gba:items-center gba:space-x-2">
                     <Button
@@ -764,7 +766,10 @@ const ExpenseRequestsTable: React.FC<ExpenseRequestsTableProps> = React.memo(pro
                 ? [
                     {
                       id: 'currency',
-                      title: getTranslationFromI18nKeyAndLabel('lowcoder:expense_item_list.currency', 'Currency'),
+                      title: getTranslationFromI18nKeyAndLabel(
+                        'lowcoder:create_expense_item.change_expense_item_container.current_currency_label',
+                        'Currency'
+                      ),
                       filters: currencyFilters
                     }
                   ]
