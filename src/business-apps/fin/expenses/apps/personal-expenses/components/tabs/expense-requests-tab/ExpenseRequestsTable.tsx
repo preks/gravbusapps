@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useCallback, useMemo, useRef } from 'react'
 import { useDebounce } from '@/common/hooks/useDebounce'
 import { BusinessAppContextProps } from '@/common/BusinessAppContext'
-import { Alert, Empty, Modal } from 'antd'
+import { Alert, Empty } from 'antd'
 import {
   Table,
   TableHeader,
@@ -16,7 +16,11 @@ import {
   Sheet,
   SheetContent,
   SheetHeader,
-  SheetTitle
+  SheetTitle,
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle
 } from '@newwork/nw-design-system'
 import { DataContainer } from '@/components/layout/dataContainer/DataContainer'
 import { getExpenseRequestStatusDisplay } from '../../../utils'
@@ -723,7 +727,6 @@ const ExpenseRequestsTable: React.FC<ExpenseRequestsTableProps> = React.memo(pro
   return (
     <>
       <DataContainer
-        sidebarScrollable={false}
         dataControllerProps={{
           listTitle: getTranslationFromI18nKeyAndLabel(
             'lowcoder:employee_list.flows_button.expense_requests',
@@ -818,36 +821,40 @@ const ExpenseRequestsTable: React.FC<ExpenseRequestsTableProps> = React.memo(pro
         </SheetContent>
       </Sheet>
 
-      {/* Print Modal */}
-      <Modal
-        title={getTranslationFromI18nKeyAndLabel(
-          'lowcoder:personal_expenses.print_expense_request',
-          'Print Expense Request'
-        )}
-        open={printModalOpen}
-        onCancel={() => setPrintModalOpen(false)}
-        footer={null}
-        width="90vw"
-        style={{ top: 20 }}
-        data-testid="expense-request-print-modal"
-      >
-        {printLoading ? (
-          <div className="gba:flex gba:justify-center gba:p-8">
-            <Spinner />
-          </div>
-        ) : printPdfUrl ? (
-          <iframe
-            src={printPdfUrl}
-            style={{ width: '100%', height: 'calc(90vh - 55px)', border: 'none' }}
-            title="Expense Request PDF"
-            data-testid="expense-request-pdf-iframe"
-          />
-        ) : (
-          <div className="gba:text-center gba:p-8 gba:text-gray-500">
-            {getTranslationFromI18nKeyAndLabel('lowcoder:personal_expenses.failed_to_load_pdf', 'Failed to load PDF')}
-          </div>
-        )}
-      </Modal>
+      {/* Print Dialog using design system */}
+      <Dialog open={printModalOpen} onOpenChange={open => setPrintModalOpen(open)}>
+        <DialogContent
+          className="gba:!w-[90vw] gba:!max-w-[90vw] gba:!p-0 gba:!rounded-md"
+          style={{ height: '90vh' }}
+          data-testid="expense-request-print-modal"
+        >
+          <DialogHeader className="gba:p-4">
+            <DialogTitle>
+              {getTranslationFromI18nKeyAndLabel(
+                'lowcoder:personal_expenses.print_expense_request',
+                'Print Expense Request'
+              )}
+            </DialogTitle>
+          </DialogHeader>
+          {printLoading ? (
+            <div className="gba:flex gba:justify-center gba:p-8">
+              <Spinner />
+            </div>
+          ) : printPdfUrl ? (
+            <iframe
+              src={printPdfUrl}
+              className="gba:w-full gba:border-0"
+              style={{ height: 'calc(90vh - 55px)' }}
+              title="Expense Request PDF"
+              data-testid="expense-request-pdf-iframe"
+            />
+          ) : (
+            <div className="gba:text-center gba:p-8 gba:text-gray-500">
+              {getTranslationFromI18nKeyAndLabel('lowcoder:personal_expenses.failed_to_load_pdf', 'Failed to load PDF')}
+            </div>
+          )}
+        </DialogContent>
+      </Dialog>
     </>
   )
 })

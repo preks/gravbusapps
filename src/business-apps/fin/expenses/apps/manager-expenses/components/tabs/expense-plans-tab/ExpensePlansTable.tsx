@@ -14,9 +14,12 @@ import {
   Sheet,
   SheetContent,
   SheetHeader,
-  SheetTitle
+  SheetTitle,
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle
 } from '@newwork/nw-design-system'
-import { Modal } from 'antd'
 import { PiArrowUp, PiArrowDown } from 'react-icons/pi'
 import { BusinessAppContextProps } from '@/common/BusinessAppContext'
 import { ExpensePlan, SortField } from '../../../hooks/useMainViewExpensePlans'
@@ -596,43 +599,51 @@ const ExpensePlansTable: React.FC<ExpensePlansTableProps> = props => {
         )}
       </div>
 
-      {/* Print Modal (match Personal Expenses) */}
-      <Modal
+      {/* Print Dialog using design system */}
+      <Dialog
         open={printModalOpen}
-        onCancel={() => {
-          setPrintModalOpen(false)
-          setPrintPdfUrl('')
+        onOpenChange={open => {
+          if (!open) {
+            setPrintModalOpen(false)
+            setPrintPdfUrl('')
+          }
         }}
-        footer={null}
-        width="90vw"
-        style={{ top: 20 }}
-        data-testid="print-plan-modal"
       >
-        {printLoading ? (
-          <div className="gba:flex gba:justify-center gba:items-center gba:py-8">
-            <Spinner />
-          </div>
-        ) : printPdfUrl ? (
-          <iframe
-            src={printPdfUrl}
-            style={{ width: '100%', height: 'calc(90vh - 55px)', border: 'none' }}
-            title={getTranslationFromI18nKeyAndLabel('lowcoder:print.preview_title', 'Print Preview')}
-            data-testid="print-plan-iframe"
-          />
-        ) : (
-          <div className="gba:flex gba:flex-col gba:items-center gba:justify-center gba:py-8 gba:text-center">
-            <div className="gba:text-muted-foreground gba:mb-4">
-              {getTranslationFromI18nKeyAndLabel('lowcoder:print.no_document', 'No document available for printing')}
+        <DialogContent
+          className="gba:!w-[90vw] gba:!max-w-[90vw] gba:!p-0 gba:!rounded-md"
+          style={{ height: '90vh' }}
+          data-testid="print-plan-modal"
+        >
+          <DialogHeader className="gba:p-4">
+            <DialogTitle>{getTranslationFromI18nKeyAndLabel('lowcoder:print.title', 'Print Expense Plan')}</DialogTitle>
+          </DialogHeader>
+          {printLoading ? (
+            <div className="gba:flex gba:justify-center gba:items-center gba:py-8">
+              <Spinner />
             </div>
-            <div className="gba:text-sm gba:text-muted-foreground">
-              {getTranslationFromI18nKeyAndLabel(
-                'lowcoder:print.no_document_details',
-                'This expense plan does not have an associated document to print.'
-              )}
+          ) : printPdfUrl ? (
+            <iframe
+              src={printPdfUrl}
+              className="gba:w-full gba:border-0"
+              style={{ height: 'calc(90vh - 55px)' }}
+              title={getTranslationFromI18nKeyAndLabel('lowcoder:print.preview_title', 'Print Preview')}
+              data-testid="print-plan-iframe"
+            />
+          ) : (
+            <div className="gba:flex gba:flex-col gba:items-center gba:justify-center gba:py-8 gba:text-center">
+              <div className="gba:text-muted-foreground gba:mb-4">
+                {getTranslationFromI18nKeyAndLabel('lowcoder:print.no_document', 'No document available for printing')}
+              </div>
+              <div className="gba:text-sm gba:text-muted-foreground">
+                {getTranslationFromI18nKeyAndLabel(
+                  'lowcoder:print.no_document_details',
+                  'This expense plan does not have an associated document to print.'
+                )}
+              </div>
             </div>
-          </div>
-        )}
-      </Modal>
+          )}
+        </DialogContent>
+      </Dialog>
 
       {/* Expense Plan Details Sheet - title is required by DS Sheet props */}
       <Sheet
