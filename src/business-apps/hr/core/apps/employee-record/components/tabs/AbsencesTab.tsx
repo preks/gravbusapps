@@ -35,6 +35,7 @@ const AbsencesTab: React.FC<AbsencesTabProps> = ({
   employee,
   employeeAbsenceEntitlement,
   accessToken,
+  isSelfView,
   shownTab,
   userInfo
 }) => {
@@ -239,8 +240,8 @@ const AbsencesTab: React.FC<AbsencesTabProps> = ({
               </div>
             </AppActionMenu>
 
-            {/* Add Entitlement - shown for HR backoffice */}
-            {!isFetchingGroups && hasHrBackoffice && (
+            {/* Add Entitlement - shown for HR backoffice, hidden on self view */}
+            {!isFetchingGroups && hasHrBackoffice && !isSelfView && (
               <div
                 data-testid="employee-entitlements-update-button"
                 className="gba:flex gba:items-center gba:gap-2 gba:cursor-pointer"
