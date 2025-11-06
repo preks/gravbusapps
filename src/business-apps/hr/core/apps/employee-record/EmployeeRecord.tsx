@@ -406,11 +406,11 @@ const EmployeeRecordContent: React.FC<EmployeeRecordContentProps> = ({
         return true
       }
 
-      if (tabKey === TAB_KEYS.absences){
+      if (tabKey === TAB_KEYS.absences) {
         return tabPermissions?.[tabKey]?.hasAccess === true || absencesScopeCheck?.hasPermission === true
-      } 
-      
-        if(tabKey === TAB_KEYS.serviceRequests || tabKey === TAB_KEYS.timeTracking){
+      }
+
+      if (tabKey === TAB_KEYS.serviceRequests || tabKey === TAB_KEYS.timeTracking) {
         return tabPermissions?.[tabKey]?.hasAccess === true
       }
 
