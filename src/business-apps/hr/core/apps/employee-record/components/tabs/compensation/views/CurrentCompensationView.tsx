@@ -11,8 +11,10 @@ import { formatCurrencyString } from '@/common/utils/numberFormatter'
 
 interface CurrentCompensationViewProps extends BusinessAppContextProps {
   t: (key: string, params?: any) => string
-  compensationData: CompensationData
+  compensationData?: CompensationData | null
   loading: boolean
+  error?: string | null
+  onRetry?: () => void
   employeeId: string
   locale: string
 }
@@ -25,12 +27,62 @@ const CurrentCompensationView: React.FC<CurrentCompensationViewProps> = ({
   t,
   compensationData,
   loading,
+  error,
+  onRetry,
   employeeId,
   accessToken,
   userInfo,
   additionalData,
   locale
 }) => {
+  // Handle loading state - show loading indicators when data is not yet available
+  if (loading && !compensationData) {
+    return (
+      <div className="gba:space-y-6" data-testid="current-compensation-view-loading">
+        <div className="gba:text-center gba:text-muted-foreground gba:py-12">
+          <div className="gba:text-lg">{t('loading-compensation-data')}</div>
+        </div>
+      </div>
+    )
+  }
+
+  // Handle error state with retry option
+  if (error) {
+    return (
+      <div className="gba:space-y-6" data-testid="current-compensation-view-error">
+        <Card className="gba:p-8">
+          <div className="gba:text-center gba:space-y-4">
+            <div className="gba:text-destructive gba:text-lg gba:font-semibold">{t('compensation-error-title')}</div>
+            <div className="gba:text-muted-foreground">{error}</div>
+            {onRetry && (
+              <div className="gba:mt-4">
+                <button
+                  onClick={onRetry}
+                  className="gba:px-4 gba:py-2 gba:bg-primary gba:text-primary-foreground gba:rounded-md gba:hover:bg-primary/90"
+                  data-testid="current-compensation-retry-button"
+                >
+                  {t('compensation-error-retry')}
+                </button>
+              </div>
+            )}
+          </div>
+        </Card>
+      </div>
+    )
+  }
+
+  // Handle empty state (no error, but no data either)
+  if (!compensationData) {
+    return (
+      <div className="gba:space-y-6" data-testid="current-compensation-view-empty">
+        <div className="gba:text-center gba:text-muted-foreground gba:py-12">
+          <div className="gba:text-lg">{t('rewards-no-data')}</div>
+          <div className="gba:text-sm gba:mt-2">No compensation records have been created yet.</div>
+        </div>
+      </div>
+    )
+  }
+
   const { currentCompensation, totalBonusesYTD, activeBenefitsCount, bonuses } = compensationData
 
   const baseSalary = currentCompensation?.baseSalary || 0

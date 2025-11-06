@@ -64,8 +64,10 @@ const HrGrowthTab: React.FC<HrGrowthTabProps> = ({
 
   const {
     loading: compensationLoading,
+    error: compensationError,
     compensationData,
-    historyData
+    historyData,
+    refetch: refetchCompensation
   } = useCompensationData(
     shouldLoadCompensationData ? employeeId : '',
     shouldLoadCompensationData ? accessToken : '',
@@ -213,18 +215,18 @@ const HrGrowthTab: React.FC<HrGrowthTabProps> = ({
           data-testid="hr-growth-current-compensation-content"
           className="gba:mt-4"
         >
-          {compensationData && (
-            <CurrentCompensationView
-              t={t}
-              compensationData={compensationData}
-              loading={compensationLoading}
-              employeeId={employeeId}
-              accessToken={accessToken}
-              userInfo={userInfo}
-              additionalData={additionalData}
-              locale={currentLocale}
-            />
-          )}
+          <CurrentCompensationView
+            t={t}
+            compensationData={compensationData}
+            loading={compensationLoading}
+            error={compensationError}
+            onRetry={refetchCompensation}
+            employeeId={employeeId}
+            accessToken={accessToken}
+            userInfo={userInfo}
+            additionalData={additionalData}
+            locale={currentLocale}
+          />
         </TabsContent>
 
         <TabsContent
@@ -232,17 +234,17 @@ const HrGrowthTab: React.FC<HrGrowthTabProps> = ({
           data-testid="hr-growth-compensation-history-content"
           className="gba:mt-4"
         >
-          {historyData && (
-            <PayHistoryView
-              t={t}
-              historyData={historyData}
-              loading={compensationLoading}
-              locale={currentLocale}
-              accessToken={accessToken}
-              userInfo={userInfo}
-              additionalData={additionalData}
-            />
-          )}
+          <PayHistoryView
+            t={t}
+            historyData={historyData}
+            loading={compensationLoading}
+            error={compensationError}
+            onRetry={refetchCompensation}
+            locale={currentLocale}
+            accessToken={accessToken}
+            userInfo={userInfo}
+            additionalData={additionalData}
+          />
         </TabsContent>
       </Tabs>
     </div>

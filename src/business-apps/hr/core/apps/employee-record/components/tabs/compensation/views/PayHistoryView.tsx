@@ -23,8 +23,10 @@ import { BusinessAppContextProps } from '@/common/BusinessAppContext'
 
 interface PayHistoryViewProps extends BusinessAppContextProps {
   t: (key: string, params?: any) => string
-  historyData: CompensationHistoryData
+  historyData?: CompensationHistoryData | null
   loading: boolean
+  error?: string | null
+  onRetry?: () => void
   locale: string
 }
 
@@ -36,11 +38,61 @@ const PayHistoryView: React.FC<PayHistoryViewProps> = ({
   t,
   historyData,
   loading,
+  error,
+  onRetry,
   locale,
   accessToken,
   userInfo,
   additionalData
 }) => {
+  // Handle loading state - show loading indicators when data is not yet available
+  if (loading && !historyData) {
+    return (
+      <div className="gba:space-y-6" data-testid="compensation-history-view-loading">
+        <div className="gba:text-center gba:text-muted-foreground gba:py-12">
+          <div className="gba:text-lg">{t('loading-compensation-history')}</div>
+        </div>
+      </div>
+    )
+  }
+
+  // Handle error state with retry option
+  if (error) {
+    return (
+      <div className="gba:space-y-6" data-testid="compensation-history-view-error">
+        <Card className="gba:p-8">
+          <div className="gba:text-center gba:space-y-4">
+            <div className="gba:text-destructive gba:text-lg gba:font-semibold">{t('compensation-error-title')}</div>
+            <div className="gba:text-muted-foreground">{error}</div>
+            {onRetry && (
+              <div className="gba:mt-4">
+                <button
+                  onClick={onRetry}
+                  className="gba:px-4 gba:py-2 gba:bg-primary gba:text-primary-foreground gba:rounded-md gba:hover:bg-primary/90"
+                  data-testid="compensation-history-retry-button"
+                >
+                  {t('compensation-error-retry')}
+                </button>
+              </div>
+            )}
+          </div>
+        </Card>
+      </div>
+    )
+  }
+
+  // Handle empty state (no error, but no data either)
+  if (!historyData) {
+    return (
+      <div className="gba:space-y-6" data-testid="compensation-history-view-empty">
+        <div className="gba:text-center gba:text-muted-foreground gba:py-12">
+          <div className="gba:text-lg">{t('empty-compensation-history')}</div>
+          <div className="gba:text-sm gba:mt-2">No compensation history records have been created yet.</div>
+        </div>
+      </div>
+    )
+  }
+
   const { compensationHistory, bonusHistory, payslipHistory } = historyData
 
   /**
