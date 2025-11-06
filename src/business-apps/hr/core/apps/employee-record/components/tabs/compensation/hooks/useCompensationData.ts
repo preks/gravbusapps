@@ -183,18 +183,32 @@ export const useCompensationData = (employeeId: string, accessToken: string, loc
       })
 
       // Transform working conditions to compensation history
-      const compensationHistory = (historyResult?.EmployeeWorkingCondition || []).map((wc: any) => ({
-        id: wc.id,
-        employeeId: wc.employeeId,
-        baseSalary: wc.annualGrossSalary || 0,
-        currency: { id: 'EUR', code: 'EUR', value: 'Euro' },
-        compensationBand: null, // Note: CompensationBand could be queried from EmployeePosition if historical band data is needed
-        effectiveDate: wc.hireDate, // Using hireDate as the effective date
-        endDate: wc.exitDate, // Using exitDate as end date
-        changeReason: 'Salary Record',
-        notes: `Monthly: €${wc.monthlyGrossSalary || 0}`,
-        monthlyGrossSalary: wc.monthlyGrossSalary
-      }))
+      const compensationHistory = (historyResult?.EmployeeWorkingCondition || []).map((wc: any) => {
+        // Derive currency from working condition data, fallback to EUR
+        const currencyCode = wc.currency?.code || wc.currencyRef || 'EUR'
+
+        // Format monthly salary with proper locale and currency
+        const monthlySalary = wc.monthlyGrossSalary || 0
+        const formattedMonthlySalary = new Intl.NumberFormat(locale, {
+          style: 'currency',
+          currency: currencyCode,
+          minimumFractionDigits: 0,
+          maximumFractionDigits: 0
+        }).format(monthlySalary)
+
+        return {
+          id: wc.id,
+          employeeId: wc.employeeId,
+          baseSalary: wc.annualGrossSalary || 0,
+          currency: wc.currency || { id: currencyCode, code: currencyCode, value: 'Euro' },
+          compensationBand: null, // Note: CompensationBand could be queried from EmployeePosition if historical band data is needed
+          effectiveDate: wc.hireDate, // Using hireDate as the effective date
+          endDate: wc.exitDate, // Using exitDate as end date
+          changeReason: 'Salary Record',
+          notes: `Monthly: ${formattedMonthlySalary}`,
+          monthlyGrossSalary: wc.monthlyGrossSalary
+        }
+      })
 
       // Extract bonus history from GraphQL response
       const bonusHistory: EmployeeBonus[] = (historyResult?.EmployeeBonus || []).map((bonus: any) => ({
@@ -255,11 +269,35 @@ export const useCompensationData = (employeeId: string, accessToken: string, loc
         }
       })
 
-      // Set history data
+      // Set history data with placeholder growthData
+      // Note: growthData calculation could be implemented based on compensationHistory
+      const now = new Date()
+      const startDate =
+        compensationHistory.length > 0
+          ? compensationHistory[compensationHistory.length - 1].effectiveDate
+          : now.toISOString()
+      const currentSalary = currentCompensation?.baseSalary || 0
+      const initialSalary =
+        compensationHistory.length > 0 ? compensationHistory[compensationHistory.length - 1].baseSalary : currentSalary
+
       setHistoryData({
         compensationHistory,
         bonusHistory,
-        payslipHistory
+        payslipHistory,
+        growthData: {
+          startDate,
+          endDate: now.toISOString(),
+          dataPoints: [],
+          milestones: [],
+          totalGrowth: {
+            startAmount: initialSalary,
+            currentAmount: currentSalary,
+            changeAmount: currentSalary - initialSalary,
+            changePercentage: initialSalary > 0 ? ((currentSalary - initialSalary) / initialSalary) * 100 : 0
+          },
+          averageAnnualIncrease: 0,
+          totalMilestonesCount: 0
+        }
       })
     } catch (err) {
       console.error('Error fetching compensation data:', err)
