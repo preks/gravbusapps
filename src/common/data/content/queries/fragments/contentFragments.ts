@@ -9,7 +9,7 @@ import { ContentRole } from '../../types/contentEnums'
 
 /**
  * Employee reference fragment
- * FIXED: Removed email (doesn't exist in Employee schema)
+ * Extended to include job position, organizational unit, and work communications
  */
 export const EMPLOYEE_REF_FRAGMENT = `
   id
@@ -19,6 +19,25 @@ export const EMPLOYEE_REF_FRAGMENT = `
   displayName
   picture
   pictureThumbnail
+  employeePosition {
+    jobPosition {
+      name
+    }
+    organizationalUnit {
+      name
+    }
+  }
+  communication(where: {_and: [{isDeleted: {_eq: false}}, {purpose: {_eq: "INTERNAL"}}]}) {
+    purpose
+    channel {
+      value
+      code
+    }
+    value
+    type {
+      value
+    }
+  }
 `
 
 /**

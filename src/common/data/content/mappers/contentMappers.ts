@@ -313,6 +313,8 @@ export interface IntranetContent {
   authorFullName: string
   displayAuthor: boolean
   status?: string
+  creatorEmployeeId?: string | null
+  creatorEmployee?: EmployeeRef | null
 }
 
 export const toIntranetContent = (entry: ContentEntry): IntranetContent => {
@@ -334,6 +336,8 @@ export const toIntranetContent = (entry: ContentEntry): IntranetContent => {
     categories: entry.categoryNames || [],
     contentType: entry.contentType?.value,
     authorFullName: entry.creatorDisplayName || '',
-    displayAuthor: entry.displayCreator
+    displayAuthor: entry.displayCreator,
+    creatorEmployeeId: entry.creatorEmployeeId,
+    creatorEmployee: entry.creatorEmployee
   }
 }

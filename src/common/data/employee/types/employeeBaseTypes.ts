@@ -7,4 +7,23 @@ export interface EmployeeRef {
   fullName?: string
   picture?: string
   pictureThumbnail?: string
+  employeePosition?: {
+    jobPosition?: {
+      name?: string
+    }
+    organizationalUnit?: {
+      name?: string
+    }
+  }
+  communication?: Array<{
+    purpose?: string
+    channel?: {
+      value?: string
+      code?: string
+    }
+    value?: string
+    type?: {
+      value?: string
+    }
+  }>
 }

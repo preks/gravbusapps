@@ -3,7 +3,7 @@ import { Button, Avatar, AvatarFallback, AvatarImage } from '@newwork/nw-design-
 import { MessageCircle, ChevronUp, ArrowBigUp } from 'lucide-react'
 import { CommentWithReplies } from '@/common/data/content'
 import CommentForm from './CommentForm'
-import { buildPlatformUrl, navigateTo } from '@/common/utils/navigationUtils'
+import { EmployeeHoverCard } from '@/common/components/employee'
 import dayjs from 'dayjs'
 import relativeTime from 'dayjs/plugin/relativeTime'
 
@@ -47,15 +47,6 @@ export const CommentItem: React.FC<CommentItemProps> = ({
       .toUpperCase()
       .slice(0, 2) || 'U'
   const formattedDate = dayjs(comment.createdAt).fromNow()
-
-  const handleNameClick = (e: React.MouseEvent) => {
-    e.stopPropagation()
-    const empId = comment.creatorEmployeeId
-    if (empId) {
-      const employeeUrl = buildPlatformUrl('/platform/employee-record', { employeeId: empId })
-      navigateTo(employeeUrl)
-    }
-  }
 
   // Count total replies
   const countTotalReplies = (c: CommentWithReplies): number => {
@@ -132,13 +123,14 @@ export const CommentItem: React.FC<CommentItemProps> = ({
           <div className="gba:flex gba:items-center gba:gap-2">
             {isOwnComment ? (
               <span className="gba:text-sm gba:font-semibold gba:text-foreground">You</span>
+            ) : comment.creatorEmployee ? (
+              <EmployeeHoverCard employee={comment.creatorEmployee}>
+                <span className="gba:text-sm gba:font-semibold gba:text-foreground gba:cursor-pointer hover:gba:text-primary hover:gba:underline">
+                  {displayName}
+                </span>
+              </EmployeeHoverCard>
             ) : (
-              <span
-                className="gba:text-sm gba:font-semibold gba:text-foreground gba:cursor-pointer hover:gba:text-primary hover:gba:underline"
-                onClick={handleNameClick}
-              >
-                {displayName}
-              </span>
+              <span className="gba:text-sm gba:font-semibold gba:text-foreground">{displayName}</span>
             )}
             <span className="gba:text-xs gba:text-muted-foreground">{formattedDate}</span>
             {isCollapsed && totalReplies > 0 && (
