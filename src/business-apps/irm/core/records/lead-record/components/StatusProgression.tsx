@@ -1,7 +1,6 @@
-import React, { useState } from 'react'
-import { Modal } from 'antd'
+import React from 'react'
 import { ReferenceData } from '../types'
-import { useUpdateLeadStatus } from '../hooks/useUpdateLeadStatus'
+import { startProcess } from '@/common/utils/start-process'
 
 interface StatusProgressionProps {
   currentStatus: string
@@ -12,46 +11,28 @@ interface StatusProgressionProps {
   onStatusUpdate?: () => void
 }
 
-export const StatusProgression: React.FC<StatusProgressionProps> = ({
-  currentStatus,
-  statuses,
-  leadId,
-  leadVersion,
-  accessToken,
-  onStatusUpdate
-}) => {
-  const [modalVisible, setModalVisible] = useState(false)
-  const [selectedStatus, setSelectedStatus] = useState<ReferenceData | null>(null)
-
-  const { updateStatus, isLoading } = useUpdateLeadStatus({ accessToken })
-
+export const StatusProgression: React.FC<StatusProgressionProps> = ({ currentStatus, statuses, leadId }) => {
   const handleStatusClick = (status: ReferenceData) => {
-    // Don't show modal if clicking on current status
+    // Don't trigger if clicking on current status
     if (status.value.toLowerCase() === currentStatus.toLowerCase()) {
       return
     }
 
-    setSelectedStatus(status)
-    setModalVisible(true)
-  }
+    // Build the status reference
+    const statusRef = `InvestmentLeadStatus:v1:${status.code}`
 
-  const handleConfirmStatusChange = async () => {
-    if (!selectedStatus) return
-
-    const statusRef = `InvestmentLeadStatus:v1:${selectedStatus.code}`
-
-    await updateStatus(leadId, leadVersion, statusRef, selectedStatus.value, () => {
-      setModalVisible(false)
-      setSelectedStatus(null)
-      if (onStatusUpdate) {
-        onStatusUpdate()
-      }
+    // Trigger the flow registry popup using startProcess
+    // Note: The popup will fetch the latest lead version from the database
+    startProcess({
+      domain: 'investment-relations',
+      processName: 'saveInvestmentLead',
+      payload: {
+        leadId: leadId,
+        newStatusRef: statusRef,
+        statusDisplayName: status.value
+      },
+      builderType: 'NATIVE_SCREEN'
     })
-  }
-
-  const handleCancelModal = () => {
-    setModalVisible(false)
-    setSelectedStatus(null)
   }
   const getCurrentStatusIndex = () => {
     const currentIndex = statuses.findIndex(
@@ -298,26 +279,6 @@ export const StatusProgression: React.FC<StatusProgressionProps> = ({
           </div>
         )}
       </div>
-
-      {/* Status Change Confirmation Modal */}
-      <Modal
-        title="Confirm Status Change"
-        open={modalVisible}
-        onOk={handleConfirmStatusChange}
-        onCancel={handleCancelModal}
-        confirmLoading={isLoading}
-        okText="Confirm"
-        cancelText="Cancel"
-        okType="primary"
-        data-testid="status-change-modal"
-      >
-        <p>
-          Are you sure you want to change the lead status to <strong>{selectedStatus?.value}</strong>?
-        </p>
-        <p className="gba:text-muted-foreground gba:text-sm gba:mt-2">
-          This action will update the lead's current status and may trigger additional workflows.
-        </p>
-      </Modal>
     </div>
   )
 }

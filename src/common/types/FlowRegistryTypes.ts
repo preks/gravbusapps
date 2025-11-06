@@ -70,6 +70,7 @@ export enum FlowContextName {
   investmentLeadCreate = 'investmentLeadCreate',
   investmentLeadUpdate = 'investmentLeadUpdate',
   investmentLeadReject = 'investmentLeadReject',
+  investmentSaveLead = 'investmentSaveLead', // Status change context
 
   /// Investment Accounts
   investmentAccountEntity = 'investmentAccountEntity',
