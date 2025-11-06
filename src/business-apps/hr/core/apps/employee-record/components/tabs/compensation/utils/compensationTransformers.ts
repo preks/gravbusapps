@@ -65,7 +65,14 @@ export const transformWorkingConditionToCompensation = (
     return null
   }
 
-  const currencyCode = compensationBand?.currency?.code || extractCurrencyCode(workingCondition.currencyRef) || 'EUR'
+  // Extract currency code - no fallback to avoid incorrect display
+  const currencyCode = compensationBand?.currency?.code || extractCurrencyCode(workingCondition.currencyRef)
+
+  // Validate currency exists
+  if (!currencyCode) {
+    console.warn('No valid currency found for working condition', workingCondition.id)
+    return null
+  }
 
   return {
     id: workingCondition.id,

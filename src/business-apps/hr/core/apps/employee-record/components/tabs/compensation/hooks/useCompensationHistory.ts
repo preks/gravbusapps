@@ -62,36 +62,11 @@ export const useCompensationHistory = (employeeId: string, accessToken: string, 
       // Transform payslip history
       const payslipHistory = (result?.EmployeePayslip || []).map((payslip: any) => transformPayslip(payslip, locale))
 
-      // Calculate growth data
-      const now = new Date()
-      const startDate =
-        compensationHistory.length > 0
-          ? compensationHistory[compensationHistory.length - 1].effectiveDate
-          : now.toISOString()
-
-      const currentSalary = compensationHistory.length > 0 ? compensationHistory[0].baseSalary : 0
-      const initialSalary =
-        compensationHistory.length > 0 ? compensationHistory[compensationHistory.length - 1].baseSalary : currentSalary
-
       // Set history data
       setData({
         compensationHistory,
         bonusHistory,
-        payslipHistory,
-        growthData: {
-          startDate,
-          endDate: now.toISOString(),
-          dataPoints: [], // TODO: Calculate data points for timeline chart
-          milestones: [], // TODO: Calculate milestones from compensation changes
-          totalGrowth: {
-            startAmount: initialSalary,
-            currentAmount: currentSalary,
-            changeAmount: currentSalary - initialSalary,
-            changePercentage: initialSalary > 0 ? ((currentSalary - initialSalary) / initialSalary) * 100 : 0
-          },
-          averageAnnualIncrease: 0, // TODO: Calculate from historical data
-          totalMilestonesCount: 0 // TODO: Count actual milestones
-        }
+        payslipHistory
       })
     } catch (err) {
       console.error('Error fetching compensation history:', err)
