@@ -226,18 +226,8 @@ action-close = Close
 # Benefits Catalog Section
 benefit-per-year = /yr
 benefits-catalog-summary = {$active} active · {$available} available · {$total} total
-benefits-catalog-search-placeholder = Search benefits...
-benefits-catalog-loading = Loading benefits catalog...
-benefits-catalog-error-title = Error Loading Benefits
-benefits-catalog-retry = Retry
-benefits-active-section-title = Active Benefits ({$count})
-benefits-available-section-title = Available Benefits ({$count})
 
 # Payslip Section
-payslip-search-placeholder = Search payslips...
-payslip-filter-all-years = All Years
-payslip-loading = Loading payslip history...
-payslip-no-results = No payslips found matching your filters
 payslip-no-data = No payslips available
 payslip-table-month = Month
 payslip-table-year = Year
