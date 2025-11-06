@@ -1,5 +1,6 @@
 import { getCatalogValue } from '@/common/utils/windowUtils'
 import { DashboardStats } from '../../personal-expenses/components/tabs/expense-dashboard-tab/types'
+import { getTranslationFromI18nKeyAndLabel } from '@/common/utils/windowUtils'
 
 type ApiAggregate = {
   aggregate?: {
@@ -78,7 +79,9 @@ export const transformDashboardResponse = (
       const req = (data?.requestActivity || []).map((r: any) => ({
         id: r.id,
         title:
-          (r.commentType === 'APPROVE_COMMENT' ? 'Request approved' : 'Request returned') +
+          (r.commentType === 'APPROVE_COMMENT'
+            ? getTranslationFromI18nKeyAndLabel('lowcoder:personal_expenses.request_approved', 'Request approved')
+            : getTranslationFromI18nKeyAndLabel('lowcoder:personal_expenses.request_returned', 'Request returned')) +
           (r.expenseRequest?.title ? `: ${r.expenseRequest.title}` : ''),
         status: r.expenseRequest?.status,
         updatedAt: r.commentDate,
@@ -88,7 +91,9 @@ export const transformDashboardResponse = (
       const plan = (data?.planActivity || []).map((p: any) => ({
         id: p.id,
         title:
-          (p.commentType === 'APPROVE_COMMENT' ? 'Plan approved' : 'Plan returned') +
+          (p.commentType === 'APPROVE_COMMENT'
+            ? getTranslationFromI18nKeyAndLabel('lowcoder:personal_expenses.plan_approved', 'Plan approved')
+            : getTranslationFromI18nKeyAndLabel('lowcoder:personal_expenses.plan_returned', 'Plan returned')) +
           (p.expensePlan?.title ? `: ${p.expensePlan.title}` : ''),
         status: p.expensePlan?.status,
         updatedAt: p.commentDate,

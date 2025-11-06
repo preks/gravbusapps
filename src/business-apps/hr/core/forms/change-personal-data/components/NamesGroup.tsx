@@ -1,4 +1,4 @@
-import React from 'react'
+import React, { useEffect, useRef } from 'react'
 import {
   FormField,
   FormItem,
@@ -42,6 +42,12 @@ const NamesGroup: React.FC<NamesGroupProps> = ({ control, catalogs }) => {
       ? [String(titleWatch || '').trim(), String(preferredNameWatch || '').trim(), String(lastNameWatch || '').trim()]
       : [String(titleWatch || '').trim(), String(firstNameWatch || '').trim(), String(lastNameWatch || '').trim()]
   const computedDisplayName = partsDisplay.filter(Boolean).join(' ').trim()
+  const displayNameUpdateRef = useRef(false)
+
+  // Update displayName field whenever computedDisplayName changes
+  useEffect(() => {
+    displayNameUpdateRef.current = true
+  }, [computedDisplayName])
 
   const validateNameFunction = (name: string): boolean => {
     const nameRegex =
@@ -222,23 +228,37 @@ const NamesGroup: React.FC<NamesGroupProps> = ({ control, catalogs }) => {
       />
 
       {/* Display Name (computed, read-only) */}
-      <FormItem>
-        <FormLabel data-testid="change-personal-data-display-name-label">
-          {getTranslationFromI18nKeyAndLabel(
-            'lowcoder:employee_profile.details_layout.personal_information_container.preferred_name',
-            'Display Name'
-          )}
-        </FormLabel>
-        <div className="gba:flex gba:items-center">
-          <span
-            className="gba:block gba:w-full gba:h-10 gba:min-h-10 gba:px-3 gba:py-2 gba:rounded-md gba:bg-muted gba:text-muted-foreground gba:border gba:border-muted"
-            data-testid="flw_changePersonalData_currentDisplayName"
-          >
-            {computedDisplayName}
-          </span>
-        </div>
-        <FormMessage />
-      </FormItem>
+      <FormField
+        control={control}
+        name={'displayName' as any}
+        render={({ field }) => {
+          if (displayNameUpdateRef.current) {
+            field.onChange(computedDisplayName)
+            displayNameUpdateRef.current = false
+          }
+
+          return (
+            <FormItem>
+              <FormLabel data-testid="change-personal-data-display-name-label">
+                {getTranslationFromI18nKeyAndLabel(
+                  'lowcoder:employee_profile.details_layout.personal_information_container.preferred_name',
+                  'Display Name'
+                )}
+              </FormLabel>
+              <FormControl>
+                <Input
+                  {...field}
+                  disabled
+                  value={computedDisplayName}
+                  className="gba:w-full"
+                  data-testid="flw_changePersonalData_currentDisplayName"
+                />
+              </FormControl>
+              <FormMessage />
+            </FormItem>
+          )
+        }}
+      />
     </div>
   )
 }
