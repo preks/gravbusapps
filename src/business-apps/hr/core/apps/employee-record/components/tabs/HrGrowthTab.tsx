@@ -1,14 +1,18 @@
 'use client'
 
 import React, { useState, useEffect } from 'react'
-import { Tabs, TabsList, TabsTrigger, TabsContent } from '@newwork/nw-design-system'
-import { PiGraduationCap, PiChartBar, PiChatCircle } from 'react-icons/pi'
+import { Tabs, TabsList, TabsTrigger, TabsContent, useTranslation, useLocale } from '@newwork/nw-design-system'
+import { PiGraduationCap, PiChartBar, PiChatCircle, PiCurrencyEur, PiClockCounterClockwise } from 'react-icons/pi'
 import SkillsTab from './SkillsTab'
 import PerformanceTab from './PerformanceTab'
 import FeedbackTab from './FeedbackTab'
+import CurrentCompensationView from './compensation/views/CurrentCompensationView'
+import PayHistoryView from './compensation/views/PayHistoryView'
+import { useCompensationData } from './compensation/hooks/useCompensationData'
 import { BusinessAppContextProps } from '@/common/BusinessAppContext'
 import { Employee, EmployeePerformanceGoal, EmployeeFeedback } from '../../hooks/useEmployeeData'
 import { getTranslationFromI18nKeyAndLabel } from '@/common/utils/windowUtils'
+import translations from '../../_i18n'
 
 interface HrGrowthTabProps extends BusinessAppContextProps {
   employee: Employee
@@ -19,7 +23,13 @@ interface HrGrowthTabProps extends BusinessAppContextProps {
   feedback?: EmployeeFeedback[]
 }
 
-const HR_GROWTH_SUBVIEW_VALUES = ['skills', 'feedback', 'performance'] as const
+const HR_GROWTH_SUBVIEW_VALUES = [
+  'skills',
+  'feedback',
+  'performance',
+  'currentCompensation',
+  'compensationHistory'
+] as const
 type HrGrowthSubView = (typeof HR_GROWTH_SUBVIEW_VALUES)[number]
 
 const getInitialHrGrowthSubView = (): HrGrowthSubView => {
@@ -42,9 +52,27 @@ const HrGrowthTab: React.FC<HrGrowthTabProps> = ({
   isSelfView,
   feedbackTabFeatureFlag,
   employeePerformanceGoals,
-  feedback
+  feedback,
+  additionalData
 }) => {
   const [activeSubView, setActiveSubView] = useState<HrGrowthSubView>(getInitialHrGrowthSubView())
+  const { t } = useTranslation(translations)
+  const { locale: currentLocale } = useLocale()
+
+  // Lazy load compensation data only when compensation tabs are active
+  const shouldLoadCompensationData = activeSubView === 'currentCompensation' || activeSubView === 'compensationHistory'
+
+  const {
+    loading: compensationLoading,
+    error: compensationError,
+    compensationData,
+    historyData,
+    refetch: refetchCompensation
+  } = useCompensationData(
+    shouldLoadCompensationData ? employeeId : '',
+    shouldLoadCompensationData ? accessToken : '',
+    currentLocale
+  )
 
   useEffect(() => {
     if (typeof window === 'undefined') return
@@ -126,6 +154,26 @@ const HrGrowthTab: React.FC<HrGrowthTabProps> = ({
               </span>
             </div>
           </TabsTrigger>
+          <TabsTrigger
+            value="currentCompensation"
+            data-testid="hr-growth-current-compensation-subtab"
+            className="gba:flex-1"
+          >
+            <div className="gba:flex gba:items-center gba:gap-2 gba:justify-center">
+              <PiCurrencyEur />
+              <span>{t('tab-current-compensation')}</span>
+            </div>
+          </TabsTrigger>
+          <TabsTrigger
+            value="compensationHistory"
+            data-testid="hr-growth-compensation-history-subtab"
+            className="gba:flex-1"
+          >
+            <div className="gba:flex gba:items-center gba:gap-2 gba:justify-center">
+              <PiClockCounterClockwise />
+              <span>{t('tab-compensation-history')}</span>
+            </div>
+          </TabsTrigger>
         </TabsList>
 
         <TabsContent value="skills" data-testid="hr-growth-skills-content" className="gba:mt-4">
@@ -159,6 +207,43 @@ const HrGrowthTab: React.FC<HrGrowthTabProps> = ({
             userInfo={userInfo}
             employeePerformanceGoals={employeePerformanceGoals}
             isSelfView={isSelfView}
+          />
+        </TabsContent>
+
+        <TabsContent
+          value="currentCompensation"
+          data-testid="hr-growth-current-compensation-content"
+          className="gba:mt-4"
+        >
+          <CurrentCompensationView
+            t={t}
+            compensationData={compensationData}
+            loading={compensationLoading}
+            error={compensationError}
+            onRetry={refetchCompensation}
+            employeeId={employeeId}
+            accessToken={accessToken}
+            userInfo={userInfo}
+            additionalData={additionalData}
+            locale={currentLocale}
+          />
+        </TabsContent>
+
+        <TabsContent
+          value="compensationHistory"
+          data-testid="hr-growth-compensation-history-content"
+          className="gba:mt-4"
+        >
+          <PayHistoryView
+            t={t}
+            historyData={historyData}
+            loading={compensationLoading}
+            error={compensationError}
+            onRetry={refetchCompensation}
+            locale={currentLocale}
+            accessToken={accessToken}
+            userInfo={userInfo}
+            additionalData={additionalData}
           />
         </TabsContent>
       </Tabs>

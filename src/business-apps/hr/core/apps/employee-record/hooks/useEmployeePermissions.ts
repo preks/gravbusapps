@@ -11,6 +11,7 @@ export const TAB_KEYS = {
   feedback: 'feedback',
   absences: 'absences',
   skills: 'skills',
+  compensation: 'compensation',
   serviceRequests: 'serviceRequests',
   changeLog: 'changeLog',
   hrNotes: 'hrNotes'
@@ -31,6 +32,11 @@ export const SECTION_KEYS = {
   employment: {
     workingHours: 'workingHours',
     jobHistory: 'jobHistory'
+  },
+  compensation: {
+    bonuses: 'bonuses',
+    benefits: 'benefits',
+    payslips: 'payslips'
   },
   documents: {
     personalDocuments: 'personalDocuments',
@@ -111,6 +117,28 @@ const employeeTabPermissionMap: Record<string, ResourcePermissionMap> = {
       [SECTION_KEYS.employment.jobHistory]: {
         domain: 'employee',
         resource: 'job_history',
+        permission: 'read'
+      }
+    }
+  },
+  [TAB_KEYS.compensation]: {
+    domain: 'employee',
+    resource: 'working_conditions', // ✅ Using existing working_conditions resource since it contains salary data
+    permission: 'read',
+    sections: {
+      bonuses: {
+        domain: 'employee',
+        resource: 'employee_bonus',
+        permission: 'read'
+      },
+      benefits: {
+        domain: 'employee',
+        resource: 'employee_benefit',
+        permission: 'read'
+      },
+      payslips: {
+        domain: 'employee',
+        resource: 'employee_payslip',
         permission: 'read'
       }
     }
