@@ -73,7 +73,6 @@ export const useCompletedTasks = (context: BusinessAppContextProps): UseComplete
     setError(null)
 
     try {
-
       const batchPromises = []
       for (let i = 0; i < INITIAL_BATCH_COUNT; i++) {
         batchPromises.push(fetchBatch(i * FETCH_SIZE))
@@ -87,7 +86,6 @@ export const useCompletedTasks = (context: BusinessAppContextProps): UseComplete
         const bTime = new Date(b.completedAt || b.createdAt || 0).getTime()
         return bTime - aTime
       })
-
 
       lastTaskIdsRef.current = new Set(sortedTasks.map(t => t.id))
 
@@ -110,7 +108,6 @@ export const useCompletedTasks = (context: BusinessAppContextProps): UseComplete
     }
 
     try {
-
       const batch = await fetchBatch(0)
 
       if (batch.tasks.length === 0) {
@@ -123,7 +120,8 @@ export const useCompletedTasks = (context: BusinessAppContextProps): UseComplete
       if (hasNewTasksDetected) {
         setHasNewTasks(true)
       }
-    } catch (_err) {
+    } catch {
+      // Ignore background refresh errors
     }
   }, [userId, isLoading, fetchBatch])
 
@@ -159,7 +157,6 @@ export const useCompletedTasks = (context: BusinessAppContextProps): UseComplete
 
     setIsLoading(true)
     try {
-
       const nextOffset = allFetchedTasks.length
       const batch = await fetchBatch(nextOffset)
 

@@ -43,7 +43,8 @@ export const useKogitoProcess = ({ task, accessToken, onSuccess, onError }: UseK
       if (pathSegments.length >= 4 && pathSegments[0] === 'processes') {
         processInstanceId = pathSegments[3]
       }
-    } catch (_error) {
+    } catch {
+      // Ignore URL parsing errors
     }
   }
 
@@ -83,7 +84,8 @@ export const useKogitoProcess = ({ task, accessToken, onSuccess, onError }: UseK
           if (pathSegments.length >= 6 && pathSegments[0] === 'processes') {
             taskName = pathSegments[4]
           }
-        } catch (_error) {
+        } catch {
+          // Ignore URL parsing errors
         }
       }
 
@@ -104,13 +106,13 @@ export const useKogitoProcess = ({ task, accessToken, onSuccess, onError }: UseK
           const payload = JSON.parse(atob(tokenParts[1]))
           userId = payload.sub || ''
         }
-      } catch (_error) {
+      } catch {
+        // Ignore token parsing errors
       }
 
       // Build the Kogito task completion endpoint (matching gravity-platform pattern)
       const kogitoBaseUrl = env('NEXT_PUBLIC_NEWWORK_PLATFORM_API_URL') || 'https://newwork-dev.newwork.com'
       const completionEndpoint = `${kogitoBaseUrl}/processes/${domain}/${processName}/${processInstanceId}/${taskName}/${task.id}`
-
 
       try {
         const response = await fetch(`${completionEndpoint}?phase=complete${userId ? `&user=${userId}` : ''}`, {

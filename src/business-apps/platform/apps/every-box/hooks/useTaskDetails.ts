@@ -63,7 +63,6 @@ export const useTaskDetails = ({
     setError(null)
 
     try {
-
       const client = new FlowClient()
       client.setAccessToken(accessToken)
 
@@ -72,7 +71,6 @@ export const useTaskDetails = ({
 
       // Handle both response formats: array directly OR { tasks: [...] }
       const tasksArray = Array.isArray(response) ? response : response.tasks || []
-
 
       // Find the specific task by ID
       const taskDetail = tasksArray.find(t => t.id === taskId)

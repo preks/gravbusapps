@@ -4,15 +4,15 @@
  * Fetches pictureThumbnail, firstName, lastName from GraphQL
  */
 
-import { useState, useEffect, useCallback } from 'react';
-import { useGraphQLClient } from '@/common/network/graphql/useGraphQLClient';
+import { useState, useEffect, useCallback } from 'react'
+import { useGraphQLClient } from '@/common/network/graphql/useGraphQLClient'
 
 export interface EmployeeAvatarData {
-  id: string;
-  firstName: string;
-  lastName: string;
-  displayName: string;
-  pictureThumbnail?: string;
+  id: string
+  firstName: string
+  lastName: string
+  displayName: string
+  pictureThumbnail?: string
 }
 
 const GET_EMPLOYEE_AVATAR_BY_USER_ID = `
@@ -31,7 +31,7 @@ const GET_EMPLOYEE_AVATAR_BY_USER_ID = `
       pictureThumbnail
     }
   }
-`;
+`
 
 const GET_EMPLOYEE_AVATAR_BY_EMPLOYEE_ID = `
   query GetEmployeeAvatarByEmployeeId($employeeId: uuid!) {
@@ -51,77 +51,76 @@ const GET_EMPLOYEE_AVATAR_BY_EMPLOYEE_ID = `
       }
     }
   }
-`;
+`
 
 export const useEmployeeAvatar = (accessToken: string, id?: string) => {
-  const [employeeData, setEmployeeData] = useState<EmployeeAvatarData | null>(null);
-  const [isLoading, setIsLoading] = useState(false);
-  const [error, setError] = useState<string | null>(null);
-  const graphqlClient = useGraphQLClient(accessToken);
+  const [employeeData, setEmployeeData] = useState<EmployeeAvatarData | null>(null)
+  const [isLoading, setIsLoading] = useState(false)
+  const [error, setError] = useState<string | null>(null)
+  const graphqlClient = useGraphQLClient(accessToken)
 
   const fetchEmployee = useCallback(
     async (id: string) => {
       if (!id || !accessToken) {
-        setEmployeeData(null);
-        setError(null);
-        return;
+        setEmployeeData(null)
+        setError(null)
+        return
       }
 
-      setIsLoading(true);
-      setError(null);
+      setIsLoading(true)
+      setError(null)
 
       try {
         // Try querying by userId first (Kogito tasks use userId)
         const userIdResult = await graphqlClient.request<{
-          Employee: EmployeeAvatarData[];
+          Employee: EmployeeAvatarData[]
         }>(GET_EMPLOYEE_AVATAR_BY_USER_ID, {
           userId: id
-        });
+        })
 
-        let employee = userIdResult?.Employee?.[0];
+        let employee = userIdResult?.Employee?.[0]
 
         // If not found by userId, try by employeeId (CFlow might use employeeId)
         if (!employee) {
           const employeeIdResult = await graphqlClient.request<{
             EmployeePosition: Array<{
-              employee: EmployeeAvatarData;
-            }>;
+              employee: EmployeeAvatarData
+            }>
           }>(GET_EMPLOYEE_AVATAR_BY_EMPLOYEE_ID, {
             employeeId: id
-          });
+          })
 
-          employee = employeeIdResult?.EmployeePosition?.[0]?.employee;
+          employee = employeeIdResult?.EmployeePosition?.[0]?.employee
         }
 
         if (employee) {
-          setEmployeeData(employee);
+          setEmployeeData(employee)
         } else {
-          setEmployeeData(null);
+          setEmployeeData(null)
         }
       } catch (err) {
-        setError(err instanceof Error ? err.message : 'Failed to fetch employee');
-        setEmployeeData(null);
+        setError(err instanceof Error ? err.message : 'Failed to fetch employee')
+        setEmployeeData(null)
       } finally {
-        setIsLoading(false);
+        setIsLoading(false)
       }
     },
     [accessToken, graphqlClient]
-  );
+  )
 
   useEffect(() => {
     if (id) {
-      fetchEmployee(id);
+      fetchEmployee(id)
     } else {
-      setEmployeeData(null);
-      setError(null);
+      setEmployeeData(null)
+      setError(null)
     }
-  }, [id, fetchEmployee]);
+  }, [id, fetchEmployee])
 
   return {
     employeeData,
     isLoading,
     error,
     refetch: () => (id ? fetchEmployee(id) : Promise.resolve())
-  };
-};
-
+  }
+}

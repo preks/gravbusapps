@@ -3,44 +3,43 @@
  * Catches and displays errors gracefully
  */
 
-import React, { Component, ErrorInfo, ReactNode } from 'react';
-import { Alert, AlertTitle, AlertDescription, Button } from '@newwork/nw-design-system';
-import { AlertTriangle } from 'lucide-react';
+import React, { Component, ReactNode } from 'react'
+import { Alert, AlertTitle, AlertDescription, Button } from '@newwork/nw-design-system'
+import { AlertTriangle } from 'lucide-react'
 
 interface ErrorBoundaryProps {
-  children: ReactNode;
+  children: ReactNode
 }
 
 interface ErrorBoundaryState {
-  hasError: boolean;
-  error: Error | null;
+  hasError: boolean
+  error: Error | null
 }
 
 export class ErrorBoundary extends Component<ErrorBoundaryProps, ErrorBoundaryState> {
   constructor(props: ErrorBoundaryProps) {
-    super(props);
+    super(props)
     this.state = {
       hasError: false,
       error: null
-    };
+    }
   }
 
   static getDerivedStateFromError(error: Error): ErrorBoundaryState {
     return {
       hasError: true,
       error
-    };
+    }
   }
 
-  componentDidCatch(_error: Error, _errorInfo: ErrorInfo): void {
-  }
+  componentDidCatch(): void {}
 
   handleReset = (): void => {
     this.setState({
       hasError: false,
       error: null
-    });
-  };
+    })
+  }
 
   render(): ReactNode {
     if (this.state.hasError) {
@@ -50,19 +49,16 @@ export class ErrorBoundary extends Component<ErrorBoundaryProps, ErrorBoundarySt
             <AlertTriangle className="gba:h-4 gba:w-4" />
             <AlertTitle>Something went wrong</AlertTitle>
             <AlertDescription className="gba:mt-2">
-              <p className="gba:mb-4">
-                {this.state.error?.message || 'An unexpected error occurred'}
-              </p>
+              <p className="gba:mb-4">{this.state.error?.message || 'An unexpected error occurred'}</p>
               <Button onClick={this.handleReset} variant="outline" size="sm">
                 Try Again
               </Button>
             </AlertDescription>
           </Alert>
         </div>
-      );
+      )
     }
 
-    return this.props.children;
+    return this.props.children
   }
 }
-

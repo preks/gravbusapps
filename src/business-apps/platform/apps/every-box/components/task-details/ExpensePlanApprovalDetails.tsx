@@ -15,22 +15,16 @@ import {
   AvatarImage,
   AvatarFallback
 } from '@newwork/nw-design-system'
-import {
-  PiReceipt,
-  PiCalendarDuotone,
-  PiClock,
-  PiMapPin,
-  PiUser,
-  PiBuilding,
-  PiFolder,
-  PiWallet
-} from 'react-icons/pi'
+import { PiReceipt, PiCalendarDuotone, PiClock, PiMapPin, PiUser, PiBuilding, PiFolder, PiWallet } from 'react-icons/pi'
 import { ThumbsUp, XCircle, MessageSquare } from 'lucide-react'
 import { UnifiedTask } from '../../types'
 import { useKogitoProcess } from '../../hooks/useKogitoProcess'
 import { useExpenseRelatedEntities } from '../../hooks/useExpenseRelatedEntities'
 import { formatDate } from '@/common/utils/windowUtils'
-import { getExpenseRequestStatusDisplay, formatCurrencyDisplay } from '@/business-apps/fin/expenses/apps/personal-expenses/utils'
+import {
+  getExpenseRequestStatusDisplay,
+  formatCurrencyDisplay
+} from '@/business-apps/fin/expenses/apps/personal-expenses/utils'
 import { getModuleInfo } from '../../utils/moduleIcons'
 
 interface ExpensePlanApprovalDetailsProps {
@@ -49,7 +43,6 @@ export const ExpensePlanApprovalDetails: React.FC<ExpensePlanApprovalDetailsProp
   accessToken,
   onClose,
   onTaskCompleted,
-  onTaskUpdated: _onTaskUpdated,
   employeeId
 }) => {
   const [showComment, setShowComment] = useState(false)
@@ -60,10 +53,8 @@ export const ExpensePlanApprovalDetails: React.FC<ExpensePlanApprovalDetailsProp
   const { continueProcess } = useKogitoProcess({
     task,
     accessToken,
-    onSuccess: () => {
-    },
-    onError: _error => {
-    }
+    onSuccess: () => {},
+    onError: () => {}
   })
 
   // Extract expense plan from task parameters
@@ -134,7 +125,7 @@ export const ExpensePlanApprovalDetails: React.FC<ExpensePlanApprovalDetailsProp
       message.success('Expense plan approved successfully')
       onTaskCompleted(task.id)
       onClose()
-    } catch (_error) {
+    } catch {
       message.error('Failed to approve expense plan')
     } finally {
       setIsApproving(false)
@@ -170,7 +161,7 @@ export const ExpensePlanApprovalDetails: React.FC<ExpensePlanApprovalDetailsProp
       message.success('Expense plan rejected')
       onTaskCompleted(task.id)
       onClose()
-    } catch (_error) {
+    } catch {
       message.error('Failed to reject expense plan')
     } finally {
       setIsRejecting(false)
@@ -471,4 +462,3 @@ export const ExpensePlanApprovalDetails: React.FC<ExpensePlanApprovalDetailsProp
     </div>
   )
 }
-

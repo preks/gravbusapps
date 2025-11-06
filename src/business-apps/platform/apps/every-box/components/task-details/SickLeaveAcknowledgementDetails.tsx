@@ -12,12 +12,7 @@ import {
   AvatarImage,
   AvatarFallback
 } from '@newwork/nw-design-system'
-import {
-  PiCalendarDuotone,
-  PiClock,
-  PiUser,
-  PiCheckCircle
-} from 'react-icons/pi'
+import { PiCalendarDuotone, PiClock, PiUser, PiCheckCircle } from 'react-icons/pi'
 import { Check } from 'lucide-react'
 import { UnifiedTask } from '../../types'
 import { useKogitoProcess } from '../../hooks/useKogitoProcess'
@@ -50,10 +45,8 @@ export const SickLeaveAcknowledgementDetails: React.FC<SickLeaveAcknowledgementD
   const { continueProcess } = useKogitoProcess({
     task,
     accessToken,
-    onSuccess: () => {
-    },
-    onError: _error => {
-    }
+    onSuccess: () => {},
+    onError: () => {}
   })
 
   const absence = taskDetails?.parameters?.employeeAbsence
@@ -195,7 +188,9 @@ export const SickLeaveAcknowledgementDetails: React.FC<SickLeaveAcknowledgementD
                   <AvatarImage src={entities.employee.avatarUrl} alt={entities.employee.displayName} />
                 ) : null}
                 <AvatarFallback className="gba:bg-gradient-to-br gba:from-blue-500 gba:to-purple-600 gba:text-white">
-                  {entities.employee?.displayName ? getInitials(entities.employee.displayName) : getInitials(creatorName)}
+                  {entities.employee?.displayName
+                    ? getInitials(entities.employee.displayName)
+                    : getInitials(creatorName)}
                 </AvatarFallback>
               </Avatar>
               <div>
@@ -250,7 +245,9 @@ export const SickLeaveAcknowledgementDetails: React.FC<SickLeaveAcknowledgementD
           </div>
           <div>
             <p className="gba:text-sm gba:text-muted-foreground">Calendar Days</p>
-            <p className="gba:text-base gba:font-semibold">{absence.calendarDays || 0} day{absence.calendarDays !== 1 ? 's' : ''}</p>
+            <p className="gba:text-base gba:font-semibold">
+              {absence.calendarDays || 0} day{absence.calendarDays !== 1 ? 's' : ''}
+            </p>
           </div>
           {absence.balance !== null && absence.balance !== undefined && (
             <div>
@@ -316,4 +313,3 @@ export const SickLeaveAcknowledgementDetails: React.FC<SickLeaveAcknowledgementD
     </div>
   )
 }
-

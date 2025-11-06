@@ -164,7 +164,6 @@ export const InboxView: React.FC<InboxViewProps> = ({
       setLocalTasks(prev => prev.filter(t => t.id !== taskId))
       setLocalCompletedTasks(prev => prev.filter(t => t.id !== taskId))
 
-
       // Close the task detail and clear URL
       handleCloseTask()
 
@@ -243,11 +242,7 @@ export const InboxView: React.FC<InboxViewProps> = ({
 
       // Don't interfere if user is typing in an input/textarea
       const target = e.target as HTMLElement
-      if (
-        target.tagName === 'INPUT' ||
-        target.tagName === 'TEXTAREA' ||
-        target.isContentEditable
-      ) {
+      if (target.tagName === 'INPUT' || target.tagName === 'TEXTAREA' || target.isContentEditable) {
         return
       }
 
@@ -293,15 +288,7 @@ export const InboxView: React.FC<InboxViewProps> = ({
 
     window.addEventListener('keydown', handleKeyDown)
     return () => window.removeEventListener('keydown', handleKeyDown)
-  }, [
-    selectedTask,
-    localTasks,
-    localCompletedTasks,
-    filterType,
-    searchQuery,
-    employeeMap,
-    handleSelectTask
-  ])
+  }, [selectedTask, localTasks, localCompletedTasks, filterType, searchQuery, employeeMap, handleSelectTask])
 
   // Filter tasks (tasks are already sorted by date from the API)
   const filteredTasks = useMemo(() => {

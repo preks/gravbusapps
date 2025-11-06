@@ -160,4 +160,3 @@ export const useTeamAbsences = ({
     refetch: fetchTeamAbsences
   }
 }
-

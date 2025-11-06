@@ -96,8 +96,7 @@ export const EveryBox: React.FC<EveryBoxProps> = ({ prefixDataTestId = 'every-bo
   const [activeTab, setActiveTab] = useState<ViewType>(getInitialView())
 
   // Debug logging
-  useEffect(() => {
-  }, [])
+  useEffect(() => {}, [])
 
   // Fetch inbox tasks (active)
   const {
@@ -158,7 +157,6 @@ export const EveryBox: React.FC<EveryBoxProps> = ({ prefixDataTestId = 'every-bo
 
   // Set up staggered polling intervals (SMART POLLING - no UI disruption)
   useEffect(() => {
-
     // Active tasks polling - uses backgroundRefresh (no UI reload)
     if (POLLING_CONFIG.activeTasks.enabled) {
       activeTasksIntervalRef.current = setInterval(() => {
@@ -233,7 +231,10 @@ export const EveryBox: React.FC<EveryBoxProps> = ({ prefixDataTestId = 'every-bo
               <CardContent className="gba:p-0 gba:flex gba:flex-col gba:h-full gba:overflow-hidden">
                 {/* Floating Header - Absolute positioned to not take vertical space */}
                 <div className="gba:absolute gba:top-2 gba:left-0 gba:right-0 gba:z-10 gba:flex gba:items-center gba:justify-between gba:pl-[42px] gba:pr-[46px]">
-                  <h1 className="gba:text-lg gba:font-bold gba:text-foreground" data-testid={`${prefixDataTestId}-title`}>
+                  <h1
+                    className="gba:text-lg gba:font-bold gba:text-foreground"
+                    data-testid={`${prefixDataTestId}-title`}
+                  >
                     EveryBox
                   </h1>
 

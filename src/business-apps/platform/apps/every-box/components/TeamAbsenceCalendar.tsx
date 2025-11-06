@@ -138,7 +138,7 @@ export const TeamAbsenceCalendar: React.FC<TeamAbsenceCalendarProps> = ({
       // Get absence type and color
       const statusDisplay = getAbsenceStatusDisplay(absence.status)
       const absenceType = absence.type?.value || 'Absence'
-      
+
       // Determine color based on status
       let color = 'gba:bg-info'
       if (statusDisplay.type === 'approved') {
@@ -213,19 +213,13 @@ export const TeamAbsenceCalendar: React.FC<TeamAbsenceCalendarProps> = ({
             <Table>
               <TableHeader>
                 <TableRow>
-                  <TableHead className="gba:w-48 gba:sticky gba:left-0 gba:bg-card gba:z-10">
-                    Team Member
-                  </TableHead>
+                  <TableHead className="gba:w-48 gba:sticky gba:left-0 gba:bg-card gba:z-10">Team Member</TableHead>
                   {calendarDays.map(day => (
                     <TableHead
                       key={day.dateString}
-                      className={`gba:text-center gba:min-w-[80px] ${
-                        day.isWeekend ? 'gba:bg-muted/50' : ''
-                      }`}
+                      className={`gba:text-center gba:min-w-[80px] ${day.isWeekend ? 'gba:bg-muted/50' : ''}`}
                     >
-                      <div className="gba:text-xs gba:font-normal gba:text-muted-foreground">
-                        {day.dayOfWeek}
-                      </div>
+                      <div className="gba:text-xs gba:font-normal gba:text-muted-foreground">{day.dayOfWeek}</div>
                       <div className="gba:text-sm gba:font-semibold">{day.dayNumber}</div>
                     </TableHead>
                   ))}
@@ -241,9 +235,7 @@ export const TeamAbsenceCalendar: React.FC<TeamAbsenceCalendarProps> = ({
                       <TableCell className="gba:sticky gba:left-0 gba:bg-card gba:z-10">
                         <div>
                           <div className="gba:font-medium gba:text-sm">{employeeName}</div>
-                          {department && (
-                            <div className="gba:text-xs gba:text-muted-foreground">{department}</div>
-                          )}
+                          {department && <div className="gba:text-xs gba:text-muted-foreground">{department}</div>}
                         </div>
                       </TableCell>
                       {calendarDays.map(day => {
@@ -252,9 +244,7 @@ export const TeamAbsenceCalendar: React.FC<TeamAbsenceCalendarProps> = ({
                         return (
                           <TableCell
                             key={day.dateString}
-                            className={`gba:text-center gba:p-2 ${
-                              day.isWeekend ? 'gba:bg-muted/30' : ''
-                            }`}
+                            className={`gba:text-center gba:p-2 ${day.isWeekend ? 'gba:bg-muted/30' : ''}`}
                           >
                             {absence ? (
                               <div

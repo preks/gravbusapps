@@ -3,12 +3,13 @@
  * Dedicated view for absence request approval tasks from Kogito
  */
 
-import React, { useState } from 'react'
-import { Button, Separator, Textarea, Switch, Label, Badge } from '@newwork/nw-design-system'
+import React, { useState, useEffect } from 'react'
+import { Button, Separator, Textarea, Switch, Label, Spinner } from '@newwork/nw-design-system'
 import { ThumbsUp, XCircle, MessageSquare, User } from 'lucide-react'
 import { message } from 'antd'
 import { UnifiedTask } from '../../types'
 import { useKogitoProcess } from '../../hooks/useKogitoProcess'
+import { useGraphqlClient } from '@/common/network/graphql/useGraphQLClient'
 import { TeamAbsenceCalendar } from '../TeamAbsenceCalendar'
 
 interface AbsenceApprovalDetailsProps {
@@ -32,6 +33,10 @@ export const AbsenceApprovalDetails: React.FC<AbsenceApprovalDetailsProps> = ({
   const [comment, setComment] = useState('')
   const [isApproving, setIsApproving] = useState(false)
   const [isRejecting, setIsRejecting] = useState(false)
+  const [substituteEmployeeName, setSubstituteEmployeeName] = useState<string>('')
+  const [isLoadingSubstitute, setIsLoadingSubstitute] = useState(false)
+
+  const graphqlClient = useGraphqlClient(accessToken)
 
   // Use common Kogito process hook
   const { continueProcess } = useKogitoProcess({
@@ -50,10 +55,48 @@ export const AbsenceApprovalDetails: React.FC<AbsenceApprovalDetailsProps> = ({
   const creatorName = taskInputs?.creatorName as string | undefined
   const supervisorId = userInfo?.employeeDetails?.employeeId
 
+  // Determine if this is a business trip (A101) which doesn't need balance display
+  const isBusinessTrip = employeeAbsence?.typeRef?.includes('A101')
+
+  // Fetch substitute employee name
+  useEffect(() => {
+    const fetchSubstituteEmployee = async () => {
+      if (!accessToken || !employeeAbsence?.substituteEmployee) return
+
+      setIsLoadingSubstitute(true)
+      try {
+        const employeeQuery = `
+          query GetEmployee($employeeId: uuid!) {
+            Employee(where: {id: {_eq: $employeeId}}, limit: 1) {
+              id
+              firstName
+              lastName
+              displayName
+            }
+          }
+        `
+
+        const response = await graphqlClient.request<{ Employee: any[] }>(employeeQuery, {
+          employeeId: employeeAbsence.substituteEmployee
+        })
+
+        if (response.Employee && response.Employee.length > 0) {
+          const employee = response.Employee[0]
+          setSubstituteEmployeeName(employee.displayName || `${employee.firstName} ${employee.lastName}`)
+        }
+      } catch (error) {
+        console.error('Error fetching substitute employee:', error)
+      } finally {
+        setIsLoadingSubstitute(false)
+      }
+    }
+
+    fetchSubstituteEmployee()
+  }, [accessToken, employeeAbsence?.substituteEmployee, graphqlClient])
+
   const handleApprove = async () => {
     setIsApproving(true)
     try {
-
       // Use the exact same payload structure as the platform
       await continueProcess({
         domain: 'employee-time',
@@ -101,7 +144,6 @@ export const AbsenceApprovalDetails: React.FC<AbsenceApprovalDetailsProps> = ({
 
     setIsRejecting(true)
     try {
-
       // Use the exact same payload structure as the platform
       await continueProcess({
         domain: 'employee-time',
@@ -198,7 +240,7 @@ export const AbsenceApprovalDetails: React.FC<AbsenceApprovalDetailsProps> = ({
                   <span className="gba:text-sm gba:flex-1">{employeeAbsence.workingHours} hours</span>
                 </div>
               )}
-              {employeeAbsence.balance !== undefined && (
+              {employeeAbsence.balance !== undefined && !isBusinessTrip && (
                 <div className="gba:flex gba:items-start gba:gap-3">
                   <span className="gba:text-sm gba:font-medium gba:text-muted-foreground gba:min-w-[140px]">
                     Remaining Balance:
@@ -208,24 +250,30 @@ export const AbsenceApprovalDetails: React.FC<AbsenceApprovalDetailsProps> = ({
                   </span>
                 </div>
               )}
-              {employeeAbsence.description && (
-                <div className="gba:flex gba:items-start gba:gap-3">
-                  <span className="gba:text-sm gba:font-medium gba:text-muted-foreground gba:min-w-[140px]">
-                    Description:
-                  </span>
-                  <span className="gba:text-sm gba:flex-1">
-                    {employeeAbsence.description || 'No description provided'}
-                  </span>
-                </div>
-              )}
-              {employeeAbsence.status && (
-                <div className="gba:flex gba:items-start gba:gap-3">
-                  <span className="gba:text-sm gba:font-medium gba:text-muted-foreground gba:min-w-[140px]">
-                    Status:
-                  </span>
-                  <Badge variant="warning">{employeeAbsence.status}</Badge>
-                </div>
-              )}
+              <div className="gba:flex gba:items-start gba:gap-3">
+                <span className="gba:text-sm gba:font-medium gba:text-muted-foreground gba:min-w-[140px]">
+                  Substitute:
+                </span>
+                <span className="gba:text-sm gba:flex-1 gba:text-muted-foreground">
+                  {employeeAbsence.substituteEmployee ? (
+                    isLoadingSubstitute ? (
+                      <Spinner size="sm" />
+                    ) : (
+                      substituteEmployeeName || 'Loading...'
+                    )
+                  ) : (
+                    'No substitute assigned'
+                  )}
+                </span>
+              </div>
+              <div className="gba:flex gba:items-start gba:gap-3">
+                <span className="gba:text-sm gba:font-medium gba:text-muted-foreground gba:min-w-[140px]">
+                  Description:
+                </span>
+                <span className="gba:text-sm gba:flex-1 gba:text-muted-foreground">
+                  {employeeAbsence.description?.trim() || 'No description provided'}
+                </span>
+              </div>
             </div>
           </div>
           <Separator />
@@ -253,7 +301,7 @@ export const AbsenceApprovalDetails: React.FC<AbsenceApprovalDetailsProps> = ({
             <div className="gba:flex gba:items-center gba:gap-2 gba:mb-3">
               <MessageSquare className="gba:h-4 gba:w-4" />
               <Label htmlFor="approval-comment" className="gba:text-sm gba:font-medium">
-                Add Comment {showComment && '(Required for rejection)'}
+                Add Comment (Required for rejection)
               </Label>
               <Switch
                 id="approval-comment"

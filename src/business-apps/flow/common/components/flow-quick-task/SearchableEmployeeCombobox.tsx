@@ -30,6 +30,7 @@ export interface SearchableEmployeeComboboxProps {
   loading?: boolean
   className?: string
   multiple?: boolean
+  showTeammatesHint?: boolean
 }
 
 // Helper to convert base64 to Object URL (for browser caching)
@@ -71,7 +72,8 @@ export const SearchableEmployeeCombobox: React.FC<SearchableEmployeeComboboxProp
   disabled = false,
   loading = false,
   className,
-  multiple = false
+  multiple = false,
+  showTeammatesHint = false
 }) => {
   const [open, setOpen] = useState(false)
   const [searchValue, setSearchValue] = useState('')
@@ -253,6 +255,11 @@ export const SearchableEmployeeCombobox: React.FC<SearchableEmployeeComboboxProp
         <DialogContent className="gba:max-w-2xl gba:max-h-[80vh] gba:flex gba:flex-col gba:p-0">
           <DialogHeader className="gba:px-6 gba:pt-6 gba:pb-4">
             <DialogTitle>Select Employees</DialogTitle>
+            {showTeammatesHint && !searchValue && options.length > 0 && (
+              <p className="gba:text-sm gba:text-muted-foreground gba:mt-2">
+                Showing your teammates. Type to search all employees.
+              </p>
+            )}
           </DialogHeader>
 
           <div className="gba:flex gba:flex-col gba:gap-4 gba:flex-1 gba:min-h-0 gba:px-6 gba:pb-4 gba:overflow-y-auto">

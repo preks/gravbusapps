@@ -3,25 +3,25 @@
  * Handles task operations (complete, reassign, reject, etc.)
  */
 
-import { useState, useCallback } from 'react';
-import { BusinessAppContextProps } from '@/common/BusinessAppContext';
-import { env } from '@/common/env/EnvUtils';
+import { useState, useCallback } from 'react'
+import { BusinessAppContextProps } from '@/common/BusinessAppContext'
+import { env } from '@/common/env/EnvUtils'
 
-const FLOW_ENGINE_API = env('NEXT_PUBLIC_CUSTOM_FLOW_ENGINE_API_URL') || 'https://newwork-dev.newwork.com/flow-engine';
+const FLOW_ENGINE_API = env('NEXT_PUBLIC_CUSTOM_FLOW_ENGINE_API_URL') || 'https://newwork-dev.newwork.com/flow-engine'
 
 export const useTaskActions = (context: BusinessAppContextProps) => {
-  const [isPerforming, setIsPerforming] = useState(false);
-  const [error, setError] = useState<string | null>(null);
+  const [isPerforming, setIsPerforming] = useState(false)
+  const [error, setError] = useState<string | null>(null)
 
-  const userId = context.userInfo?.employeeDetails?.employeeId || '';
+  const userId = context.userInfo?.employeeDetails?.employeeId || ''
 
   /**
    * Complete a task
    */
   const completeTask = useCallback(
     async (taskId: string, formData?: Record<string, any>): Promise<boolean> => {
-      setIsPerforming(true);
-      setError(null);
+      setIsPerforming(true)
+      setError(null)
 
       try {
         const response = await fetch(`${FLOW_ENGINE_API}/api/tasks/${taskId}/complete`, {
@@ -35,31 +35,31 @@ export const useTaskActions = (context: BusinessAppContextProps) => {
             action: 'COMPLETE',
             formData: formData || {}
           })
-        });
+        })
 
         if (!response.ok) {
-          throw new Error(`Failed to complete task: ${response.status}`);
+          throw new Error(`Failed to complete task: ${response.status}`)
         }
 
-        return true;
+        return true
       } catch (err) {
-        const errorMessage = err instanceof Error ? err.message : 'Failed to complete task';
-        setError(errorMessage);
-        return false;
+        const errorMessage = err instanceof Error ? err.message : 'Failed to complete task'
+        setError(errorMessage)
+        return false
       } finally {
-        setIsPerforming(false);
+        setIsPerforming(false)
       }
     },
     [userId, context.accessToken]
-  );
+  )
 
   /**
    * Reassign a task
    */
   const reassignTask = useCallback(
     async (taskId: string, newUserId: string): Promise<boolean> => {
-      setIsPerforming(true);
-      setError(null);
+      setIsPerforming(true)
+      setError(null)
 
       try {
         const response = await fetch(`${FLOW_ENGINE_API}/api/tasks/${taskId}/reassign`, {
@@ -72,31 +72,31 @@ export const useTaskActions = (context: BusinessAppContextProps) => {
             currentUserId: userId,
             newUserId
           })
-        });
+        })
 
         if (!response.ok) {
-          throw new Error(`Failed to reassign task: ${response.status}`);
+          throw new Error(`Failed to reassign task: ${response.status}`)
         }
 
-        return true;
+        return true
       } catch (err) {
-        const errorMessage = err instanceof Error ? err.message : 'Failed to reassign task';
-        setError(errorMessage);
-        return false;
+        const errorMessage = err instanceof Error ? err.message : 'Failed to reassign task'
+        setError(errorMessage)
+        return false
       } finally {
-        setIsPerforming(false);
+        setIsPerforming(false)
       }
     },
     [userId, context.accessToken]
-  );
+  )
 
   /**
    * Reject a task
    */
   const rejectTask = useCallback(
     async (taskId: string, comment?: string): Promise<boolean> => {
-      setIsPerforming(true);
-      setError(null);
+      setIsPerforming(true)
+      setError(null)
 
       try {
         const response = await fetch(`${FLOW_ENGINE_API}/api/tasks/${taskId}/reject`, {
@@ -110,31 +110,31 @@ export const useTaskActions = (context: BusinessAppContextProps) => {
             rejectionComment: comment || '',
             comment: comment || ''
           })
-        });
+        })
 
         if (!response.ok) {
-          throw new Error(`Failed to reject task: ${response.status}`);
+          throw new Error(`Failed to reject task: ${response.status}`)
         }
 
-        return true;
+        return true
       } catch (err) {
-        const errorMessage = err instanceof Error ? err.message : 'Failed to reject task';
-        setError(errorMessage);
-        return false;
+        const errorMessage = err instanceof Error ? err.message : 'Failed to reject task'
+        setError(errorMessage)
+        return false
       } finally {
-        setIsPerforming(false);
+        setIsPerforming(false)
       }
     },
     [userId, context.accessToken]
-  );
+  )
 
   /**
    * Add a comment to a task
    */
   const addComment = useCallback(
     async (taskId: string, comment: string): Promise<boolean> => {
-      setIsPerforming(true);
-      setError(null);
+      setIsPerforming(true)
+      setError(null)
 
       try {
         const response = await fetch(`${FLOW_ENGINE_API}/api/tasks/${taskId}/comment`, {
@@ -148,23 +148,23 @@ export const useTaskActions = (context: BusinessAppContextProps) => {
             comment,
             visibility: 'INTERNAL_TASK'
           })
-        });
+        })
 
         if (!response.ok) {
-          throw new Error(`Failed to add comment: ${response.status}`);
+          throw new Error(`Failed to add comment: ${response.status}`)
         }
 
-        return true;
+        return true
       } catch (err) {
-        const errorMessage = err instanceof Error ? err.message : 'Failed to add comment';
-        setError(errorMessage);
-        return false;
+        const errorMessage = err instanceof Error ? err.message : 'Failed to add comment'
+        setError(errorMessage)
+        return false
       } finally {
-        setIsPerforming(false);
+        setIsPerforming(false)
       }
     },
     [userId, context.accessToken]
-  );
+  )
 
   return {
     completeTask,
@@ -173,6 +173,5 @@ export const useTaskActions = (context: BusinessAppContextProps) => {
     addComment,
     isPerforming,
     error
-  };
-};
-
+  }
+}

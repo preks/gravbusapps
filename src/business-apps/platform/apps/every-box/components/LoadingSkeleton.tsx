@@ -3,12 +3,12 @@
  * Displays skeleton loading states for tasks and flows
  */
 
-import React from 'react';
-import { Card, CardContent, Skeleton } from '@newwork/nw-design-system';
+import React from 'react'
+import { Card, CardContent, Skeleton } from '@newwork/nw-design-system'
 
 interface LoadingSkeletonProps {
-  count?: number;
-  type?: 'task' | 'flow';
+  count?: number
+  type?: 'task' | 'flow'
 }
 
 export const LoadingSkeleton: React.FC<LoadingSkeletonProps> = ({ count = 3, type = 'task' }) => {
@@ -58,6 +58,5 @@ export const LoadingSkeleton: React.FC<LoadingSkeletonProps> = ({ count = 3, typ
         </Card>
       ))}
     </div>
-  );
-};
-
+  )
+}

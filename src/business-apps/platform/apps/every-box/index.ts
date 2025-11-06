@@ -2,6 +2,5 @@
  * EveryBox Module Exports
  */
 
-export { EveryBox as default } from './EveryBox';
-export * from './types';
-
+export { EveryBox as default } from './EveryBox'
+export * from './types'

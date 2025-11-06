@@ -48,7 +48,7 @@ const base64ToObjectURL = (base64Data: string): string | undefined => {
 
     // Create Object URL (this will be cached by the browser!)
     return URL.createObjectURL(blob)
-  } catch (_error) {
+  } catch {
     return undefined
   }
 }
@@ -139,7 +139,6 @@ export const useEmployeeAvatarsBatch = (accessToken: string, userIds: string[], 
         setError(null)
         return
       }
-
 
       setIsLoading(true)
       setError(null)

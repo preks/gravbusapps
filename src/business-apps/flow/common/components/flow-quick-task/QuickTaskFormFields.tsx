@@ -250,6 +250,7 @@ export const QuickTaskFormFields: React.FC<QuickTaskFormFieldsProps> = ({
                     disabled={employeesLoading || isSubmitting}
                     multiple={true}
                     loading={employeesLoading}
+                    showTeammatesHint={true}
                   />
                 )}
               </FormControl>

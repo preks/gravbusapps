@@ -1,13 +1,5 @@
 import React from 'react'
-import {
-  PiWallet,
-  PiCalendarCheck,
-  PiUserCircle,
-  PiBuildings,
-  PiBriefcase,
-  PiChartLine,
-  PiGear
-} from 'react-icons/pi'
+import { PiWallet, PiCalendarCheck, PiUserCircle, PiBuildings, PiBriefcase, PiChartLine, PiGear } from 'react-icons/pi'
 
 export type ModuleType = 'expenses' | 'absence' | 'hr' | 'crm' | 'finance' | 'admin' | 'platform' | 'unknown'
 
@@ -123,4 +115,3 @@ export const getModuleInfo = (taskName?: string, taskType?: string): ModuleInfo 
   const moduleType = getModuleFromTask(taskName, taskType)
   return MODULE_ICONS[moduleType]
 }
-

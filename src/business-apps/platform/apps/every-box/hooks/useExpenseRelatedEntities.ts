@@ -51,7 +51,7 @@ const base64ToObjectURL = (base64Data: string): string | undefined => {
 
     // Create Object URL (this will be cached by the browser!)
     return URL.createObjectURL(blob)
-  } catch (_error) {
+  } catch {
     return undefined
   }
 }
@@ -191,4 +191,3 @@ export const useExpenseRelatedEntities = ({
     refetch: fetchEntities
   }
 }
-

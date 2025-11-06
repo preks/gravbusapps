@@ -80,7 +80,6 @@ export const useInboxTasks = (context: BusinessAppContextProps): UseInboxTasksRe
     setError(null)
 
     try {
-
       // Fetch multiple batches in parallel for accurate count
       const batchPromises = []
       for (let i = 0; i < INITIAL_BATCH_COUNT; i++) {
@@ -98,7 +97,6 @@ export const useInboxTasks = (context: BusinessAppContextProps): UseInboxTasksRe
         const bTime = new Date(b.createdAt || b.scheduledAt || 0).getTime()
         return bTime - aTime
       })
-
 
       // Store task IDs for change detection
       lastTaskIdsRef.current = new Set(sortedTasks.map(t => t.id))
@@ -125,7 +123,6 @@ export const useInboxTasks = (context: BusinessAppContextProps): UseInboxTasksRe
     }
 
     try {
-
       // Fetch only first batch to check for new tasks
       const batch = await fetchBatch(0)
 
@@ -139,9 +136,9 @@ export const useInboxTasks = (context: BusinessAppContextProps): UseInboxTasksRe
 
       if (hasNewTasksDetected) {
         setHasNewTasks(true)
-      } else {
       }
-    } catch (_err) {
+    } catch {
+      // Ignore background refresh errors
     }
   }, [userId, isLoading, fetchBatch])
 
@@ -188,7 +185,6 @@ export const useInboxTasks = (context: BusinessAppContextProps): UseInboxTasksRe
 
     setIsLoading(true)
     try {
-
       const nextOffset = allFetchedTasks.length
       const batch = await fetchBatch(nextOffset)
 

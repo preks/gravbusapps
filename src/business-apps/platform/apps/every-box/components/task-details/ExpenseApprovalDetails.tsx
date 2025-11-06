@@ -23,14 +23,18 @@ import {
   PiUser,
   PiBuilding,
   PiFolder,
-  PiWallet
+  PiWallet,
+  PiWarning
 } from 'react-icons/pi'
 import { ThumbsUp, XCircle, MessageSquare } from 'lucide-react'
 import { UnifiedTask } from '../../types'
 import { useKogitoProcess } from '../../hooks/useKogitoProcess'
 import { useExpenseRelatedEntities } from '../../hooks/useExpenseRelatedEntities'
 import { formatDate } from '@/common/utils/windowUtils'
-import { getExpenseRequestStatusDisplay, formatCurrencyDisplay } from '@/business-apps/fin/expenses/apps/personal-expenses/utils'
+import {
+  getExpenseRequestStatusDisplay,
+  formatCurrencyDisplay
+} from '@/business-apps/fin/expenses/apps/personal-expenses/utils'
 import { getModuleInfo } from '../../utils/moduleIcons'
 
 interface ExpenseApprovalDetailsProps {
@@ -41,6 +45,7 @@ interface ExpenseApprovalDetailsProps {
   onTaskCompleted: (taskId: string) => void
   onTaskUpdated: () => void
   employeeId?: string // Current user's employee ID for approval comments
+  isStoreDirectorApproval?: boolean // Flag for Store Director approval workflow
 }
 
 export const ExpenseApprovalDetails: React.FC<ExpenseApprovalDetailsProps> = ({
@@ -50,7 +55,8 @@ export const ExpenseApprovalDetails: React.FC<ExpenseApprovalDetailsProps> = ({
   onClose,
   onTaskCompleted,
   onTaskUpdated,
-  employeeId
+  employeeId,
+  isStoreDirectorApproval = false
 }) => {
   const [showComment, setShowComment] = useState(false)
   const [comment, setComment] = useState('')
@@ -60,14 +66,13 @@ export const ExpenseApprovalDetails: React.FC<ExpenseApprovalDetailsProps> = ({
   const { continueProcess } = useKogitoProcess({
     task,
     accessToken,
-    onSuccess: () => {
-    },
-    onError: _error => {
-    }
+    onSuccess: () => {},
+    onError: () => {}
   })
 
   // Extract expense request from task parameters
-  const expenseRequest = taskDetails?.parameters?.expenseRequest
+  // Try taskDetails first, fallback to sourceMetadata.inputs (for tasks where taskDetails is null)
+  const expenseRequest = taskDetails?.parameters?.expenseRequest || task.sourceMetadata?.inputs?.expenseRequest
 
   // Fetch related entities (employee, cost center, project)
   const { entities, isLoading: isLoadingEntities } = useExpenseRelatedEntities({
@@ -131,7 +136,6 @@ export const ExpenseApprovalDetails: React.FC<ExpenseApprovalDetailsProps> = ({
   const handleApprove = async () => {
     setIsApproving(true)
     try {
-
       // Create approval payload with correct structure
       await continueProcess({
         domain: 'employee-expense',
@@ -149,7 +153,9 @@ export const ExpenseApprovalDetails: React.FC<ExpenseApprovalDetailsProps> = ({
       })
 
       message.success({
-        content: 'Expense request approved successfully',
+        content: isStoreDirectorApproval
+          ? 'Expense request approved by Store Director'
+          : 'Expense request approved successfully',
         duration: 3
       })
 
@@ -184,7 +190,6 @@ export const ExpenseApprovalDetails: React.FC<ExpenseApprovalDetailsProps> = ({
 
     setIsRejecting(true)
     try {
-
       // Create rejection payload with correct structure
       await continueProcess({
         domain: 'employee-expense',
@@ -203,7 +208,9 @@ export const ExpenseApprovalDetails: React.FC<ExpenseApprovalDetailsProps> = ({
       })
 
       message.success({
-        content: 'Expense request rejected successfully',
+        content: isStoreDirectorApproval
+          ? 'Expense request rejected by Store Director'
+          : 'Expense request rejected successfully',
         duration: 3
       })
 
@@ -237,6 +244,26 @@ export const ExpenseApprovalDetails: React.FC<ExpenseApprovalDetailsProps> = ({
         <ModuleIcon className={`gba:h-5 gba:w-5 ${moduleInfo.color}`} />
         <span className="gba:text-xs gba:font-medium gba:text-muted-foreground">{moduleInfo.name}</span>
       </div>
+
+      {/* Store Director Approval Notice */}
+      {isStoreDirectorApproval && (
+        <Card className="gba:bg-warning-secondary gba:border-warning">
+          <CardContent className="gba:pt-4">
+            <div className="gba:flex gba:items-start gba:gap-3">
+              <PiWarning className="gba:h-5 gba:w-5 gba:text-warning gba:flex-shrink-0 gba:mt-0.5" />
+              <div>
+                <h3 className="gba:text-sm gba:font-semibold gba:text-warning-foreground gba:mb-1">
+                  Store Director Approval Required
+                </h3>
+                <p className="gba:text-xs gba:text-warning-foreground">
+                  This expense request requires your approval as Store Director. Please review all details carefully
+                  before making a decision.
+                </p>
+              </div>
+            </div>
+          </CardContent>
+        </Card>
+      )}
 
       {/* Header Section */}
       <div className="gba:flex gba:justify-between gba:items-start">
@@ -349,7 +376,7 @@ export const ExpenseApprovalDetails: React.FC<ExpenseApprovalDetailsProps> = ({
               {formatCurrencyDisplay(expenseRequest.totalAmount, currencyCode)}
             </span>
           </div>
-          
+
           <div className="gba:grid gba:grid-cols-2 gba:gap-4 gba:pt-2 gba:border-t">
             <div>
               <p className="gba:text-xs gba:text-muted-foreground gba:mb-1">Expenses</p>
@@ -407,7 +434,8 @@ export const ExpenseApprovalDetails: React.FC<ExpenseApprovalDetailsProps> = ({
             <div className="gba:flex-1">
               <p className="gba:text-xs gba:text-muted-foreground gba:mb-1">Duration</p>
               <p className="gba:text-sm gba:font-medium gba:text-foreground">
-                {formatDate(expenseRequest.startDate, 'date.short')} → {formatDate(expenseRequest.endDate, 'date.short')}
+                {formatDate(expenseRequest.startDate, 'date.short')} →{' '}
+                {formatDate(expenseRequest.endDate, 'date.short')}
               </p>
             </div>
           </div>
@@ -518,4 +546,3 @@ export const ExpenseApprovalDetails: React.FC<ExpenseApprovalDetailsProps> = ({
     </div>
   )
 }
-

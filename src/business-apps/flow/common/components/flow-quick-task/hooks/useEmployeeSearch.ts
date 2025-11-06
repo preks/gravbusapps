@@ -8,6 +8,7 @@ interface UseEmployeeSearchResult {
   loading: boolean
   error: Error | null
   searchEmployees: (searchTerm: string) => Promise<void>
+  initialLoadComplete: boolean
 }
 
 interface UseEmployeeSearchOptions {
@@ -27,8 +28,9 @@ export const useEmployeeSearch = (options: UseEmployeeSearchOptions | string): U
   const { accessToken, currentUserId } =
     typeof options === 'string' ? { accessToken: options, currentUserId: undefined } : options
   const [employees, setEmployees] = useState<Employee[]>([])
-  const [loading, setLoading] = useState<boolean>(false)
+  const [loading, setLoading] = useState<boolean>(true) // Start with true to show initial load
   const [error, setError] = useState<Error | null>(null)
+  const [initialLoadComplete, setInitialLoadComplete] = useState<boolean>(false)
 
   const graphqlClient = useGraphQLClient(accessToken)
   const abortControllerRef = useRef<AbortController | null>(null)
@@ -233,6 +235,11 @@ export const useEmployeeSearch = (options: UseEmployeeSearchOptions | string): U
           .filter((emp: Employee) => !currentUserId || emp.userId !== currentUserId)
 
         setEmployees(formattedEmployees)
+
+        // Mark initial load as complete only for the first successful load
+        if (!initialLoadComplete && isInitialLoad) {
+          setInitialLoadComplete(true)
+        }
       } catch (err: any) {
         // Ignore abort errors
         if (err.name === 'AbortError') {
@@ -244,7 +251,7 @@ export const useEmployeeSearch = (options: UseEmployeeSearchOptions | string): U
         setLoading(false)
       }
     },
-    [accessToken, graphqlClient]
+    [accessToken, graphqlClient, initialLoadComplete]
   )
 
   // Cleanup: abort any pending requests when component unmounts
@@ -260,6 +267,7 @@ export const useEmployeeSearch = (options: UseEmployeeSearchOptions | string): U
     employees,
     loading,
     error,
-    searchEmployees
+    searchEmployees,
+    initialLoadComplete
   }
 }
