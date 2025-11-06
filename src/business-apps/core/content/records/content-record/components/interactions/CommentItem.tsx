@@ -37,7 +37,14 @@ export const CommentItem: React.FC<CommentItemProps> = ({
   const [isCollapsed, setIsCollapsed] = useState(false)
 
   const isOwnComment = currentUserId === comment.createdBy
-  const initials = 'U' // Placeholder - would need user data to get real initials
+  const displayName = comment.creatorDisplayName || 'Unknown User'
+  const initials =
+    displayName
+      .split(' ')
+      .map(n => n[0])
+      .join('')
+      .toUpperCase()
+      .slice(0, 2) || 'U'
   const formattedDate = dayjs(comment.createdAt).fromNow()
 
   // Count total replies
@@ -97,7 +104,9 @@ export const CommentItem: React.FC<CommentItemProps> = ({
         <div className="gba:flex-1 gba:space-y-1">
           {/* Header */}
           <div className="gba:flex gba:items-center gba:gap-2">
-            <span className="gba:text-sm gba:font-semibold gba:text-foreground">{isOwnComment ? 'You' : 'User'}</span>
+            <span className="gba:text-sm gba:font-semibold gba:text-foreground">
+              {isOwnComment ? 'You' : displayName}
+            </span>
             <span className="gba:text-xs gba:text-muted-foreground">{formattedDate}</span>
             {isCollapsed && totalReplies > 0 && (
               <button

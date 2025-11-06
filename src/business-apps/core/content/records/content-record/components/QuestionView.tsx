@@ -1,12 +1,13 @@
 import React, { useState, useMemo } from 'react'
 import { useTranslation } from '@newwork/nw-design-system'
 import { Badge, Button, Alert, AlertTitle, AlertDescription } from '@newwork/nw-design-system'
-import { MessageCircle, CheckCircle, Share2 } from 'lucide-react'
+import { MessageCircle, CheckCircle, Share2, ChevronDown, ChevronUp } from 'lucide-react'
 import { ContentEntry } from '@/common/data/content/types/contentTypes'
 import { useContentComments, CommentWithReplies } from '@/common/data/content'
 import { useUserContentReactions } from '@/common/data/content'
 import { VoteButtons, type VoteState } from '@/common/components/common-content'
-import CommentThreadView from '@/business-apps/core/content/records/content-record/components/interactions/CommentThreadView'
+import CommentForm from './interactions/CommentForm'
+import CommentItem from './interactions/CommentItem'
 import AnswerForm from './AnswerForm'
 import translations from '../_i18n'
 
@@ -29,7 +30,7 @@ const QuestionView: React.FC<QuestionViewProps> = ({
   reactionCatalogMap = {}
 }) => {
   const { t } = useTranslation(translations)
-  const [viewingThread, setViewingThread] = useState<CommentWithReplies | null>(null)
+  const [expandedAnswerId, setExpandedAnswerId] = useState<string | null>(null)
   const [showAnswerForm, setShowAnswerForm] = useState(false)
 
   // Find catalog IDs for +1 and -1 reactions from the map
@@ -116,32 +117,8 @@ const QuestionView: React.FC<QuestionViewProps> = ({
     refetchReactions()
   }
 
-  const handleViewThread = (answer: CommentWithReplies) => {
-    setViewingThread(answer)
-  }
-
-  const handleBackToAnswers = () => {
-    setViewingThread(null)
-  }
-
-  // If viewing a specific answer thread, show thread view
-  if (viewingThread) {
-    return (
-      <div className="gba:overflow-y-auto gba:mb-6" data-testid="question-view-thread">
-        <div className="gba:max-w-[1000px] gba:mx-auto gba:px-4 gba:mt-6">
-          <CommentThreadView
-            rootComment={viewingThread}
-            articleId={item.id}
-            accessToken={accessToken}
-            employeeId={employeeId || ''}
-            currentUserId={userId}
-            onCommentCreated={refetch}
-            onBack={handleBackToAnswers}
-            data-testid="question-answer-thread"
-          />
-        </div>
-      </div>
-    )
+  const toggleAnswerComments = (answerId: string) => {
+    setExpandedAnswerId(expandedAnswerId === answerId ? null : answerId)
   }
 
   return (
@@ -288,6 +265,8 @@ const QuestionView: React.FC<QuestionViewProps> = ({
           sortedAnswers.map((answer, index) => {
             const answerVotes = getVoteCounts(answer.id)
             const isAccepted = index === 0 && answerVotes.score > 0 // First answer with positive score
+            const isExpanded = expandedAnswerId === answer.id
+            const commentCount = answer.replies?.length || 0
 
             return (
               <div
@@ -340,21 +319,120 @@ const QuestionView: React.FC<QuestionViewProps> = ({
                       )}
                     </div>
 
-                    {/* Comments on Answer */}
-                    <div className="gba:flex gba:items-center gba:gap-4">
+                    {/* Comments Toggle Button */}
+                    <div className="gba:flex gba:items-center gba:gap-2">
                       <Button
                         variant="ghost"
                         size="sm"
-                        onClick={() => handleViewThread(answer)}
-                        className="gba:text-muted-foreground hover:gba:text-foreground"
-                        data-testid={`view-answer-comments-${answer.id}`}
+                        onClick={() => toggleAnswerComments(answer.id)}
+                        className="gba:text-muted-foreground hover:gba:text-foreground gba:gap-2"
+                        data-testid={`toggle-answer-comments-${answer.id}`}
                       >
-                        <MessageCircle className="gba:w-4 gba:h-4 gba:mr-1" />
-                        {answer.replies && answer.replies.length > 0
-                          ? `${answer.replies.length} ${answer.replies.length === 1 ? t('comment') : t('comments')}`
+                        <MessageCircle className="gba:w-4 gba:h-4" />
+                        {commentCount > 0
+                          ? `${commentCount} ${commentCount === 1 ? t('comment') : t('comments')}`
                           : t('add_comment')}
+                        {isExpanded ? (
+                          <ChevronUp className="gba:w-4 gba:h-4" />
+                        ) : (
+                          <ChevronDown className="gba:w-4 gba:h-4" />
+                        )}
                       </Button>
                     </div>
+
+                    {/* Expanded Comments Section */}
+                    {isExpanded && (
+                      <div className="gba:mt-4 gba:pt-4 gba:border-t gba:border-border">
+                        {/* Comment Form */}
+                        <div className="gba:mb-6">
+                          <CommentForm
+                            articleId={answer.id}
+                            parentCommentId={null}
+                            accessToken={accessToken || ''}
+                            employeeId={employeeId || ''}
+                            onSuccess={refetch}
+                            placeholder={t('add_comment')}
+                            data-testid={`answer-comment-form-${answer.id}`}
+                          />
+                        </div>
+
+                        {/* Comments Header */}
+                        <div className="gba:flex gba:items-center gba:gap-2 gba:mb-4">
+                          <MessageCircle className="gba:w-4 gba:h-4 gba:text-muted-foreground" />
+                          <h3 className="gba:text-sm gba:font-semibold gba:text-foreground">
+                            {commentCount > 0 ? `Comments (${commentCount})` : t('no_comments_yet')}
+                          </h3>
+                        </div>
+
+                        {/* Comments List */}
+                        {answer.replies && answer.replies.length > 0 ? (
+                          <div className="gba:space-y-4">
+                            {answer.replies.map(comment => {
+                              // Flatten replies
+                              const flattenReplies = (c: CommentWithReplies): CommentWithReplies[] => {
+                                const allReplies: CommentWithReplies[] = []
+                                const collectReplies = (replies: CommentWithReplies[]) => {
+                                  replies.forEach(reply => {
+                                    const flatReply: CommentWithReplies = {
+                                      ...reply,
+                                      replies: []
+                                    }
+                                    allReplies.push(flatReply)
+                                    if (reply.replies && reply.replies.length > 0) {
+                                      collectReplies(reply.replies)
+                                    }
+                                  })
+                                }
+                                if (c.replies && c.replies.length > 0) {
+                                  collectReplies(c.replies)
+                                }
+                                return allReplies
+                              }
+
+                              const flatReplies = flattenReplies(comment)
+
+                              return (
+                                <div key={comment.id}>
+                                  {/* Top-level comment */}
+                                  <CommentItem
+                                    comment={{ ...comment, replies: [] }}
+                                    articleId={answer.id}
+                                    accessToken={accessToken || ''}
+                                    employeeId={employeeId || ''}
+                                    currentUserId={userId}
+                                    onCommentCreated={refetch}
+                                    depth={0}
+                                    data-testid={`answer-comment-${comment.id}`}
+                                  />
+                                  {/* Flattened replies */}
+                                  {flatReplies.length > 0 && (
+                                    <div className="gba:space-y-3">
+                                      {flatReplies.map(reply => (
+                                        <CommentItem
+                                          key={reply.id}
+                                          comment={reply}
+                                          articleId={answer.id}
+                                          accessToken={accessToken || ''}
+                                          employeeId={employeeId || ''}
+                                          currentUserId={userId}
+                                          onCommentCreated={refetch}
+                                          depth={1}
+                                          data-testid={`answer-reply-${reply.id}`}
+                                        />
+                                      ))}
+                                    </div>
+                                  )}
+                                </div>
+                              )
+                            })}
+                          </div>
+                        ) : (
+                          <div className="gba:text-center gba:py-8 gba:text-muted-foreground">
+                            <p>{t('no_comments_yet')}</p>
+                          </div>
+                        )}
+                      </div>
+                    )}
                   </div>
                 </div>
               </div>

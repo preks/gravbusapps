@@ -28,16 +28,35 @@ export const CommentThreadView: React.FC<CommentThreadViewProps> = ({
 }) => {
   const { t } = useTranslation('content')
 
-  // Count total replies in thread
-  const countReplies = (comment: CommentWithReplies): number => {
-    let count = comment.replies?.length || 0
-    comment.replies?.forEach(reply => {
-      count += countReplies(reply)
-    })
-    return count
+  // Flatten all replies to a single level (no nested replies within replies)
+  const flattenReplies = (comment: CommentWithReplies): CommentWithReplies[] => {
+    const allReplies: CommentWithReplies[] = []
+
+    const collectReplies = (replies: CommentWithReplies[]) => {
+      replies.forEach(reply => {
+        // Create a new object with explicitly empty replies to prevent any nesting
+        const flatReply: CommentWithReplies = {
+          ...reply,
+          replies: [] as CommentWithReplies[]
+        }
+        allReplies.push(flatReply)
+
+        // Recursively collect any nested replies
+        if (reply.replies && reply.replies.length > 0) {
+          collectReplies(reply.replies)
+        }
+      })
+    }
+
+    if (comment.replies && comment.replies.length > 0) {
+      collectReplies(comment.replies)
+    }
+
+    return allReplies
   }
 
-  const totalReplies = countReplies(rootComment)
+  const flatReplies = flattenReplies(rootComment)
+  const totalReplies = flatReplies.length
 
   return (
     <div className="gba:space-y-4" data-testid={dataTestId}>
@@ -62,17 +81,38 @@ export const CommentThreadView: React.FC<CommentThreadViewProps> = ({
       {/* Thread Content */}
       <Card>
         <CardContent className="gba:p-4">
-          <CommentItem
-            comment={rootComment}
-            articleId={articleId}
-            accessToken={accessToken}
-            employeeId={employeeId}
-            currentUserId={currentUserId}
-            onCommentCreated={onCommentCreated}
-            depth={0}
-            showAllReplies={true}
-            data-testid={`${dataTestId}-item`}
-          />
+          <div className="gba:space-y-3">
+            {/* Root Comment (without replies) */}
+            <CommentItem
+              comment={{ ...rootComment, replies: [] }}
+              articleId={articleId}
+              accessToken={accessToken}
+              employeeId={employeeId}
+              currentUserId={currentUserId}
+              onCommentCreated={onCommentCreated}
+              depth={0}
+              data-testid={`${dataTestId}-item`}
+            />
+
+            {/* All Replies Flattened at Same Level */}
+            {flatReplies.length > 0 && (
+              <div className="gba:space-y-3">
+                {flatReplies.map(reply => (
+                  <CommentItem
+                    key={reply.id}
+                    comment={reply}
+                    articleId={articleId}
+                    accessToken={accessToken}
+                    employeeId={employeeId}
+                    currentUserId={currentUserId}
+                    onCommentCreated={onCommentCreated}
+                    depth={1}
+                    data-testid={`${dataTestId}-reply`}
+                  />
+                ))}
+              </div>
+            )}
+          </div>
         </CardContent>
       </Card>
     </div>
