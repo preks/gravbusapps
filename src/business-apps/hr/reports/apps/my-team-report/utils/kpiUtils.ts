@@ -273,8 +273,8 @@ const createCatalogTypeCards = (
   iconName: string,
   row: number
 ): KpiCardData[] => {
-  const employeeSingular = getTranslationFromI18nKeyAndLabel('lowcoder:team_report_kpi.employee', 'employee')
-  const employeesPlural = getTranslationFromI18nKeyAndLabel('lowcoder:team_report_kpi.employees', 'employees')
+  const employeeSingular = getTranslationFromI18nKeyAndLabel('lowcoder:absence_table.employee', 'employee')
+  const employeesPlural = getTranslationFromI18nKeyAndLabel('lowcoder:employee_list.employee_list_title', 'employees')
   const cards: KpiCardData[] = []
 
   catalogEntries.forEach(entry => {
@@ -283,7 +283,7 @@ const createCatalogTypeCards = (
       cards.push({
         key: `${keyPrefix}-${entry.id}`,
         label: entry.value,
-        subLabel: `${count} ${count === 1 ? employeeSingular : employeesPlural}`,
+        subLabel: `${count === 1 ? employeeSingular : employeesPlural}`,
         value: count,
         iconName,
         shouldShow: true,
@@ -341,32 +341,67 @@ export const generateKpiCards = (
 }
 
 export const matchesKpi = (employee: Employee, activeKpi: string): boolean => {
-  switch (activeKpi) {
-    case 'all':
-      return true
-    case 'tenure':
-      return !!employee.startDate
-    case 'internal': {
-      const value = employee.employmentType?.value || ''
-      return value === 'Internal'
-    }
-    case 'external': {
-      const value = employee.employmentType?.value || ''
-      return value === 'External'
-    }
-    case 'contract': {
-      const value = employee.employmentType?.value || ''
-      return value === 'Contract worker'
-    }
-    case 'fulltime': {
-      const value = employee.contractType?.value || ''
-      return value.toLowerCase().includes('full time')
-    }
-    case 'parttime': {
-      const value = employee.contractType?.value || ''
-      return value.toLowerCase().includes('part time')
-    }
-    default:
-      return true
+  if (activeKpi === 'all') {
+    return true
   }
+
+  if (activeKpi === 'tenure') {
+    return !!employee.startDate
+  }
+
+  if (activeKpi.startsWith('contract-type-')) {
+    const contractTypeId = activeKpi.replace('contract-type-', '')
+    const employeeContractTypeId = (employee.contractType as any)?.id
+    return employeeContractTypeId === contractTypeId
+  }
+
+  if (activeKpi.startsWith('employment-type-')) {
+    const employmentTypeId = activeKpi.replace('employment-type-', '')
+    const employeeEmploymentTypeId = (employee.employmentType as any)?.id
+    return employeeEmploymentTypeId === employmentTypeId
+  }
+
+  if (activeKpi === 'internal') {
+    const value = employee.employmentType?.value || ''
+    return value === 'Internal'
+  }
+
+  if (activeKpi === 'external') {
+    const value = employee.employmentType?.value || ''
+    return value === 'External'
+  }
+
+  if (activeKpi === 'contract') {
+    const value = employee.employmentType?.value || ''
+    return value === 'Contract worker'
+  }
+
+  if (activeKpi === 'fulltime') {
+    const value = employee.contractType?.value || ''
+    return value.toLowerCase().includes('full time')
+  }
+
+  if (activeKpi === 'parttime') {
+    const value = employee.contractType?.value || ''
+    return value.toLowerCase().includes('part time')
+  }
+
+  if (activeKpi === 'expiring-contracts') {
+    if (!employee.exitDate) return false
+    const exitDate = dayjs(employee.exitDate)
+    const today = dayjs().startOf('day')
+    const days90 = today.add(90, 'day')
+    return exitDate.isAfter(today) && (exitDate.isBefore(days90) || exitDate.isSame(days90, 'day'))
+  }
+
+  if (activeKpi === 'probation-review') {
+    return false
+  }
+
+  if (activeKpi === 'contract-start') {
+    if (!employee.startDate) return false
+    return isDateInMonth(employee.startDate)
+  }
+
+  return true
 }
