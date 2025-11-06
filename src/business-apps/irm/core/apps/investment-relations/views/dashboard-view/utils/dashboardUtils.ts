@@ -7,55 +7,19 @@ import {
   OpportunityFunnelData,
   PipelineMetrics
 } from '../types/dashboardTypes'
+import { extractCurrencyCode, formatCurrencyCompact } from '@/common/utils/numberFormatter'
 
-/**
- * Extract currency code from API format (Currency:v1:EUR -> EUR)
- */
-export const extractCurrencyCode = (currencyId: string): string => {
-  if (!currencyId) return 'EUR'
-  const parts = currencyId.split(':')
-  return parts[parts.length - 1] || 'EUR'
-}
+// Re-export extractCurrencyCode from central utils for backward compatibility
+export { extractCurrencyCode }
 
 /**
  * Format currency value for display with compact formatting for large numbers
+ * Uses central numberFormatter with skipThousands=true to show thousands as full numbers
  */
 export const formatCurrency = (amount: number, currencyCode: string = 'EUR'): string => {
   try {
     if (amount === undefined || amount === null || !isFinite(amount)) return '-'
-
-    const abs = Math.abs(amount)
-    const sign = amount < 0 ? '-' : ''
-
-    if (abs >= 1_000_000_000) {
-      // Billions
-      const formatted = new Intl.NumberFormat('en-US', {
-        style: 'currency',
-        currency: currencyCode,
-        maximumFractionDigits: 1,
-        minimumFractionDigits: 0
-      }).format(abs / 1_000_000_000)
-      return `${sign}${formatted}B`
-    }
-
-    if (abs >= 1_000_000) {
-      // Millions
-      const formatted = new Intl.NumberFormat('en-US', {
-        style: 'currency',
-        currency: currencyCode,
-        maximumFractionDigits: 1,
-        minimumFractionDigits: 0
-      }).format(abs / 1_000_000)
-      return `${sign}${formatted}M`
-    }
-
-    // Thousands and below - show as normal currency
-    return new Intl.NumberFormat('en-US', {
-      style: 'currency',
-      currency: currencyCode,
-      maximumFractionDigits: 0,
-      minimumFractionDigits: 0
-    }).format(amount)
+    return formatCurrencyCompact(amount, currencyCode, undefined, 1, true)
   } catch {
     return `${currencyCode} ${amount.toLocaleString()}`
   }

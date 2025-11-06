@@ -3,7 +3,7 @@ import { DollarOutlined, StarOutlined, UserOutlined, CalendarOutlined } from '@a
 import { AppActionButton } from '@/components/app-action-button/AppActionButton'
 import { FlowContextName } from '@/common/types/FlowRegistryTypes'
 import { Opportunity } from '../types'
-import { formatCurrency, extractCurrencyCode } from '@/business-apps/crm/common/utils/currencyUtils'
+import { formatCurrency, extractCurrencyCode } from '@/common/utils/numberFormatter'
 
 interface OpportunityHeaderProps {
   opportunity: Opportunity

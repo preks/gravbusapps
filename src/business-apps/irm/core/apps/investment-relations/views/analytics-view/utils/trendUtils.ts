@@ -1,3 +1,5 @@
+import { extractCurrencyCode, formatCurrencyCompact } from '@/common/utils/numberFormatter'
+
 // Helper function to calculate trend
 export const calculateTrend = (
   current: number,
@@ -23,6 +25,7 @@ export const calculateTrend = (
 }
 
 // Helper function to format currency
+// Uses central numberFormatter with skipThousands for compact formatting
 export const formatCurrency = (
   amount: number,
   options?: {
@@ -32,10 +35,13 @@ export const formatCurrency = (
 ): string => {
   const { compact = false, currency = 'USD' } = options || {}
 
+  if (compact) {
+    return formatCurrencyCompact(amount, currency, undefined, 1, true)
+  }
+
   return new Intl.NumberFormat('en-US', {
     style: 'currency',
-    currency,
-    ...(compact ? { notation: 'compact', maximumFractionDigits: 1 } : {})
+    currency
   }).format(amount)
 }
 
@@ -49,7 +55,5 @@ export const getTrendColor = (positive: boolean): string => {
   return positive ? '#10B981' : '#EF4444' // Green for positive, red for negative
 }
 
-// Helper function to extract currency code from API format
-export const extractCurrencyCode = (currencyId: string): string => {
-  return currencyId.split(':').pop() || 'EUR'
-}
+// Re-export extractCurrencyCode from central utils
+export { extractCurrencyCode }

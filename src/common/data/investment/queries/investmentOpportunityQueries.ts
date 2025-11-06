@@ -527,9 +527,13 @@ export const GET_INVESTMENT_DOCUMENTS_BY_OPPORTUNITY_ID = (opportunityId: string
 const buildWonOpportunityWhereCondition = (variables: InvestmentOpportunityQueryVariables = {}): string => {
   const baseFilters = buildBaseFilters(variables)
 
-  // Create the won filter as a structured object
+  // Create the won filter as a structured object with case-insensitive matching
   const wonFilter: GraphQLFilter = {
-    _or: [{ opportunityStatus: { alternativeCode: { _eq: 'WON' } } }, { opportunityStatus: { value: { _eq: 'WON' } } }]
+    _or: [
+      { opportunityStatus: { code: { _ilike: '%won%' } } },
+      { opportunityStatus: { value: { _ilike: '%won%' } } },
+      { opportunityStatus: { alternativeCode: { _ilike: '%won%' } } }
+    ]
   }
 
   // Start with base condition and add all filters using _and array

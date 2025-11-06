@@ -23,6 +23,7 @@ interface OpportunityFormContextValue {
   onCancel: () => Promise<void>
   isLoading: boolean
   error: string | null
+  hideActions?: boolean
 
   // Employee positions (for owner selection)
   employeePositions: SelectOption[]
@@ -82,6 +83,7 @@ interface OpportunityFormProviderProps {
   initialValues?: Partial<OpportunityFormValues>
   onSubmit?: (values: OpportunityFormValues) => Promise<void>
   onCancel?: () => Promise<void>
+  hideActions?: boolean
 }
 
 export const OpportunityFormProvider: React.FC<OpportunityFormProviderProps> = ({
@@ -89,7 +91,8 @@ export const OpportunityFormProvider: React.FC<OpportunityFormProviderProps> = (
   businessAppContext,
   initialValues = {},
   onSubmit: customOnSubmit,
-  onCancel = async () => {}
+  onCancel = async () => {},
+  hideActions = false
 }) => {
   // Form state
   const [formValues, setFormValuesState] = useState<OpportunityFormValues>({
@@ -165,6 +168,9 @@ export const OpportunityFormProvider: React.FC<OpportunityFormProviderProps> = (
     // Sales Campaign
     salesCampaignId: '',
 
+    // Contact Information (CRM-specific)
+    contactIds: [],
+
     ...initialValues
   })
 
@@ -220,10 +226,12 @@ export const OpportunityFormProvider: React.FC<OpportunityFormProviderProps> = (
   // Opportunity data fetching hook for pre-filling form when updating existing opportunity
   const { opportunityData, mapOpportunityToFormValues } = useOpportunityData({ businessAppContext })
 
-  // Extract opportunityId for tracking changes
+  // Extract opportunityId for tracking changes - NOT memoized (matching Contact/Account pattern)
+  // Simple extraction works better with dynamic additionalData updates from AppActionButton
   const opportunityId =
     businessAppContext.additionalData?.opportunityId ||
-    businessAppContext.additionalData?.psi_taskPayload?.psi_initialParameters?.opportunityId
+    businessAppContext.additionalData?.psi_taskPayload?.psi_initialParameters?.opportunityId ||
+    initialValues?.id
 
   // Reset auto-selection flag when opportunity changes or when creating new opportunity
   useEffect(() => {
@@ -479,9 +487,18 @@ export const OpportunityFormProvider: React.FC<OpportunityFormProviderProps> = (
 
   // Populate form values when opportunity data is loaded (for editing existing opportunities)
   useEffect(() => {
-    // Only populate if we have opportunity data and the form doesn't already have this opportunity's data
-    if (opportunityData && opportunityData.id && (!formValues.id || formValues.id !== opportunityData.id)) {
+    // Only populate if we have opportunity data
+    if (opportunityData?.id) {
+      console.log('🔄 CRM Opportunity Form: Populating form with opportunity data', {
+        opportunityId: opportunityData.id,
+        opportunityName: opportunityData.name,
+        estimatedAmount: opportunityData.estimatedAmount
+      })
+
       const mappedValues = mapOpportunityToFormValues(opportunityData)
+      console.log('📋 CRM Opportunity Form: Mapped values', mappedValues)
+
+      // Merge mapped values with existing form state to preserve all fields
       setFormValuesState(prev => ({
         ...prev,
         ...mappedValues
@@ -489,13 +506,10 @@ export const OpportunityFormProvider: React.FC<OpportunityFormProviderProps> = (
 
       // Don't auto-select current user if we're editing an existing opportunity
       autoSelectionDone.current = true
+    } else {
+      console.log('⚠️ CRM Opportunity Form: No opportunity data to populate')
     }
-  }, [
-    opportunityData,
-    mapOpportunityToFormValues,
-    businessAppContext.additionalData?.opportunityId,
-    businessAppContext.additionalData?.psi_taskPayload?.psi_initialParameters?.opportunityId
-  ])
+  }, [opportunityData, mapOpportunityToFormValues, opportunityId])
 
   // Auto-select current user as owner (only if not editing existing opportunity)
   useEffect(() => {
@@ -566,6 +580,7 @@ export const OpportunityFormProvider: React.FC<OpportunityFormProviderProps> = (
       // Loading states
       isLoading,
       error,
+      hideActions,
 
       // Employee positions
       employeePositions,

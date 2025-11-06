@@ -1,8 +1,22 @@
 import React from 'react'
-import { Input, Card, CardContent, Label, Alert, AlertDescription } from '@newwork/nw-design-system'
+import {
+  Input,
+  Card,
+  CardContent,
+  Label,
+  Alert,
+  AlertDescription,
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue
+} from '@newwork/nw-design-system'
 import { formatDataTestId } from '@/common/utils/formatDataTestId'
 import { useContactFormContext } from '../context/ContactFormContext'
 import OwnerSelector from './OwnerSelector'
+import AccountSelect from '@/common/components/common-relations/selects/account-select/AccountSelect'
+import SearchableSelect from '../../lead-form/components/SearchableSelect'
 
 const prefixDataTestId = 'ContactForm'
 
@@ -16,7 +30,19 @@ const OwnerInformationSection: React.FC = () => {
     employeePositionsError,
     employeePositionsHasMore,
     loadMoreEmployeePositions,
-    searchEmployeePositions
+    searchEmployeePositions,
+
+    // Account suggestions
+    accountSuggestions,
+    searchAccounts,
+    accountsLoading,
+
+    // Campaign suggestions
+    campaignSuggestions,
+    searchCampaigns,
+    loadMoreCampaigns,
+    campaignsHasMore,
+    campaignsLoading
   } = useContactFormContext()
 
   return (
@@ -69,7 +95,7 @@ const OwnerInformationSection: React.FC = () => {
               searchEmployeePositions(searchTerm)
             }}
             error={employeePositionsError}
-            dataTestId={formatDataTestId(prefixDataTestId, 'OwnerSelect')}
+            dataTestId={formatDataTestId(prefixDataTestId, 'owner-select')}
           />
         </div>
 
@@ -84,8 +110,8 @@ const OwnerInformationSection: React.FC = () => {
               value={formValues.firstName}
               onChange={e => setFormValues({ firstName: e.target.value })}
               placeholder="Please Enter..."
-              className="gba:border-gray-300 gba:bg-hsl(var(--background))"
-              data-testid={formatDataTestId(prefixDataTestId, 'FirstNameInput')}
+              className="gba:border-gray-300 gba:bg-white"
+              data-testid={formatDataTestId(prefixDataTestId, 'first-name-input')}
             />
           </div>
 
@@ -98,10 +124,78 @@ const OwnerInformationSection: React.FC = () => {
               value={formValues.lastName}
               onChange={e => setFormValues({ lastName: e.target.value })}
               placeholder="Please Enter..."
-              className="gba:border-gray-300 gba:bg-hsl(var(--background))"
-              data-testid={formatDataTestId(prefixDataTestId, 'LastNameInput')}
+              className="gba:border-gray-300 gba:bg-white"
+              data-testid={formatDataTestId(prefixDataTestId, 'last-name-input')}
             />
           </div>
+        </div>
+
+        {/* Contact Type */}
+        <div className="gba:space-y-2">
+          <Label className="gba:text-sm gba:font-medium gba:text-gray-900">Contact Type</Label>
+          <Select
+            value={formValues.contactType}
+            onValueChange={value => setFormValues({ contactType: value })}
+            data-testid={formatDataTestId(prefixDataTestId, 'contact-type-select')}
+          >
+            <SelectTrigger className="gba:border-gray-300 gba:bg-white">
+              <SelectValue placeholder="Please Select..." />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="PRIMARY_CONTACT">Primary Contact</SelectItem>
+              <SelectItem value="SECONDARY_CONTACT">Secondary Contact</SelectItem>
+              <SelectItem value="FOUNDER_CONTACT">Founder Contact</SelectItem>
+              <SelectItem value="UNKNOWN_CONTACT">Unknown Contact</SelectItem>
+            </SelectContent>
+          </Select>
+        </div>
+
+        {/* Related Account Selection (CRM-specific) */}
+        <AccountSelect
+          value={formValues.accountId || ''}
+          onChange={accountValue => {
+            // AccountSelect passes { id, name } object for single select
+            if (typeof accountValue === 'object' && accountValue !== null && 'id' in accountValue) {
+              setFormValues({
+                accountId: accountValue.id,
+                companyName: accountValue.name
+              })
+            } else if (typeof accountValue === 'string') {
+              // Fallback: if it's a string, set only the ID
+              setFormValues({ accountId: accountValue })
+            }
+          }}
+          dataTestId={formatDataTestId(prefixDataTestId, 'account-select')}
+          error={null}
+          label="Related Account"
+          multiple={false}
+          accounts={accountSuggestions.map(acc => ({ ...acc, id: String(acc.id) }))}
+          accountsLoading={accountsLoading}
+          accountsError={null}
+          searchAccounts={searchAccounts}
+        />
+
+        {/* Sales Campaign Selection (CRM-specific) */}
+        <div className="gba:space-y-2">
+          <SearchableSelect
+            label="Sales Campaign"
+            name="salesCampaignId"
+            value={formValues.salesCampaignId}
+            placeholder="Please Select Campaign..."
+            options={campaignSuggestions as any}
+            loading={campaignsLoading}
+            hasMore={campaignsHasMore}
+            onSearch={searchCampaigns}
+            onLoadMore={loadMoreCampaigns}
+            onChange={value => {
+              setFormValues({
+                salesCampaignId: value
+              })
+            }}
+            error={null}
+            className="gba:w-full"
+            data-testid={formatDataTestId(prefixDataTestId, 'campaign-select')}
+          />
         </div>
 
         {/* Email */}
@@ -115,12 +209,12 @@ const OwnerInformationSection: React.FC = () => {
             value={formValues.email}
             onChange={e => setFormValues({ email: e.target.value })}
             placeholder="Please Enter..."
-            className="gba:border-gray-300 gba:bg-hsl(var(--background))"
-            data-testid={formatDataTestId(prefixDataTestId, 'EmailInput')}
+            className="gba:border-gray-300 gba:bg-white"
+            data-testid={formatDataTestId(prefixDataTestId, 'email-input')}
           />
         </div>
 
-        {/* Phone and Fax - Side by side */}
+        {/* Phone - Single field in grid layout to match IRM styling */}
         <div className="gba:grid gba:grid-cols-1 gba:gap-6 gba:md:grid-cols-2">
           <div className="gba:space-y-2">
             <Label className="gba:text-sm gba:font-medium gba:text-gray-900">Phone</Label>
@@ -130,21 +224,64 @@ const OwnerInformationSection: React.FC = () => {
               value={formValues.phone}
               onChange={e => setFormValues({ phone: e.target.value })}
               placeholder="Please Enter..."
-              className="gba:border-gray-300 gba:bg-hsl(var(--background))"
-              data-testid={formatDataTestId(prefixDataTestId, 'PhoneInput')}
+              className="gba:border-gray-300 gba:bg-white"
+              data-testid={formatDataTestId(prefixDataTestId, 'phone-input')}
+            />
+          </div>
+          {/* Empty second column to maintain grid layout consistency */}
+          <div className="gba:space-y-2">{/* Intentionally empty to match IRM grid layout */}</div>
+        </div>
+
+        {/* Job Position and Department - Side by side */}
+        <div className="gba:grid gba:grid-cols-1 gba:gap-6 gba:md:grid-cols-2">
+          <div className="gba:space-y-2">
+            <Label className="gba:text-sm gba:font-medium gba:text-gray-900">Job Position</Label>
+            <Input
+              name="jobTitle"
+              value={formValues.jobTitle}
+              onChange={e => setFormValues({ jobTitle: e.target.value })}
+              placeholder="Please Enter..."
+              className="gba:border-gray-300 gba:bg-white"
+              data-testid={formatDataTestId(prefixDataTestId, 'job-position-input')}
             />
           </div>
 
           <div className="gba:space-y-2">
-            <Label className="gba:text-sm gba:font-medium gba:text-gray-900">Fax</Label>
+            <Label className="gba:text-sm gba:font-medium gba:text-gray-900">Department</Label>
             <Input
-              name="fax"
-              type="tel"
-              value={formValues.fax}
-              onChange={e => setFormValues({ fax: e.target.value })}
+              name="department"
+              value={formValues.department}
+              onChange={e => setFormValues({ department: e.target.value })}
               placeholder="Please Enter..."
-              className="gba:border-gray-300 gba:bg-hsl(var(--background))"
-              data-testid={formatDataTestId(prefixDataTestId, 'FaxInput')}
+              className="gba:border-gray-300 gba:bg-white"
+              data-testid={formatDataTestId(prefixDataTestId, 'department-input')}
+            />
+          </div>
+        </div>
+
+        {/* LinkedIn and Xing - Side by side */}
+        <div className="gba:grid gba:grid-cols-1 gba:gap-6 gba:md:grid-cols-2">
+          <div className="gba:space-y-2">
+            <Label className="gba:text-sm gba:font-medium gba:text-gray-900">LinkedIn</Label>
+            <Input
+              name="linkedinUrl"
+              value={formValues.linkedinUrl}
+              onChange={e => setFormValues({ linkedinUrl: e.target.value })}
+              placeholder="Please Enter..."
+              className="gba:border-gray-300 gba:bg-white"
+              data-testid={formatDataTestId(prefixDataTestId, 'linkedin-input')}
+            />
+          </div>
+
+          <div className="gba:space-y-2">
+            <Label className="gba:text-sm gba:font-medium gba:text-gray-900">Xing</Label>
+            <Input
+              name="xingUrl"
+              value={formValues.xingUrl}
+              onChange={e => setFormValues({ xingUrl: e.target.value })}
+              placeholder="Please Enter..."
+              className="gba:border-gray-300 gba:bg-white"
+              data-testid={formatDataTestId(prefixDataTestId, 'xing-input')}
             />
           </div>
         </div>

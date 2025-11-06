@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback, useMemo } from 'react'
+import { useState, useEffect, useCallback, useMemo, useRef } from 'react'
 import { BusinessAppContextProps } from '@/common/BusinessAppContext'
 import { useGetCountriesAndRegions, FullCountryDetails, RegionDetails } from '../queries/CountriesRegionsQueries'
 
@@ -34,9 +34,10 @@ export interface UseCountriesRegionsReturn {
 }
 
 // Cache for countries and regions data to prevent continuous queries
-let cachedCountriesData: FullCountryDetails[] | null = null
-let cacheTimestamp: number | null = null
+// Using a Map to avoid module-level mutable state
+const countryCache = new Map<string, { data: FullCountryDetails[]; timestamp: number }>()
 const CACHE_DURATION = 5 * 60 * 1000 // 5 minutes cache
+const CACHE_KEY = 'countries_regions_data'
 
 export const useCountriesRegions = (context: BusinessAppContextProps): UseCountriesRegionsReturn => {
   const [fullCountriesData, setFullCountriesData] = useState<FullCountryDetails[]>([])
@@ -46,26 +47,34 @@ export const useCountriesRegions = (context: BusinessAppContextProps): UseCountr
   const [selectedCountryCode, setSelectedCountryCodeState] = useState<string | null>(null)
   const [countrySearchTerm, setCountrySearchTerm] = useState('')
   const [regionSearchTerm, setRegionSearchTerm] = useState('')
-  const [hasInitialized, setHasInitialized] = useState(false)
   const [countriesOffset, setCountriesOffset] = useState(0)
   const [hasMoreCountries, setHasMoreCountries] = useState(false)
+
+  // Use refs to prevent infinite loops
+  const hasInitializedRef = useRef(false)
+  const isLoadingRef = useRef(false)
 
   const { fetchCountriesAndRegions } = useGetCountriesAndRegions(context)
 
   const COUNTRIES_PAGE_SIZE = 20
 
   const isCacheValid = useCallback(() => {
-    if (!cachedCountriesData || !cacheTimestamp) return false
-    return Date.now() - cacheTimestamp < CACHE_DURATION
+    const cached = countryCache.get(CACHE_KEY)
+    if (!cached) return false
+    return Date.now() - cached.timestamp < CACHE_DURATION
   }, [])
 
   const loadAllData = useCallback(async () => {
-    if (!context.accessToken) return
+    if (!context.accessToken || hasInitializedRef.current || isLoadingRef.current) return
+
+    isLoadingRef.current = true
 
     // Check if we have valid cached data
-    if (isCacheValid() && cachedCountriesData) {
-      setFullCountriesData(cachedCountriesData)
-      setHasInitialized(true)
+    const cached = countryCache.get(CACHE_KEY)
+    if (isCacheValid() && cached) {
+      setFullCountriesData(cached.data)
+      hasInitializedRef.current = true
+      isLoadingRef.current = false
       return
     }
 
@@ -74,17 +83,18 @@ export const useCountriesRegions = (context: BusinessAppContextProps): UseCountr
       setFullCountriesData(data)
 
       // Update cache
-      cachedCountriesData = data
-      cacheTimestamp = Date.now()
-      setHasInitialized(true)
+      countryCache.set(CACHE_KEY, { data, timestamp: Date.now() })
+      hasInitializedRef.current = true
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Failed to load countries and regions')
+    } finally {
+      isLoadingRef.current = false
     }
   }, [context.accessToken, fetchCountriesAndRegions, isCacheValid])
 
   // Load initial countries page
   const loadCountriesPage = useCallback(
-    (searchTerm: string = '', offset: number = 0, isLoadMore: boolean = false) => {
+    (searchTerm: string = '', offset: number = 0, isLoadMore: boolean = false, selectedCountryId?: string) => {
       if (!fullCountriesData.length) return
 
       setIsLoading(!isLoadMore) // Only show loading on initial load
@@ -109,8 +119,19 @@ export const useCountriesRegions = (context: BusinessAppContextProps): UseCountr
       // Apply pagination
       const startIndex = offset
       const endIndex = offset + COUNTRIES_PAGE_SIZE
-      const pageCountries = filteredCountries.slice(startIndex, endIndex)
+      let pageCountries = filteredCountries.slice(startIndex, endIndex)
       const hasMore = endIndex < filteredCountries.length
+
+      // ✅ CRITICAL: Ensure selected country is always in the displayed options
+      if (selectedCountryId && !isLoadMore && !searchTerm.trim()) {
+        const selectedCountry = filteredCountries.find(c => c.id === selectedCountryId)
+        const isSelectedInPage = pageCountries.some(c => c.id === selectedCountryId)
+
+        if (selectedCountry && !isSelectedInPage) {
+          // Add selected country at the beginning
+          pageCountries = [selectedCountry, ...pageCountries].slice(0, COUNTRIES_PAGE_SIZE)
+        }
+      }
 
       if (isLoadMore) {
         setDisplayedCountries(prev => [...prev, ...pageCountries])
@@ -125,19 +146,36 @@ export const useCountriesRegions = (context: BusinessAppContextProps): UseCountr
     [fullCountriesData]
   )
 
-  // Initialize data loading
+  // Initialize data loading - only once when accessToken is available
   useEffect(() => {
-    if (!hasInitialized && context.accessToken) {
+    if (context.accessToken && !hasInitializedRef.current && !isLoadingRef.current) {
       loadAllData()
     }
-  }, [context.accessToken, hasInitialized, loadAllData])
+  }, [context.accessToken, loadAllData])
 
-  // Load initial countries page when data is ready
+  // Load initial countries page when data is ready - only once
   useEffect(() => {
-    if (fullCountriesData.length > 0 && displayedCountries.length === 0) {
-      loadCountriesPage('', 0, false)
+    if (fullCountriesData.length > 0 && displayedCountries.length === 0 && !isLoadingRef.current) {
+      // ✅ Pass selected country to ensure it's included in initial options
+      loadCountriesPage('', 0, false, selectedCountryCode || undefined)
     }
-  }, [fullCountriesData, displayedCountries.length, loadCountriesPage])
+  }, [fullCountriesData.length, displayedCountries.length, loadCountriesPage, selectedCountryCode])
+
+  // ✅ CRITICAL: Reload countries when selected country changes (for prefill scenarios)
+  useEffect(() => {
+    if (fullCountriesData.length > 0 && displayedCountries.length > 0 && selectedCountryCode) {
+      const isSelectedInDisplayed = displayedCountries.some(c => c.id === selectedCountryCode)
+
+      if (!isSelectedInDisplayed) {
+        console.log('⚠️ Lead Form - Selected country not in displayed options, reloading...', {
+          selectedCountryCode,
+          displayedCount: displayedCountries.length
+        })
+        // Reload countries to include the selected one
+        loadCountriesPage('', 0, false, selectedCountryCode)
+      }
+    }
+  }, [selectedCountryCode, fullCountriesData.length, displayedCountries, loadCountriesPage])
 
   // Use displayed countries from pagination
   const countries = displayedCountries
@@ -216,9 +254,9 @@ export const useCountriesRegions = (context: BusinessAppContextProps): UseCountr
 
   const refreshData = useCallback(async () => {
     // Clear cache to force refresh
-    cachedCountriesData = null
-    cacheTimestamp = null
-    setHasInitialized(false)
+    countryCache.delete(CACHE_KEY)
+    hasInitializedRef.current = false
+    isLoadingRef.current = false
     await loadAllData()
   }, [loadAllData])
 

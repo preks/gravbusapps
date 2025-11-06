@@ -65,15 +65,15 @@ const HomeView: React.FC<HomeViewProps> = ({ accountId, accountData, ...props })
         (a: any, b: any) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime()
       )
 
-      // Separate regular tasks from approvals based on taskType catalog entry
+      // Separate regular tasks from approvals based on type catalog entry
       const regularTasks = sortedTasks.filter((task: any) => {
-        const taskTypeCode = task?.taskType?.code || ''
-        const taskTypeValue = task?.taskType?.value || ''
+        const taskTypeCode = task?.type?.code || ''
+        const taskTypeValue = task?.type?.value || ''
         return taskTypeCode?.toUpperCase() !== 'APPROVAL' && taskTypeValue?.toUpperCase() !== 'APPROVAL'
       })
       const approvalTasks = sortedTasks.filter((task: any) => {
-        const taskTypeCode = task?.taskType?.code || ''
-        const taskTypeValue = task?.taskType?.value || ''
+        const taskTypeCode = task?.type?.code || ''
+        const taskTypeValue = task?.type?.value || ''
         return taskTypeCode?.toUpperCase() === 'APPROVAL' || taskTypeValue?.toUpperCase() === 'APPROVAL'
       })
 
@@ -142,12 +142,29 @@ const HomeView: React.FC<HomeViewProps> = ({ accountId, accountData, ...props })
     }
   }, [loadSectionData])
 
-  // Action props for sections
+  // Action props for sections - MUST be fully memoized to prevent infinite loops
   const activityActionProps = useMemo(
     () => ({
       contextsArray: [FlowContextName.customerActivityCreate],
+      externalContextData: {
+        accountId,
+        // Set current user as default owner
+        ...(props.userInfo?.employeeDetails?.employeeId && {
+          ownerEmployeeId: props.userInfo.employeeDetails.employeeId
+        })
+      },
+      prefixDataTestId: 'account-activity',
+      emptyStateBehavior: 'enable' as const
+    }),
+    [accountId, props.userInfo?.employeeDetails?.employeeId]
+  )
+
+  const activityEntityActionProps = useMemo(
+    () => ({
+      contextsArray: [FlowContextName.customerActivityEntity],
       externalContextData: { accountId },
-      prefixDataTestId: 'account-activity'
+      prefixDataTestId: 'account-activity-entity',
+      emptyStateBehavior: 'enable' as const
     }),
     [accountId]
   )
@@ -156,7 +173,18 @@ const HomeView: React.FC<HomeViewProps> = ({ accountId, accountData, ...props })
     () => ({
       contextsArray: [FlowContextName.customerTaskCreate],
       externalContextData: { accountId },
-      prefixDataTestId: 'account-task'
+      prefixDataTestId: 'account-task',
+      emptyStateBehavior: 'enable' as const
+    }),
+    [accountId]
+  )
+
+  const taskEntityActionProps = useMemo(
+    () => ({
+      contextsArray: [FlowContextName.customerTaskEntity],
+      externalContextData: { accountId },
+      prefixDataTestId: 'account-task-entity',
+      emptyStateBehavior: 'enable' as const
     }),
     [accountId]
   )
@@ -169,7 +197,18 @@ const HomeView: React.FC<HomeViewProps> = ({ accountId, accountData, ...props })
         typeRef: 'SalesTaskType:v1:APPROVAL',
         salesTask: { account: accountId, type: 'SalesTaskType:v1:APPROVAL' }
       },
-      prefixDataTestId: 'account-approval'
+      prefixDataTestId: 'account-approval',
+      emptyStateBehavior: 'enable' as const
+    }),
+    [accountId]
+  )
+
+  const approvalEntityActionProps = useMemo(
+    () => ({
+      contextsArray: [FlowContextName.customerTaskEntity],
+      externalContextData: { accountId },
+      prefixDataTestId: 'account-approval-entity',
+      emptyStateBehavior: 'enable' as const
     }),
     [accountId]
   )
@@ -277,16 +316,8 @@ const HomeView: React.FC<HomeViewProps> = ({ accountId, accountData, ...props })
               activitiesError: sectionsError,
               onReloadActivities: loadSectionData,
               alignment: 'right',
-              activitySectionActionProps: {
-                ...activityActionProps,
-                emptyStateBehavior: 'enable'
-              },
-              activityEntityActionProps: {
-                contextsArray: [FlowContextName.customerActivityEntity],
-                externalContextData: { accountId },
-                prefixDataTestId: 'account-activity-entity',
-                emptyStateBehavior: 'enable'
-              }
+              activitySectionActionProps: activityActionProps,
+              activityEntityActionProps: activityEntityActionProps
             }
           }
         ]}
@@ -351,16 +382,8 @@ const HomeView: React.FC<HomeViewProps> = ({ accountId, accountData, ...props })
                           }
                         : undefined
               })),
-              taskActionProps: {
-                ...taskActionProps,
-                emptyStateBehavior: 'enable'
-              },
-              taskEntityActionProps: {
-                contextsArray: [FlowContextName.customerTaskEntity],
-                externalContextData: { accountId },
-                prefixDataTestId: 'account-task-entity',
-                emptyStateBehavior: 'enable'
-              }
+              taskActionProps: taskActionProps,
+              taskEntityActionProps: taskEntityActionProps
             }
           },
           {
@@ -420,16 +443,8 @@ const HomeView: React.FC<HomeViewProps> = ({ accountId, accountData, ...props })
                           }
                         : undefined
               })),
-              taskEntityActionProps: {
-                contextsArray: [FlowContextName.customerTaskEntity],
-                externalContextData: { accountId },
-                prefixDataTestId: 'account-approval-entity',
-                emptyStateBehavior: 'enable'
-              },
-              taskActionProps: {
-                ...approvalActionProps,
-                emptyStateBehavior: 'enable'
-              }
+              taskEntityActionProps: approvalEntityActionProps,
+              taskActionProps: approvalActionProps
             }
           }
         ]}

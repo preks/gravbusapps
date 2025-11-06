@@ -174,6 +174,16 @@ export const CUSTOMER_TASK = `
     statusRef
     timingType
     
+    type {
+      ${CATALOG_ENTRY}
+    }
+    priority {
+      ${CATALOG_ENTRY}
+    }
+    status {
+      ${CATALOG_ENTRY}
+    }
+    
     # User references
     creatorUserId
     assignedUserId
