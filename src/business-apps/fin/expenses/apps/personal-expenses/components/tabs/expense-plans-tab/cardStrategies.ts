@@ -9,7 +9,7 @@ export type PlanCardContext = {
   setEffectiveDateRange?: (range: [Date | null, Date | null] | null) => void
   handleFilterChange: (filterId: string, selected: boolean) => void
   setDestinationFilter: (value: string | null) => void
-  topDestination: string | null | undefined
+  topDestination: string | null | undefined | any // Can be string or catalog entry object
 }
 
 export type CardStrategy = {
@@ -131,7 +131,14 @@ export const getPlanCardStrategies = (ctx: PlanCardContext): Record<string, Card
       ]
       statuses.forEach(s => ctx.handleFilterChange(s, false))
       if (ctx.topDestination && ctx.topDestination !== 'N/A') {
-        ctx.setDestinationFilter(ctx.topDestination)
+        // Extract value if it's a catalog entry object (for translation), otherwise use string directly
+        const destinationValue =
+          typeof ctx.topDestination === 'object' && ctx.topDestination !== null && 'value' in ctx.topDestination
+            ? ((ctx.topDestination as { value?: string })?.value ?? null)
+            : typeof ctx.topDestination === 'string'
+              ? ctx.topDestination
+              : null
+        ctx.setDestinationFilter(destinationValue || null)
       } else {
         ctx.setDestinationFilter(null)
       }

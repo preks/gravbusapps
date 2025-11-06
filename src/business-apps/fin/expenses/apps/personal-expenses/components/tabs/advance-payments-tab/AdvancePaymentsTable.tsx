@@ -27,7 +27,7 @@ import { getAdvancePaymentStatusDisplay, formatCurrencyDisplay } from '../../../
 import AdvancePaymentDetails from './AdvancePaymentDetails'
 import ExpensePlanDetails from '../expense-plans-tab/ExpensePlanDetails'
 import ExpenseRequestDetails from '../expense-requests-tab/ExpenseRequestDetails'
-import { getTranslationFromI18nKeyAndLabel } from '@/common/utils/windowUtils'
+import { getTranslationFromI18nKeyAndLabel, getCatalogValue } from '@/common/utils/windowUtils'
 import { PiArrowUp, PiArrowDown } from 'react-icons/pi'
 import { navigateTo, buildPlatformUrl } from '@/common/utils/navigationUtils'
 
@@ -566,10 +566,21 @@ const AdvancePaymentsTable = React.forwardRef<HTMLDivElement, AdvancePaymentsTab
                         >
                           <div className="gba:text-sm" data-testid="advance-payment-method-cell">
                             {record.paymentMethod
-                              ? record.paymentMethod
-                                  .toLowerCase()
-                                  .replace(/_/g, ' ')
-                                  .replace(/\b\w/g, (c: string) => c.toUpperCase())
+                              ? typeof record.paymentMethod === 'object' &&
+                                record.paymentMethod !== null &&
+                                'value' in record.paymentMethod
+                                ? getCatalogValue(record.paymentMethod)
+                                : String(record.paymentMethod) === 'DIRECT_DEPOSIT'
+                                  ? getTranslationFromI18nKeyAndLabel(
+                                      'lowcoder:initiate_expense_plan.create_expense_plan.payment_method_select_direct_deposit',
+                                      'Direct Deposit'
+                                    )
+                                  : String(record.paymentMethod) === 'CASH_PAYMENT'
+                                    ? getTranslationFromI18nKeyAndLabel(
+                                        'lowcoder:initiate_expense_plan.create_expense_plan.payment_method_select_cash_payment',
+                                        'Cash Payment'
+                                      )
+                                    : 'N/A'
                               : 'N/A'}
                           </div>
                         </TableCell>
@@ -619,7 +630,9 @@ const AdvancePaymentsTable = React.forwardRef<HTMLDivElement, AdvancePaymentsTab
                     </select>
                   </div>
                   <div className="gba:flex gba:w-[100px] gba:items-center gba:justify-center gba:text-sm gba:font-medium">
-                    Page {currentPage} of {Math.ceil(totalCount / pageSize)}
+                    {getTranslationFromI18nKeyAndLabel('lowcoder:personal_expenses.page', 'Page')} {currentPage}{' '}
+                    {getTranslationFromI18nKeyAndLabel('lowcoder:personal_expenses.of', 'of')}{' '}
+                    {Math.ceil(totalCount / pageSize)}
                   </div>
                   <div className="gba:flex gba:items-center gba:space-x-2">
                     <Button
