@@ -62,8 +62,8 @@ const ExpensePlanItems: React.FC<ExpensePlanItemsProps> = ({ expensePlanItems, c
       ),
       dataIndex: ['expenseGroup', 'value'],
       key: 'expenseGroup',
-      render: (_: string, record) => {
-        const label = getCatalogValue((record as any).expenseGroup) || _
+      render: (_: string, record: ExpensePlanItem) => {
+        const label = record.expenseGroup ? (getCatalogValue(record.expenseGroup) ?? _) : _
         return <Pill label={label} type="waiting" data-testid={`expense-group-pill-${label}`} />
       }
     },
@@ -72,7 +72,7 @@ const ExpensePlanItems: React.FC<ExpensePlanItemsProps> = ({ expensePlanItems, c
       dataIndex: ['expenseClass', 'value'],
       key: 'expenseClass',
       render: (_: string, record: ExpensePlanItem) => {
-        const label = getCatalogValue(record.expenseClass) || _
+        const label = record.expenseClass ? (getCatalogValue(record.expenseClass) ?? _) : _
         return <span data-testid="expense-class-cell">{label}</span>
       }
     },
