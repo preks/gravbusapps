@@ -27,6 +27,8 @@ const CurrentCompensationView: React.FC<CurrentCompensationViewProps> = ({
   loading,
   employeeId,
   accessToken,
+  userInfo,
+  additionalData,
   locale
 }) => {
   const { currentCompensation, totalBonusesYTD, activeBenefitsCount, bonuses } = compensationData
@@ -167,6 +169,8 @@ const CurrentCompensationView: React.FC<CurrentCompensationViewProps> = ({
         t={t}
         employeeId={employeeId}
         accessToken={accessToken}
+        userInfo={userInfo}
+        additionalData={additionalData}
         loading={loading}
         currencyCode={currencyCode}
         locale={locale}

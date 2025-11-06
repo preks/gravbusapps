@@ -29,7 +29,13 @@ interface JobsCompensationTabProps extends BusinessAppContextProps {
  * Jobs & Compensation Tab Component
  * Main tab containing Current Compensation and Compensation History views
  */
-const CompensationTab: React.FC<JobsCompensationTabProps> = ({ employee, employeeId, accessToken, userInfo }) => {
+const CompensationTab: React.FC<JobsCompensationTabProps> = ({
+  employee,
+  employeeId,
+  accessToken,
+  userInfo,
+  additionalData
+}) => {
   const { t } = useTranslation(translations)
   const { locale: currentLocale } = useLocale() // Get current locale from LocalizationProvider context
   const [activeSubTab, setActiveSubTab] = useState('current')
@@ -103,6 +109,7 @@ const CompensationTab: React.FC<JobsCompensationTabProps> = ({ employee, employe
               employeeId={empId}
               accessToken={accessToken}
               userInfo={userInfo}
+              additionalData={additionalData}
               locale={currentLocale}
             />
           )}
@@ -117,6 +124,7 @@ const CompensationTab: React.FC<JobsCompensationTabProps> = ({ employee, employe
               locale={currentLocale}
               accessToken={accessToken}
               userInfo={userInfo}
+              additionalData={additionalData}
             />
           )}
         </TabSwitchContent>
