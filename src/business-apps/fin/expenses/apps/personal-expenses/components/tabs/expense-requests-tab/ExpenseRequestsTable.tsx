@@ -827,7 +827,8 @@ const ExpenseRequestsTable: React.FC<ExpenseRequestsTableProps> = React.memo(pro
         open={printModalOpen}
         onCancel={() => setPrintModalOpen(false)}
         footer={null}
-        width={800}
+        width="90vw"
+        style={{ top: 20 }}
         data-testid="expense-request-print-modal"
       >
         {printLoading ? (
@@ -837,7 +838,7 @@ const ExpenseRequestsTable: React.FC<ExpenseRequestsTableProps> = React.memo(pro
         ) : printPdfUrl ? (
           <iframe
             src={printPdfUrl}
-            style={{ width: '100%', height: '600px', border: 'none' }}
+            style={{ width: '100%', height: 'calc(90vh - 55px)', border: 'none' }}
             title="Expense Request PDF"
             data-testid="expense-request-pdf-iframe"
           />
