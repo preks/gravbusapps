@@ -21,17 +21,14 @@ interface HrAdminTabProps extends BusinessAppContextProps {
   scopePermissionLoading: boolean
 }
 
-// SubView values for HR Admin tabs
 const HR_ADMIN_SUBVIEW_VALUES = ['details', 'employment', 'changeLog', 'documents', 'hrNotes'] as const
 type HrAdminSubView = (typeof HR_ADMIN_SUBVIEW_VALUES)[number]
 
-// Get initial subView from URL
 const getInitialHrAdminSubView = (): HrAdminSubView => {
   if (typeof window === 'undefined') return 'details'
   const urlParams = new URLSearchParams(window.location.search)
   const subViewFromUrl = urlParams.get('subView')
 
-  // If compensation is in URL (legacy), redirect to details
   if (subViewFromUrl === 'compensation') {
     return 'details'
   }
@@ -43,10 +40,6 @@ const getInitialHrAdminSubView = (): HrAdminSubView => {
   return 'details'
 }
 
-/**
- * HR Admin Tab Component
- * Container for HR Admin subtabs: Details, Employment, Change Log, Docs, HR Notes
- */
 const HrAdminTab: React.FC<HrAdminTabProps> = ({
   employee,
   employeeId,
@@ -60,21 +53,17 @@ const HrAdminTab: React.FC<HrAdminTabProps> = ({
 }) => {
   const [activeSubView, setActiveSubView] = useState<HrAdminSubView>(getInitialHrAdminSubView())
 
-  // Check if HR Notes should be visible
-  // HR Notes should NOT be visible if:
-  // 1. User is viewing their own profile (isSelfView)
-  // 2. User doesn't have permissions (hasHrNotesAccess === false)
-  // 3. Scope permission is still loading
   const shouldShowHrNotes = !isSelfView && hasHrNotesAccess && !scopePermissionLoading
 
-  // If user tries to access hrNotes without permission or on their own profile, redirect to details
   useEffect(() => {
     if (activeSubView === 'hrNotes' && !shouldShowHrNotes) {
       setActiveSubView('details')
     }
-  }, [activeSubView, shouldShowHrNotes])
+    if (activeSubView === 'changeLog' && !changeLogTabFeatureFlag) {
+      setActiveSubView('details')
+    }
+  }, [activeSubView, shouldShowHrNotes, changeLogTabFeatureFlag])
 
-  // Update URL when subView changes
   useEffect(() => {
     if (typeof window === 'undefined') return
 
@@ -82,7 +71,6 @@ const HrAdminTab: React.FC<HrAdminTabProps> = ({
     searchParams.set('tab', 'hrAdmin')
     searchParams.set('subView', activeSubView)
 
-    // Handle employee ID in URL
     const currentUserEmployeeId = userInfo?.employeeDetails?.employeeId || ''
     if (employeeId && employeeId !== currentUserEmployeeId) {
       searchParams.set('employeeId', employeeId)
@@ -95,7 +83,6 @@ const HrAdminTab: React.FC<HrAdminTabProps> = ({
     window.history.replaceState({}, '', newUrl)
   }, [activeSubView, employeeId, userInfo])
 
-  // Handle browser navigation
   useEffect(() => {
     const handlePopState = () => {
       const newSubView = getInitialHrAdminSubView()

@@ -19,11 +19,9 @@ interface HrGrowthTabProps extends BusinessAppContextProps {
   feedback?: EmployeeFeedback[]
 }
 
-// SubView values for HR Growth tabs
 const HR_GROWTH_SUBVIEW_VALUES = ['skills', 'feedback', 'performance'] as const
 type HrGrowthSubView = (typeof HR_GROWTH_SUBVIEW_VALUES)[number]
 
-// Get initial subView from URL
 const getInitialHrGrowthSubView = (): HrGrowthSubView => {
   if (typeof window === 'undefined') return 'skills'
   const urlParams = new URLSearchParams(window.location.search)
@@ -36,10 +34,6 @@ const getInitialHrGrowthSubView = (): HrGrowthSubView => {
   return 'skills'
 }
 
-/**
- * HR Growth Tab Component
- * Container for HR Growth subtabs: Skills, Feedback, Performance
- */
 const HrGrowthTab: React.FC<HrGrowthTabProps> = ({
   employee,
   employeeId,
@@ -52,7 +46,14 @@ const HrGrowthTab: React.FC<HrGrowthTabProps> = ({
 }) => {
   const [activeSubView, setActiveSubView] = useState<HrGrowthSubView>(getInitialHrGrowthSubView())
 
-  // Update URL when subView changes
+  useEffect(() => {
+    if (typeof window === 'undefined') return
+
+    if (!feedbackTabFeatureFlag && activeSubView === 'feedback') {
+      setActiveSubView('skills')
+    }
+  }, [feedbackTabFeatureFlag, activeSubView])
+
   useEffect(() => {
     if (typeof window === 'undefined') return
 
@@ -60,7 +61,6 @@ const HrGrowthTab: React.FC<HrGrowthTabProps> = ({
     searchParams.set('tab', 'hrGrowth')
     searchParams.set('subView', activeSubView)
 
-    // Handle employee ID in URL
     const currentUserEmployeeId = userInfo?.employeeDetails?.employeeId || ''
     if (employeeId && employeeId !== currentUserEmployeeId) {
       searchParams.set('employeeId', employeeId)
@@ -73,7 +73,6 @@ const HrGrowthTab: React.FC<HrGrowthTabProps> = ({
     window.history.replaceState({}, '', newUrl)
   }, [activeSubView, employeeId, userInfo])
 
-  // Handle browser navigation
   useEffect(() => {
     const handlePopState = () => {
       const newSubView = getInitialHrGrowthSubView()
