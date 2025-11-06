@@ -66,6 +66,7 @@ benefits-error-title = Eroare la încărcarea beneficiilor
 benefits-error-retry = Reîncearcă
 benefits-catalog-empty-title = Niciun beneficiu disponibil
 benefits-catalog-empty-description = În prezent nu există beneficii disponibile în catalog.
+benefits-no-catalog-description = Momentan nu sunt disponibili furnizori pentru acest beneficiu.
 benefits-catalog-no-results-title = Niciun beneficiu găsit
 benefits-catalog-no-results-description = Niciun beneficiu nu corespunde criteriilor dvs. de căutare.
 benefits-catalog-clear-search = Șterge căutarea

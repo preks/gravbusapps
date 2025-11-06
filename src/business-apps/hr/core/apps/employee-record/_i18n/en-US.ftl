@@ -66,6 +66,7 @@ benefits-error-title = Error Loading Benefits
 benefits-error-retry = Retry
 benefits-catalog-empty-title = No Benefits Available
 benefits-catalog-empty-description = No benefits are currently available in the catalog.
+benefits-no-catalog-description = No benefit providers are currently available for this benefit.
 benefits-catalog-no-results-title = No Benefits Found
 benefits-catalog-no-results-description = No benefits match your search criteria.
 benefits-catalog-clear-search = Clear Search

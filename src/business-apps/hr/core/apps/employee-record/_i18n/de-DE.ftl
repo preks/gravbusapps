@@ -66,6 +66,7 @@ benefits-error-title = Fehler beim Laden der Zusatzleistungen
 benefits-error-retry = Erneut versuchen
 benefits-catalog-empty-title = Keine Zusatzleistungen verfügbar
 benefits-catalog-empty-description = Derzeit sind keine Zusatzleistungen im Katalog verfügbar.
+benefits-no-catalog-description = Für diese Zusatzleistung sind derzeit keine Anbieter verfügbar.
 benefits-catalog-no-results-title = Keine Zusatzleistungen gefunden
 benefits-catalog-no-results-description = Keine Zusatzleistungen entsprechen Ihren Suchkriterien.
 benefits-catalog-clear-search = Suche löschen
