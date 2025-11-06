@@ -174,7 +174,7 @@ export const CommentSection: React.FC<CommentSectionProps> = ({
                         variant="ghost"
                         size="sm"
                         onClick={() => toggleReplies(comment.id)}
-                        className="gba:text-primary gba:text-xs gba:gap-1"
+                        className="gba:font-semibold gba:text-xs gba:gap-1 gba:p-0 gba:h-auto gba:text-primary gba:hover:text-primary gba:hover:underline"
                       >
                         {isExpanded ? (
                           <>
@@ -214,7 +214,7 @@ export const CommentSection: React.FC<CommentSectionProps> = ({
                             variant="ghost"
                             size="sm"
                             onClick={() => showMoreReplies(comment.id)}
-                            className="gba:text-primary gba:text-xs"
+                            className="gba:font-semibold gba:text-xs gba:p-0 gba:h-auto gba:text-primary hover:gba:text-primary hover:gba:underline"
                           >
                             <ChevronDown className="gba:w-4 gba:h-4 gba:mr-1" />
                             Show {Math.min(10, flatReplies.length - visibleRepliesCount)} more{' '}

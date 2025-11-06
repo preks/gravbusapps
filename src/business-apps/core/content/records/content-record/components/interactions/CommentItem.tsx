@@ -1,5 +1,5 @@
 import React, { useState } from 'react'
-import { Button, Avatar, AvatarFallback } from '@newwork/nw-design-system'
+import { Button, Avatar, AvatarFallback, AvatarImage } from '@newwork/nw-design-system'
 import { MessageCircle, ChevronUp, ArrowBigUp } from 'lucide-react'
 import { CommentWithReplies } from '@/common/data/content'
 import CommentForm from './CommentForm'
@@ -98,6 +98,14 @@ export const CommentItem: React.FC<CommentItemProps> = ({
             data-testid={`${dataTestId}-collapse-button-${comment.id}`}
           >
             <Avatar className="gba:w-8 gba:h-8">
+              <AvatarImage
+                src={
+                  comment.creatorEmployee?.pictureThumbnail
+                    ? `data:image/jpeg;base64,${comment.creatorEmployee.pictureThumbnail}`
+                    : undefined
+                }
+                alt={displayName}
+              />
               <AvatarFallback className="gba:text-xs">{initials}</AvatarFallback>
             </Avatar>
             {!isCollapsed && totalReplies > 0 && (
@@ -107,6 +115,14 @@ export const CommentItem: React.FC<CommentItemProps> = ({
         )}
         {totalReplies === 0 && (
           <Avatar className="gba:w-8 gba:h-8">
+            <AvatarImage
+              src={
+                comment.creatorEmployee?.pictureThumbnail
+                  ? `data:image/jpeg;base64,${comment.creatorEmployee.pictureThumbnail}`
+                  : undefined
+              }
+              alt={displayName}
+            />
             <AvatarFallback className="gba:text-xs">{initials}</AvatarFallback>
           </Avatar>
         )}
