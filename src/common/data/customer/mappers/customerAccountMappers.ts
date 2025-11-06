@@ -15,7 +15,9 @@ import type { Address } from '@/common/data/common/types/commonTypes'
  * - annualRevenue → accountAnnualRevenueBand
  * - city → locality (in addresses)
  * - salesCampaign → customerCampaign
- * - salesCampaignId → customerCampaignId
+ * - pictureUrl → picture
+ * - pictureThumbnailUrl → pictureThumbnail
+ * - contact → contacts (singular to plural, if needed)
  * - opportunity → opportunities (singular to plural)
  * - lead → leads (singular to plural)
  */
@@ -30,6 +32,10 @@ export function toCustomerAccount(raw: any): CustomerAccount {
   const accountAnnualRevenueBand = raw.annualRevenue
   const accountAnnualRevenueBandRef = raw.annualRevenueRef
 
+  // Map CRM picture fields
+  const picture = raw.pictureUrl
+  const pictureThumbnail = raw.pictureThumbnailUrl
+
   // Map addresses with city → locality transformation
   const addresses: Address[] | undefined = raw.addresses?.map((addr: any) => ({
     ...addr,
@@ -40,8 +46,9 @@ export function toCustomerAccount(raw: any): CustomerAccount {
   const customerCampaign = raw.salesCampaign
   const customerCampaignId = raw.salesCampaignId
 
-  // Map singular GraphQL field names to plural for common naming
+  // Map singular/plural GraphQL field names to plural for common naming
   const accountContacts = raw.accountContacts
+  const contacts = raw.contact ? (Array.isArray(raw.contact) ? raw.contact : [raw.contact]) : raw.contacts
   const opportunities = raw.opportunity
   const leads = raw.lead
 
@@ -54,11 +61,14 @@ export function toCustomerAccount(raw: any): CustomerAccount {
     companySizeRef,
     accountAnnualRevenueBand,
     accountAnnualRevenueBandRef,
+    picture,
+    pictureThumbnail,
     addresses,
     // Map CRM-specific fields to common naming
     customerCampaign,
     customerCampaignId,
     accountContacts,
+    contacts,
     opportunities,
     leads
   } as CustomerAccount

@@ -1,12 +1,7 @@
 import type { ColumnDef } from '@tanstack/react-table'
 import { Badge, Avatar, AvatarFallback, Tooltip, TooltipTrigger, TooltipContent } from '@newwork/nw-design-system'
-import { User, Building2, Calendar, MapPin, Flag } from 'lucide-react'
+import { User, Building2, Calendar, MapPin, Flag, Mail, Phone } from 'lucide-react'
 import type { CommonLead } from '@/common/data/relations/types/commonLeadTypes'
-import { getLeadName } from '@/common/data/relations/mappers/leadMapper'
-import {
-  getCommunicationChannelIcon,
-  formatCommunicationChannelValue
-} from '@/common/data/common/utils/communicationChannelUtils'
 import { getCatalogEntryValue } from '@/common/data/catalog/utils/catalogTranslationUtils'
 import { formatAddress } from '@/common/utils/addressFormatter'
 import { navigateTo } from '@/common/utils/navigationUtils'
@@ -56,10 +51,20 @@ const getOwnerName = (lead: CommonLead): string => {
   return '-'
 }
 
+// Helper function to get lead name (inline - no mapper dependency)
+const getLeadName = (lead: CommonLead): string => {
+  if (lead.firstName && lead.lastName) {
+    return `${lead.firstName} ${lead.lastName}`.trim()
+  }
+  if (lead.firstName) return lead.firstName
+  if (lead.lastName) return lead.lastName
+  return '-'
+}
+
 /**
  * Default Lead Columns
- * Uses CommonLead (the CORRECT structure)
- * Leads must be mapped via leadMapper before passing to these columns
+ * Uses CommonLead with correct IRM field names
+ * Column IDs must match descriptor keys for sorting/filtering
  */
 export const defaultLeadColumns = (): ColumnDef<CommonLead>[] => [
   {
@@ -122,11 +127,8 @@ export const defaultLeadColumns = (): ColumnDef<CommonLead>[] => [
   {
     id: 'contactInfo',
     accessorFn: row => {
-      if (row.communicationChannels?.length) {
-        const email = row.communicationChannels.find(ch => ch.communicationChannel?.type?.toLowerCase() === 'email')
-        return safeString(email?.value)
-      }
-      return ''
+      // Primary: email, Fallback: phoneNumber
+      return safeString(row.email) || safeString(row.phoneNumber)
     },
     header: 'Contact Info',
     size: 200,
@@ -134,89 +136,72 @@ export const defaultLeadColumns = (): ColumnDef<CommonLead>[] => [
     maxSize: 280,
     enableResizing: false,
     cell: ({ row }) => {
-      const channels = row.original.communicationChannels || []
+      const email = row.original.email
+      const phoneNumber = row.original.phoneNumber
+      const companyWebsite = row.original.companyWebsite
 
-      if (channels.length === 0) {
+      if (!email && !phoneNumber && !companyWebsite) {
         return <span className="gba:text-gray-400">-</span>
       }
 
-      // Display communication channels with proper icons
       return (
         <div className="gba:flex gba:flex-col gba:gap-1 gba:min-w-0">
-          {channels.slice(0, 2).map((channel, index) => {
-            const type = channel.communicationChannel?.type
-            const value = channel.value
-
-            if (!value) return null
-
-            const Icon = getCommunicationChannelIcon(type)
-            const displayValue = formatCommunicationChannelValue(type, value)
-
-            return (
-              <div key={index} className="gba:flex gba:items-center gba:gap-2 gba:min-w-0">
-                <Icon className="gba:w-4 gba:h-4 gba:text-gray-500 gba:shrink-0" />
-                <span className="gba:text-xs gba:truncate" title={value}>
-                  {displayValue}
-                </span>
-              </div>
-            )
-          })}
-          {channels.length > 2 && <span className="gba:text-xs gba:text-gray-500">+{channels.length - 2} more</span>}
+          {email && (
+            <div className="gba:flex gba:items-center gba:gap-2 gba:min-w-0">
+              <Mail className="gba:w-4 gba:h-4 gba:text-gray-500 gba:shrink-0" />
+              <span className="gba:text-xs gba:truncate" title={email}>
+                {email}
+              </span>
+            </div>
+          )}
+          {phoneNumber && (
+            <div className="gba:flex gba:items-center gba:gap-2 gba:min-w-0">
+              <Phone className="gba:w-4 gba:h-4 gba:text-gray-500 gba:shrink-0" />
+              <span className="gba:text-xs gba:truncate" title={phoneNumber}>
+                {phoneNumber}
+              </span>
+            </div>
+          )}
         </div>
       )
     }
   },
   {
-    id: 'location',
+    id: 'address',
     accessorFn: row => {
-      const address = row.address
-      if (!address) return ''
-
-      // Use formatAddress util for proper formatting
-      return formatAddress({
-        addressLine: address.addressLine,
-        locality: address.locality,
-        postalCode: address.postalCode,
-        region: address.region?.value,
-        country: address.country?.value
-      })
+      // Primary: locality, Fallback: postalCode
+      return row.locality || row.postalCode || ''
     },
-    header: 'Location',
+    header: 'Address',
     size: 180,
     minSize: 150,
     maxSize: 250,
     enableResizing: false,
     cell: ({ row }) => {
-      const address = row.original.address
-      if (!address) {
-        return <span className="gba:text-gray-400">-</span>
-      }
-
-      // Use formatAddress util for proper formatting
-      const location = formatAddress({
-        addressLine: address.addressLine,
-        locality: address.locality,
-        postalCode: address.postalCode,
-        region: address.region?.value,
-        country: address.country?.value
+      const address = formatAddress({
+        addressLine: row.original.addressLine,
+        locality: row.original.locality,
+        postalCode: row.original.postalCode,
+        region: row.original.region?.value,
+        country: row.original.country?.value
       })
 
-      if (!location) {
+      if (!address) {
         return <span className="gba:text-gray-400">-</span>
       }
 
       return (
         <div className="gba:flex gba:items-start gba:gap-2 gba:min-w-0">
           <MapPin className="gba:w-4 gba:h-4 gba:text-gray-500 gba:shrink-0 gba:mt-0.5" />
-          <span className="gba:text-sm gba:whitespace-pre-line" title={location}>
-            {location}
+          <span className="gba:text-sm gba:whitespace-pre-line" title={address}>
+            {address}
           </span>
         </div>
       )
     }
   },
   {
-    id: 'status',
+    id: 'leadStatus',
     accessorFn: row => (row.leadStatus ? getCatalogEntryValue(row.leadStatus as any) : ''),
     header: 'Status',
     size: 140,
@@ -239,7 +224,7 @@ export const defaultLeadColumns = (): ColumnDef<CommonLead>[] => [
     }
   },
   {
-    id: 'rating',
+    id: 'leadRating',
     accessorFn: row => (row.leadRating ? getCatalogEntryValue(row.leadRating as any) : ''),
     header: 'Rating',
     size: 120,
@@ -269,7 +254,7 @@ export const defaultLeadColumns = (): ColumnDef<CommonLead>[] => [
     }
   },
   {
-    id: 'source',
+    id: 'leadSource',
     accessorFn: row => (row.leadSource ? getCatalogEntryValue(row.leadSource as any) : ''),
     header: 'Source',
     size: 140,
@@ -289,7 +274,7 @@ export const defaultLeadColumns = (): ColumnDef<CommonLead>[] => [
     }
   },
   {
-    id: 'industry',
+    id: 'industryClass',
     accessorFn: row => (row.industryClass ? getCatalogEntryValue(row.industryClass as any) : ''),
     header: 'Industry',
     size: 160,
@@ -383,45 +368,54 @@ export const defaultLeadColumns = (): ColumnDef<CommonLead>[] => [
 
 /**
  * Default sortable columns
- * Only include columns that map to actual database fields
+ * Includes composite display columns (contactInfo, address) that sort by their primary field
  */
 export const defaultLeadSortableColumns = [
   { id: 'lead', label: 'Lead' },
   { id: 'firstName', label: 'First Name' },
   { id: 'lastName', label: 'Last Name' },
-  { id: 'fullName', label: 'Full Name' },
   { id: 'companyName', label: 'Company' },
-  { id: 'status', label: 'Status' },
-  { id: 'rating', label: 'Rating' },
-  { id: 'source', label: 'Source' },
-  { id: 'industry', label: 'Industry' },
+  { id: 'contactInfo', label: 'Contact Info' },
+  { id: 'address', label: 'Address' },
+  { id: 'leadStatus', label: 'Status' },
+  { id: 'leadRating', label: 'Rating' },
+  { id: 'leadSource', label: 'Source' },
+  { id: 'industryClass', label: 'Industry' },
   { id: 'ownerEmployee', label: 'Owner' },
   { id: 'createdAt', label: 'Created Date' },
   { id: 'updatedAt', label: 'Updated Date' }
-  // contactInfo, location are NOT sortable (computed fields)
 ]
 
 /**
  * Default column mapping for CommonLead
- * Maps column IDs to GraphQL field paths for sorting
+ * Maps column IDs to descriptor keys for sorting/filtering
+ * Composite columns (contactInfo, address) use their primary field for sorting
  */
 export const defaultLeadColumnMapping: Record<string, string> = {
-  // Scalar fields
+  // Direct descriptor keys (from COMMON_LEAD_DESCRIPTORS)
   firstName: 'firstName',
   lastName: 'lastName',
-  fullName: 'fullName',
   companyName: 'companyName',
+  email: 'email',
+  phoneNumber: 'phoneNumber',
+  locality: 'locality',
+  postalCode: 'postalCode',
   createdAt: 'createdAt',
   updatedAt: 'updatedAt',
 
-  // Catalog fields (CommonLead naming with translated value sorting)
-  status: 'leadStatus.value',
-  rating: 'leadRating.value',
-  source: 'leadSource.value',
-  industry: 'industryClass.value',
+  // Catalog fields (descriptor keys)
+  leadStatus: 'leadStatus',
+  leadRating: 'leadRating',
+  leadSource: 'leadSource',
+  industryClass: 'industryClass',
 
-  // Employee fields (sort by displayName)
-  ownerEmployee: 'ownerEmployee.displayName'
+  // Employee fields
+  ownerEmployee: 'ownerEmployee',
+
+  // Composite display columns - sort by primary field
+  lead: 'firstName', // Lead name column sorts by firstName
+  contactInfo: 'email', // Contact info column sorts by email (primary), fallback phoneNumber
+  address: 'locality' // Address column sorts by locality (primary), fallback postalCode
 }
 
 /**
@@ -448,10 +442,10 @@ export const createLeadColumnToGraphQLMapping = (
 export const defaultVisibleLeadColumns = [
   'lead',
   'contactInfo',
-  'location',
-  'status',
-  'rating',
-  'source',
+  'address',
+  'leadStatus',
+  'leadRating',
+  'leadSource',
   'createdAt',
   'ownerEmployee'
 ]
@@ -462,11 +456,11 @@ export const defaultVisibleLeadColumns = [
 export const defaultAvailableLeadColumns = [
   { id: 'lead', label: 'Lead' },
   { id: 'contactInfo', label: 'Contact Info' },
-  { id: 'location', label: 'Location' },
-  { id: 'status', label: 'Status' },
-  { id: 'rating', label: 'Rating' },
-  { id: 'source', label: 'Source' },
-  { id: 'industry', label: 'Industry' },
+  { id: 'address', label: 'Address' },
+  { id: 'leadStatus', label: 'Status' },
+  { id: 'leadRating', label: 'Rating' },
+  { id: 'leadSource', label: 'Source' },
+  { id: 'industryClass', label: 'Industry' },
   { id: 'createdAt', label: 'Created' },
   { id: 'ownerEmployee', label: 'Owner' }
 ]

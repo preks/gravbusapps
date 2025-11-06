@@ -16,15 +16,20 @@ import type { InvestmentAccount } from '../types/investmentAccountTypes'
  *
  * This mapper handles array naming transformations:
  * - investment → investments
- * - investmentReport → investmentReports
+ * - investmentReport → reports
+ * - investmentAddress → addresses
+ * - investmentCommunicationChannel → communicationChannels
  * - investmentAccountContact → accountContacts (common naming)
  * - investmentOpportunity → opportunities (common naming)
  * - investmentLead → leads (common naming)
  */
 export function toInvestmentAccount(raw: any): InvestmentAccount {
-  // Map singular GraphQL field names to plural arrays for consistent usage
+  // Map singular/IRM-prefixed GraphQL field names to common plural naming
   const investments = raw.investment
   const investmentReports = raw.investmentReport
+
+  const addresses = raw.investmentAddress
+  const communicationChannels = raw.investmentCommunicationChannel
 
   // Map investmentAccountContact to accountContacts (common naming)
   const accountContacts = raw.investmentAccountContact
@@ -42,6 +47,8 @@ export function toInvestmentAccount(raw: any): InvestmentAccount {
     // Add mapped array fields
     investments,
     investmentReports,
+    addresses,
+    communicationChannels,
     accountContacts,
     opportunities,
     leads,

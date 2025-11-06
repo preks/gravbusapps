@@ -3,14 +3,16 @@
 // Core entities
 export * from './customerAccountTypes'
 export * from './customerContactTypes'
+export * from './customerDocumentTypes'
 export * from './customerLeadTypes'
+export * from './customerNoteTypes'
+export * from './customerOpportunityTypes'
 export * from './customerTaskTypes'
 
 // Relation entities
 export * from './customerOpportunityTypes'
 export * from './customerAddressTypes'
 export * from './customerCommunicationChannelTypes'
-export * from './customerAccountContactTypes'
 export * from './customerDocumentTypes'
 export * from './customerNoteTypes'
 export * from './customerActivityTypes'
@@ -22,4 +24,3 @@ export * from './customerEnums'
 
 // Backward compatibility exports
 export * from './customerRelationBaseTypes'
-export * from './customerRelationTypes'

@@ -1,42 +1,32 @@
-/**
- * Investment Activity Types
- */
+import type { CommonActivity } from '@/common/data/relations/types/commonActivityTypes'
+import { COMMON_ACTIVITY_DESCRIPTORS } from '@/common/data/relations/types/commonActivityTypes'
+import type { Descriptor } from '@/common/network/graphql/queryHelpers'
+import {
+  Investment,
+  InvestmentContact,
+  InvestmentAccount,
+  InvestmentDocument,
+  InvestmentOpportunity,
+  InvestmentLead
+} from './'
 
-import type { BaseEntity, CatalogEntry } from '@/common/network/graphql/commonTypes'
-import type { Employee } from '@/common/data/employee/types/employeeBaseTypes'
-import type { SourceTable } from './investmentEnums'
-
-/**
- * InvestmentActivity
- * Activity entity for IRM
- */
-export interface InvestmentActivity extends BaseEntity {
-  id: string
-  version: number
-  source?: SourceTable
-  title?: string
-  description?: string
-  occurredAt?: string
-  completedAt?: string
-
-  // Catalog references
-  activityType?: CatalogEntry
-  activityTypeRef?: string
-
-  // Entity references
-  investment?: any // Investment
+export interface InvestmentActivity extends CommonActivity {
+  account?: InvestmentAccount
+  contact?: InvestmentContact
+  documents?: InvestmentDocument[]
+  investment?: Investment
   investmentId?: string
-  ownerEmployee?: Employee
-  ownerEmployeeId?: string
-  account?: any // InvestmentAccount
-  accountId?: string
-  contact?: any // InvestmentContact
-  contactId?: string
-  opportunity?: any // InvestmentOpportunity
-  opportunityId?: string
-  lead?: any // InvestmentLead
-  leadId?: string
+  opportunity?: InvestmentOpportunity
+  lead?: InvestmentLead
 
-  // Documents
-  documents?: any[] // InvestmentDocument[]
+  /**
+   * @deprecated TODO: Use documents instead
+   */
+  investmentDocument?: InvestmentDocument[]
 }
+
+/**
+ * Investment Activity Descriptors
+ * IRM uses correct field names, so we use Common descriptors directly
+ */
+export const INVESTMENT_ACTIVITY_DESCRIPTORS: Descriptor[] = [...COMMON_ACTIVITY_DESCRIPTORS]

@@ -1,112 +1,245 @@
-/**
- * Common Lead Types
- * Standardized lead interface shared between Customer and Investment modules
- */
-
 import type { BaseEntity, CatalogEntry } from '@/common/network/graphql/commonTypes'
+import { BASE_ENTITY_DESCRIPTORS } from '@/common/network/graphql/commonTypes'
 import type { Employee } from '@/common/data/employee/types/employeeBaseTypes'
-import type { Address, CommunicationChannel } from '@/common/data/common/types/commonTypes'
+import type { Descriptor } from '@/common/network/graphql/queryHelpers'
 
-/**
- * Common Lead Interface
- * The CORRECT target structure - how ALL Leads SHOULD be structured after integration
- * Extended by BaseCustomerLead and BaseInvestmentLead
- */
 export interface CommonLead extends BaseEntity {
-  id: string
-  code?: string
-  description?: string
-
-  // Source information
-  leadSourceType?: string
-  sourceIndividualName?: string
-  sourceCompanyName?: string
-
-  // Dates
-  conversionDate?: string
-
-  // Personal information
-  firstName?: string
-  lastName?: string
-  fullName?: string
-  jobPosition?: string
-  department?: string
-  companyName?: string
-  companyEmail?: string
-  companyPhone?: string
-  companyWebsite?: string
-  sensitive?: boolean
-
-  // Contact information (direct fields from GraphQL)
-  email?: string
-  phoneNumber?: string
-
-  // Address fields (both domains have these)
-  addressLine?: string | { lines: string[] } | any // CRM: String, IRM: jsonb
-  postalCode?: string
-  locality?: string // IRM uses "locality", CRM uses "city" - normalized to "locality"
-
-  // Catalog References (using IRM naming as standard)
-  salutation?: CatalogEntry
-  salutationRef?: string
-  academicTitle?: CatalogEntry
-  academicTitleRef?: string
-  timeZone?: CatalogEntry
-  timeZoneRef?: string
-  leadSource?: CatalogEntry
-  leadSourceRef?: string
-  leadStatus?: CatalogEntry
-  leadStatusRef?: string
-  leadRating?: CatalogEntry
-  leadRatingRef?: string
-  industryClass?: CatalogEntry // IRM uses "industryClass", CRM uses "industry"
-  industryClassRef?: string
-  legalForm?: CatalogEntry
-  legalFormRef?: string
-  companySize?: CatalogEntry // IRM uses "companySize", CRM uses "numberOfEmployees"
-  companySizeRef?: string
-  accountAnnualRevenueBand?: CatalogEntry // IRM uses "accountAnnualRevenueBand", CRM uses "annualRevenue"
-  accountAnnualRevenueBandRef?: string
-  country?: CatalogEntry
-  countryRef?: string
-  region?: CatalogEntry
-  regionRef?: string
-
-  // Employee Reference
-  ownerEmployee?: Employee
-  ownerEmployeeId?: string
-
-  // Related entities - forward declarations to avoid circular imports
-  activities?: any[] // CommonActivity[]
-  notes?: any[] // CommonNote[]
-  documents?: any[] // CommonDocument[]
-  tasks?: any[] // CommonTask[]
-
-  // Conversion references
-  convertedAccountId?: string
-  convertedAccount?: any // CommonAccount
+  academicTitle?: CatalogEntry // IRM | CRM
+  academicTitleRef?: string // IRM / CRM
+  accountAnnualRevenueBand?: CatalogEntry // IRM | TODO
+  accountAnnualRevenueBandRef?: string // IRM / TODO
+  activities?: any[] // IRM / TODO
+  addressLine?: string | { lines: string[] } | any // IRM / CRM is string
+  code?: string // IRM / CRM
+  companyEmail?: string // IRM / CRM
+  companyName?: string // IRM / CRM
+  companyPhone?: string // IRM / CRM
+  companySize?: CatalogEntry // IRM / TODO (numberOfEmployees)
+  companySizeRef?: string // IRM / TODO (numberOfEmployeesRef)
+  companyWebsite?: string // IRM / CRM
+  conversionDate?: string // IRM / CRM
+  convertedAccount?: any // IRM / CRM
+  convertedAccountId?: string // IRM / CRM
+  convertedContact?: any // IRM / CRM
   convertedContactId?: string
-  convertedContact?: any // CommonContact
-  convertedOpportunityId?: string
-  convertedOpportunity?: any // CommonOpportunity
-
-  // Computed fields
-  address?: Address
-  communicationChannels?: CommunicationChannel[]
+  convertedOpportunity?: any // IRM / CRM
+  convertedOpportunityId?: string // IRM / CRM
+  country?: CatalogEntry // IRM / CRM
+  countryRef?: string // IRM / CRM
+  description?: string // IRM / CRM
+  documents?: any[] // IRM / CRM
+  email?: string // IRM / CRM
+  firstName?: string // IRM / CRM
+  id: string
+  industryClass?: CatalogEntry // IRM / TODO (industry)
+  industryClassRef?: string // IRM / TODO (industryRef)
+  lastName?: string // IRM / CRM
+  leadRating?: CatalogEntry // IRM / CRM
+  leadRatingRef?: string // IRM / CRM
+  leadSource?: CatalogEntry // IRM / CRM
+  leadSourceRef?: string // IRM / CRM
+  leadStatus?: CatalogEntry // IRM / CRM
+  leadStatusRef?: string // IRM / CRM
+  locality?: string // IRM / TODO (city)
+  notes?: any[] // IRM / CRM
+  ownerEmployee?: Employee // IRM / CRM
+  ownerEmployeeId?: string // IRM / CRM
+  phoneNumber?: string // IRM / CRM
+  position?: string // IRM / CRM
+  postalCode?: string // IRM / CRM
+  region?: CatalogEntry // IRM / CRM
+  regionRef?: string // IRM / CRM
+  rejectionReasons?: any[] // IRM / TODO (missing)
+  salutation?: CatalogEntry // IRM / TODO (missing)
+  salutationRef?: string // IRM / TODO (missing)
+  sensitive?: boolean // IRM / CRM
+  sourceCompanyName?: string // IRM / TODO (source)
+  sourceIndividualName?: string // IRM / TODO (source)
+  tasks?: any[] // IRM / TODO (missing)
 }
 
-/**
- * Filter Option Interface
- */
+export const COMMON_LEAD_DESCRIPTORS: Descriptor[] = [
+  ...BASE_ENTITY_DESCRIPTORS,
+
+  {
+    key: 'academicTitle',
+    searchPaths: ['academicTitle.value', 'academicTitle.code'],
+    sortPath: 'academicTitle.value',
+    type: 'text'
+  },
+  { key: 'academicTitleRef', searchPaths: ['academicTitleRef'], sortPath: 'academicTitleRef', type: 'text' },
+  {
+    key: 'accountAnnualRevenueBand',
+    searchPaths: ['accountAnnualRevenueBand.value', 'accountAnnualRevenueBand.code'],
+    sortPath: 'accountAnnualRevenueBand.value',
+    type: 'text'
+  },
+  {
+    key: 'accountAnnualRevenueBandRef',
+    searchPaths: ['accountAnnualRevenueBandRef'],
+    sortPath: 'accountAnnualRevenueBandRef',
+    type: 'text'
+  },
+  {
+    key: 'activities',
+    searchPaths: ['activities.title', 'activities.description'],
+    sortPath: 'activities.title',
+    type: 'text'
+  },
+  { key: 'addressLine', searchPaths: ['addressLine'], sortPath: 'addressLine', type: 'text' },
+  { key: 'code', searchPaths: ['code'], sortPath: 'code', type: 'text' },
+  { key: 'companyEmail', searchPaths: ['companyEmail'], sortPath: 'companyEmail', type: 'text' },
+  { key: 'companyName', searchPaths: ['companyName'], sortPath: 'companyName', type: 'text' },
+  { key: 'companyPhone', searchPaths: ['companyPhone'], sortPath: 'companyPhone', type: 'text' },
+  {
+    key: 'companySize',
+    searchPaths: ['companySize.value', 'companySize.code'],
+    sortPath: 'companySize.value',
+    type: 'text'
+  },
+  { key: 'companySizeRef', searchPaths: ['companySizeRef'], sortPath: 'companySizeRef', type: 'text' },
+  { key: 'companyWebsite', searchPaths: ['companyWebsite'], sortPath: 'companyWebsite', type: 'text' },
+  { key: 'conversionDate', searchPaths: ['conversionDate'], sortPath: 'conversionDate', type: 'date' },
+  { key: 'convertedAccount', searchPaths: ['convertedAccount.name'], sortPath: 'convertedAccount.name', type: 'text' },
+  { key: 'convertedAccountId', searchPaths: ['convertedAccountId'], sortPath: 'convertedAccountId', type: 'text' },
+  {
+    key: 'convertedContact',
+    searchPaths: ['convertedContact.firstName', 'convertedContact.lastName'],
+    sortPath: 'convertedContact.lastName',
+    type: 'text'
+  },
+  { key: 'convertedContactId', searchPaths: ['convertedContactId'], sortPath: 'convertedContactId', type: 'text' },
+  {
+    key: 'convertedOpportunity',
+    searchPaths: ['convertedOpportunity.name'],
+    sortPath: 'convertedOpportunity.name',
+    type: 'text'
+  },
+  {
+    key: 'convertedOpportunityId',
+    searchPaths: ['convertedOpportunityId'],
+    sortPath: 'convertedOpportunityId',
+    type: 'text'
+  },
+  {
+    key: 'country',
+    searchPaths: ['country.value', 'country.code'],
+    sortPath: 'country.value',
+    type: 'text'
+  },
+  { key: 'countryRef', searchPaths: ['countryRef'], sortPath: 'countryRef', type: 'text' },
+  { key: 'description', searchPaths: ['description'], sortPath: 'description', type: 'text' },
+  {
+    key: 'documents',
+    searchPaths: ['documents.name', 'documents.description'],
+    sortPath: 'documents.name',
+    type: 'text'
+  },
+  { key: 'email', searchPaths: ['email'], sortPath: 'email', type: 'text' },
+  { key: 'firstName', searchPaths: ['firstName'], sortPath: 'firstName', type: 'text' },
+  { key: 'id', searchPaths: ['id'], sortPath: 'id', type: 'text' },
+  {
+    key: 'industryClass',
+    searchPaths: ['industryClass.value', 'industryClass.code'],
+    sortPath: 'industryClass.value',
+    type: 'text'
+  },
+  { key: 'industryClassRef', searchPaths: ['industryClassRef'], sortPath: 'industryClassRef', type: 'text' },
+  { key: 'lastName', searchPaths: ['lastName'], sortPath: 'lastName', type: 'text' },
+  {
+    key: 'leadRating',
+    searchPaths: ['leadRating.value', 'leadRating.code'],
+    sortPath: 'leadRating.value',
+    type: 'text'
+  },
+  { key: 'leadRatingRef', searchPaths: ['leadRatingRef'], sortPath: 'leadRatingRef', type: 'text' },
+  {
+    key: 'leadSource',
+    searchPaths: ['leadSource.value', 'leadSource.code'],
+    sortPath: 'leadSource.value',
+    type: 'text'
+  },
+  { key: 'leadSourceRef', searchPaths: ['leadSourceRef'], sortPath: 'leadSourceRef', type: 'text' },
+  {
+    key: 'leadStatus',
+    searchPaths: ['leadStatus.value', 'leadStatus.code'],
+    sortPath: 'leadStatus.value',
+    type: 'text'
+  },
+  { key: 'leadStatusRef', searchPaths: ['leadStatusRef'], sortPath: 'leadStatusRef', type: 'text' },
+  { key: 'locality', searchPaths: ['locality'], sortPath: 'locality', type: 'text' },
+  { key: 'notes', searchPaths: ['notes.subject', 'notes.content'], sortPath: 'notes.subject', type: 'text' },
+  {
+    key: 'ownerEmployee',
+    searchPaths: ['ownerEmployee.displayName', 'ownerEmployee.firstName', 'ownerEmployee.lastName'],
+    sortPath: 'ownerEmployee.displayName',
+    type: 'text'
+  },
+  { key: 'ownerEmployeeId', searchPaths: ['ownerEmployeeId'], sortPath: 'ownerEmployeeId', type: 'text' },
+  { key: 'phoneNumber', searchPaths: ['phoneNumber'], sortPath: 'phoneNumber', type: 'text' },
+  { key: 'position', searchPaths: ['position'], sortPath: 'position', type: 'text' },
+  { key: 'postalCode', searchPaths: ['postalCode'], sortPath: 'postalCode', type: 'text' },
+  {
+    key: 'region',
+    searchPaths: ['region.value', 'region.code'],
+    sortPath: 'region.value',
+    type: 'text'
+  },
+  { key: 'regionRef', searchPaths: ['regionRef'], sortPath: 'regionRef', type: 'text' },
+  {
+    key: 'rejectionReasons',
+    searchPaths: ['rejectionReasons.reason'],
+    sortPath: 'rejectionReasons.reason',
+    type: 'text'
+  },
+  {
+    key: 'salutation',
+    searchPaths: ['salutation.value', 'salutation.code'],
+    sortPath: 'salutation.value',
+    type: 'text'
+  },
+  { key: 'salutationRef', searchPaths: ['salutationRef'], sortPath: 'salutationRef', type: 'text' },
+  { key: 'sensitive', searchPaths: ['sensitive'], sortPath: 'sensitive', type: 'boolean' },
+  { key: 'sourceCompanyName', searchPaths: ['sourceCompanyName'], sortPath: 'sourceCompanyName', type: 'text' },
+  {
+    key: 'sourceIndividualName',
+    searchPaths: ['sourceIndividualName'],
+    sortPath: 'sourceIndividualName',
+    type: 'text'
+  },
+  { key: 'tasks', searchPaths: ['tasks.subject', 'tasks.description'], sortPath: 'tasks.subject', type: 'text' },
+
+  // Filter IDs
+  { key: 'academicTitleIds', path: 'academicTitleRef', kind: 'inIds' },
+  { key: 'accountAnnualRevenueBandIds', path: 'accountAnnualRevenueBandRef', kind: 'inIds' },
+  { key: 'companySizeIds', path: 'companySizeRef', kind: 'inIds' },
+  { key: 'countryIds', path: 'countryRef', kind: 'inIds' },
+  { key: 'industryClassIds', path: 'industryClassRef', kind: 'inIds' },
+  { key: 'leadRatingIds', path: 'leadRatingRef', kind: 'inIds' },
+  { key: 'leadSourceIds', path: 'leadSourceRef', kind: 'inIds' },
+  { key: 'leadStatusIds', path: 'leadStatusRef', kind: 'inIds' },
+  { key: 'ownerEmployeeIds', path: 'ownerEmployeeId', kind: 'inIds' },
+  { key: 'regionIds', path: 'regionRef', kind: 'inIds' },
+  { key: 'salutationIds', path: 'salutationRef', kind: 'inIds' },
+
+  // Date range filters
+  { key: 'conversionDateAfter', path: 'conversionDate', kind: 'dateFrom' },
+  { key: 'conversionDateBefore', path: 'conversionDate', kind: 'dateTo' },
+
+  // Composite display columns (for table sorting)
+  // contactInfo: Displays email, phoneNumber, companyWebsite - sorts by email (primary), phoneNumber (fallback)
+  { key: 'contactInfo', searchPaths: ['email', 'phoneNumber', 'companyWebsite'], sortPath: 'email', type: 'text' },
+
+  // address: Displays addressLine, locality, postalCode, region, country - sorts by locality (primary), postalCode (fallback)
+  { key: 'address', searchPaths: ['locality', 'postalCode', 'addressLine'], sortPath: 'locality', type: 'text' }
+]
+
+//TODO: REPLACE WITH DESCRIPTOR INTERFACE
 interface FilterOption {
   id: string
   label: string
 }
-
-/**
- * Common Lead Filters Interface
- * Base filter options shared across Customer and Investment Leads
- */
+//TODO: REPLACE WITH DESCRIPTOR INTERFACE
 export interface CommonLeadFilters {
   // Standard catalog-based filters
   owners: FilterOption[]

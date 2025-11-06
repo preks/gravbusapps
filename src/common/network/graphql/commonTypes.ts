@@ -2,6 +2,8 @@
  * Basic GraphQL types for query building
  */
 
+import type { Descriptor } from './queryHelpers'
+
 // ==========================================
 // QUERY INTERFACES
 // ==========================================
@@ -31,15 +33,6 @@ export interface QueryResponse<T> {
   data: T[]
   aggregate?: {
     count: number
-  }
-}
-
-export interface FinancialQueryResponse<T> extends QueryResponse<T> {
-  aggregate?: {
-    count: number
-    sum?: {
-      [key: string]: number
-    }
   }
 }
 
@@ -75,6 +68,39 @@ export interface BaseEntity {
   version: number
   additionalProperties?: any // jsonb
 }
+
+/**
+ * Base Entity Descriptors
+ * Common descriptors for all entities extending BaseEntity
+ * Keys match BaseEntity fields exactly (alphabetically sorted)
+ */
+export const BASE_ENTITY_DESCRIPTORS: Descriptor[] = [
+  { key: 'activeFrom', searchPaths: ['activeFrom'], sortPath: 'activeFrom', type: 'date' },
+  { key: 'activeTo', searchPaths: ['activeTo'], sortPath: 'activeTo', type: 'date' },
+  {
+    key: 'additionalProperties',
+    searchPaths: ['additionalProperties'],
+    sortPath: 'additionalProperties',
+    type: 'text'
+  },
+  { key: 'createdAt', searchPaths: ['createdAt'], sortPath: 'createdAt', type: 'date' },
+  { key: 'createdBy', searchPaths: ['createdBy'], sortPath: 'createdBy', type: 'text' },
+  { key: 'isDeleted', searchPaths: ['isDeleted'], sortPath: 'isDeleted', type: 'boolean' },
+  { key: 'recordState', searchPaths: ['recordState'], sortPath: 'recordState', type: 'text' },
+  { key: 'updatedAt', searchPaths: ['updatedAt'], sortPath: 'updatedAt', type: 'date' },
+  { key: 'updatedBy', searchPaths: ['updatedBy'], sortPath: 'updatedBy', type: 'text' },
+  { key: 'version', searchPaths: ['version'], sortPath: 'version', type: 'number' },
+
+  // Date range filters
+  { key: 'activeFromAfter', path: 'activeFrom', kind: 'dateFrom' },
+  { key: 'activeFromBefore', path: 'activeFrom', kind: 'dateTo' },
+  { key: 'activeToAfter', path: 'activeTo', kind: 'dateFrom' },
+  { key: 'activeToBefore', path: 'activeTo', kind: 'dateTo' },
+  { key: 'createdAfter', path: 'createdAt', kind: 'dateFrom' },
+  { key: 'createdBefore', path: 'createdAt', kind: 'dateTo' },
+  { key: 'updatedAfter', path: 'updatedAt', kind: 'dateFrom' },
+  { key: 'updatedBefore', path: 'updatedAt', kind: 'dateTo' }
+]
 
 // Note: activeFrom/activeTo are now included in AuditFields
 // Extended validity periods can be added to specific entities if needed:

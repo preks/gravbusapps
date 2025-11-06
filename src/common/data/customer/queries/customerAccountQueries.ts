@@ -3,32 +3,9 @@
  * GraphQL queries for CRM Account entities
  */
 
-import { CUSTOMER_ACCOUNT, CUSTOMER_ACCOUNT_REF } from './customerAccountFragments'
-
-/**
- * Build orderBy clause from array of { field, direction }
- * Handles nested paths like 'industry.value' -> { industry: { value: ASC } }
- */
-const buildOrderByClause = (orderBy: Array<{ field: string | any; direction: string }>): string => {
-  if (!orderBy || orderBy.length === 0) {
-    return 'orderBy: [{ createdAt: DESC }]'
-  }
-
-  const orderByParts = orderBy.map(o => {
-    // If field is already an object (nested), use it directly
-    if (typeof o.field === 'object') {
-      // Convert to JSON and remove quotes from direction ENUMs
-      return JSON.stringify(o.field)
-        .replace(/"([^"]+)":/g, '$1:') // Remove quotes from keys
-        .replace(/:"(ASC_NULLS_LAST|DESC_NULLS_LAST|ASC|DESC)"/g, ':$1') // Remove quotes from ENUM values
-    }
-    // Otherwise it's a simple field name
-    return `{ ${o.field}: ${o.direction} }`
-  })
-
-  return `orderBy: [${orderByParts.join(', ')}]`
-}
-
+import { CUSTOMER_ACCOUNT } from './fragments/customerFragments'
+import { buildOrderBy, buildSearch, buildFilter } from '@/common/network/graphql/queryHelpers'
+import { CUSTOMER_ACCOUNT_DESCRIPTORS } from '@/common/data/customer/types/customerAccountTypes'
 /**
  * Customer Account Query Variables Interface
  */
@@ -37,7 +14,10 @@ export interface CustomerAccountQueryVariables {
   limit?: number
   offset?: number
   search?: string
-  orderBy?: Array<{ field: string | any; direction: string }>
+  orderBy?: Array<{
+    field: string
+    direction: 'ASC_NULLS_LAST' | 'DESC_NULLS_LAST'
+  }>
 
   // Filter fields
   ownerEmployeeIds?: string[]
@@ -66,80 +46,18 @@ export const buildCustomerAccountWhereCondition = (variables: CustomerAccountQue
     whereClause += `, id: { _in: ["${variables.ids.join('","')}"] }`
   }
 
-  // Filter by owner employee
-  if (variables.ownerEmployeeIds && variables.ownerEmployeeIds.length > 0) {
-    whereClause += `, ownerEmployeeId: { _in: ["${variables.ownerEmployeeIds.join('","')}"] }`
+  // Apply filters using descriptors
+  const filterConditions = buildFilter(variables, CUSTOMER_ACCOUNT_DESCRIPTORS)
+  if (filterConditions) {
+    whereClause += `, ${filterConditions}`
   }
 
-  // Filter by industry (CRM field name)
-  if (variables.industryIds && variables.industryIds.length > 0) {
-    whereClause += `, industryRef: { _in: ["${variables.industryIds.join('","')}"] }`
-  }
-
-  // Filter by legal form
-  if (variables.legalFormIds && variables.legalFormIds.length > 0) {
-    whereClause += `, legalFormRef: { _in: ["${variables.legalFormIds.join('","')}"] }`
-  }
-
-  // Filter by company size (CRM field name: numberOfEmployees)
-  if (variables.companySizeIds && variables.companySizeIds.length > 0) {
-    whereClause += `, numberOfEmployeesRef: { _in: ["${variables.companySizeIds.join('","')}"] }`
-  }
-
-  // Filter by revenue band (CRM field name: annualRevenue)
-  if (variables.revenueBandIds && variables.revenueBandIds.length > 0) {
-    whereClause += `, annualRevenueRef: { _in: ["${variables.revenueBandIds.join('","')}"] }`
-  }
-
-  // Filter by country (nested in addresses)
-  if (variables.countryIds && variables.countryIds.length > 0) {
-    whereClause += `, addresses: { countryRef: { _in: ["${variables.countryIds.join('","')}"] } }`
-  }
-
-  // Filter by region (nested in addresses)
-  if (variables.regionIds && variables.regionIds.length > 0) {
-    whereClause += `, addresses: { regionRef: { _in: ["${variables.regionIds.join('","')}"] } }`
-  }
-
-  // Date range: createdAt
-  if (variables.createdAfter) {
-    whereClause += `, createdAt: { _gte: "${variables.createdAfter}" }`
-  }
-  if (variables.createdBefore) {
-    whereClause += `, createdAt: { _lte: "${variables.createdBefore}" }`
-  }
-
-  // Date range: foundationDate
-  if (variables.foundedAfter) {
-    whereClause += `, foundationDate: { _gte: "${variables.foundedAfter}" }`
-  }
-  if (variables.foundedBefore) {
-    whereClause += `, foundationDate: { _lte: "${variables.foundedBefore}" }`
-  }
-
-  // Search across all displayed fields
-  if (variables.search && variables.search.trim()) {
-    const searchPattern = `%${variables.search.trim()}%`
-    whereClause += `, _or: [
-      { name: { _ilike: "${searchPattern}" } },
-      { website: { _ilike: "${searchPattern}" } },
-      { mission: { _ilike: "${searchPattern}" } },
-      { specialty: { _ilike: "${searchPattern}" } },
-      { geographicPresence: { _ilike: "${searchPattern}" } },
-      { notesSummary: { _ilike: "${searchPattern}" } },
-      { addresses: { addressLine: { _ilike: "${searchPattern}" } } },
-      { addresses: { city: { _ilike: "${searchPattern}" } } },
-      { addresses: { postalCode: { _ilike: "${searchPattern}" } } },
-      { addresses: { country: { value: { _ilike: "${searchPattern}" } } } },
-      { addresses: { region: { value: { _ilike: "${searchPattern}" } } } },
-      { industry: { value: { _ilike: "${searchPattern}" } } },
-      { legalForm: { value: { _ilike: "${searchPattern}" } } },
-      { numberOfEmployees: { value: { _ilike: "${searchPattern}" } } },
-      { annualRevenue: { value: { _ilike: "${searchPattern}" } } },
-      { ownerEmployee: { displayName: { _ilike: "${searchPattern}" } } },
-      { ownerEmployee: { firstName: { _ilike: "${searchPattern}" } } },
-      { ownerEmployee: { lastName: { _ilike: "${searchPattern}" } } }
-    ]`
+  // Apply search using descriptors
+  if (variables.search?.trim()) {
+    const searchConditions = buildSearch(variables.search, CUSTOMER_ACCOUNT_DESCRIPTORS)
+    if (searchConditions) {
+      whereClause += `, ${searchConditions}`
+    }
   }
 
   whereClause += ' }'
@@ -153,7 +71,7 @@ export const GET_CUSTOMER_ACCOUNTS = (variables: CustomerAccountQueryVariables =
   const limit = Math.min(variables.limit || 50, 100)
   const offset = variables.offset || 0
   const where = buildCustomerAccountWhereCondition(variables)
-  const orderByClause = buildOrderByClause(variables.orderBy || [])
+  const orderByClause = buildOrderBy(variables.orderBy, CUSTOMER_ACCOUNT_DESCRIPTORS)
 
   return `
     query GetCustomerAccounts {
@@ -198,7 +116,10 @@ export const SEARCH_CUSTOMER_ACCOUNTS = (variables: CustomerAccountQueryVariable
         limit: ${limit}
         ${where}
       ) {
-        ${CUSTOMER_ACCOUNT_REF}
+        id
+        code
+        name
+        website
       }
     }
   `

@@ -1,113 +1,175 @@
-/**
- * Common Contact Types
- * Defines the CORRECT, target Contact structure
- */
-
 import type { BaseEntity, CatalogEntry } from '@/common/network/graphql/commonTypes'
+import { BASE_ENTITY_DESCRIPTORS } from '@/common/network/graphql/commonTypes'
 import type { Employee } from '@/common/data/employee/types/employeeBaseTypes'
-import type { CommunicationChannel } from '@/common/data/common/types/commonTypes'
+import type { Address, CommunicationChannel } from '@/common/data/common/types/commonTypes'
+import type { Descriptor } from '@/common/network/graphql/queryHelpers'
 import type { CommonAccountContact } from './commonRelationTypes'
+import type { CommonActivity } from './commonActivityTypes'
+import type { CommonDocument } from './commonDocumentTypes'
+import type { CommonLead } from './commonLeadTypes'
+import type { CommonNote } from './commonNoteTypes'
+import type { CommonOpportunity } from './commonOpportunityTypes'
+import type { CommonTask } from './commonTaskTypes'
 
-/**
- * Common Contact Interface
- * The CORRECT target structure - how ALL Contacts SHOULD be structured after integration
- * Extended by BaseCustomerContact and BaseInvestmentContact
- */
 export interface CommonContact extends BaseEntity {
-  id: string
-  code?: string
-  type?: string
-  firstName?: string
-  lastName?: string
-  fullName?: string
-  jobPosition?: string
-  department?: string
-  birthDate?: string
-  description?: string
-  notesSummary?: string
-  userId?: string
-
-  // Pictures (base64 strings - CORRECT)
-  picture?: string
-  pictureThumbnail?: string
-
-  // Communication Channels (CORRECT)
-  communicationChannels?: CommunicationChannel[]
-
-  // Catalog References (CORRECT)
-  academicTitle?: CatalogEntry
-  academicTitleRef?: string
-  salutation?: CatalogEntry
-  salutationRef?: string
-  language?: CatalogEntry
-  languageRef?: string
-
-  // Employee Reference (CORRECT)
-  ownerEmployee?: Employee
-  ownerEmployeeId?: string
-
-  // Account Contacts (CORRECT - many-to-many relationship via join table)
-  accountContacts?: CommonAccountContact[]
-
-  // Related entities - forward declarations to avoid circular imports
-  activities?: any[] // CommonActivity[]
-  notes?: any[] // CommonNote[]
-  documents?: any[] // CommonDocument[]
-  tasks?: any[] // CommonTask[]
-  opportunityContacts?: any[] // CommonOpportunityContact[]
-  leads?: any[] // CommonLead[]
+  academicTitle?: CatalogEntry // IRM | CRM
+  academicTitleRef?: string // IRM | CRM
+  accountContacts?: CommonAccountContact[] // IRM | CRM
+  activities?: CommonActivity[] // IRM | TODO (missing)
+  addresses?: Address[] // IRM | CRM
+  birthDate?: string // IRM | CRM
+  code?: string // IRM | CRM
+  communicationChannels?: CommunicationChannel[] // IRM | CRM
+  department?: string // IRM | CRM
+  description?: string // IRM | TODO (missing)
+  documents?: CommonDocument[] // IRM | CRM
+  firstName?: string // IRM | CRM
+  fullName?: string // IRM | TODO (missing) --> unclear
+  id?: string // IRM | CRM
+  jobPosition?: string // IRM | TODO (jobTitle)
+  language?: CatalogEntry // IRM | CRM
+  languageRef?: string // IRM | CRM
+  lastName?: string // IRM | CRM
+  leads?: CommonLead[] // IRM | CRM
+  notes?: CommonNote[] // IRM | CRM
+  notesSummary?: string // IRM | CRM
+  opportunityContacts?: CommonOpportunity[] // IRM | TODO (missing)
+  ownerEmployee?: Employee // IRM | CRM
+  ownerEmployeeId?: string // IRM | CRM
+  picture?: string // IRM | TODO (pictureUrl)
+  pictureThumbnail?: string // IRM | TODO (pictureThumbnailUrl)
+  salutation?: CatalogEntry // IRM | TODO (CRM missing)
+  salutationRef?: string // IRM | TODO (missing)
+  tasks?: CommonTask[] // IRM | TODO (missing)
+  type?: string // IRM | TODO (contactType)
 }
 
-/**
- * Filter Option Interface
- */
-interface FilterOption {
-  id: string
-  label: string
-}
+export const COMMON_CONTACT_DESCRIPTORS: Descriptor[] = [
+  ...BASE_ENTITY_DESCRIPTORS,
 
-/**
- * Common Contact Filters Interface
- * Base filter options shared across Customer and Investment Contacts
- */
-export interface CommonContactFilters {
-  // Standard catalog-based filters
-  owners: FilterOption[]
-  academicTitles: FilterOption[]
-  salutations: FilterOption[]
-  languages: FilterOption[]
-  departments: FilterOption[]
-  jobPositions: FilterOption[]
+  {
+    key: 'academicTitle',
+    searchPaths: ['academicTitle.value', 'academicTitle.code'],
+    sortPath: 'academicTitle.value',
+    type: 'text'
+  },
+  { key: 'academicTitleRef', searchPaths: ['academicTitleRef'], sortPath: 'academicTitleRef', type: 'text' },
+  {
+    key: 'accountContacts',
+    searchPaths: ['accountContacts.account.name'],
+    sortPath: 'accountContacts.account.name',
+    type: 'text'
+  },
+  {
+    key: 'activities',
+    searchPaths: ['activities.title', 'activities.description'],
+    sortPath: 'activities.title',
+    type: 'text'
+  },
+  {
+    key: 'addresses',
+    searchPaths: ['addresses.addressLine', 'addresses.locality'],
+    sortPath: 'addresses.addressLine',
+    type: 'text'
+  },
+  { key: 'birthDate', searchPaths: ['birthDate'], sortPath: 'birthDate', type: 'date' },
+  { key: 'code', searchPaths: ['code'], sortPath: 'code', type: 'text' },
+  {
+    key: 'communicationChannels',
+    searchPaths: ['communicationChannels.value'],
+    sortPath: 'communicationChannels.value',
+    type: 'text'
+  },
+  { key: 'department', searchPaths: ['department'], sortPath: 'department', type: 'text' },
+  { key: 'description', searchPaths: ['description'], sortPath: 'description', type: 'text' },
+  {
+    key: 'documents',
+    searchPaths: ['documents.name', 'documents.description'],
+    sortPath: 'documents.name',
+    type: 'text'
+  },
+  { key: 'documentsAggregate', searchPaths: ['documentsAggregate'], sortPath: 'documentsAggregate', type: 'text' },
+  { key: 'firstName', searchPaths: ['firstName'], sortPath: 'firstName', type: 'text' },
+  { key: 'fullName', searchPaths: ['fullName'], sortPath: 'fullName', type: 'text' },
+  { key: 'id', searchPaths: ['id'], sortPath: 'id', type: 'text' },
+  { key: 'jobPosition', searchPaths: ['jobPosition'], sortPath: 'jobPosition', type: 'text' },
+  {
+    key: 'language',
+    searchPaths: ['language.value', 'language.code'],
+    sortPath: 'language.value',
+    type: 'text'
+  },
+  { key: 'languageRef', searchPaths: ['languageRef'], sortPath: 'languageRef', type: 'text' },
+  { key: 'lastName', searchPaths: ['lastName'], sortPath: 'lastName', type: 'text' },
+  {
+    key: 'leads',
+    searchPaths: ['leads.firstName', 'leads.lastName', 'leads.companyName'],
+    sortPath: 'leads.lastName',
+    type: 'text'
+  },
+  { key: 'notes', searchPaths: ['notes.subject', 'notes.content'], sortPath: 'notes.subject', type: 'text' },
+  { key: 'notesSummary', searchPaths: ['notesSummary'], sortPath: 'notesSummary', type: 'text' },
+  {
+    key: 'opportunityContacts',
+    searchPaths: ['opportunityContacts.opportunity.name'],
+    sortPath: 'opportunityContacts.opportunity.name',
+    type: 'text'
+  },
+  {
+    key: 'ownerEmployee',
+    searchPaths: ['ownerEmployee.displayName', 'ownerEmployee.firstName', 'ownerEmployee.lastName'],
+    sortPath: 'ownerEmployee.displayName',
+    type: 'text'
+  },
+  { key: 'ownerEmployeeId', searchPaths: ['ownerEmployeeId'], sortPath: 'ownerEmployeeId', type: 'text' },
+  { key: 'picture', searchPaths: ['picture'], sortPath: 'picture', type: 'text' },
+  { key: 'pictureThumbnail', searchPaths: ['pictureThumbnail'], sortPath: 'pictureThumbnail', type: 'text' },
+  {
+    key: 'salutation',
+    searchPaths: ['salutation.value', 'salutation.code'],
+    sortPath: 'salutation.value',
+    type: 'text'
+  },
+  { key: 'salutationRef', searchPaths: ['salutationRef'], sortPath: 'salutationRef', type: 'text' },
+  { key: 'tasks', searchPaths: ['tasks.subject', 'tasks.description'], sortPath: 'tasks.subject', type: 'text' },
+  { key: 'type', searchPaths: ['type'], sortPath: 'type', type: 'text' },
 
-  // Loading state
-  isLoading: boolean
+  // Filter IDs
+  { key: 'academicTitleIds', path: 'academicTitleRef', kind: 'inIds' },
+  { key: 'languageIds', path: 'languageRef', kind: 'inIds' },
+  { key: 'ownerEmployeeIds', path: 'ownerEmployeeId', kind: 'inIds' },
+  { key: 'salutationIds', path: 'salutationRef', kind: 'inIds' },
 
-  // Total counts for pagination
-  totalCounts?: {
-    owners?: number
-    academicTitles?: number
-    salutations?: number
-    languages?: number
-    departments?: number
-    jobPositions?: number
+  // Date range filters
+  { key: 'birthDateAfter', path: 'birthDate', kind: 'dateFrom' },
+  { key: 'birthDateBefore', path: 'birthDate', kind: 'dateTo' },
+
+  // Composite display columns (for table sorting)
+  // contact: Displays firstName, lastName, fullName - sorts by firstName (primary), lastName (fallback)
+  { key: 'contact', searchPaths: ['firstName', 'lastName', 'fullName'], sortPath: 'firstName', type: 'text' },
+
+  // contactInfo: Displays communicationChannels array - sorts by first email channel
+  // Note: Actual sorting happens via custom logic in queries for communication channels
+  {
+    key: 'contactInfo',
+    searchPaths: ['communicationChannels.value'],
+    sortPath: 'communicationChannels.value',
+    type: 'text'
+  },
+
+  // account: Displays primary account name from accountContacts array - sorts by account name
+  {
+    key: 'account',
+    searchPaths: ['accountContacts.account.name'],
+    sortPath: 'accountContacts.account.name',
+    type: 'text'
+  },
+
+  // address: Displays primary address from addresses array - sorts by locality
+  {
+    key: 'address',
+    searchPaths: ['addresses.locality', 'addresses.postalCode'],
+    sortPath: 'addresses.locality',
+    type: 'text'
   }
-
-  // Lifecycle functions
-  prefetchFilters?: () => Promise<void>
-
-  // Search functions (individual per filter group)
-  searchOwners?: (query: string) => Promise<FilterOption[]>
-  searchAcademicTitles?: (query: string) => Promise<FilterOption[]>
-  searchSalutations?: (query: string) => Promise<FilterOption[]>
-  searchLanguages?: (query: string) => Promise<FilterOption[]>
-  searchDepartments?: (query: string) => Promise<FilterOption[]>
-  searchJobPositions?: (query: string) => Promise<FilterOption[]>
-
-  // Load more functions (pagination)
-  loadMoreOwners?: () => Promise<void>
-  loadMoreAcademicTitles?: () => Promise<void>
-  loadMoreSalutations?: () => Promise<void>
-  loadMoreLanguages?: () => Promise<void>
-  loadMoreDepartments?: () => Promise<void>
-  loadMoreJobPositions?: () => Promise<void>
-}
+]

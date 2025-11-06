@@ -1,84 +1,44 @@
-// Customer Lead Mappers - Transform base types to enhanced types with computed fields
-
-import { CustomerLead } from '../types'
-import type { Address, CommunicationChannel } from '@/common/data/common/types/commonTypes'
-
 /**
- * Transform CustomerLead (GraphQL response) to CustomerLead (enhanced with computed fields)
+ * Customer Lead Mappers
  *
- * NOTE: This mapper handles CRM-specific field naming inconsistencies:
- * - industry → industryClass
- * - numberOfEmployees → companySize
+ * Transforms CRM Lead (GraphQL response) into standardized CommonLead structure.
+ *
+ * Key Mappings:
  * - annualRevenue → accountAnnualRevenueBand
  * - city → locality
+ * - industry → industryClass
+ * - numberOfEmployees → companySize
+ */
+
+import { CustomerLead } from '../types'
+
+/**
+ * Transform CustomerLead (raw GraphQL) to CustomerLead (enhanced/standardized)
+ *
+ * Handles CRM-specific field naming inconsistencies by mapping them to CommonLead standards.
  */
 export function toCustomerLead(base: CustomerLead): CustomerLead {
-  // Map CRM field names to CommonLead standard (IRM naming)
-  // Lead.industry → CommonLead.industryClass
-  const industryClass = base.industry
-
-  // Lead.numberOfEmployees → CommonLead.companySize
-  const companySize = base.numberOfEmployees
-
-  // Lead.annualRevenue → CommonLead.accountAnnualRevenueBand
+  // Map CRM catalog field names to CommonLead standard (IRM naming)
   const accountAnnualRevenueBand = base.annualRevenue
+  const accountAnnualRevenueBandRef = base.annualRevenueRef
 
-  // Lead.city → CommonLead.locality (CRM uses "city")
-  const city = (base as any).city
-  const locality = city
+  const locality = base.city
 
-  // Build computed address object from scalar fields
-  const address: Address | undefined =
-    base.addressLine || base.postalCode || city || base.country || base.region
-      ? {
-          id: base.id, // Use lead ID as address ID
-          addressType: 'PRIMARY',
-          addressLine: base.addressLine,
-          locality, // Mapped from city
-          postalCode: base.postalCode,
-          country: base.country,
-          region: base.region
-        }
-      : undefined
+  const industryClass = base.industry
+  const industryClassRef = base.industryRef
 
-  // Build computed communication channels array from email and phoneNumber
-  const communicationChannels: CommunicationChannel[] = []
-
-  if (base.email) {
-    communicationChannels.push({
-      id: `${base.id}-email`,
-      value: base.email,
-      communicationChannel: {
-        id: 'email',
-        code: 'EMAIL',
-        type: 'EMAIL',
-        value: 'Email'
-      }
-    } as CommunicationChannel)
-  }
-
-  if (base.phoneNumber) {
-    communicationChannels.push({
-      id: `${base.id}-phone`,
-      value: base.phoneNumber,
-      communicationChannel: {
-        id: 'phone',
-        code: 'PHONE',
-        type: 'PHONE',
-        value: 'Phone'
-      }
-    } as CommunicationChannel)
-  }
+  const companySize = base.numberOfEmployees
+  const companySizeRef = base.numberOfEmployeesRef
 
   return {
     ...base,
-    // Map CRM fields to CommonLead standard
-    industryClass,
-    companySize,
+    // Mapped catalog fields (CRM names → CommonLead standard)
     accountAnnualRevenueBand,
+    accountAnnualRevenueBandRef,
     locality,
-    // Computed fields
-    address,
-    communicationChannels
-  } as any
+    industryClass,
+    industryClassRef,
+    companySize,
+    companySizeRef
+  }
 }

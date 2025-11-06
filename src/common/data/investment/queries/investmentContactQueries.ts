@@ -1,11 +1,13 @@
 // Investment Contact Queries - Complete queries using shared fragments
 import {
-  INVESTMENT_TASK,
+  INVESTMENT_CONTACT,
   INVESTMENT_ACTIVITY,
   INVESTMENT_NOTE,
   INVESTMENT_DOCUMENT
-} from './fragments/investmentRelationFragments'
-import { INVESTMENT_CONTACT, INVESTMENT_ACCOUNT_REF } from './fragments/investmentRelationFragments'
+} from './fragments/investmentFragments'
+import { INVESTMENT_TASK_REF } from './fragments/investmentReferenceFragments'
+import { buildOrderBy, buildSearch, buildFilter } from '@/common/network/graphql/queryHelpers'
+import { INVESTMENT_CONTACT_DESCRIPTORS } from '@/common/data/investment/types/investmentContactTypes'
 export interface InvestmentContactQueryVariables {
   ids?: string[]
   search?: string
@@ -39,83 +41,29 @@ export interface InvestmentContactQueryVariables {
 export const buildInvestmentContactWhereCondition = (variables: InvestmentContactQueryVariables = {}) => {
   let whereClause = 'where: { isDeleted: { _eq: false }'
 
-  // Search across multiple fields (only using fields that exist in the schema)
+  // IDs filter
+  if (variables.ids && variables.ids.length > 0) {
+    whereClause += `, id: { _in: ["${variables.ids.join('","')}"] }`
+  }
+
+  // Custom filters for hasEmail/missingEmail/hasPhone/missingPhone
+  if (variables.hasEmail) whereClause += `, email: { _isNull: false, _neq: "" }`
+  if (variables.missingEmail) whereClause += `, _or: [ { email: { _isNull: true } }, { email: { _eq: "" } } ]`
+  if (variables.hasPhone) whereClause += `, phone: { _isNull: false, _neq: "" }`
+  if (variables.missingPhone) whereClause += `, _or: [ { phone: { _isNull: true } }, { phone: { _eq: "" } } ]`
+
+  // Apply filters using descriptors
+  const filterConditions = buildFilter(variables, INVESTMENT_CONTACT_DESCRIPTORS)
+  if (filterConditions) {
+    whereClause += `, ${filterConditions}`
+  }
+
+  // Apply search using descriptors
   if (variables.search?.trim()) {
-    const searchTerm = variables.search.trim()
-    whereClause += `, _or: [
-      { firstName: { _ilike: "%${searchTerm}%" } },
-      { lastName: { _ilike: "%${searchTerm}%" } },
-      { fullName: { _ilike: "%${searchTerm}%" } },
-      { email: { _ilike: "%${searchTerm}%" } },
-      { phone: { _ilike: "%${searchTerm}%" } },
-      { code: { _ilike: "%${searchTerm}%" } },
-      { department: { _ilike: "%${searchTerm}%" } },
-      { description: { _ilike: "%${searchTerm}%" } },
-      { jobPosition: { _ilike: "%${searchTerm}%" } }
-    ]`
-  }
-
-  // Filter by specific fields
-  if (variables.academicTitleIds?.length) {
-    whereClause += `, academicTitle: { id: { _in: [${variables.academicTitleIds.map(id => `"${id}"`).join(', ')}] } }`
-  }
-
-  if (variables.salutationIds?.length) {
-    whereClause += `, salutation: { id: { _in: [${variables.salutationIds.map(id => `"${id}"`).join(', ')}] } }`
-  }
-
-  if (variables.languageIds?.length) {
-    whereClause += `, language: { id: { _in: [${variables.languageIds.map(id => `"${id}"`).join(', ')}] } }`
-  }
-
-  if (variables.ownerEmployeeIds?.length) {
-    whereClause += `, ownerEmployee: { id: { _in: [${variables.ownerEmployeeIds.map(id => `"${id}"`).join(', ')}] } }`
-  }
-
-  if (variables.accountIds?.length) {
-    whereClause += `, investmentAccountContact: { account: { id: { _in: [${variables.accountIds.map(id => `"${id}"`).join(', ')}] } } }`
-  }
-
-  if (variables.contactTypes?.length) {
-    whereClause += `, type: { _in: [${variables.contactTypes.map(v => `"${v}"`).join(', ')}] }`
-  }
-
-  if (variables.departments?.length) {
-    whereClause += `, department: { _in: [${variables.departments.map(v => `"${v}"`).join(', ')}] }`
-  }
-
-  if (variables.fullNames?.length) {
-    whereClause += `, fullName: { _in: [${variables.fullNames.map(v => `"${v}"`).join(', ')}] }`
-  }
-
-  // CreatedAt range
-  if (variables.createdAtFrom) {
-    whereClause += `, createdAt: { _gte: "${variables.createdAtFrom}" }`
-  }
-  if (variables.createdAtTo) {
-    whereClause += `, createdAt: { _lte: "${variables.createdAtTo}" }`
-  }
-
-  if (variables.birthDateFrom) {
-    whereClause += `, birthDate: { _gte: "${variables.birthDateFrom}" }`
-  }
-
-  if (variables.birthDateTo) {
-    whereClause += `, birthDate: { _lte: "${variables.birthDateTo}" }`
-  }
-
-  // Contact info presence
-  if (variables.hasEmail) {
-    whereClause += `, email: { _isNull: false, _neq: "" }`
-  }
-  if (variables.missingEmail) {
-    whereClause += `, _or: [ { email: { _isNull: true } }, { email: { _eq: "" } } ]`
-  }
-  if (variables.hasPhone) {
-    whereClause += `, phone: { _isNull: false, _neq: "" }`
-  }
-  if (variables.missingPhone) {
-    whereClause += `, _or: [ { phone: { _isNull: true } }, { phone: { _eq: "" } } ]`
+    const searchConditions = buildSearch(variables.search, INVESTMENT_CONTACT_DESCRIPTORS)
+    if (searchConditions) {
+      whereClause += `, ${searchConditions}`
+    }
   }
 
   whereClause += ' }'
@@ -127,18 +75,7 @@ export const GET_INVESTMENT_CONTACTS = (variables: InvestmentContactQueryVariabl
   const limit = Math.min(variables.limit || 50, 100)
   const offset = variables.offset || 0
   const where = buildInvestmentContactWhereCondition(variables)
-
-  const orderByClause = variables.orderBy?.length
-    ? `orderBy: [${variables.orderBy
-        .map(o => {
-          const f = o.field
-          if (f === 'ownerEmployee') {
-            return `{ ownerEmployee: { displayName: ${o.direction} } }`
-          }
-          return `{ ${f}: ${o.direction} }`
-        })
-        .join(', ')}]`
-    : 'orderBy: [{ fullName: ASC }]'
+  const orderByClause = buildOrderBy(variables.orderBy, INVESTMENT_CONTACT_DESCRIPTORS)
 
   return `
     query GetInvestmentContacts {
@@ -193,67 +130,6 @@ export const GET_INVESTMENT_CONTACT_BY_ID = (id: string): string => {
     query GetInvestmentContactById {
       InvestmentContact(where: { id: { _eq: "${id}" }, isDeleted: { _eq: false } }) {
         ${INVESTMENT_CONTACT}
-        
-        # Related accounts through account-contact relationships
-        investmentAccountContact {
-          id
-          contactType
-          account {
-            ${INVESTMENT_ACCOUNT_REF}
-          }
-        }
-      }
-    }
-  `
-}
-
-// Search Investment Contacts (lightweight for autocomplete)
-export const SEARCH_INVESTMENT_CONTACTS = (variables: InvestmentContactQueryVariables): string => {
-  const { search = '', limit = 10 } = variables
-
-  return `
-    query SearchInvestmentContacts {
-      InvestmentContact(
-        where: {
-          isDeleted: { _eq: false }
-          _and: [
-            {
-              _or: [
-                { firstName: { _ilike: "%${search}%" } },
-                { lastName: { _ilike: "%${search}%" } },
-                { fullName: { _ilike: "%${search}%" } },
-                { email: { _ilike: "%${search}%" } },
-                { code: { _ilike: "%${search}%" } }
-              ]
-            }
-          ]
-        }
-        limit: ${limit}
-        orderBy: [{ fullName: ASC }]
-      ) {
-        id
-        code
-        firstName
-        lastName
-        fullName
-        email
-        phone
-        jobPosition
-        department
-        academicTitle {
-          id
-          code
-          value
-        }
-        salutation {
-          id
-          code
-          value
-        }
-        ownerEmployee {
-          id
-          displayName
-        }
       }
     }
   `
@@ -274,7 +150,7 @@ export const GET_INVESTMENT_TASKS_BY_CONTACT_ID = (contactId: string): string =>
         }
         orderBy: [{ createdAt: DESC }]
       ) {
-        ${INVESTMENT_TASK}
+        ${INVESTMENT_TASK_REF}
         
         # Entity references
         contact {

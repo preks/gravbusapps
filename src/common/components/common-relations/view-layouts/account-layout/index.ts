@@ -17,10 +17,3 @@ export { defaultAccountFilterConfig } from './config/defaultAccountFilters'
 
 // Utilities
 export { buildDynamicFilterConfig, updateFilterOptions, addSearchAndLoadMoreFunctions } from './utils/filterHelpers'
-
-// Mappers
-export {
-  mapCustomerAccountToCommon,
-  mapInvestmentAccountToCommon,
-  mapAccountToCommon
-} from '@/common/data/relations/mappers/accountMapper'

@@ -1,74 +1,60 @@
 /**
  * Customer Contact Types
- * BaseCustomerContact and related reference types
+ * CustomerContact and related reference types
  */
 
 import type { CommonContact } from '@/common/data/relations/types/commonContactTypes'
+import { COMMON_CONTACT_DESCRIPTORS } from '@/common/data/relations/types/commonContactTypes'
+import type { Descriptor } from '@/common/network/graphql/queryHelpers'
+import type { CustomerActivity } from './customerActivityTypes'
+import type { CustomerAddress } from './customerAddressTypes'
+import type { CustomerCommunicationChannel } from './customerCommunicationChannelTypes'
+import type { CustomerDocument } from './customerDocumentTypes'
+import type { CustomerLead } from './customerLeadTypes'
+import type { CustomerNote } from './customerNoteTypes'
+import type { CustomerAccountContact, CustomerOpportunityContact } from './customerRelationTypes'
+import type { CustomerTask } from './customerTaskTypes'
 
 /**
- * Customer Contact Reference Type
- * Used in nested selections within queries
- */
-export interface CustomerContactRef {
-  id: string
-  code: string
-  firstName?: string
-  lastName?: string
-  fullName?: string
-  // Fields used in nested contact selection
-  email?: string
-  phone?: string
-  department?: string
-  jobPosition?: string
-  picture?: string
-  pictureThumbnail?: string
-}
-
-/**
- * Base Customer Contact
- * Extends CommonContact with Customer-specific or not-yet-integrated fields
- */
-export interface BaseCustomerContact extends CommonContact {
-  // Fields that DIFFER from CommonContact (need integration):
-
-  // TODO Integration: Customer has email/phone directly (DEPRECATED)
-  // CommonContact has: communicationChannels
-  // Customer currently has:
-  // @deprecated Use communicationChannels instead
-  email?: string
-  // @deprecated Use communicationChannels instead
-  phone?: string
-
-  // Note: firstName, lastName, fullName, birthDate, department, description, jobPosition already correct in CommonContact
-  // Note: picture, pictureThumbnail already correct in CommonContact
-  // Note: academicTitle, salutation, language already correct in CommonContact
-  // Note: ownerEmployee already correct in CommonContact
-}
-
-/**
- * Enhanced Customer Contact Type
- * Extends BaseCustomerContact with computed UI fields
- */
-export interface CustomerContact extends BaseCustomerContact {
-  // Computed display fields only
-  displayName: string
-  fullName: string
-  salutationLabel?: string
-  academicTitleLabel?: string
-  languageLabel?: string
-  ownerDisplayName?: string
-}
-
-/**
- * Enhanced Customer Contact Type
- * Extends CommonContact with computed UI fields
+ * Customer Contact Interface
+ * Extends CommonContact with Customer-specific types and base fields for mapping
  */
 export interface CustomerContact extends CommonContact {
-  // Computed display fields only
-  displayName: string
-  fullName: string
-  salutationLabel?: string
-  academicTitleLabel?: string
-  languageLabel?: string
-  ownerDisplayName?: string
+  accountContacts?: CustomerAccountContact[]
+  activities?: CustomerActivity[]
+  addresses?: CustomerAddress[]
+  communicationChannels?: CustomerCommunicationChannel[]
+  documents?: CustomerDocument[]
+  leads?: CustomerLead[]
+  notes?: CustomerNote[]
+  opportunityContacts?: CustomerOpportunityContact[]
+  tasks?: CustomerTask[]
+
+  // Base fields for mapping
+  contactType?: string // Mapped to type
+  jobTitle?: string // Mapped to jobPosition
+  lead?: CustomerLead // Mapped to leads (singular deprecated)
+  leadId?: string // Mapped to leads relationship
+  pictureUrl?: string // Mapped to picture
+  pictureThumbnailUrl?: string // Mapped to pictureThumbnail
 }
+
+/**
+ * Customer Contact Descriptors
+ * Extends Common descriptors with CRM-specific path overrides for wrong field names
+ */
+export const CUSTOMER_CONTACT_DESCRIPTORS: Descriptor[] = [
+  // Filter out descriptors we need to override for CRM wrong field names
+  ...COMMON_CONTACT_DESCRIPTORS.filter(d => !['jobPosition', 'picture', 'pictureThumbnail', 'type'].includes(d.key)),
+
+  // CRM-specific path overrides (key remains IRM-correct name, but paths use CRM field names)
+  { key: 'jobPosition', searchPaths: ['jobTitle'], sortPath: 'jobTitle', type: 'text' }, // CRM: jobTitle
+  { key: 'picture', searchPaths: ['pictureUrl'], sortPath: 'pictureUrl', type: 'text' }, // CRM: pictureUrl
+  {
+    key: 'pictureThumbnail',
+    searchPaths: ['pictureThumbnailUrl'],
+    sortPath: 'pictureThumbnailUrl',
+    type: 'text'
+  }, // CRM: pictureThumbnailUrl
+  { key: 'type', searchPaths: ['contactType'], sortPath: 'contactType', type: 'text' } // CRM: contactType
+]

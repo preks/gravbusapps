@@ -15,7 +15,7 @@ export const defaultLeadFilterConfig: FilterConfiguration & { data?: CommonLeadF
         {
           id: 'owners',
           label: 'Owner',
-          type: 'multiselect',
+          type: 'multi-select',
           options: [],
           placeholder: 'Select owners...',
           searchable: true,
@@ -30,7 +30,7 @@ export const defaultLeadFilterConfig: FilterConfiguration & { data?: CommonLeadF
         {
           id: 'statuses',
           label: 'Status',
-          type: 'multiselect',
+          type: 'multi-select',
           options: [],
           placeholder: 'Select status...',
           searchable: true,
@@ -45,7 +45,7 @@ export const defaultLeadFilterConfig: FilterConfiguration & { data?: CommonLeadF
         {
           id: 'ratings',
           label: 'Rating',
-          type: 'multiselect',
+          type: 'multi-select',
           options: [],
           placeholder: 'Select rating...',
           searchable: true,
@@ -60,7 +60,7 @@ export const defaultLeadFilterConfig: FilterConfiguration & { data?: CommonLeadF
         {
           id: 'sources',
           label: 'Source',
-          type: 'multiselect',
+          type: 'multi-select',
           options: [],
           placeholder: 'Select source...',
           searchable: true,
@@ -75,7 +75,7 @@ export const defaultLeadFilterConfig: FilterConfiguration & { data?: CommonLeadF
         {
           id: 'salutations',
           label: 'Salutation',
-          type: 'multiselect',
+          type: 'multi-select',
           options: [],
           placeholder: 'Select salutation...',
           searchable: true,
@@ -90,7 +90,7 @@ export const defaultLeadFilterConfig: FilterConfiguration & { data?: CommonLeadF
         {
           id: 'industries',
           label: 'Industry',
-          type: 'multiselect',
+          type: 'multi-select',
           options: [],
           placeholder: 'Select industry...',
           searchable: true,

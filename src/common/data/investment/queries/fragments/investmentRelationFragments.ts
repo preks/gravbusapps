@@ -1,443 +1,59 @@
-import { CATALOG_ENTRY, AUDIT_FIELDS } from '@/common/network/graphql/commonFragments'
-import { EMPLOYEE_REF } from '@/common/data/employee/queries/fragments/employeeFragments'
-import { INVESTMENT_REF } from './investmentFragments'
-import { INVESTMENT_ADDRESS } from '../investmentLeadFragments'
-import { INVESTMENT_COMMUNICATION_CHANNEL } from '../investmentLeadFragments'
-import { INVESTMENT_LEAD_REF } from '../investmentLeadFragments'
+/**
+ * Investment Relation Fragments - RE-EXPORT ONLY
+ *
+ * This file re-exports fragments from the centralized fragment files.
+ * ALL fragments are now defined in two central files:
+ * - investmentReferenceFragments.ts (REF fragments)
+ * - investmentFragments.ts (Main fragments with relations)
+ *
+ * IMPORT ORDER IS CRITICAL:
+ * 1. First: investmentReferenceFragments.ts (REF fragments)
+ * 2. Then: investmentFragments.ts (Main fragments)
+ */
 
-export const INVESTMENT_CONTACT_REF = `
-    id
-    code
-    firstName
-    lastName
-    fullName
-    email
-    phone
-    department
-    jobPosition
-    picture
-    pictureThumbnail
-    communicationChannels {
-        ${INVESTMENT_COMMUNICATION_CHANNEL}
-    }
-    academicTitle {
-        ${CATALOG_ENTRY}
-    }
-    salutation {
-        ${CATALOG_ENTRY}
-    }
-`
+// ============================================================================
+// REF Fragments (from investmentReferenceFragments.ts)
+// ============================================================================
+export {
+  // Core entity REFs
+  INVESTMENT_ACCOUNT_REF,
+  INVESTMENT_CONTACT_REF,
+  INVESTMENT_LEAD_REF,
+  INVESTMENT_OPPORTUNITY_REF,
+  INVESTMENT_TASK_REF,
+  INVESTMENT_ACTIVITY_REF,
+  INVESTMENT_DOCUMENT_REF,
+  INVESTMENT_NOTE_REF,
+  INVESTMENT_REPORT_REF,
+  INVESTMENT_REF,
 
-export const INVESTMENT_CONTACT = `
-    id
-    code
-    firstName
-    lastName
-    fullName
-    type
-    email
-    phone
-    
-    birthDate
-    department
-    description
-    jobPosition
-    picture
-    pictureThumbnail
-    
-    ${AUDIT_FIELDS}
-    
-    # Communication channels
-    communicationChannels(where: { isDeleted: { _eq: false } }) {
-        ${INVESTMENT_COMMUNICATION_CHANNEL}
-    }
-    
-    # Investment Account Contacts (many-to-many with accounts - INVESTMENT-SPECIFIC NAME)
-    investmentAccountContact(where: { isDeleted: { _eq: false } }) {
-      id
-      contactType
-      account {
-        id
-        name
-        picture
-        pictureThumbnail
-      }
-    }
-    
-    # Catalog relationships
-    academicTitle {
-        ${CATALOG_ENTRY}
-    }
-    salutation {
-        ${CATALOG_ENTRY}
-    }
-    language {
-        ${CATALOG_ENTRY}
-    }
-    
-    # Employee relationship
-    ownerEmployee {
-        ${EMPLOYEE_REF}
-    }
-`
+  // Investment specialization REFs
+  EQUITY_INVESTMENT_REF,
+  REAL_ESTATE_INVESTMENT_REF,
+  LIQUID_FUND_INVESTMENT_REF,
 
-export const INVESTMENT_ACCOUNT_REF = `
-    id
-    code
-    name
-    email
-    phone
-    website
-    foundationDate
-    geographicPresence
-    picture
-    pictureThumbnail
-    addresses {
-        ${INVESTMENT_ADDRESS}
-    }
-    communicationChannels {
-        ${INVESTMENT_COMMUNICATION_CHANNEL}
-    }
-    legalForm {
-        ${CATALOG_ENTRY}
-    }
-    accountAnnualRevenueBand {
-        ${CATALOG_ENTRY}
-    }
-    companySize {
-        ${CATALOG_ENTRY}
-    }
-    industryClass {
-        ${CATALOG_ENTRY}
-    }
-    ownerEmployee {
-        ${EMPLOYEE_REF}
-    }
-`
+  // Backward compatibility re-exports
+  INVESTMENT_COMMUNICATION_CHANNEL,
+  INVESTMENT_ADDRESS
+} from './investmentReferenceFragments'
 
-export const INVESTMENT_ACCOUNT = `
-    id
-    code
-    name
-    email
-    phone
-    foundationDate
-    geographicPresence
-    specialty
-    mission
-    liquidationDate
-    website
-    picture
-    pictureThumbnail
-    notesSummary
-    businessKey
-    additionalProperties
-    processInstanceId
-    synchronizedAt
-    ${AUDIT_FIELDS}
-    
-    # Address information
-    addresses {
-        ${INVESTMENT_ADDRESS}
-    }
-    
-    # Communication channels
-    communicationChannels {
-        ${INVESTMENT_COMMUNICATION_CHANNEL}
-    }
-    
-    # Catalog relationships
-    legalForm {
-        ${CATALOG_ENTRY}
-    }
-    accountAnnualRevenueBand {
-        ${CATALOG_ENTRY}
-    }
-    companySize {
-        ${CATALOG_ENTRY}
-    }
-    industryClass {
-        ${CATALOG_ENTRY}
-    }
-    timeZone {
-        ${CATALOG_ENTRY}
-    }
-    
-    # Employee relationship
-    ownerEmployee {
-        ${EMPLOYEE_REF}
-    }
-    
-    # Address relationships
-    investmentAddress(where: { isDeleted: { _eq: false } }) {
-        ${INVESTMENT_ADDRESS}
-    }
-`
+// ============================================================================
+// Main Fragments (from investmentFragments.ts)
+// ============================================================================
+export {
+  // Core entity main fragments
+  INVESTMENT_ACCOUNT,
+  INVESTMENT_CONTACT,
+  INVESTMENT_LEAD,
+  INVESTMENT_OPPORTUNITY,
+  INVESTMENT_TASK,
+  INVESTMENT_ACTIVITY,
+  INVESTMENT_DOCUMENT,
+  INVESTMENT_NOTE,
+  INVESTMENT,
 
-export const INVESTMENT_OPPORTUNITY_REF = `
-    id
-    code
-    name
-    dealType
-    estimatedAmount
-    closeDate
-`
-
-export const INVESTMENT_OPPORTUNITY = `
-    id
-    code
-    name
-    estimatedAmount
-    forecastedProfitAmount
-    initialInvestmentAmount
-    closeDate
-    annualNetColdRent
-    dealType
-    
-    # Investment descriptive fields
-    investmentName
-    ${AUDIT_FIELDS}
-    
-    # Investment-specific fields
-    stakePercentage
-    marketValue
-    buildingYear
-    size
-    sizeMeasurementUnit {
-      ${CATALOG_ENTRY}
-    }
-    sizeMeasurementUnitRef
-    requiredCapitalAmount
-    loanAmount
-    loanInterestRate
-    
-    # Investment relationships
-    investmentGroup {
-      ${CATALOG_ENTRY}
-    }
-    investmentType {
-      ${CATALOG_ENTRY}
-    }
-    investmentRole {
-      ${CATALOG_ENTRY}
-    }
-    investmentStakeType {
-      ${CATALOG_ENTRY}
-    }
-    
-    # Catalog relationships
-    currency {
-      ${CATALOG_ENTRY}
-    }
-    opportunityPipeline {
-      ${CATALOG_ENTRY}
-    }
-    opportunityPipelineStage {
-      ${CATALOG_ENTRY}
-    }
-    opportunityStatus {
-      ${CATALOG_ENTRY}
-    }
-    
-    # Employee relationship
-    ownerEmployee {
-      ${EMPLOYEE_REF}
-    }
-    
-    # Account relationship
-    account {
-      ${INVESTMENT_ACCOUNT_REF}
-    }
-    
-    # Contact relationships
-    investmentOpportunityContact {
-      id
-      contactType
-      contact {
-        ${INVESTMENT_CONTACT_REF}
-      }
-    }
-
-    # Stage conditions (embed current and historical statuses)
-    opportunityStageConditions: investmentOpportunityStageCondition(where: { isDeleted: { _eq: false } }, orderBy: [{ createdAt: DESC }]) {
-      id
-      completed
-      completedAt
-      deadlineAt
-      version
-      configSnapshot
-      completedByEmployee {
-        id
-        displayName
-        firstName
-        lastName
-      }
-      opportunityPipelineStageCondition {
-        ${CATALOG_ENTRY}
-      }
-    }
-`
-
-import { COMMON_TASK_FIELDS } from '@/common/data/relations/queries/commonTaskFragments'
-
-export const INVESTMENT_TASK = `
-    ${COMMON_TASK_FIELDS}
-    
-    # Investment-specific fields
-    taskTiming
-    taskTypeRef
-    templateStartDate
-
-    # Catalog references (InvestmentTask has full catalog objects)
-    taskType {
-      ${CATALOG_ENTRY}
-    }
-    taskPriority {
-      ${CATALOG_ENTRY}
-    }
-    taskStatus {
-      ${CATALOG_ENTRY}
-    }
-
-    # Entity references
-    investment {
-      ${INVESTMENT_REF}
-    }
-    
-    # Documents
-    documents(where: { isDeleted: { _eq: false } }) {
-      id
-      name
-      file
-      fileInfo
-      mimeType
-      fileSize
-    }
-
-    # User references
-    creatorUserId
-    assignedUserId
-`
-
-export const INVESTMENT_ACTIVITY = `
-    id
-    title
-    description
-    occurredAt
-    completedAt
-    ${AUDIT_FIELDS}
-    
-    # Catalog references
-    activityType {
-      ${CATALOG_ENTRY}
-    }
-    
-    # Employee references
-    ownerEmployee {
-      ${EMPLOYEE_REF}
-    }
-    
-    # Entity references
-    investment {
-      ${INVESTMENT_REF}
-    }
-    account {
-      ${INVESTMENT_ACCOUNT_REF}
-    }
-    contact {
-      ${INVESTMENT_CONTACT_REF}
-    }
-    opportunity {
-      ${INVESTMENT_OPPORTUNITY_REF}
-    }
-    lead {
-      ${INVESTMENT_LEAD_REF}
-    }
-    
-    # Documents
-    documents(where: { isDeleted: { _eq: false } }) {
-      id
-      name
-      file
-      fileInfo
-      mimeType
-      fileSize
-    }
-`
-
-export const INVESTMENT_NOTE = `
-    id
-    title
-    text
-    reminderDate
-    ${AUDIT_FIELDS}
-    
-    # Employee references
-    authorEmployee {
-      ${EMPLOYEE_REF}
-    }
-    
-    # Entity references
-    investment {
-      ${INVESTMENT_REF}
-    }
-    
-    # Documents
-    documents(where: { isDeleted: { _eq: false } }) {
-      id
-      name
-      file
-      fileInfo
-      mimeType
-      fileSize
-    }
-`
-
-export const INVESTMENT_DOCUMENT = `
-    id
-    name
-    description
-    file
-    fileInfo
-    fileSize
-    mimeType
-    verified
-    verificationDate
-    authenticated
-    authenticationDate
-    mandatory
-    expirationDate
-    version
-    folder
-    ${AUDIT_FIELDS}
-    
-    # Catalog references
-    documentGroup {
-      ${CATALOG_ENTRY}
-    }
-    documentType {
-      ${CATALOG_ENTRY}
-    }
-    
-    # Entity references
-    parentDocument {
-      id
-      name
-      description
-    }
-    investment {
-      ${INVESTMENT_REF}
-    }
-    account {
-      ${INVESTMENT_ACCOUNT_REF}
-    }
-    contact {
-      ${INVESTMENT_CONTACT_REF}
-    }
-    opportunity {
-      ${INVESTMENT_OPPORTUNITY_REF}
-    }
-    lead {
-      ${INVESTMENT_LEAD_REF}
-    }
-`
+  // Investment specialization main fragments
+  EQUITY_INVESTMENT,
+  REAL_ESTATE_INVESTMENT,
+  LIQUID_FUND_INVESTMENT
+} from './investmentFragments'

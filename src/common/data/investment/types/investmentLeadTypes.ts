@@ -1,69 +1,149 @@
-/**
- * Investment Lead Types
- * IRM-specific lead interfaces
- */
-
 import type { CatalogEntry } from '@/common/network/graphql/commonTypes'
 import type { CommonLead } from '@/common/data/relations/types/commonLeadTypes'
+import { COMMON_LEAD_DESCRIPTORS } from '@/common/data/relations/types/commonLeadTypes'
+import type { Descriptor } from '@/common/network/graphql/queryHelpers'
 import type { InvestmentAccount } from './investmentAccountTypes'
 import type { InvestmentContact } from './investmentContactTypes'
 import type { InvestmentTask } from './investmentTaskTypes'
-import type {
-  InvestmentDocument,
-  InvestmentOpportunity,
-  InvestmentActivity,
-  InvestmentNote
-} from './investmentRelationTypes'
-/**
- * Investment Lead (from GraphQL/Database)
- * Extends CommonLead with IRM-specific investment fields
- */
+import type { InvestmentDocument, InvestmentOpportunity, InvestmentActivity, InvestmentNote } from './'
+
 export interface InvestmentLead extends CommonLead {
-  // Related entity references (Investment-specific)
+  activities?: InvestmentActivity[]
   convertedAccount?: InvestmentAccount
   convertedContact?: InvestmentContact
   convertedOpportunity?: InvestmentOpportunity
-
-  activities?: InvestmentActivity[]
-  notes?: InvestmentNote[]
   documents?: InvestmentDocument[]
+  investmentAccount?: InvestmentAccount
+  notes?: InvestmentNote[]
+  opportunities?: InvestmentOpportunity[]
   tasks?: InvestmentTask[]
 
-  // ============================================
-  // IRM-SPECIFIC INVESTMENT FIELDS
-  // ============================================
-  // Investment identification
-  investmentName?: string
+  // IRM-specific fields
+  annualNetColdRent?: number
+  buildingYear?: string
+  forecastedProfitAmount?: number
+  initialInvestmentAmount?: number
   investmentGroup?: CatalogEntry
   investmentGroupRef?: string
-  investmentType?: CatalogEntry
-  investmentTypeRef?: string
+  investmentName?: string
   investmentRole?: CatalogEntry
   investmentRoleRef?: string
   investmentStakeType?: CatalogEntry
   investmentStakeTypeRef?: string
-
-  // Financial metrics
-  stakePercentage?: number
-  marketValue?: number
-  initialInvestmentAmount?: number
+  investmentType?: CatalogEntry
+  investmentTypeRef?: string
+  leadSourceType?: string
+  legalForm?: CatalogEntry
+  legalFormRef?: string
   loanAmount?: number
   loanInterestRate?: number
+  marketValue?: number
   requiredCapitalAmount?: number
-  forecastedProfitAmount?: number
-
-  // Real estate specific
-  annualNetColdRent?: number
-  buildingYear?: string
   size?: number
   sizeMeasurementUnit?: CatalogEntry
   sizeMeasurementUnitRef?: string
-
-  // Rejection tracking
-  rejectionReasons?: any[]
-
-  // ============================================
-  // COMPUTED FIELDS (for display/UI purposes)
-  // ============================================
-  displayName?: string
+  stakePercentage?: number
+  timeZone?: CatalogEntry
+  timeZoneRef?: string
 }
+
+export const INVESTMENT_LEAD_DESCRIPTORS: Descriptor[] = [
+  ...COMMON_LEAD_DESCRIPTORS,
+
+  // IRM-specific additional fields (not in Common)
+  { key: 'annualNetColdRent', searchPaths: ['annualNetColdRent'], sortPath: 'annualNetColdRent', type: 'number' },
+  { key: 'buildingYear', searchPaths: ['buildingYear'], sortPath: 'buildingYear', type: 'text' },
+  {
+    key: 'forecastedProfitAmount',
+    searchPaths: ['forecastedProfitAmount'],
+    sortPath: 'forecastedProfitAmount',
+    type: 'number'
+  },
+  {
+    key: 'initialInvestmentAmount',
+    searchPaths: ['initialInvestmentAmount'],
+    sortPath: 'initialInvestmentAmount',
+    type: 'number'
+  },
+  {
+    key: 'investmentGroup',
+    searchPaths: ['investmentGroup.value', 'investmentGroup.code'],
+    sortPath: 'investmentGroup.value',
+    type: 'text'
+  },
+  { key: 'investmentGroupRef', searchPaths: ['investmentGroupRef'], sortPath: 'investmentGroupRef', type: 'text' },
+  { key: 'investmentName', searchPaths: ['investmentName'], sortPath: 'investmentName', type: 'text' },
+  {
+    key: 'investmentRole',
+    searchPaths: ['investmentRole.value', 'investmentRole.code'],
+    sortPath: 'investmentRole.value',
+    type: 'text'
+  },
+  { key: 'investmentRoleRef', searchPaths: ['investmentRoleRef'], sortPath: 'investmentRoleRef', type: 'text' },
+  {
+    key: 'investmentStakeType',
+    searchPaths: ['investmentStakeType.value', 'investmentStakeType.code'],
+    sortPath: 'investmentStakeType.value',
+    type: 'text'
+  },
+  {
+    key: 'investmentStakeTypeRef',
+    searchPaths: ['investmentStakeTypeRef'],
+    sortPath: 'investmentStakeTypeRef',
+    type: 'text'
+  },
+  {
+    key: 'investmentType',
+    searchPaths: ['investmentType.value', 'investmentType.code'],
+    sortPath: 'investmentType.value',
+    type: 'text'
+  },
+  { key: 'investmentTypeRef', searchPaths: ['investmentTypeRef'], sortPath: 'investmentTypeRef', type: 'text' },
+  { key: 'leadSourceType', searchPaths: ['leadSourceType'], sortPath: 'leadSourceType', type: 'text' },
+  {
+    key: 'legalForm',
+    searchPaths: ['legalForm.value', 'legalForm.code'],
+    sortPath: 'legalForm.value',
+    type: 'text'
+  },
+  { key: 'legalFormRef', searchPaths: ['legalFormRef'], sortPath: 'legalFormRef', type: 'text' },
+  { key: 'loanAmount', searchPaths: ['loanAmount'], sortPath: 'loanAmount', type: 'number' },
+  { key: 'loanInterestRate', searchPaths: ['loanInterestRate'], sortPath: 'loanInterestRate', type: 'number' },
+  { key: 'marketValue', searchPaths: ['marketValue'], sortPath: 'marketValue', type: 'number' },
+  {
+    key: 'requiredCapitalAmount',
+    searchPaths: ['requiredCapitalAmount'],
+    sortPath: 'requiredCapitalAmount',
+    type: 'number'
+  },
+  { key: 'size', searchPaths: ['size'], sortPath: 'size', type: 'number' },
+  {
+    key: 'sizeMeasurementUnit',
+    searchPaths: ['sizeMeasurementUnit.value', 'sizeMeasurementUnit.code'],
+    sortPath: 'sizeMeasurementUnit.value',
+    type: 'text'
+  },
+  {
+    key: 'sizeMeasurementUnitRef',
+    searchPaths: ['sizeMeasurementUnitRef'],
+    sortPath: 'sizeMeasurementUnitRef',
+    type: 'text'
+  },
+  { key: 'stakePercentage', searchPaths: ['stakePercentage'], sortPath: 'stakePercentage', type: 'number' },
+  {
+    key: 'timeZone',
+    searchPaths: ['timeZone.value', 'timeZone.code'],
+    sortPath: 'timeZone.value',
+    type: 'text'
+  },
+  { key: 'timeZoneRef', searchPaths: ['timeZoneRef'], sortPath: 'timeZoneRef', type: 'text' },
+
+  // IRM-specific filter IDs
+  { key: 'investmentGroupIds', path: 'investmentGroupRef', kind: 'inIds' },
+  { key: 'investmentRoleIds', path: 'investmentRoleRef', kind: 'inIds' },
+  { key: 'investmentStakeTypeIds', path: 'investmentStakeTypeRef', kind: 'inIds' },
+  { key: 'investmentTypeIds', path: 'investmentTypeRef', kind: 'inIds' },
+  { key: 'legalFormIds', path: 'legalFormRef', kind: 'inIds' },
+  { key: 'sizeMeasurementUnitIds', path: 'sizeMeasurementUnitRef', kind: 'inIds' },
+  { key: 'timeZoneIds', path: 'timeZoneRef', kind: 'inIds' }
+]

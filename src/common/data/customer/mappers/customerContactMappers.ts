@@ -1,37 +1,29 @@
-// Customer Contact Mapper - Transform base type to enhanced type with computed fields
+// Customer Contact Mapper - Transform base type to enhanced type with field mappings
 
-import { BaseCustomerContact, CustomerContact } from '../types'
-import { mapCustomerContactToCommon } from '@/common/data/relations/mappers/contactMapper'
+import { CustomerContact } from '../types'
 
 /**
- * Transform BaseCustomerContact (GraphQL response) to CustomerContact (enhanced with computed fields)
- * Also maps to CommonContact structure via contactMapper
+ * Transform CustomerContact (GraphQL response) to CustomerContact (enhanced with field mappings)
+ *
+ * Handles CRM-specific field name mappings:
+ * - jobTitle → jobPosition
+ * - contactType → type
+ * - pictureUrl → picture
+ * - pictureThumbnailUrl → pictureThumbnail
  */
-export function toCustomerContact(base: BaseCustomerContact): CustomerContact {
-  // First, map to CommonContact structure (handles field name mappings)
-  const common = mapCustomerContactToCommon(base)
-
-  // Extract labels from catalog entries
-  const salutationLabel = base.salutation?.value || base.salutation?.code
-  const academicTitleLabel = base.academicTitle?.value || base.academicTitle?.code
-  const languageLabel = base.language?.value || base.language?.code
-  const ownerDisplayName =
-    base.ownerEmployee?.displayName ||
-    `${base.ownerEmployee?.firstName || ''} ${base.ownerEmployee?.lastName || ''}`.trim()
-
-  // Create computed names
-  const fullName = base.fullName || `${base.firstName || ''} ${base.lastName || ''}`.trim()
-  const displayName = fullName || base.code || `Contact ${base.id}`
+export function toCustomerContact(base: CustomerContact): CustomerContact {
+  // Map CRM field names to CommonContact standard (IRM naming)
+  const jobPosition = base.jobTitle
+  const type = base.contactType
+  const picture = base.pictureUrl
+  const pictureThumbnail = base.pictureThumbnailUrl
 
   return {
-    ...common,
-
-    // Computed UI fields (only those defined in CustomerContact interface)
-    displayName,
-    fullName,
-    salutationLabel,
-    academicTitleLabel,
-    languageLabel,
-    ownerDisplayName
-  }
+    ...base,
+    // Map CRM fields to CommonContact standard
+    jobPosition,
+    type,
+    picture,
+    pictureThumbnail
+  } as CustomerContact
 }

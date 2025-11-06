@@ -1,18 +1,15 @@
-/**
- * Investment Relation Types - Backward Compatibility
- * Re-exports all types to maintain compatibility with existing code
- */
+import type { CommonAccountContact, CommonOpportunityContact } from '@/common/data/relations/types/commonRelationTypes'
+import type { ContactType } from './investmentEnums'
+import type { InvestmentAccount, InvestmentContact, InvestmentOpportunity } from './'
 
-// Re-export main types (they are already the "enhanced" versions)
-export type { InvestmentAccount } from './investmentAccountTypes'
-export type { InvestmentContact } from './investmentContactTypes'
-export type { InvestmentTask, InvestmentTaskTemplate } from './investmentTaskTypes'
-export type { InvestmentLead } from './investmentLeadTypes'
-export type { InvestmentOpportunity } from './investmentOpportunityTypes'
-export type { InvestmentAddress } from './investmentAddressTypes'
-export type { InvestmentCommunicationChannel } from './investmentCommunicationChannelTypes'
-export type { InvestmentAccountContact } from './investmentAccountContactTypes'
-export type { InvestmentDocument } from './investmentDocumentTypes'
-export type { InvestmentNote } from './investmentNoteTypes'
-export type { InvestmentActivity } from './investmentActivityTypes'
-export type { InvestmentReport } from './investmentReportTypes'
+export interface InvestmentAccountContact extends CommonAccountContact {
+  account?: InvestmentAccount // InvestmentAccount
+  contact?: InvestmentContact // InvestmentContact
+  contactType?: ContactType
+}
+
+export interface InvestmentOpportunityContact extends CommonOpportunityContact {
+  contact?: InvestmentContact // InvestmentContact
+  contactType?: ContactType
+  opportunity?: InvestmentOpportunity // InvestmentOpportunity
+}

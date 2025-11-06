@@ -1,84 +1,34 @@
-/**
- * Investment Contact Types
- * BaseInvestmentContact and related reference types
- */
-
-import type { CatalogEntry } from '@/common/network/graphql/commonTypes'
 import type { CommonContact } from '@/common/data/relations/types/commonContactTypes'
-import type { ContactType } from './investmentEnums'
+import { COMMON_CONTACT_DESCRIPTORS } from '@/common/data/relations/types/commonContactTypes'
+import type { Descriptor } from '@/common/network/graphql/queryHelpers'
+import type { InvestmentActivity } from './investmentActivityTypes'
+import type { InvestmentAddress } from './investmentAddressTypes'
+import type { InvestmentCommunicationChannel } from './investmentCommunicationChannelTypes'
+import type { InvestmentDocument } from './investmentDocumentTypes'
+import type { InvestmentLead } from './investmentLeadTypes'
+import type { InvestmentNote } from './investmentNoteTypes'
+import type { InvestmentAccountContact, InvestmentOpportunityContact } from './investmentRelationTypes'
+import type { InvestmentTask } from './investmentTaskTypes'
 
-/**
- * Investment Contact Reference Type
- * Used in nested selections within queries
- */
-export interface InvestmentContactRef {
-  id: string
-  code: string
-  firstName?: string
-  lastName?: string
-  fullName?: string
-  // Fields used in nested contact selection
-  email?: string
-  phone?: string
-  department?: string
-  jobPosition?: string
-  picture?: string
-  pictureThumbnail?: string
-  // Catalog references
-  academicTitle?: CatalogEntry
-  salutation?: CatalogEntry
+export interface InvestmentContact extends CommonContact {
+  accountContacts?: InvestmentAccountContact[]
+  activities?: InvestmentActivity[]
+  addresses?: InvestmentAddress[]
+  communicationChannels?: InvestmentCommunicationChannel[]
+  documents?: InvestmentDocument[]
+  leads?: InvestmentLead[]
+  notes?: InvestmentNote[]
+  opportunityContacts?: InvestmentOpportunityContact[]
+  tasks?: InvestmentTask[]
+
+  // Base fields for mapping
+  investmentAccountContact?: InvestmentAccountContact[] // Mapped to accountContacts
+  investmentLead?: InvestmentLead[] // Mapped to leads
+  investmentOpportunityContact?: InvestmentOpportunityContact[] // Mapped to opportunityContacts
 }
 
 /**
- * Base Investment Contact
- * Extends CommonContact with Investment-specific or not-yet-integrated fields
+ * Investment Contact Descriptors
+ * IRM uses correct field names, so we use Common descriptors directly
  */
-export interface BaseInvestmentContact extends CommonContact {
-  // Investment-specific fields
-  type?: ContactType
-  notesSummary?: string
-
-  // Fields that DIFFER from CommonContact (need integration):
-
-  // TODO Integration: Investment has email/phone directly (DEPRECATED)
-  // CommonContact has: communicationChannels
-  // Investment currently has:
-  // @deprecated Use communicationChannels instead
-  email?: string
-  // @deprecated Use communicationChannels instead
-  phone?: string
-
-  // TODO Integration: Investment has investmentAccountContact (many-to-many join table)
-  // CommonContact expects: accountContacts
-  // Override with Investment-specific field name:
-  investmentAccountContact?: Array<{
-    id: string
-    contactType?: string
-    account?: {
-      id: string
-      name: string
-      picture?: string
-      pictureThumbnail?: string
-    }
-  }>
-
-  // Note: firstName, lastName, fullName, birthDate, department, description, jobPosition already correct in CommonContact
-  // Note: picture, pictureThumbnail already correct in CommonContact
-  // Note: academicTitle, salutation, language already correct in CommonContact
-  // Note: communicationChannels already correct in CommonContact
-  // Note: ownerEmployee already correct in CommonContact
-}
-
-/**
- * Enhanced Investment Contact Type
- * Extends BaseInvestmentContact with computed UI fields
- */
-export interface InvestmentContact extends BaseInvestmentContact {
-  // Computed display fields only
-  displayName: string
-  fullName: string
-  salutationLabel?: string
-  academicTitleLabel?: string
-  languageLabel?: string
-  ownerDisplayName?: string
-}
+export const INVESTMENT_CONTACT_DESCRIPTORS: Descriptor[] = [...COMMON_CONTACT_DESCRIPTORS]

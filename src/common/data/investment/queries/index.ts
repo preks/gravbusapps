@@ -2,15 +2,14 @@
  * Investment Queries and Fragments
  * GraphQL queries and fragments for Investment Relations
  */
-
-export * from './investmentTaskFragments'
-export * from './investmentLeadQueries'
+// Export all query files
 export * from './investmentAccountQueries'
-export * from './investmentContactQueries'
-export * from './investmentOpportunityQueries'
 export * from './investmentActivityQueries'
+export * from './investmentContactQueries'
 export * from './investmentDocumentQueries'
+export * from './investmentLeadQueries'
 export * from './investmentNoteQueries'
-export * from './investmentTaskQueries'
+export * from './investmentOpportunityQueries'
 export * from './investmentQueries'
+export * from './investmentTaskQueries'
 export * from './rejectionReasonQueries'

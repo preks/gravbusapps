@@ -1,131 +1,13 @@
 // Investment Lead Queries
-import { CATALOG_ENTRY } from '@/common/network/graphql/commonFragments'
-import { INVESTMENT_LEAD } from './investmentLeadFragments'
+import { INVESTMENT_LEAD } from './fragments/investmentFragments'
 import {
-  INVESTMENT_CONTACT_REF,
-  INVESTMENT_TASK,
-  INVESTMENT_ACTIVITY,
-  INVESTMENT_NOTE,
-  INVESTMENT_DOCUMENT
-} from './fragments/investmentRelationFragments'
+  INVESTMENT_TASK_REF,
+  INVESTMENT_ACTIVITY_REF,
+  INVESTMENT_NOTE_REF,
+  INVESTMENT_DOCUMENT_REF
+} from './fragments/investmentReferenceFragments'
 import { buildOrderBy, buildSearch, buildFilter } from '@/common/network/graphql/queryHelpers'
-import type { Descriptor } from '@/common/network/graphql/queryHelpers'
-
-// Unified descriptors for InvestmentLead (search, sort, filters, and option metadata)
-export const INVESTMENT_LEAD_DESCRIPTORS: Descriptor[] = [
-  // Search/sort
-  { key: 'firstName', searchPaths: ['firstName'], type: 'text' },
-  { key: 'lastName', searchPaths: ['lastName'], type: 'text' },
-  { key: 'email', searchPaths: ['email'], type: 'text' },
-  { key: 'companyName', searchPaths: ['companyName'], type: 'text' },
-  { key: 'city', searchPaths: ['locality'], sortPath: 'locality', type: 'text' },
-  {
-    key: 'leadStatus',
-    searchPaths: ['leadStatus.value', 'leadStatus.code'],
-    sortPath: 'leadStatus.code',
-    type: 'text'
-  },
-  {
-    key: 'leadRating',
-    searchPaths: ['leadRating.value', 'leadRating.code'],
-    sortPath: 'leadRating.code',
-    type: 'text'
-  },
-  {
-    key: 'leadSource',
-    searchPaths: ['leadSource.value', 'leadSource.code'],
-    sortPath: 'leadSource.code',
-    type: 'text'
-  },
-  {
-    key: 'ownerEmployee',
-    searchPaths: ['ownerEmployee.displayName'],
-    sortPath: 'ownerEmployee.displayName',
-    type: 'text'
-  },
-  { key: 'createdAt', searchPaths: ['createdAt'], type: 'date' },
-
-  // Filters (IDs, strings, booleans, dates, custom)
-  { key: 'academicTitleIds', path: 'academicTitle.id', kind: 'inIds' },
-  { key: 'salutationIds', path: 'salutation.id', kind: 'inIds' },
-  { key: 'leadStatusIds', path: 'leadStatus.id', kind: 'inIds' },
-  { key: 'leadStatusCodes', path: 'leadStatus.code', kind: 'inStrings' },
-  { key: 'leadSourceIds', path: 'leadSource.id', kind: 'inIds' },
-  { key: 'leadSourceCodes', path: 'leadSource.code', kind: 'inStrings' },
-  { key: 'leadRatingIds', path: 'leadRating.id', kind: 'inIds' },
-  { key: 'leadRatingCodes', path: 'leadRating.code', kind: 'inStrings' },
-  { key: 'industryClassIds', path: 'industryClass.id', kind: 'inIds' },
-  { key: 'companySizeIds', path: 'companySize.id', kind: 'inIds' },
-  {
-    key: 'ownerEmployeeIds',
-    path: 'ownerEmployee.id',
-    kind: 'inIds',
-    optionSelectPaths: [
-      'ownerEmployee.id',
-      'ownerEmployee.displayName',
-      'ownerEmployee.firstName',
-      'ownerEmployee.lastName'
-    ],
-    optionSearchPaths: ['ownerEmployee.firstName', 'ownerEmployee.lastName', 'ownerEmployee.displayName'],
-    optionDistinctOn: ['ownerEmployeeId']
-  },
-  {
-    key: 'countryIds',
-    path: 'country.id',
-    kind: 'inIds',
-    optionSelectPaths: ['country.id', 'country.code', 'country.value'],
-    optionSearchPaths: ['country.code', 'country.value']
-  },
-  {
-    key: 'companyNames',
-    path: 'companyName',
-    kind: 'inStrings',
-    optionSelectPaths: ['companyName'],
-    optionSearchPaths: ['companyName']
-  },
-  {
-    key: 'regions',
-    path: 'region.value',
-    kind: 'inStrings',
-    optionSelectPaths: ['region.id', 'region.code', 'region.value'],
-    optionSearchPaths: ['region.value', 'region.code']
-  },
-  {
-    key: 'localities',
-    path: 'locality',
-    kind: 'inStrings',
-    optionSelectPaths: ['locality'],
-    optionSearchPaths: ['locality']
-  },
-  { key: 'conversionDateFrom', path: 'conversionDate', kind: 'dateFrom' },
-  { key: 'conversionDateTo', path: 'conversionDate', kind: 'dateTo' },
-  { key: 'createdAtFrom', path: 'createdAt', kind: 'dateFrom' },
-  { key: 'createdAtTo', path: 'createdAt', kind: 'dateTo' },
-  { key: 'sensitive', path: 'sensitive', kind: 'eqBool' },
-  {
-    key: 'contactFullNames',
-    kind: 'custom',
-    optionSelectPaths: ['firstName', 'lastName'],
-    optionSearchPaths: ['firstName', 'lastName'],
-    build: (values: string[]) => {
-      if (!Array.isArray(values) || !values.length) return ''
-      const parts: string[] = []
-      for (const n of values) {
-        const [first, last] = String(n).split('|')
-        const f = (first || '').trim()
-        const l = (last || '').trim()
-        if (f && l) {
-          parts.push(`{ _and: [ { firstName: { _ilike: "%${f}%" } }, { lastName: { _ilike: "%${l}%" } } ] }`)
-        } else if (f) {
-          parts.push(`{ firstName: { _ilike: "%${f}%" } }`)
-        } else if (l) {
-          parts.push(`{ lastName: { _ilike: "%${l}%" } }`)
-        }
-      }
-      return parts.length ? `{ _or: [${parts.join(', ')}] }` : ''
-    }
-  }
-]
+import { INVESTMENT_LEAD_DESCRIPTORS } from '@/common/data/investment/types/investmentLeadTypes'
 export interface InvestmentLeadQueryVariables {
   ids?: string[]
   search?: string
@@ -192,24 +74,6 @@ export const GET_INVESTMENT_LEADS = (variables: InvestmentLeadQueryVariables = {
         ${where}
       ) {
         ${INVESTMENT_LEAD}
-        
-        # Entity relationships
-        convertedAccount {
-          id
-          code
-          name
-          email
-          geographicPresence
-          accountAnnualRevenueBand {
-            ${CATALOG_ENTRY}
-          }
-          companySize {
-            ${CATALOG_ENTRY}
-          }
-        }
-        convertedContact {
-          ${INVESTMENT_CONTACT_REF}
-        }
       }
       
       InvestmentLeadAggregate(${where}) {
@@ -227,70 +91,6 @@ export const GET_INVESTMENT_LEAD_BY_ID = (id: string): string => {
     query GetInvestmentLeadById {
       InvestmentLead(where: { id: { _eq: "${id}" }, isDeleted: { _eq: false } }) {
         ${INVESTMENT_LEAD}
-        # Entity relationships
-        convertedAccount {
-          id
-          code
-          name
-          email
-          geographicPresence
-          industryClass {
-            ${CATALOG_ENTRY}
-          }
-        }
-        convertedContact {
-          ${INVESTMENT_CONTACT_REF}
-        }
-      }
-    }
-  `
-}
-
-// Search Investment Leads (lightweight for autocomplete)
-export const SEARCH_INVESTMENT_LEADS = (variables: InvestmentLeadQueryVariables): string => {
-  const { search = '', limit = 10 } = variables
-
-  return `
-    query SearchInvestmentLeads {
-      InvestmentLead(
-        where: {
-          isDeleted: { _eq: false }
-          _and: [
-            {
-              _or: [
-                { firstName: { _ilike: "%${search}%" } },
-                { lastName: { _ilike: "%${search}%" } },
-                { email: { _ilike: "%${search}%" } },
-                { companyName: { _ilike: "%${search}%" } },
-                { code: { _ilike: "%${search}%" } }
-              ]
-            }
-          ]
-        }
-        limit: ${limit}
-        orderBy: [{ firstName: ASC }]
-      ) {
-        id
-        code
-        firstName
-        lastName
-        sensitive
-        email
-        companyName
-        leadStatus {
-          id
-          code
-          value
-        }
-        leadSource {
-          id
-          code
-          value
-        }
-        ownerEmployee {
-          id
-          displayName
-        }
       }
     }
   `
@@ -311,7 +111,7 @@ export const GET_INVESTMENT_TASKS_BY_LEAD_ID = (leadId: string): string => {
         }
         orderBy: [{ createdAt: DESC }]
       ) {
-        ${INVESTMENT_TASK}
+        ${INVESTMENT_TASK_REF}
         
         # Entity references
         lead {
@@ -336,7 +136,7 @@ export const GET_INVESTMENT_ACTIVITIES_BY_LEAD_ID = (leadId: string): string => 
         }
         orderBy: [{ occurredAt: DESC }]
       ) {
-        ${INVESTMENT_ACTIVITY}
+        ${INVESTMENT_ACTIVITY_REF}
         
         # Entity references
         lead {
@@ -361,7 +161,7 @@ export const GET_INVESTMENT_NOTES_BY_LEAD_ID = (leadId: string): string => {
         }
         orderBy: [{ createdAt: DESC }]
       ) {
-        ${INVESTMENT_NOTE}
+        ${INVESTMENT_NOTE_REF}
         
         # Entity references
         lead {
@@ -386,7 +186,7 @@ export const GET_INVESTMENT_DOCUMENTS_BY_LEAD_ID = (leadId: string): string => {
         }
         orderBy: [{ createdAt: DESC }]
       ) {
-        ${INVESTMENT_DOCUMENT}
+        ${INVESTMENT_DOCUMENT_REF}
         lead {
           id
           code

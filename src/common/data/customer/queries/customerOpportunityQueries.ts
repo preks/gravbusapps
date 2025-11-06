@@ -1,12 +1,13 @@
 // Customer Opportunity Queries - using shared fragments
+import { CUSTOMER_OPPORTUNITY } from './fragments/customerFragments'
 import {
-  CUSTOMER_OPPORTUNITY,
-  CUSTOMER_ACCOUNT_REF,
-  CUSTOMER_TASK,
-  CUSTOMER_SALES_ACTIVITY,
-  CUSTOMER_CRM_NOTE,
-  CUSTOMER_CRM_DOCUMENT
-} from './fragments/customerRelationFragments'
+  CUSTOMER_TASK_REF,
+  CUSTOMER_ACTIVITY_REF,
+  CUSTOMER_DOCUMENT_REF,
+  CUSTOMER_NOTE_REF
+} from './fragments/customerReferenceFragments'
+import { buildOrderBy, buildSearch, buildFilter } from '@/common/network/graphql/queryHelpers'
+import { CUSTOMER_OPPORTUNITY_DESCRIPTORS } from '@/common/data/customer/types/customerOpportunityTypes'
 
 export interface CustomerOpportunityQueryVariables {
   ids?: string[]
@@ -33,88 +34,21 @@ export interface CustomerOpportunityQueryVariables {
   }>
 }
 
-// Helper: Build search clause
-const buildSearchClause = (searchTerm: string): string => {
-  const q = searchTerm.trim()
-  const isNumber = !isNaN(Number(q))
-  const numericValue = isNumber ? Number(q) : 0
-  const numericFields = isNumber
-    ? `, { estimatedAmount: { _eq: ${numericValue} } }, { winningChance: { _eq: ${numericValue} } }`
-    : ''
-
-  return `, _or: [
-    { name: { _ilike: "%${q}%" } },
-    { code: { _ilike: "%${q}%" } },
-    { notesSummary: { _ilike: "%${q}%" } },
-    { account: { name: { _ilike: "%${q}%" } } },
-    { ownerEmployee: { firstName: { _ilike: "%${q}%" } } },
-    { ownerEmployee: { lastName: { _ilike: "%${q}%" } } },
-    { ownerEmployee: { displayName: { _ilike: "%${q}%" } } },
-    { salesPipelineStage: { value: { _ilike: "%${q}%" } } },
-    { salesPipeline: { value: { _ilike: "%${q}%" } } },
-    { opportunityStatus: { value: { _ilike: "%${q}%" } } }
-    ${numericFields}
-  ]`
-}
-
-// Helper: Format IDs for GraphQL IN clause
-const formatIds = (ids: string[]): string => ids.map(id => `"${id}"`).join(', ')
-
-// Helper: Format values for GraphQL IN clause
-const formatValues = (values: string[]): string => values.map(v => `"${v}"`).join(', ')
-
-// Helper: Build ID filter clauses
-const buildIdFiltersClause = (variables: CustomerOpportunityQueryVariables): string => {
-  const clauses: string[] = []
-
-  if (variables.accountIds?.length) {
-    const formattedIds = formatIds(variables.accountIds)
-    clauses.push(`, account: { id: { _in: [${formattedIds}] } }`)
-  }
-  if (variables.contactIds?.length) {
-    const formattedIds = formatIds(variables.contactIds)
-    clauses.push(`, OpportunityContact: { contact: { id: { _in: [${formattedIds}] } } }`)
-  }
-  if (variables.stageIds?.length) {
-    const formattedIds = formatIds(variables.stageIds)
-    clauses.push(`, salesPipelineStage: { id: { _in: [${formattedIds}] } }`)
-  }
-  if (variables.stageValues?.length) {
-    const formattedValues = formatValues(variables.stageValues)
-    clauses.push(
-      `, _or: [ { stage: { _in: [${formattedValues}] } }, { salesPipelineStage: { value: { _in: [${formattedValues}] } } } ]`
-    )
-  }
-  if (variables.pipelineIds?.length) {
-    const formattedIds = formatIds(variables.pipelineIds)
-    clauses.push(`, salesPipeline: { id: { _in: [${formattedIds}] } }`)
-  }
-  if (variables.statusIds?.length) {
-    const formattedIds = formatIds(variables.statusIds)
-    clauses.push(`, opportunityStatus: { id: { _in: [${formattedIds}] } }`)
-  }
-  if (variables.currencyIds?.length) {
-    const formattedIds = formatIds(variables.currencyIds)
-    clauses.push(`, currency: { id: { _in: [${formattedIds}] } }`)
-  }
-  if (variables.ownerEmployeeIds?.length) {
-    const formattedIds = formatIds(variables.ownerEmployeeIds)
-    clauses.push(`, ownerEmployee: { id: { _in: [${formattedIds}] } }`)
-  }
-
-  return clauses.join('')
-}
-
 export const buildCustomerOpportunityWhereCondition = (variables: CustomerOpportunityQueryVariables = {}) => {
   let whereClause = 'where: { isDeleted: { _eq: false }'
 
-  if (variables.search?.trim()) {
-    whereClause += buildSearchClause(variables.search)
+  // IDs filter
+  if (variables.ids && variables.ids.length > 0) {
+    whereClause += `, id: { _in: ["${variables.ids.join('","')}"] }`
   }
 
-  whereClause += buildIdFiltersClause(variables)
+  // Custom filter for stageValues (stage OR salesPipelineStage.value)
+  if (variables.stageValues?.length) {
+    const formattedValues = variables.stageValues.map(v => `"${v}"`).join(', ')
+    whereClause += `, _or: [ { stage: { _in: [${formattedValues}] } }, { salesPipelineStage: { value: { _in: [${formattedValues}] } } } ]`
+  }
 
-  // Ranged filters for estimatedAmount (treat null as 0) and winningChance (multiple OR ranges)
+  // Custom ranged filters for estimatedAmount (treat null as 0) and winningChance (multiple OR ranges)
   if (variables.estimatedAmountRanges?.length) {
     const orConditions = variables.estimatedAmountRanges.flatMap(range => {
       const conditions: string[] = []
@@ -147,16 +81,22 @@ export const buildCustomerOpportunityWhereCondition = (variables: CustomerOpport
     })
     whereClause += `, _or: [${orConditions.join(', ')}]`
   }
-  if (variables.forecastedProfitBetween)
+  if (variables.forecastedProfitBetween) {
     whereClause += `, forecastedProfitAmount: { _gte: ${variables.forecastedProfitBetween[0]}, _lte: ${variables.forecastedProfitBetween[1]} }`
+  }
 
-  // Close Date Filter - handle both conditions properly
-  if (variables.closeDateFrom && variables.closeDateTo) {
-    whereClause += `, closeDate: { _gte: "${variables.closeDateFrom}", _lte: "${variables.closeDateTo}" }`
-  } else if (variables.closeDateFrom) {
-    whereClause += `, closeDate: { _gte: "${variables.closeDateFrom}" }`
-  } else if (variables.closeDateTo) {
-    whereClause += `, closeDate: { _lte: "${variables.closeDateTo}" }`
+  // Apply standard filters using descriptors
+  const filterConditions = buildFilter(variables, CUSTOMER_OPPORTUNITY_DESCRIPTORS)
+  if (filterConditions) {
+    whereClause += `, ${filterConditions}`
+  }
+
+  // Apply search using descriptors
+  if (variables.search?.trim()) {
+    const searchConditions = buildSearch(variables.search, CUSTOMER_OPPORTUNITY_DESCRIPTORS)
+    if (searchConditions) {
+      whereClause += `, ${searchConditions}`
+    }
   }
 
   whereClause += ' }'
@@ -167,25 +107,7 @@ export const GET_CUSTOMER_OPPORTUNITIES = (variables: CustomerOpportunityQueryVa
   const limit = Math.min(variables.limit || 50, 100)
   const offset = variables.offset || 0
   const where = buildCustomerOpportunityWhereCondition(variables)
-  const orderByClause = variables.orderBy?.length
-    ? `orderBy: [${variables.orderBy
-        .map(o => {
-          const f = o.field
-          if (f === 'ownerEmployee') return `{ ownerEmployee: { displayName: ${o.direction} } }`
-          if (f === 'account') return `{ account: { name: ${o.direction} } }`
-          if (f === 'estimatedAmount' || f === 'winningChance') {
-            // Use NULLS_LAST for both directions to keep nulls at the end
-            return `{ ${f}: ${o.direction} }`
-          }
-          // CatalogEntry fields need nested sorting by value
-          if (f === 'salesPipeline' || f === 'salesPipelineStage' || f === 'opportunityStatus') {
-            return `{ ${f}: { value: ${o.direction} } }`
-          }
-          // Only direct scalar fields allowed otherwise
-          return `{ ${f}: ${o.direction} }`
-        })
-        .join(', ')}]`
-    : 'orderBy: [{ createdAt: DESC_NULLS_LAST }]'
+  const orderByClause = buildOrderBy(variables.orderBy, CUSTOMER_OPPORTUNITY_DESCRIPTORS)
 
   return `
     query GetCustomerOpportunities {
@@ -196,7 +118,6 @@ export const GET_CUSTOMER_OPPORTUNITIES = (variables: CustomerOpportunityQueryVa
         ${where}
       ) {
         ${CUSTOMER_OPPORTUNITY}
-        account { ${CUSTOMER_ACCOUNT_REF} }
       }
       CustomerOpportunityAggregate: OpportunityAggregate(${where}) { aggregate { count } }
     }
@@ -208,7 +129,6 @@ export const GET_CUSTOMER_OPPORTUNITY_BY_ID = (id: string): string => {
     query GetCustomerOpportunityById {
       CustomerOpportunity: Opportunity(where: { id: { _eq: "${id}" }, isDeleted: { _eq: false } }) {
         ${CUSTOMER_OPPORTUNITY}
-        account { ${CUSTOMER_ACCOUNT_REF} }
       }
     }
   `
@@ -251,7 +171,7 @@ export const GET_CUSTOMER_TASKS_BY_OPPORTUNITY_ID = (opportunityId: string): str
         }
         orderBy: [{ createdAt: DESC }]
       ) {
-        ${CUSTOMER_TASK}
+        ${CUSTOMER_TASK_REF}
 
         # Entity references
         opportunity {
@@ -275,7 +195,7 @@ export const GET_CUSTOMER_ACTIVITIES_BY_OPPORTUNITY_ID = (opportunityId: string)
         }
         orderBy: [{ createdAt: DESC }]
       ) {
-        ${CUSTOMER_SALES_ACTIVITY}
+        ${CUSTOMER_ACTIVITY_REF}
 
         # Entity references
         opportunity {
@@ -299,7 +219,7 @@ export const GET_CUSTOMER_NOTES_BY_OPPORTUNITY_ID = (opportunityId: string): str
         }
         orderBy: [{ createdAt: DESC }]
       ) {
-        ${CUSTOMER_CRM_NOTE}
+        ${CUSTOMER_NOTE_REF}
         
         # Entity references
         opportunity {
@@ -323,7 +243,7 @@ export const GET_CUSTOMER_DOCUMENTS_BY_OPPORTUNITY_ID = (opportunityId: string):
         }
         orderBy: [{ createdAt: DESC }]
       ) {
-        ${CUSTOMER_CRM_DOCUMENT}
+        ${CUSTOMER_DOCUMENT_REF}
         
         # Entity references
         opportunity {

@@ -4,7 +4,7 @@ import { useGraphQLClient } from '@/common/network/graphql/useGraphQLClient'
 import { BusinessAppContextProps } from '@/common/BusinessAppContext'
 
 // Types
-import type { BaseCustomerContact, CustomerContact } from '../types'
+import type { CustomerContact, CustomerContact } from '../types'
 
 // Queries
 import {
@@ -18,7 +18,7 @@ import {
 import { toCustomerContact } from '../mappers/customerContactMappers'
 
 export interface CustomerContactListQueryResponse {
-  CustomerContact: BaseCustomerContact[]
+  CustomerContact: CustomerContact[]
   CustomerContactAggregate: {
     aggregate: { count: number }
   }
@@ -46,7 +46,7 @@ export const useCustomerContacts = (context: BusinessAppContextProps) => {
   const fetchCustomerContactById = useCallback(
     async (id: string): Promise<CustomerContact | null> => {
       const query = GET_CUSTOMER_CONTACT_BY_ID(id)
-      const result = await graphqlClient.request<{ CustomerContact: BaseCustomerContact[] }>(query)
+      const result = await graphqlClient.request<{ CustomerContact: CustomerContact[] }>(query)
       const base = result.CustomerContact?.[0]
       return base ? toCustomerContact(base) : null
     },
@@ -56,7 +56,7 @@ export const useCustomerContacts = (context: BusinessAppContextProps) => {
   const searchCustomerContacts = useCallback(
     async (variables: CustomerContactQueryVariables): Promise<CustomerContact[]> => {
       const query = SEARCH_CUSTOMER_CONTACTS(variables)
-      const result = await graphqlClient.request<{ CustomerContact: BaseCustomerContact[] }>(query)
+      const result = await graphqlClient.request<{ CustomerContact: CustomerContact[] }>(query)
       return result.CustomerContact.map(toCustomerContact)
     },
     [graphqlClient]

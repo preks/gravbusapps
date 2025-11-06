@@ -4,6 +4,9 @@ import { InvestmentTask } from '../types'
 
 /**
  * Transform InvestmentTask (GraphQL response) to InvestmentTask (enhanced with computed fields)
+ *
+ * Handles IRM-specific field name mappings:
+ * - investmentOpportunityStageCondition → opportunityStageCondition (within task relations)
  */
 export function toInvestmentTask(base: InvestmentTask): InvestmentTask {
   // Build task reference from related entities
@@ -58,8 +61,12 @@ export function toInvestmentTask(base: InvestmentTask): InvestmentTask {
     }
   }
 
+  // Map IRM-specific field names
+  const opportunityStageCondition = (base as any).investmentOpportunityStageCondition
+
   return {
     ...base,
+    opportunityStageCondition,
     reference: taskReference,
     // Alias for task columns compatibility (assignedEmployee → assignedTo)
     assignedTo: base.assignedEmployee,

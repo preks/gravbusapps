@@ -3,4 +3,7 @@
  * GraphQL queries and fragments for Customer Relations
  */
 
-export * from './customerTaskFragments'
+// Export all query files
+export * from './customerAccountQueries'
+export * from './customerLeadQueries'
+export * from './customerTaskQueries'

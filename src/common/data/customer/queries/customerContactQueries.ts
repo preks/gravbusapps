@@ -1,14 +1,14 @@
 // Customer Contact Queries - using shared fragments
+import { CUSTOMER_CONTACT } from './fragments/customerFragments'
 import {
-  CUSTOMER_CONTACT,
-  CUSTOMER_ACCOUNT_REF,
-  CUSTOMER_TASK,
-  CUSTOMER_SALES_ACTIVITY,
-  CUSTOMER_CRM_NOTE,
-  CUSTOMER_CRM_DOCUMENT
-} from './fragments/customerRelationFragments'
+  CUSTOMER_TASK_REF,
+  CUSTOMER_ACTIVITY_REF,
+  CUSTOMER_DOCUMENT_REF,
+  CUSTOMER_NOTE_REF
+} from './fragments/customerReferenceFragments'
 
-import { AUDIT_FIELDS } from '@/common/network/graphql/commonFragments'
+import { buildOrderBy, buildSearch, buildFilter } from '@/common/network/graphql/queryHelpers'
+import { CUSTOMER_CONTACT_DESCRIPTORS } from '@/common/data/customer/types/customerContactTypes'
 
 export interface CustomerContactQueryVariables {
   ids?: string[]
@@ -40,55 +40,30 @@ export interface CustomerContactQueryVariables {
 export const buildCustomerContactWhereCondition = (variables: CustomerContactQueryVariables = {}) => {
   let whereClause = 'where: { isDeleted: { _eq: false }'
 
-  if (variables.search?.trim()) {
-    const q = variables.search.trim()
-    whereClause += `, _or: [
-      { firstName: { _ilike: "%${q}%" } },
-      { lastName: { _ilike: "%${q}%" } },
-      { fullName: { _ilike: "%${q}%" } },
-      { email: { _ilike: "%${q}%" } },
-      { phone: { _ilike: "%${q}%" } },
-      { code: { _ilike: "%${q}%" } },
-      { department: { _ilike: "%${q}%" } },
-      { description: { _ilike: "%${q}%" } },
-      { jobPosition: { _ilike: "%${q}%" } }
-    ]`
+  // IDs filter
+  if (variables.ids && variables.ids.length > 0) {
+    whereClause += `, id: { _in: ["${variables.ids.join('","')}"] }`
   }
 
-  if (variables.academicTitleIds?.length) {
-    whereClause += `, academicTitle: { id: { _in: [${variables.academicTitleIds.map(id => `"${id}"`).join(', ')}] } }`
-  }
-  if (variables.salutationIds?.length) {
-    whereClause += `, salutation: { id: { _in: [${variables.salutationIds.map(id => `"${id}"`).join(', ')}] } }`
-  }
-  if (variables.languageIds?.length) {
-    whereClause += `, language: { id: { _in: [${variables.languageIds.map(id => `"${id}"`).join(', ')}] } }`
-  }
-  if (variables.ownerEmployeeIds?.length) {
-    whereClause += `, ownerEmployee: { id: { _in: [${variables.ownerEmployeeIds.map(id => `"${id}"`).join(', ')}] } }`
-  }
-  if (variables.accountIds?.length) {
-    whereClause += `, account: { id: { _in: [${variables.accountIds.map(id => `"${id}"`).join(', ')}] } }`
-  }
-  if (variables.contactTypes?.length) {
-    whereClause += `, contactType: { _in: [${variables.contactTypes.map(v => `"${v}"`).join(', ')}] }`
-  }
-  if (variables.departments?.length) {
-    whereClause += `, department: { _in: [${variables.departments.map(v => `"${v}"`).join(', ')}] }`
-  }
-  if (variables.fullNames?.length) {
-    whereClause += `, fullName: { _in: [${variables.fullNames.map(v => `"${v}"`).join(', ')}] }`
-  }
-
-  if (variables.createdAtFrom) whereClause += `, createdAt: { _gte: "${variables.createdAtFrom}" }`
-  if (variables.createdAtTo) whereClause += `, createdAt: { _lte: "${variables.createdAtTo}" }`
-  if (variables.birthDateFrom) whereClause += `, birthDate: { _gte: "${variables.birthDateFrom}" }`
-  if (variables.birthDateTo) whereClause += `, birthDate: { _lte: "${variables.birthDateTo}" }`
-
+  // Custom filters for hasEmail/missingEmail/hasPhone/missingPhone
   if (variables.hasEmail) whereClause += `, email: { _isNull: false, _neq: "" }`
   if (variables.missingEmail) whereClause += `, _or: [ { email: { _isNull: true } }, { email: { _eq: "" } } ]`
   if (variables.hasPhone) whereClause += `, phone: { _isNull: false, _neq: "" }`
   if (variables.missingPhone) whereClause += `, _or: [ { phone: { _isNull: true } }, { phone: { _eq: "" } } ]`
+
+  // Apply filters using descriptors
+  const filterConditions = buildFilter(variables, CUSTOMER_CONTACT_DESCRIPTORS)
+  if (filterConditions) {
+    whereClause += `, ${filterConditions}`
+  }
+
+  // Apply search using descriptors
+  if (variables.search?.trim()) {
+    const searchConditions = buildSearch(variables.search, CUSTOMER_CONTACT_DESCRIPTORS)
+    if (searchConditions) {
+      whereClause += `, ${searchConditions}`
+    }
+  }
 
   whereClause += ' }'
   return whereClause
@@ -98,15 +73,7 @@ export const GET_CUSTOMER_CONTACTS = (variables: CustomerContactQueryVariables =
   const limit = Math.min(variables.limit || 50, 100)
   const offset = variables.offset || 0
   const where = buildCustomerContactWhereCondition(variables)
-  const orderByClause = variables.orderBy?.length
-    ? `orderBy: [${variables.orderBy
-        .map(o => {
-          if (o.field === 'ownerEmployee') return `{ ownerEmployee: { displayName: ${o.direction} } }`
-          if (o.field === 'account') return `{ account: { name: ${o.direction} } }`
-          return `{ ${o.field}: ${o.direction} }`
-        })
-        .join(', ')}]`
-    : 'orderBy: [{ createdAt: DESC }]'
+  const orderByClause = buildOrderBy(variables.orderBy, CUSTOMER_CONTACT_DESCRIPTORS)
 
   return `
     query GetCustomerContacts {
@@ -116,16 +83,7 @@ export const GET_CUSTOMER_CONTACTS = (variables: CustomerContactQueryVariables =
         ${orderByClause}
         ${where}
       ) {
-        id
-        code
-        firstName
-        lastName
-        email
-        birthDate
-        ${AUDIT_FIELDS}
-        academicTitle { id code value }
-        language { id code value }
-        ownerEmployee { id firstName lastName displayName pictureThumbnail picture }
+          ${CUSTOMER_CONTACT}
       }
       CustomerContactAggregate: ContactAggregate(${where}) { aggregate { count } }
     }
@@ -137,7 +95,6 @@ export const GET_CUSTOMER_CONTACT_BY_ID = (id: string): string => {
     query GetCustomerContactById {
       CustomerContact: Contact(where: { id: { _eq: "${id}" }, isDeleted: { _eq: false } }) {
         ${CUSTOMER_CONTACT}
-        account { ${CUSTOMER_ACCOUNT_REF} }
       }
     }
   `
@@ -181,7 +138,7 @@ export const GET_CUSTOMER_TASKS_BY_CONTACT_ID = (contactId: string): string => {
         }
         orderBy: [{ createdAt: DESC }]
       ) {
-        ${CUSTOMER_TASK}
+        ${CUSTOMER_TASK_REF}
 
         # Entity references
         contact {
@@ -206,7 +163,7 @@ export const GET_CUSTOMER_ACTIVITIES_BY_CONTACT_ID = (contactId: string): string
         }
         orderBy: [{ createdAt: DESC }]
       ) {
-        ${CUSTOMER_SALES_ACTIVITY}
+        ${CUSTOMER_ACTIVITY_REF}
 
         # Entity references
         contact {
@@ -231,7 +188,7 @@ export const GET_CUSTOMER_NOTES_BY_CONTACT_ID = (contactId: string): string => {
         }
         orderBy: [{ createdAt: DESC }]
       ) {
-        ${CUSTOMER_CRM_NOTE}
+        ${CUSTOMER_NOTE_REF}
         
         # Entity references
         contact {
@@ -256,7 +213,7 @@ export const GET_CUSTOMER_DOCUMENTS_BY_CONTACT_ID = (contactId: string): string 
         }
         orderBy: [{ createdAt: DESC }]
       ) {
-        ${CUSTOMER_CRM_DOCUMENT}
+        ${CUSTOMER_DOCUMENT_REF}
         
         # Entity references
         contact {

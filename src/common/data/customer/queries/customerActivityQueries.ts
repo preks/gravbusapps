@@ -1,48 +1,7 @@
 // Customer Activity Queries - generic activity list queries for customer relations
-import {
-  CUSTOMER_SALES_ACTIVITY,
-  CUSTOMER_ACCOUNT_REF,
-  CUSTOMER_OPPORTUNITY_REF,
-  CUSTOMER_LEAD_REF
-} from './fragments/customerRelationFragments'
-import { buildOrderBy, buildSearch, buildFilter, type Descriptor } from '@/common/network/graphql/queryHelpers'
-
-// Unified descriptors for Sales Activity (search, sort, filters, and option metadata)
-export const CUSTOMER_ACTIVITY_DESCRIPTORS: Descriptor[] = [
-  // Search/sort
-  { key: 'title', searchPaths: ['title', 'description'], sortPath: 'title', type: 'text' },
-  {
-    key: 'activityType',
-    searchPaths: ['activityType.value', 'activityType.code'],
-    sortPath: 'activityType.code',
-    type: 'text'
-  },
-  {
-    key: 'ownerEmployee',
-    searchPaths: ['ownerEmployee.displayName', 'ownerEmployee.firstName', 'ownerEmployee.lastName'],
-    sortPath: 'ownerEmployee.displayName',
-    type: 'text'
-  },
-  { key: 'occurredAt', searchPaths: ['occurredAt'], type: 'date' },
-  { key: 'completedAt', searchPaths: ['completedAt'], type: 'date' },
-  { key: 'createdAt', searchPaths: ['createdAt'], type: 'date' },
-
-  // Filters (IDs, strings, booleans, dates, custom)
-  { key: 'activityTypeIds', path: 'activityType.id', kind: 'inIds' },
-  { key: 'ownerEmployeeIds', path: 'ownerEmployee.id', kind: 'inIds' },
-
-  // Relation filters
-  { key: 'accountIds', path: 'account.id', kind: 'inIds' },
-  { key: 'contactIds', path: 'contact.id', kind: 'inIds' },
-  { key: 'leadIds', path: 'lead.id', kind: 'inIds' },
-  { key: 'opportunityIds', path: 'opportunity.id', kind: 'inIds' },
-
-  // Date range filters
-  { key: 'occurredAtFrom', path: 'occurredAt', kind: 'dateFrom' },
-  { key: 'occurredAtTo', path: 'occurredAt', kind: 'dateTo' },
-  { key: 'completedAtFrom', path: 'completedAt', kind: 'dateFrom' },
-  { key: 'completedAtTo', path: 'completedAt', kind: 'dateTo' }
-]
+import { CUSTOMER_ACTIVITY } from './fragments/customerFragments'
+import { buildOrderBy, buildSearch, buildFilter } from '@/common/network/graphql/queryHelpers'
+import { CUSTOMER_ACTIVITY_DESCRIPTORS } from '@/common/data/customer/types/customerActivityTypes'
 
 export interface CustomerActivityQueryVariables {
   search?: string
@@ -100,13 +59,7 @@ export const GET_CUSTOMER_ACTIVITIES = (variables: CustomerActivityQueryVariable
         ${orderByClause}
         ${where}
       ) {
-        ${CUSTOMER_SALES_ACTIVITY}
-
-        # Entity references (minimal for display)
-        account { ${CUSTOMER_ACCOUNT_REF} }
-        contact { id code firstName lastName email }
-        lead { ${CUSTOMER_LEAD_REF} }
-        opportunity { ${CUSTOMER_OPPORTUNITY_REF} }
+        ${CUSTOMER_ACTIVITY}
       }
 
       SalesActivityAggregate(${where}) {
@@ -121,34 +74,7 @@ export const GET_CUSTOMER_ACTIVITY_BY_ID = (id: string): string => {
   return `
     query GetCustomerActivityById {
       SalesActivity(where: { id: { _eq: "${id}" }, isDeleted: { _eq: false } }) {
-        ${CUSTOMER_SALES_ACTIVITY}
-        
-        # Entity references
-        account { ${CUSTOMER_ACCOUNT_REF} }
-        contact { id code firstName lastName email }
-        lead { ${CUSTOMER_LEAD_REF} }
-        opportunity { ${CUSTOMER_OPPORTUNITY_REF} }
-        
-        # Documents relationship
-        documents(where: { isDeleted: { _eq: false } }) {
-          id
-          version
-          name
-          description
-          file
-          fileSize
-          mimeType
-          documentGroup {
-            id
-            value
-            code
-          }
-          documentType {
-            id
-            value
-            code
-          }
-        }
+        ${CUSTOMER_ACTIVITY}
       }
     }
   `
@@ -165,7 +91,7 @@ export const GET_CUSTOMER_ACTIVITIES_BY_ACCOUNT_ID = (accountId: string): string
         }
         orderBy: [{ createdAt: DESC }]
       ) {
-        ${CUSTOMER_SALES_ACTIVITY}
+        ${CUSTOMER_ACTIVITY}
 
         # Entity references
         account {
@@ -189,7 +115,7 @@ export const GET_CUSTOMER_ACTIVITIES_BY_CONTACT_ID = (contactId: string): string
         }
         orderBy: [{ createdAt: DESC }]
       ) {
-        ${CUSTOMER_SALES_ACTIVITY}
+        ${CUSTOMER_ACTIVITY}
 
         # Entity references
         contact {
@@ -215,7 +141,7 @@ export const GET_CUSTOMER_ACTIVITIES_BY_LEAD_ID = (leadId: string): string => {
         }
         orderBy: [{ createdAt: DESC }]
       ) {
-        ${CUSTOMER_SALES_ACTIVITY}
+        ${CUSTOMER_ACTIVITY}
 
         # Entity references
         lead {
@@ -241,7 +167,7 @@ export const GET_CUSTOMER_ACTIVITIES_BY_OPPORTUNITY_ID = (opportunityId: string)
         }
         orderBy: [{ createdAt: DESC }]
       ) {
-        ${CUSTOMER_SALES_ACTIVITY}
+        ${CUSTOMER_ACTIVITY}
 
         # Entity references
         opportunity {

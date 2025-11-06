@@ -1,44 +1,38 @@
-/**
- * Customer Document Types
- */
+import type { CommonDocument } from '@/common/data/relations/types/commonDocumentTypes'
+import { COMMON_DOCUMENT_DESCRIPTORS } from '@/common/data/relations/types/commonDocumentTypes'
+import type { Descriptor } from '@/common/network/graphql/queryHelpers'
+import type { SourceTable } from './customerEnums'
+import type {
+  CustomerAccount,
+  CustomerActivity,
+  CustomerContact,
+  CustomerLead,
+  CustomerNote,
+  CustomerOpportunity,
+  CustomerTask
+} from './'
 
-import type { BaseEntity, CatalogEntry } from '@/common/network/graphql/commonTypes'
+export interface CustomerDocument extends CommonDocument {
+  account?: CustomerAccount
+  activity?: CustomerActivity // Mapped by salesActivity
+  childDocuments?: CustomerDocument[] // TODO missing
+  contact?: CustomerContact
+  note?: CustomerNote
+  opportunity?: CustomerOpportunity
+  lead?: CustomerLead
+  parentDocument?: CustomerDocument
+  source?: SourceTable
+  task?: CustomerTask // Mapped by salesTask
 
-/**
- * CustomerDocument
- * Document entity for CRM (crm_document table)
- */
-export interface CustomerDocument extends BaseEntity {
-  id: string
-  name?: string
-  description?: string
-  file?: string
-  fileSize?: number
-  mimeType?: string
-  verified?: boolean
-  verificationDate?: string
-  authenticated?: boolean
-  authenticationDate?: string
-  mandatory?: boolean
-  expirationDate?: string
-
-  // Catalog references
-  documentGroup?: CatalogEntry
-  documentGroupRef?: string
-  documentType?: CatalogEntry
-  documentTypeRef?: string
-
-  // Entity references
-  activity?: any // CustomerActivity
-  activityId?: string
-  task?: any // CustomerTask
-  taskId?: string
-  account?: any // CustomerAccount
-  accountId?: string
-  contact?: any // CustomerContact
-  contactId?: string
-  opportunity?: any // CustomerOpportunity
-  opportunityId?: string
-  lead?: any // CustomerLead
-  leadId?: string
+  // Base fields for mapping
+  salesActivity?: CustomerActivity // Mapped to activity
+  salesActivityId?: string // Mapped to activityId
+  salesTask?: CustomerTask // Mapped to task
+  salesTaskId?: string // Mapped to taskId
 }
+
+/**
+ * Customer Document Descriptors
+ * CRM uses correct field names, so we use Common descriptors directly
+ */
+export const CUSTOMER_DOCUMENT_DESCRIPTORS: Descriptor[] = [...COMMON_DOCUMENT_DESCRIPTORS]

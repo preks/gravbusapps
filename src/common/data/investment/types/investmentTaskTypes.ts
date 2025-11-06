@@ -1,58 +1,56 @@
-/**
- * Investment Task Types
- * Task-related types for Investment Relations
- */
-
 import type { CatalogEntry } from '@/common/network/graphql/commonTypes'
-import type { CommonTask, CommonTaskTemplate } from '@/common/data/relations/types/commonTaskTypes'
+import type { CommonTask, CommonTaskComment, CommonTaskTemplate } from '@/common/data/relations/types/commonTaskTypes'
+import { COMMON_TASK_DESCRIPTORS } from '@/common/data/relations/types/commonTaskTypes'
+import type { Descriptor } from '@/common/network/graphql/queryHelpers'
 import type { SourceTable } from './investmentEnums'
-import type { InvestmentLead } from './investmentLeadTypes'
-import type { InvestmentAccount } from './investmentAccountTypes'
-import type { InvestmentContact } from './investmentContactTypes'
-import type { Investment } from './investmentTypes'
-// Forward declarations for types that would create circular imports
-import type { InvestmentDocument, InvestmentOpportunity } from './investmentRelationTypes'
+import type {
+  Investment,
+  InvestmentAccount,
+  InvestmentContact,
+  InvestmentDocument,
+  InvestmentLead,
+  InvestmentOpportunityStageCondition,
+  InvestmentOpportunity
+} from './'
 
-/**
- * InvestmentTask
- * Maps to investment_task table in DBML
- * Extends CommonTask with Investment-specific fields
- */
 export interface InvestmentTask extends CommonTask {
-  // Common fields with domain-specific types
-  source?: SourceTable
-
-  // Related entity references (Investment-specific)
   account?: InvestmentAccount
+  comments?: InvestmentTaskComment[]
   contact?: InvestmentContact
-  lead?: InvestmentLead
-  opportunity?: InvestmentOpportunity
-
   documents?: InvestmentDocument[]
+  investment?: Investment
+  lead?: InvestmentLead
+  opportunityStageCondition?: InvestmentOpportunityStageCondition // Mapped from investmentOpportunityStageCondition
+  opportunity?: InvestmentOpportunity
+  source?: SourceTable
   taskTemplate?: InvestmentTaskTemplate
 
-  // Investment-specific fields
-  investment?: Investment
+  // Base fields for mapping
+  investmentOpportunityStageCondition?: InvestmentOpportunityStageCondition
 }
 
-/**
- * InvestmentTaskTemplate
- * Maps to investment_task_template table in DBML
- * Extends CommonTaskTemplate with Investment-specific fields
- */
 export interface InvestmentTaskTemplate extends CommonTaskTemplate {
-  // Domain Specific Fields
   investmentGroup?: CatalogEntry
   investmentGroupRef?: string
   investmentType?: CatalogEntry
   investmentTypeRef?: string
+  tasks?: InvestmentTask[] // Mapped by investmentTask
 
-  // ============================================
-  // COMPUTED FIELDS (for display/UI purposes)
-  // ============================================
-  displayName?: string
-  typeLabel?: string
-  priorityLabel?: string
-  investmentGroupLabel?: string
-  investmentTypeLabel?: string
+  // Base fields for mapping
+  investmentTask?: InvestmentTask[] // Mapped to tasks
 }
+
+export interface InvestmentTaskComment extends CommonTaskComment {
+  task?: InvestmentTask // Mapped by investmentTask
+  taskId?: string // Mapped by investmentTaskId
+
+  // Base fields for mapping
+  investmentTask?: InvestmentTask // Mapped to task
+  investmentTaskId?: string // Mapped to taskId
+}
+
+/**
+ * Investment Task Descriptors
+ * IRM uses correct field names, so we use Common descriptors directly
+ */
+export const INVESTMENT_TASK_DESCRIPTORS: Descriptor[] = [...COMMON_TASK_DESCRIPTORS]

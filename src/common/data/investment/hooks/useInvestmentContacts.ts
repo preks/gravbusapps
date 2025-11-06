@@ -3,7 +3,7 @@ import { useCallback, useState, useEffect } from 'react'
 import { useGraphQLClient } from '@/common/network/graphql/useGraphQLClient'
 import { BusinessAppContextProps } from '@/common/BusinessAppContext'
 import type {
-  BaseInvestmentContact,
+  InvestmentContact,
   InvestmentContact,
   InvestmentTask,
   BaseInvestmentActivity,
@@ -35,7 +35,7 @@ import {
 
 // Response interfaces
 export interface InvestmentContactQueryResponse {
-  InvestmentContact: BaseInvestmentContact[]
+  InvestmentContact: InvestmentContact[]
   InvestmentContactAggregate: {
     aggregate: {
       count: number
@@ -293,7 +293,7 @@ export const useGetInvestmentContactById = (context: BusinessAppContextProps) =>
       const query = GET_INVESTMENT_CONTACT_BY_ID(id)
 
       try {
-        const result = await graphqlClient.request<{ InvestmentContact: BaseInvestmentContact[] }>(query)
+        const result = await graphqlClient.request<{ InvestmentContact: InvestmentContact[] }>(query)
         const baseContact = result.InvestmentContact[0]
 
         return {

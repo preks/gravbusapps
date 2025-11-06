@@ -1,7 +1,7 @@
 import { useCallback } from 'react'
 import { useGraphQLClient } from '@/common/network/graphql/useGraphQLClient'
 import { BusinessAppContextProps } from '@/common/BusinessAppContext'
-import { GET_INVESTMENT_NOTES_BY_INVESTMENT_ID } from '@/common/data/investment/queries/investmentQueries'
+import { GET_INVESTMENT_NOTES_BY_INVESTMENT_ID } from '@/common/data/investment/queries/'
 import type { BaseInvestmentNote, InvestmentNote } from '@/common/data/investment/types'
 import { toInvestmentNote } from '@/common/data/investment/mappers'
 

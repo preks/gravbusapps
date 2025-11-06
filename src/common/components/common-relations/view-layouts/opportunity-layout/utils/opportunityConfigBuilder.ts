@@ -105,12 +105,12 @@ export const createOpportunityConfig = <TOpportunity extends { id: string }, TQu
       if (params.sorting.length > 0) {
         vars.orderBy = [
           {
-            field: params.mapColumnToGraphQLField(params.sorting[0].id) as any,
+            field: params.sorting[0].id,
             direction: params.sorting[0].desc ? 'DESC_NULLS_LAST' : 'ASC_NULLS_LAST'
           }
         ]
       } else {
-        vars.orderBy = [{ field: 'createdAt' as any, direction: 'DESC_NULLS_LAST' }]
+        vars.orderBy = [{ field: 'createdAt', direction: 'DESC_NULLS_LAST' }]
       }
 
       return options.extendQueryVariables

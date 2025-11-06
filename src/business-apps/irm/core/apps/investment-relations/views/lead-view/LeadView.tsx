@@ -15,8 +15,7 @@ import {
   defaultLeadColumns,
   defaultLeadSortableColumns,
   defaultVisibleLeadColumns,
-  defaultAvailableLeadColumns,
-  createLeadColumnToGraphQLMapping
+  defaultAvailableLeadColumns
 } from '@/common/components/common-relations/view-layouts/lead-layout/config'
 import { defaultLeadFilterConfig } from '@/common/components/common-relations/view-layouts/lead-layout/config'
 import { LeadStatisticsLayout } from '@/common/components/common-relations/view-layouts/lead-layout/components/LeadStatisticsLayout'
@@ -38,13 +37,11 @@ export const LeadView: React.FC<LeadViewProps> = context => {
   const [sorting, setSorting] = useState<Array<{ id: string; desc: boolean }>>([{ id: 'createdAt', desc: true }])
   const [pagination, setPagination] = useState({ pageIndex: 0, pageSize: 20 })
   const [visibleColumns, setVisibleColumns] = useState<string[]>(defaultVisibleLeadColumns)
+  const [isInitialLoad, setIsInitialLoad] = useState(true)
 
   // Hooks
   const { fetchInvestmentLeads } = useInvestmentLeads(context)
   const leadStatistics = useInvestmentLeadStatistics(context)
-
-  // Column to GraphQL mapping (IRM uses default - no overrides needed)
-  const mapColumnToGraphQLField = useMemo(() => createLeadColumnToGraphQLMapping(), [])
 
   // Query Variables
   const queryVariables = useMemo(() => {
@@ -56,60 +53,74 @@ export const LeadView: React.FC<LeadViewProps> = context => {
 
     applyLeadFilters(vars, selectedFilters)
 
+    // Descriptors handle all field mapping automatically (leadStatus → leadStatus.value, etc.)
     if (sorting.length > 0) {
-      const sortField = mapColumnToGraphQLField(sorting[0].id)
       vars.orderBy = [
         {
-          field: sortField as any,
+          field: sorting[0].id,
           direction: sorting[0].desc ? 'DESC_NULLS_LAST' : 'ASC_NULLS_LAST'
         }
       ]
     } else {
-      vars.orderBy = [{ field: 'createdAt' as any, direction: 'DESC_NULLS_LAST' }]
+      vars.orderBy = [{ field: 'createdAt', direction: 'DESC_NULLS_LAST' }]
     }
 
     return vars
-  }, [pagination, searchTerm, selectedFilters, sorting, mapColumnToGraphQLField])
+  }, [pagination, searchTerm, selectedFilters, sorting])
 
-  // Load Data
+  // Load Data - Stabilized: queryVariables as parameter, not dependency
   const loadData = useCallback(
-    async (showLoading = true) => {
-      if (!accessToken) return
+    async (variables: InvestmentLeadQueryVariables, showLoading = true) => {
+      if (!accessToken) {
+        return
+      }
 
-      if (showLoading) setIsLoading(true)
+      if (showLoading) {
+        setIsLoading(true)
+      }
       setError(null)
 
       try {
-        const result = await fetchInvestmentLeads(queryVariables)
+        const result = await fetchInvestmentLeads(variables)
         setLeads((result.leads as any) || [])
         setTotalCount(result.total || 0)
       } catch (err) {
-        setError(err instanceof Error ? err.message : 'Unknown error occurred')
+        const errorMessage = err instanceof Error ? err.message : 'Unknown error occurred'
+        setError(errorMessage)
       } finally {
-        if (showLoading) setIsLoading(false)
+        if (showLoading) {
+          setIsLoading(false)
+        }
+        setIsInitialLoad(false)
       }
     },
-    [accessToken, fetchInvestmentLeads, queryVariables]
+    [accessToken, fetchInvestmentLeads]
   )
 
-  // Initial load
+  // Initial load - Only runs once when accessToken is available and isInitialLoad is true
   useEffect(() => {
-    if (accessToken) {
-      loadData(true)
+    if (!accessToken || !isInitialLoad) {
+      return
     }
-  }, [accessToken, loadData])
+
+    loadData(queryVariables, true)
+  }, [accessToken, isInitialLoad, loadData, queryVariables])
 
   // Reload data without loading state when filters/search/pagination/sorting change
+  // Only runs after initial load is complete (isInitialLoad === false)
   useEffect(() => {
-    if (accessToken) {
-      loadData(false)
+    if (isInitialLoad || !accessToken) {
+      return
     }
-  }, [queryVariables, accessToken, loadData])
+
+    loadData(queryVariables, false)
+  }, [queryVariables, loadData, accessToken])
 
   // Process completion
   const handleProcessComplete = useCallback(() => {
-    loadData(false)
-  }, [loadData])
+    if (!accessToken) return
+    loadData(queryVariables, false)
+  }, [accessToken, loadData, queryVariables])
 
   useProcessCompletion({ onSuccess: handleProcessComplete })
 
@@ -155,7 +166,9 @@ export const LeadView: React.FC<LeadViewProps> = context => {
   }, [])
 
   // Columns
-  const columns = useMemo(() => defaultLeadColumns() as any, [])
+  const columns = useMemo(() => {
+    return defaultLeadColumns() as any
+  }, [])
 
   // Row Actions
   const renderRowActions = useCallback(

@@ -1,36 +1,27 @@
-/**
- * Investment Note Types
- */
+import type { CommonNote } from '@/common/data/relations/types/commonNoteTypes'
+import { COMMON_NOTE_DESCRIPTORS } from '@/common/data/relations/types/commonNoteTypes'
+import type { Descriptor } from '@/common/network/graphql/queryHelpers'
+import {
+  Investment,
+  InvestmentContact,
+  InvestmentAccount,
+  InvestmentDocument,
+  InvestmentOpportunity,
+  InvestmentLead
+} from './'
 
-import type { BaseEntity } from '@/common/network/graphql/commonTypes'
-import type { Employee } from '@/common/data/employee/types/employeeBaseTypes'
-import type { SourceTable } from './investmentEnums'
-
-/**
- * InvestmentNote
- * Note entity for IRM
- */
-export interface InvestmentNote extends BaseEntity {
-  id: string
-  source?: SourceTable
-  title?: string
-  text?: string
-  reminderDate?: string
-
-  // Entity references
-  investment?: any // Investment
+export interface InvestmentNote extends CommonNote {
+  account?: InvestmentAccount
+  contact?: InvestmentContact
+  documents?: InvestmentDocument[]
+  investment?: Investment
   investmentId?: string
-  authorEmployee?: Employee
-  authorEmployeeId?: string
-  account?: any // InvestmentAccount
-  accountId?: string
-  contact?: any // InvestmentContact
-  contactId?: string
-  opportunity?: any // InvestmentOpportunity
-  opportunityId?: string
-  lead?: any // InvestmentLead
-  leadId?: string
-
-  // Documents
-  documents?: any[] // InvestmentDocument[]
+  opportunity?: InvestmentOpportunity
+  lead?: InvestmentLead
 }
+
+/**
+ * Investment Note Descriptors
+ * IRM uses correct field names, so we use Common descriptors directly
+ */
+export const INVESTMENT_NOTE_DESCRIPTORS: Descriptor[] = [...COMMON_NOTE_DESCRIPTORS]

@@ -1,84 +1,60 @@
-/**
- * Customer Task Types
- * Task-related types for Customer/CRM Relations
- */
-
-import type { CommonTask, CommonTaskTemplate } from '@/common/data/relations/types/commonTaskTypes'
+import type { CommonTask, CommonTaskComment, CommonTaskTemplate } from '@/common/data/relations/types/commonTaskTypes'
+import { COMMON_TASK_DESCRIPTORS } from '@/common/data/relations/types/commonTaskTypes'
+import type { Descriptor } from '@/common/network/graphql/queryHelpers'
 import type { TaskTiming } from '@/common/data/relations/constants/commonTaskConstants'
 import type { CatalogEntry } from '@/common/network/graphql/commonTypes'
 import type { SourceTable } from './customerEnums'
-import type { CustomerAccount } from './customerAccountTypes'
-import type { CustomerContact } from './customerContactTypes'
-import type { CustomerLead } from './customerLeadTypes'
-// Forward declarations for types that would create circular imports
-import type { CustomerOpportunity, CustomerDocument } from './customerRelationTypes'
+import type {
+  CustomerAccount,
+  CustomerContact,
+  CustomerDocument,
+  CustomerLead,
+  CustomerOpportunityStageCondition,
+  CustomerOpportunity
+} from './'
 
-/**
- * CustomerTask
- * Maps to sales_task table in DBML
- * Extends CommonTask with Customer-specific fields
- */
 export interface CustomerTask extends CommonTask {
-  // Common fields with domain-specific types
-  source?: SourceTable
-
-  // Related entity references (Customer-specific)
   account?: CustomerAccount
+  comments?: CustomerTaskComment[] // Mapped from comment
   contact?: CustomerContact
-  lead?: CustomerLead
-  opportunity?: CustomerOpportunity
-
-  // Documents
   documents?: CustomerDocument[]
-  taskTemplate?: CustomerTaskTemplate
+  lead?: CustomerLead
+  opportunityStageCondition?: CustomerOpportunityStageCondition
+  opportunity?: CustomerOpportunity
+  source?: SourceTable
+  taskTemplate?: CustomerTaskTemplate // Mapped from salesTaskTemplate
 
-  // NOTE: Customer Relations (SalesTask) uses old field naming schema
-  // We map these to the standardized names for consistency with Investment Relations
+  // Base fields for mapping
+  comment?: string // Mapped to comments
+  priority?: CatalogEntry // Mapped to taskPriority
+  priorityRef?: string // Mapped to taskPriorityRef
+  status?: CatalogEntry // Mapped to taskStatus
+  statusRef?: string // Mapped to taskStatusRef
+  salesTaskTemplate?: CustomerTaskTemplate // Mapped to taskTemplate
+  salesTaskTemplateId?: string // Mapped to taskTemplateId
+  timingType?: TaskTiming // Mapped to taskTiming
+  type?: CatalogEntry // Mapped to taskType
+  typeRef?: string // Mapped to taskTypeRef
+}
 
-  // Timing field mapping: timingType → taskTiming
-  timingType?: TaskTiming // Raw field from GraphQL (SalesTask.timing_type)
+export interface CustomerTaskTemplate extends CommonTaskTemplate {
+  tasks?: CustomerTask[] // Mapped by salesTask
 
-  // Catalog field mappings: type → taskType, priority → taskPriority, status → taskStatus
-  type?: CatalogEntry // Raw field from GraphQL (SalesTask.type)
-  typeRef?: string
-  priority?: CatalogEntry // Raw field from GraphQL (SalesTask.priority)
-  priorityRef?: string
-  status?: CatalogEntry // Raw field from GraphQL (SalesTask.status)
-  statusRef?: string
+  // Base fields for mapping
+  salesTask?: CustomerTask[] // Mapped to tasks
+}
 
-  // Task Template field mapping: salesTaskTemplate → taskTemplate
-  salesTaskTemplateId?: string // Raw field from GraphQL (SalesTask.sales_task_template_id)
-  salesTaskTemplate?: CustomerTaskTemplate
+export interface CustomerTaskComment extends CommonTaskComment {
+  task?: CustomerTask // Mapped by customerTask
+  taskId?: string // Mapped by customerTaskId
 
-  // Customer-specific fields only
-  comment?: string
+  // Base fields for mapping
+  customerTask?: CustomerTask // Mapped to task
+  customerTaskId?: string // Mapped to taskId
 }
 
 /**
- * CustomerTaskTemplate
- * Maps to sales_task_template table in DBML
- * Extends CommonTaskTemplate with Customer-specific fields
+ * Customer Task Descriptors
+ * CRM uses correct field names, so we use Common descriptors directly
  */
-export interface CustomerTaskTemplate extends CommonTaskTemplate {
-  // NOTE: Customer Relations (SalesTaskTemplate) uses old field naming schema
-  // We map these to the standardized names for consistency with Investment Relations
-
-  // Catalog field mappings: type → taskType, priority → taskPriority
-  type?: CatalogEntry // Raw field from GraphQL (SalesTaskTemplate.type)
-  typeRef?: string
-  priority?: CatalogEntry // Raw field from GraphQL (SalesTaskTemplate.priority)
-  priorityRef?: string
-
-  // Domain Specific Fields
-  // NOTE: SalesTaskTemplate has "investmentType" which is semantically wrong
-  // TODO: Should be domain-agnostic field or not exist in SalesTaskTemplate
-  investmentType?: CatalogEntry
-  investmentTypeRef?: string
-
-  // ============================================
-  // COMPUTED FIELDS (for display/UI purposes)
-  // ============================================
-  displayName?: string
-  typeLabel?: string
-  priorityLabel?: string
-}
+export const CUSTOMER_TASK_DESCRIPTORS: Descriptor[] = [...COMMON_TASK_DESCRIPTORS]

@@ -1,14 +1,13 @@
 // Investment Opportunity Queries - Complete queries using shared fragments
-import { INVESTMENT, INVESTMENT_REF } from './fragments/investmentFragments'
+import { INVESTMENT_OPPORTUNITY } from './fragments/investmentFragments'
 import {
-  INVESTMENT_OPPORTUNITY,
-  INVESTMENT_ACCOUNT_REF,
-  INVESTMENT_TASK,
-  INVESTMENT_ACTIVITY,
-  INVESTMENT_NOTE,
-  INVESTMENT_DOCUMENT
-} from './fragments/investmentRelationFragments'
-import { CATALOG_ENTRY } from '@/common/network/graphql/commonFragments'
+  INVESTMENT_TASK_REF,
+  INVESTMENT_ACTIVITY_REF,
+  INVESTMENT_NOTE_REF,
+  INVESTMENT_DOCUMENT_REF
+} from './fragments/investmentReferenceFragments'
+import { buildOrderBy, buildSearch, buildFilter } from '@/common/network/graphql/queryHelpers'
+import { INVESTMENT_OPPORTUNITY_DESCRIPTORS } from '@/common/data/investment/types/investmentOpportunityTypes'
 
 export interface InvestmentOpportunityQueryVariables {
   ids?: string[]
@@ -245,17 +244,66 @@ const buildBaseFilters = (variables: InvestmentOpportunityQueryVariables = {}): 
 export const buildInvestmentOpportunityWhereCondition = (
   variables: InvestmentOpportunityQueryVariables = {}
 ): string => {
-  const baseFilters = buildBaseFilters(variables)
+  let whereClause = 'where: { isDeleted: { _eq: false }'
 
-  // Start with the base condition that always includes isDeleted: false
-  if (baseFilters.length === 0) {
-    return `where: ${serializeGraphQLFilter({ isDeleted: { _eq: false } })}`
+  // IDs filter
+  if (variables.ids && variables.ids.length > 0) {
+    whereClause += `, id: { _in: ["${variables.ids.join('","')}"] }`
   }
-  const whereCondition: GraphQLWhereCondition = {
-    isDeleted: { _eq: false },
-    _and: baseFilters
+
+  // Custom filters
+  if (variables.dealType) {
+    whereClause += `, dealType: { _eq: "${variables.dealType}" }`
   }
-  return `where: ${serializeGraphQLFilter(whereCondition)}`
+  if (variables.accountSearch?.trim()) {
+    whereClause += `, investmentAccount: { name: { _ilike: "%${variables.accountSearch.trim()}%" } }`
+  }
+
+  // Custom ranged filters for estimatedAmount (treat null as 0)
+  if (variables.estimatedAmountRanges?.length) {
+    const orConditions = variables.estimatedAmountRanges.flatMap(range => {
+      const conditions: string[] = []
+      const parts: string[] = []
+
+      if (range.min !== undefined) parts.push(`_gte: ${range.min}`)
+      if (range.max !== undefined) parts.push(`_lte: ${range.max}`)
+
+      // Add the actual value condition
+      if (parts.length > 0) {
+        conditions.push(`{ estimatedAmount: { ${parts.join(', ')} } }`)
+      }
+
+      // If range includes 0, also include null values (null treated as 0)
+      const includesZero = (range.min === undefined || range.min === 0) && (range.max === undefined || range.max >= 0)
+      if (includesZero) {
+        conditions.push(`{ estimatedAmount: { _isNull: true } }`)
+      }
+
+      return conditions
+    })
+    whereClause += `, _or: [${orConditions.join(', ')}]`
+  }
+
+  if (variables.forecastedProfitBetween) {
+    whereClause += `, forecastedProfit: { _gte: ${variables.forecastedProfitBetween[0]}, _lte: ${variables.forecastedProfitBetween[1]} }`
+  }
+
+  // Apply standard filters using descriptors
+  const filterConditions = buildFilter(variables, INVESTMENT_OPPORTUNITY_DESCRIPTORS)
+  if (filterConditions) {
+    whereClause += `, ${filterConditions}`
+  }
+
+  // Apply search using descriptors
+  if (variables.search?.trim()) {
+    const searchConditions = buildSearch(variables.search, INVESTMENT_OPPORTUNITY_DESCRIPTORS)
+    if (searchConditions) {
+      whereClause += `, ${searchConditions}`
+    }
+  }
+
+  whereClause += ' }'
+  return whereClause
 }
 
 // Get Investment Opportunities with full details
@@ -263,26 +311,7 @@ export const GET_INVESTMENT_OPPORTUNITIES = (variables: InvestmentOpportunityQue
   const limit = Math.min(variables.limit || 50, 100)
   const offset = variables.offset || 0
   const where = buildInvestmentOpportunityWhereCondition(variables)
-
-  const orderByClause = variables.orderBy?.length
-    ? `orderBy: [${variables.orderBy
-        .map(o => {
-          const f = o.field
-          if (
-            f === 'opportunityStatus' ||
-            f === 'opportunityPipeline' ||
-            f === 'opportunityPipelineStage' ||
-            f === 'currency'
-          ) {
-            return `{ ${f}: { code: ${o.direction} } }`
-          }
-          if (f === 'ownerEmployee') {
-            return `{ ownerEmployee: { displayName: ${o.direction} } }`
-          }
-          return `{ ${f}: ${o.direction} }`
-        })
-        .join(', ')}]`
-    : 'orderBy: [{ closeDate: ASC }]'
+  const orderByClause = buildOrderBy(variables.orderBy, INVESTMENT_OPPORTUNITY_DESCRIPTORS)
 
   return `
     query GetInvestmentOpportunities {
@@ -293,16 +322,6 @@ export const GET_INVESTMENT_OPPORTUNITIES = (variables: InvestmentOpportunityQue
         ${where}
       ) {
         ${INVESTMENT_OPPORTUNITY}
-        
-        # Account relationship
-        account {
-          ${INVESTMENT_ACCOUNT_REF}
-        }
-        
-        # Related investments
-        investment {
-          ${INVESTMENT_REF}
-        }
         
         # Aggregate counts for relationships
         investmentAggregate {
@@ -347,24 +366,6 @@ export const GET_INVESTMENT_OPPORTUNITY_BY_ID = (id: string): string => {
     query GetInvestmentOpportunityById {
       InvestmentOpportunity(where: { id: { _eq: "${id}" }, isDeleted: { _eq: false } }) {
         ${INVESTMENT_OPPORTUNITY}
-        
-        # Account relationship
-        account {
-          ${INVESTMENT_ACCOUNT_REF}
-        }
-        
-        # Related investments (detailed view)
-        investment {
-          ${INVESTMENT}
-        }
-
-        # Include pipeline with stages for UI stage lists
-        opportunityPipeline {
-          ${CATALOG_ENTRY}
-          childEntries {
-            ${CATALOG_ENTRY}
-          }
-        }
       }
     }
   `
@@ -438,7 +439,7 @@ export const GET_INVESTMENT_TASKS_BY_OPPORTUNITY_ID = (opportunityId: string): s
         }
         orderBy: [{ createdAt: DESC }]
       ) {
-        ${INVESTMENT_TASK}
+        ${INVESTMENT_TASK_REF}
         
         # Entity references
         opportunity {
@@ -462,7 +463,7 @@ export const GET_INVESTMENT_ACTIVITIES_BY_OPPORTUNITY_ID = (opportunityId: strin
         }
         orderBy: [{ occurredAt: DESC }]
       ) {
-        ${INVESTMENT_ACTIVITY}
+        ${INVESTMENT_ACTIVITY_REF}
         
         # Entity references
         opportunity {
@@ -486,7 +487,7 @@ export const GET_INVESTMENT_NOTES_BY_OPPORTUNITY_ID = (opportunityId: string): s
         }
         orderBy: [{ createdAt: DESC }]
       ) {
-        ${INVESTMENT_NOTE}
+        ${INVESTMENT_NOTE_REF}
         
         # Entity references
         opportunity {
@@ -510,7 +511,7 @@ export const GET_INVESTMENT_DOCUMENTS_BY_OPPORTUNITY_ID = (opportunityId: string
         }
         orderBy: [{ createdAt: DESC }]
       ) {
-        ${INVESTMENT_DOCUMENT}
+        ${INVESTMENT_DOCUMENT_REF}
         
         # Entity references
         opportunity {

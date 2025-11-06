@@ -1,36 +1,17 @@
 // Customer Lead Queries
-import { CUSTOMER_LEAD } from './customerLeadFragments'
+import { CUSTOMER_LEAD } from './fragments/customerFragments'
 import {
+  CUSTOMER_LEAD_REF,
+  CUSTOMER_TASK_REF,
+  CUSTOMER_ACTIVITY_REF,
+  CUSTOMER_DOCUMENT_REF,
+  CUSTOMER_NOTE_REF,
   CUSTOMER_ACCOUNT_REF,
-  CUSTOMER_TASK,
-  CUSTOMER_SALES_ACTIVITY,
-  CUSTOMER_CRM_NOTE,
-  CUSTOMER_CRM_DOCUMENT
-} from './fragments/customerRelationFragments'
-
-/**
- * Build orderBy clause from array of { field, direction }
- * Handles nested paths like 'leadStatus.value' -> { leadStatus: { value: ASC } }
- */
-const buildOrderByClause = (orderBy: Array<{ field: string | any; direction: string }>): string => {
-  if (!orderBy || orderBy.length === 0) {
-    return 'orderBy: [{ createdAt: DESC }]'
-  }
-
-  const orderByParts = orderBy.map(o => {
-    // If field is already an object (nested), use it directly
-    if (typeof o.field === 'object') {
-      // Convert to JSON and remove quotes from direction ENUMs
-      return JSON.stringify(o.field)
-        .replace(/"([^"]+)":/g, '$1:') // Remove quotes from keys
-        .replace(/:"(ASC_NULLS_LAST|DESC_NULLS_LAST|ASC|DESC)"/g, ':$1') // Remove quotes from ENUM values
-    }
-    // Otherwise it's a simple field name
-    return `{ ${o.field}: ${o.direction} }`
-  })
-
-  return `orderBy: [${orderByParts.join(', ')}]`
-}
+  CUSTOMER_CONTACT_REF,
+  CUSTOMER_OPPORTUNITY_REF
+} from './fragments/customerReferenceFragments'
+import { buildOrderBy, buildSearch, buildFilter } from '@/common/network/graphql/queryHelpers'
+import { CUSTOMER_LEAD_DESCRIPTORS } from '@/common/data/customer/types/customerLeadTypes'
 
 export interface CustomerLeadQueryVariables {
   ids?: string[]
@@ -63,48 +44,13 @@ export interface CustomerLeadQueryVariables {
 export const buildCustomerLeadWhereCondition = (variables: CustomerLeadQueryVariables = {}) => {
   let whereClause = 'where: { isDeleted: { _eq: false }'
 
-  if (variables.search?.trim()) {
-    const q = variables.search.trim()
-    whereClause += `, _or: [
-      { firstName: { _ilike: "%${q}%" } },
-      { lastName: { _ilike: "%${q}%" } },
-      { email: { _ilike: "%${q}%" } },
-      { phoneNumber: { _ilike: "%${q}%" } },
-      { position: { _ilike: "%${q}%" } },
-      { companyName: { _ilike: "%${q}%" } },
-      { companyEmail: { _ilike: "%${q}%" } },
-      { companyPhone: { _ilike: "%${q}%" } },
-      { companyWebsite: { _ilike: "%${q}%" } },
-      { code: { _ilike: "%${q}%" } },
-      { description: { _ilike: "%${q}%" } }
-    ]`
-  }
+  // Generic search across dot-paths from descriptors
+  const searchOr = buildSearch(variables.search || '', CUSTOMER_LEAD_DESCRIPTORS)
+  if (searchOr) whereClause += `, ${searchOr}`
 
-  if (variables.academicTitleIds?.length)
-    whereClause += `, academicTitle: { id: { _in: [${variables.academicTitleIds.map(id => `"${id}"`).join(', ')}] } }`
-  // salutation catalog may not exist on Lead in this schema
-  if (variables.leadStatusIds?.length)
-    whereClause += `, leadStatus: { id: { _in: [${variables.leadStatusIds.map(id => `"${id}"`).join(', ')}] } }`
-  if (variables.leadSourceIds?.length)
-    whereClause += `, leadSource: { id: { _in: [${variables.leadSourceIds.map(id => `"${id}"`).join(', ')}] } }`
-  if (variables.leadRatingIds?.length)
-    whereClause += `, leadRating: { id: { _in: [${variables.leadRatingIds.map(id => `"${id}"`).join(', ')}] } }`
-  // industryClass not available in Lead schema (per MCP)
-  if (variables.companySizeIds?.length)
-    whereClause += `, companySize: { id: { _in: [${variables.companySizeIds.map(id => `"${id}"`).join(', ')}] } }`
-  if (variables.ownerEmployeeIds?.length)
-    whereClause += `, ownerEmployee: { id: { _in: [${variables.ownerEmployeeIds.map(id => `"${id}"`).join(', ')}] } }`
-  if (variables.conversionDateFrom) whereClause += `, conversionDate: { _gte: "${variables.conversionDateFrom}" }`
-  if (variables.conversionDateTo) whereClause += `, conversionDate: { _lte: "${variables.conversionDateTo}" }`
-  if (variables.createdAtFrom) whereClause += `, createdAt: { _gte: "${variables.createdAtFrom}" }`
-  if (variables.createdAtTo) whereClause += `, createdAt: { _lte: "${variables.createdAtTo}" }`
-  if (variables.companyNames?.length)
-    whereClause += `, companyName: { _in: [${variables.companyNames.map(n => `"${n.replace(/"/g, '\\"')}"`).join(', ')}] }`
-  if (variables.regions?.length)
-    whereClause += `, region: { value: { _in: [${variables.regions.map(r => `"${r.replace(/"/g, '\\"')}"`).join(', ')}] } }`
-  if (variables.localities?.length)
-    whereClause += `, locality: { _in: [${variables.localities.map(c => `"${c.replace(/"/g, '\\"')}"`).join(', ')}] }`
-  if (typeof variables.sensitive === 'boolean') whereClause += `, sensitive: { _eq: ${variables.sensitive} }`
+  // Generic AND filters from descriptors
+  const andFilters = buildFilter(variables as any, CUSTOMER_LEAD_DESCRIPTORS)
+  if (andFilters) whereClause += `, ${andFilters}`
 
   whereClause += ' }'
   return whereClause
@@ -114,17 +60,26 @@ export const GET_CUSTOMER_LEADS = (variables: CustomerLeadQueryVariables = {}): 
   const limit = Math.min(variables.limit || 50, 100)
   const offset = variables.offset || 0
   const where = buildCustomerLeadWhereCondition(variables)
-  const orderByClause = buildOrderByClause(variables.orderBy || [])
+  const orderBy = buildOrderBy(variables.orderBy || [], CUSTOMER_LEAD_DESCRIPTORS) || 'orderBy: [{ createdAt: DESC }]'
 
   return `
     query GetCustomerLeads {
       CustomerLead: Lead(
         limit: ${limit}
         offset: ${offset}
-        ${orderByClause}
+        ${orderBy}
         ${where}
       ) {
-        ${CUSTOMER_LEAD}
+        ${CUSTOMER_LEAD_REF}
+        convertedAccount {
+          ${CUSTOMER_ACCOUNT_REF}
+        }
+        convertedContact {
+          ${CUSTOMER_CONTACT_REF}
+        }     
+        convertedOpportunity {
+          ${CUSTOMER_OPPORTUNITY_REF}
+        }
       }
       CustomerLeadAggregate: LeadAggregate(${where}) { aggregate { count } }
     }
@@ -136,7 +91,6 @@ export const GET_CUSTOMER_LEAD_BY_ID = (id: string): string => {
     query GetCustomerLeadById {
       CustomerLead: Lead(where: { id: { _eq: "${id}" }, isDeleted: { _eq: false } }) {
         ${CUSTOMER_LEAD}
-        account { ${CUSTOMER_ACCOUNT_REF} }
       }
     }
   `
@@ -183,7 +137,7 @@ export const GET_CUSTOMER_TASKS_BY_LEAD_ID = (leadId: string): string => {
         }
         orderBy: [{ createdAt: DESC }]
       ) {
-        ${CUSTOMER_TASK}
+        ${CUSTOMER_TASK_REF}
 
         # Entity references
         lead {
@@ -209,7 +163,7 @@ export const GET_CUSTOMER_ACTIVITIES_BY_LEAD_ID = (leadId: string): string => {
         }
         orderBy: [{ createdAt: DESC }]
       ) {
-        ${CUSTOMER_SALES_ACTIVITY}
+        ${CUSTOMER_ACTIVITY_REF}
 
         # Entity references
         lead {
@@ -235,7 +189,7 @@ export const GET_CUSTOMER_NOTES_BY_LEAD_ID = (leadId: string): string => {
         }
         orderBy: [{ createdAt: DESC }]
       ) {
-        ${CUSTOMER_CRM_NOTE}
+        ${CUSTOMER_NOTE_REF}
         
         # Entity references
         lead {
@@ -261,7 +215,7 @@ export const GET_CUSTOMER_DOCUMENTS_BY_LEAD_ID = (leadId: string): string => {
         }
         orderBy: [{ createdAt: DESC }]
       ) {
-        ${CUSTOMER_CRM_DOCUMENT}
+        ${CUSTOMER_DOCUMENT_REF}
         
         # Entity references
         lead {

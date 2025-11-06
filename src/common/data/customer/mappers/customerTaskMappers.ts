@@ -4,6 +4,16 @@ import { CustomerTask } from '../types'
 
 /**
  * Transform CustomerTask (GraphQL response) to CustomerTask (enhanced with computed fields)
+ *
+ * Handles CRM-specific field name mappings:
+ * - type → taskType
+ * - priority → taskPriority
+ * - status → taskStatus
+ * - priorityRef → taskPriorityRef
+ * - statusRef → taskStatusRef
+ * - typeRef → taskTypeRef
+ * - salesTaskTemplate → taskTemplate
+ * - timingType → taskTiming
  */
 export function toCustomerTask(base: CustomerTask): CustomerTask {
   // Build task reference from related entities
@@ -49,29 +59,38 @@ export function toCustomerTask(base: CustomerTask): CustomerTask {
     }
   }
 
-  // Map timingType to taskTiming for consistency with Investment Relations
-  // SalesTask.timing_type → CustomerTask.taskTiming
+  // Map CRM catalog field names to CommonTask standard
+  const taskType = base.type
+  const taskTypeRef = (base as any).typeRef
+  const taskPriority = base.priority
+  const taskPriorityRef = (base as any).priorityRef
+  const taskStatus = base.status
+  const taskStatusRef = (base as any).statusRef
+
+  // Map template field name
+  const taskTemplate = (base as any).salesTaskTemplate
+
+  // Map timing type field
   const taskTiming = base.timingType
 
-  // Map old catalog field names to new standardized names
-  // SalesTask.type → CustomerTask.taskType
-  // SalesTask.priority → CustomerTask.taskPriority
-  // SalesTask.status → CustomerTask.taskStatus
-  const taskType = base.type
-  const taskPriority = base.priority
-  const taskStatus = base.status
-
-  // Map old task template field name to new standardized name
-  // SalesTask.sales_task_template_id → CustomerTask.taskTemplateId
-  const taskTemplateId = base.salesTaskTemplateId
+  // Handle comments: convert single comment to array if needed
+  const comments =
+    (base as any).comment && !Array.isArray((base as any).comment)
+      ? [{ comment: (base as any).comment }]
+      : (base as any).comments
 
   return {
     ...base,
-    taskType, // Map type to taskType
-    taskPriority, // Map priority to taskPriority
-    taskStatus, // Map status to taskStatus
-    taskTiming, // Map timingType to taskTiming
-    taskTemplateId, // Map salesTaskTemplateId to taskTemplateId
+    // Map CRM fields to CommonTask standard
+    taskType,
+    taskTypeRef,
+    taskPriority,
+    taskPriorityRef,
+    taskStatus,
+    taskStatusRef,
+    taskTemplate,
+    taskTiming,
+    comments,
     reference: taskReference,
     // Alias for task columns compatibility (assignedEmployee → assignedTo)
     assignedTo: base.assignedEmployee,

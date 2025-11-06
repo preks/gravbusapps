@@ -23,10 +23,7 @@ import { AppAction } from '@/components/app-action/AppAction'
 import { AppActionMenu } from '@/components/app-action-menu/AppActionMenu'
 import { useProcessCompletion } from '@/common/hooks/useProcessCompletion'
 import { AccountStatistics } from './components/AccountStatistics'
-import {
-  applyAccountFilters,
-  createAccountColumnToGraphQLMapping
-} from '@/common/components/common-relations/view-layouts/account-layout/utils/queryHelpers'
+import { applyAccountFilters } from '@/common/components/common-relations/view-layouts/account-layout/utils/queryHelpers'
 
 export type AccountViewProps = BusinessAppContextProps
 
@@ -53,9 +50,6 @@ export const AccountView: React.FC<AccountViewProps> = context => {
   const [sorting, setSorting] = useState<Array<{ id: string; desc: boolean }>>([{ id: 'createdAt', desc: true }])
   const [pagination, setPagination] = useState({ pageIndex: 0, pageSize: 20 })
   const [visibleColumns, setVisibleColumns] = useState<string[]>(defaultVisibleAccountColumns)
-
-  // Column to GraphQL mapping (IRM uses standard naming - no overrides needed)
-  const mapColumnToGraphQLField = useMemo(() => createAccountColumnToGraphQLMapping(), [])
 
   // Columns: Use default columns (can be extended here if needed)
   const columns = useMemo<ColumnDef<CommonAccount>[]>(() => {
@@ -85,35 +79,18 @@ export const AccountView: React.FC<AccountViewProps> = context => {
     applyAccountFilters(vars, selectedFilters)
 
     if (sorting.length > 0) {
-      const columnId = sorting[0].id
-      const direction = sorting[0].desc ? 'DESC_NULLS_LAST' : 'ASC_NULLS_LAST'
-      const graphqlPath = mapColumnToGraphQLField(columnId)
-
-      // Non-sortable computed fields
-      if (!graphqlPath || columnId === 'location' || columnId === 'contactInfo') {
-        vars.orderBy = [{ field: 'createdAt' as any, direction: 'DESC_NULLS_LAST' }]
-      }
-      // Build nested orderBy for catalog/employee fields
-      else if (columnId === 'industry') {
-        vars.orderBy = [{ field: { industryClass: { value: direction as any } }, direction } as any]
-      } else if (columnId === 'legalForm') {
-        vars.orderBy = [{ field: { legalForm: { value: direction as any } }, direction } as any]
-      } else if (columnId === 'companySize') {
-        vars.orderBy = [{ field: { companySize: { value: direction as any } }, direction } as any]
-      } else if (columnId === 'revenueBand') {
-        vars.orderBy = [{ field: { accountAnnualRevenueBand: { value: direction as any } }, direction } as any]
-      } else if (columnId === 'ownerEmployee') {
-        vars.orderBy = [{ field: { ownerEmployee: { displayName: direction as any } }, direction } as any]
-      } else {
-        // Scalar fields
-        vars.orderBy = [{ field: columnId as any, direction }]
-      }
+      vars.orderBy = [
+        {
+          field: sorting[0].id,
+          direction: sorting[0].desc ? 'DESC_NULLS_LAST' : 'ASC_NULLS_LAST'
+        }
+      ]
     } else {
-      vars.orderBy = [{ field: 'createdAt' as any, direction: 'DESC_NULLS_LAST' }]
+      vars.orderBy = [{ field: 'createdAt', direction: 'DESC_NULLS_LAST' }]
     }
 
     return vars
-  }, [pagination, searchTerm, selectedFilters, sorting, mapColumnToGraphQLField])
+  }, [pagination, searchTerm, selectedFilters, sorting])
 
   // Load Data
   const loadData = useCallback(

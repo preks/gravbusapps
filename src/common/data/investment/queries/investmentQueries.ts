@@ -1,24 +1,12 @@
 // Investment Queries - Core investment entities and their specializations
 // Built using actual schema discovered via newwork-mcp
-import { CATALOG_ENTRY, AUDIT_FIELDS } from '@/common/network/graphql/commonFragments'
+import { CATALOG_ENTRY } from '@/common/network/graphql/commonFragments'
+import { INVESTMENT } from './fragments/investmentFragments'
 import {
-  INVESTMENT,
-  EQUITY_INVESTMENT_REF,
-  EQUITY_INVESTMENT,
-  REAL_ESTATE_INVESTMENT_REF,
-  REAL_ESTATE_INVESTMENT,
-  LIQUID_FUND_INVESTMENT_REF,
-  LIQUID_FUND_INVESTMENT
-} from './fragments/investmentFragments'
-import {
-  INVESTMENT_ACTIVITY,
-  INVESTMENT_TASK,
-  INVESTMENT_NOTE,
-  INVESTMENT_DOCUMENT,
-  INVESTMENT_ACCOUNT_REF,
-  INVESTMENT_CONTACT_REF,
-  INVESTMENT_OPPORTUNITY_REF
-} from './fragments/investmentRelationFragments'
+  INVESTMENT_ACTIVITY_REF,
+  INVESTMENT_TASK_REF,
+  INVESTMENT_ACCOUNT_REF
+} from './fragments/investmentReferenceFragments'
 
 export interface InvestmentQueryVariables {
   ids?: string[]
@@ -298,27 +286,6 @@ export const GET_INVESTMENTS = (variables: InvestmentQueryVariables = {}): strin
         ${where}
       ) {
         ${INVESTMENT}
-        
-        # Entity relationships (simplified)
-        investmentAccount {
-          ${INVESTMENT_ACCOUNT_REF}
-        }
-        investmentOpportunity {
-          ${INVESTMENT_OPPORTUNITY_REF}
-        }
-        
-        # Investment specializations (simplified)
-        equityInvestment {
-          ${EQUITY_INVESTMENT_REF}
-        }
-        
-        realEstateInvestment {
-          ${REAL_ESTATE_INVESTMENT_REF}
-        }
-        
-        liquidFundInvestment {
-          ${LIQUID_FUND_INVESTMENT_REF}
-        }
       }
       
       InvestmentAggregate(${where}) {
@@ -341,7 +308,7 @@ export const GET_INVESTMENT_ACTIVITIES_BY_INVESTMENT_ID = (investmentId: string)
         }
         orderBy: [{ occurredAt: DESC }]
       ) {
-        ${INVESTMENT_ACTIVITY}
+        ${INVESTMENT_ACTIVITY_REF}
         
         # Entity references
         investment {
@@ -365,142 +332,13 @@ export const GET_INVESTMENT_TASKS_BY_INVESTMENT_ID = (investmentId: string): str
         }
         orderBy: [{ createdAt: DESC }]
       ) {
-        ${INVESTMENT_TASK}
+        ${INVESTMENT_TASK_REF}
         
         # Entity references
         investment {
           id
           code
           name
-        }
-      }
-    }
-  `
-}
-
-// Get Investment Notes by Investment ID
-export const GET_INVESTMENT_NOTES_BY_INVESTMENT_ID = (investmentId: string): string => {
-  return `
-    query GetInvestmentNotesByInvestmentId {
-      InvestmentNote(
-        where: { 
-          investment: { id: { _eq: "${investmentId}" } }, 
-          isDeleted: { _eq: false } 
-        }
-        orderBy: [{ createdAt: DESC }]
-      ) {
-        ${INVESTMENT_NOTE}
-        
-        # Entity references
-        investment {
-          id
-          code
-          name
-        }
-      }
-    }
-  `
-}
-
-// Get Investment Note by ID
-export const GET_INVESTMENT_NOTE_BY_ID = (noteId: string): string => {
-  return `
-    query GetInvestmentNoteById {
-      InvestmentNote(
-        where: { 
-          id: { _eq: "${noteId}" }, 
-          isDeleted: { _eq: false } 
-        }
-      ) {
-        ${INVESTMENT_NOTE}
-        
-        # Entity references
-        investment {
-          id
-          code
-          name
-        }
-        account {
-          id
-          name
-        }
-        contact {
-          id
-          firstName
-          lastName
-        }
-        lead {
-          id
-          firstName
-          lastName
-        }
-        
-        # Documents relationship
-        documents(where: { isDeleted: { _eq: false } }) {
-          id
-          version
-          name
-          description
-          file
-          fileSize
-          mimeType
-          documentGroup {
-            id
-            value
-            code
-          }
-          documentType {
-            id
-            value
-            code
-          }
-        }
-        opportunity {
-          id
-          name
-        }
-      }
-    }
-  `
-}
-
-// Get Investment Documents by Investment ID
-export const GET_INVESTMENT_DOCUMENTS_BY_INVESTMENT_ID = (investmentId: string): string => {
-  return `
-    query GetInvestmentDocumentsByInvestmentId {
-      InvestmentDocument(
-        where: { 
-          investment: { id: { _eq: "${investmentId}" } }, 
-          isDeleted: { _eq: false } 
-        }
-        orderBy: [{ createdAt: DESC }]
-      ) {
-        ${INVESTMENT_DOCUMENT}
-        
-        # Entity references
-        investment {
-          id
-          code
-          name
-        }
-        
-        # Parent document reference (for folders)
-        parentDocument {
-          id
-          name
-          description
-        }
-        
-        # Related activity and task references
-        activity {
-          id
-          title
-          description
-        }
-        task {
-          id
-          name
-          description
         }
       }
     }
@@ -513,50 +351,6 @@ export const GET_INVESTMENT_BY_ID = (id: string): string => {
     query GetInvestmentById {
       Investment(where: { id: { _eq: "${id}" }, isDeleted: { _eq: false } }) {
         ${INVESTMENT}
-        
-        # Entity relationships
-        investmentAccount {
-          ${INVESTMENT_ACCOUNT_REF}
-          investmentAccountContact {
-            contactType
-            contact {
-              ${INVESTMENT_CONTACT_REF}
-            }
-          }
-        }
-        
-        # Loan recipient investment account
-        loanRecipientInvestmentAccount {
-          id
-          code
-          name
-          email
-          foundationDate
-          geographicPresence
-          companySize {
-            ${CATALOG_ENTRY}
-          }
-          accountAnnualRevenueBand {
-            ${CATALOG_ENTRY}
-          }
-          industryClass {
-            ${CATALOG_ENTRY}
-          }
-          ${AUDIT_FIELDS}
-        }
-        
-        # All investment specializations with full details
-        equityInvestment {
-          ${EQUITY_INVESTMENT}
-        }
-        
-        realEstateInvestment {
-          ${REAL_ESTATE_INVESTMENT}
-        }
-        
-        liquidFundInvestment {
-          ${LIQUID_FUND_INVESTMENT}
-        }
       }
     }
   `

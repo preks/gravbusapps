@@ -3,32 +3,9 @@
  * GraphQL queries for IRM Account entities
  */
 
-import { INVESTMENT_ACCOUNT, INVESTMENT_ACCOUNT_REF } from './investmentAccountFragments'
-
-/**
- * Build orderBy clause from array of { field, direction }
- * Handles nested paths like 'industryClass.value' -> { industryClass: { value: ASC } }
- */
-const buildOrderByClause = (orderBy: Array<{ field: string | any; direction: string }>): string => {
-  if (!orderBy || orderBy.length === 0) {
-    return 'orderBy: [{ createdAt: DESC }]'
-  }
-
-  const orderByParts = orderBy.map(o => {
-    // If field is already an object (nested), use it directly
-    if (typeof o.field === 'object') {
-      // Convert to JSON and remove quotes from direction ENUMs
-      return JSON.stringify(o.field)
-        .replace(/"([^"]+)":/g, '$1:') // Remove quotes from keys
-        .replace(/:"(ASC_NULLS_LAST|DESC_NULLS_LAST|ASC|DESC)"/g, ':$1') // Remove quotes from ENUM values
-    }
-    // Otherwise it's a simple field name
-    return `{ ${o.field}: ${o.direction} }`
-  })
-
-  return `orderBy: [${orderByParts.join(', ')}]`
-}
-
+import { INVESTMENT_ACCOUNT } from './fragments/investmentFragments'
+import { buildOrderBy, buildSearch, buildFilter } from '@/common/network/graphql/queryHelpers'
+import { INVESTMENT_ACCOUNT_DESCRIPTORS } from '@/common/data/investment/types/investmentAccountTypes'
 /**
  * Investment Account Query Variables Interface
  */
@@ -37,7 +14,10 @@ export interface InvestmentAccountQueryVariables {
   limit?: number
   offset?: number
   search?: string
-  orderBy?: Array<{ field: string | any; direction: string }>
+  orderBy?: Array<{
+    field: string
+    direction: 'ASC_NULLS_LAST' | 'DESC_NULLS_LAST'
+  }>
 
   // Filter fields
   ownerEmployeeIds?: string[]
@@ -66,82 +46,18 @@ export const buildInvestmentAccountWhereCondition = (variables: InvestmentAccoun
     whereClause += `, id: { _in: ["${variables.ids.join('","')}"] }`
   }
 
-  // Filter by owner employee
-  if (variables.ownerEmployeeIds && variables.ownerEmployeeIds.length > 0) {
-    whereClause += `, ownerEmployeeId: { _in: ["${variables.ownerEmployeeIds.join('","')}"] }`
+  // Apply filters using descriptors
+  const filterConditions = buildFilter(variables, INVESTMENT_ACCOUNT_DESCRIPTORS)
+  if (filterConditions) {
+    whereClause += `, ${filterConditions}`
   }
 
-  // Filter by industry (IRM field name: industryClass)
-  if (variables.industryIds && variables.industryIds.length > 0) {
-    whereClause += `, industryClassRef: { _in: ["${variables.industryIds.join('","')}"] }`
-  }
-
-  // Filter by legal form
-  if (variables.legalFormIds && variables.legalFormIds.length > 0) {
-    whereClause += `, legalFormRef: { _in: ["${variables.legalFormIds.join('","')}"] }`
-  }
-
-  // Filter by company size (IRM field name: companySize)
-  if (variables.companySizeIds && variables.companySizeIds.length > 0) {
-    whereClause += `, companySizeRef: { _in: ["${variables.companySizeIds.join('","')}"] }`
-  }
-
-  // Filter by revenue band (IRM field name: accountAnnualRevenueBand)
-  if (variables.revenueBandIds && variables.revenueBandIds.length > 0) {
-    whereClause += `, accountAnnualRevenueBandRef: { _in: ["${variables.revenueBandIds.join('","')}"] }`
-  }
-
-  // Filter by country (nested in addresses)
-  if (variables.countryIds && variables.countryIds.length > 0) {
-    whereClause += `, addresses: { countryRef: { _in: ["${variables.countryIds.join('","')}"] } }`
-  }
-
-  // Filter by region (nested in addresses)
-  if (variables.regionIds && variables.regionIds.length > 0) {
-    whereClause += `, addresses: { regionRef: { _in: ["${variables.regionIds.join('","')}"] } }`
-  }
-
-  // Date range: createdAt
-  if (variables.createdAfter) {
-    whereClause += `, createdAt: { _gte: "${variables.createdAfter}" }`
-  }
-  if (variables.createdBefore) {
-    whereClause += `, createdAt: { _lte: "${variables.createdBefore}" }`
-  }
-
-  // Date range: foundationDate
-  if (variables.foundedAfter) {
-    whereClause += `, foundationDate: { _gte: "${variables.foundedAfter}" }`
-  }
-  if (variables.foundedBefore) {
-    whereClause += `, foundationDate: { _lte: "${variables.foundedBefore}" }`
-  }
-
-  // Search across all displayed fields (including IRM-specific email/phone)
-  if (variables.search && variables.search.trim()) {
-    const searchPattern = `%${variables.search.trim()}%`
-    whereClause += `, _or: [
-      { name: { _ilike: "${searchPattern}" } },
-      { email: { _ilike: "${searchPattern}" } },
-      { phone: { _ilike: "${searchPattern}" } },
-      { website: { _ilike: "${searchPattern}" } },
-      { mission: { _ilike: "${searchPattern}" } },
-      { specialty: { _ilike: "${searchPattern}" } },
-      { geographicPresence: { _ilike: "${searchPattern}" } },
-      { notesSummary: { _ilike: "${searchPattern}" } },
-      { addresses: { addressLine: { _ilike: "${searchPattern}" } } },
-      { addresses: { locality: { _ilike: "${searchPattern}" } } },
-      { addresses: { postalCode: { _ilike: "${searchPattern}" } } },
-      { addresses: { country: { value: { _ilike: "${searchPattern}" } } } },
-      { addresses: { region: { value: { _ilike: "${searchPattern}" } } } },
-      { industryClass: { value: { _ilike: "${searchPattern}" } } },
-      { legalForm: { value: { _ilike: "${searchPattern}" } } },
-      { companySize: { value: { _ilike: "${searchPattern}" } } },
-      { accountAnnualRevenueBand: { value: { _ilike: "${searchPattern}" } } },
-      { ownerEmployee: { displayName: { _ilike: "${searchPattern}" } } },
-      { ownerEmployee: { firstName: { _ilike: "${searchPattern}" } } },
-      { ownerEmployee: { lastName: { _ilike: "${searchPattern}" } } }
-    ]`
+  // Apply search using descriptors
+  if (variables.search?.trim()) {
+    const searchConditions = buildSearch(variables.search, INVESTMENT_ACCOUNT_DESCRIPTORS)
+    if (searchConditions) {
+      whereClause += `, ${searchConditions}`
+    }
   }
 
   whereClause += ' }'
@@ -155,7 +71,7 @@ export const GET_INVESTMENT_ACCOUNTS = (variables: InvestmentAccountQueryVariabl
   const limit = Math.min(variables.limit || 50, 100)
   const offset = variables.offset || 0
   const where = buildInvestmentAccountWhereCondition(variables)
-  const orderByClause = buildOrderByClause(variables.orderBy || [])
+  const orderByClause = buildOrderBy(variables.orderBy, INVESTMENT_ACCOUNT_DESCRIPTORS)
 
   return `
     query GetInvestmentAccounts {
@@ -182,25 +98,6 @@ export const GET_INVESTMENT_ACCOUNT_BY_ID = (id: string): string => {
     query GetInvestmentAccountById {
       InvestmentAccount(where: { id: { _eq: "${id}" }, isDeleted: { _eq: false } }) {
         ${INVESTMENT_ACCOUNT}
-      }
-    }
-  `
-}
-
-/**
- * Search Investment Accounts (minimal fields for quick search)
- */
-export const SEARCH_INVESTMENT_ACCOUNTS = (variables: InvestmentAccountQueryVariables): string => {
-  const limit = Math.min(variables.limit || 20, 50)
-  const where = buildInvestmentAccountWhereCondition(variables)
-
-  return `
-    query SearchInvestmentAccounts {
-      InvestmentAccount(
-        limit: ${limit}
-        ${where}
-      ) {
-        ${INVESTMENT_ACCOUNT_REF}
       }
     }
   `

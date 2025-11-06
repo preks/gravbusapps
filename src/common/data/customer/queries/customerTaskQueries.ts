@@ -1,61 +1,8 @@
 // Customer Task Queries - generic task list queries for customer relations
-import {
-  CUSTOMER_TASK,
-  CUSTOMER_ACCOUNT_REF,
-  CUSTOMER_CONTACT_REF,
-  CUSTOMER_OPPORTUNITY_REF,
-  CUSTOMER_LEAD_REF
-} from './fragments/customerRelationFragments'
-import { buildOrderBy, buildSearch, buildFilter, type Descriptor } from '@/common/network/graphql/queryHelpers'
-
-// Unified descriptors for Sales Task (search, sort, filters, and option metadata)
-export const CUSTOMER_TASK_DESCRIPTORS: Descriptor[] = [
-  // Search/sort
-  { key: 'name', searchPaths: ['name', 'code', 'description'], sortPath: 'name', type: 'text' },
-  { key: 'taskType', searchPaths: ['typeRef'], sortPath: 'typeRef', type: 'text' },
-  { key: 'taskPriority', searchPaths: ['priorityRef'], sortPath: 'priorityRef', type: 'text' },
-  { key: 'taskStatus', searchPaths: ['statusRef'], sortPath: 'statusRef', type: 'text' },
-  {
-    key: 'assignedEmployee',
-    searchPaths: ['assignedEmployee.displayName', 'assignedEmployee.firstName', 'assignedEmployee.lastName'],
-    sortPath: 'assignedEmployee.displayName',
-    type: 'text'
-  },
-  {
-    key: 'creatorEmployee',
-    searchPaths: ['creatorEmployee.displayName', 'creatorEmployee.firstName', 'creatorEmployee.lastName'],
-    sortPath: 'creatorEmployee.displayName',
-    type: 'text'
-  },
-  { key: 'dueDate', searchPaths: ['dueDate'], type: 'date' },
-  { key: 'startDate', searchPaths: ['startDate'], type: 'date' },
-  { key: 'endDate', searchPaths: ['endDate'], type: 'date' },
-  { key: 'createdAt', searchPaths: ['createdAt'], type: 'date' },
-
-  // Filters (IDs, strings, booleans, dates, custom)
-  { key: 'taskTypeIds', path: 'typeRef', kind: 'inStrings' },
-  { key: 'taskPriorityIds', path: 'priorityRef', kind: 'inStrings' },
-  { key: 'taskStatusIds', path: 'statusRef', kind: 'inStrings' },
-  { key: 'assignedEmployeeIds', path: 'assignedEmployee.id', kind: 'inIds' },
-  { key: 'creatorEmployeeIds', path: 'creatorEmployee.id', kind: 'inIds' },
-  { key: 'timingTypes', path: 'timingType', kind: 'inStrings' },
-
-  // Relation filters
-  { key: 'accountIds', path: 'account.id', kind: 'inIds' },
-  { key: 'contactIds', path: 'contact.id', kind: 'inIds' },
-  { key: 'leadIds', path: 'lead.id', kind: 'inIds' },
-  { key: 'opportunityIds', path: 'opportunity.id', kind: 'inIds' },
-
-  // Date range filters
-  { key: 'dueDateFrom', path: 'dueDate', kind: 'dateFrom' },
-  { key: 'dueDateTo', path: 'dueDate', kind: 'dateTo' },
-  { key: 'startDateFrom', path: 'startDate', kind: 'dateFrom' },
-  { key: 'startDateTo', path: 'startDate', kind: 'dateTo' },
-  { key: 'endDateFrom', path: 'endDate', kind: 'dateFrom' },
-  { key: 'endDateTo', path: 'endDate', kind: 'dateTo' },
-  { key: 'createdAtFrom', path: 'createdAt', kind: 'dateFrom' },
-  { key: 'createdAtTo', path: 'createdAt', kind: 'dateTo' }
-]
+import { CUSTOMER_TASK } from './fragments/customerFragments'
+import { CUSTOMER_TASK_REF } from './fragments/customerReferenceFragments'
+import { buildOrderBy, buildSearch, buildFilter } from '@/common/network/graphql/queryHelpers'
+import { CUSTOMER_TASK_DESCRIPTORS } from '@/common/data/customer/types/customerTaskTypes'
 
 export interface CustomerTaskQueryVariables {
   search?: string
@@ -122,12 +69,6 @@ export const GET_CUSTOMER_TASKS = (variables: CustomerTaskQueryVariables = {}): 
         ${where}
       ) {
         ${CUSTOMER_TASK}
-
-        # Entity references (minimal for display)
-        account { ${CUSTOMER_ACCOUNT_REF} }
-        contact { ${CUSTOMER_CONTACT_REF} }
-        lead { ${CUSTOMER_LEAD_REF} }
-        opportunity { ${CUSTOMER_OPPORTUNITY_REF} }
       }
 
       SalesTaskAggregate(${where}) {
@@ -148,7 +89,7 @@ export const GET_CUSTOMER_TASKS_BY_ACCOUNT_ID = (accountId: string): string => {
         }
         orderBy: [{ createdAt: DESC }]
       ) {
-        ${CUSTOMER_TASK}
+        ${CUSTOMER_TASK_REF}
 
         # Entity references
         account {
@@ -172,7 +113,7 @@ export const GET_CUSTOMER_TASKS_BY_CONTACT_ID = (contactId: string): string => {
         }
         orderBy: [{ createdAt: DESC }]
       ) {
-        ${CUSTOMER_TASK}
+        ${CUSTOMER_TASK_REF}
 
         # Entity references
         contact {
@@ -197,7 +138,7 @@ export const GET_CUSTOMER_TASKS_BY_LEAD_ID = (leadId: string): string => {
         }
         orderBy: [{ createdAt: DESC }]
       ) {
-        ${CUSTOMER_TASK}
+        ${CUSTOMER_TASK_REF}
 
         # Entity references
         lead {
@@ -223,7 +164,7 @@ export const GET_CUSTOMER_TASKS_BY_OPPORTUNITY_ID = (opportunityId: string): str
         }
         orderBy: [{ createdAt: DESC }]
       ) {
-        ${CUSTOMER_TASK}
+        ${CUSTOMER_TASK_REF}
 
         # Entity references
         opportunity {
@@ -247,33 +188,6 @@ export const GET_CUSTOMER_TASK_BY_ID = (taskId: string): string => {
         }
       ) {
         ${CUSTOMER_TASK}
-
-        # Entity references (full for editing)
-        account { ${CUSTOMER_ACCOUNT_REF} }
-        contact { ${CUSTOMER_CONTACT_REF} }
-        lead { ${CUSTOMER_LEAD_REF} }
-        opportunity { ${CUSTOMER_OPPORTUNITY_REF} }
-        
-        # Documents relationship
-        documents(where: { isDeleted: { _eq: false } }) {
-          id
-          version
-          name
-          description
-          file
-          fileSize
-          mimeType
-          documentGroup {
-            id
-            value
-            code
-          }
-          documentType {
-            id
-            value
-            code
-          }
-        }
       }
     }
   `

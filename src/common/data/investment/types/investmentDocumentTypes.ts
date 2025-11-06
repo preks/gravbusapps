@@ -1,53 +1,47 @@
-/**
- * Investment Document Types
- */
-
-import type { BaseEntity, CatalogEntry } from '@/common/network/graphql/commonTypes'
+import type { CommonDocument } from '@/common/data/relations/types/commonDocumentTypes'
+import { COMMON_DOCUMENT_DESCRIPTORS } from '@/common/data/relations/types/commonDocumentTypes'
+import type { Descriptor } from '@/common/network/graphql/queryHelpers'
+import type { BaseEntity } from '@/common/network/graphql/commonTypes'
 import type { SourceTable } from './investmentEnums'
+import type {
+  Investment,
+  InvestmentAccount,
+  InvestmentActivity,
+  InvestmentContact,
+  InvestmentLead,
+  InvestmentNote,
+  InvestmentOpportunity,
+  InvestmentReport,
+  InvestmentTask
+} from './'
+
+export interface InvestmentDocument extends CommonDocument {
+  account?: InvestmentAccount
+  activity?: InvestmentActivity
+  childDocuments?: InvestmentDocument[] // TODO missing
+  contact?: InvestmentContact
+  investment?: Investment
+  investmentId?: string
+  investmentReportDocument?: InvestmentReportDocument // TODO unclear
+  investmentReportDocumentId?: string // TODO unclear
+  note?: InvestmentNote
+  opportunity?: InvestmentOpportunity
+  lead?: InvestmentLead
+  parentDocument?: InvestmentDocument
+  source?: SourceTable
+  task?: InvestmentTask
+}
 
 /**
- * InvestmentDocument
- * Document entity for IRM
+ * Investment Document Descriptors
+ * IRM uses correct field names, so we use Common descriptors directly
  */
-export interface InvestmentDocument extends BaseEntity {
-  id: string
-  source?: SourceTable
-  folder?: boolean
-  name?: string
-  description?: string
-  file?: string
-  fileInfo?: any // JSONB field containing file metadata
-  fileSize?: number
-  mimeType?: string
-  verified?: boolean
-  verificationDate?: string
-  authenticated?: boolean
-  authenticationDate?: string
-  mandatory?: boolean
-  expirationDate?: string
-  version: number
+export const INVESTMENT_DOCUMENT_DESCRIPTORS: Descriptor[] = [...COMMON_DOCUMENT_DESCRIPTORS]
 
-  // Catalog references
-  documentGroup?: CatalogEntry
-  documentGroupRef?: string
-  documentType?: CatalogEntry
-  documentTypeRef?: string
-
-  // Entity references
-  parentDocument?: InvestmentDocument
-  parentDocumentId?: string
-  activity?: any // InvestmentActivity
-  activityId?: string
-  task?: any // InvestmentTask
-  taskId?: string
-  account?: any // InvestmentAccount
-  accountId?: string
-  contact?: any // InvestmentContact
-  contactId?: string
-  opportunity?: any // InvestmentOpportunity
-  opportunityId?: string
-  lead?: any // InvestmentLead
-  leadId?: string
-  investment?: any // Investment
-  investmentId?: string
+export interface InvestmentReportDocument extends BaseEntity {
+  id?: string
+  investmentDocument?: InvestmentDocument
+  investmentDocumentId?: string
+  investmentReport?: InvestmentReport
+  investmentReportId?: string
 }

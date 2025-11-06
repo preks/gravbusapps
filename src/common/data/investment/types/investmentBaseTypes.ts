@@ -2,15 +2,11 @@
 // These should match the DBML schema exactly without any computed fields
 import type { CatalogEntry, BaseEntity } from '@/common/network/graphql/commonTypes'
 import type { EmployeeRef } from '@/common/data/employee/types/employeeBaseTypes'
-import type {
-  InvestmentAccount,
-  InvestmentOpportunityRef,
-  InvestmentRef,
-  InvestmentRoleRef
-} from './investmentRelationBaseTypes'
+import type { InvestmentAccount, InvestmentOpportunity } from './'
+import type { Investment, InvestmentRole } from './investmentTypes'
 import type { ReportScope } from './investmentEnums'
 
-// InvestmentRef is now imported from investmentRelationBaseTypes.ts to avoid circular dependencies
+// Investment is now imported from investmentRelationBaseTypes.ts to avoid circular dependencies
 
 // =====================================================
 // CORE INVESTMENT ENTITIES (from DBML)
@@ -34,12 +30,12 @@ export interface BaseInvestment extends BaseEntity {
 
   // Entity references (using Ref types)
   investmentAccount?: InvestmentAccount
-  investmentOpportunity?: InvestmentOpportunityRef
+  investmentOpportunity?: InvestmentOpportunity
   ownerEmployee?: EmployeeRef
   loanRecipientInvestmentAccount?: InvestmentAccount
 
   // Investment Role relationships (array of roles)
-  investmentRole?: InvestmentRoleRef[]
+  investmentRole?: InvestmentRole[]
 
   // Investment fields
   acquisitionDate?: string // ISO date string
@@ -81,7 +77,7 @@ export interface BaseInvestmentRole extends BaseEntity {
   investmentRole?: CatalogEntry
 
   // Entity references (using Ref types)
-  investment?: InvestmentRef
+  investment?: Investment
 }
 
 // investment_report table
@@ -98,7 +94,7 @@ export interface BaseInvestmentReport extends BaseEntity {
   currency?: CatalogEntry
 
   // Entity references (using Ref types)
-  investment?: InvestmentRef
+  investment?: Investment
   loanRecipientInvestmentAccount?: InvestmentAccount
 
   // Report fields (from investment table)
@@ -164,7 +160,7 @@ export interface BaseInvestmentTransaction extends BaseEntity {
   currency?: CatalogEntry
 
   // Entity references (using Ref types)
-  investment?: InvestmentRef
+  investment?: Investment
 }
 
 // equity_investment table
@@ -176,7 +172,7 @@ export interface BaseEquityInvestment extends BaseEntity {
   ebitdaAmount?: number
 
   // Entity references (using Ref types)
-  investment?: InvestmentRef
+  investment?: Investment
 }
 
 // equity_investment_report table
@@ -240,7 +236,7 @@ export interface BaseRealEstateInvestment extends BaseEntity {
   sizeMeasurementUnit?: CatalogEntry
 
   // Entity references (using Ref types)
-  investment?: InvestmentRef
+  investment?: Investment
 }
 
 // real_estate_investment_rental_unit table
@@ -311,7 +307,7 @@ export interface BaseLiquidFundInvestment extends BaseEntity {
   interestPaymentFrequency?: CatalogEntry
 
   // Entity references (using Ref types)
-  investment?: InvestmentRef
+  investment?: Investment
 }
 
 // liquid_fund_investment_report table
