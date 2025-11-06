@@ -24,6 +24,30 @@ const AdvancePaymentDetails: React.FC<AdvancePaymentDetailsProps> = ({ payment }
       .map(word => word.charAt(0).toUpperCase() + word.slice(1))
       .join(' ')
   }
+
+  const getPaymentMethodDisplay = (method: unknown): string => {
+    const notSpecified = getTranslationFromI18nKeyAndLabel('lowcoder:personal_expenses.not_specified', 'Not specified')
+    if (!method) return notSpecified
+    // Catalog entry object with translations/value
+    if (typeof method === 'object' && method !== null && 'value' in (method as any)) {
+      return getCatalogValue(method as any) || notSpecified
+    }
+    const raw = String(method).trim()
+    if (!raw) return notSpecified
+    if (raw === 'DIRECT_DEPOSIT') {
+      return getTranslationFromI18nKeyAndLabel(
+        'lowcoder:initiate_expense_plan.create_expense_plan.payment_method_select_direct_deposit',
+        'Direct Deposit'
+      )
+    }
+    if (raw === 'CASH_PAYMENT') {
+      return getTranslationFromI18nKeyAndLabel(
+        'lowcoder:initiate_expense_plan.create_expense_plan.payment_method_select_cash_payment',
+        'Cash Payment'
+      )
+    }
+    return formatPaymentMethod(raw)
+  }
   return (
     <div className="gba:p-6 gba:space-y-6" data-testid="advance-payment-details-content">
       {/* Header Section */}
@@ -129,23 +153,7 @@ const AdvancePaymentDetails: React.FC<AdvancePaymentDetailsProps> = ({ payment }
                 )}
               </span>
               <span className="gba:text-sm gba:text-gray-900" data-testid="advance-payment-payment-method">
-                {payment.paymentMethod
-                  ? typeof payment.paymentMethod === 'object' &&
-                    payment.paymentMethod !== null &&
-                    'value' in payment.paymentMethod
-                    ? getCatalogValue(payment.paymentMethod)
-                    : String(payment.paymentMethod) === 'DIRECT_DEPOSIT'
-                      ? getTranslationFromI18nKeyAndLabel(
-                          'lowcoder:initiate_expense_plan.create_expense_plan.payment_method_select_direct_deposit',
-                          'Direct Deposit'
-                        )
-                      : String(payment.paymentMethod) === 'CASH_PAYMENT'
-                        ? getTranslationFromI18nKeyAndLabel(
-                            'lowcoder:initiate_expense_plan.create_expense_plan.payment_method_select_cash_payment',
-                            'Cash Payment'
-                          )
-                        : formatPaymentMethod(String(payment.paymentMethod))
-                  : getTranslationFromI18nKeyAndLabel('lowcoder:personal_expenses.not_specified', 'Not specified')}
+                {getPaymentMethodDisplay(payment.paymentMethod)}
               </span>
             </div>
           </div>
