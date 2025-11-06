@@ -3,6 +3,7 @@ import type { CalendarExpenseItem } from '../types'
 import type { ExpenseItem } from '../../../../hooks/useGetExpenseItems'
 import type { ExpensePlan } from '../../../../hooks/useGetExpensePlans'
 import type { ExpenseRequest } from '../../../../hooks/useGetExpenseRequests'
+import { getTranslationFromI18nKeyAndLabel } from '@/common/utils/windowUtils'
 
 const extractCurrency = (code?: string | null): string => {
   if (!code) return 'EUR'
@@ -17,7 +18,7 @@ export const toCalendarItemFromExpense = (item: ExpenseItem): CalendarExpenseIte
   expenseDate: dayjs(item.expenseDate),
   totalAmount: item.totalAmount,
   currencyCode: extractCurrency(item.currency?.code),
-  status: item.status || 'UNKNOWN',
+  status: item.status || getTranslationFromI18nKeyAndLabel('lowcoder:hr_notes.unknown', 'UNKNOWN'),
   type: 'expense'
 })
 
@@ -30,7 +31,7 @@ export const toCalendarItemFromPlan = (plan: ExpensePlan): CalendarExpenseItem |
       endDate: dayjs(plan.endDate),
       totalAmount: plan.totalAmount,
       currencyCode: extractCurrency(plan.currency?.code),
-      status: plan.status || 'UNKNOWN',
+      status: plan.status || getTranslationFromI18nKeyAndLabel('lowcoder:hr_notes.unknown', 'UNKNOWN'),
       type: 'plan'
     }
   }
@@ -41,7 +42,7 @@ export const toCalendarItemFromPlan = (plan: ExpensePlan): CalendarExpenseItem |
       expenseDate: dayjs(plan.planDate),
       totalAmount: plan.totalAmount,
       currencyCode: extractCurrency(plan.currency?.code),
-      status: plan.status || 'UNKNOWN',
+      status: plan.status || getTranslationFromI18nKeyAndLabel('lowcoder:hr_notes.unknown', 'UNKNOWN'),
       type: 'plan'
     }
   }
@@ -57,7 +58,7 @@ export const toCalendarItemFromRequest = (request: ExpenseRequest): CalendarExpe
       endDate: dayjs(request.endDate),
       totalAmount: request.totalAmount,
       currencyCode: extractCurrency(request.currency?.code),
-      status: request.status || 'UNKNOWN',
+      status: request.status || getTranslationFromI18nKeyAndLabel('lowcoder:hr_notes.unknown', 'UNKNOWN'),
       type: 'request'
     }
   }
@@ -68,7 +69,7 @@ export const toCalendarItemFromRequest = (request: ExpenseRequest): CalendarExpe
       expenseDate: dayjs(request.requestDate),
       totalAmount: request.totalAmount,
       currencyCode: extractCurrency(request.currency?.code),
-      status: request.status || 'UNKNOWN',
+      status: request.status || getTranslationFromI18nKeyAndLabel('lowcoder:hr_notes.unknown', 'UNKNOWN'),
       type: 'request'
     }
   }
