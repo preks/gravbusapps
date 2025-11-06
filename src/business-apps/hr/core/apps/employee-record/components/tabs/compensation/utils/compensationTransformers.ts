@@ -65,14 +65,16 @@ export const transformWorkingConditionToCompensation = (
     return null
   }
 
+  const currencyCode = compensationBand?.currency?.code || extractCurrencyCode(workingCondition.currencyRef) || 'EUR'
+
   return {
     id: workingCondition.id,
     employeeId: workingCondition.employeeId,
     baseSalary: workingCondition.annualGrossSalary || 0,
     currency: {
-      id: compensationBand?.currency?.code || 'EUR',
-      code: compensationBand?.currency?.code || 'EUR',
-      value: compensationBand?.currency?.value || compensationBand?.currency?.code || 'EUR'
+      id: currencyCode,
+      code: currencyCode,
+      value: compensationBand?.currency?.value || currencyCode
     },
     payFrequency: {
       id: 'annual',

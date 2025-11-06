@@ -32,6 +32,12 @@ export const GET_EMPLOYEE_COMPENSATION_DATA = /*sql*/ `
       employeeId
       monthlyGrossSalary
       annualGrossSalary
+      currency {
+        id
+        code
+        value
+      }
+      currencyRef
       hireDate
       exitDate
     }
@@ -156,6 +162,12 @@ export const GET_EMPLOYEE_COMPENSATION_HISTORY = /*sql*/ `
       employeeId
       monthlyGrossSalary
       annualGrossSalary
+      currency {
+        id
+        code
+        value
+      }
+      currencyRef
       hireDate
       exitDate
     }
