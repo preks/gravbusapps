@@ -158,7 +158,6 @@ export interface CompensationHistoryData {
   compensationHistory: CompensationHistoryRecord[]
   bonusHistory: EmployeeBonus[]
   payslipHistory: EmployeePayslip[]
-  growthData: GrowthData
 }
 
 /**
