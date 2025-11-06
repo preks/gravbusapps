@@ -68,7 +68,8 @@ const AdvancePaymentDetails: React.FC<AdvancePaymentDetailsProps> = ({ payment }
                   'Description'
                 )}
               </span>
-              <span className="gba:text-sm gba:text-gray-900">
+              <span className="gba:text-sm gba:text-gray-900" data-testid="advance-payment-payment-method">
+                {' '}
                 {payment.description ??
                   getTranslationFromI18nKeyAndLabel('lowcoder:personal_expenses.no_description', 'No description')}
               </span>
