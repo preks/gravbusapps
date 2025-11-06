@@ -575,7 +575,7 @@ const FeedbackTab: React.FC<FeedbackTabProps> = ({
                     <Pagination
                       current={requestedCurrentPage}
                       pageSize={requestedPageSize}
-                      total={requestedTotalCount}
+                      total={requestedTotalCount ?? 0}
                       onChange={(page, pageSize) => {
                         setRequestedCurrentPage(page)
                         setRequestedPageSize(pageSize)
