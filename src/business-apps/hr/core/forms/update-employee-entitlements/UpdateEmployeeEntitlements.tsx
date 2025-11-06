@@ -26,7 +26,7 @@ export const UpdateEmployeeEntitlements: React.FC<
 
   return (
     <div
-      className="gba:bg-card gba:rounded-2xl gba:flex gba:flex-col gba:min-h-[600px] gba:p-0"
+      className="gba:bg-card gba:rounded-2xl gba:flex gba:flex-col gba:h-full gba:p-0"
       data-testid="mileageRuleModal_containerCreateMileageRule"
     >
       <FormHeader title={title} flowIconUrl={flowIconUrl} className="gba:px-6" />
