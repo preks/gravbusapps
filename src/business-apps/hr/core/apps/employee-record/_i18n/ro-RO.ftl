@@ -231,14 +231,8 @@ benefits-catalog-search-placeholder = Căutați beneficii...
 benefits-catalog-loading = Se încarcă catalogul de beneficii...
 benefits-catalog-error-title = Eroare la încărcarea beneficiilor
 benefits-catalog-retry = Reîncearcă
-benefits-active-section-title = Beneficii active ({$count})
-benefits-available-section-title = Beneficii disponibile ({$count})
 
 # Payslip Section
-payslip-search-placeholder = Căutați fluturaș salarial...
-payslip-filter-all-years = Toți anii
-payslip-loading = Se încarcă istoricul fluturaș salarial...
-payslip-no-results = Nu s-au găsit fluturaș salarial care să corespundă filtrelor dvs.
 payslip-no-data = Nu există fluturaș salarial disponibile
 payslip-table-month = Luna
 payslip-table-year = An

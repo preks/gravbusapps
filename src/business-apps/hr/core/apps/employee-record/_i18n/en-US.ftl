@@ -227,6 +227,10 @@ action-close = Close
 # Benefits Catalog Section
 benefit-per-year = /yr
 benefits-catalog-summary = {$active} active · {$available} available · {$total} total
+benefits-catalog-search-placeholder = Search benefits...
+benefits-catalog-loading = Loading benefits catalog...
+benefits-catalog-error-title = Error Loading Benefits
+benefits-catalog-retry = Retry
 
 # Payslip Section
 payslip-no-data = No payslips available

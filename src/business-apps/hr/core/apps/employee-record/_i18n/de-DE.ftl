@@ -231,14 +231,8 @@ benefits-catalog-search-placeholder = Zusatzleistungen suchen...
 benefits-catalog-loading = Zusatzleistungs-Katalog wird geladen...
 benefits-catalog-error-title = Fehler beim Laden der Zusatzleistungen
 benefits-catalog-retry = Wiederholen
-benefits-active-section-title = Aktive Zusatzleistungen ({$count})
-benefits-available-section-title = Verfügbare Zusatzleistungen ({$count})
 
 # Payslip Section
-payslip-search-placeholder = Gehaltsabrechnungen suchen...
-payslip-filter-all-years = Alle Jahre
-payslip-loading = Gehaltsabrechnungen werden geladen...
-payslip-no-results = Keine Gehaltsabrechnungen entsprechen Ihren Filtern
 payslip-no-data = Keine Gehaltsabrechnungen verfügbar
 payslip-table-month = Monat
 payslip-table-year = Jahr
