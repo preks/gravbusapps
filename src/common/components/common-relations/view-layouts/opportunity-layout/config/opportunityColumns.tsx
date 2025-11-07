@@ -2,6 +2,9 @@ import type { ColumnDef } from '@tanstack/react-table'
 import { Badge, Avatar, AvatarImage, AvatarFallback } from '@newwork/nw-design-system'
 import { Building2, Calendar } from 'lucide-react'
 import { navigateTo } from '@/common/utils/navigationUtils'
+import { deriveSortableColumns, mergeDescriptors } from '@/common/network/graphql/descriptorUtils'
+import { COMMON_OPPORTUNITY_DESCRIPTORS } from '@/common/data/relations/types/commonOpportunityTypes'
+import type { Descriptor } from '@/common/network/graphql/queryHelpers'
 
 // Generic opportunity interface that both Investment and Customer opportunities implement
 export interface GenericOpportunityForColumns {
@@ -210,7 +213,7 @@ export function createOpportunityColumns<T extends GenericOpportunityForColumns>
       }
     },
     {
-      id: 'pipeline',
+      id: 'opportunityPipeline',
       accessorKey: 'opportunityPipeline',
       header: 'Pipeline',
       size: 150,
@@ -229,7 +232,7 @@ export function createOpportunityColumns<T extends GenericOpportunityForColumns>
       )
     },
     {
-      id: 'stage',
+      id: 'opportunityPipelineStage',
       accessorKey: 'opportunityPipelineStage',
       header: 'Stage',
       size: 150,
@@ -261,7 +264,7 @@ export function createOpportunityColumns<T extends GenericOpportunityForColumns>
       }
     },
     {
-      id: 'status',
+      id: 'opportunityStatus',
       accessorKey: 'opportunityStatus',
       header: 'Status',
       size: 120,
@@ -318,7 +321,7 @@ export function createOpportunityColumns<T extends GenericOpportunityForColumns>
     },
     {
       id: 'account',
-      accessorKey: 'account',
+      accessorFn: row => row.account?.name || '',
       header: 'Account',
       size: 200,
       minSize: 180,
@@ -360,7 +363,7 @@ export function createOpportunityColumns<T extends GenericOpportunityForColumns>
     },
     {
       id: 'owner',
-      accessorKey: 'ownerEmployee',
+      accessorFn: row => getOwnerName(row),
       header: 'Owner',
       size: 180,
       minSize: 160,
@@ -428,17 +431,33 @@ export function createOpportunityColumns<T extends GenericOpportunityForColumns>
   ]
 }
 
-export const createOpportunitySortableColumns = () => {
-  // Use column IDs (not GraphQL field names) - mapping happens in OpportunityView
-  return [
-    { id: 'opportunity', label: 'Opportunity' },
-    { id: 'amount', label: 'Amount' },
-    { id: 'pipeline', label: 'Pipeline' },
-    { id: 'stage', label: 'Stage' },
-    { id: 'status', label: 'Status' },
-    { id: 'closeDate', label: 'Close Date' },
-    { id: 'account', label: 'Account' },
-    { id: 'owner', label: 'Owner' },
-    { id: 'created', label: 'Created' }
-  ]
+/**
+ * Create sortable columns derived from descriptors
+ * Views should pass their specific descriptors (e.g., CUSTOMER_OPPORTUNITY_DESCRIPTORS or INVESTMENT_OPPORTUNITY_DESCRIPTORS)
+ * which extend COMMON_OPPORTUNITY_DESCRIPTORS with domain-specific overrides
+ */
+const OPPORTUNITY_COLUMN_LABELS: Record<string, string> = {
+  opportunity: 'Opportunity',
+  amount: 'Amount',
+  opportunityPipeline: 'Pipeline',
+  opportunityPipelineStage: 'Stage',
+  opportunityStatus: 'Status',
+  closeDate: 'Close Date',
+  account: 'Account',
+  owner: 'Owner',
+  createdAt: 'Created',
+  created: 'Created' // Alias for createdAt
+}
+
+/**
+ * Create sortable columns from descriptors
+ * @param viewDescriptors - Optional view-specific descriptors (e.g., CUSTOMER_OPPORTUNITY_DESCRIPTORS) that override common descriptors
+ * @returns Array of sortable column definitions
+ */
+export const createOpportunitySortableColumns = (viewDescriptors?: Descriptor[]) => {
+  const descriptors = viewDescriptors
+    ? mergeDescriptors(COMMON_OPPORTUNITY_DESCRIPTORS, viewDescriptors)
+    : COMMON_OPPORTUNITY_DESCRIPTORS
+
+  return deriveSortableColumns(descriptors, OPPORTUNITY_COLUMN_LABELS)
 }

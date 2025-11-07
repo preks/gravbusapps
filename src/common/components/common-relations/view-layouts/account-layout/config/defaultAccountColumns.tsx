@@ -5,6 +5,8 @@ import { navigateTo } from '@/common/utils/navigationUtils'
 import { formatAddress } from '@/common/utils/addressFormatter'
 import { formatCurrencyParts } from '@/common/utils/numberFormatter'
 import type { CommonAccount } from '@/common/data/relations/types/commonAccountTypes'
+import { COMMON_ACCOUNT_DESCRIPTORS } from '@/common/data/relations/types/commonAccountTypes'
+import { deriveSortableColumns, deriveAvailableColumns } from '@/common/network/graphql/descriptorUtils'
 
 // Helper to safely convert values to strings
 const safeString = (value: any): string => {
@@ -430,21 +432,21 @@ export const defaultAccountColumns: ColumnDef<CommonAccount>[] = [
 ]
 
 /**
- * Default sortable columns
+ * Default sortable columns derived from descriptors
+ * Automatically includes all descriptors with enableSort !== false and sortPath/sortPaths
  */
-export const defaultAccountSortableColumns = [
-  { id: 'name', label: 'Account Name' },
-  { id: 'email', label: 'Email' },
-  { id: 'phone', label: 'Phone' },
-  { id: 'location', label: 'Location' },
-  { id: 'industryClass', label: 'Industry' },
-  { id: 'legalForm', label: 'Legal Form' },
-  { id: 'size', label: 'Size' },
-  { id: 'revenue', label: 'Revenue' },
-  { id: 'ownerEmployee', label: 'Owner' },
-  { id: 'createdAt', label: 'Created Date' },
-  { id: 'updatedAt', label: 'Updated Date' }
-]
+const ACCOUNT_COLUMN_LABELS: Record<string, string> = {
+  name: 'Account Name',
+  industryClass: 'Industry',
+  legalForm: 'Legal Form',
+  size: 'Size',
+  revenue: 'Revenue',
+  ownerEmployee: 'Owner',
+  createdAt: 'Created Date',
+  updatedAt: 'Updated Date'
+}
+
+export const defaultAccountSortableColumns = deriveSortableColumns(COMMON_ACCOUNT_DESCRIPTORS, ACCOUNT_COLUMN_LABELS)
 
 /**
  * Default visible columns
@@ -461,16 +463,7 @@ export const defaultVisibleAccountColumns = [
 ]
 
 /**
- * Default available columns for column selector
+ * Default available columns derived from column definitions
+ * Automatically includes all columns with an id
  */
-export const defaultAvailableAccountColumns = [
-  { id: 'name', label: 'Account' },
-  { id: 'email', label: 'Contact Info' },
-  { id: 'location', label: 'Location' },
-  { id: 'industryClass', label: 'Industry' },
-  { id: 'legalForm', label: 'Legal Form' },
-  { id: 'size', label: 'Size' },
-  { id: 'revenue', label: 'Revenue' },
-  { id: 'ownerEmployee', label: 'Owner' },
-  { id: 'createdAt', label: 'Created' }
-]
+export const defaultAvailableAccountColumns = deriveAvailableColumns(defaultAccountColumns)

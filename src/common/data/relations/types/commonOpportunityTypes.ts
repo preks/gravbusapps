@@ -77,7 +77,7 @@ export const COMMON_OPPORTUNITY_DESCRIPTORS: Descriptor[] = [
   {
     key: 'addresses',
     searchPaths: ['addresses.addressLine', 'addresses.locality'],
-    sortPath: 'addresses.addressLine',
+    enableSort: false,
     type: 'text'
   },
   { key: 'annualNetColdRent', searchPaths: ['annualNetColdRent'], sortPath: 'annualNetColdRent', type: 'number' },
@@ -87,7 +87,7 @@ export const COMMON_OPPORTUNITY_DESCRIPTORS: Descriptor[] = [
   {
     key: 'communicationChannels',
     searchPaths: ['communicationChannels.value'],
-    sortPath: 'communicationChannels.value',
+    enableSort: false,
     type: 'text'
   },
   {
@@ -280,30 +280,6 @@ export const COMMON_OPPORTUNITY_DESCRIPTORS: Descriptor[] = [
 
   // amount: Displays estimatedAmount with currency - sorts by estimatedAmount
   { key: 'amount', searchPaths: ['estimatedAmount'], sortPath: 'estimatedAmount', type: 'number' },
-
-  // pipeline: Displays opportunityPipeline catalog entry - sorts by opportunityPipeline.value
-  {
-    key: 'pipeline',
-    searchPaths: ['opportunityPipeline.value', 'opportunityPipeline.code'],
-    sortPath: 'opportunityPipeline.value',
-    type: 'text'
-  },
-
-  // stage: Displays opportunityPipelineStage catalog entry - sorts by opportunityPipelineStage.value
-  {
-    key: 'stage',
-    searchPaths: ['opportunityPipelineStage.value', 'opportunityPipelineStage.code'],
-    sortPath: 'opportunityPipelineStage.value',
-    type: 'text'
-  },
-
-  // status: Displays opportunityStatus catalog entry - sorts by opportunityStatus.value
-  {
-    key: 'status',
-    searchPaths: ['opportunityStatus.value', 'opportunityStatus.code'],
-    sortPath: 'opportunityStatus.value',
-    type: 'text'
-  },
 
   // account: Displays account name - sorts by account.name
   { key: 'account', searchPaths: ['account.name'], sortPath: 'account.name', type: 'text' },

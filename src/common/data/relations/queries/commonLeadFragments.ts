@@ -7,6 +7,7 @@ export const COMMON_LEAD_FIELDS = `
     ${CATALOG_ENTRY}
   }
   academicTitleRef
+  addressLine
   code
   companyEmail
   companyName

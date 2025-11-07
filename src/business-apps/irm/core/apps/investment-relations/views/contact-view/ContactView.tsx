@@ -9,56 +9,28 @@ import {
   defaultContactSortableColumns,
   defaultVisibleContactColumns,
   defaultAvailableContactColumns,
-  defaultContactFilterConfig
+  defaultContactFilterConfig,
+  buildDynamicFilterConfig
 } from '@/common/components/common-relations/view-layouts/contact-layout/config'
 import { useInvestmentContacts } from '@/common/data/investment/hooks/useInvestmentContacts'
+import { useInvestmentContactStatistics } from '@/common/data/investment/hooks/useInvestmentContactStatistics'
+import { useContactFilterOptions } from './hooks/useContactFilterOptions'
 import type { InvestmentContactQueryVariables } from '@/common/data/investment/queries/investmentContactQueries'
 import { FlowContextName } from '@/common/types/FlowRegistryTypes'
 import { buildPlatformUrl, navigateTo } from '@/common/utils/navigationUtils'
 import { AppAction } from '@/components/app-action/AppAction'
 import { AppActionMenu } from '@/components/app-action-menu/AppActionMenu'
 import { useProcessCompletion } from '@/common/hooks/useProcessCompletion'
+import type { ContactStatisticsData } from '@/common/components/common-relations/view-layouts/contact-layout/components/ContactStatisticsLayout'
 
 export type ContactViewProps = BusinessAppContextProps
-
-/**
- * Get sorting configuration for Investment Contacts
- * Handles nested sorting for catalog entries and relations
- */
-const getSortingConfig = (columnId: string, descending: boolean) => {
-  const direction = descending ? 'DESC_NULLS_LAST' : 'ASC_NULLS_LAST'
-
-  const sortMapping: Record<string, any> = {
-    // Direct fields
-    contact: [
-      { field: 'firstName', direction },
-      { field: 'lastName', direction }
-    ],
-    firstName: [{ field: 'firstName', direction }],
-    lastName: [{ field: 'lastName', direction }],
-    fullName: [{ field: 'fullName', direction }],
-    department: [{ field: 'department', direction }],
-    jobPosition: [{ field: 'jobPosition', direction }],
-    createdAt: [{ field: 'createdAt', direction }],
-    updatedAt: [{ field: 'updatedAt', direction }],
-
-    // Owner Employee - sort by displayName
-    ownerEmployee: [
-      {
-        field: { ownerEmployee: { displayName: direction } } as any,
-        direction
-      }
-    ]
-  }
-
-  return sortMapping[columnId] || null
-}
 
 export const ContactView: React.FC<ContactViewProps> = context => {
   const { accessToken } = context
 
   // Data Hooks
   const { fetchInvestmentContacts } = useInvestmentContacts(context)
+  const contactStatistics = useInvestmentContactStatistics(context)
 
   // View State
   const [contacts, setContacts] = useState<CommonContact[]>([])
@@ -81,10 +53,18 @@ export const ContactView: React.FC<ContactViewProps> = context => {
     return defaultContactColumns()
   }, [])
 
-  // Filter Configuration: Use static config (TODO: implement dynamic filters)
+  // Filter Configuration - Dynamic with filter options
+  const contactFilters = useContactFilterOptions(context)
   const filterConfig = useMemo(() => {
-    return defaultContactFilterConfig
-  }, [])
+    return buildDynamicFilterConfig(defaultContactFilterConfig, {
+      owners: contactFilters.owners,
+      departments: [], // TODO: Add departments to useContactFilterOptions if needed
+      jobPositions: [], // TODO: Add jobPositions to useContactFilterOptions if needed
+      academicTitles: [], // TODO: Add academicTitles to useContactFilterOptions if needed
+      salutations: [], // TODO: Add salutations to useContactFilterOptions if needed
+      languages: [] // TODO: Add languages to useContactFilterOptions if needed
+    })
+  }, [contactFilters.owners])
 
   // Query Variables
   const queryVariables = useMemo(() => {
@@ -124,22 +104,24 @@ export const ContactView: React.FC<ContactViewProps> = context => {
 
     // Apply sorting
     if (sorting.length > 0) {
-      const sortConfig = getSortingConfig(sorting[0].id, sorting[0].desc)
+      const columnId = sorting[0].id
+      const direction = sorting[0].desc ? 'DESC_NULLS_LAST' : 'ASC_NULLS_LAST'
 
-      console.log('=== [IRM SORTING DEBUG] ===', {
-        columnId: sorting[0].id,
-        sortConfig,
-        direction: sorting[0].desc ? 'DESC' : 'ASC'
-      })
-
-      if (sortConfig) {
-        vars.orderBy = sortConfig
+      // Handle composite columns that need multiple sort fields
+      if (columnId === 'contact') {
+        // Sort by firstName, then lastName
+        vars.orderBy = [
+          { field: 'firstName', direction },
+          { field: 'lastName', direction }
+        ]
+      } else {
+        // Use descriptor-based sorting (handles nested paths like account.name, ownerEmployee.displayName)
+        // The buildOrderBy function in queryHelpers will use INVESTMENT_CONTACT_DESCRIPTORS to resolve the correct GraphQL path
+        vars.orderBy = [{ field: columnId as any, direction }]
       }
     } else {
       vars.orderBy = [{ field: 'createdAt' as any, direction: 'DESC_NULLS_LAST' }]
     }
-
-    console.log('=== [IRM QUERY VARIABLES DEBUG] ===', vars)
 
     return vars
   }, [pagination, searchTerm, selectedFilters, sorting])
@@ -223,6 +205,7 @@ export const ContactView: React.FC<ContactViewProps> = context => {
   }, [])
 
   const handleRowClick = useCallback((contact: CommonContact) => {
+    if (!contact.id) return
     const url = buildPlatformUrl('/platform/irm/contact-record', { contactId: contact.id })
     navigateTo(url)
   }, [])
@@ -252,6 +235,20 @@ export const ContactView: React.FC<ContactViewProps> = context => {
     ),
     [accessToken]
   )
+
+  // Statistics - Transform hook data to ContactStatisticsData format
+  const contactStatisticsData: ContactStatisticsData | undefined = useMemo(() => {
+    if (!contactStatistics.trendData) return undefined
+    return {
+      recentContacts: contactStatistics.trendData.recentContacts,
+      activeContacts: contactStatistics.trendData.activeContacts,
+      emailEngagements: contactStatistics.trendData.emailEngagements,
+      contactsThisYear: contactStatistics.trendData.contactsThisYear,
+      isLoading: contactStatistics.isLoading,
+      error: contactStatistics.error,
+      refetch: contactStatistics.refetch
+    }
+  }, [contactStatistics])
 
   // Primary Action (Add Button)
   const primaryAction = useMemo(
@@ -291,6 +288,7 @@ export const ContactView: React.FC<ContactViewProps> = context => {
       onPaginationChange={setPagination}
       onRowClick={handleRowClick}
       renderRowActions={renderRowActions}
+      contactStatistics={contactStatisticsData}
       primaryAction={primaryAction}
       dataTestId="investment-contact-view"
     />

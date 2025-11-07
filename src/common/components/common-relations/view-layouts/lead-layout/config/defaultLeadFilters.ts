@@ -1,118 +1,160 @@
 import type { FilterConfiguration } from '@newwork/nw-design-system'
-import type { CommonLeadFilters } from '@/common/data/relations/types/commonLeadTypes'
 
 /**
  * Default Lead Filter Configuration
  * Base filter configuration shared across Customer and Investment Leads
- * Uses individual filter groups for better control and pagination
+ * Uses new structure with config object and field properties
  */
-export const defaultLeadFilterConfig: FilterConfiguration & { data?: CommonLeadFilters } = {
+export const defaultLeadFilterConfig: FilterConfiguration = {
+  id: 'lead-filters',
+  name: 'Lead Filters',
   groups: [
     {
       id: 'owner-group',
       label: 'Owner',
+      collapsible: true,
+      defaultExpanded: true,
       filters: [
         {
           id: 'owners',
+          field: 'owners',
           label: 'Owner',
           type: 'multi-select',
-          options: [],
-          placeholder: 'Select owners...',
-          searchable: true,
-          loadMore: true
+          config: {
+            options: [],
+            enableSearch: true,
+            searchPlaceholder: 'Search owners...',
+            totalCount: 0,
+            hasMore: false
+          }
         }
       ]
     },
     {
       id: 'status-group',
       label: 'Status',
+      collapsible: true,
+      defaultExpanded: true,
       filters: [
         {
           id: 'statuses',
+          field: 'statuses',
           label: 'Status',
           type: 'multi-select',
-          options: [],
-          placeholder: 'Select status...',
-          searchable: true,
-          loadMore: true
+          config: {
+            options: [],
+            enableSearch: true,
+            searchPlaceholder: 'Search status...',
+            totalCount: 0,
+            hasMore: false
+          }
         }
       ]
     },
     {
       id: 'rating-group',
       label: 'Rating',
+      collapsible: true,
+      defaultExpanded: false,
       filters: [
         {
           id: 'ratings',
+          field: 'ratings',
           label: 'Rating',
           type: 'multi-select',
-          options: [],
-          placeholder: 'Select rating...',
-          searchable: true,
-          loadMore: true
+          config: {
+            options: [],
+            enableSearch: true,
+            searchPlaceholder: 'Search rating...',
+            totalCount: 0,
+            hasMore: false
+          }
         }
       ]
     },
     {
       id: 'source-group',
       label: 'Source',
+      collapsible: true,
+      defaultExpanded: false,
       filters: [
         {
           id: 'sources',
+          field: 'sources',
           label: 'Source',
           type: 'multi-select',
-          options: [],
-          placeholder: 'Select source...',
-          searchable: true,
-          loadMore: true
+          config: {
+            options: [],
+            enableSearch: true,
+            searchPlaceholder: 'Search source...',
+            totalCount: 0,
+            hasMore: false
+          }
         }
       ]
     },
     {
       id: 'salutation-group',
       label: 'Salutation',
+      collapsible: true,
+      defaultExpanded: false,
       filters: [
         {
           id: 'salutations',
+          field: 'salutations',
           label: 'Salutation',
           type: 'multi-select',
-          options: [],
-          placeholder: 'Select salutation...',
-          searchable: true,
-          loadMore: true
+          config: {
+            options: [],
+            enableSearch: true,
+            searchPlaceholder: 'Search salutation...',
+            totalCount: 0,
+            hasMore: false
+          }
         }
       ]
     },
     {
       id: 'industry-group',
       label: 'Industry',
+      collapsible: true,
+      defaultExpanded: false,
       filters: [
         {
           id: 'industries',
+          field: 'industries',
           label: 'Industry',
           type: 'multi-select',
-          options: [],
-          placeholder: 'Select industry...',
-          searchable: true,
-          loadMore: true
+          config: {
+            options: [],
+            enableSearch: true,
+            searchPlaceholder: 'Search industry...',
+            totalCount: 0,
+            hasMore: false
+          }
         }
       ]
     },
     {
       id: 'date-group',
       label: 'Date Range',
+      collapsible: true,
+      defaultExpanded: false,
       filters: [
         {
-          id: 'createdAfter',
-          label: 'Created After',
+          id: 'createdAtRange',
+          field: 'createdAtRange',
+          label: 'Created Date',
           type: 'date',
-          placeholder: 'Select start date'
-        },
-        {
-          id: 'createdBefore',
-          label: 'Created Before',
-          type: 'date',
-          placeholder: 'Select end date'
+          config: {
+            dateType: 'date',
+            mode: 'range',
+            placeholder: 'Start Date',
+            placeholderEnd: 'End Date',
+            showClearButton: true,
+            startField: 'createdAfter',
+            endField: 'createdBefore'
+          }
         }
       ]
     }

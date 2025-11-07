@@ -68,21 +68,6 @@ export const createOpportunityConfig = <TOpportunity extends { id: string }, TQu
     createColumns: createOpportunityColumns as any,
     createSortableColumns: createOpportunitySortableColumns,
 
-    mapColumnToGraphQLField: (columnId: string): string => {
-      const mapping: Record<string, string> = {
-        opportunity: 'name',
-        amount: 'estimatedAmount',
-        pipeline: options.columnMappings.pipeline,
-        stage: options.columnMappings.stage,
-        status: 'opportunityStatus',
-        closeDate: 'closeDate',
-        account: 'accountId',
-        owner: 'ownerEmployeeId',
-        created: 'createdAt'
-      }
-      return mapping[columnId] || columnId
-    },
-
     baseFilterConfig: opportunityFilterConfig,
 
     buildQueryVariables: (params: {
@@ -90,7 +75,6 @@ export const createOpportunityConfig = <TOpportunity extends { id: string }, TQu
       searchTerm: string
       selectedFilters: Record<string, any>
       sorting: Array<{ id: string; desc: boolean }>
-      mapColumnToGraphQLField: (columnId: string) => string
     }) => {
       const vars: any = {
         limit: params.pagination.pageSize,
@@ -103,6 +87,8 @@ export const createOpportunityConfig = <TOpportunity extends { id: string }, TQu
       applyDateFilter(vars, params.selectedFilters.closeDate)
 
       if (params.sorting.length > 0) {
+        // Use column ID directly - buildOrderBy will use descriptors (CUSTOMER_OPPORTUNITY_DESCRIPTORS or INVESTMENT_OPPORTUNITY_DESCRIPTORS)
+        // to resolve correct GraphQL paths (e.g., account.name, ownerEmployee.displayName)
         vars.orderBy = [
           {
             field: params.sorting[0].id,

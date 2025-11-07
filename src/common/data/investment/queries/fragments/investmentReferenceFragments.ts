@@ -88,6 +88,10 @@ export const INVESTMENT_LEAD_REF = `
   annualNetColdRent
   buildingYear
   forecastedProfitAmount
+  industryClass {
+    ${CATALOG_ENTRY}
+  }
+  industryClassRef
   initialInvestmentAmount
   investmentGroup {
     ${CATALOG_ENTRY}

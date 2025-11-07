@@ -3,6 +3,7 @@ import type { FilterConfiguration } from '@newwork/nw-design-system'
 import { DataDisplay } from '@newwork/nw-design-system'
 import { getTranslationFromI18nKeyAndLabel } from '@/common/utils/windowUtils'
 import { ContactListLayout } from './ContactListLayout'
+import { ContactStatisticsLayout, type ContactStatisticsData } from './components/ContactStatisticsLayout'
 import type { CommonContact } from '@/common/data/relations/types/commonContactTypes'
 
 /**
@@ -40,7 +41,7 @@ export interface ContactLayoutProps<TContact extends CommonContact = CommonConta
   renderRowActions?: (row: { original: TContact }) => React.ReactNode
 
   // Optional sections
-  renderStatistics?: () => React.ReactNode
+  contactStatistics?: ContactStatisticsData
   primaryAction?: React.ReactNode
 
   // Config
@@ -77,7 +78,7 @@ export function ContactLayout<TContact extends CommonContact = CommonContact>(pr
     onPaginationChange,
     onRowClick,
     renderRowActions,
-    renderStatistics,
+    contactStatistics,
     primaryAction,
     hideFilters = false,
     hideStatistics = false,
@@ -88,7 +89,9 @@ export function ContactLayout<TContact extends CommonContact = CommonContact>(pr
   return (
     <div data-testid={dataTestId}>
       {/* Statistics */}
-      {!hideStatistics && renderStatistics?.()}
+      {!hideStatistics && contactStatistics && (
+        <ContactStatisticsLayout statistics={contactStatistics} data-testid={`${dataTestId}-statistics`} />
+      )}
 
       {/* DataDisplay */}
       <DataDisplay

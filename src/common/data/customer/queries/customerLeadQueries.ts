@@ -1,11 +1,10 @@
 // Customer Lead Queries
-import { CUSTOMER_LEAD } from './fragments/customerFragments'
+import { CUSTOMER_LEAD, CUSTOMER_NOTE } from './fragments/customerFragments'
 import {
   CUSTOMER_LEAD_REF,
   CUSTOMER_TASK_REF,
   CUSTOMER_ACTIVITY_REF,
   CUSTOMER_DOCUMENT_REF,
-  CUSTOMER_NOTE_REF,
   CUSTOMER_ACCOUNT_REF,
   CUSTOMER_CONTACT_REF,
   CUSTOMER_OPPORTUNITY_REF
@@ -189,16 +188,7 @@ export const GET_CUSTOMER_NOTES_BY_LEAD_ID = (leadId: string): string => {
         }
         orderBy: [{ createdAt: DESC }]
       ) {
-        ${CUSTOMER_NOTE_REF}
-        
-        # Entity references
-        lead {
-          id
-          code
-          firstName
-          lastName
-          email
-        }
+        ${CUSTOMER_NOTE}
       }
     }
   `

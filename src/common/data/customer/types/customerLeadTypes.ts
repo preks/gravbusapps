@@ -41,6 +41,7 @@ export const CUSTOMER_LEAD_DESCRIPTORS: Descriptor[] = [
       ![
         'accountAnnualRevenueBand',
         'accountAnnualRevenueBandRef',
+        'address',
         'companySize',
         'companySizeRef',
         'industryClass',
@@ -74,6 +75,12 @@ export const CUSTOMER_LEAD_DESCRIPTORS: Descriptor[] = [
     type: 'text'
   },
   { key: 'industryClassRef', searchPaths: ['industryRef'], sortPath: 'industryRef', type: 'text' },
+  {
+    key: 'address',
+    searchPaths: ['addressLine', 'postalCode', 'city', 'region.value', 'country.value'],
+    sortPaths: ['addressLine', 'postalCode', 'city', 'region.value', 'country.value'], // Fallbacks in Reihenfolge
+    type: 'text'
+  },
   { key: 'locality', searchPaths: ['city'], sortPath: 'city', type: 'text' }, // CRM: city
 
   // CRM-specific filter path overrides

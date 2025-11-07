@@ -32,7 +32,8 @@ export interface Descriptor {
   key: string
 
   // Sorting
-  sortPath?: string
+  sortPath?: string // Single path (existing)
+  sortPaths?: string[] // Multiple paths for fallbacks (new)
   enableSort?: boolean
 
   // Search
@@ -56,16 +57,29 @@ export interface Descriptor {
 export const buildOrderBy = (orderBy: SortInput[] = [], descriptors: Descriptor[] = []): string => {
   if (!orderBy.length) return ''
   const index: Record<string, Descriptor> = Object.fromEntries(descriptors.map(d => [d.key, d]))
-  const parts = orderBy.map(o => {
+  const parts = orderBy.flatMap(o => {
     const d = index[o.field]
-    const path = d?.sortPath || (d?.searchPaths && d.searchPaths[0]) || o.field
-    const segments = path.split('.').filter(Boolean)
-    if (segments.length === 0) return ''
-    if (segments.length === 1) {
-      return `{ ${segments[0]}: ${o.direction} }`
-    }
-    const leaf = `${segments.pop()!}: ${o.direction}`
-    return buildNestedPath(segments.join('.'), `{ ${leaf} }`)
+    if (!d) return []
+
+    // Skip if sorting is disabled for this descriptor
+    if (d.enableSort === false) return []
+
+    // Support sortPaths (fallbacks) or sortPath (single) or searchPaths[0] fallback
+    const paths =
+      d.sortPaths ||
+      (d.sortPath ? [d.sortPath] : d.searchPaths && d.searchPaths.length > 0 ? [d.searchPaths[0]] : [o.field])
+
+    return paths
+      .map(path => {
+        const segments = path.split('.').filter(Boolean)
+        if (segments.length === 0) return ''
+        if (segments.length === 1) {
+          return `{ ${segments[0]}: ${o.direction} }`
+        }
+        const leaf = `${segments.pop()!}: ${o.direction}`
+        return buildNestedPath(segments.join('.'), `{ ${leaf} }`)
+      })
+      .filter(Boolean)
   })
   return `orderBy: [${parts.join(', ')}]`
 }

@@ -201,14 +201,6 @@ export const GET_INVESTMENT_NOTES_BY_CONTACT_ID = (contactId: string): string =>
         orderBy: [{ createdAt: DESC }]
       ) {
         ${INVESTMENT_NOTE}
-        
-        # Entity references
-        contact {
-          id
-          code
-          firstName
-          lastName
-        }
       }
     }
   `

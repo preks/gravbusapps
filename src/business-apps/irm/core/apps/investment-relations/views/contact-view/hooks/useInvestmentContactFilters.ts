@@ -236,7 +236,7 @@ export const useInvestmentContactFilters = (
         })
       },
       {
-        id: 'contactInfo',
+        id: 'communicationChannels',
         title: 'Contact Info',
         filters: [
           { id: 'info:HAS_EMAIL', label: 'Has email', selected: selectedFilters.includes('info:HAS_EMAIL') },

@@ -69,7 +69,7 @@ export const COMMON_CONTACT_DESCRIPTORS: Descriptor[] = [
   {
     key: 'addresses',
     searchPaths: ['addresses.addressLine', 'addresses.locality'],
-    sortPath: 'addresses.addressLine',
+    enableSort: false,
     type: 'text'
   },
   { key: 'birthDate', searchPaths: ['birthDate'], sortPath: 'birthDate', type: 'date' },
@@ -148,12 +148,11 @@ export const COMMON_CONTACT_DESCRIPTORS: Descriptor[] = [
   // contact: Displays firstName, lastName, fullName - sorts by firstName (primary), lastName (fallback)
   { key: 'contact', searchPaths: ['firstName', 'lastName', 'fullName'], sortPath: 'firstName', type: 'text' },
 
-  // contactInfo: Displays communicationChannels array - sorts by first email channel
-  // Note: Actual sorting happens via custom logic in queries for communication channels
+  // communicationChannels: Displays communicationChannels array - not sortable
   {
-    key: 'contactInfo',
+    key: 'communicationChannels',
     searchPaths: ['communicationChannels.value'],
-    sortPath: 'communicationChannels.value',
+    enableSort: false,
     type: 'text'
   },
 
@@ -165,11 +164,11 @@ export const COMMON_CONTACT_DESCRIPTORS: Descriptor[] = [
     type: 'text'
   },
 
-  // address: Displays primary address from addresses array - sorts by locality
+  // address: Displays primary address from addresses array - not sortable
   {
     key: 'address',
     searchPaths: ['addresses.locality', 'addresses.postalCode'],
-    sortPath: 'addresses.locality',
+    enableSort: false,
     type: 'text'
   }
 ]

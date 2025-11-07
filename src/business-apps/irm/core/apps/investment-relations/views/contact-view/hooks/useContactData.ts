@@ -92,8 +92,8 @@ export function useContactData(context: BusinessAppContextProps): UseContactData
     }
 
     // Contact info filters
-    if (cleanedFilters.contactInfo?.length) {
-      cleanedFilters.contactInfo.forEach((filter: string) => {
+    if (cleanedFilters.communicationChannels?.length) {
+      cleanedFilters.communicationChannels.forEach((filter: string) => {
         if (filter === 'has:email') filterVars.hasEmail = true
         if (filter === 'missing:email') filterVars.missingEmail = true
         if (filter === 'has:phone') filterVars.hasPhone = true

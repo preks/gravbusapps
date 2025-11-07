@@ -76,14 +76,14 @@ export const COMMON_ACCOUNT_DESCRIPTORS: Descriptor[] = [
   {
     key: 'addresses',
     searchPaths: ['addresses.addressLine', 'addresses.locality'],
-    sortPath: 'addresses.addressLine',
+    enableSort: false,
     type: 'text'
   },
   { key: 'code', searchPaths: ['code'], sortPath: 'code', type: 'text' },
   {
     key: 'communicationChannels',
     searchPaths: ['communicationChannels.value'],
-    sortPath: 'communicationChannels.value',
+    enableSort: false,
     type: 'text'
   },
   {
@@ -170,14 +170,14 @@ export const COMMON_ACCOUNT_DESCRIPTORS: Descriptor[] = [
   { key: 'liquidationDateBefore', path: 'liquidationDate', kind: 'dateTo' },
 
   // Composite display columns (for table sorting)
-  // email: Displays primary email from communicationChannels array - sorts by first email value
-  { key: 'email', searchPaths: ['communicationChannels.value'], sortPath: 'communicationChannels.value', type: 'text' },
+  // email: Displays primary email from communicationChannels array - not sortable
+  { key: 'email', searchPaths: ['communicationChannels.value'], enableSort: false, type: 'text' },
 
-  // location: Displays primary address from addresses array - sorts by locality
+  // location: Displays primary address from addresses array - not sortable
   {
     key: 'location',
     searchPaths: ['addresses.locality', 'addresses.postalCode'],
-    sortPath: 'addresses.locality',
+    enableSort: false,
     type: 'text'
   },
 

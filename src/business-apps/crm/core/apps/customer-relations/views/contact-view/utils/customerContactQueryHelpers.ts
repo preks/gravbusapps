@@ -52,11 +52,11 @@ export const applyBasicFilters = (vars: CustomerContactQueryVariables, selectedF
 
   // Contact info filters
   if (
-    selectedFilters.contactInfo &&
-    Array.isArray(selectedFilters.contactInfo) &&
-    selectedFilters.contactInfo.length > 0
+    selectedFilters.communicationChannels &&
+    Array.isArray(selectedFilters.communicationChannels) &&
+    selectedFilters.communicationChannels.length > 0
   ) {
-    const contactFilters = selectedFilters.contactInfo as string[]
+    const contactFilters = selectedFilters.communicationChannels as string[]
 
     if (contactFilters.includes('has:email')) {
       vars.hasEmail = true

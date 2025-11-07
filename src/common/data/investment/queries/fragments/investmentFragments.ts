@@ -508,7 +508,7 @@ export const INVESTMENT_NOTE = `
   accountId
   contact { ${INVESTMENT_CONTACT_REF} }
   contactId
-  documents { (where: { isDeleted: { _eq: false } }) {
+  documents(where: { isDeleted: { _eq: false } }) {
    ${INVESTMENT_DOCUMENT_REF}
   }
   investment { ${INVESTMENT_REF} }

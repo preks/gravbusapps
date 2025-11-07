@@ -1,6 +1,7 @@
 // Customer Contact Mapper - Transform base type to enhanced type with field mappings
 
 import { CustomerContact } from '../types'
+import type { CustomerAccountContact } from '../types/customerRelationTypes'
 
 /**
  * Transform CustomerContact (GraphQL response) to CustomerContact (enhanced with field mappings)
@@ -10,6 +11,7 @@ import { CustomerContact } from '../types'
  * - contactType → type
  * - pictureUrl → picture
  * - pictureThumbnailUrl → pictureThumbnail
+ * - accountId/account → accountContacts array (CRM uses deprecated accountId instead of accountContacts)
  */
 export function toCustomerContact(base: CustomerContact): CustomerContact {
   // Map CRM field names to CommonContact standard (IRM naming)
@@ -18,12 +20,29 @@ export function toCustomerContact(base: CustomerContact): CustomerContact {
   const picture = base.pictureUrl
   const pictureThumbnail = base.pictureThumbnailUrl
 
+  // Transform CRM accountId/account to accountContacts array
+  // CRM uses deprecated accountId/account instead of accountContacts relation
+  let accountContacts: CustomerAccountContact[] | undefined = undefined
+  if (base.accountId && base.account) {
+    accountContacts = [
+      {
+        id: `${base.id}-${base.accountId}`, // Generate synthetic ID for the relationship
+        accountId: base.accountId,
+        account: base.account,
+        contactType: base.contactType, // Use contact's contactType
+        contactId: base.id,
+        contact: base as any // Reference to the contact itself
+      } as CustomerAccountContact
+    ]
+  }
+
   return {
     ...base,
     // Map CRM fields to CommonContact standard
     jobPosition,
     type,
     picture,
-    pictureThumbnail
+    pictureThumbnail,
+    accountContacts
   } as CustomerContact
 }

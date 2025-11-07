@@ -15,9 +15,11 @@ import {
   defaultLeadColumns,
   defaultLeadSortableColumns,
   defaultVisibleLeadColumns,
-  defaultAvailableLeadColumns
+  defaultAvailableLeadColumns,
+  defaultLeadFilterConfig,
+  buildDynamicFilterConfig
 } from '@/common/components/common-relations/view-layouts/lead-layout/config'
-import { defaultLeadFilterConfig } from '@/common/components/common-relations/view-layouts/lead-layout/config'
+import { useInvestmentLeadFilterOptions } from './hooks/useInvestmentLeadFilterOptions'
 import { LeadStatisticsLayout } from '@/common/components/common-relations/view-layouts/lead-layout/components/LeadStatisticsLayout'
 import { applyLeadFilters } from '@/common/components/common-relations/view-layouts/lead-layout/utils/queryHelpers'
 import { useInvestmentLeadStatistics } from '@/common/data/investment/hooks/useInvestmentLeadStatistics'
@@ -42,6 +44,7 @@ export const LeadView: React.FC<LeadViewProps> = context => {
   // Hooks
   const { fetchInvestmentLeads } = useInvestmentLeads(context)
   const leadStatistics = useInvestmentLeadStatistics(context)
+  const leadFilters = useInvestmentLeadFilterOptions(context)
 
   // Query Variables
   const queryVariables = useMemo(() => {
@@ -194,8 +197,24 @@ export const LeadView: React.FC<LeadViewProps> = context => {
     [accessToken]
   )
 
-  // Filter Config
-  const filterConfig = useMemo(() => defaultLeadFilterConfig, [])
+  // Filter Config - Dynamic with filter options
+  const filterConfig = useMemo(() => {
+    return buildDynamicFilterConfig(defaultLeadFilterConfig, {
+      owners: leadFilters.owners,
+      statuses: leadFilters.statuses,
+      ratings: leadFilters.ratings,
+      sources: leadFilters.sources,
+      salutations: leadFilters.salutations,
+      industries: leadFilters.industries
+    })
+  }, [
+    leadFilters.owners,
+    leadFilters.statuses,
+    leadFilters.ratings,
+    leadFilters.sources,
+    leadFilters.salutations,
+    leadFilters.industries
+  ])
 
   // Statistics
   const renderStatistics = useCallback(

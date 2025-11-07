@@ -2,9 +2,11 @@ import type { ColumnDef } from '@tanstack/react-table'
 import { Badge, Avatar, AvatarFallback, Tooltip, TooltipTrigger, TooltipContent } from '@newwork/nw-design-system'
 import { User, Building2, Calendar, MapPin, Flag, Mail, Phone } from 'lucide-react'
 import type { CommonLead } from '@/common/data/relations/types/commonLeadTypes'
+import { COMMON_LEAD_DESCRIPTORS } from '@/common/data/relations/types/commonLeadTypes'
 import { getCatalogEntryValue } from '@/common/data/catalog/utils/catalogTranslationUtils'
 import { formatAddress } from '@/common/utils/addressFormatter'
 import { navigateTo } from '@/common/utils/navigationUtils'
+import { deriveSortableColumns, deriveAvailableColumns } from '@/common/network/graphql/descriptorUtils'
 
 // Helper to safely convert values to strings
 const safeString = (value: any): string => {
@@ -125,7 +127,7 @@ export const defaultLeadColumns = (): ColumnDef<CommonLead>[] => [
     }
   },
   {
-    id: 'contactInfo',
+    id: 'communicationChannels',
     accessorFn: row => {
       // Primary: email, Fallback: phoneNumber
       return safeString(row.email) || safeString(row.phoneNumber)
@@ -367,81 +369,31 @@ export const defaultLeadColumns = (): ColumnDef<CommonLead>[] => [
 ]
 
 /**
- * Default sortable columns
- * Includes composite display columns (contactInfo, address) that sort by their primary field
+ * Default sortable columns derived from descriptors
+ * Automatically includes all descriptors with enableSort !== false and sortPath/sortPaths
  */
-export const defaultLeadSortableColumns = [
-  { id: 'lead', label: 'Lead' },
-  { id: 'firstName', label: 'First Name' },
-  { id: 'lastName', label: 'Last Name' },
-  { id: 'companyName', label: 'Company' },
-  { id: 'contactInfo', label: 'Contact Info' },
-  { id: 'address', label: 'Address' },
-  { id: 'leadStatus', label: 'Status' },
-  { id: 'leadRating', label: 'Rating' },
-  { id: 'leadSource', label: 'Source' },
-  { id: 'industryClass', label: 'Industry' },
-  { id: 'ownerEmployee', label: 'Owner' },
-  { id: 'createdAt', label: 'Created Date' },
-  { id: 'updatedAt', label: 'Updated Date' }
-]
-
-/**
- * Default column mapping for CommonLead
- * Maps column IDs to descriptor keys for sorting/filtering
- * Composite columns (contactInfo, address) use their primary field for sorting
- */
-export const defaultLeadColumnMapping: Record<string, string> = {
-  // Direct descriptor keys (from COMMON_LEAD_DESCRIPTORS)
-  firstName: 'firstName',
-  lastName: 'lastName',
-  companyName: 'companyName',
-  email: 'email',
-  phoneNumber: 'phoneNumber',
-  locality: 'locality',
-  postalCode: 'postalCode',
-  createdAt: 'createdAt',
-  updatedAt: 'updatedAt',
-
-  // Catalog fields (descriptor keys)
-  leadStatus: 'leadStatus',
-  leadRating: 'leadRating',
-  leadSource: 'leadSource',
-  industryClass: 'industryClass',
-
-  // Employee fields
-  ownerEmployee: 'ownerEmployee',
-
-  // Composite display columns - sort by primary field
-  lead: 'firstName', // Lead name column sorts by firstName
-  contactInfo: 'email', // Contact info column sorts by email (primary), fallback phoneNumber
-  address: 'locality' // Address column sorts by locality (primary), fallback postalCode
+const LEAD_COLUMN_LABELS: Record<string, string> = {
+  lead: 'Lead',
+  firstName: 'First Name',
+  lastName: 'Last Name',
+  companyName: 'Company',
+  leadStatus: 'Status',
+  leadRating: 'Rating',
+  leadSource: 'Source',
+  industryClass: 'Industry',
+  ownerEmployee: 'Owner',
+  createdAt: 'Created Date',
+  updatedAt: 'Updated Date'
 }
 
-/**
- * Create column to GraphQL mapping with custom overrides
- * @param overrides - Custom column ID to GraphQL field mappings
- * @returns Function that maps column ID to GraphQL field path
- */
-export const createLeadColumnToGraphQLMapping = (
-  overrides: Record<string, string> = {}
-): ((columnId: string) => string) => {
-  return (columnId: string) => {
-    // Override has priority
-    if (overrides[columnId]) {
-      return overrides[columnId]
-    }
-    // Then default
-    return defaultLeadColumnMapping[columnId] || 'createdAt'
-  }
-}
+export const defaultLeadSortableColumns = deriveSortableColumns(COMMON_LEAD_DESCRIPTORS, LEAD_COLUMN_LABELS)
 
 /**
  * Default visible columns
  */
 export const defaultVisibleLeadColumns = [
   'lead',
-  'contactInfo',
+  'communicationChannels',
   'address',
   'leadStatus',
   'leadRating',
@@ -451,16 +403,7 @@ export const defaultVisibleLeadColumns = [
 ]
 
 /**
- * Default available columns for column selector
+ * Default available columns derived from column definitions
+ * Automatically includes all columns with an id
  */
-export const defaultAvailableLeadColumns = [
-  { id: 'lead', label: 'Lead' },
-  { id: 'contactInfo', label: 'Contact Info' },
-  { id: 'address', label: 'Address' },
-  { id: 'leadStatus', label: 'Status' },
-  { id: 'leadRating', label: 'Rating' },
-  { id: 'leadSource', label: 'Source' },
-  { id: 'industryClass', label: 'Industry' },
-  { id: 'createdAt', label: 'Created' },
-  { id: 'ownerEmployee', label: 'Owner' }
-]
+export const defaultAvailableLeadColumns = deriveAvailableColumns(defaultLeadColumns())

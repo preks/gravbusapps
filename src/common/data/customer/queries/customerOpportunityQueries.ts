@@ -1,11 +1,6 @@
 // Customer Opportunity Queries - using shared fragments
-import { CUSTOMER_OPPORTUNITY } from './fragments/customerFragments'
-import {
-  CUSTOMER_TASK_REF,
-  CUSTOMER_ACTIVITY_REF,
-  CUSTOMER_DOCUMENT_REF,
-  CUSTOMER_NOTE_REF
-} from './fragments/customerReferenceFragments'
+import { CUSTOMER_OPPORTUNITY, CUSTOMER_NOTE } from './fragments/customerFragments'
+import { CUSTOMER_TASK_REF, CUSTOMER_ACTIVITY_REF, CUSTOMER_DOCUMENT_REF } from './fragments/customerReferenceFragments'
 import { buildOrderBy, buildSearch, buildFilter } from '@/common/network/graphql/queryHelpers'
 import { CUSTOMER_OPPORTUNITY_DESCRIPTORS } from '@/common/data/customer/types/customerOpportunityTypes'
 
@@ -219,14 +214,7 @@ export const GET_CUSTOMER_NOTES_BY_OPPORTUNITY_ID = (opportunityId: string): str
         }
         orderBy: [{ createdAt: DESC }]
       ) {
-        ${CUSTOMER_NOTE_REF}
-        
-        # Entity references
-        opportunity {
-          id
-          code
-          name
-        }
+        ${CUSTOMER_NOTE}
       }
     }
   `

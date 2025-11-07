@@ -163,8 +163,8 @@ export const defaultAccountFilterConfig: FilterConfiguration = {
       defaultExpanded: false,
       filters: [
         {
-          id: 'contactInfo',
-          field: 'contactInfo',
+          id: 'communicationChannels',
+          field: 'communicationChannels',
           label: 'Contact Info',
           type: 'multi-select',
           config: {

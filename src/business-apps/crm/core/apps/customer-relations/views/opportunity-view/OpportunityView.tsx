@@ -14,6 +14,7 @@ import {
   createOpportunityColumns,
   createOpportunitySortableColumns
 } from '@/common/components/common-relations/view-layouts/opportunity-layout/config/opportunityColumns'
+import { CUSTOMER_OPPORTUNITY_DESCRIPTORS } from '@/common/data/customer/types/customerOpportunityTypes'
 import { opportunityFilterConfig } from '@/common/components/common-relations/view-layouts/opportunity-layout/config/opportunityFilters'
 import { useCustomerOpportunityFilters } from './hooks/useCustomerOpportunityFilters'
 import { OpportunityStatisticsWithTrend } from './components/OpportunityStatistics'
@@ -43,22 +44,7 @@ export const OpportunityView: React.FC<OpportunityViewProps> = context => {
       filterDataHook: useCustomerOpportunityFilters,
 
       createColumns: createOpportunityColumns as any,
-      createSortableColumns: createOpportunitySortableColumns,
-
-      mapColumnToGraphQLField: (columnId: string): string => {
-        const mapping: Record<string, string> = {
-          opportunity: 'name',
-          amount: 'estimatedAmount',
-          pipeline: 'salesPipeline',
-          stage: 'salesPipelineStage',
-          status: 'opportunityStatus',
-          closeDate: 'closeDate',
-          account: 'accountId',
-          owner: 'ownerEmployeeId',
-          created: 'createdAt'
-        }
-        return mapping[columnId] || columnId
-      },
+      createSortableColumns: () => createOpportunitySortableColumns(CUSTOMER_OPPORTUNITY_DESCRIPTORS),
 
       baseFilterConfig: opportunityFilterConfig,
 
@@ -67,7 +53,6 @@ export const OpportunityView: React.FC<OpportunityViewProps> = context => {
         searchTerm: string
         selectedFilters: Record<string, any>
         sorting: Array<{ id: string; desc: boolean }>
-        mapColumnToGraphQLField: (columnId: string) => string
       }) => {
         const vars: CustomerOpportunityQueryVariables = {
           limit: params.pagination.pageSize,
@@ -80,9 +65,11 @@ export const OpportunityView: React.FC<OpportunityViewProps> = context => {
         applyDateFilter(vars, params.selectedFilters.closeDate)
 
         if (params.sorting.length > 0) {
+          // Use column ID directly - buildOrderBy will use CUSTOMER_OPPORTUNITY_DESCRIPTORS to resolve correct GraphQL paths
+          // This allows nested paths like account.name, ownerEmployee.displayName to work correctly
           vars.orderBy = [
             {
-              field: params.mapColumnToGraphQLField(params.sorting[0].id) as any,
+              field: params.sorting[0].id as any,
               direction: params.sorting[0].desc ? 'DESC_NULLS_LAST' : 'ASC_NULLS_LAST'
             }
           ]

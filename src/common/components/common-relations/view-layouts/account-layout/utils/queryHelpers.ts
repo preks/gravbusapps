@@ -81,7 +81,7 @@ export const defaultAccountColumnMapping: Record<string, string | null> = {
 
   // Computed fields (non-sortable)
   location: null, // Can't sort on computed address
-  contactInfo: null // Can't sort on computed communication channels
+  communicationChannels: null // Can't sort on computed communication channels
 }
 
 /**

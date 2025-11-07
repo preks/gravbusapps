@@ -1,11 +1,6 @@
 // Customer Contact Queries - using shared fragments
-import { CUSTOMER_CONTACT } from './fragments/customerFragments'
-import {
-  CUSTOMER_TASK_REF,
-  CUSTOMER_ACTIVITY_REF,
-  CUSTOMER_DOCUMENT_REF,
-  CUSTOMER_NOTE_REF
-} from './fragments/customerReferenceFragments'
+import { CUSTOMER_CONTACT, CUSTOMER_NOTE } from './fragments/customerFragments'
+import { CUSTOMER_TASK_REF, CUSTOMER_ACTIVITY_REF, CUSTOMER_DOCUMENT_REF } from './fragments/customerReferenceFragments'
 
 import { buildOrderBy, buildSearch, buildFilter } from '@/common/network/graphql/queryHelpers'
 import { CUSTOMER_CONTACT_DESCRIPTORS } from '@/common/data/customer/types/customerContactTypes'
@@ -188,15 +183,7 @@ export const GET_CUSTOMER_NOTES_BY_CONTACT_ID = (contactId: string): string => {
         }
         orderBy: [{ createdAt: DESC }]
       ) {
-        ${CUSTOMER_NOTE_REF}
-        
-        # Entity references
-        contact {
-          id
-          code
-          firstName
-          lastName
-        }
+        ${CUSTOMER_NOTE}
       }
     }
   `

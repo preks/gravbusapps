@@ -475,7 +475,6 @@ const ConfigTaskLayout = <TTask extends CommonTask = CommonTask, TQueryVariables
           }}
         />
       )}
-
       {/* DataDisplay with titleSections as Tabs */}
       <DataDisplay
         titleSections={[
@@ -550,7 +549,6 @@ const ConfigTaskLayout = <TTask extends CommonTask = CommonTask, TQueryVariables
           dataTestId={`${dataTestId}-${currentSection}`}
         />
       </DataDisplay>
-
       {/* Task Detail Sheet - integrated into layout */}
       <TaskDetailSheet
         task={selectedTask as any}

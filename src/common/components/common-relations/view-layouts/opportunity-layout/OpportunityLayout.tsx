@@ -80,7 +80,6 @@ export interface OpportunityViewConfig<TOpportunity extends { id: string }, TQue
 
   createColumns: (buildAccountUrl: (id: string) => string) => ColumnDef<TOpportunity>[]
   createSortableColumns: () => Array<{ id: string; label: string }>
-  mapColumnToGraphQLField: (columnId: string) => string
 
   baseFilterConfig: FilterConfiguration
 
@@ -89,7 +88,6 @@ export interface OpportunityViewConfig<TOpportunity extends { id: string }, TQue
     searchTerm: string
     selectedFilters: Record<string, any>
     sorting: Array<{ id: string; desc: boolean }>
-    mapColumnToGraphQLField: (columnId: string) => string
   }) => TQueryVariables
 
   flowContexts: {
@@ -155,9 +153,9 @@ const ConfigOpportunityLayout = <TOpportunity extends { id: string } = any, TQue
   const [visibleColumns, setVisibleColumns] = useState<string[]>([
     'opportunity',
     'amount',
-    'pipeline',
-    'stage',
-    'status',
+    'opportunityPipeline',
+    'opportunityPipelineStage',
+    'opportunityStatus',
     'closeDate',
     'account',
     'owner',
@@ -250,8 +248,7 @@ const ConfigOpportunityLayout = <TOpportunity extends { id: string } = any, TQue
         pagination,
         searchTerm,
         selectedFilters,
-        sorting,
-        mapColumnToGraphQLField: config.mapColumnToGraphQLField
+        sorting
       }),
     [pagination, searchTerm, selectedFilters, sorting, config]
   )
@@ -414,9 +411,9 @@ const ConfigOpportunityLayout = <TOpportunity extends { id: string } = any, TQue
     () => [
       { id: 'opportunity', label: 'Opportunity' },
       { id: 'amount', label: 'Value' },
-      { id: 'pipeline', label: 'Pipeline' },
-      { id: 'stage', label: 'Stage' },
-      { id: 'status', label: 'Status' },
+      { id: 'opportunityPipeline', label: 'Pipeline' },
+      { id: 'opportunityPipelineStage', label: 'Stage' },
+      { id: 'opportunityStatus', label: 'Status' },
       { id: 'closeDate', label: 'Close Date' },
       { id: 'account', label: 'Account' },
       { id: 'owner', label: 'Owner' },

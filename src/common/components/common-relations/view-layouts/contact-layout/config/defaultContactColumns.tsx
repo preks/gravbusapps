@@ -3,10 +3,12 @@ import { Avatar, AvatarImage, AvatarFallback } from '@newwork/nw-design-system'
 import { User, Building2, Calendar } from 'lucide-react'
 import { navigateTo } from '@/common/utils/navigationUtils'
 import type { CommonContact } from '@/common/data/relations/types/commonContactTypes'
+import { COMMON_CONTACT_DESCRIPTORS } from '@/common/data/relations/types/commonContactTypes'
 import {
   getCommunicationChannelIcon,
   formatCommunicationChannelValue
 } from '@/common/data/common/utils/communicationChannelUtils'
+import { deriveSortableColumns, deriveAvailableColumns } from '@/common/network/graphql/descriptorUtils'
 
 // Helper to safely convert values to strings
 const safeString = (value: any): string => {
@@ -109,7 +111,7 @@ export const defaultContactColumns = (): ColumnDef<CommonContact>[] => [
     }
   },
   {
-    id: 'contactInfo',
+    id: 'communicationChannels',
     accessorFn: row => {
       // Get all communication channels
       if (row.communicationChannels?.length) {
@@ -205,7 +207,7 @@ export const defaultContactColumns = (): ColumnDef<CommonContact>[] => [
   },
   {
     id: 'department',
-    accessorKey: 'department',
+    accessorFn: row => row.department || '',
     header: 'Department',
     size: 150,
     minSize: 120,
@@ -328,27 +330,30 @@ export const defaultContactColumns = (): ColumnDef<CommonContact>[] => [
 ]
 
 /**
- * Default sortable columns
- * Only include columns that map to actual database fields
+ * Default sortable columns derived from descriptors
+ * Automatically includes all descriptors with enableSort !== false and sortPath/sortPaths
  */
-export const defaultContactSortableColumns = [
-  { id: 'firstName', label: 'First Name' },
-  { id: 'lastName', label: 'Last Name' },
-  { id: 'fullName', label: 'Full Name' },
-  { id: 'department', label: 'Department' },
-  { id: 'jobPosition', label: 'Job Position' },
-  { id: 'ownerEmployee', label: 'Owner' },
-  { id: 'createdAt', label: 'Created Date' },
-  { id: 'updatedAt', label: 'Updated Date' }
-  // contactInfo, account, type, contact are NOT sortable (computed/joined columns)
-]
+const CONTACT_COLUMN_LABELS: Record<string, string> = {
+  contact: 'Contact',
+  firstName: 'First Name',
+  lastName: 'Last Name',
+  fullName: 'Full Name',
+  department: 'Department',
+  jobPosition: 'Job Position',
+  account: 'Account',
+  ownerEmployee: 'Owner',
+  createdAt: 'Created Date',
+  updatedAt: 'Updated Date'
+}
+
+export const defaultContactSortableColumns = deriveSortableColumns(COMMON_CONTACT_DESCRIPTORS, CONTACT_COLUMN_LABELS)
 
 /**
  * Default visible columns
  */
 export const defaultVisibleContactColumns = [
   'contact',
-  'contactInfo',
+  'communicationChannels',
   'account',
   'department',
   'type',
@@ -357,17 +362,10 @@ export const defaultVisibleContactColumns = [
 ]
 
 /**
- * Default available columns for column selector
+ * Default available columns derived from column definitions
+ * Automatically includes all columns with an id
  */
-export const defaultAvailableContactColumns = [
-  { id: 'contact', label: 'Contact' },
-  { id: 'contactInfo', label: 'Contact Info' },
-  { id: 'account', label: 'Account' },
-  { id: 'department', label: 'Department' },
-  { id: 'type', label: 'Type' },
-  { id: 'createdAt', label: 'Created' },
-  { id: 'ownerEmployee', label: 'Owner' }
-]
+export const defaultAvailableContactColumns = deriveAvailableColumns(defaultContactColumns())
 
-// Note: contactInfo, account, and type are computed/related fields and cannot be sorted in GraphQL
+// Note: communicationChannels, account, and type are computed/related fields and cannot be sorted in GraphQL
 // Only include database fields in sortableColumns above

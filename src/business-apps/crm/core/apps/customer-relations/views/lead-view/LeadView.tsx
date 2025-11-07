@@ -16,9 +16,10 @@ import {
   defaultLeadSortableColumns,
   defaultVisibleLeadColumns,
   defaultAvailableLeadColumns,
-  createLeadColumnToGraphQLMapping
+  defaultLeadFilterConfig,
+  buildDynamicFilterConfig
 } from '@/common/components/common-relations/view-layouts/lead-layout/config'
-import { defaultLeadFilterConfig } from '@/common/components/common-relations/view-layouts/lead-layout/config'
+import { useCustomerLeadFilters } from '@/common/data/customer/hooks/useCustomerLeadFilters'
 import { LeadStatisticsLayout } from '@/common/components/common-relations/view-layouts/lead-layout/components/LeadStatisticsLayout'
 import { applyLeadFilters } from '@/common/components/common-relations/view-layouts/lead-layout/utils/queryHelpers'
 import { useLeadStatisticsWithTrend as useCustomerLeadStatistics } from '@/common/data/customer/hooks/useCustomerLeadStatistics'
@@ -38,22 +39,12 @@ export const LeadView: React.FC<LeadViewProps> = context => {
   const [sorting, setSorting] = useState<Array<{ id: string; desc: boolean }>>([{ id: 'createdAt', desc: true }])
   const [pagination, setPagination] = useState({ pageIndex: 0, pageSize: 20 })
   const [visibleColumns, setVisibleColumns] = useState<string[]>(defaultVisibleLeadColumns)
+  const [isInitialLoad, setIsInitialLoad] = useState(true)
 
   // Hooks
   const { fetchCustomerLeads } = useCustomerLeads(context)
   const leadStatistics = useCustomerLeadStatistics({ ...context, sourceApp: 'CRM' })
-
-  // Column to GraphQL mapping (CRM overrides)
-  const mapColumnToGraphQLField = useMemo(
-    () =>
-      createLeadColumnToGraphQLMapping({
-        status: 'leadStatus.value',
-        rating: 'leadRating.value',
-        source: 'leadSource.value',
-        industry: 'industry.value' // CRM uses 'industry' not 'industryClass'
-      }),
-    []
-  )
+  const leadFilters = useCustomerLeadFilters(context)
 
   // Query Variables
   const queryVariables = useMemo(() => {
@@ -70,7 +61,7 @@ export const LeadView: React.FC<LeadViewProps> = context => {
       const direction = sorting[0].desc ? 'DESC_NULLS_LAST' : 'ASC_NULLS_LAST'
 
       // Non-sortable columns
-      if (columnId === 'contactInfo' || columnId === 'location') {
+      if (columnId === 'communicationChannels' || columnId === 'location') {
         // These are computed fields - use default sort
         vars.orderBy = [{ field: 'createdAt' as any, direction: 'DESC_NULLS_LAST' }]
       }
@@ -99,47 +90,61 @@ export const LeadView: React.FC<LeadViewProps> = context => {
     }
 
     return vars
-  }, [pagination, searchTerm, selectedFilters, sorting, mapColumnToGraphQLField])
+  }, [pagination, searchTerm, selectedFilters, sorting])
 
-  // Load Data
+  // Load Data - Stabilized: queryVariables as parameter, not dependency
   const loadData = useCallback(
-    async (showLoading = true) => {
-      if (!accessToken) return
+    async (variables: CustomerLeadQueryVariables, showLoading = true) => {
+      if (!accessToken) {
+        return
+      }
 
-      if (showLoading) setIsLoading(true)
+      if (showLoading) {
+        setIsLoading(true)
+      }
       setError(null)
 
       try {
-        const result = await fetchCustomerLeads(queryVariables)
+        const result = await fetchCustomerLeads(variables)
         setLeads((result.leads as any) || [])
         setTotalCount(result.total || 0)
       } catch (err) {
-        setError(err instanceof Error ? err.message : 'Unknown error occurred')
+        const errorMessage = err instanceof Error ? err.message : 'Unknown error occurred'
+        setError(errorMessage)
       } finally {
-        if (showLoading) setIsLoading(false)
+        if (showLoading) {
+          setIsLoading(false)
+        }
+        setIsInitialLoad(false)
       }
     },
-    [accessToken, fetchCustomerLeads, queryVariables]
+    [accessToken, fetchCustomerLeads]
   )
 
-  // Initial load
+  // Initial load - Only runs once when accessToken is available and isInitialLoad is true
   useEffect(() => {
-    if (accessToken) {
-      loadData(true)
+    if (!accessToken || !isInitialLoad) {
+      return
     }
-  }, [accessToken, loadData])
+
+    loadData(queryVariables, true)
+  }, [accessToken, isInitialLoad, loadData, queryVariables])
 
   // Reload data without loading state when filters/search/pagination/sorting change
+  // Only runs after initial load is complete (isInitialLoad === false)
   useEffect(() => {
-    if (accessToken) {
-      loadData(false)
+    if (isInitialLoad || !accessToken) {
+      return
     }
-  }, [queryVariables, accessToken, loadData])
+
+    loadData(queryVariables, false)
+  }, [queryVariables, loadData, accessToken, isInitialLoad])
 
   // Process completion
   const handleProcessComplete = useCallback(() => {
-    loadData(false)
-  }, [loadData])
+    if (!accessToken) return
+    loadData(queryVariables, false)
+  }, [accessToken, loadData, queryVariables])
 
   useProcessCompletion({ onSuccess: handleProcessComplete })
 
@@ -203,8 +208,17 @@ export const LeadView: React.FC<LeadViewProps> = context => {
     [accessToken]
   )
 
-  // Filter Config
-  const filterConfig = useMemo(() => defaultLeadFilterConfig, [])
+  // Filter Config - Dynamic with filter options
+  const filterConfig = useMemo(() => {
+    return buildDynamicFilterConfig(defaultLeadFilterConfig, {
+      owners: leadFilters.owners,
+      statuses: leadFilters.statuses,
+      ratings: leadFilters.ratings,
+      sources: leadFilters.sources,
+      salutations: [], // TODO: Add salutations to useCustomerLeadFilters if needed
+      industries: [] // TODO: Add industries to useCustomerLeadFilters if needed
+    })
+  }, [leadFilters.owners, leadFilters.statuses, leadFilters.ratings, leadFilters.sources])
 
   // Statistics
   const renderStatistics = useCallback(

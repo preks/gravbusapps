@@ -15,9 +15,9 @@ interface OpportunityQueryVars {
 }
 
 export const applyBasicFilters = <T extends OpportunityQueryVars>(vars: T, selectedFilters: Record<string, any>) => {
-  if (selectedFilters.stage?.length > 0) vars.stageIds = selectedFilters.stage
-  if (selectedFilters.status?.length > 0) vars.statusIds = selectedFilters.status
-  if (selectedFilters.pipeline?.length > 0) vars.pipelineIds = selectedFilters.pipeline
+  if (selectedFilters.opportunityPipelineStage?.length > 0) vars.stageIds = selectedFilters.opportunityPipelineStage
+  if (selectedFilters.opportunityStatus?.length > 0) vars.statusIds = selectedFilters.opportunityStatus
+  if (selectedFilters.opportunityPipeline?.length > 0) vars.pipelineIds = selectedFilters.opportunityPipeline
   if (selectedFilters.owner?.length > 0) vars.ownerEmployeeIds = selectedFilters.owner
   if (selectedFilters.account?.length > 0) vars.accountIds = selectedFilters.account
 }

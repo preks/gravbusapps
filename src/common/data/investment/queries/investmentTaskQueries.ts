@@ -2,6 +2,14 @@
 import { INVESTMENT_TASK } from './fragments/investmentFragments'
 import { buildOrderBy, buildSearch, buildFilter } from '@/common/network/graphql/queryHelpers'
 import { INVESTMENT_TASK_DESCRIPTORS } from '@/common/data/investment/types/investmentTaskTypes'
+import {
+  INVESTMENT_TASK_REF,
+  INVESTMENT_REF,
+  INVESTMENT_ACCOUNT_REF,
+  INVESTMENT_CONTACT_REF,
+  INVESTMENT_LEAD_REF,
+  INVESTMENT_OPPORTUNITY_REF
+} from './fragments/investmentReferenceFragments'
 
 export interface InvestmentTaskQueryVariables {
   search?: string
@@ -60,6 +68,8 @@ export const buildInvestmentTaskWhereCondition = (variables: InvestmentTaskQuery
             return '{ lead: { id: { _neq: null } } }'
           case 'contact':
             return '{ contact: { id: { _neq: null } } }'
+          case 'investment':
+            return '{ investment: { id: { _neq: null } } }'
           default:
             return null
         }
@@ -92,7 +102,16 @@ export const GET_INVESTMENT_TASKS = (variables: InvestmentTaskQueryVariables = {
         ${orderByClause}
         ${where}
       ) {
-        ${INVESTMENT_TASK}
+        ${INVESTMENT_TASK_REF}
+        account { ${INVESTMENT_ACCOUNT_REF} }
+        accountId
+        contact { ${INVESTMENT_CONTACT_REF} }
+        lead { ${INVESTMENT_LEAD_REF} }
+        leadId
+        opportunity { ${INVESTMENT_OPPORTUNITY_REF} }
+        opportunityId
+        investment { ${INVESTMENT_REF} }
+        investmentId
       }
 
       InvestmentTaskAggregate(${where}) {

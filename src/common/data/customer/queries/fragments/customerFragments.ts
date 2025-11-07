@@ -169,7 +169,11 @@ export const CUSTOMER_CONTACT = `
   # Activities missing in CRM
   
   # accountContacts missing in CRM (uses deprecated accountId instead)
-  
+  account {
+    ${CUSTOMER_ACCOUNT_REF}
+  }
+  accountId
+
   addresses(where: { isDeleted: { _eq: false } }) {
     ${CUSTOMER_ADDRESS_REF}
   }
@@ -192,10 +196,7 @@ export const CUSTOMER_CONTACT = `
   }
   
   # OpportunityContacts missing in CRM
-  
-  tasks(where: { isDeleted: { _eq: false } }) {
-    ${CUSTOMER_TASK_REF}
-  }
+  # tasks missing in CRM
 `
 
 /**
@@ -230,9 +231,6 @@ export const CUSTOMER_OPPORTUNITY = `
     ${CUSTOMER_NOTE_REF}
   }
   
-  tasks(where: { isDeleted: { _eq: false } }) {
-    ${CUSTOMER_TASK_REF}
-  }
   
   # TODO: Map "contacts" to "opportunityContacts" in mapper
   contacts(where: { isDeleted: { _eq: false } }) {
@@ -342,7 +340,7 @@ export const CUSTOMER_ACTIVITY = `
   accountId
   contact { ${CUSTOMER_CONTACT_REF} }
   contactId
-  documents { (where: { isDeleted: { _eq: false } }) {
+  documents(where: { isDeleted: { _eq: false } }) {
    ${CUSTOMER_DOCUMENT_REF}
   }
   lead { ${CUSTOMER_LEAD_REF} }

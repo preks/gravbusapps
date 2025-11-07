@@ -12,7 +12,7 @@ export const opportunityFilterConfig: FilterConfiguration = {
       filters: [
         {
           id: 'stage',
-          field: 'stage',
+          field: 'opportunityPipelineStage',
           label: 'Stage',
           type: 'multi-select',
           config: {
@@ -29,7 +29,7 @@ export const opportunityFilterConfig: FilterConfiguration = {
       filters: [
         {
           id: 'status',
-          field: 'status',
+          field: 'opportunityStatus',
           label: 'Status',
           type: 'multi-select',
           config: {
@@ -46,7 +46,7 @@ export const opportunityFilterConfig: FilterConfiguration = {
       filters: [
         {
           id: 'pipeline',
-          field: 'pipeline',
+          field: 'opportunityPipeline',
           label: 'Pipeline',
           type: 'multi-select',
           config: {

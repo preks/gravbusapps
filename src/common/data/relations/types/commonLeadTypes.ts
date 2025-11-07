@@ -60,7 +60,6 @@ export interface CommonLead extends BaseEntity {
 
 export const COMMON_LEAD_DESCRIPTORS: Descriptor[] = [
   ...BASE_ENTITY_DESCRIPTORS,
-
   {
     key: 'academicTitle',
     searchPaths: ['academicTitle.value', 'academicTitle.code'],
@@ -147,6 +146,12 @@ export const COMMON_LEAD_DESCRIPTORS: Descriptor[] = [
   { key: 'industryClassRef', searchPaths: ['industryClassRef'], sortPath: 'industryClassRef', type: 'text' },
   { key: 'lastName', searchPaths: ['lastName'], sortPath: 'lastName', type: 'text' },
   {
+    key: 'lead',
+    searchPaths: ['firstName', 'lastName', 'companyName'],
+    sortPath: 'firstName',
+    type: 'text'
+  },
+  {
     key: 'leadRating',
     searchPaths: ['leadRating.value', 'leadRating.code'],
     sortPath: 'leadRating.value',
@@ -167,6 +172,12 @@ export const COMMON_LEAD_DESCRIPTORS: Descriptor[] = [
     type: 'text'
   },
   { key: 'leadStatusRef', searchPaths: ['leadStatusRef'], sortPath: 'leadStatusRef', type: 'text' },
+  {
+    key: 'address',
+    searchPaths: ['addressLine', 'postalCode', 'locality', 'region.value', 'country.value'],
+    sortPaths: ['addressLine.lines[0]', 'postalCode', 'locality', 'region.value', 'country.value'],
+    type: 'text'
+  },
   { key: 'locality', searchPaths: ['locality'], sortPath: 'locality', type: 'text' },
   { key: 'notes', searchPaths: ['notes.subject', 'notes.content'], sortPath: 'notes.subject', type: 'text' },
   {
@@ -226,12 +237,17 @@ export const COMMON_LEAD_DESCRIPTORS: Descriptor[] = [
   { key: 'conversionDateAfter', path: 'conversionDate', kind: 'dateFrom' },
   { key: 'conversionDateBefore', path: 'conversionDate', kind: 'dateTo' },
 
-  // Composite display columns (for table sorting)
-  // contactInfo: Displays email, phoneNumber, companyWebsite - sorts by email (primary), phoneNumber (fallback)
-  { key: 'contactInfo', searchPaths: ['email', 'phoneNumber', 'companyWebsite'], sortPath: 'email', type: 'text' },
+  // Composite display columns (not sortable)
+  // communicationChannels: Displays email, phoneNumber, companyWebsite - not sortable
+  {
+    key: 'communicationChannels',
+    searchPaths: ['email', 'phoneNumber', 'companyWebsite'],
+    enableSort: false,
+    type: 'text'
+  },
 
-  // address: Displays addressLine, locality, postalCode, region, country - sorts by locality (primary), postalCode (fallback)
-  { key: 'address', searchPaths: ['locality', 'postalCode', 'addressLine'], sortPath: 'locality', type: 'text' }
+  // address: Displays addressLine, locality, postalCode, region, country - not sortable
+  { key: 'address', searchPaths: ['locality', 'postalCode', 'addressLine'], enableSort: false, type: 'text' }
 ]
 
 //TODO: REPLACE WITH DESCRIPTOR INTERFACE
