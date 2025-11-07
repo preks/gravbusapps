@@ -30,8 +30,10 @@ import { useFlowTemplateClient } from '@/common/network/flows/useFlowTemplateCli
 import { InputFieldsContent, InputFieldsTrigger } from '../steps/InputFieldsConfiguration'
 import { LinksContent, LinksTrigger } from '../steps/LinksConfiguration'
 import { TagConfiguration } from '../steps/TagConfiguration'
+import { SummaryFieldsConfiguration } from '../steps/SummaryFieldsConfiguration'
 import { AssignmentSelector } from '../shared/AssignmentSelector'
-import { FlowTags } from '../../../types'
+import { FlowTags } from '@/business-apps/flow/types'
+import { ExpressionInput } from '../shared/ExpressionInput'
 
 interface FlowDesignerProps extends BusinessAppContextProps {
   initialTemplate?: FlowTemplate | null
@@ -107,7 +109,7 @@ export const FlowDesigner: React.FC<FlowDesignerProps> = ({
 
   const [selectedStepIndex, setSelectedStepIndex] = React.useState<number>(0)
   const selectedStep = steps[selectedStepIndex]
-  const [activeTab, setActiveTab] = React.useState<'general' | 'form' | 'assignment'>('general')
+  const [activeTab, setActiveTab] = React.useState<'general' | 'form' | 'assignment' | 'summary'>('general')
 
   // Template metadata state
   const [templateName, setTemplateName] = React.useState<string>(initialTemplate?.name || '')
@@ -369,6 +371,16 @@ export const FlowDesigner: React.FC<FlowDesignerProps> = ({
                   <TabsTrigger value="general">General</TabsTrigger>
                   <TabsTrigger value="form">Form</TabsTrigger>
                   <TabsTrigger value="assignment">Assignment</TabsTrigger>
+                  {selectedStepIndex === 0 && (
+                    <TabsTrigger value="summary">
+                      Summary
+                      {selectedStep.summaryFields && selectedStep.summaryFields.length > 0 && (
+                        <Badge variant="secondary" className="gba:ml-2 gba:text-xs">
+                          {selectedStep.summaryFields.length}
+                        </Badge>
+                      )}
+                    </TabsTrigger>
+                  )}
                 </TabsList>
                 <div className="gba:flex-1 gba:min-h-0 gba:relative">
                   <TabsContent value="general" className="gba:absolute gba:inset-0 gba:overflow-auto">
@@ -391,20 +403,34 @@ export const FlowDesigner: React.FC<FlowDesignerProps> = ({
                       {/* Step Title */}
                       <div className="gba:space-y-2">
                         <Label>Step Title:</Label>
-                        <Input
+                        <ExpressionInput
+                          key={`title-${selectedStepIndex}`}
                           value={selectedStep.title}
-                          onChange={e => updateStep({ title: e.target.value })}
-                          className="gba:w-full"
+                          onChange={value => updateStep({ title: value })}
+                          mode="auto"
+                          template={{ ...initialTemplate, steps } as any}
+                          stepIndex={selectedStepIndex}
+                          useTreeBuilder={true}
+                          placeholder="Enter step title..."
+                          data-testid={`${testId}-title-input`}
                         />
                       </div>
 
                       {/* Step Message */}
                       <div className="gba:space-y-2">
                         <Label>Message:</Label>
-                        <Textarea
+                        <ExpressionInput
+                          key={`message-${selectedStepIndex}`}
                           value={selectedStep.message || ''}
-                          onChange={e => updateStep({ message: e.target.value })}
-                          className="gba:w-full gba:min-h-[100px]"
+                          onChange={value => updateStep({ message: value })}
+                          mode="auto"
+                          template={{ ...initialTemplate, steps } as any}
+                          stepIndex={selectedStepIndex}
+                          useTreeBuilder={true}
+                          multiline={true}
+                          rows={4}
+                          placeholder="Enter message..."
+                          data-testid={`${testId}-message-input`}
                         />
                       </div>
 
@@ -420,9 +446,38 @@ export const FlowDesigner: React.FC<FlowDesignerProps> = ({
                       <Label>Form Inputs</Label>
                       <Separator />
                       <InputFieldsTrigger step={selectedStep} testId={`${testId}-form`} onUpdateStep={updateStep} />
-                      <InputFieldsContent step={selectedStep} testId={`${testId}-form`} onUpdateStep={updateStep} />
+                      <InputFieldsContent
+                        step={selectedStep}
+                        stepIndex={selectedStepIndex}
+                        template={
+                          {
+                            ...initialTemplate,
+                            steps: steps // Use live steps state, not initialTemplate.steps
+                          } as any
+                        }
+                        testId={`${testId}-form`}
+                        onUpdateStep={updateStep}
+                      />
                     </div>
                   </TabsContent>
+                  {selectedStepIndex === 0 && (
+                    <TabsContent value="summary" className="gba:absolute gba:inset-0 gba:overflow-auto">
+                      <div className="gba:space-y-2 gba:pr-2 gba:pb-4">
+                        <SummaryFieldsConfiguration
+                          step={selectedStep}
+                          stepIndex={selectedStepIndex}
+                          template={
+                            {
+                              ...initialTemplate,
+                              steps: steps // Use live steps state for complete template
+                            } as any
+                          }
+                          testId={`${testId}-summary`}
+                          onUpdateStep={updateStep}
+                        />
+                      </div>
+                    </TabsContent>
+                  )}
                   <TabsContent value="assignment" className="gba:absolute gba:inset-0 gba:overflow-auto">
                     <div className="gba:space-y-4 gba:pr-2 gba:pb-4">
                       {/* Due Time Configuration */}

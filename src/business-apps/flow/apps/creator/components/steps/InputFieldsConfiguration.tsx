@@ -1,12 +1,25 @@
 import React, { useState } from 'react'
-import { Button, Input, Checkbox } from '@newwork/nw-design-system'
+import {
+  Button,
+  Input,
+  Checkbox,
+  Badge,
+  Tooltip,
+  TooltipProvider,
+  TooltipTrigger,
+  TooltipContent
+} from '@newwork/nw-design-system'
 import { Select } from 'antd'
-import { FormInput, Trash2, GripVertical } from 'lucide-react'
+import { FormInput, Trash2, GripVertical, Info } from 'lucide-react'
 import { getTranslationFromI18nKeyAndLabel } from '@/common/utils/windowUtils'
 import { InputType } from '@/common/network/flows/FlowTemplateClient'
+import { FlowTemplate } from '../../types/flowTemplate'
+import { ExpressionInput } from '../shared/ExpressionInput'
 
 interface InputFieldsConfigurationProps {
   step: any
+  stepIndex?: number
+  template?: FlowTemplate // For expression builder
   testId: string
   onUpdateStep: (updates: any) => void
 }
@@ -19,6 +32,8 @@ interface InputFieldsTriggerProps {
 
 interface InputFieldsContentProps {
   step: any
+  stepIndex?: number
+  template?: FlowTemplate
   testId: string
   onUpdateStep: (updates: any) => void
 }
@@ -51,7 +66,13 @@ export const InputFieldsTrigger: React.FC<InputFieldsTriggerProps> = ({ step }) 
   )
 }
 
-export const InputFieldsContent: React.FC<InputFieldsContentProps> = ({ step, testId, onUpdateStep }) => {
+export const InputFieldsContent: React.FC<InputFieldsContentProps> = ({
+  step,
+  stepIndex = 0,
+  template,
+  testId,
+  onUpdateStep
+}) => {
   const inputs = step.form || step.inputs || [] // Handle both form and inputs
   const [draggedIndex, setDraggedIndex] = useState<number | null>(null)
 
@@ -214,6 +235,72 @@ export const InputFieldsContent: React.FC<InputFieldsContentProps> = ({ step, te
                   >
                     <Trash2 className="gba:h-4 gba:w-4" />
                   </Button>
+                </div>
+
+                {/* Expression-based default value */}
+                <div className="gba:pl-8 gba:space-y-2 gba:border-l-2 gba:border-purple-200">
+                  <div className="gba:flex gba:items-center gba:gap-2">
+                    <Checkbox
+                      checked={input.value !== undefined}
+                      onCheckedChange={checked => {
+                        const newInputs = [...inputs]
+                        if (checked) {
+                          // Enable expression mode - start with empty value
+                          newInputs[index] = { ...newInputs[index], value: '' }
+                        } else {
+                          // Disable expression mode - properly remove properties
+                          const updated = { ...newInputs[index] }
+                          delete updated.value
+                          delete updated.readOnly
+                          newInputs[index] = updated
+                        }
+                        onUpdateStep({ form: newInputs })
+                      }}
+                      data-testid={`${testId}-enable-expression-${index}`}
+                    />
+                    <label className="gba:text-sm gba:text-gray-700">Set default value from expression</label>
+                    <Badge variant="secondary" className="gba:text-xs">
+                      Optional
+                    </Badge>
+                  </div>
+
+                  {input.value !== undefined && (
+                    <div className="gba:space-y-2">
+                      <ExpressionInput
+                        value={input.value}
+                        onChange={val => handleUpdateInput(index, 'value', val)}
+                        mode="expression"
+                        validateOnChange={true}
+                        template={template}
+                        stepIndex={stepIndex}
+                        useTreeBuilder={true}
+                        placeholder="Click tree icon to build expression..."
+                        data-testid={`${testId}-expression-value-${index}`}
+                      />
+
+                      {/* Read-only option */}
+                      <div className="gba:flex gba:items-center gba:gap-2">
+                        <Checkbox
+                          checked={input.readOnly || false}
+                          onCheckedChange={checked => handleUpdateInput(index, 'readOnly', checked)}
+                          data-testid={`${testId}-readonly-${index}`}
+                        />
+                        <label className="gba:text-sm gba:text-gray-600">Read-only (reference field)</label>
+                        <TooltipProvider>
+                          <Tooltip>
+                            <TooltipTrigger asChild>
+                              <Info className="gba:h-4 gba:w-4 gba:text-gray-400 gba:cursor-help" />
+                            </TooltipTrigger>
+                            <TooltipContent>
+                              <p className="gba:text-xs">
+                                Read-only fields show data from previous steps but cannot be edited
+                              </p>
+                            </TooltipContent>
+                          </Tooltip>
+                        </TooltipProvider>
+                      </div>
+                    </div>
+                  )}
                 </div>
 
                 {/* Options for multi-value inputs */}
