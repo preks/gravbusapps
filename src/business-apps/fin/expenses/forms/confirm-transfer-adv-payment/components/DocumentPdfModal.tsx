@@ -167,12 +167,8 @@ const DocumentPdfModal: React.FC<DocumentPdfModalProps> = ({
               data-testid="document-pdf-iframe"
             />
           ) : (
-            <div className="gba:flex gba:justify-center gba:items-center gba:h-96">
-              <div className="gba:text-center">
-                <div className="gba:text-lg gba:font-medium gba:mb-2">No PDF URL available</div>
-                <div className="gba:text-sm gba:text-gray-500">Document URL could not be constructed</div>
-                <div className="gba:text-xs gba:text-gray-400 gba:mt-2">Document ID: {pdfUrl}</div>
-              </div>
+            <div className="gba:text-center gba:p-8 gba:text-gray-500">
+              getTranslationFromI18nKeyAndLabel('lowcoder:personal_expenses.no_document', 'No PDF URL available')
             </div>
           )}
         </div>
