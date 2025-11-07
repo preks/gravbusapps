@@ -12,9 +12,14 @@ import {
   SelectValue,
   Alert,
   AlertDescription,
-  Badge
+  Badge,
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  DialogTrigger
 } from '@newwork/nw-design-system'
-import { GripVertical, Trash2, Eye, Globe, Users, User, AlertCircle, BarChart3 } from 'lucide-react'
+import { GripVertical, Trash2, Eye, Globe, Users, User, AlertCircle, BarChart3, Info } from 'lucide-react'
 import { SummaryField, SummaryFieldVisibility, FlowStep, FlowTemplate } from '../../types/flowTemplate'
 import { ExpressionInput } from '../shared/ExpressionInput'
 
@@ -41,11 +46,6 @@ export const SummaryFieldsConfiguration: React.FC<SummaryFieldsConfigurationProp
 }) => {
   const summaryFields = step.summaryFields || []
   const [draggedIndex, setDraggedIndex] = useState<number | null>(null)
-
-  // Only show for Step 0
-  if (stepIndex !== 0) {
-    return null
-  }
 
   const handleAddField = () => {
     const newField: SummaryField = {
@@ -140,12 +140,95 @@ export const SummaryFieldsConfiguration: React.FC<SummaryFieldsConfigurationProp
 
   return (
     <div className="gba:space-y-4" data-testid={testId}>
-      {/* Header with description */}
+      {/* Header with compact description and info button */}
       <Alert>
         <BarChart3 className="gba:h-4 gba:w-4" />
-        <AlertDescription>
-          <strong>Workflow Summary Fields</strong> are shown only in the workflow summary view after completion. They
-          can reference data from ANY step (including future steps) and are filtered by visibility permissions.
+        <AlertDescription className="gba:flex gba:items-start gba:justify-between">
+          <div>
+            <strong>Workflow Summary Fields</strong> are shown in the workflow summary view after completion. They can
+            reference data from ANY step using expressions.
+          </div>
+          <Dialog>
+            <DialogTrigger asChild>
+              <Button variant="ghost" size="sm" className="gba:ml-2 gba:shrink-0" data-testid={`${testId}-info-button`}>
+                <Info className="gba:h-4 gba:w-4" />
+              </Button>
+            </DialogTrigger>
+            <DialogContent className="gba:max-w-2xl">
+              <DialogHeader>
+                <DialogTitle className="gba:flex gba:items-center gba:gap-2">
+                  <BarChart3 className="gba:h-5 gba:w-5" />
+                  About Summary Fields
+                </DialogTitle>
+              </DialogHeader>
+              <div className="gba:space-y-4 gba:py-4">
+                <div>
+                  <h3 className="gba:font-semibold gba:text-lg gba:mb-2">When are Summary Fields shown?</h3>
+                  <p className="gba:text-sm gba:text-gray-700">
+                    Summary fields appear in the <strong>workflow summary view after all steps are completed</strong>.
+                    They provide a consolidated view of important data from the entire workflow, making it easy to see
+                    key results and decisions at a glance.
+                  </p>
+                </div>
+
+                <div>
+                  <h3 className="gba:font-semibold gba:text-lg gba:mb-2">What does Visibility mean?</h3>
+                  <p className="gba:text-sm gba:text-gray-700 gba:mb-3">
+                    Visibility controls who can see each summary field. Different fields can have different visibility
+                    levels:
+                  </p>
+                  <div className="gba:space-y-3 gba:ml-2">
+                    <div className="gba:flex gba:items-start gba:gap-3">
+                      <Globe className="gba:h-5 gba:w-5 gba:text-blue-600 gba:shrink-0 gba:mt-0.5" />
+                      <div>
+                        <div className="gba:font-medium gba:text-sm">Public</div>
+                        <div className="gba:text-sm gba:text-gray-600">
+                          Anyone with workflow access can see this field
+                        </div>
+                      </div>
+                    </div>
+                    <div className="gba:flex gba:items-start gba:gap-3">
+                      <Users className="gba:h-5 gba:w-5 gba:text-green-600 gba:shrink-0 gba:mt-0.5" />
+                      <div>
+                        <div className="gba:font-medium gba:text-sm">Workflow Participants</div>
+                        <div className="gba:text-sm gba:text-gray-600">
+                          Only users who participated in any step of this workflow
+                        </div>
+                      </div>
+                    </div>
+                    <div className="gba:flex gba:items-start gba:gap-3">
+                      <Eye className="gba:h-5 gba:w-5 gba:text-purple-600 gba:shrink-0 gba:mt-0.5" />
+                      <div>
+                        <div className="gba:font-medium gba:text-sm">Step Participants</div>
+                        <div className="gba:text-sm gba:text-gray-600">
+                          Only users who were assigned to or completed specific steps
+                        </div>
+                      </div>
+                    </div>
+                    <div className="gba:flex gba:items-start gba:gap-3">
+                      <User className="gba:h-5 gba:w-5 gba:text-orange-600 gba:shrink-0 gba:mt-0.5" />
+                      <div>
+                        <div className="gba:font-medium gba:text-sm">Initiator Only</div>
+                        <div className="gba:text-sm gba:text-gray-600">
+                          Only the person who started the workflow can see this field
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+
+                <div className="gba:bg-blue-50 gba:border gba:border-blue-200 gba:rounded gba:p-3">
+                  <p className="gba:text-sm gba:text-blue-900">
+                    <strong>💡 Tip:</strong> Summary fields can reference data from ANY step (including future steps)
+                    using expressions like{' '}
+                    <code className="gba:bg-blue-100 gba:px-1 gba:rounded">
+                      {'{{$steps.step_1.formData.fieldName}}'}
+                    </code>
+                  </p>
+                </div>
+              </div>
+            </DialogContent>
+          </Dialog>
         </AlertDescription>
       </Alert>
 

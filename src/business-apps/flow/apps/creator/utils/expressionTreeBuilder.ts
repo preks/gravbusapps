@@ -72,20 +72,6 @@ const getFieldTypeIcon = (fieldType: FieldType): React.ReactElement => {
  * @returns Tree structure for navigation
  */
 export const buildExpressionTree = (template: FlowTemplate, currentStepIndex: number): TreeNode[] => {
-  console.log('🌳 Building expression tree')
-  console.log('🌳 Template:', template ? 'EXISTS' : 'MISSING')
-  console.log('🌳 Current step index:', currentStepIndex)
-  console.log('🌳 Total steps in template:', template?.steps?.length || 0)
-
-  if (template?.steps) {
-    template.steps.forEach((step, idx) => {
-      console.log(`🌳 Step ${idx} "${step.title}": ${step.form?.length || 0} form fields`)
-      if (step.form?.length) {
-        console.log(`🌳   Fields: ${step.form.map(f => f.name).join(', ')}`)
-      }
-    })
-  }
-
   const tree: TreeNode[] = []
 
   // 1. Workflow node
@@ -153,7 +139,7 @@ export const buildExpressionTree = (template: FlowTemplate, currentStepIndex: nu
     ]
   })
 
-  // 2. Steps node - only show previous steps
+  // 2. Steps node - show all steps during template design
   const stepsNode: TreeNode = {
     id: 'steps',
     label: 'Steps',
@@ -164,35 +150,41 @@ export const buildExpressionTree = (template: FlowTemplate, currentStepIndex: nu
     children: []
   }
 
-  // Build tree from actual template steps (only previous steps)
-  for (let i = 0; i <= currentStepIndex; i++) {
+  // Build tree from actual template steps
+  // Show all steps for template design (user can reference any step)
+  for (let i = 0; i < template.steps.length; i++) {
     const step = template.steps[i]
     if (!step) continue
 
-    const formFields: TreeNode[] = (step.form || []).map(field => ({
-      id: `step_${i}_field_${field.name}`,
-      label: field.name,
-      icon: getFieldTypeIcon(mapInputTypeToFieldType(field.type)),
-      path: ['$steps', `step_${i}`, 'formData', field.name],
-      type: 'field',
-      fieldType: mapInputTypeToFieldType(field.type),
-      description: field.label || field.name,
-      example: field.name
-    }))
+    const formFields: TreeNode[] = (step.form || []).map(field => {
+      // Show label with field name for clarity: "Field Label (fieldName)"
+      const displayLabel = field.label && field.label !== field.name ? `${field.label} (${field.name})` : field.name
+
+      return {
+        id: `step_${i}_field_${field.name}`,
+        label: displayLabel,
+        icon: getFieldTypeIcon(mapInputTypeToFieldType(field.type)),
+        path: ['$steps', `step_${i}`, 'formData', field.name],
+        type: 'field',
+        fieldType: mapInputTypeToFieldType(field.type),
+        description: field.label || field.name,
+        example: field.name
+      }
+    })
 
     const stepNode: TreeNode = {
       id: `step_${i}`,
-      label: `Step ${i}: ${step.title || `Step ${i}`}`,
+      label: `Step ${i}: ${step.title || `Step ${i}`}${i === currentStepIndex ? ' (current)' : ''}`,
       path: ['$steps', `step_${i}`],
       type: 'object',
-      isExpandedByDefault: i === 0, // Auto-expand Step 0
+      isExpandedByDefault: i === currentStepIndex, // Auto-expand current step
       children: [
         {
           id: `step_${i}_formData`,
           label: 'formData',
           path: ['$steps', `step_${i}`, 'formData'],
           type: 'object',
-          isExpandedByDefault: i === 0,
+          isExpandedByDefault: i === currentStepIndex, // Auto-expand current step's formData
           description: `Form fields from ${step.title || `Step ${i}`}`,
           children: formFields
         },
