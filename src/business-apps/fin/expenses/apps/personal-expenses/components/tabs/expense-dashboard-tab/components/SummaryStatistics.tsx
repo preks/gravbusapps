@@ -8,36 +8,38 @@ import { getTranslationFromI18nKeyAndLabel } from '@/common/utils/windowUtils'
 import { formatCurrencyDisplay } from '../../../../utils'
 
 interface SummaryStatisticsProps {
-  stats: DashboardStats | undefined
+  statistics: DashboardStats | undefined
   isLoading: boolean
   error: Error | null
   period: 'monthly' | 'quarterly' | 'yearly'
   currencyCode: string
+  onRetry?: () => void
   onWidgetClick?: (key: string) => void
 }
 
 export const SummaryStatistics: React.FC<SummaryStatisticsProps> = ({
-  stats,
+  statistics,
   isLoading,
   error,
   period,
   currencyCode,
+  onRetry,
   onWidgetClick
 }) => {
   const [hoveredWidgetKey, setHoveredWidgetKey] = React.useState<string | null>(null)
 
   const periodCurrent =
     period === 'yearly'
-      ? stats?.currentYearExpenses?.total || 0
+      ? statistics?.currentYearExpenses?.total || 0
       : period === 'quarterly'
-        ? stats?.currentQuarterExpenses?.total || 0
-        : stats?.currentMonthExpenses?.total || 0
+        ? statistics?.currentQuarterExpenses?.total || 0
+        : statistics?.currentMonthExpenses?.total || 0
   const periodPrevious =
     period === 'yearly'
-      ? stats?.previousYearExpenses?.total || 0
+      ? statistics?.previousYearExpenses?.total || 0
       : period === 'quarterly'
-        ? stats?.previousQuarterExpenses?.total || 0
-        : stats?.previousMonthExpenses?.total || 0
+        ? statistics?.previousQuarterExpenses?.total || 0
+        : statistics?.previousMonthExpenses?.total || 0
 
   const currentTotal = periodCurrent
   const previousTotal = periodPrevious
@@ -60,7 +62,7 @@ export const SummaryStatistics: React.FC<SummaryStatisticsProps> = ({
       prefix: <PiCurrencyCircleDollar />,
       color: isPositiveChange ? '#cf1322' : '#3f8600',
       valueIsString: true,
-      description: `${stats?.currentMonthExpenses?.count || 0} ${getTranslationFromI18nKeyAndLabel('lowcoder:employee_list.flows_button.expense_requests', 'Expense Requests')}`,
+      description: `${statistics?.currentMonthExpenses?.count || 0} ${getTranslationFromI18nKeyAndLabel('lowcoder:employee_list.flows_button.expense_requests', 'Expense Requests')}`,
       trend: {
         value: `${Math.abs(percentChange).toFixed(1)}%`,
         positive: isPositiveChange,
@@ -76,16 +78,16 @@ export const SummaryStatistics: React.FC<SummaryStatisticsProps> = ({
     {
       key: 'pending-payouts',
       title: getTranslationFromI18nKeyAndLabel('lowcoder:personal_expenses.pending_payouts', 'Pending Payouts'),
-      value: formatCurrencyDisplay(stats?.pendingPayouts || 0, currencyCode),
+      value: formatCurrencyDisplay(statistics?.pendingPayouts || 0, currencyCode),
       prefix: <PiCurrencyCircleDollar />,
       color: '#1890ff',
       valueIsString: true,
-      description: `${stats?.bookedAndPendingCount} ${getTranslationFromI18nKeyAndLabel('lowcoder:personal_expenses.awaiting_payment', 'Awaiting payment')}`
+      description: `${statistics?.bookedAndPendingCount} ${getTranslationFromI18nKeyAndLabel('lowcoder:personal_expenses.awaiting_payment', 'Awaiting payment')}`
     },
     {
       key: 'upcoming-trips',
       title: getTranslationFromI18nKeyAndLabel('lowcoder:personal_expenses.upcoming_trips', 'Upcoming Trips'),
-      value: stats?.upcomingTrips || 0,
+      value: statistics?.upcomingTrips || 0,
       prefix: <GlobalOutlined />,
       color: '#722ed1',
       description: getTranslationFromI18nKeyAndLabel(
@@ -99,7 +101,7 @@ export const SummaryStatistics: React.FC<SummaryStatisticsProps> = ({
         'lowcoder:personal_expenses.unallocated_expenses',
         'Unallocated Expenses'
       ),
-      value: stats?.pendingItems || 0,
+      value: statistics?.pendingItems || 0,
       prefix: <ArrowUpOutlined />,
       color: '#8c8c8c',
       valueIsString: true,
@@ -127,6 +129,7 @@ export const SummaryStatistics: React.FC<SummaryStatisticsProps> = ({
         widgets={widgets}
         isLoading={isLoading}
         error={error}
+        onRetry={onRetry}
         onWidgetClick={onWidgetClick}
         skeletonCount={4}
         emptyText={getTranslationFromI18nKeyAndLabel(

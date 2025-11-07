@@ -13,7 +13,7 @@ const ExpenseDashboardTab: React.FC<BusinessAppContextProps> = props => {
     currency: undefined,
     period: 'quarterly'
   })
-  const { stats, isLoading, error } = useGetExpenseDashboard(props, filters)
+  const { stats, isLoading, error, refetch } = useGetExpenseDashboard(props, filters)
   const chartView = useMemo(() => {
     switch (filters.period) {
       case PERIOD_TYPE.YEARLY:
@@ -60,11 +60,12 @@ const ExpenseDashboardTab: React.FC<BusinessAppContextProps> = props => {
         data-testid="personal-expense-dashboard-filter-bar"
       />
       <SummaryStatistics
-        stats={stats ?? undefined}
+        statistics={stats ?? undefined}
         isLoading={isLoading}
         error={error ? new Error(error) : null}
         period={filters.period}
         currencyCode={selectedCurrencyCode}
+        onRetry={refetch}
         onWidgetClick={handleWidgetClick}
       />
 
