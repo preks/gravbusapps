@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useCallback } from 'react'
+import React, { useState, useEffect, useCallback, useMemo } from 'react'
 import { BusinessAppContextProps } from '@/common/BusinessAppContext'
 import { PageLayout, Button, Dialog, DialogContent, DialogTitle } from '@newwork/nw-design-system'
 import { DesktopIcon, PlusIcon } from '@phosphor-icons/react'
@@ -22,11 +22,6 @@ export const Assets: React.FC<BusinessAppContextProps> = props => {
   const [isAllocateDialogOpen, setIsAllocateDialogOpen] = useState(false)
   const [editingAssetId, setEditingAssetId] = useState<string | null>(null)
   const [allocatingAssetId, setAllocatingAssetId] = useState<string | null>(null)
-
-  // Debug: Log when component mounts
-  useEffect(() => {
-    console.log('[Assets] Component mounted, setting up event listeners')
-  }, [])
 
   // Load assets data
   const { assets, isLoading: assetsLoading, error: assetsError, statistics, refetch: refetchAssets } = useAssets(props)
@@ -72,7 +67,7 @@ export const Assets: React.FC<BusinessAppContextProps> = props => {
     setIsRegisterDialogOpen(true)
   }
 
-  // Handle update asset
+  // Handle update asset (opens edit modal)
   const handleUpdateAsset = useCallback(
     (assetId: string) => {
       const asset = assets.find(a => a.id === assetId)
@@ -172,22 +167,43 @@ export const Assets: React.FC<BusinessAppContextProps> = props => {
       const domain = (detail?.domain || '').toLowerCase()
       const startProcessBody = detail?.startProcessBody || {}
 
-      const isRetireProcess =
-        domain === 'employee' &&
-        (processName === 'saveasset' ||
-          processName.includes('retire') ||
-          processName.includes('change-asset-status') ||
-          processName.includes('changeassetstatus') ||
-          processName.includes('retireasset'))
+      // Check if this is an updateAsset process
+      const isUpdateAssetProcess = domain === 'employee' && processName === 'updateasset'
 
+      if (isUpdateAssetProcess) {
+        const assetId =
+          startProcessBody.assetId ||
+          startProcessBody.asset?.id ||
+          startProcessBody.saveAssetModelInput?.asset?.id ||
+          startProcessBody.updateAssetModelInput?.asset?.id ||
+          detail?.assetId ||
+          (startProcessBody as any)?.assetId
+
+        if (assetId) {
+          // Intercept and open modal
+          event.stopImmediatePropagation()
+          event.preventDefault()
+          if (customEvent.stopImmediatePropagation) {
+            customEvent.stopImmediatePropagation()
+          }
+          if (customEvent.preventDefault) {
+            customEvent.preventDefault()
+          }
+
+          handleUpdateAsset(assetId)
+
+          return false
+        }
+      }
+
+      // Handle other update processes (legacy process names)
       const isUpdateProcess =
         domain === 'employee' &&
-        (processName === 'updateasset' ||
-          processName.includes('update-asset') ||
+        (processName.includes('update-asset') ||
           processName.includes('editasset') ||
           processName.includes('edit-asset'))
 
-      if (isRetireProcess || isUpdateProcess) {
+      if (isUpdateProcess) {
         const assetId =
           startProcessBody.assetId ||
           startProcessBody.asset?.id ||
@@ -221,6 +237,23 @@ export const Assets: React.FC<BusinessAppContextProps> = props => {
     }
   }, [handleUpdateAsset])
 
+  // Memoize additionalData
+  const equipmentRegistrationAdditionalData = useMemo(
+    () => ({
+      ...props.additionalData,
+      assetId: editingAssetId || undefined,
+      asset: selectedAsset || undefined,
+      version: selectedAsset?.version,
+      onSuccess: () => {
+        setIsRegisterDialogOpen(false)
+        setEditingAssetId(null)
+        setSelectedAsset(null)
+        refetchAssets()
+      }
+    }),
+    [props.additionalData, editingAssetId, selectedAsset, refetchAssets]
+  )
+
   return (
     <div data-testid="assets-app">
       <PageLayout
@@ -253,7 +286,6 @@ export const Assets: React.FC<BusinessAppContextProps> = props => {
               assets={assets}
               isLoading={assetsLoading}
               onAssetClick={handleAssetClick}
-              onRetireAsset={handleUpdateAsset}
               onAllocateAsset={handleAllocateAsset}
               onUpdateAsset={handleUpdateAsset}
             />
@@ -275,21 +307,13 @@ export const Assets: React.FC<BusinessAppContextProps> = props => {
           <DialogTitle className="gba:sr-only">
             {editingAssetId ? 'Update Equipment' : 'Register Equipment'}
           </DialogTitle>
-          <EquipmentRegistration
-            {...props}
-            additionalData={{
-              ...props.additionalData,
-              assetId: editingAssetId || undefined,
-              asset: selectedAsset || undefined,
-              version: selectedAsset?.version,
-              onSuccess: () => {
-                setIsRegisterDialogOpen(false)
-                setEditingAssetId(null)
-                setSelectedAsset(null)
-                refetchAssets()
-              }
-            }}
-          />
+          {isRegisterDialogOpen && (
+            <EquipmentRegistration
+              {...props}
+              key={`equipment-registration-${editingAssetId || 'new'}`}
+              additionalData={equipmentRegistrationAdditionalData}
+            />
+          )}
         </DialogContent>
       </Dialog>
 

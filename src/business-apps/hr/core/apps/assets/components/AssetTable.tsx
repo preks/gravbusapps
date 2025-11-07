@@ -31,12 +31,15 @@ import type { ActionOption } from '@newwork/nw-design-system'
 // Memoized AppActionButton to prevent unnecessary re-renders
 const MemoizedAppActionButton = React.memo<{
   assetId: string
+  assetStatus: AssetStatus
   accessToken: string
   dataTestIdPrefix: string
-  onRetireAsset?: (assetId: string) => void
   onAllocateAsset?: (assetId: string) => void
   onUpdateAsset?: (assetId: string) => void
-}>(({ assetId, accessToken, dataTestIdPrefix, onRetireAsset, onAllocateAsset, onUpdateAsset }) => {
+}>(({ assetId, assetStatus, accessToken, dataTestIdPrefix, onAllocateAsset, onUpdateAsset }) => {
+  // Check if asset is already allocated - hide allocate action if true
+  const isAllocated = assetStatus === AssetStatus.ALLOCATED || (assetStatus as string) === 'ALLOCATED_ASSET'
+
   const { combinedData: rawCombinedData, handleDeferredFetch } = useAppActionData(
     {
       contextsArray: [FlowContextName.assetEntity],
@@ -48,30 +51,22 @@ const MemoizedAppActionButton = React.memo<{
     'AppActionButton'
   )
 
-  const isRetireAction = useCallback((action: ActionOption): boolean => {
-    const actionLabel = typeof action.label === 'string' ? action.label.toLowerCase() : ''
-    const actionKey = typeof action.key === 'string' ? action.key.toLowerCase() : ''
-    const processName = (action as any)?.processName?.toLowerCase() || ''
-
-    return (
-      (actionLabel.includes('retire') && actionLabel.includes('asset')) ||
-      (actionKey.includes('retire') && actionKey.includes('asset')) ||
-      processName === 'saveasset' ||
-      processName.includes('retire') ||
-      processName.includes('change-asset-status')
-    )
-  }, [])
-
   const isAllocateAction = useCallback((action: ActionOption): boolean => {
     const actionLabel = typeof action.label === 'string' ? action.label.toLowerCase() : ''
     const actionKey = typeof action.key === 'string' ? action.key.toLowerCase() : ''
     const processName = (action as any)?.processName?.toLowerCase() || ''
+    const actionId = typeof (action as any)?.id === 'string' ? (action as any).id.toLowerCase() : ''
+
+    const allocatePatterns = ['allocate', 'allocateasset', 'allocate-asset', 'allocate_asset', 'allocate asset']
+    const hasAllocatePattern = (text: string) => allocatePatterns.some(pattern => text.includes(pattern))
 
     return (
+      hasAllocatePattern(actionLabel) ||
+      hasAllocatePattern(actionKey) ||
+      hasAllocatePattern(processName) ||
+      hasAllocatePattern(actionId) ||
       (actionLabel.includes('allocate') && actionLabel.includes('asset')) ||
-      (actionKey.includes('allocate') && actionKey.includes('asset')) ||
-      processName.includes('allocate') ||
-      processName.includes('allocateasset')
+      (actionKey.includes('allocate') && actionKey.includes('asset'))
     )
   }, [])
 
@@ -97,77 +92,177 @@ const MemoizedAppActionButton = React.memo<{
       return undefined
     }
 
-    const retireAction = onRetireAsset ? rawCombinedData.find(isRetireAction) : null
-    const allocateAction = onAllocateAsset ? rawCombinedData.find(isAllocateAction) : null
-    const updateAction = onUpdateAsset ? rawCombinedData.find(isUpdateAction) : null
+    const deduplicatedRawData: ActionOption[] = []
+    const rawSeenKeys = new Set<string>()
+    const rawSeenSignatures = new Set<string>()
 
-    if (!retireAction && !allocateAction && !updateAction) {
-      return undefined
+    for (const action of rawCombinedData) {
+      const actionKey = action.key
+      const actionLabel = typeof action.label === 'string' ? action.label.toLowerCase().trim() : ''
+      const actionProcessName = (action as any)?.processName?.toLowerCase().trim() || ''
+      const actionId = typeof (action as any)?.id === 'string' ? (action as any).id.toLowerCase().trim() : ''
+      const signature = JSON.stringify({
+        label: actionLabel,
+        key: actionKey?.toLowerCase().trim() || '',
+        processName: actionProcessName,
+        id: actionId
+      }).toLowerCase()
+
+      // Skip duplicates
+      if (actionKey && rawSeenKeys.has(actionKey)) {
+        continue
+      }
+      if (rawSeenSignatures.has(signature)) {
+        continue
+      }
+
+      deduplicatedRawData.push(action)
+      if (actionKey) {
+        rawSeenKeys.add(actionKey)
+      }
+      rawSeenSignatures.add(signature)
     }
+
+    const allocateAction = onAllocateAsset ? deduplicatedRawData.find(isAllocateAction) : null
+    const updateAction = onUpdateAsset ? deduplicatedRawData.find(isUpdateAction) : null
 
     const transformedActions: ActionOption[] = []
 
-    if (retireAction && onRetireAsset) {
-      transformedActions.push({
-        ...retireAction,
+    const createTransformedAction = (action: ActionOption, handler: (assetId: string) => void) => {
+      const actionWithoutProcess = { ...action } as any
+      delete actionWithoutProcess.processName
+      delete actionWithoutProcess.domain
+      delete actionWithoutProcess.onClick
+      return {
+        ...actionWithoutProcess,
         onClick: (e?: React.MouseEvent) => {
           e?.stopPropagation()
           e?.preventDefault()
-          onRetireAsset(assetId)
+          handler(assetId)
         }
-      })
-    }
-
-    if (allocateAction && onAllocateAsset) {
-      transformedActions.push({
-        ...allocateAction,
-        onClick: (e?: React.MouseEvent) => {
-          e?.stopPropagation()
-          e?.preventDefault()
-          onAllocateAsset(assetId)
-        }
-      })
+      } as ActionOption
     }
 
     if (updateAction && onUpdateAsset) {
-      transformedActions.push({
-        ...updateAction,
-        onClick: (e?: React.MouseEvent) => {
-          e?.stopPropagation()
-          e?.preventDefault()
-          onUpdateAsset(assetId)
-        }
-      })
+      transformedActions.push(createTransformedAction(updateAction, onUpdateAsset))
+    }
+
+    if (allocateAction && onAllocateAsset && !isAllocated) {
+      transformedActions.push(createTransformedAction(allocateAction, onAllocateAsset))
     }
 
     const seenKeys = new Set<string>()
-    const otherActions = rawCombinedData.filter(action => {
-      if (onRetireAsset && isRetireAction(action)) {
+    const seenIdentifiers = new Set<string>()
+
+    transformedActions.forEach(action => {
+      if (action.key) {
+        seenKeys.add(action.key)
+      }
+      const label = typeof action.label === 'string' ? action.label.toLowerCase().trim() : ''
+      const processName = (action as any)?.processName?.toLowerCase().trim() || ''
+      if (label || processName) {
+        seenIdentifiers.add(`${label}|${processName}`)
+      }
+    })
+
+    const otherActions = deduplicatedRawData.filter(action => {
+      if (isAllocated) {
+        const actionLabel = typeof action.label === 'string' ? action.label.toLowerCase() : ''
+        const actionKey = typeof action.key === 'string' ? action.key.toLowerCase() : ''
+        const processName = (action as any)?.processName?.toLowerCase() || ''
+        const actionId = typeof (action as any)?.id === 'string' ? (action as any).id.toLowerCase() : ''
+        const allText = `${actionLabel} ${actionKey} ${processName} ${actionId}`.toLowerCase()
+        if (allText.includes('allocate')) {
+          return false
+        }
+      }
+
+      if (action.key && seenKeys.has(action.key)) {
         return false
       }
+
+      const actionLabel = typeof action.label === 'string' ? action.label.toLowerCase().trim() : ''
+      const actionProcessName = (action as any)?.processName?.toLowerCase().trim() || ''
+      const identifier = `${actionLabel}|${actionProcessName}`
+      if ((actionLabel || actionProcessName) && seenIdentifiers.has(identifier)) {
+        return false
+      }
+
       if (onAllocateAsset && isAllocateAction(action)) {
         return false
       }
       if (onUpdateAsset && isUpdateAction(action)) {
         return false
       }
-      if (action.key && seenKeys.has(action.key)) {
-        return false
-      }
+
       if (action.key) {
         seenKeys.add(action.key)
+      }
+      if (actionLabel || actionProcessName) {
+        seenIdentifiers.add(identifier)
       }
       return true
     })
 
-    return [...transformedActions, ...otherActions]
+    const allActions = [...transformedActions, ...otherActions]
+    const finalActions: ActionOption[] = []
+    const finalSeenKeys = new Set<string>()
+    const finalSeenIdentifiers = new Set<string>()
+    const seenActionSignatures = new Set<string>()
+
+    for (const action of allActions) {
+      if (isAllocated) {
+        const actionLabel = typeof action.label === 'string' ? action.label.toLowerCase() : ''
+        const actionKey = typeof action.key === 'string' ? action.key.toLowerCase() : ''
+        const processName = (action as any)?.processName?.toLowerCase() || ''
+        const actionId = typeof (action as any)?.id === 'string' ? (action as any).id.toLowerCase() : ''
+        const allText = `${actionLabel} ${actionKey} ${processName} ${actionId}`.toLowerCase()
+        if (allText.includes('allocate')) {
+          continue
+        }
+      }
+
+      const actionKey = action.key
+      const actionLabel = typeof action.label === 'string' ? action.label.toLowerCase().trim() : ''
+      const actionProcessName = (action as any)?.processName?.toLowerCase().trim() || ''
+      const actionId = typeof (action as any)?.id === 'string' ? (action as any).id.toLowerCase().trim() : ''
+      const identifier = `${actionLabel}|${actionProcessName}`
+
+      const signature = JSON.stringify({
+        label: actionLabel,
+        key: actionKey?.toLowerCase().trim() || '',
+        processName: actionProcessName,
+        id: actionId
+      }).toLowerCase()
+
+      if (actionKey && finalSeenKeys.has(actionKey)) {
+        continue
+      }
+      if ((actionLabel || actionProcessName) && finalSeenIdentifiers.has(identifier)) {
+        continue
+      }
+      if (seenActionSignatures.has(signature)) {
+        continue
+      }
+
+      finalActions.push(action)
+      if (actionKey) {
+        finalSeenKeys.add(actionKey)
+      }
+      if (actionLabel || actionProcessName) {
+        finalSeenIdentifiers.add(identifier)
+      }
+      seenActionSignatures.add(signature)
+    }
+
+    return finalActions
   }, [
     rawCombinedData,
     assetId,
-    onRetireAsset,
+    assetStatus,
+    isAllocated,
     onAllocateAsset,
     onUpdateAsset,
-    isRetireAction,
     isAllocateAction,
     isUpdateAction
   ])
@@ -176,11 +271,14 @@ const MemoizedAppActionButton = React.memo<{
     handleDeferredFetch()
   }, [handleDeferredFetch])
 
+  const shouldUseStaticDataOnly =
+    filteredAndTransformedActions !== undefined && filteredAndTransformedActions.length > 0
+
   return (
     <AppActionButton
       data-testid={`${dataTestIdPrefix}-actions-${assetId}`}
       size="icon"
-      contextsArray={[FlowContextName.assetEntity]}
+      contextsArray={shouldUseStaticDataOnly ? [] : [FlowContextName.assetEntity]}
       externalContextData={{ assetId }}
       prefixDataTestId={`${dataTestIdPrefix}-action-${assetId}`}
       accessToken={accessToken}
@@ -199,12 +297,10 @@ interface AssetTableProps extends BusinessAppContextProps {
   assets: Asset[]
   isLoading?: boolean
   onAssetClick?: (asset: Asset) => void
-  onRetireAsset?: (assetId: string) => void
   onAllocateAsset?: (assetId: string) => void
   onUpdateAsset?: (assetId: string) => void
 }
 
-// Helper function to get badge variant for asset status
 const getStatusBadgeVariant = (status: AssetStatus): 'success' | 'info' | 'warning' | 'destructive' | 'default' => {
   switch (status) {
     case AssetStatus.AVAILABLE:
@@ -220,7 +316,6 @@ const getStatusBadgeVariant = (status: AssetStatus): 'success' | 'info' | 'warni
   }
 }
 
-// Format currency
 const formatCurrency = (amount: number, currency: string): string => {
   return new Intl.NumberFormat('en-US', {
     style: 'currency',
@@ -230,7 +325,6 @@ const formatCurrency = (amount: number, currency: string): string => {
   }).format(amount)
 }
 
-// Format date
 const formatDate = (dateString: string): string => {
   return new Date(dateString).toLocaleDateString('en-US', {
     year: 'numeric',
@@ -243,7 +337,6 @@ export const AssetTable: React.FC<AssetTableProps> = ({
   assets,
   isLoading = false,
   onAssetClick,
-  onRetireAsset,
   onAllocateAsset,
   onUpdateAsset,
   accessToken
@@ -254,15 +347,16 @@ export const AssetTable: React.FC<AssetTableProps> = ({
   const [currentPage, setCurrentPage] = useState(1)
   const pageSize = 10
 
-  // Filter and search assets
   const filteredAssets = useMemo(() => {
     return assets.filter(asset => {
-      // Status filter
+      if (asset.assetStatus === AssetStatus.RETIRED) {
+        return false
+      }
+
       if (statusFilter !== 'all' && asset.assetStatus !== statusFilter) {
         return false
       }
 
-      // Search filter
       if (searchQuery) {
         const searchLower = searchQuery.toLowerCase()
         const matchesSearch =
@@ -281,7 +375,6 @@ export const AssetTable: React.FC<AssetTableProps> = ({
     })
   }, [assets, statusFilter, searchQuery])
 
-  // Pagination
   const paginatedAssets = useMemo(() => {
     const startIndex = (currentPage - 1) * pageSize
     return filteredAssets.slice(startIndex, startIndex + pageSize)
@@ -291,9 +384,7 @@ export const AssetTable: React.FC<AssetTableProps> = ({
 
   return (
     <div className="gba:space-y-4" data-testid="asset-table-container">
-      {/* Filters */}
       <div className="gba:flex gba:gap-4 gba:flex-wrap">
-        {/* Search */}
         <div className="gba:flex-1 gba:min-w-[200px]">
           <Input
             placeholder="Search assets..."
@@ -304,7 +395,6 @@ export const AssetTable: React.FC<AssetTableProps> = ({
           />
         </div>
 
-        {/* Status Filter */}
         <Select value={statusFilter} onValueChange={setStatusFilter}>
           <SelectTrigger className="gba:w-[180px]" data-testid="asset-status-filter">
             <SelectValue placeholder="All Statuses" />
@@ -320,12 +410,10 @@ export const AssetTable: React.FC<AssetTableProps> = ({
         </Select>
       </div>
 
-      {/* Results summary */}
       <div className="gba:text-sm gba:text-muted-foreground">
         Showing {paginatedAssets.length} of {filteredAssets.length} assets
       </div>
 
-      {/* Table */}
       <div className="gba:border gba:rounded-lg">
         <Table data-testid="assets-table">
           <TableHeader>
@@ -356,7 +444,6 @@ export const AssetTable: React.FC<AssetTableProps> = ({
               </TableRow>
             ) : (
               paginatedAssets.map(asset => {
-                // Calculate warranty expiry date from acquisition date + warranty period
                 const acquisitionDate = new Date(asset.acquisitionDate)
                 const warrantyExpiryDate = new Date(acquisitionDate)
                 warrantyExpiryDate.setMonth(warrantyExpiryDate.getMonth() + asset.warrantyPeriodMonths)
@@ -406,14 +493,13 @@ export const AssetTable: React.FC<AssetTableProps> = ({
                         : `${asset.inventoryValue}`}
                     </TableCell>
 
-                    {/* Actions Column - Last */}
                     <TableCell className="gba:py-4 gba:px-6">
                       <div onClick={e => e.stopPropagation()}>
                         <MemoizedAppActionButton
                           assetId={asset.id}
+                          assetStatus={asset.assetStatus}
                           accessToken={accessToken}
                           dataTestIdPrefix={DATA_TEST_ID_PREFIX}
-                          onRetireAsset={onRetireAsset}
                           onAllocateAsset={onAllocateAsset}
                           onUpdateAsset={onUpdateAsset}
                         />
@@ -427,7 +513,6 @@ export const AssetTable: React.FC<AssetTableProps> = ({
         </Table>
       </div>
 
-      {/* Pagination */}
       {totalPages > 1 && (
         <div className="gba:flex gba:justify-between gba:items-center">
           <div className="gba:text-sm gba:text-muted-foreground">

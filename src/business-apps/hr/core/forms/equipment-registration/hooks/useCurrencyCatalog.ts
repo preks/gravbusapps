@@ -42,12 +42,37 @@ export const useCurrencyCatalog = (context: BusinessAppContextProps) => {
       const currencyOptions = response.data.map(entry => ({
         id: entry.id,
         value: entry.id,
-        label: `${entry.code} - ${entry.value}`,
+        label: entry.code,
         code: entry.code,
         name: entry.value
       }))
 
-      setOptions(currencyOptions)
+      // Sort currencies: EUR, RON, USD first (in that order), then alphabetically by code
+      const priorityCurrencies = ['EUR', 'RON', 'USD']
+      const sortedOptions = currencyOptions.sort((a, b) => {
+        const aIndex = priorityCurrencies.indexOf(a.code)
+        const bIndex = priorityCurrencies.indexOf(b.code)
+
+        // If both are priority currencies, sort by their priority order
+        if (aIndex !== -1 && bIndex !== -1) {
+          return aIndex - bIndex
+        }
+
+        // If only a is priority, it comes first
+        if (aIndex !== -1) {
+          return -1
+        }
+
+        // If only b is priority, it comes first
+        if (bIndex !== -1) {
+          return 1
+        }
+
+        // Both are non-priority, sort alphabetically by code
+        return a.code.localeCompare(b.code)
+      })
+
+      setOptions(sortedOptions)
     } catch (err) {
       console.error('Error fetching currencies:', err)
       setError(err instanceof Error ? err.message : 'Failed to fetch currencies')
