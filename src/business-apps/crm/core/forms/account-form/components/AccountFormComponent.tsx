@@ -151,14 +151,13 @@ const AccountFormComponent: React.FC = () => {
         }
       })
 
-      // ✅ UPDATED: Create clean payload structure with accountContacts for UPDATE, contactIds for CREATE (matching IRM pattern)
+      // ✅ FIXED: Create clean payload structure with accountContacts for BOTH CREATE and UPDATE (matching IRM pattern)
       const payload = {
         account: {
           ...accountPayload,
-          accountContacts: isUpdate ? accountContacts : undefined // Only for updates
+          accountContacts: accountContacts // Include for both create and update
         },
-        changeMode: changeMode,
-        contactIds: isUpdate ? undefined : accountContacts.map((ac: any) => ac.contact) // For CREATE mode only
+        changeMode: changeMode
       }
 
       // Dispatch process continue event on successful submission
