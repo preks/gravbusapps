@@ -289,7 +289,7 @@ export const StatusProgression: React.FC<StatusProgressionProps> = ({
                   fontSize: '14px',
                   fontWeight: '600',
                   backgroundColor: isConverted ? '#4CAF50' : isLost ? '#f44336' : 'transparent',
-                  color: isConverted || isLost ? 'hsl(var(--background))' : 'hsl(var(--muted-foreground))666',
+                  color: isConverted || isLost ? 'hsl(var(--background))' : 'hsl(var(--muted-foreground))',
                   borderRadius: '0 20px 20px 0',
                   marginRight: '0',
                   transition: 'all 0.3s ease',
