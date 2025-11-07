@@ -87,7 +87,7 @@ export const JOB_POSITION_QUERY = `
         firstName
         lastName
         employee { pictureThumbnail }
-        supervisor{
+        supervisor {
         id
         firstName
         lastName

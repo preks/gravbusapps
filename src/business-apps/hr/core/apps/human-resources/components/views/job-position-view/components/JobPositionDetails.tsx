@@ -89,7 +89,7 @@ export const JobPositionDetails: React.FC<JobPositionDetailsProps> = ({ jobPosit
             }}
             prefixDataTestId="job-position-details-action"
             accessToken={accessToken}
-            disabled={Boolean((jobPosition as any).activeTo)}
+            disabled={Boolean(jobPosition.activeTo)}
           >
             Actions
           </AppActionButton>
@@ -241,7 +241,7 @@ export const JobPositionDetails: React.FC<JobPositionDetailsProps> = ({ jobPosit
               </p>
               <p className="gba:text-sm gba:text-foreground">
                 {(() => {
-                  const sup = (jobPosition.employeePositions?.[0] as any)?.supervisor
+                  const sup = jobPosition.employeePositions?.[0]?.supervisor
                   if (!sup) return t('job_position.not_specified', 'Not specified')
                   return `${sup.firstName} ${sup.lastName}`
                 })()}
@@ -271,12 +271,12 @@ export const JobPositionDetails: React.FC<JobPositionDetailsProps> = ({ jobPosit
       </div>
 
       {/* Termination Date (optional) */}
-      {Boolean((jobPosition as any).activeTo) && (
+      {Boolean(jobPosition.activeTo) && (
         <div className="gba:space-y-4">
           <h3 className="gba:text-md gba:font-medium gba:text-foreground">
             {getTranslationFromI18nKeyAndLabel('lowcoder:hr_insights.termination_date', 'Termination Date')}
             <span className="gba:ml-2 gba:text-sm gba:text-foreground">
-              {formatDate((jobPosition as any).activeTo, 'date.long')}
+              {formatDate(jobPosition.activeTo as string, 'date.long')}
             </span>
           </h3>
         </div>
