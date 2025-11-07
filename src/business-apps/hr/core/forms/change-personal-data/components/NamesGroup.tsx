@@ -51,7 +51,7 @@ const NamesGroup: React.FC<NamesGroupProps> = ({ control, catalogs, setValue }) 
   // Update displayName field whenever computedDisplayName changes
   useEffect(() => {
     if (setValue) {
-      setValue('displayName' as any, computedDisplayName, { shouldValidate: false, shouldDirty: false })
+      setValue('displayName', computedDisplayName, { shouldValidate: false, shouldDirty: false })
     } else if (control._formValues) {
       control._formValues.displayName = computedDisplayName
     }
