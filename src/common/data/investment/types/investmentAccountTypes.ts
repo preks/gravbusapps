@@ -51,11 +51,17 @@ export interface InvestmentAccount extends CommonAccount {
 
 /**
  * Investment Account Descriptors
- * IRM uses correct field names, so Common descriptors work directly
+ * IRM uses investmentAccountContact instead of accountContacts in GraphQL
  * Add IRM-specific fields that don't exist in CRM
  */
 export const INVESTMENT_ACCOUNT_DESCRIPTORS: Descriptor[] = [
-  ...COMMON_ACCOUNT_DESCRIPTORS,
+  ...COMMON_ACCOUNT_DESCRIPTORS.filter(d => d.key !== 'accountContacts'),
+  {
+    key: 'accountContacts',
+    searchPaths: ['investmentAccountContact.account.name'],
+    sortPath: 'investmentAccountContact.account.name',
+    type: 'text'
+  },
 
   // IRM-specific fields (not in Common/CRM)
   {

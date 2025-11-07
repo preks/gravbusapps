@@ -61,8 +61,8 @@ export const AccountView: React.FC<AccountViewProps> = context => {
         name: 'Account Name',
         industryClass: 'Industry',
         legalForm: 'Legal Form',
-        size: 'Size',
-        revenue: 'Revenue',
+        companySize: 'Size',
+        accountAnnualRevenueBand: 'Revenue',
         ownerEmployee: 'Owner',
         createdAt: 'Created Date',
         updatedAt: 'Updated Date'

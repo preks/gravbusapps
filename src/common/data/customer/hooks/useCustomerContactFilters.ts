@@ -24,8 +24,8 @@ export const useCustomerContactFilters = (context: BusinessAppContextProps): Cus
   const { fetchCustomerContacts } = useCustomerContacts(context)
 
   const [owners, setOwners] = useState<FilterOption[]>([])
-  const [departments] = useState<FilterOption[]>([])
-  const [jobPositions] = useState<FilterOption[]>([])
+  const [departments, setDepartments] = useState<FilterOption[]>([])
+  const [jobPositions, setJobPositions] = useState<FilterOption[]>([])
   const [academicTitles, setAcademicTitles] = useState<FilterOption[]>([])
   const [salutations, setSalutations] = useState<FilterOption[]>([])
   const [languages] = useState<FilterOption[]>([])
@@ -91,6 +91,32 @@ export const useCustomerContactFilters = (context: BusinessAppContextProps): Cus
         setSalutations(
           Array.from(uniqueSalutations.entries())
             .map(([id, label]) => ({ id, label }))
+            .sort((a, b) => a.label.localeCompare(b.label))
+        )
+
+        // Extract unique departments (String field, not CatalogEntry)
+        const uniqueDepartments = new Set<string>()
+        contactsData.contacts?.forEach((contact: CustomerContact) => {
+          if (contact.department) {
+            uniqueDepartments.add(contact.department)
+          }
+        })
+        setDepartments(
+          Array.from(uniqueDepartments)
+            .map(dept => ({ id: dept, label: dept }))
+            .sort((a, b) => a.label.localeCompare(b.label))
+        )
+
+        // Extract unique job titles (String field, not CatalogEntry)
+        const uniqueJobTitles = new Set<string>()
+        contactsData.contacts?.forEach((contact: CustomerContact) => {
+          if (contact.jobTitle) {
+            uniqueJobTitles.add(contact.jobTitle)
+          }
+        })
+        setJobPositions(
+          Array.from(uniqueJobTitles)
+            .map(job => ({ id: job, label: job }))
             .sort((a, b) => a.label.localeCompare(b.label))
         )
       } catch (error) {

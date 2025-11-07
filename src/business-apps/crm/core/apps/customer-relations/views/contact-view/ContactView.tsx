@@ -60,7 +60,7 @@ export const ContactView: React.FC<ContactViewProps> = context => {
         fullName: 'Full Name',
         department: 'Department',
         jobPosition: 'Job Position',
-        account: 'Account',
+        accountContacts: 'Account',
         ownerEmployee: 'Owner',
         createdAt: 'Created Date',
         updatedAt: 'Updated Date'

@@ -10,6 +10,7 @@ import type { CommonLead } from './commonLeadTypes'
 import type { CommonNote } from './commonNoteTypes'
 import type { CommonOpportunity } from './commonOpportunityTypes'
 import type { CommonTask } from './commonTaskTypes'
+import type { ContactType } from '../constants/commonContactConstants'
 
 export interface CommonContact extends BaseEntity {
   academicTitle?: CatalogEntry // IRM | CRM
@@ -41,7 +42,7 @@ export interface CommonContact extends BaseEntity {
   salutation?: CatalogEntry // IRM | CRM
   salutationRef?: string // IRM | CRM
   tasks?: CommonTask[] // IRM | CRM
-  type?: string // IRM | TODO (contactType)
+  type?: ContactType // IRM | TODO (contactType)
 }
 
 export const COMMON_CONTACT_DESCRIPTORS: Descriptor[] = [
@@ -53,7 +54,7 @@ export const COMMON_CONTACT_DESCRIPTORS: Descriptor[] = [
     sortPath: 'academicTitle.value',
     type: 'text'
   },
-  { key: 'academicTitleRef', searchPaths: ['academicTitleRef'], sortPath: 'academicTitleRef', type: 'text' },
+  { key: 'academicTitleRef', sortPath: 'academicTitleRef', type: 'text' },
   {
     key: 'accountContacts',
     searchPaths: ['accountContacts.account.name'],
@@ -99,7 +100,7 @@ export const COMMON_CONTACT_DESCRIPTORS: Descriptor[] = [
     sortPath: 'language.value',
     type: 'text'
   },
-  { key: 'languageRef', searchPaths: ['languageRef'], sortPath: 'languageRef', type: 'text' },
+  { key: 'languageRef', sortPath: 'languageRef', type: 'text' },
   { key: 'lastName', searchPaths: ['lastName'], sortPath: 'lastName', type: 'text' },
   {
     key: 'leads',
@@ -121,7 +122,7 @@ export const COMMON_CONTACT_DESCRIPTORS: Descriptor[] = [
     sortPath: 'ownerEmployee.displayName',
     type: 'text'
   },
-  { key: 'ownerEmployeeId', searchPaths: ['ownerEmployeeId'], sortPath: 'ownerEmployeeId', type: 'text' },
+  { key: 'ownerEmployeeId', sortPath: 'ownerEmployeeId', type: 'text' },
   { key: 'picture', searchPaths: ['picture'], sortPath: 'picture', type: 'text' },
   { key: 'pictureThumbnail', searchPaths: ['pictureThumbnail'], sortPath: 'pictureThumbnail', type: 'text' },
   {
@@ -130,7 +131,7 @@ export const COMMON_CONTACT_DESCRIPTORS: Descriptor[] = [
     sortPath: 'salutation.value',
     type: 'text'
   },
-  { key: 'salutationRef', searchPaths: ['salutationRef'], sortPath: 'salutationRef', type: 'text' },
+  { key: 'salutationRef', sortPath: 'salutationRef', type: 'text' },
   { key: 'tasks', searchPaths: ['tasks.subject', 'tasks.description'], sortPath: 'tasks.subject', type: 'text' },
   { key: 'type', searchPaths: ['type'], sortPath: 'type', type: 'text' },
 
@@ -152,22 +153,6 @@ export const COMMON_CONTACT_DESCRIPTORS: Descriptor[] = [
   {
     key: 'communicationChannels',
     searchPaths: ['communicationChannels.value'],
-    enableSort: false,
-    type: 'text'
-  },
-
-  // account: Displays primary account name from accountContacts array - sorts by account name
-  {
-    key: 'account',
-    searchPaths: ['accountContacts.account.name'],
-    sortPath: 'accountContacts.account.name',
-    type: 'text'
-  },
-
-  // address: Displays primary address from addresses array - not sortable
-  {
-    key: 'address',
-    searchPaths: ['addresses.locality', 'addresses.postalCode'],
     enableSort: false,
     type: 'text'
   }

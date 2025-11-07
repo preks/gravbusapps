@@ -57,20 +57,19 @@ export const COMMON_ACCOUNT_DESCRIPTORS: Descriptor[] = [
   },
   {
     key: 'accountAnnualRevenueBandRef',
-    searchPaths: ['accountAnnualRevenueBandRef'],
     sortPath: 'accountAnnualRevenueBandRef',
     type: 'text'
   },
   {
     key: 'accountContacts',
-    searchPaths: ['accountContacts.firstName', 'accountContacts.lastName'],
-    sortPath: 'accountContacts.lastName',
+    searchPaths: ['accountContacts.contact.firstName', 'accountContacts.contact.lastName'],
+    sortPaths: ['accountContacts.contact.firstName', 'accountContacts.contact.lastName'],
     type: 'text'
   },
   {
     key: 'activities',
-    searchPaths: ['activities.subject', 'activities.description'],
-    sortPath: 'activities.subject',
+    searchPaths: ['activities.title', 'activities.description'],
+    sortPath: 'activities.title',
     type: 'text'
   },
   {
@@ -92,7 +91,7 @@ export const COMMON_ACCOUNT_DESCRIPTORS: Descriptor[] = [
     sortPath: 'companySize.value',
     type: 'text'
   },
-  { key: 'companySizeRef', searchPaths: ['companySizeRef'], sortPath: 'companySizeRef', type: 'text' },
+  { key: 'companySizeRef', sortPath: 'companySizeRef', type: 'text' },
   {
     key: 'contacts',
     searchPaths: ['contacts.firstName', 'contacts.lastName'],
@@ -113,7 +112,7 @@ export const COMMON_ACCOUNT_DESCRIPTORS: Descriptor[] = [
     sortPath: 'industryClass.value',
     type: 'text'
   },
-  { key: 'industryClassRef', searchPaths: ['industryClassRef'], sortPath: 'industryClassRef', type: 'text' },
+  { key: 'industryClassRef', sortPath: 'industryClassRef', type: 'text' },
   {
     key: 'leads',
     searchPaths: ['leads.firstName', 'leads.lastName', 'leads.companyName'],
@@ -126,7 +125,7 @@ export const COMMON_ACCOUNT_DESCRIPTORS: Descriptor[] = [
     sortPath: 'legalForm.value',
     type: 'text'
   },
-  { key: 'legalFormRef', searchPaths: ['legalFormRef'], sortPath: 'legalFormRef', type: 'text' },
+  { key: 'legalFormRef', sortPath: 'legalFormRef', type: 'text' },
   { key: 'liquidationDate', searchPaths: ['liquidationDate'], sortPath: 'liquidationDate', type: 'date' },
   { key: 'name', searchPaths: ['name'], sortPath: 'name', type: 'text' },
   { key: 'notes', searchPaths: ['notes.subject', 'notes.content'], sortPath: 'notes.subject', type: 'text' },
@@ -143,7 +142,7 @@ export const COMMON_ACCOUNT_DESCRIPTORS: Descriptor[] = [
     sortPath: 'ownerEmployee.displayName',
     type: 'text'
   },
-  { key: 'ownerEmployeeId', searchPaths: ['ownerEmployeeId'], sortPath: 'ownerEmployeeId', type: 'text' },
+  { key: 'ownerEmployeeId', sortPath: 'ownerEmployeeId', type: 'text' },
   { key: 'picture', searchPaths: ['picture'], sortPath: 'picture', type: 'text' },
   { key: 'pictureThumbnail', searchPaths: ['pictureThumbnail'], sortPath: 'pictureThumbnail', type: 'text' },
   { key: 'tasks', searchPaths: ['tasks.subject', 'tasks.description'], sortPath: 'tasks.subject', type: 'text' },
@@ -153,7 +152,7 @@ export const COMMON_ACCOUNT_DESCRIPTORS: Descriptor[] = [
     sortPath: 'timeZone.value',
     type: 'text'
   },
-  { key: 'timeZoneRef', searchPaths: ['timeZoneRef'], sortPath: 'timeZoneRef', type: 'text' },
+  { key: 'timeZoneRef', sortPath: 'timeZoneRef', type: 'text' },
 
   // Filter IDs for Refs
   { key: 'accountAnnualRevenueBandIds', path: 'accountAnnualRevenueBandRef', kind: 'inIds' },
@@ -167,18 +166,7 @@ export const COMMON_ACCOUNT_DESCRIPTORS: Descriptor[] = [
   { key: 'foundationDateAfter', path: 'foundationDate', kind: 'dateFrom' },
   { key: 'foundationDateBefore', path: 'foundationDate', kind: 'dateTo' },
   { key: 'liquidationDateAfter', path: 'liquidationDate', kind: 'dateFrom' },
-  { key: 'liquidationDateBefore', path: 'liquidationDate', kind: 'dateTo' },
-
-  // size: Displays companySize catalog entry - sorts by companySize.value
-  { key: 'size', searchPaths: ['companySize.value', 'companySize.code'], sortPath: 'companySize.value', type: 'text' },
-
-  // revenue: Displays accountAnnualRevenueBand catalog entry - sorts by accountAnnualRevenueBand.value
-  {
-    key: 'revenue',
-    searchPaths: ['accountAnnualRevenueBand.value', 'accountAnnualRevenueBand.code'],
-    sortPath: 'accountAnnualRevenueBand.value',
-    type: 'text'
-  }
+  { key: 'liquidationDateBefore', path: 'liquidationDate', kind: 'dateTo' }
 ]
 
 // Deprecated - remove later

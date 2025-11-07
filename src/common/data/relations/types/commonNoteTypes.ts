@@ -26,21 +26,21 @@ export const COMMON_NOTE_DESCRIPTORS: Descriptor[] = [
   ...BASE_ENTITY_DESCRIPTORS,
 
   { key: 'account', searchPaths: ['account.name', 'account.code'], sortPath: 'account.name', type: 'text' },
-  { key: 'accountId', searchPaths: ['accountId'], sortPath: 'accountId', type: 'text' },
+  { key: 'accountId', sortPath: 'accountId', type: 'text' },
   {
     key: 'authorEmployee',
     searchPaths: ['authorEmployee.displayName', 'authorEmployee.firstName', 'authorEmployee.lastName'],
     sortPath: 'authorEmployee.displayName',
     type: 'text'
   },
-  { key: 'authorEmployeeId', searchPaths: ['authorEmployeeId'], sortPath: 'authorEmployeeId', type: 'text' },
+  { key: 'authorEmployeeId', sortPath: 'authorEmployeeId', type: 'text' },
   {
     key: 'contact',
     searchPaths: ['contact.firstName', 'contact.lastName'],
     sortPath: 'contact.lastName',
     type: 'text'
   },
-  { key: 'contactId', searchPaths: ['contactId'], sortPath: 'contactId', type: 'text' },
+  { key: 'contactId', sortPath: 'contactId', type: 'text' },
   {
     key: 'documents',
     searchPaths: ['documents.name', 'documents.description'],
@@ -54,14 +54,14 @@ export const COMMON_NOTE_DESCRIPTORS: Descriptor[] = [
     sortPath: 'lead.lastName',
     type: 'text'
   },
-  { key: 'leadId', searchPaths: ['leadId'], sortPath: 'leadId', type: 'text' },
+  { key: 'leadId', sortPath: 'leadId', type: 'text' },
   {
     key: 'opportunity',
     searchPaths: ['opportunity.name', 'opportunity.description'],
     sortPath: 'opportunity.name',
     type: 'text'
   },
-  { key: 'opportunityId', searchPaths: ['opportunityId'], sortPath: 'opportunityId', type: 'text' },
+  { key: 'opportunityId', sortPath: 'opportunityId', type: 'text' },
   { key: 'reminderDate', searchPaths: ['reminderDate'], sortPath: 'reminderDate', type: 'date' },
   { key: 'source', searchPaths: ['source'], sortPath: 'source', type: 'text' },
   { key: 'text', searchPaths: ['text'], sortPath: 'text', type: 'text' },

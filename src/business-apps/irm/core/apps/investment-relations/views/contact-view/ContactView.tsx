@@ -43,11 +43,11 @@ export const ContactView: React.FC<ContactViewProps> = context => {
       fetchContacts: fetchInvestmentContacts,
       filterDataHook: () => ({
         owners: contactFilters.owners,
-        departments: [],
-        jobPositions: [],
-        academicTitles: [],
-        salutations: [],
-        languages: []
+        departments: contactFilters.departments,
+        jobPositions: contactFilters.jobPositions,
+        academicTitles: contactFilters.academicTitles,
+        salutations: contactFilters.salutations,
+        languages: contactFilters.languages
       }),
       createColumns: () => commonContactColumns(),
       descriptors: COMMON_CONTACT_DESCRIPTORS,
@@ -58,7 +58,7 @@ export const ContactView: React.FC<ContactViewProps> = context => {
         fullName: 'Full Name',
         department: 'Department',
         jobPosition: 'Job Position',
-        account: 'Account',
+        accountContacts: 'Account',
         ownerEmployee: 'Owner',
         createdAt: 'Created Date',
         updatedAt: 'Updated Date'

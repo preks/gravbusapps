@@ -61,15 +61,15 @@ const renderAmount = (amount: number, currencyCode?: string) => {
 
 // Render revenue (band code may be a single number or a range "min-max")
 const renderRevenueCell = (account: CommonAccount) => {
-  // CommonAccount has: annualRevenueBand (correct name)
-  const band = account.annualRevenueBand
+  // CommonAccount has: accountAnnualRevenueBand (correct name)
+  const band = account.accountAnnualRevenueBand
   if (!band?.code && !band?.value) {
-    return <span className="gba:text-gray-400">-</span>
+    return <span className="gba:text-sm gba:text-muted-foreground">No revenue</span>
   }
 
   const code = safeString(band.code || '').trim()
   if (!code) {
-    return <span className="gba:text-gray-400">-</span>
+    return <span className="gba:text-sm gba:text-muted-foreground">No revenue</span>
   }
 
   // Parse numeric(s)
@@ -139,9 +139,7 @@ export const commonAccountColumns: ColumnDef<CommonAccount>[] = [
     accessorFn: row => {
       // Future: all use communicationChannels
       if (row.communicationChannels?.length) {
-        const email = row.communicationChannels.find(
-          ch => ch.communicationChannel?.alternativeCode?.toUpperCase() === 'EMAIL'
-        )
+        const email = row.communicationChannels.find(ch => ch.communicationChannel?.type?.toLowerCase() === 'email')
         return safeString(email?.value)
       }
       return ''
@@ -155,15 +153,15 @@ export const commonAccountColumns: ColumnDef<CommonAccount>[] = [
     cell: ({ row }) => {
       const contactInfo = []
 
-      // Helper to get communication channel by type
+      // Helper to get communication channel by type (lowercase: email, url, tel, text)
       const getChannel = (type: string) => {
         return row.original.communicationChannels?.find(
-          ch => ch.communicationChannel?.alternativeCode?.toUpperCase() === type.toUpperCase()
+          ch => ch.communicationChannel?.type?.toLowerCase() === type.toLowerCase()
         )
       }
 
       // Email from communicationChannels
-      const emailChannel = getChannel('EMAIL')
+      const emailChannel = getChannel('email')
       if (emailChannel?.value) {
         contactInfo.push(
           <div key="email" className="gba:flex gba:items-center gba:gap-2 gba:mb-1 gba:min-w-0">
@@ -175,8 +173,8 @@ export const commonAccountColumns: ColumnDef<CommonAccount>[] = [
         )
       }
 
-      // Phone from communicationChannels
-      const phoneChannel = getChannel('PHONE')
+      // Phone from communicationChannels (type: tel)
+      const phoneChannel = getChannel('tel')
       if (phoneChannel?.value) {
         contactInfo.push(
           <div key="phone" className="gba:flex gba:items-center gba:gap-2 gba:mb-1 gba:min-w-0">
@@ -188,9 +186,9 @@ export const commonAccountColumns: ColumnDef<CommonAccount>[] = [
         )
       }
 
-      // Website from communicationChannels or direct field
-      const websiteChannel = getChannel('WEBSITE')
-      const websiteValue = websiteChannel?.value || row.original.website
+      // Website from communicationChannels (type: url) or direct field
+      const websiteChannel = getChannel('url')
+      const websiteValue = websiteChannel?.value || (row.original as any).website
       if (websiteValue) {
         contactInfo.push(
           <div key="website" className="gba:flex gba:items-center gba:gap-2 gba:min-w-0">
@@ -205,7 +203,7 @@ export const commonAccountColumns: ColumnDef<CommonAccount>[] = [
       return contactInfo.length > 0 ? (
         <div className="gba:min-w-0">{contactInfo}</div>
       ) : (
-        <span className="gba:text-gray-400">-</span>
+        <span className="gba:text-sm gba:text-muted-foreground">No contact info</span>
       )
     }
   },
@@ -266,7 +264,7 @@ export const commonAccountColumns: ColumnDef<CommonAccount>[] = [
       return (
         <div className="gba:flex gba:items-start gba:gap-2">
           <MapPin className="gba:w-4 gba:h-4 gba:text-gray-500 gba:shrink-0 gba:mt-0.5" />
-          <span className="gba:text-sm gba:text-gray-400">-</span>
+          <span className="gba:text-sm gba:text-muted-foreground">No address</span>
         </div>
       )
     }
@@ -282,7 +280,7 @@ export const commonAccountColumns: ColumnDef<CommonAccount>[] = [
     cell: ({ row }) => {
       // CommonAccount has: industryClass (correct name)
       if (!row.original.industryClass) {
-        return <span className="gba:text-gray-400">-</span>
+        return <span className="gba:text-sm gba:text-muted-foreground">No industry</span>
       }
       const industryValue = safeString(row.original.industryClass.value || row.original.industryClass.code)
       return (
@@ -306,7 +304,7 @@ export const commonAccountColumns: ColumnDef<CommonAccount>[] = [
     enableResizing: false,
     cell: ({ row }) => {
       if (!row.original.legalForm) {
-        return <span className="gba:text-gray-400">-</span>
+        return <span className="gba:text-sm gba:text-muted-foreground">No legal form</span>
       }
       const legalFormValue = safeString(row.original.legalForm.value || row.original.legalForm.code)
       return (
@@ -321,7 +319,7 @@ export const commonAccountColumns: ColumnDef<CommonAccount>[] = [
     }
   },
   {
-    id: 'size',
+    id: 'companySize',
     accessorFn: row => row.companySize?.value || row.companySize?.code || '',
     header: 'Size',
     size: 110,
@@ -331,7 +329,7 @@ export const commonAccountColumns: ColumnDef<CommonAccount>[] = [
     cell: ({ row }) => {
       // CommonAccount has: companySize (correct name)
       if (!row.original.companySize) {
-        return <span className="gba:text-gray-400">-</span>
+        return <span className="gba:text-sm gba:text-muted-foreground">No size</span>
       }
       const sizeValue = safeString(row.original.companySize.value || row.original.companySize.code)
       return (
@@ -346,7 +344,7 @@ export const commonAccountColumns: ColumnDef<CommonAccount>[] = [
     }
   },
   {
-    id: 'revenue',
+    id: 'accountAnnualRevenueBand',
     accessorKey: 'accountAnnualRevenueBand',
     header: 'Revenue',
     size: 140,
@@ -365,7 +363,7 @@ export const commonAccountColumns: ColumnDef<CommonAccount>[] = [
     enableResizing: false,
     cell: ({ row }) => {
       if (!row.original.ownerEmployee) {
-        return <span className="gba:text-gray-400">-</span>
+        return <span className="gba:text-sm gba:text-muted-foreground">No owner</span>
       }
 
       const ownerName = getOwnerName(row.original)
@@ -421,7 +419,7 @@ export const commonAccountColumns: ColumnDef<CommonAccount>[] = [
     enableResizing: false,
     cell: ({ row }) => {
       if (!row.original.createdAt) {
-        return <span className="gba:text-gray-400">-</span>
+        return <span className="gba:text-sm gba:text-muted-foreground">No date</span>
       }
       return (
         <div className="gba:flex gba:items-center gba:gap-2" data-testid={`created-cell-${row.original.id}`}>
@@ -442,7 +440,7 @@ const ACCOUNT_COLUMN_LABELS: Record<string, string> = {
   industryClass: 'Industry',
   legalForm: 'Legal Form',
   size: 'Size',
-  revenue: 'Revenue',
+  accountAnnualRevenueBand: 'Revenue',
   ownerEmployee: 'Owner',
   createdAt: 'Created Date',
   updatedAt: 'Updated Date'

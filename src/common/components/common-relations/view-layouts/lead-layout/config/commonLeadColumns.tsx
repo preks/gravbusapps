@@ -144,7 +144,7 @@ export const commonLeadColumns = (): ColumnDef<CommonLead>[] => [
       const companyWebsite = row.original.companyWebsite
 
       if (!email && !phoneNumber && !companyWebsite) {
-        return <span className="gba:text-gray-400">-</span>
+        return <span className="gba:text-sm gba:text-muted-foreground">No contact info</span>
       }
 
       return (
@@ -191,7 +191,7 @@ export const commonLeadColumns = (): ColumnDef<CommonLead>[] => [
       })
 
       if (!address) {
-        return <span className="gba:text-gray-400">-</span>
+        return <span className="gba:text-sm gba:text-muted-foreground">No address</span>
       }
 
       return (
@@ -215,7 +215,7 @@ export const commonLeadColumns = (): ColumnDef<CommonLead>[] => [
     cell: ({ row }) => {
       const status = row.original.leadStatus ? getCatalogEntryValue(row.original.leadStatus as any) : undefined
       if (!status) {
-        return <span className="gba:text-gray-400">-</span>
+        return <span className="gba:text-sm gba:text-muted-foreground">No status</span>
       }
 
       const variant = getLeadStatusVariant(status)
@@ -238,7 +238,7 @@ export const commonLeadColumns = (): ColumnDef<CommonLead>[] => [
     cell: ({ row }) => {
       const rating = row.original.leadRating ? getCatalogEntryValue(row.original.leadRating as any) : undefined
       if (!rating) {
-        return <span className="gba:text-gray-400">-</span>
+        return <span className="gba:text-sm gba:text-muted-foreground">No rating</span>
       }
 
       // Determine priority based on rating
@@ -268,7 +268,7 @@ export const commonLeadColumns = (): ColumnDef<CommonLead>[] => [
     cell: ({ row }) => {
       const source = row.original.leadSource ? getCatalogEntryValue(row.original.leadSource as any) : undefined
       if (!source) {
-        return <span className="gba:text-gray-400">-</span>
+        return <span className="gba:text-sm gba:text-muted-foreground">No source</span>
       }
       return (
         <span className="gba:text-sm gba:truncate gba:block" title={source}>
@@ -288,7 +288,7 @@ export const commonLeadColumns = (): ColumnDef<CommonLead>[] => [
     cell: ({ row }) => {
       const industry = row.original.industryClass ? getCatalogEntryValue(row.original.industryClass as any) : undefined
       if (!industry) {
-        return <span className="gba:text-gray-400">-</span>
+        return <span className="gba:text-sm gba:text-muted-foreground">No industry</span>
       }
       return (
         <span className="gba:text-sm gba:truncate gba:block" title={industry}>
@@ -314,7 +314,7 @@ export const commonLeadColumns = (): ColumnDef<CommonLead>[] => [
           <span className="gba:text-sm gba:truncate">{formatDate(row.original.createdAt)}</span>
         </div>
       ) : (
-        <span className="gba:text-gray-400">-</span>
+        <span className="gba:text-sm gba:text-muted-foreground">No date</span>
       )
   },
   {
@@ -328,7 +328,7 @@ export const commonLeadColumns = (): ColumnDef<CommonLead>[] => [
     cell: ({ row }) => {
       const owner = row.original.ownerEmployee
       if (!owner) {
-        return <span className="gba:text-gray-400">-</span>
+        return <span className="gba:text-sm gba:text-muted-foreground">No owner</span>
       }
       const ownerName = getOwnerName(row.original)
 

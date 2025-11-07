@@ -79,16 +79,17 @@ export const BASE_ENTITY_DESCRIPTORS: Descriptor[] = [
   { key: 'activeTo', searchPaths: ['activeTo'], sortPath: 'activeTo', type: 'date' },
   {
     key: 'additionalProperties',
-    searchPaths: ['additionalProperties'],
     sortPath: 'additionalProperties',
-    type: 'text'
+    type: 'text',
+    enableSort: false,
+    enableFilter: false
   },
   { key: 'createdAt', searchPaths: ['createdAt'], sortPath: 'createdAt', type: 'date' },
-  { key: 'createdBy', searchPaths: ['createdBy'], sortPath: 'createdBy', type: 'text' },
+  { key: 'createdBy', type: 'text' },
   { key: 'isDeleted', searchPaths: ['isDeleted'], sortPath: 'isDeleted', type: 'boolean' },
   { key: 'recordState', searchPaths: ['recordState'], sortPath: 'recordState', type: 'text' },
   { key: 'updatedAt', searchPaths: ['updatedAt'], sortPath: 'updatedAt', type: 'date' },
-  { key: 'updatedBy', searchPaths: ['updatedBy'], sortPath: 'updatedBy', type: 'text' },
+  { key: 'updatedBy', type: 'text' },
   { key: 'version', searchPaths: ['version'], sortPath: 'version', type: 'number' },
 
   // Date range filters
@@ -101,11 +102,6 @@ export const BASE_ENTITY_DESCRIPTORS: Descriptor[] = [
   { key: 'updatedAfter', path: 'updatedAt', kind: 'dateFrom' },
   { key: 'updatedBefore', path: 'updatedAt', kind: 'dateTo' }
 ]
-
-// Note: activeFrom/activeTo are now included in AuditFields
-// Extended validity periods can be added to specific entities if needed:
-// effectiveFrom?: string;
-// effectiveTo?: string;
 
 // ==========================================
 // CATALOG ENTRY TYPES

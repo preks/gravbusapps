@@ -192,7 +192,7 @@ export function createOpportunityColumns<T extends GenericOpportunityForColumns>
       },
       cell: ({ row }) => {
         if (!row.original.estimatedAmount) {
-          return <div className="gba:text-right gba:text-gray-400">-</div>
+          return <div className="gba:text-right gba:text-sm gba:text-muted-foreground">No amount</div>
         }
 
         const formattedValue = new Intl.NumberFormat(undefined, {
@@ -227,7 +227,7 @@ export function createOpportunityColumns<T extends GenericOpportunityForColumns>
             row.original.salesPipelineLabel ||
             row.original.salesPipeline?.value ||
             row.original.salesPipeline?.code ||
-            '-'}
+            'No pipeline'}
         </span>
       )
     },
@@ -257,7 +257,7 @@ export function createOpportunityColumns<T extends GenericOpportunityForColumns>
                 {stageLabel}
               </Badge>
             ) : (
-              <span className="gba:text-gray-400">-</span>
+              <span className="gba:text-sm gba:text-muted-foreground">No stage</span>
             )}
           </>
         )
@@ -273,7 +273,7 @@ export function createOpportunityColumns<T extends GenericOpportunityForColumns>
       cell: ({ row }) => {
         // Only display if opportunityStatus catalog entry exists
         if (!row.original.opportunityStatus) {
-          return <span className="gba:text-gray-400">-</span>
+          return <span className="gba:text-sm gba:text-muted-foreground">No status</span>
         }
 
         // Priority: opportunityStatusLabel > catalog value > catalog code
@@ -283,7 +283,7 @@ export function createOpportunityColumns<T extends GenericOpportunityForColumns>
           row.original.opportunityStatus?.code
 
         if (!rawStatus) {
-          return <span className="gba:text-gray-400">-</span>
+          return <span className="gba:text-sm gba:text-muted-foreground">No status</span>
         }
 
         // Format the status (handles cases like "OPPORTUNITY_OPEN" -> "Open")
@@ -316,7 +316,7 @@ export function createOpportunityColumns<T extends GenericOpportunityForColumns>
             <span className="gba:text-sm gba:truncate">{formatDate(row.original.closeDate)}</span>
           </div>
         ) : (
-          <span className="gba:text-gray-400">-</span>
+          <span className="gba:text-sm gba:text-muted-foreground">No close date</span>
         )
     },
     {
@@ -328,7 +328,7 @@ export function createOpportunityColumns<T extends GenericOpportunityForColumns>
       maxSize: 280,
       cell: ({ row }) => {
         if (!row.original.account) {
-          return <span className="gba:text-gray-400">-</span>
+          return <span className="gba:text-sm gba:text-muted-foreground">No account</span>
         }
 
         const account = row.original.account
@@ -370,7 +370,7 @@ export function createOpportunityColumns<T extends GenericOpportunityForColumns>
       maxSize: 240,
       cell: ({ row }) => {
         if (!row.original.ownerEmployee) {
-          return <span className="gba:text-gray-400">-</span>
+          return <span className="gba:text-sm gba:text-muted-foreground">No owner</span>
         }
 
         const owner = row.original.ownerEmployee
@@ -425,7 +425,7 @@ export function createOpportunityColumns<T extends GenericOpportunityForColumns>
             <span className="gba:text-sm gba:truncate">{formatDate(row.original.createdAt)}</span>
           </div>
         ) : (
-          <span className="gba:text-gray-400">-</span>
+          <span className="gba:text-sm gba:text-muted-foreground">No date</span>
         )
     }
   ]

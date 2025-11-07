@@ -20,20 +20,23 @@ export function toCustomerContact(base: CustomerContact): CustomerContact {
   const picture = base.pictureUrl
   const pictureThumbnail = base.pictureThumbnailUrl
 
-  // Transform CRM accountId/account to accountContacts array
-  // CRM uses deprecated accountId/account instead of accountContacts relation
-  let accountContacts: CustomerAccountContact[] | undefined = undefined
-  if (base.accountId && base.account) {
-    accountContacts = [
-      {
-        id: `${base.id}-${base.accountId}`, // Generate synthetic ID for the relationship
-        accountId: base.accountId,
-        account: base.account,
-        contactType: base.contactType, // Use contact's contactType
-        contactId: base.id,
-        contact: base as any // Reference to the contact itself
-      } as CustomerAccountContact
-    ]
+  // Use accountContacts from GraphQL if available, otherwise fallback to deprecated accountId/account
+  let accountContacts: CustomerAccountContact[] | undefined = base.accountContacts
+  if (!accountContacts || accountContacts.length === 0) {
+    // Fallback: Transform CRM accountId/account to accountContacts array
+    // CRM uses deprecated accountId/account instead of accountContacts relation
+    if (base.accountId && base.account) {
+      accountContacts = [
+        {
+          id: `${base.id}-${base.accountId}`, // Generate synthetic ID for the relationship
+          accountId: base.accountId,
+          account: base.account,
+          contactType: base.contactType, // Use contact's contactType
+          contactId: base.id,
+          contact: base as any // Reference to the contact itself
+        } as CustomerAccountContact
+      ]
+    }
   }
 
   return {

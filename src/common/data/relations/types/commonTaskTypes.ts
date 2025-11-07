@@ -48,14 +48,14 @@ export const COMMON_TASK_DESCRIPTORS: Descriptor[] = [
   ...BASE_ENTITY_DESCRIPTORS,
 
   { key: 'account', searchPaths: ['account.name', 'account.code'], sortPath: 'account.name', type: 'text' },
-  { key: 'accountId', searchPaths: ['accountId'], sortPath: 'accountId', type: 'text' },
+  { key: 'accountId', sortPath: 'accountId', type: 'text' },
   {
     key: 'assignedEmployee',
     searchPaths: ['assignedEmployee.displayName', 'assignedEmployee.firstName', 'assignedEmployee.lastName'],
     sortPath: 'assignedEmployee.displayName',
     type: 'text'
   },
-  { key: 'assignedEmployeeId', searchPaths: ['assignedEmployeeId'], sortPath: 'assignedEmployeeId', type: 'text' },
+  { key: 'assignedEmployeeId', sortPath: 'assignedEmployeeId', type: 'text' },
   { key: 'assignedUserId', searchPaths: ['assignedUserId'], sortPath: 'assignedUserId', type: 'text' },
   { key: 'code', searchPaths: ['code'], sortPath: 'code', type: 'text' },
   { key: 'comments', searchPaths: ['comments.comment'], sortPath: 'comments.comment', type: 'text' },
@@ -65,14 +65,14 @@ export const COMMON_TASK_DESCRIPTORS: Descriptor[] = [
     sortPath: 'contact.lastName',
     type: 'text'
   },
-  { key: 'contactId', searchPaths: ['contactId'], sortPath: 'contactId', type: 'text' },
+  { key: 'contactId', sortPath: 'contactId', type: 'text' },
   {
     key: 'creatorEmployee',
     searchPaths: ['creatorEmployee.displayName', 'creatorEmployee.firstName', 'creatorEmployee.lastName'],
     sortPath: 'creatorEmployee.displayName',
     type: 'text'
   },
-  { key: 'creatorEmployeeId', searchPaths: ['creatorEmployeeId'], sortPath: 'creatorEmployeeId', type: 'text' },
+  { key: 'creatorEmployeeId', sortPath: 'creatorEmployeeId', type: 'text' },
   { key: 'creatorUserId', searchPaths: ['creatorUserId'], sortPath: 'creatorUserId', type: 'text' },
   { key: 'description', searchPaths: ['description'], sortPath: 'description', type: 'text' },
   {
@@ -90,7 +90,7 @@ export const COMMON_TASK_DESCRIPTORS: Descriptor[] = [
     sortPath: 'lead.lastName',
     type: 'text'
   },
-  { key: 'leadId', searchPaths: ['leadId'], sortPath: 'leadId', type: 'text' },
+  { key: 'leadId', sortPath: 'leadId', type: 'text' },
   { key: 'name', searchPaths: ['name'], sortPath: 'name', type: 'text' },
   {
     key: 'opportunityStageCondition',
@@ -104,7 +104,7 @@ export const COMMON_TASK_DESCRIPTORS: Descriptor[] = [
     sortPath: 'opportunity.name',
     type: 'text'
   },
-  { key: 'opportunityId', searchPaths: ['opportunityId'], sortPath: 'opportunityId', type: 'text' },
+  { key: 'opportunityId', sortPath: 'opportunityId', type: 'text' },
   { key: 'source', searchPaths: ['source'], sortPath: 'source', type: 'text' },
   { key: 'startDate', searchPaths: ['startDate'], sortPath: 'startDate', type: 'date' },
   {
@@ -113,16 +113,16 @@ export const COMMON_TASK_DESCRIPTORS: Descriptor[] = [
     sortPath: 'taskPriority.value',
     type: 'text'
   },
-  { key: 'taskPriorityRef', searchPaths: ['taskPriorityRef'], sortPath: 'taskPriorityRef', type: 'text' },
+  { key: 'taskPriorityRef', sortPath: 'taskPriorityRef', type: 'text' },
   {
     key: 'taskStatus',
     searchPaths: ['taskStatus.value', 'taskStatus.code'],
     sortPath: 'taskStatus.value',
     type: 'text'
   },
-  { key: 'taskStatusRef', searchPaths: ['taskStatusRef'], sortPath: 'taskStatusRef', type: 'text' },
+  { key: 'taskStatusRef', sortPath: 'taskStatusRef', type: 'text' },
   { key: 'taskTemplate', searchPaths: ['taskTemplate.name'], sortPath: 'taskTemplate.name', type: 'text' },
-  { key: 'taskTemplateId', searchPaths: ['taskTemplateId'], sortPath: 'taskTemplateId', type: 'text' },
+  { key: 'taskTemplateId', sortPath: 'taskTemplateId', type: 'text' },
   { key: 'taskTiming', searchPaths: ['taskTiming'], sortPath: 'taskTiming', type: 'text' },
   {
     key: 'taskType',
@@ -130,7 +130,7 @@ export const COMMON_TASK_DESCRIPTORS: Descriptor[] = [
     sortPath: 'taskType.value',
     type: 'text'
   },
-  { key: 'taskTypeRef', searchPaths: ['taskTypeRef'], sortPath: 'taskTypeRef', type: 'text' },
+  { key: 'taskTypeRef', sortPath: 'taskTypeRef', type: 'text' },
   { key: 'templateStartDate', searchPaths: ['templateStartDate'], sortPath: 'templateStartDate', type: 'date' },
 
   // Filter IDs

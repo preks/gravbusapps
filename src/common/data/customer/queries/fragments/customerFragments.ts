@@ -28,8 +28,6 @@ import {
  * ============================================================================
  * CUSTOMER_ACCOUNT
  * ============================================================================
- * Extends CUSTOMER_ACCOUNT_REF and adds entity relations
- * Only queries existing CRM GraphQL schema fields
  */
 export const CUSTOMER_ACCOUNT = `
   ${CUSTOMER_ACCOUNT_REF}
@@ -91,14 +89,6 @@ export const CUSTOMER_ACCOUNT = `
   # CRM-specific fields
   salesCampaign {
     ${CUSTOMER_CAMPAIGN_REF}
-  }
-  
-  tags(where: { isDeleted: { _eq: false } }) {
-    id
-    salesTag {
-      ${CATALOG_ENTRY}
-    }
-    salesTagRef
   }
 `
 

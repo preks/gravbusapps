@@ -123,7 +123,7 @@ export const createTaskColumns = (): ColumnDef<CommonTask>[] => [
     size: 180,
     cell: ({ row }) => {
       if (!row.original.assignedEmployee) {
-        return <span className="gba:text-gray-400">-</span>
+        return <span className="gba:text-sm gba:text-muted-foreground">No assignee</span>
       }
 
       const assigneeName = getEmployeeName(row.original.assignedEmployee)
@@ -177,7 +177,7 @@ export const createTaskColumns = (): ColumnDef<CommonTask>[] => [
     cell: ({ row }) => {
       const typeValue = row.original.taskType ? getCatalogEntryValue(row.original.taskType as any) : undefined
 
-      if (!typeValue) return <span className="gba:text-gray-400">-</span>
+      if (!typeValue) return <span className="gba:text-sm gba:text-muted-foreground">No type</span>
 
       return <span className="gba:text-sm">{typeValue}</span>
     }
@@ -190,7 +190,7 @@ export const createTaskColumns = (): ColumnDef<CommonTask>[] => [
     cell: ({ row }) => {
       const priorityCatalog = row.original.taskPriority
 
-      if (!priorityCatalog) return <span className="gba:text-gray-400">-</span>
+      if (!priorityCatalog) return <span className="gba:text-sm gba:text-muted-foreground">No priority</span>
 
       const priorityValue = getCatalogEntryValue(priorityCatalog as any)
       const priorityCode = priorityCatalog.type || priorityCatalog.code
@@ -206,7 +206,7 @@ export const createTaskColumns = (): ColumnDef<CommonTask>[] => [
     cell: ({ row }) => {
       const statusCatalog = row.original.taskStatus
 
-      if (!statusCatalog) return <span className="gba:text-gray-400">-</span>
+      if (!statusCatalog) return <span className="gba:text-sm gba:text-muted-foreground">No status</span>
 
       const statusValue = getCatalogEntryValue(statusCatalog as any)
       const statusCode = statusCatalog.type || statusCatalog.code
@@ -222,7 +222,7 @@ export const createTaskColumns = (): ColumnDef<CommonTask>[] => [
     cell: ({ row }) => {
       const reference = row.original.reference
       if (!reference || !reference.name) {
-        return <span className="gba:text-gray-400">No reference</span>
+        return <span className="gba:text-sm gba:text-muted-foreground">No reference</span>
       }
 
       return (
@@ -246,7 +246,7 @@ export const createTaskColumns = (): ColumnDef<CommonTask>[] => [
     size: 150,
     cell: ({ row }) => {
       if (!row.original.dueDate) {
-        return <span className="gba:text-gray-400">-</span>
+        return <span className="gba:text-sm gba:text-muted-foreground">No due date</span>
       }
       const timingIcon = getTimingTypeIcon(row.original)
       return (

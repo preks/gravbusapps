@@ -72,12 +72,12 @@ const PREFETCH_LEAD_FILTERS_QUERY = `
       }
     }
     industries: Lead(
-      where: { isDeleted: { _eq: false }, industryClass: { id: { _isNull: false } } }
-      distinctOn: [industryClassRef]
+      where: { isDeleted: { _eq: false }, industry: { id: { _isNull: false } } }
+      distinctOn: [industryRef]
       limit: 10
-      orderBy: [{ industryClassRef: ASC }]
+      orderBy: [{ industryRef: ASC }]
     ) {
-      industryClass {
+      industry {
         id
         code
         value
@@ -97,7 +97,7 @@ export const useCustomerLeadFilters = (context: BusinessAppContextProps): Custom
   const [sources, setSources] = useState<FilterOption[]>([])
   const [salutations, setSalutations] = useState<FilterOption[]>([])
   const [industries, setIndustries] = useState<FilterOption[]>([])
-  const [isLoading, setIsLoading] = useState(false)
+  const [isLoading, setIsLoading] = useState(true)
 
   // Prefetch initial filter options
   const prefetchFilters = useCallback(async () => {
@@ -114,7 +114,7 @@ export const useCustomerLeadFilters = (context: BusinessAppContextProps): Custom
         statuses: Array<{ leadStatus: { id: string; code?: string; value?: string } | null }>
         ratings: Array<{ leadRating: { id: string; code?: string; value?: string } | null }>
         sources: Array<{ leadSource: { id: string; code?: string; value?: string } | null }>
-        industries: Array<{ industryClass: { id: string; code?: string; value?: string } | null }>
+        industries: Array<{ industry: { id: string; code?: string; value?: string } | null }>
       }>(PREFETCH_LEAD_FILTERS_QUERY)
 
       // Process owners
@@ -156,10 +156,10 @@ export const useCustomerLeadFilters = (context: BusinessAppContextProps): Custom
 
       // Process industries
       const industryItems = (graphqlRes.industries || [])
-        .filter(r => r.industryClass)
+        .filter(r => r.industry)
         .map(r => ({
-          id: r.industryClass!.id,
-          label: r.industryClass!.value || r.industryClass!.code || r.industryClass!.id
+          id: r.industry!.id,
+          label: r.industry!.value || r.industry!.code || r.industry!.id
         }))
       setIndustries(industryItems)
 

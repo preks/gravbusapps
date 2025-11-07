@@ -45,7 +45,6 @@ export interface CustomerAccount extends CommonAccount {
   pictureThumbnailUrl?: string // Mapped to pictureThumbnail
   salesCampaign?: any // CRM-specific (SalesCampaign)
   salesCampaignId?: string // CRM-specific
-  tags?: any[] // CRM-specific (deprecated)
 }
 
 /**

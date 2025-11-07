@@ -66,7 +66,7 @@ export const COMMON_LEAD_DESCRIPTORS: Descriptor[] = [
     sortPath: 'academicTitle.value',
     type: 'text'
   },
-  { key: 'academicTitleRef', searchPaths: ['academicTitleRef'], sortPath: 'academicTitleRef', type: 'text' },
+  { key: 'academicTitleRef', sortPath: 'academicTitleRef', type: 'text' },
   {
     key: 'accountAnnualRevenueBand',
     searchPaths: ['accountAnnualRevenueBand.value', 'accountAnnualRevenueBand.code'],
@@ -75,7 +75,6 @@ export const COMMON_LEAD_DESCRIPTORS: Descriptor[] = [
   },
   {
     key: 'accountAnnualRevenueBandRef',
-    searchPaths: ['accountAnnualRevenueBandRef'],
     sortPath: 'accountAnnualRevenueBandRef',
     type: 'text'
   },
@@ -85,7 +84,7 @@ export const COMMON_LEAD_DESCRIPTORS: Descriptor[] = [
     sortPath: 'activities.title',
     type: 'text'
   },
-  { key: 'addressLine', searchPaths: ['addressLine'], sortPath: 'addressLine', type: 'text' },
+  { key: 'addressLine', sortPath: 'addressLine', type: 'text' },
   { key: 'code', searchPaths: ['code'], sortPath: 'code', type: 'text' },
   { key: 'companyEmail', searchPaths: ['companyEmail'], sortPath: 'companyEmail', type: 'text' },
   { key: 'companyName', searchPaths: ['companyName'], sortPath: 'companyName', type: 'text' },
@@ -96,18 +95,18 @@ export const COMMON_LEAD_DESCRIPTORS: Descriptor[] = [
     sortPath: 'companySize.value',
     type: 'text'
   },
-  { key: 'companySizeRef', searchPaths: ['companySizeRef'], sortPath: 'companySizeRef', type: 'text' },
+  { key: 'companySizeRef', sortPath: 'companySizeRef', type: 'text' },
   { key: 'companyWebsite', searchPaths: ['companyWebsite'], sortPath: 'companyWebsite', type: 'text' },
   { key: 'conversionDate', searchPaths: ['conversionDate'], sortPath: 'conversionDate', type: 'date' },
   { key: 'convertedAccount', searchPaths: ['convertedAccount.name'], sortPath: 'convertedAccount.name', type: 'text' },
-  { key: 'convertedAccountId', searchPaths: ['convertedAccountId'], sortPath: 'convertedAccountId', type: 'text' },
+  { key: 'convertedAccountId', sortPath: 'convertedAccountId', type: 'text' },
   {
     key: 'convertedContact',
     searchPaths: ['convertedContact.firstName', 'convertedContact.lastName'],
     sortPath: 'convertedContact.lastName',
     type: 'text'
   },
-  { key: 'convertedContactId', searchPaths: ['convertedContactId'], sortPath: 'convertedContactId', type: 'text' },
+  { key: 'convertedContactId', sortPath: 'convertedContactId', type: 'text' },
   {
     key: 'convertedOpportunity',
     searchPaths: ['convertedOpportunity.name'],
@@ -116,7 +115,6 @@ export const COMMON_LEAD_DESCRIPTORS: Descriptor[] = [
   },
   {
     key: 'convertedOpportunityId',
-    searchPaths: ['convertedOpportunityId'],
     sortPath: 'convertedOpportunityId',
     type: 'text'
   },
@@ -126,7 +124,7 @@ export const COMMON_LEAD_DESCRIPTORS: Descriptor[] = [
     sortPath: 'country.value',
     type: 'text'
   },
-  { key: 'countryRef', searchPaths: ['countryRef'], sortPath: 'countryRef', type: 'text' },
+  { key: 'countryRef', sortPath: 'countryRef', type: 'text' },
   { key: 'description', searchPaths: ['description'], sortPath: 'description', type: 'text' },
   {
     key: 'documents',
@@ -143,7 +141,7 @@ export const COMMON_LEAD_DESCRIPTORS: Descriptor[] = [
     sortPath: 'industryClass.value',
     type: 'text'
   },
-  { key: 'industryClassRef', searchPaths: ['industryClassRef'], sortPath: 'industryClassRef', type: 'text' },
+  { key: 'industryClassRef', sortPath: 'industryClassRef', type: 'text' },
   { key: 'lastName', searchPaths: ['lastName'], sortPath: 'lastName', type: 'text' },
   {
     key: 'lead',
@@ -157,21 +155,21 @@ export const COMMON_LEAD_DESCRIPTORS: Descriptor[] = [
     sortPath: 'leadRating.value',
     type: 'text'
   },
-  { key: 'leadRatingRef', searchPaths: ['leadRatingRef'], sortPath: 'leadRatingRef', type: 'text' },
+  { key: 'leadRatingRef', sortPath: 'leadRatingRef', type: 'text' },
   {
     key: 'leadSource',
     searchPaths: ['leadSource.value', 'leadSource.code'],
     sortPath: 'leadSource.value',
     type: 'text'
   },
-  { key: 'leadSourceRef', searchPaths: ['leadSourceRef'], sortPath: 'leadSourceRef', type: 'text' },
+  { key: 'leadSourceRef', sortPath: 'leadSourceRef', type: 'text' },
   {
     key: 'leadStatus',
     searchPaths: ['leadStatus.value', 'leadStatus.code'],
     sortPath: 'leadStatus.value',
     type: 'text'
   },
-  { key: 'leadStatusRef', searchPaths: ['leadStatusRef'], sortPath: 'leadStatusRef', type: 'text' },
+  { key: 'leadStatusRef', sortPath: 'leadStatusRef', type: 'text' },
   {
     key: 'address',
     searchPaths: ['addressLine', 'postalCode', 'locality', 'region.value', 'country.value'],
@@ -186,7 +184,7 @@ export const COMMON_LEAD_DESCRIPTORS: Descriptor[] = [
     sortPath: 'ownerEmployee.displayName',
     type: 'text'
   },
-  { key: 'ownerEmployeeId', searchPaths: ['ownerEmployeeId'], sortPath: 'ownerEmployeeId', type: 'text' },
+  { key: 'ownerEmployeeId', sortPath: 'ownerEmployeeId', type: 'text' },
   { key: 'phoneNumber', searchPaths: ['phoneNumber'], sortPath: 'phoneNumber', type: 'text' },
   { key: 'position', searchPaths: ['position'], sortPath: 'position', type: 'text' },
   { key: 'postalCode', searchPaths: ['postalCode'], sortPath: 'postalCode', type: 'text' },
@@ -196,7 +194,7 @@ export const COMMON_LEAD_DESCRIPTORS: Descriptor[] = [
     sortPath: 'region.value',
     type: 'text'
   },
-  { key: 'regionRef', searchPaths: ['regionRef'], sortPath: 'regionRef', type: 'text' },
+  { key: 'regionRef', sortPath: 'regionRef', type: 'text' },
   {
     key: 'rejectionReasons',
     searchPaths: ['rejectionReasons.reason'],
@@ -209,7 +207,7 @@ export const COMMON_LEAD_DESCRIPTORS: Descriptor[] = [
     sortPath: 'salutation.value',
     type: 'text'
   },
-  { key: 'salutationRef', searchPaths: ['salutationRef'], sortPath: 'salutationRef', type: 'text' },
+  { key: 'salutationRef', sortPath: 'salutationRef', type: 'text' },
   { key: 'sensitive', searchPaths: ['sensitive'], sortPath: 'sensitive', type: 'boolean' },
   { key: 'sourceCompanyName', searchPaths: ['sourceCompanyName'], sortPath: 'sourceCompanyName', type: 'text' },
   {
@@ -224,6 +222,9 @@ export const COMMON_LEAD_DESCRIPTORS: Descriptor[] = [
   { key: 'academicTitleIds', path: 'academicTitleRef', kind: 'inIds' },
   { key: 'accountAnnualRevenueBandIds', path: 'accountAnnualRevenueBandRef', kind: 'inIds' },
   { key: 'companySizeIds', path: 'companySizeRef', kind: 'inIds' },
+  { key: 'convertedAccountIds', path: 'convertedAccountId', kind: 'inIds' },
+  { key: 'convertedContactIds', path: 'convertedContactId', kind: 'inIds' },
+  { key: 'convertedOpportunityIds', path: 'convertedOpportunityId', kind: 'inIds' },
   { key: 'countryIds', path: 'countryRef', kind: 'inIds' },
   { key: 'industryClassIds', path: 'industryClassRef', kind: 'inIds' },
   { key: 'leadRatingIds', path: 'leadRatingRef', kind: 'inIds' },
@@ -249,51 +250,3 @@ export const COMMON_LEAD_DESCRIPTORS: Descriptor[] = [
   // address: Displays addressLine, locality, postalCode, region, country - not sortable
   { key: 'address', searchPaths: ['locality', 'postalCode', 'addressLine'], enableSort: false, type: 'text' }
 ]
-
-//TODO: REPLACE WITH DESCRIPTOR INTERFACE
-interface FilterOption {
-  id: string
-  label: string
-}
-//TODO: REPLACE WITH DESCRIPTOR INTERFACE
-export interface CommonLeadFilters {
-  // Standard catalog-based filters
-  owners: FilterOption[]
-  salutations: FilterOption[]
-  sources: FilterOption[]
-  statuses: FilterOption[]
-  ratings: FilterOption[]
-  industries: FilterOption[]
-
-  // Loading state
-  isLoading: boolean
-
-  // Total counts for pagination
-  totalCounts?: {
-    owners?: number
-    salutations?: number
-    sources?: number
-    statuses?: number
-    ratings?: number
-    industries?: number
-  }
-
-  // Lifecycle functions
-  prefetchFilters?: () => Promise<void>
-
-  // Search functions (individual per filter group)
-  searchOwners?: (query: string) => Promise<FilterOption[]>
-  searchSalutations?: (query: string) => Promise<FilterOption[]>
-  searchSources?: (query: string) => Promise<FilterOption[]>
-  searchStatuses?: (query: string) => Promise<FilterOption[]>
-  searchRatings?: (query: string) => Promise<FilterOption[]>
-  searchIndustries?: (query: string) => Promise<FilterOption[]>
-
-  // Load more functions (pagination)
-  loadMoreOwners?: () => Promise<void>
-  loadMoreSalutations?: () => Promise<void>
-  loadMoreSources?: () => Promise<void>
-  loadMoreStatuses?: () => Promise<void>
-  loadMoreRatings?: () => Promise<void>
-  loadMoreIndustries?: () => Promise<void>
-}

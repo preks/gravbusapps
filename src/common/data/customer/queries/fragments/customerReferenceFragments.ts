@@ -44,14 +44,9 @@ export const CUSTOMER_ACCOUNT_REF = `
  * ============================================================================
  * CUSTOMER_CONTACT_REF
  * ============================================================================
- * Customer Contact Reference Fragment
- * Extends COMMON_CONTACT_FIELDS with CRM-specific scalar fields
- * NO entity relations (no arrays like accountContacts, tasks, etc.)
  */
 export const CUSTOMER_CONTACT_REF = `
   ${COMMON_CONTACT_FIELDS}
-  
-  # Base fields for mapping
   contactType
   jobTitle
   pictureUrl

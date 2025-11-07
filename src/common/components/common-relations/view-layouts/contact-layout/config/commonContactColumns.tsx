@@ -9,6 +9,7 @@ import {
   formatCommunicationChannelValue
 } from '@/common/data/common/utils/communicationChannelUtils'
 import { deriveSortableColumns, deriveAvailableColumns } from '@/common/network/graphql/descriptorUtils'
+import { getContactTypeLabel } from '@/common/data/relations/constants/commonContactConstants'
 
 // Helper to safely convert values to strings
 const safeString = (value: any): string => {
@@ -134,7 +135,7 @@ export const commonContactColumns = (): ColumnDef<CommonContact>[] => [
       const channels = row.original.communicationChannels || []
 
       if (channels.length === 0) {
-        return <span className="gba:text-gray-400">-</span>
+        return <span className="gba:text-sm gba:text-muted-foreground">No contact info</span>
       }
 
       // Display ALL communication channels with proper icons based on type
@@ -164,7 +165,7 @@ export const commonContactColumns = (): ColumnDef<CommonContact>[] => [
     }
   },
   {
-    id: 'account',
+    id: 'accountContacts',
     accessorFn: row => getPrimaryAccount(row)?.name || '',
     header: 'Account',
     size: 200,
@@ -175,7 +176,7 @@ export const commonContactColumns = (): ColumnDef<CommonContact>[] => [
       const account = getPrimaryAccount(row.original)
 
       if (!account) {
-        return <span className="gba:text-gray-400">-</span>
+        return <span className="gba:text-sm gba:text-muted-foreground">No account</span>
       }
 
       const imageUrl = account.pictureThumbnail ? `data:image/gif;base64,${account.pictureThumbnail}` : undefined
@@ -216,7 +217,7 @@ export const commonContactColumns = (): ColumnDef<CommonContact>[] => [
     enableResizing: false,
     cell: ({ row }) => {
       if (!row.original.department) {
-        return <span className="gba:text-gray-400">-</span>
+        return <span className="gba:text-sm gba:text-muted-foreground">No department</span>
       }
       return (
         <span className="gba:text-sm gba:truncate gba:block" title={safeString(row.original.department)}>
@@ -227,26 +228,29 @@ export const commonContactColumns = (): ColumnDef<CommonContact>[] => [
   },
   {
     id: 'type',
-    accessorFn: row => row.accountContacts?.[0]?.contactType || '',
+    accessorFn: row => (row as any).type || (row as any).contactType || '',
     header: 'Type',
     size: 120,
     minSize: 100,
     maxSize: 150,
     enableResizing: false,
     cell: ({ row }) => {
-      const contactType = row.original.accountContacts?.[0]?.contactType
+      // Get contact type directly from contact (mapped from contactType in CRM)
+      const contactType = (row.original as any).type || (row.original as any).contactType
 
       if (!contactType) {
-        return <span className="gba:text-gray-400">-</span>
+        return <span className="gba:text-sm gba:text-muted-foreground">No type</span>
       }
+
+      const label = getContactTypeLabel(contactType)
 
       return (
         <span
           className="gba:text-sm gba:truncate gba:block"
-          title={contactType}
+          title={label || contactType}
           data-testid={`contact-type-${row.original.id}`}
         >
-          {contactType}
+          {label || contactType}
         </span>
       )
     }
@@ -261,7 +265,7 @@ export const commonContactColumns = (): ColumnDef<CommonContact>[] => [
     enableResizing: false,
     cell: ({ row }) => {
       if (!row.original.createdAt) {
-        return <span className="gba:text-gray-400">-</span>
+        return <span className="gba:text-sm gba:text-muted-foreground">No date</span>
       }
       return (
         <div
@@ -284,7 +288,7 @@ export const commonContactColumns = (): ColumnDef<CommonContact>[] => [
     enableResizing: false,
     cell: ({ row }) => {
       if (!row.original.ownerEmployee) {
-        return <span className="gba:text-gray-400">-</span>
+        return <span className="gba:text-sm gba:text-muted-foreground">No owner</span>
       }
 
       const ownerName = getOwnerName(row.original)

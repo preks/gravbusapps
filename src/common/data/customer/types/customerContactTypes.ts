@@ -15,6 +15,7 @@ import type { CustomerLead } from './customerLeadTypes'
 import type { CustomerNote } from './customerNoteTypes'
 import type { CustomerAccountContact, CustomerOpportunityContact } from './customerRelationTypes'
 import type { CustomerTask } from './customerTaskTypes'
+import type { ContactType } from '@/common/data/relations/constants/commonContactConstants'
 
 /**
  * Customer Contact Interface
@@ -32,7 +33,7 @@ export interface CustomerContact extends CommonContact {
   tasks?: CustomerTask[]
 
   // Base fields for mapping
-  contactType?: string // Mapped to type
+  contactType?: ContactType // Mapped to type
   jobTitle?: string // Mapped to jobPosition
   lead?: CustomerLead // Mapped to leads (singular deprecated)
   leadId?: string // Mapped to leads relationship

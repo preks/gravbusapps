@@ -67,7 +67,7 @@ export const COMMON_OPPORTUNITY_DESCRIPTORS: Descriptor[] = [
   ...BASE_ENTITY_DESCRIPTORS,
 
   { key: 'account', searchPaths: ['account.name', 'account.code'], sortPath: 'account.name', type: 'text' },
-  { key: 'accountId', searchPaths: ['accountId'], sortPath: 'accountId', type: 'text' },
+  { key: 'accountId', sortPath: 'accountId', type: 'text' },
   {
     key: 'activities',
     searchPaths: ['activities.title', 'activities.description'],
@@ -96,10 +96,10 @@ export const COMMON_OPPORTUNITY_DESCRIPTORS: Descriptor[] = [
     sortPath: 'currency.value',
     type: 'text'
   },
-  { key: 'currencyRef', searchPaths: ['currencyRef'], sortPath: 'currencyRef', type: 'text' },
+  { key: 'currencyRef', sortPath: 'currencyRef', type: 'text' },
   { key: 'dealType', searchPaths: ['dealType'], sortPath: 'dealType', type: 'text' },
   { key: 'divestment', searchPaths: ['divestment.name'], sortPath: 'divestment.name', type: 'text' },
-  { key: 'divestmentId', searchPaths: ['divestmentId'], sortPath: 'divestmentId', type: 'text' },
+  { key: 'divestmentId', sortPath: 'divestmentId', type: 'text' },
   {
     key: 'documents',
     searchPaths: ['documents.name', 'documents.description'],
@@ -126,7 +126,7 @@ export const COMMON_OPPORTUNITY_DESCRIPTORS: Descriptor[] = [
     sortPath: 'investmentGroup.value',
     type: 'text'
   },
-  { key: 'investmentGroupRef', searchPaths: ['investmentGroupRef'], sortPath: 'investmentGroupRef', type: 'text' },
+  { key: 'investmentGroupRef', sortPath: 'investmentGroupRef', type: 'text' },
   { key: 'investmentName', searchPaths: ['investmentName'], sortPath: 'investmentName', type: 'text' },
   {
     key: 'investmentRole',
@@ -134,7 +134,7 @@ export const COMMON_OPPORTUNITY_DESCRIPTORS: Descriptor[] = [
     sortPath: 'investmentRole.value',
     type: 'text'
   },
-  { key: 'investmentRoleRef', searchPaths: ['investmentRoleRef'], sortPath: 'investmentRoleRef', type: 'text' },
+  { key: 'investmentRoleRef', sortPath: 'investmentRoleRef', type: 'text' },
   {
     key: 'investmentStakeType',
     searchPaths: ['investmentStakeType.value', 'investmentStakeType.code'],
@@ -143,7 +143,6 @@ export const COMMON_OPPORTUNITY_DESCRIPTORS: Descriptor[] = [
   },
   {
     key: 'investmentStakeTypeRef',
-    searchPaths: ['investmentStakeTypeRef'],
     sortPath: 'investmentStakeTypeRef',
     type: 'text'
   },
@@ -153,7 +152,7 @@ export const COMMON_OPPORTUNITY_DESCRIPTORS: Descriptor[] = [
     sortPath: 'investmentType.value',
     type: 'text'
   },
-  { key: 'investmentTypeRef', searchPaths: ['investmentTypeRef'], sortPath: 'investmentTypeRef', type: 'text' },
+  { key: 'investmentTypeRef', sortPath: 'investmentTypeRef', type: 'text' },
   {
     key: 'investments',
     searchPaths: ['investments.name', 'investments.code'],
@@ -186,7 +185,6 @@ export const COMMON_OPPORTUNITY_DESCRIPTORS: Descriptor[] = [
   },
   {
     key: 'opportunityPipelineRef',
-    searchPaths: ['opportunityPipelineRef'],
     sortPath: 'opportunityPipelineRef',
     type: 'text'
   },
@@ -198,7 +196,6 @@ export const COMMON_OPPORTUNITY_DESCRIPTORS: Descriptor[] = [
   },
   {
     key: 'opportunityPipelineStageRef',
-    searchPaths: ['opportunityPipelineStageRef'],
     sortPath: 'opportunityPipelineStageRef',
     type: 'text'
   },
@@ -216,7 +213,6 @@ export const COMMON_OPPORTUNITY_DESCRIPTORS: Descriptor[] = [
   },
   {
     key: 'opportunityStatusRef',
-    searchPaths: ['opportunityStatusRef'],
     sortPath: 'opportunityStatusRef',
     type: 'text'
   },
@@ -226,7 +222,7 @@ export const COMMON_OPPORTUNITY_DESCRIPTORS: Descriptor[] = [
     sortPath: 'ownerEmployee.displayName',
     type: 'text'
   },
-  { key: 'ownerEmployeeId', searchPaths: ['ownerEmployeeId'], sortPath: 'ownerEmployeeId', type: 'text' },
+  { key: 'ownerEmployeeId', sortPath: 'ownerEmployeeId', type: 'text' },
   {
     key: 'rejectionReasons',
     searchPaths: ['rejectionReasons.reason'],
@@ -248,7 +244,6 @@ export const COMMON_OPPORTUNITY_DESCRIPTORS: Descriptor[] = [
   },
   {
     key: 'sizeMeasurementUnitRef',
-    searchPaths: ['sizeMeasurementUnitRef'],
     sortPath: 'sizeMeasurementUnitRef',
     type: 'text'
   },
