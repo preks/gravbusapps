@@ -78,9 +78,11 @@ export const Assets: React.FC<BusinessAppContextProps> = props => {
       const asset = assets.find(a => a.id === assetId)
       if (asset) {
         setSelectedAsset(asset)
+        setEditingAssetId(assetId)
+        setIsRegisterDialogOpen(true)
+      } else {
+        console.error('Asset not found:', assetId)
       }
-      setEditingAssetId(assetId)
-      setIsRegisterDialogOpen(true)
     },
     [assets]
   )
@@ -101,15 +103,27 @@ export const Assets: React.FC<BusinessAppContextProps> = props => {
   useEffect(() => {
     const handleProcessCompletion = (event: CustomEvent) => {
       const detail = event.detail
+
       if (detail?.resolution === 'success') {
-        if (detail?.response?.asset) {
+        const processName = (detail?.processName || '').toLowerCase()
+        const domain = (detail?.domain || '').toLowerCase()
+
+        const isAssetProcess = domain === 'employee' && processName.includes('asset')
+
+        const isAllocationProcess =
+          domain === 'employee' && (processName.includes('allocate') || processName.includes('employeeasset'))
+
+        if (isAssetProcess || detail?.response?.asset) {
           setIsRegisterDialogOpen(false)
           setEditingAssetId(null)
+          setSelectedAsset(null)
         }
-        if (detail?.response?.allocation || detail?.response?.employeeAsset) {
+
+        if (isAllocationProcess || detail?.response?.allocation || detail?.response?.employeeAsset) {
           setIsAllocateDialogOpen(false)
           setAllocatingAssetId(null)
         }
+
         refetchAssets()
       }
     }
@@ -148,7 +162,7 @@ export const Assets: React.FC<BusinessAppContextProps> = props => {
     return () => {
       window.removeEventListener('update-asset', handleUpdateAssetAction as EventListener)
     }
-  }, [])
+  }, [handleUpdateAsset])
 
   useEffect(() => {
     const handleProcessStart = (event: Event) => {
@@ -166,11 +180,19 @@ export const Assets: React.FC<BusinessAppContextProps> = props => {
           processName.includes('changeassetstatus') ||
           processName.includes('retireasset'))
 
-      if (isRetireProcess) {
+      const isUpdateProcess =
+        domain === 'employee' &&
+        (processName === 'updateasset' ||
+          processName.includes('update-asset') ||
+          processName.includes('editasset') ||
+          processName.includes('edit-asset'))
+
+      if (isRetireProcess || isUpdateProcess) {
         const assetId =
           startProcessBody.assetId ||
           startProcessBody.asset?.id ||
           startProcessBody.saveAssetModelInput?.asset?.id ||
+          startProcessBody.updateAssetModelInput?.asset?.id ||
           detail?.assetId ||
           (startProcessBody as any)?.assetId
 
@@ -233,6 +255,7 @@ export const Assets: React.FC<BusinessAppContextProps> = props => {
               onAssetClick={handleAssetClick}
               onRetireAsset={handleUpdateAsset}
               onAllocateAsset={handleAllocateAsset}
+              onUpdateAsset={handleUpdateAsset}
             />
           </div>
         </div>
@@ -258,7 +281,13 @@ export const Assets: React.FC<BusinessAppContextProps> = props => {
               ...props.additionalData,
               assetId: editingAssetId || undefined,
               asset: selectedAsset || undefined,
-              version: selectedAsset?.version
+              version: selectedAsset?.version,
+              onSuccess: () => {
+                setIsRegisterDialogOpen(false)
+                setEditingAssetId(null)
+                setSelectedAsset(null)
+                refetchAssets()
+              }
             }}
           />
         </DialogContent>

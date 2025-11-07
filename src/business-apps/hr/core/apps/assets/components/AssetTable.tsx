@@ -35,7 +35,8 @@ const MemoizedAppActionButton = React.memo<{
   dataTestIdPrefix: string
   onRetireAsset?: (assetId: string) => void
   onAllocateAsset?: (assetId: string) => void
-}>(({ assetId, accessToken, dataTestIdPrefix, onRetireAsset, onAllocateAsset }) => {
+  onUpdateAsset?: (assetId: string) => void
+}>(({ assetId, accessToken, dataTestIdPrefix, onRetireAsset, onAllocateAsset, onUpdateAsset }) => {
   const { combinedData: rawCombinedData, handleDeferredFetch } = useAppActionData(
     {
       contextsArray: [FlowContextName.assetEntity],
@@ -74,6 +75,23 @@ const MemoizedAppActionButton = React.memo<{
     )
   }, [])
 
+  const isUpdateAction = useCallback((action: ActionOption): boolean => {
+    const actionLabel = typeof action.label === 'string' ? action.label.toLowerCase() : ''
+    const actionKey = typeof action.key === 'string' ? action.key.toLowerCase() : ''
+    const processName = (action as any)?.processName?.toLowerCase() || ''
+
+    return (
+      (actionLabel.includes('update') && actionLabel.includes('asset')) ||
+      (actionLabel.includes('edit') && actionLabel.includes('asset')) ||
+      (actionKey.includes('update') && actionKey.includes('asset')) ||
+      (actionKey.includes('edit') && actionKey.includes('asset')) ||
+      processName === 'updateasset' ||
+      processName.includes('update-asset') ||
+      processName.includes('editasset') ||
+      processName.includes('edit-asset')
+    )
+  }, [])
+
   const filteredAndTransformedActions = useMemo(() => {
     if (rawCombinedData.length === 0) {
       return undefined
@@ -81,8 +99,9 @@ const MemoizedAppActionButton = React.memo<{
 
     const retireAction = onRetireAsset ? rawCombinedData.find(isRetireAction) : null
     const allocateAction = onAllocateAsset ? rawCombinedData.find(isAllocateAction) : null
+    const updateAction = onUpdateAsset ? rawCombinedData.find(isUpdateAction) : null
 
-    if (!retireAction && !allocateAction) {
+    if (!retireAction && !allocateAction && !updateAction) {
       return undefined
     }
 
@@ -110,12 +129,26 @@ const MemoizedAppActionButton = React.memo<{
       })
     }
 
+    if (updateAction && onUpdateAsset) {
+      transformedActions.push({
+        ...updateAction,
+        onClick: (e?: React.MouseEvent) => {
+          e?.stopPropagation()
+          e?.preventDefault()
+          onUpdateAsset(assetId)
+        }
+      })
+    }
+
     const seenKeys = new Set<string>()
     const otherActions = rawCombinedData.filter(action => {
       if (onRetireAsset && isRetireAction(action)) {
         return false
       }
       if (onAllocateAsset && isAllocateAction(action)) {
+        return false
+      }
+      if (onUpdateAsset && isUpdateAction(action)) {
         return false
       }
       if (action.key && seenKeys.has(action.key)) {
@@ -128,7 +161,16 @@ const MemoizedAppActionButton = React.memo<{
     })
 
     return [...transformedActions, ...otherActions]
-  }, [rawCombinedData, assetId, onRetireAsset, onAllocateAsset, isRetireAction, isAllocateAction])
+  }, [
+    rawCombinedData,
+    assetId,
+    onRetireAsset,
+    onAllocateAsset,
+    onUpdateAsset,
+    isRetireAction,
+    isAllocateAction,
+    isUpdateAction
+  ])
 
   const handleDropdownOpen = useCallback(() => {
     handleDeferredFetch()
@@ -159,6 +201,7 @@ interface AssetTableProps extends BusinessAppContextProps {
   onAssetClick?: (asset: Asset) => void
   onRetireAsset?: (assetId: string) => void
   onAllocateAsset?: (assetId: string) => void
+  onUpdateAsset?: (assetId: string) => void
 }
 
 // Helper function to get badge variant for asset status
@@ -202,6 +245,7 @@ export const AssetTable: React.FC<AssetTableProps> = ({
   onAssetClick,
   onRetireAsset,
   onAllocateAsset,
+  onUpdateAsset,
   accessToken
 }) => {
   const DATA_TEST_ID_PREFIX = 'asset-table'
@@ -371,6 +415,7 @@ export const AssetTable: React.FC<AssetTableProps> = ({
                           dataTestIdPrefix={DATA_TEST_ID_PREFIX}
                           onRetireAsset={onRetireAsset}
                           onAllocateAsset={onAllocateAsset}
+                          onUpdateAsset={onUpdateAsset}
                         />
                       </div>
                     </TableCell>

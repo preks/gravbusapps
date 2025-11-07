@@ -253,6 +253,8 @@ const EquipmentRegistrationContent: React.FC<BusinessAppContextProps> = (context
 
       const completionPayload = {
         resolution: 'success',
+        processName: 'updateAsset',
+        domain: 'employee',
         response: {
           asset: {
             id: assetId,
@@ -274,16 +276,11 @@ const EquipmentRegistrationContent: React.FC<BusinessAppContextProps> = (context
         })
       )
 
-      const abortPayloadWithUpdateFlag = {
-        assetId: assetId,
-        _alreadyUpdated: true,
-        _updateCompleted: true,
-        _skipCreate: true,
-        ...completionPayload
+      if (additionalData?.onSuccess) {
+        additionalData.onSuccess()
       }
 
-      dispatchProcessContinueEvent('pse_abort', abortPayloadWithUpdateFlag)
-      return null
+      return completionPayload.response
     } catch (error) {
       console.error('Error updating asset:', error)
       throw error
@@ -627,7 +624,22 @@ const EquipmentRegistrationContent: React.FC<BusinessAppContextProps> = (context
                     setIsSubmitting(true)
                     try {
                       const values = form.getValues()
-                      await handleEditSubmit(values)
+                      const result = await handleEditSubmit(values)
+
+                      window.dispatchEvent(
+                        new CustomEvent('com.newwork.process.processCompletion', {
+                          detail: {
+                            resolution: 'success',
+                            processName: 'updateAsset',
+                            domain: 'employee',
+                            response: result
+                          }
+                        })
+                      )
+
+                      if (additionalData?.onSuccess) {
+                        additionalData.onSuccess()
+                      }
                     } catch (error) {
                       setIsSubmitting(false)
                       throw error
@@ -694,6 +706,21 @@ const EquipmentRegistrationContent: React.FC<BusinessAppContextProps> = (context
                       const values = form.getValues()
                       const result = await handleCreateSubmit(values)
                       dispatchProcessContinueEvent('pse_submit', result)
+
+                      window.dispatchEvent(
+                        new CustomEvent('com.newwork.process.processCompletion', {
+                          detail: {
+                            resolution: 'success',
+                            processName: 'createAsset',
+                            domain: 'employee',
+                            response: result
+                          }
+                        })
+                      )
+
+                      if (additionalData?.onSuccess) {
+                        additionalData.onSuccess()
+                      }
                     } catch (error) {
                       setIsSubmitting(false)
                       throw error
