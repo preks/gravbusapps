@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from 'react'
+import '@newwork/nw-design-system/style'
 import dayjs from 'dayjs'
 import { FlowContextName } from '@/common/types/FlowRegistryTypes'
 import { Tabs } from 'antd'
@@ -316,7 +317,7 @@ const AbsencesTab: React.FC<AbsencesTabProps> = ({
       {/* Entitlements Modal for HR Backoffice */}
       <Dialog open={isEntitlementsModalOpen} onOpenChange={open => setIsEntitlementsModalOpen(open)}>
         <DialogContent
-          className="gba:h-screen gba:max-h-screen gba:!rounded-none gba:bg-card"
+          className="gba:h-screen gba:max-h-screen gba:!rounded-none gba:!bg-card"
           data-testid="employee-entitlements-update-modal"
         >
           <UpdateEmployeeEntitlements

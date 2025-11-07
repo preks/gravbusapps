@@ -2,7 +2,7 @@ import React from 'react'
 import { useTranslation } from 'react-i18next'
 import { PiBriefcase, PiUser, PiBuilding, PiTag, PiCalendar } from 'react-icons/pi'
 import { JobPosition } from '../hooks/useJobPositionListData'
-import { getCurrentActiveUserLocale } from '@/common/utils/windowUtils'
+import { getCurrentActiveUserLocale, getTranslationFromI18nKeyAndLabel, formatDate } from '@/common/utils/windowUtils'
 import { AppActionButton } from '@/components/app-action-button/AppActionButton'
 import { FlowContextName } from '@/common/types/FlowRegistryTypes'
 
@@ -89,6 +89,7 @@ export const JobPositionDetails: React.FC<JobPositionDetailsProps> = ({ jobPosit
             }}
             prefixDataTestId="job-position-details-action"
             accessToken={accessToken}
+            disabled={Boolean((jobPosition as any).activeTo)}
           >
             Actions
           </AppActionButton>
@@ -225,6 +226,26 @@ export const JobPositionDetails: React.FC<JobPositionDetailsProps> = ({ jobPosit
               <p className="gba:text-sm gba:text-foreground">{getDepartmentName()}</p>
             </div>
           </div>
+
+          {/* Manager under Organizational Information */}
+          <div className="gba:flex gba:items-start gba:gap-3">
+            <PiUser className="gba:text-muted-foreground gba:mt-1" />
+            <div>
+              <p className="gba:text-sm gba:font-medium gba:text-foreground">
+                {getTranslationFromI18nKeyAndLabel(
+                  'lowcoder:employee_profile.summary_layout.public_profile_container.manager',
+                  'Manager'
+                )}
+              </p>
+              <p className="gba:text-sm gba:text-foreground">
+                {(() => {
+                  const sup = (jobPosition.employeePositions?.[0] as any)?.supervisor
+                  if (!sup) return t('job_position.not_specified', 'Not specified')
+                  return `${sup.firstName} ${sup.lastName}`
+                })()}
+              </p>
+            </div>
+          </div>
         </div>
       </div>
 
@@ -246,6 +267,18 @@ export const JobPositionDetails: React.FC<JobPositionDetailsProps> = ({ jobPosit
           </div>
         </div>
       </div>
+
+      {/* Termination Date (optional) */}
+      {Boolean((jobPosition as any).activeTo) && (
+        <div className="gba:space-y-4">
+          <h3 className="gba:text-md gba:font-medium gba:text-foreground">
+            {getTranslationFromI18nKeyAndLabel('lowcoder:hr_insights.termination_date', 'Termination Date')}
+            <span className="gba:ml-2 gba:text-sm gba:text-foreground">
+              {formatDate((jobPosition as any).activeTo, 'date.long')}
+            </span>
+          </h3>
+        </div>
+      )}
     </div>
   )
 }
