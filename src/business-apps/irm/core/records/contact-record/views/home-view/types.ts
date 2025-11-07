@@ -4,7 +4,7 @@ import type { AppActionCommonProps } from '@/common/hooks/useAppActionData'
 import type { Contact } from '../../hooks/useContactData'
 import type { InvestmentContact } from '@/common/data/investment/types'
 import type { TaskReference } from '@/common/components/common-relations/detail-sheets/task-detail-sheet'
-import type { DocumentItem } from '@/common/components/common-relations/record-sections/document-section/DocumentSection'
+import type { DocumentItem } from '@/components/document-section'
 
 // =====================================================
 // CORE ENTITY TYPES
