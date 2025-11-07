@@ -3,7 +3,7 @@ import { Trash2, Edit, Download } from 'lucide-react'
 import { BusinessAppContextProps } from '@/common/BusinessAppContext'
 import { useGraphQLClient } from '@/common/network/graphql/useGraphQLClient'
 import { useProcessCompletion } from '@/common/hooks/useProcessCompletion'
-import DocumentSection from '@/common/components/common-relations/record-sections/document-section/DocumentSection'
+import { DocumentSection } from '@/components/document-section'
 import { FlowContextName } from '@/common/types/FlowRegistryTypes'
 import { startProcess } from '@/common/utils/start-process'
 

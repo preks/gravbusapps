@@ -5,9 +5,9 @@ import { useGraphQLClient } from '@/common/network/graphql/useGraphQLClient'
 import { useProcessCompletion } from '@/common/hooks/useProcessCompletion'
 import { startProcess } from '@/common/utils/start-process'
 import { getTranslationFromI18nKeyAndLabel } from '@/common/utils/windowUtils'
-import DocumentSection from '@/common/components/common-relations/record-sections/document-section/DocumentSection'
+import { DocumentSection } from '@/components/document-section'
 import { FlowContextName } from '@/common/types/FlowRegistryTypes'
-import type { DocumentItem } from '@/common/components/common-relations/record-sections/document-section/types'
+import type { DocumentItem } from '@/components/document-section'
 
 interface CustomerDocument {
   id: string

@@ -5,7 +5,7 @@ import { useGraphQLClient } from '@/common/network/graphql/useGraphQLClient'
 import { useProcessCompletion } from '@/common/hooks/useProcessCompletion'
 import { startProcess } from '@/common/utils/start-process'
 import { getTranslationFromI18nKeyAndLabel } from '@/common/utils/windowUtils'
-import { DocumentSection, DocumentItem } from '@/common/components/common-relations/record-sections/document-section'
+import { DocumentSection, DocumentItem } from '@/components/document-section'
 import { FlowContextName } from '@/common/types/FlowRegistryTypes'
 
 interface CustomerDocument {
