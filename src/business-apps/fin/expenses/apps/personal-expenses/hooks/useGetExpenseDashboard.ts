@@ -88,6 +88,7 @@ export const useGetExpenseDashboard = (
     // Validate auth; missing currency is not an error (wait for preselect)
     if (!employeeId || !depsRef.current.context?.accessToken) {
       setError(new Error('Employee ID or Access Token not found.'))
+      setStats(null)
       setIsLoading(false)
       return
     }
