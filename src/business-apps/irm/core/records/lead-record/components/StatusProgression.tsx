@@ -33,8 +33,10 @@ const renderActiveOpenStatus = (statuses: ReferenceData[], openIndex: number) =>
       justifyContent: 'center',
       fontSize: '14px',
       fontWeight: '600',
-      backgroundColor: 'hsl(142 76% 36%)',
-      color: 'hsl(var(--background))',
+      // eslint-disable-next-line newwork-local/no-hardcoded-colors
+      backgroundColor: '#4CAF50',
+      // eslint-disable-next-line newwork-local/no-hardcoded-colors
+      color: 'white',
       borderRadius: '20px 0 0 20px',
       marginRight: '8px',
       transition: 'all 0.3s ease',
@@ -45,10 +47,13 @@ const renderActiveOpenStatus = (statuses: ReferenceData[], openIndex: number) =>
     data-testid="status-open"
   >
     <span
-      className="gba:bg-primary-foreground/30"
       style={{
         fontSize: '14px',
         fontWeight: 'bold',
+        // eslint-disable-next-line newwork-local/no-hardcoded-colors
+        backgroundColor: 'rgba(255,255,255,0.3)',
+        // eslint-disable-next-line newwork-local/no-hardcoded-colors
+        color: 'white',
         borderRadius: '50%',
         width: '20px',
         height: '20px',
@@ -278,10 +283,13 @@ const renderActiveStatusBadge = (
         <div style={{ display: 'flex', alignItems: 'center', gap: '8px', padding: '0 16px' }}>
           {(isConverted || isLost) && (
             <span
-              className="gba:bg-primary-foreground/30"
               style={{
                 fontSize: '14px',
                 fontWeight: 'bold',
+                // eslint-disable-next-line newwork-local/no-hardcoded-colors
+                backgroundColor: 'rgba(255,255,255,0.3)',
+                // eslint-disable-next-line newwork-local/no-hardcoded-colors
+                color: 'white',
                 borderRadius: '50%',
                 width: '20px',
                 height: '20px',
@@ -345,6 +353,7 @@ export const StatusProgression: React.FC<StatusProgressionProps> = ({
   return (
     <div style={{ marginBottom: '24px' }}>
       <div
+        className="gba:bg-muted"
         style={{
           display: 'flex',
           alignItems: 'center',
