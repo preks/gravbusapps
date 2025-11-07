@@ -100,7 +100,7 @@ const UpdateEmployeeEntitlementsForm: React.FC<UpdateEmployeeEntitlementsFormPro
   }
 
   return (
-    <div className="gba:bg-card gba:rounded-2xl gba:flex gba:flex-col gba:min-h-[400px] gba:p-0 gba:[&>div[data-testid='update-employee-entitlements-form']]:!pt-0">
+    <div className="gba:bg-card gba:rounded-2xl gba:flex gba:flex-col gba:min-h-[400px] gba:p-0 gba:min-w-0 gba:max-w-full gba:overflow-x-hidden gba:[&>div[data-testid='update-employee-entitlements-form']]:!pt-0">
       <AppActionForm
         processType="update"
         form={form as any}
@@ -112,12 +112,16 @@ const UpdateEmployeeEntitlementsForm: React.FC<UpdateEmployeeEntitlementsFormPro
         onSubmit={async () => ({ event: 'pse_save' })}
       >
         <div
-          className="gba:flex-1 gba:flex gba:flex-col gba:justify-start"
+          className="gba:flex-1 gba:flex gba:flex-col gba:justify-start gba:min-w-0 gba:max-w-full gba:overflow-x-hidden"
           id="mileageRuleModal_containerMileageRule"
           data-testid="mileageRuleModal_containerMileageRule"
         >
           {/* Header-like section inside container (outer header will be in wrapper) */}
-          <div id="mileageRuleModal_columnLayoutContainer" data-testid="mileageRuleModal_columnLayoutContainer">
+          <div
+            id="mileageRuleModal_columnLayoutContainer"
+            data-testid="mileageRuleModal_columnLayoutContainer"
+            className="gba:min-w-0 gba:max-w-full gba:overflow-x-hidden"
+          >
             {/* Employee selector or fixed display */}
             {!isFixedEmployeeId ? (
               <div className="gba:mb-4">
@@ -232,7 +236,7 @@ const UpdateEmployeeEntitlementsForm: React.FC<UpdateEmployeeEntitlementsFormPro
               }}
             >
               <DialogContent
-                className="gba:h-screen gba:max-h-screen gba:rounded-none gba:bg-card"
+                className="gba:h-screen gba:max-h-screen gba:!rounded-none gba:bg-card"
                 data-testid="mileageRuleModal_modalExpenses"
               >
                 <DialogTitle className="gba:sr-only">
