@@ -58,19 +58,13 @@ export const useSiteLocations = (context: BusinessAppContextProps) => {
 
   const fetchSiteLocations = useCallback(async () => {
     if (!context.accessToken) {
-      console.log('useSiteLocations: No access token, skipping fetch')
       setIsLoading(false)
       return
     }
 
     const structureId = getCurrentActiveStructureId()
-    console.log('useSiteLocations: fetchSiteLocations called', {
-      hasAccessToken: !!context.accessToken,
-      structureId: structureId
-    })
 
     if (!structureId) {
-      console.log('useSiteLocations: No active structure ID found, skipping fetch')
       setIsLoading(false)
       return
     }
@@ -79,12 +73,9 @@ export const useSiteLocations = (context: BusinessAppContextProps) => {
     setError(null)
 
     try {
-      console.log('useSiteLocations: Fetching site locations for structureId:', structureId)
       const response = await graphqlClient.request<SiteLocationResponse>(GET_SITE_LOCATIONS, {
         structureId: structureId
       })
-
-      console.log('useSiteLocations: Received response:', response)
 
       const locationOptions = response.SiteLocation.map(location => ({
         id: location.id,
@@ -97,13 +88,12 @@ export const useSiteLocations = (context: BusinessAppContextProps) => {
 
       setOptions(locationOptions)
     } catch (err) {
-      console.error('Error fetching site locations:', err)
       setError(err instanceof Error ? err.message : 'Failed to fetch site locations')
       setOptions([])
     } finally {
       setIsLoading(false)
     }
-  }, [graphqlClient, context.accessToken, context.activeStructureId])
+  }, [graphqlClient, context.accessToken])
 
   useEffect(() => {
     fetchSiteLocations()

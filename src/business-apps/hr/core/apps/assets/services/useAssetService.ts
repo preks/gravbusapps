@@ -53,28 +53,37 @@ export const useAssetService = (context: BusinessAppContextProps) => {
           AssetAggregate: { aggregate: { count: number } }
         }>(GET_ASSETS, defaultVariables)
 
-        const assets: Asset[] = result.Asset.map((asset: any) => ({
-          id: asset.id,
-          model: asset.model,
-          serialNumber: asset.serialNumber,
-          acquisitionDate: asset.acquisitionDate,
-          warrantyPeriodMonths: asset.warrantyPeriodMonths,
-          inventoryValue: asset.inventoryValue,
-          assetStatus: asset.assetStatus as AssetStatus,
-          notes: asset.notes,
-          version: asset.version,
-          isDeleted: asset.isDeleted,
-          assetBrandRef: asset.assetBrandRef,
-          assetCategoryRef: asset.assetCategoryRef,
-          currencyRef: asset.currencyRef,
-          siteLocationId: asset.siteLocationId,
-          assetBrand: asset.assetBrand,
-          assetCategory: asset.assetCategory,
-          currency: asset.currency,
-          siteLocation: asset.siteLocation,
-          createdAt: asset.createdAt,
-          updatedAt: asset.updatedAt
-        }))
+        const assets: Asset[] = result.Asset.map((asset: any) => {
+          if (asset.siteLocationId && !asset.siteLocation) {
+            console.warn('[useAssetService] Asset has siteLocationId but no siteLocation relation:', {
+              assetId: asset.id,
+              siteLocationId: asset.siteLocationId,
+              siteLocation: asset.siteLocation
+            })
+          }
+          return {
+            id: asset.id,
+            model: asset.model,
+            serialNumber: asset.serialNumber,
+            acquisitionDate: asset.acquisitionDate,
+            warrantyPeriodMonths: asset.warrantyPeriodMonths,
+            inventoryValue: asset.inventoryValue,
+            assetStatus: asset.assetStatus as AssetStatus,
+            notes: asset.notes,
+            version: asset.version,
+            isDeleted: asset.isDeleted,
+            assetBrandRef: asset.assetBrandRef,
+            assetCategoryRef: asset.assetCategoryRef,
+            currencyRef: asset.currencyRef,
+            siteLocationId: asset.siteLocationId,
+            assetBrand: asset.assetBrand,
+            assetCategory: asset.assetCategory,
+            currency: asset.currency,
+            siteLocation: asset.siteLocation,
+            createdAt: asset.createdAt,
+            updatedAt: asset.updatedAt
+          }
+        })
 
         return {
           assets,
@@ -101,6 +110,13 @@ export const useAssetService = (context: BusinessAppContextProps) => {
         }
 
         const asset = result.Asset[0]
+        if (asset.siteLocationId && !asset.siteLocation) {
+          console.warn('[useAssetService] Asset by ID has siteLocationId but no siteLocation relation:', {
+            assetId: asset.id,
+            siteLocationId: asset.siteLocationId,
+            siteLocation: asset.siteLocation
+          })
+        }
         return {
           id: asset.id,
           model: asset.model,

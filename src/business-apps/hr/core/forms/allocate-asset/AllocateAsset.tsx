@@ -1,18 +1,10 @@
-/**
- * AllocateAsset Form
- * Form for allocating an asset to an employee
- */
-
-import React, { useState, useEffect } from 'react'
+import React, { useMemo } from 'react'
 import { BusinessAppContextProps } from '@/common/BusinessAppContext'
 import {
   Form,
   FormField,
   FormItem,
-  FormLabel,
-  FormControl,
-  FormDescription,
-  FormMessage,
+  Label,
   Input,
   Button,
   Select,
@@ -20,17 +12,16 @@ import {
   SelectValue,
   SelectContent,
   SelectItem,
-  Textarea,
-  Card,
-  CardHeader,
-  CardTitle,
-  CardContent,
-  Spinner
+  Textarea
 } from '@newwork/nw-design-system'
 import { useForm } from 'react-hook-form'
 import { z } from 'zod'
 import { zodResolver } from '@hookform/resolvers/zod'
-import { useAssetService } from '../../apps/assets/services/useAssetService'
+import { getTranslationFromI18nKeyAndLabel } from '@/common/utils/windowUtils'
+import { dispatchProcessContinueEvent } from '@/common/utils/processEventUtils'
+import FormHeader from '../components/FormHeader'
+import flowIconUrl from '@/assets/icons/flowSmall.svg'
+import { AppActionForm } from '@/components/app-action-form/AppActionForm'
 import { useEmployeeSearch } from './hooks/useEmployeeSearch'
 
 const formSchema = z.object({
@@ -43,28 +34,35 @@ const formSchema = z.object({
 
 type FormValues = z.infer<typeof formSchema>
 
-export const AllocateAsset: React.FC<BusinessAppContextProps> = props => {
-  const [isSubmitting, setIsSubmitting] = useState(false)
-  const [submitSuccess, setSubmitSuccess] = useState(false)
-  const [asset, setAsset] = useState<any>(null)
-  const [isLoading, setIsLoading] = useState(true)
-  const [error, setError] = useState<string | null>(null)
-  const [searchQuery, setSearchQuery] = useState('')
+const AllocateAssetContent: React.FC<BusinessAppContextProps> = (context: BusinessAppContextProps) => {
+  const { additionalData } = context
+  const assetId =
+    additionalData?.assetId ||
+    additionalData?.psi_taskPayload?.assetId ||
+    additionalData?.psi_taskPayload?.initialParameters?.assetId ||
+    additionalData?.psi_taskPayload?.psi_initialParameters?.assetId ||
+    null
 
-  // Get assetId from context (passed from AppActionButton)
-  const assetId = props.additionalData?.assetId as string
+  const existingAsset =
+    additionalData?.asset ||
+    additionalData?.psi_taskPayload?.asset ||
+    additionalData?.psi_taskPayload?.initialParameters?.asset ||
+    additionalData?.psi_taskPayload?.psi_initialParameters?.asset ||
+    null
 
-  // Initialize services
-  const { getAsset, allocateAsset } = useAssetService(props)
+  const [isSubmitting, setIsSubmitting] = React.useState(false)
+  const [searchQuery, setSearchQuery] = React.useState('')
+
   const {
     employees,
     isLoading: employeesLoading,
     error: employeesError,
     searchEmployees
-  } = useEmployeeSearch(props.accessToken)
+  } = useEmployeeSearch(context.accessToken)
 
   const form = useForm<FormValues>({
     resolver: zodResolver(formSchema),
+    mode: 'onChange',
     defaultValues: {
       employeeId: '',
       startDate: new Date().toISOString().split('T')[0],
@@ -74,66 +72,55 @@ export const AllocateAsset: React.FC<BusinessAppContextProps> = props => {
     }
   })
 
-  // Load asset data
-  useEffect(() => {
-    const loadAsset = async () => {
-      if (!assetId) {
-        setError('No asset ID provided')
-        setIsLoading(false)
-        return
-      }
+  const defaultValues: FormValues = useMemo(
+    () => ({
+      employeeId: '',
+      startDate: new Date().toISOString().split('T')[0],
+      expectedEndDate: '',
+      startAssetConditionRef: '',
+      notes: ''
+    }),
+    []
+  )
 
-      try {
-        setIsLoading(true)
-        const assetData = await getAsset(assetId)
-        setAsset(assetData)
-      } catch (err) {
-        console.error('Error loading asset:', err)
-        setError('Failed to load asset data')
-      } finally {
-        setIsLoading(false)
-      }
+  const title = useMemo(
+    () => getTranslationFromI18nKeyAndLabel('lowcoder:equipment.allocate_asset_form', 'Allocate Asset'),
+    []
+  )
+
+  const isSubmitDisabled = useMemo(() => {
+    return isSubmitting || employeesLoading || !form.formState.isValid
+  }, [isSubmitting, employeesLoading, form.formState.isValid])
+
+  const handleSubmit = async (values: FormValues) => {
+    if (!assetId) {
+      throw new Error('Asset ID is required')
     }
 
-    loadAsset()
-  }, [assetId, getAsset])
-
-  const onSubmit = async (values: FormValues) => {
-    if (!assetId || !asset) {
-      console.error('No asset ID or asset data')
-      return
+    if (!values.employeeId?.trim()) {
+      throw new Error('Employee is required')
     }
 
-    setIsSubmitting(true)
-    try {
-      // Create allocation
-      await allocateAsset({
-        assetId: assetId,
-        employeeId: values.employeeId,
-        startDate: values.startDate,
-        expectedEndDate: values.expectedEndDate || undefined,
-        startAssetConditionRef: values.startAssetConditionRef || undefined,
-        notes: values.notes || undefined
-      })
+    const employeeAssetPayload: any = {
+      startDate: values.startDate,
+      employee: values.employeeId,
+      asset: assetId
+    }
 
-      setSubmitSuccess(true)
+    if (values.expectedEndDate) {
+      employeeAssetPayload.expectedEndDate = values.expectedEndDate
+    }
 
-      // Dispatch process completion event to refresh data
-      window.dispatchEvent(
-        new CustomEvent('com.newwork.process.processCompletion', {
-          detail: { resolution: 'success' }
-        })
-      )
+    if (values.startAssetConditionRef) {
+      employeeAssetPayload.startAssetConditionRef = values.startAssetConditionRef
+    }
 
-      // Close form after a short delay
-      setTimeout(() => {
-        window.close()
-      }, 1500)
-    } catch (error) {
-      console.error('Error allocating asset:', error)
-      setError('Failed to allocate asset')
-    } finally {
-      setIsSubmitting(false)
+    if (values.notes) {
+      employeeAssetPayload.notes = values.notes
+    }
+
+    return {
+      employeeAsset: employeeAssetPayload
     }
   }
 
@@ -144,185 +131,208 @@ export const AllocateAsset: React.FC<BusinessAppContextProps> = props => {
     }
   }
 
-  if (isLoading) {
-    return (
-      <div className="gba:p-6 gba:flex gba:justify-center gba:items-center" data-testid="allocate-asset-loading">
-        <Spinner size="lg" />
-      </div>
-    )
-  }
-
-  if (error && !asset) {
-    return (
-      <div className="gba:p-6" data-testid="allocate-asset-error">
-        <Card>
-          <CardContent className="gba:p-6">
-            <p className="gba:text-destructive">{error || 'Asset not found. Please try again.'}</p>
-          </CardContent>
-        </Card>
-      </div>
-    )
-  }
-
-  if (submitSuccess) {
-    return (
-      <div className="gba:p-6" data-testid="allocate-asset-success">
-        <Card>
-          <CardContent className="gba:p-6">
-            <p className="gba:text-success">Asset allocated successfully!</p>
-          </CardContent>
-        </Card>
-      </div>
-    )
-  }
-
   const filteredEmployees = employees.filter(
     emp => !searchQuery || emp.name.toLowerCase().includes(searchQuery.toLowerCase())
   )
 
-  return (
-    <div className="gba:p-6" data-testid="allocate-asset-form">
-      <Card>
-        <CardHeader>
-          <CardTitle>Allocate Asset to Employee</CardTitle>
-        </CardHeader>
-        <CardContent>
-          <div className="gba:mb-4 gba:p-4 gba:bg-muted gba:rounded-lg">
-            <p className="gba:text-sm gba:font-medium">
-              Asset: {asset.assetBrand?.value} {asset.model}
-            </p>
-            <p className="gba:text-xs gba:text-muted-foreground">Serial: {asset.serialNumber}</p>
-          </div>
+  const assetDisplayName = existingAsset
+    ? `${existingAsset.assetBrand?.value || ''} ${existingAsset.model || ''}`.trim()
+    : 'Asset'
 
-          {error && (
-            <div className="gba:mb-4 gba:p-3 gba:bg-destructive/10 gba:text-destructive gba:rounded-md gba:text-sm">
-              {error}
-            </div>
-          )}
+  const formFields = (
+    <div className="gba:flex-1 gba:space-y-4">
+      {existingAsset && (
+        <div className="gba:mb-4 gba:p-4 gba:bg-muted gba:rounded-lg">
+          <p className="gba:text-sm gba:font-medium">Asset: {assetDisplayName}</p>
+          <p className="gba:text-xs gba:text-muted-foreground">Serial: {existingAsset.serialNumber || 'N/A'}</p>
+        </div>
+      )}
 
-          <Form {...form}>
-            <form onSubmit={form.handleSubmit(onSubmit)} className="gba:space-y-4">
-              <FormField
-                control={form.control}
-                name="employeeId"
-                render={({ field }) => (
-                  <FormItem>
-                    <FormLabel>Employee *</FormLabel>
-                    <Select onValueChange={field.onChange} value={field.value} disabled={employeesLoading}>
-                      <FormControl>
-                        <SelectTrigger data-testid="employee-select">
-                          <SelectValue placeholder={employeesLoading ? 'Loading employees...' : 'Select an employee'} />
-                        </SelectTrigger>
-                      </FormControl>
-                      <SelectContent>
-                        <div className="gba:p-2">
-                          <Input
-                            placeholder="Search employees..."
-                            value={searchQuery}
-                            onChange={e => handleEmployeeSearch(e.target.value)}
-                            className="gba:mb-2"
-                          />
-                        </div>
-                        {filteredEmployees.length === 0 ? (
-                          <div className="gba:p-2 gba:text-sm gba:text-muted-foreground gba:text-center">
-                            {employeesLoading ? 'Loading...' : 'No employees found'}
-                          </div>
-                        ) : (
-                          filteredEmployees.map(employee => (
-                            <SelectItem
-                              key={employee.id}
-                              value={employee.id}
-                              data-testid={`employee-option-${employee.id}`}
-                            >
-                              <div className="gba:flex gba:flex-col">
-                                <span className="gba:font-medium">{employee.name}</span>
-                                {(employee.jobTitle || employee.department) && (
-                                  <span className="gba:text-xs gba:text-muted-foreground">
-                                    {[employee.jobTitle, employee.department].filter(Boolean).join(' • ')}
-                                  </span>
-                                )}
-                              </div>
-                            </SelectItem>
-                          ))
+      <FormField
+        control={form.control}
+        name="employeeId"
+        render={({ field }) => (
+          <FormItem>
+            <Label htmlFor="employeeId" data-testid="employee-label">
+              Employee *
+            </Label>
+            <Select onValueChange={field.onChange} value={field.value} disabled={employeesLoading}>
+              <SelectTrigger id="employeeId" data-testid="employee-select">
+                <SelectValue placeholder={employeesLoading ? 'Loading employees...' : 'Select an employee'} />
+              </SelectTrigger>
+              <SelectContent>
+                <div className="gba:p-2">
+                  <Input
+                    placeholder="Search employees..."
+                    value={searchQuery}
+                    onChange={e => handleEmployeeSearch(e.target.value)}
+                    className="gba:mb-2"
+                  />
+                </div>
+                {filteredEmployees.length === 0 ? (
+                  <div className="gba:p-2 gba:text-sm gba:text-muted-foreground gba:text-center">
+                    {employeesLoading ? 'Loading...' : 'No employees found'}
+                  </div>
+                ) : (
+                  filteredEmployees.map(employee => (
+                    <SelectItem key={employee.id} value={employee.id} data-testid={`employee-option-${employee.id}`}>
+                      <div className="gba:flex gba:flex-col">
+                        <span className="gba:font-medium">{employee.name}</span>
+                        {(employee.jobTitle || employee.department) && (
+                          <span className="gba:text-xs gba:text-muted-foreground">
+                            {[employee.jobTitle, employee.department].filter(Boolean).join(' • ')}
+                          </span>
                         )}
-                      </SelectContent>
-                    </Select>
-                    <FormDescription>Select the employee who will receive this asset</FormDescription>
-                    {employeesError && <p className="gba:text-sm gba:text-destructive">{employeesError}</p>}
-                    <FormMessage />
-                  </FormItem>
+                      </div>
+                    </SelectItem>
+                  ))
                 )}
-              />
+              </SelectContent>
+            </Select>
+            {employeesError && <p className="gba:text-sm gba:text-destructive">{employeesError}</p>}
+          </FormItem>
+        )}
+      />
 
-              <FormField
-                control={form.control}
-                name="startDate"
-                render={({ field }) => (
-                  <FormItem>
-                    <FormLabel>Allocation Start Date *</FormLabel>
-                    <FormControl>
-                      <Input type="date" {...field} data-testid="start-date-input" />
-                    </FormControl>
-                    <FormDescription>When the asset will be handed over</FormDescription>
-                    <FormMessage />
-                  </FormItem>
-                )}
-              />
+      <FormField
+        control={form.control}
+        name="startDate"
+        render={({ field }) => (
+          <FormItem>
+            <Label htmlFor="startDate" data-testid="start-date-label">
+              Allocation Start Date *
+            </Label>
+            <Input
+              id="startDate"
+              type="date"
+              value={field.value || ''}
+              onChange={field.onChange}
+              onBlur={field.onBlur}
+              data-testid="start-date-input"
+            />
+          </FormItem>
+        )}
+      />
 
-              <FormField
-                control={form.control}
-                name="expectedEndDate"
-                render={({ field }) => (
-                  <FormItem>
-                    <FormLabel>Expected Return Date</FormLabel>
-                    <FormControl>
-                      <Input type="date" {...field} data-testid="expected-end-date-input" />
-                    </FormControl>
-                    <FormDescription>Expected date for asset return (optional)</FormDescription>
-                    <FormMessage />
-                  </FormItem>
-                )}
-              />
+      <FormField
+        control={form.control}
+        name="expectedEndDate"
+        render={({ field }) => (
+          <FormItem>
+            <Label htmlFor="expectedEndDate" data-testid="expected-end-date-label">
+              Expected Return Date
+            </Label>
+            <Input
+              id="expectedEndDate"
+              type="date"
+              value={field.value || ''}
+              onChange={field.onChange}
+              onBlur={field.onBlur}
+              data-testid="expected-end-date-input"
+            />
+          </FormItem>
+        )}
+      />
 
-              <FormField
-                control={form.control}
-                name="notes"
-                render={({ field }) => (
-                  <FormItem>
-                    <FormLabel>Notes</FormLabel>
-                    <FormControl>
-                      <Textarea
-                        placeholder="Any additional notes about this allocation..."
-                        className="gba:min-h-[80px]"
-                        {...field}
-                        data-testid="notes-textarea"
-                      />
-                    </FormControl>
-                    <FormDescription>Optional notes about the allocation</FormDescription>
-                    <FormMessage />
-                  </FormItem>
-                )}
-              />
-
-              <div className="gba:flex gba:gap-2 gba:pt-4">
-                <Button type="submit" disabled={isSubmitting} data-testid="allocate-submit-button">
-                  {isSubmitting ? 'Allocating...' : 'Allocate Asset'}
-                </Button>
-                <Button
-                  type="button"
-                  variant="outline"
-                  onClick={() => window.close()}
-                  data-testid="allocate-cancel-button"
-                >
-                  Cancel
-                </Button>
-              </div>
-            </form>
-          </Form>
-        </CardContent>
-      </Card>
+      <FormField
+        control={form.control}
+        name="notes"
+        render={({ field }) => (
+          <FormItem>
+            <Label htmlFor="notes" data-testid="notes-label">
+              Notes
+            </Label>
+            <Textarea
+              id="notes"
+              placeholder="Any additional notes about this allocation..."
+              className="gba:min-h-[80px] gba:w-full"
+              value={field.value || ''}
+              onChange={field.onChange}
+              onBlur={field.onBlur}
+              data-testid="notes-textarea"
+            />
+          </FormItem>
+        )}
+      />
     </div>
   )
+
+  return (
+    <div
+      className="gba:mx-auto gba:font-primary gba:flex gba:flex-col gba:w-full"
+      data-testid="allocate-asset-container"
+    >
+      <FormHeader title={title} flowIconUrl={flowIconUrl} className="gba:px-6" />
+
+      <div
+        className="gba:flex gba:flex-col gba:gap-4 gba:[&>div[data-testid='allocate-asset-form']]:!py-0"
+        data-testid="allocate-asset-form-content"
+      >
+        <AppActionForm
+          processType="create"
+          form={form as any}
+          formData={defaultValues}
+          submitEventType="pse_submit"
+          cancelEventType="pse_abort"
+          submitButtonTestId="allocate-asset-submit-button"
+          cancelButtonTestId="allocate-asset-cancel-button"
+          isSubmitDisabled={isSubmitDisabled}
+          submitButtonText={getTranslationFromI18nKeyAndLabel('lowcoder:equipment.allocate_asset', 'Allocate Asset')}
+          cancelButtonText={getTranslationFromI18nKeyAndLabel(
+            'lowcoder:create_expense_request.initiate_cancel_button',
+            'Cancel'
+          )}
+          onSubmit={handleSubmit}
+          disableFormSubmission={true}
+          customActions={
+            <div className="gba:flex gba:justify-end gba:gap-2 gba:items-center gba:mt-auto gba:pt-4">
+              <Button
+                variant="outline"
+                data-testid="allocate-asset-cancel-button"
+                type="button"
+                onClick={() => {
+                  dispatchProcessContinueEvent('pse_abort', {})
+                }}
+              >
+                {getTranslationFromI18nKeyAndLabel('lowcoder:create_expense_request.initiate_cancel_button', 'Cancel')}
+              </Button>
+              <Button
+                data-testid="allocate-asset-submit-button"
+                type="button"
+                variant="default"
+                disabled={isSubmitDisabled}
+                onClick={async () => {
+                  if (isSubmitting) return
+                  const isValid = await form.trigger()
+                  if (!isValid) {
+                    return
+                  }
+                  setIsSubmitting(true)
+                  try {
+                    const values = form.getValues()
+                    const result = await handleSubmit(values)
+                    dispatchProcessContinueEvent('pse_submit', result)
+                  } catch (error) {
+                    setIsSubmitting(false)
+                    throw error
+                  }
+                }}
+              >
+                {getTranslationFromI18nKeyAndLabel('lowcoder:equipment.allocate_asset', 'Allocate Asset')}
+              </Button>
+            </div>
+          }
+          data-testid="allocate-asset-form"
+        >
+          <Form {...(form as any)}>{formFields}</Form>
+        </AppActionForm>
+      </div>
+    </div>
+  )
+}
+
+export const AllocateAsset: React.FC<BusinessAppContextProps> = context => {
+  return <AllocateAssetContent {...context} />
 }
 
 export default AllocateAsset

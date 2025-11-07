@@ -1,1 +1,4 @@
-export { EquipmentRegistration, default } from './EquipmentRegistration'
+import { EquipmentRegistration } from './EquipmentRegistration'
+
+export { EquipmentRegistration }
+export default EquipmentRegistration

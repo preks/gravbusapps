@@ -19,7 +19,7 @@ export interface CreateAssetPayload {
   assetBrandRef: string
   assetCategoryRef: string
   currencyRef: string
-  siteLocationId?: string
+  siteLocation?: string
   notes?: string
 }
 
@@ -35,8 +35,19 @@ export interface UpdateAssetPayload {
   assetBrandRef?: string
   assetCategoryRef?: string
   currencyRef?: string
-  siteLocationId?: string
+  siteLocation?: string
   notes?: string
+}
+
+export interface CreateEmployeeAssetPayload {
+  startDate: string
+  expectedEndDate?: string
+  endDate?: string
+  startAssetConditionRef?: string
+  endAssetConditionRef?: string
+  notes?: string
+  employee: string
+  asset: string
 }
 
 export interface AssetProcessResponse {
@@ -72,7 +83,7 @@ export class AssetProcessClient extends RestClient {
       // POST /processes/employee/updateAsset endpoint
       // Wrap payload in "asset" property as expected by backend
       return await this.post<AssetProcessResponse>(
-        '/processes/employee/updateAsset',
+        '/processes/employee/createAsset',
         { asset: payload },
         {
           headers: {
@@ -88,13 +99,18 @@ export class AssetProcessClient extends RestClient {
 
   /**
    * Update an existing asset via process API
+   * POST /processes/employee/updateAsset
+   * The id and version are passed in the payload
    */
   public async updateAsset(payload: UpdateAssetPayload): Promise<AssetProcessResponse> {
     try {
-      // Wrap payload in "asset" property as expected by backend
+      // POST to /processes/employee/updateAsset with id and version in the payload
+      // Backend expects asset object wrapped in "asset" property
       return await this.post<AssetProcessResponse>(
-        `/processes/employee/updateAsset/${payload.id}`,
-        { asset: payload },
+        '/processes/employee/updateAsset',
+        {
+          asset: payload
+        },
         {
           headers: {
             'Content-Type': 'application/json'
@@ -120,6 +136,27 @@ export class AssetProcessClient extends RestClient {
       })
     } catch (error) {
       console.error('AssetProcessClient: Error deleting asset:', error)
+      throw error
+    }
+  }
+
+  /**
+   * Create/Allocate an employee asset via process API
+   * POST /processes/employee/createEmployeeAsset
+   */
+  public async createEmployeeAsset(payload: CreateEmployeeAssetPayload): Promise<AssetProcessResponse> {
+    try {
+      return await this.post<AssetProcessResponse>(
+        '/processes/employee/createEmployeeAsset',
+        { employeeAsset: payload },
+        {
+          headers: {
+            'Content-Type': 'application/json'
+          }
+        }
+      )
+    } catch (error) {
+      console.error('AssetProcessClient: Error creating employee asset:', error)
       throw error
     }
   }

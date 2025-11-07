@@ -1,19 +1,6 @@
-/**
- * Assets Management App
- * Main application component for IT Equipment Inventory
- */
-
-import React, { useState, useEffect } from 'react'
+import React, { useState, useEffect, useCallback } from 'react'
 import { BusinessAppContextProps } from '@/common/BusinessAppContext'
-import {
-  PageLayout,
-  Button,
-  Dialog,
-  DialogContent,
-  DialogHeader,
-  DialogTitle,
-  DialogDescription
-} from '@newwork/nw-design-system'
+import { PageLayout, Button, Dialog, DialogContent, DialogTitle } from '@newwork/nw-design-system'
 import { DesktopIcon, PlusIcon } from '@phosphor-icons/react'
 import { MODULE_COLORS } from '@/common/constants/ui'
 import { useAssets } from './hooks/useAssets'
@@ -21,6 +8,7 @@ import { AssetStatistics } from './components/AssetStatistics'
 import { AssetTable } from './components/AssetTable'
 import { AssetDetailPanel } from './components/AssetDetailPanel'
 import { EquipmentRegistration } from '../../forms/equipment-registration/EquipmentRegistration'
+import { AllocateAsset } from '../../forms/allocate-asset/AllocateAsset'
 import { Asset, AssetAllocation } from './types'
 import { useAssetService } from './services/useAssetService'
 
@@ -31,6 +19,14 @@ export const Assets: React.FC<BusinessAppContextProps> = props => {
   const [selectedAssetAllocations, setSelectedAssetAllocations] = useState<AssetAllocation[]>([])
   const [isPanelOpen, setIsPanelOpen] = useState(false)
   const [isRegisterDialogOpen, setIsRegisterDialogOpen] = useState(false)
+  const [isAllocateDialogOpen, setIsAllocateDialogOpen] = useState(false)
+  const [editingAssetId, setEditingAssetId] = useState<string | null>(null)
+  const [allocatingAssetId, setAllocatingAssetId] = useState<string | null>(null)
+
+  // Debug: Log when component mounts
+  useEffect(() => {
+    console.log('[Assets] Component mounted, setting up event listeners')
+  }, [])
 
   // Load assets data
   const { assets, isLoading: assetsLoading, error: assetsError, statistics, refetch: refetchAssets } = useAssets(props)
@@ -72,13 +68,136 @@ export const Assets: React.FC<BusinessAppContextProps> = props => {
 
   // Handle register equipment
   const handleRegisterEquipment = () => {
+    setEditingAssetId(null)
     setIsRegisterDialogOpen(true)
   }
 
-  const handleRegisterSuccess = () => {
-    setIsRegisterDialogOpen(false)
-    refetchAssets() // Refresh the asset list after successful registration
-  }
+  // Handle update asset
+  const handleUpdateAsset = useCallback(
+    (assetId: string) => {
+      const asset = assets.find(a => a.id === assetId)
+      if (asset) {
+        setSelectedAsset(asset)
+      }
+      setEditingAssetId(assetId)
+      setIsRegisterDialogOpen(true)
+    },
+    [assets]
+  )
+
+  // Handle allocate asset
+  const handleAllocateAsset = useCallback(
+    (assetId: string) => {
+      const asset = assets.find(a => a.id === assetId)
+      if (asset) {
+        setSelectedAsset(asset)
+      }
+      setAllocatingAssetId(assetId)
+      setIsAllocateDialogOpen(true)
+    },
+    [assets]
+  )
+
+  useEffect(() => {
+    const handleProcessCompletion = (event: CustomEvent) => {
+      const detail = event.detail
+      if (detail?.resolution === 'success') {
+        if (detail?.response?.asset) {
+          setIsRegisterDialogOpen(false)
+          setEditingAssetId(null)
+        }
+        if (detail?.response?.allocation || detail?.response?.employeeAsset) {
+          setIsAllocateDialogOpen(false)
+          setAllocatingAssetId(null)
+        }
+        refetchAssets()
+      }
+    }
+
+    const handleProcessContinue = (event: CustomEvent) => {
+      const detail = event.detail
+      if (detail?.event === 'pse_abort') {
+        setIsRegisterDialogOpen(false)
+        setEditingAssetId(null)
+        setIsAllocateDialogOpen(false)
+        setAllocatingAssetId(null)
+      }
+    }
+
+    window.addEventListener('com.newwork.process.processCompletion', handleProcessCompletion as EventListener)
+    window.addEventListener('com.newwork.process.taskCompletion', handleProcessCompletion as EventListener)
+    window.addEventListener('com.newwork.process.continue', handleProcessContinue as EventListener)
+
+    return () => {
+      window.removeEventListener('com.newwork.process.processCompletion', handleProcessCompletion as EventListener)
+      window.removeEventListener('com.newwork.process.taskCompletion', handleProcessCompletion as EventListener)
+      window.removeEventListener('com.newwork.process.continue', handleProcessContinue as EventListener)
+    }
+  }, [refetchAssets])
+
+  useEffect(() => {
+    const handleUpdateAssetAction = (event: CustomEvent) => {
+      const assetId = event.detail?.assetId || event.detail?.id
+      if (assetId) {
+        handleUpdateAsset(assetId)
+      }
+    }
+
+    window.addEventListener('update-asset', handleUpdateAssetAction as EventListener)
+
+    return () => {
+      window.removeEventListener('update-asset', handleUpdateAssetAction as EventListener)
+    }
+  }, [])
+
+  useEffect(() => {
+    const handleProcessStart = (event: Event) => {
+      const customEvent = event as CustomEvent
+      const detail = customEvent.detail
+      const processName = (detail?.processName || '').toLowerCase()
+      const domain = (detail?.domain || '').toLowerCase()
+      const startProcessBody = detail?.startProcessBody || {}
+
+      const isRetireProcess =
+        domain === 'employee' &&
+        (processName === 'saveasset' ||
+          processName.includes('retire') ||
+          processName.includes('change-asset-status') ||
+          processName.includes('changeassetstatus') ||
+          processName.includes('retireasset'))
+
+      if (isRetireProcess) {
+        const assetId =
+          startProcessBody.assetId ||
+          startProcessBody.asset?.id ||
+          startProcessBody.saveAssetModelInput?.asset?.id ||
+          detail?.assetId ||
+          (startProcessBody as any)?.assetId
+
+        if (assetId) {
+          event.stopImmediatePropagation()
+          event.preventDefault()
+          if (customEvent.stopImmediatePropagation) {
+            customEvent.stopImmediatePropagation()
+          }
+          if (customEvent.preventDefault) {
+            customEvent.preventDefault()
+          }
+
+          handleUpdateAsset(assetId)
+
+          return false
+        }
+      }
+    }
+
+    const options = { capture: true, passive: false } as AddEventListenerOptions
+    window.addEventListener('com.newwork.process.start', handleProcessStart as EventListener, options)
+
+    return () => {
+      window.removeEventListener('com.newwork.process.start', handleProcessStart as EventListener, options)
+    }
+  }, [handleUpdateAsset])
 
   return (
     <div data-testid="assets-app">
@@ -107,7 +226,14 @@ export const Assets: React.FC<BusinessAppContextProps> = props => {
                 Register Equipment
               </Button>
             </div>
-            <AssetTable {...props} assets={assets} isLoading={assetsLoading} onAssetClick={handleAssetClick} />
+            <AssetTable
+              {...props}
+              assets={assets}
+              isLoading={assetsLoading}
+              onAssetClick={handleAssetClick}
+              onRetireAsset={handleUpdateAsset}
+              onAllocateAsset={handleAllocateAsset}
+            />
           </div>
         </div>
       </PageLayout>
@@ -121,14 +247,34 @@ export const Assets: React.FC<BusinessAppContextProps> = props => {
         accessToken={props.accessToken}
       />
 
-      {/* Register Equipment Dialog */}
       <Dialog open={isRegisterDialogOpen} onOpenChange={setIsRegisterDialogOpen}>
         <DialogContent className="gba:max-w-2xl gba:max-h-[90vh] gba:overflow-y-auto">
-          <DialogHeader>
-            <DialogTitle>Register New Equipment</DialogTitle>
-            <DialogDescription>Add a new asset to the inventory system.</DialogDescription>
-          </DialogHeader>
-          <EquipmentRegistration {...props} onSuccess={handleRegisterSuccess} />
+          <DialogTitle className="gba:sr-only">
+            {editingAssetId ? 'Update Equipment' : 'Register Equipment'}
+          </DialogTitle>
+          <EquipmentRegistration
+            {...props}
+            additionalData={{
+              ...props.additionalData,
+              assetId: editingAssetId || undefined,
+              asset: selectedAsset || undefined,
+              version: selectedAsset?.version
+            }}
+          />
+        </DialogContent>
+      </Dialog>
+
+      <Dialog open={isAllocateDialogOpen} onOpenChange={setIsAllocateDialogOpen}>
+        <DialogContent className="gba:max-w-2xl gba:max-h-[90vh] gba:overflow-y-auto">
+          <DialogTitle className="gba:sr-only">Allocate Asset</DialogTitle>
+          <AllocateAsset
+            {...props}
+            additionalData={{
+              ...props.additionalData,
+              assetId: allocatingAssetId || undefined,
+              asset: selectedAsset || undefined
+            }}
+          />
         </DialogContent>
       </Dialog>
     </div>

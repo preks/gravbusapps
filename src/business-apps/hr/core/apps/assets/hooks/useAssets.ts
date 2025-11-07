@@ -5,7 +5,7 @@
 
 import { useState, useEffect, useCallback, useMemo } from 'react'
 import { BusinessAppContextProps } from '@/common/BusinessAppContext'
-import { Asset, AssetFilter, AssetStatus } from '../types'
+import { Asset, AssetFilter } from '../types'
 import { useAssetService } from '../services/useAssetService'
 
 export const useAssets = (context: BusinessAppContextProps) => {
@@ -16,6 +16,24 @@ export const useAssets = (context: BusinessAppContextProps) => {
 
   const assetService = useAssetService(context)
 
+  const [statistics, setStatistics] = useState({
+    totalAssets: 0,
+    availableAssets: 0,
+    allocatedAssets: 0,
+    retiredAssets: 0,
+    underRepairAssets: 0
+  })
+
+  // Fetch statistics from GraphQL for accurate counts
+  const loadStatistics = useCallback(async () => {
+    try {
+      const stats = await assetService.getAssetStatistics()
+      setStatistics(stats)
+    } catch (err) {
+      console.error('Error loading asset statistics:', err)
+    }
+  }, [assetService])
+
   // Load assets from GraphQL
   const loadAssets = useCallback(async () => {
     try {
@@ -23,13 +41,15 @@ export const useAssets = (context: BusinessAppContextProps) => {
       const result = await assetService.getAssets()
       setAssets(result.assets)
       setError(null)
+      // Reload statistics after assets are loaded
+      await loadStatistics()
     } catch (err) {
       setError(err instanceof Error ? err : new Error('Failed to load assets'))
       console.error('Error loading assets:', err)
     } finally {
       setIsLoading(false)
     }
-  }, [assetService])
+  }, [assetService, loadStatistics])
 
   // Initialize data on mount - run ONCE
   useEffect(() => {
@@ -130,23 +150,6 @@ export const useAssets = (context: BusinessAppContextProps) => {
     [assets]
   )
 
-  // Statistics - for performance, we calculate from loaded assets
-  // For real-time stats, consider fetching from assetService.getAssetStatistics()
-  const statistics = useMemo(() => {
-    const total = assets.length
-    const available = assets.filter(a => a.assetStatus === AssetStatus.AVAILABLE).length
-    const allocated = assets.filter(a => a.assetStatus === AssetStatus.ALLOCATED).length
-    const retired = assets.filter(a => a.assetStatus === AssetStatus.RETIRED).length
-
-    return {
-      totalAssets: total,
-      availableAssets: available,
-      allocatedAssets: allocated,
-      retiredAssets: retired,
-      underRepairAssets: 0 // Not in DB schema
-    }
-  }, [assets])
-
   return {
     assets: filteredAssets,
     allAssets: assets,
@@ -159,7 +162,10 @@ export const useAssets = (context: BusinessAppContextProps) => {
     updateAsset: updateAssetWrapper,
     deleteAsset: deleteAssetWrapper,
     getAssetById,
-    refetch: loadAssets,
+    refetch: () => {
+      loadAssets()
+      loadStatistics()
+    },
     statistics
   }
 }

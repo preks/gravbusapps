@@ -4,7 +4,7 @@
  * Uses nw-design-system Table component
  */
 
-import React, { useState, useMemo } from 'react'
+import React, { useState, useMemo, useCallback } from 'react'
 import { Asset, AssetStatus } from '../types'
 import {
   Table,
@@ -25,25 +25,131 @@ import {
 import { BusinessAppContextProps } from '@/common/BusinessAppContext'
 import { AppActionButton } from '@/components/app-action-button/AppActionButton'
 import { FlowContextName } from '@/common/types/FlowRegistryTypes'
+import { useAppActionData } from '@/common/hooks/useAppActionData'
+import type { ActionOption } from '@newwork/nw-design-system'
 
 // Memoized AppActionButton to prevent unnecessary re-renders
 const MemoizedAppActionButton = React.memo<{
   assetId: string
   accessToken: string
   dataTestIdPrefix: string
-}>(({ assetId, accessToken, dataTestIdPrefix }) => (
-  <AppActionButton
-    data-testid={`${dataTestIdPrefix}-actions-${assetId}`}
-    size="icon"
-    contextsArray={[FlowContextName.assetEntity]}
-    externalContextData={{ assetId }}
-    prefixDataTestId={`${dataTestIdPrefix}-action-${assetId}`}
-    accessToken={accessToken}
-    emptyStateBehavior="enable"
-    deferMainContextRequestsUntilClick
-    autoExecuteSingleAction={true}
-  />
-))
+  onRetireAsset?: (assetId: string) => void
+  onAllocateAsset?: (assetId: string) => void
+}>(({ assetId, accessToken, dataTestIdPrefix, onRetireAsset, onAllocateAsset }) => {
+  const { combinedData: rawCombinedData, handleDeferredFetch } = useAppActionData(
+    {
+      contextsArray: [FlowContextName.assetEntity],
+      externalContextData: { assetId },
+      accessToken,
+      deferMainContextRequestsUntilClick: true,
+      emptyStateBehavior: 'enable'
+    },
+    'AppActionButton'
+  )
+
+  const isRetireAction = useCallback((action: ActionOption): boolean => {
+    const actionLabel = typeof action.label === 'string' ? action.label.toLowerCase() : ''
+    const actionKey = typeof action.key === 'string' ? action.key.toLowerCase() : ''
+    const processName = (action as any)?.processName?.toLowerCase() || ''
+
+    return (
+      (actionLabel.includes('retire') && actionLabel.includes('asset')) ||
+      (actionKey.includes('retire') && actionKey.includes('asset')) ||
+      processName === 'saveasset' ||
+      processName.includes('retire') ||
+      processName.includes('change-asset-status')
+    )
+  }, [])
+
+  const isAllocateAction = useCallback((action: ActionOption): boolean => {
+    const actionLabel = typeof action.label === 'string' ? action.label.toLowerCase() : ''
+    const actionKey = typeof action.key === 'string' ? action.key.toLowerCase() : ''
+    const processName = (action as any)?.processName?.toLowerCase() || ''
+
+    return (
+      (actionLabel.includes('allocate') && actionLabel.includes('asset')) ||
+      (actionKey.includes('allocate') && actionKey.includes('asset')) ||
+      processName.includes('allocate') ||
+      processName.includes('allocateasset')
+    )
+  }, [])
+
+  const filteredAndTransformedActions = useMemo(() => {
+    if (rawCombinedData.length === 0) {
+      return undefined
+    }
+
+    const retireAction = onRetireAsset ? rawCombinedData.find(isRetireAction) : null
+    const allocateAction = onAllocateAsset ? rawCombinedData.find(isAllocateAction) : null
+
+    if (!retireAction && !allocateAction) {
+      return undefined
+    }
+
+    const transformedActions: ActionOption[] = []
+
+    if (retireAction && onRetireAsset) {
+      transformedActions.push({
+        ...retireAction,
+        onClick: (e?: React.MouseEvent) => {
+          e?.stopPropagation()
+          e?.preventDefault()
+          onRetireAsset(assetId)
+        }
+      })
+    }
+
+    if (allocateAction && onAllocateAsset) {
+      transformedActions.push({
+        ...allocateAction,
+        onClick: (e?: React.MouseEvent) => {
+          e?.stopPropagation()
+          e?.preventDefault()
+          onAllocateAsset(assetId)
+        }
+      })
+    }
+
+    const seenKeys = new Set<string>()
+    const otherActions = rawCombinedData.filter(action => {
+      if (onRetireAsset && isRetireAction(action)) {
+        return false
+      }
+      if (onAllocateAsset && isAllocateAction(action)) {
+        return false
+      }
+      if (action.key && seenKeys.has(action.key)) {
+        return false
+      }
+      if (action.key) {
+        seenKeys.add(action.key)
+      }
+      return true
+    })
+
+    return [...transformedActions, ...otherActions]
+  }, [rawCombinedData, assetId, onRetireAsset, onAllocateAsset, isRetireAction, isAllocateAction])
+
+  const handleDropdownOpen = useCallback(() => {
+    handleDeferredFetch()
+  }, [handleDeferredFetch])
+
+  return (
+    <AppActionButton
+      data-testid={`${dataTestIdPrefix}-actions-${assetId}`}
+      size="icon"
+      contextsArray={[FlowContextName.assetEntity]}
+      externalContextData={{ assetId }}
+      prefixDataTestId={`${dataTestIdPrefix}-action-${assetId}`}
+      accessToken={accessToken}
+      emptyStateBehavior="enable"
+      deferMainContextRequestsUntilClick
+      autoExecuteSingleAction={true}
+      staticFlowData={filteredAndTransformedActions}
+      onDropdownOpen={handleDropdownOpen}
+    />
+  )
+})
 
 MemoizedAppActionButton.displayName = 'MemoizedAppActionButton'
 
@@ -51,10 +157,12 @@ interface AssetTableProps extends BusinessAppContextProps {
   assets: Asset[]
   isLoading?: boolean
   onAssetClick?: (asset: Asset) => void
+  onRetireAsset?: (assetId: string) => void
+  onAllocateAsset?: (assetId: string) => void
 }
 
 // Helper function to get badge variant for asset status
-const getStatusBadgeVariant = (status: AssetStatus): string => {
+const getStatusBadgeVariant = (status: AssetStatus): 'success' | 'info' | 'warning' | 'destructive' | 'default' => {
   switch (status) {
     case AssetStatus.AVAILABLE:
       return 'success'
@@ -88,7 +196,14 @@ const formatDate = (dateString: string): string => {
   })
 }
 
-export const AssetTable: React.FC<AssetTableProps> = ({ assets, isLoading = false, onAssetClick, accessToken }) => {
+export const AssetTable: React.FC<AssetTableProps> = ({
+  assets,
+  isLoading = false,
+  onAssetClick,
+  onRetireAsset,
+  onAllocateAsset,
+  accessToken
+}) => {
   const DATA_TEST_ID_PREFIX = 'asset-table'
   const [searchQuery, setSearchQuery] = useState('')
   const [statusFilter, setStatusFilter] = useState<string>('all')
@@ -254,6 +369,8 @@ export const AssetTable: React.FC<AssetTableProps> = ({ assets, isLoading = fals
                           assetId={asset.id}
                           accessToken={accessToken}
                           dataTestIdPrefix={DATA_TEST_ID_PREFIX}
+                          onRetireAsset={onRetireAsset}
+                          onAllocateAsset={onAllocateAsset}
                         />
                       </div>
                     </TableCell>
