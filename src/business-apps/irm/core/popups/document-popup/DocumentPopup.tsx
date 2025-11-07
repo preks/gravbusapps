@@ -20,10 +20,9 @@ import { useForm } from 'react-hook-form'
 import { AppActionForm } from '@/components/app-action-form/AppActionForm'
 import { BusinessAppContextProps } from '@/common/BusinessAppContext'
 import { formatDataTestId } from '@/common/utils/formatDataTestId'
-import { useDocumentCatalogs } from '@/business-apps/crm/core/forms/document-upload-form/hooks/useDocumentCatalogs' // TODO: Extract to common urgent
+import { useDocumentCatalogs } from '@/business-apps/crm/core/forms/document-upload-form/hooks/useDocumentCatalogs'
 import { fileClient } from '@/common/network/files/FileClient'
 import { useGraphQLClient } from '@/common/network/graphql/useGraphQLClient'
-import { useRestClient } from '@/common/network/rest/useRestClient'
 import { getTranslationFromI18nKeyAndLabel } from '@/common/utils/windowUtils'
 
 export type InvestmentDocumentEntityType = 'account' | 'contact' | 'lead' | 'opportunity' | 'investment'
@@ -152,7 +151,6 @@ const DocumentPopup: React.FC<DocumentPopupProps> = ({ initialValues = {}, ...pr
   const [parentFolders, setParentFolders] = useState<{ id: string; name: string }[]>([])
   const [parentLoading, setParentLoading] = useState<boolean>(false)
   const graphqlClient = useGraphQLClient(props.accessToken || '')
-  const flowbotRest = useRestClient(env('NEXT_PUBLIC_FLOWBOT'))
 
   const [aiLoading, setAiLoading] = useState<boolean>(false)
   const [aiError, setAiError] = useState<string | null>(null)
@@ -228,9 +226,13 @@ const DocumentPopup: React.FC<DocumentPopupProps> = ({ initialValues = {}, ...pr
         const fd = new FormData()
         fd.append('file', f as unknown as Blob)
         fd.append('llm_model', 'gpt-4.1')
-        const resp = await flowbotRest.post('/flowbot/document-autoclassify/classify', fd, {
+        const res = await fetch(`${env('NEXT_PUBLIC_BASE_URL')}/flowbot/document-autoclassify/classify`, {
+          method: 'POST',
+          body: fd,
           headers: props.accessToken ? { Authorization: `Bearer ${props.accessToken}` } : undefined
         })
+        if (!res.ok) throw new Error(`Request failed: ${res.status} ${res.statusText}`)
+        const resp = await res.json()
         const dataObj = (resp ?? {}) as Record<string, unknown>
         const type = typeof dataObj.type === 'string' ? dataObj.type : undefined
         const group = typeof dataObj.group === 'string' ? dataObj.group : undefined
@@ -269,9 +271,14 @@ const DocumentPopup: React.FC<DocumentPopupProps> = ({ initialValues = {}, ...pr
         t => (t?.value || '').toString().trim().toLowerCase() === aiSuggestion.type!.toString().trim().toLowerCase()
       )
       if (matchT?.id) {
-        form.setValue('documentTypeRef', matchT.id)
+        form.setValue('documentTypeRef', matchT.id, {
+          shouldDirty: true,
+          shouldValidate: true,
+          shouldTouch: true
+        })
         setAiApplied(true)
       }
+      setApplyTypeAfterGroup(aiSuggestion.type)
     }
   }, [aiSuggestion, aiApplied, filteredDocumentTypes, form, renameMode, watchedFolder])
 
@@ -323,8 +330,17 @@ const DocumentPopup: React.FC<DocumentPopupProps> = ({ initialValues = {}, ...pr
             }
           }
         `
+        const cleanId = String(contextValues.entityId)
+          .trim()
+          .replace(/[.,;:]+$/, '')
+        const uuidRe = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i
+        if (!uuidRe.test(cleanId)) {
+          setParentFolders([])
+          setParentLoading(false)
+          return
+        }
         const result = await graphqlClient.request<{ InvestmentDocument: { id: string; name: string }[] }>(query, {
-          id: contextValues.entityId
+          id: cleanId
         })
         setParentFolders(Array.isArray(result?.InvestmentDocument) ? result.InvestmentDocument : [])
       } catch {
@@ -483,13 +499,6 @@ const DocumentPopup: React.FC<DocumentPopupProps> = ({ initialValues = {}, ...pr
       const sanitizedId = resolvedId.replace(/[^\w-]/g, '_') // Replace non-word/non-hyphen chars with underscore
       const folderPath = `/${folderEntity}/${sanitizedId}/documents`
 
-      // Log folder path validation in development
-      if (process.env.NODE_ENV === 'development') {
-        console.debug('DocumentPopup: Folder path generation completed', {
-          pathValid: /^(\/[\w_-]{1,256})+$/.test(folderPath)
-        })
-      }
-
       // Validate the folder path matches the expected regex
       const folderPathRegex = /^(\/[\w_-]{1,256})+$/
       if (!folderPathRegex.test(folderPath)) {
@@ -516,14 +525,6 @@ const DocumentPopup: React.FC<DocumentPopupProps> = ({ initialValues = {}, ...pr
 
   // Submit handler for AppActionForm
   const handleSubmit = async (formData: DocumentPopupValues) => {
-    console.log('🔍 DocumentPopup handleSubmit - Debug Info:', {
-      formData,
-      contextValues,
-      initialValues,
-      renameMode,
-      props: props
-    })
-
     const entityBindingKey = (() => {
       switch (contextValues.entityType) {
         case 'account':
@@ -788,14 +789,15 @@ const DocumentPopup: React.FC<DocumentPopupProps> = ({ initialValues = {}, ...pr
               {!aiLoading && !aiError && aiSuggestion && (
                 <div className="gba:flex gba:flex-col gba:gap-1" data-testid="DocumentPopup-ai-status-suggestion">
                   <span>
-                    {getTranslationFromI18nKeyAndLabel(
-                      'irm:document.ai.suggestion',
-                      'AI suggestion: Group = {group}, Type = {type}',
-                      {
-                        group: aiSuggestion.group || '—',
-                        type: aiSuggestion.type || '—'
-                      }
-                    )}
+                    {(() => {
+                      const tpl = getTranslationFromI18nKeyAndLabel(
+                        'irm:document.ai.suggestion',
+                        'AI suggestion: Group = {group}, Type = {type}'
+                      )
+                      const g = aiSuggestion.group || '—'
+                      const t = aiSuggestion.type || '—'
+                      return tpl.replace('{group}', g).replace('{type}', t)
+                    })()}
                   </span>
                   <div className="gba:flex gba:gap-2">
                     <Button
