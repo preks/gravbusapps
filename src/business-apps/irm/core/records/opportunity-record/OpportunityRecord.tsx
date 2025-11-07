@@ -199,7 +199,7 @@ const InvestmentOpportunityRecordContent: React.FC<OpportunityRecordContentProps
               lastName: note.authorEmployee.lastName
             }
           : undefined,
-        reminderAt: note.reminderDate,
+        reminderDate: note.reminderDate,
         documents: note.documents
       }))
       setNotes(transformedNotes)

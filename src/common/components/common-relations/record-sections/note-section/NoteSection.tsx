@@ -28,7 +28,7 @@ export type NoteItem = {
   createdBy: string
   authorEmployee?: { id?: string; displayName?: string; firstName?: string; lastName?: string }
   assigneeEmployee?: { id?: string; displayName?: string; firstName?: string; lastName?: string }
-  reminderAt?: string | null
+  reminderDate?: string | null
   documents?: NoteDocument[]
 }
 
@@ -153,9 +153,9 @@ const NoteSection: React.FC<NoteSectionProps> = props => {
                     </a>
                   </span>
                 )}
-                {note.reminderAt && (
+                {note.reminderDate && (
                   <span className="gba:flex gba:items-center gba:gap-1 gba:text-orange-600">
-                    <BellIcon size={12} /> Reminder {dayjs(note.reminderAt).format('MMM D, YYYY h:mm A')}
+                    <BellIcon size={12} /> Reminder {dayjs(note.reminderDate).format('MMM D, YYYY h:mm A')}
                   </span>
                 )}
               </div>
