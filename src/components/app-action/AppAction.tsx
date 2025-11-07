@@ -9,6 +9,9 @@ import {
 } from '@/common/hooks/useAppActionData'
 import { formatDataTestId } from '@/common/utils/formatDataTestId'
 
+// Note: className and style props are flagged as unused by ESLint but are actually
+// extracted from cleanProps (line 58-59) and used in the render (line 110).
+// This is a known false positive with React prop validation.
 export interface AppActionProps extends AppActionCommonProps {
   /**
    * A single child element to attach the action execution to.
@@ -22,13 +25,15 @@ export interface AppActionProps extends AppActionCommonProps {
   disabled?: boolean
 
   /**
-   * Optional className to apply to the wrapper div
+   * Optional className to apply to the wrapper div (used on line 110)
+   * @see Line 110 where this is applied to the wrapper div
    */
 
   className?: string
 
   /**
-   * Optional inline styles to apply to the wrapper div
+   * Optional inline styles to apply to the wrapper div (used on line 110)
+   * @see Line 110 where this is applied to the wrapper div
    */
 
   style?: React.CSSProperties
