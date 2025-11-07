@@ -822,7 +822,15 @@ const ExpenseRequestsTable: React.FC<ExpenseRequestsTableProps> = React.memo(pro
       </Sheet>
 
       {/* Print Dialog using design system */}
-      <Dialog open={printModalOpen} onOpenChange={open => setPrintModalOpen(open)}>
+      <Dialog
+        open={printModalOpen}
+        onOpenChange={open => {
+          setPrintModalOpen(open)
+          if (!open) {
+            setPrintPdfUrl('')
+          }
+        }}
+      >
         <DialogContent
           className="gba:!w-[90vw] gba:!max-w-[90vw] gba:!p-0 gba:!rounded-md"
           style={{ height: '90vh' }}
