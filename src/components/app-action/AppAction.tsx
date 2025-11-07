@@ -24,11 +24,13 @@ export interface AppActionProps extends AppActionCommonProps {
   /**
    * Optional className to apply to the wrapper div
    */
+
   className?: string
 
   /**
    * Optional inline styles to apply to the wrapper div
    */
+
   style?: React.CSSProperties
 }
 

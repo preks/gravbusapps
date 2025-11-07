@@ -315,7 +315,7 @@ export const StatusProgression: React.FC<StatusProgressionProps> = ({
         status.value.toLowerCase() === currentStatus.toLowerCase() ||
         status.code.toLowerCase() === currentStatus.toLowerCase()
     )
-    return currentIndex >= 0 ? currentIndex : 0
+    return Math.max(currentIndex, 0)
   }
 
   const currentIndex = getCurrentStatusIndex()
