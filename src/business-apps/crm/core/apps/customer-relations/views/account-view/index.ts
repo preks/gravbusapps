@@ -2,6 +2,3 @@
 export { AccountView as default } from './AccountView'
 export { AccountView } from './AccountView'
 export type { AccountViewProps } from './AccountView'
-
-// Re-export components
-export { AccountStatisticsWithTrend } from './components/AccountStatistics'

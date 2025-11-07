@@ -4,6 +4,7 @@ import { DataDisplay } from '@newwork/nw-design-system'
 import { getTranslationFromI18nKeyAndLabel } from '@/common/utils/windowUtils'
 import { AccountListLayout } from './AccountListLayout'
 import type { CommonAccount } from '@/common/data/relations/types/commonAccountTypes'
+import { AccountStatisticsLayout, type AccountStatisticsData } from './components/AccountStatisticsLayout'
 
 /**
  * Account Layout Props
@@ -40,7 +41,8 @@ export interface AccountLayoutProps<TAccount extends CommonAccount = CommonAccou
   renderRowActions?: (row: { original: TAccount }) => React.ReactNode
 
   // Optional sections
-  renderStatistics?: () => React.ReactNode
+  accountStatistics?: AccountStatisticsData
+  variant?: 'customer' | 'investment'
   primaryAction?: React.ReactNode
 
   // Config
@@ -77,7 +79,8 @@ export function AccountLayout<TAccount extends CommonAccount = CommonAccount>(pr
     onPaginationChange,
     onRowClick,
     renderRowActions,
-    renderStatistics,
+    accountStatistics,
+    variant = 'customer',
     primaryAction,
     hideFilters = false,
     hideStatistics = false,
@@ -88,7 +91,13 @@ export function AccountLayout<TAccount extends CommonAccount = CommonAccount>(pr
   return (
     <div data-testid={dataTestId}>
       {/* Statistics */}
-      {!hideStatistics && renderStatistics?.()}
+      {!hideStatistics && accountStatistics && (
+        <AccountStatisticsLayout
+          statistics={accountStatistics}
+          variant={variant}
+          data-testid={`${dataTestId}-statistics`}
+        />
+      )}
 
       {/* DataDisplay */}
       <DataDisplay

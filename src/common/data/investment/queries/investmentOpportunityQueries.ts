@@ -17,7 +17,7 @@ export interface InvestmentOpportunityQueryVariables {
   accountSearch?: string // Search account by name
   contactIds?: string[] // Filter by contact IDs
   stageIds?: string[]
-  pipelineIds?: string[]
+  opportunityPipelineIds?: string[]
   statusIds?: string[]
   leadSourceIds?: string[]
   currencyIds?: string[]
@@ -110,8 +110,8 @@ const buildIdFilters = (variables: InvestmentOpportunityQueryVariables): GraphQL
   if (variables.stageIds?.length) {
     filters.push({ opportunityPipelineStage: { id: { _in: variables.stageIds } } })
   }
-  if (variables.pipelineIds?.length) {
-    filters.push({ opportunityPipeline: { id: { _in: variables.pipelineIds } } })
+  if (variables.opportunityPipelineIds?.length) {
+    filters.push({ opportunityPipeline: { id: { _in: variables.opportunityPipelineIds } } })
   }
   if (variables.statusIds?.length) {
     filters.push({ opportunityStatus: { id: { _in: variables.statusIds } } })

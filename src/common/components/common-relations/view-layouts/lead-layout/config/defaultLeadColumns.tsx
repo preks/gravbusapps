@@ -137,6 +137,7 @@ export const defaultLeadColumns = (): ColumnDef<CommonLead>[] => [
     minSize: 180,
     maxSize: 280,
     enableResizing: false,
+    enableSorting: false,
     cell: ({ row }) => {
       const email = row.original.email
       const phoneNumber = row.original.phoneNumber
@@ -179,6 +180,7 @@ export const defaultLeadColumns = (): ColumnDef<CommonLead>[] => [
     minSize: 150,
     maxSize: 250,
     enableResizing: false,
+    enableSorting: false,
     cell: ({ row }) => {
       const address = formatAddress({
         addressLine: row.original.addressLine,

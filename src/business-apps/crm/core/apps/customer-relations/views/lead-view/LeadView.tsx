@@ -22,7 +22,7 @@ import {
 import { useCustomerLeadFilters } from '@/common/data/customer/hooks/useCustomerLeadFilters'
 import { LeadStatisticsLayout } from '@/common/components/common-relations/view-layouts/lead-layout/components/LeadStatisticsLayout'
 import { applyLeadFilters } from '@/common/components/common-relations/view-layouts/lead-layout/utils/queryHelpers'
-import { useLeadStatisticsWithTrend as useCustomerLeadStatistics } from '@/common/data/customer/hooks/useCustomerLeadStatistics'
+import { useCustomerLeadStatistics } from '@/common/data/customer/hooks/useCustomerLeadStatistics'
 
 export type LeadViewProps = BusinessAppContextProps
 
@@ -43,7 +43,7 @@ export const LeadView: React.FC<LeadViewProps> = context => {
 
   // Hooks
   const { fetchCustomerLeads } = useCustomerLeads(context)
-  const leadStatistics = useCustomerLeadStatistics({ ...context, sourceApp: 'CRM' })
+  const leadStatistics = useCustomerLeadStatistics(context)
   const leadFilters = useCustomerLeadFilters(context)
 
   // Query Variables

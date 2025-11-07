@@ -17,8 +17,7 @@ import {
 import { CUSTOMER_OPPORTUNITY_DESCRIPTORS } from '@/common/data/customer/types/customerOpportunityTypes'
 import { opportunityFilterConfig } from '@/common/components/common-relations/view-layouts/opportunity-layout/config/opportunityFilters'
 import { useCustomerOpportunityFilters } from './hooks/useCustomerOpportunityFilters'
-import { OpportunityStatisticsWithTrend } from './components/OpportunityStatistics'
-import { useOpportunityStatisticsWithTrend } from './hooks/useOpportunityStatisticsWithTrend'
+import { useCustomerOpportunityStatistics } from '@/common/data/customer/hooks/useCustomerOpportunityStatistics'
 import { formatNumberFunction } from '@/common/utils/windowUtils'
 import {
   applyBasicFilters,
@@ -31,7 +30,7 @@ export type OpportunityViewProps = BusinessAppContextProps
 
 export const OpportunityView: React.FC<OpportunityViewProps> = context => {
   const { fetchCustomerOpportunities } = useCustomerOpportunities(context)
-  const opportunityStatistics = useOpportunityStatisticsWithTrend({ ...context, sourceApp: 'CRM' })
+  const opportunityStatistics = useCustomerOpportunityStatistics(context)
 
   const config: OpportunityViewConfig<CustomerOpportunity, CustomerOpportunityQueryVariables> = useMemo(
     () => ({
@@ -96,15 +95,17 @@ export const OpportunityView: React.FC<OpportunityViewProps> = context => {
           accountId: id
         }),
 
-      renderStatistics: ({ onRefresh }) =>
-        opportunityStatistics.trendData ? (
-          <OpportunityStatisticsWithTrend
-            trendData={opportunityStatistics.trendData}
-            isLoading={opportunityStatistics.isLoading}
-            error={opportunityStatistics.error}
-            onRefresh={onRefresh}
-          />
-        ) : null,
+      opportunityStatistics: opportunityStatistics.trendData
+        ? {
+            recentOpportunities: opportunityStatistics.trendData.recentOpportunities,
+            opportunityValue: opportunityStatistics.trendData.opportunityValue,
+            winRate: opportunityStatistics.trendData.winRate,
+            opportunitiesThisYear: opportunityStatistics.trendData.opportunitiesThisYear,
+            isLoading: opportunityStatistics.isLoading,
+            error: opportunityStatistics.error,
+            refetch: opportunityStatistics.refetch
+          }
+        : undefined,
 
       // Board configuration
       boardConfig: {
@@ -134,7 +135,7 @@ export const OpportunityView: React.FC<OpportunityViewProps> = context => {
         }
 
         if (filters.selectedPipelineId) {
-          variables.pipelineIds = [filters.selectedPipelineId]
+          variables.opportunityPipelineIds = [filters.selectedPipelineId]
         }
 
         if (filters.opportunityFilter === 'my' && context.userInfo?.employeeDetails?.employeeId) {
@@ -148,7 +149,10 @@ export const OpportunityView: React.FC<OpportunityViewProps> = context => {
         }
 
         const result = await fetchCustomerOpportunities(variables)
-        return result.opportunities || []
+        return {
+          opportunities: result.opportunities || [],
+          total: result.total || 0
+        }
       },
 
       renderBoardCard: createBoardCardRenderer(),

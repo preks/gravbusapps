@@ -135,7 +135,7 @@ export const defaultAccountColumns: ColumnDef<CommonAccount>[] = [
     }
   },
   {
-    id: 'email',
+    id: 'communicationChannels',
     accessorFn: row => {
       // Future: all use communicationChannels
       if (row.communicationChannels?.length) {
@@ -151,6 +151,7 @@ export const defaultAccountColumns: ColumnDef<CommonAccount>[] = [
     minSize: 180,
     maxSize: 280,
     enableResizing: false,
+    enableSorting: false,
     cell: ({ row }) => {
       const contactInfo = []
 
@@ -209,7 +210,7 @@ export const defaultAccountColumns: ColumnDef<CommonAccount>[] = [
     }
   },
   {
-    id: 'location',
+    id: 'addresses',
     accessorFn: row => {
       // CommonAccount has: addresses (with locality)
       const primaryAddress = row.addresses?.find(addr => addr.addressType === 'PRIMARY_ADDRESS') || row.addresses?.[0]
@@ -226,6 +227,7 @@ export const defaultAccountColumns: ColumnDef<CommonAccount>[] = [
     minSize: 150,
     maxSize: 300,
     enableResizing: false,
+    enableSorting: false,
     cell: ({ row }) => {
       // CommonAccount has: addresses (standardized)
       const primaryAddress =
@@ -246,7 +248,7 @@ export const defaultAccountColumns: ColumnDef<CommonAccount>[] = [
           return (
             <div
               className="gba:flex gba:items-start gba:gap-2 gba:min-w-0"
-              data-testid={`location-cell-${row.original.id}`}
+              data-testid={`addresses-cell-${row.original.id}`}
             >
               <MapPin className="gba:w-4 gba:h-4 gba:text-gray-500 gba:shrink-0 gba:mt-0.5" />
               <div className="gba:flex gba:flex-col gba:gap-1 gba:min-w-0">
@@ -453,8 +455,8 @@ export const defaultAccountSortableColumns = deriveSortableColumns(COMMON_ACCOUN
  */
 export const defaultVisibleAccountColumns = [
   'name',
-  'email',
-  'location',
+  'communicationChannels',
+  'addresses',
   'industryClass',
   'legalForm',
   'size',

@@ -1,4 +1,5 @@
 import type { OpportunityViewConfig } from '../OpportunityLayout'
+import type { OpportunityStatisticsData } from '../components/OpportunityStatisticsLayout'
 import type { OpportunityBoardFilters } from '../config/opportunityBoardTypes'
 import { FlowContextName } from '@/common/types/FlowRegistryTypes'
 import { buildPlatformUrl } from '@/common/utils/navigationUtils'
@@ -51,8 +52,9 @@ export interface OpportunityConfigBuilderOptions<TOpportunity, TQueryVariables> 
   ) => Promise<any>
 
   extractBoardOpportunities: (result: any) => TOpportunity[]
+  extractBoardTotalCount: (result: any) => number
 
-  renderStatistics: (props: any) => React.ReactNode
+  opportunityStatistics?: OpportunityStatisticsData
 }
 
 export const createOpportunityConfig = <TOpportunity extends { id: string }, TQueryVariables>(
@@ -121,7 +123,7 @@ export const createOpportunityConfig = <TOpportunity extends { id: string }, TQu
         accountId: id
       }),
 
-    renderStatistics: options.renderStatistics,
+    opportunityStatistics: options.opportunityStatistics,
 
     boardConfig: {
       pipelineCatalog: options.boardConfig.pipelineCatalog,
@@ -151,7 +153,7 @@ export const createOpportunityConfig = <TOpportunity extends { id: string }, TQu
       }
 
       if (filters.selectedPipelineId) {
-        variables.pipelineIds = [filters.selectedPipelineId]
+        variables.opportunityPipelineIds = [filters.selectedPipelineId]
       }
 
       if (filters.opportunityFilter === 'my' && currentEmployeeId) {
@@ -167,7 +169,10 @@ export const createOpportunityConfig = <TOpportunity extends { id: string }, TQu
       const extendedVars = options.extendQueryVariables ? options.extendQueryVariables(variables) : variables
 
       const result = await options.fetchBoardOpportunities(extendedVars)
-      return options.extractBoardOpportunities(result)
+      return {
+        opportunities: options.extractBoardOpportunities(result),
+        total: options.extractBoardTotalCount(result)
+      }
     },
 
     renderBoardCard: createBoardCardRenderer({ preferForecastedProfit: options.boardConfig.preferForecastedProfit }),

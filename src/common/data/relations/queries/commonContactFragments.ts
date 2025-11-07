@@ -22,4 +22,8 @@ export const COMMON_CONTACT_FIELDS = `
     ${EMPLOYEE_REF}
   }
   ownerEmployeeId
+  salutation {
+    ${CATALOG_ENTRY}
+  }
+  salutationRef
 `

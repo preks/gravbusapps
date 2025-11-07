@@ -20,7 +20,7 @@ import { buildPlatformUrl, navigateTo } from '@/common/utils/navigationUtils'
 import { AppAction } from '@/components/app-action/AppAction'
 import { AppActionMenu } from '@/components/app-action-menu/AppActionMenu'
 import { useProcessCompletion } from '@/common/hooks/useProcessCompletion'
-import { useContactStatisticsWithTrend as useCustomerContactStatistics } from '@/common/data/customer/hooks/useCustomerContactStatistics'
+import { useCustomerContactStatistics } from '@/common/data/customer/hooks/useCustomerContactStatistics'
 import type { ContactStatisticsData } from '@/common/components/common-relations/view-layouts/contact-layout/components/ContactStatisticsLayout'
 import { applyBasicFilters, applyDateFilter } from './utils/customerContactQueryHelpers'
 
@@ -31,7 +31,7 @@ export const ContactView: React.FC<ContactViewProps> = context => {
 
   // Data Hooks
   const { fetchCustomerContacts } = useCustomerContacts(context)
-  const contactStatistics = useCustomerContactStatistics({ ...context, sourceApp: 'CRM' })
+  const contactStatistics = useCustomerContactStatistics(context)
 
   // View State
   const [contacts, setContacts] = useState<CommonContact[]>([])

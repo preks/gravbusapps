@@ -1,6 +1,7 @@
 // Account Layout Components
 export { AccountLayout, type AccountLayoutProps } from './AccountLayout'
 export { AccountListLayout, type AccountListLayoutProps } from './AccountListLayout'
+export { AccountStatisticsLayout, type AccountStatisticsData } from './components/AccountStatisticsLayout'
 
 // Types
 export type { CommonAccount, CommonAccountFilters } from '@/common/data/relations/types/commonAccountTypes'

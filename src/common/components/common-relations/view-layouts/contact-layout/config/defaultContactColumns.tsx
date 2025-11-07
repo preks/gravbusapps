@@ -129,6 +129,7 @@ export const defaultContactColumns = (): ColumnDef<CommonContact>[] => [
     minSize: 180,
     maxSize: 280,
     enableResizing: false,
+    enableSorting: false,
     cell: ({ row }) => {
       const channels = row.original.communicationChannels || []
 

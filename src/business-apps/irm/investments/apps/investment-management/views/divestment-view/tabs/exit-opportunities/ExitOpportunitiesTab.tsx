@@ -59,6 +59,7 @@ export const ExitOpportunitiesTab: React.FC<ExitOpportunitiesTabProps> = context
 
         fetchBoardOpportunities: fetchInvestmentOpportunities,
         extractBoardOpportunities: result => result.InvestmentOpportunity || [],
+        extractBoardTotalCount: result => result.InvestmentOpportunityAggregate?.aggregate?.count || 0,
         renderStatistics: () => <ExitOpportunityStatistics {...context} />
       }),
     [context, fetchInvestmentOpportunities]

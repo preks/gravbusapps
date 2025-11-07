@@ -11,7 +11,7 @@ export interface CustomerOpportunityQueryVariables {
   contactIds?: string[]
   stageIds?: string[]
   stageValues?: string[]
-  pipelineIds?: string[]
+  opportunityPipelineIds?: string[]
   statusIds?: string[]
   currencyIds?: string[]
   ownerEmployeeIds?: string[]

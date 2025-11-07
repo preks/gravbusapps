@@ -18,7 +18,7 @@ import { FlowContextName } from '@/common/types/FlowRegistryTypes'
 import { getTranslationFromI18nKeyAndLabel } from '@/common/utils/windowUtils'
 import { navigateTo } from '@/common/utils/navigationUtils'
 import { OpportunityBoardLayout } from './OpportunityBoardLayout'
-import { OpportunityListLayout } from './OpportunityListLayout'
+import { OpportunityListLayout } from './components/OpportunityListLayout'
 import { useProcessCompletion } from '@/common/hooks/useProcessCompletion'
 import { useBoardEmployees } from './hooks/useBoardEmployees'
 import { opportunityBoardFilterConfig } from './config/opportunityBoardFilters'
@@ -29,6 +29,7 @@ import {
   getFilterConfigForSection,
   getFilterChangeHandlerForSection
 } from './OpportunityLayoutHelpers'
+import { OpportunityStatisticsLayout, type OpportunityStatisticsData } from './components/OpportunityStatisticsLayout'
 
 // Helper: Update filter options
 const updateFilterOptions = (
@@ -99,14 +100,14 @@ export interface OpportunityViewConfig<TOpportunity extends { id: string }, TQue
   buildRecordUrl: (id: string) => string
   buildAccountUrl: (id: string) => string
 
-  renderStatistics: (props: { context: BusinessAppContextProps; onRefresh: () => void }) => React.ReactNode
+  opportunityStatistics?: OpportunityStatisticsData
 
   boardConfig: import('./config/opportunityBoardTypes').OpportunityBoardConfig
   fetchOpportunitiesForBoard: (
     filters: import('./config/opportunityBoardTypes').OpportunityBoardFilters & {
       additionalFilters?: Record<string, any>
     }
-  ) => Promise<TOpportunity[]>
+  ) => Promise<{ opportunities: TOpportunity[]; total: number }>
   renderBoardCard?: (opportunity: TOpportunity) => React.ReactNode
 
   processCompletionEvents?: string[]
@@ -167,6 +168,7 @@ const ConfigOpportunityLayout = <TOpportunity extends { id: string } = any, TQue
   const [boardFilters, setBoardFilters] = useState<Record<string, any>>({})
   const [boardSearch, setBoardSearch] = useState('')
   const [boardOpportunities, setBoardOpportunities] = useState<TOpportunity[]>([])
+  const [boardTotalCount, setBoardTotalCount] = useState(0)
   const [boardLoading, setBoardLoading] = useState(false)
   const [boardError, setBoardError] = useState<string | null>(null)
   const [boardRefreshTrigger, setBoardRefreshTrigger] = useState(0)
@@ -310,8 +312,9 @@ const ConfigOpportunityLayout = <TOpportunity extends { id: string } = any, TQue
         search: boardSearch.trim() || undefined
       }
 
-      const data = await config.fetchOpportunitiesForBoard(boardFiltersObj)
-      setBoardOpportunities(data)
+      const result = await config.fetchOpportunitiesForBoard(boardFiltersObj)
+      setBoardOpportunities(result.opportunities || [])
+      setBoardTotalCount(result.total || 0)
     } catch (err) {
       console.error('Error loading board opportunities:', err)
       setBoardError(err instanceof Error ? err.message : 'Unknown error occurred')
@@ -397,14 +400,6 @@ const ConfigOpportunityLayout = <TOpportunity extends { id: string } = any, TQue
     [config]
   )
 
-  const handleRefreshStatistics = useCallback(() => {
-    if (currentSection === 'list') {
-      loadListData(false)
-    } else {
-      loadBoardData()
-    }
-  }, [currentSection, loadListData, loadBoardData])
-
   // Columns
   const columns = useMemo(() => config.createColumns(config.buildAccountUrl), [config])
   const availableColumns = useMemo(
@@ -463,7 +458,12 @@ const ConfigOpportunityLayout = <TOpportunity extends { id: string } = any, TQue
   return (
     <div data-testid={dataTestId}>
       {/* Statistics */}
-      {!hideStatistics && config.renderStatistics({ context, onRefresh: handleRefreshStatistics })}
+      {!hideStatistics && config.opportunityStatistics && (
+        <OpportunityStatisticsLayout
+          statistics={config.opportunityStatistics}
+          data-testid={`${dataTestId}-statistics`}
+        />
+      )}
 
       {/* DataDisplay with titleSections as Tabs */}
       <DataDisplay
@@ -481,7 +481,7 @@ const ConfigOpportunityLayout = <TOpportunity extends { id: string } = any, TQue
             id: 'board',
             label: getTranslationFromI18nKeyAndLabel('common:boardView', 'Board'),
             metadata: {
-              count: boardOpportunities.length,
+              count: boardTotalCount,
               isLoading: boardLoading
             }
           }

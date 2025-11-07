@@ -146,6 +146,14 @@ export const CUSTOMER_TASK_REF = `
     ${CATALOG_ENTRY}
   }
   typeRef
+  priority {
+    ${CATALOG_ENTRY}
+  }
+  priorityRef
+  status {
+    ${CATALOG_ENTRY}
+  }
+  statusRef
 `
 
 /**

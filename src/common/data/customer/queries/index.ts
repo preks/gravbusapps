@@ -5,5 +5,7 @@
 
 // Export all query files
 export * from './customerAccountQueries'
+export * from './customerContactQueries'
 export * from './customerLeadQueries'
+export * from './customerOpportunityQueries'
 export * from './customerTaskQueries'

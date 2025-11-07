@@ -1,7 +1,6 @@
-// Customer Task Statistics hook
 import { useState, useCallback, useEffect } from 'react'
 import { BusinessAppContextProps } from '@/common/BusinessAppContext'
-import { useCustomerTasks } from './useCustomerTasks'
+import { useGraphQLClient } from '@/common/network/graphql/useGraphQLClient'
 
 interface TaskStatisticItem {
   value: number
@@ -25,10 +24,65 @@ export interface CustomerTaskStatistics {
   refetch: () => void
 }
 
+const GET_CUSTOMER_TASK_STATISTICS = `
+  query GetCustomerTaskStatistics($employeeId: uuid) {
+    myTotal: SalesTaskAggregate(where: {
+      isDeleted: {_eq: false},
+      assignedEmployee: {id: {_eq: $employeeId}}
+    }) {
+      aggregate { count }
+    }
+    myInProgress: SalesTaskAggregate(where: {
+      isDeleted: {_eq: false},
+      assignedEmployee: {id: {_eq: $employeeId}},
+      status: {code: {_in: ["IN_PROGRESS", "PENDING"]}}
+    }) {
+      aggregate { count }
+    }
+    myCompleted: SalesTaskAggregate(where: {
+      isDeleted: {_eq: false},
+      assignedEmployee: {id: {_eq: $employeeId}},
+      status: {code: {_eq: "COMPLETED"}}
+    }) {
+      aggregate { count }
+    }
+    myOverdue: SalesTaskAggregate(where: {
+      isDeleted: {_eq: false},
+      assignedEmployee: {id: {_eq: $employeeId}},
+      status: {code: {_eq: "OVERDUE"}}
+    }) {
+      aggregate { count }
+    }
+    teamTotal: SalesTaskAggregate(where: {
+      isDeleted: {_eq: false}
+    }) {
+      aggregate { count }
+    }
+    teamInProgress: SalesTaskAggregate(where: {
+      isDeleted: {_eq: false},
+      status: {code: {_in: ["IN_PROGRESS", "PENDING"]}}
+    }) {
+      aggregate { count }
+    }
+    teamCompleted: SalesTaskAggregate(where: {
+      isDeleted: {_eq: false},
+      status: {code: {_eq: "COMPLETED"}}
+    }) {
+      aggregate { count }
+    }
+    teamOverdue: SalesTaskAggregate(where: {
+      isDeleted: {_eq: false},
+      status: {code: {_eq: "OVERDUE"}}
+    }) {
+      aggregate { count }
+    }
+  }
+`
+
 export const useCustomerTaskStatistics = (context: BusinessAppContextProps): CustomerTaskStatistics => {
-  const { fetchCustomerTasks } = useCustomerTasks(context)
   const [isLoading, setIsLoading] = useState(true)
   const [error, setError] = useState<Error | null>(null)
+  const graphqlClient = useGraphQLClient(context.accessToken)
 
   const [myStats, setMyStats] = useState({
     totalTasks: { value: 0 },
@@ -53,69 +107,44 @@ export const useCustomerTaskStatistics = (context: BusinessAppContextProps): Cus
     try {
       const employeeId = context.userInfo?.employeeDetails?.employeeId || context.userInfo?.id
 
-      // Fetch my tasks
-      const myTasksResult = employeeId
-        ? await fetchCustomerTasks({ assignedEmployeeIds: [employeeId], limit: 1000 })
-        : { tasks: [], total: 0 }
-
-      // Fetch team tasks
-      const teamTasksResult = await fetchCustomerTasks({ limit: 1000 })
-
-      // Calculate my tasks statistics
-      const myTasks = myTasksResult.tasks || []
-      const myInProgress = myTasks.filter(t => {
-        const statusCode = t.taskStatus?.code || t.taskStatus?.type || t.status?.code || t.status?.type
-        const status = statusCode?.toUpperCase()
-        return status === 'IN_PROGRESS' || status === 'PENDING'
-      }).length
-      const myCompleted = myTasks.filter(t => {
-        const statusCode = t.taskStatus?.code || t.taskStatus?.type || t.status?.code || t.status?.type
-        return statusCode?.toUpperCase() === 'COMPLETED'
-      }).length
-      const myOverdue = myTasks.filter(t => {
-        const statusCode = t.taskStatus?.code || t.taskStatus?.type || t.status?.code || t.status?.type
-        return statusCode?.toUpperCase() === 'OVERDUE'
-      }).length
-
-      setMyStats({
-        totalTasks: { value: myTasks.length },
-        inProgress: { value: myInProgress },
-        completed: { value: myCompleted },
-        overdue: { value: myOverdue }
+      const result = await graphqlClient.request<{
+        myTotal: { aggregate: { count: number } }
+        myInProgress: { aggregate: { count: number } }
+        myCompleted: { aggregate: { count: number } }
+        myOverdue: { aggregate: { count: number } }
+        teamTotal: { aggregate: { count: number } }
+        teamInProgress: { aggregate: { count: number } }
+        teamCompleted: { aggregate: { count: number } }
+        teamOverdue: { aggregate: { count: number } }
+      }>(GET_CUSTOMER_TASK_STATISTICS, {
+        employeeId: employeeId || null
       })
 
-      // Calculate team tasks statistics
-      const teamTasks = teamTasksResult.tasks || []
-      const teamInProgress = teamTasks.filter(t => {
-        const statusCode = t.taskStatus?.code || t.taskStatus?.type || t.status?.code || t.status?.type
-        const status = statusCode?.toUpperCase()
-        return status === 'IN_PROGRESS' || status === 'PENDING'
-      }).length
-      const teamCompleted = teamTasks.filter(t => {
-        const statusCode = t.taskStatus?.code || t.taskStatus?.type || t.status?.code || t.status?.type
-        return statusCode?.toUpperCase() === 'COMPLETED'
-      }).length
-      const teamOverdue = teamTasks.filter(t => {
-        const statusCode = t.taskStatus?.code || t.taskStatus?.type || t.status?.code || t.status?.type
-        return statusCode?.toUpperCase() === 'OVERDUE'
-      }).length
+      setMyStats({
+        totalTasks: { value: result.myTotal.aggregate.count },
+        inProgress: { value: result.myInProgress.aggregate.count },
+        completed: { value: result.myCompleted.aggregate.count },
+        overdue: { value: result.myOverdue.aggregate.count }
+      })
 
       setTeamStats({
-        totalTasks: { value: teamTasks.length },
-        inProgress: { value: teamInProgress },
-        completed: { value: teamCompleted },
-        overdue: { value: teamOverdue }
+        totalTasks: { value: result.teamTotal.aggregate.count },
+        inProgress: { value: result.teamInProgress.aggregate.count },
+        completed: { value: result.teamCompleted.aggregate.count },
+        overdue: { value: result.teamOverdue.aggregate.count }
       })
     } catch (err) {
       setError(err instanceof Error ? err : new Error('Failed to load statistics'))
     } finally {
       setIsLoading(false)
     }
-  }, [context.accessToken, context.userInfo, fetchCustomerTasks])
+  }, [context.accessToken, context.userInfo?.employeeDetails?.employeeId, context.userInfo?.id, graphqlClient])
 
   useEffect(() => {
-    loadStatistics()
-  }, [loadStatistics])
+    if (context.accessToken) {
+      loadStatistics()
+    }
+  }, [context.accessToken, loadStatistics])
 
   return {
     myTasksStatistics: myStats,

@@ -22,8 +22,9 @@ import { getTranslationFromI18nKeyAndLabel } from '@/common/utils/windowUtils'
 import { AppAction } from '@/components/app-action/AppAction'
 import { AppActionMenu } from '@/components/app-action-menu/AppActionMenu'
 import { useProcessCompletion } from '@/common/hooks/useProcessCompletion'
-import { AccountStatistics } from './components/AccountStatistics'
+import { useInvestmentAccountStatistics } from '@/common/data/investment/hooks/useInvestmentAccountStatistics'
 import { applyAccountFilters } from '@/common/components/common-relations/view-layouts/account-layout/utils/queryHelpers'
+import type { AccountStatisticsData } from '@/common/components/common-relations/view-layouts/account-layout'
 
 export type AccountViewProps = BusinessAppContextProps
 
@@ -33,6 +34,7 @@ export const AccountView: React.FC<AccountViewProps> = context => {
   // Data Hooks
   const { fetchInvestmentAccounts } = useGetInvestmentAccounts(context)
   const filterData = useAccountFilterOptions(context)
+  const accountStatistics = useInvestmentAccountStatistics(context)
 
   // View State
   const [accounts, setAccounts] = useState<CommonAccount[]>([])
@@ -207,10 +209,19 @@ export const AccountView: React.FC<AccountViewProps> = context => {
     [accessToken]
   )
 
-  // Statistics
-  const renderStatistics = useCallback(() => {
-    return <AccountStatistics {...context} />
-  }, [context])
+  // Statistics - Transform hook data to AccountStatisticsData format
+  const accountStatisticsData: AccountStatisticsData | undefined = useMemo(() => {
+    if (!accountStatistics.trendData) return undefined
+    return {
+      recentAccounts: accountStatistics.trendData.recentAccounts,
+      activeAccounts: accountStatistics.trendData.activeAccounts,
+      accountsThisYear: accountStatistics.trendData.accountsThisYear,
+      totalAccounts: accountStatistics.trendData.totalAccounts,
+      isLoading: accountStatistics.isLoading,
+      error: accountStatistics.error,
+      refetch: accountStatistics.refetch
+    }
+  }, [accountStatistics])
 
   // Primary Action
   const primaryAction = useMemo(
@@ -252,7 +263,8 @@ export const AccountView: React.FC<AccountViewProps> = context => {
       onPaginationChange={setPagination}
       onRowClick={handleRowClick}
       renderRowActions={renderRowActions}
-      renderStatistics={renderStatistics}
+      accountStatistics={accountStatisticsData}
+      variant="investment"
       primaryAction={primaryAction}
       dataTestId="investment-account-view"
     />

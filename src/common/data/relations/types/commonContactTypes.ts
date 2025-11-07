@@ -38,8 +38,8 @@ export interface CommonContact extends BaseEntity {
   ownerEmployeeId?: string // IRM | CRM
   picture?: string // IRM | TODO (pictureUrl)
   pictureThumbnail?: string // IRM | TODO (pictureThumbnailUrl)
-  salutation?: CatalogEntry // IRM | TODO (CRM missing)
-  salutationRef?: string // IRM | TODO (missing)
+  salutation?: CatalogEntry // IRM | CRM
+  salutationRef?: string // IRM | CRM
   tasks?: CommonTask[] // IRM | TODO (missing)
   type?: string // IRM | TODO (contactType)
 }

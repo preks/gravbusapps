@@ -169,18 +169,6 @@ export const COMMON_ACCOUNT_DESCRIPTORS: Descriptor[] = [
   { key: 'liquidationDateAfter', path: 'liquidationDate', kind: 'dateFrom' },
   { key: 'liquidationDateBefore', path: 'liquidationDate', kind: 'dateTo' },
 
-  // Composite display columns (for table sorting)
-  // email: Displays primary email from communicationChannels array - not sortable
-  { key: 'email', searchPaths: ['communicationChannels.value'], enableSort: false, type: 'text' },
-
-  // location: Displays primary address from addresses array - not sortable
-  {
-    key: 'location',
-    searchPaths: ['addresses.locality', 'addresses.postalCode'],
-    enableSort: false,
-    type: 'text'
-  },
-
   // size: Displays companySize catalog entry - sorts by companySize.value
   { key: 'size', searchPaths: ['companySize.value', 'companySize.code'], sortPath: 'companySize.value', type: 'text' },
 
