@@ -11,8 +11,8 @@ export const taskFilterConfig: FilterConfiguration = {
       defaultExpanded: true,
       filters: [
         {
-          id: 'status',
-          field: 'status',
+          id: 'taskStatusIds',
+          field: 'taskStatusIds',
           label: 'Status',
           type: 'multi-select',
           config: {
@@ -29,8 +29,8 @@ export const taskFilterConfig: FilterConfiguration = {
       defaultExpanded: true,
       filters: [
         {
-          id: 'priority',
-          field: 'priority',
+          id: 'taskPriorityIds',
+          field: 'taskPriorityIds',
           label: 'Priority',
           type: 'multi-select',
           config: {
@@ -47,8 +47,8 @@ export const taskFilterConfig: FilterConfiguration = {
       defaultExpanded: true,
       filters: [
         {
-          id: 'type',
-          field: 'type',
+          id: 'taskTypeIds',
+          field: 'taskTypeIds',
           label: 'Type',
           type: 'multi-select',
           config: {

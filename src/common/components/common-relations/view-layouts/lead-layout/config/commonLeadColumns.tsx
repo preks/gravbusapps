@@ -68,7 +68,7 @@ const getLeadName = (lead: CommonLead): string => {
  * Uses CommonLead with correct IRM field names
  * Column IDs must match descriptor keys for sorting/filtering
  */
-export const defaultLeadColumns = (): ColumnDef<CommonLead>[] => [
+export const commonLeadColumns = (): ColumnDef<CommonLead>[] => [
   {
     id: 'lead',
     accessorFn: row => getLeadName(row),
@@ -408,4 +408,4 @@ export const defaultVisibleLeadColumns = [
  * Default available columns derived from column definitions
  * Automatically includes all columns with an id
  */
-export const defaultAvailableLeadColumns = deriveAvailableColumns(defaultLeadColumns())
+export const defaultAvailableLeadColumns = deriveAvailableColumns(commonLeadColumns())

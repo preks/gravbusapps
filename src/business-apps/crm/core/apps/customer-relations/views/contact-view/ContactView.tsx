@@ -1,28 +1,17 @@
-import { useState, useCallback, useEffect, useMemo } from 'react'
-import { Button } from '@newwork/nw-design-system'
-import type { ColumnDef } from '@tanstack/react-table'
+import { useMemo } from 'react'
 import { BusinessAppContextProps } from '@/common/BusinessAppContext'
-import { ContactLayout } from '@/common/components/common-relations/view-layouts/contact-layout'
+import { ContactLayout, type ContactViewConfig } from '@/common/components/common-relations/view-layouts/contact-layout'
 import type { CommonContact } from '@/common/data/relations/types/commonContactTypes'
-import {
-  defaultContactColumns,
-  defaultContactSortableColumns,
-  defaultVisibleContactColumns,
-  defaultAvailableContactColumns,
-  defaultContactFilterConfig,
-  buildDynamicFilterConfig
-} from '@/common/components/common-relations/view-layouts/contact-layout/config'
+import { COMMON_CONTACT_DESCRIPTORS } from '@/common/data/relations/types/commonContactTypes'
+import { commonContactColumns } from '@/common/components/common-relations/view-layouts/contact-layout/config'
+import { commonContactFilterConfig } from '@/common/components/common-relations/view-layouts/contact-layout/config'
 import { useCustomerContacts } from '@/common/data/customer/hooks/useCustomerContacts'
 import { useCustomerContactFilters } from '@/common/data/customer/hooks/useCustomerContactFilters'
 import type { CustomerContactQueryVariables } from '@/common/data/customer/queries/customerContactQueries'
 import { FlowContextName } from '@/common/types/FlowRegistryTypes'
-import { buildPlatformUrl, navigateTo } from '@/common/utils/navigationUtils'
-import { AppAction } from '@/components/app-action/AppAction'
-import { AppActionMenu } from '@/components/app-action-menu/AppActionMenu'
-import { useProcessCompletion } from '@/common/hooks/useProcessCompletion'
+import { buildPlatformUrl } from '@/common/utils/navigationUtils'
 import { useCustomerContactStatistics } from '@/common/data/customer/hooks/useCustomerContactStatistics'
-import type { ContactStatisticsData } from '@/common/components/common-relations/view-layouts/contact-layout/components/ContactStatisticsLayout'
-import { applyBasicFilters, applyDateFilter } from './utils/customerContactQueryHelpers'
+import type { ContactStatisticsData } from '@/common/components/common-relations/view-layouts/contact-layout'
 
 export type ContactViewProps = BusinessAppContextProps
 
@@ -31,188 +20,8 @@ export const ContactView: React.FC<ContactViewProps> = context => {
 
   // Data Hooks
   const { fetchCustomerContacts } = useCustomerContacts(context)
-  const contactStatistics = useCustomerContactStatistics(context)
-
-  // View State
-  const [contacts, setContacts] = useState<CommonContact[]>([])
-  const [totalCount, setTotalCount] = useState(0)
-  const [isLoading, setIsLoading] = useState(true)
-  const [error, setError] = useState<string | null>(null)
-  const [isInitialLoad, setIsInitialLoad] = useState(true)
-
-  // Filter State
-  const [searchTerm, setSearchTerm] = useState('')
-  const [selectedFilters, setSelectedFilters] = useState<Record<string, any>>({})
-
-  // Table State
-  const [sorting, setSorting] = useState<Array<{ id: string; desc: boolean }>>([{ id: 'createdAt', desc: true }])
-  const [pagination, setPagination] = useState({ pageIndex: 0, pageSize: 20 })
-  const [visibleColumns, setVisibleColumns] = useState<string[]>(defaultVisibleContactColumns)
-
-  // Columns: Use default columns
-  const columns = useMemo<ColumnDef<CommonContact>[]>(() => {
-    return defaultContactColumns()
-  }, [])
-
-  // Filter Configuration - Dynamic with filter options
   const contactFilters = useCustomerContactFilters(context)
-  const filterConfig = useMemo(() => {
-    return buildDynamicFilterConfig(defaultContactFilterConfig, {
-      owners: contactFilters.owners,
-      departments: contactFilters.departments,
-      jobPositions: [], // TODO: Add jobPositions to useCustomerContactFilters if needed
-      academicTitles: contactFilters.academicTitles,
-      salutations: [], // TODO: Add salutations to useCustomerContactFilters if needed
-      languages: [] // TODO: Add languages to useCustomerContactFilters if needed
-    })
-  }, [contactFilters.owners, contactFilters.departments, contactFilters.academicTitles])
-
-  // Query Variables
-  const queryVariables = useMemo(() => {
-    const vars: CustomerContactQueryVariables = {
-      limit: pagination.pageSize,
-      offset: pagination.pageIndex * pagination.pageSize,
-      search: searchTerm.trim() || undefined
-    }
-
-    applyBasicFilters(vars, selectedFilters)
-    applyDateFilter(vars, selectedFilters)
-
-    if (sorting.length > 0) {
-      const columnId = sorting[0].id
-      const direction = sorting[0].desc ? 'DESC_NULLS_LAST' : 'ASC_NULLS_LAST'
-
-      // Handle composite columns that need multiple sort fields
-      if (columnId === 'contact') {
-        // Sort by firstName, then lastName
-        vars.orderBy = [
-          { field: 'firstName', direction },
-          { field: 'lastName', direction }
-        ]
-      } else {
-        // Use descriptor-based sorting (handles nested paths like account.name, ownerEmployee.displayName)
-        // The buildOrderBy function in queryHelpers will use CUSTOMER_CONTACT_DESCRIPTORS to resolve the correct GraphQL path
-        vars.orderBy = [{ field: columnId as any, direction }]
-      }
-    } else {
-      vars.orderBy = [{ field: 'createdAt' as any, direction: 'DESC_NULLS_LAST' }]
-    }
-
-    return vars
-  }, [pagination, searchTerm, selectedFilters, sorting])
-
-  // Load Data
-  const loadData = useCallback(
-    async (showLoading: boolean = true) => {
-      if (!accessToken) return
-
-      if (showLoading) setIsLoading(true)
-      setError(null)
-
-      try {
-        const result = await fetchCustomerContacts(queryVariables)
-
-        console.log('=== [CONTACTS LOADED DEBUG] ===', {
-          totalContacts: result.contacts?.length || 0,
-          totalCount: result.total || 0,
-          firstContact: result.contacts?.[0],
-          firstContactCommunicationChannels: result.contacts?.[0]?.communicationChannels,
-          firstContactAccountContacts: result.contacts?.[0]?.accountContacts
-        })
-
-        setContacts(result.contacts || [])
-        setTotalCount(result.total || 0)
-      } catch (err) {
-        console.error('=== [LOAD ERROR] ===', err)
-        setError(err instanceof Error ? err.message : 'Unknown error occurred')
-      } finally {
-        if (showLoading) setIsLoading(false)
-        setIsInitialLoad(false)
-      }
-    },
-    [accessToken, fetchCustomerContacts, queryVariables]
-  )
-
-  // Initial load
-  useEffect(() => {
-    if (!accessToken || !isInitialLoad) return
-    loadData(true)
-  }, [accessToken, isInitialLoad, loadData])
-
-  // Reload data when filters/search/sort change (skip initial load)
-  useEffect(() => {
-    if (isInitialLoad || !accessToken) return
-    loadData(false)
-  }, [queryVariables, isInitialLoad, accessToken, loadData])
-
-  // Process Completion Handlers
-  const handleProcessComplete = useCallback(() => {
-    loadData(false)
-  }, [loadData])
-
-  useProcessCompletion({ onSuccess: handleProcessComplete })
-
-  useEffect(() => {
-    const events = ['taskCompletion', 'contactCompletion']
-    const handlers = events.map(eventName => {
-      const handler = () => handleProcessComplete()
-      globalThis.addEventListener(eventName, handler)
-      return { eventName, handler }
-    })
-
-    return () => {
-      for (const { eventName, handler } of handlers) {
-        globalThis.removeEventListener(eventName, handler)
-      }
-    }
-  }, [handleProcessComplete])
-
-  // Event Handlers
-  const handleSearch = useCallback((value: string) => {
-    setSearchTerm(value)
-    setPagination(prev => ({ ...prev, pageIndex: 0 }))
-  }, [])
-
-  const handleFilterChange = useCallback((filters: Record<string, any>) => {
-    setSelectedFilters(filters)
-    setPagination(prev => ({ ...prev, pageIndex: 0 }))
-  }, [])
-
-  const handleRowClick = useCallback((contact: CommonContact) => {
-    if (!contact.id) return
-    const url = buildPlatformUrl('/platform/crm/contact-record', { contactId: contact.id })
-    navigateTo(url)
-  }, [])
-
-  const handleRefresh = useCallback(() => {
-    loadData(false)
-  }, [loadData])
-
-  // Row Actions
-  const renderRowActions = useCallback(
-    (row: { original: CommonContact }) => (
-      <AppActionMenu
-        contextsArray={[FlowContextName.customerContactEntity]}
-        externalContextData={{ contactId: row.original.id }}
-        prefixDataTestId="contact-actions"
-        accessToken={accessToken}
-        emptyStateBehavior="enable"
-        deferMainContextRequestsUntilClick
-      >
-        <Button variant="ghost" size="icon" data-testid={`contact-actions-${row.original.id}`}>
-          <svg className="gba:h-4 gba:w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-            <path
-              strokeLinecap="round"
-              strokeLinejoin="round"
-              strokeWidth={2}
-              d="M12 5v.01M12 12v.01M12 19v.01M12 6a1 1 0 110-2 1 1 0 010 2zm0 7a1 1 0 110-2 1 1 0 010 2zm0 7a1 1 0 110-2 1 1 0 010 2z"
-            />
-          </svg>
-        </Button>
-      </AppActionMenu>
-    ),
-    [accessToken]
-  )
+  const contactStatistics = useCustomerContactStatistics(context)
 
   // Statistics - Transform hook data to ContactStatisticsData format
   const contactStatisticsData: ContactStatisticsData | undefined = useMemo(() => {
@@ -224,53 +33,136 @@ export const ContactView: React.FC<ContactViewProps> = context => {
       contactsThisYear: contactStatistics.trendData.contactsThisYear,
       isLoading: contactStatistics.isLoading,
       error: contactStatistics.error,
-      refetch: handleRefresh
+      refetch: () => {
+        // Refetch will be handled by process completion
+      }
     }
-  }, [contactStatistics, handleRefresh])
+  }, [contactStatistics])
 
-  // Primary Action (Add Button)
-  const primaryAction = useMemo(
-    () => (
-      <AppAction
-        data-testid="contact-create-button"
-        contextsArray={[FlowContextName.customerContactCreate]}
-        prefixDataTestId="contact-create"
-        accessToken={accessToken}
-        emptyStateBehavior="enable"
-      >
-        <Button>Add Contact</Button>
-      </AppAction>
-    ),
-    [accessToken]
+  // Config
+  const config: ContactViewConfig<CommonContact, CustomerContactQueryVariables> = useMemo(
+    () => ({
+      fetchContacts: fetchCustomerContacts,
+      filterDataHook: () => ({
+        owners: contactFilters.owners,
+        departments: contactFilters.departments,
+        jobPositions: contactFilters.jobPositions,
+        academicTitles: contactFilters.academicTitles,
+        salutations: contactFilters.salutations,
+        languages: contactFilters.languages
+      }),
+      createColumns: () => commonContactColumns(),
+      descriptors: COMMON_CONTACT_DESCRIPTORS,
+      columnLabels: {
+        contact: 'Contact',
+        firstName: 'First Name',
+        lastName: 'Last Name',
+        fullName: 'Full Name',
+        department: 'Department',
+        jobPosition: 'Job Position',
+        account: 'Account',
+        ownerEmployee: 'Owner',
+        createdAt: 'Created Date',
+        updatedAt: 'Updated Date'
+      },
+      baseFilterConfig: commonContactFilterConfig,
+      buildQueryVariables: (params: {
+        pagination: { pageIndex: number; pageSize: number }
+        searchTerm: string
+        selectedFilters: Record<string, any>
+        sorting: Array<{ id: string; desc: boolean }>
+      }) => {
+        const vars: CustomerContactQueryVariables = {
+          limit: params.pagination.pageSize,
+          offset: params.pagination.pageIndex * params.pagination.pageSize,
+          search: params.searchTerm.trim() || undefined
+        }
+
+        // Copy filter values directly (Filter-IDs now match Descriptor-Keys)
+        // Handle createdAtRange date filter splitting
+        if (
+          params.selectedFilters.createdAtRange &&
+          Array.isArray(params.selectedFilters.createdAtRange) &&
+          params.selectedFilters.createdAtRange.length === 2
+        ) {
+          const [start, end] = params.selectedFilters.createdAtRange
+          if (start) vars.createdAfter = start
+          if (end) vars.createdBefore = end
+        }
+
+        // Handle communicationChannels filter (special case - no Descriptor)
+        if (
+          params.selectedFilters.communicationChannels &&
+          Array.isArray(params.selectedFilters.communicationChannels) &&
+          params.selectedFilters.communicationChannels.length > 0
+        ) {
+          const contactFilters = params.selectedFilters.communicationChannels as string[]
+          if (contactFilters.includes('has:email')) vars.hasEmail = true
+          if (contactFilters.includes('missing:email')) vars.missingEmail = true
+          if (contactFilters.includes('has:phone')) vars.hasPhone = true
+          if (contactFilters.includes('missing:phone')) vars.missingPhone = true
+        }
+
+        // Copy all other filters directly (they now match Descriptor-Keys)
+        Object.keys(params.selectedFilters).forEach(key => {
+          if (
+            key !== 'createdAtRange' &&
+            key !== 'communicationChannels' &&
+            params.selectedFilters[key] !== undefined &&
+            params.selectedFilters[key] !== null
+          ) {
+            vars[key as keyof CustomerContactQueryVariables] = params.selectedFilters[key]
+          }
+        })
+
+        // Use column ID directly - buildOrderBy will use descriptors (CUSTOMER_CONTACT_DESCRIPTORS)
+        // to resolve correct GraphQL paths (e.g., account.name, ownerEmployee.displayName)
+        // Special handling for composite 'contact' column
+        if (params.sorting.length > 0) {
+          const columnId = params.sorting[0].id
+          const direction = params.sorting[0].desc ? 'DESC_NULLS_LAST' : 'ASC_NULLS_LAST'
+
+          if (columnId === 'contact') {
+            // Sort by firstName, then lastName
+            vars.orderBy = [
+              { field: 'firstName', direction },
+              { field: 'lastName', direction }
+            ]
+          } else {
+            vars.orderBy = [{ field: columnId as any, direction }]
+          }
+        } else {
+          vars.orderBy = [{ field: 'createdAt' as any, direction: 'DESC_NULLS_LAST' }]
+        }
+
+        return vars
+      },
+      flowContexts: {
+        entityContext: FlowContextName.customerContactEntity,
+        createContext: FlowContextName.customerContactCreate
+      },
+      buildRecordUrl: (id: string) => buildPlatformUrl('/platform/crm/contact-record', { contactId: id }),
+      contactStatistics: contactStatisticsData,
+      processCompletionEvents: ['taskCompletion', 'contactCompletion'],
+      rowActionsContextArray: [FlowContextName.customerContactEntity],
+      buildRowActionsExternalContextData: (row: { original: CommonContact }) => ({
+        contactId: row.original.id
+      }),
+      translations: {
+        allContacts: { key: 'common:allContacts', default: 'All Contacts' },
+        searchContacts: { key: 'common:searchContacts', default: 'Search contacts...' },
+        filterContacts: { key: 'common:filterContacts', default: 'Filter Contacts' },
+        filterContactsDescription: {
+          key: 'common:filterContactsDescription',
+          default: 'Apply filters to narrow down the contact list'
+        },
+        addContact: { key: 'common:addContact', default: 'Add Contact' }
+      }
+    }),
+    [fetchCustomerContacts, contactFilters, contactStatisticsData, accessToken]
   )
 
-  return (
-    <ContactLayout
-      contacts={contacts}
-      totalCount={totalCount}
-      loading={isLoading}
-      error={error}
-      columns={columns}
-      visibleColumns={visibleColumns}
-      availableColumns={defaultAvailableContactColumns}
-      onVisibleColumnsChange={setVisibleColumns}
-      searchTerm={searchTerm}
-      onSearchChange={handleSearch}
-      filterConfig={filterConfig}
-      selectedFilters={selectedFilters}
-      onFilterChange={handleFilterChange}
-      sorting={sorting}
-      onSortingChange={setSorting}
-      sortableColumns={defaultContactSortableColumns}
-      pagination={pagination}
-      onPaginationChange={setPagination}
-      onRowClick={handleRowClick}
-      renderRowActions={renderRowActions}
-      contactStatistics={contactStatisticsData}
-      primaryAction={primaryAction}
-      dataTestId="customer-contact-view"
-    />
-  )
+  return <ContactLayout context={context} config={config} dataTestId="customer-contact-view" />
 }
 
 export default ContactView

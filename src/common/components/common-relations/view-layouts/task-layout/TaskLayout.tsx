@@ -7,12 +7,14 @@ import { BusinessAppContextProps } from '@/common/BusinessAppContext'
 import { AppAction } from '@/components/app-action/AppAction'
 import { FlowContextName } from '@/common/types/FlowRegistryTypes'
 import { getTranslationFromI18nKeyAndLabel } from '@/common/utils/windowUtils'
-import { TaskListLayout } from './TaskListLayout'
+import { TaskListLayout } from './components/TaskListLayout'
 import { TaskStatisticsLayout } from './components/TaskStatisticsLayout'
 import { useProcessCompletion } from '@/common/hooks/useProcessCompletion'
-import { DefaultTaskRowActions } from './TaskLayoutHelpers'
+import { AppActionMenu } from '@/components/app-action-menu/AppActionMenu'
 import type { CommonTask, TaskReference } from '@/common/data/relations/types/commonTaskTypes'
 import { TaskDetailSheet } from '@/common/components/common-relations/detail-sheets/task-detail-sheet'
+import { deriveSortableColumns } from '@/common/network/graphql/descriptorUtils'
+import type { Descriptor } from '@/common/network/graphql/queryHelpers'
 
 // Helper: Update filter options
 const updateFilterOptions = (
@@ -58,8 +60,8 @@ export interface TaskViewConfig<TTask extends CommonTask = CommonTask, TQueryVar
   }
 
   createColumns: () => ColumnDef<TTask>[]
-  createSortableColumns: () => Array<{ id: string; label: string }>
-  mapColumnToGraphQLField: (columnId: string) => string
+  descriptors: Descriptor[]
+  columnLabels?: Record<string, string>
 
   baseFilterConfig: FilterConfiguration
 
@@ -68,7 +70,6 @@ export interface TaskViewConfig<TTask extends CommonTask = CommonTask, TQueryVar
     searchTerm: string
     selectedFilters: Record<string, any>
     sorting: Array<{ id: string; desc: boolean }>
-    mapColumnToGraphQLField: (columnId: string) => string
     userInfo?: any
   }) => TQueryVariables
 
@@ -98,7 +99,8 @@ export interface TaskViewConfig<TTask extends CommonTask = CommonTask, TQueryVar
 
   processCompletionEvents?: string[]
 
-  renderRowActions?: (row: { original: TTask }, accessToken: string, section: TaskTabKey) => React.ReactNode
+  rowActionsContextArray: FlowContextName[]
+  buildRowActionsExternalContextData: (row: { original: TTask }) => Record<string, string>
 
   buildReferenceUrl?: (reference: TaskReference) => string
 
@@ -116,8 +118,6 @@ export interface TaskLayoutProps<TTask extends CommonTask = CommonTask, TQueryVa
   dataTestId?: string
   initialFilters?: Record<string, any>
   hideFilters?: boolean
-  hideStatistics?: boolean
-  hideCreate?: boolean
   customPrimaryAction?: React.ReactNode
 }
 
@@ -136,8 +136,6 @@ const ConfigTaskLayout = <TTask extends CommonTask = CommonTask, TQueryVariables
     dataTestId = 'task-view',
     initialFilters = {},
     hideFilters = false,
-    hideStatistics = false,
-    hideCreate = false,
     customPrimaryAction
   } = props
   const { accessToken, userInfo } = context
@@ -169,9 +167,9 @@ const ConfigTaskLayout = <TTask extends CommonTask = CommonTask, TQueryVariables
   // My Tasks Visibility (hide assignedTo column)
   const [myVisibleColumns, setMyVisibleColumns] = useState<string[]>([
     'name',
-    'type',
-    'priority',
-    'status',
+    'taskType',
+    'taskPriority',
+    'taskStatus',
     'reference',
     'dueDate',
     'createdAt'
@@ -181,9 +179,9 @@ const ConfigTaskLayout = <TTask extends CommonTask = CommonTask, TQueryVariables
   const [teamVisibleColumns, setTeamVisibleColumns] = useState<string[]>([
     'name',
     'assignedTo',
-    'type',
-    'priority',
-    'status',
+    'taskType',
+    'taskPriority',
+    'taskStatus',
     'reference',
     'dueDate',
     'createdAt'
@@ -217,19 +215,19 @@ const ConfigTaskLayout = <TTask extends CommonTask = CommonTask, TQueryVariables
     updateFilterOptions(
       filterConfig,
       'status-group',
-      'status',
+      'taskStatusIds',
       statuses.map(s => ({ id: s.id, label: s.label }))
     )
     updateFilterOptions(
       filterConfig,
       'priority-group',
-      'priority',
+      'taskPriorityIds',
       priorities.map(p => ({ id: p.id, label: p.label }))
     )
     updateFilterOptions(
       filterConfig,
       'type-group',
-      'type',
+      'taskTypeIds',
       types.map(t => ({ id: t.id, label: t.label }))
     )
 
@@ -244,7 +242,6 @@ const ConfigTaskLayout = <TTask extends CommonTask = CommonTask, TQueryVariables
         searchTerm,
         selectedFilters,
         sorting,
-        mapColumnToGraphQLField: config.mapColumnToGraphQLField,
         userInfo
       }),
     [pagination, searchTerm, selectedFilters, sorting, config, userInfo]
@@ -417,9 +414,9 @@ const ConfigTaskLayout = <TTask extends CommonTask = CommonTask, TQueryVariables
       currentSection === 'my'
         ? [
             { id: 'name', label: 'Task' },
-            { id: 'type', label: 'Type' },
-            { id: 'priority', label: 'Priority' },
-            { id: 'status', label: 'Status' },
+            { id: 'taskType', label: 'Type' },
+            { id: 'taskPriority', label: 'Priority' },
+            { id: 'taskStatus', label: 'Status' },
             { id: 'reference', label: 'Reference' },
             { id: 'dueDate', label: 'Due Date' },
             { id: 'createdBy', label: 'Created By' },
@@ -428,9 +425,9 @@ const ConfigTaskLayout = <TTask extends CommonTask = CommonTask, TQueryVariables
         : [
             { id: 'name', label: 'Task' },
             { id: 'assignedTo', label: 'Assigned To' },
-            { id: 'type', label: 'Type' },
-            { id: 'priority', label: 'Priority' },
-            { id: 'status', label: 'Status' },
+            { id: 'taskType', label: 'Type' },
+            { id: 'taskPriority', label: 'Priority' },
+            { id: 'taskStatus', label: 'Status' },
             { id: 'reference', label: 'Reference' },
             { id: 'dueDate', label: 'Due Date' },
             { id: 'createdBy', label: 'Created By' },
@@ -441,16 +438,27 @@ const ConfigTaskLayout = <TTask extends CommonTask = CommonTask, TQueryVariables
 
   // Row actions
   const rowActions = useMemo(
-    () =>
-      config.renderRowActions
-        ? (row: { original: TTask }) => config.renderRowActions!(row, accessToken, currentSection)
-        : (row: { original: TTask }) => (
-            <DefaultTaskRowActions
-              row={row}
-              accessToken={accessToken}
-              entityContext={config.flowContexts.entityContext}
+    () => (row: { original: TTask }) => (
+      <AppActionMenu
+        contextsArray={config.rowActionsContextArray}
+        externalContextData={config.buildRowActionsExternalContextData(row)}
+        prefixDataTestId="task-actions"
+        accessToken={accessToken}
+        emptyStateBehavior="enable"
+        deferMainContextRequestsUntilClick
+      >
+        <Button variant="ghost" size="icon" data-testid={`task-actions-${row.original.id}`}>
+          <svg className="gba:h-4 gba:w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+            <path
+              strokeLinecap="round"
+              strokeLinejoin="round"
+              strokeWidth={2}
+              d="M12 5v.01M12 12v.01M12 19v.01M12 6a1 1 0 110-2 1 1 0 010 2zm0 7a1 1 0 110-2 1 1 0 010 2zm0 7a1 1 0 110-2 1 1 0 010 2z"
             />
-          ),
+          </svg>
+        </Button>
+      </AppActionMenu>
+    ),
     [config, accessToken, currentSection]
   )
 
@@ -463,7 +471,7 @@ const ConfigTaskLayout = <TTask extends CommonTask = CommonTask, TQueryVariables
   return (
     <div data-testid={dataTestId}>
       {/* Statistics */}
-      {!hideStatistics && (
+      {config.taskStatistics && (
         <TaskStatisticsLayout
           myTasksStatistics={config.taskStatistics.myTasksStatistics}
           teamTasksStatistics={config.taskStatistics.teamTasksStatistics}
@@ -504,14 +512,17 @@ const ConfigTaskLayout = <TTask extends CommonTask = CommonTask, TQueryVariables
         filterConfiguration={hideFilters ? undefined : dynamicFilterConfig}
         onFilterChange={hideFilters ? undefined : handleFilterUpdate}
         sorting={sorting}
-        sortableColumns={config.createSortableColumns()}
+        sortableColumns={useMemo(() => {
+          const availableColumnIds = availableColumns.map(col => col.id)
+          return deriveSortableColumns(config.descriptors, config.columnLabels, availableColumnIds)
+        }, [config.descriptors, config.columnLabels, availableColumns])}
         onSortingChange={handleSortingChange}
         availableColumns={availableColumns}
         visibleColumns={visibleColumns}
         onVisibleColumnsChange={setVisibleColumns}
         primaryAction={
           customPrimaryAction ||
-          (hideCreate ? undefined : (
+          (config.flowContexts.createContext ? (
             <AppAction
               contextsArray={[config.flowContexts.createContext]}
               externalContextData={config.flowContexts.createContextData}
@@ -524,7 +535,7 @@ const ConfigTaskLayout = <TTask extends CommonTask = CommonTask, TQueryVariables
                 {getTranslationFromI18nKeyAndLabel('common:addTask', 'Add Task')}
               </Button>
             </AppAction>
-          ))
+          ) : undefined)
         }
         toolbarDensity="default"
         enableLiveFiltering={true}

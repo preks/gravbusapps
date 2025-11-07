@@ -5,16 +5,12 @@ import { useCustomerTaskFilters } from '@/common/data/customer/hooks/useCustomer
 import { useCustomerTaskStatistics } from '@/common/data/customer/hooks/useCustomerTaskStatistics'
 import { TaskLayout, type TaskViewConfig } from '@/common/components/common-relations/view-layouts/task-layout'
 import type { CustomerTask } from '@/common/data/customer/types/customerTaskTypes'
+import { CUSTOMER_TASK_DESCRIPTORS } from '@/common/data/customer/types/customerTaskTypes'
 import type { CustomerTaskQueryVariables } from '@/common/data/customer/queries/customerTaskQueries'
 import type { TaskReference } from '@/common/data/relations/types/commonTaskTypes'
 import { FlowContextName } from '@/common/types/FlowRegistryTypes'
-import {
-  createTaskColumns,
-  createTaskSortableColumns,
-  createTaskColumnToGraphQLMapping
-} from '@/common/components/common-relations/view-layouts/task-layout/config'
+import { createTaskColumns } from '@/common/components/common-relations/view-layouts/task-layout/config'
 import { taskFilterConfig } from '@/common/components/common-relations/view-layouts/task-layout/config'
-import { applyTaskFilters } from '@/common/components/common-relations/view-layouts/task-layout/utils/queryHelpers'
 import { buildPlatformUrl } from '@/common/utils/navigationUtils'
 
 export type TaskViewProps = BusinessAppContextProps
@@ -65,14 +61,18 @@ export const TaskView: React.FC<TaskViewProps> = context => {
       filterDataHook: () => taskFilters,
 
       createColumns: () => createTaskColumns() as any,
-      createSortableColumns: createTaskSortableColumns,
-
-      // CRM uses 'type', 'priority', 'status' instead of 'taskType', 'taskPriority', 'taskStatus'
-      mapColumnToGraphQLField: createTaskColumnToGraphQLMapping({
-        type: 'type.value',
-        priority: 'priority.value',
-        status: 'status.value'
-      }),
+      descriptors: CUSTOMER_TASK_DESCRIPTORS,
+      columnLabels: {
+        name: 'Task',
+        taskType: 'Type',
+        taskPriority: 'Priority',
+        taskStatus: 'Status',
+        assignedTo: 'Assigned To',
+        reference: 'Reference',
+        dueDate: 'Due Date',
+        createdAt: 'Created',
+        createdBy: 'Created By'
+      },
 
       baseFilterConfig: taskFilterConfig,
 
@@ -83,12 +83,57 @@ export const TaskView: React.FC<TaskViewProps> = context => {
           search: params.searchTerm.trim() || undefined
         }
 
-        applyTaskFilters(vars, params.selectedFilters)
+        // Copy filter values directly (Filter-IDs now match Descriptor-Keys)
+        // Handle createdDateRange date filter splitting
+        if (
+          params.selectedFilters.createdDateRange &&
+          Array.isArray(params.selectedFilters.createdDateRange) &&
+          params.selectedFilters.createdDateRange.length === 2
+        ) {
+          const [start, end] = params.selectedFilters.createdDateRange
+          if (start) vars.createdAtFrom = start
+          if (end) vars.createdAtTo = end
+        }
 
+        // Handle dueDateRange date filter splitting
+        if (
+          params.selectedFilters.dueDateRange &&
+          Array.isArray(params.selectedFilters.dueDateRange) &&
+          params.selectedFilters.dueDateRange.length === 2
+        ) {
+          const [start, end] = params.selectedFilters.dueDateRange
+          if (start) vars.dueDateFrom = start
+          if (end) vars.dueDateTo = end
+        }
+
+        // Handle referenceType filter (no Descriptor - special case)
+        if (
+          params.selectedFilters.referenceType &&
+          Array.isArray(params.selectedFilters.referenceType) &&
+          params.selectedFilters.referenceType.length > 0
+        ) {
+          vars.referenceTypes = params.selectedFilters.referenceType
+        }
+
+        // Copy all other filters directly (they now match Descriptor-Keys)
+        Object.keys(params.selectedFilters).forEach(key => {
+          if (
+            key !== 'createdDateRange' &&
+            key !== 'dueDateRange' &&
+            key !== 'referenceType' &&
+            params.selectedFilters[key] !== undefined &&
+            params.selectedFilters[key] !== null
+          ) {
+            vars[key as keyof CustomerTaskQueryVariables] = params.selectedFilters[key]
+          }
+        })
+
+        // Use column ID directly - buildOrderBy will use descriptors (CUSTOMER_TASK_DESCRIPTORS)
+        // to resolve correct GraphQL paths (e.g., type.value, priority.value, status.value)
         if (params.sorting.length > 0) {
           vars.orderBy = [
             {
-              field: params.mapColumnToGraphQLField(params.sorting[0].id) as any,
+              field: params.sorting[0].id as any,
               direction: params.sorting[0].desc ? 'DESC_NULLS_LAST' : 'ASC_NULLS_LAST'
             }
           ]
@@ -107,6 +152,34 @@ export const TaskView: React.FC<TaskViewProps> = context => {
       taskStatistics,
 
       processCompletionEvents: ['taskCompletion', 'com.newwork.process.taskCompletion'],
+
+      rowActionsContextArray: [FlowContextName.customerTaskEntity],
+      buildRowActionsExternalContextData: (row: { original: CustomerTask }) => {
+        const externalContextData: Record<string, string> = { taskId: row.original.id }
+
+        // Add parent reference ID based on task reference type
+        if (row.original.reference) {
+          const refType = row.original.reference.type
+          const refId = row.original.reference.id
+
+          switch (refType) {
+            case 'lead':
+              externalContextData.leadId = refId
+              break
+            case 'account':
+              externalContextData.accountId = refId
+              break
+            case 'contact':
+              externalContextData.contactId = refId
+              break
+            case 'opportunity':
+              externalContextData.opportunityId = refId
+              break
+          }
+        }
+
+        return externalContextData
+      },
 
       buildReferenceUrl
     }),

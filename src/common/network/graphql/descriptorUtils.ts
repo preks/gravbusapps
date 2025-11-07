@@ -28,14 +28,17 @@ export function mergeDescriptors(...descriptorArrays: Descriptor[][]): Descripto
 /**
  * Derive sortable columns from descriptors
  * Returns columns that have sorting enabled (enableSort !== false) and have a sortPath or sortPaths
+ * Only includes columns that are actually present in the table (if availableColumnIds provided)
  *
  * @param descriptors - Single descriptor array, or multiple arrays that will be merged (later override earlier)
  * @param labelMap - Optional map of descriptor keys to display labels (defaults to key if not provided)
+ * @param availableColumnIds - Optional array of column IDs that are actually in the table. If provided, only descriptors with keys matching these IDs will be included.
  * @returns Array of sortable column definitions for UI
  */
 export function deriveSortableColumns(
   descriptors: Descriptor[] | Descriptor[][],
-  labelMap?: Record<string, string>
+  labelMap?: Record<string, string>,
+  availableColumnIds?: string[]
 ): Array<{ id: string; label: string }> {
   // If multiple arrays provided (rest parameters), merge them (later override earlier)
   const mergedDescriptors =
@@ -43,12 +46,18 @@ export function deriveSortableColumns(
       ? mergeDescriptors(...(descriptors as Descriptor[][]))
       : (descriptors as Descriptor[])
 
+  // Create a Set for fast lookup if availableColumnIds is provided
+  const availableIdsSet = availableColumnIds ? new Set(availableColumnIds) : null
+
   return mergedDescriptors
     .filter(d => {
       // Skip if sorting is explicitly disabled
       if (d.enableSort === false) return false
       // Must have sortPath or sortPaths to be sortable
-      return !!(d.sortPath || (d.sortPaths && d.sortPaths.length > 0))
+      if (!(d.sortPath || (d.sortPaths && d.sortPaths.length > 0))) return false
+      // If availableColumnIds provided, only include if the descriptor key matches a column ID
+      if (availableIdsSet && !availableIdsSet.has(d.key)) return false
+      return true
     })
     .map(d => ({
       id: d.key,

@@ -4,7 +4,7 @@ import type { FilterConfiguration } from '@newwork/nw-design-system'
  * Default Contact Filter Configuration
  * Can be extended in context-specific views (Customer/Investment)
  */
-export const defaultContactFilterConfig: FilterConfiguration = {
+export const commonContactFilterConfig: FilterConfiguration = {
   id: 'contact-filters',
   name: 'Contact Filters',
   groups: [
@@ -15,8 +15,8 @@ export const defaultContactFilterConfig: FilterConfiguration = {
       defaultExpanded: true,
       filters: [
         {
-          id: 'owners',
-          field: 'owners',
+          id: 'ownerEmployeeIds',
+          field: 'ownerEmployeeIds',
           label: 'Owner',
           type: 'multi-select',
           config: {
@@ -78,8 +78,8 @@ export const defaultContactFilterConfig: FilterConfiguration = {
       defaultExpanded: false,
       filters: [
         {
-          id: 'academicTitles',
-          field: 'academicTitles',
+          id: 'academicTitleIds',
+          field: 'academicTitleIds',
           label: 'Academic Title',
           type: 'multi-select',
           config: {
@@ -99,8 +99,8 @@ export const defaultContactFilterConfig: FilterConfiguration = {
       defaultExpanded: false,
       filters: [
         {
-          id: 'salutations',
-          field: 'salutations',
+          id: 'salutationIds',
+          field: 'salutationIds',
           label: 'Salutation',
           type: 'multi-select',
           config: {
@@ -120,8 +120,8 @@ export const defaultContactFilterConfig: FilterConfiguration = {
       defaultExpanded: false,
       filters: [
         {
-          id: 'languages',
-          field: 'languages',
+          id: 'languageIds',
+          field: 'languageIds',
           label: 'Language',
           type: 'multi-select',
           config: {

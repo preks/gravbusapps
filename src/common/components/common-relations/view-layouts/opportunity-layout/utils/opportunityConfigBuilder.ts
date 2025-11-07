@@ -4,10 +4,10 @@ import type { OpportunityBoardFilters } from '../config/opportunityBoardTypes'
 import { FlowContextName } from '@/common/types/FlowRegistryTypes'
 import { buildPlatformUrl } from '@/common/utils/navigationUtils'
 import { formatNumberFunction } from '@/common/utils/windowUtils'
-import { applyBasicFilters, applyAmountFilter, applyDateFilter } from './queryHelpers'
 import { createBoardCardRenderer } from './boardCardRenderer'
 import { createOpportunityColumns, createOpportunitySortableColumns } from '../config/opportunityColumns'
 import { opportunityFilterConfig } from '../config/opportunityFilters'
+import type { Descriptor } from '@/common/network/graphql/queryHelpers'
 
 export interface OpportunityConfigBuilderOptions<TOpportunity, TQueryVariables> {
   contextType: 'customer' | 'investment'
@@ -20,6 +20,8 @@ export interface OpportunityConfigBuilderOptions<TOpportunity, TQueryVariables> 
   }>
 
   filterDataHook: any
+
+  viewDescriptors?: Descriptor[]
 
   columnMappings: {
     pipeline: string
@@ -55,6 +57,9 @@ export interface OpportunityConfigBuilderOptions<TOpportunity, TQueryVariables> 
   extractBoardTotalCount: (result: any) => number
 
   opportunityStatistics?: OpportunityStatisticsData
+
+  rowActionsContextArray: FlowContextName[]
+  buildRowActionsExternalContextData: (row: { original: TOpportunity }) => Record<string, string>
 }
 
 export const createOpportunityConfig = <TOpportunity extends { id: string }, TQueryVariables>(
@@ -68,7 +73,8 @@ export const createOpportunityConfig = <TOpportunity extends { id: string }, TQu
     filterDataHook: options.filterDataHook,
 
     createColumns: createOpportunityColumns as any,
-    createSortableColumns: createOpportunitySortableColumns,
+    createSortableColumns: (availableColumnIds?: string[]) =>
+      createOpportunitySortableColumns(options.viewDescriptors, availableColumnIds),
 
     baseFilterConfig: opportunityFilterConfig,
 
@@ -84,9 +90,53 @@ export const createOpportunityConfig = <TOpportunity extends { id: string }, TQu
         search: params.searchTerm.trim() || undefined
       }
 
-      applyBasicFilters(vars, params.selectedFilters)
-      applyAmountFilter(vars, params.selectedFilters.amount)
-      applyDateFilter(vars, params.selectedFilters.closeDate)
+      // Copy filter values directly (Filter-IDs now match Descriptor-Keys)
+      // Handle amount filter (number range - no Descriptor)
+      if (params.selectedFilters.amount && typeof params.selectedFilters.amount === 'object') {
+        const { min, max } = params.selectedFilters.amount
+        if ((min !== null && min !== undefined) || (max !== null && max !== undefined)) {
+          vars.estimatedAmountRanges = [
+            {
+              ...(min !== null && min !== undefined && { min }),
+              ...(max !== null && max !== undefined && { max })
+            }
+          ]
+        }
+      }
+
+      // Handle closeDate filter (date range)
+      if (params.selectedFilters.closeDate) {
+        if (typeof params.selectedFilters.closeDate === 'string') {
+          // Parse comma-separated date string
+          const dates = params.selectedFilters.closeDate
+            .split(',')
+            .map(d => d.trim())
+            .filter(Boolean)
+          if (dates.length === 1) {
+            vars.closeDateFrom = dates[0]
+            vars.closeDateTo = dates[0]
+          } else if (dates.length === 2) {
+            if (dates[0]) vars.closeDateFrom = dates[0]
+            if (dates[1]) vars.closeDateTo = dates[1]
+          }
+        } else if (Array.isArray(params.selectedFilters.closeDate) && params.selectedFilters.closeDate.length === 2) {
+          const [start, end] = params.selectedFilters.closeDate
+          if (start) vars.closeDateFrom = start
+          if (end) vars.closeDateTo = end
+        }
+      }
+
+      // Copy all other filters directly (they now match Descriptor-Keys)
+      Object.keys(params.selectedFilters).forEach(key => {
+        if (
+          key !== 'amount' &&
+          key !== 'closeDate' &&
+          params.selectedFilters[key] !== undefined &&
+          params.selectedFilters[key] !== null
+        ) {
+          vars[key as keyof typeof vars] = params.selectedFilters[key]
+        }
+      })
 
       if (params.sorting.length > 0) {
         // Use column ID directly - buildOrderBy will use descriptors (CUSTOMER_OPPORTUNITY_DESCRIPTORS or INVESTMENT_OPPORTUNITY_DESCRIPTORS)
@@ -177,6 +227,9 @@ export const createOpportunityConfig = <TOpportunity extends { id: string }, TQu
 
     renderBoardCard: createBoardCardRenderer({ preferForecastedProfit: options.boardConfig.preferForecastedProfit }),
 
-    processCompletionEvents: ['taskCompletion']
+    processCompletionEvents: ['taskCompletion'],
+
+    rowActionsContextArray: options.rowActionsContextArray,
+    buildRowActionsExternalContextData: options.buildRowActionsExternalContextData
   }
 }

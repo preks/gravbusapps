@@ -8,6 +8,7 @@ import type { InvestmentOpportunityQueryVariables } from '@/common/data/investme
 import { FlowContextName } from '@/common/types/FlowRegistryTypes'
 import { useInvestmentOpportunityFilters } from './hooks/useInvestmentOpportunityFilters'
 import { useInvestmentOpportunityStatistics } from '@/common/data/investment/hooks/useInvestmentOpportunityStatistics'
+import { INVESTMENT_OPPORTUNITY_DESCRIPTORS } from '@/common/data/investment/types/investmentOpportunityTypes'
 
 export type OpportunityViewProps = BusinessAppContextProps
 
@@ -31,6 +32,8 @@ export const OpportunityView: React.FC<OpportunityViewProps> = context => {
         },
 
         filterDataHook: useInvestmentOpportunityFilters,
+
+        viewDescriptors: INVESTMENT_OPPORTUNITY_DESCRIPTORS,
 
         columnMappings: {
           pipeline: 'opportunityPipeline',
@@ -71,7 +74,11 @@ export const OpportunityView: React.FC<OpportunityViewProps> = context => {
               error: opportunityStatistics.error,
               refetch: opportunityStatistics.refetch
             }
-          : undefined
+          : undefined,
+        rowActionsContextArray: [FlowContextName.investmentOpportunityEntity],
+        buildRowActionsExternalContextData: (row: { original: InvestmentOpportunity }) => ({
+          opportunityId: row.original.id
+        })
       }),
     [context, fetchInvestmentOpportunities, opportunityStatistics]
   )

@@ -1,8 +1,8 @@
 export {
-  defaultContactColumns,
+  commonContactColumns,
   defaultContactSortableColumns,
   defaultVisibleContactColumns,
   defaultAvailableContactColumns
-} from './defaultContactColumns'
-export { defaultContactFilterConfig } from './defaultContactFilters'
+} from './commonContactColumns'
+export { commonContactFilterConfig } from './commonContactFilterConfig'
 export { buildDynamicFilterConfig, updateFilterOptions, addSearchAndLoadMoreFunctions } from '../utils/filterHelpers'

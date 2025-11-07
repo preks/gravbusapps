@@ -1,272 +1,173 @@
-import { useState, useCallback, useEffect, useMemo } from 'react'
+import { useMemo } from 'react'
 import { BusinessAppContextProps } from '@/common/BusinessAppContext'
-import { LeadLayout } from '@/common/components/common-relations/view-layouts/lead-layout'
-import { Button } from '@newwork/nw-design-system'
-import { Plus, MoreVertical } from 'lucide-react'
-import { AppAction } from '@/components/app-action/AppAction'
-import { AppActionMenu } from '@/components/app-action-menu/AppActionMenu'
-import { FlowContextName } from '@/common/types/FlowRegistryTypes'
-import { buildPlatformUrl, navigateTo } from '@/common/utils/navigationUtils'
-import { useProcessCompletion } from '@/common/hooks/useProcessCompletion'
+import { LeadLayout, type LeadViewConfig } from '@/common/components/common-relations/view-layouts/lead-layout'
 import type { InvestmentLead } from '@/common/data/investment/types/investmentLeadTypes'
-import type { InvestmentLeadQueryVariables } from '@/common/data/investment/queries/investmentLeadQueries'
+import { INVESTMENT_LEAD_DESCRIPTORS } from '@/common/data/investment/types/investmentLeadTypes'
+import { commonLeadColumns } from '@/common/components/common-relations/view-layouts/lead-layout/config'
+import { commonLeadFilterConfig } from '@/common/components/common-relations/view-layouts/lead-layout/config'
 import { useInvestmentLeads } from '@/common/data/investment/hooks/useInvestmentLeads'
-import {
-  defaultLeadColumns,
-  defaultLeadSortableColumns,
-  defaultVisibleLeadColumns,
-  defaultAvailableLeadColumns,
-  defaultLeadFilterConfig,
-  buildDynamicFilterConfig
-} from '@/common/components/common-relations/view-layouts/lead-layout/config'
-import { useInvestmentLeadFilterOptions } from './hooks/useInvestmentLeadFilterOptions'
-import { LeadStatisticsLayout } from '@/common/components/common-relations/view-layouts/lead-layout/components/LeadStatisticsLayout'
-import { applyLeadFilters } from '@/common/components/common-relations/view-layouts/lead-layout/utils/queryHelpers'
+import { useInvestmentLeadFilters } from '@/common/data/investment/hooks/useInvestmentLeadFilters'
+import type { InvestmentLeadQueryVariables } from '@/common/data/investment/queries/investmentLeadQueries'
+import { FlowContextName } from '@/common/types/FlowRegistryTypes'
+import { buildPlatformUrl } from '@/common/utils/navigationUtils'
 import { useInvestmentLeadStatistics } from '@/common/data/investment/hooks/useInvestmentLeadStatistics'
+import type { LeadStatisticsData } from '@/common/components/common-relations/view-layouts/lead-layout'
 
 export type LeadViewProps = BusinessAppContextProps
 
 export const LeadView: React.FC<LeadViewProps> = context => {
   const { accessToken } = context
 
-  // State
-  const [leads, setLeads] = useState<InvestmentLead[]>([])
-  const [totalCount, setTotalCount] = useState(0)
-  const [isLoading, setIsLoading] = useState(true)
-  const [error, setError] = useState<string | null>(null)
-  const [searchTerm, setSearchTerm] = useState('')
-  const [selectedFilters, setSelectedFilters] = useState<Record<string, any>>({})
-  const [sorting, setSorting] = useState<Array<{ id: string; desc: boolean }>>([{ id: 'createdAt', desc: true }])
-  const [pagination, setPagination] = useState({ pageIndex: 0, pageSize: 20 })
-  const [visibleColumns, setVisibleColumns] = useState<string[]>(defaultVisibleLeadColumns)
-  const [isInitialLoad, setIsInitialLoad] = useState(true)
-
-  // Hooks
+  // Data Hooks
   const { fetchInvestmentLeads } = useInvestmentLeads(context)
+  const leadFilters = useInvestmentLeadFilters(context)
   const leadStatistics = useInvestmentLeadStatistics(context)
-  const leadFilters = useInvestmentLeadFilterOptions(context)
 
-  // Query Variables
-  const queryVariables = useMemo(() => {
-    const vars: InvestmentLeadQueryVariables = {
-      limit: pagination.pageSize,
-      offset: pagination.pageIndex * pagination.pageSize,
-      search: searchTerm.trim() || undefined
+  // Statistics - Transform hook data to LeadStatisticsData format
+  const leadStatisticsData: LeadStatisticsData | undefined = useMemo(() => {
+    return {
+      recentLeads: leadStatistics.recentLeads,
+      hotLeads: leadStatistics.hotLeads,
+      conversionRate: leadStatistics.conversionRate,
+      topSource: leadStatistics.topSource,
+      isLoading: leadStatistics.isLoading,
+      error: leadStatistics.error,
+      refetch: leadStatistics.refetch
     }
+  }, [leadStatistics])
 
-    applyLeadFilters(vars, selectedFilters)
-
-    // Descriptors handle all field mapping automatically (leadStatus → leadStatus.value, etc.)
-    if (sorting.length > 0) {
-      vars.orderBy = [
-        {
-          field: sorting[0].id,
-          direction: sorting[0].desc ? 'DESC_NULLS_LAST' : 'ASC_NULLS_LAST'
+  // Config
+  const config: LeadViewConfig<InvestmentLead, InvestmentLeadQueryVariables> = useMemo(
+    () => ({
+      fetchLeads: fetchInvestmentLeads,
+      filterDataHook: () => ({
+        owners: leadFilters.owners,
+        statuses: leadFilters.statuses,
+        ratings: leadFilters.ratings,
+        sources: leadFilters.sources,
+        salutations: leadFilters.salutations,
+        industries: leadFilters.industries
+      }),
+      createColumns: () => commonLeadColumns() as any,
+      descriptors: INVESTMENT_LEAD_DESCRIPTORS,
+      columnLabels: {
+        lead: 'Lead',
+        firstName: 'First Name',
+        lastName: 'Last Name',
+        status: 'Status',
+        rating: 'Rating',
+        source: 'Source',
+        industry: 'Industry',
+        ownerEmployee: 'Owner',
+        createdAt: 'Created Date',
+        updatedAt: 'Updated Date'
+      },
+      baseFilterConfig: commonLeadFilterConfig,
+      buildQueryVariables: (params: {
+        pagination: { pageIndex: number; pageSize: number }
+        searchTerm: string
+        selectedFilters: Record<string, any>
+        sorting: Array<{ id: string; desc: boolean }>
+      }) => {
+        const vars: InvestmentLeadQueryVariables = {
+          limit: params.pagination.pageSize,
+          offset: params.pagination.pageIndex * params.pagination.pageSize,
+          search: params.searchTerm.trim() || undefined
         }
-      ]
-    } else {
-      vars.orderBy = [{ field: 'createdAt', direction: 'DESC_NULLS_LAST' }]
-    }
 
-    return vars
-  }, [pagination, searchTerm, selectedFilters, sorting])
-
-  // Load Data - Stabilized: queryVariables as parameter, not dependency
-  const loadData = useCallback(
-    async (variables: InvestmentLeadQueryVariables, showLoading = true) => {
-      if (!accessToken) {
-        return
-      }
-
-      if (showLoading) {
-        setIsLoading(true)
-      }
-      setError(null)
-
-      try {
-        const result = await fetchInvestmentLeads(variables)
-        setLeads((result.leads as any) || [])
-        setTotalCount(result.total || 0)
-      } catch (err) {
-        const errorMessage = err instanceof Error ? err.message : 'Unknown error occurred'
-        setError(errorMessage)
-      } finally {
-        if (showLoading) {
-          setIsLoading(false)
+        // Copy filter values directly (Filter-IDs now match Descriptor-Keys)
+        // Handle createdAtRange date filter splitting
+        if (
+          params.selectedFilters.createdAtRange &&
+          Array.isArray(params.selectedFilters.createdAtRange) &&
+          params.selectedFilters.createdAtRange.length === 2
+        ) {
+          const [start, end] = params.selectedFilters.createdAtRange
+          if (start) vars.createdAtFrom = start
+          if (end) vars.createdAtTo = end
         }
-        setIsInitialLoad(false)
+
+        // Handle sensitive filter (boolean - no Descriptor)
+        if (params.selectedFilters.sensitive !== undefined && params.selectedFilters.sensitive !== null) {
+          if (Array.isArray(params.selectedFilters.sensitive) && params.selectedFilters.sensitive.length > 0) {
+            const sensitiveValue = params.selectedFilters.sensitive[0]
+            if (sensitiveValue === 'true') {
+              vars.sensitive = true
+            } else if (sensitiveValue === 'false') {
+              vars.sensitive = false
+            }
+          }
+        }
+
+        // Copy all other filters directly (they now match Descriptor-Keys)
+        Object.keys(params.selectedFilters).forEach(key => {
+          if (
+            key !== 'createdAtRange' &&
+            key !== 'sensitive' &&
+            params.selectedFilters[key] !== undefined &&
+            params.selectedFilters[key] !== null
+          ) {
+            vars[key as keyof InvestmentLeadQueryVariables] = params.selectedFilters[key]
+          }
+        })
+
+        // Use column ID directly - buildOrderBy will use descriptors (INVESTMENT_LEAD_DESCRIPTORS)
+        // to resolve correct GraphQL paths (e.g., leadStatus.value, ownerEmployee.displayName)
+        // Special handling for composite 'lead' column
+        if (params.sorting.length > 0) {
+          const columnId = params.sorting[0].id
+          const direction = params.sorting[0].desc ? 'DESC_NULLS_LAST' : 'ASC_NULLS_LAST'
+
+          if (columnId === 'lead') {
+            // Sort by firstName, then lastName
+            vars.orderBy = [
+              { field: 'firstName', direction },
+              { field: 'lastName', direction }
+            ]
+          } else {
+            // Use column ID directly - buildOrderBy will resolve paths via descriptors
+            vars.orderBy = [{ field: columnId as any, direction }]
+          }
+        } else {
+          vars.orderBy = [{ field: 'createdAt' as any, direction: 'DESC_NULLS_LAST' }]
+        }
+
+        return vars
+      },
+      flowContexts: {
+        entityContext: FlowContextName.investmentLeadEntity,
+        createContext: FlowContextName.investmentLeadCreate
+      },
+      buildRecordUrl: (id: string) => buildPlatformUrl('/platform/irm/lead-record', { leadId: id }),
+      leadStatistics: leadStatisticsData,
+      processCompletionEvents: [
+        'com.newwork.process.taskCompletion',
+        'com.newwork.process.completion',
+        'com.newwork.process.continue',
+        'com.newwork.process.processCompletion',
+        'processCompletion',
+        'leadCompletion',
+        'leadCompleted'
+      ],
+      rowActionsContextArray: [FlowContextName.investmentLeadEntity],
+      buildRowActionsExternalContextData: (row: { original: InvestmentLead }) => ({
+        leadId: row.original.id
+      }),
+      translations: {
+        allLeads: { key: 'common:allLeads', default: 'All Leads' },
+        searchLeads: { key: 'common:searchLeads', default: 'Search leads...' },
+        filterLeads: { key: 'common:filterLeads', default: 'Filter Leads' },
+        filterLeadsDescription: {
+          key: 'common:filterLeadsDescription',
+          default: 'Apply filters to narrow down the lead list'
+        },
+        addLead: { key: 'irm:lead.addLead', default: 'Add Lead' }
       }
-    },
-    [accessToken, fetchInvestmentLeads]
+    }),
+    [fetchInvestmentLeads, leadFilters, leadStatisticsData, accessToken]
   )
 
-  // Initial load - Only runs once when accessToken is available and isInitialLoad is true
-  useEffect(() => {
-    if (!accessToken || !isInitialLoad) {
-      return
-    }
-
-    loadData(queryVariables, true)
-  }, [accessToken, isInitialLoad, loadData, queryVariables])
-
-  // Reload data without loading state when filters/search/pagination/sorting change
-  // Only runs after initial load is complete (isInitialLoad === false)
-  useEffect(() => {
-    if (isInitialLoad || !accessToken) {
-      return
-    }
-
-    loadData(queryVariables, false)
-  }, [queryVariables, loadData, accessToken])
-
-  // Process completion
-  const handleProcessComplete = useCallback(() => {
-    if (!accessToken) return
-    loadData(queryVariables, false)
-  }, [accessToken, loadData, queryVariables])
-
-  useProcessCompletion({ onSuccess: handleProcessComplete })
-
-  useEffect(() => {
-    const events = [
-      'com.newwork.process.taskCompletion',
-      'com.newwork.process.completion',
-      'com.newwork.process.continue',
-      'com.newwork.process.processCompletion',
-      'processCompletion',
-      'leadCompletion',
-      'leadCompleted'
-    ]
-    const handlers = events.map(eventName => {
-      const handler = () => handleProcessComplete()
-      globalThis.addEventListener(eventName, handler)
-      return { eventName, handler }
-    })
-
-    return () => {
-      for (const { eventName, handler } of handlers) {
-        globalThis.removeEventListener(eventName, handler)
-      }
-    }
-  }, [handleProcessComplete])
-
-  // Event Handlers
-  const handleSearch = useCallback((value: string) => {
-    setSearchTerm(value)
-    setPagination(prev => ({ ...prev, pageIndex: 0 }))
-  }, [])
-
-  const handleFilterUpdate = useCallback((filters: Record<string, any>) => {
-    setSelectedFilters(filters)
-    setPagination(prev => ({ ...prev, pageIndex: 0 }))
-  }, [])
-
-  const handleRowClick = useCallback((lead: InvestmentLead) => {
-    const url = buildPlatformUrl('/platform/irm/lead-record', {
-      leadId: lead.id
-    })
-    navigateTo(url)
-  }, [])
-
-  // Columns
-  const columns = useMemo(() => {
-    return defaultLeadColumns() as any
-  }, [])
-
-  // Row Actions
-  const renderRowActions = useCallback(
-    (row: { original: InvestmentLead }) => (
-      <AppActionMenu
-        contextsArray={[FlowContextName.investmentLeadEntity]}
-        externalContextData={{ leadId: row.original.id }}
-        prefixDataTestId="lead-actions"
-        accessToken={accessToken}
-        emptyStateBehavior="enable"
-        deferMainContextRequestsUntilClick
-      >
-        <Button
-          variant="ghost"
-          size="icon"
-          data-testid={`lead-actions-${row.original.id}`}
-          onClick={(e: React.MouseEvent) => e.stopPropagation()}
-        >
-          <MoreVertical className="gba:h-4 gba:w-4" />
-        </Button>
-      </AppActionMenu>
-    ),
-    [accessToken]
-  )
-
-  // Filter Config - Dynamic with filter options
-  const filterConfig = useMemo(() => {
-    return buildDynamicFilterConfig(defaultLeadFilterConfig, {
-      owners: leadFilters.owners,
-      statuses: leadFilters.statuses,
-      ratings: leadFilters.ratings,
-      sources: leadFilters.sources,
-      salutations: leadFilters.salutations,
-      industries: leadFilters.industries
-    })
-  }, [
-    leadFilters.owners,
-    leadFilters.statuses,
-    leadFilters.ratings,
-    leadFilters.sources,
-    leadFilters.salutations,
-    leadFilters.industries
-  ])
-
-  // Statistics
-  const renderStatistics = useCallback(
-    () => <LeadStatisticsLayout statistics={leadStatistics} data-testid="investment-lead-statistics" />,
-    [leadStatistics]
-  )
-
-  // Primary Action
-  const primaryAction = useMemo(
-    () => (
-      <AppAction
-        contextsArray={[FlowContextName.investmentLeadCreate]}
-        accessToken={accessToken}
-        data-testid="add-lead-action"
-        emptyStateBehavior="hide"
-      >
-        <Button size="sm" variant="default" data-testid="add-lead-button" type="button">
-          <Plus className="gba:h-4 gba:w-4" />
-          Add Lead
-        </Button>
-      </AppAction>
-    ),
-    [accessToken]
-  )
-
-  return (
-    <LeadLayout<InvestmentLead>
-      leads={leads}
-      totalCount={totalCount}
-      loading={isLoading}
-      error={error}
-      columns={columns}
-      visibleColumns={visibleColumns}
-      availableColumns={defaultAvailableLeadColumns}
-      onVisibleColumnsChange={setVisibleColumns}
-      searchTerm={searchTerm}
-      onSearchChange={handleSearch}
-      filterConfig={filterConfig}
-      selectedFilters={selectedFilters}
-      onFilterChange={handleFilterUpdate}
-      sorting={sorting}
-      onSortingChange={setSorting}
-      sortableColumns={defaultLeadSortableColumns}
-      pagination={pagination}
-      onPaginationChange={setPagination}
-      onRowClick={handleRowClick}
-      renderRowActions={renderRowActions}
-      renderStatistics={renderStatistics}
-      primaryAction={primaryAction}
-      dataTestId="investment-lead-view"
-    />
-  )
+  return <LeadLayout context={context} config={config} dataTestId="investment-lead-view" />
 }
 
 export default LeadView

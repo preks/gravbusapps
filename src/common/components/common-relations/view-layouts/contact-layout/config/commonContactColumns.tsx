@@ -60,7 +60,7 @@ const getPrimaryAccount = (contact: CommonContact) => {
  * Uses CommonContact (the CORRECT structure)
  * Contacts must be mapped via contactMapper before passing to these columns
  */
-export const defaultContactColumns = (): ColumnDef<CommonContact>[] => [
+export const commonContactColumns = (): ColumnDef<CommonContact>[] => [
   {
     id: 'contact',
     accessorFn: row => getContactName(row),
@@ -366,7 +366,7 @@ export const defaultVisibleContactColumns = [
  * Default available columns derived from column definitions
  * Automatically includes all columns with an id
  */
-export const defaultAvailableContactColumns = deriveAvailableColumns(defaultContactColumns())
+export const defaultAvailableContactColumns = deriveAvailableColumns(commonContactColumns())
 
 // Note: communicationChannels, account, and type are computed/related fields and cannot be sorted in GraphQL
 // Only include database fields in sortableColumns above

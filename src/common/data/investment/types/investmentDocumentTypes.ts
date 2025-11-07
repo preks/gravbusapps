@@ -18,7 +18,7 @@ import type {
 export interface InvestmentDocument extends CommonDocument {
   account?: InvestmentAccount
   activity?: InvestmentActivity
-  childDocuments?: InvestmentDocument[] // TODO missing
+  childDocuments?: InvestmentDocument[]
   contact?: InvestmentContact
   investment?: Investment
   investmentId?: string

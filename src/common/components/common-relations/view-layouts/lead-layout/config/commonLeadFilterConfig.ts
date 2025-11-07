@@ -5,7 +5,7 @@ import type { FilterConfiguration } from '@newwork/nw-design-system'
  * Base filter configuration shared across Customer and Investment Leads
  * Uses new structure with config object and field properties
  */
-export const defaultLeadFilterConfig: FilterConfiguration = {
+export const commonLeadFilterConfig: FilterConfiguration = {
   id: 'lead-filters',
   name: 'Lead Filters',
   groups: [
@@ -16,8 +16,8 @@ export const defaultLeadFilterConfig: FilterConfiguration = {
       defaultExpanded: true,
       filters: [
         {
-          id: 'owners',
-          field: 'owners',
+          id: 'ownerEmployeeIds',
+          field: 'ownerEmployeeIds',
           label: 'Owner',
           type: 'multi-select',
           config: {
@@ -37,8 +37,8 @@ export const defaultLeadFilterConfig: FilterConfiguration = {
       defaultExpanded: true,
       filters: [
         {
-          id: 'statuses',
-          field: 'statuses',
+          id: 'leadStatusIds',
+          field: 'leadStatusIds',
           label: 'Status',
           type: 'multi-select',
           config: {
@@ -58,8 +58,8 @@ export const defaultLeadFilterConfig: FilterConfiguration = {
       defaultExpanded: false,
       filters: [
         {
-          id: 'ratings',
-          field: 'ratings',
+          id: 'leadRatingIds',
+          field: 'leadRatingIds',
           label: 'Rating',
           type: 'multi-select',
           config: {
@@ -79,8 +79,8 @@ export const defaultLeadFilterConfig: FilterConfiguration = {
       defaultExpanded: false,
       filters: [
         {
-          id: 'sources',
-          field: 'sources',
+          id: 'leadSourceIds',
+          field: 'leadSourceIds',
           label: 'Source',
           type: 'multi-select',
           config: {
@@ -100,8 +100,8 @@ export const defaultLeadFilterConfig: FilterConfiguration = {
       defaultExpanded: false,
       filters: [
         {
-          id: 'salutations',
-          field: 'salutations',
+          id: 'salutationIds',
+          field: 'salutationIds',
           label: 'Salutation',
           type: 'multi-select',
           config: {
@@ -121,8 +121,8 @@ export const defaultLeadFilterConfig: FilterConfiguration = {
       defaultExpanded: false,
       filters: [
         {
-          id: 'industries',
-          field: 'industries',
+          id: 'industryClassIds',
+          field: 'industryClassIds',
           label: 'Industry',
           type: 'multi-select',
           config: {

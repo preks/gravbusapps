@@ -1,6 +1,6 @@
 // Account Layout Components
-export { AccountLayout, type AccountLayoutProps } from './AccountLayout'
-export { AccountListLayout, type AccountListLayoutProps } from './AccountListLayout'
+export { AccountLayout, type AccountLayoutProps, type AccountViewConfig } from './AccountLayout'
+export { AccountListLayout, type AccountListLayoutProps } from './components/AccountListLayout'
 export { AccountStatisticsLayout, type AccountStatisticsData } from './components/AccountStatisticsLayout'
 
 // Types
@@ -8,13 +8,13 @@ export type { CommonAccount, CommonAccountFilters } from '@/common/data/relation
 
 // Default Configurations
 export {
-  defaultAccountColumns,
+  commonAccountColumns,
   defaultAccountSortableColumns,
   defaultVisibleAccountColumns,
   defaultAvailableAccountColumns
-} from './config/defaultAccountColumns'
+} from './config/commonAccountColumns'
 
-export { defaultAccountFilterConfig } from './config/defaultAccountFilters'
+export { commonAccountFilterConfig } from './config/defaultAccountFilters'
 
 // Utilities
 export { buildDynamicFilterConfig, updateFilterOptions, addSearchAndLoadMoreFunctions } from './utils/filterHelpers'

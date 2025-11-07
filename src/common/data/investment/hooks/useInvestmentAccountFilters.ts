@@ -1,5 +1,5 @@
 // Investment Account Filters hook with lazy loading
-import { useState, useCallback } from 'react'
+import { useState, useCallback, useEffect } from 'react'
 import { BusinessAppContextProps } from '@/common/BusinessAppContext'
 import { useGraphQLClient } from '@/common/network/graphql/useGraphQLClient'
 import { useCatalogManagerClient } from '@/common/network/catalogs/useCatalogManagerClient'
@@ -11,7 +11,7 @@ import {
   SEARCH_LEGAL_FORMS_QUERY,
   SEARCH_COMPANY_SIZES_QUERY,
   SEARCH_REVENUE_BANDS_QUERY
-} from '../queries/accountFilterFragments'
+} from '@/business-apps/irm/core/apps/investment-relations/views/account-view/queries/accountFilterFragments'
 
 interface FilterOption {
   id: string
@@ -26,7 +26,7 @@ interface PrefetchResponse {
   revenueBands: Array<{ accountAnnualRevenueBand: { id: string; code?: string; value?: string } | null }>
 }
 
-export const useAccountFilterOptions = (context: BusinessAppContextProps): InvestmentAccountFilters => {
+export const useInvestmentAccountFilters = (context: BusinessAppContextProps): InvestmentAccountFilters => {
   const { accessToken } = context
   const graphqlClient = useGraphQLClient(accessToken)
   const catalogClient = useCatalogManagerClient(accessToken)
@@ -37,8 +37,6 @@ export const useAccountFilterOptions = (context: BusinessAppContextProps): Inves
   const [companySizes, setCompanySizes] = useState<FilterOption[]>([])
   const [revenueBands, setRevenueBands] = useState<FilterOption[]>([])
   const [countries, setCountries] = useState<FilterOption[]>([])
-  const [regions] = useState<FilterOption[]>([])
-  const [cities] = useState<FilterOption[]>([])
   const [isLoading, setIsLoading] = useState(false)
 
   // Prefetch initial filter options (first 10 distinct values per filter)
@@ -276,6 +274,11 @@ export const useAccountFilterOptions = (context: BusinessAppContextProps): Inves
     [accessToken, catalogClient]
   )
 
+  // Auto-load filters on mount
+  useEffect(() => {
+    prefetchFilters()
+  }, [prefetchFilters])
+
   return {
     owners,
     industries,
@@ -283,8 +286,6 @@ export const useAccountFilterOptions = (context: BusinessAppContextProps): Inves
     companySizes,
     revenueBands,
     countries,
-    regions,
-    cities,
     isLoading,
     prefetchFilters,
     searchOwners,

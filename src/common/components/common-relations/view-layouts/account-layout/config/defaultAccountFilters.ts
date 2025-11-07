@@ -4,7 +4,7 @@ import type { FilterConfiguration } from '@newwork/nw-design-system'
  * Default Account Filter Configuration
  * Can be extended in context-specific views (Customer/Investment)
  */
-export const defaultAccountFilterConfig: FilterConfiguration = {
+export const commonAccountFilterConfig: FilterConfiguration = {
   id: 'account-filters',
   name: 'Account Filters',
   groups: [
@@ -15,8 +15,8 @@ export const defaultAccountFilterConfig: FilterConfiguration = {
       defaultExpanded: true,
       filters: [
         {
-          id: 'owners',
-          field: 'owners',
+          id: 'ownerEmployeeIds',
+          field: 'ownerEmployeeIds',
           label: 'Owner',
           type: 'multi-select',
           config: {
@@ -36,8 +36,8 @@ export const defaultAccountFilterConfig: FilterConfiguration = {
       defaultExpanded: false,
       filters: [
         {
-          id: 'industries',
-          field: 'industries',
+          id: 'industryClassIds',
+          field: 'industryClassIds',
           label: 'Industry',
           type: 'multi-select',
           config: {
@@ -57,8 +57,8 @@ export const defaultAccountFilterConfig: FilterConfiguration = {
       defaultExpanded: false,
       filters: [
         {
-          id: 'legalForms',
-          field: 'legalForms',
+          id: 'legalFormIds',
+          field: 'legalFormIds',
           label: 'Legal Form',
           type: 'multi-select',
           config: {
@@ -78,8 +78,8 @@ export const defaultAccountFilterConfig: FilterConfiguration = {
       defaultExpanded: false,
       filters: [
         {
-          id: 'companySizes',
-          field: 'companySizes',
+          id: 'companySizeIds',
+          field: 'companySizeIds',
           label: 'Company Size',
           type: 'multi-select',
           config: {
@@ -99,8 +99,8 @@ export const defaultAccountFilterConfig: FilterConfiguration = {
       defaultExpanded: false,
       filters: [
         {
-          id: 'revenueBands',
-          field: 'revenueBands',
+          id: 'accountAnnualRevenueBandIds',
+          field: 'accountAnnualRevenueBandIds',
           label: 'Revenue Band',
           type: 'multi-select',
           config: {

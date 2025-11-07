@@ -1,26 +1,32 @@
+// Investment Contact Filters hook
 import { useState, useEffect } from 'react'
 import { BusinessAppContextProps } from '@/common/BusinessAppContext'
 import { useGetInvestmentContacts } from '@/common/data/investment/hooks/useInvestmentContacts'
 import { useGetInvestmentAccounts } from '@/common/data/investment/hooks/useInvestmentAccounts'
 
-interface FilterOptions {
-  owners: Array<{ id: string; label: string }>
-  contactTypes: Array<{ id: string; label: string }>
-  accounts: Array<{ id: string; label: string }>
+interface FilterOption {
+  id: string
+  label: string
+}
+
+export interface InvestmentContactFilters {
+  owners: FilterOption[]
+  contactTypes: FilterOption[]
+  accounts: FilterOption[]
   isLoading: boolean
 }
 
-export const useContactFilterOptions = (context: BusinessAppContextProps): FilterOptions => {
+export const useInvestmentContactFilters = (context: BusinessAppContextProps): InvestmentContactFilters => {
   const { accessToken } = context
   const { fetchInvestmentContacts } = useGetInvestmentContacts(context)
   const { fetchInvestmentAccounts } = useGetInvestmentAccounts(context)
 
-  const [owners, setOwners] = useState<Array<{ id: string; label: string }>>([])
-  const [contactTypes] = useState<Array<{ id: string; label: string }>>([
+  const [owners, setOwners] = useState<FilterOption[]>([])
+  const [contactTypes] = useState<FilterOption[]>([
     { id: 'PRIMARY', label: 'Primary' },
     { id: 'SECONDARY', label: 'Secondary' }
   ])
-  const [accounts, setAccounts] = useState<Array<{ id: string; label: string }>>([])
+  const [accounts, setAccounts] = useState<FilterOption[]>([])
   const [isLoading, setIsLoading] = useState(true)
 
   useEffect(() => {

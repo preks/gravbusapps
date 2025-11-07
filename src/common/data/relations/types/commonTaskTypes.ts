@@ -105,7 +105,6 @@ export const COMMON_TASK_DESCRIPTORS: Descriptor[] = [
     type: 'text'
   },
   { key: 'opportunityId', searchPaths: ['opportunityId'], sortPath: 'opportunityId', type: 'text' },
-  { key: 'reference', searchPaths: ['reference.name', 'reference.code'], sortPath: 'reference.name', type: 'text' },
   { key: 'source', searchPaths: ['source'], sortPath: 'source', type: 'text' },
   { key: 'startDate', searchPaths: ['startDate'], sortPath: 'startDate', type: 'date' },
   {
@@ -179,8 +178,22 @@ export const COMMON_TASK_DESCRIPTORS: Descriptor[] = [
   // status: Displays taskStatus catalog entry - sorts by taskStatus.value
   { key: 'status', searchPaths: ['taskStatus.value', 'taskStatus.code'], sortPath: 'taskStatus.value', type: 'text' },
 
-  // reference: Displays referenceType and referenceId - sorts by referenceType
-  { key: 'reference', searchPaths: ['referenceType', 'referenceId'], sortPath: 'referenceType', type: 'text' },
+  // reference: Displays referenceType and referenceId - sorts by reference name fields in priority order
+  // Uses sortPaths to try multiple fields (account.name, contact.lastName, lead.lastName, opportunity.name)
+  // GraphQL will use the first available field for sorting
+  {
+    key: 'reference',
+    searchPaths: [
+      'referenceType',
+      'referenceId',
+      'account.name',
+      'contact.lastName',
+      'lead.lastName',
+      'opportunity.name'
+    ],
+    sortPaths: ['account.name', 'contact.lastName', 'lead.lastName', 'opportunity.name'],
+    type: 'text'
+  },
 
   // createdBy: Displays creatorEmployee - sorts by creatorEmployee.displayName
   {

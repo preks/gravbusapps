@@ -68,7 +68,9 @@ export const addSearchAndLoadMoreFunctions = (
     loadMoreCountries
   } = callbacks
 
-  const ownersFilter = filterConfig.groups.find(g => g.id === 'owner-group')?.filters.find(f => f.id === 'owners')
+  const ownersFilter = filterConfig.groups
+    .find(g => g.id === 'owner-group')
+    ?.filters.find(f => f.id === 'ownerEmployeeIds')
   if (ownersFilter?.config) {
     if (searchOwners) ownersFilter.config.onSearch = searchOwners
     if (loadMoreOwners) ownersFilter.config.onLoadMore = loadMoreOwners
@@ -76,7 +78,7 @@ export const addSearchAndLoadMoreFunctions = (
 
   const industriesFilter = filterConfig.groups
     .find(g => g.id === 'industry-group')
-    ?.filters.find(f => f.id === 'industries')
+    ?.filters.find(f => f.id === 'industryClassIds')
   if (industriesFilter?.config) {
     if (searchIndustries) industriesFilter.config.onSearch = searchIndustries
     if (loadMoreIndustries) industriesFilter.config.onLoadMore = loadMoreIndustries
@@ -84,7 +86,7 @@ export const addSearchAndLoadMoreFunctions = (
 
   const legalFormsFilter = filterConfig.groups
     .find(g => g.id === 'legal-form-group')
-    ?.filters.find(f => f.id === 'legalForms')
+    ?.filters.find(f => f.id === 'legalFormIds')
   if (legalFormsFilter?.config) {
     if (searchLegalForms) legalFormsFilter.config.onSearch = searchLegalForms
     if (loadMoreLegalForms) legalFormsFilter.config.onLoadMore = loadMoreLegalForms
@@ -92,7 +94,7 @@ export const addSearchAndLoadMoreFunctions = (
 
   const companySizesFilter = filterConfig.groups
     .find(g => g.id === 'company-size-group')
-    ?.filters.find(f => f.id === 'companySizes')
+    ?.filters.find(f => f.id === 'companySizeIds')
   if (companySizesFilter?.config) {
     if (searchCompanySizes) companySizesFilter.config.onSearch = searchCompanySizes
     if (loadMoreCompanySizes) companySizesFilter.config.onLoadMore = loadMoreCompanySizes
@@ -100,7 +102,7 @@ export const addSearchAndLoadMoreFunctions = (
 
   const revenueBandsFilter = filterConfig.groups
     .find(g => g.id === 'revenue-group')
-    ?.filters.find(f => f.id === 'revenueBands')
+    ?.filters.find(f => f.id === 'accountAnnualRevenueBandIds')
   if (revenueBandsFilter?.config) {
     if (searchRevenueBands) revenueBandsFilter.config.onSearch = searchRevenueBands
     if (loadMoreRevenueBands) revenueBandsFilter.config.onLoadMore = loadMoreRevenueBands
@@ -136,11 +138,17 @@ export const buildDynamicFilterConfig = (
 
   const { owners, industries, legalForms, companySizes, revenueBands, countries, totalCounts } = filterOptions
 
-  updateFilterOptions(filterConfig, 'owner-group', 'owners', owners, totalCounts?.owners)
-  updateFilterOptions(filterConfig, 'industry-group', 'industries', industries, totalCounts?.industries)
-  updateFilterOptions(filterConfig, 'legal-form-group', 'legalForms', legalForms, totalCounts?.legalForms)
-  updateFilterOptions(filterConfig, 'company-size-group', 'companySizes', companySizes, totalCounts?.companySizes)
-  updateFilterOptions(filterConfig, 'revenue-group', 'revenueBands', revenueBands, totalCounts?.revenueBands)
+  updateFilterOptions(filterConfig, 'owner-group', 'ownerEmployeeIds', owners, totalCounts?.owners)
+  updateFilterOptions(filterConfig, 'industry-group', 'industryClassIds', industries, totalCounts?.industries)
+  updateFilterOptions(filterConfig, 'legal-form-group', 'legalFormIds', legalForms, totalCounts?.legalForms)
+  updateFilterOptions(filterConfig, 'company-size-group', 'companySizeIds', companySizes, totalCounts?.companySizes)
+  updateFilterOptions(
+    filterConfig,
+    'revenue-group',
+    'accountAnnualRevenueBandIds',
+    revenueBands,
+    totalCounts?.revenueBands
+  )
   updateFilterOptions(filterConfig, 'country-group', 'countries', countries, totalCounts?.countries)
 
   // Add search and load more functions if available

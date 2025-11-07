@@ -15,7 +15,7 @@ export interface CommonContact extends BaseEntity {
   academicTitle?: CatalogEntry // IRM | CRM
   academicTitleRef?: string // IRM | CRM
   accountContacts?: CommonAccountContact[] // IRM | CRM
-  activities?: CommonActivity[] // IRM | TODO (missing)
+  activities?: CommonActivity[] // IRM | CRM
   addresses?: Address[] // IRM | CRM
   birthDate?: string // IRM | CRM
   code?: string // IRM | CRM
@@ -33,14 +33,14 @@ export interface CommonContact extends BaseEntity {
   leads?: CommonLead[] // IRM | CRM
   notes?: CommonNote[] // IRM | CRM
   notesSummary?: string // IRM | CRM
-  opportunityContacts?: CommonOpportunity[] // IRM | TODO (missing)
+  opportunityContacts?: CommonOpportunity[] // IRM | CRM
   ownerEmployee?: Employee // IRM | CRM
   ownerEmployeeId?: string // IRM | CRM
   picture?: string // IRM | TODO (pictureUrl)
   pictureThumbnail?: string // IRM | TODO (pictureThumbnailUrl)
   salutation?: CatalogEntry // IRM | CRM
   salutationRef?: string // IRM | CRM
-  tasks?: CommonTask[] // IRM | TODO (missing)
+  tasks?: CommonTask[] // IRM | CRM
   type?: string // IRM | TODO (contactType)
 }
 

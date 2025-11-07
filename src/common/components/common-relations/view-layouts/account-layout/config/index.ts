@@ -1,9 +1,9 @@
 // Default Account Configuration Exports
 export {
-  defaultAccountColumns,
+  commonAccountColumns,
   defaultAccountSortableColumns,
   defaultVisibleAccountColumns,
   defaultAvailableAccountColumns
-} from './defaultAccountColumns'
+} from './commonAccountColumns'
 
-export { defaultAccountFilterConfig } from './defaultAccountFilters'
+export { commonAccountFilterConfig } from './defaultAccountFilters'

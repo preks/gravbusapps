@@ -67,7 +67,9 @@ export const addSearchAndLoadMoreFunctions = (
     loadMoreLanguages
   } = callbacks
 
-  const ownersFilter = filterConfig.groups.find(g => g.id === 'owner-group')?.filters.find(f => f.id === 'owners')
+  const ownersFilter = filterConfig.groups
+    .find(g => g.id === 'owner-group')
+    ?.filters.find(f => f.id === 'ownerEmployeeIds')
   if (ownersFilter?.config) {
     if (searchOwners) ownersFilter.config.onSearch = searchOwners
     if (loadMoreOwners) ownersFilter.config.onLoadMore = loadMoreOwners
@@ -91,7 +93,7 @@ export const addSearchAndLoadMoreFunctions = (
 
   const academicTitlesFilter = filterConfig.groups
     .find(g => g.id === 'academic-title-group')
-    ?.filters.find(f => f.id === 'academicTitles')
+    ?.filters.find(f => f.id === 'academicTitleIds')
   if (academicTitlesFilter?.config) {
     if (searchAcademicTitles) academicTitlesFilter.config.onSearch = searchAcademicTitles
     if (loadMoreAcademicTitles) academicTitlesFilter.config.onLoadMore = loadMoreAcademicTitles
@@ -99,7 +101,7 @@ export const addSearchAndLoadMoreFunctions = (
 
   const salutationsFilter = filterConfig.groups
     .find(g => g.id === 'salutation-group')
-    ?.filters.find(f => f.id === 'salutations')
+    ?.filters.find(f => f.id === 'salutationIds')
   if (salutationsFilter?.config) {
     if (searchSalutations) salutationsFilter.config.onSearch = searchSalutations
     if (loadMoreSalutations) salutationsFilter.config.onLoadMore = loadMoreSalutations
@@ -107,7 +109,7 @@ export const addSearchAndLoadMoreFunctions = (
 
   const languagesFilter = filterConfig.groups
     .find(g => g.id === 'language-group')
-    ?.filters.find(f => f.id === 'languages')
+    ?.filters.find(f => f.id === 'languageIds')
   if (languagesFilter?.config) {
     if (searchLanguages) languagesFilter.config.onSearch = searchLanguages
     if (loadMoreLanguages) languagesFilter.config.onLoadMore = loadMoreLanguages
@@ -162,7 +164,7 @@ export const buildDynamicFilterConfig = (
 
   const { owners, departments, jobPositions, academicTitles, salutations, languages, totalCounts } = filterOptions
 
-  updateFilterOptions(filterConfig, 'owner-group', 'owners', owners, totalCounts?.owners)
+  updateFilterOptions(filterConfig, 'owner-group', 'ownerEmployeeIds', owners, totalCounts?.owners)
   if (departments) {
     updateFilterOptions(filterConfig, 'department-group', 'departments', departments, totalCounts?.departments)
   }
@@ -173,16 +175,16 @@ export const buildDynamicFilterConfig = (
     updateFilterOptions(
       filterConfig,
       'academic-title-group',
-      'academicTitles',
+      'academicTitleIds',
       academicTitles,
       totalCounts?.academicTitles
     )
   }
   if (salutations) {
-    updateFilterOptions(filterConfig, 'salutation-group', 'salutations', salutations, totalCounts?.salutations)
+    updateFilterOptions(filterConfig, 'salutation-group', 'salutationIds', salutations, totalCounts?.salutations)
   }
   if (languages) {
-    updateFilterOptions(filterConfig, 'language-group', 'languages', languages, totalCounts?.languages)
+    updateFilterOptions(filterConfig, 'language-group', 'languageIds', languages, totalCounts?.languages)
   }
 
   // Add search and load more functions if available

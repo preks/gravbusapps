@@ -1,141 +1,341 @@
+import React, { useState, useCallback, useEffect, useMemo } from 'react'
+import { Button, DataDisplay } from '@newwork/nw-design-system'
 import type { ColumnDef } from '@tanstack/react-table'
 import type { FilterConfiguration } from '@newwork/nw-design-system'
-import { DataDisplay } from '@newwork/nw-design-system'
+import { Plus } from 'lucide-react'
+import { BusinessAppContextProps } from '@/common/BusinessAppContext'
+import { AppAction } from '@/components/app-action/AppAction'
+import { FlowContextName } from '@/common/types/FlowRegistryTypes'
 import { getTranslationFromI18nKeyAndLabel } from '@/common/utils/windowUtils'
-import { LeadListLayout } from './LeadListLayout'
+import { navigateTo } from '@/common/utils/navigationUtils'
+import { LeadListLayout } from './components/LeadListLayout'
+import { LeadStatisticsLayout, type LeadStatisticsData } from './components/LeadStatisticsLayout'
 import type { CommonLead } from '@/common/data/relations/types/commonLeadTypes'
+import { useProcessCompletion } from '@/common/hooks/useProcessCompletion'
+import { deriveSortableColumns, deriveAvailableColumns } from '@/common/network/graphql/descriptorUtils'
+import type { Descriptor } from '@/common/network/graphql/queryHelpers'
+import { buildDynamicFilterConfig } from './utils/filterHelpers'
+import { AppActionMenu } from '@/components/app-action-menu/AppActionMenu'
 
-/**
- * Lead Layout Props
- */
-export interface LeadLayoutProps<TLead extends CommonLead = CommonLead> {
-  // Data
-  leads: TLead[]
-  totalCount: number
-  loading: boolean
-  error: string | null
+export interface LeadViewConfig<TLead extends CommonLead = CommonLead, TQueryVariables = any> {
+  fetchLeads: (variables: TQueryVariables) => Promise<{
+    leads?: TLead[]
+    total?: number
+  }>
 
-  // Display
-  columns: ColumnDef<TLead>[]
-  visibleColumns: string[]
-  availableColumns: Array<{ id: string; label: string }>
-  onVisibleColumnsChange: (columns: string[]) => void
+  filterDataHook: (context: BusinessAppContextProps) => {
+    owners: Array<{ id: string; label: string }>
+    statuses: Array<{ id: string; label: string }>
+    ratings: Array<{ id: string; label: string }>
+    sources: Array<{ id: string; label: string }>
+    salutations?: Array<{ id: string; label: string }>
+    industries?: Array<{ id: string; label: string }>
+  }
 
-  // Search & Filter
-  searchTerm: string
-  onSearchChange: (term: string) => void
-  filterConfig: FilterConfiguration
-  selectedFilters: Record<string, any>
-  onFilterChange: (filters: Record<string, any>) => void
+  createColumns: () => ColumnDef<TLead>[]
+  descriptors: Descriptor[]
+  columnLabels?: Record<string, string>
 
-  // Sorting & Pagination
-  sorting: Array<{ id: string; desc: boolean }>
-  onSortingChange: (sorting: Array<{ id: string; desc: boolean }>) => void
-  sortableColumns: Array<{ id: string; label: string }>
-  pagination: { pageIndex: number; pageSize: number }
-  onPaginationChange: (pagination: { pageIndex: number; pageSize: number }) => void
+  baseFilterConfig: FilterConfiguration
 
-  // Interactions
-  onRowClick?: (lead: TLead) => void
-  renderRowActions?: (row: { original: TLead }) => React.ReactNode
+  buildQueryVariables: (params: {
+    pagination: { pageIndex: number; pageSize: number }
+    searchTerm: string
+    selectedFilters: Record<string, any>
+    sorting: Array<{ id: string; desc: boolean }>
+  }) => TQueryVariables
 
-  // Optional sections
-  renderStatistics?: () => React.ReactNode
-  primaryAction?: React.ReactNode
+  flowContexts: {
+    entityContext: FlowContextName
+    createContext: FlowContextName
+    createContextData?: Record<string, any>
+  }
 
-  // Config
-  hideFilters?: boolean
-  hideStatistics?: boolean
-  hideCreate?: boolean
-  dataTestId?: string
+  buildRecordUrl: (id: string) => string
+
+  leadStatistics?: LeadStatisticsData
+
+  processCompletionEvents?: string[]
+
+  rowActionsContextArray: FlowContextName[]
+  buildRowActionsExternalContextData: (row: { original: TLead }) => Record<string, string>
+
+  translations: {
+    allLeads: { key: string; default: string }
+    searchLeads: { key: string; default: string }
+    filterLeads: { key: string; default: string }
+    filterLeadsDescription: { key: string; default: string }
+    addLead: { key: string; default: string }
+  }
 }
 
-/**
- * Dumb Lead Layout Component
- * Pure presentational component that displays leads in a data display layout
- * All business logic should be in the consuming smart components
- */
-export function LeadLayout<TLead extends CommonLead = CommonLead>(props: LeadLayoutProps<TLead>) {
+export interface LeadLayoutProps<TLead extends CommonLead = CommonLead, TQueryVariables = any> {
+  context: BusinessAppContextProps
+  config: LeadViewConfig<TLead, TQueryVariables>
+  dataTestId?: string
+  initialFilters?: Record<string, any>
+  hideFilters?: boolean
+  customPrimaryAction?: React.ReactNode
+}
+
+const ConfigLeadLayout = <TLead extends CommonLead = CommonLead, TQueryVariables = any>(
+  props: LeadLayoutProps<TLead, TQueryVariables>
+) => {
   const {
-    leads,
-    totalCount,
-    loading,
-    error,
-    columns,
-    visibleColumns,
-    availableColumns,
-    onVisibleColumnsChange,
-    searchTerm,
-    onSearchChange,
-    filterConfig,
-    selectedFilters,
-    onFilterChange,
-    sorting,
-    onSortingChange,
-    sortableColumns,
-    pagination,
-    onPaginationChange,
-    onRowClick,
-    renderRowActions,
-    renderStatistics,
-    primaryAction,
+    context,
+    config,
+    dataTestId = 'lead-view',
+    initialFilters = {},
     hideFilters = false,
-    hideStatistics = false,
-    hideCreate = false,
-    dataTestId = 'lead-view'
+    customPrimaryAction
   } = props
+
+  if (!context) {
+    console.error('LeadLayout: context is required')
+    return null
+  }
+
+  const { accessToken } = context
+
+  // View State
+  const [searchTerm, setSearchTerm] = useState('')
+  const [selectedFilters, setSelectedFilters] = useState<Record<string, any>>(initialFilters)
+  const [sorting, setSorting] = useState<Array<{ id: string; desc: boolean }>>([{ id: 'createdAt', desc: true }])
+  const [pagination, setPagination] = useState({ pageIndex: 0, pageSize: 20 })
+  const [visibleColumns, setVisibleColumns] = useState<string[]>([])
+
+  // Data State
+  const [leads, setLeads] = useState<TLead[]>([])
+  const [totalCount, setTotalCount] = useState(0)
+  const [isLoading, setIsLoading] = useState(true)
+  const [error, setError] = useState<string | null>(null)
+  const [isInitialLoad, setIsInitialLoad] = useState(true)
+
+  // Dynamic Filter Configuration
+  const dynamicFilterConfig = useMemo(() => {
+    const filterData = config.filterDataHook(context)
+    const filterConfig = buildDynamicFilterConfig(config.baseFilterConfig, {
+      owners: filterData.owners,
+      statuses: filterData.statuses,
+      ratings: filterData.ratings,
+      sources: filterData.sources,
+      salutations: filterData.salutations,
+      industries: filterData.industries
+    })
+    return filterConfig
+  }, [config, context])
+
+  // Query Variables
+  const queryVariables = useMemo(
+    () =>
+      config.buildQueryVariables({
+        pagination,
+        searchTerm,
+        selectedFilters,
+        sorting
+      }),
+    [pagination, searchTerm, selectedFilters, sorting, config]
+  )
+
+  // Load Data
+  const loadData = useCallback(
+    async (showLoading: boolean = true) => {
+      if (!accessToken) return
+
+      if (showLoading) setIsLoading(true)
+      setError(null)
+
+      try {
+        const result = await config.fetchLeads(queryVariables)
+        setLeads(result.leads || [])
+        setTotalCount(result.total || 0)
+      } catch (err) {
+        setError(err instanceof Error ? err.message : 'Unknown error occurred')
+      } finally {
+        if (showLoading) setIsLoading(false)
+        setIsInitialLoad(false)
+      }
+    },
+    [accessToken, config, queryVariables]
+  )
+
+  // Initial load
+  useEffect(() => {
+    if (!accessToken || !isInitialLoad) return
+    loadData(true)
+  }, [accessToken, isInitialLoad, loadData])
+
+  // Reload data when filters/search/sort change (skip initial load)
+  useEffect(() => {
+    if (isInitialLoad || !accessToken) return
+    loadData(false)
+  }, [queryVariables, isInitialLoad, accessToken, loadData])
+
+  // Process Completion Handlers
+  const handleProcessComplete = useCallback(() => {
+    loadData(false)
+  }, [loadData])
+
+  useProcessCompletion({ onSuccess: handleProcessComplete })
+
+  useEffect(() => {
+    const events = config.processCompletionEvents || ['taskCompletion', 'leadCompletion']
+    const handlers = events.map(eventName => {
+      const handler = () => handleProcessComplete()
+      globalThis.addEventListener(eventName, handler)
+      return { eventName, handler }
+    })
+
+    return () => {
+      for (const { eventName, handler } of handlers) {
+        globalThis.removeEventListener(eventName, handler)
+      }
+    }
+  }, [handleProcessComplete, config.processCompletionEvents])
+
+  // Event Handlers
+  const handleSearch = useCallback((value: string) => {
+    setSearchTerm(value)
+    setPagination(prev => ({ ...prev, pageIndex: 0 }))
+  }, [])
+
+  const handleFilterUpdate = useCallback((filters: Record<string, any>) => {
+    setSelectedFilters(filters)
+    setPagination(prev => ({ ...prev, pageIndex: 0 }))
+  }, [])
+
+  const handleRowClick = useCallback(
+    (lead: TLead) => {
+      if (!lead.id) return
+      const url = config.buildRecordUrl(lead.id)
+      navigateTo(url)
+    },
+    [config]
+  )
+
+  // Columns
+  const columns = useMemo(() => config.createColumns(), [config])
+  const availableColumns = useMemo(() => deriveAvailableColumns(columns), [columns])
+  const availableColumnIds = useMemo(() => availableColumns.map(col => col.id), [availableColumns])
+  const sortableColumns = useMemo(
+    () => deriveSortableColumns(config.descriptors, config.columnLabels, availableColumnIds),
+    [config.descriptors, config.columnLabels, availableColumnIds]
+  )
+
+  // Initialize visible columns from available columns if empty
+  useEffect(() => {
+    if (visibleColumns.length === 0 && availableColumns.length > 0) {
+      setVisibleColumns(availableColumns.map(col => col.id))
+    }
+  }, [availableColumns, visibleColumns.length])
+
+  // Row actions - rendered internally
+  const rowActions = useMemo(
+    () => (row: { original: TLead }) => (
+      <AppActionMenu
+        contextsArray={config.rowActionsContextArray}
+        externalContextData={config.buildRowActionsExternalContextData(row)}
+        prefixDataTestId="lead-actions"
+        accessToken={accessToken}
+        emptyStateBehavior="enable"
+        deferMainContextRequestsUntilClick
+      >
+        <Button variant="ghost" size="icon" data-testid={`lead-actions-${row.original.id}`}>
+          <svg className="gba:h-4 gba:w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+            <path
+              strokeLinecap="round"
+              strokeLinejoin="round"
+              strokeWidth={2}
+              d="M12 5v.01M12 12v.01M12 19v.01M12 6a1 1 0 110-2 1 1 0 010 2zm0 7a1 1 0 110-2 1 1 0 010 2zm0 7a1 1 0 110-2 1 1 0 010 2z"
+            />
+          </svg>
+        </Button>
+      </AppActionMenu>
+    ),
+    [config, accessToken]
+  )
 
   return (
     <div data-testid={dataTestId}>
       {/* Statistics */}
-      {!hideStatistics && renderStatistics?.()}
+      {config.leadStatistics && (
+        <LeadStatisticsLayout statistics={config.leadStatistics} data-testid={`${dataTestId}-statistics`} />
+      )}
 
       {/* DataDisplay */}
       <DataDisplay
         titleSections={[
           {
             id: 'all',
-            label: getTranslationFromI18nKeyAndLabel('common:allLeads', 'All Leads'),
+            label: getTranslationFromI18nKeyAndLabel(
+              config.translations.allLeads.key,
+              config.translations.allLeads.default
+            ),
             metadata: {
               count: totalCount,
-              isLoading: loading
+              isLoading: isLoading
             }
           }
         ]}
         currentSection="all"
         searchValue={searchTerm}
-        searchPlaceholder={getTranslationFromI18nKeyAndLabel('common:searchLeads', 'Search leads...')}
-        onSearchChange={onSearchChange}
+        searchPlaceholder={getTranslationFromI18nKeyAndLabel(
+          config.translations.searchLeads.key,
+          config.translations.searchLeads.default
+        )}
+        onSearchChange={handleSearch}
         filters={hideFilters ? undefined : selectedFilters}
-        filterConfiguration={hideFilters ? undefined : filterConfig}
-        onFilterChange={hideFilters ? undefined : onFilterChange}
+        filterConfiguration={hideFilters ? undefined : dynamicFilterConfig}
+        onFilterChange={hideFilters ? undefined : handleFilterUpdate}
         sorting={sorting}
         sortableColumns={sortableColumns}
-        onSortingChange={onSortingChange}
+        onSortingChange={setSorting}
         availableColumns={availableColumns}
         visibleColumns={visibleColumns}
-        onVisibleColumnsChange={onVisibleColumnsChange}
-        primaryAction={hideCreate ? undefined : primaryAction}
+        onVisibleColumnsChange={setVisibleColumns}
+        primaryAction={
+          customPrimaryAction ||
+          (config.flowContexts.createContext ? (
+            <AppAction
+              contextsArray={[config.flowContexts.createContext]}
+              externalContextData={config.flowContexts.createContextData}
+              accessToken={accessToken}
+              data-testid="add-lead-action"
+              emptyStateBehavior="hide"
+            >
+              <Button size="sm" variant="default" data-testid="add-lead-button" type="button">
+                <Plus size={16} />
+                {getTranslationFromI18nKeyAndLabel(
+                  config.translations.addLead.key,
+                  config.translations.addLead.default
+                )}
+              </Button>
+            </AppAction>
+          ) : undefined)
+        }
         toolbarDensity="default"
         enableLiveFiltering={true}
-        filterSheetTitle={getTranslationFromI18nKeyAndLabel('common:filterLeads', 'Filter Leads')}
+        filterSheetTitle={getTranslationFromI18nKeyAndLabel(
+          config.translations.filterLeads.key,
+          config.translations.filterLeads.default
+        )}
         filterSheetDescription={getTranslationFromI18nKeyAndLabel(
-          'common:filterLeadsDescription',
-          'Apply filters to narrow down the lead list'
+          config.translations.filterLeadsDescription.key,
+          config.translations.filterLeadsDescription.default
         )}
       >
         <LeadListLayout<TLead>
           data={leads}
-          loading={loading}
+          loading={isLoading}
           error={error}
           totalCount={totalCount}
           columns={columns.filter(col => visibleColumns.includes(col.id as string))}
           sorting={sorting}
-          onSortingChange={onSortingChange}
+          onSortingChange={setSorting}
           pagination={pagination}
-          onPaginationChange={onPaginationChange}
-          actions={renderRowActions}
-          onRowClick={onRowClick}
+          onPaginationChange={setPagination}
+          actions={rowActions}
+          onRowClick={handleRowClick}
           dataTestId={`${dataTestId}-list`}
         />
       </DataDisplay>
@@ -143,4 +343,5 @@ export function LeadLayout<TLead extends CommonLead = CommonLead>(props: LeadLay
   )
 }
 
+export const LeadLayout = ConfigLeadLayout
 export default LeadLayout

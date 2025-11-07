@@ -7,7 +7,7 @@ import type { Descriptor } from '@/common/network/graphql/queryHelpers'
 export interface CommonOpportunity extends BaseEntity {
   account?: any // IRM | CRM
   accountId?: string // IRM | CRM
-  activities?: any[] // IRM | TODO (CRM missing)
+  activities?: any[] // IRM | CRM
   addresses?: any[] // IRM | CRM
   closeDate?: string // IRM | CRM
   code?: string // IRM | CRM

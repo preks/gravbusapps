@@ -170,7 +170,7 @@ export const createTaskColumns = (): ColumnDef<CommonTask>[] => [
     }
   },
   {
-    id: 'type',
+    id: 'taskType',
     accessorFn: row => (row.taskType ? getCatalogEntryValue(row.taskType as any) : '-'),
     header: 'Type',
     size: 120,
@@ -183,7 +183,7 @@ export const createTaskColumns = (): ColumnDef<CommonTask>[] => [
     }
   },
   {
-    id: 'priority',
+    id: 'taskPriority',
     accessorFn: row => (row.taskPriority ? getCatalogEntryValue(row.taskPriority as any) : '-'),
     header: 'Priority',
     size: 120,
@@ -199,7 +199,7 @@ export const createTaskColumns = (): ColumnDef<CommonTask>[] => [
     }
   },
   {
-    id: 'status',
+    id: 'taskStatus',
     accessorFn: row => (row.taskStatus ? getCatalogEntryValue(row.taskStatus as any) : '-'),
     header: 'Status',
     size: 120,

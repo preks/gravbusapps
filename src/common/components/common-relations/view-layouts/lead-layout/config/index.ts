@@ -1,8 +1,8 @@
 export {
-  defaultLeadColumns,
+  commonLeadColumns,
   defaultLeadSortableColumns,
   defaultVisibleLeadColumns,
   defaultAvailableLeadColumns
-} from './defaultLeadColumns'
-export { defaultLeadFilterConfig } from './defaultLeadFilters'
+} from './commonLeadColumns'
+export { commonLeadFilterConfig } from './commonLeadFilterConfig'
 export { buildDynamicFilterConfig, updateFilterOptions, addSearchAndLoadMoreFunctions } from '../utils/filterHelpers'

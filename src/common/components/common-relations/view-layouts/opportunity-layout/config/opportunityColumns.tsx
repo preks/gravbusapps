@@ -452,12 +452,13 @@ const OPPORTUNITY_COLUMN_LABELS: Record<string, string> = {
 /**
  * Create sortable columns from descriptors
  * @param viewDescriptors - Optional view-specific descriptors (e.g., CUSTOMER_OPPORTUNITY_DESCRIPTORS) that override common descriptors
+ * @param availableColumnIds - Optional array of column IDs that are actually in the table. If provided, only descriptors with keys matching these IDs will be included.
  * @returns Array of sortable column definitions
  */
-export const createOpportunitySortableColumns = (viewDescriptors?: Descriptor[]) => {
+export const createOpportunitySortableColumns = (viewDescriptors?: Descriptor[], availableColumnIds?: string[]) => {
   const descriptors = viewDescriptors
     ? mergeDescriptors(COMMON_OPPORTUNITY_DESCRIPTORS, viewDescriptors)
     : COMMON_OPPORTUNITY_DESCRIPTORS
 
-  return deriveSortableColumns(descriptors, OPPORTUNITY_COLUMN_LABELS)
+  return deriveSortableColumns(descriptors, OPPORTUNITY_COLUMN_LABELS, availableColumnIds)
 }

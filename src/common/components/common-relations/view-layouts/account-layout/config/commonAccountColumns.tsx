@@ -109,7 +109,7 @@ const renderRevenueCell = (account: CommonAccount) => {
  * Accounts must be mapped via accountMapper before passing to these columns
  * These can be extended or overridden in context-specific views
  */
-export const defaultAccountColumns: ColumnDef<CommonAccount>[] = [
+export const commonAccountColumns: ColumnDef<CommonAccount>[] = [
   {
     id: 'name',
     accessorFn: row => safeString(row.name),
@@ -468,4 +468,4 @@ export const defaultVisibleAccountColumns = [
  * Default available columns derived from column definitions
  * Automatically includes all columns with an id
  */
-export const defaultAvailableAccountColumns = deriveAvailableColumns(defaultAccountColumns)
+export const defaultAvailableAccountColumns = deriveAvailableColumns(commonAccountColumns)

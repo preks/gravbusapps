@@ -2,7 +2,7 @@
  * Investment Account Types
  */
 
-import type { CommonAccount } from '@/common/data/relations/types/commonAccountTypes'
+import type { CommonAccount, CommonAccountFilters } from '@/common/data/relations/types/commonAccountTypes'
 import { COMMON_ACCOUNT_DESCRIPTORS } from '@/common/data/relations/types/commonAccountTypes'
 import type { Descriptor } from '@/common/network/graphql/queryHelpers'
 import type { Investment } from './investmentTypes'
@@ -75,3 +75,9 @@ export const INVESTMENT_ACCOUNT_DESCRIPTORS: Descriptor[] = [
   { key: 'investmentIds', path: 'investment.id', kind: 'inIds' },
   { key: 'reportIds', path: 'investmentReport.id', kind: 'inIds' }
 ]
+
+/**
+ * Investment Account Filters
+ * Alias for CommonAccountFilters (IRM uses same filter structure as Common)
+ */
+export type InvestmentAccountFilters = CommonAccountFilters

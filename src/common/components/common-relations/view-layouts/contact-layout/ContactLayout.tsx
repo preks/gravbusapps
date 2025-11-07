@@ -1,96 +1,265 @@
+import React, { useState, useCallback, useEffect, useMemo } from 'react'
+import { Button, DataDisplay } from '@newwork/nw-design-system'
 import type { ColumnDef } from '@tanstack/react-table'
 import type { FilterConfiguration } from '@newwork/nw-design-system'
-import { DataDisplay } from '@newwork/nw-design-system'
+import { Plus } from 'lucide-react'
+import { BusinessAppContextProps } from '@/common/BusinessAppContext'
+import { AppAction } from '@/components/app-action/AppAction'
+import { FlowContextName } from '@/common/types/FlowRegistryTypes'
 import { getTranslationFromI18nKeyAndLabel } from '@/common/utils/windowUtils'
-import { ContactListLayout } from './ContactListLayout'
+import { navigateTo } from '@/common/utils/navigationUtils'
+import { ContactListLayout } from './components/ContactListLayout'
 import { ContactStatisticsLayout, type ContactStatisticsData } from './components/ContactStatisticsLayout'
 import type { CommonContact } from '@/common/data/relations/types/commonContactTypes'
+import { useProcessCompletion } from '@/common/hooks/useProcessCompletion'
+import { deriveSortableColumns, deriveAvailableColumns } from '@/common/network/graphql/descriptorUtils'
+import type { Descriptor } from '@/common/network/graphql/queryHelpers'
+import { buildDynamicFilterConfig } from './utils/filterHelpers'
+import { AppActionMenu } from '@/components/app-action-menu/AppActionMenu'
 
-/**
- * Contact Layout Props
- */
-export interface ContactLayoutProps<TContact extends CommonContact = CommonContact> {
-  // Data
-  contacts: TContact[]
-  totalCount: number
-  loading: boolean
-  error: string | null
+export interface ContactViewConfig<TContact extends CommonContact = CommonContact, TQueryVariables = any> {
+  fetchContacts: (variables: TQueryVariables) => Promise<{
+    contacts?: TContact[]
+    total?: number
+  }>
 
-  // Display
-  columns: ColumnDef<TContact>[]
-  visibleColumns: string[]
-  availableColumns: Array<{ id: string; label: string }>
-  onVisibleColumnsChange: (columns: string[]) => void
+  filterDataHook: (context: BusinessAppContextProps) => {
+    owners: Array<{ id: string; label: string }>
+    departments: Array<{ id: string; label: string }>
+    jobPositions: Array<{ id: string; label: string }>
+    academicTitles: Array<{ id: string; label: string }>
+    salutations: Array<{ id: string; label: string }>
+    languages: Array<{ id: string; label: string }>
+  }
 
-  // Search & Filter
-  searchTerm: string
-  onSearchChange: (term: string) => void
-  filterConfig: FilterConfiguration
-  selectedFilters: Record<string, any>
-  onFilterChange: (filters: Record<string, any>) => void
+  createColumns: () => ColumnDef<TContact>[]
+  descriptors: Descriptor[]
+  columnLabels?: Record<string, string>
 
-  // Sorting & Pagination
-  sorting: Array<{ id: string; desc: boolean }>
-  onSortingChange: (sorting: Array<{ id: string; desc: boolean }>) => void
-  sortableColumns: Array<{ id: string; label: string }>
-  pagination: { pageIndex: number; pageSize: number }
-  onPaginationChange: (pagination: { pageIndex: number; pageSize: number }) => void
+  baseFilterConfig: FilterConfiguration
 
-  // Interactions
-  onRowClick?: (contact: TContact) => void
-  renderRowActions?: (row: { original: TContact }) => React.ReactNode
+  buildQueryVariables: (params: {
+    pagination: { pageIndex: number; pageSize: number }
+    searchTerm: string
+    selectedFilters: Record<string, any>
+    sorting: Array<{ id: string; desc: boolean }>
+  }) => TQueryVariables
 
-  // Optional sections
+  flowContexts: {
+    entityContext: FlowContextName
+    createContext: FlowContextName
+    createContextData?: Record<string, any>
+  }
+
+  buildRecordUrl: (id: string) => string
+
   contactStatistics?: ContactStatisticsData
-  primaryAction?: React.ReactNode
 
-  // Config
-  hideFilters?: boolean
-  hideStatistics?: boolean
-  hideCreate?: boolean
-  dataTestId?: string
+  processCompletionEvents?: string[]
+
+  rowActionsContextArray: FlowContextName[]
+  buildRowActionsExternalContextData: (row: { original: TContact }) => Record<string, string>
+
+  translations: {
+    allContacts: { key: string; default: string }
+    searchContacts: { key: string; default: string }
+    filterContacts: { key: string; default: string }
+    filterContactsDescription: { key: string; default: string }
+    addContact: { key: string; default: string }
+  }
 }
 
-/**
- * Dumb Contact Layout Component
- * Pure presentational component that displays contacts in a data display layout
- * All business logic should be in the consuming smart components
- */
-export function ContactLayout<TContact extends CommonContact = CommonContact>(props: ContactLayoutProps<TContact>) {
+export interface ContactLayoutProps<TContact extends CommonContact = CommonContact, TQueryVariables = any> {
+  context: BusinessAppContextProps
+  config: ContactViewConfig<TContact, TQueryVariables>
+  dataTestId?: string
+  initialFilters?: Record<string, any>
+  hideFilters?: boolean
+  customPrimaryAction?: React.ReactNode
+}
+
+const ConfigContactLayout = <TContact extends CommonContact = CommonContact, TQueryVariables = any>(
+  props: ContactLayoutProps<TContact, TQueryVariables>
+) => {
   const {
-    contacts,
-    totalCount,
-    loading,
-    error,
-    columns,
-    visibleColumns,
-    availableColumns,
-    onVisibleColumnsChange,
-    searchTerm,
-    onSearchChange,
-    filterConfig,
-    selectedFilters,
-    onFilterChange,
-    sorting,
-    onSortingChange,
-    sortableColumns,
-    pagination,
-    onPaginationChange,
-    onRowClick,
-    renderRowActions,
-    contactStatistics,
-    primaryAction,
+    context,
+    config,
+    dataTestId = 'contact-view',
+    initialFilters = {},
     hideFilters = false,
-    hideStatistics = false,
-    hideCreate = false,
-    dataTestId = 'contact-view'
+    customPrimaryAction
   } = props
+
+  if (!context) {
+    console.error('ContactLayout: context is required')
+    return null
+  }
+
+  const { accessToken } = context
+
+  // View State
+  const [searchTerm, setSearchTerm] = useState('')
+  const [selectedFilters, setSelectedFilters] = useState<Record<string, any>>(initialFilters)
+  const [sorting, setSorting] = useState<Array<{ id: string; desc: boolean }>>([{ id: 'createdAt', desc: true }])
+  const [pagination, setPagination] = useState({ pageIndex: 0, pageSize: 20 })
+  const [visibleColumns, setVisibleColumns] = useState<string[]>([])
+
+  // Data State
+  const [contacts, setContacts] = useState<TContact[]>([])
+  const [totalCount, setTotalCount] = useState(0)
+  const [isLoading, setIsLoading] = useState(true)
+  const [error, setError] = useState<string | null>(null)
+  const [isInitialLoad, setIsInitialLoad] = useState(true)
+
+  // Dynamic Filter Configuration
+  const dynamicFilterConfig = useMemo(() => {
+    const filterData = config.filterDataHook(context)
+    const filterConfig = buildDynamicFilterConfig(config.baseFilterConfig, {
+      owners: filterData.owners,
+      departments: filterData.departments,
+      jobPositions: filterData.jobPositions,
+      academicTitles: filterData.academicTitles,
+      salutations: filterData.salutations,
+      languages: filterData.languages
+    })
+    return filterConfig
+  }, [config, context])
+
+  // Query Variables
+  const queryVariables = useMemo(
+    () =>
+      config.buildQueryVariables({
+        pagination,
+        searchTerm,
+        selectedFilters,
+        sorting
+      }),
+    [pagination, searchTerm, selectedFilters, sorting, config]
+  )
+
+  // Load Data
+  const loadData = useCallback(
+    async (showLoading: boolean = true) => {
+      if (!accessToken) return
+
+      if (showLoading) setIsLoading(true)
+      setError(null)
+
+      try {
+        const result = await config.fetchContacts(queryVariables)
+        setContacts(result.contacts || [])
+        setTotalCount(result.total || 0)
+      } catch (err) {
+        setError(err instanceof Error ? err.message : 'Unknown error occurred')
+      } finally {
+        if (showLoading) setIsLoading(false)
+        setIsInitialLoad(false)
+      }
+    },
+    [accessToken, config, queryVariables]
+  )
+
+  // Initial load
+  useEffect(() => {
+    if (!accessToken || !isInitialLoad) return
+    loadData(true)
+  }, [accessToken, isInitialLoad, loadData])
+
+  // Reload data when filters/search/sort change (skip initial load)
+  useEffect(() => {
+    if (isInitialLoad || !accessToken) return
+    loadData(false)
+  }, [queryVariables, isInitialLoad, accessToken, loadData])
+
+  // Process Completion Handlers
+  const handleProcessComplete = useCallback(() => {
+    loadData(false)
+  }, [loadData])
+
+  useProcessCompletion({ onSuccess: handleProcessComplete })
+
+  useEffect(() => {
+    const events = config.processCompletionEvents || ['taskCompletion', 'contactCompletion']
+    const handlers = events.map(eventName => {
+      const handler = () => handleProcessComplete()
+      globalThis.addEventListener(eventName, handler)
+      return { eventName, handler }
+    })
+
+    return () => {
+      for (const { eventName, handler } of handlers) {
+        globalThis.removeEventListener(eventName, handler)
+      }
+    }
+  }, [handleProcessComplete, config.processCompletionEvents])
+
+  // Event Handlers
+  const handleSearch = useCallback((value: string) => {
+    setSearchTerm(value)
+    setPagination(prev => ({ ...prev, pageIndex: 0 }))
+  }, [])
+
+  const handleFilterUpdate = useCallback((filters: Record<string, any>) => {
+    setSelectedFilters(filters)
+    setPagination(prev => ({ ...prev, pageIndex: 0 }))
+  }, [])
+
+  const handleRowClick = useCallback(
+    (contact: TContact) => {
+      if (!contact.id) return
+      const url = config.buildRecordUrl(contact.id)
+      navigateTo(url)
+    },
+    [config]
+  )
+
+  // Columns
+  const columns = useMemo(() => config.createColumns(), [config])
+  const availableColumns = useMemo(() => deriveAvailableColumns(columns), [columns])
+  const availableColumnIds = useMemo(() => availableColumns.map(col => col.id), [availableColumns])
+  const sortableColumns = useMemo(
+    () => deriveSortableColumns(config.descriptors, config.columnLabels, availableColumnIds),
+    [config.descriptors, config.columnLabels, availableColumnIds]
+  )
+
+  // Initialize visible columns from available columns if empty
+  useEffect(() => {
+    if (visibleColumns.length === 0 && availableColumns.length > 0) {
+      setVisibleColumns(availableColumns.map(col => col.id))
+    }
+  }, [availableColumns, visibleColumns.length])
+
+  // Row actions - rendered internally
+  const rowActions = useMemo(
+    () => (row: { original: TContact }) => (
+      <AppActionMenu
+        contextsArray={config.rowActionsContextArray}
+        externalContextData={config.buildRowActionsExternalContextData(row)}
+        prefixDataTestId="contact-actions"
+        accessToken={accessToken}
+        emptyStateBehavior="enable"
+        deferMainContextRequestsUntilClick
+      >
+        <Button variant="ghost" size="icon" data-testid={`contact-actions-${row.original.id}`}>
+          <svg className="gba:h-4 gba:w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+            <path
+              strokeLinecap="round"
+              strokeLinejoin="round"
+              strokeWidth={2}
+              d="M12 5v.01M12 12v.01M12 19v.01M12 6a1 1 0 110-2 1 1 0 010 2zm0 7a1 1 0 110-2 1 1 0 010 2zm0 7a1 1 0 110-2 1 1 0 010 2z"
+            />
+          </svg>
+        </Button>
+      </AppActionMenu>
+    ),
+    [config, accessToken]
+  )
 
   return (
     <div data-testid={dataTestId}>
       {/* Statistics */}
-      {!hideStatistics && contactStatistics && (
-        <ContactStatisticsLayout statistics={contactStatistics} data-testid={`${dataTestId}-statistics`} />
+      {config.contactStatistics && (
+        <ContactStatisticsLayout statistics={config.contactStatistics} data-testid={`${dataTestId}-statistics`} />
       )}
 
       {/* DataDisplay */}
@@ -98,47 +267,75 @@ export function ContactLayout<TContact extends CommonContact = CommonContact>(pr
         titleSections={[
           {
             id: 'all',
-            label: getTranslationFromI18nKeyAndLabel('common:allContacts', 'All Contacts'),
+            label: getTranslationFromI18nKeyAndLabel(
+              config.translations.allContacts.key,
+              config.translations.allContacts.default
+            ),
             metadata: {
               count: totalCount,
-              isLoading: loading
+              isLoading: isLoading
             }
           }
         ]}
         currentSection="all"
         searchValue={searchTerm}
-        searchPlaceholder={getTranslationFromI18nKeyAndLabel('common:searchContacts', 'Search contacts...')}
-        onSearchChange={onSearchChange}
+        searchPlaceholder={getTranslationFromI18nKeyAndLabel(
+          config.translations.searchContacts.key,
+          config.translations.searchContacts.default
+        )}
+        onSearchChange={handleSearch}
         filters={hideFilters ? undefined : selectedFilters}
-        filterConfiguration={hideFilters ? undefined : filterConfig}
-        onFilterChange={hideFilters ? undefined : onFilterChange}
+        filterConfiguration={hideFilters ? undefined : dynamicFilterConfig}
+        onFilterChange={hideFilters ? undefined : handleFilterUpdate}
         sorting={sorting}
         sortableColumns={sortableColumns}
-        onSortingChange={onSortingChange}
+        onSortingChange={setSorting}
         availableColumns={availableColumns}
         visibleColumns={visibleColumns}
-        onVisibleColumnsChange={onVisibleColumnsChange}
-        primaryAction={hideCreate ? undefined : primaryAction}
+        onVisibleColumnsChange={setVisibleColumns}
+        primaryAction={
+          customPrimaryAction ||
+          (config.flowContexts.createContext ? (
+            <AppAction
+              contextsArray={[config.flowContexts.createContext]}
+              externalContextData={config.flowContexts.createContextData}
+              accessToken={accessToken}
+              data-testid="add-contact-action"
+              emptyStateBehavior="hide"
+            >
+              <Button size="sm" variant="default" data-testid="add-contact-button" type="button">
+                <Plus size={16} />
+                {getTranslationFromI18nKeyAndLabel(
+                  config.translations.addContact.key,
+                  config.translations.addContact.default
+                )}
+              </Button>
+            </AppAction>
+          ) : undefined)
+        }
         toolbarDensity="default"
         enableLiveFiltering={true}
-        filterSheetTitle={getTranslationFromI18nKeyAndLabel('common:filterContacts', 'Filter Contacts')}
+        filterSheetTitle={getTranslationFromI18nKeyAndLabel(
+          config.translations.filterContacts.key,
+          config.translations.filterContacts.default
+        )}
         filterSheetDescription={getTranslationFromI18nKeyAndLabel(
-          'common:filterContactsDescription',
-          'Apply filters to narrow down the contact list'
+          config.translations.filterContactsDescription.key,
+          config.translations.filterContactsDescription.default
         )}
       >
         <ContactListLayout<TContact>
           data={contacts}
-          loading={loading}
+          loading={isLoading}
           error={error}
           totalCount={totalCount}
           columns={columns.filter(col => visibleColumns.includes(col.id as string))}
           sorting={sorting}
-          onSortingChange={onSortingChange}
+          onSortingChange={setSorting}
           pagination={pagination}
-          onPaginationChange={onPaginationChange}
-          actions={renderRowActions}
-          onRowClick={onRowClick}
+          onPaginationChange={setPagination}
+          actions={rowActions}
+          onRowClick={handleRowClick}
           dataTestId={`${dataTestId}-list`}
         />
       </DataDisplay>
@@ -146,4 +343,5 @@ export function ContactLayout<TContact extends CommonContact = CommonContact>(pr
   )
 }
 
+export const ContactLayout = ConfigContactLayout
 export default ContactLayout

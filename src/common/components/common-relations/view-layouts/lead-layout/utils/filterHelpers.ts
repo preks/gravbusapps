@@ -67,25 +67,33 @@ export const addSearchAndLoadMoreFunctions = (
     loadMoreIndustries
   } = callbacks
 
-  const ownersFilter = filterConfig.groups.find(g => g.id === 'owner-group')?.filters.find(f => f.id === 'owners')
+  const ownersFilter = filterConfig.groups
+    .find(g => g.id === 'owner-group')
+    ?.filters.find(f => f.id === 'ownerEmployeeIds')
   if (ownersFilter?.config) {
     if (searchOwners) ownersFilter.config.onSearch = searchOwners
     if (loadMoreOwners) ownersFilter.config.onLoadMore = loadMoreOwners
   }
 
-  const statusesFilter = filterConfig.groups.find(g => g.id === 'status-group')?.filters.find(f => f.id === 'statuses')
+  const statusesFilter = filterConfig.groups
+    .find(g => g.id === 'status-group')
+    ?.filters.find(f => f.id === 'leadStatusIds')
   if (statusesFilter?.config) {
     if (searchStatuses) statusesFilter.config.onSearch = searchStatuses
     if (loadMoreStatuses) statusesFilter.config.onLoadMore = loadMoreStatuses
   }
 
-  const ratingsFilter = filterConfig.groups.find(g => g.id === 'rating-group')?.filters.find(f => f.id === 'ratings')
+  const ratingsFilter = filterConfig.groups
+    .find(g => g.id === 'rating-group')
+    ?.filters.find(f => f.id === 'leadRatingIds')
   if (ratingsFilter?.config) {
     if (searchRatings) ratingsFilter.config.onSearch = searchRatings
     if (loadMoreRatings) ratingsFilter.config.onLoadMore = loadMoreRatings
   }
 
-  const sourcesFilter = filterConfig.groups.find(g => g.id === 'source-group')?.filters.find(f => f.id === 'sources')
+  const sourcesFilter = filterConfig.groups
+    .find(g => g.id === 'source-group')
+    ?.filters.find(f => f.id === 'leadSourceIds')
   if (sourcesFilter?.config) {
     if (searchSources) sourcesFilter.config.onSearch = searchSources
     if (loadMoreSources) sourcesFilter.config.onLoadMore = loadMoreSources
@@ -93,7 +101,7 @@ export const addSearchAndLoadMoreFunctions = (
 
   const salutationsFilter = filterConfig.groups
     .find(g => g.id === 'salutation-group')
-    ?.filters.find(f => f.id === 'salutations')
+    ?.filters.find(f => f.id === 'salutationIds')
   if (salutationsFilter?.config) {
     if (searchSalutations) salutationsFilter.config.onSearch = searchSalutations
     if (loadMoreSalutations) salutationsFilter.config.onLoadMore = loadMoreSalutations
@@ -101,7 +109,7 @@ export const addSearchAndLoadMoreFunctions = (
 
   const industriesFilter = filterConfig.groups
     .find(g => g.id === 'industry-group')
-    ?.filters.find(f => f.id === 'industries')
+    ?.filters.find(f => f.id === 'industryClassIds')
   if (industriesFilter?.config) {
     if (searchIndustries) industriesFilter.config.onSearch = searchIndustries
     if (loadMoreIndustries) industriesFilter.config.onLoadMore = loadMoreIndustries
@@ -156,15 +164,15 @@ export const buildDynamicFilterConfig = (
 
   const { owners, statuses, ratings, sources, salutations, industries, totalCounts } = filterOptions
 
-  updateFilterOptions(filterConfig, 'owner-group', 'owners', owners, totalCounts?.owners)
-  updateFilterOptions(filterConfig, 'status-group', 'statuses', statuses, totalCounts?.statuses)
-  updateFilterOptions(filterConfig, 'rating-group', 'ratings', ratings, totalCounts?.ratings)
-  updateFilterOptions(filterConfig, 'source-group', 'sources', sources, totalCounts?.sources)
+  updateFilterOptions(filterConfig, 'owner-group', 'ownerEmployeeIds', owners, totalCounts?.owners)
+  updateFilterOptions(filterConfig, 'status-group', 'leadStatusIds', statuses, totalCounts?.statuses)
+  updateFilterOptions(filterConfig, 'rating-group', 'leadRatingIds', ratings, totalCounts?.ratings)
+  updateFilterOptions(filterConfig, 'source-group', 'leadSourceIds', sources, totalCounts?.sources)
   if (salutations) {
-    updateFilterOptions(filterConfig, 'salutation-group', 'salutations', salutations, totalCounts?.salutations)
+    updateFilterOptions(filterConfig, 'salutation-group', 'salutationIds', salutations, totalCounts?.salutations)
   }
   if (industries) {
-    updateFilterOptions(filterConfig, 'industry-group', 'industries', industries, totalCounts?.industries)
+    updateFilterOptions(filterConfig, 'industry-group', 'industryClassIds', industries, totalCounts?.industries)
   }
 
   // Add search and load more functions if available

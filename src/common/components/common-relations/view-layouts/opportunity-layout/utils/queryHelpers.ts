@@ -1,6 +1,12 @@
 /**
  * Query helper functions for opportunity views
- * Shared between CRM and IRM opportunity filtering
+ *
+ * NOTE: These functions are no longer used by Opportunity views (CRM/IRM) after refactoring
+ * to align Filter-IDs with Descriptor-Keys. They are kept for backward compatibility with
+ * other features (e.g., Divestment SalesTab) that may still use them.
+ *
+ * For new Opportunity views, filter values are now directly copied from selectedFilters
+ * to query variables, with special handling for 'amount' and 'closeDate' filters.
  */
 
 interface OpportunityQueryVars {

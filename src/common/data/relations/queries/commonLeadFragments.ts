@@ -46,5 +46,9 @@ export const COMMON_LEAD_FIELDS = `
     ${CATALOG_ENTRY}
   }
   regionRef
+  salutation { ${CATALOG_ENTRY} }
+  salutationRef
   sensitive
+  sourceCompanyName
+  sourceIndividualName
 `

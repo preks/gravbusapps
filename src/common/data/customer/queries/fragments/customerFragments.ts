@@ -139,6 +139,9 @@ export const CUSTOMER_LEAD = `
   notes(where: { isDeleted: { _eq: false } }) {
     ${CUSTOMER_NOTE_REF}
   }
+  tasks(where: { isDeleted: { _eq: false } }) {
+    ${CUSTOMER_TASK_REF}
+  }
 `
 
 /**
@@ -164,16 +167,18 @@ export const CUSTOMER_LEAD = `
  */
 export const CUSTOMER_CONTACT = `
   ${CUSTOMER_CONTACT_REF}
-  
-  # Entity relations
-  # Activities missing in CRM
-  
-  # accountContacts missing in CRM (uses deprecated accountId instead)
-  account {
-    ${CUSTOMER_ACCOUNT_REF}
+  activities(where: { isDeleted: { _eq: false } }) {
+    ${CUSTOMER_ACTIVITY_REF}
   }
-  accountId
-
+  accountContacts(where: { isDeleted: { _eq: false } }) {
+    ${AUDIT_FIELDS}
+    id
+    contactType
+    account {
+      ${CUSTOMER_ACCOUNT_REF}
+    }
+    accountId
+  }
   addresses(where: { isDeleted: { _eq: false } }) {
     ${CUSTOMER_ADDRESS_REF}
   }
@@ -194,9 +199,18 @@ export const CUSTOMER_CONTACT = `
   notes(where: { isDeleted: { _eq: false } }) {
     ${CUSTOMER_NOTE_REF}
   }
-  
-  # OpportunityContacts missing in CRM
-  # tasks missing in CRM
+  opportunityContacts(where: { isDeleted: { _eq: false } }) {
+    ${AUDIT_FIELDS}
+    id
+    contactType
+    opportunity
+    opportunity {
+      ${CUSTOMER_OPPORTUNITY_REF}
+    }
+  }
+  tasks(where: { isDeleted: { _eq: false } }) {
+    ${CUSTOMER_TASK_REF}
+  }
 `
 
 /**
@@ -214,7 +228,9 @@ export const CUSTOMER_OPPORTUNITY = `
   account {
     ${CUSTOMER_ACCOUNT_REF}
   }
-  
+  activities(where: { isDeleted: { _eq: false } }) {
+    ${CUSTOMER_ACTIVITY_REF}
+  }
   addresses(where: { isDeleted: { _eq: false } }) {
     ${CUSTOMER_ADDRESS_REF}
   }
@@ -265,6 +281,11 @@ export const CUSTOMER_OPPORTUNITY = `
       ${CUSTOMER_TASK_REF}
     }
     salesTaskId
+  
+  }
+  
+  tasks(where: { isDeleted: { _eq: false } }) {
+    ${CUSTOMER_TASK_REF}
   }
   
   # CRM duplicate relations
@@ -378,7 +399,6 @@ export const CUSTOMER_DOCUMENT = `
  * ============================================================================
  * CUSTOMER_NOTE
  * ============================================================================
- * TODO: documents missing
  */
 export const CUSTOMER_NOTE = `
   ${CUSTOMER_NOTE_REF}
@@ -386,6 +406,9 @@ export const CUSTOMER_NOTE = `
   accountId
   contact { ${CUSTOMER_CONTACT_REF} }
   contactId
+  documents(where: { isDeleted: { _eq: false } }) {
+    ${CUSTOMER_DOCUMENT_REF}
+  }
   opportunity { ${CUSTOMER_OPPORTUNITY_REF} }
   opportunityId
   lead { ${CUSTOMER_LEAD_REF} }

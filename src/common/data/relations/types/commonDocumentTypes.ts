@@ -9,7 +9,7 @@ export interface CommonDocument extends BaseEntity {
   activityId?: string // IRM | TODO
   authenticated?: boolean // IRM | CRM
   authenticationDate?: string // IRM | CRM
-  childDocuments?: any[] // TODO | TODO
+  childDocuments?: any[] // TODO | CRM
   contact?: any // IRM | CRM
   contactId?: string // IRM | CRM
   description?: string // IRM | CRM
@@ -21,6 +21,7 @@ export interface CommonDocument extends BaseEntity {
   file?: string // TODO deprecated
   fileInfo?: any // IRM | CRM
   fileSize?: number // TODO deprecated
+  folder?: boolean // IRM | CRM
   id: string // IRM | CRM
   lead?: any // IRM | CRM
   leadId?: string // IRM | CRM
@@ -81,6 +82,7 @@ export const COMMON_DOCUMENT_DESCRIPTORS: Descriptor[] = [
   { key: 'file', searchPaths: ['file'], sortPath: 'file', type: 'text' },
   { key: 'fileInfo', searchPaths: ['fileInfo'], sortPath: 'fileInfo', type: 'text' },
   { key: 'fileSize', searchPaths: ['fileSize'], sortPath: 'fileSize', type: 'number' },
+  { key: 'folder', searchPaths: ['folder'], sortPath: 'folder', type: 'boolean' },
   { key: 'id', searchPaths: ['id'], sortPath: 'id', type: 'text' },
   {
     key: 'lead',

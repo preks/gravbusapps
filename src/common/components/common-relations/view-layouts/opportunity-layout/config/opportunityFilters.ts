@@ -11,8 +11,8 @@ export const opportunityFilterConfig: FilterConfiguration = {
       defaultExpanded: true,
       filters: [
         {
-          id: 'stage',
-          field: 'opportunityPipelineStage',
+          id: 'opportunityPipelineStageIds',
+          field: 'opportunityPipelineStageIds',
           label: 'Stage',
           type: 'multi-select',
           config: {
@@ -28,8 +28,8 @@ export const opportunityFilterConfig: FilterConfiguration = {
       defaultExpanded: true,
       filters: [
         {
-          id: 'status',
-          field: 'opportunityStatus',
+          id: 'opportunityStatusIds',
+          field: 'opportunityStatusIds',
           label: 'Status',
           type: 'multi-select',
           config: {
@@ -45,8 +45,8 @@ export const opportunityFilterConfig: FilterConfiguration = {
       defaultExpanded: false,
       filters: [
         {
-          id: 'pipeline',
-          field: 'opportunityPipeline',
+          id: 'opportunityPipelineIds',
+          field: 'opportunityPipelineIds',
           label: 'Pipeline',
           type: 'multi-select',
           config: {
@@ -62,8 +62,8 @@ export const opportunityFilterConfig: FilterConfiguration = {
       defaultExpanded: false,
       filters: [
         {
-          id: 'owner',
-          field: 'owner',
+          id: 'ownerEmployeeIds',
+          field: 'ownerEmployeeIds',
           label: 'Owner',
           type: 'multi-select',
           config: {
@@ -79,8 +79,8 @@ export const opportunityFilterConfig: FilterConfiguration = {
       defaultExpanded: false,
       filters: [
         {
-          id: 'account',
-          field: 'account',
+          id: 'accountIds',
+          field: 'accountIds',
           label: 'Account',
           type: 'multi-select',
           config: {

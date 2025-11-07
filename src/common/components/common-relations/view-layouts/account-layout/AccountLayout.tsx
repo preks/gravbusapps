@@ -1,100 +1,269 @@
+import React, { useState, useCallback, useEffect, useMemo } from 'react'
+import { Button, DataDisplay } from '@newwork/nw-design-system'
 import type { ColumnDef } from '@tanstack/react-table'
 import type { FilterConfiguration } from '@newwork/nw-design-system'
-import { DataDisplay } from '@newwork/nw-design-system'
+import { Plus } from 'lucide-react'
+import { BusinessAppContextProps } from '@/common/BusinessAppContext'
+import { AppAction } from '@/components/app-action/AppAction'
+import { FlowContextName } from '@/common/types/FlowRegistryTypes'
 import { getTranslationFromI18nKeyAndLabel } from '@/common/utils/windowUtils'
-import { AccountListLayout } from './AccountListLayout'
-import type { CommonAccount } from '@/common/data/relations/types/commonAccountTypes'
+import { navigateTo } from '@/common/utils/navigationUtils'
+import { AccountListLayout } from './components/AccountListLayout'
 import { AccountStatisticsLayout, type AccountStatisticsData } from './components/AccountStatisticsLayout'
+import type { CommonAccount } from '@/common/data/relations/types/commonAccountTypes'
+import { useProcessCompletion } from '@/common/hooks/useProcessCompletion'
+import { deriveSortableColumns, deriveAvailableColumns } from '@/common/network/graphql/descriptorUtils'
+import type { Descriptor } from '@/common/network/graphql/queryHelpers'
+import { buildDynamicFilterConfig } from './utils/filterHelpers'
+import { AppActionMenu } from '@/components/app-action-menu/AppActionMenu'
 
-/**
- * Account Layout Props
- */
-export interface AccountLayoutProps<TAccount extends CommonAccount = CommonAccount> {
-  // Data
-  accounts: TAccount[]
-  totalCount: number
-  loading: boolean
-  error: string | null
+export interface AccountViewConfig<TAccount extends CommonAccount = CommonAccount, TQueryVariables = any> {
+  fetchAccounts: (variables: TQueryVariables) => Promise<{
+    accounts?: TAccount[]
+    total?: number
+  }>
 
-  // Display
-  columns: ColumnDef<TAccount>[]
-  visibleColumns: string[]
-  availableColumns: Array<{ id: string; label: string }>
-  onVisibleColumnsChange: (columns: string[]) => void
+  filterDataHook: (context: BusinessAppContextProps) => {
+    owners: Array<{ id: string; label: string }>
+    industries: Array<{ id: string; label: string }>
+    legalForms: Array<{ id: string; label: string }>
+    companySizes: Array<{ id: string; label: string }>
+    revenueBands: Array<{ id: string; label: string }>
+    countries: Array<{ id: string; label: string }>
+  }
 
-  // Search & Filter
-  searchTerm: string
-  onSearchChange: (term: string) => void
-  filterConfig: FilterConfiguration
-  selectedFilters: Record<string, any>
-  onFilterChange: (filters: Record<string, any>) => void
+  createColumns: () => ColumnDef<TAccount>[]
+  descriptors: Descriptor[]
+  columnLabels?: Record<string, string>
 
-  // Sorting & Pagination
-  sorting: Array<{ id: string; desc: boolean }>
-  onSortingChange: (sorting: Array<{ id: string; desc: boolean }>) => void
-  sortableColumns: Array<{ id: string; label: string }>
-  pagination: { pageIndex: number; pageSize: number }
-  onPaginationChange: (pagination: { pageIndex: number; pageSize: number }) => void
+  baseFilterConfig: FilterConfiguration
 
-  // Interactions
-  onRowClick?: (account: TAccount) => void
-  renderRowActions?: (row: { original: TAccount }) => React.ReactNode
+  buildQueryVariables: (params: {
+    pagination: { pageIndex: number; pageSize: number }
+    searchTerm: string
+    selectedFilters: Record<string, any>
+    sorting: Array<{ id: string; desc: boolean }>
+  }) => TQueryVariables
 
-  // Optional sections
+  flowContexts: {
+    entityContext: FlowContextName
+    createContext: FlowContextName
+    createContextData?: Record<string, any>
+  }
+
+  buildRecordUrl: (id: string) => string
+
   accountStatistics?: AccountStatisticsData
   variant?: 'customer' | 'investment'
-  primaryAction?: React.ReactNode
 
-  // Config
-  hideFilters?: boolean
-  hideStatistics?: boolean
-  hideCreate?: boolean
-  dataTestId?: string
+  processCompletionEvents?: string[]
+
+  rowActionsContextArray: FlowContextName[]
+  buildRowActionsExternalContextData: (row: { original: TAccount }) => Record<string, string>
+
+  translations: {
+    allAccounts: { key: string; default: string }
+    searchAccounts: { key: string; default: string }
+    filterAccounts: { key: string; default: string }
+    filterAccountsDescription: { key: string; default: string }
+    addAccount: { key: string; default: string }
+  }
 }
 
-/**
- * Dumb Account Layout Component
- * Pure presentational component that displays accounts in a data display layout
- * All business logic should be in the consuming smart components
- */
-export function AccountLayout<TAccount extends CommonAccount = CommonAccount>(props: AccountLayoutProps<TAccount>) {
+export interface AccountLayoutProps<TAccount extends CommonAccount = CommonAccount, TQueryVariables = any> {
+  context: BusinessAppContextProps
+  config: AccountViewConfig<TAccount, TQueryVariables>
+  dataTestId?: string
+  initialFilters?: Record<string, any>
+  hideFilters?: boolean
+  customPrimaryAction?: React.ReactNode
+}
+
+const ConfigAccountLayout = <TAccount extends CommonAccount = CommonAccount, TQueryVariables = any>(
+  props: AccountLayoutProps<TAccount, TQueryVariables>
+) => {
   const {
-    accounts,
-    totalCount,
-    loading,
-    error,
-    columns,
-    visibleColumns,
-    availableColumns,
-    onVisibleColumnsChange,
-    searchTerm,
-    onSearchChange,
-    filterConfig,
-    selectedFilters,
-    onFilterChange,
-    sorting,
-    onSortingChange,
-    sortableColumns,
-    pagination,
-    onPaginationChange,
-    onRowClick,
-    renderRowActions,
-    accountStatistics,
-    variant = 'customer',
-    primaryAction,
+    context,
+    config,
+    dataTestId = 'account-view',
+    initialFilters = {},
     hideFilters = false,
-    hideStatistics = false,
-    hideCreate = false,
-    dataTestId = 'account-view'
+    customPrimaryAction
   } = props
+
+  if (!context) {
+    console.error('AccountLayout: context is required')
+    return null
+  }
+
+  const { accessToken } = context
+
+  // View State
+  const [searchTerm, setSearchTerm] = useState('')
+  const [selectedFilters, setSelectedFilters] = useState<Record<string, any>>(initialFilters)
+  const [sorting, setSorting] = useState<Array<{ id: string; desc: boolean }>>([{ id: 'createdAt', desc: true }])
+  const [pagination, setPagination] = useState({ pageIndex: 0, pageSize: 20 })
+  const [visibleColumns, setVisibleColumns] = useState<string[]>([])
+
+  // Data State
+  const [accounts, setAccounts] = useState<TAccount[]>([])
+  const [totalCount, setTotalCount] = useState(0)
+  const [isLoading, setIsLoading] = useState(true)
+  const [error, setError] = useState<string | null>(null)
+  const [isInitialLoad, setIsInitialLoad] = useState(true)
+
+  // Dynamic Filter Configuration
+  const dynamicFilterConfig = useMemo(() => {
+    const filterData = config.filterDataHook(context)
+    const filterConfig = buildDynamicFilterConfig(config.baseFilterConfig, {
+      owners: filterData.owners,
+      industries: filterData.industries,
+      legalForms: filterData.legalForms,
+      companySizes: filterData.companySizes,
+      revenueBands: filterData.revenueBands,
+      countries: filterData.countries,
+      isLoading: false
+    })
+    return filterConfig
+  }, [config, context])
+
+  // Query Variables
+  const queryVariables = useMemo(
+    () =>
+      config.buildQueryVariables({
+        pagination,
+        searchTerm,
+        selectedFilters,
+        sorting
+      }),
+    [pagination, searchTerm, selectedFilters, sorting, config]
+  )
+
+  // Load Data
+  const loadData = useCallback(
+    async (showLoading: boolean = true) => {
+      if (!accessToken) return
+
+      if (showLoading) setIsLoading(true)
+      setError(null)
+
+      try {
+        const result = await config.fetchAccounts(queryVariables)
+        setAccounts(result.accounts || [])
+        setTotalCount(result.total || 0)
+      } catch (err) {
+        setError(err instanceof Error ? err.message : 'Unknown error occurred')
+      } finally {
+        if (showLoading) setIsLoading(false)
+        setIsInitialLoad(false)
+      }
+    },
+    [accessToken, config, queryVariables]
+  )
+
+  // Initial load
+  useEffect(() => {
+    if (!accessToken || !isInitialLoad) return
+    loadData(true)
+  }, [accessToken, isInitialLoad, loadData])
+
+  // Reload data when filters/search/sort change (skip initial load)
+  useEffect(() => {
+    if (isInitialLoad || !accessToken) return
+    loadData(false)
+  }, [queryVariables, isInitialLoad, accessToken, loadData])
+
+  // Process Completion Handlers
+  const handleProcessComplete = useCallback(() => {
+    loadData(false)
+  }, [loadData])
+
+  useProcessCompletion({ onSuccess: handleProcessComplete })
+
+  useEffect(() => {
+    const events = config.processCompletionEvents || ['taskCompletion', 'accountCompletion']
+    const handlers = events.map(eventName => {
+      const handler = () => handleProcessComplete()
+      globalThis.addEventListener(eventName, handler)
+      return { eventName, handler }
+    })
+
+    return () => {
+      for (const { eventName, handler } of handlers) {
+        globalThis.removeEventListener(eventName, handler)
+      }
+    }
+  }, [handleProcessComplete, config.processCompletionEvents])
+
+  // Event Handlers
+  const handleSearch = useCallback((value: string) => {
+    setSearchTerm(value)
+    setPagination(prev => ({ ...prev, pageIndex: 0 }))
+  }, [])
+
+  const handleFilterUpdate = useCallback((filters: Record<string, any>) => {
+    setSelectedFilters(filters)
+    setPagination(prev => ({ ...prev, pageIndex: 0 }))
+  }, [])
+
+  const handleRowClick = useCallback(
+    (account: TAccount) => {
+      if (!account.id) return
+      const url = config.buildRecordUrl(account.id)
+      navigateTo(url)
+    },
+    [config]
+  )
+
+  // Columns
+  const columns = useMemo(() => config.createColumns(), [config])
+  const availableColumns = useMemo(() => deriveAvailableColumns(columns), [columns])
+  const availableColumnIds = useMemo(() => availableColumns.map(col => col.id), [availableColumns])
+  const sortableColumns = useMemo(
+    () => deriveSortableColumns(config.descriptors, config.columnLabels, availableColumnIds),
+    [config.descriptors, config.columnLabels, availableColumnIds]
+  )
+
+  // Initialize visible columns from available columns if empty
+  useEffect(() => {
+    if (visibleColumns.length === 0 && availableColumns.length > 0) {
+      setVisibleColumns(availableColumns.map(col => col.id))
+    }
+  }, [availableColumns, visibleColumns.length])
+
+  // Row actions - rendered internally
+  const rowActions = useMemo(
+    () => (row: { original: TAccount }) => (
+      <AppActionMenu
+        contextsArray={config.rowActionsContextArray}
+        externalContextData={config.buildRowActionsExternalContextData(row)}
+        prefixDataTestId="account-actions"
+        accessToken={accessToken}
+        emptyStateBehavior="enable"
+        deferMainContextRequestsUntilClick
+      >
+        <Button variant="ghost" size="icon" data-testid={`account-actions-${row.original.id}`}>
+          <svg className="gba:h-4 gba:w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+            <path
+              strokeLinecap="round"
+              strokeLinejoin="round"
+              strokeWidth={2}
+              d="M12 5v.01M12 12v.01M12 19v.01M12 6a1 1 0 110-2 1 1 0 010 2zm0 7a1 1 0 110-2 1 1 0 010 2zm0 7a1 1 0 110-2 1 1 0 010 2z"
+            />
+          </svg>
+        </Button>
+      </AppActionMenu>
+    ),
+    [config, accessToken]
+  )
 
   return (
     <div data-testid={dataTestId}>
       {/* Statistics */}
-      {!hideStatistics && accountStatistics && (
+      {config.accountStatistics && (
         <AccountStatisticsLayout
-          statistics={accountStatistics}
-          variant={variant}
+          statistics={config.accountStatistics}
+          variant={config.variant || 'customer'}
           data-testid={`${dataTestId}-statistics`}
         />
       )}
@@ -104,47 +273,75 @@ export function AccountLayout<TAccount extends CommonAccount = CommonAccount>(pr
         titleSections={[
           {
             id: 'all',
-            label: getTranslationFromI18nKeyAndLabel('common:allAccounts', 'All Accounts'),
+            label: getTranslationFromI18nKeyAndLabel(
+              config.translations.allAccounts.key,
+              config.translations.allAccounts.default
+            ),
             metadata: {
               count: totalCount,
-              isLoading: loading
+              isLoading: isLoading
             }
           }
         ]}
         currentSection="all"
         searchValue={searchTerm}
-        searchPlaceholder={getTranslationFromI18nKeyAndLabel('common:searchAccounts', 'Search accounts...')}
-        onSearchChange={onSearchChange}
+        searchPlaceholder={getTranslationFromI18nKeyAndLabel(
+          config.translations.searchAccounts.key,
+          config.translations.searchAccounts.default
+        )}
+        onSearchChange={handleSearch}
         filters={hideFilters ? undefined : selectedFilters}
-        filterConfiguration={hideFilters ? undefined : filterConfig}
-        onFilterChange={hideFilters ? undefined : onFilterChange}
+        filterConfiguration={hideFilters ? undefined : dynamicFilterConfig}
+        onFilterChange={hideFilters ? undefined : handleFilterUpdate}
         sorting={sorting}
         sortableColumns={sortableColumns}
-        onSortingChange={onSortingChange}
+        onSortingChange={setSorting}
         availableColumns={availableColumns}
         visibleColumns={visibleColumns}
-        onVisibleColumnsChange={onVisibleColumnsChange}
-        primaryAction={hideCreate ? undefined : primaryAction}
+        onVisibleColumnsChange={setVisibleColumns}
+        primaryAction={
+          customPrimaryAction ||
+          (config.flowContexts.createContext ? (
+            <AppAction
+              contextsArray={[config.flowContexts.createContext]}
+              externalContextData={config.flowContexts.createContextData}
+              accessToken={accessToken}
+              data-testid="add-account-action"
+              emptyStateBehavior="hide"
+            >
+              <Button size="sm" variant="default" data-testid="add-account-button" type="button">
+                <Plus size={16} />
+                {getTranslationFromI18nKeyAndLabel(
+                  config.translations.addAccount.key,
+                  config.translations.addAccount.default
+                )}
+              </Button>
+            </AppAction>
+          ) : undefined)
+        }
         toolbarDensity="default"
         enableLiveFiltering={true}
-        filterSheetTitle={getTranslationFromI18nKeyAndLabel('common:filterAccounts', 'Filter Accounts')}
+        filterSheetTitle={getTranslationFromI18nKeyAndLabel(
+          config.translations.filterAccounts.key,
+          config.translations.filterAccounts.default
+        )}
         filterSheetDescription={getTranslationFromI18nKeyAndLabel(
-          'common:filterAccountsDescription',
-          'Apply filters to narrow down the account list'
+          config.translations.filterAccountsDescription.key,
+          config.translations.filterAccountsDescription.default
         )}
       >
         <AccountListLayout<TAccount>
           data={accounts}
-          loading={loading}
+          loading={isLoading}
           error={error}
           totalCount={totalCount}
           columns={columns.filter(col => visibleColumns.includes(col.id as string))}
           sorting={sorting}
-          onSortingChange={onSortingChange}
+          onSortingChange={setSorting}
           pagination={pagination}
-          onPaginationChange={onPaginationChange}
-          actions={renderRowActions}
-          onRowClick={onRowClick}
+          onPaginationChange={setPagination}
+          actions={rowActions}
+          onRowClick={handleRowClick}
           dataTestId={`${dataTestId}-list`}
         />
       </DataDisplay>
@@ -152,4 +349,5 @@ export function AccountLayout<TAccount extends CommonAccount = CommonAccount>(pr
   )
 }
 
+export const AccountLayout = ConfigAccountLayout
 export default AccountLayout

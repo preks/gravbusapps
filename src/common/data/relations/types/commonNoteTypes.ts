@@ -10,7 +10,7 @@ export interface CommonNote extends BaseEntity {
   authorEmployeeId?: string // IRM | CRM
   contact?: any // IRM | CRM
   contactId?: string // IRM | CRM
-  documents?: any[] // IRM | TODO
+  documents?: any[] // IRM | CRM
   id: string // IRM | CRM
   lead?: any // IRM | CRM
   leadId?: string // IRM | CRM

@@ -1,9 +1,11 @@
 // Customer Account Filters hook with lazy loading
-import { useState, useCallback } from 'react'
+import { useState, useCallback, useEffect } from 'react'
 import { BusinessAppContextProps } from '@/common/BusinessAppContext'
 import { useGraphQLClient } from '@/common/network/graphql/useGraphQLClient'
 import { useCatalogManagerClient } from '@/common/network/catalogs/useCatalogManagerClient'
-import type { CustomerAccountFilters } from '../types/customerAccountTypes'
+import type { CommonAccountFilters } from '@/common/data/relations/types/commonAccountTypes'
+
+type CustomerAccountFilters = CommonAccountFilters
 import {
   PREFETCH_ALL_FILTERS_QUERY,
   SEARCH_OWNERS_QUERY,
@@ -37,8 +39,6 @@ export const useCustomerAccountFilters = (context: BusinessAppContextProps): Cus
   const [companySizes, setCompanySizes] = useState<FilterOption[]>([])
   const [revenueBands, setRevenueBands] = useState<FilterOption[]>([])
   const [countries, setCountries] = useState<FilterOption[]>([])
-  const [regions] = useState<FilterOption[]>([])
-  const [cities] = useState<FilterOption[]>([])
 
   // Prefetch initial filter options (first 10 distinct values per filter)
   const prefetchFilters = useCallback(async () => {
@@ -274,6 +274,11 @@ export const useCustomerAccountFilters = (context: BusinessAppContextProps): Cus
     [context.accessToken, catalogClient]
   )
 
+  // Auto-load filters on mount
+  useEffect(() => {
+    prefetchFilters()
+  }, [prefetchFilters])
+
   return {
     owners,
     industries,
@@ -281,8 +286,6 @@ export const useCustomerAccountFilters = (context: BusinessAppContextProps): Cus
     companySizes,
     revenueBands,
     countries,
-    regions,
-    cities,
     isLoading,
     prefetchFilters,
     searchOwners,

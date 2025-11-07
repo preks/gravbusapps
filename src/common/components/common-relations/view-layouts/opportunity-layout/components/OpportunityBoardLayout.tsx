@@ -5,7 +5,7 @@ import { BusinessAppContextProps } from '@/common/BusinessAppContext'
 import { useGenericPipelineStages } from '@/components/kanban-board/hooks/useGenericPipelineStages'
 import { startProcess } from '@/common/utils/start-process'
 import { FileText } from 'lucide-react'
-import type { GenericOpportunityForBoard, OpportunityBoardConfig } from './config/opportunityBoardTypes'
+import type { GenericOpportunityForBoard, OpportunityBoardConfig } from '../config/opportunityBoardTypes'
 
 export interface OpportunityBoardLayoutProps<T extends GenericOpportunityForBoard> extends BusinessAppContextProps {
   // Configuration

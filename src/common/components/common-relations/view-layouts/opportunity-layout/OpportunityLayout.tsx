@@ -17,19 +17,19 @@ import { AppAction } from '@/components/app-action/AppAction'
 import { FlowContextName } from '@/common/types/FlowRegistryTypes'
 import { getTranslationFromI18nKeyAndLabel } from '@/common/utils/windowUtils'
 import { navigateTo } from '@/common/utils/navigationUtils'
-import { OpportunityBoardLayout } from './OpportunityBoardLayout'
+import { OpportunityBoardLayout } from './components/OpportunityBoardLayout'
 import { OpportunityListLayout } from './components/OpportunityListLayout'
 import { useProcessCompletion } from '@/common/hooks/useProcessCompletion'
 import { useBoardEmployees } from './hooks/useBoardEmployees'
 import { opportunityBoardFilterConfig } from './config/opportunityBoardFilters'
 import type { OpportunityBoardFilters } from './config/opportunityBoardTypes'
 import {
-  DefaultOpportunityRowActions,
   getFiltersForSection,
   getFilterConfigForSection,
   getFilterChangeHandlerForSection
-} from './OpportunityLayoutHelpers'
+} from './utils/layoutHelpers'
 import { OpportunityStatisticsLayout, type OpportunityStatisticsData } from './components/OpportunityStatisticsLayout'
+import { AppActionMenu } from '@/components/app-action-menu/AppActionMenu'
 
 // Helper: Update filter options
 const updateFilterOptions = (
@@ -80,7 +80,7 @@ export interface OpportunityViewConfig<TOpportunity extends { id: string }, TQue
   }
 
   createColumns: (buildAccountUrl: (id: string) => string) => ColumnDef<TOpportunity>[]
-  createSortableColumns: () => Array<{ id: string; label: string }>
+  createSortableColumns: (availableColumnIds?: string[]) => Array<{ id: string; label: string }>
 
   baseFilterConfig: FilterConfiguration
 
@@ -112,7 +112,8 @@ export interface OpportunityViewConfig<TOpportunity extends { id: string }, TQue
 
   processCompletionEvents?: string[]
 
-  renderRowActions?: (row: { original: TOpportunity }, accessToken: string) => React.ReactNode
+  rowActionsContextArray: FlowContextName[]
+  buildRowActionsExternalContextData: (row: { original: TOpportunity }) => Record<string, string>
 }
 
 export type OpportunityTabKey = 'list' | 'board'
@@ -123,8 +124,6 @@ export interface OpportunityLayoutProps<TOpportunity extends { id: string } = an
   dataTestId?: string
   initialFilters?: Record<string, any>
   hideFilters?: boolean
-  hideStatistics?: boolean
-  hideCreate?: boolean
   customPrimaryAction?: React.ReactNode
 }
 
@@ -137,8 +136,6 @@ const ConfigOpportunityLayout = <TOpportunity extends { id: string } = any, TQue
     dataTestId = 'opportunity-view',
     initialFilters = {},
     hideFilters = false,
-    hideStatistics = false,
-    hideCreate = false,
     customPrimaryAction
   } = props
   const { accessToken } = context
@@ -210,31 +207,31 @@ const ConfigOpportunityLayout = <TOpportunity extends { id: string } = any, TQue
     updateFilterOptions(
       filterConfig,
       'stage-group',
-      'stage',
+      'opportunityPipelineStageIds',
       stages.map(s => ({ id: s.id, label: s.label }))
     )
     updateFilterOptions(
       filterConfig,
       'status-group',
-      'status',
+      'opportunityStatusIds',
       statuses.map(s => ({ id: s.id, label: s.label }))
     )
     updateFilterOptions(
       filterConfig,
       'pipeline-group',
-      'pipeline',
+      'opportunityPipelineIds',
       pipelines.map(p => ({ id: p.id, label: p.label }))
     )
     updateFilterOptions(
       filterConfig,
       'owner-group',
-      'owner',
+      'ownerEmployeeIds',
       owners.map(o => ({ id: o.id, label: o.label }))
     )
     updateFilterOptions(
       filterConfig,
       'account-group',
-      'account',
+      'accountIds',
       accounts.map(a => ({ id: a.id, label: a.label }))
     )
 
@@ -417,18 +414,29 @@ const ConfigOpportunityLayout = <TOpportunity extends { id: string } = any, TQue
     []
   )
 
-  // Row actions
+  // Row actions - rendered internally
   const rowActions = useMemo(
-    () =>
-      config.renderRowActions
-        ? (row: { original: TOpportunity }) => config.renderRowActions!(row, accessToken)
-        : (row: { original: TOpportunity }) => (
-            <DefaultOpportunityRowActions
-              row={row}
-              accessToken={accessToken}
-              entityContext={config.flowContexts.entityContext}
+    () => (row: { original: TOpportunity }) => (
+      <AppActionMenu
+        contextsArray={config.rowActionsContextArray}
+        externalContextData={config.buildRowActionsExternalContextData(row)}
+        prefixDataTestId="opportunity-actions"
+        accessToken={accessToken}
+        emptyStateBehavior="enable"
+        deferMainContextRequestsUntilClick
+      >
+        <Button variant="ghost" size="icon" data-testid={`opportunity-actions-${row.original.id}`}>
+          <svg className="gba:h-4 gba:w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+            <path
+              strokeLinecap="round"
+              strokeLinejoin="round"
+              strokeWidth={2}
+              d="M12 5v.01M12 12v.01M12 19v.01M12 6a1 1 0 110-2 1 1 0 010 2zm0 7a1 1 0 110-2 1 1 0 010 2zm0 7a1 1 0 110-2 1 1 0 010 2z"
             />
-          ),
+          </svg>
+        </Button>
+      </AppActionMenu>
+    ),
     [config, accessToken]
   )
 
@@ -458,7 +466,7 @@ const ConfigOpportunityLayout = <TOpportunity extends { id: string } = any, TQue
   return (
     <div data-testid={dataTestId}>
       {/* Statistics */}
-      {!hideStatistics && config.opportunityStatistics && (
+      {config.opportunityStatistics && (
         <OpportunityStatisticsLayout
           statistics={config.opportunityStatistics}
           data-testid={`${dataTestId}-statistics`}
@@ -505,14 +513,21 @@ const ConfigOpportunityLayout = <TOpportunity extends { id: string } = any, TQue
           setBoardFilters
         )}
         sorting={currentSection === 'list' ? sorting : undefined}
-        sortableColumns={currentSection === 'list' ? config.createSortableColumns() : undefined}
+        sortableColumns={
+          currentSection === 'list'
+            ? (() => {
+                const availableColumnIds = availableColumns.map(col => col.id)
+                return config.createSortableColumns(availableColumnIds)
+              })()
+            : undefined
+        }
         onSortingChange={currentSection === 'list' ? setSorting : undefined}
         availableColumns={currentSection === 'list' ? availableColumns : undefined}
         visibleColumns={currentSection === 'list' ? visibleColumns : undefined}
         onVisibleColumnsChange={currentSection === 'list' ? setVisibleColumns : undefined}
         primaryAction={
           customPrimaryAction ||
-          (hideCreate ? undefined : (
+          (config.flowContexts.createContext ? (
             <AppAction
               contextsArray={[config.flowContexts.createContext]}
               externalContextData={config.flowContexts.createContextData}
@@ -525,7 +540,7 @@ const ConfigOpportunityLayout = <TOpportunity extends { id: string } = any, TQue
                 {getTranslationFromI18nKeyAndLabel('crm:opportunity.addOpportunity', 'Add Opportunity')}
               </Button>
             </AppAction>
-          ))
+          ) : undefined)
         }
         secondaryActions={boardSecondaryActions}
         toolbarDensity="default"

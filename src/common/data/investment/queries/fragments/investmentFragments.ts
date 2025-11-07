@@ -433,6 +433,7 @@ export const INVESTMENT_TASK_TEMPLATE = `
   investmentTask {
     ${INVESTMENT_TASK_REF}
   }
+  investmentTaskId
 `
 
 /**
@@ -480,21 +481,23 @@ export const INVESTMENT_ACTIVITY = `
  * ============================================================================
  * INVESTMENT_DOCUMENT
  * ============================================================================
- * Investment Document Fragment
- * Complete document fragment with entity relations using REF fragments
  */
 export const INVESTMENT_DOCUMENT = `
   ${INVESTMENT_DOCUMENT_REF}
   account { ${INVESTMENT_ACCOUNT_REF} }
+  accountId
   contact { ${INVESTMENT_CONTACT_REF} }
+  contactId
   opportunity { ${INVESTMENT_OPPORTUNITY_REF} }
+  opportunityId
   lead { ${INVESTMENT_LEAD_REF} }
-  task (where: { isDeleted: { _eq: false } }) {
-    ${INVESTMENT_TASK_REF}
-  }
-  activity (where: { isDeleted: { _eq: false } }) {
-    ${INVESTMENT_ACTIVITY_REF}
-  }
+  leadId
+  task { ${INVESTMENT_TASK_REF} }
+  taskId
+  activity { ${INVESTMENT_ACTIVITY_REF} }
+  activityId
+  note { ${INVESTMENT_NOTE_REF} }
+  noteId
 `
 
 /**

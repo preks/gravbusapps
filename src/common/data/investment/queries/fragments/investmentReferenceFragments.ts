@@ -119,10 +119,6 @@ export const INVESTMENT_LEAD_REF = `
   loanInterestRate
   marketValue
   requiredCapitalAmount
-  salutation {
-    ${CATALOG_ENTRY}
-  }
-  salutationRef
   size
   sizeMeasurementUnit {
     ${CATALOG_ENTRY}
@@ -273,11 +269,9 @@ export const INVESTMENT_ACTIVITY_REF = `
  * ============================================================================
  * INVESTMENT_DOCUMENT_REF
  * ============================================================================
- * TODO: folder -> common
  */
 export const INVESTMENT_DOCUMENT_REF = `
   ${COMMON_DOCUMENT_FIELDS}
-  folder
 `
 
 /**

@@ -9,7 +9,7 @@ interface FilterOption {
   label: string
 }
 
-export interface InvestmentLeadFilterOptions {
+export interface InvestmentLeadFilters {
   owners: FilterOption[]
   statuses: FilterOption[]
   ratings: FilterOption[]
@@ -86,7 +86,7 @@ const PREFETCH_LEAD_FILTERS_QUERY = `
   }
 `
 
-export const useInvestmentLeadFilterOptions = (context: BusinessAppContextProps): InvestmentLeadFilterOptions => {
+export const useInvestmentLeadFilters = (context: BusinessAppContextProps): InvestmentLeadFilters => {
   const { accessToken } = context
   const graphqlClient = useGraphQLClient(accessToken)
   const catalogClient = useCatalogManagerClient(accessToken)

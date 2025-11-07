@@ -5,7 +5,6 @@ import type { SourceTable } from './customerEnums'
 import type {
   CustomerAccount,
   CustomerActivity,
-  CustomerContact,
   CustomerLead,
   CustomerNote,
   CustomerOpportunity,
@@ -15,8 +14,7 @@ import type {
 export interface CustomerDocument extends CommonDocument {
   account?: CustomerAccount
   activity?: CustomerActivity // Mapped by salesActivity
-  childDocuments?: CustomerDocument[] // TODO missing
-  contact?: CustomerContact
+  childDocuments?: CustomerDocument[]
   note?: CustomerNote
   opportunity?: CustomerOpportunity
   lead?: CustomerLead

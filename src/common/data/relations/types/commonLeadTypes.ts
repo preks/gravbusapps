@@ -8,7 +8,7 @@ export interface CommonLead extends BaseEntity {
   academicTitleRef?: string // IRM / CRM
   accountAnnualRevenueBand?: CatalogEntry // IRM | TODO
   accountAnnualRevenueBandRef?: string // IRM / TODO
-  activities?: any[] // IRM / TODO
+  activities?: any[] // IRM / CRM
   addressLine?: string | { lines: string[] } | any // IRM / CRM is string
   code?: string // IRM / CRM
   companyEmail?: string // IRM / CRM
@@ -50,12 +50,12 @@ export interface CommonLead extends BaseEntity {
   region?: CatalogEntry // IRM / CRM
   regionRef?: string // IRM / CRM
   rejectionReasons?: any[] // IRM / TODO (missing)
-  salutation?: CatalogEntry // IRM / TODO (missing)
-  salutationRef?: string // IRM / TODO (missing)
+  salutation?: CatalogEntry // IRM / CRM
+  salutationRef?: string // IRM / CRM
   sensitive?: boolean // IRM / CRM
-  sourceCompanyName?: string // IRM / TODO (source)
-  sourceIndividualName?: string // IRM / TODO (source)
-  tasks?: any[] // IRM / TODO (missing)
+  sourceCompanyName?: string // IRM / CRM
+  sourceIndividualName?: string // IRM / CRM
+  tasks?: any[] // IRM / CRM
 }
 
 export const COMMON_LEAD_DESCRIPTORS: Descriptor[] = [
