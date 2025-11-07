@@ -98,11 +98,13 @@ export const JobPositionDetails: React.FC<JobPositionDetailsProps> = ({ jobPosit
 
       {/* Header */}
       <div className="gba:border-b gba:border-border gba:pb-4">
-        <div className="gba:flex gba:items-center gba:gap-3">
+        <div className="gba:flex gba:items-center gba:gap-3 gba:pr-30">
           <PiBriefcase className="gba:text-primary gba:text-xl" />
-          <div>
-            <h2 className="gba:text-lg gba:font-semibold gba:text-foreground">{jobPosition.name}</h2>
-            <p className="gba:text-sm gba:text-muted-foreground">
+          <div className="gba:flex-1 gba:min-w-0">
+            <h2 className="gba:text-lg gba:font-semibold gba:text-foreground gba:whitespace-normal gba:break-words">
+              {jobPosition.name}
+            </h2>
+            <p className="gba:text-sm gba:text-muted-foreground gba:whitespace-normal gba:break-words">
               {t('job_position.details_subtitle', 'Position Details')}
             </p>
           </div>
