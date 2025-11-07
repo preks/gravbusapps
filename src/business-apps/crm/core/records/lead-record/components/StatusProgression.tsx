@@ -16,6 +16,7 @@ export const StatusProgression: React.FC<StatusProgressionProps> = ({
   currentStatus,
   statuses,
   leadId,
+  leadVersion,
   accessToken
 }) => {
   const getCurrentStatusIndex = () => {
@@ -104,6 +105,7 @@ export const StatusProgression: React.FC<StatusProgressionProps> = ({
               contextsArray={[FlowContextName.customerSaveLead]}
               externalContextData={{
                 leadId,
+                leadVersion,
                 newStatusRef: `SalesLeadStatus:v1:${statuses[openIndex].code}`,
                 statusDisplayName: statuses[openIndex].value
               }}
@@ -167,6 +169,7 @@ export const StatusProgression: React.FC<StatusProgressionProps> = ({
                   contextsArray={[FlowContextName.customerSaveLead]}
                   externalContextData={{
                     leadId,
+                    leadVersion,
                     newStatusRef: `SalesLeadStatus:v1:${statuses[convertedIndex].code}`,
                     statusDisplayName: statuses[convertedIndex].value
                   }}
@@ -222,6 +225,7 @@ export const StatusProgression: React.FC<StatusProgressionProps> = ({
                   contextsArray={[FlowContextName.customerSaveLead]}
                   externalContextData={{
                     leadId,
+                    leadVersion,
                     newStatusRef: `SalesLeadStatus:v1:${statuses[lostIndex].code}`,
                     statusDisplayName: statuses[lostIndex].value
                   }}
@@ -269,6 +273,7 @@ export const StatusProgression: React.FC<StatusProgressionProps> = ({
               contextsArray={[FlowContextName.customerSaveLead]}
               externalContextData={{
                 leadId,
+                leadVersion,
                 newStatusRef: `SalesLeadStatus:v1:${statuses[openIndex].code}`,
                 statusDisplayName: statuses[openIndex].value
               }}
