@@ -310,7 +310,7 @@ export const GET_CLOSED_PLANS_STATISTICS = `
 `
 
 export const GET_EXPENSE_PLAN_STATISTICS = `
-  query GetExpensePlanStatistics($employeeId: uuid!, $startDate: timestamp!, $endDate: timestamp!, $activeUserLocale: String!, $currencyRef: String!) {
+  query GetExpensePlanStatistics($employeeId: uuid!, $startDate: timestamp!, $endDate: timestamp!, $currencyRef: String!) {
     ExpensePlanAggregate(
       where: {
         _and: [
@@ -379,10 +379,11 @@ export const GET_EXPENSE_PLAN_STATISTICS = `
     ) {
       expenseRequestTrip(orderBy: {tripDateTime: ASC}, where: {isDeleted: {_eq: false}, pointType: {_eq: "DESTINATION_POINT"}}) {
         travelRegion {
-          translations(where: {localeCode: {_eq: $activeUserLocale}}) {
+          value
+          translations {
+            localeCode
             value
           }
-          value
         }
       }
     }
@@ -397,7 +398,6 @@ export const GET_EXPENSE_PLANS_OVERVIEW = `
     $limit: Int,
     $offset: Int,
     $orderBy: [ExpensePlanOrderBy!],
-    $activeUserLocale: String = "en",
     $currentStart: timestamp!,
     $currentEnd: timestamp!,
     $previousStart: timestamp!,
@@ -468,7 +468,13 @@ export const GET_EXPENSE_PLANS_OVERVIEW = `
       where: { employeeId: { _eq: $employeeId }, isDeleted: { _eq: false }, expenseRequestTrip: { pointType: { _eq: "DESTINATION_POINT" } } }
     ) {
       expenseRequestTrip(orderBy: { tripDateTime: ASC }, where: { isDeleted: { _eq: false }, pointType: { _eq: "DESTINATION_POINT" } }) {
-        travelRegion { value translations(where: { localeCode: { _eq: $activeUserLocale } }) { value } }
+        travelRegion { 
+          value 
+          translations { 
+            localeCode 
+            value 
+          } 
+        }
       }
     }
 

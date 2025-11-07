@@ -8,7 +8,6 @@ import { ScreenBody, Spinner, notification, Tabs } from '@newwork/gravity-ui-cat
 import { ProfileLayout } from '@/components/layout/profileLayout'
 import { useScopePermissionCheck } from '@/common/hooks/useScopePermissionCheck'
 import { PiUser, PiBriefcase, PiChartBar, PiCalendar, PiClockCounterClockwise, PiReceipt } from 'react-icons/pi'
-
 import SummaryTab from './components/tabs/SummaryTab'
 import AbsencesTab from './components/tabs/AbsencesTab'
 import ServiceRequestsTab from './components/tabs/ServiceRequestsTab'
@@ -18,6 +17,7 @@ import { BusinessAppContextProps } from '../../../../../common/BusinessAppContex
 import { getCurrentActiveStructureId, getTranslationFromI18nKeyAndLabel } from '@/common/utils/windowUtils'
 import { useFeature } from '@/common/hooks/useFeature'
 import TimeTrackingTab from './components/tabs/TimeTrackingTab'
+import { Feature } from '@/common/types/constants/FeatureHub'
 
 const TAB_KEYS = {
   summary: 'summary',
@@ -156,9 +156,7 @@ const EmployeeRecordContent: React.FC<EmployeeRecordContentProps> = ({
 }) => {
   const [activeTab, setActiveTab] = useState(initialActiveTab)
   const activeStructureId = getCurrentActiveStructureId()
-  const feedbackTabFeatureFlag = useFeature('dev.employee-record.feedback.enabled')
-  const changeLogTabFeatureFlag = useFeature('dev.employee-record.changelog.enabled')
-  const timeTrackingTabFeatureFlag = useFeature('dev.employee-record.timetracking.enabled')
+  const devFeatureFlag = useFeature(Feature.Dev.Enabled.Key)
 
   useEffect(() => {
     if (typeof window === 'undefined') return
@@ -238,7 +236,11 @@ const EmployeeRecordContent: React.FC<EmployeeRecordContentProps> = ({
     loading: scopePermissionLoading,
     error: scopePermissionError
   } = useScopePermissionCheck('/platform/employee-record', 'employee-record-notes', accessToken)
-
+  const absencesScopeCheck = useScopePermissionCheck(
+    '/platform/employee-record',
+    'employee-record-absences',
+    accessToken
+  )
   const isSelfView: boolean = !!(currentUserEmployeeId && employeeIdToShow === currentUserEmployeeId)
 
   const getTabItems = () => {
@@ -265,7 +267,7 @@ const EmployeeRecordContent: React.FC<EmployeeRecordContentProps> = ({
           />
         )
       },
-      ...(timeTrackingTabFeatureFlag
+      ...(devFeatureFlag
         ? [
             {
               key: TAB_KEYS.timeTracking,
@@ -339,7 +341,7 @@ const EmployeeRecordContent: React.FC<EmployeeRecordContentProps> = ({
               accessToken={accessToken}
               userInfo={userInfo}
               isSelfView={isSelfView}
-              changeLogTabFeatureFlag={changeLogTabFeatureFlag as boolean}
+              changeLogTabFeatureFlag={devFeatureFlag as boolean}
               hasHrNotesAccess={hasHrNotesAccess}
               scopePermissionLoading={scopePermissionLoading}
               additionalData={additionalData}
@@ -364,7 +366,7 @@ const EmployeeRecordContent: React.FC<EmployeeRecordContentProps> = ({
             accessToken={accessToken}
             userInfo={userInfo}
             isSelfView={isSelfView}
-            feedbackTabFeatureFlag={feedbackTabFeatureFlag as boolean}
+            feedbackTabFeatureFlag={devFeatureFlag as boolean}
             employeePerformanceGoals={performanceGoals}
             feedback={feedback}
             additionalData={additionalData}
@@ -402,14 +404,18 @@ const EmployeeRecordContent: React.FC<EmployeeRecordContentProps> = ({
         return true
       }
 
-      if (tabKey === TAB_KEYS.absences || tabKey === TAB_KEYS.serviceRequests || tabKey === TAB_KEYS.timeTracking) {
+      if (tabKey === TAB_KEYS.absences) {
+        return tabPermissions?.[tabKey]?.hasAccess === true || absencesScopeCheck?.hasPermission === true
+      }
+
+      if (tabKey === TAB_KEYS.serviceRequests || tabKey === TAB_KEYS.timeTracking) {
         return tabPermissions?.[tabKey]?.hasAccess === true
       }
 
       if (tabKey === TAB_KEYS.hrAdmin) {
         const hasEmploymentAccess = tabPermissions?.['employment']?.hasAccess === true
         const hasDocumentsAccess = tabPermissions?.['documents']?.hasAccess === true
-        const hasChangeLogAccess = changeLogTabFeatureFlag && tabPermissions?.['changeLog']?.hasAccess === true
+        const hasChangeLogAccess = devFeatureFlag && tabPermissions?.['changeLog']?.hasAccess === true
 
         let hasHrNotesAccess = false
         if (!scopePermissionLoading) {
@@ -422,17 +428,15 @@ const EmployeeRecordContent: React.FC<EmployeeRecordContentProps> = ({
           }
         }
 
-        return (
-          hasEmploymentAccess || hasDocumentsAccess || hasChangeLogAccess || hasHrNotesAccess || changeLogTabFeatureFlag
-        )
+        return hasEmploymentAccess || hasDocumentsAccess || hasChangeLogAccess || hasHrNotesAccess || devFeatureFlag
       }
 
       if (tabKey === TAB_KEYS.hrGrowth) {
         const hasSkillsAccess = tabPermissions?.['skills']?.hasAccess !== false
-        const hasFeedbackAccess = feedbackTabFeatureFlag && tabPermissions?.['feedback']?.hasAccess === true
+        const hasFeedbackAccess = devFeatureFlag && tabPermissions?.['feedback']?.hasAccess === true
         const hasPerformanceAccess = tabPermissions?.['performance']?.hasAccess !== false
 
-        return hasSkillsAccess || hasFeedbackAccess || hasPerformanceAccess || feedbackTabFeatureFlag
+        return hasSkillsAccess || hasFeedbackAccess || hasPerformanceAccess || devFeatureFlag
       }
 
       return true

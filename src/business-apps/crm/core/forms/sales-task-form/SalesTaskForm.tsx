@@ -302,8 +302,7 @@ const CustomerTaskForm: React.FC<CustomerTaskFormProps> = ({
       requireEntity: true,
       requireType: (additionalData as any)?.typeRef !== 'SalesTaskType:v1:APPROVAL'
     }),
-    defaultValues: initialFormData,
-    values: formData, // Use values prop to sync form with state changes
+    defaultValues: formData,
     mode: 'onChange'
   })
 
