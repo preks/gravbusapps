@@ -69,15 +69,45 @@ export const CUSTOMER_OPPORTUNITY_DESCRIPTORS: Descriptor[] = [
   ...COMMON_OPPORTUNITY_DESCRIPTORS.filter(
     d =>
       ![
+        'addresses',
+        'leads',
+        'notes',
+        'opportunityContacts',
         'opportunityPipeline',
         'opportunityPipelineRef',
         'opportunityPipelineStage',
         'opportunityPipelineStageRef',
         'opportunityPipelineIds',
-        'opportunityPipelineStageIds'
+        'opportunityPipelineStageIds',
+        'opportunityStageConditions',
+        'rejectionReasons'
       ].includes(d.key)
   ),
 
+  {
+    key: 'addresses',
+    searchPaths: ['addresses.city', 'addresses.postalCode', 'addresses.region.value', 'addresses.country.value'],
+    sortPaths: ['addresses.city', 'addresses.postalCode', 'addresses.region.value', 'addresses.country.value'],
+    type: 'text'
+  },
+  {
+    key: 'leads',
+    searchPaths: ['lead.firstName', 'lead.lastName', 'lead.companyName'],
+    sortPaths: ['lead.firstName', 'lead.lastName', 'lead.companyName'],
+    type: 'text'
+  },
+  {
+    key: 'notes',
+    searchPaths: ['notes.noteTitle', 'notes.noteText'],
+    sortPaths: ['notes.noteTitle', 'notes.noteText'],
+    type: 'text'
+  },
+  {
+    key: 'opportunityContacts',
+    searchPaths: ['contacts.contact.firstName', 'contacts.contact.lastName'],
+    sortPaths: ['contacts.contact.firstName', 'contacts.contact.lastName'],
+    type: 'text'
+  },
   // CRM-specific path overrides (key remains IRM-correct name, but paths use CRM field names)
   {
     key: 'opportunityPipeline',
@@ -98,9 +128,9 @@ export const CUSTOMER_OPPORTUNITY_DESCRIPTORS: Descriptor[] = [
     type: 'text'
   },
   {
-    key: 'opportunityPipelineStageRef',
-    searchPaths: ['salesPipelineStageRef'],
-    sortPath: 'salesPipelineStageRef',
+    key: 'opportunityStageConditions',
+    searchPaths: ['stageConditionStatuses.salesPipelineStageCondition.value'],
+    sortPaths: ['stageConditionStatuses.salesPipelineStageCondition.value'],
     type: 'text'
   },
 

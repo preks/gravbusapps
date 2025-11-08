@@ -54,11 +54,10 @@ export const COMMON_CONTACT_DESCRIPTORS: Descriptor[] = [
     sortPath: 'academicTitle.value',
     type: 'text'
   },
-  { key: 'academicTitleRef', sortPath: 'academicTitleRef', type: 'text' },
   {
     key: 'accountContacts',
     searchPaths: ['accountContacts.account.name'],
-    sortPath: 'accountContacts.account.name',
+    enableSort: false,
     type: 'text'
   },
   {
@@ -69,8 +68,8 @@ export const COMMON_CONTACT_DESCRIPTORS: Descriptor[] = [
   },
   {
     key: 'addresses',
-    searchPaths: ['addresses.addressLine', 'addresses.locality'],
-    enableSort: false,
+    searchPaths: ['addresses.locality', 'addresses.postalCode', 'addresses.region.value', 'addresses.country.value'],
+    sortPaths: ['addresses.locality', 'addresses.postalCode', 'addresses.region.value', 'addresses.country.value'],
     type: 'text'
   },
   { key: 'birthDate', searchPaths: ['birthDate'], sortPath: 'birthDate', type: 'date' },
@@ -89,10 +88,8 @@ export const COMMON_CONTACT_DESCRIPTORS: Descriptor[] = [
     sortPath: 'documents.name',
     type: 'text'
   },
-  { key: 'documentsAggregate', searchPaths: ['documentsAggregate'], sortPath: 'documentsAggregate', type: 'text' },
   { key: 'firstName', searchPaths: ['firstName'], sortPath: 'firstName', type: 'text' },
   { key: 'fullName', searchPaths: ['fullName'], sortPath: 'fullName', type: 'text' },
-  { key: 'id', searchPaths: ['id'], sortPath: 'id', type: 'text' },
   { key: 'jobPosition', searchPaths: ['jobPosition'], sortPath: 'jobPosition', type: 'text' },
   {
     key: 'language',
@@ -100,7 +97,6 @@ export const COMMON_CONTACT_DESCRIPTORS: Descriptor[] = [
     sortPath: 'language.value',
     type: 'text'
   },
-  { key: 'languageRef', sortPath: 'languageRef', type: 'text' },
   { key: 'lastName', searchPaths: ['lastName'], sortPath: 'lastName', type: 'text' },
   {
     key: 'leads',
@@ -108,7 +104,7 @@ export const COMMON_CONTACT_DESCRIPTORS: Descriptor[] = [
     sortPath: 'leads.lastName',
     type: 'text'
   },
-  { key: 'notes', searchPaths: ['notes.subject', 'notes.content'], sortPath: 'notes.subject', type: 'text' },
+  { key: 'notes', searchPaths: ['notes.title', 'notes.text'], sortPath: 'notes.title', type: 'text' },
   { key: 'notesSummary', searchPaths: ['notesSummary'], sortPath: 'notesSummary', type: 'text' },
   {
     key: 'opportunityContacts',
@@ -122,7 +118,6 @@ export const COMMON_CONTACT_DESCRIPTORS: Descriptor[] = [
     sortPath: 'ownerEmployee.displayName',
     type: 'text'
   },
-  { key: 'ownerEmployeeId', sortPath: 'ownerEmployeeId', type: 'text' },
   { key: 'picture', searchPaths: ['picture'], sortPath: 'picture', type: 'text' },
   { key: 'pictureThumbnail', searchPaths: ['pictureThumbnail'], sortPath: 'pictureThumbnail', type: 'text' },
   {
@@ -131,8 +126,7 @@ export const COMMON_CONTACT_DESCRIPTORS: Descriptor[] = [
     sortPath: 'salutation.value',
     type: 'text'
   },
-  { key: 'salutationRef', sortPath: 'salutationRef', type: 'text' },
-  { key: 'tasks', searchPaths: ['tasks.subject', 'tasks.description'], sortPath: 'tasks.subject', type: 'text' },
+  { key: 'tasks', searchPaths: ['tasks.name', 'tasks.description'], sortPath: 'tasks.name', type: 'text' },
   { key: 'type', searchPaths: ['type'], sortPath: 'type', type: 'text' },
 
   // Filter IDs

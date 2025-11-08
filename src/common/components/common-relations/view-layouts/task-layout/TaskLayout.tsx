@@ -483,83 +483,85 @@ const ConfigTaskLayout = <TTask extends CommonTask = CommonTask, TQueryVariables
           }}
         />
       )}
-      {/* DataDisplay with titleSections as Tabs */}
-      <DataDisplay
-        titleSections={[
-          {
-            id: 'my',
-            label: getTranslationFromI18nKeyAndLabel('common:myTasks', 'My Tasks'),
-            metadata: {
-              count: myTotalCount,
-              isLoading: myLoading
+      {/* DataDisplay with titleSections as Tabs gba:bg-white gba:px-6 gba:rounded-xl gba:border*/}
+      <div className="">
+        <DataDisplay
+          titleSections={[
+            {
+              id: 'my',
+              label: getTranslationFromI18nKeyAndLabel('common:myTasks', 'My Tasks'),
+              metadata: {
+                count: myTotalCount,
+                isLoading: myLoading
+              }
+            },
+            {
+              id: 'team',
+              label: getTranslationFromI18nKeyAndLabel('common:teamTasks', 'Team Tasks'),
+              metadata: {
+                count: teamTotalCount,
+                isLoading: teamLoading
+              }
             }
-          },
-          {
-            id: 'team',
-            label: getTranslationFromI18nKeyAndLabel('common:teamTasks', 'Team Tasks'),
-            metadata: {
-              count: teamTotalCount,
-              isLoading: teamLoading
-            }
-          }
-        ]}
-        currentSection={currentSection}
-        onSectionChange={value => setCurrentSection(value as TaskTabKey)}
-        searchValue={searchTerm}
-        searchPlaceholder={getTranslationFromI18nKeyAndLabel('common:searchTasks', 'Search tasks...')}
-        onSearchChange={handleSearch}
-        filters={hideFilters ? undefined : selectedFilters}
-        filterConfiguration={hideFilters ? undefined : dynamicFilterConfig}
-        onFilterChange={hideFilters ? undefined : handleFilterUpdate}
-        sorting={sorting}
-        sortableColumns={useMemo(() => {
-          const availableColumnIds = availableColumns.map(col => col.id)
-          return deriveSortableColumns(config.descriptors, config.columnLabels, availableColumnIds)
-        }, [config.descriptors, config.columnLabels, availableColumns])}
-        onSortingChange={handleSortingChange}
-        availableColumns={availableColumns}
-        visibleColumns={visibleColumns}
-        onVisibleColumnsChange={setVisibleColumns}
-        primaryAction={
-          customPrimaryAction ||
-          (config.flowContexts.createContext ? (
-            <AppAction
-              contextsArray={[config.flowContexts.createContext]}
-              externalContextData={config.flowContexts.createContextData}
-              accessToken={accessToken}
-              data-testid="add-task-action"
-              emptyStateBehavior="hide"
-            >
-              <Button size="sm" variant="default" data-testid="add-task-button" type="button">
-                <Plus size={16} />
-                {getTranslationFromI18nKeyAndLabel('common:addTask', 'Add Task')}
-              </Button>
-            </AppAction>
-          ) : undefined)
-        }
-        toolbarDensity="default"
-        enableLiveFiltering={true}
-        filterSheetTitle={getTranslationFromI18nKeyAndLabel('common:filterTasks', 'Filter Tasks')}
-        filterSheetDescription={getTranslationFromI18nKeyAndLabel(
-          'common:filterTasksDescription',
-          'Apply filters to narrow down the task list'
-        )}
-      >
-        <TaskListLayout<TTask>
-          data={currentData}
-          loading={currentLoading}
-          error={currentError}
-          totalCount={currentTotal}
-          columns={columns.filter(col => visibleColumns.includes(col.id as string))}
+          ]}
+          currentSection={currentSection}
+          onSectionChange={value => setCurrentSection(value as TaskTabKey)}
+          searchValue={searchTerm}
+          searchPlaceholder={getTranslationFromI18nKeyAndLabel('common:searchTasks', 'Search tasks...')}
+          onSearchChange={handleSearch}
+          filters={hideFilters ? undefined : selectedFilters}
+          filterConfiguration={hideFilters ? undefined : dynamicFilterConfig}
+          onFilterChange={hideFilters ? undefined : handleFilterUpdate}
           sorting={sorting}
+          sortableColumns={useMemo(() => {
+            const availableColumnIds = availableColumns.map(col => col.id)
+            return deriveSortableColumns(config.descriptors, config.columnLabels, availableColumnIds)
+          }, [config.descriptors, config.columnLabels, availableColumns])}
           onSortingChange={handleSortingChange}
-          pagination={pagination}
-          onPaginationChange={handlePaginationChange}
-          actions={rowActions}
-          onRowClick={handleTaskClick}
-          dataTestId={`${dataTestId}-${currentSection}`}
-        />
-      </DataDisplay>
+          availableColumns={availableColumns}
+          visibleColumns={visibleColumns}
+          onVisibleColumnsChange={setVisibleColumns}
+          primaryAction={
+            customPrimaryAction ||
+            (config.flowContexts.createContext ? (
+              <AppAction
+                contextsArray={[config.flowContexts.createContext]}
+                externalContextData={config.flowContexts.createContextData}
+                accessToken={accessToken}
+                data-testid="add-task-action"
+                emptyStateBehavior="hide"
+              >
+                <Button size="sm" variant="default" data-testid="add-task-button" type="button">
+                  <Plus size={16} />
+                  {getTranslationFromI18nKeyAndLabel('common:addTask', 'Add Task')}
+                </Button>
+              </AppAction>
+            ) : undefined)
+          }
+          toolbarDensity="default"
+          enableLiveFiltering={true}
+          filterSheetTitle={getTranslationFromI18nKeyAndLabel('common:filterTasks', 'Filter Tasks')}
+          filterSheetDescription={getTranslationFromI18nKeyAndLabel(
+            'common:filterTasksDescription',
+            'Apply filters to narrow down the task list'
+          )}
+        >
+          <TaskListLayout<TTask>
+            data={currentData}
+            loading={currentLoading}
+            error={currentError}
+            totalCount={currentTotal}
+            columns={columns.filter(col => visibleColumns.includes(col.id as string))}
+            sorting={sorting}
+            onSortingChange={handleSortingChange}
+            pagination={pagination}
+            onPaginationChange={handlePaginationChange}
+            actions={rowActions}
+            onRowClick={handleTaskClick}
+            dataTestId={`${dataTestId}-${currentSection}`}
+          />
+        </DataDisplay>
+      </div>
       {/* Task Detail Sheet - integrated into layout */}
       <TaskDetailSheet
         task={selectedTask as any}

@@ -45,14 +45,12 @@ export const COMMON_DOCUMENT_DESCRIPTORS: Descriptor[] = [
   ...BASE_ENTITY_DESCRIPTORS,
 
   { key: 'account', searchPaths: ['account.name', 'account.code'], sortPath: 'account.name', type: 'text' },
-  { key: 'accountId', sortPath: 'accountId', type: 'text' },
   {
     key: 'activity',
     searchPaths: ['activity.title', 'activity.description'],
     sortPath: 'activity.title',
     type: 'text'
   },
-  { key: 'activityId', sortPath: 'activityId', type: 'text' },
   { key: 'authenticated', searchPaths: ['authenticated'], sortPath: 'authenticated', type: 'boolean' },
   { key: 'authenticationDate', searchPaths: ['authenticationDate'], sortPath: 'authenticationDate', type: 'date' },
   { key: 'childDocuments', searchPaths: ['childDocuments.name'], sortPath: 'childDocuments.name', type: 'text' },
@@ -62,7 +60,6 @@ export const COMMON_DOCUMENT_DESCRIPTORS: Descriptor[] = [
     sortPath: 'contact.lastName',
     type: 'text'
   },
-  { key: 'contactId', sortPath: 'contactId', type: 'text' },
   { key: 'description', searchPaths: ['description'], sortPath: 'description', type: 'text' },
   {
     key: 'documentGroup',
@@ -70,44 +67,36 @@ export const COMMON_DOCUMENT_DESCRIPTORS: Descriptor[] = [
     sortPath: 'documentGroup.value',
     type: 'text'
   },
-  { key: 'documentGroupRef', sortPath: 'documentGroupRef', type: 'text' },
   {
     key: 'documentType',
     searchPaths: ['documentType.value', 'documentType.code'],
     sortPath: 'documentType.value',
     type: 'text'
   },
-  { key: 'documentTypeRef', sortPath: 'documentTypeRef', type: 'text' },
   { key: 'expirationDate', searchPaths: ['expirationDate'], sortPath: 'expirationDate', type: 'date' },
   { key: 'file', searchPaths: ['file'], sortPath: 'file', type: 'text' },
   { key: 'fileInfo', searchPaths: ['fileInfo'], sortPath: 'fileInfo', type: 'text' },
   { key: 'fileSize', searchPaths: ['fileSize'], sortPath: 'fileSize', type: 'number' },
   { key: 'folder', searchPaths: ['folder'], sortPath: 'folder', type: 'boolean' },
-  { key: 'id', searchPaths: ['id'], sortPath: 'id', type: 'text' },
   {
     key: 'lead',
     searchPaths: ['lead.firstName', 'lead.lastName', 'lead.companyName'],
     sortPath: 'lead.lastName',
     type: 'text'
   },
-  { key: 'leadId', sortPath: 'leadId', type: 'text' },
   { key: 'mandatory', searchPaths: ['mandatory'], sortPath: 'mandatory', type: 'boolean' },
   { key: 'mimeType', searchPaths: ['mimeType'], sortPath: 'mimeType', type: 'text' },
   { key: 'name', searchPaths: ['name'], sortPath: 'name', type: 'text' },
-  { key: 'note', searchPaths: ['note.subject', 'note.content'], sortPath: 'note.subject', type: 'text' },
-  { key: 'noteId', sortPath: 'noteId', type: 'text' },
+  { key: 'note', searchPaths: ['note.title', 'note.text'], sortPath: 'note.title', type: 'text' },
   {
     key: 'opportunity',
     searchPaths: ['opportunity.name', 'opportunity.description'],
     sortPath: 'opportunity.name',
     type: 'text'
   },
-  { key: 'opportunityId', sortPath: 'opportunityId', type: 'text' },
   { key: 'parentDocument', searchPaths: ['parentDocument.name'], sortPath: 'parentDocument.name', type: 'text' },
-  { key: 'parentDocumentId', sortPath: 'parentDocumentId', type: 'text' },
   { key: 'source', searchPaths: ['source'], sortPath: 'source', type: 'text' },
-  { key: 'task', searchPaths: ['task.subject', 'task.description'], sortPath: 'task.subject', type: 'text' },
-  { key: 'taskId', sortPath: 'taskId', type: 'text' },
+  { key: 'task', searchPaths: ['task.name', 'task.description'], sortPath: 'task.name', type: 'text' },
   { key: 'verificationDate', searchPaths: ['verificationDate'], sortPath: 'verificationDate', type: 'date' },
   { key: 'verified', searchPaths: ['verified'], sortPath: 'verified', type: 'boolean' },
 

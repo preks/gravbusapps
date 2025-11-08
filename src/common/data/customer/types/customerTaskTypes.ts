@@ -62,20 +62,25 @@ export const CUSTOMER_TASK_DESCRIPTORS: Descriptor[] = [
   ...COMMON_TASK_DESCRIPTORS.filter(
     d =>
       ![
+        'comments',
+        'opportunityStageCondition', //missing in CRM
         'taskPriority',
-        'taskPriorityRef',
         'taskStatus',
-        'taskStatusRef',
+        'taskTiming',
         'taskType',
-        'taskTypeRef',
         'taskTemplate',
-        'taskTemplateId',
         'taskPriorityIds',
         'taskStatusIds',
         'taskTypeIds',
         'taskTemplateIds'
       ].includes(d.key)
   ),
+  {
+    key: 'comments',
+    searchPaths: ['comment'],
+    sortPath: 'comment',
+    type: 'text'
+  },
 
   // CRM-specific path overrides (key remains IRM-correct name, but paths use CRM field names)
   {
@@ -84,28 +89,25 @@ export const CUSTOMER_TASK_DESCRIPTORS: Descriptor[] = [
     sortPath: 'priority.value',
     type: 'text'
   },
-  { key: 'taskPriorityRef', searchPaths: ['priorityRef'], sortPath: 'priorityRef', type: 'text' },
   {
     key: 'taskStatus',
     searchPaths: ['status.value', 'status.code'],
     sortPath: 'status.value',
     type: 'text'
   },
-  { key: 'taskStatusRef', searchPaths: ['statusRef'], sortPath: 'statusRef', type: 'text' },
+  { key: 'taskTiming', searchPaths: ['timingType'], sortPath: 'timingType', type: 'text' },
   {
     key: 'taskType',
     searchPaths: ['type.value', 'type.code'],
     sortPath: 'type.value',
     type: 'text'
   },
-  { key: 'taskTypeRef', searchPaths: ['typeRef'], sortPath: 'typeRef', type: 'text' },
   {
     key: 'taskTemplate',
     searchPaths: ['salesTaskTemplate.name'],
     sortPath: 'salesTaskTemplate.name',
     type: 'text'
   },
-  { key: 'taskTemplateId', searchPaths: ['salesTaskTemplateId'], sortPath: 'salesTaskTemplateId', type: 'text' },
 
   // CRM-specific filter path overrides
   { key: 'taskPriorityIds', path: 'priorityRef', kind: 'inIds' },

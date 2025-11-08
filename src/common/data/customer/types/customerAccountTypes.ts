@@ -56,10 +56,15 @@ export const CUSTOMER_ACCOUNT_DESCRIPTORS: Descriptor[] = [
   ...COMMON_ACCOUNT_DESCRIPTORS.filter(
     d =>
       ![
+        'accountAnnualRevenueBand',
+        'activities',
+        'addresses',
         'industryClass',
         'companySize',
-        'accountAnnualRevenueBand',
+        'leads',
         'locality',
+        'notes',
+        'opportunities',
         'picture',
         'pictureThumbnail',
         'industryIds',
@@ -67,7 +72,12 @@ export const CUSTOMER_ACCOUNT_DESCRIPTORS: Descriptor[] = [
         'revenueBandIds'
       ].includes(d.key)
   ),
-
+  {
+    key: 'addresses',
+    searchPaths: ['addresses.city', 'addresses.postalCode', 'addresses.region.value', 'addresses.country.value'],
+    sortPaths: ['addresses.city', 'addresses.postalCode', 'addresses.region.value', 'addresses.country.value'],
+    type: 'text'
+  },
   // CRM-specific path overrides (key remains IRM-correct name, but paths use CRM field names)
   {
     key: 'industryClass',
@@ -88,9 +98,27 @@ export const CUSTOMER_ACCOUNT_DESCRIPTORS: Descriptor[] = [
     type: 'text'
   },
   {
+    key: 'leads',
+    searchPaths: ['lead.firstName', 'lead.lastName', 'lead.companyName'],
+    sortPaths: ['lead.firstName', 'lead.lastName', 'lead.companyName'],
+    type: 'text'
+  },
+  {
     key: 'locality',
     searchPaths: ['addresses.city'], // CRM uses "city" not "locality"
     sortPath: 'addresses.city',
+    type: 'text'
+  },
+  {
+    key: 'notes',
+    searchPaths: ['notes.noteTitle', 'notes.noteText'],
+    sortPaths: ['notes.noteTitle', 'notes.noteText'],
+    type: 'text'
+  },
+  {
+    key: 'opportunities',
+    searchPaths: ['opportunity.name'],
+    sortPaths: ['opportunity.name'],
     type: 'text'
   },
   { key: 'picture', searchPaths: ['pictureUrl'], sortPath: 'pictureUrl', type: 'text' }, // CRM: pictureUrl

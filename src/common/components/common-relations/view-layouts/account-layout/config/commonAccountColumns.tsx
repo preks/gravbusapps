@@ -3,7 +3,6 @@ import { Avatar, AvatarImage, AvatarFallback } from '@newwork/nw-design-system'
 import { Building2, Mail, Phone, Globe, Calendar, MapPin } from 'lucide-react'
 import { navigateTo } from '@/common/utils/navigationUtils'
 import { formatAddress } from '@/common/utils/addressFormatter'
-import { formatCurrencyParts } from '@/common/utils/numberFormatter'
 import type { CommonAccount } from '@/common/data/relations/types/commonAccountTypes'
 import { COMMON_ACCOUNT_DESCRIPTORS } from '@/common/data/relations/types/commonAccountTypes'
 import { deriveSortableColumns, deriveAvailableColumns } from '@/common/network/graphql/descriptorUtils'
@@ -42,34 +41,18 @@ const getOwnerName = (account: CommonAccount) => {
   return '-'
 }
 
-// Currency rendering via central formatter
-const renderAmount = (amount: number, currencyCode?: string) => {
-  const { number, symbol } = formatCurrencyParts(amount, {
-    currency: currencyCode,
-    minimumFractionDigits: 0,
-    maximumFractionDigits: 2
-  })
-  return (
-    <div className="gba:w-full gba:flex gba:justify-end gba:items-baseline gba:min-w-0">
-      <span className="gba:text-sm gba:[font-variant-numeric:tabular-nums] gba:truncate">{number}</span>
-      <span className="gba:text-xs gba:text-gray-400 gba:inline-block gba:text-right gba:shrink-0 gba:w-[5ch]">
-        {symbol}
-      </span>
-    </div>
-  )
-}
-
 // Render revenue (band code may be a single number or a range "min-max")
+// Format similar to OpportunityLayout amount column
 const renderRevenueCell = (account: CommonAccount) => {
   // CommonAccount has: accountAnnualRevenueBand (correct name)
   const band = account.accountAnnualRevenueBand
   if (!band?.code && !band?.value) {
-    return <span className="gba:text-sm gba:text-muted-foreground">No revenue</span>
+    return <div className="gba:text-right gba:text-sm gba:text-muted-foreground">No revenue</div>
   }
 
   const code = safeString(band.code || '').trim()
   if (!code) {
-    return <span className="gba:text-sm gba:text-muted-foreground">No revenue</span>
+    return <div className="gba:text-right gba:text-sm gba:text-muted-foreground">No revenue</div>
   }
 
   // Parse numeric(s)
@@ -77,28 +60,59 @@ const renderRevenueCell = (account: CommonAccount) => {
     .split('-')
     .map(s => Number(s.trim()))
     .filter(n => !Number.isNaN(n))
+
   if (parts.length === 0) {
+    // Fallback to value if code is not numeric
     return (
-      <span className="gba:text-sm gba:truncate" title={safeString(band.value)}>
-        {safeString(band.value) || '-'}
-      </span>
+      <div className="gba:text-right gba:text-sm gba:truncate" title={safeString(band.value)}>
+        {safeString(band.value) || 'No revenue'}
+      </div>
     )
   }
 
-  if (parts.length === 1) return renderAmount(parts[0])
+  // Default currency (could be made configurable)
+  const currencyCode = 'EUR'
 
-  // Range: show "min – max" with a single trailing symbol
+  if (parts.length === 1) {
+    // Single value: format like OpportunityLayout amount
+    const formattedValue = new Intl.NumberFormat(undefined, {
+      style: 'currency',
+      currency: currencyCode,
+      minimumFractionDigits: 0,
+      maximumFractionDigits: 0
+    }).format(parts[0])
+
+    return (
+      <div
+        className="gba:text-right gba:text-sm gba:font-mono gba:truncate"
+        data-testid={`account-revenue-${account.id}`}
+      >
+        {formattedValue}
+      </div>
+    )
+  }
+
+  // Range: show "min – max" formatted like OpportunityLayout
   const [min, max] = parts
-  const left = formatCurrencyParts(min, { minimumFractionDigits: 0, maximumFractionDigits: 2 })
-  const right = formatCurrencyParts(max, { minimumFractionDigits: 0, maximumFractionDigits: 2 })
+  const formattedMin = new Intl.NumberFormat(undefined, {
+    style: 'currency',
+    currency: currencyCode,
+    minimumFractionDigits: 0,
+    maximumFractionDigits: 0
+  }).format(min)
+  const formattedMax = new Intl.NumberFormat(undefined, {
+    style: 'currency',
+    currency: currencyCode,
+    minimumFractionDigits: 0,
+    maximumFractionDigits: 0
+  }).format(max)
+
   return (
-    <div className="gba:w-full gba:flex gba:justify-end gba:items-baseline gba:min-w-0">
-      <span className="gba:text-sm gba:[font-variant-numeric:tabular-nums] gba:truncate">
-        {left.number} – {right.number}
-      </span>
-      <span className="gba:text-xs gba:text-gray-400 gba:inline-block gba:text-right gba:shrink-0 gba:w-[5ch]">
-        {right.symbol}
-      </span>
+    <div
+      className="gba:text-right gba:text-sm gba:font-mono gba:truncate"
+      data-testid={`account-revenue-${account.id}`}
+    >
+      {formattedMin} – {formattedMax}
     </div>
   )
 }
@@ -347,10 +361,15 @@ export const commonAccountColumns: ColumnDef<CommonAccount>[] = [
     id: 'accountAnnualRevenueBand',
     accessorKey: 'accountAnnualRevenueBand',
     header: 'Revenue',
-    size: 140,
+    size: 150,
     minSize: 120,
-    maxSize: 180,
+    maxSize: 200,
     enableResizing: false,
+    meta: {
+      type: 'currency' as const,
+      currency: 'EUR',
+      align: 'right' as const
+    },
     cell: ({ row }) => renderRevenueCell(row.original)
   },
   {

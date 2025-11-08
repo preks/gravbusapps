@@ -53,4 +53,34 @@ export interface InvestmentTaskComment extends CommonTaskComment {
  * Investment Task Descriptors
  * IRM uses correct field names, so we use Common descriptors directly
  */
-export const INVESTMENT_TASK_DESCRIPTORS: Descriptor[] = [...COMMON_TASK_DESCRIPTORS]
+export const INVESTMENT_TASK_DESCRIPTORS: Descriptor[] = [
+  ...COMMON_TASK_DESCRIPTORS.filter(d => !['opportunityStageCondition', 'reference'].includes(d.key)),
+  {
+    key: 'opportunityStageCondition',
+    searchPaths: ['investmentOpportunityStageCondition.opportunityPipelineStageCondition.value'],
+    sortPath: 'investmentOpportunityStageCondition.opportunityPipelineStageCondition.value',
+    type: 'text'
+  },
+  {
+    key: 'reference',
+    searchPaths: [
+      'account.name',
+      'contact.firstName',
+      'contact.lastName',
+      'investment.name',
+      'lead.firstName',
+      'lead.lastName',
+      'opportunity.name'
+    ],
+    sortPaths: [
+      'account.name',
+      'contact.firstName',
+      'contact.lastName',
+      'investment.name',
+      'lead.firstName',
+      'lead.lastName',
+      'opportunity.name'
+    ],
+    type: 'text'
+  }
+]

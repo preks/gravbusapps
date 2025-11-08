@@ -172,6 +172,7 @@ export const commonContactColumns = (): ColumnDef<CommonContact>[] => [
     minSize: 180,
     maxSize: 280,
     enableResizing: false,
+    enableSorting: false,
     cell: ({ row }) => {
       const account = getPrimaryAccount(row.original)
 

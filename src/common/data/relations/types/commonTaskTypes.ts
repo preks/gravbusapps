@@ -48,15 +48,12 @@ export const COMMON_TASK_DESCRIPTORS: Descriptor[] = [
   ...BASE_ENTITY_DESCRIPTORS,
 
   { key: 'account', searchPaths: ['account.name', 'account.code'], sortPath: 'account.name', type: 'text' },
-  { key: 'accountId', sortPath: 'accountId', type: 'text' },
   {
     key: 'assignedEmployee',
     searchPaths: ['assignedEmployee.displayName', 'assignedEmployee.firstName', 'assignedEmployee.lastName'],
     sortPath: 'assignedEmployee.displayName',
     type: 'text'
   },
-  { key: 'assignedEmployeeId', sortPath: 'assignedEmployeeId', type: 'text' },
-  { key: 'assignedUserId', searchPaths: ['assignedUserId'], sortPath: 'assignedUserId', type: 'text' },
   { key: 'code', searchPaths: ['code'], sortPath: 'code', type: 'text' },
   { key: 'comments', searchPaths: ['comments.comment'], sortPath: 'comments.comment', type: 'text' },
   {
@@ -65,15 +62,12 @@ export const COMMON_TASK_DESCRIPTORS: Descriptor[] = [
     sortPath: 'contact.lastName',
     type: 'text'
   },
-  { key: 'contactId', sortPath: 'contactId', type: 'text' },
   {
     key: 'creatorEmployee',
     searchPaths: ['creatorEmployee.displayName', 'creatorEmployee.firstName', 'creatorEmployee.lastName'],
     sortPath: 'creatorEmployee.displayName',
     type: 'text'
   },
-  { key: 'creatorEmployeeId', sortPath: 'creatorEmployeeId', type: 'text' },
-  { key: 'creatorUserId', searchPaths: ['creatorUserId'], sortPath: 'creatorUserId', type: 'text' },
   { key: 'description', searchPaths: ['description'], sortPath: 'description', type: 'text' },
   {
     key: 'documents',
@@ -83,14 +77,12 @@ export const COMMON_TASK_DESCRIPTORS: Descriptor[] = [
   },
   { key: 'dueDate', searchPaths: ['dueDate'], sortPath: 'dueDate', type: 'date' },
   { key: 'endDate', searchPaths: ['endDate'], sortPath: 'endDate', type: 'date' },
-  { key: 'id', searchPaths: ['id'], sortPath: 'id', type: 'text' },
   {
     key: 'lead',
     searchPaths: ['lead.firstName', 'lead.lastName', 'lead.companyName'],
     sortPath: 'lead.lastName',
     type: 'text'
   },
-  { key: 'leadId', sortPath: 'leadId', type: 'text' },
   { key: 'name', searchPaths: ['name'], sortPath: 'name', type: 'text' },
   {
     key: 'opportunityStageCondition',
@@ -100,11 +92,10 @@ export const COMMON_TASK_DESCRIPTORS: Descriptor[] = [
   },
   {
     key: 'opportunity',
-    searchPaths: ['opportunity.name', 'opportunity.description'],
+    searchPaths: ['opportunity.name'],
     sortPath: 'opportunity.name',
     type: 'text'
   },
-  { key: 'opportunityId', sortPath: 'opportunityId', type: 'text' },
   { key: 'source', searchPaths: ['source'], sortPath: 'source', type: 'text' },
   { key: 'startDate', searchPaths: ['startDate'], sortPath: 'startDate', type: 'date' },
   {
@@ -113,16 +104,13 @@ export const COMMON_TASK_DESCRIPTORS: Descriptor[] = [
     sortPath: 'taskPriority.value',
     type: 'text'
   },
-  { key: 'taskPriorityRef', sortPath: 'taskPriorityRef', type: 'text' },
   {
     key: 'taskStatus',
     searchPaths: ['taskStatus.value', 'taskStatus.code'],
     sortPath: 'taskStatus.value',
     type: 'text'
   },
-  { key: 'taskStatusRef', sortPath: 'taskStatusRef', type: 'text' },
   { key: 'taskTemplate', searchPaths: ['taskTemplate.name'], sortPath: 'taskTemplate.name', type: 'text' },
-  { key: 'taskTemplateId', sortPath: 'taskTemplateId', type: 'text' },
   { key: 'taskTiming', searchPaths: ['taskTiming'], sortPath: 'taskTiming', type: 'text' },
   {
     key: 'taskType',
@@ -130,10 +118,10 @@ export const COMMON_TASK_DESCRIPTORS: Descriptor[] = [
     sortPath: 'taskType.value',
     type: 'text'
   },
-  { key: 'taskTypeRef', sortPath: 'taskTypeRef', type: 'text' },
   { key: 'templateStartDate', searchPaths: ['templateStartDate'], sortPath: 'templateStartDate', type: 'date' },
 
   // Filter IDs
+  { key: 'id', path: 'id', kind: 'inIds' },
   { key: 'accountIds', path: 'accountId', kind: 'inIds' },
   { key: 'assignedEmployeeIds', path: 'assignedEmployeeId', kind: 'inIds' },
   { key: 'contactIds', path: 'contactId', kind: 'inIds' },
@@ -163,35 +151,23 @@ export const COMMON_TASK_DESCRIPTORS: Descriptor[] = [
     sortPath: 'assignedEmployee.displayName',
     type: 'text'
   },
-
-  // type: Displays taskType catalog entry - sorts by taskType.value
-  { key: 'type', searchPaths: ['taskType.value', 'taskType.code'], sortPath: 'taskType.value', type: 'text' },
-
   // priority: Displays taskPriority catalog entry - sorts by taskPriority.value
-  {
-    key: 'priority',
-    searchPaths: ['taskPriority.value', 'taskPriority.code'],
-    sortPath: 'taskPriority.value',
-    type: 'text'
-  },
 
   // status: Displays taskStatus catalog entry - sorts by taskStatus.value
-  { key: 'status', searchPaths: ['taskStatus.value', 'taskStatus.code'], sortPath: 'taskStatus.value', type: 'text' },
-
   // reference: Displays referenceType and referenceId - sorts by reference name fields in priority order
   // Uses sortPaths to try multiple fields (account.name, contact.lastName, lead.lastName, opportunity.name)
   // GraphQL will use the first available field for sorting
   {
     key: 'reference',
-    searchPaths: [
-      'referenceType',
-      'referenceId',
+    searchPaths: ['account.name', 'contact.lastName', 'lead.lastName', 'opportunity.name'],
+    sortPaths: [
       'account.name',
+      'contact.firstName',
       'contact.lastName',
+      'lead.firstName',
       'lead.lastName',
       'opportunity.name'
     ],
-    sortPaths: ['account.name', 'contact.lastName', 'lead.lastName', 'opportunity.name'],
     type: 'text'
   },
 

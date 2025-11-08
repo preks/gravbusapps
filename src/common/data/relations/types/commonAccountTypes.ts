@@ -56,11 +56,6 @@ export const COMMON_ACCOUNT_DESCRIPTORS: Descriptor[] = [
     type: 'text'
   },
   {
-    key: 'accountAnnualRevenueBandRef',
-    sortPath: 'accountAnnualRevenueBandRef',
-    type: 'text'
-  },
-  {
     key: 'accountContacts',
     searchPaths: ['accountContacts.contact.firstName', 'accountContacts.contact.lastName'],
     sortPaths: ['accountContacts.contact.firstName', 'accountContacts.contact.lastName'],
@@ -74,8 +69,8 @@ export const COMMON_ACCOUNT_DESCRIPTORS: Descriptor[] = [
   },
   {
     key: 'addresses',
-    searchPaths: ['addresses.addressLine', 'addresses.locality'],
-    enableSort: false,
+    searchPaths: ['addresses.locality', 'addresses.postalCode', 'addresses.region.value', 'addresses.country.value'],
+    sortPaths: ['addresses.locality', 'addresses.postalCode', 'addresses.region.value', 'addresses.country.value'],
     type: 'text'
   },
   { key: 'code', searchPaths: ['code'], sortPath: 'code', type: 'text' },
@@ -91,13 +86,6 @@ export const COMMON_ACCOUNT_DESCRIPTORS: Descriptor[] = [
     sortPath: 'companySize.value',
     type: 'text'
   },
-  { key: 'companySizeRef', sortPath: 'companySizeRef', type: 'text' },
-  {
-    key: 'contacts',
-    searchPaths: ['contacts.firstName', 'contacts.lastName'],
-    sortPath: 'contacts.lastName',
-    type: 'text'
-  },
   {
     key: 'documents',
     searchPaths: ['documents.name', 'documents.description'],
@@ -105,14 +93,12 @@ export const COMMON_ACCOUNT_DESCRIPTORS: Descriptor[] = [
     type: 'text'
   },
   { key: 'foundationDate', searchPaths: ['foundationDate'], sortPath: 'foundationDate', type: 'date' },
-  { key: 'id', searchPaths: ['id'], sortPath: 'id', type: 'text' },
   {
     key: 'industryClass',
     searchPaths: ['industryClass.value', 'industryClass.code'],
     sortPath: 'industryClass.value',
     type: 'text'
   },
-  { key: 'industryClassRef', sortPath: 'industryClassRef', type: 'text' },
   {
     key: 'leads',
     searchPaths: ['leads.firstName', 'leads.lastName', 'leads.companyName'],
@@ -125,14 +111,13 @@ export const COMMON_ACCOUNT_DESCRIPTORS: Descriptor[] = [
     sortPath: 'legalForm.value',
     type: 'text'
   },
-  { key: 'legalFormRef', sortPath: 'legalFormRef', type: 'text' },
   { key: 'liquidationDate', searchPaths: ['liquidationDate'], sortPath: 'liquidationDate', type: 'date' },
   { key: 'name', searchPaths: ['name'], sortPath: 'name', type: 'text' },
-  { key: 'notes', searchPaths: ['notes.subject', 'notes.content'], sortPath: 'notes.subject', type: 'text' },
+  { key: 'notes', searchPaths: ['notes.title', 'notes.text'], sortPath: 'notes.title', type: 'text' },
   { key: 'notesSummary', searchPaths: ['notesSummary'], sortPath: 'notesSummary', type: 'text' },
   {
     key: 'opportunities',
-    searchPaths: ['opportunities.name', 'opportunities.description'],
+    searchPaths: ['opportunities.name'],
     sortPath: 'opportunities.name',
     type: 'text'
   },
@@ -142,17 +127,15 @@ export const COMMON_ACCOUNT_DESCRIPTORS: Descriptor[] = [
     sortPath: 'ownerEmployee.displayName',
     type: 'text'
   },
-  { key: 'ownerEmployeeId', sortPath: 'ownerEmployeeId', type: 'text' },
   { key: 'picture', searchPaths: ['picture'], sortPath: 'picture', type: 'text' },
   { key: 'pictureThumbnail', searchPaths: ['pictureThumbnail'], sortPath: 'pictureThumbnail', type: 'text' },
-  { key: 'tasks', searchPaths: ['tasks.subject', 'tasks.description'], sortPath: 'tasks.subject', type: 'text' },
+  { key: 'tasks', searchPaths: ['tasks.name', 'tasks.description'], sortPath: 'tasks.name', type: 'text' },
   {
     key: 'timeZone',
     searchPaths: ['timeZone.value', 'timeZone.code'],
     sortPath: 'timeZone.value',
     type: 'text'
   },
-  { key: 'timeZoneRef', sortPath: 'timeZoneRef', type: 'text' },
 
   // Filter IDs for Refs
   { key: 'accountAnnualRevenueBandIds', path: 'accountAnnualRevenueBandRef', kind: 'inIds' },

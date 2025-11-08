@@ -6,7 +6,6 @@
 import type { CommonContact } from '@/common/data/relations/types/commonContactTypes'
 import { COMMON_CONTACT_DESCRIPTORS } from '@/common/data/relations/types/commonContactTypes'
 import type { Descriptor } from '@/common/network/graphql/queryHelpers'
-import type { CustomerAccount } from './customerAccountTypes'
 import type { CustomerActivity } from './customerActivityTypes'
 import type { CustomerAddress } from './customerAddressTypes'
 import type { CustomerCommunicationChannel } from './customerCommunicationChannelTypes'
@@ -39,9 +38,6 @@ export interface CustomerContact extends CommonContact {
   leadId?: string // Mapped to leads relationship
   pictureUrl?: string // Mapped to picture
   pictureThumbnailUrl?: string // Mapped to pictureThumbnail
-  // CRM deprecated fields (used to build accountContacts array)
-  accountId?: string // Mapped to accountContacts
-  account?: CustomerAccount // Mapped to accountContacts
 }
 
 /**
@@ -51,11 +47,42 @@ export interface CustomerContact extends CommonContact {
 export const CUSTOMER_CONTACT_DESCRIPTORS: Descriptor[] = [
   // Filter out descriptors we need to override for CRM wrong field names
   ...COMMON_CONTACT_DESCRIPTORS.filter(
-    d => !['jobPosition', 'picture', 'pictureThumbnail', 'type', 'account'].includes(d.key)
+    d =>
+      ![
+        'addresses',
+        'contact',
+        'description',
+        'fullName',
+        'jobPosition',
+        'leads',
+        'notes',
+        'picture',
+        'pictureThumbnail',
+        'type',
+        'account'
+      ].includes(d.key)
   ),
+  {
+    key: 'addresses',
+    searchPaths: ['addresses.city', 'addresses.postalCode', 'addresses.region.value', 'addresses.country.value'],
+    sortPaths: ['addresses.city', 'addresses.postalCode', 'addresses.region.value', 'addresses.country.value'],
+    type: 'text'
+  },
 
   // CRM-specific path overrides (key remains IRM-correct name, but paths use CRM field names)
   { key: 'jobPosition', searchPaths: ['jobTitle'], sortPath: 'jobTitle', type: 'text' }, // CRM: jobTitle
+  {
+    key: 'leads',
+    searchPaths: ['lead.firstName', 'lead.lastName', 'lead.companyName'],
+    sortPaths: ['lead.firstName', 'lead.lastName', 'lead.companyName'],
+    type: 'text'
+  },
+  {
+    key: 'notes',
+    searchPaths: ['notes.noteTitle', 'notes.noteText'],
+    sortPaths: ['notes.noteTitle', 'notes.noteText'],
+    type: 'text'
+  },
   { key: 'picture', searchPaths: ['pictureUrl'], sortPath: 'pictureUrl', type: 'text' }, // CRM: pictureUrl
   {
     key: 'pictureThumbnail',
@@ -63,12 +90,5 @@ export const CUSTOMER_CONTACT_DESCRIPTORS: Descriptor[] = [
     sortPath: 'pictureThumbnailUrl',
     type: 'text'
   }, // CRM: pictureThumbnailUrl
-  { key: 'type', searchPaths: ['contactType'], sortPath: 'contactType', type: 'text' }, // CRM: contactType
-  // CRM uses deprecated accountId/account instead of accountContacts array
-  {
-    key: 'account',
-    searchPaths: ['account.name'],
-    sortPath: 'account.name',
-    type: 'text'
-  } // CRM: account.name (not accountContacts.account.name)
+  { key: 'type', searchPaths: ['contactType'], sortPath: 'contactType', type: 'text' } // CRM: contactType
 ]

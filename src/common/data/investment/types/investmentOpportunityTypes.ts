@@ -1,7 +1,4 @@
-/**
- * Investment Opportunity Types
- */
-
+import type { CatalogEntry } from '@/common/network/graphql/commonTypes'
 import type {
   CommonOpportunity,
   CommonOpportunityStageCondition
@@ -39,6 +36,31 @@ export interface InvestmentOpportunity extends CommonOpportunity {
   rejectionReasons?: any[]
   tasks?: InvestmentTask[]
 
+  // IRM-specific fields
+  annualNetColdRent?: number // IRM specific
+  buildingYear?: string // IRM specific
+  dealType?: string // IRM specific
+  divestmentId?: string // IRM specific
+  forecastedProfitAmount?: number // IRM specific
+  initialInvestmentAmount?: number // IRM specific
+  investmentGroup?: CatalogEntry // IRM specific
+  investmentGroupRef?: string // IRM specific
+  investmentName?: string // IRM specific
+  investmentRole?: CatalogEntry // IRM specific
+  investmentRoleRef?: string // IRM specific
+  investmentStakeType?: CatalogEntry // IRM specific
+  investmentStakeTypeRef?: string // IRM specific
+  investmentType?: CatalogEntry // IRM specific
+  investmentTypeRef?: string // IRM specific
+  loanAmount?: number // IRM specific
+  loanInterestRate?: number // IRM specific
+  marketValue?: number // IRM specific
+  requiredCapitalAmount?: number // IRM specific
+  size?: number // IRM specific
+  sizeMeasurementUnit?: CatalogEntry // IRM specific
+  sizeMeasurementUnitRef?: string // IRM specific
+  stakePercentage?: number // IRM specific
+
   // Base fields for mapping (IRM-specific GraphQL field names that need mapping)
   investment?: Investment[] // Mapped to investments (singular in GraphQL)
   investmentActivity?: InvestmentActivity[] // Duplicate - mapped to activities
@@ -64,6 +86,114 @@ export interface InvestmentOpportunityStageCondition extends CommonOpportunitySt
 
 /**
  * Investment Opportunity Descriptors
- * IRM uses correct field names, so we use Common descriptors directly
+ * Extends Common descriptors with IRM-specific fields
  */
-export const INVESTMENT_OPPORTUNITY_DESCRIPTORS: Descriptor[] = [...COMMON_OPPORTUNITY_DESCRIPTORS]
+export const INVESTMENT_OPPORTUNITY_DESCRIPTORS: Descriptor[] = [
+  // Filter out descriptors we need to override for CRM wrong field names
+  ...COMMON_OPPORTUNITY_DESCRIPTORS.filter(
+    d => !['leads', 'opportunityContacts', 'opportunityStageConditions'].includes(d.key)
+  ),
+
+  // IRM-specific descriptors
+  { key: 'annualNetColdRent', searchPaths: ['annualNetColdRent'], sortPath: 'annualNetColdRent', type: 'number' },
+  { key: 'buildingYear', searchPaths: ['buildingYear'], sortPath: 'buildingYear', type: 'text' },
+  { key: 'dealType', searchPaths: ['dealType'], sortPath: 'dealType', type: 'text' },
+  { key: 'divestment', searchPaths: ['divestment.name'], sortPath: 'divestment.name', type: 'text' },
+  {
+    key: 'forecastedProfitAmount',
+    searchPaths: ['forecastedProfitAmount'],
+    sortPath: 'forecastedProfitAmount',
+    type: 'number'
+  },
+  {
+    key: 'initialInvestmentAmount',
+    searchPaths: ['initialInvestmentAmount'],
+    sortPath: 'initialInvestmentAmount',
+    type: 'number'
+  },
+  {
+    key: 'investments',
+    searchPaths: ['investment.name', 'investment.code'],
+    sortPath: 'investment.name',
+    type: 'text'
+  },
+  {
+    key: 'investmentGroup',
+    searchPaths: ['investmentGroup.value', 'investmentGroup.code'],
+    sortPath: 'investmentGroup.value',
+    type: 'text'
+  },
+  { key: 'investmentName', searchPaths: ['investmentName'], sortPath: 'investmentName', type: 'text' },
+  {
+    key: 'investmentRole',
+    searchPaths: ['investmentRole.value', 'investmentRole.code'],
+    sortPath: 'investmentRole.value',
+    type: 'text'
+  },
+  {
+    key: 'investmentStakeType',
+    searchPaths: ['investmentStakeType.value', 'investmentStakeType.code'],
+    sortPath: 'investmentStakeType.value',
+    type: 'text'
+  },
+  {
+    key: 'investmentStakeTypeRef',
+    sortPath: 'investmentStakeTypeRef',
+    type: 'text'
+  },
+  {
+    key: 'investmentType',
+    searchPaths: ['investmentType.value', 'investmentType.code'],
+    sortPath: 'investmentType.value',
+    type: 'text'
+  },
+  {
+    key: 'leads',
+    searchPaths: ['investmentLead.firstName', 'investmentLead.lastName', 'investmentLead.companyName'],
+    sortPaths: ['investmentLead.firstName', 'investmentLead.lastName', 'investmentLead.companyName'],
+    type: 'text'
+  },
+  { key: 'loanAmount', searchPaths: ['loanAmount'], sortPath: 'loanAmount', type: 'number' },
+  { key: 'loanInterestRate', searchPaths: ['loanInterestRate'], sortPath: 'loanInterestRate', type: 'number' },
+  { key: 'marketValue', searchPaths: ['marketValue'], sortPath: 'marketValue', type: 'number' },
+  {
+    key: 'opportunityContacts',
+    searchPaths: ['investmentOpportunityContact.contact.firstName', 'investmentOpportunityContact.contact.lastName'],
+    sortPaths: ['investmentOpportunityContact.contact.firstName', 'investmentOpportunityContact.contact.lastName'],
+    type: 'text'
+  },
+  {
+    key: 'opportunityStageConditions',
+    searchPaths: ['investmentOpportunityStageCondition.opportunityPipelineStageCondition.value'],
+    sortPaths: ['investmentOpportunityStageCondition.opportunityPipelineStageCondition.value'],
+    type: 'text'
+  },
+  {
+    key: 'requiredCapitalAmount',
+    searchPaths: ['requiredCapitalAmount'],
+    sortPath: 'requiredCapitalAmount',
+    type: 'number'
+  },
+  { key: 'size', searchPaths: ['size'], sortPath: 'size', type: 'number' },
+  {
+    key: 'sizeMeasurementUnit',
+    searchPaths: ['sizeMeasurementUnit.value', 'sizeMeasurementUnit.code'],
+    sortPath: 'sizeMeasurementUnit.value',
+    type: 'text'
+  },
+  {
+    key: 'sizeMeasurementUnitRef',
+    sortPath: 'sizeMeasurementUnitRef',
+    type: 'text'
+  },
+  { key: 'stakePercentage', searchPaths: ['stakePercentage'], sortPath: 'stakePercentage', type: 'number' },
+
+  // IRM-specific filter IDs
+  { key: 'divestmentIds', path: 'divestmentId', kind: 'inIds' },
+  { key: 'investmentIds', path: 'investment.id', kind: 'inIds' },
+  { key: 'investmentGroupIds', path: 'investmentGroupRef', kind: 'inIds' },
+  { key: 'investmentRoleIds', path: 'investmentRoleRef', kind: 'inIds' },
+  { key: 'investmentStakeTypeIds', path: 'investmentStakeTypeRef', kind: 'inIds' },
+  { key: 'investmentTypeIds', path: 'investmentTypeRef', kind: 'inIds' },
+  { key: 'sizeMeasurementUnitIds', path: 'sizeMeasurementUnitRef', kind: 'inIds' }
+]

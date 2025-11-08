@@ -6,7 +6,7 @@ import type { CommonAccount, CommonAccountFilters } from '@/common/data/relation
 import { COMMON_ACCOUNT_DESCRIPTORS } from '@/common/data/relations/types/commonAccountTypes'
 import type { Descriptor } from '@/common/network/graphql/queryHelpers'
 import type { Investment } from './investmentTypes'
-import type { InvestmentReport } from './investmentReportTypes'
+import type { InvestmentReport } from './investmentTypes'
 import type { InvestmentAddress } from './investmentAddressTypes'
 import type { InvestmentCommunicationChannel } from './investmentCommunicationChannelTypes'
 import type { InvestmentOpportunity } from './investmentOpportunityTypes'
@@ -55,11 +55,58 @@ export interface InvestmentAccount extends CommonAccount {
  * Add IRM-specific fields that don't exist in CRM
  */
 export const INVESTMENT_ACCOUNT_DESCRIPTORS: Descriptor[] = [
-  ...COMMON_ACCOUNT_DESCRIPTORS.filter(d => d.key !== 'accountContacts'),
+  ...COMMON_ACCOUNT_DESCRIPTORS.filter(
+    d =>
+      ![
+        'accountContacts',
+        'activities',
+        'addresses',
+        'communicationChannels',
+        'documents',
+        'leads',
+        'notes',
+        'opportunities',
+        'tasks'
+      ].includes(d.key)
+  ),
   {
     key: 'accountContacts',
     searchPaths: ['investmentAccountContact.account.name'],
     sortPath: 'investmentAccountContact.account.name',
+    type: 'text'
+  },
+  {
+    key: 'activities',
+    searchPaths: ['investmentActivity.title', 'investmentActivity.description'],
+    sortPath: 'investmentActivity.title',
+    type: 'text'
+  },
+  {
+    key: 'addresses',
+    searchPaths: [
+      'investmentAddress.locality',
+      'investmentAddress.postalCode',
+      'investmentAddress.region.value',
+      'investmentAddress.country.value'
+    ],
+    sortPaths: [
+      'investmentAddress.locality',
+      'investmentAddress.postalCode',
+      'investmentAddress.region.value',
+      'investmentAddress.country.value'
+    ],
+    type: 'text'
+  },
+  {
+    key: 'communicationChannels',
+    searchPaths: ['investmentCommunicationChannel.value'],
+    sortPath: 'investmentCommunicationChannel.value',
+    type: 'text'
+  },
+  {
+    key: 'documents',
+    searchPaths: ['investmentDocument.name', 'investmentDocument.description'],
+    sortPath: 'investmentDocument.name',
     type: 'text'
   },
 
@@ -71,9 +118,27 @@ export const INVESTMENT_ACCOUNT_DESCRIPTORS: Descriptor[] = [
     type: 'text'
   },
   {
-    key: 'investmentReports',
-    searchPaths: ['investmentReport.name', 'investmentReport.code'],
-    sortPath: 'investmentReport.name',
+    key: 'leads',
+    searchPaths: ['investmentLead.firstName', 'investmentLead.lastName', 'investmentLead.companyName'],
+    sortPath: 'investmentLead.lastName',
+    type: 'text'
+  },
+  {
+    key: 'notes',
+    searchPaths: ['investmentNote.title', 'investmentNote.text'],
+    sortPath: 'investmentNote.title',
+    type: 'text'
+  },
+  {
+    key: 'opportunities',
+    searchPaths: ['investmentOpportunity.name', 'investmentOpportunity.investmentName'],
+    sortPath: 'investmentOpportunity.name',
+    type: 'text'
+  },
+  {
+    key: 'tasks',
+    searchPaths: ['investmentTask.name', 'investmentTask.description'],
+    sortPath: 'investmentTask.name',
     type: 'text'
   },
 

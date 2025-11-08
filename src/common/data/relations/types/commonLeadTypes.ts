@@ -66,16 +66,10 @@ export const COMMON_LEAD_DESCRIPTORS: Descriptor[] = [
     sortPath: 'academicTitle.value',
     type: 'text'
   },
-  { key: 'academicTitleRef', sortPath: 'academicTitleRef', type: 'text' },
   {
     key: 'accountAnnualRevenueBand',
     searchPaths: ['accountAnnualRevenueBand.value', 'accountAnnualRevenueBand.code'],
     sortPath: 'accountAnnualRevenueBand.value',
-    type: 'text'
-  },
-  {
-    key: 'accountAnnualRevenueBandRef',
-    sortPath: 'accountAnnualRevenueBandRef',
     type: 'text'
   },
   {
@@ -95,27 +89,19 @@ export const COMMON_LEAD_DESCRIPTORS: Descriptor[] = [
     sortPath: 'companySize.value',
     type: 'text'
   },
-  { key: 'companySizeRef', sortPath: 'companySizeRef', type: 'text' },
   { key: 'companyWebsite', searchPaths: ['companyWebsite'], sortPath: 'companyWebsite', type: 'text' },
   { key: 'conversionDate', searchPaths: ['conversionDate'], sortPath: 'conversionDate', type: 'date' },
   { key: 'convertedAccount', searchPaths: ['convertedAccount.name'], sortPath: 'convertedAccount.name', type: 'text' },
-  { key: 'convertedAccountId', sortPath: 'convertedAccountId', type: 'text' },
   {
     key: 'convertedContact',
     searchPaths: ['convertedContact.firstName', 'convertedContact.lastName'],
     sortPath: 'convertedContact.lastName',
     type: 'text'
   },
-  { key: 'convertedContactId', sortPath: 'convertedContactId', type: 'text' },
   {
     key: 'convertedOpportunity',
     searchPaths: ['convertedOpportunity.name'],
     sortPath: 'convertedOpportunity.name',
-    type: 'text'
-  },
-  {
-    key: 'convertedOpportunityId',
-    sortPath: 'convertedOpportunityId',
     type: 'text'
   },
   {
@@ -124,7 +110,6 @@ export const COMMON_LEAD_DESCRIPTORS: Descriptor[] = [
     sortPath: 'country.value',
     type: 'text'
   },
-  { key: 'countryRef', sortPath: 'countryRef', type: 'text' },
   { key: 'description', searchPaths: ['description'], sortPath: 'description', type: 'text' },
   {
     key: 'documents',
@@ -134,14 +119,12 @@ export const COMMON_LEAD_DESCRIPTORS: Descriptor[] = [
   },
   { key: 'email', searchPaths: ['email'], sortPath: 'email', type: 'text' },
   { key: 'firstName', searchPaths: ['firstName'], sortPath: 'firstName', type: 'text' },
-  { key: 'id', searchPaths: ['id'], sortPath: 'id', type: 'text' },
   {
     key: 'industryClass',
     searchPaths: ['industryClass.value', 'industryClass.code'],
     sortPath: 'industryClass.value',
     type: 'text'
   },
-  { key: 'industryClassRef', sortPath: 'industryClassRef', type: 'text' },
   { key: 'lastName', searchPaths: ['lastName'], sortPath: 'lastName', type: 'text' },
   {
     key: 'lead',
@@ -155,36 +138,32 @@ export const COMMON_LEAD_DESCRIPTORS: Descriptor[] = [
     sortPath: 'leadRating.value',
     type: 'text'
   },
-  { key: 'leadRatingRef', sortPath: 'leadRatingRef', type: 'text' },
   {
     key: 'leadSource',
     searchPaths: ['leadSource.value', 'leadSource.code'],
     sortPath: 'leadSource.value',
     type: 'text'
   },
-  { key: 'leadSourceRef', sortPath: 'leadSourceRef', type: 'text' },
   {
     key: 'leadStatus',
     searchPaths: ['leadStatus.value', 'leadStatus.code'],
     sortPath: 'leadStatus.value',
     type: 'text'
   },
-  { key: 'leadStatusRef', sortPath: 'leadStatusRef', type: 'text' },
   {
     key: 'address',
-    searchPaths: ['addressLine', 'postalCode', 'locality', 'region.value', 'country.value'],
-    sortPaths: ['addressLine.lines[0]', 'postalCode', 'locality', 'region.value', 'country.value'],
+    searchPaths: ['postalCode', 'locality', 'region.value', 'country.value'],
+    sortPaths: ['postalCode', 'locality', 'region.value', 'country.value'],
     type: 'text'
   },
   { key: 'locality', searchPaths: ['locality'], sortPath: 'locality', type: 'text' },
-  { key: 'notes', searchPaths: ['notes.subject', 'notes.content'], sortPath: 'notes.subject', type: 'text' },
+  { key: 'notes', searchPaths: ['notes.title', 'notes.text'], sortPath: 'notes.title', type: 'text' },
   {
     key: 'ownerEmployee',
     searchPaths: ['ownerEmployee.displayName', 'ownerEmployee.firstName', 'ownerEmployee.lastName'],
     sortPath: 'ownerEmployee.displayName',
     type: 'text'
   },
-  { key: 'ownerEmployeeId', sortPath: 'ownerEmployeeId', type: 'text' },
   { key: 'phoneNumber', searchPaths: ['phoneNumber'], sortPath: 'phoneNumber', type: 'text' },
   { key: 'position', searchPaths: ['position'], sortPath: 'position', type: 'text' },
   { key: 'postalCode', searchPaths: ['postalCode'], sortPath: 'postalCode', type: 'text' },
@@ -194,11 +173,10 @@ export const COMMON_LEAD_DESCRIPTORS: Descriptor[] = [
     sortPath: 'region.value',
     type: 'text'
   },
-  { key: 'regionRef', sortPath: 'regionRef', type: 'text' },
   {
     key: 'rejectionReasons',
-    searchPaths: ['rejectionReasons.reason'],
-    sortPath: 'rejectionReasons.reason',
+    searchPaths: ['rejectionReasons.rejectionReason.value'],
+    sortPath: 'rejectionReasons.rejectionRason.value',
     type: 'text'
   },
   {
@@ -207,7 +185,6 @@ export const COMMON_LEAD_DESCRIPTORS: Descriptor[] = [
     sortPath: 'salutation.value',
     type: 'text'
   },
-  { key: 'salutationRef', sortPath: 'salutationRef', type: 'text' },
   { key: 'sensitive', searchPaths: ['sensitive'], sortPath: 'sensitive', type: 'boolean' },
   { key: 'sourceCompanyName', searchPaths: ['sourceCompanyName'], sortPath: 'sourceCompanyName', type: 'text' },
   {
@@ -216,7 +193,7 @@ export const COMMON_LEAD_DESCRIPTORS: Descriptor[] = [
     sortPath: 'sourceIndividualName',
     type: 'text'
   },
-  { key: 'tasks', searchPaths: ['tasks.subject', 'tasks.description'], sortPath: 'tasks.subject', type: 'text' },
+  { key: 'tasks', searchPaths: ['tasks.name', 'tasks.description'], sortPath: 'tasks.name', type: 'text' },
 
   // Filter IDs
   { key: 'academicTitleIds', path: 'academicTitleRef', kind: 'inIds' },
@@ -245,8 +222,5 @@ export const COMMON_LEAD_DESCRIPTORS: Descriptor[] = [
     searchPaths: ['email', 'phoneNumber', 'companyWebsite'],
     enableSort: false,
     type: 'text'
-  },
-
-  // address: Displays addressLine, locality, postalCode, region, country - not sortable
-  { key: 'address', searchPaths: ['locality', 'postalCode', 'addressLine'], enableSort: false, type: 'text' }
+  }
 ]

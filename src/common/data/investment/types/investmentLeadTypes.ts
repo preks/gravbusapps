@@ -71,7 +71,6 @@ export const INVESTMENT_LEAD_DESCRIPTORS: Descriptor[] = [
     sortPath: 'investmentGroup.value',
     type: 'text'
   },
-  { key: 'investmentGroupRef', searchPaths: ['investmentGroupRef'], sortPath: 'investmentGroupRef', type: 'text' },
   { key: 'investmentName', searchPaths: ['investmentName'], sortPath: 'investmentName', type: 'text' },
   {
     key: 'investmentRole',
@@ -79,17 +78,10 @@ export const INVESTMENT_LEAD_DESCRIPTORS: Descriptor[] = [
     sortPath: 'investmentRole.value',
     type: 'text'
   },
-  { key: 'investmentRoleRef', searchPaths: ['investmentRoleRef'], sortPath: 'investmentRoleRef', type: 'text' },
   {
     key: 'investmentStakeType',
     searchPaths: ['investmentStakeType.value', 'investmentStakeType.code'],
     sortPath: 'investmentStakeType.value',
-    type: 'text'
-  },
-  {
-    key: 'investmentStakeTypeRef',
-    searchPaths: ['investmentStakeTypeRef'],
-    sortPath: 'investmentStakeTypeRef',
     type: 'text'
   },
   {
@@ -98,7 +90,6 @@ export const INVESTMENT_LEAD_DESCRIPTORS: Descriptor[] = [
     sortPath: 'investmentType.value',
     type: 'text'
   },
-  { key: 'investmentTypeRef', searchPaths: ['investmentTypeRef'], sortPath: 'investmentTypeRef', type: 'text' },
   { key: 'leadSourceType', searchPaths: ['leadSourceType'], sortPath: 'leadSourceType', type: 'text' },
   {
     key: 'legalForm',
@@ -106,7 +97,6 @@ export const INVESTMENT_LEAD_DESCRIPTORS: Descriptor[] = [
     sortPath: 'legalForm.value',
     type: 'text'
   },
-  { key: 'legalFormRef', searchPaths: ['legalFormRef'], sortPath: 'legalFormRef', type: 'text' },
   { key: 'loanAmount', searchPaths: ['loanAmount'], sortPath: 'loanAmount', type: 'number' },
   { key: 'loanInterestRate', searchPaths: ['loanInterestRate'], sortPath: 'loanInterestRate', type: 'number' },
   { key: 'marketValue', searchPaths: ['marketValue'], sortPath: 'marketValue', type: 'number' },
@@ -123,12 +113,6 @@ export const INVESTMENT_LEAD_DESCRIPTORS: Descriptor[] = [
     sortPath: 'sizeMeasurementUnit.value',
     type: 'text'
   },
-  {
-    key: 'sizeMeasurementUnitRef',
-    searchPaths: ['sizeMeasurementUnitRef'],
-    sortPath: 'sizeMeasurementUnitRef',
-    type: 'text'
-  },
   { key: 'stakePercentage', searchPaths: ['stakePercentage'], sortPath: 'stakePercentage', type: 'number' },
   {
     key: 'timeZone',
@@ -136,7 +120,6 @@ export const INVESTMENT_LEAD_DESCRIPTORS: Descriptor[] = [
     sortPath: 'timeZone.value',
     type: 'text'
   },
-  { key: 'timeZoneRef', searchPaths: ['timeZoneRef'], sortPath: 'timeZoneRef', type: 'text' },
 
   // IRM-specific filter IDs
   { key: 'investmentGroupIds', path: 'investmentGroupRef', kind: 'inIds' },

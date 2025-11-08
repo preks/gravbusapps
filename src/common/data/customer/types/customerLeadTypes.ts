@@ -40,13 +40,12 @@ export const CUSTOMER_LEAD_DESCRIPTORS: Descriptor[] = [
     d =>
       ![
         'accountAnnualRevenueBand',
-        'accountAnnualRevenueBandRef',
         'address',
         'companySize',
-        'companySizeRef',
         'industryClass',
-        'industryClassRef',
         'locality',
+        'notes',
+        'rejectionReasons',
         'accountAnnualRevenueBandIds',
         'companySizeIds',
         'industryClassIds'
@@ -60,21 +59,19 @@ export const CUSTOMER_LEAD_DESCRIPTORS: Descriptor[] = [
     sortPath: 'annualRevenue.value',
     type: 'text'
   },
-  { key: 'accountAnnualRevenueBandRef', searchPaths: ['annualRevenueRef'], sortPath: 'annualRevenueRef', type: 'text' },
   {
     key: 'companySize',
     searchPaths: ['numberOfEmployees.value', 'numberOfEmployees.code'],
     sortPath: 'numberOfEmployees.value',
     type: 'text'
   },
-  { key: 'companySizeRef', searchPaths: ['numberOfEmployeesRef'], sortPath: 'numberOfEmployeesRef', type: 'text' },
   {
     key: 'industryClass',
     searchPaths: ['industry.value', 'industry.code'],
     sortPath: 'industry.value',
     type: 'text'
   },
-  { key: 'industryClassRef', searchPaths: ['industryRef'], sortPath: 'industryRef', type: 'text' },
+  { key: 'notes', searchPaths: ['notes.noteTitle', 'notes.noteText'], sortPath: 'notes.noteTitle', type: 'text' },
   {
     key: 'address',
     searchPaths: ['addressLine', 'postalCode', 'city', 'region.value', 'country.value'],

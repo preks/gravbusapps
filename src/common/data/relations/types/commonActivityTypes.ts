@@ -32,14 +32,12 @@ export const COMMON_ACTIVITY_DESCRIPTORS: Descriptor[] = [
   ...BASE_ENTITY_DESCRIPTORS,
 
   { key: 'account', searchPaths: ['account.name', 'account.code'], sortPath: 'account.name', type: 'text' },
-  { key: 'accountId', sortPath: 'accountId', type: 'text' },
   {
     key: 'activityType',
     searchPaths: ['activityType.value', 'activityType.code'],
     sortPath: 'activityType.value',
     type: 'text'
   },
-  { key: 'activityTypeRef', sortPath: 'activityTypeRef', type: 'text' },
   { key: 'completedAt', searchPaths: ['completedAt'], sortPath: 'completedAt', type: 'date' },
   {
     key: 'contact',
@@ -47,7 +45,6 @@ export const COMMON_ACTIVITY_DESCRIPTORS: Descriptor[] = [
     sortPath: 'contact.lastName',
     type: 'text'
   },
-  { key: 'contactId', sortPath: 'contactId', type: 'text' },
   { key: 'description', searchPaths: ['description'], sortPath: 'description', type: 'text' },
   {
     key: 'documents',
@@ -55,14 +52,12 @@ export const COMMON_ACTIVITY_DESCRIPTORS: Descriptor[] = [
     sortPath: 'documents.name',
     type: 'text'
   },
-  { key: 'id', searchPaths: ['id'], sortPath: 'id', type: 'text' },
   {
     key: 'lead',
     searchPaths: ['lead.firstName', 'lead.lastName', 'lead.companyName'],
     sortPath: 'lead.lastName',
     type: 'text'
   },
-  { key: 'leadId', sortPath: 'leadId', type: 'text' },
   { key: 'occurredAt', searchPaths: ['occurredAt'], sortPath: 'occurredAt', type: 'date' },
   {
     key: 'opportunity',
@@ -70,14 +65,12 @@ export const COMMON_ACTIVITY_DESCRIPTORS: Descriptor[] = [
     sortPath: 'opportunity.name',
     type: 'text'
   },
-  { key: 'opportunityId', sortPath: 'opportunityId', type: 'text' },
   {
     key: 'ownerEmployee',
     searchPaths: ['ownerEmployee.displayName', 'ownerEmployee.firstName', 'ownerEmployee.lastName'],
     sortPath: 'ownerEmployee.displayName',
     type: 'text'
   },
-  { key: 'ownerEmployeeId', sortPath: 'ownerEmployeeId', type: 'text' },
   { key: 'source', searchPaths: ['source'], sortPath: 'source', type: 'text' },
   { key: 'title', searchPaths: ['title'], sortPath: 'title', type: 'text' },
 

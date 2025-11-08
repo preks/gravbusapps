@@ -32,11 +32,23 @@ export interface InvestmentContact extends CommonContact {
  * IRM uses investmentAccountContact instead of accountContacts in GraphQL
  */
 export const INVESTMENT_CONTACT_DESCRIPTORS: Descriptor[] = [
-  ...COMMON_CONTACT_DESCRIPTORS.filter(d => d.key !== 'accountContacts'),
+  ...COMMON_CONTACT_DESCRIPTORS.filter(d => !['accountContacts', 'leads', 'opportunityContacts'].includes(d.key)),
   {
     key: 'accountContacts',
     searchPaths: ['investmentAccountContact.account.name'],
-    sortPath: 'investmentAccountContact.account.name',
+    enableSort: false,
+    type: 'text'
+  },
+  {
+    key: 'leads',
+    searchPaths: ['investmentLead.firstName', 'investmentLead.lastName', 'investmentLead.companyName'],
+    sortPath: 'investmentLead.lastName',
+    type: 'text'
+  },
+  {
+    key: 'opportunityContacts',
+    searchPaths: ['investmentOpportunityContact.opportunity.name'],
+    sortPath: 'investmentOpportunityContact.opportunity.name',
     type: 'text'
   }
 ]
