@@ -1,5 +1,5 @@
 import type { CommonDocument } from '@/common/data/relations/types/commonDocumentTypes'
-import { COMMON_DOCUMENT_DESCRIPTORS } from '@/common/data/relations/types/commonDocumentTypes'
+import { DocumentFields, createCommonDocumentDescriptors } from '@/common/data/relations/types/commonDocumentTypes'
 import type { Descriptor } from '@/common/network/graphql/queryHelpers'
 import type { SourceTable } from './customerEnums'
 import type {
@@ -30,7 +30,24 @@ export interface CustomerDocument extends CommonDocument {
 }
 
 /**
- * Customer Document Descriptors
- * CRM uses correct field names, so we use Common descriptors directly
+ * Customer Document Query Field Mapping
+ * Extends DocumentFields with CRM-specific GraphQL field names
  */
-export const CUSTOMER_DOCUMENT_DESCRIPTORS: Descriptor[] = [...COMMON_DOCUMENT_DESCRIPTORS]
+export const CustomerDocumentFields = {
+  ...DocumentFields,
+  // Override CRM-specific field names
+  activity: 'salesActivity',
+  activityId: 'salesActivityId',
+  task: 'salesTask',
+  taskId: 'salesTaskId'
+} as const
+
+export type CustomerDocumentFieldName = (typeof CustomerDocumentFields)[keyof typeof CustomerDocumentFields]
+
+/**
+ * Customer Document Descriptors
+ * Uses createCommonDocumentDescriptors with CustomerDocumentFields mapping
+ */
+export const CUSTOMER_DOCUMENT_DESCRIPTORS: Descriptor[] = [
+  ...createCommonDocumentDescriptors(CustomerDocumentFields as Record<keyof typeof DocumentFields, string>)
+]

@@ -10,12 +10,12 @@ import type { Descriptor } from './queryHelpers'
 
 export interface BaseQueryVariables {
   id?: string
-  search?: string
-  offset?: number
   limit?: number
+  offset?: number
   orderBy?: any[]
-  where?: any
+  search?: string
   structureId?: string
+  where?: any
 }
 
 export interface QueryOptions {
@@ -79,8 +79,6 @@ export const BASE_ENTITY_DESCRIPTORS: Descriptor[] = [
   { key: 'activeTo', searchPaths: ['activeTo'], sortPath: 'activeTo', type: 'date' },
   {
     key: 'additionalProperties',
-    sortPath: 'additionalProperties',
-    type: 'text',
     enableSort: false,
     enableFilter: false
   },
@@ -93,14 +91,15 @@ export const BASE_ENTITY_DESCRIPTORS: Descriptor[] = [
   { key: 'version', searchPaths: ['version'], sortPath: 'version', type: 'number' },
 
   // Date range filters
+  // Note: activeFrom/activeTo are already range fields, these filters apply to the field values themselves
   { key: 'activeFromAfter', path: 'activeFrom', kind: 'dateFrom' },
   { key: 'activeFromBefore', path: 'activeFrom', kind: 'dateTo' },
   { key: 'activeToAfter', path: 'activeTo', kind: 'dateFrom' },
   { key: 'activeToBefore', path: 'activeTo', kind: 'dateTo' },
-  { key: 'createdAfter', path: 'createdAt', kind: 'dateFrom' },
-  { key: 'createdBefore', path: 'createdAt', kind: 'dateTo' },
-  { key: 'updatedAfter', path: 'updatedAt', kind: 'dateFrom' },
-  { key: 'updatedBefore', path: 'updatedAt', kind: 'dateTo' }
+  { key: 'createdAtFrom', path: 'createdAt', kind: 'dateFrom' },
+  { key: 'createdAtTo', path: 'createdAt', kind: 'dateTo' },
+  { key: 'updatedAtFrom', path: 'updatedAt', kind: 'dateFrom' },
+  { key: 'updatedAtTo', path: 'updatedAt', kind: 'dateTo' }
 ]
 
 // ==========================================

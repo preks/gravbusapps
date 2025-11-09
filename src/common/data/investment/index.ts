@@ -91,15 +91,7 @@ export { useGetInvestmentReports, useGetInvestmentReportById } from '@/common/da
 export {
   GET_INVESTMENTS,
   GET_INVESTMENT_BY_ID,
-  SEARCH_INVESTMENTS,
-  GET_INVESTMENT_ACCOUNTS,
-  GET_INVESTMENT_ACCOUNT_BY_ID,
-  GET_INVESTMENT_CONTACTS,
-  GET_INVESTMENT_CONTACT_BY_ID,
-  GET_INVESTMENT_LEADS,
-  GET_INVESTMENT_LEAD_BY_ID,
-  GET_INVESTMENT_OPPORTUNITIES,
-  GET_INVESTMENT_OPPORTUNITY_BY_ID
+  SEARCH_INVESTMENTS
   // MIGRATION NOTE: Investment report queries moved to @/common/data/investment-report/queries
   // Use the centralized investment-report module for all report queries
 } from './queries'

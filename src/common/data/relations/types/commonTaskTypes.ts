@@ -44,141 +44,226 @@ export interface CommonTask extends BaseEntity {
   reference?: TaskReference // Custom
 }
 
-export const COMMON_TASK_DESCRIPTORS: Descriptor[] = [
+/**
+ * Task Query Field Mapping
+ */
+export const TaskFields = {
+  account: 'account',
+  accountId: 'accountId',
+  assignedEmployee: 'assignedEmployee',
+  assignedEmployeeId: 'assignedEmployeeId',
+  assignedUserId: 'assignedUserId',
+  code: 'code',
+  comments: 'comments',
+  contact: 'contact',
+  contactId: 'contactId',
+  creatorEmployee: 'creatorEmployee',
+  creatorEmployeeId: 'creatorEmployeeId',
+  creatorUserId: 'creatorUserId',
+  description: 'description',
+  documents: 'documents',
+  dueDate: 'dueDate',
+  endDate: 'endDate',
+  id: 'id',
+  lead: 'lead',
+  leadId: 'leadId',
+  name: 'name',
+  opportunityStageCondition: 'opportunityStageCondition',
+  opportunity: 'opportunity',
+  opportunityId: 'opportunityId',
+  source: 'source',
+  startDate: 'startDate',
+  taskPriority: 'taskPriority',
+  taskPriorityRef: 'taskPriorityRef',
+  taskStatus: 'taskStatus',
+  taskStatusRef: 'taskStatusRef',
+  taskTemplate: 'taskTemplate',
+  taskTemplateId: 'taskTemplateId',
+  taskTiming: 'taskTiming',
+  taskType: 'taskType',
+  taskTypeRef: 'taskTypeRef',
+  templateStartDate: 'templateStartDate'
+} as const
+
+export type TaskFieldName = (typeof TaskFields)[keyof typeof TaskFields]
+
+/**
+ * Create Common Task Descriptors with fields mapping
+ */
+export const createCommonTaskDescriptors = (
+  fields: Record<keyof typeof TaskFields, string> = TaskFields
+): Descriptor[] => [
   ...BASE_ENTITY_DESCRIPTORS,
 
-  { key: 'account', searchPaths: ['account.name', 'account.code'], sortPath: 'account.name', type: 'text' },
   {
-    key: 'assignedEmployee',
-    searchPaths: ['assignedEmployee.displayName', 'assignedEmployee.firstName', 'assignedEmployee.lastName'],
-    sortPath: 'assignedEmployee.displayName',
+    key: 'account',
+    searchPaths: [`${fields.account}.name`, `${fields.account}.code`],
+    sortPath: `${fields.account}.name`,
     type: 'text'
   },
-  { key: 'code', searchPaths: ['code'], sortPath: 'code', type: 'text' },
-  { key: 'comments', searchPaths: ['comments.comment'], sortPath: 'comments.comment', type: 'text' },
+  {
+    key: 'assignedEmployee',
+    searchPaths: [
+      `${fields.assignedEmployee}.displayName`,
+      `${fields.assignedEmployee}.firstName`,
+      `${fields.assignedEmployee}.lastName`
+    ],
+    sortPath: `${fields.assignedEmployee}.displayName`,
+    type: 'text'
+  },
+  { key: 'code', searchPaths: [fields.code], sortPath: fields.code, type: 'text' },
+  {
+    key: 'comments',
+    searchPaths: [`${fields.comments}.comment`],
+    sortPath: `${fields.comments}.comment`,
+    type: 'text'
+  },
   {
     key: 'contact',
-    searchPaths: ['contact.firstName', 'contact.lastName'],
-    sortPath: 'contact.lastName',
+    searchPaths: [`${fields.contact}.firstName`, `${fields.contact}.lastName`],
+    sortPath: `${fields.contact}.lastName`,
     type: 'text'
   },
   {
     key: 'creatorEmployee',
-    searchPaths: ['creatorEmployee.displayName', 'creatorEmployee.firstName', 'creatorEmployee.lastName'],
-    sortPath: 'creatorEmployee.displayName',
+    searchPaths: [
+      `${fields.creatorEmployee}.displayName`,
+      `${fields.creatorEmployee}.firstName`,
+      `${fields.creatorEmployee}.lastName`
+    ],
+    sortPath: `${fields.creatorEmployee}.displayName`,
     type: 'text'
   },
-  { key: 'description', searchPaths: ['description'], sortPath: 'description', type: 'text' },
+  { key: 'description', searchPaths: [fields.description], sortPath: fields.description, type: 'text' },
   {
     key: 'documents',
-    searchPaths: ['documents.name', 'documents.description'],
-    sortPath: 'documents.name',
+    searchPaths: [`${fields.documents}.name`, `${fields.documents}.description`],
+    sortPath: `${fields.documents}.name`,
     type: 'text'
   },
-  { key: 'dueDate', searchPaths: ['dueDate'], sortPath: 'dueDate', type: 'date' },
-  { key: 'endDate', searchPaths: ['endDate'], sortPath: 'endDate', type: 'date' },
+  { key: 'dueDate', searchPaths: [fields.dueDate], sortPath: fields.dueDate, type: 'date' },
+  { key: 'endDate', searchPaths: [fields.endDate], sortPath: fields.endDate, type: 'date' },
   {
     key: 'lead',
-    searchPaths: ['lead.firstName', 'lead.lastName', 'lead.companyName'],
-    sortPath: 'lead.lastName',
+    searchPaths: [`${fields.lead}.firstName`, `${fields.lead}.lastName`, `${fields.lead}.companyName`],
+    sortPath: `${fields.lead}.lastName`,
     type: 'text'
   },
-  { key: 'name', searchPaths: ['name'], sortPath: 'name', type: 'text' },
+  { key: 'name', searchPaths: [fields.name], sortPath: fields.name, type: 'text' },
   {
     key: 'opportunityStageCondition',
-    searchPaths: ['opportunityStageCondition.name'],
-    sortPath: 'opportunityStageCondition.name',
+    searchPaths: [`${fields.opportunityStageCondition}.opportunityPipelineStageCondition.value`],
+    sortPath: `${fields.opportunityStageCondition}.opportunityPipelineStageCondition.value`,
     type: 'text'
   },
   {
     key: 'opportunity',
-    searchPaths: ['opportunity.name'],
-    sortPath: 'opportunity.name',
+    searchPaths: [`${fields.opportunity}.name`],
+    sortPath: `${fields.opportunity}.name`,
     type: 'text'
   },
-  { key: 'source', searchPaths: ['source'], sortPath: 'source', type: 'text' },
-  { key: 'startDate', searchPaths: ['startDate'], sortPath: 'startDate', type: 'date' },
+  { key: 'source', searchPaths: [fields.source], sortPath: fields.source, type: 'text' },
+  { key: 'startDate', searchPaths: [fields.startDate], sortPath: fields.startDate, type: 'date' },
   {
     key: 'taskPriority',
-    searchPaths: ['taskPriority.value', 'taskPriority.code'],
-    sortPath: 'taskPriority.value',
+    searchPaths: [`${fields.taskPriority}.value`, `${fields.taskPriority}.code`],
+    sortPath: `${fields.taskPriority}.value`,
     type: 'text'
   },
   {
     key: 'taskStatus',
-    searchPaths: ['taskStatus.value', 'taskStatus.code'],
-    sortPath: 'taskStatus.value',
+    searchPaths: [`${fields.taskStatus}.value`, `${fields.taskStatus}.code`],
+    sortPath: `${fields.taskStatus}.value`,
     type: 'text'
   },
-  { key: 'taskTemplate', searchPaths: ['taskTemplate.name'], sortPath: 'taskTemplate.name', type: 'text' },
-  { key: 'taskTiming', searchPaths: ['taskTiming'], sortPath: 'taskTiming', type: 'text' },
+  {
+    key: 'taskTemplate',
+    searchPaths: [`${fields.taskTemplate}.name`],
+    sortPath: `${fields.taskTemplate}.name`,
+    type: 'text'
+  },
+  { key: 'taskTiming', searchPaths: [fields.taskTiming], sortPath: fields.taskTiming, type: 'text' },
   {
     key: 'taskType',
-    searchPaths: ['taskType.value', 'taskType.code'],
-    sortPath: 'taskType.value',
+    searchPaths: [`${fields.taskType}.value`, `${fields.taskType}.code`],
+    sortPath: `${fields.taskType}.value`,
     type: 'text'
   },
-  { key: 'templateStartDate', searchPaths: ['templateStartDate'], sortPath: 'templateStartDate', type: 'date' },
+  {
+    key: 'templateStartDate',
+    searchPaths: [fields.templateStartDate],
+    sortPath: fields.templateStartDate,
+    type: 'date'
+  },
 
   // Filter IDs
-  { key: 'id', path: 'id', kind: 'inIds' },
-  { key: 'accountIds', path: 'accountId', kind: 'inIds' },
-  { key: 'assignedEmployeeIds', path: 'assignedEmployeeId', kind: 'inIds' },
-  { key: 'contactIds', path: 'contactId', kind: 'inIds' },
-  { key: 'creatorEmployeeIds', path: 'creatorEmployeeId', kind: 'inIds' },
-  { key: 'leadIds', path: 'leadId', kind: 'inIds' },
-  { key: 'opportunityIds', path: 'opportunityId', kind: 'inIds' },
-  { key: 'taskPriorityIds', path: 'taskPriorityRef', kind: 'inIds' },
-  { key: 'taskStatusIds', path: 'taskStatusRef', kind: 'inIds' },
-  { key: 'taskTemplateIds', path: 'taskTemplateId', kind: 'inIds' },
-  { key: 'taskTypeIds', path: 'taskTypeRef', kind: 'inIds' },
+  { key: 'id', path: fields.id, kind: 'inIds' },
+  { key: 'accountIds', path: fields.accountId, kind: 'inIds' },
+  { key: 'assignedEmployeeIds', path: fields.assignedEmployeeId, kind: 'inIds' },
+  { key: 'contactIds', path: fields.contactId, kind: 'inIds' },
+  { key: 'creatorEmployeeIds', path: fields.creatorEmployeeId, kind: 'inIds' },
+  { key: 'leadIds', path: fields.leadId, kind: 'inIds' },
+  { key: 'opportunityIds', path: fields.opportunityId, kind: 'inIds' },
+  { key: 'taskPriorityIds', path: fields.taskPriorityRef, kind: 'inIds' },
+  { key: 'taskStatusIds', path: fields.taskStatusRef, kind: 'inIds' },
+  { key: 'taskTemplateIds', path: fields.taskTemplateId, kind: 'inIds' },
+  { key: 'taskTypeIds', path: fields.taskTypeRef, kind: 'inIds' },
 
   // Date range filters
-  { key: 'dueDateAfter', path: 'dueDate', kind: 'dateFrom' },
-  { key: 'dueDateBefore', path: 'dueDate', kind: 'dateTo' },
-  { key: 'endDateAfter', path: 'endDate', kind: 'dateFrom' },
-  { key: 'endDateBefore', path: 'endDate', kind: 'dateTo' },
-  { key: 'startDateAfter', path: 'startDate', kind: 'dateFrom' },
-  { key: 'startDateBefore', path: 'startDate', kind: 'dateTo' },
-  { key: 'templateStartDateAfter', path: 'templateStartDate', kind: 'dateFrom' },
-  { key: 'templateStartDateBefore', path: 'templateStartDate', kind: 'dateTo' },
+  { key: 'dueDateFrom', path: fields.dueDate, kind: 'dateFrom' },
+  { key: 'dueDateTo', path: fields.dueDate, kind: 'dateTo' },
+  { key: 'endDateFrom', path: fields.endDate, kind: 'dateFrom' },
+  { key: 'endDateTo', path: fields.endDate, kind: 'dateTo' },
+  { key: 'startDateFrom', path: fields.startDate, kind: 'dateFrom' },
+  { key: 'startDateTo', path: fields.startDate, kind: 'dateTo' },
+  { key: 'templateStartDateFrom', path: fields.templateStartDate, kind: 'dateFrom' },
+  { key: 'templateStartDateTo', path: fields.templateStartDate, kind: 'dateTo' },
 
-  // Composite display columns (for table sorting)
-  // assignedTo: Displays assignedEmployee - sorts by assignedEmployee.displayName
+  // Composite display columns
   {
     key: 'assignedTo',
-    searchPaths: ['assignedEmployee.displayName', 'assignedEmployee.firstName', 'assignedEmployee.lastName'],
-    sortPath: 'assignedEmployee.displayName',
+    searchPaths: [
+      `${fields.assignedEmployee}.displayName`,
+      `${fields.assignedEmployee}.firstName`,
+      `${fields.assignedEmployee}.lastName`
+    ],
+    sortPath: `${fields.assignedEmployee}.displayName`,
     type: 'text'
   },
-  // priority: Displays taskPriority catalog entry - sorts by taskPriority.value
-
-  // status: Displays taskStatus catalog entry - sorts by taskStatus.value
-  // reference: Displays referenceType and referenceId - sorts by reference name fields in priority order
-  // Uses sortPaths to try multiple fields (account.name, contact.lastName, lead.lastName, opportunity.name)
-  // GraphQL will use the first available field for sorting
   {
     key: 'reference',
-    searchPaths: ['account.name', 'contact.lastName', 'lead.lastName', 'opportunity.name'],
+    searchPaths: [
+      `${fields.account}.name`,
+      `${fields.contact}.lastName`,
+      `${fields.lead}.lastName`,
+      `${fields.opportunity}.name`
+    ],
     sortPaths: [
-      'account.name',
-      'contact.firstName',
-      'contact.lastName',
-      'lead.firstName',
-      'lead.lastName',
-      'opportunity.name'
+      `${fields.account}.name`,
+      `${fields.contact}.firstName`,
+      `${fields.contact}.lastName`,
+      `${fields.lead}.firstName`,
+      `${fields.lead}.lastName`,
+      `${fields.opportunity}.name`
     ],
     type: 'text'
   },
-
-  // createdBy: Displays creatorEmployee - sorts by creatorEmployee.displayName
   {
     key: 'createdBy',
-    searchPaths: ['creatorEmployee.displayName', 'creatorEmployee.firstName', 'creatorEmployee.lastName'],
-    sortPath: 'creatorEmployee.displayName',
+    searchPaths: [
+      `${fields.creatorEmployee}.displayName`,
+      `${fields.creatorEmployee}.firstName`,
+      `${fields.creatorEmployee}.lastName`
+    ],
+    sortPath: `${fields.creatorEmployee}.displayName`,
     type: 'text'
   }
 ]
+
+/**
+ * Default Common Task Descriptors
+ */
+export const COMMON_TASK_DESCRIPTORS = createCommonTaskDescriptors(TaskFields)
 
 export interface CommonTaskTemplate extends BaseEntity {
   assigneeType?: string // IRM |CRM

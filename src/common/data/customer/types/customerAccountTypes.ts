@@ -3,7 +3,7 @@
  */
 
 import type { CommonAccount } from '@/common/data/relations/types/commonAccountTypes'
-import { COMMON_ACCOUNT_DESCRIPTORS } from '@/common/data/relations/types/commonAccountTypes'
+import { AccountFields, createCommonAccountDescriptors } from '@/common/data/relations/types/commonAccountTypes'
 import type { Descriptor } from '@/common/network/graphql/queryHelpers'
 import type { CustomerAddress } from './customerAddressTypes'
 import type { CustomerCommunicationChannel } from './customerCommunicationChannelTypes'
@@ -48,58 +48,54 @@ export interface CustomerAccount extends CommonAccount {
 }
 
 /**
+ * Customer Account Query Field Mapping
+ * Extends AccountFields with CRM-specific GraphQL field names
+ */
+export const CustomerAccountFields = {
+  ...AccountFields,
+  // Override CRM-specific field names
+  accountAnnualRevenueBand: 'annualRevenue',
+  accountAnnualRevenueBandRef: 'annualRevenueRef',
+  companySize: 'numberOfEmployees',
+  companySizeRef: 'numberOfEmployeesRef',
+  contacts: 'contact', // CRM uses singular "contact"
+  industryClass: 'industry',
+  industryClassRef: 'industryRef',
+  opportunities: 'opportunity', // CRM uses singular "opportunity"
+  picture: 'pictureUrl',
+  pictureThumbnail: 'pictureThumbnailUrl'
+  // Note: CRM doesn't have "activities" or "leads" on Account level
+} as const
+
+export type CustomerAccountFieldName = (typeof CustomerAccountFields)[keyof typeof CustomerAccountFields]
+
+/**
  * Customer Account Descriptors
- * Extends Common descriptors with CRM-specific path overrides for wrong field names
+ * Uses createCommonAccountDescriptors with CustomerAccountFields mapping
+ * Filters out and overrides descriptors with structural differences (CRM uses different nested field names)
+ * Adds CRM-specific fields that don't exist in Common/IRM
  */
 export const CUSTOMER_ACCOUNT_DESCRIPTORS: Descriptor[] = [
-  // Filter out descriptors we need to override for CRM wrong field names
-  ...COMMON_ACCOUNT_DESCRIPTORS.filter(
-    d =>
-      ![
-        'accountAnnualRevenueBand',
-        'activities',
-        'addresses',
-        'industryClass',
-        'companySize',
-        'leads',
-        'locality',
-        'notes',
-        'opportunities',
-        'picture',
-        'pictureThumbnail',
-        'industryIds',
-        'companySizeIds',
-        'revenueBandIds'
-      ].includes(d.key)
+  // Filter out descriptors that need structural overrides
+  ...createCommonAccountDescriptors(CustomerAccountFields as Record<keyof typeof AccountFields, string>).filter(
+    d => !['activities', 'addresses', 'leads', 'locality', 'notes', 'opportunities'].includes(d.key)
   ),
+
+  // CRM-specific structural overrides
   {
     key: 'addresses',
-    searchPaths: ['addresses.city', 'addresses.postalCode', 'addresses.region.value', 'addresses.country.value'],
+    searchPaths: [
+      'addresses.city', // CRM uses "city" not "locality"
+      'addresses.postalCode',
+      'addresses.region.value',
+      'addresses.country.value'
+    ],
     sortPaths: ['addresses.city', 'addresses.postalCode', 'addresses.region.value', 'addresses.country.value'],
-    type: 'text'
-  },
-  // CRM-specific path overrides (key remains IRM-correct name, but paths use CRM field names)
-  {
-    key: 'industryClass',
-    searchPaths: ['industry.value', 'industry.code'], // CRM uses "industry" not "industryClass"
-    sortPath: 'industry.value',
-    type: 'text'
-  },
-  {
-    key: 'companySize',
-    searchPaths: ['numberOfEmployees.value', 'numberOfEmployees.code'], // CRM uses "numberOfEmployees"
-    sortPath: 'numberOfEmployees.value',
-    type: 'text'
-  },
-  {
-    key: 'accountAnnualRevenueBand',
-    searchPaths: ['annualRevenue.value', 'annualRevenue.code'], // CRM uses "annualRevenue"
-    sortPath: 'annualRevenue.value',
     type: 'text'
   },
   {
     key: 'leads',
-    searchPaths: ['lead.firstName', 'lead.lastName', 'lead.companyName'],
+    searchPaths: ['lead.firstName', 'lead.lastName', 'lead.companyName'], // CRM uses singular "lead"
     sortPaths: ['lead.firstName', 'lead.lastName', 'lead.companyName'],
     type: 'text'
   },
@@ -111,28 +107,16 @@ export const CUSTOMER_ACCOUNT_DESCRIPTORS: Descriptor[] = [
   },
   {
     key: 'notes',
-    searchPaths: ['notes.noteTitle', 'notes.noteText'],
+    searchPaths: ['notes.noteTitle', 'notes.noteText'], // CRM uses "noteTitle"/"noteText"
     sortPaths: ['notes.noteTitle', 'notes.noteText'],
     type: 'text'
   },
   {
     key: 'opportunities',
-    searchPaths: ['opportunity.name'],
+    searchPaths: ['opportunity.name'], // CRM uses singular "opportunity"
     sortPaths: ['opportunity.name'],
     type: 'text'
   },
-  { key: 'picture', searchPaths: ['pictureUrl'], sortPath: 'pictureUrl', type: 'text' }, // CRM: pictureUrl
-  {
-    key: 'pictureThumbnail',
-    searchPaths: ['pictureThumbnailUrl'],
-    sortPath: 'pictureThumbnailUrl',
-    type: 'text'
-  }, // CRM: pictureThumbnailUrl
-
-  // CRM-specific filter path overrides
-  { key: 'industryIds', path: 'industryRef', kind: 'inIds' },
-  { key: 'companySizeIds', path: 'numberOfEmployeesRef', kind: 'inIds' },
-  { key: 'revenueBandIds', path: 'annualRevenueRef', kind: 'inIds' },
 
   // CRM-specific additional fields
   { key: 'campaignIds', path: 'salesCampaignId', kind: 'inIds' }

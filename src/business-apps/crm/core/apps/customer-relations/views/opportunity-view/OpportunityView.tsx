@@ -7,7 +7,8 @@ import {
   type OpportunityBoardFilters
 } from '@/common/components/common-relations/view-layouts/opportunity-layout'
 import type { CustomerOpportunity } from '@/common/data/customer/types'
-import type { CustomerOpportunityQueryVariables } from '@/common/data/customer/queries/customerOpportunityQueries'
+import type { CustomerOpportunityQueryVariables } from '@/common/data/customer/queries/customerOpportunityQueries.new'
+import { normalizeDateRange } from '@/common/utils/dateRangeNormalizer'
 import { FlowContextName } from '@/common/types/FlowRegistryTypes'
 import { buildPlatformUrl } from '@/common/utils/navigationUtils'
 import {
@@ -69,33 +70,22 @@ export const OpportunityView: React.FC<OpportunityViewProps> = context => {
           }
         }
 
-        // Handle closeDate filter (date range)
-        if (params.selectedFilters.closeDate) {
-          if (typeof params.selectedFilters.closeDate === 'string') {
-            // Parse comma-separated date string
-            const dates = params.selectedFilters.closeDate
-              .split(',')
-              .map(d => d.trim())
-              .filter(Boolean)
-            if (dates.length === 1) {
-              vars.closeDateFrom = dates[0]
-              vars.closeDateTo = dates[0]
-            } else if (dates.length === 2) {
-              if (dates[0]) vars.closeDateFrom = dates[0]
-              if (dates[1]) vars.closeDateTo = dates[1]
-            }
-          } else if (Array.isArray(params.selectedFilters.closeDate) && params.selectedFilters.closeDate.length === 2) {
-            const [start, end] = params.selectedFilters.closeDate
-            if (start) vars.closeDateFrom = start
-            if (end) vars.closeDateTo = end
+        // Normalize date range filters
+        const dateRangeKeys = ['createdAtRange', 'updatedAtRange', 'closeDateRange']
+        dateRangeKeys.forEach(rangeKey => {
+          const normalized = normalizeDateRange(params.selectedFilters[rangeKey])
+          if (normalized) {
+            const baseKey = rangeKey.replace('Range', '')
+            if (normalized.from) vars[`${baseKey}From` as keyof CustomerOpportunityQueryVariables] = normalized.from
+            if (normalized.to) vars[`${baseKey}To` as keyof CustomerOpportunityQueryVariables] = normalized.to
           }
-        }
+        })
 
         // Copy all other filters directly (they now match Descriptor-Keys)
         Object.keys(params.selectedFilters).forEach(key => {
           if (
             key !== 'amount' &&
-            key !== 'closeDate' &&
+            !dateRangeKeys.includes(key) &&
             params.selectedFilters[key] !== undefined &&
             params.selectedFilters[key] !== null
           ) {

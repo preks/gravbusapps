@@ -118,8 +118,8 @@ export const opportunityFilterConfig: FilterConfiguration = {
       defaultExpanded: false,
       filters: [
         {
-          id: 'closeDate',
-          field: 'closeDate',
+          id: 'closeDateRange',
+          field: 'closeDateRange',
           label: 'Close Date',
           type: 'date',
           config: {

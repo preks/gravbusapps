@@ -1,6 +1,6 @@
 import type { CatalogEntry } from '@/common/network/graphql/commonTypes'
 import type { CommonLead } from '@/common/data/relations/types/commonLeadTypes'
-import { COMMON_LEAD_DESCRIPTORS } from '@/common/data/relations/types/commonLeadTypes'
+import { LeadFields, createCommonLeadDescriptors } from '@/common/data/relations/types/commonLeadTypes'
 import type { Descriptor } from '@/common/network/graphql/queryHelpers'
 import { CustomerAccount } from './customerAccountTypes'
 import { CustomerContact } from './customerContactTypes'
@@ -31,57 +31,51 @@ export interface CustomerLead extends CommonLead {
 }
 
 /**
+ * Customer Lead Query Field Mapping
+ * Extends LeadFields with CRM-specific GraphQL field names
+ */
+export const CustomerLeadFields = {
+  ...LeadFields,
+  // Override CRM-specific field names
+  accountAnnualRevenueBand: 'annualRevenue',
+  accountAnnualRevenueBandRef: 'annualRevenueRef',
+  companySize: 'numberOfEmployees',
+  companySizeRef: 'numberOfEmployeesRef',
+  industryClass: 'industry',
+  industryClassRef: 'industryRef',
+  locality: 'city'
+} as const
+
+export type CustomerLeadFieldName = (typeof CustomerLeadFields)[keyof typeof CustomerLeadFields]
+
+/**
  * Customer Lead Descriptors
- * Extends Common descriptors with CRM-specific path overrides for wrong field names
+ * Uses createCommonLeadDescriptors with CustomerLeadFields mapping
+ * Filters out and overrides descriptors with structural differences (CRM uses different nested field names)
  */
 export const CUSTOMER_LEAD_DESCRIPTORS: Descriptor[] = [
-  // Filter out descriptors we need to override for CRM wrong field names
-  ...COMMON_LEAD_DESCRIPTORS.filter(
-    d =>
-      ![
-        'accountAnnualRevenueBand',
-        'address',
-        'companySize',
-        'industryClass',
-        'locality',
-        'notes',
-        'rejectionReasons',
-        'accountAnnualRevenueBandIds',
-        'companySizeIds',
-        'industryClassIds'
-      ].includes(d.key)
+  // Filter out descriptors that need structural overrides
+  ...createCommonLeadDescriptors(CustomerLeadFields as Record<keyof typeof LeadFields, string>).filter(
+    d => !['address', 'locality', 'notes'].includes(d.key)
   ),
 
-  // CRM-specific path overrides (key remains IRM-correct name, but paths use CRM field names)
-  {
-    key: 'accountAnnualRevenueBand',
-    searchPaths: ['annualRevenue.value', 'annualRevenue.code'],
-    sortPath: 'annualRevenue.value',
-    type: 'text'
-  },
-  {
-    key: 'companySize',
-    searchPaths: ['numberOfEmployees.value', 'numberOfEmployees.code'],
-    sortPath: 'numberOfEmployees.value',
-    type: 'text'
-  },
-  {
-    key: 'industryClass',
-    searchPaths: ['industry.value', 'industry.code'],
-    sortPath: 'industry.value',
-    type: 'text'
-  },
-  { key: 'notes', searchPaths: ['notes.noteTitle', 'notes.noteText'], sortPath: 'notes.noteTitle', type: 'text' },
+  // CRM-specific structural overrides
   {
     key: 'address',
-    searchPaths: ['addressLine', 'postalCode', 'city', 'region.value', 'country.value'],
-    sortPaths: ['addressLine', 'postalCode', 'city', 'region.value', 'country.value'], // Fallbacks in Reihenfolge
+    searchPaths: ['postalCode', 'city', 'region.value', 'country.value'], // CRM uses "city" not "locality"
+    sortPaths: ['postalCode', 'city', 'region.value', 'country.value'],
     type: 'text'
   },
-  { key: 'locality', searchPaths: ['city'], sortPath: 'city', type: 'text' }, // CRM: city
-
-  // CRM-specific filter path overrides
-  { key: 'accountAnnualRevenueBandIds', path: 'annualRevenueRef', kind: 'inIds' },
-  { key: 'companySizeIds', path: 'numberOfEmployeesRef', kind: 'inIds' },
-  { key: 'industryClassIds', path: 'industryRef', kind: 'inIds' }
+  {
+    key: 'locality',
+    searchPaths: ['city'], // CRM uses "city" not "locality"
+    sortPath: 'city',
+    type: 'text'
+  },
+  {
+    key: 'notes',
+    searchPaths: ['notes.noteTitle', 'notes.noteText'], // CRM uses "noteTitle"/"noteText"
+    sortPaths: ['notes.noteTitle', 'notes.noteText'],
+    type: 'text'
+  }
 ]

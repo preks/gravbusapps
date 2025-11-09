@@ -3,7 +3,7 @@ import { useCallback, useState, useEffect } from 'react'
 import { useGraphQLClient } from '@/common/network/graphql/useGraphQLClient'
 import { BusinessAppContextProps } from '@/common/BusinessAppContext'
 import type { InvestmentTask } from '../types'
-import { GET_INVESTMENT_TASK_BY_ID } from '../queries/investmentTaskQueries'
+import { buildInvestmentTaskByIdQuery } from '../queries/investmentTaskQueries.new'
 import { toInvestmentTask } from '../mappers'
 
 export interface UseInvestmentTaskReturn {
@@ -26,11 +26,11 @@ export const useInvestmentTask = (context: BusinessAppContextProps, taskId: stri
     setError(null)
 
     try {
-      const result = await graphqlClient.request<{ InvestmentTask: InvestmentTask[] }>(GET_INVESTMENT_TASK_BY_ID, {
-        id: taskId
-      })
-      const first = (result.InvestmentTask || [])[0]
-      setTask(first ? toInvestmentTask(first) : null)
+      // Use new query builder with fields mapping
+      const query = buildInvestmentTaskByIdQuery(undefined, undefined, taskId)
+      const result = await graphqlClient.request<{ InvestmentTaskByPk: InvestmentTask }>(query)
+      const taskData = result.InvestmentTaskByPk
+      setTask(taskData ? toInvestmentTask(taskData) : null)
     } catch (err) {
       setError(err instanceof Error ? err : new Error('Failed to load task'))
     } finally {

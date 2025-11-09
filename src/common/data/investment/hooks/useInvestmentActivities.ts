@@ -3,10 +3,12 @@ import { useGraphQLClient } from '@/common/network/graphql/useGraphQLClient'
 import { BusinessAppContextProps } from '@/common/BusinessAppContext'
 import type { BaseInvestmentActivity, InvestmentActivity } from '../types'
 import {
-  GET_INVESTMENT_ACTIVITY_BY_ID,
-  GET_INVESTMENT_ACTIVITIES,
+  buildInvestmentActivityQuery,
+  buildInvestmentActivityByIdQuery,
+  buildInvestmentActivityWhereCondition,
+  buildInvestmentActivityOrderBy,
   type InvestmentActivityQueryVariables
-} from '../queries'
+} from '../queries/investmentActivityQueries.new'
 import { toInvestmentActivity } from '../mappers'
 
 // Response interfaces
@@ -29,10 +31,32 @@ export const useGetInvestmentActivities = (context: BusinessAppContextProps) => 
 
   const fetchInvestmentActivities = useCallback(
     async (variables: InvestmentActivityQueryVariables = {}) => {
-      const query = GET_INVESTMENT_ACTIVITIES(variables)
+      // Use new query builder with fields mapping
+      const query = buildInvestmentActivityQuery()
+
+      // Convert single ID filters to array format for consistency
+      const queryVariables: InvestmentActivityQueryVariables = {
+        ...variables,
+        accountIds: variables.accountId ? [variables.accountId] : variables.accountIds,
+        contactIds: variables.contactId ? [variables.contactId] : variables.contactIds,
+        opportunityIds: variables.opportunityId ? [variables.opportunityId] : variables.opportunityIds,
+        leadIds: variables.leadId ? [variables.leadId] : variables.leadIds,
+        ids: variables.id ? [variables.id] : variables.ids
+      }
+
+      // Use new WHERE/ORDER BY builders with fields mapping
+      const whereCondition = buildInvestmentActivityWhereCondition(queryVariables)
+      const orderBy = buildInvestmentActivityOrderBy(variables.orderBy || [])
+
+      const graphQLVariables: Record<string, any> = {
+        limit: Math.min(variables.limit || 50, 100),
+        offset: variables.offset || 0,
+        where: whereCondition,
+        orderBy: orderBy
+      }
 
       try {
-        const result = await graphqlClient.request<InvestmentActivitiesQueryResponse>(query)
+        const result = await graphqlClient.request<InvestmentActivitiesQueryResponse>(query, graphQLVariables)
 
         // Transform base types to enhanced types using mapper
         const enhancedActivities = result.InvestmentActivity.map(toInvestmentActivity)
@@ -58,11 +82,12 @@ export const useGetInvestmentActivityById = (context: BusinessAppContextProps) =
 
   const fetchInvestmentActivityById = useCallback(
     async (id: string) => {
-      const query = GET_INVESTMENT_ACTIVITY_BY_ID(id)
+      // Use new query builder with fields mapping
+      const query = buildInvestmentActivityByIdQuery(undefined, undefined, id)
 
       try {
-        const result = await graphqlClient.request<{ InvestmentActivity: BaseInvestmentActivity[] }>(query)
-        const baseActivity = result.InvestmentActivity[0]
+        const result = await graphqlClient.request<{ InvestmentActivityByPk: BaseInvestmentActivity }>(query)
+        const baseActivity = result.InvestmentActivityByPk
 
         return {
           activity: baseActivity ? toInvestmentActivity(baseActivity) : undefined

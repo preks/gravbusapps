@@ -340,29 +340,3 @@ export interface BaseLiquidFundInvestmentReport extends BaseEntity {
   // Entity references (using Ref types)
   liquidFundInvestment?: BaseLiquidFundInvestment
 }
-
-// =====================================================
-// QUERY RESPONSE INTERFACES
-// =====================================================
-
-// Response interfaces moved to hooks files where they're used
-
-// For list queries, we expect arrays (what makes sense for lists)
-export interface InvestmentData {
-  items: BaseInvestment[] // Base type - enhanced type is defined in investmentTypes.ts
-  total: number
-  pageInfo?: {
-    hasNextPage: boolean
-    hasPreviousPage: boolean
-  }
-}
-
-// Raw GraphQL response interface (what GraphQL actually returns - always arrays)
-export interface InvestmentGraphQLResponse {
-  Investment: BaseInvestment[] // Even for ID queries, GraphQL returns array (0 or 1 items)
-  InvestmentAggregate?: {
-    aggregate: {
-      count: number
-    }
-  }
-}

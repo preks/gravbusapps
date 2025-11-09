@@ -6,7 +6,8 @@ import { useInvestmentTaskStatistics } from '@/common/data/investment/hooks/useI
 import { TaskLayout, type TaskViewConfig } from '@/common/components/common-relations/view-layouts/task-layout'
 import type { InvestmentTask } from '@/common/data/investment/types/investmentTaskTypes'
 import { INVESTMENT_TASK_DESCRIPTORS } from '@/common/data/investment/types/investmentTaskTypes'
-import type { InvestmentTaskQueryVariables } from '@/common/data/investment/queries/investmentTaskQueries'
+import type { InvestmentTaskQueryVariables } from '@/common/data/investment/queries/investmentTaskQueries.new'
+import { normalizeDateRange } from '@/common/utils/dateRangeNormalizer'
 import type { TaskReference } from '@/common/data/relations/types/commonTaskTypes'
 import { FlowContextName } from '@/common/types/FlowRegistryTypes'
 import { createTaskColumns } from '@/common/components/common-relations/view-layouts/task-layout/config'
@@ -79,33 +80,24 @@ export const TaskView: React.FC<TaskViewProps> = context => {
       baseFilterConfig: taskFilterConfig,
 
       buildQueryVariables: params => {
+        // Debug: Log schedule and createdAt filters
+        console.log('[TaskView] DEBUG - schedule filter:', {
+          raw: params.selectedFilters.schedule,
+          type: typeof params.selectedFilters.schedule,
+          isArray: Array.isArray(params.selectedFilters.schedule),
+          value: params.selectedFilters.schedule
+        })
+        console.log('[TaskView] DEBUG - createdAt filter:', {
+          raw: params.selectedFilters.createdAtRange,
+          type: typeof params.selectedFilters.createdAtRange,
+          isArray: Array.isArray(params.selectedFilters.createdAtRange),
+          value: params.selectedFilters.createdAtRange
+        })
+
         const vars: InvestmentTaskQueryVariables = {
           limit: params.pagination.pageSize,
           offset: params.pagination.pageIndex * params.pagination.pageSize,
           search: params.searchTerm.trim() || undefined
-        }
-
-        // Copy filter values directly (Filter-IDs now match Descriptor-Keys)
-        // Handle createdDateRange date filter splitting
-        if (
-          params.selectedFilters.createdDateRange &&
-          Array.isArray(params.selectedFilters.createdDateRange) &&
-          params.selectedFilters.createdDateRange.length === 2
-        ) {
-          const [start, end] = params.selectedFilters.createdDateRange
-          if (start) vars.createdAtFrom = start
-          if (end) vars.createdAtTo = end
-        }
-
-        // Handle dueDateRange date filter splitting
-        if (
-          params.selectedFilters.dueDateRange &&
-          Array.isArray(params.selectedFilters.dueDateRange) &&
-          params.selectedFilters.dueDateRange.length === 2
-        ) {
-          const [start, end] = params.selectedFilters.dueDateRange
-          if (start) vars.dueDateFrom = start
-          if (end) vars.dueDateTo = end
         }
 
         // Handle referenceType filter (no Descriptor - special case)
@@ -117,17 +109,50 @@ export const TaskView: React.FC<TaskViewProps> = context => {
           vars.referenceTypes = params.selectedFilters.referenceType
         }
 
+        // Normalize date range filters
+        const dateRangeKeys = ['createdAtRange', 'updatedAtRange', 'dueDateRange', 'startDateRange', 'endDateRange']
+        dateRangeKeys.forEach(rangeKey => {
+          const rawValue = params.selectedFilters[rangeKey]
+          console.log(`[TaskView] DEBUG - Processing ${rangeKey}:`, {
+            raw: rawValue,
+            type: typeof rawValue,
+            isArray: Array.isArray(rawValue)
+          })
+          const normalized = normalizeDateRange(rawValue)
+          if (normalized) {
+            const baseKey = rangeKey.replace('Range', '')
+            if (normalized.from) (vars as any)[`${baseKey}From`] = normalized.from
+            if (normalized.to) (vars as any)[`${baseKey}To`] = normalized.to
+            console.log(`[TaskView] DEBUG - Normalized ${rangeKey}:`, normalized)
+          }
+        })
+
         // Copy all other filters directly (they now match Descriptor-Keys)
         Object.keys(params.selectedFilters).forEach(key => {
           if (
-            key !== 'createdDateRange' &&
-            key !== 'dueDateRange' &&
             key !== 'referenceType' &&
+            !dateRangeKeys.includes(key) &&
             params.selectedFilters[key] !== undefined &&
             params.selectedFilters[key] !== null
           ) {
             vars[key as keyof InvestmentTaskQueryVariables] = params.selectedFilters[key]
+            if (key === 'schedule') {
+              console.log(`[TaskView] DEBUG - Copied schedule filter to vars:`, {
+                key,
+                value: params.selectedFilters[key],
+                type: typeof params.selectedFilters[key],
+                isArray: Array.isArray(params.selectedFilters[key])
+              })
+            }
           }
+        })
+
+        // Debug: Log final vars before returning
+        console.log('[TaskView] DEBUG - Final vars:', {
+          schedule: (vars as any).schedule,
+          createdAtFrom: (vars as any).createdAtFrom,
+          createdAtTo: (vars as any).createdAtTo,
+          createdAtRange: params.selectedFilters.createdAtRange
         })
 
         // Use column ID directly - buildOrderBy will use descriptors (INVESTMENT_TASK_DESCRIPTORS)

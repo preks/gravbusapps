@@ -4,7 +4,7 @@
  */
 
 import type { CommonContact } from '@/common/data/relations/types/commonContactTypes'
-import { COMMON_CONTACT_DESCRIPTORS } from '@/common/data/relations/types/commonContactTypes'
+import { ContactFields, createCommonContactDescriptors } from '@/common/data/relations/types/commonContactTypes'
 import type { Descriptor } from '@/common/network/graphql/queryHelpers'
 import type { CustomerActivity } from './customerActivityTypes'
 import type { CustomerAddress } from './customerAddressTypes'
@@ -41,54 +41,54 @@ export interface CustomerContact extends CommonContact {
 }
 
 /**
+ * Customer Contact Query Field Mapping
+ * Extends ContactFields with CRM-specific GraphQL field names
+ */
+export const CustomerContactFields = {
+  ...ContactFields,
+  // Override CRM-specific field names
+  jobPosition: 'jobTitle',
+  leads: 'lead', // CRM uses singular "lead"
+  picture: 'pictureUrl',
+  pictureThumbnail: 'pictureThumbnailUrl',
+  type: 'contactType'
+} as const
+
+export type CustomerContactFieldName = (typeof CustomerContactFields)[keyof typeof CustomerContactFields]
+
+/**
  * Customer Contact Descriptors
- * Extends Common descriptors with CRM-specific path overrides for wrong field names
+ * Uses createCommonContactDescriptors with CustomerContactFields mapping
+ * Filters out and overrides descriptors with structural differences (CRM uses different nested field names)
  */
 export const CUSTOMER_CONTACT_DESCRIPTORS: Descriptor[] = [
-  // Filter out descriptors we need to override for CRM wrong field names
-  ...COMMON_CONTACT_DESCRIPTORS.filter(
-    d =>
-      ![
-        'addresses',
-        'contact',
-        'description',
-        'fullName',
-        'jobPosition',
-        'leads',
-        'notes',
-        'picture',
-        'pictureThumbnail',
-        'type',
-        'account'
-      ].includes(d.key)
+  // Filter out descriptors that need structural overrides
+  ...createCommonContactDescriptors(CustomerContactFields as Record<keyof typeof ContactFields, string>).filter(
+    d => !['addresses', 'description', 'fullName', 'notes', 'leads'].includes(d.key)
   ),
+
+  // CRM-specific structural overrides
   {
     key: 'addresses',
-    searchPaths: ['addresses.city', 'addresses.postalCode', 'addresses.region.value', 'addresses.country.value'],
+    searchPaths: [
+      'addresses.city', // CRM uses "city" not "locality"
+      'addresses.postalCode',
+      'addresses.region.value',
+      'addresses.country.value'
+    ],
     sortPaths: ['addresses.city', 'addresses.postalCode', 'addresses.region.value', 'addresses.country.value'],
-    type: 'text'
-  },
-
-  // CRM-specific path overrides (key remains IRM-correct name, but paths use CRM field names)
-  { key: 'jobPosition', searchPaths: ['jobTitle'], sortPath: 'jobTitle', type: 'text' }, // CRM: jobTitle
-  {
-    key: 'leads',
-    searchPaths: ['lead.firstName', 'lead.lastName', 'lead.companyName'],
-    sortPaths: ['lead.firstName', 'lead.lastName', 'lead.companyName'],
     type: 'text'
   },
   {
     key: 'notes',
-    searchPaths: ['notes.noteTitle', 'notes.noteText'],
+    searchPaths: ['notes.noteTitle', 'notes.noteText'], // CRM uses "noteTitle"/"noteText"
     sortPaths: ['notes.noteTitle', 'notes.noteText'],
     type: 'text'
   },
-  { key: 'picture', searchPaths: ['pictureUrl'], sortPath: 'pictureUrl', type: 'text' }, // CRM: pictureUrl
   {
-    key: 'pictureThumbnail',
-    searchPaths: ['pictureThumbnailUrl'],
-    sortPath: 'pictureThumbnailUrl',
+    key: 'leads',
+    searchPaths: ['lead.firstName', 'lead.lastName', 'lead.companyName'], // CRM uses singular "lead"
+    sortPaths: ['lead.firstName', 'lead.lastName', 'lead.companyName'],
     type: 'text'
-  }, // CRM: pictureThumbnailUrl
-  { key: 'type', searchPaths: ['contactType'], sortPath: 'contactType', type: 'text' } // CRM: contactType
+  }
 ]

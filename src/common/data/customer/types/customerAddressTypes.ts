@@ -3,6 +3,7 @@
  */
 
 import type { BaseEntity, CatalogEntry } from '@/common/network/graphql/commonTypes'
+import { AUDIT_FIELDS, CATALOG_ENTRY } from '@/common/network/graphql/commonFragments'
 
 /**
  * CustomerAddress
@@ -31,3 +32,24 @@ export interface CustomerAddress extends BaseEntity {
   lead?: any // CustomerLead
   leadId?: string
 }
+
+/**
+ * Customer Address Fragment
+ * GraphQL fragment for Customer Address entities (CRM uses "city" not "locality")
+ */
+export const CUSTOMER_ADDRESS_FRAGMENT = `
+  id
+  addressType
+  addressLine
+  city
+  postalCode
+  ${AUDIT_FIELDS}
+  region {
+    ${CATALOG_ENTRY}
+  }
+  regionRef
+  country {
+    ${CATALOG_ENTRY}
+  }
+  countryRef
+`

@@ -42,14 +42,8 @@ export {
 // ============================================================================
 export {
   // Core entity main fragments
-  INVESTMENT_ACCOUNT,
-  INVESTMENT_CONTACT,
-  INVESTMENT_LEAD,
   INVESTMENT_OPPORTUNITY,
-  INVESTMENT_TASK,
-  INVESTMENT_ACTIVITY,
   INVESTMENT_DOCUMENT,
-  INVESTMENT_NOTE,
   INVESTMENT,
 
   // Investment specialization main fragments

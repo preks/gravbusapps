@@ -6,16 +6,19 @@ import { BusinessAppContextProps } from '@/common/BusinessAppContext'
 // Types
 import type { CustomerAccount } from '../types'
 
-// Queries
+// Use the new query builder functions
 import {
-  GET_CUSTOMER_ACCOUNTS,
-  GET_CUSTOMER_ACCOUNT_BY_ID,
-  SEARCH_CUSTOMER_ACCOUNTS,
+  buildCustomerAccountQuery,
+  buildCustomerAccountByIdQuery,
+  buildCustomerAccountSearchQuery,
+  buildCustomerAccountWhereCondition,
+  buildCustomerAccountOrderBy,
   type CustomerAccountQueryVariables
-} from '../queries/customerAccountQueries'
+} from '../queries/customerAccountQueries.new'
 
 // Mapper
 import { toCustomerAccount } from '../mappers/customerAccountMappers'
+import { CustomerAccountFields } from '../types/customerAccountTypes'
 
 export interface CustomerAccountListQueryResponse {
   Account: any[]
@@ -34,8 +37,24 @@ export const useCustomerAccounts = (context: BusinessAppContextProps) => {
 
   const fetchCustomerAccounts = useCallback(
     async (variables: CustomerAccountQueryVariables = {}): Promise<CustomerAccountListData> => {
-      const query = GET_CUSTOMER_ACCOUNTS(variables)
-      const result = await graphqlClient.request<CustomerAccountListQueryResponse>(query)
+      // Build query using new query builder
+      const query = buildCustomerAccountQuery()
+
+      // Build where condition using new query builder
+      const whereCondition = buildCustomerAccountWhereCondition(variables)
+
+      // Build orderBy using new query builder
+      const orderBy = buildCustomerAccountOrderBy(variables.orderBy || [])
+
+      // Prepare GraphQL variables
+      const graphQLVariables: Record<string, any> = {
+        limit: Math.min(variables.limit || 50, 100),
+        offset: variables.offset || 0,
+        where: whereCondition,
+        orderBy: orderBy
+      }
+
+      const result = await graphqlClient.request<CustomerAccountListQueryResponse>(query, graphQLVariables)
       const accounts = result.Account.map(toCustomerAccount)
       const total = result.AccountAggregate?.aggregate?.count || 0
       return { accounts, total }
@@ -45,9 +64,9 @@ export const useCustomerAccounts = (context: BusinessAppContextProps) => {
 
   const fetchCustomerAccountById = useCallback(
     async (id: string): Promise<CustomerAccount | null> => {
-      const query = GET_CUSTOMER_ACCOUNT_BY_ID(id)
-      const result = await graphqlClient.request<{ Account: any[] }>(query)
-      const raw = result.Account?.[0]
+      const query = buildCustomerAccountByIdQuery(CustomerAccountFields, undefined, id)
+      const result = await graphqlClient.request<{ AccountByPk: any }>(query)
+      const raw = result.AccountByPk
       return raw ? toCustomerAccount(raw) : null
     },
     [graphqlClient]
@@ -55,8 +74,16 @@ export const useCustomerAccounts = (context: BusinessAppContextProps) => {
 
   const searchCustomerAccounts = useCallback(
     async (variables: CustomerAccountQueryVariables): Promise<CustomerAccount[]> => {
-      const query = SEARCH_CUSTOMER_ACCOUNTS(variables)
-      const result = await graphqlClient.request<{ Account: any[] }>(query)
+      const query = buildCustomerAccountSearchQuery()
+
+      const whereCondition = buildCustomerAccountWhereCondition(variables)
+
+      const graphQLVariables = {
+        limit: Math.min(variables.limit || 20, 50),
+        where: whereCondition
+      }
+
+      const result = await graphqlClient.request<{ Account: any[] }>(query, graphQLVariables)
       return result.Account.map(toCustomerAccount)
     },
     [graphqlClient]

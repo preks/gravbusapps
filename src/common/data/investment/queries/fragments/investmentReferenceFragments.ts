@@ -9,21 +9,21 @@
  */
 
 import { CATALOG_ENTRY, AUDIT_FIELDS } from '@/common/network/graphql/commonFragments'
-import { COMMON_LEAD_FIELDS } from '@/common/data/relations/queries/commonLeadFragments'
-import { COMMON_ACCOUNT_FIELDS } from '@/common/data/relations/queries/commonAccountFragments'
-import { COMMON_CONTACT_FIELDS } from '@/common/data/relations/queries/commonContactFragments'
+import { COMMON_LEAD_FIELDS } from '@/common/data/relations/queries/commonFragments'
+import { COMMON_ACCOUNT_FIELDS } from '@/common/data/relations/queries/commonFragments'
+import { COMMON_CONTACT_FIELDS } from '@/common/data/relations/queries/commonFragments'
 import {
   COMMON_OPPORTUNITY_FIELDS,
   COMMON_OPPORTUNITY_STAGE_CONDITION_REF
-} from '@/common/data/relations/queries/commonOpportunityFragments'
+} from '@/common/data/relations/queries/commonFragments'
 import {
   COMMON_TASK_FIELDS,
   COMMON_TASK_TEMPLATE_FIELDS,
   COMMON_TASK_COMMENT_FIELDS
-} from '@/common/data/relations/queries/commonTaskFragments'
-import { COMMON_ACTIVITY_FIELDS } from '@/common/data/relations/queries/commonActivityFragments'
-import { COMMON_DOCUMENT_FIELDS } from '@/common/data/relations/queries/commonDocumentFragments'
-import { COMMON_NOTE_FIELDS } from '@/common/data/relations/queries/commonNoteFragments'
+} from '@/common/data/relations/queries/commonFragments'
+import { COMMON_ACTIVITY_FIELDS } from '@/common/data/relations/queries/commonFragments'
+import { COMMON_DOCUMENT_FIELDS } from '@/common/data/relations/queries/commonFragments'
+import { COMMON_NOTE_FIELDS } from '@/common/data/relations/queries/commonFragments'
 
 // Re-export for backward compatibility with old fragments
 export { COMMUNICATION_CHANNEL_REF as INVESTMENT_COMMUNICATION_CHANNEL } from '@/common/data/common/queries/communicationChannelFragments'

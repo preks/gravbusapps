@@ -7,7 +7,8 @@ import { commonContactColumns } from '@/common/components/common-relations/view-
 import { commonContactFilterConfig } from '@/common/components/common-relations/view-layouts/contact-layout/config'
 import { useCustomerContacts } from '@/common/data/customer/hooks/useCustomerContacts'
 import { useCustomerContactFilters } from '@/common/data/customer/hooks/useCustomerContactFilters'
-import type { CustomerContactQueryVariables } from '@/common/data/customer/queries/customerContactQueries'
+import type { CustomerContactQueryVariables } from '@/common/data/customer/queries/customerContactQueries.new'
+import { normalizeDateRange } from '@/common/utils/dateRangeNormalizer'
 import { FlowContextName } from '@/common/types/FlowRegistryTypes'
 import { buildPlatformUrl } from '@/common/utils/navigationUtils'
 import { useCustomerContactStatistics } from '@/common/data/customer/hooks/useCustomerContactStatistics'
@@ -78,17 +79,16 @@ export const ContactView: React.FC<ContactViewProps> = context => {
           search: params.searchTerm.trim() || undefined
         }
 
-        // Copy filter values directly (Filter-IDs now match Descriptor-Keys)
-        // Handle createdAtRange date filter splitting
-        if (
-          params.selectedFilters.createdAtRange &&
-          Array.isArray(params.selectedFilters.createdAtRange) &&
-          params.selectedFilters.createdAtRange.length === 2
-        ) {
-          const [start, end] = params.selectedFilters.createdAtRange
-          if (start) vars.createdAfter = start
-          if (end) vars.createdBefore = end
-        }
+        // Normalize date range filters
+        const dateRangeKeys = ['createdAtRange', 'updatedAtRange']
+        dateRangeKeys.forEach(rangeKey => {
+          const normalized = normalizeDateRange(params.selectedFilters[rangeKey])
+          if (normalized) {
+            const baseKey = rangeKey.replace('Range', '')
+            if (normalized.from) vars[`${baseKey}From` as keyof CustomerContactQueryVariables] = normalized.from
+            if (normalized.to) vars[`${baseKey}To` as keyof CustomerContactQueryVariables] = normalized.to
+          }
+        })
 
         // Handle communicationChannels filter (special case - no Descriptor)
         if (
@@ -106,7 +106,7 @@ export const ContactView: React.FC<ContactViewProps> = context => {
         // Copy all other filters directly (they now match Descriptor-Keys)
         Object.keys(params.selectedFilters).forEach(key => {
           if (
-            key !== 'createdAtRange' &&
+            !dateRangeKeys.includes(key) &&
             key !== 'communicationChannels' &&
             params.selectedFilters[key] !== undefined &&
             params.selectedFilters[key] !== null

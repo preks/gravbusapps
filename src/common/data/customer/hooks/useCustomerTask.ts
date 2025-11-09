@@ -3,8 +3,9 @@ import { useCallback, useState, useEffect } from 'react'
 import { useGraphQLClient } from '@/common/network/graphql/useGraphQLClient'
 import { BusinessAppContextProps } from '@/common/BusinessAppContext'
 import type { CustomerTask } from '../types'
-import { GET_CUSTOMER_TASK_BY_ID } from '../queries/customerTaskQueries'
+import { buildCustomerTaskByIdQuery } from '../queries/customerTaskQueries.new'
 import { toCustomerTask } from '../mappers'
+import { CustomerTaskFields } from '../types/customerTaskTypes'
 
 export interface UseCustomerTaskReturn {
   task: CustomerTask | null
@@ -26,10 +27,10 @@ export const useCustomerTask = (context: BusinessAppContextProps, taskId: string
     setError(null)
 
     try {
-      const query = GET_CUSTOMER_TASK_BY_ID(taskId)
-      const result = await graphqlClient.request<{ SalesTask: CustomerTask[] }>(query)
-      const tasks = result.SalesTask.map(toCustomerTask)
-      setTask(tasks.length > 0 ? tasks[0] : null)
+      const query = buildCustomerTaskByIdQuery(CustomerTaskFields, undefined, taskId)
+      const result = await graphqlClient.request<{ SalesTaskByPk: any }>(query)
+      const task = result.SalesTaskByPk
+      setTask(task ? toCustomerTask(task) : null)
     } catch (err) {
       setError(err instanceof Error ? err : new Error('Failed to load task'))
     } finally {

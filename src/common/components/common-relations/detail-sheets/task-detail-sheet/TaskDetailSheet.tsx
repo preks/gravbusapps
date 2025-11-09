@@ -44,7 +44,7 @@ import {
 import dayjs from 'dayjs'
 import { navigateTo, buildPlatformUrl } from '@/common/utils/navigationUtils'
 import { getCatalogEntryValue } from '@/common/data/catalog/utils/catalogTranslationUtils'
-import { CatalogEntry } from '@/common/data/catalog/types/catalogTypes'
+import type { CatalogEntry } from '@/common/network/graphql/commonTypes'
 
 interface TaskDetailSheetProps {
   task: Task | null

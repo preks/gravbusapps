@@ -31,13 +31,7 @@ import {
 import { buildPlatformUrl } from '@/common/utils/navigationUtils'
 import { getTranslationFromI18nKeyAndLabel } from '@/common/utils/windowUtils'
 import { FileInfo } from '@/common/types/FileTypes'
-
-export type CatalogEntry = {
-  id?: string
-  code?: string
-  value?: string
-  type?: string
-}
+import type { CatalogEntry } from '@/common/network/graphql/commonTypes'
 
 export type TaskStatusCode = 'PENDING' | 'IN_PROGRESS' | 'OVERDUE' | 'COMPLETED'
 export type TaskTimingType = 'DEADLINE' | 'SCHEDULED' | 'UNKNOWN_TIMING_TYPE'
@@ -211,9 +205,11 @@ const TaskSection: React.FC<TaskSectionProps> = ({ accessToken, tasks, taskEntit
             pictureThumbnail: taskItem.creatorEmployee.pictureThumbnail
           }
         : undefined,
-      type: taskItem.taskType?.value || taskItem.taskType?.code || 'GENERAL',
-      priority: (taskItem.taskPriority?.type?.toLowerCase() as any) || 'medium',
-      status: (taskItem.statusCode?.toLowerCase() as any) || 'pending',
+      // Keep CatalogEntry objects for taskType, taskPriority, taskStatus (required by TaskDetailSheet)
+      taskType: taskItem.taskType,
+      taskPriority: taskItem.taskPriority,
+      taskStatus: taskItem.taskStatus,
+      // Legacy string fields (for backwards compatibility)
       dueDate: taskItem.due || taskItem.createdAt || '',
       createdAt: taskItem.createdAt || '',
       updatedAt: taskItem.createdAt || '',

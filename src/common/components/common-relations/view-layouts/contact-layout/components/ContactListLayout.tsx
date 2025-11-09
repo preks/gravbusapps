@@ -1,4 +1,4 @@
-import React, { useEffect } from 'react'
+import React from 'react'
 import { DataTable } from '@newwork/nw-design-system'
 import type { ColumnDef } from '@tanstack/react-table'
 
@@ -45,21 +45,6 @@ export function ContactListLayout<T = any>(props: Readonly<ContactListLayoutProp
     actions,
     dataTestId = 'contact-list-layout'
   } = props
-
-  useEffect(() => {
-    console.log('[ContactListLayout] Data loaded:', {
-      dataType: typeof data,
-      isArray: Array.isArray(data),
-      dataLength: Array.isArray(data) ? data.length : 'N/A',
-      dataValue: data,
-      totalCount,
-      loading,
-      error,
-      columnsCount: columns?.length,
-      firstItem: Array.isArray(data) && data.length > 0 ? data[0] : null,
-      dataStructure: Array.isArray(data) && data.length > 0 ? Object.keys(data[0]) : []
-    })
-  }, [data, totalCount, loading, error, columns])
 
   return (
     <DataTable<T>

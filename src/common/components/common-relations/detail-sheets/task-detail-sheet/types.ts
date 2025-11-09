@@ -1,4 +1,5 @@
 import { FileInfo } from '@/common/types/FileTypes'
+import type { CatalogEntry } from '@/common/network/graphql/commonTypes'
 
 export interface TaskEmployee {
   id: string
@@ -34,6 +35,10 @@ export interface Task {
   type?: string // Optional - may not always have a type
   priority?: 'high' | 'medium' | 'urgent' | 'low' // Optional
   status?: 'in_progress' | 'pending' | 'completed' | 'overdue' // Optional
+  // CatalogEntry objects for taskType, taskPriority, taskStatus (used by TaskDetailSheet)
+  taskType?: CatalogEntry
+  taskPriority?: CatalogEntry
+  taskStatus?: CatalogEntry
   reference?: TaskReference
   dueDate?: string // Optional
   scheduleDate?: string

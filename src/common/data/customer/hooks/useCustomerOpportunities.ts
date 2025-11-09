@@ -6,20 +6,22 @@ import { BusinessAppContextProps } from '@/common/BusinessAppContext'
 // Types
 import type { BaseCustomerOpportunity, CustomerOpportunity } from '../types'
 
-// Queries
+// Queries (New)
 import {
-  GET_CUSTOMER_OPPORTUNITIES,
-  GET_CUSTOMER_OPPORTUNITY_BY_ID,
-  SEARCH_CUSTOMER_OPPORTUNITIES,
+  buildCustomerOpportunityQuery,
+  buildCustomerOpportunityByIdQuery,
+  buildCustomerOpportunitySearchQuery,
+  buildCustomerOpportunityWhereCondition,
+  buildCustomerOpportunityOrderBy,
   type CustomerOpportunityQueryVariables
-} from '../queries/customerOpportunityQueries'
+} from '../queries/customerOpportunityQueries.new'
 
 // Mapper
 import { toCustomerOpportunity } from '../mappers/customerOpportunityMappers'
 
 export interface CustomerOpportunityListQueryResponse {
-  CustomerOpportunity: BaseCustomerOpportunity[]
-  CustomerOpportunityAggregate: {
+  Opportunity: BaseCustomerOpportunity[]
+  OpportunityAggregate: {
     aggregate: { count: number }
   }
 }
@@ -34,10 +36,77 @@ export const useCustomerOpportunities = (context: BusinessAppContextProps) => {
 
   const fetchCustomerOpportunities = useCallback(
     async (variables: CustomerOpportunityQueryVariables = {}): Promise<CustomerOpportunityListData> => {
-      const query = GET_CUSTOMER_OPPORTUNITIES(variables)
-      const result = await graphqlClient.request<CustomerOpportunityListQueryResponse>(query)
-      const opportunities = result.CustomerOpportunity.map(toCustomerOpportunity)
-      const total = result.CustomerOpportunityAggregate?.aggregate?.count || 0
+      const query = buildCustomerOpportunityQuery()
+
+      const customConditions: Record<string, any>[] = []
+
+      // Custom filter for stageValues (stage OR salesPipelineStage.value)
+      if (variables.stageValues?.length) {
+        customConditions.push({
+          _or: [
+            { stage: { _in: variables.stageValues } },
+            { salesPipelineStage: { value: { _in: variables.stageValues } } }
+          ]
+        })
+      }
+
+      // Custom ranged filters for estimatedAmount (treat null as 0) and winningChance (multiple OR ranges)
+      if (variables.estimatedAmountRanges?.length) {
+        const orConditions = variables.estimatedAmountRanges.flatMap(range => {
+          const conditions: any[] = []
+          const amountCondition: any = {}
+
+          if (range.min !== undefined) amountCondition._gte = range.min
+          if (range.max !== undefined) amountCondition._lte = range.max
+
+          if (Object.keys(amountCondition).length > 0) {
+            conditions.push({ estimatedAmount: amountCondition })
+          }
+
+          // If range includes 0, also include null values (null treated as 0)
+          const includesZero =
+            (range.min === undefined || range.min === 0) && (range.max === undefined || range.max >= 0)
+          if (includesZero) {
+            conditions.push({ estimatedAmount: { _isNull: true } })
+          }
+
+          return conditions
+        })
+        customConditions.push({ _or: orConditions })
+      }
+
+      if (variables.winningChanceRanges?.length) {
+        const orConditions = variables.winningChanceRanges.map(range => {
+          const chanceCondition: any = {}
+          if (range.min !== undefined) chanceCondition._gte = range.min
+          if (range.max !== undefined) chanceCondition._lte = range.max
+          return { winningChance: chanceCondition }
+        })
+        customConditions.push({ _or: orConditions })
+      }
+
+      if (variables.forecastedProfitBetween) {
+        customConditions.push({
+          forecastedProfitAmount: {
+            _gte: variables.forecastedProfitBetween[0],
+            _lte: variables.forecastedProfitBetween[1]
+          }
+        })
+      }
+
+      const whereCondition = buildCustomerOpportunityWhereCondition(variables, [], customConditions)
+      const orderBy = buildCustomerOpportunityOrderBy(variables.orderBy || [])
+
+      const graphQLVariables: Record<string, any> = {
+        limit: Math.min(variables.limit || 50, 100),
+        offset: variables.offset || 0,
+        where: whereCondition,
+        orderBy: orderBy
+      }
+
+      const result = await graphqlClient.request<CustomerOpportunityListQueryResponse>(query, graphQLVariables)
+      const opportunities = result.Opportunity.map(toCustomerOpportunity)
+      const total = result.OpportunityAggregate?.aggregate?.count || 0
       return { opportunities, total }
     },
     [graphqlClient]
@@ -45,19 +114,23 @@ export const useCustomerOpportunities = (context: BusinessAppContextProps) => {
 
   const fetchCustomerOpportunityById = useCallback(
     async (id: string): Promise<CustomerOpportunity | null> => {
-      const query = GET_CUSTOMER_OPPORTUNITY_BY_ID(id)
-      const result = await graphqlClient.request<{ CustomerOpportunity: BaseCustomerOpportunity[] }>(query)
-      const base = result.CustomerOpportunity?.[0]
-      return base ? toCustomerOpportunity(base) : null
+      const query = buildCustomerOpportunityByIdQuery(undefined, undefined, id)
+      const result = await graphqlClient.request<{ OpportunityByPk: BaseCustomerOpportunity | null }>(query)
+      return result.OpportunityByPk ? toCustomerOpportunity(result.OpportunityByPk) : null
     },
     [graphqlClient]
   )
 
   const searchCustomerOpportunities = useCallback(
     async (variables: CustomerOpportunityQueryVariables): Promise<CustomerOpportunity[]> => {
-      const query = SEARCH_CUSTOMER_OPPORTUNITIES(variables)
-      const result = await graphqlClient.request<{ CustomerOpportunity: BaseCustomerOpportunity[] }>(query)
-      return result.CustomerOpportunity.map(toCustomerOpportunity)
+      const query = buildCustomerOpportunitySearchQuery()
+      const whereCondition = buildCustomerOpportunityWhereCondition(variables)
+      const graphQLVariables: Record<string, any> = {
+        limit: Math.min(variables.limit || 50, 100),
+        where: whereCondition
+      }
+      const result = await graphqlClient.request<{ Opportunity: BaseCustomerOpportunity[] }>(query, graphQLVariables)
+      return result.Opportunity.map(toCustomerOpportunity)
     },
     [graphqlClient]
   )

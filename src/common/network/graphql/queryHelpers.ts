@@ -53,53 +53,68 @@ export interface Descriptor {
   optionDistinctOn?: string[]
 }
 
-/** Build orderBy clause from UI inputs and descriptors (no schema mapping required) */
-export const buildOrderBy = (orderBy: SortInput[] = [], descriptors: Descriptor[] = []): string => {
-  if (!orderBy.length) return ''
+/** Build orderBy as GraphQL object array (for use with GraphQL variables) */
+export const buildOrderBy = (orderBy: SortInput[] = [], descriptors: Descriptor[] = []): any[] => {
+  if (!orderBy.length) return []
   const index: Record<string, Descriptor> = Object.fromEntries(descriptors.map(d => [d.key, d]))
-  const parts = orderBy.flatMap(o => {
-    const d = index[o.field]
-    if (!d) return []
+  const orderByObjects: any[] = []
 
-    // Skip if sorting is disabled for this descriptor
-    if (d.enableSort === false) return []
+  for (const o of orderBy) {
+    const d = index[o.field]
+    if (!d) continue
+    if (d.enableSort === false) continue
 
     // Support sortPaths (fallbacks) or sortPath (single) or searchPaths[0] fallback
     const paths =
       d.sortPaths ||
       (d.sortPath ? [d.sortPath] : d.searchPaths && d.searchPaths.length > 0 ? [d.searchPaths[0]] : [o.field])
 
-    return paths
-      .map(path => {
-        const segments = path.split('.').filter(Boolean)
-        if (segments.length === 0) return ''
-        if (segments.length === 1) {
-          return `{ ${segments[0]}: ${o.direction} }`
-        }
-        const leaf = `${segments.pop()!}: ${o.direction}`
-        return buildNestedPath(segments.join('.'), `{ ${leaf} }`)
-      })
-      .filter(Boolean)
-  })
-  return `orderBy: [${parts.join(', ')}]`
+    for (const path of paths) {
+      const segments = path.split('.').filter(Boolean)
+      if (segments.length === 0) continue
+
+      const orderByObj: any = {}
+      let current = orderByObj
+      for (let i = 0; i < segments.length - 1; i++) {
+        current[segments[i]] = {}
+        current = current[segments[i]]
+      }
+      current[segments[segments.length - 1]] = o.direction
+      orderByObjects.push(orderByObj)
+    }
+  }
+
+  return orderByObjects
 }
 
-/** Build _or search conditions from descriptors */
-export const buildSearch = (search: string, descriptors: Descriptor[] = []): string => {
+/** Build nested object path from dot path */
+const buildNestedObjectPath = (dotPath: string, leaf: any): any => {
+  const segments = dotPath.split('.').filter(Boolean)
+  if (segments.length === 0) return leaf
+
+  let result: any = leaf
+  for (let i = segments.length - 1; i >= 0; i--) {
+    result = { [segments[i]]: result }
+  }
+  return result
+}
+
+/** Build _or search conditions from descriptors (returns object) */
+export const buildSearch = (search: string, descriptors: Descriptor[] = []): Record<string, any> | null => {
   const term = search?.trim()
-  if (!term) return ''
-  const escape = (s: string) => String(s).replace(/\\/g, '\\\\').replace(/"/g, '\\"')
-  const like = `%${escape(term)}%`
-  const conds: string[] = []
+  if (!term) return null
+
+  const conds: any[] = []
   for (const d of descriptors) {
     const paths = d.searchPaths || []
     if (d.enableSearch === false) continue
     for (const path of paths) {
-      let leaf = `{ _ilike: "${like}" }`
+      let leaf: any = null
+
       if (d.type === 'number') {
         const num = Number(term)
         if (!Number.isNaN(num) && Number.isFinite(num)) {
-          leaf = `{ _eq: ${num} }`
+          leaf = { _eq: num }
         } else {
           continue // skip invalid numeric input for number fields
         }
@@ -110,7 +125,7 @@ export const buildSearch = (search: string, descriptors: Descriptor[] = []): str
         if (bool === null) {
           continue // skip invalid boolean input
         }
-        leaf = `{ _eq: ${bool ? 'true' : 'false'} }`
+        leaf = { _eq: bool }
       } else if (d.type === 'date') {
         // Accept YYYY, YYYY-MM, YYYY-MM-DD, or parseable date; build a day/month/year range
         const ymd = term.match(/^\d{4}-\d{2}-\d{2}$/)
@@ -119,11 +134,11 @@ export const buildSearch = (search: string, descriptors: Descriptor[] = []): str
         let start: Date | null = null
         let end: Date | null = null
         if (ymd) {
-          const [Y, M, D] = term.split('-').map(n => parseInt(n, 10))
+          const [Y, M, D] = term.split('-').map((n: string) => parseInt(n, 10))
           start = new Date(Date.UTC(Y, M - 1, D, 0, 0, 0, 0))
           end = new Date(Date.UTC(Y, M - 1, D, 23, 59, 59, 999))
         } else if (ym) {
-          const [Y, M] = term.split('-').map(n => parseInt(n, 10))
+          const [Y, M] = term.split('-').map((n: string) => parseInt(n, 10))
           start = new Date(Date.UTC(Y, M - 1, 1, 0, 0, 0, 0))
           end = new Date(Date.UTC(Y, M, 0, 23, 59, 59, 999))
         } else if (y) {
@@ -146,57 +161,71 @@ export const buildSearch = (search: string, descriptors: Descriptor[] = []): str
         }
         const startIso = start.toISOString()
         const endIso = end.toISOString()
-        leaf = `{ _gte: "${startIso}", _lte: "${endIso}" }`
+        leaf = { _gte: startIso, _lte: endIso }
+      } else {
+        // Default: text search with _ilike
+        const escape = (s: string) => String(s).replace(/\\/g, '\\\\').replace(/"/g, '\\"')
+        const like = `%${escape(term)}%`
+        leaf = { _ilike: like }
       }
-      conds.push(buildNestedPath(path, leaf))
+
+      conds.push(buildNestedObjectPath(path, leaf))
     }
   }
-  return conds.length ? `_or: [${conds.join(', ')}]` : ''
+  return conds.length > 0 ? { _or: conds } : null
 }
 
-export const buildFilter = (variables: Record<string, any>, descriptors: Descriptor[] = []): string => {
-  const andConds: string[] = []
+export const buildFilter = (
+  variables: Record<string, any>,
+  descriptors: Descriptor[] = []
+): Record<string, any> | null => {
+  const andConds: any[] = []
   for (const d of descriptors) {
     const value = variables[d.key as keyof typeof variables]
     if (value === undefined || value === null) continue
     if (d.enableFilter === false) continue
     if (d.kind === 'custom' && d.build) {
-      const built = d.build(value)
-      if (Array.isArray(built)) andConds.push(...built)
-      else if (built) andConds.push(built)
+      // Custom builders return strings - skip for object mode (handled separately if needed)
       continue
     }
     if (!d.path) continue
+
+    let leaf: any = null
+
     switch (d.kind) {
       case 'inIds': {
         const arr: string[] = Array.isArray(value) ? value : []
-        if (!arr.length) break
-        const list = arr.map(v => `"${v}"`).join(', ')
-        andConds.push(buildNestedPath(d.path, `{ _in: [${list}] }`))
+        if (arr.length > 0) {
+          leaf = { _in: arr }
+        }
         break
       }
       case 'inStrings': {
         const arr: string[] = Array.isArray(value) ? value : []
-        if (!arr.length) break
-        const list = arr.map(v => `"${String(v).replace(/"/g, '\\"')}"`).join(', ')
-        andConds.push(buildNestedPath(d.path, `{ _in: [${list}] }`))
+        if (arr.length > 0) {
+          leaf = { _in: arr }
+        }
         break
       }
       case 'eqBool': {
-        andConds.push(buildNestedPath(d.path, `{ _eq: ${value === true ? 'true' : 'false'} }`))
+        leaf = { _eq: value === true }
         break
       }
       case 'dateFrom': {
-        andConds.push(buildNestedPath(d.path, `{ _gte: "${value}" }`))
+        leaf = { _gte: value }
         break
       }
       case 'dateTo': {
-        andConds.push(buildNestedPath(d.path, `{ _lte: "${value}" }`))
+        leaf = { _lte: value }
         break
       }
     }
+
+    if (leaf) {
+      andConds.push(buildNestedObjectPath(d.path, leaf))
+    }
   }
-  return andConds.length ? `_and: [${andConds.join(', ')}]` : ''
+  return andConds.length > 0 ? { _and: andConds } : null
 }
 
 // ==========================================
@@ -275,5 +304,116 @@ export const buildFilterGroups = (args: {
 // ==========================================
 
 export type FilterKind = 'inIds' | 'inStrings' | 'eqBool' | 'dateFrom' | 'dateTo' | 'custom'
+
+// ==========================================
+// GENERIC WHERE BUILDER
+// ==========================================
+
+export interface BuildWhereOptions {
+  /** Variables object containing filter/search values */
+  variables: Record<string, any>
+  /** Descriptors for filter and search building */
+  descriptors: Descriptor[]
+  /** Optional: IDs to filter by */
+  ids?: string[]
+  /** Optional: Custom additional conditions as GraphQL objects */
+  customConditions?: Record<string, any>[]
+  /** Optional: Skip isDeleted check (default: false) */
+  isDeleted?: boolean
+}
+
+/**
+ * Generic WHERE condition builder that eliminates duplication across query files.
+ * Handles: isDeleted, IDs filter, standard filters (via descriptors), search (via descriptors), and custom conditions.
+ * Returns GraphQL object (for use with GraphQL variables).
+ */
+export const buildWhere = (options: BuildWhereOptions): Record<string, any> => {
+  const { variables, descriptors, ids, customConditions = [], isDeleted = true } = options
+
+  // Normalize date range variables: Convert *Range variables (comma-separated strings or arrays) to *From/*To pairs
+  // Dynamically find matching descriptors to determine the From/To keys
+  const normalizedVariables = { ...variables }
+
+  // Find all variables ending with "Range"
+  const rangeKeys = Object.keys(normalizedVariables).filter(k => k.endsWith('Range'))
+
+  for (const rangeKey of rangeKeys) {
+    const rangeValue = normalizedVariables[rangeKey]
+    if (rangeValue === undefined || rangeValue === null) continue
+
+    // Extract base name (e.g., "createdDateRange" -> "createdDate", "dueDateRange" -> "dueDate")
+    const baseName = rangeKey.replace(/Range$/, '')
+
+    // Find matching From/To descriptors
+    const fromKey = descriptors.find(d => d.kind === 'dateFrom' && d.path?.includes(baseName))?.key
+    const toKey = descriptors.find(d => d.kind === 'dateTo' && d.path?.includes(baseName))?.key
+
+    if (fromKey && toKey) {
+      // If From/To already exist, don't override
+      if (normalizedVariables[fromKey] === undefined && normalizedVariables[toKey] === undefined) {
+        let dateRange: string[] = []
+
+        if (Array.isArray(rangeValue)) {
+          dateRange = rangeValue
+        } else if (typeof rangeValue === 'string') {
+          // Split comma-separated string
+          dateRange = rangeValue
+            .split(',')
+            .map(s => s.trim())
+            .filter(Boolean)
+        }
+
+        if (dateRange.length >= 2) {
+          const [start, end] = dateRange
+          if (start) normalizedVariables[fromKey] = start
+          if (end) normalizedVariables[toKey] = end
+        } else if (dateRange.length === 1) {
+          // Single date: use as both From and To
+          normalizedVariables[fromKey] = dateRange[0]
+          normalizedVariables[toKey] = dateRange[0]
+        }
+      }
+    }
+  }
+
+  const whereObj: Record<string, any> = {}
+
+  // Base condition: isDeleted check
+  if (isDeleted) {
+    whereObj.isDeleted = { _eq: false }
+  }
+
+  // IDs filter
+  if (ids && ids.length > 0) {
+    whereObj.id = { _in: ids }
+  }
+
+  // Custom conditions (merge into whereObj)
+  for (const customCondition of customConditions) {
+    Object.assign(whereObj, customCondition)
+  }
+
+  // Standard filters via descriptors (using buildFilter)
+  const filterObj = buildFilter(normalizedVariables, descriptors)
+  if (filterObj && filterObj._and) {
+    if (whereObj._and) {
+      whereObj._and.push(...filterObj._and)
+    } else {
+      whereObj._and = filterObj._and
+    }
+  }
+
+  // Search via descriptors (using buildSearch)
+  const searchObj = buildSearch(normalizedVariables.search, descriptors)
+  if (searchObj && searchObj._or) {
+    if (whereObj._and) {
+      whereObj._and.push(searchObj)
+    } else {
+      whereObj._or = searchObj._or
+    }
+  }
+
+  return whereObj
+}
 
 // (Intentionally no entity-specific descriptors below this point)

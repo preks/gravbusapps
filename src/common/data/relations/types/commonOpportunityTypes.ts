@@ -36,146 +36,216 @@ export interface CommonOpportunity extends BaseEntity {
   winningChance?: number // IRM | CRM
 }
 
-export const COMMON_OPPORTUNITY_DESCRIPTORS: Descriptor[] = [
+/**
+ * Opportunity Query Field Mapping
+ */
+export const OpportunityFields = {
+  account: 'account',
+  accountId: 'accountId',
+  activities: 'activities',
+  addresses: 'addresses',
+  closeDate: 'closeDate',
+  code: 'code',
+  communicationChannels: 'communicationChannels',
+  currency: 'currency',
+  currencyRef: 'currencyRef',
+  documents: 'documents',
+  estimatedAmount: 'estimatedAmount',
+  id: 'id',
+  leads: 'leads',
+  name: 'name',
+  notes: 'notes',
+  notesSummary: 'notesSummary',
+  opportunityContacts: 'opportunityContacts',
+  opportunityPipeline: 'opportunityPipeline',
+  opportunityPipelineRef: 'opportunityPipelineRef',
+  opportunityPipelineStage: 'opportunityPipelineStage',
+  opportunityPipelineStageRef: 'opportunityPipelineStageRef',
+  opportunityStageConditions: 'opportunityStageConditions',
+  opportunityStatus: 'opportunityStatus',
+  opportunityStatusRef: 'opportunityStatusRef',
+  ownerEmployee: 'ownerEmployee',
+  ownerEmployeeId: 'ownerEmployeeId',
+  rejectionReasons: 'rejectionReasons',
+  tasks: 'tasks',
+  winningChance: 'winningChance'
+} as const
+
+export type OpportunityFieldName = (typeof OpportunityFields)[keyof typeof OpportunityFields]
+
+/**
+ * Create Common Opportunity Descriptors with fields mapping
+ */
+export const createCommonOpportunityDescriptors = (
+  fields: Record<keyof typeof OpportunityFields, string> = OpportunityFields
+): Descriptor[] => [
   ...BASE_ENTITY_DESCRIPTORS,
 
-  { key: 'account', searchPaths: ['account.name', 'account.code'], sortPath: 'account.name', type: 'text' },
+  {
+    key: 'account',
+    searchPaths: [`${fields.account}.name`, `${fields.account}.code`],
+    sortPath: `${fields.account}.name`,
+    type: 'text'
+  },
   {
     key: 'activities',
-    searchPaths: ['activities.title', 'activities.description'],
-    sortPath: 'activities.title',
+    searchPaths: [`${fields.activities}.title`, `${fields.activities}.description`],
+    sortPath: `${fields.activities}.title`,
     type: 'text'
   },
   {
     key: 'addresses',
-    searchPaths: ['addresses.locality', 'addresses.postalCode', 'addresses.region.value', 'addresses.country.value'],
-    sortPaths: ['addresses.locality', 'addresses.postalCode', 'addresses.region.value', 'addresses.country.value'],
+    searchPaths: [
+      `${fields.addresses}.locality`,
+      `${fields.addresses}.postalCode`,
+      `${fields.addresses}.region.value`,
+      `${fields.addresses}.country.value`
+    ],
+    sortPaths: [
+      `${fields.addresses}.locality`,
+      `${fields.addresses}.postalCode`,
+      `${fields.addresses}.region.value`,
+      `${fields.addresses}.country.value`
+    ],
     type: 'text'
   },
-  { key: 'closeDate', searchPaths: ['closeDate'], sortPath: 'closeDate', type: 'date' },
-  { key: 'code', searchPaths: ['code'], sortPath: 'code', type: 'text' },
+  { key: 'closeDate', searchPaths: [fields.closeDate], sortPath: fields.closeDate, type: 'date' },
+  { key: 'code', searchPaths: [fields.code], sortPath: fields.code, type: 'text' },
   {
     key: 'communicationChannels',
-    searchPaths: ['communicationChannels.value'],
+    searchPaths: [`${fields.communicationChannels}.value`],
     enableSort: false,
     type: 'text'
   },
   {
     key: 'currency',
-    searchPaths: ['currency.value', 'currency.code'],
-    sortPath: 'currency.value',
+    searchPaths: [`${fields.currency}.value`, `${fields.currency}.code`],
+    sortPath: `${fields.currency}.value`,
     type: 'text'
   },
   {
     key: 'documents',
-    searchPaths: ['documents.name', 'documents.description'],
-    sortPath: 'documents.name',
+    searchPaths: [`${fields.documents}.name`, `${fields.documents}.description`],
+    sortPath: `${fields.documents}.name`,
     type: 'text'
   },
-  { key: 'estimatedAmount', searchPaths: ['estimatedAmount'], sortPath: 'estimatedAmount', type: 'number' },
-
+  { key: 'estimatedAmount', searchPaths: [fields.estimatedAmount], sortPath: fields.estimatedAmount, type: 'number' },
   {
     key: 'leads',
-    searchPaths: ['leads.firstName', 'leads.lastName', 'leads.companyName'],
-    sortPaths: ['leads.firstName', 'leads.lastName', 'leads.companyName'],
+    searchPaths: [`${fields.leads}.firstName`, `${fields.leads}.lastName`, `${fields.leads}.companyName`],
+    sortPaths: [`${fields.leads}.firstName`, `${fields.leads}.lastName`, `${fields.leads}.companyName`],
     type: 'text'
   },
-  { key: 'name', searchPaths: ['name'], sortPath: 'name', type: 'text' },
-  { key: 'notes', searchPaths: ['notes.title', 'notes.text'], sortPath: 'notes.title', type: 'text' },
-  { key: 'notesSummary', searchPaths: ['notesSummary'], sortPath: 'notesSummary', type: 'text' },
+  { key: 'name', searchPaths: [fields.name], sortPath: fields.name, type: 'text' },
+  {
+    key: 'notes',
+    searchPaths: [`${fields.notes}.title`, `${fields.notes}.text`],
+    sortPath: `${fields.notes}.title`,
+    type: 'text'
+  },
+  { key: 'notesSummary', searchPaths: [fields.notesSummary], sortPath: fields.notesSummary, type: 'text' },
   {
     key: 'opportunityContacts',
-    searchPaths: ['opportunityContacts.contact.firstName', 'opportunityContacts.contact.lastName'],
-    sortPath: 'opportunityContacts.contact.lastName',
+    searchPaths: [`${fields.opportunityContacts}.contact.firstName`, `${fields.opportunityContacts}.contact.lastName`],
+    sortPath: `${fields.opportunityContacts}.contact.lastName`,
     type: 'text'
   },
   {
     key: 'opportunityPipeline',
-    searchPaths: ['opportunityPipeline.value', 'opportunityPipeline.code'],
-    sortPath: 'opportunityPipeline.value',
+    searchPaths: [`${fields.opportunityPipeline}.value`, `${fields.opportunityPipeline}.code`],
+    sortPath: `${fields.opportunityPipeline}.value`,
     type: 'text'
   },
   {
     key: 'opportunityPipelineRef',
-    sortPath: 'opportunityPipelineRef',
+    sortPath: fields.opportunityPipelineRef,
     type: 'text'
   },
   {
     key: 'opportunityPipelineStage',
-    searchPaths: ['opportunityPipelineStage.value', 'opportunityPipelineStage.code'],
-    sortPath: 'opportunityPipelineStage.value',
+    searchPaths: [`${fields.opportunityPipelineStage}.value`, `${fields.opportunityPipelineStage}.code`],
+    sortPath: `${fields.opportunityPipelineStage}.value`,
     type: 'text'
   },
   {
     key: 'opportunityPipelineStageRef',
-    sortPath: 'opportunityPipelineStageRef',
+    sortPath: fields.opportunityPipelineStageRef,
     type: 'text'
   },
   {
     key: 'opportunityStageConditions',
-    searchPaths: ['opportunityStageConditions.name'],
-    sortPath: 'opportunityStageConditions.name',
+    searchPaths: [`${fields.opportunityStageConditions}.opportunityPipelineStageCondition.value`],
+    sortPath: `${fields.opportunityStageConditions}.opportunityPipelineStageCondition.value`,
     type: 'text'
   },
   {
     key: 'opportunityStatus',
-    searchPaths: ['opportunityStatus.value', 'opportunityStatus.code'],
-    sortPath: 'opportunityStatus.value',
+    searchPaths: [`${fields.opportunityStatus}.value`, `${fields.opportunityStatus}.code`],
+    sortPath: `${fields.opportunityStatus}.value`,
     type: 'text'
   },
   {
     key: 'opportunityStatusRef',
-    sortPath: 'opportunityStatusRef',
+    sortPath: fields.opportunityStatusRef,
     type: 'text'
   },
   {
     key: 'ownerEmployee',
-    searchPaths: ['ownerEmployee.displayName', 'ownerEmployee.firstName', 'ownerEmployee.lastName'],
-    sortPath: 'ownerEmployee.displayName',
+    searchPaths: [
+      `${fields.ownerEmployee}.displayName`,
+      `${fields.ownerEmployee}.firstName`,
+      `${fields.ownerEmployee}.lastName`
+    ],
+    sortPath: `${fields.ownerEmployee}.displayName`,
     type: 'text'
   },
   {
     key: 'rejectionReasons',
-    searchPaths: ['rejectionReasons.rejectionReason.value'],
-    sortPath: 'rejectionReasons.rejectionReason.value',
+    searchPaths: [`${fields.rejectionReasons}.rejectionReason.value`],
+    sortPath: `${fields.rejectionReasons}.rejectionReason.value`,
     type: 'text'
   },
-  { key: 'tasks', searchPaths: ['tasks.name', 'tasks.description'], sortPath: 'tasks.name', type: 'text' },
-  { key: 'winningChance', searchPaths: ['winningChance'], sortPath: 'winningChance', type: 'number' },
+  {
+    key: 'tasks',
+    searchPaths: [`${fields.tasks}.name`, `${fields.tasks}.description`],
+    sortPath: `${fields.tasks}.name`,
+    type: 'text'
+  },
+  { key: 'winningChance', searchPaths: [fields.winningChance], sortPath: fields.winningChance, type: 'number' },
 
   // Filter IDs
-  { key: 'accountIds', path: 'accountId', kind: 'inIds' },
-  { key: 'currencyIds', path: 'currencyRef', kind: 'inIds' },
-  { key: 'opportunityPipelineIds', path: 'opportunityPipelineRef', kind: 'inIds' },
-  { key: 'opportunityPipelineStageIds', path: 'opportunityPipelineStageRef', kind: 'inIds' },
-  { key: 'opportunityStatusIds', path: 'opportunityStatusRef', kind: 'inIds' },
-  { key: 'ownerEmployeeIds', path: 'ownerEmployeeId', kind: 'inIds' },
+  { key: 'accountIds', path: fields.accountId, kind: 'inIds' },
+  { key: 'currencyIds', path: fields.currencyRef, kind: 'inIds' },
+  { key: 'opportunityPipelineIds', path: fields.opportunityPipelineRef, kind: 'inIds' },
+  { key: 'opportunityPipelineStageIds', path: fields.opportunityPipelineStageRef, kind: 'inIds' },
+  { key: 'opportunityStatusIds', path: fields.opportunityStatusRef, kind: 'inIds' },
+  { key: 'ownerEmployeeIds', path: fields.ownerEmployeeId, kind: 'inIds' },
 
   // Date range filters
-  { key: 'closeDateAfter', path: 'closeDate', kind: 'dateFrom' },
-  { key: 'closeDateBefore', path: 'closeDate', kind: 'dateTo' },
+  { key: 'closeDateFrom', path: fields.closeDate, kind: 'dateFrom' },
+  { key: 'closeDateTo', path: fields.closeDate, kind: 'dateTo' },
 
-  // Composite display columns (for table sorting)
-  // opportunity: Displays name - sorts by name
-  { key: 'opportunity', searchPaths: ['name', 'code'], sortPath: 'name', type: 'text' },
-
-  // amount: Displays estimatedAmount with currency - sorts by estimatedAmount
-  { key: 'amount', searchPaths: ['estimatedAmount'], sortPath: 'estimatedAmount', type: 'number' },
-
-  // account: Displays account name - sorts by account.name
-  { key: 'account', searchPaths: ['account.name'], sortPath: 'account.name', type: 'text' },
-
-  // owner: Displays ownerEmployee - sorts by ownerEmployee.displayName
+  // Composite display columns
+  { key: 'opportunity', searchPaths: [fields.name, fields.code], sortPath: fields.name, type: 'text' },
+  { key: 'amount', searchPaths: [fields.estimatedAmount], sortPath: fields.estimatedAmount, type: 'number' },
+  { key: 'account', searchPaths: [`${fields.account}.name`], sortPath: `${fields.account}.name`, type: 'text' },
   {
     key: 'owner',
-    searchPaths: ['ownerEmployee.displayName', 'ownerEmployee.firstName', 'ownerEmployee.lastName'],
-    sortPath: 'ownerEmployee.displayName',
+    searchPaths: [
+      `${fields.ownerEmployee}.displayName`,
+      `${fields.ownerEmployee}.firstName`,
+      `${fields.ownerEmployee}.lastName`
+    ],
+    sortPath: `${fields.ownerEmployee}.displayName`,
     type: 'text'
   },
-
-  // created: Displays createdAt - sorts by createdAt
   { key: 'created', searchPaths: ['createdAt'], sortPath: 'createdAt', type: 'date' }
 ]
+
+/**
+ * Default Common Opportunity Descriptors
+ */
+export const COMMON_OPPORTUNITY_DESCRIPTORS = createCommonOpportunityDescriptors(OpportunityFields)
 
 export interface CommonOpportunityStageCondition extends BaseEntity {
   completed?: boolean // IRM | CRM

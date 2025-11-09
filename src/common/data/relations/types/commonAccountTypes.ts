@@ -45,112 +45,189 @@ export interface CommonAccount extends BaseEntity {
   timeZoneRef?: string // IRM | CRM
 }
 
-export const COMMON_ACCOUNT_DESCRIPTORS: Descriptor[] = [
+/**
+ * Account Query Field Mapping
+ * Maps TypeScript property names to GraphQL schema field names
+ * Used in descriptors and queries for consistent field references
+ */
+export const AccountFields = {
+  accountAnnualRevenueBand: 'accountAnnualRevenueBand',
+  accountAnnualRevenueBandRef: 'accountAnnualRevenueBandRef',
+  accountContacts: 'accountContacts',
+  activities: 'activities',
+  addresses: 'addresses',
+  code: 'code',
+  communicationChannels: 'communicationChannels',
+  companySize: 'companySize',
+  companySizeRef: 'companySizeRef',
+  contacts: 'contacts',
+  documents: 'documents',
+  foundationDate: 'foundationDate',
+  id: 'id',
+  industryClass: 'industryClass',
+  industryClassRef: 'industryClassRef',
+  leads: 'leads',
+  legalForm: 'legalForm',
+  legalFormRef: 'legalFormRef',
+  liquidationDate: 'liquidationDate',
+  name: 'name',
+  notes: 'notes',
+  notesSummary: 'notesSummary',
+  opportunities: 'opportunities',
+  ownerEmployee: 'ownerEmployee',
+  ownerEmployeeId: 'ownerEmployeeId',
+  picture: 'picture',
+  pictureThumbnail: 'pictureThumbnail',
+  tasks: 'tasks',
+  timeZone: 'timeZone',
+  timeZoneRef: 'timeZoneRef'
+} as const
+
+// Type helper
+export type AccountFieldName = (typeof AccountFields)[keyof typeof AccountFields]
+
+/**
+ * Create Common Account Descriptors with fields mapping
+ * @param fields - AccountFields mapping (default: AccountFields)
+ * @returns Descriptor array with field paths using the provided mapping
+ */
+export const createCommonAccountDescriptors = (
+  fields: Record<keyof typeof AccountFields, string> = AccountFields
+): Descriptor[] => [
   ...BASE_ENTITY_DESCRIPTORS,
 
   // CommonAccount fields (alphabetically sorted, matching interface)
   {
     key: 'accountAnnualRevenueBand',
-    searchPaths: ['accountAnnualRevenueBand.value', 'accountAnnualRevenueBand.code'],
-    sortPath: 'accountAnnualRevenueBand.value',
+    searchPaths: [`${fields.accountAnnualRevenueBand}.value`, `${fields.accountAnnualRevenueBand}.code`],
+    sortPath: `${fields.accountAnnualRevenueBand}.value`,
     type: 'text'
   },
   {
     key: 'accountContacts',
-    searchPaths: ['accountContacts.contact.firstName', 'accountContacts.contact.lastName'],
-    sortPaths: ['accountContacts.contact.firstName', 'accountContacts.contact.lastName'],
+    searchPaths: [`${fields.accountContacts}.contact.firstName`, `${fields.accountContacts}.contact.lastName`],
+    sortPaths: [`${fields.accountContacts}.contact.firstName`, `${fields.accountContacts}.contact.lastName`],
     type: 'text'
   },
   {
     key: 'activities',
-    searchPaths: ['activities.title', 'activities.description'],
-    sortPath: 'activities.title',
+    searchPaths: [`${fields.activities}.title`, `${fields.activities}.description`],
+    sortPath: `${fields.activities}.title`,
     type: 'text'
   },
   {
     key: 'addresses',
-    searchPaths: ['addresses.locality', 'addresses.postalCode', 'addresses.region.value', 'addresses.country.value'],
-    sortPaths: ['addresses.locality', 'addresses.postalCode', 'addresses.region.value', 'addresses.country.value'],
+    searchPaths: [
+      `${fields.addresses}.locality`,
+      `${fields.addresses}.postalCode`,
+      `${fields.addresses}.region.value`,
+      `${fields.addresses}.country.value`
+    ],
+    sortPaths: [
+      `${fields.addresses}.locality`,
+      `${fields.addresses}.postalCode`,
+      `${fields.addresses}.region.value`,
+      `${fields.addresses}.country.value`
+    ],
     type: 'text'
   },
-  { key: 'code', searchPaths: ['code'], sortPath: 'code', type: 'text' },
+  { key: 'code', searchPaths: [fields.code], sortPath: fields.code, type: 'text' },
   {
     key: 'communicationChannels',
-    searchPaths: ['communicationChannels.value'],
+    searchPaths: [`${fields.communicationChannels}.value`],
     enableSort: false,
     type: 'text'
   },
   {
     key: 'companySize',
-    searchPaths: ['companySize.value', 'companySize.code'],
-    sortPath: 'companySize.value',
+    searchPaths: [`${fields.companySize}.value`, `${fields.companySize}.code`],
+    sortPath: `${fields.companySize}.value`,
     type: 'text'
   },
   {
     key: 'documents',
-    searchPaths: ['documents.name', 'documents.description'],
-    sortPath: 'documents.name',
+    searchPaths: [`${fields.documents}.name`, `${fields.documents}.description`],
+    sortPath: `${fields.documents}.name`,
     type: 'text'
   },
-  { key: 'foundationDate', searchPaths: ['foundationDate'], sortPath: 'foundationDate', type: 'date' },
+  { key: 'foundationDate', searchPaths: [fields.foundationDate], sortPath: fields.foundationDate, type: 'date' },
   {
     key: 'industryClass',
-    searchPaths: ['industryClass.value', 'industryClass.code'],
-    sortPath: 'industryClass.value',
+    searchPaths: [`${fields.industryClass}.value`, `${fields.industryClass}.code`],
+    sortPath: `${fields.industryClass}.value`,
     type: 'text'
   },
   {
     key: 'leads',
-    searchPaths: ['leads.firstName', 'leads.lastName', 'leads.companyName'],
-    sortPath: 'leads.lastName',
+    searchPaths: [`${fields.leads}.firstName`, `${fields.leads}.lastName`, `${fields.leads}.companyName`],
+    sortPath: `${fields.leads}.lastName`,
     type: 'text'
   },
   {
     key: 'legalForm',
-    searchPaths: ['legalForm.value', 'legalForm.code'],
-    sortPath: 'legalForm.value',
+    searchPaths: [`${fields.legalForm}.value`, `${fields.legalForm}.code`],
+    sortPath: `${fields.legalForm}.value`,
     type: 'text'
   },
-  { key: 'liquidationDate', searchPaths: ['liquidationDate'], sortPath: 'liquidationDate', type: 'date' },
-  { key: 'name', searchPaths: ['name'], sortPath: 'name', type: 'text' },
-  { key: 'notes', searchPaths: ['notes.title', 'notes.text'], sortPath: 'notes.title', type: 'text' },
-  { key: 'notesSummary', searchPaths: ['notesSummary'], sortPath: 'notesSummary', type: 'text' },
+  { key: 'liquidationDate', searchPaths: [fields.liquidationDate], sortPath: fields.liquidationDate, type: 'date' },
+  { key: 'name', searchPaths: [fields.name], sortPath: fields.name, type: 'text' },
+  {
+    key: 'notes',
+    searchPaths: [`${fields.notes}.title`, `${fields.notes}.text`],
+    sortPath: `${fields.notes}.title`,
+    type: 'text'
+  },
+  { key: 'notesSummary', searchPaths: [fields.notesSummary], sortPath: fields.notesSummary, type: 'text' },
   {
     key: 'opportunities',
-    searchPaths: ['opportunities.name'],
-    sortPath: 'opportunities.name',
+    searchPaths: [`${fields.opportunities}.name`],
+    sortPath: `${fields.opportunities}.name`,
     type: 'text'
   },
   {
     key: 'ownerEmployee',
-    searchPaths: ['ownerEmployee.displayName', 'ownerEmployee.firstName', 'ownerEmployee.lastName'],
-    sortPath: 'ownerEmployee.displayName',
+    searchPaths: [
+      `${fields.ownerEmployee}.displayName`,
+      `${fields.ownerEmployee}.firstName`,
+      `${fields.ownerEmployee}.lastName`
+    ],
+    sortPath: `${fields.ownerEmployee}.displayName`,
     type: 'text'
   },
-  { key: 'picture', searchPaths: ['picture'], sortPath: 'picture', type: 'text' },
-  { key: 'pictureThumbnail', searchPaths: ['pictureThumbnail'], sortPath: 'pictureThumbnail', type: 'text' },
-  { key: 'tasks', searchPaths: ['tasks.name', 'tasks.description'], sortPath: 'tasks.name', type: 'text' },
+  { key: 'picture', searchPaths: [fields.picture], sortPath: fields.picture, type: 'text' },
+  { key: 'pictureThumbnail', searchPaths: [fields.pictureThumbnail], sortPath: fields.pictureThumbnail, type: 'text' },
+  {
+    key: 'tasks',
+    searchPaths: [`${fields.tasks}.name`, `${fields.tasks}.description`],
+    sortPath: `${fields.tasks}.name`,
+    type: 'text'
+  },
   {
     key: 'timeZone',
-    searchPaths: ['timeZone.value', 'timeZone.code'],
-    sortPath: 'timeZone.value',
+    searchPaths: [`${fields.timeZone}.value`, `${fields.timeZone}.code`],
+    sortPath: `${fields.timeZone}.value`,
     type: 'text'
   },
 
   // Filter IDs for Refs
-  { key: 'accountAnnualRevenueBandIds', path: 'accountAnnualRevenueBandRef', kind: 'inIds' },
-  { key: 'companySizeIds', path: 'companySizeRef', kind: 'inIds' },
-  { key: 'industryClassIds', path: 'industryClassRef', kind: 'inIds' },
-  { key: 'legalFormIds', path: 'legalFormRef', kind: 'inIds' },
-  { key: 'ownerEmployeeIds', path: 'ownerEmployeeId', kind: 'inIds' },
-  { key: 'timeZoneIds', path: 'timeZoneRef', kind: 'inIds' },
+  { key: 'accountAnnualRevenueBandIds', path: fields.accountAnnualRevenueBandRef, kind: 'inIds' },
+  { key: 'companySizeIds', path: fields.companySizeRef, kind: 'inIds' },
+  { key: 'industryClassIds', path: fields.industryClassRef, kind: 'inIds' },
+  { key: 'legalFormIds', path: fields.legalFormRef, kind: 'inIds' },
+  { key: 'ownerEmployeeIds', path: fields.ownerEmployeeId, kind: 'inIds' },
+  { key: 'timeZoneIds', path: fields.timeZoneRef, kind: 'inIds' },
 
   // Date range filters
-  { key: 'foundationDateAfter', path: 'foundationDate', kind: 'dateFrom' },
-  { key: 'foundationDateBefore', path: 'foundationDate', kind: 'dateTo' },
-  { key: 'liquidationDateAfter', path: 'liquidationDate', kind: 'dateFrom' },
-  { key: 'liquidationDateBefore', path: 'liquidationDate', kind: 'dateTo' }
+  { key: 'foundationDateFrom', path: fields.foundationDate, kind: 'dateFrom' },
+  { key: 'foundationDateTo', path: fields.foundationDate, kind: 'dateTo' },
+  { key: 'liquidationDateFrom', path: fields.liquidationDate, kind: 'dateFrom' },
+  { key: 'liquidationDateTo', path: fields.liquidationDate, kind: 'dateTo' }
 ]
+
+/**
+ * Default Common Account Descriptors (IRM field names)
+ */
+export const COMMON_ACCOUNT_DESCRIPTORS = createCommonAccountDescriptors(AccountFields)
 
 // Deprecated - remove later
 interface FilterOption {

@@ -4,6 +4,7 @@
 
 import type { BaseEntity, CatalogEntry } from '@/common/network/graphql/commonTypes'
 import type { AddressType, SourceTable } from './investmentEnums'
+import { AUDIT_FIELDS, CATALOG_ENTRY } from '@/common/network/graphql/commonFragments'
 
 /**
  * InvestmentAddress
@@ -33,3 +34,24 @@ export interface InvestmentAddress extends BaseEntity {
   lead?: any // InvestmentLead
   leadId?: string
 }
+
+/**
+ * Investment Address Fragment
+ * GraphQL fragment for Investment Address entities (IRM uses "locality")
+ */
+export const INVESTMENT_ADDRESS_FRAGMENT = `
+  id
+  addressType
+  addressLine
+  locality
+  postalCode
+  ${AUDIT_FIELDS}
+  region {
+    ${CATALOG_ENTRY}
+  }
+  regionRef
+  country {
+    ${CATALOG_ENTRY}
+  }
+  countryRef
+`

@@ -28,63 +28,110 @@ export interface CommonActivity extends BaseEntity {
   title?: string // IRM | CRM
 }
 
-export const COMMON_ACTIVITY_DESCRIPTORS: Descriptor[] = [
+/**
+ * Activity Query Field Mapping
+ * Maps TypeScript property names to GraphQL schema field names
+ */
+export const ActivityFields = {
+  account: 'account',
+  accountId: 'accountId',
+  activityType: 'activityType',
+  activityTypeRef: 'activityTypeRef',
+  completedAt: 'completedAt',
+  contact: 'contact',
+  contactId: 'contactId',
+  description: 'description',
+  documents: 'documents',
+  id: 'id',
+  lead: 'lead',
+  leadId: 'leadId',
+  occurredAt: 'occurredAt',
+  opportunity: 'opportunity',
+  opportunityId: 'opportunityId',
+  ownerEmployee: 'ownerEmployee',
+  ownerEmployeeId: 'ownerEmployeeId',
+  source: 'source',
+  title: 'title'
+} as const
+
+export type ActivityFieldName = (typeof ActivityFields)[keyof typeof ActivityFields]
+
+/**
+ * Create Common Activity Descriptors with fields mapping
+ */
+export const createCommonActivityDescriptors = (
+  fields: Record<keyof typeof ActivityFields, string> = ActivityFields
+): Descriptor[] => [
   ...BASE_ENTITY_DESCRIPTORS,
 
-  { key: 'account', searchPaths: ['account.name', 'account.code'], sortPath: 'account.name', type: 'text' },
+  {
+    key: 'account',
+    searchPaths: [`${fields.account}.name`, `${fields.account}.code`],
+    sortPath: `${fields.account}.name`,
+    type: 'text'
+  },
   {
     key: 'activityType',
-    searchPaths: ['activityType.value', 'activityType.code'],
-    sortPath: 'activityType.value',
+    searchPaths: [`${fields.activityType}.value`, `${fields.activityType}.code`],
+    sortPath: `${fields.activityType}.value`,
     type: 'text'
   },
-  { key: 'completedAt', searchPaths: ['completedAt'], sortPath: 'completedAt', type: 'date' },
+  { key: 'completedAt', searchPaths: [fields.completedAt], sortPath: fields.completedAt, type: 'date' },
   {
     key: 'contact',
-    searchPaths: ['contact.firstName', 'contact.lastName'],
-    sortPath: 'contact.lastName',
+    searchPaths: [`${fields.contact}.firstName`, `${fields.contact}.lastName`],
+    sortPath: `${fields.contact}.lastName`,
     type: 'text'
   },
-  { key: 'description', searchPaths: ['description'], sortPath: 'description', type: 'text' },
+  { key: 'description', searchPaths: [fields.description], sortPath: fields.description, type: 'text' },
   {
     key: 'documents',
-    searchPaths: ['documents.name', 'documents.description'],
-    sortPath: 'documents.name',
+    searchPaths: [`${fields.documents}.name`, `${fields.documents}.description`],
+    sortPath: `${fields.documents}.name`,
     type: 'text'
   },
   {
     key: 'lead',
-    searchPaths: ['lead.firstName', 'lead.lastName', 'lead.companyName'],
-    sortPath: 'lead.lastName',
+    searchPaths: [`${fields.lead}.firstName`, `${fields.lead}.lastName`, `${fields.lead}.companyName`],
+    sortPath: `${fields.lead}.lastName`,
     type: 'text'
   },
-  { key: 'occurredAt', searchPaths: ['occurredAt'], sortPath: 'occurredAt', type: 'date' },
+  { key: 'occurredAt', searchPaths: [fields.occurredAt], sortPath: fields.occurredAt, type: 'date' },
   {
     key: 'opportunity',
-    searchPaths: ['opportunity.name', 'opportunity.description'],
-    sortPath: 'opportunity.name',
+    searchPaths: [`${fields.opportunity}.name`, `${fields.opportunity}.description`],
+    sortPath: `${fields.opportunity}.name`,
     type: 'text'
   },
   {
     key: 'ownerEmployee',
-    searchPaths: ['ownerEmployee.displayName', 'ownerEmployee.firstName', 'ownerEmployee.lastName'],
-    sortPath: 'ownerEmployee.displayName',
+    searchPaths: [
+      `${fields.ownerEmployee}.displayName`,
+      `${fields.ownerEmployee}.firstName`,
+      `${fields.ownerEmployee}.lastName`
+    ],
+    sortPath: `${fields.ownerEmployee}.displayName`,
     type: 'text'
   },
-  { key: 'source', searchPaths: ['source'], sortPath: 'source', type: 'text' },
-  { key: 'title', searchPaths: ['title'], sortPath: 'title', type: 'text' },
+  { key: 'source', searchPaths: [fields.source], sortPath: fields.source, type: 'text' },
+  { key: 'title', searchPaths: [fields.title], sortPath: fields.title, type: 'text' },
 
   // Filter IDs
-  { key: 'accountIds', path: 'accountId', kind: 'inIds' },
-  { key: 'activityTypeIds', path: 'activityTypeRef', kind: 'inIds' },
-  { key: 'contactIds', path: 'contactId', kind: 'inIds' },
-  { key: 'leadIds', path: 'leadId', kind: 'inIds' },
-  { key: 'opportunityIds', path: 'opportunityId', kind: 'inIds' },
-  { key: 'ownerEmployeeIds', path: 'ownerEmployeeId', kind: 'inIds' },
+  { key: 'accountIds', path: fields.accountId, kind: 'inIds' },
+  { key: 'activityTypeIds', path: fields.activityTypeRef, kind: 'inIds' },
+  { key: 'contactIds', path: fields.contactId, kind: 'inIds' },
+  { key: 'leadIds', path: fields.leadId, kind: 'inIds' },
+  { key: 'opportunityIds', path: fields.opportunityId, kind: 'inIds' },
+  { key: 'ownerEmployeeIds', path: fields.ownerEmployeeId, kind: 'inIds' },
 
   // Date range filters
-  { key: 'completedAtAfter', path: 'completedAt', kind: 'dateFrom' },
-  { key: 'completedAtBefore', path: 'completedAt', kind: 'dateTo' },
-  { key: 'occurredAtAfter', path: 'occurredAt', kind: 'dateFrom' },
-  { key: 'occurredAtBefore', path: 'occurredAt', kind: 'dateTo' }
+  { key: 'completedAtFrom', path: fields.completedAt, kind: 'dateFrom' },
+  { key: 'completedAtTo', path: fields.completedAt, kind: 'dateTo' },
+  { key: 'occurredAtFrom', path: fields.occurredAt, kind: 'dateFrom' },
+  { key: 'occurredAtTo', path: fields.occurredAt, kind: 'dateTo' }
 ]
+
+/**
+ * Default Common Activity Descriptors
+ */
+export const COMMON_ACTIVITY_DESCRIPTORS = createCommonActivityDescriptors(ActivityFields)

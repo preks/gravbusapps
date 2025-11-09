@@ -1,5 +1,5 @@
 import type { CommonActivity } from '@/common/data/relations/types/commonActivityTypes'
-import { COMMON_ACTIVITY_DESCRIPTORS } from '@/common/data/relations/types/commonActivityTypes'
+import { ActivityFields, createCommonActivityDescriptors } from '@/common/data/relations/types/commonActivityTypes'
 import type { Descriptor } from '@/common/network/graphql/queryHelpers'
 import {
   Investment,
@@ -26,7 +26,17 @@ export interface InvestmentActivity extends CommonActivity {
 }
 
 /**
- * Investment Activity Descriptors
- * IRM uses correct field names, so we use Common descriptors directly
+ * Investment Activity Query Field Mapping
+ * IRM uses same field names as Common, so we use ActivityFields directly
  */
-export const INVESTMENT_ACTIVITY_DESCRIPTORS: Descriptor[] = [...COMMON_ACTIVITY_DESCRIPTORS]
+export const InvestmentActivityFields = ActivityFields
+
+export type InvestmentActivityFieldName = (typeof InvestmentActivityFields)[keyof typeof InvestmentActivityFields]
+
+/**
+ * Investment Activity Descriptors
+ * Uses createCommonActivityDescriptors with InvestmentActivityFields mapping
+ */
+export const INVESTMENT_ACTIVITY_DESCRIPTORS: Descriptor[] = [
+  ...createCommonActivityDescriptors(InvestmentActivityFields)
+]

@@ -7,7 +7,8 @@ import { commonAccountColumns } from '@/common/components/common-relations/view-
 import { commonAccountFilterConfig } from '@/common/components/common-relations/view-layouts/account-layout/config'
 import { useGetInvestmentAccounts } from '@/common/data/investment/hooks/useInvestmentAccounts'
 import { useInvestmentAccountFilters } from '@/common/data/investment/hooks/useInvestmentAccountFilters'
-import type { InvestmentAccountQueryVariables } from '@/common/data/investment/queries/investmentAccountQueries'
+import type { InvestmentAccountQueryVariables } from '@/common/data/investment/queries/investmentAccountQueries.new'
+import { normalizeDateRange } from '@/common/utils/dateRangeNormalizer'
 import { FlowContextName } from '@/common/types/FlowRegistryTypes'
 import { buildPlatformUrl } from '@/common/utils/navigationUtils'
 import { useInvestmentAccountStatistics } from '@/common/data/investment/hooks/useInvestmentAccountStatistics'
@@ -86,22 +87,28 @@ export const AccountView: React.FC<AccountViewProps> = context => {
           search: params.searchTerm.trim() || undefined
         }
 
-        // Copy filter values directly (Filter-IDs now match Descriptor-Keys)
-        // Handle createdAtRange date filter splitting
-        if (
-          params.selectedFilters.createdAtRange &&
-          Array.isArray(params.selectedFilters.createdAtRange) &&
-          params.selectedFilters.createdAtRange.length === 2
-        ) {
-          const [start, end] = params.selectedFilters.createdAtRange
-          if (start) vars.createdAfter = start
-          if (end) vars.createdBefore = end
-        }
+        // Normalize date range filters
+        const dateRangeKeys = [
+          'createdAtRange',
+          'updatedAtRange',
+          'foundationDateRange',
+          'liquidationDateRange',
+          'activeFromRange',
+          'activeToRange'
+        ]
+        dateRangeKeys.forEach(rangeKey => {
+          const normalized = normalizeDateRange(params.selectedFilters[rangeKey])
+          if (normalized) {
+            const baseKey = rangeKey.replace('Range', '')
+            if (normalized.from) vars[`${baseKey}From` as keyof InvestmentAccountQueryVariables] = normalized.from
+            if (normalized.to) vars[`${baseKey}To` as keyof InvestmentAccountQueryVariables] = normalized.to
+          }
+        })
 
         // Copy all other filters directly (they now match Descriptor-Keys)
         Object.keys(params.selectedFilters).forEach(key => {
           if (
-            key !== 'createdAtRange' &&
+            !dateRangeKeys.includes(key) &&
             params.selectedFilters[key] !== undefined &&
             params.selectedFilters[key] !== null
           ) {

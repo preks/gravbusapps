@@ -8,7 +8,8 @@ import { commonContactFilterConfig } from '@/common/components/common-relations/
 import { useInvestmentContacts } from '@/common/data/investment/hooks/useInvestmentContacts'
 import { useInvestmentContactStatistics } from '@/common/data/investment/hooks/useInvestmentContactStatistics'
 import { useInvestmentContactFilters } from '@/common/data/investment/hooks/useInvestmentContactFilters'
-import type { InvestmentContactQueryVariables } from '@/common/data/investment/queries/investmentContactQueries'
+import type { InvestmentContactQueryVariables } from '@/common/data/investment/queries/investmentContactQueries.new'
+import { normalizeDateRange } from '@/common/utils/dateRangeNormalizer'
 import { FlowContextName } from '@/common/types/FlowRegistryTypes'
 import { buildPlatformUrl } from '@/common/utils/navigationUtils'
 import type { ContactStatisticsData } from '@/common/components/common-relations/view-layouts/contact-layout'
@@ -76,22 +77,21 @@ export const ContactView: React.FC<ContactViewProps> = context => {
           search: params.searchTerm.trim() || undefined
         }
 
-        // Copy filter values directly (Filter-IDs now match Descriptor-Keys)
-        // Handle createdAtRange date filter splitting
-        if (
-          params.selectedFilters.createdAtRange &&
-          Array.isArray(params.selectedFilters.createdAtRange) &&
-          params.selectedFilters.createdAtRange.length === 2
-        ) {
-          const [start, end] = params.selectedFilters.createdAtRange
-          if (start) vars.createdAtFrom = start
-          if (end) vars.createdAtTo = end
-        }
+        // Normalize date range filters
+        const dateRangeKeys = ['createdAtRange', 'updatedAtRange']
+        dateRangeKeys.forEach(rangeKey => {
+          const normalized = normalizeDateRange(params.selectedFilters[rangeKey])
+          if (normalized) {
+            const baseKey = rangeKey.replace('Range', '')
+            if (normalized.from) vars[`${baseKey}From` as keyof InvestmentContactQueryVariables] = normalized.from
+            if (normalized.to) vars[`${baseKey}To` as keyof InvestmentContactQueryVariables] = normalized.to
+          }
+        })
 
         // Copy all other filters directly (they now match Descriptor-Keys)
         Object.keys(params.selectedFilters).forEach(key => {
           if (
-            key !== 'createdAtRange' &&
+            !dateRangeKeys.includes(key) &&
             params.selectedFilters[key] !== undefined &&
             params.selectedFilters[key] !== null
           ) {

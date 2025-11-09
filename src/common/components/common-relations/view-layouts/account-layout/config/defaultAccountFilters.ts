@@ -196,9 +196,7 @@ export const commonAccountFilterConfig: FilterConfiguration = {
             mode: 'range',
             placeholder: 'Start Date',
             placeholderEnd: 'End Date',
-            showClearButton: true,
-            startField: 'createdAfter',
-            endField: 'createdBefore'
+            showClearButton: true
           }
         }
       ]

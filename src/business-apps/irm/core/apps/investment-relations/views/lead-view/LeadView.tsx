@@ -7,7 +7,8 @@ import { commonLeadColumns } from '@/common/components/common-relations/view-lay
 import { commonLeadFilterConfig } from '@/common/components/common-relations/view-layouts/lead-layout/config'
 import { useInvestmentLeads } from '@/common/data/investment/hooks/useInvestmentLeads'
 import { useInvestmentLeadFilters } from '@/common/data/investment/hooks/useInvestmentLeadFilters'
-import type { InvestmentLeadQueryVariables } from '@/common/data/investment/queries/investmentLeadQueries'
+import type { InvestmentLeadQueryVariables } from '@/common/data/investment/queries/investmentLeadQueries.new'
+import { normalizeDateRange } from '@/common/utils/dateRangeNormalizer'
 import { FlowContextName } from '@/common/types/FlowRegistryTypes'
 import { buildPlatformUrl } from '@/common/utils/navigationUtils'
 import { useInvestmentLeadStatistics } from '@/common/data/investment/hooks/useInvestmentLeadStatistics'
@@ -75,17 +76,16 @@ export const LeadView: React.FC<LeadViewProps> = context => {
           search: params.searchTerm.trim() || undefined
         }
 
-        // Copy filter values directly (Filter-IDs now match Descriptor-Keys)
-        // Handle createdAtRange date filter splitting
-        if (
-          params.selectedFilters.createdAtRange &&
-          Array.isArray(params.selectedFilters.createdAtRange) &&
-          params.selectedFilters.createdAtRange.length === 2
-        ) {
-          const [start, end] = params.selectedFilters.createdAtRange
-          if (start) vars.createdAtFrom = start
-          if (end) vars.createdAtTo = end
-        }
+        // Normalize date range filters
+        const dateRangeKeys = ['createdAtRange', 'updatedAtRange']
+        dateRangeKeys.forEach(rangeKey => {
+          const normalized = normalizeDateRange(params.selectedFilters[rangeKey])
+          if (normalized) {
+            const baseKey = rangeKey.replace('Range', '')
+            if (normalized.from) vars[`${baseKey}From` as keyof InvestmentLeadQueryVariables] = normalized.from
+            if (normalized.to) vars[`${baseKey}To` as keyof InvestmentLeadQueryVariables] = normalized.to
+          }
+        })
 
         // Handle sensitive filter (boolean - no Descriptor)
         if (params.selectedFilters.sensitive !== undefined && params.selectedFilters.sensitive !== null) {
@@ -102,7 +102,7 @@ export const LeadView: React.FC<LeadViewProps> = context => {
         // Copy all other filters directly (they now match Descriptor-Keys)
         Object.keys(params.selectedFilters).forEach(key => {
           if (
-            key !== 'createdAtRange' &&
+            !dateRangeKeys.includes(key) &&
             key !== 'sensitive' &&
             params.selectedFilters[key] !== undefined &&
             params.selectedFilters[key] !== null

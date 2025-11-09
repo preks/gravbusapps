@@ -1,5 +1,5 @@
 import type { CommonTask, CommonTaskComment, CommonTaskTemplate } from '@/common/data/relations/types/commonTaskTypes'
-import { COMMON_TASK_DESCRIPTORS } from '@/common/data/relations/types/commonTaskTypes'
+import { TaskFields, createCommonTaskDescriptors } from '@/common/data/relations/types/commonTaskTypes'
 import type { Descriptor } from '@/common/network/graphql/queryHelpers'
 import type { TaskTiming } from '@/common/data/relations/constants/commonTaskConstants'
 import type { CatalogEntry } from '@/common/network/graphql/commonTypes'
@@ -54,64 +54,38 @@ export interface CustomerTaskComment extends CommonTaskComment {
 }
 
 /**
+ * Customer Task Query Field Mapping
+ * Extends TaskFields with CRM-specific GraphQL field names
+ */
+export const CustomerTaskFields = {
+  ...TaskFields,
+  // Override CRM-specific field names
+  comments: 'comment', // CRM uses singular "comment"
+  taskPriority: 'priority',
+  taskPriorityRef: 'priorityRef',
+  taskStatus: 'status',
+  taskStatusRef: 'statusRef',
+  taskTiming: 'timingType',
+  taskType: 'type',
+  taskTypeRef: 'typeRef',
+  taskTemplate: 'salesTaskTemplate',
+  taskTemplateId: 'salesTaskTemplateId'
+} as const
+
+export type CustomerTaskFieldName = (typeof CustomerTaskFields)[keyof typeof CustomerTaskFields]
+
+/**
  * Customer Task Descriptors
- * Extends Common descriptors with CRM-specific path overrides for wrong field names
+ * Uses createCommonTaskDescriptors with CustomerTaskFields mapping
  */
 export const CUSTOMER_TASK_DESCRIPTORS: Descriptor[] = [
-  // Filter out descriptors we need to override for CRM wrong field names
-  ...COMMON_TASK_DESCRIPTORS.filter(
-    d =>
-      ![
-        'comments',
-        'opportunityStageCondition', //missing in CRM
-        'taskPriority',
-        'taskStatus',
-        'taskTiming',
-        'taskType',
-        'taskTemplate',
-        'taskPriorityIds',
-        'taskStatusIds',
-        'taskTypeIds',
-        'taskTemplateIds'
-      ].includes(d.key)
+  ...createCommonTaskDescriptors(CustomerTaskFields as Record<keyof typeof TaskFields, string>).filter(
+    d => !['comments'].includes(d.key)
   ),
   {
     key: 'comments',
     searchPaths: ['comment'],
-    sortPath: 'comment',
+    sortPaths: ['comment'],
     type: 'text'
-  },
-
-  // CRM-specific path overrides (key remains IRM-correct name, but paths use CRM field names)
-  {
-    key: 'taskPriority',
-    searchPaths: ['priority.value', 'priority.code'],
-    sortPath: 'priority.value',
-    type: 'text'
-  },
-  {
-    key: 'taskStatus',
-    searchPaths: ['status.value', 'status.code'],
-    sortPath: 'status.value',
-    type: 'text'
-  },
-  { key: 'taskTiming', searchPaths: ['timingType'], sortPath: 'timingType', type: 'text' },
-  {
-    key: 'taskType',
-    searchPaths: ['type.value', 'type.code'],
-    sortPath: 'type.value',
-    type: 'text'
-  },
-  {
-    key: 'taskTemplate',
-    searchPaths: ['salesTaskTemplate.name'],
-    sortPath: 'salesTaskTemplate.name',
-    type: 'text'
-  },
-
-  // CRM-specific filter path overrides
-  { key: 'taskPriorityIds', path: 'priorityRef', kind: 'inIds' },
-  { key: 'taskStatusIds', path: 'statusRef', kind: 'inIds' },
-  { key: 'taskTypeIds', path: 'typeRef', kind: 'inIds' },
-  { key: 'taskTemplateIds', path: 'salesTaskTemplateId', kind: 'inIds' }
+  }
 ]

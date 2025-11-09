@@ -3,7 +3,10 @@ import type {
   CommonOpportunity,
   CommonOpportunityStageCondition
 } from '@/common/data/relations/types/commonOpportunityTypes'
-import { COMMON_OPPORTUNITY_DESCRIPTORS } from '@/common/data/relations/types/commonOpportunityTypes'
+import {
+  OpportunityFields,
+  createCommonOpportunityDescriptors
+} from '@/common/data/relations/types/commonOpportunityTypes'
 import type { Descriptor } from '@/common/network/graphql/queryHelpers'
 import type { InvestmentAccount } from './investmentAccountTypes'
 import type { InvestmentAddress } from './investmentAddressTypes'
@@ -85,14 +88,27 @@ export interface InvestmentOpportunityStageCondition extends CommonOpportunitySt
 }
 
 /**
+ * Investment Opportunity Query Field Mapping
+ * Extends OpportunityFields with IRM-specific GraphQL field names
+ */
+export const InvestmentOpportunityFields = {
+  ...OpportunityFields,
+  // Override IRM-specific field names
+  leads: 'investmentLead',
+  opportunityContacts: 'investmentOpportunityContact',
+  opportunityStageConditions: 'investmentOpportunityStageCondition'
+} as const
+
+export type InvestmentOpportunityFieldName =
+  (typeof InvestmentOpportunityFields)[keyof typeof InvestmentOpportunityFields]
+
+/**
  * Investment Opportunity Descriptors
- * Extends Common descriptors with IRM-specific fields
+ * Uses createCommonOpportunityDescriptors with InvestmentOpportunityFields mapping
+ * Adds IRM-specific fields that don't exist in Common/CRM
  */
 export const INVESTMENT_OPPORTUNITY_DESCRIPTORS: Descriptor[] = [
-  // Filter out descriptors we need to override for CRM wrong field names
-  ...COMMON_OPPORTUNITY_DESCRIPTORS.filter(
-    d => !['leads', 'opportunityContacts', 'opportunityStageConditions'].includes(d.key)
-  ),
+  ...createCommonOpportunityDescriptors(InvestmentOpportunityFields as Record<keyof typeof OpportunityFields, string>),
 
   // IRM-specific descriptors
   { key: 'annualNetColdRent', searchPaths: ['annualNetColdRent'], sortPath: 'annualNetColdRent', type: 'number' },

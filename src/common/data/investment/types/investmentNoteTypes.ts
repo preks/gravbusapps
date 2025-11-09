@@ -1,5 +1,5 @@
 import type { CommonNote } from '@/common/data/relations/types/commonNoteTypes'
-import { COMMON_NOTE_DESCRIPTORS } from '@/common/data/relations/types/commonNoteTypes'
+import { NoteFields, createCommonNoteDescriptors } from '@/common/data/relations/types/commonNoteTypes'
 import type { Descriptor } from '@/common/network/graphql/queryHelpers'
 import {
   Investment,
@@ -21,7 +21,15 @@ export interface InvestmentNote extends CommonNote {
 }
 
 /**
- * Investment Note Descriptors
- * IRM uses correct field names, so we use Common descriptors directly
+ * Investment Note Query Field Mapping
+ * IRM uses same field names as Common, so we use NoteFields directly
  */
-export const INVESTMENT_NOTE_DESCRIPTORS: Descriptor[] = [...COMMON_NOTE_DESCRIPTORS]
+export const InvestmentNoteFields = NoteFields
+
+export type InvestmentNoteFieldName = (typeof InvestmentNoteFields)[keyof typeof InvestmentNoteFields]
+
+/**
+ * Investment Note Descriptors
+ * Uses createCommonNoteDescriptors with InvestmentNoteFields mapping
+ */
+export const INVESTMENT_NOTE_DESCRIPTORS: Descriptor[] = [...createCommonNoteDescriptors(InvestmentNoteFields)]

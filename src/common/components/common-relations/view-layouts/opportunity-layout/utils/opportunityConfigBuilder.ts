@@ -8,6 +8,7 @@ import { createBoardCardRenderer } from './boardCardRenderer'
 import { createOpportunityColumns, createOpportunitySortableColumns } from '../config/opportunityColumns'
 import { opportunityFilterConfig } from '../config/opportunityFilters'
 import type { Descriptor } from '@/common/network/graphql/queryHelpers'
+import { normalizeDateRange } from '@/common/utils/dateRangeNormalizer'
 
 export interface OpportunityConfigBuilderOptions<TOpportunity, TQueryVariables> {
   contextType: 'customer' | 'investment'
@@ -104,33 +105,22 @@ export const createOpportunityConfig = <TOpportunity extends { id: string }, TQu
         }
       }
 
-      // Handle closeDate filter (date range)
-      if (params.selectedFilters.closeDate) {
-        if (typeof params.selectedFilters.closeDate === 'string') {
-          // Parse comma-separated date string
-          const dates = params.selectedFilters.closeDate
-            .split(',')
-            .map(d => d.trim())
-            .filter(Boolean)
-          if (dates.length === 1) {
-            vars.closeDateFrom = dates[0]
-            vars.closeDateTo = dates[0]
-          } else if (dates.length === 2) {
-            if (dates[0]) vars.closeDateFrom = dates[0]
-            if (dates[1]) vars.closeDateTo = dates[1]
-          }
-        } else if (Array.isArray(params.selectedFilters.closeDate) && params.selectedFilters.closeDate.length === 2) {
-          const [start, end] = params.selectedFilters.closeDate
-          if (start) vars.closeDateFrom = start
-          if (end) vars.closeDateTo = end
+      // Normalize date range filters
+      const dateRangeKeys = ['createdAtRange', 'updatedAtRange', 'closeDateRange']
+      dateRangeKeys.forEach(rangeKey => {
+        const normalized = normalizeDateRange(params.selectedFilters[rangeKey])
+        if (normalized) {
+          const baseKey = rangeKey.replace('Range', '')
+          if (normalized.from) vars[`${baseKey}From`] = normalized.from
+          if (normalized.to) vars[`${baseKey}To`] = normalized.to
         }
-      }
+      })
 
       // Copy all other filters directly (they now match Descriptor-Keys)
       Object.keys(params.selectedFilters).forEach(key => {
         if (
           key !== 'amount' &&
-          key !== 'closeDate' &&
+          !dateRangeKeys.includes(key) &&
           params.selectedFilters[key] !== undefined &&
           params.selectedFilters[key] !== null
         ) {

@@ -3,7 +3,7 @@
  */
 
 import type { CommonAccount, CommonAccountFilters } from '@/common/data/relations/types/commonAccountTypes'
-import { COMMON_ACCOUNT_DESCRIPTORS } from '@/common/data/relations/types/commonAccountTypes'
+import { AccountFields, createCommonAccountDescriptors } from '@/common/data/relations/types/commonAccountTypes'
 import type { Descriptor } from '@/common/network/graphql/queryHelpers'
 import type { Investment } from './investmentTypes'
 import type { InvestmentReport } from './investmentTypes'
@@ -50,95 +50,38 @@ export interface InvestmentAccount extends CommonAccount {
 }
 
 /**
+ * Investment Account Query Field Mapping
+ * Extends AccountFields with IRM-specific GraphQL field names
+ */
+export const InvestmentAccountFields = {
+  ...AccountFields,
+  // Override IRM-specific field names
+  accountContacts: 'investmentAccountContact',
+  activities: 'investmentActivity',
+  addresses: 'investmentAddress',
+  communicationChannels: 'investmentCommunicationChannel',
+  documents: 'investmentDocument',
+  leads: 'investmentLead',
+  notes: 'investmentNote',
+  opportunities: 'investmentOpportunity',
+  tasks: 'investmentTask'
+} as const
+
+export type InvestmentAccountFieldName = (typeof InvestmentAccountFields)[keyof typeof InvestmentAccountFields]
+
+/**
  * Investment Account Descriptors
- * IRM uses investmentAccountContact instead of accountContacts in GraphQL
- * Add IRM-specific fields that don't exist in CRM
+ * Uses createCommonAccountDescriptors with InvestmentAccountFields mapping
+ * Adds IRM-specific fields that don't exist in Common/CRM
  */
 export const INVESTMENT_ACCOUNT_DESCRIPTORS: Descriptor[] = [
-  ...COMMON_ACCOUNT_DESCRIPTORS.filter(
-    d =>
-      ![
-        'accountContacts',
-        'activities',
-        'addresses',
-        'communicationChannels',
-        'documents',
-        'leads',
-        'notes',
-        'opportunities',
-        'tasks'
-      ].includes(d.key)
-  ),
-  {
-    key: 'accountContacts',
-    searchPaths: ['investmentAccountContact.account.name'],
-    sortPath: 'investmentAccountContact.account.name',
-    type: 'text'
-  },
-  {
-    key: 'activities',
-    searchPaths: ['investmentActivity.title', 'investmentActivity.description'],
-    sortPath: 'investmentActivity.title',
-    type: 'text'
-  },
-  {
-    key: 'addresses',
-    searchPaths: [
-      'investmentAddress.locality',
-      'investmentAddress.postalCode',
-      'investmentAddress.region.value',
-      'investmentAddress.country.value'
-    ],
-    sortPaths: [
-      'investmentAddress.locality',
-      'investmentAddress.postalCode',
-      'investmentAddress.region.value',
-      'investmentAddress.country.value'
-    ],
-    type: 'text'
-  },
-  {
-    key: 'communicationChannels',
-    searchPaths: ['investmentCommunicationChannel.value'],
-    sortPath: 'investmentCommunicationChannel.value',
-    type: 'text'
-  },
-  {
-    key: 'documents',
-    searchPaths: ['investmentDocument.name', 'investmentDocument.description'],
-    sortPath: 'investmentDocument.name',
-    type: 'text'
-  },
+  ...createCommonAccountDescriptors(InvestmentAccountFields as Record<keyof typeof AccountFields, string>),
 
   // IRM-specific fields (not in Common/CRM)
   {
     key: 'investments',
     searchPaths: ['investment.name', 'investment.code'],
     sortPath: 'investment.name',
-    type: 'text'
-  },
-  {
-    key: 'leads',
-    searchPaths: ['investmentLead.firstName', 'investmentLead.lastName', 'investmentLead.companyName'],
-    sortPath: 'investmentLead.lastName',
-    type: 'text'
-  },
-  {
-    key: 'notes',
-    searchPaths: ['investmentNote.title', 'investmentNote.text'],
-    sortPath: 'investmentNote.title',
-    type: 'text'
-  },
-  {
-    key: 'opportunities',
-    searchPaths: ['investmentOpportunity.name', 'investmentOpportunity.investmentName'],
-    sortPath: 'investmentOpportunity.name',
-    type: 'text'
-  },
-  {
-    key: 'tasks',
-    searchPaths: ['investmentTask.name', 'investmentTask.description'],
-    sortPath: 'investmentTask.name',
     type: 'text'
   },
 

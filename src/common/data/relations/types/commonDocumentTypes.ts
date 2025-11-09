@@ -41,82 +41,166 @@ export interface CommonDocument extends BaseEntity {
   verified?: boolean // IRM | CRM
 }
 
-export const COMMON_DOCUMENT_DESCRIPTORS: Descriptor[] = [
+/**
+ * Document Query Field Mapping
+ */
+export const DocumentFields = {
+  account: 'account',
+  accountId: 'accountId',
+  activity: 'activity',
+  activityId: 'activityId',
+  authenticated: 'authenticated',
+  authenticationDate: 'authenticationDate',
+  childDocuments: 'childDocuments',
+  contact: 'contact',
+  contactId: 'contactId',
+  description: 'description',
+  documentGroup: 'documentGroup',
+  documentGroupRef: 'documentGroupRef',
+  documentType: 'documentType',
+  documentTypeRef: 'documentTypeRef',
+  expirationDate: 'expirationDate',
+  file: 'file',
+  fileInfo: 'fileInfo',
+  fileSize: 'fileSize',
+  folder: 'folder',
+  id: 'id',
+  lead: 'lead',
+  leadId: 'leadId',
+  mandatory: 'mandatory',
+  mimeType: 'mimeType',
+  name: 'name',
+  note: 'note',
+  noteId: 'noteId',
+  opportunity: 'opportunity',
+  opportunityId: 'opportunityId',
+  parentDocument: 'parentDocument',
+  parentDocumentId: 'parentDocumentId',
+  source: 'source',
+  task: 'task',
+  taskId: 'taskId',
+  verificationDate: 'verificationDate',
+  verified: 'verified'
+} as const
+
+export type DocumentFieldName = (typeof DocumentFields)[keyof typeof DocumentFields]
+
+/**
+ * Create Common Document Descriptors with fields mapping
+ */
+export const createCommonDocumentDescriptors = (
+  fields: Record<keyof typeof DocumentFields, string> = DocumentFields
+): Descriptor[] => [
   ...BASE_ENTITY_DESCRIPTORS,
 
-  { key: 'account', searchPaths: ['account.name', 'account.code'], sortPath: 'account.name', type: 'text' },
+  {
+    key: 'account',
+    searchPaths: [`${fields.account}.name`, `${fields.account}.code`],
+    sortPath: `${fields.account}.name`,
+    type: 'text'
+  },
   {
     key: 'activity',
-    searchPaths: ['activity.title', 'activity.description'],
-    sortPath: 'activity.title',
+    searchPaths: [`${fields.activity}.title`, `${fields.activity}.description`],
+    sortPath: `${fields.activity}.title`,
     type: 'text'
   },
-  { key: 'authenticated', searchPaths: ['authenticated'], sortPath: 'authenticated', type: 'boolean' },
-  { key: 'authenticationDate', searchPaths: ['authenticationDate'], sortPath: 'authenticationDate', type: 'date' },
-  { key: 'childDocuments', searchPaths: ['childDocuments.name'], sortPath: 'childDocuments.name', type: 'text' },
+  { key: 'authenticated', searchPaths: [fields.authenticated], sortPath: fields.authenticated, type: 'boolean' },
+  {
+    key: 'authenticationDate',
+    searchPaths: [fields.authenticationDate],
+    sortPath: fields.authenticationDate,
+    type: 'date'
+  },
+  {
+    key: 'childDocuments',
+    searchPaths: [`${fields.childDocuments}.name`],
+    sortPath: `${fields.childDocuments}.name`,
+    type: 'text'
+  },
   {
     key: 'contact',
-    searchPaths: ['contact.firstName', 'contact.lastName'],
-    sortPath: 'contact.lastName',
+    searchPaths: [`${fields.contact}.firstName`, `${fields.contact}.lastName`],
+    sortPath: `${fields.contact}.lastName`,
     type: 'text'
   },
-  { key: 'description', searchPaths: ['description'], sortPath: 'description', type: 'text' },
+  { key: 'description', searchPaths: [fields.description], sortPath: fields.description, type: 'text' },
   {
     key: 'documentGroup',
-    searchPaths: ['documentGroup.value', 'documentGroup.code'],
-    sortPath: 'documentGroup.value',
+    searchPaths: [`${fields.documentGroup}.value`, `${fields.documentGroup}.code`],
+    sortPath: `${fields.documentGroup}.value`,
     type: 'text'
   },
   {
     key: 'documentType',
-    searchPaths: ['documentType.value', 'documentType.code'],
-    sortPath: 'documentType.value',
+    searchPaths: [`${fields.documentType}.value`, `${fields.documentType}.code`],
+    sortPath: `${fields.documentType}.value`,
     type: 'text'
   },
-  { key: 'expirationDate', searchPaths: ['expirationDate'], sortPath: 'expirationDate', type: 'date' },
-  { key: 'file', searchPaths: ['file'], sortPath: 'file', type: 'text' },
-  { key: 'fileInfo', searchPaths: ['fileInfo'], sortPath: 'fileInfo', type: 'text' },
-  { key: 'fileSize', searchPaths: ['fileSize'], sortPath: 'fileSize', type: 'number' },
-  { key: 'folder', searchPaths: ['folder'], sortPath: 'folder', type: 'boolean' },
+  { key: 'expirationDate', searchPaths: [fields.expirationDate], sortPath: fields.expirationDate, type: 'date' },
+  { key: 'file', searchPaths: [fields.file], sortPath: fields.file, type: 'text' },
+  { key: 'fileInfo', searchPaths: [fields.fileInfo], sortPath: fields.fileInfo, type: 'text' },
+  { key: 'fileSize', searchPaths: [fields.fileSize], sortPath: fields.fileSize, type: 'number' },
+  { key: 'folder', searchPaths: [fields.folder], sortPath: fields.folder, type: 'boolean' },
   {
     key: 'lead',
-    searchPaths: ['lead.firstName', 'lead.lastName', 'lead.companyName'],
-    sortPath: 'lead.lastName',
+    searchPaths: [`${fields.lead}.firstName`, `${fields.lead}.lastName`, `${fields.lead}.companyName`],
+    sortPath: `${fields.lead}.lastName`,
     type: 'text'
   },
-  { key: 'mandatory', searchPaths: ['mandatory'], sortPath: 'mandatory', type: 'boolean' },
-  { key: 'mimeType', searchPaths: ['mimeType'], sortPath: 'mimeType', type: 'text' },
-  { key: 'name', searchPaths: ['name'], sortPath: 'name', type: 'text' },
-  { key: 'note', searchPaths: ['note.title', 'note.text'], sortPath: 'note.title', type: 'text' },
+  { key: 'mandatory', searchPaths: [fields.mandatory], sortPath: fields.mandatory, type: 'boolean' },
+  { key: 'mimeType', searchPaths: [fields.mimeType], sortPath: fields.mimeType, type: 'text' },
+  { key: 'name', searchPaths: [fields.name], sortPath: fields.name, type: 'text' },
+  {
+    key: 'note',
+    searchPaths: [`${fields.note}.title`, `${fields.note}.text`],
+    sortPath: `${fields.note}.title`,
+    type: 'text'
+  },
   {
     key: 'opportunity',
-    searchPaths: ['opportunity.name', 'opportunity.description'],
-    sortPath: 'opportunity.name',
+    searchPaths: [`${fields.opportunity}.name`, `${fields.opportunity}.description`],
+    sortPath: `${fields.opportunity}.name`,
     type: 'text'
   },
-  { key: 'parentDocument', searchPaths: ['parentDocument.name'], sortPath: 'parentDocument.name', type: 'text' },
-  { key: 'source', searchPaths: ['source'], sortPath: 'source', type: 'text' },
-  { key: 'task', searchPaths: ['task.name', 'task.description'], sortPath: 'task.name', type: 'text' },
-  { key: 'verificationDate', searchPaths: ['verificationDate'], sortPath: 'verificationDate', type: 'date' },
-  { key: 'verified', searchPaths: ['verified'], sortPath: 'verified', type: 'boolean' },
+  {
+    key: 'parentDocument',
+    searchPaths: [`${fields.parentDocument}.name`],
+    sortPath: `${fields.parentDocument}.name`,
+    type: 'text'
+  },
+  { key: 'source', searchPaths: [fields.source], sortPath: fields.source, type: 'text' },
+  {
+    key: 'task',
+    searchPaths: [`${fields.task}.name`, `${fields.task}.description`],
+    sortPath: `${fields.task}.name`,
+    type: 'text'
+  },
+  { key: 'verificationDate', searchPaths: [fields.verificationDate], sortPath: fields.verificationDate, type: 'date' },
+  { key: 'verified', searchPaths: [fields.verified], sortPath: fields.verified, type: 'boolean' },
 
   // Filter IDs
-  { key: 'accountIds', path: 'accountId', kind: 'inIds' },
-  { key: 'activityIds', path: 'activityId', kind: 'inIds' },
-  { key: 'contactIds', path: 'contactId', kind: 'inIds' },
-  { key: 'documentGroupIds', path: 'documentGroupRef', kind: 'inIds' },
-  { key: 'documentTypeIds', path: 'documentTypeRef', kind: 'inIds' },
-  { key: 'leadIds', path: 'leadId', kind: 'inIds' },
-  { key: 'noteIds', path: 'noteId', kind: 'inIds' },
-  { key: 'opportunityIds', path: 'opportunityId', kind: 'inIds' },
-  { key: 'parentDocumentIds', path: 'parentDocumentId', kind: 'inIds' },
-  { key: 'taskIds', path: 'taskId', kind: 'inIds' },
+  { key: 'accountIds', path: fields.accountId, kind: 'inIds' },
+  { key: 'activityIds', path: fields.activityId, kind: 'inIds' },
+  { key: 'contactIds', path: fields.contactId, kind: 'inIds' },
+  { key: 'documentGroupIds', path: fields.documentGroupRef, kind: 'inIds' },
+  { key: 'documentTypeIds', path: fields.documentTypeRef, kind: 'inIds' },
+  { key: 'leadIds', path: fields.leadId, kind: 'inIds' },
+  { key: 'noteIds', path: fields.noteId, kind: 'inIds' },
+  { key: 'opportunityIds', path: fields.opportunityId, kind: 'inIds' },
+  { key: 'parentDocumentIds', path: fields.parentDocumentId, kind: 'inIds' },
+  { key: 'taskIds', path: fields.taskId, kind: 'inIds' },
 
   // Date range filters
-  { key: 'authenticationDateAfter', path: 'authenticationDate', kind: 'dateFrom' },
-  { key: 'authenticationDateBefore', path: 'authenticationDate', kind: 'dateTo' },
-  { key: 'expirationDateAfter', path: 'expirationDate', kind: 'dateFrom' },
-  { key: 'expirationDateBefore', path: 'expirationDate', kind: 'dateTo' },
-  { key: 'verificationDateAfter', path: 'verificationDate', kind: 'dateFrom' },
-  { key: 'verificationDateBefore', path: 'verificationDate', kind: 'dateTo' }
+  { key: 'authenticationDateFrom', path: fields.authenticationDate, kind: 'dateFrom' },
+  { key: 'authenticationDateTo', path: fields.authenticationDate, kind: 'dateTo' },
+  { key: 'expirationDateFrom', path: fields.expirationDate, kind: 'dateFrom' },
+  { key: 'expirationDateTo', path: fields.expirationDate, kind: 'dateTo' },
+  { key: 'verificationDateFrom', path: fields.verificationDate, kind: 'dateFrom' },
+  { key: 'verificationDateTo', path: fields.verificationDate, kind: 'dateTo' }
 ]
+
+/**
+ * Default Common Document Descriptors
+ */
+export const COMMON_DOCUMENT_DESCRIPTORS = createCommonDocumentDescriptors(DocumentFields)

@@ -2,18 +2,37 @@
 import { useCallback } from 'react'
 import { useGraphQLClient } from '@/common/network/graphql/useGraphQLClient'
 import { BusinessAppContextProps } from '@/common/BusinessAppContext'
-import type { BaseInvestmentLead, InvestmentLead } from '../types'
+import type { InvestmentLead } from '../types'
+import type { CommonLead } from '@/common/data/relations/types/commonLeadTypes'
 
-// Use the new query imports
+// Use the new query builders
 import {
-  GET_INVESTMENT_LEADS,
-  GET_INVESTMENT_LEAD_BY_ID,
+  buildInvestmentLeadQuery,
+  buildInvestmentLeadByIdQuery,
+  buildInvestmentLeadWhereCondition,
+  buildInvestmentLeadOrderBy,
+  type InvestmentLeadQueryVariables
+} from '../queries/investmentLeadQueries.new'
+
+// Import related-entity queries from new file
+import {
   GET_INVESTMENT_TASKS_BY_LEAD_ID,
   GET_INVESTMENT_ACTIVITIES_BY_LEAD_ID,
   GET_INVESTMENT_NOTES_BY_LEAD_ID,
-  GET_INVESTMENT_DOCUMENTS_BY_LEAD_ID,
-  type InvestmentLeadQueryVariables
-} from '../queries'
+  GET_INVESTMENT_DOCUMENTS_BY_LEAD_ID
+} from '../queries/investmentLeadQueries.new'
+
+// Import where/orderBy builders for related entities
+import { buildInvestmentTaskWhereCondition, buildInvestmentTaskOrderBy } from '../queries/investmentTaskQueries.new'
+import {
+  buildInvestmentActivityWhereCondition,
+  buildInvestmentActivityOrderBy
+} from '../queries/investmentActivityQueries.new'
+import { buildInvestmentNoteWhereCondition, buildInvestmentNoteOrderBy } from '../queries/investmentNoteQueries.new'
+import {
+  buildInvestmentDocumentWhereCondition,
+  buildInvestmentDocumentOrderBy
+} from '../queries/investmentDocumentQueries.new'
 
 // Use the mapper functions
 import {
@@ -25,11 +44,11 @@ import {
 } from '../mappers'
 
 // Import base types for related entities
-import type { InvestmentTask } from '../types'
+import type { InvestmentTask, InvestmentActivity, InvestmentNote, InvestmentDocument } from '../types'
 
 // Response interfaces
 export interface InvestmentLeadQueryResponse {
-  InvestmentLead: BaseInvestmentLead[]
+  InvestmentLead: InvestmentLead[]
   InvestmentLeadAggregate: {
     aggregate: {
       count: number
@@ -52,15 +71,15 @@ export interface InvestmentTaskQueryResponse {
 }
 
 export interface InvestmentActivityQueryResponse {
-  InvestmentActivity: BaseInvestmentActivity[]
+  InvestmentActivity: InvestmentActivity[]
 }
 
 export interface InvestmentNoteQueryResponse {
-  InvestmentNote: BaseInvestmentNote[]
+  InvestmentNote: InvestmentNote[]
 }
 
 export interface InvestmentDocumentQueryResponse {
-  InvestmentDocument: BaseInvestmentDocument[]
+  InvestmentDocument: InvestmentDocument[]
 }
 
 /**
@@ -71,8 +90,23 @@ export const useInvestmentLeads = (context: BusinessAppContextProps) => {
 
   const fetchInvestmentLeads = useCallback(
     async (variables: InvestmentLeadQueryVariables = {}): Promise<InvestmentLeadListData> => {
-      const query = GET_INVESTMENT_LEADS(variables)
-      const result = await graphqlClient.request<InvestmentLeadQueryResponse>(query)
+      const query = buildInvestmentLeadQuery()
+
+      const whereCondition = buildInvestmentLeadWhereCondition(variables)
+
+      const orderBy = buildInvestmentLeadOrderBy(variables.orderBy || [])
+      if (orderBy.length === 0) {
+        orderBy.push({ createdAt: 'DESC' } as any)
+      }
+
+      const graphQLVariables: Record<string, any> = {
+        limit: Math.min(variables.limit || 50, 100),
+        offset: variables.offset || 0,
+        where: whereCondition,
+        orderBy: orderBy
+      }
+
+      const result = await graphqlClient.request<InvestmentLeadQueryResponse>(query, graphQLVariables)
       const leads = result.InvestmentLead.map(toInvestmentLead)
       const total = result.InvestmentLeadAggregate?.aggregate?.count || 0
       return { leads, total }
@@ -82,19 +116,33 @@ export const useInvestmentLeads = (context: BusinessAppContextProps) => {
 
   const fetchInvestmentLeadById = useCallback(
     async (id: string): Promise<InvestmentLead | null> => {
-      const query = GET_INVESTMENT_LEAD_BY_ID(id)
-      const result = await graphqlClient.request<{ InvestmentLead: BaseInvestmentLead[] }>(query)
-      const base = result.InvestmentLead?.[0]
-      return base ? toInvestmentLead(base) : null
+      const query = buildInvestmentLeadByIdQuery(undefined, undefined, id)
+      const result = await graphqlClient.request<{ InvestmentLeadByPk: CommonLead | null }>(query)
+      return result.InvestmentLeadByPk ? toInvestmentLead(result.InvestmentLeadByPk as InvestmentLead) : null
     },
     [graphqlClient]
   )
 
   const searchInvestmentLeads = useCallback(
     async (variables: InvestmentLeadQueryVariables): Promise<InvestmentLead[]> => {
-      const query = GET_INVESTMENT_LEADS(variables)
-      const result = await graphqlClient.request<{ InvestmentLead: BaseInvestmentLead[] }>(query)
-      return result.InvestmentLead.map(toInvestmentLead)
+      const query = buildInvestmentLeadQuery()
+
+      const whereCondition = buildInvestmentLeadWhereCondition(variables)
+
+      const orderBy = buildInvestmentLeadOrderBy(variables.orderBy || [])
+      if (orderBy.length === 0) {
+        orderBy.push({ createdAt: 'DESC' } as any)
+      }
+
+      const graphQLVariables: Record<string, any> = {
+        limit: Math.min(variables.limit || 50, 100),
+        offset: variables.offset || 0,
+        where: whereCondition,
+        orderBy: orderBy
+      }
+
+      const result = await graphqlClient.request<{ InvestmentLead: CommonLead[] }>(query, graphQLVariables)
+      return result.InvestmentLead.map(lead => toInvestmentLead(lead as InvestmentLead))
     },
     [graphqlClient]
   )
@@ -112,10 +160,24 @@ export const useGetInvestmentLeads = (context: BusinessAppContextProps) => {
 
   const fetchInvestmentLeads = useCallback(
     async (variables: InvestmentLeadQueryVariables = {}) => {
-      const query = GET_INVESTMENT_LEADS(variables)
+      const query = buildInvestmentLeadQuery()
+
+      const whereCondition = buildInvestmentLeadWhereCondition(variables)
+
+      const orderBy = buildInvestmentLeadOrderBy(variables.orderBy || [])
+      if (orderBy.length === 0) {
+        orderBy.push({ createdAt: 'DESC' } as any)
+      }
+
+      const graphQLVariables: Record<string, any> = {
+        limit: Math.min(variables.limit || 50, 100),
+        offset: variables.offset || 0,
+        where: whereCondition,
+        orderBy: orderBy
+      }
 
       try {
-        const result = await graphqlClient.request<InvestmentLeadQueryResponse>(query)
+        const result = await graphqlClient.request<InvestmentLeadQueryResponse>(query, graphQLVariables)
 
         // Transform base types to enhanced types using mapper
         const enhancedLeads = result.InvestmentLead.map(toInvestmentLead)
@@ -141,14 +203,13 @@ export const useGetInvestmentLeadById = (context: BusinessAppContextProps) => {
 
   const fetchInvestmentLeadById = useCallback(
     async (id: string) => {
-      const query = GET_INVESTMENT_LEAD_BY_ID(id)
+      const query = buildInvestmentLeadByIdQuery(undefined, undefined, id)
 
       try {
-        const result = await graphqlClient.request<{ InvestmentLead: BaseInvestmentLead[] }>(query)
-        const baseLead = result.InvestmentLead[0]
+        const result = await graphqlClient.request<{ InvestmentLeadByPk: CommonLead | null }>(query)
 
         return {
-          lead: baseLead ? toInvestmentLead(baseLead) : undefined
+          lead: result.InvestmentLeadByPk ? toInvestmentLead(result.InvestmentLeadByPk as InvestmentLead) : undefined
         } as InvestmentLeadByIdData
       } catch (error) {
         console.error('Error fetching investment lead by ID:', error)
@@ -167,11 +228,31 @@ export const useSearchInvestmentLeads = (context: BusinessAppContextProps) => {
 
   const searchInvestmentLeads = useCallback(
     async (searchTerm: string, variables: InvestmentLeadQueryVariables = {}) => {
+      const query = buildInvestmentLeadQuery()
+
       const searchVariables = { ...variables, search: searchTerm }
-      const query = GET_INVESTMENT_LEADS(searchVariables)
+      const whereCondition = buildInvestmentLeadWhereCondition(
+        undefined, // Use default LeadFields
+        searchVariables
+      )
+
+      const orderBy = buildInvestmentLeadOrderBy(
+        undefined, // Use default LeadFields
+        searchVariables.orderBy || []
+      )
+      if (orderBy.length === 0) {
+        orderBy.push({ createdAt: 'DESC' } as any)
+      }
+
+      const graphQLVariables: Record<string, any> = {
+        limit: Math.min(searchVariables.limit || 50, 100),
+        offset: searchVariables.offset || 0,
+        where: whereCondition,
+        orderBy: orderBy
+      }
 
       try {
-        const result = await graphqlClient.request<InvestmentLeadQueryResponse>(query)
+        const result = await graphqlClient.request<InvestmentLeadQueryResponse>(query, graphQLVariables)
 
         // Transform base types to enhanced types using mapper
         const enhancedLeads = result.InvestmentLead.map(toInvestmentLead)
@@ -201,10 +282,21 @@ export const useGetInvestmentTasksByLeadId = (context: BusinessAppContextProps) 
 
   const fetchInvestmentTasksByLeadId = useCallback(
     async (leadId: string) => {
-      const query = GET_INVESTMENT_TASKS_BY_LEAD_ID(leadId)
+      const query = GET_INVESTMENT_TASKS_BY_LEAD_ID()
+      const whereCondition = buildInvestmentTaskWhereCondition(
+        {},
+        [],
+        [{ lead: { id: { _eq: leadId } }, isDeleted: { _eq: false } }]
+      )
+      const orderBy = buildInvestmentTaskOrderBy([{ field: 'createdAt', direction: 'DESC_NULLS_LAST' }])
+
+      const graphQLVariables = {
+        where: whereCondition,
+        orderBy: orderBy
+      }
 
       try {
-        const result = await graphqlClient.request<InvestmentTaskQueryResponse>(query)
+        const result = await graphqlClient.request<InvestmentTaskQueryResponse>(query, graphQLVariables)
         // Transform base types to enhanced types using mapper
         return result.InvestmentTask.map(toInvestmentTask)
       } catch (error) {
@@ -224,10 +316,21 @@ export const useGetInvestmentActivitiesByLeadId = (context: BusinessAppContextPr
 
   const fetchInvestmentActivitiesByLeadId = useCallback(
     async (leadId: string) => {
-      const query = GET_INVESTMENT_ACTIVITIES_BY_LEAD_ID(leadId)
+      const query = GET_INVESTMENT_ACTIVITIES_BY_LEAD_ID()
+      const whereCondition = buildInvestmentActivityWhereCondition(
+        {},
+        [],
+        [{ lead: { id: { _eq: leadId } }, isDeleted: { _eq: false } }]
+      )
+      const orderBy = buildInvestmentActivityOrderBy([{ field: 'occurredAt', direction: 'DESC_NULLS_LAST' }])
+
+      const graphQLVariables = {
+        where: whereCondition,
+        orderBy: orderBy
+      }
 
       try {
-        const result = await graphqlClient.request<InvestmentActivityQueryResponse>(query)
+        const result = await graphqlClient.request<InvestmentActivityQueryResponse>(query, graphQLVariables)
         // Transform base types to enhanced types using mapper
         return result.InvestmentActivity.map(toInvestmentActivity)
       } catch (error) {
@@ -247,10 +350,21 @@ export const useGetInvestmentNotesByLeadId = (context: BusinessAppContextProps) 
 
   const fetchInvestmentNotesByLeadId = useCallback(
     async (leadId: string) => {
-      const query = GET_INVESTMENT_NOTES_BY_LEAD_ID(leadId)
+      const query = GET_INVESTMENT_NOTES_BY_LEAD_ID()
+      const whereCondition = buildInvestmentNoteWhereCondition(
+        {},
+        [],
+        [{ lead: { id: { _eq: leadId } }, isDeleted: { _eq: false } }]
+      )
+      const orderBy = buildInvestmentNoteOrderBy([{ field: 'createdAt', direction: 'DESC_NULLS_LAST' }])
+
+      const graphQLVariables = {
+        where: whereCondition,
+        orderBy: orderBy
+      }
 
       try {
-        const result = await graphqlClient.request<InvestmentNoteQueryResponse>(query)
+        const result = await graphqlClient.request<InvestmentNoteQueryResponse>(query, graphQLVariables)
         // Transform base types to enhanced types using mapper
         return result.InvestmentNote.map(toInvestmentNote)
       } catch (error) {
@@ -270,10 +384,21 @@ export const useGetInvestmentDocumentsByLeadId = (context: BusinessAppContextPro
 
   const fetchInvestmentDocumentsByLeadId = useCallback(
     async (leadId: string) => {
-      const query = GET_INVESTMENT_DOCUMENTS_BY_LEAD_ID(leadId)
+      const query = GET_INVESTMENT_DOCUMENTS_BY_LEAD_ID()
+      const whereCondition = buildInvestmentDocumentWhereCondition(
+        {},
+        [],
+        [{ lead: { id: { _eq: leadId } }, isDeleted: { _eq: false } }]
+      )
+      const orderBy = buildInvestmentDocumentOrderBy([{ field: 'createdAt', direction: 'DESC_NULLS_LAST' }])
+
+      const graphQLVariables = {
+        where: whereCondition,
+        orderBy: orderBy
+      }
 
       try {
-        const result = await graphqlClient.request<InvestmentDocumentQueryResponse>(query)
+        const result = await graphqlClient.request<InvestmentDocumentQueryResponse>(query, graphQLVariables)
         // Transform base types to enhanced types using mapper
         return result.InvestmentDocument.map(toInvestmentDocument)
       } catch (error) {

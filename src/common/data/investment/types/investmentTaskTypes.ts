@@ -1,6 +1,6 @@
 import type { CatalogEntry } from '@/common/network/graphql/commonTypes'
 import type { CommonTask, CommonTaskComment, CommonTaskTemplate } from '@/common/data/relations/types/commonTaskTypes'
-import { COMMON_TASK_DESCRIPTORS } from '@/common/data/relations/types/commonTaskTypes'
+import { TaskFields, createCommonTaskDescriptors } from '@/common/data/relations/types/commonTaskTypes'
 import type { Descriptor } from '@/common/network/graphql/queryHelpers'
 import type { SourceTable } from './investmentEnums'
 import type {
@@ -50,17 +50,26 @@ export interface InvestmentTaskComment extends CommonTaskComment {
 }
 
 /**
+ * Investment Task Query Field Mapping
+ * Extends TaskFields with IRM-specific GraphQL field names
+ */
+export const InvestmentTaskFields = {
+  ...TaskFields,
+  // Override IRM-specific field names
+  opportunityStageCondition: 'investmentOpportunityStageCondition'
+} as const
+
+export type InvestmentTaskFieldName = (typeof InvestmentTaskFields)[keyof typeof InvestmentTaskFields]
+
+/**
  * Investment Task Descriptors
- * IRM uses correct field names, so we use Common descriptors directly
+ * Uses createCommonTaskDescriptors with InvestmentTaskFields mapping
+ * Adds IRM-specific reference field
  */
 export const INVESTMENT_TASK_DESCRIPTORS: Descriptor[] = [
-  ...COMMON_TASK_DESCRIPTORS.filter(d => !['opportunityStageCondition', 'reference'].includes(d.key)),
-  {
-    key: 'opportunityStageCondition',
-    searchPaths: ['investmentOpportunityStageCondition.opportunityPipelineStageCondition.value'],
-    sortPath: 'investmentOpportunityStageCondition.opportunityPipelineStageCondition.value',
-    type: 'text'
-  },
+  ...createCommonTaskDescriptors(InvestmentTaskFields as Record<keyof typeof TaskFields, string>).filter(
+    d => d.key !== 'reference'
+  ),
   {
     key: 'reference',
     searchPaths: [

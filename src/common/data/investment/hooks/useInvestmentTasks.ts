@@ -8,10 +8,12 @@ import type { InvestmentTask } from '../types'
 
 // Queries
 import {
-  GET_INVESTMENT_TASKS,
-  GET_INVESTMENT_TASK_BY_ID,
+  buildInvestmentTaskQuery,
+  buildInvestmentTaskByIdQuery,
+  buildInvestmentTaskWhereCondition,
+  buildInvestmentTaskOrderBy,
   type InvestmentTaskQueryVariables
-} from '../queries/investmentTaskQueries'
+} from '../queries/investmentTaskQueries.new'
 
 // Mapper
 import { toInvestmentTask } from '../mappers'
@@ -33,10 +35,53 @@ export const useInvestmentTasks = (context: BusinessAppContextProps) => {
 
   const fetchInvestmentTasks = useCallback(
     async (variables: InvestmentTaskQueryVariables = {}): Promise<InvestmentTaskListData> => {
-      const query = GET_INVESTMENT_TASKS(variables)
+      // Use new query builder with fields mapping
+      const query = buildInvestmentTaskQuery()
+
+      // Handle reference type filtering - add as custom conditions
+      const customConditions: Record<string, any>[] = []
+      if (variables.referenceTypes && variables.referenceTypes.length > 0) {
+        const referenceConditions = variables.referenceTypes
+          .map(type => {
+            switch (type) {
+              case 'opportunity':
+                return { opportunity: { id: { _neq: null } } }
+              case 'account':
+                return { account: { id: { _neq: null } } }
+              case 'lead':
+                return { lead: { id: { _neq: null } } }
+              case 'contact':
+                return { contact: { id: { _neq: null } } }
+              case 'investment':
+                return { investment: { id: { _neq: null } } }
+              default:
+                return null
+            }
+          })
+          .filter((c): c is Record<string, any> => c !== null)
+
+        if (referenceConditions.length > 0) {
+          customConditions.push({ _or: referenceConditions })
+        }
+      }
+
+      // Use new WHERE/ORDER BY builders with fields mapping
+      const whereCondition = buildInvestmentTaskWhereCondition(variables, [], customConditions)
+
+      let orderBy = buildInvestmentTaskOrderBy(variables.orderBy || [])
+      if (orderBy.length === 0) {
+        orderBy = [{ createdAt: 'DESC' }]
+      }
+
+      const graphQLVariables: Record<string, any> = {
+        limit: Math.min(variables.limit || 50, 100),
+        offset: variables.offset || 0,
+        where: whereCondition,
+        orderBy: orderBy
+      }
 
       try {
-        const result = await graphqlClient.request<InvestmentTaskListQueryResponse>(query)
+        const result = await graphqlClient.request<InvestmentTaskListQueryResponse>(query, graphQLVariables)
         const tasks = result.InvestmentTask.map(toInvestmentTask)
         const total = result.InvestmentTaskAggregate?.aggregate?.count || 0
         return { tasks, total }
@@ -51,11 +96,11 @@ export const useInvestmentTasks = (context: BusinessAppContextProps) => {
   const fetchInvestmentTaskById = useCallback(
     async (id: string): Promise<InvestmentTask | null> => {
       try {
-        const result = await graphqlClient.request<{ InvestmentTask: InvestmentTask[] }>(GET_INVESTMENT_TASK_BY_ID, {
-          id
-        })
-        const first = (result.InvestmentTask || [])[0]
-        return first ? toInvestmentTask(first) : null
+        // Use new query builder with fields mapping
+        const query = buildInvestmentTaskByIdQuery(undefined, undefined, id)
+        const result = await graphqlClient.request<{ InvestmentTaskByPk: InvestmentTask }>(query)
+        const taskData = result.InvestmentTaskByPk
+        return taskData ? toInvestmentTask(taskData) : null
       } catch (error) {
         console.error('Error fetching investment task by id:', error)
         throw error
@@ -69,9 +114,53 @@ export const useInvestmentTasks = (context: BusinessAppContextProps) => {
     async (variables: InvestmentTaskQueryVariables = {}) => {
       const limit = Math.min(variables.limit || 1000, 1000)
       const baseVars = { ...variables, limit, offset: 0 } as InvestmentTaskQueryVariables
-      const query = GET_INVESTMENT_TASKS(baseVars)
+
+      // Use new query builder with fields mapping
+      const query = buildInvestmentTaskQuery()
+
+      // Handle reference type filtering
+      const customConditions: Record<string, any>[] = []
+      if (baseVars.referenceTypes && baseVars.referenceTypes.length > 0) {
+        const referenceConditions = baseVars.referenceTypes
+          .map(type => {
+            switch (type) {
+              case 'opportunity':
+                return { opportunity: { id: { _neq: null } } }
+              case 'account':
+                return { account: { id: { _neq: null } } }
+              case 'lead':
+                return { lead: { id: { _neq: null } } }
+              case 'contact':
+                return { contact: { id: { _neq: null } } }
+              case 'investment':
+                return { investment: { id: { _neq: null } } }
+              default:
+                return null
+            }
+          })
+          .filter((c): c is Record<string, any> => c !== null)
+        if (referenceConditions.length > 0) {
+          customConditions.push({ _or: referenceConditions })
+        }
+      }
+
+      // Use new WHERE/ORDER BY builders with fields mapping
+      const whereCondition = buildInvestmentTaskWhereCondition(baseVars, [], customConditions)
+
+      let orderBy = buildInvestmentTaskOrderBy(baseVars.orderBy || [])
+      if (orderBy.length === 0) {
+        orderBy = [{ createdAt: 'DESC' }]
+      }
+
+      const graphQLVariables: Record<string, any> = {
+        limit: limit,
+        offset: 0,
+        where: whereCondition,
+        orderBy: orderBy
+      }
+
       try {
-        const result = await graphqlClient.request<InvestmentTaskListQueryResponse>(query)
+        const result = await graphqlClient.request<InvestmentTaskListQueryResponse>(query, graphQLVariables)
         const baseTasks = result.InvestmentTask || []
 
         const statusMap = new Map<string, { id: string; code?: string; value: string }>()

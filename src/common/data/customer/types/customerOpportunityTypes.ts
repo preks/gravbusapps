@@ -6,7 +6,10 @@ import type {
   CommonOpportunity,
   CommonOpportunityStageCondition
 } from '@/common/data/relations/types/commonOpportunityTypes'
-import { COMMON_OPPORTUNITY_DESCRIPTORS } from '@/common/data/relations/types/commonOpportunityTypes'
+import {
+  OpportunityFields,
+  createCommonOpportunityDescriptors
+} from '@/common/data/relations/types/commonOpportunityTypes'
 import type { Descriptor } from '@/common/network/graphql/queryHelpers'
 import type { CustomerAccount } from './customerAccountTypes'
 import type { CustomerAddress } from './customerAddressTypes'
@@ -61,82 +64,65 @@ export interface CustomerOpportunityStageCondition extends CommonOpportunityStag
 }
 
 /**
+ * Customer Opportunity Query Field Mapping
+ * Extends OpportunityFields with CRM-specific GraphQL field names
+ */
+export const CustomerOpportunityFields = {
+  ...OpportunityFields,
+  // Override CRM-specific field names
+  leads: 'lead', // CRM uses singular "lead"
+  opportunityContacts: 'contacts', // CRM uses "contacts" not "opportunityContacts"
+  opportunityPipeline: 'salesPipeline',
+  opportunityPipelineRef: 'salesPipelineRef',
+  opportunityPipelineStage: 'salesPipelineStage',
+  opportunityPipelineStageRef: 'salesPipelineStageRef',
+  opportunityStageConditions: 'stageConditionStatuses'
+} as const
+
+export type CustomerOpportunityFieldName = (typeof CustomerOpportunityFields)[keyof typeof CustomerOpportunityFields]
+
+/**
  * Customer Opportunity Descriptors
- * Extends Common descriptors with CRM-specific path overrides for wrong field names
+ * Uses createCommonOpportunityDescriptors with CustomerOpportunityFields mapping
+ * Filters out and overrides descriptors with structural differences (CRM uses different nested field names)
+ * Adds CRM-specific fields that don't exist in Common/IRM
  */
 export const CUSTOMER_OPPORTUNITY_DESCRIPTORS: Descriptor[] = [
-  // Filter out descriptors we need to override for CRM wrong field names
-  ...COMMON_OPPORTUNITY_DESCRIPTORS.filter(
-    d =>
-      ![
-        'addresses',
-        'leads',
-        'notes',
-        'opportunityContacts',
-        'opportunityPipeline',
-        'opportunityPipelineRef',
-        'opportunityPipelineStage',
-        'opportunityPipelineStageRef',
-        'opportunityPipelineIds',
-        'opportunityPipelineStageIds',
-        'opportunityStageConditions',
-        'rejectionReasons'
-      ].includes(d.key)
-  ),
+  // Filter out descriptors that need structural overrides
+  ...createCommonOpportunityDescriptors(
+    CustomerOpportunityFields as Record<keyof typeof OpportunityFields, string>
+  ).filter(d => !['addresses', 'leads', 'notes', 'opportunityContacts'].includes(d.key)),
 
+  // CRM-specific structural overrides
   {
     key: 'addresses',
-    searchPaths: ['addresses.city', 'addresses.postalCode', 'addresses.region.value', 'addresses.country.value'],
+    searchPaths: [
+      'addresses.city', // CRM uses "city" not "locality"
+      'addresses.postalCode',
+      'addresses.region.value',
+      'addresses.country.value'
+    ],
     sortPaths: ['addresses.city', 'addresses.postalCode', 'addresses.region.value', 'addresses.country.value'],
     type: 'text'
   },
   {
-    key: 'leads',
-    searchPaths: ['lead.firstName', 'lead.lastName', 'lead.companyName'],
-    sortPaths: ['lead.firstName', 'lead.lastName', 'lead.companyName'],
-    type: 'text'
-  },
-  {
     key: 'notes',
-    searchPaths: ['notes.noteTitle', 'notes.noteText'],
+    searchPaths: ['notes.noteTitle', 'notes.noteText'], // CRM uses "noteTitle"/"noteText"
     sortPaths: ['notes.noteTitle', 'notes.noteText'],
     type: 'text'
   },
   {
+    key: 'leads',
+    searchPaths: ['lead.firstName', 'lead.lastName', 'lead.companyName'], // CRM uses singular "lead"
+    sortPaths: ['lead.firstName', 'lead.lastName', 'lead.companyName'],
+    type: 'text'
+  },
+  {
     key: 'opportunityContacts',
-    searchPaths: ['contacts.contact.firstName', 'contacts.contact.lastName'],
+    searchPaths: ['contacts.contact.firstName', 'contacts.contact.lastName'], // CRM uses "contacts" not "opportunityContacts"
     sortPaths: ['contacts.contact.firstName', 'contacts.contact.lastName'],
     type: 'text'
   },
-  // CRM-specific path overrides (key remains IRM-correct name, but paths use CRM field names)
-  {
-    key: 'opportunityPipeline',
-    searchPaths: ['salesPipeline.value', 'salesPipeline.code'],
-    sortPath: 'salesPipeline.value',
-    type: 'text'
-  },
-  {
-    key: 'opportunityPipelineRef',
-    searchPaths: ['salesPipelineRef'],
-    sortPath: 'salesPipelineRef',
-    type: 'text'
-  },
-  {
-    key: 'opportunityPipelineStage',
-    searchPaths: ['salesPipelineStage.value', 'salesPipelineStage.code'],
-    sortPath: 'salesPipelineStage.value',
-    type: 'text'
-  },
-  {
-    key: 'opportunityStageConditions',
-    searchPaths: ['stageConditionStatuses.salesPipelineStageCondition.value'],
-    sortPaths: ['stageConditionStatuses.salesPipelineStageCondition.value'],
-    type: 'text'
-  },
-
-  // CRM-specific filter path overrides
-  { key: 'opportunityPipelineIds', path: 'salesPipelineRef', kind: 'inIds' },
-  { key: 'opportunityPipelineStageIds', path: 'salesPipelineStageRef', kind: 'inIds' },
 
   // CRM-specific additional fields
   { key: 'salesCampaignIds', path: 'salesCampaignId', kind: 'inIds' }

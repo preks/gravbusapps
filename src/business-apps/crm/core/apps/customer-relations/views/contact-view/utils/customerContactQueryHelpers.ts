@@ -1,4 +1,4 @@
-import type { CustomerContactQueryVariables } from '@/common/data/customer/queries/customerContactQueries'
+import type { CustomerContactQueryVariables } from '@/common/data/customer/queries/customerContactQueries.new'
 
 /**
  * Apply basic filter fields to Customer Contact query variables

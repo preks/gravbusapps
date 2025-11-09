@@ -58,169 +58,262 @@ export interface CommonLead extends BaseEntity {
   tasks?: any[] // IRM / CRM
 }
 
-export const COMMON_LEAD_DESCRIPTORS: Descriptor[] = [
+/**
+ * Lead Query Field Mapping
+ */
+export const LeadFields = {
+  academicTitle: 'academicTitle',
+  academicTitleRef: 'academicTitleRef',
+  accountAnnualRevenueBand: 'accountAnnualRevenueBand',
+  accountAnnualRevenueBandRef: 'accountAnnualRevenueBandRef',
+  activities: 'activities',
+  addressLine: 'addressLine',
+  code: 'code',
+  companyEmail: 'companyEmail',
+  companyName: 'companyName',
+  companyPhone: 'companyPhone',
+  companySize: 'companySize',
+  companySizeRef: 'companySizeRef',
+  companyWebsite: 'companyWebsite',
+  conversionDate: 'conversionDate',
+  convertedAccount: 'convertedAccount',
+  convertedAccountId: 'convertedAccountId',
+  convertedContact: 'convertedContact',
+  convertedContactId: 'convertedContactId',
+  convertedOpportunity: 'convertedOpportunity',
+  convertedOpportunityId: 'convertedOpportunityId',
+  country: 'country',
+  countryRef: 'countryRef',
+  description: 'description',
+  documents: 'documents',
+  email: 'email',
+  firstName: 'firstName',
+  id: 'id',
+  industryClass: 'industryClass',
+  industryClassRef: 'industryClassRef',
+  lastName: 'lastName',
+  leadRating: 'leadRating',
+  leadRatingRef: 'leadRatingRef',
+  leadSource: 'leadSource',
+  leadSourceRef: 'leadSourceRef',
+  leadStatus: 'leadStatus',
+  leadStatusRef: 'leadStatusRef',
+  locality: 'locality',
+  notes: 'notes',
+  ownerEmployee: 'ownerEmployee',
+  ownerEmployeeId: 'ownerEmployeeId',
+  phoneNumber: 'phoneNumber',
+  position: 'position',
+  postalCode: 'postalCode',
+  region: 'region',
+  regionRef: 'regionRef',
+  rejectionReasons: 'rejectionReasons',
+  salutation: 'salutation',
+  salutationRef: 'salutationRef',
+  sensitive: 'sensitive',
+  sourceCompanyName: 'sourceCompanyName',
+  sourceIndividualName: 'sourceIndividualName',
+  tasks: 'tasks'
+} as const
+
+export type LeadFieldName = (typeof LeadFields)[keyof typeof LeadFields]
+
+/**
+ * Create Common Lead Descriptors with fields mapping
+ */
+export const createCommonLeadDescriptors = (
+  fields: Record<keyof typeof LeadFields, string> = LeadFields
+): Descriptor[] => [
   ...BASE_ENTITY_DESCRIPTORS,
   {
     key: 'academicTitle',
-    searchPaths: ['academicTitle.value', 'academicTitle.code'],
-    sortPath: 'academicTitle.value',
+    searchPaths: [`${fields.academicTitle}.value`, `${fields.academicTitle}.code`],
+    sortPath: `${fields.academicTitle}.value`,
     type: 'text'
   },
   {
     key: 'accountAnnualRevenueBand',
-    searchPaths: ['accountAnnualRevenueBand.value', 'accountAnnualRevenueBand.code'],
-    sortPath: 'accountAnnualRevenueBand.value',
+    searchPaths: [`${fields.accountAnnualRevenueBand}.value`, `${fields.accountAnnualRevenueBand}.code`],
+    sortPath: `${fields.accountAnnualRevenueBand}.value`,
     type: 'text'
   },
   {
     key: 'activities',
-    searchPaths: ['activities.title', 'activities.description'],
-    sortPath: 'activities.title',
+    searchPaths: [`${fields.activities}.title`, `${fields.activities}.description`],
+    sortPath: `${fields.activities}.title`,
     type: 'text'
   },
-  { key: 'addressLine', sortPath: 'addressLine', type: 'text' },
-  { key: 'code', searchPaths: ['code'], sortPath: 'code', type: 'text' },
-  { key: 'companyEmail', searchPaths: ['companyEmail'], sortPath: 'companyEmail', type: 'text' },
-  { key: 'companyName', searchPaths: ['companyName'], sortPath: 'companyName', type: 'text' },
-  { key: 'companyPhone', searchPaths: ['companyPhone'], sortPath: 'companyPhone', type: 'text' },
+  { key: 'addressLine', sortPath: fields.addressLine, type: 'text' },
+  { key: 'code', searchPaths: [fields.code], sortPath: fields.code, type: 'text' },
+  { key: 'companyEmail', searchPaths: [fields.companyEmail], sortPath: fields.companyEmail, type: 'text' },
+  { key: 'companyName', searchPaths: [fields.companyName], sortPath: fields.companyName, type: 'text' },
+  { key: 'companyPhone', searchPaths: [fields.companyPhone], sortPath: fields.companyPhone, type: 'text' },
   {
     key: 'companySize',
-    searchPaths: ['companySize.value', 'companySize.code'],
-    sortPath: 'companySize.value',
+    searchPaths: [`${fields.companySize}.value`, `${fields.companySize}.code`],
+    sortPath: `${fields.companySize}.value`,
     type: 'text'
   },
-  { key: 'companyWebsite', searchPaths: ['companyWebsite'], sortPath: 'companyWebsite', type: 'text' },
-  { key: 'conversionDate', searchPaths: ['conversionDate'], sortPath: 'conversionDate', type: 'date' },
-  { key: 'convertedAccount', searchPaths: ['convertedAccount.name'], sortPath: 'convertedAccount.name', type: 'text' },
+  { key: 'companyWebsite', searchPaths: [fields.companyWebsite], sortPath: fields.companyWebsite, type: 'text' },
+  { key: 'conversionDate', searchPaths: [fields.conversionDate], sortPath: fields.conversionDate, type: 'date' },
+  {
+    key: 'convertedAccount',
+    searchPaths: [`${fields.convertedAccount}.name`],
+    sortPath: `${fields.convertedAccount}.name`,
+    type: 'text'
+  },
   {
     key: 'convertedContact',
-    searchPaths: ['convertedContact.firstName', 'convertedContact.lastName'],
-    sortPath: 'convertedContact.lastName',
+    searchPaths: [`${fields.convertedContact}.firstName`, `${fields.convertedContact}.lastName`],
+    sortPath: `${fields.convertedContact}.lastName`,
     type: 'text'
   },
   {
     key: 'convertedOpportunity',
-    searchPaths: ['convertedOpportunity.name'],
-    sortPath: 'convertedOpportunity.name',
+    searchPaths: [`${fields.convertedOpportunity}.name`],
+    sortPath: `${fields.convertedOpportunity}.name`,
     type: 'text'
   },
   {
     key: 'country',
-    searchPaths: ['country.value', 'country.code'],
-    sortPath: 'country.value',
+    searchPaths: [`${fields.country}.value`, `${fields.country}.code`],
+    sortPath: `${fields.country}.value`,
     type: 'text'
   },
-  { key: 'description', searchPaths: ['description'], sortPath: 'description', type: 'text' },
+  { key: 'description', searchPaths: [fields.description], sortPath: fields.description, type: 'text' },
   {
     key: 'documents',
-    searchPaths: ['documents.name', 'documents.description'],
-    sortPath: 'documents.name',
+    searchPaths: [`${fields.documents}.name`, `${fields.documents}.description`],
+    sortPath: `${fields.documents}.name`,
     type: 'text'
   },
-  { key: 'email', searchPaths: ['email'], sortPath: 'email', type: 'text' },
-  { key: 'firstName', searchPaths: ['firstName'], sortPath: 'firstName', type: 'text' },
+  { key: 'email', searchPaths: [fields.email], sortPath: fields.email, type: 'text' },
+  { key: 'firstName', searchPaths: [fields.firstName], sortPath: fields.firstName, type: 'text' },
   {
     key: 'industryClass',
-    searchPaths: ['industryClass.value', 'industryClass.code'],
-    sortPath: 'industryClass.value',
+    searchPaths: [`${fields.industryClass}.value`, `${fields.industryClass}.code`],
+    sortPath: `${fields.industryClass}.value`,
     type: 'text'
   },
-  { key: 'lastName', searchPaths: ['lastName'], sortPath: 'lastName', type: 'text' },
+  { key: 'lastName', searchPaths: [fields.lastName], sortPath: fields.lastName, type: 'text' },
   {
     key: 'lead',
-    searchPaths: ['firstName', 'lastName', 'companyName'],
-    sortPath: 'firstName',
+    searchPaths: [fields.firstName, fields.lastName, fields.companyName],
+    sortPath: fields.firstName,
     type: 'text'
   },
   {
     key: 'leadRating',
-    searchPaths: ['leadRating.value', 'leadRating.code'],
-    sortPath: 'leadRating.value',
+    searchPaths: [`${fields.leadRating}.value`, `${fields.leadRating}.code`],
+    sortPath: `${fields.leadRating}.value`,
     type: 'text'
   },
   {
     key: 'leadSource',
-    searchPaths: ['leadSource.value', 'leadSource.code'],
-    sortPath: 'leadSource.value',
+    searchPaths: [`${fields.leadSource}.value`, `${fields.leadSource}.code`],
+    sortPath: `${fields.leadSource}.value`,
     type: 'text'
   },
   {
     key: 'leadStatus',
-    searchPaths: ['leadStatus.value', 'leadStatus.code'],
-    sortPath: 'leadStatus.value',
+    searchPaths: [`${fields.leadStatus}.value`, `${fields.leadStatus}.code`],
+    sortPath: `${fields.leadStatus}.value`,
     type: 'text'
   },
   {
     key: 'address',
-    searchPaths: ['postalCode', 'locality', 'region.value', 'country.value'],
-    sortPaths: ['postalCode', 'locality', 'region.value', 'country.value'],
+    searchPaths: [fields.postalCode, fields.locality, `${fields.region}.value`, `${fields.country}.value`],
+    sortPaths: [fields.postalCode, fields.locality, `${fields.region}.value`, `${fields.country}.value`],
     type: 'text'
   },
-  { key: 'locality', searchPaths: ['locality'], sortPath: 'locality', type: 'text' },
-  { key: 'notes', searchPaths: ['notes.title', 'notes.text'], sortPath: 'notes.title', type: 'text' },
+  { key: 'locality', searchPaths: [fields.locality], sortPath: fields.locality, type: 'text' },
+  {
+    key: 'notes',
+    searchPaths: [`${fields.notes}.title`, `${fields.notes}.text`],
+    sortPath: `${fields.notes}.title`,
+    type: 'text'
+  },
   {
     key: 'ownerEmployee',
-    searchPaths: ['ownerEmployee.displayName', 'ownerEmployee.firstName', 'ownerEmployee.lastName'],
-    sortPath: 'ownerEmployee.displayName',
+    searchPaths: [
+      `${fields.ownerEmployee}.displayName`,
+      `${fields.ownerEmployee}.firstName`,
+      `${fields.ownerEmployee}.lastName`
+    ],
+    sortPath: `${fields.ownerEmployee}.displayName`,
     type: 'text'
   },
-  { key: 'phoneNumber', searchPaths: ['phoneNumber'], sortPath: 'phoneNumber', type: 'text' },
-  { key: 'position', searchPaths: ['position'], sortPath: 'position', type: 'text' },
-  { key: 'postalCode', searchPaths: ['postalCode'], sortPath: 'postalCode', type: 'text' },
+  { key: 'phoneNumber', searchPaths: [fields.phoneNumber], sortPath: fields.phoneNumber, type: 'text' },
+  { key: 'position', searchPaths: [fields.position], sortPath: fields.position, type: 'text' },
+  { key: 'postalCode', searchPaths: [fields.postalCode], sortPath: fields.postalCode, type: 'text' },
   {
     key: 'region',
-    searchPaths: ['region.value', 'region.code'],
-    sortPath: 'region.value',
+    searchPaths: [`${fields.region}.value`, `${fields.region}.code`],
+    sortPath: `${fields.region}.value`,
     type: 'text'
   },
   {
     key: 'rejectionReasons',
-    searchPaths: ['rejectionReasons.rejectionReason.value'],
-    sortPath: 'rejectionReasons.rejectionRason.value',
+    searchPaths: [`${fields.rejectionReasons}.rejectionReason.value`],
+    sortPath: `${fields.rejectionReasons}.rejectionReason.value`,
     type: 'text'
   },
   {
     key: 'salutation',
-    searchPaths: ['salutation.value', 'salutation.code'],
-    sortPath: 'salutation.value',
+    searchPaths: [`${fields.salutation}.value`, `${fields.salutation}.code`],
+    sortPath: `${fields.salutation}.value`,
     type: 'text'
   },
-  { key: 'sensitive', searchPaths: ['sensitive'], sortPath: 'sensitive', type: 'boolean' },
-  { key: 'sourceCompanyName', searchPaths: ['sourceCompanyName'], sortPath: 'sourceCompanyName', type: 'text' },
+  { key: 'sensitive', searchPaths: [fields.sensitive], sortPath: fields.sensitive, type: 'boolean' },
+  {
+    key: 'sourceCompanyName',
+    searchPaths: [fields.sourceCompanyName],
+    sortPath: fields.sourceCompanyName,
+    type: 'text'
+  },
   {
     key: 'sourceIndividualName',
-    searchPaths: ['sourceIndividualName'],
-    sortPath: 'sourceIndividualName',
+    searchPaths: [fields.sourceIndividualName],
+    sortPath: fields.sourceIndividualName,
     type: 'text'
   },
-  { key: 'tasks', searchPaths: ['tasks.name', 'tasks.description'], sortPath: 'tasks.name', type: 'text' },
+  {
+    key: 'tasks',
+    searchPaths: [`${fields.tasks}.name`, `${fields.tasks}.description`],
+    sortPath: `${fields.tasks}.name`,
+    type: 'text'
+  },
 
   // Filter IDs
-  { key: 'academicTitleIds', path: 'academicTitleRef', kind: 'inIds' },
-  { key: 'accountAnnualRevenueBandIds', path: 'accountAnnualRevenueBandRef', kind: 'inIds' },
-  { key: 'companySizeIds', path: 'companySizeRef', kind: 'inIds' },
-  { key: 'convertedAccountIds', path: 'convertedAccountId', kind: 'inIds' },
-  { key: 'convertedContactIds', path: 'convertedContactId', kind: 'inIds' },
-  { key: 'convertedOpportunityIds', path: 'convertedOpportunityId', kind: 'inIds' },
-  { key: 'countryIds', path: 'countryRef', kind: 'inIds' },
-  { key: 'industryClassIds', path: 'industryClassRef', kind: 'inIds' },
-  { key: 'leadRatingIds', path: 'leadRatingRef', kind: 'inIds' },
-  { key: 'leadSourceIds', path: 'leadSourceRef', kind: 'inIds' },
-  { key: 'leadStatusIds', path: 'leadStatusRef', kind: 'inIds' },
-  { key: 'ownerEmployeeIds', path: 'ownerEmployeeId', kind: 'inIds' },
-  { key: 'regionIds', path: 'regionRef', kind: 'inIds' },
-  { key: 'salutationIds', path: 'salutationRef', kind: 'inIds' },
+  { key: 'academicTitleIds', path: fields.academicTitleRef, kind: 'inIds' },
+  { key: 'accountAnnualRevenueBandIds', path: fields.accountAnnualRevenueBandRef, kind: 'inIds' },
+  { key: 'companySizeIds', path: fields.companySizeRef, kind: 'inIds' },
+  { key: 'convertedAccountIds', path: fields.convertedAccountId, kind: 'inIds' },
+  { key: 'convertedContactIds', path: fields.convertedContactId, kind: 'inIds' },
+  { key: 'convertedOpportunityIds', path: fields.convertedOpportunityId, kind: 'inIds' },
+  { key: 'countryIds', path: fields.countryRef, kind: 'inIds' },
+  { key: 'industryClassIds', path: fields.industryClassRef, kind: 'inIds' },
+  { key: 'leadRatingIds', path: fields.leadRatingRef, kind: 'inIds' },
+  { key: 'leadSourceIds', path: fields.leadSourceRef, kind: 'inIds' },
+  { key: 'leadStatusIds', path: fields.leadStatusRef, kind: 'inIds' },
+  { key: 'ownerEmployeeIds', path: fields.ownerEmployeeId, kind: 'inIds' },
+  { key: 'regionIds', path: fields.regionRef, kind: 'inIds' },
+  { key: 'salutationIds', path: fields.salutationRef, kind: 'inIds' },
 
   // Date range filters
-  { key: 'conversionDateAfter', path: 'conversionDate', kind: 'dateFrom' },
-  { key: 'conversionDateBefore', path: 'conversionDate', kind: 'dateTo' },
+  { key: 'conversionDateFrom', path: fields.conversionDate, kind: 'dateFrom' },
+  { key: 'conversionDateTo', path: fields.conversionDate, kind: 'dateTo' },
 
-  // Composite display columns (not sortable)
-  // communicationChannels: Displays email, phoneNumber, companyWebsite - not sortable
+  // Composite display columns
   {
     key: 'communicationChannels',
-    searchPaths: ['email', 'phoneNumber', 'companyWebsite'],
+    searchPaths: [fields.email, fields.phoneNumber, fields.companyWebsite],
     enableSort: false,
     type: 'text'
   }
 ]
+
+/**
+ * Default Common Lead Descriptors
+ */
+export const COMMON_LEAD_DESCRIPTORS = createCommonLeadDescriptors(LeadFields)

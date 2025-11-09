@@ -1,5 +1,5 @@
 import type { CommonDocument } from '@/common/data/relations/types/commonDocumentTypes'
-import { COMMON_DOCUMENT_DESCRIPTORS } from '@/common/data/relations/types/commonDocumentTypes'
+import { DocumentFields, createCommonDocumentDescriptors } from '@/common/data/relations/types/commonDocumentTypes'
 import type { Descriptor } from '@/common/network/graphql/queryHelpers'
 import type { BaseEntity } from '@/common/network/graphql/commonTypes'
 import type { SourceTable } from './investmentEnums'
@@ -33,10 +33,20 @@ export interface InvestmentDocument extends CommonDocument {
 }
 
 /**
- * Investment Document Descriptors
- * IRM uses correct field names, so we use Common descriptors directly
+ * Investment Document Query Field Mapping
+ * IRM uses same field names as Common, so we use DocumentFields directly
  */
-export const INVESTMENT_DOCUMENT_DESCRIPTORS: Descriptor[] = [...COMMON_DOCUMENT_DESCRIPTORS]
+export const InvestmentDocumentFields = DocumentFields
+
+export type InvestmentDocumentFieldName = (typeof InvestmentDocumentFields)[keyof typeof InvestmentDocumentFields]
+
+/**
+ * Investment Document Descriptors
+ * Uses createCommonDocumentDescriptors with InvestmentDocumentFields mapping
+ */
+export const INVESTMENT_DOCUMENT_DESCRIPTORS: Descriptor[] = [
+  ...createCommonDocumentDescriptors(InvestmentDocumentFields)
+]
 
 export interface InvestmentReportDocument extends BaseEntity {
   id?: string

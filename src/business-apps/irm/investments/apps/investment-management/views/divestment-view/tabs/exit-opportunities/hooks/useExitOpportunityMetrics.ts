@@ -1,7 +1,7 @@
 import { useState, useCallback, useMemo, useEffect, useRef } from 'react'
 import { BusinessAppContextProps } from '@/common/BusinessAppContext'
 import { useGetInvestmentOpportunityAggregates } from '@/common/data/investment/hooks/useInvestmentOpportunities'
-import { InvestmentOpportunityQueryVariables } from '@/common/data/investment/queries/investmentOpportunityQueries'
+import type { InvestmentOpportunityQueryVariables } from '@/common/data/investment/queries/investmentOpportunityQueries.new'
 import { createTTLCache, createCacheUtils } from '@/common/utils/ttlCache'
 
 // Metrics interface for exit opportunities

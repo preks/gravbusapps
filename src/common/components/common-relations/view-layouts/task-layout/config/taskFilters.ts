@@ -82,8 +82,8 @@ export const taskFilterConfig: FilterConfiguration = {
       defaultExpanded: false,
       filters: [
         {
-          id: 'createdDateRange',
-          field: 'createdDateRange',
+          id: 'createdAtRange',
+          field: 'createdAtRange',
           label: 'Created Date Range',
           type: 'date',
           config: {

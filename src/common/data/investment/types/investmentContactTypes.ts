@@ -1,5 +1,5 @@
 import type { CommonContact } from '@/common/data/relations/types/commonContactTypes'
-import { COMMON_CONTACT_DESCRIPTORS } from '@/common/data/relations/types/commonContactTypes'
+import { ContactFields, createCommonContactDescriptors } from '@/common/data/relations/types/commonContactTypes'
 import type { Descriptor } from '@/common/network/graphql/queryHelpers'
 import type { InvestmentActivity } from './investmentActivityTypes'
 import type { InvestmentAddress } from './investmentAddressTypes'
@@ -28,27 +28,23 @@ export interface InvestmentContact extends CommonContact {
 }
 
 /**
+ * Investment Contact Query Field Mapping
+ * Extends ContactFields with IRM-specific GraphQL field names
+ */
+export const InvestmentContactFields = {
+  ...ContactFields,
+  // Override IRM-specific field names
+  accountContacts: 'investmentAccountContact',
+  leads: 'investmentLead',
+  opportunityContacts: 'investmentOpportunityContact'
+} as const
+
+export type InvestmentContactFieldName = (typeof InvestmentContactFields)[keyof typeof InvestmentContactFields]
+
+/**
  * Investment Contact Descriptors
- * IRM uses investmentAccountContact instead of accountContacts in GraphQL
+ * Uses createCommonContactDescriptors with InvestmentContactFields mapping
  */
 export const INVESTMENT_CONTACT_DESCRIPTORS: Descriptor[] = [
-  ...COMMON_CONTACT_DESCRIPTORS.filter(d => !['accountContacts', 'leads', 'opportunityContacts'].includes(d.key)),
-  {
-    key: 'accountContacts',
-    searchPaths: ['investmentAccountContact.account.name'],
-    enableSort: false,
-    type: 'text'
-  },
-  {
-    key: 'leads',
-    searchPaths: ['investmentLead.firstName', 'investmentLead.lastName', 'investmentLead.companyName'],
-    sortPath: 'investmentLead.lastName',
-    type: 'text'
-  },
-  {
-    key: 'opportunityContacts',
-    searchPaths: ['investmentOpportunityContact.opportunity.name'],
-    sortPath: 'investmentOpportunityContact.opportunity.name',
-    type: 'text'
-  }
+  ...createCommonContactDescriptors(InvestmentContactFields as Record<keyof typeof ContactFields, string>)
 ]

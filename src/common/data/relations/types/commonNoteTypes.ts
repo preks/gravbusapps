@@ -22,53 +22,96 @@ export interface CommonNote extends BaseEntity {
   title?: string // IRM | TODO
 }
 
-export const COMMON_NOTE_DESCRIPTORS: Descriptor[] = [
+/**
+ * Note Query Field Mapping
+ */
+export const NoteFields = {
+  account: 'account',
+  accountId: 'accountId',
+  authorEmployee: 'authorEmployee',
+  authorEmployeeId: 'authorEmployeeId',
+  contact: 'contact',
+  contactId: 'contactId',
+  documents: 'documents',
+  id: 'id',
+  lead: 'lead',
+  leadId: 'leadId',
+  opportunity: 'opportunity',
+  opportunityId: 'opportunityId',
+  reminderDate: 'reminderDate',
+  source: 'source',
+  text: 'text',
+  title: 'title'
+} as const
+
+export type NoteFieldName = (typeof NoteFields)[keyof typeof NoteFields]
+
+/**
+ * Create Common Note Descriptors with fields mapping
+ */
+export const createCommonNoteDescriptors = (
+  fields: Record<keyof typeof NoteFields, string> = NoteFields
+): Descriptor[] => [
   ...BASE_ENTITY_DESCRIPTORS,
 
-  { key: 'account', searchPaths: ['account.name', 'account.code'], sortPath: 'account.name', type: 'text' },
+  {
+    key: 'account',
+    searchPaths: [`${fields.account}.name`, `${fields.account}.code`],
+    sortPath: `${fields.account}.name`,
+    type: 'text'
+  },
   {
     key: 'authorEmployee',
-    searchPaths: ['authorEmployee.displayName', 'authorEmployee.firstName', 'authorEmployee.lastName'],
-    sortPath: 'authorEmployee.displayName',
+    searchPaths: [
+      `${fields.authorEmployee}.displayName`,
+      `${fields.authorEmployee}.firstName`,
+      `${fields.authorEmployee}.lastName`
+    ],
+    sortPath: `${fields.authorEmployee}.displayName`,
     type: 'text'
   },
   {
     key: 'contact',
-    searchPaths: ['contact.firstName', 'contact.lastName'],
-    sortPath: 'contact.lastName',
+    searchPaths: [`${fields.contact}.firstName`, `${fields.contact}.lastName`],
+    sortPath: `${fields.contact}.lastName`,
     type: 'text'
   },
   {
     key: 'documents',
-    searchPaths: ['documents.name', 'documents.description'],
-    sortPath: 'documents.name',
+    searchPaths: [`${fields.documents}.name`, `${fields.documents}.description`],
+    sortPath: `${fields.documents}.name`,
     type: 'text'
   },
   {
     key: 'lead',
-    searchPaths: ['lead.firstName', 'lead.lastName', 'lead.companyName'],
-    sortPath: 'lead.lastName',
+    searchPaths: [`${fields.lead}.firstName`, `${fields.lead}.lastName`, `${fields.lead}.companyName`],
+    sortPath: `${fields.lead}.lastName`,
     type: 'text'
   },
   {
     key: 'opportunity',
-    searchPaths: ['opportunity.name', 'opportunity.description'],
-    sortPath: 'opportunity.name',
+    searchPaths: [`${fields.opportunity}.name`, `${fields.opportunity}.description`],
+    sortPath: `${fields.opportunity}.name`,
     type: 'text'
   },
-  { key: 'reminderDate', searchPaths: ['reminderDate'], sortPath: 'reminderDate', type: 'date' },
-  { key: 'source', searchPaths: ['source'], sortPath: 'source', type: 'text' },
-  { key: 'text', searchPaths: ['text'], sortPath: 'text', type: 'text' },
-  { key: 'title', searchPaths: ['title'], sortPath: 'title', type: 'text' },
+  { key: 'reminderDate', searchPaths: [fields.reminderDate], sortPath: fields.reminderDate, type: 'date' },
+  { key: 'source', searchPaths: [fields.source], sortPath: fields.source, type: 'text' },
+  { key: 'text', searchPaths: [fields.text], sortPath: fields.text, type: 'text' },
+  { key: 'title', searchPaths: [fields.title], sortPath: fields.title, type: 'text' },
 
   // Filter IDs
-  { key: 'accountIds', path: 'accountId', kind: 'inIds' },
-  { key: 'authorEmployeeIds', path: 'authorEmployeeId', kind: 'inIds' },
-  { key: 'contactIds', path: 'contactId', kind: 'inIds' },
-  { key: 'leadIds', path: 'leadId', kind: 'inIds' },
-  { key: 'opportunityIds', path: 'opportunityId', kind: 'inIds' },
+  { key: 'accountIds', path: fields.accountId, kind: 'inIds' },
+  { key: 'authorEmployeeIds', path: fields.authorEmployeeId, kind: 'inIds' },
+  { key: 'contactIds', path: fields.contactId, kind: 'inIds' },
+  { key: 'leadIds', path: fields.leadId, kind: 'inIds' },
+  { key: 'opportunityIds', path: fields.opportunityId, kind: 'inIds' },
 
   // Date range filters
-  { key: 'reminderDateAfter', path: 'reminderDate', kind: 'dateFrom' },
-  { key: 'reminderDateBefore', path: 'reminderDate', kind: 'dateTo' }
+  { key: 'reminderDateFrom', path: fields.reminderDate, kind: 'dateFrom' },
+  { key: 'reminderDateTo', path: fields.reminderDate, kind: 'dateTo' }
 ]
+
+/**
+ * Default Common Note Descriptors
+ */
+export const COMMON_NOTE_DESCRIPTORS = createCommonNoteDescriptors(NoteFields)
