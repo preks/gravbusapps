@@ -63,6 +63,15 @@ export interface InvestmentContactQueryVariables extends CommonContactQueryVaria
 export const buildInvestmentContactQuery = (
   fields: typeof InvestmentContactFields = InvestmentContactFields
 ): string => {
+  // Build relation builders and fields for accountContacts
+  const relationBuilders: Partial<ContactRelationBuilders> = {
+    buildAccountFragment
+  }
+
+  const relationFields: Partial<ContactRelationFields> = {
+    accountFields: InvestmentAccountFields
+  }
+
   const entityFields = `
     # Addresses relation (IRM uses "locality")
     ${fields.addresses}(where: { isDeleted: { _eq: false } }) {
@@ -74,7 +83,7 @@ export const buildInvestmentContactQuery = (
       ${buildLeadFragment(InvestmentLeadFields)}
     }
   `
-  return buildContactQuery(fields, 'InvestmentContact', entityFields)
+  return buildContactQuery(fields, 'InvestmentContact', entityFields, undefined, relationBuilders, relationFields)
 }
 
 /**

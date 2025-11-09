@@ -134,13 +134,13 @@ const LeadRecordContent: React.FC<LeadRecordContentProps> = ({ leadId, onBack, f
 
       // Separate regular tasks from approvals based on taskType catalog entry
       const regularTasks = sortedTasks.filter((task: any) => {
-        const taskTypeCode = task?.type?.code || ''
-        const taskTypeValue = task?.type?.value || ''
+        const taskTypeCode = task?.taskType?.code || ''
+        const taskTypeValue = task?.taskType?.value || ''
         return taskTypeCode?.toUpperCase() !== 'APPROVAL' && taskTypeValue?.toUpperCase() !== 'APPROVAL'
       })
       const approvalTasks = sortedTasks.filter((task: any) => {
-        const taskTypeCode = task?.type?.code || ''
-        const taskTypeValue = task?.type?.value || ''
+        const taskTypeCode = task?.taskType?.code || ''
+        const taskTypeValue = task?.taskType?.value || ''
         return taskTypeCode?.toUpperCase() === 'APPROVAL' || taskTypeValue?.toUpperCase() === 'APPROVAL'
       })
 

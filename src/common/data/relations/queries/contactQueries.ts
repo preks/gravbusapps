@@ -58,16 +58,36 @@ export interface CommonContactQueryVariables extends BaseQueryVariables {
  * @param entityName - GraphQL entity name (REQUIRED)
  * @param entityFields - Additional domain-specific fields (optional)
  * @param queryFields - Additional query fields (optional)
+ * @param relationBuilders - Object containing fragment builder functions for relations (optional)
+ * @param relationFields - Object containing field mappings for relations (optional)
  * @returns GraphQL query string using variables
  */
 export const buildContactQuery = (
   fields: Record<keyof typeof ContactFields, string> = ContactFields,
   entityName: string,
   entityFields?: string,
-  queryFields?: string
+  queryFields?: string,
+  relationBuilders?: Partial<ContactRelationBuilders>,
+  relationFields?: Partial<ContactRelationFields>
 ): string => {
   const boolExpType = `${entityName}BoolExp`
   const orderByType = `[${entityName}OrderBy!]`
+
+  // AccountContacts relation (only if relationBuilders provided)
+  const accountContactsRelation =
+    relationBuilders?.buildAccountFragment && relationFields?.accountFields
+      ? `
+    # AccountContacts relation (field name varies: accountContacts vs investmentAccountContact)
+    ${fields.accountContacts}(where: { isDeleted: { _eq: false } }) {
+      id
+      ${AUDIT_FIELDS}
+      contactType
+      account {
+        ${relationBuilders.buildAccountFragment(relationFields.accountFields)}
+      }
+    }
+  `
+      : ''
 
   return `
     query Get${entityName}s(
@@ -89,6 +109,9 @@ export const buildContactQuery = (
         ${fields.academicTitleRef}
         ${fields.birthDate}
         ${fields.code}
+        ${fields.communicationChannels}(where: { isDeleted: { _eq: false } }) {
+          ${COMMUNICATION_CHANNEL_REF}
+        }
         ${fields.department}
         ${fields.id}
         ${fields.firstName}
@@ -107,6 +130,7 @@ export const buildContactQuery = (
         }
         ${fields.salutationRef}
         ${fields.type}
+        ${accountContactsRelation}
         ${entityFields || ''}
       }
       ${entityName}Aggregate(where: $where) {

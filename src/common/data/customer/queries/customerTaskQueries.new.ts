@@ -44,7 +44,22 @@ export type CustomerTaskQueryVariables = CommonTaskQueryVariables
  * CRM uses "SalesTask" as entity name (not "CustomerTask")
  */
 export const buildCustomerTaskQuery = (fields: typeof CustomerTaskFields = CustomerTaskFields): string => {
-  return buildTaskQuery(fields, 'SalesTask')
+  // Build relation builders and fields for references
+  const relationBuilders: Partial<TaskRelationBuilders> = {
+    buildAccountFragment,
+    buildContactFragment,
+    buildLeadFragment,
+    buildOpportunityFragment
+  }
+
+  const relationFields: Partial<TaskRelationFields> = {
+    accountFields: CustomerAccountFields,
+    contactFields: CustomerContactFields,
+    leadFields: CustomerLeadFields,
+    opportunityFields: CustomerOpportunityFields
+  }
+
+  return buildTaskQuery(fields, 'SalesTask', undefined, undefined, relationBuilders, relationFields)
 }
 
 /**

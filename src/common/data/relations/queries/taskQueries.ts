@@ -65,16 +65,60 @@ export interface CommonTaskQueryVariables extends BaseQueryVariables {
  * @param entityName - GraphQL entity name (REQUIRED)
  * @param entityFields - Additional domain-specific fields (optional)
  * @param queryFields - Additional query fields (optional)
+ * @param relationBuilders - Object containing fragment builder functions for relations (optional)
+ * @param relationFields - Object containing field mappings for relations (optional)
  * @returns GraphQL query string using variables
  */
 export const buildTaskQuery = (
   fields: Record<keyof typeof TaskFields, string> = TaskFields,
   entityName: string,
   entityFields?: string,
-  queryFields?: string
+  queryFields?: string,
+  relationBuilders?: Partial<TaskRelationBuilders>,
+  relationFields?: Partial<TaskRelationFields>
 ): string => {
   const boolExpType = `${entityName}BoolExp`
   const orderByType = `[${entityName}OrderBy!]`
+
+  // Optional relations (account, contact, lead, opportunity)
+  const references =
+    relationBuilders && relationFields
+      ? `
+    # Optional relations (account, contact, lead, opportunity)
+    ${
+      relationBuilders.buildAccountFragment && relationFields.accountFields && fields.account
+        ? `${fields.accountId}
+      ${fields.account} {
+        ${relationBuilders.buildAccountFragment(relationFields.accountFields)}
+      }`
+        : ''
+    }
+    ${
+      relationBuilders.buildContactFragment && relationFields.contactFields && fields.contact
+        ? `${fields.contactId}
+      ${fields.contact} {
+        ${relationBuilders.buildContactFragment(relationFields.contactFields)}
+      }`
+        : ''
+    }
+    ${
+      relationBuilders.buildLeadFragment && relationFields.leadFields && fields.lead
+        ? `${fields.leadId}
+      ${fields.lead} {
+        ${relationBuilders.buildLeadFragment(relationFields.leadFields)}
+      }`
+        : ''
+    }
+    ${
+      relationBuilders.buildOpportunityFragment && relationFields.opportunityFields && fields.opportunity
+        ? `${fields.opportunityId}
+      ${fields.opportunity} {
+        ${relationBuilders.buildOpportunityFragment(relationFields.opportunityFields)}
+      }`
+        : ''
+    }
+  `
+      : ''
 
   return `
     query Get${entityName}s(
@@ -122,6 +166,7 @@ export const buildTaskQuery = (
         }
         ${fields.taskTypeRef}
         ${fields.templateStartDate}
+        ${references}
         ${entityFields || ''}
       }
       ${entityName}Aggregate(where: $where) {

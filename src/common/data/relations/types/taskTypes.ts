@@ -269,14 +269,7 @@ export const createTaskDescriptors = (fields: Record<keyof typeof TaskFields, st
       `${fields.lead}.lastName`,
       `${fields.opportunity}.name`
     ],
-    sortPaths: [
-      `${fields.account}.name`,
-      `${fields.contact}.firstName`,
-      `${fields.contact}.lastName`,
-      `${fields.lead}.firstName`,
-      `${fields.lead}.lastName`,
-      `${fields.opportunity}.name`
-    ],
+    sortPaths: [`${fields.source}`],
     type: 'text'
   },
   {

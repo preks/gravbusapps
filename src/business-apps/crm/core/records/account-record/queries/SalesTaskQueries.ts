@@ -1,123 +1,57 @@
+import { useCallback } from 'react'
 import { useGraphQLClient } from '@/common/network/graphql/useGraphQLClient'
 import { BusinessAppContextProps } from '@/common/BusinessAppContext'
+import {
+  buildCustomerTaskQuery,
+  buildCustomerTaskWhereCondition,
+  buildCustomerTaskOrderBy
+} from '@/common/data/customer/queries/customerTaskQueries.new'
+import { toCustomerTask } from '@/common/data/customer/mappers/customerTaskMappers'
+import type { CustomerTask } from '@/common/data/customer/types'
 
 export interface SalesTaskQueryVariables {
   accountId: string
 }
 
-export interface SalesTaskData {
-  id: string
-  name: string
-  version: number
-  description: string
-  dueDate?: string | null
-  createdAt: string
-  typeRef?: string // Added this field
-  statusRef?: string // Added status field
-  timingType?: string // Added timing type field
-  priorityRef?: string // Added priority reference field
-  assignedEmployeeId?: string // Added assigned employee ID field
-  type: {
-    value: string
-  }
-  priority: {
-    value: string
-  }
-  createdBy: string
-  creatorEmployee?: {
-    // Added creator employee details
-    id: string
-    firstName?: string
-    lastName?: string
-    displayName?: string
-    fullName?: string
-  }
-  assignedEmployee?: {
-    // Added assigned employee details
-    id: string
-    firstName?: string
-    lastName?: string
-    displayName?: string
-    fullName?: string
-    pictureThumbnail?: string
-  }
-  documents?: {
-    id: string
-    name: string
-    file?: string
-    fileInfo?: any
-    mimeType?: string
-    fileSize?: number
-  }[]
-}
+export type SalesTaskData = CustomerTask
 
 export interface SalesTaskResponse {
   SalesTask: SalesTaskData[]
 }
 
-export const GET_SALES_TASKS = (): string => {
-  return `
-    query GetSalesTasks($accountId: uuid!) {
-      SalesTask(where: {account: {id: {_eq: $accountId}}, isDeleted: {_eq: false}}) {
-        id
-        name
-        version
-        description
-        dueDate
-        createdAt
-        typeRef
-        statusRef
-        timingType
-        priorityRef
-        assignedEmployeeId
-        type {
-          value
-        }
-        priority {
-          value
-        }
-        createdBy
-        creatorEmployee {
-          id
-          firstName
-          lastName
-          displayName
-          fullName
-        }
-        assignedEmployee {
-          id
-          firstName
-          lastName
-          displayName
-          fullName
-          pictureThumbnail
-        }
-        documents(where: { isDeleted: { _eq: false } }) {
-          id
-          name
-          file
-          fileInfo
-          mimeType
-          fileSize
-        }
-      }
-    }
-  `
-}
-
 export const useGetSalesTasks = (context: BusinessAppContextProps) => {
   const graphqlClient = useGraphQLClient(context.accessToken)
 
-  const fetchSalesTasks = async (variables: SalesTaskQueryVariables) => {
-    const query = GET_SALES_TASKS(variables)
-    try {
-      const result = await graphqlClient.request<SalesTaskResponse>(query, variables)
-      return result
-    } catch (error) {
-      console.error('Error fetching sales tasks:', error)
-      throw error
-    }
-  }
+  const fetchSalesTasks = useCallback(
+    async (variables: SalesTaskQueryVariables) => {
+      const query = buildCustomerTaskQuery()
+      const whereCondition = buildCustomerTaskWhereCondition(
+        {},
+        [],
+        [{ account: { id: { _eq: variables.accountId } } }]
+      )
+      const orderBy = buildCustomerTaskOrderBy([{ field: 'createdAt', direction: 'DESC_NULLS_LAST' }])
+
+      const graphQLVariables = {
+        where: whereCondition,
+        orderBy: orderBy
+      }
+
+      try {
+        const result = await graphqlClient.request<{ SalesTask: any[]; SalesTaskAggregate?: any }>(
+          query,
+          graphQLVariables
+        )
+        return {
+          SalesTask: result.SalesTask.map(toCustomerTask)
+        }
+      } catch (error) {
+        console.error('Error fetching sales tasks:', error)
+        throw error
+      }
+    },
+    [graphqlClient]
+  )
 
   return { fetchSalesTasks }
 }

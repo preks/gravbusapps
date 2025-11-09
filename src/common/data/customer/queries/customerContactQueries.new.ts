@@ -61,6 +61,15 @@ export interface CustomerContactQueryVariables extends CommonContactQueryVariabl
  * CRM uses "Contact" as entity name (not "CustomerContact")
  */
 export const buildCustomerContactQuery = (fields: typeof CustomerContactFields = CustomerContactFields): string => {
+  // Build relation builders and fields for accountContacts
+  const relationBuilders: Partial<ContactRelationBuilders> = {
+    buildAccountFragment
+  }
+
+  const relationFields: Partial<ContactRelationFields> = {
+    accountFields: CustomerAccountFields
+  }
+
   const entityFields = `
     # Addresses relation (CRM uses "city" not "locality")
     ${fields.addresses}(where: { isDeleted: { _eq: false } }) {
@@ -72,7 +81,7 @@ export const buildCustomerContactQuery = (fields: typeof CustomerContactFields =
       ${buildLeadFragment(CustomerLeadFields)}
     }
   `
-  return buildContactQuery(fields, 'Contact', entityFields)
+  return buildContactQuery(fields, 'Contact', entityFields, undefined, relationBuilders, relationFields)
 }
 
 /**

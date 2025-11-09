@@ -81,15 +81,7 @@ export const INVESTMENT_TASK_DESCRIPTORS: Descriptor[] = [
       'lead.lastName',
       'opportunity.name'
     ],
-    sortPaths: [
-      'account.name',
-      'contact.firstName',
-      'contact.lastName',
-      'investment.name',
-      'lead.firstName',
-      'lead.lastName',
-      'opportunity.name'
-    ],
+    sortPaths: [`${InvestmentTaskFields.source}`],
     type: 'text'
   }
 ]

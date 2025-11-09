@@ -49,6 +49,21 @@ export interface InvestmentTaskQueryVariables extends CommonTaskQueryVariables {
  * Build Investment Task query with fields mapping
  */
 export const buildInvestmentTaskQuery = (fields: typeof InvestmentTaskFields = InvestmentTaskFields): string => {
+  // Build relation builders and fields for references
+  const relationBuilders: Partial<TaskRelationBuilders> = {
+    buildAccountFragment,
+    buildContactFragment,
+    buildLeadFragment,
+    buildOpportunityFragment
+  }
+
+  const relationFields: Partial<TaskRelationFields> = {
+    accountFields: InvestmentAccountFields,
+    contactFields: InvestmentContactFields,
+    leadFields: InvestmentLeadFields,
+    opportunityFields: InvestmentOpportunityFields
+  }
+
   const entityFields = `
     # Investment relation (only in IRM, not in CRM)
     # Required for reference column mapping (investment.name)
@@ -57,7 +72,7 @@ export const buildInvestmentTaskQuery = (fields: typeof InvestmentTaskFields = I
     }
     investmentId
   `
-  return buildTaskQuery(fields, 'InvestmentTask', entityFields)
+  return buildTaskQuery(fields, 'InvestmentTask', entityFields, undefined, relationBuilders, relationFields)
 }
 
 /**
