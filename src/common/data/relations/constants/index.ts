@@ -4,16 +4,13 @@
  */
 
 // Lead Constants
-export * from './commonLeadConstants'
+export * from './leadConstants'
 
 // Contact Constants
-export * from './commonContactConstants'
+export * from './contactConstants'
 
 // Opportunity Constants
-export * from './commonOpportunityConstants'
+export * from './opportunityConstants'
 
 // Task Constants
-export * from './commonTaskConstants'
-
-// General Relation Constants
-export * from './commonRelationConstants'
+export * from './taskConstants'

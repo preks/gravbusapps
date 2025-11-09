@@ -10,7 +10,7 @@ import type { Lead } from './leadTypes'
 import type { Note } from './noteTypes'
 import type { Opportunity } from './opportunityTypes'
 import type { Task } from './taskTypes'
-import type { ContactType } from '../constants/commonContactConstants'
+import type { ContactType } from '../constants/contactConstants'
 
 export interface Contact extends BaseEntity {
   academicTitle?: CatalogEntry // IRM | CRM

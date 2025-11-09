@@ -9,7 +9,7 @@ import {
   formatCommunicationChannelValue
 } from '@/common/data/common/utils/communicationChannelUtils'
 import { deriveSortableColumns, deriveAvailableColumns } from '@/common/network/graphql/descriptorUtils'
-import { getContactTypeLabel } from '@/common/data/relations/constants/commonContactConstants'
+import { getContactTypeLabel } from '@/common/data/relations/constants/contactConstants'
 
 // Helper to safely convert values to strings
 const safeString = (value: any): string => {

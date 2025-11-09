@@ -13,7 +13,7 @@ import { Clock, Calendar } from 'lucide-react'
 import { navigateTo } from '@/common/utils/navigationUtils'
 import { getCatalogEntryValue } from '@/common/data/catalog/utils/catalogTranslationUtils'
 import type { Task } from '@/common/data/relations/types/taskTypes'
-import { TaskPriority, TaskStatus } from '@/common/data/relations/constants/commonTaskConstants'
+import { TaskPriority, TaskStatus } from '@/common/data/relations/constants/taskConstants'
 import dayjs from 'dayjs'
 
 const formatDate = (dateString: string) => dayjs(dateString).format('MM/DD/YYYY')
