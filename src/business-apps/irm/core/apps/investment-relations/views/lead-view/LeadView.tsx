@@ -6,8 +6,7 @@ import { INVESTMENT_LEAD_DESCRIPTORS } from '@/common/data/investment/types/inve
 import { commonLeadColumns } from '@/common/components/common-relations/view-layouts/lead-layout/config'
 import { commonLeadFilterConfig } from '@/common/components/common-relations/view-layouts/lead-layout/config'
 import { useInvestmentLeads } from '@/common/data/investment/hooks/useInvestmentLeads'
-import { useInvestmentLeadFilters } from '@/common/data/investment/hooks/useInvestmentLeadFilters'
-import type { InvestmentLeadQueryVariables } from '@/common/data/investment/queries/investmentLeadQueries.new'
+import type { InvestmentLeadQueryVariables } from '@/common/data/investment/queries/investmentLeadQueries'
 import { normalizeDateRange } from '@/common/utils/dateRangeNormalizer'
 import { FlowContextName } from '@/common/types/FlowRegistryTypes'
 import { buildPlatformUrl } from '@/common/utils/navigationUtils'
@@ -21,7 +20,6 @@ export const LeadView: React.FC<LeadViewProps> = context => {
 
   // Data Hooks
   const { fetchInvestmentLeads } = useInvestmentLeads(context)
-  const leadFilters = useInvestmentLeadFilters(context)
   const leadStatistics = useInvestmentLeadStatistics(context)
 
   // Statistics - Transform hook data to LeadStatisticsData format
@@ -41,16 +39,9 @@ export const LeadView: React.FC<LeadViewProps> = context => {
   const config: LeadViewConfig<InvestmentLead, InvestmentLeadQueryVariables> = useMemo(
     () => ({
       fetchLeads: fetchInvestmentLeads,
-      filterDataHook: () => ({
-        owners: leadFilters.owners,
-        statuses: leadFilters.statuses,
-        ratings: leadFilters.ratings,
-        sources: leadFilters.sources,
-        salutations: leadFilters.salutations,
-        industries: leadFilters.industries
-      }),
       createColumns: () => commonLeadColumns() as any,
       descriptors: INVESTMENT_LEAD_DESCRIPTORS,
+      entityName: 'InvestmentLead',
       columnLabels: {
         lead: 'Lead',
         firstName: 'First Name',
@@ -164,7 +155,7 @@ export const LeadView: React.FC<LeadViewProps> = context => {
         addLead: { key: 'irm:lead.addLead', default: 'Add Lead' }
       }
     }),
-    [fetchInvestmentLeads, leadFilters, leadStatisticsData, accessToken]
+    [fetchInvestmentLeads, leadStatisticsData, accessToken]
   )
 
   return <LeadLayout context={context} config={config} dataTestId="investment-lead-view" />

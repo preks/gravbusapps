@@ -3,8 +3,8 @@ import { Avatar, AvatarImage, AvatarFallback } from '@newwork/nw-design-system'
 import { Building2, Mail, Phone, Globe, Calendar, MapPin } from 'lucide-react'
 import { navigateTo } from '@/common/utils/navigationUtils'
 import { formatAddress } from '@/common/utils/addressFormatter'
-import type { CommonAccount } from '@/common/data/relations/types/commonAccountTypes'
-import { COMMON_ACCOUNT_DESCRIPTORS } from '@/common/data/relations/types/commonAccountTypes'
+import type { Account } from '@/common/data/relations/types/accountTypes'
+import { createAccountDescriptors, AccountFields } from '@/common/data/relations/types/accountTypes'
 import { deriveSortableColumns, deriveAvailableColumns } from '@/common/network/graphql/descriptorUtils'
 
 // Helper to safely convert values to strings
@@ -31,7 +31,7 @@ const formatDate = (dateString: string | null | undefined): string => {
 }
 
 // Helper function to get owner display name
-const getOwnerName = (account: CommonAccount) => {
+const getOwnerName = (account: Account) => {
   if (account.ownerEmployee?.displayName) {
     return safeString(account.ownerEmployee.displayName)
   }
@@ -43,8 +43,8 @@ const getOwnerName = (account: CommonAccount) => {
 
 // Render revenue (band code may be a single number or a range "min-max")
 // Format similar to OpportunityLayout amount column
-const renderRevenueCell = (account: CommonAccount) => {
-  // CommonAccount has: accountAnnualRevenueBand (correct name)
+const renderRevenueCell = (account: Account) => {
+  // Account has: accountAnnualRevenueBand (correct name)
   const band = account.accountAnnualRevenueBand
   if (!band?.code && !band?.value) {
     return <div className="gba:text-right gba:text-sm gba:text-muted-foreground">No revenue</div>
@@ -119,11 +119,11 @@ const renderRevenueCell = (account: CommonAccount) => {
 
 /**
  * Default Account Columns - Base columns that work for both Customer and Investment Accounts
- * Uses CommonAccount (the CORRECT structure)
+ * Uses Account (the CORRECT structure)
  * Accounts must be mapped via accountMapper before passing to these columns
  * These can be extended or overridden in context-specific views
  */
-export const commonAccountColumns: ColumnDef<CommonAccount>[] = [
+export const commonAccountColumns: ColumnDef<Account>[] = [
   {
     id: 'name',
     accessorFn: row => safeString(row.name),
@@ -224,7 +224,7 @@ export const commonAccountColumns: ColumnDef<CommonAccount>[] = [
   {
     id: 'addresses',
     accessorFn: row => {
-      // CommonAccount has: addresses (with locality)
+      // Account has: addresses (with locality)
       const primaryAddress = row.addresses?.find(addr => addr.addressType === 'PRIMARY_ADDRESS') || row.addresses?.[0]
 
       if (primaryAddress) {
@@ -241,7 +241,7 @@ export const commonAccountColumns: ColumnDef<CommonAccount>[] = [
     enableResizing: false,
     enableSorting: false,
     cell: ({ row }) => {
-      // CommonAccount has: addresses (standardized)
+      // Account has: addresses (standardized)
       const primaryAddress =
         row.original.addresses?.find(addr => addr.addressType === 'PRIMARY_ADDRESS') || row.original.addresses?.[0]
 
@@ -292,7 +292,7 @@ export const commonAccountColumns: ColumnDef<CommonAccount>[] = [
     maxSize: 180,
     enableResizing: false,
     cell: ({ row }) => {
-      // CommonAccount has: industryClass (correct name)
+      // Account has: industryClass (correct name)
       if (!row.original.industryClass) {
         return <span className="gba:text-sm gba:text-muted-foreground">No industry</span>
       }
@@ -341,7 +341,7 @@ export const commonAccountColumns: ColumnDef<CommonAccount>[] = [
     maxSize: 140,
     enableResizing: false,
     cell: ({ row }) => {
-      // CommonAccount has: companySize (correct name)
+      // Account has: companySize (correct name)
       if (!row.original.companySize) {
         return <span className="gba:text-sm gba:text-muted-foreground">No size</span>
       }
@@ -465,7 +465,10 @@ const ACCOUNT_COLUMN_LABELS: Record<string, string> = {
   updatedAt: 'Updated Date'
 }
 
-export const defaultAccountSortableColumns = deriveSortableColumns(COMMON_ACCOUNT_DESCRIPTORS, ACCOUNT_COLUMN_LABELS)
+export const defaultAccountSortableColumns = deriveSortableColumns(
+  createAccountDescriptors(AccountFields),
+  ACCOUNT_COLUMN_LABELS
+)
 
 /**
  * Default visible columns

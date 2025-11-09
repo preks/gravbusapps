@@ -6,7 +6,6 @@ import { CUSTOMER_LEAD_DESCRIPTORS } from '@/common/data/customer/types/customer
 import { commonLeadColumns } from '@/common/components/common-relations/view-layouts/lead-layout/config'
 import { commonLeadFilterConfig } from '@/common/components/common-relations/view-layouts/lead-layout/config'
 import { useCustomerLeads } from '@/common/data/customer/hooks/useCustomerLeads'
-import { useCustomerLeadFilters } from '@/common/data/customer/hooks/useCustomerLeadFilters'
 import type { CustomerLeadQueryVariables } from '@/common/data/customer/queries/customerLeadQueries.new'
 import { normalizeDateRange } from '@/common/utils/dateRangeNormalizer'
 import { FlowContextName } from '@/common/types/FlowRegistryTypes'
@@ -21,7 +20,6 @@ export const LeadView: React.FC<LeadViewProps> = context => {
 
   // Data Hooks
   const { fetchCustomerLeads } = useCustomerLeads(context)
-  const leadFilters = useCustomerLeadFilters(context)
   const leadStatistics = useCustomerLeadStatistics(context)
 
   // Statistics - Transform hook data to LeadStatisticsData format
@@ -41,16 +39,9 @@ export const LeadView: React.FC<LeadViewProps> = context => {
   const config: LeadViewConfig<CustomerLead, CustomerLeadQueryVariables> = useMemo(
     () => ({
       fetchLeads: fetchCustomerLeads,
-      filterDataHook: () => ({
-        owners: leadFilters.owners,
-        statuses: leadFilters.statuses,
-        ratings: leadFilters.ratings,
-        sources: leadFilters.sources,
-        salutations: leadFilters.salutations,
-        industries: leadFilters.industries
-      }),
       createColumns: () => commonLeadColumns() as any,
       descriptors: CUSTOMER_LEAD_DESCRIPTORS,
+      entityName: 'Lead',
       columnLabels: {
         lead: 'Lead',
         firstName: 'First Name',
@@ -159,7 +150,7 @@ export const LeadView: React.FC<LeadViewProps> = context => {
         addLead: { key: 'crm:lead.addLead', default: 'Add Lead' }
       }
     }),
-    [fetchCustomerLeads, leadFilters, leadStatisticsData, accessToken]
+    [fetchCustomerLeads, leadStatisticsData, accessToken]
   )
 
   return <LeadLayout context={context} config={config} dataTestId="customer-lead-view" />

@@ -30,6 +30,7 @@ const buildNestedPath = (dotPath: string, leaf: string): string => {
 export interface Descriptor {
   // Common
   key: string
+  filterLabel?: string // Human-readable label for filter (falls abweichend von key)
 
   // Sorting
   sortPath?: string // Single path (existing)
@@ -256,6 +257,53 @@ export const selectionFromPaths = (paths: string[]): string => {
   return render(tree)
 }
 
+/**
+ * Build nested selection string from dot paths, ensuring array parent nodes are included
+ * For nested arrays (e.g., addresses.country.id), we need to select the array itself
+ * to ensure all array items are returned, not just those matching the nested path
+ */
+export const selectionFromPathsWithArraySupport = (paths: string[]): string => {
+  if (!paths.length) return ''
+
+  const firstPath = paths[0]
+  const pathParts = firstPath.split('.')
+
+  // If path has 3+ parts, it's a nested array (e.g., "addresses.country.id")
+  // We need to select the array parent to get all items
+  if (pathParts.length > 2) {
+    const arrayKey = pathParts[0] // e.g., "addresses"
+    const nestedPath = paths.map(p => p.split('.').slice(1).join('.')) // e.g., ["country.id", "country.value", "country.code"]
+
+    // Build nested selection for the array items
+    const nestedTree: any = {}
+    for (const p of nestedPath) {
+      const segs = p.split('.').filter(Boolean)
+      let node = nestedTree
+      for (let i = 0; i < segs.length; i++) {
+        const s = segs[i]
+        if (i === segs.length - 1) {
+          node[s] = true
+        } else {
+          node[s] = node[s] || {}
+          node = node[s]
+        }
+      }
+    }
+
+    const render = (n: any): string => {
+      return Object.entries(n)
+        .map(([k, v]) => (v === true ? k : `${k} { ${render(v)} }`))
+        .join(' ')
+    }
+
+    // Return array selection with nested path
+    return `${arrayKey} { ${render(nestedTree)} }`
+  }
+
+  // For simple paths, use original logic
+  return selectionFromPaths(paths)
+}
+
 export const searchOrFromPaths = (search: string, paths: string[] = []): string => {
   const term = search?.trim()
   if (!term) return ''
@@ -297,6 +345,271 @@ export const buildFilterGroups = (args: {
     `
   }
   return result
+}
+
+/**
+ * Build aggregate count queries for filter options
+ * Returns queries to get totalCount for each filter descriptor
+ */
+export const buildFilterAggregateQueries = (args: {
+  entityName: string
+  descriptors: Descriptor[]
+}): Record<string, string> => {
+  const { entityName, descriptors } = args
+  const result: Record<string, string> = {}
+
+  for (const d of descriptors) {
+    if (!d.optionSelectPaths || !d.optionSelectPaths.length) continue
+
+    // Build distinctOn condition if specified
+    const distinctOn = d.optionDistinctOn || []
+    const distinct = distinctOn.length ? `distinctOn: [${distinctOn.join(', ')}]` : ''
+
+    result[d.key] = `
+      query Get${entityName}FilterCount_${d.key} {
+        ${entityName}Aggregate(
+          where: { isDeleted: { _eq: false } }
+          ${distinct}
+        ) {
+          aggregate {
+            count
+          }
+        }
+      }
+    `
+  }
+
+  return result
+}
+
+/**
+ * Transform GraphQL filter option response to UI format
+ * Handles nested paths from optionSelectPaths
+ */
+export const transformFilterOptions = (data: any, descriptor: Descriptor): Array<{ id: string; label: string }> => {
+  if (!data || !Array.isArray(data)) return []
+  if (!descriptor.optionSelectPaths || descriptor.optionSelectPaths.length === 0) return []
+
+  const paths = descriptor.optionSelectPaths
+  const firstPath = paths[0] || ''
+  const pathParts = firstPath.split('.')
+
+  // Auto-detect nested arrays: if first selectPath has 3+ parts, it's nested (e.g., "addresses.country.id")
+  const isNestedArray = pathParts.length > 2
+
+  if (isNestedArray) {
+    // Handle nested arrays: flatten and make distinct
+    const seen = new Set<string>()
+    const result: Array<{ id: string; label: string }> = []
+
+    // First part is the array key (e.g., "addresses")
+    const arrayKey = pathParts[0]
+    // Remaining parts are the nested path (e.g., ["country", "id"])
+    const nestedIdPath = pathParts.slice(1)
+    // Get label path (e.g., ["country", "value"])
+    const labelPathParts = paths[1]?.split('.') || pathParts
+    const nestedLabelPath = labelPathParts.length > 2 ? labelPathParts.slice(1) : nestedIdPath
+
+    data.forEach((item: any) => {
+      const array = item?.[arrayKey]
+      if (!Array.isArray(array)) return
+
+      array.forEach((arrayItem: any) => {
+        // Navigate nested path for id (e.g., arrayItem.country.id)
+        let id = arrayItem
+        for (const part of nestedIdPath) {
+          id = id?.[part]
+        }
+
+        // Navigate nested path for label (e.g., arrayItem.country.value)
+        let label = arrayItem
+        for (const part of nestedLabelPath) {
+          label = label?.[part]
+        }
+
+        const idStr = String(id || '')
+        if (idStr && idStr.trim() !== '' && !seen.has(idStr)) {
+          seen.add(idStr)
+          result.push({
+            id: idStr,
+            label: String(label || idStr)
+          })
+        }
+      })
+    })
+
+    return result
+  }
+
+  // Simple path (existing logic)
+  const idPath = pathParts
+  const labelPath = paths[1]?.split('.') || pathParts
+
+  return data
+    .map((item: any) => {
+      // Extract id from nested path
+      let id = item
+      for (const segment of idPath) {
+        id = id?.[segment]
+      }
+
+      // Extract label from nested path
+      let label = item
+      for (const segment of labelPath) {
+        label = label?.[segment]
+      }
+
+      return {
+        id: String(id || ''),
+        label: String(label || id || '')
+      }
+    })
+    .filter(option => option.id && option.id.trim() !== '')
+}
+
+/**
+ * Build combined GraphQL query for all filter options and their aggregate counts
+ * Returns a single query that fetches both filter options and total counts
+ */
+export const buildCombinedFilterGroupsQuery = (args: {
+  entityName: string
+  descriptors: Descriptor[]
+  searchByKey?: Record<string, string>
+  limit?: number
+}): string => {
+  const { entityName, descriptors, searchByKey = {}, limit = 100 } = args
+
+  const filterQueries: string[] = []
+  const aggregateQueries: string[] = []
+
+  for (const d of descriptors) {
+    if (!d.optionSelectPaths || !d.optionSelectPaths.length) continue
+
+    const selectPaths = d.optionSelectPaths
+    const searchPaths = d.optionSearchPaths || d.searchPaths || []
+    const distinctOn = d.optionDistinctOn || []
+    const search = searchByKey[d.key] || ''
+    const selection = selectionFromPathsWithArraySupport(selectPaths)
+    const searchOr = searchOrFromPaths(search, searchPaths)
+
+    // Auto-detect nested arrays: if first selectPath has 3+ parts, it's nested
+    // GraphQL distinctOn only works on top-level fields, not nested array fields
+    const firstPath = selectPaths[0] || ''
+    const isNestedArray = firstPath.split('.').length > 2
+
+    // Build where clause
+    const whereParts = ['isDeleted: { _eq: false }']
+
+    // For nested arrays, add filter to only get entities that have the array with non-null values
+    // Example: addresses: { country: { id: { _isNull: false } } }
+    if (isNestedArray) {
+      const arrayKey = firstPath.split('.')[0] // e.g., "addresses"
+      const nestedField = firstPath.split('.').slice(1).join('.') // e.g., "country.id"
+      // Build nested filter: country: { id: { _isNull: false } }
+      const nestedParts = nestedField.split('.')
+      const nestedFilter = nestedParts.reduceRight((acc, part, idx) => {
+        if (idx === nestedParts.length - 1) {
+          return `${part}: { _isNull: false }`
+        }
+        return `${part}: { ${acc} }`
+      }, '')
+      whereParts.push(`${arrayKey}: { ${nestedFilter} }`)
+    }
+
+    if (searchOr) whereParts.push(searchOr)
+    const where = `where: { ${whereParts.join(', ')} }`
+    const distinct = !isNestedArray && distinctOn.length ? `distinctOn: [${distinctOn.join(', ')}]` : ''
+
+    // For nested arrays, we need to fetch more records (or all) since we're limiting at Account level, not Country level
+    const queryLimit = isNestedArray ? 1000 : limit
+
+    // Filter options query
+    filterQueries.push(`
+      ${d.key}: ${entityName}(
+        ${where}
+        ${distinct}
+        limit: ${queryLimit}
+      ) {
+        ${selection}
+      }
+    `)
+
+    // Aggregate count query
+    // For nested arrays, we can't use distinctOn in aggregate, so we'll calculate count from flattened data
+    aggregateQueries.push(`
+      ${d.key}Count: ${entityName}Aggregate(
+        where: { isDeleted: { _eq: false } }
+        ${distinct}
+      ) {
+        aggregate {
+          count
+        }
+      }
+    `)
+  }
+
+  return `
+    query GetFilterGroups {
+      ${filterQueries.join('\n')}
+      ${aggregateQueries.join('\n')}
+    }
+  `
+}
+
+/**
+ * Fetch filter groups with options and total counts
+ * Executes the combined query and processes results
+ */
+export const fetchFilterGroups = async (args: {
+  graphqlClient: any
+  entityName: string
+  descriptors: Descriptor[]
+  searchByKey?: Record<string, string>
+  limit?: number
+}): Promise<
+  Record<
+    string,
+    {
+      options: Array<{ id: string; label: string }>
+      totalCount: number
+    }
+  >
+> => {
+  const { graphqlClient, entityName, descriptors, searchByKey, limit } = args
+
+  const query = buildCombinedFilterGroupsQuery({ entityName, descriptors, searchByKey, limit })
+  const result = await graphqlClient.request(query)
+
+  const filterData: Record<
+    string,
+    {
+      options: Array<{ id: string; label: string }>
+      totalCount: number
+    }
+  > = {}
+
+  for (const d of descriptors) {
+    if (!d.optionSelectPaths || !d.optionSelectPaths.length) continue
+
+    const data = result[d.key] || []
+    const transformedOptions = transformFilterOptions(data, d)
+
+    // For nested arrays, we can't get accurate count from aggregate query
+    // because distinctOn doesn't work on nested paths. Use transformed count instead.
+    const firstPath = d.optionSelectPaths[0] || ''
+    const isNestedArray = firstPath.split('.').length > 2
+
+    const count = isNestedArray
+      ? transformedOptions.length // For nested: count after flattening (approximation)
+      : result[`${d.key}Count`]?.aggregate?.count || transformedOptions.length
+
+    filterData[d.key] = {
+      options: transformedOptions,
+      totalCount: count
+    }
+  }
+
+  return filterData
 }
 
 // ==========================================

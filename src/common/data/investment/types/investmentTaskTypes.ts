@@ -1,6 +1,6 @@
 import type { CatalogEntry } from '@/common/network/graphql/commonTypes'
-import type { CommonTask, CommonTaskComment, CommonTaskTemplate } from '@/common/data/relations/types/commonTaskTypes'
-import { TaskFields, createCommonTaskDescriptors } from '@/common/data/relations/types/commonTaskTypes'
+import type { Task, TaskComment, TaskTemplate } from '@/common/data/relations/types/taskTypes'
+import { TaskFields, createTaskDescriptors } from '@/common/data/relations/types/taskTypes'
 import type { Descriptor } from '@/common/network/graphql/queryHelpers'
 import type { SourceTable } from './investmentEnums'
 import type {
@@ -13,7 +13,7 @@ import type {
   InvestmentOpportunity
 } from './'
 
-export interface InvestmentTask extends CommonTask {
+export interface InvestmentTask extends Task {
   account?: InvestmentAccount
   comments?: InvestmentTaskComment[]
   contact?: InvestmentContact
@@ -29,7 +29,7 @@ export interface InvestmentTask extends CommonTask {
   investmentOpportunityStageCondition?: InvestmentOpportunityStageCondition
 }
 
-export interface InvestmentTaskTemplate extends CommonTaskTemplate {
+export interface InvestmentTaskTemplate extends TaskTemplate {
   investmentGroup?: CatalogEntry
   investmentGroupRef?: string
   investmentType?: CatalogEntry
@@ -40,7 +40,7 @@ export interface InvestmentTaskTemplate extends CommonTaskTemplate {
   investmentTask?: InvestmentTask[] // Mapped to tasks
 }
 
-export interface InvestmentTaskComment extends CommonTaskComment {
+export interface InvestmentTaskComment extends TaskComment {
   task?: InvestmentTask // Mapped by investmentTask
   taskId?: string // Mapped by investmentTaskId
 
@@ -63,11 +63,11 @@ export type InvestmentTaskFieldName = (typeof InvestmentTaskFields)[keyof typeof
 
 /**
  * Investment Task Descriptors
- * Uses createCommonTaskDescriptors with InvestmentTaskFields mapping
+ * Uses createTaskDescriptors with InvestmentTaskFields mapping
  * Adds IRM-specific reference field
  */
 export const INVESTMENT_TASK_DESCRIPTORS: Descriptor[] = [
-  ...createCommonTaskDescriptors(InvestmentTaskFields as Record<keyof typeof TaskFields, string>).filter(
+  ...createTaskDescriptors(InvestmentTaskFields as Record<keyof typeof TaskFields, string>).filter(
     d => d.key !== 'reference'
   ),
   {

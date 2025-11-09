@@ -2,8 +2,8 @@
  * Customer Account Types
  */
 
-import type { CommonAccount } from '@/common/data/relations/types/commonAccountTypes'
-import { AccountFields, createCommonAccountDescriptors } from '@/common/data/relations/types/commonAccountTypes'
+import type { Account } from '@/common/data/relations/types/accountTypes'
+import { AccountFields, createAccountDescriptors } from '@/common/data/relations/types/accountTypes'
 import type { Descriptor } from '@/common/network/graphql/queryHelpers'
 import type { CustomerAddress } from './customerAddressTypes'
 import type { CustomerCommunicationChannel } from './customerCommunicationChannelTypes'
@@ -16,10 +16,10 @@ import type { CustomerAccountContact } from './customerRelationTypes'
 
 /**
  * Customer Account Type
- * Extends CommonAccount with CRM-specific fields and proper type mappings
+ * Extends Account with CRM-specific fields and proper type mappings
  */
-export interface CustomerAccount extends CommonAccount {
-  // Map any types from CommonAccount to specific Customer types
+export interface CustomerAccount extends Account {
+  // Map any types from Account to specific Customer types
   accountContacts?: CustomerAccountContact[]
   addresses?: CustomerAddress[]
   communicationChannels?: CustomerCommunicationChannel[]
@@ -71,13 +71,13 @@ export type CustomerAccountFieldName = (typeof CustomerAccountFields)[keyof type
 
 /**
  * Customer Account Descriptors
- * Uses createCommonAccountDescriptors with CustomerAccountFields mapping
+ * Uses createAccountDescriptors with CustomerAccountFields mapping
  * Filters out and overrides descriptors with structural differences (CRM uses different nested field names)
  * Adds CRM-specific fields that don't exist in Common/IRM
  */
 export const CUSTOMER_ACCOUNT_DESCRIPTORS: Descriptor[] = [
   // Filter out descriptors that need structural overrides
-  ...createCommonAccountDescriptors(CustomerAccountFields as Record<keyof typeof AccountFields, string>).filter(
+  ...createAccountDescriptors(CustomerAccountFields as Record<keyof typeof AccountFields, string>).filter(
     d => !['activities', 'addresses', 'leads', 'locality', 'notes', 'opportunities'].includes(d.key)
   ),
 

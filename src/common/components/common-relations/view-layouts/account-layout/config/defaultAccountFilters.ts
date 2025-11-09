@@ -21,7 +21,6 @@ export const commonAccountFilterConfig: FilterConfiguration = {
           type: 'multi-select',
           config: {
             options: [],
-            enableSearch: true,
             searchPlaceholder: 'Search owners...',
             totalCount: 0,
             hasMore: false
@@ -42,7 +41,6 @@ export const commonAccountFilterConfig: FilterConfiguration = {
           type: 'multi-select',
           config: {
             options: [],
-            enableSearch: true,
             searchPlaceholder: 'Search industries...',
             totalCount: 0,
             hasMore: false
@@ -63,7 +61,6 @@ export const commonAccountFilterConfig: FilterConfiguration = {
           type: 'multi-select',
           config: {
             options: [],
-            enableSearch: true,
             searchPlaceholder: 'Search legal forms...',
             totalCount: 0,
             hasMore: false
@@ -84,7 +81,6 @@ export const commonAccountFilterConfig: FilterConfiguration = {
           type: 'multi-select',
           config: {
             options: [],
-            enableSearch: true,
             searchPlaceholder: 'Search company sizes...',
             totalCount: 0,
             hasMore: false
@@ -105,7 +101,6 @@ export const commonAccountFilterConfig: FilterConfiguration = {
           type: 'multi-select',
           config: {
             options: [],
-            enableSearch: true,
             searchPlaceholder: 'Search revenue bands...',
             totalCount: 0,
             hasMore: false
@@ -142,13 +137,12 @@ export const commonAccountFilterConfig: FilterConfiguration = {
       defaultExpanded: false,
       filters: [
         {
-          id: 'countries',
-          field: 'countries',
+          id: 'countryIds',
+          field: 'countryIds',
           label: 'Country',
           type: 'multi-select',
           config: {
             options: [],
-            enableSearch: true,
             searchPlaceholder: 'Search countries...',
             totalCount: 0,
             hasMore: false

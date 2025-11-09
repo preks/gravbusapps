@@ -59,7 +59,7 @@ export function toCustomerTask(base: CustomerTask): CustomerTask {
     }
   }
 
-  // Map CRM catalog field names to CommonTask standard
+  // Map CRM catalog field names to Task standard
   const taskType = base.type
   const taskTypeRef = (base as any).typeRef
   const taskPriority = base.priority
@@ -81,7 +81,7 @@ export function toCustomerTask(base: CustomerTask): CustomerTask {
 
   return {
     ...base,
-    // Map CRM fields to CommonTask standard
+    // Map CRM fields to Task standard
     taskType,
     taskTypeRef,
     taskPriority,

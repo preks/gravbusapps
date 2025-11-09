@@ -1,9 +1,9 @@
-import type { CommonActivity } from '@/common/data/relations/types/commonActivityTypes'
-import { ActivityFields, createCommonActivityDescriptors } from '@/common/data/relations/types/commonActivityTypes'
+import type { Activity } from '@/common/data/relations/types/activityTypes'
+import { ActivityFields, createActivityDescriptors } from '@/common/data/relations/types/activityTypes'
 import type { Descriptor } from '@/common/network/graphql/queryHelpers'
 import { CustomerAccount, CustomerContact, CustomerDocument, CustomerOpportunity, CustomerLead } from './'
 
-export interface CustomerActivity extends CommonActivity {
+export interface CustomerActivity extends Activity {
   account?: CustomerAccount
   contact?: CustomerContact
   documents?: CustomerDocument[]
@@ -23,9 +23,9 @@ export type CustomerActivityFieldName = (typeof CustomerActivityFields)[keyof ty
 
 /**
  * Customer Activity Descriptors
- * Uses createCommonActivityDescriptors with CustomerActivityFields mapping
+ * Uses createActivityDescriptors with CustomerActivityFields mapping
  * CRM uses correct field names, so we use Common descriptors directly
  */
 export const CUSTOMER_ACTIVITY_DESCRIPTORS: Descriptor[] = [
-  ...createCommonActivityDescriptors(CustomerActivityFields as Record<keyof typeof ActivityFields, string>)
+  ...createActivityDescriptors(CustomerActivityFields as Record<keyof typeof ActivityFields, string>)
 ]

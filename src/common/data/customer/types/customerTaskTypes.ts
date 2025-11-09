@@ -1,5 +1,5 @@
-import type { CommonTask, CommonTaskComment, CommonTaskTemplate } from '@/common/data/relations/types/commonTaskTypes'
-import { TaskFields, createCommonTaskDescriptors } from '@/common/data/relations/types/commonTaskTypes'
+import type { Task, TaskComment, TaskTemplate } from '@/common/data/relations/types/taskTypes'
+import { TaskFields, createTaskDescriptors } from '@/common/data/relations/types/taskTypes'
 import type { Descriptor } from '@/common/network/graphql/queryHelpers'
 import type { TaskTiming } from '@/common/data/relations/constants/commonTaskConstants'
 import type { CatalogEntry } from '@/common/network/graphql/commonTypes'
@@ -13,7 +13,7 @@ import type {
   CustomerOpportunity
 } from './'
 
-export interface CustomerTask extends CommonTask {
+export interface CustomerTask extends Task {
   account?: CustomerAccount
   comments?: CustomerTaskComment[] // Mapped from comment
   contact?: CustomerContact
@@ -37,14 +37,14 @@ export interface CustomerTask extends CommonTask {
   typeRef?: string // Mapped to taskTypeRef
 }
 
-export interface CustomerTaskTemplate extends CommonTaskTemplate {
+export interface CustomerTaskTemplate extends TaskTemplate {
   tasks?: CustomerTask[] // Mapped by salesTask
 
   // Base fields for mapping
   salesTask?: CustomerTask[] // Mapped to tasks
 }
 
-export interface CustomerTaskComment extends CommonTaskComment {
+export interface CustomerTaskComment extends TaskComment {
   task?: CustomerTask // Mapped by customerTask
   taskId?: string // Mapped by customerTaskId
 
@@ -76,10 +76,10 @@ export type CustomerTaskFieldName = (typeof CustomerTaskFields)[keyof typeof Cus
 
 /**
  * Customer Task Descriptors
- * Uses createCommonTaskDescriptors with CustomerTaskFields mapping
+ * Uses createTaskDescriptors with CustomerTaskFields mapping
  */
 export const CUSTOMER_TASK_DESCRIPTORS: Descriptor[] = [
-  ...createCommonTaskDescriptors(CustomerTaskFields as Record<keyof typeof TaskFields, string>).filter(
+  ...createTaskDescriptors(CustomerTaskFields as Record<keyof typeof TaskFields, string>).filter(
     d => !['comments'].includes(d.key)
   ),
   {

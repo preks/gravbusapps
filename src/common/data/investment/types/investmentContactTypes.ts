@@ -1,5 +1,5 @@
-import type { CommonContact } from '@/common/data/relations/types/commonContactTypes'
-import { ContactFields, createCommonContactDescriptors } from '@/common/data/relations/types/commonContactTypes'
+import type { Contact } from '@/common/data/relations/types/contactTypes'
+import { ContactFields, createContactDescriptors } from '@/common/data/relations/types/contactTypes'
 import type { Descriptor } from '@/common/network/graphql/queryHelpers'
 import type { InvestmentActivity } from './investmentActivityTypes'
 import type { InvestmentAddress } from './investmentAddressTypes'
@@ -10,7 +10,7 @@ import type { InvestmentNote } from './investmentNoteTypes'
 import type { InvestmentAccountContact, InvestmentOpportunityContact } from './investmentRelationTypes'
 import type { InvestmentTask } from './investmentTaskTypes'
 
-export interface InvestmentContact extends CommonContact {
+export interface InvestmentContact extends Contact {
   accountContacts?: InvestmentAccountContact[]
   activities?: InvestmentActivity[]
   addresses?: InvestmentAddress[]
@@ -43,8 +43,8 @@ export type InvestmentContactFieldName = (typeof InvestmentContactFields)[keyof 
 
 /**
  * Investment Contact Descriptors
- * Uses createCommonContactDescriptors with InvestmentContactFields mapping
+ * Uses createContactDescriptors with InvestmentContactFields mapping
  */
 export const INVESTMENT_CONTACT_DESCRIPTORS: Descriptor[] = [
-  ...createCommonContactDescriptors(InvestmentContactFields as Record<keyof typeof ContactFields, string>)
+  ...createContactDescriptors(InvestmentContactFields as Record<keyof typeof ContactFields, string>)
 ]

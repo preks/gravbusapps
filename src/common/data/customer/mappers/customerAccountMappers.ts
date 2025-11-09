@@ -22,7 +22,7 @@ import type { Address } from '@/common/data/common/types/commonTypes'
  * - lead → leads (singular to plural)
  */
 export function toCustomerAccount(raw: any): CustomerAccount {
-  // Map CRM catalog field names to CommonAccount standard (IRM naming)
+  // Map CRM catalog field names to Account standard (IRM naming)
   const industryClass = raw.industry
   const industryClassRef = raw.industryRef
 
@@ -39,7 +39,7 @@ export function toCustomerAccount(raw: any): CustomerAccount {
   // Map addresses with city → locality transformation
   const addresses: Address[] | undefined = raw.addresses?.map((addr: any) => ({
     ...addr,
-    locality: addr.city // CRM uses 'city', CommonAccount uses 'locality'
+    locality: addr.city // CRM uses 'city', Account uses 'locality'
   }))
 
   // Map CRM sales campaign to common naming
@@ -54,7 +54,7 @@ export function toCustomerAccount(raw: any): CustomerAccount {
 
   return {
     ...raw,
-    // Map CRM catalog fields to CommonAccount standard
+    // Map CRM catalog fields to Account standard
     industryClass,
     industryClassRef,
     companySize,

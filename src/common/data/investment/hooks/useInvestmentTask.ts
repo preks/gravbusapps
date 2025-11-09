@@ -3,7 +3,7 @@ import { useCallback, useState, useEffect } from 'react'
 import { useGraphQLClient } from '@/common/network/graphql/useGraphQLClient'
 import { BusinessAppContextProps } from '@/common/BusinessAppContext'
 import type { InvestmentTask } from '../types'
-import { buildInvestmentTaskByIdQuery } from '../queries/investmentTaskQueries.new'
+import { buildInvestmentTaskByIdQuery } from '../queries/investmentTaskQueries'
 import { toInvestmentTask } from '../mappers'
 
 export interface UseInvestmentTaskReturn {
@@ -27,7 +27,7 @@ export const useInvestmentTask = (context: BusinessAppContextProps, taskId: stri
 
     try {
       // Use new query builder with fields mapping
-      const query = buildInvestmentTaskByIdQuery(undefined, undefined, taskId)
+      const query = buildInvestmentTaskByIdQuery(undefined, taskId)
       const result = await graphqlClient.request<{ InvestmentTaskByPk: InvestmentTask }>(query)
       const taskData = result.InvestmentTaskByPk
       setTask(taskData ? toInvestmentTask(taskData) : null)

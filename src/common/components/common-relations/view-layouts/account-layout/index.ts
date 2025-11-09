@@ -4,7 +4,7 @@ export { AccountListLayout, type AccountListLayoutProps } from './components/Acc
 export { AccountStatisticsLayout, type AccountStatisticsData } from './components/AccountStatisticsLayout'
 
 // Types
-export type { CommonAccount, CommonAccountFilters } from '@/common/data/relations/types/commonAccountTypes'
+export type { Account, CommonAccountFilters } from '@/common/data/relations/types/accountTypes'
 
 // Default Configurations
 export {
@@ -17,4 +17,4 @@ export {
 export { commonAccountFilterConfig } from './config/defaultAccountFilters'
 
 // Utilities
-export { buildDynamicFilterConfig, updateFilterOptions, addSearchAndLoadMoreFunctions } from './utils/filterHelpers'
+export { buildDynamicFilterConfig } from './utils/filterHelpers'

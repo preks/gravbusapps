@@ -10,26 +10,25 @@ import {
   buildOpportunitySearchQuery,
   buildOpportunityWhereCondition,
   buildOpportunityOrderBy,
-  type CommonOpportunityQueryVariables
-} from '@/common/data/relations/queries/commonOpportunityQueries'
-import {
-  buildOpportunityFragmentWithRelations,
+  type CommonOpportunityQueryVariables,
   type OpportunityRelationBuilders,
   type OpportunityRelationFields
-} from '@/common/data/relations/queries/commonOpportunityQueries'
+} from '@/common/data/relations/queries/opportunityQueries'
 import { CustomerOpportunityFields, CUSTOMER_OPPORTUNITY_DESCRIPTORS } from '../types/customerOpportunityTypes'
 import { CUSTOMER_CAMPAIGN_REF } from './fragments/customerReferenceFragments'
 import { CUSTOMER_ADDRESS_FRAGMENT } from '../types/customerAddressTypes'
 import type { Descriptor } from '@/common/network/graphql/queryHelpers'
 
 // Import Common REF Fragment Builders (no relations - to avoid circular dependencies)
-import { buildActivityFragment } from '@/common/data/relations/queries/commonActivityFragments.new'
-import { buildAccountFragment } from '@/common/data/relations/queries/commonAccountFragments.new'
-import { buildContactFragment } from '@/common/data/relations/queries/commonContactFragments.new'
-import { buildDocumentFragment } from '@/common/data/relations/queries/commonDocumentFragments.new'
-import { buildLeadFragment } from '@/common/data/relations/queries/commonLeadFragments.new'
-import { buildNoteFragment } from '@/common/data/relations/queries/commonNoteFragments.new'
-import { buildTaskFragment } from '@/common/data/relations/queries/commonTaskFragments.new'
+import {
+  buildActivityFragment,
+  buildAccountFragment,
+  buildContactFragment,
+  buildDocumentFragment,
+  buildLeadFragment,
+  buildNoteFragment,
+  buildTaskFragment
+} from '@/common/data/relations/queries/relationFragments'
 
 // Import Customer Fields
 import { CustomerActivityFields } from '../types/customerActivityTypes'
@@ -50,21 +49,56 @@ export interface CustomerOpportunityQueryVariables extends CommonOpportunityQuer
 }
 
 /**
- * Build Customer Opportunity fragment using fields mapping
- * Includes Common Opportunity fields + common entity relations + CRM-specific relations
+ * Build Customer Opportunity query with fields mapping
+ * CRM uses "Opportunity" as entity name (not "CustomerOpportunity")
  */
-export const buildCustomerOpportunityFragment = (
+export const buildCustomerOpportunityQuery = (
   fields: typeof CustomerOpportunityFields = CustomerOpportunityFields
 ): string => {
-  // Build common fragment with relations using REF fragments (no relations) to avoid circular dependencies
+  const entityFields = `
+    # Addresses relation (CRM uses "city" not "locality")
+    ${fields.addresses}(where: { isDeleted: { _eq: false } }) {
+      ${CUSTOMER_ADDRESS_FRAGMENT}
+    }
+    
+    # Lead relation (CRM uses singular "lead" as object, not array - no where clause)
+    ${fields.leads} {
+      ${buildLeadFragment(CustomerLeadFields)}
+    }
+    
+    # CRM duplicate relations (mapped to main relations in mapper)
+    crmDocument(where: { isDeleted: { _eq: false } }) {
+      ${buildDocumentFragment(CustomerDocumentFields)}
+    }
+    
+    crmNote(where: { isDeleted: { _eq: false } }) {
+      ${buildNoteFragment(CustomerNoteFields)}
+    }
+    
+    # CRM-specific fields
+    salesCampaign {
+      ${CUSTOMER_CAMPAIGN_REF}
+    }
+  `
+  return buildOpportunityQuery(fields, 'Opportunity', entityFields)
+}
+
+/**
+ * Build Customer Opportunity by ID query
+ */
+export const buildCustomerOpportunityByIdQuery = (
+  fields: typeof CustomerOpportunityFields = CustomerOpportunityFields,
+  id: string
+): string => {
+  // Build relation builders and fields for common relations
   const relationBuilders: OpportunityRelationBuilders = {
-    buildActivityFragment, // REF fragment (no relations)
-    buildAccountFragment, // REF fragment (no relations) - NOT buildCustomerAccountFragment!
-    buildContactFragment, // REF fragment (no relations) - NOT buildCustomerContactFragment!
-    buildDocumentFragment, // REF fragment (no relations)
-    buildLeadFragment, // REF fragment (no relations)
-    buildNoteFragment, // REF fragment (no relations)
-    buildTaskFragment // REF fragment (no relations) - NOT buildCustomerTaskFragment!
+    buildActivityFragment,
+    buildAccountFragment,
+    buildContactFragment,
+    buildDocumentFragment,
+    buildLeadFragment,
+    buildNoteFragment,
+    buildTaskFragment
   }
 
   const relationFields: OpportunityRelationFields = {
@@ -77,57 +111,34 @@ export const buildCustomerOpportunityFragment = (
     taskFields: CustomerTaskFields
   }
 
-  const commonFragmentWithRelations = buildOpportunityFragmentWithRelations(fields, relationBuilders, relationFields)
+  // Domain-specific entity fields (addresses, leads, crmDocument, crmNote, salesCampaign)
+  const entityFields = `
+    # Addresses relation (CRM uses "city" not "locality")
+    ${fields.addresses}(where: { isDeleted: { _eq: false } }) {
+      ${CUSTOMER_ADDRESS_FRAGMENT}
+    }
+    
+    # Lead relation (CRM uses singular "lead" as object, not array - no where clause)
+    ${fields.leads} {
+      ${buildLeadFragment(CustomerLeadFields)}
+    }
+    
+    # CRM duplicate relations (mapped to main relations in mapper)
+    crmDocument(where: { isDeleted: { _eq: false } }) {
+      ${buildDocumentFragment(CustomerDocumentFields)}
+    }
+    
+    crmNote(where: { isDeleted: { _eq: false } }) {
+      ${buildNoteFragment(CustomerNoteFields)}
+    }
+    
+    # CRM-specific fields
+    salesCampaign {
+      ${CUSTOMER_CAMPAIGN_REF}
+    }
+  `
 
-  return `
-  ${commonFragmentWithRelations}
-  
-  # Addresses relation (CRM uses "city" not "locality")
-  ${fields.addresses}(where: { isDeleted: { _eq: false } }) {
-    ${CUSTOMER_ADDRESS_FRAGMENT}
-  }
-  
-  # Lead relation (CRM uses singular "lead" as object, not array - no where clause)
-  ${fields.leads} {
-    ${relationBuilders.buildLeadFragment(relationFields.leadFields)}
-  }
-  
-  # CRM duplicate relations (mapped to main relations in mapper)
-  crmDocument(where: { isDeleted: { _eq: false } }) {
-    ${buildDocumentFragment(CustomerDocumentFields)}
-  }
-  
-  crmNote(where: { isDeleted: { _eq: false } }) {
-    ${buildNoteFragment(CustomerNoteFields)}
-  }
-  
-  # CRM-specific fields
-  salesCampaign {
-    ${CUSTOMER_CAMPAIGN_REF}
-  }
-`
-}
-
-/**
- * Build Customer Opportunity query with fields mapping
- * CRM uses "Opportunity" as entity name (not "CustomerOpportunity")
- */
-export const buildCustomerOpportunityQuery = (
-  fields: typeof CustomerOpportunityFields = CustomerOpportunityFields,
-  fragment: string = buildCustomerOpportunityFragment(fields)
-): string => {
-  return buildOpportunityQuery(fields, fragment, 'Opportunity')
-}
-
-/**
- * Build Customer Opportunity by ID query
- */
-export const buildCustomerOpportunityByIdQuery = (
-  fields: typeof CustomerOpportunityFields = CustomerOpportunityFields,
-  fragment: string = buildCustomerOpportunityFragment(fields),
-  id: string
-): string => {
-  return buildOpportunityByIdQuery(fields, fragment, id, 'Opportunity')
+  return buildOpportunityByIdQuery(fields, id, 'Opportunity', relationBuilders, relationFields, entityFields)
 }
 
 /**

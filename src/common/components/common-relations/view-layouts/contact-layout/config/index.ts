@@ -5,4 +5,4 @@ export {
   defaultAvailableContactColumns
 } from './commonContactColumns'
 export { commonContactFilterConfig } from './commonContactFilterConfig'
-export { buildDynamicFilterConfig, updateFilterOptions, addSearchAndLoadMoreFunctions } from '../utils/filterHelpers'
+export { buildDynamicFilterConfig } from '../utils/filterHelpers'

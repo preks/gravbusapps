@@ -10,24 +10,23 @@ import {
   buildDocumentSearchQuery,
   buildDocumentWhereCondition,
   buildDocumentOrderBy,
-  type CommonDocumentQueryVariables
-} from '@/common/data/relations/queries/commonDocumentQueries'
-import {
-  buildDocumentFragmentWithRelations,
+  type CommonDocumentQueryVariables,
   type DocumentRelationBuilders,
   type DocumentRelationFields
-} from '@/common/data/relations/queries/commonDocumentQueries'
+} from '@/common/data/relations/queries/documentQueries'
 import { CustomerDocumentFields, CUSTOMER_DOCUMENT_DESCRIPTORS } from '../types/customerDocumentTypes'
 import type { Descriptor } from '@/common/network/graphql/queryHelpers'
 
 // Import Common REF Fragment Builders (no relations - to avoid circular dependencies)
-import { buildAccountFragment } from '@/common/data/relations/queries/commonAccountFragments.new'
-import { buildContactFragment } from '@/common/data/relations/queries/commonContactFragments.new'
-import { buildLeadFragment } from '@/common/data/relations/queries/commonLeadFragments.new'
-import { buildOpportunityFragment } from '@/common/data/relations/queries/commonOpportunityFragments.new'
-import { buildTaskFragment } from '@/common/data/relations/queries/commonTaskFragments.new'
-import { buildActivityFragment } from '@/common/data/relations/queries/commonActivityFragments.new'
-import { buildNoteFragment } from '@/common/data/relations/queries/commonNoteFragments.new'
+import {
+  buildAccountFragment,
+  buildContactFragment,
+  buildLeadFragment,
+  buildOpportunityFragment,
+  buildTaskFragment,
+  buildActivityFragment,
+  buildNoteFragment
+} from '@/common/data/relations/queries/relationFragments'
 
 // Import Customer Fields
 import { CustomerAccountFields } from '../types/customerAccountTypes'
@@ -45,21 +44,29 @@ import { CustomerNoteFields } from '../types/customerNoteTypes'
 export type CustomerDocumentQueryVariables = CommonDocumentQueryVariables
 
 /**
- * Build Customer Document fragment using fields mapping
- * Includes Common Document fields + common entity relations
+ * Build Customer Document query with fields mapping
+ * CRM uses "CrmDocument" as entity name (not "CustomerDocument")
  */
-export const buildCustomerDocumentFragment = (
-  fields: typeof CustomerDocumentFields = CustomerDocumentFields
+export const buildCustomerDocumentQuery = (fields: typeof CustomerDocumentFields = CustomerDocumentFields): string => {
+  return buildDocumentQuery(fields, 'CrmDocument')
+}
+
+/**
+ * Build Customer Document by ID query
+ */
+export const buildCustomerDocumentByIdQuery = (
+  fields: typeof CustomerDocumentFields = CustomerDocumentFields,
+  id: string
 ): string => {
-  // Build common fragment with relations using REF fragments (no relations) to avoid circular dependencies
+  // Build relation builders and fields for common relations
   const relationBuilders: DocumentRelationBuilders = {
-    buildAccountFragment, // REF fragment (no relations) - NOT buildCustomerAccountFragment!
-    buildContactFragment, // REF fragment (no relations) - NOT buildCustomerContactFragment!
-    buildLeadFragment, // REF fragment (no relations)
-    buildOpportunityFragment, // REF fragment (no relations) - NOT buildCustomerOpportunityFragment!
-    buildTaskFragment, // REF fragment (no relations) - NOT buildCustomerTaskFragment!
-    buildActivityFragment, // REF fragment (no relations) - NOT buildCustomerActivityFragment!
-    buildNoteFragment // REF fragment (no relations) - NOT buildCustomerNoteFragment!
+    buildAccountFragment,
+    buildContactFragment,
+    buildLeadFragment,
+    buildOpportunityFragment,
+    buildTaskFragment,
+    buildActivityFragment,
+    buildNoteFragment
   }
 
   const relationFields: DocumentRelationFields = {
@@ -72,29 +79,7 @@ export const buildCustomerDocumentFragment = (
     noteFields: CustomerNoteFields
   }
 
-  return buildDocumentFragmentWithRelations(fields, relationBuilders, relationFields)
-}
-
-/**
- * Build Customer Document query with fields mapping
- * CRM uses "CrmDocument" as entity name (not "CustomerDocument")
- */
-export const buildCustomerDocumentQuery = (
-  fields: typeof CustomerDocumentFields = CustomerDocumentFields,
-  fragment: string = buildCustomerDocumentFragment(fields)
-): string => {
-  return buildDocumentQuery(fields, fragment, 'CrmDocument')
-}
-
-/**
- * Build Customer Document by ID query
- */
-export const buildCustomerDocumentByIdQuery = (
-  fields: typeof CustomerDocumentFields = CustomerDocumentFields,
-  fragment: string = buildCustomerDocumentFragment(fields),
-  id: string
-): string => {
-  return buildDocumentByIdQuery(fields, fragment, id, 'CrmDocument')
+  return buildDocumentByIdQuery(fields, id, 'CrmDocument', relationBuilders, relationFields)
 }
 
 /**

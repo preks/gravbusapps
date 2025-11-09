@@ -1,14 +1,13 @@
 import { useMemo } from 'react'
 import { BusinessAppContextProps } from '@/common/BusinessAppContext'
 import { useInvestmentTasks } from '@/common/data/investment/hooks/useInvestmentTasks'
-import { useInvestmentTaskFilters } from '@/common/data/investment/hooks/useInvestmentTaskFilters'
 import { useInvestmentTaskStatistics } from '@/common/data/investment/hooks/useInvestmentTaskStatistics'
 import { TaskLayout, type TaskViewConfig } from '@/common/components/common-relations/view-layouts/task-layout'
 import type { InvestmentTask } from '@/common/data/investment/types/investmentTaskTypes'
 import { INVESTMENT_TASK_DESCRIPTORS } from '@/common/data/investment/types/investmentTaskTypes'
-import type { InvestmentTaskQueryVariables } from '@/common/data/investment/queries/investmentTaskQueries.new'
+import type { InvestmentTaskQueryVariables } from '@/common/data/investment/queries/investmentTaskQueries'
 import { normalizeDateRange } from '@/common/utils/dateRangeNormalizer'
-import type { TaskReference } from '@/common/data/relations/types/commonTaskTypes'
+import type { TaskReference } from '@/common/data/relations/types/taskTypes'
 import { FlowContextName } from '@/common/types/FlowRegistryTypes'
 import { createTaskColumns } from '@/common/components/common-relations/view-layouts/task-layout/config'
 import { taskFilterConfig } from '@/common/components/common-relations/view-layouts/task-layout/config'
@@ -19,7 +18,6 @@ export type TaskViewProps = BusinessAppContextProps
 export const TaskView: React.FC<TaskViewProps> = context => {
   const { fetchInvestmentTasks } = useInvestmentTasks(context)
   const taskStatistics = useInvestmentTaskStatistics(context)
-  const taskFilters = useInvestmentTaskFilters(context)
 
   // Build reference URLs for IRM context
   const buildReferenceUrl = (reference: TaskReference): string => {
@@ -61,10 +59,9 @@ export const TaskView: React.FC<TaskViewProps> = context => {
         }
       },
 
-      filterDataHook: () => taskFilters,
-
       createColumns: () => createTaskColumns() as any,
       descriptors: INVESTMENT_TASK_DESCRIPTORS,
+      entityName: 'InvestmentTask',
       columnLabels: {
         name: 'Task',
         taskType: 'Type',
@@ -221,7 +218,7 @@ export const TaskView: React.FC<TaskViewProps> = context => {
 
       buildReferenceUrl
     }),
-    [context, fetchInvestmentTasks, taskStatistics, taskFilters, buildReferenceUrl]
+    [context, fetchInvestmentTasks, taskStatistics, buildReferenceUrl]
   )
 
   return (

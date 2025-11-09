@@ -1,12 +1,11 @@
 import { useMemo } from 'react'
 import { BusinessAppContextProps } from '@/common/BusinessAppContext'
 import { AccountLayout, type AccountViewConfig } from '@/common/components/common-relations/view-layouts/account-layout'
-import type { CommonAccount } from '@/common/data/relations/types/commonAccountTypes'
-import { COMMON_ACCOUNT_DESCRIPTORS } from '@/common/data/relations/types/commonAccountTypes'
+import type { Account } from '@/common/data/relations/types/accountTypes'
+import { CUSTOMER_ACCOUNT_DESCRIPTORS } from '@/common/data/customer/types/customerAccountTypes'
 import { commonAccountColumns } from '@/common/components/common-relations/view-layouts/account-layout/config'
 import { commonAccountFilterConfig } from '@/common/components/common-relations/view-layouts/account-layout/config'
 import { useCustomerAccounts } from '@/common/data/customer/hooks/useCustomerAccounts'
-import { useCustomerAccountFilters } from '@/common/data/customer/hooks/useCustomerAccountFilters'
 import type { CustomerAccountQueryVariables } from '@/common/data/customer/queries/customerAccountQueries.new'
 import { normalizeDateRange } from '@/common/utils/dateRangeNormalizer'
 import { FlowContextName } from '@/common/types/FlowRegistryTypes'
@@ -21,7 +20,6 @@ export const AccountView: React.FC<AccountViewProps> = context => {
 
   // Data Hooks
   const { fetchCustomerAccounts } = useCustomerAccounts(context)
-  const filterData = useCustomerAccountFilters(context)
   const accountStatistics = useCustomerAccountStatistics(context)
 
   // Statistics - Transform hook data to AccountStatisticsData format
@@ -39,25 +37,12 @@ export const AccountView: React.FC<AccountViewProps> = context => {
   }, [accountStatistics])
 
   // Config
-  const config: AccountViewConfig<CommonAccount, CustomerAccountQueryVariables> = useMemo(
+  const config: AccountViewConfig<Account, CustomerAccountQueryVariables> = useMemo(
     () => ({
       fetchAccounts: fetchCustomerAccounts,
-      filterDataHook: () => ({
-        owners: filterData.owners,
-        industries: filterData.industries,
-        legalForms: filterData.legalForms,
-        companySizes: filterData.companySizes,
-        revenueBands: filterData.revenueBands,
-        countries: filterData.countries,
-        searchOwners: filterData.searchOwners,
-        searchIndustries: filterData.searchIndustries,
-        searchLegalForms: filterData.searchLegalForms,
-        searchCompanySizes: filterData.searchCompanySizes,
-        searchRevenueBands: filterData.searchRevenueBands,
-        searchCountries: filterData.searchCountries
-      }),
+      entityName: 'Account',
       createColumns: () => commonAccountColumns,
-      descriptors: COMMON_ACCOUNT_DESCRIPTORS,
+      descriptors: CUSTOMER_ACCOUNT_DESCRIPTORS,
       columnLabels: {
         name: 'Account Name',
         industryClass: 'Industry',
@@ -134,7 +119,7 @@ export const AccountView: React.FC<AccountViewProps> = context => {
       variant: 'customer',
       processCompletionEvents: ['taskCompletion', 'accountCompletion'],
       rowActionsContextArray: [FlowContextName.customerAccountEntity],
-      buildRowActionsExternalContextData: (row: { original: CommonAccount }) => ({
+      buildRowActionsExternalContextData: (row: { original: Account }) => ({
         accountId: row.original.id || ''
       }),
       translations: {
@@ -148,7 +133,7 @@ export const AccountView: React.FC<AccountViewProps> = context => {
         addAccount: { key: 'crm:account.addAccount', default: 'Add Account' }
       }
     }),
-    [fetchCustomerAccounts, filterData, accountStatisticsData, accessToken]
+    [fetchCustomerAccounts, accountStatisticsData, accessToken]
   )
 
   return <AccountLayout context={context} config={config} dataTestId="customer-account-view" />

@@ -5,7 +5,7 @@ import { BusinessAppContextProps } from '@/common/BusinessAppContext'
 import { getTranslationFromI18nKeyAndLabel } from '@/common/utils/windowUtils'
 import { formatCompactCurrency } from '@/common/utils/numberFormatter'
 import { useGetInvestmentOpportunities } from '@/common/data/investment/hooks/useInvestmentOpportunities'
-import type { InvestmentOpportunityQueryVariables } from '@/common/data/investment/queries/investmentOpportunityQueries.new'
+import type { InvestmentOpportunityQueryVariables } from '@/common/data/investment/queries/investmentOpportunityQueries'
 import type { InvestmentOpportunity } from '@/common/data/investment/types'
 
 export interface SalesStatisticsProps extends BusinessAppContextProps {

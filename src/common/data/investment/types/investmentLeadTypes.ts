@@ -1,13 +1,13 @@
 import type { CatalogEntry } from '@/common/network/graphql/commonTypes'
-import type { CommonLead } from '@/common/data/relations/types/commonLeadTypes'
-import { LeadFields, createCommonLeadDescriptors } from '@/common/data/relations/types/commonLeadTypes'
+import type { Lead } from '@/common/data/relations/types/leadTypes'
+import { LeadFields, createLeadDescriptors } from '@/common/data/relations/types/leadTypes'
 import type { Descriptor } from '@/common/network/graphql/queryHelpers'
 import type { InvestmentAccount } from './investmentAccountTypes'
 import type { InvestmentContact } from './investmentContactTypes'
 import type { InvestmentTask } from './investmentTaskTypes'
 import type { InvestmentDocument, InvestmentOpportunity, InvestmentActivity, InvestmentNote } from './'
 
-export interface InvestmentLead extends CommonLead {
+export interface InvestmentLead extends Lead {
   activities?: InvestmentActivity[]
   convertedAccount?: InvestmentAccount
   convertedContact?: InvestmentContact
@@ -57,11 +57,11 @@ export type InvestmentLeadFieldName = (typeof InvestmentLeadFields)[keyof typeof
 
 /**
  * Investment Lead Descriptors
- * Uses createCommonLeadDescriptors with InvestmentLeadFields mapping
+ * Uses createLeadDescriptors with InvestmentLeadFields mapping
  * Adds IRM-specific fields that don't exist in Common/CRM
  */
 export const INVESTMENT_LEAD_DESCRIPTORS: Descriptor[] = [
-  ...createCommonLeadDescriptors(InvestmentLeadFields),
+  ...createLeadDescriptors(InvestmentLeadFields),
 
   // IRM-specific additional fields (not in Common)
   { key: 'annualNetColdRent', searchPaths: ['annualNetColdRent'], sortPath: 'annualNetColdRent', type: 'number' },

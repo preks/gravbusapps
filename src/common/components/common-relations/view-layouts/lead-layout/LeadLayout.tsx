@@ -10,31 +10,24 @@ import { getTranslationFromI18nKeyAndLabel } from '@/common/utils/windowUtils'
 import { navigateTo } from '@/common/utils/navigationUtils'
 import { LeadListLayout } from './components/LeadListLayout'
 import { LeadStatisticsLayout, type LeadStatisticsData } from './components/LeadStatisticsLayout'
-import type { CommonLead } from '@/common/data/relations/types/commonLeadTypes'
+import type { Lead } from '@/common/data/relations/types/leadTypes'
 import { useProcessCompletion } from '@/common/hooks/useProcessCompletion'
 import { deriveSortableColumns, deriveAvailableColumns } from '@/common/network/graphql/descriptorUtils'
 import type { Descriptor } from '@/common/network/graphql/queryHelpers'
+import { useFilterGroups } from '@/common/data/common/hooks/useFilterGroups'
 import { buildDynamicFilterConfig } from './utils/filterHelpers'
 import { AppActionMenu } from '@/components/app-action-menu/AppActionMenu'
 
-export interface LeadViewConfig<TLead extends CommonLead = CommonLead, TQueryVariables = any> {
+export interface LeadViewConfig<TLead extends Lead = Lead, TQueryVariables = any> {
   fetchLeads: (variables: TQueryVariables) => Promise<{
     leads?: TLead[]
     total?: number
   }>
 
-  filterDataHook: (context: BusinessAppContextProps) => {
-    owners: Array<{ id: string; label: string }>
-    statuses: Array<{ id: string; label: string }>
-    ratings: Array<{ id: string; label: string }>
-    sources: Array<{ id: string; label: string }>
-    salutations?: Array<{ id: string; label: string }>
-    industries?: Array<{ id: string; label: string }>
-  }
-
   createColumns: () => ColumnDef<TLead>[]
   descriptors: Descriptor[]
   columnLabels?: Record<string, string>
+  entityName: string
 
   baseFilterConfig: FilterConfiguration
 
@@ -69,7 +62,7 @@ export interface LeadViewConfig<TLead extends CommonLead = CommonLead, TQueryVar
   }
 }
 
-export interface LeadLayoutProps<TLead extends CommonLead = CommonLead, TQueryVariables = any> {
+export interface LeadLayoutProps<TLead extends Lead = Lead, TQueryVariables = any> {
   context: BusinessAppContextProps
   config: LeadViewConfig<TLead, TQueryVariables>
   dataTestId?: string
@@ -78,7 +71,7 @@ export interface LeadLayoutProps<TLead extends CommonLead = CommonLead, TQueryVa
   customPrimaryAction?: React.ReactNode
 }
 
-const ConfigLeadLayout = <TLead extends CommonLead = CommonLead, TQueryVariables = any>(
+const ConfigLeadLayout = <TLead extends Lead = Lead, TQueryVariables = any>(
   props: LeadLayoutProps<TLead, TQueryVariables>
 ) => {
   const {
@@ -111,19 +104,13 @@ const ConfigLeadLayout = <TLead extends CommonLead = CommonLead, TQueryVariables
   const [error, setError] = useState<string | null>(null)
   const [isInitialLoad, setIsInitialLoad] = useState(true)
 
+  // Use centralized filter groups hook
+  const filterGroups = useFilterGroups(context, config.entityName, config.descriptors, { limit: 100 })
+
   // Dynamic Filter Configuration
   const dynamicFilterConfig = useMemo(() => {
-    const filterData = config.filterDataHook(context)
-    const filterConfig = buildDynamicFilterConfig(config.baseFilterConfig, {
-      owners: filterData.owners,
-      statuses: filterData.statuses,
-      ratings: filterData.ratings,
-      sources: filterData.sources,
-      salutations: filterData.salutations,
-      industries: filterData.industries
-    })
-    return filterConfig
-  }, [config, context])
+    return buildDynamicFilterConfig(config.baseFilterConfig, config.descriptors, filterGroups)
+  }, [config.baseFilterConfig, config.descriptors, filterGroups])
 
   // Query Variables
   const queryVariables = useMemo(

@@ -2,7 +2,6 @@
 import { useCallback } from 'react'
 import { useGraphQLClient } from '@/common/network/graphql/useGraphQLClient'
 import { BusinessAppContextProps } from '@/common/BusinessAppContext'
-import { buildWhere, buildOrderBy } from '@/common/network/graphql/queryHelpers'
 import type {
   InvestmentOpportunity,
   InvestmentTask,
@@ -17,29 +16,29 @@ import {
   GET_INVESTMENT_ACTIVITIES_BY_OPPORTUNITY_ID,
   GET_INVESTMENT_NOTES_BY_OPPORTUNITY_ID,
   GET_INVESTMENT_DOCUMENTS_BY_OPPORTUNITY_ID
-} from '../queries/investmentOpportunityQueries.new'
+} from '../queries/investmentOpportunityQueries'
 // Import new query builders
 import {
+  buildInvestmentOpportunityQuery,
   buildInvestmentOpportunityByIdQuery,
+  buildInvestmentOpportunityWhereCondition,
+  buildInvestmentOpportunityOrderBy,
   type InvestmentOpportunityQueryVariables
-} from '../queries/investmentOpportunityQueries.new'
+} from '../queries/investmentOpportunityQueries'
 
 // Import where/orderBy builders for related entities
-import { buildInvestmentTaskWhereCondition, buildInvestmentTaskOrderBy } from '../queries/investmentTaskQueries.new'
+import { buildInvestmentTaskWhereCondition, buildInvestmentTaskOrderBy } from '../queries/investmentTaskQueries'
 import {
   buildInvestmentActivityWhereCondition,
   buildInvestmentActivityOrderBy
-} from '../queries/investmentActivityQueries.new'
-import { buildInvestmentNoteWhereCondition, buildInvestmentNoteOrderBy } from '../queries/investmentNoteQueries.new'
+} from '../queries/investmentActivityQueries'
+import { buildInvestmentNoteWhereCondition, buildInvestmentNoteOrderBy } from '../queries/investmentNoteQueries'
 import {
   buildInvestmentDocumentWhereCondition,
   buildInvestmentDocumentOrderBy
-} from '../queries/investmentDocumentQueries.new'
-// Import old queries that are not yet migrated (GET_INVESTMENT_OPPORTUNITIES, GET_INVESTMENT_OPPORTUNITY_AGGREGATES)
-import {
-  GET_INVESTMENT_OPPORTUNITIES,
-  GET_INVESTMENT_OPPORTUNITY_AGGREGATES
-} from '../queries/investmentOpportunityQueries'
+} from '../queries/investmentDocumentQueries'
+// Import old queries that are not yet migrated (GET_INVESTMENT_OPPORTUNITY_AGGREGATES)
+import { GET_INVESTMENT_OPPORTUNITY_AGGREGATES } from '../queries/investmentOpportunityQueries'
 
 // Use the mapper function
 import {
@@ -95,7 +94,7 @@ export const useGetInvestmentOpportunities = (context: BusinessAppContextProps) 
 
   const fetchInvestmentOpportunities = useCallback(
     async (variables: InvestmentOpportunityQueryVariables = {}) => {
-      const query = GET_INVESTMENT_OPPORTUNITIES()
+      const query = buildInvestmentOpportunityQuery()
 
       const customConditions: Record<string, any>[] = []
 
@@ -103,7 +102,7 @@ export const useGetInvestmentOpportunities = (context: BusinessAppContextProps) 
         customConditions.push({ dealType: { _eq: variables.dealType } })
       }
       if (variables.accountSearch?.trim()) {
-        customConditions.push({ investmentAccount: { name: { _ilike: `%${variables.accountSearch.trim()}%` } } })
+        customConditions.push({ account: { name: { _ilike: `%${variables.accountSearch.trim()}%` } } })
       }
 
       // Custom ranged filters for estimatedAmount (treat null as 0)
@@ -133,21 +132,15 @@ export const useGetInvestmentOpportunities = (context: BusinessAppContextProps) 
 
       if (variables.forecastedProfitBetween) {
         customConditions.push({
-          forecastedProfit: {
+          forecastedProfitAmount: {
             _gte: variables.forecastedProfitBetween[0],
             _lte: variables.forecastedProfitBetween[1]
           }
         })
       }
 
-      const whereCondition = buildWhere({
-        variables,
-        descriptors: INVESTMENT_OPPORTUNITY_DESCRIPTORS,
-        ids: variables.ids,
-        customConditions
-      })
-
-      const orderBy = buildOrderBy(variables.orderBy || [], INVESTMENT_OPPORTUNITY_DESCRIPTORS)
+      const whereCondition = buildInvestmentOpportunityWhereCondition(variables, [], customConditions)
+      const orderBy = buildInvestmentOpportunityOrderBy(variables.orderBy || [])
 
       const graphQLVariables: Record<string, any> = {
         limit: Math.min(variables.limit || 50, 100),
@@ -157,14 +150,19 @@ export const useGetInvestmentOpportunities = (context: BusinessAppContextProps) 
       }
 
       try {
-        const result = await graphqlClient.request<InvestmentOpportunityQueryResponse>(query, graphQLVariables)
+        const result = await graphqlClient.request<{
+          InvestmentOpportunity: InvestmentOpportunity[]
+          InvestmentOpportunityAggregate: {
+            aggregate: { count: number }
+          }
+        }>(query, graphQLVariables)
 
         // Transform base types to enhanced types using mapper
         const enhancedOpportunities = result.InvestmentOpportunity.map(toInvestmentOpportunity)
 
         return {
-          ...result,
-          InvestmentOpportunity: enhancedOpportunities
+          InvestmentOpportunity: enhancedOpportunities,
+          InvestmentOpportunityAggregate: result.InvestmentOpportunityAggregate
         }
       } catch (error) {
         console.error('Error fetching investment opportunities:', error)
@@ -183,7 +181,7 @@ export const useGetInvestmentOpportunityById = (context: BusinessAppContextProps
 
   const fetchInvestmentOpportunityById = useCallback(
     async (id: string) => {
-      const query = buildInvestmentOpportunityByIdQuery(undefined, undefined, id)
+      const query = buildInvestmentOpportunityByIdQuery(undefined, id)
 
       try {
         const result = await graphqlClient.request<{ InvestmentOpportunityByPk: InvestmentOpportunity | null }>(query)
@@ -202,89 +200,6 @@ export const useGetInvestmentOpportunityById = (context: BusinessAppContextProps
   )
 
   return { fetchInvestmentOpportunityById }
-}
-
-// Hook for searching investment opportunities
-export const useSearchInvestmentOpportunities = (context: BusinessAppContextProps) => {
-  const graphqlClient = useGraphQLClient(context.accessToken)
-
-  const searchInvestmentOpportunities = useCallback(
-    async (searchTerm: string, variables: InvestmentOpportunityQueryVariables = {}) => {
-      const query = GET_INVESTMENT_OPPORTUNITIES()
-
-      const searchVariables = { ...variables, search: searchTerm }
-      const customConditions: Record<string, any>[] = []
-
-      if (searchVariables.dealType) {
-        customConditions.push({ dealType: { _eq: searchVariables.dealType } })
-      }
-      if (searchVariables.accountSearch?.trim()) {
-        customConditions.push({ investmentAccount: { name: { _ilike: `%${searchVariables.accountSearch.trim()}%` } } })
-      }
-
-      if (searchVariables.estimatedAmountRanges?.length) {
-        const orConditions = searchVariables.estimatedAmountRanges.flatMap(range => {
-          const conditions: any[] = []
-          const amountCondition: any = {}
-          if (range.min !== undefined) amountCondition._gte = range.min
-          if (range.max !== undefined) amountCondition._lte = range.max
-          if (Object.keys(amountCondition).length > 0) {
-            conditions.push({ estimatedAmount: amountCondition })
-          }
-          const includesZero =
-            (range.min === undefined || range.min === 0) && (range.max === undefined || range.max >= 0)
-          if (includesZero) {
-            conditions.push({ estimatedAmount: { _isNull: true } })
-          }
-          return conditions
-        })
-        customConditions.push({ _or: orConditions })
-      }
-
-      if (searchVariables.forecastedProfitBetween) {
-        customConditions.push({
-          forecastedProfit: {
-            _gte: searchVariables.forecastedProfitBetween[0],
-            _lte: searchVariables.forecastedProfitBetween[1]
-          }
-        })
-      }
-
-      const whereCondition = buildWhere({
-        variables: searchVariables,
-        descriptors: INVESTMENT_OPPORTUNITY_DESCRIPTORS,
-        ids: searchVariables.ids,
-        customConditions
-      })
-
-      const orderBy = buildOrderBy(searchVariables.orderBy || [], INVESTMENT_OPPORTUNITY_DESCRIPTORS)
-
-      const graphQLVariables: Record<string, any> = {
-        limit: Math.min(searchVariables.limit || 50, 100),
-        offset: searchVariables.offset || 0,
-        where: whereCondition,
-        orderBy: orderBy
-      }
-
-      try {
-        const result = await graphqlClient.request<InvestmentOpportunityQueryResponse>(query, graphQLVariables)
-
-        // Transform base types to enhanced types using mapper
-        const enhancedOpportunities = result.InvestmentOpportunity.map(toInvestmentOpportunity)
-
-        return {
-          ...result,
-          InvestmentOpportunity: enhancedOpportunities
-        }
-      } catch (error) {
-        console.error('Error searching investment opportunities:', error)
-        throw error
-      }
-    },
-    [graphqlClient]
-  )
-
-  return { searchInvestmentOpportunities }
 }
 
 // Hook for getting investment opportunity aggregates for metrics

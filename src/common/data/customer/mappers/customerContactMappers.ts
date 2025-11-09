@@ -14,7 +14,7 @@ import type { CustomerAccountContact } from '../types/customerRelationTypes'
  * - accountId/account → accountContacts array (CRM uses deprecated accountId instead of accountContacts)
  */
 export function toCustomerContact(base: CustomerContact): CustomerContact {
-  // Map CRM field names to CommonContact standard (IRM naming)
+  // Map CRM field names to Contact standard (IRM naming)
   const jobPosition = base.jobTitle
   const type = base.contactType
   const picture = base.pictureUrl
@@ -41,7 +41,7 @@ export function toCustomerContact(base: CustomerContact): CustomerContact {
 
   return {
     ...base,
-    // Map CRM fields to CommonContact standard
+    // Map CRM fields to Contact standard
     jobPosition,
     type,
     picture,

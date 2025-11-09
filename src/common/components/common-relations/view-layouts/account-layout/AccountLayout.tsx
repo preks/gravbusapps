@@ -10,28 +10,21 @@ import { getTranslationFromI18nKeyAndLabel } from '@/common/utils/windowUtils'
 import { navigateTo } from '@/common/utils/navigationUtils'
 import { AccountListLayout } from './components/AccountListLayout'
 import { AccountStatisticsLayout, type AccountStatisticsData } from './components/AccountStatisticsLayout'
-import type { CommonAccount } from '@/common/data/relations/types/commonAccountTypes'
+import type { Account } from '@/common/data/relations/types/accountTypes'
 import { useProcessCompletion } from '@/common/hooks/useProcessCompletion'
 import { deriveSortableColumns, deriveAvailableColumns } from '@/common/network/graphql/descriptorUtils'
 import type { Descriptor } from '@/common/network/graphql/queryHelpers'
 import { buildDynamicFilterConfig } from './utils/filterHelpers'
 import { AppActionMenu } from '@/components/app-action-menu/AppActionMenu'
+import { useFilterGroups } from '@/common/data/common/hooks/useFilterGroups'
 
-export interface AccountViewConfig<TAccount extends CommonAccount = CommonAccount, TQueryVariables = any> {
+export interface AccountViewConfig<TAccount extends Account = Account, TQueryVariables = any> {
   fetchAccounts: (variables: TQueryVariables) => Promise<{
     accounts?: TAccount[]
     total?: number
   }>
 
-  filterDataHook: (context: BusinessAppContextProps) => {
-    owners: Array<{ id: string; label: string }>
-    industries: Array<{ id: string; label: string }>
-    legalForms: Array<{ id: string; label: string }>
-    companySizes: Array<{ id: string; label: string }>
-    revenueBands: Array<{ id: string; label: string }>
-    countries: Array<{ id: string; label: string }>
-  }
-
+  entityName: string // GraphQL entity name (e.g., 'Account', 'InvestmentAccount')
   createColumns: () => ColumnDef<TAccount>[]
   descriptors: Descriptor[]
   columnLabels?: Record<string, string>
@@ -70,7 +63,7 @@ export interface AccountViewConfig<TAccount extends CommonAccount = CommonAccoun
   }
 }
 
-export interface AccountLayoutProps<TAccount extends CommonAccount = CommonAccount, TQueryVariables = any> {
+export interface AccountLayoutProps<TAccount extends Account = Account, TQueryVariables = any> {
   context: BusinessAppContextProps
   config: AccountViewConfig<TAccount, TQueryVariables>
   dataTestId?: string
@@ -79,7 +72,7 @@ export interface AccountLayoutProps<TAccount extends CommonAccount = CommonAccou
   customPrimaryAction?: React.ReactNode
 }
 
-const ConfigAccountLayout = <TAccount extends CommonAccount = CommonAccount, TQueryVariables = any>(
+const ConfigAccountLayout = <TAccount extends Account = Account, TQueryVariables = any>(
   props: AccountLayoutProps<TAccount, TQueryVariables>
 ) => {
   const {
@@ -112,20 +105,13 @@ const ConfigAccountLayout = <TAccount extends CommonAccount = CommonAccount, TQu
   const [error, setError] = useState<string | null>(null)
   const [isInitialLoad, setIsInitialLoad] = useState(true)
 
+  // Fetch filter groups using centralized hook
+  const filterGroups = useFilterGroups(context, config.entityName, config.descriptors, { limit: 100 })
+
   // Dynamic Filter Configuration
   const dynamicFilterConfig = useMemo(() => {
-    const filterData = config.filterDataHook(context)
-    const filterConfig = buildDynamicFilterConfig(config.baseFilterConfig, {
-      owners: filterData.owners,
-      industries: filterData.industries,
-      legalForms: filterData.legalForms,
-      companySizes: filterData.companySizes,
-      revenueBands: filterData.revenueBands,
-      countries: filterData.countries,
-      isLoading: false
-    })
-    return filterConfig
-  }, [config, context])
+    return buildDynamicFilterConfig(config.baseFilterConfig, config.descriptors, filterGroups)
+  }, [config.baseFilterConfig, config.descriptors, filterGroups])
 
   // Query Variables
   const queryVariables = useMemo(

@@ -49,7 +49,7 @@ export function toInvestmentOpportunity(base: InvestmentOpportunity): Investment
 /**
  * Transform InvestmentOpportunityStageCondition (GraphQL response) to enhanced type
  *
- * NOTE: IRM field naming already matches CommonOpportunityStageCondition standards.
+ * NOTE: IRM field naming already matches OpportunityStageCondition standards.
  * No field mappings needed.
  */
 export function toInvestmentOpportunityStageCondition(raw: any): InvestmentOpportunityStageCondition {

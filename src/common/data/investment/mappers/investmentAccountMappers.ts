@@ -8,7 +8,7 @@ import type { InvestmentAccount } from '../types/investmentAccountTypes'
 /**
  * Transform raw GraphQL response to InvestmentAccount
  *
- * NOTE: IRM field naming already matches CommonAccount standards:
+ * NOTE: IRM field naming already matches Account standards:
  * - industryClass (IRM) ✓
  * - companySize (IRM) ✓
  * - accountAnnualRevenueBand (IRM) ✓

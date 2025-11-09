@@ -10,31 +10,24 @@ import { getTranslationFromI18nKeyAndLabel } from '@/common/utils/windowUtils'
 import { navigateTo } from '@/common/utils/navigationUtils'
 import { ContactListLayout } from './components/ContactListLayout'
 import { ContactStatisticsLayout, type ContactStatisticsData } from './components/ContactStatisticsLayout'
-import type { CommonContact } from '@/common/data/relations/types/commonContactTypes'
+import type { Contact } from '@/common/data/relations/types/contactTypes'
 import { useProcessCompletion } from '@/common/hooks/useProcessCompletion'
 import { deriveSortableColumns, deriveAvailableColumns } from '@/common/network/graphql/descriptorUtils'
 import type { Descriptor } from '@/common/network/graphql/queryHelpers'
+import { useFilterGroups } from '@/common/data/common/hooks/useFilterGroups'
 import { buildDynamicFilterConfig } from './utils/filterHelpers'
 import { AppActionMenu } from '@/components/app-action-menu/AppActionMenu'
 
-export interface ContactViewConfig<TContact extends CommonContact = CommonContact, TQueryVariables = any> {
+export interface ContactViewConfig<TContact extends Contact = Contact, TQueryVariables = any> {
   fetchContacts: (variables: TQueryVariables) => Promise<{
     contacts?: TContact[]
     total?: number
   }>
 
-  filterDataHook: (context: BusinessAppContextProps) => {
-    owners: Array<{ id: string; label: string }>
-    departments: Array<{ id: string; label: string }>
-    jobPositions: Array<{ id: string; label: string }>
-    academicTitles: Array<{ id: string; label: string }>
-    salutations: Array<{ id: string; label: string }>
-    languages: Array<{ id: string; label: string }>
-  }
-
   createColumns: () => ColumnDef<TContact>[]
   descriptors: Descriptor[]
   columnLabels?: Record<string, string>
+  entityName: string
 
   baseFilterConfig: FilterConfiguration
 
@@ -69,7 +62,7 @@ export interface ContactViewConfig<TContact extends CommonContact = CommonContac
   }
 }
 
-export interface ContactLayoutProps<TContact extends CommonContact = CommonContact, TQueryVariables = any> {
+export interface ContactLayoutProps<TContact extends Contact = Contact, TQueryVariables = any> {
   context: BusinessAppContextProps
   config: ContactViewConfig<TContact, TQueryVariables>
   dataTestId?: string
@@ -78,7 +71,7 @@ export interface ContactLayoutProps<TContact extends CommonContact = CommonConta
   customPrimaryAction?: React.ReactNode
 }
 
-const ConfigContactLayout = <TContact extends CommonContact = CommonContact, TQueryVariables = any>(
+const ConfigContactLayout = <TContact extends Contact = Contact, TQueryVariables = any>(
   props: ContactLayoutProps<TContact, TQueryVariables>
 ) => {
   const {
@@ -111,19 +104,13 @@ const ConfigContactLayout = <TContact extends CommonContact = CommonContact, TQu
   const [error, setError] = useState<string | null>(null)
   const [isInitialLoad, setIsInitialLoad] = useState(true)
 
+  // Use centralized filter groups hook
+  const filterGroups = useFilterGroups(context, config.entityName, config.descriptors, { limit: 100 })
+
   // Dynamic Filter Configuration
   const dynamicFilterConfig = useMemo(() => {
-    const filterData = config.filterDataHook(context)
-    const filterConfig = buildDynamicFilterConfig(config.baseFilterConfig, {
-      owners: filterData.owners,
-      departments: filterData.departments,
-      jobPositions: filterData.jobPositions,
-      academicTitles: filterData.academicTitles,
-      salutations: filterData.salutations,
-      languages: filterData.languages
-    })
-    return filterConfig
-  }, [config, context])
+    return buildDynamicFilterConfig(config.baseFilterConfig, config.descriptors, filterGroups)
+  }, [config.baseFilterConfig, config.descriptors, filterGroups])
 
   // Query Variables
   const queryVariables = useMemo(

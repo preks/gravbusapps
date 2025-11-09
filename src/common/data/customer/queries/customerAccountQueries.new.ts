@@ -6,26 +6,27 @@
 
 import {
   buildAccountQuery,
-  buildAccountByIdQuery,
+  buildAccountByPkQuery,
   buildAccountSearchQuery,
   buildAccountWhereCondition,
   buildAccountOrderBy,
-  buildAccountFragmentWithRelations,
-  type CommonAccountQueryVariables,
+  type AccountQueryVariables,
   type AccountRelationBuilders,
   type AccountRelationFields
-} from '@/common/data/relations/queries/commonAccountQueries'
+} from '@/common/data/relations/queries/accountQueries'
 import { CustomerAccountFields, CUSTOMER_ACCOUNT_DESCRIPTORS } from '../types/customerAccountTypes'
 import { CUSTOMER_CAMPAIGN_REF } from './fragments/customerReferenceFragments'
 import { CUSTOMER_ADDRESS_FRAGMENT } from '../types/customerAddressTypes'
 import type { Descriptor } from '@/common/network/graphql/queryHelpers'
 
 // Import Common REF Fragment Builders (no relations - to avoid circular dependencies)
-import { buildContactFragment } from '@/common/data/relations/queries/commonContactFragments.new'
-import { buildDocumentFragment } from '@/common/data/relations/queries/commonDocumentFragments.new'
-import { buildNoteFragment } from '@/common/data/relations/queries/commonNoteFragments.new'
-import { buildTaskFragment } from '@/common/data/relations/queries/commonTaskFragments.new'
-import { buildOpportunityFragment } from '@/common/data/relations/queries/commonOpportunityFragments.new'
+import {
+  buildContactFragment,
+  buildDocumentFragment,
+  buildNoteFragment,
+  buildTaskFragment,
+  buildOpportunityFragment
+} from '@/common/data/relations/queries/relationFragments'
 
 // Import Customer Fields
 import { CustomerContactFields } from '../types/customerContactTypes'
@@ -36,25 +37,55 @@ import { CustomerOpportunityFields } from '../types/customerOpportunityTypes'
 
 /**
  * Customer Account Query Variables Interface
- * Extends CommonAccountQueryVariables with CRM-specific filters
+ * Extends AccountQueryVariables with CRM-specific filters
  */
-export interface CustomerAccountQueryVariables extends CommonAccountQueryVariables {
+export interface CustomerAccountQueryVariables extends AccountQueryVariables {
   // CRM-specific filter IDs
   campaignIds?: string[]
 }
 
 /**
- * Build Customer Account fragment using fields mapping
- * Includes Common Account fields + common entity relations + CRM-specific relations
+ * Build Customer Account query with fields mapping
+ * CRM uses "Account" as entity name (not "CustomerAccount")
  */
-export const buildCustomerAccountFragment = (fields: typeof CustomerAccountFields = CustomerAccountFields): string => {
-  // Build common fragment with relations using REF fragments (no relations) to avoid circular dependencies
+export const buildCustomerAccountQuery = (fields: typeof CustomerAccountFields = CustomerAccountFields): string => {
+  const entityFields = `
+    # Addresses relation (CRM uses "city" not "locality")
+    ${fields.addresses}(where: { isDeleted: { _eq: false } }) {
+      ${CUSTOMER_ADDRESS_FRAGMENT}
+    }
+    
+    # CRM duplicate relations
+    crmDocument(where: { isDeleted: { _eq: false } }) {
+      ${buildDocumentFragment(CustomerDocumentFields)}
+    }
+    
+    crmNote(where: { isDeleted: { _eq: false } }) {
+      ${buildNoteFragment(CustomerNoteFields)}
+    }
+    
+    # CRM-specific fields
+    salesCampaign {
+      ${CUSTOMER_CAMPAIGN_REF}
+    }
+  `
+  return buildAccountQuery(fields, 'Account', entityFields)
+}
+
+/**
+ * Build Customer Account by ID query
+ */
+export const buildCustomerAccountByIdQuery = (
+  fields: typeof CustomerAccountFields = CustomerAccountFields,
+  id: string
+): string => {
+  // Build relation builders and fields for common relations
   const relationBuilders: AccountRelationBuilders = {
-    buildContactFragment, // REF fragment (no relations) - NOT buildCustomerContactFragment!
-    buildDocumentFragment, // REF fragment (no relations)
-    buildNoteFragment, // REF fragment (no relations)
-    buildTaskFragment, // REF fragment (no relations) - NOT buildCustomerTaskFragment!
-    buildOpportunityFragment // REF fragment (no relations) - NOT buildCustomerOpportunityFragment!
+    buildContactFragment,
+    buildDocumentFragment,
+    buildNoteFragment,
+    buildTaskFragment,
+    buildOpportunityFragment
     // Note: CRM doesn't have "activities" or "leads" on Account level
   }
 
@@ -67,52 +98,29 @@ export const buildCustomerAccountFragment = (fields: typeof CustomerAccountField
     // Note: CRM doesn't have "activities" or "leads" on Account level
   }
 
-  const commonFragmentWithRelations = buildAccountFragmentWithRelations(fields, relationBuilders, relationFields)
+  // Domain-specific entity fields (addresses, crmDocument, crmNote, salesCampaign)
+  const entityFields = `
+    # Addresses relation (CRM uses "city" not "locality")
+    ${fields.addresses}(where: { isDeleted: { _eq: false } }) {
+      ${CUSTOMER_ADDRESS_FRAGMENT}
+    }
+    
+    # CRM duplicate relations
+    crmDocument(where: { isDeleted: { _eq: false } }) {
+      ${buildDocumentFragment(CustomerDocumentFields)}
+    }
+    
+    crmNote(where: { isDeleted: { _eq: false } }) {
+      ${buildNoteFragment(CustomerNoteFields)}
+    }
+    
+    # CRM-specific fields
+    salesCampaign {
+      ${CUSTOMER_CAMPAIGN_REF}
+    }
+  `
 
-  return `
-  ${commonFragmentWithRelations}
-  
-  # Addresses relation (CRM uses "city" not "locality")
-  ${fields.addresses}(where: { isDeleted: { _eq: false } }) {
-    ${CUSTOMER_ADDRESS_FRAGMENT}
-  }
-  
-  # CRM duplicate relations (mapped to main relations in mapper)
-  crmDocument(where: { isDeleted: { _eq: false } }) {
-    ${buildDocumentFragment(CustomerDocumentFields)}
-  }
-  
-  crmNote(where: { isDeleted: { _eq: false } }) {
-    ${buildNoteFragment(CustomerNoteFields)}
-  }
-  
-  # CRM-specific fields
-  salesCampaign {
-    ${CUSTOMER_CAMPAIGN_REF}
-  }
-`
-}
-
-/**
- * Build Customer Account query with fields mapping
- * CRM uses "Account" as entity name (not "CustomerAccount")
- */
-export const buildCustomerAccountQuery = (
-  fields: typeof CustomerAccountFields = CustomerAccountFields,
-  fragment: string = buildCustomerAccountFragment(fields)
-): string => {
-  return buildAccountQuery(fields, fragment, 'Account')
-}
-
-/**
- * Build Customer Account by ID query
- */
-export const buildCustomerAccountByIdQuery = (
-  fields: typeof CustomerAccountFields = CustomerAccountFields,
-  fragment: string = buildCustomerAccountFragment(fields),
-  id: string
-): string => {
-  return buildAccountByIdQuery(fields, fragment, id, 'Account')
+  return buildAccountByPkQuery(fields, id, 'Account', relationBuilders, relationFields, entityFields)
 }
 
 /**

@@ -6,7 +6,7 @@ import { CustomerActivity, CustomerNote, CustomerDocument } from '../types'
  * Transform CustomerActivity (GraphQL response) to CustomerActivity
  */
 export function toCustomerActivity(base: CustomerActivity): CustomerActivity {
-  // No field mappings needed - CRM Activity fields already match CommonActivity
+  // No field mappings needed - CRM Activity fields already match Activity
   return {
     ...base
   } as CustomerActivity
@@ -16,7 +16,7 @@ export function toCustomerActivity(base: CustomerActivity): CustomerActivity {
  * Transform CustomerNote (GraphQL response) to CustomerNote
  */
 export function toCustomerNote(base: CustomerNote): CustomerNote {
-  // No field mappings needed - CRM Note fields already match CommonNote
+  // No field mappings needed - CRM Note fields already match Note
   return {
     ...base
   } as CustomerNote
@@ -26,7 +26,7 @@ export function toCustomerNote(base: CustomerNote): CustomerNote {
  * Transform CustomerDocument (GraphQL response) to CustomerDocument
  */
 export function toCustomerDocument(base: CustomerDocument): CustomerDocument {
-  // No field mappings needed - CRM Document fields already match CommonDocument
+  // No field mappings needed - CRM Document fields already match Document
   return {
     ...base
   } as CustomerDocument

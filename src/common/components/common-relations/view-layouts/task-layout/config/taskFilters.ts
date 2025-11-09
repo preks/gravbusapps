@@ -17,7 +17,10 @@ export const taskFilterConfig: FilterConfiguration = {
           type: 'multi-select',
           config: {
             // Options will be populated dynamically
-            options: []
+            options: [],
+            searchPlaceholder: 'Search status...',
+            totalCount: 0,
+            hasMore: false
           }
         }
       ]
@@ -35,7 +38,10 @@ export const taskFilterConfig: FilterConfiguration = {
           type: 'multi-select',
           config: {
             // Options will be populated dynamically
-            options: []
+            options: [],
+            searchPlaceholder: 'Search priorities...',
+            totalCount: 0,
+            hasMore: false
           }
         }
       ]
@@ -53,7 +59,10 @@ export const taskFilterConfig: FilterConfiguration = {
           type: 'multi-select',
           config: {
             // Options will be populated dynamically from catalog data
-            options: []
+            options: [],
+            searchPlaceholder: 'Search types...',
+            totalCount: 0,
+            hasMore: false
           }
         }
       ]

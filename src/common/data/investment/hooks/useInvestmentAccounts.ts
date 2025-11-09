@@ -19,7 +19,7 @@ import {
   buildInvestmentAccountWhereCondition,
   buildInvestmentAccountOrderBy,
   type InvestmentAccountQueryVariables
-} from '../queries/investmentAccountQueries.new'
+} from '../queries/investmentAccountQueries'
 
 // Use new query builder functions for related entities
 import {
@@ -27,28 +27,28 @@ import {
   buildInvestmentTaskWhereCondition,
   buildInvestmentTaskOrderBy,
   type InvestmentTaskQueryVariables
-} from '../queries/investmentTaskQueries.new'
+} from '../queries/investmentTaskQueries'
 
 import {
   buildInvestmentActivityQuery,
   buildInvestmentActivityWhereCondition,
   buildInvestmentActivityOrderBy,
   type InvestmentActivityQueryVariables
-} from '../queries/investmentActivityQueries.new'
+} from '../queries/investmentActivityQueries'
 
 import {
   buildInvestmentNoteQuery,
   buildInvestmentNoteWhereCondition,
   buildInvestmentNoteOrderBy,
   type InvestmentNoteQueryVariables
-} from '../queries/investmentNoteQueries.new'
+} from '../queries/investmentNoteQueries'
 
 import {
   buildInvestmentDocumentQuery,
   buildInvestmentDocumentWhereCondition,
   buildInvestmentDocumentOrderBy,
   type InvestmentDocumentQueryVariables
-} from '../queries/investmentDocumentQueries.new'
+} from '../queries/investmentDocumentQueries'
 
 // Use the mapper functions
 import {
@@ -317,7 +317,7 @@ export const useGetInvestmentAccountById = (context: BusinessAppContextProps) =>
   const fetchInvestmentAccountById = useCallback(
     async (id: string) => {
       // Use new query builder with fields mapping
-      const query = buildInvestmentAccountByIdQuery(undefined, undefined, id)
+      const query = buildInvestmentAccountByIdQuery(undefined, id)
 
       try {
         // Use a more specific type that includes the contact relationship

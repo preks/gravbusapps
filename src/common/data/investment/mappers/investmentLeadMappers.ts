@@ -3,7 +3,7 @@
  *
  * Transforms IRM InvestmentLead (GraphQL response) into standardized InvestmentLead structure.
  *
- * NOTE: IRM field naming already matches CommonLead standards.
+ * NOTE: IRM field naming already matches Lead standards.
  * No catalog field mappings needed (unlike CRM).
  */
 

@@ -1,9 +1,9 @@
-import type { CommonNote } from '@/common/data/relations/types/commonNoteTypes'
-import { NoteFields, createCommonNoteDescriptors } from '@/common/data/relations/types/commonNoteTypes'
+import type { Note } from '@/common/data/relations/types/noteTypes'
+import { NoteFields, createNoteDescriptors } from '@/common/data/relations/types/noteTypes'
 import type { Descriptor } from '@/common/network/graphql/queryHelpers'
 import type { CustomerAccount, CustomerContact, CustomerDocument, CustomerOpportunity, CustomerLead } from './'
 
-export interface CustomerNote extends CommonNote {
+export interface CustomerNote extends Note {
   account?: CustomerAccount
   contact?: CustomerContact
   documents?: CustomerDocument[] // TODO: Missing
@@ -30,8 +30,8 @@ export type CustomerNoteFieldName = (typeof CustomerNoteFields)[keyof typeof Cus
 
 /**
  * Customer Note Descriptors
- * Uses createCommonNoteDescriptors with CustomerNoteFields mapping
+ * Uses createNoteDescriptors with CustomerNoteFields mapping
  */
 export const CUSTOMER_NOTE_DESCRIPTORS: Descriptor[] = [
-  ...createCommonNoteDescriptors(CustomerNoteFields as Record<keyof typeof NoteFields, string>)
+  ...createNoteDescriptors(CustomerNoteFields as Record<keyof typeof NoteFields, string>)
 ]

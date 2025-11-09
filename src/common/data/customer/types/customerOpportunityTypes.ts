@@ -2,14 +2,8 @@
  * Customer Opportunity Types
  */
 
-import type {
-  CommonOpportunity,
-  CommonOpportunityStageCondition
-} from '@/common/data/relations/types/commonOpportunityTypes'
-import {
-  OpportunityFields,
-  createCommonOpportunityDescriptors
-} from '@/common/data/relations/types/commonOpportunityTypes'
+import type { Opportunity, OpportunityStageCondition } from '@/common/data/relations/types/opportunityTypes'
+import { OpportunityFields, createOpportunityDescriptors } from '@/common/data/relations/types/opportunityTypes'
 import type { Descriptor } from '@/common/network/graphql/queryHelpers'
 import type { CustomerAccount } from './customerAccountTypes'
 import type { CustomerAddress } from './customerAddressTypes'
@@ -21,10 +15,10 @@ import type { CustomerOpportunityContact } from './customerRelationTypes'
 
 /**
  * Customer Opportunity Type
- * Extends CommonOpportunity with CRM-specific fields and proper type mappings
+ * Extends Opportunity with CRM-specific fields and proper type mappings
  */
-export interface CustomerOpportunity extends CommonOpportunity {
-  // Map any types from CommonOpportunity to specific Customer types
+export interface CustomerOpportunity extends Opportunity {
+  // Map any types from Opportunity to specific Customer types
   account?: CustomerAccount
   addresses?: CustomerAddress[]
   communicationChannels?: CustomerCommunicationChannel[]
@@ -49,10 +43,10 @@ export interface CustomerOpportunity extends CommonOpportunity {
 
 /**
  * Customer Opportunity Stage Condition Type
- * Extends CommonOpportunityStageCondition with CRM-specific fields and proper type mappings
+ * Extends OpportunityStageCondition with CRM-specific fields and proper type mappings
  */
-export interface CustomerOpportunityStageCondition extends CommonOpportunityStageCondition {
-  // Map any types from CommonOpportunityStageCondition
+export interface CustomerOpportunityStageCondition extends OpportunityStageCondition {
+  // Map any types from OpportunityStageCondition
   opportunity?: CustomerOpportunity
   task?: CustomerTask
 
@@ -83,15 +77,15 @@ export type CustomerOpportunityFieldName = (typeof CustomerOpportunityFields)[ke
 
 /**
  * Customer Opportunity Descriptors
- * Uses createCommonOpportunityDescriptors with CustomerOpportunityFields mapping
+ * Uses createOpportunityDescriptors with CustomerOpportunityFields mapping
  * Filters out and overrides descriptors with structural differences (CRM uses different nested field names)
  * Adds CRM-specific fields that don't exist in Common/IRM
  */
 export const CUSTOMER_OPPORTUNITY_DESCRIPTORS: Descriptor[] = [
   // Filter out descriptors that need structural overrides
-  ...createCommonOpportunityDescriptors(
-    CustomerOpportunityFields as Record<keyof typeof OpportunityFields, string>
-  ).filter(d => !['addresses', 'leads', 'notes', 'opportunityContacts'].includes(d.key)),
+  ...createOpportunityDescriptors(CustomerOpportunityFields as Record<keyof typeof OpportunityFields, string>).filter(
+    d => !['addresses', 'leads', 'notes', 'opportunityContacts'].includes(d.key)
+  ),
 
   // CRM-specific structural overrides
   {
@@ -111,12 +105,7 @@ export const CUSTOMER_OPPORTUNITY_DESCRIPTORS: Descriptor[] = [
     sortPaths: ['notes.noteTitle', 'notes.noteText'],
     type: 'text'
   },
-  {
-    key: 'leads',
-    searchPaths: ['lead.firstName', 'lead.lastName', 'lead.companyName'], // CRM uses singular "lead"
-    sortPaths: ['lead.firstName', 'lead.lastName', 'lead.companyName'],
-    type: 'text'
-  },
+
   {
     key: 'opportunityContacts',
     searchPaths: ['contacts.contact.firstName', 'contacts.contact.lastName'], // CRM uses "contacts" not "opportunityContacts"

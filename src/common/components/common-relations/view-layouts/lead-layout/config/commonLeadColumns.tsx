@@ -1,8 +1,8 @@
 import type { ColumnDef } from '@tanstack/react-table'
 import { Badge, Avatar, AvatarFallback, Tooltip, TooltipTrigger, TooltipContent } from '@newwork/nw-design-system'
 import { User, Building2, Calendar, MapPin, Flag, Mail, Phone } from 'lucide-react'
-import type { CommonLead } from '@/common/data/relations/types/commonLeadTypes'
-import { COMMON_LEAD_DESCRIPTORS } from '@/common/data/relations/types/commonLeadTypes'
+import type { Lead } from '@/common/data/relations/types/leadTypes'
+import { createLeadDescriptors, LeadFields } from '@/common/data/relations/types/leadTypes'
 import { getCatalogEntryValue } from '@/common/data/catalog/utils/catalogTranslationUtils'
 import { formatAddress } from '@/common/utils/addressFormatter'
 import { navigateTo } from '@/common/utils/navigationUtils'
@@ -43,7 +43,7 @@ const getLeadStatusVariant = (status: string): 'default' | 'success' | 'warning'
 }
 
 // Helper function to get owner display name
-const getOwnerName = (lead: CommonLead): string => {
+const getOwnerName = (lead: Lead): string => {
   if (lead.ownerEmployee?.displayName) {
     return safeString(lead.ownerEmployee.displayName)
   }
@@ -54,7 +54,7 @@ const getOwnerName = (lead: CommonLead): string => {
 }
 
 // Helper function to get lead name (inline - no mapper dependency)
-const getLeadName = (lead: CommonLead): string => {
+const getLeadName = (lead: Lead): string => {
   if (lead.firstName && lead.lastName) {
     return `${lead.firstName} ${lead.lastName}`.trim()
   }
@@ -65,10 +65,10 @@ const getLeadName = (lead: CommonLead): string => {
 
 /**
  * Default Lead Columns
- * Uses CommonLead with correct IRM field names
+ * Uses Lead with correct IRM field names
  * Column IDs must match descriptor keys for sorting/filtering
  */
-export const commonLeadColumns = (): ColumnDef<CommonLead>[] => [
+export const commonLeadColumns = (): ColumnDef<Lead>[] => [
   {
     id: 'lead',
     accessorFn: row => getLeadName(row),
@@ -388,7 +388,7 @@ const LEAD_COLUMN_LABELS: Record<string, string> = {
   updatedAt: 'Updated Date'
 }
 
-export const defaultLeadSortableColumns = deriveSortableColumns(COMMON_LEAD_DESCRIPTORS, LEAD_COLUMN_LABELS)
+export const defaultLeadSortableColumns = deriveSortableColumns(createLeadDescriptors(LeadFields), LEAD_COLUMN_LABELS)
 
 /**
  * Default visible columns

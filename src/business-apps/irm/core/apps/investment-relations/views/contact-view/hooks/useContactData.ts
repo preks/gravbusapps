@@ -3,7 +3,7 @@ import type { SortingState } from '@tanstack/react-table'
 import { BusinessAppContextProps } from '@/common/BusinessAppContext'
 import { useGetInvestmentContacts } from '@/common/data/investment/hooks/useInvestmentContacts'
 import type { InvestmentContact } from '@/common/data/investment/types'
-import type { InvestmentContactQueryVariables } from '@/common/data/investment/queries/investmentContactQueries.new'
+import type { InvestmentContactQueryVariables } from '@/common/data/investment/queries/investmentContactQueries'
 
 interface UseContactDataReturn {
   // Data

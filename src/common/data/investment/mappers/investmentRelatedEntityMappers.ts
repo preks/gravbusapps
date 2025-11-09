@@ -6,7 +6,7 @@ import { InvestmentActivity, InvestmentNote, InvestmentDocument } from '../types
  * Transform InvestmentActivity (GraphQL response) to InvestmentActivity
  */
 export function toInvestmentActivity(base: InvestmentActivity): InvestmentActivity {
-  // No field mappings needed - IRM Activity fields already match CommonActivity
+  // No field mappings needed - IRM Activity fields already match Activity
   return {
     ...base
   } as InvestmentActivity
@@ -16,7 +16,7 @@ export function toInvestmentActivity(base: InvestmentActivity): InvestmentActivi
  * Transform InvestmentNote (GraphQL response) to InvestmentNote
  */
 export function toInvestmentNote(base: InvestmentNote): InvestmentNote {
-  // No field mappings needed - IRM Note fields already match CommonNote
+  // No field mappings needed - IRM Note fields already match Note
   return {
     ...base
   } as InvestmentNote
@@ -26,7 +26,7 @@ export function toInvestmentNote(base: InvestmentNote): InvestmentNote {
  * Transform InvestmentDocument (GraphQL response) to InvestmentDocument
  */
 export function toInvestmentDocument(base: InvestmentDocument): InvestmentDocument {
-  // No field mappings needed - IRM Document fields already match CommonDocument
+  // No field mappings needed - IRM Document fields already match Document
   return {
     ...base
   } as InvestmentDocument

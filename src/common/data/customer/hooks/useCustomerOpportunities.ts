@@ -114,7 +114,7 @@ export const useCustomerOpportunities = (context: BusinessAppContextProps) => {
 
   const fetchCustomerOpportunityById = useCallback(
     async (id: string): Promise<CustomerOpportunity | null> => {
-      const query = buildCustomerOpportunityByIdQuery(undefined, undefined, id)
+      const query = buildCustomerOpportunityByIdQuery(undefined, id)
       const result = await graphqlClient.request<{ OpportunityByPk: BaseCustomerOpportunity | null }>(query)
       return result.OpportunityByPk ? toCustomerOpportunity(result.OpportunityByPk) : null
     },

@@ -9,47 +9,16 @@ import type { Descriptor } from './queryHelpers'
 // ==========================================
 
 export interface BaseQueryVariables {
-  id?: string
+  ids?: string[]
   limit?: number
   offset?: number
-  orderBy?: any[]
   search?: string
-  structureId?: string
-  where?: any
-}
-
-export interface QueryOptions {
-  includeDeleted?: boolean
-  useCurrentStructure?: boolean
-  recordState?: string
-  activeOnly?: boolean
-}
-
-// ==========================================
-// RESPONSE INTERFACES
-// ==========================================
-
-export interface QueryResponse<T> {
-  data: T[]
-  aggregate?: {
-    count: number
-  }
-}
-
-// ==========================================
-// PAGINATION
-// ==========================================
-
-export interface PaginationInfo {
-  offset: number
-  limit: number
-  total: number
-  hasMore: boolean
-}
-
-export interface PaginatedResponse<T> {
-  data: T[]
-  pagination: PaginationInfo
+  orderBy?: Array<{
+    field: string
+    direction: 'ASC_NULLS_LAST' | 'DESC_NULLS_LAST'
+  }>
+  createdAtFrom?: string
+  createdAtTo?: string
 }
 
 // ==========================================

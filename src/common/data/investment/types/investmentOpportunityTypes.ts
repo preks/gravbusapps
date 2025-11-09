@@ -1,12 +1,6 @@
 import type { CatalogEntry } from '@/common/network/graphql/commonTypes'
-import type {
-  CommonOpportunity,
-  CommonOpportunityStageCondition
-} from '@/common/data/relations/types/commonOpportunityTypes'
-import {
-  OpportunityFields,
-  createCommonOpportunityDescriptors
-} from '@/common/data/relations/types/commonOpportunityTypes'
+import type { Opportunity, OpportunityStageCondition } from '@/common/data/relations/types/opportunityTypes'
+import { OpportunityFields, createOpportunityDescriptors } from '@/common/data/relations/types/opportunityTypes'
 import type { Descriptor } from '@/common/network/graphql/queryHelpers'
 import type { InvestmentAccount } from './investmentAccountTypes'
 import type { InvestmentAddress } from './investmentAddressTypes'
@@ -21,10 +15,10 @@ import type { Investment } from './investmentTypes'
 
 /**
  * Investment Opportunity Type
- * Extends CommonOpportunity with IRM-specific fields and proper type mappings
+ * Extends Opportunity with IRM-specific fields and proper type mappings
  */
-export interface InvestmentOpportunity extends CommonOpportunity {
-  // Map any types from CommonOpportunity to specific Investment types
+export interface InvestmentOpportunity extends Opportunity {
+  // Map any types from Opportunity to specific Investment types
   account?: InvestmentAccount
   activities?: InvestmentActivity[]
   addresses?: InvestmentAddress[]
@@ -79,10 +73,10 @@ export interface InvestmentOpportunity extends CommonOpportunity {
 
 /**
  * Investment Opportunity Stage Condition Type
- * Extends CommonOpportunityStageCondition with IRM-specific fields and proper type mappings
+ * Extends OpportunityStageCondition with IRM-specific fields and proper type mappings
  */
-export interface InvestmentOpportunityStageCondition extends CommonOpportunityStageCondition {
-  // Map any types from CommonOpportunityStageCondition
+export interface InvestmentOpportunityStageCondition extends OpportunityStageCondition {
+  // Map any types from OpportunityStageCondition
   opportunity?: InvestmentOpportunity
   task?: InvestmentTask
 }
@@ -104,11 +98,11 @@ export type InvestmentOpportunityFieldName =
 
 /**
  * Investment Opportunity Descriptors
- * Uses createCommonOpportunityDescriptors with InvestmentOpportunityFields mapping
+ * Uses createOpportunityDescriptors with InvestmentOpportunityFields mapping
  * Adds IRM-specific fields that don't exist in Common/CRM
  */
 export const INVESTMENT_OPPORTUNITY_DESCRIPTORS: Descriptor[] = [
-  ...createCommonOpportunityDescriptors(InvestmentOpportunityFields as Record<keyof typeof OpportunityFields, string>),
+  ...createOpportunityDescriptors(InvestmentOpportunityFields as Record<keyof typeof OpportunityFields, string>),
 
   // IRM-specific descriptors
   { key: 'annualNetColdRent', searchPaths: ['annualNetColdRent'], sortPath: 'annualNetColdRent', type: 'number' },

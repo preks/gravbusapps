@@ -27,7 +27,7 @@ export const useCustomerTask = (context: BusinessAppContextProps, taskId: string
     setError(null)
 
     try {
-      const query = buildCustomerTaskByIdQuery(CustomerTaskFields, undefined, taskId)
+      const query = buildCustomerTaskByIdQuery(CustomerTaskFields, taskId)
       const result = await graphqlClient.request<{ SalesTaskByPk: any }>(query)
       const task = result.SalesTaskByPk
       setTask(task ? toCustomerTask(task) : null)

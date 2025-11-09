@@ -1,7 +1,7 @@
 /**
  * Customer Lead Mappers
  *
- * Transforms CRM Lead (GraphQL response) into standardized CommonLead structure.
+ * Transforms CRM Lead (GraphQL response) into standardized Lead structure.
  *
  * Key Mappings:
  * - annualRevenue → accountAnnualRevenueBand
@@ -15,10 +15,10 @@ import { CustomerLead } from '../types'
 /**
  * Transform CustomerLead (raw GraphQL) to CustomerLead (enhanced/standardized)
  *
- * Handles CRM-specific field naming inconsistencies by mapping them to CommonLead standards.
+ * Handles CRM-specific field naming inconsistencies by mapping them to Lead standards.
  */
 export function toCustomerLead(base: CustomerLead): CustomerLead {
-  // Map CRM catalog field names to CommonLead standard (IRM naming)
+  // Map CRM catalog field names to Lead standard (IRM naming)
   const accountAnnualRevenueBand = base.annualRevenue
   const accountAnnualRevenueBandRef = base.annualRevenueRef
 
@@ -32,7 +32,7 @@ export function toCustomerLead(base: CustomerLead): CustomerLead {
 
   return {
     ...base,
-    // Mapped catalog fields (CRM names → CommonLead standard)
+    // Mapped catalog fields (CRM names → Lead standard)
     accountAnnualRevenueBand,
     accountAnnualRevenueBandRef,
     locality,

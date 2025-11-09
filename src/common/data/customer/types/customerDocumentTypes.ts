@@ -1,5 +1,5 @@
-import type { CommonDocument } from '@/common/data/relations/types/commonDocumentTypes'
-import { DocumentFields, createCommonDocumentDescriptors } from '@/common/data/relations/types/commonDocumentTypes'
+import type { Document } from '@/common/data/relations/types/documentTypes'
+import { DocumentFields, createDocumentDescriptors } from '@/common/data/relations/types/documentTypes'
 import type { Descriptor } from '@/common/network/graphql/queryHelpers'
 import type { SourceTable } from './customerEnums'
 import type {
@@ -11,7 +11,7 @@ import type {
   CustomerTask
 } from './'
 
-export interface CustomerDocument extends CommonDocument {
+export interface CustomerDocument extends Document {
   account?: CustomerAccount
   activity?: CustomerActivity // Mapped by salesActivity
   childDocuments?: CustomerDocument[]
@@ -46,8 +46,8 @@ export type CustomerDocumentFieldName = (typeof CustomerDocumentFields)[keyof ty
 
 /**
  * Customer Document Descriptors
- * Uses createCommonDocumentDescriptors with CustomerDocumentFields mapping
+ * Uses createDocumentDescriptors with CustomerDocumentFields mapping
  */
 export const CUSTOMER_DOCUMENT_DESCRIPTORS: Descriptor[] = [
-  ...createCommonDocumentDescriptors(CustomerDocumentFields as Record<keyof typeof DocumentFields, string>)
+  ...createDocumentDescriptors(CustomerDocumentFields as Record<keyof typeof DocumentFields, string>)
 ]

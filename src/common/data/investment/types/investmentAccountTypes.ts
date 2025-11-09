@@ -2,8 +2,8 @@
  * Investment Account Types
  */
 
-import type { CommonAccount, CommonAccountFilters } from '@/common/data/relations/types/commonAccountTypes'
-import { AccountFields, createCommonAccountDescriptors } from '@/common/data/relations/types/commonAccountTypes'
+import type { Account, CommonAccountFilters } from '@/common/data/relations/types/accountTypes'
+import { AccountFields, createAccountDescriptors } from '@/common/data/relations/types/accountTypes'
 import type { Descriptor } from '@/common/network/graphql/queryHelpers'
 import type { Investment } from './investmentTypes'
 import type { InvestmentReport } from './investmentTypes'
@@ -19,10 +19,10 @@ import type { InvestmentAccountContact } from './investmentAccountContactTypes'
 
 /**
  * Investment Account Type
- * Extends CommonAccount with IRM-specific fields and proper type mappings
+ * Extends Account with IRM-specific fields and proper type mappings
  */
-export interface InvestmentAccount extends CommonAccount {
-  // Map any types from CommonAccount to specific Investment types
+export interface InvestmentAccount extends Account {
+  // Map any types from Account to specific Investment types
   accountContacts?: InvestmentAccountContact[]
   activities?: InvestmentActivity[]
   addresses?: InvestmentAddress[]
@@ -71,11 +71,11 @@ export type InvestmentAccountFieldName = (typeof InvestmentAccountFields)[keyof 
 
 /**
  * Investment Account Descriptors
- * Uses createCommonAccountDescriptors with InvestmentAccountFields mapping
+ * Uses createAccountDescriptors with InvestmentAccountFields mapping
  * Adds IRM-specific fields that don't exist in Common/CRM
  */
 export const INVESTMENT_ACCOUNT_DESCRIPTORS: Descriptor[] = [
-  ...createCommonAccountDescriptors(InvestmentAccountFields as Record<keyof typeof AccountFields, string>),
+  ...createAccountDescriptors(InvestmentAccountFields as Record<keyof typeof AccountFields, string>),
 
   // IRM-specific fields (not in Common/CRM)
   {

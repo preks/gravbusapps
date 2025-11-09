@@ -1,195 +1,55 @@
 import type { FilterConfiguration } from '@newwork/nw-design-system'
+import type { Descriptor } from '@/common/network/graphql/queryHelpers'
+import { buildFilterConfigFromDescriptors } from '@/common/network/graphql/descriptorUtils'
+import type { UseFilterGroupsResult } from '@/common/data/common/hooks/useFilterGroups'
 
 /**
- * Update filter options in a filter configuration
- */
-export const updateFilterOptions = (
-  filterConfig: FilterConfiguration,
-  groupId: string,
-  filterId: string,
-  options: Array<{ id: string; label: string }>,
-  totalCount?: number
-) => {
-  const group = filterConfig.groups.find(g => g.id === groupId)
-  if (!group) return
-
-  const filter = group.filters.find(f => f.id === filterId)
-  if (filter?.config && 'options' in filter.config) {
-    filter.config.options = options
-
-    // Set totalCount if provided
-    if (totalCount !== undefined && 'totalCount' in filter.config) {
-      filter.config.totalCount = totalCount
-    } else if ('totalCount' in filter.config) {
-      // Default to options length if totalCount not provided
-      filter.config.totalCount = options.length
-    }
-
-    // Set hasMore if there are more results than shown
-    if ('hasMore' in filter.config && totalCount !== undefined) {
-      filter.config.hasMore = totalCount > options.length
-    }
-  }
-}
-
-/**
- * Add search and load more functions to filter configuration
- */
-export const addSearchAndLoadMoreFunctions = (
-  filterConfig: FilterConfiguration,
-  callbacks: {
-    searchOwners?: (query: string) => Promise<Array<{ id: string; label: string }>>
-    searchStatuses?: (query: string) => Promise<Array<{ id: string; label: string }>>
-    searchRatings?: (query: string) => Promise<Array<{ id: string; label: string }>>
-    searchSources?: (query: string) => Promise<Array<{ id: string; label: string }>>
-    searchSalutations?: (query: string) => Promise<Array<{ id: string; label: string }>>
-    searchIndustries?: (query: string) => Promise<Array<{ id: string; label: string }>>
-    loadMoreOwners?: () => Promise<void>
-    loadMoreStatuses?: () => Promise<void>
-    loadMoreRatings?: () => Promise<void>
-    loadMoreSources?: () => Promise<void>
-    loadMoreSalutations?: () => Promise<void>
-    loadMoreIndustries?: () => Promise<void>
-  }
-) => {
-  const {
-    searchOwners,
-    searchStatuses,
-    searchRatings,
-    searchSources,
-    searchSalutations,
-    searchIndustries,
-    loadMoreOwners,
-    loadMoreStatuses,
-    loadMoreRatings,
-    loadMoreSources,
-    loadMoreSalutations,
-    loadMoreIndustries
-  } = callbacks
-
-  const ownersFilter = filterConfig.groups
-    .find(g => g.id === 'owner-group')
-    ?.filters.find(f => f.id === 'ownerEmployeeIds')
-  if (ownersFilter?.config) {
-    if (searchOwners) ownersFilter.config.onSearch = searchOwners
-    if (loadMoreOwners) ownersFilter.config.onLoadMore = loadMoreOwners
-  }
-
-  const statusesFilter = filterConfig.groups
-    .find(g => g.id === 'status-group')
-    ?.filters.find(f => f.id === 'leadStatusIds')
-  if (statusesFilter?.config) {
-    if (searchStatuses) statusesFilter.config.onSearch = searchStatuses
-    if (loadMoreStatuses) statusesFilter.config.onLoadMore = loadMoreStatuses
-  }
-
-  const ratingsFilter = filterConfig.groups
-    .find(g => g.id === 'rating-group')
-    ?.filters.find(f => f.id === 'leadRatingIds')
-  if (ratingsFilter?.config) {
-    if (searchRatings) ratingsFilter.config.onSearch = searchRatings
-    if (loadMoreRatings) ratingsFilter.config.onLoadMore = loadMoreRatings
-  }
-
-  const sourcesFilter = filterConfig.groups
-    .find(g => g.id === 'source-group')
-    ?.filters.find(f => f.id === 'leadSourceIds')
-  if (sourcesFilter?.config) {
-    if (searchSources) sourcesFilter.config.onSearch = searchSources
-    if (loadMoreSources) sourcesFilter.config.onLoadMore = loadMoreSources
-  }
-
-  const salutationsFilter = filterConfig.groups
-    .find(g => g.id === 'salutation-group')
-    ?.filters.find(f => f.id === 'salutationIds')
-  if (salutationsFilter?.config) {
-    if (searchSalutations) salutationsFilter.config.onSearch = searchSalutations
-    if (loadMoreSalutations) salutationsFilter.config.onLoadMore = loadMoreSalutations
-  }
-
-  const industriesFilter = filterConfig.groups
-    .find(g => g.id === 'industry-group')
-    ?.filters.find(f => f.id === 'industryClassIds')
-  if (industriesFilter?.config) {
-    if (searchIndustries) industriesFilter.config.onSearch = searchIndustries
-    if (loadMoreIndustries) industriesFilter.config.onLoadMore = loadMoreIndustries
-  }
-}
-
-/**
- * Build dynamic filter configuration from filter options
+ * Build dynamic filter configuration from useFilterGroups result
+ * Automatically creates onSearch and onLoadMore callbacks for each filter
  */
 export const buildDynamicFilterConfig = (
   baseConfig: FilterConfiguration,
-  filterOptions: {
-    owners: Array<{ id: string; label: string }>
-    statuses: Array<{ id: string; label: string }>
-    ratings: Array<{ id: string; label: string }>
-    sources: Array<{ id: string; label: string }>
-    salutations?: Array<{ id: string; label: string }>
-    industries?: Array<{ id: string; label: string }>
-    totalCounts?: {
-      owners?: number
-      statuses?: number
-      ratings?: number
-      sources?: number
-      salutations?: number
-      industries?: number
-    }
-    searchOwners?: (query: string) => Promise<Array<{ id: string; label: string }>>
-    searchStatuses?: (query: string) => Promise<Array<{ id: string; label: string }>>
-    searchRatings?: (query: string) => Promise<Array<{ id: string; label: string }>>
-    searchSources?: (query: string) => Promise<Array<{ id: string; label: string }>>
-    searchSalutations?: (query: string) => Promise<Array<{ id: string; label: string }>>
-    searchIndustries?: (query: string) => Promise<Array<{ id: string; label: string }>>
-    loadMoreOwners?: () => Promise<void>
-    loadMoreStatuses?: () => Promise<void>
-    loadMoreRatings?: () => Promise<void>
-    loadMoreSources?: () => Promise<void>
-    loadMoreSalutations?: () => Promise<void>
-    loadMoreIndustries?: () => Promise<void>
-  }
+  descriptors: Descriptor[],
+  filterGroups: UseFilterGroupsResult
 ): FilterConfiguration => {
-  // Deep clone to avoid mutations
-  const filterConfig: FilterConfiguration = {
-    ...baseConfig,
-    groups: baseConfig.groups.map(group => ({
-      ...group,
-      filters: group.filters.map(filter => ({
-        ...filter,
-        config: { ...filter.config }
-      }))
-    }))
-  }
+  const { filterData, search, getFilterOptions } = filterGroups
 
-  const { owners, statuses, ratings, sources, salutations, industries, totalCounts } = filterOptions
+  // Build filterDataMap with options, totalCount, and callbacks
+  const filterDataMap: Record<
+    string,
+    {
+      options: Array<{ id: string; label: string }>
+      totalCount?: number
+      onSearch?: (query: string) => Promise<Array<{ id: string; label: string }>>
+      onLoadMore?: () => Promise<void>
+    }
+  > = {}
 
-  updateFilterOptions(filterConfig, 'owner-group', 'ownerEmployeeIds', owners, totalCounts?.owners)
-  updateFilterOptions(filterConfig, 'status-group', 'leadStatusIds', statuses, totalCounts?.statuses)
-  updateFilterOptions(filterConfig, 'rating-group', 'leadRatingIds', ratings, totalCounts?.ratings)
-  updateFilterOptions(filterConfig, 'source-group', 'leadSourceIds', sources, totalCounts?.sources)
-  if (salutations) {
-    updateFilterOptions(filterConfig, 'salutation-group', 'salutationIds', salutations, totalCounts?.salutations)
-  }
-  if (industries) {
-    updateFilterOptions(filterConfig, 'industry-group', 'industryClassIds', industries, totalCounts?.industries)
-  }
+  // Process each descriptor that has filter options
+  descriptors
+    .filter(d => d.optionSelectPaths && d.optionSelectPaths.length > 0)
+    .forEach(descriptor => {
+      const data = filterData[descriptor.key]
+      if (!data) return
 
-  // Add search and load more functions if available
-  addSearchAndLoadMoreFunctions(filterConfig, {
-    searchOwners: filterOptions.searchOwners,
-    searchStatuses: filterOptions.searchStatuses,
-    searchRatings: filterOptions.searchRatings,
-    searchSources: filterOptions.searchSources,
-    searchSalutations: filterOptions.searchSalutations,
-    searchIndustries: filterOptions.searchIndustries,
-    loadMoreOwners: filterOptions.loadMoreOwners,
-    loadMoreStatuses: filterOptions.loadMoreStatuses,
-    loadMoreRatings: filterOptions.loadMoreRatings,
-    loadMoreSources: filterOptions.loadMoreSources,
-    loadMoreSalutations: filterOptions.loadMoreSalutations,
-    loadMoreIndustries: filterOptions.loadMoreIndustries
-  })
+      filterDataMap[descriptor.key] = {
+        options: data.options,
+        totalCount: data.totalCount,
+        // Create onSearch callback that calls search with the descriptor key
+        onSearch: async (query: string) => {
+          await search({ [descriptor.key]: query })
+          // Return updated options after search completes
+          return getFilterOptions(descriptor.key)
+        },
+        // Create onLoadMore callback (for now just refetches, TODO: implement pagination)
+        onLoadMore: async () => {
+          await filterGroups.refetch()
+        }
+      }
+    })
 
-  return filterConfig
+  return buildFilterConfigFromDescriptors(baseConfig, descriptors, filterDataMap)
 }
+
+// Re-export for backward compatibility
+export { buildFilterConfigFromDescriptors } from '@/common/network/graphql/descriptorUtils'

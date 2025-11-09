@@ -176,7 +176,7 @@ export const useCustomerTasks = (context: BusinessAppContextProps) => {
 
   const fetchCustomerTaskById = useCallback(
     async (taskId: string): Promise<CustomerTask | null> => {
-      const query = buildCustomerTaskByIdQuery(CustomerTaskFields, undefined, taskId)
+      const query = buildCustomerTaskByIdQuery(CustomerTaskFields, taskId)
 
       try {
         const result = await graphqlClient.request<{ SalesTaskByPk: any }>(query)

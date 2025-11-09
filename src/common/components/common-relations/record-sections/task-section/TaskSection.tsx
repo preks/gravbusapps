@@ -15,7 +15,7 @@ import { BusinessAppContextProps } from '@/common/BusinessAppContext'
 import { buildFileUrl, getFileIcon } from '@/common/utils/fileUtils'
 import {
   TaskDetailSheet,
-  Task as CommonTask,
+  Task as Task,
   TaskReference
 } from '@/common/components/common-relations/detail-sheets/task-detail-sheet'
 import dayjs from 'dayjs'
@@ -91,7 +91,7 @@ export interface TaskSectionProps extends BusinessAppContextProps {
 }
 
 const TaskSection: React.FC<TaskSectionProps> = ({ accessToken, tasks, taskEntityActionProps, buildReferenceUrl }) => {
-  const [selectedTask, setSelectedTask] = useState<CommonTask | null>(null)
+  const [selectedTask, setSelectedTask] = useState<Task | null>(null)
 
   // Handle document download
   const handleDocumentClick = (document: TaskDocument, e: React.MouseEvent) => {
@@ -180,8 +180,8 @@ const TaskSection: React.FC<TaskSectionProps> = ({ accessToken, tasks, taskEntit
     }
   }
 
-  // Convert TaskItem to CommonTask format
-  const convertToCommonTask = (taskItem: TaskItem): CommonTask => {
+  // Convert TaskItem to Task format
+  const convertToCommonTask = (taskItem: TaskItem): Task => {
     return {
       id: taskItem.id,
       name: taskItem.title,
@@ -227,8 +227,8 @@ const TaskSection: React.FC<TaskSectionProps> = ({ accessToken, tasks, taskEntit
   }
 
   const handleTaskClick = (taskItem: TaskItem) => {
-    const commonTask = convertToCommonTask(taskItem)
-    setSelectedTask(commonTask)
+    const Task = convertToCommonTask(taskItem)
+    setSelectedTask(Task)
   }
 
   const getEmployeeDisplayName = (emp: any) => {

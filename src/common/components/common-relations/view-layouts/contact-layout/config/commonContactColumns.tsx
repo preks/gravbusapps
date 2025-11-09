@@ -2,8 +2,8 @@ import type { ColumnDef } from '@tanstack/react-table'
 import { Avatar, AvatarImage, AvatarFallback } from '@newwork/nw-design-system'
 import { User, Building2, Calendar } from 'lucide-react'
 import { navigateTo } from '@/common/utils/navigationUtils'
-import type { CommonContact } from '@/common/data/relations/types/commonContactTypes'
-import { COMMON_CONTACT_DESCRIPTORS } from '@/common/data/relations/types/commonContactTypes'
+import type { Contact } from '@/common/data/relations/types/contactTypes'
+import { createContactDescriptors, ContactFields } from '@/common/data/relations/types/contactTypes'
 import {
   getCommunicationChannelIcon,
   formatCommunicationChannelValue
@@ -35,13 +35,13 @@ const formatDate = (dateString: string | null | undefined): string => {
 }
 
 // Helper function to get contact display name
-const getContactName = (contact: CommonContact) => {
+const getContactName = (contact: Contact) => {
   if (contact.fullName) return contact.fullName
   return `${contact.firstName || ''} ${contact.lastName || ''}`.trim() || '-'
 }
 
 // Helper function to get owner display name
-const getOwnerName = (contact: CommonContact) => {
+const getOwnerName = (contact: Contact) => {
   if (contact.ownerEmployee?.displayName) {
     return safeString(contact.ownerEmployee.displayName)
   }
@@ -52,16 +52,16 @@ const getOwnerName = (contact: CommonContact) => {
 }
 
 // Helper to get primary account (first in accountContacts array)
-const getPrimaryAccount = (contact: CommonContact) => {
+const getPrimaryAccount = (contact: Contact) => {
   return contact.accountContacts?.[0]?.account
 }
 
 /**
  * Default Contact Columns
- * Uses CommonContact (the CORRECT structure)
+ * Uses Contact (the CORRECT structure)
  * Contacts must be mapped via contactMapper before passing to these columns
  */
-export const commonContactColumns = (): ColumnDef<CommonContact>[] => [
+export const commonContactColumns = (): ColumnDef<Contact>[] => [
   {
     id: 'contact',
     accessorFn: row => getContactName(row),
@@ -352,7 +352,10 @@ const CONTACT_COLUMN_LABELS: Record<string, string> = {
   updatedAt: 'Updated Date'
 }
 
-export const defaultContactSortableColumns = deriveSortableColumns(COMMON_CONTACT_DESCRIPTORS, CONTACT_COLUMN_LABELS)
+export const defaultContactSortableColumns = deriveSortableColumns(
+  createContactDescriptors(ContactFields),
+  CONTACT_COLUMN_LABELS
+)
 
 /**
  * Default visible columns

@@ -1,4 +1,4 @@
-import type { CommonAccountContact, CommonOpportunityContact } from '@/common/data/relations/types/commonRelationTypes'
+import type { CommonAccountContact, CommonOpportunityContact } from '@/common/data/relations/types/relationTypes'
 import type { ContactType } from './customerEnums'
 import type { CustomerAccount, CustomerContact, CustomerOpportunity } from './'
 

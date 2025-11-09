@@ -5,7 +5,7 @@ import {
   buildInvestmentTaskQuery,
   buildInvestmentTaskWhereCondition,
   buildInvestmentTaskOrderBy
-} from '@/common/data/investment/queries/investmentTaskQueries.new'
+} from '@/common/data/investment/queries/investmentTaskQueries'
 import type { InvestmentTask } from '@/common/data/investment/types'
 import { toInvestmentTask } from '@/common/data/investment/mappers'
 

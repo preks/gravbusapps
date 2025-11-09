@@ -1,11 +1,11 @@
 import { useCallback } from 'react'
 import { useGraphQLClient } from '@/common/network/graphql/useGraphQLClient'
 import { BusinessAppContextProps } from '@/common/BusinessAppContext'
-import { GET_INVESTMENT_NOTES_BY_INVESTMENT_ID } from '@/common/data/investment/queries/investmentNoteQueries.new'
+import { GET_INVESTMENT_NOTES_BY_INVESTMENT_ID } from '@/common/data/investment/queries/investmentNoteQueries'
 import {
   buildInvestmentNoteWhereCondition,
   buildInvestmentNoteOrderBy
-} from '@/common/data/investment/queries/investmentNoteQueries.new'
+} from '@/common/data/investment/queries/investmentNoteQueries'
 import type { BaseInvestmentNote, InvestmentNote } from '@/common/data/investment/types'
 import { toInvestmentNote } from '@/common/data/investment/mappers'
 

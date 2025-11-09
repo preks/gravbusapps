@@ -22,7 +22,6 @@ export const commonLeadFilterConfig: FilterConfiguration = {
           type: 'multi-select',
           config: {
             options: [],
-            enableSearch: true,
             searchPlaceholder: 'Search owners...',
             totalCount: 0,
             hasMore: false
@@ -43,7 +42,6 @@ export const commonLeadFilterConfig: FilterConfiguration = {
           type: 'multi-select',
           config: {
             options: [],
-            enableSearch: true,
             searchPlaceholder: 'Search status...',
             totalCount: 0,
             hasMore: false
@@ -64,7 +62,6 @@ export const commonLeadFilterConfig: FilterConfiguration = {
           type: 'multi-select',
           config: {
             options: [],
-            enableSearch: true,
             searchPlaceholder: 'Search rating...',
             totalCount: 0,
             hasMore: false
@@ -85,7 +82,6 @@ export const commonLeadFilterConfig: FilterConfiguration = {
           type: 'multi-select',
           config: {
             options: [],
-            enableSearch: true,
             searchPlaceholder: 'Search source...',
             totalCount: 0,
             hasMore: false
@@ -106,7 +102,6 @@ export const commonLeadFilterConfig: FilterConfiguration = {
           type: 'multi-select',
           config: {
             options: [],
-            enableSearch: true,
             searchPlaceholder: 'Search salutation...',
             totalCount: 0,
             hasMore: false
@@ -127,7 +122,6 @@ export const commonLeadFilterConfig: FilterConfiguration = {
           type: 'multi-select',
           config: {
             options: [],
-            enableSearch: true,
             searchPlaceholder: 'Search industry...',
             totalCount: 0,
             hasMore: false

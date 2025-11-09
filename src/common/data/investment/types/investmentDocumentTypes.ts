@@ -1,5 +1,5 @@
-import type { CommonDocument } from '@/common/data/relations/types/commonDocumentTypes'
-import { DocumentFields, createCommonDocumentDescriptors } from '@/common/data/relations/types/commonDocumentTypes'
+import type { Document } from '@/common/data/relations/types/documentTypes'
+import { DocumentFields, createDocumentDescriptors } from '@/common/data/relations/types/documentTypes'
 import type { Descriptor } from '@/common/network/graphql/queryHelpers'
 import type { BaseEntity } from '@/common/network/graphql/commonTypes'
 import type { SourceTable } from './investmentEnums'
@@ -15,7 +15,7 @@ import type {
   InvestmentTask
 } from './'
 
-export interface InvestmentDocument extends CommonDocument {
+export interface InvestmentDocument extends Document {
   account?: InvestmentAccount
   activity?: InvestmentActivity
   childDocuments?: InvestmentDocument[]
@@ -42,11 +42,9 @@ export type InvestmentDocumentFieldName = (typeof InvestmentDocumentFields)[keyo
 
 /**
  * Investment Document Descriptors
- * Uses createCommonDocumentDescriptors with InvestmentDocumentFields mapping
+ * Uses createDocumentDescriptors with InvestmentDocumentFields mapping
  */
-export const INVESTMENT_DOCUMENT_DESCRIPTORS: Descriptor[] = [
-  ...createCommonDocumentDescriptors(InvestmentDocumentFields)
-]
+export const INVESTMENT_DOCUMENT_DESCRIPTORS: Descriptor[] = [...createDocumentDescriptors(InvestmentDocumentFields)]
 
 export interface InvestmentReportDocument extends BaseEntity {
   id?: string

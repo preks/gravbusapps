@@ -1,14 +1,13 @@
 import { useMemo } from 'react'
 import { BusinessAppContextProps } from '@/common/BusinessAppContext'
 import { ContactLayout, type ContactViewConfig } from '@/common/components/common-relations/view-layouts/contact-layout'
-import type { CommonContact } from '@/common/data/relations/types/commonContactTypes'
-import { COMMON_CONTACT_DESCRIPTORS } from '@/common/data/relations/types/commonContactTypes'
+import type { Contact } from '@/common/data/relations/types/contactTypes'
+import { INVESTMENT_CONTACT_DESCRIPTORS } from '@/common/data/investment/types/investmentContactTypes'
 import { commonContactColumns } from '@/common/components/common-relations/view-layouts/contact-layout/config'
 import { commonContactFilterConfig } from '@/common/components/common-relations/view-layouts/contact-layout/config'
 import { useInvestmentContacts } from '@/common/data/investment/hooks/useInvestmentContacts'
 import { useInvestmentContactStatistics } from '@/common/data/investment/hooks/useInvestmentContactStatistics'
-import { useInvestmentContactFilters } from '@/common/data/investment/hooks/useInvestmentContactFilters'
-import type { InvestmentContactQueryVariables } from '@/common/data/investment/queries/investmentContactQueries.new'
+import type { InvestmentContactQueryVariables } from '@/common/data/investment/queries/investmentContactQueries'
 import { normalizeDateRange } from '@/common/utils/dateRangeNormalizer'
 import { FlowContextName } from '@/common/types/FlowRegistryTypes'
 import { buildPlatformUrl } from '@/common/utils/navigationUtils'
@@ -21,7 +20,6 @@ export const ContactView: React.FC<ContactViewProps> = context => {
 
   // Data Hooks
   const { fetchInvestmentContacts } = useInvestmentContacts(context)
-  const contactFilters = useInvestmentContactFilters(context)
   const contactStatistics = useInvestmentContactStatistics(context)
 
   // Statistics - Transform hook data to ContactStatisticsData format
@@ -39,19 +37,12 @@ export const ContactView: React.FC<ContactViewProps> = context => {
   }, [contactStatistics])
 
   // Config
-  const config: ContactViewConfig<CommonContact, InvestmentContactQueryVariables> = useMemo(
+  const config: ContactViewConfig<Contact, InvestmentContactQueryVariables> = useMemo(
     () => ({
       fetchContacts: fetchInvestmentContacts,
-      filterDataHook: () => ({
-        owners: contactFilters.owners,
-        departments: contactFilters.departments,
-        jobPositions: contactFilters.jobPositions,
-        academicTitles: contactFilters.academicTitles,
-        salutations: contactFilters.salutations,
-        languages: contactFilters.languages
-      }),
       createColumns: () => commonContactColumns(),
-      descriptors: COMMON_CONTACT_DESCRIPTORS,
+      descriptors: INVESTMENT_CONTACT_DESCRIPTORS,
+      entityName: 'InvestmentContact',
       columnLabels: {
         contact: 'Contact',
         firstName: 'First Name',
@@ -129,7 +120,7 @@ export const ContactView: React.FC<ContactViewProps> = context => {
       contactStatistics: contactStatisticsData,
       processCompletionEvents: ['taskCompletion', 'contactCompletion'],
       rowActionsContextArray: [FlowContextName.investmentContactEntity],
-      buildRowActionsExternalContextData: (row: { original: CommonContact }) => ({
+      buildRowActionsExternalContextData: (row: { original: Contact }) => ({
         contactId: row.original.id
       }),
       translations: {
@@ -143,7 +134,7 @@ export const ContactView: React.FC<ContactViewProps> = context => {
         addContact: { key: 'irm:contact.addContact', default: 'Add Contact' }
       }
     }),
-    [fetchInvestmentContacts, contactFilters, contactStatisticsData, accessToken]
+    [fetchInvestmentContacts, contactStatisticsData, accessToken]
   )
 
   return <ContactLayout context={context} config={config} dataTestId="investment-contact-view" />

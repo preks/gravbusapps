@@ -10,22 +10,21 @@ import {
   buildActivitySearchQuery,
   buildActivityWhereCondition,
   buildActivityOrderBy,
-  type CommonActivityQueryVariables
-} from '@/common/data/relations/queries/commonActivityQueries'
-import {
-  buildActivityFragmentWithRelations,
+  type CommonActivityQueryVariables,
   type ActivityRelationBuilders,
   type ActivityRelationFields
-} from '@/common/data/relations/queries/commonActivityQueries'
+} from '@/common/data/relations/queries/activityQueries'
 import { CustomerActivityFields, CUSTOMER_ACTIVITY_DESCRIPTORS } from '../types/customerActivityTypes'
 import type { Descriptor } from '@/common/network/graphql/queryHelpers'
 
 // Import Common REF Fragment Builders (no relations - to avoid circular dependencies)
-import { buildDocumentFragment } from '@/common/data/relations/queries/commonDocumentFragments.new'
-import { buildAccountFragment } from '@/common/data/relations/queries/commonAccountFragments.new'
-import { buildContactFragment } from '@/common/data/relations/queries/commonContactFragments.new'
-import { buildLeadFragment } from '@/common/data/relations/queries/commonLeadFragments.new'
-import { buildOpportunityFragment } from '@/common/data/relations/queries/commonOpportunityFragments.new'
+import {
+  buildDocumentFragment,
+  buildAccountFragment,
+  buildContactFragment,
+  buildLeadFragment,
+  buildOpportunityFragment
+} from '@/common/data/relations/queries/relationFragments'
 
 // Import Customer Fields
 import { CustomerDocumentFields } from '../types/customerDocumentTypes'
@@ -41,19 +40,27 @@ import { CustomerOpportunityFields } from '../types/customerOpportunityTypes'
 export type CustomerActivityQueryVariables = CommonActivityQueryVariables
 
 /**
- * Build Customer Activity fragment using fields mapping
- * Includes Common Activity fields + common entity relations
+ * Build Customer Activity query with fields mapping
+ * CRM uses "SalesActivity" as entity name (not "CustomerActivity")
  */
-export const buildCustomerActivityFragment = (
-  fields: typeof CustomerActivityFields = CustomerActivityFields
+export const buildCustomerActivityQuery = (fields: typeof CustomerActivityFields = CustomerActivityFields): string => {
+  return buildActivityQuery(fields, 'SalesActivity')
+}
+
+/**
+ * Build Customer Activity by ID query
+ */
+export const buildCustomerActivityByIdQuery = (
+  fields: typeof CustomerActivityFields = CustomerActivityFields,
+  id: string
 ): string => {
-  // Build common fragment with relations using REF fragments (no relations) to avoid circular dependencies
+  // Build relation builders and fields for common relations
   const relationBuilders: ActivityRelationBuilders = {
-    buildDocumentFragment, // REF fragment (no relations)
-    buildAccountFragment, // REF fragment (no relations) - NOT buildCustomerAccountFragment!
-    buildContactFragment, // REF fragment (no relations) - NOT buildCustomerContactFragment!
-    buildLeadFragment, // REF fragment (no relations)
-    buildOpportunityFragment // REF fragment (no relations) - NOT buildCustomerOpportunityFragment!
+    buildDocumentFragment,
+    buildAccountFragment,
+    buildContactFragment,
+    buildLeadFragment,
+    buildOpportunityFragment
   }
 
   const relationFields: ActivityRelationFields = {
@@ -64,29 +71,7 @@ export const buildCustomerActivityFragment = (
     opportunityFields: CustomerOpportunityFields
   }
 
-  return buildActivityFragmentWithRelations(fields, relationBuilders, relationFields)
-}
-
-/**
- * Build Customer Activity query with fields mapping
- * CRM uses "SalesActivity" as entity name (not "CustomerActivity")
- */
-export const buildCustomerActivityQuery = (
-  fields: typeof CustomerActivityFields = CustomerActivityFields,
-  fragment: string = buildCustomerActivityFragment(fields)
-): string => {
-  return buildActivityQuery(fields, fragment, 'SalesActivity')
-}
-
-/**
- * Build Customer Activity by ID query
- */
-export const buildCustomerActivityByIdQuery = (
-  fields: typeof CustomerActivityFields = CustomerActivityFields,
-  fragment: string = buildCustomerActivityFragment(fields),
-  id: string
-): string => {
-  return buildActivityByIdQuery(fields, fragment, id, 'SalesActivity')
+  return buildActivityByIdQuery(fields, id, 'SalesActivity', relationBuilders, relationFields)
 }
 
 /**

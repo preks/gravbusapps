@@ -10,22 +10,21 @@ import {
   buildNoteSearchQuery,
   buildNoteWhereCondition,
   buildNoteOrderBy,
-  type CommonNoteQueryVariables
-} from '@/common/data/relations/queries/commonNoteQueries'
-import {
-  buildNoteFragmentWithRelations,
+  type CommonNoteQueryVariables,
   type NoteRelationBuilders,
   type NoteRelationFields
-} from '@/common/data/relations/queries/commonNoteQueries'
+} from '@/common/data/relations/queries/noteQueries'
 import { CustomerNoteFields, CUSTOMER_NOTE_DESCRIPTORS } from '../types/customerNoteTypes'
 import type { Descriptor } from '@/common/network/graphql/queryHelpers'
 
 // Import Common REF Fragment Builders (no relations - to avoid circular dependencies)
-import { buildDocumentFragment } from '@/common/data/relations/queries/commonDocumentFragments.new'
-import { buildAccountFragment } from '@/common/data/relations/queries/commonAccountFragments.new'
-import { buildContactFragment } from '@/common/data/relations/queries/commonContactFragments.new'
-import { buildLeadFragment } from '@/common/data/relations/queries/commonLeadFragments.new'
-import { buildOpportunityFragment } from '@/common/data/relations/queries/commonOpportunityFragments.new'
+import {
+  buildDocumentFragment,
+  buildAccountFragment,
+  buildContactFragment,
+  buildLeadFragment,
+  buildOpportunityFragment
+} from '@/common/data/relations/queries/relationFragments'
 
 // Import Customer Fields
 import { CustomerDocumentFields } from '../types/customerDocumentTypes'
@@ -41,17 +40,27 @@ import { CustomerOpportunityFields } from '../types/customerOpportunityTypes'
 export type CustomerNoteQueryVariables = CommonNoteQueryVariables
 
 /**
- * Build Customer Note fragment using fields mapping
- * Includes Common Note fields + common entity relations
+ * Build Customer Note query with fields mapping
+ * CRM uses "CrmNote" as entity name (not "CustomerNote")
  */
-export const buildCustomerNoteFragment = (fields: typeof CustomerNoteFields = CustomerNoteFields): string => {
-  // Build common fragment with relations using REF fragments (no relations) to avoid circular dependencies
+export const buildCustomerNoteQuery = (fields: typeof CustomerNoteFields = CustomerNoteFields): string => {
+  return buildNoteQuery(fields, 'CrmNote')
+}
+
+/**
+ * Build Customer Note by ID query
+ */
+export const buildCustomerNoteByIdQuery = (
+  fields: typeof CustomerNoteFields = CustomerNoteFields,
+  id: string
+): string => {
+  // Build relation builders and fields for common relations
   const relationBuilders: NoteRelationBuilders = {
-    buildDocumentFragment, // REF fragment (no relations)
-    buildAccountFragment, // REF fragment (no relations) - NOT buildCustomerAccountFragment!
-    buildContactFragment, // REF fragment (no relations) - NOT buildCustomerContactFragment!
-    buildLeadFragment, // REF fragment (no relations)
-    buildOpportunityFragment // REF fragment (no relations) - NOT buildCustomerOpportunityFragment!
+    buildDocumentFragment,
+    buildAccountFragment,
+    buildContactFragment,
+    buildLeadFragment,
+    buildOpportunityFragment
   }
 
   const relationFields: NoteRelationFields = {
@@ -62,29 +71,7 @@ export const buildCustomerNoteFragment = (fields: typeof CustomerNoteFields = Cu
     opportunityFields: CustomerOpportunityFields
   }
 
-  return buildNoteFragmentWithRelations(fields, relationBuilders, relationFields)
-}
-
-/**
- * Build Customer Note query with fields mapping
- * CRM uses "CrmNote" as entity name (not "CustomerNote")
- */
-export const buildCustomerNoteQuery = (
-  fields: typeof CustomerNoteFields = CustomerNoteFields,
-  fragment: string = buildCustomerNoteFragment(fields)
-): string => {
-  return buildNoteQuery(fields, fragment, 'CrmNote')
-}
-
-/**
- * Build Customer Note by ID query
- */
-export const buildCustomerNoteByIdQuery = (
-  fields: typeof CustomerNoteFields = CustomerNoteFields,
-  fragment: string = buildCustomerNoteFragment(fields),
-  id: string
-): string => {
-  return buildNoteByIdQuery(fields, fragment, id, 'CrmNote')
+  return buildNoteByIdQuery(fields, id, 'CrmNote', relationBuilders, relationFields)
 }
 
 /**

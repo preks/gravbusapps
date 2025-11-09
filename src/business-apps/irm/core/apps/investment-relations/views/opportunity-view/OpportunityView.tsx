@@ -4,7 +4,7 @@ import { useGetInvestmentOpportunities } from '@/common/data/investment/hooks/us
 import { OpportunityLayout } from '@/common/components/common-relations/view-layouts/opportunity-layout'
 import { createOpportunityConfig } from '@/common/components/common-relations/view-layouts/opportunity-layout/utils/opportunityConfigBuilder'
 import type { InvestmentOpportunity } from '@/common/data/investment/types'
-import type { InvestmentOpportunityQueryVariables } from '@/common/data/investment/queries/investmentOpportunityQueries.new'
+import type { InvestmentOpportunityQueryVariables } from '@/common/data/investment/queries/investmentOpportunityQueries'
 import { FlowContextName } from '@/common/types/FlowRegistryTypes'
 import { useInvestmentOpportunityFilters } from './hooks/useInvestmentOpportunityFilters'
 import { useInvestmentOpportunityStatistics } from '@/common/data/investment/hooks/useInvestmentOpportunityStatistics'

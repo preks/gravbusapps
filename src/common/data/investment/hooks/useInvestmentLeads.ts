@@ -3,7 +3,7 @@ import { useCallback } from 'react'
 import { useGraphQLClient } from '@/common/network/graphql/useGraphQLClient'
 import { BusinessAppContextProps } from '@/common/BusinessAppContext'
 import type { InvestmentLead } from '../types'
-import type { CommonLead } from '@/common/data/relations/types/commonLeadTypes'
+import type { Lead } from '@/common/data/relations/types/leadTypes'
 
 // Use the new query builders
 import {
@@ -12,7 +12,7 @@ import {
   buildInvestmentLeadWhereCondition,
   buildInvestmentLeadOrderBy,
   type InvestmentLeadQueryVariables
-} from '../queries/investmentLeadQueries.new'
+} from '../queries/investmentLeadQueries'
 
 // Import related-entity queries from new file
 import {
@@ -20,19 +20,19 @@ import {
   GET_INVESTMENT_ACTIVITIES_BY_LEAD_ID,
   GET_INVESTMENT_NOTES_BY_LEAD_ID,
   GET_INVESTMENT_DOCUMENTS_BY_LEAD_ID
-} from '../queries/investmentLeadQueries.new'
+} from '../queries/investmentLeadQueries'
 
 // Import where/orderBy builders for related entities
-import { buildInvestmentTaskWhereCondition, buildInvestmentTaskOrderBy } from '../queries/investmentTaskQueries.new'
+import { buildInvestmentTaskWhereCondition, buildInvestmentTaskOrderBy } from '../queries/investmentTaskQueries'
 import {
   buildInvestmentActivityWhereCondition,
   buildInvestmentActivityOrderBy
-} from '../queries/investmentActivityQueries.new'
-import { buildInvestmentNoteWhereCondition, buildInvestmentNoteOrderBy } from '../queries/investmentNoteQueries.new'
+} from '../queries/investmentActivityQueries'
+import { buildInvestmentNoteWhereCondition, buildInvestmentNoteOrderBy } from '../queries/investmentNoteQueries'
 import {
   buildInvestmentDocumentWhereCondition,
   buildInvestmentDocumentOrderBy
-} from '../queries/investmentDocumentQueries.new'
+} from '../queries/investmentDocumentQueries'
 
 // Use the mapper functions
 import {
@@ -116,8 +116,8 @@ export const useInvestmentLeads = (context: BusinessAppContextProps) => {
 
   const fetchInvestmentLeadById = useCallback(
     async (id: string): Promise<InvestmentLead | null> => {
-      const query = buildInvestmentLeadByIdQuery(undefined, undefined, id)
-      const result = await graphqlClient.request<{ InvestmentLeadByPk: CommonLead | null }>(query)
+      const query = buildInvestmentLeadByIdQuery(undefined, id)
+      const result = await graphqlClient.request<{ InvestmentLeadByPk: Lead | null }>(query)
       return result.InvestmentLeadByPk ? toInvestmentLead(result.InvestmentLeadByPk as InvestmentLead) : null
     },
     [graphqlClient]
@@ -141,7 +141,7 @@ export const useInvestmentLeads = (context: BusinessAppContextProps) => {
         orderBy: orderBy
       }
 
-      const result = await graphqlClient.request<{ InvestmentLead: CommonLead[] }>(query, graphQLVariables)
+      const result = await graphqlClient.request<{ InvestmentLead: Lead[] }>(query, graphQLVariables)
       return result.InvestmentLead.map(lead => toInvestmentLead(lead as InvestmentLead))
     },
     [graphqlClient]
@@ -203,10 +203,10 @@ export const useGetInvestmentLeadById = (context: BusinessAppContextProps) => {
 
   const fetchInvestmentLeadById = useCallback(
     async (id: string) => {
-      const query = buildInvestmentLeadByIdQuery(undefined, undefined, id)
+      const query = buildInvestmentLeadByIdQuery(undefined, id)
 
       try {
-        const result = await graphqlClient.request<{ InvestmentLeadByPk: CommonLead | null }>(query)
+        const result = await graphqlClient.request<{ InvestmentLeadByPk: Lead | null }>(query)
 
         return {
           lead: result.InvestmentLeadByPk ? toInvestmentLead(result.InvestmentLeadByPk as InvestmentLead) : undefined
@@ -220,56 +220,6 @@ export const useGetInvestmentLeadById = (context: BusinessAppContextProps) => {
   )
 
   return { fetchInvestmentLeadById }
-}
-
-// Hook for searching investment leads
-export const useSearchInvestmentLeads = (context: BusinessAppContextProps) => {
-  const graphqlClient = useGraphQLClient(context.accessToken)
-
-  const searchInvestmentLeads = useCallback(
-    async (searchTerm: string, variables: InvestmentLeadQueryVariables = {}) => {
-      const query = buildInvestmentLeadQuery()
-
-      const searchVariables = { ...variables, search: searchTerm }
-      const whereCondition = buildInvestmentLeadWhereCondition(
-        undefined, // Use default LeadFields
-        searchVariables
-      )
-
-      const orderBy = buildInvestmentLeadOrderBy(
-        undefined, // Use default LeadFields
-        searchVariables.orderBy || []
-      )
-      if (orderBy.length === 0) {
-        orderBy.push({ createdAt: 'DESC' } as any)
-      }
-
-      const graphQLVariables: Record<string, any> = {
-        limit: Math.min(searchVariables.limit || 50, 100),
-        offset: searchVariables.offset || 0,
-        where: whereCondition,
-        orderBy: orderBy
-      }
-
-      try {
-        const result = await graphqlClient.request<InvestmentLeadQueryResponse>(query, graphQLVariables)
-
-        // Transform base types to enhanced types using mapper
-        const enhancedLeads = result.InvestmentLead.map(toInvestmentLead)
-
-        return {
-          ...result,
-          InvestmentLead: enhancedLeads
-        }
-      } catch (error) {
-        console.error('Error searching investment leads:', error)
-        throw error
-      }
-    },
-    [graphqlClient]
-  )
-
-  return { searchInvestmentLeads }
 }
 
 // =====================================================

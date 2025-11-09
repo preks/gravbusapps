@@ -8,7 +8,7 @@ import {
   buildInvestmentActivityWhereCondition,
   buildInvestmentActivityOrderBy,
   type InvestmentActivityQueryVariables
-} from '../queries/investmentActivityQueries.new'
+} from '../queries/investmentActivityQueries'
 import { toInvestmentActivity } from '../mappers'
 
 // Response interfaces
@@ -83,7 +83,7 @@ export const useGetInvestmentActivityById = (context: BusinessAppContextProps) =
   const fetchInvestmentActivityById = useCallback(
     async (id: string) => {
       // Use new query builder with fields mapping
-      const query = buildInvestmentActivityByIdQuery(undefined, undefined, id)
+      const query = buildInvestmentActivityByIdQuery(undefined, id)
 
       try {
         const result = await graphqlClient.request<{ InvestmentActivityByPk: BaseInvestmentActivity }>(query)

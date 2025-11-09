@@ -61,7 +61,7 @@ export const useCustomerLeads = (context: BusinessAppContextProps) => {
 
   const fetchCustomerLeadById = useCallback(
     async (id: string): Promise<CustomerLead | null> => {
-      const query = buildCustomerLeadByIdQuery(undefined, undefined, id)
+      const query = buildCustomerLeadByIdQuery(undefined, id)
       const result = await graphqlClient.request<{ LeadByPk: BaseCustomerLead | null }>(query)
       return result.LeadByPk ? toCustomerLead(result.LeadByPk) : null
     },

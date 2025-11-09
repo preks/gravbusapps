@@ -12,14 +12,14 @@ import {
 import { Clock, Calendar } from 'lucide-react'
 import { navigateTo } from '@/common/utils/navigationUtils'
 import { getCatalogEntryValue } from '@/common/data/catalog/utils/catalogTranslationUtils'
-import type { CommonTask } from '@/common/data/relations/types/commonTaskTypes'
+import type { Task } from '@/common/data/relations/types/taskTypes'
 import { TaskPriority, TaskStatus } from '@/common/data/relations/constants/commonTaskConstants'
 import dayjs from 'dayjs'
 
 const formatDate = (dateString: string) => dayjs(dateString).format('MM/DD/YYYY')
 
 // Helper function to get employee display name
-const getEmployeeName = (employee: CommonTask['assignedEmployee']): string => {
+const getEmployeeName = (employee: Task['assignedEmployee']): string => {
   if (!employee) return '-'
   if (employee.displayName) return employee.displayName
   if (employee.firstName || employee.lastName) {
@@ -75,7 +75,7 @@ const getReferenceTypeBadgeVariant = (type?: string): 'default' | 'secondary' | 
   return 'outline'
 }
 
-const getTimingTypeIcon = (task: CommonTask) => {
+const getTimingTypeIcon = (task: Task) => {
   const timingType = task.taskTiming
 
   if (!timingType) {
@@ -101,10 +101,10 @@ const getTimingTypeIcon = (task: CommonTask) => {
 }
 
 /**
- * Default Task Columns based on CommonTask
+ * Default Task Columns based on Task
  * Views can use these as-is, filter, extend, or completely override
  */
-export const createTaskColumns = (): ColumnDef<CommonTask>[] => [
+export const createTaskColumns = (): ColumnDef<Task>[] => [
   {
     id: 'name',
     accessorKey: 'name',
@@ -333,7 +333,7 @@ export const createTaskColumns = (): ColumnDef<CommonTask>[] => [
 ]
 
 /**
- * Default column mapping for CommonTask
+ * Default column mapping for Task
  * Maps column IDs to GraphQL field paths for sorting
  */
 export const defaultTaskColumnMapping: Record<string, string> = {
@@ -343,7 +343,7 @@ export const defaultTaskColumnMapping: Record<string, string> = {
   createdAt: 'createdAt',
   updatedAt: 'updatedAt',
 
-  // Catalog fields (CommonTask naming with translated value sorting)
+  // Catalog fields (Task naming with translated value sorting)
   type: 'taskType.value',
   priority: 'taskPriority.value',
   status: 'taskStatus.value',

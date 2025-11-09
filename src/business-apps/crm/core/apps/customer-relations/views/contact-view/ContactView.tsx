@@ -1,12 +1,11 @@
 import { useMemo } from 'react'
 import { BusinessAppContextProps } from '@/common/BusinessAppContext'
 import { ContactLayout, type ContactViewConfig } from '@/common/components/common-relations/view-layouts/contact-layout'
-import type { CommonContact } from '@/common/data/relations/types/commonContactTypes'
-import { COMMON_CONTACT_DESCRIPTORS } from '@/common/data/relations/types/commonContactTypes'
+import type { Contact } from '@/common/data/relations/types/contactTypes'
 import { commonContactColumns } from '@/common/components/common-relations/view-layouts/contact-layout/config'
 import { commonContactFilterConfig } from '@/common/components/common-relations/view-layouts/contact-layout/config'
 import { useCustomerContacts } from '@/common/data/customer/hooks/useCustomerContacts'
-import { useCustomerContactFilters } from '@/common/data/customer/hooks/useCustomerContactFilters'
+import { CUSTOMER_CONTACT_DESCRIPTORS } from '@/common/data/customer/types/customerContactTypes'
 import type { CustomerContactQueryVariables } from '@/common/data/customer/queries/customerContactQueries.new'
 import { normalizeDateRange } from '@/common/utils/dateRangeNormalizer'
 import { FlowContextName } from '@/common/types/FlowRegistryTypes'
@@ -21,7 +20,6 @@ export const ContactView: React.FC<ContactViewProps> = context => {
 
   // Data Hooks
   const { fetchCustomerContacts } = useCustomerContacts(context)
-  const contactFilters = useCustomerContactFilters(context)
   const contactStatistics = useCustomerContactStatistics(context)
 
   // Statistics - Transform hook data to ContactStatisticsData format
@@ -41,19 +39,12 @@ export const ContactView: React.FC<ContactViewProps> = context => {
   }, [contactStatistics])
 
   // Config
-  const config: ContactViewConfig<CommonContact, CustomerContactQueryVariables> = useMemo(
+  const config: ContactViewConfig<Contact, CustomerContactQueryVariables> = useMemo(
     () => ({
       fetchContacts: fetchCustomerContacts,
-      filterDataHook: () => ({
-        owners: contactFilters.owners,
-        departments: contactFilters.departments,
-        jobPositions: contactFilters.jobPositions,
-        academicTitles: contactFilters.academicTitles,
-        salutations: contactFilters.salutations,
-        languages: contactFilters.languages
-      }),
       createColumns: () => commonContactColumns(),
-      descriptors: COMMON_CONTACT_DESCRIPTORS,
+      descriptors: CUSTOMER_CONTACT_DESCRIPTORS,
+      entityName: 'Contact',
       columnLabels: {
         contact: 'Contact',
         firstName: 'First Name',
@@ -145,7 +136,7 @@ export const ContactView: React.FC<ContactViewProps> = context => {
       contactStatistics: contactStatisticsData,
       processCompletionEvents: ['taskCompletion', 'contactCompletion'],
       rowActionsContextArray: [FlowContextName.customerContactEntity],
-      buildRowActionsExternalContextData: (row: { original: CommonContact }) => ({
+      buildRowActionsExternalContextData: (row: { original: Contact }) => ({
         contactId: row.original.id
       }),
       translations: {
@@ -159,7 +150,7 @@ export const ContactView: React.FC<ContactViewProps> = context => {
         addContact: { key: 'common:addContact', default: 'Add Contact' }
       }
     }),
-    [fetchCustomerContacts, contactFilters, contactStatisticsData, accessToken]
+    [fetchCustomerContacts, contactStatisticsData, accessToken]
   )
 
   return <ContactLayout context={context} config={config} dataTestId="customer-contact-view" />

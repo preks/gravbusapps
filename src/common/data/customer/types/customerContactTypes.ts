@@ -3,8 +3,8 @@
  * CustomerContact and related reference types
  */
 
-import type { CommonContact } from '@/common/data/relations/types/commonContactTypes'
-import { ContactFields, createCommonContactDescriptors } from '@/common/data/relations/types/commonContactTypes'
+import type { Contact } from '@/common/data/relations/types/contactTypes'
+import { ContactFields, createContactDescriptors } from '@/common/data/relations/types/contactTypes'
 import type { Descriptor } from '@/common/network/graphql/queryHelpers'
 import type { CustomerActivity } from './customerActivityTypes'
 import type { CustomerAddress } from './customerAddressTypes'
@@ -18,9 +18,9 @@ import type { ContactType } from '@/common/data/relations/constants/commonContac
 
 /**
  * Customer Contact Interface
- * Extends CommonContact with Customer-specific types and base fields for mapping
+ * Extends Contact with Customer-specific types and base fields for mapping
  */
-export interface CustomerContact extends CommonContact {
+export interface CustomerContact extends Contact {
   accountContacts?: CustomerAccountContact[]
   activities?: CustomerActivity[]
   addresses?: CustomerAddress[]
@@ -58,12 +58,12 @@ export type CustomerContactFieldName = (typeof CustomerContactFields)[keyof type
 
 /**
  * Customer Contact Descriptors
- * Uses createCommonContactDescriptors with CustomerContactFields mapping
+ * Uses createContactDescriptors with CustomerContactFields mapping
  * Filters out and overrides descriptors with structural differences (CRM uses different nested field names)
  */
 export const CUSTOMER_CONTACT_DESCRIPTORS: Descriptor[] = [
   // Filter out descriptors that need structural overrides
-  ...createCommonContactDescriptors(CustomerContactFields as Record<keyof typeof ContactFields, string>).filter(
+  ...createContactDescriptors(CustomerContactFields as Record<keyof typeof ContactFields, string>).filter(
     d => !['addresses', 'description', 'fullName', 'notes', 'leads'].includes(d.key)
   ),
 

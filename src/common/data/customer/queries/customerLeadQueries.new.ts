@@ -10,24 +10,23 @@ import {
   buildLeadSearchQuery,
   buildLeadWhereCondition,
   buildLeadOrderBy,
-  type CommonLeadQueryVariables
-} from '@/common/data/relations/queries/commonLeadQueries'
-import {
-  buildLeadFragmentWithRelations,
+  type CommonLeadQueryVariables,
   type LeadRelationBuilders,
   type LeadRelationFields
-} from '@/common/data/relations/queries/commonLeadQueries'
+} from '@/common/data/relations/queries/leadQueries'
 import { CustomerLeadFields, CUSTOMER_LEAD_DESCRIPTORS } from '../types/customerLeadTypes'
 import type { Descriptor } from '@/common/network/graphql/queryHelpers'
 
 // Import Common REF Fragment Builders (no relations - to avoid circular dependencies)
-import { buildActivityFragment } from '@/common/data/relations/queries/commonActivityFragments.new'
-import { buildDocumentFragment } from '@/common/data/relations/queries/commonDocumentFragments.new'
-import { buildNoteFragment } from '@/common/data/relations/queries/commonNoteFragments.new'
-import { buildTaskFragment } from '@/common/data/relations/queries/commonTaskFragments.new'
-import { buildAccountFragment } from '@/common/data/relations/queries/commonAccountFragments.new'
-import { buildContactFragment } from '@/common/data/relations/queries/commonContactFragments.new'
-import { buildOpportunityFragment } from '@/common/data/relations/queries/commonOpportunityFragments.new'
+import {
+  buildActivityFragment,
+  buildDocumentFragment,
+  buildNoteFragment,
+  buildTaskFragment,
+  buildAccountFragment,
+  buildContactFragment,
+  buildOpportunityFragment
+} from '@/common/data/relations/queries/relationFragments'
 
 // Import Customer Fields
 import { CustomerActivityFields } from '../types/customerActivityTypes'
@@ -45,43 +44,11 @@ import { CustomerOpportunityFields } from '../types/customerOpportunityTypes'
 export type CustomerLeadQueryVariables = CommonLeadQueryVariables
 
 /**
- * Build Customer Lead fragment using fields mapping
- * Includes Common Lead fields + common entity relations
- */
-export const buildCustomerLeadFragment = (fields: typeof CustomerLeadFields = CustomerLeadFields): string => {
-  // Build common fragment with relations using REF fragments (no relations) to avoid circular dependencies
-  const relationBuilders: LeadRelationBuilders = {
-    buildActivityFragment, // REF fragment (no relations)
-    buildDocumentFragment, // REF fragment (no relations)
-    buildNoteFragment, // REF fragment (no relations)
-    buildTaskFragment, // REF fragment (no relations)
-    buildAccountFragment, // REF fragment (no relations) - for convertedAccount
-    buildContactFragment, // REF fragment (no relations) - for convertedContact
-    buildOpportunityFragment // REF fragment (no relations) - for convertedOpportunity
-  }
-
-  const relationFields: LeadRelationFields = {
-    activityFields: CustomerActivityFields,
-    documentFields: CustomerDocumentFields,
-    noteFields: CustomerNoteFields,
-    taskFields: CustomerTaskFields,
-    accountFields: CustomerAccountFields, // for convertedAccount
-    contactFields: CustomerContactFields, // for convertedContact
-    opportunityFields: CustomerOpportunityFields // for convertedOpportunity
-  }
-
-  return buildLeadFragmentWithRelations(fields, relationBuilders, relationFields)
-}
-
-/**
  * Build Customer Lead query with fields mapping
  * CRM uses "Lead" as entity name (not "CustomerLead")
  */
-export const buildCustomerLeadQuery = (
-  fields: typeof CustomerLeadFields = CustomerLeadFields,
-  fragment: string = buildCustomerLeadFragment(fields)
-): string => {
-  return buildLeadQuery(fields, fragment, 'Lead')
+export const buildCustomerLeadQuery = (fields: typeof CustomerLeadFields = CustomerLeadFields): string => {
+  return buildLeadQuery(fields, 'Lead')
 }
 
 /**
@@ -89,10 +56,30 @@ export const buildCustomerLeadQuery = (
  */
 export const buildCustomerLeadByIdQuery = (
   fields: typeof CustomerLeadFields = CustomerLeadFields,
-  fragment: string = buildCustomerLeadFragment(fields),
   id: string
 ): string => {
-  return buildLeadByIdQuery(fields, fragment, id, 'Lead')
+  // Build relation builders and fields for common relations
+  const relationBuilders: LeadRelationBuilders = {
+    buildActivityFragment,
+    buildDocumentFragment,
+    buildNoteFragment,
+    buildTaskFragment,
+    buildAccountFragment,
+    buildContactFragment,
+    buildOpportunityFragment
+  }
+
+  const relationFields: LeadRelationFields = {
+    activityFields: CustomerActivityFields,
+    documentFields: CustomerDocumentFields,
+    noteFields: CustomerNoteFields,
+    taskFields: CustomerTaskFields,
+    accountFields: CustomerAccountFields,
+    contactFields: CustomerContactFields,
+    opportunityFields: CustomerOpportunityFields
+  }
+
+  return buildLeadByIdQuery(fields, id, 'Lead', relationBuilders, relationFields)
 }
 
 /**

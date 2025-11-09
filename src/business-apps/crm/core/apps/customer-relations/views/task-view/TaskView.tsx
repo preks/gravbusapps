@@ -1,14 +1,13 @@
 import { useMemo } from 'react'
 import { BusinessAppContextProps } from '@/common/BusinessAppContext'
 import { useCustomerTasks } from '@/common/data/customer/hooks/useCustomerTasks'
-import { useCustomerTaskFilters } from '@/common/data/customer/hooks/useCustomerTaskFilters'
 import { useCustomerTaskStatistics } from '@/common/data/customer/hooks/useCustomerTaskStatistics'
 import { TaskLayout, type TaskViewConfig } from '@/common/components/common-relations/view-layouts/task-layout'
 import type { CustomerTask } from '@/common/data/customer/types/customerTaskTypes'
 import { CUSTOMER_TASK_DESCRIPTORS } from '@/common/data/customer/types/customerTaskTypes'
 import type { CustomerTaskQueryVariables } from '@/common/data/customer/queries/customerTaskQueries.new'
 import { normalizeDateRange } from '@/common/utils/dateRangeNormalizer'
-import type { TaskReference } from '@/common/data/relations/types/commonTaskTypes'
+import type { TaskReference } from '@/common/data/relations/types/taskTypes'
 import { FlowContextName } from '@/common/types/FlowRegistryTypes'
 import { createTaskColumns } from '@/common/components/common-relations/view-layouts/task-layout/config'
 import { taskFilterConfig } from '@/common/components/common-relations/view-layouts/task-layout/config'
@@ -19,7 +18,6 @@ export type TaskViewProps = BusinessAppContextProps
 export const TaskView: React.FC<TaskViewProps> = context => {
   const { fetchCustomerTasks } = useCustomerTasks(context)
   const taskStatistics = useCustomerTaskStatistics(context)
-  const taskFilters = useCustomerTaskFilters(context)
 
   // Build reference URLs for CRM context
   const buildReferenceUrl = (reference: TaskReference): string => {
@@ -59,10 +57,9 @@ export const TaskView: React.FC<TaskViewProps> = context => {
         }
       },
 
-      filterDataHook: () => taskFilters,
-
       createColumns: () => createTaskColumns() as any,
       descriptors: CUSTOMER_TASK_DESCRIPTORS,
+      entityName: 'SalesTask',
       columnLabels: {
         name: 'Task',
         taskType: 'Type',
@@ -208,7 +205,7 @@ export const TaskView: React.FC<TaskViewProps> = context => {
 
       buildReferenceUrl
     }),
-    [context, fetchCustomerTasks, taskStatistics, taskFilters, buildReferenceUrl]
+    [context, fetchCustomerTasks, taskStatistics, buildReferenceUrl]
   )
 
   return (

@@ -12,7 +12,7 @@ import { CustomerOpportunity, CustomerOpportunityStageCondition } from '../types
  * - crmDocument / crmNote → documents / notes
  */
 export function toCustomerOpportunity(base: CustomerOpportunity): CustomerOpportunity {
-  // Map CRM field names to CommonOpportunity standard (IRM naming)
+  // Map CRM field names to Opportunity standard (IRM naming)
   const opportunityPipeline = (base as any).salesPipeline || (base as any).opportunityPipeline || (base as any).pipeline
   const opportunityPipelineRef = (base as any).salesPipelineRef || (base as any).opportunityPipelineRef
   const opportunityPipelineStage = (base as any).salesPipelineStage || (base as any).opportunityPipelineStage
@@ -30,7 +30,7 @@ export function toCustomerOpportunity(base: CustomerOpportunity): CustomerOpport
 
   return {
     ...base,
-    // Map CRM fields to CommonOpportunity standard
+    // Map CRM fields to Opportunity standard
     opportunityPipeline,
     opportunityPipelineRef,
     opportunityPipelineStage,

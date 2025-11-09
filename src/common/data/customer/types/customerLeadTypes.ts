@@ -1,13 +1,13 @@
 import type { CatalogEntry } from '@/common/network/graphql/commonTypes'
-import type { CommonLead } from '@/common/data/relations/types/commonLeadTypes'
-import { LeadFields, createCommonLeadDescriptors } from '@/common/data/relations/types/commonLeadTypes'
+import type { Lead } from '@/common/data/relations/types/leadTypes'
+import { LeadFields, createLeadDescriptors } from '@/common/data/relations/types/leadTypes'
 import type { Descriptor } from '@/common/network/graphql/queryHelpers'
 import { CustomerAccount } from './customerAccountTypes'
 import { CustomerContact } from './customerContactTypes'
 import { CustomerTask } from './customerTaskTypes'
 import { CustomerDocument, CustomerOpportunity, CustomerActivity, CustomerNote } from './'
 
-export interface CustomerLead extends CommonLead {
+export interface CustomerLead extends Lead {
   account?: CustomerAccount
   activities?: CustomerActivity[]
   contact?: CustomerContact
@@ -50,12 +50,12 @@ export type CustomerLeadFieldName = (typeof CustomerLeadFields)[keyof typeof Cus
 
 /**
  * Customer Lead Descriptors
- * Uses createCommonLeadDescriptors with CustomerLeadFields mapping
+ * Uses createLeadDescriptors with CustomerLeadFields mapping
  * Filters out and overrides descriptors with structural differences (CRM uses different nested field names)
  */
 export const CUSTOMER_LEAD_DESCRIPTORS: Descriptor[] = [
   // Filter out descriptors that need structural overrides
-  ...createCommonLeadDescriptors(CustomerLeadFields as Record<keyof typeof LeadFields, string>).filter(
+  ...createLeadDescriptors(CustomerLeadFields as Record<keyof typeof LeadFields, string>).filter(
     d => !['address', 'locality', 'notes'].includes(d.key)
   ),
 

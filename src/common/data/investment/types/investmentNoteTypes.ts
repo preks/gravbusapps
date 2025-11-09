@@ -1,5 +1,5 @@
-import type { CommonNote } from '@/common/data/relations/types/commonNoteTypes'
-import { NoteFields, createCommonNoteDescriptors } from '@/common/data/relations/types/commonNoteTypes'
+import type { Note } from '@/common/data/relations/types/noteTypes'
+import { NoteFields, createNoteDescriptors } from '@/common/data/relations/types/noteTypes'
 import type { Descriptor } from '@/common/network/graphql/queryHelpers'
 import {
   Investment,
@@ -10,7 +10,7 @@ import {
   InvestmentLead
 } from './'
 
-export interface InvestmentNote extends CommonNote {
+export interface InvestmentNote extends Note {
   account?: InvestmentAccount
   contact?: InvestmentContact
   documents?: InvestmentDocument[]
@@ -30,6 +30,6 @@ export type InvestmentNoteFieldName = (typeof InvestmentNoteFields)[keyof typeof
 
 /**
  * Investment Note Descriptors
- * Uses createCommonNoteDescriptors with InvestmentNoteFields mapping
+ * Uses createNoteDescriptors with InvestmentNoteFields mapping
  */
-export const INVESTMENT_NOTE_DESCRIPTORS: Descriptor[] = [...createCommonNoteDescriptors(InvestmentNoteFields)]
+export const INVESTMENT_NOTE_DESCRIPTORS: Descriptor[] = [...createNoteDescriptors(InvestmentNoteFields)]

@@ -1,13 +1,12 @@
 import { useMemo } from 'react'
 import { BusinessAppContextProps } from '@/common/BusinessAppContext'
 import { AccountLayout, type AccountViewConfig } from '@/common/components/common-relations/view-layouts/account-layout'
-import type { CommonAccount } from '@/common/data/relations/types/commonAccountTypes'
-import { COMMON_ACCOUNT_DESCRIPTORS } from '@/common/data/relations/types/commonAccountTypes'
+import type { Account } from '@/common/data/relations/types/accountTypes'
+import { INVESTMENT_ACCOUNT_DESCRIPTORS } from '@/common/data/investment/types/investmentAccountTypes'
 import { commonAccountColumns } from '@/common/components/common-relations/view-layouts/account-layout/config'
 import { commonAccountFilterConfig } from '@/common/components/common-relations/view-layouts/account-layout/config'
 import { useGetInvestmentAccounts } from '@/common/data/investment/hooks/useInvestmentAccounts'
-import { useInvestmentAccountFilters } from '@/common/data/investment/hooks/useInvestmentAccountFilters'
-import type { InvestmentAccountQueryVariables } from '@/common/data/investment/queries/investmentAccountQueries.new'
+import type { InvestmentAccountQueryVariables } from '@/common/data/investment/queries/investmentAccountQueries'
 import { normalizeDateRange } from '@/common/utils/dateRangeNormalizer'
 import { FlowContextName } from '@/common/types/FlowRegistryTypes'
 import { buildPlatformUrl } from '@/common/utils/navigationUtils'
@@ -21,7 +20,6 @@ export const AccountView: React.FC<AccountViewProps> = context => {
 
   // Data Hooks
   const { fetchInvestmentAccounts } = useGetInvestmentAccounts(context)
-  const filterData = useInvestmentAccountFilters(context)
   const accountStatistics = useInvestmentAccountStatistics(context)
 
   // Statistics - Transform hook data to AccountStatisticsData format
@@ -39,7 +37,7 @@ export const AccountView: React.FC<AccountViewProps> = context => {
   }, [accountStatistics])
 
   // Config
-  const config: AccountViewConfig<CommonAccount, InvestmentAccountQueryVariables> = useMemo(
+  const config: AccountViewConfig<Account, InvestmentAccountQueryVariables> = useMemo(
     () => ({
       fetchAccounts: async (variables: InvestmentAccountQueryVariables) => {
         const result = await fetchInvestmentAccounts(variables)
@@ -48,22 +46,9 @@ export const AccountView: React.FC<AccountViewProps> = context => {
           total: result.InvestmentAccountAggregate?.aggregate?.count || 0
         }
       },
-      filterDataHook: () => ({
-        owners: filterData.owners,
-        industries: filterData.industries,
-        legalForms: filterData.legalForms,
-        companySizes: filterData.companySizes,
-        revenueBands: filterData.revenueBands,
-        countries: filterData.countries,
-        searchOwners: filterData.searchOwners,
-        searchIndustries: filterData.searchIndustries,
-        searchLegalForms: filterData.searchLegalForms,
-        searchCompanySizes: filterData.searchCompanySizes,
-        searchRevenueBands: filterData.searchRevenueBands,
-        searchCountries: filterData.searchCountries
-      }),
+      entityName: 'InvestmentAccount',
       createColumns: () => commonAccountColumns,
-      descriptors: COMMON_ACCOUNT_DESCRIPTORS,
+      descriptors: INVESTMENT_ACCOUNT_DESCRIPTORS,
       columnLabels: {
         name: 'Account Name',
         industryClass: 'Industry',
@@ -148,7 +133,7 @@ export const AccountView: React.FC<AccountViewProps> = context => {
         'accountCompleted'
       ],
       rowActionsContextArray: [FlowContextName.investmentAccountEntity],
-      buildRowActionsExternalContextData: (row: { original: CommonAccount }) => ({
+      buildRowActionsExternalContextData: (row: { original: Account }) => ({
         accountId: row.original.id || ''
       }),
       translations: {
@@ -162,7 +147,7 @@ export const AccountView: React.FC<AccountViewProps> = context => {
         addAccount: { key: 'irm:account.addAccount', default: 'Add Account' }
       }
     }),
-    [fetchInvestmentAccounts, filterData, accountStatisticsData, accessToken]
+    [fetchInvestmentAccounts, accountStatisticsData, accessToken]
   )
 
   return <AccountLayout context={context} config={config} dataTestId="investment-account-view" />

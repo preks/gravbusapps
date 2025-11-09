@@ -21,7 +21,6 @@ export const commonContactFilterConfig: FilterConfiguration = {
           type: 'multi-select',
           config: {
             options: [],
-            enableSearch: true,
             searchPlaceholder: 'Search owners...',
             totalCount: 0,
             hasMore: false
@@ -42,7 +41,6 @@ export const commonContactFilterConfig: FilterConfiguration = {
           type: 'multi-select',
           config: {
             options: [],
-            enableSearch: true,
             searchPlaceholder: 'Search departments...',
             totalCount: 0,
             hasMore: false
@@ -63,7 +61,6 @@ export const commonContactFilterConfig: FilterConfiguration = {
           type: 'multi-select',
           config: {
             options: [],
-            enableSearch: true,
             searchPlaceholder: 'Search job positions...',
             totalCount: 0,
             hasMore: false
@@ -84,7 +81,6 @@ export const commonContactFilterConfig: FilterConfiguration = {
           type: 'multi-select',
           config: {
             options: [],
-            enableSearch: true,
             searchPlaceholder: 'Search academic titles...',
             totalCount: 0,
             hasMore: false
@@ -105,7 +101,6 @@ export const commonContactFilterConfig: FilterConfiguration = {
           type: 'multi-select',
           config: {
             options: [],
-            enableSearch: true,
             searchPlaceholder: 'Search salutations...',
             totalCount: 0,
             hasMore: false
@@ -126,7 +121,6 @@ export const commonContactFilterConfig: FilterConfiguration = {
           type: 'multi-select',
           config: {
             options: [],
-            enableSearch: true,
             searchPlaceholder: 'Search languages...',
             totalCount: 0,
             hasMore: false

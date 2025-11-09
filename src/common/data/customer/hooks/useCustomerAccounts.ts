@@ -64,7 +64,7 @@ export const useCustomerAccounts = (context: BusinessAppContextProps) => {
 
   const fetchCustomerAccountById = useCallback(
     async (id: string): Promise<CustomerAccount | null> => {
-      const query = buildCustomerAccountByIdQuery(CustomerAccountFields, undefined, id)
+      const query = buildCustomerAccountByIdQuery(CustomerAccountFields, id)
       const result = await graphqlClient.request<{ AccountByPk: any }>(query)
       const raw = result.AccountByPk
       return raw ? toCustomerAccount(raw) : null

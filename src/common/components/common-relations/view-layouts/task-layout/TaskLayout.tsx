@@ -11,38 +11,22 @@ import { TaskListLayout } from './components/TaskListLayout'
 import { TaskStatisticsLayout } from './components/TaskStatisticsLayout'
 import { useProcessCompletion } from '@/common/hooks/useProcessCompletion'
 import { AppActionMenu } from '@/components/app-action-menu/AppActionMenu'
-import type { CommonTask, TaskReference } from '@/common/data/relations/types/commonTaskTypes'
+import type { Task, TaskReference } from '@/common/data/relations/types/taskTypes'
 import { TaskDetailSheet } from '@/common/components/common-relations/detail-sheets/task-detail-sheet'
 import { deriveSortableColumns } from '@/common/network/graphql/descriptorUtils'
 import type { Descriptor } from '@/common/network/graphql/queryHelpers'
-
-// Helper: Update filter options
-const updateFilterOptions = (
-  filterConfig: FilterConfiguration,
-  groupId: string,
-  filterId: string,
-  options: Array<{ id: string; label: string }>
-) => {
-  if (options.length === 0) return
-
-  const group = filterConfig.groups.find(g => g.id === groupId)
-  if (!group) return
-
-  const filter = group.filters.find(f => f.id === filterId)
-  if (filter?.config && 'options' in filter.config) {
-    filter.config.options = options
-  }
-}
+import { useFilterGroups } from '@/common/data/common/hooks/useFilterGroups'
+import { buildDynamicFilterConfig } from './utils/filterHelpers'
 
 export type TaskTabKey = 'my' | 'team'
 
 /**
  * Task View Configuration
  * Generic configuration for TaskLayout with domain-specific types
- * @template TTask - Task type extending CommonTask (e.g., CustomerTask, InvestmentTask)
+ * @template TTask - Task type extending Task (e.g., CustomerTask, InvestmentTask)
  * @template TQueryVariables - GraphQL query variables type
  */
-export interface TaskViewConfig<TTask extends CommonTask = CommonTask, TQueryVariables = any> {
+export interface TaskViewConfig<TTask extends Task = Task, TQueryVariables = any> {
   fetchMyTasks: (variables: TQueryVariables) => Promise<{
     tasks?: TTask[]
     total?: number
@@ -53,15 +37,10 @@ export interface TaskViewConfig<TTask extends CommonTask = CommonTask, TQueryVar
     total?: number
   }>
 
-  filterDataHook: (context: BusinessAppContextProps) => {
-    types: Array<{ id: string; label: string }>
-    statuses: Array<{ id: string; label: string }>
-    priorities: Array<{ id: string; label: string }>
-  }
-
   createColumns: () => ColumnDef<TTask>[]
   descriptors: Descriptor[]
   columnLabels?: Record<string, string>
+  entityName: string
 
   baseFilterConfig: FilterConfiguration
 
@@ -109,10 +88,10 @@ export interface TaskViewConfig<TTask extends CommonTask = CommonTask, TQueryVar
 
 /**
  * Task Layout Props
- * @template TTask - Task type extending CommonTask (e.g., CustomerTask, InvestmentTask)
+ * @template TTask - Task type extending Task (e.g., CustomerTask, InvestmentTask)
  * @template TQueryVariables - GraphQL query variables type
  */
-export interface TaskLayoutProps<TTask extends CommonTask = CommonTask, TQueryVariables = any> {
+export interface TaskLayoutProps<TTask extends Task = Task, TQueryVariables = any> {
   context: BusinessAppContextProps
   config: TaskViewConfig<TTask, TQueryVariables>
   dataTestId?: string
@@ -124,10 +103,10 @@ export interface TaskLayoutProps<TTask extends CommonTask = CommonTask, TQueryVa
 /**
  * Generic Task Layout Component
  * Provides common task management functionality with domain-specific customization
- * @template TTask - Task type extending CommonTask
+ * @template TTask - Task type extending Task
  * @template TQueryVariables - GraphQL query variables type
  */
-const ConfigTaskLayout = <TTask extends CommonTask = CommonTask, TQueryVariables = any>(
+const ConfigTaskLayout = <TTask extends Task = Task, TQueryVariables = any>(
   props: TaskLayoutProps<TTask, TQueryVariables>
 ) => {
   const {
@@ -204,35 +183,13 @@ const ConfigTaskLayout = <TTask extends CommonTask = CommonTask, TQueryVariables
 
   const [isInitialLoad, setIsInitialLoad] = useState(true)
 
-  // Dynamic Filter Data
-  const filterData = config.filterDataHook(context)
-  const { types, statuses, priorities } = filterData
+  // Use centralized filter groups hook
+  const filterGroups = useFilterGroups(context, config.entityName, config.descriptors, { limit: 100 })
 
   // Dynamic Filter Configuration
   const dynamicFilterConfig = useMemo(() => {
-    const filterConfig = { ...config.baseFilterConfig }
-
-    updateFilterOptions(
-      filterConfig,
-      'status-group',
-      'taskStatusIds',
-      statuses.map(s => ({ id: s.id, label: s.label }))
-    )
-    updateFilterOptions(
-      filterConfig,
-      'priority-group',
-      'taskPriorityIds',
-      priorities.map(p => ({ id: p.id, label: p.label }))
-    )
-    updateFilterOptions(
-      filterConfig,
-      'type-group',
-      'taskTypeIds',
-      types.map(t => ({ id: t.id, label: t.label }))
-    )
-
-    return filterConfig
-  }, [types, statuses, priorities, config.baseFilterConfig])
+    return buildDynamicFilterConfig(config.baseFilterConfig, config.descriptors, filterGroups)
+  }, [config.baseFilterConfig, config.descriptors, filterGroups])
 
   // Query Variables
   const queryVariables = useMemo(

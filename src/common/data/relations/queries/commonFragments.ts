@@ -259,7 +259,7 @@ export const COMMON_OPPORTUNITY_FIELDS = `
 /**
  * COMMON_OPPORTUNITY_STAGE_CONDITION_REF
  *
- * Fields marked with // IRM | CRM in CommonOpportunityStageCondition:
+ * Fields marked with // IRM | CRM in OpportunityStageCondition:
  * - completed
  * - completedAt
  * - completedByEmployee + completedByEmployeeId

@@ -2,8 +2,8 @@ import type { ColumnDef } from '@tanstack/react-table'
 import { Badge, Avatar, AvatarImage, AvatarFallback } from '@newwork/nw-design-system'
 import { Building2, Calendar } from 'lucide-react'
 import { navigateTo } from '@/common/utils/navigationUtils'
-import { deriveSortableColumns, mergeDescriptors } from '@/common/network/graphql/descriptorUtils'
-import { COMMON_OPPORTUNITY_DESCRIPTORS } from '@/common/data/relations/types/commonOpportunityTypes'
+import { deriveSortableColumns } from '@/common/network/graphql/descriptorUtils'
+import { createOpportunityDescriptors, OpportunityFields } from '@/common/data/relations/types/opportunityTypes'
 import type { Descriptor } from '@/common/network/graphql/queryHelpers'
 
 // Generic opportunity interface that both Investment and Customer opportunities implement
@@ -434,7 +434,7 @@ export function createOpportunityColumns<T extends GenericOpportunityForColumns>
 /**
  * Create sortable columns derived from descriptors
  * Views should pass their specific descriptors (e.g., CUSTOMER_OPPORTUNITY_DESCRIPTORS or INVESTMENT_OPPORTUNITY_DESCRIPTORS)
- * which extend COMMON_OPPORTUNITY_DESCRIPTORS with domain-specific overrides
+ * which extend createOpportunityDescriptors(OpportunityFields) with domain-specific overrides
  */
 const OPPORTUNITY_COLUMN_LABELS: Record<string, string> = {
   opportunity: 'Opportunity',
@@ -456,9 +456,11 @@ const OPPORTUNITY_COLUMN_LABELS: Record<string, string> = {
  * @returns Array of sortable column definitions
  */
 export const createOpportunitySortableColumns = (viewDescriptors?: Descriptor[], availableColumnIds?: string[]) => {
-  const descriptors = viewDescriptors
-    ? mergeDescriptors(COMMON_OPPORTUNITY_DESCRIPTORS, viewDescriptors)
-    : COMMON_OPPORTUNITY_DESCRIPTORS
-
-  return deriveSortableColumns(descriptors, OPPORTUNITY_COLUMN_LABELS, availableColumnIds)
+  return deriveSortableColumns(
+    viewDescriptors
+      ? [createOpportunityDescriptors(OpportunityFields), viewDescriptors]
+      : createOpportunityDescriptors(OpportunityFields),
+    OPPORTUNITY_COLUMN_LABELS,
+    availableColumnIds
+  )
 }

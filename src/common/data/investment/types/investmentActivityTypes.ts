@@ -1,5 +1,5 @@
-import type { CommonActivity } from '@/common/data/relations/types/commonActivityTypes'
-import { ActivityFields, createCommonActivityDescriptors } from '@/common/data/relations/types/commonActivityTypes'
+import type { Activity } from '@/common/data/relations/types/activityTypes'
+import { ActivityFields, createActivityDescriptors } from '@/common/data/relations/types/activityTypes'
 import type { Descriptor } from '@/common/network/graphql/queryHelpers'
 import {
   Investment,
@@ -10,7 +10,7 @@ import {
   InvestmentLead
 } from './'
 
-export interface InvestmentActivity extends CommonActivity {
+export interface InvestmentActivity extends Activity {
   account?: InvestmentAccount
   contact?: InvestmentContact
   documents?: InvestmentDocument[]
@@ -35,8 +35,6 @@ export type InvestmentActivityFieldName = (typeof InvestmentActivityFields)[keyo
 
 /**
  * Investment Activity Descriptors
- * Uses createCommonActivityDescriptors with InvestmentActivityFields mapping
+ * Uses createActivityDescriptors with InvestmentActivityFields mapping
  */
-export const INVESTMENT_ACTIVITY_DESCRIPTORS: Descriptor[] = [
-  ...createCommonActivityDescriptors(InvestmentActivityFields)
-]
+export const INVESTMENT_ACTIVITY_DESCRIPTORS: Descriptor[] = [...createActivityDescriptors(InvestmentActivityFields)]

@@ -1,9 +1,9 @@
 import React from 'react'
 import { DataTable } from '@newwork/nw-design-system'
 import type { ColumnDef } from '@tanstack/react-table'
-import type { CommonAccount } from '@/common/data/relations/types/commonAccountTypes'
+import type { Account } from '@/common/data/relations/types/accountTypes'
 
-export interface AccountListLayoutProps<T extends CommonAccount = CommonAccount> {
+export interface AccountListLayoutProps<T extends Account = Account> {
   // Data
   data: T[]
   loading?: boolean
@@ -31,7 +31,7 @@ export interface AccountListLayoutProps<T extends CommonAccount = CommonAccount>
   dataTestId?: string
 }
 
-export function AccountListLayout<T extends CommonAccount = CommonAccount>(props: Readonly<AccountListLayoutProps<T>>) {
+export function AccountListLayout<T extends Account = Account>(props: Readonly<AccountListLayoutProps<T>>) {
   const {
     data,
     loading = false,
