@@ -623,6 +623,8 @@ export const TaskRecord: React.FC<TaskRecordProps> = ({ taskId, accessToken, use
         required: field.required || false,
         placeholder: field.placeholder,
         description: field.description,
+        value: field.value, // Extract default value from the field
+        readonly: field.readonly || field.readOnly || false, // Extract readonly status (support both readonly and readOnly)
         options: field.options?.map((opt: any) => ({
           value: opt.value || opt,
           label: opt.label || opt.value || opt
