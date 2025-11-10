@@ -1,7 +1,18 @@
 'use client'
 
-import React, { useState, useEffect } from 'react'
-import { Tabs, TabsList, TabsTrigger, TabsContent, useTranslation, useLocale } from '@newwork/nw-design-system'
+import React, { useState, useEffect, useCallback } from 'react'
+import {
+  Tabs,
+  TabsList,
+  TabsTrigger,
+  TabsContent,
+  useTranslation,
+  useLocale,
+  Skeleton,
+  Card,
+  CardHeader,
+  CardContent
+} from '@newwork/nw-design-system'
 import { PiGraduationCap, PiChartBar, PiChatCircle, PiCurrencyEur, PiClockCounterClockwise } from 'react-icons/pi'
 import SkillsTab from './SkillsTab'
 import PerformanceTab from './PerformanceTab'
@@ -64,7 +75,10 @@ const HrGrowthTab: React.FC<HrGrowthTabProps> = ({
   const { tabPermissions, loading: permissionsLoading } = useEmployeePermissions(employeeId, accessToken)
   const compensationPermission = tabPermissions?.[TAB_KEYS.compensation]?.hasAccess
 
+  // Determine if user has compensation permission (only when permissions are loaded)
   const hasCompensationPermission = permissionsLoading ? false : compensationPermission === true || isSelfView
+  // Show compensation tabs during loading to prevent layout shift, but hide them if permissions are loaded and user doesn't have access
+  const shouldShowCompensationTabs = permissionsLoading || hasCompensationPermission
   const shouldLoadCompensationData =
     !permissionsLoading &&
     hasCompensationPermission &&
@@ -82,11 +96,36 @@ const HrGrowthTab: React.FC<HrGrowthTabProps> = ({
     currentLocale
   )
 
+  // Update URL when subView changes
+  const updateUrl = useCallback(
+    (subView: HrGrowthSubView) => {
+      if (typeof window === 'undefined') return
+
+      const searchParams = new URLSearchParams(window.location.search)
+      searchParams.set('tab', 'hrGrowth')
+      searchParams.set('subView', subView)
+
+      const currentUserEmployeeId = userInfo?.employeeDetails?.employeeId || ''
+      if (employeeId && employeeId !== currentUserEmployeeId) {
+        searchParams.set('employeeId', employeeId)
+      } else {
+        searchParams.delete('employeeId')
+        searchParams.delete('id')
+      }
+
+      const newUrl = `${window.location.pathname}?${searchParams.toString()}`
+      window.history.replaceState({}, '', newUrl)
+    },
+    [employeeId, userInfo?.employeeDetails?.employeeId]
+  )
+
   useEffect(() => {
     if (typeof window === 'undefined') return
 
     if (!feedbackTabFeatureFlag && activeSubView === 'feedback') {
-      setActiveSubView('skills')
+      const newSubView = 'skills'
+      setActiveSubView(newSubView)
+      updateUrl(newSubView)
     }
 
     // Redirect compensation tabs to skills if user doesn't have permission
@@ -95,29 +134,23 @@ const HrGrowthTab: React.FC<HrGrowthTabProps> = ({
       !hasCompensationPermission &&
       (activeSubView === 'currentCompensation' || activeSubView === 'compensationHistory')
     ) {
-      setActiveSubView('skills')
+      const newSubView = 'skills'
+      setActiveSubView(newSubView)
+      updateUrl(newSubView)
     }
-  }, [feedbackTabFeatureFlag, activeSubView, permissionsLoading, hasCompensationPermission])
+  }, [feedbackTabFeatureFlag, activeSubView, permissionsLoading, hasCompensationPermission, updateUrl])
 
+  // Ensure URL is properly set on initial load
+  // Intentionally empty dependency array - this should only run once on mount
   useEffect(() => {
     if (typeof window === 'undefined') return
-
-    const searchParams = new URLSearchParams(window.location.search)
-    searchParams.set('tab', 'hrGrowth')
-    searchParams.set('subView', activeSubView)
-
-    const currentUserEmployeeId = userInfo?.employeeDetails?.employeeId || ''
-    if (employeeId && employeeId !== currentUserEmployeeId) {
-      searchParams.set('employeeId', employeeId)
-    } else {
-      searchParams.delete('employeeId')
-      searchParams.delete('id')
+    const urlParams = new URLSearchParams(window.location.search)
+    if (!urlParams.has('tab') || urlParams.get('tab') !== 'hrGrowth') {
+      updateUrl(activeSubView)
     }
+  }, [])
 
-    const newUrl = `${window.location.pathname}?${searchParams.toString()}`
-    window.history.replaceState({}, '', newUrl)
-  }, [activeSubView, employeeId, userInfo])
-
+  // Listen for browser back/forward navigation
   useEffect(() => {
     const handlePopState = () => {
       const newSubView = getInitialHrGrowthSubView()
@@ -129,7 +162,10 @@ const HrGrowthTab: React.FC<HrGrowthTabProps> = ({
   }, [])
 
   const handleSubViewChange = (value: string) => {
-    setActiveSubView(value as HrGrowthSubView)
+    const newSubView = value as HrGrowthSubView
+    setActiveSubView(newSubView)
+    // Update URL with new subView when tab changes
+    updateUrl(newSubView)
   }
 
   return (
@@ -171,11 +207,12 @@ const HrGrowthTab: React.FC<HrGrowthTabProps> = ({
               </span>
             </div>
           </TabsTrigger>
-          {hasCompensationPermission && (
+          {shouldShowCompensationTabs && (
             <TabsTrigger
               value="currentCompensation"
               data-testid="hr-growth-current-compensation-subtab"
               className="gba:flex-1"
+              disabled={permissionsLoading}
             >
               <div className="gba:flex gba:items-center gba:gap-2 gba:justify-center">
                 <PiCurrencyEur />
@@ -183,11 +220,12 @@ const HrGrowthTab: React.FC<HrGrowthTabProps> = ({
               </div>
             </TabsTrigger>
           )}
-          {hasCompensationPermission && (
+          {shouldShowCompensationTabs && (
             <TabsTrigger
               value="compensationHistory"
               data-testid="hr-growth-compensation-history-subtab"
               className="gba:flex-1"
+              disabled={permissionsLoading}
             >
               <div className="gba:flex gba:items-center gba:gap-2 gba:justify-center">
                 <PiClockCounterClockwise />
@@ -231,44 +269,95 @@ const HrGrowthTab: React.FC<HrGrowthTabProps> = ({
           />
         </TabsContent>
 
-        {hasCompensationPermission && (
+        {shouldShowCompensationTabs && (
           <TabsContent
             value="currentCompensation"
             data-testid="hr-growth-current-compensation-content"
             className="gba:mt-4"
           >
-            <CurrentCompensationView
-              t={t}
-              compensationData={compensationData}
-              loading={compensationLoading}
-              error={compensationError}
-              onRetry={refetchCompensation}
-              employeeId={employeeId}
-              accessToken={accessToken}
-              userInfo={userInfo}
-              additionalData={additionalData}
-              locale={currentLocale}
-            />
+            {permissionsLoading ? (
+              <div className="gba:space-y-6" data-testid="current-compensation-permissions-loading">
+                <Card>
+                  <CardHeader>
+                    <Skeleton className="gba:h-6 gba:w-48" />
+                  </CardHeader>
+                  <CardContent className="gba:space-y-4">
+                    <Skeleton className="gba:h-32 gba:w-full" />
+                    <div className="gba:space-y-2">
+                      <Skeleton className="gba:h-4 gba:w-full" />
+                      <Skeleton className="gba:h-4 gba:w-3/4" />
+                      <Skeleton className="gba:h-4 gba:w-1/2" />
+                    </div>
+                    <div className="gba:grid gba:grid-cols-2 gba:gap-4">
+                      <Skeleton className="gba:h-24 gba:w-full" />
+                      <Skeleton className="gba:h-24 gba:w-full" />
+                    </div>
+                  </CardContent>
+                </Card>
+              </div>
+            ) : (
+              <CurrentCompensationView
+                t={t}
+                compensationData={compensationData}
+                loading={compensationLoading}
+                error={compensationError}
+                onRetry={refetchCompensation}
+                employeeId={employeeId}
+                accessToken={accessToken}
+                userInfo={userInfo}
+                additionalData={additionalData}
+                locale={currentLocale}
+              />
+            )}
           </TabsContent>
         )}
 
-        {hasCompensationPermission && (
+        {shouldShowCompensationTabs && (
           <TabsContent
             value="compensationHistory"
             data-testid="hr-growth-compensation-history-content"
             className="gba:mt-4"
           >
-            <PayHistoryView
-              t={t}
-              historyData={historyData}
-              loading={compensationLoading}
-              error={compensationError}
-              onRetry={refetchCompensation}
-              locale={currentLocale}
-              accessToken={accessToken}
-              userInfo={userInfo}
-              additionalData={additionalData}
-            />
+            {permissionsLoading ? (
+              <div className="gba:space-y-6" data-testid="compensation-history-permissions-loading">
+                <Card>
+                  <CardHeader>
+                    <Skeleton className="gba:h-6 gba:w-48" />
+                  </CardHeader>
+                  <CardContent className="gba:space-y-4">
+                    <div className="gba:space-y-2">
+                      <Skeleton className="gba:h-4 gba:w-full" />
+                      <Skeleton className="gba:h-4 gba:w-3/4" />
+                      <Skeleton className="gba:h-4 gba:w-1/2" />
+                    </div>
+                    <div className="gba:space-y-3">
+                      {Array.from({ length: 5 }).map((_, i) => (
+                        <div key={i} className="gba:flex gba:items-center gba:gap-4 gba:p-3 gba:border gba:rounded-lg">
+                          <Skeleton className="gba:h-12 gba:w-12 gba:rounded" />
+                          <div className="gba:flex-1 gba:space-y-2">
+                            <Skeleton className="gba:h-4 gba:w-2/3" />
+                            <Skeleton className="gba:h-3 gba:w-1/2" />
+                          </div>
+                          <Skeleton className="gba:h-6 gba:w-20" />
+                        </div>
+                      ))}
+                    </div>
+                  </CardContent>
+                </Card>
+              </div>
+            ) : (
+              <PayHistoryView
+                t={t}
+                historyData={historyData}
+                loading={compensationLoading}
+                error={compensationError}
+                onRetry={refetchCompensation}
+                locale={currentLocale}
+                accessToken={accessToken}
+                userInfo={userInfo}
+                additionalData={additionalData}
+              />
+            )}
           </TabsContent>
         )}
       </Tabs>
