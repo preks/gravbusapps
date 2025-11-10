@@ -6,7 +6,7 @@ import { CUSTOMER_LEAD_DESCRIPTORS } from '@/common/data/customer/types/customer
 import { commonLeadColumns } from '@/common/components/common-relations/view-layouts/lead-layout/config'
 import { commonLeadFilterConfig } from '@/common/components/common-relations/view-layouts/lead-layout/config'
 import { useCustomerLeads } from '@/common/data/customer/hooks/useCustomerLeads'
-import type { CustomerLeadQueryVariables } from '@/common/data/customer/queries/customerLeadQueries.new'
+import type { CustomerLeadQueryVariables } from '@/common/data/customer/queries/customerLeadQueries'
 import { normalizeDateRange } from '@/common/utils/dateRangeNormalizer'
 import { FlowContextName } from '@/common/types/FlowRegistryTypes'
 import { buildPlatformUrl } from '@/common/utils/navigationUtils'

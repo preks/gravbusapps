@@ -14,7 +14,7 @@ import {
   buildCustomerAccountWhereCondition,
   buildCustomerAccountOrderBy,
   type CustomerAccountQueryVariables
-} from '../queries/customerAccountQueries.new'
+} from '../queries/customerAccountQueries'
 
 // Mapper
 import { toCustomerAccount } from '../mappers/customerAccountMappers'

@@ -207,6 +207,16 @@ export const createContactDescriptors = (
     kind: 'inIds'
   },
   {
+    key: 'departmentIds',
+    path: fields.department,
+    filterLabel: 'Department',
+    optionSelectPaths: [`${fields.department}`],
+    optionSearchPaths: [`${fields.department}`],
+    optionDistinctOn: [fields.department],
+    kind: 'inIds'
+  },
+
+  {
     key: 'languageIds',
     path: fields.languageRef,
     filterLabel: 'Language',

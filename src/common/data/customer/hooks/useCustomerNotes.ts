@@ -8,7 +8,7 @@ import {
   buildCustomerNoteQuery,
   buildCustomerNoteWhereCondition,
   buildCustomerNoteOrderBy
-} from '../queries/customerNoteQueries.new'
+} from '../queries/customerNoteQueries'
 import { CustomerNoteFields } from '../types/customerNoteTypes'
 
 //Types

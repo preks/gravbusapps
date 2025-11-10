@@ -6,7 +6,7 @@ import { CUSTOMER_ACCOUNT_DESCRIPTORS } from '@/common/data/customer/types/custo
 import { commonAccountColumns } from '@/common/components/common-relations/view-layouts/account-layout/config'
 import { commonAccountFilterConfig } from '@/common/components/common-relations/view-layouts/account-layout/config'
 import { useCustomerAccounts } from '@/common/data/customer/hooks/useCustomerAccounts'
-import type { CustomerAccountQueryVariables } from '@/common/data/customer/queries/customerAccountQueries.new'
+import type { CustomerAccountQueryVariables } from '@/common/data/customer/queries/customerAccountQueries'
 import { normalizeDateRange } from '@/common/utils/dateRangeNormalizer'
 import { FlowContextName } from '@/common/types/FlowRegistryTypes'
 import { buildPlatformUrl } from '@/common/utils/navigationUtils'

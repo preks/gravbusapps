@@ -35,8 +35,8 @@ export const commonContactFilterConfig: FilterConfiguration = {
       defaultExpanded: false,
       filters: [
         {
-          id: 'departments',
-          field: 'departments',
+          id: 'departmentIds',
+          field: 'departmentIds',
           label: 'Department',
           type: 'multi-select',
           config: {

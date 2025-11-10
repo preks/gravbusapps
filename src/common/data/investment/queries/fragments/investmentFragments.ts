@@ -11,6 +11,8 @@ import { CATALOG_ENTRY, AUDIT_FIELDS } from '@/common/network/graphql/commonFrag
 import { EMPLOYEE_REF } from '@/common/data/employee/queries/fragments/employeeFragments'
 import { ADDRESS_REF } from '@/common/data/common/queries/addressFragments'
 import { COMMUNICATION_CHANNEL_REF } from '@/common/data/common/queries/communicationChannelFragments'
+import { InvestmentAccountFields } from '../../types/investmentAccountTypes'
+import { InvestmentContactFields } from '../../types/investmentContactTypes'
 import {
   INVESTMENT_ACCOUNT_REF,
   INVESTMENT_CONTACT_REF,
@@ -251,10 +253,19 @@ export const INVESTMENT = `
     # Entity relationships
     investmentAccount {
         ${INVESTMENT_ACCOUNT_REF}
+        ${InvestmentAccountFields.communicationChannels}(where: { isDeleted: { _eq: false } }) {
+            ${COMMUNICATION_CHANNEL_REF}
+        }
+        ${InvestmentAccountFields.addresses}(where: { isDeleted: { _eq: false } }) {
+            ${ADDRESS_REF}
+        }
         investmentAccountContact {
             contactType
             contact {
                 ${INVESTMENT_CONTACT_REF}
+                ${InvestmentContactFields.communicationChannels}(where: { isDeleted: { _eq: false } }) {
+                    ${COMMUNICATION_CHANNEL_REF}
+                }
             }
         }
     }

@@ -13,7 +13,7 @@ import {
   buildCustomerTaskWhereCondition,
   buildCustomerTaskOrderBy,
   type CustomerTaskQueryVariables
-} from '../queries/customerTaskQueries.new'
+} from '../queries/customerTaskQueries'
 
 // Mapper
 import { toCustomerTask } from '../mappers'

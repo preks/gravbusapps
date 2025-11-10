@@ -12,7 +12,7 @@ import {
   buildCustomerActivityWhereCondition,
   buildCustomerActivityOrderBy,
   type CustomerActivityQueryVariables
-} from '../queries/customerActivityQueries.new'
+} from '../queries/customerActivityQueries'
 
 // Mapper
 import { toCustomerActivity } from '../mappers'

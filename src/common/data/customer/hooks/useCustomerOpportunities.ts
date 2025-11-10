@@ -14,7 +14,7 @@ import {
   buildCustomerOpportunityWhereCondition,
   buildCustomerOpportunityOrderBy,
   type CustomerOpportunityQueryVariables
-} from '../queries/customerOpportunityQueries.new'
+} from '../queries/customerOpportunityQueries'
 
 // Mapper
 import { toCustomerOpportunity } from '../mappers/customerOpportunityMappers'

@@ -6,7 +6,7 @@ import { commonContactColumns } from '@/common/components/common-relations/view-
 import { commonContactFilterConfig } from '@/common/components/common-relations/view-layouts/contact-layout/config'
 import { useCustomerContacts } from '@/common/data/customer/hooks/useCustomerContacts'
 import { CUSTOMER_CONTACT_DESCRIPTORS } from '@/common/data/customer/types/customerContactTypes'
-import type { CustomerContactQueryVariables } from '@/common/data/customer/queries/customerContactQueries.new'
+import type { CustomerContactQueryVariables } from '@/common/data/customer/queries/customerContactQueries'
 import { normalizeDateRange } from '@/common/utils/dateRangeNormalizer'
 import { FlowContextName } from '@/common/types/FlowRegistryTypes'
 import { buildPlatformUrl } from '@/common/utils/navigationUtils'

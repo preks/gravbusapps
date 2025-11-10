@@ -3,7 +3,7 @@ import { useCallback, useState, useEffect } from 'react'
 import { useGraphQLClient } from '@/common/network/graphql/useGraphQLClient'
 import { BusinessAppContextProps } from '@/common/BusinessAppContext'
 import type { CustomerTask } from '../types'
-import { buildCustomerTaskByIdQuery } from '../queries/customerTaskQueries.new'
+import { buildCustomerTaskByIdQuery } from '../queries/customerTaskQueries'
 import { toCustomerTask } from '../mappers'
 import { CustomerTaskFields } from '../types/customerTaskTypes'
 

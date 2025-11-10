@@ -14,7 +14,7 @@ import {
   buildCustomerContactWhereCondition,
   buildCustomerContactOrderBy,
   type CustomerContactQueryVariables
-} from '../queries/customerContactQueries.new'
+} from '../queries/customerContactQueries'
 
 // Mapper
 import { toCustomerContact } from '../mappers/customerContactMappers'

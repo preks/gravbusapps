@@ -5,7 +5,7 @@ import { useCustomerTaskStatistics } from '@/common/data/customer/hooks/useCusto
 import { TaskLayout, type TaskViewConfig } from '@/common/components/common-relations/view-layouts/task-layout'
 import type { CustomerTask } from '@/common/data/customer/types/customerTaskTypes'
 import { CUSTOMER_TASK_DESCRIPTORS } from '@/common/data/customer/types/customerTaskTypes'
-import type { CustomerTaskQueryVariables } from '@/common/data/customer/queries/customerTaskQueries.new'
+import type { CustomerTaskQueryVariables } from '@/common/data/customer/queries/customerTaskQueries'
 import { normalizeDateRange } from '@/common/utils/dateRangeNormalizer'
 import type { TaskReference } from '@/common/data/relations/types/taskTypes'
 import { FlowContextName } from '@/common/types/FlowRegistryTypes'

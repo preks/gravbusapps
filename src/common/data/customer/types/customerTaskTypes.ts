@@ -80,7 +80,7 @@ export type CustomerTaskFieldName = (typeof CustomerTaskFields)[keyof typeof Cus
  */
 export const CUSTOMER_TASK_DESCRIPTORS: Descriptor[] = [
   ...createTaskDescriptors(CustomerTaskFields as Record<keyof typeof TaskFields, string>).filter(
-    d => !['comments'].includes(d.key)
+    d => !['comments', 'opportunityStageCondition'].includes(d.key)
   ),
   {
     key: 'comments',

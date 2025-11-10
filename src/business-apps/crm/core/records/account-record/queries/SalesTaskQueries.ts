@@ -5,7 +5,7 @@ import {
   buildCustomerTaskQuery,
   buildCustomerTaskWhereCondition,
   buildCustomerTaskOrderBy
-} from '@/common/data/customer/queries/customerTaskQueries.new'
+} from '@/common/data/customer/queries/customerTaskQueries'
 import { toCustomerTask } from '@/common/data/customer/mappers/customerTaskMappers'
 import type { CustomerTask } from '@/common/data/customer/types'
 

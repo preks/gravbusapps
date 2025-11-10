@@ -14,7 +14,7 @@ import {
   buildCustomerLeadWhereCondition,
   buildCustomerLeadOrderBy,
   type CustomerLeadQueryVariables
-} from '../queries/customerLeadQueries.new'
+} from '../queries/customerLeadQueries'
 
 // Mapper
 import { toCustomerLead } from '../mappers/customerLeadMappers'
