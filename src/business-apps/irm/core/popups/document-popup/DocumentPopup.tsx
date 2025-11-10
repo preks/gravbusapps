@@ -798,13 +798,21 @@ const DocumentPopup: React.FC<DocumentPopupProps> = ({ initialValues = {}, ...pr
                 <div className="gba:flex gba:flex-col gba:gap-1" data-testid="DocumentPopup-ai-status-suggestion">
                   <span>
                     {(() => {
-                      const tpl = getTranslationFromI18nKeyAndLabel(
-                        'irm:document.ai.suggestion',
-                        'AI suggestion: Group = {group}, Type = {type}'
-                      )
                       const g = aiSuggestion.group || '—'
                       const t = aiSuggestion.type || '—'
-                      return tpl.replace('{group}', g).replace('{type}', t)
+                      const tpl = getTranslationFromI18nKeyAndLabel(
+                        'irm:document.ai.suggestion',
+                        'AI suggestion: Group = {group}, Type = {type}',
+                        { group: g, type: t }
+                      )
+                      if (tpl.includes('{group}') || tpl.includes('{{group}}')) {
+                        return tpl
+                          .replace('{group}', g)
+                          .replace('{{group}}', g)
+                          .replace('{type}', t)
+                          .replace('{{type}}', t)
+                      }
+                      return tpl
                     })()}
                   </span>
                   <div className="gba:flex gba:gap-2">
