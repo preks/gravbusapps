@@ -193,7 +193,7 @@ const renderConvertedLostSection = (
                 padding: '0 12px 0 160px'
               }}
             >
-              <span style={{ fontSize: '13px' }}>Converted</span>
+              <span style={{ fontSize: '13px' }}>{statuses[convertedIndex]?.value || 'Converted'}</span>
             </div>
           </div>
         </AppAction>
@@ -239,7 +239,7 @@ const renderConvertedLostSection = (
                 padding: '0 12px 0 160px'
               }}
             >
-              <span style={{ fontSize: '13px' }}>Lost</span>
+              <span style={{ fontSize: '13px' }}>{statuses[lostIndex]?.value || 'Lost'}</span>
             </div>
           </div>
         </AppAction>
