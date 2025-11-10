@@ -12,9 +12,9 @@ export enum FlowContextName {
   jobPositionEntity = 'jobPositionEntity',
 
   // HR Notes
-  hrNoteCreate = 'createEmployeeNote',
-  hrNoteUpdate = 'updateEmployeeNote',
-  hrNoteDelete = 'deleteEmployeeNote',
+  createEmployeeNote = 'createEmployeeNote',
+  updateEmployeeNote = 'updateEmployeeNote',
+  deleteEmployeeNote = 'deleteEmployeeNote',
 
   // Customer Relations
 
@@ -52,6 +52,7 @@ export enum FlowContextName {
   customerActivityDelete = 'customerActivityDelete',
 
   /// Customer Notes
+  customerNoteEntity = 'customerNoteEntity',
   customerNoteCreate = 'customerNoteCreate',
   customerNoteDelete = 'customerNoteDelete',
 
@@ -152,6 +153,7 @@ export enum FlowContextName {
   employeeRequestFeedback = 'employeeRequestFeedback',
   employeeSkills = 'employeeSkills',
   employeeProfilePicture = 'employeeProfilePicture',
+  employeeAttendanceCorrectionRequest = 'employeeAttendanceCorrectionRequest',
 
   updateEmployeePersonalData = 'updateEmployeePersonalData',
   updateEmployeeAddress = 'updateEmployeeAddress',

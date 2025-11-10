@@ -1,0 +1,347 @@
+import React from 'react'
+import { buildPlatformUrl } from '@/common/utils/navigationUtils'
+import { getTranslationFromI18nKeyAndLabel } from '@/common/utils/windowUtils'
+import { FlowContextName } from '@/common/types/FlowRegistryTypes'
+import type { TaskReference } from '@/common/components/common-relations/detail-sheets/task-detail-sheet'
+import AccountSection from '@/common/components/common-relations/record-sections/account-section/AccountSection'
+import ContactSection from '@/common/components/common-relations/record-sections/contact-section/ContactSection'
+import ConditionSection from '@/common/components/common-relations/record-sections/condition-section/ConditionSection'
+import ActivitySection from '@/common/components/common-relations/record-sections/activity-section/ActivitySection'
+import NoteSection from '@/common/components/common-relations/record-sections/note-section/NoteSection'
+import TaskSection from '@/common/components/common-relations/record-sections/task-section/TaskSection'
+import { transformTaskOrApproval } from '@/common/components/common-relations/record-sections/task-section/utils/taskMappers'
+import SectionWrapper from '@/common/components/common-relations/record-sections/section-card/SectionCard'
+import { BusinessAppContextProps } from '@/common/BusinessAppContext'
+
+interface HomeViewProps extends BusinessAppContextProps {
+  opportunityId: string
+  opportunityData: any
+  activities: any[]
+  notes: any[]
+  tasks: any[]
+  approvals: any[]
+  stageConditionStatuses: any[]
+  activitiesLoading: boolean
+  activitiesError: string | null
+  loadActivities: () => void
+  stageConditionActionProps: any
+}
+
+// Build reference URLs for CRM context
+const buildReferenceUrl = (reference: TaskReference): string => {
+  switch (reference.type) {
+    case 'lead':
+      return buildPlatformUrl('/platform/crm/lead-record', { leadId: reference.id })
+    case 'account':
+      return buildPlatformUrl('/platform/crm/account-record', { accountId: reference.id })
+    case 'contact':
+      return buildPlatformUrl('/platform/crm/contact-record', { contactId: reference.id })
+    case 'opportunity':
+      return buildPlatformUrl('/platform/crm/opportunity-record', { opportunityId: reference.id })
+    default:
+      return ''
+  }
+}
+
+export const HomeView: React.FC<HomeViewProps> = ({
+  opportunityId,
+  opportunityData,
+  activities,
+  notes,
+  tasks,
+  approvals,
+  stageConditionStatuses,
+  activitiesLoading,
+  activitiesError,
+  loadActivities,
+  stageConditionActionProps,
+  accessToken,
+  ...props
+}) => {
+  return (
+    <>
+      {/* Account Information - 1/4 width */}
+      <SectionWrapper
+        className="gba:col-span-1 gba:sm:col-span-3 gba:md:col-span-3 gba:lg:col-span-3 gba:row-span-1"
+        sections={[
+          {
+            id: 'account-section',
+            component: AccountSection,
+            props: {
+              ...props,
+              accessToken,
+              account: opportunityData?.account
+                ? {
+                    id: opportunityData.account.id,
+                    version: opportunityData.account.version,
+                    name: opportunityData.account.name,
+                    email: opportunityData.account.email,
+                    phone: opportunityData.account.phone,
+                    website: opportunityData.account.website,
+                    legalForm: opportunityData.account.legalForm?.value || opportunityData.account.legalForm?.code,
+                    industry: opportunityData.account.industry?.value || opportunityData.account.industry?.code,
+                    size:
+                      opportunityData.account.numberOfEmployees?.value ||
+                      opportunityData.account.numberOfEmployees?.code,
+                    revenue:
+                      opportunityData.account.annualRevenue?.value || opportunityData.account.annualRevenue?.code,
+                    numberOfEmployees: opportunityData.account.numberOfEmployees,
+                    annualRevenue: opportunityData.account.annualRevenue,
+                    logoUrl: opportunityData.account.picture || opportunityData.account.pictureThumbnail,
+                    foundationDate: opportunityData.account.foundationDate,
+                    geographicPresence: opportunityData.account.geographicPresence
+                  }
+                : undefined,
+              address: opportunityData?.account
+                ? (() => {
+                    const addresses = opportunityData.account.addresses || []
+                    const primaryAddress = addresses.find((addr: any) => addr.addressType === 'PRIMARY_ADDRESS')
+                    const address = primaryAddress || addresses[0]
+
+                    return address
+                      ? {
+                          addressLine: address.addressLine,
+                          postalCode: address.postalCode,
+                          locality: address.city,
+                          country: typeof address.country === 'string' ? address.country : address.country?.value,
+                          region: typeof address.region === 'string' ? address.region : address.region?.value
+                        }
+                      : undefined
+                  })()
+                : undefined,
+              accountId: opportunityData?.account?.id,
+              recordUrl: opportunityData?.account?.id
+                ? buildPlatformUrl('/platform/crm/account-record', {
+                    accountId: opportunityData.account.id,
+                    source: 'opportunity-relations',
+                    fromEntity: 'opportunities'
+                  })
+                : undefined,
+              actionButtonProps: {
+                contextsArray: [FlowContextName.customerAccountEntity],
+                externalContextData: {
+                  accountId: opportunityData?.account?.id
+                },
+                prefixDataTestId: 'customer-opportunity-account-action'
+              }
+            }
+          }
+        ]}
+        data-testid="opportunity-account-section-wrapper"
+      />
+
+      {/* Contact Information - 1/4 width */}
+      <SectionWrapper
+        className="gba:col-span-1 gba:sm:col-span-3 gba:md:col-span-3 gba:lg:col-span-3 gba:row-span-1"
+        sections={[
+          {
+            id: 'contact-section',
+            component: ContactSection,
+            props: {
+              ...props,
+              accessToken,
+              contacts: opportunityData?.opportunityContacts
+                ?.map((oc: any) =>
+                  oc.contact
+                    ? {
+                        id: oc.contact.id,
+                        version: oc.contact.version,
+                        firstName: oc.contact.firstName,
+                        lastName: oc.contact.lastName,
+                        email: oc.contact.email,
+                        phone: oc.contact.phone,
+                        jobTitle: oc.contact.jobTitle,
+                        department: oc.contact.department,
+                        picture: oc.contact.pictureUrl,
+                        academicTitle: oc.contact.academicTitle?.value || oc.contact.academicTitle?.code,
+                        communicationChannels: oc.contact.communicationChannels
+                      }
+                    : null
+                )
+                .filter(Boolean),
+              contactId: opportunityData?.opportunityContacts?.[0]?.contact?.id,
+              recordUrl: opportunityData?.opportunityContacts?.[0]?.contact?.id
+                ? buildPlatformUrl('/platform/crm/contact-record', {
+                    contactId: opportunityData.opportunityContacts[0].contact.id,
+                    source: 'opportunity-relations',
+                    fromEntity: 'opportunities'
+                  })
+                : undefined,
+              actionButtonProps: {
+                contextsArray: [FlowContextName.customerContactEntity],
+                externalContextData: {
+                  contactId: opportunityData?.opportunityContacts?.[0]?.contact?.id,
+                  version: opportunityData?.opportunityContacts?.[0]?.contact?.version
+                },
+                prefixDataTestId: 'customer-opportunity-contact-action'
+              }
+            }
+          }
+        ]}
+        data-testid="opportunity-contact-section-wrapper"
+      />
+
+      {/* Stage Condition Card - 2/4 width (half) - matching IRM Lead Investment Section position */}
+      <SectionWrapper
+        className="gba:col-span-1 gba:sm:col-span-3 gba:md:col-span-6 gba:lg:col-span-6 gba:row-span-1"
+        sections={[
+          {
+            id: 'stage-condition-section',
+            component: ConditionSection,
+            props: {
+              ...props,
+              accessToken,
+              // Transform CRM field names to IRM field names for ConditionSection compatibility
+              opportunity: opportunityData
+                ? {
+                    ...opportunityData,
+                    // Map salesPipelineStage to opportunityPipelineStage (ConditionSection expects this)
+                    opportunityPipelineStage: opportunityData.salesPipelineStage
+                  }
+                : undefined,
+              // Transform stage condition statuses to use IRM field names
+              stageConditionStatuses: (stageConditionStatuses || []).map((status: any) => ({
+                ...status,
+                // Map salesPipelineStageCondition to opportunityPipelineStageCondition
+                opportunityPipelineStageCondition: status.salesPipelineStageCondition
+              })),
+              stageConditionActionProps: {
+                ...stageConditionActionProps,
+                emptyStateBehavior: 'enable'
+              }
+            }
+          }
+        ]}
+        data-testid="opportunity-stage-condition-section-wrapper"
+      />
+
+      {/* Activities & Notes - 1/2 width, spans 2 rows - matching IRM Lead layout */}
+      <SectionWrapper
+        className="gba:col-span-1 gba:sm:col-span-3 gba:md:col-span-6 gba:lg:col-span-6 gba:row-span-2"
+        sections={[
+          {
+            id: 'activities-section',
+            component: ActivitySection,
+            props: {
+              ...props,
+              accessToken,
+              activities: activities,
+              activitiesLoading: activitiesLoading,
+              activitiesError: activitiesError,
+              onReloadActivities: loadActivities,
+              activitySectionActionProps: {
+                contextsArray: [FlowContextName.customerActivityCreate],
+                externalContextData: {
+                  opportunityId,
+                  opportunity: opportunityId,
+                  salesActivity: { opportunity: opportunityId },
+                  // Set current user as default owner
+                  ...(props.userInfo?.employeeDetails?.employeeId && {
+                    ownerEmployeeId: props.userInfo.employeeDetails.employeeId
+                  })
+                },
+                prefixDataTestId: 'opportunity-activities',
+                emptyStateBehavior: 'enable'
+              },
+              activityEntityActionProps: {
+                contextsArray: [FlowContextName.customerActivityEntity],
+                externalContextData: { opportunityId },
+                prefixDataTestId: 'opportunity-activity-entity',
+                emptyStateBehavior: 'enable'
+              }
+            }
+          },
+          {
+            id: 'notes-section',
+            component: NoteSection as React.ComponentType<any>,
+            props: {
+              ...props,
+              accessToken,
+              notes: notes,
+              noteActionProps: {
+                contextsArray: [FlowContextName.customerNoteCreate],
+                externalContextData: { opportunityId },
+                prefixDataTestId: 'opportunity-notes',
+                emptyStateBehavior: 'enable'
+              },
+              noteEntityActionProps: {
+                contextsArray: [FlowContextName.customerNoteEntity],
+                externalContextData: { opportunityId },
+                prefixDataTestId: 'opportunity-note-entity',
+                emptyStateBehavior: 'enable'
+              }
+            }
+          }
+        ]}
+        data-testid="opportunity-activities-notes-section-wrapper"
+      />
+
+      {/* Tasks & Approvals - 1/2 width, spans 2 rows - matching IRM Lead layout */}
+      <SectionWrapper
+        className="gba:col-span-1 gba:sm:col-span-3 gba:md:col-span-6 gba:lg:col-span-6 gba:row-span-2"
+        sections={[
+          {
+            id: 'tasks-section',
+            component: TaskSection,
+            props: {
+              ...props,
+              accessToken,
+              opportunityId: opportunityId,
+              buildReferenceUrl,
+              tasks: tasks.map((task: any) =>
+                transformTaskOrApproval(task, getTranslationFromI18nKeyAndLabel('crm.tasks.untitled', 'Untitled Task'))
+              ),
+              taskActionProps: {
+                contextsArray: [FlowContextName.customerTaskCreate],
+                externalContextData: { opportunityId },
+                prefixDataTestId: 'opportunity-tasks',
+                emptyStateBehavior: 'enable'
+              },
+              taskEntityActionProps: {
+                contextsArray: [FlowContextName.customerTaskEntity],
+                externalContextData: { opportunityId },
+                prefixDataTestId: 'opportunity-task-entity',
+                emptyStateBehavior: 'enable'
+              }
+            }
+          },
+          {
+            id: 'approval-tasks-section',
+            component: TaskSection,
+            props: {
+              ...props,
+              accessToken,
+              sectionTitle: 'Approval Tasks',
+              opportunityId: opportunityId,
+              buildReferenceUrl,
+              tasks: approvals.map((approval: any) =>
+                transformTaskOrApproval(
+                  approval,
+                  getTranslationFromI18nKeyAndLabel('crm.approvals.request', 'Approval Request')
+                )
+              ),
+              taskEntityActionProps: {
+                contextsArray: [FlowContextName.customerTaskEntity],
+                externalContextData: { opportunityId },
+                prefixDataTestId: 'opportunity-approval-entity',
+                emptyStateBehavior: 'enable'
+              },
+              taskActionProps: {
+                contextsArray: [FlowContextName.customerTaskCreate],
+                externalContextData: {
+                  opportunityId,
+                  opportunity: opportunityId,
+                  typeRef: 'SalesTaskType:v1:APPROVAL',
+                  salesTask: { opportunity: opportunityId, type: 'SalesTaskType:v1:APPROVAL' }
+                },
+                prefixDataTestId: 'opportunity-approvals',
+                emptyStateBehavior: 'enable'
+              }
+            }
+          }
+        ]}
+        data-testid="opportunity-tasks-approvals-section-wrapper"
+      />
+    </>
+  )
+}

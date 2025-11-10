@@ -6,9 +6,11 @@ import { FlowContextName } from '@/common/types/FlowRegistryTypes'
 import type { TaskReference } from '@/common/components/common-relations/detail-sheets/task-detail-sheet'
 import { useCustomerActivities } from '@/common/data/customer/hooks/useCustomerActivities'
 import { useCustomerTasks } from '@/common/data/customer/hooks/useCustomerTasks'
+import { useCustomerNotes } from '@/common/data/customer/hooks/useCustomerNotes'
 import AccountSection from '@/common/components/common-relations/record-sections/account-section/AccountSection'
 import ContactSection from '@/common/components/common-relations/record-sections/contact-section/ContactSection'
 import ActivitySection from '@/common/components/common-relations/record-sections/activity-section/ActivitySection'
+import NoteSection from '@/common/components/common-relations/record-sections/note-section/NoteSection'
 import TaskSection from '@/common/components/common-relations/record-sections/task-section/TaskSection'
 import SectionWrapper from '@/common/components/common-relations/record-sections/section-card/SectionCard'
 
@@ -21,9 +23,11 @@ const HomeView: React.FC<HomeViewProps> = ({ accountId, accountData, ...props })
   // Data fetching hooks for CRM customer sections
   const { fetchCustomerActivitiesByAccountId } = useCustomerActivities(props)
   const { fetchCustomerTasksByAccountId } = useCustomerTasks(props)
+  const { fetchCustomerNotesByAccountId } = useCustomerNotes(props)
 
   // State for section data
   const [activities, setActivities] = useState<any[]>([])
+  const [notes, setNotes] = useState<any[]>([])
   const [tasks, setTasks] = useState<any[]>([])
   const [approvals, setApprovals] = useState<any[]>([])
   const [sectionsLoading, setSectionsLoading] = useState(true)
@@ -53,31 +57,36 @@ const HomeView: React.FC<HomeViewProps> = ({ accountId, accountData, ...props })
     setSectionsError(null)
 
     try {
-      const [activitiesData, tasksData] = await Promise.all([
+      const [activitiesData, notesData, tasksData] = await Promise.all([
         fetchCustomerActivitiesByAccountId(accountId),
+        fetchCustomerNotesByAccountId(accountId),
         fetchCustomerTasksByAccountId(accountId)
       ])
 
       const sortedActivities = (activitiesData || []).sort(
         (a: any, b: any) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime()
       )
+      const sortedNotes = (notesData || []).sort(
+        (a: any, b: any) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime()
+      )
       const sortedTasks = (tasksData || []).sort(
         (a: any, b: any) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime()
       )
 
-      // Separate regular tasks from approvals based on taskType catalog entry
+      // Separate regular tasks from approvals based on type catalog entry
       const regularTasks = sortedTasks.filter((task: any) => {
-        const taskTypeCode = task?.taskType?.code || ''
-        const taskTypeValue = task?.taskType?.value || ''
+        const taskTypeCode = task?.type?.code || ''
+        const taskTypeValue = task?.type?.value || ''
         return taskTypeCode?.toUpperCase() !== 'APPROVAL' && taskTypeValue?.toUpperCase() !== 'APPROVAL'
       })
       const approvalTasks = sortedTasks.filter((task: any) => {
-        const taskTypeCode = task?.taskType?.code || ''
-        const taskTypeValue = task?.taskType?.value || ''
+        const taskTypeCode = task?.type?.code || ''
+        const taskTypeValue = task?.type?.value || ''
         return taskTypeCode?.toUpperCase() === 'APPROVAL' || taskTypeValue?.toUpperCase() === 'APPROVAL'
       })
 
       setActivities(sortedActivities)
+      setNotes(sortedNotes)
       setTasks(regularTasks)
       setApprovals(approvalTasks)
     } catch (error) {
@@ -90,7 +99,13 @@ const HomeView: React.FC<HomeViewProps> = ({ accountId, accountData, ...props })
     } finally {
       setSectionsLoading(false)
     }
-  }, [accountId, props.accessToken, fetchCustomerActivitiesByAccountId, fetchCustomerTasksByAccountId])
+  }, [
+    accountId,
+    props.accessToken,
+    fetchCustomerActivitiesByAccountId,
+    fetchCustomerNotesByAccountId,
+    fetchCustomerTasksByAccountId
+  ])
 
   // Load section data on mount
   useEffect(() => {
@@ -142,12 +157,29 @@ const HomeView: React.FC<HomeViewProps> = ({ accountId, accountData, ...props })
     }
   }, [loadSectionData])
 
-  // Action props for sections
+  // Action props for sections - MUST be fully memoized to prevent infinite loops
   const activityActionProps = useMemo(
     () => ({
       contextsArray: [FlowContextName.customerActivityCreate],
+      externalContextData: {
+        accountId,
+        // Set current user as default owner
+        ...(props.userInfo?.employeeDetails?.employeeId && {
+          ownerEmployeeId: props.userInfo.employeeDetails.employeeId
+        })
+      },
+      prefixDataTestId: 'account-activity',
+      emptyStateBehavior: 'enable' as const
+    }),
+    [accountId, props.userInfo?.employeeDetails?.employeeId]
+  )
+
+  const activityEntityActionProps = useMemo(
+    () => ({
+      contextsArray: [FlowContextName.customerActivityEntity],
       externalContextData: { accountId },
-      prefixDataTestId: 'account-activity'
+      prefixDataTestId: 'account-activity-entity',
+      emptyStateBehavior: 'enable' as const
     }),
     [accountId]
   )
@@ -156,7 +188,18 @@ const HomeView: React.FC<HomeViewProps> = ({ accountId, accountData, ...props })
     () => ({
       contextsArray: [FlowContextName.customerTaskCreate],
       externalContextData: { accountId },
-      prefixDataTestId: 'account-task'
+      prefixDataTestId: 'account-task',
+      emptyStateBehavior: 'enable' as const
+    }),
+    [accountId]
+  )
+
+  const taskEntityActionProps = useMemo(
+    () => ({
+      contextsArray: [FlowContextName.customerTaskEntity],
+      externalContextData: { accountId },
+      prefixDataTestId: 'account-task-entity',
+      emptyStateBehavior: 'enable' as const
     }),
     [accountId]
   )
@@ -169,7 +212,38 @@ const HomeView: React.FC<HomeViewProps> = ({ accountId, accountData, ...props })
         typeRef: 'SalesTaskType:v1:APPROVAL',
         salesTask: { account: accountId, type: 'SalesTaskType:v1:APPROVAL' }
       },
-      prefixDataTestId: 'account-approval'
+      prefixDataTestId: 'account-approval',
+      emptyStateBehavior: 'enable' as const
+    }),
+    [accountId]
+  )
+
+  const approvalEntityActionProps = useMemo(
+    () => ({
+      contextsArray: [FlowContextName.customerTaskEntity],
+      externalContextData: { accountId },
+      prefixDataTestId: 'account-approval-entity',
+      emptyStateBehavior: 'enable' as const
+    }),
+    [accountId]
+  )
+
+  const noteActionProps = useMemo(
+    () => ({
+      contextsArray: [FlowContextName.customerNoteCreate],
+      externalContextData: { accountId },
+      prefixDataTestId: 'account-note',
+      emptyStateBehavior: 'enable' as const
+    }),
+    [accountId]
+  )
+
+  const noteEntityActionProps = useMemo(
+    () => ({
+      contextsArray: [FlowContextName.customerNoteEntity],
+      externalContextData: { accountId },
+      prefixDataTestId: 'account-note-entity',
+      emptyStateBehavior: 'enable' as const
     }),
     [accountId]
   )
@@ -277,16 +351,8 @@ const HomeView: React.FC<HomeViewProps> = ({ accountId, accountData, ...props })
               activitiesError: sectionsError,
               onReloadActivities: loadSectionData,
               alignment: 'right',
-              activitySectionActionProps: {
-                ...activityActionProps,
-                emptyStateBehavior: 'enable'
-              },
-              activityEntityActionProps: {
-                contextsArray: [FlowContextName.customerActivityEntity],
-                externalContextData: { accountId },
-                prefixDataTestId: 'account-activity-entity',
-                emptyStateBehavior: 'enable'
-              }
+              activitySectionActionProps: activityActionProps,
+              activityEntityActionProps: activityEntityActionProps
             }
           }
         ]}
@@ -351,16 +417,8 @@ const HomeView: React.FC<HomeViewProps> = ({ accountId, accountData, ...props })
                           }
                         : undefined
               })),
-              taskActionProps: {
-                ...taskActionProps,
-                emptyStateBehavior: 'enable'
-              },
-              taskEntityActionProps: {
-                contextsArray: [FlowContextName.customerTaskEntity],
-                externalContextData: { accountId },
-                prefixDataTestId: 'account-task-entity',
-                emptyStateBehavior: 'enable'
-              }
+              taskActionProps: taskActionProps,
+              taskEntityActionProps: taskEntityActionProps
             }
           },
           {
@@ -420,20 +478,42 @@ const HomeView: React.FC<HomeViewProps> = ({ accountId, accountData, ...props })
                           }
                         : undefined
               })),
-              taskEntityActionProps: {
-                contextsArray: [FlowContextName.customerTaskEntity],
-                externalContextData: { accountId },
-                prefixDataTestId: 'account-approval-entity',
-                emptyStateBehavior: 'enable'
-              },
-              taskActionProps: {
-                ...approvalActionProps,
-                emptyStateBehavior: 'enable'
-              }
+              taskEntityActionProps: approvalEntityActionProps,
+              taskActionProps: approvalActionProps
             }
           }
         ]}
         data-testid="account-tasks-approvals-section-wrapper"
+      />
+
+      {/* Notes Section - 2/3 width, spans 3 rows */}
+      <SectionWrapper
+        className="gba:col-span-1 gba:sm:col-span-3 gba:md:col-span-8 gba:lg:col-span-8 gba:row-span-3"
+        sections={[
+          {
+            id: 'notes-section',
+            component: NoteSection,
+            props: {
+              ...props,
+              notes: notes.map(note => ({
+                id: note.id,
+                version: note.version,
+                noteTitle: note.noteTitle || getTranslationFromI18nKeyAndLabel('crm.notes.untitled', 'Untitled Note'),
+                noteText: note.noteText || '',
+                createdAt: note.createdAt,
+                createdBy:
+                  note.authorEmployee?.displayName ||
+                  getTranslationFromI18nKeyAndLabel('crm.common.unknown', 'Unknown'),
+                authorEmployee: note.authorEmployee,
+                reminderDate: note.reminderDate
+              })),
+              noteActionProps: noteActionProps,
+              noteEntityActionProps: noteEntityActionProps,
+              'data-testid': 'account-notes-section'
+            }
+          }
+        ]}
+        data-testid="account-notes-section-wrapper"
       />
     </>
   )

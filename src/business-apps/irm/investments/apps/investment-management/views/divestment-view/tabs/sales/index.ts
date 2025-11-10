@@ -1,2 +1,2 @@
-export { default as Sales } from './Sales'
-export { default } from './Sales'
+export { SalesTab } from './SalesTab'
+export { default } from './SalesTab'

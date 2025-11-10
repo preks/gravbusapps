@@ -129,11 +129,11 @@ const AddressInformationSection: React.FC = () => {
       }}
     >
       <Button
+        type="button"
         variant="ghost"
         onClick={() => setIsExpanded(!isExpanded)}
-        className="gba:w-full gba:px-4 gba:py-2 gba:transition-colors gba:flex gba:items-center gba:justify-between gba:text-left gba:rounded-lg gba:text-sm gba:bg-gradient-to-r gba:from-warning-secondary gba:to-warning"
+        className="gba:w-full gba:px-4 gba:py-2 gba:transition-all gba:flex gba:items-center gba:justify-between gba:text-left gba:rounded-xl gba:text-sm gba:bg-warning-secondary hover:gba:bg-warning gba:border-0"
         style={{
-          transition: 'all 0.3s ease',
           border: '0',
           borderWidth: '0',
           borderStyle: 'none',
@@ -144,7 +144,7 @@ const AddressInformationSection: React.FC = () => {
           boxShadow: 'none',
           borderRadius: '12px'
         }}
-        data-testid={formatDataTestId(prefixDataTestId, 'AddressInfoToggle')}
+        data-testid={formatDataTestId(prefixDataTestId, 'address-info-toggle')}
       >
         <div className="gba:flex gba:items-center gba:gap-2 gba:flex-1">
           <div className="gba:w-2 gba:h-2 gba:bg-orange-500 gba:rounded-full"></div>

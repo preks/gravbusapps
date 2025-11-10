@@ -116,6 +116,7 @@ const AccountSection: React.FC<AccountSectionProps> = ({
         className={className}
         actionButtonProps={actionButtonProps}
         onTitleClick={shouldShowClickableTitle ? handleTitleClick : undefined}
+        accessToken={props.accessToken}
       />
     </div>
   )
@@ -123,29 +124,7 @@ const AccountSection: React.FC<AccountSectionProps> = ({
 
 // Static properties for SectionWrapper
 ;(AccountSection as any).sectionTitle = 'Account Information'
-;(AccountSection as any).sectionActions = (props: AccountSectionProps) => {
-  const { accessToken, actionButtonProps, accountData, account, accountId } = props
-
-  if (!actionButtonProps) {
-    return null
-  }
-
-  return (
-    <AppActionButton
-      data-testid="account-action-button"
-      size="icon"
-      contextsArray={actionButtonProps.contextsArray || [FlowContextName.customerAccountEntity]}
-      externalContextData={{
-        accountId: accountData?.id || account?.id || accountId,
-        ...actionButtonProps.externalContextData
-      }}
-      prefixDataTestId={actionButtonProps.prefixDataTestId || 'account-section-action'}
-      accessToken={accessToken}
-      emptyStateBehavior="enable"
-      deferMainContextRequestsUntilClick
-    />
-  )
-}
+// Action button is rendered within component content and updates with carousel state
 
 export default AccountSection
 
@@ -166,6 +145,7 @@ interface InlinedCompanyInformationProps {
     prefixDataTestId?: string
   }
   onTitleClick?: () => void
+  accessToken?: string
 }
 
 const AccountCompanyInformation: React.FC<InlinedCompanyInformationProps> = ({
@@ -178,14 +158,19 @@ const AccountCompanyInformation: React.FC<InlinedCompanyInformationProps> = ({
   onPrevious,
   onNext,
   className = '',
-  onTitleClick
+  onTitleClick,
+  accessToken,
+  actionButtonProps
 }) => {
   const cardClassName = `gba:w-full ${className}`.trim()
+
+  // Get current account ID - prioritize account prop as it contains the selected carousel item
+  const currentAccountId = account?.id || accountData?.id
 
   return (
     <div className={`${cardClassName} gba:relative gba:flex gba:flex-col gba:h-full`}>
       <div className="gba:space-y-2 gba:flex-1">
-        {/* Company Name and Icon */}
+        {/* Company Name and Icon with Action Button */}
         <div className="gba:flex gba:items-center gba:gap-3">
           {accountData?.logoUrl || account?.logoUrl ? (
             <Avatar className="gba:h-12 gba:w-12">
@@ -268,6 +253,26 @@ const AccountCompanyInformation: React.FC<InlinedCompanyInformationProps> = ({
               </TooltipProvider>
             </div>
           </div>
+          {/* Action Button for this account */}
+          {accessToken && currentAccountId && (
+            <div className="gba:flex gba:items-start">
+              <AppActionButton
+                key={`account-action-${currentAccountId}`}
+                data-testid={`account-carousel-action-button-${currentAccountId}`}
+                size="icon"
+                contextsArray={actionButtonProps?.contextsArray || [FlowContextName.customerAccountEntity]}
+                externalContextData={{
+                  ...actionButtonProps?.externalContextData,
+                  accountId: currentAccountId
+                }}
+                prefixDataTestId={actionButtonProps?.prefixDataTestId || `account-item-action-${currentAccountId}`}
+                accessToken={accessToken}
+                emptyStateBehavior="enable"
+                deferMainContextRequestsUntilClick
+                onClick={e => e.stopPropagation()}
+              />
+            </div>
+          )}
         </div>
 
         {/* Separator */}

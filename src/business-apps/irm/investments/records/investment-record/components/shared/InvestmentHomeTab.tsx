@@ -419,7 +419,7 @@ export const InvestmentHomeTab: React.FC<InvestmentHomeTabProps> = ({ investment
                   note.authorEmployee?.displayName ||
                   getTranslationFromI18nKeyAndLabel('crm.common.unknown', 'Unknown'),
                 authorEmployee: note.authorEmployee,
-                reminderAt: note.reminderDate
+                reminderDate: note.reminderDate
               })),
               noteActionProps: {
                 contextsArray: [FlowContextName.investmentNoteCreate],

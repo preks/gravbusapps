@@ -5,31 +5,11 @@ import { dispatchProcessContinueEvent } from '@/common/utils/processEventUtils'
 import { useContactFormContext } from '../context/ContactFormContext'
 import OwnerInformationSection from './OwnerInformationSection'
 import PersonalInformationSection from './PersonalInformationSection'
-import ProfessionalInformationSection from './ProfessionalInformationSection'
-import AdditionalInformationSection from './AdditionalInformationSection'
-import SearchableSelect from '../../opportunity-form/components/SearchableSelect'
 
 const prefixDataTestId = 'ContactForm'
 
 const ContactFormComponent: React.FC = () => {
-  const {
-    formValues,
-    setFormValues,
-    onSubmit,
-    onCancel,
-    isLoading,
-    error,
-    accountSuggestions,
-    searchAccounts,
-    loadMoreAccounts,
-    accountsHasMore,
-    accountsLoading,
-    campaignSuggestions,
-    searchCampaigns,
-    loadMoreCampaigns,
-    campaignsHasMore,
-    campaignsLoading
-  } = useContactFormContext()
+  const { formValues, onSubmit, onCancel, hideActions, isLoading, error } = useContactFormContext()
 
   // Safety check - if context is not properly initialized, show error
   if (!formValues) {
@@ -41,77 +21,213 @@ const ContactFormComponent: React.FC = () => {
   }
 
   // Check if all mandatory fields are filled
-  const isFormValid =
-    formValues.firstName &&
-    formValues.lastName &&
-    formValues.email &&
-    formValues.accountId &&
-    formValues.ownerEmployeeId
+  const isFormValid = formValues.firstName && formValues.lastName && formValues.email && formValues.ownerEmployeeId
 
   // Helper function to convert values to strings safely
-  const toStringOrUndefined = (value: string): string | undefined => {
+  const toStringOrUndefined = (value: string | undefined): string | undefined => {
     return value && value.trim() ? value.trim() : undefined
+  }
+
+  // Helper: Build communication channels array (LinkedIn, Xing)
+  const buildCommunicationChannels = (linkedinUrl?: string, xingUrl?: string, contactId?: string): any[] => {
+    const channels = []
+
+    if (linkedinUrl?.trim()) {
+      const linkedinChannel: any = {
+        communicationChannelRef: 'CommunicationChannel:v1:LinkedIn',
+        value: linkedinUrl.trim(),
+        valueExtension: null
+      }
+
+      if (contactId) {
+        linkedinChannel.contact = contactId
+      }
+
+      channels.push(linkedinChannel)
+    }
+
+    if (xingUrl?.trim()) {
+      const xingChannel: any = {
+        communicationChannelRef: 'CommunicationChannel:v1:Xing',
+        value: xingUrl.trim(),
+        valueExtension: null
+      }
+
+      if (contactId) {
+        xingChannel.contact = contactId
+      }
+
+      channels.push(xingChannel)
+    }
+
+    return channels
   }
 
   // Handle form submission
   const handleSubmit = async () => {
-    try {
-      await onSubmit(formValues)
+    // Prevent duplicate submissions
+    if (isLoading) {
+      return
+    }
 
+    try {
       // Determine if this is an update or create operation
       const isUpdate = formValues.id
 
-      // Prepare comprehensive contact payload following the API structure
+      console.log('📝 CRM Contact Form: Starting submit with form values', {
+        id: formValues.id,
+        accountId: formValues.accountId,
+        accountIdType: typeof formValues.accountId,
+        accountIdIsObject: typeof formValues.accountId === 'object',
+        salesCampaignId: formValues.salesCampaignId,
+        linkedinUrl: formValues.linkedinUrl,
+        xingUrl: formValues.xingUrl,
+        contactType: formValues.contactType
+      })
+
+      // Prepare contact payload matching CRM API structure (verified against GraphQL schema)
       const contactPayload: any = {
-        sourceApp: 'CRM',
+        // Basic Information
         firstName: toStringOrUndefined(formValues.firstName),
         lastName: toStringOrUndefined(formValues.lastName),
-        academicTitleRef: toStringOrUndefined(formValues.academicTitleRef),
+        fullName: `${(formValues.firstName || '').trim()} ${(formValues.lastName || '').trim()}`.trim(),
+        contactType: toStringOrUndefined(formValues.contactType),
         birthDate: toStringOrUndefined(formValues.birthDate),
-        languageRef: toStringOrUndefined(formValues.languageRef),
-        bio: toStringOrUndefined(formValues.bio),
-        pictureUrl: toStringOrUndefined(formValues.pictureUrl),
+
+        // Professional Information
         jobTitle: toStringOrUndefined(formValues.jobTitle),
         department: toStringOrUndefined(formValues.department),
-        contactType: formValues.contactType || '', // Always include
-        workExperienceYears: formValues.workExperienceYears ? parseInt(formValues.workExperienceYears) : undefined,
+
+        // Contact Information
         email: toStringOrUndefined(formValues.email),
         phone: toStringOrUndefined(formValues.phone),
-        fax: toStringOrUndefined(formValues.fax),
-        linkedinUrl: toStringOrUndefined(formValues.linkedinUrl),
-        xingUrl: toStringOrUndefined(formValues.xingUrl),
-        companyName: formValues.companyName ? toStringOrUndefined(formValues.companyName) : undefined,
-        account: toStringOrUndefined(formValues.accountId), // Backend expects 'account' field
-        salesCampaign: toStringOrUndefined(formValues.salesCampaignId),
-        ownerEmployee: toStringOrUndefined(formValues.owner) || toStringOrUndefined(formValues.ownerEmployeeId),
-        ownerOrganization: undefined, // Will be set by backend based on owner employee
+        fax: toStringOrUndefined(formValues.fax), // ✅ ADDED - was missing
+
+        // Owner Information
+        ownerEmployee: toStringOrUndefined(formValues.ownerEmployeeId),
+
+        // Notes
         notesSummary: toStringOrUndefined(formValues.notesSummary),
-        recordState: formValues.recordState || 'ACTIVE'
+        bio: toStringOrUndefined(formValues.bio), // ✅ ADDED - was missing
+
+        // References
+        academicTitleRef: toStringOrUndefined(formValues.academicTitleRef),
+        languageRef: toStringOrUndefined(formValues.languageRef),
+
+        // System Fields
+        businessKey: toStringOrUndefined(formValues.businessKey), // ✅ ADDED - was missing
+        code: toStringOrUndefined(formValues.code), // ✅ ADDED - was missing
+
+        // CRM-specific fields
+        // Extract ID from object if accountId is an object (due to AccountSelect prefill format)
+        accountId:
+          typeof formValues.accountId === 'object' && formValues.accountId !== null && 'id' in formValues.accountId
+            ? toStringOrUndefined(formValues.accountId.id)
+            : toStringOrUndefined(formValues.accountId),
+        // ⚠️ IMPORTANT: CRM expects 'salesCampaign' (without Id suffix), not 'salesCampaignId'
+        salesCampaign: toStringOrUndefined(formValues.salesCampaignId),
+
+        // Source tracking
+        sourceApp: 'CRM',
+
+        // Additional properties (JSONB field)
+        additionalProperties: {} // ✅ ADDED - was missing
       }
 
-      // For updates, include the contact ID and version
+      // Include recordState if it exists (system field)
+      if (formValues.recordState) {
+        contactPayload.recordState = formValues.recordState
+      }
+
+      // Build communication channels using helper function
+      // ✅ FIXED: Always add communication channels array (like Lead form does)
+      // Even if empty, this ensures the field is properly updated in the database
+      const contactId = isUpdate ? formValues.id : undefined
+      contactPayload.communicationChannels = buildCommunicationChannels(
+        formValues.linkedinUrl,
+        formValues.xingUrl,
+        contactId
+      )
+
+      // Handle ID and version for UPDATE mode only
       if (isUpdate) {
         contactPayload.id = formValues.id
-        if (formValues.version !== undefined) {
+        if (formValues.version !== undefined && formValues.version !== null) {
           contactPayload.version = formValues.version
         }
       }
 
-      // Initialize empty arrays for relationships
-      contactPayload.addresses = []
-      contactPayload.communicationChannels = []
-      contactPayload.tags = []
-
       // Determine change mode based on whether we have an ID
       const changeMode = isUpdate ? 'UPDATE' : 'INSERT'
 
+      // ✅ NEW: Build accountContacts array with full association objects (matching IRM pattern)
+      const accountContacts = (formValues.accountIds || []).map((account: any) => {
+        if (typeof account === 'object' && account.id) {
+          // Existing association - include association metadata if available
+          const accountContact: any = {
+            contactType: null, // Set contact type if needed
+            account: account.id,
+            contact: formValues.id // Current contact ID
+          }
+
+          // Include association ID and version if it exists (for updates)
+          if (account.associationId) {
+            accountContact.id = account.associationId
+            if (account.associationVersion !== undefined) {
+              accountContact.version = account.associationVersion
+            }
+          }
+
+          return accountContact
+        }
+
+        // New association - simple format
+        return {
+          contactType: null,
+          account: account,
+          contact: formValues.id
+        }
+      })
+
+      // ✅ FIXED: Create clean payload structure with accountContacts for BOTH CREATE and UPDATE (matching IRM pattern)
       const payload = {
-        contact: contactPayload,
+        contact: {
+          ...contactPayload,
+          accountContacts: accountContacts // Include for both create and update
+        },
         changeMode: changeMode
       }
 
-      // Dispatch process continue event on successful submission
+      console.log('📤 CRM Contact Form: Submitting payload', {
+        changeMode,
+        isUpdate,
+        contactId: formValues.id,
+        formValues: {
+          accountId: formValues.accountId,
+          accountIdRaw: JSON.stringify(formValues.accountId),
+          salesCampaignId: formValues.salesCampaignId,
+          linkedinUrl: formValues.linkedinUrl,
+          xingUrl: formValues.xingUrl
+        },
+        contactPayload: {
+          id: contactPayload.id,
+          accountId: contactPayload.accountId,
+          accountIdType: typeof contactPayload.accountId,
+          salesCampaign: contactPayload.salesCampaign,
+          communicationChannels: contactPayload.communicationChannels,
+          communicationChannelsCount: contactPayload.communicationChannels?.length || 0
+        },
+        fullPayload: structuredClone(payload)
+      })
+
       dispatchProcessContinueEvent('pse_submit', payload)
+
+      // Call the onSubmit callback after dispatching the process event
+      try {
+        await onSubmit(formValues)
+      } catch (submitError) {
+        console.warn('onSubmit callback failed, but process event was dispatched:', submitError)
+      }
     } catch (err) {
       console.error('Error submitting contact form:', err)
     }
@@ -134,71 +250,11 @@ const ContactFormComponent: React.FC = () => {
       <div className="gba:h-full gba:flex gba:flex-col" data-testid={formatDataTestId(prefixDataTestId, 'Form')}>
         {/* Form Fields Container - Takes up available space */}
         <div className="gba:flex-1 gba:overflow-y-auto gba:space-y-8">
-          {/* Contact Owner Section - First and most important */}
+          {/* Contact Owner Section - First and most important (WITHOUT section header) */}
           <OwnerInformationSection />
-
-          {/* Company Name Section - Second field */}
-          <div className="gba:space-y-2">
-            <SearchableSelect
-              label="Company Name *"
-              name="companyName"
-              value={formValues.accountId}
-              placeholder="Please Select..."
-              options={accountSuggestions as any}
-              loading={accountsLoading}
-              hasMore={accountsHasMore}
-              onSearch={searchAccounts}
-              onLoadMore={loadMoreAccounts}
-              onChange={value => {
-                // Find the selected account to get both ID and name
-                const selectedAccount = accountSuggestions.find(
-                  account => account.value === value || account.id === value
-                )
-                if (selectedAccount) {
-                  setFormValues({
-                    companyName: selectedAccount.name, // Store name for display
-                    accountId: selectedAccount.value, // Store ID for backend AND SearchableSelect value
-                    account: selectedAccount.value // Store ID for selection
-                  })
-                }
-              }}
-              error={null}
-              className="gba:w-full gba:min-w-[300px]"
-              data-testid={formatDataTestId(prefixDataTestId, 'CompanySelect')}
-            />
-          </div>
-
-          {/* Campaign Name Section - Third field */}
-          <div className="gba:space-y-2">
-            <SearchableSelect
-              label="Sales Campaign"
-              name="salesCampaignId"
-              value={formValues.salesCampaignId}
-              placeholder="Please Select Campaign..."
-              options={campaignSuggestions as any}
-              loading={campaignsLoading}
-              hasMore={campaignsHasMore}
-              onSearch={searchCampaigns}
-              onLoadMore={loadMoreCampaigns}
-              onChange={value => {
-                setFormValues({
-                  salesCampaignId: value // Store only ID for backend
-                })
-              }}
-              error={null}
-              className="gba:w-full gba:min-w-[300px]"
-              data-testid={formatDataTestId(prefixDataTestId, 'CampaignSelect')}
-            />
-          </div>
 
           {/* Personal Information Section */}
           <PersonalInformationSection />
-
-          {/* Professional Information Section */}
-          <ProfessionalInformationSection />
-
-          {/* Additional Information Section */}
-          <AdditionalInformationSection />
 
           {/* Error Display */}
           {error && (
@@ -211,29 +267,31 @@ const ContactFormComponent: React.FC = () => {
           )}
         </div>
 
-        {/* Submit and Cancel Buttons - Fixed at bottom */}
-        <div className="gba:mt-6 gba:pt-4 gba:border-t gba:border-gray-200 gba:flex gba:gap-3">
-          <Button
-            variant="secondary"
-            className="gba:flex-1"
-            size="lg"
-            onClick={handleCancel}
-            data-testid={formatDataTestId(prefixDataTestId, 'CancelButton')}
-          >
-            Cancel
-          </Button>
-          <Button
-            variant="default"
-            disabled={!isFormValid}
-            className="gba:flex-1"
-            size="lg"
-            onClick={handleSubmit}
-            data-testid={formatDataTestId(prefixDataTestId, 'SubmitButton')}
-          >
-            {isLoading && <Spinner size="sm" className="gba:mr-2" />}
-            {formValues.id ? 'Update Contact' : 'Create Contact'}
-          </Button>
-        </div>
+        {/* Submit and Cancel Buttons - Fixed at bottom (hidden in wizard mode) */}
+        {!hideActions && (
+          <div className="gba:mt-6 gba:pt-4 gba:border-t gba:border-gray-200 gba:flex gba:gap-3">
+            <Button
+              variant="secondary"
+              className="gba:flex-1"
+              size="lg"
+              onClick={handleCancel}
+              data-testid={formatDataTestId(prefixDataTestId, 'CancelButton')}
+            >
+              Cancel
+            </Button>
+            <Button
+              variant="default"
+              disabled={!isFormValid}
+              className="gba:flex-1"
+              size="lg"
+              onClick={handleSubmit}
+              data-testid={formatDataTestId(prefixDataTestId, 'SubmitButton')}
+            >
+              {isLoading && <Spinner size="sm" className="gba:mr-2" />}
+              {formValues.id ? 'Update Contact' : 'Create Contact'}
+            </Button>
+          </div>
+        )}
       </div>
     </div>
   )

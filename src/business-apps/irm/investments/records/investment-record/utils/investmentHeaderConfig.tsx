@@ -1,7 +1,7 @@
 // Investment Header Configuration Utilities
 import React from 'react'
 import { Badge } from '@newwork/nw-design-system'
-import { formatCurrency, extractCurrencyCode } from '@/business-apps/crm/common/utils/currencyUtils'
+import { formatCurrency, extractCurrencyCode } from '@/common/utils/numberFormatter'
 import { getTranslationFromI18nKeyAndLabel } from '@/common/utils/windowUtils'
 // Remove dependency on investmentTypeUtils - now using dynamic types
 import {

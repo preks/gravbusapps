@@ -20,7 +20,7 @@ import { useForm } from 'react-hook-form'
 import { AppActionForm } from '@/components/app-action-form/AppActionForm'
 import { BusinessAppContextProps } from '@/common/BusinessAppContext'
 import { formatDataTestId } from '@/common/utils/formatDataTestId'
-import { useDocumentCatalogs } from '@/business-apps/crm/core/forms/document-upload-form/hooks/useDocumentCatalogs'
+import { useDocumentCatalogs } from '@/common/hooks/useDocumentCatalogs'
 import { fileClient } from '@/common/network/files/FileClient'
 import { useGraphQLClient } from '@/common/network/graphql/useGraphQLClient'
 import { getTranslationFromI18nKeyAndLabel } from '@/common/utils/windowUtils'
@@ -73,7 +73,6 @@ const DocumentPopup: React.FC<DocumentPopupProps> = ({ initialValues = {}, ...pr
 
     let entityType: InvestmentDocumentEntityType = 'account'
     let entityId = ''
-
     if (accountId) {
       entityType = 'account'
       entityId = String(accountId)

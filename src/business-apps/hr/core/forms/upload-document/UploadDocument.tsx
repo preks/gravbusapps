@@ -46,7 +46,7 @@ export async function submitUploadDocument(
         'fileContent'
       )
 
-      const processesBase = env('NEXT_PUBLIC_PROCESSES_ENDPOINT') || 'https://newwork-dev.newwork.com/processes'
+      const processesBase = env('NEXT_PUBLIC_KOGITO_PROCESSES_ENDPOINT') || 'https://newwork-dev.newwork.com/processes'
       const createDocUrl = `${processesBase}/employee/employeeDocuments`
       const body = {
         employeeDocument: {

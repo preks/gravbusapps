@@ -4,12 +4,39 @@ import { InvestmentPortfolioKPIs, InvestmentQueryVariables } from '../types'
 import { useGetInvestments } from '@/common/data/investment/hooks/useInvestments'
 import { useGetPortfolioKPIs } from '../queries/PortfolioKPIQueries'
 import type { Investment as CentralInvestment } from '@/common/data/investment/types'
-import {
-  safeCurrencyExtraction,
-  calculateInvestmentDuration,
-  getInvestmentStatusColor,
-  getRiskLevelColor
-} from '../../shared/utils'
+import { safeCurrencyExtraction } from '@/common/utils/numberFormatter'
+import { calculateInvestmentDuration } from '../../shared/utils/dateUtils'
+
+// Helper functions for investment-specific business logic
+const getInvestmentStatusColor = (status: string): string => {
+  switch (status?.toLowerCase()) {
+    case 'active':
+      return 'green'
+    case 'inactive':
+      return 'red'
+    case 'pending':
+      return 'orange'
+    case 'completed':
+      return 'blue'
+    case 'cancelled':
+      return 'gray'
+    default:
+      return 'blue'
+  }
+}
+
+const getRiskLevelColor = (riskLevel: string): string => {
+  switch (riskLevel?.toLowerCase()) {
+    case 'low':
+      return 'green'
+    case 'medium':
+      return 'orange'
+    case 'high':
+      return 'red'
+    default:
+      return 'blue'
+  }
+}
 
 export interface EnhancedInvestmentSummary {
   id: string

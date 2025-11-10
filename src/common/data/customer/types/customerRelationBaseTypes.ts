@@ -193,11 +193,11 @@ export interface BaseCustomerTask extends BaseEntity {
   dueDate?: string // ISO date string
   endDate?: string // ISO date string
 
-  // Catalog references
-  taskType?: CatalogEntry // legacy
-  taskPriority?: CatalogEntry // legacy
-  taskStatus?: CatalogEntry // legacy
-  // Updated schema reference fields
+  // Catalog references (actual database field names)
+  type?: CatalogEntry
+  priority?: CatalogEntry
+  status?: CatalogEntry
+  // Reference fields (string IDs)
   typeRef?: string
   priorityRef?: string
   statusRef?: string

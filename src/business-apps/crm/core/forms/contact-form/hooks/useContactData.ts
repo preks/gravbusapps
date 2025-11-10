@@ -18,12 +18,21 @@ interface ContactQueryResult {
   department?: string
   contactType?: string
   pictureUrl?: string
-  linkedinUrl?: string
-  xingUrl?: string
   bio?: string
   birthDate?: string
   ownerEmployeeId?: string
   salesCampaignId?: string
+
+  communicationChannels?: Array<{
+    id: string
+    communicationChannelRef: string
+    value: string
+    communicationChannel?: {
+      id: string
+      code: string
+      value: string
+    }
+  }>
 
   academicTitle?: {
     id: string
@@ -44,6 +53,17 @@ interface ContactQueryResult {
     id: string
     name: string
   }
+
+  // ✅ NEW: Account-Contact associations (matching IRM pattern)
+  accountContacts?: Array<{
+    id: string
+    version: number
+    contactType?: string
+    account: {
+      id: string
+      name: string
+    }
+  }>
 
   salesCampaign?: {
     id: string
@@ -80,8 +100,6 @@ const GET_CONTACT_BY_ID = `
       contactType
       workExperienceYears
       pictureUrl
-      linkedinUrl
-      xingUrl
       bio
       birthDate
       ownerEmployeeId
@@ -98,6 +116,16 @@ const GET_CONTACT_BY_ID = `
         code
         objectValue
       }
+      communicationChannels(where: { isDeleted: { _eq: false } }) {
+        id
+        communicationChannelRef
+        value
+        communicationChannel {
+          id
+          code
+          value
+        }
+      }
       academicTitleRef
       language {
         id
@@ -109,6 +137,15 @@ const GET_CONTACT_BY_ID = `
       account {
         id
         name
+      }
+      accountContacts(where: { isDeleted: { _eq: false } }) {
+        id
+        version
+        contactType
+        account {
+          id
+          name
+        }
       }
       salesCampaign {
         id
@@ -133,15 +170,30 @@ export const useContactData = ({ businessAppContext }: UseContactDataProps): Use
   const mapContactToFormValues = useMemo(
     () =>
       (contact: ContactQueryResult): Partial<ContactFormValues> => {
+        // Extract LinkedIn and Xing URLs from communication channels
+        const linkedinChannel = contact.communicationChannels?.find(
+          ch =>
+            ch.communicationChannelRef === 'CommunicationChannel:v1:LinkedIn' ||
+            ch.communicationChannel?.code === 'LinkedIn'
+        )
+        const xingChannel = contact.communicationChannels?.find(
+          ch =>
+            ch.communicationChannelRef === 'CommunicationChannel:v1:Xing' || ch.communicationChannel?.code === 'Xing'
+        )
+
         console.log('🔍 Contact Data Mapping Debug:', {
           contactId: contact.id,
           contactName: `${contact.firstName} ${contact.lastName}`,
           ownerEmployee: contact.ownerEmployee,
           mappedOwner: contact.ownerEmployeeId || '',
+          accountFromQuery: contact.account,
           salesCampaign: contact.salesCampaign,
           salesCampaignId: contact.salesCampaignId,
           originalContactType: contact.contactType,
           mappedContactType: contact?.contactType || '',
+          communicationChannels: contact.communicationChannels,
+          linkedinUrl: linkedinChannel?.value || '',
+          xingUrl: xingChannel?.value || '',
           fullContact: contact
         })
 
@@ -170,10 +222,21 @@ export const useContactData = ({ businessAppContext }: UseContactDataProps): Use
           owner: contact?.ownerEmployeeId || '',
           ownerEmployeeId: contact?.ownerEmployeeId || '',
 
-          // Account Information
+          // Account Information (AccountSelect expects {id, name} object for proper prefilling)
           account: contact?.account?.id || '',
-          accountId: contact?.account?.id || '',
+          accountId:
+            contact?.account?.id && contact?.account?.name
+              ? { id: contact.account.id, name: contact.account.name }
+              : contact?.account?.id || '',
           companyName: contact?.account?.name || '',
+          // ✅ NEW: Account associations with metadata (matching IRM pattern)
+          accountIds:
+            contact?.accountContacts?.map(rel => ({
+              id: rel.account.id,
+              name: rel.account.name,
+              associationId: rel.id, // ✅ Capture association ID
+              associationVersion: rel.version // ✅ Capture association version
+            })) || [], // ✅ Store full account objects with id, name, and association metadata
 
           // Academic Title
           academicTitle: contact?.academicTitle?.id || '',
@@ -183,9 +246,9 @@ export const useContactData = ({ businessAppContext }: UseContactDataProps): Use
           language: contact?.language?.id || '',
           languageRef: contact?.languageRef || contact?.language?.id || '',
 
-          // Social Media
-          linkedinUrl: contact?.linkedinUrl || '',
-          xingUrl: contact?.xingUrl || '',
+          // Social Media (extracted from communication channels)
+          linkedinUrl: linkedinChannel?.value || '',
+          xingUrl: xingChannel?.value || '',
 
           // Campaign Information
           salesCampaignId: contact?.salesCampaignId || contact?.salesCampaign?.id || '',
@@ -197,6 +260,17 @@ export const useContactData = ({ businessAppContext }: UseContactDataProps): Use
           createdAt: contact?.createdAt || '',
           updatedAt: contact?.updatedAt || ''
         }
+
+        console.log('✅ Contact Data Mapping: Final mapped values', {
+          contactId: mappedValues.id,
+          accountId: mappedValues.accountId,
+          companyName: mappedValues.companyName,
+          contactType: mappedValues.contactType,
+          salesCampaignId: mappedValues.salesCampaignId,
+          linkedinUrl: mappedValues.linkedinUrl,
+          xingUrl: mappedValues.xingUrl,
+          owner: mappedValues.owner
+        })
 
         return mappedValues
       },

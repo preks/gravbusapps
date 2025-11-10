@@ -5,7 +5,7 @@ import { GET_OPPORTUNITY_BY_ID, GetOpportunityByIdResponse } from '../queries/Ge
 import { useGetSalesActivities } from '../queries/OpportunityActivityQueries'
 import { useGetSalesTasks } from '../queries/OpportunityTaskQueries'
 import { useGetCrmNotes } from '../queries/CrmNoteQueries'
-import { useGetCrmDocuments } from '../queries/CrmDocumentQueries'
+import { useGetCrmDocuments } from '@/business-apps/crm/common/utils/documentUtils'
 import { useSalesPipelineStages } from './useSalesPipelineStages'
 import { Opportunity, ReferenceData } from '../types'
 
@@ -42,7 +42,7 @@ export const useOpportunityData = (opportunityId: string, accessToken: string) =
   const { fetchSalesActivities } = useGetSalesActivities({ accessToken })
   const { fetchSalesTasks } = useGetSalesTasks({ accessToken })
   const { fetchCrmNotes } = useGetCrmNotes({ accessToken })
-  const { fetchCrmDocuments } = useGetCrmDocuments({ accessToken })
+  const { fetchDocuments: fetchCrmDocuments } = useGetCrmDocuments('opportunity', { accessToken })
 
   const fetchOpportunityData = async () => {
     // Use a fallback ID if none provided
@@ -60,7 +60,12 @@ export const useOpportunityData = (opportunityId: string, accessToken: string) =
 
       if (result && result.Opportunity && result.Opportunity.length > 0) {
         const rawOpportunityData = result.Opportunity[0]
-        setOpportunityData(rawOpportunityData)
+        // Attach OpportunityContact data to the opportunity
+        const enhancedOpportunityData = {
+          ...rawOpportunityData,
+          opportunityContacts: result.OpportunityContact || []
+        }
+        setOpportunityData(enhancedOpportunityData)
 
         // Set stage condition statuses if available
         if (rawOpportunityData.stageConditionStatuses) {
@@ -112,7 +117,7 @@ export const useOpportunityData = (opportunityId: string, accessToken: string) =
           },
           accountId: rawOpportunityData.account?.id || '',
           account: rawOpportunityData.account
-            ? {
+            ? ({
                 id: rawOpportunityData.account.id,
                 version: rawOpportunityData.account.version || '1',
                 name: rawOpportunityData.account.name || '',
@@ -147,7 +152,7 @@ export const useOpportunityData = (opportunityId: string, accessToken: string) =
                       lastName: rawOpportunityData.account.ownerEmployee.lastName
                     }
                   : undefined
-              }
+              } as any)
             : null,
           contact: {
             id: '',
@@ -263,8 +268,8 @@ export const useOpportunityData = (opportunityId: string, accessToken: string) =
   const fetchDocuments = async () => {
     try {
       setLoadingDocuments(true)
-      const result = await fetchCrmDocuments({ opportunityId })
-      setDocuments(result.CrmDocument || [])
+      const result = await fetchCrmDocuments(opportunityId)
+      setDocuments(result || [])
     } catch (err) {
       console.error('Error fetching documents:', err)
     } finally {

@@ -59,6 +59,10 @@ const PlatformFeature = {
   DashboardLayout: { Key: 'platform.dashboard-layout.mode', Values: PlatformFeatureDashboardLayoutValue }
 }
 
+const DevFeature = {
+  Enabled: { Key: 'dev.enabled' }
+}
+
 export const Feature = {
   OrgChart: OrgChartFeature,
   Core: CoreFeature,
@@ -66,5 +70,6 @@ export const Feature = {
   CRM: CRMFeature,
   ServiceDesk: Servicedesk,
   FLOW: FLOWFeature,
-  Platform: PlatformFeature
+  Platform: PlatformFeature,
+  Dev: DevFeature
 }

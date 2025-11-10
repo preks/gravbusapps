@@ -167,7 +167,10 @@ export const useExpenseItemsFilters = (
     if (currencyStats.length > 0) {
       groups.unshift({
         id: 'currency',
-        title: getTranslationFromI18nKeyAndLabel('lowcoder:expense_item_list.currency', 'Currency'),
+        title: getTranslationFromI18nKeyAndLabel(
+          'lowcoder:create_expense_item.change_expense_item_container.current_currency_label',
+          'Currency'
+        ),
         filters: currencyStats.map(cs => ({
           id: `currency:${cs.ref}`,
           label: cs.code,

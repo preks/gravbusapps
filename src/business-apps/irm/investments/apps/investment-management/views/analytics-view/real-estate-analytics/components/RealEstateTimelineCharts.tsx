@@ -15,7 +15,7 @@ import {
 } from '@newwork/nw-design-system'
 import { ComposedChart, Bar, Line, XAxis, YAxis } from 'recharts'
 import { ChartLineUpIcon, TrendUpIcon, CalendarIcon } from '@phosphor-icons/react'
-import { formatCurrencyCompact } from '../../../../utils/currencyUtils'
+import { formatCurrencyCompact } from '@/common/utils/numberFormatter'
 import { CurrencyFilter } from '../../shared/components'
 import { useCurrencySync } from '../../shared/hooks'
 import { useRealEstateTimelineAggregate } from '../hooks/useRealEstateTimelineAggregate'
