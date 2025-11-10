@@ -324,23 +324,9 @@ const HrGrowthTab: React.FC<HrGrowthTabProps> = ({
                   <CardHeader>
                     <Skeleton className="gba:h-6 gba:w-48" />
                   </CardHeader>
-                  <CardContent className="gba:space-y-4">
-                    <div className="gba:space-y-2">
-                      <Skeleton className="gba:h-4 gba:w-full" />
-                      <Skeleton className="gba:h-4 gba:w-3/4" />
-                      <Skeleton className="gba:h-4 gba:w-1/2" />
-                    </div>
-                    <div className="gba:space-y-3">
-                      {Array.from({ length: 5 }).map((_, i) => (
-                        <div key={i} className="gba:flex gba:items-center gba:gap-4 gba:p-3 gba:border gba:rounded-lg">
-                          <Skeleton className="gba:h-12 gba:w-12 gba:rounded" />
-                          <div className="gba:flex-1 gba:space-y-2">
-                            <Skeleton className="gba:h-4 gba:w-2/3" />
-                            <Skeleton className="gba:h-3 gba:w-1/2" />
-                          </div>
-                          <Skeleton className="gba:h-6 gba:w-20" />
-                        </div>
-                      ))}
+                  <CardContent>
+                    <div className="gba:text-center gba:text-muted-foreground gba:py-8">
+                      {t('loading-compensation-history')}
                     </div>
                   </CardContent>
                 </Card>

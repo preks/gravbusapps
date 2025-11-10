@@ -19,8 +19,7 @@ import { CompensationHistoryData } from '../types/compensationTypes'
 import { getCompensationStatusLabel, getCompensationStatusVariant } from '../types/compensationEnums'
 import PayslipHistorySection from '../components/history/PayslipHistorySection'
 import dayjs from 'dayjs'
-import { formatNumberFunction } from '@/common/utils/windowUtils'
-import { extractCurrencyCode } from '@/common/utils/numberFormatter'
+import { formatCurrencyString } from '@/common/utils/numberFormatter'
 import { BusinessAppContextProps } from '@/common/BusinessAppContext'
 
 interface PayHistoryViewProps extends BusinessAppContextProps {
@@ -157,7 +156,12 @@ const PayHistoryView: React.FC<PayHistoryViewProps> = ({
                   {record.currency ? (
                     <>
                       <div className="gba:font-semibold gba:text-foreground">
-                        {formatNumberFunction(record.baseSalary, '0')} {extractCurrencyCode(record.currency.code)}
+                        {formatCurrencyString(record.baseSalary, {
+                          currency: record.currency.code,
+                          locale: locale,
+                          minimumFractionDigits: 0,
+                          maximumFractionDigits: 0
+                        })}
                       </div>
                       <div className="gba:text-xs gba:text-muted-foreground">{t('current-annually')}</div>
                     </>
@@ -171,8 +175,12 @@ const PayHistoryView: React.FC<PayHistoryViewProps> = ({
                       {record.currency ? (
                         <>
                           <div className="gba:font-semibold gba:text-foreground">
-                            {formatNumberFunction(record.monthlyGrossSalary, '0')}{' '}
-                            {extractCurrencyCode(record.currency.code)}
+                            {formatCurrencyString(record.monthlyGrossSalary, {
+                              currency: record.currency.code,
+                              locale: locale,
+                              minimumFractionDigits: 0,
+                              maximumFractionDigits: 0
+                            })}
                           </div>
                           <div className="gba:text-xs gba:text-muted-foreground">{t('current-monthly')}</div>
                         </>
@@ -233,7 +241,12 @@ const PayHistoryView: React.FC<PayHistoryViewProps> = ({
               <TableCell>{dayjs(bonus.paymentDate).locale(locale).format('MMM D, YYYY')}</TableCell>
               <TableCell>
                 <div className="gba:font-semibold gba:text-success">
-                  {formatNumberFunction(bonus.amount, '0')} {extractCurrencyCode(bonus.currency.code)}
+                  {formatCurrencyString(bonus.amount, {
+                    currency: bonus.currency.code,
+                    locale: locale,
+                    minimumFractionDigits: 0,
+                    maximumFractionDigits: 0
+                  })}
                 </div>
               </TableCell>
               <TableCell>{bonus.bonusType.value}</TableCell>
