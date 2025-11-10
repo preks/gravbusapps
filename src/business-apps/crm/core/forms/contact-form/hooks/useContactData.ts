@@ -2,6 +2,12 @@ import { useState, useEffect, useMemo } from 'react'
 import { BusinessAppContextProps } from '@/common/BusinessAppContext'
 import { ContactFormValues } from '../types'
 import { useGraphQLClient } from '@/common/network/graphql/useGraphQLClient'
+import {
+  getEmailChannel,
+  getPhoneChannel,
+  getLinkedInChannel,
+  getXingChannel
+} from '@/common/data/common/utils/communicationChannelHelpers'
 
 interface UseContactDataProps {
   businessAppContext: BusinessAppContextProps
@@ -171,15 +177,8 @@ export const useContactData = ({ businessAppContext }: UseContactDataProps): Use
     () =>
       (contact: ContactQueryResult): Partial<ContactFormValues> => {
         // Extract LinkedIn and Xing URLs from communication channels
-        const linkedinChannel = contact.communicationChannels?.find(
-          ch =>
-            ch.communicationChannelRef === 'CommunicationChannel:v1:LinkedIn' ||
-            ch.communicationChannel?.code === 'LinkedIn'
-        )
-        const xingChannel = contact.communicationChannels?.find(
-          ch =>
-            ch.communicationChannelRef === 'CommunicationChannel:v1:Xing' || ch.communicationChannel?.code === 'Xing'
-        )
+        const linkedinChannel = getLinkedInChannel(contact.communicationChannels)
+        const xingChannel = getXingChannel(contact.communicationChannels)
 
         console.log('🔍 Contact Data Mapping Debug:', {
           contactId: contact.id,
@@ -205,9 +204,10 @@ export const useContactData = ({ businessAppContext }: UseContactDataProps): Use
           // Personal Information
           firstName: contact?.firstName || '',
           lastName: contact?.lastName || '',
-          email: contact?.email || '',
-          phone: contact?.phone || '',
-          fax: contact?.fax || '',
+          // Contact Information - Extract from communication channels
+          email: getEmailChannel(contact.communicationChannels)?.value || contact?.email || '', // Fallback to deprecated field for backward compatibility
+          phone: getPhoneChannel(contact.communicationChannels)?.value || contact?.phone || '', // Fallback to deprecated field for backward compatibility
+          fax: (contact as any)?.fax || '',
           birthDate: contact.birthDate ? new Date(contact.birthDate).toISOString().split('T')[0] : '', // Convert to YYYY-MM-DD format for HTML date input
           bio: contact.bio || '',
           pictureUrl: contact.pictureUrl || '',
@@ -216,7 +216,9 @@ export const useContactData = ({ businessAppContext }: UseContactDataProps): Use
           jobTitle: contact?.jobTitle || '',
           department: contact?.department || '',
           contactType: contact?.contactType || '', // Use actual database value
-          workExperienceYears: contact?.workExperienceYears ? String(contact?.workExperienceYears) : '',
+          workExperienceYears: (contact as any)?.workExperienceYears
+            ? String((contact as any).workExperienceYears)
+            : '',
 
           // Owner Information
           owner: contact?.ownerEmployeeId || '',
@@ -227,7 +229,7 @@ export const useContactData = ({ businessAppContext }: UseContactDataProps): Use
           accountId:
             contact?.account?.id && contact?.account?.name
               ? { id: contact.account.id, name: contact.account.name }
-              : contact?.account?.id || '',
+              : ((contact?.account?.id || '') as any),
           companyName: contact?.account?.name || '',
           // ✅ NEW: Account associations with metadata (matching IRM pattern)
           accountIds:
@@ -240,11 +242,10 @@ export const useContactData = ({ businessAppContext }: UseContactDataProps): Use
 
           // Academic Title
           academicTitle: contact?.academicTitle?.id || '',
-          academicTitleRef: contact?.academicTitleRef || contact?.academicTitle?.id || '',
+          academicTitleRef: (contact as any)?.academicTitleRef || contact?.academicTitle?.id || '',
 
           // Language
-          language: contact?.language?.id || '',
-          languageRef: contact?.languageRef || contact?.language?.id || '',
+          languageRef: (contact as any)?.languageRef || (contact as any)?.language?.id || '',
 
           // Social Media (extracted from communication channels)
           linkedinUrl: linkedinChannel?.value || '',
@@ -254,7 +255,7 @@ export const useContactData = ({ businessAppContext }: UseContactDataProps): Use
           salesCampaignId: contact?.salesCampaignId || contact?.salesCampaign?.id || '',
 
           // Notes
-          notesSummary: contact?.notesSummary || '',
+          notesSummary: (contact as any)?.notesSummary || '',
 
           // Audit fields
           createdAt: contact?.createdAt || '',

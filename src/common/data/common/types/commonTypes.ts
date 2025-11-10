@@ -16,6 +16,23 @@ export enum CommunicationChannelType {
   EMAIL = 'email'
 }
 
+export enum CommunicationChannelCode {
+  EMAIL = 'e-mail',
+  FACEBOOK = 'Facebook',
+  FAX = 'Fax',
+  INSTAGRAM = 'Instagram',
+  LINKEDIN = 'LinkedIn',
+  MESSENGER = 'Messenger',
+  MOBILE = 'Mobile',
+  PAGER = 'Pager',
+  PHONE = 'Phone',
+  Slack = 'Slack',
+  WEBSITE = 'WEBSITE',
+  X = 'X',
+  XING = 'Xing',
+  YOUTUBE = 'Youtube'
+}
+
 /**
  * Address Interface
  * Standardized address structure

@@ -6,6 +6,8 @@
 import { AUDIT_FIELDS, CATALOG_ENTRY } from '@/common/network/graphql/commonFragments'
 import { COMMUNICATION_CHANNEL_REF } from '@/common/data/common/queries/communicationChannelFragments'
 import { EMPLOYEE_REF } from '@/common/data/employee/queries/fragments/employeeFragments'
+//import { ADDRESS_REF } from '@/common/data/common/queries/addressFragments'
+import { buildAddressFragment } from './_tempAddress'
 import { buildWhere, buildOrderBy } from '@/common/network/graphql/queryHelpers'
 import { ContactFields } from '../types/contactTypes'
 import type { Descriptor } from '@/common/network/graphql/queryHelpers'
@@ -74,6 +76,7 @@ export const buildContactQuery = (
   const orderByType = `[${entityName}OrderBy!]`
 
   // AccountContacts relation (only if relationBuilders provided)
+  const accountAddressFragment = buildAddressFragment(entityName)
   const accountContactsRelation =
     relationBuilders?.buildAccountFragment && relationFields?.accountFields
       ? `
@@ -84,6 +87,13 @@ export const buildContactQuery = (
       contactType
       account {
         ${relationBuilders.buildAccountFragment(relationFields.accountFields)}
+        # ✅ Relations direkt hier hinzufügen (nicht im Fragment)
+        ${relationFields.accountFields.communicationChannels}(where: { isDeleted: { _eq: false } }) {
+          ${COMMUNICATION_CHANNEL_REF}
+        }
+        ${relationFields.accountFields.addresses}(where: { isDeleted: { _eq: false } }) {
+          ${accountAddressFragment}
+        }
       }
     }
   `
@@ -207,6 +217,11 @@ export const buildContactByIdQuery = (
     
     ${fields.tasks}(where: { isDeleted: { _eq: false } }) {
       ${relationBuilders.buildTaskFragment(relationFields.taskFields)}
+      
+      # Documents relation within tasks
+      documents(where: { isDeleted: { _eq: false } }) {
+        ${relationBuilders.buildDocumentFragment(relationFields.documentFields)}
+      }
     }
     
     ${fields.activities}(where: { isDeleted: { _eq: false } }) {
@@ -220,6 +235,13 @@ export const buildContactByIdQuery = (
       contactType
       account {
         ${relationBuilders.buildAccountFragment(relationFields.accountFields)}
+        # ✅ Relations direkt hier hinzufügen (nicht im Fragment)
+        ${relationFields.accountFields.communicationChannels}(where: { isDeleted: { _eq: false } }) {
+          ${COMMUNICATION_CHANNEL_REF}
+        }
+        ${relationFields.accountFields.addresses}(where: { isDeleted: { _eq: false } }) {
+          ${buildAddressFragment(entityName)}
+        }
       }
     }
     

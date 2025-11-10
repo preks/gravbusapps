@@ -10,6 +10,10 @@ import {
   buildNoteSearchQuery,
   buildNoteWhereCondition,
   buildNoteOrderBy,
+  buildNoteByLeadIdQuery,
+  buildNoteByAccountIdQuery,
+  buildNoteByContactIdQuery,
+  buildNoteByOpportunityIdQuery,
   type CommonNoteQueryVariables,
   type NoteRelationBuilders,
   type NoteRelationFields
@@ -109,6 +113,103 @@ export const buildInvestmentNoteOrderBy = (
   // INVESTMENT_NOTE_DESCRIPTORS already includes common descriptors
   const descriptors = [...INVESTMENT_NOTE_DESCRIPTORS, ...additionalDescriptors]
   return buildNoteOrderBy(orderBy, descriptors)
+}
+
+// =====================================================
+// INVESTMENT NOTE BY ENTITY ID QUERY BUILDERS
+// =====================================================
+
+/**
+ * Build Investment Note query filtered by Lead ID
+ * Uses common buildNoteByLeadIdQuery with Investment-specific fields and relations
+ */
+export const buildInvestmentNoteByLeadIdQuery = (): string => {
+  const relationBuilders: Partial<NoteRelationBuilders> = {
+    buildDocumentFragment,
+    buildAccountFragment,
+    buildContactFragment,
+    buildLeadFragment,
+    buildOpportunityFragment
+  }
+
+  const relationFields: Partial<NoteRelationFields> = {
+    documentFields: InvestmentDocumentFields,
+    accountFields: InvestmentAccountFields,
+    contactFields: InvestmentContactFields,
+    leadFields: InvestmentLeadFields,
+    opportunityFields: InvestmentOpportunityFields
+  }
+
+  return buildNoteByLeadIdQuery(InvestmentNoteFields, 'InvestmentNote', relationBuilders, relationFields)
+}
+
+/**
+ * Build Investment Note query filtered by Account ID
+ */
+export const buildInvestmentNoteByAccountIdQuery = (): string => {
+  const relationBuilders: Partial<NoteRelationBuilders> = {
+    buildDocumentFragment,
+    buildAccountFragment,
+    buildContactFragment,
+    buildLeadFragment,
+    buildOpportunityFragment
+  }
+
+  const relationFields: Partial<NoteRelationFields> = {
+    documentFields: InvestmentDocumentFields,
+    accountFields: InvestmentAccountFields,
+    contactFields: InvestmentContactFields,
+    leadFields: InvestmentLeadFields,
+    opportunityFields: InvestmentOpportunityFields
+  }
+
+  return buildNoteByAccountIdQuery(InvestmentNoteFields, 'InvestmentNote', relationBuilders, relationFields)
+}
+
+/**
+ * Build Investment Note query filtered by Contact ID
+ */
+export const buildInvestmentNoteByContactIdQuery = (): string => {
+  const relationBuilders: Partial<NoteRelationBuilders> = {
+    buildDocumentFragment,
+    buildAccountFragment,
+    buildContactFragment,
+    buildLeadFragment,
+    buildOpportunityFragment
+  }
+
+  const relationFields: Partial<NoteRelationFields> = {
+    documentFields: InvestmentDocumentFields,
+    accountFields: InvestmentAccountFields,
+    contactFields: InvestmentContactFields,
+    leadFields: InvestmentLeadFields,
+    opportunityFields: InvestmentOpportunityFields
+  }
+
+  return buildNoteByContactIdQuery(InvestmentNoteFields, 'InvestmentNote', relationBuilders, relationFields)
+}
+
+/**
+ * Build Investment Note query filtered by Opportunity ID
+ */
+export const buildInvestmentNoteByOpportunityIdQuery = (): string => {
+  const relationBuilders: Partial<NoteRelationBuilders> = {
+    buildDocumentFragment,
+    buildAccountFragment,
+    buildContactFragment,
+    buildLeadFragment,
+    buildOpportunityFragment
+  }
+
+  const relationFields: Partial<NoteRelationFields> = {
+    documentFields: InvestmentDocumentFields,
+    accountFields: InvestmentAccountFields,
+    contactFields: InvestmentContactFields,
+    leadFields: InvestmentLeadFields,
+    opportunityFields: InvestmentOpportunityFields
+  }
+
+  return buildNoteByOpportunityIdQuery(InvestmentNoteFields, 'InvestmentNote', relationBuilders, relationFields)
 }
 
 // =====================================================

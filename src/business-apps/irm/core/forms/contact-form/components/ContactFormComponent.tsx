@@ -5,6 +5,8 @@ import { dispatchProcessContinueEvent } from '@/common/utils/processEventUtils'
 import { useContactFormContext } from '../context/ContactFormContext'
 import PersonalInformationSection from './PersonalInformationSection'
 import OwnerInformationSection from './OwnerInformationSection'
+import { buildCommunicationChannelRef } from '@/common/data/common/utils/communicationChannelHelpers'
+import { CommunicationChannelCode } from '@/common/data/common/types/commonTypes'
 
 const prefixDataTestId = 'ContactForm'
 
@@ -50,8 +52,9 @@ const ContactFormComponent: React.FC = () => {
         jobPosition: toStringOrUndefined(formValues.jobPosition),
         department: toStringOrUndefined(formValues.department),
 
-        email: toStringOrUndefined(formValues.email),
-        phone: toStringOrUndefined(formValues.phone),
+        // Contact Information - moved to communicationChannels
+        // email: toStringOrUndefined(formValues.email), // ❌ REMOVED - use communicationChannels
+        // phone: toStringOrUndefined(formValues.phone), // ❌ REMOVED - use communicationChannels
 
         ownerEmployee: toStringOrUndefined(formValues.ownerEmployeeId), // ✅ FIXED: ownerEmployeeId → ownerEmployee
 
@@ -64,13 +67,37 @@ const ContactFormComponent: React.FC = () => {
         additionalProperties: formValues.additionalProperties || {}
       }
 
-      // ✅ NEW: Add communication channels for LinkedIn and Xing
+      // ✅ NEW: Add communication channels for Email, Phone, LinkedIn and Xing
       const communicationChannels = []
+
+      // Add Email communication channel if provided
+      if (formValues.email && formValues.email.trim()) {
+        communicationChannels.push({
+          communicationChannelRef: buildCommunicationChannelRef(CommunicationChannelCode.EMAIL),
+          value: formValues.email.trim(),
+          valueExtension: null,
+          source: 'FORM_INPUT',
+          activeFrom: new Date().toISOString(),
+          activeTo: null
+        })
+      }
+
+      // Add Phone communication channel if provided
+      if (formValues.phone && formValues.phone.trim()) {
+        communicationChannels.push({
+          communicationChannelRef: buildCommunicationChannelRef(CommunicationChannelCode.PHONE),
+          value: formValues.phone.trim(),
+          valueExtension: null,
+          source: 'FORM_INPUT',
+          activeFrom: new Date().toISOString(),
+          activeTo: null
+        })
+      }
 
       // Add LinkedIn communication channel if provided
       if (formValues.linkedinUrl && formValues.linkedinUrl.trim()) {
         communicationChannels.push({
-          communicationChannelRef: 'CommunicationChannel:v1:LinkedIn',
+          communicationChannelRef: buildCommunicationChannelRef(CommunicationChannelCode.LINKEDIN),
           value: formValues.linkedinUrl.trim(),
           valueExtension: null,
           source: 'FORM_INPUT',
@@ -82,7 +109,7 @@ const ContactFormComponent: React.FC = () => {
       // Add Xing communication channel if provided
       if (formValues.xingUrl && formValues.xingUrl.trim()) {
         communicationChannels.push({
-          communicationChannelRef: 'CommunicationChannel:v1:Xing',
+          communicationChannelRef: buildCommunicationChannelRef(CommunicationChannelCode.XING),
           value: formValues.xingUrl.trim(),
           valueExtension: null,
           source: 'FORM_INPUT',

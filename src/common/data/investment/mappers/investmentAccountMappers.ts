@@ -28,9 +28,6 @@ export function toInvestmentAccount(raw: any): InvestmentAccount {
   const investments = raw.investment
   const investmentReports = raw.investmentReport
 
-  const addresses = raw.investmentAddress
-  const communicationChannels = raw.investmentCommunicationChannel
-
   // Map investmentAccountContact to accountContacts (common naming)
   const accountContacts = raw.investmentAccountContact
 
@@ -47,8 +44,6 @@ export function toInvestmentAccount(raw: any): InvestmentAccount {
     // Add mapped array fields
     investments,
     investmentReports,
-    addresses,
-    communicationChannels,
     accountContacts,
     opportunities,
     leads,

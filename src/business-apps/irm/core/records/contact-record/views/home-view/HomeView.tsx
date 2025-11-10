@@ -32,8 +32,7 @@ const buildReferenceUrl = (reference: TaskReference): string => {
 
 export const HomeView: React.FC<HomeViewProps> = ({
   contactId,
-  contact,
-  rawContactData,
+  contactData,
   activities,
   notes,
   tasks,
@@ -58,12 +57,11 @@ export const HomeView: React.FC<HomeViewProps> = ({
             component: AccountSection,
             props: {
               ...props,
-              accounts:
-                (rawContactData as any)?.investmentAccountContact?.map((iac: any) => iac.account).filter(Boolean) || [], // ✅ Vollständige InvestmentAccount-Objekte
-              accountId: (rawContactData as any)?.investmentAccountContact?.[0]?.account?.id,
-              recordUrl: (rawContactData as any)?.investmentAccountContact?.[0]?.account?.id
+              accounts: contactData?.accountContacts?.map((ac: any) => ac.account).filter(Boolean) || [],
+              accountId: contactData?.accountContacts?.[0]?.account?.id,
+              recordUrl: contactData?.accountContacts?.[0]?.account?.id
                 ? buildPlatformUrl('/platform/irm/account-record', {
-                    accountId: (rawContactData as any).investmentAccountContact[0].account.id,
+                    accountId: contactData.accountContacts[0].account.id,
                     source: 'contact-relations',
                     fromEntity: 'contacts'
                   })
@@ -71,7 +69,7 @@ export const HomeView: React.FC<HomeViewProps> = ({
               actionButtonProps: {
                 contextsArray: [FlowContextName.investmentAccountEntity],
                 externalContextData: {
-                  accountId: (rawContactData as any)?.investmentAccountContact?.[0]?.account?.id
+                  accountId: contactData?.accountContacts?.[0]?.account?.id
                 },
                 prefixDataTestId: 'contact-account'
               }
@@ -90,11 +88,11 @@ export const HomeView: React.FC<HomeViewProps> = ({
             component: ContactSection,
             props: {
               ...props,
-              contact: rawContactData || contact, // ✅ Vollständiges InvestmentContact-Objekt
-              contactId: contact?.id,
+              contact: contactData,
+              contactId: contactData?.id,
               actionButtonProps: {
                 contextsArray: [FlowContextName.investmentContactEntity],
-                externalContextData: { contactId: contact?.id },
+                externalContextData: { contactId: contactData?.id },
                 prefixDataTestId: 'contact-contact'
               }
             }

@@ -10,6 +10,10 @@ import {
   buildActivitySearchQuery,
   buildActivityWhereCondition,
   buildActivityOrderBy,
+  buildActivityByLeadIdQuery,
+  buildActivityByAccountIdQuery,
+  buildActivityByContactIdQuery,
+  buildActivityByOpportunityIdQuery,
   type CommonActivityQueryVariables,
   type ActivityRelationBuilders,
   type ActivityRelationFields
@@ -113,4 +117,106 @@ export const buildInvestmentActivityOrderBy = (
   // INVESTMENT_ACTIVITY_DESCRIPTORS already includes common descriptors
   const descriptors = [...INVESTMENT_ACTIVITY_DESCRIPTORS, ...additionalDescriptors]
   return buildActivityOrderBy(orderBy, descriptors)
+}
+
+// =====================================================
+// INVESTMENT ACTIVITY BY ENTITY ID QUERY BUILDERS
+// =====================================================
+
+/**
+ * Build Investment Activity query filtered by Lead ID
+ * Uses common buildActivityByLeadIdQuery with Investment-specific fields and relations
+ */
+export const buildInvestmentActivityByLeadIdQuery = (): string => {
+  const relationBuilders: Partial<ActivityRelationBuilders> = {
+    buildDocumentFragment,
+    buildAccountFragment,
+    buildContactFragment,
+    buildLeadFragment,
+    buildOpportunityFragment
+  }
+
+  const relationFields: Partial<ActivityRelationFields> = {
+    documentFields: InvestmentDocumentFields,
+    accountFields: InvestmentAccountFields,
+    contactFields: InvestmentContactFields,
+    leadFields: InvestmentLeadFields,
+    opportunityFields: InvestmentOpportunityFields
+  }
+
+  return buildActivityByLeadIdQuery(InvestmentActivityFields, 'InvestmentActivity', relationBuilders, relationFields)
+}
+
+/**
+ * Build Investment Activity query filtered by Account ID
+ */
+export const buildInvestmentActivityByAccountIdQuery = (): string => {
+  const relationBuilders: Partial<ActivityRelationBuilders> = {
+    buildDocumentFragment,
+    buildAccountFragment,
+    buildContactFragment,
+    buildLeadFragment,
+    buildOpportunityFragment
+  }
+
+  const relationFields: Partial<ActivityRelationFields> = {
+    documentFields: InvestmentDocumentFields,
+    accountFields: InvestmentAccountFields,
+    contactFields: InvestmentContactFields,
+    leadFields: InvestmentLeadFields,
+    opportunityFields: InvestmentOpportunityFields
+  }
+
+  return buildActivityByAccountIdQuery(InvestmentActivityFields, 'InvestmentActivity', relationBuilders, relationFields)
+}
+
+/**
+ * Build Investment Activity query filtered by Contact ID
+ */
+export const buildInvestmentActivityByContactIdQuery = (): string => {
+  const relationBuilders: Partial<ActivityRelationBuilders> = {
+    buildDocumentFragment,
+    buildAccountFragment,
+    buildContactFragment,
+    buildLeadFragment,
+    buildOpportunityFragment
+  }
+
+  const relationFields: Partial<ActivityRelationFields> = {
+    documentFields: InvestmentDocumentFields,
+    accountFields: InvestmentAccountFields,
+    contactFields: InvestmentContactFields,
+    leadFields: InvestmentLeadFields,
+    opportunityFields: InvestmentOpportunityFields
+  }
+
+  return buildActivityByContactIdQuery(InvestmentActivityFields, 'InvestmentActivity', relationBuilders, relationFields)
+}
+
+/**
+ * Build Investment Activity query filtered by Opportunity ID
+ */
+export const buildInvestmentActivityByOpportunityIdQuery = (): string => {
+  const relationBuilders: Partial<ActivityRelationBuilders> = {
+    buildDocumentFragment,
+    buildAccountFragment,
+    buildContactFragment,
+    buildLeadFragment,
+    buildOpportunityFragment
+  }
+
+  const relationFields: Partial<ActivityRelationFields> = {
+    documentFields: InvestmentDocumentFields,
+    accountFields: InvestmentAccountFields,
+    contactFields: InvestmentContactFields,
+    leadFields: InvestmentLeadFields,
+    opportunityFields: InvestmentOpportunityFields
+  }
+
+  return buildActivityByOpportunityIdQuery(
+    InvestmentActivityFields,
+    'InvestmentActivity',
+    relationBuilders,
+    relationFields
+  )
 }

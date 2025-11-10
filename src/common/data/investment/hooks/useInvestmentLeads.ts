@@ -14,22 +14,24 @@ import {
   type InvestmentLeadQueryVariables
 } from '../queries/investmentLeadQueries'
 
-// Import related-entity queries from new file
-import {
-  GET_INVESTMENT_TASKS_BY_LEAD_ID,
-  GET_INVESTMENT_ACTIVITIES_BY_LEAD_ID,
-  GET_INVESTMENT_NOTES_BY_LEAD_ID,
-  GET_INVESTMENT_DOCUMENTS_BY_LEAD_ID
-} from '../queries/investmentLeadQueries'
-
 // Import where/orderBy builders for related entities
-import { buildInvestmentTaskWhereCondition, buildInvestmentTaskOrderBy } from '../queries/investmentTaskQueries'
 import {
+  buildInvestmentTaskByLeadIdQuery,
+  buildInvestmentTaskWhereCondition,
+  buildInvestmentTaskOrderBy
+} from '../queries/investmentTaskQueries'
+import {
+  buildInvestmentActivityByLeadIdQuery,
   buildInvestmentActivityWhereCondition,
   buildInvestmentActivityOrderBy
 } from '../queries/investmentActivityQueries'
-import { buildInvestmentNoteWhereCondition, buildInvestmentNoteOrderBy } from '../queries/investmentNoteQueries'
 import {
+  buildInvestmentNoteByLeadIdQuery,
+  buildInvestmentNoteWhereCondition,
+  buildInvestmentNoteOrderBy
+} from '../queries/investmentNoteQueries'
+import {
+  buildInvestmentDocumentByLeadIdQuery,
   buildInvestmentDocumentWhereCondition,
   buildInvestmentDocumentOrderBy
 } from '../queries/investmentDocumentQueries'
@@ -232,7 +234,7 @@ export const useGetInvestmentTasksByLeadId = (context: BusinessAppContextProps) 
 
   const fetchInvestmentTasksByLeadId = useCallback(
     async (leadId: string) => {
-      const query = GET_INVESTMENT_TASKS_BY_LEAD_ID()
+      const query = buildInvestmentTaskByLeadIdQuery()
       const whereCondition = buildInvestmentTaskWhereCondition(
         {},
         [],
@@ -266,7 +268,7 @@ export const useGetInvestmentActivitiesByLeadId = (context: BusinessAppContextPr
 
   const fetchInvestmentActivitiesByLeadId = useCallback(
     async (leadId: string) => {
-      const query = GET_INVESTMENT_ACTIVITIES_BY_LEAD_ID()
+      const query = buildInvestmentActivityByLeadIdQuery()
       const whereCondition = buildInvestmentActivityWhereCondition(
         {},
         [],
@@ -300,7 +302,7 @@ export const useGetInvestmentNotesByLeadId = (context: BusinessAppContextProps) 
 
   const fetchInvestmentNotesByLeadId = useCallback(
     async (leadId: string) => {
-      const query = GET_INVESTMENT_NOTES_BY_LEAD_ID()
+      const query = buildInvestmentNoteByLeadIdQuery()
       const whereCondition = buildInvestmentNoteWhereCondition(
         {},
         [],
@@ -334,7 +336,7 @@ export const useGetInvestmentDocumentsByLeadId = (context: BusinessAppContextPro
 
   const fetchInvestmentDocumentsByLeadId = useCallback(
     async (leadId: string) => {
-      const query = GET_INVESTMENT_DOCUMENTS_BY_LEAD_ID()
+      const query = buildInvestmentDocumentByLeadIdQuery()
       const whereCondition = buildInvestmentDocumentWhereCondition(
         {},
         [],

@@ -10,6 +10,10 @@ import type { CustomerTask } from '../types'
 import {
   buildCustomerTaskQuery,
   buildCustomerTaskByIdQuery,
+  buildCustomerTaskByAccountIdQuery,
+  buildCustomerTaskByContactIdQuery,
+  buildCustomerTaskByLeadIdQuery,
+  buildCustomerTaskByOpportunityIdQuery,
   buildCustomerTaskWhereCondition,
   buildCustomerTaskOrderBy,
   type CustomerTaskQueryVariables
@@ -75,7 +79,7 @@ export const useCustomerTasks = (context: BusinessAppContextProps) => {
 
   const fetchCustomerTasksByAccountId = useCallback(
     async (accountId: string): Promise<CustomerTask[]> => {
-      const query = buildCustomerTaskQuery()
+      const query = buildCustomerTaskByAccountIdQuery()
       const whereCondition = buildCustomerTaskWhereCondition({}, [], [{ account: { id: { _eq: accountId } } }])
       const orderBy = buildCustomerTaskOrderBy([{ field: 'createdAt', direction: 'DESC_NULLS_LAST' }])
 
@@ -95,16 +99,9 @@ export const useCustomerTasks = (context: BusinessAppContextProps) => {
 
   const fetchCustomerTasksByContactId = useCallback(
     async (contactId: string): Promise<CustomerTask[]> => {
-      const query = buildCustomerTaskQuery()
-      const whereCondition = buildCustomerTaskWhereCondition(
-        CustomerTaskFields,
-        {},
-        [],
-        [{ contact: { id: { _eq: contactId } } }]
-      )
-      const orderBy = buildCustomerTaskOrderBy(CustomerTaskFields, [
-        { field: 'createdAt', direction: 'DESC_NULLS_LAST' }
-      ])
+      const query = buildCustomerTaskByContactIdQuery()
+      const whereCondition = buildCustomerTaskWhereCondition({}, [], [{ contact: { id: { _eq: contactId } } }])
+      const orderBy = buildCustomerTaskOrderBy([{ field: 'createdAt', direction: 'DESC_NULLS_LAST' }])
 
       try {
         const result = await graphqlClient.request<CustomerTaskByEntityQueryResponse>(query, {
@@ -122,16 +119,9 @@ export const useCustomerTasks = (context: BusinessAppContextProps) => {
 
   const fetchCustomerTasksByLeadId = useCallback(
     async (leadId: string): Promise<CustomerTask[]> => {
-      const query = buildCustomerTaskQuery()
-      const whereCondition = buildCustomerTaskWhereCondition(
-        CustomerTaskFields,
-        {},
-        [],
-        [{ lead: { id: { _eq: leadId } } }]
-      )
-      const orderBy = buildCustomerTaskOrderBy(CustomerTaskFields, [
-        { field: 'createdAt', direction: 'DESC_NULLS_LAST' }
-      ])
+      const query = buildCustomerTaskByLeadIdQuery()
+      const whereCondition = buildCustomerTaskWhereCondition({}, [], [{ lead: { id: { _eq: leadId } } }])
+      const orderBy = buildCustomerTaskOrderBy([{ field: 'createdAt', direction: 'DESC_NULLS_LAST' }])
 
       try {
         const result = await graphqlClient.request<CustomerTaskByEntityQueryResponse>(query, {
@@ -149,16 +139,9 @@ export const useCustomerTasks = (context: BusinessAppContextProps) => {
 
   const fetchCustomerTasksByOpportunityId = useCallback(
     async (opportunityId: string): Promise<CustomerTask[]> => {
-      const query = buildCustomerTaskQuery()
-      const whereCondition = buildCustomerTaskWhereCondition(
-        CustomerTaskFields,
-        {},
-        [],
-        [{ opportunity: { id: { _eq: opportunityId } } }]
-      )
-      const orderBy = buildCustomerTaskOrderBy(CustomerTaskFields, [
-        { field: 'createdAt', direction: 'DESC_NULLS_LAST' }
-      ])
+      const query = buildCustomerTaskByOpportunityIdQuery()
+      const whereCondition = buildCustomerTaskWhereCondition({}, [], [{ opportunity: { id: { _eq: opportunityId } } }])
+      const orderBy = buildCustomerTaskOrderBy([{ field: 'createdAt', direction: 'DESC_NULLS_LAST' }])
 
       try {
         const result = await graphqlClient.request<CustomerTaskByEntityQueryResponse>(query, {

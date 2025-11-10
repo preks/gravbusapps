@@ -25,11 +25,7 @@ import { DocumentFields } from '../types/documentTypes'
  * @param addressFragment - Optional: address fragment to use when includeRelations is true
  * @returns GraphQL fragment string with all account fields
  */
-export const buildAccountFragment = (
-  fields: Record<keyof typeof AccountFields, string> = AccountFields,
-  includeRelations: boolean = false,
-  addressFragment?: string
-): string => {
+export const buildAccountFragment = (fields: Record<keyof typeof AccountFields, string> = AccountFields): string => {
   return `
   ${AUDIT_FIELDS}
   ${fields.accountAnnualRevenueBand} {
@@ -65,24 +61,6 @@ export const buildAccountFragment = (
   }
   ${fields.timeZoneRef}
   ${fields.website}
-  ${
-    includeRelations
-      ? `
-    ${fields.communicationChannels}(where: { isDeleted: { _eq: false } }) {
-      ${COMMUNICATION_CHANNEL_REF}
-    }
-    ${
-      addressFragment && fields.addresses
-        ? `
-      ${fields.addresses}(where: { isDeleted: { _eq: false } }) {
-        ${addressFragment}
-      }
-    `
-        : ''
-    }
-  `
-      : ''
-  }
 `
 }
 
@@ -101,6 +79,7 @@ export const buildContactFragment = (fields: Record<keyof typeof ContactFields, 
   ${fields.department}
   ${fields.id}
   ${fields.firstName}
+  ${fields.jobPosition}
   ${fields.language} {
     ${CATALOG_ENTRY}
   }

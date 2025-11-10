@@ -12,7 +12,7 @@ import { InvestmentContact } from '../types'
  */
 export function toInvestmentContact(base: InvestmentContact): InvestmentContact {
   // Map IRM-prefixed array field names to common naming
-  const accountContacts = (base as any).investmentAccountContact
+  const accountContacts = base.investmentAccountContact
   const leads = (base as any).investmentLead
   const opportunityContacts = (base as any).investmentOpportunityContact
 

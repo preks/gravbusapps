@@ -47,8 +47,6 @@ export function toCustomerAccount(raw: any): CustomerAccount {
   const customerCampaignId = raw.salesCampaignId
 
   // Map singular/plural GraphQL field names to plural for common naming
-  const accountContacts = raw.accountContacts
-  const contacts = raw.contact ? (Array.isArray(raw.contact) ? raw.contact : [raw.contact]) : raw.contacts
   const opportunities = raw.opportunity
   const leads = raw.lead
 
@@ -67,8 +65,6 @@ export function toCustomerAccount(raw: any): CustomerAccount {
     // Map CRM-specific fields to common naming
     customerCampaign,
     customerCampaignId,
-    accountContacts,
-    contacts,
     opportunities,
     leads
   } as CustomerAccount

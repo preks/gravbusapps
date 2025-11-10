@@ -1,10 +1,10 @@
 import { useCallback } from 'react'
-import { InvestmentDocument, BaseInvestmentDocument } from '@/common/data/investment/types'
+import { InvestmentDocument } from '@/common/data/investment/types'
 import { DocumentItem } from '@/components/document-section'
 import { BusinessAppContextProps } from '@/common/BusinessAppContext'
 import { useGraphQLClient } from '@/common/network/graphql/useGraphQLClient'
 import { toInvestmentDocument } from '@/common/data/investment/mappers/investmentRelatedEntityMappers'
-import { INVESTMENT_DOCUMENT } from '@/common/data/investment/queries/fragments/investmentRelationFragments'
+import { INVESTMENT_DOCUMENT } from '@/common/data/investment/queries/fragments/investmentFragments'
 
 /**
  * Get IRM document API configuration for DocumentSection
@@ -60,7 +60,7 @@ export function useGetIrmDocuments(entityType: string, context: BusinessAppConte
 
       try {
         // Use GraphQL variables for security (prevents injection attacks)
-        const result = await graphqlClient.request<{ InvestmentDocument: BaseInvestmentDocument[] }>(query, {
+        const result = await graphqlClient.request<{ InvestmentDocument: InvestmentDocument[] }>(query, {
           entityId
         })
         return result.InvestmentDocument.map(toInvestmentDocument)

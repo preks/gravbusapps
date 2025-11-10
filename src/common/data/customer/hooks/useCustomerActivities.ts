@@ -9,6 +9,10 @@ import type { BaseCustomerActivity, CustomerActivity } from '../types'
 // Use the new query builder functions
 import {
   buildCustomerActivityQuery,
+  buildCustomerActivityByAccountIdQuery,
+  buildCustomerActivityByContactIdQuery,
+  buildCustomerActivityByLeadIdQuery,
+  buildCustomerActivityByOpportunityIdQuery,
   buildCustomerActivityWhereCondition,
   buildCustomerActivityOrderBy,
   type CustomerActivityQueryVariables
@@ -69,7 +73,7 @@ export const useCustomerActivities = (context: BusinessAppContextProps) => {
 
   const fetchCustomerActivitiesByAccountId = useCallback(
     async (accountId: string): Promise<CustomerActivity[]> => {
-      const query = buildCustomerActivityQuery()
+      const query = buildCustomerActivityByAccountIdQuery()
       const whereCondition = buildCustomerActivityWhereCondition({}, [], [{ account: { id: { _eq: accountId } } }])
       const orderBy = buildCustomerActivityOrderBy([{ field: 'createdAt', direction: 'DESC_NULLS_LAST' }])
 
@@ -89,7 +93,7 @@ export const useCustomerActivities = (context: BusinessAppContextProps) => {
 
   const fetchCustomerActivitiesByContactId = useCallback(
     async (contactId: string): Promise<CustomerActivity[]> => {
-      const query = buildCustomerActivityQuery()
+      const query = buildCustomerActivityByContactIdQuery()
       const whereCondition = buildCustomerActivityWhereCondition({}, [], [{ contact: { id: { _eq: contactId } } }])
       const orderBy = buildCustomerActivityOrderBy([{ field: 'createdAt', direction: 'DESC_NULLS_LAST' }])
 
@@ -109,7 +113,7 @@ export const useCustomerActivities = (context: BusinessAppContextProps) => {
 
   const fetchCustomerActivitiesByLeadId = useCallback(
     async (leadId: string): Promise<CustomerActivity[]> => {
-      const query = buildCustomerActivityQuery()
+      const query = buildCustomerActivityByLeadIdQuery()
       const whereCondition = buildCustomerActivityWhereCondition({}, [], [{ lead: { id: { _eq: leadId } } }])
       const orderBy = buildCustomerActivityOrderBy([{ field: 'createdAt', direction: 'DESC_NULLS_LAST' }])
 
@@ -129,7 +133,7 @@ export const useCustomerActivities = (context: BusinessAppContextProps) => {
 
   const fetchCustomerActivitiesByOpportunityId = useCallback(
     async (opportunityId: string): Promise<CustomerActivity[]> => {
-      const query = buildCustomerActivityQuery()
+      const query = buildCustomerActivityByOpportunityIdQuery()
       const whereCondition = buildCustomerActivityWhereCondition(
         {},
         [],

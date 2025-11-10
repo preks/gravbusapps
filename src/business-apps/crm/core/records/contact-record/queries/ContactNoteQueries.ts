@@ -13,6 +13,20 @@ export interface ContactNoteData {
   noteTitle: string
   createdAt: string
   createdBy: string
+  authorEmployee?: {
+    id: string
+    firstName?: string
+    lastName?: string
+    displayName?: string
+  }
+  documents?: Array<{
+    id: string
+    name?: string
+    file?: string
+    fileInfo?: any
+    mimeType?: string
+    fileSize?: number
+  }>
 }
 
 export interface ContactNoteResponse {
@@ -29,6 +43,12 @@ export const GET_CONTACT_NOTES = (): string => {
         createdBy
         noteText
         noteTitle
+        authorEmployee {
+          id
+          firstName
+          lastName
+          displayName
+        }
       }
     }
   `

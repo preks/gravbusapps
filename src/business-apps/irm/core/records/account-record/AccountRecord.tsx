@@ -15,6 +15,7 @@ import { Bot } from 'lucide-react'
 import { OpportunityView } from './views/opportunity-view/OpportunityView'
 import { DocumentView } from './views/document-view/DocumentView'
 import { HomeView } from './views/home-view/HomeView'
+import { getEmailChannel, getPhoneChannel } from '@/common/data/common/utils/communicationChannelHelpers'
 
 interface AccountRecordContentProps extends BusinessAppContextProps {
   accountId: string
@@ -173,7 +174,12 @@ const InvestmentAccountRecordContent: React.FC<AccountRecordContentProps> = ({ a
         items: [
           {
             label: 'Email',
-            value: accountData?.email || 'Not set',
+            value: getEmailChannel(accountData?.communicationChannels)?.value || accountData?.email || 'Not set',
+            icon: TrendUp
+          },
+          {
+            label: 'Phone',
+            value: getPhoneChannel(accountData?.communicationChannels)?.value || 'Not set',
             icon: TrendUp
           },
           {
@@ -183,13 +189,17 @@ const InvestmentAccountRecordContent: React.FC<AccountRecordContentProps> = ({ a
           },
           {
             label: 'Owner',
-            value: (accountData as any)?.ownerDisplayName || account?.accountOwner?.name || 'Not assigned',
+            value:
+              accountData?.ownerEmployee?.displayName ||
+              (accountData?.ownerEmployee?.firstName && accountData?.ownerEmployee?.lastName
+                ? `${accountData.ownerEmployee.firstName} ${accountData.ownerEmployee.lastName}`.trim()
+                : 'Not assigned'),
             icon: Users
           }
         ]
       }
     ],
-    [accountData?.email, accountData?.foundationDate, (accountData as any)?.ownerDisplayName, account?.accountOwner]
+    [accountData?.email, accountData?.foundationDate, accountData?.ownerEmployee]
   )
 
   const headerActions = useMemo(() => {

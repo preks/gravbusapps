@@ -25,6 +25,11 @@ import { LeadDocuments } from './components/LeadDocuments'
 import AccountSection from '@/common/components/common-relations/record-sections/account-section/AccountSection'
 import ContactSection from '@/common/components/common-relations/record-sections/contact-section/ContactSection'
 import InvestmentSection from '@/common/components/common-relations/record-sections/investment-section/InvestmentSection'
+import {
+  buildInvestmentAccountFromLead,
+  buildInvestmentContactFromLead,
+  buildInvestmentFromLead
+} from './utils/leadDataTransformers'
 import ActivitySection from '@/common/components/common-relations/record-sections/activity-section/ActivitySection'
 import NoteSection from '@/common/components/common-relations/record-sections/note-section/NoteSection'
 import TaskSection from '@/common/components/common-relations/record-sections/task-section/TaskSection'
@@ -56,13 +61,6 @@ const InvestmentLeadRecordContent: React.FC<LeadRecordContentProps> = ({ leadId,
     if (typeof window === 'undefined') return 'overview'
     return getValidTab(new URLSearchParams(window.location.search).get('tab'))
   })
-
-  // Construct businessAppContext from props for sections
-  const businessAppContext: BusinessAppContextProps = {
-    accessToken: props.accessToken,
-    userInfo: props.userInfo,
-    additionalData: props.additionalData
-  }
 
   const { lead, leadData, loading, error, leadStatuses, loadingStatuses, refetch } = useLeadData(
     leadId,
@@ -493,41 +491,8 @@ const InvestmentLeadRecordContent: React.FC<LeadRecordContentProps> = ({ leadId,
                   component: AccountSection,
                   props: {
                     ...props,
-                    account: leadData
-                      ? {
-                          name: leadData.companyName,
-                          email: leadData.companyEmail,
-                          phone: leadData.companyPhone,
-                          website: leadData.companyWebsite,
-                          legalForm: leadData.legalForm?.value || leadData.legalForm?.code || leadData.legalForm,
-                          industry:
-                            leadData.industryClass?.value || leadData.industryClass?.code || leadData.industryClass,
-                          size: leadData.companySize?.value || leadData.companySize?.code || leadData.companySize,
-                          revenue: leadData.accountAnnualRevenueBand?.value || leadData.accountAnnualRevenueBand?.code,
-                          // Add numberOfEmployees for AccountSection compatibility
-                          numberOfEmployees: leadData.companySize,
-                          annualRevenue: leadData.accountAnnualRevenueBand
-                        }
-                      : {
-                          name: getTranslationFromI18nKeyAndLabel('crm.account.companyName', 'Company Name'),
-                          email: null,
-                          phone: null,
-                          website: null,
-                          legalForm: null,
-                          industry: null,
-                          size: null,
-                          revenue: null,
-                          numberOfEmployees: null
-                        },
-                    address: leadData
-                      ? {
-                          addressLine: leadData.addressLine,
-                          postalCode: leadData.postalCode,
-                          locality: leadData.locality,
-                          country: typeof leadData.country === 'string' ? leadData.country : leadData.country?.value,
-                          region: typeof leadData.region === 'string' ? leadData.region : leadData.region?.value
-                        }
-                      : undefined
+                    account: buildInvestmentAccountFromLead(leadData),
+                    accounts: leadData ? [buildInvestmentAccountFromLead(leadData)].filter(Boolean) : undefined
                   }
                 }
               ]}
@@ -543,18 +508,8 @@ const InvestmentLeadRecordContent: React.FC<LeadRecordContentProps> = ({ leadId,
                   component: ContactSection,
                   props: {
                     ...props,
-                    contact: leadData
-                      ? {
-                          firstName: leadData.firstName,
-                          lastName: leadData.lastName,
-                          email: leadData.email,
-                          phone: leadData.phoneNumber,
-                          jobTitle: leadData.position,
-                          academicTitle: leadData.academicTitle?.value || leadData.academicTitle?.code,
-                          salutation: leadData.salutation?.value || leadData.salutation?.code,
-                          communicationChannels: leadData.communicationChannels
-                        }
-                      : undefined
+                    contact: buildInvestmentContactFromLead(leadData),
+                    contacts: leadData ? [buildInvestmentContactFromLead(leadData)].filter(Boolean) : undefined
                   }
                 }
               ]}
@@ -569,8 +524,9 @@ const InvestmentLeadRecordContent: React.FC<LeadRecordContentProps> = ({ leadId,
                   id: 'investment-section',
                   component: InvestmentSection,
                   props: {
-                    investmentData: leadData,
-                    businessAppContext: businessAppContext,
+                    ...props,
+                    investment: buildInvestmentFromLead(leadData),
+                    investments: leadData ? [buildInvestmentFromLead(leadData)].filter(Boolean) : undefined,
                     isLoading: loading,
                     error: error
                   }

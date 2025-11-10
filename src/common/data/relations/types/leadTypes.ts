@@ -40,6 +40,8 @@ export interface Lead extends BaseEntity {
   leadSourceRef?: string // IRM / CRM
   leadStatus?: CatalogEntry // IRM / CRM
   leadStatusRef?: string // IRM / CRM
+  legalForm?: CatalogEntry // IRM / CRM
+  legalFormRef?: string // IRM / CRM
   locality?: string // IRM / TODO (city)
   notes?: any[] // IRM / CRM
   ownerEmployee?: Employee // IRM / CRM
@@ -98,6 +100,8 @@ export const LeadFields = {
   leadSourceRef: 'leadSourceRef',
   leadStatus: 'leadStatus',
   leadStatusRef: 'leadStatusRef',
+  legalForm: 'legalForm',
+  legalFormRef: 'legalFormRef',
   locality: 'locality',
   notes: 'notes',
   ownerEmployee: 'ownerEmployee',
@@ -193,6 +197,12 @@ export const createLeadDescriptors = (fields: Record<keyof typeof LeadFields, st
     sortPath: `${fields.industryClass}.value`,
     type: 'text'
   },
+  {
+    key: 'legalForm',
+    searchPaths: [`${fields.legalForm}.value`, `${fields.legalForm}.code`],
+    sortPath: `${fields.legalForm}.value`,
+    type: 'text'
+  },
   { key: 'lastName', searchPaths: [fields.lastName], sortPath: fields.lastName, type: 'text' },
   {
     key: 'lead',
@@ -286,6 +296,15 @@ export const createLeadDescriptors = (fields: Record<keyof typeof LeadFields, st
   { key: 'academicTitleIds', path: fields.academicTitleRef, kind: 'inIds' },
   { key: 'accountAnnualRevenueBandIds', path: fields.accountAnnualRevenueBandRef, kind: 'inIds' },
   { key: 'companySizeIds', path: fields.companySizeRef, kind: 'inIds' },
+  {
+    key: 'legalFormIds',
+    path: fields.legalFormRef,
+    filterLabel: 'Legal Form',
+    optionSelectPaths: [`${fields.legalForm}.id`, `${fields.legalForm}.value`],
+    optionSearchPaths: [`${fields.legalForm}.value`, `${fields.legalForm}.code`],
+    optionDistinctOn: [fields.legalFormRef],
+    kind: 'inIds'
+  },
   { key: 'convertedAccountIds', path: fields.convertedAccountId, kind: 'inIds' },
   { key: 'convertedContactIds', path: fields.convertedContactId, kind: 'inIds' },
   { key: 'convertedOpportunityIds', path: fields.convertedOpportunityId, kind: 'inIds' },

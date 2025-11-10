@@ -102,6 +102,14 @@ export const buildLeadQuery = (
         ${fields.companyName}
         ${fields.companyPhone}
         ${fields.companyWebsite}
+        ${fields.companySize} {
+          ${CATALOG_ENTRY}
+        }
+        ${fields.companySizeRef}
+        ${fields.accountAnnualRevenueBand} {
+          ${CATALOG_ENTRY}
+        }
+        ${fields.accountAnnualRevenueBandRef}
         ${fields.conversionDate}
         ${fields.country} {
           ${CATALOG_ENTRY}
@@ -131,6 +139,10 @@ export const buildLeadQuery = (
         ${fields.ownerEmployee} {
           ${EMPLOYEE_REF}
         }
+        ${fields.legalForm} {
+          ${CATALOG_ENTRY}
+        }
+        ${fields.legalFormRef}
         ${fields.ownerEmployeeId}
         ${fields.phoneNumber}
         ${fields.position}
@@ -186,6 +198,14 @@ export const buildLeadByIdQuery = (
         ${fields.companyName}
         ${fields.companyPhone}
         ${fields.companyWebsite}
+        ${fields.companySize} {
+          ${CATALOG_ENTRY}
+        }
+        ${fields.companySizeRef}
+        ${fields.accountAnnualRevenueBand} {
+          ${CATALOG_ENTRY}
+        }
+        ${fields.accountAnnualRevenueBandRef}
         ${fields.conversionDate}
         ${fields.country} {
           ${CATALOG_ENTRY}
@@ -215,6 +235,10 @@ export const buildLeadByIdQuery = (
         ${fields.ownerEmployee} {
           ${EMPLOYEE_REF}
         }
+        ${fields.legalForm} {
+          ${CATALOG_ENTRY}
+        }
+        ${fields.legalFormRef}
         ${fields.ownerEmployeeId}
         ${fields.phoneNumber}
         ${fields.position}
@@ -251,6 +275,11 @@ export const buildLeadByIdQuery = (
     
     ${fields.tasks}(where: { isDeleted: { _eq: false } }) {
       ${relationBuilders.buildTaskFragment(relationFields.taskFields)}
+      
+      # Documents relation within tasks
+      documents(where: { isDeleted: { _eq: false } }) {
+        ${relationBuilders.buildDocumentFragment(relationFields.documentFields)}
+      }
     }
     
     # Converted relations (for leads that were converted)

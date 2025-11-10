@@ -18,6 +18,7 @@ import { InvestmentOpportunityFields, INVESTMENT_OPPORTUNITY_DESCRIPTORS } from 
 import { INVESTMENT_ADDRESS_FRAGMENT } from '../types/investmentAddressTypes'
 // OpportunityFields type is used implicitly through Record<keyof typeof OpportunityFields, string>
 import type { Descriptor } from '@/common/network/graphql/queryHelpers'
+import { CATALOG_ENTRY } from '@/common/network/graphql/commonFragments'
 
 // Import Common REF Fragment Builders (no relations - to avoid circular dependencies)
 import {
@@ -38,6 +39,7 @@ import { InvestmentDocumentFields } from '../types/investmentDocumentTypes'
 import { InvestmentLeadFields } from '../types/investmentLeadTypes'
 import { InvestmentNoteFields } from '../types/investmentNoteTypes'
 import { InvestmentTaskFields } from '../types/investmentTaskTypes'
+import { InvestmentOpportunityStageConditionFields } from '../types/investmentOpportunityTypes'
 
 /**
  * Investment Opportunity Query Variables Interface
@@ -74,6 +76,39 @@ export const buildInvestmentOpportunityQuery = (
     ${fields.leads}(where: { isDeleted: { _eq: false } }) {
       ${buildLeadFragment(InvestmentLeadFields)}
     }
+    
+    # IRM-specific Investment fields
+    investmentGroup {
+      ${CATALOG_ENTRY}
+    }
+    investmentGroupRef
+    investmentName
+    investmentType {
+      ${CATALOG_ENTRY}
+    }
+    investmentTypeRef
+    investmentRole {
+      ${CATALOG_ENTRY}
+    }
+    investmentRoleRef
+    investmentStakeType {
+      ${CATALOG_ENTRY}
+    }
+    investmentStakeTypeRef
+    initialInvestmentAmount
+    forecastedProfitAmount
+    requiredCapitalAmount
+    marketValue
+    loanAmount
+    loanInterestRate
+    stakePercentage
+    annualNetColdRent
+    buildingYear
+    size
+    sizeMeasurementUnit {
+      ${CATALOG_ENTRY}
+    }
+    sizeMeasurementUnitRef
   `
   return buildOpportunityQuery(fields, 'InvestmentOpportunity', entityFields)
 }
@@ -103,10 +138,11 @@ export const buildInvestmentOpportunityByIdQuery = (
     documentFields: InvestmentDocumentFields,
     leadFields: InvestmentLeadFields,
     noteFields: InvestmentNoteFields,
-    taskFields: InvestmentTaskFields
+    taskFields: InvestmentTaskFields,
+    stageConditionFields: InvestmentOpportunityStageConditionFields
   }
 
-  // Domain-specific entity fields (addresses, leads)
+  // Domain-specific entity fields (addresses, leads, investment fields)
   const entityFields = `
     # Addresses relation (IRM uses "locality")
     ${fields.addresses}(where: { isDeleted: { _eq: false } }) {
@@ -117,6 +153,39 @@ export const buildInvestmentOpportunityByIdQuery = (
     ${fields.leads}(where: { isDeleted: { _eq: false } }) {
       ${buildLeadFragment(InvestmentLeadFields)}
     }
+    
+    # IRM-specific Investment fields
+    investmentGroup {
+      ${CATALOG_ENTRY}
+    }
+    investmentGroupRef
+    investmentName
+    investmentType {
+      ${CATALOG_ENTRY}
+    }
+    investmentTypeRef
+    investmentRole {
+      ${CATALOG_ENTRY}
+    }
+    investmentRoleRef
+    investmentStakeType {
+      ${CATALOG_ENTRY}
+    }
+    investmentStakeTypeRef
+    initialInvestmentAmount
+    forecastedProfitAmount
+    requiredCapitalAmount
+    marketValue
+    loanAmount
+    loanInterestRate
+    stakePercentage
+    annualNetColdRent
+    buildingYear
+    size
+    sizeMeasurementUnit {
+      ${CATALOG_ENTRY}
+    }
+    sizeMeasurementUnitRef
   `
 
   return buildOpportunityByIdQuery(fields, id, 'InvestmentOpportunity', relationBuilders, relationFields, entityFields)
@@ -157,138 +226,10 @@ export const buildInvestmentOpportunityOrderBy = (
   return buildOpportunityOrderBy(orderBy, descriptors)
 }
 
-// =====================================================
-// INVESTMENT OPPORTUNITY RELATED ENTITIES QUERIES
-// =====================================================
-
-/**
- * Build Investment Tasks by Opportunity ID query (using GraphQL variables)
- */
-export const buildInvestmentTasksByOpportunityIdQuery = (): string => {
-  const fragment = `
-    ${buildTaskFragment(InvestmentTaskFields)}
-    
-    # Entity references
-    opportunity {
-      id
-      code
-      name
-    }
-  `
-
-  return `
-    query GetInvestmentTasksByOpportunityId(
-      $where: InvestmentTaskBoolExp
-      $orderBy: [InvestmentTaskOrderBy!]
-    ) {
-      InvestmentTask(
-        where: $where
-        orderBy: $orderBy
-      ) {
-        ${fragment}
-      }
-    }
-  `
-}
-
-/**
- * Build Investment Activities by Opportunity ID query (using GraphQL variables)
- */
-export const buildInvestmentActivitiesByOpportunityIdQuery = (): string => {
-  const fragment = `
-    ${buildActivityFragment(InvestmentActivityFields)}
-    
-    # Entity references
-    opportunity {
-      id
-      code
-      name
-    }
-  `
-
-  return `
-    query GetInvestmentActivitiesByOpportunityId(
-      $where: InvestmentActivityBoolExp
-      $orderBy: [InvestmentActivityOrderBy!]
-    ) {
-      InvestmentActivity(
-        where: $where
-        orderBy: $orderBy
-      ) {
-        ${fragment}
-      }
-    }
-  `
-}
-
-/**
- * Build Investment Notes by Opportunity ID query (using GraphQL variables)
- */
-export const buildInvestmentNotesByOpportunityIdQuery = (): string => {
-  const fragment = `
-    ${buildNoteFragment(InvestmentNoteFields)}
-    
-    # Entity references
-    opportunity {
-      id
-      code
-      name
-    }
-  `
-
-  return `
-    query GetInvestmentNotesByOpportunityId(
-      $where: InvestmentNoteBoolExp
-      $orderBy: [InvestmentNoteOrderBy!]
-    ) {
-      InvestmentNote(
-        where: $where
-        orderBy: $orderBy
-      ) {
-        ${fragment}
-      }
-    }
-  `
-}
-
-/**
- * Build Investment Documents by Opportunity ID query (using GraphQL variables)
- */
-export const buildInvestmentDocumentsByOpportunityIdQuery = (): string => {
-  const fragment = `
-    ${buildDocumentFragment(InvestmentDocumentFields)}
-    
-    # Entity references
-    opportunity {
-      id
-      code
-      name
-    }
-  `
-
-  return `
-    query GetInvestmentDocumentsByOpportunityId(
-      $where: InvestmentDocumentBoolExp
-      $orderBy: [InvestmentDocumentOrderBy!]
-    ) {
-      InvestmentDocument(
-        where: $where
-        orderBy: $orderBy
-      ) {
-        ${fragment}
-      }
-    }
-  `
-}
-
-// Legacy exports for backward compatibility (deprecated - use builder functions above)
-export const GET_INVESTMENT_TASKS_BY_OPPORTUNITY_ID = buildInvestmentTasksByOpportunityIdQuery
-export const GET_INVESTMENT_ACTIVITIES_BY_OPPORTUNITY_ID = buildInvestmentActivitiesByOpportunityIdQuery
-export const GET_INVESTMENT_NOTES_BY_OPPORTUNITY_ID = buildInvestmentNotesByOpportunityIdQuery
-export const GET_INVESTMENT_DOCUMENTS_BY_OPPORTUNITY_ID = buildInvestmentDocumentsByOpportunityIdQuery
-
 // Investment Opportunity Queries - Complete queries using shared fragments
-// NOTE: Related-entity queries have been moved to investmentOpportunityQueries.new.ts
+// NOTE: Related-entity queries have been moved to centralized query builders
+// Use buildInvestmentTaskByOpportunityIdQuery, buildInvestmentActivityByOpportunityIdQuery, etc.
+// from investmentTaskQueries.ts, investmentActivityQueries.ts, etc.
 import { INVESTMENT_OPPORTUNITY } from './fragments/investmentFragments'
 
 // Get Investment Opportunity by ID
@@ -305,8 +246,9 @@ export const GET_INVESTMENT_OPPORTUNITY_BY_ID = (id: string): string => {
 // =====================================================
 // INVESTMENT OPPORTUNITY RELATED ENTITIES QUERIES
 // =====================================================
-// NOTE: Related-entity queries have been moved to investmentOpportunityQueries.new.ts
-// Import them from there: GET_INVESTMENT_TASKS_BY_OPPORTUNITY_ID, etc.
+// NOTE: Related-entity queries have been moved to centralized query builders
+// Use buildInvestmentTaskByOpportunityIdQuery, buildInvestmentActivityByOpportunityIdQuery, etc.
+// from investmentTaskQueries.ts, investmentActivityQueries.ts, etc.
 
 // Get Investment Opportunity Aggregates - for metrics calculation
 export const GET_INVESTMENT_OPPORTUNITY_AGGREGATES = (): string => {

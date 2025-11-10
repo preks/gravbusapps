@@ -10,13 +10,6 @@ import type {
   InvestmentDocument
 } from '../types'
 
-// Import related-entity queries from new file
-import {
-  GET_INVESTMENT_TASKS_BY_OPPORTUNITY_ID,
-  GET_INVESTMENT_ACTIVITIES_BY_OPPORTUNITY_ID,
-  GET_INVESTMENT_NOTES_BY_OPPORTUNITY_ID,
-  GET_INVESTMENT_DOCUMENTS_BY_OPPORTUNITY_ID
-} from '../queries/investmentOpportunityQueries'
 // Import new query builders
 import {
   buildInvestmentOpportunityQuery,
@@ -27,13 +20,23 @@ import {
 } from '../queries/investmentOpportunityQueries'
 
 // Import where/orderBy builders for related entities
-import { buildInvestmentTaskWhereCondition, buildInvestmentTaskOrderBy } from '../queries/investmentTaskQueries'
 import {
+  buildInvestmentTaskByOpportunityIdQuery,
+  buildInvestmentTaskWhereCondition,
+  buildInvestmentTaskOrderBy
+} from '../queries/investmentTaskQueries'
+import {
+  buildInvestmentActivityByOpportunityIdQuery,
   buildInvestmentActivityWhereCondition,
   buildInvestmentActivityOrderBy
 } from '../queries/investmentActivityQueries'
-import { buildInvestmentNoteWhereCondition, buildInvestmentNoteOrderBy } from '../queries/investmentNoteQueries'
 import {
+  buildInvestmentNoteByOpportunityIdQuery,
+  buildInvestmentNoteWhereCondition,
+  buildInvestmentNoteOrderBy
+} from '../queries/investmentNoteQueries'
+import {
+  buildInvestmentDocumentByOpportunityIdQuery,
   buildInvestmentDocumentWhereCondition,
   buildInvestmentDocumentOrderBy
 } from '../queries/investmentDocumentQueries'
@@ -302,7 +305,7 @@ export const useGetInvestmentTasksByOpportunityId = (context: BusinessAppContext
 
   const fetchInvestmentTasksByOpportunityId = useCallback(
     async (opportunityId: string) => {
-      const query = GET_INVESTMENT_TASKS_BY_OPPORTUNITY_ID()
+      const query = buildInvestmentTaskByOpportunityIdQuery()
       const whereCondition = buildInvestmentTaskWhereCondition(
         {},
         [],
@@ -335,7 +338,7 @@ export const useGetInvestmentActivitiesByOpportunityId = (context: BusinessAppCo
 
   const fetchInvestmentActivitiesByOpportunityId = useCallback(
     async (opportunityId: string) => {
-      const query = GET_INVESTMENT_ACTIVITIES_BY_OPPORTUNITY_ID()
+      const query = buildInvestmentActivityByOpportunityIdQuery()
       const whereCondition = buildInvestmentActivityWhereCondition(
         {},
         [],
@@ -371,7 +374,7 @@ export const useGetInvestmentNotesByOpportunityId = (context: BusinessAppContext
 
   const fetchInvestmentNotesByOpportunityId = useCallback(
     async (opportunityId: string) => {
-      const query = GET_INVESTMENT_NOTES_BY_OPPORTUNITY_ID()
+      const query = buildInvestmentNoteByOpportunityIdQuery()
       const whereCondition = buildInvestmentNoteWhereCondition(
         {},
         [],
@@ -404,7 +407,7 @@ export const useGetInvestmentDocumentsByOpportunityId = (context: BusinessAppCon
 
   const fetchInvestmentDocumentsByOpportunityId = useCallback(
     async (opportunityId: string) => {
-      const query = GET_INVESTMENT_DOCUMENTS_BY_OPPORTUNITY_ID()
+      const query = buildInvestmentDocumentByOpportunityIdQuery()
       const whereCondition = buildInvestmentDocumentWhereCondition(
         {},
         [],

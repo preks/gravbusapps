@@ -17,6 +17,7 @@ import {
 import { LeadFields } from '@/common/data/relations/types/leadTypes'
 import { INVESTMENT_LEAD_DESCRIPTORS } from '../types/investmentLeadTypes'
 import type { Descriptor } from '@/common/network/graphql/queryHelpers'
+import { CATALOG_ENTRY } from '@/common/network/graphql/commonFragments'
 
 // Import Common REF Fragment Builders (no relations - to avoid circular dependencies)
 import {
@@ -48,7 +49,42 @@ export type InvestmentLeadQueryVariables = CommonLeadQueryVariables
  * Build Investment Lead query with fields mapping
  */
 export const buildInvestmentLeadQuery = (fields: typeof LeadFields = LeadFields): string => {
-  return buildLeadQuery(fields, 'InvestmentLead')
+  // IRM-specific Investment fields
+  const entityFields = `
+    # IRM-specific Investment fields
+    investmentGroup {
+      ${CATALOG_ENTRY}
+    }
+    investmentGroupRef
+    investmentName
+    investmentType {
+      ${CATALOG_ENTRY}
+    }
+    investmentTypeRef
+    investmentRole {
+      ${CATALOG_ENTRY}
+    }
+    investmentRoleRef
+    investmentStakeType {
+      ${CATALOG_ENTRY}
+    }
+    investmentStakeTypeRef
+    initialInvestmentAmount
+    forecastedProfitAmount
+    requiredCapitalAmount
+    marketValue
+    loanAmount
+    loanInterestRate
+    stakePercentage
+    annualNetColdRent
+    buildingYear
+    size
+    sizeMeasurementUnit {
+      ${CATALOG_ENTRY}
+    }
+    sizeMeasurementUnitRef
+  `
+  return buildLeadQuery(fields, 'InvestmentLead', entityFields)
 }
 
 /**
@@ -76,7 +112,43 @@ export const buildInvestmentLeadByIdQuery = (fields: typeof LeadFields = LeadFie
     opportunityFields: InvestmentOpportunityFields
   }
 
-  return buildLeadByIdQuery(fields, id, 'InvestmentLead', relationBuilders, relationFields)
+  // IRM-specific Investment fields
+  const entityFields = `
+    # IRM-specific Investment fields
+    investmentGroup {
+      ${CATALOG_ENTRY}
+    }
+    investmentGroupRef
+    investmentName
+    investmentType {
+      ${CATALOG_ENTRY}
+    }
+    investmentTypeRef
+    investmentRole {
+      ${CATALOG_ENTRY}
+    }
+    investmentRoleRef
+    investmentStakeType {
+      ${CATALOG_ENTRY}
+    }
+    investmentStakeTypeRef
+    initialInvestmentAmount
+    forecastedProfitAmount
+    requiredCapitalAmount
+    marketValue
+    loanAmount
+    loanInterestRate
+    stakePercentage
+    annualNetColdRent
+    buildingYear
+    size
+    sizeMeasurementUnit {
+      ${CATALOG_ENTRY}
+    }
+    sizeMeasurementUnitRef
+  `
+
+  return buildLeadByIdQuery(fields, id, 'InvestmentLead', relationBuilders, relationFields, entityFields)
 }
 
 /**
@@ -114,134 +186,6 @@ export const buildInvestmentLeadOrderBy = (
 // =====================================================
 // INVESTMENT LEAD RELATED ENTITIES QUERIES
 // =====================================================
-
-/**
- * Build Investment Tasks by Lead ID query (using GraphQL variables)
- */
-export const buildInvestmentTasksByLeadIdQuery = (): string => {
-  const fragment = `
-    ${buildTaskFragment(InvestmentTaskFields)}
-    
-    # Entity references
-    lead {
-      id
-      code
-      firstName
-      lastName
-    }
-  `
-
-  return `
-    query GetInvestmentTasksByLeadId(
-      $where: InvestmentTaskBoolExp
-      $orderBy: [InvestmentTaskOrderBy!]
-    ) {
-      InvestmentTask(
-        where: $where
-        orderBy: $orderBy
-      ) {
-        ${fragment}
-      }
-    }
-  `
-}
-
-/**
- * Build Investment Activities by Lead ID query (using GraphQL variables)
- */
-export const buildInvestmentActivitiesByLeadIdQuery = (): string => {
-  const fragment = `
-    ${buildActivityFragment(InvestmentActivityFields)}
-    
-    # Entity references
-    lead {
-      id
-      code
-      firstName
-      lastName
-    }
-  `
-
-  return `
-    query GetInvestmentActivitiesByLeadId(
-      $where: InvestmentActivityBoolExp
-      $orderBy: [InvestmentActivityOrderBy!]
-    ) {
-      InvestmentActivity(
-        where: $where
-        orderBy: $orderBy
-      ) {
-        ${fragment}
-      }
-    }
-  `
-}
-
-/**
- * Build Investment Notes by Lead ID query (using GraphQL variables)
- */
-export const buildInvestmentNotesByLeadIdQuery = (): string => {
-  const fragment = `
-    ${buildNoteFragment(InvestmentNoteFields)}
-    
-    # Entity references
-    lead {
-      id
-      code
-      firstName
-      lastName
-    }
-  `
-
-  return `
-    query GetInvestmentNotesByLeadId(
-      $where: InvestmentNoteBoolExp
-      $orderBy: [InvestmentNoteOrderBy!]
-    ) {
-      InvestmentNote(
-        where: $where
-        orderBy: $orderBy
-      ) {
-        ${fragment}
-      }
-    }
-  `
-}
-
-/**
- * Build Investment Documents by Lead ID query (using GraphQL variables)
- */
-export const buildInvestmentDocumentsByLeadIdQuery = (): string => {
-  const fragment = `
-    ${buildDocumentFragment(InvestmentDocumentFields)}
-    
-    # Entity references
-    lead {
-      id
-      code
-      firstName
-      lastName
-    }
-  `
-
-  return `
-    query GetInvestmentDocumentsByLeadId(
-      $where: InvestmentDocumentBoolExp
-      $orderBy: [InvestmentDocumentOrderBy!]
-    ) {
-      InvestmentDocument(
-        where: $where
-        orderBy: $orderBy
-      ) {
-        ${fragment}
-      }
-    }
-  `
-}
-
-// Legacy exports for backward compatibility (deprecated - use builder functions above)
-// Note: These now return query strings that require variables to be passed separately
-export const GET_INVESTMENT_TASKS_BY_LEAD_ID = buildInvestmentTasksByLeadIdQuery
-export const GET_INVESTMENT_ACTIVITIES_BY_LEAD_ID = buildInvestmentActivitiesByLeadIdQuery
-export const GET_INVESTMENT_NOTES_BY_LEAD_ID = buildInvestmentNotesByLeadIdQuery
-export const GET_INVESTMENT_DOCUMENTS_BY_LEAD_ID = buildInvestmentDocumentsByLeadIdQuery
+// NOTE: Related-entity queries have been moved to centralized query builders
+// Use buildInvestmentTaskByLeadIdQuery, buildInvestmentActivityByLeadIdQuery, etc.
+// from investmentTaskQueries.ts, investmentActivityQueries.ts, etc.

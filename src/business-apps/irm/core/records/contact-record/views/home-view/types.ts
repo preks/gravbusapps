@@ -1,7 +1,6 @@
 // Type definitions for HomeView component
 import type { BusinessAppContextProps } from '@/common/BusinessAppContext'
 import type { AppActionCommonProps } from '@/common/hooks/useAppActionData'
-import type { Contact } from '../../hooks/useContactData'
 import type { InvestmentContact } from '@/common/data/investment/types'
 import type { TaskReference } from '@/common/components/common-relations/detail-sheets/task-detail-sheet'
 import type { DocumentItem } from '@/components/document-section'
@@ -9,13 +8,6 @@ import type { DocumentItem } from '@/components/document-section'
 // =====================================================
 // CORE ENTITY TYPES
 // =====================================================
-
-// Note: Contact type is imported from useContactData.ts as it's the central interface
-
-export type { Contact } from '../../hooks/useContactData'
-
-// Raw contact data type (GraphQL response)
-export type RawContactData = InvestmentContact
 
 // =====================================================
 // CATALOG ENTRY TYPE
@@ -160,8 +152,7 @@ export type ApprovalActionProps = Omit<AppActionCommonProps, 'accessToken'>
 
 export interface HomeViewProps extends BusinessAppContextProps {
   contactId: string
-  contact: Contact
-  rawContactData: RawContactData
+  contactData: InvestmentContact
   activities: Activity[]
   notes: Note[]
   tasks: Task[]

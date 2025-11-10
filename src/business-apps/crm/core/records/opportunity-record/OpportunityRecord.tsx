@@ -146,7 +146,7 @@ const OpportunityRecordContent: React.FC<OpportunityRecordContentProps> = ({
         noteText: note.noteText || '',
         createdAt: note.createdAt,
         createdBy: note.createdBy || '',
-        authorEmployee: undefined,
+        authorEmployee: note.authorEmployee,
         reminderAt: undefined,
         documents: []
       }))

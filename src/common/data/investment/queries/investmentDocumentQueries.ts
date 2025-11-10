@@ -10,6 +10,10 @@ import {
   buildDocumentSearchQuery,
   buildDocumentWhereCondition,
   buildDocumentOrderBy,
+  buildDocumentByLeadIdQuery,
+  buildDocumentByAccountIdQuery,
+  buildDocumentByContactIdQuery,
+  buildDocumentByOpportunityIdQuery,
   type CommonDocumentQueryVariables,
   type DocumentRelationBuilders,
   type DocumentRelationFields
@@ -121,6 +125,124 @@ export const buildInvestmentDocumentOrderBy = (
   // INVESTMENT_DOCUMENT_DESCRIPTORS already includes common descriptors
   const descriptors = [...INVESTMENT_DOCUMENT_DESCRIPTORS, ...additionalDescriptors]
   return buildDocumentOrderBy(orderBy, descriptors)
+}
+
+// =====================================================
+// INVESTMENT DOCUMENT BY ENTITY ID QUERY BUILDERS
+// =====================================================
+
+/**
+ * Build Investment Document query filtered by Lead ID
+ * Uses common buildDocumentByLeadIdQuery with Investment-specific fields and relations
+ */
+export const buildInvestmentDocumentByLeadIdQuery = (): string => {
+  const relationBuilders: Partial<DocumentRelationBuilders> = {
+    buildAccountFragment,
+    buildContactFragment,
+    buildLeadFragment,
+    buildOpportunityFragment,
+    buildTaskFragment,
+    buildActivityFragment,
+    buildNoteFragment
+  }
+
+  const relationFields: Partial<DocumentRelationFields> = {
+    accountFields: InvestmentAccountFields,
+    contactFields: InvestmentContactFields,
+    leadFields: InvestmentLeadFields,
+    opportunityFields: InvestmentOpportunityFields,
+    taskFields: InvestmentTaskFields,
+    activityFields: InvestmentActivityFields,
+    noteFields: InvestmentNoteFields
+  }
+
+  return buildDocumentByLeadIdQuery(InvestmentDocumentFields, 'InvestmentDocument', relationBuilders, relationFields)
+}
+
+/**
+ * Build Investment Document query filtered by Account ID
+ */
+export const buildInvestmentDocumentByAccountIdQuery = (): string => {
+  const relationBuilders: Partial<DocumentRelationBuilders> = {
+    buildAccountFragment,
+    buildContactFragment,
+    buildLeadFragment,
+    buildOpportunityFragment,
+    buildTaskFragment,
+    buildActivityFragment,
+    buildNoteFragment
+  }
+
+  const relationFields: Partial<DocumentRelationFields> = {
+    accountFields: InvestmentAccountFields,
+    contactFields: InvestmentContactFields,
+    leadFields: InvestmentLeadFields,
+    opportunityFields: InvestmentOpportunityFields,
+    taskFields: InvestmentTaskFields,
+    activityFields: InvestmentActivityFields,
+    noteFields: InvestmentNoteFields
+  }
+
+  return buildDocumentByAccountIdQuery(InvestmentDocumentFields, 'InvestmentDocument', relationBuilders, relationFields)
+}
+
+/**
+ * Build Investment Document query filtered by Contact ID
+ */
+export const buildInvestmentDocumentByContactIdQuery = (): string => {
+  const relationBuilders: Partial<DocumentRelationBuilders> = {
+    buildAccountFragment,
+    buildContactFragment,
+    buildLeadFragment,
+    buildOpportunityFragment,
+    buildTaskFragment,
+    buildActivityFragment,
+    buildNoteFragment
+  }
+
+  const relationFields: Partial<DocumentRelationFields> = {
+    accountFields: InvestmentAccountFields,
+    contactFields: InvestmentContactFields,
+    leadFields: InvestmentLeadFields,
+    opportunityFields: InvestmentOpportunityFields,
+    taskFields: InvestmentTaskFields,
+    activityFields: InvestmentActivityFields,
+    noteFields: InvestmentNoteFields
+  }
+
+  return buildDocumentByContactIdQuery(InvestmentDocumentFields, 'InvestmentDocument', relationBuilders, relationFields)
+}
+
+/**
+ * Build Investment Document query filtered by Opportunity ID
+ */
+export const buildInvestmentDocumentByOpportunityIdQuery = (): string => {
+  const relationBuilders: Partial<DocumentRelationBuilders> = {
+    buildAccountFragment,
+    buildContactFragment,
+    buildLeadFragment,
+    buildOpportunityFragment,
+    buildTaskFragment,
+    buildActivityFragment,
+    buildNoteFragment
+  }
+
+  const relationFields: Partial<DocumentRelationFields> = {
+    accountFields: InvestmentAccountFields,
+    contactFields: InvestmentContactFields,
+    leadFields: InvestmentLeadFields,
+    opportunityFields: InvestmentOpportunityFields,
+    taskFields: InvestmentTaskFields,
+    activityFields: InvestmentActivityFields,
+    noteFields: InvestmentNoteFields
+  }
+
+  return buildDocumentByOpportunityIdQuery(
+    InvestmentDocumentFields,
+    'InvestmentDocument',
+    relationBuilders,
+    relationFields
+  )
 }
 
 import { INVESTMENT_DOCUMENT } from './fragments/investmentFragments'

@@ -10,6 +10,10 @@ import {
   buildTaskSearchQuery,
   buildTaskWhereCondition,
   buildTaskOrderBy,
+  buildTaskByLeadIdQuery,
+  buildTaskByAccountIdQuery,
+  buildTaskByContactIdQuery,
+  buildTaskByOpportunityIdQuery,
   type CommonTaskQueryVariables,
   type TaskRelationBuilders,
   type TaskRelationFields
@@ -121,4 +125,104 @@ export const buildCustomerTaskOrderBy = (
 ): any[] => {
   const descriptors = [...CUSTOMER_TASK_DESCRIPTORS, ...additionalDescriptors]
   return buildTaskOrderBy(orderBy, descriptors)
+}
+
+// =====================================================
+// CUSTOMER TASK BY ENTITY ID QUERY BUILDERS
+// =====================================================
+
+/**
+ * Build Customer Task query filtered by Lead ID
+ * Uses common buildTaskByLeadIdQuery with Customer-specific fields and relations
+ */
+export const buildCustomerTaskByLeadIdQuery = (): string => {
+  const relationBuilders: Partial<TaskRelationBuilders> = {
+    buildDocumentFragment,
+    buildAccountFragment,
+    buildContactFragment,
+    buildLeadFragment,
+    buildOpportunityFragment
+  }
+
+  const relationFields: Partial<TaskRelationFields> = {
+    documentFields: CustomerDocumentFields,
+    accountFields: CustomerAccountFields,
+    contactFields: CustomerContactFields,
+    leadFields: CustomerLeadFields,
+    opportunityFields: CustomerOpportunityFields
+  }
+
+  return buildTaskByLeadIdQuery(CustomerTaskFields, 'SalesTask', relationBuilders, relationFields)
+}
+
+/**
+ * Build Customer Task query filtered by Account ID
+ * Uses common buildTaskByAccountIdQuery with Customer-specific fields and relations
+ */
+export const buildCustomerTaskByAccountIdQuery = (): string => {
+  const relationBuilders: Partial<TaskRelationBuilders> = {
+    buildDocumentFragment,
+    buildAccountFragment,
+    buildContactFragment,
+    buildLeadFragment,
+    buildOpportunityFragment
+  }
+
+  const relationFields: Partial<TaskRelationFields> = {
+    documentFields: CustomerDocumentFields,
+    accountFields: CustomerAccountFields,
+    contactFields: CustomerContactFields,
+    leadFields: CustomerLeadFields,
+    opportunityFields: CustomerOpportunityFields
+  }
+
+  return buildTaskByAccountIdQuery(CustomerTaskFields, 'SalesTask', relationBuilders, relationFields)
+}
+
+/**
+ * Build Customer Task query filtered by Contact ID
+ * Uses common buildTaskByContactIdQuery with Customer-specific fields and relations
+ */
+export const buildCustomerTaskByContactIdQuery = (): string => {
+  const relationBuilders: Partial<TaskRelationBuilders> = {
+    buildDocumentFragment,
+    buildAccountFragment,
+    buildContactFragment,
+    buildLeadFragment,
+    buildOpportunityFragment
+  }
+
+  const relationFields: Partial<TaskRelationFields> = {
+    documentFields: CustomerDocumentFields,
+    accountFields: CustomerAccountFields,
+    contactFields: CustomerContactFields,
+    leadFields: CustomerLeadFields,
+    opportunityFields: CustomerOpportunityFields
+  }
+
+  return buildTaskByContactIdQuery(CustomerTaskFields, 'SalesTask', relationBuilders, relationFields)
+}
+
+/**
+ * Build Customer Task query filtered by Opportunity ID
+ * Uses common buildTaskByOpportunityIdQuery with Customer-specific fields and relations
+ */
+export const buildCustomerTaskByOpportunityIdQuery = (): string => {
+  const relationBuilders: Partial<TaskRelationBuilders> = {
+    buildDocumentFragment,
+    buildAccountFragment,
+    buildContactFragment,
+    buildLeadFragment,
+    buildOpportunityFragment
+  }
+
+  const relationFields: Partial<TaskRelationFields> = {
+    documentFields: CustomerDocumentFields,
+    accountFields: CustomerAccountFields,
+    contactFields: CustomerContactFields,
+    leadFields: CustomerLeadFields,
+    opportunityFields: CustomerOpportunityFields
+  }
+
+  return buildTaskByOpportunityIdQuery(CustomerTaskFields, 'SalesTask', relationBuilders, relationFields)
 }

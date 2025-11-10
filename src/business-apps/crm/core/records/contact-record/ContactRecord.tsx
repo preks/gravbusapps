@@ -23,6 +23,7 @@ import { HomeView } from './views/home-view/HomeView'
 import type { CustomerContact } from '@/common/data/customer/types'
 import { OpportunityView } from './views/opportunity-view/OpportunityView'
 import { DocumentView } from './views/document-view/DocumentView'
+import { getEmailChannel, getPhoneChannel } from '@/common/data/common/utils/communicationChannelHelpers'
 
 interface ContactRecordContentProps extends BusinessAppContextProps {
   contactId: string
@@ -230,14 +231,14 @@ const ContactRecordContent: React.FC<ContactRecordContentProps> = ({ contactId, 
           {
             label: getTranslationFromI18nKeyAndLabel('crm.common.email', 'Email'),
             value:
-              contactData?.communicationChannels?.find((cc: any) => cc.communicationChannel?.code === 'EMAIL')?.value ||
+              getEmailChannel(contactData?.communicationChannels)?.value ||
               getTranslationFromI18nKeyAndLabel('crm.common.notSet', 'Not set'),
             icon: Users
           },
           {
             label: getTranslationFromI18nKeyAndLabel('crm.common.phone', 'Phone'),
             value:
-              contactData?.communicationChannels?.find((cc: any) => cc.communicationChannel?.code === 'PHONE')?.value ||
+              getPhoneChannel(contactData?.communicationChannels)?.value ||
               getTranslationFromI18nKeyAndLabel('crm.common.notSet', 'Not set'),
             icon: Users
           },

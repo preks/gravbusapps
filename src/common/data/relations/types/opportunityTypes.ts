@@ -243,6 +243,10 @@ export const createOpportunityDescriptors = (
 ]
 
 export interface OpportunityStageCondition extends BaseEntity {
+  activeFrom?: string // IRM | CRM
+  activeTo?: string // IRM | CRM
+  additionalProperties?: any // IRM | CRM
+  businessKey?: string // IRM | CRM
   completed?: boolean // IRM | CRM
   completedAt?: string // IRM | CRM
   completedByEmployee?: Employee // IRM | CRM
@@ -254,6 +258,91 @@ export interface OpportunityStageCondition extends BaseEntity {
   opportunityId?: string // IRM | CRM
   opportunityPipelineStageCondition?: CatalogEntry // IRM | TODO (salesPipelineStageCondition in CRM)
   opportunityPipelineStageConditionRef?: string // IRM | TODO (salesPipelineStageConditionRef in CRM)
+  processInstanceId?: string // IRM | CRM
+  recordState?: string // IRM | CRM
   task?: any // IRM | TODO (salesTask in CRM)
   taskId?: string // IRM | TODO (salesTaskId in CRM)
 }
+
+/**
+ * Opportunity Stage Condition Query Field Mapping
+ */
+export const OpportunityStageConditionFields = {
+  completed: 'completed',
+  completedAt: 'completedAt',
+  completedByEmployee: 'completedByEmployee',
+  completedByEmployeeId: 'completedByEmployeeId',
+  configSnapshot: 'configSnapshot',
+  deadlineAt: 'deadlineAt',
+  id: 'id',
+  opportunity: 'opportunity',
+  opportunityId: 'opportunityId',
+  opportunityPipelineStageCondition: 'opportunityPipelineStageCondition',
+  opportunityPipelineStageConditionRef: 'opportunityPipelineStageConditionRef',
+  task: 'task',
+  taskId: 'taskId'
+} as const
+
+export type OpportunityStageConditionFieldName =
+  (typeof OpportunityStageConditionFields)[keyof typeof OpportunityStageConditionFields]
+
+/**
+ * Create Common Opportunity Stage Condition Descriptors with fields mapping
+ */
+export const createOpportunityStageConditionDescriptors = (
+  fields: Record<keyof typeof OpportunityStageConditionFields, string> = OpportunityStageConditionFields
+): Descriptor[] => [
+  ...BASE_ENTITY_DESCRIPTORS,
+
+  { key: 'completed', searchPaths: [fields.completed], sortPath: fields.completed, type: 'boolean' },
+  { key: 'completedAt', searchPaths: [fields.completedAt], sortPath: fields.completedAt, type: 'date' },
+  {
+    key: 'completedByEmployee',
+    searchPaths: [
+      `${fields.completedByEmployee}.displayName`,
+      `${fields.completedByEmployee}.firstName`,
+      `${fields.completedByEmployee}.lastName`
+    ],
+    sortPath: `${fields.completedByEmployee}.displayName`,
+    type: 'text'
+  },
+  { key: 'deadlineAt', searchPaths: [fields.deadlineAt], sortPath: fields.deadlineAt, type: 'date' },
+  {
+    key: 'opportunity',
+    searchPaths: [`${fields.opportunity}.name`, `${fields.opportunity}.code`],
+    sortPath: `${fields.opportunity}.name`,
+    type: 'text'
+  },
+  {
+    key: 'opportunityPipelineStageCondition',
+    searchPaths: [
+      `${fields.opportunityPipelineStageCondition}.value`,
+      `${fields.opportunityPipelineStageCondition}.code`
+    ],
+    sortPath: `${fields.opportunityPipelineStageCondition}.value`,
+    type: 'text'
+  },
+  {
+    key: 'opportunityPipelineStageConditionRef',
+    sortPath: fields.opportunityPipelineStageConditionRef,
+    type: 'text'
+  },
+  {
+    key: 'task',
+    searchPaths: [`${fields.task}.name`, `${fields.task}.description`],
+    sortPath: `${fields.task}.name`,
+    type: 'text'
+  },
+
+  // Filter IDs
+  { key: 'opportunityIds', path: fields.opportunityId, kind: 'inIds' },
+  { key: 'opportunityPipelineStageConditionIds', path: fields.opportunityPipelineStageConditionRef, kind: 'inIds' },
+  { key: 'completedByEmployeeIds', path: fields.completedByEmployeeId, kind: 'inIds' },
+  { key: 'taskIds', path: fields.taskId, kind: 'inIds' },
+
+  // Date range filters
+  { key: 'completedAtFrom', path: fields.completedAt, kind: 'dateFrom' },
+  { key: 'completedAtTo', path: fields.completedAt, kind: 'dateTo' },
+  { key: 'deadlineAtFrom', path: fields.deadlineAt, kind: 'dateFrom' },
+  { key: 'deadlineAtTo', path: fields.deadlineAt, kind: 'dateTo' }
+]

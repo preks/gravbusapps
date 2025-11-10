@@ -1,6 +1,11 @@
 import type { CatalogEntry } from '@/common/network/graphql/commonTypes'
 import type { Opportunity, OpportunityStageCondition } from '@/common/data/relations/types/opportunityTypes'
-import { OpportunityFields, createOpportunityDescriptors } from '@/common/data/relations/types/opportunityTypes'
+import {
+  OpportunityFields,
+  createOpportunityDescriptors,
+  OpportunityStageConditionFields,
+  createOpportunityStageConditionDescriptors
+} from '@/common/data/relations/types/opportunityTypes'
 import type { Descriptor } from '@/common/network/graphql/queryHelpers'
 import type { InvestmentAccount } from './investmentAccountTypes'
 import type { InvestmentAddress } from './investmentAddressTypes'
@@ -95,6 +100,17 @@ export const InvestmentOpportunityFields = {
 
 export type InvestmentOpportunityFieldName =
   (typeof InvestmentOpportunityFields)[keyof typeof InvestmentOpportunityFields]
+
+/**
+ * Investment Opportunity Stage Condition Query Field Mapping
+ * Uses OpportunityStageConditionFields (IRM uses same field names as Common)
+ */
+export const InvestmentOpportunityStageConditionFields = {
+  ...OpportunityStageConditionFields
+} as const
+
+export type InvestmentOpportunityStageConditionFieldName =
+  (typeof InvestmentOpportunityStageConditionFields)[keyof typeof InvestmentOpportunityStageConditionFields]
 
 /**
  * Investment Opportunity Descriptors
@@ -206,4 +222,14 @@ export const INVESTMENT_OPPORTUNITY_DESCRIPTORS: Descriptor[] = [
   { key: 'investmentStakeTypeIds', path: 'investmentStakeTypeRef', kind: 'inIds' },
   { key: 'investmentTypeIds', path: 'investmentTypeRef', kind: 'inIds' },
   { key: 'sizeMeasurementUnitIds', path: 'sizeMeasurementUnitRef', kind: 'inIds' }
+]
+
+/**
+ * Investment Opportunity Stage Condition Descriptors
+ * Uses createOpportunityStageConditionDescriptors with InvestmentOpportunityStageConditionFields mapping
+ */
+export const INVESTMENT_OPPORTUNITY_STAGE_CONDITION_DESCRIPTORS: Descriptor[] = [
+  ...createOpportunityStageConditionDescriptors(
+    InvestmentOpportunityStageConditionFields as Record<keyof typeof OpportunityStageConditionFields, string>
+  )
 ]

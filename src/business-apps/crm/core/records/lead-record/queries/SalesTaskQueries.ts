@@ -2,7 +2,7 @@ import { useCallback } from 'react'
 import { useGraphQLClient } from '@/common/network/graphql/useGraphQLClient'
 import { BusinessAppContextProps } from '@/common/BusinessAppContext'
 import {
-  buildCustomerTaskQuery,
+  buildCustomerTaskByLeadIdQuery,
   buildCustomerTaskWhereCondition,
   buildCustomerTaskOrderBy
 } from '@/common/data/customer/queries/customerTaskQueries'
@@ -24,7 +24,7 @@ export const useGetSalesTasks = (context: BusinessAppContextProps) => {
 
   const fetchSalesTasks = useCallback(
     async (variables: SalesTaskQueryVariables) => {
-      const query = buildCustomerTaskQuery()
+      const query = buildCustomerTaskByLeadIdQuery()
       const whereCondition = buildCustomerTaskWhereCondition({}, [], [{ lead: { id: { _eq: variables.leadId } } }])
       const orderBy = buildCustomerTaskOrderBy([{ field: 'createdAt', direction: 'DESC_NULLS_LAST' }])
 

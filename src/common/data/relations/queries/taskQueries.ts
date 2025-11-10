@@ -365,3 +365,69 @@ export const buildTaskOrderBy = (
   }
   return buildOrderBy(orderBy, descriptors)
 }
+
+// =====================================================
+// TASK BY ENTITY ID QUERY BUILDERS
+// =====================================================
+
+/**
+ * Build Task query filtered by Lead ID
+ * Uses buildTaskQuery and ensures all relations (including documents) are included
+ * @param fields - TaskFields mapping (default: TaskFields)
+ * @param entityName - GraphQL entity name (REQUIRED, e.g. 'InvestmentTask', 'SalesTask')
+ * @param relationBuilders - Object containing fragment builder functions for relations (REQUIRED)
+ * @param relationFields - Object containing field mappings for relations (REQUIRED)
+ * @param entityFields - Additional domain-specific fields (optional, e.g. investment relation for IRM)
+ * @returns GraphQL query string using variables ($where, $orderBy)
+ */
+export const buildTaskByLeadIdQuery = (
+  fields: Record<keyof typeof TaskFields, string> = TaskFields,
+  entityName: string,
+  relationBuilders: Partial<TaskRelationBuilders>,
+  relationFields: Partial<TaskRelationFields>,
+  entityFields?: string
+): string => {
+  return buildTaskQuery(fields, entityName, entityFields, undefined, relationBuilders, relationFields)
+}
+
+/**
+ * Build Task query filtered by Account ID
+ * Uses buildTaskQuery and ensures all relations (including documents) are included
+ */
+export const buildTaskByAccountIdQuery = (
+  fields: Record<keyof typeof TaskFields, string> = TaskFields,
+  entityName: string,
+  relationBuilders: Partial<TaskRelationBuilders>,
+  relationFields: Partial<TaskRelationFields>,
+  entityFields?: string
+): string => {
+  return buildTaskQuery(fields, entityName, entityFields, undefined, relationBuilders, relationFields)
+}
+
+/**
+ * Build Task query filtered by Contact ID
+ * Uses buildTaskQuery and ensures all relations (including documents) are included
+ */
+export const buildTaskByContactIdQuery = (
+  fields: Record<keyof typeof TaskFields, string> = TaskFields,
+  entityName: string,
+  relationBuilders: Partial<TaskRelationBuilders>,
+  relationFields: Partial<TaskRelationFields>,
+  entityFields?: string
+): string => {
+  return buildTaskQuery(fields, entityName, entityFields, undefined, relationBuilders, relationFields)
+}
+
+/**
+ * Build Task query filtered by Opportunity ID
+ * Uses buildTaskQuery and ensures all relations (including documents) are included
+ */
+export const buildTaskByOpportunityIdQuery = (
+  fields: Record<keyof typeof TaskFields, string> = TaskFields,
+  entityName: string,
+  relationBuilders: Partial<TaskRelationBuilders>,
+  relationFields: Partial<TaskRelationFields>,
+  entityFields?: string
+): string => {
+  return buildTaskQuery(fields, entityName, entityFields, undefined, relationBuilders, relationFields)
+}

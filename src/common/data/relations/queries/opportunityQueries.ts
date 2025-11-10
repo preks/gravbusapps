@@ -10,6 +10,7 @@ import { buildWhere, buildOrderBy } from '@/common/network/graphql/queryHelpers'
 import { OpportunityFields } from '../types/opportunityTypes'
 import type { Descriptor } from '@/common/network/graphql/queryHelpers'
 import type { BaseQueryVariables } from '@/common/network/graphql/commonTypes'
+import { buildAddressFragment } from './_tempAddress'
 
 // =====================================================
 // OPPORTUNITY RELATION TYPES
@@ -41,6 +42,7 @@ export interface OpportunityRelationFields {
   leadFields: any
   noteFields: any
   taskFields: any
+  stageConditionFields?: any // Optional: field mappings for opportunityStageConditions nested fields
 }
 
 export interface CommonOpportunityQueryVariables extends BaseQueryVariables {
@@ -158,6 +160,22 @@ export const buildOpportunityByIdQuery = (
         ${fields.estimatedAmount}
         ${fields.name}
         ${fields.notesSummary}
+        ${fields.opportunityPipeline} {
+          ${CATALOG_ENTRY}
+          childEntries {
+            id
+            code
+            value
+            alternativeCode
+            displayOrder
+            additionalValue1
+          }
+        }
+        ${fields.opportunityPipelineRef}
+        ${fields.opportunityPipelineStage} {
+          ${CATALOG_ENTRY}
+        }
+        ${fields.opportunityPipelineStageRef}
         ${fields.opportunityStatus} {
           ${CATALOG_ENTRY}
         }
@@ -179,6 +197,13 @@ export const buildOpportunityByIdQuery = (
       fields.account
         ? `${fields.account} {
       ${relationBuilders.buildAccountFragment(relationFields.accountFields)}
+      # ✅ Relations direkt hier hinzufügen (nicht im Fragment)
+      ${relationFields.accountFields.communicationChannels}(where: { isDeleted: { _eq: false } }) {
+        ${COMMUNICATION_CHANNEL_REF}
+      }
+      ${relationFields.accountFields.addresses}(where: { isDeleted: { _eq: false } }) {
+        ${buildAddressFragment(entityName)}
+      }
     }`
         : ''
     }
@@ -198,6 +223,11 @@ export const buildOpportunityByIdQuery = (
     
     ${fields.tasks}(where: { isDeleted: { _eq: false } }) {
       ${relationBuilders.buildTaskFragment(relationFields.taskFields)}
+      
+      # Documents relation within tasks
+      documents(where: { isDeleted: { _eq: false } }) {
+        ${relationBuilders.buildDocumentFragment(relationFields.documentFields)}
+      }
     }
     
     ${fields.activities}(where: { isDeleted: { _eq: false } }) {
@@ -229,14 +259,35 @@ export const buildOpportunityByIdQuery = (
       configSnapshot
       deadlineAt
       opportunityId
-      opportunityPipelineStageCondition {
+      ${
+        relationFields.stageConditionFields
+          ? `${relationFields.stageConditionFields.opportunityPipelineStageCondition} {
+        ${CATALOG_ENTRY}
+      }
+      ${relationFields.stageConditionFields.opportunityPipelineStageConditionRef}
+      ${relationFields.stageConditionFields.task} {
+        ${relationBuilders.buildTaskFragment(relationFields.taskFields)}
+        
+        # Documents relation within tasks
+        documents(where: { isDeleted: { _eq: false } }) {
+          ${relationBuilders.buildDocumentFragment(relationFields.documentFields)}
+        }
+      }
+      ${relationFields.stageConditionFields.taskId}`
+          : `opportunityPipelineStageCondition {
         ${CATALOG_ENTRY}
       }
       opportunityPipelineStageConditionRef
       task {
         ${relationBuilders.buildTaskFragment(relationFields.taskFields)}
+        
+        # Documents relation within tasks
+        documents(where: { isDeleted: { _eq: false } }) {
+          ${relationBuilders.buildDocumentFragment(relationFields.documentFields)}
+        }
       }
-      taskId
+      taskId`
+      }
     }`
         : ''
     }

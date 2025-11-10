@@ -16,6 +16,7 @@ import { PiGlobe, PiPhone, PiUsers, PiMapPin, PiCaretLeft, PiCaretRight, PiEnvel
 import { BankIcon, ChartLineUpIcon } from '@phosphor-icons/react'
 import { formatAddress } from '@/common/utils/addressFormatter'
 import { navigateTo } from '@/common/utils/navigationUtils'
+import { getEmailChannel, getPhoneChannel } from '@/common/data/common/utils/communicationChannelHelpers'
 
 interface AddressObject {
   addressLine?: {
@@ -182,7 +183,7 @@ const AccountCompanyInformation: React.FC<InlinedCompanyInformationProps> = ({
   const cardClassName = `gba:w-full ${className}`.trim()
 
   // Get current account ID - prioritize account prop as it contains the selected carousel item
-  const currentAccountId = account?.id || accountData?.id
+  const currentAccountId = account?.id
 
   // Extract logo URL - support both picture and pictureThumbnail
   const logoUrl = account?.pictureThumbnail
@@ -313,17 +314,11 @@ const AccountCompanyInformation: React.FC<InlinedCompanyInformationProps> = ({
         {/* Contact Information */}
         <div>
           {(() => {
-            // Helper to get communication channel by type (wie in commonAccountColumns)
-            const getChannel = (type: string) => {
-              const channels = account?.communicationChannels || []
-              return channels.find((ch: any) => ch.communicationChannel?.type?.toLowerCase() === type.toLowerCase())
-            }
-
             // Extract email, phone direkt aus communicationChannels (KEINE Fallbacks auf deprecated email/phone)
-            const emailChannel = getChannel('email')
+            const emailChannel = getEmailChannel(account?.communicationChannels)
             const emailValue = emailChannel?.value
 
-            const phoneChannel = getChannel('tel')
+            const phoneChannel = getPhoneChannel(account?.communicationChannels)
             const phoneValue = phoneChannel?.value
 
             // Website ist ein normales Feld, NICHT aus communicationChannels

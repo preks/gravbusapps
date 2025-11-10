@@ -5,11 +5,13 @@ import { BusinessAppContextProps } from '@/common/BusinessAppContext'
 
 // Use the new query builder functions
 import {
-  buildCustomerNoteQuery,
+  buildCustomerNoteByAccountIdQuery,
+  buildCustomerNoteByContactIdQuery,
+  buildCustomerNoteByLeadIdQuery,
+  buildCustomerNoteByOpportunityIdQuery,
   buildCustomerNoteWhereCondition,
   buildCustomerNoteOrderBy
 } from '../queries/customerNoteQueries'
-import { CustomerNoteFields } from '../types/customerNoteTypes'
 
 //Types
 export interface CustomerNote {
@@ -45,7 +47,7 @@ export const useCustomerNotes = (context: BusinessAppContextProps) => {
 
   const fetchCustomerNotesByAccountId = useCallback(
     async (accountId: string): Promise<CustomerNote[]> => {
-      const query = buildCustomerNoteQuery()
+      const query = buildCustomerNoteByAccountIdQuery()
       const whereCondition = buildCustomerNoteWhereCondition({}, [], [{ account: { id: { _eq: accountId } } }])
       const orderBy = buildCustomerNoteOrderBy([{ field: 'createdAt', direction: 'DESC_NULLS_LAST' }])
 
@@ -65,16 +67,9 @@ export const useCustomerNotes = (context: BusinessAppContextProps) => {
 
   const fetchCustomerNotesByContactId = useCallback(
     async (contactId: string): Promise<CustomerNote[]> => {
-      const query = buildCustomerNoteQuery()
-      const whereCondition = buildCustomerNoteWhereCondition(
-        CustomerNoteFields,
-        {},
-        [],
-        [{ contact: { id: { _eq: contactId } } }]
-      )
-      const orderBy = buildCustomerNoteOrderBy(CustomerNoteFields, [
-        { field: 'createdAt', direction: 'DESC_NULLS_LAST' }
-      ])
+      const query = buildCustomerNoteByContactIdQuery()
+      const whereCondition = buildCustomerNoteWhereCondition({}, [], [{ contact: { id: { _eq: contactId } } }])
+      const orderBy = buildCustomerNoteOrderBy([{ field: 'createdAt', direction: 'DESC_NULLS_LAST' }])
 
       try {
         const result = await graphqlClient.request<CustomerNoteByEntityQueryResponse>(query, {
@@ -92,16 +87,9 @@ export const useCustomerNotes = (context: BusinessAppContextProps) => {
 
   const fetchCustomerNotesByLeadId = useCallback(
     async (leadId: string): Promise<CustomerNote[]> => {
-      const query = buildCustomerNoteQuery()
-      const whereCondition = buildCustomerNoteWhereCondition(
-        CustomerNoteFields,
-        {},
-        [],
-        [{ lead: { id: { _eq: leadId } } }]
-      )
-      const orderBy = buildCustomerNoteOrderBy(CustomerNoteFields, [
-        { field: 'createdAt', direction: 'DESC_NULLS_LAST' }
-      ])
+      const query = buildCustomerNoteByLeadIdQuery()
+      const whereCondition = buildCustomerNoteWhereCondition({}, [], [{ lead: { id: { _eq: leadId } } }])
+      const orderBy = buildCustomerNoteOrderBy([{ field: 'createdAt', direction: 'DESC_NULLS_LAST' }])
 
       try {
         const result = await graphqlClient.request<CustomerNoteByEntityQueryResponse>(query, {
@@ -119,16 +107,9 @@ export const useCustomerNotes = (context: BusinessAppContextProps) => {
 
   const fetchCustomerNotesByOpportunityId = useCallback(
     async (opportunityId: string): Promise<CustomerNote[]> => {
-      const query = buildCustomerNoteQuery()
-      const whereCondition = buildCustomerNoteWhereCondition(
-        CustomerNoteFields,
-        {},
-        [],
-        [{ opportunity: { id: { _eq: opportunityId } } }]
-      )
-      const orderBy = buildCustomerNoteOrderBy(CustomerNoteFields, [
-        { field: 'createdAt', direction: 'DESC_NULLS_LAST' }
-      ])
+      const query = buildCustomerNoteByOpportunityIdQuery()
+      const whereCondition = buildCustomerNoteWhereCondition({}, [], [{ opportunity: { id: { _eq: opportunityId } } }])
+      const orderBy = buildCustomerNoteOrderBy([{ field: 'createdAt', direction: 'DESC_NULLS_LAST' }])
 
       try {
         const result = await graphqlClient.request<CustomerNoteByEntityQueryResponse>(query, {

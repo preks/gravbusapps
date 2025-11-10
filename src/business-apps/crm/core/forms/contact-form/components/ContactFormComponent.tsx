@@ -5,6 +5,8 @@ import { dispatchProcessContinueEvent } from '@/common/utils/processEventUtils'
 import { useContactFormContext } from '../context/ContactFormContext'
 import OwnerInformationSection from './OwnerInformationSection'
 import PersonalInformationSection from './PersonalInformationSection'
+import { buildCommunicationChannelRef } from '@/common/data/common/utils/communicationChannelHelpers'
+import { CommunicationChannelCode } from '@/common/data/common/types/commonTypes'
 
 const prefixDataTestId = 'ContactForm'
 
@@ -28,13 +30,47 @@ const ContactFormComponent: React.FC = () => {
     return value && value.trim() ? value.trim() : undefined
   }
 
-  // Helper: Build communication channels array (LinkedIn, Xing)
-  const buildCommunicationChannels = (linkedinUrl?: string, xingUrl?: string, contactId?: string): any[] => {
+  // Helper: Build communication channels array (Email, Phone, LinkedIn, Xing)
+  const buildCommunicationChannels = (
+    email?: string,
+    phone?: string,
+    linkedinUrl?: string,
+    xingUrl?: string,
+    contactId?: string
+  ): any[] => {
     const channels = []
+
+    if (email?.trim()) {
+      const emailChannel: any = {
+        communicationChannelRef: buildCommunicationChannelRef(CommunicationChannelCode.EMAIL),
+        value: email.trim(),
+        valueExtension: null
+      }
+
+      if (contactId) {
+        emailChannel.contact = contactId
+      }
+
+      channels.push(emailChannel)
+    }
+
+    if (phone?.trim()) {
+      const phoneChannel: any = {
+        communicationChannelRef: buildCommunicationChannelRef(CommunicationChannelCode.PHONE),
+        value: phone.trim(),
+        valueExtension: null
+      }
+
+      if (contactId) {
+        phoneChannel.contact = contactId
+      }
+
+      channels.push(phoneChannel)
+    }
 
     if (linkedinUrl?.trim()) {
       const linkedinChannel: any = {
-        communicationChannelRef: 'CommunicationChannel:v1:LinkedIn',
+        communicationChannelRef: buildCommunicationChannelRef(CommunicationChannelCode.LINKEDIN),
         value: linkedinUrl.trim(),
         valueExtension: null
       }
@@ -48,7 +84,7 @@ const ContactFormComponent: React.FC = () => {
 
     if (xingUrl?.trim()) {
       const xingChannel: any = {
-        communicationChannelRef: 'CommunicationChannel:v1:Xing',
+        communicationChannelRef: buildCommunicationChannelRef(CommunicationChannelCode.XING),
         value: xingUrl.trim(),
         valueExtension: null
       }
@@ -98,9 +134,9 @@ const ContactFormComponent: React.FC = () => {
         jobTitle: toStringOrUndefined(formValues.jobTitle),
         department: toStringOrUndefined(formValues.department),
 
-        // Contact Information
-        email: toStringOrUndefined(formValues.email),
-        phone: toStringOrUndefined(formValues.phone),
+        // Contact Information - moved to communicationChannels
+        // email: toStringOrUndefined(formValues.email), // ❌ REMOVED - use communicationChannels
+        // phone: toStringOrUndefined(formValues.phone), // ❌ REMOVED - use communicationChannels
         fax: toStringOrUndefined(formValues.fax), // ✅ ADDED - was missing
 
         // Owner Information
@@ -144,6 +180,8 @@ const ContactFormComponent: React.FC = () => {
       // Even if empty, this ensures the field is properly updated in the database
       const contactId = isUpdate ? formValues.id : undefined
       contactPayload.communicationChannels = buildCommunicationChannels(
+        formValues.email,
+        formValues.phone,
         formValues.linkedinUrl,
         formValues.xingUrl,
         contactId

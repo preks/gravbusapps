@@ -10,6 +10,10 @@ import {
   buildNoteSearchQuery,
   buildNoteWhereCondition,
   buildNoteOrderBy,
+  buildNoteByLeadIdQuery,
+  buildNoteByAccountIdQuery,
+  buildNoteByContactIdQuery,
+  buildNoteByOpportunityIdQuery,
   type CommonNoteQueryVariables,
   type NoteRelationBuilders,
   type NoteRelationFields
@@ -104,4 +108,101 @@ export const buildCustomerNoteOrderBy = (
 ): any[] => {
   const descriptors = [...CUSTOMER_NOTE_DESCRIPTORS, ...additionalDescriptors]
   return buildNoteOrderBy(orderBy, descriptors)
+}
+
+// =====================================================
+// CUSTOMER NOTE BY ENTITY ID QUERY BUILDERS
+// =====================================================
+
+/**
+ * Build Customer Note query filtered by Lead ID
+ * Uses common buildNoteByLeadIdQuery with Customer-specific fields and relations
+ */
+export const buildCustomerNoteByLeadIdQuery = (): string => {
+  const relationBuilders: Partial<NoteRelationBuilders> = {
+    buildDocumentFragment,
+    buildAccountFragment,
+    buildContactFragment,
+    buildLeadFragment,
+    buildOpportunityFragment
+  }
+
+  const relationFields: Partial<NoteRelationFields> = {
+    documentFields: CustomerDocumentFields,
+    accountFields: CustomerAccountFields,
+    contactFields: CustomerContactFields,
+    leadFields: CustomerLeadFields,
+    opportunityFields: CustomerOpportunityFields
+  }
+
+  return buildNoteByLeadIdQuery(CustomerNoteFields, 'CrmNote', relationBuilders, relationFields)
+}
+
+/**
+ * Build Customer Note query filtered by Account ID
+ */
+export const buildCustomerNoteByAccountIdQuery = (): string => {
+  const relationBuilders: Partial<NoteRelationBuilders> = {
+    buildDocumentFragment,
+    buildAccountFragment,
+    buildContactFragment,
+    buildLeadFragment,
+    buildOpportunityFragment
+  }
+
+  const relationFields: Partial<NoteRelationFields> = {
+    documentFields: CustomerDocumentFields,
+    accountFields: CustomerAccountFields,
+    contactFields: CustomerContactFields,
+    leadFields: CustomerLeadFields,
+    opportunityFields: CustomerOpportunityFields
+  }
+
+  return buildNoteByAccountIdQuery(CustomerNoteFields, 'CrmNote', relationBuilders, relationFields)
+}
+
+/**
+ * Build Customer Note query filtered by Contact ID
+ */
+export const buildCustomerNoteByContactIdQuery = (): string => {
+  const relationBuilders: Partial<NoteRelationBuilders> = {
+    buildDocumentFragment,
+    buildAccountFragment,
+    buildContactFragment,
+    buildLeadFragment,
+    buildOpportunityFragment
+  }
+
+  const relationFields: Partial<NoteRelationFields> = {
+    documentFields: CustomerDocumentFields,
+    accountFields: CustomerAccountFields,
+    contactFields: CustomerContactFields,
+    leadFields: CustomerLeadFields,
+    opportunityFields: CustomerOpportunityFields
+  }
+
+  return buildNoteByContactIdQuery(CustomerNoteFields, 'CrmNote', relationBuilders, relationFields)
+}
+
+/**
+ * Build Customer Note query filtered by Opportunity ID
+ */
+export const buildCustomerNoteByOpportunityIdQuery = (): string => {
+  const relationBuilders: Partial<NoteRelationBuilders> = {
+    buildDocumentFragment,
+    buildAccountFragment,
+    buildContactFragment,
+    buildLeadFragment,
+    buildOpportunityFragment
+  }
+
+  const relationFields: Partial<NoteRelationFields> = {
+    documentFields: CustomerDocumentFields,
+    accountFields: CustomerAccountFields,
+    contactFields: CustomerContactFields,
+    leadFields: CustomerLeadFields,
+    opportunityFields: CustomerOpportunityFields
+  }
+
+  return buildNoteByOpportunityIdQuery(CustomerNoteFields, 'CrmNote', relationBuilders, relationFields)
 }

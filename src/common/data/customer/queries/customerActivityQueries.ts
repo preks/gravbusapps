@@ -10,6 +10,10 @@ import {
   buildActivitySearchQuery,
   buildActivityWhereCondition,
   buildActivityOrderBy,
+  buildActivityByLeadIdQuery,
+  buildActivityByAccountIdQuery,
+  buildActivityByContactIdQuery,
+  buildActivityByOpportunityIdQuery,
   type CommonActivityQueryVariables,
   type ActivityRelationBuilders,
   type ActivityRelationFields
@@ -106,4 +110,101 @@ export const buildCustomerActivityOrderBy = (
 ): any[] => {
   const descriptors = [...CUSTOMER_ACTIVITY_DESCRIPTORS, ...additionalDescriptors]
   return buildActivityOrderBy(orderBy, descriptors)
+}
+
+// =====================================================
+// CUSTOMER ACTIVITY BY ENTITY ID QUERY BUILDERS
+// =====================================================
+
+/**
+ * Build Customer Activity query filtered by Lead ID
+ * Uses common buildActivityByLeadIdQuery with Customer-specific fields and relations
+ */
+export const buildCustomerActivityByLeadIdQuery = (): string => {
+  const relationBuilders: Partial<ActivityRelationBuilders> = {
+    buildDocumentFragment,
+    buildAccountFragment,
+    buildContactFragment,
+    buildLeadFragment,
+    buildOpportunityFragment
+  }
+
+  const relationFields: Partial<ActivityRelationFields> = {
+    documentFields: CustomerDocumentFields,
+    accountFields: CustomerAccountFields,
+    contactFields: CustomerContactFields,
+    leadFields: CustomerLeadFields,
+    opportunityFields: CustomerOpportunityFields
+  }
+
+  return buildActivityByLeadIdQuery(CustomerActivityFields, 'SalesActivity', relationBuilders, relationFields)
+}
+
+/**
+ * Build Customer Activity query filtered by Account ID
+ */
+export const buildCustomerActivityByAccountIdQuery = (): string => {
+  const relationBuilders: Partial<ActivityRelationBuilders> = {
+    buildDocumentFragment,
+    buildAccountFragment,
+    buildContactFragment,
+    buildLeadFragment,
+    buildOpportunityFragment
+  }
+
+  const relationFields: Partial<ActivityRelationFields> = {
+    documentFields: CustomerDocumentFields,
+    accountFields: CustomerAccountFields,
+    contactFields: CustomerContactFields,
+    leadFields: CustomerLeadFields,
+    opportunityFields: CustomerOpportunityFields
+  }
+
+  return buildActivityByAccountIdQuery(CustomerActivityFields, 'SalesActivity', relationBuilders, relationFields)
+}
+
+/**
+ * Build Customer Activity query filtered by Contact ID
+ */
+export const buildCustomerActivityByContactIdQuery = (): string => {
+  const relationBuilders: Partial<ActivityRelationBuilders> = {
+    buildDocumentFragment,
+    buildAccountFragment,
+    buildContactFragment,
+    buildLeadFragment,
+    buildOpportunityFragment
+  }
+
+  const relationFields: Partial<ActivityRelationFields> = {
+    documentFields: CustomerDocumentFields,
+    accountFields: CustomerAccountFields,
+    contactFields: CustomerContactFields,
+    leadFields: CustomerLeadFields,
+    opportunityFields: CustomerOpportunityFields
+  }
+
+  return buildActivityByContactIdQuery(CustomerActivityFields, 'SalesActivity', relationBuilders, relationFields)
+}
+
+/**
+ * Build Customer Activity query filtered by Opportunity ID
+ */
+export const buildCustomerActivityByOpportunityIdQuery = (): string => {
+  const relationBuilders: Partial<ActivityRelationBuilders> = {
+    buildDocumentFragment,
+    buildAccountFragment,
+    buildContactFragment,
+    buildLeadFragment,
+    buildOpportunityFragment
+  }
+
+  const relationFields: Partial<ActivityRelationFields> = {
+    documentFields: CustomerDocumentFields,
+    accountFields: CustomerAccountFields,
+    contactFields: CustomerContactFields,
+    leadFields: CustomerLeadFields,
+    opportunityFields: CustomerOpportunityFields
+  }
+
+  return buildActivityByOpportunityIdQuery(CustomerActivityFields, 'SalesActivity', relationBuilders, relationFields)
 }

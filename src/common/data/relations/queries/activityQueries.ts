@@ -57,16 +57,65 @@ export interface CommonActivityQueryVariables extends BaseQueryVariables {
  * @param entityName - GraphQL entity name (REQUIRED)
  * @param entityFields - Additional domain-specific fields (optional)
  * @param queryFields - Additional query fields (optional)
+ * @param relationBuilders - Object containing fragment builder functions for relations (optional)
+ * @param relationFields - Object containing field mappings for relations (optional)
  * @returns GraphQL query string using variables
  */
 export const buildActivityQuery = (
   fields: Record<keyof typeof ActivityFields, string> = ActivityFields,
   entityName: string,
   entityFields?: string,
-  queryFields?: string
+  queryFields?: string,
+  relationBuilders?: Partial<ActivityRelationBuilders>,
+  relationFields?: Partial<ActivityRelationFields>
 ): string => {
   const boolExpType = `${entityName}BoolExp`
   const orderByType = `[${entityName}OrderBy!]`
+
+  // Optional relations (documents, account, contact, lead, opportunity)
+  const references =
+    relationBuilders && relationFields
+      ? `
+    # Common entity relations (present in both IRM and CRM)
+    ${fields.documents}(where: { isDeleted: { _eq: false } }) {
+      ${relationBuilders?.buildDocumentFragment?.(relationFields.documentFields)}
+    }
+    
+    # Optional relations (account, contact, lead, opportunity)
+    ${
+      relationBuilders.buildAccountFragment && relationFields.accountFields && fields.account
+        ? `${fields.accountId}
+      ${fields.account} {
+        ${relationBuilders.buildAccountFragment(relationFields.accountFields)}
+      }`
+        : ''
+    }
+    ${
+      relationBuilders.buildContactFragment && relationFields.contactFields && fields.contact
+        ? `${fields.contactId}
+      ${fields.contact} {
+        ${relationBuilders.buildContactFragment(relationFields.contactFields)}
+      }`
+        : ''
+    }
+    ${
+      relationBuilders.buildLeadFragment && relationFields.leadFields && fields.lead
+        ? `${fields.leadId}
+      ${fields.lead} {
+        ${relationBuilders.buildLeadFragment(relationFields.leadFields)}
+      }`
+        : ''
+    }
+    ${
+      relationBuilders.buildOpportunityFragment && relationFields.opportunityFields && fields.opportunity
+        ? `${fields.opportunityId}
+      ${fields.opportunity} {
+        ${relationBuilders.buildOpportunityFragment(relationFields.opportunityFields)}
+      }`
+        : ''
+    }
+  `
+      : ''
 
   return `
     query Get${entityName}s(
@@ -97,6 +146,8 @@ export const buildActivityQuery = (
         ${fields.source}
         ${fields.title}
         ${entityFields || ''}
+        ${references || ''}
+        ${queryFields || ''}
       }
       ${entityName}Aggregate(where: $where) {
         aggregate { count }
@@ -266,4 +317,64 @@ export const buildActivityOrderBy = (
     throw new Error('Query Descriptor is missing')
   }
   return buildOrderBy(orderBy, descriptors)
+}
+
+// =====================================================
+// ACTIVITY BY ENTITY ID QUERY BUILDERS
+// =====================================================
+
+/**
+ * Build Activity query filtered by Lead ID
+ * Uses buildActivityQuery and ensures all relations (including documents) are included
+ */
+export const buildActivityByLeadIdQuery = (
+  fields: Record<keyof typeof ActivityFields, string> = ActivityFields,
+  entityName: string,
+  relationBuilders: Partial<ActivityRelationBuilders>,
+  relationFields: Partial<ActivityRelationFields>,
+  entityFields?: string
+): string => {
+  return buildActivityQuery(fields, entityName, entityFields, undefined, relationBuilders, relationFields)
+}
+
+/**
+ * Build Activity query filtered by Account ID
+ * Uses buildActivityQuery and ensures all relations (including documents) are included
+ */
+export const buildActivityByAccountIdQuery = (
+  fields: Record<keyof typeof ActivityFields, string> = ActivityFields,
+  entityName: string,
+  relationBuilders: Partial<ActivityRelationBuilders>,
+  relationFields: Partial<ActivityRelationFields>,
+  entityFields?: string
+): string => {
+  return buildActivityQuery(fields, entityName, entityFields, undefined, relationBuilders, relationFields)
+}
+
+/**
+ * Build Activity query filtered by Contact ID
+ * Uses buildActivityQuery and ensures all relations (including documents) are included
+ */
+export const buildActivityByContactIdQuery = (
+  fields: Record<keyof typeof ActivityFields, string> = ActivityFields,
+  entityName: string,
+  relationBuilders: Partial<ActivityRelationBuilders>,
+  relationFields: Partial<ActivityRelationFields>,
+  entityFields?: string
+): string => {
+  return buildActivityQuery(fields, entityName, entityFields, undefined, relationBuilders, relationFields)
+}
+
+/**
+ * Build Activity query filtered by Opportunity ID
+ * Uses buildActivityQuery and ensures all relations (including documents) are included
+ */
+export const buildActivityByOpportunityIdQuery = (
+  fields: Record<keyof typeof ActivityFields, string> = ActivityFields,
+  entityName: string,
+  relationBuilders: Partial<ActivityRelationBuilders>,
+  relationFields: Partial<ActivityRelationFields>,
+  entityFields?: string
+): string => {
+  return buildActivityQuery(fields, entityName, entityFields, undefined, relationBuilders, relationFields)
 }

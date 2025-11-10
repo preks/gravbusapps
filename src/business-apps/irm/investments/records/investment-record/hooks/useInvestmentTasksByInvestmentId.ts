@@ -2,7 +2,7 @@ import { useCallback } from 'react'
 import { useGraphQLClient } from '@/common/network/graphql/useGraphQLClient'
 import { BusinessAppContextProps } from '@/common/BusinessAppContext'
 import {
-  buildInvestmentTaskQuery,
+  buildInvestmentTaskByInvestmentIdQuery,
   buildInvestmentTaskWhereCondition,
   buildInvestmentTaskOrderBy
 } from '@/common/data/investment/queries/investmentTaskQueries'
@@ -18,7 +18,7 @@ export const useGetInvestmentTasksByInvestmentId = (context: BusinessAppContextP
 
   const fetchInvestmentTasksByInvestmentId = useCallback(
     async (investmentId: string): Promise<InvestmentTask[]> => {
-      const query = buildInvestmentTaskQuery()
+      const query = buildInvestmentTaskByInvestmentIdQuery()
       const customConditions: Record<string, any>[] = [
         { investment: { id: { _eq: investmentId } } },
         { isDeleted: { _eq: false } }

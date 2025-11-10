@@ -11,6 +11,7 @@ import { OpportunityView } from './views/opportunity-view/OpportunityView'
 import { DocumentView } from './views/document-view/DocumentView'
 import { HomeView } from './views/home-view/HomeView'
 import type { CustomerAccount } from '@/common/data/customer/types'
+import { getEmailChannel, getPhoneChannel } from '@/common/data/common/utils/communicationChannelHelpers'
 
 interface AccountRecordContentProps extends BusinessAppContextProps {
   accountId: string
@@ -145,16 +146,17 @@ const AccountRecordContent: React.FC<AccountRecordContentProps> = ({ accountId, 
         items: [
           {
             label: 'Email',
-            value:
-              accountData?.communicationChannels?.find((cc: any) => cc.communicationChannel?.code === 'EMAIL')?.value ||
-              'Not set',
+            value: getEmailChannel(accountData?.communicationChannels)?.value || 'Not set',
+            icon: TrendUp
+          },
+          {
+            label: 'Phone',
+            value: getPhoneChannel(accountData?.communicationChannels)?.value || 'Not set',
             icon: TrendUp
           },
           {
             label: 'Founded',
-            value: accountTransformed?.foundationDate
-              ? new Date(accountTransformed.foundationDate).toLocaleDateString()
-              : 'Not set',
+            value: accountData?.foundationDate ? new Date(accountData.foundationDate).toLocaleDateString() : 'Not set',
             icon: TrendUp
           },
           {
@@ -199,7 +201,7 @@ const AccountRecordContent: React.FC<AccountRecordContentProps> = ({ accountId, 
           value: 'overview',
           label: getTranslationFromI18nKeyAndLabel('crm.common.overview', 'Overview'),
           icon: <Users className="gba:mr-2" />,
-          content: <HomeView accountId={accountId} accountData={rawAccountData} {...props} />
+          content: <HomeView accountId={accountId} accountData={accountData} {...props} />
         },
         {
           value: 'opportunities',
@@ -223,7 +225,7 @@ const AccountRecordContent: React.FC<AccountRecordContentProps> = ({ accountId, 
         }
       ]
     }),
-    [activeTab, handleTabChange, rawAccountData, accountId, props]
+    [activeTab, handleTabChange, accountData, accountId, props]
   )
 
   if (loading) {

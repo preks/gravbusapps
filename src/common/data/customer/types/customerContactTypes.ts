@@ -64,7 +64,7 @@ export type CustomerContactFieldName = (typeof CustomerContactFields)[keyof type
 export const CUSTOMER_CONTACT_DESCRIPTORS: Descriptor[] = [
   // Filter out descriptors that need structural overrides
   ...createContactDescriptors(CustomerContactFields as Record<keyof typeof ContactFields, string>).filter(
-    d => !['addresses', 'description', 'fullName', 'notes', 'leads'].includes(d.key)
+    d => !['addresses', 'contact', 'description', 'fullName', 'notes', 'leads'].includes(d.key)
   ),
 
   // CRM-specific structural overrides
@@ -77,6 +77,12 @@ export const CUSTOMER_CONTACT_DESCRIPTORS: Descriptor[] = [
       'addresses.country.value'
     ],
     sortPaths: ['addresses.city', 'addresses.postalCode', 'addresses.region.value', 'addresses.country.value'],
+    type: 'text'
+  },
+  {
+    key: 'contact',
+    searchPaths: [CustomerContactFields.firstName, CustomerContactFields.lastName],
+    sortPaths: [CustomerContactFields.firstName, CustomerContactFields.lastName],
     type: 'text'
   },
   {

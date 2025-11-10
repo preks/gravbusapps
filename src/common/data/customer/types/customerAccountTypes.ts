@@ -32,7 +32,7 @@ export interface CustomerAccount extends Account {
   // Base fields for mapping (CRM-specific GraphQL field names that need mapping)
   annualRevenue?: any // Mapped to accountAnnualRevenueBand (CatalogEntry)
   annualRevenueRef?: string // Mapped to accountAnnualRevenueBandRef
-  contact?: CustomerContact[] // Mapped to contacts (singular in CRM)
+  //contact?: CustomerContact[] // Mapped to contacts (singular in CRM)
   crmAddress?: CustomerAddress[] // Duplicate - mapped to addresses
   crmDocument?: CustomerDocument[] // Duplicate - mapped to documents
   crmNote?: CustomerNote[] // Duplicate - mapped to notes

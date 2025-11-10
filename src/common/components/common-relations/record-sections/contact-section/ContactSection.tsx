@@ -12,10 +12,11 @@ import {
 } from '@newwork/nw-design-system'
 import { AppActionButton } from '@/components/app-action-button/AppActionButton'
 import { FlowContextName } from '@/common/types/FlowRegistryTypes'
-import { ContactData } from '@/business-apps/crm/common/apps/contact-record/queries/ContactQueries'
+import type { CustomerContact } from '@/common/data/customer/types'
 import { PiLinkedinLogo, PiShareNetwork, PiEnvelope, PiPhone, PiCaretLeft, PiCaretRight } from 'react-icons/pi'
 import { UserIcon } from '@phosphor-icons/react'
 import { navigateTo } from '@/common/utils/navigationUtils'
+import { getLinkedInChannel, getXingChannel } from '@/common/data/common/utils/communicationChannelHelpers'
 
 interface ContactSectionProps extends Partial<BusinessAppContextProps> {
   contactId?: string
@@ -40,14 +41,14 @@ const ContactSection: React.FC<ContactSectionProps> = ({
   recordUrl,
   ...props
 }) => {
-  const contactList: ContactData[] = useMemo(() => {
-    const arr = Array.isArray(contacts) ? (contacts as ContactData[]).filter(Boolean) : []
+  const contactList: CustomerContact[] = useMemo(() => {
+    const arr = Array.isArray(contacts) ? (contacts as CustomerContact[]).filter(Boolean) : []
     return arr
   }, [contacts])
 
   const hasMultiple = contactList.length > 1
-  const initialSelected: ContactData | null = contact || (contactList.length > 0 ? contactList[0] : null)
-  const [selectedContact, setSelectedContact] = useState<ContactData | null>(initialSelected)
+  const initialSelected: CustomerContact | null = contact || (contactList.length > 0 ? contactList[0] : null)
+  const [selectedContact, setSelectedContact] = useState<CustomerContact | null>(initialSelected)
   const [currentIndex, setCurrentIndex] = useState(0)
 
   // Update selected contact when contactList changes
@@ -91,7 +92,7 @@ const ContactSection: React.FC<ContactSectionProps> = ({
   return (
     <div data-testid={props['data-testid'] || 'contact-section'} className={`gba:w-full gba:h-full ${className}`}>
       <ContactPersonalInfo
-        contact={displayContact as ContactData}
+        contact={displayContact as CustomerContact}
         hasMultiple={hasMultiple}
         currentIndex={currentIndex}
         totalCount={contactList.length}
@@ -112,7 +113,7 @@ const ContactSection: React.FC<ContactSectionProps> = ({
 export default ContactSection
 
 interface ContactPersonalInfoProps {
-  contact: ContactData
+  contact: CustomerContact
   hasMultiple?: boolean
   currentIndex?: number
   totalCount?: number
@@ -153,7 +154,7 @@ const ContactPersonalInfo: React.FC<ContactPersonalInfoProps> = ({
   // Helper function to build job info
   const buildJobInfo = () => {
     const parts = []
-    if (contact?.jobTitle) parts.push(contact.jobTitle)
+    if (contact?.jobPosition) parts.push(contact.jobPosition)
     if ((contact as any)?.department) {
       const department = (contact as any).department as string
       parts.push(department.charAt(0).toUpperCase() + department.slice(1))
@@ -167,11 +168,7 @@ const ContactPersonalInfo: React.FC<ContactPersonalInfoProps> = ({
     if (!communicationChannels || !Array.isArray(communicationChannels)) {
       return (contact as any)?.linkedinUrl || null
     }
-    return (
-      communicationChannels.find(
-        (channel: any) => channel.communicationChannelRef === 'CommunicationChannel:v1:LinkedIn'
-      )?.value || null
-    )
+    return getLinkedInChannel(communicationChannels)?.value || null
   }
 
   // Helper function to extract XING URL from communication channels
@@ -180,10 +177,7 @@ const ContactPersonalInfo: React.FC<ContactPersonalInfoProps> = ({
     if (!communicationChannels || !Array.isArray(communicationChannels)) {
       return (contact as any)?.xingUrl || null
     }
-    return (
-      communicationChannels.find((channel: any) => channel.communicationChannelRef === 'CommunicationChannel:v1:Xing')
-        ?.value || null
-    )
+    return getXingChannel(communicationChannels)?.value || null
   }
 
   // Check if contact has image/avatar

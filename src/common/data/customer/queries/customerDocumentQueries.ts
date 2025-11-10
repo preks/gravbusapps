@@ -10,6 +10,10 @@ import {
   buildDocumentSearchQuery,
   buildDocumentWhereCondition,
   buildDocumentOrderBy,
+  buildDocumentByLeadIdQuery,
+  buildDocumentByAccountIdQuery,
+  buildDocumentByContactIdQuery,
+  buildDocumentByOpportunityIdQuery,
   type CommonDocumentQueryVariables,
   type DocumentRelationBuilders,
   type DocumentRelationFields
@@ -114,4 +118,117 @@ export const buildCustomerDocumentOrderBy = (
 ): any[] => {
   const descriptors = [...CUSTOMER_DOCUMENT_DESCRIPTORS, ...additionalDescriptors]
   return buildDocumentOrderBy(orderBy, descriptors)
+}
+
+// =====================================================
+// CUSTOMER DOCUMENT BY ENTITY ID QUERY BUILDERS
+// =====================================================
+
+/**
+ * Build Customer Document query filtered by Lead ID
+ * Uses common buildDocumentByLeadIdQuery with Customer-specific fields and relations
+ */
+export const buildCustomerDocumentByLeadIdQuery = (): string => {
+  const relationBuilders: Partial<DocumentRelationBuilders> = {
+    buildAccountFragment,
+    buildContactFragment,
+    buildLeadFragment,
+    buildOpportunityFragment,
+    buildTaskFragment,
+    buildActivityFragment,
+    buildNoteFragment
+  }
+
+  const relationFields: Partial<DocumentRelationFields> = {
+    accountFields: CustomerAccountFields,
+    contactFields: CustomerContactFields,
+    leadFields: CustomerLeadFields,
+    opportunityFields: CustomerOpportunityFields,
+    taskFields: CustomerTaskFields,
+    activityFields: CustomerActivityFields,
+    noteFields: CustomerNoteFields
+  }
+
+  return buildDocumentByLeadIdQuery(CustomerDocumentFields, 'CrmDocument', relationBuilders, relationFields)
+}
+
+/**
+ * Build Customer Document query filtered by Account ID
+ */
+export const buildCustomerDocumentByAccountIdQuery = (): string => {
+  const relationBuilders: Partial<DocumentRelationBuilders> = {
+    buildAccountFragment,
+    buildContactFragment,
+    buildLeadFragment,
+    buildOpportunityFragment,
+    buildTaskFragment,
+    buildActivityFragment,
+    buildNoteFragment
+  }
+
+  const relationFields: Partial<DocumentRelationFields> = {
+    accountFields: CustomerAccountFields,
+    contactFields: CustomerContactFields,
+    leadFields: CustomerLeadFields,
+    opportunityFields: CustomerOpportunityFields,
+    taskFields: CustomerTaskFields,
+    activityFields: CustomerActivityFields,
+    noteFields: CustomerNoteFields
+  }
+
+  return buildDocumentByAccountIdQuery(CustomerDocumentFields, 'CrmDocument', relationBuilders, relationFields)
+}
+
+/**
+ * Build Customer Document query filtered by Contact ID
+ */
+export const buildCustomerDocumentByContactIdQuery = (): string => {
+  const relationBuilders: Partial<DocumentRelationBuilders> = {
+    buildAccountFragment,
+    buildContactFragment,
+    buildLeadFragment,
+    buildOpportunityFragment,
+    buildTaskFragment,
+    buildActivityFragment,
+    buildNoteFragment
+  }
+
+  const relationFields: Partial<DocumentRelationFields> = {
+    accountFields: CustomerAccountFields,
+    contactFields: CustomerContactFields,
+    leadFields: CustomerLeadFields,
+    opportunityFields: CustomerOpportunityFields,
+    taskFields: CustomerTaskFields,
+    activityFields: CustomerActivityFields,
+    noteFields: CustomerNoteFields
+  }
+
+  return buildDocumentByContactIdQuery(CustomerDocumentFields, 'CrmDocument', relationBuilders, relationFields)
+}
+
+/**
+ * Build Customer Document query filtered by Opportunity ID
+ */
+export const buildCustomerDocumentByOpportunityIdQuery = (): string => {
+  const relationBuilders: Partial<DocumentRelationBuilders> = {
+    buildAccountFragment,
+    buildContactFragment,
+    buildLeadFragment,
+    buildOpportunityFragment,
+    buildTaskFragment,
+    buildActivityFragment,
+    buildNoteFragment
+  }
+
+  const relationFields: Partial<DocumentRelationFields> = {
+    accountFields: CustomerAccountFields,
+    contactFields: CustomerContactFields,
+    leadFields: CustomerLeadFields,
+    opportunityFields: CustomerOpportunityFields,
+    taskFields: CustomerTaskFields,
+    activityFields: CustomerActivityFields,
+    noteFields: CustomerNoteFields
+  }
+
+  return buildDocumentByOpportunityIdQuery(CustomerDocumentFields, 'CrmDocument', relationBuilders, relationFields)
 }

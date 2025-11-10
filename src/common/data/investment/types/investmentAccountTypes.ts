@@ -58,8 +58,6 @@ export const InvestmentAccountFields = {
   // Override IRM-specific field names
   accountContacts: 'investmentAccountContact',
   activities: 'investmentActivity',
-  addresses: 'investmentAddress',
-  communicationChannels: 'investmentCommunicationChannel',
   documents: 'investmentDocument',
   leads: 'investmentLead',
   notes: 'investmentNote',

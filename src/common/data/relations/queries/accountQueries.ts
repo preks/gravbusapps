@@ -9,6 +9,8 @@ import { AccountFields } from '../types/accountTypes'
 import type { Descriptor } from '@/common/network/graphql/queryHelpers'
 import { AUDIT_FIELDS, CATALOG_ENTRY } from '@/common/network/graphql/commonFragments'
 import { COMMUNICATION_CHANNEL_REF } from '@/common/data/common/queries/communicationChannelFragments'
+//import { ADDRESS_REF } from '@/common/data/common/queries/addressFragments'
+import { buildAddressFragment } from './_tempAddress'
 import type { BaseQueryVariables } from '@/common/network/graphql/commonTypes'
 import { EMPLOYEE_REF } from '@/common/data/employee/queries/fragments/employeeFragments'
 
@@ -183,6 +185,11 @@ export const buildAccountByPkQuery = (
     
     ${fields.tasks}(where: { isDeleted: { _eq: false } }) {
       ${relationBuilders.buildTaskFragment(relationFields.taskFields)}
+      
+      # Documents relation within tasks
+      documents(where: { isDeleted: { _eq: false } }) {
+        ${relationBuilders.buildDocumentFragment(relationFields.documentFields)}
+      }
     }
     
     # AccountContacts relation (field name varies: accountContacts vs investmentAccountContact)
@@ -192,6 +199,13 @@ export const buildAccountByPkQuery = (
       contactType
       contact {
         ${relationBuilders.buildContactFragment(relationFields.contactFields)}
+        # ✅ Relations direkt hier hinzufügen (nicht im Fragment)
+        ${relationFields.contactFields.communicationChannels}(where: { isDeleted: { _eq: false } }) {
+          ${COMMUNICATION_CHANNEL_REF}
+        }
+        ${relationFields.contactFields.addresses}(where: { isDeleted: { _eq: false } }) {
+          ${buildAddressFragment(entityName)}
+        }
       }
     }
     

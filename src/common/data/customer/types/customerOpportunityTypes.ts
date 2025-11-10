@@ -3,7 +3,12 @@
  */
 
 import type { Opportunity, OpportunityStageCondition } from '@/common/data/relations/types/opportunityTypes'
-import { OpportunityFields, createOpportunityDescriptors } from '@/common/data/relations/types/opportunityTypes'
+import {
+  OpportunityFields,
+  createOpportunityDescriptors,
+  OpportunityStageConditionFields,
+  createOpportunityStageConditionDescriptors
+} from '@/common/data/relations/types/opportunityTypes'
 import type { Descriptor } from '@/common/network/graphql/queryHelpers'
 import type { CustomerAccount } from './customerAccountTypes'
 import type { CustomerAddress } from './customerAddressTypes'
@@ -76,6 +81,22 @@ export const CustomerOpportunityFields = {
 export type CustomerOpportunityFieldName = (typeof CustomerOpportunityFields)[keyof typeof CustomerOpportunityFields]
 
 /**
+ * Customer Opportunity Stage Condition Query Field Mapping
+ * Extends OpportunityStageConditionFields with CRM-specific GraphQL field names
+ */
+export const CustomerOpportunityStageConditionFields = {
+  ...OpportunityStageConditionFields,
+  // Override CRM-specific field names
+  opportunityPipelineStageCondition: 'salesPipelineStageCondition',
+  opportunityPipelineStageConditionRef: 'salesPipelineStageConditionRef',
+  task: 'salesTask',
+  taskId: 'salesTaskId'
+} as const
+
+export type CustomerOpportunityStageConditionFieldName =
+  (typeof CustomerOpportunityStageConditionFields)[keyof typeof CustomerOpportunityStageConditionFields]
+
+/**
  * Customer Opportunity Descriptors
  * Uses createOpportunityDescriptors with CustomerOpportunityFields mapping
  * Filters out and overrides descriptors with structural differences (CRM uses different nested field names)
@@ -115,4 +136,14 @@ export const CUSTOMER_OPPORTUNITY_DESCRIPTORS: Descriptor[] = [
 
   // CRM-specific additional fields
   { key: 'salesCampaignIds', path: 'salesCampaignId', kind: 'inIds' }
+]
+
+/**
+ * Customer Opportunity Stage Condition Descriptors
+ * Uses createOpportunityStageConditionDescriptors with CustomerOpportunityStageConditionFields mapping
+ */
+export const CUSTOMER_OPPORTUNITY_STAGE_CONDITION_DESCRIPTORS: Descriptor[] = [
+  ...createOpportunityStageConditionDescriptors(
+    CustomerOpportunityStageConditionFields as Record<keyof typeof OpportunityStageConditionFields, string>
+  )
 ]
