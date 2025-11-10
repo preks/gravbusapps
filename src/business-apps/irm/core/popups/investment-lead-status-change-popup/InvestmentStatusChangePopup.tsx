@@ -3,13 +3,13 @@ import { LeadStatusChangePopup as SharedLeadStatusChangePopup } from '@/common/p
 import { BusinessAppContextProps } from '@/common/BusinessAppContext'
 import { useLeadData } from '../../records/lead-record/hooks/useLeadData'
 
-export interface InvestmentStatusChangePopupProps extends BusinessAppContextProps {
+export interface IRMInvestmentStatusChangePopupProps extends BusinessAppContextProps {
   initialValues?: {
     leadId?: string
   }
 }
 
-const InvestmentStatusChangePopup: React.FC<InvestmentStatusChangePopupProps> = props => {
+const InvestmentStatusChangePopup: React.FC<IRMInvestmentStatusChangePopupProps> = props => {
   return (
     <SharedLeadStatusChangePopup
       {...props}
