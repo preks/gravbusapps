@@ -201,8 +201,19 @@ export class QuickTaskFlowService {
         ...(flowTemplate.tags || {}),
         app: 'quick-task',
         blinkGroupId, // Group ID to link all workflows from the same blink
-        assignedUserId: userId // User ID to identify who this workflow is for
+        assignedUserId: userId, // User ID to identify who this workflow is for
+        // Entity reference fields (if provided)
+        ...(formData.entityType &&
+          formData.entityId && {
+            entityType: formData.entityType,
+            entityId: formData.entityId,
+            entityName: formData.entityName,
+            entityDisplayUrl: formData.entityDisplayUrl
+          })
       }
+
+      // Debug: Log what's being stored in workflow tags
+      console.log('[QuickTask Service] Workflow tags:', tagsWithGroup)
 
       // Execute the workflow for this assignee
       const response = await fetch(`${apiBaseUrl}/api/templates/execute-dynamic`, {

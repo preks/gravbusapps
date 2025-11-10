@@ -4,8 +4,17 @@
  */
 
 import React from 'react'
-import { Card, CardContent, CardHeader, Badge, Button, Alert, AlertDescription, AlertTitle } from '@newwork/nw-design-system'
-import { CheckCircle, Info, Zap, X, ExternalLink, ChevronDown, ChevronUp } from 'lucide-react'
+import {
+  Card,
+  CardContent,
+  CardHeader,
+  Badge,
+  Button,
+  Alert,
+  AlertDescription,
+  AlertTitle
+} from '@newwork/nw-design-system'
+import { CheckCircle, Info, Zap, X, ExternalLink, ChevronDown, ChevronUp, Link as LinkIcon } from 'lucide-react'
 import { message } from 'antd'
 import { UnifiedTask } from '../types'
 import {
@@ -65,7 +74,8 @@ export const TaskDetailDialog: React.FC<TaskDetailDialogProps> = ({
           processInstanceId: pathSegments[3]
         }
       }
-    } catch (_error) {
+    } catch {
+      // Ignore errors when assigning empty object
     }
 
     return { domain: null, processName: null, processInstanceId: null }
@@ -85,7 +95,6 @@ export const TaskDetailDialog: React.FC<TaskDetailDialogProps> = ({
         task?.sourceMetadata?.processInstanceId ||
         null
     }
-
 
     return result
   }, [task])
@@ -133,7 +142,6 @@ export const TaskDetailDialog: React.FC<TaskDetailDialogProps> = ({
         throw new Error(errorData.error || 'Failed to complete task')
       }
 
-
       // Show success message
       message.success({
         content: '✓ Blink completed successfully!',
@@ -172,11 +180,11 @@ export const TaskDetailDialog: React.FC<TaskDetailDialogProps> = ({
         const url = new URL(endpoint)
         const endpointPath = url.pathname
 
-
         // Navigate to the endpoint path - platform's routing should handle it
         navigateTo(endpointPath)
         onClose()
-      } catch (_err) {
+      } catch {
+        // Ignore navigation errors
       }
       return
     }
@@ -189,11 +197,11 @@ export const TaskDetailDialog: React.FC<TaskDetailDialogProps> = ({
         const url = new URL(endpoint)
         navigateTo(url.pathname)
         onClose()
-      } catch (_err) {
+      } catch {
+        // Ignore navigation errors
       }
       return
     }
-
   }
 
   // Get task title
@@ -213,6 +221,12 @@ export const TaskDetailDialog: React.FC<TaskDetailDialogProps> = ({
 
   // Check if this is a blink (quick-task)
   const isBlinkTask = task.source === 'cflow' && task.tags?.app === 'quick-task'
+
+  // Extract entity reference from task tags (for blinks)
+  const entityType = task.tags?.entityType as string | undefined
+  const entityId = task.tags?.entityId as string | undefined
+  const entityName = task.tags?.entityName as string | undefined
+  const entityDisplayUrl = task.tags?.entityDisplayUrl as string | undefined
 
   // Check if this is a sick leave acknowledgement task
   const isSickLeaveAcknowledgement =
@@ -335,6 +349,31 @@ export const TaskDetailDialog: React.FC<TaskDetailDialogProps> = ({
           </>
         ) : (
           <div className="gba:space-y-6">
+            {/* Entity Reference (if linked to an entity) */}
+            {entityType && entityId && entityName && (
+              <div className="gba:border gba:rounded-lg gba:p-4 gba:bg-muted/30">
+                <div className="gba:text-xs gba:text-muted-foreground gba:mb-2 gba:font-medium">Related To</div>
+                <a
+                  href={entityDisplayUrl || '#'}
+                  onClick={e => {
+                    e.preventDefault()
+                    if (entityDisplayUrl) {
+                      navigateTo(entityDisplayUrl)
+                    }
+                  }}
+                  className="gba:flex gba:items-center gba:gap-2 gba:cursor-pointer gba:p-2 gba:-mx-2 gba:rounded-md hover:gba:bg-accent gba:transition-colors gba:no-underline"
+                  data-testid="task-entity-reference-link"
+                >
+                  <LinkIcon className="gba:h-4 gba:w-4 gba:text-primary" />
+                  <Badge variant="outline" className="gba:text-xs">
+                    {entityType}
+                  </Badge>
+                  <span className="gba:font-medium gba:text-sm gba:text-primary hover:gba:underline">{entityName}</span>
+                  <ExternalLink className="gba:h-3 gba:w-3 gba:text-muted-foreground gba:ml-auto" />
+                </a>
+              </div>
+            )}
+
             {/* Brief description if available */}
             {taskDescription && (
               <p className="gba:text-base gba:leading-relaxed gba:text-muted-foreground">{taskDescription}</p>

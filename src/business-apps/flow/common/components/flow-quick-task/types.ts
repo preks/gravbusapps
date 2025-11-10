@@ -34,6 +34,12 @@ export interface QuickTaskFormData {
   documents: QuickTaskUploadFile[]
   assignedUserIds: string[] // Changed from assignedUserId to support multiple users
   dueDate: string
+  // Entity reference fields
+  entityType?: string
+  entityId?: string
+  entityName?: string
+  entityDisplayUrl?: string
+  entityMetadata?: Record<string, any>
 }
 
 /**
