@@ -84,15 +84,22 @@ export const HomeView: React.FC<HomeViewProps> = ({
                     revenue: null,
                     numberOfEmployees: null
                   },
-              address: rawLeadData
-                ? {
-                    addressLine: rawLeadData.addressLine,
-                    postalCode: rawLeadData.postalCode,
-                    locality: rawLeadData.city,
-                    country: typeof rawLeadData.country === 'string' ? rawLeadData.country : rawLeadData.country?.value,
-                    region: typeof rawLeadData.state === 'string' ? rawLeadData.state : rawLeadData.state?.value
-                  }
-                : undefined
+              address:
+                rawLeadData && rawLeadData.addresses && rawLeadData.addresses.length > 0
+                  ? {
+                      addressLine: rawLeadData.addresses[0].addressLine,
+                      postalCode: rawLeadData.addresses[0].postalCode,
+                      locality: rawLeadData.addresses[0].city,
+                      country:
+                        typeof rawLeadData.addresses[0].country === 'string'
+                          ? rawLeadData.addresses[0].country
+                          : rawLeadData.addresses[0].country?.value,
+                      region:
+                        typeof rawLeadData.addresses[0].region === 'string'
+                          ? rawLeadData.addresses[0].region
+                          : rawLeadData.addresses[0].region?.value
+                    }
+                  : undefined
             }
           }
         ]}
