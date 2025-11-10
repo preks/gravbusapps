@@ -245,7 +245,7 @@ const DocumentPopup: React.FC<DocumentPopupProps> = ({ initialValues = {}, ...pr
       } catch (err) {
         if (isCancelled) return
         console.error('Flowbot classify failed', err)
-        setAiError(getTranslationFromI18nKeyAndLabel('irm:document.ai.classifyError', 'Failed to auto-classify'))
+        setAiError(getTranslationFromI18nKeyAndLabel('irm.documents.ai.failed', 'Failed to auto-classify'))
       } finally {
         if (!isCancelled) setAiLoading(false)
       }
