@@ -278,7 +278,18 @@ const ConfigTaskLayout = <TTask extends Task = Task, TQueryVariables = any>(
   useProcessCompletion({ onSuccess: handleProcessComplete })
 
   useEffect(() => {
-    const events = config.processCompletionEvents || ['taskCompletion', 'com.newwork.process.taskCompletion']
+    const events = config.processCompletionEvents || [
+      'com.newwork.process.taskCompletion',
+      'com.newwork.process.completion',
+      'com.newwork.process.continue',
+      'com.newwork.process.processCompletion',
+      'processCompletion',
+      'taskCompletion',
+      'taskCompleted',
+      'processCompleted',
+      'task-completion',
+      'process-completion'
+    ]
     const handlers = events.map(eventName => {
       const handler = () => handleProcessComplete()
       globalThis.addEventListener(eventName, handler)

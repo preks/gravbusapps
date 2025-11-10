@@ -56,7 +56,7 @@ export type CustomerLeadFieldName = (typeof CustomerLeadFields)[keyof typeof Cus
 export const CUSTOMER_LEAD_DESCRIPTORS: Descriptor[] = [
   // Filter out descriptors that need structural overrides
   ...createLeadDescriptors(CustomerLeadFields as Record<keyof typeof LeadFields, string>).filter(
-    d => !['address', 'locality', 'notes'].includes(d.key)
+    d => !['address', 'locality', 'notes', 'rejectionReasons'].includes(d.key)
   ),
 
   // CRM-specific structural overrides
