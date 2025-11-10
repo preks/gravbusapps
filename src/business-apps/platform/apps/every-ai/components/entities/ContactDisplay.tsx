@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react'
 import { EntityCard } from './EntityCard'
 import { useGraphQLClient } from '@/common/network/graphql/useGraphQLClient'
+import { buildPlatformUrl, navigateTo } from '@/common/utils/navigationUtils'
 
 interface ContactDisplayProps {
   contactId: string
@@ -81,6 +82,16 @@ export const ContactDisplay: React.FC<ContactDisplayProps> = ({ contactId, acces
 
   const operationBadge = getOperationBadge()
 
+  const handleClick = () => {
+    if (contactId) {
+      const url = buildPlatformUrl('/platform/crm/contact-record', {
+        contactId: contactId,
+        source: 'every-ai'
+      })
+      navigateTo(url)
+    }
+  }
+
   const icon = (
     <div className="gba:h-12 gba:w-12 gba:rounded-full gba:bg-success-secondary gba:flex gba:items-center gba:justify-center">
       <svg className="gba:h-6 gba:w-6 gba:text-success" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -112,6 +123,7 @@ export const ContactDisplay: React.FC<ContactDisplayProps> = ({ contactId, acces
       }
       isLoading={isLoading}
       error={error || undefined}
+      onClick={handleClick}
     />
   )
 }

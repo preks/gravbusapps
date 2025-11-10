@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react'
 import { EntityCard } from './EntityCard'
 import { useGraphQLClient } from '@/common/network/graphql/useGraphQLClient'
+import { buildPlatformUrl, navigateTo } from '@/common/utils/navigationUtils'
 
 interface ExpenseDisplayProps {
   expenseId: string
@@ -29,6 +30,7 @@ export const ExpenseDisplay: React.FC<ExpenseDisplayProps> = ({ expenseId, acces
   const [expense, setExpense] = useState<Expense | null>(null)
   const [isLoading, setIsLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
+  const [detectedType, setDetectedType] = useState<'ExpenseRequest' | 'ExpensePlan' | 'ExpenseItem' | null>(null)
   const graphqlClient = useGraphQLClient(accessToken)
 
   useEffect(() => {
@@ -126,6 +128,7 @@ export const ExpenseDisplay: React.FC<ExpenseDisplayProps> = ({ expenseId, acces
         if (expenseArray && expenseArray.length > 0) {
           const expenseData = expenseArray[0]
           console.log('Expense found:', expenseData, 'Type:', resultKey)
+          setDetectedType(resultKey as 'ExpenseRequest' | 'ExpensePlan' | 'ExpenseItem')
           setExpense({
             ...expenseData,
             currency: expenseData.currencyRef,
@@ -163,6 +166,36 @@ export const ExpenseDisplay: React.FC<ExpenseDisplayProps> = ({ expenseId, acces
 
   const operationBadge = getOperationBadge()
 
+  const handleClick = () => {
+    if (!expenseId || !detectedType) return
+
+    let url: string
+    switch (detectedType) {
+      case 'ExpenseRequest':
+        url = buildPlatformUrl('/platform/fin/expenses/expense-request-record', {
+          expenseRequestId: expenseId,
+          referrer: 'every-ai'
+        })
+        break
+      case 'ExpensePlan':
+        url = buildPlatformUrl('/platform/fin/expenses/expense-plan-record', {
+          expensePlanId: expenseId,
+          referrer: 'every-ai'
+        })
+        break
+      case 'ExpenseItem':
+        // Navigate to personal expenses with the expense items tab
+        url = buildPlatformUrl('/platform/fin/expenses/personal-expenses', {
+          tab: 'expense-items',
+          highlightId: expenseId
+        })
+        break
+      default:
+        return
+    }
+    navigateTo(url)
+  }
+
   const formatCurrency = (amount?: number, currency?: string) => {
     if (!amount) return '-'
     const currencyCode = currency?.split(':').pop() || 'EUR'
@@ -199,6 +232,7 @@ export const ExpenseDisplay: React.FC<ExpenseDisplayProps> = ({ expenseId, acces
       }
       isLoading={isLoading}
       error={error || undefined}
+      onClick={handleClick}
     />
   )
 }

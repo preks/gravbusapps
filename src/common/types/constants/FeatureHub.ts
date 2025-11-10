@@ -56,7 +56,8 @@ const PlatformFeature = {
   Cloud: { Key: 'platform.create.cloud.enabled' },
   GlobalManagement: { Key: 'platform.global.manage.enabled' },
   FlowBot: { Key: 'platform.ai.flowbot.enabled' },
-  DashboardLayout: { Key: 'platform.dashboard-layout.mode', Values: PlatformFeatureDashboardLayoutValue }
+  DashboardLayout: { Key: 'platform.dashboard-layout.mode', Values: PlatformFeatureDashboardLayoutValue },
+  EveryAI: { Key: 'everyai.enabled' }
 }
 
 export const Feature = {

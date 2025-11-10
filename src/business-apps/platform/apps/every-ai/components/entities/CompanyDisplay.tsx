@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react'
 import { EntityCard } from './EntityCard'
 import { useGraphQLClient } from '@/common/network/graphql/useGraphQLClient'
+import { buildPlatformUrl, navigateTo } from '@/common/utils/navigationUtils'
 
 interface CompanyDisplayProps {
   companyId: string
@@ -11,7 +12,7 @@ interface CompanyDisplayProps {
 interface Company {
   id: string
   name: string
-  industry?: string
+  industry?: { id: string; value: string }
   website?: string
   email?: string
 }
@@ -30,20 +31,23 @@ export const CompanyDisplay: React.FC<CompanyDisplayProps> = ({ companyId, acces
       try {
         const query = `
           query GetCompany($id: uuid!) {
-            customerAccounts_by_pk(id: $id) {
+            Account(where: { id: { _eq: $id }, isDeleted: { _eq: false } }) {
               id
               name
-              industry
+              industry {
+                id
+                value
+              }
               website
               email
             }
           }
         `
 
-        const result = await graphqlClient.request<{ customerAccounts_by_pk: Company }>(query, { id: companyId })
+        const result = await graphqlClient.request<{ Account: Company[] }>(query, { id: companyId })
 
-        if (result.customerAccounts_by_pk) {
-          setCompany(result.customerAccounts_by_pk)
+        if (result.Account && result.Account.length > 0) {
+          setCompany(result.Account[0])
         } else {
           setError('Company not found')
         }
@@ -75,6 +79,16 @@ export const CompanyDisplay: React.FC<CompanyDisplayProps> = ({ companyId, acces
 
   const operationBadge = getOperationBadge()
 
+  const handleClick = () => {
+    if (companyId) {
+      const url = buildPlatformUrl('/platform/crm/account-record', {
+        accountId: companyId,
+        source: 'every-ai'
+      })
+      navigateTo(url)
+    }
+  }
+
   const icon = (
     <div className="gba:h-12 gba:w-12 gba:rounded-full gba:bg-primary-secondary gba:flex gba:items-center gba:justify-center">
       <svg className="gba:h-6 gba:w-6 gba:text-primary" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -91,7 +105,7 @@ export const CompanyDisplay: React.FC<CompanyDisplayProps> = ({ companyId, acces
   return (
     <EntityCard
       title={company?.name || 'Company'}
-      subtitle={company?.industry}
+      subtitle={company?.industry?.value}
       icon={icon}
       status={operationBadge?.text}
       statusVariant={operationBadge?.variant}
@@ -105,6 +119,7 @@ export const CompanyDisplay: React.FC<CompanyDisplayProps> = ({ companyId, acces
       }
       isLoading={isLoading}
       error={error || undefined}
+      onClick={handleClick}
     />
   )
 }

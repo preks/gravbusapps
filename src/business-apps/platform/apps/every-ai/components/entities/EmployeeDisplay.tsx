@@ -2,6 +2,7 @@ import React from 'react'
 import { Card, CardContent } from '@newwork/nw-design-system'
 import { useEmployeeDetails } from '../../queries/employeeQueries'
 import { AvatarWithInitials } from '../shared/AvatarWithInitials'
+import { buildPlatformUrl, navigateTo } from '@/common/utils/navigationUtils'
 
 interface EmployeeDisplayProps {
   employeeId: string
@@ -39,10 +40,20 @@ export const EmployeeDisplay: React.FC<EmployeeDisplayProps> = ({ employeeId, ac
   const employee = state.employee
   const manager = state.manager
 
+  const handleClick = () => {
+    if (employeeId) {
+      const url = buildPlatformUrl('/platform/employee-record', {
+        employeeId: employeeId
+      })
+      navigateTo(url)
+    }
+  }
+
   return (
     <Card
-      className="gba:w-full gba:rounded-2xl gba:border gba:border-border gba:shadow-lg gba:overflow-hidden"
+      className="gba:w-full gba:rounded-2xl gba:border gba:border-border gba:shadow-lg gba:overflow-hidden gba:cursor-pointer hover:gba:border-primary/50 gba:transition-all"
       data-testid="employee-display"
+      onClick={handleClick}
     >
       <CardContent className="gba:p-6">
         {operation && (

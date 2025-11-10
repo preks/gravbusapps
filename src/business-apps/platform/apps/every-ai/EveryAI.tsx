@@ -57,66 +57,6 @@ export const EveryAI: React.FC<EveryAIProps> = props => {
       data-testid="every-ai-app"
     >
       <FormSubmissionProvider>
-        {/* Animated background gradient */}
-        <div className="gba:absolute gba:inset-0 gba:pointer-events-none gba:opacity-30">
-          <div
-            className="gba:absolute gba:top-0 gba:left-0 gba:w-full gba:h-96 gba:bg-gradient-to-br gba:from-primary gba:via-info gba:to-success gba:opacity-20 gba:blur-3xl gba:animate-pulse"
-            style={{ animationDuration: '8s' }}
-          />
-        </div>
-
-        {/* Premium Professional Header */}
-        <div className="gba:flex-shrink-0 gba:border-b gba:border-border gba:bg-card gba:backdrop-blur-sm gba:relative gba:z-10">
-          {/* Subtle gradient accent line */}
-          <div className="gba:h-1 gba:w-full gba:bg-gradient-to-r gba:from-primary gba:via-info gba:to-success" />
-
-          <div className="gba:px-6 gba:py-5">
-            <div className="gba:flex gba:items-center gba:justify-between">
-              <div className="gba:flex gba:items-center gba:gap-4">
-                {/* Sophisticated AI Icon */}
-                <div className="gba:relative">
-                  <div className="gba:absolute gba:inset-0 gba:bg-gradient-to-br gba:from-primary/20 gba:to-info/20 gba:rounded-2xl gba:blur-xl gba:opacity-50" />
-                  <div className="gba:h-14 gba:w-14 gba:bg-gradient-to-br gba:from-primary gba:to-info gba:rounded-2xl gba:flex gba:items-center gba:justify-center gba:relative gba:shadow-xl gba:border gba:border-primary/20">
-                    <svg
-                      className="gba:h-7 gba:w-7 gba:text-primary-foreground"
-                      fill="none"
-                      stroke="currentColor"
-                      viewBox="0 0 24 24"
-                    >
-                      <path
-                        strokeLinecap="round"
-                        strokeLinejoin="round"
-                        strokeWidth={2.5}
-                        d="M13 10V3L4 14h7v7l9-11h-7z"
-                      />
-                    </svg>
-                  </div>
-                </div>
-
-                <div>
-                  <h1 className="gba:text-2xl gba:font-bold gba:bg-gradient-to-r gba:from-primary gba:via-info gba:to-success gba:bg-clip-text gba:text-transparent gba:tracking-tight">
-                    EveryAI
-                  </h1>
-                  <p className="gba:text-sm gba:text-muted-foreground gba:font-medium gba:mt-0.5">
-                    Intelligent Assistant for Enterprise Operations
-                  </p>
-                </div>
-              </div>
-
-              {/* Professional AI Status Badge */}
-              <div className="gba:inline-flex gba:items-center gba:gap-2 gba:px-4 gba:py-2 gba:rounded-xl gba:bg-gradient-to-r gba:from-primary/10 gba:to-info/10 gba:border gba:border-primary/20 gba:backdrop-blur-sm">
-                <div className="gba:relative gba:h-2 gba:w-2">
-                  <div className="gba:absolute gba:inset-0 gba:bg-success gba:rounded-full gba:animate-pulse" />
-                  <div className="gba:absolute gba:inset-0 gba:bg-success gba:rounded-full gba:blur-sm" />
-                </div>
-                <span className="gba:text-xs gba:font-semibold gba:bg-gradient-to-r gba:from-primary gba:to-info gba:bg-clip-text gba:text-transparent">
-                  AI Active
-                </span>
-              </div>
-            </div>
-          </div>
-        </div>
-
         {/* Conversation Area with subtle gradient */}
         <div
           ref={scrollRef}

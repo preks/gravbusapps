@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react'
 import { EntityCard } from './EntityCard'
 import { useGraphQLClient } from '@/common/network/graphql/useGraphQLClient'
+import { buildPlatformUrl, navigateTo } from '@/common/utils/navigationUtils'
 
 interface OpportunityDisplayProps {
   opportunityId: string
@@ -83,6 +84,16 @@ export const OpportunityDisplay: React.FC<OpportunityDisplayProps> = ({ opportun
 
   const operationBadge = getOperationBadge()
 
+  const handleClick = () => {
+    if (opportunityId) {
+      const url = buildPlatformUrl('/platform/crm/opportunity-record', {
+        opportunityId: opportunityId,
+        source: 'every-ai'
+      })
+      navigateTo(url)
+    }
+  }
+
   const formatCurrency = (amount?: number) => {
     if (!amount) return '-'
     return new Intl.NumberFormat('en-US', { style: 'currency', currency: 'EUR' }).format(amount)
@@ -118,6 +129,7 @@ export const OpportunityDisplay: React.FC<OpportunityDisplayProps> = ({ opportun
       }
       isLoading={isLoading}
       error={error || undefined}
+      onClick={handleClick}
     />
   )
 }
