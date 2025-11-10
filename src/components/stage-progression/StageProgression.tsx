@@ -7,6 +7,7 @@ export const StageProgression: React.FC<StageProgressionProps> = ({
   stages,
   currentStage,
   styling = {},
+  // eslint-disable-next-line @typescript-eslint/no-unused-vars
   getStageCompletionPercentage,
   onStageClick,
   renderStageContent,
@@ -56,125 +57,16 @@ export const StageProgression: React.FC<StageProgressionProps> = ({
 
   return (
     <TooltipProvider>
-      <div>
-        <style>
-          {`
-          @keyframes premiumProgressWave {
-            0% {
-              background-position: 0% 50%;
-              transform: scaleY(1) scaleX(1);
-            }
-            25% {
-              transform: scaleY(1.01) scaleX(1.005);
-            }
-            50% {
-              background-position: 100% 50%;
-              transform: scaleY(1) scaleX(1);
-            }
-            75% {
-              transform: scaleY(1.01) scaleX(1.005);
-            }
-            100% {
-              background-position: 0% 50%;
-              transform: scaleY(1) scaleX(1);
-            }
-          }
-
-          @keyframes premiumShimmer {
-            0% {
-              background-position: -200% 0;
-            }
-            100% {
-              background-position: 200% 0;
-            }
-          }
-
-          @keyframes subtlePulse {
-            0% {
-              box-shadow: 0 0 8px rgba(76, 175, 80, 0.3);
-            }
-            50% {
-              box-shadow: 0 0 16px rgba(76, 175, 80, 0.5), 0 0 24px rgba(76, 175, 80, 0.2);
-            }
-            100% {
-              box-shadow: 0 0 8px rgba(76, 175, 80, 0.3);
-            }
-          }
-
-          .stage-current-animated {
-            position: relative;
-            overflow: visible;
-            background: linear-gradient(135deg, rgba(76, 175, 80, 0.8), rgba(102, 187, 106, 0.6));
-            animation: subtlePulse 4s ease-in-out infinite;
-          }
-
-          .stage-current-animated::before {
-            content: '';
-            position: absolute;
-            top: 2px;
-            left: 2px;
-            right: 2px;
-            bottom: 2px;
-            background: #ffffff;
-            z-index: 1;
-            clip-path: inherit;
-            -webkit-clip-path: inherit;
-          }
-
-          .stage-current-animated .progress-fill {
-            content: '';
-            position: absolute;
-            top: 2px;
-            left: 2px;
-            bottom: 2px;
-            background: linear-gradient(
-              135deg,
-              #4CAF50 0%,
-              #66BB6A 25%,
-              #81C784 50%,
-              #66BB6A 75%,
-              #4CAF50 100%
-            );
-            background-size: 200% 200%;
-            animation: premiumProgressWave 4s ease-in-out infinite;
-            z-index: 2;
-            clip-path: inherit;
-            -webkit-clip-path: inherit;
-          }
-
-          .stage-current-animated .shimmer-overlay {
-            position: absolute;
-            top: 2px;
-            left: 2px;
-            bottom: 2px;
-            background: linear-gradient(
-              90deg,
-              transparent 0%,
-              transparent 20%,
-              rgba(255,255,255,0.3) 35%,
-              rgba(255,255,255,0.8) 50%,
-              rgba(255,255,255,0.3) 65%,
-              transparent 80%,
-              transparent 100%
-            );
-            animation: premiumShimmer 4s cubic-bezier(0.25, 0.1, 0.25, 1) infinite;
-            z-index: 3;
-            pointer-events: none;
-            clip-path: inherit;
-            -webkit-clip-path: inherit;
-          }
-        `}
-        </style>
-
+      <>
         <div
           style={{
             display: 'flex',
             alignItems: 'center',
             height: '48px',
-            backgroundColor: '#f5f5f5',
+            backgroundColor: 'var(--nw-color-muted-100)',
             borderRadius: '24px',
             overflow: 'visible',
-            border: '1px solid #e0e0e0',
+            border: '1px solid var(--nw-color-border)',
             padding: '0 4px',
             gap: '0'
           }}
@@ -182,7 +74,6 @@ export const StageProgression: React.FC<StageProgressionProps> = ({
           {stages.map((stage, index) => {
             const isCurrentStage = index === currentIndex
             const isCompleted = index < currentIndex
-            const completionPercentage = getStageCompletionPercentage ? getStageCompletionPercentage(stage.code) : 100
 
             // Determine colors
             let backgroundColor = defaultStyling.colors.pending?.background || defaultColors.pending.background
@@ -190,10 +81,10 @@ export const StageProgression: React.FC<StageProgressionProps> = ({
 
             if (isCompleted) {
               backgroundColor = defaultStyling.colors.completed || defaultColors.completed
-              textColor = 'white'
+              textColor = 'var(--nw-color-primary-foreground)'
             } else if (isCurrentStage) {
-              backgroundColor = 'transparent'
-              textColor = defaultStyling.colors.current?.text || defaultColors.current.text
+              backgroundColor = defaultStyling.colors.completed || defaultColors.completed
+              textColor = 'var(--nw-color-primary-foreground)'
             }
 
             // Determine border radius and clip path
@@ -230,7 +121,6 @@ export const StageProgression: React.FC<StageProgressionProps> = ({
 
             const stageElement = (
               <div
-                className={isCurrentStage ? 'stage-current-animated' : ''}
                 style={{
                   position: 'relative',
                   height: defaultStyling.height,
@@ -244,7 +134,6 @@ export const StageProgression: React.FC<StageProgressionProps> = ({
                   color: textColor,
                   borderRadius,
                   marginRight,
-                  transition: 'all 0.3s ease',
                   clipPath,
                   WebkitClipPath,
                   cursor: onStageClick && !isCurrentStage ? 'pointer' : 'default'
@@ -252,29 +141,6 @@ export const StageProgression: React.FC<StageProgressionProps> = ({
                 data-testid={formatDataTestId(dataTestIdPrefix, `stage-${stage.code}`)}
                 onClick={handleStageClick}
               >
-                {/* Dynamic progress fill and shimmer overlays - only for current stage */}
-                {isCurrentStage && (
-                  <>
-                    {/* Progress fill with dynamic width based on completion percentage */}
-                    <div
-                      className="progress-fill"
-                      style={{
-                        width: `${completionPercentage}%`,
-                        right: 'auto'
-                      }}
-                    />
-
-                    {/* Shimmer overlay only shows on the filled portion */}
-                    <div
-                      className="shimmer-overlay"
-                      style={{
-                        width: `${completionPercentage}%`,
-                        right: 'auto'
-                      }}
-                    />
-                  </>
-                )}
-
                 {/* Stage content */}
                 <div
                   style={{
@@ -297,8 +163,8 @@ export const StageProgression: React.FC<StageProgressionProps> = ({
                           style={{
                             fontSize: '14px',
                             fontWeight: 'bold',
-                            backgroundColor: isCompleted ? 'rgba(255,255,255,0.3)' : '#4CAF50',
-                            color: 'white',
+                            backgroundColor: isCompleted ? 'var(--nw-color-primary-100)' : 'var(--nw-color-success)',
+                            color: 'var(--nw-color-primary-foreground)',
                             borderRadius: '50%',
                             width: '20px',
                             height: '20px',
@@ -331,7 +197,7 @@ export const StageProgression: React.FC<StageProgressionProps> = ({
             )
           })}
         </div>
-      </div>
+      </>
     </TooltipProvider>
   )
 }

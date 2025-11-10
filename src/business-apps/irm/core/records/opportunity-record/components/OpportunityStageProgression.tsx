@@ -232,7 +232,7 @@ export const OpportunityStageProgression: React.FC<OpportunityStageProgressionPr
   }
 
   return (
-    <div>
+    <>
       <StageProgression
         stages={convertToStageFormat(stages)}
         currentStage={currentStage}
@@ -309,6 +309,6 @@ export const OpportunityStageProgression: React.FC<OpportunityStageProgressionPr
             </div>
           )
         })()}
-    </div>
+    </>
   )
 }
