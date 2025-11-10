@@ -20,7 +20,7 @@ import type { PersonalDataFormValues, CatalogEntry } from '../types'
 export interface NamesGroupProps {
   control: Control<PersonalDataFormValues>
   catalogs: { salutation?: CatalogEntry[] }
-  setValue?: (
+  setValue: (
     name: keyof PersonalDataFormValues,
     value: any,
     options?: { shouldValidate?: boolean; shouldDirty?: boolean }
@@ -50,12 +50,8 @@ const NamesGroup: React.FC<NamesGroupProps> = ({ control, catalogs, setValue }) 
 
   // Update displayName field whenever computedDisplayName changes
   useEffect(() => {
-    if (setValue) {
-      setValue('displayName', computedDisplayName, { shouldValidate: false, shouldDirty: false })
-    } else if (control._formValues) {
-      control._formValues.displayName = computedDisplayName
-    }
-  }, [computedDisplayName, setValue, control])
+    setValue('displayName', computedDisplayName, { shouldValidate: false, shouldDirty: false })
+  }, [computedDisplayName, setValue])
 
   const validateNameFunction = (name: string): boolean => {
     const nameRegex =
