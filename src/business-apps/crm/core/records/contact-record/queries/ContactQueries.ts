@@ -2,6 +2,45 @@ import { useGraphQLClient } from '@/common/network/graphql/useGraphQLClient'
 import { BusinessAppContextProps } from '@/common/BusinessAppContext'
 import { useCallback } from 'react'
 
+// Shared account structure to avoid duplication
+export interface AccountSummary {
+  id: string
+  name: string
+  email?: string
+  phone?: string
+  website?: string
+  legalForm?: {
+    id: string
+    value: string
+  }
+  industry?: {
+    id: string
+    value: string
+  }
+  numberOfEmployees?: {
+    id: string
+    value: string
+  }
+  annualRevenue?: {
+    id: string
+    value: string
+  }
+  addresses?: Array<{
+    addressType?: string
+    addressLine?: string
+    postalCode?: string
+    city?: string
+    country?: {
+      id: string
+      value: string
+    }
+    region?: {
+      id: string
+      value: string
+    }
+  }>
+}
+
 export interface ContactData {
   id: string
   firstName: string
@@ -37,10 +76,13 @@ export interface ContactData {
   updatedAt?: string
   createdAt?: string
   accountId?: string
-  account?: {
-    name?: string
-    id?: string
-  }
+  account?: AccountSummary
+  accountContacts?: Array<{
+    id: string
+    version: number
+    contactType?: string
+    account: AccountSummary
+  }>
   ownerEmployee?: {
     id: string
     firstName: string
@@ -132,6 +174,48 @@ export const GET_CONTACT_BY_ID = `
           region {
             id
             value
+          }
+        }
+      }
+      accountContacts(where: { isDeleted: { _eq: false } }) {
+        id
+        version
+        contactType
+        account {
+          id
+          name
+          email
+          phone
+          website
+          legalForm {
+            id
+            value
+          }
+          industry {
+            id
+            value
+          }
+          numberOfEmployees {
+            id
+            value
+          }
+          annualRevenue {
+            id
+            value
+          }
+          addresses {
+            addressType
+            addressLine
+            postalCode
+            city
+            country {
+              id
+              value
+            }
+            region {
+              id
+              value
+            }
           }
         }
       }
