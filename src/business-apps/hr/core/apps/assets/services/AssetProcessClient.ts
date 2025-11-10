@@ -50,6 +50,19 @@ export interface CreateEmployeeAssetPayload {
   asset: string
 }
 
+export interface UpdateEmployeeAssetPayload {
+  id: string
+  version: number
+  startDate?: string
+  expectedEndDate?: string
+  endDate?: string
+  startAssetConditionRef?: string
+  endAssetConditionRef?: string
+  notes?: string
+  employee?: string
+  asset?: string
+}
+
 export interface AssetProcessResponse {
   processInstanceId: string
   assetId?: string
@@ -157,6 +170,27 @@ export class AssetProcessClient extends RestClient {
       )
     } catch (error) {
       console.error('AssetProcessClient: Error creating employee asset:', error)
+      throw error
+    }
+  }
+
+  /**
+   * Update/Return an employee asset via process API
+   * POST /processes/employee/updateEmployeeAsset
+   */
+  public async updateEmployeeAsset(payload: UpdateEmployeeAssetPayload): Promise<AssetProcessResponse> {
+    try {
+      return await this.post<AssetProcessResponse>(
+        '/processes/employee/updateEmployeeAsset',
+        { employeeAsset: payload },
+        {
+          headers: {
+            'Content-Type': 'application/json'
+          }
+        }
+      )
+    } catch (error) {
+      console.error('AssetProcessClient: Error updating employee asset:', error)
       throw error
     }
   }

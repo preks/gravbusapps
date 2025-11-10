@@ -23,6 +23,8 @@ export const ASSET_FIELDS = `
   assetCategoryRef
   currencyRef
   siteLocationId
+  createdBy
+  updatedBy
   currency {
     id
     code

@@ -9,8 +9,11 @@ import { AssetTable } from './components/AssetTable'
 import { AssetDetailPanel } from './components/AssetDetailPanel'
 import { EquipmentRegistration } from '../../forms/equipment-registration/EquipmentRegistration'
 import { AllocateAsset } from '../../forms/allocate-asset/AllocateAsset'
-import { Asset, AssetAllocation } from './types'
+import { ChangeAssetStatus } from '../../forms/change-asset-status/ChangeAssetStatus'
+import { ReturnAsset } from '../../forms/return-asset/ReturnAsset'
+import { Asset, AssetAllocation, AssetStatus } from './types'
 import { useAssetService } from './services/useAssetService'
+import { AssetProcessClient } from './services/AssetProcessClient'
 
 const moduleColor = MODULE_COLORS.HR
 
@@ -20,8 +23,12 @@ export const Assets: React.FC<BusinessAppContextProps> = props => {
   const [isPanelOpen, setIsPanelOpen] = useState(false)
   const [isRegisterDialogOpen, setIsRegisterDialogOpen] = useState(false)
   const [isAllocateDialogOpen, setIsAllocateDialogOpen] = useState(false)
+  const [isRetireDialogOpen, setIsRetireDialogOpen] = useState(false)
+  const [isReturnDialogOpen, setIsReturnDialogOpen] = useState(false)
   const [editingAssetId, setEditingAssetId] = useState<string | null>(null)
   const [allocatingAssetId, setAllocatingAssetId] = useState<string | null>(null)
+  const [retiringAssetId, setRetiringAssetId] = useState<string | null>(null)
+  const [returningAssetId, setReturningAssetId] = useState<string | null>(null)
 
   // Load assets data
   const { assets, isLoading: assetsLoading, error: assetsError, statistics, refetch: refetchAssets } = useAssets(props)
@@ -95,6 +102,72 @@ export const Assets: React.FC<BusinessAppContextProps> = props => {
     [assets]
   )
 
+  // Handle retrieve asset (return asset)
+  const handleRetrieveAsset = useCallback(
+    (assetId: string) => {
+      const asset = assets.find(a => a.id === assetId)
+      if (asset) {
+        setSelectedAsset(asset)
+      }
+      setReturningAssetId(assetId)
+      setIsReturnDialogOpen(true)
+    },
+    [assets]
+  )
+
+  // Handle retire asset - directly call the updateAsset API
+  const handleRetireAsset = useCallback(
+    async (assetId: string) => {
+      const asset = assets.find(a => a.id === assetId)
+      if (!asset) {
+        console.error('Asset not found:', assetId)
+        return
+      }
+
+      try {
+        const assetProcessClient = new AssetProcessClient()
+        assetProcessClient.setAccessToken(props.accessToken)
+
+        // Call updateAsset process API with id, version, and status RETIRED_ASSET
+        await assetProcessClient.updateAsset({
+          id: asset.id,
+          version: asset.version,
+          assetStatus: AssetStatus.RETIRED
+        })
+
+        // Dispatch process completion event to refresh data
+        const completionPayload = {
+          resolution: 'success',
+          processName: 'updateAsset',
+          domain: 'employee',
+          response: {
+            asset: {
+              id: asset.id,
+              assetStatus: AssetStatus.RETIRED
+            }
+          }
+        }
+
+        window.dispatchEvent(
+          new CustomEvent('com.newwork.process.processCompletion', {
+            detail: completionPayload
+          })
+        )
+
+        window.dispatchEvent(
+          new CustomEvent('com.newwork.process.taskCompletion', {
+            detail: completionPayload
+          })
+        )
+
+        refetchAssets()
+      } catch (error) {
+        console.error('Error retiring asset:', error)
+      }
+    },
+    [assets, props.accessToken, refetchAssets]
+  )
+
   useEffect(() => {
     const handleProcessCompletion = (event: CustomEvent) => {
       const detail = event.detail
@@ -119,6 +192,25 @@ export const Assets: React.FC<BusinessAppContextProps> = props => {
           setAllocatingAssetId(null)
         }
 
+        // Check if this is a return/deallocate process
+        const isReturnProcess =
+          domain === 'employee' &&
+          (processName.includes('return') || processName.includes('deallocate') || processName.includes('retrieve'))
+
+        if (isReturnProcess || detail?.response?.deallocation) {
+          setIsReturnDialogOpen(false)
+          setReturningAssetId(null)
+        }
+
+        // Check if this is a retire/status change process
+        const isStatusChangeProcess =
+          domain === 'employee' && (processName.includes('updateasset') || processName.includes('retire'))
+
+        if (isStatusChangeProcess && detail?.response?.asset?.assetStatus === 'RETIRE') {
+          setIsRetireDialogOpen(false)
+          setRetiringAssetId(null)
+        }
+
         refetchAssets()
       }
     }
@@ -130,6 +222,10 @@ export const Assets: React.FC<BusinessAppContextProps> = props => {
         setEditingAssetId(null)
         setIsAllocateDialogOpen(false)
         setAllocatingAssetId(null)
+        setIsRetireDialogOpen(false)
+        setRetiringAssetId(null)
+        setIsReturnDialogOpen(false)
+        setReturningAssetId(null)
       }
     }
 
@@ -167,32 +263,54 @@ export const Assets: React.FC<BusinessAppContextProps> = props => {
       const domain = (detail?.domain || '').toLowerCase()
       const startProcessBody = detail?.startProcessBody || {}
 
-      // Check if this is an updateAsset process
-      const isUpdateAssetProcess = domain === 'employee' && processName === 'updateasset'
-
-      if (isUpdateAssetProcess) {
-        const assetId =
+      // Helper to extract assetId from various payload structures
+      const extractAssetId = () => {
+        return (
           startProcessBody.assetId ||
           startProcessBody.asset?.id ||
           startProcessBody.saveAssetModelInput?.asset?.id ||
           startProcessBody.updateAssetModelInput?.asset?.id ||
           detail?.assetId ||
           (startProcessBody as any)?.assetId
+        )
+      }
 
+      // Helper to intercept and prevent default behavior
+      // Note: This is now mainly a fallback since we override onClick handlers in AssetTable
+      const interceptAndOpen = (handler: (assetId: string) => void, assetId: string) => {
+        // Stop all event propagation immediately to prevent platform modal from opening
+        event.stopImmediatePropagation()
+        event.stopPropagation()
+        event.preventDefault()
+        if (customEvent.stopImmediatePropagation) {
+          customEvent.stopImmediatePropagation()
+        }
+        if (customEvent.stopPropagation) {
+          customEvent.stopPropagation()
+        }
+        if (customEvent.preventDefault) {
+          customEvent.preventDefault()
+        }
+
+        handler(assetId)
+        return false
+      }
+
+      // Check if this is a createEmployeeAsset process (allocate)
+      const isAllocateProcess = domain === 'employee' && processName === 'createemployeeasset'
+      if (isAllocateProcess) {
+        const assetId = extractAssetId()
+        if (assetId && handleAllocateAsset) {
+          return interceptAndOpen(handleAllocateAsset, assetId)
+        }
+      }
+
+      // Check if this is an updateAsset process
+      const isUpdateAssetProcess = domain === 'employee' && processName === 'updateasset'
+      if (isUpdateAssetProcess) {
+        const assetId = extractAssetId()
         if (assetId) {
-          // Intercept and open modal
-          event.stopImmediatePropagation()
-          event.preventDefault()
-          if (customEvent.stopImmediatePropagation) {
-            customEvent.stopImmediatePropagation()
-          }
-          if (customEvent.preventDefault) {
-            customEvent.preventDefault()
-          }
-
-          handleUpdateAsset(assetId)
-
-          return false
+          return interceptAndOpen(handleUpdateAsset, assetId)
         }
       }
 
@@ -204,27 +322,9 @@ export const Assets: React.FC<BusinessAppContextProps> = props => {
           processName.includes('edit-asset'))
 
       if (isUpdateProcess) {
-        const assetId =
-          startProcessBody.assetId ||
-          startProcessBody.asset?.id ||
-          startProcessBody.saveAssetModelInput?.asset?.id ||
-          startProcessBody.updateAssetModelInput?.asset?.id ||
-          detail?.assetId ||
-          (startProcessBody as any)?.assetId
-
+        const assetId = extractAssetId()
         if (assetId) {
-          event.stopImmediatePropagation()
-          event.preventDefault()
-          if (customEvent.stopImmediatePropagation) {
-            customEvent.stopImmediatePropagation()
-          }
-          if (customEvent.preventDefault) {
-            customEvent.preventDefault()
-          }
-
-          handleUpdateAsset(assetId)
-
-          return false
+          return interceptAndOpen(handleUpdateAsset, assetId)
         }
       }
     }
@@ -235,7 +335,7 @@ export const Assets: React.FC<BusinessAppContextProps> = props => {
     return () => {
       window.removeEventListener('com.newwork.process.start', handleProcessStart as EventListener, options)
     }
-  }, [handleUpdateAsset])
+  }, [handleUpdateAsset, handleAllocateAsset])
 
   // Memoize additionalData
   const equipmentRegistrationAdditionalData = useMemo(
@@ -288,6 +388,8 @@ export const Assets: React.FC<BusinessAppContextProps> = props => {
               onAssetClick={handleAssetClick}
               onAllocateAsset={handleAllocateAsset}
               onUpdateAsset={handleUpdateAsset}
+              onRetireAsset={handleRetireAsset}
+              onRetrieveAsset={handleRetrieveAsset}
             />
           </div>
         </div>
@@ -325,6 +427,35 @@ export const Assets: React.FC<BusinessAppContextProps> = props => {
             additionalData={{
               ...props.additionalData,
               assetId: allocatingAssetId || undefined,
+              asset: selectedAsset || undefined
+            }}
+          />
+        </DialogContent>
+      </Dialog>
+
+      <Dialog open={isRetireDialogOpen} onOpenChange={setIsRetireDialogOpen}>
+        <DialogContent className="gba:max-w-2xl gba:max-h-[90vh] gba:overflow-y-auto">
+          <DialogTitle className="gba:sr-only">Retire Asset</DialogTitle>
+          <ChangeAssetStatus
+            {...props}
+            additionalData={{
+              ...props.additionalData,
+              assetId: retiringAssetId || undefined,
+              asset: selectedAsset || undefined,
+              forceStatus: 'RETIRED'
+            }}
+          />
+        </DialogContent>
+      </Dialog>
+
+      <Dialog open={isReturnDialogOpen} onOpenChange={setIsReturnDialogOpen}>
+        <DialogContent className="gba:max-w-2xl gba:max-h-[90vh] gba:overflow-y-auto">
+          <DialogTitle className="gba:sr-only">Return Asset</DialogTitle>
+          <ReturnAsset
+            {...props}
+            additionalData={{
+              ...props.additionalData,
+              assetId: returningAssetId || undefined,
               asset: selectedAsset || undefined
             }}
           />

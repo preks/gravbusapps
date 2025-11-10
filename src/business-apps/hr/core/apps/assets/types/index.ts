@@ -11,18 +11,6 @@ export enum AssetStatus {
   RETIRED = 'RETIRED_ASSET'
 }
 
-export enum AssetCategory {
-  LAPTOP = 'Laptop',
-  MONITOR = 'Monitor',
-  MOBILE_PHONE = 'Mobile Phone',
-  TABLET = 'Tablet',
-  HEADSET = 'Headset',
-  KEYBOARD = 'Keyboard',
-  MOUSE = 'Mouse',
-  DOCKING_STATION = 'Docking Station',
-  OTHER = 'Other'
-}
-
 export interface Asset {
   id: string
   model: string
@@ -91,7 +79,7 @@ export interface AssetStatistics {
 }
 
 export interface AssetFilter {
-  category?: AssetCategory
+  category?: string // Catalog value from AssetCategory catalog
   status?: AssetStatus
   employeeId?: string
   search?: string

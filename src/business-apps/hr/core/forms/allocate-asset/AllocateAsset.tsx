@@ -26,11 +26,13 @@ import { useEmployeeSearch } from './hooks/useEmployeeSearch'
 import { AssetProcessClient, CreateEmployeeAssetPayload } from '../../apps/assets/services/AssetProcessClient'
 import { AssetStatus } from '../../apps/assets/types'
 import { useAssetService } from '../../apps/assets/services/useAssetService'
+import { useAssetConditionCatalog } from '../equipment-registration/hooks/useAssetConditionCatalog'
 
 const formSchema = z.object({
   employeeId: z.string().min(1, 'Please select an employee'),
   startDate: z.string().min(1, 'Start date is required'),
   expectedEndDate: z.string().optional(),
+  startAssetConditionRef: z.string().optional(),
   notes: z.string().optional()
 })
 
@@ -88,6 +90,7 @@ const AllocateAssetContent: React.FC<BusinessAppContextProps> = (context: Busine
   }, [context.accessToken])
 
   const assetService = useAssetService(context)
+  const { options: conditionOptions, isLoading: conditionsLoading } = useAssetConditionCatalog(context)
 
   const form = useForm<FormValues>({
     resolver: zodResolver(formSchema),
@@ -96,6 +99,7 @@ const AllocateAssetContent: React.FC<BusinessAppContextProps> = (context: Busine
       employeeId: '',
       startDate: new Date().toISOString().split('T')[0],
       expectedEndDate: '',
+      startAssetConditionRef: '',
       notes: ''
     }
   })
@@ -106,8 +110,8 @@ const AllocateAssetContent: React.FC<BusinessAppContextProps> = (context: Busine
   )
 
   const isSubmitDisabled = useMemo(() => {
-    return isSubmitting || employeesLoading || !form.formState.isValid
-  }, [isSubmitting, employeesLoading, form.formState.isValid])
+    return isSubmitting || employeesLoading || conditionsLoading || !form.formState.isValid
+  }, [isSubmitting, employeesLoading, conditionsLoading, form.formState.isValid])
 
   const handleEmployeeSearch = (value: string) => {
     setSearchQuery(value)
@@ -215,6 +219,40 @@ const AllocateAssetContent: React.FC<BusinessAppContextProps> = (context: Busine
               onBlur={field.onBlur}
               data-testid="expected-end-date-input"
             />
+          </FormItem>
+        )}
+      />
+
+      <FormField
+        control={form.control}
+        name="startAssetConditionRef"
+        render={({ field }) => (
+          <FormItem>
+            <Label htmlFor="startAssetConditionRef" data-testid="condition-start-label">
+              Condition at Allocation
+            </Label>
+            <Select onValueChange={field.onChange} value={field.value} disabled={conditionsLoading}>
+              <SelectTrigger id="startAssetConditionRef" data-testid="condition-start-select">
+                <SelectValue placeholder={conditionsLoading ? 'Loading conditions...' : 'Select condition'} />
+              </SelectTrigger>
+              <SelectContent>
+                {conditionOptions.length === 0 ? (
+                  <div className="gba:p-2 gba:text-sm gba:text-muted-foreground gba:text-center">
+                    {conditionsLoading ? 'Loading...' : 'No conditions available'}
+                  </div>
+                ) : (
+                  conditionOptions.map(condition => (
+                    <SelectItem
+                      key={condition.id}
+                      value={condition.id}
+                      data-testid={`condition-option-${condition.id}`}
+                    >
+                      {condition.label}
+                    </SelectItem>
+                  ))
+                )}
+              </SelectContent>
+            </Select>
           </FormItem>
         )}
       />
@@ -340,6 +378,10 @@ const AllocateAssetContent: React.FC<BusinessAppContextProps> = (context: Busine
 
                     if (values.expectedEndDate) {
                       employeeAssetPayload.expectedEndDate = values.expectedEndDate
+                    }
+
+                    if (values.startAssetConditionRef) {
+                      employeeAssetPayload.startAssetConditionRef = values.startAssetConditionRef
                     }
 
                     if (values.notes) {

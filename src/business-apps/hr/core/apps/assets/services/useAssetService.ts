@@ -42,16 +42,54 @@ export const useAssetService = (context: BusinessAppContextProps) => {
   const getAssets = useCallback(
     async (variables: AssetQueryVariables = {}) => {
       try {
-        const defaultVariables: AssetQueryVariables = {
-          where: { isDeleted: { _eq: false } },
-          orderBy: { createdAt: 'DESC' },
-          ...variables
+        // Build where condition - only filter by isDeleted
+        // Ensure we get all assets regardless of who created them
+        // If variables.where is provided, merge it properly but ensure isDeleted filter is always present
+        const baseWhere: any = { isDeleted: { _eq: false } }
+
+        let finalWhere: any = baseWhere
+
+        // If variables.where is provided, merge it with baseWhere using _and
+        if (variables.where) {
+          // Check if variables.where already has _and
+          if (variables.where._and) {
+            // Add baseWhere to the _and array if not already present
+            finalWhere = {
+              _and: [baseWhere, ...variables.where._and]
+            }
+          } else {
+            // Merge baseWhere with variables.where
+            finalWhere = {
+              _and: [baseWhere, variables.where]
+            }
+          }
         }
+
+        const defaultVariables: AssetQueryVariables = {
+          where: finalWhere,
+          orderBy: { createdAt: 'DESC' },
+          limit: variables.limit,
+          offset: variables.offset
+        }
+
+        // DEBUG: Log the query variables to verify we're not filtering by creator
+        console.log('[useAssetService] Fetching assets with variables:', {
+          where: JSON.stringify(defaultVariables.where, null, 2),
+          limit: defaultVariables.limit,
+          offset: defaultVariables.offset
+        })
 
         const result = await graphQLClient.request<{
           Asset: any[]
           AssetAggregate: { aggregate: { count: number } }
         }>(GET_ASSETS, defaultVariables)
+
+        // DEBUG: Log the results to see how many assets were returned
+        console.log('[useAssetService] Received assets:', {
+          count: result.Asset.length,
+          totalCount: result.AssetAggregate.aggregate.count,
+          sampleCreatedBy: result.Asset.slice(0, 3).map(a => ({ id: a.id, createdBy: a.createdBy }))
+        })
 
         const assets: Asset[] = result.Asset.map((asset: any) => {
           if (asset.siteLocationId && !asset.siteLocation) {

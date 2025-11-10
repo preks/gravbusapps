@@ -4,7 +4,7 @@
  * Uses nw-design-system Table component
  */
 
-import React, { useState, useMemo, useCallback } from 'react'
+import React, { useState, useMemo } from 'react'
 import { Asset, AssetStatus } from '../types'
 import {
   Table,
@@ -24,272 +24,105 @@ import {
 } from '@newwork/nw-design-system'
 import { BusinessAppContextProps } from '@/common/BusinessAppContext'
 import { AppActionButton } from '@/components/app-action-button/AppActionButton'
-import { FlowContextName } from '@/common/types/FlowRegistryTypes'
-import { useAppActionData } from '@/common/hooks/useAppActionData'
-import type { ActionOption } from '@newwork/nw-design-system'
+import { getTranslationFromI18nKeyAndLabel } from '@/common/utils/windowUtils'
 
-// Memoized AppActionButton to prevent unnecessary re-renders
-const MemoizedAppActionButton = React.memo<{
+// AppActionButton component with static action options
+const MemoizedAppActionButton: React.FC<{
   assetId: string
   assetStatus: AssetStatus
   accessToken: string
   dataTestIdPrefix: string
   onAllocateAsset?: (assetId: string) => void
   onUpdateAsset?: (assetId: string) => void
-}>(({ assetId, assetStatus, accessToken, dataTestIdPrefix, onAllocateAsset, onUpdateAsset }) => {
+  onRetireAsset?: (assetId: string) => void
+  onRetrieveAsset?: (assetId: string) => void
+}> = ({
+  assetId,
+  assetStatus,
+  accessToken,
+  dataTestIdPrefix,
+  onAllocateAsset,
+  onUpdateAsset,
+  onRetireAsset,
+  onRetrieveAsset
+}) => {
   // Check if asset is already allocated - hide allocate action if true
   const isAllocated = assetStatus === AssetStatus.ALLOCATED || (assetStatus as string) === 'ALLOCATED_ASSET'
+  // Check if asset is already retired - hide all actions if true
+  const isRetired = assetStatus === AssetStatus.RETIRED || (assetStatus as string) === 'RETIRED'
 
-  const { combinedData: rawCombinedData, handleDeferredFetch } = useAppActionData(
-    {
-      contextsArray: [FlowContextName.assetEntity],
-      externalContextData: { assetId },
-      accessToken,
-      deferMainContextRequestsUntilClick: true,
-      emptyStateBehavior: 'enable'
-    },
-    'AppActionButton'
-  )
+  // Build static action options similar to ExpensePlansTable pattern
+  const staticFlowData = useMemo(() => {
+    const actions: any[] = []
 
-  const isAllocateAction = useCallback((action: ActionOption): boolean => {
-    const actionLabel = typeof action.label === 'string' ? action.label.toLowerCase() : ''
-    const actionKey = typeof action.key === 'string' ? action.key.toLowerCase() : ''
-    const processName = (action as any)?.processName?.toLowerCase() || ''
-    const actionId = typeof (action as any)?.id === 'string' ? (action as any).id.toLowerCase() : ''
-
-    const allocatePatterns = ['allocate', 'allocateasset', 'allocate-asset', 'allocate_asset', 'allocate asset']
-    const hasAllocatePattern = (text: string) => allocatePatterns.some(pattern => text.includes(pattern))
-
-    return (
-      hasAllocatePattern(actionLabel) ||
-      hasAllocatePattern(actionKey) ||
-      hasAllocatePattern(processName) ||
-      hasAllocatePattern(actionId) ||
-      (actionLabel.includes('allocate') && actionLabel.includes('asset')) ||
-      (actionKey.includes('allocate') && actionKey.includes('asset'))
-    )
-  }, [])
-
-  const isUpdateAction = useCallback((action: ActionOption): boolean => {
-    const actionLabel = typeof action.label === 'string' ? action.label.toLowerCase() : ''
-    const actionKey = typeof action.key === 'string' ? action.key.toLowerCase() : ''
-    const processName = (action as any)?.processName?.toLowerCase() || ''
-
-    return (
-      (actionLabel.includes('update') && actionLabel.includes('asset')) ||
-      (actionLabel.includes('edit') && actionLabel.includes('asset')) ||
-      (actionKey.includes('update') && actionKey.includes('asset')) ||
-      (actionKey.includes('edit') && actionKey.includes('asset')) ||
-      processName === 'updateasset' ||
-      processName.includes('update-asset') ||
-      processName.includes('editasset') ||
-      processName.includes('edit-asset')
-    )
-  }, [])
-
-  const filteredAndTransformedActions = useMemo(() => {
-    if (rawCombinedData.length === 0) {
-      return undefined
-    }
-
-    const deduplicatedRawData: ActionOption[] = []
-    const rawSeenKeys = new Set<string>()
-    const rawSeenSignatures = new Set<string>()
-
-    for (const action of rawCombinedData) {
-      const actionKey = action.key
-      const actionLabel = typeof action.label === 'string' ? action.label.toLowerCase().trim() : ''
-      const actionProcessName = (action as any)?.processName?.toLowerCase().trim() || ''
-      const actionId = typeof (action as any)?.id === 'string' ? (action as any).id.toLowerCase().trim() : ''
-      const signature = JSON.stringify({
-        label: actionLabel,
-        key: actionKey?.toLowerCase().trim() || '',
-        processName: actionProcessName,
-        id: actionId
-      }).toLowerCase()
-
-      // Skip duplicates
-      if (actionKey && rawSeenKeys.has(actionKey)) {
-        continue
-      }
-      if (rawSeenSignatures.has(signature)) {
-        continue
-      }
-
-      deduplicatedRawData.push(action)
-      if (actionKey) {
-        rawSeenKeys.add(actionKey)
-      }
-      rawSeenSignatures.add(signature)
-    }
-
-    const allocateAction = onAllocateAsset ? deduplicatedRawData.find(isAllocateAction) : null
-    const updateAction = onUpdateAsset ? deduplicatedRawData.find(isUpdateAction) : null
-
-    const transformedActions: ActionOption[] = []
-
-    const createTransformedAction = (action: ActionOption, handler: (assetId: string) => void) => {
-      const actionWithoutProcess = { ...action } as any
-      delete actionWithoutProcess.processName
-      delete actionWithoutProcess.domain
-      delete actionWithoutProcess.onClick
-      return {
-        ...actionWithoutProcess,
+    // Update Asset action - always available (unless retired)
+    if (!isRetired && onUpdateAsset) {
+      actions.push({
+        category: getTranslationFromI18nKeyAndLabel('lowcoder:employee_list.flows_button.actions', 'Actions'),
+        key: 'update-asset',
+        label: getTranslationFromI18nKeyAndLabel('lowcoder:asset_list.asset_flows.update_asset', 'Update Asset'),
         onClick: (e?: React.MouseEvent) => {
           e?.stopPropagation()
-          e?.preventDefault()
-          handler(assetId)
+          onUpdateAsset(assetId)
         }
-      } as ActionOption
+      })
     }
 
-    if (updateAction && onUpdateAsset) {
-      transformedActions.push(createTransformedAction(updateAction, onUpdateAsset))
-    }
-
-    if (allocateAction && onAllocateAsset && !isAllocated) {
-      transformedActions.push(createTransformedAction(allocateAction, onAllocateAsset))
-    }
-
-    const seenKeys = new Set<string>()
-    const seenIdentifiers = new Set<string>()
-
-    transformedActions.forEach(action => {
-      if (action.key) {
-        seenKeys.add(action.key)
-      }
-      const label = typeof action.label === 'string' ? action.label.toLowerCase().trim() : ''
-      const processName = (action as any)?.processName?.toLowerCase().trim() || ''
-      if (label || processName) {
-        seenIdentifiers.add(`${label}|${processName}`)
-      }
-    })
-
-    const otherActions = deduplicatedRawData.filter(action => {
-      if (isAllocated) {
-        const actionLabel = typeof action.label === 'string' ? action.label.toLowerCase() : ''
-        const actionKey = typeof action.key === 'string' ? action.key.toLowerCase() : ''
-        const processName = (action as any)?.processName?.toLowerCase() || ''
-        const actionId = typeof (action as any)?.id === 'string' ? (action as any).id.toLowerCase() : ''
-        const allText = `${actionLabel} ${actionKey} ${processName} ${actionId}`.toLowerCase()
-        if (allText.includes('allocate')) {
-          return false
+    // Allocate Asset action - only if not already allocated and not retired
+    if (!isAllocated && !isRetired && onAllocateAsset) {
+      actions.push({
+        category: getTranslationFromI18nKeyAndLabel('lowcoder:employee_list.flows_button.actions', 'Actions'),
+        key: 'allocate-asset',
+        label: getTranslationFromI18nKeyAndLabel('lowcoder:asset_list.asset_flows.allocate_asset', 'Allocate Asset'),
+        onClick: (e?: React.MouseEvent) => {
+          e?.stopPropagation()
+          onAllocateAsset(assetId)
         }
-      }
-
-      if (action.key && seenKeys.has(action.key)) {
-        return false
-      }
-
-      const actionLabel = typeof action.label === 'string' ? action.label.toLowerCase().trim() : ''
-      const actionProcessName = (action as any)?.processName?.toLowerCase().trim() || ''
-      const identifier = `${actionLabel}|${actionProcessName}`
-      if ((actionLabel || actionProcessName) && seenIdentifiers.has(identifier)) {
-        return false
-      }
-
-      if (onAllocateAsset && isAllocateAction(action)) {
-        return false
-      }
-      if (onUpdateAsset && isUpdateAction(action)) {
-        return false
-      }
-
-      if (action.key) {
-        seenKeys.add(action.key)
-      }
-      if (actionLabel || actionProcessName) {
-        seenIdentifiers.add(identifier)
-      }
-      return true
-    })
-
-    const allActions = [...transformedActions, ...otherActions]
-    const finalActions: ActionOption[] = []
-    const finalSeenKeys = new Set<string>()
-    const finalSeenIdentifiers = new Set<string>()
-    const seenActionSignatures = new Set<string>()
-
-    for (const action of allActions) {
-      if (isAllocated) {
-        const actionLabel = typeof action.label === 'string' ? action.label.toLowerCase() : ''
-        const actionKey = typeof action.key === 'string' ? action.key.toLowerCase() : ''
-        const processName = (action as any)?.processName?.toLowerCase() || ''
-        const actionId = typeof (action as any)?.id === 'string' ? (action as any).id.toLowerCase() : ''
-        const allText = `${actionLabel} ${actionKey} ${processName} ${actionId}`.toLowerCase()
-        if (allText.includes('allocate')) {
-          continue
-        }
-      }
-
-      const actionKey = action.key
-      const actionLabel = typeof action.label === 'string' ? action.label.toLowerCase().trim() : ''
-      const actionProcessName = (action as any)?.processName?.toLowerCase().trim() || ''
-      const actionId = typeof (action as any)?.id === 'string' ? (action as any).id.toLowerCase().trim() : ''
-      const identifier = `${actionLabel}|${actionProcessName}`
-
-      const signature = JSON.stringify({
-        label: actionLabel,
-        key: actionKey?.toLowerCase().trim() || '',
-        processName: actionProcessName,
-        id: actionId
-      }).toLowerCase()
-
-      if (actionKey && finalSeenKeys.has(actionKey)) {
-        continue
-      }
-      if ((actionLabel || actionProcessName) && finalSeenIdentifiers.has(identifier)) {
-        continue
-      }
-      if (seenActionSignatures.has(signature)) {
-        continue
-      }
-
-      finalActions.push(action)
-      if (actionKey) {
-        finalSeenKeys.add(actionKey)
-      }
-      if (actionLabel || actionProcessName) {
-        finalSeenIdentifiers.add(identifier)
-      }
-      seenActionSignatures.add(signature)
+      })
     }
 
-    return finalActions
-  }, [
-    rawCombinedData,
-    assetId,
-    assetStatus,
-    isAllocated,
-    onAllocateAsset,
-    onUpdateAsset,
-    isAllocateAction,
-    isUpdateAction
-  ])
+    // Retrieve Asset action - only if allocated and not retired
+    if (isAllocated && !isRetired && onRetrieveAsset) {
+      actions.push({
+        category: getTranslationFromI18nKeyAndLabel('lowcoder:employee_list.flows_button.actions', 'Actions'),
+        key: 'retrieve-asset',
+        label: getTranslationFromI18nKeyAndLabel('lowcoder:asset_list.asset_flows.retrieve_asset', 'Retrieve Asset'),
+        onClick: (e?: React.MouseEvent) => {
+          e?.stopPropagation()
+          onRetrieveAsset(assetId)
+        }
+      })
+    }
 
-  const handleDropdownOpen = useCallback(() => {
-    handleDeferredFetch()
-  }, [handleDeferredFetch])
+    // Retire Asset action - only if not already retired
+    if (!isRetired && onRetireAsset) {
+      actions.push({
+        category: getTranslationFromI18nKeyAndLabel('lowcoder:employee_list.flows_button.actions', 'Actions'),
+        key: 'retire-asset',
+        label: getTranslationFromI18nKeyAndLabel('lowcoder:asset_list.asset_flows.retire_asset', 'Retire Asset'),
+        onClick: (e?: React.MouseEvent) => {
+          e?.stopPropagation()
+          onRetireAsset(assetId)
+        }
+      })
+    }
 
-  const shouldUseStaticDataOnly =
-    filteredAndTransformedActions !== undefined && filteredAndTransformedActions.length > 0
+    return actions
+  }, [assetId, isAllocated, isRetired, onAllocateAsset, onUpdateAsset, onRetireAsset, onRetrieveAsset])
 
   return (
     <AppActionButton
       data-testid={`${dataTestIdPrefix}-actions-${assetId}`}
       size="icon"
-      contextsArray={shouldUseStaticDataOnly ? [] : [FlowContextName.assetEntity]}
-      externalContextData={{ assetId }}
+      staticFlowData={staticFlowData}
       prefixDataTestId={`${dataTestIdPrefix}-action-${assetId}`}
       accessToken={accessToken}
       emptyStateBehavior="enable"
-      deferMainContextRequestsUntilClick
-      autoExecuteSingleAction={true}
-      staticFlowData={filteredAndTransformedActions}
-      onDropdownOpen={handleDropdownOpen}
+      deferMainContextRequestsUntilClick={true}
+      onClick={e => e.stopPropagation()}
     />
   )
-})
+}
 
 MemoizedAppActionButton.displayName = 'MemoizedAppActionButton'
 
@@ -299,6 +132,8 @@ interface AssetTableProps extends BusinessAppContextProps {
   onAssetClick?: (asset: Asset) => void
   onAllocateAsset?: (assetId: string) => void
   onUpdateAsset?: (assetId: string) => void
+  onRetireAsset?: (assetId: string) => void
+  onRetrieveAsset?: (assetId: string) => void
 }
 
 const getStatusBadgeVariant = (status: AssetStatus): 'success' | 'info' | 'warning' | 'destructive' | 'default' => {
@@ -339,6 +174,8 @@ export const AssetTable: React.FC<AssetTableProps> = ({
   onAssetClick,
   onAllocateAsset,
   onUpdateAsset,
+  onRetireAsset,
+  onRetrieveAsset,
   accessToken
 }) => {
   const DATA_TEST_ID_PREFIX = 'asset-table'
@@ -418,6 +255,7 @@ export const AssetTable: React.FC<AssetTableProps> = ({
         <Table data-testid="assets-table">
           <TableHeader>
             <TableRow>
+              <TableHead className="gba:w-[60px]"></TableHead>
               <TableHead className="gba:w-[120px]">Category</TableHead>
               <TableHead className="gba:w-[130px]">Producer</TableHead>
               <TableHead className="gba:w-[160px]">Model</TableHead>
@@ -426,7 +264,6 @@ export const AssetTable: React.FC<AssetTableProps> = ({
               <TableHead className="gba:w-[150px]">Location</TableHead>
               <TableHead className="gba:w-[120px]">Warranty</TableHead>
               <TableHead className="gba:w-[100px]">Value</TableHead>
-              <TableHead className="gba:w-[60px]">Actions</TableHead>
             </TableRow>
           </TableHeader>
           <TableBody>
@@ -460,6 +297,21 @@ export const AssetTable: React.FC<AssetTableProps> = ({
                     onClick={() => onAssetClick?.(asset)}
                     data-testid={`asset-table-row-${asset.id}`}
                   >
+                    <TableCell className="gba:py-4 gba:px-6">
+                      <div className="gba:flex gba:justify-start gba:gap-2" onClick={e => e.stopPropagation()}>
+                        <MemoizedAppActionButton
+                          key={`action-button-${asset.id}-${asset.assetStatus}`}
+                          assetId={asset.id}
+                          assetStatus={asset.assetStatus}
+                          accessToken={accessToken}
+                          dataTestIdPrefix={DATA_TEST_ID_PREFIX}
+                          onAllocateAsset={onAllocateAsset}
+                          onUpdateAsset={onUpdateAsset}
+                          onRetireAsset={onRetireAsset}
+                          onRetrieveAsset={onRetrieveAsset}
+                        />
+                      </div>
+                    </TableCell>
                     <TableCell data-testid={`asset-category-${asset.id}`}>
                       {asset.assetCategory?.value || 'N/A'}
                     </TableCell>
@@ -491,19 +343,6 @@ export const AssetTable: React.FC<AssetTableProps> = ({
                       {asset.currency?.code
                         ? formatCurrency(asset.inventoryValue, asset.currency.code)
                         : `${asset.inventoryValue}`}
-                    </TableCell>
-
-                    <TableCell className="gba:py-4 gba:px-6">
-                      <div onClick={e => e.stopPropagation()}>
-                        <MemoizedAppActionButton
-                          assetId={asset.id}
-                          assetStatus={asset.assetStatus}
-                          accessToken={accessToken}
-                          dataTestIdPrefix={DATA_TEST_ID_PREFIX}
-                          onAllocateAsset={onAllocateAsset}
-                          onUpdateAsset={onUpdateAsset}
-                        />
-                      </div>
                     </TableCell>
                   </TableRow>
                 )
