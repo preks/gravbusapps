@@ -214,9 +214,12 @@ const DocumentPopup: React.FC<DocumentPopupProps> = ({ initialValues = {}, ...pr
 
   const watchedFile = form.watch('file')
   useEffect(() => {
+    let isCancelled = false
+    const currentFile = watchedFile as File | null
+    const controller = new AbortController()
     const run = async () => {
       if (renameMode || watchedFolder) return
-      const f = watchedFile as File | null
+      const f = currentFile
       if (!f) return
       setAiLoading(true)
       setAiError(null)
@@ -229,24 +232,30 @@ const DocumentPopup: React.FC<DocumentPopupProps> = ({ initialValues = {}, ...pr
         const res = await fetch(`${env('NEXT_PUBLIC_BASE_URL')}/flowbot/document-autoclassify/classify`, {
           method: 'POST',
           body: fd,
-          headers: props.accessToken ? { Authorization: `Bearer ${props.accessToken}` } : undefined
+          headers: props.accessToken ? { Authorization: `Bearer ${props.accessToken}` } : undefined,
+          signal: controller.signal
         })
         if (!res.ok) throw new Error(`Request failed: ${res.status} ${res.statusText}`)
         const resp = await res.json()
         const dataObj = (resp ?? {}) as Record<string, unknown>
         const type = typeof dataObj.type === 'string' ? dataObj.type : undefined
         const group = typeof dataObj.group === 'string' ? dataObj.group : undefined
-
+        if (isCancelled || form.getValues('file') !== f) return
         setAiSuggestion({ type, group })
       } catch (err) {
+        if (isCancelled) return
         console.error('Flowbot classify failed', err)
-        setAiError(getTranslationFromI18nKeyAndLabel('irm.documents.ai.failed', 'Failed to auto-classify'))
+        setAiError(getTranslationFromI18nKeyAndLabel('irm:document.ai.classifyError', 'Failed to auto-classify'))
       } finally {
-        setAiLoading(false)
+        if (!isCancelled) setAiLoading(false)
       }
     }
     run()
-  }, [watchedFile, renameMode, watchedFolder, props.accessToken])
+    return () => {
+      isCancelled = true
+      controller.abort()
+    }
+  }, [watchedFile, renameMode, watchedFolder, props.accessToken, form])
 
   useEffect(() => {
     if (renameMode || watchedFolder) return
