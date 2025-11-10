@@ -3,6 +3,7 @@ import {
   Dialog,
   DialogContent,
   DialogDescription,
+  DialogFooter,
   DialogHeader,
   DialogTitle,
   Button,
@@ -299,10 +300,12 @@ export const ExpressionBuilder: React.FC<ExpressionBuilderProps> = ({
   return (
     <Dialog open={isOpen} onOpenChange={onOpenChange}>
       <DialogContent
-        className="gba:max-w-[1100px] gba:w-[90vw] gba:max-h-[90vh] gba:flex gba:flex-col"
+        className="nw:sm:max-w-[1280px] nw:max-h-[90vh] nw:flex nw:flex-col"
+        style={{ width: '90vw' }}
         data-testid={testId}
       >
-        <DialogHeader className="gba:shrink-0">
+        {/* Sticky Header */}
+        <DialogHeader className="nw:flex-shrink-0">
           <DialogTitle className="gba:flex gba:items-center gba:gap-2">
             <Network className="gba:h-5 gba:w-5" />
             Expression Builder
@@ -312,8 +315,8 @@ export const ExpressionBuilder: React.FC<ExpressionBuilderProps> = ({
           </DialogDescription>
         </DialogHeader>
 
-        {/* Scrollable body */}
-        <div className="gba:flex-1 gba:overflow-y-auto gba:overflow-x-hidden gba:px-6">
+        {/* Scrollable Content */}
+        <div className="nw:flex-1 nw:overflow-y-auto nw:px-6">
           <div className="gba:space-y-4 gba:py-2">
             {/* Mode toggle */}
             <div className="gba:flex gba:items-center gba:justify-between">
@@ -419,167 +422,185 @@ export const ExpressionBuilder: React.FC<ExpressionBuilderProps> = ({
             <Separator />
 
             {/* Content area - changes based on mode */}
-            <div className="gba:min-h-[400px]">
-              {mode === 'tree' ? (
-                <div className="gba:grid gba:grid-cols-2 gba:gap-4 gba:h-[500px]">
-                  {/* Left: Tree Navigator */}
-                  <TreeNavigator nodes={treeData} onSelect={handleNodeSelect} data-testid={`${testId}-navigator`} />
+            {mode === 'tree' ? (
+              <div className="gba:grid gba:grid-cols-2 gba:gap-4" style={{ minHeight: '400px' }}>
+                {/* Left: Tree Navigator */}
+                <TreeNavigator nodes={treeData} onSelect={handleNodeSelect} data-testid={`${testId}-navigator`} />
 
-                  {/* Right: Quick Actions */}
-                  <QuickActions
-                    template={template}
-                    stepIndex={stepIndex}
-                    onInsert={handleInsert}
-                    recentExpressions={recentExpressions}
-                    data-testid={`${testId}-actions`}
-                  />
-                </div>
-              ) : (
-                /* Text mode - Documentation */
-                <div>
-                  <Card>
-                    <CardHeader>
-                      <h3 className="gba:text-lg gba:font-semibold">Expression Syntax Reference</h3>
-                      <p className="gba:text-sm gba:text-gray-600 gba:mt-1">
-                        Use expressions to dynamically reference workflow data, previous steps, and external sources.
+                {/* Right: Quick Actions */}
+                <QuickActions
+                  template={template}
+                  stepIndex={stepIndex}
+                  onInsert={handleInsert}
+                  recentExpressions={recentExpressions}
+                  data-testid={`${testId}-actions`}
+                />
+              </div>
+            ) : (
+              /* Text mode - Documentation */
+              <div>
+                <Card>
+                  <CardHeader>
+                    <h3 className="gba:text-lg gba:font-semibold">Expression Syntax Reference</h3>
+                    <p className="gba:text-sm gba:text-gray-600 gba:mt-1">
+                      Use expressions to dynamically reference workflow data, previous steps, and external sources.
+                    </p>
+                  </CardHeader>
+                  <CardContent className="gba:space-y-6 gba:text-sm">
+                    {/* Workflow Data Section */}
+                    <div>
+                      <h4 className="gba:font-semibold gba:mb-2 gba:text-base">Workflow Data</h4>
+                      <p className="gba:text-xs gba:text-gray-600 gba:mb-3">
+                        Access information about the current workflow execution
                       </p>
-                    </CardHeader>
-                    <CardContent className="gba:space-y-6 gba:text-sm">
-                      {/* Workflow Data Section */}
-                      <div>
-                        <h4 className="gba:font-semibold gba:mb-2 gba:text-base">Workflow Data</h4>
-                        <p className="gba:text-xs gba:text-gray-600 gba:mb-3">
-                          Access information about the current workflow execution
-                        </p>
-                        <div className="gba:space-y-2">
-                          <code className="gba:block gba:p-3 gba:bg-gray-100 gba:rounded gba:font-mono gba:text-xs">
-                            {'{{$workflow.initiator}}'}
+                      <div className="gba:space-y-2">
+                        <code className="gba:block gba:p-3 gba:bg-gray-100 gba:rounded gba:font-mono gba:text-xs">
+                          {'{{$workflow.initiator}}'}
+                          <br />
+                          <span className="gba:text-gray-600" style={{ fontSize: '10px' }}>
+                            → User name who started the workflow
+                          </span>
+                        </code>
+                        <code className="gba:block gba:p-3 gba:bg-gray-100 gba:rounded gba:font-mono gba:text-xs">
+                          {'{{$workflow.name}}'}
+                          <br />
+                          <span className="gba:text-gray-600" style={{ fontSize: '10px' }}>
+                            → Name of the workflow
+                          </span>
+                        </code>
+                        <code className="gba:block gba:p-3 gba:bg-gray-100 gba:rounded gba:font-mono gba:text-xs">
+                          {'{{$workflow.workflowId}}'}
+                          <br />
+                          <span className="gba:text-gray-600" style={{ fontSize: '10px' }}>
+                            → Unique workflow instance ID
+                          </span>
+                        </code>
+                        <code className="gba:block gba:p-3 gba:bg-gray-100 gba:rounded gba:font-mono gba:text-xs">
+                          {'{{$workflow.status}}'}
+                          <br />
+                          <span className="gba:text-gray-600" style={{ fontSize: '10px' }}>
+                            → Current workflow status
+                          </span>
+                        </code>
+                        <code className="gba:block gba:p-3 gba:bg-gray-100 gba:rounded gba:font-mono gba:text-xs">
+                          {'{{$workflow.correlationId}}'}
+                          <br />
+                          <span className="gba:text-gray-600" style={{ fontSize: '10px' }}>
+                            → External correlation ID
+                          </span>
+                        </code>
+                      </div>
+                    </div>
+
+                    {/* Previous Steps Section */}
+                    <div>
+                      <h4 className="gba:font-semibold gba:mb-2 gba:text-base">Previous Step Data</h4>
+                      <p className="gba:text-xs gba:text-gray-600 gba:mb-3">
+                        Reference form data and metadata from previous workflow steps
+                      </p>
+                      <div className="gba:space-y-2">
+                        <code className="gba:block gba:p-3 gba:bg-gray-100 gba:rounded gba:font-mono gba:text-xs">
+                          {'{{$steps.step_0.formData.fieldName}}'}
+                          <br />
+                          <span className="gba:text-gray-600" style={{ fontSize: '10px' }}>
+                            → Form field value from step 0
+                          </span>
+                        </code>
+                        <code className="gba:block gba:p-3 gba:bg-gray-100 gba:rounded gba:font-mono gba:text-xs">
+                          {'{{$steps.step_0.status}}'}
+                          <br />
+                          <span className="gba:text-gray-600" style={{ fontSize: '10px' }}>
+                            → Execution status of step 0
+                          </span>
+                        </code>
+                        <code className="gba:block gba:p-3 gba:bg-gray-100 gba:rounded gba:font-mono gba:text-xs">
+                          {'{{$steps.step_0.executedBy}}'}
+                          <br />
+                          <span className="gba:text-gray-600" style={{ fontSize: '10px' }}>
+                            → User who completed step 0
+                          </span>
+                        </code>
+                        <code className="gba:block gba:p-3 gba:bg-gray-100 gba:rounded gba:font-mono gba:text-xs">
+                          {'{{$steps.step_0.timestamp}}'}
+                          <br />
+                          <span className="gba:text-gray-600" style={{ fontSize: '10px' }}>
+                            → When step 0 was completed
+                          </span>
+                        </code>
+                      </div>
+                    </div>
+
+                    {/* Mixed Text Section */}
+                    <div>
+                      <h4 className="gba:font-semibold gba:mb-2 gba:text-base">Mixed Text & Expressions</h4>
+                      <p className="gba:text-xs gba:text-gray-600 gba:mb-3">
+                        Combine static text with dynamic expressions
+                      </p>
+                      <div className="gba:space-y-2">
+                        <code className="gba:block gba:p-3 gba:bg-gray-100 gba:rounded gba:font-mono gba:text-xs">
+                          {'Hello {{$workflow.initiator}}, welcome!'}
+                          <br />
+                          <span className="gba:text-gray-600" style={{ fontSize: '10px' }}>
+                            → Personalized greeting
+                          </span>
+                        </code>
+                        <code className="gba:block gba:p-3 gba:bg-gray-100 gba:rounded gba:font-mono gba:text-xs">
+                          {'Request from {{$steps.step_0.formData.requester}} is ready'}
+                          <br />
+                          <span className="gba:text-gray-600" style={{ fontSize: '10px' }}>
+                            → Dynamic message with form data
+                          </span>
+                        </code>
+                      </div>
+                    </div>
+
+                    {/* Future Features Section */}
+                    <div className="gba:border-t gba:pt-4">
+                      <h4 className="gba:font-semibold gba:mb-2 gba:text-base gba:text-gray-500">Coming Soon</h4>
+                      <p className="gba:text-xs gba:text-gray-500 gba:mb-3 gba:italic">
+                        These features are planned for future releases
+                      </p>
+                      <div className="gba:space-y-3 gba:opacity-50">
+                        <div>
+                          <h5 className="gba:font-medium gba:mb-1 gba:text-sm">Catalog Data</h5>
+                          <code className="gba:block gba:p-2 gba:bg-gray-50 gba:rounded gba:text-xs">
+                            {'{{$catalog.asset-management[0].name}}'}
                             <br />
-                            <span className="gba:text-gray-600 gba:text-[10px]">
-                              → User name who started the workflow
-                            </span>
+                            {'{{$catalog.employees[emp-001].email}}'}
                           </code>
-                          <code className="gba:block gba:p-3 gba:bg-gray-100 gba:rounded gba:font-mono gba:text-xs">
-                            {'{{$workflow.name}}'}
+                        </div>
+                        <div>
+                          <h5 className="gba:font-medium gba:mb-1 gba:text-sm">Entity References</h5>
+                          <code className="gba:block gba:p-2 gba:bg-gray-50 gba:rounded gba:text-xs">
+                            {'{{$entity.ticket.TKT-123.subject}}'}
                             <br />
-                            <span className="gba:text-gray-600 gba:text-[10px]">→ Name of the workflow</span>
-                          </code>
-                          <code className="gba:block gba:p-3 gba:bg-gray-100 gba:rounded gba:font-mono gba:text-xs">
-                            {'{{$workflow.workflowId}}'}
-                            <br />
-                            <span className="gba:text-gray-600 gba:text-[10px]">→ Unique workflow instance ID</span>
-                          </code>
-                          <code className="gba:block gba:p-3 gba:bg-gray-100 gba:rounded gba:font-mono gba:text-xs">
-                            {'{{$workflow.status}}'}
-                            <br />
-                            <span className="gba:text-gray-600 gba:text-[10px]">→ Current workflow status</span>
-                          </code>
-                          <code className="gba:block gba:p-3 gba:bg-gray-100 gba:rounded gba:font-mono gba:text-xs">
-                            {'{{$workflow.correlationId}}'}
-                            <br />
-                            <span className="gba:text-gray-600 gba:text-[10px]">→ External correlation ID</span>
+                            {'{{$entity.employee.{{$workflow.initiator}}.email}}'}
                           </code>
                         </div>
                       </div>
+                    </div>
 
-                      {/* Previous Steps Section */}
-                      <div>
-                        <h4 className="gba:font-semibold gba:mb-2 gba:text-base">Previous Step Data</h4>
-                        <p className="gba:text-xs gba:text-gray-600 gba:mb-3">
-                          Reference form data and metadata from previous workflow steps
-                        </p>
-                        <div className="gba:space-y-2">
-                          <code className="gba:block gba:p-3 gba:bg-gray-100 gba:rounded gba:font-mono gba:text-xs">
-                            {'{{$steps.step_0.formData.fieldName}}'}
-                            <br />
-                            <span className="gba:text-gray-600 gba:text-[10px]">→ Form field value from step 0</span>
-                          </code>
-                          <code className="gba:block gba:p-3 gba:bg-gray-100 gba:rounded gba:font-mono gba:text-xs">
-                            {'{{$steps.step_0.status}}'}
-                            <br />
-                            <span className="gba:text-gray-600 gba:text-[10px]">→ Execution status of step 0</span>
-                          </code>
-                          <code className="gba:block gba:p-3 gba:bg-gray-100 gba:rounded gba:font-mono gba:text-xs">
-                            {'{{$steps.step_0.executedBy}}'}
-                            <br />
-                            <span className="gba:text-gray-600 gba:text-[10px]">→ User who completed step 0</span>
-                          </code>
-                          <code className="gba:block gba:p-3 gba:bg-gray-100 gba:rounded gba:font-mono gba:text-xs">
-                            {'{{$steps.step_0.timestamp}}'}
-                            <br />
-                            <span className="gba:text-gray-600 gba:text-[10px]">→ When step 0 was completed</span>
-                          </code>
-                        </div>
-                      </div>
-
-                      {/* Mixed Text Section */}
-                      <div>
-                        <h4 className="gba:font-semibold gba:mb-2 gba:text-base">Mixed Text & Expressions</h4>
-                        <p className="gba:text-xs gba:text-gray-600 gba:mb-3">
-                          Combine static text with dynamic expressions
-                        </p>
-                        <div className="gba:space-y-2">
-                          <code className="gba:block gba:p-3 gba:bg-gray-100 gba:rounded gba:font-mono gba:text-xs">
-                            {'Hello {{$workflow.initiator}}, welcome!'}
-                            <br />
-                            <span className="gba:text-gray-600 gba:text-[10px]">→ Personalized greeting</span>
-                          </code>
-                          <code className="gba:block gba:p-3 gba:bg-gray-100 gba:rounded gba:font-mono gba:text-xs">
-                            {'Request from {{$steps.step_0.formData.requester}} is ready'}
-                            <br />
-                            <span className="gba:text-gray-600 gba:text-[10px]">→ Dynamic message with form data</span>
-                          </code>
-                        </div>
-                      </div>
-
-                      {/* Future Features Section */}
-                      <div className="gba:border-t gba:pt-4">
-                        <h4 className="gba:font-semibold gba:mb-2 gba:text-base gba:text-gray-500">Coming Soon</h4>
-                        <p className="gba:text-xs gba:text-gray-500 gba:mb-3 gba:italic">
-                          These features are planned for future releases
-                        </p>
-                        <div className="gba:space-y-3 gba:opacity-50">
-                          <div>
-                            <h5 className="gba:font-medium gba:mb-1 gba:text-sm">Catalog Data</h5>
-                            <code className="gba:block gba:p-2 gba:bg-gray-50 gba:rounded gba:text-xs">
-                              {'{{$catalog.asset-management[0].name}}'}
-                              <br />
-                              {'{{$catalog.employees[emp-001].email}}'}
-                            </code>
-                          </div>
-                          <div>
-                            <h5 className="gba:font-medium gba:mb-1 gba:text-sm">Entity References</h5>
-                            <code className="gba:block gba:p-2 gba:bg-gray-50 gba:rounded gba:text-xs">
-                              {'{{$entity.ticket.TKT-123.subject}}'}
-                              <br />
-                              {'{{$entity.employee.{{$workflow.initiator}}.email}}'}
-                            </code>
-                          </div>
-                        </div>
-                      </div>
-
-                      {/* Tips Section */}
-                      <div className="gba:bg-blue-50 gba:border gba:border-blue-200 gba:rounded gba:p-4">
-                        <h4 className="gba:font-semibold gba:mb-2 gba:text-sm gba:text-blue-900">💡 Tips</h4>
-                        <ul className="gba:space-y-1 gba:text-xs gba:text-blue-800">
-                          <li>
-                            • Use the <strong>Tree Builder</strong> tab to explore available fields visually
-                          </li>
-                          <li>• Expressions are validated in real-time as you type</li>
-                          <li>• Field names are verified when the workflow executes</li>
-                          <li>• Combine multiple expressions in a single text field</li>
-                        </ul>
-                      </div>
-                    </CardContent>
-                  </Card>
-                </div>
-              )}
-            </div>
+                    {/* Tips Section */}
+                    <div className="gba:bg-blue-50 gba:border gba:border-blue-200 gba:rounded gba:p-4">
+                      <h4 className="gba:font-semibold gba:mb-2 gba:text-sm gba:text-blue-900">💡 Tips</h4>
+                      <ul className="gba:space-y-1 gba:text-xs gba:text-blue-800">
+                        <li>
+                          • Use the <strong>Tree Builder</strong> tab to explore available fields visually
+                        </li>
+                        <li>• Expressions are validated in real-time as you type</li>
+                        <li>• Field names are verified when the workflow executes</li>
+                        <li>• Combine multiple expressions in a single text field</li>
+                      </ul>
+                    </div>
+                  </CardContent>
+                </Card>
+              </div>
+            )}
           </div>
         </div>
 
-        {/* Actions */}
-        <div className="gba:flex gba:justify-end gba:gap-2 gba:px-6 gba:py-4 gba:border-t gba:shrink-0 gba:bg-white">
+        {/* Sticky Footer */}
+        <DialogFooter className="nw:flex-shrink-0 nw:border-t nw:pt-4">
           <Button variant="outline" onClick={handleClear} data-testid={`${testId}-clear`}>
             Clear
           </Button>
@@ -593,7 +614,7 @@ export const ExpressionBuilder: React.FC<ExpressionBuilderProps> = ({
           >
             Insert Expression
           </Button>
-        </div>
+        </DialogFooter>
       </DialogContent>
     </Dialog>
   )

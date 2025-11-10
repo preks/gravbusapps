@@ -143,7 +143,12 @@ export const ExpressionHelper: React.FC<ExpressionHelperProps> = ({
 
   return (
     <Sheet open={isOpen} onOpenChange={onOpenChange}>
-      <SheetContent side="right" className="gba:w-[450px] gba:sm:w-[540px]" data-testid={testId}>
+      <SheetContent
+        side="right"
+        className="gba:w-full gba:sm:gba:w-full"
+        style={{ width: '450px' }}
+        data-testid={testId}
+      >
         <SheetHeader>
           <SheetTitle className="gba:flex gba:items-center gba:gap-2">
             <Code className="gba:h-5 gba:w-5" />
@@ -166,7 +171,7 @@ export const ExpressionHelper: React.FC<ExpressionHelperProps> = ({
           />
 
           {/* Expression categories */}
-          <ScrollArea className="gba:h-[calc(100vh-250px)]">
+          <ScrollArea style={{ height: 'calc(100vh - 250px)' }}>
             <div className="gba:space-y-4 gba:pr-4">
               {categories.map(category => {
                 const categoryExpressions = filteredExpressions.filter(e => e.category === category)

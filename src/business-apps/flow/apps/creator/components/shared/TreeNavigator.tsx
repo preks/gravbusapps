@@ -62,7 +62,7 @@ export const TreeNavigator: React.FC<TreeNavigatorProps> = ({
       </div>
 
       {/* Tree view */}
-      <ScrollArea className="gba:h-[550px] gba:border gba:rounded-md gba:p-2">
+      <ScrollArea className="gba:border gba:rounded-md gba:p-2" style={{ height: '450px' }}>
         {filteredNodes.length > 0 ? (
           <div className="gba:space-y-0.5">
             {filteredNodes.map(node => (
@@ -77,7 +77,10 @@ export const TreeNavigator: React.FC<TreeNavigatorProps> = ({
             ))}
           </div>
         ) : (
-          <div className="gba:flex gba:flex-col gba:items-center gba:justify-center gba:h-[450px] gba:text-gray-500">
+          <div
+            className="gba:flex gba:flex-col gba:items-center gba:justify-center gba:text-gray-500"
+            style={{ height: '450px' }}
+          >
             <Search className="gba:h-8 gba:w-8 gba:mb-2 gba:opacity-50" />
             <p className="gba:text-sm">No fields found</p>
             <p className="gba:text-xs">Try a different search term</p>

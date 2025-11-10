@@ -402,7 +402,7 @@ export const ExpressionInput: React.FC<ExpressionInputProps> = ({
               <TooltipContent>
                 <p className="gba:text-xs">
                   Expression builder
-                  <span className="gba:block gba:text-[10px] gba:text-gray-500 gba:mt-0.5">
+                  <span className="gba:block gba:text-gray-500 gba:mt-0.5" style={{ fontSize: '10px' }}>
                     See Manual tab for syntax reference
                   </span>
                 </p>
