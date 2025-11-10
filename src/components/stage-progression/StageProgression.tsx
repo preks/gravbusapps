@@ -7,8 +7,6 @@ export const StageProgression: React.FC<StageProgressionProps> = ({
   stages,
   currentStage,
   styling = {},
-  // eslint-disable-next-line @typescript-eslint/no-unused-vars
-  getStageCompletionPercentage,
   onStageClick,
   renderStageContent,
   children,

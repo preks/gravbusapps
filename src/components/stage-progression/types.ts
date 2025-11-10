@@ -56,9 +56,6 @@ export interface StageProgressionProps {
   // Optional visual configuration
   styling?: StageProgressionStyling
 
-  // Optional stage completion percentage for progress visualization
-  getStageCompletionPercentage?: (stageCode: string) => number
-
   // Event handlers
   onStageClick?: (stage: Stage) => void
 

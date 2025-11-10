@@ -105,18 +105,6 @@ const getStageConditionsFromReal = (stageConditionStatuses: any[], stageId: stri
   })
 }
 
-// Calculate completion percentage for a specific stage (by stage ID)
-const getStageCompletionPercentageById = (stageConditionStatuses: any[], stageId: string): number => {
-  const conditions = getStageConditionsFromReal(stageConditionStatuses, stageId)
-
-  if (conditions.length === 0) {
-    return 100 // No conditions = 100% completion (all conditions met)
-  }
-
-  const completedCount = conditions.filter(condition => condition.isCompleted).length
-  return Math.round((completedCount / conditions.length) * 100)
-}
-
 // Convert ReferenceData to Stage format
 const convertToStageFormat = (referenceData: ReferenceData[] | undefined): Stage[] => {
   return (referenceData || []).map(ref => ({
@@ -236,11 +224,6 @@ export const OpportunityStageProgression: React.FC<OpportunityStageProgressionPr
       <StageProgression
         stages={convertToStageFormat(stages)}
         currentStage={currentStage}
-        getStageCompletionPercentage={stageCode => {
-          const stage = convertToStageFormat(stages).find(s => s.code === stageCode)
-          const stageId = stage?.id || ''
-          return getStageCompletionPercentageById(stageConditionStatuses, stageId)
-        }}
         dataTestIdPrefix="opportunity-stage-progression"
         onStageClick={() => {}} // Dummy function to enable pointer cursor for non-current stages
       >
