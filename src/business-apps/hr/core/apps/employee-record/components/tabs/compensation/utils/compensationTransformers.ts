@@ -216,13 +216,13 @@ export const transformWorkingConditionToHistory = (wc: any) => {
   let effectiveDate = wc.createdAt || wc.hireDate || wc.updatedAt || null
 
   // Validate and normalize effectiveDate
-  if (effectiveDate && isNaN(new Date(effectiveDate).getTime())) {
+  if (effectiveDate && Number.isNaN(new Date(effectiveDate).getTime())) {
     effectiveDate = null
   }
 
   // Validate and normalize endDate
   let endDate = wc.exitDate || null
-  if (endDate && isNaN(new Date(endDate).getTime())) {
+  if (endDate && Number.isNaN(new Date(endDate).getTime())) {
     endDate = null
   }
 

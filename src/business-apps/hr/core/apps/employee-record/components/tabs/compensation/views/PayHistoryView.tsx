@@ -19,7 +19,8 @@ import { CompensationHistoryData } from '../types/compensationTypes'
 import { getCompensationStatusLabel, getCompensationStatusVariant } from '../types/compensationEnums'
 import PayslipHistorySection from '../components/history/PayslipHistorySection'
 import dayjs from 'dayjs'
-import { formatCurrencyString } from '@/common/utils/numberFormatter'
+import { formatNumberFunction } from '@/common/utils/windowUtils'
+import { extractCurrencyCode } from '@/common/utils/numberFormatter'
 import { BusinessAppContextProps } from '@/common/BusinessAppContext'
 
 interface PayHistoryViewProps extends BusinessAppContextProps {
@@ -123,18 +124,22 @@ const PayHistoryView: React.FC<PayHistoryViewProps> = ({
         <TableBody>
           {compensationHistory.map(record => {
             // Validate and format effective date
-            const effectiveDate = record.effectiveDate
-              ? dayjs(record.effectiveDate).isValid()
-                ? dayjs(record.effectiveDate).locale(locale).format('MMM D, YYYY')
-                : null
-              : null
+            let effectiveDate: string | null = null
+            if (record.effectiveDate) {
+              const effectiveDateObj = dayjs(record.effectiveDate)
+              if (effectiveDateObj.isValid()) {
+                effectiveDate = effectiveDateObj.locale(locale).format('MMM D, YYYY')
+              }
+            }
 
             // Validate and format end date
-            const endDate = record.endDate
-              ? dayjs(record.endDate).isValid()
-                ? dayjs(record.endDate).locale(locale).format('MMM D, YYYY')
-                : null
-              : null
+            let endDate: string | null = null
+            if (record.endDate) {
+              const endDateObj = dayjs(record.endDate)
+              if (endDateObj.isValid()) {
+                endDate = endDateObj.locale(locale).format('MMM D, YYYY')
+              }
+            }
 
             return (
               <TableRow key={record.id} data-testid={`salary-history-row-${record.id}`}>
@@ -152,12 +157,7 @@ const PayHistoryView: React.FC<PayHistoryViewProps> = ({
                   {record.currency ? (
                     <>
                       <div className="gba:font-semibold gba:text-foreground">
-                        {formatCurrencyString(record.baseSalary, {
-                          currency: record.currency.code,
-                          locale: locale,
-                          minimumFractionDigits: 0,
-                          maximumFractionDigits: 0
-                        })}
+                        {formatNumberFunction(record.baseSalary, '0')} {extractCurrencyCode(record.currency.code)}
                       </div>
                       <div className="gba:text-xs gba:text-muted-foreground">{t('current-annually')}</div>
                     </>
@@ -171,12 +171,8 @@ const PayHistoryView: React.FC<PayHistoryViewProps> = ({
                       {record.currency ? (
                         <>
                           <div className="gba:font-semibold gba:text-foreground">
-                            {formatCurrencyString(record.monthlyGrossSalary, {
-                              currency: record.currency.code,
-                              locale: locale,
-                              minimumFractionDigits: 0,
-                              maximumFractionDigits: 0
-                            })}
+                            {formatNumberFunction(record.monthlyGrossSalary, '0')}{' '}
+                            {extractCurrencyCode(record.currency.code)}
                           </div>
                           <div className="gba:text-xs gba:text-muted-foreground">{t('current-monthly')}</div>
                         </>
@@ -237,12 +233,7 @@ const PayHistoryView: React.FC<PayHistoryViewProps> = ({
               <TableCell>{dayjs(bonus.paymentDate).locale(locale).format('MMM D, YYYY')}</TableCell>
               <TableCell>
                 <div className="gba:font-semibold gba:text-success">
-                  {formatCurrencyString(bonus.amount, {
-                    currency: bonus.currency.code,
-                    locale: locale,
-                    minimumFractionDigits: 0,
-                    maximumFractionDigits: 0
-                  })}
+                  {formatNumberFunction(bonus.amount, '0')} {extractCurrencyCode(bonus.currency.code)}
                 </div>
               </TableCell>
               <TableCell>{bonus.bonusType.value}</TableCell>
