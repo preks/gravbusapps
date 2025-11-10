@@ -18,6 +18,7 @@ current-active-benefits = Beneficii active
 current-bonus = bonus
 current-bonuses = bonusuri
 current-annually = Anual
+current-monthly = Lunar
 
 # Compensation Band
 band-title = Bandă de compensare
@@ -170,6 +171,7 @@ validation-date-past = Data de încheiere trebuie să fie în trecut sau astăzi
 # Table Headers (reusable)
 table-effective-date = Data de intrare în vigoare
 table-base-salary = Salariu de bază
+table-monthly-salary = Salariu lunar
 table-compensation-band = Bandă de compensare
 table-pay-grade = Grad de salarizare
 table-notes = Note
