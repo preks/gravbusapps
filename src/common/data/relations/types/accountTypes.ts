@@ -43,6 +43,7 @@ export interface Account extends BaseEntity {
   tasks?: Task[] // IRM | CRM
   timeZone?: CatalogEntry // IRM | CRM
   timeZoneRef?: string // IRM | CRM
+  wesbite?: string // IRM | CRM
 }
 
 export const AccountFields = {
@@ -75,7 +76,8 @@ export const AccountFields = {
   pictureThumbnail: 'pictureThumbnail',
   tasks: 'tasks',
   timeZone: 'timeZone',
-  timeZoneRef: 'timeZoneRef'
+  timeZoneRef: 'timeZoneRef',
+  website: 'website'
 } as const
 
 // Type helper
@@ -203,6 +205,7 @@ export const createAccountDescriptors = (
     sortPath: `${fields.timeZone}.value`,
     type: 'text'
   },
+  { key: 'wesbite', searchPaths: [fields.website], sortPath: fields.website, type: 'text' },
 
   // Filter IDs for Refs
   {

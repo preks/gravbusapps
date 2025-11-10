@@ -80,10 +80,19 @@ export const buildTaskQuery = (
   const boolExpType = `${entityName}BoolExp`
   const orderByType = `[${entityName}OrderBy!]`
 
-  // Optional relations (account, contact, lead, opportunity)
+  // Optional relations (documents, account, contact, lead, opportunity)
   const references =
     relationBuilders && relationFields
       ? `
+    # Common entity relations (present in both IRM and CRM)
+    ${
+      relationBuilders.buildDocumentFragment && relationFields.documentFields
+        ? `${fields.documents}(where: { isDeleted: { _eq: false } }) {
+      ${relationBuilders.buildDocumentFragment(relationFields.documentFields)}
+    }`
+        : ''
+    }
+    
     # Optional relations (account, contact, lead, opportunity)
     ${
       relationBuilders.buildAccountFragment && relationFields.accountFields && fields.account

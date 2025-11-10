@@ -215,40 +215,7 @@ const HomeView: React.FC<HomeViewProps> = ({ accountId, accountData, ...props })
             component: AccountSection,
             props: {
               ...props,
-              account: accountData
-                ? {
-                    id: accountData.id,
-                    name: accountData.name,
-                    website: accountData.website,
-                    email: accountData.email,
-                    phone: accountData.phone,
-                    // Map catalog entries to expected format
-                    legalForm: accountData.legalForm?.value,
-                    industry: accountData.industryClass?.value,
-                    size: accountData.companySize?.value,
-                    revenue: accountData.accountAnnualRevenueBand?.value,
-                    // Map other fields
-                    numberOfEmployees: accountData.companySize,
-                    annualRevenue: accountData.accountAnnualRevenueBand
-                  }
-                : undefined,
-              address: accountData
-                ? (() => {
-                    const addresses = accountData.addresses || []
-                    const primaryAddress = addresses.find(addr => addr.addressType === 'PRIMARY_ADDRESS')
-                    const address = primaryAddress || addresses[0]
-
-                    return address
-                      ? {
-                          addressLine: address.addressLine,
-                          postalCode: address.postalCode,
-                          locality: address.locality,
-                          country: typeof address.country === 'string' ? address.country : address.country?.value,
-                          region: typeof address.region === 'string' ? address.region : address.region?.value
-                        }
-                      : undefined
-                  })()
-                : undefined,
+              account: accountData, // ✅ Vollständiges InvestmentAccount-Objekt
               accountId: accountId,
               actionButtonProps: {
                 contextsArray: [FlowContextName.investmentAccountEntity],
@@ -271,16 +238,7 @@ const HomeView: React.FC<HomeViewProps> = ({ accountId, accountData, ...props })
             props: {
               ...props,
               contacts:
-                (accountData as any)?.investmentAccountContact
-                  ?.map((accountContact: any) => {
-                    const c = accountContact.contact
-                    return c ? { ...c, jobTitle: c.jobPosition } : null
-                  })
-                  .filter(Boolean) || [],
-              contact: (() => {
-                const c = (accountData as any)?.investmentAccountContact?.[0]?.contact
-                return c ? { ...c, jobTitle: c.jobPosition } : undefined
-              })(),
+                (accountData as any)?.investmentAccountContact?.map((ac: any) => ac.contact).filter(Boolean) || [],
               contactId: (accountData as any)?.investmentAccountContact?.[0]?.contact?.id || undefined,
               recordUrl: (accountData as any)?.investmentAccountContact?.[0]?.contact?.id
                 ? buildPlatformUrl('/platform/irm/contact-record', {

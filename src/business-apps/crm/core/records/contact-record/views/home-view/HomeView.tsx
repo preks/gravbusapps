@@ -3,7 +3,7 @@ import { BusinessAppContextProps } from '@/common/BusinessAppContext'
 import { buildPlatformUrl } from '@/common/utils/navigationUtils'
 import { getTranslationFromI18nKeyAndLabel } from '@/common/utils/windowUtils'
 import { FlowContextName } from '@/common/types/FlowRegistryTypes'
-import type { ContactData } from '../../queries/ContactQueries'
+import type { CustomerContact } from '@/common/data/customer/types'
 import type { ContactActivityData } from '../../queries/ContactActivityQueries'
 import type { ContactTaskData } from '../../queries/ContactTaskQueries'
 import type { ContactNoteData } from '../../queries/ContactNoteQueries'
@@ -20,7 +20,7 @@ import SectionWrapper from '@/common/components/common-relations/record-sections
 
 interface HomeViewProps extends BusinessAppContextProps {
   contactId: string
-  contact: ContactData
+  contact: CustomerContact
   activities: ContactActivityData[]
   notes: ContactNoteData[]
   tasks: ContactTaskData[]
@@ -77,52 +77,18 @@ export const HomeView: React.FC<HomeViewProps> = ({
             component: AccountSection,
             props: {
               ...props,
-              accounts: contact?.account
-                ? [
-                    {
-                      id: contact.account.id,
-                      name: contact.account.name,
-                      email: contact.account.email,
-                      phone: contact.account.phone,
-                      website: contact.account.website,
-                      legalForm: contact.account.legalForm?.value,
-                      industry: contact.account.industry?.value,
-                      size: contact.account.numberOfEmployees?.value,
-                      revenue: contact.account.annualRevenue?.value,
-                      numberOfEmployees: contact.account.numberOfEmployees,
-                      annualRevenue: contact.account.annualRevenue,
-                      addresses: contact.account.addresses
-                    }
-                  ]
-                : [],
-              address: contact?.account
-                ? (() => {
-                    const addresses = contact.account.addresses || []
-                    const primaryAddress = addresses.find((addr: any) => addr.addressType === 'PRIMARY_ADDRESS')
-                    const address = primaryAddress || addresses[0]
-
-                    return address
-                      ? {
-                          addressLine: address.addressLine,
-                          postalCode: address.postalCode,
-                          locality: address.city, // CRM uses 'city' field, map to 'locality' for AccountSection
-                          country: typeof address.country === 'string' ? address.country : address.country?.value,
-                          region: typeof address.region === 'string' ? address.region : address.region?.value
-                        }
-                      : undefined
-                  })()
-                : undefined,
-              accountId: contact?.account?.id,
-              recordUrl: contact?.account?.id
+              accounts: contact?.accountContacts?.map(ac => ac.account).filter(Boolean) || [],
+              accountId: contact?.accountContacts?.[0]?.account?.id,
+              recordUrl: contact?.accountContacts?.[0]?.account?.id
                 ? buildPlatformUrl('/platform/crm/account-record', {
-                    accountId: contact.account.id,
+                    accountId: contact.accountContacts[0].account.id,
                     source: 'customer-relations'
                   })
                 : undefined,
               actionButtonProps: {
                 contextsArray: [FlowContextName.customerAccountEntity],
                 externalContextData: {
-                  accountId: contact?.account?.id
+                  accountId: contact?.accountContacts?.[0]?.account?.id
                 },
                 prefixDataTestId: 'contact-account'
               }
@@ -141,20 +107,7 @@ export const HomeView: React.FC<HomeViewProps> = ({
             component: ContactSection,
             props: {
               ...props,
-              contact: {
-                id: contact?.id,
-                firstName: contact?.firstName,
-                lastName: contact?.lastName,
-                email: contact?.email,
-                phone: contact?.phone,
-                jobTitle: contact?.jobTitle,
-                department: contact?.department,
-                linkedinUrl: contact?.linkedinUrl,
-                xingUrl: contact?.xingUrl,
-                bio: contact?.bio,
-                academicTitle: contact?.academicTitle,
-                communicationChannels: contact?.communicationChannels
-              },
+              contact: contact, // ✅ Vollständiges CustomerContact-Objekt
               contactId: contact?.id,
               actionButtonProps: {
                 contextsArray: [FlowContextName.customerContactEntity],

@@ -51,6 +51,7 @@ export interface InvestmentTaskQueryVariables extends CommonTaskQueryVariables {
 export const buildInvestmentTaskQuery = (fields: typeof InvestmentTaskFields = InvestmentTaskFields): string => {
   // Build relation builders and fields for references
   const relationBuilders: Partial<TaskRelationBuilders> = {
+    buildDocumentFragment,
     buildAccountFragment,
     buildContactFragment,
     buildLeadFragment,
@@ -58,6 +59,7 @@ export const buildInvestmentTaskQuery = (fields: typeof InvestmentTaskFields = I
   }
 
   const relationFields: Partial<TaskRelationFields> = {
+    documentFields: InvestmentDocumentFields,
     accountFields: InvestmentAccountFields,
     contactFields: InvestmentContactFields,
     leadFields: InvestmentLeadFields,

@@ -46,6 +46,7 @@ export type CustomerTaskQueryVariables = CommonTaskQueryVariables
 export const buildCustomerTaskQuery = (fields: typeof CustomerTaskFields = CustomerTaskFields): string => {
   // Build relation builders and fields for references
   const relationBuilders: Partial<TaskRelationBuilders> = {
+    buildDocumentFragment,
     buildAccountFragment,
     buildContactFragment,
     buildLeadFragment,
@@ -53,6 +54,7 @@ export const buildCustomerTaskQuery = (fields: typeof CustomerTaskFields = Custo
   }
 
   const relationFields: Partial<TaskRelationFields> = {
+    documentFields: CustomerDocumentFields,
     accountFields: CustomerAccountFields,
     contactFields: CustomerContactFields,
     leadFields: CustomerLeadFields,

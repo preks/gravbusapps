@@ -8,6 +8,7 @@
 import { AUDIT_FIELDS, CATALOG_ENTRY } from '@/common/network/graphql/commonFragments'
 import { EMPLOYEE_REF } from '@/common/data/employee/queries/fragments/employeeFragments'
 import { DOCUMENT_REF } from '@/common/data/common/queries/documentFragments'
+import { COMMUNICATION_CHANNEL_REF } from '@/common/data/common/queries/communicationChannelFragments'
 import { AccountFields } from '../types/accountTypes'
 import { ContactFields } from '../types/contactTypes'
 import { ActivityFields } from '../types/activityTypes'
@@ -20,9 +21,15 @@ import { DocumentFields } from '../types/documentTypes'
 /**
  * Build Account fragment using fields mapping (REF fields only, no relations)
  * @param fields - AccountFields mapping (default: AccountFields)
- * @returns GraphQL fragment string with all account fields (no relations)
+ * @param includeRelations - Optional: include website, communicationChannels, and addresses (default: false)
+ * @param addressFragment - Optional: address fragment to use when includeRelations is true
+ * @returns GraphQL fragment string with all account fields
  */
-export const buildAccountFragment = (fields: Record<keyof typeof AccountFields, string> = AccountFields): string => {
+export const buildAccountFragment = (
+  fields: Record<keyof typeof AccountFields, string> = AccountFields,
+  includeRelations: boolean = false,
+  addressFragment?: string
+): string => {
   return `
   ${AUDIT_FIELDS}
   ${fields.accountAnnualRevenueBand} {
@@ -57,6 +64,25 @@ export const buildAccountFragment = (fields: Record<keyof typeof AccountFields, 
     ${CATALOG_ENTRY}
   }
   ${fields.timeZoneRef}
+  ${fields.website}
+  ${
+    includeRelations
+      ? `
+    ${fields.communicationChannels}(where: { isDeleted: { _eq: false } }) {
+      ${COMMUNICATION_CHANNEL_REF}
+    }
+    ${
+      addressFragment && fields.addresses
+        ? `
+      ${fields.addresses}(where: { isDeleted: { _eq: false } }) {
+        ${addressFragment}
+      }
+    `
+        : ''
+    }
+  `
+      : ''
+  }
 `
 }
 
@@ -90,6 +116,9 @@ export const buildContactFragment = (fields: Record<keyof typeof ContactFields, 
   }
   ${fields.salutationRef}
   ${fields.type}
+  ${fields.communicationChannels}(where: { isDeleted: { _eq: false } }) {
+    ${COMMUNICATION_CHANNEL_REF}
+  }
 `
 }
 

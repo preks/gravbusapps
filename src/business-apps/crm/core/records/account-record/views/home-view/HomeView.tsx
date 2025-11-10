@@ -224,40 +224,7 @@ const HomeView: React.FC<HomeViewProps> = ({ accountId, accountData, ...props })
             component: AccountSection,
             props: {
               ...props,
-              account: accountData
-                ? {
-                    id: accountData.id,
-                    name: accountData.name,
-                    website: accountData.website,
-                    email: accountData.email,
-                    phone: accountData.phone,
-                    // Map catalog entries to expected format
-                    legalForm: accountData.legalForm?.value,
-                    industry: accountData.industry?.value,
-                    size: accountData.numberOfEmployees?.value,
-                    revenue: accountData.annualRevenue?.value,
-                    // Map other fields
-                    numberOfEmployees: accountData.numberOfEmployees,
-                    annualRevenue: accountData.annualRevenue
-                  }
-                : undefined,
-              address: accountData
-                ? (() => {
-                    const addresses = accountData.addresses || []
-                    const primaryAddress = addresses.find((addr: any) => addr.addressType === 'PRIMARY_ADDRESS')
-                    const address = primaryAddress || addresses[0]
-
-                    return address
-                      ? {
-                          addressLine: address.addressLine,
-                          postalCode: address.postalCode,
-                          locality: address.city, // CRM uses 'city' field, map to 'locality' for AccountSection
-                          country: typeof address.country === 'string' ? address.country : address.country?.value,
-                          region: typeof address.region === 'string' ? address.region : address.region?.value
-                        }
-                      : undefined
-                  })()
-                : undefined,
+              account: accountData, // ✅ Vollständiges CustomerAccount-Objekt
               accountId: accountId,
               actionButtonProps: {
                 contextsArray: [FlowContextName.customerAccountEntity],
@@ -279,10 +246,7 @@ const HomeView: React.FC<HomeViewProps> = ({ accountId, accountData, ...props })
             component: ContactSection,
             props: {
               ...props,
-              contacts:
-                accountData?.accountContacts?.map((accountContact: any) => accountContact.contact).filter(Boolean) ||
-                [],
-              contact: accountData?.accountContacts?.[0]?.contact || undefined,
+              contacts: accountData?.accountContacts?.map((ac: any) => ac.contact).filter(Boolean) || [],
               contactId: accountData?.accountContacts?.[0]?.contact?.id || undefined,
               recordUrl: accountData?.accountContacts?.[0]?.contact?.id
                 ? buildPlatformUrl('/platform/crm/contact-record', {

@@ -70,45 +70,7 @@ export const HomeView: React.FC<HomeViewProps> = ({
             props: {
               ...props,
               accessToken,
-              account: opportunityData?.account
-                ? {
-                    id: opportunityData.account.id,
-                    version: opportunityData.account.version,
-                    name: opportunityData.account.name,
-                    email: opportunityData.account.email,
-                    phone: opportunityData.account.phone,
-                    website: opportunityData.account.website,
-                    legalForm: opportunityData.account.legalForm?.value || opportunityData.account.legalForm?.code,
-                    industry: opportunityData.account.industry?.value || opportunityData.account.industry?.code,
-                    size:
-                      opportunityData.account.numberOfEmployees?.value ||
-                      opportunityData.account.numberOfEmployees?.code,
-                    revenue:
-                      opportunityData.account.annualRevenue?.value || opportunityData.account.annualRevenue?.code,
-                    numberOfEmployees: opportunityData.account.numberOfEmployees,
-                    annualRevenue: opportunityData.account.annualRevenue,
-                    logoUrl: opportunityData.account.picture || opportunityData.account.pictureThumbnail,
-                    foundationDate: opportunityData.account.foundationDate,
-                    geographicPresence: opportunityData.account.geographicPresence
-                  }
-                : undefined,
-              address: opportunityData?.account
-                ? (() => {
-                    const addresses = opportunityData.account.addresses || []
-                    const primaryAddress = addresses.find((addr: any) => addr.addressType === 'PRIMARY_ADDRESS')
-                    const address = primaryAddress || addresses[0]
-
-                    return address
-                      ? {
-                          addressLine: address.addressLine,
-                          postalCode: address.postalCode,
-                          locality: address.city,
-                          country: typeof address.country === 'string' ? address.country : address.country?.value,
-                          region: typeof address.region === 'string' ? address.region : address.region?.value
-                        }
-                      : undefined
-                  })()
-                : undefined,
+              account: opportunityData?.account, // ✅ Vollständiges CustomerAccount-Objekt
               accountId: opportunityData?.account?.id,
               recordUrl: opportunityData?.account?.id
                 ? buildPlatformUrl('/platform/crm/account-record', {
@@ -140,25 +102,7 @@ export const HomeView: React.FC<HomeViewProps> = ({
             props: {
               ...props,
               accessToken,
-              contacts: opportunityData?.opportunityContacts
-                ?.map((oc: any) =>
-                  oc.contact
-                    ? {
-                        id: oc.contact.id,
-                        version: oc.contact.version,
-                        firstName: oc.contact.firstName,
-                        lastName: oc.contact.lastName,
-                        email: oc.contact.email,
-                        phone: oc.contact.phone,
-                        jobTitle: oc.contact.jobTitle,
-                        department: oc.contact.department,
-                        picture: oc.contact.pictureUrl,
-                        academicTitle: oc.contact.academicTitle?.value || oc.contact.academicTitle?.code,
-                        communicationChannels: oc.contact.communicationChannels
-                      }
-                    : null
-                )
-                .filter(Boolean),
+              contacts: opportunityData?.opportunityContacts?.map((oc: any) => oc.contact).filter(Boolean) || [], // ✅ Vollständige CustomerContact-Objekte
               contactId: opportunityData?.opportunityContacts?.[0]?.contact?.id,
               recordUrl: opportunityData?.opportunityContacts?.[0]?.contact?.id
                 ? buildPlatformUrl('/platform/crm/contact-record', {

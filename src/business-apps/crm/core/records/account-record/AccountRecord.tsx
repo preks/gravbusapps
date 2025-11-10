@@ -6,10 +6,11 @@ import { navigateTo, buildPlatformUrl } from '@/common/utils/navigationUtils'
 import { getTranslationFromI18nKeyAndLabel } from '@/common/utils/windowUtils'
 import { AppActionButton } from '@/components/app-action-button/AppActionButton'
 import { FlowContextName } from '@/common/types/FlowRegistryTypes'
-import { useAccountData } from './hooks/useAccountData'
+import { useCustomerAccounts } from '@/common/data/customer/hooks/useCustomerAccounts'
 import { OpportunityView } from './views/opportunity-view/OpportunityView'
 import { DocumentView } from './views/document-view/DocumentView'
 import { HomeView } from './views/home-view/HomeView'
+import type { CustomerAccount } from '@/common/data/customer/types'
 
 interface AccountRecordContentProps extends BusinessAppContextProps {
   accountId: string
@@ -17,7 +18,7 @@ interface AccountRecordContentProps extends BusinessAppContextProps {
 }
 
 const AccountRecordContent: React.FC<AccountRecordContentProps> = ({ accountId, onBack, ...props }) => {
-  const [account, setAccount] = useState<any>(null)
+  const [accountData, setAccountData] = useState<CustomerAccount | null>(null)
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
   const ALLOWED_TABS = ['overview', 'opportunities', 'documents'] as const
@@ -50,12 +51,7 @@ const AccountRecordContent: React.FC<AccountRecordContentProps> = ({ accountId, 
     return () => window.removeEventListener('popstate', onPopState)
   }, [])
 
-  const {
-    account: accountData,
-    loading: dataLoading,
-    error: dataError,
-    refetchAccountData
-  } = useAccountData(accountId, props.accessToken)
+  const { fetchCustomerAccountById } = useCustomerAccounts(props)
 
   const handleTabChange = useCallback((value: string) => {
     if ((ALLOWED_TABS as readonly string[]).includes(value)) {
@@ -68,20 +64,48 @@ const AccountRecordContent: React.FC<AccountRecordContentProps> = ({ accountId, 
     }
   }, [])
 
+  // Fetch account data
+  const fetchAccountData = useCallback(async () => {
+    if (!accountId || !props.accessToken) {
+      setLoading(false)
+      return
+    }
+
+    try {
+      setLoading(true)
+      setError(null)
+      const account = await fetchCustomerAccountById(accountId)
+      if (account) {
+        setAccountData(account)
+      } else {
+        setError('Account not found')
+      }
+    } catch (err) {
+      console.error('Error fetching account:', err)
+      setError(err instanceof Error ? err.message : 'Failed to load account')
+    } finally {
+      setLoading(false)
+    }
+  }, [accountId, props.accessToken, fetchCustomerAccountById])
+
+  useEffect(() => {
+    fetchAccountData()
+  }, [fetchAccountData])
+
   // Listen for process completion events to refresh account data
   useEffect(() => {
     const handleProcessCompletion = (event: any) => {
       try {
         // Check for successful completion
         if (event.detail?.resolution === 'success') {
-          refetchAccountData()
+          fetchAccountData()
           return
         }
 
         // Also check for different event structure
         const response = event.detail?.response
         if (response?.detail?.resolution === 'success' || response?.account) {
-          refetchAccountData()
+          fetchAccountData()
         }
       } catch (err) {
         console.error('Error handling process completion in AccountRecord:', err)
@@ -111,7 +135,7 @@ const AccountRecordContent: React.FC<AccountRecordContentProps> = ({ accountId, 
         window.removeEventListener(eventName, handleProcessCompletion as EventListener)
       })
     }
-  }, [refetchAccountData])
+  }, [fetchAccountData])
 
   // Memoize header data - must be called before conditional returns
   const headerDetailGroups = useMemo(
@@ -121,7 +145,9 @@ const AccountRecordContent: React.FC<AccountRecordContentProps> = ({ accountId, 
         items: [
           {
             label: 'Email',
-            value: accountData?.email || 'Not set',
+            value:
+              accountData?.communicationChannels?.find((cc: any) => cc.communicationChannel?.code === 'EMAIL')?.value ||
+              'Not set',
             icon: TrendUp
           },
           {
@@ -131,13 +157,17 @@ const AccountRecordContent: React.FC<AccountRecordContentProps> = ({ accountId, 
           },
           {
             label: 'Owner',
-            value: accountData?.accountOwner?.name || 'Not assigned',
+            value:
+              accountData?.ownerEmployee?.displayName ||
+              (accountData?.ownerEmployee?.firstName && accountData?.ownerEmployee?.lastName
+                ? `${accountData.ownerEmployee.firstName} ${accountData.ownerEmployee.lastName}`.trim()
+                : 'Not assigned'),
             icon: Users
           }
         ]
       }
     ],
-    [accountData?.email, accountData?.foundationDate, accountData?.accountOwner]
+    [accountData?.communicationChannels, accountData?.foundationDate, accountData?.ownerEmployee]
   )
 
   const headerActionButton = useMemo(
@@ -194,40 +224,6 @@ const AccountRecordContent: React.FC<AccountRecordContentProps> = ({ accountId, 
     [activeTab, handleTabChange, accountData, accountId, props]
   )
 
-  useEffect(() => {
-    const fetchAccountData = async () => {
-      if (!accountId) {
-        setLoading(false)
-        return
-      }
-
-      try {
-        setLoading(true)
-        setError(null)
-
-        if (accountData) {
-          setAccount(accountData)
-        } else if (dataError) {
-          setError(dataError)
-        }
-      } catch (err) {
-        console.error('Error fetching account:', err)
-        setError(err instanceof Error ? err.message : 'Failed to load account')
-      } finally {
-        setLoading(false)
-      }
-    }
-
-    if (!dataLoading) {
-      fetchAccountData()
-    }
-  }, [accountId, accountData, dataLoading, dataError])
-
-  // Update loading state based on data loading
-  useEffect(() => {
-    setLoading(dataLoading)
-  }, [dataLoading])
-
   if (loading) {
     return (
       <div className="gba:flex gba:items-center gba:justify-center gba:min-h-screen">
@@ -236,7 +232,7 @@ const AccountRecordContent: React.FC<AccountRecordContentProps> = ({ accountId, 
     )
   }
 
-  if (error || !account) {
+  if (error || !accountData) {
     return (
       <div className="gba:flex gba:items-center gba:justify-center gba:min-h-screen">
         <div className="gba:text-center">
@@ -263,7 +259,7 @@ const AccountRecordContent: React.FC<AccountRecordContentProps> = ({ accountId, 
         headerIcon={Bank}
         headerCategory={getTranslationFromI18nKeyAndLabel('crm.common.account', 'ACCOUNT')}
         onBack={onBack}
-        headerTitle={account.name}
+        headerTitle={accountData.name || 'Unknown Account'}
         headerDetailGroups={headerDetailGroups}
         headerActionButton={headerActionButton}
         subViews={subViewsConfig}

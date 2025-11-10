@@ -59,39 +59,7 @@ export const HomeView: React.FC<HomeViewProps> = ({
             props: {
               ...props,
               accounts:
-                (rawContactData as any)?.investmentAccountContact
-                  ?.map((iac: any) => ({
-                    id: iac.account?.id,
-                    name: iac.account?.name,
-                    email: iac.account?.email,
-                    phone: iac.account?.phone,
-                    website: iac.account?.website,
-                    legalForm: iac.account?.legalForm?.value,
-                    industry: iac.account?.industryClass?.value,
-                    size: iac.account?.companySize?.value,
-                    revenue: iac.account?.accountAnnualRevenueBand?.value,
-                    numberOfEmployees: iac.account?.companySize,
-                    annualRevenue: iac.account?.accountAnnualRevenueBand,
-                    addresses: iac.account?.addresses
-                  }))
-                  .filter(Boolean) || [],
-              address: (rawContactData as any)?.investmentAccountContact?.[0]?.account
-                ? (() => {
-                    const addresses = (rawContactData as any).investmentAccountContact[0].account.addresses || []
-                    const primaryAddress = addresses.find((addr: any) => addr.addressType === 'PRIMARY_ADDRESS')
-                    const address = primaryAddress || addresses[0]
-
-                    return address
-                      ? {
-                          addressLine: address.addressLine,
-                          postalCode: address.postalCode,
-                          locality: address.locality,
-                          country: typeof address.country === 'string' ? address.country : address.country?.value,
-                          region: typeof address.region === 'string' ? address.region : address.region?.value
-                        }
-                      : undefined
-                  })()
-                : undefined,
+                (rawContactData as any)?.investmentAccountContact?.map((iac: any) => iac.account).filter(Boolean) || [], // ✅ Vollständige InvestmentAccount-Objekte
               accountId: (rawContactData as any)?.investmentAccountContact?.[0]?.account?.id,
               recordUrl: (rawContactData as any)?.investmentAccountContact?.[0]?.account?.id
                 ? buildPlatformUrl('/platform/irm/account-record', {
@@ -122,18 +90,7 @@ export const HomeView: React.FC<HomeViewProps> = ({
             component: ContactSection,
             props: {
               ...props,
-              contact: {
-                id: contact?.id,
-                firstName: contact?.firstName,
-                lastName: contact?.lastName,
-                email: contact?.email,
-                phone: contact?.phone,
-                jobTitle: (contact as any)?.jobTitle || (rawContactData as any)?.jobPosition,
-                department: (contact as any)?.department || (rawContactData as any)?.department,
-                academicTitle: contact?.academicTitle,
-                professionalTitle: contact?.professionalTitle,
-                communicationChannels: rawContactData?.communicationChannels
-              },
+              contact: rawContactData || contact, // ✅ Vollständiges InvestmentContact-Objekt
               contactId: contact?.id,
               actionButtonProps: {
                 contextsArray: [FlowContextName.investmentContactEntity],

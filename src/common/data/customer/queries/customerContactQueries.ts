@@ -62,8 +62,13 @@ export interface CustomerContactQueryVariables extends CommonContactQueryVariabl
  */
 export const buildCustomerContactQuery = (fields: typeof CustomerContactFields = CustomerContactFields): string => {
   // Build relation builders and fields for accountContacts
+  // Use wrapper function to include relations (website, addresses, communicationChannels) in account fragment
+  const buildAccountFragmentWithRelations = (accountFields: any) => {
+    return buildAccountFragment(accountFields, true, CUSTOMER_ADDRESS_FRAGMENT)
+  }
+
   const relationBuilders: Partial<ContactRelationBuilders> = {
-    buildAccountFragment
+    buildAccountFragment: buildAccountFragmentWithRelations
   }
 
   const relationFields: Partial<ContactRelationFields> = {
@@ -92,9 +97,14 @@ export const buildCustomerContactByIdQuery = (
   id: string
 ): string => {
   // Build relation builders and fields for common relations
+  // Use wrapper function to include relations (website, addresses, communicationChannels) in account fragment
+  const buildAccountFragmentWithRelations = (accountFields: any) => {
+    return buildAccountFragment(accountFields, true, CUSTOMER_ADDRESS_FRAGMENT)
+  }
+
   const relationBuilders: ContactRelationBuilders = {
     buildActivityFragment,
-    buildAccountFragment,
+    buildAccountFragment: buildAccountFragmentWithRelations,
     buildDocumentFragment,
     buildLeadFragment,
     buildNoteFragment,

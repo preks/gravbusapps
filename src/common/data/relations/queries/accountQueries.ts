@@ -160,6 +160,7 @@ export const buildAccountByPkQuery = (
           ${CATALOG_ENTRY}
         }
         ${fields.timeZoneRef}
+        ${fields.website}
   `
 
   // Common entity relations (built dynamically based on relationBuilders and relationFields)

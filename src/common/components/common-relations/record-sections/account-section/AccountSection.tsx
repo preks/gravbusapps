@@ -12,7 +12,7 @@ import {
 } from '@newwork/nw-design-system'
 import { AppActionButton } from '@/components/app-action-button/AppActionButton'
 import { FlowContextName } from '@/common/types/FlowRegistryTypes'
-import { PiGlobe, PiPhone, PiUsers, PiMapPin, PiCaretLeft, PiCaretRight } from 'react-icons/pi'
+import { PiGlobe, PiPhone, PiUsers, PiMapPin, PiCaretLeft, PiCaretRight, PiEnvelope } from 'react-icons/pi'
 import { BankIcon, ChartLineUpIcon } from '@phosphor-icons/react'
 import { formatAddress } from '@/common/utils/addressFormatter'
 import { navigateTo } from '@/common/utils/navigationUtils'
@@ -29,10 +29,9 @@ interface AddressObject {
 
 interface AccountSectionProps extends Partial<BusinessAppContextProps> {
   accountId?: string
-  accountData?: any
-  account?: any
-  accounts?: any[]
-  address?: AddressObject
+  account?: any // InvestmentAccount oder CustomerAccount - vollständiges Objekt
+  accounts?: any[] // Array von Account-Objekten
+  address?: AddressObject // Optional: explizite Adresse (falls nicht im Account)
   className?: string
   'data-testid'?: string
   // Optional configurable action props
@@ -45,7 +44,6 @@ interface AccountSectionProps extends Partial<BusinessAppContextProps> {
 }
 
 const AccountSection: React.FC<AccountSectionProps> = ({
-  accountData,
   account,
   accounts,
   address,
@@ -99,14 +97,13 @@ const AccountSection: React.FC<AccountSectionProps> = ({
   // Conditional logic for clickable title
   const shouldShowClickableTitle = !!recordUrl
 
-  // Use the correct account data source
-  const displayAccount = hasMultiple ? selectedAccount : accountData || account || initialSelected
+  // Use the correct account data source - direkt aus account/accounts
+  const displayAccount = hasMultiple ? selectedAccount : account || initialSelected
 
   return (
     <div data-testid={props['data-testid'] || 'account-section'} className={`gba:w-full gba:h-full ${className}`}>
       <AccountCompanyInformation
         account={displayAccount}
-        accountData={accountData}
         address={address}
         hasMultiple={hasMultiple}
         currentIndex={currentIndex}
@@ -124,7 +121,7 @@ const AccountSection: React.FC<AccountSectionProps> = ({
 // Static properties for SectionWrapper
 ;(AccountSection as any).sectionTitle = 'Account Information'
 ;(AccountSection as any).sectionActions = (props: AccountSectionProps) => {
-  const { accessToken, actionButtonProps, accountData, account, accountId } = props
+  const { accessToken, actionButtonProps, account, accountId } = props
 
   if (!actionButtonProps) {
     return null
@@ -136,7 +133,7 @@ const AccountSection: React.FC<AccountSectionProps> = ({
       size="icon"
       contextsArray={actionButtonProps.contextsArray || [FlowContextName.customerAccountEntity]}
       externalContextData={{
-        accountId: accountData?.id || account?.id || accountId,
+        accountId: account?.id || accountId,
         ...actionButtonProps.externalContextData
       }}
       prefixDataTestId={actionButtonProps.prefixDataTestId || 'account-section-action'}
@@ -151,8 +148,7 @@ export default AccountSection
 
 // Inlined from '@/business-apps/crm/common/apps/account-record/components/CompanyInformation'
 interface InlinedCompanyInformationProps {
-  account?: any
-  accountData?: any
+  account?: any // InvestmentAccount oder CustomerAccount - vollständiges Objekt
   address?: AddressObject
   hasMultiple?: boolean
   currentIndex?: number
@@ -170,7 +166,6 @@ interface InlinedCompanyInformationProps {
 
 const AccountCompanyInformation: React.FC<InlinedCompanyInformationProps> = ({
   account,
-  accountData,
   address,
   hasMultiple,
   currentIndex = 0,
@@ -182,14 +177,19 @@ const AccountCompanyInformation: React.FC<InlinedCompanyInformationProps> = ({
 }) => {
   const cardClassName = `gba:w-full ${className}`.trim()
 
+  // Extract logo URL - support both picture and pictureThumbnail
+  const logoUrl = account?.pictureThumbnail
+    ? `data:image/gif;base64,${account.pictureThumbnail}`
+    : account?.picture || account?.pictureUrl || account?.pictureThumbnailUrl
+
   return (
     <div className={`${cardClassName} gba:relative gba:flex gba:flex-col gba:h-full`}>
       <div className="gba:space-y-2 gba:flex-1">
         {/* Company Name and Icon */}
         <div className="gba:flex gba:items-center gba:gap-3">
-          {accountData?.logoUrl || account?.logoUrl ? (
+          {logoUrl ? (
             <Avatar className="gba:h-12 gba:w-12">
-              <AvatarImage src={accountData?.logoUrl || account?.logoUrl} alt="Company logo" />
+              <AvatarImage src={logoUrl} alt="Company logo" />
               <AvatarFallback>
                 <BankIcon />
               </AvatarFallback>
@@ -209,19 +209,19 @@ const AccountCompanyInformation: React.FC<InlinedCompanyInformationProps> = ({
                         data-testid="account-name-clickable"
                         title="Click to view account record"
                       >
-                        {accountData?.name || account?.name || '-'}
+                        {account?.name || '-'}
                       </button>
                     ) : (
                       <h3
                         className="gba:text-sm gba:font-semibold gba:text-card-foreground gba:truncate gba:min-w-0"
                         data-testid="account-name"
                       >
-                        {accountData?.name || account?.name || '-'}
+                        {account?.name || '-'}
                       </h3>
                     )}
                   </TooltipTrigger>
                   <TooltipContent>
-                    <p className="gba:max-w-xs gba:break-words">{accountData?.name || account?.name || '-'}</p>
+                    <p className="gba:max-w-xs gba:break-words">{account?.name || '-'}</p>
                   </TooltipContent>
                 </Tooltip>
               </TooltipProvider>
@@ -236,8 +236,14 @@ const AccountCompanyInformation: React.FC<InlinedCompanyInformationProps> = ({
                       data-testid="account-secondary-info"
                     >
                       {(() => {
-                        const legalForm = accountData?.legalForm?.value || account?.legalForm
-                        const industry = accountData?.industry?.value || account?.industry
+                        // Direkt aus Account-Objekt extrahieren (wie in View Layouts)
+                        const legalForm = account?.legalForm?.value || account?.legalForm
+                        // industryClass für IRM, industry für CRM - beide unterstützen
+                        const industry =
+                          account?.industryClass?.value ||
+                          account?.industryClass ||
+                          account?.industry?.value ||
+                          account?.industry
                         const items = [legalForm, industry].filter(Boolean)
 
                         if (items.length > 0) {
@@ -252,8 +258,12 @@ const AccountCompanyInformation: React.FC<InlinedCompanyInformationProps> = ({
                   <TooltipContent>
                     <p className="gba:max-w-xs gba:break-words">
                       {(() => {
-                        const legalForm = accountData?.legalForm?.value || account?.legalForm
-                        const industry = accountData?.industry?.value || account?.industry
+                        const legalForm = account?.legalForm?.value || account?.legalForm
+                        const industry =
+                          account?.industryClass?.value ||
+                          account?.industryClass ||
+                          account?.industry?.value ||
+                          account?.industry
                         const items = [legalForm, industry].filter(Boolean)
 
                         if (items.length > 0) {
@@ -276,11 +286,66 @@ const AccountCompanyInformation: React.FC<InlinedCompanyInformationProps> = ({
         {/* Contact Information */}
         <div>
           {(() => {
+            // Helper to get communication channel by type (wie in commonAccountColumns)
+            const getChannel = (type: string) => {
+              const channels = account?.communicationChannels || []
+              return channels.find((ch: any) => ch.communicationChannel?.type?.toLowerCase() === type.toLowerCase())
+            }
+
+            // Extract email, phone direkt aus communicationChannels (KEINE Fallbacks auf deprecated email/phone)
+            const emailChannel = getChannel('email')
+            const emailValue = emailChannel?.value
+
+            const phoneChannel = getChannel('tel')
+            const phoneValue = phoneChannel?.value
+
+            // Website ist ein normales Feld, NICHT aus communicationChannels
+            const websiteValue = account?.website
+
+            // Extract employees - nur Common Field companySize verwenden (KEINE Fallbacks)
+            const employeesValue = account?.companySize?.value
+
+            // Extract revenue - nur Common Field accountAnnualRevenueBand verwenden (KEINE Fallbacks)
+            const revenueValue = account?.accountAnnualRevenueBand?.value
+
+            // Extract address from account.addresses if not provided explicitly
+            const accountAddress =
+              address ||
+              (() => {
+                const addresses = account?.addresses || []
+                const primaryAddress = addresses.find((addr: any) => addr.addressType === 'PRIMARY_ADDRESS')
+                const addr = primaryAddress || addresses[0]
+                if (!addr) return undefined
+
+                return {
+                  addressLine: addr.addressLine,
+                  postalCode: addr.postalCode,
+                  locality: addr.locality || addr.city, // CRM uses 'city', IRM uses 'locality'
+                  country: typeof addr.country === 'string' ? addr.country : addr.country?.value,
+                  region: typeof addr.region === 'string' ? addr.region : addr.region?.value
+                }
+              })()
+
             const infoItems = [
+              {
+                icon: PiEnvelope,
+                title: 'Email',
+                value: emailValue,
+                render: (value: string) =>
+                  value ? (
+                    <a
+                      href={`mailto:${value}`}
+                      className="gba:text-sm gba:text-muted-foreground gba:no-underline gba:hover:underline"
+                      data-testid="account-email-link"
+                    >
+                      {value}
+                    </a>
+                  ) : null
+              },
               {
                 icon: PiPhone,
                 title: 'Phone',
-                value: accountData?.phone || account?.phone,
+                value: phoneValue,
                 render: (value: string) =>
                   value ? (
                     <a
@@ -295,20 +360,20 @@ const AccountCompanyInformation: React.FC<InlinedCompanyInformationProps> = ({
               {
                 icon: PiUsers,
                 title: 'Employees',
-                value: accountData?.numberOfEmployees?.value || account?.numberOfEmployees?.value || account?.size,
+                value: employeesValue,
                 render: (value: string) => value
               },
               {
                 icon: ChartLineUpIcon,
                 title: 'Revenue',
-                value: accountData?.annualRevenue?.value || account?.annualRevenue?.value || account?.revenue,
+                value: revenueValue,
                 render: (value: string) => value,
                 testId: 'account-revenue-value'
               },
               {
                 icon: PiGlobe,
                 title: 'Website',
-                value: accountData?.website || account?.website,
+                value: websiteValue,
                 render: (value: string) =>
                   value
                     ? (() => {
@@ -330,106 +395,44 @@ const AccountCompanyInformation: React.FC<InlinedCompanyInformationProps> = ({
               {
                 icon: PiMapPin,
                 title: 'Address',
-                value: (() => {
-                  if (address) {
-                    return formatAddress({
-                      addressLine: address.addressLine?.lines ? { lines: address.addressLine.lines } : null,
-                      locality: String(address.locality || ''),
-                      postalCode: String(address.postalCode || ''),
-                      region: String(address.region || ''),
-                      country: String(address.country || '')
+                value: accountAddress
+                  ? formatAddress({
+                      addressLine: accountAddress.addressLine?.lines
+                        ? { lines: accountAddress.addressLine.lines }
+                        : accountAddress.addressLine,
+                      locality: String(accountAddress.locality || ''),
+                      postalCode: String(accountAddress.postalCode || ''),
+                      region: String(accountAddress.region || ''),
+                      country: String(accountAddress.country || '')
                     })
-                  }
-                  // Fallback to old logic for backward compatibility
-                  return formatAddress({
-                    addressLine: accountData?.addressLine,
-                    locality: String(accountData?.locality || account?.locality || ''),
-                    postalCode: String(accountData?.postalCode || account?.postalCode || ''),
-                    region: String(
-                      accountData?.region?.value ||
-                        account?.region?.value ||
-                        accountData?.region ||
-                        account?.region ||
-                        ''
-                    ),
-                    country: String(
-                      accountData?.country?.value ||
-                        account?.country?.value ||
-                        accountData?.country ||
-                        account?.country ||
-                        ''
-                    )
-                  })
-                })(),
+                  : undefined,
                 render: (value: string) =>
                   value ? (
                     <TooltipProvider>
                       <Tooltip>
                         <TooltipTrigger asChild>
                           <div className="gba:flex gba:flex-col gba:cursor-help">
-                            {address
-                              ? // Show first address line + postal code + locality for content
-                                (() => {
-                                  const contentLines = []
-                                  // Add first address line if it exists
-                                  if (address.addressLine?.lines?.[0]) {
-                                    contentLines.push(address.addressLine.lines[0])
-                                  }
-                                  // Add postal code + locality
-                                  const postalCodeLocality = [address.postalCode, address.locality]
-                                    .filter(Boolean)
-                                    .join(', ')
-                                  if (postalCodeLocality) {
-                                    contentLines.push(postalCodeLocality)
-                                  }
-                                  return contentLines.map((line, index) => (
-                                    <div key={index} className="gba:text-sm gba:leading-snug">
-                                      {line}
-                                    </div>
-                                  ))
-                                })()
-                              : // Fallback to formatted address lines
-                                (() => {
-                                  const lines = value.split('\n')
-                                  const firstLine = lines[0] || ''
-                                  // Get postalCode and city from the formatted address (line 2)
-                                  const postalCodeCityLine = lines[1] || ''
-                                  return [firstLine, postalCodeCityLine]
-                                    .filter(line => line.trim())
-                                    .map((line, index) => (
-                                      <div key={index} className="gba:text-sm gba:leading-snug">
-                                        {line}
-                                      </div>
-                                    ))
-                                })()}
+                            {(() => {
+                              const lines = value.split('\n')
+                              const firstLine = lines[0] || ''
+                              const postalCodeCityLine = lines[1] || ''
+                              return [firstLine, postalCodeCityLine]
+                                .filter(line => line.trim())
+                                .map((line, index) => (
+                                  <div key={index} className="gba:text-sm gba:leading-snug">
+                                    {line}
+                                  </div>
+                                ))
+                            })()}
                           </div>
                         </TooltipTrigger>
                         <TooltipContent>
                           <div className="gba:flex gba:flex-col gba:gap-1">
-                            {address
-                              ? // Show complete formatted address for tooltip
-                                (() => {
-                                  const tooltipAddress = formatAddress({
-                                    addressLine: address.addressLine?.lines
-                                      ? { lines: address.addressLine.lines }
-                                      : null,
-                                    locality: String(address.locality || ''),
-                                    postalCode: String(address.postalCode || ''),
-                                    region: String(address.region || ''),
-                                    country: String(address.country || '')
-                                  })
-                                  return tooltipAddress.split('\n').map((line, index) => (
-                                    <div key={index} className="gba:text-sm gba:leading-snug">
-                                      {line}
-                                    </div>
-                                  ))
-                                })()
-                              : // Fallback to formatted address lines
-                                value.split('\n').map((line, index) => (
-                                  <div key={index} className="gba:text-sm gba:leading-snug">
-                                    {line}
-                                  </div>
-                                ))}
+                            {value.split('\n').map((line, index) => (
+                              <div key={index} className="gba:text-sm gba:leading-snug">
+                                {line}
+                              </div>
+                            ))}
                           </div>
                         </TooltipContent>
                       </Tooltip>

@@ -1,10 +1,12 @@
-import React, { useState, useEffect, useMemo } from 'react'
+import React, { useState, useEffect, useMemo, useCallback } from 'react'
 import { Spinner, Button, RecordLayout, Badge } from '@newwork/nw-design-system'
 import { User, FileText, Star, Lightbulb, Bot } from 'lucide-react'
 import { BusinessAppContextProps } from '@/common/BusinessAppContext'
 import { navigateTo } from '@/common/utils/navigationUtils'
 import { getTranslationFromI18nKeyAndLabel, formatDate } from '@/common/utils/windowUtils'
-import { useOpportunityData } from './hooks/useOpportunityData'
+import { useCustomerOpportunities } from '@/common/data/customer/hooks/useCustomerOpportunities'
+import type { CustomerOpportunity } from '@/common/data/customer/types'
+import { useSalesPipelineStages } from './hooks/useSalesPipelineStages'
 import { useProcessCompletion } from '@/common/hooks/useProcessCompletion'
 import { formatCurrency, extractCurrencyCode } from '@/business-apps/crm/common/utils/currencyUtils'
 import { getOpportunityStatusBadgeVariant } from '@/common/utils/badgeUtils'
@@ -56,17 +58,45 @@ const OpportunityRecordContent: React.FC<OpportunityRecordContentProps> = ({
     return () => globalThis.removeEventListener('popstate', onPopState)
   }, [])
 
+  const [opportunityData, setOpportunityData] = useState<CustomerOpportunity | null>(null)
+  const [loading, setLoading] = useState(true)
+  const [error, setError] = useState<string | null>(null)
+
+  const { fetchCustomerOpportunityById } = useCustomerOpportunities(props)
   const {
-    opportunity,
-    opportunityData,
-    stageConditionStatuses,
-    loading,
-    error,
-    opportunityStages,
-    loadingStages,
-    stagesError,
-    refetchOpportunityData
-  } = useOpportunityData(opportunityId, props.accessToken)
+    pipelineStages: opportunityStages,
+    loadingPipelineStages: loadingStages,
+    errorPipelineStages: stagesError
+  } = useSalesPipelineStages(opportunityData?.salesPipelineRef, props.accessToken)
+
+  const fetchOpportunityData = useCallback(async () => {
+    if (!opportunityId || !props.accessToken) {
+      setLoading(false)
+      return
+    }
+    try {
+      setLoading(true)
+      setError(null)
+      const opportunity = await fetchCustomerOpportunityById(opportunityId)
+      if (opportunity) {
+        setOpportunityData(opportunity)
+      } else {
+        setError('Opportunity not found')
+      }
+    } catch (err) {
+      console.error('Error fetching opportunity:', err)
+      setError(err instanceof Error ? err.message : 'Failed to load opportunity')
+    } finally {
+      setLoading(false)
+    }
+  }, [opportunityId, props.accessToken, fetchCustomerOpportunityById])
+
+  useEffect(() => {
+    fetchOpportunityData()
+  }, [fetchOpportunityData])
+
+  // Extract stageConditionStatuses from opportunityData
+  const stageConditionStatuses = opportunityData?.stageConditionStatuses || []
 
   // AI Summary hook for HeaderSection
   const aiSummaryHook = useAiSummary(opportunityId, props.accessToken)
@@ -161,7 +191,7 @@ const OpportunityRecordContent: React.FC<OpportunityRecordContentProps> = ({
 
   useProcessCompletion({
     onSuccess: () => {
-      refetchOpportunityData()
+      fetchOpportunityData()
       loadActivities()
       loadNotes()
       loadTasksAndApprovals()
@@ -219,14 +249,14 @@ const OpportunityRecordContent: React.FC<OpportunityRecordContentProps> = ({
             {statusLabel}
           </Badge>
         )}
-        {opportunity?.value && (
+        {opportunityData?.estimatedAmount && (
           <Badge variant="outline" className="gba:gap-1">
-            {formatCurrency(opportunity.value, opportunity?.currency?.id || 'Currency:v1:EUR')}
+            {formatCurrency(opportunityData.estimatedAmount, opportunityData?.currency?.id || 'Currency:v1:EUR')}
           </Badge>
         )}
       </div>
     )
-  }, [opportunity?.value, opportunity?.currency?.id, opportunityData?.opportunityStatus])
+  }, [opportunityData?.estimatedAmount, opportunityData?.currency?.id, opportunityData?.opportunityStatus])
 
   // Helper function to convert stage codes to human-readable values
   const getStageDisplayValue = (stage: string | undefined): string => {
@@ -272,30 +302,32 @@ const OpportunityRecordContent: React.FC<OpportunityRecordContentProps> = ({
           },
           {
             label: getTranslationFromI18nKeyAndLabel('crm.opportunity.stage', 'Stage'),
-            value: getStageDisplayValue(opportunityData?.salesPipelineStage?.code || opportunity?.stage),
+            value: getStageDisplayValue(opportunityData?.salesPipelineStage?.code),
             icon: Star
           },
           {
             label: getTranslationFromI18nKeyAndLabel('crm.opportunity.expectedCloseDate', 'Expected Close Date'),
-            value: opportunity?.expectedCloseDate
-              ? formatDate(opportunity.expectedCloseDate, 'date.short')
+            value: opportunityData?.closeDate
+              ? formatDate(opportunityData.closeDate, 'date.short')
               : getTranslationFromI18nKeyAndLabel('crm.common.notSet', 'Not set')
           },
           {
             label: getTranslationFromI18nKeyAndLabel('crm.common.currency', 'Currency'),
-            value: extractCurrencyCode(opportunity?.currency?.id || 'Currency:v1:EUR')
+            value: extractCurrencyCode(opportunityData?.currency?.id || 'Currency:v1:EUR')
           },
           {
             label: getTranslationFromI18nKeyAndLabel('crm.opportunity.estimatedAmount', 'Estimated Amount'),
-            value: opportunity?.value
-              ? formatCurrency(opportunity.value, opportunity.currency.id)
+            value: opportunityData?.estimatedAmount
+              ? formatCurrency(opportunityData.estimatedAmount, opportunityData.currency?.id || 'Currency:v1:EUR')
               : getTranslationFromI18nKeyAndLabel('crm.common.notSet', 'Not set')
           },
           {
             label: getTranslationFromI18nKeyAndLabel('crm.common.owner', 'Owner'),
-            value: opportunity?.ownerEmployee
-              ? `${opportunity.ownerEmployee.firstName} ${opportunity.ownerEmployee.lastName}`
-              : getTranslationFromI18nKeyAndLabel('crm.common.notAssigned', 'Not assigned'),
+            value:
+              opportunityData?.ownerEmployee?.displayName ||
+              (opportunityData?.ownerEmployee?.firstName && opportunityData?.ownerEmployee?.lastName
+                ? `${opportunityData.ownerEmployee.firstName} ${opportunityData.ownerEmployee.lastName}`.trim()
+                : getTranslationFromI18nKeyAndLabel('crm.common.notAssigned', 'Not assigned')),
             icon: User
           }
         ]
@@ -304,11 +336,10 @@ const OpportunityRecordContent: React.FC<OpportunityRecordContentProps> = ({
   }, [
     opportunityData?.opportunityStatus?.value,
     opportunityData?.salesPipelineStage?.code,
-    opportunity?.stage,
-    opportunity?.expectedCloseDate,
-    opportunity?.currency?.id,
-    opportunity?.value,
-    opportunity?.ownerEmployee
+    opportunityData?.closeDate,
+    opportunityData?.currency?.id,
+    opportunityData?.estimatedAmount,
+    opportunityData?.ownerEmployee
   ])
 
   const headerActions = useMemo(() => {
@@ -346,10 +377,10 @@ const OpportunityRecordContent: React.FC<OpportunityRecordContentProps> = ({
           currentStage={opportunityData?.salesPipelineStage?.code || 'Discovery'}
           stages={opportunityStages}
           opportunityId={opportunityId || ''}
-          opportunityVersion={Number.parseInt(opportunity?.version || '0', 10)}
+          opportunityVersion={Number.parseInt(opportunityData?.version || '0', 10)}
           accessToken={props.accessToken}
           stageConditionStatuses={stageConditionStatuses}
-          onStageUpdate={refetchOpportunityData}
+          onStageUpdate={fetchOpportunityData}
         />
       )
     }
@@ -411,10 +442,10 @@ const OpportunityRecordContent: React.FC<OpportunityRecordContentProps> = ({
     opportunityData?.salesPipelineRef,
     opportunityData?.salesPipelineStage?.code,
     opportunityId,
-    opportunity?.version,
+    opportunityData?.version,
     stageConditionStatuses,
     props.accessToken,
-    refetchOpportunityData,
+    fetchOpportunityData,
     opportunityData?.opportunityStatus?.value
   ])
 
@@ -426,7 +457,7 @@ const OpportunityRecordContent: React.FC<OpportunityRecordContentProps> = ({
     )
   }
 
-  if (error || !opportunity) {
+  if (error || !opportunityData) {
     return (
       <div className="gba:flex gba:items-center gba:justify-center gba:min-h-screen">
         <div className="gba:text-center">
@@ -499,7 +530,7 @@ const OpportunityRecordContent: React.FC<OpportunityRecordContentProps> = ({
         headerIcon={Lightbulb}
         headerCategory="OPPORTUNITY"
         onBack={onBack}
-        headerTitle={opportunity.name || opportunityData?.name || 'Unnamed Opportunity'}
+        headerTitle={opportunityData.name || 'Unnamed Opportunity'}
         headerMeta={headerMeta}
         headerActions={headerActions}
         headerActionButton={headerActionButton}

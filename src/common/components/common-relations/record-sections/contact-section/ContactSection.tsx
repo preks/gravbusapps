@@ -289,11 +289,24 @@ const ContactPersonalInfo: React.FC<ContactPersonalInfoProps> = ({
         {/* Contact Information */}
         <div>
           {(() => {
+            // Helper to get communication channel by type (lowercase: email, url, tel, text)
+            const getChannel = (type: string) => {
+              const channels = (contact as any)?.communicationChannels || []
+              return channels.find((ch: any) => ch.communicationChannel?.type?.toLowerCase() === type.toLowerCase())
+            }
+
+            // Extract email, phone direkt aus communicationChannels (KEINE Fallbacks auf deprecated email/phone)
+            const emailChannel = getChannel('email')
+            const emailValue = emailChannel?.value
+
+            const phoneChannel = getChannel('tel')
+            const phoneValue = phoneChannel?.value
+
             const infoItems = [
               {
                 icon: PiEnvelope,
                 title: 'Email',
-                value: contact?.email,
+                value: emailValue,
                 render: (value: string) =>
                   value ? (
                     <a
@@ -308,7 +321,7 @@ const ContactPersonalInfo: React.FC<ContactPersonalInfoProps> = ({
               {
                 icon: PiPhone,
                 title: 'Phone',
-                value: contact?.phone,
+                value: phoneValue,
                 render: (value: string) =>
                   value ? (
                     <a

@@ -2,6 +2,7 @@
 
 import { CustomerContact } from '../types'
 import type { CustomerAccountContact } from '../types/customerRelationTypes'
+import { toCustomerAccount } from './customerAccountMappers'
 
 /**
  * Transform CustomerContact (GraphQL response) to CustomerContact (enhanced with field mappings)
@@ -21,23 +22,12 @@ export function toCustomerContact(base: CustomerContact): CustomerContact {
   const pictureThumbnail = base.pictureThumbnailUrl
 
   // Use accountContacts from GraphQL if available, otherwise fallback to deprecated accountId/account
-  let accountContacts: CustomerAccountContact[] | undefined = base.accountContacts
-  if (!accountContacts || accountContacts.length === 0) {
-    // Fallback: Transform CRM accountId/account to accountContacts array
-    // CRM uses deprecated accountId/account instead of accountContacts relation
-    if (base.accountId && base.account) {
-      accountContacts = [
-        {
-          id: `${base.id}-${base.accountId}`, // Generate synthetic ID for the relationship
-          accountId: base.accountId,
-          account: base.account,
-          contactType: base.contactType, // Use contact's contactType
-          contactId: base.id,
-          contact: base as any // Reference to the contact itself
-        } as CustomerAccountContact
-      ]
-    }
-  }
+  const accountContacts: CustomerAccountContact[] | undefined = base.accountContacts
+    ? base.accountContacts.map(ac => ({
+        ...ac,
+        account: ac.account ? toCustomerAccount(ac.account) : ac.account
+      }))
+    : undefined
 
   return {
     ...base,
