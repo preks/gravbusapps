@@ -158,28 +158,12 @@ export const StageProgression: React.FC<StageProgressionProps> = ({
                     <>
                       {(isCurrentStage || isCompleted) && (
                         <span
-                          style={{
-                            fontSize: '14px',
-                            fontWeight: 'bold',
-                            backgroundColor: isCompleted ? 'var(--nw-color-primary-100)' : 'var(--nw-color-success)',
-                            color: 'var(--nw-color-primary-foreground)',
-                            borderRadius: '50%',
-                            width: '20px',
-                            height: '20px',
-                            display: 'flex',
-                            alignItems: 'center',
-                            justifyContent: 'center'
-                          }}
+                          className={`gba:text-sm gba:font-bold gba:text-primary-foreground gba:rounded-full gba:w-5 gba:h-5 gba:flex gba:items-center gba:justify-center ${isCompleted ? 'gba:bg-primary-100' : 'gba:bg-success'}`}
                         >
                           ✓
                         </span>
                       )}
-                      <span
-                        style={{
-                          whiteSpace: 'nowrap',
-                          fontSize: stages.length > 4 ? '12px' : '14px'
-                        }}
-                      >
+                      <span className={`gba:whitespace-nowrap ${stages.length > 4 ? 'gba:text-xs' : 'gba:text-sm'}`}>
                         {stage.value}
                       </span>
                     </>
