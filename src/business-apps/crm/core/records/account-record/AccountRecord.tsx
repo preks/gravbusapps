@@ -152,7 +152,9 @@ const AccountRecordContent: React.FC<AccountRecordContentProps> = ({ accountId, 
           },
           {
             label: 'Founded',
-            value: accountData?.foundationDate ? new Date(accountData.foundationDate).toLocaleDateString() : 'Not set',
+            value: accountTransformed?.foundationDate
+              ? new Date(accountTransformed.foundationDate).toLocaleDateString()
+              : 'Not set',
             icon: TrendUp
           },
           {
@@ -197,7 +199,7 @@ const AccountRecordContent: React.FC<AccountRecordContentProps> = ({ accountId, 
           value: 'overview',
           label: getTranslationFromI18nKeyAndLabel('crm.common.overview', 'Overview'),
           icon: <Users className="gba:mr-2" />,
-          content: <HomeView accountId={accountId} accountData={accountData} {...props} />
+          content: <HomeView accountId={accountId} accountData={rawAccountData} {...props} />
         },
         {
           value: 'opportunities',
@@ -221,7 +223,7 @@ const AccountRecordContent: React.FC<AccountRecordContentProps> = ({ accountId, 
         }
       ]
     }),
-    [activeTab, handleTabChange, accountData, accountId, props]
+    [activeTab, handleTabChange, rawAccountData, accountId, props]
   )
 
   if (loading) {

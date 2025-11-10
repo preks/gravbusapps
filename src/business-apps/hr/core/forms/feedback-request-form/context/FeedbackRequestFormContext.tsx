@@ -185,23 +185,27 @@ export const FeedbackRequestFormProvider: React.FC<FeedbackRequestFormProviderPr
 
       console.log(requestedFromList, 'requestedFromList')
 
-      // If multiple selections, call bulk endpoint directly; otherwise keep previous process flow
+      // If multiple selections, send first via process event and the rest via bulk endpoint
       if (requestedFromList.length > 1) {
         const client = new FeedbackRequestClient()
         client.setAccessToken(businessAppContext.accessToken)
 
+        const [firstRequested, ...remainingRequested] = requestedFromList
+
         await client.bulkRequestFeedback({
-          requestedFromList,
+          requestedFromList: remainingRequested,
           creatorUserId: currentUserEmployeeId,
           requestMessage: formValues.requestMessage
         })
 
-        // Close the form/process
-        dispatchProcessContinueEvent('pse_submit', {
-          requestedFrom: requestedFromList[0],
+        // Dispatch the first request through the process event to keep compatibility
+        const payload: FeedbackRequestPayload = {
+          requestedFrom: firstRequested,
           requestedFromList,
-          creatorUserId: currentUserEmployeeId
-        })
+          creatorUserId: currentUserEmployeeId,
+          requestMessage: formValues.requestMessage
+        }
+        dispatchProcessContinueEvent('pse_submit', payload)
       } else {
         // Single selection - preserve original behavior
         const payload: FeedbackRequestPayload = {
@@ -212,13 +216,14 @@ export const FeedbackRequestFormProvider: React.FC<FeedbackRequestFormProviderPr
         }
         dispatchProcessContinueEvent('pse_submit', payload)
       }
+      // Do not reset isLoading here; allow host to close the screen
+      return
     } catch (err) {
       setError(
         err instanceof Error
           ? err.message
           : getTranslationFromI18nKeyAndLabel('feedback.request.error', 'Failed to send feedback request')
       )
-    } finally {
       setIsLoading(false)
     }
   }, [formValues, currentUserEmployeeId, preSelectedEmployee, getEmployeeById, businessAppContext.accessToken])

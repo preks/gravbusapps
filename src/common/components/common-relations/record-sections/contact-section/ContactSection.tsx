@@ -107,29 +107,7 @@ const ContactSection: React.FC<ContactSectionProps> = ({
 
 // Static properties for SectionWrapper
 ;(ContactSection as any).sectionTitle = 'Contact Information'
-;(ContactSection as any).sectionActions = (props: ContactSectionProps) => {
-  const { accessToken, actionButtonProps, contact } = props
-
-  if (!actionButtonProps) {
-    return null
-  }
-
-  return (
-    <AppActionButton
-      data-testid="contact-action-button"
-      size="icon"
-      contextsArray={actionButtonProps.contextsArray || [FlowContextName.customerAccountEntity]}
-      externalContextData={{
-        contactId: contact?.id,
-        ...actionButtonProps.externalContextData
-      }}
-      prefixDataTestId={actionButtonProps.prefixDataTestId || 'contact-section-action'}
-      accessToken={accessToken}
-      emptyStateBehavior="enable"
-      deferMainContextRequestsUntilClick
-    />
-  )
-}
+// Action button is rendered within component content and updates with carousel state
 
 export default ContactSection
 
@@ -156,8 +134,13 @@ const ContactPersonalInfo: React.FC<ContactPersonalInfoProps> = ({
   totalCount = 1,
   onPrevious,
   onNext,
-  onTitleClick
+  onTitleClick,
+  accessToken,
+  actionButtonProps
 }) => {
+  // Get current contact ID
+  const currentContactId = contact?.id
+
   // Helper function to build full name
   const buildFullName = () => {
     const parts = []
@@ -214,7 +197,7 @@ const ContactPersonalInfo: React.FC<ContactPersonalInfoProps> = ({
   return (
     <div className="gba:w-full gba:relative gba:flex gba:flex-col gba:h-full">
       <div className="gba:space-y-2 gba:flex-1">
-        {/* Contact Name and Avatar */}
+        {/* Contact Name and Avatar with Action Button */}
         <div className="gba:flex gba:items-center gba:gap-3">
           {hasContactImage ? (
             <Avatar className="gba:h-12 gba:w-12">
@@ -281,6 +264,26 @@ const ContactPersonalInfo: React.FC<ContactPersonalInfoProps> = ({
               </TooltipProvider>
             </div>
           </div>
+          {/* Action Button for this contact */}
+          {accessToken && currentContactId && (
+            <div className="gba:flex gba:items-start">
+              <AppActionButton
+                key={`contact-action-${currentContactId}`}
+                data-testid={`contact-carousel-action-button-${currentContactId}`}
+                size="icon"
+                contextsArray={actionButtonProps?.contextsArray || [FlowContextName.customerAccountEntity]}
+                externalContextData={{
+                  ...actionButtonProps?.externalContextData,
+                  contactId: currentContactId
+                }}
+                prefixDataTestId={actionButtonProps?.prefixDataTestId || `contact-item-action-${currentContactId}`}
+                accessToken={accessToken}
+                emptyStateBehavior="enable"
+                deferMainContextRequestsUntilClick
+                onClick={e => e.stopPropagation()}
+              />
+            </div>
+          )}
         </div>
 
         {/* Separator */}

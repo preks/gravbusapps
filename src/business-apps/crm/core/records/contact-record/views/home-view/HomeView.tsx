@@ -82,12 +82,14 @@ export const HomeView: React.FC<HomeViewProps> = ({
               recordUrl: contact?.accountContacts?.[0]?.account?.id
                 ? buildPlatformUrl('/platform/crm/account-record', {
                     accountId: contact.accountContacts[0].account.id,
+                    accountId: contact.accountContacts[0].account.id,
                     source: 'customer-relations'
                   })
                 : undefined,
               actionButtonProps: {
                 contextsArray: [FlowContextName.customerAccountEntity],
                 externalContextData: {
+                  accountId: contact?.accountContacts?.[0]?.account?.id
                   accountId: contact?.accountContacts?.[0]?.account?.id
                 },
                 prefixDataTestId: 'contact-account'

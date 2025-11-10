@@ -54,6 +54,17 @@ interface ContactQueryResult {
     name: string
   }
 
+  // ✅ NEW: Account-Contact associations (matching IRM pattern)
+  accountContacts?: Array<{
+    id: string
+    version: number
+    contactType?: string
+    account: {
+      id: string
+      name: string
+    }
+  }>
+
   salesCampaign?: {
     id: string
     name: string
@@ -126,6 +137,15 @@ const GET_CONTACT_BY_ID = `
       account {
         id
         name
+      }
+      accountContacts(where: { isDeleted: { _eq: false } }) {
+        id
+        version
+        contactType
+        account {
+          id
+          name
+        }
       }
       salesCampaign {
         id
@@ -209,6 +229,14 @@ export const useContactData = ({ businessAppContext }: UseContactDataProps): Use
               ? { id: contact.account.id, name: contact.account.name }
               : contact?.account?.id || '',
           companyName: contact?.account?.name || '',
+          // ✅ NEW: Account associations with metadata (matching IRM pattern)
+          accountIds:
+            contact?.accountContacts?.map(rel => ({
+              id: rel.account.id,
+              name: rel.account.name,
+              associationId: rel.id, // ✅ Capture association ID
+              associationVersion: rel.version // ✅ Capture association version
+            })) || [], // ✅ Store full account objects with id, name, and association metadata
 
           // Academic Title
           academicTitle: contact?.academicTitle?.id || '',
