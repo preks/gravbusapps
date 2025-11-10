@@ -1,10 +1,10 @@
 import React, { useMemo } from 'react'
 import { BusinessAppContextProps } from '@/common/BusinessAppContext'
-import { useGetInvestmentDocumentsByContactId } from '@/common/data/investment/hooks/useInvestmentContacts'
-import DocumentSection from '@/common/components/common-relations/record-sections/document-section/DocumentSection'
+import { DocumentSection } from '@/components/document-section'
 import { FlowContextName } from '@/common/types/FlowRegistryTypes'
 import { useInvestmentDocuments } from '@/business-apps/irm/common/hooks/useInvestmentDocuments'
 import { createDocumentActions } from '@/business-apps/irm/common/utils/createDocumentActions'
+import { getIrmDocumentApiConfig, useGetIrmDocuments } from '@/business-apps/irm/common/utils/documentUtils'
 
 interface ContactDocumentsProps {
   contactId: string
@@ -12,14 +12,14 @@ interface ContactDocumentsProps {
 }
 
 const ContactDocuments: React.FC<ContactDocumentsProps> = ({ contactId, context }) => {
-  // Fetch documents using the existing hook
-  const { fetchInvestmentDocumentsByContactId } = useGetInvestmentDocumentsByContactId(context)
+  // Fetch documents using the generic IRM hook
+  const { fetchDocuments } = useGetIrmDocuments('contact', context)
 
   // Use shared hook for document management
   const { documents, isLoading, error, refetch } = useInvestmentDocuments({
     entityId: contactId,
     context,
-    fetchDocuments: fetchInvestmentDocumentsByContactId
+    fetchDocuments
   })
 
   // Memoized action props for document operations
@@ -46,18 +46,6 @@ const ContactDocuments: React.FC<ContactDocumentsProps> = ({ contactId, context 
     [contactId]
   )
 
-  const documentDeleteActionProps = useMemo(
-    () => ({
-      contextsArray: [FlowContextName.investmentDocumentDelete],
-      externalContextData: {
-        contactId,
-        entityType: 'contact'
-      },
-      prefixDataTestId: 'contact-document-delete'
-    }),
-    [contactId]
-  )
-
   // Use shared document actions
   const customActions = useMemo(() => createDocumentActions({ entityType: 'contact' }), [])
 
@@ -68,19 +56,10 @@ const ContactDocuments: React.FC<ContactDocumentsProps> = ({ contactId, context 
       isLoading={isLoading}
       error={error}
       onRefresh={refetch}
-      apiConfig={{
-        baseEndpoint: '/investment-relations',
-        entityFieldName: 'contact',
-        documentFieldName: 'investmentDocument'
-      }}
-      enableGraphQLSearch={true}
-      graphQLSearchConfig={{
-        entityType: 'contact'
-      }}
+      apiConfig={getIrmDocumentApiConfig('contact')}
       customActions={customActions}
       createFolderActionProps={documentCreateFolderActionProps}
       uploadActionProps={documentUploadActionProps}
-      deleteActionProps={documentDeleteActionProps}
       data-testid="contact-document-section"
       {...context}
     />

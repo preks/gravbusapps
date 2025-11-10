@@ -165,6 +165,8 @@ export const GET_COMPANY_BY_ID = `
         value
       }
       accountContacts(where: { isDeleted: { _eq: false } }) {
+        id
+        version
         contactType
         contact {
           id
@@ -176,6 +178,17 @@ export const GET_COMPANY_BY_ID = `
           department
           linkedinUrl
           xingUrl
+          pictureUrl
+          communicationChannels(where: { isDeleted: { _eq: false } }) {
+            id
+            communicationChannelRef
+            value
+            communicationChannel {
+              id
+              code
+              value
+            }
+          }
           academicTitle {
             id
             value
