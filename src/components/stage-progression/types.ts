@@ -31,18 +31,6 @@ export interface StageProgressionStyling {
   fontSize?: string
   fontWeight?: string
   borderRadius?: string
-  colors?: {
-    completed?: string
-    current?: {
-      border?: string
-      background?: string
-      text?: string
-    }
-    pending?: {
-      background?: string
-      text?: string
-    }
-  }
 }
 
 // Removed ActionMenu configuration - this should be handled by specific implementations

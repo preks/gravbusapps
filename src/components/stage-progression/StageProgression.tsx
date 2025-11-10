@@ -13,28 +13,11 @@ export const StageProgression: React.FC<StageProgressionProps> = ({
   dataTestIdPrefix = 'stage-progression'
 }) => {
   // Default styling with proper type safety
-  const defaultColors = {
-    completed: '#4CAF50',
-    current: {
-      border: 'linear-gradient(135deg, rgba(76, 175, 80, 0.8), rgba(102, 187, 106, 0.6))',
-      background: '#ffffff',
-      text: '#333333'
-    },
-    pending: {
-      background: '#9CA3AF', // Darker gray background for better visibility
-      text: '#FFFFFF' // White text for better contrast
-    }
-  }
-
   const defaultStyling = {
     height: '40px',
     fontSize: '14px',
     fontWeight: '600',
     borderRadius: '20px',
-    colors: {
-      ...defaultColors,
-      ...(styling.colors || {})
-    },
     ...styling
   }
 
@@ -73,16 +56,12 @@ export const StageProgression: React.FC<StageProgressionProps> = ({
             const isCurrentStage = index === currentIndex
             const isCompleted = index < currentIndex
 
-            // Determine colors
-            let backgroundColor = defaultStyling.colors.pending?.background || defaultColors.pending.background
-            let textColor = defaultStyling.colors.pending?.text || defaultColors.pending.text
-
-            if (isCompleted) {
-              backgroundColor = defaultStyling.colors.completed || defaultColors.completed
-              textColor = 'var(--nw-color-primary-foreground)'
-            } else if (isCurrentStage) {
-              backgroundColor = defaultStyling.colors.completed || defaultColors.completed
-              textColor = 'var(--nw-color-primary-foreground)'
+            // Determine colors using Tailwind classes
+            const getColorClasses = () => {
+              if (isCompleted || isCurrentStage) {
+                return 'gba:bg-success gba:text-primary-foreground'
+              }
+              return 'gba:bg-muted gba:text-muted-foreground'
             }
 
             // Determine border radius and clip path
@@ -119,6 +98,7 @@ export const StageProgression: React.FC<StageProgressionProps> = ({
 
             const stageElement = (
               <div
+                className={getColorClasses()}
                 style={{
                   position: 'relative',
                   height: defaultStyling.height,
@@ -128,8 +108,6 @@ export const StageProgression: React.FC<StageProgressionProps> = ({
                   justifyContent: 'center',
                   fontSize: defaultStyling.fontSize,
                   fontWeight: defaultStyling.fontWeight,
-                  backgroundColor,
-                  color: textColor,
                   borderRadius,
                   marginRight,
                   clipPath,
