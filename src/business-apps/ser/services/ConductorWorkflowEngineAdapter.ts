@@ -2728,6 +2728,52 @@ export class ConductorWorkflowEngineAdapter implements WorkflowEngine {
       throw new Error(`Failed to get usage analytics: ${error instanceof Error ? error.message : 'Unknown error'}`)
     }
   }
+
+  /**
+   * Get workflow summary with visibility filtering
+   * Uses summaryFields defined in Step 0 to determine what data to show
+   */
+  async getFlowSummary(
+    flowId: string,
+    userId: string
+  ): Promise<{
+    workflowId: string
+    workflowName: string
+    status: string
+    initiator: string
+    createdAt: string
+    completedAt?: string
+    progress?: number
+    summaryData: Array<{
+      label: string
+      value: any
+      type?: string
+      format?: string
+      visibility?: string
+    }>
+  }> {
+    console.log(`[ConductorAdapter] 📊 Getting workflow summary for flow: ${flowId}, user: ${userId}`)
+
+    try {
+      const queryParams = new URLSearchParams()
+      queryParams.append('userId', userId)
+
+      const result = await this.makeRequest(`/flows/${flowId}/summary?${queryParams.toString()}`, {
+        method: 'GET'
+      })
+
+      console.log('[ConductorAdapter] ✅ Flow summary fetched successfully:', {
+        workflowId: result.workflowId,
+        status: result.status,
+        summaryFieldsCount: result.summaryData?.length || 0
+      })
+
+      return result
+    } catch (error) {
+      console.error('[ConductorAdapter] ❌ Error getting flow summary:', error)
+      throw new Error(`Failed to get flow summary: ${error instanceof Error ? error.message : 'Unknown error'}`)
+    }
+  }
 }
 
 /**
