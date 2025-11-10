@@ -9,7 +9,7 @@ export interface LeadStatusChangePopupConfig {
     leadId: string,
     accessToken: string
   ) => {
-    lead: any | null
+    lead: unknown
     loading: boolean
     error: string | null
     refetch?: () => void

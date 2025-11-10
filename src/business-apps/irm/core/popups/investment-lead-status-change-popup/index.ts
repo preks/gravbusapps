@@ -1,5 +1,2 @@
-import InvestmentStatusChangePopup from './InvestmentStatusChangePopup'
-
-export { InvestmentStatusChangePopup }
+export { default as InvestmentStatusChangePopup, default } from './InvestmentStatusChangePopup'
 export type { InvestmentStatusChangePopupProps } from './InvestmentStatusChangePopup'
-export default InvestmentStatusChangePopup

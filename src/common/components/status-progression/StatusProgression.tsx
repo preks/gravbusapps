@@ -20,7 +20,6 @@ export interface StatusProgressionProps {
   leadVersion: number
   accessToken: string
   config: StatusProgressionConfig
-  onStatusUpdate?: () => void
 }
 
 interface StatusIndices {
@@ -258,6 +257,13 @@ const renderActiveStatusBadge = (
   config: StatusProgressionConfig
 ) => {
   const { isConverted, isLost, openIndex, convertedIndex, lostIndex } = indices
+
+  const getBackgroundColor = () => {
+    if (isConverted) return '#4CAF50'
+    if (isLost) return '#f44336'
+    return 'transparent'
+  }
+
   return (
     <AppAction
       contextsArray={[config.flowContextName]}
@@ -283,7 +289,7 @@ const renderActiveStatusBadge = (
           justifyContent: 'center',
           fontSize: '14px',
           fontWeight: '600',
-          backgroundColor: isConverted ? '#4CAF50' : isLost ? '#f44336' : 'transparent',
+          backgroundColor: getBackgroundColor(),
           color: isConverted || isLost ? 'hsl(var(--background))' : 'hsl(var(--muted-foreground))',
           borderRadius: '0 20px 20px 0',
           marginRight: '0',

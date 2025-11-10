@@ -9,7 +9,6 @@ interface StatusProgressionProps {
   leadId: string
   leadVersion: number
   accessToken: string
-  onStatusUpdate?: () => void
 }
 
 export const StatusProgression: React.FC<StatusProgressionProps> = props => {

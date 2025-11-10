@@ -1,5 +1,2 @@
-import LeadStatusChangePopup from './LeadStatusChangePopup'
-
-export { LeadStatusChangePopup }
+export { default as LeadStatusChangePopup, default } from './LeadStatusChangePopup'
 export type { LeadStatusChangePopupProps } from './LeadStatusChangePopup'
-export default LeadStatusChangePopup
