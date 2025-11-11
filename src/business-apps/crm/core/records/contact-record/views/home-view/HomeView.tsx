@@ -77,27 +77,26 @@ export const HomeView: React.FC<HomeViewProps> = ({
             component: AccountSection,
             props: {
               ...props,
-              accounts: contact?.account
-                ? [
-                    {
-                      id: contact.account.id,
-                      name: contact.account.name,
-                      email: contact.account.email,
-                      phone: contact.account.phone,
-                      website: contact.account.website,
-                      legalForm: contact.account.legalForm?.value,
-                      industry: contact.account.industry?.value,
-                      size: contact.account.numberOfEmployees?.value,
-                      revenue: contact.account.annualRevenue?.value,
-                      numberOfEmployees: contact.account.numberOfEmployees,
-                      annualRevenue: contact.account.annualRevenue,
-                      addresses: contact.account.addresses
-                    }
-                  ]
-                : [],
-              address: contact?.account
+              accounts:
+                contact?.accountContacts
+                  ?.map((ac: any) => ({
+                    id: ac.account?.id,
+                    name: ac.account?.name,
+                    email: ac.account?.email,
+                    phone: ac.account?.phone,
+                    website: ac.account?.website,
+                    legalForm: ac.account?.legalForm?.value,
+                    industry: ac.account?.industry?.value,
+                    size: ac.account?.numberOfEmployees?.value,
+                    revenue: ac.account?.annualRevenue?.value,
+                    numberOfEmployees: ac.account?.numberOfEmployees,
+                    annualRevenue: ac.account?.annualRevenue,
+                    addresses: ac.account?.addresses
+                  }))
+                  .filter(Boolean) || [],
+              address: contact?.accountContacts?.[0]?.account
                 ? (() => {
-                    const addresses = contact.account.addresses || []
+                    const addresses = contact.accountContacts[0].account.addresses || []
                     const primaryAddress = addresses.find((addr: any) => addr.addressType === 'PRIMARY_ADDRESS')
                     const address = primaryAddress || addresses[0]
 
@@ -112,17 +111,17 @@ export const HomeView: React.FC<HomeViewProps> = ({
                       : undefined
                   })()
                 : undefined,
-              accountId: contact?.account?.id,
-              recordUrl: contact?.account?.id
+              accountId: contact?.accountContacts?.[0]?.account?.id,
+              recordUrl: contact?.accountContacts?.[0]?.account?.id
                 ? buildPlatformUrl('/platform/crm/account-record', {
-                    accountId: contact.account.id,
+                    accountId: contact.accountContacts[0].account.id,
                     source: 'customer-relations'
                   })
                 : undefined,
               actionButtonProps: {
                 contextsArray: [FlowContextName.customerAccountEntity],
                 externalContextData: {
-                  accountId: contact?.account?.id
+                  accountId: contact?.accountContacts?.[0]?.account?.id
                 },
                 prefixDataTestId: 'contact-account'
               }
@@ -151,7 +150,9 @@ export const HomeView: React.FC<HomeViewProps> = ({
                 department: contact?.department,
                 linkedinUrl: contact?.linkedinUrl,
                 xingUrl: contact?.xingUrl,
-                bio: contact?.bio
+                bio: contact?.bio,
+                academicTitle: contact?.academicTitle,
+                communicationChannels: contact?.communicationChannels
               },
               contactId: contact?.id,
               actionButtonProps: {
@@ -303,7 +304,7 @@ export const HomeView: React.FC<HomeViewProps> = ({
                 prefixDataTestId: 'contact-approval-entity',
                 emptyStateBehavior: 'enable'
               },
-              sectionTitle: getTranslationFromI18nKeyAndLabel('crm.customers.approvals.title', 'Approvals'),
+              sectionTitle: getTranslationFromI18nKeyAndLabel('crm.customers.approvals.title', 'Approval Tasks'),
               'data-testid': 'contact-approvals-section'
             }
           }
@@ -322,6 +323,7 @@ export const HomeView: React.FC<HomeViewProps> = ({
               ...props,
               notes: notes.map(note => ({
                 id: note.id,
+                version: note.version,
                 noteTitle: note.noteTitle,
                 noteText: note.noteText,
                 createdAt: note.createdAt,
@@ -332,7 +334,12 @@ export const HomeView: React.FC<HomeViewProps> = ({
                 ...noteActionProps,
                 emptyStateBehavior: 'enable'
               },
-              noteEntityActionProps: noteActionProps,
+              noteEntityActionProps: {
+                contextsArray: [FlowContextName.customerNoteEntity],
+                externalContextData: { contactId },
+                prefixDataTestId: 'contact-note-entity',
+                emptyStateBehavior: 'enable'
+              },
               'data-testid': 'contact-notes-section'
             }
           }

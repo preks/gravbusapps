@@ -18,5 +18,4 @@ export interface CampaignFormContextValue {
   isLoading: boolean
   error: string | null
   isUpdateMode: boolean
-  campaignTypes: { id: string; label: string }[]
 }

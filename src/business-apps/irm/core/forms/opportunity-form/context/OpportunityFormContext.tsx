@@ -90,6 +90,9 @@ interface InvestmentOpportunityFormContextValue {
   // Static data
   dealTypes: SelectOption[]
 
+  // DealType management
+  isDealTypeLocked: boolean // Whether dealType can be changed
+
   // Pipeline data
   pipelines: SelectOption[]
   pipelineStages: SelectOption[]
@@ -239,13 +242,24 @@ export const OpportunityFormProvider: React.FC<InvestmentOpportunityFormProvider
 
       // Legacy fields
       ownerEmployeeId: '',
-      ownerOrganizationId: '',
-
-      // Apply initial values
-      ...initialValues
+      ownerOrganizationId: ''
     }
 
-    return defaultValues
+    // Extract dealType from external context if provided
+    const additionalData = businessAppContext.additionalData
+    const externalContext = (additionalData as any)?.externalContextData || {}
+    const nested =
+      (additionalData as any)?.psi_taskPayload?.psi_initialParameters ||
+      (additionalData as any)?.psi_initialParameters ||
+      {}
+    const externalDealType = externalContext.dealType || nested.dealType || (additionalData as any)?.dealType
+
+    // Apply values in priority order: externalDealType > initialValues > defaults
+    return {
+      ...defaultValues,
+      ...initialValues,
+      ...(externalDealType && { dealType: externalDealType })
+    }
   })
 
   const [isLoading, setIsLoading] = useState(false)
@@ -864,6 +878,35 @@ export const OpportunityFormProvider: React.FC<InvestmentOpportunityFormProvider
     [onSubmit]
   )
 
+  // Determine if dealType should be locked
+  const isDealTypeLocked = useMemo(() => {
+    // Check if dealType was provided by external context
+    const additionalData = businessAppContext.additionalData
+    const externalContext = (additionalData as any)?.externalContextData || {}
+    const nested =
+      (additionalData as any)?.psi_taskPayload?.psi_initialParameters ||
+      (additionalData as any)?.psi_initialParameters ||
+      {}
+    const hasExternalDealType = !!(externalContext.dealType || nested.dealType || (additionalData as any)?.dealType)
+
+    // Lock if:
+    // 1. DealType provided via external context
+    // 2. Opportunity already has a dealType (update mode)
+    // 3. DealType provided via initialValues (lead conversion)
+    return !!(
+      hasExternalDealType ||
+      (opportunityData && opportunityData.dealType) ||
+      (initialValues?.dealType && formValues.dealType)
+    )
+  }, [businessAppContext.additionalData, opportunityData, initialValues?.dealType, formValues.dealType])
+
+  // Apply opportunityData dealType (update mode)
+  useEffect(() => {
+    if (opportunityData?.dealType && !formValues.dealType) {
+      setFormValues({ dealType: opportunityData.dealType })
+    }
+  }, [opportunityData?.dealType, formValues.dealType, setFormValues])
+
   // Context value
   const contextValue: InvestmentOpportunityFormContextValue = useMemo(
     () => ({
@@ -885,6 +928,9 @@ export const OpportunityFormProvider: React.FC<InvestmentOpportunityFormProvider
 
       // Static data
       dealTypes: DEAL_TYPES,
+
+      // DealType management
+      isDealTypeLocked,
 
       // Pipeline data
       pipelines: pipelineSelectOptions,
@@ -953,6 +999,7 @@ export const OpportunityFormProvider: React.FC<InvestmentOpportunityFormProvider
       investmentDataLoading,
       investmentDataError,
       hideActions,
+      isDealTypeLocked,
       employeePositionsSelectOptions,
       employeePositionsLoading,
       employeePositionsError,

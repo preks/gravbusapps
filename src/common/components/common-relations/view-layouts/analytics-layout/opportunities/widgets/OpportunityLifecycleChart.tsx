@@ -50,7 +50,8 @@ export const OpportunityLifecycleChart: React.FC<OpportunityLifecycleChartProps>
   onTimeFilterChange,
   pipelines,
   selectedPipelineId,
-  onPipelineChange
+  onPipelineChange,
+  moduleColor = 'primary'
 }) => {
   const [visibleLines, setVisibleLines] = React.useState({ opportunitiesCreated: true, opportunitiesWon: true })
   const timeFilterOptions: { key: TimeFilter; label: string }[] = [

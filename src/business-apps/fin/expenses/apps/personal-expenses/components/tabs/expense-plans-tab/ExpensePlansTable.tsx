@@ -22,7 +22,7 @@ import {
   SheetHeader,
   SheetTitle
 } from '@newwork/nw-design-system'
-import { Modal } from 'antd'
+import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@newwork/nw-design-system'
 import { formatDate, getTranslationFromI18nKeyAndLabel } from '@/common/utils/windowUtils'
 import { PiArrowUp, PiArrowDown } from 'react-icons/pi'
 import { AppActionButton } from '@/components/app-action-button/AppActionButton'
@@ -486,7 +486,7 @@ const ExpensePlansTable: React.FC<ExpensePlansTableProps> = React.memo(props => 
                                       }
                                     ]
                                   : []),
-                                ...(record.status === 'APPROVED' || ((record as any)?.expenseRequest?.length ?? 0) > 0
+                                ...(record.status === 'APPROVED'
                                   ? [
                                       {
                                         category: getTranslationFromI18nKeyAndLabel(
@@ -711,7 +711,9 @@ const ExpensePlansTable: React.FC<ExpensePlansTableProps> = React.memo(props => 
                     </select>
                   </div>
                   <div className="gba:flex gba:w-[100px] gba:items-center gba:justify-center gba:text-sm gba:font-medium">
-                    Page {currentPage} of {Math.ceil(totalCount / pageSize)}
+                    {getTranslationFromI18nKeyAndLabel('lowcoder:personal_expenses.page', 'Page')} {currentPage}{' '}
+                    {getTranslationFromI18nKeyAndLabel('lowcoder:personal_expenses.of', 'of')}{' '}
+                    {Math.ceil(totalCount / pageSize)}
                   </div>
                   <div className="gba:flex gba:items-center gba:space-x-2">
                     <Button
@@ -763,7 +765,9 @@ const ExpensePlansTable: React.FC<ExpensePlansTableProps> = React.memo(props => 
                   {`${totalCount} ${getTranslationFromI18nKeyAndLabel('lowcoder:team_expenses_page.dashboard_tab.expense_plans', 'Expense Plans')}`}
                 </div>
                 <div className="gba:flex gba:items-center gba:space-x-2">
-                  <p className="gba:text-sm gba:font-medium">Rows per page</p>
+                  <p className="gba:text-sm gba:font-medium">
+                    {getTranslationFromI18nKeyAndLabel('lowcoder:personal_expenses.rows_per_page', 'Rows per page')}
+                  </p>
                   <select
                     value={pageSize}
                     onChange={e => handlePagination(1, Number(e.target.value))}
@@ -840,7 +844,10 @@ const ExpensePlansTable: React.FC<ExpensePlansTableProps> = React.memo(props => 
                 ? [
                     {
                       id: 'currency',
-                      title: getTranslationFromI18nKeyAndLabel('lowcoder:expense_item_list.currency', 'Currency'),
+                      title: getTranslationFromI18nKeyAndLabel(
+                        'lowcoder:create_expense_item.change_expense_item_container.current_currency_label',
+                        'Currency'
+                      ),
                       filters: currencyFilters
                     }
                   ]
@@ -926,33 +933,41 @@ const ExpensePlansTable: React.FC<ExpensePlansTableProps> = React.memo(props => 
         </SheetContent>
       </Sheet>
 
-      {/* Print Modal */}
-      <Modal
+      {/* Print Dialog using design system */}
+      <Dialog
         open={printModalOpen}
-        title="Print Expense Plan"
-        footer={null}
-        onCancel={() => {
-          setPrintModalOpen(false)
-          setPrintPdfUrl('')
+        onOpenChange={open => {
+          if (!open) {
+            setPrintModalOpen(false)
+            setPrintPdfUrl('')
+          }
         }}
-        width="90vw"
-        style={{ top: 20 }}
-        destroyOnHidden={true}
-        data-testid="print-plan-modal"
       >
-        {printLoading ? (
-          <div className="gba:flex gba:justify-center gba:items-center gba:py-8">
-            <Spinner />
-          </div>
-        ) : (
-          <iframe
-            src={printPdfUrl}
-            style={{ width: '100%', height: 'calc(90vh - 55px)', border: 'none' }}
-            title="Print Preview"
-            data-testid="print-plan-iframe"
-          />
-        )}
-      </Modal>
+        <DialogContent
+          className="gba:!w-[90vw] gba:!max-w-[90vw] gba:!p-0 gba:!rounded-md"
+          style={{ height: '90vh' }}
+          data-testid="print-plan-modal"
+        >
+          <DialogHeader className="gba:p-4">
+            <DialogTitle>
+              {getTranslationFromI18nKeyAndLabel('lowcoder:personal_expenses.print_expense_plan', 'Print Expense Plan')}
+            </DialogTitle>
+          </DialogHeader>
+          {printLoading ? (
+            <div className="gba:flex gba:justify-center gba:items-center gba:py-8">
+              <Spinner />
+            </div>
+          ) : (
+            <iframe
+              src={printPdfUrl}
+              className="gba:w-full gba:border-0"
+              style={{ height: 'calc(90vh - 55px)' }}
+              title="Print Preview"
+              data-testid="print-plan-iframe"
+            />
+          )}
+        </DialogContent>
+      </Dialog>
     </div>
   )
 })

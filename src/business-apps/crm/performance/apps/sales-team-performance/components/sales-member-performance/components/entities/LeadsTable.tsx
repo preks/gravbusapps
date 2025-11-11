@@ -246,7 +246,7 @@ export const LeadsTable: React.FC<LeadsTableProps> = ({
                       <AppActionButton
                         data-testid={`${DATA_TEST_ID_PREFIX}-update-lead-button-${record.id}`}
                         variant="secondary"
-                        contextsArray={[FlowContextName.leadEntity]}
+                        contextsArray={[FlowContextName.customerLeadEntity]}
                         externalContextData={{
                           leadId: record.id
                         }}

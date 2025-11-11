@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react'
+import React from 'react'
 import {
   Label,
   Select,
@@ -8,19 +8,15 @@ import {
   SelectValue,
   Spinner
 } from '@newwork/nw-design-system'
-import { Tags, Info } from 'lucide-react'
-import { useCatalogManagerClient } from '@/common/network/catalogs/useCatalogManagerClient'
-import { CatalogEntry } from '@/common/types/CatalogTypes'
-import { FlowTags } from '../../types'
+import { AppWindow, FolderTree } from 'lucide-react'
+import { FlowTags } from '@/business-apps/flow/types'
 import { getTranslationFromI18nKeyAndLabel } from '@/common/utils/windowUtils'
-
-// Extended interface to handle mixed tag formats
-interface MixedFormatTags extends FlowTags {
-  serviceCategory?: string | string[]
-}
+import { useCatalogLoader } from './hooks/useCatalogLoader'
+import { handleAppChange, handleCategoryChange } from './utils/tagHandlers'
+import { formatCatalogEntry, createCatalogValue } from './utils/catalogFormatters'
 
 interface TagConfigurationProps {
-  tags?: MixedFormatTags
+  tags?: FlowTags
   onTagsChange: (tags: FlowTags) => void
   accessToken: string
   'data-testid'?: string
@@ -32,149 +28,53 @@ export const TagConfiguration: React.FC<TagConfigurationProps> = ({
   accessToken,
   'data-testid': testId = 'tag-configuration'
 }) => {
-  const catalogClient = useCatalogManagerClient(accessToken)
-
-  // State for catalog entries
-  const [appCatalogEntries, setAppCatalogEntries] = useState<CatalogEntry[]>([])
-  const [serviceCategoryEntries, setServiceCategoryEntries] = useState<CatalogEntry[]>([])
-  const [isLoadingApps, setIsLoadingApps] = useState(false)
-  const [isLoadingServiceCategories, setIsLoadingServiceCategories] = useState(false)
-  const [error, setError] = useState<string | null>(null)
-
   // Current tag values - handle both string and array formats
   const selectedApp = tags.app || ''
   const selectedServiceCategory = Array.isArray(tags.serviceCategory)
     ? tags.serviceCategory[0] || ''
     : tags.serviceCategory || ''
+  const selectedDigitalWorkplaceCategory = Array.isArray(tags.digitalWorkplaceCategory)
+    ? tags.digitalWorkplaceCategory[0] || ''
+    : tags.digitalWorkplaceCategory || ''
   const isServicePortalSelected = selectedApp === 'AppCatalog:1:SVC'
+  const isDigitalWorkplaceSelected = selectedApp === 'AppCatalog:1:DWP'
 
-  // Load app catalog entries
-  useEffect(() => {
-    const loadAppCatalog = async () => {
-      try {
-        setIsLoadingApps(true)
-        setError(null)
+  // Load catalogs using the custom hook
+  const {
+    entries: appCatalogEntries,
+    isLoading: isLoadingApps,
+    error: appError
+  } = useCatalogLoader({
+    catalogIdentifier: 'AppCatalog',
+    accessToken,
+    enabled: true
+  })
 
-        const response = await catalogClient.getCatalogEntriesList(
-          { catalogIdentifier: 'AppCatalog', version: '1' },
-          {
-            limit: 100,
-            includeChildCatalogEntries: true,
-            returnTotalRecords: true
-          }
-        )
+  const {
+    entries: serviceCategoryEntries,
+    isLoading: isLoadingServiceCategories,
+    error: serviceCategoryError
+  } = useCatalogLoader({
+    catalogIdentifier: 'ServicePortalCategory',
+    accessToken,
+    enabled: isServicePortalSelected
+  })
 
-        setAppCatalogEntries(response.data || [])
-      } catch (err) {
-        console.error('Error loading app catalog:', err)
-        setError('Failed to load app catalog entries')
-      } finally {
-        setIsLoadingApps(false)
-      }
-    }
+  const {
+    entries: digitalWorkplaceCategoryEntries,
+    isLoading: isLoadingDigitalWorkplaceCategories,
+    error: digitalWorkplaceCategoryError
+  } = useCatalogLoader({
+    catalogIdentifier: 'DigitalWorkplaceFlowCategory',
+    accessToken,
+    enabled: isDigitalWorkplaceSelected
+  })
 
-    if (accessToken) {
-      loadAppCatalog()
-    }
-  }, [accessToken, catalogClient])
-
-  // Load service category catalog entries when service portal is selected
-  useEffect(() => {
-    const loadServiceCategoryCatalog = async () => {
-      if (!isServicePortalSelected) {
-        setServiceCategoryEntries([])
-        return
-      }
-
-      try {
-        setIsLoadingServiceCategories(true)
-        setError(null)
-
-        const response = await catalogClient.getCatalogEntriesList(
-          { catalogIdentifier: 'ServicePortalCategory', version: '1' },
-          {
-            limit: 100,
-            includeChildCatalogEntries: true,
-            returnTotalRecords: true
-          }
-        )
-
-        setServiceCategoryEntries(response.data || [])
-      } catch (err) {
-        console.error('Error loading service category catalog:', err)
-        setError('Failed to load service category entries')
-      } finally {
-        setIsLoadingServiceCategories(false)
-      }
-    }
-
-    if (accessToken && isServicePortalSelected) {
-      loadServiceCategoryCatalog()
-    }
-  }, [accessToken, isServicePortalSelected, catalogClient])
-
-  // Handle app selection change
-  const handleAppChange = (value: string) => {
-    const newTags = { ...tags }
-
-    // Handle clear selection
-    if (value === '__NONE__') {
-      delete newTags.app
-      // Also clear service category if app is cleared
-      if (newTags.serviceCategory) {
-        delete newTags.serviceCategory
-      }
-    } else {
-      newTags.app = value
-      // Clear service category if not service portal
-      if (value !== 'AppCatalog:1:SVC' && newTags.serviceCategory) {
-        delete newTags.serviceCategory
-      }
-    }
-
-    onTagsChange(newTags)
-  }
-
-  // Handle service category change
-  const handleServiceCategoryChange = (value: string) => {
-    const newTags = { ...tags }
-
-    // Handle clear selection
-    if (value === '__NONE__') {
-      delete newTags.serviceCategory
-    } else {
-      // Store as string (preferred format) for compatibility
-      newTags.serviceCategory = value
-    }
-
-    onTagsChange(newTags)
-  }
-
-  // Format catalog entry for display
-  const formatCatalogEntry = (entry: CatalogEntry): string => {
-    return entry.value || entry.code || entry.id
-  }
-
-  // Create catalog entry value (format: CatalogName:Version:Code)
-  const createCatalogValue = (catalogName: string, version: string, code: string): string => {
-    return `${catalogName}:${version}:${code}`
-  }
+  // Combine errors
+  const error = appError || serviceCategoryError || digitalWorkplaceCategoryError
 
   return (
     <div className="gba:space-y-4" data-testid={testId}>
-      <div className="gba:flex gba:items-center gba:gap-2 gba:mb-4">
-        <Tags className="gba:h-4 gba:w-4" />
-        <h3 className="gba:text-sm gba:font-medium">
-          {getTranslationFromI18nKeyAndLabel('flow.creator.tags.title', 'Tags')}
-        </h3>
-        <div className="gba:group gba:relative gba:z-50">
-          <Info className="gba:h-4 gba:w-4 gba:text-gray-400 gba:cursor-help" />
-          <div className="gba:absolute gba:bottom-full gba:left-1/2 gba:transform gba:-translate-x-1/2 gba:mb-2 gba:px-3 gba:py-2 gba:bg-gray-900 gba:text-white gba:text-xs gba:rounded gba:opacity-0 gba:pointer-events-none group-hover:gba:opacity-100 gba:transition-opacity gba:duration-200 gba:z-[100] gba:max-w-xs gba:text-center gba:whitespace-normal">
-            Tags control template visibility in different parts of the application
-          </div>
-        </div>
-      </div>
-
       {error && (
         <div className="gba:p-3 gba:bg-red-50 gba:border gba:border-red-200 gba:rounded-md">
           <p className="gba:text-sm gba:text-red-800">{error}</p>
@@ -183,8 +83,15 @@ export const TagConfiguration: React.FC<TagConfigurationProps> = ({
 
       {/* App Selection */}
       <div className="gba:space-y-2">
-        <Label htmlFor="app-select">{getTranslationFromI18nKeyAndLabel('flow.creator.tags.app', 'Application')}</Label>
-        <Select value={selectedApp || '__NONE__'} onValueChange={handleAppChange} disabled={isLoadingApps}>
+        <Label htmlFor="app-select" className="gba:flex gba:items-center gba:gap-2">
+          <AppWindow className="gba:h-4 gba:w-4" />
+          {getTranslationFromI18nKeyAndLabel('flow.creator.tags.app', 'Application')}
+        </Label>
+        <Select
+          value={selectedApp || '__NONE__'}
+          onValueChange={value => handleAppChange(value, tags, onTagsChange)}
+          disabled={isLoadingApps}
+        >
           <SelectTrigger id="app-select" className="gba:w-full" data-testid={`${testId}-app-select`}>
             <SelectValue placeholder={isLoadingApps ? 'Loading applications...' : 'Select an application'} />
           </SelectTrigger>
@@ -221,12 +128,13 @@ export const TagConfiguration: React.FC<TagConfigurationProps> = ({
       {/* Service Category Selection - Only shown when Service Portal is selected */}
       {isServicePortalSelected && (
         <div className="gba:space-y-2">
-          <Label htmlFor="service-category-select">
+          <Label htmlFor="service-category-select" className="gba:flex gba:items-center gba:gap-2">
+            <FolderTree className="gba:h-4 gba:w-4" />
             {getTranslationFromI18nKeyAndLabel('flow.creator.tags.serviceCategory', 'Service Category')}
           </Label>
           <Select
             value={selectedServiceCategory || '__NONE__'}
-            onValueChange={handleServiceCategoryChange}
+            onValueChange={value => handleCategoryChange(value, 'serviceCategory', tags, onTagsChange)}
             disabled={isLoadingServiceCategories}
           >
             <SelectTrigger
@@ -260,6 +168,65 @@ export const TagConfiguration: React.FC<TagConfigurationProps> = ({
                   key={entry.id}
                   value={createCatalogValue('ServicePortalCategory', '1', entry.code)}
                   data-testid={`${testId}-service-category-option-${entry.code}`}
+                >
+                  {formatCatalogEntry(entry)}
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+        </div>
+      )}
+
+      {/* Digital Workplace Category Selection - Only shown when Digital Workplace is selected */}
+      {isDigitalWorkplaceSelected && (
+        <div className="gba:space-y-2">
+          <Label htmlFor="digital-workplace-category-select" className="gba:flex gba:items-center gba:gap-2">
+            <FolderTree className="gba:h-4 gba:w-4" />
+            {getTranslationFromI18nKeyAndLabel(
+              'flow.creator.tags.digitalWorkplaceCategory',
+              'Digital Workplace Category'
+            )}
+          </Label>
+          <Select
+            value={selectedDigitalWorkplaceCategory || '__NONE__'}
+            onValueChange={value => handleCategoryChange(value, 'digitalWorkplaceCategory', tags, onTagsChange)}
+            disabled={isLoadingDigitalWorkplaceCategories}
+          >
+            <SelectTrigger
+              id="digital-workplace-category-select"
+              className="gba:w-full"
+              data-testid={`${testId}-digital-workplace-category-select`}
+            >
+              <SelectValue
+                placeholder={
+                  isLoadingDigitalWorkplaceCategories
+                    ? 'Loading digital workplace categories...'
+                    : 'Select a digital workplace category'
+                }
+              />
+            </SelectTrigger>
+            <SelectContent>
+              {/* Clear selection option */}
+              <SelectItem value="__NONE__">
+                <span className="gba:text-gray-500">None selected</span>
+              </SelectItem>
+
+              {/* Loading state */}
+              {isLoadingDigitalWorkplaceCategories && (
+                <SelectItem value="__LOADING__" disabled>
+                  <div className="gba:flex gba:items-center gba:gap-2">
+                    <Spinner size="sm" />
+                    <span>Loading digital workplace categories...</span>
+                  </div>
+                </SelectItem>
+              )}
+
+              {/* Digital workplace category options */}
+              {digitalWorkplaceCategoryEntries.map(entry => (
+                <SelectItem
+                  key={entry.id}
+                  value={createCatalogValue('DigitalWorkplaceFlowCategory', '1', entry.code)}
+                  data-testid={`${testId}-digital-workplace-category-option-${entry.code}`}
                 >
                   {formatCatalogEntry(entry)}
                 </SelectItem>

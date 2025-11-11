@@ -9,8 +9,6 @@ import OwnerSelector from './OwnerSelector'
 import LeadInformationSection from './LeadInformationSection'
 import ContactInformationSection from './ContactInformationSection'
 import CompanyInformationSection from './CompanyInformationSection'
-import AddressInformationSection from './AddressInformationSection'
-import DescriptionSection from './DescriptionSection'
 
 const prefixDataTestId = 'LeadForm'
 
@@ -44,16 +42,25 @@ const LeadFormComponent: React.FC = () => {
       // Prepare comprehensive lead payload following the API structure
       const leadPayload: any = {
         sourceApp: 'CRM',
+
+        // Lead Information
         leadRatingRef: toStringOrUndefined(formValues.rating),
         leadStatusRef: toStringOrUndefined(formValues.leadStatus),
         leadSourceRef: toStringOrUndefined(formValues.leadSource),
+
+        // Contact Information
+        academicTitleRef: toStringOrUndefined(formValues.academicTitle),
+        salutation: toStringOrUndefined(formValues.salutation), // ✅ ADDED - was missing
         firstName: toStringOrUndefined(formValues.firstName),
         lastName: toStringOrUndefined(formValues.lastName),
         phoneNumber: toStringOrUndefined(formValues.phone),
         email: toStringOrUndefined(formValues.email),
         position: toStringOrUndefined(formValues.jobPosition),
+        sensitive: formValues.sensitive,
+
+        // Company Information
         companyName: toStringOrUndefined(formValues.company),
-        accountId: toStringOrUndefined(formValues.accountId), // Include accountId from selected company
+        accountId: toStringOrUndefined(formValues.accountId), // Database column: accountId (uuid)
         salesCampaign: toStringOrUndefined(formValues.salesCampaignId),
         legalFormRef: toStringOrUndefined(formValues.legalForm),
         numberOfEmployeesRef: toStringOrUndefined(formValues.numberOfEmployees),
@@ -62,14 +69,23 @@ const LeadFormComponent: React.FC = () => {
         companyEmail: toStringOrUndefined(formValues.companyEmail),
         companyPhone: toStringOrUndefined(formValues.companyPhone),
         companyWebsite: toStringOrUndefined(formValues.website),
+        timeZoneRef: toStringOrUndefined(formValues.timeZone),
+
+        // Address Information
         countryRef: toStringOrUndefined(formValues.country),
         regionRef: toStringOrUndefined(formValues.region),
         addressLine: undefined, // Will be set from addresses array below
         postalCode: toStringOrUndefined(formValues.postalCode),
         city: toStringOrUndefined(formValues.city),
+
+        // Owner Information
         ownerEmployee: toStringOrUndefined(formValues.owner),
-        description: toStringOrUndefined(formValues.notes), // Fixed: Use notes field from DescriptionSection
-        sensitive: formValues.sensitive
+
+        // Description
+        description: toStringOrUndefined(formValues.notes),
+
+        // ✅ ADDED: Additional properties (JSONB field)
+        additionalProperties: {}
       }
 
       // Customer Leads: API expects addressLine as string
@@ -131,9 +147,38 @@ const LeadFormComponent: React.FC = () => {
       leadPayload.addressLine = addressString || null
       leadPayload.addresses = addresses.length > 0 ? addresses : null
 
-      // Initialize empty arrays for tags and communication channels (like account form)
+      // Initialize empty arrays for tags
       leadPayload.tags = []
-      leadPayload.communicationChannels = []
+
+      // Add communication channels for LinkedIn and Xing (like IRM)
+      const communicationChannels = []
+
+      // Add LinkedIn communication channel if provided
+      if (formValues.linkedinUrl?.trim()) {
+        communicationChannels.push({
+          communicationChannelRef: 'CommunicationChannel:v1:LinkedIn',
+          value: formValues.linkedinUrl.trim(),
+          valueExtension: null,
+          source: 'FORM_INPUT',
+          activeFrom: new Date().toISOString(),
+          activeTo: null
+        })
+      }
+
+      // Add Xing communication channel if provided
+      if (formValues.xingUrl?.trim()) {
+        communicationChannels.push({
+          communicationChannelRef: 'CommunicationChannel:v1:Xing',
+          value: formValues.xingUrl.trim(),
+          valueExtension: null,
+          source: 'FORM_INPUT',
+          activeFrom: new Date().toISOString(),
+          activeTo: null
+        })
+      }
+
+      // Add communication channels to payload if any exist
+      leadPayload.communicationChannels = communicationChannels
 
       // Use UPDATE mode if editing existing lead, INSERT for new lead
       const changeMode = formValues.id ? 'UPDATE' : 'INSERT'
@@ -199,12 +244,6 @@ const LeadFormComponent: React.FC = () => {
 
           {/* Company Information Section */}
           <CompanyInformationSection />
-
-          {/* Address Information Section */}
-          <AddressInformationSection />
-
-          {/* Description Section */}
-          <DescriptionSection />
 
           {/* Error Display */}
           {error && (

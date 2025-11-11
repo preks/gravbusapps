@@ -1,8 +1,12 @@
 import React, { useEffect, useMemo, useRef, useState, useCallback } from 'react'
 import { BusinessAppContextProps } from '@/common/BusinessAppContext'
-import { getTranslationFromI18nKeyAndLabel, formatDateToISO } from '@/common/utils/windowUtils'
+import {
+  getTranslationFromI18nKeyAndLabel,
+  formatDateToISO,
+  getCurrentActiveUserLocale
+} from '@/common/utils/windowUtils'
 import FormHeader from '../components/FormHeader'
-import { FileUpload, FormField, FormItem } from '@newwork/nw-design-system'
+import { FileUpload, FormField, FormItem, LocalizationProvider } from '@newwork/nw-design-system'
 import flowIconUrl from '@/assets/icons/flowSmall.svg'
 import { ChangePersonalDataProvider, useChangePersonalData } from './ChangePersonalDataContext'
 import { useForm } from 'react-hook-form'
@@ -322,7 +326,7 @@ const ChangePersonalDataContent: React.FC<BusinessAppContextProps> = ({ accessTo
         >
           <div className="gba:flex-1 gba:space-y-4" data-testid="change-personal-data-groups">
             {/* Group 1: Names */}
-            <NamesGroup control={form.control} catalogs={{ salutation: catalogSalutation }} />
+            <NamesGroup control={form.control} catalogs={{ salutation: catalogSalutation }} setValue={form.setValue} />
 
             {/* Group 2: Birth and Gender (includes DOB & Place) */}
             <BirthAndGenderGroup control={form.control} catalogs={{ gender: catalogs.gender }} />
@@ -369,12 +373,13 @@ const ChangePersonalDataContent: React.FC<BusinessAppContextProps> = ({ accessTo
 }
 
 export const ChangePersonalData: React.FC<BusinessAppContextProps> = context => {
+  const locale = useMemo(() => getCurrentActiveUserLocale(), [])
   return (
-    <>
+    <LocalizationProvider locale={locale as any}>
       <ChangePersonalDataProvider {...context}>
         <ChangePersonalDataContent {...context} />
       </ChangePersonalDataProvider>
-    </>
+    </LocalizationProvider>
   )
 }
 

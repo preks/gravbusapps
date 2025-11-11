@@ -143,7 +143,7 @@ const transformSalesTaskToTask = (salesTask: SalesTask): Task | null => {
     department: '', // No department data available from GraphQL
     initials:
       `${(salesTask.assignedEmployee?.firstName || 'U').charAt(0)}${(salesTask.assignedEmployee?.lastName || 'U').charAt(0)}`.toUpperCase(),
-    avatar: salesTask.assignedEmployee?.pictureThumbnail || undefined
+    pictureThumbnail: salesTask.assignedEmployee?.pictureThumbnail || undefined
   }
 
   return {
@@ -175,7 +175,7 @@ const transformSalesTaskToTask = (salesTask: SalesTask): Task | null => {
           department: '', // No department data available from GraphQL
           initials:
             `${(salesTask.creatorEmployee.firstName || 'U').charAt(0)}${(salesTask.creatorEmployee.lastName || 'U').charAt(0)}`.toUpperCase(),
-          avatar: salesTask.creatorEmployee.pictureThumbnail || undefined
+          pictureThumbnail: salesTask.creatorEmployee.pictureThumbnail || undefined
         }
       : undefined,
     documents: salesTask.documents?.map(doc => ({

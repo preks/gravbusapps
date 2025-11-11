@@ -1,124 +1,160 @@
 import React from 'react'
-import { WidgetGroup, WidgetItem } from '@/components/widget-group'
-import { TaskStatistics as TaskStatisticsType } from '@/common/components/common-relations/detail-sheets/task-detail-sheet'
-import { UserOutlined, ClockCircleOutlined, CheckCircleOutlined, WarningOutlined } from '@ant-design/icons'
+import { Card } from '@newwork/nw-design-system'
+import { User, Clock, CheckCircle, AlertTriangle, Users } from 'lucide-react'
+
+interface TaskStatisticsData {
+  totalTasks: { value: number }
+  inProgress: { value: number }
+  completed: { value: number }
+  overdue: { value: number }
+}
 
 interface TaskStatisticsProps {
-  statistics: TaskStatisticsType
+  statistics?: TaskStatisticsData
+  myTasksStatistics?: TaskStatisticsData
+  teamTasksStatistics?: TaskStatisticsData
   isLoading?: boolean
   error?: Error | null
   onRetry?: () => void
 }
 
-const TaskStatistics: React.FC<TaskStatisticsProps> = ({ statistics, isLoading = false, error = null, onRetry }) => {
-  // Helper function to format trend percentage with proper sign
-  const formatTrendPercent = (growth?: number): string => {
-    if (growth === undefined || growth === null) return '0.0%'
-    const sign = growth >= 0 ? '+' : ''
-    return `${sign}${growth.toFixed(1)}%`
+// Moved outside parent component to fix S6478
+const StatItem = ({
+  icon,
+  label,
+  value,
+  colorClass
+}: {
+  icon: React.ReactNode
+  label: string
+  value: number
+  colorClass: string
+}) => (
+  <div className="gba:flex gba:flex-col gba:items-center gba:text-center gba:px-2">
+    <div className="gba:flex gba:items-center gba:gap-1 gba:mb-1">
+      {icon}
+      <span className={`gba:text-2xl gba:font-bold ${colorClass}`}>{value}</span>
+    </div>
+    <span className="gba:text-xs gba:text-gray-600 gba:leading-tight">{label}</span>
+  </div>
+)
+
+// Moved outside parent component to fix S6478
+const LoadingSkeleton = () => (
+  <div className="gba:animate-pulse">
+    <div className="gba:h-6 gba:bg-gray-200 gba:rounded gba:mb-4"></div>
+    <div className="gba:grid gba:grid-cols-4 gba:gap-4">
+      {Array.from({ length: 4 }, (_, i) => `skeleton-${i}`).map(key => (
+        <div key={key} className="gba:flex gba:flex-col gba:items-center gba:text-center gba:px-2">
+          <div className="gba:flex gba:items-center gba:gap-1 gba:mb-1">
+            <div className="gba:w-5 gba:h-5 gba:bg-gray-200 gba:rounded"></div>
+            <div className="gba:w-8 gba:h-8 gba:bg-gray-200 gba:rounded"></div>
+          </div>
+          <div className="gba:w-16 gba:h-3 gba:bg-gray-200 gba:rounded"></div>
+        </div>
+      ))}
+    </div>
+  </div>
+)
+
+// Moved outside parent component to fix S6478
+const ErrorContent = ({ onRetry }: { onRetry?: () => void }) => (
+  <div className="gba:flex gba:items-center gba:justify-center gba:h-full gba:min-h-[120px]">
+    <div className="gba:text-center gba:text-red-500">
+      <p>Error loading statistics</p>
+      {onRetry && (
+        <button
+          onClick={onRetry}
+          className="gba:mt-2 gba:px-4 gba:py-2 gba:bg-black gba:text-white gba:rounded gba:hover:bg-gray-800"
+        >
+          Retry
+        </button>
+      )}
+    </div>
+  </div>
+)
+
+// Moved outside parent component to fix S6478
+const DataContent = ({
+  title,
+  icon,
+  statistics
+}: {
+  title: string
+  icon: React.ReactNode
+  statistics: TaskStatisticsData
+}) => (
+  <>
+    <div className="gba:flex gba:items-center gba:gap-2 gba:mb-4">
+      {icon}
+      <h3 className="gba:text-lg gba:font-semibold gba:text-gray-800">{title}</h3>
+    </div>
+    <div className="gba:grid gba:grid-cols-4 gba:gap-4">
+      <StatItem
+        icon={<User className="gba:text-info" />}
+        label="Total Tasks"
+        value={statistics.totalTasks.value}
+        colorClass="gba:text-info"
+      />
+      <StatItem
+        icon={<Clock className="gba:text-warning" />}
+        label="In Progress"
+        value={statistics.inProgress.value}
+        colorClass="gba:text-warning"
+      />
+      <StatItem
+        icon={<CheckCircle className="gba:text-success" />}
+        label="Completed"
+        value={statistics.completed.value}
+        colorClass="gba:text-success"
+      />
+      <StatItem
+        icon={<AlertTriangle className="gba:text-destructive" />}
+        label="Overdue"
+        value={statistics.overdue.value}
+        colorClass="gba:text-destructive"
+      />
+    </div>
+  </>
+)
+
+const TaskStatistics: React.FC<TaskStatisticsProps> = ({
+  statistics,
+  myTasksStatistics,
+  teamTasksStatistics,
+  isLoading = false,
+  error = null,
+  onRetry
+}) => {
+  const renderCardContent = (title: string, icon: React.ReactNode, data?: TaskStatisticsData) => {
+    if (isLoading) return <LoadingSkeleton />
+    if (error) return <ErrorContent onRetry={onRetry} />
+    if (!data) return <LoadingSkeleton /> // Guard against undefined statistics
+    return <DataContent title={title} icon={icon} statistics={data} />
   }
 
-  // Helper function to determine if trend is positive (with special logic for overdue)
-  const isTrendPositive = (growthDirection?: 'up' | 'down' | 'stable', key?: string): boolean => {
-    if (!growthDirection || growthDirection === 'stable') return false
-
-    // For overdue tasks, down trend is positive (fewer overdue tasks is good)
-    if (key === 'overdue') {
-      return growthDirection === 'down'
-    }
-
-    // For completed tasks, up trend is positive
-    if (key === 'completed') {
-      return growthDirection === 'up'
-    }
-
-    // For total and in-progress, up trend is generally positive
-    return growthDirection === 'up'
+  // Support both old single statistics prop and new split props
+  const myTasks = myTasksStatistics || statistics
+  // For now, if teamTasks not provided, show empty state or the same stats
+  // TODO: Hook should be updated to fetch team tasks separately
+  const teamTasks = teamTasksStatistics || {
+    totalTasks: { value: 0 },
+    inProgress: { value: 0 },
+    completed: { value: 0 },
+    overdue: { value: 0 }
   }
-
-  // Transform the statistics data into widgets format with trend information
-  const widgets: WidgetItem[] = [
-    {
-      key: 'total-tasks',
-      title: 'Total Tasks',
-      value: statistics.totalTasks.value,
-      prefix: <UserOutlined />,
-      color: '#1890ff',
-      span: { xs: 24, sm: 12, lg: 6 },
-      description: 'All tasks in the system',
-      trend:
-        statistics.totalTasks.growth !== undefined
-          ? {
-              value: formatTrendPercent(statistics.totalTasks.growth),
-              positive: isTrendPositive(statistics.totalTasks.growthDirection, 'total-tasks'),
-              description: 'vs 30 days ago'
-            }
-          : undefined
-    },
-    {
-      key: 'in-progress',
-      title: 'In Progress',
-      value: statistics.inProgress.value,
-      prefix: <ClockCircleOutlined />,
-      color: '#fa8c16',
-      span: { xs: 24, sm: 12, lg: 6 },
-      description: 'Currently being worked on',
-      trend:
-        statistics.inProgress.growth !== undefined
-          ? {
-              value: formatTrendPercent(statistics.inProgress.growth),
-              positive: isTrendPositive(statistics.inProgress.growthDirection, 'in-progress'),
-              description: 'vs 30 days ago'
-            }
-          : undefined
-    },
-    {
-      key: 'completed',
-      title: 'Completed',
-      value: statistics.completed.value,
-      prefix: <CheckCircleOutlined />,
-      color: '#52c41a',
-      span: { xs: 24, sm: 12, lg: 6 },
-      description: 'Successfully finished',
-      trend:
-        statistics.completed.growth !== undefined
-          ? {
-              value: formatTrendPercent(statistics.completed.growth),
-              positive: isTrendPositive(statistics.completed.growthDirection, 'completed'),
-              description: 'vs 30 days ago'
-            }
-          : undefined
-    },
-    {
-      key: 'overdue',
-      title: 'Overdue',
-      value: statistics.overdue.value,
-      prefix: <WarningOutlined />,
-      color: '#ff4d4f',
-      span: { xs: 24, sm: 12, lg: 6 },
-      description: 'Past due date',
-      trend:
-        statistics.overdue.growth !== undefined
-          ? {
-              value: formatTrendPercent(statistics.overdue.growth),
-              positive: isTrendPositive(statistics.overdue.growthDirection, 'overdue'),
-              description: 'vs 30 days ago'
-            }
-          : undefined
-    }
-  ]
 
   return (
-    <div data-testid="task-statistics-container">
-      <WidgetGroup
-        widgets={widgets}
-        isLoading={isLoading}
-        error={error}
-        onRetry={onRetry}
-        skeletonCount={4}
-        emptyText="No task statistics available."
-        data-testid="task-statistics"
-      />
+    <div data-testid="task-statistics-container" className="gba:flex gba:gap-4 gba:mb-6">
+      {/* My Tasks Card */}
+      <Card className="gba:flex-1 gba:p-6 gba:min-h-[160px]">
+        {renderCardContent('My Tasks', <User className="gba:text-blue-500" />, myTasks)}
+      </Card>
+
+      {/* Team Tasks Card */}
+      <Card className="gba:flex-1 gba:p-6 gba:min-h-[160px]">
+        {renderCardContent('Team Tasks', <Users className="gba:text-blue-500" />, teamTasks)}
+      </Card>
     </div>
   )
 }

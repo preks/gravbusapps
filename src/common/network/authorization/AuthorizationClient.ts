@@ -18,6 +18,20 @@ export interface CheckPermissionsResponseDTO {
   permissions: Record<string, boolean>
 }
 
+// Define the scope permission response structure
+export interface ScopePermission {
+  id: string
+  code: string
+  name: string
+  description: string | null
+  name_i18n: Record<string, string>
+  description_i18n: Record<string, string>
+  resourceUrlId: string
+  roles: Array<{ name: string }>
+  createdAt: string
+  updatedAt: string
+}
+
 /**
  * Client for interacting with the Authorization API
  */
@@ -76,6 +90,110 @@ export class AuthorizationClient extends RestClient {
    */
   public async bulkCheckPermissions(requests: CheckPermissionsRequestDTO[]): Promise<CheckPermissionsResponseDTO[]> {
     return this.post<CheckPermissionsResponseDTO[]>('/api/v1/permissions/bulk-check', requests)
+  }
+
+  /**
+   * Get scopes/permissions for a resource URL
+   * @param resourceUrl - The resource URL path (e.g., '/platform/employee-record')
+   * @returns Array of scope permissions
+   */
+  public async getScopePermissions(resourceUrl: string): Promise<ScopePermission[]> {
+    const rootBaseUrl = env('NEXT_PUBLIC_BASE_URL') || ''
+    const url = new URL(`${rootBaseUrl}/navigation/api/v1/scopes/permissions`)
+    url.searchParams.append('url', resourceUrl)
+
+    const response = await fetch(url.toString(), {
+      method: 'GET',
+      headers: {
+        ...this.headers,
+        'Content-Type': 'application/json'
+      },
+      credentials: 'same-origin',
+      mode: 'cors'
+    })
+
+    if (!response.ok) {
+      let errorMessage = `HTTP error! status: ${response.status}`
+      const responseClone = response.clone()
+      try {
+        const errorData = await response.json()
+        errorMessage = errorData.message || errorData.error || errorMessage
+      } catch {
+        try {
+          const errorText = await responseClone.text()
+          errorMessage = errorText || response.statusText || errorMessage
+        } catch {
+          errorMessage = response.statusText || errorMessage
+        }
+      }
+      throw new Error(`REST request failed: ${response.status} - ${errorMessage}`)
+    }
+
+    return await response.json()
+  }
+
+  /**
+   * Get current user's roles from the access token
+   * The token is a JWT that may contain role information
+   */
+  private getUserRolesFromToken(): string[] {
+    try {
+      const token = this.headers['Authorization']?.replace('Bearer ', '') || ''
+      if (!token) return []
+
+      const parts = token.split('.')
+      if (parts.length !== 3) return []
+
+      const payload = JSON.parse(atob(parts[1].replace(/-/g, '+').replace(/_/g, '/')))
+
+      const roles: string[] = []
+      if (payload.realm_access?.roles) {
+        roles.push(...payload.realm_access.roles)
+      }
+      if (payload.resource_access) {
+        Object.values(payload.resource_access).forEach((resource: any) => {
+          if (resource.roles) {
+            roles.push(...resource.roles)
+          }
+        })
+      }
+      if (payload.roles) {
+        roles.push(...payload.roles)
+      }
+      if (payload.role) {
+        roles.push(payload.role)
+      }
+
+      return roles
+    } catch {
+      return []
+    }
+  }
+
+  /**
+   * Check if a specific scope code exists for a resource URL AND if the current user has access to it
+   * The API returns all scopes for a resource URL, so we must check if the current user's roles
+   * match the roles required by the scope.
+   * @param resourceUrl - The resource URL path (e.g., '/platform/employee-record')
+   * @param scopeCode - The scope code to check (e.g., 'employee-record-notes')
+   * @returns True if the scope exists AND the user has one of the required roles
+   */
+  public async hasScopePermission(resourceUrl: string, scopeCode: string): Promise<boolean> {
+    try {
+      const scopes = await this.getScopePermissions(resourceUrl)
+      const scope = scopes.find(s => s.code === scopeCode)
+
+      if (!scope) {
+        return false
+      }
+
+      const userRoles = this.getUserRolesFromToken()
+      const requiredRoleNames = scope.roles.map(r => r.name)
+      return requiredRoleNames.some(roleName => userRoles.includes(roleName))
+    } catch (error) {
+      console.error('Error checking scope permission:', error)
+      return false
+    }
   }
 }
 

@@ -3,12 +3,12 @@ import { buildPlatformUrl } from '@/common/utils/navigationUtils'
 import { getTranslationFromI18nKeyAndLabel } from '@/common/utils/windowUtils'
 import { FlowContextName } from '@/common/types/FlowRegistryTypes'
 import type { TaskReference } from '@/common/components/common-relations/detail-sheets/task-detail-sheet'
+import AccountSection from '@/common/components/common-relations/record-sections/account-section/AccountSection'
+import ContactSection from '@/common/components/common-relations/record-sections/contact-section/ContactSection'
 import ActivitySection from '@/common/components/common-relations/record-sections/activity-section/ActivitySection'
 import NoteSection from '@/common/components/common-relations/record-sections/note-section/NoteSection'
 import TaskSection from '@/common/components/common-relations/record-sections/task-section/TaskSection'
 import SectionWrapper from '@/common/components/common-relations/record-sections/section-card/SectionCard'
-import { CompanyInfoCard } from './components/CompanyInfoCard'
-import { ContactInfoCard } from './components/ContactInfoCard'
 import type { HomeViewProps } from './types'
 import { transformTaskOrApproval } from './utils'
 
@@ -47,39 +47,92 @@ export const HomeView: React.FC<HomeViewProps> = ({
 }) => {
   return (
     <>
-      {/* Company Information Card - 1/3 width */}
-      <div
-        className="gba:col-span-1 gba:sm:col-span-3 gba:md:col-span-4 gba:lg:col-span-4"
-        data-testid="lead-company-info-wrapper"
-      >
-        <CompanyInfoCard
-          companyName={rawLeadData?.companyName}
-          industry={rawLeadData?.industry?.value}
-          numberOfEmployees={rawLeadData?.numberOfEmployees?.value}
-          annualRevenue={rawLeadData?.annualRevenue?.value}
-          companyWebsite={rawLeadData?.companyWebsite}
-          addressLine={rawLeadData?.addressLine}
-          city={rawLeadData?.city}
-          postalCode={rawLeadData?.postalCode}
-          state={typeof rawLeadData?.state === 'string' ? rawLeadData.state : rawLeadData?.state?.value}
-          country={typeof rawLeadData?.country === 'string' ? rawLeadData.country : rawLeadData?.country?.value}
-        />
-      </div>
+      {/* Account Section - 1/3 width */}
+      <SectionWrapper
+        className="gba:col-span-1 gba:sm:col-span-3 gba:md:col-span-4 gba:lg:col-span-4 gba:row-span-1"
+        sections={[
+          {
+            id: 'account-section',
+            component: AccountSection,
+            props: {
+              ...props,
+              accessToken,
+              account: rawLeadData
+                ? {
+                    name: rawLeadData.companyName,
+                    email: rawLeadData.companyEmail,
+                    phone: rawLeadData.companyPhone,
+                    website: rawLeadData.companyWebsite,
+                    legalForm: rawLeadData.legalForm?.value || rawLeadData.legalForm?.code || rawLeadData.legalForm,
+                    industry: rawLeadData.industry?.value || rawLeadData.industry?.code || rawLeadData.industry,
+                    size:
+                      rawLeadData.numberOfEmployees?.value ||
+                      rawLeadData.numberOfEmployees?.code ||
+                      rawLeadData.numberOfEmployees,
+                    revenue: rawLeadData.annualRevenue?.value || rawLeadData.annualRevenue?.code,
+                    numberOfEmployees: rawLeadData.numberOfEmployees,
+                    annualRevenue: rawLeadData.annualRevenue
+                  }
+                : {
+                    name: getTranslationFromI18nKeyAndLabel('crm.account.companyName', 'Company Name'),
+                    email: null,
+                    phone: null,
+                    website: null,
+                    legalForm: null,
+                    industry: null,
+                    size: null,
+                    revenue: null,
+                    numberOfEmployees: null
+                  },
+              address:
+                rawLeadData && rawLeadData.addresses && rawLeadData.addresses.length > 0
+                  ? {
+                      addressLine: rawLeadData.addresses[0].addressLine,
+                      postalCode: rawLeadData.addresses[0].postalCode,
+                      locality: rawLeadData.addresses[0].city,
+                      country:
+                        typeof rawLeadData.addresses[0].country === 'string'
+                          ? rawLeadData.addresses[0].country
+                          : rawLeadData.addresses[0].country?.value,
+                      region:
+                        typeof rawLeadData.addresses[0].region === 'string'
+                          ? rawLeadData.addresses[0].region
+                          : rawLeadData.addresses[0].region?.value
+                    }
+                  : undefined
+            }
+          }
+        ]}
+        data-testid="lead-account-section-wrapper"
+      />
 
-      {/* Contact Information Card - 1/3 width */}
-      <div
-        className="gba:col-span-1 gba:sm:col-span-3 gba:md:col-span-4 gba:lg:col-span-4"
-        data-testid="lead-contact-info-wrapper"
-      >
-        <ContactInfoCard
-          firstName={rawLeadData?.firstName}
-          lastName={rawLeadData?.lastName}
-          email={rawLeadData?.email}
-          phoneNumber={rawLeadData?.phoneNumber}
-          position={rawLeadData?.position || rawLeadData?.jobTitle}
-          department={rawLeadData?.department}
-        />
-      </div>
+      {/* Contact Section - 1/3 width */}
+      <SectionWrapper
+        className="gba:col-span-1 gba:sm:col-span-3 gba:md:col-span-4 gba:lg:col-span-4 gba:row-span-1"
+        sections={[
+          {
+            id: 'contact-section',
+            component: ContactSection,
+            props: {
+              ...props,
+              accessToken,
+              contact: rawLeadData
+                ? {
+                    firstName: rawLeadData.firstName,
+                    lastName: rawLeadData.lastName,
+                    email: rawLeadData.email,
+                    phone: rawLeadData.phoneNumber,
+                    jobTitle: rawLeadData.position || rawLeadData.jobTitle,
+                    academicTitle: rawLeadData.academicTitle?.value || rawLeadData.academicTitle?.code,
+                    salutation: rawLeadData.salutation?.value || rawLeadData.salutation?.code,
+                    communicationChannels: rawLeadData.communicationChannels
+                  }
+                : undefined
+            }
+          }
+        ]}
+        data-testid="lead-contact-section-wrapper"
+      />
 
       {/* Activities Section - 1/3 width, full height */}
       <SectionWrapper
@@ -122,6 +175,7 @@ export const HomeView: React.FC<HomeViewProps> = ({
             props: {
               ...props,
               accessToken,
+              leadId: leadId,
               buildReferenceUrl,
               tasks: tasks.map((task: any) =>
                 transformTaskOrApproval(
@@ -138,16 +192,17 @@ export const HomeView: React.FC<HomeViewProps> = ({
                 externalContextData: { leadId },
                 prefixDataTestId: 'lead-task-entity',
                 emptyStateBehavior: 'enable'
-              }
+              },
+              'data-testid': 'lead-tasks-section'
             }
           },
           {
-            id: 'approval-tasks-section',
+            id: 'approvals-section',
             component: TaskSection,
             props: {
               ...props,
               accessToken,
-              sectionTitle: 'Approval Tasks',
+              leadId: leadId,
               buildReferenceUrl,
               tasks: approvals.map((approval: any) =>
                 transformTaskOrApproval(
@@ -155,25 +210,27 @@ export const HomeView: React.FC<HomeViewProps> = ({
                   getTranslationFromI18nKeyAndLabel('crm.common.untitledApproval', 'Approval Request')
                 )
               ),
+              taskActionProps: {
+                ...approvalActionProps,
+                emptyStateBehavior: 'enable'
+              },
               taskEntityActionProps: {
                 contextsArray: [FlowContextName.customerTaskEntity],
                 externalContextData: { leadId },
                 prefixDataTestId: 'lead-approval-entity',
                 emptyStateBehavior: 'enable'
               },
-              taskActionProps: {
-                ...approvalActionProps,
-                emptyStateBehavior: 'enable'
-              }
+              sectionTitle: getTranslationFromI18nKeyAndLabel('crm.customers.approvals.title', 'Approval Tasks'),
+              'data-testid': 'lead-approvals-section'
             }
           }
         ]}
         data-testid="lead-tasks-approvals-section-wrapper"
       />
 
-      {/* Notes Section - 2/3 width, spans 2 rows */}
+      {/* Notes Section - 2/3 width, spans 3 rows */}
       <SectionWrapper
-        className="gba:col-span-1 gba:sm:col-span-3 gba:md:col-span-8 gba:lg:col-span-8 gba:row-span-2"
+        className="gba:col-span-1 gba:sm:col-span-3 gba:md:col-span-8 gba:lg:col-span-8 gba:row-span-3"
         sections={[
           {
             id: 'notes-section',
@@ -183,6 +240,7 @@ export const HomeView: React.FC<HomeViewProps> = ({
               accessToken,
               notes: notes.map((note: any) => ({
                 id: note.id,
+                version: note.version,
                 noteTitle:
                   note.title ||
                   note.displayName ||
@@ -194,13 +252,20 @@ export const HomeView: React.FC<HomeViewProps> = ({
                   note.authorEmployee?.displayName ||
                   getTranslationFromI18nKeyAndLabel('crm.common.unknown', 'Unknown'),
                 authorEmployee: note.authorEmployee,
-                reminderAt: note.reminderDate
+                reminderDate: note.reminderDate,
+                documents: note.documents
               })),
               noteActionProps: {
                 ...noteActionProps,
                 emptyStateBehavior: 'enable'
               },
-              noteEntityActionProps: noteActionProps
+              noteEntityActionProps: {
+                contextsArray: [FlowContextName.customerNoteEntity],
+                externalContextData: { leadId },
+                prefixDataTestId: 'lead-note-entity',
+                emptyStateBehavior: 'enable'
+              },
+              'data-testid': 'lead-notes-section'
             }
           }
         ]}

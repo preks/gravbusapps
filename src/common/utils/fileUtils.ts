@@ -37,18 +37,32 @@ export const buildFileUrl = (fileInfo: FileInfo): string => {
 }
 
 /**
- * Format file size from bytes to human-readable string
+ * Format file size in bytes to human-readable format
  * @param bytes - File size in bytes
  * @returns Formatted file size string (e.g., "1.5 MB")
  */
 export const formatFileSize = (bytes: number | undefined): string => {
   if (!bytes || bytes === 0) return '0 Bytes'
 
+  // Validate input is a valid number
+  if (typeof bytes !== 'number' || Number.isNaN(bytes) || bytes < 0) {
+    return '0 Bytes'
+  }
+
   const k = 1024
   const sizes = ['Bytes', 'KB', 'MB', 'GB', 'TB']
   const i = Math.floor(Math.log(bytes) / Math.log(k))
 
-  return `${Number.parseFloat((bytes / Math.pow(k, i)).toFixed(2))} ${sizes[i]}`
+  // Ensure index is within bounds
+  const sizeIndex = Math.min(i, sizes.length - 1)
+  const formattedSize = Number.parseFloat((bytes / Math.pow(k, sizeIndex)).toFixed(2))
+
+  // Handle potential NaN from parseFloat
+  if (Number.isNaN(formattedSize)) {
+    return '0 Bytes'
+  }
+
+  return `${formattedSize} ${sizes[sizeIndex]}`
 }
 
 /**

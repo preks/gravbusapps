@@ -3,34 +3,11 @@ import { Alert } from '@newwork/nw-design-system'
 import { BusinessAppContextProps } from '@/common/BusinessAppContext'
 import { useCatalogEntry } from '@/common/data/catalog'
 import { getTranslationFromI18nKeyAndLabel } from '@/common/utils/windowUtils'
+import { getCurrencySymbol } from '@/common/utils/numberFormatter'
 
 interface DynamicInvestmentFieldsProps {
   investmentData: any // Generic prop that accepts both lead and opportunity data
   businessAppContext?: BusinessAppContextProps
-}
-
-// Helper function to get currency symbol from currency catalog entry
-const getCurrencySymbol = (currencyEntry?: any): string => {
-  if (!currencyEntry) {
-    return ''
-  }
-
-  // Check if additionalValue1 contains a unicode symbol (e.g., "U+20AC")
-  if (currencyEntry.additionalValue1) {
-    const additionalValue = currencyEntry.additionalValue1.trim()
-    if (additionalValue.startsWith('U+')) {
-      // Convert unicode code to actual symbol
-      const unicodeCode = additionalValue.substring(2)
-      const codePoint = parseInt(unicodeCode, 16)
-      return String.fromCodePoint(codePoint)
-    } else {
-      // Use the additionalValue1 as symbol directly
-      return additionalValue
-    }
-  }
-
-  // Fallback to code if no additionalValue1
-  return currencyEntry.code || ''
 }
 
 // Helper function to format currency values using currency catalog entry

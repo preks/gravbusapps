@@ -1,5 +1,14 @@
-import React, { useState, useEffect, useMemo } from 'react'
-import { Spinner, Button, RecordLayout, Badge } from '@newwork/nw-design-system'
+import React, { useState, useEffect, useMemo, useCallback } from 'react'
+import {
+  Spinner,
+  Button,
+  RecordLayout,
+  Badge,
+  Tooltip,
+  TooltipProvider,
+  TooltipTrigger,
+  TooltipContent
+} from '@newwork/nw-design-system'
 import {
   User,
   FileText,
@@ -13,13 +22,16 @@ import { navigateTo, buildPlatformUrl } from '@/common/utils/navigationUtils'
 import { getTranslationFromI18nKeyAndLabel, formatDate } from '@/common/utils/windowUtils'
 import { useOpportunityData } from './hooks/useOpportunityData'
 import { useProcessCompletion } from '@/common/hooks/useProcessCompletion'
-import { formatCurrency, extractCurrencyCode } from '@/business-apps/crm/common/utils/currencyUtils'
+import { formatCurrency, extractCurrencyCode } from '@/common/utils/numberFormatter'
 import { getOpportunityStatusBadgeVariant } from '@/common/utils/badgeUtils'
 import { useAiSummary } from './hooks/useAiSummary'
 import { AiActions, AiAction } from '@/common/components/common-relations/record-sections/header-section/ai-actions'
 import { AppActionButton } from '@/components/app-action-button/AppActionButton'
+import { AppAction } from '@/components/app-action/AppAction'
 import { Bot } from 'lucide-react'
 import type { TaskReference } from '@/common/components/common-relations/detail-sheets/task-detail-sheet'
+import { useProspectRejectionReasons } from '@/common/data/investment/hooks/useProspectRejectionReasons'
+import type { RejectionReason } from '@/common/data/investment/types/rejectionReasonTypes'
 import ConditionSection from '@/common/components/common-relations/record-sections/condition-section/ConditionSection'
 import InvestmentSection from '@/common/components/common-relations/record-sections/investment-section/InvestmentSection'
 import { OpportunityStageProgression } from './components/OpportunityStageProgression'
@@ -31,18 +43,19 @@ import NoteSection from '@/common/components/common-relations/record-sections/no
 import TaskSection from '@/common/components/common-relations/record-sections/task-section/TaskSection'
 import { transformTaskOrApproval } from '@/common/components/common-relations/record-sections/task-section/utils/taskMappers'
 import SectionWrapper from '@/common/components/common-relations/record-sections/section-card/SectionCard'
-import {
-  DocumentSection,
-  type DocumentItem
-} from '@/common/components/common-relations/record-sections/document-section'
+import { DocumentSection, type DocumentItem } from '@/components/document-section'
 import { useGetInvestmentActivities } from '@/common/data/investment/hooks/useInvestmentActivities'
 import {
   useGetInvestmentNotesByOpportunityId,
-  useGetInvestmentTasksByOpportunityId,
-  useGetInvestmentDocumentsByOpportunityId
+  useGetInvestmentTasksByOpportunityId
 } from '@/common/data/investment/hooks/useInvestmentOpportunities'
 import { FlowContextName } from '@/common/types/FlowRegistryTypes'
 import { startProcess } from '@/common/utils/start-process'
+import {
+  getIrmDocumentApiConfig,
+  useGetIrmDocuments,
+  transformInvestmentDocuments
+} from '@/business-apps/irm/common/utils/documentUtils'
 
 interface OpportunityRecordContentProps extends BusinessAppContextProps {
   opportunityId: string
@@ -134,10 +147,15 @@ const InvestmentOpportunityRecordContent: React.FC<OpportunityRecordContentProps
   const [approvals, setApprovals] = useState<any[]>([])
 
   // Documents data loading
-  const { fetchInvestmentDocumentsByOpportunityId } = useGetInvestmentDocumentsByOpportunityId(props)
+  const { fetchDocuments: fetchOpportunityDocuments } = useGetIrmDocuments('opportunity', props)
   const [documents, setDocuments] = useState<DocumentItem[]>([])
   const [documentsLoading, setDocumentsLoading] = useState(false)
   const [documentsError, setDocumentsError] = useState<string | null>(null)
+
+  // State for rejection reasons
+  const [rejectionReasons, setRejectionReasons] = useState<RejectionReason[]>([])
+  const [rejectionReasonsError, setRejectionReasonsError] = useState<string | null>(null)
+  const { fetchByOpportunity } = useProspectRejectionReasons(props)
 
   const loadActivities = async () => {
     if (!opportunityId) return
@@ -182,7 +200,7 @@ const InvestmentOpportunityRecordContent: React.FC<OpportunityRecordContentProps
               lastName: note.authorEmployee.lastName
             }
           : undefined,
-        reminderAt: note.reminderDate,
+        reminderDate: note.reminderDate,
         documents: note.documents
       }))
       setNotes(transformedNotes)
@@ -224,43 +242,8 @@ const InvestmentOpportunityRecordContent: React.FC<OpportunityRecordContentProps
     setDocumentsError(null)
 
     try {
-      const result = await fetchInvestmentDocumentsByOpportunityId(opportunityId)
-
-      // Transform investment documents to DocumentItem format
-      const transformedDocuments: DocumentItem[] = (result || []).map(doc => ({
-        id: doc.id,
-        name: doc.name || null,
-        description: doc.description || null,
-        createdAt: doc.createdAt,
-        expirationDate: doc.expirationDate || null,
-        documentType: doc.documentType
-          ? {
-              id: doc.documentType.id,
-              value: doc.documentType.value || '',
-              code: doc.documentType.code
-            }
-          : null,
-        documentGroup: doc.documentGroup
-          ? {
-              id: doc.documentGroup.id,
-              value: doc.documentGroup.value || '',
-              code: doc.documentGroup.code
-            }
-          : null,
-        file: doc.file || null,
-        mimeType: doc.mimeType || null,
-        fileSize: doc.fileSize,
-        createdBy: doc.createdBy || null,
-        parentDocument: typeof doc.parentDocument === 'string' ? doc.parentDocument : doc.parentDocument?.id || null,
-        folder: doc.folder,
-        verified: doc.verified,
-        verificationDate: doc.verificationDate || null,
-        authenticated: doc.authenticated,
-        authenticationDate: doc.authenticationDate || null,
-        mandatory: doc.mandatory,
-        version: doc.version
-      }))
-
+      const result = await fetchOpportunityDocuments(opportunityId)
+      const transformedDocuments = transformInvestmentDocuments(result || [])
       setDocuments(transformedDocuments)
     } catch (err) {
       setDocumentsError(err instanceof Error ? err.message : 'Failed to load documents')
@@ -277,6 +260,28 @@ const InvestmentOpportunityRecordContent: React.FC<OpportunityRecordContentProps
     loadDocuments()
   }, [opportunityId])
 
+  // Load rejection reasons function
+  const loadRejectionReasons = useCallback(async () => {
+    if (!opportunityId || !props.accessToken) return
+    setRejectionReasonsError(null)
+    try {
+      const reasons = await fetchByOpportunity(opportunityId)
+      setRejectionReasons(reasons)
+    } catch (err) {
+      const errorMessage =
+        err instanceof Error
+          ? err.message
+          : getTranslationFromI18nKeyAndLabel('rejection.error.loadFailed', 'Failed to load rejection reasons')
+      setRejectionReasonsError(errorMessage)
+      setRejectionReasons([])
+    }
+  }, [opportunityId, props.accessToken, fetchByOpportunity])
+
+  // Load rejection reasons on mount
+  useEffect(() => {
+    loadRejectionReasons()
+  }, [loadRejectionReasons])
+
   useProcessCompletion({
     onSuccess: () => {
       refetchOpportunityData()
@@ -284,6 +289,7 @@ const InvestmentOpportunityRecordContent: React.FC<OpportunityRecordContentProps
       loadNotes()
       loadTasksAndApprovals()
       loadDocuments()
+      loadRejectionReasons() // Refresh rejection reasons after process completion
     }
   })
 
@@ -393,7 +399,7 @@ const InvestmentOpportunityRecordContent: React.FC<OpportunityRecordContentProps
 
   const activityActionProps = useMemo(
     () => ({
-      contextsArray: [FlowContextName.investmentCreateActivity],
+      contextsArray: [FlowContextName.investmentActivityCreate],
       externalContextData: {
         opportunityId,
         opportunity: opportunityId,
@@ -403,6 +409,63 @@ const InvestmentOpportunityRecordContent: React.FC<OpportunityRecordContentProps
     }),
     [opportunityId]
   )
+
+  // Rejection reasons badge - MUST be defined before headerTitle
+  const rejectionReasonsBadge = useMemo(() => {
+    if (!props.accessToken || !opportunityId) return null
+
+    // Show error state if rejection reasons failed to load
+    if (rejectionReasonsError) {
+      return (
+        <TooltipProvider>
+          <Tooltip>
+            <TooltipTrigger asChild>
+              <Badge
+                variant="destructive"
+                className="gba:cursor-pointer gba:hover:opacity-80"
+                data-testid="opportunity-rejection-reasons-error-badge"
+                onClick={loadRejectionReasons}
+              >
+                {getTranslationFromI18nKeyAndLabel('rejection.badge.error', 'Error Loading Reasons')}
+              </Badge>
+            </TooltipTrigger>
+            <TooltipContent>
+              <p>{rejectionReasonsError}</p>
+              <p className="gba:text-xs gba:mt-1">
+                {getTranslationFromI18nKeyAndLabel('rejection.tooltip.retry', 'Click to retry')}
+              </p>
+            </TooltipContent>
+          </Tooltip>
+        </TooltipProvider>
+      )
+    }
+
+    // Determine badge variant and text based on rejection reasons
+    const hasReasons = rejectionReasons.length > 0
+    const badgeVariant = hasReasons ? 'destructive' : 'secondary'
+    const badgeText = hasReasons
+      ? getTranslationFromI18nKeyAndLabel('rejection.badge.rejected', 'Rejected')
+      : getTranslationFromI18nKeyAndLabel('rejection.badge.noReasons', 'No Rejection Reason')
+
+    return (
+      <AppAction
+        contextsArray={[FlowContextName.investmentOpportunityReject]}
+        externalContextData={{ opportunityId }}
+        prefixDataTestId="opportunity-rejection-reasons"
+        accessToken={props.accessToken}
+        emptyStateBehavior="enable"
+        deferMainContextRequestsUntilClick
+      >
+        <Badge
+          variant={badgeVariant}
+          className="gba:cursor-pointer gba:hover:opacity-80"
+          data-testid="opportunity-rejection-reasons-badge"
+        >
+          {badgeText}
+        </Badge>
+      </AppAction>
+    )
+  }, [props.accessToken, opportunityId, rejectionReasons, rejectionReasonsError, loadRejectionReasons])
 
   // Memoize RecordLayout data to prevent unnecessary re-renders (must be before early returns)
   const headerMeta = useMemo(
@@ -897,15 +960,7 @@ const InvestmentOpportunityRecordContent: React.FC<OpportunityRecordContentProps
               isLoading={documentsLoading}
               error={documentsError}
               onRefresh={loadDocuments}
-              apiConfig={{
-                baseEndpoint: '/investment-relations',
-                entityFieldName: 'opportunity',
-                documentFieldName: 'investmentDocument'
-              }}
-              enableGraphQLSearch={true}
-              graphQLSearchConfig={{
-                entityType: 'opportunity'
-              }}
+              apiConfig={getIrmDocumentApiConfig('opportunity')}
               customActions={[
                 {
                   key: 'delete',
@@ -944,14 +999,6 @@ const InvestmentOpportunityRecordContent: React.FC<OpportunityRecordContentProps
               ]}
               createFolderActionProps={documentCreateFolderActionProps}
               uploadActionProps={documentUploadActionProps}
-              deleteActionProps={{
-                contextsArray: [FlowContextName.investmentDocumentDelete],
-                externalContextData: {
-                  opportunityId,
-                  entityType: 'opportunity'
-                },
-                prefixDataTestId: 'opportunity-document-delete'
-              }}
               data-testid="opportunity-document-section"
               {...props}
             />
@@ -968,7 +1015,12 @@ const InvestmentOpportunityRecordContent: React.FC<OpportunityRecordContentProps
         headerIcon={LightbulbIcon}
         headerCategory="OPPORTUNITY"
         onBack={onBack}
-        headerTitle={opportunity.name}
+        headerTitle={
+          <div className="gba:flex gba:items-center gba:gap-2">
+            <span>{opportunity.name}</span>
+            {rejectionReasonsBadge}
+          </div>
+        }
         headerMeta={headerMeta}
         headerActions={headerActions}
         headerActionButton={headerActionButton}

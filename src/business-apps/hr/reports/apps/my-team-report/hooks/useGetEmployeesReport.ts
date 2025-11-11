@@ -32,6 +32,22 @@ export interface Employee {
   contractType?: CatalogEntry
 }
 
+export interface EmployeeWorkingCondition {
+  id: string
+  employeeId: string
+  hireDate?: string | null
+  exitDate?: string | null
+  probationEnd?: string | null
+  contractType?: {
+    id: string
+    value: string
+  }
+  employmentType?: {
+    id: string
+    value: string
+  }
+}
+
 const EMPLOYEE_POSITION_QUERY = `
     query EmployeePositions($limit: Int!, $supervisorId: uuid!) {
     EmployeePosition(
@@ -69,7 +85,9 @@ const EMPLOYEE_POSITION_QUERY = `
         id
         pictureThumbnail
         workingCondition {
+          id
           contractType {
+            id
             value
             objectValue
           	translations {
@@ -78,6 +96,7 @@ const EMPLOYEE_POSITION_QUERY = `
           	}
           }
           employmentType {
+            id
             value
             objectValue
             translations {
@@ -87,6 +106,7 @@ const EMPLOYEE_POSITION_QUERY = `
           }
           hireDate
           exitDate
+          probationEnd
         }
       }
     }
@@ -138,6 +158,7 @@ export function useGetEmployeesReport({
   const supervisorEmployeeId = userInfo?.employeeDetails?.employeeId
 
   const [employees, setEmployees] = useState<Employee[]>([])
+  const [workingConditions, setWorkingConditions] = useState<EmployeeWorkingCondition[]>([])
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState<Error | null>(null)
 
@@ -159,6 +180,7 @@ export function useGetEmployeesReport({
           throw new Error('No response from GraphQL query')
         }
         const employeePositions = res.EmployeePosition ?? []
+
         const newEmployees = employeePositions.map((ep: any) => {
           const workingCondition = ep.employee?.workingCondition?.[0]
           const startDate = workingCondition?.hireDate ?? ''
@@ -184,11 +206,31 @@ export function useGetEmployeesReport({
             tenure: calculateTenure(startDate, exitDate)
           }
         })
+
+        const newWorkingConditions: EmployeeWorkingCondition[] = employeePositions
+          .filter((ep: any) => ep.employee?.workingCondition?.[0])
+          .map((ep: any) => {
+            const wc = ep.employee.workingCondition[0]
+            return {
+              id: wc.id || '',
+              employeeId: ep.employeeId,
+              hireDate: wc.hireDate,
+              exitDate: wc.exitDate,
+              probationEnd: wc.probationEnd,
+              contractType: wc.contractType ? { id: wc.contractType.id, value: wc.contractType.value } : undefined,
+              employmentType: wc.employmentType
+                ? { id: wc.employmentType.id, value: wc.employmentType.value }
+                : undefined
+            }
+          })
+
         setEmployees(newEmployees)
+        setWorkingConditions(newWorkingConditions)
       })
       .catch((err: any) => {
         setError(err)
         setEmployees([])
+        setWorkingConditions([])
       })
       .finally(() => {
         setLoading(false)
@@ -205,5 +247,5 @@ export function useGetEmployeesReport({
     fetchEmployees()
   }, [fetchEmployees])
 
-  return { employees, loading, error, retry }
+  return { employees, workingConditions, loading, error, retry }
 }

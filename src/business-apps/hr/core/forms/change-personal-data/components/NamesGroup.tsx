@@ -1,4 +1,4 @@
-import React from 'react'
+import React, { useEffect } from 'react'
 import {
   FormField,
   FormItem,
@@ -20,9 +20,14 @@ import type { PersonalDataFormValues, CatalogEntry } from '../types'
 export interface NamesGroupProps {
   control: Control<PersonalDataFormValues>
   catalogs: { salutation?: CatalogEntry[] }
+  setValue: (
+    name: keyof PersonalDataFormValues,
+    value: any,
+    options?: { shouldValidate?: boolean; shouldDirty?: boolean }
+  ) => void
 }
 
-const NamesGroup: React.FC<NamesGroupProps> = ({ control, catalogs }) => {
+const NamesGroup: React.FC<NamesGroupProps> = ({ control, catalogs, setValue }) => {
   const placeholderSelect = getTranslationFromI18nKeyAndLabel(
     'lowcoder:employee_profile.details_layout.personal_information_container.select_placeholder',
     'Please Select'
@@ -42,6 +47,11 @@ const NamesGroup: React.FC<NamesGroupProps> = ({ control, catalogs }) => {
       ? [String(titleWatch || '').trim(), String(preferredNameWatch || '').trim(), String(lastNameWatch || '').trim()]
       : [String(titleWatch || '').trim(), String(firstNameWatch || '').trim(), String(lastNameWatch || '').trim()]
   const computedDisplayName = partsDisplay.filter(Boolean).join(' ').trim()
+
+  // Update displayName field whenever computedDisplayName changes
+  useEffect(() => {
+    setValue('displayName', computedDisplayName, { shouldValidate: false, shouldDirty: false })
+  }, [computedDisplayName, setValue])
 
   const validateNameFunction = (name: string): boolean => {
     const nameRegex =
@@ -222,23 +232,30 @@ const NamesGroup: React.FC<NamesGroupProps> = ({ control, catalogs }) => {
       />
 
       {/* Display Name (computed, read-only) */}
-      <FormItem>
-        <FormLabel data-testid="change-personal-data-display-name-label">
-          {getTranslationFromI18nKeyAndLabel(
-            'lowcoder:employee_profile.details_layout.personal_information_container.preferred_name',
-            'Display Name'
-          )}
-        </FormLabel>
-        <div className="gba:flex gba:items-center">
-          <span
-            className="gba:block gba:w-full gba:h-10 gba:min-h-10 gba:px-3 gba:py-2 gba:rounded-md gba:bg-muted gba:text-muted-foreground gba:border gba:border-muted"
-            data-testid="flw_changePersonalData_currentDisplayName"
-          >
-            {computedDisplayName}
-          </span>
-        </div>
-        <FormMessage />
-      </FormItem>
+      <FormField
+        control={control}
+        name={'displayName' as any}
+        render={({ field }) => (
+          <FormItem>
+            <FormLabel data-testid="change-personal-data-display-name-label">
+              {getTranslationFromI18nKeyAndLabel(
+                'lowcoder:employee_profile.details_layout.personal_information_container.preferred_name',
+                'Display Name'
+              )}
+            </FormLabel>
+            <FormControl>
+              <Input
+                {...field}
+                disabled
+                value={computedDisplayName}
+                className="gba:w-full"
+                data-testid="flw_changePersonalData_currentDisplayName"
+              />
+            </FormControl>
+            <FormMessage />
+          </FormItem>
+        )}
+      />
     </div>
   )
 }

@@ -1,4 +1,4 @@
-import React, { useState } from 'react'
+import React, { useState, useEffect } from 'react'
 import {
   Card,
   CardContent,
@@ -14,21 +14,41 @@ import {
 import { PiPhone, PiEnvelopeSimple, PiCaretDown, PiCaretUp } from 'react-icons/pi'
 import { formatDataTestId } from '@/common/utils/formatDataTestId'
 import { useLeadFormContext } from '../context/LeadFormContext'
-import { validateEmail, validatePhone, toStringOrUndefined } from '../utils/validationUtils'
-import { useAcademicTitles } from '../hooks/useAcademicTitles'
+import { validateEmail, validatePhone } from '../utils/validationUtils'
 
 const prefixDataTestId = 'LeadForm'
 
 const ContactInformationSection: React.FC = () => {
   const [isExpanded, setIsExpanded] = useState(false) // Start collapsed
 
-  const { formValues, setFormValues, accessToken } = useLeadFormContext()
+  const {
+    formValues,
+    setFormValues,
 
-  // Fetch academic titles from catalog
-  const { academicTitleOptions } = useAcademicTitles(accessToken)
+    // Academic Titles
+    academicTitles,
+    academicTitlesLoading,
+    academicTitlesHasMore,
+    academicTitlesNeedsMoreData,
+    academicTitlesTotalFetched,
+    loadMoreAcademicTitles
+  } = useLeadFormContext()
 
   const emailError = formValues.email && !validateEmail(formValues.email) ? 'Please enter a valid email address' : ''
   const phoneError = formValues.phone && !validatePhone(formValues.phone) ? 'Please enter a valid phone number' : ''
+
+  // Auto-load all academic titles (like IRM StatusSourceSection pattern)
+  useEffect(() => {
+    if (academicTitlesNeedsMoreData && !academicTitlesLoading && academicTitlesHasMore) {
+      loadMoreAcademicTitles()
+    }
+  }, [
+    academicTitlesNeedsMoreData,
+    academicTitlesLoading,
+    academicTitlesHasMore,
+    academicTitlesTotalFetched,
+    loadMoreAcademicTitles
+  ])
 
   return (
     <Card
@@ -44,20 +64,21 @@ const ContactInformationSection: React.FC = () => {
       }}
     >
       <Button
+        type="button"
         variant="ghost"
         onClick={() => setIsExpanded(!isExpanded)}
-        className="gba:w-full gba:px-4 gba:py-2 gba:transition-colors gba:flex gba:items-center gba:justify-between gba:text-left gba:rounded-lg gba:text-sm gba:bg-gradient-to-r gba:from-success-secondary gba:to-success"
+        className="gba:w-full gba:px-4 gba:py-2 gba:transition-all gba:flex gba:items-center gba:justify-between gba:text-left gba:rounded-xl gba:text-sm gba:bg-success-secondary hover:gba:bg-success gba:border-0"
         style={{
-          transition: 'all 0.3s ease',
-          border: '0',
-          borderWidth: '0',
-          borderStyle: 'none',
-          borderColor: 'transparent',
-          outline: 'none',
           outlineWidth: '0',
           outlineStyle: 'none',
           boxShadow: 'none',
           borderRadius: '12px'
+        }}
+        onMouseEnter={e => {
+          e.currentTarget.style.background = 'linear-gradient(to right, #86efac, #34d399)'
+        }}
+        onMouseLeave={e => {
+          e.currentTarget.style.background = 'linear-gradient(to right, #bbf7d0, #6ee7b7)'
         }}
         data-testid={formatDataTestId(prefixDataTestId, 'ContactInfoToggle')}
       >
@@ -76,7 +97,7 @@ const ContactInformationSection: React.FC = () => {
 
       {isExpanded && (
         <CardContent
-          className="gba:space-y-6 gba:bg-hsl(var(--background)) gba:border-0 gba:p-4 gba:mt-0"
+          className="gba:space-y-6 gba:bg-white gba:border-0 gba:p-4 gba:mt-0"
           style={{
             border: '0',
             borderWidth: '0',
@@ -86,24 +107,21 @@ const ContactInformationSection: React.FC = () => {
             marginTop: '0'
           }}
         >
-          {/* Salutation */}
+          {/* Academic Title - Using standard Select like IRM */}
           <div className="gba:space-y-2">
-            <Label className="gba:text-sm gba:font-medium gba:text-gray-900">Salutation</Label>
+            <Label className="gba:text-sm gba:font-medium gba:text-gray-900">Academic Title</Label>
             <Select
-              value={toStringOrUndefined(formValues.salutation)}
-              onValueChange={value => setFormValues({ salutation: value || '' })}
-              data-testid={formatDataTestId(prefixDataTestId, 'SalutationSelect')}
+              value={formValues.academicTitle}
+              onValueChange={value => setFormValues({ academicTitle: value })}
+              data-testid={formatDataTestId(prefixDataTestId, 'AcademicTitleSelect')}
             >
-              <SelectTrigger className="gba:border-gray-300 gba:bg-hsl(var(--background))">
+              <SelectTrigger className="gba:border-gray-300 gba:bg-white">
                 <SelectValue placeholder="Please Select..." />
               </SelectTrigger>
-              <SelectContent
-                className="gba:max-h-[200px] gba:overflow-y-auto"
-                style={{ maxHeight: '200px', overflowY: 'auto' }}
-              >
-                {academicTitleOptions.map(option => (
-                  <SelectItem key={option.value} value={String(option.value)}>
-                    {option.name || option.label}
+              <SelectContent className="gba:max-h-[200px] gba:overflow-y-auto">
+                {academicTitles.map((option, index) => (
+                  <SelectItem key={`${option.id}-${index}`} value={option.value}>
+                    {option.label}
                   </SelectItem>
                 ))}
               </SelectContent>
@@ -118,7 +136,7 @@ const ContactInformationSection: React.FC = () => {
               value={typeof formValues.jobPosition === 'string' ? formValues.jobPosition : ''}
               onChange={e => setFormValues({ jobPosition: e.target.value })}
               placeholder="Please Enter..."
-              className="gba:border-gray-300 gba:bg-hsl(var(--background))"
+              className="gba:border-gray-300 gba:bg-white"
               data-testid={formatDataTestId(prefixDataTestId, 'JobPositionInput')}
             />
           </div>
@@ -135,7 +153,7 @@ const ContactInformationSection: React.FC = () => {
                 value={typeof formValues.phone === 'string' ? formValues.phone : ''}
                 onChange={e => setFormValues({ phone: e.target.value })}
                 placeholder="Please Enter..."
-                className="gba:pl-8 gba:border-gray-300 gba:bg-hsl(var(--background))"
+                className="gba:pl-8 gba:border-gray-300 gba:bg-white"
                 style={{
                   borderColor: phoneError ? '#ef4444' : '#d1d5db',
                   paddingLeft: '32px'
@@ -158,7 +176,7 @@ const ContactInformationSection: React.FC = () => {
                 value={typeof formValues.email === 'string' ? formValues.email : ''}
                 onChange={e => setFormValues({ email: e.target.value })}
                 placeholder="Please Enter..."
-                className="gba:pl-8 gba:border-gray-300 gba:bg-hsl(var(--background))"
+                className="gba:pl-8 gba:border-gray-300 gba:bg-white"
                 style={{
                   borderColor: emailError ? '#ef4444' : '#d1d5db',
                   paddingLeft: '32px'
@@ -167,6 +185,33 @@ const ContactInformationSection: React.FC = () => {
               />
             </div>
             {emailError && <p className="gba:text-sm gba:text-red-600">{emailError}</p>}
+          </div>
+
+          {/* LinkedIn and Xing - Side by side */}
+          <div className="gba:grid gba:grid-cols-1 gba:gap-6 gba:md:grid-cols-2">
+            <div className="gba:space-y-2">
+              <Label className="gba:text-sm gba:font-medium gba:text-gray-900">LinkedIn</Label>
+              <Input
+                name="linkedinUrl"
+                value={formValues.linkedinUrl || ''}
+                onChange={e => setFormValues({ linkedinUrl: e.target.value })}
+                placeholder="Please Enter"
+                className="gba:border-gray-300 gba:bg-white"
+                data-testid={formatDataTestId(prefixDataTestId, 'LinkedinInput')}
+              />
+            </div>
+
+            <div className="gba:space-y-2">
+              <Label className="gba:text-sm gba:font-medium gba:text-gray-900">Xing</Label>
+              <Input
+                name="xingUrl"
+                value={formValues.xingUrl || ''}
+                onChange={e => setFormValues({ xingUrl: e.target.value })}
+                placeholder="Please Enter"
+                className="gba:border-gray-300 gba:bg-white"
+                data-testid={formatDataTestId(prefixDataTestId, 'XingInput')}
+              />
+            </div>
           </div>
         </CardContent>
       )}

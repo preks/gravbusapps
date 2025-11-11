@@ -150,3 +150,28 @@ export const getTimeSince = (dateString: string) => {
     return years === 1 ? '1 year ago' : `${years} years ago`
   }
 }
+
+// Re-export common formatters for convenience
+export { formatCurrencyString as formatCurrency, extractCurrencyCode } from '@/common/utils/numberFormatter'
+export { formatForDisplay as formatDate } from '@/common/utils/dateFormatter'
+
+/**
+ * Get default start date for benefit requests
+ * Returns first day of next month (e.g., if today is Nov 5, returns Dec 1)
+ */
+export const getDefaultStartDate = (): string => {
+  const date = new Date()
+  date.setMonth(date.getMonth() + 1)
+  date.setDate(1)
+  return date.toISOString().split('T')[0]
+}
+
+/**
+ * Get default end date for benefit deactivations
+ * Returns last day of current month (e.g., if today is Nov 5, returns Nov 30)
+ */
+export const getDefaultEndDate = (): string => {
+  const now = new Date()
+  const lastDay = new Date(now.getFullYear(), now.getMonth() + 1, 0)
+  return lastDay.toISOString().split('T')[0]
+}

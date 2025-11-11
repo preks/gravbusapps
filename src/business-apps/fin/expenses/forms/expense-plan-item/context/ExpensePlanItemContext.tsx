@@ -491,32 +491,56 @@ export const ExpensePlanItemProvider: React.FC<ExpensePlanItemProviderProps> = (
     setItemValues({ id, version })
   }
 
-  const contextValue: ExpensePlanItemContextProps = {
-    form,
-    loading,
-    setLoading,
-    isFormDisabled,
-    setIsFormDisabled,
-    isEditMode,
-    setCurrentSelectedDate,
-    expenseGroups,
-    expenseTypes,
-    customFields,
-    costCenters,
-    currencies,
-    employeeRuleId,
-    expenseRuleError,
-    itemValues,
-    additionalData,
-    handleSubmit: handleSubmitWrapper,
-    handleCancel: handleCancelWrapper,
-    handleExpenseGroupChange: handleExpenseGroupChangeWrapper,
-    handleExpenseTypeChange: handleExpenseTypeChangeWrapper,
-    handleCurrencyChange: handleCurrencyChangeWrapper,
-    fetchExpenseTypes: fetchExpenseTypesWrapper,
-    fetchCustomFields: fetchCustomFieldsWrapper,
-    setInitialItemValues: setInitialItemValues
-  }
+  const contextValue: ExpensePlanItemContextProps = useMemo(
+    () => ({
+      form,
+      loading,
+      setLoading,
+      isFormDisabled,
+      setIsFormDisabled,
+      isEditMode,
+      setCurrentSelectedDate,
+      expenseGroups,
+      expenseTypes,
+      customFields,
+      costCenters,
+      currencies,
+      employeeRuleId,
+      expenseRuleError,
+      itemValues,
+      additionalData,
+      handleSubmit: handleSubmitWrapper,
+      handleCancel: handleCancelWrapper,
+      handleExpenseGroupChange: handleExpenseGroupChangeWrapper,
+      handleExpenseTypeChange: handleExpenseTypeChangeWrapper,
+      handleCurrencyChange: handleCurrencyChangeWrapper,
+      fetchExpenseTypes: fetchExpenseTypesWrapper,
+      fetchCustomFields: fetchCustomFieldsWrapper,
+      setInitialItemValues: setInitialItemValues
+    }),
+    [
+      form,
+      loading,
+      isFormDisabled,
+      isEditMode,
+      expenseGroups,
+      expenseTypes,
+      customFields,
+      costCenters,
+      currencies,
+      employeeRuleId,
+      expenseRuleError,
+      itemValues,
+      additionalData,
+      handleSubmitWrapper,
+      handleCancelWrapper,
+      handleExpenseGroupChangeWrapper,
+      handleExpenseTypeChangeWrapper,
+      handleCurrencyChangeWrapper,
+      fetchExpenseTypesWrapper,
+      fetchCustomFieldsWrapper
+    ]
+  )
 
   return <ExpensePlanItemContext.Provider value={contextValue}>{children}</ExpensePlanItemContext.Provider>
 }

@@ -8,7 +8,7 @@ import { AppActionButton } from '@/components/app-action-button/AppActionButton'
 import { FlowContextName } from '@/common/types/FlowRegistryTypes'
 import { useAccountData } from './hooks/useAccountData'
 import { OpportunityView } from './views/opportunity-view/OpportunityView'
-import { FileManager } from '@/components/file-manager'
+import { DocumentView } from './views/document-view/DocumentView'
 import { HomeView } from './views/home-view/HomeView'
 
 interface AccountRecordContentProps extends BusinessAppContextProps {
@@ -51,7 +51,8 @@ const AccountRecordContent: React.FC<AccountRecordContentProps> = ({ accountId, 
   }, [])
 
   const {
-    account: accountData,
+    account: accountTransformed,
+    accountData: rawAccountData,
     loading: dataLoading,
     error: dataError,
     refetchAccountData
@@ -121,23 +122,25 @@ const AccountRecordContent: React.FC<AccountRecordContentProps> = ({ accountId, 
         items: [
           {
             label: 'Email',
-            value: accountData?.email || 'Not set',
+            value: accountTransformed?.email || 'Not set',
             icon: TrendUp
           },
           {
             label: 'Founded',
-            value: accountData?.foundationDate ? new Date(accountData.foundationDate).toLocaleDateString() : 'Not set',
+            value: accountTransformed?.foundationDate
+              ? new Date(accountTransformed.foundationDate).toLocaleDateString()
+              : 'Not set',
             icon: TrendUp
           },
           {
             label: 'Owner',
-            value: accountData?.accountOwner?.name || 'Not assigned',
+            value: accountTransformed?.accountOwner?.name || 'Not assigned',
             icon: Users
           }
         ]
       }
     ],
-    [accountData?.email, accountData?.foundationDate, accountData?.accountOwner]
+    [accountTransformed?.email, accountTransformed?.foundationDate, accountTransformed?.accountOwner]
   )
 
   const headerActionButton = useMemo(
@@ -167,7 +170,7 @@ const AccountRecordContent: React.FC<AccountRecordContentProps> = ({ accountId, 
           value: 'overview',
           label: getTranslationFromI18nKeyAndLabel('crm.common.overview', 'Overview'),
           icon: <Users className="gba:mr-2" />,
-          content: <HomeView accountId={accountId} accountData={accountData} {...props} />
+          content: <HomeView accountId={accountId} accountData={rawAccountData} {...props} />
         },
         {
           value: 'opportunities',
@@ -185,18 +188,13 @@ const AccountRecordContent: React.FC<AccountRecordContentProps> = ({ accountId, 
           icon: <FileText className="gba:mr-2" />,
           content: (
             <div className="gba:col-span-12">
-              <FileManager
-                context={props}
-                entity={{ type: 'account', id: accountId }}
-                ui={{ title: 'Documents' }}
-                data-testid="account-file-manager"
-              />
+              <DocumentView accountId={accountId} context={props} />
             </div>
           )
         }
       ]
     }),
-    [activeTab, handleTabChange, accountData, accountId, props]
+    [activeTab, handleTabChange, rawAccountData, accountId, props]
   )
 
   useEffect(() => {
@@ -210,8 +208,8 @@ const AccountRecordContent: React.FC<AccountRecordContentProps> = ({ accountId, 
         setLoading(true)
         setError(null)
 
-        if (accountData) {
-          setAccount(accountData)
+        if (accountTransformed) {
+          setAccount(accountTransformed)
         } else if (dataError) {
           setError(dataError)
         }
@@ -226,7 +224,7 @@ const AccountRecordContent: React.FC<AccountRecordContentProps> = ({ accountId, 
     if (!dataLoading) {
       fetchAccountData()
     }
-  }, [accountId, accountData, dataLoading, dataError])
+  }, [accountId, accountTransformed, dataLoading, dataError])
 
   // Update loading state based on data loading
   useEffect(() => {

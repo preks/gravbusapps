@@ -18,15 +18,11 @@ const FileUploadSection: React.FC = () => {
     url: doc.id
   }))
 
-  // Create a stable key based on existing document IDs to force re-render when documents change
-  const fileUploadKey = (formValues.documents || []).map(d => d.id).join(',') || 'empty'
-
   return (
     <FormItem>
       <FormLabel>{getTranslationFromI18nKeyAndLabel('crm:salesTask.uploadFile', 'Attach Documents')}</FormLabel>
       <FormControl>
         <FileUpload
-          key={fileUploadKey}
           layout="list"
           preview="icon"
           maxFiles={10}

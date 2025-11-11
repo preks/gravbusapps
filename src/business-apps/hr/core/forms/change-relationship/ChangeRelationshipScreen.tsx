@@ -36,6 +36,10 @@ const ChangeRelationshipScreen: React.FC<BusinessAppContextProps> = ({ additiona
   const [selectedRelationshipId, setSelectedRelationshipId] = useState<string>('new')
   const [fileList, setFileList] = useState<any[]>([])
   const [, setIsUploading] = useState(false)
+  const [firstNameTouched, setFirstNameTouched] = useState(false)
+  const [lastNameTouched, setLastNameTouched] = useState(false)
+  const [phoneTouched, setPhoneTouched] = useState(false)
+  const [relationshipTypeTouched, setRelationshipTypeTouched] = useState(false)
 
   const { options: relationshipTypeOptions, relationships } = useRelationshipTypes({
     accessToken,
@@ -98,6 +102,86 @@ const ChangeRelationshipScreen: React.FC<BusinessAppContextProps> = ({ additiona
     return false
   }, [isValid, selectedExisting, isUnchanged])
 
+  // Determine if an emergency contact already exists for the employee
+  const hasExistingEmergencyContact = useMemo(() => {
+    return (relationships || []).some((rel: any) => rel?.isEmergencyContact === true)
+  }, [relationships])
+
+  // Field validations
+  const validatePhoneForEmergency = (receivedValue: string): string => {
+    if (!isEmergencyContact) return ''
+    const regexTest = /^\+?\d+$/
+    const trimmed = (receivedValue || '').trim()
+    if (trimmed.length === 0) {
+      return getTranslationFromI18nKeyAndLabel(
+        'lowcoder:change_relationship.container_relationship.phone_required_error',
+        'The Phone Number field is required. Please enter a phone number.'
+      )
+    }
+    if (!regexTest.test(trimmed)) {
+      return getTranslationFromI18nKeyAndLabel(
+        'lowcoder:change_relationship.container_relationship.phone_only_numbers_error',
+        'The Phone Number field is invalid. Please use only numbers.'
+      )
+    }
+    return ''
+  }
+
+  const validateNameFunction = (name: string, which: 'first' | 'last'): string => {
+    const nameRegex = /^[a-zA-ZÀ-ÿ\u00f1\u00d1]{2,}(?:[-\s]?[a-zA-ZÀ-ÿ\u00f1\u00d1]+)*$/
+    const trimmed = (name || '').trim()
+    if (trimmed.length === 0) {
+      return which === 'first'
+        ? getTranslationFromI18nKeyAndLabel(
+            'lowcoder:change_relationship.container_relationship.first_name_empty_error',
+            'The First Name field is required. Please enter a first name.'
+          )
+        : getTranslationFromI18nKeyAndLabel(
+            'lowcoder:change_relationship.container_relationship.last_name_empty_error',
+            'The Last Name field is required. Please enter a last name.'
+          )
+    }
+    if (trimmed.length < 2) {
+      return which === 'first'
+        ? getTranslationFromI18nKeyAndLabel(
+            'lowcoder:change_relationship.container_relationship.first_name_few_char_error',
+            'The First Name field should have more than 2 characters. Please enter your first name.'
+          )
+        : getTranslationFromI18nKeyAndLabel(
+            'lowcoder:change_relationship.container_relationship.last_name_few_char_error',
+            'The Last Name field should have more than 2 characters. Please enter your last name.'
+          )
+    }
+    if (!nameRegex.test(trimmed)) {
+      return which === 'first'
+        ? getTranslationFromI18nKeyAndLabel(
+            'lowcoder:change_relationship.container_relationship.first_name_numbers_error',
+            'The First Name field is invalid. Please use only alphabetic characters.'
+          )
+        : getTranslationFromI18nKeyAndLabel(
+            'lowcoder:change_relationship.container_relationship.last_name_numbers_error',
+            'The Last Name field is invalid. Please use only alphabetic characters.'
+          )
+    }
+    return ''
+  }
+
+  const firstNameError = validateNameFunction(firstName, 'first')
+  const lastNameError = validateNameFunction(lastName, 'last')
+  const phoneError = validatePhoneForEmergency(phoneNumber)
+  const relationshipTypeError = !relationshipTypeId
+    ? getTranslationFromI18nKeyAndLabel(
+        'lowcoder:change_relationship.container_relationship.relationship_type_error',
+        'The Type field is required. Please select the relationship type.'
+      )
+    : ''
+  const relationshipSelectionError = !selectedRelationshipId
+    ? getTranslationFromI18nKeyAndLabel(
+        'lowcoder:change_relationship.container_relationship.relationship_error',
+        'The Relationship field is required. Please select the relationship type.'
+      )
+    : ''
+
   // Initialize selection and fields if flow provided an existing relationship
   useEffect(() => {
     const rel = initialPayload?.relationship
@@ -139,29 +223,11 @@ const ChangeRelationshipScreen: React.FC<BusinessAppContextProps> = ({ additiona
 
   const validateForm = () => {
     const errors: string[] = []
-    if (!relationshipTypeId) {
-      errors.push(
-        getTranslationFromI18nKeyAndLabel('lowcoder:relationship_form.type_required', 'Relationship Type is required')
-      )
-    }
-    if (!firstName.trim()) {
-      errors.push(
-        getTranslationFromI18nKeyAndLabel('lowcoder:relationship_form.first_name_required', 'First Name is required')
-      )
-    }
-    if (!lastName.trim()) {
-      errors.push(
-        getTranslationFromI18nKeyAndLabel('lowcoder:relationship_form.last_name_required', 'Last Name is required')
-      )
-    }
-    if (isEmergencyContact && !phoneNumber.trim()) {
-      errors.push(
-        getTranslationFromI18nKeyAndLabel(
-          'lowcoder:relationship_form.phone_required',
-          'Phone Number is required for emergency contacts'
-        )
-      )
-    }
+    if (relationshipSelectionError) errors.push(relationshipSelectionError)
+    if (relationshipTypeError) errors.push(relationshipTypeError)
+    if (firstNameError) errors.push(firstNameError)
+    if (lastNameError) errors.push(lastNameError)
+    if (phoneError) errors.push(phoneError)
     return errors.length ? errors : null
   }
 
@@ -248,8 +314,6 @@ const ChangeRelationshipScreen: React.FC<BusinessAppContextProps> = ({ additiona
     const idSelected = relationshipTypeId.toLowerCase()
     const shouldShowCongrats =
       idSelected.includes('child') || idSelected.includes('marriage') || idSelected.includes('mariage')
-
-    console.log(relationshipTypeOptions, 'relationshipTypeOptions')
 
     if (shouldShowCongrats) {
       // Show Congratulations modal first and resolve payload after user confirms
@@ -349,13 +413,27 @@ const ChangeRelationshipScreen: React.FC<BusinessAppContextProps> = ({ additiona
                 </SelectContent>
               </Select>
             </div>
+            {!selectedRelationshipId && (
+              <div className="gba:mt-1 gba:text-destructive" data-testid="flw_changeRelationship_relationshipError">
+                {getTranslationFromI18nKeyAndLabel(
+                  'lowcoder:change_relationship.container_relationship.relationship_error',
+                  'The Relationship field is required. Please select the relationship type.'
+                )}
+              </div>
+            )}
           </div>
 
           {/* Relationship Type */}
           <div>
             <Label>{getTranslationFromI18nKeyAndLabel('lowcoder:relationship_form.type', 'Relationship Type')}*</Label>
             <div className="gba:mt-2">
-              <Select value={relationshipTypeId} onValueChange={setRelationshipTypeId}>
+              <Select
+                value={relationshipTypeId}
+                onValueChange={v => {
+                  setRelationshipTypeTouched(true)
+                  setRelationshipTypeId(v)
+                }}
+              >
                 <SelectTrigger data-testid="flw_changeRelationship_currentRelationshipType">
                   <SelectValue
                     placeholder={getTranslationFromI18nKeyAndLabel(
@@ -373,6 +451,11 @@ const ChangeRelationshipScreen: React.FC<BusinessAppContextProps> = ({ additiona
                 </SelectContent>
               </Select>
             </div>
+            {relationshipTypeTouched && relationshipTypeError && (
+              <div className="gba:mt-1 gba:text-destructive" data-testid="flw_changeRelationship_relationshipTypeError">
+                {relationshipTypeError}
+              </div>
+            )}
           </div>
 
           {/* First Name */}
@@ -382,6 +465,7 @@ const ChangeRelationshipScreen: React.FC<BusinessAppContextProps> = ({ additiona
               <Input
                 value={firstName}
                 onChange={e => setFirstName(e.target.value)}
+                onBlur={() => setFirstNameTouched(true)}
                 placeholder={getTranslationFromI18nKeyAndLabel(
                   'lowcoder:relationship_form.first_name_placeholder',
                   'Enter First Name'
@@ -389,6 +473,11 @@ const ChangeRelationshipScreen: React.FC<BusinessAppContextProps> = ({ additiona
                 data-testid="flw_changeRelationship_currentFirstName"
               />
             </div>
+            {firstNameTouched && firstNameError && (
+              <div className="gba:mt-1 gba:text-destructive" data-testid="flw_changeRelationship_firstNameError">
+                {firstNameError}
+              </div>
+            )}
           </div>
 
           {/* Last Name */}
@@ -398,6 +487,7 @@ const ChangeRelationshipScreen: React.FC<BusinessAppContextProps> = ({ additiona
               <Input
                 value={lastName}
                 onChange={e => setLastName(e.target.value)}
+                onBlur={() => setLastNameTouched(true)}
                 placeholder={getTranslationFromI18nKeyAndLabel(
                   'lowcoder:relationship_form.last_name_placeholder',
                   'Enter Last Name'
@@ -405,6 +495,11 @@ const ChangeRelationshipScreen: React.FC<BusinessAppContextProps> = ({ additiona
                 data-testid="flw_changeRelationship_currentLastName"
               />
             </div>
+            {lastNameTouched && lastNameError && (
+              <div className="gba:mt-1 gba:text-destructive" data-testid="flw_changeRelationship_lastNameError">
+                {lastNameError}
+              </div>
+            )}
           </div>
 
           {/* Birth Date */}
@@ -436,6 +531,7 @@ const ChangeRelationshipScreen: React.FC<BusinessAppContextProps> = ({ additiona
               <Input
                 value={phoneNumber}
                 onChange={e => setPhoneNumber(e.target.value)}
+                onBlur={() => setPhoneTouched(true)}
                 placeholder={getTranslationFromI18nKeyAndLabel(
                   'lowcoder:relationship_form.phone_number_placeholder',
                   'Enter Phone Number'
@@ -443,6 +539,11 @@ const ChangeRelationshipScreen: React.FC<BusinessAppContextProps> = ({ additiona
                 data-testid="flw_changeRelationship_currentPhoneNumber"
               />
             </div>
+            {isEmergencyContact && phoneTouched && phoneError && (
+              <div className="gba:mt-1 gba:text-destructive" data-testid="flw_changeRelationship_phoneNumberError">
+                {phoneError}
+              </div>
+            )}
           </div>
 
           {/* Emergency Contact */}
@@ -456,6 +557,14 @@ const ChangeRelationshipScreen: React.FC<BusinessAppContextProps> = ({ additiona
               data-testid="flw_changeRelationship_currentEmergencyContact"
             />
           </div>
+          {isEmergencyContact && hasExistingEmergencyContact && (
+            <div data-testid="flw_changeRelationship_emergencyNote">
+              {getTranslationFromI18nKeyAndLabel(
+                'lowcoder:change_relationship.container_relationship.emergency_note',
+                'Note: This will overwrite your current emergency contact!'
+              )}
+            </div>
+          )}
 
           {/* Upload Document */}
           <div>

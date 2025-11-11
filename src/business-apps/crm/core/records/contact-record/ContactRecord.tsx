@@ -9,7 +9,7 @@ import {
   TooltipProvider,
   TooltipTrigger
 } from '@newwork/nw-design-system'
-import { Users, FileText, User, CurrencyDollar } from '@phosphor-icons/react'
+import { Users, FileText, User, DollarSign } from 'lucide-react'
 import { BusinessAppContextProps } from '@/common/BusinessAppContext'
 import { navigateTo, buildPlatformUrl } from '@/common/utils/navigationUtils'
 import { getTranslationFromI18nKeyAndLabel } from '@/common/utils/windowUtils'
@@ -217,6 +217,22 @@ const ContactRecordContent: React.FC<ContactRecordContentProps> = ({ contactId, 
             icon: Users
           },
           {
+            label: getTranslationFromI18nKeyAndLabel('crm.common.birthday', 'Birthday'),
+            value:
+              contactData?.birthDate || contact?.birthDate
+                ? new Date(contactData?.birthDate || contact?.birthDate || '').toLocaleDateString('en-GB')
+                : getTranslationFromI18nKeyAndLabel('crm.common.notSet', 'Not set'),
+            icon: Users
+          },
+          {
+            label: getTranslationFromI18nKeyAndLabel('crm.common.language', 'Language'),
+            value:
+              contactData?.language?.value ||
+              contact?.language?.value ||
+              getTranslationFromI18nKeyAndLabel('crm.common.notSet', 'Not set'),
+            icon: Users
+          },
+          {
             label: getTranslationFromI18nKeyAndLabel('crm.common.owner', 'Owner'),
             value:
               contactData?.ownerEmployee?.displayName ||
@@ -257,10 +273,16 @@ const ContactRecordContent: React.FC<ContactRecordContentProps> = ({ contactId, 
   const activityActionProps = useMemo(
     () => ({
       contextsArray: [FlowContextName.customerActivityCreate],
-      externalContextData: { contactId },
+      externalContextData: {
+        contactId,
+        // Set current user as default owner
+        ...(props.userInfo?.employeeDetails?.employeeId && {
+          ownerEmployeeId: props.userInfo.employeeDetails.employeeId
+        })
+      },
       prefixDataTestId: 'contact-activity'
     }),
-    [contactId]
+    [contactId, props.userInfo?.employeeDetails?.employeeId]
   )
 
   const noteActionProps = useMemo(
@@ -274,7 +296,7 @@ const ContactRecordContent: React.FC<ContactRecordContentProps> = ({ contactId, 
 
   const taskActionProps = useMemo(
     () => ({
-      contextsArray: [FlowContextName.createCustomerTask],
+      contextsArray: [FlowContextName.customerTaskCreate],
       externalContextData: { contactId },
       prefixDataTestId: 'contact-task'
     }),
@@ -283,7 +305,7 @@ const ContactRecordContent: React.FC<ContactRecordContentProps> = ({ contactId, 
 
   const approvalActionProps = useMemo(
     () => ({
-      contextsArray: [FlowContextName.createCustomerTask],
+      contextsArray: [FlowContextName.customerTaskCreate],
       externalContextData: {
         contactId,
         typeRef: 'SalesTaskType:v1:APPROVAL',
@@ -325,7 +347,7 @@ const ContactRecordContent: React.FC<ContactRecordContentProps> = ({ contactId, 
         {
           value: 'opportunities',
           label: getTranslationFromI18nKeyAndLabel('crm.common.opportunities', 'Opportunities'),
-          icon: <CurrencyDollar className="gba:mr-2" />,
+          icon: <DollarSign className="gba:mr-2" />,
           content: (
             <div className="gba:col-span-12">
               <OpportunityView contactId={contactId} {...props} />

@@ -22,7 +22,7 @@ interface LinksContentProps {
   onUpdateStep: (updates: any) => void
 }
 
-export const LinksTrigger: React.FC<LinksTriggerProps> = ({ step, testId, onUpdateStep }) => {
+export const LinksTrigger: React.FC<LinksTriggerProps> = ({ step }) => {
   return (
     <div className="gba:flex gba:items-center gba:justify-between gba:w-full gba:pr-4">
       <div className="gba:flex gba:items-center gba:gap-2">
@@ -44,7 +44,7 @@ export const LinksContent: React.FC<LinksContentProps> = ({ step, testId, onUpda
   const links = step.links || []
 
   const handleAddLink = () => {
-    const newLinks = [...links, { name: '', url: '', type: 'url' }]
+    const newLinks = [...links, { id: `link-${Date.now()}`, name: '', url: '', type: 'url' }]
     onUpdateStep({ links: newLinks })
   }
 
@@ -72,10 +72,7 @@ export const LinksContent: React.FC<LinksContentProps> = ({ step, testId, onUpda
 
       {links.length > 0 &&
         links.map((link: any, index: number) => (
-          <div
-            key={`link-${index}-${link.name || 'unnamed'}`}
-            className="gba:p-3 gba:border gba:rounded gba:bg-gray-50"
-          >
+          <div key={link.id || `link-${index}`} className="gba:p-3 gba:border gba:rounded gba:bg-gray-50">
             <div className="gba:flex gba:gap-2 gba:items-center">
               <Input
                 value={link.name || ''}

@@ -38,7 +38,7 @@ export const CUSTOMER_TASK_DESCRIPTORS: Descriptor[] = [
   { key: 'taskStatusIds', path: 'statusRef', kind: 'inStrings' },
   { key: 'assignedEmployeeIds', path: 'assignedEmployee.id', kind: 'inIds' },
   { key: 'creatorEmployeeIds', path: 'creatorEmployee.id', kind: 'inIds' },
-  { key: 'timingTypes', path: 'taskTiming', kind: 'inStrings' },
+  { key: 'timingTypes', path: 'timingType', kind: 'inStrings' },
 
   // Relation filters
   { key: 'accountIds', path: 'account.id', kind: 'inIds' },
@@ -251,7 +251,7 @@ export const GET_CUSTOMER_TASK_BY_ID = (taskId: string): string => {
         opportunity { ${CUSTOMER_OPPORTUNITY_REF} }
         
         # Documents relationship
-        customerDocument(where: { isDeleted: { _eq: false } }) {
+        documents(where: { isDeleted: { _eq: false } }) {
           id
           version
           name
