@@ -15,7 +15,8 @@ import {
   Avatar,
   AvatarImage,
   AvatarFallback,
-  Switch
+  Switch,
+  Badge
 } from '@newwork/nw-design-system'
 import { PiCheckCircle, PiXCircle, PiFile, PiDownload } from 'react-icons/pi'
 import { useKogitoProcess } from '../../hooks/useKogitoProcess'
@@ -95,34 +96,21 @@ export const ApproveDocumentDetails: React.FC<ApproveDocumentDetailsProps> = ({ 
       return
     }
 
-    // Extract domain and processName from endpoint
-    // Format: /processes/{domain}/{processName}/{processInstanceId}/{taskName}/{taskId}
-    let domain = 'generic-flows'
-    let processName = 'approveV1'
-
-    try {
-      const endpoint = task.sourceMetadata.endpoint as string
-      const pathname = endpoint.startsWith('http') ? new URL(endpoint).pathname : endpoint
-      const pathSegments = pathname.split('/').filter(Boolean)
-
-      if (pathSegments.length >= 6 && pathSegments[0] === 'processes') {
-        domain = pathSegments[1]
-        processName = pathSegments[2]
-      }
-    } catch (error) {
-      console.error('Failed to extract domain/processName from endpoint:', error)
-    }
-
     setIsApproving(true)
     setValidationError('')
 
     try {
       const payload = {
-        approveRequest: true,
+        event: 'pse_approve', // Add event property like other approval processes
+        approveRequest: {
+          approved: true
+        },
         messageOut: includeComment && comment.trim() ? comment.trim() : null
       }
 
-      await continueProcess({ domain, processName, payload })
+      console.log('🚀 Calling continueProcess with payload:', payload)
+      // Hook uses original endpoint from task.sourceMetadata - no need for domain/processName
+      await continueProcess({ payload })
     } catch (error) {
       console.error('Failed to approve document:', error)
       setValidationError('Failed to approve document. Please try again.')
@@ -143,34 +131,21 @@ export const ApproveDocumentDetails: React.FC<ApproveDocumentDetailsProps> = ({ 
       return
     }
 
-    // Extract domain and processName from endpoint
-    // Format: /processes/{domain}/{processName}/{processInstanceId}/{taskName}/{taskId}
-    let domain = 'generic-flows'
-    let processName = 'approveV1'
-
-    try {
-      const endpoint = task.sourceMetadata.endpoint as string
-      const pathname = endpoint.startsWith('http') ? new URL(endpoint).pathname : endpoint
-      const pathSegments = pathname.split('/').filter(Boolean)
-
-      if (pathSegments.length >= 6 && pathSegments[0] === 'processes') {
-        domain = pathSegments[1]
-        processName = pathSegments[2]
-      }
-    } catch (error) {
-      console.error('Failed to extract domain/processName from endpoint:', error)
-    }
-
     setIsRejecting(true)
     setValidationError('')
 
     try {
       const payload = {
-        approveRequest: false,
+        event: 'pse_reject', // Add event property like other approval processes
+        approveRequest: {
+          approved: false
+        },
         messageOut: comment.trim()
       }
 
-      await continueProcess({ domain, processName, payload })
+      console.log('🚀 Calling continueProcess with payload:', payload)
+      // Hook uses original endpoint from task.sourceMetadata - no need for domain/processName
+      await continueProcess({ payload })
     } catch (error) {
       console.error('Failed to reject document:', error)
       setValidationError('Failed to reject document. Please try again.')
@@ -199,8 +174,13 @@ export const ApproveDocumentDetails: React.FC<ApproveDocumentDetailsProps> = ({ 
           </div>
         </div>
 
-        <div>
-          <h2 className="gba:text-2xl gba:font-semibold gba:mb-1">{task.referenceTaskName || 'Approve Document'}</h2>
+        <div className="gba:flex gba:justify-between gba:items-start">
+          <div className="gba:flex-1">
+            <h2 className="gba:text-2xl gba:font-semibold gba:mb-1">{task.referenceTaskName || 'Approve Document'}</h2>
+          </div>
+          <Badge variant="warning" data-testid="document-approval-status-badge">
+            Pending Approval
+          </Badge>
         </div>
 
         {/* Submitter Info */}

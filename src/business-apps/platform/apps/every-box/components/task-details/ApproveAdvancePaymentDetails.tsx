@@ -33,6 +33,7 @@ import { useKogitoProcess } from '../../hooks/useKogitoProcess'
 import { useGraphqlClient } from '@/common/network/graphql/useGraphQLClient'
 import { useExpenseRelatedEntities } from '../../hooks/useExpenseRelatedEntities'
 import { getModuleInfo } from '../../utils/moduleIcons'
+import { getInitials as getAvatarInitials } from '../../utils/avatarUtils'
 import dayjs from 'dayjs'
 
 interface ApproveAdvancePaymentDetailsProps {
@@ -107,15 +108,6 @@ export const ApproveAdvancePaymentDetails: React.FC<ApproveAdvancePaymentDetails
     projectId: advancePayment.project,
     accessToken
   })
-
-  // Helper to get employee initials for avatar fallback
-  const getInitials = (name: string): string => {
-    const parts = name.split(' ').filter(Boolean)
-    if (parts.length >= 2) {
-      return `${parts[0][0]}${parts[1][0]}`.toUpperCase()
-    }
-    return name.substring(0, 2).toUpperCase()
-  }
 
   const isCompleted = task.status === 'COMPLETED'
 
@@ -387,11 +379,9 @@ export const ApproveAdvancePaymentDetails: React.FC<ApproveAdvancePaymentDetails
               {taskTitle}
             </h2>
           </div>
-          {expensePlanDetails?.code && (
-            <p className="gba:text-sm gba:text-muted-foreground gba:ml-7" data-testid="expense-plan-code">
-              Code: {expensePlanDetails.code}
-            </p>
-          )}
+          <p className="gba:text-sm gba:text-muted-foreground gba:ml-7" data-testid="payment-method">
+            {advancePayment.paymentMethod || 'Payment Request'}
+          </p>
         </div>
         <Badge variant={statusDisplay.variant} data-testid="advance-payment-status-badge">
           {statusDisplay.label}
@@ -409,34 +399,44 @@ export const ApproveAdvancePaymentDetails: React.FC<ApproveAdvancePaymentDetails
         </>
       )}
 
-      {/* Employee Details Card */}
+      {/* Employee Information */}
       <Card>
         <CardHeader>
           <CardTitle className="gba:flex gba:items-center gba:gap-2">
             <PiUser className="gba:h-5 gba:w-5" />
-            Employee Details
+            Employee
           </CardTitle>
         </CardHeader>
-        <CardContent className="gba:space-y-4">
+        <CardContent className="gba:space-y-3">
           {isLoadingEntities ? (
-            <p className="gba:text-sm gba:text-muted-foreground">Loading employee details...</p>
-          ) : entities.employee ? (
-            <div className="gba:flex gba:items-center gba:gap-3">
-              <Avatar>
-                {entities.employee.avatarUrl ? (
-                  <AvatarImage src={entities.employee.avatarUrl} alt={entities.employee.displayName} />
-                ) : null}
-                <AvatarFallback>{getInitials(entities.employee.displayName)}</AvatarFallback>
-              </Avatar>
-              <div>
-                <p className="gba:font-medium">{entities.employee.displayName}</p>
-                <p className="gba:text-sm gba:text-muted-foreground">
-                  {entities.employee.firstName} {entities.employee.lastName}
-                </p>
+            <div className="gba:flex gba:items-start gba:gap-3">
+              <div className="gba:h-10 gba:w-10 gba:rounded-full gba:bg-muted gba:animate-pulse" />
+              <div className="gba:flex-1">
+                <div className="gba:h-5 gba:w-32 gba:bg-muted gba:rounded gba:animate-pulse gba:mb-2" />
+                <div className="gba:h-4 gba:w-24 gba:bg-muted gba:rounded gba:animate-pulse" />
               </div>
             </div>
           ) : (
-            <p className="gba:text-sm gba:text-muted-foreground">Employee: {creatorName}</p>
+            <div className="gba:flex gba:items-start gba:gap-3">
+              <Avatar className="gba:h-10 gba:w-10">
+                {entities.employee?.avatarUrl ? (
+                  <AvatarImage src={entities.employee.avatarUrl} alt={entities.employee.displayName} />
+                ) : null}
+                <AvatarFallback className="gba:bg-gradient-to-br gba:from-blue-500 gba:to-purple-600 gba:text-white">
+                  {entities.employee?.displayName
+                    ? getAvatarInitials(entities.employee.displayName)
+                    : getAvatarInitials(creatorName)}
+                </AvatarFallback>
+              </Avatar>
+              <div>
+                <p className="gba:font-medium">{entities.employee?.displayName || creatorName}</p>
+                {(entities.employee?.position || entities.employee?.organizationalUnit) && (
+                  <p className="gba:text-sm gba:text-muted-foreground">
+                    {[entities.employee?.position, entities.employee?.organizationalUnit].filter(Boolean).join(' • ')}
+                  </p>
+                )}
+              </div>
+            </div>
           )}
 
           <Separator />
@@ -461,7 +461,7 @@ export const ApproveAdvancePaymentDetails: React.FC<ApproveAdvancePaymentDetails
                   )}
                 </p>
               ) : (
-                <p className="gba:text-sm gba:text-muted-foreground">{advancePayment.costCenter}</p>
+                <p className="gba:text-sm gba:text-muted-foreground">N/A</p>
               )}
             </div>
           </div>
@@ -477,7 +477,7 @@ export const ApproveAdvancePaymentDetails: React.FC<ApproveAdvancePaymentDetails
                 ) : projectDetails ? (
                   <p className="gba:text-sm">{projectDetails.name}</p>
                 ) : (
-                  <p className="gba:text-sm gba:text-muted-foreground">{advancePayment.project}</p>
+                  <p className="gba:text-sm gba:text-muted-foreground">N/A</p>
                 )}
               </div>
             </div>

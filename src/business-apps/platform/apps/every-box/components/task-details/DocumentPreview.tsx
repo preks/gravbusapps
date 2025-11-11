@@ -10,10 +10,15 @@ import {
   Spinner
 } from '@newwork/nw-design-system'
 import { PiEye, PiEyeSlash, PiWarning, PiFile } from 'react-icons/pi'
+import { useFileClient } from '@/common/network/files/useFileClient'
 
 interface DocumentPreviewProps {
   fileInfo?: {
     path?: string
+    fileId?: string
+    appName?: string
+    folderPath?: string
+    accessScope?: string
     fileMetadata?: {
       mimeType?: string
       originalFileName?: string
@@ -30,52 +35,101 @@ export const DocumentPreview: React.FC<DocumentPreviewProps> = ({ fileInfo, docu
   const [blobUrl, setBlobUrl] = useState<string | null>(null)
   const [isLoading, setIsLoading] = useState(false)
 
-  if (!fileInfo?.path) {
+  // Initialize file client for proper file fetching
+  const fileClient = useFileClient({ accessToken })
+
+  if (!fileInfo) {
     return null
   }
 
   const mimeType = fileInfo.fileMetadata?.mimeType || ''
   const fileName = fileInfo.fileMetadata?.originalFileName || documentName || 'Document'
-  const fileUrl = `${window.location.origin}${fileInfo.path}`
+
+  // Support both direct path and fileId-based access
+  const hasFileId = fileInfo.fileId && fileInfo.appName
+  const hasPath = fileInfo.path
+  const fileUrl = hasPath ? `${window.location.origin}${fileInfo.path}` : null
 
   // Debug logging
   console.log('DocumentPreview - fileInfo:', fileInfo)
-  console.log('DocumentPreview - fileUrl:', fileUrl)
+  console.log('DocumentPreview - hasFileId:', hasFileId)
+  console.log('DocumentPreview - hasPath:', hasPath)
   console.log('DocumentPreview - mimeType:', mimeType)
 
-  // Fetch image with authentication and convert to blob URL
+  // Fetch file with authentication and convert to blob URL
   useEffect(() => {
-    const fetchImageAsBlob = async () => {
-      if (!mimeType.startsWith('image/') || blobUrl) {
+    const fetchFileAsBlob = async () => {
+      // Only fetch for previewable types
+      if (!mimeType.startsWith('image/') && mimeType !== 'application/pdf') {
+        return
+      }
+
+      // Skip if already loading or loaded
+      if (isLoading || blobUrl) {
         return
       }
 
       setIsLoading(true)
+      setPreviewError(false)
+
       try {
-        const headers: HeadersInit = {}
-        if (accessToken) {
-          headers['Authorization'] = `Bearer ${accessToken}`
+        let blob: Blob | null = null
+
+        // Try fileId-based access first (more reliable)
+        if (hasFileId && fileInfo.fileId && fileInfo.appName) {
+          console.log('Fetching via File Client API...')
+          blob = await fileClient.getFile(
+            {
+              accessScope: (fileInfo.accessScope as 'public' | 'private' | 'tenant') || 'tenant',
+              fileId: fileInfo.fileId
+            },
+            {
+              appName: fileInfo.appName,
+              folderPath: fileInfo.folderPath || ''
+            }
+          )
+        }
+        // Fallback to path-based access
+        else if (hasPath && fileUrl) {
+          console.log('Fetching via path URL...')
+          const headers: HeadersInit = {}
+          if (accessToken) {
+            headers['Authorization'] = `Bearer ${accessToken}`
+          }
+
+          const response = await fetch(fileUrl, { headers })
+          if (!response.ok) {
+            throw new Error(`Failed to fetch file: ${response.status}`)
+          }
+          blob = await response.blob()
+        } else {
+          throw new Error('No valid file reference found')
         }
 
-        const response = await fetch(fileUrl, { headers })
-
-        if (!response.ok) {
-          throw new Error(`Failed to fetch image: ${response.status} ${response.statusText}`)
+        if (!blob || blob.size === 0) {
+          throw new Error('Empty file received')
         }
 
-        const blob = await response.blob()
-        const objectUrl = URL.createObjectURL(blob)
+        // Create blob URL with proper MIME type
+        let typedBlob = blob
+        if (mimeType === 'application/pdf') {
+          typedBlob = new Blob([blob], { type: 'application/pdf' })
+        } else if (mimeType.startsWith('image/')) {
+          typedBlob = new Blob([blob], { type: mimeType })
+        }
+
+        const objectUrl = URL.createObjectURL(typedBlob)
         setBlobUrl(objectUrl)
-        console.log('Image blob created successfully')
+        console.log('File blob created successfully')
       } catch (error) {
-        console.error('Failed to fetch image:', error)
+        console.error('Failed to fetch file:', error)
         setPreviewError(true)
       } finally {
         setIsLoading(false)
       }
     }
 
-    fetchImageAsBlob()
+    fetchFileAsBlob()
 
     // Cleanup blob URL on unmount
     return () => {
@@ -83,7 +137,7 @@ export const DocumentPreview: React.FC<DocumentPreviewProps> = ({ fileInfo, docu
         URL.revokeObjectURL(blobUrl)
       }
     }
-  }, [fileUrl, mimeType, accessToken, blobUrl])
+  }, [fileInfo, mimeType, accessToken, hasFileId, hasPath, fileUrl, blobUrl, isLoading, fileClient])
 
   // Determine if we can show preview based on MIME type
   const canShowPreview = () => {
@@ -171,10 +225,29 @@ export const DocumentPreview: React.FC<DocumentPreviewProps> = ({ fileInfo, docu
 
     // PDF preview
     if (mimeType === 'application/pdf') {
+      if (isLoading) {
+        return (
+          <div className="gba:flex gba:items-center gba:justify-center gba:min-h-[600px] gba:bg-muted gba:rounded-lg">
+            <div className="gba:flex gba:flex-col gba:items-center gba:gap-2">
+              <Spinner size="lg" />
+              <div className="gba:text-sm gba:text-muted-foreground">Loading PDF...</div>
+            </div>
+          </div>
+        )
+      }
+
+      if (!blobUrl) {
+        return (
+          <div className="gba:flex gba:items-center gba:justify-center gba:min-h-[600px] gba:bg-muted gba:rounded-lg">
+            <div className="gba:text-sm gba:text-muted-foreground">Preparing PDF...</div>
+          </div>
+        )
+      }
+
       return (
         <div className="gba:relative gba:w-full gba:h-[600px] gba:bg-muted gba:rounded-lg gba:overflow-hidden">
           <iframe
-            src={fileUrl}
+            src={blobUrl}
             className="gba:w-full gba:h-full gba:border-0"
             title={fileName}
             onError={() => setPreviewError(true)}
@@ -197,8 +270,8 @@ export const DocumentPreview: React.FC<DocumentPreviewProps> = ({ fileInfo, docu
       )
     }
 
-    // Office documents - use external viewer
-    if (previewSupport === 'viewer') {
+    // Office documents - use external viewer (only works with publicly accessible URLs)
+    if (previewSupport === 'viewer' && fileUrl) {
       // Using Microsoft Office Online Viewer for better compatibility
       const viewerUrl = `https://view.officeapps.live.com/op/embed.aspx?src=${encodeURIComponent(fileUrl)}`
 

@@ -34,6 +34,7 @@ import { ApprovePersonalInformationChangeDetails } from './task-details/ApproveP
 import { HandOutAdvancePaymentDetails } from './task-details/HandOutAdvancePaymentDetails'
 import { UniversalKogitoTaskDetails } from './task-details/UniversalKogitoTaskDetails'
 import { useTaskDetails } from '../hooks/useTaskDetails'
+import { getModuleInfo } from '../utils/moduleIcons'
 
 interface TaskDetailDialogProps {
   task: UnifiedTask | null
@@ -260,6 +261,18 @@ export const TaskDetailDialog: React.FC<TaskDetailDialogProps> = ({
   const isSickLeaveAcknowledgement =
     task.source === 'kogito' && task.name?.toLowerCase().includes('acknowledgesickleave')
 
+  // Debug logging
+  console.log('🔍 TaskDetailDialog - isSickLeaveAcknowledgement:', isSickLeaveAcknowledgement, {
+    taskSource: task.source,
+    taskName: task.name,
+    taskNameLower: task.name?.toLowerCase(),
+    includesCheck: task.name?.toLowerCase().includes('acknowledgesickleave'),
+    taskDetails: taskDetails,
+    hasTaskDetails: !!taskDetails,
+    taskStatus: task.status,
+    willRender: isSickLeaveAcknowledgement && !!taskDetails
+  })
+
   // Check if this is an approval task (from Kogito)
   // Approval tasks typically have names starting with "approve" or contain "approval"
   const isApprovalTask =
@@ -293,6 +306,10 @@ export const TaskDetailDialog: React.FC<TaskDetailDialogProps> = ({
   const isPersonalInfoChangeApproval =
     task.source === 'kogito' && task.name?.toLowerCase().includes('approvepersonalinformationchange')
 
+  // Get module info for module badge
+  const moduleInfo = getModuleInfo(task.name, task.type)
+  const ModuleIcon = moduleInfo.icon
+
   return (
     <Card className="gba:h-full gba:flex gba:flex-col gba:shadow-lg" data-testid="task-detail-dialog">
       {/* Header with Close Button */}
@@ -304,6 +321,11 @@ export const TaskDetailDialog: React.FC<TaskDetailDialogProps> = ({
             </h2>
             {/* Badges */}
             <div className="gba:flex gba:items-center gba:gap-2 gba:flex-wrap">
+              {/* Module Badge */}
+              <Badge variant="outline" data-testid="task-detail-module" className="gba:flex gba:items-center gba:gap-1">
+                <ModuleIcon className={`gba:h-3 gba:w-3 ${moduleInfo.color}`} />
+                {moduleInfo.name}
+              </Badge>
               {isBlinkTask && (
                 <Badge
                   variant="default"
@@ -445,7 +467,7 @@ export const TaskDetailDialog: React.FC<TaskDetailDialogProps> = ({
                 task={task}
                 accessToken={accessToken}
                 userInfo={userInfo}
-                onTaskCompleted={onTaskCompleted}
+                onTaskCompleted={onTaskCompleted || (() => {})}
                 onTaskUpdated={onTaskUpdated}
                 onClose={onClose}
               />
@@ -479,7 +501,7 @@ export const TaskDetailDialog: React.FC<TaskDetailDialogProps> = ({
                 onClose={onClose}
                 employeeId={employeeId}
               />
-            ) : isSpecialLeaveApproval && taskDetails ? (
+            ) : isSpecialLeaveApproval ? (
               <ApproveSpecialLeaveDetails
                 task={task}
                 taskDetails={taskDetails}

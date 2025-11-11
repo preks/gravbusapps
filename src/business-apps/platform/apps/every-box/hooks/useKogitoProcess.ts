@@ -17,8 +17,8 @@ interface UseKogitoProcessOptions {
 }
 
 interface ContinueProcessOptions {
-  domain: string
-  processName: string
+  domain?: string // Optional - hook uses original endpoint from task.sourceMetadata
+  processName?: string // Optional - hook uses original endpoint from task.sourceMetadata
   payload: Record<string, any>
   skipScreen?: boolean
 }
@@ -33,13 +33,17 @@ export const useKogitoProcess = ({ task, accessToken, onSuccess, onError }: UseK
 
   // If not found in metadata, try to extract from endpoint URL
   // Endpoint format: /processes/{domain}/{processName}/{processInstanceId}/{taskName}/{taskId}
+  // SPECIAL CASE: For nested processes, there may be multiple UUIDs - use the LAST UUID (second-to-last segment is taskName, last is taskId, before taskName is processInstanceId)
   if (!processInstanceId && task.sourceMetadata?.endpoint) {
     try {
       const endpoint = task.sourceMetadata.endpoint as string
       const url = new URL(endpoint.startsWith('http') ? endpoint : `https://example.com${endpoint}`)
       const pathSegments = url.pathname.split('/').filter(Boolean)
 
-      // processInstanceId is typically the 3rd segment (after 'processes', domain, processName)
+      // For standard format: /processes/{domain}/{processName}/{processInstanceId}/{taskName}/{taskId}
+      // processInstanceId is the 3rd segment (index 3)
+      // For nested format: /processes/{domain}/{processName1}/{id1}/{processName2}/{id2}
+      // We need the FIRST UUID after processName (index 3), as that's the root process instance
       if (pathSegments.length >= 4 && pathSegments[0] === 'processes') {
         processInstanceId = pathSegments[3]
       }
@@ -49,70 +53,88 @@ export const useKogitoProcess = ({ task, accessToken, onSuccess, onError }: UseK
   }
 
   // Debug: Log task structure to help find processInstanceId and endpoint
+  console.log('🔍 useKogitoProcess - Task Debug:', {
+    taskId: task.id,
+    taskName: task.name,
+    endpoint: task.sourceMetadata?.endpoint,
+    processInstanceId,
+    workflowMeta: (task as any).workflowMeta
+  })
 
   /**
    * Continue the Kogito process with the provided payload
    * Makes direct HTTP POST to Kogito task completion endpoint
+   * Uses the original endpoint from task.sourceMetadata if available
    * Endpoint: /processes/{domain}/{processName}/{processId}/{taskName}/{taskId}?phase=complete&user={userId}
    */
   const continueProcess = useCallback(
     async ({ domain, processName, payload }: ContinueProcessOptions) => {
-      if (!processInstanceId) {
-        const error = new Error('Cannot complete task: missing process instance ID')
-        message.error(error.message)
-        onError?.(error)
-        return Promise.reject(error)
-      }
-
-      // Extract taskName from endpoint URL, or use task.name or task.referenceName as fallback
-      let taskName = 'Task'
-
-      // Try to extract from endpoint URL first
-      if (task.sourceMetadata?.endpoint) {
-        try {
-          const endpoint = task.sourceMetadata.endpoint as string
-          // Parse URL to get pathname, handling both full URLs and path-only strings
-          let pathname = endpoint
-          if (endpoint.startsWith('http://') || endpoint.startsWith('https://')) {
-            pathname = new URL(endpoint).pathname
-          }
-
-          const pathSegments = pathname.split('/').filter(Boolean)
-          // Pathname format: /processes/{domain}/{processName}/{processInstanceId}/{taskName}/{taskId}
-          // After splitting: ['processes', 'domain', 'processName', 'processInstanceId', 'taskName', 'taskId']
-          // Task name is the 5th segment (index 4)
-          if (pathSegments.length >= 6 && pathSegments[0] === 'processes') {
-            taskName = pathSegments[4]
-          }
-        } catch {
-          // Ignore URL parsing errors
-        }
-      }
-
-      // If extraction failed, try task.name or task.referenceName
-      if (taskName === 'Task') {
-        if (task.name) {
-          taskName = task.name
-        } else if ((task as any).referenceName) {
-          taskName = (task as any).referenceName
-        }
-      }
-
       // Extract userId from JWT token (sub claim)
       let userId = ''
       try {
         const tokenParts = accessToken.split('.')
         if (tokenParts.length === 3) {
-          const payload = JSON.parse(atob(tokenParts[1]))
-          userId = payload.sub || ''
+          const tokenPayload = JSON.parse(atob(tokenParts[1]))
+          userId = tokenPayload.sub || ''
         }
       } catch {
         // Ignore token parsing errors
       }
 
-      // Build the Kogito task completion endpoint (matching gravity-platform pattern)
+      // Build the completion endpoint
+      let completionEndpoint = ''
       const kogitoBaseUrl = env('NEXT_PUBLIC_NEWWORK_PLATFORM_API_URL') || 'https://newwork-dev.newwork.com'
-      const completionEndpoint = `${kogitoBaseUrl}/processes/${domain}/${processName}/${processInstanceId}/${taskName}/${task.id}`
+
+      // CRITICAL: Use the original endpoint from task.sourceMetadata if available
+      // This ensures we use the exact endpoint that the backend expects
+      if (task.sourceMetadata?.endpoint) {
+        const originalEndpoint = task.sourceMetadata.endpoint as string
+
+        console.log('🔍 Processing original endpoint:', originalEndpoint)
+        console.log('🔍 Kogito base URL:', kogitoBaseUrl)
+
+        // Parse the endpoint to ensure it's a proper URL
+        if (originalEndpoint.startsWith('http://') || originalEndpoint.startsWith('https://')) {
+          // Full URL provided - use the pathname only
+          const parsedUrl = new URL(originalEndpoint)
+          completionEndpoint = parsedUrl.pathname
+          console.log('🔍 Extracted pathname from full URL:', completionEndpoint)
+        } else {
+          // Relative path provided - use as is
+          completionEndpoint = originalEndpoint
+          console.log('🔍 Using relative path as-is:', completionEndpoint)
+        }
+
+        // Ensure the endpoint starts with /
+        if (!completionEndpoint.startsWith('/')) {
+          completionEndpoint = `/${completionEndpoint}`
+          console.log('🔍 Added leading slash:', completionEndpoint)
+        }
+
+        // Build full URL
+        completionEndpoint = `${kogitoBaseUrl}${completionEndpoint}`
+        console.log('✅ Final completion endpoint:', completionEndpoint)
+      } else {
+        // Fallback: Build endpoint manually if no original endpoint available
+        if (!processInstanceId) {
+          const error = new Error('Cannot complete task: missing process instance ID and no original endpoint')
+          message.error(error.message)
+          onError?.(error)
+          return Promise.reject(error)
+        }
+
+        // Extract taskName from task
+        const taskName = task.name || (task as any).referenceName || 'Task'
+
+        completionEndpoint = `${kogitoBaseUrl}/processes/${domain}/${processName}/${processInstanceId}/${taskName}/${task.id}`
+      }
+
+      console.log('🚀 useKogitoProcess - Calling endpoint:', {
+        originalEndpoint: task.sourceMetadata?.endpoint,
+        completionEndpoint,
+        taskId: task.id,
+        userId
+      })
 
       try {
         const response = await fetch(`${completionEndpoint}?phase=complete${userId ? `&user=${userId}` : ''}`, {

@@ -30,6 +30,7 @@ export interface TeamEmployee {
   id: string
   firstName: string
   lastName: string
+  displayName?: string
   employeePosition?: {
     organizationalUnit?: {
       name: string
@@ -76,67 +77,79 @@ export const useTeamAbsences = ({
     setIsLoading(true)
     setError(null)
 
+    // Debug logging
+    console.log('🔍 useTeamAbsences - Query params:', {
+      supervisorId,
+      startDate,
+      endDate
+    })
+
     try {
       const query = `
-        query GetTeamAbsences($supervisorId: uuid!, $startDate: timestamp!, $endDate: timestamp!) {
-          Employee(
-            where: { 
-              employeePosition: { supervisorEmployeeId: { _eq: $supervisorId } },
-              isDeleted: { _eq: false }
-            }
-            orderBy: { firstName: ASC }
-            limit: 100
-          ) {
-            id
-            firstName
-            lastName
-            employeePosition {
-              organizationalUnit {
-                name
-              }
-            }
-          }
-          EmployeeAbsence(
-            where: {
-              _and: [
-                { employee: { employeePosition: { supervisorEmployeeId: { _eq: $supervisorId } } } },
-                { isDeleted: { _eq: false } },
-                { startDate: { _lte: $endDate } },
-                { endDate: { _gte: $startDate } }
-              ]
-            }
-            orderBy: { startDate: ASC }
-            limit: 200
-          ) {
-            id
-            startDate
-            endDate
-            status
-            effectiveDays
-            employee {
-              id
-              firstName
-              lastName
-            }
-            type {
-              value
-              objectValue
-              translations {
-                localeCode
-                value
-              }
-            }
+    query GetTeamAbsences($supervisorId: uuid!) {
+      Employee(
+        where: { 
+          employeePosition: { supervisorEmployeeId: { _eq: $supervisorId } },
+          isDeleted: { _eq: false }
+        }
+        orderBy: { firstName: ASC }
+        limit: 100
+      ) {
+        id
+        firstName
+        lastName
+        displayName
+        employeePosition {
+          organizationalUnit {
+            name
           }
         }
-      `
+      }
+      EmployeeAbsence(
+        where: {
+          _and: [
+            { employee: { employeePosition: { supervisorEmployeeId: { _eq: $supervisorId } } } },
+            { isDeleted: { _eq: false } }
+          ]
+        }
+        orderBy: { startDate: ASC }
+        limit: 200
+      ) {
+        id
+        startDate
+        endDate
+        status
+        effectiveDays
+        employee {
+          id
+          firstName
+          lastName
+        }
+        type {
+          value
+          objectValue
+          translations {
+            localeCode
+            value
+          }
+        }
+      }
+    }
+  `
 
       const result = await graphqlClient.request<{
         Employee: TeamEmployee[]
         EmployeeAbsence: TeamAbsence[]
       }>(query, {
-        supervisorId,
-        startDate,
-        endDate
+        supervisorId
+      })
+
+      // Debug logging
+      console.log('🔍 useTeamAbsences - Query result:', {
+        employeeCount: result.Employee?.length || 0,
+        absenceCount: result.EmployeeAbsence?.length || 0,
+        employees: result.Employee,
+        absences: result.EmployeeAbsence
       })
 
       setEmployees(result.Employee || [])

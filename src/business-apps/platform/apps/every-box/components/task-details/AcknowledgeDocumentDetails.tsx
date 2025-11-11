@@ -15,7 +15,8 @@ import {
   Avatar,
   AvatarImage,
   AvatarFallback,
-  Switch
+  Switch,
+  Badge
 } from '@newwork/nw-design-system'
 import { PiCheckCircle, PiFile, PiDownload } from 'react-icons/pi'
 import { useKogitoProcess } from '../../hooks/useKogitoProcess'
@@ -151,11 +152,16 @@ export const AcknowledgeDocumentDetails: React.FC<AcknowledgeDocumentDetailsProp
           </div>
         </div>
 
-        <div>
-          <h2 className="gba:text-2xl gba:font-semibold gba:mb-1">
-            {task.referenceTaskName || 'Acknowledge Document'}
-          </h2>
-          {message && <p className="gba:text-sm gba:text-muted-foreground gba:mt-2">{message}</p>}
+        <div className="gba:flex gba:justify-between gba:items-start">
+          <div className="gba:flex-1">
+            <h2 className="gba:text-2xl gba:font-semibold gba:mb-1">
+              {task.referenceTaskName || 'Acknowledge Document'}
+            </h2>
+            {message && <p className="gba:text-sm gba:text-muted-foreground gba:mt-2">{message}</p>}
+          </div>
+          <Badge variant="info" data-testid="document-acknowledge-status-badge">
+            Pending Acknowledgement
+          </Badge>
         </div>
 
         {/* Submitter Info */}

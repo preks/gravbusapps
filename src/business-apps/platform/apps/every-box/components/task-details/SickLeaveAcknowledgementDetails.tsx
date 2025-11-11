@@ -1,4 +1,4 @@
-import React, { useState } from 'react'
+import React, { useState, useEffect } from 'react'
 import { message } from 'antd'
 import {
   Card,
@@ -17,9 +17,10 @@ import { Check } from 'lucide-react'
 import { UnifiedTask } from '../../types'
 import { useKogitoProcess } from '../../hooks/useKogitoProcess'
 import { useExpenseRelatedEntities } from '../../hooks/useExpenseRelatedEntities'
-import { formatDate } from '@/common/utils/windowUtils'
+import { useGraphQLClient } from '@/common/network/graphql/useGraphQLClient'
 import { getModuleInfo } from '../../utils/moduleIcons'
 import { TeamAbsenceCalendar } from '../TeamAbsenceCalendar'
+import dayjs from 'dayjs'
 
 interface SickLeaveAcknowledgementDetailsProps {
   task: UnifiedTask
@@ -41,6 +42,9 @@ export const SickLeaveAcknowledgementDetails: React.FC<SickLeaveAcknowledgementD
   onTaskUpdated
 }) => {
   const [isAcknowledging, setIsAcknowledging] = useState(false)
+  const [absenceTypeName, setAbsenceTypeName] = useState<string>('Sick Leave')
+
+  const graphqlClient = useGraphQLClient(accessToken)
 
   const { continueProcess } = useKogitoProcess({
     task,
@@ -68,6 +72,48 @@ export const SickLeaveAcknowledgementDetails: React.FC<SickLeaveAcknowledgementD
     return name.substring(0, 2).toUpperCase()
   }
 
+  // Fetch absence type name from catalog
+  useEffect(() => {
+    const fetchAbsenceTypeName = async () => {
+      if (!accessToken || !absence?.typeRef) return
+
+      try {
+        const absenceTypeCode = absence.typeRef.split(':').pop()
+
+        const catalogQuery = `
+          query GetAbsenceType($code: String!) {
+            CatalogEntry(
+              where: {
+                catalog: {
+                  identifier: {_eq: "AbsenceType"},
+                  version: {_eq: "v1"}
+                },
+                code: {_eq: $code}
+              },
+              limit: 1
+            ) {
+              id
+              value
+              code
+            }
+          }
+        `
+
+        const result = await graphqlClient.request<{ CatalogEntry: any[] }>(catalogQuery, {
+          code: absenceTypeCode
+        })
+
+        if (result.CatalogEntry && result.CatalogEntry.length > 0) {
+          setAbsenceTypeName(result.CatalogEntry[0].value || 'Sick Leave')
+        }
+      } catch (error) {
+        console.error('Error fetching absence type:', error)
+      }
+    }
+
+    fetchAbsenceTypeName()
+  }, [accessToken, absence?.typeRef, graphqlClient])
+
   if (!absence) {
     return (
       <div className="gba:p-6">
@@ -80,8 +126,8 @@ export const SickLeaveAcknowledgementDetails: React.FC<SickLeaveAcknowledgementD
   const ModuleIcon = moduleInfo.icon
   const creatorName = task.sourceMetadata?.creatorName || 'Unknown'
 
-  // Format absence type
-  const absenceType = absence.typeRef?.split(':').pop() || 'Sick Leave'
+  // Format absence type (now using fetched name)
+  const absenceType = absenceTypeName
 
   // Calculate duration display
   const durationParts = []
@@ -145,7 +191,7 @@ export const SickLeaveAcknowledgementDetails: React.FC<SickLeaveAcknowledgementD
             </h2>
           </div>
           <p className="gba:text-sm gba:text-muted-foreground gba:ml-7" data-testid="sick-leave-type">
-            Type: {absenceType}
+            {absenceType}
           </p>
         </div>
         <Badge variant="success" data-testid="sick-leave-status-badge">
@@ -169,7 +215,7 @@ export const SickLeaveAcknowledgementDetails: React.FC<SickLeaveAcknowledgementD
         <CardHeader>
           <CardTitle className="gba:flex gba:items-center gba:gap-2">
             <PiUser className="gba:h-5 gba:w-5" />
-            Employee Information
+            Employee
           </CardTitle>
         </CardHeader>
         <CardContent className="gba:space-y-3">
@@ -195,7 +241,9 @@ export const SickLeaveAcknowledgementDetails: React.FC<SickLeaveAcknowledgementD
               </Avatar>
               <div>
                 <p className="gba:font-medium">{entities.employee?.displayName || creatorName}</p>
-                <p className="gba:text-sm gba:text-muted-foreground">Submitted by</p>
+                {entities.employee?.organizationalUnit && (
+                  <p className="gba:text-sm gba:text-muted-foreground">{entities.employee.organizationalUnit}</p>
+                )}
               </div>
             </div>
           )}
@@ -220,41 +268,36 @@ export const SickLeaveAcknowledgementDetails: React.FC<SickLeaveAcknowledgementD
             Absence Period
           </CardTitle>
         </CardHeader>
-        <CardContent className="gba:grid gba:grid-cols-1 md:gba:grid-cols-2 gba:gap-4">
+        <CardContent className="gba:space-y-4">
+          {/* Duration (Start - End Date) in one line */}
           <div>
-            <p className="gba:text-sm gba:text-muted-foreground">Start Date</p>
-            <p className="gba:text-lg gba:font-semibold">{formatDate(absence.startDate, 'date.short')}</p>
-            {absence.cutHalfDayStart && (
-              <Badge variant="info" className="gba:text-xs gba:mt-1">
-                Half Day
-              </Badge>
-            )}
+            <p className="gba:text-sm gba:text-muted-foreground gba:mb-2">Duration</p>
+            <div className="gba:flex gba:items-center gba:gap-2 gba:flex-wrap">
+              <div className="gba:flex gba:items-center gba:gap-2">
+                <p className="gba:text-lg gba:font-semibold">{dayjs(absence.startDate).format('MMM D, YYYY')}</p>
+                {absence.cutHalfDayStart && (
+                  <Badge variant="info" className="gba:text-xs">
+                    Half Day
+                  </Badge>
+                )}
+              </div>
+              <span className="gba:text-muted-foreground gba:text-sm">→</span>
+              <div className="gba:flex gba:items-center gba:gap-2">
+                <p className="gba:text-lg gba:font-semibold">{dayjs(absence.endDate).format('MMM D, YYYY')}</p>
+                {absence.cutHalfDayEnd && (
+                  <Badge variant="info" className="gba:text-xs">
+                    Half Day
+                  </Badge>
+                )}
+              </div>
+            </div>
           </div>
+
+          {/* Working Days/Hours */}
           <div>
-            <p className="gba:text-sm gba:text-muted-foreground">End Date</p>
-            <p className="gba:text-lg gba:font-semibold">{formatDate(absence.endDate, 'date.short')}</p>
-            {absence.cutHalfDayEnd && (
-              <Badge variant="info" className="gba:text-xs gba:mt-1">
-                Half Day
-              </Badge>
-            )}
-          </div>
-          <div>
-            <p className="gba:text-sm gba:text-muted-foreground">Duration</p>
+            <p className="gba:text-sm gba:text-muted-foreground">Working Time</p>
             <p className="gba:text-base gba:font-semibold">{durationDisplay}</p>
           </div>
-          <div>
-            <p className="gba:text-sm gba:text-muted-foreground">Calendar Days</p>
-            <p className="gba:text-base gba:font-semibold">
-              {absence.calendarDays || 0} day{absence.calendarDays !== 1 ? 's' : ''}
-            </p>
-          </div>
-          {absence.balance !== null && absence.balance !== undefined && (
-            <div>
-              <p className="gba:text-sm gba:text-muted-foreground">Balance</p>
-              <p className="gba:text-base gba:font-semibold">{absence.balance} hours</p>
-            </div>
-          )}
         </CardContent>
       </Card>
 
@@ -266,6 +309,13 @@ export const SickLeaveAcknowledgementDetails: React.FC<SickLeaveAcknowledgementD
             supervisorId={supervisorId}
             startDate={absence.startDate}
             endDate={absence.endDate}
+            currentAbsence={{
+              employeeId: absence.employeeId || entities.employee?.id || '',
+              employeeName: entities.employee?.displayName || creatorName,
+              department: entities.employee?.organizationalUnit || undefined,
+              type: absenceType,
+              status: 'APPROVED'
+            }}
           />
           <Separator />
         </>

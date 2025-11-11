@@ -401,6 +401,23 @@ export const ApprovePersonalInformationChangeDetails: React.FC<ApprovePersonalIn
 
   return (
     <div className="gba:space-y-6" data-testid="approve-personal-info-change-details">
+      {/* Header Section */}
+      <div className="gba:flex gba:justify-between gba:items-start">
+        <div className="gba:flex-1">
+          <h2 className="gba:text-xl gba:font-semibold gba:text-foreground" data-testid="personal-info-change-title">
+            {task.referenceTaskName || 'Approve Personal Information Change'}
+          </h2>
+          <p className="gba:text-sm gba:text-muted-foreground gba:mt-1">
+            Requested by <strong>{creatorName}</strong>
+          </p>
+        </div>
+        <Badge variant="warning" data-testid="personal-info-change-status-badge">
+          Pending Approval
+        </Badge>
+      </div>
+
+      <Separator />
+
       {/* Header Info */}
       <Alert data-testid="change-request-info">
         <Info className="gba:h-4 gba:w-4" />

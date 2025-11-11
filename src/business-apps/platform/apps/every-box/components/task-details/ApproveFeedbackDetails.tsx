@@ -23,6 +23,7 @@ import { UnifiedTask } from '../../types'
 import { useKogitoProcess } from '../../hooks/useKogitoProcess'
 import { useGraphqlClient } from '@/common/network/graphql/useGraphQLClient'
 import { getModuleInfo } from '../../utils/moduleIcons'
+import { getInitials as getAvatarInitials } from '../../utils/avatarUtils'
 import dayjs from 'dayjs'
 
 interface ApproveFeedbackDetailsProps {
@@ -53,6 +54,14 @@ interface EmployeeData {
   displayName: string
   pictureThumbnail?: string
   picture?: string
+  employeePosition?: {
+    organizationalUnit?: {
+      name: string
+    }
+    jobPosition?: {
+      name: string
+    }
+  }
 }
 
 export const ApproveFeedbackDetails: React.FC<ApproveFeedbackDetailsProps> = ({
@@ -124,6 +133,14 @@ export const ApproveFeedbackDetails: React.FC<ApproveFeedbackDetailsProps> = ({
               displayName
               pictureThumbnail
               picture
+              employeePosition {
+                organizationalUnit {
+                  name
+                }
+                jobPosition {
+                  name
+                }
+              }
             }
           }
         `
@@ -154,15 +171,6 @@ export const ApproveFeedbackDetails: React.FC<ApproveFeedbackDetailsProps> = ({
 
     fetchEmployeeDetails()
   }, [accessToken, feedback.senderEmployeeId, feedback.employeeId, graphqlClient])
-
-  // Helper to get employee initials for avatar fallback
-  const getInitials = (name: string): string => {
-    const parts = name.split(' ').filter(Boolean)
-    if (parts.length >= 2) {
-      return `${parts[0][0]}${parts[1][0]}`.toUpperCase()
-    }
-    return name.substring(0, 2).toUpperCase()
-  }
 
   // Format feedback type
   const formatFeedbackType = (typeRef: string | null | undefined): string => {
@@ -285,13 +293,23 @@ export const ApproveFeedbackDetails: React.FC<ApproveFeedbackDetailsProps> = ({
                           alt={senderEmployee.displayName}
                         />
                       ) : null}
-                      <AvatarFallback>{getInitials(senderEmployee.displayName)}</AvatarFallback>
+                      <AvatarFallback className="gba:bg-gradient-to-br gba:from-blue-500 gba:to-purple-600 gba:text-white">
+                        {getAvatarInitials(senderEmployee.displayName)}
+                      </AvatarFallback>
                     </Avatar>
                     <div>
                       <p className="gba:font-medium">{senderEmployee.displayName}</p>
-                      <p className="gba:text-sm gba:text-muted-foreground">
-                        {senderEmployee.firstName} {senderEmployee.lastName}
-                      </p>
+                      {(senderEmployee.employeePosition?.jobPosition?.name ||
+                        senderEmployee.employeePosition?.organizationalUnit?.name) && (
+                        <p className="gba:text-sm gba:text-muted-foreground">
+                          {[
+                            senderEmployee.employeePosition?.jobPosition?.name,
+                            senderEmployee.employeePosition?.organizationalUnit?.name
+                          ]
+                            .filter(Boolean)
+                            .join(' • ')}
+                        </p>
+                      )}
                     </div>
                   </div>
                 ) : (
@@ -315,13 +333,23 @@ export const ApproveFeedbackDetails: React.FC<ApproveFeedbackDetailsProps> = ({
                           alt={receiverEmployee.displayName}
                         />
                       ) : null}
-                      <AvatarFallback>{getInitials(receiverEmployee.displayName)}</AvatarFallback>
+                      <AvatarFallback className="gba:bg-gradient-to-br gba:from-blue-500 gba:to-purple-600 gba:text-white">
+                        {getAvatarInitials(receiverEmployee.displayName)}
+                      </AvatarFallback>
                     </Avatar>
                     <div>
                       <p className="gba:font-medium">{receiverEmployee.displayName}</p>
-                      <p className="gba:text-sm gba:text-muted-foreground">
-                        {receiverEmployee.firstName} {receiverEmployee.lastName}
-                      </p>
+                      {(receiverEmployee.employeePosition?.jobPosition?.name ||
+                        receiverEmployee.employeePosition?.organizationalUnit?.name) && (
+                        <p className="gba:text-sm gba:text-muted-foreground">
+                          {[
+                            receiverEmployee.employeePosition?.jobPosition?.name,
+                            receiverEmployee.employeePosition?.organizationalUnit?.name
+                          ]
+                            .filter(Boolean)
+                            .join(' • ')}
+                        </p>
+                      )}
                     </div>
                   </div>
                 ) : (

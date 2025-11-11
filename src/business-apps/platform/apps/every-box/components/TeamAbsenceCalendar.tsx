@@ -16,7 +16,8 @@ import {
   TableRow,
   TableHead,
   TableBody,
-  TableCell
+  TableCell,
+  Badge
 } from '@newwork/nw-design-system'
 import { Users } from 'lucide-react'
 import { useTeamAbsences } from '../hooks/useTeamAbsences'
@@ -27,6 +28,13 @@ interface TeamAbsenceCalendarProps {
   supervisorId?: string
   startDate: string
   endDate: string
+  currentAbsence?: {
+    employeeId: string
+    employeeName: string
+    department?: string
+    type: string
+    status: string
+  }
 }
 
 interface CalendarDay {
@@ -65,7 +73,8 @@ export const TeamAbsenceCalendar: React.FC<TeamAbsenceCalendarProps> = ({
   accessToken,
   supervisorId,
   startDate,
-  endDate
+  endDate,
+  currentAbsence
 }) => {
   const userLocale = getCurrentActiveUserLocale() ?? 'en-US'
 
@@ -127,8 +136,50 @@ export const TeamAbsenceCalendar: React.FC<TeamAbsenceCalendarProps> = ({
   const absenceMap = useMemo((): EmployeeAbsenceMap => {
     const map: EmployeeAbsenceMap = {}
 
+    // Debug logging
+    console.log('🔍 TeamAbsenceCalendar - absences from useTeamAbsences:', absences)
+    console.log('🔍 TeamAbsenceCalendar - currentAbsence:', currentAbsence)
+
+    // Add current absence being acknowledged/approved if provided
+    if (currentAbsence) {
+      map[currentAbsence.employeeId] = {}
+
+      const statusDisplay = getAbsenceStatusDisplay(currentAbsence.status)
+      let color = 'gba:bg-info'
+      if (statusDisplay.type === 'approved') {
+        color = 'gba:bg-success'
+      } else if (statusDisplay.type === 'rejected') {
+        color = 'gba:bg-destructive'
+      } else if (statusDisplay.type === 'pending') {
+        color = 'gba:bg-warning'
+      }
+
+      const absStart = new Date(startDate.split('T')[0] + 'T12:00:00')
+      const absEnd = new Date(endDate.split('T')[0] + 'T12:00:00')
+      const currentDate = new Date(absStart)
+
+      while (currentDate <= absEnd) {
+        const dateStr = currentDate.toISOString().split('T')[0]
+        map[currentAbsence.employeeId][dateStr] = {
+          type: currentAbsence.type,
+          status: statusDisplay.label,
+          color
+        }
+        currentDate.setDate(currentDate.getDate() + 1)
+      }
+    }
+
     absences.forEach(absence => {
       if (!absence.employee?.id || !absence.startDate || !absence.endDate) return
+
+      // Filter: Only include absences that overlap with the week range
+      const absStart = new Date(absence.startDate.split('T')[0] + 'T12:00:00')
+      const absEnd = new Date(absence.endDate.split('T')[0] + 'T12:00:00')
+
+      // Check if absence overlaps with week range
+      if (absEnd < weekRange.weekStart || absStart > weekRange.weekEnd) {
+        return // Skip absences outside the week range
+      }
 
       const employeeId = absence.employee.id
       if (!map[employeeId]) {
@@ -149,12 +200,11 @@ export const TeamAbsenceCalendar: React.FC<TeamAbsenceCalendarProps> = ({
         color = 'gba:bg-warning'
       }
 
-      // Mark all days in the absence range
-      const absStart = new Date(absence.startDate.split('T')[0] + 'T12:00:00')
-      const absEnd = new Date(absence.endDate.split('T')[0] + 'T12:00:00')
-      const currentDate = new Date(absStart)
+      // Mark all days in the absence range (only within the week range)
+      const currentDate = new Date(absStart < weekRange.weekStart ? weekRange.weekStart : absStart)
+      const rangeEnd = absEnd > weekRange.weekEnd ? weekRange.weekEnd : absEnd
 
-      while (currentDate <= absEnd) {
+      while (currentDate <= rangeEnd) {
         const dateStr = currentDate.toISOString().split('T')[0]
         map[employeeId][dateStr] = {
           type: absenceType,
@@ -166,7 +216,7 @@ export const TeamAbsenceCalendar: React.FC<TeamAbsenceCalendarProps> = ({
     })
 
     return map
-  }, [absences])
+  }, [absences, currentAbsence, startDate, endDate, weekRange])
 
   if (!supervisorId) {
     return null
@@ -186,6 +236,11 @@ export const TeamAbsenceCalendar: React.FC<TeamAbsenceCalendarProps> = ({
         </CardTitle>
         <p className="gba:text-sm gba:text-muted-foreground gba:mt-1">
           View team absences during this period to help make informed decisions
+          {currentAbsence && (
+            <span className="gba:block gba:mt-2 gba:text-primary gba:font-medium">
+              The absence highlighted with a blue border and dot indicator is pending your approval
+            </span>
+          )}
         </p>
       </CardHeader>
       <CardContent>
@@ -226,42 +281,112 @@ export const TeamAbsenceCalendar: React.FC<TeamAbsenceCalendarProps> = ({
                 </TableRow>
               </TableHeader>
               <TableBody>
-                {employees.map(employee => {
-                  const employeeName = `${employee.firstName || ''} ${employee.lastName || ''}`.trim()
-                  const department = employee.employeePosition?.organizationalUnit?.name || ''
-
-                  return (
-                    <TableRow key={employee.id}>
-                      <TableCell className="gba:sticky gba:left-0 gba:bg-card gba:z-10">
-                        <div>
-                          <div className="gba:font-medium gba:text-sm">{employeeName}</div>
-                          {department && <div className="gba:text-xs gba:text-muted-foreground">{department}</div>}
+                {/* Show current absence being acknowledged first if it exists */}
+                {currentAbsence && (
+                  <TableRow
+                    key={currentAbsence.employeeId}
+                    className="gba:bg-primary/5 gba:border-l-4 gba:border-l-primary"
+                  >
+                    <TableCell className="gba:sticky gba:left-0 gba:bg-primary/5 gba:z-10">
+                      <div>
+                        <div className="gba:flex gba:items-center gba:gap-2">
+                          <div className="gba:font-medium gba:text-sm">{currentAbsence.employeeName}</div>
+                          <Badge variant="outline" className="gba:text-xs gba:border-primary gba:text-primary">
+                            Pending Approval
+                          </Badge>
                         </div>
-                      </TableCell>
-                      {calendarDays.map(day => {
-                        const absence = absenceMap[employee.id]?.[day.dateString]
+                        {currentAbsence.department && (
+                          <div className="gba:text-xs gba:text-muted-foreground gba:mt-1">
+                            {currentAbsence.department}
+                          </div>
+                        )}
+                      </div>
+                    </TableCell>
+                    {calendarDays.map(day => {
+                      const absence = absenceMap[currentAbsence.employeeId]?.[day.dateString]
+                      // Check if this day is part of the absence being approved
+                      const absStart = new Date(startDate.split('T')[0] + 'T12:00:00')
+                      const absEnd = new Date(endDate.split('T')[0] + 'T12:00:00')
+                      const dayDate = new Date(day.dateString + 'T12:00:00')
+                      const isCurrentAbsenceDay = dayDate >= absStart && dayDate <= absEnd
 
-                        return (
-                          <TableCell
-                            key={day.dateString}
-                            className={`gba:text-center gba:p-2 ${day.isWeekend ? 'gba:bg-muted/30' : ''}`}
-                          >
-                            {absence ? (
-                              <div
-                                className={`${absence.color} gba:text-white gba:text-xs gba:py-1 gba:px-2 gba:rounded gba:font-medium`}
-                                title={`${absence.type} - ${absence.status}`}
-                              >
-                                {absence.type}
-                              </div>
-                            ) : (
-                              <div className="gba:text-muted-foreground gba:text-xs">-</div>
-                            )}
-                          </TableCell>
-                        )
-                      })}
-                    </TableRow>
-                  )
-                })}
+                      return (
+                        <TableCell
+                          key={day.dateString}
+                          className={`gba:text-center gba:p-2 gba:bg-primary/5 ${day.isWeekend ? 'gba:bg-muted/30' : ''}`}
+                        >
+                          {absence ? (
+                            <div
+                              className={`${absence.color} gba:text-white gba:text-xs gba:py-1 gba:px-2 gba:rounded gba:font-medium gba:relative ${
+                                isCurrentAbsenceDay ? 'gba:ring-2 gba:ring-primary gba:ring-offset-2 gba:shadow-lg' : ''
+                              }`}
+                              title={`${absence.type} - ${absence.status}${isCurrentAbsenceDay ? ' (This absence is pending approval)' : ''}`}
+                            >
+                              {absence.type}
+                              {isCurrentAbsenceDay && (
+                                <span
+                                  className="gba:absolute -gba:top-1 -gba:right-1 gba:bg-primary gba:text-white gba:rounded-full gba:w-3 gba:h-3 gba:flex gba:items-center gba:justify-center gba:text-[8px]"
+                                  title="Pending Approval"
+                                >
+                                  •
+                                </span>
+                              )}
+                            </div>
+                          ) : (
+                            <div className="gba:text-muted-foreground gba:text-xs">-</div>
+                          )}
+                        </TableCell>
+                      )
+                    })}
+                  </TableRow>
+                )}
+
+                {employees
+                  .filter(employee => {
+                    // Exclude current absence employee (already shown at top)
+                    if (currentAbsence && employee.id === currentAbsence.employeeId) {
+                      return false
+                    }
+                    // Only show employees who have absences in this period
+                    return absenceMap[employee.id] && Object.keys(absenceMap[employee.id]).length > 0
+                  })
+                  .map(employee => {
+                    const employeeName =
+                      employee.displayName || `${employee.firstName || ''} ${employee.lastName || ''}`.trim()
+                    const department = employee.employeePosition?.organizationalUnit?.name || ''
+
+                    return (
+                      <TableRow key={employee.id}>
+                        <TableCell className="gba:sticky gba:left-0 gba:bg-card gba:z-10">
+                          <div>
+                            <div className="gba:font-medium gba:text-sm">{employeeName}</div>
+                            {department && <div className="gba:text-xs gba:text-muted-foreground">{department}</div>}
+                          </div>
+                        </TableCell>
+                        {calendarDays.map(day => {
+                          const absence = absenceMap[employee.id]?.[day.dateString]
+
+                          return (
+                            <TableCell
+                              key={day.dateString}
+                              className={`gba:text-center gba:p-2 ${day.isWeekend ? 'gba:bg-muted/30' : ''}`}
+                            >
+                              {absence ? (
+                                <div
+                                  className={`${absence.color} gba:text-white gba:text-xs gba:py-1 gba:px-2 gba:rounded gba:font-medium`}
+                                  title={`${absence.type} - ${absence.status}`}
+                                >
+                                  {absence.type}
+                                </div>
+                              ) : (
+                                <div className="gba:text-muted-foreground gba:text-xs">-</div>
+                              )}
+                            </TableCell>
+                          )
+                        })}
+                      </TableRow>
+                    )
+                  })}
               </TableBody>
             </Table>
           </div>

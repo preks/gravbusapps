@@ -15,7 +15,17 @@ import {
   AvatarImage,
   AvatarFallback
 } from '@newwork/nw-design-system'
-import { PiReceipt, PiCalendarDuotone, PiClock, PiMapPin, PiUser, PiBuilding, PiFolder, PiWallet } from 'react-icons/pi'
+import {
+  PiReceipt,
+  PiCalendarDuotone,
+  PiClock,
+  PiMapPin,
+  PiUser,
+  PiBuilding,
+  PiFolder,
+  PiWallet,
+  PiCurrencyCircleDollar
+} from 'react-icons/pi'
 import { ThumbsUp, XCircle, MessageSquare } from 'lucide-react'
 import { UnifiedTask } from '../../types'
 import { useKogitoProcess } from '../../hooks/useKogitoProcess'
@@ -26,6 +36,7 @@ import {
   formatCurrencyDisplay
 } from '@/business-apps/fin/expenses/apps/personal-expenses/utils'
 import { getModuleInfo } from '../../utils/moduleIcons'
+import { getInitials as getAvatarInitials } from '../../utils/avatarUtils'
 
 interface ExpensePlanApprovalDetailsProps {
   task: UnifiedTask
@@ -67,15 +78,6 @@ export const ExpensePlanApprovalDetails: React.FC<ExpensePlanApprovalDetailsProp
     projectId: expensePlan?.project,
     accessToken
   })
-
-  // Helper to get employee initials for avatar fallback
-  const getInitials = (name: string): string => {
-    const parts = name.split(' ').filter(Boolean)
-    if (parts.length >= 2) {
-      return `${parts[0][0]}${parts[1][0]}`.toUpperCase()
-    }
-    return name.substring(0, 2).toUpperCase()
-  }
 
   if (!expensePlan) {
     return (
@@ -224,13 +226,17 @@ export const ExpensePlanApprovalDetails: React.FC<ExpensePlanApprovalDetailsProp
                 {entities.employee.avatarUrl ? (
                   <AvatarImage src={entities.employee.avatarUrl} alt={entities.employee.displayName} />
                 ) : null}
-                <AvatarFallback>{getInitials(entities.employee.displayName)}</AvatarFallback>
+                <AvatarFallback className="gba:bg-gradient-to-br gba:from-blue-500 gba:to-purple-600 gba:text-white">
+                  {getAvatarInitials(entities.employee.displayName)}
+                </AvatarFallback>
               </Avatar>
               <div>
                 <p className="gba:font-medium">{entities.employee.displayName}</p>
-                <p className="gba:text-sm gba:text-muted-foreground">
-                  {entities.employee.firstName} {entities.employee.lastName}
-                </p>
+                {(entities.employee.position || entities.employee.organizationalUnit) && (
+                  <p className="gba:text-sm gba:text-muted-foreground">
+                    {[entities.employee.position, entities.employee.organizationalUnit].filter(Boolean).join(' • ')}
+                  </p>
+                )}
               </div>
             </div>
           ) : (
@@ -320,6 +326,85 @@ export const ExpensePlanApprovalDetails: React.FC<ExpensePlanApprovalDetailsProp
             )}
         </CardContent>
       </Card>
+
+      {/* Daily Allowances Breakdown */}
+      {expensePlan.expenseAllowance && expensePlan.expenseAllowance.length > 0 && (
+        <Card>
+          <CardHeader>
+            <CardTitle className="gba:flex gba:items-center gba:gap-2">
+              <PiCurrencyCircleDollar className="gba:h-5 gba:w-5" />
+              Daily Allowances ({expensePlan.expenseAllowance.length} days)
+            </CardTitle>
+          </CardHeader>
+          <CardContent className="gba:space-y-3">
+            {expensePlan.expenseAllowance.map((allowance: any, index: number) => (
+              <div key={index} className="gba:border gba:border-border gba:rounded-lg gba:p-3 gba:space-y-2">
+                {/* Date and Day Rate */}
+                <div className="gba:flex gba:justify-between gba:items-center">
+                  <div className="gba:flex gba:items-center gba:gap-2">
+                    <PiCalendarDuotone className="gba:h-4 gba:w-4 gba:text-muted-foreground" />
+                    <span className="gba:text-sm gba:font-medium">{formatDate(allowance.allowanceDate)}</span>
+                  </div>
+                  <div className="gba:text-right">
+                    <Label className="gba:text-xs gba:text-muted-foreground">Day Rate</Label>
+                    <p className="gba:text-sm gba:font-bold gba:text-primary">{formatCurrency(allowance.dayRate)}</p>
+                  </div>
+                </div>
+
+                {/* Travel Region */}
+                {allowance.travelRegion?.value && (
+                  <div className="gba:flex gba:items-start gba:gap-2">
+                    <PiMapPin className="gba:h-4 gba:w-4 gba:text-muted-foreground gba:mt-0.5" />
+                    <div>
+                      <Label className="gba:text-xs gba:text-muted-foreground">Region</Label>
+                      <p className="gba:text-sm">
+                        {allowance.travelRegion.value.split(':').pop() || allowance.travelRegion.value}
+                      </p>
+                    </div>
+                  </div>
+                )}
+
+                {/* Meal & Accommodation Info */}
+                <div className="gba:flex gba:flex-wrap gba:gap-2 gba:pt-2">
+                  {allowance.breakfast && (
+                    <Badge variant="outline" className="gba:text-xs">
+                      🍳 Breakfast
+                    </Badge>
+                  )}
+                  {allowance.lunch && (
+                    <Badge variant="outline" className="gba:text-xs">
+                      🍽️ Lunch
+                    </Badge>
+                  )}
+                  {allowance.dinner && (
+                    <Badge variant="outline" className="gba:text-xs">
+                      🍷 Dinner
+                    </Badge>
+                  )}
+                  {allowance.overnight && (
+                    <Badge variant="info" className="gba:text-xs">
+                      🌙 Overnight
+                    </Badge>
+                  )}
+                  {allowance.overnightAccommodation && (
+                    <Badge variant="info" className="gba:text-xs">
+                      🏨 Hotel
+                    </Badge>
+                  )}
+                </div>
+
+                {/* Deduction Limit */}
+                {allowance.deductionLimit > 0 && (
+                  <div className="gba:flex gba:justify-between gba:items-center gba:pt-2 gba:border-t gba:border-border">
+                    <Label className="gba:text-xs gba:text-muted-foreground">Deduction Limit</Label>
+                    <p className="gba:text-xs gba:text-destructive">-{formatCurrency(allowance.deductionLimit)}</p>
+                  </div>
+                )}
+              </div>
+            ))}
+          </CardContent>
+        </Card>
+      )}
 
       {/* Financial Details */}
       <Card>

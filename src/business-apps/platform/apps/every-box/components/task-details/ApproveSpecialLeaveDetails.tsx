@@ -1,11 +1,31 @@
 import React, { useState, useEffect } from 'react'
 import { message } from 'antd'
-import { Button, Separator, Label, Textarea, Switch, Spinner } from '@newwork/nw-design-system'
-import { ThumbsUp, XCircle, MessageSquare, User } from 'lucide-react'
+import {
+  Button,
+  Separator,
+  Label,
+  Textarea,
+  Switch,
+  Spinner,
+  Badge,
+  Card,
+  CardHeader,
+  CardTitle,
+  CardContent,
+  Avatar,
+  AvatarImage,
+  AvatarFallback
+} from '@newwork/nw-design-system'
+import { ThumbsUp, XCircle, MessageSquare, CheckCircle, AlertCircle } from 'lucide-react'
+import { PiCalendarDuotone, PiUser } from 'react-icons/pi'
 import { UnifiedTask } from '../../types'
 import { useKogitoProcess } from '../../hooks/useKogitoProcess'
 import { useGraphqlClient } from '@/common/network/graphql/useGraphQLClient'
+import { useExpenseRelatedEntities } from '../../hooks/useExpenseRelatedEntities'
+import { getModuleInfo } from '../../utils/moduleIcons'
+import { getInitials } from '../../utils/avatarUtils'
 import { TeamAbsenceCalendar } from '../TeamAbsenceCalendar'
+import dayjs from 'dayjs'
 
 interface ApproveSpecialLeaveDetailsProps {
   task: UnifiedTask
@@ -34,6 +54,9 @@ export const ApproveSpecialLeaveDetails: React.FC<ApproveSpecialLeaveDetailsProp
   const [absenceTypeName, setAbsenceTypeName] = useState<string>('Special Leave')
   const [substituteEmployeeName, setSubstituteEmployeeName] = useState<string>('')
   const [isLoadingSubstitute, setIsLoadingSubstitute] = useState(false)
+  const [actualAbsenceStatus, setActualAbsenceStatus] = useState<string | null>(null)
+  const [actualApprovalNote, setActualApprovalNote] = useState<string | null>(null)
+  const [isLoadingStatus, setIsLoadingStatus] = useState(false)
 
   const graphqlClient = useGraphqlClient(accessToken)
 
@@ -53,6 +76,43 @@ export const ApproveSpecialLeaveDetails: React.FC<ApproveSpecialLeaveDetailsProp
   const employeeAbsence = (taskDetails?.parameters?.employeeAbsence || taskInputs?.employeeAbsence) as any
   const creatorName = taskInputs?.creatorName as string | undefined
   const supervisorId = userInfo?.employeeDetails?.employeeId
+
+  // Debug logging
+  console.log('🔍 ApproveSpecialLeaveDetails - employeeAbsence:', employeeAbsence)
+  console.log('🔍 ApproveSpecialLeaveDetails - creatorName:', creatorName)
+  console.log('🔍 ApproveSpecialLeaveDetails - task.referenceTaskName:', task.referenceTaskName)
+
+  // Fetch employee details for avatar and display name
+  const { entities, isLoading: isLoadingEntities } = useExpenseRelatedEntities({
+    employeeId: employeeAbsence?.employeeId,
+    costCenterId: undefined,
+    projectId: undefined,
+    accessToken
+  })
+
+  // Debug logging for fetched entities
+  console.log('🔍 ApproveSpecialLeaveDetails - entities.employee:', entities.employee)
+
+  // Get module info for badge and icon
+  const moduleInfo = getModuleInfo(task.name, task.type)
+  const ModuleIcon = moduleInfo.icon
+
+  // For completed tasks, try to get approval note from task outputs/inputs
+  const taskOutputApprovalNote = React.useMemo(() => {
+    if (task.status !== 'COMPLETED') return null
+
+    // Check outputs first
+    if (task.sourceMetadata?.outputs?.approvalNote) {
+      return task.sourceMetadata.outputs.approvalNote
+    }
+
+    // Check if stored in inputs (some processes store it there)
+    if (taskInputs?.approvalNote) {
+      return taskInputs.approvalNote
+    }
+
+    return null
+  }, [task.status, task.sourceMetadata, taskInputs])
 
   // Fetch absence type name from catalog
   useEffect(() => {
@@ -111,6 +171,76 @@ export const ApproveSpecialLeaveDetails: React.FC<ApproveSpecialLeaveDetailsProp
 
     fetchAbsenceType()
   }, [accessToken, employeeAbsence?.typeRef, graphqlClient])
+
+  // Fetch real-time absence status for completed tasks
+  useEffect(() => {
+    const fetchAbsenceStatus = async () => {
+      if (!accessToken || !employeeAbsence?.id || task.status !== 'COMPLETED') return
+
+      setIsLoadingStatus(true)
+      try {
+        const absenceQuery = `
+          query GetAbsenceStatus($absenceId: uuid!) {
+            EmployeeAbsence(where: {id: {_eq: $absenceId}}, limit: 1) {
+              id
+              status
+              approvalNote
+              approverId
+            }
+            EmployeeAbsenceRecord(
+              where: {employeeAbsenceId: {_eq: $absenceId}}
+              orderBy: {changeDate: DESC}
+              limit: 1
+            ) {
+              id
+              description
+              status
+            }
+          }
+        `
+
+        const response = await graphqlClient.request<{
+          EmployeeAbsence: any[]
+          EmployeeAbsenceRecord: any[]
+        }>(absenceQuery, {
+          absenceId: employeeAbsence.id
+        })
+
+        if (response.EmployeeAbsence && response.EmployeeAbsence.length > 0) {
+          const absence = response.EmployeeAbsence[0]
+          setActualAbsenceStatus(absence.status)
+
+          // Priority order for approval note:
+          // 1. Task outputs/inputs (most reliable for completed tasks)
+          // 2. EmployeeAbsence.approvalNote
+          // 3. EmployeeAbsenceRecord.description
+          if (taskOutputApprovalNote) {
+            setActualApprovalNote(taskOutputApprovalNote)
+          } else if (absence.approvalNote) {
+            setActualApprovalNote(absence.approvalNote)
+          } else if (response.EmployeeAbsenceRecord && response.EmployeeAbsenceRecord.length > 0) {
+            const record = response.EmployeeAbsenceRecord[0]
+            setActualApprovalNote(record.description)
+          } else {
+            setActualApprovalNote(null)
+          }
+        } else {
+          // Fallback to task data if fetch fails
+          setActualAbsenceStatus(employeeAbsence.status)
+          setActualApprovalNote(taskOutputApprovalNote || employeeAbsence.approvalNote)
+        }
+      } catch (error) {
+        console.error('Error fetching absence status:', error)
+        // Fallback to task data if fetch fails
+        setActualAbsenceStatus(employeeAbsence.status)
+        setActualApprovalNote(employeeAbsence.approvalNote)
+      } finally {
+        setIsLoadingStatus(false)
+      }
+    }
+
+    fetchAbsenceStatus()
+  }, [accessToken, employeeAbsence?.id, task.status, graphqlClient, taskOutputApprovalNote])
 
   // Fetch substitute employee name
   useEffect(() => {
@@ -233,14 +363,73 @@ export const ApproveSpecialLeaveDetails: React.FC<ApproveSpecialLeaveDetailsProp
 
   return (
     <div className="gba:space-y-6" data-testid="approve-special-leave-details">
-      {/* Requester Information */}
-      {creatorName && (
-        <div className="gba:flex gba:items-center gba:gap-2">
-          <User className="gba:h-4 gba:w-4 gba:text-muted-foreground" />
-          <span className="gba:text-sm gba:text-muted-foreground">Requested by:</span>
-          <span className="gba:text-sm gba:font-medium">{creatorName}</span>
+      {/* Module Badge */}
+      <div className="gba:flex gba:items-center gba:gap-2">
+        <ModuleIcon className={`gba:h-5 gba:w-5 ${moduleInfo.color}`} />
+        <span className="gba:text-xs gba:font-medium gba:text-muted-foreground">{moduleInfo.name}</span>
+      </div>
+
+      {/* Header Section */}
+      <div className="gba:flex gba:justify-between gba:items-start">
+        <div className="gba:flex-1">
+          <div className="gba:flex gba:items-center gba:gap-2 gba:mb-1">
+            <PiCalendarDuotone className="gba:h-5 gba:w-5 gba:text-primary" />
+            <h2 className="gba:text-xl gba:font-semibold gba:text-foreground" data-testid="approve-special-leave-title">
+              {task.referenceTaskName || 'Approve Special Leave Request'}
+            </h2>
+          </div>
+          <p className="gba:text-sm gba:text-muted-foreground gba:ml-7" data-testid="absence-type">
+            {absenceTypeName}
+          </p>
         </div>
-      )}
+        <Badge variant="warning" data-testid="approve-special-leave-status-badge">
+          Pending Approval
+        </Badge>
+      </div>
+
+      <Separator />
+
+      {/* Employee Information */}
+      <Card>
+        <CardHeader>
+          <CardTitle className="gba:flex gba:items-center gba:gap-2">
+            <PiUser className="gba:h-5 gba:w-5" />
+            Employee
+          </CardTitle>
+        </CardHeader>
+        <CardContent className="gba:space-y-3">
+          {isLoadingEntities ? (
+            <div className="gba:flex gba:items-start gba:gap-3">
+              <div className="gba:h-10 gba:w-10 gba:rounded-full gba:bg-muted gba:animate-pulse" />
+              <div className="gba:flex-1">
+                <div className="gba:h-5 gba:w-32 gba:bg-muted gba:rounded gba:animate-pulse gba:mb-2" />
+                <div className="gba:h-4 gba:w-24 gba:bg-muted gba:rounded gba:animate-pulse" />
+              </div>
+            </div>
+          ) : (
+            <div className="gba:flex gba:items-start gba:gap-3">
+              <Avatar className="gba:h-10 gba:w-10">
+                {entities.employee?.avatarUrl ? (
+                  <AvatarImage src={entities.employee.avatarUrl} alt={entities.employee.displayName} />
+                ) : null}
+                <AvatarFallback className="gba:bg-gradient-to-br gba:from-blue-500 gba:to-purple-600 gba:text-white">
+                  {entities.employee?.displayName
+                    ? getInitials(entities.employee.displayName)
+                    : getInitials(creatorName)}
+                </AvatarFallback>
+              </Avatar>
+              <div>
+                <p className="gba:font-medium">{entities.employee?.displayName || creatorName}</p>
+                {(entities.employee?.position || entities.employee?.organizationalUnit) && (
+                  <p className="gba:text-sm gba:text-muted-foreground">
+                    {[entities.employee?.position, entities.employee?.organizationalUnit].filter(Boolean).join(' • ')}
+                  </p>
+                )}
+              </div>
+            </div>
+          )}
+        </CardContent>
+      </Card>
 
       {/* Special Leave Request Information */}
       {employeeAbsence && typeof employeeAbsence === 'object' && (
@@ -254,33 +443,26 @@ export const ApproveSpecialLeaveDetails: React.FC<ApproveSpecialLeaveDetailsProp
                 </span>
                 <span className="gba:text-sm gba:flex-1 gba:font-medium">{absenceTypeName}</span>
               </div>
-              {employeeAbsence.startDate && (
+              {/* Duration (Start - End Date) in one line */}
+              {employeeAbsence.startDate && employeeAbsence.endDate && (
                 <div className="gba:flex gba:items-start gba:gap-3">
                   <span className="gba:text-sm gba:font-medium gba:text-muted-foreground gba:min-w-[140px]">
-                    Start Date:
+                    Duration:
                   </span>
-                  <span className="gba:text-sm gba:flex-1">
-                    {new Date(employeeAbsence.startDate).toLocaleDateString('en-US', {
-                      year: 'numeric',
-                      month: 'long',
-                      day: 'numeric'
-                    })}
-                    {employeeAbsence.cutHalfDayStart && ' (Half Day)'}
-                  </span>
-                </div>
-              )}
-              {employeeAbsence.endDate && (
-                <div className="gba:flex gba:items-start gba:gap-3">
-                  <span className="gba:text-sm gba:font-medium gba:text-muted-foreground gba:min-w-[140px]">
-                    End Date:
-                  </span>
-                  <span className="gba:text-sm gba:flex-1">
-                    {new Date(employeeAbsence.endDate).toLocaleDateString('en-US', {
-                      year: 'numeric',
-                      month: 'long',
-                      day: 'numeric'
-                    })}
-                    {employeeAbsence.cutHalfDayEnd && ' (Half Day)'}
+                  <span className="gba:text-sm gba:flex-1 gba:flex gba:items-center gba:gap-2 gba:flex-wrap">
+                    <span>{dayjs(employeeAbsence.startDate).format('MMM D, YYYY')}</span>
+                    {employeeAbsence.cutHalfDayStart && (
+                      <Badge variant="info" className="gba:text-xs">
+                        Half Day
+                      </Badge>
+                    )}
+                    <span className="gba:text-muted-foreground">→</span>
+                    <span>{dayjs(employeeAbsence.endDate).format('MMM D, YYYY')}</span>
+                    {employeeAbsence.cutHalfDayEnd && (
+                      <Badge variant="info" className="gba:text-xs">
+                        Half Day
+                      </Badge>
+                    )}
                   </span>
                 </div>
               )}
@@ -290,14 +472,6 @@ export const ApproveSpecialLeaveDetails: React.FC<ApproveSpecialLeaveDetailsProp
                     Working Days:
                   </span>
                   <span className="gba:text-sm gba:flex-1">{employeeAbsence.workingDays} days</span>
-                </div>
-              )}
-              {employeeAbsence.effectiveDays !== undefined && (
-                <div className="gba:flex gba:items-start gba:gap-3">
-                  <span className="gba:text-sm gba:font-medium gba:text-muted-foreground gba:min-w-[140px]">
-                    Effective Days:
-                  </span>
-                  <span className="gba:text-sm gba:flex-1">{employeeAbsence.effectiveDays} days</span>
                 </div>
               )}
               {employeeAbsence.balance !== undefined && (
@@ -335,15 +509,117 @@ export const ApproveSpecialLeaveDetails: React.FC<ApproveSpecialLeaveDetailsProp
       )}
 
       {/* Team Absence Calendar - Show team coverage during this absence period */}
-      {employeeAbsence?.startDate && employeeAbsence?.endDate && supervisorId && (
+      {employeeAbsence?.startDate && employeeAbsence?.endDate && supervisorId && !isLoadingEntities && (
         <>
           <TeamAbsenceCalendar
             accessToken={accessToken}
             supervisorId={supervisorId}
             startDate={employeeAbsence.startDate}
             endDate={employeeAbsence.endDate}
+            currentAbsence={{
+              employeeId: employeeAbsence.employeeId || entities.employee?.id || '',
+              employeeName: entities.employee?.displayName || creatorName || 'Unknown',
+              department: entities.employee?.organizationalUnit || undefined,
+              type: absenceTypeName,
+              status: 'PENDING_APPROVAL'
+            }}
           />
           <Separator />
+        </>
+      )}
+
+      {/* Approval Decision - Show for completed tasks */}
+      {task.status === 'COMPLETED' && (
+        <>
+          {isLoadingStatus ? (
+            <div className="gba:flex gba:justify-center gba:p-6">
+              <Spinner size="lg" />
+            </div>
+          ) : (
+            <>
+              {/* Status Header with Badge */}
+              <div
+                className="gba:flex gba:items-center gba:gap-3 gba:p-4 gba:rounded-lg"
+                style={{
+                  backgroundColor:
+                    actualAbsenceStatus === 'APPROVED'
+                      ? 'var(--color-success-secondary)'
+                      : 'var(--color-destructive-secondary)'
+                }}
+              >
+                {actualAbsenceStatus === 'APPROVED' ? (
+                  <CheckCircle className="gba:h-6 gba:w-6 gba:text-success" />
+                ) : (
+                  <AlertCircle className="gba:h-6 gba:w-6 gba:text-destructive" />
+                )}
+                <div className="gba:flex-1">
+                  <h4 className="gba:font-semibold gba:text-lg">
+                    Special Leave Request {actualAbsenceStatus === 'APPROVED' ? 'Approved' : 'Rejected'}
+                  </h4>
+                  {task.completedAt && (
+                    <p className="gba:text-sm gba:text-muted-foreground">
+                      Completed on{' '}
+                      {new Date(task.completedAt).toLocaleDateString('en-US', {
+                        year: 'numeric',
+                        month: 'long',
+                        day: 'numeric',
+                        hour: '2-digit',
+                        minute: '2-digit'
+                      })}
+                    </p>
+                  )}
+                </div>
+                <Badge variant={actualAbsenceStatus === 'APPROVED' ? 'success' : 'destructive'}>
+                  {actualAbsenceStatus || 'UNKNOWN'}
+                </Badge>
+              </div>
+
+              {/* Manager's Decision Details */}
+              <div>
+                <h4 className="gba:font-semibold gba:mb-4 gba:text-lg">Manager Decision</h4>
+                <div className="gba:bg-muted gba:p-4 gba:rounded-lg gba:space-y-3">
+                  <div className="gba:flex gba:items-start gba:gap-3">
+                    <span className="gba:text-sm gba:font-medium gba:text-muted-foreground gba:min-w-[140px]">
+                      Decision:
+                    </span>
+                    <span
+                      className={`gba:text-sm gba:flex-1 gba:font-medium ${
+                        actualAbsenceStatus === 'APPROVED' ? 'gba:text-success' : 'gba:text-destructive'
+                      }`}
+                    >
+                      {actualAbsenceStatus === 'APPROVED' ? '✓ Approved' : '✗ Rejected'}
+                    </span>
+                  </div>
+                  {task.assignment?.ownerName && (
+                    <div className="gba:flex gba:items-start gba:gap-3">
+                      <span className="gba:text-sm gba:font-medium gba:text-muted-foreground gba:min-w-[140px]">
+                        Decided by:
+                      </span>
+                      <span className="gba:text-sm gba:flex-1">{task.assignment.ownerName}</span>
+                    </div>
+                  )}
+                  {actualApprovalNote && actualApprovalNote.trim() !== '' ? (
+                    <div className="gba:flex gba:items-start gba:gap-3">
+                      <span className="gba:text-sm gba:font-medium gba:text-muted-foreground gba:min-w-[140px]">
+                        Manager's Note:
+                      </span>
+                      <span className="gba:text-sm gba:flex-1 gba:italic">{actualApprovalNote}</span>
+                    </div>
+                  ) : (
+                    <div className="gba:flex gba:items-start gba:gap-3">
+                      <span className="gba:text-sm gba:font-medium gba:text-muted-foreground gba:min-w-[140px]">
+                        Manager's Note:
+                      </span>
+                      <span className="gba:text-sm gba:flex-1 gba:text-muted-foreground gba:italic">
+                        No comment provided
+                      </span>
+                    </div>
+                  )}
+                </div>
+              </div>
+              <Separator />
+            </>
+          )}
         </>
       )}
 

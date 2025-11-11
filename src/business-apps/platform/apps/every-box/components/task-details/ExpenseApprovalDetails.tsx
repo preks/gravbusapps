@@ -36,6 +36,7 @@ import {
   formatCurrencyDisplay
 } from '@/business-apps/fin/expenses/apps/personal-expenses/utils'
 import { getModuleInfo } from '../../utils/moduleIcons'
+import { getInitials as getAvatarInitials } from '../../utils/avatarUtils'
 
 interface ExpenseApprovalDetailsProps {
   task: UnifiedTask
@@ -81,15 +82,6 @@ export const ExpenseApprovalDetails: React.FC<ExpenseApprovalDetailsProps> = ({
     projectId: expenseRequest?.project,
     accessToken
   })
-
-  // Helper to get employee initials for avatar fallback
-  const getInitials = (name: string): string => {
-    const parts = name.split(' ').filter(Boolean)
-    if (parts.length >= 2) {
-      return `${parts[0][0]}${parts[1][0]}`.toUpperCase()
-    }
-    return name.substring(0, 2).toUpperCase()
-  }
 
   if (!expenseRequest) {
     return (
@@ -311,13 +303,17 @@ export const ExpenseApprovalDetails: React.FC<ExpenseApprovalDetailsProps> = ({
                 {entities.employee.avatarUrl ? (
                   <AvatarImage src={entities.employee.avatarUrl} alt={entities.employee.displayName} />
                 ) : null}
-                <AvatarFallback>{getInitials(entities.employee.displayName)}</AvatarFallback>
+                <AvatarFallback className="gba:bg-gradient-to-br gba:from-blue-500 gba:to-purple-600 gba:text-white">
+                  {getAvatarInitials(entities.employee.displayName)}
+                </AvatarFallback>
               </Avatar>
               <div>
                 <p className="gba:font-medium">{entities.employee.displayName}</p>
-                <p className="gba:text-sm gba:text-muted-foreground">
-                  {entities.employee.firstName} {entities.employee.lastName}
-                </p>
+                {(entities.employee.position || entities.employee.organizationalUnit) && (
+                  <p className="gba:text-sm gba:text-muted-foreground">
+                    {[entities.employee.position, entities.employee.organizationalUnit].filter(Boolean).join(' • ')}
+                  </p>
+                )}
               </div>
             </div>
           ) : (

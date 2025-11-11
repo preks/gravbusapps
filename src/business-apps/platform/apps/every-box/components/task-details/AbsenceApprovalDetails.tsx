@@ -4,13 +4,33 @@
  */
 
 import React, { useState, useEffect } from 'react'
-import { Button, Separator, Textarea, Switch, Label, Spinner } from '@newwork/nw-design-system'
-import { ThumbsUp, XCircle, MessageSquare, User } from 'lucide-react'
+import {
+  Button,
+  Separator,
+  Textarea,
+  Switch,
+  Label,
+  Spinner,
+  Badge,
+  Card,
+  CardHeader,
+  CardTitle,
+  CardContent,
+  Avatar,
+  AvatarImage,
+  AvatarFallback
+} from '@newwork/nw-design-system'
+import { ThumbsUp, XCircle, MessageSquare } from 'lucide-react'
+import { PiCalendarDuotone, PiUser } from 'react-icons/pi'
 import { message } from 'antd'
 import { UnifiedTask } from '../../types'
 import { useKogitoProcess } from '../../hooks/useKogitoProcess'
 import { useGraphqlClient } from '@/common/network/graphql/useGraphQLClient'
+import { useExpenseRelatedEntities } from '../../hooks/useExpenseRelatedEntities'
+import { getModuleInfo } from '../../utils/moduleIcons'
+import { getInitials } from '../../utils/avatarUtils'
 import { TeamAbsenceCalendar } from '../TeamAbsenceCalendar'
+import dayjs from 'dayjs'
 
 interface AbsenceApprovalDetailsProps {
   task: UnifiedTask
@@ -35,8 +55,27 @@ export const AbsenceApprovalDetails: React.FC<AbsenceApprovalDetailsProps> = ({
   const [isRejecting, setIsRejecting] = useState(false)
   const [substituteEmployeeName, setSubstituteEmployeeName] = useState<string>('')
   const [isLoadingSubstitute, setIsLoadingSubstitute] = useState(false)
+  const [absenceTypeName, setAbsenceTypeName] = useState<string>('Vacation')
 
   const graphqlClient = useGraphqlClient(accessToken)
+
+  // Extract absence data from task parameters or inputs FIRST (before using in hooks)
+  const taskInputs = task.sourceMetadata?.inputs || task.inputs
+  const employeeAbsence = taskInputs?.employeeAbsence as any
+  const creatorName = taskInputs?.creatorName as string | undefined
+  const supervisorId = userInfo?.employeeDetails?.employeeId
+
+  // Fetch employee details for avatar and display name
+  const { entities, isLoading: isLoadingEntities } = useExpenseRelatedEntities({
+    employeeId: employeeAbsence?.employeeId,
+    costCenterId: undefined,
+    projectId: undefined,
+    accessToken
+  })
+
+  // Get module info for badge and icon
+  const moduleInfo = getModuleInfo(task.name, task.type)
+  const ModuleIcon = moduleInfo.icon
 
   // Use common Kogito process hook
   const { continueProcess } = useKogitoProcess({
@@ -50,13 +89,50 @@ export const AbsenceApprovalDetails: React.FC<AbsenceApprovalDetailsProps> = ({
     }
   })
 
-  const taskInputs = task.sourceMetadata?.inputs || task.inputs
-  const employeeAbsence = taskInputs?.employeeAbsence as any
-  const creatorName = taskInputs?.creatorName as string | undefined
-  const supervisorId = userInfo?.employeeDetails?.employeeId
-
   // Determine if this is a business trip (A101) which doesn't need balance display
   const isBusinessTrip = employeeAbsence?.typeRef?.includes('A101')
+
+  // Fetch absence type name from catalog
+  useEffect(() => {
+    const fetchAbsenceTypeName = async () => {
+      if (!accessToken || !employeeAbsence?.typeRef) return
+
+      try {
+        const absenceTypeCode = employeeAbsence.typeRef.split(':').pop()
+
+        const catalogQuery = `
+          query GetAbsenceType($code: String!) {
+            CatalogEntry(
+              where: {
+                catalog: {
+                  identifier: {_eq: "AbsenceType"},
+                  version: {_eq: "v1"}
+                },
+                code: {_eq: $code}
+              },
+              limit: 1
+            ) {
+              id
+              value
+              code
+            }
+          }
+        `
+
+        const result = await graphqlClient.request<{ CatalogEntry: any[] }>(catalogQuery, {
+          code: absenceTypeCode
+        })
+
+        if (result.CatalogEntry && result.CatalogEntry.length > 0) {
+          setAbsenceTypeName(result.CatalogEntry[0].value || 'Vacation')
+        }
+      } catch (error) {
+        console.error('Error fetching absence type:', error)
+      }
+    }
+
+    fetchAbsenceTypeName()
+  }, [accessToken, employeeAbsence?.typeRef, graphqlClient])
 
   // Fetch substitute employee name
   useEffect(() => {
@@ -97,10 +173,22 @@ export const AbsenceApprovalDetails: React.FC<AbsenceApprovalDetailsProps> = ({
   const handleApprove = async () => {
     setIsApproving(true)
     try {
+      // Determine the correct process name from the task endpoint
+      // For business trips, the endpoint may contain 'approveEmployeeWorkLeave' instead of 'approveEmployeeVacation'
+      let processName = 'approveEmployeeVacation' // Default
+
+      if (task.sourceMetadata?.endpoint) {
+        const endpoint = task.sourceMetadata.endpoint as string
+        // Check if this is a business trip approval (contains 'approveEmployeeWorkLeave')
+        if (endpoint.includes('approveEmployeeWorkLeave')) {
+          processName = 'approveEmployeeWorkLeave'
+        }
+      }
+
       // Use the exact same payload structure as the platform
       await continueProcess({
         domain: 'employee-time',
-        processName: 'approveEmployeeVacation',
+        processName,
         payload: {
           approval: 'APPROVED', // String value (APPROVED/REJECTED)
           approvalNote: comment || '', // Comment/note
@@ -144,10 +232,22 @@ export const AbsenceApprovalDetails: React.FC<AbsenceApprovalDetailsProps> = ({
 
     setIsRejecting(true)
     try {
+      // Determine the correct process name from the task endpoint
+      // For business trips, the endpoint may contain 'approveEmployeeWorkLeave' instead of 'approveEmployeeVacation'
+      let processName = 'approveEmployeeVacation' // Default
+
+      if (task.sourceMetadata?.endpoint) {
+        const endpoint = task.sourceMetadata.endpoint as string
+        // Check if this is a business trip approval (contains 'approveEmployeeWorkLeave')
+        if (endpoint.includes('approveEmployeeWorkLeave')) {
+          processName = 'approveEmployeeWorkLeave'
+        }
+      }
+
       // Use the exact same payload structure as the platform
       await continueProcess({
         domain: 'employee-time',
-        processName: 'approveEmployeeVacation',
+        processName,
         payload: {
           approval: 'REJECTED', // String value (APPROVED/REJECTED)
           approvalNote: comment, // Comment/note (required for rejection)
@@ -181,14 +281,73 @@ export const AbsenceApprovalDetails: React.FC<AbsenceApprovalDetailsProps> = ({
 
   return (
     <div className="gba:space-y-6" data-testid="absence-approval-details">
-      {/* Requester Information */}
-      {creatorName && (
-        <div className="gba:flex gba:items-center gba:gap-2">
-          <User className="gba:h-4 gba:w-4 gba:text-muted-foreground" />
-          <span className="gba:text-sm gba:text-muted-foreground">Requested by:</span>
-          <span className="gba:text-sm gba:font-medium">{creatorName}</span>
+      {/* Module Badge */}
+      <div className="gba:flex gba:items-center gba:gap-2">
+        <ModuleIcon className={`gba:h-5 gba:w-5 ${moduleInfo.color}`} />
+        <span className="gba:text-xs gba:font-medium gba:text-muted-foreground">{moduleInfo.name}</span>
+      </div>
+
+      {/* Header Section */}
+      <div className="gba:flex gba:justify-between gba:items-start">
+        <div className="gba:flex-1">
+          <div className="gba:flex gba:items-center gba:gap-2 gba:mb-1">
+            <PiCalendarDuotone className="gba:h-5 gba:w-5 gba:text-primary" />
+            <h2 className="gba:text-xl gba:font-semibold gba:text-foreground" data-testid="absence-approval-title">
+              {task.referenceTaskName || 'Approve Absence Request'}
+            </h2>
+          </div>
+          <p className="gba:text-sm gba:text-muted-foreground gba:ml-7" data-testid="absence-type">
+            {absenceTypeName}
+          </p>
         </div>
-      )}
+        <Badge variant="warning" data-testid="absence-approval-status-badge">
+          Pending Approval
+        </Badge>
+      </div>
+
+      <Separator />
+
+      {/* Employee Information */}
+      <Card>
+        <CardHeader>
+          <CardTitle className="gba:flex gba:items-center gba:gap-2">
+            <PiUser className="gba:h-5 gba:w-5" />
+            Employee
+          </CardTitle>
+        </CardHeader>
+        <CardContent className="gba:space-y-3">
+          {isLoadingEntities ? (
+            <div className="gba:flex gba:items-start gba:gap-3">
+              <div className="gba:h-10 gba:w-10 gba:rounded-full gba:bg-muted gba:animate-pulse" />
+              <div className="gba:flex-1">
+                <div className="gba:h-5 gba:w-32 gba:bg-muted gba:rounded gba:animate-pulse gba:mb-2" />
+                <div className="gba:h-4 gba:w-24 gba:bg-muted gba:rounded gba:animate-pulse" />
+              </div>
+            </div>
+          ) : (
+            <div className="gba:flex gba:items-start gba:gap-3">
+              <Avatar className="gba:h-10 gba:w-10">
+                {entities.employee?.avatarUrl ? (
+                  <AvatarImage src={entities.employee.avatarUrl} alt={entities.employee.displayName} />
+                ) : null}
+                <AvatarFallback className="gba:bg-gradient-to-br gba:from-blue-500 gba:to-purple-600 gba:text-white">
+                  {entities.employee?.displayName
+                    ? getInitials(entities.employee.displayName)
+                    : getInitials(creatorName)}
+                </AvatarFallback>
+              </Avatar>
+              <div>
+                <p className="gba:font-medium">{entities.employee?.displayName || creatorName}</p>
+                {(entities.employee?.position || entities.employee?.organizationalUnit) && (
+                  <p className="gba:text-sm gba:text-muted-foreground">
+                    {[entities.employee?.position, entities.employee?.organizationalUnit].filter(Boolean).join(' • ')}
+                  </p>
+                )}
+              </div>
+            </div>
+          )}
+        </CardContent>
+      </Card>
 
       {/* Absence Request Information */}
       {employeeAbsence && typeof employeeAbsence === 'object' && (
@@ -196,31 +355,15 @@ export const AbsenceApprovalDetails: React.FC<AbsenceApprovalDetailsProps> = ({
           <div>
             <h4 className="gba:font-semibold gba:mb-4 gba:text-lg">Vacation Request Details</h4>
             <div className="gba:bg-muted gba:p-4 gba:rounded-lg gba:space-y-3">
-              {employeeAbsence.startDate && (
+              {/* Duration (Start - End Date) in one line */}
+              {employeeAbsence.startDate && employeeAbsence.endDate && (
                 <div className="gba:flex gba:items-start gba:gap-3">
                   <span className="gba:text-sm gba:font-medium gba:text-muted-foreground gba:min-w-[140px]">
-                    Start Date:
+                    Duration:
                   </span>
                   <span className="gba:text-sm gba:flex-1">
-                    {new Date(employeeAbsence.startDate).toLocaleDateString('en-US', {
-                      year: 'numeric',
-                      month: 'long',
-                      day: 'numeric'
-                    })}
-                  </span>
-                </div>
-              )}
-              {employeeAbsence.endDate && (
-                <div className="gba:flex gba:items-start gba:gap-3">
-                  <span className="gba:text-sm gba:font-medium gba:text-muted-foreground gba:min-w-[140px]">
-                    End Date:
-                  </span>
-                  <span className="gba:text-sm gba:flex-1">
-                    {new Date(employeeAbsence.endDate).toLocaleDateString('en-US', {
-                      year: 'numeric',
-                      month: 'long',
-                      day: 'numeric'
-                    })}
+                    {dayjs(employeeAbsence.startDate).format('MMM D, YYYY')} →{' '}
+                    {dayjs(employeeAbsence.endDate).format('MMM D, YYYY')}
                   </span>
                 </div>
               )}
@@ -281,13 +424,20 @@ export const AbsenceApprovalDetails: React.FC<AbsenceApprovalDetailsProps> = ({
       )}
 
       {/* Team Absence Calendar - Show team coverage during this absence period */}
-      {employeeAbsence?.startDate && employeeAbsence?.endDate && supervisorId && (
+      {employeeAbsence?.startDate && employeeAbsence?.endDate && supervisorId && !isLoadingEntities && (
         <>
           <TeamAbsenceCalendar
             accessToken={accessToken}
             supervisorId={supervisorId}
             startDate={employeeAbsence.startDate}
             endDate={employeeAbsence.endDate}
+            currentAbsence={{
+              employeeId: employeeAbsence.employeeId || entities.employee?.id || '',
+              employeeName: entities.employee?.displayName || creatorName || 'Unknown',
+              department: entities.employee?.organizationalUnit || undefined,
+              type: absenceTypeName,
+              status: 'PENDING_APPROVAL'
+            }}
           />
           <Separator />
         </>

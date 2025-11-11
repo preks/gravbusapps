@@ -14,6 +14,8 @@ export interface RelatedEntities {
     displayName: string
     pictureThumbnail?: string
     avatarUrl?: string
+    organizationalUnit?: string
+    position?: string
   }
   costCenter?: {
     id: string
@@ -90,6 +92,14 @@ export const useExpenseRelatedEntities = ({
               lastName
               displayName
               pictureThumbnail
+              employeePosition {
+                organizationalUnit {
+                  name
+                }
+                jobPosition {
+                  name
+                }
+              }
             }
           }
         `
@@ -112,7 +122,9 @@ export const useExpenseRelatedEntities = ({
             lastName: emp.lastName,
             displayName: emp.displayName || `${emp.firstName} ${emp.lastName}`,
             pictureThumbnail: emp.pictureThumbnail,
-            avatarUrl
+            avatarUrl,
+            organizationalUnit: emp.employeePosition?.organizationalUnit?.name,
+            position: emp.employeePosition?.jobPosition?.name
           }
         }
       }
