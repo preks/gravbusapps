@@ -18,6 +18,7 @@ current-active-benefits = Aktive Zusatzleistungen
 current-bonus = Bonus
 current-bonuses = Boni
 current-annually = Jährlich
+current-monthly = Monatlich
 
 # Compensation Band
 band-title = Vergütungsstufe
@@ -170,6 +171,7 @@ validation-date-past = Enddatum muss in der Vergangenheit oder heute sein
 # Table Headers (reusable)
 table-effective-date = Gültigkeitsdatum
 table-base-salary = Grundgehalt
+table-monthly-salary = Monatsgehalt
 table-compensation-band = Vergütungsstufe
 table-pay-grade = Gehaltsstufe
 table-notes = Notizen
