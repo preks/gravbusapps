@@ -1,5 +1,5 @@
 import React from 'react'
-import { LeadStatusChangePopup as SharedLeadStatusChangePopup } from '@/common/popups/lead-status-change-popup'
+import { LeadStatusChangePopup as SharedLeadStatusChangePopup } from '@/business-apps/crm/common/popups/lead-status-change-popup'
 import { BusinessAppContextProps } from '@/common/BusinessAppContext'
 import { useLeadData } from '../../records/lead-record/hooks/useLeadData'
 
