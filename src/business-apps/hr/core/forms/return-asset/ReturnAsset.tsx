@@ -158,6 +158,8 @@ const ReturnAssetContent: React.FC<BusinessAppContextProps> = (context: Business
                 value={field.value || ''}
                 onChange={field.onChange}
                 onBlur={field.onBlur}
+                readOnly
+                disabled
                 data-testid="end-date-input"
               />
             </FormItem>

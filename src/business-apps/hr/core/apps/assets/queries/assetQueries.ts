@@ -5,6 +5,8 @@
  * in the nw_employee schema.
  */
 
+import { AssetStatus } from '../types'
+
 // Asset fragment with all fields matching actual database schema
 export const ASSET_FIELDS = `
   id
@@ -129,7 +131,7 @@ export const GET_ASSET_STATISTICS = `
     allocatedAssets: AssetAggregate(
       where: {
         isDeleted: { _eq: false }
-        assetStatus: { _eq: "ALLOCATED_ASSET" }
+        assetStatus: { _eq: "${AssetStatus.ALLOCATED}" }
       }
     ) {
       aggregate {
@@ -139,7 +141,7 @@ export const GET_ASSET_STATISTICS = `
     availableAssets: AssetAggregate(
       where: {
         isDeleted: { _eq: false }
-        assetStatus: { _eq: "AVAILABLE_ASSET" }
+        assetStatus: { _eq: "${AssetStatus.AVAILABLE}" }
       }
     ) {
       aggregate {
@@ -149,7 +151,7 @@ export const GET_ASSET_STATISTICS = `
     retiredAssets: AssetAggregate(
       where: {
         isDeleted: { _eq: false }
-        assetStatus: { _eq: "RETIRED_ASSET" }
+        assetStatus: { _eq: "${AssetStatus.RETIRED}" }
       }
     ) {
       aggregate {

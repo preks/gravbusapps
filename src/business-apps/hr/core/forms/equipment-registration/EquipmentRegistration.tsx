@@ -528,11 +528,11 @@ const EquipmentRegistrationContent: React.FC<BusinessAppContextProps> = (context
                 <SelectItem value={AssetStatus.ALLOCATED} data-testid="status-allocated">
                   Allocated
                 </SelectItem>
+                <SelectItem value={AssetStatus.UNDER_REPAIR} data-testid="status-under-repair">
+                  In Repair
+                </SelectItem>
                 <SelectItem value={AssetStatus.RETIRED} data-testid="status-retired">
                   Retired
-                </SelectItem>
-                <SelectItem value={AssetStatus.UNKNOWN} data-testid="status-unknown">
-                  Unknown
                 </SelectItem>
               </SelectContent>
             </Select>

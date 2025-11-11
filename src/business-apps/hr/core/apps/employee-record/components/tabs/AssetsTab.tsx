@@ -1,14 +1,19 @@
-'use client'
-
-import React from 'react'
+import React, { useMemo } from 'react'
 import dayjs from 'dayjs'
 import { Card, CardContent, CardHeader, CardTitle } from '@newwork/nw-design-system'
 import { Badge } from '@newwork/nw-design-system'
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@newwork/nw-design-system'
 import { Spinner } from '@newwork/nw-design-system'
+import { Button } from '@newwork/nw-design-system'
 import { Employee } from '../../hooks/useEmployeeData'
 import { useEmployeeAssets } from '../../hooks/useEmployeeAssets'
+import {
+  useAssetConditionCatalog,
+  AssetConditionOption
+} from '../../../../forms/equipment-registration/hooks/useAssetConditionCatalog'
+import { AssetStatus } from '../../../../apps/assets/types'
 import { PiPackage, PiCalendar, PiWarning } from 'react-icons/pi'
+import { navigateTo } from '@/common/utils/navigationUtils'
 
 interface AssetsTabProps {
   employee: Employee
@@ -17,48 +22,140 @@ interface AssetsTabProps {
   isSelfView: boolean
 }
 
-/**
- * Assets Tab Component
- * Displays employee's assigned equipment/assets
- */
 const AssetsTab: React.FC<AssetsTabProps> = ({ employee, accessToken, employeeId, isSelfView }) => {
   const effectiveEmployeeId = employeeId || employee.id
   const { assets, isLoading, error } = useEmployeeAssets(accessToken, effectiveEmployeeId)
 
-  // Get asset status badge variant
+  const { options: conditionOptions } = useAssetConditionCatalog({ accessToken })
+
+  const conditionLookup = useMemo(() => {
+    const lookup = new Map<string, string>()
+    conditionOptions.forEach((option: AssetConditionOption) => {
+      lookup.set(option.id, option.label)
+    })
+    return lookup
+  }, [conditionOptions])
+
+  const conditionVariantLookup = useMemo(() => {
+    const lookup = new Map<string, 'default' | 'success' | 'warning' | 'destructive' | 'info'>()
+    conditionOptions.forEach((option: AssetConditionOption) => {
+      const code = option.code?.toUpperCase()
+      const id = option.id.toUpperCase()
+
+      if (code === 'NEW' || id.includes(':NEW')) {
+        lookup.set(option.id, 'success')
+      } else if (code === 'LIKE_NEW' || id.includes(':LIKE_NEW')) {
+        lookup.set(option.id, 'info')
+      } else if (code === 'ACCEPTABLE' || id.includes(':ACCEPTABLE')) {
+        lookup.set(option.id, 'warning')
+      } else if (code === 'DEFEATED' || id.includes(':DEFEATED') || code === 'POOR' || id.includes(':POOR')) {
+        lookup.set(option.id, 'destructive')
+      } else {
+        lookup.set(option.id, 'default')
+      }
+    })
+    return lookup
+  }, [conditionOptions])
+
   const getAssetStatusBadgeVariant = (status: string): 'default' | 'success' | 'destructive' | 'warning' | 'info' => {
     switch (status) {
-      case 'AVAILABLE_ASSET':
+      case AssetStatus.AVAILABLE:
         return 'success'
-      case 'ALLOCATED_ASSET':
+      case AssetStatus.ALLOCATED:
         return 'info'
-      case 'IN_REPAIR_ASSET':
+      case AssetStatus.UNDER_REPAIR:
         return 'warning'
-      case 'RETIRED_ASSET':
+      case AssetStatus.RETIRED:
         return 'destructive'
       default:
         return 'default'
     }
   }
 
-  // Format asset status for display
   const formatAssetStatus = (status: string): string => {
-    return status.replace(/_/g, ' ').replace('ASSET', '').trim()
+    if (status === AssetStatus.AVAILABLE) {
+      return 'Available'
+    }
+    if (status === AssetStatus.ALLOCATED) {
+      return 'Allocated'
+    }
+    if (status === AssetStatus.UNDER_REPAIR) {
+      return 'In Repair'
+    }
+    if (status === AssetStatus.RETIRED) {
+      return 'Retired'
+    }
+    // Fallback: format by removing _ASSET and replacing underscores with spaces, then capitalize
+    return status
+      .replace(/_ASSET$/, '')
+      .replace(/_/g, ' ')
+      .toLowerCase()
+      .replace(/\b\w/g, l => l.toUpperCase())
   }
 
-  // Get asset condition badge variant
-  const getConditionBadgeVariant = (condition?: string): 'default' | 'success' | 'warning' | 'destructive' => {
-    if (!condition) return 'default'
-    const conditionLower = condition.toLowerCase()
-    if (conditionLower.includes('excellent') || conditionLower.includes('good')) return 'success'
-    if (conditionLower.includes('fair') || conditionLower.includes('acceptable')) return 'warning'
-    if (conditionLower.includes('poor') || conditionLower.includes('damaged')) return 'destructive'
+  const getDisplayStatus = (asset: {
+    asset: { assetStatus: string }
+    startDate: string
+    endDate?: string
+  }): {
+    status: string
+    variant: 'default' | 'success' | 'destructive' | 'warning' | 'info'
+  } => {
+    const today = dayjs().startOf('day')
+    const startDate = dayjs(asset.startDate).startOf('day')
+    const endDate = asset.endDate ? dayjs(asset.endDate).startOf('day') : null
+
+    if (endDate && endDate.isSameOrBefore(today)) {
+      return {
+        status: 'Handed Over',
+        variant: 'success'
+      }
+    }
+
+    if (asset.asset.assetStatus === AssetStatus.ALLOCATED && startDate.isSameOrBefore(today)) {
+      return {
+        status: 'In Use',
+        variant: 'info'
+      }
+    }
+
+    return {
+      status: formatAssetStatus(asset.asset.assetStatus),
+      variant: getAssetStatusBadgeVariant(asset.asset.assetStatus)
+    }
+  }
+
+  const getConditionDisplayValue = (conditionRef?: string, conditionValue?: string): string => {
+    if (!conditionRef && !conditionValue) return 'N/A'
+    if (conditionRef && conditionLookup.has(conditionRef)) {
+      return conditionLookup.get(conditionRef)!
+    }
+    return conditionValue || 'N/A'
+  }
+
+  const getConditionBadgeVariant = (
+    conditionRef?: string
+  ): 'default' | 'success' | 'warning' | 'destructive' | 'info' => {
+    if (!conditionRef) return 'default'
+
+    // Use the variant lookup map based on condition reference ID
+    if (conditionVariantLookup.has(conditionRef)) {
+      return conditionVariantLookup.get(conditionRef)!
+    }
+
     return 'default'
   }
 
-  // Check if asset is currently assigned
-  const isCurrentlyAssigned = (endDate?: string) => {
-    return !endDate || dayjs(endDate).isAfter(dayjs())
+  const isCurrentlyInUse = (asset: { asset: { assetStatus: string }; startDate: string; endDate?: string }) => {
+    const today = dayjs().startOf('day')
+    const startDate = dayjs(asset.startDate).startOf('day')
+    const endDate = asset.endDate ? dayjs(asset.endDate).startOf('day') : null
+
+    if (endDate && endDate.isSameOrBefore(today)) {
+      return false
+    }
+
+    return asset.asset.assetStatus === AssetStatus.ALLOCATED && startDate.isSameOrBefore(today)
   }
 
   if (isLoading) {
@@ -114,10 +211,22 @@ const AssetsTab: React.FC<AssetsTabProps> = ({ employee, accessToken, employeeId
       {/* Assets Summary Card */}
       <Card data-testid="assets-summary-card">
         <CardHeader>
-          <CardTitle className="gba:flex gba:items-center gba:gap-2">
-            <PiPackage className="gba:h-5 gba:w-5" />
-            Assigned Equipment
-          </CardTitle>
+          <div className="gba:flex gba:items-center gba:justify-between">
+            <CardTitle className="gba:flex gba:items-center gba:gap-2">
+              <PiPackage className="gba:h-5 gba:w-5" />
+              Assigned Equipment
+            </CardTitle>
+            <Button
+              onClick={() => {
+                const baseUrl = typeof window !== 'undefined' ? window.location.origin : ''
+                const url = `${baseUrl}/platform/sales-demo/service-launcher`
+                navigateTo(url)
+              }}
+              data-testid="request-new-asset-button"
+            >
+              Request New Asset
+            </Button>
+          </div>
         </CardHeader>
         <CardContent>
           <div className="gba:flex gba:gap-6 gba:text-sm">
@@ -126,22 +235,27 @@ const AssetsTab: React.FC<AssetsTabProps> = ({ employee, accessToken, employeeId
               <div className="gba:text-2xl gba:font-semibold gba:text-foreground">{assets.length}</div>
             </div>
             <div>
-              <div className="gba:text-muted-foreground">Currently Active</div>
+              <div className="gba:text-muted-foreground">In Use</div>
               <div className="gba:text-2xl gba:font-semibold gba:text-success">
-                {assets.filter(a => isCurrentlyAssigned(a.endDate)).length}
+                {assets.filter(a => isCurrentlyInUse(a)).length}
               </div>
             </div>
             <div>
-              <div className="gba:text-muted-foreground">Returned</div>
+              <div className="gba:text-muted-foreground">Handed Over</div>
               <div className="gba:text-2xl gba:font-semibold gba:text-muted-foreground">
-                {assets.filter(a => !isCurrentlyAssigned(a.endDate)).length}
+                {
+                  assets.filter(a => {
+                    const today = dayjs().startOf('day')
+                    const endDate = a.endDate ? dayjs(a.endDate).startOf('day') : null
+                    return endDate && endDate.isSameOrBefore(today)
+                  }).length
+                }
               </div>
             </div>
           </div>
         </CardContent>
       </Card>
 
-      {/* Assets Table */}
       <Card data-testid="assets-table-card">
         <CardHeader>
           <CardTitle>Asset Assignment History</CardTitle>
@@ -200,40 +314,34 @@ const AssetsTab: React.FC<AssetsTabProps> = ({ employee, accessToken, employeeId
                   </TableCell>
                   <TableCell>
                     <div className="gba:space-y-1">
-                      {asset.startAssetCondition && (
+                      {asset.startAssetConditionRef && (
                         <div className="gba:text-sm">
                           <Badge
-                            variant={getConditionBadgeVariant(asset.startAssetCondition.value)}
+                            variant={getConditionBadgeVariant(asset.startAssetConditionRef)}
                             className="gba:text-xs"
                           >
-                            Start: {asset.startAssetCondition.value}
+                            Start:{' '}
+                            {getConditionDisplayValue(asset.startAssetConditionRef, asset.startAssetCondition?.value)}
                           </Badge>
                         </div>
                       )}
-                      {asset.endAssetCondition && (
+                      {asset.endAssetConditionRef && (
                         <div className="gba:text-sm">
-                          <Badge
-                            variant={getConditionBadgeVariant(asset.endAssetCondition.value)}
-                            className="gba:text-xs"
-                          >
-                            End: {asset.endAssetCondition.value}
+                          <Badge variant={getConditionBadgeVariant(asset.endAssetConditionRef)} className="gba:text-xs">
+                            End: {getConditionDisplayValue(asset.endAssetConditionRef, asset.endAssetCondition?.value)}
                           </Badge>
                         </div>
                       )}
-                      {!asset.startAssetCondition && !asset.endAssetCondition && (
+                      {!asset.startAssetConditionRef && !asset.endAssetConditionRef && (
                         <span className="gba:text-sm gba:text-muted-foreground">N/A</span>
                       )}
                     </div>
                   </TableCell>
                   <TableCell>
-                    <div className="gba:space-y-1">
-                      <Badge variant={getAssetStatusBadgeVariant(asset.asset.assetStatus)}>
-                        {formatAssetStatus(asset.asset.assetStatus)}
-                      </Badge>
-                      {!isCurrentlyAssigned(asset.endDate) && (
-                        <div className="gba:text-xs gba:text-muted-foreground">Returned</div>
-                      )}
-                    </div>
+                    {(() => {
+                      const displayStatus = getDisplayStatus(asset)
+                      return <Badge variant={displayStatus.variant}>{displayStatus.status}</Badge>
+                    })()}
                   </TableCell>
                 </TableRow>
               ))}
@@ -242,7 +350,6 @@ const AssetsTab: React.FC<AssetsTabProps> = ({ employee, accessToken, employeeId
         </CardContent>
       </Card>
 
-      {/* Notes Section - only show assets with notes */}
       {assets.some(a => a.notes) && (
         <Card data-testid="assets-notes-card">
           <CardHeader>

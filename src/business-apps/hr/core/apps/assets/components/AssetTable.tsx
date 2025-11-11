@@ -39,8 +39,8 @@ const MemoizedAppActionButton: React.FC<{
   onRetireAsset,
   onRetrieveAsset
 }) => {
-  const isAllocated = assetStatus === AssetStatus.ALLOCATED || (assetStatus as string) === 'ALLOCATED_ASSET'
-  const isRetired = assetStatus === AssetStatus.RETIRED || (assetStatus as string) === 'RETIRED'
+  const isAllocated = assetStatus === AssetStatus.ALLOCATED
+  const isRetired = assetStatus === AssetStatus.RETIRED
 
   const staticFlowData = useMemo(() => {
     const actions: any[] = []
@@ -143,6 +143,27 @@ const getStatusBadgeVariant = (status: AssetStatus): 'success' | 'info' | 'warni
   }
 }
 
+const formatStatus = (status: AssetStatus | string): string => {
+  if (status === AssetStatus.AVAILABLE) {
+    return 'Available'
+  }
+  if (status === AssetStatus.ALLOCATED) {
+    return 'Allocated'
+  }
+  if (status === AssetStatus.UNDER_REPAIR) {
+    return 'In Repair'
+  }
+  if (status === AssetStatus.RETIRED) {
+    return 'Retired'
+  }
+  // Fallback: format by removing _ASSET and replacing underscores with spaces
+  const statusStr = status as string
+  return statusStr
+    .replace(/_ASSET$/, '')
+    .replace(/_/g, ' ')
+    .replace(/\b\w/g, l => l.toUpperCase())
+}
+
 const formatCurrency = (amount: number, currency: string): string => {
   return new Intl.NumberFormat('en-US', {
     style: 'currency',
@@ -223,7 +244,7 @@ export const AssetTable: React.FC<AssetTableProps> = ({
             <SelectItem value="all">All Statuses</SelectItem>
             {Object.values(AssetStatus).map(status => (
               <SelectItem key={status} value={status}>
-                {status}
+                {formatStatus(status)}
               </SelectItem>
             ))}
           </SelectContent>
@@ -304,7 +325,9 @@ export const AssetTable: React.FC<AssetTableProps> = ({
                       {asset.serialNumber}
                     </TableCell>
                     <TableCell data-testid={`asset-status-${asset.id}`}>
-                      <Badge variant={getStatusBadgeVariant(asset.assetStatus)}>{asset.assetStatus}</Badge>
+                      <Badge variant={getStatusBadgeVariant(asset.assetStatus)}>
+                        {formatStatus(asset.assetStatus)}
+                      </Badge>
                     </TableCell>
                     <TableCell data-testid={`asset-location-${asset.id}`}>
                       {asset.siteLocation?.name || 'N/A'}
