@@ -14,6 +14,7 @@ import {
 import { AssetStatus } from '../../../../apps/assets/types'
 import { PiPackage, PiCalendar, PiWarning } from 'react-icons/pi'
 import { navigateTo } from '@/common/utils/navigationUtils'
+import { getTranslationFromI18nKeyAndLabel, formatDate } from '@/common/utils/windowUtils'
 
 interface AssetsTabProps {
   employee: Employee
@@ -31,7 +32,8 @@ const AssetsTab: React.FC<AssetsTabProps> = ({ employee, accessToken, employeeId
   const conditionLookup = useMemo(() => {
     const lookup = new Map<string, string>()
     conditionOptions.forEach((option: AssetConditionOption) => {
-      lookup.set(option.id, option.label)
+      // Use the value field from the catalog query
+      lookup.set(option.id, option.value)
     })
     return lookup
   }, [conditionOptions])
@@ -74,18 +76,17 @@ const AssetsTab: React.FC<AssetsTabProps> = ({ employee, accessToken, employeeId
 
   const formatAssetStatus = (status: string): string => {
     if (status === AssetStatus.AVAILABLE) {
-      return 'Available'
+      return getTranslationFromI18nKeyAndLabel('lowcoder:hr_assets.status_available', 'Available')
     }
     if (status === AssetStatus.ALLOCATED) {
-      return 'Allocated'
+      return getTranslationFromI18nKeyAndLabel('lowcoder:hr_assets.status_allocated', 'Allocated')
     }
     if (status === AssetStatus.UNDER_REPAIR) {
-      return 'In Repair'
+      return getTranslationFromI18nKeyAndLabel('lowcoder:hr_assets.status_in_repair', 'In Repair')
     }
     if (status === AssetStatus.RETIRED) {
-      return 'Retired'
+      return getTranslationFromI18nKeyAndLabel('lowcoder:hr_assets.status_retired', 'Retired')
     }
-    // Fallback: format by removing _ASSET and replacing underscores with spaces, then capitalize
     return status
       .replace(/_ASSET$/, '')
       .replace(/_/g, ' ')
@@ -107,14 +108,14 @@ const AssetsTab: React.FC<AssetsTabProps> = ({ employee, accessToken, employeeId
 
     if (endDate && endDate.isSameOrBefore(today)) {
       return {
-        status: 'Handed Over',
+        status: getTranslationFromI18nKeyAndLabel('lowcoder:hr_assets.status_handed_over', 'Handed Over'),
         variant: 'success'
       }
     }
 
     if (asset.asset.assetStatus === AssetStatus.ALLOCATED && startDate.isSameOrBefore(today)) {
       return {
-        status: 'In Use',
+        status: getTranslationFromI18nKeyAndLabel('lowcoder:hr_assets.status_in_use', 'In Use'),
         variant: 'info'
       }
     }
@@ -126,11 +127,12 @@ const AssetsTab: React.FC<AssetsTabProps> = ({ employee, accessToken, employeeId
   }
 
   const getConditionDisplayValue = (conditionRef?: string, conditionValue?: string): string => {
-    if (!conditionRef && !conditionValue) return 'N/A'
+    if (!conditionRef && !conditionValue)
+      return getTranslationFromI18nKeyAndLabel('lowcoder:hr_assets.not_available', 'N/A')
     if (conditionRef && conditionLookup.has(conditionRef)) {
       return conditionLookup.get(conditionRef)!
     }
-    return conditionValue || 'N/A'
+    return conditionValue || getTranslationFromI18nKeyAndLabel('lowcoder:hr_assets.not_available', 'N/A')
   }
 
   const getConditionBadgeVariant = (
@@ -138,7 +140,6 @@ const AssetsTab: React.FC<AssetsTabProps> = ({ employee, accessToken, employeeId
   ): 'default' | 'success' | 'warning' | 'destructive' | 'info' => {
     if (!conditionRef) return 'default'
 
-    // Use the variant lookup map based on condition reference ID
     if (conditionVariantLookup.has(conditionRef)) {
       return conditionVariantLookup.get(conditionRef)!
     }
@@ -179,7 +180,9 @@ const AssetsTab: React.FC<AssetsTabProps> = ({ employee, accessToken, employeeId
           <div className="gba:flex gba:items-start gba:gap-3 gba:text-destructive">
             <PiWarning className="gba:h-5 gba:w-5 gba:mt-0.5" />
             <div>
-              <div className="gba:font-semibold gba:mb-1">Error Loading Assets</div>
+              <div className="gba:font-semibold gba:mb-1">
+                {getTranslationFromI18nKeyAndLabel('lowcoder:hr_assets.error_loading_assets', 'Error Loading Assets')}
+              </div>
               <div className="gba:text-sm">{error}</div>
             </div>
           </div>
@@ -199,11 +202,19 @@ const AssetsTab: React.FC<AssetsTabProps> = ({ employee, accessToken, employeeId
               </div>
             </div>
             <div>
-              <h3 className="gba:text-lg gba:font-semibold gba:text-foreground">No Assets Assigned</h3>
+              <h3 className="gba:text-lg gba:font-semibold gba:text-foreground">
+                {getTranslationFromI18nKeyAndLabel('lowcoder:hr_assets.no_assets_assigned', 'No Assets Assigned')}
+              </h3>
               <p className="gba:text-sm gba:text-muted-foreground gba:mt-2">
                 {isSelfView
-                  ? "You don't have any equipment assigned to you at the moment."
-                  : "This employee doesn't have any equipment assigned at the moment."}
+                  ? getTranslationFromI18nKeyAndLabel(
+                      'lowcoder:hr_assets.no_equipment_assigned_self',
+                      "You don't have any equipment assigned to you at the moment."
+                    )
+                  : getTranslationFromI18nKeyAndLabel(
+                      'lowcoder:hr_assets.no_equipment_assigned_employee',
+                      "This employee doesn't have any equipment assigned at the moment."
+                    )}
               </p>
             </div>
           </div>
@@ -220,27 +231,33 @@ const AssetsTab: React.FC<AssetsTabProps> = ({ employee, accessToken, employeeId
           <div className="gba:flex gba:items-center gba:justify-between">
             <CardTitle className="gba:flex gba:items-center gba:gap-2">
               <PiPackage className="gba:h-5 gba:w-5" />
-              Assigned Equipment
+              {getTranslationFromI18nKeyAndLabel('lowcoder:hr_assets.assigned_equipment', 'Assigned Equipment')}
             </CardTitle>
             <Button onClick={handleRequestNewAsset} data-testid="request-new-asset-button">
-              Request New Asset
+              {getTranslationFromI18nKeyAndLabel('lowcoder:hr_assets.request_new_asset', 'Request New Asset')}
             </Button>
           </div>
         </CardHeader>
         <CardContent>
           <div className="gba:flex gba:gap-6 gba:text-sm">
             <div>
-              <div className="gba:text-muted-foreground">Total Assets</div>
+              <div className="gba:text-muted-foreground">
+                {getTranslationFromI18nKeyAndLabel('lowcoder:hr_assets.total_assets', 'Total Assets')}
+              </div>
               <div className="gba:text-2xl gba:font-semibold gba:text-foreground">{assets.length}</div>
             </div>
             <div>
-              <div className="gba:text-muted-foreground">In Use</div>
+              <div className="gba:text-muted-foreground">
+                {getTranslationFromI18nKeyAndLabel('lowcoder:hr_assets.in_use', 'In Use')}
+              </div>
               <div className="gba:text-2xl gba:font-semibold gba:text-success">
                 {assets.filter(a => isCurrentlyInUse(a)).length}
               </div>
             </div>
             <div>
-              <div className="gba:text-muted-foreground">Handed Over</div>
+              <div className="gba:text-muted-foreground">
+                {getTranslationFromI18nKeyAndLabel('lowcoder:hr_assets.handed_over', 'Handed Over')}
+              </div>
               <div className="gba:text-2xl gba:font-semibold gba:text-muted-foreground">
                 {
                   assets.filter(a => {
@@ -257,18 +274,29 @@ const AssetsTab: React.FC<AssetsTabProps> = ({ employee, accessToken, employeeId
 
       <Card data-testid="assets-table-card">
         <CardHeader>
-          <CardTitle>Asset Assignment History</CardTitle>
+          <CardTitle>
+            {getTranslationFromI18nKeyAndLabel(
+              'lowcoder:hr_assets.asset_assignment_history',
+              'Asset Assignment History'
+            )}
+          </CardTitle>
         </CardHeader>
         <CardContent className="gba:p-0">
           <Table>
             <TableHeader>
               <TableRow>
-                <TableHead>Category</TableHead>
-                <TableHead>Brand & Model</TableHead>
-                <TableHead>Serial Number</TableHead>
-                <TableHead>Assignment Period</TableHead>
-                <TableHead>Condition</TableHead>
-                <TableHead>Status</TableHead>
+                <TableHead>{getTranslationFromI18nKeyAndLabel('lowcoder:hr_assets.category', 'Category')}</TableHead>
+                <TableHead>
+                  {getTranslationFromI18nKeyAndLabel('lowcoder:hr_assets.brand_model', 'Brand & Model')}
+                </TableHead>
+                <TableHead>
+                  {getTranslationFromI18nKeyAndLabel('lowcoder:hr_assets.serial_number', 'Serial Number')}
+                </TableHead>
+                <TableHead>
+                  {getTranslationFromI18nKeyAndLabel('lowcoder:hr_assets.assignment_period', 'Assignment Period')}
+                </TableHead>
+                <TableHead>{getTranslationFromI18nKeyAndLabel('lowcoder:hr_assets.condition', 'Condition')}</TableHead>
+                <TableHead>{getTranslationFromI18nKeyAndLabel('lowcoder:hr_assets.status', 'Status')}</TableHead>
               </TableRow>
             </TableHeader>
             <TableBody>
@@ -276,13 +304,15 @@ const AssetsTab: React.FC<AssetsTabProps> = ({ employee, accessToken, employeeId
                 <TableRow key={asset.id} data-testid={`asset-row-${asset.id}`}>
                   <TableCell>
                     <div className="gba:font-medium gba:text-foreground">
-                      {asset.asset.assetCategory?.value || 'N/A'}
+                      {asset.asset.assetCategory?.value ||
+                        getTranslationFromI18nKeyAndLabel('lowcoder:hr_assets.not_available', 'N/A')}
                     </div>
                   </TableCell>
                   <TableCell>
                     <div className="gba:space-y-1">
                       <div className="gba:font-medium gba:text-foreground">
-                        {asset.asset.assetBrand?.value || 'Unknown'}
+                        {asset.asset.assetBrand?.value ||
+                          getTranslationFromI18nKeyAndLabel('lowcoder:hr_assets.unknown', 'Unknown')}
                       </div>
                       <div className="gba:text-sm gba:text-muted-foreground">{asset.asset.model}</div>
                     </div>
@@ -296,18 +326,22 @@ const AssetsTab: React.FC<AssetsTabProps> = ({ employee, accessToken, employeeId
                     <div className="gba:space-y-1">
                       <div className="gba:flex gba:items-center gba:gap-1 gba:text-sm">
                         <PiCalendar className="gba:h-3 gba:w-3 gba:text-muted-foreground" />
-                        <span className="gba:text-foreground">{dayjs(asset.startDate).format('MMM D, YYYY')}</span>
+                        <span className="gba:text-foreground">{formatDate(asset.startDate) || asset.startDate}</span>
                       </div>
                       {asset.endDate ? (
                         <div className="gba:text-sm gba:text-muted-foreground">
-                          to {dayjs(asset.endDate).format('MMM D, YYYY')}
+                          {getTranslationFromI18nKeyAndLabel('lowcoder:hr_assets.to', 'to')}{' '}
+                          {formatDate(asset.endDate) || asset.endDate}
                         </div>
                       ) : asset.expectedEndDate ? (
                         <div className="gba:text-sm gba:text-warning">
-                          Expected: {dayjs(asset.expectedEndDate).format('MMM D, YYYY')}
+                          {getTranslationFromI18nKeyAndLabel('lowcoder:hr_assets.expected', 'Expected')}:{' '}
+                          {formatDate(asset.expectedEndDate) || asset.expectedEndDate}
                         </div>
                       ) : (
-                        <div className="gba:text-sm gba:text-success">Currently Active</div>
+                        <div className="gba:text-sm gba:text-success">
+                          {getTranslationFromI18nKeyAndLabel('lowcoder:hr_assets.currently_active', 'Currently Active')}
+                        </div>
                       )}
                     </div>
                   </TableCell>
@@ -319,7 +353,7 @@ const AssetsTab: React.FC<AssetsTabProps> = ({ employee, accessToken, employeeId
                             variant={getConditionBadgeVariant(asset.startAssetConditionRef)}
                             className="gba:text-xs"
                           >
-                            Start:{' '}
+                            {getTranslationFromI18nKeyAndLabel('lowcoder:hr_assets.start', 'Start')}:{' '}
                             {getConditionDisplayValue(asset.startAssetConditionRef, asset.startAssetCondition?.value)}
                           </Badge>
                         </div>
@@ -327,12 +361,15 @@ const AssetsTab: React.FC<AssetsTabProps> = ({ employee, accessToken, employeeId
                       {asset.endAssetConditionRef && (
                         <div className="gba:text-sm">
                           <Badge variant={getConditionBadgeVariant(asset.endAssetConditionRef)} className="gba:text-xs">
-                            End: {getConditionDisplayValue(asset.endAssetConditionRef, asset.endAssetCondition?.value)}
+                            {getTranslationFromI18nKeyAndLabel('lowcoder:hr_assets.end', 'End')}:{' '}
+                            {getConditionDisplayValue(asset.endAssetConditionRef, asset.endAssetCondition?.value)}
                           </Badge>
                         </div>
                       )}
                       {!asset.startAssetConditionRef && !asset.endAssetConditionRef && (
-                        <span className="gba:text-sm gba:text-muted-foreground">N/A</span>
+                        <span className="gba:text-sm gba:text-muted-foreground">
+                          {getTranslationFromI18nKeyAndLabel('lowcoder:hr_assets.not_available', 'N/A')}
+                        </span>
                       )}
                     </div>
                   </TableCell>
@@ -352,7 +389,9 @@ const AssetsTab: React.FC<AssetsTabProps> = ({ employee, accessToken, employeeId
       {assets.some(a => a.notes) && (
         <Card data-testid="assets-notes-card">
           <CardHeader>
-            <CardTitle>Assignment Notes</CardTitle>
+            <CardTitle>
+              {getTranslationFromI18nKeyAndLabel('lowcoder:hr_assets.assignment_notes', 'Assignment Notes')}
+            </CardTitle>
           </CardHeader>
           <CardContent className="gba:space-y-4">
             {assets

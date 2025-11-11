@@ -1,6 +1,7 @@
 import { useState, useEffect, useCallback } from 'react'
 import { BusinessAppContextProps } from '@/common/BusinessAppContext'
-import { useCatalogManagerClient } from '@/common/network/catalogs/useCatalogManagerClient'
+import { useGraphQLClient } from '@/common/network/graphql/useGraphQLClient'
+import { getCurrentActiveUserLocale } from '@/common/utils/windowUtils'
 
 export interface BrandOption {
   id: string
@@ -9,12 +10,36 @@ export interface BrandOption {
   code: string
 }
 
+const GET_ASSET_BRANDS = (activeUserLocale: string): string => {
+  return `
+    query GetAssetBrands {
+      CatalogEntry(
+        where: {
+          catalog: { identifier: { _eq: "AssetBrand" }, version: { _eq: "v1" } }
+          isDeleted: { _eq: false }
+        }
+        limit: 200
+      ) {
+        id
+        code
+        value
+        translations(where: { localeCode: { _eq: "${activeUserLocale}" } }) {
+          localeCode
+          value
+          objectValue
+        }
+      }
+    }
+  `
+}
+
 export const useBrandsCatalog = (context: BusinessAppContextProps) => {
   const [options, setOptions] = useState<BrandOption[]>([])
   const [isLoading, setIsLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
 
-  const catalogClient = useCatalogManagerClient(context.accessToken)
+  const graphqlClient = useGraphQLClient(context.accessToken)
+  const activeUserLocale = getCurrentActiveUserLocale()
 
   const fetchBrands = useCallback(async () => {
     if (!context.accessToken) {
@@ -25,25 +50,25 @@ export const useBrandsCatalog = (context: BusinessAppContextProps) => {
     setError(null)
 
     try {
-      const response = await catalogClient.getCatalogEntriesList(
-        {
-          catalogIdentifier: 'AssetBrand',
-          version: 'v1'
-        },
-        {
-          limit: 200,
-          offset: 0,
-          returnTotalRecords: true,
-          includeChildCatalogEntries: true
-        }
-      )
+      const query = GET_ASSET_BRANDS(activeUserLocale)
+      const response = await graphqlClient.request<{
+        CatalogEntry: Array<{
+          id: string
+          code?: string
+          value?: string
+          translations?: Array<{ localeCode: string; value: string; objectValue?: any }>
+        }>
+      }>(query)
 
-      const brandOptions = response.data.map(entry => ({
-        id: entry.id,
-        value: entry.id,
-        label: entry.value,
-        code: entry.code
-      }))
+      const brandOptions = (response.CatalogEntry || []).map(entry => {
+        const translatedValue = entry.translations?.[0]?.value || entry.value || ''
+        return {
+          id: entry.id,
+          value: entry.id,
+          label: translatedValue,
+          code: entry.code || ''
+        }
+      })
 
       setOptions(brandOptions)
     } catch (err) {
@@ -53,7 +78,7 @@ export const useBrandsCatalog = (context: BusinessAppContextProps) => {
     } finally {
       setIsLoading(false)
     }
-  }, [catalogClient, context.accessToken])
+  }, [graphqlClient, context.accessToken, activeUserLocale])
 
   useEffect(() => {
     fetchBrands()
