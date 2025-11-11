@@ -15,6 +15,7 @@ import {
 } from '../../constants/constants'
 import { showToast } from '@/business-apps/fin/expenses/utils/notificationUtils'
 import { FLOW_DOMAIN, FLOW_PROCESS_NAME } from '../constants'
+import { deepNormalizeNumericStrings } from '@/business-apps/fin/expenses/utils/numberNormalization'
 
 /**
  * Uploads documents to the file server
@@ -391,6 +392,7 @@ export const handleSubmit = async (
         }))
       }
     }
+    const normalizedSubmitData = deepNormalizeNumericStrings(submitData)
     let operationSuccessful = false
 
     if (flowProcessId && taskId && taskName && hasExpenseRequest && accessToken) {
@@ -402,7 +404,7 @@ export const handleSubmit = async (
           flowProcessId as string,
           taskName as string,
           taskId as string,
-          submitData,
+          normalizedSubmitData,
           FLOW_DOMAIN,
           FLOW_PROCESS_NAME
         )
@@ -415,9 +417,9 @@ export const handleSubmit = async (
     if (accessToken && employeeId && !hasExpenseRequest) {
       try {
         if (dispatchProcessContinueEventIfEnabled) {
-          dispatchProcessContinueEventIfEnabled(EVENTS.SUBMIT, submitData)
+          dispatchProcessContinueEventIfEnabled(EVENTS.SUBMIT, normalizedSubmitData)
         } else {
-          dispatchProcessContinueEvent(EVENTS.SUBMIT, submitData)
+          dispatchProcessContinueEvent(EVENTS.SUBMIT, normalizedSubmitData)
         }
         // operationSuccessful = true;
       } catch {
