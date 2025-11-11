@@ -29,12 +29,9 @@ export const useOutboxFlows = (context: BusinessAppContextProps) => {
       return []
     }
 
-    const _startTime = performance.now()
     try {
       // Reduce limit to 50 and add timeout to prevent 524 errors
       const url = `${FLOW_ENGINE_API}/api/flows/user/${userId}/initiated?limit=50&offset=0`
-
-      const _fetchStart = performance.now()
 
       // Add timeout to prevent hanging requests
       const controller = new AbortController()
@@ -50,8 +47,6 @@ export const useOutboxFlows = (context: BusinessAppContextProps) => {
 
       clearTimeout(timeoutId)
 
-      const _fetchEnd = performance.now()
-
       if (!response.ok) {
         if (response.status === 524) {
           throw new Error('Flow engine is taking too long to respond. Please try again.')
@@ -63,12 +58,8 @@ export const useOutboxFlows = (context: BusinessAppContextProps) => {
       // API response structure: { status: "success", data: { flows: [...], totalCount: N } }
       const rawFlows: any[] = data.data?.flows || []
 
-      const _endTime = performance.now()
-
       return rawFlows.map(flow => transformFlow(flow))
     } catch (err) {
-      const _endTime = performance.now()
-
       if (err instanceof Error && err.name === 'AbortError') {
         throw new Error('Request timed out. The server is taking too long to respond.')
       }
@@ -144,7 +135,14 @@ const transformFlow = (rawFlow: any): Flow => {
   const blinkGroupId = tags.blinkGroupId || undefined
   const assignedUserId = tags.assignedUserId || undefined
 
-  return {
+  // Extract entity reference from tags (list API doesn't return links)
+  // Entity references are stored in BOTH links (for inbox) and tags (for outbox)
+  const entityType = tags.entityType || undefined
+  const entityId = tags.entityId || undefined
+  const entityName = tags.entityName || undefined
+  const entityDisplayUrl = tags.entityDisplayUrl || undefined
+
+  const transformedFlow = {
     id: (rawFlow as any).flowId || rawFlow.workflowId,
     templateName: (rawFlow as any).flowName || rawFlow.templateName || rawFlow.name || 'Unnamed Flow',
     templateId: rawFlow.templateId,
@@ -159,10 +157,17 @@ const transformFlow = (rawFlow: any): Flow => {
     tags: rawFlow.tags, // Include tags for filtering and badge display
     blinkGroupId, // Add blinkGroupId for grouping
     assignedUserId, // Add assignedUserId to identify who this workflow is for
+    // Entity reference fields (from links)
+    entityType,
+    entityId,
+    entityName,
+    entityDisplayUrl,
     metadata: {
       rawFlow
     }
   }
+
+  return transformedFlow
 }
 
 /**

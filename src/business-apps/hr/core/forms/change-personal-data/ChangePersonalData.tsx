@@ -326,7 +326,7 @@ const ChangePersonalDataContent: React.FC<BusinessAppContextProps> = ({ accessTo
         >
           <div className="gba:flex-1 gba:space-y-4" data-testid="change-personal-data-groups">
             {/* Group 1: Names */}
-            <NamesGroup control={form.control} catalogs={{ salutation: catalogSalutation }} />
+            <NamesGroup control={form.control} catalogs={{ salutation: catalogSalutation }} setValue={form.setValue} />
 
             {/* Group 2: Birth and Gender (includes DOB & Place) */}
             <BirthAndGenderGroup control={form.control} catalogs={{ gender: catalogs.gender }} />

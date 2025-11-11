@@ -53,7 +53,7 @@ export const useCompensationHistory = (employeeId: string, accessToken: string, 
 
       // Transform working conditions to compensation history
       const compensationHistory = (result?.EmployeeWorkingCondition || []).map((wc: any) =>
-        transformWorkingConditionToHistory(wc, locale)
+        transformWorkingConditionToHistory(wc)
       )
 
       // Transform bonus history

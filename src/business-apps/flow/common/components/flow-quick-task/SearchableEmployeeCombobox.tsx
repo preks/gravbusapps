@@ -252,8 +252,18 @@ export const SearchableEmployeeCombobox: React.FC<SearchableEmployeeComboboxProp
 
       {/* Selection Dialog */}
       <Dialog open={open} onOpenChange={setOpen}>
-        <DialogContent className="gba:max-w-2xl gba:max-h-[80vh] gba:flex gba:flex-col gba:p-0">
-          <DialogHeader className="gba:px-6 gba:pt-6 gba:pb-4">
+        <DialogContent
+          className="gba:flex gba:flex-col gba:p-0 gba:w-full"
+          style={{
+            maxWidth: '672px',
+            minWidth: '672px',
+            width: '672px',
+            maxHeight: '90vh',
+            minHeight: '80vh',
+            height: '90vh'
+          }}
+        >
+          <DialogHeader className="gba:px-6 gba:pt-6 gba:pb-4 gba:flex-shrink-0">
             <DialogTitle>Select Employees</DialogTitle>
             {showTeammatesHint && !searchValue && options.length > 0 && (
               <p className="gba:text-sm gba:text-muted-foreground gba:mt-2">
@@ -262,52 +272,52 @@ export const SearchableEmployeeCombobox: React.FC<SearchableEmployeeComboboxProp
             )}
           </DialogHeader>
 
-          <div className="gba:flex gba:flex-col gba:gap-4 gba:flex-1 gba:min-h-0 gba:px-6 gba:pb-4 gba:overflow-y-auto">
-            {/* Selected Employees Section (Multi-select only) */}
-            {multiple && selectedOptionsWithAvatar.length > 0 && (
-              <div className="gba:flex gba:flex-col gba:gap-2">
-                <div className="gba:text-sm gba:font-medium gba:text-muted-foreground">
-                  Selected ({selectedOptionsWithAvatar.length})
-                </div>
-                <div className="gba:flex gba:flex-wrap gba:gap-2">
-                  {selectedOptionsWithAvatar.map(option => (
-                    <div
-                      key={option.value}
-                      className="gba:flex gba:items-center gba:gap-2 gba:px-3 gba:py-2 gba:bg-secondary gba:rounded-md"
-                    >
-                      <Avatar className="gba:h-6 gba:w-6 gba:flex-shrink-0">
-                        {option.avatarUrl && <AvatarImage src={option.avatarUrl} alt={option.label} />}
-                        <AvatarFallback className="gba:text-xs gba:font-medium gba:bg-gradient-to-br gba:from-blue-500 gba:to-purple-600 gba:text-white">
-                          {getInitials(option.label)}
-                        </AvatarFallback>
-                      </Avatar>
-                      <span className="gba:text-sm">{option.displayName || option.label}</span>
-                      <Button
-                        variant="ghost"
-                        size="sm"
-                        className="gba:h-5 gba:w-5 gba:p-0"
-                        onClick={() => handleSelect(option.value)}
-                      >
-                        <X className="gba:h-3 gba:w-3" />
-                      </Button>
-                    </div>
-                  ))}
-                </div>
+          {/* Selected Employees Section (Multi-select only) */}
+          {multiple && selectedOptionsWithAvatar.length > 0 && (
+            <div className="gba:flex gba:flex-col gba:gap-2 gba:px-6 gba:pb-4 gba:flex-shrink-0">
+              <div className="gba:text-sm gba:font-medium gba:text-muted-foreground">
+                Selected ({selectedOptionsWithAvatar.length})
               </div>
-            )}
+              <div className="gba:flex gba:flex-wrap gba:gap-2">
+                {selectedOptionsWithAvatar.map(option => (
+                  <div
+                    key={option.value}
+                    className="gba:flex gba:items-center gba:gap-2 gba:px-3 gba:py-2 gba:bg-secondary gba:rounded-md"
+                  >
+                    <Avatar className="gba:h-6 gba:w-6 gba:flex-shrink-0">
+                      {option.avatarUrl && <AvatarImage src={option.avatarUrl} alt={option.label} />}
+                      <AvatarFallback className="gba:text-xs gba:font-medium gba:bg-gradient-to-br gba:from-blue-500 gba:to-purple-600 gba:text-white">
+                        {getInitials(option.label)}
+                      </AvatarFallback>
+                    </Avatar>
+                    <span className="gba:text-sm">{option.displayName || option.label}</span>
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      className="gba:h-5 gba:w-5 gba:p-0"
+                      onClick={() => handleSelect(option.value)}
+                    >
+                      <X className="gba:h-3 gba:w-3" />
+                    </Button>
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
 
-            {/* Search and List */}
-            <Command shouldFilter={false} className="gba:flex-1 gba:border gba:rounded-lg">
+          {/* Search and List - This should fill remaining space */}
+          <div className="gba:flex-1 gba:min-h-0 gba:px-6">
+            <Command shouldFilter={false} className="gba:h-full gba:border gba:rounded-lg gba:flex gba:flex-col">
               <CommandInput
                 placeholder={searchPlaceholder}
                 value={searchValue}
                 onValueChange={setSearchValue}
-                className="gba:h-11"
+                className="gba:h-11 gba:flex-shrink-0"
               />
-              <CommandList className="gba:max-h-[400px]">
+              <CommandList className="gba:flex-1 gba:min-h-0 gba:max-h-full gba:overflow-y-auto gba:pb-4">
                 {renderEmptyState()}
 
-                <CommandGroup>
+                <CommandGroup className="gba:pb-2">
                   {optionsWithAvatarUrls
                     .filter(option => {
                       // In multi-select mode, exclude already selected employees
@@ -351,7 +361,7 @@ export const SearchableEmployeeCombobox: React.FC<SearchableEmployeeComboboxProp
             </Command>
           </div>
 
-          {/* Sticky Footer - Outside scrollable area */}
+          {/* Sticky Footer */}
           <div className="gba:border-t gba:bg-background gba:px-6 gba:py-5 gba:flex gba:justify-end gba:gap-3 gba:flex-shrink-0">
             <Button variant="outline" onClick={() => setOpen(false)}>
               Cancel

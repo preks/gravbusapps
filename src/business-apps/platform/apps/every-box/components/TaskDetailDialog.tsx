@@ -4,8 +4,25 @@
  */
 
 import React from 'react'
-import { Card, CardContent, CardHeader, Badge, Button, Alert, AlertDescription } from '@newwork/nw-design-system'
-import { CheckCircle, Info, Zap, X, ExternalLink } from 'lucide-react'
+import {
+  Card,
+  CardContent,
+  CardHeader,
+  Badge,
+  Button,
+  Alert,
+  AlertDescription
+} from '@newwork/nw-design-system'
+import {
+  CheckCircle,
+  Info,
+  Zap,
+  X,
+  ExternalLink,
+  Link as LinkIcon,
+  FileText,
+  Download
+} from 'lucide-react'
 import { message } from 'antd'
 import { UnifiedTask } from '../types'
 import {
@@ -78,7 +95,7 @@ export const TaskDetailDialog: React.FC<TaskDetailDialogProps> = ({
         }
       }
     } catch {
-      // Ignore parsing errors
+      // Ignore errors when assigning empty object
     }
 
     return { domain: null, processName: null, processInstanceId: null }
@@ -200,7 +217,7 @@ export const TaskDetailDialog: React.FC<TaskDetailDialogProps> = ({
         navigateTo(endpointPath)
         onClose()
       } catch {
-        // Ignore URL parsing errors
+        // Ignore navigation errors
       }
       return
     }
@@ -214,7 +231,7 @@ export const TaskDetailDialog: React.FC<TaskDetailDialogProps> = ({
         navigateTo(url.pathname)
         onClose()
       } catch {
-        // Ignore URL parsing errors
+        // Ignore navigation errors
       }
       return
     }
@@ -256,6 +273,26 @@ export const TaskDetailDialog: React.FC<TaskDetailDialogProps> = ({
   // Check if this is an enter requested feedback task
   const isEnterRequestedFeedback =
     task.source === 'kogito' && task.name?.toLowerCase().includes('enterrequestedfeedback')
+
+  // Extract links from task (direct property for all tasks)
+  const allLinks = (task.links as Array<{ name: string; url: string; type?: string; metadata?: any }>) || []
+
+  // Separate entity reference link from document links
+  const entityLink = allLinks.find(link => link.type?.startsWith('entity:'))
+  const documentLinks = allLinks.filter(link => link.type?.startsWith('document:'))
+
+  // Extract entity reference data from the entity link
+  const entityType = entityLink?.metadata?.entityType || entityLink?.type?.split(':')[1]
+  const entityId = entityLink?.metadata?.entityId
+  const entityName = entityLink?.name
+  const entityDisplayUrl = entityLink?.url
+
+  // Debug: Log links
+  if (allLinks.length > 0) {
+    console.log('[TaskDetailDialog] All links found:', allLinks)
+    console.log('[TaskDetailDialog] Entity link:', entityLink)
+    console.log('[TaskDetailDialog] Document links:', documentLinks)
+  }
 
   // Check if this is a sick leave acknowledgement task
   const isSickLeaveAcknowledgement =
@@ -552,6 +589,58 @@ export const TaskDetailDialog: React.FC<TaskDetailDialogProps> = ({
         ) : (
           /* For CFlow tasks and other sources: Show general info */
           <div className="gba:space-y-6">
+            {/* Entity Reference (if linked to an entity) */}
+            {entityType && entityId && entityName && (
+              <div className="gba:border gba:rounded-lg gba:p-4 gba:bg-muted/30">
+                <div className="gba:text-xs gba:text-muted-foreground gba:mb-2 gba:font-medium">Related To</div>
+                <a
+                  href={entityDisplayUrl || '#'}
+                  onClick={e => {
+                    e.preventDefault()
+                    if (entityDisplayUrl) {
+                      navigateTo(entityDisplayUrl)
+                    }
+                  }}
+                  className="gba:flex gba:items-center gba:gap-2 gba:cursor-pointer gba:p-2 gba:-mx-2 gba:rounded-md hover:gba:bg-accent gba:transition-colors gba:no-underline"
+                  data-testid="task-entity-reference-link"
+                >
+                  <LinkIcon className="gba:h-4 gba:w-4 gba:text-primary" />
+                  <Badge variant="outline" className="gba:text-xs">
+                    {entityType}
+                  </Badge>
+                  <span className="gba:font-medium gba:text-sm gba:text-primary hover:gba:underline">{entityName}</span>
+                  <ExternalLink className="gba:h-3 gba:w-3 gba:text-muted-foreground gba:ml-auto" />
+                </a>
+              </div>
+            )}
+
+            {/* Document Attachments (if any) */}
+            {documentLinks.length > 0 && (
+              <div className="gba:border gba:rounded-lg gba:p-4 gba:bg-muted/30">
+                <div className="gba:text-xs gba:text-muted-foreground gba:mb-3 gba:font-medium">
+                  Attachments ({documentLinks.length})
+                </div>
+                <div className="gba:space-y-2">
+                  {documentLinks.map((link, index) => (
+                    <a
+                      key={index}
+                      href={link.url}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="gba:flex gba:items-center gba:gap-3 gba:p-2 gba:-mx-2 gba:rounded-md hover:gba:bg-accent gba:transition-colors gba:no-underline gba:group"
+                      data-testid={`task-document-link-${index}`}
+                    >
+                      <FileText className="gba:h-4 gba:w-4 gba:text-blue-500 gba:shrink-0" />
+                      <span className="gba:text-sm gba:font-medium gba:text-foreground gba:truncate gba:flex-1 group-hover:gba:underline">
+                        {link.name}
+                      </span>
+                      <Download className="gba:h-3 gba:w-3 gba:text-muted-foreground gba:shrink-0" />
+                    </a>
+                  ))}
+                </div>
+              </div>
+            )}
+
             {/* Brief description if available */}
             {taskDescription && (
               <p className="gba:text-base gba:leading-relaxed gba:text-muted-foreground">{taskDescription}</p>

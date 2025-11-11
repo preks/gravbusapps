@@ -1,10 +1,10 @@
 import React, { useMemo } from 'react'
 import { BusinessAppContextProps } from '@/common/BusinessAppContext'
-import { useGetInvestmentDocumentsByAccountId } from '@/common/data/investment/hooks/useInvestmentAccounts'
-import DocumentSection from '@/common/components/common-relations/record-sections/document-section/DocumentSection'
+import { DocumentSection } from '@/components/document-section'
 import { FlowContextName } from '@/common/types/FlowRegistryTypes'
 import { useInvestmentDocuments } from '@/business-apps/irm/common/hooks/useInvestmentDocuments'
-import { createDocumentActions } from '@/business-apps/irm/common/utils/createDocumentActions'
+import { createDocumentSectionActions } from '@/common/utils/documentSectionActions'
+import { getIrmDocumentApiConfig, useGetIrmDocuments } from '@/business-apps/irm/common/utils/documentUtils'
 
 interface DocumentViewProps {
   accountId: string
@@ -12,14 +12,14 @@ interface DocumentViewProps {
 }
 
 const DocumentView: React.FC<DocumentViewProps> = ({ accountId, context }) => {
-  // Fetch documents using the existing hook
-  const { fetchInvestmentDocumentsByAccountId } = useGetInvestmentDocumentsByAccountId(context)
+  // Fetch documents using the generic IRM hook
+  const { fetchDocuments } = useGetIrmDocuments('account', context)
 
   // Use shared hook for document management
   const { documents, isLoading, error, refetch } = useInvestmentDocuments({
     entityId: accountId,
     context,
-    fetchDocuments: fetchInvestmentDocumentsByAccountId
+    fetchDocuments
   })
 
   // Memoized action props for document operations
@@ -46,20 +46,18 @@ const DocumentView: React.FC<DocumentViewProps> = ({ accountId, context }) => {
     [accountId]
   )
 
-  const documentDeleteActionProps = useMemo(
-    () => ({
-      contextsArray: [FlowContextName.investmentDocumentDelete],
-      externalContextData: {
-        accountId,
-        entityType: 'account'
-      },
-      prefixDataTestId: 'account-document-delete'
-    }),
-    [accountId]
-  )
-
   // Use shared document actions
-  const customActions = useMemo(() => createDocumentActions({ entityType: 'account' }), [])
+  const customActions = useMemo(
+    () =>
+      createDocumentSectionActions({
+        domain: 'investment-relations',
+        documentFieldName: 'investmentDocument',
+        entityType: 'account',
+        updateProcessName: 'updateInvestmentDocument',
+        deleteEndpoint: '/investment-relations/deleteInvestmentDocument'
+      }),
+    []
+  )
 
   return (
     <DocumentSection
@@ -68,19 +66,10 @@ const DocumentView: React.FC<DocumentViewProps> = ({ accountId, context }) => {
       isLoading={isLoading}
       error={error}
       onRefresh={refetch}
-      apiConfig={{
-        baseEndpoint: '/investment-relations',
-        entityFieldName: 'account',
-        documentFieldName: 'investmentDocument'
-      }}
-      enableGraphQLSearch={true}
-      graphQLSearchConfig={{
-        entityType: 'account'
-      }}
+      apiConfig={getIrmDocumentApiConfig('account')}
       customActions={customActions}
       createFolderActionProps={documentCreateFolderActionProps}
       uploadActionProps={documentUploadActionProps}
-      deleteActionProps={documentDeleteActionProps}
       data-testid="account-document-section"
       {...context}
     />

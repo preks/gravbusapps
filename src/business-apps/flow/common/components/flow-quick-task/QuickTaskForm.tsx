@@ -53,6 +53,7 @@ export const QuickTaskForm: React.FC<QuickTaskFormProps> = ({
       onSubmit={handleSubmit}
       onCancel={onCancel}
       config={config}
+      accessToken={accessToken}
       employeeOptions={employeeOptions}
       employeesLoading={employeesLoading}
       onEmployeeSearch={handleEmployeeSearch}

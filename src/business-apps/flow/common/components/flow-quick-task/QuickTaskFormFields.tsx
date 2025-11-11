@@ -13,6 +13,7 @@ import {
 import { UseFormReturn } from 'react-hook-form'
 import { QuickTaskFileUpload } from './QuickTaskFileUpload'
 import { SearchableEmployeeCombobox } from './SearchableEmployeeCombobox'
+import { SearchableEntityCombobox } from './SearchableEntityCombobox'
 import { getTranslationFromI18nKeyAndLabel } from '@/common/utils/windowUtils'
 import { QuickTaskFormConfig, QuickTaskFormData, AssigneeOption } from './types'
 import { cn } from '@/common/utils/cn'
@@ -62,6 +63,7 @@ export interface QuickTaskFormFieldsProps {
   onSubmit: (data: QuickTaskFormData) => Promise<void>
   onCancel?: () => void
   config?: QuickTaskFormConfig
+  accessToken: string
   // For employee search mode
   employeeOptions?: AssigneeOption[]
   employeesLoading?: boolean
@@ -77,6 +79,7 @@ export const QuickTaskFormFields: React.FC<QuickTaskFormFieldsProps> = ({
   onSubmit,
   onCancel,
   config = {},
+  accessToken,
   employeeOptions = [],
   employeesLoading = false,
   onEmployeeSearch,
@@ -150,6 +153,58 @@ export const QuickTaskFormFields: React.FC<QuickTaskFormFieldsProps> = ({
                   data-testid="blink-task-message-input"
                 />
               </FormControl>
+              <FormMessage />
+            </FormItem>
+          )}
+        />
+
+        {/* Entity Reference Field - Optional */}
+        <FormField
+          control={form.control}
+          name="entityId"
+          render={() => (
+            <FormItem>
+              <FormLabel>
+                {getLabel(labels.entityReference, 'quickTask.field.entityReference.label', 'Related To (Optional)')}
+              </FormLabel>
+              <FormControl>
+                <SearchableEntityCombobox
+                  accessToken={accessToken}
+                  value={form.watch('entityId')}
+                  onChange={(entityId, entityData) => {
+                    if (entityData) {
+                      console.log('[Entity Selected]', {
+                        id: entityData.id,
+                        type: entityData.type,
+                        name: entityData.name,
+                        displayUrl: entityData.displayUrl,
+                        metadata: entityData.metadata
+                      })
+                      form.setValue('entityId', entityData.id)
+                      form.setValue('entityType', entityData.type)
+                      form.setValue('entityName', entityData.name)
+                      form.setValue('entityDisplayUrl', entityData.displayUrl)
+                      form.setValue('entityMetadata', entityData.metadata)
+                    } else {
+                      form.setValue('entityId', undefined)
+                      form.setValue('entityType', undefined)
+                      form.setValue('entityName', undefined)
+                      form.setValue('entityDisplayUrl', undefined)
+                      form.setValue('entityMetadata', undefined)
+                    }
+                  }}
+                  placeholder="Search for any entity (account, employee, expense...)"
+                  disabled={isSubmitting}
+                  data-testid="blink-task-entity-reference"
+                />
+              </FormControl>
+              <p className="gba:text-xs gba:text-gray-500 gba:mt-1">
+                {getLabel(
+                  labels.entityReferenceHint,
+                  'quickTask.field.entityReference.hint',
+                  'Link this task to a specific entity (account, contact, employee, absence, expense, investment, etc.)'
+                )}
+              </p>
               <FormMessage />
             </FormItem>
           )}

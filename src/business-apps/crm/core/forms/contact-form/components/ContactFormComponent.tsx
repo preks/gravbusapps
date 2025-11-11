@@ -160,8 +160,41 @@ const ContactFormComponent: React.FC = () => {
       // Determine change mode based on whether we have an ID
       const changeMode = isUpdate ? 'UPDATE' : 'INSERT'
 
+      // ✅ NEW: Build accountContacts array with full association objects (matching IRM pattern)
+      const accountContacts = (formValues.accountIds || []).map((account: any) => {
+        if (typeof account === 'object' && account.id) {
+          // Existing association - include association metadata if available
+          const accountContact: any = {
+            contactType: null, // Set contact type if needed
+            account: account.id,
+            contact: formValues.id // Current contact ID
+          }
+
+          // Include association ID and version if it exists (for updates)
+          if (account.associationId) {
+            accountContact.id = account.associationId
+            if (account.associationVersion !== undefined) {
+              accountContact.version = account.associationVersion
+            }
+          }
+
+          return accountContact
+        }
+
+        // New association - simple format
+        return {
+          contactType: null,
+          account: account,
+          contact: formValues.id
+        }
+      })
+
+      // ✅ FIXED: Create clean payload structure with accountContacts for BOTH CREATE and UPDATE (matching IRM pattern)
       const payload = {
-        contact: contactPayload,
+        contact: {
+          ...contactPayload,
+          accountContacts: accountContacts // Include for both create and update
+        },
         changeMode: changeMode
       }
 
