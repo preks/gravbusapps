@@ -16,6 +16,11 @@ export interface QuickTaskFlowData {
   dueDate?: string // ISO date string
   // Additional metadata
   priority?: 'low' | 'medium' | 'high'
+  // Entity reference (to be added to links)
+  entityType?: string
+  entityId?: string
+  entityName?: string
+  entityDisplayUrl?: string
 }
 
 export interface ExecuteQuickTaskOptions {
@@ -50,8 +55,12 @@ export class QuickTaskFlowService {
    * Generate a dynamic Quick Task template from form data
    */
   static generateFlowTemplate(data: QuickTaskFlowData): FlowTemplate {
+    console.log('[QuickTaskFlowService] generateFlowTemplate called with uploadResults:', data.uploadResults)
+
     // Create links for uploaded documents using actual file service results
     const documentLinks: Link[] = (data.uploadResults || []).map(result => {
+      console.log('[QuickTaskFlowService] Processing upload result:', result)
+
       const fileInfo = result?.fileInfo || result
       const fileMetadata = fileInfo?.fileMetadata || {}
 
@@ -69,12 +78,35 @@ export class QuickTaskFlowService {
         downloadUrl = `/files/api/v1/tenant/downloads/quick-task/${fileInfo?.fileId}`
       }
 
-      return {
+      const link = {
         name: fileMetadata?.originalFileName || fileInfo?.fileName || 'Attachment',
         url: downloadUrl || `/files/api/v1/tenant/downloads/unknown`,
         type: `document:${fileInfo?.fileId || 'unknown'}` // Include fileId in type for reference
       }
+
+      console.log('[QuickTaskFlowService] Generated link:', link)
+      return link
     })
+
+    console.log('[QuickTaskFlowService] Total document links:', documentLinks.length, documentLinks)
+
+    // Add entity reference as a special link (if provided)
+    const allLinks: Link[] = [...documentLinks]
+    if (data.entityType && data.entityId && data.entityName && data.entityDisplayUrl) {
+      const entityLink: Link = {
+        name: data.entityName,
+        url: data.entityDisplayUrl,
+        type: `entity:${data.entityType}`,
+        metadata: {
+          entityType: data.entityType,
+          entityId: data.entityId
+        }
+      }
+      allLinks.push(entityLink)
+      console.log('[QuickTaskFlowService] Added entity reference link:', entityLink)
+    }
+
+    console.log('[QuickTaskFlowService] Total links (documents + entity):', allLinks.length, allLinks)
 
     // Calculate due date/time
     const dueConfig = this.calculateDueConfig(data)
@@ -85,10 +117,12 @@ export class QuickTaskFlowService {
       title: data.title,
       message: data.message,
       form: [], // No form inputs - just a simple task to complete
-      links: documentLinks, // Add document links for reference
+      links: allLinks, // Add all links (documents + entity reference)
       assignment: data.assignments,
       ...dueConfig // Either dueInMinutes or dueDate
     }
+
+    console.log('[QuickTaskFlowService] Created step with links:', step.links)
 
     // Tag for blink app filtering
     const tags = {
@@ -196,13 +230,14 @@ export class QuickTaskFlowService {
         }
       })
 
-      // Add the group ID and assigned user ID to the template tags
+      // Add the group ID, assigned user ID, and entity references to the template tags
+      // NOTE: Entity references are stored in BOTH links (for inbox) and tags (for outbox list view)
       const tagsWithGroup = {
         ...(flowTemplate.tags || {}),
         app: 'quick-task',
         blinkGroupId, // Group ID to link all workflows from the same blink
         assignedUserId: userId, // User ID to identify who this workflow is for
-        // Entity reference fields (if provided)
+        // Entity reference fields (for outbox - list API doesn't return links)
         ...(formData.entityType &&
           formData.entityId && {
             entityType: formData.entityType,

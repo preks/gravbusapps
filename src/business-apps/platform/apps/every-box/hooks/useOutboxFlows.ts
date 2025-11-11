@@ -130,10 +130,13 @@ export const useOutboxFlows = (context: BusinessAppContextProps) => {
 const transformFlow = (rawFlow: any): Flow => {
   const status = mapFlowStatus(rawFlow.status)
 
-  // Extract blinkGroupId, assignedUserId, and entity references from tags
+  // Extract blinkGroupId and assignedUserId from tags
   const tags = rawFlow.tags || {}
   const blinkGroupId = tags.blinkGroupId || undefined
   const assignedUserId = tags.assignedUserId || undefined
+
+  // Extract entity reference from tags (list API doesn't return links)
+  // Entity references are stored in BOTH links (for inbox) and tags (for outbox)
   const entityType = tags.entityType || undefined
   const entityId = tags.entityId || undefined
   const entityName = tags.entityName || undefined
@@ -154,7 +157,7 @@ const transformFlow = (rawFlow: any): Flow => {
     tags: rawFlow.tags, // Include tags for filtering and badge display
     blinkGroupId, // Add blinkGroupId for grouping
     assignedUserId, // Add assignedUserId to identify who this workflow is for
-    // Entity reference fields (from tags)
+    // Entity reference fields (from links)
     entityType,
     entityId,
     entityName,
@@ -162,18 +165,6 @@ const transformFlow = (rawFlow: any): Flow => {
     metadata: {
       rawFlow
     }
-  }
-
-  // Debug: Log entity reference data
-  if (entityType) {
-    console.log('[Outbox Flow Transform]', {
-      flowId: transformedFlow.id,
-      entityType,
-      entityId,
-      entityName,
-      entityDisplayUrl,
-      rawTags: rawFlow.tags
-    })
   }
 
   return transformedFlow

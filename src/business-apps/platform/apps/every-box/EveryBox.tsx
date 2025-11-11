@@ -44,6 +44,7 @@ import {
   QuickTaskFormData,
   QuickTaskFlowService
 } from '@/business-apps/flow/common/components/flow-quick-task'
+import { FileClient } from '@/common/network/files/FileClient'
 
 interface EveryBoxProps extends BusinessAppContextProps {
   prefixDataTestId?: string
@@ -96,8 +97,7 @@ export const EveryBox: React.FC<EveryBoxProps> = ({ prefixDataTestId = 'every-bo
   const [activeTab, setActiveTab] = useState<ViewType>(getInitialView())
 
   // Debug logging
-  useEffect(() => {
-  }, [])
+  useEffect(() => {}, [])
 
   // Fetch inbox tasks (active)
   const {
@@ -158,7 +158,6 @@ export const EveryBox: React.FC<EveryBoxProps> = ({ prefixDataTestId = 'every-bo
 
   // Set up staggered polling intervals (SMART POLLING - no UI disruption)
   useEffect(() => {
-
     // Active tasks polling - uses backgroundRefresh (no UI reload)
     if (POLLING_CONFIG.activeTasks.enabled) {
       activeTasksIntervalRef.current = setInterval(() => {
@@ -199,10 +198,50 @@ export const EveryBox: React.FC<EveryBoxProps> = ({ prefixDataTestId = 'every-bo
     try {
       const baseUrl = env('NEXT_PUBLIC_CUSTOM_FLOW_ENGINE_API_URL') || 'https://newwork-dev.newwork.com/flow-engine'
 
+      // Upload files if any were selected
+      let uploadResults: any[] = []
+      if (data.documents && data.documents.length > 0) {
+        console.log('[EveryBox] Starting file upload, documents:', data.documents.length, data.documents)
+
+        const fileClient = new FileClient()
+        fileClient.setAccessToken(context.accessToken)
+
+        // Upload all files in parallel
+        uploadResults = await Promise.all(
+          data.documents
+            .filter(doc => doc.originFileObj) // Only upload files with originFileObj
+            .map(async doc => {
+              console.log('[EveryBox] Uploading file:', doc.name, 'originFileObj:', doc.originFileObj)
+              try {
+                const result = await fileClient.uploadFile(
+                  doc.originFileObj!,
+                  { accessScope: 'tenant' },
+                  {
+                    appName: 'quick-task',
+                    folderPath: '/blinks',
+                    originalFileName: doc.name
+                  }
+                )
+                console.log('[EveryBox] File uploaded successfully:', doc.name, result)
+                return result
+              } catch (error) {
+                console.error(`[EveryBox] Failed to upload file ${doc.name}:`, error)
+                return null
+              }
+            })
+        )
+
+        // Filter out failed uploads
+        uploadResults = uploadResults.filter(result => result !== null)
+        console.log('[EveryBox] Final upload results:', uploadResults.length, uploadResults)
+      } else {
+        console.log('[EveryBox] No documents to upload', data.documents)
+      }
+
       // Execute the quick task using the service method
       await QuickTaskFlowService.executeQuickTask({
         formData: data,
-        uploadResults: [], // File upload results if needed
+        uploadResults,
         accessToken: context.accessToken,
         initiatorId: context.userInfo?.id || context.userInfo?.employeeDetails?.employeeId || 'unknown',
         apiBaseUrl: baseUrl
@@ -233,7 +272,10 @@ export const EveryBox: React.FC<EveryBoxProps> = ({ prefixDataTestId = 'every-bo
               <CardContent className="gba:p-0 gba:flex gba:flex-col gba:h-full gba:overflow-hidden">
                 {/* Floating Header - Absolute positioned to not take vertical space */}
                 <div className="gba:absolute gba:top-2 gba:left-0 gba:right-0 gba:z-10 gba:flex gba:items-center gba:justify-between gba:pl-[42px] gba:pr-[46px]">
-                  <h1 className="gba:text-lg gba:font-bold gba:text-foreground" data-testid={`${prefixDataTestId}-title`}>
+                  <h1
+                    className="gba:text-lg gba:font-bold gba:text-foreground"
+                    data-testid={`${prefixDataTestId}-title`}
+                  >
                     EveryBox
                   </h1>
 
