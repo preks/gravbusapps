@@ -26,7 +26,6 @@ import { BusinessAppContextProps } from '@/common/BusinessAppContext'
 import { AppActionButton } from '@/components/app-action-button/AppActionButton'
 import { getTranslationFromI18nKeyAndLabel } from '@/common/utils/windowUtils'
 
-// AppActionButton component with static action options
 const MemoizedAppActionButton: React.FC<{
   assetId: string
   assetStatus: AssetStatus
@@ -46,16 +45,12 @@ const MemoizedAppActionButton: React.FC<{
   onRetireAsset,
   onRetrieveAsset
 }) => {
-  // Check if asset is already allocated - hide allocate action if true
   const isAllocated = assetStatus === AssetStatus.ALLOCATED || (assetStatus as string) === 'ALLOCATED_ASSET'
-  // Check if asset is already retired - hide all actions if true
   const isRetired = assetStatus === AssetStatus.RETIRED || (assetStatus as string) === 'RETIRED'
 
-  // Build static action options similar to ExpensePlansTable pattern
   const staticFlowData = useMemo(() => {
     const actions: any[] = []
 
-    // Update Asset action - always available (unless retired)
     if (!isRetired && onUpdateAsset) {
       actions.push({
         category: getTranslationFromI18nKeyAndLabel('lowcoder:employee_list.flows_button.actions', 'Actions'),
@@ -68,7 +63,6 @@ const MemoizedAppActionButton: React.FC<{
       })
     }
 
-    // Allocate Asset action - only if not already allocated and not retired
     if (!isAllocated && !isRetired && onAllocateAsset) {
       actions.push({
         category: getTranslationFromI18nKeyAndLabel('lowcoder:employee_list.flows_button.actions', 'Actions'),
@@ -81,7 +75,6 @@ const MemoizedAppActionButton: React.FC<{
       })
     }
 
-    // Retrieve Asset action - only if allocated and not retired
     if (isAllocated && !isRetired && onRetrieveAsset) {
       actions.push({
         category: getTranslationFromI18nKeyAndLabel('lowcoder:employee_list.flows_button.actions', 'Actions'),
@@ -94,7 +87,6 @@ const MemoizedAppActionButton: React.FC<{
       })
     }
 
-    // Retire Asset action - only if not already retired
     if (!isRetired && onRetireAsset) {
       actions.push({
         category: getTranslationFromI18nKeyAndLabel('lowcoder:employee_list.flows_button.actions', 'Actions'),
@@ -128,7 +120,13 @@ MemoizedAppActionButton.displayName = 'MemoizedAppActionButton'
 
 interface AssetTableProps extends BusinessAppContextProps {
   assets: Asset[]
+  totalCount?: number
   isLoading?: boolean
+  currentPage?: number
+  pageSize?: number
+  onPageChange?: (page: number) => void
+  onSearchChange?: (search: string) => void
+  onStatusFilterChange?: (status: string) => void
   onAssetClick?: (asset: Asset) => void
   onAllocateAsset?: (assetId: string) => void
   onUpdateAsset?: (assetId: string) => void
@@ -170,7 +168,13 @@ const formatDate = (dateString: string): string => {
 
 export const AssetTable: React.FC<AssetTableProps> = ({
   assets,
+  totalCount = 0,
   isLoading = false,
+  currentPage = 1,
+  pageSize = 10,
+  onPageChange,
+  onSearchChange,
+  onStatusFilterChange,
   onAssetClick,
   onAllocateAsset,
   onUpdateAsset,
@@ -181,43 +185,29 @@ export const AssetTable: React.FC<AssetTableProps> = ({
   const DATA_TEST_ID_PREFIX = 'asset-table'
   const [searchQuery, setSearchQuery] = useState('')
   const [statusFilter, setStatusFilter] = useState<string>('all')
-  const [currentPage, setCurrentPage] = useState(1)
-  const pageSize = 10
 
-  const filteredAssets = useMemo(() => {
-    return assets.filter(asset => {
-      if (asset.assetStatus === AssetStatus.RETIRED) {
-        return false
-      }
+  const handleStatusFilterChange = (value: string) => {
+    setStatusFilter(value)
+    if (onStatusFilterChange) {
+      onStatusFilterChange(value)
+    }
+    if (onPageChange) {
+      onPageChange(1)
+    }
+  }
 
-      if (statusFilter !== 'all' && asset.assetStatus !== statusFilter) {
-        return false
-      }
+  const handleSearchInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const value = e.target.value
+    setSearchQuery(value)
+    if (onSearchChange) {
+      onSearchChange(value)
+    }
+    if (onPageChange) {
+      onPageChange(1)
+    }
+  }
 
-      if (searchQuery) {
-        const searchLower = searchQuery.toLowerCase()
-        const matchesSearch =
-          (asset.assetBrand?.value || '').toLowerCase().includes(searchLower) ||
-          asset.model.toLowerCase().includes(searchLower) ||
-          asset.serialNumber.toLowerCase().includes(searchLower) ||
-          (asset.assetCategory?.value || '').toLowerCase().includes(searchLower) ||
-          (asset.siteLocation?.name || '').toLowerCase().includes(searchLower)
-
-        if (!matchesSearch) {
-          return false
-        }
-      }
-
-      return true
-    })
-  }, [assets, statusFilter, searchQuery])
-
-  const paginatedAssets = useMemo(() => {
-    const startIndex = (currentPage - 1) * pageSize
-    return filteredAssets.slice(startIndex, startIndex + pageSize)
-  }, [filteredAssets, currentPage, pageSize])
-
-  const totalPages = Math.ceil(filteredAssets.length / pageSize)
+  const totalPages = Math.ceil(totalCount / pageSize)
 
   return (
     <div className="gba:space-y-4" data-testid="asset-table-container">
@@ -226,13 +216,13 @@ export const AssetTable: React.FC<AssetTableProps> = ({
           <Input
             placeholder="Search assets..."
             value={searchQuery}
-            onChange={e => setSearchQuery(e.target.value)}
+            onChange={handleSearchInputChange}
             className="gba:w-full"
             data-testid="asset-search-input"
           />
         </div>
 
-        <Select value={statusFilter} onValueChange={setStatusFilter}>
+        <Select value={statusFilter} onValueChange={handleStatusFilterChange}>
           <SelectTrigger className="gba:w-[180px]" data-testid="asset-status-filter">
             <SelectValue placeholder="All Statuses" />
           </SelectTrigger>
@@ -248,7 +238,7 @@ export const AssetTable: React.FC<AssetTableProps> = ({
       </div>
 
       <div className="gba:text-sm gba:text-muted-foreground">
-        Showing {paginatedAssets.length} of {filteredAssets.length} assets
+        Showing {assets.length} of {totalCount} assets
       </div>
 
       <div className="gba:border gba:rounded-lg">
@@ -273,14 +263,14 @@ export const AssetTable: React.FC<AssetTableProps> = ({
                   <div data-testid="asset-table-loading">Loading assets...</div>
                 </TableCell>
               </TableRow>
-            ) : paginatedAssets.length === 0 ? (
+            ) : assets.length === 0 ? (
               <TableRow>
                 <TableCell colSpan={9} className="gba:text-center gba:py-8">
                   <div data-testid="asset-table-empty">No assets found matching your criteria.</div>
                 </TableCell>
               </TableRow>
             ) : (
-              paginatedAssets.map(asset => {
+              assets.map(asset => {
                 const acquisitionDate = new Date(asset.acquisitionDate)
                 const warrantyExpiryDate = new Date(acquisitionDate)
                 warrantyExpiryDate.setMonth(warrantyExpiryDate.getMonth() + asset.warrantyPeriodMonths)
@@ -361,7 +351,7 @@ export const AssetTable: React.FC<AssetTableProps> = ({
             <Button
               variant="outline"
               size="sm"
-              onClick={() => setCurrentPage(prev => Math.max(1, prev - 1))}
+              onClick={() => onPageChange && onPageChange(Math.max(1, currentPage - 1))}
               disabled={currentPage === 1}
               data-testid="asset-table-prev-page"
             >
@@ -370,7 +360,7 @@ export const AssetTable: React.FC<AssetTableProps> = ({
             <Button
               variant="outline"
               size="sm"
-              onClick={() => setCurrentPage(prev => Math.min(totalPages, prev + 1))}
+              onClick={() => onPageChange && onPageChange(Math.min(totalPages, currentPage + 1))}
               disabled={currentPage === totalPages}
               data-testid="asset-table-next-page"
             >

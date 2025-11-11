@@ -3,13 +3,22 @@
  * Manages asset data with CRUD operations using GraphQL
  */
 
-import { useState, useEffect, useCallback, useMemo } from 'react'
+import { useState, useEffect, useCallback } from 'react'
 import { BusinessAppContextProps } from '@/common/BusinessAppContext'
-import { Asset, AssetFilter } from '../types'
+import { Asset, AssetFilter, AssetStatus } from '../types'
 import { useAssetService } from '../services/useAssetService'
 
-export const useAssets = (context: BusinessAppContextProps) => {
+export interface UseAssetsOptions {
+  page?: number
+  pageSize?: number
+  search?: string
+  statusFilter?: string
+}
+
+export const useAssets = (context: BusinessAppContextProps, options: UseAssetsOptions = {}) => {
+  const { page = 1, pageSize = 10, search, statusFilter } = options
   const [assets, setAssets] = useState<Asset[]>([])
+  const [totalCount, setTotalCount] = useState(0)
   const [isLoading, setIsLoading] = useState(true)
   const [error, setError] = useState<Error | null>(null)
   const [filters, setFilters] = useState<AssetFilter>({})
@@ -34,12 +43,56 @@ export const useAssets = (context: BusinessAppContextProps) => {
     }
   }, [assetService])
 
-  // Load assets from GraphQL
+  // Build GraphQL where conditions for search and filters
+  const buildWhereConditions = useCallback(() => {
+    const conditions: any[] = []
+
+    // Always exclude retired assets and deleted assets
+    conditions.push({ assetStatus: { _neq: AssetStatus.RETIRED } })
+    conditions.push({ isDeleted: { _eq: false } })
+
+    // Status filter
+    if (statusFilter && statusFilter !== 'all') {
+      conditions.push({ assetStatus: { _eq: statusFilter } })
+    }
+
+    // Search filter - search across multiple fields
+    if (search?.trim()) {
+      const searchPattern = { _ilike: `%${search.trim()}%` }
+      conditions.push({
+        _or: [
+          { model: searchPattern },
+          { serialNumber: searchPattern },
+          { assetBrand: { value: searchPattern } },
+          { assetCategory: { value: searchPattern } },
+          { siteLocation: { name: searchPattern } }
+        ]
+      })
+    }
+
+    // Category filter (if provided in filters)
+    if (filters.category) {
+      conditions.push({ assetCategory: { value: { _eq: filters.category } } })
+    }
+
+    return conditions.length > 0 ? { _and: conditions } : { isDeleted: { _eq: false } }
+  }, [search, statusFilter, filters.category])
+
+  // Load assets from GraphQL with pagination
   const loadAssets = useCallback(async () => {
     try {
       setIsLoading(true)
-      const result = await assetService.getAssets()
+      const where = buildWhereConditions()
+      const offset = (page - 1) * pageSize
+
+      const result = await assetService.getAssets({
+        where,
+        limit: pageSize,
+        offset
+      })
+
       setAssets(result.assets)
+      setTotalCount(result.totalCount)
       setError(null)
       // Reload statistics after assets are loaded
       await loadStatistics()
@@ -49,43 +102,12 @@ export const useAssets = (context: BusinessAppContextProps) => {
     } finally {
       setIsLoading(false)
     }
-  }, [assetService, loadStatistics])
+  }, [assetService, loadStatistics, buildWhereConditions, page, pageSize])
 
-  // Initialize data on mount - run ONCE
+  // Reload assets when pagination, search, or filters change
   useEffect(() => {
     loadAssets()
-  }, []) // Empty array = run once on mount only
-
-  // Filter assets based on current filters
-  const filteredAssets = useMemo(() => {
-    return assets.filter(asset => {
-      // Category filter
-      if (filters.category && asset.assetCategory?.value !== filters.category) {
-        return false
-      }
-
-      // Status filter
-      if (filters.status && asset.assetStatus !== filters.status) {
-        return false
-      }
-
-      // Search filter (searches in brand, model, serial number, category)
-      if (filters.search) {
-        const searchLower = filters.search.toLowerCase()
-        const matchesSearch =
-          (asset.assetBrand?.value || '').toLowerCase().includes(searchLower) ||
-          asset.model.toLowerCase().includes(searchLower) ||
-          asset.serialNumber.toLowerCase().includes(searchLower) ||
-          (asset.assetCategory?.value || '').toLowerCase().includes(searchLower)
-
-        if (!matchesSearch) {
-          return false
-        }
-      }
-
-      return true
-    })
-  }, [assets, filters])
+  }, [loadAssets])
 
   // Add new asset
   const addAsset = useCallback(
@@ -151,8 +173,8 @@ export const useAssets = (context: BusinessAppContextProps) => {
   )
 
   return {
-    assets: filteredAssets,
-    allAssets: assets,
+    assets,
+    totalCount,
     isLoading,
     error,
     filters,

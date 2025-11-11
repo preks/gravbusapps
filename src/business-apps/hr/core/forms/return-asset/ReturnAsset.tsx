@@ -103,7 +103,6 @@ const ReturnAssetContent: React.FC<BusinessAppContextProps> = (context: Business
     return isSubmitting || isLoading || conditionsLoading || !form.formState.isValid || !asset || !currentAllocation
   }, [isSubmitting, isLoading, conditionsLoading, form.formState.isValid, asset, currentAllocation])
 
-  // Load asset and allocation data
   useEffect(() => {
     const loadData = async () => {
       if (!assetId) {
@@ -123,7 +122,6 @@ const ReturnAssetContent: React.FC<BusinessAppContextProps> = (context: Business
           setAsset(assetData)
         }
 
-        // Get current allocation
         const allocation = await assetService.getCurrentAllocation(assetId)
         if (allocation) {
           setCurrentAllocation(allocation)
@@ -336,7 +334,6 @@ const ReturnAssetContent: React.FC<BusinessAppContextProps> = (context: Business
                       throw new Error('Current allocation ID is required')
                     }
 
-                    // Get asset version from existingAsset (from clicked row) or fetch from API
                     let currentAssetVersion: number | null = null
 
                     if (existingAsset?.version !== undefined && existingAsset.version !== null) {
@@ -352,7 +349,6 @@ const ReturnAssetContent: React.FC<BusinessAppContextProps> = (context: Business
                       }
                     }
 
-                    // Final fallback: use computed version if it's not 0
                     if (currentAssetVersion === null && assetVersion !== 0 && assetVersion !== undefined) {
                       currentAssetVersion = assetVersion
                     }
@@ -363,7 +359,6 @@ const ReturnAssetContent: React.FC<BusinessAppContextProps> = (context: Business
                       )
                     }
 
-                    // Prepare updateEmployeeAsset payload
                     const updateEmployeeAssetPayload: UpdateEmployeeAssetPayload = {
                       id: currentAllocation.id,
                       version: currentAllocation.version,
@@ -377,7 +372,6 @@ const ReturnAssetContent: React.FC<BusinessAppContextProps> = (context: Business
                       asset: assetId
                     }
 
-                    // Execute both operations in parallel using Promise.all
                     await Promise.all([
                       assetProcessClient.updateEmployeeAsset(updateEmployeeAssetPayload),
                       assetProcessClient.updateAsset({
@@ -387,10 +381,8 @@ const ReturnAssetContent: React.FC<BusinessAppContextProps> = (context: Business
                       })
                     ])
 
-                    // Dispatch process continue event
                     dispatchProcessContinueEvent('pse_submit', {})
 
-                    // Dispatch completion events to trigger table refresh
                     const completionPayload = {
                       resolution: 'success',
                       processName: 'returnAsset',
@@ -410,7 +402,6 @@ const ReturnAssetContent: React.FC<BusinessAppContextProps> = (context: Business
                       }
                     }
 
-                    // Dispatch process completion events to trigger table refresh
                     window.dispatchEvent(
                       new CustomEvent('com.newwork.process.processCompletion', {
                         detail: completionPayload

@@ -342,7 +342,6 @@ const AllocateAssetContent: React.FC<BusinessAppContextProps> = (context: Busine
                       throw new Error('Employee is required')
                     }
 
-                    // Get asset version from existingAsset (from clicked row) or fetch from API
                     let currentAssetVersion: number | null = null
 
                     if (existingAsset?.version !== undefined && existingAsset.version !== null) {
@@ -358,7 +357,6 @@ const AllocateAssetContent: React.FC<BusinessAppContextProps> = (context: Busine
                       }
                     }
 
-                    // Final fallback: use computed version if it's not 0
                     if (currentAssetVersion === null && assetVersion !== 0 && assetVersion !== undefined) {
                       currentAssetVersion = assetVersion
                     }
@@ -369,7 +367,6 @@ const AllocateAssetContent: React.FC<BusinessAppContextProps> = (context: Busine
                       )
                     }
 
-                    // Prepare employee asset payload
                     const employeeAssetPayload: CreateEmployeeAssetPayload = {
                       startDate: values.startDate,
                       employee: values.employeeId,
@@ -388,7 +385,6 @@ const AllocateAssetContent: React.FC<BusinessAppContextProps> = (context: Busine
                       employeeAssetPayload.notes = values.notes
                     }
 
-                    // Execute both operations in parallel using Promise.all
                     const promises: Promise<any>[] = [
                       assetProcessClient.createEmployeeAsset(employeeAssetPayload),
                       assetProcessClient.updateAsset({
@@ -398,14 +394,10 @@ const AllocateAssetContent: React.FC<BusinessAppContextProps> = (context: Busine
                       })
                     ]
 
-                    // Execute both operations in parallel
                     const results = await Promise.all(promises)
 
-                    // Dispatch process continue event after both operations succeed
-                    // Note: We don't pass employeeAsset here since we've already created it via API
                     dispatchProcessContinueEvent('pse_submit', {})
 
-                    // Dispatch completion events to trigger table refresh
                     const completionPayload = {
                       resolution: 'success',
                       processName: 'allocateAsset',
@@ -424,7 +416,6 @@ const AllocateAssetContent: React.FC<BusinessAppContextProps> = (context: Busine
                       }
                     }
 
-                    // Dispatch process completion events to trigger table refresh
                     window.dispatchEvent(
                       new CustomEvent('com.newwork.process.processCompletion', {
                         detail: completionPayload

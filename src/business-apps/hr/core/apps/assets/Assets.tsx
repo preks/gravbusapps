@@ -30,13 +30,26 @@ export const Assets: React.FC<BusinessAppContextProps> = props => {
   const [retiringAssetId, setRetiringAssetId] = useState<string | null>(null)
   const [returningAssetId, setReturningAssetId] = useState<string | null>(null)
 
-  // Load assets data
-  const { assets, isLoading: assetsLoading, error: assetsError, statistics, refetch: refetchAssets } = useAssets(props)
+  const [currentPage, setCurrentPage] = useState(1)
+  const [pageSize] = useState(10)
+  const [searchQuery, setSearchQuery] = useState('')
+  const [statusFilter, setStatusFilter] = useState<string>('all')
 
-  // Initialize asset service
+  const {
+    assets,
+    totalCount,
+    isLoading: assetsLoading,
+    error: assetsError,
+    statistics,
+    refetch: refetchAssets
+  } = useAssets(props, {
+    page: currentPage,
+    pageSize,
+    search: searchQuery,
+    statusFilter
+  })
   const { getAllocationsForAsset } = useAssetService(props)
 
-  // Load allocations when asset is selected
   useEffect(() => {
     const loadAllocations = async () => {
       if (selectedAsset) {
@@ -55,26 +68,21 @@ export const Assets: React.FC<BusinessAppContextProps> = props => {
     loadAllocations()
   }, [selectedAsset, getAllocationsForAsset])
 
-  // Handle asset selection
   const handleAssetClick = (asset: Asset) => {
     setSelectedAsset(asset)
     setIsPanelOpen(true)
   }
 
-  // Handle panel close
   const handlePanelClose = () => {
     setIsPanelOpen(false)
-    // Keep selected asset for a moment to prevent flash
     setTimeout(() => setSelectedAsset(null), 300)
   }
 
-  // Handle register equipment
   const handleRegisterEquipment = () => {
     setEditingAssetId(null)
     setIsRegisterDialogOpen(true)
   }
 
-  // Handle update asset (opens edit modal)
   const handleUpdateAsset = useCallback(
     (assetId: string) => {
       const asset = assets.find(a => a.id === assetId)
@@ -89,7 +97,6 @@ export const Assets: React.FC<BusinessAppContextProps> = props => {
     [assets]
   )
 
-  // Handle allocate asset
   const handleAllocateAsset = useCallback(
     (assetId: string) => {
       const asset = assets.find(a => a.id === assetId)
@@ -102,7 +109,6 @@ export const Assets: React.FC<BusinessAppContextProps> = props => {
     [assets]
   )
 
-  // Handle retrieve asset (return asset)
   const handleRetrieveAsset = useCallback(
     (assetId: string) => {
       const asset = assets.find(a => a.id === assetId)
@@ -115,7 +121,6 @@ export const Assets: React.FC<BusinessAppContextProps> = props => {
     [assets]
   )
 
-  // Handle retire asset - directly call the updateAsset API
   const handleRetireAsset = useCallback(
     async (assetId: string) => {
       const asset = assets.find(a => a.id === assetId)
@@ -128,14 +133,12 @@ export const Assets: React.FC<BusinessAppContextProps> = props => {
         const assetProcessClient = new AssetProcessClient()
         assetProcessClient.setAccessToken(props.accessToken)
 
-        // Call updateAsset process API with id, version, and status RETIRED_ASSET
         await assetProcessClient.updateAsset({
           id: asset.id,
           version: asset.version,
           assetStatus: AssetStatus.RETIRED
         })
 
-        // Dispatch process completion event to refresh data
         const completionPayload = {
           resolution: 'success',
           processName: 'updateAsset',
@@ -192,7 +195,6 @@ export const Assets: React.FC<BusinessAppContextProps> = props => {
           setAllocatingAssetId(null)
         }
 
-        // Check if this is a return/deallocate process
         const isReturnProcess =
           domain === 'employee' &&
           (processName.includes('return') || processName.includes('deallocate') || processName.includes('retrieve'))
@@ -202,7 +204,6 @@ export const Assets: React.FC<BusinessAppContextProps> = props => {
           setReturningAssetId(null)
         }
 
-        // Check if this is a retire/status change process
         const isStatusChangeProcess =
           domain === 'employee' && (processName.includes('updateasset') || processName.includes('retire'))
 
@@ -263,7 +264,6 @@ export const Assets: React.FC<BusinessAppContextProps> = props => {
       const domain = (detail?.domain || '').toLowerCase()
       const startProcessBody = detail?.startProcessBody || {}
 
-      // Helper to extract assetId from various payload structures
       const extractAssetId = () => {
         return (
           startProcessBody.assetId ||
@@ -275,10 +275,7 @@ export const Assets: React.FC<BusinessAppContextProps> = props => {
         )
       }
 
-      // Helper to intercept and prevent default behavior
-      // Note: This is now mainly a fallback since we override onClick handlers in AssetTable
       const interceptAndOpen = (handler: (assetId: string) => void, assetId: string) => {
-        // Stop all event propagation immediately to prevent platform modal from opening
         event.stopImmediatePropagation()
         event.stopPropagation()
         event.preventDefault()
@@ -296,7 +293,6 @@ export const Assets: React.FC<BusinessAppContextProps> = props => {
         return false
       }
 
-      // Check if this is a createEmployeeAsset process (allocate)
       const isAllocateProcess = domain === 'employee' && processName === 'createemployeeasset'
       if (isAllocateProcess) {
         const assetId = extractAssetId()
@@ -305,7 +301,6 @@ export const Assets: React.FC<BusinessAppContextProps> = props => {
         }
       }
 
-      // Check if this is an updateAsset process
       const isUpdateAssetProcess = domain === 'employee' && processName === 'updateasset'
       if (isUpdateAssetProcess) {
         const assetId = extractAssetId()
@@ -314,7 +309,6 @@ export const Assets: React.FC<BusinessAppContextProps> = props => {
         }
       }
 
-      // Handle other update processes (legacy process names)
       const isUpdateProcess =
         domain === 'employee' &&
         (processName.includes('update-asset') ||
@@ -337,7 +331,6 @@ export const Assets: React.FC<BusinessAppContextProps> = props => {
     }
   }, [handleUpdateAsset, handleAllocateAsset])
 
-  // Memoize additionalData
   const equipmentRegistrationAdditionalData = useMemo(
     () => ({
       ...props.additionalData,
@@ -364,7 +357,6 @@ export const Assets: React.FC<BusinessAppContextProps> = props => {
         variant={moduleColor}
       >
         <div className="gba:space-y-6">
-          {/* Statistics Cards */}
           <AssetStatistics
             statistics={statistics}
             isLoading={assetsLoading}
@@ -372,7 +364,6 @@ export const Assets: React.FC<BusinessAppContextProps> = props => {
             onRetry={refetchAssets}
           />
 
-          {/* All Assets Table */}
           <div className="gba:space-y-4">
             <div className="gba:flex gba:items-center gba:justify-between">
               <h3 className="gba:text-lg gba:font-semibold">All Assets</h3>
@@ -384,7 +375,19 @@ export const Assets: React.FC<BusinessAppContextProps> = props => {
             <AssetTable
               {...props}
               assets={assets}
+              totalCount={totalCount}
               isLoading={assetsLoading}
+              currentPage={currentPage}
+              pageSize={pageSize}
+              onPageChange={setCurrentPage}
+              onSearchChange={search => {
+                setSearchQuery(search)
+                setCurrentPage(1)
+              }}
+              onStatusFilterChange={status => {
+                setStatusFilter(status)
+                setCurrentPage(1)
+              }}
               onAssetClick={handleAssetClick}
               onAllocateAsset={handleAllocateAsset}
               onUpdateAsset={handleUpdateAsset}
@@ -395,7 +398,6 @@ export const Assets: React.FC<BusinessAppContextProps> = props => {
         </div>
       </PageLayout>
 
-      {/* Asset Detail Side Panel */}
       <AssetDetailPanel
         asset={selectedAsset}
         allocations={selectedAssetAllocations}
