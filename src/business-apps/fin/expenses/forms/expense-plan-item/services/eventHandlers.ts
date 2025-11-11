@@ -11,7 +11,6 @@ import {
   EXPENSE_SEARCH_TERM
 } from '../../expense-item/constants/constants'
 import { parseNumericValue } from '@/business-apps/fin/expenses/utils/amountFormatting'
-import { deepNormalizeNumericStrings } from '@/business-apps/fin/expenses/utils/numberNormalization'
 
 /**
  * Formats custom fields from form values
@@ -151,14 +150,13 @@ const submitViaTaskFlow = async (
   submitData: any
 ): Promise<boolean> => {
   try {
-    const normalized = deepNormalizeNumericStrings(submitData)
     await completeTaskFlow(
       accessToken,
       userId,
       flowProcessId,
       taskName,
       taskId,
-      normalized,
+      submitData,
       FLOW_DOMAIN,
       FLOW_PROCESS_NAME
     )
@@ -180,12 +178,11 @@ const submitViaProcessEvent = (
   dispatchProcessContinueEventIfEnabled?: (event: string, payload: any) => boolean
 ): boolean => {
   try {
-    const normalized = deepNormalizeNumericStrings(submitData)
     if (dispatchProcessContinueEventIfEnabled) {
-      return dispatchProcessContinueEventIfEnabled(EVENTS.SUBMIT, normalized)
+      return dispatchProcessContinueEventIfEnabled(EVENTS.SUBMIT, submitData)
     }
 
-    dispatchProcessContinueEvent(EVENTS.SUBMIT, normalized)
+    dispatchProcessContinueEvent(EVENTS.SUBMIT, submitData)
     return true
   } catch {
     showToast(
