@@ -1,11 +1,11 @@
 import React, { useMemo } from 'react'
 import { BusinessAppContextProps } from '@/common/BusinessAppContext'
-import { useGetInvestmentDocumentsByInvestmentId } from '../hooks/useInvestmentDocumentsByInvestmentId'
-import DocumentSection from '@/common/components/common-relations/record-sections/document-section/DocumentSection'
+import { DocumentSection } from '@/components/document-section'
 import { FlowContextName } from '@/common/types/FlowRegistryTypes'
 import { getTranslationFromI18nKeyAndLabel } from '@/common/utils/windowUtils'
 import { useInvestmentDocuments } from '@/business-apps/irm/common/hooks/useInvestmentDocuments'
 import { createDocumentActions } from '@/business-apps/irm/common/utils/createDocumentActions'
+import { getIrmDocumentApiConfig, useGetIrmDocuments } from '@/business-apps/irm/common/utils/documentUtils'
 
 interface InvestmentDocumentsProps {
   investmentId: string
@@ -13,14 +13,14 @@ interface InvestmentDocumentsProps {
 }
 
 const InvestmentDocuments: React.FC<InvestmentDocumentsProps> = ({ investmentId, context }) => {
-  // Fetch documents using the existing hook
-  const { fetchInvestmentDocumentsByInvestmentId } = useGetInvestmentDocumentsByInvestmentId(context)
+  // Fetch documents using the generic IRM hook
+  const { fetchDocuments } = useGetIrmDocuments('investment', context)
 
   // Use shared hook for document management
   const { documents, isLoading, error, refetch } = useInvestmentDocuments({
     entityId: investmentId,
     context,
-    fetchDocuments: fetchInvestmentDocumentsByInvestmentId,
+    fetchDocuments,
     errorMessage: getTranslationFromI18nKeyAndLabel('error.loading.documents', 'Failed to load documents')
   })
 
@@ -48,18 +48,6 @@ const InvestmentDocuments: React.FC<InvestmentDocumentsProps> = ({ investmentId,
     [investmentId]
   )
 
-  const documentDeleteActionProps = useMemo(
-    () => ({
-      contextsArray: [FlowContextName.investmentDocumentDelete],
-      externalContextData: {
-        investmentId,
-        entityType: 'investment'
-      },
-      prefixDataTestId: 'investment-document-delete'
-    }),
-    [investmentId]
-  )
-
   // Use shared document actions with translation support
   const customActions = useMemo(
     () =>
@@ -77,19 +65,10 @@ const InvestmentDocuments: React.FC<InvestmentDocumentsProps> = ({ investmentId,
       isLoading={isLoading}
       error={error}
       onRefresh={refetch}
-      apiConfig={{
-        baseEndpoint: '/investment-relations',
-        entityFieldName: 'investment',
-        documentFieldName: 'investmentDocument'
-      }}
-      enableGraphQLSearch={true}
-      graphQLSearchConfig={{
-        entityType: 'investment'
-      }}
+      apiConfig={getIrmDocumentApiConfig('investment')}
       customActions={customActions}
       createFolderActionProps={documentCreateFolderActionProps}
       uploadActionProps={documentUploadActionProps}
-      deleteActionProps={documentDeleteActionProps}
       data-testid="investment-document-section"
       accessToken={context.accessToken}
       userInfo={context.userInfo}
