@@ -622,7 +622,7 @@ const InvestmentLeadRecordContent: React.FC<LeadRecordContentProps> = ({ leadId,
                         note.authorEmployee?.displayName ||
                         getTranslationFromI18nKeyAndLabel('crm.common.unknown', 'Unknown'),
                       authorEmployee: note.authorEmployee,
-                      reminderAt: note.reminderDate,
+                      reminderDate: note.reminderDate,
                       documents: note.documents
                     })),
                     noteActionProps: {

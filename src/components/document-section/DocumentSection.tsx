@@ -52,7 +52,6 @@ import {
   Download
 } from 'lucide-react'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@newwork/nw-design-system'
-import { useSearchInvestmentDocuments } from '@/common/data/investment/hooks/useSearchInvestmentDocuments'
 import { DebouncedInput } from '@/components/debounced-input/DebouncedInput'
 
 // Function to get appropriate icon based on file type
@@ -180,7 +179,7 @@ export interface DocumentItem {
   version?: number
 }
 
-interface DocumentSectionProps extends BusinessAppContextProps {
+export interface DocumentSectionProps extends BusinessAppContextProps {
   entityId: string
   documents: DocumentItem[]
   isLoading?: boolean
@@ -189,23 +188,28 @@ interface DocumentSectionProps extends BusinessAppContextProps {
 
   // Dynamic API configuration for document operations
   apiConfig?: {
-    baseEndpoint: string // e.g., '/investment-relations'
-    entityFieldName: string // e.g., 'opportunity', 'lead', 'account', 'contact'
+    baseEndpoint: string // e.g., '/investment-relations', '/crm'
+    entityFieldName: string // e.g., 'opportunity', 'lead', 'account', 'contact', 'investment'
     documentFieldName: string // e.g., 'investmentDocument', 'crmDocument'
+
+    // Required: Endpoint paths for document operations
+    endpoints?: {
+      create?: string // e.g., '/investment-relations/createInvestmentDocument', '/crm/createCrmDocument'
+      update?: string // e.g., '/investment-relations/createInvestmentDocument' (with changeMode: UPDATE)
+      delete?: string // e.g., '/investment-relations/deleteInvestmentDocument', '/crm/deleteCrmDocument'
+    }
   }
 
-  // GraphQL search configuration (optional - if not provided, uses local search only)
-  enableGraphQLSearch?: boolean
-  graphQLSearchConfig?: {
-    entityType: 'opportunity' | 'lead' | 'contact' | 'account' | 'investment' // Maps to search hook parameters
-  }
+  // Optional: Search control (parent handles search logic, this just provides UI)
+  searchTerm?: string
+  onSearchChange?: (searchTerm: string) => void
 
   // Custom menu actions configuration
   customActions?: Array<{
     key: string
     label: string
     icon?: React.ReactNode
-    apiEndpoint?: string // e.g., '/investment-relations/deleteInvestmentDocument'
+    apiEndpoint?: string // e.g., '/your-service/deleteDocument'
     payload?: (documentId: string, document: DocumentItem, entityId: string) => any
     onClick?: (documentId: string, document: DocumentItem, entityId: string) => void | Promise<void>
     confirmMessage?: string // Optional confirmation dialog
@@ -225,11 +229,6 @@ interface DocumentSectionProps extends BusinessAppContextProps {
     externalContextData: Record<string, any>
     prefixDataTestId: string
   }
-  deleteActionProps?: {
-    contextsArray: FlowContextName[]
-    externalContextData: Record<string, any>
-    prefixDataTestId: string
-  }
   'data-testid'?: string
 }
 
@@ -240,21 +239,17 @@ const DocumentSection: React.FC<DocumentSectionProps> = ({
   error = null,
   onRefresh,
   apiConfig,
-  enableGraphQLSearch = false,
-  graphQLSearchConfig,
+  searchTerm: externalSearchTerm,
+  onSearchChange,
   customActions = [],
   uploadActionProps,
   createFolderActionProps,
   downloadActionProps,
-  deleteActionProps,
   accessToken,
   'data-testid': dataTestId = 'document-section'
 }) => {
   // REST client for direct API calls
   const restClient = useRestClient(env('NEXT_PUBLIC_KOGITO_PROCESSES_ENDPOINT'))
-
-  // GraphQL search hook (conditionally initialized)
-  const graphQLSearchHook = enableGraphQLSearch ? useSearchInvestmentDocuments({ accessToken }) : null
 
   // State for custom three dots menu
   const [menuOpen, setMenuOpen] = useState(false)
@@ -466,43 +461,18 @@ const DocumentSection: React.FC<DocumentSectionProps> = ({
     }
   }, [expandedFolders, storageKey])
 
-  // State for search
-  const [searchTerm, setSearchTerm] = useState('')
+  // State for search - use external if provided, otherwise internal
+  const [internalSearchTerm, setInternalSearchTerm] = useState('')
+  const searchTerm = externalSearchTerm ?? internalSearchTerm
 
-  // GraphQL search effect - setup search context when component mounts
-  useEffect(() => {
-    if (enableGraphQLSearch && graphQLSearchHook && graphQLSearchConfig) {
-      // Build search variables based on entity type
-      const searchVariables: any = {}
-
-      switch (graphQLSearchConfig.entityType) {
-        case 'opportunity':
-          searchVariables.opportunityId = entityId
-          break
-        case 'lead':
-          searchVariables.leadId = entityId
-          break
-        case 'contact':
-          searchVariables.contactId = entityId
-          break
-        case 'account':
-          searchVariables.accountId = entityId
-          break
-        case 'investment':
-          searchVariables.investmentId = entityId
-          break
-      }
-
-      graphQLSearchHook.performDebouncedSearch(searchVariables)
+  // Handle search term changes
+  const handleSearchChange = (term: string) => {
+    if (onSearchChange) {
+      onSearchChange(term) // Let parent handle search
+    } else {
+      setInternalSearchTerm(term) // Handle internally if no parent handler
     }
-  }, [enableGraphQLSearch, graphQLSearchConfig?.entityType, entityId]) // Removed searchTerm to avoid infinite loop
-
-  // Sync local search term with GraphQL search hook
-  useEffect(() => {
-    if (enableGraphQLSearch && graphQLSearchHook) {
-      graphQLSearchHook.setSearchTerm(searchTerm)
-    }
-  }, [enableGraphQLSearch, searchTerm])
+  }
 
   // State for selected items (for tree view context)
   const [selectedItems, setSelectedItems] = useState<string[]>([])
@@ -617,63 +587,28 @@ const DocumentSection: React.FC<DocumentSectionProps> = ({
     return result
   }
 
-  // Filter documents by search term (GraphQL or local)
+  // Filter documents by search term (local only)
+  // If parent provides onSearchChange, they handle filtering and pass filtered documents
+  // Otherwise, we do simple local filtering
   const filteredDocuments = useMemo(() => {
-    // If GraphQL search is enabled and we have search results, use them
-    if (enableGraphQLSearch && graphQLSearchHook && searchTerm.trim()) {
-      // Transform GraphQL results to DocumentItem format if needed
-      const graphQLResults = graphQLSearchHook.documents.map((doc: any) => ({
-        id: doc.id,
-        name: doc.name || null,
-        description: doc.description || null,
-        createdAt: doc.createdAt,
-        expirationDate: doc.expirationDate || null,
-        documentType: doc.documentType
-          ? {
-              id: doc.documentType.id,
-              value: doc.documentType.value || '',
-              code: doc.documentType.code
-            }
-          : null,
-        documentGroup: doc.documentGroup
-          ? {
-              id: doc.documentGroup.id,
-              value: doc.documentGroup.value || '',
-              code: doc.documentGroup.code
-            }
-          : null,
-        fileInfo: doc.fileInfo || null,
-        mimeType: doc.mimeType || null,
-        fileSize: doc.fileSize,
-        createdBy: doc.createdBy || null,
-        parentDocument: typeof doc.parentDocument === 'string' ? doc.parentDocument : doc.parentDocument?.id || null,
-        folder: doc.folder,
-        verified: doc.verified,
-        verificationDate: doc.verificationDate || null,
-        authenticated: doc.authenticated,
-        authenticationDate: doc.authenticationDate || null,
-        mandatory: doc.mandatory,
-        version: doc.version
-      }))
-
-      return graphQLResults
+    // If parent is handling search, just use documents as-is
+    if (onSearchChange) {
+      return documents
     }
 
-    // Fallback to local search
+    // Otherwise, do local filtering if search term exists
     if (!searchTerm.trim()) {
       return documents
     }
 
-    const localResults = documents.filter(
+    return documents.filter(
       doc =>
         doc.name?.toLowerCase().includes(searchTerm.toLowerCase()) ||
         doc.description?.toLowerCase().includes(searchTerm.toLowerCase()) ||
         doc.documentType?.value?.toLowerCase().includes(searchTerm.toLowerCase()) ||
         doc.documentGroup?.value?.toLowerCase().includes(searchTerm.toLowerCase())
     )
-
-    return localResults
-  }, [documents, searchTerm, enableGraphQLSearch, graphQLSearchHook])
+  }, [documents, searchTerm, onSearchChange])
 
   const organizedDocuments = organizeDocumentsForTree(filteredDocuments)
   const displayDocuments =
@@ -828,22 +763,12 @@ const DocumentSection: React.FC<DocumentSectionProps> = ({
       return
     }
 
+    if (!apiConfig.endpoints?.create) {
+      toast.error('Create endpoint not configured')
+      return
+    }
+
     try {
-      // Extract entity ID from deleteActionProps (fallback for compatibility)
-      const externalData = deleteActionProps?.externalContextData || {}
-      const entityId =
-        externalData.opportunityId ||
-        externalData.leadId ||
-        externalData.accountId ||
-        externalData.contactId ||
-        externalData.investmentId ||
-        ''
-
-      if (!entityId) {
-        toast.error('Entity ID not found')
-        return
-      }
-
       // Use selected parent folder instead of the initial context
       const finalParentId = selectedParentFolder === 'root' ? null : selectedParentFolder
 
@@ -858,7 +783,7 @@ const DocumentSection: React.FC<DocumentSectionProps> = ({
         }
       }
 
-      await restClient.post(`${apiConfig.baseEndpoint}/createInvestmentDocument`, payload, {
+      await restClient.post(apiConfig.endpoints.create, payload, {
         headers: { Authorization: `Bearer ${accessToken}` }
       })
 
@@ -1064,6 +989,11 @@ const DocumentSection: React.FC<DocumentSectionProps> = ({
       return
     }
 
+    if (!apiConfig.endpoints?.update) {
+      toast.error('Update endpoint not configured')
+      return
+    }
+
     try {
       const document = documents.find(doc => doc.id === documentId)
       if (!document) {
@@ -1071,22 +1001,6 @@ const DocumentSection: React.FC<DocumentSectionProps> = ({
         return
       }
 
-      // Extract entity ID from deleteActionProps (fallback for compatibility)
-      const externalData = deleteActionProps?.externalContextData || {}
-      const entityId =
-        externalData.opportunityId ||
-        externalData.leadId ||
-        externalData.accountId ||
-        externalData.contactId ||
-        externalData.investmentId ||
-        ''
-
-      if (!entityId) {
-        toast.error('Entity ID not found')
-        return
-      }
-
-      // Based on LeadDocuments.tsx working implementation:
       // Use minimal payload with only required fields
       const documentPayload: any = {
         id: documentId,
@@ -1096,12 +1010,11 @@ const DocumentSection: React.FC<DocumentSectionProps> = ({
         [apiConfig.entityFieldName]: entityId
       }
 
-      // Use createInvestmentDocument with changeMode: 'UPDATE' like the working implementation
       await restClient.post(
-        `${apiConfig.baseEndpoint}/createInvestmentDocument`,
+        apiConfig.endpoints.update,
         {
           changeMode: 'UPDATE',
-          investmentDocument: documentPayload
+          [apiConfig.documentFieldName]: documentPayload
         },
         {
           headers: { Authorization: `Bearer ${accessToken}` }
@@ -1131,6 +1044,11 @@ const DocumentSection: React.FC<DocumentSectionProps> = ({
       return
     }
 
+    if (!apiConfig.endpoints?.update) {
+      toast.error('Update endpoint not configured')
+      return
+    }
+
     try {
       const document = documents.find(doc => doc.id === documentId)
       if (!document) {
@@ -1138,23 +1056,7 @@ const DocumentSection: React.FC<DocumentSectionProps> = ({
         return
       }
 
-      // Extract entity ID from deleteActionProps (fallback for compatibility)
-      const externalData = deleteActionProps?.externalContextData || {}
-      const entityId =
-        externalData.opportunityId ||
-        externalData.leadId ||
-        externalData.accountId ||
-        externalData.contactId ||
-        externalData.investmentId ||
-        ''
-
-      if (!entityId) {
-        toast.error('Entity ID not found')
-        return
-      }
-
-      // Based on working OpportunityDocuments.tsx implementation:
-      // For root documents, use empty string ('') and createInvestmentDocument with changeMode: 'UPDATE'
+      // For root documents, use empty string ('')
       const documentPayload: any = {
         id: documentId,
         version: document.version,
@@ -1164,10 +1066,10 @@ const DocumentSection: React.FC<DocumentSectionProps> = ({
       }
 
       await restClient.post(
-        `${apiConfig.baseEndpoint}/createInvestmentDocument`,
+        apiConfig.endpoints.update,
         {
           changeMode: 'UPDATE',
-          investmentDocument: documentPayload
+          [apiConfig.documentFieldName]: documentPayload
         },
         {
           headers: { Authorization: `Bearer ${accessToken}` }
@@ -1232,15 +1134,6 @@ const DocumentSection: React.FC<DocumentSectionProps> = ({
         toast.error('Document not found')
         return
       }
-
-      // Extract entity ID from deleteActionProps (fallback for compatibility)
-      const externalData = deleteActionProps?.externalContextData || {}
-      const entityId =
-        externalData.opportunityId ||
-        externalData.leadId ||
-        externalData.accountId ||
-        externalData.contactId ||
-        externalData.investmentId
 
       // Handle custom onClick function (this will handle update action)
       if (action.onClick) {
@@ -1362,9 +1255,6 @@ const DocumentSection: React.FC<DocumentSectionProps> = ({
 
     // Add custom actions from configuration
     if (customActions && customActions.length > 0 && accessToken && apiConfig) {
-      // Check if download action is missing and add it automatically for investment-relations
-      const hasDownloadAction = customActions.some(action => action.key === 'download')
-
       customActions.forEach(action => {
         actions.push({
           key: action.key,
@@ -1387,26 +1277,6 @@ const DocumentSection: React.FC<DocumentSectionProps> = ({
           icon: action.icon || <Eye className="gba:h-4 gba:w-4" />
         })
       })
-
-      // Automatically add download action for investment-relations if not present
-      // Only add download for files (not folders)
-      if (
-        !hasDownloadAction &&
-        apiConfig?.baseEndpoint === '/investment-relations' &&
-        selectedDocument.fileInfo &&
-        !selectedDocument.folder
-      ) {
-        // Insert download action at the beginning
-        actions.unshift({
-          key: 'download',
-          label: 'Download',
-          onClick: () => {
-            handleDownloadDocument(selectedDocument)
-            setMenuOpen(false)
-          },
-          icon: <Download className="gba:h-4 gba:w-4" />
-        })
-      }
     }
 
     return actions
@@ -1513,7 +1383,7 @@ const DocumentSection: React.FC<DocumentSectionProps> = ({
           <div className="gba:max-w-sm">
             <DebouncedInput
               value={searchTerm}
-              onChange={setSearchTerm}
+              onChange={handleSearchChange}
               placeholder={getTranslationFromI18nKeyAndLabel('document.search.placeholder', 'Search documents...')}
               icon={<Search className="gba:h-4 gba:w-4 gba:text-muted-foreground" />}
               data-testid={`${dataTestId}-search-input`}

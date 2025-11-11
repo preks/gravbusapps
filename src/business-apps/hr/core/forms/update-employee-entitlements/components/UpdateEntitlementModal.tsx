@@ -1,4 +1,5 @@
 import React, { useEffect, useMemo, useRef, useState } from 'react'
+import '@newwork/nw-design-system/style'
 import { Button, Input, Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@newwork/nw-design-system'
 import { getCatalogValue, getTranslationFromI18nKeyAndLabel } from '@/common/utils/windowUtils'
 import flowIconUrl from '@/assets/icons/flowSmall.svg'
@@ -165,7 +166,10 @@ export const UpdateEntitlementModal: React.FC<UpdateEntitlementModalProps> = ({
   const isSubmitDisabled = !absenceTypeRef || hasAvailableError || !hasChangesComparedToInitial
 
   return (
-    <div data-testid="hcm_createHrAbsence_mainContainer" className="gba:flex gba:flex-col gba:gap-4  gba:px-6">
+    <div
+      data-testid="hcm_createHrAbsence_mainContainer"
+      className="gba:!bg-card gba:!border-0 gba:!shadow-none gba:flex gba:flex-col gba:gap-4  gba:px-6"
+    >
       <FormHeader title={headerTitle} flowIconUrl={flowIconUrl} className="gba:px-0" />
 
       {!isFromTable && (

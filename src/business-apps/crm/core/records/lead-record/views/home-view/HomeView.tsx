@@ -47,9 +47,9 @@ export const HomeView: React.FC<HomeViewProps> = ({
 }) => {
   return (
     <>
-      {/* Account Information - 1/4 width */}
+      {/* Account Section - 1/3 width */}
       <SectionWrapper
-        className="gba:col-span-1 gba:sm:col-span-3 gba:md:col-span-3 gba:lg:col-span-3 gba:row-span-1"
+        className="gba:col-span-1 gba:sm:col-span-3 gba:md:col-span-4 gba:lg:col-span-4 gba:row-span-1"
         sections={[
           {
             id: 'account-section',
@@ -84,24 +84,31 @@ export const HomeView: React.FC<HomeViewProps> = ({
                     revenue: null,
                     numberOfEmployees: null
                   },
-              address: rawLeadData
-                ? {
-                    addressLine: rawLeadData.addressLine,
-                    postalCode: rawLeadData.postalCode,
-                    locality: rawLeadData.city,
-                    country: typeof rawLeadData.country === 'string' ? rawLeadData.country : rawLeadData.country?.value,
-                    region: typeof rawLeadData.state === 'string' ? rawLeadData.state : rawLeadData.state?.value
-                  }
-                : undefined
+              address:
+                rawLeadData && rawLeadData.addresses && rawLeadData.addresses.length > 0
+                  ? {
+                      addressLine: rawLeadData.addresses[0].addressLine,
+                      postalCode: rawLeadData.addresses[0].postalCode,
+                      locality: rawLeadData.addresses[0].city,
+                      country:
+                        typeof rawLeadData.addresses[0].country === 'string'
+                          ? rawLeadData.addresses[0].country
+                          : rawLeadData.addresses[0].country?.value,
+                      region:
+                        typeof rawLeadData.addresses[0].region === 'string'
+                          ? rawLeadData.addresses[0].region
+                          : rawLeadData.addresses[0].region?.value
+                    }
+                  : undefined
             }
           }
         ]}
         data-testid="lead-account-section-wrapper"
       />
 
-      {/* Contact Information - 1/4 width */}
+      {/* Contact Section - 1/3 width */}
       <SectionWrapper
-        className="gba:col-span-1 gba:sm:col-span-3 gba:md:col-span-3 gba:lg:col-span-3 gba:row-span-1"
+        className="gba:col-span-1 gba:sm:col-span-3 gba:md:col-span-4 gba:lg:col-span-4 gba:row-span-1"
         sections={[
           {
             id: 'contact-section',
@@ -127,9 +134,9 @@ export const HomeView: React.FC<HomeViewProps> = ({
         data-testid="lead-contact-section-wrapper"
       />
 
-      {/* Activities & Notes - 1/2 width, spans 2 rows */}
+      {/* Activities Section - 1/3 width, full height */}
       <SectionWrapper
-        className="gba:col-span-1 gba:sm:col-span-3 gba:md:col-span-6 gba:lg:col-span-6 gba:row-span-2"
+        className="gba:col-span-1 gba:sm:col-span-3 gba:md:col-span-4 gba:lg:col-span-4 gba:row-span-5"
         sections={[
           {
             id: 'activities-section',
@@ -141,6 +148,7 @@ export const HomeView: React.FC<HomeViewProps> = ({
               activitiesLoading: sectionsLoading,
               activitiesError: sectionsError,
               onReloadActivities: loadSectionData,
+              alignment: 'right',
               activitySectionActionProps: {
                 ...activityActionProps,
                 emptyStateBehavior: 'enable'
@@ -152,49 +160,14 @@ export const HomeView: React.FC<HomeViewProps> = ({
                 emptyStateBehavior: 'enable'
               }
             }
-          },
-          {
-            id: 'notes-section',
-            component: NoteSection as React.ComponentType<any>,
-            props: {
-              ...props,
-              accessToken,
-              notes: notes.map((note: any) => ({
-                id: note.id,
-                version: note.version,
-                noteTitle:
-                  note.title ||
-                  note.displayName ||
-                  getTranslationFromI18nKeyAndLabel('crm.common.untitledNote', 'Untitled Note'),
-                noteText: note.text || '',
-                createdAt: note.createdAt,
-                createdBy:
-                  note.authorDisplayName ||
-                  note.authorEmployee?.displayName ||
-                  getTranslationFromI18nKeyAndLabel('crm.common.unknown', 'Unknown'),
-                authorEmployee: note.authorEmployee,
-                reminderAt: note.reminderDate,
-                documents: note.documents
-              })),
-              noteActionProps: {
-                ...noteActionProps,
-                emptyStateBehavior: 'enable'
-              },
-              noteEntityActionProps: {
-                contextsArray: [FlowContextName.customerNoteEntity],
-                externalContextData: { leadId },
-                prefixDataTestId: 'lead-note-entity',
-                emptyStateBehavior: 'enable'
-              }
-            }
           }
         ]}
-        data-testid="lead-activities-notes-section-wrapper"
+        data-testid="lead-activities-section-wrapper"
       />
 
-      {/* Tasks & Approvals - 1/2 width, spans 2 rows */}
+      {/* Tasks & Approvals - 2/3 width, spans 2 rows */}
       <SectionWrapper
-        className="gba:col-span-1 gba:sm:col-span-3 gba:md:col-span-6 gba:lg:col-span-6 gba:row-span-2"
+        className="gba:col-span-1 gba:sm:col-span-3 gba:md:col-span-8 gba:lg:col-span-8 gba:row-span-2"
         sections={[
           {
             id: 'tasks-section',
@@ -219,16 +192,16 @@ export const HomeView: React.FC<HomeViewProps> = ({
                 externalContextData: { leadId },
                 prefixDataTestId: 'lead-task-entity',
                 emptyStateBehavior: 'enable'
-              }
+              },
+              'data-testid': 'lead-tasks-section'
             }
           },
           {
-            id: 'approval-tasks-section',
+            id: 'approvals-section',
             component: TaskSection,
             props: {
               ...props,
               accessToken,
-              sectionTitle: 'Approval Tasks',
               leadId: leadId,
               buildReferenceUrl,
               tasks: approvals.map((approval: any) =>
@@ -237,20 +210,66 @@ export const HomeView: React.FC<HomeViewProps> = ({
                   getTranslationFromI18nKeyAndLabel('crm.common.untitledApproval', 'Approval Request')
                 )
               ),
+              taskActionProps: {
+                ...approvalActionProps,
+                emptyStateBehavior: 'enable'
+              },
               taskEntityActionProps: {
                 contextsArray: [FlowContextName.customerTaskEntity],
                 externalContextData: { leadId },
                 prefixDataTestId: 'lead-approval-entity',
                 emptyStateBehavior: 'enable'
               },
-              taskActionProps: {
-                ...approvalActionProps,
-                emptyStateBehavior: 'enable'
-              }
+              sectionTitle: getTranslationFromI18nKeyAndLabel('crm.customers.approvals.title', 'Approval Tasks'),
+              'data-testid': 'lead-approvals-section'
             }
           }
         ]}
         data-testid="lead-tasks-approvals-section-wrapper"
+      />
+
+      {/* Notes Section - 2/3 width, spans 3 rows */}
+      <SectionWrapper
+        className="gba:col-span-1 gba:sm:col-span-3 gba:md:col-span-8 gba:lg:col-span-8 gba:row-span-3"
+        sections={[
+          {
+            id: 'notes-section',
+            component: NoteSection,
+            props: {
+              ...props,
+              accessToken,
+              notes: notes.map((note: any) => ({
+                id: note.id,
+                version: note.version,
+                noteTitle:
+                  note.title ||
+                  note.displayName ||
+                  getTranslationFromI18nKeyAndLabel('crm.common.untitledNote', 'Untitled Note'),
+                noteText: note.text || '',
+                createdAt: note.createdAt,
+                createdBy:
+                  note.authorDisplayName ||
+                  note.authorEmployee?.displayName ||
+                  getTranslationFromI18nKeyAndLabel('crm.common.unknown', 'Unknown'),
+                authorEmployee: note.authorEmployee,
+                reminderDate: note.reminderDate,
+                documents: note.documents
+              })),
+              noteActionProps: {
+                ...noteActionProps,
+                emptyStateBehavior: 'enable'
+              },
+              noteEntityActionProps: {
+                contextsArray: [FlowContextName.customerNoteEntity],
+                externalContextData: { leadId },
+                prefixDataTestId: 'lead-note-entity',
+                emptyStateBehavior: 'enable'
+              },
+              'data-testid': 'lead-notes-section'
+            }
+          }
+        ]}
+        data-testid="lead-notes-section-wrapper"
       />
     </>
   )
