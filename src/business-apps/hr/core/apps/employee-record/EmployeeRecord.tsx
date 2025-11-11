@@ -157,6 +157,7 @@ const EmployeeRecordContent: React.FC<EmployeeRecordContentProps> = ({
   const [activeTab, setActiveTab] = useState(initialActiveTab)
   const activeStructureId = getCurrentActiveStructureId()
   const devFeatureFlag = useFeature(Feature.Dev.Enabled.Key)
+  const changeLogFeatureFlag = useFeature('dev.employee-record.changelog.enabled')
 
   useEffect(() => {
     if (typeof window === 'undefined') return
@@ -341,7 +342,7 @@ const EmployeeRecordContent: React.FC<EmployeeRecordContentProps> = ({
               accessToken={accessToken}
               userInfo={userInfo}
               isSelfView={isSelfView}
-              changeLogTabFeatureFlag={devFeatureFlag as boolean}
+              changeLogTabFeatureFlag={changeLogFeatureFlag as boolean}
               hasHrNotesAccess={hasHrNotesAccess}
               scopePermissionLoading={scopePermissionLoading}
               additionalData={additionalData}
