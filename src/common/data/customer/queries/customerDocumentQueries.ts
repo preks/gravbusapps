@@ -52,7 +52,7 @@ export type CustomerDocumentQueryVariables = CommonDocumentQueryVariables
  * CRM uses "CrmDocument" as entity name (not "CustomerDocument")
  */
 export const buildCustomerDocumentQuery = (fields: typeof CustomerDocumentFields = CustomerDocumentFields): string => {
-  return buildDocumentQuery(fields, 'CrmDocument')
+  return buildDocumentQuery('CrmDocument', fields)
 }
 
 /**
@@ -83,7 +83,7 @@ export const buildCustomerDocumentByIdQuery = (
     noteFields: CustomerNoteFields
   }
 
-  return buildDocumentByIdQuery(fields, id, 'CrmDocument', relationBuilders, relationFields)
+  return buildDocumentByIdQuery('CrmDocument', id, fields, relationBuilders, relationFields)
 }
 
 /**
@@ -92,7 +92,7 @@ export const buildCustomerDocumentByIdQuery = (
 export const buildCustomerDocumentSearchQuery = (
   fields: typeof CustomerDocumentFields = CustomerDocumentFields
 ): string => {
-  return buildDocumentSearchQuery(fields, 'CrmDocument')
+  return buildDocumentSearchQuery('CrmDocument', fields)
 }
 
 /**
@@ -149,7 +149,7 @@ export const buildCustomerDocumentByLeadIdQuery = (): string => {
     noteFields: CustomerNoteFields
   }
 
-  return buildDocumentByLeadIdQuery(CustomerDocumentFields, 'CrmDocument', relationBuilders, relationFields)
+  return buildDocumentByLeadIdQuery('CrmDocument', CustomerDocumentFields, relationBuilders, relationFields)
 }
 
 /**
@@ -176,7 +176,7 @@ export const buildCustomerDocumentByAccountIdQuery = (): string => {
     noteFields: CustomerNoteFields
   }
 
-  return buildDocumentByAccountIdQuery(CustomerDocumentFields, 'CrmDocument', relationBuilders, relationFields)
+  return buildDocumentByAccountIdQuery('CrmDocument', CustomerDocumentFields, relationBuilders, relationFields)
 }
 
 /**
@@ -203,7 +203,7 @@ export const buildCustomerDocumentByContactIdQuery = (): string => {
     noteFields: CustomerNoteFields
   }
 
-  return buildDocumentByContactIdQuery(CustomerDocumentFields, 'CrmDocument', relationBuilders, relationFields)
+  return buildDocumentByContactIdQuery('CrmDocument', CustomerDocumentFields, relationBuilders, relationFields)
 }
 
 /**
@@ -230,5 +230,5 @@ export const buildCustomerDocumentByOpportunityIdQuery = (): string => {
     noteFields: CustomerNoteFields
   }
 
-  return buildDocumentByOpportunityIdQuery(CustomerDocumentFields, 'CrmDocument', relationBuilders, relationFields)
+  return buildDocumentByOpportunityIdQuery('CrmDocument', CustomerDocumentFields, relationBuilders, relationFields)
 }

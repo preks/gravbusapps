@@ -1,5 +1,5 @@
 import React, { useState, useCallback, useMemo } from 'react'
-import { ReferenceData } from '../hooks/useOpportunityData'
+import { ReferenceData } from '../types'
 import { StageProgression } from '@/components/stage-progression'
 import type { Stage, StageCondition } from '@/components/stage-progression'
 import { FlowContextName } from '@/common/types/FlowRegistryTypes'

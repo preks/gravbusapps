@@ -60,7 +60,11 @@ export const ExitOpportunitiesTab: React.FC<ExitOpportunitiesTabProps> = context
         fetchBoardOpportunities: fetchInvestmentOpportunities,
         extractBoardOpportunities: result => result.InvestmentOpportunity || [],
         extractBoardTotalCount: result => result.InvestmentOpportunityAggregate?.aggregate?.count || 0,
-        renderStatistics: () => <ExitOpportunityStatistics {...context} />
+        renderStatistics: () => <ExitOpportunityStatistics {...context} />,
+        rowActionsContextArray: [FlowContextName.investmentOpportunityEntity],
+        buildRowActionsExternalContextData: (row: { original: InvestmentOpportunity }) => ({
+          opportunityId: row.original.id
+        })
       }),
     [context, fetchInvestmentOpportunities]
   )

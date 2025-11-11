@@ -12,7 +12,7 @@ import {
 } from '@newwork/nw-design-system'
 import { AppActionButton } from '@/components/app-action-button/AppActionButton'
 import { FlowContextName } from '@/common/types/FlowRegistryTypes'
-import type { CustomerContact } from '@/common/data/customer/types'
+import type { Contact } from '@/common/data/relations/types/contactTypes'
 import { PiLinkedinLogo, PiShareNetwork, PiEnvelope, PiPhone, PiCaretLeft, PiCaretRight } from 'react-icons/pi'
 import { UserIcon } from '@phosphor-icons/react'
 import { navigateTo } from '@/common/utils/navigationUtils'
@@ -41,14 +41,14 @@ const ContactSection: React.FC<ContactSectionProps> = ({
   recordUrl,
   ...props
 }) => {
-  const contactList: CustomerContact[] = useMemo(() => {
-    const arr = Array.isArray(contacts) ? (contacts as CustomerContact[]).filter(Boolean) : []
+  const contactList: Contact[] = useMemo(() => {
+    const arr = Array.isArray(contacts) ? (contacts as Contact[]).filter(Boolean) : []
     return arr
   }, [contacts])
 
   const hasMultiple = contactList.length > 1
-  const initialSelected: CustomerContact | null = contact || (contactList.length > 0 ? contactList[0] : null)
-  const [selectedContact, setSelectedContact] = useState<CustomerContact | null>(initialSelected)
+  const initialSelected: Contact | null = contact || (contactList.length > 0 ? contactList[0] : null)
+  const [selectedContact, setSelectedContact] = useState<Contact | null>(initialSelected)
   const [currentIndex, setCurrentIndex] = useState(0)
 
   // Update selected contact when contactList changes
@@ -92,7 +92,7 @@ const ContactSection: React.FC<ContactSectionProps> = ({
   return (
     <div data-testid={props['data-testid'] || 'contact-section'} className={`gba:w-full gba:h-full ${className}`}>
       <ContactPersonalInfo
-        contact={displayContact as CustomerContact}
+        contact={displayContact as Contact}
         hasMultiple={hasMultiple}
         currentIndex={currentIndex}
         totalCount={contactList.length}
@@ -113,7 +113,7 @@ const ContactSection: React.FC<ContactSectionProps> = ({
 export default ContactSection
 
 interface ContactPersonalInfoProps {
-  contact: CustomerContact
+  contact: Contact
   hasMultiple?: boolean
   currentIndex?: number
   totalCount?: number

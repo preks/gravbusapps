@@ -21,7 +21,7 @@ export function toInvestment(base: BaseInvestment): Investment {
   const investmentTypeLabel = base.investmentType?.value || base.investmentType?.code
   const investmentStatusLabel = base.investmentStatus?.value || base.investmentStatus?.code
   const currencyLabel = base.currency?.value || base.currency?.code
-  const investmentAccount = toInvestmentAccount(base.investmentAccount)
+  const investmentAccount = base.investmentAccount ? toInvestmentAccount(base.investmentAccount) : undefined
 
   // Employee label
   const ownerDisplayName =

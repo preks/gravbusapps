@@ -10,7 +10,6 @@ import NoteSection from '@/common/components/common-relations/record-sections/no
 import TaskSection from '@/common/components/common-relations/record-sections/task-section/TaskSection'
 import SectionWrapper from '@/common/components/common-relations/record-sections/section-card/SectionCard'
 import type { HomeViewProps } from './types'
-import { transformTaskOrApproval } from './utils'
 import { buildCustomerAccountFromLead, buildCustomerContactFromLead } from '../../utils/leadDataTransformers'
 
 // Build reference URLs for CRM context
@@ -127,12 +126,7 @@ export const HomeView: React.FC<HomeViewProps> = ({
               accessToken,
               leadId: leadId,
               buildReferenceUrl,
-              tasks: tasks.map((task: any) =>
-                transformTaskOrApproval(
-                  task,
-                  getTranslationFromI18nKeyAndLabel('crm.common.untitledTask', 'Untitled Task')
-                )
-              ),
+              tasks: tasks,
               taskActionProps: {
                 ...taskActionProps,
                 emptyStateBehavior: 'enable'
@@ -154,12 +148,7 @@ export const HomeView: React.FC<HomeViewProps> = ({
               accessToken,
               leadId: leadId,
               buildReferenceUrl,
-              tasks: approvals.map((approval: any) =>
-                transformTaskOrApproval(
-                  approval,
-                  getTranslationFromI18nKeyAndLabel('crm.common.untitledApproval', 'Approval Request')
-                )
-              ),
+              tasks: approvals,
               taskActionProps: {
                 ...approvalActionProps,
                 emptyStateBehavior: 'enable'
@@ -188,23 +177,7 @@ export const HomeView: React.FC<HomeViewProps> = ({
             props: {
               ...props,
               accessToken,
-              notes: notes.map((note: any) => ({
-                id: note.id,
-                version: note.version,
-                noteTitle:
-                  note.title ||
-                  note.displayName ||
-                  getTranslationFromI18nKeyAndLabel('crm.common.untitledNote', 'Untitled Note'),
-                noteText: note.text || '',
-                createdAt: note.createdAt,
-                createdBy:
-                  note.authorDisplayName ||
-                  note.authorEmployee?.displayName ||
-                  getTranslationFromI18nKeyAndLabel('crm.common.unknown', 'Unknown'),
-                authorEmployee: note.authorEmployee,
-                reminderDate: note.reminderDate,
-                documents: note.documents
-              })),
+              notes: notes,
               noteActionProps: {
                 ...noteActionProps,
                 emptyStateBehavior: 'enable'

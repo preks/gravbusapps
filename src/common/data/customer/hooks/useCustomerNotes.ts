@@ -13,6 +13,9 @@ import {
   buildCustomerNoteOrderBy
 } from '../queries/customerNoteQueries'
 
+// Mapper
+import { toCustomerNote } from '../mappers/customerRelatedEntityMappers'
+
 //Types
 export interface CustomerNote {
   id: string
@@ -56,7 +59,7 @@ export const useCustomerNotes = (context: BusinessAppContextProps) => {
           where: whereCondition,
           orderBy: orderBy
         })
-        return result.CrmNote || []
+        return (result.CrmNote || []).map(toCustomerNote)
       } catch (error) {
         console.error('Error fetching customer notes by account ID:', error)
         throw error
@@ -76,7 +79,7 @@ export const useCustomerNotes = (context: BusinessAppContextProps) => {
           where: whereCondition,
           orderBy: orderBy
         })
-        return result.CrmNote || []
+        return (result.CrmNote || []).map(toCustomerNote)
       } catch (error) {
         console.error('Error fetching customer notes by contact ID:', error)
         throw error
@@ -96,7 +99,7 @@ export const useCustomerNotes = (context: BusinessAppContextProps) => {
           where: whereCondition,
           orderBy: orderBy
         })
-        return result.CrmNote || []
+        return (result.CrmNote || []).map(toCustomerNote)
       } catch (error) {
         console.error('Error fetching customer notes by lead ID:', error)
         throw error
@@ -116,7 +119,7 @@ export const useCustomerNotes = (context: BusinessAppContextProps) => {
           where: whereCondition,
           orderBy: orderBy
         })
-        return result.CrmNote || []
+        return (result.CrmNote || []).map(toCustomerNote)
       } catch (error) {
         console.error('Error fetching customer notes by opportunity ID:', error)
         throw error

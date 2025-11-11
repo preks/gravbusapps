@@ -86,7 +86,7 @@ export const buildCustomerContactQuery = (fields: typeof CustomerContactFields =
       ${buildLeadFragment(CustomerLeadFields)}
     }
   `
-  return buildContactQuery(fields, 'Contact', entityFields, undefined, relationBuilders, relationFields)
+  return buildContactQuery('Contact', fields, relationBuilders, relationFields, entityFields)
 }
 
 /**
@@ -135,7 +135,7 @@ export const buildCustomerContactByIdQuery = (
     }
   `
 
-  return buildContactByIdQuery(fields, id, 'Contact', relationBuilders, relationFields, entityFields)
+  return buildContactByIdQuery('Contact', id, fields, relationBuilders, relationFields, entityFields)
 }
 
 /**
@@ -144,7 +144,7 @@ export const buildCustomerContactByIdQuery = (
 export const buildCustomerContactSearchQuery = (
   fields: typeof CustomerContactFields = CustomerContactFields
 ): string => {
-  return buildContactSearchQuery(fields, 'Contact')
+  return buildContactSearchQuery('Contact', fields)
 }
 
 /**

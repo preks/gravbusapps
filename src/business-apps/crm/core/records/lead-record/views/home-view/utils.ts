@@ -62,6 +62,7 @@ export const transformTaskOrApproval = (item: any, untitledFallback: string) => 
     taskTiming: item.timingType,
     startDate: item.startDate,
     creatorEmployee: item.creatorEmployee,
-    reference: buildTaskReference(item)
+    reference: buildTaskReference(item),
+    documents: item.documents || []
   }
 }

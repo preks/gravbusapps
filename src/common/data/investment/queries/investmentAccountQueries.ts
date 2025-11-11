@@ -75,7 +75,7 @@ export const buildInvestmentAccountQuery = (
       ${INVESTMENT_REPORT_REF}
     }
       `
-  return buildAccountQuery(fields, 'InvestmentAccount', entityFields)
+  return buildAccountQuery('InvestmentAccount', fields, entityFields)
 }
 
 /**
@@ -128,7 +128,7 @@ export const buildInvestmentAccountByIdQuery = (
     }
   `
 
-  return buildAccountByPkQuery(fields, id, 'InvestmentAccount', relationBuilders, relationFields, entityFields)
+  return buildAccountByPkQuery('InvestmentAccount', id, fields, relationBuilders, relationFields, entityFields)
 }
 
 /**
@@ -137,7 +137,7 @@ export const buildInvestmentAccountByIdQuery = (
 export const buildInvestmentAccountSearchQuery = (
   fields: typeof InvestmentAccountFields = InvestmentAccountFields
 ): string => {
-  return buildAccountSearchQuery(fields, 'InvestmentAccount')
+  return buildAccountSearchQuery('InvestmentAccount', fields)
 }
 
 /**

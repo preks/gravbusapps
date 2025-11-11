@@ -57,7 +57,7 @@ export interface InvestmentDocumentQueryVariables extends CommonDocumentQueryVar
 export const buildInvestmentDocumentQuery = (
   fields: typeof InvestmentDocumentFields = InvestmentDocumentFields
 ): string => {
-  return buildDocumentQuery(fields, 'InvestmentDocument')
+  return buildDocumentQuery('InvestmentDocument', fields)
 }
 
 /**
@@ -88,7 +88,7 @@ export const buildInvestmentDocumentByIdQuery = (
     noteFields: InvestmentNoteFields
   }
 
-  return buildDocumentByIdQuery(fields, id, 'InvestmentDocument', relationBuilders, relationFields)
+  return buildDocumentByIdQuery('InvestmentDocument', id, fields, relationBuilders, relationFields)
 }
 
 /**
@@ -97,7 +97,7 @@ export const buildInvestmentDocumentByIdQuery = (
 export const buildInvestmentDocumentSearchQuery = (
   fields: typeof InvestmentDocumentFields = InvestmentDocumentFields
 ): string => {
-  return buildDocumentSearchQuery(fields, 'InvestmentDocument')
+  return buildDocumentSearchQuery('InvestmentDocument', fields)
 }
 
 /**
@@ -156,7 +156,7 @@ export const buildInvestmentDocumentByLeadIdQuery = (): string => {
     noteFields: InvestmentNoteFields
   }
 
-  return buildDocumentByLeadIdQuery(InvestmentDocumentFields, 'InvestmentDocument', relationBuilders, relationFields)
+  return buildDocumentByLeadIdQuery('InvestmentDocument', InvestmentDocumentFields, relationBuilders, relationFields)
 }
 
 /**
@@ -183,7 +183,7 @@ export const buildInvestmentDocumentByAccountIdQuery = (): string => {
     noteFields: InvestmentNoteFields
   }
 
-  return buildDocumentByAccountIdQuery(InvestmentDocumentFields, 'InvestmentDocument', relationBuilders, relationFields)
+  return buildDocumentByAccountIdQuery('InvestmentDocument', InvestmentDocumentFields, relationBuilders, relationFields)
 }
 
 /**
@@ -210,7 +210,7 @@ export const buildInvestmentDocumentByContactIdQuery = (): string => {
     noteFields: InvestmentNoteFields
   }
 
-  return buildDocumentByContactIdQuery(InvestmentDocumentFields, 'InvestmentDocument', relationBuilders, relationFields)
+  return buildDocumentByContactIdQuery('InvestmentDocument', InvestmentDocumentFields, relationBuilders, relationFields)
 }
 
 /**
@@ -238,8 +238,8 @@ export const buildInvestmentDocumentByOpportunityIdQuery = (): string => {
   }
 
   return buildDocumentByOpportunityIdQuery(
-    InvestmentDocumentFields,
     'InvestmentDocument',
+    InvestmentDocumentFields,
     relationBuilders,
     relationFields
   )

@@ -48,7 +48,7 @@ export type CustomerActivityQueryVariables = CommonActivityQueryVariables
  * CRM uses "SalesActivity" as entity name (not "CustomerActivity")
  */
 export const buildCustomerActivityQuery = (fields: typeof CustomerActivityFields = CustomerActivityFields): string => {
-  return buildActivityQuery(fields, 'SalesActivity')
+  return buildActivityQuery('SalesActivity', fields)
 }
 
 /**
@@ -75,7 +75,7 @@ export const buildCustomerActivityByIdQuery = (
     opportunityFields: CustomerOpportunityFields
   }
 
-  return buildActivityByIdQuery(fields, id, 'SalesActivity', relationBuilders, relationFields)
+  return buildActivityByIdQuery('SalesActivity', id, fields, relationBuilders, relationFields)
 }
 
 /**
@@ -84,7 +84,7 @@ export const buildCustomerActivityByIdQuery = (
 export const buildCustomerActivitySearchQuery = (
   fields: typeof CustomerActivityFields = CustomerActivityFields
 ): string => {
-  return buildActivitySearchQuery(fields, 'SalesActivity')
+  return buildActivitySearchQuery('SalesActivity', fields)
 }
 
 /**
@@ -137,7 +137,7 @@ export const buildCustomerActivityByLeadIdQuery = (): string => {
     opportunityFields: CustomerOpportunityFields
   }
 
-  return buildActivityByLeadIdQuery(CustomerActivityFields, 'SalesActivity', relationBuilders, relationFields)
+  return buildActivityByLeadIdQuery('SalesActivity', CustomerActivityFields, relationBuilders, relationFields)
 }
 
 /**
@@ -160,7 +160,7 @@ export const buildCustomerActivityByAccountIdQuery = (): string => {
     opportunityFields: CustomerOpportunityFields
   }
 
-  return buildActivityByAccountIdQuery(CustomerActivityFields, 'SalesActivity', relationBuilders, relationFields)
+  return buildActivityByAccountIdQuery('SalesActivity', CustomerActivityFields, relationBuilders, relationFields)
 }
 
 /**
@@ -183,7 +183,7 @@ export const buildCustomerActivityByContactIdQuery = (): string => {
     opportunityFields: CustomerOpportunityFields
   }
 
-  return buildActivityByContactIdQuery(CustomerActivityFields, 'SalesActivity', relationBuilders, relationFields)
+  return buildActivityByContactIdQuery('SalesActivity', CustomerActivityFields, relationBuilders, relationFields)
 }
 
 /**
@@ -206,5 +206,5 @@ export const buildCustomerActivityByOpportunityIdQuery = (): string => {
     opportunityFields: CustomerOpportunityFields
   }
 
-  return buildActivityByOpportunityIdQuery(CustomerActivityFields, 'SalesActivity', relationBuilders, relationFields)
+  return buildActivityByOpportunityIdQuery('SalesActivity', CustomerActivityFields, relationBuilders, relationFields)
 }

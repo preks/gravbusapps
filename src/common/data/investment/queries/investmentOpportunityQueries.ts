@@ -78,6 +78,7 @@ export const buildInvestmentOpportunityQuery = (
     }
     
     # IRM-specific Investment fields
+    dealType
     investmentGroup {
       ${CATALOG_ENTRY}
     }
@@ -110,7 +111,7 @@ export const buildInvestmentOpportunityQuery = (
     }
     sizeMeasurementUnitRef
   `
-  return buildOpportunityQuery(fields, 'InvestmentOpportunity', entityFields)
+  return buildOpportunityQuery('InvestmentOpportunity', fields, entityFields)
 }
 
 /**
@@ -155,6 +156,7 @@ export const buildInvestmentOpportunityByIdQuery = (
     }
     
     # IRM-specific Investment fields
+    dealType
     investmentGroup {
       ${CATALOG_ENTRY}
     }
@@ -188,7 +190,7 @@ export const buildInvestmentOpportunityByIdQuery = (
     sizeMeasurementUnitRef
   `
 
-  return buildOpportunityByIdQuery(fields, id, 'InvestmentOpportunity', relationBuilders, relationFields, entityFields)
+  return buildOpportunityByIdQuery('InvestmentOpportunity', id, fields, relationBuilders, relationFields, entityFields)
 }
 
 /**
@@ -197,7 +199,7 @@ export const buildInvestmentOpportunityByIdQuery = (
 export const buildInvestmentOpportunitySearchQuery = (
   fields: typeof InvestmentOpportunityFields = InvestmentOpportunityFields
 ): string => {
-  return buildOpportunitySearchQuery(fields, 'InvestmentOpportunity')
+  return buildOpportunitySearchQuery('InvestmentOpportunity', fields)
 }
 
 /**

@@ -63,17 +63,17 @@ export interface CommonLeadQueryVariables extends BaseQueryVariables {
 
 /**
  * Build Lead query with fields mapping
- * @param fields - LeadFields mapping (default: LeadFields)
  * @param entityName - GraphQL entity name (REQUIRED)
- * @param entityFields - Additional domain-specific fields (optional)
- * @param queryFields - Additional query fields (optional)
+ * @param entityFields - LeadFields mapping (default: LeadFields)
+ * @param additionalFields - Additional domain-specific fields (optional)
+ * @param additionalQueries - Additional query fields (optional)
  * @returns GraphQL query string using variables
  */
 export const buildLeadQuery = (
-  fields: typeof LeadFields = LeadFields,
   entityName: string,
-  entityFields?: string,
-  queryFields?: string
+  entityFields: Record<keyof typeof LeadFields, string> = LeadFields,
+  additionalFields?: string,
+  additionalQueries?: string
 ): string => {
   const boolExpType = `${entityName}BoolExp`
   const orderByType = `[${entityName}OrderBy!]`
@@ -92,168 +92,170 @@ export const buildLeadQuery = (
         where: $where
       ) {
         ${AUDIT_FIELDS}
-        ${fields.academicTitle} {
+        ${entityFields.academicTitle} {
           ${CATALOG_ENTRY}
         }
-        ${fields.academicTitleRef}
-        ${fields.addressLine}
-        ${fields.code}
-        ${fields.companyEmail}
-        ${fields.companyName}
-        ${fields.companyPhone}
-        ${fields.companyWebsite}
-        ${fields.companySize} {
+        ${entityFields.academicTitleRef}
+        ${entityFields.addressLine}
+        ${entityFields.code}
+        ${entityFields.companyEmail}
+        ${entityFields.companyName}
+        ${entityFields.companyPhone}
+        ${entityFields.companyWebsite}
+        ${entityFields.companySize} {
           ${CATALOG_ENTRY}
         }
-        ${fields.companySizeRef}
-        ${fields.accountAnnualRevenueBand} {
+        ${entityFields.companySizeRef}
+        ${entityFields.accountAnnualRevenueBand} {
           ${CATALOG_ENTRY}
         }
-        ${fields.accountAnnualRevenueBandRef}
-        ${fields.conversionDate}
-        ${fields.country} {
+        ${entityFields.accountAnnualRevenueBandRef}
+        ${entityFields.conversionDate}
+        ${entityFields.country} {
           ${CATALOG_ENTRY}
         }
-        ${fields.countryRef}
-        ${fields.description}
-        ${fields.email}
-        ${fields.firstName}
-        ${fields.id}
-        ${fields.industryClass} {
+        ${entityFields.countryRef}
+        ${entityFields.description}
+        ${entityFields.email}
+        ${entityFields.firstName}
+        ${entityFields.id}
+        ${entityFields.industryClass} {
           ${CATALOG_ENTRY}
         }
-        ${fields.industryClassRef}
-        ${fields.lastName}
-        ${fields.leadRating} {
+        ${entityFields.industryClassRef}
+        ${entityFields.lastName}
+        ${entityFields.leadRating} {
           ${CATALOG_ENTRY}
         }
-        ${fields.leadRatingRef}
-        ${fields.leadSource} {
+        ${entityFields.leadRatingRef}
+        ${entityFields.leadSource} {
           ${CATALOG_ENTRY}
         }
-        ${fields.leadSourceRef}
-        ${fields.leadStatus} {
+        ${entityFields.leadSourceRef}
+        ${entityFields.leadStatus} {
           ${CATALOG_ENTRY}
         }
-        ${fields.leadStatusRef}
-        ${fields.ownerEmployee} {
+        ${entityFields.leadStatusRef}
+        ${entityFields.ownerEmployee} {
           ${EMPLOYEE_REF}
         }
-        ${fields.legalForm} {
+        ${entityFields.legalForm} {
           ${CATALOG_ENTRY}
         }
-        ${fields.legalFormRef}
-        ${fields.ownerEmployeeId}
-        ${fields.phoneNumber}
-        ${fields.position}
-        ${fields.postalCode}
-        ${fields.region} {
+        ${entityFields.legalFormRef}
+        ${entityFields.ownerEmployeeId}
+        ${entityFields.phoneNumber}
+        ${entityFields.position}
+        ${entityFields.postalCode}
+        ${entityFields.region} {
           ${CATALOG_ENTRY}
         }
-        ${fields.regionRef}
-        ${fields.salutation} {
+        ${entityFields.regionRef}
+        ${entityFields.salutation} {
           ${CATALOG_ENTRY}
         }
-        ${fields.salutationRef}
-        ${fields.sensitive}
-        ${fields.sourceCompanyName}
-        ${fields.sourceIndividualName}
-        ${entityFields || ''}
+        ${entityFields.salutationRef}
+        ${entityFields.sensitive}
+        ${entityFields.sourceCompanyName}
+        ${entityFields.sourceIndividualName}
+        ${additionalFields || ''}
       }
       ${entityName}Aggregate(where: $where) {
         aggregate { count }
       }
-      ${queryFields || ''}
+      ${additionalQueries || ''}
     }
   `
 }
 
 /**
  * Build Lead by ID query
- * @param fields - LeadFields mapping (default: LeadFields)
- * @param id - Lead ID
  * @param entityName - GraphQL entity name (REQUIRED)
+ * @param id - Lead ID
+ * @param entityFields - LeadFields mapping (default: LeadFields)
  * @param relationBuilders - Object containing fragment builder functions for relations (optional)
  * @param relationFields - Object containing field mappings for relations (optional)
- * @param entityFields - Additional domain-specific fields (optional)
+ * @param additionalFields - Additional domain-specific fields (optional)
+ * @param leadStatusCatalogIdentifier - Optional catalog identifier for lead statuses (e.g., 'SalesLeadStatus', 'InvestmentLeadStatus')
  */
 export const buildLeadByIdQuery = (
-  fields: typeof LeadFields = LeadFields,
-  id: string,
   entityName: string,
+  id: string,
+  entityFields: Record<keyof typeof LeadFields, string> = LeadFields,
   relationBuilders?: LeadRelationBuilders,
   relationFields?: LeadRelationFields,
-  entityFields?: string
+  additionalFields?: string,
+  leadStatusCatalogIdentifier?: string
 ): string => {
   // Base fields inline
   const baseFields = `
         ${AUDIT_FIELDS}
-        ${fields.academicTitle} {
+        ${entityFields.academicTitle} {
           ${CATALOG_ENTRY}
         }
-        ${fields.academicTitleRef}
-        ${fields.addressLine}
-        ${fields.code}
-        ${fields.companyEmail}
-        ${fields.companyName}
-        ${fields.companyPhone}
-        ${fields.companyWebsite}
-        ${fields.companySize} {
+        ${entityFields.academicTitleRef}
+        ${entityFields.addressLine}
+        ${entityFields.code}
+        ${entityFields.companyEmail}
+        ${entityFields.companyName}
+        ${entityFields.companyPhone}
+        ${entityFields.companyWebsite}
+        ${entityFields.companySize} {
           ${CATALOG_ENTRY}
         }
-        ${fields.companySizeRef}
-        ${fields.accountAnnualRevenueBand} {
+        ${entityFields.companySizeRef}
+        ${entityFields.accountAnnualRevenueBand} {
           ${CATALOG_ENTRY}
         }
-        ${fields.accountAnnualRevenueBandRef}
-        ${fields.conversionDate}
-        ${fields.country} {
+        ${entityFields.accountAnnualRevenueBandRef}
+        ${entityFields.conversionDate}
+        ${entityFields.country} {
           ${CATALOG_ENTRY}
         }
-        ${fields.countryRef}
-        ${fields.description}
-        ${fields.email}
-        ${fields.firstName}
-        ${fields.id}
-        ${fields.industryClass} {
+        ${entityFields.countryRef}
+        ${entityFields.description}
+        ${entityFields.email}
+        ${entityFields.firstName}
+        ${entityFields.id}
+        ${entityFields.industryClass} {
           ${CATALOG_ENTRY}
         }
-        ${fields.industryClassRef}
-        ${fields.lastName}
-        ${fields.leadRating} {
+        ${entityFields.industryClassRef}
+        ${entityFields.lastName}
+        ${entityFields.leadRating} {
           ${CATALOG_ENTRY}
         }
-        ${fields.leadRatingRef}
-        ${fields.leadSource} {
+        ${entityFields.leadRatingRef}
+        ${entityFields.leadSource} {
           ${CATALOG_ENTRY}
         }
-        ${fields.leadSourceRef}
-        ${fields.leadStatus} {
+        ${entityFields.leadSourceRef}
+        ${entityFields.leadStatus} {
           ${CATALOG_ENTRY}
         }
-        ${fields.leadStatusRef}
-        ${fields.ownerEmployee} {
+        ${entityFields.leadStatusRef}
+        ${entityFields.ownerEmployee} {
           ${EMPLOYEE_REF}
         }
-        ${fields.legalForm} {
+        ${entityFields.legalForm} {
           ${CATALOG_ENTRY}
         }
-        ${fields.legalFormRef}
-        ${fields.ownerEmployeeId}
-        ${fields.phoneNumber}
-        ${fields.position}
-        ${fields.postalCode}
-        ${fields.region} {
+        ${entityFields.legalFormRef}
+        ${entityFields.ownerEmployeeId}
+        ${entityFields.phoneNumber}
+        ${entityFields.position}
+        ${entityFields.postalCode}
+        ${entityFields.region} {
           ${CATALOG_ENTRY}
         }
-        ${fields.regionRef}
-        ${fields.salutation} {
+        ${entityFields.regionRef}
+        ${entityFields.salutation} {
           ${CATALOG_ENTRY}
         }
-        ${fields.salutationRef}
-        ${fields.sensitive}
-        ${fields.sourceCompanyName}
-        ${fields.sourceIndividualName}
+        ${entityFields.salutationRef}
+        ${entityFields.sensitive}
+        ${entityFields.sourceCompanyName}
+        ${entityFields.sourceIndividualName}
   `
 
   // Common entity relations
@@ -261,19 +263,19 @@ export const buildLeadByIdQuery = (
     relationBuilders && relationFields
       ? `
     # Common entity relations (present in both IRM and CRM)
-    ${fields.activities}(where: { isDeleted: { _eq: false } }) {
+    ${entityFields.activities}(where: { isDeleted: { _eq: false } }) {
       ${relationBuilders.buildActivityFragment(relationFields.activityFields)}
     }
     
-    ${fields.documents}(where: { isDeleted: { _eq: false } }) {
+    ${entityFields.documents}(where: { isDeleted: { _eq: false } }) {
       ${relationBuilders.buildDocumentFragment(relationFields.documentFields)}
     }
     
-    ${fields.notes}(where: { isDeleted: { _eq: false } }) {
+    ${entityFields.notes}(where: { isDeleted: { _eq: false } }) {
       ${relationBuilders.buildNoteFragment(relationFields.noteFields)}
     }
     
-    ${fields.tasks}(where: { isDeleted: { _eq: false } }) {
+    ${entityFields.tasks}(where: { isDeleted: { _eq: false } }) {
       ${relationBuilders.buildTaskFragment(relationFields.taskFields)}
       
       # Documents relation within tasks
@@ -284,27 +286,27 @@ export const buildLeadByIdQuery = (
     
     # Converted relations (for leads that were converted)
     ${
-      relationBuilders.buildAccountFragment && relationFields.accountFields && fields.convertedAccount
-        ? `${fields.convertedAccountId}
-      ${fields.convertedAccount} {
+      relationBuilders.buildAccountFragment && relationFields.accountFields && entityFields.convertedAccount
+        ? `${entityFields.convertedAccountId}
+      ${entityFields.convertedAccount} {
         ${relationBuilders.buildAccountFragment(relationFields.accountFields)}
       }`
         : ''
     }
     
     ${
-      relationBuilders.buildContactFragment && relationFields.contactFields && fields.convertedContact
-        ? `${fields.convertedContactId}
-      ${fields.convertedContact} {
+      relationBuilders.buildContactFragment && relationFields.contactFields && entityFields.convertedContact
+        ? `${entityFields.convertedContactId}
+      ${entityFields.convertedContact} {
         ${relationBuilders.buildContactFragment(relationFields.contactFields)}
       }`
         : ''
     }
     
     ${
-      relationBuilders.buildOpportunityFragment && relationFields.opportunityFields && fields.convertedOpportunity
-        ? `${fields.convertedOpportunityId}
-      ${fields.convertedOpportunity} {
+      relationBuilders.buildOpportunityFragment && relationFields.opportunityFields && entityFields.convertedOpportunity
+        ? `${entityFields.convertedOpportunityId}
+      ${entityFields.convertedOpportunity} {
         ${relationBuilders.buildOpportunityFragment(relationFields.opportunityFields)}
       }`
         : ''
@@ -312,13 +314,34 @@ export const buildLeadByIdQuery = (
   `
       : ''
 
+  // Build lead statuses query if catalog identifier provided
+  const leadStatusesQuery = leadStatusCatalogIdentifier
+    ? `
+      leadStatuses: CatalogEntry(
+        where: {
+          _and: [
+            { catalog: { identifier: { _eq: "${leadStatusCatalogIdentifier}" }, version: { _eq: "v1" } } },
+            { isDeleted: { _eq: false } }
+          ]
+        }
+        orderBy: { alternativeCode: ASC }
+      ) {
+        id
+        code
+        value
+        alternativeCode
+      }
+    `
+    : ''
+
   return `
     query Get${entityName}ById {
       ${entityName}ByPk(id: "${id}") {
         ${baseFields}
         ${commonRelations}
-        ${entityFields || ''}
+        ${additionalFields || ''}
       }
+      ${leadStatusesQuery}
     }
   `
 }
@@ -326,8 +349,12 @@ export const buildLeadByIdQuery = (
 /**
  * Build Lead search query
  * @param entityName - GraphQL entity name (REQUIRED)
+ * @param entityFields - LeadFields mapping (default: LeadFields)
  */
-export const buildLeadSearchQuery = (fields: typeof LeadFields = LeadFields, entityName: string): string => {
+export const buildLeadSearchQuery = (
+  entityName: string,
+  entityFields: Record<keyof typeof LeadFields, string> = LeadFields
+): string => {
   const boolExpType = `${entityName}BoolExp`
 
   return `
@@ -339,11 +366,11 @@ export const buildLeadSearchQuery = (fields: typeof LeadFields = LeadFields, ent
         limit: $limit
         where: $where
       ) {
-        ${fields.id}
-        ${fields.code}
-        ${fields.firstName}
-        ${fields.lastName}
-        ${fields.companyName}
+        ${entityFields.id}
+        ${entityFields.code}
+        ${entityFields.firstName}
+        ${entityFields.lastName}
+        ${entityFields.companyName}
       }
     }
   `

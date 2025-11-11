@@ -69,7 +69,7 @@ export const buildCustomerAccountQuery = (fields: typeof CustomerAccountFields =
       ${CUSTOMER_CAMPAIGN_REF}
     }
   `
-  return buildAccountQuery(fields, 'Account', entityFields)
+  return buildAccountQuery('Account', fields, entityFields)
 }
 
 /**
@@ -120,7 +120,7 @@ export const buildCustomerAccountByIdQuery = (
     }
   `
 
-  return buildAccountByPkQuery(fields, id, 'Account', relationBuilders, relationFields, entityFields)
+  return buildAccountByPkQuery('Account', id, fields, relationBuilders, relationFields, entityFields)
 }
 
 /**
@@ -129,7 +129,7 @@ export const buildCustomerAccountByIdQuery = (
 export const buildCustomerAccountSearchQuery = (
   fields: typeof CustomerAccountFields = CustomerAccountFields
 ): string => {
-  return buildAccountSearchQuery(fields, 'Account')
+  return buildAccountSearchQuery('Account', fields)
 }
 
 /**

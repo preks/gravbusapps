@@ -78,7 +78,7 @@ export const buildInvestmentTaskQuery = (fields: typeof InvestmentTaskFields = I
     }
     investmentId
   `
-  return buildTaskQuery(fields, 'InvestmentTask', entityFields, undefined, relationBuilders, relationFields)
+  return buildTaskQuery('InvestmentTask', fields, relationBuilders, relationFields, entityFields)
 }
 
 /**
@@ -115,14 +115,14 @@ export const buildInvestmentTaskByIdQuery = (
     investmentId
   `
 
-  return buildTaskByIdQuery(fields, id, 'InvestmentTask', relationBuilders, relationFields, entityFields)
+  return buildTaskByIdQuery('InvestmentTask', id, fields, relationBuilders, relationFields, entityFields)
 }
 
 /**
  * Build Investment Task search query
  */
 export const buildInvestmentTaskSearchQuery = (fields: typeof InvestmentTaskFields = InvestmentTaskFields): string => {
-  return buildTaskSearchQuery(fields, 'InvestmentTask')
+  return buildTaskSearchQuery('InvestmentTask', fields)
 }
 
 /**
@@ -184,7 +184,7 @@ export const buildInvestmentTaskByLeadIdQuery = (): string => {
     investmentId
   `
 
-  return buildTaskByLeadIdQuery(InvestmentTaskFields, 'InvestmentTask', relationBuilders, relationFields, entityFields)
+  return buildTaskByLeadIdQuery('InvestmentTask', InvestmentTaskFields, relationBuilders, relationFields, entityFields)
 }
 
 /**
@@ -217,8 +217,8 @@ export const buildInvestmentTaskByAccountIdQuery = (): string => {
   `
 
   return buildTaskByAccountIdQuery(
-    InvestmentTaskFields,
     'InvestmentTask',
+    InvestmentTaskFields,
     relationBuilders,
     relationFields,
     entityFields
@@ -255,8 +255,8 @@ export const buildInvestmentTaskByContactIdQuery = (): string => {
   `
 
   return buildTaskByContactIdQuery(
-    InvestmentTaskFields,
     'InvestmentTask',
+    InvestmentTaskFields,
     relationBuilders,
     relationFields,
     entityFields
@@ -293,8 +293,8 @@ export const buildInvestmentTaskByOpportunityIdQuery = (): string => {
   `
 
   return buildTaskByOpportunityIdQuery(
-    InvestmentTaskFields,
     'InvestmentTask',
+    InvestmentTaskFields,
     relationBuilders,
     relationFields,
     entityFields
@@ -331,12 +331,5 @@ export const buildInvestmentTaskByInvestmentIdQuery = (): string => {
   `
 
   // Use buildTaskQuery directly since there's no common builder for investment
-  return buildTaskQuery(
-    InvestmentTaskFields,
-    'InvestmentTask',
-    entityFields,
-    undefined,
-    relationBuilders,
-    relationFields
-  )
+  return buildTaskQuery('InvestmentTask', InvestmentTaskFields, relationBuilders, relationFields, entityFields)
 }

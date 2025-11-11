@@ -1,4 +1,4 @@
-import React, { useState } from 'react'
+import React, { useState, useMemo } from 'react'
 import {
   Button,
   TimelineLayout,
@@ -32,6 +32,8 @@ import { buildPlatformUrl } from '@/common/utils/navigationUtils'
 import { getTranslationFromI18nKeyAndLabel } from '@/common/utils/windowUtils'
 import { FileInfo } from '@/common/types/FileTypes'
 import type { CatalogEntry } from '@/common/network/graphql/commonTypes'
+import type { Task as BaseTask } from '@/common/data/relations/types/taskTypes'
+import { transformTaskOrApproval } from './utils/taskMappers'
 
 export type TaskStatusCode = 'PENDING' | 'IN_PROGRESS' | 'OVERDUE' | 'COMPLETED'
 export type TaskTimingType = 'DEADLINE' | 'SCHEDULED' | 'UNKNOWN_TIMING_TYPE'
@@ -82,7 +84,7 @@ export interface TaskSectionProps extends BusinessAppContextProps {
   opportunityId?: string
   leadId?: string
   investmentId?: string
-  tasks?: TaskItem[]
+  tasks?: BaseTask[]
   'data-testid'?: string
   taskActionProps?: Omit<AppActionCommonProps, 'accessToken'>
   taskEntityActionProps?: Omit<AppActionCommonProps, 'accessToken'>
@@ -90,7 +92,42 @@ export interface TaskSectionProps extends BusinessAppContextProps {
   buildReferenceUrl?: (reference: TaskReference) => string
 }
 
-const TaskSection: React.FC<TaskSectionProps> = ({ accessToken, tasks, taskEntityActionProps, buildReferenceUrl }) => {
+const TaskSection: React.FC<TaskSectionProps> = ({
+  accessToken,
+  tasks: rawTasks,
+  taskEntityActionProps,
+  buildReferenceUrl
+}) => {
+  // Map raw tasks to TaskItem format
+  const tasks = useMemo(() => {
+    if (!rawTasks || rawTasks.length === 0) return []
+
+    return rawTasks.map((task: BaseTask) =>
+      transformTaskOrApproval(
+        {
+          id: task.id,
+          name: task.name,
+          displayName: task.name,
+          description: task.description,
+          createdAt: task.createdAt,
+          dueDate: task.dueDate,
+          assignedEmployee: task.assignedEmployee,
+          taskStatus: task.taskStatus,
+          taskPriority: task.taskPriority,
+          taskType: task.taskType,
+          taskTiming: task.taskTiming,
+          startDate: task.startDate,
+          creatorEmployee: task.creatorEmployee,
+          documents: task.documents,
+          lead: task.lead,
+          account: task.account,
+          contact: task.contact,
+          opportunity: task.opportunity
+        },
+        getTranslationFromI18nKeyAndLabel('crm.tasks.untitled', 'Untitled Task')
+      )
+    )
+  }, [rawTasks])
   const [selectedTask, setSelectedTask] = useState<Task | null>(null)
 
   // Handle document download

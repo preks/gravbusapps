@@ -65,7 +65,7 @@ export const buildCustomerTaskQuery = (fields: typeof CustomerTaskFields = Custo
     opportunityFields: CustomerOpportunityFields
   }
 
-  return buildTaskQuery(fields, 'SalesTask', undefined, undefined, relationBuilders, relationFields)
+  return buildTaskQuery('SalesTask', fields, relationBuilders, relationFields)
 }
 
 /**
@@ -92,14 +92,14 @@ export const buildCustomerTaskByIdQuery = (
     opportunityFields: CustomerOpportunityFields
   }
 
-  return buildTaskByIdQuery(fields, id, 'SalesTask', relationBuilders, relationFields)
+  return buildTaskByIdQuery('SalesTask', id, fields, relationBuilders, relationFields)
 }
 
 /**
  * Build Customer Task search query
  */
 export const buildCustomerTaskSearchQuery = (fields: typeof CustomerTaskFields = CustomerTaskFields): string => {
-  return buildTaskSearchQuery(fields, 'SalesTask')
+  return buildTaskSearchQuery('SalesTask', fields)
 }
 
 /**
@@ -152,7 +152,7 @@ export const buildCustomerTaskByLeadIdQuery = (): string => {
     opportunityFields: CustomerOpportunityFields
   }
 
-  return buildTaskByLeadIdQuery(CustomerTaskFields, 'SalesTask', relationBuilders, relationFields)
+  return buildTaskByLeadIdQuery('SalesTask', CustomerTaskFields, relationBuilders, relationFields)
 }
 
 /**
@@ -176,7 +176,7 @@ export const buildCustomerTaskByAccountIdQuery = (): string => {
     opportunityFields: CustomerOpportunityFields
   }
 
-  return buildTaskByAccountIdQuery(CustomerTaskFields, 'SalesTask', relationBuilders, relationFields)
+  return buildTaskByAccountIdQuery('SalesTask', CustomerTaskFields, relationBuilders, relationFields)
 }
 
 /**
@@ -200,7 +200,7 @@ export const buildCustomerTaskByContactIdQuery = (): string => {
     opportunityFields: CustomerOpportunityFields
   }
 
-  return buildTaskByContactIdQuery(CustomerTaskFields, 'SalesTask', relationBuilders, relationFields)
+  return buildTaskByContactIdQuery('SalesTask', CustomerTaskFields, relationBuilders, relationFields)
 }
 
 /**
@@ -224,5 +224,5 @@ export const buildCustomerTaskByOpportunityIdQuery = (): string => {
     opportunityFields: CustomerOpportunityFields
   }
 
-  return buildTaskByOpportunityIdQuery(CustomerTaskFields, 'SalesTask', relationBuilders, relationFields)
+  return buildTaskByOpportunityIdQuery('SalesTask', CustomerTaskFields, relationBuilders, relationFields)
 }

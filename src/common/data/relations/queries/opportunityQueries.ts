@@ -58,17 +58,17 @@ export interface CommonOpportunityQueryVariables extends BaseQueryVariables {
 
 /**
  * Build Opportunity query with fields mapping
- * @param fields - OpportunityFields mapping (default: OpportunityFields)
  * @param entityName - GraphQL entity name (REQUIRED)
- * @param entityFields - Additional domain-specific fields (optional)
- * @param queryFields - Additional query fields (optional)
+ * @param entityFields - OpportunityFields mapping (default: OpportunityFields)
+ * @param additionalFields - Additional domain-specific fields (optional)
+ * @param additionalQueries - Additional query fields (optional)
  * @returns GraphQL query string using variables
  */
 export const buildOpportunityQuery = (
-  fields: Record<keyof typeof OpportunityFields, string> = OpportunityFields,
   entityName: string,
-  entityFields?: string,
-  queryFields?: string
+  entityFields: Record<keyof typeof OpportunityFields, string> = OpportunityFields,
+  additionalFields?: string,
+  additionalQueries?: string
 ): string => {
   const boolExpType = `${entityName}BoolExp`
   const orderByType = `[${entityName}OrderBy!]`
@@ -87,80 +87,80 @@ export const buildOpportunityQuery = (
         where: $where
       ) {
         ${AUDIT_FIELDS}
-        ${fields.closeDate}
-        ${fields.code}
-        ${fields.currency} {
+        ${entityFields.closeDate}
+        ${entityFields.code}
+        ${entityFields.currency} {
           ${CATALOG_ENTRY}
         }
-        ${fields.currencyRef}
-        ${fields.id}
-        ${fields.estimatedAmount}
-        ${fields.name}
-        ${fields.notesSummary}
-        ${fields.opportunityPipeline} {
+        ${entityFields.currencyRef}
+        ${entityFields.id}
+        ${entityFields.estimatedAmount}
+        ${entityFields.name}
+        ${entityFields.notesSummary}
+        ${entityFields.opportunityPipeline} {
           ${CATALOG_ENTRY}
         }
-        ${fields.opportunityPipelineRef}
-        ${fields.opportunityPipelineStage} {
+        ${entityFields.opportunityPipelineRef}
+        ${entityFields.opportunityPipelineStage} {
           ${CATALOG_ENTRY}
         }
-        ${fields.opportunityPipelineStageRef}
-        ${fields.opportunityStatus} {
+        ${entityFields.opportunityPipelineStageRef}
+        ${entityFields.opportunityStatus} {
           ${CATALOG_ENTRY}
         }
-        ${fields.opportunityStatusRef}
-        ${fields.ownerEmployee} {
+        ${entityFields.opportunityStatusRef}
+        ${entityFields.ownerEmployee} {
           ${EMPLOYEE_REF}
         }
-        ${fields.ownerEmployeeId}
-        ${fields.winningChance}
+        ${entityFields.ownerEmployeeId}
+        ${entityFields.winningChance}
         # Account relation
-        ${fields.accountId}
-        ${fields.account} {
+        ${entityFields.accountId}
+        ${entityFields.account} {
           id
           name
         }
-        ${entityFields || ''}
+        ${additionalFields || ''}
       }
       ${entityName}Aggregate(where: $where) {
         aggregate { count }
       }
-      ${queryFields || ''}
+      ${additionalQueries || ''}
     }
   `
 }
 
 /**
  * Build Opportunity by ID query
- * @param fields - OpportunityFields mapping (default: OpportunityFields)
- * @param id - Opportunity ID
  * @param entityName - GraphQL entity name (REQUIRED)
+ * @param id - Opportunity ID
+ * @param entityFields - OpportunityFields mapping (default: OpportunityFields)
  * @param relationBuilders - Object containing fragment builder functions for relations (optional)
  * @param relationFields - Object containing field mappings for relations (optional)
- * @param entityFields - Additional domain-specific fields (optional)
+ * @param additionalFields - Additional domain-specific fields (optional)
  */
 export const buildOpportunityByIdQuery = (
-  fields: Record<keyof typeof OpportunityFields, string> = OpportunityFields,
-  id: string,
   entityName: string,
+  id: string,
+  entityFields: Record<keyof typeof OpportunityFields, string> = OpportunityFields,
   relationBuilders?: OpportunityRelationBuilders,
   relationFields?: OpportunityRelationFields,
-  entityFields?: string
+  additionalFields?: string
 ): string => {
   // Base fields inline
   const baseFields = `
         ${AUDIT_FIELDS}
-        ${fields.closeDate}
-        ${fields.code}
-        ${fields.currency} {
+        ${entityFields.closeDate}
+        ${entityFields.code}
+        ${entityFields.currency} {
           ${CATALOG_ENTRY}
         }
-        ${fields.currencyRef}
-        ${fields.id}
-        ${fields.estimatedAmount}
-        ${fields.name}
-        ${fields.notesSummary}
-        ${fields.opportunityPipeline} {
+        ${entityFields.currencyRef}
+        ${entityFields.id}
+        ${entityFields.estimatedAmount}
+        ${entityFields.name}
+        ${entityFields.notesSummary}
+        ${entityFields.opportunityPipeline} {
           ${CATALOG_ENTRY}
           childEntries {
             id
@@ -171,20 +171,20 @@ export const buildOpportunityByIdQuery = (
             additionalValue1
           }
         }
-        ${fields.opportunityPipelineRef}
-        ${fields.opportunityPipelineStage} {
+        ${entityFields.opportunityPipelineRef}
+        ${entityFields.opportunityPipelineStage} {
           ${CATALOG_ENTRY}
         }
-        ${fields.opportunityPipelineStageRef}
-        ${fields.opportunityStatus} {
+        ${entityFields.opportunityPipelineStageRef}
+        ${entityFields.opportunityStatus} {
           ${CATALOG_ENTRY}
         }
-        ${fields.opportunityStatusRef}
-        ${fields.ownerEmployee} {
+        ${entityFields.opportunityStatusRef}
+        ${entityFields.ownerEmployee} {
           ${EMPLOYEE_REF}
         }
-        ${fields.ownerEmployeeId}
-        ${fields.winningChance}
+        ${entityFields.ownerEmployeeId}
+        ${entityFields.winningChance}
   `
 
   // Common entity relations
@@ -192,10 +192,10 @@ export const buildOpportunityByIdQuery = (
     relationBuilders && relationFields
       ? `
     # Account relation
-    ${fields.accountId}
+    ${entityFields.accountId}
     ${
-      fields.account
-        ? `${fields.account} {
+      entityFields.account
+        ? `${entityFields.account} {
       ${relationBuilders.buildAccountFragment(relationFields.accountFields)}
       # ✅ Relations direkt hier hinzufügen (nicht im Fragment)
       ${relationFields.accountFields.communicationChannels}(where: { isDeleted: { _eq: false } }) {
@@ -209,19 +209,19 @@ export const buildOpportunityByIdQuery = (
     }
     
     # Common entity relations (present in both IRM and CRM)
-    ${fields.communicationChannels}(where: { isDeleted: { _eq: false } }) {
+    ${entityFields.communicationChannels}(where: { isDeleted: { _eq: false } }) {
       ${COMMUNICATION_CHANNEL_REF}
     }
     
-    ${fields.documents}(where: { isDeleted: { _eq: false } }) {
+    ${entityFields.documents}(where: { isDeleted: { _eq: false } }) {
       ${relationBuilders.buildDocumentFragment(relationFields.documentFields)}
     }
     
-    ${fields.notes}(where: { isDeleted: { _eq: false } }) {
+    ${entityFields.notes}(where: { isDeleted: { _eq: false } }) {
       ${relationBuilders.buildNoteFragment(relationFields.noteFields)}
     }
     
-    ${fields.tasks}(where: { isDeleted: { _eq: false } }) {
+    ${entityFields.tasks}(where: { isDeleted: { _eq: false } }) {
       ${relationBuilders.buildTaskFragment(relationFields.taskFields)}
       
       # Documents relation within tasks
@@ -230,12 +230,12 @@ export const buildOpportunityByIdQuery = (
       }
     }
     
-    ${fields.activities}(where: { isDeleted: { _eq: false } }) {
+    ${entityFields.activities}(where: { isDeleted: { _eq: false } }) {
       ${relationBuilders.buildActivityFragment(relationFields.activityFields)}
     }
     
     # OpportunityContacts relation (field name varies: opportunityContacts vs investmentOpportunityContact vs contacts)
-    ${fields.opportunityContacts}(where: { isDeleted: { _eq: false } }) {
+    ${entityFields.opportunityContacts}(where: { isDeleted: { _eq: false } }) {
       id
       ${AUDIT_FIELDS}
       contactType
@@ -246,8 +246,8 @@ export const buildOpportunityByIdQuery = (
     
     # OpportunityStageConditions relation (field name varies: opportunityStageConditions vs investmentOpportunityStageCondition vs stageConditionStatuses)
     ${
-      fields.opportunityStageConditions
-        ? `${fields.opportunityStageConditions}(where: { isDeleted: { _eq: false } }) {
+      entityFields.opportunityStageConditions
+        ? `${entityFields.opportunityStageConditions}(where: { isDeleted: { _eq: false } }) {
       id
       ${AUDIT_FIELDS}
       completed
@@ -299,7 +299,7 @@ export const buildOpportunityByIdQuery = (
       ${entityName}ByPk(id: "${id}") {
         ${baseFields}
         ${commonRelations}
-        ${entityFields || ''}
+        ${additionalFields || ''}
       }
     }
   `
@@ -308,10 +308,11 @@ export const buildOpportunityByIdQuery = (
 /**
  * Build Opportunity search query
  * @param entityName - GraphQL entity name (REQUIRED)
+ * @param entityFields - OpportunityFields mapping (default: OpportunityFields)
  */
 export const buildOpportunitySearchQuery = (
-  fields: Record<keyof typeof OpportunityFields, string> = OpportunityFields,
-  entityName: string
+  entityName: string,
+  entityFields: Record<keyof typeof OpportunityFields, string> = OpportunityFields
 ): string => {
   const boolExpType = `${entityName}BoolExp`
 
@@ -324,9 +325,9 @@ export const buildOpportunitySearchQuery = (
         limit: $limit
         where: $where
       ) {
-        ${fields.id}
-        ${fields.name}
-        ${fields.code}
+        ${entityFields.id}
+        ${entityFields.name}
+        ${entityFields.code}
       }
     }
   `

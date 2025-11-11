@@ -81,7 +81,7 @@ export const buildCustomerOpportunityQuery = (
       ${CUSTOMER_CAMPAIGN_REF}
     }
   `
-  return buildOpportunityQuery(fields, 'Opportunity', entityFields)
+  return buildOpportunityQuery('Opportunity', fields, entityFields)
 }
 
 /**
@@ -145,7 +145,7 @@ export const buildCustomerOpportunityByIdQuery = (
     }
   `
 
-  return buildOpportunityByIdQuery(fields, id, 'Opportunity', relationBuilders, relationFields, entityFields)
+  return buildOpportunityByIdQuery('Opportunity', id, fields, relationBuilders, relationFields, entityFields)
 }
 
 /**
@@ -154,7 +154,7 @@ export const buildCustomerOpportunityByIdQuery = (
 export const buildCustomerOpportunitySearchQuery = (
   fields: typeof CustomerOpportunityFields = CustomerOpportunityFields
 ): string => {
-  return buildOpportunitySearchQuery(fields, 'Opportunity')
+  return buildOpportunitySearchQuery('Opportunity', fields)
 }
 
 /**

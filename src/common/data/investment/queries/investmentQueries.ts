@@ -3,6 +3,11 @@
 import { CATALOG_ENTRY } from '@/common/network/graphql/commonFragments'
 import { INVESTMENT } from './fragments/investmentFragments'
 import {
+  INVESTMENT_REF,
+  EQUITY_INVESTMENT_REF,
+  REAL_ESTATE_INVESTMENT_REF,
+  LIQUID_FUND_INVESTMENT_REF,
+  INVESTMENT_OPPORTUNITY_REF,
   INVESTMENT_ACTIVITY_REF,
   INVESTMENT_TASK_REF,
   INVESTMENT_ACCOUNT_REF
@@ -285,7 +290,28 @@ export const GET_INVESTMENTS = (variables: InvestmentQueryVariables = {}): strin
         ${orderByClause}
         ${where}
       ) {
-        ${INVESTMENT}
+        ${INVESTMENT_REF}
+        
+        # Entity relationships (simplified)
+        investmentAccount {
+          ${INVESTMENT_ACCOUNT_REF}
+        }
+        investmentOpportunity {
+          ${INVESTMENT_OPPORTUNITY_REF}
+        }
+        
+        # Investment specializations (simplified)
+        equityInvestment {
+          ${EQUITY_INVESTMENT_REF}
+        }
+        
+        realEstateInvestment {
+          ${REAL_ESTATE_INVESTMENT_REF}
+        }
+        
+        liquidFundInvestment {
+          ${LIQUID_FUND_INVESTMENT_REF}
+        }
       }
       
       InvestmentAggregate(${where}) {

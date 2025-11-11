@@ -10,6 +10,7 @@ import {
 } from '@/common/data/common/utils/communicationChannelUtils'
 import { deriveSortableColumns, deriveAvailableColumns } from '@/common/network/graphql/descriptorUtils'
 import { getContactTypeLabel } from '@/common/data/relations/constants/contactConstants'
+import { CommunicationChannelCode } from '@/common/data/common/types/commonTypes'
 
 // Helper to safely convert values to strings
 const safeString = (value: any): string => {
@@ -117,9 +118,7 @@ export const commonContactColumns = (): ColumnDef<Contact>[] => [
       // Get all communication channels
       if (row.communicationChannels?.length) {
         const email = row.communicationChannels.find(
-          ch =>
-            ch.communicationChannel?.code?.toUpperCase() === 'EMAIL' ||
-            ch.communicationChannel?.alternativeCode?.toUpperCase() === 'EMAIL'
+          ch => ch.communicationChannel?.code === CommunicationChannelCode.EMAIL
         )
         return safeString(email?.value)
       }
@@ -132,7 +131,11 @@ export const commonContactColumns = (): ColumnDef<Contact>[] => [
     enableResizing: false,
     enableSorting: false,
     cell: ({ row }) => {
-      const channels = row.original.communicationChannels || []
+      const channels = (row.original.communicationChannels || []).filter(
+        channel =>
+          channel.communicationChannel?.code === CommunicationChannelCode.EMAIL ||
+          channel.communicationChannel?.code === CommunicationChannelCode.PHONE
+      )
 
       if (channels.length === 0) {
         return <span className="gba:text-sm gba:text-muted-foreground">No contact info</span>

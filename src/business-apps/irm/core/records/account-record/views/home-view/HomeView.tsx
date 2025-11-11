@@ -15,7 +15,6 @@ import ContactSection from '@/common/components/common-relations/record-sections
 import ActivitySection from '@/common/components/common-relations/record-sections/activity-section/ActivitySection'
 import NoteSection from '@/common/components/common-relations/record-sections/note-section/NoteSection'
 import TaskSection from '@/common/components/common-relations/record-sections/task-section/TaskSection'
-import { transformTaskOrApproval } from '@/common/components/common-relations/record-sections/task-section/utils/taskMappers'
 import SectionWrapper from '@/common/components/common-relations/record-sections/section-card/SectionCard'
 
 interface HomeViewProps extends BusinessAppContextProps {
@@ -298,9 +297,7 @@ const HomeView: React.FC<HomeViewProps> = ({ accountId, accountData, ...props })
             props: {
               ...props,
               buildReferenceUrl,
-              tasks: tasks.map(task =>
-                transformTaskOrApproval(task, getTranslationFromI18nKeyAndLabel('crm.tasks.untitled', 'Untitled Task'))
-              ),
+              tasks: tasks,
               taskActionProps: {
                 ...taskActionProps,
                 emptyStateBehavior: 'enable'
@@ -320,12 +317,7 @@ const HomeView: React.FC<HomeViewProps> = ({ accountId, accountData, ...props })
               ...props,
               sectionTitle: 'Approval Tasks',
               buildReferenceUrl,
-              tasks: approvals.map(approval =>
-                transformTaskOrApproval(
-                  approval,
-                  getTranslationFromI18nKeyAndLabel('crm.approvals.request', 'Approval Request')
-                )
-              ),
+              tasks: approvals,
               taskEntityActionProps: {
                 contextsArray: [FlowContextName.investmentTaskEntity],
                 externalContextData: { accountId },
@@ -351,22 +343,7 @@ const HomeView: React.FC<HomeViewProps> = ({ accountId, accountData, ...props })
             component: NoteSection,
             props: {
               ...props,
-              notes: notes.map(note => ({
-                id: note.id,
-                noteTitle:
-                  note.title ||
-                  note.displayName ||
-                  getTranslationFromI18nKeyAndLabel('crm.notes.untitled', 'Untitled Note'),
-                noteText: note.text || '',
-                createdAt: note.createdAt,
-                createdBy:
-                  note.authorDisplayName ||
-                  note.authorEmployee?.displayName ||
-                  getTranslationFromI18nKeyAndLabel('crm.common.unknown', 'Unknown'),
-                authorEmployee: note.authorEmployee,
-                reminderDate: note.reminderDate,
-                documents: note.documents
-              })),
+              notes: notes,
               noteActionProps: {
                 ...noteActionProps,
                 emptyStateBehavior: 'enable'

@@ -56,21 +56,21 @@ export interface CommonContactQueryVariables extends BaseQueryVariables {
 
 /**
  * Build Contact query with fields mapping
- * @param fields - ContactFields mapping (default: ContactFields)
  * @param entityName - GraphQL entity name (REQUIRED)
- * @param entityFields - Additional domain-specific fields (optional)
- * @param queryFields - Additional query fields (optional)
+ * @param entityFields - ContactFields mapping (default: ContactFields)
  * @param relationBuilders - Object containing fragment builder functions for relations (optional)
  * @param relationFields - Object containing field mappings for relations (optional)
+ * @param additionalFields - Additional domain-specific fields (optional)
+ * @param additionalQueries - Additional query fields (optional)
  * @returns GraphQL query string using variables
  */
 export const buildContactQuery = (
-  fields: Record<keyof typeof ContactFields, string> = ContactFields,
   entityName: string,
-  entityFields?: string,
-  queryFields?: string,
+  entityFields: Record<keyof typeof ContactFields, string> = ContactFields,
   relationBuilders?: Partial<ContactRelationBuilders>,
-  relationFields?: Partial<ContactRelationFields>
+  relationFields?: Partial<ContactRelationFields>,
+  additionalFields?: string,
+  additionalQueries?: string
 ): string => {
   const boolExpType = `${entityName}BoolExp`
   const orderByType = `[${entityName}OrderBy!]`
@@ -81,7 +81,7 @@ export const buildContactQuery = (
     relationBuilders?.buildAccountFragment && relationFields?.accountFields
       ? `
     # AccountContacts relation (field name varies: accountContacts vs investmentAccountContact)
-    ${fields.accountContacts}(where: { isDeleted: { _eq: false } }) {
+    ${entityFields.accountContacts}(where: { isDeleted: { _eq: false } }) {
       id
       ${AUDIT_FIELDS}
       contactType
@@ -113,88 +113,88 @@ export const buildContactQuery = (
         where: $where
       ) {
         ${AUDIT_FIELDS}
-        ${fields.academicTitle} {
+        ${entityFields.academicTitle} {
           ${CATALOG_ENTRY}
         }
-        ${fields.academicTitleRef}
-        ${fields.birthDate}
-        ${fields.code}
-        ${fields.communicationChannels}(where: { isDeleted: { _eq: false } }) {
+        ${entityFields.academicTitleRef}
+        ${entityFields.birthDate}
+        ${entityFields.code}
+        ${entityFields.communicationChannels}(where: { isDeleted: { _eq: false } }) {
           ${COMMUNICATION_CHANNEL_REF}
         }
-        ${fields.department}
-        ${fields.id}
-        ${fields.firstName}
-        ${fields.language} {
+        ${entityFields.department}
+        ${entityFields.id}
+        ${entityFields.firstName}
+        ${entityFields.language} {
           ${CATALOG_ENTRY}
         }
-        ${fields.languageRef}
-        ${fields.lastName}
-        ${fields.notesSummary}
-        ${fields.ownerEmployee} {
+        ${entityFields.languageRef}
+        ${entityFields.lastName}
+        ${entityFields.notesSummary}
+        ${entityFields.ownerEmployee} {
           ${EMPLOYEE_REF}
         }
-        ${fields.ownerEmployeeId}
-        ${fields.salutation} {
+        ${entityFields.ownerEmployeeId}
+        ${entityFields.salutation} {
           ${CATALOG_ENTRY}
         }
-        ${fields.salutationRef}
-        ${fields.type}
+        ${entityFields.salutationRef}
+        ${entityFields.type}
         ${accountContactsRelation}
-        ${entityFields || ''}
+        ${additionalFields || ''}
       }
       ${entityName}Aggregate(where: $where) {
         aggregate { count }
       }
-      ${queryFields || ''}
+      ${additionalQueries || ''}
     }
   `
 }
 
 /**
  * Build Contact by ID query
- * @param fields - ContactFields mapping (default: ContactFields)
- * @param id - Contact ID
  * @param entityName - GraphQL entity name (REQUIRED)
+ * @param id - Contact ID
+ * @param entityFields - ContactFields mapping (default: ContactFields)
  * @param relationBuilders - Object containing fragment builder functions for relations (optional)
  * @param relationFields - Object containing field mappings for relations (optional)
- * @param entityFields - Additional domain-specific fields (addresses, leads, etc.) (optional)
+ * @param additionalFields - Additional domain-specific fields (addresses, leads, etc.) (optional)
  */
 export const buildContactByIdQuery = (
-  fields: Record<keyof typeof ContactFields, string> = ContactFields,
-  id: string,
   entityName: string,
+  id: string,
+  entityFields: Record<keyof typeof ContactFields, string> = ContactFields,
   relationBuilders?: ContactRelationBuilders,
   relationFields?: ContactRelationFields,
-  entityFields?: string
+  additionalFields?: string
 ): string => {
   // Base fields inline
   const baseFields = `
         ${AUDIT_FIELDS}
-        ${fields.academicTitle} {
+        ${entityFields.academicTitle} {
           ${CATALOG_ENTRY}
         }
-        ${fields.academicTitleRef}
-        ${fields.birthDate}
-        ${fields.code}
-        ${fields.department}
-        ${fields.id}
-        ${fields.firstName}
-        ${fields.language} {
+        ${entityFields.academicTitleRef}
+        ${entityFields.birthDate}
+        ${entityFields.code}
+        ${entityFields.department}
+        ${entityFields.id}
+        ${entityFields.firstName}
+        ${entityFields.language} {
           ${CATALOG_ENTRY}
         }
-        ${fields.languageRef}
-        ${fields.lastName}
-        ${fields.notesSummary}
-        ${fields.ownerEmployee} {
+        ${entityFields.languageRef}
+        ${entityFields.lastName}
+        ${entityFields.notesSummary}
+        ${entityFields.ownerEmployee} {
           ${EMPLOYEE_REF}
         }
-        ${fields.ownerEmployeeId}
-        ${fields.salutation} {
+        ${entityFields.ownerEmployeeId}
+        ${entityFields.salutation} {
           ${CATALOG_ENTRY}
         }
-        ${fields.salutationRef}
-        ${fields.type}
+        ${entityFields.salutationRef}
+        ${entityFields.type}
   `
 
   // Common entity relations
@@ -203,19 +203,19 @@ export const buildContactByIdQuery = (
       ? `
     # Common entity relations (present in both IRM and CRM)
     
-    ${fields.communicationChannels}(where: { isDeleted: { _eq: false } }) {
+    ${entityFields.communicationChannels}(where: { isDeleted: { _eq: false } }) {
       ${COMMUNICATION_CHANNEL_REF}
     }
     
-    ${fields.documents}(where: { isDeleted: { _eq: false } }) {
+    ${entityFields.documents}(where: { isDeleted: { _eq: false } }) {
       ${relationBuilders.buildDocumentFragment(relationFields.documentFields)}
     }
     
-    ${fields.notes}(where: { isDeleted: { _eq: false } }) {
+    ${entityFields.notes}(where: { isDeleted: { _eq: false } }) {
       ${relationBuilders.buildNoteFragment(relationFields.noteFields)}
     }
     
-    ${fields.tasks}(where: { isDeleted: { _eq: false } }) {
+    ${entityFields.tasks}(where: { isDeleted: { _eq: false } }) {
       ${relationBuilders.buildTaskFragment(relationFields.taskFields)}
       
       # Documents relation within tasks
@@ -224,12 +224,12 @@ export const buildContactByIdQuery = (
       }
     }
     
-    ${fields.activities}(where: { isDeleted: { _eq: false } }) {
+    ${entityFields.activities}(where: { isDeleted: { _eq: false } }) {
       ${relationBuilders.buildActivityFragment(relationFields.activityFields)}
     }
     
     # AccountContacts relation (field name varies: accountContacts vs investmentAccountContact)
-    ${fields.accountContacts}(where: { isDeleted: { _eq: false } }) {
+    ${entityFields.accountContacts}(where: { isDeleted: { _eq: false } }) {
       id
       ${AUDIT_FIELDS}
       contactType
@@ -246,7 +246,7 @@ export const buildContactByIdQuery = (
     }
     
     # OpportunityContacts relation (field name varies: opportunityContacts vs investmentOpportunityContact)
-    ${fields.opportunityContacts}(where: { isDeleted: { _eq: false } }) {
+    ${entityFields.opportunityContacts}(where: { isDeleted: { _eq: false } }) {
       id
       ${AUDIT_FIELDS}
       contactType
@@ -262,7 +262,7 @@ export const buildContactByIdQuery = (
       ${entityName}ByPk(id: "${id}") {
         ${baseFields}
         ${commonRelations}
-        ${entityFields || ''}
+        ${additionalFields || ''}
       }
     }
   `
@@ -271,10 +271,11 @@ export const buildContactByIdQuery = (
 /**
  * Build Contact search query
  * @param entityName - GraphQL entity name (REQUIRED)
+ * @param entityFields - ContactFields mapping (default: ContactFields)
  */
 export const buildContactSearchQuery = (
-  fields: Record<keyof typeof ContactFields, string> = ContactFields,
-  entityName: string
+  entityName: string,
+  entityFields: Record<keyof typeof ContactFields, string> = ContactFields
 ): string => {
   const boolExpType = `${entityName}BoolExp`
 
@@ -287,10 +288,10 @@ export const buildContactSearchQuery = (
         limit: $limit
         where: $where
       ) {
-        ${fields.id}
-        ${fields.code}
-        ${fields.firstName}
-        ${fields.lastName}
+        ${entityFields.id}
+        ${entityFields.code}
+        ${entityFields.firstName}
+        ${entityFields.lastName}
       }
     }
   `

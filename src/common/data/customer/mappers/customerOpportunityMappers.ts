@@ -1,6 +1,8 @@
 // Customer Opportunity Mapper - Transform base type to enhanced type with computed fields
 
 import { CustomerOpportunity, CustomerOpportunityStageCondition } from '../types'
+import { toCustomerAccount } from './customerAccountMappers'
+import { toCustomerContact } from './customerContactMappers'
 
 /**
  * Transform CustomerOpportunity (GraphQL response) to CustomerOpportunity (enhanced with field mappings)
@@ -12,6 +14,9 @@ import { CustomerOpportunity, CustomerOpportunityStageCondition } from '../types
  * - crmDocument / crmNote → documents / notes
  */
 export function toCustomerOpportunity(base: CustomerOpportunity): CustomerOpportunity {
+  const account = base.account ? toCustomerAccount(base.account) : base.account
+  const contacts = base.contacts ? base.contacts.map(c => toCustomerContact(c)) : base.contacts
+
   // Map CRM field names to Opportunity standard (IRM naming)
   const opportunityPipeline = (base as any).salesPipeline || (base as any).opportunityPipeline || (base as any).pipeline
   const opportunityPipelineRef = (base as any).salesPipelineRef || (base as any).opportunityPipelineRef
@@ -31,6 +36,8 @@ export function toCustomerOpportunity(base: CustomerOpportunity): CustomerOpport
   return {
     ...base,
     // Map CRM fields to Opportunity standard
+    account,
+    contacts,
     opportunityPipeline,
     opportunityPipelineRef,
     opportunityPipelineStage,

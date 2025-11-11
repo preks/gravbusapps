@@ -84,7 +84,7 @@ export const buildInvestmentLeadQuery = (fields: typeof LeadFields = LeadFields)
     }
     sizeMeasurementUnitRef
   `
-  return buildLeadQuery(fields, 'InvestmentLead', entityFields)
+  return buildLeadQuery('InvestmentLead', fields, entityFields)
 }
 
 /**
@@ -148,14 +148,22 @@ export const buildInvestmentLeadByIdQuery = (fields: typeof LeadFields = LeadFie
     sizeMeasurementUnitRef
   `
 
-  return buildLeadByIdQuery(fields, id, 'InvestmentLead', relationBuilders, relationFields, entityFields)
+  return buildLeadByIdQuery(
+    'InvestmentLead',
+    id,
+    fields,
+    relationBuilders,
+    relationFields,
+    entityFields,
+    'InvestmentLeadStatus'
+  )
 }
 
 /**
  * Build Investment Lead search query
  */
 export const buildInvestmentLeadSearchQuery = (fields: typeof LeadFields = LeadFields): string => {
-  return buildLeadSearchQuery(fields, 'InvestmentLead')
+  return buildLeadSearchQuery('InvestmentLead', fields)
 }
 
 /**
@@ -182,10 +190,3 @@ export const buildInvestmentLeadOrderBy = (
   const descriptors = [...INVESTMENT_LEAD_DESCRIPTORS, ...additionalDescriptors]
   return buildLeadOrderBy(orderBy, descriptors)
 }
-
-// =====================================================
-// INVESTMENT LEAD RELATED ENTITIES QUERIES
-// =====================================================
-// NOTE: Related-entity queries have been moved to centralized query builders
-// Use buildInvestmentTaskByLeadIdQuery, buildInvestmentActivityByLeadIdQuery, etc.
-// from investmentTaskQueries.ts, investmentActivityQueries.ts, etc.

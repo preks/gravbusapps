@@ -16,9 +16,9 @@ import { getTranslationFromI18nKeyAndLabel } from '@/common/utils/windowUtils'
 import { useCustomerContacts } from '@/common/data/customer/hooks/useCustomerContacts'
 import { AppActionButton } from '@/components/app-action-button/AppActionButton'
 import { FlowContextName } from '@/common/types/FlowRegistryTypes'
-import { useGetContactActivities, ContactActivityData } from './queries/ContactActivityQueries'
-import { useGetContactTasks, ContactTaskData } from './queries/ContactTaskQueries'
-import { useGetContactNotes, ContactNoteData } from './queries/ContactNoteQueries'
+import { useCustomerActivities } from '@/common/data/customer/hooks/useCustomerActivities'
+import { useCustomerTasks } from '@/common/data/customer/hooks/useCustomerTasks'
+import { useCustomerNotes } from '@/common/data/customer/hooks/useCustomerNotes'
 import { HomeView } from './views/home-view/HomeView'
 import type { CustomerContact } from '@/common/data/customer/types'
 import { OpportunityView } from './views/opportunity-view/OpportunityView'
@@ -43,16 +43,16 @@ const ContactRecordContent: React.FC<ContactRecordContentProps> = ({ contactId, 
 
   const { fetchCustomerContactById } = useCustomerContacts(props)
 
-  // Data fetching hooks for sections
-  const { fetchContactActivities } = useGetContactActivities(props)
-  const { fetchContactTasks } = useGetContactTasks(props)
-  const { fetchContactNotes } = useGetContactNotes(props)
+  // Data fetching hooks for sections - using central hooks
+  const { fetchCustomerActivitiesByContactId } = useCustomerActivities(props)
+  const { fetchCustomerTasksByContactId } = useCustomerTasks(props)
+  const { fetchCustomerNotesByContactId } = useCustomerNotes(props)
 
   // State for section data
-  const [activities, setActivities] = useState<ContactActivityData[]>([])
-  const [notes, setNotes] = useState<ContactNoteData[]>([])
-  const [tasks, setTasks] = useState<ContactTaskData[]>([])
-  const [approvals, setApprovals] = useState<ContactTaskData[]>([])
+  const [activities, setActivities] = useState<any[]>([])
+  const [notes, setNotes] = useState<any[]>([])
+  const [tasks, setTasks] = useState<any[]>([])
+  const [approvals, setApprovals] = useState<any[]>([])
   const [sectionsLoading, setSectionsLoading] = useState(true)
   const [sectionsError, setSectionsError] = useState<string | null>(null)
 
@@ -89,31 +89,31 @@ const ContactRecordContent: React.FC<ContactRecordContentProps> = ({ contactId, 
 
     try {
       const [activitiesData, notesData, tasksData] = await Promise.all([
-        fetchContactActivities({ contactId }),
-        fetchContactNotes({ contactId }),
-        fetchContactTasks({ contactId })
+        fetchCustomerActivitiesByContactId(contactId),
+        fetchCustomerNotesByContactId(contactId),
+        fetchCustomerTasksByContactId(contactId)
       ])
 
-      const sortedActivities = (activitiesData.SalesActivity || []).sort(
-        (a: ContactActivityData, b: ContactActivityData) =>
+      const sortedActivities = (activitiesData || []).sort(
+        (a: any, b: any) =>
           new Date(b.occurredAt || b.createdAt).getTime() - new Date(a.occurredAt || a.createdAt).getTime()
       )
-      const sortedNotes = (notesData.CrmNote || []).sort(
-        (a: ContactNoteData, b: ContactNoteData) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime()
+      const sortedNotes = (notesData || []).sort(
+        (a: any, b: any) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime()
       )
-      const sortedTasks = (tasksData.SalesTask || []).sort(
-        (a: ContactTaskData, b: ContactTaskData) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime()
+      const sortedTasks = (tasksData || []).sort(
+        (a: any, b: any) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime()
       )
 
       // Separate regular tasks from approvals based on taskType
-      const regularTasks = sortedTasks.filter((task: ContactTaskData) => {
-        const taskTypeCode = task?.type?.code || ''
-        const taskTypeValue = task?.type?.value || ''
+      const regularTasks = sortedTasks.filter((task: any) => {
+        const taskTypeCode = task?.type?.code || task?.taskType?.code || ''
+        const taskTypeValue = task?.type?.value || task?.taskType?.value || ''
         return taskTypeCode?.toUpperCase() !== 'APPROVAL' && taskTypeValue?.toUpperCase() !== 'APPROVAL'
       })
-      const approvalTasks = sortedTasks.filter((task: ContactTaskData) => {
-        const taskTypeCode = task?.type?.code || ''
-        const taskTypeValue = task?.type?.value || ''
+      const approvalTasks = sortedTasks.filter((task: any) => {
+        const taskTypeCode = task?.type?.code || task?.taskType?.code || ''
+        const taskTypeValue = task?.type?.value || task?.taskType?.value || ''
         return taskTypeCode?.toUpperCase() === 'APPROVAL' || taskTypeValue?.toUpperCase() === 'APPROVAL'
       })
 
@@ -127,7 +127,13 @@ const ContactRecordContent: React.FC<ContactRecordContentProps> = ({ contactId, 
     } finally {
       setSectionsLoading(false)
     }
-  }, [contactId, props.accessToken, fetchContactActivities, fetchContactNotes, fetchContactTasks])
+  }, [
+    contactId,
+    props.accessToken,
+    fetchCustomerActivitiesByContactId,
+    fetchCustomerNotesByContactId,
+    fetchCustomerTasksByContactId
+  ])
 
   // Load section data on mount
   useEffect(() => {

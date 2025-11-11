@@ -50,21 +50,21 @@ export interface CommonNoteQueryVariables extends BaseQueryVariables {
 
 /**
  * Build Note query with fields mapping
- * @param fields - NoteFields mapping (default: NoteFields)
  * @param entityName - GraphQL entity name (REQUIRED)
- * @param entityFields - Additional domain-specific fields (optional)
- * @param queryFields - Additional query fields (optional)
+ * @param entityFields - NoteFields mapping (default: NoteFields)
  * @param relationBuilders - Object containing fragment builder functions for relations (optional)
  * @param relationFields - Object containing field mappings for relations (optional)
+ * @param additionalFields - Additional domain-specific fields (optional)
+ * @param additionalQueries - Additional query fields (optional)
  * @returns GraphQL query string using variables
  */
 export const buildNoteQuery = (
-  fields: typeof NoteFields = NoteFields,
   entityName: string,
-  entityFields?: string,
-  queryFields?: string,
+  entityFields: Record<keyof typeof NoteFields, string> = NoteFields,
   relationBuilders?: Partial<NoteRelationBuilders>,
-  relationFields?: Partial<NoteRelationFields>
+  relationFields?: Partial<NoteRelationFields>,
+  additionalFields?: string,
+  additionalQueries?: string
 ): string => {
   const boolExpType = `${entityName}BoolExp`
   const orderByType = `[${entityName}OrderBy!]`
@@ -74,39 +74,42 @@ export const buildNoteQuery = (
     relationBuilders && relationFields
       ? `
     # Common entity relations (present in both IRM and CRM)
-    ${fields.documents}(where: { isDeleted: { _eq: false } }) {
+    ${
+      relationBuilders.buildDocumentFragment && relationFields.documentFields && entityFields.documents
+        ? `${entityFields.documents}(where: { isDeleted: { _eq: false } }) {
       ${relationBuilders.buildDocumentFragment(relationFields.documentFields)}
+      }`
+        : ''
     }
-    
     # Optional relations (account, contact, lead, opportunity)
     ${
-      relationBuilders.buildAccountFragment && relationFields.accountFields && fields.account
-        ? `${fields.accountId}
-      ${fields.account} {
+      relationBuilders.buildAccountFragment && relationFields.accountFields && entityFields.account
+        ? `${entityFields.accountId}
+      ${entityFields.account} {
         ${relationBuilders.buildAccountFragment(relationFields.accountFields)}
       }`
         : ''
     }
     ${
-      relationBuilders.buildContactFragment && relationFields.contactFields && fields.contact
-        ? `${fields.contactId}
-      ${fields.contact} {
+      relationBuilders.buildContactFragment && relationFields.contactFields && entityFields.contact
+        ? `${entityFields.contactId}
+      ${entityFields.contact} {
         ${relationBuilders.buildContactFragment(relationFields.contactFields)}
       }`
         : ''
     }
     ${
-      relationBuilders.buildLeadFragment && relationFields.leadFields && fields.lead
-        ? `${fields.leadId}
-      ${fields.lead} {
+      relationBuilders.buildLeadFragment && relationFields.leadFields && entityFields.lead
+        ? `${entityFields.leadId}
+      ${entityFields.lead} {
         ${relationBuilders.buildLeadFragment(relationFields.leadFields)}
       }`
         : ''
     }
     ${
-      relationBuilders.buildOpportunityFragment && relationFields.opportunityFields && fields.opportunity
-        ? `${fields.opportunityId}
-      ${fields.opportunity} {
+      relationBuilders.buildOpportunityFragment && relationFields.opportunityFields && entityFields.opportunity
+        ? `${entityFields.opportunityId}
+      ${entityFields.opportunity} {
         ${relationBuilders.buildOpportunityFragment(relationFields.opportunityFields)}
       }`
         : ''
@@ -128,52 +131,55 @@ export const buildNoteQuery = (
         where: $where
       ) {
         ${AUDIT_FIELDS}
-        ${fields.authorEmployee} {
+        ${entityFields.authorEmployee} {
           ${EMPLOYEE_REF}
         }
-        ${fields.authorEmployeeId}
-        ${fields.id}
-        ${fields.reminderDate}
-        ${fields.source}
-        ${entityFields || ''}
+        ${entityFields.authorEmployeeId}
+        ${entityFields.id}
+        ${entityFields.reminderDate}
+        ${entityFields.source}
+        ${entityFields.title}
+        ${entityFields.text}
+        ${additionalFields || ''}
         ${references || ''}
-        ${queryFields || ''}
       }
       ${entityName}Aggregate(where: $where) {
         aggregate { count }
       }
-      ${queryFields || ''}
+      ${additionalQueries || ''}
     }
   `
 }
 
 /**
  * Build Note by ID query
- * @param fields - NoteFields mapping (default: NoteFields)
- * @param id - Note ID
  * @param entityName - GraphQL entity name (REQUIRED)
+ * @param id - Note ID
+ * @param entityFields - NoteFields mapping (default: NoteFields)
  * @param relationBuilders - Object containing fragment builder functions for relations (optional)
  * @param relationFields - Object containing field mappings for relations (optional)
- * @param entityFields - Additional domain-specific fields (optional)
+ * @param additionalFields - Additional domain-specific fields (optional)
  */
 export const buildNoteByIdQuery = (
-  fields: typeof NoteFields = NoteFields,
-  id: string,
   entityName: string,
+  id: string,
+  entityFields: Record<keyof typeof NoteFields, string> = NoteFields,
   relationBuilders?: NoteRelationBuilders,
   relationFields?: NoteRelationFields,
-  entityFields?: string
+  additionalFields?: string
 ): string => {
   // Base fields inline
   const baseFields = `
         ${AUDIT_FIELDS}
-        ${fields.authorEmployee} {
+        ${entityFields.authorEmployee} {
           ${EMPLOYEE_REF}
         }
-        ${fields.authorEmployeeId}
-        ${fields.id}
-        ${fields.reminderDate}
-        ${fields.source}
+        ${entityFields.authorEmployeeId}
+        ${entityFields.id}
+        ${entityFields.reminderDate}
+        ${entityFields.source}
+        ${entityFields.text}
+        ${entityFields.title}
   `
 
   // Common entity relations
@@ -181,42 +187,42 @@ export const buildNoteByIdQuery = (
     relationBuilders && relationFields
       ? `
     # Common entity relations (present in both IRM and CRM)
-    ${fields.documents}(where: { isDeleted: { _eq: false } }) {
+    ${entityFields.documents}(where: { isDeleted: { _eq: false } }) {
       ${relationBuilders.buildDocumentFragment(relationFields.documentFields)}
     }
     
     # Optional relations (account, contact, lead, opportunity)
     ${
-      relationBuilders.buildAccountFragment && relationFields.accountFields && fields.account
-        ? `${fields.accountId}
-      ${fields.account} {
+      relationBuilders.buildAccountFragment && relationFields.accountFields && entityFields.account
+        ? `${entityFields.accountId}
+      ${entityFields.account} {
         ${relationBuilders.buildAccountFragment(relationFields.accountFields)}
       }`
         : ''
     }
     
     ${
-      relationBuilders.buildContactFragment && relationFields.contactFields && fields.contact
-        ? `${fields.contactId}
-      ${fields.contact} {
+      relationBuilders.buildContactFragment && relationFields.contactFields && entityFields.contact
+        ? `${entityFields.contactId}
+      ${entityFields.contact} {
         ${relationBuilders.buildContactFragment(relationFields.contactFields)}
       }`
         : ''
     }
     
     ${
-      relationBuilders.buildLeadFragment && relationFields.leadFields && fields.lead
-        ? `${fields.leadId}
-      ${fields.lead} {
+      relationBuilders.buildLeadFragment && relationFields.leadFields && entityFields.lead
+        ? `${entityFields.leadId}
+      ${entityFields.lead} {
         ${relationBuilders.buildLeadFragment(relationFields.leadFields)}
       }`
         : ''
     }
     
     ${
-      relationBuilders.buildOpportunityFragment && relationFields.opportunityFields && fields.opportunity
-        ? `${fields.opportunityId}
-      ${fields.opportunity} {
+      relationBuilders.buildOpportunityFragment && relationFields.opportunityFields && entityFields.opportunity
+        ? `${entityFields.opportunityId}
+      ${entityFields.opportunity} {
         ${relationBuilders.buildOpportunityFragment(relationFields.opportunityFields)}
       }`
         : ''
@@ -229,7 +235,7 @@ export const buildNoteByIdQuery = (
       ${entityName}ByPk(id: "${id}") {
         ${baseFields}
         ${commonRelations}
-        ${entityFields || ''}
+        ${additionalFields || ''}
       }
     }
   `
@@ -238,8 +244,12 @@ export const buildNoteByIdQuery = (
 /**
  * Build Note search query
  * @param entityName - GraphQL entity name (REQUIRED)
+ * @param entityFields - NoteFields mapping (default: NoteFields)
  */
-export const buildNoteSearchQuery = (fields: typeof NoteFields = NoteFields, entityName: string): string => {
+export const buildNoteSearchQuery = (
+  entityName: string,
+  entityFields: Record<keyof typeof NoteFields, string> = NoteFields
+): string => {
   const boolExpType = `${entityName}BoolExp`
 
   return `
@@ -251,9 +261,9 @@ export const buildNoteSearchQuery = (fields: typeof NoteFields = NoteFields, ent
         limit: $limit
         where: $where
       ) {
-        ${fields.id}
-        ${fields.title}
-        ${fields.text}
+        ${entityFields.id}
+        ${entityFields.title}
+        ${entityFields.text}
       }
     }
   `
@@ -308,13 +318,14 @@ export const buildNoteOrderBy = (
  * Uses buildNoteQuery and ensures all relations (including documents) are included
  */
 export const buildNoteByLeadIdQuery = (
-  fields: typeof NoteFields = NoteFields,
   entityName: string,
+  entityFields: Record<keyof typeof NoteFields, string> = NoteFields,
   relationBuilders: Partial<NoteRelationBuilders>,
   relationFields: Partial<NoteRelationFields>,
-  entityFields?: string
+  additionalFields?: string,
+  additionalQueries?: string
 ): string => {
-  return buildNoteQuery(fields, entityName, entityFields, undefined, relationBuilders, relationFields)
+  return buildNoteQuery(entityName, entityFields, relationBuilders, relationFields, additionalFields, additionalQueries)
 }
 
 /**
@@ -322,13 +333,14 @@ export const buildNoteByLeadIdQuery = (
  * Uses buildNoteQuery and ensures all relations (including documents) are included
  */
 export const buildNoteByAccountIdQuery = (
-  fields: typeof NoteFields = NoteFields,
   entityName: string,
+  entityFields: Record<keyof typeof NoteFields, string> = NoteFields,
   relationBuilders: Partial<NoteRelationBuilders>,
   relationFields: Partial<NoteRelationFields>,
-  entityFields?: string
+  additionalFields?: string,
+  additionalQueries?: string
 ): string => {
-  return buildNoteQuery(fields, entityName, entityFields, undefined, relationBuilders, relationFields)
+  return buildNoteQuery(entityName, entityFields, relationBuilders, relationFields, additionalFields, additionalQueries)
 }
 
 /**
@@ -336,13 +348,14 @@ export const buildNoteByAccountIdQuery = (
  * Uses buildNoteQuery and ensures all relations (including documents) are included
  */
 export const buildNoteByContactIdQuery = (
-  fields: typeof NoteFields = NoteFields,
   entityName: string,
+  entityFields: Record<keyof typeof NoteFields, string> = NoteFields,
   relationBuilders: Partial<NoteRelationBuilders>,
   relationFields: Partial<NoteRelationFields>,
-  entityFields?: string
+  additionalFields?: string,
+  additionalQueries?: string
 ): string => {
-  return buildNoteQuery(fields, entityName, entityFields, undefined, relationBuilders, relationFields)
+  return buildNoteQuery(entityName, entityFields, relationBuilders, relationFields, additionalFields, additionalQueries)
 }
 
 /**
@@ -350,11 +363,12 @@ export const buildNoteByContactIdQuery = (
  * Uses buildNoteQuery and ensures all relations (including documents) are included
  */
 export const buildNoteByOpportunityIdQuery = (
-  fields: typeof NoteFields = NoteFields,
   entityName: string,
+  entityFields: Record<keyof typeof NoteFields, string> = NoteFields,
   relationBuilders: Partial<NoteRelationBuilders>,
   relationFields: Partial<NoteRelationFields>,
-  entityFields?: string
+  additionalFields?: string,
+  additionalQueries?: string
 ): string => {
-  return buildNoteQuery(fields, entityName, entityFields, undefined, relationBuilders, relationFields)
+  return buildNoteQuery(entityName, entityFields, relationBuilders, relationFields, additionalFields, additionalQueries)
 }

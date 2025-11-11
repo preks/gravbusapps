@@ -61,21 +61,21 @@ export interface CommonTaskQueryVariables extends BaseQueryVariables {
 
 /**
  * Build Task query with fields mapping
- * @param fields - TaskFields mapping (default: TaskFields)
  * @param entityName - GraphQL entity name (REQUIRED)
- * @param entityFields - Additional domain-specific fields (optional)
- * @param queryFields - Additional query fields (optional)
+ * @param entityFields - TaskFields mapping (default: TaskFields)
  * @param relationBuilders - Object containing fragment builder functions for relations (optional)
  * @param relationFields - Object containing field mappings for relations (optional)
+ * @param additionalFields - Additional domain-specific fields (optional)
+ * @param additionalQueries - Additional query fields (optional)
  * @returns GraphQL query string using variables
  */
 export const buildTaskQuery = (
-  fields: Record<keyof typeof TaskFields, string> = TaskFields,
   entityName: string,
-  entityFields?: string,
-  queryFields?: string,
+  entityFields: Record<keyof typeof TaskFields, string> = TaskFields,
   relationBuilders?: Partial<TaskRelationBuilders>,
-  relationFields?: Partial<TaskRelationFields>
+  relationFields?: Partial<TaskRelationFields>,
+  additionalFields?: string,
+  additionalQueries?: string
 ): string => {
   const boolExpType = `${entityName}BoolExp`
   const orderByType = `[${entityName}OrderBy!]`
@@ -87,7 +87,7 @@ export const buildTaskQuery = (
     # Common entity relations (present in both IRM and CRM)
     ${
       relationBuilders.buildDocumentFragment && relationFields.documentFields
-        ? `${fields.documents}(where: { isDeleted: { _eq: false } }) {
+        ? `${entityFields.documents}(where: { isDeleted: { _eq: false } }) {
       ${relationBuilders.buildDocumentFragment(relationFields.documentFields)}
     }`
         : ''
@@ -95,33 +95,33 @@ export const buildTaskQuery = (
     
     # Optional relations (account, contact, lead, opportunity)
     ${
-      relationBuilders.buildAccountFragment && relationFields.accountFields && fields.account
-        ? `${fields.accountId}
-      ${fields.account} {
+      relationBuilders.buildAccountFragment && relationFields.accountFields && entityFields.account
+        ? `${entityFields.accountId}
+      ${entityFields.account} {
         ${relationBuilders.buildAccountFragment(relationFields.accountFields)}
       }`
         : ''
     }
     ${
-      relationBuilders.buildContactFragment && relationFields.contactFields && fields.contact
-        ? `${fields.contactId}
-      ${fields.contact} {
+      relationBuilders.buildContactFragment && relationFields.contactFields && entityFields.contact
+        ? `${entityFields.contactId}
+      ${entityFields.contact} {
         ${relationBuilders.buildContactFragment(relationFields.contactFields)}
       }`
         : ''
     }
     ${
-      relationBuilders.buildLeadFragment && relationFields.leadFields && fields.lead
-        ? `${fields.leadId}
-      ${fields.lead} {
+      relationBuilders.buildLeadFragment && relationFields.leadFields && entityFields.lead
+        ? `${entityFields.leadId}
+      ${entityFields.lead} {
         ${relationBuilders.buildLeadFragment(relationFields.leadFields)}
       }`
         : ''
     }
     ${
-      relationBuilders.buildOpportunityFragment && relationFields.opportunityFields && fields.opportunity
-        ? `${fields.opportunityId}
-      ${fields.opportunity} {
+      relationBuilders.buildOpportunityFragment && relationFields.opportunityFields && entityFields.opportunity
+        ? `${entityFields.opportunityId}
+      ${entityFields.opportunity} {
         ${relationBuilders.buildOpportunityFragment(relationFields.opportunityFields)}
       }`
         : ''
@@ -143,101 +143,101 @@ export const buildTaskQuery = (
         where: $where
       ) {
         ${AUDIT_FIELDS}
-        ${fields.assignedEmployee} {
+        ${entityFields.assignedEmployee} {
           ${EMPLOYEE_REF}
         }
-        ${fields.assignedEmployeeId}
-        ${fields.assignedUserId}
-        ${fields.code}
-        ${fields.creatorEmployee} {
+        ${entityFields.assignedEmployeeId}
+        ${entityFields.assignedUserId}
+        ${entityFields.code}
+        ${entityFields.creatorEmployee} {
           ${EMPLOYEE_REF}
         }
-        ${fields.creatorEmployeeId}
-        ${fields.creatorUserId}
-        ${fields.description}
-        ${fields.dueDate}
-        ${fields.endDate}
-        ${fields.id}
-        ${fields.name}
-        ${fields.source}
-        ${fields.startDate}
-        ${fields.taskPriority} {
+        ${entityFields.creatorEmployeeId}
+        ${entityFields.creatorUserId}
+        ${entityFields.description}
+        ${entityFields.dueDate}
+        ${entityFields.endDate}
+        ${entityFields.id}
+        ${entityFields.name}
+        ${entityFields.source}
+        ${entityFields.startDate}
+        ${entityFields.taskPriority} {
           ${CATALOG_ENTRY}
         }
-        ${fields.taskPriorityRef}
-        ${fields.taskStatus} {
+        ${entityFields.taskPriorityRef}
+        ${entityFields.taskStatus} {
           ${CATALOG_ENTRY}
         }
-        ${fields.taskStatusRef}
-        ${fields.taskTiming}
-        ${fields.taskType} {
+        ${entityFields.taskStatusRef}
+        ${entityFields.taskTiming}
+        ${entityFields.taskType} {
           ${CATALOG_ENTRY}
         }
-        ${fields.taskTypeRef}
-        ${fields.templateStartDate}
+        ${entityFields.taskTypeRef}
+        ${entityFields.templateStartDate}
+        ${additionalFields || ''}
         ${references}
-        ${entityFields || ''}
       }
       ${entityName}Aggregate(where: $where) {
         aggregate { count }
       }
-      ${queryFields || ''}
+      ${additionalQueries || ''}
     }
   `
 }
 
 /**
  * Build Task by ID query
- * @param fields - TaskFields mapping (default: TaskFields)
- * @param id - Task ID
  * @param entityName - GraphQL entity name (REQUIRED)
+ * @param id - Task ID
+ * @param entityFields - TaskFields mapping (default: TaskFields)
  * @param relationBuilders - Object containing fragment builder functions for relations (optional)
  * @param relationFields - Object containing field mappings for relations (optional)
- * @param entityFields - Additional domain-specific fields (optional)
+ * @param additionalFields - Additional domain-specific fields (optional)
  */
 export const buildTaskByIdQuery = (
-  fields: Record<keyof typeof TaskFields, string> = TaskFields,
-  id: string,
   entityName: string,
+  id: string,
+  entityFields: Record<keyof typeof TaskFields, string> = TaskFields,
   relationBuilders?: TaskRelationBuilders,
   relationFields?: TaskRelationFields,
-  entityFields?: string
+  additionalFields?: string
 ): string => {
   // Base fields inline
   const baseFields = `
         ${AUDIT_FIELDS}
-        ${fields.assignedEmployee} {
+        ${entityFields.assignedEmployee} {
           ${EMPLOYEE_REF}
         }
-        ${fields.assignedEmployeeId}
-        ${fields.assignedUserId}
-        ${fields.code}
-        ${fields.creatorEmployee} {
+        ${entityFields.assignedEmployeeId}
+        ${entityFields.assignedUserId}
+        ${entityFields.code}
+        ${entityFields.creatorEmployee} {
           ${EMPLOYEE_REF}
         }
-        ${fields.creatorEmployeeId}
-        ${fields.creatorUserId}
-        ${fields.description}
-        ${fields.dueDate}
-        ${fields.endDate}
-        ${fields.id}
-        ${fields.name}
-        ${fields.source}
-        ${fields.startDate}
-        ${fields.taskPriority} {
+        ${entityFields.creatorEmployeeId}
+        ${entityFields.creatorUserId}
+        ${entityFields.description}
+        ${entityFields.dueDate}
+        ${entityFields.endDate}
+        ${entityFields.id}
+        ${entityFields.name}
+        ${entityFields.source}
+        ${entityFields.startDate}
+        ${entityFields.taskPriority} {
           ${CATALOG_ENTRY}
         }
-        ${fields.taskPriorityRef}
-        ${fields.taskStatus} {
+        ${entityFields.taskPriorityRef}
+        ${entityFields.taskStatus} {
           ${CATALOG_ENTRY}
         }
-        ${fields.taskStatusRef}
-        ${fields.taskTiming}
-        ${fields.taskType} {
+        ${entityFields.taskStatusRef}
+        ${entityFields.taskTiming}
+        ${entityFields.taskType} {
           ${CATALOG_ENTRY}
         }
-        ${fields.taskTypeRef}
-        ${fields.templateStartDate}
+        ${entityFields.taskTypeRef}
+        ${entityFields.templateStartDate}
   `
 
   // Common entity relations
@@ -245,42 +245,42 @@ export const buildTaskByIdQuery = (
     relationBuilders && relationFields
       ? `
     # Common entity relations (present in both IRM and CRM)
-    ${fields.documents}(where: { isDeleted: { _eq: false } }) {
+    ${entityFields.documents}(where: { isDeleted: { _eq: false } }) {
       ${relationBuilders.buildDocumentFragment(relationFields.documentFields)}
     }
     
     # Optional relations (account, contact, lead, opportunity)
     ${
-      relationBuilders.buildAccountFragment && relationFields.accountFields && fields.account
-        ? `${fields.accountId}
-      ${fields.account} {
+      relationBuilders.buildAccountFragment && relationFields.accountFields && entityFields.account
+        ? `${entityFields.accountId}
+      ${entityFields.account} {
         ${relationBuilders.buildAccountFragment(relationFields.accountFields)}
       }`
         : ''
     }
     
     ${
-      relationBuilders.buildContactFragment && relationFields.contactFields && fields.contact
-        ? `${fields.contactId}
-      ${fields.contact} {
+      relationBuilders.buildContactFragment && relationFields.contactFields && entityFields.contact
+        ? `${entityFields.contactId}
+      ${entityFields.contact} {
         ${relationBuilders.buildContactFragment(relationFields.contactFields)}
       }`
         : ''
     }
     
     ${
-      relationBuilders.buildLeadFragment && relationFields.leadFields && fields.lead
-        ? `${fields.leadId}
-      ${fields.lead} {
+      relationBuilders.buildLeadFragment && relationFields.leadFields && entityFields.lead
+        ? `${entityFields.leadId}
+      ${entityFields.lead} {
         ${relationBuilders.buildLeadFragment(relationFields.leadFields)}
       }`
         : ''
     }
     
     ${
-      relationBuilders.buildOpportunityFragment && relationFields.opportunityFields && fields.opportunity
-        ? `${fields.opportunityId}
-      ${fields.opportunity} {
+      relationBuilders.buildOpportunityFragment && relationFields.opportunityFields && entityFields.opportunity
+        ? `${entityFields.opportunityId}
+      ${entityFields.opportunity} {
         ${relationBuilders.buildOpportunityFragment(relationFields.opportunityFields)}
       }`
         : ''
@@ -293,7 +293,7 @@ export const buildTaskByIdQuery = (
       ${entityName}ByPk(id: "${id}") {
         ${baseFields}
         ${commonRelations}
-        ${entityFields || ''}
+        ${additionalFields || ''}
       }
     }
   `
@@ -302,10 +302,11 @@ export const buildTaskByIdQuery = (
 /**
  * Build Task search query
  * @param entityName - GraphQL entity name (REQUIRED)
+ * @param entityFields - TaskFields mapping (default: TaskFields)
  */
 export const buildTaskSearchQuery = (
-  fields: Record<keyof typeof TaskFields, string> = TaskFields,
-  entityName: string
+  entityName: string,
+  entityFields: Record<keyof typeof TaskFields, string> = TaskFields
 ): string => {
   const boolExpType = `${entityName}BoolExp`
 
@@ -318,9 +319,9 @@ export const buildTaskSearchQuery = (
         limit: $limit
         where: $where
       ) {
-        ${fields.id}
-        ${fields.name}
-        ${fields.description}
+        ${entityFields.id}
+        ${entityFields.name}
+        ${entityFields.description}
       }
     }
   `
@@ -373,21 +374,23 @@ export const buildTaskOrderBy = (
 /**
  * Build Task query filtered by Lead ID
  * Uses buildTaskQuery and ensures all relations (including documents) are included
- * @param fields - TaskFields mapping (default: TaskFields)
  * @param entityName - GraphQL entity name (REQUIRED, e.g. 'InvestmentTask', 'SalesTask')
+ * @param entityFields - TaskFields mapping (default: TaskFields)
  * @param relationBuilders - Object containing fragment builder functions for relations (REQUIRED)
  * @param relationFields - Object containing field mappings for relations (REQUIRED)
- * @param entityFields - Additional domain-specific fields (optional, e.g. investment relation for IRM)
+ * @param additionalFields - Additional domain-specific fields (optional, e.g. investment relation for IRM)
+ * @param additionalQueries - Additional query fields (optional)
  * @returns GraphQL query string using variables ($where, $orderBy)
  */
 export const buildTaskByLeadIdQuery = (
-  fields: Record<keyof typeof TaskFields, string> = TaskFields,
   entityName: string,
+  entityFields: Record<keyof typeof TaskFields, string> = TaskFields,
   relationBuilders: Partial<TaskRelationBuilders>,
   relationFields: Partial<TaskRelationFields>,
-  entityFields?: string
+  additionalFields?: string,
+  additionalQueries?: string
 ): string => {
-  return buildTaskQuery(fields, entityName, entityFields, undefined, relationBuilders, relationFields)
+  return buildTaskQuery(entityName, entityFields, relationBuilders, relationFields, additionalFields, additionalQueries)
 }
 
 /**
@@ -395,13 +398,14 @@ export const buildTaskByLeadIdQuery = (
  * Uses buildTaskQuery and ensures all relations (including documents) are included
  */
 export const buildTaskByAccountIdQuery = (
-  fields: Record<keyof typeof TaskFields, string> = TaskFields,
   entityName: string,
+  entityFields: Record<keyof typeof TaskFields, string> = TaskFields,
   relationBuilders: Partial<TaskRelationBuilders>,
   relationFields: Partial<TaskRelationFields>,
-  entityFields?: string
+  additionalFields?: string,
+  additionalQueries?: string
 ): string => {
-  return buildTaskQuery(fields, entityName, entityFields, undefined, relationBuilders, relationFields)
+  return buildTaskQuery(entityName, entityFields, relationBuilders, relationFields, additionalFields, additionalQueries)
 }
 
 /**
@@ -409,13 +413,14 @@ export const buildTaskByAccountIdQuery = (
  * Uses buildTaskQuery and ensures all relations (including documents) are included
  */
 export const buildTaskByContactIdQuery = (
-  fields: Record<keyof typeof TaskFields, string> = TaskFields,
   entityName: string,
+  entityFields: Record<keyof typeof TaskFields, string> = TaskFields,
   relationBuilders: Partial<TaskRelationBuilders>,
   relationFields: Partial<TaskRelationFields>,
-  entityFields?: string
+  additionalFields?: string,
+  additionalQueries?: string
 ): string => {
-  return buildTaskQuery(fields, entityName, entityFields, undefined, relationBuilders, relationFields)
+  return buildTaskQuery(entityName, entityFields, relationBuilders, relationFields, additionalFields, additionalQueries)
 }
 
 /**
@@ -423,11 +428,12 @@ export const buildTaskByContactIdQuery = (
  * Uses buildTaskQuery and ensures all relations (including documents) are included
  */
 export const buildTaskByOpportunityIdQuery = (
-  fields: Record<keyof typeof TaskFields, string> = TaskFields,
   entityName: string,
+  entityFields: Record<keyof typeof TaskFields, string> = TaskFields,
   relationBuilders: Partial<TaskRelationBuilders>,
   relationFields: Partial<TaskRelationFields>,
-  entityFields?: string
+  additionalFields?: string,
+  additionalQueries?: string
 ): string => {
-  return buildTaskQuery(fields, entityName, entityFields, undefined, relationBuilders, relationFields)
+  return buildTaskQuery(entityName, entityFields, relationBuilders, relationFields, additionalFields, additionalQueries)
 }

@@ -63,21 +63,21 @@ export interface CommonDocumentQueryVariables extends BaseQueryVariables {
 
 /**
  * Build Document query with fields mapping
- * @param fields - DocumentFields mapping (default: DocumentFields)
  * @param entityName - GraphQL entity name (REQUIRED)
- * @param entityFields - Additional domain-specific fields (optional)
- * @param queryFields - Additional query fields (optional)
+ * @param entityFields - DocumentFields mapping (default: DocumentFields)
  * @param relationBuilders - Object containing fragment builder functions for relations (optional)
  * @param relationFields - Object containing field mappings for relations (optional)
+ * @param additionalFields - Additional domain-specific fields (optional)
+ * @param additionalQueries - Additional query fields (optional)
  * @returns GraphQL query string using variables
  */
 export const buildDocumentQuery = (
-  fields: typeof DocumentFields = DocumentFields,
   entityName: string,
-  entityFields?: string,
-  queryFields?: string,
+  entityFields: Record<keyof typeof DocumentFields, string> = DocumentFields,
   relationBuilders?: Partial<DocumentRelationBuilders>,
-  relationFields?: Partial<DocumentRelationFields>
+  relationFields?: Partial<DocumentRelationFields>,
+  additionalFields?: string,
+  additionalQueries?: string
 ): string => {
   const boolExpType = `${entityName}BoolExp`
   const orderByType = `[${entityName}OrderBy!]`
@@ -88,57 +88,57 @@ export const buildDocumentQuery = (
       ? `
     # Optional relations (account, contact, lead, opportunity, task, activity, note)
     ${
-      relationBuilders.buildAccountFragment && relationFields.accountFields && fields.account
-        ? `${fields.accountId}
-      ${fields.account} {
+      relationBuilders.buildAccountFragment && relationFields.accountFields && entityFields.account
+        ? `${entityFields.accountId}
+      ${entityFields.account} {
         ${relationBuilders.buildAccountFragment(relationFields.accountFields)}
       }`
         : ''
     }
     ${
-      relationBuilders.buildContactFragment && relationFields.contactFields && fields.contact
-        ? `${fields.contactId}
-      ${fields.contact} {
+      relationBuilders.buildContactFragment && relationFields.contactFields && entityFields.contact
+        ? `${entityFields.contactId}
+      ${entityFields.contact} {
         ${relationBuilders.buildContactFragment(relationFields.contactFields)}
       }`
         : ''
     }
     ${
-      relationBuilders.buildLeadFragment && relationFields.leadFields && fields.lead
-        ? `${fields.leadId}
-      ${fields.lead} {
+      relationBuilders.buildLeadFragment && relationFields.leadFields && entityFields.lead
+        ? `${entityFields.leadId}
+      ${entityFields.lead} {
         ${relationBuilders.buildLeadFragment(relationFields.leadFields)}
       }`
         : ''
     }
     ${
-      relationBuilders.buildOpportunityFragment && relationFields.opportunityFields && fields.opportunity
-        ? `${fields.opportunityId}
-      ${fields.opportunity} {
+      relationBuilders.buildOpportunityFragment && relationFields.opportunityFields && entityFields.opportunity
+        ? `${entityFields.opportunityId}
+      ${entityFields.opportunity} {
         ${relationBuilders.buildOpportunityFragment(relationFields.opportunityFields)}
       }`
         : ''
     }
     ${
-      relationBuilders.buildTaskFragment && relationFields.taskFields && fields.task
-        ? `${fields.taskId}
-      ${fields.task} {
+      relationBuilders.buildTaskFragment && relationFields.taskFields && entityFields.task
+        ? `${entityFields.taskId}
+      ${entityFields.task} {
         ${relationBuilders.buildTaskFragment(relationFields.taskFields)}
       }`
         : ''
     }
     ${
-      relationBuilders.buildActivityFragment && relationFields.activityFields && fields.activity
-        ? `${fields.activityId}
-      ${fields.activity} {
+      relationBuilders.buildActivityFragment && relationFields.activityFields && entityFields.activity
+        ? `${entityFields.activityId}
+      ${entityFields.activity} {
         ${relationBuilders.buildActivityFragment(relationFields.activityFields)}
       }`
         : ''
     }
     ${
-      relationBuilders.buildNoteFragment && relationFields.noteFields && fields.note
-        ? `${fields.noteId}
-      ${fields.note} {
+      relationBuilders.buildNoteFragment && relationFields.noteFields && entityFields.note
+        ? `${entityFields.noteId}
+      ${entityFields.note} {
         ${relationBuilders.buildNoteFragment(relationFields.noteFields)}
       }`
         : ''
@@ -160,52 +160,51 @@ export const buildDocumentQuery = (
         where: $where
       ) {
         ${DOCUMENT_REF}
-        ${fields.source}
-        ${fields.verified}
-        ${fields.verificationDate}
-        ${fields.authenticated}
-        ${fields.authenticationDate}
-        ${fields.mandatory}
-        ${fields.expirationDate}
-        ${entityFields || ''}
+        ${entityFields.source}
+        ${entityFields.verified}
+        ${entityFields.verificationDate}
+        ${entityFields.authenticated}
+        ${entityFields.authenticationDate}
+        ${entityFields.mandatory}
+        ${entityFields.expirationDate}
+        ${additionalFields || ''}
         ${references || ''}
-        ${queryFields || ''}
       }
       ${entityName}Aggregate(where: $where) {
         aggregate { count }
       }
-      ${queryFields || ''}
+      ${additionalQueries || ''}
     }
   `
 }
 
 /**
  * Build Document by ID query
- * @param fields - DocumentFields mapping (default: DocumentFields)
- * @param id - Document ID
  * @param entityName - GraphQL entity name (REQUIRED)
+ * @param id - Document ID
+ * @param entityFields - DocumentFields mapping (default: DocumentFields)
  * @param relationBuilders - Object containing fragment builder functions for relations (optional)
  * @param relationFields - Object containing field mappings for relations (optional)
- * @param entityFields - Additional domain-specific fields (optional)
+ * @param additionalFields - Additional domain-specific fields (optional)
  */
 export const buildDocumentByIdQuery = (
-  fields: typeof DocumentFields = DocumentFields,
-  id: string,
   entityName: string,
+  id: string,
+  entityFields: Record<keyof typeof DocumentFields, string> = DocumentFields,
   relationBuilders?: DocumentRelationBuilders,
   relationFields?: DocumentRelationFields,
-  entityFields?: string
+  additionalFields?: string
 ): string => {
   // Base fields inline
   const baseFields = `
         ${DOCUMENT_REF}
-        ${fields.source}
-        ${fields.verified}
-        ${fields.verificationDate}
-        ${fields.authenticated}
-        ${fields.authenticationDate}
-        ${fields.mandatory}
-        ${fields.expirationDate}
+        ${entityFields.source}
+        ${entityFields.verified}
+        ${entityFields.verificationDate}
+        ${entityFields.authenticated}
+        ${entityFields.authenticationDate}
+        ${entityFields.mandatory}
+        ${entityFields.expirationDate}
   `
 
   // Optional relations (account, contact, lead, opportunity, task, activity, note)
@@ -213,63 +212,63 @@ export const buildDocumentByIdQuery = (
     relationBuilders && relationFields
       ? `
     ${
-      relationBuilders.buildAccountFragment && relationFields.accountFields && fields.account
-        ? `${fields.accountId}
-      ${fields.account} {
+      relationBuilders.buildAccountFragment && relationFields.accountFields && entityFields.account
+        ? `${entityFields.accountId}
+      ${entityFields.account} {
         ${relationBuilders.buildAccountFragment(relationFields.accountFields)}
       }`
         : ''
     }
     
     ${
-      relationBuilders.buildContactFragment && relationFields.contactFields && fields.contact
-        ? `${fields.contactId}
-      ${fields.contact} {
+      relationBuilders.buildContactFragment && relationFields.contactFields && entityFields.contact
+        ? `${entityFields.contactId}
+      ${entityFields.contact} {
         ${relationBuilders.buildContactFragment(relationFields.contactFields)}
       }`
         : ''
     }
     
     ${
-      relationBuilders.buildLeadFragment && relationFields.leadFields && fields.lead
-        ? `${fields.leadId}
-      ${fields.lead} {
+      relationBuilders.buildLeadFragment && relationFields.leadFields && entityFields.lead
+        ? `${entityFields.leadId}
+      ${entityFields.lead} {
         ${relationBuilders.buildLeadFragment(relationFields.leadFields)}
       }`
         : ''
     }
     
     ${
-      relationBuilders.buildOpportunityFragment && relationFields.opportunityFields && fields.opportunity
-        ? `${fields.opportunityId}
-      ${fields.opportunity} {
+      relationBuilders.buildOpportunityFragment && relationFields.opportunityFields && entityFields.opportunity
+        ? `${entityFields.opportunityId}
+      ${entityFields.opportunity} {
         ${relationBuilders.buildOpportunityFragment(relationFields.opportunityFields)}
       }`
         : ''
     }
     
     ${
-      relationBuilders.buildTaskFragment && relationFields.taskFields && fields.task
-        ? `${fields.taskId}
-      ${fields.task} {
+      relationBuilders.buildTaskFragment && relationFields.taskFields && entityFields.task
+        ? `${entityFields.taskId}
+      ${entityFields.task} {
         ${relationBuilders.buildTaskFragment(relationFields.taskFields)}
       }`
         : ''
     }
     
     ${
-      relationBuilders.buildActivityFragment && relationFields.activityFields && fields.activity
-        ? `${fields.activityId}
-      ${fields.activity} {
+      relationBuilders.buildActivityFragment && relationFields.activityFields && entityFields.activity
+        ? `${entityFields.activityId}
+      ${entityFields.activity} {
         ${relationBuilders.buildActivityFragment(relationFields.activityFields)}
       }`
         : ''
     }
     
     ${
-      relationBuilders.buildNoteFragment && relationFields.noteFields && fields.note
-        ? `${fields.noteId}
-      ${fields.note} {
+      relationBuilders.buildNoteFragment && relationFields.noteFields && entityFields.note
+        ? `${entityFields.noteId}
+      ${entityFields.note} {
         ${relationBuilders.buildNoteFragment(relationFields.noteFields)}
       }`
         : ''
@@ -282,7 +281,7 @@ export const buildDocumentByIdQuery = (
       ${entityName}ByPk(id: "${id}") {
         ${baseFields}
         ${commonRelations}
-        ${entityFields || ''}
+        ${additionalFields || ''}
       }
     }
   `
@@ -291,10 +290,11 @@ export const buildDocumentByIdQuery = (
 /**
  * Build Document search query
  * @param entityName - GraphQL entity name (REQUIRED)
+ * @param entityFields - DocumentFields mapping (default: DocumentFields)
  */
 export const buildDocumentSearchQuery = (
-  fields: typeof DocumentFields = DocumentFields,
-  entityName: string
+  entityName: string,
+  entityFields: Record<keyof typeof DocumentFields, string> = DocumentFields
 ): string => {
   const boolExpType = `${entityName}BoolExp`
 
@@ -307,9 +307,9 @@ export const buildDocumentSearchQuery = (
         limit: $limit
         where: $where
       ) {
-        ${fields.id}
-        ${fields.name}
-        ${fields.description}
+        ${entityFields.id}
+        ${entityFields.name}
+        ${entityFields.description}
       }
     }
   `
@@ -364,13 +364,21 @@ export const buildDocumentOrderBy = (
  * Uses buildDocumentQuery and ensures all relations are included
  */
 export const buildDocumentByLeadIdQuery = (
-  fields: typeof DocumentFields = DocumentFields,
   entityName: string,
+  entityFields: Record<keyof typeof DocumentFields, string> = DocumentFields,
   relationBuilders: Partial<DocumentRelationBuilders>,
   relationFields: Partial<DocumentRelationFields>,
-  entityFields?: string
+  additionalFields?: string,
+  additionalQueries?: string
 ): string => {
-  return buildDocumentQuery(fields, entityName, entityFields, undefined, relationBuilders, relationFields)
+  return buildDocumentQuery(
+    entityName,
+    entityFields,
+    relationBuilders,
+    relationFields,
+    additionalFields,
+    additionalQueries
+  )
 }
 
 /**
@@ -378,13 +386,21 @@ export const buildDocumentByLeadIdQuery = (
  * Uses buildDocumentQuery and ensures all relations are included
  */
 export const buildDocumentByAccountIdQuery = (
-  fields: typeof DocumentFields = DocumentFields,
   entityName: string,
+  entityFields: Record<keyof typeof DocumentFields, string> = DocumentFields,
   relationBuilders: Partial<DocumentRelationBuilders>,
   relationFields: Partial<DocumentRelationFields>,
-  entityFields?: string
+  additionalFields?: string,
+  additionalQueries?: string
 ): string => {
-  return buildDocumentQuery(fields, entityName, entityFields, undefined, relationBuilders, relationFields)
+  return buildDocumentQuery(
+    entityName,
+    entityFields,
+    relationBuilders,
+    relationFields,
+    additionalFields,
+    additionalQueries
+  )
 }
 
 /**
@@ -392,13 +408,21 @@ export const buildDocumentByAccountIdQuery = (
  * Uses buildDocumentQuery and ensures all relations are included
  */
 export const buildDocumentByContactIdQuery = (
-  fields: typeof DocumentFields = DocumentFields,
   entityName: string,
+  entityFields: Record<keyof typeof DocumentFields, string> = DocumentFields,
   relationBuilders: Partial<DocumentRelationBuilders>,
   relationFields: Partial<DocumentRelationFields>,
-  entityFields?: string
+  additionalFields?: string,
+  additionalQueries?: string
 ): string => {
-  return buildDocumentQuery(fields, entityName, entityFields, undefined, relationBuilders, relationFields)
+  return buildDocumentQuery(
+    entityName,
+    entityFields,
+    relationBuilders,
+    relationFields,
+    additionalFields,
+    additionalQueries
+  )
 }
 
 /**
@@ -406,11 +430,19 @@ export const buildDocumentByContactIdQuery = (
  * Uses buildDocumentQuery and ensures all relations are included
  */
 export const buildDocumentByOpportunityIdQuery = (
-  fields: typeof DocumentFields = DocumentFields,
   entityName: string,
+  entityFields: Record<keyof typeof DocumentFields, string> = DocumentFields,
   relationBuilders: Partial<DocumentRelationBuilders>,
   relationFields: Partial<DocumentRelationFields>,
-  entityFields?: string
+  additionalFields?: string,
+  additionalQueries?: string
 ): string => {
-  return buildDocumentQuery(fields, entityName, entityFields, undefined, relationBuilders, relationFields)
+  return buildDocumentQuery(
+    entityName,
+    entityFields,
+    relationBuilders,
+    relationFields,
+    additionalFields,
+    additionalQueries
+  )
 }

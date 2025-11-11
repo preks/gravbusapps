@@ -208,11 +208,26 @@ export const useGetInvestmentLeadById = (context: BusinessAppContextProps) => {
       const query = buildInvestmentLeadByIdQuery(undefined, id)
 
       try {
-        const result = await graphqlClient.request<{ InvestmentLeadByPk: Lead | null }>(query)
+        const result = await graphqlClient.request<{
+          InvestmentLeadByPk: Lead | null
+          leadStatuses?: Array<{
+            id: string
+            code: string
+            value: string
+            alternativeCode?: string
+          }>
+        }>(query)
 
+        const lead = result.InvestmentLeadByPk
+          ? toInvestmentLead(result.InvestmentLeadByPk as InvestmentLead)
+          : undefined
         return {
-          lead: result.InvestmentLeadByPk ? toInvestmentLead(result.InvestmentLeadByPk as InvestmentLead) : undefined
-        } as InvestmentLeadByIdData
+          lead: lead ? { ...lead, leadStatuses: result.leadStatuses || [] } : undefined
+        } as InvestmentLeadByIdData & {
+          lead?: InvestmentLead & {
+            leadStatuses?: Array<{ id: string; code: string; value: string; alternativeCode?: string }>
+          }
+        }
       } catch (error) {
         console.error('Error fetching investment lead by ID:', error)
         throw error

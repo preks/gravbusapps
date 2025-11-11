@@ -83,7 +83,7 @@ export const buildInvestmentContactQuery = (
       ${buildLeadFragment(InvestmentLeadFields)}
     }
   `
-  return buildContactQuery(fields, 'InvestmentContact', entityFields, undefined, relationBuilders, relationFields)
+  return buildContactQuery('InvestmentContact', fields, relationBuilders, relationFields, entityFields)
 }
 
 /**
@@ -127,7 +127,7 @@ export const buildInvestmentContactByIdQuery = (
     }
   `
 
-  return buildContactByIdQuery(fields, id, 'InvestmentContact', relationBuilders, relationFields, entityFields)
+  return buildContactByIdQuery('InvestmentContact', id, fields, relationBuilders, relationFields, entityFields)
 }
 
 /**
@@ -136,7 +136,7 @@ export const buildInvestmentContactByIdQuery = (
 export const buildInvestmentContactSearchQuery = (
   fields: typeof InvestmentContactFields = InvestmentContactFields
 ): string => {
-  return buildContactSearchQuery(fields, 'InvestmentContact')
+  return buildContactSearchQuery('InvestmentContact', fields)
 }
 
 /**
@@ -163,127 +163,3 @@ export const buildInvestmentContactOrderBy = (
   const descriptors = [...INVESTMENT_CONTACT_DESCRIPTORS, ...additionalDescriptors]
   return buildContactOrderBy(orderBy, descriptors)
 }
-
-// =====================================================
-// INVESTMENT CONTACT RELATED ENTITIES QUERIES
-// =====================================================
-
-/**
- * Build Investment Tasks by Contact ID query (using GraphQL variables)
- */
-export const buildInvestmentTasksByContactIdQuery = (): string => {
-  const fragment = `
-    ${buildTaskFragment(InvestmentTaskFields)}
-    
-    # Entity references
-    contact {
-      id
-      code
-      firstName
-      lastName
-    }
-  `
-
-  return `
-    query GetInvestmentTasksByContactId(
-      $where: InvestmentTaskBoolExp
-      $orderBy: [InvestmentTaskOrderBy!]
-    ) {
-      InvestmentTask(
-        where: $where
-        orderBy: $orderBy
-      ) {
-        ${fragment}
-      }
-    }
-  `
-}
-
-/**
- * Build Investment Activities by Contact ID query (using GraphQL variables)
- */
-export const buildInvestmentActivitiesByContactIdQuery = (): string => {
-  const fragment = `
-    ${buildActivityFragment(InvestmentActivityFields)}
-    
-    # Entity references
-    contact {
-      id
-      code
-      firstName
-      lastName
-    }
-  `
-
-  return `
-    query GetInvestmentActivitiesByContactId(
-      $where: InvestmentActivityBoolExp
-      $orderBy: [InvestmentActivityOrderBy!]
-    ) {
-      InvestmentActivity(
-        where: $where
-        orderBy: $orderBy
-      ) {
-        ${fragment}
-      }
-    }
-  `
-}
-
-/**
- * Build Investment Notes by Contact ID query (using GraphQL variables)
- */
-export const buildInvestmentNotesByContactIdQuery = (): string => {
-  const fragment = buildNoteFragment(InvestmentNoteFields)
-
-  return `
-    query GetInvestmentNotesByContactId(
-      $where: InvestmentNoteBoolExp
-      $orderBy: [InvestmentNoteOrderBy!]
-    ) {
-      InvestmentNote(
-        where: $where
-        orderBy: $orderBy
-      ) {
-        ${fragment}
-      }
-    }
-  `
-}
-
-/**
- * Build Investment Documents by Contact ID query (using GraphQL variables)
- */
-export const buildInvestmentDocumentsByContactIdQuery = (): string => {
-  const fragment = `
-    ${buildDocumentFragment(InvestmentDocumentFields)}
-    
-    # Entity references
-    contact {
-      id
-      code
-      firstName
-      lastName
-    }
-  `
-
-  return `
-    query GetInvestmentDocumentsByContactId(
-      $where: InvestmentDocumentBoolExp
-      $orderBy: [InvestmentDocumentOrderBy!]
-    ) {
-      InvestmentDocument(
-        where: $where
-        orderBy: $orderBy
-      ) {
-        ${fragment}
-      }
-    }
-  `
-}
-
-// Legacy exports for backward compatibility (deprecated - use builder functions above)
-export const GET_INVESTMENT_TASKS_BY_CONTACT_ID = buildInvestmentTasksByContactIdQuery
-export const GET_INVESTMENT_ACTIVITIES_BY_CONTACT_ID = buildInvestmentActivitiesByContactIdQuery
-export const GET_INVESTMENT_NOTES_BY_CONTACT_ID = buildInvestmentNotesByContactIdQuery
-export const GET_INVESTMENT_DOCUMENTS_BY_CONTACT_ID = buildInvestmentDocumentsByContactIdQuery

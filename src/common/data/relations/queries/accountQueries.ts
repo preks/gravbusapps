@@ -34,17 +34,17 @@ export interface AccountQueryVariables extends BaseQueryVariables {
 
 /**
  * Build Account query with fields mapping
- * @param fields - AccountFields mapping (default: AccountFields)
- * @param fragment - Optional fragment parameter
  * @param entityName - GraphQL entity name (REQUIRED)
- * @param aggregateName - GraphQL aggregate name (optional, defaults to '{entityName}Aggregate')
+ * @param entityFields - AccountFields mapping (default: AccountFields)
+ * @param additionalFields - Additional domain-specific fields (optional)
+ * @param additionalQueries - Additional query fields (optional)
  * @returns GraphQL query string using variables
  */
 export const buildAccountQuery = (
-  fields: Record<keyof typeof AccountFields, string> = AccountFields,
   entityName: string,
-  entityFields?: string,
-  queryFields?: string
+  entityFields: Record<keyof typeof AccountFields, string> = AccountFields,
+  additionalFields?: string,
+  additionalQueries?: string
 ): string => {
   const boolExpType = `${entityName}BoolExp`
   const orderByType = `[${entityName}OrderBy!]`
@@ -63,21 +63,21 @@ export const buildAccountQuery = (
         where: $where
       ) {
         ${AUDIT_FIELDS}
-        ${fields.accountAnnualRevenueBand} {
+        ${entityFields.accountAnnualRevenueBand} {
           ${CATALOG_ENTRY}
         }
-        ${fields.accountAnnualRevenueBandRef}
-        ${fields.code}
-        ${fields.companySize} {
+        ${entityFields.accountAnnualRevenueBandRef}
+        ${entityFields.code}
+        ${entityFields.companySize} {
           ${CATALOG_ENTRY}
         }
-        ${fields.companySizeRef}
-        ${fields.foundationDate}
-        ${fields.id}
-        ${fields.industryClass} {
+        ${entityFields.companySizeRef}
+        ${entityFields.foundationDate}
+        ${entityFields.id}
+        ${entityFields.industryClass} {
           ${CATALOG_ENTRY}
         }
-        ${fields.communicationChannels}(where: { isDeleted: { _eq: false } }) {
+        ${entityFields.communicationChannels}(where: { isDeleted: { _eq: false } }) {
           value
           valueExtension
           communicationChannel {
@@ -85,84 +85,87 @@ export const buildAccountQuery = (
           }
           communicationChannelRef
         }
-        ${fields.industryClassRef}
-        ${fields.legalForm} {
+        ${entityFields.industryClassRef}
+        ${entityFields.legalForm} {
           ${CATALOG_ENTRY}
         }
-        ${fields.legalFormRef}
-        ${fields.liquidationDate}
-        ${fields.name}      
-        ${fields.ownerEmployee} {
+        ${entityFields.legalFormRef}
+        ${entityFields.liquidationDate}
+        ${entityFields.name}      
+        ${entityFields.ownerEmployee} {
           ${EMPLOYEE_REF}
         }
-        ${fields.ownerEmployeeId}
-        ${fields.pictureThumbnail}
-        ${fields.timeZone} {
+        ${entityFields.ownerEmployeeId}
+        ${entityFields.pictureThumbnail}
+        ${entityFields.timeZone} {
           ${CATALOG_ENTRY}
         }
-        ${fields.timeZoneRef}
-        ${entityFields || ''}
+        ${entityFields.timeZoneRef}
+        ${additionalFields || ''}
 
       }
       ${entityName}Aggregate(where: $where) {
         aggregate { count }
       }
-      ${queryFields || ''}
+      ${additionalQueries || ''}
     }
   `
 }
 
 /**
  * Build Account by ID query
- * @param fields - AccountFields mapping (default: AccountFields)
- * @param id - Account ID
  * @param entityName - GraphQL entity name (REQUIRED)
+ * @param id - Account ID
+ * @param entityFields - AccountFields mapping (default: AccountFields)
  * @param relationBuilders - Object containing fragment builder functions for relations (optional)
  * @param relationFields - Object containing field mappings for relations (optional)
- * @param entityFields - Additional domain-specific fields (addresses, activities, etc.) (optional)
+ * @param additionalFields - Additional domain-specific fields (addresses, activities, etc.) (optional)
  */
 export const buildAccountByPkQuery = (
-  fields: Record<keyof typeof AccountFields, string> = AccountFields,
-  id: string,
   entityName: string,
+  id: string,
+  entityFields: Record<keyof typeof AccountFields, string> = AccountFields,
   relationBuilders?: AccountRelationBuilders,
   relationFields?: AccountRelationFields,
-  entityFields?: string // Additional domain-specific fields (addresses, activities, etc.)
+  additionalFields?: string
 ): string => {
   // Base fields inline (wie bei buildAccountQuery, damit richtige fields verwendet werden)
   const baseFields = `
         ${AUDIT_FIELDS}
-        ${fields.accountAnnualRevenueBand} {
+        ${entityFields.accountAnnualRevenueBand} {
           ${CATALOG_ENTRY}
         }
-        ${fields.accountAnnualRevenueBandRef}
-        ${fields.code}
-        ${fields.companySize} {
+        ${entityFields.accountAnnualRevenueBandRef}
+        ${entityFields.code}
+        ${entityFields.companySize} {
           ${CATALOG_ENTRY}
         }
-        ${fields.companySizeRef}
-        ${fields.foundationDate}
-        ${fields.id}
-        ${fields.industryClass} {
+        ${entityFields.companySizeRef}
+        ${entityFields.foundationDate}
+        ${entityFields.id}
+        ${entityFields.industryClass} {
           ${CATALOG_ENTRY}
         }
-        ${fields.industryClassRef}
-        ${fields.legalForm} {
+        ${entityFields.industryClassRef}
+        ${entityFields.legalForm} {
           ${CATALOG_ENTRY}
         }
-        ${fields.legalFormRef}
-        ${fields.liquidationDate}
-        ${fields.name}
-        ${fields.ownerEmployee} {
+        ${entityFields.legalFormRef}
+        ${entityFields.liquidationDate}
+        ${entityFields.name}
+        ${entityFields.ownerEmployee} {
           ${EMPLOYEE_REF}
         }
-        ${fields.ownerEmployeeId}
-        ${fields.pictureThumbnail}
-        ${fields.timeZone} {
+        ${entityFields.ownerEmployeeId}
+        ${entityFields.pictureThumbnail}
+        ${entityFields.timeZone} {
           ${CATALOG_ENTRY}
         }
-        ${fields.timeZoneRef}
-        ${fields.website}
+        ${entityFields.timeZoneRef}
+        ${entityFields.website}
+        ${entityFields.communicationChannels}(where: { isDeleted: { _eq: false } }) {
+          ${COMMUNICATION_CHANNEL_REF}
+        }
   `
 
   // Common entity relations (built dynamically based on relationBuilders and relationFields)
@@ -171,19 +174,17 @@ export const buildAccountByPkQuery = (
       ? `
     # Common entity relations (present in both IRM and CRM)
     
-    ${fields.communicationChannels}(where: { isDeleted: { _eq: false } }) {
-      ${COMMUNICATION_CHANNEL_REF}
-    }
+
     
-    ${fields.documents}(where: { isDeleted: { _eq: false } }) {
+    ${entityFields.documents}(where: { isDeleted: { _eq: false } }) {
       ${relationBuilders.buildDocumentFragment(relationFields.documentFields)}
     }
     
-    ${fields.notes}(where: { isDeleted: { _eq: false } }) {
+    ${entityFields.notes}(where: { isDeleted: { _eq: false } }) {
       ${relationBuilders.buildNoteFragment(relationFields.noteFields)}
     }
     
-    ${fields.tasks}(where: { isDeleted: { _eq: false } }) {
+    ${entityFields.tasks}(where: { isDeleted: { _eq: false } }) {
       ${relationBuilders.buildTaskFragment(relationFields.taskFields)}
       
       # Documents relation within tasks
@@ -193,7 +194,7 @@ export const buildAccountByPkQuery = (
     }
     
     # AccountContacts relation (field name varies: accountContacts vs investmentAccountContact)
-    ${fields.accountContacts}(where: { isDeleted: { _eq: false } }) {
+    ${entityFields.accountContacts}(where: { isDeleted: { _eq: false } }) {
       id
       ${AUDIT_FIELDS}
       contactType
@@ -211,8 +212,8 @@ export const buildAccountByPkQuery = (
     
     # Leads relation (only in IRM, field name: leads vs investmentLead)
     ${
-      relationBuilders.buildLeadFragment && relationFields.leadFields && fields.leads
-        ? `${fields.leads}(where: { isDeleted: { _eq: false } }) {
+      relationBuilders.buildLeadFragment && relationFields.leadFields && entityFields.leads
+        ? `${entityFields.leads}(where: { isDeleted: { _eq: false } }) {
       ${relationBuilders.buildLeadFragment(relationFields.leadFields)}
     }`
         : ''
@@ -220,8 +221,8 @@ export const buildAccountByPkQuery = (
     
     # Opportunities relation (present in both, field name varies: opportunities vs investmentOpportunity vs opportunity)
     ${
-      relationBuilders.buildOpportunityFragment && relationFields.opportunityFields && fields.opportunities
-        ? `${fields.opportunities}(where: { isDeleted: { _eq: false } }) {
+      relationBuilders.buildOpportunityFragment && relationFields.opportunityFields && entityFields.opportunities
+        ? `${entityFields.opportunities}(where: { isDeleted: { _eq: false } }) {
       ${relationBuilders.buildOpportunityFragment(relationFields.opportunityFields)}
     }`
         : ''
@@ -234,7 +235,7 @@ export const buildAccountByPkQuery = (
       ${entityName}ByPk(id: "${id}") {
         ${baseFields}
         ${commonRelations}
-        ${entityFields || ''}
+        ${additionalFields || ''}
       }
     }
   `
@@ -242,13 +243,13 @@ export const buildAccountByPkQuery = (
 
 /**
  * Build Account search query (minimal fields for quick search)
- * @param fields - AccountFields mapping (default: AccountFields)
  * @param entityName - GraphQL entity name (REQUIRED)
+ * @param entityFields - AccountFields mapping (default: AccountFields)
  * @returns GraphQL query string using variables
  */
 export const buildAccountSearchQuery = (
-  fields: Record<keyof typeof AccountFields, string> = AccountFields,
-  entityName: string
+  entityName: string,
+  entityFields: Record<keyof typeof AccountFields, string> = AccountFields
 ): string => {
   const boolExpType = `${entityName}BoolExp`
 
@@ -261,9 +262,9 @@ export const buildAccountSearchQuery = (
         limit: $limit
         where: $where
       ) {
-        ${fields.id}
-        ${fields.code}
-        ${fields.name}
+        ${entityFields.id}
+        ${entityFields.code}
+        ${entityFields.name}
       }
     }
   `

@@ -1,6 +1,5 @@
 import React from 'react'
 import { buildPlatformUrl } from '@/common/utils/navigationUtils'
-import { getTranslationFromI18nKeyAndLabel } from '@/common/utils/windowUtils'
 import { FlowContextName } from '@/common/types/FlowRegistryTypes'
 import type { TaskReference } from '@/common/components/common-relations/detail-sheets/task-detail-sheet'
 import AccountSection from '@/common/components/common-relations/record-sections/account-section/AccountSection'
@@ -9,7 +8,6 @@ import ConditionSection from '@/common/components/common-relations/record-sectio
 import ActivitySection from '@/common/components/common-relations/record-sections/activity-section/ActivitySection'
 import NoteSection from '@/common/components/common-relations/record-sections/note-section/NoteSection'
 import TaskSection from '@/common/components/common-relations/record-sections/task-section/TaskSection'
-import { transformTaskOrApproval } from '@/common/components/common-relations/record-sections/task-section/utils/taskMappers'
 import SectionWrapper from '@/common/components/common-relations/record-sections/section-card/SectionCard'
 import { BusinessAppContextProps } from '@/common/BusinessAppContext'
 
@@ -232,9 +230,7 @@ export const HomeView: React.FC<HomeViewProps> = ({
               accessToken,
               opportunityId: opportunityId,
               buildReferenceUrl,
-              tasks: tasks.map((task: any) =>
-                transformTaskOrApproval(task, getTranslationFromI18nKeyAndLabel('crm.tasks.untitled', 'Untitled Task'))
-              ),
+              tasks: tasks,
               taskActionProps: {
                 contextsArray: [FlowContextName.customerTaskCreate],
                 externalContextData: { opportunityId },
@@ -258,12 +254,7 @@ export const HomeView: React.FC<HomeViewProps> = ({
               sectionTitle: 'Approval Tasks',
               opportunityId: opportunityId,
               buildReferenceUrl,
-              tasks: approvals.map((approval: any) =>
-                transformTaskOrApproval(
-                  approval,
-                  getTranslationFromI18nKeyAndLabel('crm.approvals.request', 'Approval Request')
-                )
-              ),
+              tasks: approvals,
               taskEntityActionProps: {
                 contextsArray: [FlowContextName.customerTaskEntity],
                 externalContextData: { opportunityId },

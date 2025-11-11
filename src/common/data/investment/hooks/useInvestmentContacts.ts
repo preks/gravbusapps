@@ -21,11 +21,21 @@ import {
 
 // Import related-entity queries from new file
 import {
-  GET_INVESTMENT_TASKS_BY_CONTACT_ID,
-  GET_INVESTMENT_ACTIVITIES_BY_CONTACT_ID,
-  GET_INVESTMENT_NOTES_BY_CONTACT_ID,
-  GET_INVESTMENT_DOCUMENTS_BY_CONTACT_ID
-} from '../queries/investmentContactQueries'
+  buildInvestmentTaskByContactIdQuery,
+  type InvestmentTaskQueryVariables
+} from '../queries/investmentTaskQueries'
+import {
+  buildInvestmentActivityByContactIdQuery,
+  type InvestmentActivityQueryVariables
+} from '../queries/investmentActivityQueries'
+import {
+  buildInvestmentNoteByContactIdQuery,
+  type InvestmentNoteQueryVariables
+} from '../queries/investmentNoteQueries'
+import {
+  buildInvestmentDocumentByContactIdQuery,
+  type InvestmentDocumentQueryVariables
+} from '../queries/investmentDocumentQueries'
 
 // Import where/orderBy builders for related entities
 import { buildInvestmentTaskWhereCondition, buildInvestmentTaskOrderBy } from '../queries/investmentTaskQueries'
@@ -126,15 +136,19 @@ export const useGetInvestmentTasksByContactId = (context: BusinessAppContextProp
 
   const fetchInvestmentTasksByContactId = useCallback(
     async (contactId: string) => {
-      const query = GET_INVESTMENT_TASKS_BY_CONTACT_ID()
-      const whereCondition = buildInvestmentTaskWhereCondition(
-        {},
-        [],
-        [{ contact: { id: { _eq: contactId } }, isDeleted: { _eq: false } }]
-      )
+      const query = buildInvestmentTaskByContactIdQuery()
+
+      // Use variables instead of customConditions
+      const variables: InvestmentTaskQueryVariables = {
+        contactIds: [contactId]
+      }
+
+      const whereCondition = buildInvestmentTaskWhereCondition(variables)
       const orderBy = buildInvestmentTaskOrderBy([{ field: 'createdAt', direction: 'DESC_NULLS_LAST' }])
 
-      const graphQLVariables = {
+      const graphQLVariables: Record<string, any> = {
+        limit: 1000,
+        offset: 0,
         where: whereCondition,
         orderBy: orderBy
       }
@@ -159,15 +173,19 @@ export const useGetInvestmentActivitiesByContactId = (context: BusinessAppContex
 
   const fetchInvestmentActivitiesByContactId = useCallback(
     async (contactId: string) => {
-      const query = GET_INVESTMENT_ACTIVITIES_BY_CONTACT_ID()
-      const whereCondition = buildInvestmentActivityWhereCondition(
-        {},
-        [],
-        [{ contact: { id: { _eq: contactId } }, isDeleted: { _eq: false } }]
-      )
+      const query = buildInvestmentActivityByContactIdQuery()
+
+      // Use variables instead of customConditions
+      const variables: InvestmentActivityQueryVariables = {
+        contactIds: [contactId]
+      }
+
+      const whereCondition = buildInvestmentActivityWhereCondition(variables)
       const orderBy = buildInvestmentActivityOrderBy([{ field: 'occurredAt', direction: 'DESC_NULLS_LAST' }])
 
-      const graphQLVariables = {
+      const graphQLVariables: Record<string, any> = {
+        limit: 1000,
+        offset: 0,
         where: whereCondition,
         orderBy: orderBy
       }
@@ -195,15 +213,19 @@ export const useGetInvestmentNotesByContactId = (context: BusinessAppContextProp
 
   const fetchInvestmentNotesByContactId = useCallback(
     async (contactId: string) => {
-      const query = GET_INVESTMENT_NOTES_BY_CONTACT_ID()
-      const whereCondition = buildInvestmentNoteWhereCondition(
-        {},
-        [],
-        [{ contact: { id: { _eq: contactId } }, isDeleted: { _eq: false } }]
-      )
+      const query = buildInvestmentNoteByContactIdQuery()
+
+      // Use variables instead of customConditions
+      const variables: InvestmentNoteQueryVariables = {
+        contactIds: [contactId]
+      }
+
+      const whereCondition = buildInvestmentNoteWhereCondition(variables)
       const orderBy = buildInvestmentNoteOrderBy([{ field: 'createdAt', direction: 'DESC_NULLS_LAST' }])
 
-      const graphQLVariables = {
+      const graphQLVariables: Record<string, any> = {
+        limit: 1000,
+        offset: 0,
         where: whereCondition,
         orderBy: orderBy
       }
@@ -228,15 +250,19 @@ export const useGetInvestmentDocumentsByContactId = (context: BusinessAppContext
 
   const fetchInvestmentDocumentsByContactId = useCallback(
     async (contactId: string) => {
-      const query = GET_INVESTMENT_DOCUMENTS_BY_CONTACT_ID()
-      const whereCondition = buildInvestmentDocumentWhereCondition(
-        {},
-        [],
-        [{ contact: { id: { _eq: contactId } }, isDeleted: { _eq: false } }]
-      )
+      const query = buildInvestmentDocumentByContactIdQuery()
+
+      // Use variables instead of customConditions
+      const variables: InvestmentDocumentQueryVariables = {
+        contactIds: [contactId]
+      }
+
+      const whereCondition = buildInvestmentDocumentWhereCondition(variables)
       const orderBy = buildInvestmentDocumentOrderBy([{ field: 'createdAt', direction: 'DESC_NULLS_LAST' }])
 
-      const graphQLVariables = {
+      const graphQLVariables: Record<string, any> = {
+        limit: 1000,
+        offset: 0,
         where: whereCondition,
         orderBy: orderBy
       }
@@ -416,7 +442,6 @@ export function useGetInvestmentContacts(
               label: contact.fullName || `${contact.firstName} ${contact.lastName}`,
               name: contact.fullName || `${contact.firstName} ${contact.lastName}`,
               extraInfo: {
-                email: contact.email,
                 jobPosition: contact.jobPosition,
                 organizationalUnit: contact.ownerEmployee?.displayName || 'Unknown'
               }

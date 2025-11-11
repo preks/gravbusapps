@@ -53,7 +53,7 @@ export interface InvestmentActivityQueryVariables extends CommonActivityQueryVar
 export const buildInvestmentActivityQuery = (
   fields: typeof InvestmentActivityFields = InvestmentActivityFields
 ): string => {
-  return buildActivityQuery(fields, 'InvestmentActivity')
+  return buildActivityQuery('InvestmentActivity', fields)
 }
 
 /**
@@ -80,7 +80,7 @@ export const buildInvestmentActivityByIdQuery = (
     opportunityFields: InvestmentOpportunityFields
   }
 
-  return buildActivityByIdQuery(fields, id, 'InvestmentActivity', relationBuilders, relationFields)
+  return buildActivityByIdQuery('InvestmentActivity', id, fields, relationBuilders, relationFields)
 }
 
 /**
@@ -89,7 +89,7 @@ export const buildInvestmentActivityByIdQuery = (
 export const buildInvestmentActivitySearchQuery = (
   fields: typeof InvestmentActivityFields = InvestmentActivityFields
 ): string => {
-  return buildActivitySearchQuery(fields, 'InvestmentActivity')
+  return buildActivitySearchQuery('InvestmentActivity', fields)
 }
 
 /**
@@ -144,7 +144,7 @@ export const buildInvestmentActivityByLeadIdQuery = (): string => {
     opportunityFields: InvestmentOpportunityFields
   }
 
-  return buildActivityByLeadIdQuery(InvestmentActivityFields, 'InvestmentActivity', relationBuilders, relationFields)
+  return buildActivityByLeadIdQuery('InvestmentActivity', InvestmentActivityFields, relationBuilders, relationFields)
 }
 
 /**
@@ -167,7 +167,7 @@ export const buildInvestmentActivityByAccountIdQuery = (): string => {
     opportunityFields: InvestmentOpportunityFields
   }
 
-  return buildActivityByAccountIdQuery(InvestmentActivityFields, 'InvestmentActivity', relationBuilders, relationFields)
+  return buildActivityByAccountIdQuery('InvestmentActivity', InvestmentActivityFields, relationBuilders, relationFields)
 }
 
 /**
@@ -190,7 +190,7 @@ export const buildInvestmentActivityByContactIdQuery = (): string => {
     opportunityFields: InvestmentOpportunityFields
   }
 
-  return buildActivityByContactIdQuery(InvestmentActivityFields, 'InvestmentActivity', relationBuilders, relationFields)
+  return buildActivityByContactIdQuery('InvestmentActivity', InvestmentActivityFields, relationBuilders, relationFields)
 }
 
 /**
@@ -214,8 +214,8 @@ export const buildInvestmentActivityByOpportunityIdQuery = (): string => {
   }
 
   return buildActivityByOpportunityIdQuery(
-    InvestmentActivityFields,
     'InvestmentActivity',
+    InvestmentActivityFields,
     relationBuilders,
     relationFields
   )

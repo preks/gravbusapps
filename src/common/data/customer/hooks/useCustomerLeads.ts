@@ -60,10 +60,24 @@ export const useCustomerLeads = (context: BusinessAppContextProps) => {
   )
 
   const fetchCustomerLeadById = useCallback(
-    async (id: string): Promise<CustomerLead | null> => {
+    async (
+      id: string
+    ): Promise<
+      | (CustomerLead & { leadStatuses?: Array<{ id: string; code: string; value: string; alternativeCode?: string }> })
+      | null
+    > => {
       const query = buildCustomerLeadByIdQuery(undefined, id)
-      const result = await graphqlClient.request<{ LeadByPk: BaseCustomerLead | null }>(query)
-      return result.LeadByPk ? toCustomerLead(result.LeadByPk) : null
+      const result = await graphqlClient.request<{
+        LeadByPk: BaseCustomerLead | null
+        leadStatuses?: Array<{
+          id: string
+          code: string
+          value: string
+          alternativeCode?: string
+        }>
+      }>(query)
+      const lead = result.LeadByPk ? toCustomerLead(result.LeadByPk) : null
+      return lead ? { ...lead, leadStatuses: result.leadStatuses || [] } : null
     },
     [graphqlClient]
   )
@@ -71,7 +85,7 @@ export const useCustomerLeads = (context: BusinessAppContextProps) => {
   const searchCustomerLeads = useCallback(
     async (variables: CustomerLeadQueryVariables): Promise<CustomerLead[]> => {
       const query = buildCustomerLeadSearchQuery()
-      const whereCondition = buildCustomerLeadWhereCondition(undefined, variables)
+      const whereCondition = buildCustomerLeadWhereCondition(variables)
       const graphQLVariables: Record<string, any> = {
         limit: Math.min(variables.limit || 50, 100),
         where: whereCondition

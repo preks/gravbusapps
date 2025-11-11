@@ -30,14 +30,14 @@ import {
 } from '../queries/investmentTaskQueries'
 
 import {
-  buildInvestmentActivityQuery,
+  buildInvestmentActivityByAccountIdQuery,
   buildInvestmentActivityWhereCondition,
   buildInvestmentActivityOrderBy,
   type InvestmentActivityQueryVariables
 } from '../queries/investmentActivityQueries'
 
 import {
-  buildInvestmentNoteQuery,
+  buildInvestmentNoteByAccountIdQuery,
   buildInvestmentNoteWhereCondition,
   buildInvestmentNoteOrderBy,
   type InvestmentNoteQueryVariables
@@ -445,8 +445,8 @@ export const useGetInvestmentActivitiesByAccountId = (context: BusinessAppContex
 
   const fetchInvestmentActivitiesByAccountId = useCallback(
     async (accountId: string) => {
-      // Use new query builder with fields mapping
-      const query = buildInvestmentActivityQuery()
+      // Use account-specific query builder that includes documents
+      const query = buildInvestmentActivityByAccountIdQuery()
 
       const variables: InvestmentActivityQueryVariables = {
         accountIds: [accountId]
@@ -487,8 +487,8 @@ export const useGetInvestmentNotesByAccountId = (context: BusinessAppContextProp
 
   const fetchInvestmentNotesByAccountId = useCallback(
     async (accountId: string) => {
-      // Use new query builder with fields mapping
-      const query = buildInvestmentNoteQuery()
+      // Use account-specific query builder that includes documents
+      const query = buildInvestmentNoteByAccountIdQuery()
 
       const variables: InvestmentNoteQueryVariables = {
         accountIds: [accountId]

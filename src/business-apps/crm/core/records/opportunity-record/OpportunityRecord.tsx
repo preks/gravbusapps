@@ -15,10 +15,10 @@ import { AiActions, AiAction } from '@/common/components/common-relations/record
 import { AppActionButton } from '@/components/app-action-button/AppActionButton'
 import { OpportunityStageProgression } from './components/OpportunityStageProgression'
 import { FlowContextName } from '@/common/types/FlowRegistryTypes'
-import { useGetSalesActivities } from './queries/OpportunityActivityQueries'
-import { useGetCrmNotes } from './queries/CrmNoteQueries'
-import { useGetSalesTasks } from './queries/OpportunityTaskQueries'
-import { HomeView } from './views/home-view'
+import { useCustomerActivities } from '@/common/data/customer/hooks/useCustomerActivities'
+import { useCustomerNotes } from '@/common/data/customer/hooks/useCustomerNotes'
+import { useCustomerTasks } from '@/common/data/customer/hooks/useCustomerTasks'
+import { HomeView } from './views/home-view/HomeView'
 import { DocumentView } from './views/document-view'
 
 interface OpportunityRecordContentProps extends BusinessAppContextProps {
@@ -101,15 +101,15 @@ const OpportunityRecordContent: React.FC<OpportunityRecordContentProps> = ({
   // AI Summary hook for HeaderSection
   const aiSummaryHook = useAiSummary(opportunityId, props.accessToken)
 
-  // Activity data loading
-  const { fetchSalesActivities } = useGetSalesActivities(props)
+  // Activity data loading - using central hooks
+  const { fetchCustomerActivitiesByOpportunityId } = useCustomerActivities(props)
   const [activities, setActivities] = useState<any[]>([])
   const [activitiesLoading, setActivitiesLoading] = useState(false)
   const [activitiesError, setActivitiesError] = useState<string | null>(null)
 
-  // Notes and Tasks data loading
-  const { fetchCrmNotes } = useGetCrmNotes(props)
-  const { fetchSalesTasks } = useGetSalesTasks(props)
+  // Notes and Tasks data loading - using central hooks
+  const { fetchCustomerNotesByOpportunityId } = useCustomerNotes(props)
+  const { fetchCustomerTasksByOpportunityId } = useCustomerTasks(props)
   const [notes, setNotes] = useState<any[]>([])
   const [tasks, setTasks] = useState<any[]>([])
   const [approvals, setApprovals] = useState<any[]>([])
@@ -121,8 +121,8 @@ const OpportunityRecordContent: React.FC<OpportunityRecordContentProps> = ({
     setActivitiesError(null)
 
     try {
-      const result = await fetchSalesActivities({ opportunityId })
-      const sortedActivities = (result.SalesActivity || []).sort((a, b) => {
+      const activitiesData = await fetchCustomerActivitiesByOpportunityId(opportunityId)
+      const sortedActivities = (activitiesData || []).sort((a, b) => {
         const dateA = new Date(a.occurredAt || a.createdAt).getTime()
         const dateB = new Date(b.occurredAt || b.createdAt).getTime()
         return dateB - dateA
@@ -138,19 +138,8 @@ const OpportunityRecordContent: React.FC<OpportunityRecordContentProps> = ({
   const loadNotes = async () => {
     if (!opportunityId) return
     try {
-      const result = await fetchCrmNotes({ opportunityId })
-      // Transform CRM notes to match central NoteSection expected structure
-      const transformedNotes = (result.CrmNote || []).map(note => ({
-        id: note.id,
-        noteTitle: note.noteTitle || '',
-        noteText: note.noteText || '',
-        createdAt: note.createdAt,
-        createdBy: note.createdBy || '',
-        authorEmployee: note.authorEmployee,
-        reminderAt: undefined,
-        documents: []
-      }))
-      setNotes(transformedNotes)
+      const notesData = await fetchCustomerNotesByOpportunityId(opportunityId)
+      setNotes(notesData || [])
     } catch (err) {
       console.error('Failed to load notes:', err)
     }
@@ -159,18 +148,18 @@ const OpportunityRecordContent: React.FC<OpportunityRecordContentProps> = ({
   const loadTasksAndApprovals = async () => {
     if (!opportunityId) return
     try {
-      const result = await fetchSalesTasks({ opportunityId })
-      const allTasks = result.SalesTask || []
+      const tasksData = await fetchCustomerTasksByOpportunityId(opportunityId)
+      const allTasks = tasksData || []
 
       // Separate regular tasks from approval tasks
       const regularTasks = allTasks.filter(task => {
-        const taskTypeValue = task.type?.value || ''
+        const taskTypeValue = task.type?.value || task.taskType?.value || ''
         const isApprovalTask = taskTypeValue?.toLowerCase() === 'approval'
         return !isApprovalTask
       })
 
       const approvalTasks = allTasks.filter(task => {
-        const taskTypeValue = task.type?.value || ''
+        const taskTypeValue = task.type?.value || task.taskType?.value || ''
         const isApprovalTask = taskTypeValue?.toLowerCase() === 'approval'
         return isApprovalTask
       })
@@ -377,7 +366,7 @@ const OpportunityRecordContent: React.FC<OpportunityRecordContentProps> = ({
           currentStage={opportunityData?.salesPipelineStage?.code || 'Discovery'}
           stages={opportunityStages}
           opportunityId={opportunityId || ''}
-          opportunityVersion={Number.parseInt(opportunityData?.version || '0', 10)}
+          opportunityVersion={opportunityData?.version}
           accessToken={props.accessToken}
           stageConditionStatuses={stageConditionStatuses}
           onStageUpdate={fetchOpportunityData}

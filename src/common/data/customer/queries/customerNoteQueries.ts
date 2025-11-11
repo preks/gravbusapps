@@ -48,7 +48,7 @@ export type CustomerNoteQueryVariables = CommonNoteQueryVariables
  * CRM uses "CrmNote" as entity name (not "CustomerNote")
  */
 export const buildCustomerNoteQuery = (fields: typeof CustomerNoteFields = CustomerNoteFields): string => {
-  return buildNoteQuery(fields, 'CrmNote')
+  return buildNoteQuery('CrmNote', fields)
 }
 
 /**
@@ -75,14 +75,14 @@ export const buildCustomerNoteByIdQuery = (
     opportunityFields: CustomerOpportunityFields
   }
 
-  return buildNoteByIdQuery(fields, id, 'CrmNote', relationBuilders, relationFields)
+  return buildNoteByIdQuery('CrmNote', id, fields, relationBuilders, relationFields)
 }
 
 /**
  * Build Customer Note search query
  */
 export const buildCustomerNoteSearchQuery = (fields: typeof CustomerNoteFields = CustomerNoteFields): string => {
-  return buildNoteSearchQuery(fields, 'CrmNote')
+  return buildNoteSearchQuery('CrmNote', fields)
 }
 
 /**
@@ -135,7 +135,7 @@ export const buildCustomerNoteByLeadIdQuery = (): string => {
     opportunityFields: CustomerOpportunityFields
   }
 
-  return buildNoteByLeadIdQuery(CustomerNoteFields, 'CrmNote', relationBuilders, relationFields)
+  return buildNoteByLeadIdQuery('CrmNote', CustomerNoteFields, relationBuilders, relationFields)
 }
 
 /**
@@ -158,7 +158,7 @@ export const buildCustomerNoteByAccountIdQuery = (): string => {
     opportunityFields: CustomerOpportunityFields
   }
 
-  return buildNoteByAccountIdQuery(CustomerNoteFields, 'CrmNote', relationBuilders, relationFields)
+  return buildNoteByAccountIdQuery('CrmNote', CustomerNoteFields, relationBuilders, relationFields)
 }
 
 /**
@@ -181,7 +181,7 @@ export const buildCustomerNoteByContactIdQuery = (): string => {
     opportunityFields: CustomerOpportunityFields
   }
 
-  return buildNoteByContactIdQuery(CustomerNoteFields, 'CrmNote', relationBuilders, relationFields)
+  return buildNoteByContactIdQuery('CrmNote', CustomerNoteFields, relationBuilders, relationFields)
 }
 
 /**
@@ -204,5 +204,5 @@ export const buildCustomerNoteByOpportunityIdQuery = (): string => {
     opportunityFields: CustomerOpportunityFields
   }
 
-  return buildNoteByOpportunityIdQuery(CustomerNoteFields, 'CrmNote', relationBuilders, relationFields)
+  return buildNoteByOpportunityIdQuery('CrmNote', CustomerNoteFields, relationBuilders, relationFields)
 }

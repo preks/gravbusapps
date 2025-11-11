@@ -48,7 +48,7 @@ export type CustomerLeadQueryVariables = CommonLeadQueryVariables
  * CRM uses "Lead" as entity name (not "CustomerLead")
  */
 export const buildCustomerLeadQuery = (fields: typeof CustomerLeadFields = CustomerLeadFields): string => {
-  return buildLeadQuery(fields, 'Lead')
+  return buildLeadQuery('Lead', fields)
 }
 
 /**
@@ -79,14 +79,14 @@ export const buildCustomerLeadByIdQuery = (
     opportunityFields: CustomerOpportunityFields
   }
 
-  return buildLeadByIdQuery(fields, id, 'Lead', relationBuilders, relationFields)
+  return buildLeadByIdQuery('Lead', id, fields, relationBuilders, relationFields, undefined, 'SalesLeadStatus')
 }
 
 /**
  * Build Customer Lead search query
  */
 export const buildCustomerLeadSearchQuery = (fields: typeof CustomerLeadFields = CustomerLeadFields): string => {
-  return buildLeadSearchQuery(fields, 'Lead')
+  return buildLeadSearchQuery('Lead', fields)
 }
 
 /**

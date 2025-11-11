@@ -14,11 +14,13 @@ export function toCustomerActivity(base: CustomerActivity): CustomerActivity {
 
 /**
  * Transform CustomerNote (GraphQL response) to CustomerNote
+ * Maps CRM-specific field names (noteTitle, noteText) to standard Note fields (title, text)
  */
-export function toCustomerNote(base: CustomerNote): CustomerNote {
-  // No field mappings needed - CRM Note fields already match Note
+export function toCustomerNote(base: any): CustomerNote {
   return {
-    ...base
+    ...base,
+    title: base.noteTitle || base.title,
+    text: base.noteText || base.text
   } as CustomerNote
 }
 

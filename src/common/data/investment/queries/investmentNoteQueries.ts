@@ -27,6 +27,7 @@ import {
   buildContactFragment,
   buildDocumentFragment,
   buildLeadFragment,
+  buildNoteFragment,
   buildOpportunityFragment
 } from '@/common/data/relations/queries/relationFragments'
 
@@ -51,7 +52,7 @@ export interface InvestmentNoteQueryVariables extends CommonNoteQueryVariables {
  * Build Investment Note query with fields mapping
  */
 export const buildInvestmentNoteQuery = (fields: typeof InvestmentNoteFields = InvestmentNoteFields): string => {
-  return buildNoteQuery(fields, 'InvestmentNote')
+  return buildNoteQuery('InvestmentNote', fields)
 }
 
 /**
@@ -78,14 +79,14 @@ export const buildInvestmentNoteByIdQuery = (
     opportunityFields: InvestmentOpportunityFields
   }
 
-  return buildNoteByIdQuery(fields, id, 'InvestmentNote', relationBuilders, relationFields)
+  return buildNoteByIdQuery('InvestmentNote', id, fields, relationBuilders, relationFields)
 }
 
 /**
  * Build Investment Note search query
  */
 export const buildInvestmentNoteSearchQuery = (fields: typeof InvestmentNoteFields = InvestmentNoteFields): string => {
-  return buildNoteSearchQuery(fields, 'InvestmentNote')
+  return buildNoteSearchQuery('InvestmentNote', fields)
 }
 
 /**
@@ -140,7 +141,7 @@ export const buildInvestmentNoteByLeadIdQuery = (): string => {
     opportunityFields: InvestmentOpportunityFields
   }
 
-  return buildNoteByLeadIdQuery(InvestmentNoteFields, 'InvestmentNote', relationBuilders, relationFields)
+  return buildNoteByLeadIdQuery('InvestmentNote', InvestmentNoteFields, relationBuilders, relationFields)
 }
 
 /**
@@ -163,7 +164,7 @@ export const buildInvestmentNoteByAccountIdQuery = (): string => {
     opportunityFields: InvestmentOpportunityFields
   }
 
-  return buildNoteByAccountIdQuery(InvestmentNoteFields, 'InvestmentNote', relationBuilders, relationFields)
+  return buildNoteByAccountIdQuery('InvestmentNote', InvestmentNoteFields, relationBuilders, relationFields)
 }
 
 /**
@@ -186,7 +187,7 @@ export const buildInvestmentNoteByContactIdQuery = (): string => {
     opportunityFields: InvestmentOpportunityFields
   }
 
-  return buildNoteByContactIdQuery(InvestmentNoteFields, 'InvestmentNote', relationBuilders, relationFields)
+  return buildNoteByContactIdQuery('InvestmentNote', InvestmentNoteFields, relationBuilders, relationFields)
 }
 
 /**
@@ -209,20 +210,12 @@ export const buildInvestmentNoteByOpportunityIdQuery = (): string => {
     opportunityFields: InvestmentOpportunityFields
   }
 
-  return buildNoteByOpportunityIdQuery(InvestmentNoteFields, 'InvestmentNote', relationBuilders, relationFields)
+  return buildNoteByOpportunityIdQuery('InvestmentNote', InvestmentNoteFields, relationBuilders, relationFields)
 }
 
 // =====================================================
 // LEGACY QUERY EXPORTS (for backward compatibility)
 // =====================================================
-
-/**
- * Get investment notes with filtering
- * @deprecated Use buildInvestmentNoteQuery instead
- */
-export const GET_INVESTMENT_NOTES = (): string => {
-  return buildInvestmentNoteQuery()
-}
 
 /**
  * Get investment notes by investment ID (using GraphQL variables)

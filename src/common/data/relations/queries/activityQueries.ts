@@ -53,21 +53,21 @@ export interface CommonActivityQueryVariables extends BaseQueryVariables {
 
 /**
  * Build Activity query with fields mapping
- * @param fields - ActivityFields mapping (default: ActivityFields)
  * @param entityName - GraphQL entity name (REQUIRED)
- * @param entityFields - Additional domain-specific fields (optional)
- * @param queryFields - Additional query fields (optional)
+ * @param entityFields - ActivityFields mapping (default: ActivityFields)
  * @param relationBuilders - Object containing fragment builder functions for relations (optional)
  * @param relationFields - Object containing field mappings for relations (optional)
+ * @param additionalFields - Additional domain-specific fields (optional)
+ * @param additionalQueries - Additional query fields (optional)
  * @returns GraphQL query string using variables
  */
 export const buildActivityQuery = (
-  fields: Record<keyof typeof ActivityFields, string> = ActivityFields,
   entityName: string,
-  entityFields?: string,
-  queryFields?: string,
+  entityFields: Record<keyof typeof ActivityFields, string> = ActivityFields,
   relationBuilders?: Partial<ActivityRelationBuilders>,
-  relationFields?: Partial<ActivityRelationFields>
+  relationFields?: Partial<ActivityRelationFields>,
+  additionalFields?: string,
+  additionalQueries?: string
 ): string => {
   const boolExpType = `${entityName}BoolExp`
   const orderByType = `[${entityName}OrderBy!]`
@@ -77,39 +77,39 @@ export const buildActivityQuery = (
     relationBuilders && relationFields
       ? `
     # Common entity relations (present in both IRM and CRM)
-    ${fields.documents}(where: { isDeleted: { _eq: false } }) {
+    ${entityFields.documents}(where: { isDeleted: { _eq: false } }) {
       ${relationBuilders?.buildDocumentFragment?.(relationFields.documentFields)}
     }
     
     # Optional relations (account, contact, lead, opportunity)
     ${
-      relationBuilders.buildAccountFragment && relationFields.accountFields && fields.account
-        ? `${fields.accountId}
-      ${fields.account} {
+      relationBuilders.buildAccountFragment && relationFields.accountFields && entityFields.account
+        ? `${entityFields.accountId}
+      ${entityFields.account} {
         ${relationBuilders.buildAccountFragment(relationFields.accountFields)}
       }`
         : ''
     }
     ${
-      relationBuilders.buildContactFragment && relationFields.contactFields && fields.contact
-        ? `${fields.contactId}
-      ${fields.contact} {
+      relationBuilders.buildContactFragment && relationFields.contactFields && entityFields.contact
+        ? `${entityFields.contactId}
+      ${entityFields.contact} {
         ${relationBuilders.buildContactFragment(relationFields.contactFields)}
       }`
         : ''
     }
     ${
-      relationBuilders.buildLeadFragment && relationFields.leadFields && fields.lead
-        ? `${fields.leadId}
-      ${fields.lead} {
+      relationBuilders.buildLeadFragment && relationFields.leadFields && entityFields.lead
+        ? `${entityFields.leadId}
+      ${entityFields.lead} {
         ${relationBuilders.buildLeadFragment(relationFields.leadFields)}
       }`
         : ''
     }
     ${
-      relationBuilders.buildOpportunityFragment && relationFields.opportunityFields && fields.opportunity
-        ? `${fields.opportunityId}
-      ${fields.opportunity} {
+      relationBuilders.buildOpportunityFragment && relationFields.opportunityFields && entityFields.opportunity
+        ? `${entityFields.opportunityId}
+      ${entityFields.opportunity} {
         ${relationBuilders.buildOpportunityFragment(relationFields.opportunityFields)}
       }`
         : ''
@@ -131,66 +131,65 @@ export const buildActivityQuery = (
         where: $where
       ) {
         ${AUDIT_FIELDS}
-        ${fields.activityType} {
+        ${entityFields.activityType} {
           ${CATALOG_ENTRY}
         }
-        ${fields.activityTypeRef}
-        ${fields.completedAt}
-        ${fields.description}
-        ${fields.id}
-        ${fields.occurredAt}
-        ${fields.ownerEmployee} {
+        ${entityFields.activityTypeRef}
+        ${entityFields.completedAt}
+        ${entityFields.description}
+        ${entityFields.id}
+        ${entityFields.occurredAt}
+        ${entityFields.ownerEmployee} {
           ${EMPLOYEE_REF}
         }
-        ${fields.ownerEmployeeId}
-        ${fields.source}
-        ${fields.title}
-        ${entityFields || ''}
+        ${entityFields.ownerEmployeeId}
+        ${entityFields.source}
+        ${entityFields.title}
+        ${additionalFields || ''}
         ${references || ''}
-        ${queryFields || ''}
       }
       ${entityName}Aggregate(where: $where) {
         aggregate { count }
       }
-      ${queryFields || ''}
+      ${additionalQueries || ''}
     }
   `
 }
 
 /**
  * Build Activity by ID query
- * @param fields - ActivityFields mapping (default: ActivityFields)
- * @param id - Activity ID
  * @param entityName - GraphQL entity name (REQUIRED)
+ * @param id - Activity ID
+ * @param entityFields - ActivityFields mapping (default: ActivityFields)
  * @param relationBuilders - Object containing fragment builder functions for relations (optional)
  * @param relationFields - Object containing field mappings for relations (optional)
- * @param entityFields - Additional domain-specific fields (optional)
+ * @param additionalFields - Additional domain-specific fields (optional)
  */
 export const buildActivityByIdQuery = (
-  fields: Record<keyof typeof ActivityFields, string> = ActivityFields,
-  id: string,
   entityName: string,
+  id: string,
+  entityFields: Record<keyof typeof ActivityFields, string> = ActivityFields,
   relationBuilders?: ActivityRelationBuilders,
   relationFields?: ActivityRelationFields,
-  entityFields?: string
+  additionalFields?: string
 ): string => {
   // Base fields inline
   const baseFields = `
         ${AUDIT_FIELDS}
-        ${fields.activityType} {
+        ${entityFields.activityType} {
           ${CATALOG_ENTRY}
         }
-        ${fields.activityTypeRef}
-        ${fields.completedAt}
-        ${fields.description}
-        ${fields.id}
-        ${fields.occurredAt}
-        ${fields.ownerEmployee} {
+        ${entityFields.activityTypeRef}
+        ${entityFields.completedAt}
+        ${entityFields.description}
+        ${entityFields.id}
+        ${entityFields.occurredAt}
+        ${entityFields.ownerEmployee} {
           ${EMPLOYEE_REF}
         }
-        ${fields.ownerEmployeeId}
-        ${fields.source}
-        ${fields.title}
+        ${entityFields.ownerEmployeeId}
+        ${entityFields.source}
+        ${entityFields.title}
   `
 
   // Common entity relations
@@ -198,42 +197,42 @@ export const buildActivityByIdQuery = (
     relationBuilders && relationFields
       ? `
     # Common entity relations (present in both IRM and CRM)
-    ${fields.documents}(where: { isDeleted: { _eq: false } }) {
+    ${entityFields.documents}(where: { isDeleted: { _eq: false } }) {
       ${relationBuilders.buildDocumentFragment(relationFields.documentFields)}
     }
     
     # Optional relations (account, contact, lead, opportunity)
     ${
-      relationBuilders.buildAccountFragment && relationFields.accountFields && fields.account
-        ? `${fields.accountId}
-      ${fields.account} {
+      relationBuilders.buildAccountFragment && relationFields.accountFields && entityFields.account
+        ? `${entityFields.accountId}
+      ${entityFields.account} {
         ${relationBuilders.buildAccountFragment(relationFields.accountFields)}
       }`
         : ''
     }
     
     ${
-      relationBuilders.buildContactFragment && relationFields.contactFields && fields.contact
-        ? `${fields.contactId}
-      ${fields.contact} {
+      relationBuilders.buildContactFragment && relationFields.contactFields && entityFields.contact
+        ? `${entityFields.contactId}
+      ${entityFields.contact} {
         ${relationBuilders.buildContactFragment(relationFields.contactFields)}
       }`
         : ''
     }
     
     ${
-      relationBuilders.buildLeadFragment && relationFields.leadFields && fields.lead
-        ? `${fields.leadId}
-      ${fields.lead} {
+      relationBuilders.buildLeadFragment && relationFields.leadFields && entityFields.lead
+        ? `${entityFields.leadId}
+      ${entityFields.lead} {
         ${relationBuilders.buildLeadFragment(relationFields.leadFields)}
       }`
         : ''
     }
     
     ${
-      relationBuilders.buildOpportunityFragment && relationFields.opportunityFields && fields.opportunity
-        ? `${fields.opportunityId}
-      ${fields.opportunity} {
+      relationBuilders.buildOpportunityFragment && relationFields.opportunityFields && entityFields.opportunity
+        ? `${entityFields.opportunityId}
+      ${entityFields.opportunity} {
         ${relationBuilders.buildOpportunityFragment(relationFields.opportunityFields)}
       }`
         : ''
@@ -246,7 +245,7 @@ export const buildActivityByIdQuery = (
       ${entityName}ByPk(id: "${id}") {
         ${baseFields}
         ${commonRelations}
-        ${entityFields || ''}
+        ${additionalFields || ''}
       }
     }
   `
@@ -255,10 +254,11 @@ export const buildActivityByIdQuery = (
 /**
  * Build Activity search query
  * @param entityName - GraphQL entity name (REQUIRED)
+ * @param entityFields - ActivityFields mapping (default: ActivityFields)
  */
 export const buildActivitySearchQuery = (
-  fields: Record<keyof typeof ActivityFields, string> = ActivityFields,
-  entityName: string
+  entityName: string,
+  entityFields: Record<keyof typeof ActivityFields, string> = ActivityFields
 ): string => {
   const boolExpType = `${entityName}BoolExp`
 
@@ -271,9 +271,9 @@ export const buildActivitySearchQuery = (
         limit: $limit
         where: $where
       ) {
-        ${fields.id}
-        ${fields.title}
-        ${fields.description}
+        ${entityFields.id}
+        ${entityFields.title}
+        ${entityFields.description}
       }
     }
   `
@@ -328,13 +328,21 @@ export const buildActivityOrderBy = (
  * Uses buildActivityQuery and ensures all relations (including documents) are included
  */
 export const buildActivityByLeadIdQuery = (
-  fields: Record<keyof typeof ActivityFields, string> = ActivityFields,
   entityName: string,
+  entityFields: Record<keyof typeof ActivityFields, string> = ActivityFields,
   relationBuilders: Partial<ActivityRelationBuilders>,
   relationFields: Partial<ActivityRelationFields>,
-  entityFields?: string
+  additionalFields?: string,
+  additionalQueries?: string
 ): string => {
-  return buildActivityQuery(fields, entityName, entityFields, undefined, relationBuilders, relationFields)
+  return buildActivityQuery(
+    entityName,
+    entityFields,
+    relationBuilders,
+    relationFields,
+    additionalFields,
+    additionalQueries
+  )
 }
 
 /**
@@ -342,13 +350,21 @@ export const buildActivityByLeadIdQuery = (
  * Uses buildActivityQuery and ensures all relations (including documents) are included
  */
 export const buildActivityByAccountIdQuery = (
-  fields: Record<keyof typeof ActivityFields, string> = ActivityFields,
   entityName: string,
+  entityFields: Record<keyof typeof ActivityFields, string> = ActivityFields,
   relationBuilders: Partial<ActivityRelationBuilders>,
   relationFields: Partial<ActivityRelationFields>,
-  entityFields?: string
+  additionalFields?: string,
+  additionalQueries?: string
 ): string => {
-  return buildActivityQuery(fields, entityName, entityFields, undefined, relationBuilders, relationFields)
+  return buildActivityQuery(
+    entityName,
+    entityFields,
+    relationBuilders,
+    relationFields,
+    additionalFields,
+    additionalQueries
+  )
 }
 
 /**
@@ -356,13 +372,21 @@ export const buildActivityByAccountIdQuery = (
  * Uses buildActivityQuery and ensures all relations (including documents) are included
  */
 export const buildActivityByContactIdQuery = (
-  fields: Record<keyof typeof ActivityFields, string> = ActivityFields,
   entityName: string,
+  entityFields: Record<keyof typeof ActivityFields, string> = ActivityFields,
   relationBuilders: Partial<ActivityRelationBuilders>,
   relationFields: Partial<ActivityRelationFields>,
-  entityFields?: string
+  additionalFields?: string,
+  additionalQueries?: string
 ): string => {
-  return buildActivityQuery(fields, entityName, entityFields, undefined, relationBuilders, relationFields)
+  return buildActivityQuery(
+    entityName,
+    entityFields,
+    relationBuilders,
+    relationFields,
+    additionalFields,
+    additionalQueries
+  )
 }
 
 /**
@@ -370,11 +394,19 @@ export const buildActivityByContactIdQuery = (
  * Uses buildActivityQuery and ensures all relations (including documents) are included
  */
 export const buildActivityByOpportunityIdQuery = (
-  fields: Record<keyof typeof ActivityFields, string> = ActivityFields,
   entityName: string,
+  entityFields: Record<keyof typeof ActivityFields, string> = ActivityFields,
   relationBuilders: Partial<ActivityRelationBuilders>,
   relationFields: Partial<ActivityRelationFields>,
-  entityFields?: string
+  additionalFields?: string,
+  additionalQueries?: string
 ): string => {
-  return buildActivityQuery(fields, entityName, entityFields, undefined, relationBuilders, relationFields)
+  return buildActivityQuery(
+    entityName,
+    entityFields,
+    relationBuilders,
+    relationFields,
+    additionalFields,
+    additionalQueries
+  )
 }

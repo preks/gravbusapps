@@ -43,11 +43,10 @@ import ContactSection from '@/common/components/common-relations/record-sections
 import ActivitySection from '@/common/components/common-relations/record-sections/activity-section/ActivitySection'
 import NoteSection from '@/common/components/common-relations/record-sections/note-section/NoteSection'
 import TaskSection from '@/common/components/common-relations/record-sections/task-section/TaskSection'
-import { transformTaskOrApproval } from '@/common/components/common-relations/record-sections/task-section/utils/taskMappers'
 import SectionWrapper from '@/common/components/common-relations/record-sections/section-card/SectionCard'
 import { DocumentSection, type DocumentItem } from '@/components/document-section'
-import { useGetInvestmentActivities } from '@/common/data/investment/hooks/useInvestmentActivities'
 import {
+  useGetInvestmentActivitiesByOpportunityId,
   useGetInvestmentNotesByOpportunityId,
   useGetInvestmentTasksByOpportunityId
 } from '@/common/data/investment/hooks/useInvestmentOpportunities'
@@ -206,7 +205,7 @@ const InvestmentOpportunityRecordContent: React.FC<OpportunityRecordContentProps
   }
 
   // Activity data loading
-  const { fetchInvestmentActivities } = useGetInvestmentActivities(props)
+  const { fetchInvestmentActivitiesByOpportunityId } = useGetInvestmentActivitiesByOpportunityId(props)
   const [activities, setActivities] = useState<any[]>([])
   const [activitiesLoading, setActivitiesLoading] = useState(false)
   const [activitiesError, setActivitiesError] = useState<string | null>(null)
@@ -236,8 +235,8 @@ const InvestmentOpportunityRecordContent: React.FC<OpportunityRecordContentProps
     setActivitiesError(null)
 
     try {
-      const result = await fetchInvestmentActivities({ opportunityId })
-      const sortedActivities = (result.InvestmentActivity || []).sort((a, b) => {
+      const result = await fetchInvestmentActivitiesByOpportunityId(opportunityId)
+      const sortedActivities = (result || []).sort((a, b) => {
         const dateA = new Date(a.occurredAt || a.createdAt).getTime()
         const dateB = new Date(b.occurredAt || b.createdAt).getTime()
         return dateB - dateA
@@ -254,18 +253,7 @@ const InvestmentOpportunityRecordContent: React.FC<OpportunityRecordContentProps
     if (!opportunityId) return
     try {
       const result = await fetchInvestmentNotesByOpportunityId(opportunityId)
-      // Transform investment notes to match central NoteSection expected structure
-      const transformedNotes = (result || []).map(note => ({
-        id: note.id,
-        noteTitle: note.title || '',
-        noteText: note.text || '',
-        createdAt: note.createdAt,
-        createdBy: note.authorEmployee?.displayName || note.authorEmployee?.id || '',
-        authorEmployee: note.authorEmployee || undefined,
-        reminderDate: note.reminderDate,
-        documents: note.documents
-      }))
-      setNotes(transformedNotes)
+      setNotes(result || [])
     } catch (err) {
       console.error('Failed to load notes:', err)
     }
@@ -857,12 +845,7 @@ const InvestmentOpportunityRecordContent: React.FC<OpportunityRecordContentProps
                     ...props,
                     opportunityId: opportunityId,
                     buildReferenceUrl,
-                    tasks: tasks.map(task =>
-                      transformTaskOrApproval(
-                        task,
-                        getTranslationFromI18nKeyAndLabel('crm.tasks.untitled', 'Untitled Task')
-                      )
-                    ),
+                    tasks: tasks,
                     taskActionProps: {
                       ...taskActionProps,
                       emptyStateBehavior: 'enable'
@@ -882,12 +865,7 @@ const InvestmentOpportunityRecordContent: React.FC<OpportunityRecordContentProps
                     ...props,
                     sectionTitle: 'Approval Tasks',
                     buildReferenceUrl,
-                    tasks: approvals.map(approval =>
-                      transformTaskOrApproval(
-                        approval,
-                        getTranslationFromI18nKeyAndLabel('crm.approvals.request', 'Approval Request')
-                      )
-                    ),
+                    tasks: approvals,
                     taskActionProps: {
                       ...approvalActionProps,
                       emptyStateBehavior: 'enable'

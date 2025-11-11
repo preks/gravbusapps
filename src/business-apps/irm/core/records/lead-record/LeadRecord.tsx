@@ -14,9 +14,9 @@ import { BusinessAppContextProps } from '@/common/BusinessAppContext'
 import { navigateTo, buildPlatformUrl } from '@/common/utils/navigationUtils'
 import { getTranslationFromI18nKeyAndLabel } from '@/common/utils/windowUtils'
 import { FlowContextName } from '@/common/types/FlowRegistryTypes'
-import { useLeadData } from './hooks/useLeadData'
 import { StatusProgression } from './components/StatusProgression'
 import {
+  useGetInvestmentLeadById,
   useGetInvestmentActivitiesByLeadId,
   useGetInvestmentNotesByLeadId,
   useGetInvestmentTasksByLeadId
@@ -33,7 +33,6 @@ import {
 import ActivitySection from '@/common/components/common-relations/record-sections/activity-section/ActivitySection'
 import NoteSection from '@/common/components/common-relations/record-sections/note-section/NoteSection'
 import TaskSection from '@/common/components/common-relations/record-sections/task-section/TaskSection'
-import { transformTaskOrApproval } from '@/common/components/common-relations/record-sections/task-section/utils/taskMappers'
 import SectionWrapper from '@/common/components/common-relations/record-sections/section-card/SectionCard'
 import { AiActions, AiAction } from '@/common/components/common-relations/record-sections/header-section/ai-actions'
 import { useAiSummary } from './hooks/useAiSummary'
@@ -62,13 +61,60 @@ const InvestmentLeadRecordContent: React.FC<LeadRecordContentProps> = ({ leadId,
     return getValidTab(new URLSearchParams(window.location.search).get('tab'))
   })
 
-  const { lead, leadData, loading, error, leadStatuses, loadingStatuses, refetch } = useLeadData(
-    leadId,
-    props.accessToken
-  )
+  // Fetch lead data using central hook
+  const { fetchInvestmentLeadById } = useGetInvestmentLeadById(props)
+
+  // State for lead data
+  const [leadData, setLeadData] = useState<any>(null)
+  const [loading, setLoading] = useState(true)
+  const [error, setError] = useState<string | null>(null)
+  const [leadStatuses, setLeadStatuses] = useState<any[]>([])
+
+  // Fetch lead data
+  const fetchLeadData = useCallback(async () => {
+    if (!leadId || !props.accessToken) {
+      setLoading(false)
+      return
+    }
+
+    try {
+      setLoading(true)
+      setError(null)
+      const result = await fetchInvestmentLeadById(leadId)
+      if (result && result.lead) {
+        setLeadData(result.lead)
+        // Extract lead statuses from lead object if available
+        if (result.lead.leadStatuses && Array.isArray(result.lead.leadStatuses)) {
+          // Statuses are already sorted by alternativeCode from GraphQL query
+          setLeadStatuses(
+            result.lead.leadStatuses.map((status: any) => ({
+              id: status.id,
+              code: status.code,
+              value: status.value,
+              alternativeCode: status.alternativeCode
+            }))
+          )
+        }
+      } else {
+        setError('Lead not found')
+      }
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Failed to fetch lead data')
+    } finally {
+      setLoading(false)
+    }
+  }, [leadId, props.accessToken, fetchInvestmentLeadById])
+
+  // Load data on mount
+  useEffect(() => {
+    fetchLeadData()
+  }, [fetchLeadData])
 
   // Always call useAiSummary hook, but conditionally use its result
   const aiSummary = useAiSummary(leadId, props.accessToken)
+
+  // Use leadData for lead reference (for compatibility)
+  const lead = leadData
 
   // Data fetching hooks for sections
   const { fetchInvestmentActivitiesByLeadId } = useGetInvestmentActivitiesByLeadId(props)
@@ -205,14 +251,14 @@ const InvestmentLeadRecordContent: React.FC<LeadRecordContentProps> = ({ leadId,
       try {
         // Check for successful completion
         if (event.detail?.resolution === 'success') {
-          await Promise.all([refetch(), loadSectionData(), loadRejectionReasons()])
+          await Promise.all([fetchLeadData(), loadSectionData(), loadRejectionReasons()])
           return
         }
 
         // Also check for different event structure
         const response = event.detail?.response
         if (response?.detail?.resolution === 'success' || response?.lead) {
-          await Promise.all([refetch(), loadSectionData(), loadRejectionReasons()])
+          await Promise.all([fetchLeadData(), loadSectionData(), loadRejectionReasons()])
         }
       } catch (err) {
         console.error('Error handling process completion in LeadRecord:', err)
@@ -242,7 +288,7 @@ const InvestmentLeadRecordContent: React.FC<LeadRecordContentProps> = ({ leadId,
         window.removeEventListener(eventName, handleProcessCompletion as EventListener)
       })
     }
-  }, [leadId, refetch, loadSectionData, loadRejectionReasons])
+  }, [leadId, fetchLeadData, loadSectionData, loadRejectionReasons])
 
   // Rejection reasons badge - MUST be defined before headerTitle
   const rejectionReasonsBadge = useMemo(() => {
@@ -458,14 +504,14 @@ const InvestmentLeadRecordContent: React.FC<LeadRecordContentProps> = ({ leadId,
   // Status progression content
   const headerContent = (
     <>
-      {!loadingStatuses && leadStatuses.length > 0 && lead && (
+      {leadStatuses.length > 0 && lead && (
         <StatusProgression
           currentStatus={lead?.leadStatus?.value || getTranslationFromI18nKeyAndLabel('crm.common.status.new', 'New')}
           statuses={leadStatuses}
           leadId={leadId}
-          leadVersion={typeof lead.version === 'string' ? parseInt(lead.version) : lead.version || 0}
+          leadVersion={typeof leadData?.version === 'string' ? parseInt(leadData.version) : leadData?.version || 0}
           accessToken={props.accessToken}
-          onStatusUpdate={refetch}
+          onStatusUpdate={fetchLeadData}
         />
       )}
     </>
@@ -565,22 +611,7 @@ const InvestmentLeadRecordContent: React.FC<LeadRecordContentProps> = ({ leadId,
                   component: NoteSection as React.ComponentType<any>,
                   props: {
                     ...props,
-                    notes: notes.map(note => ({
-                      id: note.id,
-                      noteTitle:
-                        note.title ||
-                        note.displayName ||
-                        getTranslationFromI18nKeyAndLabel('crm.notes.untitled', 'Untitled Note'),
-                      noteText: note.text || '',
-                      createdAt: note.createdAt,
-                      createdBy:
-                        note.authorDisplayName ||
-                        note.authorEmployee?.displayName ||
-                        getTranslationFromI18nKeyAndLabel('crm.common.unknown', 'Unknown'),
-                      authorEmployee: note.authorEmployee,
-                      reminderDate: note.reminderDate,
-                      documents: note.documents
-                    })),
+                    notes: notes,
                     noteActionProps: {
                       contextsArray: [FlowContextName.investmentNoteCreate],
                       externalContextData: { leadId },
@@ -610,12 +641,7 @@ const InvestmentLeadRecordContent: React.FC<LeadRecordContentProps> = ({ leadId,
                     ...props,
                     leadId: leadId,
                     buildReferenceUrl,
-                    tasks: tasks.map(task =>
-                      transformTaskOrApproval(
-                        task,
-                        getTranslationFromI18nKeyAndLabel('crm.tasks.untitled', 'Untitled Task')
-                      )
-                    ),
+                    tasks: tasks,
                     taskActionProps: {
                       contextsArray: [FlowContextName.investmentTaskCreate],
                       externalContextData: { leadId },
@@ -638,12 +664,7 @@ const InvestmentLeadRecordContent: React.FC<LeadRecordContentProps> = ({ leadId,
                     sectionTitle: 'Approval Tasks',
                     leadId: leadId,
                     buildReferenceUrl,
-                    tasks: approvals.map(approval =>
-                      transformTaskOrApproval(
-                        approval,
-                        getTranslationFromI18nKeyAndLabel('crm.approvals.request', 'Approval Request')
-                      )
-                    ),
+                    tasks: approvals,
                     taskEntityActionProps: {
                       contextsArray: [FlowContextName.investmentTaskEntity],
                       externalContextData: { leadId },
