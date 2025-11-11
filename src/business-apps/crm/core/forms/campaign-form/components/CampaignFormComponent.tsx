@@ -8,11 +8,6 @@ import {
   FormLabel,
   FormMessage,
   Input,
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
   Textarea
 } from '@newwork/nw-design-system'
 import { useForm } from 'react-hook-form'
@@ -22,9 +17,10 @@ import type { CampaignFormValues } from '../types'
 import dayjs from 'dayjs'
 import { getTranslationFromI18nKeyAndLabel } from '@/common/utils/windowUtils'
 import { dispatchProcessContinueEvent } from '@/common/utils/processEventUtils'
+import { CatalogSelect } from '@/components/catalog-select'
 
 const CampaignFormComponent: React.FC = () => {
-  const { formValues, onSubmit, onCancel, campaignTypes, isLoading, isUpdateMode } = useCampaignFormContext()
+  const { formValues, onSubmit, onCancel, isLoading, isUpdateMode } = useCampaignFormContext()
 
   const form = useForm<CampaignFormValues>({
     defaultValues: formValues,
@@ -101,18 +97,12 @@ const CampaignFormComponent: React.FC = () => {
                   Type <span style={{ color: 'var(--color-danger-500)' }}>*</span>
                 </FormLabel>
                 <FormControl>
-                  <Select value={field.value} onValueChange={field.onChange}>
-                    <SelectTrigger data-testid="campaign-form-type-select">
-                      <SelectValue placeholder="Select campaign type" />
-                    </SelectTrigger>
-                    <SelectContent>
-                      {campaignTypes.map(t => (
-                        <SelectItem value={t.id} key={t.id}>
-                          {t.label}
-                        </SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
+                  <CatalogSelect
+                    catalogIdentifier="SalesCampaignType:v1"
+                    value={field.value || ''}
+                    onValueChange={field.onChange}
+                    data-testid="campaign-form-type-select"
+                  />
                 </FormControl>
                 <FormMessage />
               </FormItem>

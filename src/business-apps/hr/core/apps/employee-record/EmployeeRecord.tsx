@@ -436,8 +436,8 @@ const EmployeeRecordContent: React.FC<EmployeeRecordContentProps> = ({
         const hasSkillsAccess = tabPermissions?.['skills']?.hasAccess !== false
         const hasFeedbackAccess = devFeatureFlag && tabPermissions?.['feedback']?.hasAccess === true
         const hasPerformanceAccess = tabPermissions?.['performance']?.hasAccess !== false
-
-        return hasSkillsAccess || hasFeedbackAccess || hasPerformanceAccess || devFeatureFlag
+        const hasCompensationAccess = tabPermissions?.['compensation']?.hasAccess === true
+        return hasSkillsAccess || hasFeedbackAccess || hasPerformanceAccess || hasCompensationAccess || devFeatureFlag
       }
 
       return true
