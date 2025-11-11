@@ -43,18 +43,19 @@ import NoteSection from '@/common/components/common-relations/record-sections/no
 import TaskSection from '@/common/components/common-relations/record-sections/task-section/TaskSection'
 import { transformTaskOrApproval } from '@/common/components/common-relations/record-sections/task-section/utils/taskMappers'
 import SectionWrapper from '@/common/components/common-relations/record-sections/section-card/SectionCard'
-import {
-  DocumentSection,
-  type DocumentItem
-} from '@/common/components/common-relations/record-sections/document-section'
+import { DocumentSection, type DocumentItem } from '@/components/document-section'
 import { useGetInvestmentActivities } from '@/common/data/investment/hooks/useInvestmentActivities'
 import {
   useGetInvestmentNotesByOpportunityId,
-  useGetInvestmentTasksByOpportunityId,
-  useGetInvestmentDocumentsByOpportunityId
+  useGetInvestmentTasksByOpportunityId
 } from '@/common/data/investment/hooks/useInvestmentOpportunities'
 import { FlowContextName } from '@/common/types/FlowRegistryTypes'
 import { startProcess } from '@/common/utils/start-process'
+import {
+  getIrmDocumentApiConfig,
+  useGetIrmDocuments,
+  transformInvestmentDocuments
+} from '@/business-apps/irm/common/utils/documentUtils'
 
 interface OpportunityRecordContentProps extends BusinessAppContextProps {
   opportunityId: string
@@ -146,7 +147,7 @@ const InvestmentOpportunityRecordContent: React.FC<OpportunityRecordContentProps
   const [approvals, setApprovals] = useState<any[]>([])
 
   // Documents data loading
-  const { fetchInvestmentDocumentsByOpportunityId } = useGetInvestmentDocumentsByOpportunityId(props)
+  const { fetchDocuments: fetchOpportunityDocuments } = useGetIrmDocuments('opportunity', props)
   const [documents, setDocuments] = useState<DocumentItem[]>([])
   const [documentsLoading, setDocumentsLoading] = useState(false)
   const [documentsError, setDocumentsError] = useState<string | null>(null)
@@ -199,7 +200,7 @@ const InvestmentOpportunityRecordContent: React.FC<OpportunityRecordContentProps
               lastName: note.authorEmployee.lastName
             }
           : undefined,
-        reminderAt: note.reminderDate,
+        reminderDate: note.reminderDate,
         documents: note.documents
       }))
       setNotes(transformedNotes)
@@ -241,43 +242,8 @@ const InvestmentOpportunityRecordContent: React.FC<OpportunityRecordContentProps
     setDocumentsError(null)
 
     try {
-      const result = await fetchInvestmentDocumentsByOpportunityId(opportunityId)
-
-      // Transform investment documents to DocumentItem format
-      const transformedDocuments: DocumentItem[] = (result || []).map(doc => ({
-        id: doc.id,
-        name: doc.name || null,
-        description: doc.description || null,
-        createdAt: doc.createdAt,
-        expirationDate: doc.expirationDate || null,
-        documentType: doc.documentType
-          ? {
-              id: doc.documentType.id,
-              value: doc.documentType.value || '',
-              code: doc.documentType.code
-            }
-          : null,
-        documentGroup: doc.documentGroup
-          ? {
-              id: doc.documentGroup.id,
-              value: doc.documentGroup.value || '',
-              code: doc.documentGroup.code
-            }
-          : null,
-        file: doc.file || (doc as any)?.fileInfo?.fileId || null,
-        mimeType: doc.mimeType || null,
-        fileSize: doc.fileSize,
-        createdBy: doc.createdBy || null,
-        parentDocument: typeof doc.parentDocument === 'string' ? doc.parentDocument : doc.parentDocument?.id || null,
-        folder: doc.folder,
-        verified: doc.verified,
-        verificationDate: doc.verificationDate || null,
-        authenticated: doc.authenticated,
-        authenticationDate: doc.authenticationDate || null,
-        mandatory: doc.mandatory,
-        version: doc.version
-      }))
-
+      const result = await fetchOpportunityDocuments(opportunityId)
+      const transformedDocuments = transformInvestmentDocuments(result || [])
       setDocuments(transformedDocuments)
     } catch (err) {
       setDocumentsError(err instanceof Error ? err.message : 'Failed to load documents')
@@ -994,15 +960,7 @@ const InvestmentOpportunityRecordContent: React.FC<OpportunityRecordContentProps
               isLoading={documentsLoading}
               error={documentsError}
               onRefresh={loadDocuments}
-              apiConfig={{
-                baseEndpoint: '/investment-relations',
-                entityFieldName: 'opportunity',
-                documentFieldName: 'investmentDocument'
-              }}
-              enableGraphQLSearch={true}
-              graphQLSearchConfig={{
-                entityType: 'opportunity'
-              }}
+              apiConfig={getIrmDocumentApiConfig('opportunity')}
               customActions={[
                 {
                   key: 'delete',
@@ -1041,14 +999,6 @@ const InvestmentOpportunityRecordContent: React.FC<OpportunityRecordContentProps
               ]}
               createFolderActionProps={documentCreateFolderActionProps}
               uploadActionProps={documentUploadActionProps}
-              deleteActionProps={{
-                contextsArray: [FlowContextName.investmentDocumentDelete],
-                externalContextData: {
-                  opportunityId,
-                  entityType: 'opportunity'
-                },
-                prefixDataTestId: 'opportunity-document-delete'
-              }}
               data-testid="opportunity-document-section"
               {...props}
             />

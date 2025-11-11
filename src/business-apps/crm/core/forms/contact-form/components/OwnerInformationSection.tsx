@@ -150,25 +150,12 @@ const OwnerInformationSection: React.FC = () => {
           </Select>
         </div>
 
-        {/* Related Account Selection (CRM-specific) */}
+        {/* Related Account Selection (CRM-specific) - ✅ FIXED: Now supports multiple accounts */}
         <AccountSelect
-          value={formValues.accountId || ''}
-          onChange={accountValue => {
-            // AccountSelect passes { id, name } object for single select
-            if (typeof accountValue === 'object' && accountValue !== null && 'id' in accountValue) {
-              setFormValues({
-                accountId: accountValue.id,
-                companyName: accountValue.name
-              })
-            } else if (typeof accountValue === 'string') {
-              // Fallback: if it's a string, set only the ID
-              setFormValues({ accountId: accountValue })
-            }
-          }}
+          value={formValues.accountIds}
+          onChange={accountIds => setFormValues({ accountIds })}
           dataTestId={formatDataTestId(prefixDataTestId, 'account-select')}
           error={null}
-          label="Related Account"
-          multiple={false}
           accounts={accountSuggestions.map(acc => ({ ...acc, id: String(acc.id) }))}
           accountsLoading={accountsLoading}
           accountsError={null}

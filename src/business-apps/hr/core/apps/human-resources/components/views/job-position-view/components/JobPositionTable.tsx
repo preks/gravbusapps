@@ -27,6 +27,7 @@ import { PiArrowUp, PiArrowDown, PiInfo } from 'react-icons/pi'
 import { AppActionButton } from '@/components/app-action-button/AppActionButton'
 import { FlowContextName } from '@/common/types/FlowRegistryTypes'
 import { JobPosition } from '../hooks/useJobPositionListData'
+import { getTranslationFromI18nKeyAndLabel, formatDate } from '@/common/utils/windowUtils'
 import { formatDataTestId } from '@/common/utils/formatDataTestId'
 
 // Memoized AppActionButton to prevent unnecessary re-renders and API calls
@@ -36,7 +37,8 @@ const MemoizedAppActionButton = React.memo<{
   userId?: string
   accessToken: string
   dataTestIdPrefix: string
-}>(({ jobPositionId, employeeId, userId, accessToken, dataTestIdPrefix }) => (
+  disabled?: boolean
+}>(({ jobPositionId, employeeId, userId, accessToken, dataTestIdPrefix, disabled }) => (
   <AppActionButton
     data-testid={formatDataTestId(dataTestIdPrefix, `Actions-${jobPositionId}`)}
     size="icon"
@@ -48,6 +50,7 @@ const MemoizedAppActionButton = React.memo<{
     }}
     prefixDataTestId={`${dataTestIdPrefix}-action-${jobPositionId}`}
     accessToken={accessToken}
+    disabled={disabled}
     emptyStateBehavior="enable"
     deferMainContextRequestsUntilClick
     autoExecuteSingleAction={true}
@@ -133,10 +136,10 @@ export const JobPositionTable: React.FC<JobPositionTableProps> = ({
   // Handle page size change
   const handlePageSizeChange = useCallback(
     (newPageSize: number) => {
+      // Let parent reset page and load with the new size to avoid race conditions
       onPageSizeChange(newPageSize)
-      onPageChange(1) // Reset to first page when changing page size
     },
-    [onPageChange, onPageSizeChange]
+    [onPageSizeChange]
   )
 
   // Helper function to handle column sorting
@@ -223,6 +226,30 @@ export const JobPositionTable: React.FC<JobPositionTableProps> = ({
         </Avatar>
         <span className="gba:text-sm gba:font-medium gba:truncate">
           {firstName} {lastName}
+        </span>
+      </div>
+    )
+  }
+
+  // Render manager cell using supervisor from employeePositions
+  const renderManagerCell = (jobPosition: JobPosition) => {
+    const supervisor = jobPosition.employeePositions?.[0]?.supervisor
+    if (!supervisor) {
+      return <span className="gba:text-sm">-</span>
+    }
+    const initials = `${supervisor.firstName?.[0] || ''}${supervisor.lastName?.[0] || ''}`.toUpperCase()
+    const avatarSrc = supervisor.pictureThumbnail ? `data:image/gif;base64,${supervisor.pictureThumbnail}` : undefined
+    return (
+      <div
+        className="gba:flex gba:items-center gba:gap-3"
+        data-testid={formatDataTestId(DATA_TEST_ID_PREFIX, 'manager-info')}
+      >
+        <Avatar className="gba:h-8 gba:w-8 gba:flex-shrink-0">
+          {avatarSrc && <AvatarImage src={avatarSrc} alt={`${supervisor.firstName} ${supervisor.lastName}`} />}
+          <AvatarFallback className="gba:text-xs gba:font-medium">{initials}</AvatarFallback>
+        </Avatar>
+        <span className="gba:text-sm gba:font-medium gba:truncate">
+          {supervisor.firstName} {supervisor.lastName}
         </span>
       </div>
     )
@@ -315,6 +342,13 @@ export const JobPositionTable: React.FC<JobPositionTableProps> = ({
                     </TooltipProvider>
                   </div>
                 </TableHead>
+                {/* Manager */}
+                <TableHead className="gba:w-[25%] gba:font-semibold gba:text-foreground gba:py-4 gba:px-6">
+                  {getTranslationFromI18nKeyAndLabel(
+                    'lowcoder:employee_profile.summary_layout.public_profile_container.manager',
+                    'Manager'
+                  )}
+                </TableHead>
                 <TableHead
                   className="gba:w-[15%] gba:font-semibold gba:text-foreground gba:py-4 gba:px-6 gba:cursor-pointer gba:select-none hover:gba:bg-muted/80"
                   onClick={() => handleSort('jobFunction')}
@@ -344,6 +378,13 @@ export const JobPositionTable: React.FC<JobPositionTableProps> = ({
                     {t('job_position.employee', 'Employee')}
                     {renderSortIcon('employee')}
                   </div>
+                </TableHead>
+                {/* Marked for termination */}
+                <TableHead className="gba:w-[15%] gba:font-semibold gba:text-foreground gba:py-4 gba:px-6">
+                  {getTranslationFromI18nKeyAndLabel(
+                    'lowcoder:employee_profile.summary_layout.public_profile_container.marked_for_termination_title',
+                    'Marked for termination'
+                  )}
                 </TableHead>
                 <TableHead
                   className="gba:w-[5%] gba:font-semibold gba:text-foreground gba:py-4 gba:px-6"
@@ -379,6 +420,14 @@ export const JobPositionTable: React.FC<JobPositionTableProps> = ({
                     {getOrganizationalUnitDisplay(jobPosition)}
                   </TableCell>
 
+                  {/* Manager */}
+                  <TableCell
+                    className="gba:py-4 gba:px-6"
+                    data-testid={formatDataTestId(DATA_TEST_ID_PREFIX, `manager-${jobPosition.id}`)}
+                  >
+                    {renderManagerCell(jobPosition)}
+                  </TableCell>
+
                   {/* Job Function */}
                   <TableCell
                     className="gba:py-4 gba:px-6"
@@ -402,6 +451,13 @@ export const JobPositionTable: React.FC<JobPositionTableProps> = ({
                   >
                     {renderEmployeeCell(jobPosition)}
                   </TableCell>
+                  {/* Marked for termination */}
+                  <TableCell
+                    className="gba:py-4 gba:px-6"
+                    data-testid={formatDataTestId(DATA_TEST_ID_PREFIX, `termination-${jobPosition.id}`)}
+                  >
+                    {jobPosition.activeTo ? formatDate(jobPosition.activeTo, 'date.long') : '-'}
+                  </TableCell>
 
                   {/* Actions Column - Last */}
                   <TableCell className="gba:py-4 gba:px-6">
@@ -411,6 +467,7 @@ export const JobPositionTable: React.FC<JobPositionTableProps> = ({
                         employeeId={jobPosition.employeePositions[0]?.employeeId}
                         userId={undefined}
                         accessToken={accessToken}
+                        disabled={Boolean(jobPosition.activeTo)}
                         dataTestIdPrefix={DATA_TEST_ID_PREFIX}
                       />
                     </div>

@@ -2,6 +2,7 @@ import React, { useEffect, useState } from 'react'
 import { Alert, Spinner, Dialog, DialogContent, DialogHeader, DialogTitle } from '@newwork/nw-design-system'
 import { DownloadOutlined, PrinterOutlined, FullscreenOutlined, MoreOutlined } from '@ant-design/icons'
 import { FileClient } from '@/common/network/files/FileClient'
+import { getTranslationFromI18nKeyAndLabel } from '@/common/utils/windowUtils'
 
 interface DocumentPdfModalProps {
   isVisible: boolean
@@ -167,7 +168,9 @@ const DocumentPdfModal: React.FC<DocumentPdfModalProps> = ({
               data-testid="document-pdf-iframe"
             />
           ) : (
-            <div className="gba:text-center gba:p-8 gba:text-gray-500">No PDF URL available</div>
+            <div className="gba:text-center gba:p-8 gba:text-gray-500">
+              {getTranslationFromI18nKeyAndLabel('lowcoder:personal_expenses.no_document', 'No PDF URL available')}
+            </div>
           )}
         </div>
       </DialogContent>
