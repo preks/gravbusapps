@@ -158,6 +158,12 @@ const AssetsTab: React.FC<AssetsTabProps> = ({ employee, accessToken, employeeId
     return asset.asset.assetStatus === AssetStatus.ALLOCATED && startDate.isSameOrBefore(today)
   }
 
+  const handleRequestNewAsset = () => {
+    const baseUrl = typeof window !== 'undefined' ? window.location.origin : ''
+    const url = `${baseUrl}/platform/sales-demo/service-launcher`
+    navigateTo(url)
+  }
+
   if (isLoading) {
     return (
       <div className="gba:flex gba:justify-center gba:items-center gba:py-12" data-testid="assets-loading">
@@ -216,14 +222,7 @@ const AssetsTab: React.FC<AssetsTabProps> = ({ employee, accessToken, employeeId
               <PiPackage className="gba:h-5 gba:w-5" />
               Assigned Equipment
             </CardTitle>
-            <Button
-              onClick={() => {
-                const baseUrl = typeof window !== 'undefined' ? window.location.origin : ''
-                const url = `${baseUrl}/platform/sales-demo/service-launcher`
-                navigateTo(url)
-              }}
-              data-testid="request-new-asset-button"
-            >
+            <Button onClick={handleRequestNewAsset} data-testid="request-new-asset-button">
               Request New Asset
             </Button>
           </div>

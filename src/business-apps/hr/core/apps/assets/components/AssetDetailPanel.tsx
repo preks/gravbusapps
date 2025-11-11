@@ -1,10 +1,5 @@
-/**
- * AssetDetailPanel Component
- * Displays detailed information about a selected asset in a side panel
- */
-
-import React from 'react'
-import { Asset, AssetAllocation } from '../types'
+import React, { useMemo } from 'react'
+import { Asset, AssetAllocation, AssetStatus } from '../types'
 import {
   Sheet,
   SheetContent,
@@ -20,7 +15,7 @@ import {
 } from '@newwork/nw-design-system'
 import { CalendarIcon, MapPinIcon, TagIcon, CurrencyDollarIcon } from '@phosphor-icons/react'
 import { AppActionButton } from '@/components/app-action-button/AppActionButton'
-import { FlowContextName } from '@/common/types/FlowRegistryTypes'
+import { getTranslationFromI18nKeyAndLabel } from '@/common/utils/windowUtils'
 import dayjs from 'dayjs'
 import relativeTime from 'dayjs/plugin/relativeTime'
 
@@ -32,21 +27,47 @@ interface AssetDetailPanelProps {
   isOpen: boolean
   onClose: () => void
   accessToken: string
+  onAllocateAsset?: (assetId: string) => void
+  onUpdateAsset?: (assetId: string) => void
+  onRetireAsset?: (assetId: string) => void
+  onRetrieveAsset?: (assetId: string) => void
 }
 
-const getStatusBadgeVariant = (status: string) => {
+const getStatusBadgeVariant = (status: AssetStatus): 'success' | 'info' | 'warning' | 'destructive' | 'default' => {
   switch (status) {
-    case 'Available':
+    case AssetStatus.AVAILABLE:
       return 'success'
-    case 'Allocated':
+    case AssetStatus.ALLOCATED:
       return 'info'
-    case 'Under Repair':
+    case AssetStatus.UNDER_REPAIR:
       return 'warning'
-    case 'Retired':
+    case AssetStatus.RETIRED:
       return 'destructive'
     default:
       return 'default'
   }
+}
+
+const formatStatus = (status: AssetStatus | string): string => {
+  if (status === AssetStatus.AVAILABLE) {
+    return 'Available'
+  }
+  if (status === AssetStatus.ALLOCATED) {
+    return 'Allocated'
+  }
+  if (status === AssetStatus.UNDER_REPAIR) {
+    return 'In Repair'
+  }
+  if (status === AssetStatus.RETIRED) {
+    return 'Retired'
+  }
+  // Fallback: format by removing _ASSET and replacing underscores with spaces, then capitalize
+  const statusStr = status as string
+  return statusStr
+    .replace(/_ASSET$/, '')
+    .replace(/_/g, ' ')
+    .toLowerCase()
+    .replace(/\b\w/g, l => l.toUpperCase())
 }
 
 const formatCurrency = (amount: number, currency?: string): string => {
@@ -78,11 +99,71 @@ export const AssetDetailPanel: React.FC<AssetDetailPanelProps> = ({
   allocations,
   isOpen,
   onClose,
-  accessToken
+  accessToken,
+  onAllocateAsset,
+  onUpdateAsset,
+  onRetireAsset,
+  onRetrieveAsset
 }) => {
   if (!asset) return null
 
-  // Calculate warranty expiry date from acquisition date + warranty period
+  const isAllocated = asset.assetStatus === AssetStatus.ALLOCATED
+  const isRetired = asset.assetStatus === AssetStatus.RETIRED
+
+  const staticFlowData = useMemo(() => {
+    const actions: any[] = []
+
+    if (!isRetired && onUpdateAsset) {
+      actions.push({
+        category: getTranslationFromI18nKeyAndLabel('lowcoder:employee_list.flows_button.actions', 'Actions'),
+        key: 'update-asset',
+        label: getTranslationFromI18nKeyAndLabel('lowcoder:asset_list.asset_flows.update_asset', 'Update Asset'),
+        onClick: (e?: React.MouseEvent) => {
+          e?.stopPropagation()
+          onUpdateAsset(asset.id)
+        }
+      })
+    }
+
+    if (!isAllocated && !isRetired && onAllocateAsset) {
+      actions.push({
+        category: getTranslationFromI18nKeyAndLabel('lowcoder:employee_list.flows_button.actions', 'Actions'),
+        key: 'allocate-asset',
+        label: getTranslationFromI18nKeyAndLabel('lowcoder:asset_list.asset_flows.allocate_asset', 'Allocate Asset'),
+        onClick: (e?: React.MouseEvent) => {
+          e?.stopPropagation()
+          onAllocateAsset(asset.id)
+        }
+      })
+    }
+
+    if (isAllocated && !isRetired && onRetrieveAsset) {
+      actions.push({
+        category: getTranslationFromI18nKeyAndLabel('lowcoder:employee_list.flows_button.actions', 'Actions'),
+        key: 'retrieve-asset',
+        label: getTranslationFromI18nKeyAndLabel('lowcoder:asset_list.asset_flows.retrieve_asset', 'Retrieve Asset'),
+        onClick: (e?: React.MouseEvent) => {
+          e?.stopPropagation()
+          onRetrieveAsset(asset.id)
+        }
+      })
+    }
+
+    if (!isRetired && onRetireAsset) {
+      actions.push({
+        category: getTranslationFromI18nKeyAndLabel('lowcoder:employee_list.flows_button.actions', 'Actions'),
+        key: 'retire-asset',
+        label: getTranslationFromI18nKeyAndLabel('lowcoder:asset_list.asset_flows.retire_asset', 'Retire Asset'),
+        onClick: (e?: React.MouseEvent) => {
+          e?.stopPropagation()
+          onRetireAsset(asset.id)
+        }
+      })
+    }
+
+    return actions
+  }, [asset.id, isAllocated, isRetired, onAllocateAsset, onUpdateAsset, onRetireAsset, onRetrieveAsset])
+
   const acquisitionDate = dayjs(asset.acquisitionDate)
   const warrantyExpiryDate = acquisitionDate.add(asset.warrantyPeriodMonths, 'month')
 
@@ -91,11 +172,11 @@ export const AssetDetailPanel: React.FC<AssetDetailPanelProps> = ({
   const sortedAllocations = [...allocations].sort((a, b) => dayjs(b.startDate).diff(dayjs(a.startDate)))
 
   return (
-    <Sheet open={isOpen} onOpenChange={onClose}>
+    <Sheet open={isOpen} onOpenChange={onClose} title="">
       <SheetContent className="gba:w-full sm:gba:max-w-xl gba:overflow-y-auto" data-testid="asset-detail-panel">
-        <SheetHeader className="gba:pr-10">
+        <SheetHeader className="gba:pr-16">
           <div className="gba:flex gba:items-start gba:justify-between gba:gap-3">
-            <div className="gba:flex-1">
+            <div className="gba:flex-1 gba:min-w-0">
               <SheetTitle data-testid="asset-detail-title">
                 {asset.assetBrand?.value || 'Unknown'} {asset.model}
               </SheetTitle>
@@ -103,27 +184,24 @@ export const AssetDetailPanel: React.FC<AssetDetailPanelProps> = ({
                 {asset.assetCategory?.value || 'N/A'}
               </SheetDescription>
             </div>
-            <div className="gba:flex gba:items-center gba:gap-2">
+            <div className="gba:flex gba:items-center gba:gap-2 gba:shrink-0">
               <Badge variant={getStatusBadgeVariant(asset.assetStatus)} data-testid="asset-detail-status-badge">
-                {asset.assetStatus}
+                {formatStatus(asset.assetStatus)}
               </Badge>
               <AppActionButton
                 data-testid={`asset-actions-button-${asset.id}`}
                 size="default"
-                contextsArray={[FlowContextName.assetEntity]}
-                externalContextData={{ assetId: asset.id }}
-                prefixDataTestId={`asset-actions`}
+                staticFlowData={staticFlowData}
+                prefixDataTestId={`asset-actions-${asset.id}`}
                 accessToken={accessToken}
                 emptyStateBehavior="enable"
                 deferMainContextRequestsUntilClick
-                label="Actions"
               />
             </div>
           </div>
         </SheetHeader>
 
         <div className="gba:mt-6 gba:space-y-6">
-          {/* Asset Information */}
           <Card data-testid="asset-info-card">
             <CardHeader>
               <CardTitle className="gba:text-base">Asset Information</CardTitle>
@@ -177,7 +255,6 @@ export const AssetDetailPanel: React.FC<AssetDetailPanelProps> = ({
             </CardContent>
           </Card>
 
-          {/* Warranty Information */}
           <Card data-testid="asset-warranty-card">
             <CardHeader>
               <CardTitle className="gba:text-base">Warranty</CardTitle>
@@ -215,7 +292,6 @@ export const AssetDetailPanel: React.FC<AssetDetailPanelProps> = ({
             </CardContent>
           </Card>
 
-          {/* Notes */}
           {asset.notes && (
             <Card data-testid="asset-notes-card">
               <CardHeader>
@@ -229,7 +305,6 @@ export const AssetDetailPanel: React.FC<AssetDetailPanelProps> = ({
             </Card>
           )}
 
-          {/* Allocation History */}
           <Card data-testid="asset-allocation-history-card">
             <CardHeader>
               <CardTitle className="gba:text-base">Allocation History</CardTitle>

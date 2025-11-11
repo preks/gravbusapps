@@ -230,6 +230,10 @@ export const Assets: React.FC<BusinessAppContextProps> = props => {
         isOpen={isPanelOpen}
         onClose={handlePanelClose}
         accessToken={props.accessToken}
+        onAllocateAsset={handleAllocateAsset}
+        onUpdateAsset={handleUpdateAsset}
+        onRetireAsset={handleRetireAsset}
+        onRetrieveAsset={handleRetrieveAsset}
       />
 
       <Dialog open={dialogs.isRegisterOpen} onOpenChange={dialogs.closeRegister}>
