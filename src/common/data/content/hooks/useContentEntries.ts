@@ -4,10 +4,9 @@
  */
 import { useState, useEffect, useCallback, useRef } from 'react'
 import { useGraphQLClient } from '@/common/network/graphql/useGraphQLClient'
-import { buildContentEntriesQuery } from '../queries/contentQueries'
+import { buildContentEntriesQuery, buildContentEntriesVariables } from '../queries/contentQueries'
 import { mapBaseToContentEntry } from '../mappers/contentMappers'
 import type { ContentEntry, ContentEntryQueryParams } from '../types/contentTypes'
-import type { BaseContentEntry } from '../types/contentBaseTypes'
 
 interface UseContentEntriesResult {
   entries: ContentEntry[]
@@ -19,7 +18,7 @@ interface UseContentEntriesResult {
 }
 
 interface ContentEntriesResponse {
-  ContentEntry: BaseContentEntry[]
+  ContentEntry: any[] // GraphQL response - will be transformed to ContentEntry
   ContentEntryAggregate: {
     aggregate: {
       count: number
@@ -58,7 +57,8 @@ export const useContentEntries = (
 
       try {
         const query = buildContentEntriesQuery(params, useChildCount)
-        const response = await graphqlClient.request<ContentEntriesResponse>(query)
+        const variables = buildContentEntriesVariables(params)
+        const response = await graphqlClient.request<ContentEntriesResponse>(query, variables)
 
         if (response.ContentEntry) {
           const mappedEntries = response.ContentEntry.map((entry: any) =>

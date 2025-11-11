@@ -58,10 +58,10 @@ const TrendingNow: React.FC<TrendingNowProps> = ({ entries, className = '', curr
             <h4 className="gba:text-sm gba:font-medium gba:mb-1 gba:line-clamp-2 gba:text-foreground">{entry.title}</h4>
 
             <div className="gba:mt-auto gba:flex gba:items-center gba:gap-3 gba:text-xs gba:text-muted-foreground">
-              {entry.reactionCount && entry.reactionCount > 0 && (
+              {entry.contentEntryReactionCounts && entry.contentEntryReactionCounts.length > 0 && (
                 <span className="gba:flex gba:items-center gba:gap-1">
                   <span className="gba:text-primary">❤️</span>
-                  {entry.reactionCount}
+                  {entry.contentEntryReactionCounts.reduce((sum, item) => sum + (item.count || 0), 0)}
                 </span>
               )}
 

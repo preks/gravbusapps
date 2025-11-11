@@ -16,6 +16,12 @@ export interface QuickTaskFlowData {
   dueDate?: string // ISO date string
   // Additional metadata
   priority?: 'low' | 'medium' | 'high'
+  // Entity reference fields for sharing content
+  entityType?: string
+  entityId?: string
+  entityName?: string
+  entityDisplayUrl?: string
+  entityMetadata?: Record<string, any>
 }
 
 export interface ExecuteQuickTaskOptions {
@@ -76,6 +82,24 @@ export class QuickTaskFlowService {
       }
     })
 
+    // Add entity link if entity reference is provided
+    const entityLink: Link | null =
+      data.entityType && data.entityId && data.entityName && data.entityDisplayUrl
+        ? {
+            name: data.entityName,
+            url: data.entityDisplayUrl,
+            type: `entity:${data.entityType}`,
+            metadata: {
+              entityType: data.entityType,
+              entityId: data.entityId,
+              ...(data.entityMetadata && { entityMetadata: data.entityMetadata })
+            }
+          }
+        : null
+
+    // Combine document links and entity link
+    const allLinks: Link[] = entityLink ? [...documentLinks, entityLink] : documentLinks
+
     // Calculate due date/time
     const dueConfig = this.calculateDueConfig(data)
 
@@ -85,14 +109,26 @@ export class QuickTaskFlowService {
       title: data.title,
       message: data.message,
       form: [], // No form inputs - just a simple task to complete
-      links: documentLinks, // Add document links for reference
+      links: allLinks, // Add document links and entity link for reference
       assignment: data.assignments,
       ...dueConfig // Either dueInMinutes or dueDate
     }
 
     // Tag for blink app filtering
-    const tags = {
+    const tags: Record<string, any> = {
       app: 'quick-task'
+    }
+
+    // Add entity reference to tags for outbox display
+    if (data.entityType && data.entityId) {
+      tags.entityType = data.entityType
+      tags.entityId = data.entityId
+      if (data.entityName) {
+        tags.entityName = data.entityName
+      }
+      if (data.entityDisplayUrl) {
+        tags.entityDisplayUrl = data.entityDisplayUrl
+      }
     }
 
     const template: FlowTemplate = {
@@ -194,14 +230,22 @@ export class QuickTaskFlowService {
 
     // Generate dynamic workflow template
     const flowTemplate = this.generateFlowTemplate({
-      ...formData,
+      title: formData.title,
+      message: formData.message,
       uploadResults,
       priority: 'medium',
       assignments: {
         assignmentMode: AssignmentMode.ASSIGN,
         targets: null,
         allowReassignment: false
-      }
+      },
+      dueDate: formData.dueDate,
+      // Pass entity reference fields if present
+      entityType: formData.entityType,
+      entityId: formData.entityId,
+      entityName: formData.entityName,
+      entityDisplayUrl: formData.entityDisplayUrl,
+      entityMetadata: formData.entityMetadata
     })
 
     // Execute the workflow

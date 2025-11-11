@@ -3,10 +3,12 @@ import type { IntranetContent } from '@/common/data/content/mappers/contentMappe
 import { useTranslation } from 'react-i18next'
 import { ChevronLeft, ChevronRight, MessageCircle, Share2 } from 'lucide-react'
 import { navigateTo, buildPlatformUrl } from '@/common/utils/navigationUtils'
-import { ReactionPicker, type ReactionSummary } from '@/common/components/common-content'
+import { ReactionPicker } from '@/common/components/content'
 import { Button } from '@newwork/nw-design-system'
 import { BusinessAppContextProps } from '@/common/BusinessAppContext'
-import { copyUrlToClipboard } from '../../utils/contentUtils'
+import { ShareDialog } from '@/components/share-dialog'
+import { getEntityTypeFromTab, buildContentRecordUrl } from '@/business-apps/core/content/utils/shareUtils'
+import { buildReactionSummaryFromCounts } from '@/common/data/content/utils/reactionUtils'
 
 interface ContentCarouselProps extends Pick<BusinessAppContextProps, 'accessToken' | 'userInfo'> {
   articles: IntranetContent[]
@@ -14,7 +16,6 @@ interface ContentCarouselProps extends Pick<BusinessAppContextProps, 'accessToke
   currentTab?: string
   allowedReactions?: string[]
   reactionCatalogMap?: Record<string, string>
-  reactionsByArticle?: Record<string, ReactionSummary>
   onReactionsRefetch?: () => void
 }
 
@@ -26,12 +27,13 @@ const ContentCarousel: React.FC<ContentCarouselProps> = ({
   userInfo,
   allowedReactions,
   reactionCatalogMap,
-  reactionsByArticle = {},
   onReactionsRefetch
 }) => {
   const { t } = useTranslation('content')
   const [activeIndex, setActiveIndex] = useState<number>(0)
   const [autoplay, setAutoplay] = useState<boolean>(true)
+  const [shareDialogOpen, setShareDialogOpen] = useState(false)
+  const [selectedArticle, setSelectedArticle] = useState<IntranetContent | null>(null)
   const carouselArticles = [...articles].reverse()
 
   const getInitials = useMemo(
@@ -109,12 +111,12 @@ const ContentCarousel: React.FC<ContentCarouselProps> = ({
 
   const handleShare = (e: React.MouseEvent, article: IntranetContent) => {
     e.stopPropagation()
-    const url = buildPlatformUrl('/platform/content/intranet/content-record', {
-      contentId: article.articleId,
-      ...(currentTab && { tab: currentTab })
-    })
-    copyUrlToClipboard(window.location.origin + url)
+    setSelectedArticle(article)
+    setShareDialogOpen(true)
   }
+
+  const entityType = selectedArticle ? getEntityTypeFromTab(currentTab) : null
+  const entityDisplayUrl = selectedArticle ? buildContentRecordUrl(selectedArticle.articleId, currentTab) : ''
 
   return (
     <div
@@ -183,7 +185,7 @@ const ContentCarousel: React.FC<ContentCarouselProps> = ({
                         <div onClick={e => e.stopPropagation()}>
                           <ReactionPicker
                             contentEntryId={article.articleId}
-                            reactionSummary={reactionsByArticle[article.articleId] || {}}
+                            reactionSummary={buildReactionSummaryFromCounts(article, userInfo?.id)}
                             allowReaction={article.allowReaction}
                             accessToken={accessToken}
                             employeeId={userInfo?.employeeDetails?.employeeId || ''}
@@ -254,6 +256,18 @@ const ContentCarousel: React.FC<ContentCarouselProps> = ({
           ))}
         </div>
       </div>
+      {entityType && selectedArticle && userInfo?.id && (
+        <ShareDialog
+          open={shareDialogOpen}
+          onOpenChange={setShareDialogOpen}
+          accessToken={accessToken}
+          currentUserId={userInfo.id}
+          entityType={entityType}
+          entityId={selectedArticle.articleId}
+          entityName={selectedArticle.title}
+          entityDisplayUrl={entityDisplayUrl}
+        />
+      )}
     </div>
   )
 }

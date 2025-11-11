@@ -5,8 +5,11 @@ import { MessageCircle, CheckCircle, Share2, ChevronDown, ChevronUp } from 'luci
 import { ContentEntry } from '@/common/data/content/types/contentTypes'
 import { useContentComments, CommentWithReplies } from '@/common/data/content'
 import { useUserContentReactions } from '@/common/data/content'
-import { VoteButtons, type VoteState } from '@/common/components/common-content'
+import { VoteButtons, type VoteState } from '@/common/components/content'
 import { buildPlatformUrl, navigateTo } from '@/common/utils/navigationUtils'
+import { formatDate } from '@/common/utils/windowUtils'
+import { ShareDialog } from '@/components/share-dialog'
+import { getEntityTypeFromContentGroup, buildContentRecordUrl } from '@/business-apps/core/content/utils/shareUtils'
 import CommentForm from './interactions/CommentForm'
 import CommentItem from './interactions/CommentItem'
 import AnswerForm from './AnswerForm'
@@ -31,6 +34,10 @@ const QuestionView: React.FC<QuestionViewProps> = ({
   reactionCatalogMap = {}
 }) => {
   const { t } = useTranslation(translations)
+  const [shareDialogOpen, setShareDialogOpen] = useState(false)
+
+  const entityType = getEntityTypeFromContentGroup(item.contentGroupRef)
+  const entityDisplayUrl = buildContentRecordUrl(item.id)
   const [expandedAnswerId, setExpandedAnswerId] = useState<string | null>(null)
   const [showAnswerForm, setShowAnswerForm] = useState(false)
   const [visibleCommentsPerAnswer, setVisibleCommentsPerAnswer] = useState<Record<string, number>>({})
@@ -226,13 +233,13 @@ const QuestionView: React.FC<QuestionViewProps> = ({
               <div className="gba:flex gba:flex-row gba:justify-between gba:p-5 gba:mt-4 gba:bg-muted gba:rounded-lg">
                 {/* Author and Date Info */}
                 <div className="gba:flex gba:flex-row gba:items-center">
-                  {item.displayCreator && item.creatorDisplayName && (
+                  {item.displayCreator && item.creatorEmployee?.displayName && (
                     <>
                       <p
                         className="gba:text-sm gba:font-bold gba:text-foreground gba:cursor-pointer hover:gba:text-primary hover:gba:underline"
                         onClick={e => handleAuthorClick(e, item.creatorEmployeeId)}
                       >
-                        {item.creatorDisplayName}
+                        {item.creatorEmployee.displayName}
                       </p>
                       <p className="gba:text-sm gba:font-regular gba:mx-3 gba:text-muted-foreground">•</p>
                     </>
@@ -240,7 +247,7 @@ const QuestionView: React.FC<QuestionViewProps> = ({
 
                   {item.createdAt && (
                     <p className="gba:text-sm gba:font-regular gba:text-foreground">
-                      {item.formattedCreatedAt || new Date(item.createdAt).toLocaleDateString()}
+                      {formatDate(item.createdAt) || new Date(item.createdAt).toLocaleDateString()}
                     </p>
                   )}
                 </div>
@@ -250,11 +257,9 @@ const QuestionView: React.FC<QuestionViewProps> = ({
                   <Button
                     variant="ghost"
                     size="sm"
-                    onClick={() => {
-                      const url = window.location.href
-                      navigator.clipboard.writeText(url)
-                    }}
+                    onClick={() => setShareDialogOpen(true)}
                     className="gba:p-2"
+                    data-testid="question-share-button"
                   >
                     <Share2 className="gba:w-4 gba:h-4" />
                   </Button>
@@ -369,13 +374,13 @@ const QuestionView: React.FC<QuestionViewProps> = ({
                           className="gba:cursor-pointer hover:gba:text-primary hover:gba:underline"
                           onClick={e => handleAuthorClick(e, answer.creatorEmployeeId)}
                         >
-                          {answer.creatorDisplayName || t('unknown')}
+                          {answer.creatorEmployee?.displayName || t('unknown')}
                         </span>
                       </span>
-                      {answer.formattedCreatedAt && (
+                      {answer.createdAt && formatDate(answer.createdAt) && (
                         <>
                           <span>•</span>
-                          <span>{answer.formattedCreatedAt}</span>
+                          <span>{formatDate(answer.createdAt)}</span>
                         </>
                       )}
                     </div>
@@ -559,6 +564,18 @@ const QuestionView: React.FC<QuestionViewProps> = ({
             )
           })}
       </div>
+      {entityType && userId && (
+        <ShareDialog
+          open={shareDialogOpen}
+          onOpenChange={setShareDialogOpen}
+          accessToken={accessToken}
+          currentUserId={userId}
+          entityType={entityType}
+          entityId={item.id}
+          entityName={item.title}
+          entityDisplayUrl={entityDisplayUrl}
+        />
+      )}
     </div>
   )
 }

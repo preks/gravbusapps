@@ -11,10 +11,8 @@ import translations from '../../_i18n'
 import { AppAction } from '@/components/app-action'
 import { FlowContextName } from '@/common/types/FlowRegistryTypes'
 import { useProcessCompletion } from '@/common/hooks/useProcessCompletion'
-import {
-  DocumentSection,
-  type DocumentItem
-} from '@/common/components/common-relations/record-sections/document-section'
+import { DocumentSection, type DocumentItem } from '@/components/document-section/DocumentSection'
+import { EmployeeHoverCard } from '@/common/components/employee'
 
 interface DocumentViewProps extends BusinessAppContextProps {
   hideBanner?: boolean
@@ -238,7 +236,21 @@ const DocumentView: React.FC<DocumentViewProps> = ({ accessToken, userInfo, hide
                         {area.title}
                       </h3>
                       {area.preview && (
-                        <p className="gba:text-sm gba:text-muted-foreground gba:line-clamp-3">{area.preview}</p>
+                        <p className="gba:text-sm gba:text-muted-foreground gba:line-clamp-3 gba:mb-3">
+                          {area.preview}
+                        </p>
+                      )}
+                      {/* Responsible */}
+                      {area.creatorEmployee && (
+                        <div className="gba:flex gba:items-center gba:text-sm">
+                          <span className="gba:text-muted-foreground gba:mr-1">Responsible:</span>
+                          <EmployeeHoverCard employee={area.creatorEmployee}>
+                            <span className="gba:cursor-pointer hover:gba:text-primary hover:gba:underline gba:text-foreground">
+                              {area.creatorEmployee.displayName ||
+                                `${area.creatorEmployee.firstName || ''} ${area.creatorEmployee.lastName || ''}`.trim()}
+                            </span>
+                          </EmployeeHoverCard>
+                        </div>
                       )}
                     </div>
                   </Card>

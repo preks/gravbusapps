@@ -7,7 +7,6 @@ import { useGraphQLClient } from '@/common/network/graphql/useGraphQLClient'
 import { buildContentReactionsQuery } from '../queries/contentQueries'
 import { mapBaseToContentEntryReaction, aggregateReactions } from '../mappers/contentMappers'
 import type { ContentEntryReaction, ContentReactionQueryParams, ReactionAggregation } from '../types/contentTypes'
-import type { BaseContentEntryReaction } from '../types/contentBaseTypes'
 
 interface UseContentReactionsResult {
   reactions: ContentEntryReaction[]
@@ -19,7 +18,7 @@ interface UseContentReactionsResult {
 }
 
 interface ContentReactionsResponse {
-  ContentEntryReaction: BaseContentEntryReaction[]
+  ContentEntryReaction: any[] // GraphQL response - will be transformed to ContentEntryReaction
   ContentEntryReactionAggregate?: {
     aggregate: {
       count: number

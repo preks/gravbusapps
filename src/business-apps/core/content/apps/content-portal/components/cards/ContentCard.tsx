@@ -1,11 +1,15 @@
-import React from 'react'
+import React, { useState } from 'react'
 import { useTranslation, Badge, Button } from '@newwork/nw-design-system'
 import { MessageCircle, Share2 } from 'lucide-react'
 import type { IntranetContent } from '@/common/data/content/mappers/contentMappers'
-import { copyUrlToClipboard, calculateReadingTime } from '../../utils/contentUtils'
+import { calculateReadingTime } from '../../utils/contentUtils'
 import { navigateTo, buildPlatformUrl } from '@/common/utils/navigationUtils'
-import { ReactionPicker, type ReactionSummary } from '@/common/components/common-content'
+import { ReactionPicker } from '@/common/components/content'
 import { BusinessAppContextProps } from '@/common/BusinessAppContext'
+import { ShareDialog } from '@/components/share-dialog'
+import { getEntityTypeFromVariant, buildContentRecordUrl } from '@/business-apps/core/content/utils/shareUtils'
+import { buildReactionSummaryFromCounts } from '@/common/data/content/utils/reactionUtils'
+import { EmployeeHoverCard } from '@/common/components/employee'
 import dayjs from 'dayjs'
 import translations from '../../_i18n'
 
@@ -20,8 +24,8 @@ interface ContentCardProps extends BusinessAppContextProps {
   currentTab?: string
   allowedReactions?: string[]
   reactionCatalogMap?: Record<string, string>
-  reactionSummary?: ReactionSummary
   onReactionsRefetch?: () => void
+  authorLabel?: string // Label for author field (e.g., "Author", "Creator", "Responsible")
 }
 
 const ContentCard: React.FC<ContentCardProps> = ({
@@ -35,11 +39,15 @@ const ContentCard: React.FC<ContentCardProps> = ({
   userInfo,
   allowedReactions,
   reactionCatalogMap,
-  reactionSummary = {},
-  onReactionsRefetch
+  onReactionsRefetch,
+  authorLabel
 }) => {
   const { t } = useTranslation(translations)
+  const [shareDialogOpen, setShareDialogOpen] = useState(false)
   const formattedDate = item?.createdAt ? dayjs(item.createdAt).format('MMM DD, YYYY') : ''
+
+  // Build reaction summary from contentEntryReactionCounts
+  const reactionSummary = buildReactionSummaryFromCounts(item, userInfo?.id)
 
   const handleClick = () => {
     if (onClick) {
@@ -56,8 +64,11 @@ const ContentCard: React.FC<ContentCardProps> = ({
 
   const handleShare = (e: React.MouseEvent) => {
     e.stopPropagation()
-    copyUrlToClipboard(t('content_link_copied'), item.articleId)
+    setShareDialogOpen(true)
   }
+
+  const entityType = getEntityTypeFromVariant(variant)
+  const entityDisplayUrl = buildContentRecordUrl(item.articleId, currentTab)
 
   const hasTags = item.tags && item.tags.length > 0
   const readingTime = item.timeToRead ?? calculateReadingTime(item.content)
@@ -115,30 +126,20 @@ const ContentCard: React.FC<ContentCardProps> = ({
             </div>
 
             {/* Author */}
-            {item.displayAuthor && item.author && (
-              <div className="gba:flex gba:items-center gba:mb-3">
-                <div className="gba:w-8 gba:h-8 gba:rounded-full gba:bg-muted gba:mr-3 gba:overflow-hidden gba:flex gba:items-center gba:justify-center">
-                  {item.author.avatar ? (
-                    <img
-                      src={item.author.avatar}
-                      alt={`${item.author.firstName} ${item.author.lastName}`}
-                      className="gba:w-full gba:h-full gba:object-cover"
-                    />
-                  ) : (
-                    <div className="gba:w-full gba:h-full gba:flex gba:items-center gba:justify-center gba:bg-muted gba:text-xs gba:text-muted-foreground">
-                      {item.author.firstName?.[0]}
-                      {item.author.lastName?.[0]}
-                    </div>
-                  )}
-                </div>
-                <div>
-                  <p className="gba:text-sm gba:font-medium gba:text-foreground">
-                    {item.author.firstName} {item.author.lastName}
-                  </p>
-                  {item.author.jobPosition && (
-                    <p className="gba:text-xs gba:text-muted-foreground">{item.author.jobPosition}</p>
-                  )}
-                </div>
+            {(item.creatorEmployee || item.authorFullName) && (
+              <div className="gba:flex gba:items-center gba:mb-3 gba:text-sm">
+                {authorLabel && <span className="gba:text-muted-foreground gba:mr-1">{authorLabel}:</span>}
+                {item.creatorEmployee ? (
+                  <EmployeeHoverCard employee={item.creatorEmployee}>
+                    <span className="gba:cursor-pointer hover:gba:text-primary hover:gba:underline gba:text-foreground">
+                      {item.creatorEmployee.displayName ||
+                        `${item.creatorEmployee.firstName || ''} ${item.creatorEmployee.lastName || ''}`.trim() ||
+                        item.authorFullName}
+                    </span>
+                  </EmployeeHoverCard>
+                ) : (
+                  <span className="gba:text-foreground">{item.authorFullName}</span>
+                )}
               </div>
             )}
 
@@ -195,6 +196,18 @@ const ContentCard: React.FC<ContentCardProps> = ({
           </div>
         </div>
       </div>
+      {entityType && (
+        <ShareDialog
+          open={shareDialogOpen}
+          onOpenChange={setShareDialogOpen}
+          accessToken={accessToken}
+          currentUserId={userInfo?.id || ''}
+          entityType={entityType}
+          entityId={item.articleId}
+          entityName={item.title}
+          entityDisplayUrl={entityDisplayUrl}
+        />
+      )}
     </div>
   )
 }

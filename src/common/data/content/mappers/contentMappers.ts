@@ -1,17 +1,10 @@
 /**
  * Content Mappers
- * Transform base types to enhanced types with computed fields
+ * Transform GraphQL responses to Content types with computed fields
  */
 import type { EmployeeRef } from '@/common/data/employee/types/employeeBaseTypes'
 import type { CatalogEntry } from '@/common/network/graphql/commonTypes'
 import { ContentRole } from '../types/contentEnums'
-import type {
-  BaseContentEntry,
-  BaseContentEntryCategory,
-  BaseContentEntryTag,
-  BaseContentDocument,
-  BaseContentEntryReaction
-} from '../types/contentBaseTypes'
 import type {
   ContentEntry,
   ContentEntryCategory,
@@ -22,44 +15,17 @@ import type {
 } from '../types/contentTypes'
 
 /**
- * Format date for display
- */
-const formatDate = (dateString?: string | null): string | undefined => {
-  if (!dateString) return undefined
-  try {
-    const date = new Date(dateString)
-    return date.toLocaleDateString('en-US', {
-      year: 'numeric',
-      month: 'long',
-      day: 'numeric',
-      hour: '2-digit',
-      minute: '2-digit'
-    })
-  } catch {
-    return undefined
-  }
-}
-
-/**
- * Get employee display name
- */
-const getEmployeeDisplayName = (employee?: EmployeeRef | null): string | undefined => {
-  if (!employee) return undefined
-  return employee.displayName || `${employee.firstName} ${employee.lastName}`.trim() || undefined
-}
-
-/**
- * Map base content entry to enhanced content entry
+ * Map GraphQL response to ContentEntry with computed fields
  * FIXED: Relations are singular in GraphQL (contentEntryCategory, not contentEntryCategories)
  */
 export const mapBaseToContentEntry = (
-  base: BaseContentEntry,
+  base: any, // GraphQL response entry
   options?: {
-    contentEntryCategory?: BaseContentEntryCategory[]
-    contentEntryTag?: BaseContentEntryTag[]
-    contentDocument?: BaseContentDocument[]
-    contentEntryReaction?: BaseContentEntryReaction[]
-    childContentEntries?: BaseContentEntry[]
+    contentEntryCategory?: any[]
+    contentEntryTag?: any[]
+    contentDocument?: any[]
+    contentEntryReaction?: any[]
+    childContentEntries?: any[]
     descendantContentEntryAggregate?: { aggregate: { count: number } }
     childContentEntryAggregate?: { aggregate: { count: number } }
   }
@@ -67,14 +33,6 @@ export const mapBaseToContentEntry = (
   const mapped: ContentEntry = {
     ...base,
 
-    // Computed display fields
-    creatorDisplayName: getEmployeeDisplayName(base.creatorEmployee),
-    updaterDisplayName: getEmployeeDisplayName(base.updaterEmployee),
-    formattedCreatedAt: formatDate(base.createdAt),
-    formattedUpdatedAt: formatDate(base.updatedAt),
-
-    // Relation counts
-    reactionCount: options?.contentEntryReaction?.length || 0,
     // Prefer childContentEntryAggregate (direct answers for Questions), fallback to descendantContentEntryAggregate (all nested), then manual count
     commentCount:
       options?.childContentEntryAggregate?.aggregate?.count ??
@@ -100,9 +58,9 @@ export const mapBaseToContentEntry = (
 }
 
 /**
- * Map base content entry category to enhanced
+ * Map GraphQL response to ContentEntryCategory with computed fields
  */
-export const mapBaseToContentEntryCategory = (base: BaseContentEntryCategory): ContentEntryCategory => {
+export const mapBaseToContentEntryCategory = (base: any): ContentEntryCategory => {
   return {
     ...base,
     categoryName: base.contentCategory?.value
@@ -110,9 +68,9 @@ export const mapBaseToContentEntryCategory = (base: BaseContentEntryCategory): C
 }
 
 /**
- * Map base content entry tag to enhanced
+ * Map GraphQL response to ContentEntryTag with computed fields
  */
-export const mapBaseToContentEntryTag = (base: BaseContentEntryTag): ContentEntryTag => {
+export const mapBaseToContentEntryTag = (base: any): ContentEntryTag => {
   return {
     ...base,
     tagName: base.contentTag?.value
@@ -120,9 +78,9 @@ export const mapBaseToContentEntryTag = (base: BaseContentEntryTag): ContentEntr
 }
 
 /**
- * Map base content document to enhanced
+ * Map GraphQL response to ContentDocument with computed fields
  */
-export const mapBaseToContentDocument = (base: BaseContentDocument): ContentDocument => {
+export const mapBaseToContentDocument = (base: any): ContentDocument => {
   const fileInfo = base.fileInfo as any // fileInfo is jsonb, dynamic structure
   return {
     ...base,
@@ -134,13 +92,12 @@ export const mapBaseToContentDocument = (base: BaseContentDocument): ContentDocu
 }
 
 /**
- * Map base content entry reaction to enhanced
+ * Map GraphQL response to ContentEntryReaction with computed fields
  * FIXED: CatalogEntry has no label or icon - use value for both name and emoji
  */
-export const mapBaseToContentEntryReaction = (base: BaseContentEntryReaction): ContentEntryReaction => {
+export const mapBaseToContentEntryReaction = (base: any): ContentEntryReaction => {
   return {
     ...base,
-    creatorDisplayName: getEmployeeDisplayName(base.creatorEmployee),
     reactionName: base.contentReaction?.value,
     reactionEmoji: base.contentReaction?.value // Use value as emoji fallback
   }
@@ -152,7 +109,7 @@ export const mapBaseToContentEntryReaction = (base: BaseContentEntryReaction): C
  * FIXED: Use singular relation names
  */
 export const buildCommentHierarchy = (
-  comments: BaseContentEntry[],
+  comments: any[], // GraphQL response comments
   parentEntryId: string | null = null
 ): ContentEntry[] => {
   const childComments = comments.filter(c => c.parentContentEntryId === parentEntryId)
@@ -175,7 +132,7 @@ export const buildCommentHierarchy = (
  * Aggregate reactions by emoji type
  * FIXED: Use value instead of label/icon
  */
-export const aggregateReactions = (reactions: BaseContentEntryReaction[]): ReactionAggregation[] => {
+export const aggregateReactions = (reactions: any[]): ReactionAggregation[] => {
   const reactionMap = new Map<string, ReactionAggregation>()
 
   reactions.forEach(reaction => {
@@ -315,29 +272,36 @@ export interface IntranetContent {
   status?: string
   creatorEmployeeId?: string | null
   creatorEmployee?: EmployeeRef | null
+  // Include reaction counts and user reactions for ReactionPicker
+  contentEntryReactionCounts?: ContentEntry['contentEntryReactionCounts']
+  contentEntryReaction?: ContentEntry['contentEntryReaction']
 }
 
 export const toIntranetContent = (entry: ContentEntry): IntranetContent => {
   return {
     articleId: entry.id,
-    title: entry.title,
+    title: entry.title || '',
     content: entry.content || '',
     previewText: entry.preview || '',
     contentImage: entry.picture,
     createdAt: entry.createdAt,
     timeToRead: entry.timeToRead,
-    allowReaction: entry.allowReaction,
-    allowComment: entry.allowComment,
-    reactionsCount: entry.reactionCount || 0,
+    allowReaction: entry.allowReaction ?? false,
+    allowComment: entry.allowComment ?? false,
+    reactionsCount:
+      entry.contentEntryReactionCounts?.reduce((sum: number, item: any) => sum + (item.count || 0), 0) || 0,
     commentsCount: entry.commentCount || 0,
     feedbacksCount: 0, // TODO: Add view count tracking
     tags: entry.tagNames || [],
     tagNames: entry.tagNames || [],
     categories: entry.categoryNames || [],
     contentType: entry.contentType?.value,
-    authorFullName: entry.creatorDisplayName || '',
-    displayAuthor: entry.displayCreator,
+    authorFullName: entry.creatorEmployee?.displayName || '',
+    displayAuthor: entry.displayCreator ?? false,
     creatorEmployeeId: entry.creatorEmployeeId,
-    creatorEmployee: entry.creatorEmployee
+    creatorEmployee: entry.creatorEmployee,
+    // Include reaction data for ReactionPicker
+    contentEntryReactionCounts: entry.contentEntryReactionCounts,
+    contentEntryReaction: entry.contentEntryReaction
   }
 }

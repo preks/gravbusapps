@@ -38,7 +38,7 @@ export const CommentItem: React.FC<CommentItemProps> = ({
   const [isCollapsed, setIsCollapsed] = useState(false)
 
   const isOwnComment = currentUserId === comment.createdBy
-  const displayName = comment.creatorDisplayName || 'Unknown User'
+  const displayName = comment.creatorEmployee?.displayName || 'Unknown User'
   const initials =
     displayName
       .split(' ')

@@ -1,7 +1,7 @@
 import React, { useState, useMemo } from 'react'
 import { useTranslation, Button, Alert, AlertTitle, AlertDescription, Skeleton } from '@newwork/nw-design-system'
 import { Newspaper } from 'lucide-react'
-import { useContentEntries, useUserContentReactions, toIntranetContent } from '@/common/data/content'
+import { useContentEntries, toIntranetContent } from '@/common/data/content'
 import { ContentRole, ContentGroup } from '@/common/data/content/types/contentEnums'
 import ContentCard from '../../components/cards/ContentCard'
 import ContentCardSkeleton from '../../components/skeletons/ContentCardSkeleton'
@@ -113,20 +113,11 @@ const NewsView: React.FC<NewsViewProps> = ({
   // Main content entries - affected by search
   const { entries, totalCount, isLoading, error, refetch } = useContentEntries(queryParams, accessToken)
 
-  // Batch fetch reactions for main content
-  const articleIds = useMemo(() => entries.map(entry => entry.id), [entries])
-  const { reactionsByArticle, refetch: refetchReactions } = useUserContentReactions({
-    contentEntryIds: articleIds,
-    currentUserId: userInfo?.id,
-    accessToken
-  })
-
   // Listen for process completion to refresh data
   useProcessCompletion({
     onSuccess: () => {
       refetchFeatured()
       refetch()
-      refetchReactions()
     }
   })
 
@@ -240,8 +231,8 @@ const NewsView: React.FC<NewsViewProps> = ({
                   userInfo={userInfo}
                   allowedReactions={allowedReactions}
                   reactionCatalogMap={reactionCatalogMap}
-                  reactionSummary={reactionsByArticle[item.articleId] || {}}
-                  onReactionsRefetch={refetchReactions}
+                  onReactionsRefetch={refetch}
+                  authorLabel="Author"
                 />
               ))}
             </div>
@@ -272,8 +263,8 @@ const NewsView: React.FC<NewsViewProps> = ({
                 userInfo={userInfo}
                 allowedReactions={allowedReactions}
                 reactionCatalogMap={reactionCatalogMap}
-                reactionSummary={reactionsByArticle[item.articleId] || {}}
-                onReactionsRefetch={refetchReactions}
+                onReactionsRefetch={refetch}
+                authorLabel="Author"
               />
             ))
           )}

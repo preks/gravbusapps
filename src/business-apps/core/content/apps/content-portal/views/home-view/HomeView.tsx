@@ -1,7 +1,7 @@
 import React, { useState, useMemo } from 'react'
 import { useTranslation, Button, Alert, AlertTitle, AlertDescription, Skeleton, Card } from '@newwork/nw-design-system'
 import { Home as HomeIcon } from 'lucide-react'
-import { useContentEntries, useUserContentReactions, toIntranetContent } from '@/common/data/content'
+import { useContentEntries, toIntranetContent } from '@/common/data/content'
 import { ContentRole } from '@/common/data/content/types/contentEnums'
 import ContentCard from '../../components/cards/ContentCard'
 import SearchInput from '../../components/shared/SearchInput'
@@ -66,31 +66,11 @@ const HomeView: React.FC<HomeViewProps> = ({
   // Main content entries - affected by search
   const { entries, totalCount, isLoading, error, refetch } = useContentEntries(queryParams, accessToken)
 
-  // Batch fetch reactions for main content
-  const articleIds = useMemo(() => entries.map(entry => entry.id), [entries])
-  const { reactionsByArticle, refetch: refetchReactions } = useUserContentReactions({
-    contentEntryIds: articleIds,
-    currentUserId: userInfo?.id,
-    accessToken
-  })
-
-  // Batch fetch reactions for featured/carousel content
-  const featuredArticleIds = useMemo(() => featuredEntries.map(entry => entry.id), [featuredEntries])
-  const { reactionsByArticle: featuredReactionsByArticle, refetch: refetchFeaturedReactions } = useUserContentReactions(
-    {
-      contentEntryIds: featuredArticleIds,
-      currentUserId: userInfo?.id,
-      accessToken
-    }
-  )
-
   // Listen for process completion to refresh data
   useProcessCompletion({
     onSuccess: () => {
       refetchFeatured()
       refetch()
-      refetchReactions()
-      refetchFeaturedReactions()
     }
   })
 
@@ -213,8 +193,7 @@ const HomeView: React.FC<HomeViewProps> = ({
                 userInfo={userInfo}
                 allowedReactions={allowedReactions}
                 reactionCatalogMap={reactionCatalogMap}
-                reactionsByArticle={featuredReactionsByArticle}
-                onReactionsRefetch={refetchFeaturedReactions}
+                onReactionsRefetch={refetchFeatured}
               />
             </div>
           </>
@@ -241,8 +220,8 @@ const HomeView: React.FC<HomeViewProps> = ({
                   userInfo={userInfo}
                   allowedReactions={allowedReactions}
                   reactionCatalogMap={reactionCatalogMap}
-                  reactionSummary={reactionsByArticle[item.articleId] || {}}
-                  onReactionsRefetch={refetchReactions}
+                  onReactionsRefetch={refetch}
+                  authorLabel="Author"
                 />
               ))
             ) : (

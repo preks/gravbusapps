@@ -1,7 +1,7 @@
 import { useState, useCallback, useEffect, useMemo } from 'react'
 import { useContentEntries } from '@/common/data/content'
 import type { ContentEntry, ContentEntryQueryParams } from '@/common/data/content/types/contentTypes'
-import { ContentGroup } from '@/common/data/content/types/contentEnums'
+import { ContentGroup, ContentRole } from '@/common/data/content/types/contentEnums'
 
 // Define types locally since nw-design-system doesn't export them
 export type SortingState = Array<{
@@ -109,6 +109,7 @@ export const useContentData = ({ type = 'all', accessToken }: UseContentDataPara
     }
 
     return {
+      role: ContentRole.ROOT, // Only show root content entries (not comments)
       limit: pagination.pageSize,
       offset: pagination.pageIndex * pagination.pageSize,
       search: search.trim(),

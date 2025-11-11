@@ -110,7 +110,7 @@ export const BannerCarousel: React.FC<BannerCarouselProps> = ({ configs, activeI
       ))}
 
       {/* Text Content with Carousel Slide */}
-      <div className="gba:absolute gba:inset-0">
+      <div className="gba:absolute gba:inset-0 gba:overflow-x-hidden">
         <div
           className="gba:flex gba:transition-transform gba:duration-700 gba:ease-in-out gba:h-full"
           style={{ transform: `translateX(-${activeIndex * 100}%)` }}

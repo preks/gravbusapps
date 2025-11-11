@@ -404,7 +404,7 @@ export const AppActionForm: React.FC<AppActionFormProps> = ({
           // Custom form handling - don't wrap in Form/form elements
           <div className="gba:flex gba:flex-col gba:w-full gba:h-full" data-testid={`${dataTestId}-content`}>
             {children}
-            {customActions}
+            {customActions || formNavigation}
           </div>
         ) : customFormLayout && form ? (
           // Custom layout: just provide form context and let children handle layout
@@ -415,7 +415,7 @@ export const AppActionForm: React.FC<AppActionFormProps> = ({
               data-testid={`${dataTestId}-form`}
             >
               {children}
-              {customActions}
+              {customActions || formNavigation}
             </form>
           </Form>
         ) : form ? (
@@ -436,7 +436,7 @@ export const AppActionForm: React.FC<AppActionFormProps> = ({
           // Fallback: no form wrapper (shouldn't happen in normal scenarios)
           <div className="gba:flex gba:flex-col gba:w-full gba:h-full" data-testid={`${dataTestId}-content`}>
             {children}
-            {customActions}
+            {customActions || formNavigation}
           </div>
         )}
       </div>

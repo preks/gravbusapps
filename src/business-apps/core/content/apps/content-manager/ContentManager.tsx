@@ -232,14 +232,16 @@ const ContentManager: React.FC<ContentManagerProps> = context => {
                   <h3 className="gba:text-sm gba:font-medium gba:text-muted-foreground">Created</h3>
                   <p className="gba:mt-1">{new Date(selectedContent.createdAt).toLocaleString()}</p>
                 </div>
-                {selectedContent.reactionCount !== undefined && (
-                  <div>
-                    <h3 className="gba:text-sm gba:font-medium gba:text-muted-foreground">Engagement</h3>
-                    <p className="gba:mt-1">
-                      {selectedContent.reactionCount} reactions, {selectedContent.commentCount || 0} comments
-                    </p>
-                  </div>
-                )}
+                {selectedContent.contentEntryReactionCounts &&
+                  selectedContent.contentEntryReactionCounts.length > 0 && (
+                    <div>
+                      <h3 className="gba:text-sm gba:font-medium gba:text-muted-foreground">Engagement</h3>
+                      <p className="gba:mt-1">
+                        {selectedContent.contentEntryReactionCounts.reduce((sum, item) => sum + (item.count || 0), 0)}{' '}
+                        reactions, {selectedContent.commentCount || 0} comments
+                      </p>
+                    </div>
+                  )}
               </div>
             ) : (
               <div className="gba:text-center gba:text-muted-foreground">No content selected</div>

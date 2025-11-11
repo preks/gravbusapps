@@ -62,13 +62,6 @@ export const ReactionPicker: React.FC<ReactionPickerProps> = ({
   const [open, setOpen] = useState(false)
   const selectedEmojiRef = useRef<string | null>(null)
 
-  // DEBUG LOG
-  console.log('🎨 ReactionPicker received:', {
-    allowedReactionsCount: allowedReactions.length,
-    allowedReactions,
-    reactionCatalogMapKeys: Object.keys(reactionCatalogMap)
-  })
-
   // Optimistic state
   const [reactionSummary, setReactionSummary] = useState<ReactionSummary>(initialReactionSummary)
 

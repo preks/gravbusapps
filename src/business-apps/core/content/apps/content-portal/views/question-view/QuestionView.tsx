@@ -12,7 +12,7 @@ import {
 import { MessageCircle, Folder, ChevronRight, HelpCircle } from 'lucide-react'
 import { useContentEntries, toIntranetContent, useUserContentReactions } from '@/common/data/content'
 import { ContentRole, ContentGroup } from '@/common/data/content/types/contentEnums'
-import { VoteButtons, type VoteState } from '@/common/components/common-content'
+import { VoteButtons, type VoteState } from '@/common/components/content'
 import { EmployeeHoverCard } from '@/common/components/employee'
 import SearchInput from '../../components/shared/SearchInput'
 import Banner, { BannerVariant } from '../../components/shared/Banner'

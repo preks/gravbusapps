@@ -9,7 +9,6 @@ import {
   FormItem,
   FormLabel,
   FormMessage,
-  Button,
   Card,
   CardContent,
   Badge,
@@ -56,7 +55,11 @@ const ContentEntryWindowContent: React.FC<ContentEntryWindowProps> = context => 
 
   // Extract contentGroupRef from props or additionalData
   const extractedContentGroupRef =
-    context.contentGroupRef || context.additionalData?.contentGroupRef || context.additionalData?.contentGroup
+    context.contentGroupRef ||
+    context.additionalData?.contentGroupRef ||
+    context.additionalData?.contentGroup ||
+    context.additionalData?.psi_taskPayload?.psi_initialParameters?.contentGroupRef ||
+    context.additionalData?.psi_taskPayload?.psi_initialParameters?.contentGroup
 
   // Author info from context
   const authorName = useMemo(() => {
@@ -188,8 +191,6 @@ const ContentEntryWindowContent: React.FC<ContentEntryWindowProps> = context => 
   }, [authorName, form])
 
   const handleSubmit = async (data: ContentEntryFormValues) => {
-    console.log('Content Form Submit:', data)
-
     const isUpdate = Boolean(context.contentId)
     const employeeId = context.userInfo?.employeeDetails?.employeeId
 
@@ -252,18 +253,11 @@ const ContentEntryWindowContent: React.FC<ContentEntryWindowProps> = context => 
       formData={defaultValues}
       form={form}
       submitButtonText={context.contentId ? t('update-content') : t('create-content')}
+      cancelButtonText={t('cancel') || 'Cancel'}
       showCancelButton={true}
       businessAppContext={context}
       data-testid="content-entry-window"
       customFormLayout={true}
-      customActions={
-        <div className="gba:flex gba:items-center gba:justify-end gba:gap-3 gba:pt-6 gba:border-t gba:border-border">
-          <Button type="button" variant="outline" onClick={() => window.history.back()}>
-            {t('cancel') || 'Cancel'}
-          </Button>
-          <Button type="submit">{context.contentId ? t('update-content') : t('create-content')}</Button>
-        </div>
-      }
     >
       <div className="gba:flex gba:flex-col gba:h-full gba:gap-4">
         <div

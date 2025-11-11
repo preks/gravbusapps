@@ -7,7 +7,6 @@ import { useGraphQLClient } from '@/common/network/graphql/useGraphQLClient'
 import { buildContentDocumentsQuery } from '../queries/contentQueries'
 import { mapBaseToContentDocument } from '../mappers/contentMappers'
 import type { ContentDocument, ContentDocumentQueryParams } from '../types/contentTypes'
-import type { BaseContentDocument } from '../types/contentBaseTypes'
 
 interface UseContentDocumentsResult {
   documents: ContentDocument[]
@@ -18,7 +17,7 @@ interface UseContentDocumentsResult {
 }
 
 interface ContentDocumentsResponse {
-  ContentDocument: BaseContentDocument[]
+  ContentDocument: any[] // GraphQL response - will be transformed to ContentDocument
   ContentDocumentAggregate: {
     aggregate: {
       count: number

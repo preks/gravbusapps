@@ -71,17 +71,10 @@ const ContentPortal: React.FC<ContentPortalProps> = context => {
           return (entryA?.displayOrder || 0) - (entryB?.displayOrder || 0)
         })
 
-        console.log('🔥 ContentPortal - Processed reactions:', {
-          allowedCodesCount: allowedCodes.length,
-          sortedCodes,
-          allowedCodes,
-          catalogMap
-        })
-
         setAllowedReactions(sortedCodes)
         setReactionCatalogMap(catalogMap)
-      } catch (error) {
-        console.error('Failed to load reactions catalog:', error)
+        // eslint-disable-next-line @typescript-eslint/no-unused-vars
+      } catch (_error) {
         // Fallback to default reactions
         setAllowedReactions([
           '1f44d', // 👍

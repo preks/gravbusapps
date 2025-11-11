@@ -7,7 +7,6 @@ import { useGraphQLClient } from '@/common/network/graphql/useGraphQLClient'
 import { buildContentEntryQuery } from '../queries/contentQueries'
 import { mapBaseToContentEntry, buildCommentHierarchy } from '../mappers/contentMappers'
 import type { ContentEntry } from '../types/contentTypes'
-import type { BaseContentEntry } from '../types/contentBaseTypes'
 
 interface UseContentEntryResult {
   entry: ContentEntry | null
@@ -17,7 +16,7 @@ interface UseContentEntryResult {
 }
 
 interface ContentEntryResponse {
-  ContentEntry: BaseContentEntry[]
+  ContentEntry: any[] // GraphQL response - will be transformed to ContentEntry
 }
 
 /**

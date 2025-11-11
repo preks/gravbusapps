@@ -120,12 +120,14 @@ export const createContentColumns = (config: ContentColumnConfig): ContentColumn
     },
     {
       id: 'reactions',
-      accessorKey: 'reactionCount',
+      accessorKey: 'contentEntryReactionCounts',
       header: 'Reactions',
       size: 100,
-      enableSorting: true,
+      enableSorting: false,
       cell: ({ row }) => {
-        return <div className="gba:text-center">{row.original.reactionCount || 0}</div>
+        const totalReactions =
+          row.original.contentEntryReactionCounts?.reduce((sum: number, item: any) => sum + (item.count || 0), 0) || 0
+        return <div className="gba:text-center">{totalReactions}</div>
       }
     },
     {

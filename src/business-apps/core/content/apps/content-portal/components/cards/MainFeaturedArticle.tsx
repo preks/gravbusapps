@@ -1,9 +1,10 @@
-import React from 'react'
+import React, { useState } from 'react'
 import type { IntranetContent } from '@/common/data/content/mappers/contentMappers'
 import { useTranslation, Badge } from '@newwork/nw-design-system'
 import { MessageSquare, Share2 } from 'lucide-react'
-import { toast } from 'sonner'
 import { navigateTo, buildPlatformUrl } from '@/common/utils/navigationUtils'
+import { ShareDialog } from '@/components/share-dialog'
+import { getEntityTypeFromTab, buildContentRecordUrl } from '@/business-apps/core/content/utils/shareUtils'
 import translations from '../../_i18n'
 
 interface MainFeaturedArticleProps {
@@ -11,10 +12,20 @@ interface MainFeaturedArticleProps {
   onClick?: (item: IntranetContent) => void
   currentTab?: string
   reactionSummary?: { [emoji: string]: { emoji: string; count: number; userReacted: boolean } }
+  accessToken?: string
+  userInfo?: { id?: string }
 }
 
-const MainFeaturedArticle: React.FC<MainFeaturedArticleProps> = ({ item, onClick, currentTab, reactionSummary }) => {
+const MainFeaturedArticle: React.FC<MainFeaturedArticleProps> = ({
+  item,
+  onClick,
+  currentTab,
+  reactionSummary,
+  accessToken,
+  userInfo
+}) => {
   const { t } = useTranslation(translations)
+  const [shareDialogOpen, setShareDialogOpen] = useState(false)
   const createdDate = item?.createdAt
     ? new Date(item.createdAt).toLocaleDateString('en-US', { year: 'numeric', month: 'short', day: 'numeric' })
     : ''
@@ -27,14 +38,13 @@ const MainFeaturedArticle: React.FC<MainFeaturedArticleProps> = ({ item, onClick
     return Math.ceil(words / 200)
   }
 
-  const copyUrlToClipboard = () => {
-    if (item.articleId) {
-      const url = `${window.location.origin}/content/${item.articleId}`
-      navigator.clipboard.writeText(url).then(() => {
-        toast.success(t('article_link_copied'))
-      })
-    }
+  const handleShare = (e: React.MouseEvent) => {
+    e.stopPropagation()
+    setShareDialogOpen(true)
   }
+
+  const entityType = getEntityTypeFromTab(currentTab)
+  const entityDisplayUrl = buildContentRecordUrl(item.articleId, currentTab)
 
   const handleClick = () => {
     if (onClick) {
@@ -142,10 +152,7 @@ const MainFeaturedArticle: React.FC<MainFeaturedArticleProps> = ({ item, onClick
             </div>
             <div className="gba:flex gba:items-center">
               <button
-                onClick={e => {
-                  e.stopPropagation()
-                  copyUrlToClipboard()
-                }}
+                onClick={handleShare}
                 className="gba:flex gba:items-center gba:hover:opacity-70 gba:transition-opacity"
                 data-testid="share-button"
               >
@@ -156,6 +163,18 @@ const MainFeaturedArticle: React.FC<MainFeaturedArticleProps> = ({ item, onClick
           </div>
         </div>
       </div>
+      {entityType && accessToken && userInfo?.id && (
+        <ShareDialog
+          open={shareDialogOpen}
+          onOpenChange={setShareDialogOpen}
+          accessToken={accessToken}
+          currentUserId={userInfo.id}
+          entityType={entityType}
+          entityId={item.articleId}
+          entityName={item.title}
+          entityDisplayUrl={entityDisplayUrl}
+        />
+      )}
     </div>
   )
 }

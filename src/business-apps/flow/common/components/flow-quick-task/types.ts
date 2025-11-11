@@ -35,6 +35,12 @@ export interface QuickTaskFormData {
   documents: QuickTaskUploadFile[]
   assignedUserId: string
   dueDate: string
+  // Entity reference fields for sharing content
+  entityType?: string
+  entityId?: string
+  entityName?: string
+  entityDisplayUrl?: string
+  entityMetadata?: Record<string, any>
 }
 
 /**

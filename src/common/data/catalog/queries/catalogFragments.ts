@@ -28,8 +28,33 @@ export const CATALOG_REF = `
   ${CATALOG_AUDIT_FIELDS}
 `
 
-// Base catalog entry reference (minimal fields)
-export const CATALOG_ENTRY_REF = `
+/**
+ * Get catalog entry reference fragment with optional locale filtering
+ * @param localeCode - Optional locale code to filter translations. If provided, only returns translation for that locale.
+ *                     If not provided, returns all translations (for backward compatibility)
+ */
+export const getCatalogEntryRef = (localeCode?: string): string => {
+  const translationsFragment = localeCode
+    ? `translations(where: { localeCode: { _eq: "${localeCode}" } }) {
+    id
+    localeCode
+    value
+    additionalValue1
+    additionalValue2
+    additionalValue3
+    objectValue
+  }`
+    : `translations {
+    id
+    localeCode
+    value
+    additionalValue1
+    additionalValue2
+    additionalValue3
+    objectValue
+  }`
+
+  return `
   id
   code
   value
@@ -38,15 +63,7 @@ export const CATALOG_ENTRY_REF = `
   additionalValue1
   additionalValue2
   additionalValue3
-  translations {
-    id
-    localeCode
-    value
-    additionalValue1
-    additionalValue2
-    additionalValue3
-    objectValue
-  }
+  ${translationsFragment}
   type
   displayOrder
   objectValue
@@ -58,6 +75,10 @@ export const CATALOG_ENTRY_REF = `
   recordState
   ${CATALOG_AUDIT_FIELDS}
 `
+}
+
+// Base catalog entry reference (minimal fields) - backward compatibility (all translations)
+export const CATALOG_ENTRY_REF = getCatalogEntryRef()
 
 // Parent catalog entry fragment (for conditional include)
 export const PARENT_CATALOG_ENTRY = `

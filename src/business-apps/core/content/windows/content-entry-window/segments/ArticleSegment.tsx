@@ -203,64 +203,64 @@ export const ArticleSegment: React.FC<ArticleSegmentProps> = ({
           <FormItem>
             <FormLabel>{t('content') || 'Content'}</FormLabel>
             <FormControl>
-              <ReactQuill
-                theme="snow"
-                value={field.value || ''}
-                onChange={field.onChange}
-                modules={quillModules}
-                formats={quillFormats}
-                placeholder={t('content-placeholder') || 'Write your article content here...'}
-                className="gba:min-h-[250px]"
-              />
+              <div className="gba:[&_.ql-container]:h-[250px] gba:[&_.ql-editor]:min-h-[200px] gba:[&_.ql-editor]:max-h-[200px] gba:[&_.ql-editor]:overflow-y-auto">
+                <ReactQuill
+                  theme="snow"
+                  value={field.value || ''}
+                  onChange={field.onChange}
+                  modules={quillModules}
+                  formats={quillFormats}
+                  placeholder={t('content-placeholder') || 'Write your article content here...'}
+                  className="gba:min-h-[250px]"
+                />
+              </div>
             </FormControl>
             <FormMessage />
           </FormItem>
         )}
       />
-
       {/* Settings */}
+      <div className="gba:grid gba:grid-cols-3 gba:gap-4">
+        <FormField
+          control={control as any}
+          name="displayAuthor"
+          render={({ field }) => (
+            <FormItem className="gba:flex gba:items-center gba:justify-between gba:space-y-0 gba:p-4 gba:border gba:border-border gba:rounded-lg">
+              <FormLabel>{t('display-author') || 'Display Author'}</FormLabel>
+              <FormControl>
+                <Switch checked={field.value} onCheckedChange={field.onChange} />
+              </FormControl>
+            </FormItem>
+          )}
+        />
+
+        <FormField
+          control={control as any}
+          name="allowComment"
+          render={({ field }) => (
+            <FormItem className="gba:flex gba:items-center gba:justify-between gba:space-y-0 gba:p-4 gba:border gba:border-border gba:rounded-lg">
+              <FormLabel>{t('allow-comments') || 'Allow Comments'}</FormLabel>
+              <FormControl>
+                <Switch checked={field.value} onCheckedChange={field.onChange} />
+              </FormControl>
+            </FormItem>
+          )}
+        />
+
+        <FormField
+          control={control as any}
+          name="allowReaction"
+          render={({ field }) => (
+            <FormItem className="gba:flex gba:items-center gba:justify-between gba:space-y-0 gba:p-4 gba:border gba:border-border gba:rounded-lg">
+              <FormLabel>{t('allow-reactions') || 'Allow Reactions'}</FormLabel>
+              <FormControl>
+                <Switch checked={field.value as boolean} onCheckedChange={field.onChange} />
+              </FormControl>
+            </FormItem>
+          )}
+        />
+      </div>
       <div className="gba:space-y-4">
-        <div className="gba:grid gba:grid-cols-3 gba:gap-4">
-          <FormField
-            control={control as any}
-            name="displayAuthor"
-            render={({ field }) => (
-              <FormItem className="gba:flex gba:items-center gba:justify-between gba:space-y-0 gba:p-4 gba:border gba:border-border gba:rounded-lg">
-                <FormLabel>{t('display-author') || 'Display Author'}</FormLabel>
-                <FormControl>
-                  <Switch checked={field.value} onCheckedChange={field.onChange} />
-                </FormControl>
-              </FormItem>
-            )}
-          />
-
-          <FormField
-            control={control as any}
-            name="allowComment"
-            render={({ field }) => (
-              <FormItem className="gba:flex gba:items-center gba:justify-between gba:space-y-0 gba:p-4 gba:border gba:border-border gba:rounded-lg">
-                <FormLabel>{t('allow-comments') || 'Allow Comments'}</FormLabel>
-                <FormControl>
-                  <Switch checked={field.value} onCheckedChange={field.onChange} />
-                </FormControl>
-              </FormItem>
-            )}
-          />
-
-          <FormField
-            control={control as any}
-            name="allowReaction"
-            render={({ field }) => (
-              <FormItem className="gba:flex gba:items-center gba:justify-between gba:space-y-0 gba:p-4 gba:border gba:border-border gba:rounded-lg">
-                <FormLabel>{t('allow-reactions') || 'Allow Reactions'}</FormLabel>
-                <FormControl>
-                  <Switch checked={field.value as boolean} onCheckedChange={field.onChange} />
-                </FormControl>
-              </FormItem>
-            )}
-          />
-        </div>
-
         {watchDisplayAuthor && (
           <FormField
             control={control as any}

@@ -1,6 +1,6 @@
 import React, { useState, useMemo } from 'react'
 import { useTranslation, Button, Alert, AlertTitle, AlertDescription, Card, Skeleton } from '@newwork/nw-design-system'
-import { useContentEntries, useUserContentReactions, toIntranetContent } from '@/common/data/content'
+import { useContentEntries, toIntranetContent } from '@/common/data/content'
 import { ContentRole, ContentGroup } from '@/common/data/content/types/contentEnums'
 import ContentCard from '../../components/cards/ContentCard'
 import ContentCardSkeleton from '../../components/skeletons/ContentCardSkeleton'
@@ -63,19 +63,10 @@ const KnowledgeView: React.FC<KnowledgeViewProps> = ({
   // Use central content data
   const { entries, totalCount, isLoading, error, refetch } = useContentEntries(queryParams, accessToken)
 
-  // Batch fetch reactions
-  const articleIds = useMemo(() => entries.map(entry => entry.id), [entries])
-  const { reactionsByArticle, refetch: refetchReactions } = useUserContentReactions({
-    contentEntryIds: articleIds,
-    currentUserId: userInfo?.id,
-    accessToken
-  })
-
   // Listen for process completion to refresh data
   useProcessCompletion({
     onSuccess: () => {
       refetch()
-      refetchReactions()
     }
   })
 
@@ -306,10 +297,10 @@ const KnowledgeView: React.FC<KnowledgeViewProps> = ({
                               <Eye className="gba:w-4 gba:h-4" />
                               <span>{entry.viewCount || 0} views</span>
                             </div>
-                            {entry.reactionCount && entry.reactionCount > 0 && (
+                            {entry.contentEntryReactionCounts && entry.contentEntryReactionCounts.length > 0 && (
                               <span className="gba:flex gba:items-center gba:gap-1">
                                 <span>❤️</span>
-                                {entry.reactionCount}
+                                {entry.contentEntryReactionCounts.reduce((sum, item) => sum + (item.count || 0), 0)}
                               </span>
                             )}
                             {entry.createdAt && (
@@ -356,8 +347,8 @@ const KnowledgeView: React.FC<KnowledgeViewProps> = ({
                         userInfo={userInfo}
                         allowedReactions={allowedReactions}
                         reactionCatalogMap={reactionCatalogMap}
-                        reactionSummary={reactionsByArticle[item.articleId] || {}}
-                        onReactionsRefetch={refetchReactions}
+                        onReactionsRefetch={refetch}
+                        authorLabel="Creator"
                       />
                     )
                   })}
@@ -378,8 +369,8 @@ const KnowledgeView: React.FC<KnowledgeViewProps> = ({
                     userInfo={userInfo}
                     allowedReactions={allowedReactions}
                     reactionCatalogMap={reactionCatalogMap}
-                    reactionSummary={reactionsByArticle[item.articleId] || {}}
-                    onReactionsRefetch={refetchReactions}
+                    onReactionsRefetch={refetch}
+                    authorLabel="Creator"
                   />
                 ))}
               </div>

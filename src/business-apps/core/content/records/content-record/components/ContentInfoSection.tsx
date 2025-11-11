@@ -1,12 +1,13 @@
-import React, { useMemo } from 'react'
-import { useTranslation } from '@newwork/nw-design-system'
+import React, { useMemo, useState } from 'react'
 import { Button } from '@newwork/nw-design-system'
 import { Share2 } from 'lucide-react'
 import { ContentEntry } from '@/common/data/content/types/contentTypes'
-import { copyUrlToClipboard } from '@/business-apps/core/content/apps/content-portal/utils/contentUtils'
-import { useUserContentReactions } from '@/common/data/content'
-import { ReactionPicker, type ReactionSummary } from '@/common/components/common-content'
-import translations from '../_i18n'
+import { ReactionPicker } from '@/common/components/content'
+import { ShareDialog } from '@/components/share-dialog'
+import { getEntityTypeFromContentGroup, buildContentRecordUrl } from '@/business-apps/core/content/utils/shareUtils'
+import { buildReactionSummaryFromCounts } from '@/common/data/content/utils/reactionUtils'
+import { EmployeeHoverCard } from '@/common/components/employee'
+import { ContentGroup } from '@/common/data/content/types/contentEnums'
 import dayjs from 'dayjs'
 
 interface ContentInfoSectionProps {
@@ -26,24 +27,36 @@ const ContentInfoSection: React.FC<ContentInfoSectionProps> = ({
   allowedReactions,
   reactionCatalogMap
 }) => {
-  const { t } = useTranslation(translations)
+  const [shareDialogOpen, setShareDialogOpen] = useState(false)
 
-  // Fetch reactions using central hook
-  const { reactionsByArticle, refetch: refetchReactions } = useUserContentReactions({
-    contentEntryIds: [item.id],
-    currentUserId: userId,
-    accessToken
-  })
-
-  const reactionSummary: ReactionSummary = reactionsByArticle[item.id] || {}
+  // Build reaction summary from contentEntryReactionCounts
+  const reactionSummary = buildReactionSummaryFromCounts(item, userId)
 
   const formattedDate = useMemo(() => {
     return item.createdAt ? dayjs(item.createdAt).format('MMM DD, YYYY') : ''
   }, [item.createdAt])
 
   const handleShare = () => {
-    copyUrlToClipboard(t('content_link_copied'))
+    setShareDialogOpen(true)
   }
+
+  const entityType = getEntityTypeFromContentGroup(item.contentGroupRef)
+  const entityDisplayUrl = buildContentRecordUrl(item.id)
+
+  // Get author label based on content group
+  const getAuthorLabel = (): string => {
+    if (item.contentGroupRef?.includes(ContentGroup.NEWS)) return 'Author'
+    if (item.contentGroupRef?.includes(ContentGroup.KNOWLEDGE)) return 'Creator'
+    if (item.contentGroupRef?.includes(ContentGroup.DOCUMENT)) return 'Responsible'
+    return 'Author' // Default
+  }
+
+  const authorLabel = getAuthorLabel()
+  const authorName =
+    item.creatorEmployee?.displayName ||
+    (item.creatorEmployee
+      ? `${item.creatorEmployee.firstName || ''} ${item.creatorEmployee.lastName || ''}`.trim()
+      : null)
 
   return (
     <div
@@ -52,9 +65,20 @@ const ContentInfoSection: React.FC<ContentInfoSectionProps> = ({
     >
       {/* Author and Date Info */}
       <div className="gba:flex gba:flex-row gba:items-center">
-        {item.displayCreator && item.creatorDisplayName && (
+        {authorName && (
           <>
-            <p className="gba:text-sm gba:font-bold gba:text-foreground">{item.creatorDisplayName}</p>
+            <div className="gba:flex gba:items-center gba:text-sm">
+              <span className="gba:text-muted-foreground gba:mr-1">{authorLabel}:</span>
+              {item.creatorEmployee ? (
+                <EmployeeHoverCard employee={item.creatorEmployee}>
+                  <span className="gba:cursor-pointer hover:gba:text-primary hover:gba:underline gba:text-foreground gba:font-medium">
+                    {authorName}
+                  </span>
+                </EmployeeHoverCard>
+              ) : (
+                <span className="gba:text-foreground gba:font-medium">{authorName}</span>
+              )}
+            </div>
             <p className="gba:text-sm gba:font-regular gba:mx-3 gba:text-muted-foreground">•</p>
           </>
         )}
@@ -75,7 +99,9 @@ const ContentInfoSection: React.FC<ContentInfoSectionProps> = ({
             allowReaction={item.allowReaction}
             accessToken={accessToken}
             employeeId={employeeId || ''}
-            onSuccess={refetchReactions}
+            onSuccess={() => {
+              // Refetch will be handled by parent component
+            }}
             size="md"
             allowedReactions={allowedReactions}
             reactionCatalogMap={reactionCatalogMap}
@@ -87,6 +113,18 @@ const ContentInfoSection: React.FC<ContentInfoSectionProps> = ({
           <Share2 className="gba:w-4 gba:h-4" />
         </Button>
       </div>
+      {entityType && userId && (
+        <ShareDialog
+          open={shareDialogOpen}
+          onOpenChange={setShareDialogOpen}
+          accessToken={accessToken}
+          currentUserId={userId}
+          entityType={entityType}
+          entityId={item.id}
+          entityName={item.title || ''}
+          entityDisplayUrl={entityDisplayUrl}
+        />
+      )}
     </div>
   )
 }

@@ -1,67 +1,115 @@
 /**
- * Enhanced Content types with computed fields and relationships
- * Relations are now in BaseTypes, these add computed/display fields only
+ * Content types - consolidated (BaseTypes integrated)
  */
+import type { BaseEntity, CatalogEntry } from '@/common/network/graphql/commonTypes'
 import type { EmployeeRef } from '@/common/data/employee/types/employeeBaseTypes'
-import type {
-  BaseContentEntry,
-  BaseContentEntryCategory,
-  BaseContentEntryTag,
-  BaseContentDocument,
-  BaseContentEntryReaction
-} from './contentBaseTypes'
+import type { FileInfo } from '@/common/types/FileTypes'
+import type { ContentRole } from './contentEnums'
 
 // =====================================================
-// ENHANCED CONTENT ENTRY
+// CONTENT ENTRY
 // =====================================================
 
-export interface ContentEntry extends BaseContentEntry {
-  // Computed fields (not from database)
-  categoryNames?: string[]
-  tagNames?: string[]
-  reactionCount?: number
-  commentCount?: number
+export interface ContentEntry extends BaseEntity {
+  // Core fields from GraphQL
+  id: string
+  parentContentEntryId?: string | null
+  creatorEmployeeId?: string | null
+  updaterEmployeeId?: string | null
+  contentGroupRef?: string | null
+  contentTypeRef?: string | null
 
-  // Display fields
-  creatorDisplayName?: string
-  updaterDisplayName?: string
-  formattedCreatedAt?: string
-  formattedUpdatedAt?: string
+  title?: string | null
+  preview?: string | null
+  content?: string | null
+  picture?: string | null
+  pictureThumbnail?: string | null
+  timeToRead?: number | null
+  displayCreator?: boolean
+  displayUpdater?: boolean
+  allowComment?: boolean
+  allowReaction?: boolean
+  role?: ContentRole
+  entryVersion?: string | null
 
-  // Enhanced child collections (with computed fields) - FIXED: singular names
+  // Relations from GraphQL
+  parentContentEntry?: ContentEntry | null
+  creatorEmployee?: EmployeeRef | null
+  updaterEmployee?: EmployeeRef | null
+  contentGroup?: CatalogEntry | null
+  contentType?: CatalogEntry | null
   contentEntryCategory?: ContentEntryCategory[]
   contentEntryTag?: ContentEntryTag[]
   contentDocument?: ContentDocument[]
   contentEntryReaction?: ContentEntryReaction[]
+  contentEntryReactionCounts?: {
+    contentReactionRef: string
+    count: number
+    contentReaction?: CatalogEntry | null
+  }[] // From view
+  childContentEntries?: ContentEntry[] // Note: GraphQL uses childContentEntry, but we map to childContentEntries
 
-  // Children/comments must be queried separately (no auto-relation in GraphQL)
-  childContentEntries?: ContentEntry[]
+  // Computed fields (added during transformation)
+  categoryNames?: string[]
+  tagNames?: string[]
+  commentCount?: number
 }
 
 // =====================================================
-// ENHANCED CONTENT ENTRY CATEGORY
+// CONTENT ENTRY CATEGORY
 // =====================================================
 
-export interface ContentEntryCategory extends BaseContentEntryCategory {
+export interface ContentEntryCategory extends BaseEntity {
+  id: string
+  contentEntryId: string
+  contentCategoryRef?: string | null
+
+  // Relations from GraphQL
+  contentEntry?: ContentEntry | null
+  contentCategory?: CatalogEntry | null
+
   // Computed fields
   categoryName?: string
 }
 
 // =====================================================
-// ENHANCED CONTENT ENTRY TAG
+// CONTENT ENTRY TAG
 // =====================================================
 
-export interface ContentEntryTag extends BaseContentEntryTag {
+export interface ContentEntryTag extends BaseEntity {
+  id: string
+  contentEntryId: string
+  contentTagRef?: string | null
+
+  // Relations from GraphQL
+  contentEntry?: ContentEntry | null
+  contentTag?: CatalogEntry | null
+
   // Computed fields
   tagName?: string
 }
 
 // =====================================================
-// ENHANCED CONTENT DOCUMENT
+// CONTENT DOCUMENT
 // =====================================================
 
-export interface ContentDocument extends BaseContentDocument {
-  // Children must be queried separately (no auto-relation in GraphQL)
+export interface ContentDocument extends BaseEntity {
+  id: string
+  parentDocumentId?: string | null
+  contentEntryId?: string | null
+  documentGroupRef?: string | null
+  documentTypeRef?: string | null
+
+  folder?: boolean
+  name?: string | null
+  description?: string | null
+  fileInfo?: FileInfo | null
+
+  // Relations from GraphQL
+  parentDocument?: ContentDocument | null
+  contentEntry?: ContentEntry | null
+  documentGroup?: CatalogEntry | null
+  documentType?: CatalogEntry | null
   childDocuments?: ContentDocument[]
 
   // Computed fields
@@ -72,14 +120,23 @@ export interface ContentDocument extends BaseContentDocument {
 }
 
 // =====================================================
-// ENHANCED CONTENT ENTRY REACTION
+// CONTENT ENTRY REACTION
 // =====================================================
 
-export interface ContentEntryReaction extends BaseContentEntryReaction {
+export interface ContentEntryReaction extends BaseEntity {
+  id: string
+  contentEntryId: string
+  creatorEmployeeId: string
+  contentReactionRef?: string | null
+
+  // Relations from GraphQL
+  contentEntry?: ContentEntry | null
+  creatorEmployee?: EmployeeRef | null
+  contentReaction?: CatalogEntry | null
+
   // Computed fields
-  reactionName?: string // From contentReaction.value
-  reactionEmoji?: string // From contentReaction.label or icon
-  creatorDisplayName?: string
+  reactionName?: string
+  reactionEmoji?: string
 }
 
 // =====================================================

@@ -28,7 +28,7 @@ const calculateTrendingScore = (entry: ContentEntry): number => {
   const recencyScore = Math.max(0, 100 - (ageInHours / 24) * 10)
 
   // Engagement Score: Reactions and comments
-  const reactions = entry.reactionCount || 0
+  const reactions = entry.contentEntryReactionCounts?.reduce((sum, item) => sum + (item.count || 0), 0) || 0
   const comments = entry.commentCount || 0
 
   // Comments are weighted higher than reactions (more meaningful engagement)
