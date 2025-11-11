@@ -3,6 +3,50 @@ import { TooltipProvider } from '@newwork/nw-design-system'
 import { formatDataTestId } from '@/common/utils/formatDataTestId'
 import { StageProgressionProps } from './types'
 
+const getStageStyles = (index: number, stagesLength: number) => {
+  const isFirst = index === 0
+  const isLast = index === stagesLength - 1
+  const isSingle = stagesLength === 1
+
+  if (isFirst && isSingle) {
+    return {
+      borderRadius: '20px',
+      clipPath: 'none',
+      WebkitClipPath: 'none',
+      marginRight: '0'
+    }
+  }
+
+  if (isFirst) {
+    return {
+      borderRadius: '20px 0 0 20px',
+      clipPath: 'polygon(0 0, calc(100% - 12px) 0, 100% 50%, calc(100% - 12px) 100%, 0 100%)',
+      WebkitClipPath: 'polygon(0 0, calc(100% - 12px) 0, 100% 50%, calc(100% - 12px) 100%, 0 100%)',
+      marginRight: '8px'
+    }
+  }
+
+  if (isLast) {
+    return {
+      borderRadius: '0 20px 20px 0',
+      clipPath: 'polygon(12px 0, 100% 0, 100% 100%, 12px 100%, 24px 50%)',
+      WebkitClipPath: 'polygon(12px 0, 100% 0, 100% 100%, 12px 100%, 24px 50%)',
+      marginRight: '0'
+    }
+  }
+
+  return {
+    borderRadius: '0',
+    clipPath: 'polygon(12px 0, calc(100% - 12px) 0, 100% 50%, calc(100% - 12px) 100%, 12px 100%, 24px 50%)',
+    WebkitClipPath: 'polygon(12px 0, calc(100% - 12px) 0, 100% 50%, calc(100% - 12px) 100%, 12px 100%, 24px 50%)',
+    marginRight: '8px'
+  }
+}
+
+const getColorClasses = (isActive: boolean) => {
+  return isActive ? 'gba:bg-success gba:text-primary-foreground' : 'gba:bg-muted gba:text-muted-foreground'
+}
+
 export const StageProgression: React.FC<StageProgressionProps> = ({
   stages,
   currentStage,
@@ -12,7 +56,6 @@ export const StageProgression: React.FC<StageProgressionProps> = ({
   children,
   dataTestIdPrefix = 'stage-progression'
 }) => {
-  // Default styling with proper type safety
   const defaultStyling = {
     height: '40px',
     fontSize: '14px',
@@ -38,126 +81,104 @@ export const StageProgression: React.FC<StageProgressionProps> = ({
 
   return (
     <TooltipProvider>
-      <>
-        <div
-          style={{
-            display: 'flex',
-            alignItems: 'center',
-            height: '48px',
-            backgroundColor: 'var(--nw-color-muted-100)',
-            borderRadius: '24px',
-            overflow: 'visible',
-            border: '1px solid var(--nw-color-border)',
-            padding: '0 4px',
-            gap: '0'
-          }}
-        >
-          {stages.map((stage, index) => {
-            const isCurrentStage = index === currentIndex
-            const isCompleted = index < currentIndex
+      <div
+        style={{
+          display: 'flex',
+          alignItems: 'center',
+          height: '48px',
+          backgroundColor: 'var(--nw-color-muted-100)',
+          borderRadius: '24px',
+          overflow: 'visible',
+          border: '1px solid var(--nw-color-border)',
+          padding: '0 4px',
+          gap: '0'
+        }}
+      >
+        {stages.map((stage, index) => {
+          const isCurrentStage = index === currentIndex
+          const isCompleted = index < currentIndex
+          const isActive = isCompleted || isCurrentStage
+          const isClickable = onStageClick && !isCurrentStage
 
-            // Determine colors using Tailwind classes
-            const getColorClasses = () => {
-              if (isCompleted || isCurrentStage) {
-                return 'gba:bg-success gba:text-primary-foreground'
-              }
-              return 'gba:bg-muted gba:text-muted-foreground'
+          const stageStyles = getStageStyles(index, stages.length)
+
+          const handleStageClick = () => {
+            if (isClickable) {
+              onStageClick(stage)
             }
+          }
 
-            // Determine border radius and clip path
-            let borderRadius = '0'
-            let clipPath = 'none'
-            let WebkitClipPath = 'none'
-            let marginRight = '0'
-
-            if (index === 0) {
-              borderRadius = '20px 0 0 20px'
-              if (stages.length > 1) {
-                clipPath = 'polygon(0 0, calc(100% - 12px) 0, 100% 50%, calc(100% - 12px) 100%, 0 100%)'
-                WebkitClipPath = 'polygon(0 0, calc(100% - 12px) 0, 100% 50%, calc(100% - 12px) 100%, 0 100%)'
-                marginRight = '8px'
-              } else {
-                borderRadius = '20px'
-              }
-            } else if (index === stages.length - 1) {
-              borderRadius = '0 20px 20px 0'
-              clipPath = 'polygon(12px 0, 100% 0, 100% 100%, 12px 100%, 24px 50%)'
-              WebkitClipPath = 'polygon(12px 0, 100% 0, 100% 100%, 12px 100%, 24px 50%)'
-            } else {
-              clipPath = 'polygon(12px 0, calc(100% - 12px) 0, 100% 50%, calc(100% - 12px) 100%, 12px 100%, 24px 50%)'
-              WebkitClipPath =
-                'polygon(12px 0, calc(100% - 12px) 0, 100% 50%, calc(100% - 12px) 100%, 12px 100%, 24px 50%)'
-              marginRight = '8px'
+          const handleKeyDown = (event: React.KeyboardEvent) => {
+            if (isClickable && (event.key === 'Enter' || event.key === ' ')) {
+              event.preventDefault()
+              onStageClick(stage)
             }
+          }
 
-            const handleStageClick = () => {
-              if (onStageClick && !isCurrentStage) {
-                onStageClick(stage)
-              }
-            }
-
-            const stageElement = (
+          const stageElement = (
+            <div
+              role={isClickable ? 'button' : undefined}
+              tabIndex={isClickable ? 0 : undefined}
+              aria-label={isClickable ? `Navigate to ${stage.value} stage` : undefined}
+              className={getColorClasses(isActive)}
+              style={{
+                position: 'relative',
+                height: defaultStyling.height,
+                flex: 1,
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                fontSize: defaultStyling.fontSize,
+                fontWeight: defaultStyling.fontWeight,
+                borderRadius: stageStyles.borderRadius,
+                marginRight: stageStyles.marginRight,
+                clipPath: stageStyles.clipPath,
+                WebkitClipPath: stageStyles.WebkitClipPath,
+                cursor: isClickable ? 'pointer' : 'default'
+              }}
+              data-testid={formatDataTestId(dataTestIdPrefix, `stage-${stage.code}`)}
+              onClick={handleStageClick}
+              onKeyDown={handleKeyDown}
+            >
               <div
-                className={getColorClasses()}
                 style={{
-                  position: 'relative',
-                  height: defaultStyling.height,
-                  flex: 1,
                   display: 'flex',
                   alignItems: 'center',
-                  justifyContent: 'center',
-                  fontSize: defaultStyling.fontSize,
-                  fontWeight: defaultStyling.fontWeight,
-                  borderRadius,
-                  marginRight,
-                  clipPath,
-                  WebkitClipPath,
-                  cursor: onStageClick && !isCurrentStage ? 'pointer' : 'default'
+                  gap: '8px',
+                  padding: '0 16px',
+                  paddingRight: index < stages.length - 1 ? '24px' : '16px',
+                  paddingLeft: index > 0 ? '24px' : '16px',
+                  position: 'relative',
+                  zIndex: 10
                 }}
-                data-testid={formatDataTestId(dataTestIdPrefix, `stage-${stage.code}`)}
-                onClick={handleStageClick}
               >
-                {/* Stage content */}
-                <div
-                  style={{
-                    display: 'flex',
-                    alignItems: 'center',
-                    gap: '8px',
-                    padding: '0 16px',
-                    paddingRight: index < stages.length - 1 ? '24px' : '16px',
-                    paddingLeft: index > 0 ? '24px' : '16px',
-                    position: 'relative',
-                    zIndex: 10
-                  }}
-                >
-                  {renderStageContent ? (
-                    renderStageContent(stage, isCurrentStage, isCompleted)
-                  ) : (
-                    <>
-                      {(isCurrentStage || isCompleted) && (
-                        <span
-                          className={`gba:text-sm gba:font-bold gba:text-primary-foreground gba:rounded-full gba:w-5 gba:h-5 gba:flex gba:items-center gba:justify-center ${isCompleted ? 'gba:bg-primary-100' : 'gba:bg-success'}`}
-                        >
-                          ✓
-                        </span>
-                      )}
-                      <span className={`gba:whitespace-nowrap ${stages.length > 4 ? 'gba:text-xs' : 'gba:text-sm'}`}>
-                        {stage.value}
+                {renderStageContent ? (
+                  renderStageContent(stage, isCurrentStage, isCompleted)
+                ) : (
+                  <>
+                    {isActive && (
+                      <span
+                        className={`gba:text-sm gba:font-bold gba:text-primary-foreground gba:rounded-full gba:w-5 gba:h-5 gba:flex gba:items-center gba:justify-center ${isCompleted ? 'gba:bg-primary-100' : 'gba:bg-success'}`}
+                      >
+                        ✓
                       </span>
-                    </>
-                  )}
-                </div>
+                    )}
+                    <span className={`gba:whitespace-nowrap ${stages.length > 4 ? 'gba:text-xs' : 'gba:text-sm'}`}>
+                      {stage.value}
+                    </span>
+                  </>
+                )}
               </div>
-            )
+            </div>
+          )
 
-            return (
-              <React.Fragment key={stage.id}>
-                {children ? children(stage, isCurrentStage, isCompleted, stageElement) : stageElement}
-              </React.Fragment>
-            )
-          })}
-        </div>
-      </>
+          return (
+            <React.Fragment key={stage.id}>
+              {children ? children(stage, isCurrentStage, isCompleted, stageElement) : stageElement}
+            </React.Fragment>
+          )
+        })}
+      </div>
     </TooltipProvider>
   )
 }
