@@ -151,7 +151,7 @@ const DocumentPopup: React.FC<DocumentPopupProps> = ({ initialValues = {}, ...pr
   const [parentFolders, setParentFolders] = useState<{ id: string; name: string }[]>([])
   const [parentLoading, setParentLoading] = useState<boolean>(false)
   const graphqlClient = useGraphQLClient(props.accessToken || '')
-  const flowbotBaseUrl = env('NEXT_PUBLIC_BASE_URL')
+  const flowbotBaseUrl = env('NEXT_PUBLIC_FLOWBOT_ENDPOINT') || env('NEXT_PUBLIC_BASE_URL')
   const restClient = useRestClient(flowbotBaseUrl)
 
   const [aiLoading, setAiLoading] = useState<boolean>(false)
