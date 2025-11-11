@@ -174,7 +174,7 @@ export const AssetDetailPanel: React.FC<AssetDetailPanelProps> = ({
   return (
     <Sheet open={isOpen} onOpenChange={onClose} title="">
       <SheetContent className="gba:w-full sm:gba:max-w-xl gba:overflow-y-auto" data-testid="asset-detail-panel">
-        <SheetHeader className="gba:pr-16">
+        <SheetHeader className="gba:pr-12">
           <div className="gba:flex gba:items-start gba:justify-between gba:gap-3">
             <div className="gba:flex-1 gba:min-w-0">
               <SheetTitle data-testid="asset-detail-title">
@@ -184,7 +184,7 @@ export const AssetDetailPanel: React.FC<AssetDetailPanelProps> = ({
                 {asset.assetCategory?.value || 'N/A'}
               </SheetDescription>
             </div>
-            <div className="gba:flex gba:items-center gba:gap-2 gba:shrink-0">
+            <div className="gba:flex gba:items-center gba:gap-2 gba:shrink-0 gba:mr-8">
               <Badge variant={getStatusBadgeVariant(asset.assetStatus)} data-testid="asset-detail-status-badge">
                 {formatStatus(asset.assetStatus)}
               </Badge>

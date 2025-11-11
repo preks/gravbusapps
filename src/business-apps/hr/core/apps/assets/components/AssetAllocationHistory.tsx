@@ -1,8 +1,3 @@
-/**
- * AssetAllocationHistory Component
- * Displays allocation/deallocation timeline for an asset
- */
-
 import React from 'react'
 import { AssetAllocation } from '../types'
 import { Card, CardHeader, CardTitle, CardContent, Badge } from '@newwork/nw-design-system'
@@ -13,7 +8,6 @@ interface AssetAllocationHistoryProps {
   isLoading?: boolean
 }
 
-// Format date
 const formatDate = (dateString: string): string => {
   return new Date(dateString).toLocaleDateString('en-US', {
     year: 'numeric',
@@ -22,7 +16,6 @@ const formatDate = (dateString: string): string => {
   })
 }
 
-// Calculate duration
 const calculateDuration = (startDate: string, endDate?: string): string => {
   const start = new Date(startDate)
   const end = endDate ? new Date(endDate) : new Date()
@@ -73,10 +66,13 @@ export const AssetAllocationHistory: React.FC<AssetAllocationHistoryProps> = ({ 
               className="gba:border-l-2 gba:border-primary gba:pl-4 gba:pb-4"
               data-testid={`allocation-item-${allocation.id}`}
             >
-              {/* Allocation Header */}
               <div className="gba:flex gba:items-center gba:gap-2 gba:mb-2">
                 <UserIcon size={20} className="gba:text-primary" />
-                <span className="gba:font-medium">{allocation.employeeName}</span>
+                <span className="gba:font-medium">
+                  {allocation.employee?.displayName ||
+                    `${allocation.employee?.firstName || ''} ${allocation.employee?.lastName || ''}`.trim() ||
+                    'Unknown Employee'}
+                </span>
                 {!allocation.endDate && (
                   <Badge variant="success" data-testid={`allocation-active-${allocation.id}`}>
                     Current
@@ -84,7 +80,6 @@ export const AssetAllocationHistory: React.FC<AssetAllocationHistoryProps> = ({ 
                 )}
               </div>
 
-              {/* Date Range */}
               <div className="gba:flex gba:items-center gba:gap-2 gba:text-sm gba:text-muted-foreground gba:mb-2">
                 <CalendarIcon size={16} />
                 <span>
@@ -101,23 +96,21 @@ export const AssetAllocationHistory: React.FC<AssetAllocationHistoryProps> = ({ 
                 <span className="gba:text-xs">({calculateDuration(allocation.startDate, allocation.endDate)})</span>
               </div>
 
-              {/* Condition Information */}
-              {allocation.conditionStart && (
+              {allocation.startAssetCondition && (
                 <div className="gba:text-sm gba:mb-1">
                   <span className="gba:font-medium">Start Condition: </span>
-                  <span className="gba:text-muted-foreground">{allocation.conditionStart}</span>
+                  <span className="gba:text-muted-foreground">{allocation.startAssetCondition.value}</span>
                 </div>
               )}
 
-              {allocation.conditionEnd && (
+              {allocation.endAssetCondition && (
                 <div className="gba:text-sm gba:mb-1">
                   <span className="gba:font-medium">Return Condition: </span>
-                  <span className="gba:text-muted-foreground">{allocation.conditionEnd}</span>
+                  <span className="gba:text-muted-foreground">{allocation.endAssetCondition.value}</span>
                 </div>
               )}
 
-              {/* Expected End Date */}
-              {!allocation.endDate && (
+              {!allocation.endDate && allocation.expectedEndDate && (
                 <div className="gba:text-sm gba:text-muted-foreground gba:flex gba:items-center gba:gap-2">
                   <CheckCircleIcon size={16} />
                   <span>Expected return: {formatDate(allocation.expectedEndDate)}</span>
