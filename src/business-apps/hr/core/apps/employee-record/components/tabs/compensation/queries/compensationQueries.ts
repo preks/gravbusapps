@@ -170,6 +170,8 @@ export const GET_EMPLOYEE_COMPENSATION_HISTORY = /*sql*/ `
       currencyRef
       hireDate
       exitDate
+      createdAt
+      updatedAt
     }
     
     # Historical bonus records

@@ -205,19 +205,26 @@ export const transformPayslip = (payslip: any, locale: string): EmployeePayslip 
 
 /**
  * Transform working condition to compensation history record
+ * Note: Formatting (currency, dates) is handled in the view component
  */
-export const transformWorkingConditionToHistory = (wc: any, locale: string) => {
+export const transformWorkingConditionToHistory = (wc: any) => {
   // Extract currency code from catalog reference format
   const currencyCode = wc.currency?.code || extractCurrencyCode(wc.currencyRef)
 
-  // Format monthly salary with proper locale and currency
-  const monthlySalary = wc.monthlyGrossSalary || 0
-  const formattedMonthlySalary = new Intl.NumberFormat(locale, {
-    style: 'currency',
-    currency: currencyCode,
-    minimumFractionDigits: 0,
-    maximumFractionDigits: 0
-  }).format(monthlySalary)
+  // Determine effective date: prefer createdAt (when salary change took effect), fallback to hireDate
+  // createdAt is more accurate for compensation history as it represents when the record was created
+  let effectiveDate = wc.createdAt || wc.hireDate || wc.updatedAt || null
+
+  // Validate and normalize effectiveDate
+  if (effectiveDate && Number.isNaN(new Date(effectiveDate).getTime())) {
+    effectiveDate = null
+  }
+
+  // Validate and normalize endDate
+  let endDate = wc.exitDate || null
+  if (endDate && Number.isNaN(new Date(endDate).getTime())) {
+    endDate = null
+  }
 
   return {
     id: wc.id,
@@ -225,10 +232,10 @@ export const transformWorkingConditionToHistory = (wc: any, locale: string) => {
     baseSalary: wc.annualGrossSalary || 0,
     currency: wc.currency || { id: currencyCode, code: currencyCode, value: currencyCode },
     compensationBand: null,
-    effectiveDate: wc.hireDate,
-    endDate: wc.exitDate,
+    effectiveDate: effectiveDate,
+    endDate: endDate,
     changeReason: 'Salary Record',
-    notes: `Monthly: ${formattedMonthlySalary}`,
+    notes: null,
     monthlyGrossSalary: wc.monthlyGrossSalary
   }
 }
