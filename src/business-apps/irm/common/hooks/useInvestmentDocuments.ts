@@ -3,7 +3,7 @@ import { BusinessAppContextProps } from '@/common/BusinessAppContext'
 import { InvestmentDocument } from '@/common/data/investment/types'
 import { useProcessCompletion } from '@/common/hooks/useProcessCompletion'
 import { transformInvestmentDocuments } from '../utils/documentUtils'
-import { DocumentItem } from '@/common/components/common-relations/record-sections/document-section/DocumentSection'
+import { DocumentItem } from '@/components/document-section'
 
 interface UseInvestmentDocumentsParams {
   entityId: string
