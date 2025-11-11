@@ -408,8 +408,22 @@ const DetailsTab: React.FC<DetailsTabProps> = ({ employee, accessToken, employee
               className="gba:border gba:border-border gba:shadow-md gba:hover:shadow-lg gba:transition-all"
               data-testid="details-section-additional-attributes"
             >
-              <div className="gba:mb-6 gba:border-b gba:border-border gba:pb-2">
+              <div className="gba:mb-6 gba:border-b gba:border-border gba:pb-2 gba:flex gba:justify-between gba:items-center">
                 <h3 className="gba:text-xl gba:font-semibold gba:text-info">Additional Attributes</h3>
+                {/* {isSelfView && (
+                  <AppActionMenu
+                    data-testid="additional-attributes-action-button"
+                    contextsArray={[FlowContextName.employeeAdditionalProperties]}
+                    externalContextData={{
+                      employeeId: employee?.id
+                    }}
+                    prefixDataTestId="additional-attributes-action"
+                    accessToken={accessToken}
+                    autoExecuteSingleAction={true}
+                  >
+                    <PiPencilSimple className="gba:cursor-pointer" />
+                  </AppActionMenu>
+                )} */}
               </div>
               {renderDataItems(items)}
             </Card>
