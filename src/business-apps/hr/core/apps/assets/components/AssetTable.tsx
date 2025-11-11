@@ -1,9 +1,3 @@
-/**
- * AssetTable Component
- * Displays assets in a table with filtering, search, and actions
- * Uses nw-design-system Table component
- */
-
 import React, { useState, useMemo } from 'react'
 import { Asset, AssetStatus } from '../types'
 import {
@@ -166,6 +160,11 @@ const formatDate = (dateString: string): string => {
   })
 }
 
+interface AssetTableState {
+  searchQuery: string
+  statusFilter: string
+}
+
 export const AssetTable: React.FC<AssetTableProps> = ({
   assets,
   totalCount = 0,
@@ -183,28 +182,22 @@ export const AssetTable: React.FC<AssetTableProps> = ({
   accessToken
 }) => {
   const DATA_TEST_ID_PREFIX = 'asset-table'
-  const [searchQuery, setSearchQuery] = useState('')
-  const [statusFilter, setStatusFilter] = useState<string>('all')
+  const [localState, setLocalState] = useState<AssetTableState>({
+    searchQuery: '',
+    statusFilter: 'all'
+  })
 
   const handleStatusFilterChange = (value: string) => {
-    setStatusFilter(value)
-    if (onStatusFilterChange) {
-      onStatusFilterChange(value)
-    }
-    if (onPageChange) {
-      onPageChange(1)
-    }
+    setLocalState(prev => ({ ...prev, statusFilter: value }))
+    onStatusFilterChange?.(value)
+    onPageChange?.(1)
   }
 
-  const handleSearchInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+  const handleSearchChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const value = e.target.value
-    setSearchQuery(value)
-    if (onSearchChange) {
-      onSearchChange(value)
-    }
-    if (onPageChange) {
-      onPageChange(1)
-    }
+    setLocalState(prev => ({ ...prev, searchQuery: value }))
+    onSearchChange?.(value)
+    onPageChange?.(1)
   }
 
   const totalPages = Math.ceil(totalCount / pageSize)
@@ -215,14 +208,14 @@ export const AssetTable: React.FC<AssetTableProps> = ({
         <div className="gba:flex-1 gba:min-w-[200px]">
           <Input
             placeholder="Search assets..."
-            value={searchQuery}
-            onChange={handleSearchInputChange}
+            value={localState.searchQuery}
+            onChange={handleSearchChange}
             className="gba:w-full"
             data-testid="asset-search-input"
           />
         </div>
 
-        <Select value={statusFilter} onValueChange={handleStatusFilterChange}>
+        <Select value={localState.statusFilter} onValueChange={handleStatusFilterChange}>
           <SelectTrigger className="gba:w-[180px]" data-testid="asset-status-filter">
             <SelectValue placeholder="All Statuses" />
           </SelectTrigger>

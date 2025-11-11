@@ -25,8 +25,10 @@ import { AppActionForm } from '@/components/app-action-form/AppActionForm'
 import { useEmployeeSearch } from './hooks/useEmployeeSearch'
 import { AssetProcessClient, CreateEmployeeAssetPayload } from '../../apps/assets/services/AssetProcessClient'
 import { AssetStatus } from '../../apps/assets/types'
-import { useAssetService } from '../../apps/assets/services/useAssetService'
 import { useAssetConditionCatalog } from '../equipment-registration/hooks/useAssetConditionCatalog'
+import { useAssetFormData } from '../return-asset/hooks/useAssetFormData'
+import { useAssetVersion } from '../return-asset/hooks/useAssetVersion'
+import { dispatchProcessCompletionEvents } from '../return-asset/utils/processEventUtils'
 
 const formSchema = z.object({
   employeeId: z.string().min(1, 'Please select an employee'),
@@ -40,38 +42,12 @@ type FormValues = z.infer<typeof formSchema>
 
 const AllocateAssetContent: React.FC<BusinessAppContextProps> = (context: BusinessAppContextProps) => {
   const { additionalData } = context
-  const assetId =
-    additionalData?.assetId ||
-    additionalData?.psi_taskPayload?.assetId ||
-    additionalData?.psi_taskPayload?.initialParameters?.assetId ||
-    additionalData?.psi_taskPayload?.psi_initialParameters?.assetId ||
-    null
-
-  const existingAsset =
-    additionalData?.asset ||
-    additionalData?.psi_taskPayload?.asset ||
-    additionalData?.psi_taskPayload?.initialParameters?.asset ||
-    additionalData?.psi_taskPayload?.psi_initialParameters?.asset ||
-    null
-
-  const assetVersion = useMemo(() => {
-    if (existingAsset?.version !== undefined) {
-      return existingAsset.version
-    }
-    if (additionalData?.version !== undefined) {
-      return additionalData.version
-    }
-    if (additionalData?.psi_taskPayload?.version !== undefined) {
-      return additionalData.psi_taskPayload.version
-    }
-    if (additionalData?.psi_taskPayload?.initialParameters?.version !== undefined) {
-      return additionalData.psi_taskPayload.initialParameters.version
-    }
-    if (additionalData?.psi_taskPayload?.psi_initialParameters?.version !== undefined) {
-      return additionalData.psi_taskPayload.psi_initialParameters.version
-    }
-    return 0
-  }, [existingAsset, additionalData])
+  const { assetId, existingAsset, assetVersion, assetDisplayName } = useAssetFormData(additionalData)
+  const { resolveAssetVersion } = useAssetVersion(context, {
+    assetId,
+    existingAsset,
+    fallbackVersion: assetVersion
+  })
 
   const [isSubmitting, setIsSubmitting] = React.useState(false)
   const [searchQuery, setSearchQuery] = React.useState('')
@@ -89,7 +65,6 @@ const AllocateAssetContent: React.FC<BusinessAppContextProps> = (context: Busine
     return client
   }, [context.accessToken])
 
-  const assetService = useAssetService(context)
   const { options: conditionOptions, isLoading: conditionsLoading } = useAssetConditionCatalog(context)
 
   const form = useForm<FormValues>({
@@ -123,10 +98,6 @@ const AllocateAssetContent: React.FC<BusinessAppContextProps> = (context: Busine
   const filteredEmployees = employees.filter(
     emp => !searchQuery || emp.name.toLowerCase().includes(searchQuery.toLowerCase())
   )
-
-  const assetDisplayName = existingAsset
-    ? `${existingAsset.assetBrand?.value || ''} ${existingAsset.model || ''}`.trim()
-    : 'Asset'
 
   const formFields = (
     <div className="gba:flex-1 gba:space-y-4">
@@ -342,30 +313,7 @@ const AllocateAssetContent: React.FC<BusinessAppContextProps> = (context: Busine
                       throw new Error('Employee is required')
                     }
 
-                    let currentAssetVersion: number | null = null
-
-                    if (existingAsset?.version !== undefined && existingAsset.version !== null) {
-                      currentAssetVersion = existingAsset.version
-                    } else {
-                      try {
-                        const currentAsset = await assetService.getAssetById(assetId)
-                        if (currentAsset?.version !== undefined) {
-                          currentAssetVersion = currentAsset.version
-                        }
-                      } catch (error) {
-                        console.error('Error fetching asset version from API:', error)
-                      }
-                    }
-
-                    if (currentAssetVersion === null && assetVersion !== 0 && assetVersion !== undefined) {
-                      currentAssetVersion = assetVersion
-                    }
-
-                    if (currentAssetVersion === null || currentAssetVersion === undefined) {
-                      throw new Error(
-                        `Cannot update asset: version is required but not available. Asset ID: ${assetId}`
-                      )
-                    }
+                    const currentAssetVersion = await resolveAssetVersion()
 
                     const employeeAssetPayload: CreateEmployeeAssetPayload = {
                       startDate: values.startDate,
@@ -398,7 +346,7 @@ const AllocateAssetContent: React.FC<BusinessAppContextProps> = (context: Busine
 
                     dispatchProcessContinueEvent('pse_submit', {})
 
-                    const completionPayload = {
+                    dispatchProcessCompletionEvents({
                       resolution: 'success',
                       processName: 'allocateAsset',
                       domain: 'employee',
@@ -414,19 +362,7 @@ const AllocateAssetContent: React.FC<BusinessAppContextProps> = (context: Busine
                           assetStatus: AssetStatus.ALLOCATED
                         }
                       }
-                    }
-
-                    window.dispatchEvent(
-                      new CustomEvent('com.newwork.process.processCompletion', {
-                        detail: completionPayload
-                      })
-                    )
-
-                    window.dispatchEvent(
-                      new CustomEvent('com.newwork.process.taskCompletion', {
-                        detail: completionPayload
-                      })
-                    )
+                    })
                   } catch (error) {
                     console.error('Error allocating asset:', error)
                     setIsSubmitting(false)

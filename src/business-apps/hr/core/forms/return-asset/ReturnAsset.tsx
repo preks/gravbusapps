@@ -26,9 +26,25 @@ import { AssetProcessClient, UpdateEmployeeAssetPayload } from '../../apps/asset
 import { AssetStatus } from '../../apps/assets/types'
 import { useAssetService } from '../../apps/assets/services/useAssetService'
 import { useAssetConditionCatalog } from '../equipment-registration/hooks/useAssetConditionCatalog'
+import { useAssetFormData } from './hooks/useAssetFormData'
+import { useAssetVersion } from './hooks/useAssetVersion'
+import { dispatchProcessCompletionEvents } from './utils/processEventUtils'
 
 const formSchema = z.object({
-  endDate: z.string().min(1, 'Return date is required'),
+  endDate: z
+    .string()
+    .min(1, 'Return date is required')
+    .refine(
+      date => {
+        const selectedDate = new Date(date)
+        const today = new Date()
+        today.setHours(23, 59, 59, 999) // Set to end of today
+        return selectedDate <= today
+      },
+      {
+        message: 'Return date cannot be in the future'
+      }
+    ),
   endAssetConditionRef: z.string().optional(),
   notes: z.string().optional()
 })
@@ -37,41 +53,14 @@ type FormValues = z.infer<typeof formSchema>
 
 const ReturnAssetContent: React.FC<BusinessAppContextProps> = (context: BusinessAppContextProps) => {
   const { additionalData } = context
-  const assetId =
-    additionalData?.assetId ||
-    additionalData?.psi_taskPayload?.assetId ||
-    additionalData?.psi_taskPayload?.initialParameters?.assetId ||
-    additionalData?.psi_taskPayload?.psi_initialParameters?.assetId ||
-    null
-
-  const existingAsset =
-    additionalData?.asset ||
-    additionalData?.psi_taskPayload?.asset ||
-    additionalData?.psi_taskPayload?.initialParameters?.asset ||
-    additionalData?.psi_taskPayload?.psi_initialParameters?.asset ||
-    null
-
-  const assetVersion = useMemo(() => {
-    if (existingAsset?.version !== undefined) {
-      return existingAsset.version
-    }
-    if (additionalData?.version !== undefined) {
-      return additionalData.version
-    }
-    if (additionalData?.psi_taskPayload?.version !== undefined) {
-      return additionalData.psi_taskPayload.version
-    }
-    if (additionalData?.psi_taskPayload?.initialParameters?.version !== undefined) {
-      return additionalData.psi_taskPayload.initialParameters.version
-    }
-    if (additionalData?.psi_taskPayload?.psi_initialParameters?.version !== undefined) {
-      return additionalData.psi_taskPayload.psi_initialParameters.version
-    }
-    return 0
-  }, [existingAsset, additionalData])
+  const { assetId, existingAsset, assetVersion, assetDisplayName } = useAssetFormData(additionalData)
+  const { resolveAssetVersion } = useAssetVersion(context, {
+    assetId,
+    existingAsset,
+    fallbackVersion: assetVersion
+  })
 
   const [isSubmitting, setIsSubmitting] = React.useState(false)
-  const [asset, setAsset] = React.useState(existingAsset)
   const [currentAllocation, setCurrentAllocation] = React.useState<any>(null)
   const [isLoading, setIsLoading] = React.useState(true)
 
@@ -100,8 +89,10 @@ const ReturnAssetContent: React.FC<BusinessAppContextProps> = (context: Business
   )
 
   const isSubmitDisabled = useMemo(() => {
-    return isSubmitting || isLoading || conditionsLoading || !form.formState.isValid || !asset || !currentAllocation
-  }, [isSubmitting, isLoading, conditionsLoading, form.formState.isValid, asset, currentAllocation])
+    return (
+      isSubmitting || isLoading || conditionsLoading || !form.formState.isValid || !existingAsset || !currentAllocation
+    )
+  }, [isSubmitting, isLoading, conditionsLoading, form.formState.isValid, existingAsset, currentAllocation])
 
   useEffect(() => {
     const loadData = async () => {
@@ -112,22 +103,12 @@ const ReturnAssetContent: React.FC<BusinessAppContextProps> = (context: Business
 
       try {
         setIsLoading(true)
-        let assetData = existingAsset
-
-        if (!assetData) {
-          assetData = await assetService.getAssetById(assetId)
-        }
-
-        if (assetData) {
-          setAsset(assetData)
-        }
-
         const allocation = await assetService.getCurrentAllocation(assetId)
         if (allocation) {
           setCurrentAllocation(allocation)
         }
       } catch (err) {
-        console.error('Error loading asset data:', err)
+        console.error('Error loading allocation data:', err)
       } finally {
         setIsLoading(false)
       }
@@ -136,8 +117,6 @@ const ReturnAssetContent: React.FC<BusinessAppContextProps> = (context: Business
     loadData()
   }, [assetId, existingAsset, assetService])
 
-  const assetDisplayName = asset ? `${asset.assetBrand?.value || ''} ${asset.model || ''}`.trim() : 'Asset'
-
   const employeeDisplayName = currentAllocation?.employee
     ? currentAllocation.employee.displayName ||
       `${currentAllocation.employee.firstName} ${currentAllocation.employee.lastName}`.trim()
@@ -145,10 +124,10 @@ const ReturnAssetContent: React.FC<BusinessAppContextProps> = (context: Business
 
   const formFields = (
     <div className="gba:flex-1 gba:space-y-4">
-      {asset && (
+      {existingAsset && (
         <div className="gba:mb-4 gba:p-4 gba:bg-muted gba:rounded-lg">
           <p className="gba:text-sm gba:font-medium">Asset: {assetDisplayName}</p>
-          <p className="gba:text-xs gba:text-muted-foreground">Serial: {asset.serialNumber || 'N/A'}</p>
+          <p className="gba:text-xs gba:text-muted-foreground">Serial: {existingAsset.serialNumber || 'N/A'}</p>
         </div>
       )}
 
@@ -165,21 +144,25 @@ const ReturnAssetContent: React.FC<BusinessAppContextProps> = (context: Business
       <FormField
         control={form.control}
         name="endDate"
-        render={({ field }) => (
-          <FormItem>
-            <Label htmlFor="endDate" data-testid="end-date-label">
-              Return Date *
-            </Label>
-            <Input
-              id="endDate"
-              type="date"
-              value={field.value || ''}
-              onChange={field.onChange}
-              onBlur={field.onBlur}
-              data-testid="end-date-input"
-            />
-          </FormItem>
-        )}
+        render={({ field }) => {
+          const today = new Date().toISOString().split('T')[0]
+          return (
+            <FormItem>
+              <Label htmlFor="endDate" data-testid="end-date-label">
+                Return Date *
+              </Label>
+              <Input
+                id="endDate"
+                type="date"
+                max={today}
+                value={field.value || ''}
+                onChange={field.onChange}
+                onBlur={field.onBlur}
+                data-testid="end-date-input"
+              />
+            </FormItem>
+          )
+        }}
       />
 
       <FormField
@@ -251,7 +234,7 @@ const ReturnAssetContent: React.FC<BusinessAppContextProps> = (context: Business
     )
   }
 
-  if (!asset) {
+  if (!existingAsset) {
     return (
       <div
         className="gba:mx-auto gba:font-primary gba:flex gba:flex-col gba:w-full"
@@ -334,30 +317,7 @@ const ReturnAssetContent: React.FC<BusinessAppContextProps> = (context: Business
                       throw new Error('Current allocation ID is required')
                     }
 
-                    let currentAssetVersion: number | null = null
-
-                    if (existingAsset?.version !== undefined && existingAsset.version !== null) {
-                      currentAssetVersion = existingAsset.version
-                    } else {
-                      try {
-                        const currentAsset = await assetService.getAssetById(assetId)
-                        if (currentAsset?.version !== undefined) {
-                          currentAssetVersion = currentAsset.version
-                        }
-                      } catch (error) {
-                        console.error('Error fetching asset version from API:', error)
-                      }
-                    }
-
-                    if (currentAssetVersion === null && assetVersion !== 0 && assetVersion !== undefined) {
-                      currentAssetVersion = assetVersion
-                    }
-
-                    if (currentAssetVersion === null || currentAssetVersion === undefined) {
-                      throw new Error(
-                        `Cannot update asset: version is required but not available. Asset ID: ${assetId}`
-                      )
-                    }
+                    const currentAssetVersion = await resolveAssetVersion()
 
                     const updateEmployeeAssetPayload: UpdateEmployeeAssetPayload = {
                       id: currentAllocation.id,
@@ -383,7 +343,7 @@ const ReturnAssetContent: React.FC<BusinessAppContextProps> = (context: Business
 
                     dispatchProcessContinueEvent('pse_submit', {})
 
-                    const completionPayload = {
+                    dispatchProcessCompletionEvents({
                       resolution: 'success',
                       processName: 'returnAsset',
                       domain: 'employee',
@@ -400,19 +360,7 @@ const ReturnAssetContent: React.FC<BusinessAppContextProps> = (context: Business
                           assetStatus: AssetStatus.AVAILABLE
                         }
                       }
-                    }
-
-                    window.dispatchEvent(
-                      new CustomEvent('com.newwork.process.processCompletion', {
-                        detail: completionPayload
-                      })
-                    )
-
-                    window.dispatchEvent(
-                      new CustomEvent('com.newwork.process.taskCompletion', {
-                        detail: completionPayload
-                      })
-                    )
+                    })
                   } catch (error) {
                     console.error('Error returning asset:', error)
                     setIsSubmitting(false)
