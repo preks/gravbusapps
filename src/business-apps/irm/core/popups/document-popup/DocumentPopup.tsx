@@ -24,6 +24,7 @@ import { useDocumentCatalogs } from '@/common/hooks/useDocumentCatalogs'
 import { fileClient } from '@/common/network/files/FileClient'
 import { useGraphQLClient } from '@/common/network/graphql/useGraphQLClient'
 import { getTranslationFromI18nKeyAndLabel } from '@/common/utils/windowUtils'
+import { useRestClient } from '@/common/network/rest/useRestClient'
 
 export type InvestmentDocumentEntityType = 'account' | 'contact' | 'lead' | 'opportunity' | 'investment'
 
@@ -150,6 +151,8 @@ const DocumentPopup: React.FC<DocumentPopupProps> = ({ initialValues = {}, ...pr
   const [parentFolders, setParentFolders] = useState<{ id: string; name: string }[]>([])
   const [parentLoading, setParentLoading] = useState<boolean>(false)
   const graphqlClient = useGraphQLClient(props.accessToken || '')
+  const flowbotBaseUrl = env('NEXT_PUBLIC_BASE_URL')
+  const restClient = useRestClient(flowbotBaseUrl)
 
   const [aiLoading, setAiLoading] = useState<boolean>(false)
   const [aiError, setAiError] = useState<string | null>(null)
@@ -228,14 +231,10 @@ const DocumentPopup: React.FC<DocumentPopupProps> = ({ initialValues = {}, ...pr
         const fd = new FormData()
         fd.append('file', f as unknown as Blob)
         fd.append('llm_model', 'gpt-4.1')
-        const res = await fetch(`${env('NEXT_PUBLIC_BASE_URL')}/flowbot/document-autoclassify/classify`, {
-          method: 'POST',
-          body: fd,
+        const resp = await restClient.post('/flowbot/document-autoclassify/classify', fd, {
           headers: props.accessToken ? { Authorization: `Bearer ${props.accessToken}` } : undefined,
           signal: controller.signal
         })
-        if (!res.ok) throw new Error(`Request failed: ${res.status} ${res.statusText}`)
-        const resp = await res.json()
         const dataObj = (resp ?? {}) as Record<string, unknown>
         const type = typeof dataObj.type === 'string' ? dataObj.type : undefined
         const group = typeof dataObj.group === 'string' ? dataObj.group : undefined
@@ -673,338 +672,351 @@ const DocumentPopup: React.FC<DocumentPopupProps> = ({ initialValues = {}, ...pr
           </h2>
         </div>
 
-        {renameMode || isUpdatingFolder ? (
-          <>
-            <FormField
-              control={form.control}
-              name="name"
-              render={({ field }) => (
-                <FormItem>
-                  <FormLabel>{isUpdatingFolder ? 'Folder Name' : 'Document Name'}</FormLabel>
-                  <FormControl>
-                    <Input
-                      placeholder={isUpdatingFolder ? 'Folder name' : 'Document name'}
-                      {...field}
-                      data-testid={formatDataTestId(prefixDataTestId, 'RenameNameInput')}
-                    />
-                  </FormControl>
-                  <FormMessage />
-                </FormItem>
-              )}
-            />
-          </>
-        ) : watchedFolder ? (
-          <FormField
-            control={form.control}
-            name="name"
-            render={({ field }) => (
-              <FormItem>
-                <FormLabel>Folder Name</FormLabel>
-                <FormControl>
-                  <Input
-                    placeholder="Folder name"
-                    {...field}
-                    data-testid={formatDataTestId(prefixDataTestId, 'NameInput')}
-                  />
-                </FormControl>
-                <FormMessage />
-              </FormItem>
-            )}
-          />
-        ) : (
-          <div className="gba:space-y-4">
-            <FormField
-              control={form.control}
-              name="file"
-              render={({ field: { onChange, value, ...field } }) => (
-                <FormItem>
-                  <FormLabel>File</FormLabel>
-                  <FormControl>
-                    <div className="gba:space-y-2">
-                      {/* Hidden file input */}
-                      <input
-                        type="file"
-                        onChange={e => {
-                          const file = e.target.files?.[0] || null
-                          onChange(file)
-                          if (file) {
-                            // In update mode, always use the new file name
-                            // In create mode, only set name if it's empty
-                            if (isUpdateMode || !form.getValues('name')) {
-                              form.setValue('name', file.name)
-                            }
-                          }
-                        }}
-                        className="gba:hidden"
-                        id="file-input"
-                        data-testid={formatDataTestId(prefixDataTestId, 'FileInput')}
-                        {...field}
-                      />
+        {(() => {
+          if (renameMode || isUpdatingFolder) {
+            return (
+              <>
+                <FormField
+                  control={form.control}
+                  name="name"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>{isUpdatingFolder ? 'Folder Name' : 'Document Name'}</FormLabel>
+                      <FormControl>
+                        <Input
+                          placeholder={isUpdatingFolder ? 'Folder name' : 'Document name'}
+                          {...field}
+                          data-testid={formatDataTestId(prefixDataTestId, 'RenameNameInput')}
+                        />
+                      </FormControl>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+              </>
+            )
+          }
 
-                      {/* Custom file display */}
-                      {value ? (
-                        <div className="gba:flex gba:items-center gba:justify-between gba:p-3 gba:border gba:rounded-md gba:bg-muted/50">
-                          <div className="gba:flex gba:items-center gba:gap-2">
-                            <File className="gba:h-4 gba:w-4 gba:text-muted-foreground" />
-                            <div className="gba:flex gba:flex-col">
-                              <span className="gba:text-sm gba:font-medium">{value.name}</span>
-                              <span className="gba:text-xs gba:text-muted-foreground">
-                                {(value.size / 1024).toFixed(1)} KB
-                              </span>
+          if (watchedFolder) {
+            return (
+              <FormField
+                control={form.control}
+                name="name"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>Folder Name</FormLabel>
+                    <FormControl>
+                      <Input
+                        placeholder="Folder name"
+                        {...field}
+                        data-testid={formatDataTestId(prefixDataTestId, 'NameInput')}
+                      />
+                    </FormControl>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+            )
+          }
+
+          return (
+            <div className="gba:space-y-4">
+              <FormField
+                control={form.control}
+                name="file"
+                render={({ field: { onChange, value, ...field } }) => (
+                  <FormItem>
+                    <FormLabel>File</FormLabel>
+                    <FormControl>
+                      <div className="gba:space-y-2">
+                        {/* Hidden file input */}
+                        <input
+                          type="file"
+                          onChange={e => {
+                            const file = e.target.files?.[0] || null
+                            onChange(file)
+                            if (file) {
+                              // In update mode, always use the new file name
+                              // In create mode, only set name if it's empty
+                              if (isUpdateMode || !form.getValues('name')) {
+                                form.setValue('name', file.name)
+                              }
+                            }
+                          }}
+                          className="gba:hidden"
+                          id="file-input"
+                          data-testid={formatDataTestId(prefixDataTestId, 'FileInput')}
+                          {...field}
+                        />
+
+                        {/* Custom file display */}
+                        {value ? (
+                          <div className="gba:flex gba:items-center gba:justify-between gba:p-3 gba:border gba:rounded-md gba:bg-muted/50">
+                            <div className="gba:flex gba:items-center gba:gap-2">
+                              <File className="gba:h-4 gba:w-4 gba:text-muted-foreground" />
+                              <div className="gba:flex gba:flex-col">
+                                <span className="gba:text-sm gba:font-medium">{value.name}</span>
+                                <span className="gba:text-xs gba:text-muted-foreground">
+                                  {(value.size / 1024).toFixed(1)} KB
+                                </span>
+                              </div>
                             </div>
+                            <Button
+                              type="button"
+                              variant="ghost"
+                              size="sm"
+                              onClick={() => {
+                                onChange(null)
+                                const fileInput = document.getElementById('file-input') as HTMLInputElement
+                                if (fileInput) fileInput.value = ''
+                              }}
+                              className="gba:h-8 gba:w-8 gba:p-0"
+                            >
+                              <X className="gba:h-4 gba:w-4" />
+                            </Button>
                           </div>
+                        ) : (
                           <Button
                             type="button"
-                            variant="ghost"
-                            size="sm"
+                            variant="outline"
                             onClick={() => {
-                              onChange(null)
-                              const fileInput = document.getElementById('file-input') as HTMLInputElement
-                              if (fileInput) fileInput.value = ''
+                              document.getElementById('file-input')?.click()
                             }}
-                            className="gba:h-8 gba:w-8 gba:p-0"
+                            className="gba:w-full gba:justify-start gba:gap-2"
                           >
-                            <X className="gba:h-4 gba:w-4" />
+                            <Upload className="gba:h-4 gba:w-4" />
+                            Choose File
                           </Button>
-                        </div>
-                      ) : (
-                        <Button
-                          type="button"
-                          variant="outline"
-                          onClick={() => {
-                            document.getElementById('file-input')?.click()
-                          }}
-                          className="gba:w-full gba:justify-start gba:gap-2"
-                        >
-                          <Upload className="gba:h-4 gba:w-4" />
-                          Choose File
-                        </Button>
-                      )}
-                    </div>
-                  </FormControl>
-                  <FormMessage />
-                </FormItem>
-              )}
-            />
+                        )}
+                      </div>
+                    </FormControl>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
 
-            <div className="gba:text-sm gba:text-muted-foreground" data-testid="DocumentPopup-ai-status">
-              {aiLoading && (
-                <span data-testid="DocumentPopup-ai-status-loading">
-                  {getTranslationFromI18nKeyAndLabel('irm:document.ai.detecting', 'Detecting document group and type…')}
-                </span>
-              )}
-              {!aiLoading && aiError && <span data-testid="DocumentPopup-ai-status-error">{aiError}</span>}
-              {!aiLoading && !aiError && aiSuggestion && (
-                <div className="gba:flex gba:flex-col gba:gap-1" data-testid="DocumentPopup-ai-status-suggestion">
-                  <span>
-                    {(() => {
-                      const g = aiSuggestion.group || '—'
-                      const t = aiSuggestion.type || '—'
-                      const tpl = getTranslationFromI18nKeyAndLabel(
-                        'irm:document.ai.suggestion',
-                        'AI suggestion: Group = {group}, Type = {type}',
-                        { group: g, type: t }
-                      )
-                      if (tpl.includes('{group}') || tpl.includes('{{group}}')) {
-                        return tpl
-                          .replace('{group}', g)
-                          .replace('{{group}}', g)
-                          .replace('{type}', t)
-                          .replace('{{type}}', t)
-                      }
-                      return tpl
-                    })()}
+              <div className="gba:text-sm gba:text-muted-foreground" data-testid="DocumentPopup-ai-status">
+                {aiLoading && (
+                  <span data-testid="DocumentPopup-ai-status-loading">
+                    {getTranslationFromI18nKeyAndLabel(
+                      'irm:document.ai.detecting',
+                      'Detecting document group and type…'
+                    )}
                   </span>
-                  <div className="gba:flex gba:gap-2">
-                    <Button
-                      type="button"
-                      variant="secondary"
-                      size="sm"
-                      data-testid="DocumentPopup-ai-status-apply-button"
-                      onClick={async () => {
-                        if (aiSuggestion?.group) {
-                          const g = documentGroups.find(
-                            x =>
-                              (x?.value || '').toString().trim().toLowerCase() ===
-                              aiSuggestion.group!.toString().trim().toLowerCase()
-                          )
-                          if (g?.id)
-                            form.setValue('documentGroupRef', g.id, {
-                              shouldDirty: true,
-                              shouldValidate: true,
-                              shouldTouch: true
-                            })
+                )}
+                {!aiLoading && aiError && <span data-testid="DocumentPopup-ai-status-error">{aiError}</span>}
+                {!aiLoading && !aiError && aiSuggestion && (
+                  <div className="gba:flex gba:flex-col gba:gap-1" data-testid="DocumentPopup-ai-status-suggestion">
+                    <span>
+                      {(() => {
+                        const g = aiSuggestion.group || '—'
+                        const t = aiSuggestion.type || '—'
+                        const tpl = getTranslationFromI18nKeyAndLabel(
+                          'irm:document.ai.suggestion',
+                          'AI suggestion: Group = {group}, Type = {type}',
+                          { group: g, type: t }
+                        )
+                        if (tpl.includes('{group}') || tpl.includes('{{group}}')) {
+                          return tpl
+                            .replace('{group}', g)
+                            .replace('{{group}}', g)
+                            .replace('{type}', t)
+                            .replace('{{type}}', t)
                         }
-                        if (aiSuggestion?.type) {
-                          const t0 = filteredDocumentTypes.find(
-                            x =>
-                              (x?.value || '').toString().trim().toLowerCase() ===
-                              aiSuggestion.type!.toString().trim().toLowerCase()
-                          )
-                          if (t0?.id) {
-                            form.setValue('documentTypeRef', t0.id, {
-                              shouldDirty: true,
-                              shouldValidate: true,
-                              shouldTouch: true
-                            })
-                            setAiApplied(true)
+                        return tpl
+                      })()}
+                    </span>
+                    <div className="gba:flex gba:gap-2">
+                      <Button
+                        type="button"
+                        variant="secondary"
+                        size="sm"
+                        data-testid="DocumentPopup-ai-status-apply-button"
+                        onClick={async () => {
+                          if (aiSuggestion?.group) {
+                            const g = documentGroups.find(
+                              x =>
+                                (x?.value || '').toString().trim().toLowerCase() ===
+                                aiSuggestion.group!.toString().trim().toLowerCase()
+                            )
+                            if (g?.id)
+                              form.setValue('documentGroupRef', g.id, {
+                                shouldDirty: true,
+                                shouldValidate: true,
+                                shouldTouch: true
+                              })
                           }
-                          setApplyTypeAfterGroup(aiSuggestion.type)
-                        }
-                      }}
-                    >
-                      {getTranslationFromI18nKeyAndLabel('irm:document.ai.applySuggestion', 'Apply suggestion')}
-                    </Button>
+                          if (aiSuggestion?.type) {
+                            const t0 = filteredDocumentTypes.find(
+                              x =>
+                                (x?.value || '').toString().trim().toLowerCase() ===
+                                aiSuggestion.type!.toString().trim().toLowerCase()
+                            )
+                            if (t0?.id) {
+                              form.setValue('documentTypeRef', t0.id, {
+                                shouldDirty: true,
+                                shouldValidate: true,
+                                shouldTouch: true
+                              })
+                              setAiApplied(true)
+                            }
+                            setApplyTypeAfterGroup(aiSuggestion.type)
+                          }
+                        }}
+                      >
+                        {getTranslationFromI18nKeyAndLabel('irm:document.ai.applySuggestion', 'Apply suggestion')}
+                      </Button>
+                    </div>
                   </div>
-                </div>
-              )}
-            </div>
+                )}
+              </div>
 
-            <FormField
-              control={form.control}
-              name="documentGroupRef"
-              render={({ field }) => (
-                <FormItem>
-                  <FormLabel>Document Group</FormLabel>
-                  <FormControl>
-                    <Select
-                      value={field.value || undefined}
-                      onValueChange={value => {
-                        field.onChange(value)
-                        form.setValue('documentTypeRef', '') // Reset document type when group changes
-                      }}
-                      data-testid={formatDataTestId(prefixDataTestId, 'DocumentGroupSelect')}
-                    >
-                      <SelectTrigger>
-                        <SelectValue placeholder="Select group..." />
-                      </SelectTrigger>
-                      <SelectContent position="popper" className="gba:z-[9999]" style={{ zIndex: 9999 }}>
-                        {documentGroups.map(g => (
-                          <SelectItem key={g.id} value={g.id}>
-                            {g.value}
-                          </SelectItem>
-                        ))}
-                      </SelectContent>
-                    </Select>
-                  </FormControl>
-                  <FormMessage />
-                </FormItem>
-              )}
-            />
+              <FormField
+                control={form.control}
+                name="documentGroupRef"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>Document Group</FormLabel>
+                    <FormControl>
+                      <Select
+                        value={field.value || undefined}
+                        onValueChange={value => {
+                          field.onChange(value)
+                          form.setValue('documentTypeRef', '')
+                        }}
+                        data-testid={formatDataTestId(prefixDataTestId, 'DocumentGroupSelect')}
+                      >
+                        <SelectTrigger>
+                          <SelectValue placeholder="Select group..." />
+                        </SelectTrigger>
+                        <SelectContent position="popper" className="gba:z-[9999]" style={{ zIndex: 9999 }}>
+                          {documentGroups.map(g => (
+                            <SelectItem key={g.id} value={g.id}>
+                              {g.value}
+                            </SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
+                    </FormControl>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
 
-            <FormField
-              control={form.control}
-              name="documentTypeRef"
-              render={({ field }) => (
-                <FormItem>
-                  <FormLabel>Document Type</FormLabel>
-                  <FormControl>
-                    <Select
-                      key={watchedDocumentGroupRef || 'no-group'}
-                      value={field.value || undefined}
-                      onValueChange={value => {
-                        field.onChange(value)
-                        if (applyTypeAfterGroup) {
-                          const desired = (applyTypeAfterGroup ?? '').toString().trim().toLowerCase()
-                          const t0 = filteredDocumentTypes.find(
-                            x => (x?.value || '').toString().trim().toLowerCase() === desired
-                          )
-                          if (t0?.id) {
-                            form.setValue('documentTypeRef', t0.id, {
-                              shouldDirty: true,
-                              shouldValidate: true,
-                              shouldTouch: true
-                            })
-                            setAiApplied(true)
+              <FormField
+                control={form.control}
+                name="documentTypeRef"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>Document Type</FormLabel>
+                    <FormControl>
+                      <Select
+                        key={watchedDocumentGroupRef || 'no-group'}
+                        value={field.value || undefined}
+                        onValueChange={value => {
+                          field.onChange(value)
+                          if (applyTypeAfterGroup) {
+                            const desired = (applyTypeAfterGroup ?? '').toString().trim().toLowerCase()
+                            const t0 = filteredDocumentTypes.find(
+                              x => (x?.value || '').toString().trim().toLowerCase() === desired
+                            )
+                            if (t0?.id) {
+                              form.setValue('documentTypeRef', t0.id, {
+                                shouldDirty: true,
+                                shouldValidate: true,
+                                shouldTouch: true
+                              })
+                              setAiApplied(true)
+                            }
+                            setApplyTypeAfterGroup('')
                           }
-                          setApplyTypeAfterGroup('')
-                        }
-                      }}
-                      data-testid={formatDataTestId(prefixDataTestId, 'DocumentTypeSelect')}
-                    >
-                      <SelectTrigger disabled={!watchedDocumentGroupRef}>
-                        <SelectValue placeholder="Select type..." />
-                      </SelectTrigger>
-                      <SelectContent position="popper" className="gba:z-[9999]" style={{ zIndex: 9999 }}>
-                        {filteredDocumentTypes.map(t => (
-                          <SelectItem key={t.id} value={t.id}>
-                            {t.value}
-                          </SelectItem>
-                        ))}
-                      </SelectContent>
-                    </Select>
-                  </FormControl>
-                  <FormMessage />
-                </FormItem>
-              )}
-            />
+                        }}
+                        data-testid={formatDataTestId(prefixDataTestId, 'DocumentTypeSelect')}
+                      >
+                        <SelectTrigger disabled={!watchedDocumentGroupRef}>
+                          <SelectValue placeholder="Select type..." />
+                        </SelectTrigger>
+                        <SelectContent position="popper" className="gba:z-[9999]" style={{ zIndex: 9999 }}>
+                          {filteredDocumentTypes.map(t => (
+                            <SelectItem key={t.id} value={t.id}>
+                              {t.value}
+                            </SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
+                    </FormControl>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
 
-            <FormField
-              control={form.control}
-              name="parentDocument"
-              render={({ field }) => (
-                <FormItem>
-                  <FormLabel>Parent Folder (optional)</FormLabel>
-                  <FormControl>
-                    <Select
-                      value={field.value || undefined}
-                      onValueChange={field.onChange}
-                      data-testid={formatDataTestId(prefixDataTestId, 'ParentFolderSelect')}
-                    >
-                      <SelectTrigger>
-                        <SelectValue placeholder={parentLoading ? 'Loading...' : 'Select parent...'} />
-                      </SelectTrigger>
-                      <SelectContent position="popper" className="gba:z-[9999]" style={{ zIndex: 9999 }}>
-                        {parentFolders.map(p => (
-                          <SelectItem key={p.id} value={p.id}>
-                            {p.name}
-                          </SelectItem>
-                        ))}
-                      </SelectContent>
-                    </Select>
-                  </FormControl>
-                  <FormMessage />
-                </FormItem>
-              )}
-            />
+              <FormField
+                control={form.control}
+                name="parentDocument"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>Parent Folder (optional)</FormLabel>
+                    <FormControl>
+                      <Select
+                        value={field.value || undefined}
+                        onValueChange={field.onChange}
+                        data-testid={formatDataTestId(prefixDataTestId, 'ParentFolderSelect')}
+                      >
+                        <SelectTrigger>
+                          <SelectValue placeholder={parentLoading ? 'Loading...' : 'Select parent...'} />
+                        </SelectTrigger>
+                        <SelectContent position="popper" className="gba:z-[9999]" style={{ zIndex: 9999 }}>
+                          {parentFolders.map(p => (
+                            <SelectItem key={p.id} value={p.id}>
+                              {p.name}
+                            </SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
+                    </FormControl>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
 
-            <FormField
-              control={form.control}
-              name="name"
-              render={({ field }) => (
-                <FormItem>
-                  <FormLabel>Document Name</FormLabel>
-                  <FormControl>
-                    <Input
-                      placeholder="Document name"
-                      {...field}
-                      data-testid={formatDataTestId(prefixDataTestId, 'NameInput')}
-                    />
-                  </FormControl>
-                  <FormMessage />
-                </FormItem>
-              )}
-            />
+              <FormField
+                control={form.control}
+                name="name"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>Document Name</FormLabel>
+                    <FormControl>
+                      <Input
+                        placeholder="Document name"
+                        {...field}
+                        data-testid={formatDataTestId(prefixDataTestId, 'NameInput')}
+                      />
+                    </FormControl>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
 
-            <FormField
-              control={form.control}
-              name="description"
-              render={({ field }) => (
-                <FormItem>
-                  <FormLabel>Description (optional)</FormLabel>
-                  <FormControl>
-                    <Textarea
-                      placeholder="Description (optional)"
-                      {...field}
-                      data-testid={formatDataTestId(prefixDataTestId, 'DescriptionInput')}
-                    />
-                  </FormControl>
-                  <FormMessage />
-                </FormItem>
-              )}
-            />
-          </div>
-        )}
+              <FormField
+                control={form.control}
+                name="description"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>Description (optional)</FormLabel>
+                    <FormControl>
+                      <Textarea
+                        placeholder="Description (optional)"
+                        {...field}
+                        data-testid={formatDataTestId(prefixDataTestId, 'DescriptionInput')}
+                      />
+                    </FormControl>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+            </div>
+          )
+        })()}
       </div>
     </AppActionForm>
   )
