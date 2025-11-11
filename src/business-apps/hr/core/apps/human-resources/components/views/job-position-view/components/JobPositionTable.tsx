@@ -1,7 +1,6 @@
 'use client'
 
 import React, { useCallback } from 'react'
-import { useTranslation } from 'react-i18next'
 import {
   Table,
   TableBody,
@@ -103,8 +102,6 @@ export const JobPositionTable: React.FC<JobPositionTableProps> = ({
   sortOrder,
   onSortingChange
 }) => {
-  const { t } = useTranslation()
-
   // Calculate pagination values
   const totalPages = Math.ceil(total / pageSize)
 
@@ -201,7 +198,7 @@ export const JobPositionTable: React.FC<JobPositionTableProps> = ({
               borderColor: 'var(--nw-color-warning)'
             }}
           >
-            {t('job_position.vacant', 'Vacant')}
+            {getTranslationFromI18nKeyAndLabel('lowcoder:human_resources_page.job_positions_section.vacant', 'Vacant')}
           </Badge>
         </div>
       )
@@ -265,7 +262,10 @@ export const JobPositionTable: React.FC<JobPositionTableProps> = ({
             data-testid={formatDataTestId(DATA_TEST_ID_PREFIX, 'error-state')}
           >
             <div className="gba:text-destructive gba:text-lg gba:font-medium gba:mb-2">
-              {t('job_position.error.title', 'Error Loading Job Positions')}
+              {getTranslationFromI18nKeyAndLabel(
+                'lowcoder:human_resources_page.job_positions_section.error_loading',
+                'Error Loading Job Positions'
+              )}
             </div>
             <div className="gba:text-muted-foreground gba:mb-4">{error.message}</div>
             <Button
@@ -273,7 +273,7 @@ export const JobPositionTable: React.FC<JobPositionTableProps> = ({
               onClick={retry}
               data-testid={formatDataTestId(DATA_TEST_ID_PREFIX, 'retry-button')}
             >
-              {t('job_position.retry', 'Retry')}
+              {getTranslationFromI18nKeyAndLabel('lowcoder:human_resources_page.analytics_section.retry', 'Retry')}
             </Button>
           </div>
         </CardContent>
@@ -318,7 +318,7 @@ export const JobPositionTable: React.FC<JobPositionTableProps> = ({
                   data-testid={formatDataTestId(DATA_TEST_ID_PREFIX, 'name-header')}
                 >
                   <div className="gba:flex gba:items-center">
-                    {t('job_position.name', 'Name')}
+                    {getTranslationFromI18nKeyAndLabel('lowcoder:human_resources_page.employees_section.name', 'Name')}
                     {renderSortIcon('name')}
                   </div>
                 </TableHead>
@@ -327,7 +327,10 @@ export const JobPositionTable: React.FC<JobPositionTableProps> = ({
                   data-testid={formatDataTestId(DATA_TEST_ID_PREFIX, 'department-header')}
                 >
                   <div className="gba:flex gba:items-center gba:gap-1">
-                    {t('job_position.organizational_unit', 'Department')}
+                    {getTranslationFromI18nKeyAndLabel(
+                      'lowcoder:human_resources_page.job_positions_section.department',
+                      'Department'
+                    )}
                     <TooltipProvider delayDuration={300}>
                       <Tooltip>
                         <TooltipTrigger asChild>
@@ -336,7 +339,12 @@ export const JobPositionTable: React.FC<JobPositionTableProps> = ({
                           </span>
                         </TooltipTrigger>
                         <TooltipContent side="top" sideOffset={5}>
-                          <p>Department sorting currently not supported</p>
+                          <p>
+                            {getTranslationFromI18nKeyAndLabel(
+                              'lowcoder:human_resources_page.job_positions_section.department_sorting_not_supported',
+                              'Department sorting currently not supported'
+                            )}
+                          </p>
                         </TooltipContent>
                       </Tooltip>
                     </TooltipProvider>
@@ -345,7 +353,7 @@ export const JobPositionTable: React.FC<JobPositionTableProps> = ({
                 {/* Manager */}
                 <TableHead className="gba:w-[25%] gba:font-semibold gba:text-foreground gba:py-4 gba:px-6">
                   {getTranslationFromI18nKeyAndLabel(
-                    'lowcoder:employee_profile.summary_layout.public_profile_container.manager',
+                    'lowcoder:human_resources_page.job_positions_section.manager',
                     'Manager'
                   )}
                 </TableHead>
@@ -355,7 +363,10 @@ export const JobPositionTable: React.FC<JobPositionTableProps> = ({
                   data-testid={formatDataTestId(DATA_TEST_ID_PREFIX, 'job-function-header')}
                 >
                   <div className="gba:flex gba:items-center">
-                    {t('job_position.job_function', 'Job Function')}
+                    {getTranslationFromI18nKeyAndLabel(
+                      'lowcoder:human_resources_page.job_positions_section.job_function',
+                      'Job Function'
+                    )}
                     {renderSortIcon('jobFunction')}
                   </div>
                 </TableHead>
@@ -365,7 +376,10 @@ export const JobPositionTable: React.FC<JobPositionTableProps> = ({
                   data-testid={formatDataTestId(DATA_TEST_ID_PREFIX, 'profile-header')}
                 >
                   <div className="gba:flex gba:items-center">
-                    {t('job_position.profile', 'Profile')}
+                    {getTranslationFromI18nKeyAndLabel(
+                      'lowcoder:human_resources_page.job_positions_section.profile',
+                      'Profile'
+                    )}
                     {renderSortIcon('profile')}
                   </div>
                 </TableHead>
@@ -375,14 +389,17 @@ export const JobPositionTable: React.FC<JobPositionTableProps> = ({
                   data-testid={formatDataTestId(DATA_TEST_ID_PREFIX, 'employee-header')}
                 >
                   <div className="gba:flex gba:items-center">
-                    {t('job_position.employee', 'Employee')}
+                    {getTranslationFromI18nKeyAndLabel(
+                      'lowcoder:human_resources_page.job_positions_section.employee',
+                      'Employee'
+                    )}
                     {renderSortIcon('employee')}
                   </div>
                 </TableHead>
                 {/* Marked for termination */}
                 <TableHead className="gba:w-[15%] gba:font-semibold gba:text-foreground gba:py-4 gba:px-6">
                   {getTranslationFromI18nKeyAndLabel(
-                    'lowcoder:employee_profile.summary_layout.public_profile_container.marked_for_termination_title',
+                    'lowcoder:human_resources_page.job_positions_section.marked_for_termination',
                     'Marked for termination'
                   )}
                 </TableHead>
@@ -390,7 +407,10 @@ export const JobPositionTable: React.FC<JobPositionTableProps> = ({
                   className="gba:w-[5%] gba:font-semibold gba:text-foreground gba:py-4 gba:px-6"
                   data-testid={formatDataTestId(DATA_TEST_ID_PREFIX, 'actions-header')}
                 >
-                  ACTIONS
+                  {getTranslationFromI18nKeyAndLabel(
+                    'lowcoder:human_resources_page.employees_section.actions',
+                    'Actions'
+                  )}
                 </TableHead>
               </TableRow>
             </TableHeader>
@@ -482,7 +502,10 @@ export const JobPositionTable: React.FC<JobPositionTableProps> = ({
                     className="text-center text-muted-foreground"
                     style={{ padding: 'var(--nw-spacing-8)' }}
                   >
-                    {t('job_position.no_positions', 'No job positions found')}
+                    {getTranslationFromI18nKeyAndLabel(
+                      'lowcoder:human_resources_page.job_positions_section.no_job_positions_found',
+                      'No job positions found'
+                    )}
                   </TableCell>
                 </TableRow>
               )}
@@ -504,7 +527,12 @@ export const JobPositionTable: React.FC<JobPositionTableProps> = ({
           </div>
           <div className="gba:flex gba:items-center gba:space-x-6 gba:lg:space-x-8">
             <div className="gba:flex gba:items-center gba:space-x-2">
-              <p className="gba:text-sm gba:font-medium">Rows per page</p>
+              <p className="gba:text-sm gba:font-medium">
+                {getTranslationFromI18nKeyAndLabel(
+                  'lowcoder:human_resources_page.employees_section.rows_per_page',
+                  'Rows per page'
+                )}
+              </p>
               <select
                 value={pageSize}
                 onChange={e => handlePageSizeChange(Number(e.target.value))}
