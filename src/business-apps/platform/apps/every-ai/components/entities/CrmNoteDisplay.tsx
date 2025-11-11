@@ -10,10 +10,10 @@ interface CrmNoteDisplayProps {
 
 interface CrmNote {
   id: string
-  title: string
-  content: string
+  title?: string
+  text?: string
   createdAt: string
-  author?: {
+  authorEmployee?: {
     firstName: string
     lastName: string
   }
@@ -33,12 +33,12 @@ export const CrmNoteDisplay: React.FC<CrmNoteDisplayProps> = ({ noteId, accessTo
       try {
         const query = `
           query GetCrmNote($id: uuid!) {
-            customerNotes_by_pk(id: $id) {
+            CrmNote_by_pk(id: $id) {
               id
               title
-              content
+              text
               createdAt
-              author {
+              authorEmployee {
                 firstName
                 lastName
               }
@@ -46,10 +46,10 @@ export const CrmNoteDisplay: React.FC<CrmNoteDisplayProps> = ({ noteId, accessTo
           }
         `
 
-        const result = await graphqlClient.request<{ customerNotes_by_pk: CrmNote }>(query, { id: noteId })
+        const result = await graphqlClient.request<{ CrmNote_by_pk: CrmNote }>(query, { id: noteId })
 
-        if (result.customerNotes_by_pk) {
-          setNote(result.customerNotes_by_pk)
+        if (result.CrmNote_by_pk) {
+          setNote(result.CrmNote_by_pk)
         } else {
           setError('Note not found')
         }
@@ -117,18 +117,22 @@ export const CrmNoteDisplay: React.FC<CrmNoteDisplayProps> = ({ noteId, accessTo
         </div>
 
         <div className="gba:space-y-3">
-          <div>
-            <div className="gba:text-foreground gba:text-base gba:font-bold">{note.title}</div>
-          </div>
+          {note.title && (
+            <div>
+              <div className="gba:text-foreground gba:text-base gba:font-bold">{note.title}</div>
+            </div>
+          )}
 
-          <div>
-            <div className="gba:text-foreground gba:text-sm gba:whitespace-pre-wrap">{note.content}</div>
-          </div>
+          {note.text && (
+            <div>
+              <div className="gba:text-foreground gba:text-sm gba:whitespace-pre-wrap">{note.text}</div>
+            </div>
+          )}
 
-          {note.author && (
+          {note.authorEmployee && (
             <div className="gba:mt-4 gba:pt-4 gba:border-t gba:border-border">
               <div className="gba:text-xs gba:text-muted-foreground">
-                By {note.author.firstName} {note.author.lastName}
+                By {note.authorEmployee.firstName} {note.authorEmployee.lastName}
               </div>
             </div>
           )}
