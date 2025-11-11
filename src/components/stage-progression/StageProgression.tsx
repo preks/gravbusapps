@@ -43,8 +43,12 @@ const getStageStyles = (index: number, stagesLength: number) => {
   }
 }
 
-const getColorClasses = (isActive: boolean) => {
-  return isActive ? 'gba:bg-success gba:text-primary-foreground' : 'gba:bg-muted gba:text-muted-foreground'
+const getActiveColorClasses = () => {
+  return 'gba:bg-success gba:text-primary-foreground'
+}
+
+const getInactiveColorClasses = () => {
+  return 'gba:bg-muted gba:text-muted-foreground'
 }
 
 export const StageProgression: React.FC<StageProgressionProps> = ({
@@ -101,6 +105,7 @@ export const StageProgression: React.FC<StageProgressionProps> = ({
           const isClickable = onStageClick && !isCurrentStage
 
           const stageStyles = getStageStyles(index, stages.length)
+          const colorClasses = isActive ? getActiveColorClasses() : getInactiveColorClasses()
 
           const handleStageClick = () => {
             if (isClickable) {
@@ -108,67 +113,75 @@ export const StageProgression: React.FC<StageProgressionProps> = ({
             }
           }
 
-          const handleKeyDown = (event: React.KeyboardEvent) => {
-            if (isClickable && (event.key === 'Enter' || event.key === ' ')) {
-              event.preventDefault()
-              onStageClick(stage)
-            }
+          const commonStyles = {
+            position: 'relative' as const,
+            height: defaultStyling.height,
+            flex: 1,
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            fontSize: defaultStyling.fontSize,
+            fontWeight: defaultStyling.fontWeight,
+            borderRadius: stageStyles.borderRadius,
+            marginRight: stageStyles.marginRight,
+            clipPath: stageStyles.clipPath,
+            WebkitClipPath: stageStyles.WebkitClipPath,
+            cursor: isClickable ? 'pointer' : 'default',
+            border: 'none',
+            padding: 0,
+            background: 'transparent'
           }
 
-          const stageElement = (
+          const stageContent = (
             <div
-              role={isClickable ? 'button' : undefined}
-              tabIndex={isClickable ? 0 : undefined}
-              aria-label={isClickable ? `Navigate to ${stage.value} stage` : undefined}
-              className={getColorClasses(isActive)}
               style={{
-                position: 'relative',
-                height: defaultStyling.height,
-                flex: 1,
                 display: 'flex',
                 alignItems: 'center',
-                justifyContent: 'center',
-                fontSize: defaultStyling.fontSize,
-                fontWeight: defaultStyling.fontWeight,
-                borderRadius: stageStyles.borderRadius,
-                marginRight: stageStyles.marginRight,
-                clipPath: stageStyles.clipPath,
-                WebkitClipPath: stageStyles.WebkitClipPath,
-                cursor: isClickable ? 'pointer' : 'default'
+                gap: '8px',
+                padding: '0 16px',
+                paddingRight: index < stages.length - 1 ? '24px' : '16px',
+                paddingLeft: index > 0 ? '24px' : '16px',
+                position: 'relative',
+                zIndex: 10
               }}
+            >
+              {renderStageContent ? (
+                renderStageContent(stage, isCurrentStage, isCompleted)
+              ) : (
+                <>
+                  {isActive && (
+                    <span
+                      className={`gba:text-sm gba:font-bold gba:text-primary-foreground gba:rounded-full gba:w-5 gba:h-5 gba:flex gba:items-center gba:justify-center ${isCompleted ? 'gba:bg-primary-100' : 'gba:bg-success'}`}
+                    >
+                      ✓
+                    </span>
+                  )}
+                  <span className={`gba:whitespace-nowrap ${stages.length > 4 ? 'gba:text-xs' : 'gba:text-sm'}`}>
+                    {stage.value}
+                  </span>
+                </>
+              )}
+            </div>
+          )
+
+          const stageElement = isClickable ? (
+            <button
+              type="button"
+              aria-label={`Navigate to ${stage.value} stage`}
+              className={colorClasses}
+              style={commonStyles}
               data-testid={formatDataTestId(dataTestIdPrefix, `stage-${stage.code}`)}
               onClick={handleStageClick}
-              onKeyDown={handleKeyDown}
             >
-              <div
-                style={{
-                  display: 'flex',
-                  alignItems: 'center',
-                  gap: '8px',
-                  padding: '0 16px',
-                  paddingRight: index < stages.length - 1 ? '24px' : '16px',
-                  paddingLeft: index > 0 ? '24px' : '16px',
-                  position: 'relative',
-                  zIndex: 10
-                }}
-              >
-                {renderStageContent ? (
-                  renderStageContent(stage, isCurrentStage, isCompleted)
-                ) : (
-                  <>
-                    {isActive && (
-                      <span
-                        className={`gba:text-sm gba:font-bold gba:text-primary-foreground gba:rounded-full gba:w-5 gba:h-5 gba:flex gba:items-center gba:justify-center ${isCompleted ? 'gba:bg-primary-100' : 'gba:bg-success'}`}
-                      >
-                        ✓
-                      </span>
-                    )}
-                    <span className={`gba:whitespace-nowrap ${stages.length > 4 ? 'gba:text-xs' : 'gba:text-sm'}`}>
-                      {stage.value}
-                    </span>
-                  </>
-                )}
-              </div>
+              {stageContent}
+            </button>
+          ) : (
+            <div
+              className={colorClasses}
+              style={commonStyles}
+              data-testid={formatDataTestId(dataTestIdPrefix, `stage-${stage.code}`)}
+            >
+              {stageContent}
             </div>
           )
 
