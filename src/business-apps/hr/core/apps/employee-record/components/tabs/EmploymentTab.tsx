@@ -351,8 +351,22 @@ const EmploymentTab: React.FC<EmploymentTabProps> = ({ employee, accessToken, is
           className="gba:border gba:border-border gba:shadow-md gba:hover:shadow-lg gba:transition-all"
           data-testid="employment-section-payroll"
         >
-          <div className="gba:mb-6 gba:border-b gba:border-border gba:pb-2">
+          <div className="gba:mb-6 gba:border-b gba:border-border gba:pb-2 gba:flex gba:justify-between gba:items-center">
             <h3 className="gba:text-xl gba:font-semibold gba:text-info">Payroll</h3>
+            {isSelfView && (
+              <AppActionMenu
+                data-testid="employment-bank-account-action-button"
+                contextsArray={[FlowContextName.updateEmployeeBankAccount]}
+                externalContextData={{
+                  employeeId: employee?.id
+                }}
+                prefixDataTestId="employment-bank-account-action"
+                accessToken={accessToken}
+                autoExecuteSingleAction={true}
+              >
+                <PiPencilSimple className="gba:cursor-pointer" />
+              </AppActionMenu>
+            )}
           </div>
           {renderDataItems(payrollData)}
         </Card>

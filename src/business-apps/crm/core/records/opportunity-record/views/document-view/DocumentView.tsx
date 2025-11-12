@@ -5,7 +5,7 @@ import { FlowContextName } from '@/common/types/FlowRegistryTypes'
 import { getTranslationFromI18nKeyAndLabel } from '@/common/utils/windowUtils'
 import { useGetCrmDocuments, getCrmDocumentApiConfig } from '@/business-apps/crm/common/utils/documentUtils'
 import { useCrmDocuments } from '@/business-apps/crm/common/hooks/useCrmDocuments'
-import { createDocumentActions } from '@/business-apps/crm/common/utils/documentActions'
+import { createDocumentSectionActions } from '@/common/utils/documentSectionActions'
 
 interface DocumentViewProps extends BusinessAppContextProps {
   opportunityId: string
@@ -46,8 +46,12 @@ export const DocumentView: React.FC<DocumentViewProps> = ({ opportunityId, ...co
 
   const customActions = useMemo(
     () =>
-      createDocumentActions({
+      createDocumentSectionActions({
+        domain: 'customer-relations',
+        documentFieldName: 'crmDocument',
         entityType: 'opportunity',
+        updateProcessName: 'updateCrmDocument',
+        deleteEndpoint: '/customer-relations/deleteCrmDocument',
         getTranslation: getTranslationFromI18nKeyAndLabel
       }),
     []
