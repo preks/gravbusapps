@@ -185,7 +185,7 @@ export const FeedbackFormProvider: React.FC<FeedbackFormProviderProps> = ({
   const handleCancel = useCallback(async () => {
     try {
       // Dispatch the process pause event
-      dispatchProcessContinueEvent('pse_pause', {})
+      dispatchProcessContinueEvent('pse_abort', {})
 
       // Also call the original onCancel if provided (for backward compatibility)
       if (onCancel) {

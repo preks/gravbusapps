@@ -70,10 +70,7 @@ const AllowanceContainer: React.FC<AllowanceContainerProps> = ({
     },
     {
       key: DEDUCTION_KEYS.OVERNIGHT,
-      label: getTranslationFromI18nKeyAndLabel(
-        'lowcoder:expense_deduction.expense_deduction_modal.overnight_allowance',
-        'Overnight Allowance'
-      ),
+      label: getTranslationFromI18nKeyAndLabel('lowcoder:expense_deduction.overnight_allowance', 'Overnight Allowance'),
       icon: ICONS.OVERNIGHT_DEDUCTION_ICON
     }
   ]

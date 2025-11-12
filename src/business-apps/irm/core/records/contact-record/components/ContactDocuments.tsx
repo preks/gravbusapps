@@ -3,7 +3,7 @@ import { BusinessAppContextProps } from '@/common/BusinessAppContext'
 import { DocumentSection } from '@/components/document-section'
 import { FlowContextName } from '@/common/types/FlowRegistryTypes'
 import { useInvestmentDocuments } from '@/business-apps/irm/common/hooks/useInvestmentDocuments'
-import { createDocumentActions } from '@/business-apps/irm/common/utils/createDocumentActions'
+import { createDocumentSectionActions } from '@/common/utils/documentSectionActions'
 import { getIrmDocumentApiConfig, useGetIrmDocuments } from '@/business-apps/irm/common/utils/documentUtils'
 
 interface ContactDocumentsProps {
@@ -47,7 +47,17 @@ const ContactDocuments: React.FC<ContactDocumentsProps> = ({ contactId, context 
   )
 
   // Use shared document actions
-  const customActions = useMemo(() => createDocumentActions({ entityType: 'contact' }), [])
+  const customActions = useMemo(
+    () =>
+      createDocumentSectionActions({
+        domain: 'investment-relations',
+        documentFieldName: 'investmentDocument',
+        entityType: 'contact',
+        updateProcessName: 'updateInvestmentDocument',
+        deleteEndpoint: '/investment-relations/deleteInvestmentDocument'
+      }),
+    []
+  )
 
   return (
     <DocumentSection

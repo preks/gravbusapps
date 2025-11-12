@@ -17,26 +17,50 @@ export const HumanResources: React.FC<BusinessAppContextProps> = context => {
     {
       key: 'employees',
       icon: <UsersThreeIcon />,
-      label: 'Employees',
-      title: 'Employee Management',
-      description:
+      label: getTranslationFromI18nKeyAndLabel(
+        'lowcoder:human_resources_page.employees_section.tab_label',
+        'Employees'
+      ),
+      title: getTranslationFromI18nKeyAndLabel(
+        'lowcoder:human_resources_page.employees_section.title',
+        'Employee Management'
+      ),
+      description: getTranslationFromI18nKeyAndLabel(
+        'lowcoder:human_resources_page.employees_section.description',
         'View and manage all employees in your organization, including their profiles, roles, and organizational assignments.'
+      )
     },
     {
       key: 'positions',
       icon: <BriefcaseIcon />,
-      label: 'Job Positions',
-      title: 'Job Position Management',
-      description:
+      label: getTranslationFromI18nKeyAndLabel(
+        'lowcoder:human_resources_page.job_positions_section.tab_label',
+        'Job Positions'
+      ),
+      title: getTranslationFromI18nKeyAndLabel(
+        'lowcoder:human_resources_page.job_positions_section.title',
+        'Job Position Management'
+      ),
+      description: getTranslationFromI18nKeyAndLabel(
+        'lowcoder:human_resources_page.job_positions_section.description',
         'Manage job positions, departments, profiles, and track employee assignments across your organizational structure.'
+      )
     },
     {
       key: 'analytics',
       icon: <ChartPieIcon />,
-      label: 'Analytics',
-      title: 'HR Analytics & Insights',
-      description:
+      label: getTranslationFromI18nKeyAndLabel(
+        'lowcoder:human_resources_page.analytics_section.tab_label',
+        'Analytics'
+      ),
+      title: getTranslationFromI18nKeyAndLabel(
+        'lowcoder:human_resources_page.analytics_section.title',
+        'HR Analytics & Insights'
+      ),
+      description: getTranslationFromI18nKeyAndLabel(
+        'lowcoder:human_resources_page.analytics_section.description',
         'Comprehensive workforce insights, analytics, and metrics to drive HR decisions and organizational strategy.'
+      )
     },
     {
       key: 'insights',
@@ -165,8 +189,11 @@ export const HumanResources: React.FC<BusinessAppContextProps> = context => {
     <div data-testid="human-resources-app">
       <PageLayout
         headerIcon={UsersThreeIcon}
-        headerTitle="Human Resources"
-        headerDescription="Manage employees, job positions, and organizational structure"
+        headerTitle={getTranslationFromI18nKeyAndLabel('lowcoder:human_resources_page.title', 'Human Resources')}
+        headerDescription={getTranslationFromI18nKeyAndLabel(
+          'lowcoder:human_resources_page.description',
+          'Manage employees, job positions, and organizational structure'
+        )}
         sectionTitle={activeTabInfo.title}
         sectionDescription={activeTabInfo.description}
         headerSubViews={{
