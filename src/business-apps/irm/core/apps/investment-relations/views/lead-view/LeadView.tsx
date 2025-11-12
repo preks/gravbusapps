@@ -17,6 +17,51 @@ import { FlowContextName } from '@/common/types/FlowRegistryTypes'
 import { buildPlatformUrl } from '@/common/utils/navigationUtils'
 import { useInvestmentLeadStatistics } from '@/common/data/investment/hooks/useInvestmentLeadStatistics'
 
+// Helper function to process date range filters
+const processLeadDateRanges = (selectedFilters: Record<string, any>, vars: InvestmentLeadQueryVariables): void => {
+  const dateRangeKeys = ['createdAtRange', 'updatedAtRange']
+  for (const rangeKey of dateRangeKeys) {
+    const normalized = normalizeDateRange(selectedFilters[rangeKey])
+    if (normalized) {
+      const baseKey = rangeKey.replace('Range', '')
+      if (normalized.from) vars[`${baseKey}From` as keyof InvestmentLeadQueryVariables] = normalized.from
+      if (normalized.to) vars[`${baseKey}To` as keyof InvestmentLeadQueryVariables] = normalized.to
+    }
+  }
+}
+
+// Helper function to process sensitive filter
+const processSensitiveFilter = (selectedFilters: Record<string, any>, vars: InvestmentLeadQueryVariables): void => {
+  if (selectedFilters.sensitive !== undefined && selectedFilters.sensitive !== null) {
+    if (Array.isArray(selectedFilters.sensitive) && selectedFilters.sensitive.length > 0) {
+      const sensitiveValue = selectedFilters.sensitive[0]
+      if (sensitiveValue === 'true') {
+        vars.sensitive = true
+      } else if (sensitiveValue === 'false') {
+        vars.sensitive = false
+      }
+    }
+  }
+}
+
+// Helper function to copy other filters
+const copyLeadFilters = (
+  selectedFilters: Record<string, any>,
+  dateRangeKeys: string[],
+  vars: InvestmentLeadQueryVariables
+): void => {
+  for (const key of Object.keys(selectedFilters)) {
+    if (
+      !dateRangeKeys.includes(key) &&
+      key !== 'sensitive' &&
+      selectedFilters[key] !== undefined &&
+      selectedFilters[key] !== null
+    ) {
+      vars[key as keyof InvestmentLeadQueryVariables] = selectedFilters[key]
+    }
+  }
+}
+
 export type LeadViewProps = BusinessAppContextProps
 
 export const LeadView: React.FC<LeadViewProps> = context => {
@@ -71,40 +116,16 @@ export const LeadView: React.FC<LeadViewProps> = context => {
           search: params.searchTerm.trim() || undefined
         }
 
-        // Normalize date range filters
         const dateRangeKeys = ['createdAtRange', 'updatedAtRange']
-        dateRangeKeys.forEach(rangeKey => {
-          const normalized = normalizeDateRange(params.selectedFilters[rangeKey])
-          if (normalized) {
-            const baseKey = rangeKey.replace('Range', '')
-            if (normalized.from) vars[`${baseKey}From` as keyof InvestmentLeadQueryVariables] = normalized.from
-            if (normalized.to) vars[`${baseKey}To` as keyof InvestmentLeadQueryVariables] = normalized.to
-          }
-        })
 
-        // Handle sensitive filter (boolean - no Descriptor)
-        if (params.selectedFilters.sensitive !== undefined && params.selectedFilters.sensitive !== null) {
-          if (Array.isArray(params.selectedFilters.sensitive) && params.selectedFilters.sensitive.length > 0) {
-            const sensitiveValue = params.selectedFilters.sensitive[0]
-            if (sensitiveValue === 'true') {
-              vars.sensitive = true
-            } else if (sensitiveValue === 'false') {
-              vars.sensitive = false
-            }
-          }
-        }
+        // Process date range filters using helper
+        processLeadDateRanges(params.selectedFilters, vars)
 
-        // Copy all other filters directly (they now match Descriptor-Keys)
-        Object.keys(params.selectedFilters).forEach(key => {
-          if (
-            !dateRangeKeys.includes(key) &&
-            key !== 'sensitive' &&
-            params.selectedFilters[key] !== undefined &&
-            params.selectedFilters[key] !== null
-          ) {
-            vars[key as keyof InvestmentLeadQueryVariables] = params.selectedFilters[key]
-          }
-        })
+        // Handle sensitive filter using helper
+        processSensitiveFilter(params.selectedFilters, vars)
+
+        // Copy all other filters using helper
+        copyLeadFilters(params.selectedFilters, dateRangeKeys, vars)
 
         // Use column ID directly - buildOrderBy will use descriptors (INVESTMENT_LEAD_DESCRIPTORS)
         // to resolve correct GraphQL paths (e.g., leadStatus.value, ownerEmployee.displayName)

@@ -19,6 +19,7 @@ import {
   type NoteRelationFields
 } from '@/common/data/relations/queries/noteQueries'
 import { InvestmentNoteFields, INVESTMENT_NOTE_DESCRIPTORS } from '../types/investmentNoteTypes'
+import { InvestmentDocumentFields } from '../types/investmentDocumentTypes'
 import type { Descriptor } from '@/common/network/graphql/queryHelpers'
 
 // Import Common REF Fragment Builders (no relations - to avoid circular dependencies)
@@ -30,9 +31,6 @@ import {
   buildNoteFragment,
   buildOpportunityFragment
 } from '@/common/data/relations/queries/relationFragments'
-
-// Import Investment Fields
-import { InvestmentDocumentFields } from '../types/investmentDocumentTypes'
 import { InvestmentAccountFields } from '../types/investmentAccountTypes'
 import { InvestmentContactFields } from '../types/investmentContactTypes'
 import { InvestmentLeadFields } from '../types/investmentLeadTypes'
@@ -235,6 +233,15 @@ export const GET_INVESTMENT_NOTES_BY_INVESTMENT_ID = (): string => {
         orderBy: $orderBy
       ) {
         ${fragment}
+        
+        # Title and text fields (CRM uses noteTitle/noteText, IRM uses title/text)
+        title
+        text
+        
+        # Documents relation (includes fileInfo)
+        documents(where: { isDeleted: { _eq: false } }) {
+          ${buildDocumentFragment(InvestmentDocumentFields)}
+        }
       }
     }
   `

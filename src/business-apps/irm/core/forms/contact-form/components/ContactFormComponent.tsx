@@ -10,6 +10,39 @@ import { CommunicationChannelCode } from '@/common/data/common/types/commonTypes
 
 const prefixDataTestId = 'ContactForm'
 
+// Helper function to create communication channel object
+const createCommunicationChannel = (channelCode: CommunicationChannelCode, value: string) => ({
+  communicationChannelRef: buildCommunicationChannelRef(channelCode),
+  value: value.trim(),
+  valueExtension: null,
+  source: 'FORM_INPUT',
+  activeFrom: new Date().toISOString(),
+  activeTo: null
+})
+
+// Helper function to build communication channels array
+const buildCommunicationChannels = (formValues: any): any[] => {
+  const channels: any[] = []
+
+  if (formValues.email?.trim()) {
+    channels.push(createCommunicationChannel(CommunicationChannelCode.EMAIL, formValues.email))
+  }
+
+  if (formValues.phone?.trim()) {
+    channels.push(createCommunicationChannel(CommunicationChannelCode.PHONE, formValues.phone))
+  }
+
+  if (formValues.linkedinUrl?.trim()) {
+    channels.push(createCommunicationChannel(CommunicationChannelCode.LINKEDIN, formValues.linkedinUrl))
+  }
+
+  if (formValues.xingUrl?.trim()) {
+    channels.push(createCommunicationChannel(CommunicationChannelCode.XING, formValues.xingUrl))
+  }
+
+  return channels
+}
+
 const ContactFormComponent: React.FC = () => {
   const { formValues, onSubmit, onCancel, isLoading, error, hideActions } = useContactFormContext()
 
@@ -67,56 +100,8 @@ const ContactFormComponent: React.FC = () => {
         additionalProperties: formValues.additionalProperties || {}
       }
 
-      // ✅ NEW: Add communication channels for Email, Phone, LinkedIn and Xing
-      const communicationChannels = []
-
-      // Add Email communication channel if provided
-      if (formValues.email && formValues.email.trim()) {
-        communicationChannels.push({
-          communicationChannelRef: buildCommunicationChannelRef(CommunicationChannelCode.EMAIL),
-          value: formValues.email.trim(),
-          valueExtension: null,
-          source: 'FORM_INPUT',
-          activeFrom: new Date().toISOString(),
-          activeTo: null
-        })
-      }
-
-      // Add Phone communication channel if provided
-      if (formValues.phone && formValues.phone.trim()) {
-        communicationChannels.push({
-          communicationChannelRef: buildCommunicationChannelRef(CommunicationChannelCode.PHONE),
-          value: formValues.phone.trim(),
-          valueExtension: null,
-          source: 'FORM_INPUT',
-          activeFrom: new Date().toISOString(),
-          activeTo: null
-        })
-      }
-
-      // Add LinkedIn communication channel if provided
-      if (formValues.linkedinUrl && formValues.linkedinUrl.trim()) {
-        communicationChannels.push({
-          communicationChannelRef: buildCommunicationChannelRef(CommunicationChannelCode.LINKEDIN),
-          value: formValues.linkedinUrl.trim(),
-          valueExtension: null,
-          source: 'FORM_INPUT',
-          activeFrom: new Date().toISOString(),
-          activeTo: null
-        })
-      }
-
-      // Add Xing communication channel if provided
-      if (formValues.xingUrl && formValues.xingUrl.trim()) {
-        communicationChannels.push({
-          communicationChannelRef: buildCommunicationChannelRef(CommunicationChannelCode.XING),
-          value: formValues.xingUrl.trim(),
-          valueExtension: null,
-          source: 'FORM_INPUT',
-          activeFrom: new Date().toISOString(),
-          activeTo: null
-        })
-      }
+      // ✅ NEW: Add communication channels for Email, Phone, LinkedIn and Xing using helper
+      const communicationChannels = buildCommunicationChannels(formValues)
 
       // Add communication channels to payload if any exist
       if (communicationChannels.length > 0) {

@@ -53,6 +53,7 @@ export const INVESTMENT_ACCOUNT_REF = `
   industryClassRef
   picture
   pictureThumbnail
+  website
 `
 
 /**

@@ -58,145 +58,107 @@ export const AccountStatisticsLayout: React.FC<AccountStatisticsLayoutProps> = (
     return `${sign}${changePercent.toFixed(1)}%`
   }
 
-  const widgets: WidgetItem[] = useMemo(() => {
-    if (variant === 'investment') {
-      // Investment Relations format
-      return [
-        {
-          key: 'recent-accounts',
-          title: 'Recent Accounts',
-          value: recentAccounts?.current || 0,
-          prefix: <BuildOutlined />,
-          color: '#1890ff',
-          span: { xs: 24, sm: 12, lg: 6 },
-          description: 'Past 2 weeks',
-          trend: recentAccounts
-            ? {
-                value: formatTrendPercent(recentAccounts.changePercent),
-                positive: recentAccounts.isPositive,
-                description: 'vs previous 2 weeks'
-              }
-            : undefined
-        },
-        {
-          key: 'active-accounts',
-          title: 'Active Accounts',
-          value: activeAccounts?.current || 0,
-          prefix: <RiseOutlined />,
-          color: '#52c41a',
-          span: { xs: 24, sm: 12, lg: 6 },
-          description: 'With opportunities',
-          trend: activeAccounts
-            ? {
-                value: formatTrendPercent(activeAccounts.changePercent),
-                positive: activeAccounts.isPositive,
-                description: 'vs last month'
-              }
-            : undefined
-        },
-        {
-          key: 'accounts-this-year',
-          title: 'Accounts This Year',
-          value: accountsThisYear?.current || 0,
-          prefix: <TrophyOutlined />,
-          color: '#fa8c16',
-          span: { xs: 24, sm: 12, lg: 6 },
-          description: 'New accounts',
-          trend: accountsThisYear
-            ? {
-                value: formatTrendPercent(accountsThisYear.changePercent),
-                positive: accountsThisYear.isPositive,
-                description: 'vs same period last year'
-              }
-            : undefined
-        },
-        {
-          key: 'total-accounts',
-          title: 'Total Accounts',
-          value: totalAccounts?.current || 0,
-          prefix: <TeamOutlined />,
-          color: '#722ed1',
-          span: { xs: 24, sm: 12, lg: 6 },
-          description: 'All accounts',
-          trend: totalAccounts
-            ? {
-                value: formatTrendPercent(totalAccounts.changePercent),
-                positive: totalAccounts.isPositive,
-                description: 'vs previous 30 days'
-              }
-            : undefined
-        }
-      ]
-    } else {
-      // Customer Relations format
-      return [
-        {
-          key: 'recent-accounts',
-          title: 'Recent Accounts',
-          value: recentAccounts?.current || 0,
-          prefix: <TeamOutlined />,
-          color: '#1890ff',
-          span: { xs: 24, sm: 12, lg: 6 },
-          description: 'Past 2 weeks',
-          trend: recentAccounts
-            ? {
-                value: formatTrendPercent(recentAccounts.changePercent),
-                positive: recentAccounts.isPositive,
-                description: 'vs previous 2 weeks'
-              }
-            : undefined
-        },
-        {
-          key: 'active-accounts',
-          title: 'Active Accounts',
-          value: activeAccounts?.current || 0,
-          prefix: <BankOutlined />,
-          color: '#52c41a',
-          span: { xs: 24, sm: 12, lg: 6 },
-          description: 'Currently active',
-          trend: activeAccounts
-            ? {
-                value: formatTrendPercent(activeAccounts.changePercent),
-                positive: activeAccounts.isPositive,
-                description: 'vs last month'
-              }
-            : undefined
-        },
-        {
-          key: 'total-revenue',
-          title: 'Total Revenue',
-          value: revenue ? formatCurrency(revenue.current) : '0',
-          prefix: <DollarOutlined />,
-          color: '#fa8c16',
-          valueIsString: true,
-          span: { xs: 24, sm: 12, lg: 6 },
-          description: 'Estimated total',
-          trend: revenue
-            ? {
-                value: formatTrendPercent(revenue.changePercent),
-                positive: revenue.isPositive,
-                description: 'vs last quarter'
-              }
-            : undefined
-        },
-        {
-          key: 'this-year',
-          title: 'This Year',
-          value: accountsThisYear?.current || 0,
-          prefix: <TrophyOutlined />,
-          color: '#eb2f96',
-          span: { xs: 24, sm: 12, lg: 6 },
-          description: 'New accounts',
-          trend: accountsThisYear
-            ? {
-                value: formatTrendPercent(accountsThisYear.changePercent),
-                positive: accountsThisYear.isPositive,
-                description: 'vs same period last year'
-              }
-            : undefined
-        }
-      ]
+  // Helper function to create trend object
+  const createTrend = (data: AccountStatTrend | undefined, description: string) => {
+    if (!data) return undefined
+    return {
+      value: formatTrendPercent(data.changePercent),
+      positive: data.isPositive,
+      description
     }
+  }
+
+  // Helper function to create investment widgets
+  const createInvestmentWidgets = (): WidgetItem[] => [
+    {
+      key: 'recent-accounts',
+      title: 'Recent Accounts',
+      value: recentAccounts?.current || 0,
+      prefix: <BuildOutlined />,
+      color: '#1890ff',
+      span: { xs: 24, sm: 12, lg: 6 },
+      description: 'Past 2 weeks',
+      trend: createTrend(recentAccounts, 'vs previous 2 weeks')
+    },
+    {
+      key: 'active-accounts',
+      title: 'Active Accounts',
+      value: activeAccounts?.current || 0,
+      prefix: <RiseOutlined />,
+      color: '#52c41a',
+      span: { xs: 24, sm: 12, lg: 6 },
+      description: 'With opportunities',
+      trend: createTrend(activeAccounts, 'vs last month')
+    },
+    {
+      key: 'accounts-this-year',
+      title: 'Accounts This Year',
+      value: accountsThisYear?.current || 0,
+      prefix: <TrophyOutlined />,
+      color: '#fa8c16',
+      span: { xs: 24, sm: 12, lg: 6 },
+      description: 'New accounts',
+      trend: createTrend(accountsThisYear, 'vs same period last year')
+    },
+    {
+      key: 'total-accounts',
+      title: 'Total Accounts',
+      value: totalAccounts?.current || 0,
+      prefix: <TeamOutlined />,
+      color: '#722ed1',
+      span: { xs: 24, sm: 12, lg: 6 },
+      description: 'All accounts',
+      trend: createTrend(totalAccounts, 'vs previous 30 days')
+    }
+  ]
+
+  // Helper function to create customer widgets
+  const createCustomerWidgets = (): WidgetItem[] => [
+    {
+      key: 'recent-accounts',
+      title: 'Recent Accounts',
+      value: recentAccounts?.current || 0,
+      prefix: <TeamOutlined />,
+      color: '#1890ff',
+      span: { xs: 24, sm: 12, lg: 6 },
+      description: 'Past 2 weeks',
+      trend: createTrend(recentAccounts, 'vs previous 2 weeks')
+    },
+    {
+      key: 'active-accounts',
+      title: 'Active Accounts',
+      value: activeAccounts?.current || 0,
+      prefix: <BankOutlined />,
+      color: '#52c41a',
+      span: { xs: 24, sm: 12, lg: 6 },
+      description: 'Currently active',
+      trend: createTrend(activeAccounts, 'vs last month')
+    },
+    {
+      key: 'total-revenue',
+      title: 'Total Revenue',
+      value: revenue ? formatCurrency(revenue.current) : '0',
+      prefix: <DollarOutlined />,
+      color: '#fa8c16',
+      valueIsString: true,
+      span: { xs: 24, sm: 12, lg: 6 },
+      description: 'Estimated total',
+      trend: createTrend(revenue, 'vs last quarter')
+    },
+    {
+      key: 'this-year',
+      title: 'This Year',
+      value: accountsThisYear?.current || 0,
+      prefix: <TrophyOutlined />,
+      color: '#eb2f96',
+      span: { xs: 24, sm: 12, lg: 6 },
+      description: 'New accounts',
+      trend: createTrend(accountsThisYear, 'vs same period last year')
+    }
+  ]
+
+  const widgets: WidgetItem[] = useMemo(() => {
+    return variant === 'investment' ? createInvestmentWidgets() : createCustomerWidgets()
   }, [variant, recentAccounts, activeAccounts, revenue, accountsThisYear, totalAccounts])
 
   return (

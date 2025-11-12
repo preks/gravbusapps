@@ -75,17 +75,17 @@ export const ContactView: React.FC<ContactViewProps> = context => {
 
         // Normalize date range filters
         const dateRangeKeys = ['createdAtRange', 'updatedAtRange']
-        dateRangeKeys.forEach(rangeKey => {
+        for (const rangeKey of dateRangeKeys) {
           const normalized = normalizeDateRange(params.selectedFilters[rangeKey])
           if (normalized) {
             const baseKey = rangeKey.replace('Range', '')
             if (normalized.from) vars[`${baseKey}From` as keyof InvestmentContactQueryVariables] = normalized.from
             if (normalized.to) vars[`${baseKey}To` as keyof InvestmentContactQueryVariables] = normalized.to
           }
-        })
+        }
 
         // Copy all other filters directly (they now match Descriptor-Keys)
-        Object.keys(params.selectedFilters).forEach(key => {
+        for (const key of Object.keys(params.selectedFilters)) {
           if (
             !dateRangeKeys.includes(key) &&
             params.selectedFilters[key] !== undefined &&
@@ -93,7 +93,7 @@ export const ContactView: React.FC<ContactViewProps> = context => {
           ) {
             vars[key as keyof InvestmentContactQueryVariables] = params.selectedFilters[key]
           }
-        })
+        }
 
         // Use column ID directly - buildOrderBy will use descriptors (INVESTMENT_CONTACT_DESCRIPTORS)
         // to resolve correct GraphQL paths (e.g., account.name, ownerEmployee.displayName)

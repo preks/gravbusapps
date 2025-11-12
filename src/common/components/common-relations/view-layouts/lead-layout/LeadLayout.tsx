@@ -62,16 +62,47 @@ export interface LeadViewConfig<TLead extends Lead = Lead, TQueryVariables = any
 }
 
 export interface LeadLayoutProps<TLead extends Lead = Lead, TQueryVariables = any> {
-  context: BusinessAppContextProps
-  config: LeadViewConfig<TLead, TQueryVariables>
-  dataTestId?: string
-  initialFilters?: Record<string, any>
-  hideFilters?: boolean
-  customPrimaryAction?: React.ReactNode
+  readonly context: BusinessAppContextProps
+  readonly config: LeadViewConfig<TLead, TQueryVariables>
+  readonly dataTestId?: string
+  readonly initialFilters?: Record<string, any>
+  readonly hideFilters?: boolean
+  readonly customPrimaryAction?: React.ReactNode
 }
 
+// Row Actions Component
+const LeadRowActions = <TLead extends Lead = Lead, TQueryVariables = any>({
+  row,
+  config,
+  accessToken
+}: {
+  row: { original: TLead }
+  config: LeadViewConfig<TLead, TQueryVariables>
+  accessToken: string
+}) => (
+  <AppActionMenu
+    contextsArray={config.rowActionsContextArray}
+    externalContextData={config.buildRowActionsExternalContextData(row)}
+    prefixDataTestId="lead-actions"
+    accessToken={accessToken}
+    emptyStateBehavior="enable"
+    deferMainContextRequestsUntilClick
+  >
+    <Button variant="ghost" size="icon" data-testid={`lead-actions-${row.original.id}`}>
+      <svg className="gba:h-4 gba:w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+        <path
+          strokeLinecap="round"
+          strokeLinejoin="round"
+          strokeWidth={2}
+          d="M12 5v.01M12 12v.01M12 19v.01M12 6a1 1 0 110-2 1 1 0 010 2zm0 7a1 1 0 110-2 1 1 0 010 2zm0 7a1 1 0 110-2 1 1 0 010 2z"
+        />
+      </svg>
+    </Button>
+  </AppActionMenu>
+)
+
 function ConfigLeadLayout<TLead extends Lead = Lead, TQueryVariables = any>(
-  props: LeadLayoutProps<TLead, TQueryVariables>
+  props: Readonly<LeadLayoutProps<TLead, TQueryVariables>>
 ): React.ReactElement {
   const {
     context,
@@ -216,25 +247,7 @@ function ConfigLeadLayout<TLead extends Lead = Lead, TQueryVariables = any>(
   // Row actions - rendered internally
   const rowActions = useMemo(
     () => (row: { original: TLead }) => (
-      <AppActionMenu
-        contextsArray={config.rowActionsContextArray}
-        externalContextData={config.buildRowActionsExternalContextData(row)}
-        prefixDataTestId="lead-actions"
-        accessToken={context?.accessToken || ''}
-        emptyStateBehavior="enable"
-        deferMainContextRequestsUntilClick
-      >
-        <Button variant="ghost" size="icon" data-testid={`lead-actions-${row.original.id}`}>
-          <svg className="gba:h-4 gba:w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-            <path
-              strokeLinecap="round"
-              strokeLinejoin="round"
-              strokeWidth={2}
-              d="M12 5v.01M12 12v.01M12 19v.01M12 6a1 1 0 110-2 1 1 0 010 2zm0 7a1 1 0 110-2 1 1 0 010 2zm0 7a1 1 0 110-2 1 1 0 010 2z"
-            />
-          </svg>
-        </Button>
-      </AppActionMenu>
+      <LeadRowActions row={row} config={config} accessToken={context?.accessToken || ''} />
     ),
     [config, context?.accessToken]
   )

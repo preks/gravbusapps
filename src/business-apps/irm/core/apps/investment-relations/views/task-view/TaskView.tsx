@@ -14,6 +14,71 @@ import {
 } from '@/common/components/common-relations/view-layouts/task-layout/config'
 import { buildPlatformUrl } from '@/common/utils/navigationUtils'
 
+// Helper function to process reference type filter
+const processInvestmentReferenceTypeFilter = (
+  selectedFilters: Record<string, any>,
+  vars: InvestmentTaskQueryVariables
+): void => {
+  if (
+    selectedFilters.referenceType &&
+    Array.isArray(selectedFilters.referenceType) &&
+    selectedFilters.referenceType.length > 0
+  ) {
+    vars.referenceTypes = selectedFilters.referenceType
+  }
+}
+
+// Helper function to process date range filters
+const processInvestmentTaskDateRanges = (
+  selectedFilters: Record<string, any>,
+  vars: InvestmentTaskQueryVariables
+): void => {
+  const dateRangeKeys = ['createdAtRange', 'updatedAtRange', 'dueDateRange', 'startDateRange', 'endDateRange']
+
+  for (const rangeKey of dateRangeKeys) {
+    const rawValue = selectedFilters[rangeKey]
+    console.log(`[TaskView] DEBUG - Processing ${rangeKey}:`, {
+      raw: rawValue,
+      type: typeof rawValue,
+      isArray: Array.isArray(rawValue)
+    })
+
+    const normalized = normalizeDateRange(rawValue)
+    if (normalized) {
+      const baseKey = rangeKey.replace('Range', '')
+      if (normalized.from) (vars as any)[`${baseKey}From`] = normalized.from
+      if (normalized.to) (vars as any)[`${baseKey}To`] = normalized.to
+      console.log(`[TaskView] DEBUG - Normalized ${rangeKey}:`, normalized)
+    }
+  }
+}
+
+// Helper function to copy other filters
+const copyInvestmentTaskFilters = (
+  selectedFilters: Record<string, any>,
+  dateRangeKeys: string[],
+  vars: InvestmentTaskQueryVariables
+): void => {
+  for (const key of Object.keys(selectedFilters)) {
+    if (
+      key !== 'referenceType' &&
+      !dateRangeKeys.includes(key) &&
+      selectedFilters[key] !== undefined &&
+      selectedFilters[key] !== null
+    ) {
+      vars[key as keyof InvestmentTaskQueryVariables] = selectedFilters[key]
+      if (key === 'schedule') {
+        console.log(`[TaskView] DEBUG - Copied schedule filter to vars:`, {
+          key,
+          value: selectedFilters[key],
+          type: typeof selectedFilters[key],
+          isArray: Array.isArray(selectedFilters[key])
+        })
+      }
+    }
+  }
+}
+
 export type TaskViewProps = BusinessAppContextProps
 
 export const TaskView: React.FC<TaskViewProps> = context => {
@@ -98,52 +163,16 @@ export const TaskView: React.FC<TaskViewProps> = context => {
           search: params.searchTerm.trim() || undefined
         }
 
-        // Handle referenceType filter (no Descriptor - special case)
-        if (
-          params.selectedFilters.referenceType &&
-          Array.isArray(params.selectedFilters.referenceType) &&
-          params.selectedFilters.referenceType.length > 0
-        ) {
-          vars.referenceTypes = params.selectedFilters.referenceType
-        }
-
-        // Normalize date range filters
         const dateRangeKeys = ['createdAtRange', 'updatedAtRange', 'dueDateRange', 'startDateRange', 'endDateRange']
-        dateRangeKeys.forEach(rangeKey => {
-          const rawValue = params.selectedFilters[rangeKey]
-          console.log(`[TaskView] DEBUG - Processing ${rangeKey}:`, {
-            raw: rawValue,
-            type: typeof rawValue,
-            isArray: Array.isArray(rawValue)
-          })
-          const normalized = normalizeDateRange(rawValue)
-          if (normalized) {
-            const baseKey = rangeKey.replace('Range', '')
-            if (normalized.from) (vars as any)[`${baseKey}From`] = normalized.from
-            if (normalized.to) (vars as any)[`${baseKey}To`] = normalized.to
-            console.log(`[TaskView] DEBUG - Normalized ${rangeKey}:`, normalized)
-          }
-        })
 
-        // Copy all other filters directly (they now match Descriptor-Keys)
-        Object.keys(params.selectedFilters).forEach(key => {
-          if (
-            key !== 'referenceType' &&
-            !dateRangeKeys.includes(key) &&
-            params.selectedFilters[key] !== undefined &&
-            params.selectedFilters[key] !== null
-          ) {
-            vars[key as keyof InvestmentTaskQueryVariables] = params.selectedFilters[key]
-            if (key === 'schedule') {
-              console.log(`[TaskView] DEBUG - Copied schedule filter to vars:`, {
-                key,
-                value: params.selectedFilters[key],
-                type: typeof params.selectedFilters[key],
-                isArray: Array.isArray(params.selectedFilters[key])
-              })
-            }
-          }
-        })
+        // Process reference type filter using helper
+        processInvestmentReferenceTypeFilter(params.selectedFilters, vars)
+
+        // Process date range filters using helper
+        processInvestmentTaskDateRanges(params.selectedFilters, vars)
+
+        // Copy all other filters using helper
+        copyInvestmentTaskFilters(params.selectedFilters, dateRangeKeys, vars)
 
         // Debug: Log final vars before returning
         console.log('[TaskView] DEBUG - Final vars:', {

@@ -63,16 +63,47 @@ export interface AccountViewConfig<TAccount extends Account = Account, TQueryVar
 }
 
 export interface AccountLayoutProps<TAccount extends Account = Account, TQueryVariables = any> {
-  context: BusinessAppContextProps
-  config: AccountViewConfig<TAccount, TQueryVariables>
-  dataTestId?: string
-  initialFilters?: Record<string, any>
-  hideFilters?: boolean
-  customPrimaryAction?: React.ReactNode
+  readonly context: BusinessAppContextProps
+  readonly config: AccountViewConfig<TAccount, TQueryVariables>
+  readonly dataTestId?: string
+  readonly initialFilters?: Record<string, any>
+  readonly hideFilters?: boolean
+  readonly customPrimaryAction?: React.ReactNode
 }
 
+// Row Actions Component
+const AccountRowActions = <TAccount extends Account = Account, TQueryVariables = any>({
+  row,
+  config,
+  accessToken
+}: {
+  row: { original: TAccount }
+  config: AccountViewConfig<TAccount, TQueryVariables>
+  accessToken: string
+}) => (
+  <AppActionMenu
+    contextsArray={config.rowActionsContextArray}
+    externalContextData={config.buildRowActionsExternalContextData(row)}
+    prefixDataTestId="account-actions"
+    accessToken={accessToken}
+    emptyStateBehavior="enable"
+    deferMainContextRequestsUntilClick
+  >
+    <Button variant="ghost" size="icon" data-testid={`account-actions-${row.original.id}`}>
+      <svg className="gba:h-4 gba:w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+        <path
+          strokeLinecap="round"
+          strokeLinejoin="round"
+          strokeWidth={2}
+          d="M12 5v.01M12 12v.01M12 19v.01M12 6a1 1 0 110-2 1 1 0 010 2zm0 7a1 1 0 110-2 1 1 0 010 2zm0 7a1 1 0 110-2 1 1 0 010 2z"
+        />
+      </svg>
+    </Button>
+  </AppActionMenu>
+)
+
 function ConfigAccountLayout<TAccount extends Account = Account, TQueryVariables = any>(
-  props: AccountLayoutProps<TAccount, TQueryVariables>
+  props: Readonly<AccountLayoutProps<TAccount, TQueryVariables>>
 ): React.ReactElement {
   const {
     context,
@@ -217,25 +248,7 @@ function ConfigAccountLayout<TAccount extends Account = Account, TQueryVariables
   // Row actions - rendered internally
   const rowActions = useMemo(
     () => (row: { original: TAccount }) => (
-      <AppActionMenu
-        contextsArray={config.rowActionsContextArray}
-        externalContextData={config.buildRowActionsExternalContextData(row)}
-        prefixDataTestId="account-actions"
-        accessToken={context?.accessToken || ''}
-        emptyStateBehavior="enable"
-        deferMainContextRequestsUntilClick
-      >
-        <Button variant="ghost" size="icon" data-testid={`account-actions-${row.original.id}`}>
-          <svg className="gba:h-4 gba:w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-            <path
-              strokeLinecap="round"
-              strokeLinejoin="round"
-              strokeWidth={2}
-              d="M12 5v.01M12 12v.01M12 19v.01M12 6a1 1 0 110-2 1 1 0 010 2zm0 7a1 1 0 110-2 1 1 0 010 2zm0 7a1 1 0 110-2 1 1 0 010 2z"
-            />
-          </svg>
-        </Button>
-      </AppActionMenu>
+      <AccountRowActions row={row} config={config} accessToken={context?.accessToken || ''} />
     ),
     [config, context?.accessToken]
   )

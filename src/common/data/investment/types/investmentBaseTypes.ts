@@ -34,6 +34,11 @@ export interface BaseInvestment extends BaseEntity {
   ownerEmployee?: EmployeeRef
   loanRecipientInvestmentAccount?: InvestmentAccount
 
+  // Investment specialization relationships (array relationships in GraphQL schema)
+  equityInvestment?: BaseEquityInvestment[]
+  realEstateInvestment?: BaseRealEstateInvestment[]
+  liquidFundInvestment?: BaseLiquidFundInvestment[]
+
   // Investment Role relationships (array of roles)
   investmentRole?: InvestmentRole[]
 

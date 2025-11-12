@@ -18,6 +18,43 @@ import { FlowContextName } from '@/common/types/FlowRegistryTypes'
 import { buildPlatformUrl } from '@/common/utils/navigationUtils'
 import { useInvestmentAccountStatistics } from '@/common/data/investment/hooks/useInvestmentAccountStatistics'
 
+// Helper function to process date range filters
+const processInvestmentAccountDateRanges = (
+  selectedFilters: Record<string, any>,
+  vars: InvestmentAccountQueryVariables
+): void => {
+  const dateRangeKeys = [
+    'createdAtRange',
+    'updatedAtRange',
+    'foundationDateRange',
+    'liquidationDateRange',
+    'activeFromRange',
+    'activeToRange'
+  ]
+
+  for (const rangeKey of dateRangeKeys) {
+    const normalized = normalizeDateRange(selectedFilters[rangeKey])
+    if (normalized) {
+      const baseKey = rangeKey.replace('Range', '')
+      if (normalized.from) vars[`${baseKey}From` as keyof InvestmentAccountQueryVariables] = normalized.from
+      if (normalized.to) vars[`${baseKey}To` as keyof InvestmentAccountQueryVariables] = normalized.to
+    }
+  }
+}
+
+// Helper function to copy non-date filters
+const copyInvestmentAccountFilters = (
+  selectedFilters: Record<string, any>,
+  dateRangeKeys: string[],
+  vars: InvestmentAccountQueryVariables
+): void => {
+  for (const key of Object.keys(selectedFilters)) {
+    if (!dateRangeKeys.includes(key) && selectedFilters[key] !== undefined && selectedFilters[key] !== null) {
+      vars[key as keyof InvestmentAccountQueryVariables] = selectedFilters[key]
+    }
+  }
+}
+
 export type AccountViewProps = BusinessAppContextProps
 
 export const AccountView: React.FC<AccountViewProps> = context => {
@@ -77,7 +114,6 @@ export const AccountView: React.FC<AccountViewProps> = context => {
           search: params.searchTerm.trim() || undefined
         }
 
-        // Normalize date range filters
         const dateRangeKeys = [
           'createdAtRange',
           'updatedAtRange',
@@ -86,25 +122,12 @@ export const AccountView: React.FC<AccountViewProps> = context => {
           'activeFromRange',
           'activeToRange'
         ]
-        dateRangeKeys.forEach(rangeKey => {
-          const normalized = normalizeDateRange(params.selectedFilters[rangeKey])
-          if (normalized) {
-            const baseKey = rangeKey.replace('Range', '')
-            if (normalized.from) vars[`${baseKey}From` as keyof InvestmentAccountQueryVariables] = normalized.from
-            if (normalized.to) vars[`${baseKey}To` as keyof InvestmentAccountQueryVariables] = normalized.to
-          }
-        })
 
-        // Copy all other filters directly (they now match Descriptor-Keys)
-        Object.keys(params.selectedFilters).forEach(key => {
-          if (
-            !dateRangeKeys.includes(key) &&
-            params.selectedFilters[key] !== undefined &&
-            params.selectedFilters[key] !== null
-          ) {
-            vars[key as keyof InvestmentAccountQueryVariables] = params.selectedFilters[key]
-          }
-        })
+        // Process date range filters using helper
+        processInvestmentAccountDateRanges(params.selectedFilters, vars)
+
+        // Copy all other filters using helper
+        copyInvestmentAccountFilters(params.selectedFilters, dateRangeKeys, vars)
 
         // Use column ID directly - buildOrderBy will use descriptors (INVESTMENT_ACCOUNT_DESCRIPTORS)
         // to resolve correct GraphQL paths (e.g., ownerEmployee.displayName, industryClass.value)

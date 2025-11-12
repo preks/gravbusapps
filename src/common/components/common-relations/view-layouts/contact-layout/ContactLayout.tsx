@@ -62,16 +62,47 @@ export interface ContactViewConfig<TContact extends Contact = Contact, TQueryVar
 }
 
 export interface ContactLayoutProps<TContact extends Contact = Contact, TQueryVariables = any> {
-  context: BusinessAppContextProps
-  config: ContactViewConfig<TContact, TQueryVariables>
-  dataTestId?: string
-  initialFilters?: Record<string, any>
-  hideFilters?: boolean
-  customPrimaryAction?: React.ReactNode
+  readonly context: BusinessAppContextProps
+  readonly config: ContactViewConfig<TContact, TQueryVariables>
+  readonly dataTestId?: string
+  readonly initialFilters?: Record<string, any>
+  readonly hideFilters?: boolean
+  readonly customPrimaryAction?: React.ReactNode
 }
 
+// Row Actions Component
+const ContactRowActions = <TContact extends Contact = Contact, TQueryVariables = any>({
+  row,
+  config,
+  accessToken
+}: {
+  row: { original: TContact }
+  config: ContactViewConfig<TContact, TQueryVariables>
+  accessToken: string
+}) => (
+  <AppActionMenu
+    contextsArray={config.rowActionsContextArray}
+    externalContextData={config.buildRowActionsExternalContextData(row)}
+    prefixDataTestId="contact-actions"
+    accessToken={accessToken}
+    emptyStateBehavior="enable"
+    deferMainContextRequestsUntilClick
+  >
+    <Button variant="ghost" size="icon" data-testid={`contact-actions-${row.original.id}`}>
+      <svg className="gba:h-4 gba:w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+        <path
+          strokeLinecap="round"
+          strokeLinejoin="round"
+          strokeWidth={2}
+          d="M12 5v.01M12 12v.01M12 19v.01M12 6a1 1 0 110-2 1 1 0 010 2zm0 7a1 1 0 110-2 1 1 0 010 2zm0 7a1 1 0 110-2 1 1 0 010 2z"
+        />
+      </svg>
+    </Button>
+  </AppActionMenu>
+)
+
 function ConfigContactLayout<TContact extends Contact = Contact, TQueryVariables = any>(
-  props: ContactLayoutProps<TContact, TQueryVariables>
+  props: Readonly<ContactLayoutProps<TContact, TQueryVariables>>
 ): React.ReactElement {
   const {
     context,
@@ -216,25 +247,7 @@ function ConfigContactLayout<TContact extends Contact = Contact, TQueryVariables
   // Row actions - rendered internally
   const rowActions = useMemo(
     () => (row: { original: TContact }) => (
-      <AppActionMenu
-        contextsArray={config.rowActionsContextArray}
-        externalContextData={config.buildRowActionsExternalContextData(row)}
-        prefixDataTestId="contact-actions"
-        accessToken={context?.accessToken || ''}
-        emptyStateBehavior="enable"
-        deferMainContextRequestsUntilClick
-      >
-        <Button variant="ghost" size="icon" data-testid={`contact-actions-${row.original.id}`}>
-          <svg className="gba:h-4 gba:w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-            <path
-              strokeLinecap="round"
-              strokeLinejoin="round"
-              strokeWidth={2}
-              d="M12 5v.01M12 12v.01M12 19v.01M12 6a1 1 0 110-2 1 1 0 010 2zm0 7a1 1 0 110-2 1 1 0 010 2zm0 7a1 1 0 110-2 1 1 0 010 2z"
-            />
-          </svg>
-        </Button>
-      </AppActionMenu>
+      <ContactRowActions row={row} config={config} accessToken={context?.accessToken || ''} />
     ),
     [config, context?.accessToken]
   )

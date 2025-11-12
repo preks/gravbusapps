@@ -143,7 +143,7 @@ export const commonContactColumns = (): ColumnDef<Contact>[] => [
       // Display ALL communication channels with proper icons based on type
       return (
         <div className="gba:flex gba:flex-col gba:gap-1 gba:min-w-0">
-          {channels.slice(0, 3).map((channel, index) => {
+          {channels.slice(0, 3).map(channel => {
             const type = channel.communicationChannel?.type
             const value = channel.value
 
@@ -151,9 +151,11 @@ export const commonContactColumns = (): ColumnDef<Contact>[] => [
 
             const Icon = getCommunicationChannelIcon(type)
             const displayValue = formatCommunicationChannelValue(type, value)
+            // Use combination of type and value for unique key
+            const key = `${type || 'unknown'}-${value}`
 
             return (
-              <div key={index} className="gba:flex gba:items-center gba:gap-2 gba:min-w-0">
+              <div key={key} className="gba:flex gba:items-center gba:gap-2 gba:min-w-0">
                 <Icon className="gba:w-4 gba:h-4 gba:text-gray-500 gba:shrink-0" />
                 <span className="gba:text-xs gba:truncate" title={value}>
                   {displayValue}

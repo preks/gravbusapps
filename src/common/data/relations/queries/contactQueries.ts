@@ -179,6 +179,7 @@ export const buildContactByIdQuery = (
         ${entityFields.department}
         ${entityFields.id}
         ${entityFields.firstName}
+        ${entityFields.jobPosition}
         ${entityFields.language} {
           ${CATALOG_ENTRY}
         }

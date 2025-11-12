@@ -100,7 +100,13 @@ export const HomeView: React.FC<HomeViewProps> = ({
             props: {
               ...props,
               accessToken,
-              contacts: opportunityData?.opportunityContacts?.map((oc: any) => oc.contact).filter(Boolean) || [], // ✅ Vollständige CustomerContact-Objekte
+              contacts:
+                opportunityData?.opportunityContacts
+                  ?.map((oc: any) => ({
+                    ...oc.contact,
+                    jobPosition: oc.contact?.jobTitle // Map CRM jobTitle to jobPosition for ContactSection
+                  }))
+                  .filter(Boolean) || [],
               contactId: opportunityData?.opportunityContacts?.[0]?.contact?.id,
               recordUrl: opportunityData?.opportunityContacts?.[0]?.contact?.id
                 ? buildPlatformUrl('/platform/crm/contact-record', {

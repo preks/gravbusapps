@@ -119,18 +119,18 @@ const HomeView: React.FC<HomeViewProps> = ({ contactId, contactData, ...props })
 
   // Listen for process completion events to refresh section data
   useEffect(() => {
-    const handleProcessCompletion = (event: any) => {
+    const handleProcessCompletion = async (event: any) => {
       try {
         // Check for successful completion
         if (event.detail?.resolution === 'success') {
-          loadSectionData()
+          await loadSectionData()
           return
         }
 
         // Also check for different event structure
         const response = event.detail?.response
         if (response?.detail?.resolution === 'success' || response?.contact) {
-          loadSectionData()
+          await loadSectionData()
         }
       } catch (err) {
         console.error('Error handling process completion in HomeView:', err)

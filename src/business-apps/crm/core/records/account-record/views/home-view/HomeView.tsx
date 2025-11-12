@@ -281,7 +281,13 @@ const HomeView: React.FC<HomeViewProps> = ({ accountId, accountData, ...props })
             component: ContactSection,
             props: {
               ...props,
-              contacts: accountData?.accountContacts?.map((ac: any) => ac.contact).filter(Boolean) || [],
+              contacts:
+                accountData?.accountContacts
+                  ?.map((ac: any) => ({
+                    ...ac.contact,
+                    jobPosition: ac.contact?.jobTitle // Map CRM jobTitle to jobPosition for ContactSection
+                  }))
+                  .filter(Boolean) || [],
               contactId: accountData?.accountContacts?.[0]?.contact?.id || undefined,
               recordUrl: accountData?.accountContacts?.[0]?.contact?.id
                 ? buildPlatformUrl('/platform/crm/contact-record', {

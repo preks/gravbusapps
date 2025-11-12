@@ -113,6 +113,106 @@ interface TaskDetailContentProps {
   'data-testid'?: string
 }
 
+// Helper component: Assignee Field
+interface AssigneeFieldProps {
+  assignedTo?: TaskAssignedTo
+  dataTestId?: string
+  onEmployeeClick: () => void
+  getInitials: (firstName: string, lastName: string) => string
+}
+
+const AssigneeField: React.FC<AssigneeFieldProps> = ({ assignedTo, dataTestId, onEmployeeClick, getInitials }) => {
+  if (!assignedTo) {
+    return <span className="gba:text-sm gba:text-muted-foreground gba:px-2 gba:py-1">Unassigned</span>
+  }
+
+  return (
+    <Tooltip>
+      <TooltipTrigger asChild>
+        <div
+          className="gba:flex gba:items-center gba:gap-2 gba:cursor-pointer gba:hover:bg-accent gba:px-2 gba:py-1 gba:rounded gba:transition-colors gba:w-fit gba:min-h-[24px]"
+          onClick={onEmployeeClick}
+          data-testid={`${dataTestId}-assignee-link`}
+        >
+          <Avatar size="sm" className="gba:size-6">
+            {assignedTo.pictureThumbnail && (
+              <AvatarImage
+                src={`data:image/gif;base64,${assignedTo.pictureThumbnail}`}
+                alt={assignedTo.displayName || 'Employee'}
+              />
+            )}
+            <AvatarFallback className="gba:text-xs">
+              {assignedTo.firstName && assignedTo.lastName
+                ? getInitials(assignedTo.firstName, assignedTo.lastName)
+                : 'U'}
+            </AvatarFallback>
+          </Avatar>
+          <span className="gba:text-sm gba:font-medium">{assignedTo.displayName || 'Unknown'}</span>
+          <ArrowSquareOutIcon size={12} className="gba:text-muted-foreground" />
+        </div>
+      </TooltipTrigger>
+      <TooltipContent>View employee profile</TooltipContent>
+    </Tooltip>
+  )
+}
+
+// Helper component: Reference Field
+interface ReferenceFieldProps {
+  reference?: TaskReference
+  buildReferenceUrl?: (reference: TaskReference) => string
+  dataTestId?: string
+  onReferenceClick: () => void
+  getReferenceTypeBadgeVariant: (type: string) => string
+}
+
+const ReferenceField: React.FC<ReferenceFieldProps> = ({
+  reference,
+  buildReferenceUrl,
+  dataTestId,
+  onReferenceClick,
+  getReferenceTypeBadgeVariant
+}) => {
+  if (!reference) {
+    return <span className="gba:text-sm gba:text-muted-foreground">No reference</span>
+  }
+
+  const referenceTypeName = reference.type.charAt(0).toUpperCase() + reference.type.slice(1)
+
+  if (!buildReferenceUrl) {
+    return (
+      <div className="gba:px-2 gba:py-1 gba:w-fit gba:min-h-[24px]">
+        <div className="gba:flex gba:items-center gba:gap-2">
+          <Badge variant={getReferenceTypeBadgeVariant(reference.type)} className="gba:text-xs gba:shrink-0">
+            {referenceTypeName}
+          </Badge>
+          <span className="gba:text-sm gba:font-medium gba:truncate">{reference.name}</span>
+        </div>
+      </div>
+    )
+  }
+
+  return (
+    <Tooltip>
+      <TooltipTrigger asChild>
+        <div
+          className="gba:cursor-pointer gba:hover:bg-accent gba:px-2 gba:py-1 gba:rounded gba:transition-colors gba:w-fit gba:min-h-[24px]"
+          onClick={onReferenceClick}
+          data-testid={`${dataTestId}-reference-link`}
+        >
+          <div className="gba:flex gba:items-center gba:gap-2">
+            <Badge variant={getReferenceTypeBadgeVariant(reference.type)} className="gba:text-xs gba:shrink-0">
+              {referenceTypeName}
+            </Badge>
+            <span className="gba:text-sm gba:font-medium gba:truncate">{reference.name}</span>
+            <ArrowSquareOutIcon size={12} className="gba:text-muted-foreground gba:shrink-0" />
+          </div>
+        </div>
+      </TooltipTrigger>
+      <TooltipContent>View {reference.type} record</TooltipContent>
+    </Tooltip>
+  )
+}
+
 const TaskDetailContent: React.FC<TaskDetailContentProps> = ({
   task,
   buildReferenceUrl,
@@ -221,36 +321,12 @@ const TaskDetailContent: React.FC<TaskDetailContentProps> = ({
             </FieldRow>
 
             <FieldRow icon={UserIcon} label="Assignee" testId={`${dataTestId || DATA_TEST_ID_PREFIX}-assignee-field`}>
-              {task.assignedTo ? (
-                <Tooltip>
-                  <TooltipTrigger asChild>
-                    <div
-                      className="gba:flex gba:items-center gba:gap-2 gba:cursor-pointer gba:hover:bg-accent gba:px-2 gba:py-1 gba:rounded gba:transition-colors gba:w-fit gba:min-h-[24px]"
-                      onClick={handleEmployeeClick}
-                      data-testid={`${dataTestId || DATA_TEST_ID_PREFIX}-assignee-link`}
-                    >
-                      <Avatar size="sm" className="gba:size-6">
-                        {task.assignedTo.pictureThumbnail && (
-                          <AvatarImage
-                            src={`data:image/gif;base64,${task.assignedTo.pictureThumbnail}`}
-                            alt={task.assignedTo.displayName || 'Employee'}
-                          />
-                        )}
-                        <AvatarFallback className="gba:text-xs">
-                          {task.assignedTo.firstName && task.assignedTo.lastName
-                            ? getInitials(task.assignedTo.firstName, task.assignedTo.lastName)
-                            : 'U'}
-                        </AvatarFallback>
-                      </Avatar>
-                      <span className="gba:text-sm gba:font-medium">{task.assignedTo.displayName || 'Unknown'}</span>
-                      <ArrowSquareOutIcon size={12} className="gba:text-muted-foreground" />
-                    </div>
-                  </TooltipTrigger>
-                  <TooltipContent>View employee profile</TooltipContent>
-                </Tooltip>
-              ) : (
-                <span className="gba:text-sm gba:text-muted-foreground gba:px-2 gba:py-1">Unassigned</span>
-              )}
+              <AssigneeField
+                assignedTo={task.assignedTo}
+                dataTestId={dataTestId || DATA_TEST_ID_PREFIX}
+                onEmployeeClick={handleEmployeeClick}
+                getInitials={getInitials}
+              />
             </FieldRow>
 
             <FieldRow icon={FlagIcon} label="Priority" testId={`${dataTestId || DATA_TEST_ID_PREFIX}-priority-field`}>
@@ -272,45 +348,13 @@ const TaskDetailContent: React.FC<TaskDetailContentProps> = ({
             </FieldRow>
 
             <FieldRow icon={LinkIcon} label="Reference" testId={`${dataTestId || DATA_TEST_ID_PREFIX}-reference-field`}>
-              {task.reference ? (
-                buildReferenceUrl ? (
-                  <Tooltip>
-                    <TooltipTrigger asChild>
-                      <div
-                        className="gba:cursor-pointer gba:hover:bg-accent gba:px-2 gba:py-1 gba:rounded gba:transition-colors gba:w-fit gba:min-h-[24px]"
-                        onClick={handleReferenceClick}
-                        data-testid={`${dataTestId || DATA_TEST_ID_PREFIX}-reference-link`}
-                      >
-                        <div className="gba:flex gba:items-center gba:gap-2">
-                          <Badge
-                            variant={getReferenceTypeBadgeVariant(task.reference.type)}
-                            className="gba:text-xs gba:shrink-0"
-                          >
-                            {task.reference.type.charAt(0).toUpperCase() + task.reference.type.slice(1)}
-                          </Badge>
-                          <span className="gba:text-sm gba:font-medium gba:truncate">{task.reference.name}</span>
-                          <ArrowSquareOutIcon size={12} className="gba:text-muted-foreground gba:shrink-0" />
-                        </div>
-                      </div>
-                    </TooltipTrigger>
-                    <TooltipContent>View {task.reference.type} record</TooltipContent>
-                  </Tooltip>
-                ) : (
-                  <div className="gba:px-2 gba:py-1 gba:w-fit gba:min-h-[24px]">
-                    <div className="gba:flex gba:items-center gba:gap-2">
-                      <Badge
-                        variant={getReferenceTypeBadgeVariant(task.reference.type)}
-                        className="gba:text-xs gba:shrink-0"
-                      >
-                        {task.reference.type.charAt(0).toUpperCase() + task.reference.type.slice(1)}
-                      </Badge>
-                      <span className="gba:text-sm gba:font-medium gba:truncate">{task.reference.name}</span>
-                    </div>
-                  </div>
-                )
-              ) : (
-                <span className="gba:text-sm gba:text-muted-foreground">No reference</span>
-              )}
+              <ReferenceField
+                reference={task.reference}
+                buildReferenceUrl={buildReferenceUrl}
+                dataTestId={dataTestId || DATA_TEST_ID_PREFIX}
+                onReferenceClick={handleReferenceClick}
+                getReferenceTypeBadgeVariant={getReferenceTypeBadgeVariant}
+              />
             </FieldRow>
 
             <FieldRow

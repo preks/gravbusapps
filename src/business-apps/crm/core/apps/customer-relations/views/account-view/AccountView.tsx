@@ -18,6 +18,40 @@ import { FlowContextName } from '@/common/types/FlowRegistryTypes'
 import { buildPlatformUrl } from '@/common/utils/navigationUtils'
 import { useCustomerAccountStatistics } from '@/common/data/customer/hooks/useCustomerAccountStatistics'
 
+// Helper function to process date range filters
+const processDateRangeFilters = (selectedFilters: Record<string, any>, vars: CustomerAccountQueryVariables): void => {
+  const dateRangeKeys = [
+    'createdAtRange',
+    'updatedAtRange',
+    'foundationDateRange',
+    'liquidationDateRange',
+    'activeFromRange',
+    'activeToRange'
+  ]
+
+  for (const rangeKey of dateRangeKeys) {
+    const normalized = normalizeDateRange(selectedFilters[rangeKey])
+    if (normalized) {
+      const baseKey = rangeKey.replace('Range', '')
+      if (normalized.from) vars[`${baseKey}From` as keyof CustomerAccountQueryVariables] = normalized.from
+      if (normalized.to) vars[`${baseKey}To` as keyof CustomerAccountQueryVariables] = normalized.to
+    }
+  }
+}
+
+// Helper function to copy non-date filters
+const copyNonDateFilters = (
+  selectedFilters: Record<string, any>,
+  dateRangeKeys: string[],
+  vars: CustomerAccountQueryVariables
+): void => {
+  for (const key of Object.keys(selectedFilters)) {
+    if (!dateRangeKeys.includes(key) && selectedFilters[key] !== undefined && selectedFilters[key] !== null) {
+      vars[key as keyof CustomerAccountQueryVariables] = selectedFilters[key]
+    }
+  }
+}
+
 export type AccountViewProps = BusinessAppContextProps
 
 export const AccountView: React.FC<AccountViewProps> = context => {
@@ -71,7 +105,6 @@ export const AccountView: React.FC<AccountViewProps> = context => {
           search: params.searchTerm.trim() || undefined
         }
 
-        // Normalize date range filters
         const dateRangeKeys = [
           'createdAtRange',
           'updatedAtRange',
@@ -80,25 +113,12 @@ export const AccountView: React.FC<AccountViewProps> = context => {
           'activeFromRange',
           'activeToRange'
         ]
-        for (const rangeKey of dateRangeKeys) {
-          const normalized = normalizeDateRange(params.selectedFilters[rangeKey])
-          if (normalized) {
-            const baseKey = rangeKey.replace('Range', '')
-            if (normalized.from) vars[`${baseKey}From` as keyof CustomerAccountQueryVariables] = normalized.from
-            if (normalized.to) vars[`${baseKey}To` as keyof CustomerAccountQueryVariables] = normalized.to
-          }
-        }
 
-        // Copy all other filters directly (they now match Descriptor-Keys)
-        for (const key of Object.keys(params.selectedFilters)) {
-          if (
-            !dateRangeKeys.includes(key) &&
-            params.selectedFilters[key] !== undefined &&
-            params.selectedFilters[key] !== null
-          ) {
-            vars[key as keyof CustomerAccountQueryVariables] = params.selectedFilters[key]
-          }
-        }
+        // Process date range filters using helper
+        processDateRangeFilters(params.selectedFilters, vars)
+
+        // Copy all other filters using helper
+        copyNonDateFilters(params.selectedFilters, dateRangeKeys, vars)
 
         // Use column ID directly - buildOrderBy will use descriptors (CUSTOMER_ACCOUNT_DESCRIPTORS)
         // to resolve correct GraphQL paths (e.g., ownerEmployee.displayName, industryClass.value)

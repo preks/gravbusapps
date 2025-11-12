@@ -16,6 +16,24 @@ import { createCampaignColumns, createCampaignSortableColumns, campaignFilterCon
 
 type CampaignViewProps = BusinessAppContextProps
 
+// Extracted campaign actions component
+const CampaignRowActions: React.FC<{
+  campaignId: string
+  accessToken: string
+}> = ({ campaignId, accessToken }) => (
+  <AppActionButton
+    data-testid={`campaign-actions-${campaignId}`}
+    size="icon"
+    contextsArray={[FlowContextName.customerCampaignEntity]}
+    externalContextData={{ campaignId }}
+    prefixDataTestId="campaign-actions"
+    accessToken={accessToken}
+    emptyStateBehavior="enable"
+    deferMainContextRequestsUntilClick
+    onClick={(e: any) => e.stopPropagation()}
+  />
+)
+
 const CampaignView: React.FC<CampaignViewProps> = props => {
   const { accessToken } = props
 
@@ -78,18 +96,6 @@ const CampaignView: React.FC<CampaignViewProps> = props => {
   // Sync filters and trigger fetch
   useEffect(() => {
     if (!campaignFilters.filtersInitialized) return
-
-    const campaignTypes = selectedFilters.types || []
-    const status = selectedFilters.status || []
-
-    // Convert filter values to existing filter format
-    const filterArray: string[] = []
-    if (Array.isArray(campaignTypes)) {
-      filterArray.push(...campaignTypes)
-    }
-    if (Array.isArray(status)) {
-      filterArray.push(...status)
-    }
 
     // Trigger fetch with existing hook
     processFiltersAndFetch(
@@ -205,19 +211,7 @@ const CampaignView: React.FC<CampaignViewProps> = props => {
           showPageNumbers
           maxVisiblePages={7}
           emptyMessage="No campaigns found"
-          actions={row => (
-            <AppActionButton
-              data-testid={`campaign-actions-${row.original.id}`}
-              size="icon"
-              contextsArray={[FlowContextName.customerCampaignEntity]}
-              externalContextData={{ campaignId: row.original.id }}
-              prefixDataTestId="campaign-actions"
-              accessToken={accessToken}
-              emptyStateBehavior="enable"
-              deferMainContextRequestsUntilClick
-              onClick={(e: any) => e.stopPropagation()}
-            />
-          )}
+          actions={row => <CampaignRowActions campaignId={row.original.id} accessToken={accessToken} />}
           onRowClick={handleRowClick}
           data-testid="campaign-list"
         />

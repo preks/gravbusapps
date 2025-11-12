@@ -3,15 +3,12 @@
 import { CATALOG_ENTRY } from '@/common/network/graphql/commonFragments'
 import { INVESTMENT } from './fragments/investmentFragments'
 import {
-  INVESTMENT_REF,
-  EQUITY_INVESTMENT_REF,
-  REAL_ESTATE_INVESTMENT_REF,
-  LIQUID_FUND_INVESTMENT_REF,
-  INVESTMENT_OPPORTUNITY_REF,
   INVESTMENT_ACTIVITY_REF,
   INVESTMENT_TASK_REF,
   INVESTMENT_ACCOUNT_REF
 } from './fragments/investmentReferenceFragments'
+import { buildDocumentFragment } from '@/common/data/relations/queries/relationFragments'
+import { InvestmentDocumentFields } from '../types/investmentDocumentTypes'
 
 export interface InvestmentQueryVariables {
   ids?: string[]
@@ -290,28 +287,7 @@ export const GET_INVESTMENTS = (variables: InvestmentQueryVariables = {}): strin
         ${orderByClause}
         ${where}
       ) {
-        ${INVESTMENT_REF}
-        
-        # Entity relationships (simplified)
-        investmentAccount {
-          ${INVESTMENT_ACCOUNT_REF}
-        }
-        investmentOpportunity {
-          ${INVESTMENT_OPPORTUNITY_REF}
-        }
-        
-        # Investment specializations (simplified)
-        equityInvestment {
-          ${EQUITY_INVESTMENT_REF}
-        }
-        
-        realEstateInvestment {
-          ${REAL_ESTATE_INVESTMENT_REF}
-        }
-        
-        liquidFundInvestment {
-          ${LIQUID_FUND_INVESTMENT_REF}
-        }
+        ${INVESTMENT}
       }
       
       InvestmentAggregate(${where}) {
@@ -335,6 +311,11 @@ export const GET_INVESTMENT_ACTIVITIES_BY_INVESTMENT_ID = (investmentId: string)
         orderBy: [{ occurredAt: DESC }]
       ) {
         ${INVESTMENT_ACTIVITY_REF}
+        
+        # Documents relation (includes fileInfo)
+        documents(where: { isDeleted: { _eq: false } }) {
+          ${buildDocumentFragment(InvestmentDocumentFields)}
+        }
         
         # Entity references
         investment {

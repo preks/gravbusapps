@@ -22,6 +22,55 @@ import { useCustomerOpportunityStatistics } from '@/common/data/customer/hooks/u
 import { formatNumberFunction } from '@/common/utils/windowUtils'
 import { createBoardCardRenderer } from '@/common/components/common-relations/view-layouts/opportunity-layout/utils/boardCardRenderer'
 
+// Helper function to process amount filter
+const processAmountFilter = (selectedFilters: Record<string, any>, vars: CustomerOpportunityQueryVariables): void => {
+  if (selectedFilters.amount && typeof selectedFilters.amount === 'object') {
+    const { min, max } = selectedFilters.amount
+    if ((min !== null && min !== undefined) || (max !== null && max !== undefined)) {
+      vars.estimatedAmountRanges = [
+        {
+          ...(min !== null && min !== undefined && { min }),
+          ...(max !== null && max !== undefined && { max })
+        }
+      ]
+    }
+  }
+}
+
+// Helper function to process date range filters
+const processOpportunityDateRanges = (
+  selectedFilters: Record<string, any>,
+  vars: CustomerOpportunityQueryVariables
+): void => {
+  const dateRangeKeys = ['createdAtRange', 'updatedAtRange', 'closeDateRange']
+  for (const rangeKey of dateRangeKeys) {
+    const normalized = normalizeDateRange(selectedFilters[rangeKey])
+    if (normalized) {
+      const baseKey = rangeKey.replace('Range', '')
+      if (normalized.from) vars[`${baseKey}From` as keyof CustomerOpportunityQueryVariables] = normalized.from
+      if (normalized.to) vars[`${baseKey}To` as keyof CustomerOpportunityQueryVariables] = normalized.to
+    }
+  }
+}
+
+// Helper function to copy other filters
+const copyOpportunityFilters = (
+  selectedFilters: Record<string, any>,
+  dateRangeKeys: string[],
+  vars: CustomerOpportunityQueryVariables
+): void => {
+  for (const key of Object.keys(selectedFilters)) {
+    if (
+      key !== 'amount' &&
+      !dateRangeKeys.includes(key) &&
+      selectedFilters[key] !== undefined &&
+      selectedFilters[key] !== null
+    ) {
+      vars[key as keyof CustomerOpportunityQueryVariables] = selectedFilters[key]
+    }
+  }
+}
+
 export type OpportunityViewProps = BusinessAppContextProps
 
 export const OpportunityView: React.FC<OpportunityViewProps> = context => {
@@ -56,42 +105,16 @@ export const OpportunityView: React.FC<OpportunityViewProps> = context => {
           search: params.searchTerm.trim() || undefined
         }
 
-        // Copy filter values directly (Filter-IDs now match Descriptor-Keys)
-        // Handle amount filter (number range - no Descriptor)
-        if (params.selectedFilters.amount && typeof params.selectedFilters.amount === 'object') {
-          const { min, max } = params.selectedFilters.amount
-          if ((min !== null && min !== undefined) || (max !== null && max !== undefined)) {
-            vars.estimatedAmountRanges = [
-              {
-                ...(min !== null && min !== undefined && { min }),
-                ...(max !== null && max !== undefined && { max })
-              }
-            ]
-          }
-        }
-
-        // Normalize date range filters
         const dateRangeKeys = ['createdAtRange', 'updatedAtRange', 'closeDateRange']
-        for (const rangeKey of dateRangeKeys) {
-          const normalized = normalizeDateRange(params.selectedFilters[rangeKey])
-          if (normalized) {
-            const baseKey = rangeKey.replace('Range', '')
-            if (normalized.from) vars[`${baseKey}From` as keyof CustomerOpportunityQueryVariables] = normalized.from
-            if (normalized.to) vars[`${baseKey}To` as keyof CustomerOpportunityQueryVariables] = normalized.to
-          }
-        }
 
-        // Copy all other filters directly (they now match Descriptor-Keys)
-        for (const key of Object.keys(params.selectedFilters)) {
-          if (
-            key !== 'amount' &&
-            !dateRangeKeys.includes(key) &&
-            params.selectedFilters[key] !== undefined &&
-            params.selectedFilters[key] !== null
-          ) {
-            vars[key as keyof CustomerOpportunityQueryVariables] = params.selectedFilters[key]
-          }
-        }
+        // Process amount filter using helper
+        processAmountFilter(params.selectedFilters, vars)
+
+        // Process date range filters using helper
+        processOpportunityDateRanges(params.selectedFilters, vars)
+
+        // Copy all other filters using helper
+        copyOpportunityFilters(params.selectedFilters, dateRangeKeys, vars)
 
         if (params.sorting.length > 0) {
           // Use column ID directly - buildOrderBy will use CUSTOMER_OPPORTUNITY_DESCRIPTORS to resolve correct GraphQL paths

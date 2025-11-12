@@ -49,6 +49,31 @@ const updateFilterOptions = (
   }
 }
 
+// Helper: Determine opportunity filter from board filters
+const determineOpportunityFilter = (
+  boardFilters: Record<string, any>,
+  currentEmployeeId?: string
+): { opportunityFilter: 'my' | 'all' | 'selected'; ownerEmployeeIds: string[] | undefined } => {
+  let ownerEmployeeIds: string[] | undefined = undefined
+
+  if (boardFilters.owner && Array.isArray(boardFilters.owner) && boardFilters.owner.length > 0) {
+    ownerEmployeeIds = boardFilters.owner
+  }
+
+  let opportunityFilter: 'my' | 'all' | 'selected' = 'all'
+  if (ownerEmployeeIds) {
+    const isOnlyMe = ownerEmployeeIds.length === 1 && ownerEmployeeIds[0] === currentEmployeeId
+
+    if (isOnlyMe) {
+      opportunityFilter = 'my'
+    } else {
+      opportunityFilter = 'selected'
+    }
+  }
+
+  return { opportunityFilter, ownerEmployeeIds }
+}
+
 // Helper: Update amount range filter
 const updateAmountRangeFilter = (filterConfig: FilterConfiguration, amountRange: { min: number; max: number }) => {
   const group = filterConfig.groups.find(g => g.id === 'amount-group')
@@ -349,25 +374,9 @@ function ConfigOpportunityLayout<TOpportunity extends { id: string } = any, TQue
     setBoardError(null)
 
     try {
-      // Build owner employee IDs from filter
-      let ownerEmployeeIds: string[] | undefined = undefined
-
-      if (boardFilters.owner && Array.isArray(boardFilters.owner) && boardFilters.owner.length > 0) {
-        ownerEmployeeIds = boardFilters.owner
-      }
-
-      // Determine filter mode
-      let opportunityFilter: 'my' | 'all' | 'selected' = 'all'
-      if (ownerEmployeeIds) {
-        const currentEmployeeId = context.userInfo?.employeeDetails?.employeeId
-        const isOnlyMe = ownerEmployeeIds.length === 1 && ownerEmployeeIds[0] === currentEmployeeId
-
-        if (isOnlyMe) {
-          opportunityFilter = 'my'
-        } else {
-          opportunityFilter = 'selected'
-        }
-      }
+      // Determine filter mode using helper
+      const currentEmployeeId = context.userInfo?.employeeDetails?.employeeId
+      const { opportunityFilter, ownerEmployeeIds } = determineOpportunityFilter(boardFilters, currentEmployeeId)
 
       const boardFiltersObj: OpportunityBoardFilters = {
         selectedPipelineId: boardPipelineId,

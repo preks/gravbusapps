@@ -28,6 +28,36 @@ interface AddressObject {
   region?: string
 }
 
+// Helper component to render address lines with reduced nesting
+const AddressLines: React.FC<{ value: string }> = ({ value }) => {
+  const lines = value.split('\n')
+  const firstLine = lines[0] || ''
+  const postalCodeCityLine = lines[1] || ''
+
+  return (
+    <>
+      {[firstLine, postalCodeCityLine]
+        .filter(line => line.trim())
+        .map((line, index) => (
+          <div key={`address-line-${index}`} className="gba:text-sm gba:leading-snug">
+            {line}
+          </div>
+        ))}
+    </>
+  )
+}
+
+// Helper component to render full address in tooltip
+const FullAddressTooltip: React.FC<{ value: string }> = ({ value }) => (
+  <>
+    {value.split('\n').map((line, index) => (
+      <div key={`tooltip-line-${index}`} className="gba:text-sm gba:leading-snug">
+        {line}
+      </div>
+    ))}
+  </>
+)
+
 interface AccountSectionProps extends Partial<BusinessAppContextProps> {
   accountId?: string
   account?: any // InvestmentAccount oder CustomerAccount - vollständiges Objekt
@@ -434,27 +464,12 @@ const AccountCompanyInformation: React.FC<InlinedCompanyInformationProps> = ({
                       <Tooltip>
                         <TooltipTrigger asChild>
                           <div className="gba:flex gba:flex-col gba:cursor-help">
-                            {(() => {
-                              const lines = value.split('\n')
-                              const firstLine = lines[0] || ''
-                              const postalCodeCityLine = lines[1] || ''
-                              return [firstLine, postalCodeCityLine]
-                                .filter(line => line.trim())
-                                .map((line, index) => (
-                                  <div key={index} className="gba:text-sm gba:leading-snug">
-                                    {line}
-                                  </div>
-                                ))
-                            })()}
+                            <AddressLines value={value} />
                           </div>
                         </TooltipTrigger>
                         <TooltipContent>
                           <div className="gba:flex gba:flex-col gba:gap-1">
-                            {value.split('\n').map((line, index) => (
-                              <div key={index} className="gba:text-sm gba:leading-snug">
-                                {line}
-                              </div>
-                            ))}
+                            <FullAddressTooltip value={value} />
                           </div>
                         </TooltipContent>
                       </Tooltip>

@@ -72,7 +72,7 @@ export const OpportunityView: React.FC<OpportunityViewProps> = context => {
               opportunitiesThisYear: opportunityStatistics.trendData.opportunitiesThisYear,
               isLoading: opportunityStatistics.isLoading,
               error: opportunityStatistics.error,
-              refetch: opportunityStatistics.refetch
+              refetch: () => void opportunityStatistics.refetch()
             }
           : undefined,
         rowActionsContextArray: [FlowContextName.investmentOpportunityEntity],
