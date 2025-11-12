@@ -19,11 +19,13 @@ export interface EmployeeAsset {
       id: string
       code: string
       value: string
+      translations?: Array<{ localeCode: string; value: string; objectValue?: any }>
     }
     assetCategory?: {
       id: string
       code: string
       value: string
+      translations?: Array<{ localeCode: string; value: string; objectValue?: any }>
     }
   }
   startAssetCondition?: {

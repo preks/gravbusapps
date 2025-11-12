@@ -1,10 +1,20 @@
 import React, { useMemo } from 'react'
 import dayjs from 'dayjs'
-import { Card, CardContent, CardHeader, CardTitle } from '@newwork/nw-design-system'
-import { Badge } from '@newwork/nw-design-system'
-import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@newwork/nw-design-system'
-import { Spinner } from '@newwork/nw-design-system'
-import { Button } from '@newwork/nw-design-system'
+import {
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow,
+  Spinner,
+  Button,
+  Badge,
+  Card,
+  CardContent,
+  CardHeader,
+  CardTitle
+} from '@newwork/nw-design-system'
 import { Employee } from '../../hooks/useEmployeeData'
 import { useEmployeeAssets } from '../../hooks/useEmployeeAssets'
 import {
@@ -14,7 +24,7 @@ import {
 import { AssetStatus } from '../../../../apps/assets/types'
 import { PiPackage, PiCalendar, PiWarning } from 'react-icons/pi'
 import { navigateTo } from '@/common/utils/navigationUtils'
-import { getTranslationFromI18nKeyAndLabel, formatDate } from '@/common/utils/windowUtils'
+import { getTranslationFromI18nKeyAndLabel, formatDate, getCatalogValue } from '@/common/utils/windowUtils'
 
 interface AssetsTabProps {
   employee: Employee
@@ -304,15 +314,17 @@ const AssetsTab: React.FC<AssetsTabProps> = ({ employee, accessToken, employeeId
                 <TableRow key={asset.id} data-testid={`asset-row-${asset.id}`}>
                   <TableCell>
                     <div className="gba:font-medium gba:text-foreground">
-                      {asset.asset.assetCategory?.value ||
-                        getTranslationFromI18nKeyAndLabel('lowcoder:hr_assets.not_available', 'N/A')}
+                      {asset.asset.assetCategory
+                        ? getCatalogValue(asset.asset.assetCategory)
+                        : getTranslationFromI18nKeyAndLabel('lowcoder:hr_assets.not_available', 'N/A')}
                     </div>
                   </TableCell>
                   <TableCell>
                     <div className="gba:space-y-1">
                       <div className="gba:font-medium gba:text-foreground">
-                        {asset.asset.assetBrand?.value ||
-                          getTranslationFromI18nKeyAndLabel('lowcoder:hr_assets.unknown', 'Unknown')}
+                        {asset.asset.assetBrand
+                          ? getCatalogValue(asset.asset.assetBrand)
+                          : getTranslationFromI18nKeyAndLabel('lowcoder:hr_assets.unknown', 'Unknown')}
                       </div>
                       <div className="gba:text-sm gba:text-muted-foreground">{asset.asset.model}</div>
                     </div>
@@ -403,7 +415,10 @@ const AssetsTab: React.FC<AssetsTabProps> = ({ employee, accessToken, employeeId
                   data-testid={`asset-note-${asset.id}`}
                 >
                   <div className="gba:font-medium gba:text-sm gba:text-foreground gba:mb-1">
-                    {asset.asset.assetBrand?.value} {asset.asset.model}
+                    {asset.asset.assetBrand
+                      ? getCatalogValue(asset.asset.assetBrand)
+                      : getTranslationFromI18nKeyAndLabel('lowcoder:hr_assets.unknown', 'Unknown')}{' '}
+                    {asset.asset.model}
                   </div>
                   <div className="gba:text-sm gba:text-muted-foreground">{asset.notes}</div>
                 </div>
