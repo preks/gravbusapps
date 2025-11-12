@@ -162,6 +162,27 @@ const DocumentPopup: React.FC<DocumentPopupProps> = ({ initialValues = {}, ...pr
 
   const isUpdateMode = !!(initialValues as any)?.investmentDocument?.id
 
+  const aiSuggestionText = useMemo(() => {
+    if (!aiSuggestion) return ''
+    const g = aiSuggestion.group || '—'
+    const t = aiSuggestion.type || '—'
+    const tpl = getTranslationFromI18nKeyAndLabel(
+      'irm:document.ai.suggestion',
+      'AI suggestion: Group = {group}, Type = {type}',
+      { group: g, type: t }
+    )
+    const filled = tpl.replace('{group}', g).replace('{{group}}', g).replace('{type}', t).replace('{{type}}', t)
+    if (
+      filled.includes('{group}') ||
+      filled.includes('{{group}}') ||
+      filled.includes('{type}') ||
+      filled.includes('{{type}}')
+    ) {
+      return `AI suggestion: Group = ${g}, Type = ${t}`
+    }
+    return filled
+  }, [aiSuggestion])
+
   // ===== Handlers extracted to reduce function nesting in JSX =====
   const handleApplyAiSuggestion = React.useCallback(() => {
     if (!aiSuggestion) return
@@ -859,31 +880,7 @@ const DocumentPopup: React.FC<DocumentPopupProps> = ({ initialValues = {}, ...pr
               {!aiLoading && aiError && <span data-testid="DocumentPopup-ai-status-error">{aiError}</span>}
               {!aiLoading && !aiError && aiSuggestion && (
                 <div className="gba:flex gba:flex-col gba:gap-1" data-testid="DocumentPopup-ai-status-suggestion">
-                  <span>
-                    {(() => {
-                      const g = aiSuggestion.group || '—'
-                      const t = aiSuggestion.type || '—'
-                      const tpl = getTranslationFromI18nKeyAndLabel(
-                        'irm:document.ai.suggestion',
-                        'AI suggestion: Group = {group}, Type = {type}',
-                        { group: g, type: t }
-                      )
-                      const filled = tpl
-                        .replace('{group}', g)
-                        .replace('{{group}}', g)
-                        .replace('{type}', t)
-                        .replace('{{type}}', t)
-                      if (
-                        filled.includes('{group}') ||
-                        filled.includes('{{group}}') ||
-                        filled.includes('{type}') ||
-                        filled.includes('{{type}}')
-                      ) {
-                        return `AI suggestion: Group = ${g}, Type = ${t}`
-                      }
-                      return filled
-                    })()}
-                  </span>
+                  <span>{aiSuggestionText}</span>
                   <div className="gba:flex gba:gap-2">
                     <Button
                       type="button"
