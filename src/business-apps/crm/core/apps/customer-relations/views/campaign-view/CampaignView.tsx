@@ -8,7 +8,7 @@ import { useGetCampaignTypes } from './components/campaign-list/hooks/useGetCamp
 import { CampaignStatistics } from './components'
 import { navigateTo, buildPlatformUrl } from '@/common/utils/navigationUtils'
 import { AppAction } from '@/components/app-action/AppAction'
-import { AppActionButton } from '@/components/app-action-button/AppActionButton'
+import { AppActionMenu } from '@/components/app-action-menu/AppActionMenu'
 import { FlowContextName } from '@/common/types/FlowRegistryTypes'
 import { getTranslationFromI18nKeyAndLabel } from '@/common/utils/windowUtils'
 import type { SalesCampaign } from './components/campaign-list/types/SalesCampaignTypes'
@@ -21,17 +21,25 @@ const CampaignRowActions: React.FC<{
   campaignId: string
   accessToken: string
 }> = ({ campaignId, accessToken }) => (
-  <AppActionButton
-    data-testid={`campaign-actions-${campaignId}`}
-    size="icon"
+  <AppActionMenu
     contextsArray={[FlowContextName.customerCampaignEntity]}
     externalContextData={{ campaignId }}
     prefixDataTestId="campaign-actions"
     accessToken={accessToken}
     emptyStateBehavior="enable"
     deferMainContextRequestsUntilClick
-    onClick={(e: any) => e.stopPropagation()}
-  />
+  >
+    <Button variant="ghost" size="icon" data-testid={`campaign-actions-${campaignId}`}>
+      <svg className="gba:h-4 gba:w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+        <path
+          strokeLinecap="round"
+          strokeLinejoin="round"
+          strokeWidth={2}
+          d="M12 5v.01M12 12v.01M12 19v.01M12 6a1 1 0 110-2 1 1 0 010 2zm0 7a1 1 0 110-2 1 1 0 010 2zm0 7a1 1 0 110-2 1 1 0 010 2z"
+        />
+      </svg>
+    </Button>
+  </AppActionMenu>
 )
 
 const CampaignView: React.FC<CampaignViewProps> = props => {
