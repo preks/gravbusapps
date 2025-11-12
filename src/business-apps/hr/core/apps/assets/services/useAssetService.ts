@@ -30,35 +30,22 @@ import {
 } from '../queries/assetQueries'
 import { Asset, AssetAllocation, AssetStatistics, AssetStatus } from '../types'
 
-/**
- * Hook to provide asset service operations
- */
 export const useAssetService = (context: BusinessAppContextProps) => {
   const graphQLClient = useGraphQLClient(context.accessToken)
 
-  /**
-   * Fetch all assets with optional filtering and pagination
-   */
   const getAssets = useCallback(
     async (variables: AssetQueryVariables = {}) => {
       try {
-        // Build where condition - only filter by isDeleted
-        // Ensure we get all assets regardless of who created them
-        // If variables.where is provided, merge it properly but ensure isDeleted filter is always present
         const baseWhere: any = { isDeleted: { _eq: false } }
 
         let finalWhere: any = baseWhere
 
-        // If variables.where is provided, merge it with baseWhere using _and
         if (variables.where) {
-          // Check if variables.where already has _and
           if (variables.where._and) {
-            // Add baseWhere to the _and array if not already present
             finalWhere = {
               _and: [baseWhere, ...variables.where._and]
             }
           } else {
-            // Merge baseWhere with variables.where
             finalWhere = {
               _and: [baseWhere, variables.where]
             }
@@ -72,33 +59,12 @@ export const useAssetService = (context: BusinessAppContextProps) => {
           offset: variables.offset
         }
 
-        // DEBUG: Log the query variables to verify we're not filtering by creator
-        console.log('[useAssetService] Fetching assets with variables:', {
-          where: JSON.stringify(defaultVariables.where, null, 2),
-          limit: defaultVariables.limit,
-          offset: defaultVariables.offset
-        })
-
         const result = await graphQLClient.request<{
           Asset: any[]
           AssetAggregate: { aggregate: { count: number } }
         }>(GET_ASSETS, defaultVariables)
 
-        // DEBUG: Log the results to see how many assets were returned
-        console.log('[useAssetService] Received assets:', {
-          count: result.Asset.length,
-          totalCount: result.AssetAggregate.aggregate.count,
-          sampleCreatedBy: result.Asset.slice(0, 3).map(a => ({ id: a.id, createdBy: a.createdBy }))
-        })
-
         const assets: Asset[] = result.Asset.map((asset: any) => {
-          if (asset.siteLocationId && !asset.siteLocation) {
-            console.warn('[useAssetService] Asset has siteLocationId but no siteLocation relation:', {
-              assetId: asset.id,
-              siteLocationId: asset.siteLocationId,
-              siteLocation: asset.siteLocation
-            })
-          }
           return {
             id: asset.id,
             model: asset.model,
@@ -135,9 +101,6 @@ export const useAssetService = (context: BusinessAppContextProps) => {
     [graphQLClient]
   )
 
-  /**
-   * Fetch a single asset by ID
-   */
   const getAssetById = useCallback(
     async (id: string) => {
       try {
@@ -148,13 +111,7 @@ export const useAssetService = (context: BusinessAppContextProps) => {
         }
 
         const asset = result.Asset[0]
-        if (asset.siteLocationId && !asset.siteLocation) {
-          console.warn('[useAssetService] Asset by ID has siteLocationId but no siteLocation relation:', {
-            assetId: asset.id,
-            siteLocationId: asset.siteLocationId,
-            siteLocation: asset.siteLocation
-          })
-        }
+
         return {
           id: asset.id,
           model: asset.model,
@@ -185,9 +142,6 @@ export const useAssetService = (context: BusinessAppContextProps) => {
     [graphQLClient]
   )
 
-  /**
-   * Fetch asset statistics
-   */
   const getAssetStatistics = useCallback(async () => {
     try {
       const result = await graphQLClient.request<AssetStatisticsResponse>(GET_ASSET_STATISTICS)
@@ -196,7 +150,7 @@ export const useAssetService = (context: BusinessAppContextProps) => {
         totalAssets: result.totalAssets.aggregate.count,
         allocatedAssets: result.allocatedAssets.aggregate.count,
         availableAssets: result.availableAssets.aggregate.count,
-        underRepairAssets: 0, // Not in DB schema
+        underRepairAssets: 0,
         retiredAssets: result.retiredAssets.aggregate.count
       } as AssetStatistics
     } catch (error) {
@@ -205,9 +159,6 @@ export const useAssetService = (context: BusinessAppContextProps) => {
     }
   }, [graphQLClient])
 
-  /**
-   * Create a new asset
-   */
   const createAsset = useCallback(
     async (assetData: Omit<Asset, 'id' | 'version' | 'isDeleted' | 'createdAt' | 'updatedAt'>) => {
       try {
@@ -260,9 +211,6 @@ export const useAssetService = (context: BusinessAppContextProps) => {
     [graphQLClient]
   )
 
-  /**
-   * Update an existing asset
-   */
   const updateAsset = useCallback(
     async (id: string, version: number, updates: Partial<Asset>) => {
       try {
@@ -313,9 +261,6 @@ export const useAssetService = (context: BusinessAppContextProps) => {
     [graphQLClient]
   )
 
-  /**
-   * Delete an asset
-   */
   const deleteAsset = useCallback(
     async (id: string, version: number) => {
       try {
@@ -329,9 +274,6 @@ export const useAssetService = (context: BusinessAppContextProps) => {
     [graphQLClient]
   )
 
-  /**
-   * Get all allocations for a specific asset
-   */
   const getAllocationsForAsset = useCallback(
     async (assetId: string) => {
       try {
@@ -365,9 +307,6 @@ export const useAssetService = (context: BusinessAppContextProps) => {
     [graphQLClient]
   )
 
-  /**
-   * Get current allocation for an asset
-   */
   const getCurrentAllocation = useCallback(
     async (assetId: string) => {
       try {
@@ -404,9 +343,6 @@ export const useAssetService = (context: BusinessAppContextProps) => {
     [graphQLClient]
   )
 
-  /**
-   * Allocate an asset to an employee
-   */
   const allocateAsset = useCallback(
     async (allocationData: Omit<AssetAllocation, 'id' | 'version' | 'isDeleted' | 'createdAt' | 'updatedAt'>) => {
       try {
@@ -449,9 +385,6 @@ export const useAssetService = (context: BusinessAppContextProps) => {
     [graphQLClient]
   )
 
-  /**
-   * Deallocate an asset (return it)
-   */
   const deallocateAsset = useCallback(
     async (id: string, version: number, endDate: string, endAssetConditionRef?: string) => {
       try {

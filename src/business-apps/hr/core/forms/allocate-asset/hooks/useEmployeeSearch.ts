@@ -61,14 +61,8 @@ export const useEmployeeSearch = (accessToken: string) => {
       }
 
       const structureId = getCurrentActiveStructureId()
-      console.log('useEmployeeSearch: searchEmployees called', {
-        hasAccessToken: !!accessToken,
-        structureId: structureId,
-        search
-      })
 
       if (!structureId) {
-        console.log('useEmployeeSearch: No active structure ID found')
         setError('No active structure ID available')
         return
       }
@@ -77,7 +71,6 @@ export const useEmployeeSearch = (accessToken: string) => {
       setError(null)
 
       try {
-        console.log('useEmployeeSearch: Fetching employees for structureId:', structureId)
         const searchPattern = search ? `%${search}%` : '%'
 
         const result = await graphqlClient.request<any>(GET_EMPLOYEES, {
@@ -85,8 +78,6 @@ export const useEmployeeSearch = (accessToken: string) => {
           search: searchPattern,
           limit: 50
         })
-
-        console.log('useEmployeeSearch: Received response:', result)
 
         const employeeOptions: EmployeeOption[] = result.EmployeePosition.map((emp: any) => ({
           id: emp.employeeId,
@@ -109,7 +100,6 @@ export const useEmployeeSearch = (accessToken: string) => {
     [accessToken, graphqlClient]
   )
 
-  // Initial load
   useEffect(() => {
     searchEmployees()
   }, [searchEmployees])
