@@ -15,9 +15,18 @@ import {
 } from '@newwork/nw-design-system'
 import { CalendarIcon, MapPinIcon, TagIcon, CurrencyDollarIcon } from '@phosphor-icons/react'
 import { AppActionButton } from '@/components/app-action-button/AppActionButton'
-import { getTranslationFromI18nKeyAndLabel } from '@/common/utils/windowUtils'
+import {
+  getTranslationFromI18nKeyAndLabel,
+  formatDate,
+  formatNumberFunction,
+  getCurrentActiveUserLocale,
+  getCatalogValue
+} from '@/common/utils/windowUtils'
 import dayjs from 'dayjs'
 import relativeTime from 'dayjs/plugin/relativeTime'
+import 'dayjs/locale/en'
+import 'dayjs/locale/de'
+import 'dayjs/locale/ro'
 
 dayjs.extend(relativeTime)
 
@@ -50,16 +59,16 @@ const getStatusBadgeVariant = (status: AssetStatus): 'success' | 'info' | 'warni
 
 const formatStatus = (status: AssetStatus | string): string => {
   if (status === AssetStatus.AVAILABLE) {
-    return 'Available'
+    return getTranslationFromI18nKeyAndLabel('lowcoder:hr_assets.status_available', 'Available')
   }
   if (status === AssetStatus.ALLOCATED) {
-    return 'Allocated'
+    return getTranslationFromI18nKeyAndLabel('lowcoder:hr_assets.status_allocated', 'Allocated')
   }
   if (status === AssetStatus.UNDER_REPAIR) {
-    return 'In Repair'
+    return getTranslationFromI18nKeyAndLabel('lowcoder:hr_assets.status_in_repair', 'In Repair')
   }
   if (status === AssetStatus.RETIRED) {
-    return 'Retired'
+    return getTranslationFromI18nKeyAndLabel('lowcoder:hr_assets.status_retired', 'Retired')
   }
   // Fallback: format by removing _ASSET and replacing underscores with spaces, then capitalize
   const statusStr = status as string
@@ -71,19 +80,11 @@ const formatStatus = (status: AssetStatus | string): string => {
 }
 
 const formatCurrency = (amount: number, currency?: string): string => {
+  const formattedAmount = formatNumberFunction(amount)
   if (!currency) {
-    return `${amount}`
+    return formattedAmount
   }
-  return new Intl.NumberFormat('en-US', {
-    style: 'currency',
-    currency: currency,
-    minimumFractionDigits: 0,
-    maximumFractionDigits: 0
-  }).format(amount)
-}
-
-const formatDate = (dateString: string): string => {
-  return dayjs(dateString).format('MMM D, YYYY')
+  return `${formattedAmount} ${currency}`
 }
 
 const isWarrantyExpired = (expiryDate: string): boolean => {
@@ -115,9 +116,9 @@ export const AssetDetailPanel: React.FC<AssetDetailPanelProps> = ({
 
     if (!isRetired && onUpdateAsset) {
       actions.push({
-        category: getTranslationFromI18nKeyAndLabel('lowcoder:employee_list.flows_button.actions', 'Actions'),
+        category: getTranslationFromI18nKeyAndLabel('lowcoder:personal_expenses.actions', 'Actions'),
         key: 'update-asset',
-        label: getTranslationFromI18nKeyAndLabel('lowcoder:asset_list.asset_flows.update_asset', 'Update Asset'),
+        label: getTranslationFromI18nKeyAndLabel('lowcoder:hr_assets.update_asset', 'Update Asset'),
         onClick: (e?: React.MouseEvent) => {
           e?.stopPropagation()
           onUpdateAsset(asset.id)
@@ -127,9 +128,9 @@ export const AssetDetailPanel: React.FC<AssetDetailPanelProps> = ({
 
     if (!isAllocated && !isRetired && onAllocateAsset) {
       actions.push({
-        category: getTranslationFromI18nKeyAndLabel('lowcoder:employee_list.flows_button.actions', 'Actions'),
+        category: getTranslationFromI18nKeyAndLabel('lowcoder:personal_expenses.actions', 'Actions'),
         key: 'allocate-asset',
-        label: getTranslationFromI18nKeyAndLabel('lowcoder:asset_list.asset_flows.allocate_asset', 'Allocate Asset'),
+        label: getTranslationFromI18nKeyAndLabel('lowcoder:hr_assets.allocate_asset', 'Allocate Asset'),
         onClick: (e?: React.MouseEvent) => {
           e?.stopPropagation()
           onAllocateAsset(asset.id)
@@ -139,9 +140,9 @@ export const AssetDetailPanel: React.FC<AssetDetailPanelProps> = ({
 
     if (isAllocated && !isRetired && onRetrieveAsset) {
       actions.push({
-        category: getTranslationFromI18nKeyAndLabel('lowcoder:employee_list.flows_button.actions', 'Actions'),
+        category: getTranslationFromI18nKeyAndLabel('lowcoder:personal_expenses.actions', 'Actions'),
         key: 'retrieve-asset',
-        label: getTranslationFromI18nKeyAndLabel('lowcoder:asset_list.asset_flows.retrieve_asset', 'Retrieve Asset'),
+        label: getTranslationFromI18nKeyAndLabel('lowcoder:hr_assets.retrieve_asset', 'Retrieve Asset'),
         onClick: (e?: React.MouseEvent) => {
           e?.stopPropagation()
           onRetrieveAsset(asset.id)
@@ -151,9 +152,9 @@ export const AssetDetailPanel: React.FC<AssetDetailPanelProps> = ({
 
     if (!isRetired && onRetireAsset) {
       actions.push({
-        category: getTranslationFromI18nKeyAndLabel('lowcoder:employee_list.flows_button.actions', 'Actions'),
+        category: getTranslationFromI18nKeyAndLabel('lowcoder:personal_expenses.actions', 'Actions'),
         key: 'retire-asset',
-        label: getTranslationFromI18nKeyAndLabel('lowcoder:asset_list.asset_flows.retire_asset', 'Retire Asset'),
+        label: getTranslationFromI18nKeyAndLabel('lowcoder:hr_assets.retire_asset', 'Retire Asset'),
         onClick: (e?: React.MouseEvent) => {
           e?.stopPropagation()
           onRetireAsset(asset.id)
@@ -163,6 +164,11 @@ export const AssetDetailPanel: React.FC<AssetDetailPanelProps> = ({
 
     return actions
   }, [asset.id, isAllocated, isRetired, onAllocateAsset, onUpdateAsset, onRetireAsset, onRetrieveAsset])
+
+  const userLocale = getCurrentActiveUserLocale()
+  const localeCode = userLocale.split('-')[0].toLowerCase()
+  const dayjsLocale = localeCode === 'ro' ? 'ro' : localeCode === 'de' ? 'de' : 'en'
+  dayjs.locale(dayjsLocale)
 
   const acquisitionDate = dayjs(asset.acquisitionDate)
   const warrantyExpiryDate = acquisitionDate.add(asset.warrantyPeriodMonths, 'month')
@@ -178,10 +184,13 @@ export const AssetDetailPanel: React.FC<AssetDetailPanelProps> = ({
           <div className="gba:flex gba:items-start gba:justify-between gba:gap-3">
             <div className="gba:flex-1 gba:min-w-0">
               <SheetTitle data-testid="asset-detail-title">
-                {asset.assetBrand?.value || 'Unknown'} {asset.model}
+                {asset.assetBrand?.value || getTranslationFromI18nKeyAndLabel('lowcoder:hr_assets.unknown', 'Unknown')}{' '}
+                {asset.model}
               </SheetTitle>
               <SheetDescription data-testid="asset-detail-category">
-                {asset.assetCategory?.value || 'N/A'}
+                {asset.assetCategory
+                  ? getCatalogValue(asset.assetCategory)
+                  : getTranslationFromI18nKeyAndLabel('lowcoder:hr_assets.not_available', 'N/A')}
               </SheetDescription>
             </div>
             <div className="gba:flex gba:items-center gba:gap-2 gba:shrink-0 gba:mr-8">
@@ -196,7 +205,9 @@ export const AssetDetailPanel: React.FC<AssetDetailPanelProps> = ({
                 accessToken={accessToken}
                 emptyStateBehavior="enable"
                 deferMainContextRequestsUntilClick
-              />
+              >
+                {getTranslationFromI18nKeyAndLabel('lowcoder:personal_expenses.actions', 'Actions')}
+              </AppActionButton>
             </div>
           </div>
         </SheetHeader>
@@ -204,13 +215,17 @@ export const AssetDetailPanel: React.FC<AssetDetailPanelProps> = ({
         <div className="gba:mt-6 gba:space-y-6">
           <Card data-testid="asset-info-card">
             <CardHeader>
-              <CardTitle className="gba:text-base">Asset Information</CardTitle>
+              <CardTitle className="gba:text-base">
+                {getTranslationFromI18nKeyAndLabel('lowcoder:hr_assets.asset_information', 'Asset Information')}
+              </CardTitle>
             </CardHeader>
             <CardContent className="gba:space-y-4">
               <div className="gba:flex gba:items-start gba:gap-3">
                 <TagIcon size={20} className="gba:text-muted-foreground gba:mt-0.5" />
                 <div className="gba:flex-1">
-                  <p className="gba:text-sm gba:font-medium">Serial Number</p>
+                  <p className="gba:text-sm gba:font-medium">
+                    {getTranslationFromI18nKeyAndLabel('lowcoder:hr_assets.serial_number', 'Serial Number')}
+                  </p>
                   <p className="gba:text-sm gba:text-muted-foreground gba:font-mono" data-testid="asset-serial-number">
                     {asset.serialNumber}
                   </p>
@@ -222,9 +237,12 @@ export const AssetDetailPanel: React.FC<AssetDetailPanelProps> = ({
               <div className="gba:flex gba:items-start gba:gap-3">
                 <MapPinIcon size={20} className="gba:text-muted-foreground gba:mt-0.5" />
                 <div className="gba:flex-1">
-                  <p className="gba:text-sm gba:font-medium">Location</p>
+                  <p className="gba:text-sm gba:font-medium">
+                    {getTranslationFromI18nKeyAndLabel('lowcoder:hr_assets.location', 'Location')}
+                  </p>
                   <p className="gba:text-sm gba:text-muted-foreground" data-testid="asset-location">
-                    {asset.siteLocation?.name || 'N/A'}
+                    {asset.siteLocation?.name ||
+                      getTranslationFromI18nKeyAndLabel('lowcoder:hr_assets.not_available', 'N/A')}
                   </p>
                 </div>
               </div>
@@ -234,7 +252,9 @@ export const AssetDetailPanel: React.FC<AssetDetailPanelProps> = ({
               <div className="gba:flex gba:items-start gba:gap-3">
                 <CurrencyDollarIcon size={20} className="gba:text-muted-foreground gba:mt-0.5" />
                 <div className="gba:flex-1">
-                  <p className="gba:text-sm gba:font-medium">Inventory Value</p>
+                  <p className="gba:text-sm gba:font-medium">
+                    {getTranslationFromI18nKeyAndLabel('lowcoder:hr_assets.inventory_value', 'Inventory Value')}
+                  </p>
                   <p className="gba:text-sm gba:text-muted-foreground" data-testid="asset-value">
                     {formatCurrency(asset.inventoryValue, asset.currency?.code)}
                   </p>
@@ -246,9 +266,11 @@ export const AssetDetailPanel: React.FC<AssetDetailPanelProps> = ({
               <div className="gba:flex gba:items-start gba:gap-3">
                 <CalendarIcon size={20} className="gba:text-muted-foreground gba:mt-0.5" />
                 <div className="gba:flex-1">
-                  <p className="gba:text-sm gba:font-medium">Acquisition Date</p>
+                  <p className="gba:text-sm gba:font-medium">
+                    {getTranslationFromI18nKeyAndLabel('lowcoder:hr_assets.acquisition_date', 'Acquisition Date')}
+                  </p>
                   <p className="gba:text-sm gba:text-muted-foreground" data-testid="asset-acquisition-date">
-                    {formatDate(asset.acquisitionDate)}
+                    {formatDate(asset.acquisitionDate) || asset.acquisitionDate}
                   </p>
                 </div>
               </div>
@@ -257,25 +279,33 @@ export const AssetDetailPanel: React.FC<AssetDetailPanelProps> = ({
 
           <Card data-testid="asset-warranty-card">
             <CardHeader>
-              <CardTitle className="gba:text-base">Warranty</CardTitle>
+              <CardTitle className="gba:text-base">
+                {getTranslationFromI18nKeyAndLabel('lowcoder:hr_assets.warranty', 'Warranty')}
+              </CardTitle>
             </CardHeader>
             <CardContent className="gba:space-y-4">
               <div className="gba:flex gba:items-center gba:justify-between">
                 <div>
-                  <p className="gba:text-sm gba:font-medium">Warranty Period</p>
-                  <p className="gba:text-sm gba:text-muted-foreground">{asset.warrantyPeriodMonths} months</p>
+                  <p className="gba:text-sm gba:font-medium">
+                    {getTranslationFromI18nKeyAndLabel('lowcoder:hr_assets.warranty_period', 'Warranty Period')}
+                  </p>
+                  <p className="gba:text-sm gba:text-muted-foreground">
+                    {asset.warrantyPeriodMonths}{' '}
+                    {getTranslationFromI18nKeyAndLabel('lowcoder:hr_assets.months', 'months')}
+                  </p>
                 </div>
                 {warrantyExpired ? (
                   <Badge variant="destructive" data-testid="warranty-status-expired">
-                    Expired
+                    {getTranslationFromI18nKeyAndLabel('lowcoder:hr_assets.expired', 'Expired')}
                   </Badge>
                 ) : daysRemaining < 90 ? (
                   <Badge variant="warning" data-testid="warranty-status-expiring">
-                    {Math.ceil(daysRemaining / 30)} mo left
+                    {Math.ceil(daysRemaining / 30)}{' '}
+                    {getTranslationFromI18nKeyAndLabel('lowcoder:hr_assets.mo_left', 'mo left')}
                   </Badge>
                 ) : (
                   <Badge variant="success" data-testid="warranty-status-valid">
-                    Valid
+                    {getTranslationFromI18nKeyAndLabel('lowcoder:hr_assets.valid', 'Valid')}
                   </Badge>
                 )}
               </div>
@@ -283,9 +313,11 @@ export const AssetDetailPanel: React.FC<AssetDetailPanelProps> = ({
               <Separator />
 
               <div>
-                <p className="gba:text-sm gba:font-medium">Expiry Date</p>
+                <p className="gba:text-sm gba:font-medium">
+                  {getTranslationFromI18nKeyAndLabel('lowcoder:hr_assets.expiry_date', 'Expiry Date')}
+                </p>
                 <p className="gba:text-sm gba:text-muted-foreground" data-testid="warranty-expiry-date">
-                  {formatDate(warrantyExpiryDate.toISOString())}
+                  {formatDate(warrantyExpiryDate.toISOString()) || warrantyExpiryDate.toISOString()}
                   {!warrantyExpired && <span className="gba:text-xs gba:ml-2">({warrantyExpiryDate.fromNow()})</span>}
                 </p>
               </div>
@@ -295,7 +327,9 @@ export const AssetDetailPanel: React.FC<AssetDetailPanelProps> = ({
           {asset.notes && (
             <Card data-testid="asset-notes-card">
               <CardHeader>
-                <CardTitle className="gba:text-base">Notes</CardTitle>
+                <CardTitle className="gba:text-base">
+                  {getTranslationFromI18nKeyAndLabel('lowcoder:hr_assets.notes', 'Notes')}
+                </CardTitle>
               </CardHeader>
               <CardContent>
                 <p className="gba:text-sm gba:text-muted-foreground" data-testid="asset-notes">
@@ -307,7 +341,9 @@ export const AssetDetailPanel: React.FC<AssetDetailPanelProps> = ({
 
           <Card data-testid="asset-allocation-history-card">
             <CardHeader>
-              <CardTitle className="gba:text-base">Allocation History</CardTitle>
+              <CardTitle className="gba:text-base">
+                {getTranslationFromI18nKeyAndLabel('lowcoder:hr_assets.allocation_history_title', 'Allocation History')}
+              </CardTitle>
             </CardHeader>
             <CardContent>
               {sortedAllocations.length === 0 ? (
@@ -315,7 +351,10 @@ export const AssetDetailPanel: React.FC<AssetDetailPanelProps> = ({
                   className="gba:text-sm gba:text-muted-foreground gba:text-center gba:py-4"
                   data-testid="no-allocation-history"
                 >
-                  No allocation history available
+                  {getTranslationFromI18nKeyAndLabel(
+                    'lowcoder:hr_assets.allocation_history_empty',
+                    'No allocation history available for this asset.'
+                  )}
                 </p>
               ) : (
                 <div className="gba:space-y-4">
@@ -340,12 +379,15 @@ export const AssetDetailPanel: React.FC<AssetDetailPanelProps> = ({
                               data-testid={`allocation-employee-${allocation.id}`}
                             >
                               {allocation.employee?.displayName ||
-                                allocation.employee?.firstName + ' ' + allocation.employee?.lastName ||
-                                'Unknown Employee'}
+                                `${allocation.employee?.firstName || ''} ${allocation.employee?.lastName || ''}`.trim() ||
+                                getTranslationFromI18nKeyAndLabel(
+                                  'lowcoder:hr_assets.unknown_employee',
+                                  'Unknown Employee'
+                                )}
                             </p>
                             {!allocation.endDate && (
                               <Badge variant="success" data-testid={`allocation-status-${allocation.id}`}>
-                                Current
+                                {getTranslationFromI18nKeyAndLabel('lowcoder:hr_assets.current', 'Current')}
                               </Badge>
                             )}
                           </div>
@@ -354,9 +396,11 @@ export const AssetDetailPanel: React.FC<AssetDetailPanelProps> = ({
                             className="gba:text-xs gba:text-muted-foreground"
                             data-testid={`allocation-dates-${allocation.id}`}
                           >
-                            {formatDate(allocation.startDate)}
+                            {formatDate(allocation.startDate) || allocation.startDate}
                             {' → '}
-                            {allocation.endDate ? formatDate(allocation.endDate) : 'Present'}
+                            {allocation.endDate
+                              ? formatDate(allocation.endDate) || allocation.endDate
+                              : getTranslationFromI18nKeyAndLabel('lowcoder:hr_assets.present', 'Present')}
                           </p>
 
                           {allocation.startAssetCondition && (
@@ -364,7 +408,11 @@ export const AssetDetailPanel: React.FC<AssetDetailPanelProps> = ({
                               className="gba:text-xs gba:text-muted-foreground gba:mt-1"
                               data-testid={`allocation-condition-start-${allocation.id}`}
                             >
-                              Condition at handover: {allocation.startAssetCondition.value}
+                              {getTranslationFromI18nKeyAndLabel(
+                                'lowcoder:hr_assets.condition_at_handover',
+                                'Condition at handover'
+                              )}
+                              : {allocation.startAssetCondition.value}
                             </p>
                           )}
 
@@ -373,7 +421,11 @@ export const AssetDetailPanel: React.FC<AssetDetailPanelProps> = ({
                               className="gba:text-xs gba:text-muted-foreground"
                               data-testid={`allocation-condition-end-${allocation.id}`}
                             >
-                              Condition at return: {allocation.endAssetCondition.value}
+                              {getTranslationFromI18nKeyAndLabel(
+                                'lowcoder:hr_assets.condition_at_return',
+                                'Condition at return'
+                              )}
+                              : {allocation.endAssetCondition.value}
                             </p>
                           )}
                         </div>

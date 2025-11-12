@@ -2,18 +2,11 @@ import React from 'react'
 import { AssetAllocation } from '../types'
 import { Card, CardHeader, CardTitle, CardContent, Badge } from '@newwork/nw-design-system'
 import { UserIcon, CalendarIcon, CheckCircleIcon } from '@phosphor-icons/react'
+import { getTranslationFromI18nKeyAndLabel, formatDate } from '@/common/utils/windowUtils'
 
 interface AssetAllocationHistoryProps {
   allocations: AssetAllocation[]
   isLoading?: boolean
-}
-
-const formatDate = (dateString: string): string => {
-  return new Date(dateString).toLocaleDateString('en-US', {
-    year: 'numeric',
-    month: 'short',
-    day: 'numeric'
-  })
 }
 
 const calculateDuration = (startDate: string, endDate?: string): string => {
@@ -23,14 +16,30 @@ const calculateDuration = (startDate: string, endDate?: string): string => {
   const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24))
 
   if (diffDays < 30) {
-    return `${diffDays} days`
+    const daysLabel =
+      diffDays === 1
+        ? getTranslationFromI18nKeyAndLabel('lowcoder:hr_assets.duration_day', 'day')
+        : getTranslationFromI18nKeyAndLabel('lowcoder:hr_assets.duration_days', 'days')
+    return `${diffDays} ${daysLabel}`
   } else if (diffDays < 365) {
     const months = Math.floor(diffDays / 30)
-    return `${months} month${months > 1 ? 's' : ''}`
+    const monthLabel =
+      months === 1
+        ? getTranslationFromI18nKeyAndLabel('lowcoder:hr_assets.duration_month', 'month')
+        : getTranslationFromI18nKeyAndLabel('lowcoder:hr_assets.duration_months', 'months')
+    return `${months} ${monthLabel}`
   } else {
     const years = Math.floor(diffDays / 365)
     const remainingMonths = Math.floor((diffDays % 365) / 30)
-    return `${years} year${years > 1 ? 's' : ''}${remainingMonths > 0 ? ` ${remainingMonths} month${remainingMonths > 1 ? 's' : ''}` : ''}`
+    const yearLabel =
+      years === 1
+        ? getTranslationFromI18nKeyAndLabel('lowcoder:hr_assets.duration_year', 'year')
+        : getTranslationFromI18nKeyAndLabel('lowcoder:hr_assets.duration_years', 'years')
+    const monthLabel =
+      remainingMonths === 1
+        ? getTranslationFromI18nKeyAndLabel('lowcoder:hr_assets.duration_month', 'month')
+        : getTranslationFromI18nKeyAndLabel('lowcoder:hr_assets.duration_months', 'months')
+    return `${years} ${yearLabel}${remainingMonths > 0 ? ` ${remainingMonths} ${monthLabel}` : ''}`
   }
 }
 
@@ -38,7 +47,12 @@ export const AssetAllocationHistory: React.FC<AssetAllocationHistoryProps> = ({ 
   if (isLoading) {
     return (
       <Card data-testid="asset-allocation-history-loading">
-        <CardContent className="gba:py-8 gba:text-center">Loading allocation history...</CardContent>
+        <CardContent className="gba:py-8 gba:text-center">
+          {getTranslationFromI18nKeyAndLabel(
+            'lowcoder:hr_assets.allocation_history_loading',
+            'Loading allocation history...'
+          )}
+        </CardContent>
       </Card>
     )
   }
@@ -47,7 +61,10 @@ export const AssetAllocationHistory: React.FC<AssetAllocationHistoryProps> = ({ 
     return (
       <Card data-testid="asset-allocation-history-empty">
         <CardContent className="gba:py-8 gba:text-center gba:text-muted-foreground">
-          No allocation history available for this asset.
+          {getTranslationFromI18nKeyAndLabel(
+            'lowcoder:hr_assets.allocation_history_empty',
+            'No allocation history available for this asset.'
+          )}
         </CardContent>
       </Card>
     )
@@ -56,7 +73,9 @@ export const AssetAllocationHistory: React.FC<AssetAllocationHistoryProps> = ({ 
   return (
     <Card data-testid="asset-allocation-history">
       <CardHeader>
-        <CardTitle>Allocation History</CardTitle>
+        <CardTitle>
+          {getTranslationFromI18nKeyAndLabel('lowcoder:hr_assets.allocation_history_title', 'Allocation History')}
+        </CardTitle>
       </CardHeader>
       <CardContent>
         <div className="gba:space-y-4">
@@ -71,11 +90,11 @@ export const AssetAllocationHistory: React.FC<AssetAllocationHistoryProps> = ({ 
                 <span className="gba:font-medium">
                   {allocation.employee?.displayName ||
                     `${allocation.employee?.firstName || ''} ${allocation.employee?.lastName || ''}`.trim() ||
-                    'Unknown Employee'}
+                    getTranslationFromI18nKeyAndLabel('lowcoder:hr_assets.unknown_employee', 'Unknown Employee')}
                 </span>
                 {!allocation.endDate && (
                   <Badge variant="success" data-testid={`allocation-active-${allocation.id}`}>
-                    Current
+                    {getTranslationFromI18nKeyAndLabel('lowcoder:hr_assets.current', 'Current')}
                   </Badge>
                 )}
               </div>
@@ -83,14 +102,14 @@ export const AssetAllocationHistory: React.FC<AssetAllocationHistoryProps> = ({ 
               <div className="gba:flex gba:items-center gba:gap-2 gba:text-sm gba:text-muted-foreground gba:mb-2">
                 <CalendarIcon size={16} />
                 <span>
-                  {formatDate(allocation.startDate)}
+                  {formatDate(allocation.startDate) || allocation.startDate}
                   {allocation.endDate ? (
                     <>
                       {' → '}
-                      {formatDate(allocation.endDate)}
+                      {formatDate(allocation.endDate) || allocation.endDate}
                     </>
                   ) : (
-                    ' → Present'
+                    ` → ${getTranslationFromI18nKeyAndLabel('lowcoder:hr_assets.present', 'Present')}`
                   )}
                 </span>
                 <span className="gba:text-xs">({calculateDuration(allocation.startDate, allocation.endDate)})</span>
@@ -98,14 +117,18 @@ export const AssetAllocationHistory: React.FC<AssetAllocationHistoryProps> = ({ 
 
               {allocation.startAssetCondition && (
                 <div className="gba:text-sm gba:mb-1">
-                  <span className="gba:font-medium">Start Condition: </span>
+                  <span className="gba:font-medium">
+                    {getTranslationFromI18nKeyAndLabel('lowcoder:hr_assets.start_condition', 'Start Condition')}:{' '}
+                  </span>
                   <span className="gba:text-muted-foreground">{allocation.startAssetCondition.value}</span>
                 </div>
               )}
 
               {allocation.endAssetCondition && (
                 <div className="gba:text-sm gba:mb-1">
-                  <span className="gba:font-medium">Return Condition: </span>
+                  <span className="gba:font-medium">
+                    {getTranslationFromI18nKeyAndLabel('lowcoder:hr_assets.return_condition', 'Return Condition')}:{' '}
+                  </span>
                   <span className="gba:text-muted-foreground">{allocation.endAssetCondition.value}</span>
                 </div>
               )}
@@ -113,7 +136,10 @@ export const AssetAllocationHistory: React.FC<AssetAllocationHistoryProps> = ({ 
               {!allocation.endDate && allocation.expectedEndDate && (
                 <div className="gba:text-sm gba:text-muted-foreground gba:flex gba:items-center gba:gap-2">
                   <CheckCircleIcon size={16} />
-                  <span>Expected return: {formatDate(allocation.expectedEndDate)}</span>
+                  <span>
+                    {getTranslationFromI18nKeyAndLabel('lowcoder:hr_assets.expected_return', 'Expected return')}:{' '}
+                    {formatDate(allocation.expectedEndDate) || allocation.expectedEndDate}
+                  </span>
                 </div>
               )}
             </div>

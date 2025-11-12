@@ -36,11 +36,21 @@ export const ASSET_FIELDS = `
     id
     code
     value
+    translations {
+      localeCode
+      value
+      objectValue
+    }
   }
   assetCategory {
     id
     code
     value
+    translations {
+      localeCode
+      value
+      objectValue
+    }
   }
   siteLocation {
     id

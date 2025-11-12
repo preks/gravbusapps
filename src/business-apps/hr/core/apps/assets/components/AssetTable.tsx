@@ -18,7 +18,12 @@ import {
 } from '@newwork/nw-design-system'
 import { BusinessAppContextProps } from '@/common/BusinessAppContext'
 import { AppActionButton } from '@/components/app-action-button/AppActionButton'
-import { getTranslationFromI18nKeyAndLabel } from '@/common/utils/windowUtils'
+import {
+  getTranslationFromI18nKeyAndLabel,
+  formatDate,
+  formatNumberFunction,
+  getCatalogValue
+} from '@/common/utils/windowUtils'
 
 const MemoizedAppActionButton: React.FC<{
   assetId: string
@@ -47,9 +52,9 @@ const MemoizedAppActionButton: React.FC<{
 
     if (!isRetired && onUpdateAsset) {
       actions.push({
-        category: getTranslationFromI18nKeyAndLabel('lowcoder:employee_list.flows_button.actions', 'Actions'),
+        category: getTranslationFromI18nKeyAndLabel('lowcoder:personal_expenses.actions', 'Actions'),
         key: 'update-asset',
-        label: getTranslationFromI18nKeyAndLabel('lowcoder:asset_list.asset_flows.update_asset', 'Update Asset'),
+        label: getTranslationFromI18nKeyAndLabel('lowcoder:hr_assets.update_asset', 'Update Asset'),
         onClick: (e?: React.MouseEvent) => {
           e?.stopPropagation()
           onUpdateAsset(assetId)
@@ -59,9 +64,9 @@ const MemoizedAppActionButton: React.FC<{
 
     if (!isAllocated && !isRetired && onAllocateAsset) {
       actions.push({
-        category: getTranslationFromI18nKeyAndLabel('lowcoder:employee_list.flows_button.actions', 'Actions'),
+        category: getTranslationFromI18nKeyAndLabel('lowcoder:personal_expenses.actions', 'Actions'),
         key: 'allocate-asset',
-        label: getTranslationFromI18nKeyAndLabel('lowcoder:asset_list.asset_flows.allocate_asset', 'Allocate Asset'),
+        label: getTranslationFromI18nKeyAndLabel('lowcoder:hr_assets.allocate_asset', 'Allocate Asset'),
         onClick: (e?: React.MouseEvent) => {
           e?.stopPropagation()
           onAllocateAsset(assetId)
@@ -71,9 +76,9 @@ const MemoizedAppActionButton: React.FC<{
 
     if (isAllocated && !isRetired && onRetrieveAsset) {
       actions.push({
-        category: getTranslationFromI18nKeyAndLabel('lowcoder:employee_list.flows_button.actions', 'Actions'),
+        category: getTranslationFromI18nKeyAndLabel('lowcoder:personal_expenses.actions', 'Actions'),
         key: 'retrieve-asset',
-        label: getTranslationFromI18nKeyAndLabel('lowcoder:asset_list.asset_flows.retrieve_asset', 'Retrieve Asset'),
+        label: getTranslationFromI18nKeyAndLabel('lowcoder:hr_assets.retrieve_asset', 'Retrieve Asset'),
         onClick: (e?: React.MouseEvent) => {
           e?.stopPropagation()
           onRetrieveAsset(assetId)
@@ -83,9 +88,9 @@ const MemoizedAppActionButton: React.FC<{
 
     if (!isRetired && onRetireAsset) {
       actions.push({
-        category: getTranslationFromI18nKeyAndLabel('lowcoder:employee_list.flows_button.actions', 'Actions'),
+        category: getTranslationFromI18nKeyAndLabel('lowcoder:personal_expenses.actions', 'Actions'),
         key: 'retire-asset',
-        label: getTranslationFromI18nKeyAndLabel('lowcoder:asset_list.asset_flows.retire_asset', 'Retire Asset'),
+        label: getTranslationFromI18nKeyAndLabel('lowcoder:hr_assets.retire_asset', 'Retire Asset'),
         onClick: (e?: React.MouseEvent) => {
           e?.stopPropagation()
           onRetireAsset(assetId)
@@ -145,16 +150,16 @@ const getStatusBadgeVariant = (status: AssetStatus): 'success' | 'info' | 'warni
 
 const formatStatus = (status: AssetStatus | string): string => {
   if (status === AssetStatus.AVAILABLE) {
-    return 'Available'
+    return getTranslationFromI18nKeyAndLabel('lowcoder:hr_assets.status_available', 'Available')
   }
   if (status === AssetStatus.ALLOCATED) {
-    return 'Allocated'
+    return getTranslationFromI18nKeyAndLabel('lowcoder:hr_assets.status_allocated', 'Allocated')
   }
   if (status === AssetStatus.UNDER_REPAIR) {
-    return 'In Repair'
+    return getTranslationFromI18nKeyAndLabel('lowcoder:hr_assets.status_in_repair', 'In Repair')
   }
   if (status === AssetStatus.RETIRED) {
-    return 'Retired'
+    return getTranslationFromI18nKeyAndLabel('lowcoder:hr_assets.status_retired', 'Retired')
   }
   // Fallback: format by removing _ASSET and replacing underscores with spaces
   const statusStr = status as string
@@ -164,21 +169,12 @@ const formatStatus = (status: AssetStatus | string): string => {
     .replace(/\b\w/g, l => l.toUpperCase())
 }
 
-const formatCurrency = (amount: number, currency: string): string => {
-  return new Intl.NumberFormat('en-US', {
-    style: 'currency',
-    currency: currency,
-    minimumFractionDigits: 0,
-    maximumFractionDigits: 0
-  }).format(amount)
-}
-
-const formatDate = (dateString: string): string => {
-  return new Date(dateString).toLocaleDateString('en-US', {
-    year: 'numeric',
-    month: 'short',
-    day: 'numeric'
-  })
+const formatCurrency = (amount: number, currency?: string): string => {
+  const formattedAmount = formatNumberFunction(amount)
+  if (!currency) {
+    return formattedAmount
+  }
+  return `${formattedAmount} ${currency}`
 }
 
 interface AssetTableState {
@@ -228,7 +224,7 @@ export const AssetTable: React.FC<AssetTableProps> = ({
       <div className="gba:flex gba:gap-4 gba:flex-wrap">
         <div className="gba:flex-1 gba:min-w-[200px]">
           <Input
-            placeholder="Search assets..."
+            placeholder={getTranslationFromI18nKeyAndLabel('lowcoder:hr_assets.search_assets', 'Search assets...')}
             value={localState.searchQuery}
             onChange={handleSearchChange}
             className="gba:w-full"
@@ -238,10 +234,14 @@ export const AssetTable: React.FC<AssetTableProps> = ({
 
         <Select value={localState.statusFilter} onValueChange={handleStatusFilterChange}>
           <SelectTrigger className="gba:w-[180px]" data-testid="asset-status-filter">
-            <SelectValue placeholder="All Statuses" />
+            <SelectValue
+              placeholder={getTranslationFromI18nKeyAndLabel('lowcoder:hr_assets.all_statuses', 'All Statuses')}
+            />
           </SelectTrigger>
           <SelectContent>
-            <SelectItem value="all">All Statuses</SelectItem>
+            <SelectItem value="all">
+              {getTranslationFromI18nKeyAndLabel('lowcoder:hr_assets.all_statuses', 'All Statuses')}
+            </SelectItem>
             {Object.values(AssetStatus).map(status => (
               <SelectItem key={status} value={status}>
                 {formatStatus(status)}
@@ -252,7 +252,9 @@ export const AssetTable: React.FC<AssetTableProps> = ({
       </div>
 
       <div className="gba:text-sm gba:text-muted-foreground">
-        Showing {assets.length} of {totalCount} assets
+        {getTranslationFromI18nKeyAndLabel('lowcoder:hr_assets.showing', 'Showing')} {assets.length}{' '}
+        {getTranslationFromI18nKeyAndLabel('lowcoder:hr_assets.of', 'of')} {totalCount}{' '}
+        {getTranslationFromI18nKeyAndLabel('lowcoder:hr_assets.assets', 'assets')}
       </div>
 
       <div className="gba:border gba:rounded-lg">
@@ -260,27 +262,50 @@ export const AssetTable: React.FC<AssetTableProps> = ({
           <TableHeader>
             <TableRow>
               <TableHead className="gba:w-[60px]"></TableHead>
-              <TableHead className="gba:w-[120px]">Category</TableHead>
-              <TableHead className="gba:w-[130px]">Producer</TableHead>
-              <TableHead className="gba:w-[160px]">Model</TableHead>
-              <TableHead className="gba:w-[140px]">Serial Number</TableHead>
-              <TableHead className="gba:w-[100px]">Status</TableHead>
-              <TableHead className="gba:w-[150px]">Location</TableHead>
-              <TableHead className="gba:w-[120px]">Warranty</TableHead>
-              <TableHead className="gba:w-[100px]">Value</TableHead>
+              <TableHead className="gba:w-[120px]">
+                {getTranslationFromI18nKeyAndLabel('lowcoder:hr_assets.category', 'Category')}
+              </TableHead>
+              <TableHead className="gba:w-[130px]">
+                {getTranslationFromI18nKeyAndLabel('lowcoder:hr_assets.producer', 'Producer')}
+              </TableHead>
+              <TableHead className="gba:w-[160px]">
+                {getTranslationFromI18nKeyAndLabel('lowcoder:hr_assets.model', 'Model')}
+              </TableHead>
+              <TableHead className="gba:w-[140px]">
+                {getTranslationFromI18nKeyAndLabel('lowcoder:hr_assets.serial_number', 'Serial Number')}
+              </TableHead>
+              <TableHead className="gba:w-[100px]">
+                {getTranslationFromI18nKeyAndLabel('lowcoder:hr_assets.status', 'Status')}
+              </TableHead>
+              <TableHead className="gba:w-[150px]">
+                {getTranslationFromI18nKeyAndLabel('lowcoder:hr_assets.location', 'Location')}
+              </TableHead>
+              <TableHead className="gba:w-[120px]">
+                {getTranslationFromI18nKeyAndLabel('lowcoder:hr_assets.warranty', 'Warranty')}
+              </TableHead>
+              <TableHead className="gba:w-[100px]">
+                {getTranslationFromI18nKeyAndLabel('lowcoder:hr_assets.value', 'Value')}
+              </TableHead>
             </TableRow>
           </TableHeader>
           <TableBody>
             {isLoading ? (
               <TableRow>
                 <TableCell colSpan={9} className="gba:text-center gba:py-8">
-                  <div data-testid="asset-table-loading">Loading assets...</div>
+                  <div data-testid="asset-table-loading">
+                    {getTranslationFromI18nKeyAndLabel('lowcoder:hr_assets.loading_assets', 'Loading assets...')}
+                  </div>
                 </TableCell>
               </TableRow>
             ) : assets.length === 0 ? (
               <TableRow>
                 <TableCell colSpan={9} className="gba:text-center gba:py-8">
-                  <div data-testid="asset-table-empty">No assets found matching your criteria.</div>
+                  <div data-testid="asset-table-empty">
+                    {getTranslationFromI18nKeyAndLabel(
+                      'lowcoder:hr_assets.no_assets_found',
+                      'No assets found matching your criteria.'
+                    )}
+                  </div>
                 </TableCell>
               </TableRow>
             ) : (
@@ -317,9 +342,15 @@ export const AssetTable: React.FC<AssetTableProps> = ({
                       </div>
                     </TableCell>
                     <TableCell data-testid={`asset-category-${asset.id}`}>
-                      {asset.assetCategory?.value || 'N/A'}
+                      {asset.assetCategory
+                        ? getCatalogValue(asset.assetCategory)
+                        : getTranslationFromI18nKeyAndLabel('lowcoder:hr_assets.not_available', 'N/A')}
                     </TableCell>
-                    <TableCell data-testid={`asset-producer-${asset.id}`}>{asset.assetBrand?.value || 'N/A'}</TableCell>
+                    <TableCell data-testid={`asset-producer-${asset.id}`}>
+                      {asset.assetBrand
+                        ? getCatalogValue(asset.assetBrand)
+                        : getTranslationFromI18nKeyAndLabel('lowcoder:hr_assets.not_available', 'N/A')}
+                    </TableCell>
                     <TableCell data-testid={`asset-model-${asset.id}`}>{asset.model}</TableCell>
                     <TableCell data-testid={`asset-serial-${asset.id}`} className="gba:font-mono gba:text-sm">
                       {asset.serialNumber}
@@ -330,25 +361,31 @@ export const AssetTable: React.FC<AssetTableProps> = ({
                       </Badge>
                     </TableCell>
                     <TableCell data-testid={`asset-location-${asset.id}`}>
-                      {asset.siteLocation?.name || 'N/A'}
+                      {asset.siteLocation?.name ||
+                        getTranslationFromI18nKeyAndLabel('lowcoder:hr_assets.not_available', 'N/A')}
                     </TableCell>
                     <TableCell data-testid={`asset-warranty-${asset.id}`}>
                       <div className="gba:text-sm">
                         {isWarrantyExpired ? (
-                          <Badge variant="destructive">Expired</Badge>
+                          <Badge variant="destructive">
+                            {getTranslationFromI18nKeyAndLabel('lowcoder:hr_assets.expired', 'Expired')}
+                          </Badge>
                         ) : warrantyDaysRemaining < 90 ? (
-                          <Badge variant="warning">{Math.ceil(warrantyDaysRemaining / 30)} mo left</Badge>
+                          <Badge variant="warning">
+                            {Math.ceil(warrantyDaysRemaining / 30)}{' '}
+                            {getTranslationFromI18nKeyAndLabel('lowcoder:hr_assets.mo_left', 'mo left')}
+                          </Badge>
                         ) : (
                           <span className="gba:text-muted-foreground">
-                            {formatDate(warrantyExpiryDate.toISOString())}
+                            {formatDate(warrantyExpiryDate) ||
+                              formatDate(warrantyExpiryDate.toISOString()) ||
+                              warrantyExpiryDate.toLocaleDateString()}
                           </span>
                         )}
                       </div>
                     </TableCell>
                     <TableCell data-testid={`asset-value-${asset.id}`}>
-                      {asset.currency?.code
-                        ? formatCurrency(asset.inventoryValue, asset.currency.code)
-                        : `${asset.inventoryValue}`}
+                      {formatCurrency(asset.inventoryValue, asset.currency?.code)}
                     </TableCell>
                   </TableRow>
                 )
@@ -361,7 +398,8 @@ export const AssetTable: React.FC<AssetTableProps> = ({
       {totalPages > 1 && (
         <div className="gba:flex gba:justify-between gba:items-center">
           <div className="gba:text-sm gba:text-muted-foreground">
-            Page {currentPage} of {totalPages}
+            {getTranslationFromI18nKeyAndLabel('lowcoder:hr_assets.page', 'Page')} {currentPage}{' '}
+            {getTranslationFromI18nKeyAndLabel('lowcoder:hr_assets.of', 'of')} {totalPages}
           </div>
           <div className="gba:flex gba:gap-2">
             <Button
@@ -371,7 +409,7 @@ export const AssetTable: React.FC<AssetTableProps> = ({
               disabled={currentPage === 1}
               data-testid="asset-table-prev-page"
             >
-              Previous
+              {getTranslationFromI18nKeyAndLabel('lowcoder:hr_assets.previous', 'Previous')}
             </Button>
             <Button
               variant="outline"
@@ -380,7 +418,7 @@ export const AssetTable: React.FC<AssetTableProps> = ({
               disabled={currentPage === totalPages}
               data-testid="asset-table-next-page"
             >
-              Next
+              {getTranslationFromI18nKeyAndLabel('lowcoder:hr_assets.next', 'Next')}
             </Button>
           </div>
         </div>

@@ -3,6 +3,7 @@ import { BusinessAppContextProps } from '@/common/BusinessAppContext'
 import { PageLayout, Button, Dialog, DialogContent, DialogTitle } from '@newwork/nw-design-system'
 import { DesktopIcon, PlusIcon } from '@phosphor-icons/react'
 import { MODULE_COLORS } from '@/common/constants/ui'
+import { getTranslationFromI18nKeyAndLabel } from '@/common/utils/windowUtils'
 import { useAssets } from './hooks/useAssets'
 import { useAssetDialogs } from './hooks/useAssetDialogs'
 import { useAssetProcessEvents } from './hooks/useAssetProcessEvents'
@@ -173,8 +174,11 @@ export const Assets: React.FC<BusinessAppContextProps> = props => {
     <div data-testid="assets-app">
       <PageLayout
         headerIcon={DesktopIcon}
-        headerTitle="Asset Management"
-        headerDescription="Manage IT equipment inventory and allocations"
+        headerTitle={getTranslationFromI18nKeyAndLabel('lowcoder:hr_assets.asset_management', 'Asset Management')}
+        headerDescription={getTranslationFromI18nKeyAndLabel(
+          'lowcoder:hr_assets.asset_management_description',
+          'Manage IT equipment inventory and allocations'
+        )}
         className="gba:min-h-screen"
         variant={moduleColor}
       >
@@ -188,14 +192,16 @@ export const Assets: React.FC<BusinessAppContextProps> = props => {
 
           <div className="gba:space-y-4">
             <div className="gba:flex gba:items-center gba:justify-between">
-              <h3 className="gba:text-lg gba:font-semibold">All Assets</h3>
+              <h3 className="gba:text-lg gba:font-semibold">
+                {getTranslationFromI18nKeyAndLabel('lowcoder:hr_assets.all_assets', 'All Assets')}
+              </h3>
               <Button
                 onClick={() => dialogs.openRegister()}
                 data-testid="register-equipment-button"
                 className="gba:gap-2"
               >
                 <PlusIcon size={20} />
-                Register Equipment
+                {getTranslationFromI18nKeyAndLabel('lowcoder:hr_assets.register_equipment', 'Register Equipment')}
               </Button>
             </div>
             <AssetTable
@@ -239,7 +245,9 @@ export const Assets: React.FC<BusinessAppContextProps> = props => {
       <Dialog open={dialogs.isRegisterOpen} onOpenChange={dialogs.closeRegister}>
         <DialogContent className="gba:max-w-2xl gba:max-h-[90vh] gba:overflow-y-auto">
           <DialogTitle className="gba:sr-only">
-            {dialogs.editingAssetId ? 'Update Equipment' : 'Register Equipment'}
+            {dialogs.editingAssetId
+              ? getTranslationFromI18nKeyAndLabel('lowcoder:hr_assets.update_equipment', 'Update Equipment')
+              : getTranslationFromI18nKeyAndLabel('lowcoder:hr_assets.register_equipment', 'Register Equipment')}
           </DialogTitle>
           {dialogs.isRegisterOpen && (
             <EquipmentRegistration
@@ -253,7 +261,9 @@ export const Assets: React.FC<BusinessAppContextProps> = props => {
 
       <Dialog open={dialogs.isAllocateOpen} onOpenChange={dialogs.closeAllocate}>
         <DialogContent className="gba:max-w-2xl gba:max-h-[90vh] gba:overflow-y-auto">
-          <DialogTitle className="gba:sr-only">Allocate Asset</DialogTitle>
+          <DialogTitle className="gba:sr-only">
+            {getTranslationFromI18nKeyAndLabel('lowcoder:hr_assets.allocate_asset', 'Allocate Asset')}
+          </DialogTitle>
           <AllocateAsset
             {...props}
             additionalData={{
@@ -267,7 +277,9 @@ export const Assets: React.FC<BusinessAppContextProps> = props => {
 
       <Dialog open={dialogs.isReturnOpen} onOpenChange={dialogs.closeReturn}>
         <DialogContent className="gba:max-w-2xl gba:max-h-[90vh] gba:overflow-y-auto">
-          <DialogTitle className="gba:sr-only">Return Asset</DialogTitle>
+          <DialogTitle className="gba:sr-only">
+            {getTranslationFromI18nKeyAndLabel('lowcoder:hr_assets.return_asset', 'Return Asset')}
+          </DialogTitle>
           <ReturnAsset
             {...props}
             additionalData={{

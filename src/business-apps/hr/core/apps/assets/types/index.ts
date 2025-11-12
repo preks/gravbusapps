@@ -20,8 +20,18 @@ export interface Asset {
   assetCategoryRef: string
   currencyRef: string
   siteLocationId?: string
-  assetBrand?: { id: string; code: string; value: string }
-  assetCategory?: { id: string; code: string; value: string }
+  assetBrand?: {
+    id: string
+    code: string
+    value: string
+    translations?: Array<{ localeCode: string; value: string; objectValue?: any }>
+  }
+  assetCategory?: {
+    id: string
+    code: string
+    value: string
+    translations?: Array<{ localeCode: string; value: string; objectValue?: any }>
+  }
   currency?: { id: string; code: string; value: string }
   siteLocation?: { id: string; name: string }
   createdAt?: string
