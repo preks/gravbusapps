@@ -1,42 +1,16 @@
 import React, { createContext, useCallback, useContext, useEffect, useMemo, useState } from 'react'
 import { BusinessAppContextProps } from '@/common/BusinessAppContext'
 import { useGraphQLClient } from '@/common/network/graphql/useGraphQLClient'
-import { ADD_SKILL_QUERY, SEARCH_SKILLS_QUERY, GET_SKILLS_BY_NAMES } from './AdditionalPropertiesQueries'
-import { useRestClient } from '@/common/network/rest/useRestClient'
-
-import { env } from '@/common/env/EnvUtils'
-
-export interface SkillRecord {
-  id: string
-  name: string
-  version: number
-}
-
-export interface EmployeeSkillLink {
-  id: string
-  version: number
-  skill: SkillRecord
-}
-
-export interface DetailedEmployee {
-  id: string
-  firstName: string
-  lastName: string
-  skills: EmployeeSkillLink[]
-}
-
-export interface AddSkillDataResponse {
-  employee: DetailedEmployee
-}
+import { GET_EMPLOYEE_ADDITIONAL_PROPS } from './AdditionalPropertiesQueries'
 
 interface AdditionalPropertiesContextValue {
-  data: AddSkillDataResponse | null
   isLoading: boolean
   error: string | null
   refetch: () => Promise<void>
-  searchSkills: (term: string) => Promise<SkillRecord[]>
-  createSkillAndFetchByNames: (name: string, namesAccumulator: string[]) => Promise<SkillRecord[]>
   employeeId?: string
+  existingProps: string[]
+  existingPropsMap: Record<string, string>
+  employeeVersion?: number
 }
 
 const AdditionalPropertiesContext = createContext<AdditionalPropertiesContextValue | undefined>(undefined)
@@ -52,10 +26,11 @@ export const AdditionalPropertiesProvider: React.FC<ProviderProps> = ({
   userInfo
 }) => {
   const graphqlClient = useGraphQLClient(accessToken)
-  const restClient = useRestClient(env('NEXT_PUBLIC_BASE_URL'))
-  const [data, setData] = useState<AddSkillDataResponse | null>(null)
   const [isLoading, setIsLoading] = useState<boolean>(true)
   const [error, setError] = useState<string | null>(null)
+  const [existingProps, setExistingProps] = useState<string[]>([])
+  const [existingPropsMap, setExistingPropsMap] = useState<Record<string, string>>({})
+  const [employeeVersion, setEmployeeVersion] = useState<number | undefined>(undefined)
 
   const employeeId: string | undefined = useMemo(() => {
     return (
@@ -74,10 +49,88 @@ export const AdditionalPropertiesProvider: React.FC<ProviderProps> = ({
     setIsLoading(true)
     setError(null)
     try {
-      type AddSkillQueryVariables = { id: string }
-      const variables: AddSkillQueryVariables = { id: employeeId }
-      const response = await graphqlClient.request<AddSkillDataResponse>(ADD_SKILL_QUERY, variables)
-      setData(response)
+      // Fetch additional properties as well
+      const propsRes = await graphqlClient.request<any>(GET_EMPLOYEE_ADDITIONAL_PROPS, { id: employeeId })
+      const node = propsRes?.Employee?.[0]
+      // The properties can exist under two shapes; prefer the nested employee.additionalProperties
+      const rawProps = node?.employeePosition?.employee?.additionalProperties ?? node?.additionalProperties ?? null
+      const nodeVersion: number | undefined = typeof node?.version === 'number' ? (node.version as number) : undefined
+      setEmployeeVersion(nodeVersion)
+
+      const normalizeProps = (raw: any): string[] => {
+        if (!raw) return []
+        // If already an array of strings
+        if (Array.isArray(raw)) {
+          return raw
+            .map((v: any) => {
+              if (typeof v === 'string') return v
+              if (v && typeof v === 'object') {
+                if (typeof v.name === 'string') return v.name
+                if (typeof v.label === 'string') return v.label
+                // fallback to key:value compact form
+                const keys = Object.keys(v)
+                const first = keys[0]
+                return first ? `${first}:${String(v[first])}` : JSON.stringify(v)
+              }
+              return String(v)
+            })
+            .filter((s: string) => s && s.trim().length > 0)
+        }
+        // If it's an object map, return "key:value" chips
+        if (typeof raw === 'object') {
+          return Object.entries(raw)
+            .map(([k, v]) => {
+              if (v === null || v === undefined || v === '') return ''
+              if (typeof v === 'string' || typeof v === 'number' || typeof v === 'boolean') return `${k}:${v}`
+              if (Array.isArray(v))
+                return `${k}:[${v.map(x => (typeof x === 'string' ? x : JSON.stringify(x))).join(', ')}]`
+              if (typeof v === 'object') {
+                if ('name' in (v as any) && typeof (v as any).name === 'string') return `${k}:${(v as any).name}`
+                return `${k}:{...}`
+              }
+              return `${k}:${String(v)}`
+            })
+            .filter(Boolean) as string[]
+        }
+        // Primitive
+        return [String(raw)]
+      }
+
+      const toPropsMap = (raw: any): Record<string, string> => {
+        const map: Record<string, string> = {}
+        if (!raw) return map
+        if (Array.isArray(raw)) {
+          // If an array, try to infer objects with name/value; otherwise skip
+          raw.forEach((item: any) => {
+            if (item && typeof item === 'object') {
+              const name = (item.name ?? Object.keys(item)[0]) as string | undefined
+              const value =
+                typeof item.value === 'string'
+                  ? item.value
+                  : name && item[name] !== undefined
+                    ? String(item[name])
+                    : undefined
+              if (name && value !== undefined) {
+                map[name] = value
+              }
+            }
+          })
+          return map
+        }
+        if (typeof raw === 'object') {
+          Object.entries(raw).forEach(([k, v]) => {
+            if (v === null || v === undefined) return
+            if (typeof v === 'string') map[k] = v
+            else if (typeof v === 'number' || typeof v === 'boolean') map[k] = String(v)
+            else map[k] = '[object]'
+          })
+          return map
+        }
+        return map
+      }
+
+      setExistingProps(normalizeProps(rawProps))
+      setExistingPropsMap(toPropsMap(rawProps))
     } catch (e: unknown) {
       const message = e instanceof Error ? e.message : 'Unknown error'
       setError(message)
@@ -91,44 +144,13 @@ export const AdditionalPropertiesProvider: React.FC<ProviderProps> = ({
   }, [fetchData])
 
   const value: AdditionalPropertiesContextValue = {
-    data,
     isLoading,
     error,
     refetch: fetchData,
-    searchSkills: async (term: string) => {
-      const trimmed = (term || '').trim()
-      if (!trimmed) return []
-      const pattern = `%${trimmed}%`
-      type SearchSkillsVariables = { search: string }
-      const result = await graphqlClient.request<{ skill: SkillRecord[] }>(SEARCH_SKILLS_QUERY, {
-        search: pattern
-      } as SearchSkillsVariables)
-      return result?.skill || []
-    },
-    createSkillAndFetchByNames: async (name: string, namesAccumulator: string[]) => {
-      // Validate
-      const trimmed = (name || '').trim()
-      if (!trimmed) return []
-      // POST to processes + employee/saveSkill
-      await restClient.post(
-        '/processes/employee/saveSkill',
-        { skill: { name: trimmed } },
-        {
-          headers: {
-            Authorization: `Bearer ${accessToken}`,
-            'Content-Type': 'application/json'
-          }
-        }
-      )
-      // Query back skills by provided names
-      const queryNames = Array.from(new Set([...(namesAccumulator || []), trimmed]))
-      type GetSkillsByNamesVariables = { names: string[] }
-      const result = await graphqlClient.request<{ skill: SkillRecord[] }>(GET_SKILLS_BY_NAMES, {
-        names: queryNames
-      } as GetSkillsByNamesVariables)
-      return result?.skill || []
-    },
-    employeeId
+    employeeId,
+    existingProps,
+    existingPropsMap,
+    employeeVersion
   }
 
   return <AdditionalPropertiesContext.Provider value={value}>{children}</AdditionalPropertiesContext.Provider>

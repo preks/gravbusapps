@@ -1,43 +1,16 @@
-export const ADD_SKILL_QUERY = `query MyQuery($id: uuid!) {
-  employee: EmployeeByPk(id: $id) {
-    firstName
-    lastName
-    id
-    skills(where: {isDeleted: {_eq: false}}) {
-      version
-      id
-      skill {
-        id
-        name
+// Fetch existing employee additional properties for the properties screen
+export const GET_EMPLOYEE_ADDITIONAL_PROPS = `
+query GetEmployeeAdditionalProps($id: uuid!) {
+  Employee(where: { employeePosition: { employeeId: { _eq: $id } } }, limit: 1) {
+    additionalProperties(path: "$.selectionSet.EmployeePosition.selectionSet.additionalProperties")
+    version
+    code
+    employeePosition {
+      employeeId
+      employee {
+        additionalProperties
       }
     }
-  }
-}
-`
-
-export const SEARCH_SKILLS_QUERY = `
-query SearchSkills($search: String!, $limit: Int = 30) {
-  skill: Skill(
-    where: { isDeleted: { _eq: false }, name: { _ilike: $search } }
-    orderBy: { name: ASC }
-    limit: $limit
-  ) {
-    id
-    name
-    version
-  }
-}
-`
-
-export const GET_SKILLS_BY_NAMES = `
-query GetSkillsByNames($names: [String!]!) {
-  skill: Skill(
-    where: { isDeleted: { _eq: false }, name: { _in: $names } }
-    orderBy: { name: ASC }
-  ) {
-    id
-    name
-    version
   }
 }
 `

@@ -410,7 +410,7 @@ const DetailsTab: React.FC<DetailsTabProps> = ({ employee, accessToken, employee
             >
               <div className="gba:mb-6 gba:border-b gba:border-border gba:pb-2 gba:flex gba:justify-between gba:items-center">
                 <h3 className="gba:text-xl gba:font-semibold gba:text-info">Additional Attributes</h3>
-                {/* {isSelfView && (
+                {isSelfView && (
                   <AppActionMenu
                     data-testid="additional-attributes-action-button"
                     contextsArray={[FlowContextName.employeeAdditionalProperties]}
@@ -423,7 +423,7 @@ const DetailsTab: React.FC<DetailsTabProps> = ({ employee, accessToken, employee
                   >
                     <PiPencilSimple className="gba:cursor-pointer" />
                   </AppActionMenu>
-                )} */}
+                )}
               </div>
               {renderDataItems(items)}
             </Card>

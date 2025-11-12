@@ -1,4 +1,4 @@
-import React, { useEffect, useMemo, useRef, useState } from 'react'
+import React, { useEffect, useMemo, useState } from 'react'
 import { BusinessAppContextProps } from '@/common/BusinessAppContext'
 import { getTranslationFromI18nKeyAndLabel } from '@/common/utils/windowUtils'
 import FormHeader from '../components/FormHeader'
@@ -6,38 +6,32 @@ import flowIconUrl from '@/assets/icons/flowSmall.svg'
 import { useForm } from 'react-hook-form'
 import { AppActionForm } from '@/components/app-action-form/AppActionForm'
 import { AdditionalPropertiesProvider, useAdditionalProperties } from './AdditionalPropertiesContext'
-import { DebouncedInput } from '@/components/debounced-input'
-import { getSkillValidationError, buildEmployeeSkillsPayload } from '../add-skill/utils/addSkillUtils'
-import { AddSkillSearchDropdown } from '../add-skill/components/AddSkillSearchDropdown'
-import { SelectedSkillsChips } from '../add-skill/components/SelectedSkillsChips'
+import { Badge, Button, Input } from '@newwork/nw-design-system'
+import { XCircleIcon } from 'lucide-react'
 
 interface AddSkillFormValues {
   targetEmployeeId?: string
 }
 
-const AddSkillContent: React.FC<BusinessAppContextProps> = () => {
-  const { data, searchSkills, createSkillAndFetchByNames, employeeId: ctxEmployeeId } = useAdditionalProperties()
-  const [searchTerm, setSearchTerm] = useState('')
-  const [results, setResults] = useState<Array<any>>([])
-  const [isSearching, setIsSearching] = useState(false)
-  const [isDropdownOpen, setIsDropdownOpen] = useState(false)
-  const [selectedSkills, setSelectedSkills] = useState<Array<{ id: string; name: string; isNew?: boolean }>>([])
+const AddSkillContent: React.FC<BusinessAppContextProps> = props => {
+  const { employeeId: ctxEmployeeId, existingProps, existingPropsMap, employeeVersion } = useAdditionalProperties()
+
+  // New property inputs and list
+  const [propName, setPropName] = useState('')
+  const [propValue, setPropValue] = useState('')
+  const [newProps, setNewProps] = useState<string[]>([])
+  const [existingList, setExistingList] = useState<string[]>(existingProps || [])
+  const [removedProps, setRemovedProps] = useState<string[]>([])
   const [inputKey, setInputKey] = useState(0)
-  const [addedNames, setAddedNames] = useState<string[]>([])
   const [addError, setAddError] = useState<string | null>(null)
 
-  // Filter search results to exclude already selected skills (by id or name)
-  const filteredResults = useMemo(() => {
-    const selectedIdSet = new Set(selectedSkills.map(s => s.id))
-    const selectedNameSet = new Set(selectedSkills.map(s => (s.name || '').trim().toLowerCase()))
-    return (results || []).filter((sk: any) => {
-      const id = sk?.id
-      const nameKey = (sk?.name || '').trim().toLowerCase()
-      if (id && selectedIdSet.has(id)) return false
-      if (nameKey && selectedNameSet.has(nameKey)) return false
-      return true
-    })
-  }, [results, selectedSkills])
+  // Keep local existing list in sync when fetched data arrives/changes
+  useEffect(() => {
+    setExistingList(existingProps || [])
+    setRemovedProps([])
+  }, [existingProps])
+
+  // no filtering logic required for additional properties
 
   const form = useForm<AddSkillFormValues>({
     defaultValues: {
@@ -52,146 +46,66 @@ const AddSkillContent: React.FC<BusinessAppContextProps> = () => {
     []
   )
 
-  const employee = data?.employee
-  const employeeFullName = `${employee?.firstName || ''} ${employee?.lastName || ''}`.trim()
+  // Display name derived from user info
+  const employeeFullName = `${props.userInfo?.employeeDetails?.firstName || ''} ${
+    props.userInfo?.employeeDetails?.lastName || ''
+  }`.trim()
 
   const normalizedDefaults: AddSkillFormValues = useMemo(
     () => ({
-      targetEmployeeId: employee?.id
+      targetEmployeeId: ctxEmployeeId || props.userInfo?.employeeDetails?.employeeId
     }),
-    [employee?.id]
+    [ctxEmployeeId, props.userInfo?.employeeDetails?.employeeId]
   )
 
   // removed old disabled logic; computed inline based on changes
 
-  // Initialize selected skills from employee existing skills
-  useEffect(() => {
-    const existing = ((employee?.skills || []) as Array<{ skill?: { id: string; name: string } }>).map(s => ({
-      id: (s.skill?.id || '') as string,
-      name: (s.skill?.name || '') as string,
-      isNew: false
-    }))
-    const deduped: Record<string, { id: string; name: string }> = {}
-    existing.forEach(s => {
-      if (s.id) deduped[s.id] = s
-    })
-    setSelectedSkills(Object.values(deduped))
-  }, [employee?.skills])
-
-  const suppressOpenRef = useRef(false)
-  const searchSeqRef = useRef(0)
+  // placeholder ref kept for consistency (no behavior needed)
 
   const isSubmitDisabled = useMemo(() => {
-    const initial = ((employee?.skills || []) as Array<{ skill?: { id: string } }>)
-      .map(s => s.skill?.id)
-      .filter(Boolean)
-    const current = selectedSkills.map(s => s.id)
-    const changed = initial.length !== current.length || initial.some(id => !current.includes(id as string))
-    return !changed
-  }, [employee?.skills, selectedSkills])
-  useEffect(() => {
-    let isActive = true
-    const run = async () => {
-      // If we just selected an item, suppress one open cycle
-      if (suppressOpenRef.current) {
-        suppressOpenRef.current = false
-        if (isActive) {
-          setIsDropdownOpen(false)
-          setResults([])
-        }
-        return
-      }
-      const term = searchTerm.trim()
-      if (!term) {
-        if (isActive) setResults([])
-        if (isActive) setIsDropdownOpen(false)
-        return
-      }
-      setIsSearching(true)
-      const mySeq = ++searchSeqRef.current
-      try {
-        const r = await searchSkills(term)
-        if (!isActive || mySeq !== searchSeqRef.current) return
-        setResults(r)
-        setIsDropdownOpen(true)
-      } finally {
-        if (isActive && mySeq === searchSeqRef.current) setIsSearching(false)
-      }
+    return newProps.length === 0 && removedProps.length === 0
+  }, [newProps.length, removedProps.length])
+
+  const handleAddProperty = () => {
+    const name = propName.trim()
+    const value = propValue.trim()
+    if (!name || !value) {
+      setAddError(
+        getTranslationFromI18nKeyAndLabel(
+          'lowcoder:additional_props_form.validation_both_fields',
+          'Please enter both name and value.'
+        )
+      )
+      return
     }
-    run()
-    return () => {
-      isActive = false
-    }
-  }, [searchTerm, searchSkills])
-
-  const handleSelectSkill = (sk: { id: string; name: string }) => {
-    setSelectedSkills(prev => {
-      if (prev.find(x => x.id === sk.id)) return prev
-      return [...prev, { ...sk, isNew: false }]
-    })
-    // Close dropdown and clear search
-    suppressOpenRef.current = true
-    // Invalidate any in-flight searches to prevent re-open
-    searchSeqRef.current += 1
-    setIsDropdownOpen(false)
-    setSearchTerm('')
-    setResults([])
-    setIsSearching(false)
-    setInputKey(prev => prev + 1)
-  }
-
-  const nextNewIdRef = useRef(1)
-
-  const handleAddNewSkill = async () => {
-    const name = searchTerm.trim()
-    if (!name) return
-    // validations
-    const validationError = getSkillValidationError(name)
-    if (validationError) {
-      setAddError(validationError)
+    const kv = `${name}:${value}`
+    // prevent duplicates against existing and new
+    const exists =
+      (existingProps || []).some(p => String(p).toLowerCase() === kv.toLowerCase()) ||
+      newProps.some(p => p.toLowerCase() === kv.toLowerCase())
+    if (exists) {
+      setAddError(
+        getTranslationFromI18nKeyAndLabel(
+          'lowcoder:additional_props_form.validation_duplicate',
+          'This property already exists.'
+        )
+      )
       return
     }
     setAddError(null)
-    setSelectedSkills(prev => {
-      const existsByName = prev.some(s => s.name.toLowerCase() === name.toLowerCase())
-      if (existsByName) return prev
-      const newId = `new-${nextNewIdRef.current++}`
-      return [...prev, { id: newId, name, isNew: true }]
-    })
-    setAddedNames(prev => Array.from(new Set([...prev, name])))
-    try {
-      const fetched = await createSkillAndFetchByNames(name, addedNames)
-      setSelectedSkills(prev => {
-        const byName: Record<string, any> = {}
-        fetched.forEach(sk => {
-          byName[sk.name.toLowerCase()] = sk
-        })
-        return prev.map(s => {
-          const resolved = byName[s.name.toLowerCase()]
-          return resolved ? { id: resolved.id, name: resolved.name, isNew: s.isNew ?? true } : s
-        })
-      })
-    } catch (e) {
-      setAddError(
-        e instanceof Error
-          ? e.message
-          : getTranslationFromI18nKeyAndLabel(
-              'lowcoder:employee_profile.details_layout.add_skill_form.skill_add_error',
-              'Failed to add skill'
-            )
-      )
-    }
-    suppressOpenRef.current = true
-    searchSeqRef.current += 1
-    setIsDropdownOpen(false)
-    setSearchTerm('')
-    setResults([])
-    setIsSearching(false)
+    setNewProps(prev => [...prev, kv])
+    setPropName('')
+    setPropValue('')
     setInputKey(prev => prev + 1)
   }
 
-  const handleRemoveSkill = (id: string) => {
-    setSelectedSkills(prev => prev.filter(s => s.id !== id))
+  const handleRemoveNewProperty = (value: string) => {
+    setNewProps(prev => prev.filter(p => p !== value))
+  }
+
+  const handleRemoveExistingProperty = (value: string) => {
+    setExistingList(prev => prev.filter(p => p !== value))
+    setRemovedProps(prev => (prev.includes(value) ? prev : [...prev, value]))
   }
 
   return (
@@ -229,48 +143,65 @@ const AddSkillContent: React.FC<BusinessAppContextProps> = () => {
           )}
           onSubmit={async (values: AddSkillFormValues) => {
             const employeeId = ctxEmployeeId || values.targetEmployeeId
-            const existingSkills = employee?.skills || []
-            const selectedIds = selectedSkills.map(s => s.id)
-
-            const payload = buildEmployeeSkillsPayload({
-              employeeId,
-              selectedSkillIds: selectedIds,
-              existingSkills: existingSkills as any,
-              event: 'pse_submit'
+            // Build final additionalProperties map by applying removals and additions
+            const finalMap: Record<string, string> = { ...(existingPropsMap || {}) }
+            removedProps.forEach(kv => {
+              const key = (kv.split(':')[0] || '').trim()
+              if (key) delete finalMap[key]
             })
-            return payload
+            newProps.forEach(kv => {
+              const idx = kv.indexOf(':')
+              if (idx > 0) {
+                const k = kv.slice(0, idx).trim()
+                const v = kv.slice(idx + 1).trim()
+                if (k) finalMap[k] = v
+              }
+            })
+
+            // Construct required payload
+            return {
+              changeMode: 'UPDATE',
+              employee: {
+                id: employeeId,
+                version: typeof employeeVersion === 'number' ? employeeVersion : 0,
+                additionalProperties: finalMap
+              }
+            } as any
           }}
           data-testid="add-skill-form"
         >
           <div className="gba:flex-1 gba:space-y-3">
-            <div className="gba:space-y-2 gba:w-full" data-testid="add-skill-search-container">
-              <DebouncedInput
-                key={inputKey}
-                value={searchTerm}
-                onChange={setSearchTerm}
-                debounceDelay={300}
-                placeholder={getTranslationFromI18nKeyAndLabel(
-                  'lowcoder:employee_profile.details_layout.add_skill_form.search_skill_placeholder',
-                  'Search skill...'
-                )}
-                data-testid="flw_addSkills_searchInput"
-                className="gba:w-full"
-              />
-
-              {/* Results dropdown */}
-              <AddSkillSearchDropdown
-                isOpen={
-                  isDropdownOpen &&
-                  (isSearching ||
-                    filteredResults.length > 0 ||
-                    (searchTerm.trim().length > 0 && filteredResults.length === 0))
-                }
-                isSearching={isSearching}
-                filteredResults={filteredResults as any}
-                searchTerm={searchTerm}
-                onSelect={handleSelectSkill}
-                onAddNew={handleAddNewSkill}
-              />
+            <div className="gba:w-full gba:flex gba:flex-col gba:gap-2" data-testid="add-prop-inputs">
+              <div className="gba:flex gba:flex-col gba:md:flex-row gba:gap-2">
+                <Input
+                  key={`name-${inputKey}`}
+                  value={propName}
+                  onChange={e => setPropName((e?.target?.value ?? '').toString())}
+                  placeholder={getTranslationFromI18nKeyAndLabel(
+                    'lowcoder:additional_props_form.prop_name_placeholder',
+                    'Property name'
+                  )}
+                  data-testid="additional-props-name-input"
+                />
+                <Input
+                  key={`value-${inputKey}`}
+                  value={propValue}
+                  onChange={e => setPropValue((e?.target?.value ?? '').toString())}
+                  placeholder={getTranslationFromI18nKeyAndLabel(
+                    'lowcoder:additional_props_form.prop_value_placeholder',
+                    'Property value'
+                  )}
+                  data-testid="additional-props-value-input"
+                />
+                <Button
+                  type="button"
+                  variant="default"
+                  onClick={handleAddProperty}
+                  data-testid="additional-props-add-button"
+                >
+                  {getTranslationFromI18nKeyAndLabel('lowcoder:additional_props_form.add_button', 'Add')}
+                </Button>
+              </div>
             </div>
 
             {addError && (
@@ -279,18 +210,115 @@ const AddSkillContent: React.FC<BusinessAppContextProps> = () => {
               </div>
             )}
 
-            <span
-              className="gba:block gba:text-muted-foreground gba:font-bold gba:mb-4 gba:mt-5"
-              data-testid="add-skill-employee-skills-label"
-            >
-              {getTranslationFromI18nKeyAndLabel(
-                'lowcoder:employee_profile.details_layout.add_skill_form.employee_skills_label',
-                'Employee Skills'
-              )}
-            </span>
+            {/* Employee Skills section intentionally removed – show only properties */}
 
-            {/* Selected Skills chips (includes existing and newly selected) */}
-            <SelectedSkillsChips skills={selectedSkills as any} onRemove={handleRemoveSkill} />
+            {/* Existing Additional Properties (read-only chips) */}
+            {existingList?.length > 0 && (
+              <div className="gba:mt-6">
+                <span className="gba:block gba:text-muted-foreground gba:font-bold gba:mb-3">
+                  {getTranslationFromI18nKeyAndLabel(
+                    'lowcoder:additional_props_form.existing_properties_label',
+                    'Existing Properties'
+                  )}
+                </span>
+                <div className="gba:flex gba:flex-wrap gba:gap-2" data-testid="existing-additional-properties">
+                  {existingList.map((p, idx) => (
+                    <Badge
+                      key={`${p}-${idx}`}
+                      variant="secondary"
+                      className="gba:flex gba:items-center gba:gap-2 gba:h-10 gba:py-0 gba:px-4 gba:text-sm gba:max-w-full"
+                      data-testid={`existing-prop-${idx}`}
+                    >
+                      <span className="gba:flex-1 gba:min-w-0 gba:px-1 gba:truncate" title={p}>
+                        {p}
+                      </span>
+                      <span
+                        role="button"
+                        tabIndex={0}
+                        onMouseDown={evt => {
+                          evt.preventDefault()
+                          evt.stopPropagation()
+                        }}
+                        onClick={evt => {
+                          evt.preventDefault()
+                          evt.stopPropagation()
+                          handleRemoveExistingProperty(p)
+                        }}
+                        onKeyDown={evt => {
+                          if (evt.key === 'Enter' || evt.key === ' ') {
+                            evt.preventDefault()
+                            evt.stopPropagation()
+                            handleRemoveExistingProperty(p)
+                          }
+                        }}
+                        aria-label={getTranslationFromI18nKeyAndLabel(
+                          'lowcoder:employee_profile.details_layout.add_skill_form.remove_aria_label',
+                          'Remove'
+                        )}
+                        className="gba:cursor-pointer gba:rounded-full gba:p-0.5 gba:flex gba:items-center gba:flex-shrink-0 gba:ml-2"
+                        data-testid={`existing-prop-remove-${idx}`}
+                      >
+                        <XCircleIcon className="gba:w-3 gba:h-3" />
+                      </span>
+                    </Badge>
+                  ))}
+                </div>
+              </div>
+            )}
+
+            {/* Newly added properties */}
+            {newProps.length > 0 && (
+              <div className="gba:mt-4">
+                <span className="gba:block gba:text-muted-foreground gba:font-bold gba:mb-3">
+                  {getTranslationFromI18nKeyAndLabel(
+                    'lowcoder:additional_props_form.new_properties_label',
+                    'New Properties'
+                  )}
+                </span>
+                <div className="gba:flex gba:flex-wrap gba:gap-2" data-testid="new-additional-properties">
+                  {newProps.map((p, idx) => (
+                    <Badge
+                      key={`new-${p}-${idx}`}
+                      variant="secondary"
+                      className="gba:flex gba:items-center gba:gap-2 gba:h-10 gba:py-0 gba:px-4 gba:text-sm gba:max-w-full"
+                      data-testid={`new-prop-${idx}`}
+                    >
+                      <span className="gba:flex-1 gba:min-w-0 gba:px-1 gba:truncate" title={p}>
+                        {p}
+                      </span>
+                      <span
+                        role="button"
+                        tabIndex={0}
+                        onMouseDown={evt => {
+                          evt.preventDefault()
+                          evt.stopPropagation()
+                        }}
+                        onClick={evt => {
+                          evt.preventDefault()
+                          evt.stopPropagation()
+                          handleRemoveNewProperty(p)
+                        }}
+                        onKeyDown={evt => {
+                          if (evt.key === 'Enter' || evt.key === ' ') {
+                            evt.preventDefault()
+                            evt.stopPropagation()
+                            handleRemoveNewProperty(p)
+                          }
+                        }}
+                        aria-label={getTranslationFromI18nKeyAndLabel(
+                          'lowcoder:employee_profile.details_layout.add_skill_form.remove_aria_label',
+                          'Remove'
+                        )}
+                        className="gba:cursor-pointer gba:rounded-full gba:p-0.5 gba:flex gba:items-center gba:flex-shrink-0 gba:ml-2"
+                        data-testid={`new-prop-remove-${idx}`}
+                      >
+                        <XCircleIcon className="gba:w-3 gba:h-3" />
+                      </span>
+                    </Badge>
+                  ))}
+                </div>
+              </div>
+            )}
           </div>
         </AppActionForm>
       </div>
