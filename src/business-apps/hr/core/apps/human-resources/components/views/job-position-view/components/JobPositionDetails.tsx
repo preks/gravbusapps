@@ -2,7 +2,7 @@ import React from 'react'
 import { useTranslation } from 'react-i18next'
 import { PiBriefcase, PiUser, PiBuilding, PiTag, PiCalendar } from 'react-icons/pi'
 import { JobPosition } from '../hooks/useJobPositionListData'
-import { getCurrentActiveUserLocale, getTranslationFromI18nKeyAndLabel, formatDate } from '@/common/utils/windowUtils'
+import { getTranslationFromI18nKeyAndLabel, formatDate, getCatalogValue } from '@/common/utils/windowUtils'
 import { AppActionButton } from '@/components/app-action-button/AppActionButton'
 import { FlowContextName } from '@/common/types/FlowRegistryTypes'
 
@@ -17,24 +17,12 @@ interface JobPositionDetailsProps {
  */
 export const JobPositionDetails: React.FC<JobPositionDetailsProps> = ({ jobPosition, accessToken }) => {
   const { t } = useTranslation()
-  const userLocale = getCurrentActiveUserLocale() || 'en-US'
 
   // Helper function to get contract type display value
   const getContractTypeDisplay = (contractType: any): string => {
-    if (!contractType)
-      return getTranslationFromI18nKeyAndLabel(
-        'lowcoder:human_resources_page.job_positions_section.not_specified',
-        'Not specified'
-      )
-
-    const translation = contractType.translations?.find(
-      (t: any) => t.localeCode?.toLowerCase() === userLocale.toLowerCase()
-    )
-
+    const v = getCatalogValue(contractType)
     return (
-      translation?.value ||
-      contractType.value ||
-      contractType.code ||
+      v ||
       getTranslationFromI18nKeyAndLabel(
         'lowcoder:human_resources_page.job_positions_section.not_specified',
         'Not specified'
@@ -44,20 +32,9 @@ export const JobPositionDetails: React.FC<JobPositionDetailsProps> = ({ jobPosit
 
   // Helper function to get employment type display value
   const getEmploymentTypeDisplay = (employmentType: any): string => {
-    if (!employmentType)
-      return getTranslationFromI18nKeyAndLabel(
-        'lowcoder:human_resources_page.job_positions_section.not_specified',
-        'Not specified'
-      )
-
-    const translation = employmentType.translations?.find(
-      (t: any) => t.localeCode?.toLowerCase() === userLocale.toLowerCase()
-    )
-
+    const v = getCatalogValue(employmentType)
     return (
-      translation?.value ||
-      employmentType.value ||
-      employmentType.code ||
+      v ||
       getTranslationFromI18nKeyAndLabel(
         'lowcoder:human_resources_page.job_positions_section.not_specified',
         'Not specified'
@@ -67,20 +44,9 @@ export const JobPositionDetails: React.FC<JobPositionDetailsProps> = ({ jobPosit
 
   // Helper function to get job family display value
   const getJobFamilyDisplay = (jobFamily: any): string => {
-    if (!jobFamily)
-      return getTranslationFromI18nKeyAndLabel(
-        'lowcoder:human_resources_page.job_positions_section.not_specified',
-        'Not specified'
-      )
-
-    const translation = jobFamily.translations?.find(
-      (t: any) => t.localeCode?.toLowerCase() === userLocale.toLowerCase()
-    )
-
+    const v = getCatalogValue(jobFamily)
     return (
-      translation?.value ||
-      jobFamily.value ||
-      jobFamily.code ||
+      v ||
       getTranslationFromI18nKeyAndLabel(
         'lowcoder:human_resources_page.job_positions_section.not_specified',
         'Not specified'

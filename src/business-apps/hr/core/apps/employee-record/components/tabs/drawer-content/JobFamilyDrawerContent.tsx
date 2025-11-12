@@ -4,6 +4,7 @@ import React from 'react'
 import { PiStack, PiUsers } from 'react-icons/pi'
 import { navigateTo } from '@/common/utils/navigationUtils'
 import { Employee } from '../../../hooks/useEmployeeData'
+import { getCatalogValue, getTranslationFromI18nKeyAndLabel } from '@/common/utils/windowUtils'
 import { useOrganizationalChildUnits } from '../../../hooks/useOrganizationalChildUnits'
 import { Button, Spinner } from '@newwork/nw-design-system'
 
@@ -128,9 +129,11 @@ export const getJobFamilyTitle = (employee: Employee) => {
   // Get job family from the updated data structure
   // Cast jobPosition to the defined type to avoid lint errors
   const jobPosition = employee.employeePosition?.jobPosition as JobPosition
-  const jobFamily = jobPosition?.jobFunction?.jobFamily?.value
-
-  return jobFamily || 'Not assigned'
+  const jobFamily = jobPosition?.jobFunction?.jobFamily
+  return (
+    getCatalogValue(jobFamily) ||
+    getTranslationFromI18nKeyAndLabel('lowcoder:employee_profile.left_side_bar.not_assigned', 'Not assigned')
+  )
 }
 
 export default JobFamilyDrawerContent
