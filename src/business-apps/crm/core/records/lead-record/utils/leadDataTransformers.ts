@@ -21,26 +21,27 @@ export function buildCustomerAccountFromLead(lead: CustomerLead | any): Customer
   if (!lead) return null
 
   // Build addresses array from lead addresses or direct fields
-  const addresses: Address[] | undefined =
-    lead.addresses?.length > 0
-      ? lead.addresses.map((addr: any) => ({
-          ...addr,
-          locality: addr.locality || addr.city, // Support both CRM (city) and IRM (locality)
-          addressType: addr.addressType || 'PRIMARY_ADDRESS'
-        }))
-      : lead.postalCode || lead.locality || lead.city || lead.countryRef || lead.regionRef
-        ? [
-            {
-              addressLine:
-                lead.addressLine || (typeof lead.addressLine === 'object' ? lead.addressLine.lines?.join(', ') : ''),
-              postalCode: lead.postalCode || '',
-              locality: lead.locality || lead.city || '',
-              country: typeof lead.country === 'string' ? lead.country : lead.country?.value || lead.country,
-              region: typeof lead.region === 'string' ? lead.region : lead.region?.value || lead.region,
-              addressType: 'PRIMARY_ADDRESS'
-            }
-          ]
-        : undefined
+  let addresses: Address[] | undefined
+  if (lead.addresses?.length > 0) {
+    addresses = lead.addresses.map((addr: any) => ({
+      ...addr,
+      locality: addr.locality || addr.city, // Support both CRM (city) and IRM (locality)
+      addressType: addr.addressType || 'PRIMARY_ADDRESS'
+    }))
+  } else if (lead.postalCode || lead.locality || lead.city || lead.countryRef || lead.regionRef) {
+    addresses = [
+      {
+        id: lead.addressId || `lead-address-${Date.now()}`,
+        addressLine:
+          lead.addressLine || (typeof lead.addressLine === 'object' ? lead.addressLine.lines?.join(', ') : ''),
+        postalCode: lead.postalCode || '',
+        locality: lead.locality || lead.city || '',
+        country: typeof lead.country === 'string' ? lead.country : lead.country?.value || lead.country,
+        region: typeof lead.region === 'string' ? lead.region : lead.region?.value || lead.region,
+        addressType: 'PRIMARY_ADDRESS'
+      }
+    ]
+  }
 
   // Build communication channels from company email/phone
   const communicationChannels: CommunicationChannel[] | undefined = []

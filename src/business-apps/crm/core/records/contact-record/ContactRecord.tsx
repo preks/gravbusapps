@@ -170,20 +170,20 @@ const ContactRecordContent: React.FC<ContactRecordContentProps> = ({ contactId, 
 
   // Listen for process completion events to refresh contact data
   useEffect(() => {
-    const handleProcessCompletion = (event: any) => {
+    const handleProcessCompletion = async (event: any) => {
       try {
         // Check for successful completion
         if (event.detail?.resolution === 'success') {
-          fetchContactData()
-          loadSectionData() // Also refresh section data
+          await fetchContactData()
+          await loadSectionData() // Also refresh section data
           return
         }
 
         // Also check for different event structure
         const response = event.detail?.response
         if (response?.detail?.resolution === 'success' || response?.contact) {
-          fetchContactData()
-          loadSectionData() // Also refresh section data
+          await fetchContactData()
+          await loadSectionData() // Also refresh section data
         }
       } catch (err) {
         console.error('Error handling process completion in ContactRecord:', err)

@@ -151,14 +151,14 @@ const HomeView: React.FC<HomeViewProps> = ({ contactId, contactData, ...props })
       'process-completion'
     ]
 
-    eventNames.forEach(eventName => {
-      window.addEventListener(eventName, handleProcessCompletion as EventListener)
-    })
+    for (const eventName of eventNames) {
+      globalThis.addEventListener(eventName, handleProcessCompletion as EventListener)
+    }
 
     return () => {
-      eventNames.forEach(eventName => {
-        window.removeEventListener(eventName, handleProcessCompletion as EventListener)
-      })
+      for (const eventName of eventNames) {
+        globalThis.removeEventListener(eventName, handleProcessCompletion as EventListener)
+      }
     }
   }, [loadSectionData])
 

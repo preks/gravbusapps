@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useMemo, useCallback } from 'react'
 import { Button, Spinner, RecordLayout } from '@newwork/nw-design-system'
-import { Users, TrendUp, FileText, Bank } from '@phosphor-icons/react'
+import { UsersIcon, TrendUpIcon, FileTextIcon, BankIcon } from '@phosphor-icons/react'
 import { BusinessAppContextProps } from '@/common/BusinessAppContext'
 import { navigateTo, buildPlatformUrl } from '@/common/utils/navigationUtils'
 import { getTranslationFromI18nKeyAndLabel } from '@/common/utils/windowUtils'
@@ -95,18 +95,18 @@ const AccountRecordContent: React.FC<AccountRecordContentProps> = ({ accountId, 
 
   // Listen for process completion events to refresh account data
   useEffect(() => {
-    const handleProcessCompletion = (event: any) => {
+    const handleProcessCompletion = async (event: any) => {
       try {
         // Check for successful completion
         if (event.detail?.resolution === 'success') {
-          fetchAccountData()
+          await fetchAccountData()
           return
         }
 
         // Also check for different event structure
         const response = event.detail?.response
         if (response?.detail?.resolution === 'success' || response?.account) {
-          fetchAccountData()
+          await fetchAccountData()
         }
       } catch (err) {
         console.error('Error handling process completion in AccountRecord:', err)
@@ -147,17 +147,17 @@ const AccountRecordContent: React.FC<AccountRecordContentProps> = ({ accountId, 
           {
             label: 'Email',
             value: getEmailChannel(accountData?.communicationChannels)?.value || 'Not set',
-            icon: TrendUp
+            icon: TrendUpIcon
           },
           {
             label: 'Phone',
             value: getPhoneChannel(accountData?.communicationChannels)?.value || 'Not set',
-            icon: TrendUp
+            icon: TrendUpIcon
           },
           {
             label: 'Founded',
             value: accountData?.foundationDate ? new Date(accountData.foundationDate).toLocaleDateString() : 'Not set',
-            icon: TrendUp
+            icon: TrendUpIcon
           },
           {
             label: 'Owner',
@@ -166,7 +166,7 @@ const AccountRecordContent: React.FC<AccountRecordContentProps> = ({ accountId, 
               (accountData?.ownerEmployee?.firstName && accountData?.ownerEmployee?.lastName
                 ? `${accountData.ownerEmployee.firstName} ${accountData.ownerEmployee.lastName}`.trim()
                 : 'Not assigned'),
-            icon: Users
+            icon: UsersIcon
           }
         ]
       }
@@ -200,13 +200,13 @@ const AccountRecordContent: React.FC<AccountRecordContentProps> = ({ accountId, 
         {
           value: 'overview',
           label: getTranslationFromI18nKeyAndLabel('crm.common.overview', 'Overview'),
-          icon: <Users className="gba:mr-2" />,
+          icon: <UsersIcon className="gba:mr-2" />,
           content: <HomeView accountId={accountId} accountData={accountData} {...props} />
         },
         {
           value: 'opportunities',
           label: getTranslationFromI18nKeyAndLabel('crm.common.opportunities', 'Opportunities'),
-          icon: <TrendUp className="gba:mr-2" />,
+          icon: <TrendUpIcon className="gba:mr-2" />,
           content: (
             <div className="gba:col-span-12">
               <OpportunityView accountId={accountId} context={props} />
@@ -216,7 +216,7 @@ const AccountRecordContent: React.FC<AccountRecordContentProps> = ({ accountId, 
         {
           value: 'documents',
           label: getTranslationFromI18nKeyAndLabel('crm.common.documents', 'Documents'),
-          icon: <FileText className="gba:mr-2" />,
+          icon: <FileTextIcon className="gba:mr-2" />,
           content: (
             <div className="gba:col-span-12">
               <DocumentView accountId={accountId} context={props} />
@@ -260,7 +260,7 @@ const AccountRecordContent: React.FC<AccountRecordContentProps> = ({ accountId, 
     <div data-testid="customer-account-detail">
       <RecordLayout
         headerOrientation="horizontal"
-        headerIcon={Bank}
+        headerIcon={BankIcon}
         headerCategory={getTranslationFromI18nKeyAndLabel('crm.common.account', 'ACCOUNT')}
         onBack={onBack}
         headerTitle={accountData.name || 'Unknown Account'}

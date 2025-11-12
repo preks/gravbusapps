@@ -69,7 +69,7 @@ export function getCatalogEntryField(
       }
 
       // Use translation if it exists and has a non-empty value
-      if (translation && translation[field]) {
+      if (translation?.[field]) {
         const translatedValue = translation[field]
 
         // Handle string fields

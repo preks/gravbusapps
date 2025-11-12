@@ -72,8 +72,8 @@ export const useGetRegions = (context: BusinessAppContextProps, search: string =
         // Process and deduplicate regions
         const regionMap = new Map<string, any>()
 
-        result.Lead.forEach((lead: any) => {
-          if (lead.region && lead.region.id) {
+        for (const lead of result.Lead) {
+          if (lead.region?.id) {
             const regionName = lead.region.value || lead.region.code
 
             // Use region ID as key for deduplication
@@ -86,7 +86,7 @@ export const useGetRegions = (context: BusinessAppContextProps, search: string =
               })
             }
           }
-        })
+        }
 
         // Convert map to array and sort alphabetically
         const regionsList = Array.from(regionMap.values())

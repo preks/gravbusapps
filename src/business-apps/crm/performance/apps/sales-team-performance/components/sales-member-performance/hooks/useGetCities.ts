@@ -65,8 +65,8 @@ export const useGetCities = (context: BusinessAppContextProps, search: string = 
         // Process and deduplicate cities
         const cityMap = new Map<string, any>()
 
-        result.Lead.forEach((lead: any) => {
-          if (lead.city && lead.city.trim()) {
+        for (const lead of result.Lead) {
+          if (lead.city?.trim()) {
             const cityName = lead.city.trim()
 
             // Use city name as both key and ID for filtering
@@ -77,7 +77,7 @@ export const useGetCities = (context: BusinessAppContextProps, search: string = 
               })
             }
           }
-        })
+        }
 
         // Convert map to array and sort alphabetically
         const citiesList = Array.from(cityMap.values())

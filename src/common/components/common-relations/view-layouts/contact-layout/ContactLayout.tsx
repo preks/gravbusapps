@@ -70,9 +70,9 @@ export interface ContactLayoutProps<TContact extends Contact = Contact, TQueryVa
   customPrimaryAction?: React.ReactNode
 }
 
-const ConfigContactLayout = <TContact extends Contact = Contact, TQueryVariables = any>(
+function ConfigContactLayout<TContact extends Contact = Contact, TQueryVariables = any>(
   props: ContactLayoutProps<TContact, TQueryVariables>
-) => {
+): React.ReactElement {
   const {
     context,
     config,
@@ -81,13 +81,6 @@ const ConfigContactLayout = <TContact extends Contact = Contact, TQueryVariables
     hideFilters = false,
     customPrimaryAction
   } = props
-
-  if (!context) {
-    console.error('ContactLayout: context is required')
-    return null
-  }
-
-  const { accessToken } = context
 
   // View State
   const [searchTerm, setSearchTerm] = useState('')
@@ -104,7 +97,12 @@ const ConfigContactLayout = <TContact extends Contact = Contact, TQueryVariables
   const [isInitialLoad, setIsInitialLoad] = useState(true)
 
   // Use centralized filter groups hook
-  const filterGroups = useFilterGroups(context, config.entityName, config.descriptors, { limit: 100 })
+  const filterGroups = useFilterGroups(
+    context || ({} as BusinessAppContextProps),
+    config.entityName,
+    config.descriptors,
+    { limit: 100 }
+  )
 
   // Dynamic Filter Configuration
   const dynamicFilterConfig = useMemo(() => {
@@ -126,7 +124,7 @@ const ConfigContactLayout = <TContact extends Contact = Contact, TQueryVariables
   // Load Data
   const loadData = useCallback(
     async (showLoading: boolean = true) => {
-      if (!accessToken) return
+      if (!context?.accessToken) return
 
       if (showLoading) setIsLoading(true)
       setError(null)
@@ -142,20 +140,20 @@ const ConfigContactLayout = <TContact extends Contact = Contact, TQueryVariables
         setIsInitialLoad(false)
       }
     },
-    [accessToken, config, queryVariables]
+    [context?.accessToken, config, queryVariables]
   )
 
   // Initial load
   useEffect(() => {
-    if (!accessToken || !isInitialLoad) return
+    if (!context?.accessToken || !isInitialLoad) return
     loadData(true)
-  }, [accessToken, isInitialLoad, loadData])
+  }, [context?.accessToken, isInitialLoad, loadData])
 
   // Reload data when filters/search/sort change (skip initial load)
   useEffect(() => {
-    if (isInitialLoad || !accessToken) return
+    if (isInitialLoad || !context?.accessToken) return
     loadData(false)
-  }, [queryVariables, isInitialLoad, accessToken, loadData])
+  }, [queryVariables, isInitialLoad, context?.accessToken, loadData])
 
   // Process Completion Handlers
   const handleProcessComplete = useCallback(() => {
@@ -222,7 +220,7 @@ const ConfigContactLayout = <TContact extends Contact = Contact, TQueryVariables
         contextsArray={config.rowActionsContextArray}
         externalContextData={config.buildRowActionsExternalContextData(row)}
         prefixDataTestId="contact-actions"
-        accessToken={accessToken}
+        accessToken={context?.accessToken || ''}
         emptyStateBehavior="enable"
         deferMainContextRequestsUntilClick
       >
@@ -238,8 +236,15 @@ const ConfigContactLayout = <TContact extends Contact = Contact, TQueryVariables
         </Button>
       </AppActionMenu>
     ),
-    [config, accessToken]
+    [config, context?.accessToken]
   )
+
+  if (!context) {
+    console.error('ContactLayout: context is required')
+    return null
+  }
+
+  const accessToken = context.accessToken
 
   return (
     <div data-testid={dataTestId}>

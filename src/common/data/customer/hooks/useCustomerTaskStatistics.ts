@@ -21,7 +21,7 @@ export interface CustomerTaskStatistics {
   }
   isLoading: boolean
   error: Error | null
-  refetch: () => void
+  refetch: () => Promise<void>
 }
 
 const GET_CUSTOMER_TASK_STATISTICS = `

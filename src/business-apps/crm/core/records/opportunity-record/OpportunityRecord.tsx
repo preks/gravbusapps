@@ -190,11 +190,11 @@ const OpportunityRecordContent: React.FC<OpportunityRecordContentProps> = ({
   // Memoize stage condition action props to prevent recreation
   const stageConditionActionProps = useMemo(
     () => ({
-      contextsArray: [FlowContextName.customerOpportunityUpdate],
-      externalContextData: { opportunityId },
+      contextsArray: [FlowContextName.customerOpportunityConditionUpdate],
+      externalContextData: undefined,
       prefixDataTestId: 'stage-condition-status-icon'
     }),
-    [opportunityId]
+    []
   )
 
   // Memoize header action button to prevent recreation

@@ -128,9 +128,75 @@ export interface OpportunityLayoutProps<TOpportunity extends { id: string } = an
   customPrimaryAction?: React.ReactNode
 }
 
-const ConfigOpportunityLayout = <TOpportunity extends { id: string } = any, TQueryVariables = any>(
+interface OpportunityRowActionsProps<TOpportunity extends { id: string }> {
+  row: { original: TOpportunity }
+  config: OpportunityViewConfig<TOpportunity, any>
+  accessToken: string
+}
+
+const OpportunityRowActions = <TOpportunity extends { id: string } = any>({
+  row,
+  config,
+  accessToken
+}: OpportunityRowActionsProps<TOpportunity>) => (
+  <AppActionMenu
+    contextsArray={config.rowActionsContextArray}
+    externalContextData={config.buildRowActionsExternalContextData(row)}
+    prefixDataTestId="opportunity-actions"
+    accessToken={accessToken}
+    emptyStateBehavior="enable"
+    deferMainContextRequestsUntilClick
+  >
+    <Button variant="ghost" size="icon" data-testid={`opportunity-actions-${row.original.id}`}>
+      <svg className="gba:h-4 gba:w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+        <path
+          strokeLinecap="round"
+          strokeLinejoin="round"
+          strokeWidth={2}
+          d="M12 5v.01M12 12v.01M12 19v.01M12 6a1 1 0 110-2 1 1 0 010 2zm0 7a1 1 0 110-2 1 1 0 010 2zm0 7a1 1 0 110-2 1 1 0 010 2z"
+        />
+      </svg>
+    </Button>
+  </AppActionMenu>
+)
+
+interface BoardSecondaryActionsProps {
+  currentSection: 'list' | 'board'
+  boardPipelineId: string
+  pipelines?: Array<{ id: string; label: string }>
+  onPipelineChange: (pipelineId: string) => void
+}
+
+const BoardSecondaryActions: React.FC<BoardSecondaryActionsProps> = ({
+  currentSection,
+  boardPipelineId,
+  pipelines,
+  onPipelineChange
+}) => {
+  if (currentSection !== 'board') return undefined
+
+  return (
+    <div className="gba:flex gba:items-center gba:gap-2">
+      <Label className="gba:text-sm gba:font-medium gba:whitespace-nowrap">Pipeline:</Label>
+      <Select value={boardPipelineId} onValueChange={onPipelineChange}>
+        <SelectTrigger className="gba:w-48">
+          <SelectValue placeholder="Select Pipeline" />
+        </SelectTrigger>
+        <SelectContent>
+          {pipelines?.map(pipeline => (
+            <SelectItem key={pipeline.id} value={pipeline.id}>
+              {pipeline.label}
+            </SelectItem>
+          ))}
+        </SelectContent>
+      </Select>
+    </div>
+  )
+}
+
+function ConfigOpportunityLayout<TOpportunity extends { id: string } = any, TQueryVariables = any>(
   props: OpportunityLayoutProps<TOpportunity, TQueryVariables>
-) => {
+): React.ReactElement {
   const {
     context,
     config,
@@ -418,51 +484,23 @@ const ConfigOpportunityLayout = <TOpportunity extends { id: string } = any, TQue
   // Row actions - rendered internally
   const rowActions = useMemo(
     () => (row: { original: TOpportunity }) => (
-      <AppActionMenu
-        contextsArray={config.rowActionsContextArray}
-        externalContextData={config.buildRowActionsExternalContextData(row)}
-        prefixDataTestId="opportunity-actions"
-        accessToken={accessToken}
-        emptyStateBehavior="enable"
-        deferMainContextRequestsUntilClick
-      >
-        <Button variant="ghost" size="icon" data-testid={`opportunity-actions-${row.original.id}`}>
-          <svg className="gba:h-4 gba:w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-            <path
-              strokeLinecap="round"
-              strokeLinejoin="round"
-              strokeWidth={2}
-              d="M12 5v.01M12 12v.01M12 19v.01M12 6a1 1 0 110-2 1 1 0 010 2zm0 7a1 1 0 110-2 1 1 0 010 2zm0 7a1 1 0 110-2 1 1 0 010 2z"
-            />
-          </svg>
-        </Button>
-      </AppActionMenu>
+      <OpportunityRowActions row={row} config={config} accessToken={accessToken} />
     ),
     [config, accessToken]
   )
 
   // Board secondary action: Pipeline selector
-  const boardSecondaryActions = useMemo(() => {
-    if (currentSection !== 'board') return undefined
-
-    return (
-      <div className="gba:flex gba:items-center gba:gap-2">
-        <Label className="gba:text-sm gba:font-medium gba:whitespace-nowrap">Pipeline:</Label>
-        <Select value={boardPipelineId} onValueChange={setBoardPipelineId}>
-          <SelectTrigger className="gba:w-48">
-            <SelectValue placeholder="Select Pipeline" />
-          </SelectTrigger>
-          <SelectContent>
-            {pipelines?.map(pipeline => (
-              <SelectItem key={pipeline.id} value={pipeline.id}>
-                {pipeline.label}
-              </SelectItem>
-            ))}
-          </SelectContent>
-        </Select>
-      </div>
-    )
-  }, [currentSection, boardPipelineId, pipelines])
+  const boardSecondaryActions = useMemo(
+    () => (
+      <BoardSecondaryActions
+        currentSection={currentSection}
+        boardPipelineId={boardPipelineId}
+        pipelines={pipelines}
+        onPipelineChange={setBoardPipelineId}
+      />
+    ),
+    [currentSection, boardPipelineId, pipelines]
+  )
 
   return (
     <div data-testid={dataTestId}>

@@ -1,16 +1,16 @@
 import { useCallback } from 'react'
 import { useGraphQLClient } from '@/common/network/graphql/useGraphQLClient'
 import { BusinessAppContextProps } from '@/common/BusinessAppContext'
-import { GET_INVESTMENT_NOTES_BY_INVESTMENT_ID } from '@/common/data/investment/queries/investmentNoteQueries'
 import {
+  GET_INVESTMENT_NOTES_BY_INVESTMENT_ID,
   buildInvestmentNoteWhereCondition,
   buildInvestmentNoteOrderBy
 } from '@/common/data/investment/queries/investmentNoteQueries'
-import type { BaseInvestmentNote, InvestmentNote } from '@/common/data/investment/types'
+import type { InvestmentNote } from '@/common/data/investment/types'
 import { toInvestmentNote } from '@/common/data/investment/mappers'
 
 interface InvestmentNotesByInvestmentIdResponse {
-  InvestmentNote: BaseInvestmentNote[]
+  InvestmentNote: InvestmentNote[]
 }
 
 export const useGetInvestmentNotesByInvestmentId = (context: BusinessAppContextProps) => {

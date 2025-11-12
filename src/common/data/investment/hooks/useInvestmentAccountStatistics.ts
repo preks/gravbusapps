@@ -67,7 +67,14 @@ const GET_ALL_INVESTMENT_ACCOUNT_STATISTICS_WITH_TREND = `
 // Helper function outside component to prevent recreation
 const calculateTrend = (current: number, previous: number): TrendData => {
   const change = current - previous
-  const changePercent = previous > 0 ? (change / previous) * 100 : current > 0 ? 100 : 0
+  let changePercent: number
+  if (previous > 0) {
+    changePercent = (change / previous) * 100
+  } else if (current > 0) {
+    changePercent = 100
+  } else {
+    changePercent = 0
+  }
   return {
     current,
     previous,

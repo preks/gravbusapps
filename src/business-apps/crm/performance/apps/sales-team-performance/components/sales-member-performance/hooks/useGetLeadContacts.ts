@@ -78,8 +78,8 @@ export const useGetLeadContacts = (context: BusinessAppContextProps, search: str
         // Process and deduplicate contacts
         const contactMap = new Map<string, any>()
 
-        result.Lead.forEach((lead: any) => {
-          if (lead.contact && lead.contact.id) {
+        for (const lead of result.Lead) {
+          if (lead.contact?.id) {
             const contactName = `${lead.contact.firstName || ''} ${lead.contact.lastName || ''}`.trim()
 
             // Use contact ID as key for deduplication (keep original ID for contact filtering)
@@ -93,7 +93,7 @@ export const useGetLeadContacts = (context: BusinessAppContextProps, search: str
               })
             }
           }
-        })
+        }
 
         // Convert map to array and sort alphabetically
         const contacts = Array.from(contactMap.values())

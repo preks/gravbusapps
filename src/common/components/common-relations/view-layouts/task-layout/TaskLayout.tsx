@@ -105,9 +105,37 @@ export interface TaskLayoutProps<TTask extends Task = Task, TQueryVariables = an
  * @template TTask - Task type extending Task
  * @template TQueryVariables - GraphQL query variables type
  */
-const ConfigTaskLayout = <TTask extends Task = Task, TQueryVariables = any>(
+interface TaskRowActionsProps<TTask extends Task> {
+  row: { original: TTask }
+  config: TaskViewConfig<TTask, any>
+  accessToken: string
+}
+
+const TaskRowActions = <TTask extends Task = Task>({ row, config, accessToken }: TaskRowActionsProps<TTask>) => (
+  <AppActionMenu
+    contextsArray={config.rowActionsContextArray}
+    externalContextData={config.buildRowActionsExternalContextData(row)}
+    prefixDataTestId="task-actions"
+    accessToken={accessToken}
+    emptyStateBehavior="enable"
+    deferMainContextRequestsUntilClick
+  >
+    <Button variant="ghost" size="icon" data-testid={`task-actions-${row.original.id}`}>
+      <svg className="gba:h-4 gba:w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+        <path
+          strokeLinecap="round"
+          strokeLinejoin="round"
+          strokeWidth={2}
+          d="M12 5v.01M12 12v.01M12 19v.01M12 6a1 1 0 110-2 1 1 0 010 2zm0 7a1 1 0 110-2 1 1 0 010 2zm0 7a1 1 0 110-2 1 1 0 010 2z"
+        />
+      </svg>
+    </Button>
+  </AppActionMenu>
+)
+
+function ConfigTaskLayout<TTask extends Task = Task, TQueryVariables = any>(
   props: TaskLayoutProps<TTask, TQueryVariables>
-) => {
+): React.ReactElement {
   const {
     context,
     config,
@@ -405,28 +433,8 @@ const ConfigTaskLayout = <TTask extends Task = Task, TQueryVariables = any>(
 
   // Row actions
   const rowActions = useMemo(
-    () => (row: { original: TTask }) => (
-      <AppActionMenu
-        contextsArray={config.rowActionsContextArray}
-        externalContextData={config.buildRowActionsExternalContextData(row)}
-        prefixDataTestId="task-actions"
-        accessToken={accessToken}
-        emptyStateBehavior="enable"
-        deferMainContextRequestsUntilClick
-      >
-        <Button variant="ghost" size="icon" data-testid={`task-actions-${row.original.id}`}>
-          <svg className="gba:h-4 gba:w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-            <path
-              strokeLinecap="round"
-              strokeLinejoin="round"
-              strokeWidth={2}
-              d="M12 5v.01M12 12v.01M12 19v.01M12 6a1 1 0 110-2 1 1 0 010 2zm0 7a1 1 0 110-2 1 1 0 010 2zm0 7a1 1 0 110-2 1 1 0 010 2z"
-            />
-          </svg>
-        </Button>
-      </AppActionMenu>
-    ),
-    [config, accessToken, currentSection]
+    () => (row: { original: TTask }) => <TaskRowActions row={row} config={config} accessToken={accessToken} />,
+    [config, accessToken]
   )
 
   // Current section data

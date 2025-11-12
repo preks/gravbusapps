@@ -66,9 +66,16 @@ export const buildOrderBy = (orderBy: SortInput[] = [], descriptors: Descriptor[
     if (d.enableSort === false) continue
 
     // Support sortPaths (fallbacks) or sortPath (single) or searchPaths[0] fallback
-    const paths =
-      d.sortPaths ||
-      (d.sortPath ? [d.sortPath] : d.searchPaths && d.searchPaths.length > 0 ? [d.searchPaths[0]] : [o.field])
+    let paths: string[]
+    if (d.sortPaths) {
+      paths = d.sortPaths
+    } else if (d.sortPath) {
+      paths = [d.sortPath]
+    } else if (d.searchPaths?.length > 0) {
+      paths = [d.searchPaths[0]]
+    } else {
+      paths = [o.field]
+    }
 
     for (const path of paths) {
       const segments = path.split('.').filter(Boolean)
@@ -135,15 +142,15 @@ export const buildSearch = (search: string, descriptors: Descriptor[] = []): Rec
         let start: Date | null = null
         let end: Date | null = null
         if (ymd) {
-          const [Y, M, D] = term.split('-').map((n: string) => parseInt(n, 10))
+          const [Y, M, D] = term.split('-').map((n: string) => Number.parseInt(n, 10))
           start = new Date(Date.UTC(Y, M - 1, D, 0, 0, 0, 0))
           end = new Date(Date.UTC(Y, M - 1, D, 23, 59, 59, 999))
         } else if (ym) {
-          const [Y, M] = term.split('-').map((n: string) => parseInt(n, 10))
+          const [Y, M] = term.split('-').map((n: string) => Number.parseInt(n, 10))
           start = new Date(Date.UTC(Y, M - 1, 1, 0, 0, 0, 0))
           end = new Date(Date.UTC(Y, M, 0, 23, 59, 59, 999))
         } else if (y) {
-          const Y = parseInt(term, 10)
+          const Y = Number.parseInt(term, 10)
           start = new Date(Date.UTC(Y, 0, 1, 0, 0, 0, 0))
           end = new Date(Date.UTC(Y, 11, 31, 23, 59, 59, 999))
         } else {
@@ -165,7 +172,7 @@ export const buildSearch = (search: string, descriptors: Descriptor[] = []): Rec
         leaf = { _gte: startIso, _lte: endIso }
       } else {
         // Default: text search with _ilike
-        const escape = (s: string) => String(s).replace(/\\/g, '\\\\').replace(/"/g, '\\"')
+        const escape = (s: string) => String(s).replaceAll('\\', '\\\\').replaceAll('"', '\\"')
         const like = `%${escape(term)}%`
         leaf = { _ilike: like }
       }
@@ -292,7 +299,12 @@ export const selectionFromPathsWithArraySupport = (paths: string[]): string => {
 
     const render = (n: any): string => {
       return Object.entries(n)
-        .map(([k, v]) => (v === true ? k : `${k} { ${render(v)} }`))
+        .map(([k, v]) => {
+          if (v === true) {
+            return k
+          }
+          return `${k} { ${render(v)} }`
+        })
         .join(' ')
     }
 
@@ -321,7 +333,7 @@ export const buildFilterGroups = (args: {
   const { entityName, descriptors, searchByKey = {}, limit = 100 } = args
   const result: Record<string, string> = {}
   for (const d of descriptors) {
-    if (!d.optionSelectPaths || !d.optionSelectPaths.length) continue
+    if (!d.optionSelectPaths?.length) continue
     const selectPaths = d.optionSelectPaths
     const searchPaths = d.optionSearchPaths || d.searchPaths || []
     const distinctOn = d.optionDistinctOn || []
@@ -359,7 +371,7 @@ export const buildFilterAggregateQueries = (args: {
   const result: Record<string, string> = {}
 
   for (const d of descriptors) {
-    if (!d.optionSelectPaths || !d.optionSelectPaths.length) continue
+    if (!d.optionSelectPaths?.length) continue
 
     // Build distinctOn condition if specified
     const distinctOn = d.optionDistinctOn || []
@@ -483,7 +495,7 @@ export const buildCombinedFilterGroupsQuery = (args: {
   const aggregateQueries: string[] = []
 
   for (const d of descriptors) {
-    if (!d.optionSelectPaths || !d.optionSelectPaths.length) continue
+    if (!d.optionSelectPaths?.length) continue
 
     const selectPaths = d.optionSelectPaths
     const searchPaths = d.optionSearchPaths || d.searchPaths || []
@@ -589,7 +601,7 @@ export const fetchFilterGroups = async (args: {
   > = {}
 
   for (const d of descriptors) {
-    if (!d.optionSelectPaths || !d.optionSelectPaths.length) continue
+    if (!d.optionSelectPaths?.length) continue
 
     const data = result[d.key] || []
     const transformedOptions = transformFilterOptions(data, d)
@@ -708,7 +720,7 @@ export const buildWhere = (options: BuildWhereOptions): Record<string, any> => {
 
   // Standard filters via descriptors (using buildFilter)
   const filterObj = buildFilter(normalizedVariables, descriptors)
-  if (filterObj && filterObj._and) {
+  if (filterObj?._and) {
     if (whereObj._and) {
       whereObj._and.push(...filterObj._and)
     } else {
@@ -718,7 +730,7 @@ export const buildWhere = (options: BuildWhereOptions): Record<string, any> => {
 
   // Search via descriptors (using buildSearch)
   const searchObj = buildSearch(normalizedVariables.search, descriptors)
-  if (searchObj && searchObj._or) {
+  if (searchObj?._or) {
     if (whereObj._and) {
       whereObj._and.push(searchObj)
     } else {

@@ -294,11 +294,11 @@ export const useContactFilters = (context: BusinessAppContextProps): ContactFilt
 
   const filterLabelMap: Record<string, string> = useMemo(() => {
     const map: Record<string, string> = {}
-    filterGroups.forEach(group => {
-      group.filters.forEach(filter => {
+    for (const group of filterGroups) {
+      for (const filter of group.filters) {
         map[filter.id] = filter.label
-      })
-    })
+      }
+    }
     return map
   }, [filterGroups])
 
@@ -340,7 +340,7 @@ export const useContactFilters = (context: BusinessAppContextProps): ContactFilt
     }
 
     // Process selected filters
-    selectedFilters.forEach(filterId => {
+    for (const filterId of selectedFilters) {
       for (const group of filterGroups) {
         const filter = group.filters.find(f => f.id === filterId)
         if (filter) {
@@ -366,7 +366,7 @@ export const useContactFilters = (context: BusinessAppContextProps): ContactFilt
           break
         }
       }
-    })
+    }
 
     return filters
   }, [search, selectedFilters, createdAfter, createdBefore, filterGroups])

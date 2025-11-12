@@ -73,14 +73,14 @@ export const LeadView: React.FC<LeadViewProps> = context => {
 
         // Normalize date range filters
         const dateRangeKeys = ['createdAtRange', 'updatedAtRange']
-        dateRangeKeys.forEach(rangeKey => {
+        for (const rangeKey of dateRangeKeys) {
           const normalized = normalizeDateRange(params.selectedFilters[rangeKey])
           if (normalized) {
             const baseKey = rangeKey.replace('Range', '')
             if (normalized.from) vars[`${baseKey}From` as keyof CustomerLeadQueryVariables] = normalized.from
             if (normalized.to) vars[`${baseKey}To` as keyof CustomerLeadQueryVariables] = normalized.to
           }
-        })
+        }
 
         // Handle sensitive filter (boolean - no Descriptor)
         if (params.selectedFilters.sensitive !== undefined && params.selectedFilters.sensitive !== null) {
@@ -95,7 +95,7 @@ export const LeadView: React.FC<LeadViewProps> = context => {
         }
 
         // Copy all other filters directly (they now match Descriptor-Keys)
-        Object.keys(params.selectedFilters).forEach(key => {
+        for (const key of Object.keys(params.selectedFilters)) {
           if (
             !dateRangeKeys.includes(key) &&
             key !== 'sensitive' &&
@@ -104,7 +104,7 @@ export const LeadView: React.FC<LeadViewProps> = context => {
           ) {
             vars[key as keyof CustomerLeadQueryVariables] = params.selectedFilters[key]
           }
-        })
+        }
 
         // Use column ID directly - buildOrderBy will use descriptors (CUSTOMER_LEAD_DESCRIPTORS)
         // to resolve correct GraphQL paths (e.g., leadStatus.value, ownerEmployee.displayName)

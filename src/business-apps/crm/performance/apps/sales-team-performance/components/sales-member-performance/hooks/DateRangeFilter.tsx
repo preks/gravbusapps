@@ -30,14 +30,14 @@ export const DateRangeFilter: React.FC<DateRangeFilterProps> = ({
 
   const handleDateRangeChange = useCallback(
     (dates: [Dayjs | null, Dayjs | null] | null) => {
-      if (!dates) {
-        // Clear the date range
-        onDateRangeChange(undefined, undefined)
-      } else {
+      if (dates) {
         // Convert to ISO strings for the API, allowing partial ranges
         const startDate = dates[0] ? dates[0].startOf('day').toISOString() : undefined
         const endDate = dates[1] ? dates[1].endOf('day').toISOString() : undefined
         onDateRangeChange(startDate, endDate)
+      } else {
+        // Clear the date range
+        onDateRangeChange(undefined, undefined)
       }
     },
     [onDateRangeChange]

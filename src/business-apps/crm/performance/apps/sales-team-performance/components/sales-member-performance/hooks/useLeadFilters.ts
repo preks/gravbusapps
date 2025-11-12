@@ -175,12 +175,12 @@ export const useLeadFilters = (context: BusinessAppContextProps) => {
       !regionLoading &&
       !cityLoading
     ) {
-      const urlParams = new URLSearchParams(window.location.search)
+      const urlParams = new URLSearchParams(globalThis.location.search)
       const preselectedFilters: string[] = []
 
       // Handle leadStatus parameter: leadStatus=LEAD_NEW
       const leadStatusParams = urlParams.getAll('leadStatus')
-      leadStatusParams.forEach(statusValue => {
+      for (const statusValue of leadStatusParams) {
         if (
           ['LEAD_NEW', 'LEAD_OPEN', 'LEAD_QUALIFIED', 'LEAD_CONVERTED', 'LEAD_LOST', 'UNKNOWN_LEAD_STATUS'].includes(
             statusValue
@@ -188,59 +188,59 @@ export const useLeadFilters = (context: BusinessAppContextProps) => {
         ) {
           preselectedFilters.push(statusValue)
         }
-      })
+      }
 
       // Handle leadRating parameter: leadRating=HOT_LEAD
       const leadRatingParams = urlParams.getAll('leadRating')
-      leadRatingParams.forEach(ratingValue => {
+      for (const ratingValue of leadRatingParams) {
         if (['HOT_LEAD', 'WARM_LEAD', 'COLD_LEAD', 'UNKNOWN_LEAD_RATING'].includes(ratingValue)) {
           preselectedFilters.push(ratingValue)
         }
-      })
+      }
 
       // Only process URL filters if we have data loaded
       if (stableOptions.leadSourceOptions.length > 0) {
         // Handle leadSource parameter: leadSource=LeadSource:v1:WEBSITE
         const leadSourceParams = urlParams.getAll('leadSource')
-        leadSourceParams.forEach(sourceValue => {
+        for (const sourceValue of leadSourceParams) {
           const matchingSource = stableOptions.leadSourceOptions.find(option => option.id === sourceValue)
           if (matchingSource) {
             preselectedFilters.push(`source-${matchingSource.id}`)
           }
-        })
+        }
       }
 
       if (stableOptions.industryOptions.length > 0) {
         // Handle industry parameter: industry=Industry:v1:TECHNOLOGY
         const industryParams = urlParams.getAll('industry')
-        industryParams.forEach(industryValue => {
+        for (const industryValue of industryParams) {
           const matchingIndustry = stableOptions.industryOptions.find(option => option.id === industryValue)
           if (matchingIndustry) {
             preselectedFilters.push(`industry-${matchingIndustry.id}`)
           }
-        })
+        }
       }
 
       if (stableOptions.companySizeOptions.length > 0) {
         // Handle companySize parameter: companySize=CompanySize:v1:SMALL
         const companySizeParams = urlParams.getAll('companySize')
-        companySizeParams.forEach(sizeValue => {
+        for (const sizeValue of companySizeParams) {
           const matchingSize = stableOptions.companySizeOptions.find(option => option.id === sizeValue)
           if (matchingSize) {
             preselectedFilters.push(`size-${matchingSize.id}`)
           }
-        })
+        }
       }
 
       if (stableOptions.leadOwners.length > 0) {
         // Handle leadOwner parameter: leadOwner=employee-123
         const leadOwnerParams = urlParams.getAll('leadOwner')
-        leadOwnerParams.forEach(ownerValue => {
+        for (const ownerValue of leadOwnerParams) {
           const matchingOwner = stableOptions.leadOwners.find(owner => owner.id === ownerValue)
           if (matchingOwner) {
             preselectedFilters.push(`owner-${matchingOwner.id}`)
           }
-        })
+        }
       }
 
       if (preselectedFilters.length > 0) {

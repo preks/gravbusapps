@@ -55,9 +55,9 @@ const CampaignView: React.FC<CampaignViewProps> = props => {
 
     // Update types from existing filter data (if available)
     const typesGroup = config.groups.find(g => g.id === 'campaign-filters')
-    if (typesGroup && campaignTypeOptions && campaignTypeOptions.length > 0) {
+    if (typesGroup && campaignTypeOptions?.length > 0) {
       const typeFilter = typesGroup.filters.find(f => f.id === 'types')
-      if (typeFilter && typeFilter.config && 'options' in typeFilter.config) {
+      if (typeFilter?.config && 'options' in typeFilter.config) {
         typeFilter.config.options = campaignTypeOptions.map(t => ({
           id: t.id,
           label: t.label
@@ -110,9 +110,9 @@ const CampaignView: React.FC<CampaignViewProps> = props => {
 
   // Handle row click
   const handleRowClick = useCallback((campaign: SalesCampaign) => {
-    const url = buildPlatformUrl('/platform/crm/customer-relations', {
-      view: 'campaigns',
-      campaignId: campaign.id
+    const url = buildPlatformUrl('/platform/crm/campaign-record', {
+      campaignId: campaign.id,
+      source: 'customer-relations'
     })
     navigateTo(url)
   }, [])

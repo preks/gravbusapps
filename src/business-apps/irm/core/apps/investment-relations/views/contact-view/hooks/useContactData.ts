@@ -42,13 +42,13 @@ export function useContactData(context: BusinessAppContextProps): UseContactData
   // Clean filters to remove empty arrays and undefined values
   const cleanedFilters = useMemo(() => {
     const cleaned: Record<string, any> = {}
-    Object.entries(filters).forEach(([key, value]) => {
+    for (const [key, value] of Object.entries(filters)) {
       if (Array.isArray(value) && value.length > 0) {
         cleaned[key] = value
       } else if (!Array.isArray(value) && value !== undefined && value !== null && value !== '') {
         cleaned[key] = value
       }
-    })
+    }
     return cleaned
   }, [filters])
 
@@ -93,12 +93,12 @@ export function useContactData(context: BusinessAppContextProps): UseContactData
 
     // Contact info filters
     if (cleanedFilters.communicationChannels?.length) {
-      cleanedFilters.communicationChannels.forEach((filter: string) => {
+      for (const filter of cleanedFilters.communicationChannels) {
         if (filter === 'has:email') filterVars.hasEmail = true
         if (filter === 'missing:email') filterVars.missingEmail = true
         if (filter === 'has:phone') filterVars.hasPhone = true
         if (filter === 'missing:phone') filterVars.missingPhone = true
-      })
+      }
     }
 
     // Build sorting
@@ -180,14 +180,14 @@ export function useContactData(context: BusinessAppContextProps): UseContactData
       'processCompleted'
     ]
 
-    eventNames.forEach(eventName => {
-      window.addEventListener(eventName, handleProcessEvent as EventListener)
-    })
+    for (const eventName of eventNames) {
+      globalThis.addEventListener(eventName, handleProcessEvent as EventListener)
+    }
 
     return () => {
-      eventNames.forEach(eventName => {
-        window.removeEventListener(eventName, handleProcessEvent as EventListener)
-      })
+      for (const eventName of eventNames) {
+        globalThis.removeEventListener(eventName, handleProcessEvent as EventListener)
+      }
     }
   }, [loadData])
 

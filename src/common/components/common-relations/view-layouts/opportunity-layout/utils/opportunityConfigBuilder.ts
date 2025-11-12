@@ -108,17 +108,17 @@ export const createOpportunityConfig = <TOpportunity extends { id: string }, TQu
 
       // Normalize date range filters
       const dateRangeKeys = ['createdAtRange', 'updatedAtRange', 'closeDateRange']
-      dateRangeKeys.forEach(rangeKey => {
+      for (const rangeKey of dateRangeKeys) {
         const normalized = normalizeDateRange(params.selectedFilters[rangeKey])
         if (normalized) {
           const baseKey = rangeKey.replace('Range', '')
           if (normalized.from) vars[`${baseKey}From`] = normalized.from
           if (normalized.to) vars[`${baseKey}To`] = normalized.to
         }
-      })
+      }
 
       // Copy all other filters directly (they now match Descriptor-Keys)
-      Object.keys(params.selectedFilters).forEach(key => {
+      for (const key of Object.keys(params.selectedFilters)) {
         if (
           key !== 'amount' &&
           !dateRangeKeys.includes(key) &&
@@ -127,7 +127,7 @@ export const createOpportunityConfig = <TOpportunity extends { id: string }, TQu
         ) {
           vars[key as keyof typeof vars] = params.selectedFilters[key]
         }
-      })
+      }
 
       if (params.sorting.length > 0) {
         // Use column ID directly - buildOrderBy will use descriptors (CUSTOMER_OPPORTUNITY_DESCRIPTORS or INVESTMENT_OPPORTUNITY_DESCRIPTORS)

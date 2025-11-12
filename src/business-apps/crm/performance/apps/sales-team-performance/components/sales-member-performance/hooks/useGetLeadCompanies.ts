@@ -72,9 +72,9 @@ export const useGetLeadCompanies = (context: BusinessAppContextProps, search: st
         // Process and deduplicate companies
         const companyMap = new Map<string, any>()
 
-        result.Lead.forEach((lead: any) => {
-          const companyName = lead.companyName || (lead.account ? lead.account.name : null)
-          if (companyName && companyName.trim()) {
+        for (const lead of result.Lead) {
+          const companyName = lead.companyName || lead.account?.name
+          if (companyName?.trim()) {
             // Use company name as both key and ID for filtering
             if (!companyMap.has(companyName)) {
               companyMap.set(companyName, {
@@ -85,7 +85,7 @@ export const useGetLeadCompanies = (context: BusinessAppContextProps, search: st
               })
             }
           }
-        })
+        }
 
         // Convert map to array and sort alphabetically
         const companies = Array.from(companyMap.values())

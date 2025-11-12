@@ -47,13 +47,6 @@ export function LeadListLayout<T extends Lead = Lead>(props: Readonly<LeadListLa
     dataTestId = 'lead-list-layout'
   } = props
 
-  // Guard: Don't render DataTable until columns are defined and not empty
-  // This prevents the "Cannot read properties of undefined (reading 'rows')" error
-  // which occurs when DataTable tries to access table.getRowModel().rows before initialization
-  if (!columns || columns.length === 0) {
-    return null
-  }
-
   // Ensure data is always an array
   const safeData = Array.isArray(data) ? data : []
 
@@ -70,6 +63,13 @@ export function LeadListLayout<T extends Lead = Lead>(props: Readonly<LeadListLa
     const isLoaded = !loading && hasData
     return `table-${isLoaded ? 'loaded' : 'loading'}-${columns.length}-${hasData ? safeData.length : 0}`
   }, [safeData.length, loading, columns.length])
+
+  // Guard: Don't render DataTable until columns are defined and not empty
+  // This prevents the "Cannot read properties of undefined (reading 'rows')" error
+  // which occurs when DataTable tries to access table.getRowModel().rows before initialization
+  if (!columns || columns.length === 0) {
+    return null
+  }
 
   return (
     <DataTable<T>

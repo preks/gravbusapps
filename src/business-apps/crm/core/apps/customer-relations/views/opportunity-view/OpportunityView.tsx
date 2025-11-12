@@ -72,17 +72,17 @@ export const OpportunityView: React.FC<OpportunityViewProps> = context => {
 
         // Normalize date range filters
         const dateRangeKeys = ['createdAtRange', 'updatedAtRange', 'closeDateRange']
-        dateRangeKeys.forEach(rangeKey => {
+        for (const rangeKey of dateRangeKeys) {
           const normalized = normalizeDateRange(params.selectedFilters[rangeKey])
           if (normalized) {
             const baseKey = rangeKey.replace('Range', '')
             if (normalized.from) vars[`${baseKey}From` as keyof CustomerOpportunityQueryVariables] = normalized.from
             if (normalized.to) vars[`${baseKey}To` as keyof CustomerOpportunityQueryVariables] = normalized.to
           }
-        })
+        }
 
         // Copy all other filters directly (they now match Descriptor-Keys)
-        Object.keys(params.selectedFilters).forEach(key => {
+        for (const key of Object.keys(params.selectedFilters)) {
           if (
             key !== 'amount' &&
             !dateRangeKeys.includes(key) &&
@@ -91,7 +91,7 @@ export const OpportunityView: React.FC<OpportunityViewProps> = context => {
           ) {
             vars[key as keyof CustomerOpportunityQueryVariables] = params.selectedFilters[key]
           }
-        })
+        }
 
         if (params.sorting.length > 0) {
           // Use column ID directly - buildOrderBy will use CUSTOMER_OPPORTUNITY_DESCRIPTORS to resolve correct GraphQL paths

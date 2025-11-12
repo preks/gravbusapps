@@ -21,7 +21,7 @@ export interface InvestmentTaskStatistics {
   }
   isLoading: boolean
   error: Error | null
-  refetch: () => void
+  refetch: () => Promise<void>
 }
 
 const GET_INVESTMENT_TASK_STATISTICS = `

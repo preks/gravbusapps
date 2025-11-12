@@ -107,7 +107,7 @@ export const TaskView: React.FC<TaskViewProps> = context => {
 
         // Normalize date range filters
         const dateRangeKeys = ['createdAtRange', 'updatedAtRange', 'dueDateRange', 'startDateRange', 'endDateRange']
-        dateRangeKeys.forEach(rangeKey => {
+        for (const rangeKey of dateRangeKeys) {
           const rawValue = params.selectedFilters[rangeKey]
           console.log(`[TaskView] DEBUG - Processing ${rangeKey}:`, {
             raw: rawValue,
@@ -121,10 +121,10 @@ export const TaskView: React.FC<TaskViewProps> = context => {
             if (normalized.to) (vars as any)[`${baseKey}To`] = normalized.to
             console.log(`[TaskView] DEBUG - Normalized ${rangeKey}:`, normalized)
           }
-        })
+        }
 
         // Copy all other filters directly (they now match Descriptor-Keys)
-        Object.keys(params.selectedFilters).forEach(key => {
+        for (const key of Object.keys(params.selectedFilters)) {
           if (
             key !== 'referenceType' &&
             !dateRangeKeys.includes(key) &&
@@ -141,7 +141,7 @@ export const TaskView: React.FC<TaskViewProps> = context => {
               })
             }
           }
-        })
+        }
 
         // Debug: Log final vars before returning
         console.log('[TaskView] DEBUG - Final vars:', {

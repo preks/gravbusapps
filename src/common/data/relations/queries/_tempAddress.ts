@@ -13,5 +13,5 @@ export const buildAddressFragment = (entityName: string): string => {
   }
 
   // CRM uses "city" instead of "locality"
-  return ADDRESS_REF.replace(/locality/g, 'city')
+  return ADDRESS_REF.replaceAll('locality', 'city')
 }

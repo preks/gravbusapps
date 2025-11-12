@@ -26,27 +26,25 @@ export const buildDynamicFilterConfig = (
   > = {}
 
   // Process each descriptor that has filter options
-  descriptors
-    .filter(d => d.optionSelectPaths && d.optionSelectPaths.length > 0)
-    .forEach(descriptor => {
-      const data = filterData[descriptor.key]
-      if (!data) return
+  for (const descriptor of descriptors.filter(d => d.optionSelectPaths && d.optionSelectPaths.length > 0)) {
+    const data = filterData[descriptor.key]
+    if (!data) continue
 
-      filterDataMap[descriptor.key] = {
-        options: data.options,
-        totalCount: data.totalCount,
-        // Create onSearch callback that calls search with the descriptor key
-        onSearch: async (query: string) => {
-          await search({ [descriptor.key]: query })
-          // Return updated options after search completes
-          return getFilterOptions(descriptor.key)
-        },
-        // Create onLoadMore callback (for now just refetches, TODO: implement pagination)
-        onLoadMore: async () => {
-          await filterGroups.refetch()
-        }
+    filterDataMap[descriptor.key] = {
+      options: data.options,
+      totalCount: data.totalCount,
+      // Create onSearch callback that calls search with the descriptor key
+      onSearch: async (query: string) => {
+        await search({ [descriptor.key]: query })
+        // Return updated options after search completes
+        return getFilterOptions(descriptor.key)
+      },
+      // Create onLoadMore callback (for now just refetches, TODO: implement pagination)
+      onLoadMore: async () => {
+        await filterGroups.refetch()
       }
-    })
+    }
+  }
 
   return buildFilterConfigFromDescriptors(baseConfig, descriptors, filterDataMap)
 }

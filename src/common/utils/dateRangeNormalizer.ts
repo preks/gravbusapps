@@ -21,7 +21,7 @@ export const normalizeDateRange = (
     const parts = value
       .split(',')
       .map(p => p.trim())
-      .filter(p => p)
+      .filter(Boolean)
     if (parts.length >= 2) {
       start = parts[0] || undefined
       end = parts[1] || undefined

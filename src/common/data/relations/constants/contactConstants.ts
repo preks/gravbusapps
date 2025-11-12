@@ -37,6 +37,6 @@ export const getContactTypeLabel = (contactType: ContactType | string | null | u
   }
 
   // Handle string values that match enum keys
-  const typeKey = typeof contactType === 'string' ? contactType : contactType
+  const typeKey = contactType
   return ContactTypeLabels[typeKey as ContactType] || ''
 }

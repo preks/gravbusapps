@@ -109,7 +109,14 @@ const GET_ALL_CUSTOMER_ACCOUNT_STATISTICS_WITH_TREND = `
 // Helper functions outside component to prevent recreation
 const calculateTrend = (current: number, previous: number): TrendData => {
   const change = current - previous
-  const changePercent = previous > 0 ? (change / previous) * 100 : current > 0 ? 100 : 0
+  let changePercent: number
+  if (previous > 0) {
+    changePercent = (change / previous) * 100
+  } else if (current > 0) {
+    changePercent = 100
+  } else {
+    changePercent = 0
+  }
   return {
     current,
     previous,
@@ -123,7 +130,7 @@ const calculateRevenue = (accounts: Array<{ annualRevenue: { value: string; code
   let totalRevenue = 0
   accounts.forEach(account => {
     const revenueValue = account.annualRevenue?.value
-    if (revenueValue && !isNaN(Number(revenueValue))) {
+    if (revenueValue && !Number.isNaN(Number(revenueValue))) {
       totalRevenue += Number(revenueValue)
     }
   })

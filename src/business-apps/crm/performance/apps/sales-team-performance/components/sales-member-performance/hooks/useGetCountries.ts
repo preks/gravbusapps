@@ -72,8 +72,8 @@ export const useGetCountries = (context: BusinessAppContextProps, search: string
         // Process and deduplicate countries
         const countryMap = new Map<string, any>()
 
-        result.Lead.forEach((lead: any) => {
-          if (lead.country && lead.country.id) {
+        for (const lead of result.Lead) {
+          if (lead.country?.id) {
             const countryName = lead.country.value || lead.country.code
 
             // Use country ID as key for deduplication
@@ -86,7 +86,7 @@ export const useGetCountries = (context: BusinessAppContextProps, search: string
               })
             }
           }
-        })
+        }
 
         // Convert map to array and sort alphabetically
         const countriesList = Array.from(countryMap.values())

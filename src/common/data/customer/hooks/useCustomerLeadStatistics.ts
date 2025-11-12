@@ -121,7 +121,14 @@ export interface UseLeadStatisticsWithTrendReturn {
 // Helper functions outside component to prevent recreation
 const calculateTrend = (current: number, previous: number): TrendData => {
   const change = current - previous
-  const changePercent = previous > 0 ? (change / previous) * 100 : current > 0 ? 100 : 0
+  let changePercent: number
+  if (previous > 0) {
+    changePercent = (change / previous) * 100
+  } else if (current > 0) {
+    changePercent = 100
+  } else {
+    changePercent = 0
+  }
   return {
     current,
     previous,
@@ -140,7 +147,14 @@ const calculateConversionTrend = (
   const currentRate = currentTotal > 0 ? (currentConverted / currentTotal) * 100 : 0
   const previousRate = previousTotal > 0 ? (previousConverted / previousTotal) * 100 : 0
   const change = currentRate - previousRate
-  const changePercent = previousRate > 0 ? (change / previousRate) * 100 : currentRate > 0 ? 100 : 0
+  let changePercent: number
+  if (previousRate > 0) {
+    changePercent = (change / previousRate) * 100
+  } else if (currentRate > 0) {
+    changePercent = 100
+  } else {
+    changePercent = 0
+  }
 
   return {
     current: currentConverted,

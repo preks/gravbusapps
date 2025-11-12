@@ -141,7 +141,14 @@ export const useInvestmentLeadStatistics = (context: BusinessAppContextProps): U
 
       const rCurrent = recentResult.current.aggregate.count
       const rPrevious = recentResult.previous.aggregate.count
-      const rChange = rPrevious > 0 ? ((rCurrent - rPrevious) / rPrevious) * 100 : rCurrent > 0 ? 100 : 0
+      let rChange: number
+      if (rPrevious > 0) {
+        rChange = ((rCurrent - rPrevious) / rPrevious) * 100
+      } else if (rCurrent > 0) {
+        rChange = 100
+      } else {
+        rChange = 0
+      }
 
       setRecentLeads({
         current: rCurrent,
@@ -158,7 +165,14 @@ export const useInvestmentLeadStatistics = (context: BusinessAppContextProps): U
 
       const hCurrent = hotResult.current.aggregate.count
       const hPrevious = hotResult.previous.aggregate.count
-      const hChange = hPrevious > 0 ? ((hCurrent - hPrevious) / hPrevious) * 100 : hCurrent > 0 ? 100 : 0
+      let hChange: number
+      if (hPrevious > 0) {
+        hChange = ((hCurrent - hPrevious) / hPrevious) * 100
+      } else if (hCurrent > 0) {
+        hChange = 100
+      } else {
+        hChange = 0
+      }
 
       setHotLeads({
         current: hCurrent,
@@ -189,7 +203,14 @@ export const useInvestmentLeadStatistics = (context: BusinessAppContextProps): U
 
       const currentRate = cCurrentTotal > 0 ? (cCurrentConverted / cCurrentTotal) * 100 : 0
       const previousRate = cPreviousTotal > 0 ? (cPreviousConverted / cPreviousTotal) * 100 : 0
-      const convChange = previousRate > 0 ? currentRate - previousRate : currentRate > 0 ? 100 : 0
+      let convChange: number
+      if (previousRate > 0) {
+        convChange = currentRate - previousRate
+      } else if (currentRate > 0) {
+        convChange = 100
+      } else {
+        convChange = 0
+      }
 
       setConversionRate({
         current: cCurrentConverted,

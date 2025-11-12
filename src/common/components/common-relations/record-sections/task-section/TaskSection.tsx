@@ -15,7 +15,7 @@ import { BusinessAppContextProps } from '@/common/BusinessAppContext'
 import { buildFileUrl, getFileIcon } from '@/common/utils/fileUtils'
 import {
   TaskDetailSheet,
-  Task as Task,
+  Task,
   TaskReference
 } from '@/common/components/common-relations/detail-sheets/task-detail-sheet'
 import dayjs from 'dayjs'

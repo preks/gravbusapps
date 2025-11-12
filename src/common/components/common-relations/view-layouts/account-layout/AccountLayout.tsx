@@ -71,9 +71,9 @@ export interface AccountLayoutProps<TAccount extends Account = Account, TQueryVa
   customPrimaryAction?: React.ReactNode
 }
 
-const ConfigAccountLayout = <TAccount extends Account = Account, TQueryVariables = any>(
+function ConfigAccountLayout<TAccount extends Account = Account, TQueryVariables = any>(
   props: AccountLayoutProps<TAccount, TQueryVariables>
-) => {
+): React.ReactElement {
   const {
     context,
     config,
@@ -82,13 +82,6 @@ const ConfigAccountLayout = <TAccount extends Account = Account, TQueryVariables
     hideFilters = false,
     customPrimaryAction
   } = props
-
-  if (!context) {
-    console.error('AccountLayout: context is required')
-    return null
-  }
-
-  const { accessToken } = context
 
   // View State
   const [searchTerm, setSearchTerm] = useState('')
@@ -105,7 +98,12 @@ const ConfigAccountLayout = <TAccount extends Account = Account, TQueryVariables
   const [isInitialLoad, setIsInitialLoad] = useState(true)
 
   // Fetch filter groups using centralized hook
-  const filterGroups = useFilterGroups(context, config.entityName, config.descriptors, { limit: 100 })
+  const filterGroups = useFilterGroups(
+    context || ({} as BusinessAppContextProps),
+    config.entityName,
+    config.descriptors,
+    { limit: 100 }
+  )
 
   // Dynamic Filter Configuration
   const dynamicFilterConfig = useMemo(() => {
@@ -127,7 +125,7 @@ const ConfigAccountLayout = <TAccount extends Account = Account, TQueryVariables
   // Load Data
   const loadData = useCallback(
     async (showLoading: boolean = true) => {
-      if (!accessToken) return
+      if (!context?.accessToken) return
 
       if (showLoading) setIsLoading(true)
       setError(null)
@@ -143,20 +141,20 @@ const ConfigAccountLayout = <TAccount extends Account = Account, TQueryVariables
         setIsInitialLoad(false)
       }
     },
-    [accessToken, config, queryVariables]
+    [context?.accessToken, config, queryVariables]
   )
 
   // Initial load
   useEffect(() => {
-    if (!accessToken || !isInitialLoad) return
+    if (!context?.accessToken || !isInitialLoad) return
     loadData(true)
-  }, [accessToken, isInitialLoad, loadData])
+  }, [context?.accessToken, isInitialLoad, loadData])
 
   // Reload data when filters/search/sort change (skip initial load)
   useEffect(() => {
-    if (isInitialLoad || !accessToken) return
+    if (isInitialLoad || !context?.accessToken) return
     loadData(false)
-  }, [queryVariables, isInitialLoad, accessToken, loadData])
+  }, [queryVariables, isInitialLoad, context?.accessToken, loadData])
 
   // Process Completion Handlers
   const handleProcessComplete = useCallback(() => {
@@ -223,7 +221,7 @@ const ConfigAccountLayout = <TAccount extends Account = Account, TQueryVariables
         contextsArray={config.rowActionsContextArray}
         externalContextData={config.buildRowActionsExternalContextData(row)}
         prefixDataTestId="account-actions"
-        accessToken={accessToken}
+        accessToken={context?.accessToken || ''}
         emptyStateBehavior="enable"
         deferMainContextRequestsUntilClick
       >
@@ -239,8 +237,15 @@ const ConfigAccountLayout = <TAccount extends Account = Account, TQueryVariables
         </Button>
       </AppActionMenu>
     ),
-    [config, accessToken]
+    [config, context?.accessToken]
   )
+
+  if (!context) {
+    console.error('AccountLayout: context is required')
+    return null
+  }
+
+  const accessToken = context.accessToken
 
   return (
     <div data-testid={dataTestId}>

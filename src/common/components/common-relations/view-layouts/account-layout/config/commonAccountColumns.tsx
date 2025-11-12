@@ -263,8 +263,8 @@ export const commonAccountColumns: ColumnDef<Account>[] = [
             >
               <MapPin className="gba:w-4 gba:h-4 gba:text-gray-500 gba:shrink-0 gba:mt-0.5" />
               <div className="gba:flex gba:flex-col gba:gap-1 gba:min-w-0">
-                {addressParts.map((part, index) => (
-                  <div key={index} className="gba:text-sm gba:leading-snug gba:truncate" title={part}>
+                {addressParts.map(part => (
+                  <div key={part} className="gba:text-sm gba:leading-snug gba:truncate" title={part}>
                     {part}
                   </div>
                 ))}

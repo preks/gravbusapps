@@ -34,14 +34,9 @@ export const useGetInvestmentActivities = (context: BusinessAppContextProps) => 
       // Use new query builder with fields mapping
       const query = buildInvestmentActivityQuery()
 
-      // Convert single ID filters to array format for consistency
+      // Use variables directly (no conversion needed)
       const queryVariables: InvestmentActivityQueryVariables = {
-        ...variables,
-        accountIds: variables.accountIds ? variables.accountIds : variables.accountIds,
-        contactIds: variables.contactIds ? variables.contactIds : variables.contactIds,
-        opportunityIds: variables.opportunityIds ? variables.opportunityIds : variables.opportunityIds,
-        leadIds: variables.leadIds ? variables.leadIds : variables.leadIds,
-        ids: variables.ids ? variables.ids : variables.ids
+        ...variables
       }
 
       // Use new WHERE/ORDER BY builders with fields mapping

@@ -509,7 +509,9 @@ const InvestmentLeadRecordContent: React.FC<LeadRecordContentProps> = ({ leadId,
           currentStatus={lead?.leadStatus?.value || getTranslationFromI18nKeyAndLabel('crm.common.status.new', 'New')}
           statuses={leadStatuses}
           leadId={leadId}
-          leadVersion={typeof leadData?.version === 'string' ? parseInt(leadData.version) : leadData?.version || 0}
+          leadVersion={
+            typeof leadData?.version === 'string' ? Number.parseInt(leadData.version, 10) : leadData?.version || 0
+          }
           accessToken={props.accessToken}
           onStatusUpdate={fetchLeadData}
         />

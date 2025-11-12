@@ -222,20 +222,20 @@ const LeadRecordContent: React.FC<LeadRecordContentProps> = ({ leadId, onBack, f
 
   // Listen for process completion events to refresh lead data
   useEffect(() => {
-    const handleProcessCompletion = (event: any) => {
+    const handleProcessCompletion = async (event: any) => {
       try {
         // Check for successful completion
         if (event.detail?.resolution === 'success') {
-          fetchLeadData()
-          loadSectionData() // Also refresh section data
+          await fetchLeadData()
+          await loadSectionData() // Also refresh section data
           return
         }
 
         // Also check for different event structure
         const response = event.detail?.response
         if (response?.detail?.resolution === 'success' || response?.lead) {
-          fetchLeadData()
-          loadSectionData() // Also refresh section data
+          await fetchLeadData()
+          await loadSectionData() // Also refresh section data
         }
       } catch (err) {
         console.error('Error handling process completion in LeadRecord:', err)
@@ -422,7 +422,7 @@ const LeadRecordContent: React.FC<LeadRecordContentProps> = ({ leadId, onBack, f
           currentStatus={leadData?.leadStatus?.value || 'New'}
           statuses={leadStatuses}
           leadId={leadId}
-          leadVersion={parseInt(leadData?.version || '1') || 0}
+          leadVersion={Number.parseInt(leadData?.version || '1', 10) || 0}
           accessToken={props.accessToken}
           onStatusUpdate={fetchLeadData}
         />

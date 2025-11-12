@@ -210,22 +210,10 @@ export const buildAccountByPkQuery = (
     }
     
     # Leads relation (only in IRM, field name: leads vs investmentLead)
-    ${
-      relationBuilders.buildLeadFragment && relationFields.leadFields && entityFields.leads
-        ? `${entityFields.leads}(where: { isDeleted: { _eq: false } }) {
-      ${relationBuilders.buildLeadFragment(relationFields.leadFields)}
-    }`
-        : ''
-    }
+    ${buildLeadsRelationFragment(relationBuilders, relationFields, entityFields)}
     
     # Opportunities relation (present in both, field name varies: opportunities vs investmentOpportunity vs opportunity)
-    ${
-      relationBuilders.buildOpportunityFragment && relationFields.opportunityFields && entityFields.opportunities
-        ? `${entityFields.opportunities}(where: { isDeleted: { _eq: false } }) {
-      ${relationBuilders.buildOpportunityFragment(relationFields.opportunityFields)}
-    }`
-        : ''
-    }
+    ${buildOpportunitiesRelationFragment(relationBuilders, relationFields, entityFields)}
   `
       : ''
 
@@ -336,4 +324,36 @@ export interface AccountRelationFields {
   activityFields?: any // Optional: only in IRM
   leadFields?: any // Optional: only in IRM
   opportunityFields?: any // Optional: present in both but with different field names
+}
+
+/**
+ * Helper function to build leads relation fragment
+ */
+const buildLeadsRelationFragment = (
+  relationBuilders?: AccountRelationBuilders,
+  relationFields?: AccountRelationFields,
+  entityFields?: Record<string, string>
+): string => {
+  if (relationBuilders?.buildLeadFragment && relationFields?.leadFields && entityFields?.leads) {
+    return `${entityFields.leads}(where: { isDeleted: { _eq: false } }) {
+      ${relationBuilders.buildLeadFragment(relationFields.leadFields)}
+    }`
+  }
+  return ''
+}
+
+/**
+ * Helper function to build opportunities relation fragment
+ */
+const buildOpportunitiesRelationFragment = (
+  relationBuilders?: AccountRelationBuilders,
+  relationFields?: AccountRelationFields,
+  entityFields?: Record<string, string>
+): string => {
+  if (relationBuilders?.buildOpportunityFragment && relationFields?.opportunityFields && entityFields?.opportunities) {
+    return `${entityFields.opportunities}(where: { isDeleted: { _eq: false } }) {
+      ${relationBuilders.buildOpportunityFragment(relationFields.opportunityFields)}
+    }`
+  }
+  return ''
 }

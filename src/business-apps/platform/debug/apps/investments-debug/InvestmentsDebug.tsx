@@ -135,15 +135,15 @@ const InvestmentsDebug: React.FC<InvestmentsDebugProps> = context => {
       dataCount = mappedData ? 1 : 0
     } else if (mappedData && typeof mappedData === 'object') {
       // Check for common patterns in hook responses
-      if ((mappedData as any).investments) dataCount = (mappedData as any).investments.length
-      else if ((mappedData as any).accounts) dataCount = (mappedData as any).accounts.length
-      else if ((mappedData as any).contacts) dataCount = (mappedData as any).contacts.length
-      else if ((mappedData as any).leads) dataCount = (mappedData as any).leads.length
-      else if ((mappedData as any).opportunities) dataCount = (mappedData as any).opportunities.length
-      else if ((mappedData as any).reports) dataCount = (mappedData as any).reports.length
-      else if ((mappedData as any).total) {
-        totalCount = (mappedData as any).total
-        dataCount = Array.isArray((mappedData as any).investments) ? (mappedData as any).investments.length : 0
+      if (mappedData.investments) dataCount = mappedData.investments.length
+      else if (mappedData.accounts) dataCount = mappedData.accounts.length
+      else if (mappedData.contacts) dataCount = mappedData.contacts.length
+      else if (mappedData.leads) dataCount = mappedData.leads.length
+      else if (mappedData.opportunities) dataCount = mappedData.opportunities.length
+      else if (mappedData.reports) dataCount = mappedData.reports.length
+      else if (mappedData.total) {
+        totalCount = mappedData.total
+        dataCount = Array.isArray(mappedData.investments) ? mappedData.investments.length : 0
       } else if (Array.isArray(mappedData)) {
         dataCount = mappedData.length
       } else {
@@ -382,8 +382,11 @@ const InvestmentsDebug: React.FC<InvestmentsDebugProps> = context => {
         <CardContent className="gba:space-y-4">
           <div className="gba:grid gba:grid-cols-3 gba:gap-4">
             <div className="gba:space-y-2">
-              <label className="gba:text-sm gba:font-medium">Search Term</label>
+              <label htmlFor="debug-search-input" className="gba:text-sm gba:font-medium">
+                Search Term
+              </label>
               <Input
+                id="debug-search-input"
                 data-testid="debug-search-input"
                 placeholder="Enter search term..."
                 value={searchTerm}
@@ -391,8 +394,11 @@ const InvestmentsDebug: React.FC<InvestmentsDebugProps> = context => {
               />
             </div>
             <div className="gba:space-y-2">
-              <label className="gba:text-sm gba:font-medium">Test ID (for by-ID tests)</label>
+              <label htmlFor="debug-test-id-input" className="gba:text-sm gba:font-medium">
+                Test ID (for by-ID tests)
+              </label>
               <Input
+                id="debug-test-id-input"
                 data-testid="debug-test-id-input"
                 placeholder="UUID for by-ID tests"
                 value={selectedTestId}
@@ -400,7 +406,7 @@ const InvestmentsDebug: React.FC<InvestmentsDebugProps> = context => {
               />
             </div>
             <div className="gba:space-y-2">
-              <label className="gba:text-sm gba:font-medium">Actions</label>
+              <span className="gba:text-sm gba:font-medium">Actions</span>
               <div className="gba:flex gba:gap-2">
                 <Button onClick={runAllCore} data-testid="debug-run-all-core-button">
                   Run All Core

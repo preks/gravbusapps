@@ -37,11 +37,11 @@ export const processPipelineUrlParams = (urlParams: URLSearchParams, options: Fi
 
 export const processWinningChanceUrlParams = (urlParams: URLSearchParams): string[] => {
   const filters: string[] = []
-  const validChances = ['chance-high', 'chance-medium', 'chance-low', 'chance-very-low']
+  const validChances = new Set(['chance-high', 'chance-medium', 'chance-low', 'chance-very-low'])
   const winningChanceParams = urlParams.getAll('winningChance')
 
   for (const chanceValue of winningChanceParams) {
-    if (validChances.includes(chanceValue)) {
+    if (validChances.has(chanceValue)) {
       filters.push(chanceValue)
     }
   }
@@ -51,11 +51,11 @@ export const processWinningChanceUrlParams = (urlParams: URLSearchParams): strin
 
 export const processAmountUrlParams = (urlParams: URLSearchParams): string[] => {
   const filters: string[] = []
-  const validAmounts = ['amount-large', 'amount-medium', 'amount-small', 'amount-micro']
+  const validAmounts = new Set(['amount-large', 'amount-medium', 'amount-small', 'amount-micro'])
   const estimatedAmountParams = urlParams.getAll('estimatedAmount')
 
   for (const amountValue of estimatedAmountParams) {
-    if (validAmounts.includes(amountValue)) {
+    if (validAmounts.has(amountValue)) {
       filters.push(amountValue)
     }
   }
