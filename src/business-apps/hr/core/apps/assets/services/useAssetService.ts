@@ -416,8 +416,7 @@ export const useAssetService = (context: BusinessAppContextProps) => {
             employeeId: allocationData.employeeId,
             startDate: allocationData.startDate,
             expectedEndDate: allocationData.expectedEndDate,
-            startAssetConditionRef: allocationData.startAssetConditionRef,
-            notes: allocationData.notes
+            ...(allocationData.startAssetConditionRef && { conditionStart: allocationData.startAssetConditionRef })
           }
         }
 
@@ -459,10 +458,8 @@ export const useAssetService = (context: BusinessAppContextProps) => {
         const variables: DeallocateAssetVariables = {
           id,
           version,
-          changes: {
-            endDate,
-            ...(endAssetConditionRef && { endAssetConditionRef })
-          }
+          endDate,
+          ...(endAssetConditionRef && { conditionEnd: endAssetConditionRef })
         }
 
         const result = await graphQLClient.request<{ update_EmployeeAsset: { returning: any[] } }>(

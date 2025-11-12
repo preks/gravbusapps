@@ -3,7 +3,7 @@ import { BusinessAppContextProps } from '@/common/BusinessAppContext'
 import { PageLayout, Button, Dialog, DialogContent, DialogTitle } from '@newwork/nw-design-system'
 import { DesktopIcon, PlusIcon } from '@phosphor-icons/react'
 import { MODULE_COLORS } from '@/common/constants/ui'
-import { getTranslationFromI18nKeyAndLabel } from '@/common/utils/windowUtils'
+import { getTranslationFromI18nKeyAndLabel, getCurrentActiveUserLocale } from '@/common/utils/windowUtils'
 import { useAssets } from './hooks/useAssets'
 import { useAssetDialogs } from './hooks/useAssetDialogs'
 import { useAssetProcessEvents } from './hooks/useAssetProcessEvents'
@@ -26,6 +26,21 @@ export const Assets: React.FC<BusinessAppContextProps> = props => {
   const [pageSize] = useState(10)
   const [searchQuery, setSearchQuery] = useState('')
   const [statusFilter, setStatusFilter] = useState<string>('all')
+  const [currentLocale, setCurrentLocale] = useState(getCurrentActiveUserLocale())
+
+  // Track locale changes to ensure translations update
+  useEffect(() => {
+    const checkLocale = () => {
+      const newLocale = getCurrentActiveUserLocale()
+      if (newLocale !== currentLocale) {
+        setCurrentLocale(newLocale)
+      }
+    }
+
+    checkLocale()
+    const interval = setInterval(checkLocale, 500)
+    return () => clearInterval(interval)
+  }, [currentLocale])
 
   const dialogs = useAssetDialogs()
 
@@ -155,6 +170,25 @@ export const Assets: React.FC<BusinessAppContextProps> = props => {
     onCloseDialogs: dialogs.closeAll
   })
 
+  // Memoize dialog titles to update with locale changes
+  const allocateDialogTitle = useMemo(
+    () => getTranslationFromI18nKeyAndLabel('lowcoder:hr_assets.allocate_asset', 'Allocate Asset'),
+    [currentLocale]
+  )
+
+  const registerDialogTitle = useMemo(
+    () =>
+      dialogs.editingAssetId
+        ? getTranslationFromI18nKeyAndLabel('lowcoder:hr_assets.update_equipment', 'Update Equipment')
+        : getTranslationFromI18nKeyAndLabel('lowcoder:hr_assets.register_equipment', 'Register Equipment'),
+    [currentLocale, dialogs.editingAssetId]
+  )
+
+  const returnDialogTitle = useMemo(
+    () => getTranslationFromI18nKeyAndLabel('lowcoder:hr_assets.return_asset_form', 'Return Asset'),
+    [currentLocale]
+  )
+
   const equipmentRegistrationAdditionalData = useMemo(
     () => ({
       ...props.additionalData,
@@ -244,15 +278,11 @@ export const Assets: React.FC<BusinessAppContextProps> = props => {
 
       <Dialog open={dialogs.isRegisterOpen} onOpenChange={dialogs.closeRegister}>
         <DialogContent className="gba:max-w-2xl gba:max-h-[90vh] gba:overflow-y-auto">
-          <DialogTitle className="gba:sr-only">
-            {dialogs.editingAssetId
-              ? getTranslationFromI18nKeyAndLabel('lowcoder:hr_assets.update_equipment', 'Update Equipment')
-              : getTranslationFromI18nKeyAndLabel('lowcoder:hr_assets.register_equipment', 'Register Equipment')}
-          </DialogTitle>
+          <DialogTitle className="gba:sr-only">{registerDialogTitle}</DialogTitle>
           {dialogs.isRegisterOpen && (
             <EquipmentRegistration
               {...props}
-              key={`equipment-registration-${dialogs.editingAssetId || 'new'}`}
+              key={`equipment-registration-${dialogs.editingAssetId || 'new'}-${currentLocale}`}
               additionalData={equipmentRegistrationAdditionalData}
             />
           )}
@@ -261,10 +291,9 @@ export const Assets: React.FC<BusinessAppContextProps> = props => {
 
       <Dialog open={dialogs.isAllocateOpen} onOpenChange={dialogs.closeAllocate}>
         <DialogContent className="gba:max-w-2xl gba:max-h-[90vh] gba:overflow-y-auto">
-          <DialogTitle className="gba:sr-only">
-            {getTranslationFromI18nKeyAndLabel('lowcoder:hr_assets.allocate_asset', 'Allocate Asset')}
-          </DialogTitle>
+          <DialogTitle className="gba:sr-only">{allocateDialogTitle}</DialogTitle>
           <AllocateAsset
+            key={`allocate-asset-${currentLocale}`}
             {...props}
             additionalData={{
               ...props.additionalData,
@@ -277,10 +306,9 @@ export const Assets: React.FC<BusinessAppContextProps> = props => {
 
       <Dialog open={dialogs.isReturnOpen} onOpenChange={dialogs.closeReturn}>
         <DialogContent className="gba:max-w-2xl gba:max-h-[90vh] gba:overflow-y-auto">
-          <DialogTitle className="gba:sr-only">
-            {getTranslationFromI18nKeyAndLabel('lowcoder:hr_assets.return_asset', 'Return Asset')}
-          </DialogTitle>
+          <DialogTitle className="gba:sr-only">{returnDialogTitle}</DialogTitle>
           <ReturnAsset
+            key={`return-asset-${currentLocale}`}
             {...props}
             additionalData={{
               ...props.additionalData,

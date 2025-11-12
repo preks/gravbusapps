@@ -1,4 +1,4 @@
-import React, { useMemo } from 'react'
+import React, { useMemo, useState, useEffect } from 'react'
 import { BusinessAppContextProps } from '@/common/BusinessAppContext'
 import {
   Form,
@@ -17,7 +17,7 @@ import {
 import { useForm } from 'react-hook-form'
 import { z } from 'zod'
 import { zodResolver } from '@hookform/resolvers/zod'
-import { getTranslationFromI18nKeyAndLabel } from '@/common/utils/windowUtils'
+import { getTranslationFromI18nKeyAndLabel, getCurrentActiveUserLocale } from '@/common/utils/windowUtils'
 import { dispatchProcessContinueEvent } from '@/common/utils/processEventUtils'
 import FormHeader from '../components/FormHeader'
 import flowIconUrl from '@/assets/icons/flowSmall.svg'
@@ -30,24 +30,19 @@ import { AssetProcessClient } from '../../apps/assets/services/AssetProcessClien
 import { useAssetService } from '../../apps/assets/services/useAssetService'
 import { AssetStatus } from '../../apps/assets/types'
 
-const formSchema = z.object({
-  category: z.string().min(1, 'Please select a category'),
-  brand: z.string().min(1, 'Please select a brand'),
-  model: z.string().min(2, 'Model must be at least 2 characters'),
-  serialNumber: z.string().min(3, 'Serial number must be at least 3 characters'),
-  location: z.string().optional(),
-  acquisitionDate: z.string().min(1, 'Acquisition date is required'),
-  warrantyPeriodMonths: z
-    .number()
-    .min(0, 'Warranty period must be 0 or greater')
-    .max(120, 'Warranty period cannot exceed 120 months'),
-  inventoryValue: z.number().min(0, 'Inventory value must be 0 or greater'),
-  currency: z.string().min(1, 'Currency is required'),
-  status: z.nativeEnum(AssetStatus),
-  notes: z.string().optional()
-})
-
-type FormValues = z.infer<typeof formSchema>
+type FormValues = {
+  category: string
+  brand: string
+  model: string
+  serialNumber: string
+  location?: string
+  acquisitionDate: string
+  warrantyPeriodMonths: number
+  inventoryValue: number
+  currency: string
+  status: AssetStatus
+  notes?: string
+}
 
 const EquipmentRegistrationContent: React.FC<BusinessAppContextProps> = (context: BusinessAppContextProps) => {
   const { additionalData } = context
@@ -99,6 +94,96 @@ const EquipmentRegistrationContent: React.FC<BusinessAppContextProps> = (context
   }, [context.accessToken])
 
   const [isSubmitting, setIsSubmitting] = React.useState(false)
+  const [currentLocale, setCurrentLocale] = useState(getCurrentActiveUserLocale())
+
+  // Track locale changes to ensure translations update
+  useEffect(() => {
+    const checkLocale = () => {
+      const newLocale = getCurrentActiveUserLocale()
+      if (newLocale !== currentLocale) {
+        setCurrentLocale(newLocale)
+      }
+    }
+
+    checkLocale()
+    const interval = setInterval(checkLocale, 500)
+    return () => clearInterval(interval)
+  }, [currentLocale])
+
+  // Create form schema dynamically based on current locale
+  const formSchema = useMemo(
+    () =>
+      z.object({
+        category: z
+          .string()
+          .min(
+            1,
+            getTranslationFromI18nKeyAndLabel('lowcoder:hr_assets.please_select_category', 'Please select a category')
+          ),
+        brand: z
+          .string()
+          .min(1, getTranslationFromI18nKeyAndLabel('lowcoder:hr_assets.please_select_brand', 'Please select a brand')),
+        model: z
+          .string()
+          .min(
+            2,
+            getTranslationFromI18nKeyAndLabel(
+              'lowcoder:hr_assets.model_min_length',
+              'Model must be at least 2 characters'
+            )
+          ),
+        serialNumber: z
+          .string()
+          .min(
+            3,
+            getTranslationFromI18nKeyAndLabel(
+              'lowcoder:hr_assets.serial_number_min_length',
+              'Serial number must be at least 3 characters'
+            )
+          ),
+        location: z.string().optional(),
+        acquisitionDate: z
+          .string()
+          .min(
+            1,
+            getTranslationFromI18nKeyAndLabel(
+              'lowcoder:hr_assets.acquisition_date_required',
+              'Acquisition date is required'
+            )
+          ),
+        warrantyPeriodMonths: z
+          .number()
+          .min(
+            0,
+            getTranslationFromI18nKeyAndLabel(
+              'lowcoder:hr_assets.warranty_period_min',
+              'Warranty period must be 0 or greater'
+            )
+          )
+          .max(
+            120,
+            getTranslationFromI18nKeyAndLabel(
+              'lowcoder:hr_assets.warranty_period_max',
+              'Warranty period cannot exceed 120 months'
+            )
+          ),
+        inventoryValue: z
+          .number()
+          .min(
+            0,
+            getTranslationFromI18nKeyAndLabel(
+              'lowcoder:hr_assets.inventory_value_min',
+              'Inventory value must be 0 or greater'
+            )
+          ),
+        currency: z
+          .string()
+          .min(1, getTranslationFromI18nKeyAndLabel('lowcoder:hr_assets.currency_required', 'Currency is required')),
+        status: z.nativeEnum(AssetStatus),
+        notes: z.string().optional()
+      }),
+    [currentLocale]
+  )
 
   const form = useForm<FormValues>({
     resolver: zodResolver(formSchema),
@@ -181,9 +266,25 @@ const EquipmentRegistrationContent: React.FC<BusinessAppContextProps> = (context
   const title = useMemo(
     () =>
       isEditMode
-        ? getTranslationFromI18nKeyAndLabel('lowcoder:equipment.edit_equipment_form', 'Edit Equipment')
-        : getTranslationFromI18nKeyAndLabel('lowcoder:equipment.register_equipment_form', 'Register Equipment'),
-    [isEditMode]
+        ? getTranslationFromI18nKeyAndLabel('lowcoder:hr_assets.edit_equipment_form', 'Edit Equipment')
+        : getTranslationFromI18nKeyAndLabel('lowcoder:hr_assets.register_equipment_form', 'Register Equipment'),
+    [isEditMode, currentLocale]
+  )
+
+  // Memoize button texts with locale dependency
+  const updateButtonText = useMemo(
+    () => getTranslationFromI18nKeyAndLabel('lowcoder:hr_assets.update_equipment', 'Update Equipment'),
+    [currentLocale]
+  )
+
+  const registerButtonText = useMemo(
+    () => getTranslationFromI18nKeyAndLabel('lowcoder:hr_assets.register_equipment', 'Register Equipment'),
+    [currentLocale]
+  )
+
+  const cancelButtonText = useMemo(
+    () => getTranslationFromI18nKeyAndLabel('lowcoder:create_expense_request.initiate_cancel_button', 'Cancel'),
+    [currentLocale]
   )
 
   const isSubmitDisabled = useMemo(() => {
@@ -225,11 +326,21 @@ const EquipmentRegistrationContent: React.FC<BusinessAppContextProps> = (context
 
   const handleEditSubmit = async (values: FormValues) => {
     if (!assetId) {
-      throw new Error('Asset ID is required for editing')
+      throw new Error(
+        getTranslationFromI18nKeyAndLabel(
+          'lowcoder:hr_assets.asset_id_required_editing',
+          'Asset ID is required for editing'
+        )
+      )
     }
 
     if (assetVersion === undefined || assetVersion === null) {
-      throw new Error('Asset version is required for editing. Please ensure the asset is loaded correctly.')
+      throw new Error(
+        getTranslationFromI18nKeyAndLabel(
+          'lowcoder:hr_assets.asset_version_required',
+          'Asset version is required for editing. Please ensure the asset is loaded correctly.'
+        )
+      )
     }
 
     try {
@@ -295,11 +406,23 @@ const EquipmentRegistrationContent: React.FC<BusinessAppContextProps> = (context
         render={({ field }) => (
           <FormItem>
             <Label htmlFor="category" data-testid="category-label">
-              Category *
+              {getTranslationFromI18nKeyAndLabel('lowcoder:hr_assets.category', 'Category')} *
             </Label>
             <Select onValueChange={field.onChange} value={field.value} disabled={assetsLoading || isEditMode}>
               <SelectTrigger id="category" data-testid="category-select">
-                <SelectValue placeholder={assetsLoading ? 'Loading categories...' : 'Select equipment category'} />
+                <SelectValue
+                  placeholder={
+                    assetsLoading
+                      ? getTranslationFromI18nKeyAndLabel(
+                          'lowcoder:hr_assets.loading_categories',
+                          'Loading categories...'
+                        )
+                      : getTranslationFromI18nKeyAndLabel(
+                          'lowcoder:hr_assets.select_equipment_category',
+                          'Select equipment category'
+                        )
+                  }
+                />
               </SelectTrigger>
               <SelectContent>
                 {assetOptions.map(asset => (
@@ -320,11 +443,17 @@ const EquipmentRegistrationContent: React.FC<BusinessAppContextProps> = (context
           render={({ field }) => (
             <FormItem>
               <Label htmlFor="brand" data-testid="brand-label">
-                Brand *
+                {getTranslationFromI18nKeyAndLabel('lowcoder:hr_assets.producer', 'Producer')} *
               </Label>
               <Select onValueChange={field.onChange} value={field.value} disabled={brandsLoading || isEditMode}>
                 <SelectTrigger id="brand" data-testid="brand-select">
-                  <SelectValue placeholder={brandsLoading ? 'Loading brands...' : 'Select brand'} />
+                  <SelectValue
+                    placeholder={
+                      brandsLoading
+                        ? getTranslationFromI18nKeyAndLabel('lowcoder:hr_assets.loading_brands', 'Loading brands...')
+                        : getTranslationFromI18nKeyAndLabel('lowcoder:hr_assets.select_brand', 'Select brand')
+                    }
+                  />
                 </SelectTrigger>
                 <SelectContent>
                   {brandOptions.map(brand => (
@@ -344,11 +473,14 @@ const EquipmentRegistrationContent: React.FC<BusinessAppContextProps> = (context
           render={({ field }) => (
             <FormItem>
               <Label htmlFor="model" data-testid="model-label">
-                Model *
+                {getTranslationFromI18nKeyAndLabel('lowcoder:hr_assets.model', 'Model')} *
               </Label>
               <Input
                 id="model"
-                placeholder="e.g., MacBook Pro 14"
+                placeholder={getTranslationFromI18nKeyAndLabel(
+                  'lowcoder:hr_assets.model_placeholder',
+                  'e.g., MacBook Pro 14'
+                )}
                 value={field.value || ''}
                 onChange={field.onChange}
                 onBlur={field.onBlur}
@@ -365,11 +497,14 @@ const EquipmentRegistrationContent: React.FC<BusinessAppContextProps> = (context
         render={({ field }) => (
           <FormItem>
             <Label htmlFor="serialNumber" data-testid="serial-number-label">
-              Serial Number *
+              {getTranslationFromI18nKeyAndLabel('lowcoder:hr_assets.serial_number', 'Serial Number')} *
             </Label>
             <Input
               id="serialNumber"
-              placeholder="Unique serial number"
+              placeholder={getTranslationFromI18nKeyAndLabel(
+                'lowcoder:hr_assets.serial_number_placeholder',
+                'Unique serial number'
+              )}
               value={field.value || ''}
               onChange={field.onChange}
               onBlur={field.onBlur}
@@ -387,11 +522,20 @@ const EquipmentRegistrationContent: React.FC<BusinessAppContextProps> = (context
         render={({ field }) => (
           <FormItem>
             <Label htmlFor="location" data-testid="location-label">
-              Location
+              {getTranslationFromI18nKeyAndLabel('lowcoder:hr_assets.location', 'Location')}
             </Label>
             <Select onValueChange={field.onChange} value={field.value} disabled={locationsLoading || isEditMode}>
               <SelectTrigger id="location" data-testid="location-select">
-                <SelectValue placeholder={locationsLoading ? 'Loading locations...' : 'Select location'} />
+                <SelectValue
+                  placeholder={
+                    locationsLoading
+                      ? getTranslationFromI18nKeyAndLabel(
+                          'lowcoder:hr_assets.loading_locations',
+                          'Loading locations...'
+                        )
+                      : getTranslationFromI18nKeyAndLabel('lowcoder:hr_assets.select_location', 'Select location')
+                  }
+                />
               </SelectTrigger>
               <SelectContent>
                 {locationOptions.map(location => (
@@ -412,7 +556,7 @@ const EquipmentRegistrationContent: React.FC<BusinessAppContextProps> = (context
           render={({ field }) => (
             <FormItem>
               <Label htmlFor="acquisitionDate" data-testid="acquisition-date-label">
-                Acquisition Date *
+                {getTranslationFromI18nKeyAndLabel('lowcoder:hr_assets.acquisition_date', 'Acquisition Date')} *
               </Label>
               <Input
                 id="acquisitionDate"
@@ -433,7 +577,7 @@ const EquipmentRegistrationContent: React.FC<BusinessAppContextProps> = (context
           render={({ field }) => (
             <FormItem>
               <Label htmlFor="warrantyPeriodMonths" data-testid="warranty-period-label">
-                Warranty (months) *
+                {getTranslationFromI18nKeyAndLabel('lowcoder:hr_assets.warranty_months', 'Warranty (months)')} *
               </Label>
               <Input
                 id="warrantyPeriodMonths"
@@ -460,7 +604,7 @@ const EquipmentRegistrationContent: React.FC<BusinessAppContextProps> = (context
           render={({ field }) => (
             <FormItem>
               <Label htmlFor="inventoryValue" data-testid="inventory-value-label">
-                Inventory Value *
+                {getTranslationFromI18nKeyAndLabel('lowcoder:hr_assets.inventory_value', 'Inventory Value')} *
               </Label>
               <Input
                 id="inventoryValue"
@@ -486,11 +630,17 @@ const EquipmentRegistrationContent: React.FC<BusinessAppContextProps> = (context
           render={({ field }) => (
             <FormItem>
               <Label htmlFor="currency" data-testid="currency-label">
-                Currency *
+                {getTranslationFromI18nKeyAndLabel('lowcoder:hr_assets.currency', 'Currency')} *
               </Label>
               <Select onValueChange={field.onChange} value={field.value} disabled={currenciesLoading || isEditMode}>
                 <SelectTrigger id="currency" data-testid="currency-select">
-                  <SelectValue placeholder={currenciesLoading ? 'Loading...' : 'Select currency'} />
+                  <SelectValue
+                    placeholder={
+                      currenciesLoading
+                        ? getTranslationFromI18nKeyAndLabel('lowcoder:hr_assets.loading', 'Loading...')
+                        : getTranslationFromI18nKeyAndLabel('lowcoder:hr_assets.select_currency', 'Select currency')
+                    }
+                  />
                 </SelectTrigger>
                 <SelectContent>
                   {currencyOptions.map(currency => (
@@ -515,24 +665,26 @@ const EquipmentRegistrationContent: React.FC<BusinessAppContextProps> = (context
         render={({ field }) => (
           <FormItem>
             <Label htmlFor="status" data-testid="status-label">
-              Status *
+              {getTranslationFromI18nKeyAndLabel('lowcoder:hr_assets.status', 'Status')} *
             </Label>
             <Select onValueChange={field.onChange} value={field.value} disabled={!isEditMode}>
               <SelectTrigger id="status" data-testid="status-select">
-                <SelectValue placeholder="Select status" />
+                <SelectValue
+                  placeholder={getTranslationFromI18nKeyAndLabel('lowcoder:hr_assets.select_status', 'Select status')}
+                />
               </SelectTrigger>
               <SelectContent>
                 <SelectItem value={AssetStatus.AVAILABLE} data-testid="status-available">
-                  Available
+                  {getTranslationFromI18nKeyAndLabel('lowcoder:hr_assets.status_available', 'Available')}
                 </SelectItem>
                 <SelectItem value={AssetStatus.ALLOCATED} data-testid="status-allocated">
-                  Allocated
+                  {getTranslationFromI18nKeyAndLabel('lowcoder:hr_assets.status_allocated', 'Allocated')}
                 </SelectItem>
                 <SelectItem value={AssetStatus.UNDER_REPAIR} data-testid="status-under-repair">
-                  In Repair
+                  {getTranslationFromI18nKeyAndLabel('lowcoder:hr_assets.status_in_repair', 'In Repair')}
                 </SelectItem>
                 <SelectItem value={AssetStatus.RETIRED} data-testid="status-retired">
-                  Retired
+                  {getTranslationFromI18nKeyAndLabel('lowcoder:hr_assets.status_retired', 'Retired')}
                 </SelectItem>
               </SelectContent>
             </Select>
@@ -546,11 +698,14 @@ const EquipmentRegistrationContent: React.FC<BusinessAppContextProps> = (context
         render={({ field }) => (
           <FormItem>
             <Label htmlFor="notes" data-testid="notes-label">
-              Notes
+              {getTranslationFromI18nKeyAndLabel('lowcoder:hr_assets.notes', 'Notes')}
             </Label>
             <Textarea
               id="notes"
-              placeholder="Additional information about this equipment..."
+              placeholder={getTranslationFromI18nKeyAndLabel(
+                'lowcoder:hr_assets.equipment_notes_placeholder',
+                'Additional information about this equipment...'
+              )}
               className="gba:min-h-[80px] gba:w-full"
               value={field.value || ''}
               onChange={field.onChange}
@@ -585,14 +740,8 @@ const EquipmentRegistrationContent: React.FC<BusinessAppContextProps> = (context
             submitButtonTestId="edit-equipment-submit-button"
             cancelButtonTestId="edit-equipment-cancel-button"
             isSubmitDisabled={isSubmitDisabled}
-            submitButtonText={getTranslationFromI18nKeyAndLabel(
-              'lowcoder:equipment.update_equipment',
-              'Update Equipment'
-            )}
-            cancelButtonText={getTranslationFromI18nKeyAndLabel(
-              'lowcoder:create_expense_request.initiate_cancel_button',
-              'Cancel'
-            )}
+            submitButtonText={updateButtonText}
+            cancelButtonText={cancelButtonText}
             onSubmit={handleEditSubmit}
             disableFormSubmission={true}
             customActions={
@@ -605,10 +754,7 @@ const EquipmentRegistrationContent: React.FC<BusinessAppContextProps> = (context
                     dispatchProcessContinueEvent('pse_abort', {})
                   }}
                 >
-                  {getTranslationFromI18nKeyAndLabel(
-                    'lowcoder:create_expense_request.initiate_cancel_button',
-                    'Cancel'
-                  )}
+                  {cancelButtonText}
                 </Button>
                 <Button
                   data-testid="edit-equipment-submit-button"
@@ -646,7 +792,7 @@ const EquipmentRegistrationContent: React.FC<BusinessAppContextProps> = (context
                     }
                   }}
                 >
-                  {getTranslationFromI18nKeyAndLabel('lowcoder:equipment.update_equipment', 'Update Equipment')}
+                  {updateButtonText}
                 </Button>
               </div>
             }
@@ -665,14 +811,8 @@ const EquipmentRegistrationContent: React.FC<BusinessAppContextProps> = (context
             submitButtonTestId="register-equipment-submit-button"
             cancelButtonTestId="register-equipment-cancel-button"
             isSubmitDisabled={isSubmitDisabled}
-            submitButtonText={getTranslationFromI18nKeyAndLabel(
-              'lowcoder:equipment.register_equipment',
-              'Register Equipment'
-            )}
-            cancelButtonText={getTranslationFromI18nKeyAndLabel(
-              'lowcoder:create_expense_request.initiate_cancel_button',
-              'Cancel'
-            )}
+            submitButtonText={registerButtonText}
+            cancelButtonText={cancelButtonText}
             onSubmit={handleCreateSubmit}
             disableFormSubmission={true}
             customActions={
@@ -685,10 +825,7 @@ const EquipmentRegistrationContent: React.FC<BusinessAppContextProps> = (context
                     dispatchProcessContinueEvent('pse_abort', {})
                   }}
                 >
-                  {getTranslationFromI18nKeyAndLabel(
-                    'lowcoder:create_expense_request.initiate_cancel_button',
-                    'Cancel'
-                  )}
+                  {cancelButtonText}
                 </Button>
                 <Button
                   data-testid="register-equipment-submit-button"
@@ -727,7 +864,7 @@ const EquipmentRegistrationContent: React.FC<BusinessAppContextProps> = (context
                     }
                   }}
                 >
-                  {getTranslationFromI18nKeyAndLabel('lowcoder:equipment.register_equipment', 'Register Equipment')}
+                  {registerButtonText}
                 </Button>
               </div>
             }

@@ -1,4 +1,4 @@
-import React, { useMemo } from 'react'
+import React, { useMemo, useState, useEffect } from 'react'
 import { BusinessAppContextProps } from '@/common/BusinessAppContext'
 import {
   Form,
@@ -17,7 +17,7 @@ import {
 import { useForm } from 'react-hook-form'
 import { z } from 'zod'
 import { zodResolver } from '@hookform/resolvers/zod'
-import { getTranslationFromI18nKeyAndLabel } from '@/common/utils/windowUtils'
+import { getTranslationFromI18nKeyAndLabel, getCurrentActiveUserLocale } from '@/common/utils/windowUtils'
 import { dispatchProcessContinueEvent } from '@/common/utils/processEventUtils'
 import FormHeader from '../components/FormHeader'
 import flowIconUrl from '@/assets/icons/flowSmall.svg'
@@ -30,15 +30,13 @@ import { useAssetFormData } from '../return-asset/hooks/useAssetFormData'
 import { useAssetVersion } from '../return-asset/hooks/useAssetVersion'
 import { dispatchProcessCompletionEvents } from '../return-asset/utils/processEventUtils'
 
-const formSchema = z.object({
-  employeeId: z.string().min(1, 'Please select an employee'),
-  startDate: z.string().min(1, 'Start date is required'),
-  expectedEndDate: z.string().optional(),
-  startAssetConditionRef: z.string().optional(),
-  notes: z.string().optional()
-})
-
-type FormValues = z.infer<typeof formSchema>
+type FormValues = {
+  employeeId: string
+  startDate: string
+  expectedEndDate?: string
+  startAssetConditionRef?: string
+  notes?: string
+}
 
 const AllocateAssetContent: React.FC<BusinessAppContextProps> = (context: BusinessAppContextProps) => {
   const { additionalData } = context
@@ -51,6 +49,48 @@ const AllocateAssetContent: React.FC<BusinessAppContextProps> = (context: Busine
 
   const [isSubmitting, setIsSubmitting] = React.useState(false)
   const [searchQuery, setSearchQuery] = React.useState('')
+  const [currentLocale, setCurrentLocale] = useState(getCurrentActiveUserLocale())
+
+  // Track locale changes to ensure translations update
+  useEffect(() => {
+    const checkLocale = () => {
+      const newLocale = getCurrentActiveUserLocale()
+      if (newLocale !== currentLocale) {
+        setCurrentLocale(newLocale)
+      }
+    }
+
+    // Check immediately
+    checkLocale()
+
+    // Set up interval to check for locale changes
+    const interval = setInterval(checkLocale, 500)
+
+    return () => clearInterval(interval)
+  }, [currentLocale])
+
+  // Create form schema dynamically based on current locale
+  const formSchema = useMemo(
+    () =>
+      z.object({
+        employeeId: z
+          .string()
+          .min(
+            1,
+            getTranslationFromI18nKeyAndLabel('lowcoder:hr_assets.please_select_employee', 'Please select an employee')
+          ),
+        startDate: z
+          .string()
+          .min(
+            1,
+            getTranslationFromI18nKeyAndLabel('lowcoder:hr_assets.start_date_required', 'Start date is required')
+          ),
+        expectedEndDate: z.string().optional(),
+        startAssetConditionRef: z.string().optional(),
+        notes: z.string().optional()
+      }),
+    [currentLocale]
+  )
 
   const {
     employees,
@@ -79,9 +119,22 @@ const AllocateAssetContent: React.FC<BusinessAppContextProps> = (context: Busine
     }
   })
 
+  // Re-create title when locale changes
   const title = useMemo(
-    () => getTranslationFromI18nKeyAndLabel('lowcoder:equipment.allocate_asset_form', 'Allocate Asset'),
-    []
+    () => getTranslationFromI18nKeyAndLabel('lowcoder:hr_assets.allocate_asset_form', 'Allocate Asset'),
+    [currentLocale]
+  )
+
+  // Re-create button text when locale changes
+  const allocateButtonText = useMemo(
+    () => getTranslationFromI18nKeyAndLabel('lowcoder:hr_assets.allocate_asset', 'Allocate Asset'),
+    [currentLocale]
+  )
+
+  // Re-create cancel button text when locale changes
+  const cancelButtonText = useMemo(
+    () => getTranslationFromI18nKeyAndLabel('lowcoder:create_expense_request.initiate_cancel_button', 'Cancel'),
+    [currentLocale]
   )
 
   const isSubmitDisabled = useMemo(() => {
@@ -103,8 +156,13 @@ const AllocateAssetContent: React.FC<BusinessAppContextProps> = (context: Busine
     <div className="gba:flex-1 gba:space-y-4">
       {existingAsset && (
         <div className="gba:mb-4 gba:p-4 gba:bg-muted gba:rounded-lg">
-          <p className="gba:text-sm gba:font-medium">Asset: {assetDisplayName}</p>
-          <p className="gba:text-xs gba:text-muted-foreground">Serial: {existingAsset.serialNumber || 'N/A'}</p>
+          <p className="gba:text-sm gba:font-medium">
+            {getTranslationFromI18nKeyAndLabel('lowcoder:hr_assets.asset', 'Asset')}: {assetDisplayName}
+          </p>
+          <p className="gba:text-xs gba:text-muted-foreground">
+            {getTranslationFromI18nKeyAndLabel('lowcoder:hr_assets.serial_number', 'Serial Number')}:{' '}
+            {existingAsset.serialNumber || getTranslationFromI18nKeyAndLabel('lowcoder:hr_assets.not_available', 'N/A')}
+          </p>
         </div>
       )}
 
@@ -114,16 +172,28 @@ const AllocateAssetContent: React.FC<BusinessAppContextProps> = (context: Busine
         render={({ field }) => (
           <FormItem>
             <Label htmlFor="employeeId" data-testid="employee-label">
-              Employee *
+              {getTranslationFromI18nKeyAndLabel('lowcoder:hr_assets.employee', 'Employee')} *
             </Label>
             <Select onValueChange={field.onChange} value={field.value} disabled={employeesLoading}>
               <SelectTrigger id="employeeId" data-testid="employee-select">
-                <SelectValue placeholder={employeesLoading ? 'Loading employees...' : 'Select an employee'} />
+                <SelectValue
+                  placeholder={
+                    employeesLoading
+                      ? getTranslationFromI18nKeyAndLabel(
+                          'lowcoder:hr_assets.loading_employees',
+                          'Loading employees...'
+                        )
+                      : getTranslationFromI18nKeyAndLabel('lowcoder:hr_assets.select_employee', 'Select an employee')
+                  }
+                />
               </SelectTrigger>
               <SelectContent>
                 <div className="gba:p-2">
                   <Input
-                    placeholder="Search employees..."
+                    placeholder={getTranslationFromI18nKeyAndLabel(
+                      'lowcoder:hr_assets.search_employees',
+                      'Search employees...'
+                    )}
                     value={searchQuery}
                     onChange={e => handleEmployeeSearch(e.target.value)}
                     className="gba:mb-2"
@@ -131,7 +201,12 @@ const AllocateAssetContent: React.FC<BusinessAppContextProps> = (context: Busine
                 </div>
                 {filteredEmployees.length === 0 ? (
                   <div className="gba:p-2 gba:text-sm gba:text-muted-foreground gba:text-center">
-                    {employeesLoading ? 'Loading...' : 'No employees found'}
+                    {employeesLoading
+                      ? getTranslationFromI18nKeyAndLabel('lowcoder:hr_assets.loading', 'Loading...')
+                      : getTranslationFromI18nKeyAndLabel(
+                          'lowcoder:hr_assets.no_employees_found',
+                          'No employees found'
+                        )}
                   </div>
                 ) : (
                   filteredEmployees.map(employee => (
@@ -160,7 +235,7 @@ const AllocateAssetContent: React.FC<BusinessAppContextProps> = (context: Busine
         render={({ field }) => (
           <FormItem>
             <Label htmlFor="startDate" data-testid="start-date-label">
-              Allocation Start Date *
+              {getTranslationFromI18nKeyAndLabel('lowcoder:hr_assets.allocation_start_date', 'Allocation Start Date')} *
             </Label>
             <Input
               id="startDate"
@@ -180,7 +255,7 @@ const AllocateAssetContent: React.FC<BusinessAppContextProps> = (context: Busine
         render={({ field }) => (
           <FormItem>
             <Label htmlFor="expectedEndDate" data-testid="expected-end-date-label">
-              Expected Return Date
+              {getTranslationFromI18nKeyAndLabel('lowcoder:hr_assets.expected_return_date', 'Expected Return Date')}
             </Label>
             <Input
               id="expectedEndDate"
@@ -200,16 +275,33 @@ const AllocateAssetContent: React.FC<BusinessAppContextProps> = (context: Busine
         render={({ field }) => (
           <FormItem>
             <Label htmlFor="startAssetConditionRef" data-testid="condition-start-label">
-              Condition at Allocation
+              {getTranslationFromI18nKeyAndLabel(
+                'lowcoder:hr_assets.condition_at_allocation',
+                'Condition at Allocation'
+              )}
             </Label>
             <Select onValueChange={field.onChange} value={field.value} disabled={conditionsLoading}>
               <SelectTrigger id="startAssetConditionRef" data-testid="condition-start-select">
-                <SelectValue placeholder={conditionsLoading ? 'Loading conditions...' : 'Select condition'} />
+                <SelectValue
+                  placeholder={
+                    conditionsLoading
+                      ? getTranslationFromI18nKeyAndLabel(
+                          'lowcoder:hr_assets.loading_conditions',
+                          'Loading conditions...'
+                        )
+                      : getTranslationFromI18nKeyAndLabel('lowcoder:hr_assets.select_condition', 'Select condition')
+                  }
+                />
               </SelectTrigger>
               <SelectContent>
                 {conditionOptions.length === 0 ? (
                   <div className="gba:p-2 gba:text-sm gba:text-muted-foreground gba:text-center">
-                    {conditionsLoading ? 'Loading...' : 'No conditions available'}
+                    {conditionsLoading
+                      ? getTranslationFromI18nKeyAndLabel('lowcoder:hr_assets.loading', 'Loading...')
+                      : getTranslationFromI18nKeyAndLabel(
+                          'lowcoder:hr_assets.no_conditions_available',
+                          'No conditions available'
+                        )}
                   </div>
                 ) : (
                   conditionOptions.map(condition => (
@@ -234,11 +326,14 @@ const AllocateAssetContent: React.FC<BusinessAppContextProps> = (context: Busine
         render={({ field }) => (
           <FormItem>
             <Label htmlFor="notes" data-testid="notes-label">
-              Notes
+              {getTranslationFromI18nKeyAndLabel('lowcoder:hr_assets.notes', 'Notes')}
             </Label>
             <Textarea
               id="notes"
-              placeholder="Any additional notes about this allocation..."
+              placeholder={getTranslationFromI18nKeyAndLabel(
+                'lowcoder:hr_assets.allocation_notes_placeholder',
+                'Any additional notes about this allocation...'
+              )}
               className="gba:min-h-[80px] gba:w-full"
               value={field.value || ''}
               onChange={field.onChange}
@@ -272,11 +367,8 @@ const AllocateAssetContent: React.FC<BusinessAppContextProps> = (context: Busine
           submitButtonTestId="allocate-asset-submit-button"
           cancelButtonTestId="allocate-asset-cancel-button"
           isSubmitDisabled={isSubmitDisabled}
-          submitButtonText={getTranslationFromI18nKeyAndLabel('lowcoder:equipment.allocate_asset', 'Allocate Asset')}
-          cancelButtonText={getTranslationFromI18nKeyAndLabel(
-            'lowcoder:create_expense_request.initiate_cancel_button',
-            'Cancel'
-          )}
+          submitButtonText={allocateButtonText}
+          cancelButtonText={cancelButtonText}
           disableFormSubmission={true}
           customActions={
             <div className="gba:flex gba:justify-end gba:gap-2 gba:items-center gba:mt-auto gba:pt-4">
@@ -288,7 +380,7 @@ const AllocateAssetContent: React.FC<BusinessAppContextProps> = (context: Busine
                   dispatchProcessContinueEvent('pse_abort', {})
                 }}
               >
-                {getTranslationFromI18nKeyAndLabel('lowcoder:create_expense_request.initiate_cancel_button', 'Cancel')}
+                {cancelButtonText}
               </Button>
               <Button
                 data-testid="allocate-asset-submit-button"
@@ -306,11 +398,21 @@ const AllocateAssetContent: React.FC<BusinessAppContextProps> = (context: Busine
                     const values = form.getValues()
 
                     if (!assetId) {
-                      throw new Error('Asset ID is required')
+                      throw new Error(
+                        getTranslationFromI18nKeyAndLabel(
+                          'lowcoder:hr_assets.asset_id_required',
+                          'Asset ID is required'
+                        )
+                      )
                     }
 
                     if (!values.employeeId?.trim()) {
-                      throw new Error('Employee is required')
+                      throw new Error(
+                        getTranslationFromI18nKeyAndLabel(
+                          'lowcoder:hr_assets.employee_required',
+                          'Employee is required'
+                        )
+                      )
                     }
 
                     const currentAssetVersion = await resolveAssetVersion()
@@ -370,7 +472,7 @@ const AllocateAssetContent: React.FC<BusinessAppContextProps> = (context: Busine
                   }
                 }}
               >
-                {getTranslationFromI18nKeyAndLabel('lowcoder:equipment.allocate_asset', 'Allocate Asset')}
+                {allocateButtonText}
               </Button>
             </div>
           }
