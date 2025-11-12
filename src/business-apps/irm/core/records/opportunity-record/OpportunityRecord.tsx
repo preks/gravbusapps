@@ -564,7 +564,12 @@ const InvestmentOpportunityRecordContent: React.FC<OpportunityRecordContentProps
           {
             label: getTranslationFromI18nKeyAndLabel('crm.opportunity.expectedCloseDate', 'Expected Close Date'),
             value: opportunityData?.closeDate
-              ? formatDate(opportunityData.closeDate, 'date.short')
+              ? (() => {
+                  const dateOnly = opportunityData.closeDate.split('T')[0]
+                  const formatted = formatDate(dateOnly, 'date.short')
+                  // Fallback: if formatDate returns ISO format, manually format the date
+                  return formatted?.includes('T') ? dateOnly : formatted
+                })()
               : getTranslationFromI18nKeyAndLabel('crm.common.notSet', 'Not set')
           },
           {

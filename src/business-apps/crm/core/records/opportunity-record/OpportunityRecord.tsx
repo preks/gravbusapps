@@ -247,22 +247,6 @@ const OpportunityRecordContent: React.FC<OpportunityRecordContentProps> = ({
     )
   }, [opportunityData?.estimatedAmount, opportunityData?.currency?.id, opportunityData?.opportunityStatus])
 
-  // Helper function to convert stage codes to human-readable values
-  const getStageDisplayValue = (stage: string | undefined): string => {
-    if (!stage) return getTranslationFromI18nKeyAndLabel('crm.common.notSet', 'Not set')
-
-    const stageMap: Record<string, string> = {
-      DISCOVERY: getTranslationFromI18nKeyAndLabel('crm.opportunity.stage.discovery', 'Discovery'),
-      QUALIFICATION: getTranslationFromI18nKeyAndLabel('crm.opportunity.stage.qualification', 'Qualification'),
-      PROPOSAL: getTranslationFromI18nKeyAndLabel('crm.opportunity.stage.proposal', 'Proposal'),
-      NEGOTIATION: getTranslationFromI18nKeyAndLabel('crm.opportunity.stage.negotiation', 'Negotiation'),
-      CLOSED_WON: getTranslationFromI18nKeyAndLabel('crm.opportunity.stage.closedWon', 'Closed Won'),
-      CLOSED_LOST: getTranslationFromI18nKeyAndLabel('crm.opportunity.stage.closedLost', 'Closed Lost')
-    }
-
-    return stageMap[stage] || stage // Fallback to original value if not mapped
-  }
-
   const headerDetailGroups = useMemo(() => {
     // Format status to remove prefixes - only if opportunityStatus catalog exists
     const formatStatus = (status?: string): string => {
@@ -291,13 +275,20 @@ const OpportunityRecordContent: React.FC<OpportunityRecordContentProps> = ({
           },
           {
             label: getTranslationFromI18nKeyAndLabel('crm.opportunity.stage', 'Stage'),
-            value: getStageDisplayValue(opportunityData?.salesPipelineStage?.code),
+            value:
+              opportunityData?.salesPipelineStage?.value ||
+              getTranslationFromI18nKeyAndLabel('crm.common.notSet', 'Not set'),
             icon: Star
           },
           {
             label: getTranslationFromI18nKeyAndLabel('crm.opportunity.expectedCloseDate', 'Expected Close Date'),
             value: opportunityData?.closeDate
-              ? formatDate(opportunityData.closeDate, 'date.short')
+              ? (() => {
+                  const dateOnly = opportunityData.closeDate.split('T')[0]
+                  const formatted = formatDate(dateOnly, 'date.short')
+                  // Fallback: if formatDate returns ISO format, manually format the date
+                  return formatted?.includes('T') ? dateOnly : formatted
+                })()
               : getTranslationFromI18nKeyAndLabel('crm.common.notSet', 'Not set')
           },
           {

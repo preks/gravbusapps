@@ -443,21 +443,33 @@ const ContactRecordContent: React.FC<ContactRecordContentProps> = ({ contactId, 
     )
   }
 
+  // Helper function to convert contact type codes to human-readable values
+  const getContactTypeDisplayValue = (typeCode?: string): string => {
+    if (!typeCode) return ''
+
+    // Convert snake_case to Title Case with spaces
+    return typeCode
+      .split('_')
+      .map(word => word.charAt(0).toUpperCase() + word.slice(1).toLowerCase())
+      .join(' ')
+  }
+
   const fullName =
     `${contactData?.firstName || ''} ${contactData?.lastName || ''}`.trim() ||
     getTranslationFromI18nKeyAndLabel('crm.common.unnamedContact', 'Unnamed Contact')
 
-  const contactType = contactData?.type
+  const contactType = contactData?.contactType || contactData?.type
+  const contactTypeDisplay = getContactTypeDisplayValue(contactType)
 
   const headerTitle = (
     <div className="gba:flex gba:items-center gba:gap-2">
       <span>{fullName}</span>
-      {contactType && (
+      {contactTypeDisplay && (
         <TooltipProvider>
           <Tooltip>
             <TooltipTrigger asChild>
               <Badge data-testid="contact-type-badge" variant="outline" className="gba:text-sm">
-                {contactType}
+                {contactTypeDisplay}
               </Badge>
             </TooltipTrigger>
             <TooltipContent data-testid="contact-type-tooltip">
