@@ -1,13 +1,13 @@
 'use client'
 
 import React from 'react'
-import { Card, CardHeader, CardTitle, CardContent, Button } from '@newwork/nw-design-system'
+import { Card, Button } from '@newwork/nw-design-system'
 import { CompensationData } from '../types/compensationTypes'
-import { PiCurrencyEur, PiGift, PiHeartbeat } from 'react-icons/pi'
 import { BusinessAppContextProps } from '@/common/BusinessAppContext'
 import TotalRewardsCard from '../components/current/TotalRewardsCard'
 import BenefitsPerksSection from '../components/current/BenefitsPerksSection'
-import { formatCurrencyString } from '@/common/utils/numberFormatter'
+import CompensationKPICards from '../components/current/CompensationKPICards'
+import CompensationBandSection from '../components/current/CompensationBandSection'
 
 interface CurrentCompensationViewProps extends BusinessAppContextProps {
   t: (key: string, params?: any) => string
@@ -17,6 +17,7 @@ interface CurrentCompensationViewProps extends BusinessAppContextProps {
   onRetry?: () => void
   employeeId: string
   locale: string
+  isSelfView: boolean // Whether user is viewing their own profile
 }
 
 /**
@@ -33,8 +34,26 @@ const CurrentCompensationView: React.FC<CurrentCompensationViewProps> = ({
   accessToken,
   userInfo,
   additionalData,
-  locale
+  locale,
+  isSelfView
 }) => {
+  // Check if user has permission to create/grant employee bonuses
+  // Only managers and HR admins should have write/create permission on employee_bonus
+  // Note: We check permission on the employee being viewed (employeeId) - managers should have write access to their employees' bonuses
+  // TODO: Re-enable permission check when ready for production
+  // const bonusCreatePermissionMap: Record<string, ResourcePermissionMap> = useMemo(
+  //   () => ({
+  //     grantBonus: {
+  //       domain: 'employee',
+  //       resource: 'employee_bonus',
+  //       permission: 'write'
+  //     }
+  //   }),
+  //   []
+  // )
+  // const { isResourceAccessible } = usePermissionCheck(employeeId, bonusCreatePermissionMap, accessToken || '')
+  // const hasPermissionToGrantBonus = isResourceAccessible('grantBonus')
+  const hasPermissionToGrantBonusDev = true //for development purposes
   // Handle loading state - show loading indicators when data is not yet available
   if (loading && !compensationData) {
     return (
@@ -84,135 +103,22 @@ const CurrentCompensationView: React.FC<CurrentCompensationViewProps> = ({
     )
   }
 
-  const { currentCompensation, totalBonusesYTD, activeBenefitsCount, bonuses } = compensationData
-
-  const baseSalary = currentCompensation?.baseSalary || 0
+  const { currentCompensation } = compensationData
   const currencyCode = currentCompensation?.currency?.code || 'EUR'
-
-  /**
-   * Render compensation band content based on loading state and data availability
-   */
-  const renderCompensationBandContent = () => {
-    // Loading state
-    if (loading) {
-      return <div className="gba:text-center gba:text-muted-foreground gba:py-8">{t('band-loading')}</div>
-    }
-
-    // Empty state - no compensation band assigned
-    if (!currentCompensation?.compensationBand) {
-      return (
-        <div className="gba:text-center gba:text-muted-foreground gba:py-8" data-testid="compensation-band-empty-state">
-          {t('band-no-band-assigned')}
-        </div>
-      )
-    }
-
-    // Content - display compensation band details
-    const { compensationBand } = currentCompensation
-    return (
-      <div className="gba:grid gba:grid-cols-1 gba:md:grid-cols-3 gba:gap-4">
-        <div>
-          <div className="gba:text-sm gba:text-muted-foreground gba:mb-1">{t('band-name')}</div>
-          <div className="gba:font-medium gba:text-foreground">{compensationBand.name}</div>
-        </div>
-        <div>
-          <div className="gba:text-sm gba:text-muted-foreground gba:mb-1">{t('band-salary-range')}</div>
-          <div className="gba:font-medium gba:text-foreground">
-            {formatCurrencyString(compensationBand.minSalary, {
-              currency: currencyCode,
-              locale: locale,
-              minimumFractionDigits: 0,
-              maximumFractionDigits: 0
-            })}{' '}
-            -{' '}
-            {formatCurrencyString(compensationBand.maxSalary, {
-              currency: currencyCode,
-              locale: locale,
-              minimumFractionDigits: 0,
-              maximumFractionDigits: 0
-            })}
-          </div>
-        </div>
-        <div>
-          <div className="gba:text-sm gba:text-muted-foreground gba:mb-1">{t('band-pay-grade')}</div>
-          <div className="gba:font-medium gba:text-foreground">
-            {t('band-level')} {compensationBand.payGrade}
-          </div>
-        </div>
-      </div>
-    )
-  }
 
   return (
     <div className="gba:space-y-6" data-testid="current-compensation-view">
       {/* KPI Cards Row */}
-      <div className="gba:grid gba:grid-cols-1 gba:md:grid-cols-3 gba:gap-4">
-        {/* Base Salary Card */}
-        <Card className="gba:p-6" data-testid="compensation-base-salary-card">
-          <div className="gba:flex gba:items-start gba:justify-between">
-            <div className="gba:flex-1">
-              <div className="gba:text-sm gba:text-muted-foreground gba:mb-2">{t('current-base-salary')}</div>
-              <div className="gba:text-3xl gba:font-bold gba:text-foreground">
-                {loading
-                  ? '-'
-                  : formatCurrencyString(baseSalary, {
-                      currency: currencyCode,
-                      locale: locale,
-                      minimumFractionDigits: 0,
-                      maximumFractionDigits: 0
-                    })}
-              </div>
-              {currentCompensation?.payFrequency && (
-                <div className="gba:text-xs gba:text-muted-foreground gba:mt-1">
-                  {currentCompensation.payFrequency.value}
-                </div>
-              )}
-            </div>
-            <div className="gba:p-3 gba:rounded-lg gba:bg-muted">
-              <PiCurrencyEur className="gba:w-6 gba:h-6 gba:text-primary" />
-            </div>
-          </div>
-        </Card>
-
-        {/* Total Bonuses Card */}
-        <Card className="gba:p-6" data-testid="compensation-bonuses-card">
-          <div className="gba:flex gba:items-start gba:justify-between">
-            <div className="gba:flex-1">
-              <div className="gba:text-sm gba:text-muted-foreground gba:mb-2">{t('current-total-bonuses-ytd')}</div>
-              <div className="gba:text-3xl gba:font-bold gba:text-foreground">
-                {loading
-                  ? '-'
-                  : formatCurrencyString(totalBonusesYTD, {
-                      currency: currencyCode,
-                      locale: locale,
-                      minimumFractionDigits: 0,
-                      maximumFractionDigits: 0
-                    })}
-              </div>
-              <div className="gba:text-xs gba:text-muted-foreground gba:mt-1">
-                {bonuses.length} {bonuses.length === 1 ? t('current-bonus') : t('current-bonuses')}
-              </div>
-            </div>
-            <div className="gba:p-3 gba:rounded-lg gba:bg-muted">
-              <PiGift className="gba:w-6 gba:h-6 gba:text-primary" />
-            </div>
-          </div>
-        </Card>
-
-        {/* Benefits Value Card */}
-        <Card className="gba:p-6" data-testid="compensation-benefits-card">
-          <div className="gba:flex gba:items-start gba:justify-between">
-            <div className="gba:flex-1">
-              <div className="gba:text-sm gba:text-muted-foreground gba:mb-2">{t('current-benefits-value')}</div>
-              <div className="gba:text-3xl gba:font-bold gba:text-foreground">{activeBenefitsCount}</div>
-              <div className="gba:text-xs gba:text-muted-foreground gba:mt-1">{t('current-active-benefits')}</div>
-            </div>
-            <div className="gba:p-3 gba:rounded-lg gba:bg-muted">
-              <PiHeartbeat className="gba:w-6 gba:h-6 gba:text-primary" />
-            </div>
-          </div>
-        </Card>
-      </div>
+      <CompensationKPICards
+        t={t}
+        compensationData={compensationData}
+        loading={loading}
+        employeeId={employeeId}
+        accessToken={accessToken}
+        locale={locale}
+        isSelfView={isSelfView}
+        hasPermissionToGrantBonus={hasPermissionToGrantBonusDev}
+      />
 
       {/* Total Rewards 360° View */}
       <TotalRewardsCard t={t} compensationData={compensationData} loading={loading} locale={locale} />
@@ -230,12 +136,7 @@ const CurrentCompensationView: React.FC<CurrentCompensationViewProps> = ({
       />
 
       {/* Compensation Band Info */}
-      <Card data-testid="compensation-band-section">
-        <CardHeader>
-          <CardTitle>{t('band-title')}</CardTitle>
-        </CardHeader>
-        <CardContent>{renderCompensationBandContent()}</CardContent>
-      </Card>
+      <CompensationBandSection t={t} compensationData={compensationData} loading={loading} locale={locale} />
     </div>
   )
 }

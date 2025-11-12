@@ -164,6 +164,7 @@ export enum FlowContextName {
   updateEmployeeSkill = 'updateEmployeeSkill',
   updateEmployeeWorkingCondition = 'updateEmployeeWorkingCondition',
   updateEmployeeWorkingHours = 'updateEmployeeWorkingHours',
+  grantEmployeeBonus = 'grantEmployeeBonus',
 
   createEmployee = 'createEmployee',
   createJobPosition = 'createJobPosition'
