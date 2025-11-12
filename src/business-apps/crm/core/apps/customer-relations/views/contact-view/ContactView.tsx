@@ -1,9 +1,15 @@
 import { useMemo } from 'react'
 import { BusinessAppContextProps } from '@/common/BusinessAppContext'
-import { ContactLayout, type ContactViewConfig } from '@/common/components/common-relations/view-layouts/contact-layout'
+import {
+  ContactLayout,
+  type ContactViewConfig,
+  type ContactStatisticsData
+} from '@/common/components/common-relations/view-layouts/contact-layout'
 import type { Contact } from '@/common/data/relations/types/contactTypes'
-import { commonContactColumns } from '@/common/components/common-relations/view-layouts/contact-layout/config'
-import { commonContactFilterConfig } from '@/common/components/common-relations/view-layouts/contact-layout/config'
+import {
+  commonContactColumns,
+  commonContactFilterConfig
+} from '@/common/components/common-relations/view-layouts/contact-layout/config'
 import { useCustomerContacts } from '@/common/data/customer/hooks/useCustomerContacts'
 import { CUSTOMER_CONTACT_DESCRIPTORS } from '@/common/data/customer/types/customerContactTypes'
 import type { CustomerContactQueryVariables } from '@/common/data/customer/queries/customerContactQueries'
@@ -11,7 +17,6 @@ import { normalizeDateRange } from '@/common/utils/dateRangeNormalizer'
 import { FlowContextName } from '@/common/types/FlowRegistryTypes'
 import { buildPlatformUrl } from '@/common/utils/navigationUtils'
 import { useCustomerContactStatistics } from '@/common/data/customer/hooks/useCustomerContactStatistics'
-import type { ContactStatisticsData } from '@/common/components/common-relations/view-layouts/contact-layout'
 
 export type ContactViewProps = BusinessAppContextProps
 

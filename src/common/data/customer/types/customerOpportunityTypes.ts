@@ -2,8 +2,9 @@
  * Customer Opportunity Types
  */
 
-import type { Opportunity, OpportunityStageCondition } from '@/common/data/relations/types/opportunityTypes'
 import {
+  type Opportunity,
+  type OpportunityStageCondition,
   OpportunityFields,
   createOpportunityDescriptors,
   OpportunityStageConditionFields,

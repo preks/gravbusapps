@@ -4,9 +4,8 @@
  */
 
 import { DOCUMENT_REF } from '@/common/data/common/queries/documentFragments'
-import { buildWhere, buildOrderBy } from '@/common/network/graphql/queryHelpers'
+import { buildWhere, buildOrderBy, type Descriptor } from '@/common/network/graphql/queryHelpers'
 import { DocumentFields } from '../types/documentTypes'
-import type { Descriptor } from '@/common/network/graphql/queryHelpers'
 import type { BaseQueryVariables } from '@/common/network/graphql/commonTypes'
 
 // =====================================================

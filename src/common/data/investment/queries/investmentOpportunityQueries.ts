@@ -14,7 +14,11 @@ import {
   type OpportunityRelationBuilders,
   type OpportunityRelationFields
 } from '@/common/data/relations/queries/opportunityQueries'
-import { InvestmentOpportunityFields, INVESTMENT_OPPORTUNITY_DESCRIPTORS } from '../types/investmentOpportunityTypes'
+import {
+  InvestmentOpportunityFields,
+  INVESTMENT_OPPORTUNITY_DESCRIPTORS,
+  InvestmentOpportunityStageConditionFields
+} from '../types/investmentOpportunityTypes'
 import { INVESTMENT_ADDRESS_FRAGMENT } from '../types/investmentAddressTypes'
 // OpportunityFields type is used implicitly through Record<keyof typeof OpportunityFields, string>
 import type { Descriptor } from '@/common/network/graphql/queryHelpers'
@@ -39,7 +43,6 @@ import { InvestmentDocumentFields } from '../types/investmentDocumentTypes'
 import { InvestmentLeadFields } from '../types/investmentLeadTypes'
 import { InvestmentNoteFields } from '../types/investmentNoteTypes'
 import { InvestmentTaskFields } from '../types/investmentTaskTypes'
-import { InvestmentOpportunityStageConditionFields } from '../types/investmentOpportunityTypes'
 
 /**
  * Investment Opportunity Query Variables Interface

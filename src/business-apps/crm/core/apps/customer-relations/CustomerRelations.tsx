@@ -1,7 +1,5 @@
 import React, { useState, useEffect } from 'react'
-import { Button, Alert, AlertTitle, AlertDescription } from '@newwork/nw-design-system'
-import { Spinner } from '@newwork/nw-design-system'
-import { PageLayout } from '@newwork/nw-design-system'
+import { Button, Alert, AlertTitle, AlertDescription, Spinner, PageLayout } from '@newwork/nw-design-system'
 import {
   HandshakeIcon,
   ChartBar,

@@ -1,5 +1,10 @@
-import type { Task, TaskComment, TaskTemplate } from '@/common/data/relations/types/taskTypes'
-import { TaskFields, createTaskDescriptors } from '@/common/data/relations/types/taskTypes'
+import {
+  type Task,
+  type TaskComment,
+  type TaskTemplate,
+  TaskFields,
+  createTaskDescriptors
+} from '@/common/data/relations/types/taskTypes'
 import type { Descriptor } from '@/common/network/graphql/queryHelpers'
 import type { TaskTiming } from '@/common/data/relations/constants/taskConstants'
 import type { CatalogEntry } from '@/common/network/graphql/commonTypes'

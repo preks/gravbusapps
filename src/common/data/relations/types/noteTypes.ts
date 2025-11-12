@@ -1,5 +1,4 @@
-import type { BaseEntity } from '@/common/network/graphql/commonTypes'
-import { BASE_ENTITY_DESCRIPTORS } from '@/common/network/graphql/commonTypes'
+import { type BaseEntity, BASE_ENTITY_DESCRIPTORS } from '@/common/network/graphql/commonTypes'
 import type { Employee } from '@/common/data/employee/types/employeeBaseTypes'
 import type { Descriptor } from '@/common/network/graphql/queryHelpers'
 

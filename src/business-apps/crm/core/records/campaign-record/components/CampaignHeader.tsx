@@ -1,7 +1,6 @@
 import React from 'react'
-import { Spinner } from '@newwork/nw-design-system'
+import { Spinner, Badge } from '@newwork/nw-design-system'
 import { CalendarOutlined, TagOutlined } from '@ant-design/icons'
-import { Badge } from '@newwork/nw-design-system'
 import { AppActionButton } from '@/components/app-action-button/AppActionButton'
 import { FlowContextName } from '@/common/types/FlowRegistryTypes'
 import { CampaignHeaderProps } from '../types'

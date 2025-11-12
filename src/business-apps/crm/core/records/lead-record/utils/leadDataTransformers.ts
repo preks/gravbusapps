@@ -6,12 +6,13 @@
  * to avoid generating unnecessary data before conversion.
  */
 
-import type { CustomerAccount } from '@/common/data/customer/types'
-import type { CustomerContact } from '@/common/data/customer/types'
-import type { CustomerLead } from '@/common/data/customer/types'
-import type { Address } from '@/common/data/common/types/commonTypes'
-import type { CommunicationChannel } from '@/common/data/common/types/commonTypes'
-import { CommunicationChannelCode, CommunicationChannelType } from '@/common/data/common/types/commonTypes'
+import type { CustomerAccount, CustomerContact, CustomerLead } from '@/common/data/customer/types'
+import {
+  type Address,
+  type CommunicationChannel,
+  CommunicationChannelCode,
+  CommunicationChannelType
+} from '@/common/data/common/types/commonTypes'
 
 /**
  * Build CustomerAccount from Lead data

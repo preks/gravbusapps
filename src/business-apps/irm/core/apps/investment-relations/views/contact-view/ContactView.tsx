@@ -1,17 +1,22 @@
 import { useMemo } from 'react'
 import { BusinessAppContextProps } from '@/common/BusinessAppContext'
-import { ContactLayout, type ContactViewConfig } from '@/common/components/common-relations/view-layouts/contact-layout'
+import {
+  ContactLayout,
+  type ContactViewConfig,
+  type ContactStatisticsData
+} from '@/common/components/common-relations/view-layouts/contact-layout'
 import type { Contact } from '@/common/data/relations/types/contactTypes'
 import { INVESTMENT_CONTACT_DESCRIPTORS } from '@/common/data/investment/types/investmentContactTypes'
-import { commonContactColumns } from '@/common/components/common-relations/view-layouts/contact-layout/config'
-import { commonContactFilterConfig } from '@/common/components/common-relations/view-layouts/contact-layout/config'
+import {
+  commonContactColumns,
+  commonContactFilterConfig
+} from '@/common/components/common-relations/view-layouts/contact-layout/config'
 import { useInvestmentContacts } from '@/common/data/investment/hooks/useInvestmentContacts'
 import { useInvestmentContactStatistics } from '@/common/data/investment/hooks/useInvestmentContactStatistics'
 import type { InvestmentContactQueryVariables } from '@/common/data/investment/queries/investmentContactQueries'
 import { normalizeDateRange } from '@/common/utils/dateRangeNormalizer'
 import { FlowContextName } from '@/common/types/FlowRegistryTypes'
 import { buildPlatformUrl } from '@/common/utils/navigationUtils'
-import type { ContactStatisticsData } from '@/common/components/common-relations/view-layouts/contact-layout'
 
 export type ContactViewProps = BusinessAppContextProps
 

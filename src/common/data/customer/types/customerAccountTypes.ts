@@ -2,8 +2,7 @@
  * Customer Account Types
  */
 
-import type { Account } from '@/common/data/relations/types/accountTypes'
-import { AccountFields, createAccountDescriptors } from '@/common/data/relations/types/accountTypes'
+import { type Account, AccountFields, createAccountDescriptors } from '@/common/data/relations/types/accountTypes'
 import type { Descriptor } from '@/common/network/graphql/queryHelpers'
 import type { CustomerAddress } from './customerAddressTypes'
 import type { CustomerCommunicationChannel } from './customerCommunicationChannelTypes'

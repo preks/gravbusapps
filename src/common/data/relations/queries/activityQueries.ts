@@ -5,9 +5,8 @@
 
 import { AUDIT_FIELDS, CATALOG_ENTRY } from '@/common/network/graphql/commonFragments'
 import { EMPLOYEE_REF } from '@/common/data/employee/queries/fragments/employeeFragments'
-import { buildWhere, buildOrderBy } from '@/common/network/graphql/queryHelpers'
+import { buildWhere, buildOrderBy, type Descriptor } from '@/common/network/graphql/queryHelpers'
 import { ActivityFields } from '../types/activityTypes'
-import type { Descriptor } from '@/common/network/graphql/queryHelpers'
 import type { BaseQueryVariables } from '@/common/network/graphql/commonTypes'
 
 // =====================================================

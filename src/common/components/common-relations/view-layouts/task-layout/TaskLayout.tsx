@@ -1,7 +1,6 @@
 import React, { useState, useCallback, useEffect, useMemo } from 'react'
-import { Button, DataDisplay } from '@newwork/nw-design-system'
+import { Button, DataDisplay, type FilterConfiguration } from '@newwork/nw-design-system'
 import type { ColumnDef } from '@tanstack/react-table'
-import type { FilterConfiguration } from '@newwork/nw-design-system'
 import { Plus } from 'lucide-react'
 import { BusinessAppContextProps } from '@/common/BusinessAppContext'
 import { AppAction } from '@/components/app-action/AppAction'

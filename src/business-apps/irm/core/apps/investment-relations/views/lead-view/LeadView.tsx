@@ -1,17 +1,21 @@
 import { useMemo } from 'react'
 import { BusinessAppContextProps } from '@/common/BusinessAppContext'
-import { LeadLayout, type LeadViewConfig } from '@/common/components/common-relations/view-layouts/lead-layout'
-import type { InvestmentLead } from '@/common/data/investment/types/investmentLeadTypes'
-import { INVESTMENT_LEAD_DESCRIPTORS } from '@/common/data/investment/types/investmentLeadTypes'
-import { commonLeadColumns } from '@/common/components/common-relations/view-layouts/lead-layout/config'
-import { commonLeadFilterConfig } from '@/common/components/common-relations/view-layouts/lead-layout/config'
+import {
+  LeadLayout,
+  type LeadViewConfig,
+  type LeadStatisticsData
+} from '@/common/components/common-relations/view-layouts/lead-layout'
+import { type InvestmentLead, INVESTMENT_LEAD_DESCRIPTORS } from '@/common/data/investment/types/investmentLeadTypes'
+import {
+  commonLeadColumns,
+  commonLeadFilterConfig
+} from '@/common/components/common-relations/view-layouts/lead-layout/config'
 import { useInvestmentLeads } from '@/common/data/investment/hooks/useInvestmentLeads'
 import type { InvestmentLeadQueryVariables } from '@/common/data/investment/queries/investmentLeadQueries'
 import { normalizeDateRange } from '@/common/utils/dateRangeNormalizer'
 import { FlowContextName } from '@/common/types/FlowRegistryTypes'
 import { buildPlatformUrl } from '@/common/utils/navigationUtils'
 import { useInvestmentLeadStatistics } from '@/common/data/investment/hooks/useInvestmentLeadStatistics'
-import type { LeadStatisticsData } from '@/common/components/common-relations/view-layouts/lead-layout'
 
 export type LeadViewProps = BusinessAppContextProps
 

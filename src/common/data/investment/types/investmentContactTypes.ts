@@ -1,5 +1,4 @@
-import type { Contact } from '@/common/data/relations/types/contactTypes'
-import { ContactFields, createContactDescriptors } from '@/common/data/relations/types/contactTypes'
+import { type Contact, ContactFields, createContactDescriptors } from '@/common/data/relations/types/contactTypes'
 import type { Descriptor } from '@/common/network/graphql/queryHelpers'
 import type { InvestmentActivity } from './investmentActivityTypes'
 import type { InvestmentAddress } from './investmentAddressTypes'

@@ -3,8 +3,7 @@ import { Avatar, AvatarImage, AvatarFallback } from '@newwork/nw-design-system'
 import { Building2, Mail, Phone, Globe, Calendar, MapPin } from 'lucide-react'
 import { navigateTo } from '@/common/utils/navigationUtils'
 import { formatAddress } from '@/common/utils/addressFormatter'
-import type { Account } from '@/common/data/relations/types/accountTypes'
-import { createAccountDescriptors, AccountFields } from '@/common/data/relations/types/accountTypes'
+import { type Account, createAccountDescriptors, AccountFields } from '@/common/data/relations/types/accountTypes'
 import { deriveSortableColumns, deriveAvailableColumns } from '@/common/network/graphql/descriptorUtils'
 
 // Helper to safely convert values to strings

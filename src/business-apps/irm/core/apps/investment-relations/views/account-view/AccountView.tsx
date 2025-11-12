@@ -1,17 +1,22 @@
 import { useMemo } from 'react'
 import { BusinessAppContextProps } from '@/common/BusinessAppContext'
-import { AccountLayout, type AccountViewConfig } from '@/common/components/common-relations/view-layouts/account-layout'
+import {
+  AccountLayout,
+  type AccountViewConfig,
+  type AccountStatisticsData
+} from '@/common/components/common-relations/view-layouts/account-layout'
 import type { Account } from '@/common/data/relations/types/accountTypes'
 import { INVESTMENT_ACCOUNT_DESCRIPTORS } from '@/common/data/investment/types/investmentAccountTypes'
-import { commonAccountColumns } from '@/common/components/common-relations/view-layouts/account-layout/config'
-import { commonAccountFilterConfig } from '@/common/components/common-relations/view-layouts/account-layout/config'
+import {
+  commonAccountColumns,
+  commonAccountFilterConfig
+} from '@/common/components/common-relations/view-layouts/account-layout/config'
 import { useGetInvestmentAccounts } from '@/common/data/investment/hooks/useInvestmentAccounts'
 import type { InvestmentAccountQueryVariables } from '@/common/data/investment/queries/investmentAccountQueries'
 import { normalizeDateRange } from '@/common/utils/dateRangeNormalizer'
 import { FlowContextName } from '@/common/types/FlowRegistryTypes'
 import { buildPlatformUrl } from '@/common/utils/navigationUtils'
 import { useInvestmentAccountStatistics } from '@/common/data/investment/hooks/useInvestmentAccountStatistics'
-import type { AccountStatisticsData } from '@/common/components/common-relations/view-layouts/account-layout'
 
 export type AccountViewProps = BusinessAppContextProps
 

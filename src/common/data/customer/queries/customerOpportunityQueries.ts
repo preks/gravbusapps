@@ -14,7 +14,11 @@ import {
   type OpportunityRelationBuilders,
   type OpportunityRelationFields
 } from '@/common/data/relations/queries/opportunityQueries'
-import { CustomerOpportunityFields, CUSTOMER_OPPORTUNITY_DESCRIPTORS } from '../types/customerOpportunityTypes'
+import {
+  CustomerOpportunityFields,
+  CUSTOMER_OPPORTUNITY_DESCRIPTORS,
+  CustomerOpportunityStageConditionFields
+} from '../types/customerOpportunityTypes'
 import { CUSTOMER_CAMPAIGN_REF } from './fragments/customerReferenceFragments'
 import { CUSTOMER_ADDRESS_FRAGMENT } from '../types/customerAddressTypes'
 import type { Descriptor } from '@/common/network/graphql/queryHelpers'
@@ -38,7 +42,6 @@ import { CustomerDocumentFields } from '../types/customerDocumentTypes'
 import { CustomerLeadFields } from '../types/customerLeadTypes'
 import { CustomerNoteFields } from '../types/customerNoteTypes'
 import { CustomerTaskFields } from '../types/customerTaskTypes'
-import { CustomerOpportunityStageConditionFields } from '../types/customerOpportunityTypes'
 
 /**
  * Customer Opportunity Query Variables Interface

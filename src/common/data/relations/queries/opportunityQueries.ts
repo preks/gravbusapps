@@ -6,9 +6,8 @@
 import { AUDIT_FIELDS, CATALOG_ENTRY } from '@/common/network/graphql/commonFragments'
 import { EMPLOYEE_REF } from '@/common/data/employee/queries/fragments/employeeFragments'
 import { COMMUNICATION_CHANNEL_REF } from '@/common/data/common/queries/communicationChannelFragments'
-import { buildWhere, buildOrderBy } from '@/common/network/graphql/queryHelpers'
+import { buildWhere, buildOrderBy, type Descriptor } from '@/common/network/graphql/queryHelpers'
 import { OpportunityFields } from '../types/opportunityTypes'
-import type { Descriptor } from '@/common/network/graphql/queryHelpers'
 import type { BaseQueryVariables } from '@/common/network/graphql/commonTypes'
 import { buildAddressFragment } from './_tempAddress'
 

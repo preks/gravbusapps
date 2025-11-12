@@ -8,9 +8,8 @@ import { COMMUNICATION_CHANNEL_REF } from '@/common/data/common/queries/communic
 import { EMPLOYEE_REF } from '@/common/data/employee/queries/fragments/employeeFragments'
 //import { ADDRESS_REF } from '@/common/data/common/queries/addressFragments'
 import { buildAddressFragment } from './_tempAddress'
-import { buildWhere, buildOrderBy } from '@/common/network/graphql/queryHelpers'
+import { buildWhere, buildOrderBy, type Descriptor } from '@/common/network/graphql/queryHelpers'
 import { ContactFields } from '../types/contactTypes'
-import type { Descriptor } from '@/common/network/graphql/queryHelpers'
 import type { BaseQueryVariables } from '@/common/network/graphql/commonTypes'
 
 // =====================================================

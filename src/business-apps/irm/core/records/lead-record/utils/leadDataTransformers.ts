@@ -6,13 +6,13 @@
  * to avoid generating unnecessary data before conversion.
  */
 
-import type { InvestmentAccount } from '@/common/data/investment/types'
-import type { InvestmentContact } from '@/common/data/investment/types'
-import type { InvestmentLead } from '@/common/data/investment/types'
-import type { Investment } from '@/common/data/investment/types'
-import type { Address } from '@/common/data/common/types/commonTypes'
-import type { CommunicationChannel } from '@/common/data/common/types/commonTypes'
-import { CommunicationChannelCode, CommunicationChannelType } from '@/common/data/common/types/commonTypes'
+import type { InvestmentAccount, InvestmentContact, InvestmentLead, Investment } from '@/common/data/investment/types'
+import {
+  type Address,
+  type CommunicationChannel,
+  CommunicationChannelCode,
+  CommunicationChannelType
+} from '@/common/data/common/types/commonTypes'
 
 /**
  * Build InvestmentAccount from Lead data

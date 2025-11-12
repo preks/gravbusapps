@@ -2,8 +2,7 @@ import type { ColumnDef } from '@tanstack/react-table'
 import { Avatar, AvatarImage, AvatarFallback } from '@newwork/nw-design-system'
 import { User, Building2, Calendar } from 'lucide-react'
 import { navigateTo } from '@/common/utils/navigationUtils'
-import type { Contact } from '@/common/data/relations/types/contactTypes'
-import { createContactDescriptors, ContactFields } from '@/common/data/relations/types/contactTypes'
+import { type Contact, createContactDescriptors, ContactFields } from '@/common/data/relations/types/contactTypes'
 import {
   getCommunicationChannelIcon,
   formatCommunicationChannelValue

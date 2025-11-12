@@ -1,5 +1,4 @@
-import type { Activity } from '@/common/data/relations/types/activityTypes'
-import { ActivityFields, createActivityDescriptors } from '@/common/data/relations/types/activityTypes'
+import { type Activity, ActivityFields, createActivityDescriptors } from '@/common/data/relations/types/activityTypes'
 import type { Descriptor } from '@/common/network/graphql/queryHelpers'
 import {
   Investment,

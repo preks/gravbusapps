@@ -9,21 +9,19 @@
  */
 
 import { CATALOG_ENTRY, AUDIT_FIELDS } from '@/common/network/graphql/commonFragments'
-import { COMMON_LEAD_FIELDS } from '@/common/data/relations/queries/commonFragments'
-import { COMMON_ACCOUNT_FIELDS } from '@/common/data/relations/queries/commonFragments'
-import { COMMON_CONTACT_FIELDS } from '@/common/data/relations/queries/commonFragments'
 import {
+  COMMON_LEAD_FIELDS,
+  COMMON_ACCOUNT_FIELDS,
+  COMMON_CONTACT_FIELDS,
   COMMON_OPPORTUNITY_FIELDS,
-  COMMON_OPPORTUNITY_STAGE_CONDITION_REF
-} from '@/common/data/relations/queries/commonFragments'
-import {
+  COMMON_OPPORTUNITY_STAGE_CONDITION_REF,
   COMMON_TASK_FIELDS,
   COMMON_TASK_TEMPLATE_FIELDS,
-  COMMON_TASK_COMMENT_FIELDS
+  COMMON_TASK_COMMENT_FIELDS,
+  COMMON_ACTIVITY_FIELDS,
+  COMMON_DOCUMENT_FIELDS,
+  COMMON_NOTE_FIELDS
 } from '@/common/data/relations/queries/commonFragments'
-import { COMMON_ACTIVITY_FIELDS } from '@/common/data/relations/queries/commonFragments'
-import { COMMON_DOCUMENT_FIELDS } from '@/common/data/relations/queries/commonFragments'
-import { COMMON_NOTE_FIELDS } from '@/common/data/relations/queries/commonFragments'
 
 // Re-export for backward compatibility with old fragments
 export { COMMUNICATION_CHANNEL_REF as INVESTMENT_COMMUNICATION_CHANNEL } from '@/common/data/common/queries/communicationChannelFragments'

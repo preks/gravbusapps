@@ -1,5 +1,4 @@
-import type { Document } from '@/common/data/relations/types/documentTypes'
-import { DocumentFields, createDocumentDescriptors } from '@/common/data/relations/types/documentTypes'
+import { type Document, DocumentFields, createDocumentDescriptors } from '@/common/data/relations/types/documentTypes'
 import type { Descriptor } from '@/common/network/graphql/queryHelpers'
 import type { BaseEntity } from '@/common/network/graphql/commonTypes'
 import type { SourceTable } from './investmentEnums'

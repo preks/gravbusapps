@@ -3,14 +3,15 @@ import { BusinessAppContextProps } from '@/common/BusinessAppContext'
 import { useInvestmentTasks } from '@/common/data/investment/hooks/useInvestmentTasks'
 import { useInvestmentTaskStatistics } from '@/common/data/investment/hooks/useInvestmentTaskStatistics'
 import { TaskLayout, type TaskViewConfig } from '@/common/components/common-relations/view-layouts/task-layout'
-import type { InvestmentTask } from '@/common/data/investment/types/investmentTaskTypes'
-import { INVESTMENT_TASK_DESCRIPTORS } from '@/common/data/investment/types/investmentTaskTypes'
+import { type InvestmentTask, INVESTMENT_TASK_DESCRIPTORS } from '@/common/data/investment/types/investmentTaskTypes'
 import type { InvestmentTaskQueryVariables } from '@/common/data/investment/queries/investmentTaskQueries'
 import { normalizeDateRange } from '@/common/utils/dateRangeNormalizer'
 import type { TaskReference } from '@/common/data/relations/types/taskTypes'
 import { FlowContextName } from '@/common/types/FlowRegistryTypes'
-import { createTaskColumns } from '@/common/components/common-relations/view-layouts/task-layout/config'
-import { taskFilterConfig } from '@/common/components/common-relations/view-layouts/task-layout/config'
+import {
+  createTaskColumns,
+  taskFilterConfig
+} from '@/common/components/common-relations/view-layouts/task-layout/config'
 import { buildPlatformUrl } from '@/common/utils/navigationUtils'
 
 export type TaskViewProps = BusinessAppContextProps

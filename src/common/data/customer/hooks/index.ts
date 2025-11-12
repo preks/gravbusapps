@@ -2,6 +2,7 @@
 
 export * from './useCustomerTasks'
 export * from './useCustomerActivities'
+export * from './useCustomerNotes'
 export * from './useCustomerTeamPerformance'
 export * from './useCustomerAccounts'
 export * from './useCustomerAccountStatistics'

@@ -4,9 +4,8 @@
  * Supports different field names per domain (IRM vs CRM)
  */
 
-import { buildWhere, buildOrderBy } from '@/common/network/graphql/queryHelpers'
+import { buildWhere, buildOrderBy, type Descriptor } from '@/common/network/graphql/queryHelpers'
 import { AccountFields } from '../types/accountTypes'
-import type { Descriptor } from '@/common/network/graphql/queryHelpers'
 import { AUDIT_FIELDS, CATALOG_ENTRY } from '@/common/network/graphql/commonFragments'
 import { COMMUNICATION_CHANNEL_REF } from '@/common/data/common/queries/communicationChannelFragments'
 //import { ADDRESS_REF } from '@/common/data/common/queries/addressFragments'

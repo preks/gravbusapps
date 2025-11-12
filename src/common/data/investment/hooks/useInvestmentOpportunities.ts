@@ -16,7 +16,8 @@ import {
   buildInvestmentOpportunityByIdQuery,
   buildInvestmentOpportunityWhereCondition,
   buildInvestmentOpportunityOrderBy,
-  type InvestmentOpportunityQueryVariables
+  type InvestmentOpportunityQueryVariables,
+  GET_INVESTMENT_OPPORTUNITY_AGGREGATES
 } from '../queries/investmentOpportunityQueries'
 
 // Import where/orderBy builders for related entities
@@ -40,8 +41,6 @@ import {
   buildInvestmentDocumentWhereCondition,
   buildInvestmentDocumentOrderBy
 } from '../queries/investmentDocumentQueries'
-// Import old queries that are not yet migrated (GET_INVESTMENT_OPPORTUNITY_AGGREGATES)
-import { GET_INVESTMENT_OPPORTUNITY_AGGREGATES } from '../queries/investmentOpportunityQueries'
 import { buildWhere } from '@/common/network/graphql/queryHelpers'
 
 // Use the mapper function

@@ -12,8 +12,7 @@ import { AppActionButton } from '@/components/app-action-button/AppActionButton'
 import { FlowContextName } from '@/common/types/FlowRegistryTypes'
 import { getTranslationFromI18nKeyAndLabel } from '@/common/utils/windowUtils'
 import type { SalesCampaign } from './components/campaign-list/types/SalesCampaignTypes'
-import { createCampaignColumns, createCampaignSortableColumns } from './config'
-import { campaignFilterConfig } from './config'
+import { createCampaignColumns, createCampaignSortableColumns, campaignFilterConfig } from './config'
 
 type CampaignViewProps = BusinessAppContextProps
 

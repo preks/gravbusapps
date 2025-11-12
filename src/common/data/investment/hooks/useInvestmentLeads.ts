@@ -2,7 +2,7 @@
 import { useCallback } from 'react'
 import { useGraphQLClient } from '@/common/network/graphql/useGraphQLClient'
 import { BusinessAppContextProps } from '@/common/BusinessAppContext'
-import type { InvestmentLead } from '../types'
+import type { InvestmentLead, InvestmentTask, InvestmentActivity, InvestmentNote, InvestmentDocument } from '../types'
 import type { Lead } from '@/common/data/relations/types/leadTypes'
 
 // Use the new query builders
@@ -44,9 +44,6 @@ import {
   toInvestmentNote,
   toInvestmentDocument
 } from '../mappers'
-
-// Import base types for related entities
-import type { InvestmentTask, InvestmentActivity, InvestmentNote, InvestmentDocument } from '../types'
 
 // Response interfaces
 export interface InvestmentLeadQueryResponse {

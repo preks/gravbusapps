@@ -1,6 +1,5 @@
 import type { CatalogEntry } from '@/common/network/graphql/commonTypes'
-import type { Lead } from '@/common/data/relations/types/leadTypes'
-import { LeadFields, createLeadDescriptors } from '@/common/data/relations/types/leadTypes'
+import { type Lead, LeadFields, createLeadDescriptors } from '@/common/data/relations/types/leadTypes'
 import type { Descriptor } from '@/common/network/graphql/queryHelpers'
 import type { InvestmentAccount } from './investmentAccountTypes'
 import type { InvestmentContact } from './investmentContactTypes'

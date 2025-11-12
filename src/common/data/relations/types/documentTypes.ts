@@ -1,5 +1,4 @@
-import type { BaseEntity, CatalogEntry } from '@/common/network/graphql/commonTypes'
-import { BASE_ENTITY_DESCRIPTORS } from '@/common/network/graphql/commonTypes'
+import { type BaseEntity, type CatalogEntry, BASE_ENTITY_DESCRIPTORS } from '@/common/network/graphql/commonTypes'
 import type { Descriptor } from '@/common/network/graphql/queryHelpers'
 
 export interface Document extends BaseEntity {

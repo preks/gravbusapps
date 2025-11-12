@@ -21,7 +21,6 @@ import { BusinessAppContextProps } from '@/common/BusinessAppContext'
 import { navigateTo, buildPlatformUrl } from '@/common/utils/navigationUtils'
 import { getTranslationFromI18nKeyAndLabel, formatDate } from '@/common/utils/windowUtils'
 import { useProcessCompletion } from '@/common/hooks/useProcessCompletion'
-import { useGetInvestmentOpportunityById } from '@/common/data/investment/hooks/useInvestmentOpportunities'
 import type { InvestmentOpportunity } from '@/common/data/investment/types'
 import { formatCurrency, extractCurrencyCode } from '@/common/utils/numberFormatter'
 import { getOpportunityStatusBadgeVariant } from '@/common/utils/badgeUtils'
@@ -46,6 +45,7 @@ import TaskSection from '@/common/components/common-relations/record-sections/ta
 import SectionWrapper from '@/common/components/common-relations/record-sections/section-card/SectionCard'
 import { DocumentSection, type DocumentItem } from '@/components/document-section'
 import {
+  useGetInvestmentOpportunityById,
   useGetInvestmentActivitiesByOpportunityId,
   useGetInvestmentNotesByOpportunityId,
   useGetInvestmentTasksByOpportunityId

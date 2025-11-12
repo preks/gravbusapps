@@ -1,5 +1,4 @@
-import type { Note } from '@/common/data/relations/types/noteTypes'
-import { NoteFields, createNoteDescriptors } from '@/common/data/relations/types/noteTypes'
+import { type Note, NoteFields, createNoteDescriptors } from '@/common/data/relations/types/noteTypes'
 import type { Descriptor } from '@/common/network/graphql/queryHelpers'
 import {
   Investment,

@@ -3,14 +3,15 @@ import { BusinessAppContextProps } from '@/common/BusinessAppContext'
 import { useCustomerTasks } from '@/common/data/customer/hooks/useCustomerTasks'
 import { useCustomerTaskStatistics } from '@/common/data/customer/hooks/useCustomerTaskStatistics'
 import { TaskLayout, type TaskViewConfig } from '@/common/components/common-relations/view-layouts/task-layout'
-import type { CustomerTask } from '@/common/data/customer/types/customerTaskTypes'
-import { CUSTOMER_TASK_DESCRIPTORS } from '@/common/data/customer/types/customerTaskTypes'
+import { type CustomerTask, CUSTOMER_TASK_DESCRIPTORS } from '@/common/data/customer/types/customerTaskTypes'
 import type { CustomerTaskQueryVariables } from '@/common/data/customer/queries/customerTaskQueries'
 import { normalizeDateRange } from '@/common/utils/dateRangeNormalizer'
 import type { TaskReference } from '@/common/data/relations/types/taskTypes'
 import { FlowContextName } from '@/common/types/FlowRegistryTypes'
-import { createTaskColumns } from '@/common/components/common-relations/view-layouts/task-layout/config'
-import { taskFilterConfig } from '@/common/components/common-relations/view-layouts/task-layout/config'
+import {
+  createTaskColumns,
+  taskFilterConfig
+} from '@/common/components/common-relations/view-layouts/task-layout/config'
 import { buildPlatformUrl } from '@/common/utils/navigationUtils'
 
 export type TaskViewProps = BusinessAppContextProps

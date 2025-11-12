@@ -22,29 +22,25 @@ import {
 // Import related-entity queries from new file
 import {
   buildInvestmentTaskByContactIdQuery,
-  type InvestmentTaskQueryVariables
+  type InvestmentTaskQueryVariables,
+  buildInvestmentTaskWhereCondition,
+  buildInvestmentTaskOrderBy
 } from '../queries/investmentTaskQueries'
 import {
   buildInvestmentActivityByContactIdQuery,
-  type InvestmentActivityQueryVariables
-} from '../queries/investmentActivityQueries'
-import {
-  buildInvestmentNoteByContactIdQuery,
-  type InvestmentNoteQueryVariables
-} from '../queries/investmentNoteQueries'
-import {
-  buildInvestmentDocumentByContactIdQuery,
-  type InvestmentDocumentQueryVariables
-} from '../queries/investmentDocumentQueries'
-
-// Import where/orderBy builders for related entities
-import { buildInvestmentTaskWhereCondition, buildInvestmentTaskOrderBy } from '../queries/investmentTaskQueries'
-import {
+  type InvestmentActivityQueryVariables,
   buildInvestmentActivityWhereCondition,
   buildInvestmentActivityOrderBy
 } from '../queries/investmentActivityQueries'
-import { buildInvestmentNoteWhereCondition, buildInvestmentNoteOrderBy } from '../queries/investmentNoteQueries'
 import {
+  buildInvestmentNoteByContactIdQuery,
+  type InvestmentNoteQueryVariables,
+  buildInvestmentNoteWhereCondition,
+  buildInvestmentNoteOrderBy
+} from '../queries/investmentNoteQueries'
+import {
+  buildInvestmentDocumentByContactIdQuery,
+  type InvestmentDocumentQueryVariables,
   buildInvestmentDocumentWhereCondition,
   buildInvestmentDocumentOrderBy
 } from '../queries/investmentDocumentQueries'

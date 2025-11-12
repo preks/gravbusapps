@@ -2,11 +2,14 @@
  * Investment Account Types
  */
 
-import type { Account, CommonAccountFilters } from '@/common/data/relations/types/accountTypes'
-import { AccountFields, createAccountDescriptors } from '@/common/data/relations/types/accountTypes'
+import {
+  type Account,
+  type CommonAccountFilters,
+  AccountFields,
+  createAccountDescriptors
+} from '@/common/data/relations/types/accountTypes'
 import type { Descriptor } from '@/common/network/graphql/queryHelpers'
-import type { Investment } from './investmentTypes'
-import type { InvestmentReport } from './investmentTypes'
+import { type Investment, type InvestmentReport } from './investmentTypes'
 import type { InvestmentAddress } from './investmentAddressTypes'
 import type { InvestmentCommunicationChannel } from './investmentCommunicationChannelTypes'
 import type { InvestmentOpportunity } from './investmentOpportunityTypes'

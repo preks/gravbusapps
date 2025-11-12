@@ -3,8 +3,7 @@
  * CustomerContact and related reference types
  */
 
-import type { Contact } from '@/common/data/relations/types/contactTypes'
-import { ContactFields, createContactDescriptors } from '@/common/data/relations/types/contactTypes'
+import { type Contact, ContactFields, createContactDescriptors } from '@/common/data/relations/types/contactTypes'
 import type { Descriptor } from '@/common/network/graphql/queryHelpers'
 import type { CustomerActivity } from './customerActivityTypes'
 import type { CustomerAddress } from './customerAddressTypes'
