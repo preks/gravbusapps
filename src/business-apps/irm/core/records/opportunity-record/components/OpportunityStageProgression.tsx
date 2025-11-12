@@ -171,7 +171,7 @@ export const OpportunityStageProgression: React.FC<OpportunityStageProgressionPr
   const emptyContextsArray = useMemo(() => [], [])
   const transitionContextsArray = useMemo(() => [FlowContextName.investmentOpportunityStageTransition], [])
   const stageStyle = useMemo(() => ({ flex: 1, display: 'flex' as const }), [])
-
+  // const stageStyle = useMemo(() => ({ flex: 1 }), [])
   // Create stable props for all stages
   const stageProps = useMemo(() => {
     const props: Record<
