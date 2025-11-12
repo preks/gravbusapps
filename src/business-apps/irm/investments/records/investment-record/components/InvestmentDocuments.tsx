@@ -4,7 +4,7 @@ import { DocumentSection } from '@/components/document-section'
 import { FlowContextName } from '@/common/types/FlowRegistryTypes'
 import { getTranslationFromI18nKeyAndLabel } from '@/common/utils/windowUtils'
 import { useInvestmentDocuments } from '@/business-apps/irm/common/hooks/useInvestmentDocuments'
-import { createDocumentActions } from '@/business-apps/irm/common/utils/createDocumentActions'
+import { createDocumentSectionActions } from '@/common/utils/documentSectionActions'
 import { getIrmDocumentApiConfig, useGetIrmDocuments } from '@/business-apps/irm/common/utils/documentUtils'
 
 interface InvestmentDocumentsProps {
@@ -51,8 +51,12 @@ const InvestmentDocuments: React.FC<InvestmentDocumentsProps> = ({ investmentId,
   // Use shared document actions with translation support
   const customActions = useMemo(
     () =>
-      createDocumentActions({
+      createDocumentSectionActions({
+        domain: 'investment-relations',
+        documentFieldName: 'investmentDocument',
         entityType: 'investment',
+        updateProcessName: 'updateInvestmentDocument',
+        deleteEndpoint: '/investment-relations/deleteInvestmentDocument',
         getTranslation: getTranslationFromI18nKeyAndLabel
       }),
     []
