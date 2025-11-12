@@ -225,6 +225,8 @@ action-deactivate = Deaktivieren
 action-download = Herunterladen
 action-view = Anzeigen
 action-close = Schließen
+action-select-placeholder = Bitte auswählen
+action-enter-placeholder = Bitte eingeben
 
 # Benefits Catalog Section
 benefit-per-year = /Jahr
@@ -255,3 +257,30 @@ modal-deactivate-reason-no_longer_needed = Nicht mehr benötigt
 modal-deactivate-reason-found_alternative = Alternative gefunden
 modal-deactivate-reason-cost_reduction = Kostenreduzierung
 modal-deactivate-reason-other = Sonstiges (bitte angeben)
+
+# Adjust Employee Salary Form
+adjust-salary-title = Gehalt anpassen
+adjust-salary-current-salary = Aktuelles Jahresgehalt
+adjust-salary-adjustment-type = Anpassungstyp
+adjust-salary-adjustment-type-amount = Betragserhöhung
+adjust-salary-adjustment-type-percentage = Prozentsatzerhöhung
+adjust-salary-increase-amount = Erhöhungsbetrag
+adjust-salary-increase-percentage = Erhöhungsprozentsatz (%)
+adjust-salary-calculated-amount = Berechneter Betrag:
+adjust-salary-calculated-percentage = Berechneter Prozentsatz:
+adjust-salary-new-salary = Neues Jahresgehalt
+adjust-salary-currency = Währung
+adjust-salary-effective-date = Gültigkeitsdatum
+adjust-salary-reason = Grund
+adjust-salary-reason-promotion = Beförderung
+adjust-salary-reason-merit-increase = Leistungssteigerung
+adjust-salary-reason-market-adjustment = Marktanpassung
+adjust-salary-reason-other = Sonstiges
+adjust-salary-description = Beschreibung
+adjust-salary-notes = Notizen
+adjust-salary-adjustment-type-required = Anpassungstyp ist erforderlich. Bitte wählen Sie einen Anpassungstyp.
+adjust-salary-adjustment-value-required = Anpassungswert ist erforderlich. Bitte geben Sie den Anpassungswert ein.
+adjust-salary-adjustment-value-positive = Der Anpassungswert muss größer als null sein.
+adjust-salary-currency-required = Währung ist erforderlich. Bitte wählen Sie eine Währung.
+adjust-salary-effective-date-required = Gültigkeitsdatum ist erforderlich. Bitte wählen Sie ein Gültigkeitsdatum.
+adjust-salary-reason-required = Grund ist erforderlich. Bitte wählen Sie einen Grund.

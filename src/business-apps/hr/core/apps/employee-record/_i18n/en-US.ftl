@@ -225,6 +225,8 @@ action-deactivate = Deactivate
 action-download = Download
 action-view = View
 action-close = Close
+action-select-placeholder = Please Select
+action-enter-placeholder = Please Enter
 
 # Benefits Catalog Section
 benefit-per-year = /yr
@@ -255,3 +257,30 @@ modal-deactivate-reason-no_longer_needed = No longer needed
 modal-deactivate-reason-found_alternative = Found alternative
 modal-deactivate-reason-cost_reduction = Cost reduction
 modal-deactivate-reason-other = Other (please specify)
+
+# Adjust Employee Salary Form
+adjust-salary-title = Adjust Employee Salary
+adjust-salary-current-salary = Current Annual Salary
+adjust-salary-adjustment-type = Adjustment Type
+adjust-salary-adjustment-type-amount = Amount Increase
+adjust-salary-adjustment-type-percentage = Percentage Increase
+adjust-salary-increase-amount = Increase Amount
+adjust-salary-increase-percentage = Increase Percentage (%)
+adjust-salary-calculated-amount = Calculated Amount:
+adjust-salary-calculated-percentage = Calculated Percentage:
+adjust-salary-new-salary = New Annual Salary
+adjust-salary-currency = Currency
+adjust-salary-effective-date = Effective Date
+adjust-salary-reason = Reason
+adjust-salary-reason-promotion = Promotion
+adjust-salary-reason-merit-increase = Merit Increase
+adjust-salary-reason-market-adjustment = Market Adjustment
+adjust-salary-reason-other = Other
+adjust-salary-description = Description
+adjust-salary-notes = Notes
+adjust-salary-adjustment-type-required = Adjustment type is required. Please select an adjustment type.
+adjust-salary-adjustment-value-required = Adjustment value is required. Please enter the adjustment value.
+adjust-salary-adjustment-value-positive = Adjustment value must be greater than zero.
+adjust-salary-currency-required = Currency is required. Please select a currency.
+adjust-salary-effective-date-required = Effective date is required. Please select an effective date.
+adjust-salary-reason-required = Reason is required. Please select a reason.
