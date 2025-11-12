@@ -1,11 +1,8 @@
 import React, { useState, useCallback, useMemo, useEffect } from 'react'
 import { BusinessAppContextProps } from '@/common/BusinessAppContext'
 import { useGraphQLClient } from '@/common/network/graphql/useGraphQLClient'
-import { DateRangeFilter } from '@/business-apps/crm/core/apps/customer-relations/views/lead-view/components/DateRangeFilter'
-import {
-  getAllPreselectedFilters,
-  processFilterByGroup
-} from '@/business-apps/crm/core/apps/customer-relations/views/opportunity-view/hooks/filterUrlHelpers'
+import { DateRangeFilter } from './DateRangeFilter'
+import { getAllPreselectedFilters, processFilterByGroup } from './filterUrlHelpers'
 
 export interface FilterGroup {
   id: string
