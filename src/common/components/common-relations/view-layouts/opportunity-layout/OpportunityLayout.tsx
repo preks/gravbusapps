@@ -101,6 +101,7 @@ export interface OpportunityViewConfig<TOpportunity extends { id: string }, TQue
   buildAccountUrl: (id: string) => string
 
   opportunityStatistics?: OpportunityStatisticsData
+  renderStatistics?: () => React.ReactNode
 
   boardConfig: import('./config/opportunityBoardTypes').OpportunityBoardConfig
   fetchOpportunitiesForBoard: (
@@ -466,12 +467,14 @@ const ConfigOpportunityLayout = <TOpportunity extends { id: string } = any, TQue
   return (
     <div data-testid={dataTestId}>
       {/* Statistics */}
-      {config.opportunityStatistics && (
+      {config.renderStatistics ? (
+        <div data-testid={`${dataTestId}-statistics`}>{config.renderStatistics()}</div>
+      ) : config.opportunityStatistics ? (
         <OpportunityStatisticsLayout
           statistics={config.opportunityStatistics}
           data-testid={`${dataTestId}-statistics`}
         />
-      )}
+      ) : null}
 
       {/* DataDisplay with titleSections as Tabs */}
       <DataDisplay

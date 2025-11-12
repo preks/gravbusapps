@@ -113,7 +113,9 @@ export function transformInvestmentDocument(doc: InvestmentDocument): DocumentIt
     fileSize: doc.fileSize,
     createdBy: doc.createdBy,
     parentDocument:
-      typeof doc.parentDocument === 'object' ? (doc.parentDocument?.id ?? null) : (doc.parentDocument ?? null),
+      typeof doc.parentDocument === 'object'
+        ? (doc.parentDocument?.id ?? null)
+        : (doc.parentDocument ?? doc.parentDocumentId ?? null),
     folder: doc.folder === true,
     version: doc.version
   }

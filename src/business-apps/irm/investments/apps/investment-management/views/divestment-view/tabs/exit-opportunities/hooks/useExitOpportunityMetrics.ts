@@ -29,7 +29,7 @@ export interface UseExitOpportunityMetricsProps extends BusinessAppContextProps 
 
 export const useExitOpportunityMetrics = ({ accessToken, filters }: UseExitOpportunityMetricsProps) => {
   const [metrics, setMetrics] = useState<ExitOpportunityMetrics | null>(null)
-  const [isLoading, setIsLoading] = useState(true)
+  const [isLoading, setIsLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)
 
   const { fetchInvestmentOpportunityAggregates } = useGetInvestmentOpportunityAggregates({ accessToken })
@@ -77,8 +77,8 @@ export const useExitOpportunityMetrics = ({ accessToken, filters }: UseExitOppor
 
       // Add date range filtering at query level instead of client-side
       if (dateRange) {
-        baseVariables.createdAfter = dateRange.from
-        baseVariables.createdBefore = dateRange.to
+        baseVariables.createdAtFrom = dateRange.from
+        baseVariables.createdAtTo = dateRange.to
       }
 
       return baseVariables

@@ -11,6 +11,7 @@ import type { CustomerContact } from '@/common/data/customer/types'
 import type { CustomerLead } from '@/common/data/customer/types'
 import type { Address } from '@/common/data/common/types/commonTypes'
 import type { CommunicationChannel } from '@/common/data/common/types/commonTypes'
+import { CommunicationChannelCode, CommunicationChannelType } from '@/common/data/common/types/commonTypes'
 
 /**
  * Build CustomerAccount from Lead data
@@ -46,8 +47,8 @@ export function buildCustomerAccountFromLead(lead: CustomerLead | any): Customer
     communicationChannels.push({
       value: lead.companyEmail,
       communicationChannel: {
-        code: 'EMAIL',
-        type: 'email'
+        code: CommunicationChannelCode.EMAIL,
+        type: CommunicationChannelType.EMAIL
       }
     } as CommunicationChannel)
   }
@@ -55,8 +56,8 @@ export function buildCustomerAccountFromLead(lead: CustomerLead | any): Customer
     communicationChannels.push({
       value: lead.companyPhone,
       communicationChannel: {
-        code: 'TEL',
-        type: 'tel'
+        code: CommunicationChannelCode.PHONE,
+        type: CommunicationChannelType.TEL
       }
     } as CommunicationChannel)
   }
@@ -111,8 +112,8 @@ export function buildCustomerContactFromLead(lead: CustomerLead | any): Customer
     communicationChannels.push({
       value: lead.email,
       communicationChannel: {
-        code: 'EMAIL',
-        type: 'email'
+        code: CommunicationChannelCode.EMAIL,
+        type: CommunicationChannelType.EMAIL
       }
     } as CommunicationChannel)
   }
@@ -120,8 +121,8 @@ export function buildCustomerContactFromLead(lead: CustomerLead | any): Customer
     communicationChannels.push({
       value: lead.phoneNumber,
       communicationChannel: {
-        code: 'TEL',
-        type: 'tel'
+        code: CommunicationChannelCode.PHONE,
+        type: CommunicationChannelType.TEL
       }
     } as CommunicationChannel)
   }

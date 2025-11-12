@@ -157,7 +157,7 @@ const InvestmentTaskForm: React.FC<InvestmentTaskFormProps> = ({
           relatedEntityId:
             task.investment?.id || task.account?.id || task.contact?.id || task.opportunity?.id || task.lead?.id || '',
           documents:
-            (task as any).investmentDocument?.map((doc: any) => ({
+            (task as any).documents?.map((doc: any) => ({
               id: doc.id,
               name: doc.name || '',
               version: doc.version

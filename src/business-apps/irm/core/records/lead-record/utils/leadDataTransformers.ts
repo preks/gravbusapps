@@ -12,6 +12,7 @@ import type { InvestmentLead } from '@/common/data/investment/types'
 import type { Investment } from '@/common/data/investment/types'
 import type { Address } from '@/common/data/common/types/commonTypes'
 import type { CommunicationChannel } from '@/common/data/common/types/commonTypes'
+import { CommunicationChannelCode, CommunicationChannelType } from '@/common/data/common/types/commonTypes'
 
 /**
  * Build InvestmentAccount from Lead data
@@ -47,8 +48,8 @@ export function buildInvestmentAccountFromLead(lead: InvestmentLead | any): Inve
     communicationChannels.push({
       value: lead.companyEmail,
       communicationChannel: {
-        code: 'e-mail',
-        type: 'email'
+        code: CommunicationChannelCode.EMAIL,
+        type: CommunicationChannelType.EMAIL
       }
     } as CommunicationChannel)
   }
@@ -56,8 +57,8 @@ export function buildInvestmentAccountFromLead(lead: InvestmentLead | any): Inve
     communicationChannels.push({
       value: lead.companyPhone,
       communicationChannel: {
-        code: 'Phone',
-        type: 'tel'
+        code: CommunicationChannelCode.PHONE,
+        type: CommunicationChannelType.TEL
       }
     } as CommunicationChannel)
   }
@@ -112,8 +113,8 @@ export function buildInvestmentContactFromLead(lead: InvestmentLead | any): Inve
     communicationChannels.push({
       value: lead.email,
       communicationChannel: {
-        code: 'e-mail',
-        type: 'email'
+        code: CommunicationChannelCode.EMAIL,
+        type: CommunicationChannelType.EMAIL
       }
     } as CommunicationChannel)
   }
@@ -121,8 +122,8 @@ export function buildInvestmentContactFromLead(lead: InvestmentLead | any): Inve
     communicationChannels.push({
       value: lead.phoneNumber,
       communicationChannel: {
-        code: 'Phone',
-        type: 'tel'
+        code: CommunicationChannelCode.PHONE,
+        type: CommunicationChannelType.TEL
       }
     } as CommunicationChannel)
   }

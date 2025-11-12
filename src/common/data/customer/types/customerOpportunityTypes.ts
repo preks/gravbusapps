@@ -105,9 +105,22 @@ export type CustomerOpportunityStageConditionFieldName =
 export const CUSTOMER_OPPORTUNITY_DESCRIPTORS: Descriptor[] = [
   // Filter out descriptors that need structural overrides
   ...createOpportunityDescriptors(CustomerOpportunityFields as Record<keyof typeof OpportunityFields, string>).filter(
-    d => !['addresses', 'leads', 'notes', 'opportunityContacts'].includes(d.key)
+    d =>
+      ![
+        'addresses',
+        'leads',
+        'notes',
+        'opportunityContacts',
+        'opportunityStageConditions',
+        'rejectionReasons'
+      ].includes(d.key)
   ),
-
+  {
+    key: 'opportunityStageConditions',
+    searchPaths: ['stageConditionStatuses.salesPipelineStageCondition.value'],
+    sortPaths: ['stageConditionStatuses.salesPipelineStageCondition.value'],
+    type: 'text'
+  },
   // CRM-specific structural overrides
   {
     key: 'addresses',

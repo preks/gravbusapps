@@ -118,8 +118,9 @@ export type InvestmentOpportunityStageConditionFieldName =
  * Adds IRM-specific fields that don't exist in Common/CRM
  */
 export const INVESTMENT_OPPORTUNITY_DESCRIPTORS: Descriptor[] = [
-  ...createOpportunityDescriptors(InvestmentOpportunityFields as Record<keyof typeof OpportunityFields, string>),
-
+  ...createOpportunityDescriptors(InvestmentOpportunityFields as Record<keyof typeof OpportunityFields, string>).filter(
+    d => !['investmentOpportunityContacts', 'investmentOpportunityStageConditions'].includes(d.key)
+  ),
   // IRM-specific descriptors
   { key: 'annualNetColdRent', searchPaths: ['annualNetColdRent'], sortPath: 'annualNetColdRent', type: 'number' },
   { key: 'buildingYear', searchPaths: ['buildingYear'], sortPath: 'buildingYear', type: 'text' },
@@ -186,12 +187,6 @@ export const INVESTMENT_OPPORTUNITY_DESCRIPTORS: Descriptor[] = [
     key: 'opportunityContacts',
     searchPaths: ['investmentOpportunityContact.contact.firstName', 'investmentOpportunityContact.contact.lastName'],
     sortPaths: ['investmentOpportunityContact.contact.firstName', 'investmentOpportunityContact.contact.lastName'],
-    type: 'text'
-  },
-  {
-    key: 'opportunityStageConditions',
-    searchPaths: ['investmentOpportunityStageCondition.opportunityPipelineStageCondition.value'],
-    sortPaths: ['investmentOpportunityStageCondition.opportunityPipelineStageCondition.value'],
     type: 'text'
   },
   {

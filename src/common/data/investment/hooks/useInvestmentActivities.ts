@@ -1,7 +1,7 @@
 import { useCallback } from 'react'
 import { useGraphQLClient } from '@/common/network/graphql/useGraphQLClient'
 import { BusinessAppContextProps } from '@/common/BusinessAppContext'
-import type { BaseInvestmentActivity, InvestmentActivity } from '../types'
+import type { InvestmentActivity } from '../types'
 import {
   buildInvestmentActivityQuery,
   buildInvestmentActivityByIdQuery,
@@ -13,7 +13,7 @@ import { toInvestmentActivity } from '../mappers'
 
 // Response interfaces
 export interface InvestmentActivitiesQueryResponse {
-  InvestmentActivity: BaseInvestmentActivity[]
+  InvestmentActivity: InvestmentActivity[]
   InvestmentActivityAggregate: {
     aggregate: {
       count: number
@@ -37,11 +37,11 @@ export const useGetInvestmentActivities = (context: BusinessAppContextProps) => 
       // Convert single ID filters to array format for consistency
       const queryVariables: InvestmentActivityQueryVariables = {
         ...variables,
-        accountIds: variables.accountId ? [variables.accountId] : variables.accountIds,
-        contactIds: variables.contactId ? [variables.contactId] : variables.contactIds,
-        opportunityIds: variables.opportunityId ? [variables.opportunityId] : variables.opportunityIds,
-        leadIds: variables.leadId ? [variables.leadId] : variables.leadIds,
-        ids: variables.id ? [variables.id] : variables.ids
+        accountIds: variables.accountIds ? variables.accountIds : variables.accountIds,
+        contactIds: variables.contactIds ? variables.contactIds : variables.contactIds,
+        opportunityIds: variables.opportunityIds ? variables.opportunityIds : variables.opportunityIds,
+        leadIds: variables.leadIds ? variables.leadIds : variables.leadIds,
+        ids: variables.ids ? variables.ids : variables.ids
       }
 
       // Use new WHERE/ORDER BY builders with fields mapping
@@ -86,7 +86,7 @@ export const useGetInvestmentActivityById = (context: BusinessAppContextProps) =
       const query = buildInvestmentActivityByIdQuery(undefined, id)
 
       try {
-        const result = await graphqlClient.request<{ InvestmentActivityByPk: BaseInvestmentActivity }>(query)
+        const result = await graphqlClient.request<{ InvestmentActivityByPk: InvestmentActivity }>(query)
         const baseActivity = result.InvestmentActivityByPk
 
         return {

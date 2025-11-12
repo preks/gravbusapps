@@ -200,7 +200,7 @@ const ActivityForm: React.FC<ActivityFormProps> = ({ accessToken, userInfo, addi
             description: activity.description || '',
             files: [],
             documents:
-              (activity as Record<string, any>).investmentDocument?.map((doc: any) => ({
+              (activity as Record<string, any>).documents?.map((doc: any) => ({
                 id: doc.id,
                 name: doc.name || '',
                 version: doc.version

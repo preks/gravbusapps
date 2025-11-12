@@ -167,6 +167,9 @@ export const buildDocumentQuery = (
         ${entityFields.authenticationDate}
         ${entityFields.mandatory}
         ${entityFields.expirationDate}
+        ${entityFields.parentDocument} {
+          ${DOCUMENT_REF}
+        }
         ${additionalFields || ''}
         ${references || ''}
       }

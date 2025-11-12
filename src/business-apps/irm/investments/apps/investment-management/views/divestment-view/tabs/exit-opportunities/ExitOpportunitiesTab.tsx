@@ -16,7 +16,7 @@ export const ExitOpportunitiesTab: React.FC<ExitOpportunitiesTabProps> = context
 
   const config = useMemo(
     () =>
-      createOpportunityConfig<InvestmentOpportunity, InvestmentOpportunityQueryVariables>({
+      createOpportunityConfig<InvestmentOpportunity & { id: string }, InvestmentOpportunityQueryVariables>({
         contextType: 'investment',
 
         extendQueryVariables: vars => ({ ...vars, dealType: 'DIVESTMENT_DEAL' }),
@@ -24,7 +24,9 @@ export const ExitOpportunitiesTab: React.FC<ExitOpportunitiesTabProps> = context
         fetchOpportunities: async variables => {
           const result = await fetchInvestmentOpportunities(variables)
           return {
-            opportunities: result.InvestmentOpportunity,
+            opportunities: result.InvestmentOpportunity.filter(
+              (opp): opp is InvestmentOpportunity & { id: string } => !!opp.id
+            ),
             total: result.InvestmentOpportunityAggregate.aggregate.count
           }
         },
@@ -62,7 +64,7 @@ export const ExitOpportunitiesTab: React.FC<ExitOpportunitiesTabProps> = context
         extractBoardTotalCount: result => result.InvestmentOpportunityAggregate?.aggregate?.count || 0,
         renderStatistics: () => <ExitOpportunityStatistics {...context} />,
         rowActionsContextArray: [FlowContextName.investmentOpportunityEntity],
-        buildRowActionsExternalContextData: (row: { original: InvestmentOpportunity }) => ({
+        buildRowActionsExternalContextData: (row: { original: InvestmentOpportunity & { id: string } }) => ({
           opportunityId: row.original.id
         })
       }),

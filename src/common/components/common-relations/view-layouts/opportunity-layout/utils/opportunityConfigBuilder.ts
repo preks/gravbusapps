@@ -58,6 +58,7 @@ export interface OpportunityConfigBuilderOptions<TOpportunity, TQueryVariables> 
   extractBoardTotalCount: (result: any) => number
 
   opportunityStatistics?: OpportunityStatisticsData
+  renderStatistics?: () => React.ReactNode
 
   rowActionsContextArray: FlowContextName[]
   buildRowActionsExternalContextData: (row: { original: TOpportunity }) => Record<string, string>
@@ -164,6 +165,7 @@ export const createOpportunityConfig = <TOpportunity extends { id: string }, TQu
       }),
 
     opportunityStatistics: options.opportunityStatistics,
+    renderStatistics: options.renderStatistics,
 
     boardConfig: {
       pipelineCatalog: options.boardConfig.pipelineCatalog,

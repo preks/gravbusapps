@@ -324,6 +324,7 @@ export const INVESTMENT_REPORT_REF = `
  * Core investment fields for references
  */
 export const INVESTMENT_REF = `
+    ${AUDIT_FIELDS}
     id
     code
     name
@@ -333,14 +334,29 @@ export const INVESTMENT_REF = `
     investmentMarketValue
     acquisitionDate
     exitDate
+    plannedExitDate
+    planedExit
     additionalProperties
     
     # Basic investment info
+    investmentGroup {
+      ${CATALOG_ENTRY}
+    }
     investmentType {
-    ${CATALOG_ENTRY}
+      ${CATALOG_ENTRY}
+    }
+    investmentStatus {
+      ${CATALOG_ENTRY}
+    }
+    ownerEmployee {
+      id
+      firstName
+      lastName
+      pictureThumbnail
+
     }
     currency {
-    ${CATALOG_ENTRY}
+      ${CATALOG_ENTRY}
     }
 `
 
