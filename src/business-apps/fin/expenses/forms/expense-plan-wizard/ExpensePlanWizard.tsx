@@ -738,7 +738,7 @@ const ExpensePlanWizardContent: React.FC<BusinessAppContextProps> = ({ accessTok
                   }}
                 >
                   {currentScreen === SCREEN_NAMES_ENUM.SUMMARY_TAB
-                    ? getTranslationFromI18nKeyAndLabel('lowcoder:modify_expense_plan.btn_submit', 'Submit')
+                    ? getTranslationFromI18nKeyAndLabel('lowcoder:modify_expense_request.btn_submit', 'Submit')
                     : getTranslationFromI18nKeyAndLabel('lowcoder:add_items_to_plan.submit_button', 'Next')}
                 </Button>
               </div>

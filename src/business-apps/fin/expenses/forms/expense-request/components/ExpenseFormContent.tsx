@@ -83,7 +83,7 @@ const ExpenseFormContent: React.FC<ExpenseFormContentProps> = ({
               style={{ marginBottom: 0 }}
             >
               <InputField
-                label={t('lowcoder:create_expense_request.expense_request_exceed_characters_error_message', 'Title')}
+                label={t('lowcoder:expense_request_list.expense_plan_table.title', 'Title')}
                 name="title"
                 placeholder={t(
                   'lowcoder:create_expense_request.expense_request_container.current_title_placeholder',
