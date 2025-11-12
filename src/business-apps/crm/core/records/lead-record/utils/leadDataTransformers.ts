@@ -14,22 +14,18 @@ import {
   CommunicationChannelType
 } from '@/common/data/common/types/commonTypes'
 
-/**
- * Build CustomerAccount from Lead data
- */
-export function buildCustomerAccountFromLead(lead: CustomerLead | any): CustomerAccount | null {
-  if (!lead) return null
-
-  // Build addresses array from lead addresses or direct fields
-  let addresses: Address[] | undefined
+// Helper functions to reduce cognitive complexity
+const buildAddressesFromLead = (lead: any): Address[] | undefined => {
   if (lead.addresses?.length > 0) {
-    addresses = lead.addresses.map((addr: any) => ({
+    return lead.addresses.map((addr: any) => ({
       ...addr,
-      locality: addr.locality || addr.city, // Support both CRM (city) and IRM (locality)
+      locality: addr.locality || addr.city,
       addressType: addr.addressType || 'PRIMARY_ADDRESS'
     }))
-  } else if (lead.postalCode || lead.locality || lead.city || lead.countryRef || lead.regionRef) {
-    addresses = [
+  }
+
+  if (lead.postalCode || lead.locality || lead.city || lead.countryRef || lead.regionRef) {
+    return [
       {
         id: lead.addressId || `lead-address-${Date.now()}`,
         addressLine:
@@ -43,20 +39,29 @@ export function buildCustomerAccountFromLead(lead: CustomerLead | any): Customer
     ]
   }
 
-  // Build communication channels from company email/phone
-  const communicationChannels: CommunicationChannel[] | undefined = []
-  if (lead.companyEmail) {
-    communicationChannels.push({
-      value: lead.companyEmail,
+  return undefined
+}
+
+const buildCommunicationChannelsFromLead = (
+  lead: any,
+  emailField: string,
+  phoneField: string
+): CommunicationChannel[] | undefined => {
+  const channels: CommunicationChannel[] = []
+
+  if (lead[emailField]) {
+    channels.push({
+      value: lead[emailField],
       communicationChannel: {
         code: CommunicationChannelCode.EMAIL,
         type: CommunicationChannelType.EMAIL
       }
     } as CommunicationChannel)
   }
-  if (lead.companyPhone) {
-    communicationChannels.push({
-      value: lead.companyPhone,
+
+  if (lead[phoneField]) {
+    channels.push({
+      value: lead[phoneField],
       communicationChannel: {
         code: CommunicationChannelCode.PHONE,
         type: CommunicationChannelType.TEL
@@ -64,11 +69,22 @@ export function buildCustomerAccountFromLead(lead: CustomerLead | any): Customer
     } as CommunicationChannel)
   }
 
+  return channels.length > 0 ? channels : undefined
+}
+
+/**
+ * Build CustomerAccount from Lead data
+ */
+export function buildCustomerAccountFromLead(lead: CustomerLead | any): CustomerAccount | null {
+  if (!lead) return null
+
+  const addresses = buildAddressesFromLead(lead)
+  const communicationChannels = buildCommunicationChannelsFromLead(lead, 'companyEmail', 'companyPhone')
+
   return {
-    id: lead.id || `lead-account-${Date.now()}`, // Temporary ID for lead accounts
+    id: lead.id || `lead-account-${Date.now()}`,
     name: lead.companyName || '',
     website: lead.companyWebsite,
-    // Map CRM field names to Account standard
     industryClass: lead.industry || lead.industryClass,
     industryClassRef: lead.industryRef || lead.industryClassRef,
     companySize: lead.numberOfEmployees || lead.companySize,
@@ -78,7 +94,7 @@ export function buildCustomerAccountFromLead(lead: CustomerLead | any): Customer
     legalForm: lead.legalForm,
     legalFormRef: lead.legalFormRef,
     addresses,
-    communicationChannels: communicationChannels.length > 0 ? communicationChannels : undefined,
+    communicationChannels,
     ownerEmployee: lead.ownerEmployee,
     ownerEmployeeId: lead.ownerEmployeeId,
     // Base entity fields
@@ -98,36 +114,8 @@ export function buildCustomerAccountFromLead(lead: CustomerLead | any): Customer
 export function buildCustomerContactFromLead(lead: CustomerLead | any): CustomerContact | null {
   if (!lead) return null
 
-  // Build addresses array from lead addresses
-  const addresses: Address[] | undefined =
-    lead.addresses?.length > 0
-      ? lead.addresses.map((addr: any) => ({
-          ...addr,
-          locality: addr.locality || addr.city, // Support both CRM (city) and IRM (locality)
-          addressType: addr.addressType || 'PRIMARY_ADDRESS'
-        }))
-      : undefined
-
-  // Build communication channels from email/phone
-  const communicationChannels: CommunicationChannel[] | undefined = []
-  if (lead.email) {
-    communicationChannels.push({
-      value: lead.email,
-      communicationChannel: {
-        code: CommunicationChannelCode.EMAIL,
-        type: CommunicationChannelType.EMAIL
-      }
-    } as CommunicationChannel)
-  }
-  if (lead.phoneNumber) {
-    communicationChannels.push({
-      value: lead.phoneNumber,
-      communicationChannel: {
-        code: CommunicationChannelCode.PHONE,
-        type: CommunicationChannelType.TEL
-      }
-    } as CommunicationChannel)
-  }
+  const addresses = buildAddressesFromLead(lead)
+  const communicationChannels = buildCommunicationChannelsFromLead(lead, 'email', 'phoneNumber')
 
   return {
     id: lead.id || `lead-contact-${Date.now()}`, // Temporary ID for lead contacts
@@ -143,7 +131,7 @@ export function buildCustomerContactFromLead(lead: CustomerLead | any): Customer
     language: lead.language,
     languageRef: lead.languageRef,
     addresses,
-    communicationChannels: communicationChannels.length > 0 ? communicationChannels : undefined,
+    communicationChannels,
     ownerEmployee: lead.ownerEmployee,
     ownerEmployeeId: lead.ownerEmployeeId,
     // Base entity fields

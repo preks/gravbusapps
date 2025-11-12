@@ -816,6 +816,7 @@ const InvestmentOpportunityRecordContent: React.FC<OpportunityRecordContentProps
             {/* Stage Conditions - 1/2 of left side, row span 2 */}
             <SectionWrapper
               className="gba:col-span-1 gba:sm:col-span-3 gba:md:col-span-4 gba:lg:col-span-4 gba:row-span-2"
+              key={`condition-section-${opportunityId}-${stageConditionStatuses.length}-${stageConditionStatuses.filter(s => s.completed).length}`}
               sections={[
                 {
                   id: 'condition-section',

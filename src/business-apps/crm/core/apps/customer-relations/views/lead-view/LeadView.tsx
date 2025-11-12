@@ -19,6 +19,68 @@ import { useCustomerLeadStatistics } from '@/common/data/customer/hooks/useCusto
 
 export type LeadViewProps = BusinessAppContextProps
 
+// Helper functions to reduce cognitive complexity
+const processDateRangeFilters = (
+  selectedFilters: Record<string, any>,
+  dateRangeKeys: string[],
+  vars: CustomerLeadQueryVariables
+): void => {
+  for (const rangeKey of dateRangeKeys) {
+    const normalized = normalizeDateRange(selectedFilters[rangeKey])
+    if (normalized) {
+      const baseKey = rangeKey.replace('Range', '')
+      if (normalized.from) vars[`${baseKey}From` as keyof CustomerLeadQueryVariables] = normalized.from
+      if (normalized.to) vars[`${baseKey}To` as keyof CustomerLeadQueryVariables] = normalized.to
+    }
+  }
+}
+
+const processSensitiveFilter = (selectedFilters: Record<string, any>, vars: CustomerLeadQueryVariables): void => {
+  if (selectedFilters.sensitive !== undefined && selectedFilters.sensitive !== null) {
+    if (Array.isArray(selectedFilters.sensitive) && selectedFilters.sensitive.length > 0) {
+      const sensitiveValue = selectedFilters.sensitive[0]
+      if (sensitiveValue === 'true') {
+        vars.sensitive = true
+      } else if (sensitiveValue === 'false') {
+        vars.sensitive = false
+      }
+    }
+  }
+}
+
+const processOtherFilters = (
+  selectedFilters: Record<string, any>,
+  excludeKeys: string[],
+  vars: CustomerLeadQueryVariables
+): void => {
+  for (const key of Object.keys(selectedFilters)) {
+    if (!excludeKeys.includes(key) && selectedFilters[key] !== undefined && selectedFilters[key] !== null) {
+      vars[key as keyof CustomerLeadQueryVariables] = selectedFilters[key]
+    }
+  }
+}
+
+const processSorting = (sorting: Array<{ id: string; desc: boolean }>, vars: CustomerLeadQueryVariables): void => {
+  if (sorting.length > 0) {
+    const columnId = sorting[0].id
+    const direction = sorting[0].desc ? 'DESC_NULLS_LAST' : 'ASC_NULLS_LAST'
+
+    const nonSortableColumns = ['communicationChannels', 'location']
+    if (nonSortableColumns.includes(columnId)) {
+      vars.orderBy = [{ field: 'createdAt' as any, direction: 'DESC_NULLS_LAST' }]
+    } else if (columnId === 'lead') {
+      vars.orderBy = [
+        { field: 'firstName', direction },
+        { field: 'lastName', direction }
+      ]
+    } else {
+      vars.orderBy = [{ field: columnId as any, direction }]
+    }
+  } else {
+    vars.orderBy = [{ field: 'createdAt' as any, direction: 'DESC_NULLS_LAST' }]
+  }
+}
+
 export const LeadView: React.FC<LeadViewProps> = context => {
   const { accessToken } = context
 
@@ -71,64 +133,11 @@ export const LeadView: React.FC<LeadViewProps> = context => {
           search: params.searchTerm.trim() || undefined
         }
 
-        // Normalize date range filters
         const dateRangeKeys = ['createdAtRange', 'updatedAtRange']
-        for (const rangeKey of dateRangeKeys) {
-          const normalized = normalizeDateRange(params.selectedFilters[rangeKey])
-          if (normalized) {
-            const baseKey = rangeKey.replace('Range', '')
-            if (normalized.from) vars[`${baseKey}From` as keyof CustomerLeadQueryVariables] = normalized.from
-            if (normalized.to) vars[`${baseKey}To` as keyof CustomerLeadQueryVariables] = normalized.to
-          }
-        }
-
-        // Handle sensitive filter (boolean - no Descriptor)
-        if (params.selectedFilters.sensitive !== undefined && params.selectedFilters.sensitive !== null) {
-          if (Array.isArray(params.selectedFilters.sensitive) && params.selectedFilters.sensitive.length > 0) {
-            const sensitiveValue = params.selectedFilters.sensitive[0]
-            if (sensitiveValue === 'true') {
-              vars.sensitive = true
-            } else if (sensitiveValue === 'false') {
-              vars.sensitive = false
-            }
-          }
-        }
-
-        // Copy all other filters directly (they now match Descriptor-Keys)
-        for (const key of Object.keys(params.selectedFilters)) {
-          if (
-            !dateRangeKeys.includes(key) &&
-            key !== 'sensitive' &&
-            params.selectedFilters[key] !== undefined &&
-            params.selectedFilters[key] !== null
-          ) {
-            vars[key as keyof CustomerLeadQueryVariables] = params.selectedFilters[key]
-          }
-        }
-
-        // Use column ID directly - buildOrderBy will use descriptors (CUSTOMER_LEAD_DESCRIPTORS)
-        // to resolve correct GraphQL paths (e.g., leadStatus.value, ownerEmployee.displayName)
-        // Special handling for composite 'lead' column
-        if (params.sorting.length > 0) {
-          const columnId = params.sorting[0].id
-          const direction = params.sorting[0].desc ? 'DESC_NULLS_LAST' : 'ASC_NULLS_LAST'
-
-          // Non-sortable columns
-          if (columnId === 'communicationChannels' || columnId === 'location') {
-            vars.orderBy = [{ field: 'createdAt' as any, direction: 'DESC_NULLS_LAST' }]
-          } else if (columnId === 'lead') {
-            // Sort by firstName, then lastName
-            vars.orderBy = [
-              { field: 'firstName', direction },
-              { field: 'lastName', direction }
-            ]
-          } else {
-            // Use column ID directly - buildOrderBy will resolve paths via descriptors
-            vars.orderBy = [{ field: columnId as any, direction }]
-          }
-        } else {
-          vars.orderBy = [{ field: 'createdAt' as any, direction: 'DESC_NULLS_LAST' }]
-        }
+        processDateRangeFilters(params.selectedFilters, dateRangeKeys, vars)
+        processSensitiveFilter(params.selectedFilters, vars)
+        processOtherFilters(params.selectedFilters, [...dateRangeKeys, 'sensitive'], vars)
+        processSorting(params.sorting, vars)
 
         return vars
       },

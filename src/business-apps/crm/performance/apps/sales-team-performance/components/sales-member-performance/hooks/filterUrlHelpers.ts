@@ -76,26 +76,39 @@ export const getAllPreselectedFilters = (urlParams: URLSearchParams, options: Fi
  * Helper to process a single filter and add it to the filters object
  */
 export const processFilterByGroup = (groupId: string, filterId: string, filterValue: any, filters: any): void => {
-  if (groupId === 'owners') {
-    if (!filters.owners) filters.owners = []
-    filters.owners.push(filterId)
-  } else if (groupId === 'stage') {
-    if (!filters.stages) filters.stages = []
-    filters.stages.push(filterValue)
-  } else if (groupId === 'pipeline') {
-    if (!filters.pipelines) filters.pipelines = []
-    filters.pipelines.push(filterValue)
-  } else if (groupId === 'winningChance') {
-    if (!filters.winningChanceRanges) filters.winningChanceRanges = []
-    filters.winningChanceRanges.push(filterValue)
-  } else if (groupId === 'estimatedAmount') {
-    if (!filters.amountRanges) filters.amountRanges = []
-    filters.amountRanges.push(filterValue)
-  } else if (groupId === 'accounts') {
-    if (!filters.accounts) filters.accounts = []
-    filters.accounts.push(filterId)
-  } else if (groupId === 'statuses') {
-    if (!filters.statuses) filters.statuses = []
-    filters.statuses.push(filterValue)
+  const groupHandlers: Record<string, (filters: any, filterId: string, filterValue: any) => void> = {
+    owners: (f, id) => {
+      if (!f.owners) f.owners = []
+      f.owners.push(id)
+    },
+    stage: (f, _, val) => {
+      if (!f.stages) f.stages = []
+      f.stages.push(val)
+    },
+    pipeline: (f, _, val) => {
+      if (!f.pipelines) f.pipelines = []
+      f.pipelines.push(val)
+    },
+    winningChance: (f, _, val) => {
+      if (!f.winningChanceRanges) f.winningChanceRanges = []
+      f.winningChanceRanges.push(val)
+    },
+    estimatedAmount: (f, _, val) => {
+      if (!f.amountRanges) f.amountRanges = []
+      f.amountRanges.push(val)
+    },
+    accounts: (f, id) => {
+      if (!f.accounts) f.accounts = []
+      f.accounts.push(id)
+    },
+    statuses: (f, _, val) => {
+      if (!f.statuses) f.statuses = []
+      f.statuses.push(val)
+    }
+  }
+
+  const handler = groupHandlers[groupId]
+  if (handler) {
+    handler(filters, filterId, filterValue)
   }
 }

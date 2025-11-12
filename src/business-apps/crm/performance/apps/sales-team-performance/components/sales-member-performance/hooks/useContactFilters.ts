@@ -327,43 +327,36 @@ export const useContactFilters = (context: BusinessAppContextProps): ContactFilt
   const getFilters = useCallback(() => {
     const filters: any = {}
 
-    if (search) {
-      filters.search = search
+    if (search) filters.search = search
+    if (createdAfter) filters.createdAfter = createdAfter
+    if (createdBefore) filters.createdBefore = createdBefore
+
+    // Use lookup map instead of nested loops
+    const groupToFilterKey: Record<string, string> = {
+      contacts: 'contacts',
+      contactInfo: 'contactInfo',
+      accounts: 'accounts',
+      owners: 'owners',
+      contactType: 'contactTypes',
+      departments: 'departments'
     }
 
-    if (createdAfter) {
-      filters.createdAfter = createdAfter
-    }
-
-    if (createdBefore) {
-      filters.createdBefore = createdBefore
+    // Build filter map for O(1) lookup
+    const filterMap = new Map<string, { groupId: string; value: any }>()
+    for (const group of filterGroups) {
+      for (const filter of group.filters) {
+        filterMap.set(filter.id, { groupId: group.id, value: filter.value })
+      }
     }
 
     // Process selected filters
     for (const filterId of selectedFilters) {
-      for (const group of filterGroups) {
-        const filter = group.filters.find(f => f.id === filterId)
-        if (filter) {
-          if (group.id === 'contacts') {
-            if (!filters.contacts) filters.contacts = []
-            filters.contacts.push(filter.value)
-          } else if (group.id === 'contactInfo') {
-            if (!filters.contactInfo) filters.contactInfo = []
-            filters.contactInfo.push(filter.value)
-          } else if (group.id === 'accounts') {
-            if (!filters.accounts) filters.accounts = []
-            filters.accounts.push(filter.value)
-          } else if (group.id === 'owners') {
-            if (!filters.owners) filters.owners = []
-            filters.owners.push(filter.value)
-          } else if (group.id === 'contactType') {
-            if (!filters.contactTypes) filters.contactTypes = []
-            filters.contactTypes.push(filter.value)
-          } else if (group.id === 'departments') {
-            if (!filters.departments) filters.departments = []
-            filters.departments.push(filter.value)
-          }
-          break
+      const filterData = filterMap.get(filterId)
+      if (filterData) {
+        const filterKey = groupToFilterKey[filterData.groupId]
+        if (filterKey) {
+          if (!filters[filterKey]) filters[filterKey] = []
+          filters[filterKey].push(filterData.value)
         }
       }
     }

@@ -6,6 +6,52 @@ import type { CatalogEntry, CatalogEntryTranslation } from '../types/catalogType
  */
 export type TranslatableField = 'value' | 'additionalValue1' | 'additionalValue2' | 'additionalValue3' | 'objectValue'
 
+// Helper functions to reduce cognitive complexity
+const findTranslation = (
+  entry: CatalogEntry,
+  field: TranslatableField,
+  normalizedLocale: string
+): CatalogEntryTranslation | null => {
+  if (!Array.isArray(entry.translations) || entry.translations.length === 0) {
+    return null
+  }
+
+  return (
+    entry.translations.find((t: CatalogEntryTranslation) => t?.localeCode?.toLowerCase() === normalizedLocale) || null
+  )
+}
+
+const formatFieldValue = (value: any, field: TranslatableField): string => {
+  if (value === null || value === undefined) return ''
+
+  if (field === 'objectValue') {
+    return typeof value === 'string' ? value : JSON.stringify(value)
+  }
+
+  return String(value)
+}
+
+const getTranslatedValue = (
+  translation: CatalogEntryTranslation | null,
+  field: TranslatableField,
+  debug?: boolean
+): string | null => {
+  if (!translation?.[field]) return null
+
+  const translatedValue = translation[field]
+
+  if (typeof translatedValue === 'string' && translatedValue.trim() !== '') {
+    if (debug) console.log('[getCatalogEntryField] Using translated value:', translatedValue)
+    return translatedValue
+  }
+
+  if (field === 'objectValue' && translatedValue !== null && translatedValue !== undefined) {
+    return formatFieldValue(translatedValue, field)
+  }
+
+  return null
+}
+
 /**
  * Gets the value for any field in a catalog entry with locale support.
  *
@@ -31,13 +77,9 @@ export function getCatalogEntryField(
   locale?: string,
   debug?: boolean
 ): string {
-  // Handle null/undefined entry
-  if (!entry) {
-    return ''
-  }
+  if (!entry) return ''
 
   try {
-    // Get locale (provided or current user locale)
     const targetLocale = locale || getCurrentActiveUserLocale()
     const normalizedLocale = targetLocale.toLowerCase()
 
@@ -49,65 +91,29 @@ export function getCatalogEntryField(
         targetLocale,
         normalizedLocale,
         hasTranslations: Array.isArray(entry.translations),
-        translationsCount: entry.translations?.length || 0,
-        translations: entry.translations,
-        defaultValue: entry[field]
+        translationsCount: entry.translations?.length || 0
       })
     }
 
-    // Try to find translation for the locale
-    if (Array.isArray(entry.translations) && entry.translations.length > 0) {
-      const translation = entry.translations.find(
-        (t: CatalogEntryTranslation) => t?.localeCode?.toLowerCase() === normalizedLocale
-      )
-
-      if (debug && translation) {
-        console.log('[getCatalogEntryField] Found translation:', {
-          localeCode: translation.localeCode,
-          translatedValue: translation[field]
-        })
-      }
-
-      // Use translation if it exists and has a non-empty value
-      if (translation?.[field]) {
-        const translatedValue = translation[field]
-
-        // Handle string fields
-        if (typeof translatedValue === 'string' && translatedValue.trim() !== '') {
-          if (debug) {
-            console.log('[getCatalogEntryField] Using translated value:', translatedValue)
-          }
-          return translatedValue
-        }
-
-        // Handle objectValue (JSON)
-        if (field === 'objectValue' && translatedValue !== null && translatedValue !== undefined) {
-          return typeof translatedValue === 'string' ? translatedValue : JSON.stringify(translatedValue)
-        }
-      }
+    const translation = findTranslation(entry, field, normalizedLocale)
+    if (debug && translation) {
+      console.log('[getCatalogEntryField] Found translation:', {
+        localeCode: translation.localeCode,
+        translatedValue: translation[field]
+      })
     }
 
-    // Fallback to default field value (NOT en-US translation)
+    const translatedValue = getTranslatedValue(translation, field, debug)
+    if (translatedValue !== null) {
+      return translatedValue
+    }
+
     const defaultValue = entry[field]
+    if (debug) console.log('[getCatalogEntryField] Using default value:', defaultValue)
 
-    if (debug) {
-      console.log('[getCatalogEntryField] Using default value:', defaultValue)
-    }
-
-    if (defaultValue === null || defaultValue === undefined) {
-      return ''
-    }
-
-    // Handle objectValue
-    if (field === 'objectValue') {
-      return typeof defaultValue === 'string' ? defaultValue : JSON.stringify(defaultValue)
-    }
-
-    // Handle string fields
-    return String(defaultValue)
+    return formatFieldValue(defaultValue, field)
   } catch (error) {
     console.error('[getCatalogEntryField] Error getting translated field:', error)
-    // Fallback to default value on error
     const fallback = entry[field]
     return fallback ? String(fallback) : ''
   }

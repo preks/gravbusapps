@@ -20,6 +20,75 @@ import { useCustomerContactStatistics } from '@/common/data/customer/hooks/useCu
 
 export type ContactViewProps = BusinessAppContextProps
 
+// Helper functions to reduce cognitive complexity
+const processDateRangeFilters = (
+  selectedFilters: Record<string, any>,
+  dateRangeKeys: string[],
+  vars: CustomerContactQueryVariables
+): void => {
+  for (const rangeKey of dateRangeKeys) {
+    const normalized = normalizeDateRange(selectedFilters[rangeKey])
+    if (normalized) {
+      const baseKey = rangeKey.replace('Range', '')
+      if (normalized.from) {
+        const fromKey = `${baseKey}From` as keyof CustomerContactQueryVariables
+        ;(vars as any)[fromKey] = normalized.from
+      }
+      if (normalized.to) {
+        const toKey = `${baseKey}To` as keyof CustomerContactQueryVariables
+        ;(vars as any)[toKey] = normalized.to
+      }
+    }
+  }
+}
+
+const processCommunicationChannels = (
+  selectedFilters: Record<string, any>,
+  vars: CustomerContactQueryVariables
+): void => {
+  if (
+    selectedFilters.communicationChannels &&
+    Array.isArray(selectedFilters.communicationChannels) &&
+    selectedFilters.communicationChannels.length > 0
+  ) {
+    const contactFilters = selectedFilters.communicationChannels as string[]
+    if (contactFilters.includes('has:email')) vars.hasEmail = true
+    if (contactFilters.includes('missing:email')) vars.missingEmail = true
+    if (contactFilters.includes('has:phone')) vars.hasPhone = true
+    if (contactFilters.includes('missing:phone')) vars.missingPhone = true
+  }
+}
+
+const processOtherFilters = (
+  selectedFilters: Record<string, any>,
+  excludeKeys: string[],
+  vars: CustomerContactQueryVariables
+): void => {
+  for (const key of Object.keys(selectedFilters)) {
+    if (!excludeKeys.includes(key) && selectedFilters[key] !== undefined && selectedFilters[key] !== null) {
+      vars[key as keyof CustomerContactQueryVariables] = selectedFilters[key]
+    }
+  }
+}
+
+const processSorting = (sorting: Array<{ id: string; desc: boolean }>, vars: CustomerContactQueryVariables): void => {
+  if (sorting.length > 0) {
+    const columnId = sorting[0].id
+    const direction = sorting[0].desc ? 'DESC_NULLS_LAST' : 'ASC_NULLS_LAST'
+
+    if (columnId === 'contact') {
+      vars.orderBy = [
+        { field: 'firstName', direction },
+        { field: 'lastName', direction }
+      ]
+    } else {
+      vars.orderBy = [{ field: columnId as any, direction }]
+    }
+  } else {
+    vars.orderBy = [{ field: 'createdAt' as any, direction: 'DESC_NULLS_LAST' }]
+  }
+}
+
 export const ContactView: React.FC<ContactViewProps> = context => {
   const { accessToken } = context
 
@@ -75,61 +144,11 @@ export const ContactView: React.FC<ContactViewProps> = context => {
           search: params.searchTerm.trim() || undefined
         }
 
-        // Normalize date range filters
         const dateRangeKeys = ['createdAtRange', 'updatedAtRange']
-        for (const rangeKey of dateRangeKeys) {
-          const normalized = normalizeDateRange(params.selectedFilters[rangeKey])
-          if (normalized) {
-            const baseKey = rangeKey.replace('Range', '')
-            if (normalized.from) vars[`${baseKey}From` as keyof CustomerContactQueryVariables] = normalized.from
-            if (normalized.to) vars[`${baseKey}To` as keyof CustomerContactQueryVariables] = normalized.to
-          }
-        }
-
-        // Handle communicationChannels filter (special case - no Descriptor)
-        if (
-          params.selectedFilters.communicationChannels &&
-          Array.isArray(params.selectedFilters.communicationChannels) &&
-          params.selectedFilters.communicationChannels.length > 0
-        ) {
-          const contactFilters = params.selectedFilters.communicationChannels as string[]
-          if (contactFilters.includes('has:email')) vars.hasEmail = true
-          if (contactFilters.includes('missing:email')) vars.missingEmail = true
-          if (contactFilters.includes('has:phone')) vars.hasPhone = true
-          if (contactFilters.includes('missing:phone')) vars.missingPhone = true
-        }
-
-        // Copy all other filters directly (they now match Descriptor-Keys)
-        for (const key of Object.keys(params.selectedFilters)) {
-          if (
-            !dateRangeKeys.includes(key) &&
-            key !== 'communicationChannels' &&
-            params.selectedFilters[key] !== undefined &&
-            params.selectedFilters[key] !== null
-          ) {
-            vars[key as keyof CustomerContactQueryVariables] = params.selectedFilters[key]
-          }
-        }
-
-        // Use column ID directly - buildOrderBy will use descriptors (CUSTOMER_CONTACT_DESCRIPTORS)
-        // to resolve correct GraphQL paths (e.g., account.name, ownerEmployee.displayName)
-        // Special handling for composite 'contact' column
-        if (params.sorting.length > 0) {
-          const columnId = params.sorting[0].id
-          const direction = params.sorting[0].desc ? 'DESC_NULLS_LAST' : 'ASC_NULLS_LAST'
-
-          if (columnId === 'contact') {
-            // Sort by firstName, then lastName
-            vars.orderBy = [
-              { field: 'firstName', direction },
-              { field: 'lastName', direction }
-            ]
-          } else {
-            vars.orderBy = [{ field: columnId as any, direction }]
-          }
-        } else {
-          vars.orderBy = [{ field: 'createdAt' as any, direction: 'DESC_NULLS_LAST' }]
-        }
+        processDateRangeFilters(params.selectedFilters, dateRangeKeys, vars)
+        processCommunicationChannels(params.selectedFilters, vars)
+        processOtherFilters(params.selectedFilters, [...dateRangeKeys, 'communicationChannels'], vars)
+        processSorting(params.sorting, vars)
 
         return vars
       },
@@ -142,7 +161,7 @@ export const ContactView: React.FC<ContactViewProps> = context => {
       processCompletionEvents: ['taskCompletion', 'contactCompletion'],
       rowActionsContextArray: [FlowContextName.customerContactEntity],
       buildRowActionsExternalContextData: (row: { original: Contact }) => ({
-        contactId: row.original.id
+        contactId: row.original.id || ''
       }),
       translations: {
         allContacts: { key: 'common:allContacts', default: 'All Contacts' },

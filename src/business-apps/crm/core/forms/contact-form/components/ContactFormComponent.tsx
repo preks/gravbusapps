@@ -38,65 +38,21 @@ const ContactFormComponent: React.FC = () => {
     xingUrl?: string,
     contactId?: string
   ): any[] => {
-    const channels = []
+    const channelConfigs = [
+      { value: email, code: CommunicationChannelCode.EMAIL },
+      { value: phone, code: CommunicationChannelCode.PHONE },
+      { value: linkedinUrl, code: CommunicationChannelCode.LINKEDIN },
+      { value: xingUrl, code: CommunicationChannelCode.XING }
+    ]
 
-    if (email?.trim()) {
-      const emailChannel: any = {
-        communicationChannelRef: buildCommunicationChannelRef(CommunicationChannelCode.EMAIL),
-        value: email.trim(),
-        valueExtension: null
-      }
-
-      if (contactId) {
-        emailChannel.contact = contactId
-      }
-
-      channels.push(emailChannel)
-    }
-
-    if (phone?.trim()) {
-      const phoneChannel: any = {
-        communicationChannelRef: buildCommunicationChannelRef(CommunicationChannelCode.PHONE),
-        value: phone.trim(),
-        valueExtension: null
-      }
-
-      if (contactId) {
-        phoneChannel.contact = contactId
-      }
-
-      channels.push(phoneChannel)
-    }
-
-    if (linkedinUrl?.trim()) {
-      const linkedinChannel: any = {
-        communicationChannelRef: buildCommunicationChannelRef(CommunicationChannelCode.LINKEDIN),
-        value: linkedinUrl.trim(),
-        valueExtension: null
-      }
-
-      if (contactId) {
-        linkedinChannel.contact = contactId
-      }
-
-      channels.push(linkedinChannel)
-    }
-
-    if (xingUrl?.trim()) {
-      const xingChannel: any = {
-        communicationChannelRef: buildCommunicationChannelRef(CommunicationChannelCode.XING),
-        value: xingUrl.trim(),
-        valueExtension: null
-      }
-
-      if (contactId) {
-        xingChannel.contact = contactId
-      }
-
-      channels.push(xingChannel)
-    }
-
-    return channels
+    return channelConfigs
+      .filter(config => config.value?.trim())
+      .map(config => ({
+        communicationChannelRef: buildCommunicationChannelRef(config.code),
+        value: config.value!.trim(),
+        valueExtension: null,
+        ...(contactId && { contact: contactId })
+      }))
   }
 
   // Handle form submission
@@ -158,7 +114,7 @@ const ContactFormComponent: React.FC = () => {
         // Extract ID from object if accountId is an object (due to AccountSelect prefill format)
         accountId:
           typeof formValues.accountId === 'object' && formValues.accountId !== null && 'id' in formValues.accountId
-            ? toStringOrUndefined(formValues.accountId.id)
+            ? toStringOrUndefined((formValues.accountId as { id: string }).id)
             : toStringOrUndefined(formValues.accountId),
         // ⚠️ IMPORTANT: CRM expects 'salesCampaign' (without Id suffix), not 'salesCampaignId'
         salesCampaign: toStringOrUndefined(formValues.salesCampaignId),
