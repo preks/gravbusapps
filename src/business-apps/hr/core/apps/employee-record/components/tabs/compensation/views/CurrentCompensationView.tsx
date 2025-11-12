@@ -54,6 +54,24 @@ const CurrentCompensationView: React.FC<CurrentCompensationViewProps> = ({
   // const { isResourceAccessible } = usePermissionCheck(employeeId, bonusCreatePermissionMap, accessToken || '')
   // const hasPermissionToGrantBonus = isResourceAccessible('grantBonus')
   const hasPermissionToGrantBonusDev = true //for development purposes
+
+  // Check if user has permission to adjust employee salary
+  // Only managers and HR admins should have write permission on employee_working_condition
+  // Note: We check permission on the employee being viewed (employeeId) - managers should have write access to their employees' salaries
+  // TODO: Re-enable permission check when ready for production
+  // const salaryAdjustPermissionMap: Record<string, ResourcePermissionMap> = useMemo(
+  //   () => ({
+  //     adjustSalary: {
+  //       domain: 'employee',
+  //       resource: 'employee_working_condition',
+  //       permission: 'write'
+  //     }
+  //   }),
+  //   []
+  // )
+  // const { isResourceAccessible: isSalaryAdjustAccessible } = usePermissionCheck(employeeId, salaryAdjustPermissionMap, accessToken || '')
+  // const hasPermissionToAdjustSalary = isSalaryAdjustAccessible('adjustSalary')
+  const hasPermissionToAdjustSalaryDev = true //for development purposes
   // Handle loading state - show loading indicators when data is not yet available
   if (loading && !compensationData) {
     return (
@@ -118,6 +136,7 @@ const CurrentCompensationView: React.FC<CurrentCompensationViewProps> = ({
         locale={locale}
         isSelfView={isSelfView}
         hasPermissionToGrantBonus={hasPermissionToGrantBonusDev}
+        hasPermissionToAdjustSalary={hasPermissionToAdjustSalaryDev}
       />
 
       {/* Total Rewards 360° View */}

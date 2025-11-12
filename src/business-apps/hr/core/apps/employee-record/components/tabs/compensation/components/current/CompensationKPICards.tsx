@@ -17,6 +17,7 @@ interface CompensationKPICardsProps {
   locale: string
   isSelfView: boolean
   hasPermissionToGrantBonus: boolean
+  hasPermissionToAdjustSalary: boolean
 }
 
 /**
@@ -31,7 +32,8 @@ const CompensationKPICards: React.FC<CompensationKPICardsProps> = ({
   accessToken,
   locale,
   isSelfView,
-  hasPermissionToGrantBonus
+  hasPermissionToGrantBonus,
+  hasPermissionToAdjustSalary
 }) => {
   const { currentCompensation, totalBonusesYTD, activeBenefitsCount, bonuses } = compensationData
 
@@ -42,9 +44,24 @@ const CompensationKPICards: React.FC<CompensationKPICardsProps> = ({
     <div className="gba:grid gba:grid-cols-1 gba:md:grid-cols-3 gba:gap-4">
       {/* Base Salary Card */}
       <Card className="gba:p-6 gba:relative" data-testid="compensation-base-salary-card">
-        {isSelfView && (
+        {/* Show pencil icon only if user has permission to adjust salary (managers/HR admins) */}
+        {hasPermissionToAdjustSalary && (
           <div className="gba:absolute gba:top-4 gba:right-4">
-            <PiPencilSimple className="gba:w-4 gba:h-4 gba:text-muted-foreground" />
+            <AppAction
+              contextsArray={[FlowContextName.adjustEmployeeSalary]}
+              externalContextData={{
+                employeeId: employeeId
+              }}
+              prefixDataTestId="adjust-employee-salary-action"
+              accessToken={accessToken}
+              emptyStateBehavior="enable"
+              deferMainContextRequestsUntilClick
+            >
+              <PiPencilSimple
+                className="gba:w-4 gba:h-4 gba:text-muted-foreground hover:gba:text-primary gba:cursor-pointer"
+                data-testid="adjust-employee-salary-action-button"
+              />
+            </AppAction>
           </div>
         )}
         <div className="gba:flex gba:items-start gba:justify-between">
