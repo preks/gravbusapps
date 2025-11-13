@@ -13,6 +13,7 @@ import { formatNumberFunction } from '../../../../../../../common/utils/windowUt
 import { useHealthInsuranceTypeCatalog } from '../../hooks/useHealthInsuranceTypeCatalog'
 import { useReligionCatalog } from '../../hooks/useReligionCatalog'
 import { useTaxBracketCatalog } from '../../hooks/useTaxBracketCatalog'
+import { getCatalogValue } from '../../../../../../../common/utils/windowUtils'
 
 interface EmploymentTabProps {
   employee: Employee
@@ -78,7 +79,7 @@ const EmploymentTab: React.FC<EmploymentTabProps> = ({ employee, accessToken, is
     return [
       {
         label: 'Employment Type',
-        value: workingCondition?.employmentType?.value || ''
+        value: getCatalogValue(workingCondition?.employmentType) || ''
       },
       {
         label: 'Hire Date',
@@ -86,7 +87,7 @@ const EmploymentTab: React.FC<EmploymentTabProps> = ({ employee, accessToken, is
       },
       {
         label: 'Contract Type',
-        value: workingCondition?.contractType?.value || ''
+        value: getCatalogValue(workingCondition?.contractType) || ''
       },
       {
         label: 'Probation End Date',

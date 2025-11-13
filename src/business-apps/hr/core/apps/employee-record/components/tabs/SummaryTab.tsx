@@ -369,7 +369,11 @@ const SummaryTab: React.FC<SummaryTabProps> = ({
                   <div>
                     <div className="gba:text-sm gba:font-medium gba:text-foreground">Job Profile</div>
                     <div className="gba:text-sm gba:text-muted-foreground">
-                      {employee.employeePosition?.jobPosition?.name ?? 'Not assigned'}
+                      {employee.employeePosition?.jobPosition?.name ??
+                        getTranslationFromI18nKeyAndLabel(
+                          'lowcoder:employee_profile.left_side_bar.not_assigned',
+                          'Not assigned'
+                        )}
                     </div>
                   </div>
                 </div>
@@ -392,7 +396,11 @@ const SummaryTab: React.FC<SummaryTabProps> = ({
                         data-testid="job-family-button"
                       >
                         {/* Display job family from updated data structure, fallback to organizationalUnit name */}
-                        {employee.employeePosition?.jobPosition?.jobFunction?.jobFamily?.value || 'Not assigned'}
+                        {employee.employeePosition?.jobPosition?.jobFunction?.jobFamily?.value ||
+                          getTranslationFromI18nKeyAndLabel(
+                            'lowcoder:employee_profile.left_side_bar.not_assigned',
+                            'Not assigned'
+                          )}
                       </button>
                     </div>
                   </div>
@@ -417,7 +425,11 @@ const SummaryTab: React.FC<SummaryTabProps> = ({
                         className="gba:text-sm gba:!text-blue-600 gba:hover:underline gba:text-left gba:w-full"
                         data-testid="job-function-button"
                       >
-                        {employee.employeePosition?.jobPosition?.jobFunction?.name || 'Not assigned'}
+                        {employee.employeePosition?.jobPosition?.jobFunction?.name ||
+                          getTranslationFromI18nKeyAndLabel(
+                            'lowcoder:employee_profile.left_side_bar.not_assigned',
+                            'Not assigned'
+                          )}
                       </button>
                     </div>
                   </div>
@@ -440,7 +452,11 @@ const SummaryTab: React.FC<SummaryTabProps> = ({
                         className="gba:text-sm gba:!text-blue-600 gba:hover:underline gba:text-left gba:w-full"
                         data-testid="job-level-button"
                       >
-                        {employee.employeePosition?.jobPosition?.jobLevel?.name || 'Not assigned'}
+                        {employee.employeePosition?.jobPosition?.jobLevel?.name ||
+                          getTranslationFromI18nKeyAndLabel(
+                            'lowcoder:employee_profile.left_side_bar.not_assigned',
+                            'Not assigned'
+                          )}
                       </button>
                     </div>
                   </div>
