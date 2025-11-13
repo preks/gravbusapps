@@ -30,7 +30,7 @@ const BenefitProviderField: React.FC<BenefitProviderFieldProps> = ({
 
   // Filter out invalid providers
   const validProviders = React.useMemo(() => {
-    return providers?.filter(p => p && p.id && p.value) || []
+    return providers?.filter(p => p?.id && p?.value) ?? []
   }, [providers])
 
   return (
@@ -40,7 +40,7 @@ const BenefitProviderField: React.FC<BenefitProviderFieldProps> = ({
         {required && <span className="gba:text-destructive"> *</span>}
       </Label>
       {validProviders && validProviders.length > 0 ? (
-        <Select value={value || undefined} onValueChange={onChange} disabled={disabled}>
+        <Select value={value} onValueChange={onChange} disabled={disabled}>
           <SelectTrigger data-testid="request-benefit-provider-select">
             <SelectValue placeholder={t('modal-request-provider-placeholder')} />
           </SelectTrigger>

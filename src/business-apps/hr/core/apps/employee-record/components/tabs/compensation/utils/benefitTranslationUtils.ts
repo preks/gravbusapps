@@ -1,5 +1,4 @@
-import { BenefitCatalogItem } from '../types/benefitCatalogTypes'
-import { ProviderEntry } from '../types/benefitCatalogTypes'
+import { BenefitCatalogItem, ProviderEntry } from '../types/benefitCatalogTypes'
 import { CatalogEntry as CompensationCatalogEntry } from '../types/compensationTypes'
 import { getCatalogEntryValue } from '@/common/data/catalog/utils/catalogTranslationUtils'
 import type { CatalogEntry } from '@/common/data/catalog/types/catalogTypes'

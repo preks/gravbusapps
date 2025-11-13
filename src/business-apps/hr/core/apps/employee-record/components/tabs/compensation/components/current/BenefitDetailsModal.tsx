@@ -95,7 +95,7 @@ const BenefitDetailsModal: React.FC<BenefitDetailsModalProps> = ({
           {benefit.description ? (
             <SheetDescription className="gba:mt-2">{benefit.description}</SheetDescription>
           ) : (
-            <SheetDescription className="gba:sr-only">Benefit details</SheetDescription>
+            <SheetDescription className="gba:sr-only">{t('benefit-details-description')}</SheetDescription>
           )}
         </SheetHeader>
 
