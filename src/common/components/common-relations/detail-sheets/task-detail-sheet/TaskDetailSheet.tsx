@@ -33,7 +33,7 @@ import {
   TextAlignLeftIcon,
   Icon as PhosphorIcon
 } from '@phosphor-icons/react'
-import { Task, TaskReference, TaskDocument } from './types'
+import { Task, TaskReference, TaskDocument, TaskEmployee } from './types'
 import { buildFileUrl, getFileIcon } from '@/common/utils/fileUtils'
 import {
   getTaskStatusBadgeVariant,
@@ -115,7 +115,7 @@ interface TaskDetailContentProps {
 
 // Helper component: Assignee Field
 interface AssigneeFieldProps {
-  assignedTo?: TaskAssignedTo
+  assignedTo?: TaskEmployee
   dataTestId?: string
   onEmployeeClick: () => void
   getInitials: (firstName: string, lastName: string) => string
@@ -182,7 +182,7 @@ const ReferenceField: React.FC<ReferenceFieldProps> = ({
     return (
       <div className="gba:px-2 gba:py-1 gba:w-fit gba:min-h-[24px]">
         <div className="gba:flex gba:items-center gba:gap-2">
-          <Badge variant={getReferenceTypeBadgeVariant(reference.type)} className="gba:text-xs gba:shrink-0">
+          <Badge variant={getReferenceTypeBadgeVariant(reference.type) as any} className="gba:text-xs gba:shrink-0">
             {referenceTypeName}
           </Badge>
           <span className="gba:text-sm gba:font-medium gba:truncate">{reference.name}</span>
@@ -200,7 +200,7 @@ const ReferenceField: React.FC<ReferenceFieldProps> = ({
           data-testid={`${dataTestId}-reference-link`}
         >
           <div className="gba:flex gba:items-center gba:gap-2">
-            <Badge variant={getReferenceTypeBadgeVariant(reference.type)} className="gba:text-xs gba:shrink-0">
+            <Badge variant={getReferenceTypeBadgeVariant(reference.type) as any} className="gba:text-xs gba:shrink-0">
               {referenceTypeName}
             </Badge>
             <span className="gba:text-sm gba:font-medium gba:truncate">{reference.name}</span>
@@ -307,7 +307,7 @@ const TaskDetailContent: React.FC<TaskDetailContentProps> = ({
               {taskStatus ? (
                 <>
                   <Badge variant={getTaskStatusBadgeVariant(taskStatus.type as string)}>
-                    {getCatalogEntryValue(taskStatus)}
+                    {getCatalogEntryValue(taskStatus as any)}
                   </Badge>
                   {isOverdue && (
                     <Badge variant="destructive" className="gba:ml-2">
@@ -331,8 +331,8 @@ const TaskDetailContent: React.FC<TaskDetailContentProps> = ({
 
             <FieldRow icon={FlagIcon} label="Priority" testId={`${dataTestId || DATA_TEST_ID_PREFIX}-priority-field`}>
               {taskPriority ? (
-                <Badge variant={getTaskPriorityBadgeVariant(taskPriority.type)}>
-                  {getCatalogEntryValue(taskPriority)}
+                <Badge variant={getTaskPriorityBadgeVariant(taskPriority.type || '')}>
+                  {getCatalogEntryValue(taskPriority as any)}
                 </Badge>
               ) : (
                 <span className="gba:text-sm gba:text-muted-foreground">-</span>
@@ -341,7 +341,9 @@ const TaskDetailContent: React.FC<TaskDetailContentProps> = ({
 
             <FieldRow icon={TagIcon} label="Type" testId={`${dataTestId || DATA_TEST_ID_PREFIX}-type-field`}>
               {taskType ? (
-                <Badge variant={getTaskTypeBadgeVariant(taskType.type)}>{getCatalogEntryValue(taskType)}</Badge>
+                <Badge variant={getTaskTypeBadgeVariant(taskType.type || '')}>
+                  {getCatalogEntryValue(taskType as any)}
+                </Badge>
               ) : (
                 <span className="gba:text-sm gba:text-muted-foreground">-</span>
               )}
@@ -418,7 +420,7 @@ const TaskDetailContent: React.FC<TaskDetailContentProps> = ({
                 <span
                   className={`gba:text-sm ${isOverdue ? 'gba:text-destructive gba:font-medium' : 'gba:text-foreground'}`}
                 >
-                  {formatDate(task.scheduleDate || task.dueDate)}
+                  {formatDate(task.scheduleDate || task.dueDate || '')}
                 </span>
               </FieldRow>
             ) : (
@@ -430,7 +432,7 @@ const TaskDetailContent: React.FC<TaskDetailContentProps> = ({
                 <span
                   className={`gba:text-sm ${isOverdue ? 'gba:text-destructive gba:font-medium' : 'gba:text-foreground'}`}
                 >
-                  {formatDate(task.dueDate)}
+                  {formatDate(task.dueDate || '')}
                 </span>
               </FieldRow>
             )}
@@ -442,7 +444,7 @@ const TaskDetailContent: React.FC<TaskDetailContentProps> = ({
               label="Created"
               testId={`${dataTestId || DATA_TEST_ID_PREFIX}-created-field`}
             >
-              <span className="gba:text-sm gba:text-muted-foreground">{formatDateTime(task.createdAt)}</span>
+              <span className="gba:text-sm gba:text-muted-foreground">{formatDateTime(task.createdAt || '')}</span>
             </FieldRow>
 
             {task.description && (

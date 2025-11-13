@@ -63,6 +63,13 @@ export interface InvestmentQueryVariables {
   }>
 }
 
+export interface InvestmentDocumentQueryVariables {
+  investmentId: string
+  createdBy?: string // Filter by creator user ID
+  limit?: number
+  offset?: number
+}
+
 // Build where condition for Investment queries
 export const buildInvestmentWhereCondition = (variables: InvestmentQueryVariables = {}) => {
   let whereClause = 'where: { isDeleted: { _eq: false }'
@@ -135,11 +142,13 @@ export const buildInvestmentWhereCondition = (variables: InvestmentQueryVariable
   }
 
   if (variables.accountIds?.length) {
-    whereClause += `, investmentAccount: { id: { _in: [${variables.accountIds.map(id => `"${id}"`).join(', ')}] } }`
+    const accountIdsList = variables.accountIds.map(id => `"${id}"`).join(', ')
+    whereClause += `, investmentAccountId: { _in: [${accountIdsList}] }`
   }
 
   if (variables.opportunityIds?.length) {
-    whereClause += `, investmentOpportunity: { id: { _in: [${variables.opportunityIds.map(id => `"${id}"`).join(', ')}] } }`
+    const opportunityIdsList = variables.opportunityIds.map(id => `"${id}"`).join(', ')
+    whereClause += `, investmentOpportunity: { id: { _in: [${opportunityIdsList}] } }`
   }
 
   // Numeric ranges
