@@ -197,6 +197,8 @@ status-inactive = Inactive
 status-draft = Draft
 status-finalized = Finalized
 status-cancelled = Cancelled
+status-unknown = Unknown
+status-generated = Generated
 
 # Loading States
 loading-compensation-data = Loading compensation data...

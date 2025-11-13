@@ -197,6 +197,8 @@ status-inactive = Inactiv
 status-draft = Ciornă
 status-finalized = Finalizat
 status-cancelled = Anulat
+status-unknown = Necunoscut
+status-generated = Generat
 
 # Loading States
 loading-compensation-data = Se încarcă datele de compensare...

@@ -197,6 +197,8 @@ status-inactive = Inaktiv
 status-draft = Entwurf
 status-finalized = Abgeschlossen
 status-cancelled = Storniert
+status-unknown = Unbekannt
+status-generated = Generiert
 
 # Loading States
 loading-compensation-data = Vergütungsdaten werden geladen...
