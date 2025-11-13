@@ -1,5 +1,4 @@
 import React from 'react'
-import { useTranslation } from 'react-i18next'
 import { ExpenseItemProvider, useExpenseItem } from './context'
 import { Button } from '@newwork/gravity-ui-catalog'
 import { Typography, Divider } from 'antd'
@@ -67,7 +66,7 @@ const ExpenseItem: React.FC<BusinessAppContextProps & ExpenseItemProps> = ({
   }, [])
 
   const ExpenseItemContent: React.FC<{ onClose?: (shouldRefetch?: boolean) => void }> = ({ onClose }) => {
-    const { t } = useTranslation()
+    const t = getTranslationFromI18nKeyAndLabel
 
     const {
       form,
