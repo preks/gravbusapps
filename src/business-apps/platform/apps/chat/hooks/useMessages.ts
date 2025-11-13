@@ -24,6 +24,12 @@ export function useMessages({
   const [page, setPage] = useState(1)
   const isLoadingMoreRef = useRef(false)
 
+  // Use ref for conversation to avoid triggering loadMessages when conversation metadata changes
+  const conversationRef = useRef(conversation)
+  useEffect(() => {
+    conversationRef.current = conversation
+  }, [conversation])
+
   const loadMessages = useCallback(
     async (pageNum: number = 1, append: boolean = false) => {
       if (!conversationId || !enabled || isLoadingMoreRef.current) return
@@ -46,7 +52,7 @@ export function useMessages({
         let loadedMessages = response.data && Array.isArray(response.data) ? response.data : []
 
         // Get OTHER participants' lastReadAt to determine if messages were read
-        const otherParticipants = conversation?.participants?.filter(p => p.userId !== currentUserId) || []
+        const otherParticipants = conversationRef.current?.participants?.filter(p => p.userId !== currentUserId) || []
 
         // Find the most recent lastReadAt from other participants
         const mostRecentOtherReadAt = otherParticipants.reduce(
@@ -98,7 +104,7 @@ export function useMessages({
         isLoadingMoreRef.current = false
       }
     },
-    [apiClient, conversationId, currentUserId, conversation, enabled]
+    [apiClient, conversationId, currentUserId, enabled] // Removed 'conversation' - using conversationRef instead
   )
 
   const loadMoreMessages = useCallback(() => {
@@ -120,9 +126,21 @@ export function useMessages({
       })
 
       if (existingIndex >= 0) {
-        // Replace existing message (especially optimistic ones)
+        const existingMessage = prev[existingIndex]
+
+        // Preserve better status when replacing message (delivered > sent, read > delivered)
+        const statusPriority = { sent: 1, delivered: 2, read: 3 }
+        const existingPriority = statusPriority[existingMessage.status as keyof typeof statusPriority] || 0
+        const newPriority = statusPriority[message.status as keyof typeof statusPriority] || 0
+
+        // Replace existing message, but preserve better status
         const updated = [...prev]
-        updated[existingIndex] = message
+        const finalStatus = existingPriority > newPriority ? existingMessage.status : message.status
+        updated[existingIndex] = {
+          ...message,
+          status: finalStatus
+        }
+
         return updated
       }
 
@@ -139,9 +157,11 @@ export function useMessages({
   }, [])
 
   const updateMessageStatus = useCallback((messageId: string, status: 'sent' | 'delivered' | 'read') => {
-    // Use startTransition for status updates as they're not urgent for the UI
-    startTransition(() => {
-      setMessages(prev => prev.map(m => (m.id === messageId ? { ...m, status } : m)))
+    // Make this synchronous (no startTransition) to ensure status updates happen immediately
+    // Status updates are important for UX and should not be delayed
+    setMessages(prev => {
+      const newMessages = prev.map(m => (m.id === messageId ? { ...m, status } : m))
+      return newMessages
     })
   }, [])
 
@@ -164,7 +184,7 @@ export function useMessages({
       // Load new messages which will replace old ones once loaded
       loadMessages(1, false)
     }
-  }, [conversationId, enabled, apiClient, conversation, loadMessages])
+  }, [conversationId, enabled, apiClient, loadMessages]) // Removed 'conversation' to prevent reload on metadata changes
 
   return {
     messages,

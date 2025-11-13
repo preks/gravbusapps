@@ -34,6 +34,9 @@ export function useChatClient({ accessToken, apiUrl, wsUrl }: UseChatClientOptio
   const typingHookRef = useRef<any>(null)
   const currentUserRef = useRef<User | null>(null)
 
+  // Track processed message IDs to prevent duplicate processing
+  const processedMessageIdsRef = useRef<Set<string>>(new Set())
+
   // Keep refs in sync
   useEffect(() => {
     activeConversationIdRef.current = activeConversationId
@@ -147,13 +150,32 @@ export function useChatClient({ accessToken, apiUrl, wsUrl }: UseChatClientOptio
   // Setup WebSocket event listeners
   useEffect(() => {
     if (!wsClientRef.current || !isConnected) {
+      // Clear processed messages when disconnected
+      processedMessageIdsRef.current.clear()
       return
     }
 
     const wsClient = wsClientRef.current
 
+    // Clear processed messages on new connection to allow fresh processing
+    processedMessageIdsRef.current.clear()
+
     // Message handlers
     const handleNewMessage = (message: Message) => {
+      // Skip if we've already processed this message ID (prevent duplicate processing)
+      if (processedMessageIdsRef.current.has(message.id)) {
+        return
+      }
+
+      // Mark this message as processed
+      processedMessageIdsRef.current.add(message.id)
+
+      // Clean up old message IDs (keep only last 100)
+      if (processedMessageIdsRef.current.size > 100) {
+        const ids = Array.from(processedMessageIdsRef.current)
+        processedMessageIdsRef.current = new Set(ids.slice(-100))
+      }
+
       // Determine status based on context
       let messageStatus = message.status || 'sent'
 
@@ -202,8 +224,45 @@ export function useChatClient({ accessToken, apiUrl, wsUrl }: UseChatClientOptio
         }
       } else if (isOwnMessage) {
         // Receiving own message broadcast (after sending)
-        // Keep as 'sent' until we get delivery/read confirmation from another user
-        messageStatus = 'sent'
+        // Check if we already have this message to avoid overwriting with worse status
+        const existingMessages = messagesHookRef.current?.messages || []
+        const existingMessage = existingMessages.find((m: any) => {
+          // Match by ID or by temp ID with same content
+          if (m.id === message.id) return true
+          if (
+            m.id.startsWith('temp-') &&
+            m.content === message.content &&
+            m.conversationId === message.conversationId
+          ) {
+            return true
+          }
+          return false
+        })
+
+        // If message already exists with same real ID and has a status, skip entirely
+        if (existingMessage && existingMessage.id === message.id && existingMessage.status) {
+          // Message already exists with real ID - duplicate event, skip it
+          return
+        }
+
+        // Preserve better status if it exists (delivered > sent, read > delivered)
+        if (existingMessage && existingMessage.status) {
+          const statusPriority = { sent: 1, delivered: 2, read: 3 }
+          const existingPriority = statusPriority[existingMessage.status as keyof typeof statusPriority] || 0
+          const incomingStatus = message.status || 'sent'
+          const incomingPriority = statusPriority[incomingStatus as keyof typeof statusPriority] || 1
+
+          if (existingPriority >= incomingPriority) {
+            // Keep the better or equal existing status
+            messageStatus = existingMessage.status
+          } else {
+            // Use the new status if it's better
+            messageStatus = incomingStatus
+          }
+        } else {
+          // No existing message, use incoming status or default to 'sent'
+          messageStatus = message.status || 'sent'
+        }
       }
 
       // Create updated message with correct status
@@ -259,20 +318,28 @@ export function useChatClient({ accessToken, apiUrl, wsUrl }: UseChatClientOptio
       const currentUser = currentUserRef.current
       if (currentUser && data.deliveredTo !== currentUser.id) {
         const messages = messagesHookRef.current?.messages || []
-        const message = messages.find((m: any) => m.id === data.messageId)
+        // Find message by real ID or by temp ID (in case this event arrives before new_message)
+        const message = messages.find((m: any) => {
+          if (m.id === data.messageId) return true
+          // Check if this is a temp message that hasn't been replaced yet
+          if (m.id.startsWith('temp-') && m.conversationId === data.conversationId && m.senderId === currentUser.id) {
+            // This is likely our optimistic message
+            // We can't be 100% sure, but it's the best match we have
+            return true
+          }
+          return false
+        })
 
         if (message && message.senderId === currentUser.id) {
-          // Batch message status and conversation updates to reduce flickering
-          startTransition(() => {
-            // This is your message being delivered to someone else
-            // Update from 'sent' to 'delivered' (gray ✓✓)
-            messagesHookRef.current?.updateMessageStatus(data.messageId, 'delivered')
+          // Update message status immediately (no startTransition for status updates - they're important!)
+          // Use the real message ID from the event data, not the found message's ID (which might be temp)
+          messagesHookRef.current?.updateMessageStatus(data.messageId, 'delivered')
 
-            // Also update in conversation list
-            conversationsHookRef.current?.updateConversationLastMessage(data.conversationId, {
-              ...message,
-              status: 'delivered'
-            })
+          // Also update in conversation list (use the found message object but with real ID)
+          conversationsHookRef.current?.updateConversationLastMessage(data.conversationId, {
+            ...message,
+            id: data.messageId, // Use real ID from event
+            status: 'delivered'
           })
         }
       }
@@ -284,33 +351,43 @@ export function useChatClient({ accessToken, apiUrl, wsUrl }: UseChatClientOptio
       if (currentUser && data.readBy !== currentUser.id) {
         // Find the message and update its status
         const messages = messagesHookRef.current?.messages || []
-        const message = messages.find((m: any) => m.id === data.messageId)
+        // Find message by real ID or by temp ID (in case this event arrives before new_message)
+        const message = messages.find((m: any) => {
+          if (m.id === data.messageId) return true
+          // Check if this is a temp message that hasn't been replaced yet
+          if (m.id.startsWith('temp-') && m.conversationId === data.conversationId && m.senderId === currentUser.id) {
+            // This is likely our optimistic message
+            // We can't be 100% sure, but it's the best match we have
+            return true
+          }
+          return false
+        })
 
         if (message && message.senderId === currentUser.id) {
-          // Batch all read status updates to reduce flickering
-          startTransition(() => {
-            // This is your message being read by someone else
-            // Update from 'sent'/'delivered' to 'read' (blue ✓✓)
-            messagesHookRef.current?.updateMessageStatus(data.messageId, 'read')
+          // Update message status immediately (no startTransition for status updates - they're important!)
+          // This is your message being read by someone else
+          // Update from 'sent'/'delivered' to 'read' (blue ✓✓)
+          // Use the real message ID from the event data, not the found message's ID (which might be temp)
+          messagesHookRef.current?.updateMessageStatus(data.messageId, 'read')
 
-            // Also update ALL previous messages from this sender in this conversation to 'read'
-            // (if someone reads message X, they've also read all messages before X)
-            const messageTime = new Date(message.createdAt).getTime()
-            messages.forEach((msg: any) => {
-              if (
-                msg.senderId === currentUser.id &&
-                new Date(msg.createdAt).getTime() <= messageTime &&
-                msg.status !== 'read'
-              ) {
-                messagesHookRef.current?.updateMessageStatus(msg.id, 'read')
-              }
-            })
+          // Also update ALL previous messages from this sender in this conversation to 'read'
+          // (if someone reads message X, they've also read all messages before X)
+          const messageTime = new Date(message.createdAt).getTime()
+          messages.forEach((msg: any) => {
+            if (
+              msg.senderId === currentUser.id &&
+              new Date(msg.createdAt).getTime() <= messageTime &&
+              msg.status !== 'read'
+            ) {
+              messagesHookRef.current?.updateMessageStatus(msg.id, 'read')
+            }
+          })
 
-            // Also update in conversation list
-            conversationsHookRef.current?.updateConversationLastMessage(data.conversationId, {
-              ...message,
-              status: 'read'
-            })
+          // Also update in conversation list (use the found message object but with real ID)
+          conversationsHookRef.current?.updateConversationLastMessage(data.conversationId, {
+            ...message,
+            id: data.messageId, // Use real ID from event
+            status: 'read'
           })
         }
       }
