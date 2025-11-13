@@ -2,9 +2,9 @@ import React, { useRef, useState, useCallback } from 'react'
 import { Modal, Upload } from 'antd'
 import { useExpenseItem } from '../../context/ExpenseItemContext'
 import { Button } from '@newwork/gravity-ui-catalog'
-import { useTranslation } from 'react-i18next'
 import { ICONS } from '@/business-apps/fin/expenses/utils/icons'
 import { showToast } from '@/business-apps/fin/expenses/utils/notificationUtils'
+import { getTranslationFromI18nKeyAndLabel } from '@/common/utils/windowUtils'
 
 interface UploadComponentProps {
   fileList: any[]
@@ -16,7 +16,7 @@ const ALLOWED_FILE_TYPES = ['.pdf', '.PDF', '.jpg', '.JPG', '.jpeg', '.JPEG', '.
 export const UploadComponent: React.FC<UploadComponentProps> = ({ fileList, setFileList }) => {
   const { currentStep, handleFileUpload, isProcessingFiles } = useExpenseItem()
 
-  const { t } = useTranslation()
+  const t = getTranslationFromI18nKeyAndLabel
   const [isHandlingUpload, setIsHandlingUpload] = useState<boolean>(false)
 
   const lastUploadTimestampRef = useRef<number>(0)
