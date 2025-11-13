@@ -1,87 +1,37 @@
 import React, { useState, useCallback, useMemo } from 'react'
-import { ReferenceData } from '../hooks/useOpportunityData'
 import { StageProgression } from '@/components/stage-progression/StageProgression'
-import type { Stage, StageCondition } from '@/components/stage-progression/types'
 import { OpportunityStageTooltipContent } from '@/components/stage-progression/OpportunityStageTooltipContent'
-import { FlowContextName } from '@/common/types/FlowRegistryTypes'
 import { AppActionMenu } from '@/components/app-action-menu/AppActionMenu'
-import { isOpportunityOpen } from '../utils/opportunityStatusUtils'
+import { convertToStageFormat } from './utils'
+import type { OpportunityStageProgressionProps } from './types'
 
-// Transform real stage condition status data for stage progression display
-// Filter conditions based on parentEntryId matching the stage (by stage ID)
-const getStageConditionsFromReal = (stageConditionStatuses: any[], stageId: string): StageCondition[] => {
-  // Filter conditions that belong to this specific stage
-  const stageSpecificConditions = stageConditionStatuses.filter(statusData => {
-    const conditionEntry = statusData.opportunityPipelineStageCondition
-    const parentEntryId = conditionEntry?.parentEntryId
-    return parentEntryId === stageId
-  })
-
-  return stageSpecificConditions.map(statusData => {
-    const conditionEntry = statusData.opportunityPipelineStageCondition
-    const config = statusData.configSnapshot || conditionEntry?.objectValue || {}
-    const checkedType = config.check_type === 'MANUAL' ? 'User' : 'Automated'
-
-    // Get employee name - prefer displayName, fallback to firstName + lastName
-    const getEmployeeName = (employee: any) => {
-      if (!employee) return null
-      return (
-        employee.displayName || `${employee.firstName || ''} ${employee.lastName || ''}`.trim() || 'Unknown Employee'
-      )
-    }
-
-    return {
-      id: statusData.id,
-      title: conditionEntry?.value || 'Unknown Condition',
-      isCompleted: statusData.completed || false,
-      checkedType: checkedType as 'Automated' | 'User' | 'Manager' | 'Owner',
-      completedBy: statusData.completedByEmployee ? getEmployeeName(statusData.completedByEmployee) : null
-    }
-  })
-}
-
-// Convert ReferenceData to Stage format
-const convertToStageFormat = (referenceData: ReferenceData[] | undefined): Stage[] => {
-  return (referenceData || []).map(ref => ({
-    id: ref.id,
-    value: ref.value,
-    code: ref.code
-  }))
-}
-
-interface OpportunityStageProgressionProps {
-  currentStage: string
-  stages: ReferenceData[]
-  opportunityId: string
-  stageConditionStatuses: any[]
-  accessToken: string
-  opportunityVersion?: number
-  onStageUpdate?: () => void
-  readonly?: boolean
-  opportunityStatus?: string // Add opportunity status to control tooltip behavior
-}
-
+/**
+ * Context-agnostic OpportunityStageProgression component
+ *
+ * This component does NOT contain any investment or customer-specific logic.
+ * All context-specific behavior is injected via the contextConfig prop.
+ */
 export const OpportunityStageProgression: React.FC<OpportunityStageProgressionProps> = ({
   currentStage,
   stages,
   opportunityId,
   stageConditionStatuses,
   accessToken,
-  // onStageUpdate callback reserved for future use
+  contextConfig,
   readonly = false,
-  opportunityStatus
+  opportunityStatus,
+  dataTestIdPrefix = 'opportunity-stage-progression'
 }) => {
   // State for hover-based tooltip
   const [hoveredStageId, setHoveredStageId] = useState<string | null>(null)
   const [tooltipPosition, setTooltipPosition] = useState<{ x: number; y: number; width: number } | null>(null)
 
-  // Check if tooltips should be enabled (only when opportunity is open)
-  const tooltipsEnabled = isOpportunityOpen(opportunityStatus)
+  // Check if tooltips should be enabled (use context config or default to true)
+  const tooltipsEnabled = contextConfig.isTooltipEnabled ? contextConfig.isTooltipEnabled(opportunityStatus) : true
 
-  // Handle tooltip hover using AppActionMenu hover handlers
+  // Handle tooltip hover
   const handleTooltipMouseEnter = useCallback(
     (stageId: string, event: React.MouseEvent) => {
-      // Only show tooltip if opportunity is open
       if (!tooltipsEnabled) {
         return
       }
@@ -89,9 +39,9 @@ export const OpportunityStageProgression: React.FC<OpportunityStageProgressionPr
       const rect = event.currentTarget.getBoundingClientRect()
       setHoveredStageId(stageId)
       setTooltipPosition({
-        x: rect.left, // Use left edge instead of center
-        y: rect.bottom + 10, // Show below the stage
-        width: rect.width // Store the stage width
+        x: rect.left,
+        y: rect.bottom + 10,
+        width: rect.width
       })
     },
     [tooltipsEnabled]
@@ -104,9 +54,12 @@ export const OpportunityStageProgression: React.FC<OpportunityStageProgressionPr
 
   // Stable context arrays
   const emptyContextsArray = useMemo(() => [], [])
-  const transitionContextsArray = useMemo(() => [FlowContextName.investmentOpportunityStageTransition], [])
+  const transitionContextsArray = useMemo(
+    () => [contextConfig.transitionFlowContext],
+    [contextConfig.transitionFlowContext]
+  )
   const stageStyle = useMemo(() => ({ flex: 1, display: 'flex' as const }), [])
-  // const stageStyle = useMemo(() => ({ flex: 1 }), [])
+
   // Create stable props for all stages
   const stageProps = useMemo(() => {
     const props: Record<
@@ -116,8 +69,8 @@ export const OpportunityStageProgression: React.FC<OpportunityStageProgressionPr
           onMouseEnter: (e: React.MouseEvent<HTMLDivElement>) => void
           onMouseLeave: (e: React.MouseEvent<HTMLDivElement>) => void
         }
-        externalContextData: { opportunityId: string; targetStageRef: string }
-        contextsArray: FlowContextName[]
+        externalContextData: Record<string, string>
+        contextsArray: (typeof contextConfig.transitionFlowContext)[]
       }
     > = {}
 
@@ -131,8 +84,8 @@ export const OpportunityStageProgression: React.FC<OpportunityStageProgressionPr
           onMouseLeave: handleTooltipMouseLeave
         },
         externalContextData: {
-          opportunityId: opportunityId,
-          targetStageRef: stage.id
+          [contextConfig.opportunityIdField]: opportunityId,
+          [contextConfig.targetStageRefField]: stage.id
         },
         contextsArray: isCurrentStage || isDisabled ? emptyContextsArray : transitionContextsArray
       }
@@ -143,6 +96,8 @@ export const OpportunityStageProgression: React.FC<OpportunityStageProgressionPr
     stages,
     currentStage,
     opportunityId,
+    contextConfig.opportunityIdField,
+    contextConfig.targetStageRefField,
     handleTooltipMouseEnter,
     handleTooltipMouseLeave,
     emptyContextsArray,
@@ -159,12 +114,13 @@ export const OpportunityStageProgression: React.FC<OpportunityStageProgressionPr
       <StageProgression
         stages={convertToStageFormat(stages)}
         currentStage={currentStage}
-        dataTestIdPrefix="opportunity-stage-progression"
+        dataTestIdPrefix={dataTestIdPrefix}
         onStageClick={() => {}} // Dummy function to enable pointer cursor for non-current stages
       >
         {(stage, isCurrentStage, _isCompleted, stageElement) => {
           const stagePropsData = stageProps[stage.id]
-          // For the current stage, render a plain container (no action menu) to prevent any click interaction
+
+          // For the current stage, render a plain container (no action menu)
           if (isCurrentStage) {
             return (
               <div
@@ -172,28 +128,28 @@ export const OpportunityStageProgression: React.FC<OpportunityStageProgressionPr
                 style={stageStyle}
                 onMouseEnter={stagePropsData?.mouseHandlers.onMouseEnter}
                 onMouseLeave={stagePropsData?.mouseHandlers.onMouseLeave}
-                data-testid={`opportunity-stage-action-menu-${stage.code}`}
+                data-testid={`${dataTestIdPrefix}-action-menu-${stage.code}`}
               >
                 {stageElement}
               </div>
             )
           }
 
-          // For non-current stages, keep the action menu to allow transitions
+          // For non-current stages, use action menu to allow transitions
           return (
             <AppActionMenu
               key={`stage-${stage.id}-not-current`}
               contextsArray={stagePropsData?.contextsArray}
               externalContextData={stagePropsData?.externalContextData}
               accessToken={accessToken}
-              prefixDataTestId={`opportunity-stage-action-${stage.code}`}
+              prefixDataTestId={`${dataTestIdPrefix}-action-${stage.code}`}
               deferMainContextRequestsUntilClick={true}
               emptyStateBehavior="enable"
               autoExecuteSingleAction={true}
               style={stageStyle}
               onMouseEnter={stagePropsData?.mouseHandlers.onMouseEnter}
               onMouseLeave={stagePropsData?.mouseHandlers.onMouseLeave}
-              data-testid={`opportunity-stage-action-menu-${stage.code}`}
+              data-testid={`${dataTestIdPrefix}-action-menu-${stage.code}`}
             >
               {stageElement}
             </AppActionMenu>
@@ -209,7 +165,8 @@ export const OpportunityStageProgression: React.FC<OpportunityStageProgressionPr
           const hoveredStage = convertToStageFormat(stages).find(s => s.id === hoveredStageId)
           if (!hoveredStage) return null
 
-          const conditions = getStageConditionsFromReal(stageConditionStatuses, hoveredStage.id)
+          // Use context-specific extractor to get stage conditions
+          const conditions = contextConfig.extractStageConditions(stageConditionStatuses, hoveredStage.id)
 
           return (
             <div
@@ -218,7 +175,7 @@ export const OpportunityStageProgression: React.FC<OpportunityStageProgressionPr
                 position: 'fixed',
                 left: tooltipPosition.x,
                 top: tooltipPosition.y,
-                width: tooltipPosition.width, // Match stage width exactly
+                width: tooltipPosition.width,
                 zIndex: 1050,
                 pointerEvents: 'none'
               }}

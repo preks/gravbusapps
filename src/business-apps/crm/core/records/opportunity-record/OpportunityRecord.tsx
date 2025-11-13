@@ -16,7 +16,10 @@ import { getOpportunityStatusBadgeVariant } from '@/common/utils/badgeUtils'
 import { useAiSummary } from './hooks/useAiSummary'
 import { AiActions, AiAction } from '@/common/components/common-relations/record-sections/header-section/ai-actions'
 import { AppActionButton } from '@/components/app-action-button/AppActionButton'
-import { OpportunityStageProgression } from './components/OpportunityStageProgression'
+import { OpportunityStageProgression } from '@/common/components/common-relations/record-sections/opportunity-pipeline-section/OpportunityStageProgression'
+import type { OpportunityPipelineContextConfig } from '@/common/components/common-relations/record-sections/opportunity-pipeline-section/types'
+import { getEmployeeName } from '@/common/components/common-relations/record-sections/opportunity-pipeline-section/utils'
+import type { StageCondition } from '@/components/stage-progression/types'
 import { FlowContextName } from '@/common/types/FlowRegistryTypes'
 import { HomeView } from './views/home-view/HomeView'
 import { DocumentView } from './views/document-view'
@@ -97,6 +100,34 @@ const OpportunityRecordContent: React.FC<OpportunityRecordContentProps> = ({
 
   // Extract stageConditionStatuses from opportunityData
   const stageConditionStatuses = opportunityData?.stageConditionStatuses || []
+
+  // CRM-specific configuration for OpportunityStageProgression
+  const crmPipelineConfig: OpportunityPipelineContextConfig = useMemo(
+    () => ({
+      transitionFlowContext: FlowContextName.customerOpportunityStageTransition,
+      opportunityIdField: 'opportunityId',
+      targetStageRefField: 'targetStageRef',
+      extractStageConditions: (stageConditionStatuses: any[], stageName: string): StageCondition[] => {
+        const expectedStageId = `SalesPipelineStage:v1:${stageName}`
+        const stageSpecificConditions = stageConditionStatuses.filter(statusData => {
+          const parentEntryId = statusData.salesPipelineStageCondition?.parentEntryId
+          return parentEntryId === expectedStageId
+        })
+        return stageSpecificConditions.map(statusData => {
+          const config = statusData.configSnapshot || statusData.salesPipelineStageCondition?.objectValue || {}
+          const checkedType = config.check_type === 'MANUAL' ? 'User' : 'Automated'
+          return {
+            id: statusData.id,
+            title: statusData.salesPipelineStageCondition?.value || 'Unknown Condition',
+            isCompleted: statusData.completed || false,
+            checkedType: checkedType as 'Automated' | 'User' | 'Manager' | 'Owner',
+            completedBy: statusData.completedByEmployee ? getEmployeeName(statusData.completedByEmployee) : null
+          }
+        })
+      }
+    }),
+    []
+  )
 
   // AI Summary hook for HeaderSection
   const aiSummaryHook = useAiSummary(opportunityId, props.accessToken)
@@ -361,6 +392,7 @@ const OpportunityRecordContent: React.FC<OpportunityRecordContentProps> = ({
           accessToken={props.accessToken}
           stageConditionStatuses={stageConditionStatuses}
           onStageUpdate={fetchOpportunityData}
+          contextConfig={crmPipelineConfig}
         />
       )
     }

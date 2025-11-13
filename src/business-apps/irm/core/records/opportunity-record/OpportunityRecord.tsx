@@ -34,7 +34,10 @@ import { useProspectRejectionReasons } from '@/common/data/investment/hooks/useP
 import type { RejectionReason } from '@/common/data/investment/types/rejectionReasonTypes'
 import ConditionSection from '@/common/components/common-relations/record-sections/condition-section/ConditionSection'
 import InvestmentSection from '@/common/components/common-relations/record-sections/investment-section/InvestmentSection'
-import { OpportunityStageProgression } from './components/OpportunityStageProgression'
+import { OpportunityStageProgression } from '@/common/components/common-relations/record-sections/opportunity-pipeline-section/OpportunityStageProgression'
+import type { OpportunityPipelineContextConfig } from '@/common/components/common-relations/record-sections/opportunity-pipeline-section/types'
+import { getEmployeeName } from '@/common/components/common-relations/record-sections/opportunity-pipeline-section/utils'
+import type { StageCondition } from '@/components/stage-progression/types'
 import { isOpportunityOpen } from './utils/opportunityStatusUtils'
 import { buildInvestmentFromOpportunity } from './utils/opportunityDataTransformers'
 import AccountSection from '@/common/components/common-relations/record-sections/account-section/AccountSection'
@@ -101,6 +104,36 @@ const InvestmentOpportunityRecordContent: React.FC<OpportunityRecordContentProps
   const [opportunityStages, setOpportunityStages] = useState<any[]>([])
   const [loadingStages, setLoadingStages] = useState(false)
   const [stagesError, setStagesError] = useState<string | null>(null)
+
+  // IRM-specific configuration for OpportunityStageProgression
+  const irmPipelineConfig: OpportunityPipelineContextConfig = useMemo(
+    () => ({
+      transitionFlowContext: FlowContextName.investmentOpportunityStageTransition,
+      opportunityIdField: 'opportunityId',
+      targetStageRefField: 'targetStageRef',
+      extractStageConditions: (stageConditionStatuses: any[], stageId: string): StageCondition[] => {
+        const stageSpecificConditions = stageConditionStatuses.filter(statusData => {
+          const conditionEntry = statusData.opportunityPipelineStageCondition
+          const parentEntryId = conditionEntry?.parentEntryId
+          return parentEntryId === stageId
+        })
+        return stageSpecificConditions.map(statusData => {
+          const conditionEntry = statusData.opportunityPipelineStageCondition
+          const config = statusData.configSnapshot || conditionEntry?.objectValue || {}
+          const checkedType = config.check_type === 'MANUAL' ? 'User' : 'Automated'
+          return {
+            id: statusData.id,
+            title: conditionEntry?.value || 'Unknown Condition',
+            isCompleted: statusData.completed || false,
+            checkedType: checkedType as 'Automated' | 'User' | 'Manager' | 'Owner',
+            completedBy: statusData.completedByEmployee ? getEmployeeName(statusData.completedByEmployee) : null
+          }
+        })
+      },
+      isTooltipEnabled: isOpportunityOpen
+    }),
+    []
+  )
 
   const { fetchInvestmentOpportunityById } = useGetInvestmentOpportunityById(props)
 
@@ -643,6 +676,7 @@ const InvestmentOpportunityRecordContent: React.FC<OpportunityRecordContentProps
         accessToken={props.accessToken}
         readonly={isReadonly}
         opportunityStatus={opportunityData?.opportunityStatus?.value}
+        contextConfig={irmPipelineConfig}
       />
     ) : loadingStages ? (
       <div
