@@ -1,45 +1,47 @@
 /**
- * Expression Tree Types
- *
- * Type definitions for the tree-based expression builder
+ * Tree node representing a data field or container in the expression builder
  */
-
-import { ReactNode } from 'react'
-
-export type NodeType = 'root' | 'category' | 'object' | 'array' | 'field'
-export type FieldType = 'string' | 'number' | 'date' | 'datetime' | 'boolean' | 'object' | 'array'
-
 export interface TreeNode {
   id: string
   label: string
-  icon?: ReactNode
-  path: string[] // Path segments to build expression
-  type: NodeType
-  fieldType?: FieldType
-  example?: string // Example value for preview
-  description?: string // Tooltip description
+  type:
+    | 'workflow'
+    | 'steps'
+    | 'step'
+    | 'field'
+    | 'container'
+    | 'catalog'
+    | 'catalog-container'
+    | 'catalog-field'
+    | 'catalog-browser'
+    | 'catalog-entry'
+  icon?: string
+  dataType?: 'string' | 'number' | 'date' | 'datetime' | 'boolean' | 'object' | 'array'
+  path?: string[]
+  expressionPath?: string
+  description?: string
   children?: TreeNode[]
-  isExpandedByDefault?: boolean
+  isExpanded?: boolean
+  metadata?: {
+    stepIndex?: number
+    isCurrent?: boolean
+    catalogId?: string
+    version?: string
+    required?: boolean
+    totalCount?: number
+    loadingState?: 'idle' | 'loading' | 'loaded' | 'error'
+    entryId?: string
+    offset?: number
+    hasMore?: boolean
+  }
+  // For catalog-specific nodes
+  expressionTemplate?: string // Template like {{$catalog.asset-management[ID_HERE].name}}
 }
 
-export interface ExpressionBuilderMode {
-  mode: 'tree' | 'text'
-}
-
-export interface QuickAction {
-  id: string
-  label: string
-  expression: string
-  description: string
-  icon?: ReactNode
-  category: 'common' | 'suggestion' | 'recent'
-}
-
-export interface FieldSuggestion {
-  name: string
-  label: string
-  expression: string
-  type: FieldType
-  stepIndex: number
-  stepTitle: string
+/**
+ * Search filter for tree nodes
+ */
+export interface TreeSearchFilter {
+  query: string
+  types?: TreeNode['type'][]
 }

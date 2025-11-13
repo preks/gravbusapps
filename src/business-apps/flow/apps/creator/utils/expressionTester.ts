@@ -276,7 +276,8 @@ export function createContextFromTemplate(
 }
 
 /**
- * Quick test helper - logs results to console
+ * Quick test helper for console testing
+ * Usage: quickTest('{{$steps.step_0.output.formData.name}}')
  */
 export async function quickTest(expression: string, context?: TestContext): Promise<void> {
   const testContext = context || createBasicContext()

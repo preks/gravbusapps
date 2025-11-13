@@ -22,11 +22,13 @@ import {
 import { GripVertical, Trash2, Eye, Globe, Users, User, AlertCircle, BarChart3, Info } from 'lucide-react'
 import { SummaryField, SummaryFieldVisibility, FlowStep, FlowTemplate } from '../../types/flowTemplate'
 import { ExpressionInput } from '../shared/ExpressionInput'
+import { BusinessAppContextProps } from '@/common/BusinessAppContext'
 
 interface SummaryFieldsConfigurationProps {
   step: FlowStep
   stepIndex: number
   template: FlowTemplate // For expression builder
+  context?: BusinessAppContextProps // For catalog fetching
   testId: string
   onUpdateStep: (updates: Partial<FlowStep>) => void
 }
@@ -41,6 +43,7 @@ export const SummaryFieldsConfiguration: React.FC<SummaryFieldsConfigurationProp
   step,
   stepIndex,
   template,
+  context,
   testId,
   onUpdateStep
 }) => {
@@ -304,6 +307,7 @@ export const SummaryFieldsConfiguration: React.FC<SummaryFieldsConfigurationProp
                       validateOnChange={true}
                       template={template}
                       stepIndex={stepIndex}
+                      context={context}
                       useTreeBuilder={true}
                       placeholder="Click tree icon to build expression..."
                       data-testid={`${testId}-expression-${index}`}

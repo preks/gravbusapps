@@ -14,6 +14,7 @@ import { FlowTemplate } from '../../types/flowTemplate'
 import { ExpressionBuilder } from './ExpressionBuilder'
 import { useExpressionValidator } from '../../hooks/useExpressionValidator'
 import { env } from '@/common/env/EnvUtils'
+import { BusinessAppContextProps } from '@/common/BusinessAppContext'
 
 interface ExpressionInputProps {
   value: string
@@ -28,6 +29,7 @@ interface ExpressionInputProps {
   useTreeBuilder?: boolean // Use new tree builder instead of simple helper
   multiline?: boolean // Use textarea instead of input
   rows?: number // Number of rows for textarea (default: 4)
+  context?: BusinessAppContextProps // Required for catalog fetching in tree builder
   'data-testid'?: string
 }
 
@@ -102,6 +104,7 @@ export const ExpressionInput: React.FC<ExpressionInputProps> = ({
   useTreeBuilder = true,
   multiline = false,
   rows = 4,
+  context,
   'data-testid': testId = 'expression-input'
 }) => {
   const [isBuilderOpen, setIsBuilderOpen] = useState(false)
@@ -117,7 +120,10 @@ export const ExpressionInput: React.FC<ExpressionInputProps> = ({
   const [validationState, setValidationState] = useState<ValidationState>(null)
   const [validationMessage, setValidationMessage] = useState<string>('')
   const validationTimeoutRef = useRef<NodeJS.Timeout | null>(null)
-  const { validateExpression: validateWithHook } = useExpressionValidator()
+  const { validateExpression: validateWithHook } = useExpressionValidator(
+    template || ({} as FlowTemplate),
+    stepIndex !== undefined ? stepIndex : 0
+  )
 
   // Update expression mode when value changes (auto mode only)
   useEffect(() => {
@@ -177,7 +183,7 @@ export const ExpressionInput: React.FC<ExpressionInputProps> = ({
 
         // Then do template-aware validation (if template provided)
         if (template) {
-          const templateValidation = await validateWithHook(value, template)
+          const templateValidation = await validateWithHook(value)
 
           if (!templateValidation.isValid) {
             setValidationState('invalid')
@@ -428,7 +434,7 @@ export const ExpressionInput: React.FC<ExpressionInputProps> = ({
       )}
 
       {/* Expression Builder */}
-      {useTreeBuilder && template && (
+      {useTreeBuilder && template && context && (
         <ExpressionBuilder
           isOpen={isBuilderOpen}
           onOpenChange={setIsBuilderOpen}
@@ -436,6 +442,7 @@ export const ExpressionInput: React.FC<ExpressionInputProps> = ({
           onChange={onChange}
           template={template}
           stepIndex={stepIndex}
+          context={context}
           data-testid={`${testId}-builder-modal`}
         />
       )}

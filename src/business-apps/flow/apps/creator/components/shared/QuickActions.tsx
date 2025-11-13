@@ -1,8 +1,7 @@
 import React from 'react'
-import { Card, CardContent, CardHeader, CardTitle, Button, Badge, Separator } from '@newwork/nw-design-system'
-import { User, Workflow, Database, Zap, Clock } from 'lucide-react'
+import { Button, Card, CardContent, CardHeader, CardTitle } from '@newwork/nw-design-system'
+import { Zap, User, Workflow, Database, Clock, FolderOpen } from 'lucide-react'
 import { FlowTemplate } from '../../types/flowTemplate'
-import { getFieldSuggestionsFromTemplate } from '../../utils/expressionTreeBuilder'
 
 interface QuickActionsProps {
   template: FlowTemplate
@@ -12,53 +11,75 @@ interface QuickActionsProps {
   'data-testid'?: string
 }
 
-/**
- * QuickActions - Panel with common patterns and smart suggestions
- */
 export const QuickActions: React.FC<QuickActionsProps> = ({
   template,
   stepIndex,
   onInsert,
   recentExpressions = [],
-  'data-testid': testId = 'quick-actions'
+  'data-testid': testId
 }) => {
-  // Get field suggestions from previous steps
-  const fieldSuggestions = getFieldSuggestionsFromTemplate(template, stepIndex)
+  // Get first step with form data for examples
+  const firstStepWithForm = template.steps.find((step, idx) => idx < stepIndex && step.form?.inputs?.length)
+  const firstFieldName = firstStepWithForm?.form?.inputs?.[0]?.name
 
-  // Common expressions
-  const commonExpressions = [
+  const commonPatterns = [
     {
-      id: 'workflow-initiator',
       label: 'Workflow Initiator',
       expression: '{{$workflow.initiator}}',
-      icon: <User className="gba:h-4 gba:w-4" />
+      icon: <User className="gba:h-4 gba:w-4" />,
+      description: 'User who started workflow',
+      disabled: false
     },
     {
-      id: 'workflow-status',
       label: 'Workflow Status',
       expression: '{{$workflow.status}}',
-      icon: <Workflow className="gba:h-4 gba:w-4" />
+      icon: <Workflow className="gba:h-4 gba:w-4" />,
+      description: 'Current workflow status',
+      disabled: false
     },
     {
-      id: 'step0-data',
-      label: 'Step 0 Form Data',
-      expression: '{{$steps.step_0.output.formData.}}',
+      label: `Step 0 Form Data`,
+      expression: firstFieldName ? `{{$steps.step_0.formData.${firstFieldName}}}` : '',
       icon: <Database className="gba:h-4 gba:w-4" />,
-      disabled: stepIndex === 0
+      description: firstFieldName ? `Field: ${firstFieldName}` : 'No form fields in step 0',
+      disabled: !firstFieldName
     },
     {
-      id: 'executedBy',
       label: 'Completed By',
-      expression: '{{$steps.step_0.output.executedBy}}',
+      expression: '{{$steps.step_0.executedBy}}',
       icon: <User className="gba:h-4 gba:w-4" />,
+      description: 'User who completed step',
       disabled: stepIndex === 0
     },
     {
-      id: 'timestamp',
       label: 'Completion Time',
-      expression: '{{$steps.step_0.output.timestamp}}',
+      expression: '{{$steps.step_0.timestamp}}',
       icon: <Clock className="gba:h-4 gba:w-4" />,
+      description: 'When step was completed',
       disabled: stepIndex === 0
+    }
+  ]
+
+  const catalogExamples = [
+    {
+      label: 'Asset by ID',
+      expression: '{{$catalog.asset-management[ID_HERE].name}}',
+      icon: <FolderOpen className="gba:h-4 gba:w-4" />,
+      description: 'Reference asset catalog entry'
+    },
+    {
+      label: 'Employee by ID',
+      expression: '{{$catalog.employees[ID_HERE].fullName}}',
+      icon: <User className="gba:h-4 gba:w-4" />,
+      description: 'Reference employee catalog entry'
+    },
+    {
+      label: 'Dynamic Catalog Reference',
+      expression: firstFieldName
+        ? `{{$catalog.asset-management[{{$steps.step_0.formData.${firstFieldName}}}].name}}`
+        : '{{$catalog.asset-management[{{$steps.step_0.formData.assetId}}].name}}',
+      icon: <Database className="gba:h-4 gba:w-4" />,
+      description: 'Use form field value as catalog ID'
     }
   ]
 
@@ -73,86 +94,72 @@ export const QuickActions: React.FC<QuickActionsProps> = ({
           </CardTitle>
         </CardHeader>
         <CardContent className="gba:space-y-2">
-          {commonExpressions.map(expr => (
+          {commonPatterns.map((pattern, index) => (
             <Button
-              key={expr.id}
+              key={index}
               variant="outline"
               size="sm"
               className="gba:w-full gba:justify-start gba:text-left"
-              onClick={() => onInsert(expr.expression)}
-              disabled={expr.disabled}
-              data-testid={`${testId}-common-${expr.id}`}
+              disabled={pattern.disabled}
+              onClick={() => onInsert(pattern.expression)}
+              data-testid={`${testId}-common-${index}`}
             >
-              <span className="gba:mr-2">{expr.icon}</span>
-              <span className="gba:flex-1 gba:text-xs">{expr.label}</span>
+              <span className="gba:mr-2">{pattern.icon}</span>
+              <span className="gba:flex-1 gba:text-xs">{pattern.label}</span>
             </Button>
           ))}
         </CardContent>
       </Card>
 
-      {/* Field Suggestions from Previous Steps */}
-      {fieldSuggestions.length > 0 && (
-        <>
-          <Separator />
-          <Card>
-            <CardHeader>
-              <CardTitle className="gba:text-sm gba:flex gba:items-center gba:gap-2">
-                <Database className="gba:h-4 gba:w-4 gba:text-green-600" />
-                Field Suggestions
-                <Badge variant="secondary" className="gba:ml-auto gba:text-xs">
-                  {fieldSuggestions.length}
-                </Badge>
-              </CardTitle>
-            </CardHeader>
-            <CardContent className="gba:space-y-1 gba:max-h-[250px] gba:overflow-y-auto">
-              {fieldSuggestions.map((field, index) => (
-                <div
-                  key={`${field.stepIndex}-${field.name}`}
-                  className="gba:flex gba:items-center gba:justify-between gba:p-2 hover:gba:bg-gray-50 gba:rounded gba:cursor-pointer gba:group"
-                  onClick={() => onInsert(field.expression)}
-                  data-testid={`${testId}-suggestion-${index}`}
-                >
-                  <div className="gba:flex-1">
-                    <div className="gba:text-xs gba:font-medium gba:text-gray-900">{field.label}</div>
-                    <div className="gba:text-xs gba:text-gray-500">
-                      Step {field.stepIndex}: {field.stepTitle}
-                    </div>
-                  </div>
-                  <Badge variant="outline" className="gba:text-xs gba:capitalize">
-                    {field.type}
-                  </Badge>
-                </div>
-              ))}
-            </CardContent>
-          </Card>
-        </>
-      )}
+      {/* Catalog Examples */}
+      <Card>
+        <CardHeader>
+          <CardTitle className="gba:text-sm gba:flex gba:items-center gba:gap-2">
+            <FolderOpen className="gba:h-4 gba:w-4 gba:text-amber-600" />
+            Catalog Examples
+          </CardTitle>
+        </CardHeader>
+        <CardContent className="gba:space-y-2">
+          {catalogExamples.map((example, index) => (
+            <Button
+              key={index}
+              variant="outline"
+              size="sm"
+              className="gba:w-full gba:justify-start gba:text-left"
+              onClick={() => onInsert(example.expression)}
+              data-testid={`${testId}-catalog-${index}`}
+            >
+              <span className="gba:mr-2">{example.icon}</span>
+              <div className="gba:flex-1">
+                <div className="gba:text-xs gba:font-medium">{example.label}</div>
+                <div className="gba:text-xs gba:text-gray-500">{example.description}</div>
+              </div>
+            </Button>
+          ))}
+        </CardContent>
+      </Card>
 
-      {/* Recent Expressions */}
+      {/* Recent Expressions (if any) */}
       {recentExpressions.length > 0 && (
-        <>
-          <Separator />
-          <Card>
-            <CardHeader>
-              <CardTitle className="gba:text-sm gba:flex gba:items-center gba:gap-2">
-                <Clock className="gba:h-4 gba:w-4 gba:text-gray-600" />
-                Recent
-              </CardTitle>
-            </CardHeader>
-            <CardContent className="gba:space-y-1">
-              {recentExpressions.slice(0, 5).map((expr, index) => (
-                <div
-                  key={index}
-                  className="gba:flex gba:items-center gba:justify-between gba:p-2 hover:gba:bg-gray-50 gba:rounded gba:cursor-pointer"
-                  onClick={() => onInsert(expr)}
-                  data-testid={`${testId}-recent-${index}`}
-                >
-                  <code className="gba:text-xs gba:text-purple-700 gba:truncate gba:flex-1">{expr}</code>
-                </div>
-              ))}
-            </CardContent>
-          </Card>
-        </>
+        <Card>
+          <CardHeader>
+            <CardTitle className="gba:text-sm">Recent</CardTitle>
+          </CardHeader>
+          <CardContent className="gba:space-y-2">
+            {recentExpressions.slice(0, 5).map((expr, index) => (
+              <Button
+                key={index}
+                variant="outline"
+                size="sm"
+                className="gba:w-full gba:justify-start gba:text-left gba:font-mono"
+                onClick={() => onInsert(expr)}
+                data-testid={`${testId}-recent-${index}`}
+              >
+                <span className="gba:text-xs gba:truncate">{expr}</span>
+              </Button>
+            ))}
+          </CardContent>
+        </Card>
       )}
     </div>
   )

@@ -1,4 +1,4 @@
-import React, { useState } from 'react'
+import React, { useState, useCallback, useEffect, useRef } from 'react'
 import {
   Button,
   Input,
@@ -10,16 +10,19 @@ import {
   TooltipContent
 } from '@newwork/nw-design-system'
 import { Select } from 'antd'
-import { FormInput, Trash2, GripVertical, Info } from 'lucide-react'
+import { FormInput, Trash2, GripVertical, Info, Database, ChevronDown, ChevronUp } from 'lucide-react'
 import { getTranslationFromI18nKeyAndLabel } from '@/common/utils/windowUtils'
 import { InputType } from '@/common/network/flows/FlowTemplateClient'
 import { FlowTemplate } from '../../types/flowTemplate'
 import { ExpressionInput } from '../shared/ExpressionInput'
+import { BusinessAppContextProps } from '@/common/BusinessAppContext'
+import { useCatalogDiscovery } from '../../hooks/useCatalogDiscovery'
 
 interface InputFieldsConfigurationProps {
   step: any
   stepIndex?: number
   template?: FlowTemplate // For expression builder
+  context?: BusinessAppContextProps // For catalog fetching
   testId: string
   onUpdateStep: (updates: any) => void
 }
@@ -34,6 +37,7 @@ interface InputFieldsContentProps {
   step: any
   stepIndex?: number
   template?: FlowTemplate
+  context?: BusinessAppContextProps // For catalog fetching
   testId: string
   onUpdateStep: (updates: any) => void
 }
@@ -70,11 +74,103 @@ export const InputFieldsContent: React.FC<InputFieldsContentProps> = ({
   step,
   stepIndex = 0,
   template,
+  context,
   testId,
   onUpdateStep
 }) => {
   const inputs = step.form || step.inputs || [] // Handle both form and inputs
   const [draggedIndex, setDraggedIndex] = useState<number | null>(null)
+
+  // Catalog discovery - only if context is available
+  const catalogDiscovery = context ? useCatalogDiscovery(context) : null
+  const [catalogs, setCatalogs] = useState<any[]>([])
+  const [isLoadingCatalogs, setIsLoadingCatalogs] = useState(false)
+  const [catalogPreviews, setCatalogPreviews] = useState<
+    Record<string, { count: number; loading: boolean; entries?: any[] }>
+  >({})
+  const [expandedPreviews, setExpandedPreviews] = useState<Record<string, boolean>>({})
+  const hasFetchedCatalogs = useRef(false)
+
+  // Fetch catalogs when accessToken becomes available
+  useEffect(() => {
+    // Reset and fetch when accessToken changes
+    if (!catalogDiscovery || !context?.accessToken) {
+      hasFetchedCatalogs.current = false
+      return
+    }
+
+    // Prevent duplicate fetches
+    if (hasFetchedCatalogs.current) return
+
+    const loadCatalogs = async () => {
+      setIsLoadingCatalogs(true)
+      hasFetchedCatalogs.current = true
+      try {
+        const fetchedCatalogs = await catalogDiscovery.fetchCatalogs()
+        setCatalogs(fetchedCatalogs)
+      } catch (error) {
+        console.error('Failed to fetch catalogs:', error)
+        setCatalogs([])
+      } finally {
+        setIsLoadingCatalogs(false)
+      }
+    }
+
+    loadCatalogs()
+  }, [context?.accessToken]) // Only depend on accessToken to prevent infinite loop
+
+  // Fetch catalog preview when catalog is selected or expanded
+  const fetchCatalogPreview = useCallback(
+    async (inputIndex: number, catalogId: string) => {
+      if (!catalogId || !context?.accessToken || !catalogDiscovery) return
+
+      const key = `${inputIndex}-${catalogId}`
+
+      // Skip if already loading
+      if (catalogPreviews[key]?.loading) return
+
+      setCatalogPreviews(prev => ({ ...prev, [key]: { count: 0, loading: true } }))
+
+      try {
+        // Find catalog to get version
+        const catalog = catalogs.find(c => c.catalogIdentifier === catalogId)
+        const result = await catalogDiscovery.fetchCatalogEntries(catalogId, {
+          version: catalog?.version,
+          limit: 100
+        })
+
+        setCatalogPreviews(prev => ({
+          ...prev,
+          [key]: {
+            count: result.totalCount || result.entries.length,
+            loading: false,
+            entries: result.entries // Store entries for preview
+          }
+        }))
+      } catch (error) {
+        console.error(`Failed to fetch preview for ${catalogId}:`, error)
+        setCatalogPreviews(prev => ({ ...prev, [key]: { count: 0, loading: false } }))
+      }
+    },
+    [catalogs, context?.accessToken, catalogDiscovery, catalogPreviews]
+  )
+
+  // Toggle preview expansion and fetch if needed
+  const togglePreviewExpansion = useCallback(
+    (inputIndex: number, catalogId: string) => {
+      const key = `${inputIndex}-${catalogId}`
+      const isExpanded = expandedPreviews[key]
+
+      // Toggle expansion state
+      setExpandedPreviews(prev => ({ ...prev, [key]: !isExpanded }))
+
+      // Fetch entries if expanding and not already loaded
+      if (!isExpanded && !catalogPreviews[key]?.entries) {
+        fetchCatalogPreview(inputIndex, catalogId)
+      }
+    },
+    [expandedPreviews, catalogPreviews, fetchCatalogPreview]
+  )
 
   const handleAddInput = () => {
     const newInputs = [
@@ -273,6 +369,7 @@ export const InputFieldsContent: React.FC<InputFieldsContentProps> = ({
                         validateOnChange={true}
                         template={template}
                         stepIndex={stepIndex}
+                        context={context}
                         useTreeBuilder={true}
                         placeholder="Click tree icon to build expression..."
                         data-testid={`${testId}-expression-value-${index}`}
@@ -303,65 +400,319 @@ export const InputFieldsContent: React.FC<InputFieldsContentProps> = ({
                   )}
                 </div>
 
-                {/* Options for multi-value inputs */}
-                {[InputType.SELECT, InputType.MULTISELECT, InputType.CHECKBOX].includes(input.type) && (
-                  <div className="gba:space-y-2">
-                    <div className="gba:flex gba:items-center gba:justify-between">
-                      <span className="gba:text-xs gba:text-gray-600">Options:</span>
-                      <Button
-                        variant="outline"
-                        size="sm"
-                        onClick={() => handleAddOption(index)}
-                        data-testid={`${testId}-add-option-${index}`}
-                      >
-                        Add Option
-                      </Button>
+                {/* Catalog Data Source Configuration */}
+                {[InputType.SELECT, InputType.MULTISELECT].includes(input.type) && (
+                  <div className="gba:pl-8 gba:space-y-2 gba:border-l-2 gba:border-blue-200">
+                    <div className="gba:flex gba:items-center gba:gap-2">
+                      <Checkbox
+                        checked={input.dataSource?.type === 'CATALOG'}
+                        onCheckedChange={checked => {
+                          const newInputs = [...inputs]
+                          if (checked) {
+                            // Enable catalog mode
+                            newInputs[index] = {
+                              ...newInputs[index],
+                              dataSource: {
+                                type: 'CATALOG',
+                                catalog: '',
+                                valueField: 'code',
+                                labelField: 'value'
+                              }
+                            }
+                            // Clear manual options when enabling catalog
+                            delete newInputs[index].options
+                          } else {
+                            // Disable catalog mode
+                            const updated = { ...newInputs[index] }
+                            delete updated.dataSource
+                            newInputs[index] = updated
+                          }
+                          onUpdateStep({ form: newInputs })
+                        }}
+                        data-testid={`${testId}-enable-catalog-${index}`}
+                      />
+                      <Database className="gba:h-4 gba:w-4 gba:text-blue-600" />
+                      <label className="gba:text-sm gba:text-gray-700 gba:font-medium">
+                        Use Catalog as Data Source
+                      </label>
+                      <Badge variant="secondary" className="gba:text-xs gba:bg-blue-100 gba:text-blue-800">
+                        Dynamic
+                      </Badge>
+                      <TooltipProvider>
+                        <Tooltip>
+                          <TooltipTrigger asChild>
+                            <Info className="gba:h-4 gba:w-4 gba:text-gray-400 gba:cursor-help" />
+                          </TooltipTrigger>
+                          <TooltipContent>
+                            <p className="gba:text-xs gba:max-w-xs">
+                              Automatically populate dropdown options from a catalog. Options stay up-to-date without
+                              template changes.
+                            </p>
+                          </TooltipContent>
+                        </Tooltip>
+                      </TooltipProvider>
                     </div>
 
-                    {/* Column Headers */}
-                    {(input.options || []).length > 0 && (
-                      <div className="gba:flex gba:gap-2 gba:items-center gba:pl-4">
-                        <div className="gba:flex-1">
-                          <span className="gba:text-xs gba:font-medium gba:text-gray-700">Label</span>
+                    {input.dataSource?.type === 'CATALOG' && (
+                      <div className="gba:space-y-3 gba:pt-2">
+                        {/* Catalog Selector */}
+                        <div className="gba:space-y-1">
+                          <label className="gba:text-xs gba:font-medium gba:text-gray-700">Catalog</label>
+                          <Select
+                            value={input.dataSource.catalog || undefined}
+                            onChange={value => {
+                              handleUpdateInput(index, 'dataSource', {
+                                ...input.dataSource,
+                                catalog: value
+                              })
+                              // Note: Preview will load when user expands it
+                            }}
+                            placeholder={isLoadingCatalogs ? 'Loading catalogs...' : 'Select catalog'}
+                            style={{ width: '100%' }}
+                            showSearch
+                            filterOption={(input, option) => {
+                              const children = option?.children
+                              const childStr = typeof children === 'string' ? children : String(children || '')
+                              return childStr.toLowerCase().includes(input.toLowerCase())
+                            }}
+                            data-testid={`${testId}-catalog-select-${index}`}
+                            loading={isLoadingCatalogs}
+                          >
+                            {catalogs.map(catalog => (
+                              <Select.Option key={catalog.catalogIdentifier} value={catalog.catalogIdentifier}>
+                                {catalog.catalogIdentifier}
+                                {catalog.version && (
+                                  <span className="gba:text-xs gba:text-gray-500 gba:ml-2">
+                                    Version: {catalog.version}
+                                  </span>
+                                )}
+                              </Select.Option>
+                            ))}
+                          </Select>
                         </div>
-                        <div className="gba:flex-1">
-                          <span className="gba:text-xs gba:font-medium gba:text-gray-700">Value</span>
+
+                        {/* Field Mapping */}
+                        <div className="gba:grid gba:grid-cols-2 gba:gap-2">
+                          <div className="gba:space-y-1">
+                            <label className="gba:text-xs gba:font-medium gba:text-gray-700">Value Field</label>
+                            <Input
+                              value={input.dataSource.valueField || 'code'}
+                              onChange={e =>
+                                handleUpdateInput(index, 'dataSource', {
+                                  ...input.dataSource,
+                                  valueField: e.target.value
+                                })
+                              }
+                              placeholder="code"
+                              className="gba:text-sm"
+                              data-testid={`${testId}-value-field-${index}`}
+                            />
+                            <p className="gba:text-xs gba:text-gray-500">Field to use as option value</p>
+                          </div>
+
+                          <div className="gba:space-y-1">
+                            <label className="gba:text-xs gba:font-medium gba:text-gray-700">Label Field</label>
+                            <Input
+                              value={input.dataSource.labelField || 'value'}
+                              onChange={e =>
+                                handleUpdateInput(index, 'dataSource', {
+                                  ...input.dataSource,
+                                  labelField: e.target.value
+                                })
+                              }
+                              placeholder="value"
+                              className="gba:text-sm"
+                              data-testid={`${testId}-label-field-${index}`}
+                            />
+                            <p className="gba:text-xs gba:text-gray-500">Field to display to users</p>
+                          </div>
                         </div>
-                        <div className="gba:w-8"></div>
+
+                        {/* Preview with Collapsible Entries */}
+                        {input.dataSource.catalog &&
+                          (() => {
+                            const key = `${index}-${input.dataSource.catalog}`
+                            const preview = catalogPreviews[key]
+                            const isExpanded = expandedPreviews[key]
+                            const entries = preview?.entries || []
+                            const valueField = input.dataSource.valueField || 'code'
+                            const labelField = input.dataSource.labelField || 'value'
+
+                            return (
+                              <div className="gba:space-y-2">
+                                {/* Connection Status Header */}
+                                <div className="gba:p-2 gba:bg-blue-50 gba:rounded gba:border gba:border-blue-200">
+                                  <div className="gba:flex gba:items-center gba:justify-between">
+                                    <div className="gba:flex gba:items-center gba:gap-2">
+                                      {preview && preview.count > 0 && (
+                                        <span className="gba:text-xs gba:text-gray-700">
+                                          {preview.count} {preview.count === 1 ? 'entry' : 'entries'} available
+                                        </span>
+                                      )}
+                                      {!preview && (
+                                        <span className="gba:text-xs gba:text-gray-500 gba:italic">
+                                          Catalog connected
+                                        </span>
+                                      )}
+                                    </div>
+
+                                    <div className="gba:flex gba:items-center gba:gap-2">
+                                      <Badge
+                                        variant="outline"
+                                        className="gba:text-xs gba:bg-green-100 gba:text-green-800 gba:border-green-300"
+                                      >
+                                        ✓ Connected
+                                      </Badge>
+
+                                      {/* Expand/Collapse Button */}
+                                      <Button
+                                        size="sm"
+                                        variant="ghost"
+                                        onClick={() => togglePreviewExpansion(index, input.dataSource.catalog)}
+                                        className="gba:h-6 gba:px-2 gba:text-xs"
+                                        data-testid={`${testId}-preview-toggle-${index}`}
+                                      >
+                                        {isExpanded ? (
+                                          <>
+                                            <ChevronUp className="gba:w-3 gba:h-3 gba:mr-1" />
+                                            Hide
+                                          </>
+                                        ) : (
+                                          <>
+                                            <ChevronDown className="gba:w-3 gba:h-3 gba:mr-1" />
+                                            Preview
+                                          </>
+                                        )}
+                                      </Button>
+                                    </div>
+                                  </div>
+                                </div>
+
+                                {/* Collapsible Entry Preview */}
+                                {isExpanded && (
+                                  <div className="gba:space-y-1">
+                                    {preview?.loading && (
+                                      <div className="gba:p-3 gba:text-center gba:text-xs gba:text-gray-600">
+                                        Loading entries...
+                                      </div>
+                                    )}
+
+                                    {!preview?.loading && entries.length > 0 && (
+                                      <>
+                                        <div className="gba:flex gba:items-center gba:justify-between gba:px-2">
+                                          <span className="gba:text-xs gba:font-medium gba:text-gray-700">
+                                            What users will see:
+                                          </span>
+                                          {entries.length > 5 && (
+                                            <span className="gba:text-xs gba:text-gray-500">
+                                              Showing first 5 of {entries.length}
+                                            </span>
+                                          )}
+                                        </div>
+
+                                        {/* Entry List */}
+                                        <div className="gba:space-y-1">
+                                          {entries.slice(0, 5).map((entry: any, entryIndex: number) => (
+                                            <div
+                                              key={entryIndex}
+                                              className="gba:flex gba:gap-2 gba:p-2 gba:bg-white gba:rounded gba:border gba:border-gray-200"
+                                            >
+                                              <div className="gba:flex-1 gba:min-w-0">
+                                                <div className="gba:text-xs gba:font-medium gba:text-gray-700 gba:truncate">
+                                                  {entry.data?.[labelField] ||
+                                                    entry[labelField] ||
+                                                    entry.displayName ||
+                                                    '(no label)'}
+                                                </div>
+                                                <div className="gba:text-xs gba:text-gray-500 gba:truncate">
+                                                  Value:{' '}
+                                                  {entry.data?.[valueField] ||
+                                                    entry[valueField] ||
+                                                    entry.id ||
+                                                    '(no value)'}
+                                                </div>
+                                              </div>
+                                            </div>
+                                          ))}
+                                        </div>
+                                      </>
+                                    )}
+
+                                    {!preview?.loading && entries.length === 0 && preview && (
+                                      <div className="gba:p-3 gba:text-center gba:text-xs gba:text-gray-500 gba:italic">
+                                        No entries found in this catalog
+                                      </div>
+                                    )}
+                                  </div>
+                                )}
+                              </div>
+                            )
+                          })()}
                       </div>
                     )}
-
-                    {(input.options || []).map((option: any, optionIndex: number) => (
-                      <div
-                        key={`option-${index}-${optionIndex}`}
-                        className="gba:flex gba:gap-2 gba:items-center gba:pl-4"
-                      >
-                        <Input
-                          value={option.label || ''}
-                          onChange={e => handleUpdateOption(index, optionIndex, 'label', e.target.value)}
-                          className="gba:flex-1"
-                          placeholder="Display text"
-                          data-testid={`${testId}-option-label-${index}-${optionIndex}`}
-                        />
-                        <Input
-                          value={option.value || ''}
-                          onChange={e => handleUpdateOption(index, optionIndex, 'value', e.target.value)}
-                          className="gba:flex-1"
-                          placeholder="Stored value"
-                          data-testid={`${testId}-option-value-${index}-${optionIndex}`}
-                        />
-                        <Button
-                          variant="ghost"
-                          size="sm"
-                          onClick={() => handleRemoveOption(index, optionIndex)}
-                          data-testid={`${testId}-remove-option-${index}-${optionIndex}`}
-                        >
-                          <Trash2 className="gba:h-4 gba:w-4" />
-                        </Button>
-                      </div>
-                    ))}
                   </div>
                 )}
+
+                {/* Options for multi-value inputs (manual mode only) */}
+                {[InputType.SELECT, InputType.MULTISELECT, InputType.CHECKBOX].includes(input.type) &&
+                  input.dataSource?.type !== 'CATALOG' && (
+                    <div className="gba:space-y-2">
+                      <div className="gba:flex gba:items-center gba:justify-between">
+                        <span className="gba:text-xs gba:text-gray-600">Options:</span>
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          onClick={() => handleAddOption(index)}
+                          data-testid={`${testId}-add-option-${index}`}
+                        >
+                          Add Option
+                        </Button>
+                      </div>
+
+                      {/* Column Headers */}
+                      {(input.options || []).length > 0 && (
+                        <div className="gba:flex gba:gap-2 gba:items-center gba:pl-4">
+                          <div className="gba:flex-1">
+                            <span className="gba:text-xs gba:font-medium gba:text-gray-700">Label</span>
+                          </div>
+                          <div className="gba:flex-1">
+                            <span className="gba:text-xs gba:font-medium gba:text-gray-700">Value</span>
+                          </div>
+                          <div className="gba:w-8"></div>
+                        </div>
+                      )}
+
+                      {(input.options || []).map((option: any, optionIndex: number) => (
+                        <div
+                          key={`option-${index}-${optionIndex}`}
+                          className="gba:flex gba:gap-2 gba:items-center gba:pl-4"
+                        >
+                          <Input
+                            value={option.label || ''}
+                            onChange={e => handleUpdateOption(index, optionIndex, 'label', e.target.value)}
+                            className="gba:flex-1"
+                            placeholder="Display text"
+                            data-testid={`${testId}-option-label-${index}-${optionIndex}`}
+                          />
+                          <Input
+                            value={option.value || ''}
+                            onChange={e => handleUpdateOption(index, optionIndex, 'value', e.target.value)}
+                            className="gba:flex-1"
+                            placeholder="Stored value"
+                            data-testid={`${testId}-option-value-${index}-${optionIndex}`}
+                          />
+                          <Button
+                            variant="ghost"
+                            size="sm"
+                            onClick={() => handleRemoveOption(index, optionIndex)}
+                            data-testid={`${testId}-remove-option-${index}-${optionIndex}`}
+                          >
+                            <Trash2 className="gba:h-4 gba:w-4" />
+                          </Button>
+                        </div>
+                      ))}
+                    </div>
+                  )}
               </div>
             )
           })}

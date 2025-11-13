@@ -410,6 +410,7 @@ export const FlowDesigner: React.FC<FlowDesignerProps> = ({
                           steps: steps
                         } as any
                       }
+                      context={{ accessToken, userInfo }}
                       testId={`${testId}-summary`}
                       onUpdateStep={updates => {
                         setSteps(prev => prev.map((s, i) => (i === 0 ? { ...s, ...updates } : s)))
@@ -492,6 +493,7 @@ export const FlowDesigner: React.FC<FlowDesignerProps> = ({
                             template={{ ...initialTemplate, steps } as any}
                             stepIndex={selectedStepIndex}
                             useTreeBuilder={true}
+                            context={{ accessToken, userInfo }}
                             placeholder="Enter step title..."
                             data-testid={`${testId}-title-input`}
                           />
@@ -508,6 +510,7 @@ export const FlowDesigner: React.FC<FlowDesignerProps> = ({
                             template={{ ...initialTemplate, steps } as any}
                             stepIndex={selectedStepIndex}
                             useTreeBuilder={true}
+                            context={{ accessToken, userInfo }}
                             multiline={true}
                             rows={4}
                             placeholder="Enter message..."
@@ -536,6 +539,7 @@ export const FlowDesigner: React.FC<FlowDesignerProps> = ({
                               steps: steps // Use live steps state, not initialTemplate.steps
                             } as any
                           }
+                          context={{ accessToken, userInfo }}
                           testId={`${testId}-form`}
                           onUpdateStep={updateStep}
                         />

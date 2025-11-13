@@ -14,15 +14,22 @@ import {
   Separator,
   Card,
   CardContent,
-  CardHeader
+  CardHeader,
+  Alert,
+  AlertTitle,
+  AlertDescription
 } from '@newwork/nw-design-system'
-import { Network, Type, CheckCircle, AlertCircle, Copy, X, Loader2 } from 'lucide-react'
+import { Network, Type, CheckCircle, AlertCircle, Copy, X, Loader2, TestTube2 } from 'lucide-react'
 import { FlowTemplate } from '../../types/flowTemplate'
 import { TreeNode as TreeNodeType } from '../../types/expressionTree'
+import { CatalogMetadata } from '../../types/catalogTypes'
 import { TreeNavigator } from './TreeNavigator'
 import { QuickActions } from './QuickActions'
 import { buildExpressionTree, pathToExpression } from '../../utils/expressionTreeBuilder'
 import { useExpressionValidator } from '../../hooks/useExpressionValidator'
+import { useExpressionTesting } from '../../hooks/useExpressionTesting'
+import { useCatalogDiscovery } from '../../hooks/useCatalogDiscovery'
+import { BusinessAppContextProps } from '@/common/BusinessAppContext'
 import { env } from '@/common/env/EnvUtils'
 
 interface ExpressionBuilderProps {
@@ -32,6 +39,7 @@ interface ExpressionBuilderProps {
   onChange: (value: string) => void
   template: FlowTemplate
   stepIndex: number
+  context: BusinessAppContextProps // NEW: For catalog fetching
   'data-testid'?: string
 }
 
@@ -101,6 +109,7 @@ export const ExpressionBuilder: React.FC<ExpressionBuilderProps> = ({
   onChange,
   template,
   stepIndex,
+  context,
   'data-testid': testId = 'expression-builder'
 }) => {
   const [mode, setMode] = useState<'tree' | 'text'>('tree')
@@ -109,15 +118,52 @@ export const ExpressionBuilder: React.FC<ExpressionBuilderProps> = ({
   const inputRef = useRef<HTMLTextAreaElement>(null)
   const [cursorPosition, setCursorPosition] = useState<number>(0)
 
+  // Catalog state - NEW
+  const [catalogs, setCatalogs] = useState<CatalogMetadata[]>([])
+  const [catalogsLoading, setCatalogsLoading] = useState(false)
+  const { fetchCatalogs, fetchCatalogEntries } = useCatalogDiscovery(context)
+
+  // Dynamic tree data state
+  const [treeData, setTreeData] = useState<TreeNodeType[]>([])
+
   // Validation state
-  const { validateExpression } = useExpressionValidator()
+  const { validateExpression } = useExpressionValidator(template, stepIndex)
   const [validationResult, setValidationResult] = useState<{ isValid: boolean; message?: string } | null>(null)
   const validationTimeoutRef = useRef<NodeJS.Timeout | null>(null)
+
+  // Expression testing
+  const { testExpression, testResult, isTesting, clearResult } = useExpressionTesting(
+    template,
+    stepIndex,
+    context.accessToken
+  )
 
   // Sync local value with prop
   useEffect(() => {
     setLocalValue(value)
   }, [value])
+
+  // Fetch catalogs on mount and rebuild tree - NEW
+  useEffect(() => {
+    const loadCatalogs = async () => {
+      setCatalogsLoading(true)
+      try {
+        const catalogData = await fetchCatalogs()
+        setCatalogs(catalogData)
+        // Build initial tree with catalogs
+        const initialTree = buildExpressionTree(template, stepIndex, catalogData)
+        setTreeData(initialTree)
+      } catch (error) {
+        console.error('Failed to load catalogs:', error)
+      } finally {
+        setCatalogsLoading(false)
+      }
+    }
+
+    if (isOpen) {
+      loadCatalogs()
+    }
+  }, [isOpen, fetchCatalogs, template, stepIndex])
 
   // Debounced validation effect with backend API call
   useEffect(() => {
@@ -147,7 +193,7 @@ export const ExpressionBuilder: React.FC<ExpressionBuilderProps> = ({
         }
 
         // Then do template-aware validation
-        const templateValidation = await validateExpression(localValue, template)
+        const templateValidation = await validateExpression(localValue)
 
         if (!templateValidation.isValid) {
           setValidationResult(templateValidation)
@@ -236,8 +282,237 @@ export const ExpressionBuilder: React.FC<ExpressionBuilderProps> = ({
     setCursorPosition(target.selectionStart || 0)
   }
 
-  // Build tree structure
-  const treeData = buildExpressionTree(template, stepIndex)
+  /**
+   * Update tree node recursively
+   */
+  const updateTreeNode = (
+    nodes: TreeNodeType[],
+    nodeId: string,
+    updater: (node: TreeNodeType) => TreeNodeType
+  ): TreeNodeType[] => {
+    return nodes.map(node => {
+      if (node.id === nodeId) {
+        return updater(node)
+      }
+      if (node.children) {
+        return {
+          ...node,
+          children: updateTreeNode(node.children, nodeId, updater)
+        }
+      }
+      return node
+    })
+  }
+
+  /**
+   * Handle Browse Entries click - load catalog entries dynamically
+   */
+  const handleBrowseEntries = async (node: TreeNodeType) => {
+    if (node.type !== 'catalog-browser' || !node.metadata?.catalogId) {
+      return
+    }
+
+    const catalogId = node.metadata.catalogId
+
+    // Update node to loading state
+    setTreeData(prevTree =>
+      updateTreeNode(prevTree, node.id, n => ({
+        ...n,
+        label: '🔍 Loading entries...',
+        metadata: { ...n.metadata, loadingState: 'loading' }
+      }))
+    )
+
+    try {
+      // Get catalog metadata first to retrieve correct version
+      const catalog = catalogs.find(c => c.catalogIdentifier === catalogId)
+
+      // Fetch first page of entries with correct version
+      const entriesData = await fetchCatalogEntries(catalogId, {
+        version: catalog?.version,
+        limit: 20,
+        offset: 0
+      })
+
+      // Build entry nodes
+      const entryNodes: TreeNodeType[] = entriesData.entries.map(entry => ({
+        id: `catalog-${catalogId}-entry-${entry.id}`,
+        label: entry.displayName,
+        type: 'catalog-entry' as const,
+        icon: 'box',
+        description: `Entry ID: ${entry.id}`,
+        isExpanded: false,
+        metadata: {
+          catalogId,
+          entryId: entry.id
+        },
+        expressionTemplate: `{{$catalog.${catalogId}['${entry.id}']}}`,
+        children:
+          catalog?.fields.map(field => ({
+            id: `catalog-${catalogId}-entry-${entry.id}-field-${field.name}`,
+            label: `${field.label}: ${entry.data[field.name] ?? 'N/A'}`,
+            type: 'catalog-field' as const,
+            icon: 'hash',
+            dataType: field.type,
+            description: field.description,
+            expressionTemplate: `{{$catalog.${catalogId}['${entry.id}'].${field.name}}}`
+          })) || []
+      }))
+
+      // Add "Load More" button if there are more entries
+      if (entriesData.hasMore) {
+        entryNodes.push({
+          id: `catalog-${catalogId}-load-more`,
+          label: `📄 Load More (${entriesData.totalCount - entriesData.entries.length} remaining)`,
+          type: 'catalog-browser' as const,
+          icon: 'folder-open',
+          description: 'Click to load more entries',
+          isExpanded: false,
+          metadata: {
+            catalogId,
+            offset: entriesData.entries.length,
+            hasMore: entriesData.hasMore,
+            loadingState: 'idle'
+          },
+          children: []
+        })
+      }
+
+      // Update tree with loaded entries
+      setTreeData(prevTree =>
+        updateTreeNode(prevTree, node.id, n => ({
+          ...n,
+          label: `🔍 Browse Entries (${entriesData.totalCount} total)`,
+          isExpanded: true,
+          children: entryNodes,
+          metadata: {
+            ...n.metadata,
+            loadingState: 'loaded',
+            offset: entriesData.entries.length,
+            hasMore: entriesData.hasMore
+          }
+        }))
+      )
+    } catch (error) {
+      console.error(`Failed to load entries for ${catalogId}:`, error)
+
+      // Update to error state
+      setTreeData(prevTree =>
+        updateTreeNode(prevTree, node.id, n => ({
+          ...n,
+          label: '🔍 Browse Entries (Error)',
+          metadata: { ...n.metadata, loadingState: 'error' }
+        }))
+      )
+    }
+  }
+
+  /**
+   * Handle Load More click - load next page of entries
+   */
+  const handleLoadMore = async (node: TreeNodeType) => {
+    if (node.type !== 'catalog-browser' || !node.metadata?.catalogId || !node.metadata?.offset) {
+      return
+    }
+
+    const catalogId = node.metadata.catalogId
+    const offset = node.metadata.offset
+
+    try {
+      // Get catalog metadata first to retrieve correct version
+      const catalog = catalogs.find(c => c.catalogIdentifier === catalogId)
+
+      // Fetch next page with correct version
+      const entriesData = await fetchCatalogEntries(catalogId, {
+        version: catalog?.version,
+        limit: 20,
+        offset
+      })
+
+      // Get parent browse node to append entries
+      const findBrowseNode = (nodes: TreeNodeType[]): TreeNodeType | null => {
+        for (const n of nodes) {
+          if (n.id === `catalog-${catalogId}-browse`) {
+            return n
+          }
+          if (n.children) {
+            const found = findBrowseNode(n.children)
+            if (found) return found
+          }
+        }
+        return null
+      }
+
+      const browseNode = findBrowseNode(treeData)
+      if (!browseNode) return
+
+      // Build new entry nodes
+      const newEntryNodes: TreeNodeType[] = entriesData.entries.map(entry => ({
+        id: `catalog-${catalogId}-entry-${entry.id}`,
+        label: entry.displayName,
+        type: 'catalog-entry' as const,
+        icon: 'box',
+        description: `Entry ID: ${entry.id}`,
+        isExpanded: false,
+        metadata: {
+          catalogId,
+          entryId: entry.id
+        },
+        expressionTemplate: `{{$catalog.${catalogId}['${entry.id}']}}`,
+        children:
+          catalog?.fields.map(field => ({
+            id: `catalog-${catalogId}-entry-${entry.id}-field-${field.name}`,
+            label: `${field.label}: ${entry.data[field.name] ?? 'N/A'}`,
+            type: 'catalog-field' as const,
+            icon: 'hash',
+            dataType: field.type,
+            description: field.description,
+            expressionTemplate: `{{$catalog.${catalogId}['${entry.id}'].${field.name}}}`
+          })) || []
+      }))
+
+      // Update tree - remove old "Load More" button and add new entries + new button if needed
+      setTreeData(prevTree =>
+        updateTreeNode(prevTree, browseNode.id, n => {
+          const existingEntries = (n.children || []).filter((child: TreeNodeType) => child.type === 'catalog-entry')
+          const allEntries = [...existingEntries, ...newEntryNodes]
+
+          const children: TreeNodeType[] = [...allEntries]
+
+          // Add new "Load More" if there are more entries
+          if (entriesData.hasMore) {
+            children.push({
+              id: `catalog-${catalogId}-load-more`,
+              label: `📄 Load More (${entriesData.totalCount - (offset + entriesData.entries.length)} remaining)`,
+              type: 'catalog-browser' as const,
+              icon: 'folder-open',
+              description: 'Click to load more entries',
+              isExpanded: false,
+              metadata: {
+                catalogId,
+                offset: offset + entriesData.entries.length,
+                hasMore: entriesData.hasMore,
+                loadingState: 'idle'
+              },
+              children: []
+            })
+          }
+
+          return {
+            ...n,
+            children,
+            metadata: {
+              ...n.metadata,
+              offset: offset + entriesData.entries.length,
+              hasMore: entriesData.hasMore
+            }
+          }
+        })
+      )
+    } catch (error) {
+      console.error(`Failed to load more entries for ${catalogId}:`, error)
+    }
+  }
 
   /**
    * Insert expression at current cursor position
@@ -264,10 +539,38 @@ export const ExpressionBuilder: React.FC<ExpressionBuilderProps> = ({
   }
 
   const handleNodeSelect = (node: TreeNodeType) => {
-    if (node.type === 'field') {
-      // Build expression from path
+    // Handle catalog browser click - load entries
+    if (node.type === 'catalog-browser') {
+      if (node.metadata?.offset) {
+        // This is a "Load More" button
+        handleLoadMore(node)
+      } else if (node.metadata?.loadingState === 'idle') {
+        // Initial browse click
+        handleBrowseEntries(node)
+      }
+      return
+    }
+
+    // Handle catalog entry click - insert entry reference
+    if (node.type === 'catalog-entry' && node.expressionTemplate) {
+      insertAtCursor(node.expressionTemplate)
+      return
+    }
+
+    // Handle regular field selection
+    if (node.type === 'field' && node.path) {
+      // Build expression from path for workflow/steps fields
       const expression = pathToExpression(node.path)
       insertAtCursor(expression)
+    } else if (node.type === 'catalog-field' || node.type === 'catalog-container') {
+      // Use pre-built expression template for catalog fields
+      if (node.expressionTemplate) {
+        insertAtCursor(node.expressionTemplate)
+      } else if (node.expressionPath) {
+        // Fallback to expressionPath (wrap in braces if needed)
+        const expression = node.expressionPath.startsWith('{{') ? node.expressionPath : `{{${node.expressionPath}}}`
+        insertAtCursor(expression)
+      }
     }
   }
 
@@ -425,7 +728,12 @@ export const ExpressionBuilder: React.FC<ExpressionBuilderProps> = ({
             {mode === 'tree' ? (
               <div className="gba:grid gba:grid-cols-2 gba:gap-4" style={{ minHeight: '400px' }}>
                 {/* Left: Tree Navigator */}
-                <TreeNavigator nodes={treeData} onSelect={handleNodeSelect} data-testid={`${testId}-navigator`} />
+                <TreeNavigator
+                  nodes={treeData}
+                  onSelect={handleNodeSelect}
+                  isLoading={catalogsLoading}
+                  data-testid={`${testId}-navigator`}
+                />
 
                 {/* Right: Quick Actions */}
                 <QuickActions
@@ -599,8 +907,76 @@ export const ExpressionBuilder: React.FC<ExpressionBuilderProps> = ({
           </div>
         </div>
 
+        {/* Test Result Display */}
+        {testResult && (
+          <div className="nw:px-6 nw:pb-4">
+            <Alert variant={testResult.success ? 'default' : 'destructive'}>
+              <AlertTitle className="nw:flex nw:items-center nw:justify-between nw:text-sm">
+                <span className="nw:flex nw:items-center nw:gap-2">
+                  {testResult.success ? (
+                    <CheckCircle className="nw:h-4 nw:w-4" />
+                  ) : (
+                    <AlertCircle className="nw:h-4 nw:w-4" />
+                  )}
+                  Test Result
+                </span>
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  onClick={clearResult}
+                  className="nw:h-6 nw:px-2 nw:py-0"
+                  data-testid={`${testId}-test-result-close`}
+                >
+                  <X className="nw:h-3 nw:w-3" />
+                </Button>
+              </AlertTitle>
+              <AlertDescription className="nw:mt-2">
+                {testResult.success ? (
+                  <div className="nw:space-y-1">
+                    <div className="nw:flex nw:items-start nw:gap-2">
+                      <span className="nw:text-xs nw:text-muted-foreground nw:shrink-0">Resolved to:</span>
+                      <code className="nw:bg-muted nw:px-2 nw:py-1 nw:rounded nw:text-sm nw:flex-1 nw:break-all">
+                        {testResult.resolvedValue}
+                      </code>
+                    </div>
+                    <div className="nw:text-muted-foreground nw:text-xs nw:italic">
+                      Resolved in {testResult.resolvedIn} using sample data
+                    </div>
+                  </div>
+                ) : (
+                  <div className="nw:space-y-1">
+                    <div className="nw:text-sm nw:font-medium">Error</div>
+                    <div className="nw:text-sm">{testResult.error}</div>
+                  </div>
+                )}
+              </AlertDescription>
+            </Alert>
+          </div>
+        )}
+
         {/* Sticky Footer */}
         <DialogFooter className="nw:flex-shrink-0 nw:border-t nw:pt-4">
+          <div className="nw:flex nw:items-center nw:gap-2 nw:mr-auto">
+            <Button
+              variant="outline"
+              onClick={() => testExpression(localValue)}
+              disabled={isTesting || !localValue.trim() || !localValue.includes('{{')}
+              className="nw:gap-2"
+              data-testid={`${testId}-test`}
+            >
+              {isTesting ? (
+                <>
+                  <Loader2 className="nw:h-3 nw:w-3 nw:animate-spin" />
+                  <span>Testing...</span>
+                </>
+              ) : (
+                <>
+                  <TestTube2 className="nw:h-4 nw:w-4" />
+                  <span>Test Expression</span>
+                </>
+              )}
+            </Button>
+          </div>
           <Button variant="outline" onClick={handleClear} data-testid={`${testId}-clear`}>
             Clear
           </Button>

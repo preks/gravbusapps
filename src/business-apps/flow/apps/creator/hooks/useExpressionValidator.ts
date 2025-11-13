@@ -2,128 +2,128 @@ import { useState, useCallback } from 'react'
 import { FlowTemplate } from '../types/flowTemplate'
 import { env } from '@/common/env/EnvUtils'
 
-interface ValidationResult {
+export interface ValidationResult {
   isValid: boolean
-  errors: string[]
-  warnings: string[]
-  expressionCount: number
+  message?: string
+  details?: string[]
 }
 
 /**
- * Hook for validating JSONPath expressions in templates
- * Calls the custom-flow-engine validation endpoint
+ * Hook for validating expressions against custom-flow-engine backend
  */
-export const useExpressionValidator = (accessToken?: string) => {
-  const [isValidating, setIsValidating] = useState(false)
-  const [lastValidation, setLastValidation] = useState<ValidationResult | null>(null)
+export const useExpressionValidator = (template: FlowTemplate, stepIndex: number) => {
+  const [validationCache, setValidationCache] = useState<Map<string, ValidationResult>>(new Map())
 
-  const validateTemplate = useCallback(
-    async (template: FlowTemplate): Promise<ValidationResult> => {
-      setIsValidating(true)
-
-      try {
-        // Get API URL from environment or default
-        const apiUrl = env('NEXT_PUBLIC_CUSTOM_FLOW_ENGINE_API_URL') || 'http://localhost:3000'
-
-        const response = await fetch(`${apiUrl}/api/templates/validate-expressions`, {
-          method: 'POST',
-          headers: {
-            'Content-Type': 'application/json',
-            ...(accessToken ? { Authorization: `Bearer ${accessToken}` } : {})
-          },
-          body: JSON.stringify({ template })
-        })
-
-        if (!response.ok) {
-          throw new Error(`Validation failed: ${response.statusText}`)
-        }
-
-        const result: ValidationResult = await response.json()
-        setLastValidation(result)
-        return result
-      } catch (error) {
-        console.error('Expression validation error:', error)
-
-        // Return error result
-        const errorResult: ValidationResult = {
-          isValid: false,
-          errors: [error instanceof Error ? error.message : 'Validation failed'],
-          warnings: [],
-          expressionCount: 0
-        }
-        setLastValidation(errorResult)
-        return errorResult
-      } finally {
-        setIsValidating(false)
-      }
-    },
-    [accessToken]
-  )
-
+  /**
+   * Validate expression using backend API
+   */
   const validateExpression = useCallback(
-    async (expression: string, template: FlowTemplate): Promise<{ isValid: boolean; message?: string }> => {
-      // Basic client-side validation for single expression
+    async (expression: string): Promise<ValidationResult> => {
+      // Check cache first
+      if (validationCache.has(expression)) {
+        return validationCache.get(expression)!
+      }
+
+      // Empty expressions are valid
       if (!expression.trim()) {
         return { isValid: true }
       }
 
-      const expressionRegex = /\{\{(.+?)\}\}/g
-      const matches = expression.match(expressionRegex)
-
-      if (!matches) {
-        return { isValid: true } // No expressions found
+      // Client-side basic validation
+      const clientValidation = validateExpressionClient(expression)
+      if (!clientValidation.isValid) {
+        return clientValidation
       }
 
-      // Check for basic syntax errors
-      for (const match of matches) {
-        const expr = match.slice(2, -2).trim()
+      try {
+        // Call backend validation API
+        const apiUrl = env('NEXT_PUBLIC_CUSTOM_FLOW_ENGINE_API_URL') || 'http://localhost:8081'
+        const response = await fetch(`${apiUrl}/api/templates/validate-expressions`, {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json'
+          },
+          body: JSON.stringify({
+            template,
+            expressions: [expression],
+            currentStepIndex: stepIndex
+          })
+        })
 
-        // Check for valid prefixes
-        if (
-          !expr.startsWith('$workflow') &&
-          !expr.startsWith('$steps') &&
-          !expr.startsWith('$catalog') &&
-          !expr.startsWith('$entity') &&
-          !expr.startsWith('$fn')
-        ) {
+        if (!response.ok) {
           return {
             isValid: false,
-            message: 'Expression must start with $workflow, $steps, $catalog, $entity, or $fn'
+            message: 'Failed to validate expression'
           }
         }
 
-        // Check for unclosed brackets
-        const openCount = (match.match(/\{/g) || []).length
-        const closeCount = (match.match(/\}/g) || []).length
-        if (openCount !== closeCount) {
-          return {
-            isValid: false,
-            message: 'Unclosed brackets in expression'
-          }
-        }
+        const result = await response.json()
+        const validation = result.results?.[0] || { isValid: true }
 
-        // Check step references
-        const stepMatch = expr.match(/\$steps\.step_(\d+)/)
-        if (stepMatch) {
-          const stepIndex = parseInt(stepMatch[1])
-          if (stepIndex >= template.steps.length) {
-            return {
-              isValid: false,
-              message: `Step ${stepIndex} does not exist (only ${template.steps.length} steps)`
-            }
-          }
-        }
+        // Cache result
+        setValidationCache(prev => new Map(prev).set(expression, validation))
+
+        return validation
+      } catch (error) {
+        console.error('Expression validation error:', error)
+        // Fallback to client-side validation
+        return clientValidation
       }
-
-      return { isValid: true }
     },
-    []
+    [template, stepIndex, validationCache]
   )
 
+  /**
+   * Clear validation cache
+   */
+  const clearCache = useCallback(() => {
+    setValidationCache(new Map())
+  }, [])
+
   return {
-    validateTemplate,
     validateExpression,
-    isValidating,
-    lastValidation
+    clearCache
   }
+}
+
+/**
+ * Client-side expression validation (syntax check only)
+ */
+const validateExpressionClient = (expression: string): ValidationResult => {
+  // Check for balanced braces
+  const openBraces = (expression.match(/\{\{/g) || []).length
+  const closeBraces = (expression.match(/\}\}/g) || []).length
+
+  if (openBraces !== closeBraces) {
+    return {
+      isValid: false,
+      message: 'Unbalanced expression braces'
+    }
+  }
+
+  // Extract expressions
+  const expressionRegex = /\{\{([^}]+)\}\}/g
+  const matches = Array.from(expression.matchAll(expressionRegex))
+
+  for (const match of matches) {
+    const expr = match[1].trim()
+
+    // Check for valid prefixes
+    if (!expr.startsWith('$workflow.') && !expr.startsWith('$steps.') && !expr.startsWith('$catalog.')) {
+      return {
+        isValid: false,
+        message: `Invalid expression prefix: ${expr}. Must start with $workflow, $steps, or $catalog`
+      }
+    }
+
+    // Check for empty expressions
+    if (expr === '$workflow' || expr === '$steps' || expr === '$catalog') {
+      return {
+        isValid: false,
+        message: 'Incomplete expression. Specify a field after the prefix.'
+      }
+    }
+  }
+
+  return { isValid: true }
 }
