@@ -18,57 +18,38 @@ const OpportunityStageTooltipContent: React.FC<{
   })
 
   return (
-    <div style={{ maxWidth: '280px', padding: '4px 0' }}>
-      <div
-        style={{
-          fontSize: '13px',
-          fontWeight: '600',
-          marginBottom: '8px',
-          borderBottom: '1px solid #4b5563',
-          paddingBottom: '6px'
-        }}
-        className="gba:text-background"
-      >
+    <div className="gba:max-w-[280px] gba:py-1">
+      <div className="gba:text-popover-foreground gba:text-sm gba:font-semibold gba:mb-2 gba:pb-1.5 gba:border-b gba:border-border">
         {stage.value} Stage Conditions
       </div>
-      <div style={{ maxHeight: '150px', overflowY: 'auto' }}>
+      <div className="gba:max-h-[150px] gba:overflow-y-auto">
         {sortedConditions.length > 0 ? (
           sortedConditions.map(condition => (
-            <div
-              key={condition.id}
-              style={{
-                display: 'flex',
-                alignItems: 'flex-start',
-                gap: '8px',
-                padding: '4px 0',
-                fontSize: '12px'
-              }}
-            >
+            <div key={condition.id} className="gba:flex gba:items-start gba:gap-2 gba:py-1 gba:text-xs">
               {condition.isCompleted ? (
                 <CheckCircleFilled
-                  className="gba:text-success gba:text-xs"
-                  style={{ marginTop: '2px', flexShrink: 0 }}
+                  className="gba:text-success"
+                  style={{ fontSize: '12px', marginTop: '2px', flexShrink: 0 }}
                 />
               ) : (
-                <CloseCircleFilled className="gba:text-muted gba:text-xs" style={{ marginTop: '2px', flexShrink: 0 }} />
+                <CloseCircleFilled
+                  className="gba:text-muted-foreground"
+                  style={{ fontSize: '12px', marginTop: '2px', flexShrink: 0 }}
+                />
               )}
-              <div style={{ flex: 1 }}>
+              <div className="gba:flex-1">
                 <div
-                  className={condition.isCompleted ? 'gba:text-success' : 'gba:text-muted'}
-                  style={{
-                    fontWeight: '500',
-                    lineHeight: '1.3'
-                  }}
+                  className={
+                    condition.isCompleted
+                      ? 'gba:text-success gba:font-medium'
+                      : 'gba:text-popover-foreground gba:font-medium'
+                  }
+                  style={{ lineHeight: '1.3' }}
                 >
                   {condition.title}
                 </div>
                 {condition.isCompleted && condition.completedBy && (
-                  <div
-                    className="gba:text-xs gba:text-muted"
-                    style={{
-                      marginTop: '2px'
-                    }}
-                  >
+                  <div className="gba:text-muted-foreground gba:text-[10px] gba:mt-0.5">
                     Completed by: {condition.completedBy}
                   </div>
                 )}
@@ -76,26 +57,13 @@ const OpportunityStageTooltipContent: React.FC<{
             </div>
           ))
         ) : (
-          <div
-            className="gba:text-muted gba:text-xs gba:italic"
-            style={{
-              textAlign: 'center',
-              padding: '8px 0'
-            }}
-          >
+          <div className="gba:text-muted-foreground gba:text-xs gba:italic gba:text-center gba:py-2">
             No conditions configured for this stage
           </div>
         )}
       </div>
       {conditions.length > 0 && (
-        <div
-          className="gba:text-xs gba:text-muted gba:italic"
-          style={{
-            marginTop: '8px',
-            paddingTop: '6px',
-            borderTop: '1px solid #4b5563'
-          }}
-        >
+        <div className="gba:text-muted-foreground gba:text-[10px] gba:mt-2 gba:pt-1.5 gba:border-t gba:border-border gba:italic">
           Click stage to change • {conditions.filter(c => c.isCompleted).length}/{conditions.length} completed
         </div>
       )}
@@ -274,18 +242,15 @@ export const OpportunityStageProgression: React.FC<OpportunityStageProgressionPr
 
           return (
             <div
+              className="gba:bg-popover gba:text-popover-foreground gba:rounded-md gba:p-3 gba:shadow-lg gba:border gba:border-border"
               style={{
                 position: 'fixed',
                 left: tooltipPosition.x,
                 top: tooltipPosition.y,
-                width: tooltipPosition.width, // Match stage width exactly
+                width: tooltipPosition.width,
                 zIndex: 1050,
-                borderRadius: '6px',
-                padding: '4px',
-                boxShadow: '0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06)',
                 pointerEvents: 'none'
               }}
-              className="gba:bg-foreground gba:text-background"
             >
               <OpportunityStageTooltipContent stage={hoveredStage} conditions={conditions} />
             </div>

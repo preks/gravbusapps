@@ -12,17 +12,17 @@ export const StageProgression: React.FC<StageProgressionProps> = ({
   children,
   dataTestIdPrefix = 'stage-progression'
 }) => {
-  // Default styling with proper type safety
+  // Default styling with design system tokens
   const defaultColors = {
-    completed: '#4CAF50',
+    completed: 'var(--nw-color-success)',
     current: {
       border: 'linear-gradient(135deg, rgba(76, 175, 80, 0.8), rgba(102, 187, 106, 0.6))',
-      background: '#ffffff',
-      text: '#333333'
+      background: 'var(--nw-color-background)',
+      text: 'var(--nw-color-foreground)'
     },
     pending: {
-      background: '#9CA3AF', // Darker gray background for better visibility
-      text: '#FFFFFF' // White text for better contrast
+      background: 'var(--nw-color-muted)',
+      text: 'var(--nw-color-muted-foreground)'
     }
   }
 
