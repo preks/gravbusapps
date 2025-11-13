@@ -293,6 +293,16 @@ export interface InvestmentContactQueryResponse {
   }
 }
 
+// Enhanced response with mapped contacts
+export interface EnhancedInvestmentContactQueryResponse {
+  InvestmentContact: InvestmentContact[]
+  InvestmentContactAggregate: {
+    aggregate: {
+      count: number
+    }
+  }
+}
+
 export interface InvestmentContactByIdData {
   contact?: InvestmentContact
 }
@@ -320,12 +330,16 @@ export interface UseGetInvestmentContactsOptions {
 
 // Return type for function-only mode (backward compatible)
 interface FunctionOnlyReturn {
-  fetchInvestmentContacts: (variables?: InvestmentContactQueryVariables) => Promise<InvestmentContactQueryResponse>
+  fetchInvestmentContacts: (
+    variables?: InvestmentContactQueryVariables
+  ) => Promise<EnhancedInvestmentContactQueryResponse>
 }
 
 // Return type for stateful mode
 interface StatefulReturn {
-  fetchInvestmentContacts: (variables?: InvestmentContactQueryVariables) => Promise<InvestmentContactQueryResponse>
+  fetchInvestmentContacts: (
+    variables?: InvestmentContactQueryVariables
+  ) => Promise<EnhancedInvestmentContactQueryResponse>
   options: SelectOption[] | InvestmentContact[]
   loading: boolean
   error: string | null
