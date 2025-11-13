@@ -384,25 +384,29 @@ const EmployeeRecordContent: React.FC<EmployeeRecordContentProps> = ({
           />
         )
       },
-      {
-        key: TAB_KEYS.assets,
-        label: (
-          <div className="gba:flex gba:items-center gba:gap-2">
-            <PiPackage className="gba:text-xl gba:inline-block gba:align-middle" />
-            <span className="gba:inline-block gba:align-middle">
-              {getTranslationFromI18nKeyAndLabel('lowcoder:hr_assets.assets', 'Assets')}
-            </span>
-          </div>
-        ),
-        children: (
-          <AssetsTab
-            employee={employee}
-            accessToken={accessToken}
-            employeeId={employeeIdToShow}
-            isSelfView={isSelfView}
-          />
-        )
-      },
+      ...(devFeatureFlag
+        ? [
+            {
+              key: TAB_KEYS.assets,
+              label: (
+                <div className="gba:flex gba:items-center gba:gap-2">
+                  <PiPackage className="gba:text-xl gba:inline-block gba:align-middle" />
+                  <span className="gba:inline-block gba:align-middle">
+                    {getTranslationFromI18nKeyAndLabel('lowcoder:hr_assets.assets', 'Assets')}
+                  </span>
+                </div>
+              ),
+              children: (
+                <AssetsTab
+                  employee={employee}
+                  accessToken={accessToken}
+                  employeeId={employeeIdToShow}
+                  isSelfView={isSelfView}
+                />
+              )
+            }
+          ]
+        : []),
       {
         key: TAB_KEYS.serviceRequests,
         label: (
