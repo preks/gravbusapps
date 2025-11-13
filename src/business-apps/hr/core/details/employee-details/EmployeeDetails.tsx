@@ -20,7 +20,7 @@ import {
   PiEnvelopeSimple
 } from 'react-icons/pi'
 import { useEmployeeDetailsData } from './hooks/useEmployeeDetailsData'
-import { getCatalogValue } from '@/common/utils/windowUtils'
+import { getCatalogValue, getCurrentActiveUserLocale } from '@/common/utils/windowUtils'
 import { useTranslation } from '@newwork/nw-design-system'
 import employeeDetailsTranslations from './_i18n'
 import { MatrixUnitEmployee, EmployeeCapability, EmployeeSkill } from './types'
@@ -204,6 +204,18 @@ export const EmployeeDetails: React.FC<EmployeeDetailsProps> = context => {
     }
 
     return result
+  }
+
+  const formatDateLocalized = (isoDate: string) => {
+    const locale = getCurrentActiveUserLocale?.() || 'en-US'
+    try {
+      return new Intl.DateTimeFormat(locale, { month: 'short', day: 'numeric', year: 'numeric' }).format(
+        new Date(isoDate)
+      )
+    } catch {
+      // Fallback to dayjs if Intl fails for any reason
+      return dayjs(isoDate).format('MMM D, YYYY')
+    }
   }
 
   // Error state (only when there's an actual error and not loading)
@@ -434,7 +446,7 @@ export const EmployeeDetails: React.FC<EmployeeDetailsProps> = context => {
                 label={t('employee-details-hire-date')}
                 value={
                   employeeData.workingCondition?.[0]?.hireDate
-                    ? `${dayjs(employeeData.workingCondition[0].hireDate).format('MMM D, YYYY')} - ${calculateTimeSince()}`
+                    ? `${formatDateLocalized(employeeData.workingCondition[0].hireDate)} - ${calculateTimeSince()}`
                     : t('employee-details-not-available')
                 }
               />
