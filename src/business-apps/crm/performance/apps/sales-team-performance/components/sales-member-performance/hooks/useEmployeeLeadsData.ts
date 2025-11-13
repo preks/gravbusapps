@@ -1,6 +1,6 @@
 import { useState, useCallback } from 'react'
 import { BusinessAppContextProps } from '@/common/BusinessAppContext'
-import { Lead } from '@/business-apps/crm/core/apps/customer-relations/views/lead-view/types'
+import { Lead } from '@/common/data/relations/types/leadTypes'
 import { useEmployeeLeadsQueries, EmployeeLeadsQueryVariables } from '../queries/EmployeeLeadsQueries'
 import { enforceQueryLimit } from '@/business-apps/crm/common/utils/queryLimits'
 

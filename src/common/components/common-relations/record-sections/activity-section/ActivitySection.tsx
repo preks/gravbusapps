@@ -17,6 +17,7 @@ import { getTranslationFromI18nKeyAndLabel } from '@/common/utils/windowUtils'
 import { navigateTo, buildPlatformUrl } from '@/common/utils/navigationUtils'
 import { buildFileUrl, getFileIcon } from '@/common/utils/fileUtils'
 import { FileInfo } from '@/common/types/FileTypes'
+import type { Activity } from '@/common/data/relations/types/activityTypes'
 
 export type ActivityDocument = {
   id: string
@@ -51,7 +52,7 @@ export type ActivityItem = {
 }
 
 export interface ActivitySectionProps extends BusinessAppContextProps {
-  activities?: ActivityItem[]
+  activities?: Activity[]
   activitiesLoading?: boolean
   activitiesError?: string | null
   onReloadActivities?: () => void
@@ -74,18 +75,21 @@ const ActivitySection: React.FC<ActivitySectionProps> = props => {
     alignment = 'left'
   } = props
 
-  // Process activities
+  // Process activities - map from Activity to ActivityItem
   const processedActivities = useMemo(() => {
     if (!rawActivities || rawActivities.length === 0) return []
 
-    return rawActivities.map((activity: any) => ({
+    return rawActivities.map((activity: Activity) => ({
       id: activity.id,
       title: activity.title || 'Untitled Activity',
       description: activity.description || '',
       occurredAt: activity.occurredAt || activity.createdAt,
       createdAt: activity.createdAt,
       ownerEmployee: activity.ownerEmployee,
-      createdBy: activity.createdBy,
+      createdBy: activity.ownerEmployee
+        ? `${activity.ownerEmployee.firstName || ''} ${activity.ownerEmployee.lastName || ''}`.trim() ||
+          activity.ownerEmployee.displayName
+        : undefined,
       activityType: activity.activityType,
       documents: activity.documents || []
     }))

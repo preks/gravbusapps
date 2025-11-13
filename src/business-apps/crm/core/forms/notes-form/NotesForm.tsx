@@ -118,6 +118,12 @@ const NotesForm: React.FC<NotesFormProps> = ({ accessToken, userInfo, additional
                 firstName
                 lastName
               }
+              documents {
+                id
+                name
+                version
+                fileInfo
+              }
               opportunity {
                 id
                 name
@@ -149,7 +155,12 @@ const NotesForm: React.FC<NotesFormProps> = ({ accessToken, userInfo, additional
           title: note.noteTitle || '',
           text: note.noteText || '',
           reminderDate: note.reminderDate || undefined,
-          documents: [],
+          documents: (note.documents || []).map((doc: any) => ({
+            id: doc.id,
+            name: doc.name || '',
+            version: doc.version,
+            fileInfo: doc.fileInfo
+          })),
           _pendingFiles: [],
           account: note.account,
           contact: note.contact,

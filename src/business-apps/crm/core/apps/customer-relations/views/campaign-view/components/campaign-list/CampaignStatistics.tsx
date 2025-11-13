@@ -23,25 +23,10 @@ const CampaignStatistics: React.FC<CampaignStatisticsProps> = ({
     return `${days} days`
   }
 
-  // Mock trend data (in a real app, this would come from historical data)
-  const getTrendData = (currentValue: number, metric: string) => {
-    // Simulate trend data - in reality, this would be calculated from historical data
-    const mockPreviousValues = {
-      totalCampaigns: Math.max(0, currentValue - Math.floor(Math.random() * 5)),
-      activeCampaigns: Math.max(0, currentValue - Math.floor(Math.random() * 3)),
-      completedCampaigns: Math.max(0, currentValue - Math.floor(Math.random() * 4)),
-      averageDuration: Math.max(0, currentValue - Math.floor(Math.random() * 10))
-    }
-
-    const previousValue = mockPreviousValues[metric as keyof typeof mockPreviousValues] || 0
-    const change = currentValue - previousValue
-    const changePercent = previousValue > 0 ? (change / previousValue) * 100 : 0
-
-    return {
-      value: `${change > 0 ? '+' : ''}${changePercent.toFixed(1)}%`,
-      positive: change > 0,
-      description: `vs last period`
-    }
+  // Helper function to format trend percentage with proper sign
+  const formatTrendPercent = (changePercent: number): string => {
+    const sign = changePercent >= 0 ? '+' : ''
+    return `${sign}${changePercent.toFixed(1)}%`
   }
 
   // Transform stats data into widgets format
@@ -49,43 +34,59 @@ const CampaignStatistics: React.FC<CampaignStatisticsProps> = ({
     {
       key: 'total-campaigns',
       title: 'Total Campaigns',
-      value: statistics.totalCampaigns,
+      value: statistics.totalCampaigns.current,
       prefix: <ChartBar />,
       color: '#1890ff',
       span: { xs: 24, sm: 12, lg: 6 },
-      description: 'All campaigns in the system',
-      trend: getTrendData(statistics.totalCampaigns, 'totalCampaigns')
+      description: 'Created this year',
+      trend: {
+        value: formatTrendPercent(statistics.totalCampaigns.changePercent),
+        positive: statistics.totalCampaigns.isPositive,
+        description: 'vs last year'
+      }
     },
     {
       key: 'active-campaigns',
       title: 'Active Campaigns',
-      value: statistics.activeCampaigns,
+      value: statistics.activeCampaigns.current,
       prefix: <Play />,
       color: '#52c41a',
       span: { xs: 24, sm: 12, lg: 6 },
       description: 'Currently running campaigns',
-      trend: getTrendData(statistics.activeCampaigns, 'activeCampaigns')
+      trend: {
+        value: formatTrendPercent(statistics.activeCampaigns.changePercent),
+        positive: statistics.activeCampaigns.isPositive,
+        description: 'vs same time last year'
+      }
     },
     {
       key: 'completed-campaigns',
       title: 'Completed Campaigns',
-      value: statistics.completedCampaigns,
+      value: statistics.completedCampaigns.current,
       prefix: <CheckCircle />,
       color: '#722ed1',
       span: { xs: 24, sm: 12, lg: 6 },
-      description: 'Successfully finished campaigns',
-      trend: getTrendData(statistics.completedCampaigns, 'completedCampaigns')
+      description: 'Finished this year',
+      trend: {
+        value: formatTrendPercent(statistics.completedCampaigns.changePercent),
+        positive: statistics.completedCampaigns.isPositive,
+        description: 'vs last year'
+      }
     },
     {
       key: 'average-duration',
       title: 'Average Duration',
-      value: formatDuration(statistics.averageDuration),
+      value: formatDuration(statistics.averageDuration.current),
       valueIsString: true,
       prefix: <Clock />,
       color: '#fa8c16',
       span: { xs: 24, sm: 12, lg: 6 },
-      description: 'Average campaign duration in days',
-      trend: getTrendData(statistics.averageDuration, 'averageDuration')
+      description: 'Average campaign duration',
+      trend: {
+        value: formatTrendPercent(statistics.averageDuration.changePercent),
+        positive: statistics.averageDuration.isPositive,
+        description: 'vs last year'
+      }
     }
   ]
 

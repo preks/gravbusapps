@@ -9,7 +9,10 @@ export * from './investmentContactMappers'
 export * from './investmentLeadMappers'
 export * from './investmentOpportunityMappers'
 
-// Investment Related Entity Mappers (Tasks, Activities, Notes, Documents)
+// Investment Task Mappers
+export * from './investmentTaskMappers'
+
+// Investment Related Entity Mappers (Activities, Notes, Documents)
 export * from './investmentRelatedEntityMappers'
 
 // Investment Report Mappers

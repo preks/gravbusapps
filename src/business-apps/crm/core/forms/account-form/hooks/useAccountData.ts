@@ -2,6 +2,7 @@ import { useState, useEffect, useCallback } from 'react'
 import { BusinessAppContextProps } from '@/common/BusinessAppContext'
 import { AccountFormValues, Address } from '../types'
 import { useGetAccountData, AccountDataResponse } from '../queries/AccountQueries'
+import { getEmailChannel, getPhoneChannel } from '@/common/data/common/utils/communicationChannelHelpers'
 
 // Map account data from API to form values
 export const mapAccountToFormValues = (accountData: AccountDataResponse): Partial<AccountFormValues> => {
@@ -63,9 +64,9 @@ export const mapAccountToFormValues = (accountData: AccountDataResponse): Partia
     // Campaign Information
     salesCampaignId: account.salesCampaignId || account.salesCampaign?.id || '',
 
-    // Contact Information
-    phone: account.phone || '',
-    email: account.email || '',
+    // Contact Information - Extract from communication channels
+    email: getEmailChannel((account as any).communicationChannels)?.value || account.email || '', // Fallback to deprecated field for backward compatibility
+    phone: getPhoneChannel((account as any).communicationChannels)?.value || account.phone || '', // Fallback to deprecated field for backward compatibility
 
     // Dynamic Addresses (for backend payload)
     addresses: addresses,
