@@ -20,6 +20,9 @@ import {
   PiEnvelopeSimple
 } from 'react-icons/pi'
 import { useEmployeeDetailsData } from './hooks/useEmployeeDetailsData'
+import { getCatalogValue } from '@/common/utils/windowUtils'
+import { useTranslation } from '@newwork/nw-design-system'
+import employeeDetailsTranslations from './_i18n'
 import { MatrixUnitEmployee, EmployeeCapability, EmployeeSkill } from './types'
 
 export interface EmployeeDetailsProps extends BusinessAppContextProps {
@@ -95,6 +98,7 @@ const ProfileInfoItem: React.FC<ProfileInfoItemProps> = ({ icon, label, value, l
  */
 export const EmployeeDetails: React.FC<EmployeeDetailsProps> = context => {
   const { employeeId, accessToken, employeeData: propEmployeeData } = context
+  const { t } = useTranslation(employeeDetailsTranslations)
 
   // Only fetch data if not provided as prop
   const {
@@ -135,8 +139,12 @@ export const EmployeeDetails: React.FC<EmployeeDetailsProps> = context => {
   // Helper functions
   const getManagerName = () => {
     const supervisor = employeeData?.employeePosition?.supervisor
-    if (!supervisor || supervisor.id === employeeData?.id) return 'No manager'
-    return supervisor.displayName || `${supervisor.firstName} ${supervisor.lastName}`.trim() || 'Not assigned'
+    if (!supervisor || supervisor.id === employeeData?.id) return t('employee-details-no-manager')
+    return (
+      supervisor.displayName ||
+      `${supervisor.firstName} ${supervisor.lastName}`.trim() ||
+      t('employee-details-not-assigned')
+    )
   }
 
   const extractWorkEmail = (communications: any[] | null | undefined): string | undefined => {
@@ -187,12 +195,12 @@ export const EmployeeDetails: React.FC<EmployeeDetailsProps> = context => {
     let result = ''
 
     if (years > 0) {
-      result += `${years} ${years === 1 ? 'year' : 'years'}`
+      result += `${years} ${years === 1 ? t('employee-details-year') : t('employee-details-years')}`
     }
 
     if (months > 0 || years === 0) {
       if (years > 0) result += ' '
-      result += `${months} ${months === 1 ? 'month' : 'months'}`
+      result += `${months} ${months === 1 ? t('employee-details-month') : t('employee-details-months')}`
     }
 
     return result
@@ -203,13 +211,13 @@ export const EmployeeDetails: React.FC<EmployeeDetailsProps> = context => {
     return (
       <div className="gba:bg-white gba:h-full gba:p-6">
         <Alert
-          message="Error Loading Employee Details"
+          message={t('employee-details-error-loading')}
           description={error}
           type="error"
           showIcon
           action={
             <Button size="small" onClick={refetch}>
-              Retry
+              {t('employee-details-retry')}
             </Button>
           }
         />
@@ -226,7 +234,7 @@ export const EmployeeDetails: React.FC<EmployeeDetailsProps> = context => {
   if (propEmployeeData && !employeeData) {
     return (
       <div className="gba:bg-white gba:h-full gba:p-6">
-        <div className="gba:text-center gba:text-muted-foreground">Employee data not available</div>
+        <div className="gba:text-center gba:text-muted-foreground">{t('employee-details-not-available')}</div>
       </div>
     )
   }
@@ -254,7 +262,7 @@ export const EmployeeDetails: React.FC<EmployeeDetailsProps> = context => {
               prefixDataTestId="employee-details-action"
               accessToken={accessToken}
             >
-              Actions
+              {t('employee-details-actions')}
             </AppActionButton>
           </div>
         )}
@@ -293,7 +301,7 @@ export const EmployeeDetails: React.FC<EmployeeDetailsProps> = context => {
               </div>
             </a>
             <p className="gba:text-muted-foreground gba:text-sm gba:text-center gba:mb-3">
-              {employeeData.employeePosition?.jobPosition?.name || 'Not assigned'}
+              {employeeData.employeePosition?.jobPosition?.name || t('employee-details-not-assigned')}
             </p>
 
             {/* Chat actions directly under the name */}
@@ -331,7 +339,9 @@ export const EmployeeDetails: React.FC<EmployeeDetailsProps> = context => {
           <div className="gba:border-t gba:border-border gba:pt-4">
             {/* Contact Information */}
             <div className="gba:mb-6">
-              <h4 className="gba:text-sm gba:font-medium gba:text-muted-foreground gba:mb-4">Contact Information</h4>
+              <h4 className="gba:text-sm gba:font-medium gba:text-muted-foreground gba:mb-4">
+                {t('employee-details-contact-information')}
+              </h4>
               <div className="gba:space-y-2">
                 {getBusinessEmail() ? (
                   <a
@@ -344,7 +354,7 @@ export const EmployeeDetails: React.FC<EmployeeDetailsProps> = context => {
                 ) : (
                   <div className="gba:inline-flex gba:items-center gba:text-muted-foreground gba:text-sm">
                     <PiEnvelopeSimple className="gba:mr-2 gba:h-4 gba:w-4" />
-                    No email available
+                    {t('employee-details-no-email')}
                   </div>
                 )}
 
@@ -359,20 +369,22 @@ export const EmployeeDetails: React.FC<EmployeeDetailsProps> = context => {
                 ) : (
                   <div className="gba:inline-flex gba:items-center gba:text-muted-foreground gba:text-sm">
                     <PiPhone className="gba:mr-2 gba:h-4 gba:w-4" />
-                    No phone available
+                    {t('employee-details-no-phone')}
                   </div>
                 )}
               </div>
             </div>
 
-            <h4 className="gba:text-sm gba:font-medium gba:text-muted-foreground gba:mb-4">Profile Information</h4>
+            <h4 className="gba:text-sm gba:font-medium gba:text-muted-foreground gba:mb-4">
+              {t('employee-details-profile-information')}
+            </h4>
 
             <div className="gba:space-y-1">
               {/* Organization */}
               <ProfileInfoItem
                 icon={<PiBuildings className="gba:h-4 gba:w-4" />}
-                label="Organization"
-                value={employeeData.employeePosition?.organizationalUnit?.name || 'Not assigned'}
+                label={t('employee-details-organization')}
+                value={employeeData.employeePosition?.organizationalUnit?.name || t('employee-details-not-assigned')}
                 linkTo={
                   employeeData.employeePosition?.organizationalUnitId
                     ? `/orgchart/active/organization?organizationUnitId=${employeeData.employeePosition.organizationalUnitId}`
@@ -383,7 +395,7 @@ export const EmployeeDetails: React.FC<EmployeeDetailsProps> = context => {
               {/* Manager */}
               <ProfileInfoItem
                 icon={<PiUser className="gba:h-4 gba:w-4" />}
-                label="Manager"
+                label={t('employee-details-manager')}
                 value={getManagerName()}
                 onClick={
                   employeeData.employeePosition?.supervisor?.id &&
@@ -400,15 +412,15 @@ export const EmployeeDetails: React.FC<EmployeeDetailsProps> = context => {
               {/* Job Position */}
               <ProfileInfoItem
                 icon={<PiMapPin className="gba:h-4 gba:w-4" />}
-                label="Job Position"
-                value={employeeData.employeePosition?.jobPosition?.name || 'Not assigned'}
+                label={t('employee-details-job-position')}
+                value={employeeData.employeePosition?.jobPosition?.name || t('employee-details-not-assigned')}
               />
 
               {/* Cost Center */}
               <ProfileInfoItem
                 icon={<PiCurrencyDollar className="gba:h-4 gba:w-4" />}
-                label="Cost Center"
-                value={employeeData.employeePosition?.costCenter?.name || 'Not assigned'}
+                label={t('employee-details-cost-center')}
+                value={employeeData.employeePosition?.costCenter?.name || t('employee-details-not-assigned')}
                 linkTo={
                   employeeData.employeePosition?.costCenter?.id
                     ? `/orgchart/active/finance?costCenterDataId=${employeeData.employeePosition.costCenter.id}`
@@ -419,32 +431,40 @@ export const EmployeeDetails: React.FC<EmployeeDetailsProps> = context => {
               {/* Hire Date */}
               <ProfileInfoItem
                 icon={<PiCalendar className="gba:h-4 gba:w-4" />}
-                label="Hire Date"
+                label={t('employee-details-hire-date')}
                 value={
                   employeeData.workingCondition?.[0]?.hireDate
                     ? `${dayjs(employeeData.workingCondition[0].hireDate).format('MMM D, YYYY')} - ${calculateTimeSince()}`
-                    : 'Not available'
+                    : t('employee-details-not-available')
                 }
               />
 
               {/* Employment Type */}
               <ProfileInfoItem
                 icon={<PiUser className="gba:h-4 gba:w-4" />}
-                label="Employment Type"
-                value={employeeData.workingCondition?.[0]?.employmentType?.value || 'Not specified'}
+                label={t('employee-details-employment-type')}
+                value={
+                  getCatalogValue(employeeData.workingCondition?.[0]?.employmentType) ||
+                  t('employee-details-not-specified')
+                }
               />
 
               {/* Contract Type */}
               <ProfileInfoItem
                 icon={<PiUser className="gba:h-4 gba:w-4" />}
-                label="Contract Type"
-                value={employeeData.workingCondition?.[0]?.contractType?.value || 'Not specified'}
+                label={t('employee-details-contract-type')}
+                value={
+                  getCatalogValue(employeeData.workingCondition?.[0]?.contractType) ||
+                  t('employee-details-not-specified')
+                }
               />
             </div>
 
             {/* Teams Section */}
             <div className="gba:mt-6">
-              <h4 className="gba:text-sm gba:font-medium gba:text-muted-foreground gba:mb-2">Teams</h4>
+              <h4 className="gba:text-sm gba:font-medium gba:text-muted-foreground gba:mb-2">
+                {t('employee-details-teams')}
+              </h4>
               <div className="gba:flex gba:flex-wrap gba:gap-2">
                 {employeeData.employeePosition?.matrixUnitEmployees &&
                 Array.isArray(employeeData.employeePosition.matrixUnitEmployees) &&
@@ -463,14 +483,16 @@ export const EmployeeDetails: React.FC<EmployeeDetailsProps> = context => {
                       </span>
                     ))
                 ) : (
-                  <span className="gba:text-muted-foreground gba:text-sm">No teams assigned</span>
+                  <span className="gba:text-muted-foreground gba:text-sm">{t('employee-details-no-teams')}</span>
                 )}
               </div>
             </div>
 
             {/* Capabilities Section */}
             <div className="gba:mt-6">
-              <h4 className="gba:text-sm gba:font-medium gba:text-muted-foreground gba:mb-2">Capabilities</h4>
+              <h4 className="gba:text-sm gba:font-medium gba:text-muted-foreground gba:mb-2">
+                {t('employee-details-capabilities')}
+              </h4>
               <div className="gba:flex gba:flex-wrap gba:gap-2">
                 {employeeData.employeePosition?.employeeCapabilities &&
                 Array.isArray(employeeData.employeePosition.employeeCapabilities) &&
@@ -489,14 +511,16 @@ export const EmployeeDetails: React.FC<EmployeeDetailsProps> = context => {
                       </span>
                     ))
                 ) : (
-                  <span className="gba:text-muted-foreground gba:text-sm">No capabilities assigned</span>
+                  <span className="gba:text-muted-foreground gba:text-sm">{t('employee-details-no-capabilities')}</span>
                 )}
               </div>
             </div>
 
             {/* Skills Section */}
             <div className="gba:mt-6">
-              <h4 className="gba:text-sm gba:font-medium gba:text-muted-foreground gba:mb-2">Skills</h4>
+              <h4 className="gba:text-sm gba:font-medium gba:text-muted-foreground gba:mb-2">
+                {t('employee-details-skills')}
+              </h4>
               <div className="gba:flex gba:flex-wrap gba:gap-2">
                 {employeeData.skills && Array.isArray(employeeData.skills) && employeeData.skills.length > 0 ? (
                   employeeData.skills
@@ -520,7 +544,7 @@ export const EmployeeDetails: React.FC<EmployeeDetailsProps> = context => {
                       </span>
                     ))
                 ) : (
-                  <span className="gba:text-muted-foreground gba:text-sm">No skills recorded</span>
+                  <span className="gba:text-muted-foreground gba:text-sm">{t('employee-details-no-skills')}</span>
                 )}
               </div>
             </div>
