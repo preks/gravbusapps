@@ -197,6 +197,8 @@ export const ExpressionInput: React.FC<ExpressionInputProps> = ({
 
           // Create validation template with the expression to validate
           // Preserve ALL steps with their form fields for cross-step validation
+          // Note: Only inject expression into title/message to avoid false positives
+          // from type mismatches in unrelated form fields
           const validationTemplate = {
             ...template,
             name: template.name || '__validation_test__',
@@ -207,11 +209,9 @@ export const ExpressionInput: React.FC<ExpressionInputProps> = ({
                   ? {
                       ...step,
                       title: value, // Replace title with expression being tested
-                      message: value, // Also test in message
-                      form: (step.form || []).map(field => ({
-                        ...field,
-                        value: idx === stepIndex ? value : field.value // Test expression in form field value
-                      }))
+                      message: value // Also test in message
+                      // Keep form fields unchanged - do NOT inject expression into all fields
+                      // as it would cause false positive type mismatch errors
                     }
                   : step // Keep other steps unchanged for reference validation
             )
