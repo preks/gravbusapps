@@ -348,7 +348,11 @@ const ProfileHeader: React.FC<BusinessAppContextProps & ProfileHeaderProps> = ({
                 {getEmployeeFullName(employee)}
               </div>
               <p className="gba:text-muted-foreground gba:mb-4 gba:text-sm">
-                {employee.employeePosition?.jobPosition?.name ?? 'Not assigned'}
+                {employee.employeePosition?.jobPosition?.name ??
+                  getTranslationFromI18nKeyAndLabel(
+                    'lowcoder:employee_profile.left_side_bar.not_assigned',
+                    'Not assigned'
+                  )}
               </p>
 
               {/* Profile Info Grid */}
@@ -358,7 +362,13 @@ const ProfileHeader: React.FC<BusinessAppContextProps & ProfileHeaderProps> = ({
                   icon={<PiBuildings className="gba:h-4 gba:w-4" />}
                   className="gba:text-info"
                   label={'Organization'}
-                  value={employee.employeePosition?.organizationalUnit?.name ?? 'Not assigned'}
+                  value={
+                    employee.employeePosition?.organizationalUnit?.name ??
+                    getTranslationFromI18nKeyAndLabel(
+                      'lowcoder:employee_profile.left_side_bar.not_assigned',
+                      'Not assigned'
+                    )
+                  }
                   linkTo={
                     employee.employeePosition?.organizationalUnitId
                       ? `/platform/orgchart/active/organization?organizationUnitId=${employee.employeePosition.organizationalUnitId}`
@@ -372,7 +382,13 @@ const ProfileHeader: React.FC<BusinessAppContextProps & ProfileHeaderProps> = ({
                   icon={<PiGlobeHemisphereWest className="gba:h-4 gba:w-4" />}
                   className="gba:text-info"
                   label={'Location'}
-                  value={employee.employeePosition?.siteLocation?.name || 'Not assigned'}
+                  value={
+                    employee.employeePosition?.siteLocation?.name ||
+                    getTranslationFromI18nKeyAndLabel(
+                      'lowcoder:employee_profile.left_side_bar.not_assigned',
+                      'Not assigned'
+                    )
+                  }
                   linkTo={
                     employee.employeePosition?.siteLocation?.id
                       ? `/platform/orgchart/active/location?siteLocationId=${employee.employeePosition.siteLocation.id}`
@@ -409,7 +425,10 @@ const ProfileHeader: React.FC<BusinessAppContextProps & ProfileHeaderProps> = ({
                         `${employee.employeePosition.supervisor.firstName ?? ''} ${
                           employee.employeePosition.supervisor.lastName ?? ''
                         }`.trim() ||
-                        'Not assigned'
+                        getTranslationFromI18nKeyAndLabel(
+                          'lowcoder:employee_profile.left_side_bar.not_assigned',
+                          'Not assigned'
+                        )
                       : 'No manager'
                   }
                   linkTo={
@@ -422,7 +441,13 @@ const ProfileHeader: React.FC<BusinessAppContextProps & ProfileHeaderProps> = ({
                 <ProfileInfoItem
                   icon={<PiMapPin className="gba:h-4 gba:w-4" />}
                   label={'Job Position'}
-                  value={employee.employeePosition?.jobPosition?.name ?? 'Not assigned'}
+                  value={
+                    employee.employeePosition?.jobPosition?.name ??
+                    getTranslationFromI18nKeyAndLabel(
+                      'lowcoder:employee_profile.left_side_bar.not_assigned',
+                      'Not assigned'
+                    )
+                  }
                   //linkTo={employee.employeePosition?.siteLocation?.id ? `/orgchart/active/location?siteLocationId=${employee.employeePosition.siteLocation.id}` : undefined}
                 />
                 {/* Cost Center */}
@@ -430,7 +455,13 @@ const ProfileHeader: React.FC<BusinessAppContextProps & ProfileHeaderProps> = ({
                   icon={<PiCurrencyDollar className="gba:h-4 gba:w-4" />}
                   className="gba:text-info"
                   label={'Cost Center'}
-                  value={employee.employeePosition?.costCenter?.name ?? 'Not assigned'}
+                  value={
+                    employee.employeePosition?.costCenter?.name ??
+                    getTranslationFromI18nKeyAndLabel(
+                      'lowcoder:employee_profile.left_side_bar.not_assigned',
+                      'Not assigned'
+                    )
+                  }
                   linkTo={
                     employee.employeePosition?.costCenter?.id
                       ? `/platform/orgchart/active/finance?costCenterDataId=${employee.employeePosition.costCenter.id}`

@@ -26,6 +26,7 @@ interface FeedbackFormContextType {
   preSelectedEmployeeError: string | null
   hasPreSelectedEmployee: boolean
   isPreSelectedEmployeeCurrentUser: boolean
+  isRequestedFeedbackFlow: boolean
 }
 
 const FeedbackFormContext = createContext<FeedbackFormContextType | undefined>(undefined)
@@ -80,6 +81,20 @@ export const FeedbackFormProvider: React.FC<FeedbackFormProviderProps> = ({
 
   // Only fetch all employees if no pre-selected employee is provided OR if pre-selected employee is current user
   const hasPreSelectedEmployee = !!preSelectedEmployeeId && !isPreSelectedEmployeeCurrentUser
+
+  // Detect "Enter Requested Employee Feedback" flow from process metadata
+  const flowTaskName = (businessAppContext?.additionalData as any)?.psi_processMetadata?.lastOpenedTask?.name || ''
+  const screenKey =
+    (businessAppContext?.additionalData as any)?.psi_processMetadata?.lastOpenedTask?.screenKey ||
+    (businessAppContext?.additionalData as any)?.psi_processMetadata?.lastOpenedTask?.screen?.screenComponents
+      ?.screenKey ||
+    ''
+  const receiverId = (businessAppContext?.additionalData as any)?.psi_taskPayload?.receiverId
+
+  const isRequestedFeedbackFlow =
+    String(flowTaskName).toLowerCase() === 'enterrequestedfeedback' ||
+    String(screenKey).toLowerCase().includes('enterrequestedfeedback') ||
+    !!receiverId
 
   const {
     employees,
@@ -215,7 +230,8 @@ export const FeedbackFormProvider: React.FC<FeedbackFormProviderProps> = ({
     preSelectedEmployeeLoading,
     preSelectedEmployeeError,
     hasPreSelectedEmployee,
-    isPreSelectedEmployeeCurrentUser
+    isPreSelectedEmployeeCurrentUser,
+    isRequestedFeedbackFlow
   }
 
   return <FeedbackFormContext.Provider value={contextValue}>{children}</FeedbackFormContext.Provider>
