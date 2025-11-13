@@ -1,7 +1,7 @@
 import React from 'react'
 import { Button } from '@newwork/gravity-ui-catalog'
 import { SelectField } from '@newwork/gravity-ui-catalog'
-import { formatDate, getTranslationFromI18nKeyAndLabel } from '@/common/utils/windowUtils'
+import { formatDate, getTranslationFromI18nKeyAndLabel, getCurrentActiveUserLocale } from '@/common/utils/windowUtils'
 import { CostCenter } from '../../utils/types'
 import { DEDUCTION_KEYS } from '../../constants/constants'
 import { ICONS } from '@/business-apps/fin/expenses/utils/icons'
@@ -40,6 +40,7 @@ const AllowanceContainer: React.FC<AllowanceContainerProps> = ({
   hasDeductions,
   visibleDeductionKeys
 }) => {
+  const locale = getCurrentActiveUserLocale()
   const dateToDisplay = item.allowanceDate || item.expenseDate
   const selectedDeductions: string[] = Array.isArray(item?.deductions) ? item.deductions : []
 
@@ -271,7 +272,9 @@ const AllowanceContainer: React.FC<AllowanceContainerProps> = ({
                         data-testid={`allowance-deduction-icon-${option.key}-${index}`}
                       />
                       <span
-                        style={{ display: 'block', overflowWrap: 'break-word', whiteSpace: 'normal' }}
+                        className="gba:block gba:whitespace-normal gba:break-words gba:hyphens-auto gba:text-sm gba:leading-snug"
+                        title={option.label}
+                        lang={locale}
                         data-testid={`allowance-deduction-label-${option.key}-${index}`}
                       >
                         {option.label}
