@@ -172,7 +172,12 @@ const InvestmentSection: React.FC<InvestmentSectionProps> = ({
                   const firstRole = Array.isArray(displayInvestment?.investmentRole)
                     ? displayInvestment.investmentRole[0]
                     : displayInvestment?.investmentRole
-                  const roleValue = firstRole?.investmentRole?.value || firstRole?.investmentRole?.code
+                  // Handle both full Investment entity (nested catalog) and Lead/Opportunity (direct catalog)
+                  const roleValue =
+                    firstRole?.investmentRole?.value ||
+                    firstRole?.investmentRole?.code ||
+                    firstRole?.value ||
+                    firstRole?.code
                   const stakeValue =
                     displayInvestment?.investmentStakeType?.value || displayInvestment?.investmentStakeType?.code
 
