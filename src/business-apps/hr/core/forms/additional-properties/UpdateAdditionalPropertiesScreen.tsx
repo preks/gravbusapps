@@ -9,7 +9,7 @@ import { AdditionalPropertiesProvider, useAdditionalProperties } from './Additio
 import { Badge, Button, Input } from '@newwork/nw-design-system'
 import { XCircleIcon } from 'lucide-react'
 
-interface AddSkillFormValues {
+interface AdditionalPropertiesFormValues {
   targetEmployeeId?: string
 }
 
@@ -33,7 +33,7 @@ const AddSkillContent: React.FC<BusinessAppContextProps> = props => {
 
   // no filtering logic required for additional properties
 
-  const form = useForm<AddSkillFormValues>({
+  const form = useForm<AdditionalPropertiesFormValues>({
     defaultValues: {
       targetEmployeeId: undefined
     },
@@ -51,7 +51,7 @@ const AddSkillContent: React.FC<BusinessAppContextProps> = props => {
     props.userInfo?.employeeDetails?.lastName || ''
   }`.trim()
 
-  const normalizedDefaults: AddSkillFormValues = useMemo(
+  const normalizedDefaults: AdditionalPropertiesFormValues = useMemo(
     () => ({
       targetEmployeeId: ctxEmployeeId || props.userInfo?.employeeDetails?.employeeId
     }),
@@ -141,10 +141,10 @@ const AddSkillContent: React.FC<BusinessAppContextProps> = props => {
             'lowcoder:create_expense_request.initiate_cancel_button',
             'Cancel'
           )}
-          onSubmit={async (values: AddSkillFormValues) => {
+          onSubmit={async (values: AdditionalPropertiesFormValues) => {
             const employeeId = ctxEmployeeId || values.targetEmployeeId
             // Build final additionalProperties map by applying removals and additions
-            const finalMap: Record<string, string> = { ...(existingPropsMap || {}) }
+            const finalMap: Record<string, string> = { ...existingPropsMap }
             removedProps.forEach(kv => {
               const key = (kv.split(':')[0] || '').trim()
               if (key) delete finalMap[key]
