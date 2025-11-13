@@ -12,5 +12,6 @@ hr-pagination-prev-page-sr = Go to previous page
 hr-pagination-next-page-sr = Go to next page
 hr-pagination-last-page-sr = Go to last page
 hr-positions-marked-for-termination-title = Marked for Termination
+hr-positions-not-specified = Not specified
 
 

@@ -12,5 +12,6 @@ hr-pagination-prev-page-sr = Mergi la pagina anterioară
 hr-pagination-next-page-sr = Mergi la pagina următoare
 hr-pagination-last-page-sr = Mergi la ultima pagină
 hr-positions-marked-for-termination-title = Marcat pentru terminare
+hr-positions-not-specified = Nespecificat
 
 

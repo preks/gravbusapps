@@ -1,10 +1,11 @@
 import React from 'react'
-import { useTranslation } from 'react-i18next'
+import { useTranslation } from '@newwork/nw-design-system'
 import { PiBriefcase, PiUser, PiBuilding, PiTag, PiCalendar } from 'react-icons/pi'
 import { JobPosition } from '../hooks/useJobPositionListData'
 import { getTranslationFromI18nKeyAndLabel, formatDate, getCatalogValue } from '@/common/utils/windowUtils'
 import { AppActionButton } from '@/components/app-action-button/AppActionButton'
 import { FlowContextName } from '@/common/types/FlowRegistryTypes'
+import jobPositionTranslations from '../_i18n'
 
 interface JobPositionDetailsProps {
   jobPosition: JobPosition
@@ -16,7 +17,7 @@ interface JobPositionDetailsProps {
  * in a sidebar format for the DataContainer details panel.
  */
 export const JobPositionDetails: React.FC<JobPositionDetailsProps> = ({ jobPosition, accessToken }) => {
-  const { t } = useTranslation()
+  const { t } = useTranslation(jobPositionTranslations)
 
   // Helper function to get contract type display value
   const getContractTypeDisplay = (contractType: any): string => {
@@ -178,7 +179,7 @@ export const JobPositionDetails: React.FC<JobPositionDetailsProps> = ({ jobPosit
                 )}
               </p>
               <p className="gba:text-sm gba:text-foreground">
-                {jobPosition.jobFunction?.name || t('job_position.not_specified', 'Not specified')}
+                {jobPosition.jobFunction?.name || t('hr-positions-not-specified')}
               </p>
             </div>
           </div>
