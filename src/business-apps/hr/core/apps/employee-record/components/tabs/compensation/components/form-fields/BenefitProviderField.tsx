@@ -28,19 +28,24 @@ const BenefitProviderField: React.FC<BenefitProviderFieldProps> = ({
 }) => {
   const currentLocale = locale || getCurrentActiveUserLocale()
 
+  // Filter out invalid providers
+  const validProviders = React.useMemo(() => {
+    return providers?.filter(p => p && p.id && p.value) || []
+  }, [providers])
+
   return (
     <div className="gba:space-y-2">
       <Label className="gba:text-sm gba:font-medium gba:text-foreground">
         {t('modal-request-provider-label')}
         {required && <span className="gba:text-destructive"> *</span>}
       </Label>
-      {providers && providers.length > 0 ? (
-        <Select value={value} onValueChange={onChange} disabled={disabled}>
+      {validProviders && validProviders.length > 0 ? (
+        <Select value={value || undefined} onValueChange={onChange} disabled={disabled}>
           <SelectTrigger data-testid="request-benefit-provider-select">
             <SelectValue placeholder={t('modal-request-provider-placeholder')} />
           </SelectTrigger>
           <SelectContent>
-            {providers.map(provider => (
+            {validProviders.map(provider => (
               <SelectItem key={provider.id} value={provider.id}>
                 {getTranslatedProviderValue(provider, currentLocale)}
               </SelectItem>

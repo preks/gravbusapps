@@ -253,15 +253,17 @@ const PayslipHistorySection: React.FC<PayslipHistorySectionProps> = ({ t, paysli
           <CardTitle>{t('payslip-title')}</CardTitle>
           <div className="gba:flex gba:items-center gba:gap-3">
             {/* Search Input */}
-            <DebouncedInput
-              value={searchQuery}
-              onChange={setSearchQuery}
-              placeholder={t('payslip-search-placeholder')}
-              debounceDelay={300}
-              className="gba:w-64"
-              icon={<PiMagnifyingGlass className="gba:h-4 gba:w-4 gba:text-muted-foreground" />}
-              data-testid="payslip-history-search-input"
-            />
+            <div className="gba:w-[260px] gba:shrink-0">
+              <DebouncedInput
+                value={searchQuery}
+                onChange={setSearchQuery}
+                placeholder={t('payslip-search-placeholder')}
+                debounceDelay={300}
+                className="gba:w-full"
+                icon={<PiMagnifyingGlass className="gba:h-4 gba:w-4 gba:text-muted-foreground" />}
+                data-testid="payslip-history-search-input"
+              />
+            </div>
 
             {/* Year Filter */}
             <Select value={selectedYear} onValueChange={setSelectedYear}>
