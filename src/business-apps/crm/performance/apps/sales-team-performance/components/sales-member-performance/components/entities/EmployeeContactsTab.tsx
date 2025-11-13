@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useMemo } from 'react'
 import { DataContainer } from '@/components/layout/dataContainer'
-import { useContactFilters } from '@/business-apps/crm/core/apps/customer-relations/views/contact-view/hooks/useContactFilters'
+import { useContactFilters } from '../../hooks/useContactFilters'
 import { useEmployeeContactsData } from '../../hooks/useEmployeeContactsData'
 import { ContactsTable } from './ContactsTable'
 import { BusinessAppContextProps } from '@/common/BusinessAppContext'

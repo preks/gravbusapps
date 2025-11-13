@@ -158,24 +158,57 @@ export const useSalesCampaignData = (context: BusinessAppContextProps): UseSales
     try {
       const result = await fetchSalesCampaignStatistics()
 
-      // Calculate average duration
-      let averageDuration = 0
-      if (result.campaignsWithDuration && result.campaignsWithDuration.length > 0) {
-        const totalDays = result.campaignsWithDuration.reduce((total, campaign) => {
+      // Helper to calculate trend
+      const calculateTrend = (current: number, previous: number) => {
+        if (previous === 0) {
+          return { changePercent: current > 0 ? 100 : 0, isPositive: current > 0 }
+        }
+        const changePercent = ((current - previous) / previous) * 100
+        return { changePercent, isPositive: changePercent >= 0 }
+      }
+
+      // Helper to calculate average duration from campaigns
+      const calculateAverageDuration = (campaigns: Array<{ startDate: string; endDate: string }>): number => {
+        if (!campaigns || campaigns.length === 0) return 0
+        const totalDays = campaigns.reduce((total, campaign) => {
           const startDate = new Date(campaign.startDate)
           const endDate = new Date(campaign.endDate)
           const diffTime = Math.abs(endDate.getTime() - startDate.getTime())
           const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24))
           return total + diffDays
         }, 0)
-        averageDuration = Math.round(totalDays / result.campaignsWithDuration.length)
+        return Math.round(totalDays / campaigns.length)
       }
 
+      // Calculate average duration for current and previous year
+      const averageDurationCurrent = calculateAverageDuration(result.campaignsWithDuration)
+      const averageDurationPrevious = calculateAverageDuration(result.campaignsWithDurationPrevious)
+
+      // Extract counts
+      const totalCurrent = result.totalCampaigns?.aggregate?.count || 0
+      const totalPrevious = result.totalCampaignsPrevious?.aggregate?.count || 0
+      const activeCurrent = result.activeCampaigns?.aggregate?.count || 0
+      const activePrevious = result.activeCampaignsPrevious?.aggregate?.count || 0
+      const completedCurrent = result.completedCampaigns?.aggregate?.count || 0
+      const completedPrevious = result.completedCampaignsPrevious?.aggregate?.count || 0
+
       setStatistics({
-        totalCampaigns: result.totalCampaigns?.aggregate?.count || 0,
-        activeCampaigns: result.activeCampaigns?.aggregate?.count || 0,
-        completedCampaigns: result.completedCampaigns?.aggregate?.count || 0,
-        averageDuration: averageDuration
+        totalCampaigns: {
+          current: totalCurrent,
+          ...calculateTrend(totalCurrent, totalPrevious)
+        },
+        activeCampaigns: {
+          current: activeCurrent,
+          ...calculateTrend(activeCurrent, activePrevious)
+        },
+        completedCampaigns: {
+          current: completedCurrent,
+          ...calculateTrend(completedCurrent, completedPrevious)
+        },
+        averageDuration: {
+          current: averageDurationCurrent,
+          ...calculateTrend(averageDurationCurrent, averageDurationPrevious)
+        }
       })
     } catch (err) {
       setStatisticsError(err instanceof Error ? err.message : 'Unknown error')

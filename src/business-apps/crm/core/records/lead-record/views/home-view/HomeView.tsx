@@ -10,7 +10,7 @@ import NoteSection from '@/common/components/common-relations/record-sections/no
 import TaskSection from '@/common/components/common-relations/record-sections/task-section/TaskSection'
 import SectionWrapper from '@/common/components/common-relations/record-sections/section-card/SectionCard'
 import type { HomeViewProps } from './types'
-import { transformTaskOrApproval } from './utils'
+import { buildCustomerAccountFromLead, buildCustomerContactFromLead } from '../../utils/leadDataTransformers'
 
 // Build reference URLs for CRM context
 const buildReferenceUrl = (reference: TaskReference): string => {
@@ -57,49 +57,8 @@ export const HomeView: React.FC<HomeViewProps> = ({
             props: {
               ...props,
               accessToken,
-              account: rawLeadData
-                ? {
-                    name: rawLeadData.companyName,
-                    email: rawLeadData.companyEmail,
-                    phone: rawLeadData.companyPhone,
-                    website: rawLeadData.companyWebsite,
-                    legalForm: rawLeadData.legalForm?.value || rawLeadData.legalForm?.code || rawLeadData.legalForm,
-                    industry: rawLeadData.industry?.value || rawLeadData.industry?.code || rawLeadData.industry,
-                    size:
-                      rawLeadData.numberOfEmployees?.value ||
-                      rawLeadData.numberOfEmployees?.code ||
-                      rawLeadData.numberOfEmployees,
-                    revenue: rawLeadData.annualRevenue?.value || rawLeadData.annualRevenue?.code,
-                    numberOfEmployees: rawLeadData.numberOfEmployees,
-                    annualRevenue: rawLeadData.annualRevenue
-                  }
-                : {
-                    name: getTranslationFromI18nKeyAndLabel('crm.account.companyName', 'Company Name'),
-                    email: null,
-                    phone: null,
-                    website: null,
-                    legalForm: null,
-                    industry: null,
-                    size: null,
-                    revenue: null,
-                    numberOfEmployees: null
-                  },
-              address:
-                rawLeadData && rawLeadData.addresses && rawLeadData.addresses.length > 0
-                  ? {
-                      addressLine: rawLeadData.addresses[0].addressLine,
-                      postalCode: rawLeadData.addresses[0].postalCode,
-                      locality: rawLeadData.addresses[0].city,
-                      country:
-                        typeof rawLeadData.addresses[0].country === 'string'
-                          ? rawLeadData.addresses[0].country
-                          : rawLeadData.addresses[0].country?.value,
-                      region:
-                        typeof rawLeadData.addresses[0].region === 'string'
-                          ? rawLeadData.addresses[0].region
-                          : rawLeadData.addresses[0].region?.value
-                    }
-                  : undefined
+              account: buildCustomerAccountFromLead(rawLeadData),
+              accounts: rawLeadData ? [buildCustomerAccountFromLead(rawLeadData)].filter(Boolean) : undefined
             }
           }
         ]}
@@ -116,18 +75,8 @@ export const HomeView: React.FC<HomeViewProps> = ({
             props: {
               ...props,
               accessToken,
-              contact: rawLeadData
-                ? {
-                    firstName: rawLeadData.firstName,
-                    lastName: rawLeadData.lastName,
-                    email: rawLeadData.email,
-                    phone: rawLeadData.phoneNumber,
-                    jobTitle: rawLeadData.position || rawLeadData.jobTitle,
-                    academicTitle: rawLeadData.academicTitle?.value || rawLeadData.academicTitle?.code,
-                    salutation: rawLeadData.salutation?.value || rawLeadData.salutation?.code,
-                    communicationChannels: rawLeadData.communicationChannels
-                  }
-                : undefined
+              contact: buildCustomerContactFromLead(rawLeadData),
+              contacts: rawLeadData ? [buildCustomerContactFromLead(rawLeadData)].filter(Boolean) : undefined
             }
           }
         ]}
@@ -177,12 +126,7 @@ export const HomeView: React.FC<HomeViewProps> = ({
               accessToken,
               leadId: leadId,
               buildReferenceUrl,
-              tasks: tasks.map((task: any) =>
-                transformTaskOrApproval(
-                  task,
-                  getTranslationFromI18nKeyAndLabel('crm.common.untitledTask', 'Untitled Task')
-                )
-              ),
+              tasks: tasks,
               taskActionProps: {
                 ...taskActionProps,
                 emptyStateBehavior: 'enable'
@@ -204,12 +148,7 @@ export const HomeView: React.FC<HomeViewProps> = ({
               accessToken,
               leadId: leadId,
               buildReferenceUrl,
-              tasks: approvals.map((approval: any) =>
-                transformTaskOrApproval(
-                  approval,
-                  getTranslationFromI18nKeyAndLabel('crm.common.untitledApproval', 'Approval Request')
-                )
-              ),
+              tasks: approvals,
               taskActionProps: {
                 ...approvalActionProps,
                 emptyStateBehavior: 'enable'
@@ -238,23 +177,7 @@ export const HomeView: React.FC<HomeViewProps> = ({
             props: {
               ...props,
               accessToken,
-              notes: notes.map((note: any) => ({
-                id: note.id,
-                version: note.version,
-                noteTitle:
-                  note.title ||
-                  note.displayName ||
-                  getTranslationFromI18nKeyAndLabel('crm.common.untitledNote', 'Untitled Note'),
-                noteText: note.text || '',
-                createdAt: note.createdAt,
-                createdBy:
-                  note.authorDisplayName ||
-                  note.authorEmployee?.displayName ||
-                  getTranslationFromI18nKeyAndLabel('crm.common.unknown', 'Unknown'),
-                authorEmployee: note.authorEmployee,
-                reminderDate: note.reminderDate,
-                documents: note.documents
-              })),
+              notes: notes,
               noteActionProps: {
                 ...noteActionProps,
                 emptyStateBehavior: 'enable'

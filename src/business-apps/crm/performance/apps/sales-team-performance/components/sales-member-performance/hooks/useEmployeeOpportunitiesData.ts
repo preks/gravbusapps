@@ -1,6 +1,6 @@
 import { useState, useCallback } from 'react'
 import { BusinessAppContextProps } from '@/common/BusinessAppContext'
-import { CustomerOpportunity as Opportunity } from '@/common/data/customer/types/customerRelationTypes'
+import { CustomerOpportunity as Opportunity } from '@/common/data/customer/types/customerOpportunityTypes'
 import {
   useEmployeeOpportunitiesQueries,
   EmployeeOpportunitiesQueryVariables

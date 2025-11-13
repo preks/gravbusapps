@@ -1,3 +1,4 @@
+// TODO: REMOVE THIS COMPONENT, USE AVATAR CELLS INSTEAD
 import React from 'react'
 import { Avatar, AvatarImage, AvatarFallback } from '@newwork/nw-design-system'
 import { buildPlatformUrl, navigateTo } from '@/common/utils/navigationUtils'

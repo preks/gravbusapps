@@ -13,7 +13,7 @@ import {
 import { useCountriesGraphQL } from '../hooks/useCountriesGraphQL'
 import { useSalesCampaignsGraphQL } from '../../../../common/hooks/useSalesCampaignsGraphQL'
 import { useAccountData, mapAccountToFormValues } from '../hooks/useAccountData'
-import { useGetContacts } from '../../../apps/customer-relations/views/contact-view/hooks/useGetContacts'
+import { useGetCustomerContacts } from '@/common/data/customer/hooks/useCustomerContacts'
 
 interface AccountFormContextValue extends AccountContextState {
   formValues: AccountFormValues
@@ -261,33 +261,20 @@ export const AccountFormProvider: React.FC<AccountFormProviderProps> = ({
   }, [loadMoreSalesCampaigns])
 
   // Contact selection hook (matching IRM pattern)
-  const [contactSearch, setContactSearch] = useState('')
   const {
-    contacts: contactsList,
-    isLoading: contactsLoading,
-    error: contactsError
-  } = useGetContacts(businessAppContext, contactSearch, 0)
+    options: contactsList,
+    loading: contactsLoading,
+    error: contactsError,
+    search: searchContactsWrapper
+  } = useGetCustomerContacts(businessAppContext, {
+    withState: true,
+    autoFetch: true,
+    pageSize: 20,
+    mapToSelectOptions: true
+  })
 
-  // Create search wrapper for contact selection
-  const searchContactsWrapper = useCallback((searchTerm: string) => {
-    setContactSearch(searchTerm)
-  }, [])
-
-  // Map contacts to SelectOption format
-  const contactsOptions: SelectOption[] = useMemo(
-    () =>
-      contactsList.map((contact: any) => ({
-        id: String(contact.id || ''),
-        value: String(contact.id || ''),
-        label: contact.name || '',
-        name: contact.name || '',
-        extraInfo: {
-          email: contact.email,
-          jobPosition: contact.jobTitle
-        }
-      })),
-    [contactsList]
-  )
+  // Map contacts to SelectOption format (already mapped by hook)
+  const contactsOptions: SelectOption[] = useMemo(() => (contactsList as SelectOption[]) || [], [contactsList])
 
   // Countries hook
   const {

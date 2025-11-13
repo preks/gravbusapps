@@ -1,4 +1,4 @@
-export interface EmployeeRef {
+export interface Employee {
   id: string
   code?: string
   firstName?: string
@@ -8,3 +8,6 @@ export interface EmployeeRef {
   picture?: string
   pictureThumbnail?: string
 }
+
+// Backward compatibility alias
+export type EmployeeRef = Employee

@@ -92,7 +92,11 @@ const OpportunityFormComponent: React.FC = () => {
         // Relationships
         ownerEmployee: toStringOrUndefined(formValues.owner),
         account: toStringOrUndefined(
-          typeof formValues.account === 'object' && formValues.account?.id ? formValues.account.id : formValues.account
+          typeof formValues.account === 'object' && formValues.account?.id
+            ? formValues.account.id
+            : typeof formValues.account === 'string'
+              ? formValues.account
+              : ''
         ), // ✅ Extract ID from object if needed
 
         // Additional properties (empty object as per API)

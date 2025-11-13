@@ -1,16 +1,26 @@
-// Export all customer types
+// Customer Relation Types - Main exports
 
-// Base types
-export * from './customerRelationBaseTypes'
+// Core entities
+export * from './customerAccountTypes'
+export * from './customerContactTypes'
+export * from './customerDocumentTypes'
+export * from './customerLeadTypes'
+export * from './customerNoteTypes'
+export * from './customerOpportunityTypes'
+export * from './customerTaskTypes'
 
-// Enhanced types
-export * from './customerRelationTypes'
+// Relation entities
+export * from './customerOpportunityTypes'
+export * from './customerAddressTypes'
+export * from './customerCommunicationChannelTypes'
+export * from './customerDocumentTypes'
+export * from './customerNoteTypes'
+export * from './customerActivityTypes'
 
-// Team performance base types
+// Base types and enums
 export * from './customerTeamPerformanceBaseTypes'
-
-// Team performance enhanced types
 export * from './customerTeamPerformanceTypes'
-
-// Enums
 export * from './customerEnums'
+
+// Backward compatibility exports
+export * from './customerRelationBaseTypes'
