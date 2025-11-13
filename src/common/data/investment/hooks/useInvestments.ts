@@ -2,8 +2,7 @@
 import { useCallback } from 'react'
 import { useGraphQLClient } from '@/common/network/graphql/useGraphQLClient'
 import { BusinessAppContextProps } from '@/common/BusinessAppContext'
-import type { BaseInvestment, Investment, BaseInvestmentDocument } from '../types'
-
+import type { Investment, InvestmentDocument } from '../types'
 // Interface for investment by ID data
 export interface InvestmentByIdData {
   investment?: Investment
@@ -24,7 +23,7 @@ import { toInvestment, toInvestmentDocument } from '../mappers'
 
 // Response interfaces
 export interface InvestmentQueryResponse {
-  Investment: BaseInvestment[]
+  Investment: Investment[]
   InvestmentAggregate: {
     aggregate: {
       count: number
@@ -84,7 +83,7 @@ export const useGetInvestmentById = (context: BusinessAppContextProps) => {
         const rawInvestment = result?.Investment?.[0]
         return {
           // Return raw object so callers can access specialization arrays; cast to keep external type stable
-          investment: rawInvestment as unknown as Investment
+          investment: toInvestment(rawInvestment)
         } as InvestmentByIdData
       } catch (error) {
         console.error('Error fetching investment by ID:', error)
@@ -136,11 +135,14 @@ export const useGetInvestmentDocumentsByInvestmentId = (context: BusinessAppCont
   const graphqlClient = useGraphQLClient(context.accessToken)
 
   const fetchInvestmentDocumentsByInvestmentId = useCallback(
-    async (investmentId: string) => {
-      const query = GET_INVESTMENT_DOCUMENTS_BY_INVESTMENT_ID(investmentId)
+    async (investmentId: string, createdBy?: string) => {
+      const query = GET_INVESTMENT_DOCUMENTS_BY_INVESTMENT_ID({
+        investmentId,
+        createdBy // Pass the createdBy filter for server-side filtering
+      })
 
       try {
-        const result = await graphqlClient.request<{ InvestmentDocument: BaseInvestmentDocument[] }>(query)
+        const result = await graphqlClient.request<{ InvestmentDocument: InvestmentDocument[] }>(query)
         // Transform base types to enhanced types using mapper
         return result.InvestmentDocument.map(toInvestmentDocument)
       } catch (error) {

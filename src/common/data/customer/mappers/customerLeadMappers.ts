@@ -1,40 +1,44 @@
-// Customer Lead Mapper - Transform base type to enhanced type with computed fields
+/**
+ * Customer Lead Mappers
+ *
+ * Transforms CRM Lead (GraphQL response) into standardized Lead structure.
+ *
+ * Key Mappings:
+ * - annualRevenue → accountAnnualRevenueBand
+ * - city → locality
+ * - industry → industryClass
+ * - numberOfEmployees → companySize
+ */
 
-import { BaseCustomerLead, CustomerLead } from '../types'
+import { CustomerLead } from '../types'
 
 /**
- * Transform BaseCustomerLead (GraphQL response) to CustomerLead (enhanced with computed fields)
+ * Transform CustomerLead (raw GraphQL) to CustomerLead (enhanced/standardized)
+ *
+ * Handles CRM-specific field naming inconsistencies by mapping them to Lead standards.
  */
-export function toCustomerLead(base: BaseCustomerLead): CustomerLead {
-  // Extract labels from catalog entries
-  const salutationLabel = base.salutation?.value || base.salutation?.code
-  const academicTitleLabel = base.academicTitle?.value || base.academicTitle?.code
-  const leadRatingLabel = base.leadRating?.value || base.leadRating?.code
-  const leadStatusLabel = base.leadStatus?.value || base.leadStatus?.code
-  const leadSourceLabel = base.leadSource?.value || base.leadSource?.code
-  const industryClassLabel = base.industryClass?.value || base.industryClass?.code
-  const companySizeLabel = base.companySize?.value || base.companySize?.code
-  const ownerDisplayName =
-    base.ownerEmployee?.displayName ||
-    `${base.ownerEmployee?.firstName || ''} ${base.ownerEmployee?.lastName || ''}`.trim()
+export function toCustomerLead(base: CustomerLead): CustomerLead {
+  // Map CRM catalog field names to Lead standard (IRM naming)
+  const accountAnnualRevenueBand = base.annualRevenue
+  const accountAnnualRevenueBandRef = base.annualRevenueRef
 
-  // Create computed names
-  const fullName = `${base.firstName || ''} ${base.lastName || ''}`.trim()
-  const displayName = fullName || base.email || base.code || `Lead ${base.id}`
+  const locality = base.city
+
+  const industryClass = base.industry
+  const industryClassRef = base.industryRef
+
+  const companySize = base.numberOfEmployees
+  const companySizeRef = base.numberOfEmployeesRef
 
   return {
     ...base,
-
-    // Computed UI fields (only those defined in CustomerLead interface)
-    displayName,
-    fullName,
-    salutationLabel,
-    academicTitleLabel,
-    leadRatingLabel,
-    leadStatusLabel,
-    leadSourceLabel,
-    industryClassLabel,
-    companySizeLabel,
-    ownerDisplayName
+    // Mapped catalog fields (CRM names → Lead standard)
+    accountAnnualRevenueBand,
+    accountAnnualRevenueBandRef,
+    locality,
+    industryClass,
+    industryClassRef,
+    companySize,
+    companySizeRef
   }
 }

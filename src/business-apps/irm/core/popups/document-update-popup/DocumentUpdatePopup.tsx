@@ -1,89 +1,105 @@
 import React, { useMemo } from 'react'
 import { BusinessAppContextProps } from '@/common/BusinessAppContext'
-import { DocumentPopup } from '../document-popup/DocumentPopup'
+import { DocumentUpdatePopup as SharedDocumentUpdatePopup } from '@/common/components/common-relations/popups/document-update-popup'
 
-export interface DocumentUpdatePopupProps extends BusinessAppContextProps {
-  initialValues?: any
+/**
+ * IRM-specific props (simpler interface - wrapper extracts context)
+ */
+export interface IRMDocumentUpdatePopupProps extends BusinessAppContextProps {
+  isOpen?: boolean
+  onClose?: () => void
+  documentId?: string
+  documentVersion?: number
+  onSuccess?: () => void
+  onError?: (error: any) => void
+  'data-testid'?: string
 }
 
-const DocumentUpdatePopup: React.FC<DocumentUpdatePopupProps> = ({ initialValues = {}, ...props }) => {
-  // Extract document information from the context to pass to DocumentPopup
-  const documentUpdateInitialValues = useMemo(() => {
-    const src = { ...(props as any), ...(initialValues as any) } as any
-    const ad = src?.additionalData || {}
-    const payload =
-      ad?.payload ||
-      ad?.psi_taskPayload?.psi_initialParameters?.payload ||
-      ad?.psi_taskPayload?.initialParameters?.payload ||
-      {}
-    const docFromAd =
-      ad?.investmentDocument ||
-      ad?.psi_taskPayload?.psi_initialParameters?.investmentDocument ||
-      ad?.psi_taskPayload?.initialParameters?.investmentDocument ||
-      payload?.investmentDocument
+/**
+ * IRM DocumentUpdatePopup - Investment Documents
+ * Extracts entity context from additionalData and configures the generic popup with IRM-specific settings
+ */
+const DocumentUpdatePopup: React.FC<IRMDocumentUpdatePopupProps> = props => {
+  // Extract entity context from additionalData
+  const { entityType, entityId, entityIdFieldName, folderEntityName, entityAssociations } = useMemo(() => {
+    const ad = props.additionalData || {}
+    const externalContext = ad?.externalContextData || {}
+    const urlParams = new URLSearchParams(globalThis.location.search)
 
-    // Extract document ID and other data
-    const documentId =
-      src?.documentId ||
-      src?.investmentDocumentId ||
-      docFromAd?.id ||
-      payload?.documentId ||
-      payload?.investmentDocumentId ||
-      ''
+    const accountId = externalContext?.accountId || ad?.accountId || urlParams.get('accountId') || ''
+    const contactId = externalContext?.contactId || ad?.contactId || urlParams.get('contactId') || ''
+    const leadId = externalContext?.leadId || ad?.leadId || urlParams.get('leadId') || ''
+    const opportunityId = externalContext?.opportunityId || ad?.opportunityId || urlParams.get('opportunityId') || ''
+    const investmentId = externalContext?.investmentId || ad?.investmentId || urlParams.get('investmentId') || ''
 
-    // Extract entity information
-    const urlParams = new URLSearchParams(window.location.search)
-    const accountId = src?.accountId || src?.account || docFromAd?.account || urlParams.get('accountId') || ''
-    const contactId = src?.contactId || src?.contact || docFromAd?.contact || urlParams.get('contactId') || ''
-    const leadId = src?.leadId || src?.lead || docFromAd?.lead || urlParams.get('leadId') || ''
-    const opportunityId =
-      src?.opportunityId || src?.opportunity || docFromAd?.opportunity || urlParams.get('opportunityId') || ''
-    const investmentId =
-      src?.investmentId || src?.investment || docFromAd?.investment || urlParams.get('investmentId') || ''
+    // Determine active entity (no defaults - must have explicit entity)
+    let type = ''
+    let id = ''
+    let idFieldName = ''
+    let folderName = ''
 
-    // Prepare the initial values for DocumentPopup in update mode
+    if (accountId) {
+      type = 'account'
+      id = accountId
+      idFieldName = 'accountId'
+      folderName = 'investment-account'
+    } else if (contactId) {
+      type = 'contact'
+      id = contactId
+      idFieldName = 'contactId'
+      folderName = 'contact'
+    } else if (leadId) {
+      type = 'lead'
+      id = leadId
+      idFieldName = 'leadId'
+      folderName = 'lead'
+    } else if (opportunityId) {
+      type = 'opportunity'
+      id = opportunityId
+      idFieldName = 'opportunityId'
+      folderName = 'investment-opportunity'
+    } else if (investmentId) {
+      type = 'investment'
+      id = investmentId
+      idFieldName = 'investmentId'
+      folderName = 'investment'
+    }
+
+    // Build entity associations
+    const associations: Record<string, string> = {}
+    if (accountId) associations.account = accountId
+    if (contactId) associations.contact = contactId
+    if (leadId) associations.lead = leadId
+    if (opportunityId) associations.opportunity = opportunityId
+    if (investmentId) associations.investment = investmentId
+
     return {
-      ...initialValues,
-      investmentDocument: {
-        id: documentId,
-        version: docFromAd?.version || 0,
-        name: docFromAd?.name || '',
-        documentGroupRef: docFromAd?.documentGroupRef || '',
-        documentTypeRef: docFromAd?.documentTypeRef || '',
-        description: docFromAd?.description || '',
-        expirationDate: docFromAd?.expirationDate,
-        parentDocument: docFromAd?.parentDocument || '',
-        folder: docFromAd?.folder || false,
-        // Entity associations
-        account: accountId,
-        contact: contactId,
-        lead: leadId,
-        opportunity: opportunityId,
-        investment: investmentId
-      },
-      // Pass through entity IDs
-      accountId,
-      contactId,
-      leadId,
-      opportunityId,
-      investmentId,
-      // Pass through any additional data
-      ...src
+      entityType: type,
+      entityId: id,
+      entityIdFieldName: idFieldName,
+      folderEntityName: folderName,
+      entityAssociations: associations
     }
-  }, [initialValues, props])
+  }, [props.additionalData])
 
-  // Force the form to have the correct values by ensuring they're not undefined
-  const forcedInitialValues = {
-    ...documentUpdateInitialValues,
-    investmentDocument: {
-      ...documentUpdateInitialValues?.investmentDocument,
-      documentGroupRef: documentUpdateInitialValues?.investmentDocument?.documentGroupRef || '',
-      documentTypeRef: documentUpdateInitialValues?.investmentDocument?.documentTypeRef || ''
-    }
-  }
-
-  // Use DocumentPopup in update mode
-  return <DocumentPopup {...props} initialValues={forcedInitialValues} />
+  return (
+    <SharedDocumentUpdatePopup
+      {...props}
+      graphqlEntity="InvestmentDocument"
+      payloadKey="investmentDocument"
+      groupCatalogIdentifier="InvestmentDocumentGroup"
+      typeCatalogIdentifier="InvestmentDocumentType"
+      appName="irm"
+      entityRelationships={['account', 'contact', 'lead', 'opportunity', 'investment']}
+      entityType={entityType}
+      entityId={entityId}
+      entityIdFieldName={entityIdFieldName}
+      folderEntityName={folderEntityName}
+      entityAssociations={entityAssociations}
+    />
+  )
 }
 
+export { DocumentUpdatePopup }
+export type { IRMDocumentUpdatePopupProps as DocumentUpdatePopupProps }
 export default DocumentUpdatePopup

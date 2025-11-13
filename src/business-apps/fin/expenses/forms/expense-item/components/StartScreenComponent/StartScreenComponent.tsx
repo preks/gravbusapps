@@ -1,10 +1,10 @@
 import React from 'react'
 import { Button, Divider } from '@newwork/gravity-ui-catalog'
-import { useTranslation } from 'react-i18next'
 import UploadComponent from '../UploadComponent'
 import { useExpenseItem } from '../../context/ExpenseItemContext'
 import { FORM_STEPS, FormStepType } from '../../constants/constants'
 import { ICONS } from '@/business-apps/fin/expenses/utils/icons'
+import { getTranslationFromI18nKeyAndLabel } from '@/common/utils/windowUtils'
 
 interface StartScreenComponentProps {
   fileList: any[]
@@ -19,7 +19,7 @@ export const StartScreenComponent: React.FC<StartScreenComponentProps> = ({
   setCurrentStep,
   handleCancel
 }) => {
-  const { t } = useTranslation()
+  const t = getTranslationFromI18nKeyAndLabel
   const { isProcessingFiles } = useExpenseItem()
 
   return (

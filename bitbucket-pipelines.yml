@@ -9,8 +9,9 @@
 #   Example: "crm/common/apps/lead-record,hr/core/apps/employee-record,fin/expenses/forms/expense-form"
 # - Screen paths should be relative to src/business-apps/ directory
 #
-# PUBLISH_ALL_SCREENS (production only):
-# - When set to "true", publishes ALL screens in the repository to production
+# PUBLISH_ALL_SCREENS:
+# - When set to "true", publishes ALL screens in the repository
+# - Supported in both 'publish-manual' (DEV) and 'publish-manual-prod' (PROD) custom pipelines
 # - Ignores SCREENS_TO_PUBLISH and change detection when enabled
 # - Use with caution: this will publish every screen found in src/business-apps/
 # - Default: "false"
@@ -139,7 +140,11 @@ definitions:
           - docker
         script:
           - |
-            if [ -n "$SCREENS_TO_PUBLISH" ]; then
+            if [ "$PUBLISH_ALL_SCREENS" = "true" ]; then
+              echo "🌍 PUBLISH_ALL_SCREENS=true: Publishing ALL screens to development"
+              echo "⚠️  WARNING: This will publish every screen in the repository!"
+              node scripts/publish-all-screens.js
+            elif [ -n "$SCREENS_TO_PUBLISH" ]; then
               echo "Publishing specified screens: $SCREENS_TO_PUBLISH"
               echo "$SCREENS_TO_PUBLISH" | tr ',' '\n' > manual-screens.txt
               bash scripts/detect-and-publish-changed-screens.sh manual-screens.txt
@@ -229,6 +234,8 @@ pipelines:
       - variables:
           - name: SCREENS_TO_PUBLISH
             default: ''
+          - name: PUBLISH_ALL_SCREENS
+            default: 'false'
       - step: *install_dependencies
       - step: *publish-manual-screens
 

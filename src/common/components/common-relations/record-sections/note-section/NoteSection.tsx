@@ -1,4 +1,4 @@
-import React from 'react'
+import React, { useMemo } from 'react'
 import { Card, CardContent, CardHeader, CardTitle, Button } from '@newwork/nw-design-system'
 import { PlusIcon, UserIcon, CalendarBlankIcon, BellIcon, DotsThreeVertical } from '@phosphor-icons/react'
 import dayjs from 'dayjs'
@@ -9,6 +9,8 @@ import { BusinessAppContextProps } from '@/common/BusinessAppContext'
 import { navigateTo, buildPlatformUrl } from '@/common/utils/navigationUtils'
 import { buildFileUrl, getFileIcon } from '@/common/utils/fileUtils'
 import { FileInfo } from '@/common/types/FileTypes'
+import { getTranslationFromI18nKeyAndLabel } from '@/common/utils/windowUtils'
+import type { Note } from '@/common/data/relations/types/noteTypes'
 
 export type NoteDocument = {
   id: string
@@ -22,18 +24,18 @@ export type NoteDocument = {
 export type NoteItem = {
   id: string
   version?: number
-  noteTitle: string
-  noteText: string
+  title: string
+  text: string
   createdAt: string
   createdBy: string
   authorEmployee?: { id?: string; displayName?: string; firstName?: string; lastName?: string }
   assigneeEmployee?: { id?: string; displayName?: string; firstName?: string; lastName?: string }
-  reminderAt?: string | null
+  reminderDate?: string | null
   documents?: NoteDocument[]
 }
 
 export interface NoteSectionProps extends BusinessAppContextProps {
-  notes?: NoteItem[]
+  notes?: Note[]
   noteActionProps?: Omit<AppActionCommonProps, 'accessToken'>
   noteEntityActionProps?: Omit<AppActionCommonProps, 'accessToken'>
   'data-testid'?: string
@@ -41,9 +43,35 @@ export interface NoteSectionProps extends BusinessAppContextProps {
 
 // Standard React component that can be used with SectionWrapper
 const NoteSection: React.FC<NoteSectionProps> = props => {
-  const { accessToken, notes: notesProp, noteEntityActionProps } = props
+  const { accessToken, notes: rawNotes, noteEntityActionProps } = props
 
-  const notes = notesProp || []
+  // Map raw notes to NoteItem format
+  const notes = useMemo(() => {
+    if (!rawNotes || rawNotes.length === 0) return []
+
+    return rawNotes.map((note: Note) => {
+      // Handle both CustomerNote (title/text) and Note (title/text) field names
+      // Get author display name
+      const authorEmployee = note.authorEmployee
+      const createdBy = authorEmployee
+        ? `${authorEmployee.firstName || ''} ${authorEmployee.lastName || ''}`.trim() ||
+          authorEmployee.displayName ||
+          getTranslationFromI18nKeyAndLabel('crm.common.unknown', 'Unknown')
+        : getTranslationFromI18nKeyAndLabel('crm.common.unknown', 'Unknown')
+
+      return {
+        id: note.id,
+        version: note.version,
+        title: note.title || getTranslationFromI18nKeyAndLabel('crm.notes.untitled', 'Untitled Note'),
+        text: note.text || '',
+        createdAt: note.createdAt || '',
+        createdBy,
+        authorEmployee: authorEmployee,
+        reminderDate: note.reminderDate,
+        documents: note.documents || []
+      }
+    })
+  }, [rawNotes])
 
   // Handle document download
   const handleDocumentClick = (document: NoteDocument, e: React.MouseEvent) => {
@@ -85,7 +113,7 @@ const NoteSection: React.FC<NoteSectionProps> = props => {
           <Card key={note.id} className="gba:shadow-none gba:border gba:border-gray-200">
             <CardHeader className="gba:pb-2">
               <div className="gba:flex gba:flex-row gba:items-center gba:justify-between gba:gap-2 gba:w-full">
-                <CardTitle className="gba:text-base gba:flex-1 gba:truncate gba:min-w-0">{note.noteTitle}</CardTitle>
+                <CardTitle className="gba:text-base gba:flex-1 gba:truncate gba:min-w-0">{note.title}</CardTitle>
                 {noteEntityActionProps && (
                   <AppActionMenu
                     accessToken={accessToken}
@@ -110,7 +138,7 @@ const NoteSection: React.FC<NoteSectionProps> = props => {
               </div>
             </CardHeader>
             <CardContent className="gba:pt-0">
-              <p className="gba:text-sm gba:text-gray-700 gba:mb-2">{note.noteText}</p>
+              <p className="gba:text-sm gba:text-gray-700 gba:mb-2">{note.text}</p>
               <div className="gba:flex gba:flex-wrap gba:items-center gba:gap-x-4 gba:gap-y-1 gba:text-xs gba:text-muted-foreground">
                 <span className="gba:flex gba:items-center gba:gap-1">
                   <UserIcon size={12} />
@@ -135,27 +163,9 @@ const NoteSection: React.FC<NoteSectionProps> = props => {
                 <span className="gba:flex gba:items-center gba:gap-1">
                   <CalendarBlankIcon size={12} /> {dayjs(note.createdAt).format('MMM D, YYYY h:mm A')}
                 </span>
-                {note.assigneeEmployee?.id && (
-                  <span className="gba:flex gba:items-center gba:gap-1">
-                    <UserIcon size={12} /> Assigned to{' '}
-                    <a
-                      href={buildPlatformUrl('/platform/hr/core/employees/employee-record', {
-                        employeeId: note.assigneeEmployee.id
-                      })}
-                      onClick={e => {
-                        e.preventDefault()
-                        handleEmployeeClick(note.assigneeEmployee!.id!)
-                      }}
-                      className="gba:font-medium gba:text-primary gba:hover:underline gba:cursor-pointer"
-                      data-testid={`note-assignee-link-${note.assigneeEmployee.id}`}
-                    >
-                      {getAuthorName(note.assigneeEmployee) || note.assigneeEmployee.displayName}
-                    </a>
-                  </span>
-                )}
-                {note.reminderAt && (
+                {note.reminderDate && (
                   <span className="gba:flex gba:items-center gba:gap-1 gba:text-orange-600">
-                    <BellIcon size={12} /> Reminder {dayjs(note.reminderAt).format('MMM D, YYYY h:mm A')}
+                    <BellIcon size={12} /> Reminder {dayjs(note.reminderDate).format('MMM D, YYYY h:mm A')}
                   </span>
                 )}
               </div>

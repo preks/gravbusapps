@@ -30,17 +30,20 @@ export class ChangeLogService {
   /**
    * Fetch change log entries from FLOW audit system
    */
-  async fetchChangeLogEntries(limit: number = 50): Promise<ChangeLogApiResponse> {
+  async fetchChangeLogEntries(): Promise<ChangeLogApiResponse> {
     try {
       // First try to get data from FLOW audit API
       const auditResponse = await this.fetchFromFlowAudit()
 
       if (auditResponse.entries.length > 0) {
         return auditResponse
+      } else {
+        return {
+          entries: [],
+          totalCount: 0,
+          hasMore: false
+        }
       }
-
-      // Fallback to version comparison approach
-      return await this.fetchFromVersionComparison(limit)
     } catch (error) {
       console.error('Error fetching change log entries:', error)
       const message = error instanceof Error ? error.message : 'Unknown error'
@@ -78,12 +81,14 @@ export class ChangeLogService {
             field: 'PRIORITY',
             direction: 'DESC',
             filterProcessName: processName,
-            state: 'Closed'
+            filterState: 'Closed'
           })
           .catch(() => ({ processingStates: [], content: [], totalCount: 0 }))
       )
 
       const results = await Promise.all(requests)
+
+      console.log('results', results)
 
       // Flatten tasks from different possible response shapes
       const allTasks: any[] = results.flatMap((r: any) =>
@@ -275,7 +280,7 @@ export class ChangeLogService {
    * Export change log data as CSV
    */
   async exportChangeLog(): Promise<Blob> {
-    const response = await this.fetchChangeLogEntries(10000) // Large limit for export
+    const response = await this.fetchChangeLogEntries() // Large limit for export
 
     const csvContent = [
       ['Field Name', 'Category', 'Previous Value', 'New Value', 'Timestamp', 'Changed By', 'Change Origin'],

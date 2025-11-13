@@ -57,6 +57,7 @@ export interface FlowExecutionTasksParams {
   filterProcessName?: string
   filterTaskName?: string
   state?: string // Filter by task state (e.g., 'open', 'completed')
+  filterState?: string // Filter by task state (e.g., 'open', 'completed')
 }
 
 export class FlowMetricsClient extends RestClient {
@@ -89,7 +90,7 @@ export class FlowMetricsClient extends RestClient {
       taskName,
       filterProcessName,
       filterTaskName,
-      state
+      filterState
     } = params
 
     const queryParams: Record<string, string | number> = {
@@ -108,16 +109,16 @@ export class FlowMetricsClient extends RestClient {
       queryParams.taskName = taskName
     }
 
+    if (filterState) {
+      queryParams.filterState = filterState
+    }
+
     if (filterProcessName) {
       queryParams.filterProcessName = filterProcessName
     }
 
     if (filterTaskName) {
       queryParams.filterTaskName = filterTaskName
-    }
-
-    if (state) {
-      queryParams.state = state
     }
 
     if (search) {

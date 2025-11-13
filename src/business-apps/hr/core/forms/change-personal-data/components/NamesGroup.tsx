@@ -1,4 +1,4 @@
-import React, { useEffect, useRef } from 'react'
+import React, { useEffect } from 'react'
 import {
   FormField,
   FormItem,
@@ -20,9 +20,14 @@ import type { PersonalDataFormValues, CatalogEntry } from '../types'
 export interface NamesGroupProps {
   control: Control<PersonalDataFormValues>
   catalogs: { salutation?: CatalogEntry[] }
+  setValue: (
+    name: keyof PersonalDataFormValues,
+    value: any,
+    options?: { shouldValidate?: boolean; shouldDirty?: boolean }
+  ) => void
 }
 
-const NamesGroup: React.FC<NamesGroupProps> = ({ control, catalogs }) => {
+const NamesGroup: React.FC<NamesGroupProps> = ({ control, catalogs, setValue }) => {
   const placeholderSelect = getTranslationFromI18nKeyAndLabel(
     'lowcoder:employee_profile.details_layout.personal_information_container.select_placeholder',
     'Please Select'
@@ -42,12 +47,11 @@ const NamesGroup: React.FC<NamesGroupProps> = ({ control, catalogs }) => {
       ? [String(titleWatch || '').trim(), String(preferredNameWatch || '').trim(), String(lastNameWatch || '').trim()]
       : [String(titleWatch || '').trim(), String(firstNameWatch || '').trim(), String(lastNameWatch || '').trim()]
   const computedDisplayName = partsDisplay.filter(Boolean).join(' ').trim()
-  const displayNameUpdateRef = useRef(false)
 
   // Update displayName field whenever computedDisplayName changes
   useEffect(() => {
-    displayNameUpdateRef.current = true
-  }, [computedDisplayName])
+    setValue('displayName', computedDisplayName, { shouldValidate: false, shouldDirty: false })
+  }, [computedDisplayName, setValue])
 
   const validateNameFunction = (name: string): boolean => {
     const nameRegex =
@@ -231,33 +235,26 @@ const NamesGroup: React.FC<NamesGroupProps> = ({ control, catalogs }) => {
       <FormField
         control={control}
         name={'displayName' as any}
-        render={({ field }) => {
-          if (displayNameUpdateRef.current) {
-            field.onChange(computedDisplayName)
-            displayNameUpdateRef.current = false
-          }
-
-          return (
-            <FormItem>
-              <FormLabel data-testid="change-personal-data-display-name-label">
-                {getTranslationFromI18nKeyAndLabel(
-                  'lowcoder:employee_profile.details_layout.personal_information_container.preferred_name',
-                  'Display Name'
-                )}
-              </FormLabel>
-              <FormControl>
-                <Input
-                  {...field}
-                  disabled
-                  value={computedDisplayName}
-                  className="gba:w-full"
-                  data-testid="flw_changePersonalData_currentDisplayName"
-                />
-              </FormControl>
-              <FormMessage />
-            </FormItem>
-          )
-        }}
+        render={({ field }) => (
+          <FormItem>
+            <FormLabel data-testid="change-personal-data-display-name-label">
+              {getTranslationFromI18nKeyAndLabel(
+                'lowcoder:employee_profile.details_layout.personal_information_container.preferred_name',
+                'Display Name'
+              )}
+            </FormLabel>
+            <FormControl>
+              <Input
+                {...field}
+                disabled
+                value={computedDisplayName}
+                className="gba:w-full"
+                data-testid="flw_changePersonalData_currentDisplayName"
+              />
+            </FormControl>
+            <FormMessage />
+          </FormItem>
+        )}
       />
     </div>
   )

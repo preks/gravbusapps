@@ -89,15 +89,15 @@ export const usePerformanceStatisticsData = (
         employeeId
       })
 
-      // Extract counts from response
-      const totalLeads = response.totalLeads?.aggregate?.count || 0
-      const convertedLeads = response.convertedLeads?.aggregate?.count || 0
-      const totalContacts = response.totalContacts?.aggregate?.count || 0
-      const contactsWithSalesActivity = response.contactsWithSalesActivity?.aggregate?.count || 0
-      const totalOpportunities = response.totalOpportunities?.aggregate?.count || 0
-      const wonOpportunities = response.wonOpportunities?.aggregate?.count || 0
-      const totalAccounts = response.totalAccounts?.aggregate?.count || 0
-      const accountsRevenue = response.accountsRevenue?.aggregate?.sum?.estimatedAmount || 0
+      // Extract counts from response - handle both possible response structures
+      const totalLeads = response.totalLeads?.aggregate?.count ?? 0
+      const convertedLeads = response.convertedLeads?.aggregate?.count ?? 0
+      const totalContacts = response.totalContacts?.aggregate?.count ?? 0
+      const contactsWithSalesActivity = response.contactsWithSalesActivity?.aggregate?.count ?? 0
+      const totalOpportunities = response.totalOpportunities?.aggregate?.count ?? 0
+      const wonOpportunities = response.wonOpportunities?.aggregate?.count ?? 0
+      const totalAccounts = response.totalAccounts?.aggregate?.count ?? 0
+      const accountsRevenue = response.accountsRevenue?.aggregate?.sum?.estimatedAmount ?? 0
 
       // Get currency from sample opportunity
       const sampleOpp = response.sampleOpportunity?.[0]

@@ -115,6 +115,7 @@ export const ContactFormProvider: React.FC<ContactFormProviderProps> = ({
     accountId: '',
     account: '', // Account ID for selection
     companyName: '', // Company name for display (same as opportunity form)
+    accountIds: [], // ✅ NEW: Array of account IDs for multi-account associations (matching IRM pattern)
     ownerEmployeeId: '',
     owner: '', // Owner employee ID for selection
     ownerOrganizationId: '',

@@ -350,16 +350,9 @@ const CampaignsTable: React.FC<CampaignsTableProps> = ({
                           size="icon"
                           contextsArray={[FlowContextName.customerCampaignEntity]}
                           externalContextData={{
-                            campaignId: campaign.id,
-                            salesCampaign: { id: campaign.id },
-                            salesCampaignId: campaign.id,
-                            id: campaign.id,
-                            entityId: campaign.id,
-                            saveSalesCampaignModelInput: {
-                              changeMode: 'UPDATE',
-                              salesCampaign: { id: campaign.id }
-                            }
+                            campaignId: campaign.id
                           }}
+                          prefixDataTestId={`${DATA_TEST_ID_PREFIX}-update-campaign`}
                           deferMainContextRequestsUntilClick
                           accessToken={accessToken}
                           emptyStateBehavior="enable"

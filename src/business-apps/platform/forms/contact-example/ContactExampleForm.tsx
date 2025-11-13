@@ -8,7 +8,7 @@ import {
   createContactSegmentResolver,
   type ContactSegmentSchema
 } from '@/common/components/common-relations/form-segments/contact-segment/schema'
-import { useInvestmentEntities } from '@/common/data/investment/hooks'
+import { useInvestmentEntities } from '@/common/data/investment/hooks/useInvestmentEntities'
 import { useEmployeeSearch } from '@/common/data/employee/useEmployeeSearch'
 
 export interface ContactExampleFormProps extends BusinessAppContextProps {
@@ -37,7 +37,6 @@ const initialFormData: FormData = {
 
 const ContactExampleForm: React.FC<ContactExampleFormProps> = ({
   accessToken,
-  userInfo,
   additionalData,
   onSuccess,
   onCancel
@@ -95,35 +94,32 @@ const ContactExampleForm: React.FC<ContactExampleFormProps> = ({
     [searchEntities]
   )
 
-  const handleSubmit = useCallback(
-    async (_: ContactSegmentSchema) => {
-      const allValues = (form as any).getValues?.() || {}
-      const entityRef = (() => {
-        if (allValues.account?.id) return { account: { id: allValues.account.id } }
-        if (allValues.contact?.id) return { contact: { id: allValues.contact.id } }
-        if (allValues.opportunity?.id) return { opportunity: { id: allValues.opportunity.id } }
-        if (allValues.lead?.id) return { lead: { id: allValues.lead.id } }
-        return {} as any
-      })()
-      return {
-        type: 'InvestmentContactExample',
-        ownerEmployeeId: allValues.ownerEmployeeId,
-        firstName: allValues.firstName,
-        lastName: allValues.lastName,
-        email: allValues.email,
-        phone: allValues.phone,
-        academicTitleRef: allValues.academicTitleRef,
-        languageRef: allValues.languageRef,
-        birthDate: allValues.birthDate,
-        description: allValues.description,
-        jobPosition: allValues.jobPosition,
-        department: allValues.department,
-        code: allValues.code,
-        ...entityRef
-      }
-    },
-    [form]
-  )
+  const handleSubmit = useCallback(async () => {
+    const allValues = (form as any).getValues?.() || {}
+    const entityRef = (() => {
+      if (allValues.account?.id) return { account: { id: allValues.account.id } }
+      if (allValues.contact?.id) return { contact: { id: allValues.contact.id } }
+      if (allValues.opportunity?.id) return { opportunity: { id: allValues.opportunity.id } }
+      if (allValues.lead?.id) return { lead: { id: allValues.lead.id } }
+      return {} as any
+    })()
+    return {
+      type: 'InvestmentContactExample',
+      ownerEmployeeId: allValues.ownerEmployeeId,
+      firstName: allValues.firstName,
+      lastName: allValues.lastName,
+      email: allValues.email,
+      phone: allValues.phone,
+      academicTitleRef: allValues.academicTitleRef,
+      languageRef: allValues.languageRef,
+      birthDate: allValues.birthDate,
+      description: allValues.description,
+      jobPosition: allValues.jobPosition,
+      department: allValues.department,
+      code: allValues.code,
+      ...entityRef
+    }
+  }, [form])
 
   const handleSuccess = useCallback(() => {
     onSuccess?.(formData)

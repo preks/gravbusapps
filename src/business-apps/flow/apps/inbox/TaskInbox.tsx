@@ -40,12 +40,14 @@ import {
   Eye,
   FileText,
   Info,
-  ArrowRight
+  ArrowRight,
+  Zap
 } from 'lucide-react'
 import { BusinessAppContextProps } from '@/common/BusinessAppContext'
 import { env } from '@/common/env/EnvUtils'
 import { TaskDetailsTab } from './components'
 import { FlowManagement } from '../../common/components'
+import { QuickTaskModal, QuickTaskFormData, QuickTaskFlowService } from '../../common/components/flow-quick-task'
 
 // Remove unused Ant Design destructuring
 
@@ -210,6 +212,7 @@ import { mockUsers, type User as MockUser } from '../../data/mockUsers'
 const TaskInbox: React.FC<TaskInboxProps> = ({ prefixDataTestId = 'TaskInbox', accessToken, userInfo, ...context }) => {
   // Get logged-in user's ID from userInfo
   const loggedInUserId = userInfo?.id || userInfo?.employeeDetails?.employeeId || 'user-001'
+  const loggedInEmployeeId = userInfo?.employeeDetails?.employeeId || ''
   const loggedInUserName =
     userInfo?.givenName && userInfo?.familyName
       ? `${userInfo.givenName} ${userInfo.familyName}`
@@ -231,6 +234,7 @@ const TaskInbox: React.FC<TaskInboxProps> = ({ prefixDataTestId = 'TaskInbox', a
   const [completedTasks, setCompletedTasks] = useState<Task[]>([])
   const [completedLoading, setCompletedLoading] = useState(false)
   const [completedError, setCompletedError] = useState<string | null>(null)
+  const [isQuickTaskModalOpen, setIsQuickTaskModalOpen] = useState(false)
 
   // Handle URL parameters for initial tab selection
   useEffect(() => {
@@ -242,8 +246,7 @@ const TaskInbox: React.FC<TaskInboxProps> = ({ prefixDataTestId = 'TaskInbox', a
     }
   }, [])
 
-  const API_BASE =
-    (env('NEXT_PUBLIC_CUSTOM_FLOW_ENGINE_API_URL') || 'https://newwork-dev.newwork.com/flow-engine') + '/api'
+  const API_BASE = env('NEXT_PUBLIC_BASE_URL') + '/flow-engine' + '/api'
 
   // Fetch open tasks and stats for selected user
   const fetchUserData = async (userId: string) => {
@@ -485,6 +488,27 @@ const TaskInbox: React.FC<TaskInboxProps> = ({ prefixDataTestId = 'TaskInbox', a
     }
   }
 
+  // Handle Quick Task submission
+  const handleQuickTaskSubmit = async (data: QuickTaskFormData) => {
+    try {
+      // Execute the quick task using the service method
+      await QuickTaskFlowService.executeQuickTask({
+        formData: data,
+        uploadResults: [], // File upload can be added later if needed
+        accessToken,
+        initiatorId: userInfo?.id || 'unknown',
+        apiBaseUrl: API_BASE.replace('/api', '')
+      })
+
+      message.success(`Quick Task "${data.title}" created successfully!`)
+
+      // Refresh the task list to show the new task
+      await fetchUserData(selectedUserId)
+    } catch (error) {
+      message.error(`Failed to create Quick Task: ${error instanceof Error ? error.message : 'Unknown error'}`)
+    }
+  }
+
   /* eslint-disable newwork-local/no-hardcoded-colors */
   const getTaskTypeIcon = (task: Task) => {
     switch (task.type) {
@@ -593,8 +617,17 @@ const TaskInbox: React.FC<TaskInboxProps> = ({ prefixDataTestId = 'TaskInbox', a
             </div>
           </div>
 
-          {/* Top Right: User Selection */}
+          {/* Top Right: User Selection and Quick Task Button */}
           <div className="gba:flex gba:items-center gba:gap-3">
+            <Button
+              onClick={() => setIsQuickTaskModalOpen(true)}
+              className="gba:bg-gradient-to-r gba:from-blue-600 gba:to-indigo-600 hover:gba:from-blue-700 hover:gba:to-indigo-700 gba:text-white gba:shadow-lg"
+              data-testid={`${prefixDataTestId}-QuickTaskButton`}
+            >
+              <Zap className="gba:h-4 gba:w-4 gba:mr-2" />
+              Quick Task
+            </Button>
+
             <Select
               value={selectedUserId}
               onValueChange={setSelectedUserId}
@@ -1180,6 +1213,25 @@ const TaskInbox: React.FC<TaskInboxProps> = ({ prefixDataTestId = 'TaskInbox', a
           )}
         </DialogContent>
       </Dialog>
+
+      {/* Quick Task Modal */}
+      <QuickTaskModal
+        open={isQuickTaskModalOpen}
+        onOpenChange={setIsQuickTaskModalOpen}
+        accessToken={accessToken}
+        onSubmit={handleQuickTaskSubmit}
+        title="Blink"
+        description="Fill out the form to create and assign a task instantly"
+        employeeId={loggedInEmployeeId}
+        config={{
+          assigneeSelector: { mode: 'employee-search', required: true },
+          enableFileUpload: true,
+          enableDueDate: true,
+          maxFiles: 5,
+          maxFileSize: 10,
+          allowedFileTypes: ['.pdf', '.doc', '.docx', '.txt', '.xls', '.xlsx', '.jpg', '.jpeg', '.png', '.zip']
+        }}
+      />
     </div>
   )
 }

@@ -3,6 +3,8 @@ import { ConvertLeadFormData, ConvertLeadFormDataLegacy } from '../types'
 import { AccountFormValues } from '../../account-form/types'
 import { ContactFormValues } from '../../contact-form/types'
 import { InvestmentOpportunityFormValues } from '../../opportunity-form/types'
+import { buildCommunicationChannelRef } from '@/common/data/common/utils/communicationChannelHelpers'
+import { CommunicationChannelCode } from '@/common/data/common/types/commonTypes'
 
 export const createSubmissionPayload = (
   data: ConvertLeadFormData,
@@ -161,7 +163,7 @@ export const createSubmissionPayload = (
     // Add LinkedIn communication channel if provided
     if (completeContactData.linkedinUrl && completeContactData.linkedinUrl.trim()) {
       communicationChannels.push({
-        communicationChannelRef: 'CommunicationChannel:v1:LinkedIn',
+        communicationChannelRef: buildCommunicationChannelRef(CommunicationChannelCode.LINKEDIN),
         value: completeContactData.linkedinUrl.trim(),
         valueExtension: null,
         source: 'FORM_INPUT',
@@ -173,7 +175,7 @@ export const createSubmissionPayload = (
     // Add Xing communication channel if provided
     if (completeContactData.xingUrl && completeContactData.xingUrl.trim()) {
       communicationChannels.push({
-        communicationChannelRef: 'CommunicationChannel:v1:Xing',
+        communicationChannelRef: buildCommunicationChannelRef(CommunicationChannelCode.XING),
         value: completeContactData.xingUrl.trim(),
         valueExtension: null,
         source: 'FORM_INPUT',

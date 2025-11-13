@@ -1,6 +1,6 @@
 import React, { useState, useCallback, useMemo } from 'react'
 import { DataContainer } from '@/components/layout/dataContainer'
-import { useLeadFilters } from '@/business-apps/crm/core/apps/customer-relations/views/lead-view/hooks/useLeadFilters'
+import { useLeadFilters } from '../../hooks/useLeadFilters'
 import { useEmployeeLeadsData } from '../../hooks/useEmployeeLeadsData'
 import { LeadsTable } from './LeadsTable'
 
