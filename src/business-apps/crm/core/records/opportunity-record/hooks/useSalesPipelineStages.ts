@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react'
 import { useGraphQLClient } from '@/common/network/graphql/useGraphQLClient'
-import { ReferenceData } from '../types'
+import { ReferenceData } from '../components/OpportunityStageProgression'
 
 export const useSalesPipelineStages = (salesPipelineRef: string | undefined, accessToken: string) => {
   const [pipelineStages, setPipelineStages] = useState<ReferenceData[]>([])

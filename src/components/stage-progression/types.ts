@@ -26,6 +26,7 @@ export interface StageTooltipConfig {
 }
 
 // Styling configuration for the progression
+// @deprecated - Styling is now handled via Tailwind classes with design tokens
 export interface StageProgressionStyling {
   height?: string
   fontSize?: string
@@ -42,6 +43,7 @@ export interface StageProgressionProps {
   currentStage: string // Code or value of the current stage
 
   // Optional visual configuration
+  // @deprecated - Styling is now handled via Tailwind classes with design tokens
   styling?: StageProgressionStyling
 
   // Event handlers

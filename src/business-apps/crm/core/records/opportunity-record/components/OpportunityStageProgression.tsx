@@ -1,10 +1,18 @@
 import React, { useState, useCallback, useMemo } from 'react'
-import { ReferenceData } from '../types'
 import { StageProgression } from '@/components/stage-progression/StageProgression'
 import type { Stage, StageCondition } from '@/components/stage-progression/types'
 import { FlowContextName } from '@/common/types/FlowRegistryTypes'
 import { CheckCircleFilled, CloseCircleFilled } from '@ant-design/icons'
 import { AppActionMenu } from '@/components/app-action-menu/AppActionMenu'
+
+// Reference data interface for pipeline stages
+export interface ReferenceData {
+  id: string
+  code: string
+  value: string
+  alternativeCode?: string
+  additionalValue1?: string
+}
 
 // Tooltip content component for opportunity stage conditions
 const OpportunityStageTooltipContent: React.FC<{
@@ -153,7 +161,7 @@ export const OpportunityStageProgression: React.FC<OpportunityStageProgressionPr
 
   // Stable context arrays
   const emptyContextsArray = useMemo(() => [], [])
-  const transitionContextsArray = useMemo(() => [FlowContextName.transitionOpportunityStage], [])
+  const transitionContextsArray = useMemo(() => [FlowContextName.customerOpportunityStageTransition], [])
   const stageStyle = useMemo(() => ({ flex: 1, display: 'flex' as const }), [])
 
   // Create stable props for all stages
@@ -206,19 +214,35 @@ export const OpportunityStageProgression: React.FC<OpportunityStageProgressionPr
         stages={convertToStageFormat(stages)}
         currentStage={currentStage}
         dataTestIdPrefix="opportunity-stage-progression"
-        onStageClick={() => {}} // Dummy function to enable pointer cursor
+        onStageClick={() => {}} // Dummy function to enable pointer cursor for non-current stages
       >
         {(stage, isCurrentStage, _isCompleted, stageElement) => {
           const stagePropsData = stageProps[stage.id]
+          // For the current stage, render a plain container (no action menu) to prevent any click interaction
+          if (isCurrentStage) {
+            return (
+              <div
+                key={`stage-${stage.id}-current`}
+                style={stageStyle}
+                onMouseEnter={stagePropsData?.mouseHandlers.onMouseEnter}
+                onMouseLeave={stagePropsData?.mouseHandlers.onMouseLeave}
+                data-testid={`opportunity-stage-action-menu-${stage.code}`}
+              >
+                {stageElement}
+              </div>
+            )
+          }
+
+          // For non-current stages, keep the action menu to allow transitions
           return (
             <AppActionMenu
-              key={`stage-${stage.id}-${isCurrentStage ? 'current' : 'not-current'}`}
+              key={`stage-${stage.id}-not-current`}
               contextsArray={stagePropsData?.contextsArray}
               externalContextData={stagePropsData?.externalContextData}
               accessToken={accessToken}
               prefixDataTestId={`opportunity-stage-action-${stage.code}`}
-              deferMainContextRequestsUntilClick={false}
-              emptyStateBehavior="disable"
+              deferMainContextRequestsUntilClick={true}
+              emptyStateBehavior="enable"
               autoExecuteSingleAction={true}
               style={stageStyle}
               onMouseEnter={stagePropsData?.mouseHandlers.onMouseEnter}

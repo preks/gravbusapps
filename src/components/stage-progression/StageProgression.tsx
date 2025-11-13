@@ -1,22 +1,17 @@
 import React from 'react'
 import { TooltipProvider } from '@newwork/nw-design-system'
 import { formatDataTestId } from '@/common/utils/formatDataTestId'
+import { cn } from '@/common/utils/cn'
 import { StageProgressionProps } from './types'
 
-// Helper function to determine stage colors
-const getStageColors = (isCurrentStage: boolean, isCompleted: boolean, defaultStyling: any, defaultColors: any) => {
+// Helper function to determine stage color classes
+const getStageColorClasses = (isCurrentStage: boolean, isCompleted: boolean) => {
   // Both completed and current stages use the same colors
   if (isCompleted || isCurrentStage) {
-    return {
-      backgroundColor: defaultStyling.colors.completed || defaultColors.completed,
-      textColor: 'var(--nw-color-primary-foreground)'
-    }
+    return 'gba:bg-success gba:text-primary-foreground'
   }
 
-  return {
-    backgroundColor: defaultStyling.colors.pending?.background || defaultColors.pending.background,
-    textColor: defaultStyling.colors.pending?.text || defaultColors.pending.text
-  }
+  return 'gba:bg-muted gba:text-muted-foreground'
 }
 
 // Helper function to determine border styling
@@ -53,38 +48,11 @@ const getBorderStyling = (index: number, totalStages: number) => {
 export const StageProgression: React.FC<StageProgressionProps> = ({
   stages,
   currentStage,
-  styling = {},
   onStageClick,
   renderStageContent,
   children,
   dataTestIdPrefix = 'stage-progression'
 }) => {
-  // Default styling with design system tokens
-  const defaultColors = {
-    completed: 'var(--nw-color-success)',
-    current: {
-      border: 'linear-gradient(135deg, rgba(76, 175, 80, 0.8), rgba(102, 187, 106, 0.6))',
-      background: 'var(--nw-color-background)',
-      text: 'var(--nw-color-foreground)'
-    },
-    pending: {
-      background: 'var(--nw-color-muted)',
-      text: 'var(--nw-color-muted-foreground)'
-    }
-  }
-
-  const defaultStyling = {
-    height: '40px',
-    fontSize: '14px',
-    fontWeight: '600',
-    borderRadius: '20px',
-    colors: {
-      ...defaultColors,
-      ...(styling.colors || {})
-    },
-    ...styling
-  }
-
   const getCurrentStageIndex = () => {
     const currentIndex = stages.findIndex(
       stage =>
@@ -102,30 +70,13 @@ export const StageProgression: React.FC<StageProgressionProps> = ({
 
   return (
     <TooltipProvider>
-      <div
-        style={{
-          display: 'flex',
-          alignItems: 'center',
-          height: '48px',
-          backgroundColor: 'var(--nw-color-muted-100)',
-          borderRadius: '24px',
-          overflow: 'visible',
-          border: '1px solid var(--nw-color-border)',
-          padding: '0 4px',
-          gap: '0'
-        }}
-      >
+      <div className="gba:flex gba:items-center gba:h-12 gba:bg-muted gba:rounded-3xl gba:overflow-visible gba:border gba:border-border gba:p-1 gba:gap-0">
         {stages.map((stage, index) => {
           const isCurrentStage = index === currentIndex
           const isCompleted = index < currentIndex
 
-          // Get colors using helper function
-          const { backgroundColor, textColor } = getStageColors(
-            isCurrentStage,
-            isCompleted,
-            defaultStyling,
-            defaultColors
-          )
+          // Get color classes using helper function
+          const colorClasses = getStageColorClasses(isCurrentStage, isCompleted)
 
           // Get border styling using helper function
           const { borderRadius, clipPath, WebkitClipPath, marginRight } = getBorderStyling(index, stages.length)
@@ -138,38 +89,27 @@ export const StageProgression: React.FC<StageProgressionProps> = ({
 
           const stageElement = (
             <div
+              className={cn(
+                'gba:relative gba:h-10 gba:flex-1 gba:flex gba:items-center gba:justify-center gba:text-sm gba:font-semibold',
+                colorClasses,
+                onStageClick && !isCurrentStage ? 'gba:cursor-pointer' : 'gba:cursor-default'
+              )}
               style={{
-                position: 'relative',
-                height: defaultStyling.height,
-                flex: 1,
-                display: 'flex',
-                alignItems: 'center',
-                justifyContent: 'center',
-                fontSize: defaultStyling.fontSize,
-                fontWeight: defaultStyling.fontWeight,
-                backgroundColor,
-                color: textColor,
                 borderRadius,
                 marginRight,
                 clipPath,
-                WebkitClipPath,
-                cursor: onStageClick && !isCurrentStage ? 'pointer' : 'default'
+                WebkitClipPath
               }}
               data-testid={formatDataTestId(dataTestIdPrefix, `stage-${stage.code}`)}
               onClick={handleStageClick}
             >
               {/* Stage content */}
               <div
-                style={{
-                  display: 'flex',
-                  alignItems: 'center',
-                  gap: '8px',
-                  padding: '0 16px',
-                  paddingRight: index < stages.length - 1 ? '24px' : '16px',
-                  paddingLeft: index > 0 ? '24px' : '16px',
-                  position: 'relative',
-                  zIndex: 10
-                }}
+                className={cn(
+                  'gba:flex gba:items-center gba:gap-2 gba:px-4 gba:relative gba:z-10',
+                  index < stages.length - 1 && 'gba:pr-6',
+                  index > 0 && 'gba:pl-6'
+                )}
               >
                 {renderStageContent ? (
                   renderStageContent(stage, isCurrentStage, isCompleted)
@@ -177,28 +117,15 @@ export const StageProgression: React.FC<StageProgressionProps> = ({
                   <>
                     {(isCurrentStage || isCompleted) && (
                       <span
-                        style={{
-                          fontSize: '14px',
-                          fontWeight: 'bold',
-                          backgroundColor: isCompleted ? 'var(--nw-color-primary-100)' : 'var(--nw-color-success)',
-                          color: 'var(--nw-color-primary-foreground)',
-                          borderRadius: '50%',
-                          width: '20px',
-                          height: '20px',
-                          display: 'flex',
-                          alignItems: 'center',
-                          justifyContent: 'center'
-                        }}
+                        className={cn(
+                          'gba:text-sm gba:font-bold gba:rounded-full gba:w-5 gba:h-5 gba:flex gba:items-center gba:justify-center gba:text-primary-foreground',
+                          isCompleted ? 'gba:bg-primary-100' : 'gba:bg-success'
+                        )}
                       >
                         ✓
                       </span>
                     )}
-                    <span
-                      style={{
-                        whiteSpace: 'nowrap',
-                        fontSize: stages.length > 4 ? '12px' : '14px'
-                      }}
-                    >
+                    <span className={cn('gba:whitespace-nowrap', stages.length > 4 ? 'gba:text-xs' : 'gba:text-sm')}>
                       {stage.value}
                     </span>
                   </>
