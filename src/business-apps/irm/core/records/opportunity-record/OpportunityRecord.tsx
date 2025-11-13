@@ -52,6 +52,7 @@ import {
 } from '@/common/data/investment/hooks/useInvestmentOpportunities'
 import { FlowContextName } from '@/common/types/FlowRegistryTypes'
 import { startProcess } from '@/common/utils/start-process'
+import { OpportunityStatusUpdatePopup } from '@/business-apps/irm/core/popups/status-update-popup'
 import {
   getIrmDocumentApiConfig,
   useGetIrmDocuments,
@@ -74,6 +75,21 @@ const InvestmentOpportunityRecordContent: React.FC<OpportunityRecordContentProps
   const ALLOWED_TABS = ['overview', 'documents'] as const
   type TabKey = (typeof ALLOWED_TABS)[number]
   const [activeTab, setActiveTab] = useState('overview')
+
+  // Status update popup state
+  const [statusUpdatePopup, setStatusUpdatePopup] = useState<{
+    open: boolean
+    opportunityId?: string
+    opportunityVersion?: number
+    opportunityName?: string
+  }>({ open: false })
+
+  // Construct businessAppContext from props for sections
+  const businessAppContext: BusinessAppContextProps = {
+    accessToken: props.accessToken,
+    userInfo: props.userInfo,
+    additionalData: props.additionalData
+  }
 
   // Initialize activeTab from URL on mount and write default if missing
   useEffect(() => {
@@ -517,12 +533,30 @@ const InvestmentOpportunityRecordContent: React.FC<OpportunityRecordContentProps
     )
   }, [props.accessToken, opportunityId, rejectionReasons, rejectionReasonsError, loadRejectionReasons])
 
+  // Handler to open status update popup
+  const handleUpdateStatus = () => {
+    const versionNumber =
+      typeof opportunity?.version === 'number' ? opportunity.version : Number.parseInt(opportunity?.version || '1', 10)
+
+    setStatusUpdatePopup({
+      open: true,
+      opportunityId: opportunityId,
+      opportunityVersion: versionNumber,
+      opportunityName: opportunity?.name || opportunityData?.name || 'Unnamed Opportunity'
+    })
+  }
+
   // Memoize RecordLayout data to prevent unnecessary re-renders (must be before early returns)
   const headerMeta = useMemo(
     () => (
       <div className="gba:flex gba:items-center gba:gap-2">
         {opportunityData?.opportunityStatus?.value && (
-          <Badge variant={getOpportunityStatusBadgeVariant(opportunityData.opportunityStatus)} className="gba:gap-1">
+          <Badge
+            variant={getOpportunityStatusBadgeVariant(opportunityData.opportunityStatus)}
+            className="gba:gap-1 gba:cursor-pointer hover:gba:opacity-80"
+            onClick={handleUpdateStatus}
+            data-testid="opportunity-status-badge"
+          >
             {opportunityData.opportunityStatus.value}
           </Badge>
         )}
@@ -1020,6 +1054,26 @@ const InvestmentOpportunityRecordContent: React.FC<OpportunityRecordContentProps
         headerContent={headerContent}
         subViews={subViewsConfig}
       />
+
+      {/* Status Update Popup */}
+      {statusUpdatePopup.open && statusUpdatePopup.opportunityId && (
+        <OpportunityStatusUpdatePopup
+          isOpen={statusUpdatePopup.open}
+          onClose={() => setStatusUpdatePopup({ open: false })}
+          accessToken={props.accessToken}
+          opportunityId={statusUpdatePopup.opportunityId}
+          opportunityVersion={statusUpdatePopup.opportunityVersion}
+          opportunityName={statusUpdatePopup.opportunityName}
+          onSuccess={() => {
+            refetchOpportunityData()
+            setStatusUpdatePopup({ open: false })
+          }}
+          onError={() => {
+            setStatusUpdatePopup({ open: false })
+          }}
+          data-testid="opportunity-status-update-popup"
+        />
+      )}
     </div>
   )
 }
