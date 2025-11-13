@@ -20,6 +20,9 @@ export interface InvestmentContact extends Contact {
   opportunityContacts?: InvestmentOpportunityContact[]
   tasks?: InvestmentTask[]
 
+  // IRM-specific fields
+  userId?: string // Keycloak user ID for portal users
+
   // Base fields for mapping
   investmentAccountContact?: InvestmentAccountContact[] // Mapped to accountContacts
   investmentLead?: InvestmentLead[] // Mapped to leads
@@ -35,7 +38,9 @@ export const InvestmentContactFields = {
   // Override IRM-specific field names
   accountContacts: 'investmentAccountContact',
   leads: 'investmentLead',
-  opportunityContacts: 'investmentOpportunityContact'
+  opportunityContacts: 'investmentOpportunityContact',
+  // IRM-specific fields
+  userId: 'userId'
 } as const
 
 export type InvestmentContactFieldName = (typeof InvestmentContactFields)[keyof typeof InvestmentContactFields]
@@ -45,5 +50,12 @@ export type InvestmentContactFieldName = (typeof InvestmentContactFields)[keyof 
  * Uses createContactDescriptors with InvestmentContactFields mapping
  */
 export const INVESTMENT_CONTACT_DESCRIPTORS: Descriptor[] = [
-  ...createContactDescriptors(InvestmentContactFields as Record<keyof typeof ContactFields, string>)
+  ...createContactDescriptors(InvestmentContactFields as Record<keyof typeof ContactFields, string>),
+  // IRM-specific descriptors
+  {
+    key: 'userIds',
+    path: InvestmentContactFields.userId,
+    filterLabel: 'User',
+    kind: 'inIds'
+  }
 ]

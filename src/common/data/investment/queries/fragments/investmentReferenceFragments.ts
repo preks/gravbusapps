@@ -72,6 +72,7 @@ export const INVESTMENT_CONTACT_REF = `
   picture
   pictureThumbnail
   type
+  userId
 `
 
 /**

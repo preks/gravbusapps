@@ -38,7 +38,7 @@ const PLATFORM_URL_TO_APP_MAPPING: NavigationMapping = {
 
   /// Investments: Apps
   '/platform/irm/investment-management': 'irm/investments/apps/investment-management',
-  '/platform/irm/investment-report-portal': 'irm/investments/apps/investment-report-portal',
+  '/platform/irm/investment-portal': 'irm/investments/apps/investment-portal',
 
   /// Investments: Records
   '/platform/irm/investment-record': 'irm/investments/records/investment-record',

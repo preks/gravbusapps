@@ -122,7 +122,8 @@ const TaskSection: React.FC<TaskSectionProps> = ({
           lead: task.lead,
           account: task.account,
           contact: task.contact,
-          opportunity: task.opportunity
+          opportunity: task.opportunity,
+          investment: (task as any).investment
         },
         getTranslationFromI18nKeyAndLabel('crm.tasks.untitled', 'Untitled Task')
       )
