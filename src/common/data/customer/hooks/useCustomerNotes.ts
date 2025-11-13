@@ -3,6 +3,19 @@ import { useCallback } from 'react'
 import { useGraphQLClient } from '@/common/network/graphql/useGraphQLClient'
 import { BusinessAppContextProps } from '@/common/BusinessAppContext'
 
+// Use the new query builder functions
+import {
+  buildCustomerNoteByAccountIdQuery,
+  buildCustomerNoteByContactIdQuery,
+  buildCustomerNoteByLeadIdQuery,
+  buildCustomerNoteByOpportunityIdQuery,
+  buildCustomerNoteWhereCondition,
+  buildCustomerNoteOrderBy
+} from '../queries/customerNoteQueries'
+
+// Mapper
+import { toCustomerNote } from '../mappers/customerRelatedEntityMappers'
+
 //Types
 export interface CustomerNote {
   id: string
@@ -37,35 +50,16 @@ export const useCustomerNotes = (context: BusinessAppContextProps) => {
 
   const fetchCustomerNotesByAccountId = useCallback(
     async (accountId: string): Promise<CustomerNote[]> => {
-      const query = `
-        query GetCustomerNotesByAccountId {
-          CrmNote(
-            where: { 
-              account: { id: { _eq: "${accountId}" } }, 
-              isDeleted: { _eq: false } 
-            }
-            orderBy: [{ createdAt: DESC }]
-          ) {
-            id
-            version
-            noteTitle
-            noteText
-            reminderDate
-            createdAt
-            updatedAt
-            authorEmployee {
-              id
-              displayName
-              firstName
-              lastName
-            }
-          }
-        }
-      `
+      const query = buildCustomerNoteByAccountIdQuery()
+      const whereCondition = buildCustomerNoteWhereCondition({}, [], [{ account: { id: { _eq: accountId } } }])
+      const orderBy = buildCustomerNoteOrderBy([{ field: 'createdAt', direction: 'DESC_NULLS_LAST' }])
 
       try {
-        const result = await graphqlClient.request<CustomerNoteByEntityQueryResponse>(query)
-        return result.CrmNote || []
+        const result = await graphqlClient.request<CustomerNoteByEntityQueryResponse>(query, {
+          where: whereCondition,
+          orderBy: orderBy
+        })
+        return (result.CrmNote || []).map(toCustomerNote)
       } catch (error) {
         console.error('Error fetching customer notes by account ID:', error)
         throw error
@@ -76,35 +70,16 @@ export const useCustomerNotes = (context: BusinessAppContextProps) => {
 
   const fetchCustomerNotesByContactId = useCallback(
     async (contactId: string): Promise<CustomerNote[]> => {
-      const query = `
-        query GetCustomerNotesByContactId {
-          CrmNote(
-            where: { 
-              contact: { id: { _eq: "${contactId}" } }, 
-              isDeleted: { _eq: false } 
-            }
-            orderBy: [{ createdAt: DESC }]
-          ) {
-            id
-            version
-            noteTitle
-            noteText
-            reminderDate
-            createdAt
-            updatedAt
-            authorEmployee {
-              id
-              displayName
-              firstName
-              lastName
-            }
-          }
-        }
-      `
+      const query = buildCustomerNoteByContactIdQuery()
+      const whereCondition = buildCustomerNoteWhereCondition({}, [], [{ contact: { id: { _eq: contactId } } }])
+      const orderBy = buildCustomerNoteOrderBy([{ field: 'createdAt', direction: 'DESC_NULLS_LAST' }])
 
       try {
-        const result = await graphqlClient.request<CustomerNoteByEntityQueryResponse>(query)
-        return result.CrmNote || []
+        const result = await graphqlClient.request<CustomerNoteByEntityQueryResponse>(query, {
+          where: whereCondition,
+          orderBy: orderBy
+        })
+        return (result.CrmNote || []).map(toCustomerNote)
       } catch (error) {
         console.error('Error fetching customer notes by contact ID:', error)
         throw error
@@ -115,35 +90,16 @@ export const useCustomerNotes = (context: BusinessAppContextProps) => {
 
   const fetchCustomerNotesByLeadId = useCallback(
     async (leadId: string): Promise<CustomerNote[]> => {
-      const query = `
-        query GetCustomerNotesByLeadId {
-          CrmNote(
-            where: { 
-              lead: { id: { _eq: "${leadId}" } }, 
-              isDeleted: { _eq: false } 
-            }
-            orderBy: [{ createdAt: DESC }]
-          ) {
-            id
-            version
-            noteTitle
-            noteText
-            reminderDate
-            createdAt
-            updatedAt
-            authorEmployee {
-              id
-              displayName
-              firstName
-              lastName
-            }
-          }
-        }
-      `
+      const query = buildCustomerNoteByLeadIdQuery()
+      const whereCondition = buildCustomerNoteWhereCondition({}, [], [{ lead: { id: { _eq: leadId } } }])
+      const orderBy = buildCustomerNoteOrderBy([{ field: 'createdAt', direction: 'DESC_NULLS_LAST' }])
 
       try {
-        const result = await graphqlClient.request<CustomerNoteByEntityQueryResponse>(query)
-        return result.CrmNote || []
+        const result = await graphqlClient.request<CustomerNoteByEntityQueryResponse>(query, {
+          where: whereCondition,
+          orderBy: orderBy
+        })
+        return (result.CrmNote || []).map(toCustomerNote)
       } catch (error) {
         console.error('Error fetching customer notes by lead ID:', error)
         throw error
@@ -154,35 +110,16 @@ export const useCustomerNotes = (context: BusinessAppContextProps) => {
 
   const fetchCustomerNotesByOpportunityId = useCallback(
     async (opportunityId: string): Promise<CustomerNote[]> => {
-      const query = `
-        query GetCustomerNotesByOpportunityId {
-          CrmNote(
-            where: { 
-              opportunity: { id: { _eq: "${opportunityId}" } }, 
-              isDeleted: { _eq: false } 
-            }
-            orderBy: [{ createdAt: DESC }]
-          ) {
-            id
-            version
-            noteTitle
-            noteText
-            reminderDate
-            createdAt
-            updatedAt
-            authorEmployee {
-              id
-              displayName
-              firstName
-              lastName
-            }
-          }
-        }
-      `
+      const query = buildCustomerNoteByOpportunityIdQuery()
+      const whereCondition = buildCustomerNoteWhereCondition({}, [], [{ opportunity: { id: { _eq: opportunityId } } }])
+      const orderBy = buildCustomerNoteOrderBy([{ field: 'createdAt', direction: 'DESC_NULLS_LAST' }])
 
       try {
-        const result = await graphqlClient.request<CustomerNoteByEntityQueryResponse>(query)
-        return result.CrmNote || []
+        const result = await graphqlClient.request<CustomerNoteByEntityQueryResponse>(query, {
+          where: whereCondition,
+          orderBy: orderBy
+        })
+        return (result.CrmNote || []).map(toCustomerNote)
       } catch (error) {
         console.error('Error fetching customer notes by opportunity ID:', error)
         throw error

@@ -6,11 +6,13 @@ import { BusinessAppContextProps } from '@/common/BusinessAppContext'
 // Types
 import type { BaseCustomerLead, CustomerLead } from '../types'
 
-// Queries
+// Queries (New)
 import {
-  GET_CUSTOMER_LEADS,
-  GET_CUSTOMER_LEAD_BY_ID,
-  SEARCH_CUSTOMER_LEADS,
+  buildCustomerLeadQuery,
+  buildCustomerLeadByIdQuery,
+  buildCustomerLeadSearchQuery,
+  buildCustomerLeadWhereCondition,
+  buildCustomerLeadOrderBy,
   type CustomerLeadQueryVariables
 } from '../queries/customerLeadQueries'
 
@@ -18,8 +20,8 @@ import {
 import { toCustomerLead } from '../mappers/customerLeadMappers'
 
 export interface CustomerLeadListQueryResponse {
-  CustomerLead: BaseCustomerLead[]
-  CustomerLeadAggregate: {
+  Lead: BaseCustomerLead[]
+  LeadAggregate: {
     aggregate: { count: number }
   }
 }
@@ -34,30 +36,62 @@ export const useCustomerLeads = (context: BusinessAppContextProps) => {
 
   const fetchCustomerLeads = useCallback(
     async (variables: CustomerLeadQueryVariables = {}): Promise<CustomerLeadListData> => {
-      const query = GET_CUSTOMER_LEADS(variables)
-      const result = await graphqlClient.request<CustomerLeadListQueryResponse>(query)
-      const leads = result.CustomerLead.map(toCustomerLead)
-      const total = result.CustomerLeadAggregate?.aggregate?.count || 0
+      const query = buildCustomerLeadQuery()
+
+      const whereCondition = buildCustomerLeadWhereCondition(variables)
+      const orderBy = buildCustomerLeadOrderBy(variables.orderBy || [])
+      if (orderBy.length === 0) {
+        orderBy.push({ field: 'createdAt', direction: 'DESC_NULLS_LAST' })
+      }
+
+      const graphQLVariables: Record<string, any> = {
+        limit: Math.min(variables.limit || 50, 100),
+        offset: variables.offset || 0,
+        where: whereCondition,
+        orderBy: orderBy
+      }
+
+      const result = await graphqlClient.request<CustomerLeadListQueryResponse>(query, graphQLVariables)
+      const leads = result.Lead.map(toCustomerLead)
+      const total = result.LeadAggregate?.aggregate?.count || 0
       return { leads, total }
     },
     [graphqlClient]
   )
 
   const fetchCustomerLeadById = useCallback(
-    async (id: string): Promise<CustomerLead | null> => {
-      const query = GET_CUSTOMER_LEAD_BY_ID(id)
-      const result = await graphqlClient.request<{ CustomerLead: BaseCustomerLead[] }>(query)
-      const base = result.CustomerLead?.[0]
-      return base ? toCustomerLead(base) : null
+    async (
+      id: string
+    ): Promise<
+      | (CustomerLead & { leadStatuses?: Array<{ id: string; code: string; value: string; alternativeCode?: string }> })
+      | null
+    > => {
+      const query = buildCustomerLeadByIdQuery(undefined, id)
+      const result = await graphqlClient.request<{
+        LeadByPk: BaseCustomerLead | null
+        leadStatuses?: Array<{
+          id: string
+          code: string
+          value: string
+          alternativeCode?: string
+        }>
+      }>(query)
+      const lead = result.LeadByPk ? toCustomerLead(result.LeadByPk) : null
+      return lead ? { ...lead, leadStatuses: result.leadStatuses || [] } : null
     },
     [graphqlClient]
   )
 
   const searchCustomerLeads = useCallback(
     async (variables: CustomerLeadQueryVariables): Promise<CustomerLead[]> => {
-      const query = SEARCH_CUSTOMER_LEADS(variables)
-      const result = await graphqlClient.request<{ CustomerLead: BaseCustomerLead[] }>(query)
-      return result.CustomerLead.map(toCustomerLead)
+      const query = buildCustomerLeadSearchQuery()
+      const whereCondition = buildCustomerLeadWhereCondition(variables)
+      const graphQLVariables: Record<string, any> = {
+        limit: Math.min(variables.limit || 50, 100),
+        where: whereCondition
+      }
+      const result = await graphqlClient.request<{ Lead: BaseCustomerLead[] }>(query, graphQLVariables)
+      return result.Lead.map(toCustomerLead)
     },
     [graphqlClient]
   )

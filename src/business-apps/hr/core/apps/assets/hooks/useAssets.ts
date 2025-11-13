@@ -51,8 +51,8 @@ export const useAssets = (context: BusinessAppContextProps, options: UseAssetsOp
     conditions.push({ assetStatus: { _neq: AssetStatus.RETIRED } })
     conditions.push({ isDeleted: { _eq: false } })
 
-    // Status filter
-    if (statusFilter && statusFilter !== 'all') {
+    // Status filter (exclude RETIRED status from filtering)
+    if (statusFilter && statusFilter !== 'all' && statusFilter !== AssetStatus.RETIRED) {
       conditions.push({ assetStatus: { _eq: statusFilter } })
     }
 

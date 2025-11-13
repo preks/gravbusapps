@@ -1,34 +1,55 @@
-// Investment Account Mapper - Transform base type to enhanced type with computed fields
+/**
+ * Investment Account Mappers
+ * Transform raw GraphQL responses to InvestmentAccount
+ */
 
-import { BaseInvestmentAccount, InvestmentAccount } from '../types'
+import type { InvestmentAccount } from '../types/investmentAccountTypes'
 
 /**
- * Transform BaseInvestmentAccount (GraphQL response) to InvestmentAccount (enhanced with computed fields)
+ * Transform raw GraphQL response to InvestmentAccount
+ *
+ * NOTE: IRM field naming already matches Account standards:
+ * - industryClass (IRM) ✓
+ * - companySize (IRM) ✓
+ * - accountAnnualRevenueBand (IRM) ✓
+ * - locality (IRM) ✓
+ *
+ * This mapper handles array naming transformations:
+ * - investment → investments
+ * - investmentReport → reports
+ * - investmentAddress → addresses
+ * - investmentCommunicationChannel → communicationChannels
+ * - investmentAccountContact → accountContacts (common naming)
+ * - investmentOpportunity → opportunities (common naming)
+ * - investmentLead → leads (common naming)
  */
-export function toInvestmentAccount(base: BaseInvestmentAccount): InvestmentAccount {
-  // Extract labels from catalog entries (using correct DBML field names)
-  const legalFormLabel = base.legalForm?.value || base.legalForm?.code
-  const industryLabel = base.industryClass?.value || base.industryClass?.code
-  const companySizeLabel = base.companySize?.value || base.companySize?.code
-  const revenueLabel = base.accountAnnualRevenueBand?.value || base.accountAnnualRevenueBand?.code
-  const timeZoneLabel = base.timeZone?.value || base.timeZone?.code
-  const ownerDisplayName =
-    base.ownerEmployee?.displayName ||
-    `${base.ownerEmployee?.firstName || ''} ${base.ownerEmployee?.lastName || ''}`.trim()
+export function toInvestmentAccount(raw: any): InvestmentAccount {
+  // Map singular/IRM-prefixed GraphQL field names to common plural naming
+  const investments = raw.investment
+  const investmentReports = raw.investmentReport
 
-  // Create computed display name
-  const displayName = base.name || base.code || `Account ${base.id}`
+  // Map investmentAccountContact to accountContacts (common naming)
+  const accountContacts = raw.investmentAccountContact
+
+  // Map IRM-prefixed relations to common plural naming
+  const opportunities = raw.investmentOpportunity
+  const leads = raw.investmentLead
+  const tasks = raw.investmentTask
+  const activities = raw.investmentActivity
+  const documents = raw.investmentDocument
+  const notes = raw.investmentNote
 
   return {
-    ...base,
-
-    // Computed UI fields (only those defined in InvestmentAccount interface)
-    displayName,
-    legalFormLabel,
-    companySizeLabel,
-    industryClassLabel: industryLabel,
-    accountAnnualRevenueBandLabel: revenueLabel,
-    timeZoneLabel,
-    ownerDisplayName
-  }
+    ...raw,
+    // Add mapped array fields
+    investments,
+    investmentReports,
+    accountContacts,
+    opportunities,
+    leads,
+    tasks,
+    activities,
+    documents,
+    notes
+  } as InvestmentAccount
 }
