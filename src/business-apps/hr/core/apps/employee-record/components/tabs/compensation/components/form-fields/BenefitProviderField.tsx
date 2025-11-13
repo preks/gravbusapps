@@ -1,13 +1,17 @@
 import React from 'react'
 import { Label, Select, SelectTrigger, SelectValue, SelectContent, SelectItem } from '@newwork/nw-design-system'
+import { ProviderEntry } from '../../types/benefitCatalogTypes'
+import { getCurrentActiveUserLocale } from '@/common/utils/windowUtils'
+import { getTranslatedProviderValue } from '../../utils/benefitTranslationUtils'
 
 interface BenefitProviderFieldProps {
   t: (key: string, params?: any) => string
   value: string
   onChange: (value: string) => void
-  providers: Array<{ id: string; value: string }>
+  providers: ProviderEntry[]
   disabled?: boolean
   required?: boolean
+  locale?: string
 }
 
 /**
@@ -19,8 +23,11 @@ const BenefitProviderField: React.FC<BenefitProviderFieldProps> = ({
   onChange,
   providers,
   disabled = false,
-  required = false
+  required = false,
+  locale
 }) => {
+  const currentLocale = locale || getCurrentActiveUserLocale()
+
   return (
     <div className="gba:space-y-2">
       <Label className="gba:text-sm gba:font-medium gba:text-foreground">
@@ -35,7 +42,7 @@ const BenefitProviderField: React.FC<BenefitProviderFieldProps> = ({
           <SelectContent>
             {providers.map(provider => (
               <SelectItem key={provider.id} value={provider.id}>
-                {provider.value}
+                {getTranslatedProviderValue(provider, currentLocale)}
               </SelectItem>
             ))}
           </SelectContent>
