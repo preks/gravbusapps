@@ -182,7 +182,7 @@ const ExpenseFormContent: React.FC<ExpenseFormContentProps> = ({
                   'Comment'
                 )}
                 placeholder={getTranslationFromI18nKeyAndLabel(
-                  'lowcoder:initiate_expense_plan.create_expense_plan.comment_text_area',
+                  'lowcoder:initiate_expense_plan.create_expense_plan.comment_text_area_enter',
                   'Enter Comment'
                 )}
                 onChange={(field: any) => form.setFieldsValue({ comment: field.value })}

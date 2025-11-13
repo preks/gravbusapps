@@ -295,7 +295,13 @@ const ExpenseRequestContent: React.FC<ExpenseRequestContentProps> = ({ accessTok
 
       // Validate required data
       if (!accessToken || !employeeId) {
-        showToast(t('lowcoder:create_expense_request.error_missing_user_info', 'Missing user information'), 'error')
+        showToast(
+          getTranslationFromI18nKeyAndLabel(
+            'lowcoder:create_expense_request.error_missing_user_info',
+            'Missing user information'
+          ),
+          'error'
+        )
         setLoading(false)
         return
       }
@@ -415,7 +421,7 @@ const ExpenseRequestContent: React.FC<ExpenseRequestContentProps> = ({ accessTok
                       className="gba:block gba:px-4 gba:text-base gba:font-medium gba:mb-0 gba:text-foreground"
                       data-testid="selected-plan-label"
                     >
-                      {t(
+                      {getTranslationFromI18nKeyAndLabel(
                         'lowcoder:create_expense_request.expense_request_container.selected_plan_text',
                         'Selected Plan for your Request'
                       )}
