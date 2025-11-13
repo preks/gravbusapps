@@ -1,7 +1,6 @@
 import React, { useState, useCallback, useMemo } from 'react'
 import { ReferenceData } from '../types'
-import { StageProgression } from '@/components/stage-progression'
-import type { Stage, StageCondition } from '@/components/stage-progression'
+import { StageProgression, type Stage, type StageCondition } from '@/components/stage-progression'
 import { FlowContextName } from '@/common/types/FlowRegistryTypes'
 import { CheckCircleFilled, CloseCircleFilled } from '@ant-design/icons'
 import { AppActionMenu } from '@/components/app-action-menu/AppActionMenu'

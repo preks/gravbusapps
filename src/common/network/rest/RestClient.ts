@@ -22,6 +22,7 @@ export type RequestOptions = {
   params?: Record<string, string | number | boolean>
   responseType?: ResponseType
   withCredentials?: boolean // Whether to include credentials in the request
+  signal?: AbortSignal
 }
 
 export type RequestOptionsWithBody = RequestOptions & {
@@ -80,7 +81,8 @@ export class RestClient {
       method,
       headers,
       credentials: options.withCredentials ? 'include' : 'same-origin',
-      mode: 'cors'
+      mode: 'cors',
+      signal: options.signal
     }
 
     // Add body for non-GET/HEAD requests
@@ -97,7 +99,7 @@ export class RestClient {
       try {
         const errorData = await response.json()
         errorMessage = errorData.message || errorMessage
-      } catch (e) {
+      } catch {
         errorMessage = response.statusText || errorMessage
       }
 

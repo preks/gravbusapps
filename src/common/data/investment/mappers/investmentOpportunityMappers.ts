@@ -1,50 +1,60 @@
 // Investment Opportunity Mappers - Transform base type to enhanced type with computed fields
 
-import { BaseInvestmentOpportunity, InvestmentOpportunity, InvestmentOpportunityStageCondition } from '../types'
+import { InvestmentOpportunity, InvestmentOpportunityStageCondition } from '../types'
 
 /**
- * Transform BaseInvestmentOpportunity (GraphQL response) to InvestmentOpportunity (enhanced with computed fields)
+ * Transform InvestmentOpportunity (GraphQL response) to InvestmentOpportunity (enhanced with field mappings)
+ *
+ * Handles IRM-prefixed field name mappings:
+ * - investment → investments
+ * - investmentActivity → activities
+ * - investmentAddress → addresses
+ * - investmentCommunicationChannel → communicationChannels
+ * - investmentDocument → documents
+ * - investmentLead → leads
+ * - investmentNote → notes
+ * - investmentOpportunityContact → opportunityContacts
+ * - investmentOpportunityStageCondition → opportunityStageConditions
+ * - investmentTask → tasks
  */
-export function toInvestmentOpportunity(base: BaseInvestmentOpportunity): InvestmentOpportunity {
-  // Extract labels from catalog entries
-  const currencyLabel = base.currency?.value || base.currency?.code
-  const opportunityPipelineLabel = base.opportunityPipeline?.value || base.opportunityPipeline?.code
-  const opportunityPipelineStageLabel = base.opportunityPipelineStage?.value || base.opportunityPipelineStage?.code
-  const opportunityStatusLabel = base.opportunityStatus?.value || base.opportunityStatus?.code
-
-  // Investment-related labels
-  const investmentGroupLabel = base.investmentGroup?.value || base.investmentGroup?.code
-  const investmentTypeLabel = base.investmentType?.value || base.investmentType?.code
-  const investmentRoleLabel = base.investmentRole?.value || base.investmentRole?.code
-  const investmentStakeTypeLabel = base.investmentStakeType?.value || base.investmentStakeType?.code
-
-  // Employee/relationship labels
-  const ownerDisplayName =
-    base.ownerEmployee?.displayName ||
-    `${base.ownerEmployee?.firstName || ''} ${base.ownerEmployee?.lastName || ''}`.trim()
-  const accountDisplayName = base.account?.name
-
-  // Create computed display name
-  const displayName = base.name || `Opportunity ${base.id}`
+export function toInvestmentOpportunity(base: InvestmentOpportunity): InvestmentOpportunity {
+  // Map IRM-prefixed array field names to common naming
+  const investments = (base as any).investment
+  const activities = (base as any).investmentActivity
+  const addresses = (base as any).investmentAddress
+  const communicationChannels = (base as any).investmentCommunicationChannel
+  const documents = (base as any).investmentDocument
+  const leads = (base as any).investmentLead
+  const notes = (base as any).investmentNote
+  const opportunityContacts = (base as any).investmentOpportunityContact
+  const opportunityStageConditions = (base as any).investmentOpportunityStageCondition
+  const tasks = (base as any).investmentTask
 
   return {
     ...base,
+    // Map IRM-prefixed fields to common naming
+    investments,
+    activities,
+    addresses,
+    communicationChannels,
+    documents,
+    leads,
+    notes,
+    opportunityContacts,
+    opportunityStageConditions,
+    tasks
+  } as InvestmentOpportunity
+}
 
-    // Only include fields defined in InvestmentOpportunity interface
-    displayName,
-    currencyLabel,
-    opportunityPipelineLabel,
-    opportunityPipelineStageLabel,
-    opportunityStatusLabel,
-    investmentGroupLabel,
-    investmentTypeLabel,
-    investmentRoleLabel,
-    investmentStakeTypeLabel,
-    ownerDisplayName,
-    accountDisplayName,
-
-    // Pass through opportunityStageConditions as enhanced type (fields already compatible)
-    opportunityStageConditions:
-      (base.opportunityStageConditions as unknown as InvestmentOpportunityStageCondition[]) || []
-  }
+/**
+ * Transform InvestmentOpportunityStageCondition (GraphQL response) to enhanced type
+ *
+ * NOTE: IRM field naming already matches OpportunityStageCondition standards.
+ * No field mappings needed.
+ */
+export function toInvestmentOpportunityStageCondition(raw: any): InvestmentOpportunityStageCondition {
+  // IRM uses correct field names, no mapping needed
+  return {
+    ...raw
+  } as InvestmentOpportunityStageCondition
 }

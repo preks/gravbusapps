@@ -5,6 +5,8 @@ import { dispatchProcessContinueEvent } from '@/common/utils/processEventUtils'
 import { useContactFormContext } from '../context/ContactFormContext'
 import OwnerInformationSection from './OwnerInformationSection'
 import PersonalInformationSection from './PersonalInformationSection'
+import { buildCommunicationChannelRef } from '@/common/data/common/utils/communicationChannelHelpers'
+import { CommunicationChannelCode } from '@/common/data/common/types/commonTypes'
 
 const prefixDataTestId = 'ContactForm'
 
@@ -28,39 +30,29 @@ const ContactFormComponent: React.FC = () => {
     return value && value.trim() ? value.trim() : undefined
   }
 
-  // Helper: Build communication channels array (LinkedIn, Xing)
-  const buildCommunicationChannels = (linkedinUrl?: string, xingUrl?: string, contactId?: string): any[] => {
-    const channels = []
+  // Helper: Build communication channels array (Email, Phone, LinkedIn, Xing)
+  const buildCommunicationChannels = (
+    email?: string,
+    phone?: string,
+    linkedinUrl?: string,
+    xingUrl?: string,
+    contactId?: string
+  ): any[] => {
+    const channelConfigs = [
+      { value: email, code: CommunicationChannelCode.EMAIL },
+      { value: phone, code: CommunicationChannelCode.PHONE },
+      { value: linkedinUrl, code: CommunicationChannelCode.LINKEDIN },
+      { value: xingUrl, code: CommunicationChannelCode.XING }
+    ]
 
-    if (linkedinUrl?.trim()) {
-      const linkedinChannel: any = {
-        communicationChannelRef: 'CommunicationChannel:v1:LinkedIn',
-        value: linkedinUrl.trim(),
-        valueExtension: null
-      }
-
-      if (contactId) {
-        linkedinChannel.contact = contactId
-      }
-
-      channels.push(linkedinChannel)
-    }
-
-    if (xingUrl?.trim()) {
-      const xingChannel: any = {
-        communicationChannelRef: 'CommunicationChannel:v1:Xing',
-        value: xingUrl.trim(),
-        valueExtension: null
-      }
-
-      if (contactId) {
-        xingChannel.contact = contactId
-      }
-
-      channels.push(xingChannel)
-    }
-
-    return channels
+    return channelConfigs
+      .filter(config => config.value?.trim())
+      .map(config => ({
+        communicationChannelRef: buildCommunicationChannelRef(config.code),
+        value: config.value!.trim(),
+        valueExtension: null,
+        ...(contactId && { contact: contactId })
+      }))
   }
 
   // Handle form submission
@@ -98,9 +90,9 @@ const ContactFormComponent: React.FC = () => {
         jobTitle: toStringOrUndefined(formValues.jobTitle),
         department: toStringOrUndefined(formValues.department),
 
-        // Contact Information
-        email: toStringOrUndefined(formValues.email),
-        phone: toStringOrUndefined(formValues.phone),
+        // Contact Information - moved to communicationChannels
+        // email: toStringOrUndefined(formValues.email), // ❌ REMOVED - use communicationChannels
+        // phone: toStringOrUndefined(formValues.phone), // ❌ REMOVED - use communicationChannels
         fax: toStringOrUndefined(formValues.fax), // ✅ ADDED - was missing
 
         // Owner Information
@@ -122,7 +114,7 @@ const ContactFormComponent: React.FC = () => {
         // Extract ID from object if accountId is an object (due to AccountSelect prefill format)
         accountId:
           typeof formValues.accountId === 'object' && formValues.accountId !== null && 'id' in formValues.accountId
-            ? toStringOrUndefined(formValues.accountId.id)
+            ? toStringOrUndefined((formValues.accountId as { id: string }).id)
             : toStringOrUndefined(formValues.accountId),
         // ⚠️ IMPORTANT: CRM expects 'salesCampaign' (without Id suffix), not 'salesCampaignId'
         salesCampaign: toStringOrUndefined(formValues.salesCampaignId),
@@ -144,6 +136,8 @@ const ContactFormComponent: React.FC = () => {
       // Even if empty, this ensures the field is properly updated in the database
       const contactId = isUpdate ? formValues.id : undefined
       contactPayload.communicationChannels = buildCommunicationChannels(
+        formValues.email,
+        formValues.phone,
         formValues.linkedinUrl,
         formValues.xingUrl,
         contactId
