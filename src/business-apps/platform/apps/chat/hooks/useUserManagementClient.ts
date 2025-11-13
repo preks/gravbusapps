@@ -81,31 +81,42 @@ export const useUserManagementClient = (accessToken: string) => {
       }
 
       try {
-        // Fetch users in parallel (user management API should support fetching by ID)
-        const userPromises = userIds.map(async userId => {
-          try {
-            const response = await restClient.get<UserManagementUser>(`/users/${userId}`, {
-              headers: {
-                Authorization: `Bearer ${accessToken}`
-              }
-            })
-            return response
-          } catch (error) {
-            console.warn(`Failed to fetch user ${userId}:`, error)
-            return null
-          }
-        })
+        // Process users in chunks of 3 to avoid overloading the API
+        const CHUNK_SIZE = 3
+        const chunks: string[][] = []
 
-        const users = await Promise.all(userPromises)
+        // Split userIds into chunks
+        for (let i = 0; i < userIds.length; i += CHUNK_SIZE) {
+          chunks.push(userIds.slice(i, i + CHUNK_SIZE))
+        }
 
-        users.forEach(userData => {
-          if (userData) {
-            const user = transformUserData(userData)
-            if (user?.isActive) {
-              userMap.set(user.id, user)
+        // Process each chunk sequentially, but users within chunk in parallel
+        for (const chunk of chunks) {
+          const userPromises = chunk.map(async userId => {
+            try {
+              const response = await restClient.get<UserManagementUser>(`/users/${userId}`, {
+                headers: {
+                  Authorization: `Bearer ${accessToken}`
+                }
+              })
+              return response
+            } catch (error) {
+              console.warn(`Failed to fetch user ${userId}:`, error)
+              return null
             }
-          }
-        })
+          })
+
+          const users = await Promise.all(userPromises)
+
+          users.forEach(userData => {
+            if (userData) {
+              const user = transformUserData(userData)
+              if (user?.isActive) {
+                userMap.set(user.id, user)
+              }
+            }
+          })
+        }
 
         return userMap
       } catch (error) {
