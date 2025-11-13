@@ -677,14 +677,8 @@ const EquipmentRegistrationContent: React.FC<BusinessAppContextProps> = (context
                 <SelectItem value={AssetStatus.AVAILABLE} data-testid="status-available">
                   {getTranslationFromI18nKeyAndLabel('lowcoder:hr_assets.status_available', 'Available')}
                 </SelectItem>
-                <SelectItem value={AssetStatus.ALLOCATED} data-testid="status-allocated">
-                  {getTranslationFromI18nKeyAndLabel('lowcoder:hr_assets.status_allocated', 'Allocated')}
-                </SelectItem>
                 <SelectItem value={AssetStatus.UNDER_REPAIR} data-testid="status-under-repair">
                   {getTranslationFromI18nKeyAndLabel('lowcoder:hr_assets.status_in_repair', 'In Repair')}
-                </SelectItem>
-                <SelectItem value={AssetStatus.RETIRED} data-testid="status-retired">
-                  {getTranslationFromI18nKeyAndLabel('lowcoder:hr_assets.status_retired', 'Retired')}
                 </SelectItem>
               </SelectContent>
             </Select>

@@ -14,11 +14,15 @@ import {
   Spinner,
   Card,
   CardContent,
-  Button
+  Button,
+  FormField,
+  FormItem,
+  FormLabel,
+  FormControl,
+  FormMessage
 } from '@newwork/nw-design-system'
 import { EmployeeSelect } from '@/components/employee-select'
 import { EntitySelect } from '../shared/components'
-import { FormField, FormItem, FormLabel, FormControl, FormMessage } from '@newwork/nw-design-system'
 
 const ContactSegment: React.FC<ContactSegmentProps> = props => {
   const form = useFormContext<any>()

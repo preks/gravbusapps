@@ -2,6 +2,7 @@ import { useState, useEffect, useCallback } from 'react'
 import { BusinessAppContextProps } from '@/common/BusinessAppContext'
 import { AccountFormValues } from '../types'
 import { useGetInvestmentAccountData, InvestmentAccountDataResponse } from '../queries/AccountQueries'
+import { getEmailChannel, getPhoneChannel } from '@/common/data/common/utils/communicationChannelHelpers'
 
 // Map investment account data from API to form values
 export const mapInvestmentAccountToFormValues = (
@@ -62,9 +63,9 @@ export const mapInvestmentAccountToFormValues = (
     // ✅ REMOVED: Campaign Information - not relevant for InvestmentAccount
     // salesCampaignId: "", // Removed from form
 
-    // Contact Information
-    phone: account.phone || '',
-    email: account.email || '',
+    // Contact Information - Extract from communication channels
+    email: getEmailChannel((account as any).communicationChannels)?.value || account.email || '', // Fallback to deprecated field for backward compatibility
+    phone: getPhoneChannel((account as any).communicationChannels)?.value || account.phone || '', // Fallback to deprecated field for backward compatibility
     // ✅ REMOVED: fax: "", // Not available in InvestmentAccount schema
 
     // Geographic Presence (simplified for InvestmentAccount)

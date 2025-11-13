@@ -8,29 +8,74 @@ import {
 } from '@/common/components/common-relations/view-layouts/opportunity-layout'
 import type { CustomerOpportunity } from '@/common/data/customer/types'
 import type { CustomerOpportunityQueryVariables } from '@/common/data/customer/queries/customerOpportunityQueries'
+import { normalizeDateRange } from '@/common/utils/dateRangeNormalizer'
 import { FlowContextName } from '@/common/types/FlowRegistryTypes'
 import { buildPlatformUrl } from '@/common/utils/navigationUtils'
 import {
   createOpportunityColumns,
   createOpportunitySortableColumns
 } from '@/common/components/common-relations/view-layouts/opportunity-layout/config/opportunityColumns'
+import { CUSTOMER_OPPORTUNITY_DESCRIPTORS } from '@/common/data/customer/types/customerOpportunityTypes'
 import { opportunityFilterConfig } from '@/common/components/common-relations/view-layouts/opportunity-layout/config/opportunityFilters'
 import { useCustomerOpportunityFilters } from './hooks/useCustomerOpportunityFilters'
-import { OpportunityStatisticsWithTrend } from './components/OpportunityStatistics'
-import { useOpportunityStatisticsWithTrend } from './hooks/useOpportunityStatisticsWithTrend'
+import { useCustomerOpportunityStatistics } from '@/common/data/customer/hooks/useCustomerOpportunityStatistics'
 import { formatNumberFunction } from '@/common/utils/windowUtils'
-import {
-  applyBasicFilters,
-  applyAmountFilter,
-  applyDateFilter
-} from '@/common/components/common-relations/view-layouts/opportunity-layout/utils/queryHelpers'
 import { createBoardCardRenderer } from '@/common/components/common-relations/view-layouts/opportunity-layout/utils/boardCardRenderer'
+
+// Helper function to process amount filter
+const processAmountFilter = (selectedFilters: Record<string, any>, vars: CustomerOpportunityQueryVariables): void => {
+  if (selectedFilters.amount && typeof selectedFilters.amount === 'object') {
+    const { min, max } = selectedFilters.amount
+    if ((min !== null && min !== undefined) || (max !== null && max !== undefined)) {
+      vars.estimatedAmountRanges = [
+        {
+          ...(min !== null && min !== undefined && { min }),
+          ...(max !== null && max !== undefined && { max })
+        }
+      ]
+    }
+  }
+}
+
+// Helper function to process date range filters
+const processOpportunityDateRanges = (
+  selectedFilters: Record<string, any>,
+  vars: CustomerOpportunityQueryVariables
+): void => {
+  const dateRangeKeys = ['createdAtRange', 'updatedAtRange', 'closeDateRange']
+  for (const rangeKey of dateRangeKeys) {
+    const normalized = normalizeDateRange(selectedFilters[rangeKey])
+    if (normalized) {
+      const baseKey = rangeKey.replace('Range', '')
+      if (normalized.from) vars[`${baseKey}From` as keyof CustomerOpportunityQueryVariables] = normalized.from
+      if (normalized.to) vars[`${baseKey}To` as keyof CustomerOpportunityQueryVariables] = normalized.to
+    }
+  }
+}
+
+// Helper function to copy other filters
+const copyOpportunityFilters = (
+  selectedFilters: Record<string, any>,
+  dateRangeKeys: string[],
+  vars: CustomerOpportunityQueryVariables
+): void => {
+  for (const key of Object.keys(selectedFilters)) {
+    if (
+      key !== 'amount' &&
+      !dateRangeKeys.includes(key) &&
+      selectedFilters[key] !== undefined &&
+      selectedFilters[key] !== null
+    ) {
+      vars[key as keyof CustomerOpportunityQueryVariables] = selectedFilters[key]
+    }
+  }
+}
 
 export type OpportunityViewProps = BusinessAppContextProps
 
 export const OpportunityView: React.FC<OpportunityViewProps> = context => {
   const { fetchCustomerOpportunities } = useCustomerOpportunities(context)
-  const opportunityStatistics = useOpportunityStatisticsWithTrend({ ...context, sourceApp: 'CRM' })
+  const opportunityStatistics = useCustomerOpportunityStatistics(context)
 
   const config: OpportunityViewConfig<CustomerOpportunity, CustomerOpportunityQueryVariables> = useMemo(
     () => ({
@@ -43,22 +88,8 @@ export const OpportunityView: React.FC<OpportunityViewProps> = context => {
       filterDataHook: useCustomerOpportunityFilters,
 
       createColumns: createOpportunityColumns as any,
-      createSortableColumns: createOpportunitySortableColumns,
-
-      mapColumnToGraphQLField: (columnId: string): string => {
-        const mapping: Record<string, string> = {
-          opportunity: 'name',
-          amount: 'estimatedAmount',
-          pipeline: 'salesPipeline',
-          stage: 'salesPipelineStage',
-          status: 'opportunityStatus',
-          closeDate: 'closeDate',
-          account: 'accountId',
-          owner: 'ownerEmployeeId',
-          created: 'createdAt'
-        }
-        return mapping[columnId] || columnId
-      },
+      createSortableColumns: (availableColumnIds?: string[]) =>
+        createOpportunitySortableColumns(CUSTOMER_OPPORTUNITY_DESCRIPTORS, availableColumnIds),
 
       baseFilterConfig: opportunityFilterConfig,
 
@@ -67,7 +98,6 @@ export const OpportunityView: React.FC<OpportunityViewProps> = context => {
         searchTerm: string
         selectedFilters: Record<string, any>
         sorting: Array<{ id: string; desc: boolean }>
-        mapColumnToGraphQLField: (columnId: string) => string
       }) => {
         const vars: CustomerOpportunityQueryVariables = {
           limit: params.pagination.pageSize,
@@ -75,14 +105,23 @@ export const OpportunityView: React.FC<OpportunityViewProps> = context => {
           search: params.searchTerm.trim() || undefined
         }
 
-        applyBasicFilters(vars, params.selectedFilters)
-        applyAmountFilter(vars, params.selectedFilters.amount)
-        applyDateFilter(vars, params.selectedFilters.closeDate)
+        const dateRangeKeys = ['createdAtRange', 'updatedAtRange', 'closeDateRange']
+
+        // Process amount filter using helper
+        processAmountFilter(params.selectedFilters, vars)
+
+        // Process date range filters using helper
+        processOpportunityDateRanges(params.selectedFilters, vars)
+
+        // Copy all other filters using helper
+        copyOpportunityFilters(params.selectedFilters, dateRangeKeys, vars)
 
         if (params.sorting.length > 0) {
+          // Use column ID directly - buildOrderBy will use CUSTOMER_OPPORTUNITY_DESCRIPTORS to resolve correct GraphQL paths
+          // This allows nested paths like account.name, ownerEmployee.displayName to work correctly
           vars.orderBy = [
             {
-              field: params.mapColumnToGraphQLField(params.sorting[0].id) as any,
+              field: params.sorting[0].id as any,
               direction: params.sorting[0].desc ? 'DESC_NULLS_LAST' : 'ASC_NULLS_LAST'
             }
           ]
@@ -109,15 +148,17 @@ export const OpportunityView: React.FC<OpportunityViewProps> = context => {
           accountId: id
         }),
 
-      renderStatistics: ({ onRefresh }) =>
-        opportunityStatistics.trendData ? (
-          <OpportunityStatisticsWithTrend
-            trendData={opportunityStatistics.trendData}
-            isLoading={opportunityStatistics.isLoading}
-            error={opportunityStatistics.error}
-            onRefresh={onRefresh}
-          />
-        ) : null,
+      opportunityStatistics: opportunityStatistics.trendData
+        ? {
+            recentOpportunities: opportunityStatistics.trendData.recentOpportunities,
+            opportunityValue: opportunityStatistics.trendData.opportunityValue,
+            winRate: opportunityStatistics.trendData.winRate,
+            opportunitiesThisYear: opportunityStatistics.trendData.opportunitiesThisYear,
+            isLoading: opportunityStatistics.isLoading,
+            error: opportunityStatistics.error,
+            refetch: opportunityStatistics.refetch
+          }
+        : undefined,
 
       // Board configuration
       boardConfig: {
@@ -147,7 +188,7 @@ export const OpportunityView: React.FC<OpportunityViewProps> = context => {
         }
 
         if (filters.selectedPipelineId) {
-          variables.pipelineIds = [filters.selectedPipelineId]
+          variables.opportunityPipelineIds = [filters.selectedPipelineId]
         }
 
         if (filters.opportunityFilter === 'my' && context.userInfo?.employeeDetails?.employeeId) {
@@ -161,12 +202,20 @@ export const OpportunityView: React.FC<OpportunityViewProps> = context => {
         }
 
         const result = await fetchCustomerOpportunities(variables)
-        return result.opportunities || []
+        return {
+          opportunities: result.opportunities || [],
+          total: result.total || 0
+        }
       },
 
       renderBoardCard: createBoardCardRenderer(),
 
-      processCompletionEvents: ['taskCompletion']
+      processCompletionEvents: ['taskCompletion'],
+
+      rowActionsContextArray: [FlowContextName.customerOpportunityEntity],
+      buildRowActionsExternalContextData: (row: { original: CustomerOpportunity }) => ({
+        opportunityId: row.original.id
+      })
     }),
     [context, fetchCustomerOpportunities, opportunityStatistics]
   )

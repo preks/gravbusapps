@@ -37,9 +37,8 @@ export enum FlowContextName {
   customerOpportunityEntity = 'customerOpportunityEntity',
   customerOpportunityCreate = 'customerOpportunityCreate', // TODO: Replace startProcess
   customerOpportunityUpdate = 'customerOpportunityUpdate', // TODO: Replace startProcess
-
-  transitionOpportunityStage = 'transitionOpportunityStage',
-  saveOpportunityStageConditionStatus = 'saveOpportunityStageConditionStatus',
+  customerOpportunityStageTransition = 'customerOpportunityStageTransition',
+  customerOpportunityConditionUpdate = 'customerOpportunityConditionUpdate',
 
   /// Customer Campaigns
   customerCampaignEntity = 'customerCampaignEntity',
@@ -153,6 +152,7 @@ export enum FlowContextName {
   employeeGiveFeedback = 'employeeGiveFeedback',
   employeeRequestFeedback = 'employeeRequestFeedback',
   employeeSkills = 'employeeSkills',
+  employeeAdditionalProperties = 'updateEmployeeAdditionalAttributes',
   employeeProfilePicture = 'employeeProfilePicture',
   employeeAttendanceCorrectionRequest = 'employeeAttendanceCorrectionRequest',
 

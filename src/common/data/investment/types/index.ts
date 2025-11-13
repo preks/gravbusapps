@@ -1,19 +1,21 @@
-// Type exports for investment-related entities
-// Clean structure with only core files
+// Investment Relation Types - Main exports
 
-// Base types (GraphQL response matching)
-export * from './investmentBaseTypes'
-export * from './investmentRelationBaseTypes'
-
-// Enhanced types (with computed fields for UI)
+// Core entities
+export * from './investmentAccountTypes'
+export * from './investmentContactTypes'
+export * from './investmentLeadTypes'
+export * from './investmentTaskTypes'
 export * from './investmentTypes'
-export * from './investmentRelationTypes'
 
-// Essential enums
+// Relation entities
+export * from './investmentOpportunityTypes'
+export * from './investmentAddressTypes'
+export * from './investmentCommunicationChannelTypes'
+export * from './investmentAccountContactTypes'
+export * from './investmentDocumentTypes'
+export * from './investmentNoteTypes'
+export * from './investmentActivityTypes'
+
+// Base types and enums
+export * from './investmentBaseTypes'
 export * from './investmentEnums'
-
-// Rejection reason types
-export * from './rejectionReasonTypes'
-
-// Re-export common types for convenience
-export type { CatalogEntry, EmployeeRef } from '@/common/network/graphql/commonTypes'
