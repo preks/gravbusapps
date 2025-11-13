@@ -87,8 +87,19 @@ export const StageProgression: React.FC<StageProgressionProps> = ({
             }
           }
 
+          const handleKeyDown = (event: React.KeyboardEvent) => {
+            // Support both Enter and Space for keyboard accessibility
+            if ((event.key === 'Enter' || event.key === ' ') && onStageClick && !isCurrentStage) {
+              event.preventDefault()
+              onStageClick(stage)
+            }
+          }
+
           const stageElement = (
             <div
+              role={onStageClick && !isCurrentStage ? 'button' : undefined}
+              tabIndex={onStageClick && !isCurrentStage ? 0 : undefined}
+              aria-label={onStageClick && !isCurrentStage ? `Change stage to ${stage.value}` : stage.value}
               className={cn(
                 'gba:relative gba:h-10 gba:flex-1 gba:flex gba:items-center gba:justify-center gba:text-sm gba:font-semibold',
                 colorClasses,
@@ -102,6 +113,7 @@ export const StageProgression: React.FC<StageProgressionProps> = ({
               }}
               data-testid={formatDataTestId(dataTestIdPrefix, `stage-${stage.code}`)}
               onClick={handleStageClick}
+              onKeyDown={handleKeyDown}
             >
               {/* Stage content */}
               <div
