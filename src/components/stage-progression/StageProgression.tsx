@@ -3,6 +3,53 @@ import { TooltipProvider } from '@newwork/nw-design-system'
 import { formatDataTestId } from '@/common/utils/formatDataTestId'
 import { StageProgressionProps } from './types'
 
+// Helper function to determine stage colors
+const getStageColors = (isCurrentStage: boolean, isCompleted: boolean, defaultStyling: any, defaultColors: any) => {
+  // Both completed and current stages use the same colors
+  if (isCompleted || isCurrentStage) {
+    return {
+      backgroundColor: defaultStyling.colors.completed || defaultColors.completed,
+      textColor: 'var(--nw-color-primary-foreground)'
+    }
+  }
+
+  return {
+    backgroundColor: defaultStyling.colors.pending?.background || defaultColors.pending.background,
+    textColor: defaultStyling.colors.pending?.text || defaultColors.pending.text
+  }
+}
+
+// Helper function to determine border styling
+const getBorderStyling = (index: number, totalStages: number) => {
+  const styling = {
+    borderRadius: '0',
+    clipPath: 'none',
+    WebkitClipPath: 'none',
+    marginRight: '0'
+  }
+
+  if (index === 0) {
+    styling.borderRadius = '20px 0 0 20px'
+    if (totalStages > 1) {
+      styling.clipPath = 'polygon(0 0, calc(100% - 12px) 0, 100% 50%, calc(100% - 12px) 100%, 0 100%)'
+      styling.WebkitClipPath = styling.clipPath
+      styling.marginRight = '8px'
+    } else {
+      styling.borderRadius = '20px'
+    }
+  } else if (index === totalStages - 1) {
+    styling.borderRadius = '0 20px 20px 0'
+    styling.clipPath = 'polygon(12px 0, 100% 0, 100% 100%, 12px 100%, 24px 50%)'
+    styling.WebkitClipPath = styling.clipPath
+  } else {
+    styling.clipPath = 'polygon(12px 0, calc(100% - 12px) 0, 100% 50%, calc(100% - 12px) 100%, 12px 100%, 24px 50%)'
+    styling.WebkitClipPath = styling.clipPath
+    styling.marginRight = '8px'
+  }
+
+  return styling
+}
+
 export const StageProgression: React.FC<StageProgressionProps> = ({
   stages,
   currentStage,
@@ -55,147 +102,118 @@ export const StageProgression: React.FC<StageProgressionProps> = ({
 
   return (
     <TooltipProvider>
-      <>
-        <div
-          style={{
-            display: 'flex',
-            alignItems: 'center',
-            height: '48px',
-            backgroundColor: 'var(--nw-color-muted-100)',
-            borderRadius: '24px',
-            overflow: 'visible',
-            border: '1px solid var(--nw-color-border)',
-            padding: '0 4px',
-            gap: '0'
-          }}
-        >
-          {stages.map((stage, index) => {
-            const isCurrentStage = index === currentIndex
-            const isCompleted = index < currentIndex
+      <div
+        style={{
+          display: 'flex',
+          alignItems: 'center',
+          height: '48px',
+          backgroundColor: 'var(--nw-color-muted-100)',
+          borderRadius: '24px',
+          overflow: 'visible',
+          border: '1px solid var(--nw-color-border)',
+          padding: '0 4px',
+          gap: '0'
+        }}
+      >
+        {stages.map((stage, index) => {
+          const isCurrentStage = index === currentIndex
+          const isCompleted = index < currentIndex
 
-            // Determine colors
-            let backgroundColor = defaultStyling.colors.pending?.background || defaultColors.pending.background
-            let textColor = defaultStyling.colors.pending?.text || defaultColors.pending.text
+          // Get colors using helper function
+          const { backgroundColor, textColor } = getStageColors(
+            isCurrentStage,
+            isCompleted,
+            defaultStyling,
+            defaultColors
+          )
 
-            if (isCompleted) {
-              backgroundColor = defaultStyling.colors.completed || defaultColors.completed
-              textColor = 'var(--nw-color-primary-foreground)'
-            } else if (isCurrentStage) {
-              backgroundColor = defaultStyling.colors.completed || defaultColors.completed
-              textColor = 'var(--nw-color-primary-foreground)'
+          // Get border styling using helper function
+          const { borderRadius, clipPath, WebkitClipPath, marginRight } = getBorderStyling(index, stages.length)
+
+          const handleStageClick = () => {
+            if (onStageClick && !isCurrentStage) {
+              onStageClick(stage)
             }
+          }
 
-            // Determine border radius and clip path
-            let borderRadius = '0'
-            let clipPath = 'none'
-            let WebkitClipPath = 'none'
-            let marginRight = '0'
-
-            if (index === 0) {
-              borderRadius = '20px 0 0 20px'
-              if (stages.length > 1) {
-                clipPath = 'polygon(0 0, calc(100% - 12px) 0, 100% 50%, calc(100% - 12px) 100%, 0 100%)'
-                WebkitClipPath = 'polygon(0 0, calc(100% - 12px) 0, 100% 50%, calc(100% - 12px) 100%, 0 100%)'
-                marginRight = '8px'
-              } else {
-                borderRadius = '20px'
-              }
-            } else if (index === stages.length - 1) {
-              borderRadius = '0 20px 20px 0'
-              clipPath = 'polygon(12px 0, 100% 0, 100% 100%, 12px 100%, 24px 50%)'
-              WebkitClipPath = 'polygon(12px 0, 100% 0, 100% 100%, 12px 100%, 24px 50%)'
-            } else {
-              clipPath = 'polygon(12px 0, calc(100% - 12px) 0, 100% 50%, calc(100% - 12px) 100%, 12px 100%, 24px 50%)'
-              WebkitClipPath =
-                'polygon(12px 0, calc(100% - 12px) 0, 100% 50%, calc(100% - 12px) 100%, 12px 100%, 24px 50%)'
-              marginRight = '8px'
-            }
-
-            const handleStageClick = () => {
-              if (onStageClick && !isCurrentStage) {
-                onStageClick(stage)
-              }
-            }
-
-            const stageElement = (
+          const stageElement = (
+            <div
+              style={{
+                position: 'relative',
+                height: defaultStyling.height,
+                flex: 1,
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                fontSize: defaultStyling.fontSize,
+                fontWeight: defaultStyling.fontWeight,
+                backgroundColor,
+                color: textColor,
+                borderRadius,
+                marginRight,
+                clipPath,
+                WebkitClipPath,
+                cursor: onStageClick && !isCurrentStage ? 'pointer' : 'default'
+              }}
+              data-testid={formatDataTestId(dataTestIdPrefix, `stage-${stage.code}`)}
+              onClick={handleStageClick}
+            >
+              {/* Stage content */}
               <div
                 style={{
-                  position: 'relative',
-                  height: defaultStyling.height,
-                  flex: 1,
                   display: 'flex',
                   alignItems: 'center',
-                  justifyContent: 'center',
-                  fontSize: defaultStyling.fontSize,
-                  fontWeight: defaultStyling.fontWeight,
-                  backgroundColor,
-                  color: textColor,
-                  borderRadius,
-                  marginRight,
-                  clipPath,
-                  WebkitClipPath,
-                  cursor: onStageClick && !isCurrentStage ? 'pointer' : 'default'
+                  gap: '8px',
+                  padding: '0 16px',
+                  paddingRight: index < stages.length - 1 ? '24px' : '16px',
+                  paddingLeft: index > 0 ? '24px' : '16px',
+                  position: 'relative',
+                  zIndex: 10
                 }}
-                data-testid={formatDataTestId(dataTestIdPrefix, `stage-${stage.code}`)}
-                onClick={handleStageClick}
               >
-                {/* Stage content */}
-                <div
-                  style={{
-                    display: 'flex',
-                    alignItems: 'center',
-                    gap: '8px',
-                    padding: '0 16px',
-                    paddingRight: index < stages.length - 1 ? '24px' : '16px',
-                    paddingLeft: index > 0 ? '24px' : '16px',
-                    position: 'relative',
-                    zIndex: 10
-                  }}
-                >
-                  {renderStageContent ? (
-                    renderStageContent(stage, isCurrentStage, isCompleted)
-                  ) : (
-                    <>
-                      {(isCurrentStage || isCompleted) && (
-                        <span
-                          style={{
-                            fontSize: '14px',
-                            fontWeight: 'bold',
-                            backgroundColor: isCompleted ? 'var(--nw-color-primary-100)' : 'var(--nw-color-success)',
-                            color: 'var(--nw-color-primary-foreground)',
-                            borderRadius: '50%',
-                            width: '20px',
-                            height: '20px',
-                            display: 'flex',
-                            alignItems: 'center',
-                            justifyContent: 'center'
-                          }}
-                        >
-                          ✓
-                        </span>
-                      )}
+                {renderStageContent ? (
+                  renderStageContent(stage, isCurrentStage, isCompleted)
+                ) : (
+                  <>
+                    {(isCurrentStage || isCompleted) && (
                       <span
                         style={{
-                          whiteSpace: 'nowrap',
-                          fontSize: stages.length > 4 ? '12px' : '14px'
+                          fontSize: '14px',
+                          fontWeight: 'bold',
+                          backgroundColor: isCompleted ? 'var(--nw-color-primary-100)' : 'var(--nw-color-success)',
+                          color: 'var(--nw-color-primary-foreground)',
+                          borderRadius: '50%',
+                          width: '20px',
+                          height: '20px',
+                          display: 'flex',
+                          alignItems: 'center',
+                          justifyContent: 'center'
                         }}
                       >
-                        {stage.value}
+                        ✓
                       </span>
-                    </>
-                  )}
-                </div>
+                    )}
+                    <span
+                      style={{
+                        whiteSpace: 'nowrap',
+                        fontSize: stages.length > 4 ? '12px' : '14px'
+                      }}
+                    >
+                      {stage.value}
+                    </span>
+                  </>
+                )}
               </div>
-            )
+            </div>
+          )
 
-            return (
-              <React.Fragment key={stage.id}>
-                {children ? children(stage, isCurrentStage, isCompleted, stageElement) : stageElement}
-              </React.Fragment>
-            )
-          })}
-        </div>
-      </>
+          return (
+            <React.Fragment key={stage.id}>
+              {children ? children(stage, isCurrentStage, isCompleted, stageElement) : stageElement}
+            </React.Fragment>
+          )
+        })}
+      </div>
     </TooltipProvider>
   )
 }
