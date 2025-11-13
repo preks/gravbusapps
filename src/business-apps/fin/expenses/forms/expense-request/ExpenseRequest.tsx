@@ -3,14 +3,13 @@ import { Divider, Typography, Form } from 'antd'
 import { BusinessAppContextProps } from '@/common/BusinessAppContext'
 import { ICONS } from '../../utils/icons'
 import { Button } from '@newwork/gravity-ui-catalog'
-import { useTranslation } from 'react-i18next'
 import { ExpenseRequestProvider, useExpenseRequestContext } from './context/ExpenseRequestContext'
 import FormFooter from './components/FormFooter'
 import ExpenseFormContent from './components/ExpenseFormContent'
 import PlanFormContent from './components/PlanFormContent'
 import { getCatalogTypeTransformer, transformPlansToCardData } from './utils/planUtils'
 import { useProcessEventState } from '@/business-apps/fin/expenses/utils/useProcessEventState'
-import { formatDateToISO } from '@/common/utils/windowUtils'
+import { formatDateToISO, getTranslationFromI18nKeyAndLabel } from '@/common/utils/windowUtils'
 import { showToast } from '../../utils/notificationUtils'
 import { FORM_STEPS, REQUEST_TYPES, REQUEST_STATUS, DISABLED_FLAG, PLAN_TYPE_ENUM } from './constants/constants'
 import { EVENTS } from '../../utils/constants'
@@ -46,7 +45,6 @@ interface PlanData {
 }
 
 const ExpenseRequestContent: React.FC<ExpenseRequestContentProps> = ({ accessToken, userInfo, additionalData }) => {
-  const { t } = useTranslation()
   const [form] = Form.useForm()
   const {
     step,
@@ -205,14 +203,20 @@ const ExpenseRequestContent: React.FC<ExpenseRequestContentProps> = ({ accessTok
         pso_exitStrategy: 'abort',
         pso_completeNotification: {
           type: 'error',
-          messageKey: t(
+          messageKey: getTranslationFromI18nKeyAndLabel(
             'lowcoder:absence_module.toast_notification_cancel_create_absence',
             'The action has been canceled.'
           )
         }
       })
     } catch {
-      showToast(t('lowcoder:create_expense_type_item.error_flows_message', 'Error in flow process'), 'error')
+      showToast(
+        getTranslationFromI18nKeyAndLabel(
+          'lowcoder:create_expense_type_item.error_flows_message',
+          'Error in flow process'
+        ),
+        'error'
+      )
       form.resetFields()
       setSelectedPlan(null)
       setStep(FORM_STEPS.START)
@@ -307,11 +311,20 @@ const ExpenseRequestContent: React.FC<ExpenseRequestContentProps> = ({ accessTok
       try {
         dispatchProcessContinueEventIfEnabled(EVENTS.SUBMIT, submitData)
       } catch {
-        showToast(t('lowcoder:create_expense_type_item.error_flows_message', 'Error in flow process'), 'error')
+        showToast(
+          getTranslationFromI18nKeyAndLabel(
+            'lowcoder:create_expense_type_item.error_flows_message',
+            'Error in flow process'
+          ),
+          'error'
+        )
       }
     } catch {
       showToast(
-        t('lowcoder:create_expense_request.error_fields_validation', 'Please check all required fields'),
+        getTranslationFromI18nKeyAndLabel(
+          'lowcoder:create_expense_request.error_fields_validation',
+          'Please check all required fields'
+        ),
         'error'
       )
     } finally {
@@ -374,13 +387,16 @@ const ExpenseRequestContent: React.FC<ExpenseRequestContentProps> = ({ accessTok
                 data-testid="expense-form-header-title"
               >
                 {step == FORM_STEPS.PLAN
-                  ? t('lowcoder:create_expense_request.initial_expense_plan_select_placeholder', 'Select Expense Plan')
+                  ? getTranslationFromI18nKeyAndLabel(
+                      'lowcoder:create_expense_request.initial_expense_plan_select_placeholder',
+                      'Select Expense Plan'
+                    )
                   : step == REQUEST_TYPES.EXPENSE
-                    ? t(
+                    ? getTranslationFromI18nKeyAndLabel(
                         'lowcoder:create_expense_request.expense_request_container.create_expense_header',
                         'New Expense Request'
                       )
-                    : t(
+                    : getTranslationFromI18nKeyAndLabel(
                         'lowcoder:create_expense_request.expense_request_container.create_expense_header_trip',
                         'New Expense Request for Trip'
                       )}
@@ -484,7 +500,10 @@ const ExpenseRequestContent: React.FC<ExpenseRequestContentProps> = ({ accessTok
                 style={{ margin: 0, textAlign: 'center', fontFamily: "'Roboto', sans-serif", pointerEvents: 'auto' }}
                 data-testid="expense-request-header-title"
               >
-                {t('lowcoder:create_expense_request.initiate_title_header', 'Expense Request')}
+                {getTranslationFromI18nKeyAndLabel(
+                  'lowcoder:create_expense_request.initiate_title_header',
+                  'Expense Request'
+                )}
               </Title>
             </div>
           </div>
@@ -509,7 +528,10 @@ const ExpenseRequestContent: React.FC<ExpenseRequestContentProps> = ({ accessTok
                   }}
                   data-testid="expense-request-without-plan-title"
                 >
-                  {t('lowcoder:create_expense_request.not_based_plan_text', 'Without Plan')}
+                  {getTranslationFromI18nKeyAndLabel(
+                    'lowcoder:create_expense_request.not_based_plan_text',
+                    'Without Plan'
+                  )}
                 </p>
 
                 {/* Expense Button - Only show if not disabled */}
@@ -544,7 +566,10 @@ const ExpenseRequestContent: React.FC<ExpenseRequestContentProps> = ({ accessTok
                             }}
                             data-testid="expense-request-expense-text"
                           >
-                            {t('lowcoder:create_expense_request.expense_select_button', 'Expense')}
+                            {getTranslationFromI18nKeyAndLabel(
+                              'lowcoder:create_expense_request.expense_select_button',
+                              'Expense'
+                            )}
                           </span>
                         </div>
                         <img
@@ -590,7 +615,10 @@ const ExpenseRequestContent: React.FC<ExpenseRequestContentProps> = ({ accessTok
                             }}
                             data-testid="expense-request-trip-text"
                           >
-                            {t('lowcoder:create_expense_request.trip_select_button', 'Trip')}
+                            {getTranslationFromI18nKeyAndLabel(
+                              'lowcoder:create_expense_request.trip_select_button',
+                              'Trip'
+                            )}
                           </span>
                         </div>
                         <img
@@ -622,7 +650,10 @@ const ExpenseRequestContent: React.FC<ExpenseRequestContentProps> = ({ accessTok
                       }}
                       data-testid="expense-request-with-plan-title"
                     >
-                      {t('lowcoder:create_expense_request.based_plan_text', 'Based on Plan')}
+                      {getTranslationFromI18nKeyAndLabel(
+                        'lowcoder:create_expense_request.based_plan_text',
+                        'Based on Plan'
+                      )}
                     </p>
 
                     {/* Plan Button */}
@@ -656,8 +687,11 @@ const ExpenseRequestContent: React.FC<ExpenseRequestContentProps> = ({ accessTok
                               }}
                               data-testid="expense-request-plan-text"
                             >
-                              {t('lowcoder:create_expense_request.plan_select_button', 'My expense plans')} (
-                              {expenseCatalogueData?.ExpensePlan?.length})
+                              {getTranslationFromI18nKeyAndLabel(
+                                'lowcoder:create_expense_request.plan_select_button',
+                                'My expense plans'
+                              )}{' '}
+                              ({expenseCatalogueData?.ExpensePlan?.length})
                             </span>
                           </div>
                           <img
