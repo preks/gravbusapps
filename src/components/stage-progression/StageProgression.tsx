@@ -2,15 +2,13 @@ import React from 'react'
 import { TooltipProvider } from '@newwork/nw-design-system'
 import { formatDataTestId } from '@/common/utils/formatDataTestId'
 import { cn } from '@/common/utils/cn'
-import { StageProgressionProps } from './types'
+import type { StageProgressionProps, Stage } from './types'
 
 // Helper function to determine stage color classes
 const getStageColorClasses = (isCurrentStage: boolean, isCompleted: boolean) => {
-  // Both completed and current stages use the same colors
   if (isCompleted || isCurrentStage) {
     return 'gba:bg-success gba:text-primary-foreground'
   }
-
   return 'gba:bg-muted gba:text-muted-foreground'
 }
 
@@ -45,6 +43,112 @@ const getBorderStyling = (index: number, totalStages: number) => {
   return styling
 }
 
+// Default stage content renderer
+const DefaultStageContent: React.FC<{
+  stage: Stage
+  isCurrentStage: boolean
+  isCompleted: boolean
+  stagesCount: number
+}> = ({ stage, isCurrentStage, isCompleted, stagesCount }) => (
+  <>
+    {(isCurrentStage || isCompleted) && (
+      <span
+        className={cn(
+          'gba:text-sm gba:font-bold gba:rounded-full gba:w-5 gba:h-5 gba:flex gba:items-center gba:justify-center gba:text-primary-foreground',
+          isCompleted ? 'gba:bg-primary-100' : 'gba:bg-success'
+        )}
+      >
+        ✓
+      </span>
+    )}
+    <span className={cn('gba:whitespace-nowrap', stagesCount > 4 ? 'gba:text-xs' : 'gba:text-sm')}>{stage.value}</span>
+  </>
+)
+
+// Stage item component to reduce cognitive complexity
+interface StageItemProps {
+  stage: Stage
+  index: number
+  totalStages: number
+  isCurrentStage: boolean
+  isCompleted: boolean
+  onStageClick?: (stage: Stage) => void
+  renderStageContent?: (stage: Stage, isCurrentStage: boolean, isCompleted: boolean) => React.ReactNode
+  children?: (stage: Stage, isCurrentStage: boolean, isCompleted: boolean, element: React.ReactNode) => React.ReactNode
+  dataTestIdPrefix: string
+}
+
+const StageItem: React.FC<StageItemProps> = ({
+  stage,
+  index,
+  totalStages,
+  isCurrentStage,
+  isCompleted,
+  onStageClick,
+  renderStageContent,
+  children,
+  dataTestIdPrefix
+}) => {
+  const colorClasses = getStageColorClasses(isCurrentStage, isCompleted)
+  const { borderRadius, clipPath, WebkitClipPath, marginRight } = getBorderStyling(index, totalStages)
+  const isInteractive = onStageClick && !isCurrentStage
+
+  const handleClick = () => {
+    if (isInteractive) {
+      onStageClick(stage)
+    }
+  }
+
+  const handleKeyDown = (event: React.KeyboardEvent) => {
+    if ((event.key === 'Enter' || event.key === ' ') && isInteractive) {
+      event.preventDefault()
+      onStageClick(stage)
+    }
+  }
+
+  const stageElement = (
+    <div
+      role={isInteractive ? 'button' : undefined}
+      tabIndex={isInteractive ? 0 : undefined}
+      aria-label={isInteractive ? `Change stage to ${stage.value}` : stage.value}
+      className={cn(
+        'gba:relative gba:h-10 gba:flex-1 gba:flex gba:items-center gba:justify-center gba:text-sm gba:font-semibold',
+        colorClasses,
+        isInteractive ? 'gba:cursor-pointer' : 'gba:cursor-default'
+      )}
+      style={{ borderRadius, marginRight, clipPath, WebkitClipPath }}
+      data-testid={formatDataTestId(dataTestIdPrefix, `stage-${stage.code}`)}
+      onClick={handleClick}
+      onKeyDown={handleKeyDown}
+    >
+      <div
+        className={cn(
+          'gba:flex gba:items-center gba:gap-2 gba:px-4 gba:relative gba:z-10',
+          index < totalStages - 1 && 'gba:pr-6',
+          index > 0 && 'gba:pl-6'
+        )}
+      >
+        {renderStageContent ? (
+          renderStageContent(stage, isCurrentStage, isCompleted)
+        ) : (
+          <DefaultStageContent
+            stage={stage}
+            isCurrentStage={isCurrentStage}
+            isCompleted={isCompleted}
+            stagesCount={totalStages}
+          />
+        )}
+      </div>
+    </div>
+  )
+
+  return (
+    <React.Fragment key={stage.id}>
+      {children ? children(stage, isCurrentStage, isCompleted, stageElement) : stageElement}
+    </React.Fragment>
+  )
+}
+
 export const StageProgression: React.FC<StageProgressionProps> = ({
   stages,
   currentStage,
@@ -71,87 +175,20 @@ export const StageProgression: React.FC<StageProgressionProps> = ({
   return (
     <TooltipProvider>
       <div className="gba:flex gba:items-center gba:h-12 gba:bg-muted gba:rounded-3xl gba:overflow-visible gba:border gba:border-border gba:p-1 gba:gap-0">
-        {stages.map((stage, index) => {
-          const isCurrentStage = index === currentIndex
-          const isCompleted = index < currentIndex
-
-          // Get color classes using helper function
-          const colorClasses = getStageColorClasses(isCurrentStage, isCompleted)
-
-          // Get border styling using helper function
-          const { borderRadius, clipPath, WebkitClipPath, marginRight } = getBorderStyling(index, stages.length)
-
-          const handleStageClick = () => {
-            if (onStageClick && !isCurrentStage) {
-              onStageClick(stage)
-            }
-          }
-
-          const handleKeyDown = (event: React.KeyboardEvent) => {
-            // Support both Enter and Space for keyboard accessibility
-            if ((event.key === 'Enter' || event.key === ' ') && onStageClick && !isCurrentStage) {
-              event.preventDefault()
-              onStageClick(stage)
-            }
-          }
-
-          const stageElement = (
-            <div
-              role={onStageClick && !isCurrentStage ? 'button' : undefined}
-              tabIndex={onStageClick && !isCurrentStage ? 0 : undefined}
-              aria-label={onStageClick && !isCurrentStage ? `Change stage to ${stage.value}` : stage.value}
-              className={cn(
-                'gba:relative gba:h-10 gba:flex-1 gba:flex gba:items-center gba:justify-center gba:text-sm gba:font-semibold',
-                colorClasses,
-                onStageClick && !isCurrentStage ? 'gba:cursor-pointer' : 'gba:cursor-default'
-              )}
-              style={{
-                borderRadius,
-                marginRight,
-                clipPath,
-                WebkitClipPath
-              }}
-              data-testid={formatDataTestId(dataTestIdPrefix, `stage-${stage.code}`)}
-              onClick={handleStageClick}
-              onKeyDown={handleKeyDown}
-            >
-              {/* Stage content */}
-              <div
-                className={cn(
-                  'gba:flex gba:items-center gba:gap-2 gba:px-4 gba:relative gba:z-10',
-                  index < stages.length - 1 && 'gba:pr-6',
-                  index > 0 && 'gba:pl-6'
-                )}
-              >
-                {renderStageContent ? (
-                  renderStageContent(stage, isCurrentStage, isCompleted)
-                ) : (
-                  <>
-                    {(isCurrentStage || isCompleted) && (
-                      <span
-                        className={cn(
-                          'gba:text-sm gba:font-bold gba:rounded-full gba:w-5 gba:h-5 gba:flex gba:items-center gba:justify-center gba:text-primary-foreground',
-                          isCompleted ? 'gba:bg-primary-100' : 'gba:bg-success'
-                        )}
-                      >
-                        ✓
-                      </span>
-                    )}
-                    <span className={cn('gba:whitespace-nowrap', stages.length > 4 ? 'gba:text-xs' : 'gba:text-sm')}>
-                      {stage.value}
-                    </span>
-                  </>
-                )}
-              </div>
-            </div>
-          )
-
-          return (
-            <React.Fragment key={stage.id}>
-              {children ? children(stage, isCurrentStage, isCompleted, stageElement) : stageElement}
-            </React.Fragment>
-          )
-        })}
+        {stages.map((stage, index) => (
+          <StageItem
+            key={stage.id}
+            stage={stage}
+            index={index}
+            totalStages={stages.length}
+            isCurrentStage={index === currentIndex}
+            isCompleted={index < currentIndex}
+            onStageClick={onStageClick}
+            renderStageContent={renderStageContent}
+            children={children}
+            dataTestIdPrefix={dataTestIdPrefix}
+          />
+        ))}
       </div>
     </TooltipProvider>
   )
