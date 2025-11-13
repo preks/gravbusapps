@@ -14,6 +14,11 @@ import { BusinessAppContextProps } from '@/common/BusinessAppContext'
 import { BenefitCatalogItem } from '../../types/benefitCatalogTypes'
 import { formatCurrencyString } from '@/common/utils/numberFormatter'
 import dayjs from 'dayjs'
+import {
+  getTranslatedBenefitType,
+  getTranslatedProviderValue,
+  getTranslatedCatalogEntryValue
+} from '../../utils/benefitTranslationUtils'
 
 interface BenefitDetailsModalProps extends BusinessAppContextProps {
   /**
@@ -75,7 +80,7 @@ const BenefitDetailsModal: React.FC<BenefitDetailsModalProps> = ({
         <DialogHeader>
           <div className="gba:flex gba:items-start gba:justify-between gba:gap-4">
             <div className="gba:flex-1">
-              <DialogTitle className="gba:text-2xl">{benefit.benefitType}</DialogTitle>
+              <DialogTitle className="gba:text-2xl">{getTranslatedBenefitType(benefit, locale)}</DialogTitle>
               {benefit.description && <DialogDescription className="gba:mt-2">{benefit.description}</DialogDescription>}
             </div>
           </div>
@@ -94,7 +99,9 @@ const BenefitDetailsModal: React.FC<BenefitDetailsModalProps> = ({
               </div> */}
               <div>
                 <div className="gba:text-xs gba:text-muted-foreground gba:mb-1">{t('benefit-details-category')}</div>
-                <div className="gba:text-sm gba:font-medium gba:text-foreground">{benefit.benefitType}</div>
+                <div className="gba:text-sm gba:font-medium gba:text-foreground">
+                  {getTranslatedBenefitType(benefit, locale)}
+                </div>
               </div>
             </div>
           </div>
@@ -112,7 +119,9 @@ const BenefitDetailsModal: React.FC<BenefitDetailsModalProps> = ({
                     <div className="gba:text-xs gba:text-muted-foreground gba:mb-1">
                       {t('benefit-details-provider')}
                     </div>
-                    <div className="gba:text-sm gba:font-medium gba:text-foreground">{benefit.provider.value}</div>
+                    <div className="gba:text-sm gba:font-medium gba:text-foreground">
+                      {getTranslatedCatalogEntryValue(benefit.provider, locale)}
+                    </div>
                   </div>
                 </div>
               )}
@@ -210,7 +219,7 @@ const BenefitDetailsModal: React.FC<BenefitDetailsModalProps> = ({
               <div className="gba:flex gba:flex-wrap gba:gap-2">
                 {benefit.availableProviders.map(provider => (
                   <Badge key={provider.id} variant="outline" data-testid={`provider-badge-${provider.code}`}>
-                    {provider.value}
+                    {getTranslatedProviderValue(provider, locale)}
                   </Badge>
                 ))}
               </div>
