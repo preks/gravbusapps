@@ -1,12 +1,14 @@
 import type { OpportunityViewConfig } from '../OpportunityLayout'
+import type { OpportunityStatisticsData } from '../components/OpportunityStatisticsLayout'
 import type { OpportunityBoardFilters } from '../config/opportunityBoardTypes'
 import { FlowContextName } from '@/common/types/FlowRegistryTypes'
 import { buildPlatformUrl } from '@/common/utils/navigationUtils'
 import { formatNumberFunction } from '@/common/utils/windowUtils'
-import { applyBasicFilters, applyAmountFilter, applyDateFilter } from './queryHelpers'
 import { createBoardCardRenderer } from './boardCardRenderer'
 import { createOpportunityColumns, createOpportunitySortableColumns } from '../config/opportunityColumns'
 import { opportunityFilterConfig } from '../config/opportunityFilters'
+import type { Descriptor } from '@/common/network/graphql/queryHelpers'
+import { normalizeDateRange } from '@/common/utils/dateRangeNormalizer'
 
 export interface OpportunityConfigBuilderOptions<TOpportunity, TQueryVariables> {
   contextType: 'customer' | 'investment'
@@ -19,6 +21,8 @@ export interface OpportunityConfigBuilderOptions<TOpportunity, TQueryVariables> 
   }>
 
   filterDataHook: any
+
+  viewDescriptors?: Descriptor[]
 
   columnMappings: {
     pipeline: string
@@ -51,8 +55,13 @@ export interface OpportunityConfigBuilderOptions<TOpportunity, TQueryVariables> 
   ) => Promise<any>
 
   extractBoardOpportunities: (result: any) => TOpportunity[]
+  extractBoardTotalCount: (result: any) => number
 
-  renderStatistics: (props: any) => React.ReactNode
+  opportunityStatistics?: OpportunityStatisticsData
+  renderStatistics?: () => React.ReactNode
+
+  rowActionsContextArray: FlowContextName[]
+  buildRowActionsExternalContextData: (row: { original: TOpportunity }) => Record<string, string>
 }
 
 export const createOpportunityConfig = <TOpportunity extends { id: string }, TQueryVariables>(
@@ -66,22 +75,8 @@ export const createOpportunityConfig = <TOpportunity extends { id: string }, TQu
     filterDataHook: options.filterDataHook,
 
     createColumns: createOpportunityColumns as any,
-    createSortableColumns: createOpportunitySortableColumns,
-
-    mapColumnToGraphQLField: (columnId: string): string => {
-      const mapping: Record<string, string> = {
-        opportunity: 'name',
-        amount: 'estimatedAmount',
-        pipeline: options.columnMappings.pipeline,
-        stage: options.columnMappings.stage,
-        status: 'opportunityStatus',
-        closeDate: 'closeDate',
-        account: 'accountId',
-        owner: 'ownerEmployeeId',
-        created: 'createdAt'
-      }
-      return mapping[columnId] || columnId
-    },
+    createSortableColumns: (availableColumnIds?: string[]) =>
+      createOpportunitySortableColumns(options.viewDescriptors, availableColumnIds),
 
     baseFilterConfig: opportunityFilterConfig,
 
@@ -90,7 +85,6 @@ export const createOpportunityConfig = <TOpportunity extends { id: string }, TQu
       searchTerm: string
       selectedFilters: Record<string, any>
       sorting: Array<{ id: string; desc: boolean }>
-      mapColumnToGraphQLField: (columnId: string) => string
     }) => {
       const vars: any = {
         limit: params.pagination.pageSize,
@@ -98,19 +92,54 @@ export const createOpportunityConfig = <TOpportunity extends { id: string }, TQu
         search: params.searchTerm.trim() || undefined
       }
 
-      applyBasicFilters(vars, params.selectedFilters)
-      applyAmountFilter(vars, params.selectedFilters.amount)
-      applyDateFilter(vars, params.selectedFilters.closeDate)
+      // Copy filter values directly (Filter-IDs now match Descriptor-Keys)
+      // Handle amount filter (number range - no Descriptor)
+      if (params.selectedFilters.amount && typeof params.selectedFilters.amount === 'object') {
+        const { min, max } = params.selectedFilters.amount
+        if ((min !== null && min !== undefined) || (max !== null && max !== undefined)) {
+          vars.estimatedAmountRanges = [
+            {
+              ...(min !== null && min !== undefined && { min }),
+              ...(max !== null && max !== undefined && { max })
+            }
+          ]
+        }
+      }
+
+      // Normalize date range filters
+      const dateRangeKeys = ['createdAtRange', 'updatedAtRange', 'closeDateRange']
+      for (const rangeKey of dateRangeKeys) {
+        const normalized = normalizeDateRange(params.selectedFilters[rangeKey])
+        if (normalized) {
+          const baseKey = rangeKey.replace('Range', '')
+          if (normalized.from) vars[`${baseKey}From`] = normalized.from
+          if (normalized.to) vars[`${baseKey}To`] = normalized.to
+        }
+      }
+
+      // Copy all other filters directly (they now match Descriptor-Keys)
+      for (const key of Object.keys(params.selectedFilters)) {
+        if (
+          key !== 'amount' &&
+          !dateRangeKeys.includes(key) &&
+          params.selectedFilters[key] !== undefined &&
+          params.selectedFilters[key] !== null
+        ) {
+          vars[key as keyof typeof vars] = params.selectedFilters[key]
+        }
+      }
 
       if (params.sorting.length > 0) {
+        // Use column ID directly - buildOrderBy will use descriptors (CUSTOMER_OPPORTUNITY_DESCRIPTORS or INVESTMENT_OPPORTUNITY_DESCRIPTORS)
+        // to resolve correct GraphQL paths (e.g., account.name, ownerEmployee.displayName)
         vars.orderBy = [
           {
-            field: params.mapColumnToGraphQLField(params.sorting[0].id) as any,
+            field: params.sorting[0].id,
             direction: params.sorting[0].desc ? 'DESC_NULLS_LAST' : 'ASC_NULLS_LAST'
           }
         ]
       } else {
-        vars.orderBy = [{ field: 'createdAt' as any, direction: 'DESC_NULLS_LAST' }]
+        vars.orderBy = [{ field: 'createdAt', direction: 'DESC_NULLS_LAST' }]
       }
 
       return options.extendQueryVariables
@@ -135,6 +164,7 @@ export const createOpportunityConfig = <TOpportunity extends { id: string }, TQu
         accountId: id
       }),
 
+    opportunityStatistics: options.opportunityStatistics,
     renderStatistics: options.renderStatistics,
 
     boardConfig: {
@@ -165,7 +195,7 @@ export const createOpportunityConfig = <TOpportunity extends { id: string }, TQu
       }
 
       if (filters.selectedPipelineId) {
-        variables.pipelineIds = [filters.selectedPipelineId]
+        variables.opportunityPipelineIds = [filters.selectedPipelineId]
       }
 
       if (filters.opportunityFilter === 'my' && currentEmployeeId) {
@@ -181,11 +211,17 @@ export const createOpportunityConfig = <TOpportunity extends { id: string }, TQu
       const extendedVars = options.extendQueryVariables ? options.extendQueryVariables(variables) : variables
 
       const result = await options.fetchBoardOpportunities(extendedVars)
-      return options.extractBoardOpportunities(result)
+      return {
+        opportunities: options.extractBoardOpportunities(result),
+        total: options.extractBoardTotalCount(result)
+      }
     },
 
     renderBoardCard: createBoardCardRenderer({ preferForecastedProfit: options.boardConfig.preferForecastedProfit }),
 
-    processCompletionEvents: ['taskCompletion']
+    processCompletionEvents: ['taskCompletion'],
+
+    rowActionsContextArray: options.rowActionsContextArray,
+    buildRowActionsExternalContextData: options.buildRowActionsExternalContextData
   }
 }

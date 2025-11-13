@@ -7,12 +7,21 @@ import ProfileHeader from './components/ProfileHeader'
 import { ScreenBody, Spinner, notification, Tabs } from '@newwork/gravity-ui-catalog'
 import { ProfileLayout } from '@/components/layout/profileLayout'
 import { useScopePermissionCheck } from '@/common/hooks/useScopePermissionCheck'
-import { PiUser, PiBriefcase, PiChartBar, PiCalendar, PiClockCounterClockwise, PiReceipt } from 'react-icons/pi'
+import {
+  PiUser,
+  PiBriefcase,
+  PiChartBar,
+  PiCalendar,
+  PiClockCounterClockwise,
+  PiReceipt,
+  PiPackage
+} from 'react-icons/pi'
 import SummaryTab from './components/tabs/SummaryTab'
 import AbsencesTab from './components/tabs/AbsencesTab'
 import ServiceRequestsTab from './components/tabs/ServiceRequestsTab'
 import HrAdminTab from './components/tabs/HrAdminTab'
 import HrGrowthTab from './components/tabs/HrGrowthTab'
+import AssetsTab from './components/tabs/AssetsTab'
 import { BusinessAppContextProps } from '../../../../../common/BusinessAppContext'
 import { getCurrentActiveStructureId, getTranslationFromI18nKeyAndLabel } from '@/common/utils/windowUtils'
 import { useFeature } from '@/common/hooks/useFeature'
@@ -22,6 +31,7 @@ import { Feature } from '@/common/types/constants/FeatureHub'
 const TAB_KEYS = {
   summary: 'summary',
   timeTracking: 'timeTracking',
+  assets: 'assets',
   absences: 'absences',
   hrAdmin: 'hrAdmin',
   hrGrowth: 'hrGrowth',
@@ -374,6 +384,25 @@ const EmployeeRecordContent: React.FC<EmployeeRecordContentProps> = ({
         )
       },
       {
+        key: TAB_KEYS.assets,
+        label: (
+          <div className="gba:flex gba:items-center gba:gap-2">
+            <PiPackage className="gba:text-xl gba:inline-block gba:align-middle" />
+            <span className="gba:inline-block gba:align-middle">
+              {getTranslationFromI18nKeyAndLabel('lowcoder:hr_assets.assets', 'Assets')}
+            </span>
+          </div>
+        ),
+        children: (
+          <AssetsTab
+            employee={employee}
+            accessToken={accessToken}
+            employeeId={employeeIdToShow}
+            isSelfView={isSelfView}
+          />
+        )
+      },
+      {
         key: TAB_KEYS.serviceRequests,
         label: (
           <div className="gba:flex gba:items-center gba:gap-2">
@@ -435,8 +464,8 @@ const EmployeeRecordContent: React.FC<EmployeeRecordContentProps> = ({
         const hasSkillsAccess = tabPermissions?.['skills']?.hasAccess !== false
         const hasFeedbackAccess = devFeatureFlag && tabPermissions?.['feedback']?.hasAccess === true
         const hasPerformanceAccess = tabPermissions?.['performance']?.hasAccess !== false
-
-        return hasSkillsAccess || hasFeedbackAccess || hasPerformanceAccess || devFeatureFlag
+        const hasCompensationAccess = tabPermissions?.['compensation']?.hasAccess === true
+        return hasSkillsAccess || hasFeedbackAccess || hasPerformanceAccess || hasCompensationAccess || devFeatureFlag
       }
 
       return true

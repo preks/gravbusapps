@@ -18,6 +18,7 @@ current-active-benefits = Active Benefits
 current-bonus = bonus
 current-bonuses = bonuses
 current-annually = Annually
+current-monthly = Monthly
 
 # Compensation Band
 band-title = Compensation Band
@@ -170,6 +171,7 @@ validation-date-past = End date must be in the past or today
 # Table Headers (reusable)
 table-effective-date = Effective Date
 table-base-salary = Base Salary
+table-monthly-salary = Monthly Salary
 table-compensation-band = Compensation Band
 table-pay-grade = Pay Grade
 table-notes = Notes

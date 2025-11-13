@@ -120,6 +120,12 @@ export interface EmployeePosition {
   lastName: string
   employeeId: string
   employee: Employee
+  supervisor?: {
+    id: string
+    firstName: string
+    lastName: string
+    pictureThumbnail?: string | null
+  }
 }
 
 /**
@@ -128,6 +134,7 @@ export interface EmployeePosition {
 export interface JobPosition {
   id: string
   name: string
+  activeTo?: string | null
   jobFunction: JobFunction | null
   jobLevel: JobLevel | null
   jobProfile: JobProfile | null

@@ -2,7 +2,7 @@ import React from 'react'
 import { useTranslation } from 'react-i18next'
 import { PiBriefcase, PiUser, PiBuilding, PiTag, PiCalendar } from 'react-icons/pi'
 import { JobPosition } from '../hooks/useJobPositionListData'
-import { getCurrentActiveUserLocale } from '@/common/utils/windowUtils'
+import { getCurrentActiveUserLocale, getTranslationFromI18nKeyAndLabel, formatDate } from '@/common/utils/windowUtils'
 import { AppActionButton } from '@/components/app-action-button/AppActionButton'
 import { FlowContextName } from '@/common/types/FlowRegistryTypes'
 
@@ -21,20 +21,34 @@ export const JobPositionDetails: React.FC<JobPositionDetailsProps> = ({ jobPosit
 
   // Helper function to get contract type display value
   const getContractTypeDisplay = (contractType: any): string => {
-    if (!contractType) return t('job_position.not_specified', 'Not specified')
+    if (!contractType)
+      return getTranslationFromI18nKeyAndLabel(
+        'lowcoder:human_resources_page.job_positions_section.not_specified',
+        'Not specified'
+      )
 
     const translation = contractType.translations?.find(
       (t: any) => t.localeCode?.toLowerCase() === userLocale.toLowerCase()
     )
 
     return (
-      translation?.value || contractType.value || contractType.code || t('job_position.not_specified', 'Not specified')
+      translation?.value ||
+      contractType.value ||
+      contractType.code ||
+      getTranslationFromI18nKeyAndLabel(
+        'lowcoder:human_resources_page.job_positions_section.not_specified',
+        'Not specified'
+      )
     )
   }
 
   // Helper function to get employment type display value
   const getEmploymentTypeDisplay = (employmentType: any): string => {
-    if (!employmentType) return t('job_position.not_specified', 'Not specified')
+    if (!employmentType)
+      return getTranslationFromI18nKeyAndLabel(
+        'lowcoder:human_resources_page.job_positions_section.not_specified',
+        'Not specified'
+      )
 
     const translation = employmentType.translations?.find(
       (t: any) => t.localeCode?.toLowerCase() === userLocale.toLowerCase()
@@ -44,31 +58,53 @@ export const JobPositionDetails: React.FC<JobPositionDetailsProps> = ({ jobPosit
       translation?.value ||
       employmentType.value ||
       employmentType.code ||
-      t('job_position.not_specified', 'Not specified')
+      getTranslationFromI18nKeyAndLabel(
+        'lowcoder:human_resources_page.job_positions_section.not_specified',
+        'Not specified'
+      )
     )
   }
 
   // Helper function to get job family display value
   const getJobFamilyDisplay = (jobFamily: any): string => {
-    if (!jobFamily) return t('job_position.not_specified', 'Not specified')
+    if (!jobFamily)
+      return getTranslationFromI18nKeyAndLabel(
+        'lowcoder:human_resources_page.job_positions_section.not_specified',
+        'Not specified'
+      )
 
     const translation = jobFamily.translations?.find(
       (t: any) => t.localeCode?.toLowerCase() === userLocale.toLowerCase()
     )
 
-    return translation?.value || jobFamily.value || jobFamily.code || t('job_position.not_specified', 'Not specified')
+    return (
+      translation?.value ||
+      jobFamily.value ||
+      jobFamily.code ||
+      getTranslationFromI18nKeyAndLabel(
+        'lowcoder:human_resources_page.job_positions_section.not_specified',
+        'Not specified'
+      )
+    )
   }
 
   // Helper function to get department name
   const getDepartmentName = (): string => {
     const orgUnit = jobPosition.organizationalUnitEmployees?.[0]?.organizationalUnit
-    return orgUnit?.name || t('job_position.not_specified', 'Not specified')
+    return (
+      orgUnit?.name ||
+      getTranslationFromI18nKeyAndLabel(
+        'lowcoder:human_resources_page.job_positions_section.not_specified',
+        'Not specified'
+      )
+    )
   }
 
   // Helper function to get employee display
   const getEmployeeDisplay = (): string => {
     const employee = jobPosition.employeePositions?.[0]
-    if (!employee) return t('job_position.vacant', 'Vacant')
+    if (!employee)
+      return getTranslationFromI18nKeyAndLabel('lowcoder:human_resources_page.job_positions_section.vacant', 'Vacant')
 
     return `${employee.firstName} ${employee.lastName}`
   }
@@ -89,20 +125,26 @@ export const JobPositionDetails: React.FC<JobPositionDetailsProps> = ({ jobPosit
             }}
             prefixDataTestId="job-position-details-action"
             accessToken={accessToken}
+            disabled={Boolean(jobPosition.activeTo)}
           >
-            Actions
+            {getTranslationFromI18nKeyAndLabel('lowcoder:human_resources_page.employees_section.actions', 'Actions')}
           </AppActionButton>
         </div>
       )}
 
       {/* Header */}
       <div className="gba:border-b gba:border-border gba:pb-4">
-        <div className="gba:flex gba:items-center gba:gap-3">
+        <div className="gba:flex gba:items-center gba:gap-3 gba:pr-30">
           <PiBriefcase className="gba:text-primary gba:text-xl" />
-          <div>
-            <h2 className="gba:text-lg gba:font-semibold gba:text-foreground">{jobPosition.name}</h2>
-            <p className="gba:text-sm gba:text-muted-foreground">
-              {t('job_position.details_subtitle', 'Position Details')}
+          <div className="gba:flex-1 gba:min-w-0">
+            <h2 className="gba:text-lg gba:font-semibold gba:text-foreground gba:whitespace-normal gba:break-words">
+              {jobPosition.name}
+            </h2>
+            <p className="gba:text-sm gba:text-muted-foreground gba:whitespace-normal gba:break-words">
+              {getTranslationFromI18nKeyAndLabel(
+                'lowcoder:human_resources_page.job_positions_section.position_details',
+                'Position Details'
+              )}
             </p>
           </div>
         </div>
@@ -118,7 +160,15 @@ export const JobPositionDetails: React.FC<JobPositionDetailsProps> = ({ jobPosit
                 : 'gba:bg-success-secondary gba:text-success-secondary-foreground'
             }`}
           >
-            {isVacant ? t('job_position.vacant', 'Vacant') : t('job_position.filled', 'Filled')}
+            {isVacant
+              ? getTranslationFromI18nKeyAndLabel(
+                  'lowcoder:human_resources_page.job_positions_section.vacant',
+                  'Vacant'
+                )
+              : getTranslationFromI18nKeyAndLabel(
+                  'lowcoder:human_resources_page.job_positions_section.filled',
+                  'Filled'
+                )}
           </div>
         </div>
       </div>
@@ -126,7 +176,10 @@ export const JobPositionDetails: React.FC<JobPositionDetailsProps> = ({ jobPosit
       {/* Job Information */}
       <div className="gba:space-y-4">
         <h3 className="gba:text-md gba:font-medium gba:text-foreground">
-          {t('job_position.job_information', 'Job Information')}
+          {getTranslationFromI18nKeyAndLabel(
+            'lowcoder:human_resources_page.job_positions_section.job_information',
+            'Job Information'
+          )}
         </h3>
 
         <div className="gba:space-y-3">
@@ -134,10 +187,17 @@ export const JobPositionDetails: React.FC<JobPositionDetailsProps> = ({ jobPosit
             <PiTag className="gba:text-muted-foreground gba:mt-1" />
             <div>
               <p className="gba:text-sm gba:font-medium gba:text-foreground">
-                {t('job_position.job_profile', 'Job Profile')}
+                {getTranslationFromI18nKeyAndLabel(
+                  'lowcoder:human_resources_page.job_positions_section.job_profile',
+                  'Job Profile'
+                )}
               </p>
               <p className="gba:text-sm gba:text-foreground">
-                {jobPosition.jobProfile?.name || t('job_position.not_specified', 'Not specified')}
+                {jobPosition.jobProfile?.name ||
+                  getTranslationFromI18nKeyAndLabel(
+                    'lowcoder:human_resources_page.job_positions_section.not_specified',
+                    'Not specified'
+                  )}
               </p>
             </div>
           </div>
@@ -146,7 +206,10 @@ export const JobPositionDetails: React.FC<JobPositionDetailsProps> = ({ jobPosit
             <PiTag className="gba:text-muted-foreground gba:mt-1" />
             <div>
               <p className="gba:text-sm gba:font-medium gba:text-foreground">
-                {t('job_position.job_function', 'Job Function')}
+                {getTranslationFromI18nKeyAndLabel(
+                  'lowcoder:human_resources_page.job_positions_section.job_function',
+                  'Job Function'
+                )}
               </p>
               <p className="gba:text-sm gba:text-foreground">
                 {jobPosition.jobFunction?.name || t('job_position.not_specified', 'Not specified')}
@@ -158,10 +221,17 @@ export const JobPositionDetails: React.FC<JobPositionDetailsProps> = ({ jobPosit
             <PiTag className="gba:text-muted-foreground gba:mt-1" />
             <div>
               <p className="gba:text-sm gba:font-medium gba:text-foreground">
-                {t('job_position.job_level', 'Job Level')}
+                {getTranslationFromI18nKeyAndLabel(
+                  'lowcoder:human_resources_page.job_positions_section.job_level',
+                  'Job Level'
+                )}
               </p>
               <p className="gba:text-sm gba:text-foreground">
-                {jobPosition.jobLevel?.name || t('job_position.not_specified', 'Not specified')}
+                {jobPosition.jobLevel?.name ||
+                  getTranslationFromI18nKeyAndLabel(
+                    'lowcoder:human_resources_page.job_positions_section.not_specified',
+                    'Not specified'
+                  )}
               </p>
             </div>
           </div>
@@ -170,7 +240,10 @@ export const JobPositionDetails: React.FC<JobPositionDetailsProps> = ({ jobPosit
             <PiTag className="gba:text-muted-foreground gba:mt-1" />
             <div>
               <p className="gba:text-sm gba:font-medium gba:text-foreground">
-                {t('job_position.job_family', 'Job Family')}
+                {getTranslationFromI18nKeyAndLabel(
+                  'lowcoder:human_resources_page.job_positions_section.job_family',
+                  'Job Family'
+                )}
               </p>
               <p className="gba:text-sm gba:text-foreground">
                 {getJobFamilyDisplay(jobPosition.jobFunction?.jobFamily)}
@@ -183,7 +256,10 @@ export const JobPositionDetails: React.FC<JobPositionDetailsProps> = ({ jobPosit
       {/* Employment Information */}
       <div className="gba:space-y-4">
         <h3 className="gba:text-md gba:font-medium gba:text-foreground">
-          {t('job_position.employment_information', 'Employment Information')}
+          {getTranslationFromI18nKeyAndLabel(
+            'lowcoder:human_resources_page.job_positions_section.employment_information',
+            'Employment Information'
+          )}
         </h3>
 
         <div className="gba:space-y-3">
@@ -191,7 +267,10 @@ export const JobPositionDetails: React.FC<JobPositionDetailsProps> = ({ jobPosit
             <PiCalendar className="gba:text-muted-foreground gba:mt-1" />
             <div>
               <p className="gba:text-sm gba:font-medium gba:text-foreground">
-                {t('job_position.employment_type', 'Employment Type')}
+                {getTranslationFromI18nKeyAndLabel(
+                  'lowcoder:human_resources_page.employees_section.employment_type',
+                  'Employment Type'
+                )}
               </p>
               <p className="gba:text-sm gba:text-foreground">{getEmploymentTypeDisplay(jobPosition.employmentType)}</p>
             </div>
@@ -201,7 +280,10 @@ export const JobPositionDetails: React.FC<JobPositionDetailsProps> = ({ jobPosit
             <PiCalendar className="gba:text-muted-foreground gba:mt-1" />
             <div>
               <p className="gba:text-sm gba:font-medium gba:text-foreground">
-                {t('job_position.contract_type', 'Contract Type')}
+                {getTranslationFromI18nKeyAndLabel(
+                  'lowcoder:human_resources_page.employees_section.contract_type',
+                  'Contract Type'
+                )}
               </p>
               <p className="gba:text-sm gba:text-foreground">{getContractTypeDisplay(jobPosition.contractType)}</p>
             </div>
@@ -212,7 +294,10 @@ export const JobPositionDetails: React.FC<JobPositionDetailsProps> = ({ jobPosit
       {/* Organizational Information */}
       <div className="gba:space-y-4">
         <h3 className="gba:text-md gba:font-medium gba:text-foreground">
-          {t('job_position.organizational_information', 'Organizational Information')}
+          {getTranslationFromI18nKeyAndLabel(
+            'lowcoder:human_resources_page.job_positions_section.organizational_information',
+            'Organizational Information'
+          )}
         </h3>
 
         <div className="gba:space-y-3">
@@ -220,9 +305,36 @@ export const JobPositionDetails: React.FC<JobPositionDetailsProps> = ({ jobPosit
             <PiBuilding className="gba:text-muted-foreground gba:mt-1" />
             <div>
               <p className="gba:text-sm gba:font-medium gba:text-foreground">
-                {t('job_position.department', 'Department')}
+                {getTranslationFromI18nKeyAndLabel(
+                  'lowcoder:human_resources_page.job_positions_section.department',
+                  'Department'
+                )}
               </p>
               <p className="gba:text-sm gba:text-foreground">{getDepartmentName()}</p>
+            </div>
+          </div>
+
+          {/* Manager under Organizational Information */}
+          <div className="gba:flex gba:items-start gba:gap-3">
+            <PiUser className="gba:text-muted-foreground gba:mt-1" />
+            <div>
+              <p className="gba:text-sm gba:font-medium gba:text-foreground">
+                {getTranslationFromI18nKeyAndLabel(
+                  'lowcoder:human_resources_page.job_positions_section.manager',
+                  'Manager'
+                )}
+              </p>
+              <p className="gba:text-sm gba:text-foreground">
+                {(() => {
+                  const sup = jobPosition.employeePositions?.[0]?.supervisor
+                  if (!sup)
+                    return getTranslationFromI18nKeyAndLabel(
+                      'lowcoder:human_resources_page.job_positions_section.not_specified',
+                      'Not specified'
+                    )
+                  return `${sup.firstName} ${sup.lastName}`
+                })()}
+              </p>
             </div>
           </div>
         </div>
@@ -231,7 +343,10 @@ export const JobPositionDetails: React.FC<JobPositionDetailsProps> = ({ jobPosit
       {/* Current Employee */}
       <div className="gba:space-y-4">
         <h3 className="gba:text-md gba:font-medium gba:text-foreground">
-          {t('job_position.current_employee', 'Current Employee')}
+          {getTranslationFromI18nKeyAndLabel(
+            'lowcoder:human_resources_page.job_positions_section.current_employee',
+            'Current Employee'
+          )}
         </h3>
 
         <div className="gba:space-y-3">
@@ -239,13 +354,28 @@ export const JobPositionDetails: React.FC<JobPositionDetailsProps> = ({ jobPosit
             <PiUser className="gba:text-muted-foreground gba:mt-1" />
             <div>
               <p className="gba:text-sm gba:font-medium gba:text-foreground">
-                {t('job_position.employee', 'Employee')}
+                {getTranslationFromI18nKeyAndLabel(
+                  'lowcoder:human_resources_page.job_positions_section.employee',
+                  'Employee'
+                )}
               </p>
               <p className="gba:text-sm gba:text-foreground">{getEmployeeDisplay()}</p>
             </div>
           </div>
         </div>
       </div>
+
+      {/* Termination Date (optional) */}
+      {Boolean(jobPosition.activeTo) && (
+        <div className="gba:space-y-4">
+          <h3 className="gba:text-md gba:font-medium gba:text-foreground">
+            {getTranslationFromI18nKeyAndLabel('lowcoder:hr_insights.termination_date', 'Termination Date')}
+            <span className="gba:ml-2 gba:text-foreground">
+              {formatDate(jobPosition.activeTo as string, 'date.long')}
+            </span>
+          </h3>
+        </div>
+      )}
     </div>
   )
 }

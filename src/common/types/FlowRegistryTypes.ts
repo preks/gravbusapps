@@ -10,6 +10,7 @@ export enum FlowContextName {
   // Human Resources
   employeeEntity = 'employeeEntity',
   jobPositionEntity = 'jobPositionEntity',
+  assetEntity = 'assetEntity',
 
   // HR Notes
   createEmployeeNote = 'createEmployeeNote',
@@ -36,9 +37,8 @@ export enum FlowContextName {
   customerOpportunityEntity = 'customerOpportunityEntity',
   customerOpportunityCreate = 'customerOpportunityCreate', // TODO: Replace startProcess
   customerOpportunityUpdate = 'customerOpportunityUpdate', // TODO: Replace startProcess
-
-  transitionOpportunityStage = 'transitionOpportunityStage',
-  saveOpportunityStageConditionStatus = 'saveOpportunityStageConditionStatus',
+  customerOpportunityStageTransition = 'customerOpportunityStageTransition',
+  customerOpportunityConditionUpdate = 'customerOpportunityConditionUpdate',
 
   /// Customer Campaigns
   customerCampaignEntity = 'customerCampaignEntity',
