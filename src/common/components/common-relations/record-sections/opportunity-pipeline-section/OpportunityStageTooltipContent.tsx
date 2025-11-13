@@ -1,6 +1,6 @@
 import React from 'react'
 import { CheckCircleFilled, CloseCircleFilled } from '@ant-design/icons'
-import type { Stage, StageCondition } from './types'
+import type { Stage, StageCondition } from '@/components/stage-progression/types'
 
 interface OpportunityStageTooltipContentProps {
   stage: Stage

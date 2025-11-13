@@ -1,6 +1,6 @@
 import React, { useState, useCallback, useMemo } from 'react'
 import { StageProgression } from '@/components/stage-progression/StageProgression'
-import { OpportunityStageTooltipContent } from '@/components/stage-progression/OpportunityStageTooltipContent'
+import { OpportunityStageTooltipContent } from './OpportunityStageTooltipContent'
 import { AppActionMenu } from '@/components/app-action-menu/AppActionMenu'
 import { convertToStageFormat } from './utils'
 import type { OpportunityStageProgressionProps } from './types'
