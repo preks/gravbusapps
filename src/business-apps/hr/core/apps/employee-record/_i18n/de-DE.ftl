@@ -100,6 +100,7 @@ benefit-details-start-date = Startdatum
 benefit-details-end-date = Enddatum
 benefit-details-notes = Notizen
 benefit-details-available-providers = Verfügbare Anbieter
+benefit-details-description = Leistungsdetails
 common-close = Schließen
 
 # Payslip History

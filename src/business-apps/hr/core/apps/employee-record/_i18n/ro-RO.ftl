@@ -100,6 +100,7 @@ benefit-details-start-date = Data de început
 benefit-details-end-date = Data de încheiere
 benefit-details-notes = Note
 benefit-details-available-providers = Furnizori disponibili
+benefit-details-description = Detalii beneficiu
 common-close = Închide
 
 # Payslip History
