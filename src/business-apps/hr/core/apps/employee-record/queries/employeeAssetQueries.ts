@@ -20,11 +20,21 @@ export const GET_EMPLOYEE_ASSETS = `
           id
           code
           value
+          translations {
+            localeCode
+            value
+            objectValue
+          }
         }
         assetCategory {
           id
           code
           value
+          translations {
+            localeCode
+            value
+            objectValue
+          }
         }
       }
       startAssetCondition {
