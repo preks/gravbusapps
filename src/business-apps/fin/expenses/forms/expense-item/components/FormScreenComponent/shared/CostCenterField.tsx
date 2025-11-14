@@ -1,8 +1,8 @@
 import React from 'react'
-import { useTranslation } from 'react-i18next'
 import { SelectField } from '@newwork/gravity-ui-catalog'
 import { Form } from 'antd'
 import { CostCenter } from '../../../types'
+import { getTranslationFromI18nKeyAndLabel } from '@/common/utils/windowUtils'
 
 interface CostCenterFieldProps {
   index: number
@@ -19,8 +19,6 @@ export const CostCenterField: React.FC<CostCenterFieldProps> = ({
   isProcessingFiles,
   onChange
 }) => {
-  const { t } = useTranslation()
-
   return (
     <div className="gba:mb-4" data-testid={`cost-center-container-${index}`}>
       <div className="gba:relative">
@@ -29,7 +27,7 @@ export const CostCenterField: React.FC<CostCenterFieldProps> = ({
           rules={[
             {
               required: true,
-              message: t(
+              message: getTranslationFromI18nKeyAndLabel(
                 'lowcoder:create_expense_request.expense_request_container.current_cost_center_custom_rule',
                 'Please select a cost center'
               )
@@ -47,11 +45,11 @@ export const CostCenterField: React.FC<CostCenterFieldProps> = ({
               name: center.name
             }))}
             onChange={(val: any) => onChange(val.value as string)}
-            label={t(
+            label={getTranslationFromI18nKeyAndLabel(
               'lowcoder:create_expense_request.expense_request_container.current_cost_center_label',
               'Cost Center'
             )}
-            placeholder={t(
+            placeholder={getTranslationFromI18nKeyAndLabel(
               'lowcoder:create_expense_request.expense_request_container.current_cost_center_placeholder',
               'Select Cost Center'
             )}

@@ -56,6 +56,7 @@ interface EmployeeSkill {
 
 interface ProfileHeaderProps {
   employee: Employee
+  isSelfView?: boolean
 }
 
 interface ProfileInfoItemProps {
@@ -139,10 +140,14 @@ const ProfileInfoItem: React.FC<ProfileInfoItemProps> = ({
   )
 }
 
-const ProfileHeader: React.FC<BusinessAppContextProps & ProfileHeaderProps> = ({ userInfo, employee, accessToken }) => {
+const ProfileHeader: React.FC<BusinessAppContextProps & ProfileHeaderProps> = ({
+  userInfo,
+  employee,
+  accessToken,
+  isSelfView
+}) => {
   // Translation helper
   const t = (key: string) => getTranslationFromI18nKeyAndLabel(key, key)
-  const [isHovering, setIsHovering] = useState(false)
   const [employeeEmail, setEmployeeEmail] = useState<string | undefined>()
 
   // Use the openChat hook for direct Teams integration
@@ -255,7 +260,7 @@ const ProfileHeader: React.FC<BusinessAppContextProps & ProfileHeaderProps> = ({
               <div className="gba:relative">
                 <div className="gba:relative">
                   {/* Use the Avatar component */}
-                  <div className="gba:relative">
+                  <div className="gba:relative gba:group">
                     <Avatar
                       src={employee.pictureThumbnail ? `data:image/gif;base64,${employee.pictureThumbnail}` : undefined}
                       initials={`${employee.firstName?.[0] || ''}${employee.lastName?.[0] || ''}`}
@@ -276,13 +281,15 @@ const ProfileHeader: React.FC<BusinessAppContextProps & ProfileHeaderProps> = ({
                     />
 
                     {/* Edit button overlay */}
-                    <div
-                      className="gba:absolute gba:inset-0 gba:flex gba:items-center gba:justify-center"
-                      onMouseEnter={() => setIsHovering(true)}
-                      onMouseLeave={() => setIsHovering(false)}
-                      aria-label={'Edit profile picture'}
-                    >
-                      {isHovering && (
+                    {isSelfView && (
+                      <div
+                        className="
+                          gba:absolute gba:inset-0 gba:flex gba:items-center gba:justify-center
+                          gba:opacity-0 gba:pointer-events-none gba:transition-opacity
+                          gba:group-hover:opacity-100 gba:group-hover:pointer-events-auto
+                        "
+                        aria-label={'Edit profile picture'}
+                      >
                         <AppActionMenu
                           data-testid="employee-profile-picture-edit-button"
                           contextsArray={[FlowContextName.employeeProfilePicture]}
@@ -296,8 +303,8 @@ const ProfileHeader: React.FC<BusinessAppContextProps & ProfileHeaderProps> = ({
                         >
                           <PiPencilSimple className="gba:h-5 gba:w-5" />
                         </AppActionMenu>
-                      )}
-                    </div>
+                      </div>
+                    )}
                   </div>
                 </div>
 

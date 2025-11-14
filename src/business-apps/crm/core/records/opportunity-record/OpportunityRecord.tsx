@@ -16,10 +16,14 @@ import { getOpportunityStatusBadgeVariant } from '@/common/utils/badgeUtils'
 import { useAiSummary } from './hooks/useAiSummary'
 import { AiActions, AiAction } from '@/common/components/common-relations/record-sections/header-section/ai-actions'
 import { AppActionButton } from '@/components/app-action-button/AppActionButton'
-import { OpportunityStageProgression } from './components/OpportunityStageProgression'
+import { OpportunityStageProgression } from '@/common/components/common-relations/record-sections/opportunity-pipeline-section/OpportunityStageProgression'
+import type { OpportunityPipelineContextConfig } from '@/common/components/common-relations/record-sections/opportunity-pipeline-section/types'
+import { getEmployeeName } from '@/common/components/common-relations/record-sections/opportunity-pipeline-section/utils'
+import type { Stage, StageCondition } from '@/components/stage-progression/types'
 import { FlowContextName } from '@/common/types/FlowRegistryTypes'
 import { HomeView } from './views/home-view/HomeView'
 import { DocumentView } from './views/document-view'
+import { OpportunityStatusUpdatePopup } from '@/business-apps/crm/core/popups/opportunity-status-update-popup'
 
 interface OpportunityRecordContentProps extends BusinessAppContextProps {
   opportunityId: string
@@ -37,6 +41,14 @@ const OpportunityRecordContent: React.FC<OpportunityRecordContentProps> = ({
   const ALLOWED_TABS = ['overview', 'documents'] as const
   type TabKey = (typeof ALLOWED_TABS)[number]
   const [activeTab, setActiveTab] = useState('overview')
+
+  // Status update popup state
+  const [statusUpdatePopup, setStatusUpdatePopup] = useState<{
+    open: boolean
+    opportunityId?: string
+    opportunityVersion?: number
+    opportunityName?: string
+  }>({ open: false })
 
   // Initialize activeTab from URL on mount and write default if missing
   useEffect(() => {
@@ -65,8 +77,10 @@ const OpportunityRecordContent: React.FC<OpportunityRecordContentProps> = ({
   const { fetchCustomerOpportunityById } = useCustomerOpportunities(props)
   const {
     pipelineStages: opportunityStages,
+    catalogStageConditions,
     loadingPipelineStages: loadingStages,
-    errorPipelineStages: stagesError
+    errorPipelineStages: stagesError,
+    refetchPipelineStages
   } = useSalesPipelineStages(opportunityData?.salesPipelineRef, props.accessToken)
 
   const fetchOpportunityData = useCallback(async () => {
@@ -97,6 +111,45 @@ const OpportunityRecordContent: React.FC<OpportunityRecordContentProps> = ({
 
   // Extract stageConditionStatuses from opportunityData
   const stageConditionStatuses = opportunityData?.stageConditionStatuses || []
+
+  // Helper function to extract CRM stage conditions (reduces cognitive complexity)
+  const extractCrmStageConditions = useCallback(
+    (stageConditionStatuses: any[], stage: Stage): StageCondition[] => {
+      const expectedStageId = `SalesPipelineStage:v1:${stage.code}`
+      const stageCatalogConditions = catalogStageConditions.filter(
+        catalogCondition => catalogCondition.parentEntryId === expectedStageId
+      )
+
+      return stageCatalogConditions.map(catalogCondition => {
+        const statusRecord = stageConditionStatuses.find(
+          statusData => statusData.salesPipelineStageConditionRef === catalogCondition.id
+        )
+
+        const config = statusRecord?.configSnapshot || catalogCondition.objectValue || {}
+        const checkedType = config.check_type === 'MANUAL' ? 'User' : 'Automated'
+
+        return {
+          id: catalogCondition.id,
+          title: catalogCondition.value || 'Unknown Condition',
+          isCompleted: statusRecord?.completed || false,
+          checkedType: checkedType as 'Automated' | 'User' | 'Manager' | 'Owner',
+          completedBy: statusRecord?.completedByEmployee ? getEmployeeName(statusRecord.completedByEmployee) : null
+        }
+      })
+    },
+    [catalogStageConditions]
+  )
+
+  // CRM-specific configuration for OpportunityStageProgression
+  const crmPipelineConfig: OpportunityPipelineContextConfig = useMemo(
+    () => ({
+      transitionFlowContext: FlowContextName.customerOpportunityStageTransition,
+      opportunityIdField: 'opportunityId',
+      targetStageRefField: 'targetStageRef',
+      extractStageConditions: extractCrmStageConditions
+    }),
+    [extractCrmStageConditions]
+  )
 
   // AI Summary hook for HeaderSection
   const aiSummaryHook = useAiSummary(opportunityId, props.accessToken)
@@ -181,11 +234,22 @@ const OpportunityRecordContent: React.FC<OpportunityRecordContentProps> = ({
   useProcessCompletion({
     onSuccess: () => {
       fetchOpportunityData()
+      refetchPipelineStages() // Refetch stages and catalog conditions after stage transition
       loadActivities()
       loadNotes()
       loadTasksAndApprovals()
     }
   })
+
+  // Handler to open status update popup
+  const handleUpdateStatus = () => {
+    setStatusUpdatePopup({
+      open: true,
+      opportunityId: opportunityId,
+      opportunityVersion: Number.parseInt(opportunity?.version || '0', 10),
+      opportunityName: opportunity?.name || opportunityData?.name || 'Unnamed Opportunity'
+    })
+  }
 
   // Memoize stage condition action props to prevent recreation
   const stageConditionActionProps = useMemo(
@@ -234,7 +298,12 @@ const OpportunityRecordContent: React.FC<OpportunityRecordContentProps> = ({
     return (
       <div className="gba:flex gba:items-center gba:gap-2">
         {statusLabel && (
-          <Badge variant={getOpportunityStatusBadgeVariant(opportunityData?.opportunityStatus)} className="gba:gap-1">
+          <Badge
+            variant={getOpportunityStatusBadgeVariant(opportunityData?.opportunityStatus)}
+            className="gba:gap-1 gba:cursor-pointer hover:gba:opacity-80"
+            onClick={handleUpdateStatus}
+            data-testid="opportunity-status-badge"
+          >
             {statusLabel}
           </Badge>
         )}
@@ -361,6 +430,7 @@ const OpportunityRecordContent: React.FC<OpportunityRecordContentProps> = ({
           accessToken={props.accessToken}
           stageConditionStatuses={stageConditionStatuses}
           onStageUpdate={fetchOpportunityData}
+          contextConfig={crmPipelineConfig}
         />
       )
     }
@@ -518,6 +588,26 @@ const OpportunityRecordContent: React.FC<OpportunityRecordContentProps> = ({
         headerContent={headerContent}
         subViews={subViewsConfig}
       />
+
+      {/* Status Update Popup */}
+      {statusUpdatePopup.open && statusUpdatePopup.opportunityId && (
+        <OpportunityStatusUpdatePopup
+          isOpen={statusUpdatePopup.open}
+          onClose={() => setStatusUpdatePopup({ open: false })}
+          accessToken={props.accessToken}
+          opportunityId={statusUpdatePopup.opportunityId}
+          opportunityVersion={statusUpdatePopup.opportunityVersion}
+          opportunityName={statusUpdatePopup.opportunityName}
+          onSuccess={() => {
+            refetchOpportunityData()
+            setStatusUpdatePopup({ open: false })
+          }}
+          onError={() => {
+            setStatusUpdatePopup({ open: false })
+          }}
+          data-testid="opportunity-status-update-popup"
+        />
+      )}
     </div>
   )
 }

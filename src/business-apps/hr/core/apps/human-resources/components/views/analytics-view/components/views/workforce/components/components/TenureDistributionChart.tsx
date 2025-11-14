@@ -1,6 +1,7 @@
 import React from 'react'
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from 'recharts'
-import { Spinner } from '@newwork/nw-design-system'
+import { Spinner, useTranslation } from '@newwork/nw-design-system'
+import hrTranslations from '@/business-apps/hr/core/apps/human-resources/_i18n'
 
 interface TenureDistributionChartProps {
   data: Array<{
@@ -12,6 +13,7 @@ interface TenureDistributionChartProps {
 }
 
 const TenureDistributionChart: React.FC<TenureDistributionChartProps> = ({ data, isLoading, dataTestId }) => {
+  const { t } = useTranslation(hrTranslations)
   // Transform data for recharts format with proper ordering
   const chartData = data
     .map(item => ({
@@ -35,7 +37,7 @@ const TenureDistributionChart: React.FC<TenureDistributionChartProps> = ({ data,
   if (!data || data.length === 0) {
     return (
       <div data-testid={`${dataTestId}-empty`} className="gba:flex gba:justify-center gba:items-center gba:h-full">
-        <p className="gba:text-muted-foreground">No tenure distribution data available</p>
+        <p className="gba:text-muted-foreground">{t('hr-analytics-no-tenure-distribution')}</p>
       </div>
     )
   }
@@ -56,11 +58,11 @@ const TenureDistributionChart: React.FC<TenureDistributionChartProps> = ({ data,
           <YAxis
             tick={{ fontSize: 12 }}
             stroke="var(--nw-muted-foreground)"
-            label={{ value: 'Employees', angle: -90, position: 'insideLeft' }}
+            label={{ value: t('hr-analytics-employees'), angle: -90, position: 'insideLeft' }}
           />
           <Tooltip
-            labelFormatter={value => `Tenure: ${value}`}
-            formatter={(value: number) => [value, 'Employees']}
+            labelFormatter={value => `${t('hr-analytics-tenure-label')}: ${value}`}
+            formatter={(value: number) => [value, t('hr-analytics-employees')]}
             contentStyle={{
               backgroundColor: 'var(--nw-primary-foreground)',
               border: '1px solid var(--nw-border)',

@@ -30,16 +30,29 @@ export interface InvestmentTaskListData {
   total: number
 }
 
+export interface InvestmentTaskQueryOptions {
+  orConditions?: Record<string, any>[]
+}
+
 export const useInvestmentTasks = (context: BusinessAppContextProps) => {
   const graphqlClient = useGraphQLClient(context.accessToken)
 
   const fetchInvestmentTasks = useCallback(
-    async (variables: InvestmentTaskQueryVariables = {}): Promise<InvestmentTaskListData> => {
+    async (
+      variables: InvestmentTaskQueryVariables = {},
+      options?: InvestmentTaskQueryOptions
+    ): Promise<InvestmentTaskListData> => {
       // Use new query builder with fields mapping
       const query = buildInvestmentTaskQuery()
 
       // Handle reference type filtering - add as custom conditions
       const customConditions: Record<string, any>[] = []
+
+      // Add custom OR conditions if provided (e.g., for assigned OR created by filters)
+      if (options?.orConditions && options.orConditions.length > 0) {
+        customConditions.push(...options.orConditions)
+      }
+
       if (variables.referenceTypes && variables.referenceTypes.length > 0) {
         const referenceConditions = variables.referenceTypes
           .map(type => {

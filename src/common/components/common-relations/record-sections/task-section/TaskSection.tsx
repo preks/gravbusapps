@@ -8,7 +8,6 @@ import {
   TooltipProvider,
   TooltipTrigger
 } from '@newwork/nw-design-system'
-import { AppAction } from '@/components/app-action'
 import { AppActionMenu } from '@/components/app-action-menu/AppActionMenu'
 import type { AppActionCommonProps } from '@/common/hooks/useAppActionData'
 import { BusinessAppContextProps } from '@/common/BusinessAppContext'
@@ -122,7 +121,8 @@ const TaskSection: React.FC<TaskSectionProps> = ({
           lead: task.lead,
           account: task.account,
           contact: task.contact,
-          opportunity: task.opportunity
+          opportunity: task.opportunity,
+          investment: (task as any).investment
         },
         getTranslationFromI18nKeyAndLabel('crm.tasks.untitled', 'Untitled Task')
       )
@@ -476,26 +476,27 @@ const TaskSection: React.FC<TaskSectionProps> = ({
 
 // Static properties for SectionWrapper
 ;(TaskSection as any).sectionTitle = (props: TaskSectionProps) => props.sectionTitle || 'Tasks'
-;(TaskSection as any).sectionActions = (props: TaskSectionProps) => {
+;(TaskSection as any).getActionButtonConfig = (_pageData: any, _pageIndex: number, props: TaskSectionProps) => {
   const { accessToken, taskActionProps } = props
 
-  if (!taskActionProps) {
+  if (!taskActionProps || !accessToken) {
     return null
   }
 
-  return (
-    <AppAction
-      accessToken={accessToken}
-      contextsArray={taskActionProps.contextsArray}
-      externalContextData={taskActionProps.externalContextData}
-      prefixDataTestId={taskActionProps.prefixDataTestId}
-      emptyStateBehavior={taskActionProps.emptyStateBehavior}
-    >
-      <Button data-testid="add-task-button" variant="secondary" size="icon">
-        <PlusIcon />
-      </Button>
-    </AppAction>
-  )
+  return {
+    type: 'AppAction' as const,
+    config: {
+      contextsArray: taskActionProps.contextsArray,
+      externalContextData: taskActionProps.externalContextData,
+      prefixDataTestId: taskActionProps.prefixDataTestId,
+      emptyStateBehavior: taskActionProps.emptyStateBehavior || 'enable',
+      children: (
+        <Button data-testid="add-task-button" variant="secondary" size="icon">
+          <PlusIcon />
+        </Button>
+      )
+    }
+  }
 }
 
 export default TaskSection

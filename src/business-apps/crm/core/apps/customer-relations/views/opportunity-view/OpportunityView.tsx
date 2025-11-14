@@ -170,7 +170,7 @@ export const OpportunityView: React.FC<OpportunityViewProps> = context => {
         buildQueryVariables: () => ({}),
         processConfig: {
           domain: 'customer-relations',
-          processName: 'transitionCustomerOpportunity',
+          processName: 'transitionOpportunity',
           buildPayload: (opportunityId: string, targetStageRef: string) => ({
             opportunityId,
             targetStageRef

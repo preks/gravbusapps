@@ -119,6 +119,7 @@ export const INVESTMENT_OPPORTUNITY = `
     opportunityId
     opportunityPipelineStageCondition {
       ${CATALOG_ENTRY}
+      parentEntryId
     }
     opportunityPipelineStageConditionRef
     task {

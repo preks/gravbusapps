@@ -1,15 +1,17 @@
 import React from 'react'
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from 'recharts'
 import { Card, Typography, Spin } from 'antd'
-import { getTranslationFromI18nKeyAndLabel } from '@/common/utils/windowUtils'
 import { useMonthlyHeadcountChanges } from '../../../../hooks/useMonthlyHeadcountChanges'
 import { BusinessAppContextProps } from '@/common/BusinessAppContext'
+import { useTranslation } from '@newwork/nw-design-system'
+import hrTranslations from '@/business-apps/hr/core/apps/human-resources/_i18n'
 
 const { Title, Text } = Typography
 
 const HeadcountChangesChart: React.FC<BusinessAppContextProps> = props => {
   const year = new Date().getFullYear()
   const { data, loading } = useMonthlyHeadcountChanges(props, year)
+  const { t } = useTranslation(hrTranslations)
 
   const CustomTooltip = ({ active, payload }: any) => {
     if (active && payload && payload.length) {
@@ -24,19 +26,19 @@ const HeadcountChangesChart: React.FC<BusinessAppContextProps> = props => {
           </div>
           <div className="gba:text-success gba:text-sm">
             <span className="gba:font-medium">
-              {getTranslationFromI18nKeyAndLabel('headcount_new_hires', 'New Hires')}:
+              {t('hr-analytics-new-hires')}:
             </span>{' '}
             +{d.newHires}
           </div>
           <div className="gba:text-destructive gba:text-sm">
             <span className="gba:font-medium">
-              {getTranslationFromI18nKeyAndLabel('headcount_departures', 'Departures')}:
+              {t('hr-analytics-departures')}:
             </span>{' '}
             {d.departures === 0 ? '0' : '-' + d.departures}
           </div>
           <div className="gba:text-foreground gba:text-sm">
             <span className="gba:font-medium">
-              {getTranslationFromI18nKeyAndLabel('headcount_net_change', 'Net Change')}:
+              {t('hr-analytics-net-change')}:
             </span>{' '}
             {d.netChange > 0 ? '+' : ''}
             {d.netChange}
@@ -52,13 +54,10 @@ const HeadcountChangesChart: React.FC<BusinessAppContextProps> = props => {
       {/* Header */}
       <div className="gba:mb-4">
         <Title level={4} className="gba:m-0 gba:text-foreground">
-          {getTranslationFromI18nKeyAndLabel('headcount_changes_chart', 'Headcount Changes')}
+          {t('hr-analytics-headcount-changes-chart')}
         </Title>
         <Text className="gba:text-muted-foreground gba:text-sm gba:mt-1">
-          {getTranslationFromI18nKeyAndLabel(
-            'headcount_changes_description',
-            'Monthly workforce changes showing new hires versus departures and net headcount impact'
-          )}
+          {t('hr-analytics-headcount-changes-description')}
         </Text>
       </div>
 
@@ -78,13 +77,13 @@ const HeadcountChangesChart: React.FC<BusinessAppContextProps> = props => {
               <Bar
                 dataKey="newHires"
                 fill="var(--nw-color-success)"
-                name={getTranslationFromI18nKeyAndLabel('headcount_new_hires', 'New Hires')}
+                name={t('hr-analytics-new-hires')}
                 data-testid="bar-new-hires"
               />
               <Bar
                 dataKey="departures"
                 fill="var(--nw-color-destructive)"
-                name={getTranslationFromI18nKeyAndLabel('headcount_departures', 'Departures')}
+                name={t('hr-analytics-departures')}
                 data-testid="bar-departures"
               />
             </BarChart>

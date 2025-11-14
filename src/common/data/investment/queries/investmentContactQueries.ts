@@ -55,6 +55,7 @@ export interface InvestmentContactQueryVariables extends CommonContactQueryVaria
   missingPhone?: boolean
   birthDateFrom?: string
   birthDateTo?: string
+  userIds?: string[] // Filter by Keycloak user IDs
 }
 
 /**

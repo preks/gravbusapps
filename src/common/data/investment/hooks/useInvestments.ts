@@ -135,8 +135,11 @@ export const useGetInvestmentDocumentsByInvestmentId = (context: BusinessAppCont
   const graphqlClient = useGraphQLClient(context.accessToken)
 
   const fetchInvestmentDocumentsByInvestmentId = useCallback(
-    async (investmentId: string) => {
-      const query = GET_INVESTMENT_DOCUMENTS_BY_INVESTMENT_ID(investmentId)
+    async (investmentId: string, createdBy?: string) => {
+      const query = GET_INVESTMENT_DOCUMENTS_BY_INVESTMENT_ID({
+        investmentId,
+        createdBy // Pass the createdBy filter for server-side filtering
+      })
 
       try {
         const result = await graphqlClient.request<{ InvestmentDocument: InvestmentDocument[] }>(query)

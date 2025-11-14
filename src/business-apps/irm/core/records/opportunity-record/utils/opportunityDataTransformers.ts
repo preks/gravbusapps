@@ -26,6 +26,8 @@ export function buildInvestmentFromOpportunity(opportunity: InvestmentOpportunit
     investmentTypeRef: opportunity.investmentTypeRef,
     investmentStakeType: opportunity.investmentStakeType,
     investmentStakeTypeRef: opportunity.investmentStakeTypeRef,
+    investmentRole: opportunity.investmentRole,
+    investmentRoleRef: opportunity.investmentRoleRef,
 
     // Financial fields
     initialInvestmentAmount: opportunity.initialInvestmentAmount,
