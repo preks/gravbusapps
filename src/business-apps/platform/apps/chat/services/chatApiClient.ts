@@ -116,6 +116,31 @@ export class ChatApiClient {
     }
   }
 
+  async getOrCreateContextConversation(data: {
+    contextEntity: string
+    contextEntityId: string
+    name?: string
+    users?: string[]
+  }) {
+    try {
+      const response = await this.client.post<Conversation>('/conversations/context', data)
+      return response.data
+    } catch (error: any) {
+      console.error('API Error creating context conversation:', error.response?.data)
+      throw error
+    }
+  }
+
+  async getOrCreateAiAgentConversation(data?: { contextEntity?: string; contextEntityId?: string; name?: string }) {
+    try {
+      const response = await this.client.post<Conversation>('/conversations/ai-agent', data || {})
+      return response.data
+    } catch (error: any) {
+      console.error('API Error creating AI agent conversation:', error.response?.data)
+      throw error
+    }
+  }
+
   async addParticipant(conversationId: string, userId: string) {
     const response = await this.client.post(`/conversations/${conversationId}/participants`, {
       userId

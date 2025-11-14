@@ -18,6 +18,7 @@ export function useChatClient({ accessToken, apiUrl, wsUrl }: UseChatClientOptio
   const [currentUser, setCurrentUser] = useState<User | null>(null)
   const [activeConversationId, setActiveConversationId] = useState<string | null>(null)
   const [error, setError] = useState<Error | null>(null)
+  const [isOffline, setIsOffline] = useState(false)
 
   const apiClientRef = useRef<ChatApiClient | null>(null)
   const wsClientRef = useRef<ChatWebSocketClient | null>(null)
@@ -57,10 +58,24 @@ export function useChatClient({ accessToken, apiUrl, wsUrl }: UseChatClientOptio
         .getCurrentUser()
         .then(user => {
           setCurrentUser(user)
+          setError(null)
         })
         .catch(err => {
           console.error('Error getting current user:', err)
-          setError(err instanceof Error ? err : new Error('Failed to authenticate'))
+          // Detect error type and set appropriate message
+          let errorMessage = 'chat.serviceUnavailable'
+
+          if (err?.response?.status === 404) {
+            errorMessage = 'chat.serviceNotFound'
+          } else if (err?.code === 'ERR_NETWORK' || err?.code === 'ECONNREFUSED') {
+            errorMessage = 'chat.serviceUnavailable'
+          } else if (err?.response?.status === 401 || err?.response?.status === 403) {
+            errorMessage = 'chat.authenticationFailed'
+          }
+
+          const error = new Error(errorMessage)
+          error.name = errorMessage
+          setError(error)
         })
     } else {
       apiClientRef.current = null
@@ -118,6 +133,7 @@ export function useChatClient({ accessToken, apiUrl, wsUrl }: UseChatClientOptio
 
       socket.on('connect', async () => {
         setIsConnected(true)
+        setIsOffline(false)
         setError(null)
 
         // Join all user's conversations when connected
@@ -131,11 +147,13 @@ export function useChatClient({ accessToken, apiUrl, wsUrl }: UseChatClientOptio
 
       socket.on('disconnect', () => {
         setIsConnected(false)
+        setIsOffline(true)
       })
 
       socket.on('error', err => {
         console.error('WebSocket error:', err)
-        setError(err instanceof Error ? err : new Error('WebSocket connection error'))
+        setIsOffline(true)
+        // Don't set full error for WebSocket issues, just mark as offline
       })
 
       return () => {
@@ -614,6 +632,65 @@ export function useChatClient({ accessToken, apiUrl, wsUrl }: UseChatClientOptio
     [conversationsHook]
   )
 
+  const createContextConversation = useCallback(
+    async (contextEntity: string, contextEntityId: string, name?: string, users?: string[]) => {
+      if (!apiClientRef.current) {
+        throw new Error('Chat client not initialized')
+      }
+
+      try {
+        // Create or get existing context conversation
+        const conversation = await apiClientRef.current.getOrCreateContextConversation({
+          contextEntity,
+          contextEntityId,
+          name,
+          users
+        })
+
+        // Reload conversation with full participant data including user objects
+        const fullConversation = await apiClientRef.current.getConversationById(conversation.id)
+        // Add and enrich conversation - this returns the enriched version
+        const enrichedConversation = await conversationsHook.addConversation(fullConversation)
+        setActiveConversationId(enrichedConversation.id)
+
+        return enrichedConversation
+      } catch (err) {
+        console.error('Error creating context conversation:', err)
+        throw err
+      }
+    },
+    [conversationsHook]
+  )
+
+  const createAiAgentConversation = useCallback(
+    async (contextEntity?: string, contextEntityId?: string, name?: string) => {
+      if (!apiClientRef.current) {
+        throw new Error('Chat client not initialized')
+      }
+
+      try {
+        // Create or get existing AI agent conversation
+        const conversation = await apiClientRef.current.getOrCreateAiAgentConversation({
+          contextEntity,
+          contextEntityId,
+          name
+        })
+
+        // Reload conversation with full participant data including user objects
+        const fullConversation = await apiClientRef.current.getConversationById(conversation.id)
+        // Add and enrich conversation - this returns the enriched version
+        const enrichedConversation = await conversationsHook.addConversation(fullConversation)
+        setActiveConversationId(enrichedConversation.id)
+
+        return enrichedConversation
+      } catch (err) {
+        console.error('Error creating AI agent conversation:', err)
+        throw err
+      }
+    },
+    [conversationsHook]
+  )
+
   const setActiveConversation = useCallback(
     async (conversation: Conversation | null) => {
       if (!conversation) {
@@ -675,6 +752,7 @@ export function useChatClient({ accessToken, apiUrl, wsUrl }: UseChatClientOptio
   return {
     // State
     isConnected,
+    isOffline,
     currentUser,
     activeConversation,
     activeConversationId,
@@ -695,6 +773,8 @@ export function useChatClient({ accessToken, apiUrl, wsUrl }: UseChatClientOptio
     // Actions
     sendMessage,
     createDirectConversation,
+    createContextConversation,
+    createAiAgentConversation,
     setActiveConversation,
     closeConversation,
     loadMoreMessages: messagesHook.loadMoreMessages,
