@@ -106,8 +106,10 @@ const buildStepsNode = (template: FlowTemplate, currentStepIndex: number): TreeN
 
     // Build form data fields
     const formDataChildren: TreeNode[] = []
-    if (step.form?.inputs && step.form.inputs.length > 0) {
-      step.form.inputs.forEach(input => {
+    // step.form is already an array of InputBlock[], not an object with inputs property
+    const formInputs = step.form || step.inputs || []
+    if (formInputs.length > 0) {
+      formInputs.forEach(input => {
         formDataChildren.push({
           id: `step-${stepKey}-field-${input.name}`,
           label: `${input.label} (${input.name})`,

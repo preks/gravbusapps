@@ -19,8 +19,13 @@ export const QuickActions: React.FC<QuickActionsProps> = ({
   'data-testid': testId
 }) => {
   // Get first step with form data for examples
-  const firstStepWithForm = template.steps.find((step, idx) => idx < stepIndex && step.form?.inputs?.length)
-  const firstFieldName = firstStepWithForm?.form?.inputs?.[0]?.name
+  // step.form is already an array of InputBlock[], not an object with inputs property
+  const firstStepWithForm = template.steps.find((step, idx) => {
+    const formInputs = step.form || step.inputs || []
+    return idx < stepIndex && formInputs.length > 0
+  })
+  const formInputs = firstStepWithForm?.form || firstStepWithForm?.inputs || []
+  const firstFieldName = formInputs[0]?.name
 
   const commonPatterns = [
     {

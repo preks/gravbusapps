@@ -126,11 +126,13 @@ export const useExpressionTesting = (
  * Creates realistic test data for expression resolution
  */
 const generateSampleFormData = (form: any): Record<string, any> => {
-  if (!form?.inputs) return {}
+  // form is already an array of InputBlock[], not an object with inputs property
+  const formInputs = Array.isArray(form) ? form : []
+  if (formInputs.length === 0) return {}
 
   const sampleData: Record<string, any> = {}
 
-  form.inputs.forEach((input: any) => {
+  formInputs.forEach((input: any) => {
     const fieldName = input.name
     const fieldLabel = input.label || fieldName
 

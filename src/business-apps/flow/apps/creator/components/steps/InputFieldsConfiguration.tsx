@@ -10,7 +10,7 @@ import {
   TooltipContent
 } from '@newwork/nw-design-system'
 import { Select } from 'antd'
-import { FormInput, Trash2, GripVertical, Info, Database, ChevronDown, ChevronUp } from 'lucide-react'
+import { FormInput, Trash2, GripVertical, Info, Database, ChevronDown, ChevronUp, Settings } from 'lucide-react'
 import { getTranslationFromI18nKeyAndLabel } from '@/common/utils/windowUtils'
 import { InputType } from '@/common/network/flows/FlowTemplateClient'
 import { FlowTemplate } from '../../types/flowTemplate'
@@ -89,6 +89,7 @@ export const InputFieldsContent: React.FC<InputFieldsContentProps> = ({
     Record<string, { count: number; loading: boolean; entries?: any[] }>
   >({})
   const [expandedPreviews, setExpandedPreviews] = useState<Record<string, boolean>>({})
+  const [advancedModeEnabled, setAdvancedModeEnabled] = useState<Record<number, boolean>>({})
   const hasFetchedCatalogs = useRef(false)
 
   // Fetch catalogs when accessToken becomes available
@@ -171,6 +172,11 @@ export const InputFieldsContent: React.FC<InputFieldsContentProps> = ({
     },
     [expandedPreviews, catalogPreviews, fetchCatalogPreview]
   )
+
+  // Toggle advanced mode for field mapping
+  const toggleAdvancedMode = useCallback((index: number) => {
+    setAdvancedModeEnabled(prev => ({ ...prev, [index]: !prev[index] }))
+  }, [])
 
   const handleAddInput = () => {
     const newInputs = [
@@ -409,13 +415,13 @@ export const InputFieldsContent: React.FC<InputFieldsContentProps> = ({
                         onCheckedChange={checked => {
                           const newInputs = [...inputs]
                           if (checked) {
-                            // Enable catalog mode
+                            // Enable catalog mode with default values
                             newInputs[index] = {
                               ...newInputs[index],
                               dataSource: {
                                 type: 'CATALOG',
                                 catalog: '',
-                                valueField: 'code',
+                                valueField: 'value',
                                 labelField: 'value'
                               }
                             }
@@ -491,42 +497,63 @@ export const InputFieldsContent: React.FC<InputFieldsContentProps> = ({
                           </Select>
                         </div>
 
-                        {/* Field Mapping */}
-                        <div className="gba:grid gba:grid-cols-2 gba:gap-2">
-                          <div className="gba:space-y-1">
-                            <label className="gba:text-xs gba:font-medium gba:text-gray-700">Value Field</label>
-                            <Input
-                              value={input.dataSource.valueField || 'code'}
-                              onChange={e =>
-                                handleUpdateInput(index, 'dataSource', {
-                                  ...input.dataSource,
-                                  valueField: e.target.value
-                                })
-                              }
-                              placeholder="code"
-                              className="gba:text-sm"
-                              data-testid={`${testId}-value-field-${index}`}
-                            />
-                            <p className="gba:text-xs gba:text-gray-500">Field to use as option value</p>
-                          </div>
-
-                          <div className="gba:space-y-1">
-                            <label className="gba:text-xs gba:font-medium gba:text-gray-700">Label Field</label>
-                            <Input
-                              value={input.dataSource.labelField || 'value'}
-                              onChange={e =>
-                                handleUpdateInput(index, 'dataSource', {
-                                  ...input.dataSource,
-                                  labelField: e.target.value
-                                })
-                              }
-                              placeholder="value"
-                              className="gba:text-sm"
-                              data-testid={`${testId}-label-field-${index}`}
-                            />
-                            <p className="gba:text-xs gba:text-gray-500">Field to display to users</p>
-                          </div>
+                        {/* Advanced Mode Toggle */}
+                        <div className="gba:flex gba:justify-end">
+                          <Button
+                            variant="ghost"
+                            size="sm"
+                            onClick={() => toggleAdvancedMode(index)}
+                            className="gba:text-xs gba:h-7"
+                            data-testid={`${testId}-advanced-toggle-${index}`}
+                          >
+                            <Settings className="gba:h-3 gba:w-3 gba:mr-1" />
+                            {advancedModeEnabled[index] ? 'Hide' : 'Show'} Advanced Settings
+                            {advancedModeEnabled[index] ? (
+                              <ChevronUp className="gba:h-3 gba:w-3 gba:ml-1" />
+                            ) : (
+                              <ChevronDown className="gba:h-3 gba:w-3 gba:ml-1" />
+                            )}
+                          </Button>
                         </div>
+
+                        {/* Field Mapping - Only shown in Advanced Mode */}
+                        {advancedModeEnabled[index] && (
+                          <div className="gba:grid gba:grid-cols-2 gba:gap-2">
+                            <div className="gba:space-y-1">
+                              <label className="gba:text-xs gba:font-medium gba:text-gray-700">Value Field</label>
+                              <Input
+                                value={input.dataSource.valueField || 'value'}
+                                onChange={e =>
+                                  handleUpdateInput(index, 'dataSource', {
+                                    ...input.dataSource,
+                                    valueField: e.target.value
+                                  })
+                                }
+                                placeholder="value"
+                                className="gba:text-sm"
+                                data-testid={`${testId}-value-field-${index}`}
+                              />
+                              <p className="gba:text-xs gba:text-gray-500">Field to use as option value</p>
+                            </div>
+
+                            <div className="gba:space-y-1">
+                              <label className="gba:text-xs gba:font-medium gba:text-gray-700">Label Field</label>
+                              <Input
+                                value={input.dataSource.labelField || 'value'}
+                                onChange={e =>
+                                  handleUpdateInput(index, 'dataSource', {
+                                    ...input.dataSource,
+                                    labelField: e.target.value
+                                  })
+                                }
+                                placeholder="value"
+                                className="gba:text-sm"
+                                data-testid={`${testId}-label-field-${index}`}
+                              />
+                              <p className="gba:text-xs gba:text-gray-500">Field to display to users</p>
+                            </div>
+                          </div>
+                        )}
 
                         {/* Preview with Collapsible Entries */}
                         {input.dataSource.catalog &&
@@ -610,26 +637,40 @@ export const InputFieldsContent: React.FC<InputFieldsContentProps> = ({
                                           )}
                                         </div>
 
-                                        {/* Entry List */}
-                                        <div className="gba:space-y-1">
+                                        {/* Entry List - Optimized horizontal layout */}
+                                        <div className="gba:space-y-1.5">
                                           {entries.slice(0, 5).map((entry: any, entryIndex: number) => (
                                             <div
                                               key={entryIndex}
-                                              className="gba:flex gba:gap-2 gba:p-2 gba:bg-white gba:rounded gba:border gba:border-gray-200"
+                                              className="gba:p-2.5 gba:bg-white gba:rounded gba:border gba:border-gray-200"
                                             >
-                                              <div className="gba:flex-1 gba:min-w-0">
-                                                <div className="gba:text-xs gba:font-medium gba:text-gray-700 gba:truncate">
-                                                  {entry.data?.[labelField] ||
-                                                    entry[labelField] ||
-                                                    entry.displayName ||
-                                                    '(no label)'}
+                                              {/* Title - Full width */}
+                                              <div className="gba:text-sm gba:font-medium gba:text-gray-900 gba:mb-1.5 gba:truncate">
+                                                {entry.data?.[labelField] ||
+                                                  entry[labelField] ||
+                                                  entry.displayName ||
+                                                  '(no label)'}
+                                              </div>
+                                              {/* Code and Value - Side by side */}
+                                              <div className="gba:grid gba:grid-cols-2 gba:gap-3">
+                                                <div className="gba:flex gba:items-center gba:gap-1.5">
+                                                  <span className="gba:text-xs gba:font-medium gba:text-gray-500">
+                                                    Code:
+                                                  </span>
+                                                  <span className="gba:text-xs gba:text-gray-700 gba:font-mono gba:truncate">
+                                                    {entry.code || entry.data?.code || '(no code)'}
+                                                  </span>
                                                 </div>
-                                                <div className="gba:text-xs gba:text-gray-500 gba:truncate">
-                                                  Value:{' '}
-                                                  {entry.data?.[valueField] ||
-                                                    entry[valueField] ||
-                                                    entry.id ||
-                                                    '(no value)'}
+                                                <div className="gba:flex gba:items-center gba:gap-1.5">
+                                                  <span className="gba:text-xs gba:font-medium gba:text-gray-500">
+                                                    Value:
+                                                  </span>
+                                                  <span className="gba:text-xs gba:text-gray-700 gba:truncate">
+                                                    {entry.data?.[valueField] ||
+                                                      entry[valueField] ||
+                                                      entry.id ||
+                                                      '(no value)'}
+                                                  </span>
                                                 </div>
                                               </div>
                                             </div>
