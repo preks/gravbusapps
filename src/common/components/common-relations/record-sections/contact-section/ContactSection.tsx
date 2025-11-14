@@ -1,4 +1,4 @@
-import React, { useMemo, useState, useEffect } from 'react'
+import React from 'react'
 import { BusinessAppContextProps } from '@/common/BusinessAppContext'
 import {
   Avatar,
@@ -10,13 +10,13 @@ import {
   TooltipProvider,
   TooltipTrigger
 } from '@newwork/nw-design-system'
-import { AppActionButton } from '@/components/app-action-button/AppActionButton'
 import { FlowContextName } from '@/common/types/FlowRegistryTypes'
 import type { Contact } from '@/common/data/relations/types/contactTypes'
-import { PiLinkedinLogo, PiShareNetwork, PiEnvelope, PiPhone, PiCaretLeft, PiCaretRight } from 'react-icons/pi'
+import { PiLinkedinLogo, PiShareNetwork, PiEnvelope, PiPhone } from 'react-icons/pi'
 import { UserIcon } from '@phosphor-icons/react'
 import { navigateTo } from '@/common/utils/navigationUtils'
 import { getLinkedInChannel, getXingChannel } from '@/common/data/common/utils/communicationChannelHelpers'
+import { createGetPages } from '../utils'
 
 interface ContactSectionProps extends Partial<BusinessAppContextProps> {
   contactId?: string
@@ -33,82 +33,66 @@ interface ContactSectionProps extends Partial<BusinessAppContextProps> {
   recordUrl?: string
 }
 
-const ContactSection: React.FC<ContactSectionProps> = ({
-  contact,
-  contacts,
-  className = '',
-  actionButtonProps,
-  recordUrl,
-  ...props
-}) => {
-  const contactList: Contact[] = useMemo(() => {
-    const arr = Array.isArray(contacts) ? (contacts as Contact[]).filter(Boolean) : []
-    return arr
-  }, [contacts])
-
-  const hasMultiple = contactList.length > 1
-  const initialSelected: Contact | null = contact || (contactList.length > 0 ? contactList[0] : null)
-  const [selectedContact, setSelectedContact] = useState<Contact | null>(initialSelected)
-  const [currentIndex, setCurrentIndex] = useState(0)
-
-  // Update selected contact when contactList changes
-  useEffect(() => {
-    if (contactList.length > 0 && !selectedContact) {
-      setSelectedContact(contactList[0])
-      setCurrentIndex(0)
-    }
-  }, [contactList, selectedContact])
-
-  // Carousel navigation
-  const handlePrevious = () => {
-    if (hasMultiple) {
-      const newIndex = currentIndex > 0 ? currentIndex - 1 : contactList.length - 1
-      setCurrentIndex(newIndex)
-      setSelectedContact(contactList[newIndex])
-    }
+const createTitleClickHandler = (recordUrl?: string) => {
+  if (!recordUrl) {
+    return undefined
   }
+  return () => navigateTo(recordUrl)
+}
 
-  const handleNext = () => {
-    if (hasMultiple) {
-      const newIndex = currentIndex < contactList.length - 1 ? currentIndex + 1 : 0
-      setCurrentIndex(newIndex)
-      setSelectedContact(contactList[newIndex])
-    }
-  }
-
-  // Navigation handler
-  const handleTitleClick = () => {
-    if (recordUrl) {
-      navigateTo(recordUrl)
-    }
-  }
-
-  // Conditional logic for clickable title
-  const shouldShowClickableTitle = !!recordUrl
-
-  // Use the correct contact data source
-  const displayContact = hasMultiple ? selectedContact : contact || initialSelected
+const ContactSection: React.FC<ContactSectionProps> = ({ contact, contacts, className = '', recordUrl, ...props }) => {
+  // If used directly (not via SectionWrapper), render first contact
+  const contactList = Array.isArray(contacts) ? (contacts as Contact[]).filter(Boolean) : []
+  const displayContact = contact || (contactList.length > 0 ? contactList[0] : null)
 
   return (
     <div data-testid={props['data-testid'] || 'contact-section'} className={`gba:w-full gba:h-full ${className}`}>
-      <ContactPersonalInfo
-        contact={displayContact as Contact}
-        hasMultiple={hasMultiple}
-        currentIndex={currentIndex}
-        totalCount={contactList.length}
-        onPrevious={handlePrevious}
-        onNext={handleNext}
-        accessToken={props.accessToken}
-        actionButtonProps={actionButtonProps}
-        onTitleClick={shouldShowClickableTitle ? handleTitleClick : undefined}
-      />
+      <ContactPersonalInfo contact={displayContact as Contact} onTitleClick={createTitleClickHandler(recordUrl)} />
     </div>
   )
 }
 
 // Static properties for SectionWrapper
 ;(ContactSection as any).sectionTitle = 'Contact Information'
-// Action button is rendered within component content and updates with carousel state
+;(ContactSection as any).getPages = createGetPages<any>(
+  (props: ContactSectionProps) => props.contacts,
+  (props: ContactSectionProps) => props.contact
+)
+;(ContactSection as any).renderPage = (pageData: any, _pageIndex: number, props: ContactSectionProps) => {
+  const { recordUrl } = props
+
+  return <ContactPersonalInfo contact={pageData} onTitleClick={createTitleClickHandler(recordUrl)} />
+}
+;(ContactSection as any).getActionButtonConfig = (pageData: any, _pageIndex: number, props: ContactSectionProps) => {
+  const { accessToken, actionButtonProps, contact, contactId } = props
+
+  if (!actionButtonProps || !accessToken) {
+    return null
+  }
+
+  // Use pageData if available (carousel), otherwise fallback to contact/contactId from props
+  const contactIdToUse = pageData?.id || contact?.id || contactId
+
+  if (!contactIdToUse) {
+    return null
+  }
+
+  const config = {
+    type: 'AppActionButton' as const,
+    config: {
+      contextsArray: actionButtonProps.contextsArray || [FlowContextName.customerContactEntity],
+      externalContextData: {
+        ...actionButtonProps.externalContextData,
+        contactId: contactIdToUse // Override with current page contactId (must come after spread)
+      },
+      prefixDataTestId: actionButtonProps.prefixDataTestId || 'contact-section-action',
+      emptyStateBehavior: 'enable' as const,
+      deferMainContextRequestsUntilClick: true
+    }
+  }
+
+  return config
+}
 
 export default ContactSection
 
@@ -128,20 +112,7 @@ interface ContactPersonalInfoProps {
   onTitleClick?: () => void
 }
 
-const ContactPersonalInfo: React.FC<ContactPersonalInfoProps> = ({
-  contact,
-  hasMultiple,
-  currentIndex = 0,
-  totalCount = 1,
-  onPrevious,
-  onNext,
-  onTitleClick,
-  accessToken,
-  actionButtonProps
-}) => {
-  // Get current contact ID
-  const currentContactId = contact?.id
-
+const ContactPersonalInfo: React.FC<ContactPersonalInfoProps> = ({ contact, onTitleClick }) => {
   // Helper function to build full name
   const buildFullName = () => {
     const parts = []
@@ -258,26 +229,7 @@ const ContactPersonalInfo: React.FC<ContactPersonalInfoProps> = ({
               </TooltipProvider>
             </div>
           </div>
-          {/* Action Button for this contact */}
-          {accessToken && currentContactId && (
-            <div className="gba:flex gba:items-start">
-              <AppActionButton
-                key={`contact-action-${currentContactId}`}
-                data-testid={`contact-carousel-action-button-${currentContactId}`}
-                size="icon"
-                contextsArray={actionButtonProps?.contextsArray || [FlowContextName.customerAccountEntity]}
-                externalContextData={{
-                  ...actionButtonProps?.externalContextData,
-                  contactId: currentContactId
-                }}
-                prefixDataTestId={actionButtonProps?.prefixDataTestId || `contact-item-action-${currentContactId}`}
-                accessToken={accessToken}
-                emptyStateBehavior="enable"
-                deferMainContextRequestsUntilClick
-                onClick={e => e.stopPropagation()}
-              />
-            </div>
-          )}
+          {/* Action Button removed - handled by SectionWrapper */}
         </div>
 
         {/* Separator */}
@@ -387,30 +339,7 @@ const ContactPersonalInfo: React.FC<ContactPersonalInfoProps> = ({
         </div>
       </div>
 
-      {/* Carousel Navigation - Bottom Right */}
-      {hasMultiple && (
-        <div className="gba:absolute gba:bottom-2 gba:right-2 gba:z-10">
-          <div className="gba:flex gba:items-center gba:gap-1 gba:rounded gba:border gba:bg-muted gba:px-2 gba:py-1 gba:shadow-sm gba:border-border">
-            <span className="gba:text-xs gba:font-medium gba:text-muted-foreground">
-              {currentIndex + 1}/{totalCount}
-            </span>
-            <button
-              onClick={onPrevious}
-              data-testid="contacts-carousel-prev"
-              className="gba:h-4 gba:w-4 gba:flex gba:items-center gba:justify-center gba:rounded gba:transition-colors gba:p-1 gba:text-muted-foreground hover:gba:bg-muted-foreground/10"
-            >
-              <PiCaretLeft className="gba:text-[10px]" />
-            </button>
-            <button
-              onClick={onNext}
-              data-testid="contacts-carousel-next"
-              className="gba:h-4 gba:w-4 gba:flex gba:items-center gba:justify-center gba:rounded gba:transition-colors gba:p-1 gba:text-muted-foreground hover:gba:bg-muted-foreground/10"
-            >
-              <PiCaretRight className="gba:text-[10px]" />
-            </button>
-          </div>
-        </div>
-      )}
+      {/* Carousel Navigation removed - handled by SectionWrapper */}
     </div>
   )
 }
