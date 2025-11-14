@@ -89,12 +89,12 @@ const TimeTrackingTab: React.FC<TimeTrackingTabProps> = ({ employee, accessToken
             {getTranslationFromI18nKeyAndLabel('lowcoder:time_tracking.actions.clock_out', 'Clock Out')}
           </Button>
           <AppActionMenu
-            data-testid="employee-goal-add-button"
-            contextsArray={[FlowContextName.employeePerformanceGoal]}
+            data-testid="employee-update-employee-attendance-correction-request"
+            contextsArray={[FlowContextName.employeeAttendanceCorrectionRequest]}
             externalContextData={{
               employeeId: employeeId
             }}
-            prefixDataTestId="employee-goal-add"
+            prefixDataTestId="employee-attendance-correction-request"
             accessToken={accessToken}
             autoExecuteSingleAction={true}
             deferMainContextRequestsUntilClick={true}
@@ -111,7 +111,7 @@ const TimeTrackingTab: React.FC<TimeTrackingTabProps> = ({ employee, accessToken
       </div>
 
       {error && (
-        <Alert variant="destructive" className="gba:w-full gba:whitespace-normal gba:inline-block">
+        <Alert variant="destructive" className="gba:w-full gba:whitespace-normal gba:!inline-block">
           {error}
         </Alert>
       )}

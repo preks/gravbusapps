@@ -7,7 +7,8 @@ import TaskSegment, {
 import { AppActionForm } from '@/components/app-action-form'
 import { buildInvestmentTaskPayload } from '@/common/data/investment/payloads'
 import type { InvestmentTaskFormData } from '@/common/data/investment/payloads/investmentRelationPayloads'
-import { useInvestmentEntities, useInvestmentTasks } from '@/common/data/investment/hooks'
+import { useInvestmentEntities } from '@/common/data/investment/hooks/useInvestmentEntities'
+import { useInvestmentTasks } from '@/common/data/investment/hooks/useInvestmentTasks'
 import { useEmployeeSearch } from '@/common/data/employee/useEmployeeSearch'
 import { useForm } from 'react-hook-form'
 import { createTaskSegmentResolver } from '@/common/components/common-relations/form-segments/task-segment/TaskSegment'
@@ -157,7 +158,7 @@ const InvestmentTaskForm: React.FC<InvestmentTaskFormProps> = ({
           relatedEntityId:
             task.investment?.id || task.account?.id || task.contact?.id || task.opportunity?.id || task.lead?.id || '',
           documents:
-            (task as any).investmentDocument?.map((doc: any) => ({
+            (task as any).documents?.map((doc: any) => ({
               id: doc.id,
               name: doc.name || '',
               version: doc.version

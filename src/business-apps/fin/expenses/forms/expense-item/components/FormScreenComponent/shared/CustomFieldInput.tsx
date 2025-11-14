@@ -1,8 +1,8 @@
 import React from 'react'
-import { useTranslation } from 'react-i18next'
 import { InputField } from '@newwork/gravity-ui-catalog'
 import { Form } from 'antd'
 import { CustomField } from '../../../types'
+import { getTranslationFromI18nKeyAndLabel } from '@/common/utils/windowUtils'
 
 interface CustomFieldInputProps {
   index: number
@@ -23,8 +23,6 @@ export const CustomFieldInput: React.FC<CustomFieldInputProps> = ({
   form,
   onChange
 }) => {
-  const { t } = useTranslation()
-
   if (!expenseTypeId || !customFields[expenseTypeId] || customFields[expenseTypeId].length === 0) {
     return null
   }
@@ -40,7 +38,7 @@ export const CustomFieldInput: React.FC<CustomFieldInputProps> = ({
             customField?.mandatory
               ? {
                   required: true,
-                  message: t(
+                  message: getTranslationFromI18nKeyAndLabel(
                     'lowcoder:create_expense_type_item.custom_field_default_error_message',
                     'Please enter a value for this field'
                   )
@@ -54,7 +52,10 @@ export const CustomFieldInput: React.FC<CustomFieldInputProps> = ({
             data-testid={`custom-field-input-${index}`}
             label={
               customField?.infoValue ||
-              t('lowcoder:create_expense_type_item.custom_field_default_label', 'Custom Field')
+              getTranslationFromI18nKeyAndLabel(
+                'lowcoder:create_expense_type_item.custom_field_default_label',
+                'Custom Field'
+              )
             }
             value={value}
             onChange={field => {
@@ -62,10 +63,13 @@ export const CustomFieldInput: React.FC<CustomFieldInputProps> = ({
               onChange(field.value as string)
             }}
             placeholder={
-              t('lowcoder:create_expense_type_item.enter', 'Enter') +
+              getTranslationFromI18nKeyAndLabel('lowcoder:create_expense_type_item.enter', 'Enter') +
               ' ' +
               (customField?.infoValue ||
-                t('lowcoder:create_expense_type_item.custom_field_default_label', 'Custom Field'))
+                getTranslationFromI18nKeyAndLabel(
+                  'lowcoder:create_expense_type_item.custom_field_default_label',
+                  'Custom Field'
+                ))
             }
             required={customField?.mandatory || false}
             disabled={isProcessingFiles || !expenseTypeId}

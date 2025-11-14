@@ -7,12 +7,14 @@ import type { InvestmentOpportunity } from '@/common/data/investment/types'
 import type { InvestmentOpportunityQueryVariables } from '@/common/data/investment/queries/investmentOpportunityQueries'
 import { FlowContextName } from '@/common/types/FlowRegistryTypes'
 import { useInvestmentOpportunityFilters } from './hooks/useInvestmentOpportunityFilters'
-import { OpportunityStatistics } from './components/OpportunityStatistics'
+import { useInvestmentOpportunityStatistics } from '@/common/data/investment/hooks/useInvestmentOpportunityStatistics'
+import { INVESTMENT_OPPORTUNITY_DESCRIPTORS } from '@/common/data/investment/types/investmentOpportunityTypes'
 
 export type OpportunityViewProps = BusinessAppContextProps
 
 export const OpportunityView: React.FC<OpportunityViewProps> = context => {
   const { fetchInvestmentOpportunities } = useGetInvestmentOpportunities(context)
+  const opportunityStatistics = useInvestmentOpportunityStatistics(context)
 
   const config = useMemo(
     () =>
@@ -30,6 +32,8 @@ export const OpportunityView: React.FC<OpportunityViewProps> = context => {
         },
 
         filterDataHook: useInvestmentOpportunityFilters,
+
+        viewDescriptors: INVESTMENT_OPPORTUNITY_DESCRIPTORS,
 
         columnMappings: {
           pipeline: 'opportunityPipeline',
@@ -59,9 +63,24 @@ export const OpportunityView: React.FC<OpportunityViewProps> = context => {
 
         fetchBoardOpportunities: fetchInvestmentOpportunities,
         extractBoardOpportunities: result => result.InvestmentOpportunity || [],
-        renderStatistics: () => <OpportunityStatistics {...context} />
+        extractBoardTotalCount: result => result.InvestmentOpportunityAggregate?.aggregate?.count || 0,
+        opportunityStatistics: opportunityStatistics.trendData
+          ? {
+              recentOpportunities: opportunityStatistics.trendData.recentOpportunities,
+              opportunityValue: opportunityStatistics.trendData.opportunityValue,
+              winRate: opportunityStatistics.trendData.winRate,
+              opportunitiesThisYear: opportunityStatistics.trendData.opportunitiesThisYear,
+              isLoading: opportunityStatistics.isLoading,
+              error: opportunityStatistics.error,
+              refetch: () => void opportunityStatistics.refetch()
+            }
+          : undefined,
+        rowActionsContextArray: [FlowContextName.investmentOpportunityEntity],
+        buildRowActionsExternalContextData: (row: { original: InvestmentOpportunity }) => ({
+          opportunityId: row.original.id
+        })
       }),
-    [context, fetchInvestmentOpportunities]
+    [context, fetchInvestmentOpportunities, opportunityStatistics]
   )
 
   return <OpportunityLayout context={context} config={config} dataTestId="investment-opportunities-view" />

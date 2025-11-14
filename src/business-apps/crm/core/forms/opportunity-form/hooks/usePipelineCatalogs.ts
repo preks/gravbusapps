@@ -32,8 +32,8 @@ export const usePipelineCatalogs = (
 ): UsePipelineCatalogsReturn => {
   const [pipelineOptions, setPipelineOptions] = useState<PipelineOption[]>([])
   const [pipelineStageOptions, setPipelineStageOptions] = useState<PipelineStageOption[]>([])
-  const [isLoadingPipelines, setIsLoadingPipelines] = useState(true)
-  const [isLoadingStages, setIsLoadingStages] = useState(true)
+  const [isLoadingPipelines, setIsLoadingPipelines] = useState(false)
+  const [isLoadingStages, setIsLoadingStages] = useState(false)
   const [pipelineError, setPipelineError] = useState<string | null>(null)
   const [stageError, setStageError] = useState<string | null>(null)
 
@@ -164,12 +164,18 @@ export const usePipelineCatalogs = (
   )
 
   useEffect(() => {
-    loadPipelines()
-    // Only load stages if a pipeline is selected
-    if (selectedPipelineId) {
-      loadPipelineStages()
+    // Only load once when accessToken becomes available
+    if (context.accessToken && pipelineOptions.length === 0) {
+      loadPipelines()
     }
-  }, [loadPipelines, loadPipelineStages, selectedPipelineId])
+  }, [context.accessToken, pipelineOptions.length, loadPipelines])
+
+  useEffect(() => {
+    // Load stages when pipeline is selected
+    if (selectedPipelineId && context.accessToken) {
+      loadPipelineStages(selectedPipelineId)
+    }
+  }, [selectedPipelineId, context.accessToken, loadPipelineStages])
 
   return {
     pipelineOptions,

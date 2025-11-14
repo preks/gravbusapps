@@ -392,6 +392,44 @@ const DetailsTab: React.FC<DetailsTabProps> = ({ employee, accessToken, employee
           </div>
         </Card>
 
+        {/* Additional Attributes - moved from Summary tab */}
+        {(() => {
+          const props = employee?.additionalProperties || {}
+          const items = Object.entries(props)
+            .filter(([key]) => key !== 'imported' && key !== 'SAPNumber')
+            .map(([key, value]) => ({
+              label: key.charAt(0).toUpperCase() + key.slice(1),
+              value: value === null || value === undefined ? '' : String(value)
+            }))
+          if (items.length === 0) return null
+          return (
+            <Card
+              variant="outlined"
+              className="gba:border gba:border-border gba:shadow-md gba:hover:shadow-lg gba:transition-all"
+              data-testid="details-section-additional-attributes"
+            >
+              <div className="gba:mb-6 gba:border-b gba:border-border gba:pb-2 gba:flex gba:justify-between gba:items-center">
+                <h3 className="gba:text-xl gba:font-semibold gba:text-info">Additional Attributes</h3>
+                {isSelfView && (
+                  <AppActionMenu
+                    data-testid="additional-attributes-action-button"
+                    contextsArray={[FlowContextName.employeeAdditionalProperties]}
+                    externalContextData={{
+                      employeeId: employee?.id
+                    }}
+                    prefixDataTestId="additional-attributes-action"
+                    accessToken={accessToken}
+                    autoExecuteSingleAction={true}
+                  >
+                    <PiPencilSimple className="gba:cursor-pointer" />
+                  </AppActionMenu>
+                )}
+              </div>
+              {renderDataItems(items)}
+            </Card>
+          )
+        })()}
+
         {/* Payroll Data Card has been moved to EmploymentTab */}
       </div>
     </div>

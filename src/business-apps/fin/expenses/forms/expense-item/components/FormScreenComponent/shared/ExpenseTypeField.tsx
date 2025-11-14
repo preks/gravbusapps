@@ -1,8 +1,8 @@
 import React from 'react'
-import { useTranslation } from 'react-i18next'
 import { SelectField } from '@newwork/gravity-ui-catalog'
 import { Form } from 'antd'
 import { ExpenseType } from '../../../types'
+import { getTranslationFromI18nKeyAndLabel } from '../../../../../../../../common/utils/windowUtils'
 
 interface ExpenseTypeFieldProps {
   index: number
@@ -21,7 +21,7 @@ export const ExpenseTypeField: React.FC<ExpenseTypeFieldProps> = ({
   isProcessingFiles,
   onChange
 }) => {
-  const { t } = useTranslation()
+  const t = getTranslationFromI18nKeyAndLabel
 
   return (
     <div className="gba:mb-4" data-testid={`expense-type-container-${index}`}>

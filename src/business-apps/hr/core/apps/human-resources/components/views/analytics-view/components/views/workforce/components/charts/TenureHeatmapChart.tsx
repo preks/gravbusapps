@@ -1,9 +1,9 @@
 import React, { useMemo } from 'react'
-import { Card, CardContent, CardHeader, CardTitle, CardDescription, IconAvatar } from '@newwork/nw-design-system'
+import { Card, CardContent, CardHeader, CardTitle, CardDescription, IconAvatar, useTranslation } from '@newwork/nw-design-system'
 import { ClockIcon } from '@phosphor-icons/react'
-import { getTranslationFromI18nKeyAndLabel } from '@/common/utils/windowUtils'
 import { TenureDistributionItem, TenureRange, OrganizationalUnit } from '../../../../../hooks/useTenureByOrgUnit'
 import { mapValueToColor } from '@/common/utils/chartColorMapper'
+import hrTranslations from '@/business-apps/hr/core/apps/human-resources/_i18n'
 
 interface TenureHeatmapChartProps {
   data: TenureDistributionItem[]
@@ -97,6 +97,8 @@ const TenureHeatmapChart: React.FC<TenureHeatmapChartProps> = ({
     return heatmapData.get(key) || 0
   }
 
+  const { t } = useTranslation(hrTranslations)
+
   if (loading) {
     return (
       <Card data-testid="tenure-heatmap-loading">
@@ -104,18 +106,15 @@ const TenureHeatmapChart: React.FC<TenureHeatmapChartProps> = ({
           <IconAvatar icon={ClockIcon} variant={moduleColor as any} size="md" iconWeight="regular" decorative={true} />
           <div>
             <CardTitle>
-              {getTranslationFromI18nKeyAndLabel(
-                'hr_analytics_tenure_distribution_by_organizational_unit',
-                'Tenure Distribution by Organizational Unit'
-              )}
+              {t('hr-analytics-tenure-distribution-by-organizational-unit')}
             </CardTitle>
-            <CardDescription>{getTranslationFromI18nKeyAndLabel('hr_analytics_loading', 'Loading...')}</CardDescription>
+            <CardDescription>{t('hr-analytics-loading')}</CardDescription>
           </div>
         </CardHeader>
         <CardContent>
           <div className="gba:flex gba:items-center gba:justify-center gba:h-64">
             <div className="gba:animate-pulse gba:text-muted-foreground">
-              {getTranslationFromI18nKeyAndLabel('hr_analytics_loading_tenure_data', 'Loading tenure data...')}
+              {t('hr-analytics-loading-tenure-data')}
             </div>
           </div>
         </CardContent>
@@ -130,20 +129,17 @@ const TenureHeatmapChart: React.FC<TenureHeatmapChartProps> = ({
           <IconAvatar icon={ClockIcon} variant="destructive" size="md" iconWeight="regular" decorative={true} />
           <div>
             <CardTitle>
-              {getTranslationFromI18nKeyAndLabel(
-                'hr_analytics_tenure_distribution_by_organizational_unit',
-                'Tenure Distribution by Organizational Unit'
-              )}
+              {t('hr-analytics-tenure-distribution-by-organizational-unit')}
             </CardTitle>
             <CardDescription>
-              {getTranslationFromI18nKeyAndLabel('hr_analytics_error', 'Error loading data')}
+              {t('hr-analytics-error')}
             </CardDescription>
           </div>
         </CardHeader>
         <CardContent>
           <div className="gba:flex gba:flex-col gba:items-center gba:justify-center gba:h-64 gba:text-destructive">
             <p>
-              {getTranslationFromI18nKeyAndLabel('hr_analytics_error_loading_tenure_data', 'Error loading tenure data')}
+              {t('hr-analytics-error-loading-tenure-data')}
             </p>
             <p className="gba:text-sm gba:mt-2">{error.message}</p>
           </div>
@@ -158,16 +154,10 @@ const TenureHeatmapChart: React.FC<TenureHeatmapChartProps> = ({
         <IconAvatar icon={ClockIcon} variant={moduleColor as any} size="md" iconWeight="regular" decorative={true} />
         <div>
           <CardTitle>
-            {getTranslationFromI18nKeyAndLabel(
-              'hr_analytics_tenure_distribution_by_organizational_unit',
-              'Tenure Distribution by Organizational Unit'
-            )}
+            {t('hr-analytics-tenure-distribution-by-organizational-unit')}
           </CardTitle>
           <CardDescription>
-            {getTranslationFromI18nKeyAndLabel(
-              'hr_analytics_tenure_chart_description',
-              'Employee distribution across tenure ranges by organizational unit'
-            )}
+            {t('hr-analytics-tenure-chart-description')}
           </CardDescription>
         </div>
       </CardHeader>
@@ -178,19 +168,19 @@ const TenureHeatmapChart: React.FC<TenureHeatmapChartProps> = ({
             <div className="gba:text-center">
               <div className="gba:font-bold gba:text-lg gba:text-foreground">{totalEmployees}</div>
               <div className="gba:text-muted-foreground">
-                {getTranslationFromI18nKeyAndLabel('hr_analytics_total_employees', 'Total Employees')}
+                {t('hr-analytics-total-employees')}
               </div>
             </div>
             <div className="gba:text-center">
               <div className="gba:font-bold gba:text-lg gba:text-foreground">{avgPerCell.toFixed(1)}</div>
               <div className="gba:text-muted-foreground">
-                {getTranslationFromI18nKeyAndLabel('hr_analytics_avg_per_cell', 'Avg per Cell')}
+                {t('hr-analytics-avg-per-cell')}
               </div>
             </div>
             <div className="gba:text-center">
               <div className="gba:font-bold gba:text-lg gba:text-foreground">{maxCount}</div>
               <div className="gba:text-muted-foreground">
-                {getTranslationFromI18nKeyAndLabel('hr_analytics_max_in_cell', 'Max in Cell')}
+                {t('hr-analytics-max-in-cell')}
               </div>
             </div>
           </div>
@@ -249,7 +239,7 @@ const TenureHeatmapChart: React.FC<TenureHeatmapChartProps> = ({
                           <div className="gba:font-semibold">{tenureRange.label}</div>
                           <div>{orgUnit.name}</div>
                           <div>
-                            {count} {getTranslationFromI18nKeyAndLabel('hr_analytics_employees', 'employees')}
+                            {count} {t('hr-analytics-employees')}
                           </div>
                         </div>
                       </div>
@@ -262,7 +252,7 @@ const TenureHeatmapChart: React.FC<TenureHeatmapChartProps> = ({
 
           {/* Legend */}
           <div className="gba:flex gba:items-center gba:justify-center gba:space-x-4 gba:text-xs gba:text-muted-foreground">
-            <span>{getTranslationFromI18nKeyAndLabel('hr_analytics_fewer', 'Fewer')}</span>
+            <span>{t('hr-analytics-fewer')}</span>
             <div className="gba:flex gba:space-x-1">
               {[0, 0.2, 0.4, 0.6, 0.8, 1].map(intensity => (
                 <div
@@ -272,7 +262,7 @@ const TenureHeatmapChart: React.FC<TenureHeatmapChartProps> = ({
                 />
               ))}
             </div>
-            <span>{getTranslationFromI18nKeyAndLabel('hr_analytics_more', 'More')}</span>
+            <span>{t('hr-analytics-more')}</span>
           </div>
         </div>
       </CardContent>

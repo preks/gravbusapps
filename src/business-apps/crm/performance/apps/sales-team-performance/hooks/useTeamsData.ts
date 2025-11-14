@@ -299,35 +299,41 @@ export const useTeamsData = ({ accessToken }: UseTeamsDataProps): UseTeamsDataRe
         const orgUnit = employee.employeePosition?.organizationalUnit
         const supervisor = employee.employeePosition?.supervisor
 
-        // Skip employees with missing organizational data (even though we filtered, relationships can be null)
-        if (!orgUnit || !supervisor || !orgUnit.id || !supervisor.id) {
-          console.warn('Skipping employee with incomplete org data:', {
-            employeeId: employee.id,
-            hasOrgUnit: !!orgUnit,
-            hasSupervisor: !!supervisor,
-            orgUnitId: orgUnit?.id,
-            supervisorId: supervisor?.id
-          })
-          return
+        // Handle employees with and without organizational data
+        if (orgUnit && supervisor && orgUnit.id && supervisor.id) {
+          // Employee has complete org data - group by org unit and supervisor
+          const teamKey = `${orgUnit.id}-${supervisor.id}`
+
+          if (!teamMap.has(teamKey)) {
+            teamMap.set(teamKey, {
+              orgUnitId: orgUnit.id,
+              orgUnitName: orgUnit.name,
+              supervisorId: supervisor.id,
+              supervisorName:
+                supervisor.displayName ||
+                `${supervisor.firstName || ''} ${supervisor.lastName || ''}`.trim() ||
+                'Unknown Supervisor',
+              members: []
+            })
+          }
+
+          teamMap.get(teamKey)!.members.push(employee.id)
+        } else {
+          // Employee has no org data - group into "Ungrouped Sales Team"
+          const ungroupedKey = 'ungrouped-sales-team'
+
+          if (!teamMap.has(ungroupedKey)) {
+            teamMap.set(ungroupedKey, {
+              orgUnitId: 'ungrouped',
+              orgUnitName: 'Ungrouped Sales Team',
+              supervisorId: 'ungrouped',
+              supervisorName: 'No Manager Assigned',
+              members: []
+            })
+          }
+
+          teamMap.get(ungroupedKey)!.members.push(employee.id)
         }
-
-        // Create a unique team key combining org unit and supervisor
-        const teamKey = `${orgUnit.id}-${supervisor.id}`
-
-        if (!teamMap.has(teamKey)) {
-          teamMap.set(teamKey, {
-            orgUnitId: orgUnit.id,
-            orgUnitName: orgUnit.name,
-            supervisorId: supervisor.id,
-            supervisorName:
-              supervisor.displayName ||
-              `${supervisor.firstName || ''} ${supervisor.lastName || ''}`.trim() ||
-              'Unknown Supervisor',
-            members: []
-          })
-        }
-
-        teamMap.get(teamKey)!.members.push(employee.id)
       })
 
       // Convert map to TeamInfo array

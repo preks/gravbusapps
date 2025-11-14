@@ -545,16 +545,19 @@ const ExpenseRequestWizardContent: React.FC<BusinessAppContextProps> = ({ access
               data-testid="expense-request-wizard-subtitle"
             >
               {currentScreen === SCREEN_NAMES_ENUM.ITEMS_TAB &&
-                getTranslationFromI18nKeyAndLabel('lowcoder:create_expense_request.items_subtitle', 'Expense Items')}
+                getTranslationFromI18nKeyAndLabel(
+                  'lowcoder:expense_request_overview.expense_items.expense_items_title',
+                  'Expense Items'
+                )}
               {currentScreen === SCREEN_NAMES_ENUM.TRIPS_TAB &&
                 getTranslationFromI18nKeyAndLabel(
                   'lowcoder:add_items_to_plan.add_trip_info_to_plan.title',
                   'Trip Details'
                 )}
               {currentScreen === SCREEN_NAMES_ENUM.ALLOWANCE_TAB &&
-                getTranslationFromI18nKeyAndLabel('lowcoder:create_expense_request.allowances_subtitle', 'Allowances')}
+                getTranslationFromI18nKeyAndLabel('lowcoder:cards.allowances', 'Allowances')}
               {currentScreen === SCREEN_NAMES_ENUM.SUMMARY_TAB &&
-                getTranslationFromI18nKeyAndLabel('lowcoder:create_expense_request.summary_subtitle', 'Summary')}
+                getTranslationFromI18nKeyAndLabel('lowcoder:employee_profile.employee_tabs.summary', 'Summary')}
             </div>
           </div>
         </div>

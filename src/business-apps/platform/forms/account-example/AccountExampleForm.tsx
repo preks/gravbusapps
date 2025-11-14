@@ -8,7 +8,7 @@ import {
   createAccountSegmentResolver,
   type AccountSegmentSchema
 } from '@/common/components/common-relations/form-segments/account-segment/schema'
-import { useInvestmentEntities } from '@/common/data/investment/hooks'
+import { useInvestmentEntities } from '@/common/data/investment/hooks/useInvestmentEntities'
 import { useEmployeeSearch } from '@/common/data/employee/useEmployeeSearch'
 
 export interface AccountExampleFormProps extends BusinessAppContextProps {
@@ -33,7 +33,6 @@ const initialFormData: FormData = {
 
 const AccountExampleForm: React.FC<AccountExampleFormProps> = ({
   accessToken,
-  userInfo,
   additionalData,
   onSuccess,
   onCancel
@@ -91,33 +90,30 @@ const AccountExampleForm: React.FC<AccountExampleFormProps> = ({
     [searchEntities]
   )
 
-  const handleSubmit = useCallback(
-    async (_: AccountSegmentSchema) => {
-      const allValues = (form as any).getValues?.() || {}
-      // Example payload echoing the collected values. Platform process can map as needed.
-      const entityRef = (() => {
-        if (allValues.account?.id) return { account: { id: allValues.account.id } }
-        if (allValues.contact?.id) return { contact: { id: allValues.contact.id } }
-        if (allValues.opportunity?.id) return { opportunity: { id: allValues.opportunity.id } }
-        if (allValues.lead?.id) return { lead: { id: allValues.lead.id } }
-        return {} as any
-      })()
-      return {
-        type: 'InvestmentAccountExample',
-        ownerEmployeeId: allValues.ownerEmployeeId,
-        name: allValues.accountName,
-        legalFormRef: allValues.legalFormRef,
-        industryRef: allValues.industryRef,
-        website: allValues.website,
-        mission: allValues.description,
-        phone: allValues.phone,
-        email: allValues.email,
-        geographicPresence: allValues.geographicPresence,
-        ...entityRef
-      }
-    },
-    [form]
-  )
+  const handleSubmit = useCallback(async () => {
+    const allValues = (form as any).getValues?.() || {}
+    // Example payload echoing the collected values. Platform process can map as needed.
+    const entityRef = (() => {
+      if (allValues.account?.id) return { account: { id: allValues.account.id } }
+      if (allValues.contact?.id) return { contact: { id: allValues.contact.id } }
+      if (allValues.opportunity?.id) return { opportunity: { id: allValues.opportunity.id } }
+      if (allValues.lead?.id) return { lead: { id: allValues.lead.id } }
+      return {} as any
+    })()
+    return {
+      type: 'InvestmentAccountExample',
+      ownerEmployeeId: allValues.ownerEmployeeId,
+      name: allValues.accountName,
+      legalFormRef: allValues.legalFormRef,
+      industryRef: allValues.industryRef,
+      website: allValues.website,
+      mission: allValues.description,
+      phone: allValues.phone,
+      email: allValues.email,
+      geographicPresence: allValues.geographicPresence,
+      ...entityRef
+    }
+  }, [form])
 
   const handleSuccess = useCallback(() => {
     onSuccess?.(formData)

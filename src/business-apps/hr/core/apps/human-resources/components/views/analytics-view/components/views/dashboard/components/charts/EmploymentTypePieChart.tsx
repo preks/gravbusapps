@@ -2,7 +2,8 @@ import React from 'react'
 import { PieChart, Pie, Cell, ResponsiveContainer, Sector } from 'recharts'
 import { Card, Spin, Empty, Tooltip, Typography } from 'antd'
 import { InfoCircleOutlined } from '@ant-design/icons'
-import { getTranslationFromI18nKeyAndLabel } from '@/common/utils/windowUtils'
+import { useTranslation } from '@newwork/nw-design-system'
+import hrTranslations from '@/business-apps/hr/core/apps/human-resources/_i18n'
 
 const { Title } = Typography
 
@@ -20,6 +21,7 @@ interface EmploymentTypePieChartProps {
  */
 const EmploymentTypePieChart: React.FC<EmploymentTypePieChartProps> = ({ data, loading = false, error = null }) => {
   const [activeIndex, setActiveIndex] = React.useState<number>(-1)
+  const { t } = useTranslation(hrTranslations)
 
   // Transform data for the pie chart
   const chartData = React.useMemo(() => {
@@ -78,7 +80,7 @@ const EmploymentTypePieChart: React.FC<EmploymentTypePieChartProps> = ({ data, l
           {payload.name}
         </text>
         <text x={cx} y={cy + 10} textAnchor="middle" fill="var(--nw-color-muted-foreground)" fontSize={16}>
-          {value.toLocaleString()} employees
+          {value.toLocaleString()} {t('hr-analytics-employees')}
         </text>
         <text x={cx} y={cy + 35} textAnchor="middle" fill="var(--nw-color-primary)" fontSize={16} fontWeight="600">
           {payload.percentage}%
@@ -104,14 +106,9 @@ const EmploymentTypePieChart: React.FC<EmploymentTypePieChartProps> = ({ data, l
       style={{ background: 'var(--gradient-decorative-1)' }}
       title={
         <div>
-          <Title level={4} className="gba:m-0">
-            {getTranslationFromI18nKeyAndLabel('hr_analytics_employment_type', 'Employment Type')}
-          </Title>
+          <Title level={4} className="gba:m-0">{t('hr-analytics-employment-type')}</Title>
           <Tooltip
-            title={getTranslationFromI18nKeyAndLabel(
-              'hr_analytics_employment_tooltip',
-              'Distribution of employees by employment types such as internal, external, full-time, part-time, etc.'
-            )}
+            title={t('hr-analytics-employment-tooltip')}
           >
             <InfoCircleOutlined className="gba:ml-2" />
           </Tooltip>
@@ -131,16 +128,11 @@ const EmploymentTypePieChart: React.FC<EmploymentTypePieChartProps> = ({ data, l
             </div>
           ) : error ? (
             <div className="gba:h-full gba:flex gba:items-center gba:justify-center gba:text-destructive">
-              <div data-testid="employment-type-pie-chart-error">
-                {getTranslationFromI18nKeyAndLabel('hr_analytics_error_message', 'Error loading data')}
-              </div>
+              <div data-testid="employment-type-pie-chart-error">{t('hr-analytics-error-message')}</div>
             </div>
           ) : data.length === 0 ? (
             <div className="gba:h-full gba:flex gba:items-center gba:justify-center">
-              <Empty
-                description={getTranslationFromI18nKeyAndLabel('hr_analytics_no_data', 'No data available')}
-                data-testid="employment-type-pie-chart-empty"
-              />
+              <Empty description={t('hr-analytics-no-data')} data-testid="employment-type-pie-chart-empty" />
             </div>
           ) : (
             <ResponsiveContainer width="100%" height="100%">
@@ -179,7 +171,7 @@ const EmploymentTypePieChart: React.FC<EmploymentTypePieChartProps> = ({ data, l
                     fontWeight="600"
                     fill="var(--nw-color-foreground)"
                   >
-                    {getTranslationFromI18nKeyAndLabel('hr_analytics_total_employees', 'Total Employees')}
+                    {t('hr-analytics-total-employees')}
                   </text>
                   <text
                     x="50%"

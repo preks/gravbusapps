@@ -13,17 +13,20 @@ export interface ExitOpportunityStatisticsProps extends BusinessAppContextProps 
 export const ExitOpportunityStatistics: React.FC<ExitOpportunityStatisticsProps> = ({ accessToken }) => {
   const { metrics, isLoading, error, loadMetrics } = useExitOpportunityMetrics({ accessToken })
 
-  // Load metrics on mount
+  // Load metrics on mount and when accessToken changes
   useEffect(() => {
-    loadMetrics({ dealType: 'DIVESTMENT_DEAL' })
-  }, [accessToken, loadMetrics])
+    if (accessToken) {
+      loadMetrics({ dealType: 'DIVESTMENT_DEAL' })
+    }
+  }, [accessToken])
 
-  if (!metrics) {
+  // Show loading state while loading or if no metrics yet
+  if (isLoading || !metrics) {
     return (
       <WidgetGroup
         widgets={[]}
-        isLoading={true}
-        error={null}
+        isLoading={isLoading}
+        error={error ? new Error(error) : null}
         skeletonCount={4}
         defaultSpan={{ xs: 24, sm: 12, md: 12, lg: 6 }}
         emptyText={getTranslationFromI18nKeyAndLabel('loading_metrics', 'Loading metrics...')}

@@ -42,7 +42,8 @@ const FeedbackFormComponent: React.FC = () => {
     preSelectedEmployeeLoading,
     preSelectedEmployeeError,
     hasPreSelectedEmployee,
-    isPreSelectedEmployeeCurrentUser
+    isPreSelectedEmployeeCurrentUser,
+    isRequestedFeedbackFlow
   } = useFeedbackForm()
 
   const handleTextChange = (e: React.ChangeEvent<HTMLTextAreaElement>) => {
@@ -89,6 +90,12 @@ const FeedbackFormComponent: React.FC = () => {
       ? preSelectedEmployee
       : getEmployeeById(formValues.employeeId)
     : null
+
+  // Defer rendering the form for requested-feedback flow until the preselected employee is applied to form state,
+  // so no UI (including Cancel) flashes before we know the final state.
+  if (isRequestedFeedbackFlow && !formValues.employeeId) {
+    return null
+  }
 
   return (
     <div
@@ -292,14 +299,16 @@ const FeedbackFormComponent: React.FC = () => {
 
         {/* Action Buttons - Fixed at bottom */}
         <div className="gba:p-4 gba:border-t gba:border-border gba:flex gba:gap-2 gba:justify-end">
-          <Button
-            variant="secondary"
-            onClick={onCancel}
-            data-testid={formatDataTestId(prefixDataTestId, 'CancelButton')}
-            className="gba:px-6 gba:py-2 gba:rounded-lg"
-          >
-            {getTranslationFromI18nKeyAndLabel('lowcoder:feedback_give_form.cancel', 'Cancel')}
-          </Button>
+          {!isRequestedFeedbackFlow && (
+            <Button
+              variant="secondary"
+              onClick={onCancel}
+              data-testid={formatDataTestId(prefixDataTestId, 'CancelButton')}
+              className="gba:px-6 gba:py-2 gba:rounded-lg"
+            >
+              {getTranslationFromI18nKeyAndLabel('lowcoder:feedback_give_form.cancel', 'Cancel')}
+            </Button>
+          )}
           <Button
             variant="default"
             disabled={!isFormValid || isLoading || (hasPreSelectedEmployee && preSelectedEmployeeLoading)}

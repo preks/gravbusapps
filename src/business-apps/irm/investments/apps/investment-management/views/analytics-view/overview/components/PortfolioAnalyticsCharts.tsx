@@ -14,7 +14,7 @@ import {
   Spinner
 } from '@newwork/nw-design-system'
 import { ComposedChart, Bar, Line, BarChart, XAxis, YAxis } from 'recharts'
-import { formatCurrencyCompact } from '../../../../utils/currencyUtils'
+import { formatCurrencyCompact, extractCurrencyCode } from '@/common/utils/numberFormatter'
 import { ChartBarIcon, TrendUpIcon } from '@phosphor-icons/react'
 import { CurrencyFilter } from '../../shared/components'
 import { useCurrencySync } from '../../shared/hooks'
@@ -159,7 +159,13 @@ export const PortfolioAnalyticsCharts: React.FC<PortfolioAnalyticsChartsProps> =
                     <YAxis
                       tick={{ fontSize: 12 }}
                       tickFormatter={value =>
-                        formatCurrencyCompact(value, accountValueCurrency).replaceAll(/[€$£¥]/g, '')
+                        formatCurrencyCompact(
+                          value,
+                          extractCurrencyCode(accountValueCurrency),
+                          undefined,
+                          1,
+                          true
+                        ).replaceAll(/[€$£¥]/g, '')
                       }
                     />
                     <ChartTooltip
@@ -179,7 +185,13 @@ export const PortfolioAnalyticsCharts: React.FC<PortfolioAnalyticsChartsProps> =
                                 <span className="gba:font-medium">Total Value:</span>
                               </div>
                               <div className="gba:mt-1 gba:text-lg gba:font-semibold">
-                                {formatCurrencyCompact(data.value as number, accountValueCurrency)}
+                                {formatCurrencyCompact(
+                                  data.value as number,
+                                  extractCurrencyCode(accountValueCurrency),
+                                  undefined,
+                                  1,
+                                  true
+                                )}
                               </div>
                             </div>
                           )
@@ -277,11 +289,23 @@ export const PortfolioAnalyticsCharts: React.FC<PortfolioAnalyticsChartsProps> =
                                 properLabel = 'Investment Count'
                                 dotColor = 'var(--color-count)'
                               } else if (entry.dataKey === 'totalValue') {
-                                formattedValue = formatCurrencyCompact(entry.value as number, concentrationCurrency)
+                                formattedValue = formatCurrencyCompact(
+                                  entry.value as number,
+                                  extractCurrencyCode(concentrationCurrency),
+                                  undefined,
+                                  1,
+                                  true
+                                )
                                 properLabel = 'Total Value'
                                 dotColor = 'var(--color-totalValue)'
                               } else if (entry.dataKey === 'averageValue') {
-                                formattedValue = formatCurrencyCompact(entry.value as number, concentrationCurrency)
+                                formattedValue = formatCurrencyCompact(
+                                  entry.value as number,
+                                  extractCurrencyCode(concentrationCurrency),
+                                  undefined,
+                                  1,
+                                  true
+                                )
                                 properLabel = 'Average Value'
                                 dotColor = 'var(--color-averageValue)'
                               }

@@ -32,13 +32,13 @@ const CampaignRecord: React.FC<CampaignRecordComponentProps> = ({
 
   // Get campaignId from props or URL parameters
   const getCampaignIdFromUrl = useCallback(() => {
-    const urlParams = new URLSearchParams(window.location.search)
+    const urlParams = new URLSearchParams(globalThis.location.search)
     return urlParams.get('campaignId')
   }, [])
 
   // Get source parameter for proper back navigation
   const source = useMemo(() => {
-    return propSource || new URLSearchParams(window.location.search).get('source')
+    return propSource || new URLSearchParams(globalThis.location.search).get('source')
   }, [propSource])
 
   const campaignId = propCampaignId || getCampaignIdFromUrl()
@@ -62,7 +62,97 @@ const CampaignRecord: React.FC<CampaignRecordComponentProps> = ({
     }
   }, [onBack, source])
 
-  // Handle missing campaignId
+  // Update local state when prop changes
+  useEffect(() => {
+    setActiveTab(initialActiveTab)
+  }, [initialActiveTab])
+
+  // Handle tab change
+  const handleTabChange = useCallback(
+    (tab: string) => {
+      setActiveTab(tab)
+      if (onTabChange) {
+        onTabChange(tab)
+      }
+    },
+    [onTabChange]
+  )
+
+  // Fetch campaign record data (all hooks must be called before any conditional returns)
+  const {
+    campaign,
+    isLoading: campaignLoading,
+    error: campaignError,
+    refetch: refetchCampaign
+  } = useCampaignRecord(props, campaignId || '')
+
+  // Fetch campaign KPIs data
+  const {
+    kpis,
+    kpisWithTrends,
+    isLoading: kpisLoading,
+    error: kpisError,
+    refetch: refetchKPIs
+  } = useCampaignKPIs(props, campaignId || '')
+
+  // Fetch campaign analytics data
+  const {
+    analyticsData,
+    isLoading: analyticsLoading,
+    error: analyticsError,
+    refetch: refetchAnalytics
+  } = useCampaignAnalytics(props, campaignId || '')
+
+  // Listen for process completion events to refresh campaign data
+  useEffect(() => {
+    const handleProcessCompletion = (event: any) => {
+      try {
+        // Check for successful completion
+        if (event.detail?.resolution === 'success') {
+          refetchCampaign()
+          refetchKPIs()
+          refetchAnalytics()
+          return
+        }
+
+        // Also check for different event structure
+        const response = event.detail?.response
+        if (response?.detail?.resolution === 'success' || response?.campaign) {
+          refetchCampaign()
+          refetchKPIs()
+          refetchAnalytics()
+        }
+      } catch (err) {
+        console.error('Error handling process completion in CampaignRecord:', err)
+      }
+    }
+
+    // Listen to multiple possible event names for campaign updates
+    const eventNames = [
+      'com.newwork.process.taskCompletion',
+      'com.newwork.process.completion',
+      'com.newwork.process.continue',
+      'com.newwork.process.processCompletion',
+      'processCompletion',
+      'taskCompletion',
+      'taskCompleted',
+      'processCompleted',
+      'task-completion',
+      'process-completion'
+    ]
+
+    for (const eventName of eventNames) {
+      globalThis.addEventListener(eventName, handleProcessCompletion as EventListener)
+    }
+
+    return () => {
+      for (const eventName of eventNames) {
+        globalThis.removeEventListener(eventName, handleProcessCompletion as EventListener)
+      }
+    }
+  }, [refetchCampaign, refetchKPIs, refetchAnalytics])
+
+  // Handle missing campaignId (must come after all hooks)
   if (!campaignId) {
     return (
       <div data-testid="campaign-record-error" style={{ padding: '24px', textAlign: 'center' }}>
@@ -84,42 +174,6 @@ const CampaignRecord: React.FC<CampaignRecordComponentProps> = ({
       </div>
     )
   }
-
-  // Update local state when prop changes
-  useEffect(() => {
-    setActiveTab(initialActiveTab)
-  }, [initialActiveTab])
-
-  // Handle tab change
-  const handleTabChange = useCallback(
-    (tab: string) => {
-      setActiveTab(tab)
-      if (onTabChange) {
-        onTabChange(tab)
-      }
-    },
-    [onTabChange]
-  )
-
-  // Fetch campaign record data
-  const { campaign, isLoading: campaignLoading, error: campaignError } = useCampaignRecord(props, campaignId)
-
-  // Fetch campaign KPIs data
-  const {
-    kpis,
-    kpisWithTrends,
-    isLoading: kpisLoading,
-    error: kpisError,
-    refetch: refetchKPIs
-  } = useCampaignKPIs(props, campaignId)
-
-  // Fetch campaign analytics data
-  const {
-    analyticsData,
-    isLoading: analyticsLoading,
-    error: analyticsError,
-    refetch: refetchAnalytics
-  } = useCampaignAnalytics(props, campaignId)
 
   // Handle campaign error
   if (campaignError) {

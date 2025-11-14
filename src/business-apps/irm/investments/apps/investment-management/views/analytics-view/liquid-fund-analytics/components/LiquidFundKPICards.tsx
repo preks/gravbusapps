@@ -1,7 +1,7 @@
 import React from 'react'
 import { DollarCircleOutlined, BankOutlined, RiseOutlined, TeamOutlined } from '@ant-design/icons'
 import { WidgetGroup, WidgetItem } from '@/components/widget-group'
-import { formatCurrencyCompact } from '../../../../utils/currencyUtils'
+import { formatCurrencyCompact } from '@/common/utils/numberFormatter'
 import { LiquidFundInvestmentKPIs } from '../LiquidFundInvestmentsReport'
 
 interface LiquidFundKPICardsProps {
@@ -56,7 +56,7 @@ export const LiquidFundKPICards: React.FC<LiquidFundKPICardsProps> = ({
     {
       key: 'average-investment-value',
       title: 'Average Investment Value',
-      value: formatCurrencyCompact(kpis.averageInvestmentValue, 'EUR'),
+      value: formatCurrencyCompact(kpis.averageInvestmentValue, 'EUR', undefined, 1, true),
       prefix: <DollarCircleOutlined />,
       color: 'var(--nw-color-success-500)',
       valueIsString: true,
@@ -71,7 +71,7 @@ export const LiquidFundKPICards: React.FC<LiquidFundKPICardsProps> = ({
     {
       key: 'average-market-value',
       title: 'Average Market Value',
-      value: formatCurrencyCompact(kpis.averageMarketValue, 'EUR'),
+      value: formatCurrencyCompact(kpis.averageMarketValue, 'EUR', undefined, 1, true),
       prefix: <RiseOutlined />,
       color: 'var(--nw-color-purple-500)',
       valueIsString: true,
@@ -86,7 +86,7 @@ export const LiquidFundKPICards: React.FC<LiquidFundKPICardsProps> = ({
     {
       key: 'total-fund-value',
       title: 'Total Fund Value',
-      value: formatCurrencyCompact(kpis.totalFundValue, 'EUR'),
+      value: formatCurrencyCompact(kpis.totalFundValue, 'EUR', undefined, 1, true),
       prefix: <BankOutlined />,
       color: 'var(--nw-color-warning-500)',
       valueIsString: true,

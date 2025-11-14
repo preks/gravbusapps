@@ -1,6 +1,6 @@
 import { useState, useCallback } from 'react'
 import { BusinessAppContextProps } from '@/common/BusinessAppContext'
-import { Contact } from '@/business-apps/crm/core/apps/customer-relations/views/contact-view/types'
+import { Contact } from '@/common/data/relations/types/contactTypes'
 import { useEmployeeContactsQueries, EmployeeContactsQueryVariables } from '../queries/EmployeeContactsQueries'
 import { enforceQueryLimit } from '@/business-apps/crm/common/utils/queryLimits'
 

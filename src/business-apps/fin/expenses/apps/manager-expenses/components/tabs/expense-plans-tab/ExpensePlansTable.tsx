@@ -599,7 +599,7 @@ const ExpensePlansTable: React.FC<ExpensePlansTableProps> = props => {
         )}
       </div>
 
-      {/* Print Dialog */}
+      {/* Print Dialog using design system */}
       <Dialog
         open={printModalOpen}
         onOpenChange={open => {
@@ -609,45 +609,39 @@ const ExpensePlansTable: React.FC<ExpensePlansTableProps> = props => {
           }
         }}
       >
-        <DialogContent className="gba:max-w-[90vw] gba:h-[90vh]" data-testid="print-plan-dialog">
-          <DialogHeader>
+        <DialogContent
+          className="gba:!w-[90vw] gba:!max-w-[90vw] gba:!p-0 gba:!rounded-md"
+          style={{ height: '90vh' }}
+          data-testid="print-plan-modal"
+        >
+          <DialogHeader className="gba:p-4">
             <DialogTitle>{getTranslationFromI18nKeyAndLabel('lowcoder:print.title', 'Print Expense Plan')}</DialogTitle>
           </DialogHeader>
-          {(() => {
-            if (printLoading) {
-              return (
-                <div className="gba:flex gba:justify-center gba:items-center gba:py-8">
-                  <Spinner />
-                </div>
-              )
-            }
-            if (printPdfUrl) {
-              return (
-                <iframe
-                  src={printPdfUrl}
-                  className="gba:w-full gba:h-full gba:border-0"
-                  title={getTranslationFromI18nKeyAndLabel('lowcoder:print.preview_title', 'Print Preview')}
-                  data-testid="print-plan-iframe"
-                />
-              )
-            }
-            return (
-              <div className="gba:flex gba:flex-col gba:items-center gba:justify-center gba:py-8 gba:text-center">
-                <div className="gba:text-muted-foreground gba:mb-4">
-                  {getTranslationFromI18nKeyAndLabel(
-                    'lowcoder:print.no_document',
-                    'No document available for printing'
-                  )}
-                </div>
-                <div className="gba:text-sm gba:text-muted-foreground">
-                  {getTranslationFromI18nKeyAndLabel(
-                    'lowcoder:print.no_document_details',
-                    'This expense plan does not have an associated document to print.'
-                  )}
-                </div>
+          {printLoading ? (
+            <div className="gba:flex gba:justify-center gba:items-center gba:py-8">
+              <Spinner />
+            </div>
+          ) : printPdfUrl ? (
+            <iframe
+              src={printPdfUrl}
+              className="gba:w-full gba:border-0"
+              style={{ height: 'calc(90vh - 55px)' }}
+              title={getTranslationFromI18nKeyAndLabel('lowcoder:print.preview_title', 'Print Preview')}
+              data-testid="print-plan-iframe"
+            />
+          ) : (
+            <div className="gba:flex gba:flex-col gba:items-center gba:justify-center gba:py-8 gba:text-center">
+              <div className="gba:text-muted-foreground gba:mb-4">
+                {getTranslationFromI18nKeyAndLabel('lowcoder:print.no_document', 'No document available for printing')}
               </div>
-            )
-          })()}
+              <div className="gba:text-sm gba:text-muted-foreground">
+                {getTranslationFromI18nKeyAndLabel(
+                  'lowcoder:print.no_document_details',
+                  'This expense plan does not have an associated document to print.'
+                )}
+              </div>
+            </div>
+          )}
         </DialogContent>
       </Dialog>
 

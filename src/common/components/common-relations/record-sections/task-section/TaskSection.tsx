@@ -1,25 +1,20 @@
-import React, { useState } from 'react'
+import React, { useState, useMemo } from 'react'
 import {
   Button,
   TimelineLayout,
   Badge,
-  Sheet,
-  SheetContent,
-  SheetHeader,
-  SheetTitle,
   Tooltip,
   TooltipContent,
   TooltipProvider,
   TooltipTrigger
 } from '@newwork/nw-design-system'
-import { AppAction } from '@/components/app-action'
 import { AppActionMenu } from '@/components/app-action-menu/AppActionMenu'
 import type { AppActionCommonProps } from '@/common/hooks/useAppActionData'
 import { BusinessAppContextProps } from '@/common/BusinessAppContext'
 import { buildFileUrl, getFileIcon } from '@/common/utils/fileUtils'
 import {
   TaskDetailSheet,
-  Task as CommonTask,
+  Task,
   TaskReference
 } from '@/common/components/common-relations/detail-sheets/task-detail-sheet'
 import dayjs from 'dayjs'
@@ -35,13 +30,9 @@ import {
 import { buildPlatformUrl } from '@/common/utils/navigationUtils'
 import { getTranslationFromI18nKeyAndLabel } from '@/common/utils/windowUtils'
 import { FileInfo } from '@/common/types/FileTypes'
-
-export type CatalogEntry = {
-  id?: string
-  code?: string
-  value?: string
-  type?: string
-}
+import type { CatalogEntry } from '@/common/network/graphql/commonTypes'
+import type { Task as BaseTask } from '@/common/data/relations/types/taskTypes'
+import { transformTaskOrApproval } from './utils/taskMappers'
 
 export type TaskStatusCode = 'PENDING' | 'IN_PROGRESS' | 'OVERDUE' | 'COMPLETED'
 export type TaskTimingType = 'DEADLINE' | 'SCHEDULED' | 'UNKNOWN_TIMING_TYPE'
@@ -92,7 +83,7 @@ export interface TaskSectionProps extends BusinessAppContextProps {
   opportunityId?: string
   leadId?: string
   investmentId?: string
-  tasks?: TaskItem[]
+  tasks?: BaseTask[]
   'data-testid'?: string
   taskActionProps?: Omit<AppActionCommonProps, 'accessToken'>
   taskEntityActionProps?: Omit<AppActionCommonProps, 'accessToken'>
@@ -100,8 +91,44 @@ export interface TaskSectionProps extends BusinessAppContextProps {
   buildReferenceUrl?: (reference: TaskReference) => string
 }
 
-const TaskSection: React.FC<TaskSectionProps> = ({ accessToken, tasks, taskEntityActionProps, buildReferenceUrl }) => {
-  const [selectedTask, setSelectedTask] = useState<CommonTask | null>(null)
+const TaskSection: React.FC<TaskSectionProps> = ({
+  accessToken,
+  tasks: rawTasks,
+  taskEntityActionProps,
+  buildReferenceUrl
+}) => {
+  // Map raw tasks to TaskItem format
+  const tasks = useMemo(() => {
+    if (!rawTasks || rawTasks.length === 0) return []
+
+    return rawTasks.map((task: BaseTask) =>
+      transformTaskOrApproval(
+        {
+          id: task.id,
+          name: task.name,
+          displayName: task.name,
+          description: task.description,
+          createdAt: task.createdAt,
+          dueDate: task.dueDate,
+          assignedEmployee: task.assignedEmployee,
+          taskStatus: task.taskStatus,
+          taskPriority: task.taskPriority,
+          taskType: task.taskType,
+          taskTiming: task.taskTiming,
+          startDate: task.startDate,
+          creatorEmployee: task.creatorEmployee,
+          documents: task.documents,
+          lead: task.lead,
+          account: task.account,
+          contact: task.contact,
+          opportunity: task.opportunity,
+          investment: (task as any).investment
+        },
+        getTranslationFromI18nKeyAndLabel('crm.tasks.untitled', 'Untitled Task')
+      )
+    )
+  }, [rawTasks])
+  const [selectedTask, setSelectedTask] = useState<Task | null>(null)
 
   // Handle document download
   const handleDocumentClick = (document: TaskDocument, e: React.MouseEvent) => {
@@ -190,8 +217,8 @@ const TaskSection: React.FC<TaskSectionProps> = ({ accessToken, tasks, taskEntit
     }
   }
 
-  // Convert TaskItem to CommonTask format
-  const convertToCommonTask = (taskItem: TaskItem): CommonTask => {
+  // Convert TaskItem to Task format
+  const convertToCommonTask = (taskItem: TaskItem): Task => {
     return {
       id: taskItem.id,
       name: taskItem.title,
@@ -215,9 +242,11 @@ const TaskSection: React.FC<TaskSectionProps> = ({ accessToken, tasks, taskEntit
             pictureThumbnail: taskItem.creatorEmployee.pictureThumbnail
           }
         : undefined,
-      type: taskItem.taskType?.value || taskItem.taskType?.code || 'GENERAL',
-      priority: (taskItem.taskPriority?.type?.toLowerCase() as any) || 'medium',
-      status: (taskItem.statusCode?.toLowerCase() as any) || 'pending',
+      // Keep CatalogEntry objects for taskType, taskPriority, taskStatus (required by TaskDetailSheet)
+      taskType: taskItem.taskType,
+      taskPriority: taskItem.taskPriority,
+      taskStatus: taskItem.taskStatus,
+      // Legacy string fields (for backwards compatibility)
       dueDate: taskItem.due || taskItem.createdAt || '',
       createdAt: taskItem.createdAt || '',
       updatedAt: taskItem.createdAt || '',
@@ -235,8 +264,8 @@ const TaskSection: React.FC<TaskSectionProps> = ({ accessToken, tasks, taskEntit
   }
 
   const handleTaskClick = (taskItem: TaskItem) => {
-    const commonTask = convertToCommonTask(taskItem)
-    setSelectedTask(commonTask)
+    const Task = convertToCommonTask(taskItem)
+    setSelectedTask(Task)
   }
 
   const getEmployeeDisplayName = (emp: any) => {
@@ -431,59 +460,43 @@ const TaskSection: React.FC<TaskSectionProps> = ({ accessToken, tasks, taskEntit
         )}
       </div>
 
-      {/* Task Details Sheet */}
-      <Sheet
+      {/* Task Details Sheet - now self-contained */}
+      <TaskDetailSheet
+        task={selectedTask}
         open={!!selectedTask}
         onOpenChange={open => {
           if (!open) setSelectedTask(null)
         }}
-        title="Task Details"
-      >
-        <SheetContent className="gba:!w-[500px] gba:sm:!w-[500px] gba:!max-w-[90vw] gba:p-0 gba:flex gba:flex-col">
-          <SheetHeader className="gba:px-6 gba:py-6 gba:border-b gba:border-border gba:shrink-0">
-            <SheetTitle className="gba:text-xl gba:font-semibold gba:text-left">
-              {selectedTask?.name || getTranslationFromI18nKeyAndLabel('tasks.taskDetails', 'Task Details')}
-            </SheetTitle>
-          </SheetHeader>
-          <div className="gba:flex-1 gba:overflow-hidden gba:px-6">
-            {selectedTask ? (
-              <TaskDetailSheet
-                task={selectedTask}
-                buildReferenceUrl={buildReferenceUrl}
-                data-testid="task-section-detail-sheet"
-              />
-            ) : (
-              <div className="gba:p-4 gba:text-center gba:text-muted-foreground">No task selected</div>
-            )}
-          </div>
-        </SheetContent>
-      </Sheet>
+        buildReferenceUrl={buildReferenceUrl}
+        data-testid="task-section-detail-sheet"
+      />
     </>
   )
 }
 
 // Static properties for SectionWrapper
 ;(TaskSection as any).sectionTitle = (props: TaskSectionProps) => props.sectionTitle || 'Tasks'
-;(TaskSection as any).sectionActions = (props: TaskSectionProps) => {
+;(TaskSection as any).getActionButtonConfig = (_pageData: any, _pageIndex: number, props: TaskSectionProps) => {
   const { accessToken, taskActionProps } = props
 
-  if (!taskActionProps) {
+  if (!taskActionProps || !accessToken) {
     return null
   }
 
-  return (
-    <AppAction
-      accessToken={accessToken}
-      contextsArray={taskActionProps.contextsArray}
-      externalContextData={taskActionProps.externalContextData}
-      prefixDataTestId={taskActionProps.prefixDataTestId}
-      emptyStateBehavior={taskActionProps.emptyStateBehavior}
-    >
-      <Button data-testid="add-task-button" variant="secondary" size="icon">
-        <PlusIcon />
-      </Button>
-    </AppAction>
-  )
+  return {
+    type: 'AppAction' as const,
+    config: {
+      contextsArray: taskActionProps.contextsArray,
+      externalContextData: taskActionProps.externalContextData,
+      prefixDataTestId: taskActionProps.prefixDataTestId,
+      emptyStateBehavior: taskActionProps.emptyStateBehavior || 'enable',
+      children: (
+        <Button data-testid="add-task-button" variant="secondary" size="icon">
+          <PlusIcon />
+        </Button>
+      )
+    }
+  }
 }
 
 export default TaskSection

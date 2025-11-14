@@ -1,5 +1,6 @@
 import React, { useMemo, useState } from 'react'
 import { useForm } from 'react-hook-form'
+import '@newwork/nw-design-system/style'
 import { AppActionForm } from '@/components/app-action-form/AppActionForm'
 import { getTranslationFromI18nKeyAndLabel } from '@/common/utils/windowUtils'
 import { useUpdateEmployeeEntitlementsContext } from '../context/UpdateEmployeeEntitlementsContext'
@@ -53,6 +54,7 @@ const UpdateEmployeeEntitlementsForm: React.FC<UpdateEmployeeEntitlementsFormPro
   const pageSize = 5
   const [page, setPage] = useState(1)
   const [isModalOpen, setIsModalOpen] = useState(false)
+  const [hasChanges, setHasChanges] = useState(false)
   const [selectedLine, setSelectedLine] = useState<any | null>(null)
   const allowedTypeIds = useMemo(() => new Set((absenceTypes || []).map((t: any) => t.id)), [absenceTypes])
 
@@ -90,7 +92,7 @@ const UpdateEmployeeEntitlementsForm: React.FC<UpdateEmployeeEntitlementsFormPro
   // Until data is loaded from the query, render only a loading state (no fields)
   if (loading) {
     return (
-      <div className="gba:bg-card gba:rounded-2xl gba:flex gba:flex-col gba:min-h-[400px] gba:p-0 gba:[&>div[data-testid='update-employee-entitlements-form']]:!pt-0">
+      <div className="gba:!bg-card gba:rounded-2xl gba:flex gba:flex-col gba:min-h-[400px] gba:p-0 gba:[&>div[data-testid='update-employee-entitlements-form']]:!pt-0">
         <div className="gba:flex gba:flex-1 gba:min-h-[300px] gba:items-center gba:justify-center">
           <Spinner size="lg" data-testid="update-employee-entitlements-loading" />
         </div>
@@ -99,7 +101,7 @@ const UpdateEmployeeEntitlementsForm: React.FC<UpdateEmployeeEntitlementsFormPro
   }
 
   return (
-    <div className="gba:bg-card gba:rounded-2xl gba:flex gba:flex-col gba:min-h-[400px] gba:p-0 gba:[&>div[data-testid='update-employee-entitlements-form']]:!pt-0">
+    <div className="gba:!bg-card gba:rounded-2xl gba:flex gba:flex-col gba:min-h-[400px] gba:p-0 gba:min-w-0 gba:max-w-full gba:overflow-x-hidden gba:[&>div[data-testid='update-employee-entitlements-form']]:!pt-0">
       <AppActionForm
         processType="update"
         form={form as any}
@@ -111,16 +113,20 @@ const UpdateEmployeeEntitlementsForm: React.FC<UpdateEmployeeEntitlementsFormPro
         onSubmit={async () => ({ event: 'pse_save' })}
       >
         <div
-          className="gba:flex-1 gba:flex gba:flex-col gba:justify-start"
+          className="gba:flex-1 gba:flex gba:flex-col gba:justify-start gba:min-w-0 gba:max-w-full gba:overflow-x-hidden"
           id="mileageRuleModal_containerMileageRule"
           data-testid="mileageRuleModal_containerMileageRule"
         >
           {/* Header-like section inside container (outer header will be in wrapper) */}
-          <div id="mileageRuleModal_columnLayoutContainer" data-testid="mileageRuleModal_columnLayoutContainer">
+          <div
+            id="mileageRuleModal_columnLayoutContainer"
+            data-testid="mileageRuleModal_columnLayoutContainer"
+            className="gba:min-w-0 gba:max-w-full gba:overflow-x-hidden"
+          >
             {/* Employee selector or fixed display */}
             {!isFixedEmployeeId ? (
               <div className="gba:mb-4">
-                <div className="gba:font-semibold gba:mb-2">
+                <div className="gba:font-semibold gba:text-sm gba:mb-2">
                   {getTranslationFromI18nKeyAndLabel('lowcoder:working_hours_form.employee_label', 'Employee')}
                   <span className="gba:text-destructive"> *</span>
                 </div>
@@ -132,7 +138,7 @@ const UpdateEmployeeEntitlementsForm: React.FC<UpdateEmployeeEntitlementsFormPro
                       setSelectedEmployeeId(v)
                     }}
                   >
-                    <SelectTrigger className="gba:w-full">
+                    <SelectTrigger className="gba:w-full gba:text-sm">
                       <SelectValue
                         placeholder={getTranslationFromI18nKeyAndLabel(
                           'lowcoder:working_hours_form.employee_placeholder',
@@ -172,11 +178,11 @@ const UpdateEmployeeEntitlementsForm: React.FC<UpdateEmployeeEntitlementsFormPro
               </div>
             ) : (
               <div className="gba:mb-4">
-                <div className="gba:font-semibold gba:mb-2">
+                <div className="gba:font-semibold gba:text-sm gba:mb-2">
                   {getTranslationFromI18nKeyAndLabel('lowcoder:working_hours_form.employee_label', 'Employee')}
                 </div>
                 <div
-                  className="gba:bg-muted gba:rounded-md gba:p-4 gba:text-base"
+                  className="gba:bg-muted gba:rounded-md gba:px-3 gba:py-2 gba:text-sm"
                   data-testid="flw_updateEmployeeEntitlements_employee_fixed"
                 >
                   <span>{fixedEmployeeName || '-'}</span>
@@ -186,10 +192,10 @@ const UpdateEmployeeEntitlementsForm: React.FC<UpdateEmployeeEntitlementsFormPro
 
             {/* Year display to match WorkingHoursSummary style */}
             <div className="gba:mb-4" data-testid="entitlements-year-display">
-              <div className="gba:font-semibold gba:mb-2">
+              <div className="gba:font-semibold gba:text-sm gba:mb-2">
                 {getTranslationFromI18nKeyAndLabel('lowcoder:entitlements.year_of_entitlement', 'Year of Entitlement')}
               </div>
-              <div className="gba:bg-muted gba:rounded-md gba:p-4 gba:text-base">
+              <div className="gba:bg-muted gba:rounded-md gba:px-3 gba:py-2 gba:text-sm">
                 <span data-testid="flw_updateEmployeeEntitlements_year">{currentYear}</span>
               </div>
             </div>
@@ -230,7 +236,10 @@ const UpdateEmployeeEntitlementsForm: React.FC<UpdateEmployeeEntitlementsFormPro
                 if (!open) setSelectedLine(null)
               }}
             >
-              <DialogContent data-testid="mileageRuleModal_modalExpenses">
+              <DialogContent
+                className="gba:h-screen gba:max-h-screen gba:!rounded-none gba:!bg-card"
+                data-testid="mileageRuleModal_modalExpenses"
+              >
                 <DialogTitle className="gba:sr-only">
                   {getTranslationFromI18nKeyAndLabel(
                     'lowcoder:entitlements.update_entitlements',
@@ -248,6 +257,7 @@ const UpdateEmployeeEntitlementsForm: React.FC<UpdateEmployeeEntitlementsFormPro
                   existingEntitlementTypeIds={(entitlements || []).map((e: any) => e?.type?.id).filter(Boolean)}
                   onSuccess={async () => {
                     await reload()
+                    setHasChanges(true)
                   }}
                 />
               </DialogContent>
@@ -255,9 +265,9 @@ const UpdateEmployeeEntitlementsForm: React.FC<UpdateEmployeeEntitlementsFormPro
           </div>
         </div>
         {/* Custom Actions to mirror UpdateEntitlementModal */}
-        <div className="gba:flex gba:justify-end gba:gap-2 gba:pt-6">
+        <div className="gba:flex gba:justify-end gba:gap-2 gba:pt-4">
           <Button
-            variant="secondary"
+            variant="outline"
             data-testid="hcm_createHrAbsence_cancelButton"
             onClick={() => {
               if (onCancel) {
@@ -270,9 +280,9 @@ const UpdateEmployeeEntitlementsForm: React.FC<UpdateEmployeeEntitlementsFormPro
           <Button
             variant="default"
             data-testid="hcm_createHrAbsence_submitButton"
-            disabled={isEmployeeSelectionMissing}
+            disabled={!hasChanges}
             onClick={() => {
-              if (isEmployeeSelectionMissing) return
+              if (!hasChanges) return
               if (onSubmit) {
                 void Promise.resolve(onSubmit())
               }

@@ -24,6 +24,8 @@ import { useContractTypeDistribution } from '../../../../../hooks/useContractTyp
 import { useGapRateByOrgUnit } from '../../../../../hooks/useGapRateByOrgUnit'
 import { useProbationRateByOrgUnit } from '../../../../../hooks/useProbationRateByOrgUnit'
 import EmploymentStatistics from '../components/EmploymentStatistics'
+import { useTranslation } from '@newwork/nw-design-system'
+import hrTranslations from '@/business-apps/hr/core/apps/human-resources/_i18n'
 import TenureHeatmapChart from '../charts/TenureHeatmapChart'
 import EmploymentTypePieChart from '../charts/EmploymentTypePieChart'
 import ContractTypePieChart from '../charts/ContractTypePieChart'
@@ -44,6 +46,7 @@ const Employment: React.FC<BusinessAppContextProps> = context => {
   const [selectedChart, setSelectedChart] = useState<string | null>(null)
   const [exportingTable, setExportingTable] = useState<string | null>(null)
   const tableRef = useRef<HTMLDivElement>(null)
+  const { t } = useTranslation(hrTranslations)
 
   // Get the current active structure ID
   const structureId = getCurrentActiveStructureId()
@@ -136,45 +139,44 @@ const Employment: React.FC<BusinessAppContextProps> = context => {
   // Chart configurations
   const chartConfigs = [
     {
-      title: 'Employment Type Distribution',
+      title: t('hr-analytics-employment-type-distribution'),
       data: employmentTypeDistribution,
       tableData: transformEmploymentTypeData(),
       testId: 'employment-type-chart',
-      tag: `${employmentTypeDistribution.length} types`,
-      description: 'Distribution of employees across different employment types (Full-time, Part-time, Contract, etc.)'
+      tag: t('hr-analytics-types', { count: employmentTypeDistribution.length }),
+      description: t('hr-analytics-employment-type-description')
     },
     {
-      title: 'Contract Type Distribution',
+      title: t('hr-analytics-contract-type-distribution'),
       data: contractTypeDistribution,
       tableData: transformContractTypeData(),
       testId: 'contract-type-chart',
-      tag: 'Contract breakdown',
-      description: 'Breakdown of employees by contract type showing workforce composition and employment agreements'
+      tag: t('hr-analytics-contract-breakdown'),
+      description: t('hr-analytics-contract-types-description')
     },
     {
-      title: 'Gap Rate by Organizational Unit',
+      title: t('hr-analytics-gap-rate-by-organizational-unit'),
       data: gapRateByOrgUnit,
       tableData: transformGapRateByOrgUnitData(),
       testId: 'gap-rate-org-unit-chart',
-      tag: 'Position gaps',
-      description: 'Percentage of vacant positions across organizational units showing staffing requirements'
+      tag: t('hr-analytics-position-gaps'),
+      description: t('hr-analytics-gap-rate-description')
     },
     {
-      title: 'Probation Rate by Organizational Unit',
+      title: t('hr-analytics-probation-rate-by-organizational-unit'),
       data: probationRateByOrgUnit,
       tableData: transformProbationRateByOrgUnitData(),
       testId: 'probation-rate-org-unit-chart',
-      tag: 'Probation status',
-      description: 'Percentage of employees in probation period by organizational unit'
+      tag: t('hr-analytics-probation-status'),
+      description: t('hr-analytics-probation-rate-description')
     },
     {
-      title: 'Tenure Distribution by Organizational Unit',
+      title: t('hr-analytics-tenure-distribution-by-organizational-unit'),
       data: tenureDistribution,
       tableData: transformTenureHeatmapData(),
       testId: 'tenure-heatmap-chart',
-      tag: `${tenureDistribution.length} data points`,
-      description:
-        'Transposed heatmap showing employee tenure distribution with tenure ranges on the left and organizational units across the bottom'
+      tag: t('hr-analytics-data-points', { count: tenureDistribution.length }),
+      description: t('hr-analytics-tenure-chart-description')
     }
   ]
 
@@ -232,12 +234,12 @@ const Employment: React.FC<BusinessAppContextProps> = context => {
         <Card className="gba:border-destructive-secondary">
           <CardContent className="gba:p-6">
             <div className="gba:text-center">
-              <p className="gba:text-destructive gba:mb-4">Error loading employment data. Please try again.</p>
+              <p className="gba:text-destructive gba:mb-4">{t('hr-analytics-employment-error')}</p>
               <button
                 onClick={() => window.location.reload()}
                 className="gba:px-4 gba:py-2 gba:bg-destructive gba:text-primary-foreground gba:rounded gba:hover:bg-destructive"
               >
-                Retry
+                {t('common-retry')}
               </button>
             </div>
           </CardContent>
@@ -253,11 +255,8 @@ const Employment: React.FC<BusinessAppContextProps> = context => {
 
       {/* Charts Section */}
       <div className="gba:mb-4">
-        <h3 className="gba:text-lg gba:font-semibold gba:text-foreground">Employment Analysis</h3>
-        <p className="gba:text-sm gba:text-muted-foreground">
-          Comprehensive view of employment metrics and organizational distribution. Click on any chart to view detailed
-          data table below.
-        </p>
+        <h3 className="gba:text-lg gba:font-semibold gba:text-foreground">{t('hr-analytics-employment-analysis')}</h3>
+        <p className="gba:text-sm gba:text-muted-foreground">{t('hr-analytics-employment-analysis-description')}</p>
       </div>
 
       {/* Charts Grid */}
@@ -277,7 +276,7 @@ const Employment: React.FC<BusinessAppContextProps> = context => {
             <EmploymentTypePieChart data={employmentTypeDistribution} loading={empTypeLoading} error={empTypeError} />
             {selectedChart === 'employment-type-chart' && (
               <div className="gba:absolute gba:top-2 gba:right-2 gba:bg-info-secondary gba:text-info-secondary-foreground gba:px-2 gba:py-1 gba:rounded gba:text-xs">
-                ✓ Selected
+                ✓ {t('common-selected')}
               </div>
             )}
           </div>
@@ -293,7 +292,7 @@ const Employment: React.FC<BusinessAppContextProps> = context => {
             <ContractTypePieChart accessToken={context.accessToken} />
             {selectedChart === 'contract-type-chart' && (
               <div className="gba:absolute gba:top-2 gba:right-2 gba:bg-info-secondary gba:text-info-secondary-foreground gba:px-2 gba:py-1 gba:rounded gba:text-xs">
-                ✓ Selected
+                ✓ {t('common-selected')}
               </div>
             )}
           </div>
@@ -314,7 +313,7 @@ const Employment: React.FC<BusinessAppContextProps> = context => {
             <GapRateByOrgUnitChart accessToken={context.accessToken} />
             {selectedChart === 'gap-rate-org-unit-chart' && (
               <div className="gba:absolute gba:top-2 gba:right-2 gba:bg-info-secondary gba:text-info-secondary-foreground gba:px-2 gba:py-1 gba:rounded gba:text-xs">
-                ✓ Selected
+                ✓ {t('common-selected')}
               </div>
             )}
           </div>
@@ -332,7 +331,7 @@ const Employment: React.FC<BusinessAppContextProps> = context => {
             <ProbationRateByOrgUnitChart accessToken={context.accessToken} />
             {selectedChart === 'probation-rate-org-unit-chart' && (
               <div className="gba:absolute gba:top-2 gba:right-2 gba:bg-info-secondary gba:text-info-secondary-foreground gba:px-2 gba:py-1 gba:rounded gba:text-xs">
-                ✓ Selected
+                ✓ {t('common-selected')}
               </div>
             )}
           </div>
@@ -358,7 +357,7 @@ const Employment: React.FC<BusinessAppContextProps> = context => {
             />
             {selectedChart === 'tenure-heatmap-chart' && (
               <div className="gba:absolute gba:top-2 gba:right-2 gba:bg-info-secondary gba:text-info-secondary-foreground gba:px-2 gba:py-1 gba:rounded gba:text-xs">
-                ✓ Selected
+                ✓ {t('common-selected')}
               </div>
             )}
           </div>
@@ -374,13 +373,13 @@ const Employment: React.FC<BusinessAppContextProps> = context => {
               <div className="gba:flex gba:justify-between gba:items-center gba:mb-4 gba:pb-4 gba:border-b">
                 <div className="gba:flex gba:items-center gba:gap-2">
                   <h3 className="gba:text-xl gba:font-semibold gba:text-foreground">
-                    Data Table: {selectedConfig.title}
+                    {t('hr-analytics-data-table', { title: selectedConfig.title })}
                   </h3>
                   <Badge
                     variant="outline"
                     className="gba:bg-success-secondary/50 gba:text-success-secondary-foreground"
                   >
-                    {selectedConfig.tableData.length} entries
+                    {t('hr-analytics-total-entries', { count: selectedConfig.tableData.length })}
                   </Badge>
                 </div>
                 <div className="gba:flex gba:gap-2">
@@ -395,7 +394,7 @@ const Employment: React.FC<BusinessAppContextProps> = context => {
                     className="gba:flex gba:items-center gba:gap-1"
                   >
                     <PiFileText className="gba:w-3 gba:h-3" />
-                    Export Excel
+                    {t('common-export-excel')}
                   </Button>
 
                   <Button
@@ -409,7 +408,7 @@ const Employment: React.FC<BusinessAppContextProps> = context => {
                     className="gba:flex gba:items-center gba:gap-1"
                   >
                     <PiFilePdf className="gba:w-3 gba:h-3" />
-                    Export PDF
+                    {t('common-export-pdf')}
                   </Button>
                 </div>
               </div>
@@ -422,25 +421,25 @@ const Employment: React.FC<BusinessAppContextProps> = context => {
                     <TableRow>
                       <TableHead className="gba:w-2/5">
                         {selectedConfig.testId === 'employment-type-chart'
-                          ? 'Employment Type'
+                          ? t('hr-analytics-employment-type')
                           : selectedConfig.testId === 'contract-type-chart'
-                            ? 'Contract Type'
+                            ? t('hr-analytics-contract-types')
                             : selectedConfig.testId === 'gap-rate-org-unit-chart'
-                              ? 'Organizational Unit'
+                              ? t('hr-analytics-entity-organizational-unit')
                               : selectedConfig.testId === 'probation-rate-org-unit-chart'
-                                ? 'Organizational Unit'
-                                : 'Category'}
+                                ? t('hr-analytics-entity-organizational-unit')
+                                : t('common-category')}
                       </TableHead>
                       <TableHead className="gba:w-3/5">
                         {selectedConfig.testId === 'employment-type-chart'
-                          ? 'Employee Count'
+                          ? t('hr-analytics-employee-count')
                           : selectedConfig.testId === 'contract-type-chart'
-                            ? 'Employee Count'
+                            ? t('hr-analytics-employee-count')
                             : selectedConfig.testId === 'gap-rate-org-unit-chart'
-                              ? 'Gap Rate'
+                              ? t('hr-analytics-gap-rate')
                               : selectedConfig.testId === 'probation-rate-org-unit-chart'
-                                ? 'Probation Rate'
-                                : 'Employee Count'}
+                                ? t('hr-analytics-probation-rate')
+                                : t('hr-analytics-employee-count')}
                       </TableHead>
                     </TableRow>
                   </TableHeader>
@@ -469,9 +468,13 @@ const Employment: React.FC<BusinessAppContextProps> = context => {
               {/* Summary */}
               <div className="gba:mt-4 gba:pt-4 gba:border-t gba:bg-muted gba:rounded gba:p-3">
                 <div className="gba:flex gba:justify-between gba:text-sm">
-                  <span className="gba:text-muted-foreground">Total entries: {selectedConfig.tableData.length}</span>
                   <span className="gba:text-muted-foreground">
-                    Total {selectedConfig.testId.includes('rate') ? 'Average' : 'Count'}:{' '}
+                    {t('hr-analytics-total-entries', { count: selectedConfig.tableData.length })}
+                  </span>
+                  <span className="gba:text-muted-foreground">
+                    {t('hr-analytics-total-label')}{' '}
+                    {selectedConfig.testId.includes('rate') ? t('hr-analytics-total-average') : t('hr-analytics-total-count')}
+                    :{' '}
                     {selectedConfig.testId.includes('rate')
                       ? `${(
                           selectedConfig.tableData.reduce((sum, item) => {
@@ -495,7 +498,7 @@ const Employment: React.FC<BusinessAppContextProps> = context => {
 
         {!selectedConfig && (
           <div className="gba:text-center gba:py-8">
-            <p className="gba:text-muted-foreground">Click on any chart above to view its detailed data table</p>
+            <p className="gba:text-muted-foreground">{t('hr-analytics-click-to-view-table')}</p>
           </div>
         )}
       </div>

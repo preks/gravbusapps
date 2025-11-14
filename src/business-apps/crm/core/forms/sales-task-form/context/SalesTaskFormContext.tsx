@@ -354,13 +354,16 @@ export const SalesTaskFormProvider: React.FC<SalesTaskFormProviderProps> = ({
       const uploadPromises = files.map(async file => {
         const folderPath = `/customerRelations/tasks/${entityId}/documents`
 
+        // Ensure we have a valid MIME type - fallback to octet-stream if empty
+        const mimeType = file.type || 'application/octet-stream'
+
         const result = await fileClient.uploadFile(
           file,
           { accessScope: 'tenant' },
           {
             appName: 'customerRelations',
             folderPath: folderPath,
-            mimeType: file.type
+            mimeType: mimeType
           }
         )
 

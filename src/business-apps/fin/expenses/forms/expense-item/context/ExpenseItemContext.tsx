@@ -1,5 +1,5 @@
 import React, { createContext, useContext, useState, useEffect, useRef, ReactNode, useMemo } from 'react'
-import { useTranslation } from 'react-i18next'
+
 import { Form, message } from 'antd'
 import { ExpensePosition, ExpenseType, CostCenter, Currency, ExpenseGroup, CustomField } from '../types'
 
@@ -94,7 +94,7 @@ export const ExpenseItemProvider: React.FC<ExpenseItemProviderProps> = ({
   userInfo,
   additionalData
 }): React.ReactNode => {
-  const { t } = useTranslation()
+  const t = (key: string, fallback: string) => getTranslationFromI18nKeyAndLabel(key, fallback)
 
   const [form] = Form.useForm()
   const [currentStep, setCurrentStep] = useState<FormStepType>(FORM_STEPS.START)

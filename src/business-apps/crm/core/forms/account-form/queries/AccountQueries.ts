@@ -33,7 +33,9 @@ export interface AccountDataResponse {
       objectValue?: any
     }
     numberOfEmployees?: {
+      id: string
       value: string
+      code: string
     }
     annualRevenue?: {
       id: string
@@ -42,7 +44,14 @@ export interface AccountDataResponse {
       objectValue?: any
     }
     addresses?: Array<{
+      id?: string
+      version?: number
+      addressType?: string
+      addressLine?: string
+      postalCode?: string
       city?: string
+      regionRef?: string
+      countryRef?: string
       country?: {
         id: string
         value: string
@@ -52,6 +61,18 @@ export interface AccountDataResponse {
         id: string
         value: string
         code: string
+      }
+    }>
+    // Contact relationships
+    accountContacts?: Array<{
+      id: string
+      version?: number
+      contactType?: string
+      contact: {
+        id: string
+        firstName?: string
+        lastName?: string
+        email?: string
       }
     }>
     // Campaign Information
@@ -94,7 +115,9 @@ export const GET_ACCOUNT_BY_ID = `
         objectValue
       }
       numberOfEmployees {
+        id
         value
+        code
       }
       annualRevenue {
         id
@@ -103,7 +126,14 @@ export const GET_ACCOUNT_BY_ID = `
         objectValue
       }
       addresses {
+        id
+        version
+        addressType
+      addressLine
+        postalCode
         city
+        regionRef
+        countryRef
         country {
           id
           value
@@ -115,6 +145,20 @@ export const GET_ACCOUNT_BY_ID = `
           code
         }
       }
+      
+      # Contact relationships
+      accountContacts(where: { isDeleted: { _eq: false } }) {
+        id
+        version
+        contactType
+        contact {
+          id
+          firstName
+          lastName
+          email
+        }
+      }
+      
       salesCampaign {
         id
         name

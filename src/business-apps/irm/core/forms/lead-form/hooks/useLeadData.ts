@@ -3,6 +3,7 @@ import { BusinessAppContextProps } from '@/common/BusinessAppContext'
 import { useGetInvestmentLeadById, InvestmentLeadQueryResult } from '../queries/LeadQueries'
 import { LeadFormValues } from '../types'
 import { extractAddressFromObject } from '../../../../../crm/common/utils/addressUtils'
+import { getLinkedInChannel, getXingChannel } from '@/common/data/common/utils/communicationChannelHelpers'
 
 interface UseInvestmentLeadDataProps {
   businessAppContext: BusinessAppContextProps
@@ -39,13 +40,8 @@ export const useInvestmentLeadData = ({
       jobPosition: lead.position || '',
 
       // Social Media Information - Extract from communication channels
-      linkedinUrl:
-        lead.communicationChannels?.find(
-          channel => channel.communicationChannelRef === 'CommunicationChannel:v1:LinkedIn'
-        )?.value || '',
-      xingUrl:
-        lead.communicationChannels?.find(channel => channel.communicationChannelRef === 'CommunicationChannel:v1:Xing')
-          ?.value || '',
+      linkedinUrl: getLinkedInChannel(lead.communicationChannels)?.value || '',
+      xingUrl: getXingChannel(lead.communicationChannels)?.value || '',
 
       // Company Information
       company: lead.companyName || '',

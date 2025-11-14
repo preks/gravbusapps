@@ -80,6 +80,12 @@ export const getExpenseItemStatusDisplay = (status: string): StatusDisplayConfig
         type: 'draft',
         badgeVariant: STATUS_COLORS.DRAFT
       }
+    case ExpenseStatus.DISCARDED:
+      return {
+        label: getTranslationFromI18nKeyAndLabel('lowcoder:expense_statuses.discarded', 'Discarded'),
+        type: 'draft',
+        badgeVariant: STATUS_COLORS.DISCARDED
+      }
     case ExpenseStatus.ASSIGNED:
       return {
         label: getTranslationFromI18nKeyAndLabel('lowcoder:expense_statuses.assigned', 'Assigned'),
@@ -188,6 +194,12 @@ export const getExpensePlanStatusDisplay = (status: string): StatusDisplayConfig
         type: 'completed',
         badgeVariant: STATUS_COLORS.CLOSED
       }
+    case ExpenseStatus.DISCARDED:
+      return {
+        label: getTranslationFromI18nKeyAndLabel('lowcoder:expense_statuses.discarded', 'Discarded'),
+        type: 'draft',
+        badgeVariant: STATUS_COLORS.DISCARDED
+      }
     default:
       return {
         label: status,
@@ -255,6 +267,12 @@ export const getExpenseRequestStatusDisplay = (status: string): StatusDisplayCon
         label: getTranslationFromI18nKeyAndLabel('lowcoder:expense_statuses.closed', 'Closed'),
         type: 'completed',
         badgeVariant: STATUS_COLORS.CLOSED
+      }
+    case ExpenseStatus.DISCARDED:
+      return {
+        label: getTranslationFromI18nKeyAndLabel('lowcoder:expense_statuses.discarded', 'Discarded'),
+        type: 'draft',
+        badgeVariant: STATUS_COLORS.DISCARDED
       }
     default:
       return {

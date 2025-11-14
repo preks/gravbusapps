@@ -107,17 +107,17 @@ const buildExpiringContractsDescription = (
 
   if (expiring30Count > 0) {
     const contractWord = expiring30Count === 1 ? contractSingular : contractPlural
-    return `${expiring30Count} ${contractWord} ${expiringIn30Days}`
+    return `${contractWord} ${expiringIn30Days}`
   }
 
   if (expiring60Count > 0) {
     const contractWord = expiring60Count === 1 ? contractSingular : contractPlural
-    return `${expiring60Count} ${contractWord} ${expiringIn60Days}`
+    return `${contractWord} ${expiringIn60Days}`
   }
 
   if (expiring90Count > 0) {
     const contractWord = expiring90Count === 1 ? contractSingular : contractPlural
-    return `${expiring90Count} ${contractWord} ${expiringIn90Days}`
+    return `${contractWord} ${expiringIn90Days}`
   }
 
   return ''
@@ -141,7 +141,7 @@ const buildCombinedExpiringDescription = (
   if (expiring60Count > 0) parts.push(`${expiring60Count} ${in60Days}`)
   if (expiring90Count > 0) parts.push(`${expiring90Count} ${in90Days}`)
   const contractWord = totalExpiring === 1 ? contractSingular : contractPlural
-  return `${totalExpiring} ${contractWord} ${expiring} (${parts.join(', ')})`
+  return `${contractWord} ${expiring} (${parts.join(', ')})`
 }
 
 const createExpiringContractsCard = (workingConditions: EmployeeWorkingCondition[]): KpiCardData | null => {
@@ -211,9 +211,7 @@ const createProbationReviewCard = (workingConditions: EmployeeWorkingCondition[]
   return {
     key: 'probation-review',
     label: getTranslationFromI18nKeyAndLabel('lowcoder:team_report_kpi.probation_review_due', 'Probation Review Due'),
-    subLabel: `${probationDueThisMonth.length} ${
-      probationDueThisMonth.length === 1 ? employeeNeeds : employeesNeed
-    } ${probationFeedbackThisMonth}`,
+    subLabel: `${probationDueThisMonth.length === 1 ? employeeNeeds : employeesNeed} ${probationFeedbackThisMonth}`,
     value: probationDueThisMonth.length,
     iconName: 'ClockCircleOutlined',
     shouldShow: true,
@@ -229,26 +227,27 @@ const createContractStartCard = (workingConditions: EmployeeWorkingCondition[]):
 
   if (contractStartsNext30Days.length === 0) return null
 
-  const upcomingContract = contractStartsNext30Days
+  const upcomingContracts = contractStartsNext30Days
     .map(wc => ({
       wc,
       hireDate: wc.hireDate ? dayjs(wc.hireDate) : null
     }))
     .filter(c => c.hireDate !== null)
-    .sort((a, b) => (a.hireDate?.valueOf() || 0) - (b.hireDate?.valueOf() || 0))[0]
+    .sort((a, b) => (a.hireDate?.valueOf() || 0) - (b.hireDate?.valueOf() || 0))
 
   const newHire = getTranslationFromI18nKeyAndLabel('lowcoder:team_report_kpi.new_hire', 'new hire')
   const newHires = getTranslationFromI18nKeyAndLabel('lowcoder:team_report_kpi.new_hires', 'new hires')
   const starting = getTranslationFromI18nKeyAndLabel('lowcoder:team_report_kpi.starting', 'starting')
 
   let description = `${contractStartsNext30Days.length} ${contractStartsNext30Days.length === 1 ? newHire : newHires}`
-  if (upcomingContract?.hireDate) {
-    const dateStr =
-      formatDate(upcomingContract.hireDate.toDate(), 'date.short') || upcomingContract.hireDate.format('MMM D')
-    const contractType =
-      upcomingContract.wc.contractType?.value ||
-      getTranslationFromI18nKeyAndLabel('lowcoder:team_report_kpi.employee', 'Employee')
-    description += ` ${starting} ${dateStr} (${contractType})`
+
+  if (upcomingContracts.length > 0) {
+    const employeeDescriptions = upcomingContracts.map(contract => {
+      const dateStr = formatDate(contract.hireDate!.toDate(), 'date.short') || contract.hireDate!.format('MMM D')
+      const employmentType = contract.wc.employmentType?.value || ''
+      return `${starting} ${dateStr} (${employmentType})`
+    })
+    description += ` ${employeeDescriptions.join(', ')}`
   }
 
   return {
@@ -273,8 +272,8 @@ const createCatalogTypeCards = (
   iconName: string,
   row: number
 ): KpiCardData[] => {
-  const employeeSingular = getTranslationFromI18nKeyAndLabel('lowcoder:team_report_kpi.employee', 'employee')
-  const employeesPlural = getTranslationFromI18nKeyAndLabel('lowcoder:team_report_kpi.employees', 'employees')
+  const employeeSingular = getTranslationFromI18nKeyAndLabel('lowcoder:absence_table.employee', 'employee')
+  const employeesPlural = getTranslationFromI18nKeyAndLabel('lowcoder:employee_list.employee_list_title', 'employees')
   const cards: KpiCardData[] = []
 
   catalogEntries.forEach(entry => {
@@ -283,7 +282,7 @@ const createCatalogTypeCards = (
       cards.push({
         key: `${keyPrefix}-${entry.id}`,
         label: entry.value,
-        subLabel: `${count} ${count === 1 ? employeeSingular : employeesPlural}`,
+        subLabel: `${count === 1 ? employeeSingular : employeesPlural}`,
         value: count,
         iconName,
         shouldShow: true,
@@ -341,32 +340,67 @@ export const generateKpiCards = (
 }
 
 export const matchesKpi = (employee: Employee, activeKpi: string): boolean => {
-  switch (activeKpi) {
-    case 'all':
-      return true
-    case 'tenure':
-      return !!employee.startDate
-    case 'internal': {
-      const value = employee.employmentType?.value || ''
-      return value === 'Internal'
-    }
-    case 'external': {
-      const value = employee.employmentType?.value || ''
-      return value === 'External'
-    }
-    case 'contract': {
-      const value = employee.employmentType?.value || ''
-      return value === 'Contract worker'
-    }
-    case 'fulltime': {
-      const value = employee.contractType?.value || ''
-      return value.toLowerCase().includes('full time')
-    }
-    case 'parttime': {
-      const value = employee.contractType?.value || ''
-      return value.toLowerCase().includes('part time')
-    }
-    default:
-      return true
+  if (activeKpi === 'all') {
+    return true
   }
+
+  if (activeKpi === 'tenure') {
+    return !!employee.startDate
+  }
+
+  if (activeKpi.startsWith('contract-type-')) {
+    const contractTypeId = activeKpi.replace('contract-type-', '')
+    const employeeContractTypeId = (employee.contractType as any)?.id
+    return employeeContractTypeId === contractTypeId
+  }
+
+  if (activeKpi.startsWith('employment-type-')) {
+    const employmentTypeId = activeKpi.replace('employment-type-', '')
+    const employeeEmploymentTypeId = (employee.employmentType as any)?.id
+    return employeeEmploymentTypeId === employmentTypeId
+  }
+
+  if (activeKpi === 'internal') {
+    const value = employee.employmentType?.value || ''
+    return value === 'Internal'
+  }
+
+  if (activeKpi === 'external') {
+    const value = employee.employmentType?.value || ''
+    return value === 'External'
+  }
+
+  if (activeKpi === 'contract') {
+    const value = employee.employmentType?.value || ''
+    return value === 'Contract worker'
+  }
+
+  if (activeKpi === 'fulltime') {
+    const value = employee.contractType?.value || ''
+    return value.toLowerCase().includes('full time')
+  }
+
+  if (activeKpi === 'parttime') {
+    const value = employee.contractType?.value || ''
+    return value.toLowerCase().includes('part time')
+  }
+
+  if (activeKpi === 'expiring-contracts') {
+    if (!employee.exitDate) return false
+    const exitDate = dayjs(employee.exitDate)
+    const today = dayjs().startOf('day')
+    const days90 = today.add(90, 'day')
+    return exitDate.isAfter(today) && (exitDate.isBefore(days90) || exitDate.isSame(days90, 'day'))
+  }
+
+  if (activeKpi === 'probation-review') {
+    return false
+  }
+
+  if (activeKpi === 'contract-start') {
+    if (!employee.startDate) return false
+    return isDateInMonth(employee.startDate)
+  }
+
+  return true
 }

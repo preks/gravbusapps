@@ -27,6 +27,26 @@ export const useLeadData = ({ businessAppContext }: UseLeadDataProps): UseLeadDa
     // Handle addresses - use first address if available
     const firstAddress = lead.addresses && lead.addresses.length > 0 ? lead.addresses[0] : null
 
+    // ✅ Extract LinkedIn and Xing URLs from communication channels
+    let linkedinUrl = ''
+    let xingUrl = ''
+
+    if (lead.communicationChannels && lead.communicationChannels.length > 0) {
+      for (const channel of lead.communicationChannels) {
+        const channelCode = channel.communicationChannel?.code || ''
+        const channelRef = channel.communicationChannelRef || ''
+
+        // Check for LinkedIn (code or reference contains 'LINKEDIN')
+        if (channelCode.toUpperCase().includes('LINKEDIN') || channelRef.toUpperCase().includes('LINKEDIN')) {
+          linkedinUrl = channel.value || ''
+        }
+        // Check for Xing (code or reference contains 'XING')
+        else if (channelCode.toUpperCase().includes('XING') || channelRef.toUpperCase().includes('XING')) {
+          xingUrl = channel.value || ''
+        }
+      }
+    }
+
     const mappedValues = {
       // System fields
       id: lead.id,
@@ -38,6 +58,11 @@ export const useLeadData = ({ businessAppContext }: UseLeadDataProps): UseLeadDa
       email: lead.email || '',
       phone: lead.phoneNumber || '',
       jobPosition: lead.position || '',
+      // ✅ Academic Title
+      academicTitle: lead.academicTitleRef || lead.academicTitle?.id || '',
+      // ✅ Social Media URLs from communication channels
+      linkedinUrl,
+      xingUrl,
 
       // Company Information
       company: lead.companyName || '',
@@ -60,8 +85,9 @@ export const useLeadData = ({ businessAppContext }: UseLeadDataProps): UseLeadDa
       salesCampaignId: lead.salesCampaignId || lead.salesCampaign?.id || '',
 
       // Address Information
-      country: lead.countryRef || lead.country?.id || '',
-      region: firstAddress?.regionRef || '',
+      // ✅ Prefer countryRef/regionRef from first address, fallback to top-level
+      country: firstAddress?.countryRef || firstAddress?.country?.id || lead.countryRef || lead.country?.id || '',
+      region: firstAddress?.regionRef || firstAddress?.region?.id || '',
       city: firstAddress?.city || '',
       postalCode: firstAddress?.postalCode || '',
       addressLine1: extractAddressFromObject(firstAddress?.addressLine) || '',
@@ -69,6 +95,13 @@ export const useLeadData = ({ businessAppContext }: UseLeadDataProps): UseLeadDa
       // Company relationship
       accountId: lead.account?.id || ''
     }
+
+    console.log('✅ Lead mapped form values:', mappedValues)
+    console.log('   - academicTitle:', mappedValues.academicTitle)
+    console.log('   - linkedinUrl:', mappedValues.linkedinUrl)
+    console.log('   - xingUrl:', mappedValues.xingUrl)
+    console.log('   - country:', mappedValues.country)
+    console.log('   - region:', mappedValues.region)
 
     return mappedValues
   }, [])
