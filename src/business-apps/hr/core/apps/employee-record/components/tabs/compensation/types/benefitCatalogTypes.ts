@@ -1,70 +1,149 @@
 import { CatalogEntry } from './compensationTypes'
 import { BenefitStatus } from './compensationEnums'
 
-/**
- * Provider entry
- */
 export interface ProviderEntry {
-  id: string // "BenefitProvider:v1:ALLIANZ"
-  value: string // "Allianz"
-  code: string // "ALLIANZ"
+  id: string
+  value: string
+  code: string
   description?: string
+  translations?: Array<{
+    localeCode: string
+    value: string
+    additionalValue1?: string
+    additionalValue2?: string
+    additionalValue3?: string
+  }>
 }
 
-/**
- * Catalog benefit from BenefitType catalog
- */
 export interface CatalogBenefitEntry {
-  id: string // "BenefitType:v1:CAR"
-  value: string // "Car"
-  code: string // "CAR"
+  id: string
+  value: string
+  code: string
   description?: string
   displayOrder: number
   additionalValue1?: string
   additionalValue2?: string
   additionalValue3?: string
-  childEntries?: ProviderEntry[] // Available providers for this benefit type
+  translations?: Array<{
+    localeCode: string
+    value: string
+    additionalValue1?: string
+    additionalValue2?: string
+    additionalValue3?: string
+  }>
+  childEntries?: ProviderEntry[]
 }
 
 /**
- * Enhanced benefit item combining catalog data with employee benefit data
- * This shows all available benefits with indicators for which ones the employee has
+ * catalogEntry is the source of truth for all catalog data including translations.
+ * Top-level fields are convenience fields duplicated from catalogEntry.
  */
 export interface BenefitCatalogItem {
-  // From catalog
-  catalogId: string // "BenefitType:v1:CAR"
-  benefitType: string // "Car"
-  code: string // "CAR"
+  catalogEntry: CatalogBenefitEntry
+  catalogId: string
+  benefitType: string
+  code: string
   description?: string
   displayOrder: number
-  availableProviders?: ProviderEntry[] // Available providers for this benefit type
-
-  // From employee data (if active)
-  isActive: boolean // True if employee has this benefit
-  employeeBenefitId?: string // ID from EmployeeBenefit table
-  provider?: CatalogEntry // Current provider if assigned
+  availableProviders?: ProviderEntry[]
+  isActive: boolean
+  employeeBenefitId?: string
+  provider?: CatalogEntry
   providerRef?: string
-  yearlyAmount?: number // Value if assigned
+  yearlyAmount?: number
   monthlyAmount?: number
-  currency?: CatalogEntry // Currency if assigned
+  currency?: CatalogEntry
   currencyRef?: string
   startDate?: string
   endDate?: string
   notes?: string
-  benefitStatus?: BenefitStatus // ACTIVE_BENEFIT, INACTIVE_BENEFIT
-
-  // UI state
-  canRequest: boolean // Can request activation
-  canDeactivate: boolean // Can deactivate
-  isPending?: boolean // Has pending request
+  benefitStatus?: BenefitStatus
+  canRequest: boolean
+  canDeactivate: boolean
+  isPending?: boolean
 }
 
-/**
- * Result from useBenefitsCatalog hook
- */
 export interface BenefitsCatalogData {
   catalogBenefits: BenefitCatalogItem[]
   activeBenefitsCount: number
   availableBenefitsCount: number
   totalBenefitsCount: number
+}
+
+export interface GraphQLCatalogEntryTranslation {
+  id: string
+  localeCode: string
+  value: string
+  additionalValue1?: string
+  additionalValue2?: string
+  additionalValue3?: string
+  objectValue?: unknown
+}
+
+export interface GraphQLCatalogEntry {
+  id: string
+  code: string
+  value: string
+  alternativeCode?: string
+  description?: string
+  additionalValue1?: string
+  additionalValue2?: string
+  additionalValue3?: string
+  translations?: GraphQLCatalogEntryTranslation[]
+  type?: string
+  displayOrder?: number
+  objectValue?: unknown
+  activeFrom?: string
+  activeTo?: string
+  catalogId?: string
+  parentEntryId?: string
+  isDeleted?: boolean
+  recordState?: string
+  createdAt?: string
+  createdBy?: string
+  updatedAt?: string
+  updatedBy?: string
+  childEntries?: GraphQLCatalogEntry[]
+}
+
+export interface GraphQLBenefitTypesResponse {
+  CatalogEntry: GraphQLCatalogEntry[]
+}
+
+export interface GraphQLEmployeeBenefitResponse {
+  id: string
+  employeeId: string
+  benefitType: {
+    id: string
+    value: string
+    code: string
+  }
+  benefitTypeRef: string
+  benefitProvider: {
+    id: string
+    value: string
+    code: string
+  }
+  benefitProviderRef: string
+  yearlyAmount?: number
+  monthlyAmount?: number
+  employeeYearlyContribution?: number
+  employeeMonthlyContribution?: number
+  currency: {
+    id: string
+    code: string
+    value: string
+  }
+  currencyRef: string
+  startDate?: string
+  endDate?: string | null
+  status?: string
+  benefitStatus?: string
+  notes?: string
+  createdAt?: string
+  updatedAt?: string
+}
+
+export interface GraphQLEmployeeBenefitsResponse {
+  EmployeeBenefit: GraphQLEmployeeBenefitResponse[]
 }
