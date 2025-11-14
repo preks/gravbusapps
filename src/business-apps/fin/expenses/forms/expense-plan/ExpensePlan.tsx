@@ -3,7 +3,6 @@ import { Divider, Typography, Form } from 'antd'
 import { BusinessAppContextProps } from '@/common/BusinessAppContext'
 import { ICONS } from '../../utils/icons'
 import { Button } from '@newwork/gravity-ui-catalog'
-import { useTranslation } from 'react-i18next'
 import { ExpensePlanProvider, useExpensePlanContext } from './context/ExpensePlanContext'
 import { FormFooter, ExpenseFormContent } from './components'
 
@@ -32,7 +31,6 @@ interface ExpenseFormValues {
 }
 
 const ExpensePlanContent: React.FC<ExpensePlanContentProps> = ({ accessToken, userInfo, additionalData }) => {
-  const { t } = useTranslation()
   const [form] = Form.useForm()
   const {
     step,
@@ -90,7 +88,13 @@ const ExpensePlanContent: React.FC<ExpensePlanContentProps> = ({ accessToken, us
         }
       })
     } catch {
-      showToast(t('lowcoder:create_expense_type_item.error_flows_message', 'Error in flow process'), 'error')
+      showToast(
+        getTranslationFromI18nKeyAndLabel(
+          'lowcoder:create_expense_type_item.error_flows_message',
+          'Error in flow process'
+        ),
+        'error'
+      )
       form.resetFields()
       setStep(FORM_STEPS.START)
     }
@@ -105,7 +109,13 @@ const ExpensePlanContent: React.FC<ExpensePlanContentProps> = ({ accessToken, us
 
       const employeeId = userInfo?.employeeDetails?.employeeId
       if (!accessToken || !employeeId) {
-        showToast(t('lowcoder:create_expense_request.error_missing_user_info', 'Missing user information'), 'error')
+        showToast(
+          getTranslationFromI18nKeyAndLabel(
+            'lowcoder:create_expense_request.error_missing_user_info',
+            'Missing user information'
+          ),
+          'error'
+        )
         setLoading(false)
         return
       }
@@ -142,7 +152,13 @@ const ExpensePlanContent: React.FC<ExpensePlanContentProps> = ({ accessToken, us
       try {
         dispatchProcessContinueEventIfEnabled(EVENTS.SUBMIT, submitData)
       } catch {
-        showToast(t('lowcoder:create_expense_type_item.error_flows_message', 'Error in flow process'), 'error')
+        showToast(
+          getTranslationFromI18nKeyAndLabel(
+            'lowcoder:create_expense_type_item.error_flows_message',
+            'Error in flow process'
+          ),
+          'error'
+        )
       }
 
       // if (operationSuccessful) {
@@ -153,7 +169,10 @@ const ExpensePlanContent: React.FC<ExpensePlanContentProps> = ({ accessToken, us
       // }
     } catch {
       showToast(
-        t('lowcoder:create_expense_request.error_fields_validation', 'Please check all required fields'),
+        getTranslationFromI18nKeyAndLabel(
+          'lowcoder:create_expense_request.error_fields_validation',
+          'Please check all required fields'
+        ),
         'error'
       )
     } finally {
@@ -216,8 +235,14 @@ const ExpensePlanContent: React.FC<ExpensePlanContentProps> = ({ accessToken, us
                 data-testid="expense-plan-form-header-title"
               >
                 {showTransportation
-                  ? t('lowcoder:initiate_expense_plan.expense_create_trip_plan.header_title', 'Plan New Trip')
-                  : t('lowcoder:initiate_expense_plan.create_expense_plan.header_title', 'Plan New Expense')}
+                  ? getTranslationFromI18nKeyAndLabel(
+                      'lowcoder:initiate_expense_plan.expense_create_trip_plan.header_title',
+                      'Plan New Trip'
+                    )
+                  : getTranslationFromI18nKeyAndLabel(
+                      'lowcoder:initiate_expense_plan.create_expense_plan.header_title',
+                      'Plan New Expense'
+                    )}
               </Title>
             </div>
           </div>
@@ -330,7 +355,10 @@ const ExpensePlanContent: React.FC<ExpensePlanContentProps> = ({ accessToken, us
                             }}
                             data-testid="expense-plan-expense-text"
                           >
-                            {t('lowcoder:create_expense_request.expense_select_button', 'Expense')}
+                            {getTranslationFromI18nKeyAndLabel(
+                              'lowcoder:create_expense_request.expense_select_button',
+                              'Expense'
+                            )}
                           </span>
                         </div>
                         <img
@@ -378,7 +406,10 @@ const ExpensePlanContent: React.FC<ExpensePlanContentProps> = ({ accessToken, us
                             }}
                             data-testid="expense-plan-trip-text"
                           >
-                            {t('lowcoder:create_expense_request.trip_select_button', 'Trip')}
+                            {getTranslationFromI18nKeyAndLabel(
+                              'lowcoder:create_expense_request.trip_select_button',
+                              'Trip'
+                            )}
                           </span>
                         </div>
                         <img

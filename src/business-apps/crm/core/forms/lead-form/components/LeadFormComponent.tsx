@@ -9,6 +9,8 @@ import OwnerSelector from './OwnerSelector'
 import LeadInformationSection from './LeadInformationSection'
 import ContactInformationSection from './ContactInformationSection'
 import CompanyInformationSection from './CompanyInformationSection'
+import { buildCommunicationChannelRef } from '@/common/data/common/utils/communicationChannelHelpers'
+import { CommunicationChannelCode } from '@/common/data/common/types/commonTypes'
 
 const prefixDataTestId = 'LeadForm'
 
@@ -156,7 +158,7 @@ const LeadFormComponent: React.FC = () => {
       // Add LinkedIn communication channel if provided
       if (formValues.linkedinUrl?.trim()) {
         communicationChannels.push({
-          communicationChannelRef: 'CommunicationChannel:v1:LinkedIn',
+          communicationChannelRef: buildCommunicationChannelRef(CommunicationChannelCode.LINKEDIN),
           value: formValues.linkedinUrl.trim(),
           valueExtension: null,
           source: 'FORM_INPUT',
@@ -168,7 +170,7 @@ const LeadFormComponent: React.FC = () => {
       // Add Xing communication channel if provided
       if (formValues.xingUrl?.trim()) {
         communicationChannels.push({
-          communicationChannelRef: 'CommunicationChannel:v1:Xing',
+          communicationChannelRef: buildCommunicationChannelRef(CommunicationChannelCode.XING),
           value: formValues.xingUrl.trim(),
           valueExtension: null,
           source: 'FORM_INPUT',

@@ -1,5 +1,4 @@
 import React, { createContext, useContext, useState, useEffect, ReactNode, useMemo } from 'react'
-import { useTranslation } from 'react-i18next'
 import { Form } from 'antd'
 import { ExpenseType, CostCenter, Currency, ExpenseGroup, CustomField } from '../types'
 
@@ -71,7 +70,7 @@ export const ExpensePlanItemProvider: React.FC<ExpensePlanItemProviderProps> = (
   userInfo,
   additionalData
 }): React.ReactNode => {
-  const { t } = useTranslation()
+  const t = (key: string, fallback: string) => getTranslationFromI18nKeyAndLabel(key, fallback)
   const { dispatchProcessContinueEventIfEnabled, getIsProcessEventDispatched } = useProcessEventState(additionalData)
 
   const [form] = Form.useForm()
