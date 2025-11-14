@@ -11,6 +11,8 @@ hr-positions-vacant = Vacant
 hr-positions-filled = Ocupat
 hr-positions-all = Toate
 hr-positions-missing-profile = Profil de post lipsă
+hr-positions-marked-for-termination-title = Marcat pentru încetare
+hr-positions-not-specified = Nespecificat
 
 # Job Positions - Filters
 hr-positions-filters-departments = Departamente
@@ -29,6 +31,53 @@ hr-analytics-entity-company = Companie
 hr-analytics-entity-cost-center = Centru de cost
 hr-analytics-entity-organizational-unit = Unitate organizațională
 hr-analytics-no-data-available = Nu sunt disponibile date
+
+# Analytics - Dashboard
+hr-analytics-dashboard-title = Tablou de bord analiză HR
+hr-analytics-dashboard-subtitle = Informații și indicatori cuprinzători despre forța de muncă
+hr-analytics-total-employees = Total angajați
+hr-analytics-new-hires = Angajări noi în acest an
+hr-analytics-turnover-rate = Rată de fluctuație
+hr-analytics-annual-average = Media anuală
+hr-analytics-this-year = Anul acesta
+hr-analytics-active-employees = Angajați activi
+hr-analytics-vs-last-month = față de luna trecută
+
+# Analytics - Common chart labels
+hr-analytics-data-error = Nu s-au putut încărca datele
+hr-analytics-no-data = Nu sunt disponibile date
+hr-analytics-chart-year = An
+hr-analytics-chart-employees = Angajați
+hr-analytics-chart-hires = Angajări
+hr-analytics-trend = Trend
+hr-analytics-employees = Angajați
+hr-analytics-hires = Angajări
+hr-analytics-percentage = Procentaj
+
+# Analytics - Employees Per Year
+hr-analytics-employees-per-year = Număr total de angajați pe an
+hr-analytics-employees-per-year-description = Evoluția efectivelor cu linie de trend netezită care ilustrează creșterea în timp
+
+# Analytics - Hires Per Year
+hr-analytics-hires-per-year = Angajări pe an
+hr-analytics-hires-per-year-description = Trenduri anuale de angajare cu linie de trend netezită care arată tiparele de recrutare în timp
+
+# Analytics - Employees by Org Unit
+hr-analytics-employees-by-org-unit = Angajați pe unitate organizațională
+hr-analytics-employees-by-org-unit-description = Distribuția angajaților pe unități organizaționale, evidențiind concentrarea și dimensiunea departamentelor
+hr-analytics-error-message = Eroare la încărcarea datelor
+hr-analytics-top-org-units-note = Afișăm primele 10 unități din totalul de { $total }
+
+# Analytics - Turnover/Retention statistics
+hr-analytics-voluntary-turnover-rate = Rată de fluctuație voluntară
+hr-analytics-current-month-rate = Rata lunii curente
+hr-analytics-average-tenure = Vechime medie
+hr-analytics-company-wide-average = Media la nivelul companiei
+hr-analytics-at-risk-departments = Departamente cu risc
+hr-analytics-below-retention-target = Sub ținta de retenție de { $target }%
+hr-analytics-target-retention = Țintă retenție
+hr-analytics-company-target-retention-rate = Ținta companiei pentru rata de retenție
+hr-analytics-not-available = N/A
 
 # Data Filter (generic texts used in HR)
 hr-data-filter-loading = Se încarcă...
