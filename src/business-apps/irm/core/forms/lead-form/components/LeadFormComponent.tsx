@@ -10,6 +10,7 @@ import ContactInformationSection from './ContactInformationSection'
 import { buildCommunicationChannelRef } from '@/common/data/common/utils/communicationChannelHelpers'
 import { CommunicationChannelCode } from '@/common/data/common/types/commonTypes'
 import CompanyInformationSection from './CompanyInformationSection'
+import { buildInvestmentLeadPayload } from '@/common/data/investment/payloads'
 
 const prefixDataTestId = 'LeadForm'
 
@@ -47,88 +48,17 @@ const LeadFormComponent: React.FC = () => {
 
     setIsSubmitting(true)
     try {
-      // Prepare comprehensive InvestmentLead payload following the API structure
-      const leadPayload: any = {
-        sourceApp: 'IRM', // ✅ FIXED: Changed from CRM to IRM for Investment Relations Management
+      // ✅ Build addressLine structure (IRM-specific format)
+      const addressLines = [
+        formValues.addressLine1,
+        formValues.addressLine2,
+        formValues.addressLine3,
+        formValues.addressLine4
+      ]
+        .filter(line => line && line.trim())
+        .map(line => line!.trim())
 
-        // ✅ UPDATED: Contact Information with new fields
-        academicTitleRef: toStringOrUndefined(formValues.academicTitle),
-        firstName: toStringOrUndefined(formValues.firstName),
-        lastName: toStringOrUndefined(formValues.lastName),
-        phoneNumber: toStringOrUndefined(formValues.phone),
-        email: toStringOrUndefined(formValues.email),
-        position: toStringOrUndefined(formValues.jobPosition),
-        sensitive: formValues.sensitive,
-
-        // ✅ UPDATED: Lead Information with new fields
-        leadRatingRef: toStringOrUndefined(formValues.rating),
-        leadStatusRef: toStringOrUndefined(formValues.leadStatus),
-        leadSourceRef: toStringOrUndefined(formValues.leadSource),
-
-        // ✅ UPDATED: Company Information with fixed field names
-        companyName: toStringOrUndefined(formValues.company),
-        companyEmail: toStringOrUndefined(formValues.companyEmail),
-        companyPhone: toStringOrUndefined(formValues.companyPhone),
-        companyWebsite: toStringOrUndefined(formValues.website),
-        legalFormRef: toStringOrUndefined(formValues.legalForm),
-        companySizeRef: toStringOrUndefined(formValues.numberOfEmployees), // ✅ FIXED: numberOfEmployeesRef → companySizeRef
-        industryClassRef: toStringOrUndefined(formValues.industry), // ✅ FIXED: industryRef → industryClassRef
-        accountAnnualRevenueBandRef: toStringOrUndefined(formValues.annualRevenue), // ✅ FIXED: annualRevenueRef → accountAnnualRevenueBandRef
-
-        // ✅ FIXED: Owner Information with correct API field name
-        ownerEmployee: toStringOrUndefined(formValues.owner), // ✅ FIXED: API expects 'ownerEmployee' not 'ownerEmployeeId'
-
-        // ✅ UPDATED: Address Information collecting all address lines
-        countryRef: toStringOrUndefined(formValues.country),
-        regionRef: toStringOrUndefined(formValues.region),
-        locality: toStringOrUndefined(formValues.locality), // ✅ UPDATED: Use formValues.locality
-        postalCode: toStringOrUndefined(formValues.postalCode),
-        addressLine: (() => {
-          // Collect all non-empty address lines
-          const addressLines = [
-            formValues.addressLine1,
-            formValues.addressLine2,
-            formValues.addressLine3,
-            formValues.addressLine4
-          ]
-            .filter(line => line && line.trim())
-            .map(line => line!.trim())
-
-          return addressLines.length > 0 ? { lines: addressLines } : null
-        })(),
-
-        // ✅ FIXED: Conversion Information with correct API field names
-        convertedAccount: toStringOrUndefined(formValues.accountId), // ✅ FIXED: API expects 'convertedAccount' not 'convertedAccountId'
-        conversionDate: formValues.conversionDate ? new Date(formValues.conversionDate).toISOString() : null, // ✅ ADDED: Conversion date
-        convertedContact: toStringOrUndefined(formValues.convertedContactId), // ✅ FIXED: API expects 'convertedContact' not 'convertedContactId'
-        convertedOpportunity: toStringOrUndefined(formValues.convertedOpportunityId), // ✅ FIXED: API expects 'convertedOpportunity' not 'convertedOpportunityId'
-
-        // ✅ UPDATED: Investment-specific fields (unchanged - already correct)
-        investmentName: toStringOrUndefined(formValues.investmentName),
-        investmentGroupRef: toStringOrUndefined(formValues.investmentGroup),
-        investmentTypeRef: toStringOrUndefined(formValues.investmentType),
-        investmentRoleRef: toStringOrUndefined(formValues.investmentRole),
-        investmentStakeTypeRef: toStringOrUndefined(formValues.investmentStakeType),
-        stakePercentage: formValues.stakePercentage ? parseFloat(formValues.stakePercentage) : null,
-        marketValue: formValues.marketValue ? parseFloat(formValues.marketValue) : null,
-        initialInvestmentAmount: formValues.initialInvestmentAmount
-          ? parseFloat(formValues.initialInvestmentAmount)
-          : null,
-        loanAmount: formValues.loanAmount ? parseFloat(formValues.loanAmount) : null,
-        loanInterestRate: formValues.loanInterestRate ? parseFloat(formValues.loanInterestRate) : null,
-        requiredCapitalAmount: formValues.requiredCapitalAmount ? parseFloat(formValues.requiredCapitalAmount) : null,
-        forecastedProfitAmount: formValues.forecastedProfitAmount
-          ? parseFloat(formValues.forecastedProfitAmount)
-          : null,
-        annualNetColdRent: formValues.annualNetColdRent ? parseFloat(formValues.annualNetColdRent) : null,
-
-        // Real Estate Specific Fields
-        buildingYear: formValues.buildingYear ? parseInt(formValues.buildingYear) : null,
-        size: formValues.size ? parseFloat(formValues.size) : null,
-        sizeMeasurementUnitRef: toStringOrUndefined(formValues.measurementUnit)
-      }
-
-      leadPayload.tags = []
+      const addressLine = addressLines.length > 0 ? { lines: addressLines } : undefined
 
       // ✅ NEW: Add communication channels for LinkedIn and Xing
       const communicationChannels = []
@@ -157,32 +87,39 @@ const LeadFormComponent: React.FC = () => {
         })
       }
 
-      // Add communication channels to payload if any exist
-      leadPayload.communicationChannels = communicationChannels
+      // ✅ Use centralized payload builder for IRM Lead
+      const isUpdate = !!formValues.id
+      const { investmentLead } = buildInvestmentLeadPayload(
+        {
+          ...formValues,
+          owner: formValues.owner, // Maps to ownerEmployee
+          companySize: formValues.numberOfEmployees, // Maps to companySizeRef
+          industry: formValues.industry, // Maps to industryClassRef
+          annualRevenue: formValues.annualRevenue, // Maps to accountAnnualRevenueBandRef
+          // Address fields
+          addressLine,
+          // Communication channels
+          communicationChannels: communicationChannels.length > 0 ? communicationChannels : undefined
+        },
+        { isUpdate }
+      )
 
-      // ✅ ADDED: Ensure numerical fields are properly set (API validation)
-      leadPayload.stakePercentage = leadPayload.stakePercentage || 0
-      leadPayload.marketValue = leadPayload.marketValue || 0
-      leadPayload.initialInvestmentAmount = leadPayload.initialInvestmentAmount || 0
-      leadPayload.loanAmount = leadPayload.loanAmount || 0
-      leadPayload.loanInterestRate = leadPayload.loanInterestRate || 0
-      leadPayload.requiredCapitalAmount = leadPayload.requiredCapitalAmount || 0
-      leadPayload.forecastedProfitAmount = leadPayload.forecastedProfitAmount || 0
-      leadPayload.annualNetColdRent = leadPayload.annualNetColdRent || 0
+      // ✅ ADDED: Ensure numerical fields are properly set (API validation) - defaults to 0
+      investmentLead.stakePercentage = investmentLead.stakePercentage || 0
+      investmentLead.marketValue = investmentLead.marketValue || 0
+      investmentLead.initialInvestmentAmount = investmentLead.initialInvestmentAmount || 0
+      investmentLead.loanAmount = investmentLead.loanAmount || 0
+      investmentLead.loanInterestRate = investmentLead.loanInterestRate || 0
+      investmentLead.requiredCapitalAmount = investmentLead.requiredCapitalAmount || 0
+      investmentLead.forecastedProfitAmount = investmentLead.forecastedProfitAmount || 0
+      investmentLead.annualNetColdRent = investmentLead.annualNetColdRent || 0
 
       // Use UPDATE mode if editing existing lead, INSERT for new lead
-      const changeMode = formValues.id ? 'UPDATE' : 'INSERT'
+      const changeMode = isUpdate ? 'UPDATE' : 'INSERT'
 
-      // Add id and version for UPDATE mode
-      if (changeMode === 'UPDATE' && formValues.id) {
-        leadPayload.id = formValues.id
-        leadPayload.version = formValues.version
-      }
-
-      // ✅ FIXED: Use same pattern as account form (account: accountPayload, changeMode: changeMode)
       const payload = {
-        investmentLead: leadPayload,
-        changeMode: changeMode
+        investmentLead,
+        changeMode
       }
 
       // Dispatch process continue event on successful submission

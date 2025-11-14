@@ -9,6 +9,7 @@ import FinancialInformationSection from './FinancialInformationSection'
 import ContactSelect from '@/common/components/common-relations/selects/contact-select/ContactSelect'
 import { buildCommunicationChannelRef } from '@/common/data/common/utils/communicationChannelHelpers'
 import { CommunicationChannelCode } from '@/common/data/common/types/commonTypes'
+import { buildInvestmentAccountPayload } from '@/common/data/investment/payloads'
 
 const prefixDataTestId = 'AccountForm'
 
@@ -32,11 +33,6 @@ const AccountFormComponent: React.FC = () => {
   // Check if all mandatory fields are filled
   const isFormValid = Boolean(formValues.owner && formValues.accountName)
 
-  // Helper function to convert values to strings safely
-  const toStringOrUndefined = (value: string | undefined): string | undefined => {
-    return value && value.trim() ? value.trim() : undefined
-  }
-
   // Handle form submission
   const handleSubmit = async () => {
     // Prevent duplicate submissions
@@ -46,71 +42,10 @@ const AccountFormComponent: React.FC = () => {
 
     setIsSubmitting(true)
     try {
-      // ✅ FIXED: Determine operation mode based on account ID presence
+      // ✅ Determine operation mode based on account ID presence
       const isUpdate = formValues.id && formValues.id.trim()
 
-      // ✅ UPDATED: Prepare InvestmentAccount payload following the correct API structure
-      const investmentAccountPayload: any = {
-        sourceApp: 'IRM', // ✅ FIXED: Changed from CRM to IRM for Investment Relations Management
-        name: toStringOrUndefined(formValues.accountName), // ✅ FIXED: accountName → name
-        legalFormRef: toStringOrUndefined(formValues.legalForm),
-        industryClassRef: toStringOrUndefined(formValues.industry), // ✅ FIXED: industryRef → industryClassRef
-        website: toStringOrUndefined(formValues.website),
-        mission: toStringOrUndefined(formValues.description), // ✅ UPDATED: description → mission
-        // Contact Information - moved to communicationChannels
-        // phone: toStringOrUndefined(formValues.phone), // ❌ REMOVED - use communicationChannels
-        // email: toStringOrUndefined(formValues.email), // ❌ REMOVED - use communicationChannels
-        geographicPresence: toStringOrUndefined(formValues.geographicPresence), // ✅ FIXED: Use dedicated geographicPresence field
-
-        // Address relationships (using the new addresses array structure)
-        addresses:
-          formValues.addresses
-            ?.filter(
-              addr =>
-                // Only include addresses that have some content
-                addr.addressLines.some(line => line.trim()) ||
-                addr.postalCode.trim() ||
-                addr.locality.trim() ||
-                addr.regionRef.trim() ||
-                addr.countryRef.trim()
-            )
-            .map(addr => {
-              const addressPayload: any = {
-                addressType: 'PRIMARY_ADDRESS', // Always set to PRIMARY_ADDRESS
-                addressLine:
-                  addr.addressLines.filter(line => line.trim()).length > 0
-                    ? { lines: addr.addressLines.filter(line => line.trim()) }
-                    : null,
-                postalCode: addr.postalCode.trim() || null,
-                locality: addr.locality.trim() || null,
-                regionRef: addr.regionRef.trim() || null,
-                countryRef: addr.countryRef.trim() || null
-              }
-
-              // ✅ FIXED: Only include ID and version when updating an existing account
-              // This prevents the backend from treating addresses as new inserts during updates
-              if (isUpdate && addr.id && addr.id !== 'default-address') {
-                addressPayload.id = addr.id
-                // Include version for optimistic locking during address updates (only on update)
-                if (addr.version !== undefined && addr.version !== null) {
-                  addressPayload.version = addr.version
-                }
-              }
-
-              return addressPayload
-            }) || [],
-        specialty: undefined, // Not available in current form
-        liquidationDate: undefined, // Not available in current form
-        picture: undefined, // Not available in current form
-        pictureThumbnail: undefined, // Not available in current form
-        // ✅ REMOVED: businessKey mapping - sicCode field removed from form
-        accountAnnualRevenueBandRef: toStringOrUndefined(formValues.annualRevenue), // ✅ FIXED: annualRevenue → accountAnnualRevenueBandRef
-        companySizeRef: toStringOrUndefined(formValues.numberOfEmployees), // ✅ FIXED: numberOfEmployeesRef → companySizeRef
-        foundationDate: toStringOrUndefined(formValues.foundationDate),
-        ownerEmployee: toStringOrUndefined(formValues.owner) // ✅ CORRECT: Keep as ownerEmployee (relationship field)
-      }
-
-      // ✅ NEW: Build communication channels array (Email, Phone)
+      // ✅ Build communication channels array (Email, Phone)
       const communicationChannels: any[] = []
 
       if (formValues.email?.trim()) {
@@ -129,23 +64,51 @@ const AccountFormComponent: React.FC = () => {
         })
       }
 
-      if (communicationChannels.length > 0) {
-        investmentAccountPayload.communicationChannels = communicationChannels
-      }
+      // ✅ Build addresses array (IRM-specific structure)
+      const addresses =
+        formValues.addresses
+          ?.filter(
+            addr =>
+              // Only include addresses that have some content
+              addr.addressLines.some(line => line.trim()) ||
+              addr.postalCode.trim() ||
+              addr.locality.trim() ||
+              addr.regionRef.trim() ||
+              addr.countryRef.trim()
+          )
+          .map(addr => {
+            const addressPayload: any = {
+              addressType: 'PRIMARY_ADDRESS', // Always set to PRIMARY_ADDRESS
+              addressLine:
+                addr.addressLines.filter(line => line.trim()).length > 0
+                  ? { lines: addr.addressLines.filter(line => line.trim()) }
+                  : null,
+              postalCode: addr.postalCode.trim() || null,
+              locality: addr.locality.trim() || null,
+              regionRef: addr.regionRef.trim() || null,
+              countryRef: addr.countryRef.trim() || null
+            }
 
-      // ✅ FIXED: Handle ID and version for UPDATE mode only
-      if (isUpdate) {
-        investmentAccountPayload.id = formValues.id
-        if (formValues.version !== undefined && formValues.version !== null) {
-          investmentAccountPayload.version = formValues.version
-        }
-      }
+            // Only include ID and version when updating an existing account
+            if (isUpdate && addr.id && addr.id !== 'default-address') {
+              addressPayload.id = addr.id
+              if (addr.version !== undefined && addr.version !== null) {
+                addressPayload.version = addr.version
+              }
+            }
 
-      // ✅ REMOVED: InvestmentAccount doesn't have addresses array - using geographicPresence instead
-      // (geographicPresence is already set above from formValues.addressLine1)
+            return addressPayload
+          }) || []
 
-      // ✅ UPDATED: Initialize required arrays for InvestmentAccount
-      investmentAccountPayload.tags = []
+      // ✅ NEW: Use centralized payload builder for IRM Account
+      const { investmentAccount } = buildInvestmentAccountPayload(
+        {
+          ...formValues,
+          communicationChannels: communicationChannels.length > 0 ? communicationChannels : undefined,
+          addresses: addresses.length > 0 ? addresses : undefined
+        },
+        { isUpdate: Boolean(isUpdate) }
+      )
 
       // Determine change mode based on whether we have an ID
       const changeMode = isUpdate ? 'UPDATE' : 'INSERT'
@@ -179,10 +142,10 @@ const AccountFormComponent: React.FC = () => {
         }
       })
 
-      // ✅ UPDATED: Create clean payload structure with accountContacts for both CREATE and UPDATE
+      // ✅ Create final payload structure with accountContacts
       const cleanPayload = {
         investmentAccount: {
-          ...investmentAccountPayload,
+          ...investmentAccount,
           accountContacts: accountContacts // Include for both create and update
         },
         changeMode: changeMode

@@ -7,6 +7,7 @@ import OwnerInformationSection from './OwnerInformationSection'
 import PersonalInformationSection from './PersonalInformationSection'
 import { buildCommunicationChannelRef } from '@/common/data/common/utils/communicationChannelHelpers'
 import { CommunicationChannelCode } from '@/common/data/common/types/commonTypes'
+import { buildCustomerContactPayload } from '@/common/data/customer/payloads'
 
 const prefixDataTestId = 'ContactForm'
 
@@ -24,11 +25,6 @@ const ContactFormComponent: React.FC = () => {
 
   // Check if all mandatory fields are filled
   const isFormValid = formValues.firstName && formValues.lastName && formValues.email && formValues.ownerEmployeeId
-
-  // Helper function to convert values to strings safely
-  const toStringOrUndefined = (value: string | undefined): string | undefined => {
-    return value && value.trim() ? value.trim() : undefined
-  }
 
   // Helper: Build communication channels array (Email, Phone, LinkedIn, Xing)
   const buildCommunicationChannels = (
@@ -77,65 +73,9 @@ const ContactFormComponent: React.FC = () => {
         contactType: formValues.contactType
       })
 
-      // Prepare contact payload matching CRM API structure (verified against GraphQL schema)
-      const contactPayload: any = {
-        // Basic Information
-        firstName: toStringOrUndefined(formValues.firstName),
-        lastName: toStringOrUndefined(formValues.lastName),
-        fullName: `${(formValues.firstName || '').trim()} ${(formValues.lastName || '').trim()}`.trim(),
-        contactType: toStringOrUndefined(formValues.contactType),
-        birthDate: toStringOrUndefined(formValues.birthDate),
-
-        // Professional Information
-        jobTitle: toStringOrUndefined(formValues.jobTitle),
-        department: toStringOrUndefined(formValues.department),
-
-        // Contact Information - moved to communicationChannels
-        // email: toStringOrUndefined(formValues.email), // ❌ REMOVED - use communicationChannels
-        // phone: toStringOrUndefined(formValues.phone), // ❌ REMOVED - use communicationChannels
-        fax: toStringOrUndefined(formValues.fax), // ✅ ADDED - was missing
-
-        // Owner Information
-        ownerEmployee: toStringOrUndefined(formValues.ownerEmployeeId),
-
-        // Notes
-        notesSummary: toStringOrUndefined(formValues.notesSummary),
-        bio: toStringOrUndefined(formValues.bio), // ✅ ADDED - was missing
-
-        // References
-        academicTitleRef: toStringOrUndefined(formValues.academicTitleRef),
-        languageRef: toStringOrUndefined(formValues.languageRef),
-
-        // System Fields
-        businessKey: toStringOrUndefined(formValues.businessKey), // ✅ ADDED - was missing
-        code: toStringOrUndefined(formValues.code), // ✅ ADDED - was missing
-
-        // CRM-specific fields
-        // Extract ID from object if accountId is an object (due to AccountSelect prefill format)
-        accountId:
-          typeof formValues.accountId === 'object' && formValues.accountId !== null && 'id' in formValues.accountId
-            ? toStringOrUndefined((formValues.accountId as { id: string }).id)
-            : toStringOrUndefined(formValues.accountId),
-        // ⚠️ IMPORTANT: CRM expects 'salesCampaign' (without Id suffix), not 'salesCampaignId'
-        salesCampaign: toStringOrUndefined(formValues.salesCampaignId),
-
-        // Source tracking
-        sourceApp: 'CRM',
-
-        // Additional properties (JSONB field)
-        additionalProperties: {} // ✅ ADDED - was missing
-      }
-
-      // Include recordState if it exists (system field)
-      if (formValues.recordState) {
-        contactPayload.recordState = formValues.recordState
-      }
-
-      // Build communication channels using helper function
-      // ✅ FIXED: Always add communication channels array (like Lead form does)
-      // Even if empty, this ensures the field is properly updated in the database
+      // ✅ Build communication channels array first
       const contactId = isUpdate ? formValues.id : undefined
-      contactPayload.communicationChannels = buildCommunicationChannels(
+      const communicationChannels = buildCommunicationChannels(
         formValues.email,
         formValues.phone,
         formValues.linkedinUrl,
@@ -143,12 +83,30 @@ const ContactFormComponent: React.FC = () => {
         contactId
       )
 
-      // Handle ID and version for UPDATE mode only
-      if (isUpdate) {
-        contactPayload.id = formValues.id
-        if (formValues.version !== undefined && formValues.version !== null) {
-          contactPayload.version = formValues.version
-        }
+      // ✅ Extract accountId from object if needed (AccountSelect prefill format)
+      const accountId =
+        typeof formValues.accountId === 'object' && formValues.accountId !== null && 'id' in formValues.accountId
+          ? (formValues.accountId as { id: string }).id
+          : formValues.accountId
+
+      // ✅ Use centralized payload builder for CRM Contact
+      const { customerContact } = buildCustomerContactPayload(
+        {
+          ...formValues,
+          accountId,
+          communicationChannels: communicationChannels.length > 0 ? communicationChannels : undefined,
+          linkedinUrl: formValues.linkedinUrl, // CRM-specific
+          xingUrl: formValues.xingUrl // CRM-specific
+        },
+        { isUpdate }
+      )
+
+      // Override generated fullName with our custom logic (spaces handled)
+      customerContact.fullName = `${(formValues.firstName || '').trim()} ${(formValues.lastName || '').trim()}`.trim()
+
+      // Include recordState if it exists (system field)
+      if (formValues.recordState) {
+        customerContact.recordState = formValues.recordState
       }
 
       // Determine change mode based on whether we have an ID
@@ -183,10 +141,10 @@ const ContactFormComponent: React.FC = () => {
         }
       })
 
-      // ✅ FIXED: Create clean payload structure with accountContacts for BOTH CREATE and UPDATE (matching IRM pattern)
+      // ✅ Create final payload structure with accountContacts
       const payload = {
         contact: {
-          ...contactPayload,
+          ...customerContact,
           accountContacts: accountContacts // Include for both create and update
         },
         changeMode: changeMode
@@ -204,12 +162,12 @@ const ContactFormComponent: React.FC = () => {
           xingUrl: formValues.xingUrl
         },
         contactPayload: {
-          id: contactPayload.id,
-          accountId: contactPayload.accountId,
-          accountIdType: typeof contactPayload.accountId,
-          salesCampaign: contactPayload.salesCampaign,
-          communicationChannels: contactPayload.communicationChannels,
-          communicationChannelsCount: contactPayload.communicationChannels?.length || 0
+          id: customerContact.id,
+          accountId: customerContact.accountId,
+          accountIdType: typeof customerContact.accountId,
+          salesCampaign: customerContact.salesCampaign,
+          communicationChannels: customerContact.communicationChannels,
+          communicationChannelsCount: customerContact.communicationChannels?.length || 0
         },
         fullPayload: structuredClone(payload)
       })

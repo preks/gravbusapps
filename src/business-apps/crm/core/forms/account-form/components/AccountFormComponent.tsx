@@ -9,6 +9,7 @@ import FinancialInformationSection from './FinancialInformationSection'
 import ContactSelect from '@/common/components/common-relations/selects/contact-select/ContactSelect'
 import { buildCommunicationChannelRef } from '@/common/data/common/utils/communicationChannelHelpers'
 import { CommunicationChannelCode } from '@/common/data/common/types/commonTypes'
+import { buildCustomerAccountPayload } from '@/common/data/customer/payloads'
 
 const prefixDataTestId = 'AccountForm'
 
@@ -30,48 +31,13 @@ const AccountFormComponent: React.FC = () => {
   // Check if all mandatory fields are filled
   const isFormValid = formValues.owner && formValues.legalForm && formValues.accountName
 
-  // Helper function to convert values to strings safely
-  const toStringOrUndefined = (value: string | undefined): string | undefined => {
-    return value && value.trim() ? value.trim() : undefined
-  }
-
   // Handle form submission
   const handleSubmit = async () => {
     try {
       // Determine if this is an update or create operation
       const isUpdate = formValues.id
 
-      // Prepare comprehensive CRM account payload (verified against GraphQL schema)
-      const accountPayload: any = {
-        sourceApp: 'CRM',
-
-        // Basic Information
-        name: toStringOrUndefined(formValues.accountName),
-        legalFormRef: toStringOrUndefined(formValues.legalForm),
-        industryRef: toStringOrUndefined(formValues.industry),
-        website: toStringOrUndefined(formValues.website),
-
-        // Contact Information - moved to communicationChannels
-        // phone: toStringOrUndefined(formValues.phone), // ❌ REMOVED - use communicationChannels
-        // email: toStringOrUndefined(formValues.email), // ❌ REMOVED - use communicationChannels
-
-        // Financial Information
-        annualRevenueRef: toStringOrUndefined(formValues.annualRevenue),
-        numberOfEmployeesRef: toStringOrUndefined(formValues.numberOfEmployees),
-        foundationDate: toStringOrUndefined(formValues.foundationDate),
-
-        // Relationships
-        ownerEmployee: toStringOrUndefined(formValues.owner),
-
-        // CRM-specific field (NOT in IRM)
-        salesCampaign: toStringOrUndefined(formValues.salesCampaignId), // ✅ CRM-SPECIFIC
-
-        // Additional properties (JSONB field)
-        additionalProperties: {},
-        tags: []
-      }
-
-      // ✅ NEW: Build communication channels array (Email, Phone)
+      // ✅ Build communication channels array (Email, Phone)
       const communicationChannels: any[] = []
 
       if (formValues.email?.trim()) {
@@ -90,19 +56,8 @@ const AccountFormComponent: React.FC = () => {
         })
       }
 
-      if (communicationChannels.length > 0) {
-        accountPayload.communicationChannels = communicationChannels
-      }
-
-      // For updates, include the account ID and version
-      if (isUpdate) {
-        accountPayload.id = formValues.id
-        // ✅ CRITICAL: Version is required for updates - default to 0 if missing
-        accountPayload.version = formValues.version ?? 0
-      }
-
-      // ✅ NEW: Build addresses array (matching IRM pattern)
-      accountPayload.addresses =
+      // ✅ Build addresses array
+      const addresses =
         formValues.addresses
           ?.filter(
             addr =>
@@ -143,10 +98,20 @@ const AccountFormComponent: React.FC = () => {
             return addressPayload
           }) || []
 
+      // ✅ NEW: Use centralized payload builder for CRM Account
+      const { customerAccount } = buildCustomerAccountPayload(
+        {
+          ...formValues,
+          communicationChannels: communicationChannels.length > 0 ? communicationChannels : undefined,
+          addresses: addresses.length > 0 ? addresses : undefined
+        },
+        { isUpdate }
+      )
+
       // Determine change mode based on whether we have an ID
       const changeMode = isUpdate ? 'UPDATE' : 'INSERT'
 
-      // ✅ NEW: Build accountContacts array with full association objects (matching IRM pattern)
+      // ✅ Build accountContacts array with full association objects
       const accountContacts = (formValues.contactIds || []).map((contact: any) => {
         if (typeof contact === 'object' && contact.id) {
           // Existing association - include association metadata if available
@@ -157,7 +122,6 @@ const AccountFormComponent: React.FC = () => {
           }
 
           // Include association ID and version if it exists (for updates)
-          // Type guard: check if contact has association metadata
           if (contact.associationId) {
             accountContact.id = contact.associationId
             if (contact.associationVersion !== undefined) {
@@ -176,10 +140,10 @@ const AccountFormComponent: React.FC = () => {
         }
       })
 
-      // ✅ FIXED: Create clean payload structure with accountContacts for BOTH CREATE and UPDATE (matching IRM pattern)
+      // ✅ Create final payload structure with accountContacts
       const payload = {
         account: {
-          ...accountPayload,
+          ...customerAccount,
           accountContacts: accountContacts // Include for both create and update
         },
         changeMode: changeMode

@@ -4,6 +4,7 @@ import { Button, Alert, AlertDescription, Spinner } from '@newwork/nw-design-sys
 import { formatDataTestId } from '@/common/utils/formatDataTestId'
 import { dispatchProcessContinueEvent } from '@/common/utils/processEventUtils'
 import OpportunityInformationSection from './OpportunityInformationSection'
+import { buildCustomerOpportunityPayload, buildCustomerOpportunityContacts } from '@/common/data/customer/payloads'
 
 const prefixDataTestId = 'OpportunityForm'
 
@@ -21,81 +22,6 @@ const OpportunityFormComponent: React.FC = () => {
     parseFloat(formValues.estimatedAmount) > 0 &&
     formValues.currency
 
-  // Helper function to convert values to strings safely
-  const toStringOrUndefined = (value: string): string | undefined => {
-    return value && value.trim() ? value.trim() : undefined
-  }
-
-  // Helper: Build a single opportunity contact association
-  const buildOpportunityContactAssociation = (contact: any, opportunityId?: string): any => {
-    const baseAssociation = {
-      contactType: null,
-      opportunity: opportunityId,
-      contact: typeof contact === 'object' && contact.id ? contact.id : contact
-    }
-
-    // Include association metadata for existing associations
-    if (typeof contact === 'object' && contact.id && contact.associationId) {
-      return {
-        ...baseAssociation,
-        id: contact.associationId,
-        ...(contact.associationVersion !== undefined && { version: contact.associationVersion })
-      }
-    }
-
-    return baseAssociation
-  }
-
-  // Helper: Build opportunityContacts array with full association objects
-  const buildOpportunityContacts = (contactIds: any[], opportunityId?: string): any[] => {
-    if (!contactIds || contactIds.length === 0) {
-      return []
-    }
-
-    return contactIds.map(contact => buildOpportunityContactAssociation(contact, opportunityId))
-  }
-
-  // Helper: Build complete opportunity payload with all optional fields
-  const buildOpportunityPayload = (formValues: any): any => {
-    const payload: any = {
-      sourceApp: 'CRM',
-      name: toStringOrUndefined(formValues.name),
-      businessKey: toStringOrUndefined(formValues.businessKey),
-      code: toStringOrUndefined(formValues.code),
-      estimatedAmount: formValues.estimatedAmount ? Number.parseFloat(formValues.estimatedAmount) : undefined,
-      currencyRef: toStringOrUndefined(formValues.currency),
-      closeDate: toStringOrUndefined(formValues.closeDate),
-      winningChance: formValues.winningChance ? Number.parseFloat(formValues.winningChance) : undefined,
-      salesPipelineRef: toStringOrUndefined(formValues.pipeline),
-      salesPipelineStageRef: toStringOrUndefined(formValues.salesPipelineStage),
-      opportunityStatusRef: toStringOrUndefined(formValues.opportunityStatus),
-      personal: formValues.personal || false,
-      notesSummary: toStringOrUndefined(formValues.notesSummary),
-      account: toStringOrUndefined(formValues.accountId || formValues.account),
-      salesCampaign: toStringOrUndefined(formValues.salesCampaignId),
-      lead: toStringOrUndefined(formValues.leadId || formValues.lead),
-      ownerEmployee: toStringOrUndefined(formValues.owner),
-      additionalProperties: formValues.additionalProperties || {}
-    }
-
-    // Add optional complex fields if they exist
-    if (formValues.addresses?.length > 0) payload.addresses = formValues.addresses
-    if (formValues.communicationChannels?.length > 0) payload.communicationChannels = formValues.communicationChannels
-    if (formValues.tags?.length > 0) payload.tags = formValues.tags
-    if (formValues.express1 && Object.keys(formValues.express1).length > 0) payload.express1 = formValues.express1
-    if (formValues.express2 && Object.keys(formValues.express2).length > 0) payload.express2 = formValues.express2
-    if (formValues.recordState) payload.recordState = formValues.recordState
-    if (formValues.processInstanceId) payload.processInstanceId = formValues.processInstanceId
-
-    // Add ID and version for updates
-    if (formValues.id) {
-      payload.id = formValues.id
-      payload.version = formValues.version || 0
-    }
-
-    return payload
-  }
-
   // Handle form submission
   const handleSubmit = async () => {
     // Prevent duplicate submissions
@@ -104,23 +30,28 @@ const OpportunityFormComponent: React.FC = () => {
     }
 
     try {
-      // Build opportunity payload using helper function
-      const opportunityPayload = buildOpportunityPayload(formValues)
+      // ✅ Use centralized payload builder for CRM Opportunity
+      const isUpdate = !!formValues.id
+      const { customerOpportunity } = buildCustomerOpportunityPayload(
+        {
+          ...formValues,
+          pipeline: formValues.pipeline, // Maps to salesPipelineRef
+          pipelineStage: formValues.salesPipelineStage // Maps to salesPipelineStageRef
+        },
+        { isUpdate }
+      )
 
-      // Determine change mode based on whether we have an ID
-      const changeMode = formValues.id ? 'UPDATE' : 'INSERT'
-      const isUpdate = changeMode === 'UPDATE'
+      // ✅ Use centralized opportunity contacts builder
+      const opportunityContacts = buildCustomerOpportunityContacts(formValues.contactIds || [], formValues.id)
 
-      // Build opportunityContacts array with full association objects (matching IRM pattern)
-      const opportunityContacts = buildOpportunityContacts(formValues.contactIds || [], formValues.id)
-
-      // ✅ UPDATED: Create payload structure with opportunityContacts for UPDATE, contactIds for CREATE
+      // ✅ Create payload structure with opportunityContacts for UPDATE, contactIds for CREATE
+      const changeMode = isUpdate ? 'UPDATE' : 'INSERT'
       const payload = {
         opportunity: {
-          ...opportunityPayload,
+          ...customerOpportunity,
           opportunityContacts: isUpdate ? opportunityContacts : undefined // Only for updates
         },
-        changeMode: changeMode,
+        changeMode,
         contactIds: isUpdate ? undefined : opportunityContacts.map(oc => oc.contact) // For CREATE mode only
       }
 

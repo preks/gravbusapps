@@ -11,6 +11,7 @@ import ContactInformationSection from './ContactInformationSection'
 import CompanyInformationSection from './CompanyInformationSection'
 import { buildCommunicationChannelRef } from '@/common/data/common/utils/communicationChannelHelpers'
 import { CommunicationChannelCode } from '@/common/data/common/types/commonTypes'
+import { buildCustomerLeadPayload } from '@/common/data/customer/payloads'
 
 const prefixDataTestId = 'LeadForm'
 
@@ -41,54 +42,6 @@ const LeadFormComponent: React.FC = () => {
   const handleSubmit = async () => {
     try {
       await onSubmit(formValues)
-      // Prepare comprehensive lead payload following the API structure
-      const leadPayload: any = {
-        sourceApp: 'CRM',
-
-        // Lead Information
-        leadRatingRef: toStringOrUndefined(formValues.rating),
-        leadStatusRef: toStringOrUndefined(formValues.leadStatus),
-        leadSourceRef: toStringOrUndefined(formValues.leadSource),
-
-        // Contact Information
-        academicTitleRef: toStringOrUndefined(formValues.academicTitle),
-        salutation: toStringOrUndefined(formValues.salutation), // ✅ ADDED - was missing
-        firstName: toStringOrUndefined(formValues.firstName),
-        lastName: toStringOrUndefined(formValues.lastName),
-        phoneNumber: toStringOrUndefined(formValues.phone),
-        email: toStringOrUndefined(formValues.email),
-        position: toStringOrUndefined(formValues.jobPosition),
-        sensitive: formValues.sensitive,
-
-        // Company Information
-        companyName: toStringOrUndefined(formValues.company),
-        accountId: toStringOrUndefined(formValues.accountId), // Database column: accountId (uuid)
-        salesCampaign: toStringOrUndefined(formValues.salesCampaignId),
-        legalFormRef: toStringOrUndefined(formValues.legalForm),
-        numberOfEmployeesRef: toStringOrUndefined(formValues.numberOfEmployees),
-        industryRef: toStringOrUndefined(formValues.industry),
-        annualRevenueRef: toStringOrUndefined(formValues.annualRevenue),
-        companyEmail: toStringOrUndefined(formValues.companyEmail),
-        companyPhone: toStringOrUndefined(formValues.companyPhone),
-        companyWebsite: toStringOrUndefined(formValues.website),
-        timeZoneRef: toStringOrUndefined(formValues.timeZone),
-
-        // Address Information
-        countryRef: toStringOrUndefined(formValues.country),
-        regionRef: toStringOrUndefined(formValues.region),
-        addressLine: undefined, // Will be set from addresses array below
-        postalCode: toStringOrUndefined(formValues.postalCode),
-        city: toStringOrUndefined(formValues.city),
-
-        // Owner Information
-        ownerEmployee: toStringOrUndefined(formValues.owner),
-
-        // Description
-        description: toStringOrUndefined(formValues.notes),
-
-        // ✅ ADDED: Additional properties (JSONB field)
-        additionalProperties: {}
-      }
 
       // Customer Leads: API expects addressLine as string
       // Compose from form's dynamic address inputs into a single string (join by newline)
@@ -179,21 +132,30 @@ const LeadFormComponent: React.FC = () => {
         })
       }
 
-      // Add communication channels to payload if any exist
-      leadPayload.communicationChannels = communicationChannels
+      // ✅ Use centralized payload builder for CRM Lead
+      const isUpdate = !!formValues.id
+      const { customerLead } = buildCustomerLeadPayload(
+        {
+          ...formValues,
+          companySize: formValues.numberOfEmployees, // Maps to numberOfEmployeesRef
+          industry: formValues.industry, // Maps to industryRef
+          annualRevenue: formValues.annualRevenue, // Maps to annualRevenueRef
+          owner: formValues.owner, // Maps to ownerEmployee
+          // Address fields
+          addressLine: addressString || undefined,
+          addresses: addresses.length > 0 ? addresses : undefined,
+          // Communication channels
+          communicationChannels: communicationChannels.length > 0 ? communicationChannels : undefined
+        },
+        { isUpdate }
+      )
 
       // Use UPDATE mode if editing existing lead, INSERT for new lead
-      const changeMode = formValues.id ? 'UPDATE' : 'INSERT'
+      const changeMode = isUpdate ? 'UPDATE' : 'INSERT'
 
       const payload = {
-        lead: leadPayload,
+        lead: customerLead,
         changeMode: changeMode
-      }
-
-      // Add id and version for UPDATE mode
-      if (changeMode === 'UPDATE' && formValues.id) {
-        leadPayload.id = formValues.id
-        leadPayload.version = formValues.version
       }
 
       // Dispatch process continue event on successful submission

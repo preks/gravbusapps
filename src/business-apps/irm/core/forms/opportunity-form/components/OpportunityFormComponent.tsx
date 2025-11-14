@@ -4,6 +4,10 @@ import { Button, Alert, AlertDescription, Spinner } from '@newwork/nw-design-sys
 import { formatDataTestId } from '@/common/utils/formatDataTestId'
 import { dispatchProcessContinueEvent } from '@/common/utils/processEventUtils'
 import OpportunityInformationSection from './OpportunityInformationSection'
+import {
+  buildInvestmentOpportunityPayload,
+  buildInvestmentOpportunityContacts
+} from '@/common/data/investment/payloads'
 
 const prefixDataTestId = 'InvestmentOpportunityForm'
 
@@ -22,11 +26,6 @@ const OpportunityFormComponent: React.FC = () => {
     parseFloat(formValues.estimatedAmount) > 0 &&
     formValues.currency
 
-  // Helper function to convert values to strings safely
-  const toStringOrUndefined = (value: string): string | undefined => {
-    return value && value.trim() ? value.trim() : undefined
-  }
-
   // Handle form submission for Investment Opportunity
   const handleSubmit = async () => {
     // Prevent duplicate submissions
@@ -39,118 +38,37 @@ const OpportunityFormComponent: React.FC = () => {
       const contextDealType = businessAppContext.additionalData?.dealType
       const finalDealType = contextDealType || formValues.dealType || 'INVESTMENT_DEAL'
 
-      // Prepare comprehensive investment opportunity payload following the API structure
-      const investmentOpportunityPayload: any = {
-        sourceApp: 'IRM',
+      // ✅ Use centralized payload builder for IRM Opportunity
+      const isUpdate = !!formValues.id
+      const { investmentOpportunity } = buildInvestmentOpportunityPayload(
+        {
+          ...formValues,
+          dealType: finalDealType,
+          pipeline: formValues.pipeline, // Maps to opportunityPipelineRef
+          pipelineStage: formValues.pipelineStage, // Maps to opportunityPipelineStageRef
+          currency: formValues.currency || formValues.currencyRef, // Handle both formats
+          // Handle account ID extraction
+          accountId:
+            typeof formValues.account === 'object' && formValues.account?.id
+              ? formValues.account.id
+              : typeof formValues.account === 'string'
+                ? formValues.account
+                : undefined
+        },
+        { isUpdate }
+      )
 
-        // Basic information (matching API structure exactly)
-        name: toStringOrUndefined(formValues.name),
-        investmentName: toStringOrUndefined(formValues.investmentName), // Separate investment name field
-        code: toStringOrUndefined(formValues.code),
-        businessKey: toStringOrUndefined(formValues.businessKey),
-        dealType: finalDealType,
+      // ✅ Use centralized opportunity contacts builder
+      const opportunityContacts = buildInvestmentOpportunityContacts(formValues.contactIds || [], formValues.id)
 
-        // Financial information
-        estimatedAmount: formValues.estimatedAmount ? parseFloat(formValues.estimatedAmount) : undefined,
-        currencyRef: toStringOrUndefined(formValues.currency || formValues.currencyRef),
-        closeDate: toStringOrUndefined(formValues.closeDate),
-
-        // Pipeline information (correct field names)
-        opportunityPipelineRef: toStringOrUndefined(formValues.pipeline),
-        opportunityPipelineStageRef: toStringOrUndefined(formValues.pipelineStage),
-
-        // Notes summary (top-level field as per API)
-        notesSummary: toStringOrUndefined(formValues.notesSummary),
-
-        // Investment-specific financial fields
-        initialInvestmentAmount: formValues.initialInvestmentAmount
-          ? parseFloat(formValues.initialInvestmentAmount)
-          : undefined,
-        forecastedProfitAmount: formValues.forecastedProfitAmount
-          ? parseFloat(formValues.forecastedProfitAmount)
-          : undefined,
-        loanAmount: formValues.loanAmount ? parseFloat(formValues.loanAmount) : undefined,
-        loanInterestRate: formValues.loanInterestRate ? parseFloat(formValues.loanInterestRate) : undefined,
-        marketValue: formValues.marketValue ? parseFloat(formValues.marketValue) : undefined,
-        requiredCapitalAmount: formValues.requiredCapitalAmount
-          ? parseFloat(formValues.requiredCapitalAmount)
-          : undefined,
-        stakePercentage: formValues.stakePercentage ? parseFloat(formValues.stakePercentage) : undefined,
-        annualNetColdRent: formValues.annualNetColdRent ? parseFloat(formValues.annualNetColdRent) : undefined,
-
-        // Investment classification (catalog references)
-        investmentGroupRef: toStringOrUndefined(formValues.investmentGroupRef),
-        investmentTypeRef: toStringOrUndefined(formValues.investmentTypeRef),
-        investmentRoleRef: toStringOrUndefined(formValues.investmentRoleRef),
-        investmentStakeTypeRef: toStringOrUndefined(formValues.investmentStakeTypeRef),
-
-        // Real Estate specific fields
-        buildingYear: formValues.buildingYear ? parseInt(formValues.buildingYear) : undefined,
-        size: formValues.size ? parseFloat(formValues.size) : undefined,
-        sizeMeasurementUnitRef: toStringOrUndefined(formValues.measurementUnit),
-
-        // Relationships
-        ownerEmployee: toStringOrUndefined(formValues.owner),
-        account: toStringOrUndefined(
-          typeof formValues.account === 'object' && formValues.account?.id
-            ? formValues.account.id
-            : typeof formValues.account === 'string'
-              ? formValues.account
-              : ''
-        ), // ✅ Extract ID from object if needed
-
-        // Additional properties (empty object as per API)
-        additionalProperties: {}
-      }
-
-      // Determine change mode based on whether we have an ID
-      const changeMode = formValues.id ? 'UPDATE' : 'INSERT'
-
-      // Include ID and version for updates
-      if (formValues.id) {
-        investmentOpportunityPayload.id = formValues.id
-        investmentOpportunityPayload.version = formValues.version || 0
-      } else {
-        // Set opportunityStatusRef to OPEN for new opportunities
-        investmentOpportunityPayload.opportunityStatusRef = 'InvestmentOpportunityStatus:v1:OPEN'
-      }
-
-      // ✅ NEW: Build opportunityContacts array with full association objects
-      const opportunityContacts = (formValues.contactIds || []).map(contact => {
-        if (typeof contact === 'object' && contact.id) {
-          // Existing association - include association metadata if available
-          const opportunityContact: any = {
-            contactType: null,
-            opportunity: formValues.id, // Current opportunity ID
-            contact: contact.id
-          }
-
-          // Include association ID and version if it exists (for updates)
-          if (contact.associationId) {
-            opportunityContact.id = contact.associationId
-            if (contact.associationVersion !== undefined) {
-              opportunityContact.version = contact.associationVersion
-            }
-          }
-
-          return opportunityContact
-        }
-
-        // New association - simple format
-        return {
-          contactType: null,
-          opportunity: formValues.id,
-          contact: contact
-        }
-      })
-
-      // ✅ UPDATED: Create payload structure with opportunityContacts for both CREATE and UPDATE
+      // ✅ Create payload structure with opportunityContacts for both CREATE and UPDATE
+      const changeMode = isUpdate ? 'UPDATE' : 'INSERT'
       const payload = {
         investmentOpportunity: {
-          ...investmentOpportunityPayload,
-          opportunityContacts: opportunityContacts // Include for both create and update
+          ...investmentOpportunity,
+          opportunityContacts // Include for both create and update
         },
-        changeMode: changeMode
+        changeMode
       }
 
       // Dispatch process continue event FIRST (like account form)

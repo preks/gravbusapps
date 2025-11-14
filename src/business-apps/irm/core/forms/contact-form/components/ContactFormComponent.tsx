@@ -7,6 +7,7 @@ import PersonalInformationSection from './PersonalInformationSection'
 import OwnerInformationSection from './OwnerInformationSection'
 import { buildCommunicationChannelRef } from '@/common/data/common/utils/communicationChannelHelpers'
 import { CommunicationChannelCode } from '@/common/data/common/types/commonTypes'
+import { buildInvestmentContactPayload } from '@/common/data/investment/payloads'
 
 const prefixDataTestId = 'ContactForm'
 
@@ -58,11 +59,6 @@ const ContactFormComponent: React.FC = () => {
   // Check if all mandatory fields are filled
   const isFormValid = formValues.firstName && formValues.lastName && formValues.email && formValues.ownerEmployeeId
 
-  // Helper function to convert values to strings safely
-  const toStringOrUndefined = (value: string): string | undefined => {
-    return value && value.trim() ? value.trim() : undefined
-  }
-
   // Handle form submission
   const handleSubmit = async () => {
     // Prevent duplicate submissions
@@ -74,50 +70,21 @@ const ContactFormComponent: React.FC = () => {
       // Determine if this is an update or create operation
       const isUpdate = formValues.id
 
-      // ✅ UPDATED: Prepare InvestmentContact payload matching expected API structure exactly
-      const investmentContactPayload: any = {
-        firstName: toStringOrUndefined(formValues.firstName),
-        lastName: toStringOrUndefined(formValues.lastName),
-        fullName: `${(formValues.firstName || '').trim()} ${(formValues.lastName || '').trim()}`.trim(),
-        type: toStringOrUndefined(formValues.type),
-        birthDate: toStringOrUndefined(formValues.birthDate),
-
-        jobPosition: toStringOrUndefined(formValues.jobPosition),
-        department: toStringOrUndefined(formValues.department),
-
-        // Contact Information - moved to communicationChannels
-        // email: toStringOrUndefined(formValues.email), // ❌ REMOVED - use communicationChannels
-        // phone: toStringOrUndefined(formValues.phone), // ❌ REMOVED - use communicationChannels
-
-        ownerEmployee: toStringOrUndefined(formValues.ownerEmployeeId), // ✅ FIXED: ownerEmployeeId → ownerEmployee
-
-        notesSummary: toStringOrUndefined(formValues.notesSummary),
-        businessKey: toStringOrUndefined(formValues.businessKey),
-
-        academicTitleRef: toStringOrUndefined(formValues.academicTitleRef),
-        languageRef: toStringOrUndefined(formValues.languageRef),
-
-        additionalProperties: formValues.additionalProperties || {}
-      }
-
-      // ✅ NEW: Add communication channels for Email, Phone, LinkedIn and Xing using helper
+      // ✅ Build communication channels array first
       const communicationChannels = buildCommunicationChannels(formValues)
 
-      // Add communication channels to payload if any exist
-      if (communicationChannels.length > 0) {
-        investmentContactPayload.communicationChannels = communicationChannels
-      }
+      // ✅ Use centralized payload builder for IRM Contact
+      const { investmentContact } = buildInvestmentContactPayload(
+        {
+          ...formValues,
+          owner: formValues.ownerEmployeeId, // Map ownerEmployeeId to owner
+          communicationChannels: communicationChannels.length > 0 ? communicationChannels : undefined
+        },
+        { isUpdate }
+      )
 
-      // ✅ NEW: Add account IDs to payload - always include as array
-      // Always include accountIds at top level to maintain/break associations
-
-      // ✅ FIXED: Handle ID and version for UPDATE mode only
-      if (isUpdate) {
-        investmentContactPayload.id = formValues.id
-        if (formValues.version !== undefined && formValues.version !== null) {
-          investmentContactPayload.version = formValues.version
-        }
-      }
+      // Override generated fullName with our custom logic (spaces handled)
+      investmentContact.fullName = `${(formValues.firstName || '').trim()} ${(formValues.lastName || '').trim()}`.trim()
 
       // Determine change mode based on whether we have an ID
       const changeMode = isUpdate ? 'UPDATE' : 'INSERT'
@@ -151,10 +118,10 @@ const ContactFormComponent: React.FC = () => {
         }
       })
 
-      // ✅ UPDATED: Create clean payload structure with accountContacts for both CREATE and UPDATE
+      // ✅ Create final payload structure with accountContacts
       const cleanPayload = {
         investmentContact: {
-          ...investmentContactPayload,
+          ...investmentContact,
           accountContacts: accountContacts // Include for both create and update
         },
         changeMode: changeMode
