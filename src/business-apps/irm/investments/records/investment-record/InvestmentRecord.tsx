@@ -15,6 +15,20 @@ import { useInvestmentAiSummary } from './hooks/useInvestmentAiSummary'
 import { TrendingUp, Home, BarChart3 } from 'lucide-react'
 import { createHeaderMeta, getTypeSpecificDetailGroups } from './utils/investmentHeaderConfig'
 import { createInvestmentTabsConfig } from './utils/investmentTabConfig'
+import { InvestmentRecordAnalyticsChat } from '@/ai-insights/components/InvestmentRecordAnalyticsChat'
+
+// Helper to extract currency code (same as in buildAnalyticsHeader)
+function extractCurrencyCode(currencyId?: string | { value?: string } | null): string {
+  if (!currencyId) return 'EUR'
+  if (typeof currencyId === 'string') {
+    const parts = currencyId.split(':')
+    return parts[parts.length - 1] || 'EUR'
+  }
+  if (typeof currencyId === 'object' && currencyId.value) {
+    return extractCurrencyCode(currencyId.value)
+  }
+  return 'EUR'
+}
 
 type InvestmentRecordProps = BusinessAppContextProps
 
@@ -374,6 +388,18 @@ const InvestmentRecord: React.FC<InvestmentRecordProps> = props => {
         headerDetailGroups={headerDetailGroups}
         subViews={subViewsConfig}
       />
+
+      {/* Analytics assistant for the page */}
+      {investmentId && investmentData && props.accessToken && (
+        <div className="gba:px-4 gba:py-2">
+          <InvestmentRecordAnalyticsChat
+            investmentId={investmentId}
+            investmentName={investmentData.name}
+            accessToken={props.accessToken}
+            currency={extractCurrencyCode(investmentData.currency)}
+          />
+        </div>
+      )}
     </div>
   )
 }
