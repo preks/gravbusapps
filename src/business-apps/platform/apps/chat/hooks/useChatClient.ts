@@ -6,12 +6,11 @@ import { ChatWebSocketClient } from '../services/chatWebSocketClient'
 import { useConversations } from './useConversations'
 import { useMessages } from './useMessages'
 import { useTypingIndicator } from './useTypingIndicator'
-import { env } from '@/common/env/EnvUtils'
 
 interface UseChatClientOptions {
   accessToken: string
-  apiUrl?: string
-  wsUrl?: string
+  apiUrl: string
+  wsUrl: string
 }
 
 export function useChatClient({ accessToken, apiUrl, wsUrl }: UseChatClientOptions) {
@@ -49,8 +48,7 @@ export function useChatClient({ accessToken, apiUrl, wsUrl }: UseChatClientOptio
   // Initialize API client
   useEffect(() => {
     if (accessToken) {
-      const apiUrlValue = apiUrl || env('NEXT_PUBLIC_CHAT_API') || ''
-      const client = new ChatApiClient(apiUrlValue, accessToken)
+      const client = new ChatApiClient(apiUrl, accessToken)
       apiClientRef.current = client
       setApiClientState(client)
 
@@ -114,8 +112,7 @@ export function useChatClient({ accessToken, apiUrl, wsUrl }: UseChatClientOptio
   // Initialize WebSocket client
   useEffect(() => {
     if (accessToken && apiClientRef.current) {
-      const wsUrlValue = wsUrl || env('NEXT_PUBLIC_CHAT_WEB_SOCKET') || ''
-      wsClientRef.current = new ChatWebSocketClient(wsUrlValue)
+      wsClientRef.current = new ChatWebSocketClient(wsUrl)
 
       const socket = wsClientRef.current.connect(accessToken)
 

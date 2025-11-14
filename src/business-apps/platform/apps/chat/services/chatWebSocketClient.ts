@@ -1,6 +1,5 @@
 import { io, Socket } from 'socket.io-client'
 import type { Message, TypingIndicator, PresenceStatus } from '../types'
-import { env } from '@/common/env/EnvUtils'
 
 export type ChatEventHandler = (data: any) => void
 
@@ -8,17 +7,8 @@ export class ChatWebSocketClient {
   private socket: Socket | null = null
   private url: string
 
-  constructor(url?: string) {
-    // Get base URL from environment or parameter
-    const baseUrl = url || env('NEXT_PUBLIC_CHAT_WEB_SOCKET') || ''
-
-    // Ensure the URL includes the /chat namespace if not already present
-    // The backend gateway is configured with namespace: '/chat'
-    if (baseUrl && !baseUrl.endsWith('/chat')) {
-      this.url = baseUrl.replace(/\/$/, '') + '/chat'
-    } else {
-      this.url = baseUrl
-    }
+  constructor(url: string) {
+    this.url = url
   }
 
   connect(token: string) {

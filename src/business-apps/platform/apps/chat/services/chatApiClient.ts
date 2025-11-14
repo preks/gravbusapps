@@ -1,15 +1,13 @@
 import axios, { AxiosInstance } from 'axios'
 import type { User, Conversation, Message, PaginatedResponse, ConversationType } from '../types'
-import { env } from '@/common/env/EnvUtils'
 
 export class ChatApiClient {
   private client: AxiosInstance
   private token: string | null = null
 
-  constructor(baseURL?: string, accessToken?: string) {
-    const apiUrl = baseURL || env('NEXT_PUBLIC_CHAT_API') || ''
+  constructor(baseURL: string, accessToken?: string) {
     this.client = axios.create({
-      baseURL: apiUrl,
+      baseURL,
       headers: {
         'Content-Type': 'application/json'
       }

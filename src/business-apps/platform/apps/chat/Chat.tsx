@@ -8,6 +8,7 @@ import { MessageList } from './components/MessageList'
 import { MessageInput } from './components/MessageInput'
 import type { Conversation, User } from './types'
 import { getTranslationFromI18nKeyAndLabel } from '@/common/utils/windowUtils'
+import { env } from '@/common/env/EnvUtils'
 
 interface ChatProps extends BusinessAppContextProps {
   prefixDataTestId?: string
@@ -17,10 +18,16 @@ export const Chat: React.FC<ChatProps> = ({ accessToken, prefixDataTestId = 'cha
   const [showConversationList, setShowConversationList] = useState(true)
   const [isMobile, setIsMobile] = useState(false)
 
+  let baseUrl = env('NEXT_PUBLIC_BASE_URL') || ''
+  baseUrl = baseUrl.endsWith('/') ? baseUrl.slice(0, -1) : baseUrl
+
+  const apiUrl = env('NEXT_PUBLIC_CHAT_API') || `${baseUrl}/chat-service/api/v1` || ''
+  const wsUrl = env('NEXT_PUBLIC_CHAT_WEB_SOCKET') || `${baseUrl}/chat-service/chat` || ''
+
   const chatClient = useChatClient({
     accessToken,
-    apiUrl: undefined,
-    wsUrl: undefined
+    apiUrl,
+    wsUrl
   })
 
   const {
