@@ -3,180 +3,85 @@
  * Payload generation for Account entities in the Customer Relations Management module
  *
  * This module provides:
- * - CustomerAccountFormData interface (extends BaseAccountFormData)
  * - buildCustomerAccountPayload() function
- * - CRM-specific field handling (salesCampaign, additionalProperties, tags)
+ * - Uses CustomerAccount interface and CustomerAccountFields for mapping
+ * - Handles CRM-specific fields (salesCampaign, additionalProperties, tags)
+ * - Handles CRM-specific field names (industryRef vs industryClassRef, etc.)
  *
  * Usage:
  * ```typescript
  * import { buildCustomerAccountPayload } from '@/common/data/customer/payloads'
  *
- * const payload = buildCustomerAccountPayload(formData, { isUpdate: true })
+ * const payload = buildCustomerAccountPayload(customerAccount, { isUpdate: true })
  * dispatchProcessContinueEvent('pse_submit', payload)
  * ```
  */
 
-import { BaseAccountFormData, AccountFieldMapping } from '@/common/data/relations/payloads'
-import { toISOFormat } from '@/common/utils/dateFormatter'
-
-/**
- * CRM-specific account form data interface
- * Extends base interface with Customer module exclusive fields
- */
-export interface CustomerAccountFormData extends BaseAccountFormData {
-  // CRM-exclusive fields
-  salesCampaignId?: string // Sales campaign association
-  additionalProperties?: Record<string, any> // Custom properties
-  tags?: string[] // Tags for categorization
-
-  // Alternative field names (for compatibility)
-  tickerSymbol?: string // Alternative to code
-  description?: string // General description
-}
-
-/**
- * Helper to convert value to string or undefined
- * Ensures empty values are not included in payload
- */
-const toStringOrUndefined = (value: any): string | undefined => {
-  if (value === undefined || value === null || value === '') {
-    return undefined
-  }
-  return String(value)
-}
+import type { CustomerAccount } from '@/common/data/customer/types/customerAccountTypes'
+import { CustomerAccountFields } from '@/common/data/customer/types/customerAccountTypes'
+import { buildAccountPayload, toStringOrUndefined } from '@/common/data/relations/payloads/accountPayloads'
 
 /**
  * Build Customer Account payload for CRM module
  *
  * Automatically handles:
- * - Field name mapping (industry → industryRef, etc.)
+ * - Field name mapping (industryClassRef → industryRef, etc.) via CustomerAccountFields
  * - Empty value exclusion
  * - ID/version for updates
- * - CRM-specific fields (salesCampaign, tags, additionalProperties)
+ * - CRM-specific fields (salesCampaign, tags, additionalProperties, email, phone, businessKey)
  *
- * @param formData - Account form data (semantic field names)
+ * @param account - Partial CustomerAccount entity (only fields provided by form)
  * @param options - Build options (isUpdate flag)
  * @returns Payload object ready for API submission
  *
  * @example
  * ```typescript
  * const payload = buildCustomerAccountPayload({
- *   accountName: 'ACME Corp',
- *   industry: 'Industry:v1:TECH',
- *   owner: 'employee-uuid'
+ *   name: 'ACME Corp',
+ *   industryClassRef: 'Industry:v1:TECH', // Mapped to industryRef
+ *   ownerEmployeeId: 'employee-uuid',
+ *   salesCampaignId: 'campaign-uuid'
  * })
- * // Result: { customerAccount: { sourceApp: 'CRM', name: 'ACME Corp', industryRef: '...', ... } }
+ * // Result: { customerAccount: { name: 'ACME Corp', industryRef: '...', ownerEmployee: '...', salesCampaign: '...' } }
  * ```
  */
 export const buildCustomerAccountPayload = (
-  formData: CustomerAccountFormData,
+  account: Partial<CustomerAccount> & Record<string, any>,
   options: { isUpdate?: boolean } = {}
 ) => {
-  const payload: any = {
-    sourceApp: 'CRM'
+  // Build base payload using CustomerAccountFields for CRM-specific field mapping
+  const basePayload = buildAccountPayload(account, CustomerAccountFields as Record<string, string>, options)
+
+  // Add CRM-specific contact information (email, phone, businessKey)
+  if ((account as any).email !== undefined) {
+    basePayload.email = toStringOrUndefined((account as any).email)
+  }
+  if ((account as any).phone !== undefined) {
+    basePayload.phone = toStringOrUndefined((account as any).phone)
+  }
+  if ((account as any).businessKey !== undefined) {
+    basePayload.businessKey = toStringOrUndefined((account as any).businessKey)
   }
 
-  // Basic information (shared fields)
-  if (formData.accountName !== undefined) {
-    payload.name = toStringOrUndefined(formData.accountName)
-  }
-  if (formData.code !== undefined) {
-    payload.code = toStringOrUndefined(formData.code)
-  }
-  if (formData.tickerSymbol !== undefined) {
-    payload.code = toStringOrUndefined(formData.tickerSymbol)
-  }
-  if (formData.legalForm !== undefined) {
-    payload.legalFormRef = toStringOrUndefined(formData.legalForm)
-  }
-  if (formData.website !== undefined) {
-    payload.website = toStringOrUndefined(formData.website)
+  // Add CRM-exclusive fields
+  if (account.salesCampaignId !== undefined) {
+    basePayload.salesCampaign = toStringOrUndefined(account.salesCampaignId)
   }
 
-  // Contact information (shared fields - FIXED: was missing!)
-  if (formData.email !== undefined) {
-    payload.email = toStringOrUndefined(formData.email)
-  }
-  if (formData.phone !== undefined) {
-    payload.phone = toStringOrUndefined(formData.phone)
-  }
-  if (formData.businessKey !== undefined) {
-    payload.businessKey = toStringOrUndefined(formData.businessKey)
+  // Add CRM-exclusive additional properties
+  if (
+    (account as any).additionalProperties !== undefined &&
+    Object.keys((account as any).additionalProperties).length > 0
+  ) {
+    basePayload.additionalProperties = (account as any).additionalProperties
   }
 
-  // CRM-specific field mappings (using AccountFieldMapping)
-  if (formData.industry !== undefined) {
-    payload[AccountFieldMapping.crm.industry] = toStringOrUndefined(formData.industry)
-  }
-  if (formData.companySize !== undefined) {
-    payload[AccountFieldMapping.crm.companySize] = toStringOrUndefined(formData.companySize)
-  }
-  if (formData.annualRevenue !== undefined) {
-    payload[AccountFieldMapping.crm.annualRevenue] = toStringOrUndefined(formData.annualRevenue)
-  }
-
-  // Dates
-  if (formData.foundationDate !== undefined) {
-    payload.foundationDate = toISOFormat(formData.foundationDate)
-  }
-  if (formData.liquidationDate !== undefined) {
-    payload.liquidationDate = toISOFormat(formData.liquidationDate)
-  }
-
-  // Ownership
-  if (formData.owner !== undefined) {
-    payload.ownerEmployee = toStringOrUndefined(formData.owner)
-  }
-  if (formData.ownerEmployeeId !== undefined) {
-    payload.ownerEmployee = toStringOrUndefined(formData.ownerEmployeeId)
-  }
-
-  // Additional information
-  if (formData.timeZone !== undefined) {
-    payload.timeZoneRef = toStringOrUndefined(formData.timeZone)
-  }
-  if (formData.notesSummary !== undefined) {
-    payload.notesSummary = toStringOrUndefined(formData.notesSummary)
-  }
-  if (formData.specialty !== undefined) {
-    payload.specialty = toStringOrUndefined(formData.specialty)
-  }
-  if (formData.picture !== undefined) {
-    payload.picture = toStringOrUndefined(formData.picture)
-  }
-  if (formData.pictureThumbnail !== undefined) {
-    payload.pictureThumbnail = toStringOrUndefined(formData.pictureThumbnail)
-  }
-
-  // CRM-exclusive fields
-  if (formData.salesCampaignId !== undefined) {
-    payload.salesCampaign = toStringOrUndefined(formData.salesCampaignId)
-  }
-  if (formData.additionalProperties !== undefined && Object.keys(formData.additionalProperties).length > 0) {
-    payload.additionalProperties = formData.additionalProperties
-  }
-  if (formData.tags !== undefined && formData.tags.length > 0) {
-    payload.tags = formData.tags
-  }
-
-  // Complex fields (arrays) - only include if not empty
-  if (formData.addresses !== undefined && formData.addresses.length > 0) {
-    payload.addresses = formData.addresses
-  }
-  if (formData.communicationChannels !== undefined && formData.communicationChannels.length > 0) {
-    payload.communicationChannels = formData.communicationChannels
-  }
-  if (formData.documents !== undefined && formData.documents.length > 0) {
-    payload.documents = formData.documents
-  }
-
-  // Include id and version for updates
-  if (options.isUpdate && formData.id) {
-    payload.id = formData.id
-    payload.version = formData.version || 0
+  // Add CRM-exclusive tags
+  if ((account as any).tags !== undefined && (account as any).tags.length > 0) {
+    basePayload.tags = (account as any).tags
   }
 
   return {
-    customerAccount: payload
+    customerAccount: basePayload
   }
 }

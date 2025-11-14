@@ -1,124 +1,23 @@
 /**
- * Base Account Payload
+ * Base Account Payload Builder
  * Centralized payload generation for Account entities across CRM and IRM
  *
- * This file provides:
- * - Field name mappings between CRM and IRM
- * - Base interface for account form data
- * - Shared constants and utilities
+ * This file provides a general payload builder that works with:
+ * - Account interface (or its extensions like CustomerAccount, InvestmentAccount)
+ * - Field constants (AccountFields, CustomerAccountFields, InvestmentAccountFields)
+ *
+ * The builder uses field constants to handle module-specific naming differences:
+ * - CRM: industryRef, numberOfEmployeesRef, annualRevenueRef
+ * - IRM: industryClassRef, companySizeRef, accountAnnualRevenueBandRef
  *
  * Usage:
- * - CRM: Use CustomerAccountPayload with buildCustomerAccountPayload()
- * - IRM: Use InvestmentAccountPayload with buildInvestmentAccountPayload()
+ * - CRM: Use buildCustomerAccountPayload() which calls this with CustomerAccountFields
+ * - IRM: Use buildInvestmentAccountPayload() which calls this with InvestmentAccountFields
  */
 
-/**
- * Field name mapping between CRM and IRM modules
- *
- * CRM and IRM use different field names for the same semantic concepts.
- * This mapping documents these differences and is used by module-specific builders.
- */
-export const AccountFieldMapping = {
-  // Shared fields (identical names in both modules)
-  shared: {
-    name: 'name',
-    code: 'code',
-    legalFormRef: 'legalFormRef',
-    website: 'website',
-    foundationDate: 'foundationDate',
-    liquidationDate: 'liquidationDate',
-    ownerEmployee: 'ownerEmployee',
-    timeZoneRef: 'timeZoneRef',
-    notesSummary: 'notesSummary',
-    addresses: 'addresses',
-    communicationChannels: 'communicationChannels',
-    documents: 'documents',
-    notes: 'notes',
-    tasks: 'tasks',
-    activities: 'activities'
-  },
-
-  // CRM-specific field names (Customer module)
-  crm: {
-    industry: 'industryRef', // CRM uses industryRef
-    companySize: 'numberOfEmployeesRef', // CRM uses numberOfEmployeesRef
-    annualRevenue: 'annualRevenueRef' // CRM uses annualRevenueRef
-  },
-
-  // IRM-specific field names (Investment module)
-  irm: {
-    industry: 'industryClassRef', // IRM uses industryClassRef
-    companySize: 'companySizeRef', // IRM uses companySizeRef
-    annualRevenue: 'accountAnnualRevenueBandRef' // IRM uses accountAnnualRevenueBandRef
-  }
-} as const
-
-/**
- * Base interface for account form data (semantic fields)
- *
- * This interface uses semantic field names that are module-agnostic.
- * Module-specific payload builders will map these to the correct field names.
- *
- * Example:
- * - formData.industry → industryRef (CRM) or industryClassRef (IRM)
- * - formData.companySize → numberOfEmployeesRef (CRM) or companySizeRef (IRM)
- */
-export interface BaseAccountFormData {
-  // Identity fields
-  id?: string
-  version?: number
-
-  // Basic information
-  accountName?: string // Maps to: name
-  code?: string // Shared field
-  legalForm?: string // Maps to: legalFormRef
-  website?: string // Shared field
-
-  // Contact information (shared fields)
-  email?: string // Shared field
-  phone?: string // Shared field
-  businessKey?: string // Shared field (business key for external systems)
-
-  // Financial/organizational information (semantic fields)
-  industry?: string // Maps to: industryRef (CRM) or industryClassRef (IRM)
-  companySize?: string // Maps to: numberOfEmployeesRef (CRM) or companySizeRef (IRM)
-  annualRevenue?: string // Maps to: annualRevenueRef (CRM) or accountAnnualRevenueBandRef (IRM)
-
-  // Dates
-  foundationDate?: string
-  liquidationDate?: string
-
-  // Ownership
-  owner?: string // Maps to: ownerEmployee
-  ownerEmployeeId?: string // Alternative to owner
-
-  // Additional information
-  timeZone?: string // Maps to: timeZoneRef
-  notesSummary?: string // Shared field
-  specialty?: string // IRM field (optional)
-  picture?: string // Both modules (optional, rarely used)
-  pictureThumbnail?: string // Both modules (optional, rarely used)
-
-  // Complex fields (arrays/objects)
-  addresses?: any[] // Shared field
-  communicationChannels?: any[] // Shared field
-  documents?: any[] // Shared field
-  notes?: any[] // Shared field
-  tasks?: any[] // Shared field
-  activities?: any[] // Shared field
-
-  // Contact associations (IRM specific, but defined here for completeness)
-  contactIds?: string[] // Used for account-contact associations
-  accountContacts?: any[] // Full association objects (IRM)
-}
-
-/**
- * Type helper for field names
- */
-export type AccountFieldName =
-  | keyof typeof AccountFieldMapping.shared
-  | keyof typeof AccountFieldMapping.crm
-  | keyof typeof AccountFieldMapping.irm
+import type { Account } from '@/common/data/relations/types/accountTypes'
+import { AccountFields } from '@/common/data/relations/types/accountTypes'
+import { toISOFormat } from '@/common/utils/dateFormatter'
 
 /**
  * Helper function to convert value to string or undefined
@@ -132,15 +31,123 @@ export const toStringOrUndefined = (value: any): string | undefined => {
 }
 
 /**
- * Helper function to format date to ISO string
+ * Build Account payload with module-specific field mapping
+ *
+ * This is the base builder used by both CRM and IRM modules.
+ * It handles:
+ * - Field name mapping via accountFields parameter
+ * - Empty value exclusion
+ * - Complex array fields (addresses, communicationChannels, documents)
+ * - ID/version for updates
+ *
+ * @param account - Partial Account entity (or CustomerAccount/InvestmentAccount)
+ * @param accountFields - Field name mapping (AccountFields, CustomerAccountFields, or InvestmentAccountFields)
+ * @param options - Build options (isUpdate flag)
+ * @returns Payload object ready for API submission (without wrapper)
+ *
+ * @example CRM Usage (via buildCustomerAccountPayload):
+ * ```typescript
+ * const payload = buildAccountPayload(
+ *   customerAccount,
+ *   CustomerAccountFields,
+ *   { isUpdate: true }
+ * )
+ * // industryClassRef → mapped to "industryRef" (CRM)
+ * ```
+ *
+ * @example IRM Usage (via buildInvestmentAccountPayload):
+ * ```typescript
+ * const payload = buildAccountPayload(
+ *   investmentAccount,
+ *   InvestmentAccountFields,
+ *   { isUpdate: true }
+ * )
+ * // industryClassRef → mapped to "industryClassRef" (IRM)
+ * ```
  */
-export const toISODateFormat = (date: string | Date | undefined): string | undefined => {
-  if (!date) return undefined
+export const buildAccountPayload = (
+  account: Partial<Account>,
+  accountFields: Record<string, string> = AccountFields,
+  options: { isUpdate?: boolean } = {}
+) => {
+  const payload: any = {}
 
-  try {
-    const dateObj = typeof date === 'string' ? new Date(date) : date
-    return dateObj.toISOString().split('T')[0] // Returns YYYY-MM-DD
-  } catch {
-    return undefined
+  // Basic information (shared fields)
+  if (account.name !== undefined) {
+    payload[accountFields.name] = toStringOrUndefined(account.name)
   }
+  if (account.code !== undefined) {
+    payload[accountFields.code] = toStringOrUndefined(account.code)
+  }
+  if (account.website !== undefined) {
+    payload[accountFields.website] = toStringOrUndefined(account.website)
+  }
+
+  // Legal and organizational fields
+  if (account.legalFormRef !== undefined) {
+    payload[accountFields.legalFormRef] = toStringOrUndefined(account.legalFormRef)
+  }
+
+  // Industry/Classification - mapped via accountFields
+  if (account.industryClassRef !== undefined) {
+    payload[accountFields.industryClassRef] = toStringOrUndefined(account.industryClassRef)
+  }
+
+  // Company size - mapped via accountFields
+  if (account.companySizeRef !== undefined) {
+    payload[accountFields.companySizeRef] = toStringOrUndefined(account.companySizeRef)
+  }
+
+  // Annual revenue - mapped via accountFields
+  if (account.accountAnnualRevenueBandRef !== undefined) {
+    payload[accountFields.accountAnnualRevenueBandRef] = toStringOrUndefined(account.accountAnnualRevenueBandRef)
+  }
+
+  // Dates
+  if (account.foundationDate !== undefined) {
+    payload[accountFields.foundationDate] = toISOFormat(account.foundationDate)
+  }
+  if (account.liquidationDate !== undefined) {
+    payload[accountFields.liquidationDate] = toISOFormat(account.liquidationDate)
+  }
+
+  // Ownership
+  if (account.ownerEmployeeId !== undefined) {
+    payload[accountFields.ownerEmployee] = toStringOrUndefined(account.ownerEmployeeId)
+  }
+
+  // Additional information
+  if (account.timeZoneRef !== undefined) {
+    payload[accountFields.timeZoneRef] = toStringOrUndefined(account.timeZoneRef)
+  }
+  if (account.notesSummary !== undefined) {
+    payload[accountFields.notesSummary] = toStringOrUndefined(account.notesSummary)
+  }
+
+  // Picture fields (optional, rarely used)
+  if (account.picture !== undefined) {
+    payload[accountFields.picture] = toStringOrUndefined(account.picture)
+  }
+  if (account.pictureThumbnail !== undefined) {
+    payload[accountFields.pictureThumbnail] = toStringOrUndefined(account.pictureThumbnail)
+  }
+
+  // Complex fields (arrays) - only include if not empty
+  if (account.addresses !== undefined && account.addresses.length > 0) {
+    payload[accountFields.addresses] = account.addresses
+  }
+  if (account.communicationChannels !== undefined && account.communicationChannels.length > 0) {
+    payload[accountFields.communicationChannels] = account.communicationChannels
+  }
+  if (account.documents !== undefined && account.documents.length > 0) {
+    payload[accountFields.documents] = account.documents
+  }
+
+  // Include id and version for updates
+  if (options.isUpdate && account.id) {
+    payload.id = account.id
+    payload.version = account.version || 0
+  }
+
+  return payload
 }
