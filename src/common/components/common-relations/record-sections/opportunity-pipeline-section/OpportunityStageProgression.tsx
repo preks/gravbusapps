@@ -165,7 +165,8 @@ export const OpportunityStageProgression: React.FC<OpportunityStageProgressionPr
           if (!hoveredStage) return null
 
           // Use context-specific extractor to get stage conditions
-          const conditions = contextConfig.extractStageConditions(stageConditionStatuses, hoveredStage.id)
+          // Pass the full stage object so the extractor can use id, code, or value as needed
+          const conditions = contextConfig.extractStageConditions(stageConditionStatuses, hoveredStage)
 
           return (
             <div

@@ -11,7 +11,8 @@ export interface ReferenceData {
 }
 
 // Function type for extracting stage conditions from raw data
-export type StageConditionsExtractor = (stageConditionStatuses: any[], stageIdentifier: string) => StageCondition[]
+// Receives the full Stage object so contexts can use id, code, or value as needed
+export type StageConditionsExtractor = (stageConditionStatuses: any[], stage: Stage) => StageCondition[]
 
 // Function type for converting reference data to stage format
 export type ReferenceDataConverter = (referenceData: ReferenceData[] | undefined) => Stage[]

@@ -19,7 +19,7 @@ import { AppActionButton } from '@/components/app-action-button/AppActionButton'
 import { OpportunityStageProgression } from '@/common/components/common-relations/record-sections/opportunity-pipeline-section/OpportunityStageProgression'
 import type { OpportunityPipelineContextConfig } from '@/common/components/common-relations/record-sections/opportunity-pipeline-section/types'
 import { getEmployeeName } from '@/common/components/common-relations/record-sections/opportunity-pipeline-section/utils'
-import type { StageCondition } from '@/components/stage-progression/types'
+import type { Stage, StageCondition } from '@/components/stage-progression/types'
 import { FlowContextName } from '@/common/types/FlowRegistryTypes'
 import { HomeView } from './views/home-view/HomeView'
 import { DocumentView } from './views/document-view'
@@ -68,8 +68,10 @@ const OpportunityRecordContent: React.FC<OpportunityRecordContentProps> = ({
   const { fetchCustomerOpportunityById } = useCustomerOpportunities(props)
   const {
     pipelineStages: opportunityStages,
+    catalogStageConditions,
     loadingPipelineStages: loadingStages,
-    errorPipelineStages: stagesError
+    errorPipelineStages: stagesError,
+    refetchPipelineStages
   } = useSalesPipelineStages(opportunityData?.salesPipelineRef, props.accessToken)
 
   const fetchOpportunityData = useCallback(async () => {
@@ -107,26 +109,38 @@ const OpportunityRecordContent: React.FC<OpportunityRecordContentProps> = ({
       transitionFlowContext: FlowContextName.customerOpportunityStageTransition,
       opportunityIdField: 'opportunityId',
       targetStageRefField: 'targetStageRef',
-      extractStageConditions: (stageConditionStatuses: any[], stageName: string): StageCondition[] => {
-        const expectedStageId = `SalesPipelineStage:v1:${stageName}`
-        const stageSpecificConditions = stageConditionStatuses.filter(statusData => {
-          const parentEntryId = statusData.salesPipelineStageCondition?.parentEntryId
-          return parentEntryId === expectedStageId
-        })
-        return stageSpecificConditions.map(statusData => {
-          const config = statusData.configSnapshot || statusData.salesPipelineStageCondition?.objectValue || {}
+      extractStageConditions: (stageConditionStatuses: any[], stage: Stage): StageCondition[] => {
+        // For CRM, build the expected stage ID from the code
+        const expectedStageId = `SalesPipelineStage:v1:${stage.code}`
+
+        // Get catalog conditions for this stage
+        const stageCatalogConditions = catalogStageConditions.filter(
+          catalogCondition => catalogCondition.parentEntryId === expectedStageId
+        )
+
+        // Map catalog conditions to StageCondition format
+        return stageCatalogConditions.map(catalogCondition => {
+          // Find matching status record (if exists)
+          const statusRecord = stageConditionStatuses.find(statusData => {
+            const conditionRef = statusData.salesPipelineStageConditionRef
+            return conditionRef === catalogCondition.id
+          })
+
+          // Get config from status record or catalog
+          const config = statusRecord?.configSnapshot || catalogCondition.objectValue || {}
           const checkedType = config.check_type === 'MANUAL' ? 'User' : 'Automated'
+
           return {
-            id: statusData.id,
-            title: statusData.salesPipelineStageCondition?.value || 'Unknown Condition',
-            isCompleted: statusData.completed || false,
+            id: catalogCondition.id,
+            title: catalogCondition.value || 'Unknown Condition',
+            isCompleted: statusRecord?.completed || false,
             checkedType: checkedType as 'Automated' | 'User' | 'Manager' | 'Owner',
-            completedBy: statusData.completedByEmployee ? getEmployeeName(statusData.completedByEmployee) : null
+            completedBy: statusRecord?.completedByEmployee ? getEmployeeName(statusRecord.completedByEmployee) : null
           }
         })
       }
     }),
-    []
+    [catalogStageConditions]
   )
 
   // AI Summary hook for HeaderSection
@@ -212,6 +226,7 @@ const OpportunityRecordContent: React.FC<OpportunityRecordContentProps> = ({
   useProcessCompletion({
     onSuccess: () => {
       fetchOpportunityData()
+      refetchPipelineStages() // Refetch stages and catalog conditions after stage transition
       loadActivities()
       loadNotes()
       loadTasksAndApprovals()

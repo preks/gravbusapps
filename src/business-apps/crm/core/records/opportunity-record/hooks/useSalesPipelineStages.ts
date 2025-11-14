@@ -4,6 +4,7 @@ import { ReferenceData } from '../components/OpportunityStageProgression'
 
 export const useSalesPipelineStages = (salesPipelineRef: string | undefined, accessToken: string) => {
   const [pipelineStages, setPipelineStages] = useState<ReferenceData[]>([])
+  const [catalogStageConditions, setCatalogStageConditions] = useState<any[]>([])
   const [loadingPipelineStages, setLoadingPipelineStages] = useState(false)
   const [errorPipelineStages, setErrorPipelineStages] = useState<string | null>(null)
 
@@ -54,15 +55,56 @@ export const useSalesPipelineStages = (salesPipelineRef: string | undefined, acc
         })
 
         setPipelineStages(sortedStages)
+
+        // Fetch catalog conditions for stages
+        await fetchCatalogConditions(sortedStages.map(s => s.id))
       } else {
         setPipelineStages([])
+        setCatalogStageConditions([])
       }
     } catch (err) {
       console.error('Error fetching pipeline stages:', err)
       setErrorPipelineStages(err instanceof Error ? err.message : 'Failed to fetch pipeline stages')
       setPipelineStages([])
+      setCatalogStageConditions([])
     } finally {
       setLoadingPipelineStages(false)
+    }
+  }
+
+  const fetchCatalogConditions = async (stageIds: string[]) => {
+    if (!stageIds.length) {
+      setCatalogStageConditions([])
+      return
+    }
+
+    try {
+      const GET_STAGE_CONDITIONS = `
+        query GetStageConditions($stageIds: [String!]!) {
+          conditions: CatalogEntry(
+            where: {
+              catalog: { identifier: { _eq: "SalesPipelineStageCondition" } }
+              parentEntryId: { _in: $stageIds }
+              isDeleted: { _eq: false }
+            }
+            orderBy: { additionalValue1: ASC }
+          ) {
+            id
+            code
+            value
+            parentEntryId
+            additionalValue1
+            objectValue
+            type
+          }
+        }
+      `
+
+      const result = await graphQLClient.request<{ conditions: any[] }>(GET_STAGE_CONDITIONS, { stageIds })
+      setCatalogStageConditions(result.conditions || [])
+    } catch (err) {
+      console.error('Error fetching catalog stage conditions:', err, err)
+      setCatalogStageConditions([])
     }
   }
 
@@ -76,6 +118,7 @@ export const useSalesPipelineStages = (salesPipelineRef: string | undefined, acc
 
   return {
     pipelineStages,
+    catalogStageConditions,
     loadingPipelineStages,
     errorPipelineStages,
     refetchPipelineStages: () => {
