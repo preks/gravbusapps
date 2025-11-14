@@ -1,10 +1,11 @@
-import React, { useRef, useState, useCallback } from 'react'
+import React, { useState, useCallback, useEffect } from 'react'
 import { Modal, Upload } from 'antd'
 import { useExpenseItem } from '../../context/ExpenseItemContext'
 import { Button } from '@newwork/gravity-ui-catalog'
 import { useTranslation } from 'react-i18next'
 import { ICONS } from '@/business-apps/fin/expenses/utils/icons'
 import { showToast } from '@/business-apps/fin/expenses/utils/notificationUtils'
+import { getTranslationFromI18nKeyAndLabel } from '@/common/utils/windowUtils'
 
 interface UploadComponentProps {
   fileList: any[]
@@ -18,12 +19,35 @@ export const UploadComponent: React.FC<UploadComponentProps> = ({ fileList, setF
 
   const { t } = useTranslation()
   const [isHandlingUpload, setIsHandlingUpload] = useState<boolean>(false)
-
-  const lastUploadTimestampRef = useRef<number>(0)
+  const [showProcessing, setShowProcessing] = useState<boolean>(false)
 
   const [pendingFiles, setPendingFiles] = useState<File[]>([])
 
   const [isModalVisible, setIsModalVisible] = useState<boolean>(false)
+
+  // Smooth out quick state flips: delay show (avoid brief flashes) and delay hide (grace period)
+  useEffect(() => {
+    const processingTarget = isProcessingFiles || isHandlingUpload
+    let showTimeoutId: number | undefined
+    let hideTimeoutId: number | undefined
+
+    if (processingTarget) {
+      // Only show spinner if processing persists beyond 150ms
+      showTimeoutId = window.setTimeout(() => {
+        setShowProcessing(true)
+      }, 150)
+    } else {
+      // Keep spinner visible slightly longer to avoid end-of-process flicker
+      hideTimeoutId = window.setTimeout(() => {
+        setShowProcessing(false)
+      }, 300)
+    }
+
+    return () => {
+      if (showTimeoutId) window.clearTimeout(showTimeoutId)
+      if (hideTimeoutId) window.clearTimeout(hideTimeoutId)
+    }
+  }, [isProcessingFiles, isHandlingUpload])
 
   const validateFileType = (file: File) => {
     const isValidType = ALLOWED_FILE_TYPES.some(type => {
@@ -76,19 +100,11 @@ export const UploadComponent: React.FC<UploadComponentProps> = ({ fileList, setF
         return
       }
 
-      const now = Date.now()
-      if (now - lastUploadTimestampRef.current < 500) {
-        return
-      }
-
-      lastUploadTimestampRef.current = now
       setIsHandlingUpload(true)
 
-      setTimeout(() => {
-        handleFileUpload(files).finally(() => {
-          setIsHandlingUpload(false)
-        })
-      }, 0)
+      handleFileUpload(files).finally(() => {
+        setIsHandlingUpload(false)
+      })
     },
     [handleFileUpload, isHandlingUpload, isProcessingFiles]
   )
@@ -159,7 +175,7 @@ export const UploadComponent: React.FC<UploadComponentProps> = ({ fileList, setF
             height: '100%'
           }}
         >
-          {isProcessingFiles ? (
+          {showProcessing ? (
             <>
               <img
                 src={ICONS.SPINNER_ICON}
@@ -169,20 +185,28 @@ export const UploadComponent: React.FC<UploadComponentProps> = ({ fileList, setF
                 height="36"
                 data-testid="upload-loading-icon"
               />
-              <span>{t('lowcoder:create_expense_type_item.processing_receipt', 'Processing the receipt...')}</span>
+              <span>
+                {getTranslationFromI18nKeyAndLabel(
+                  'lowcoder:create_expense_type_item.processing_receipt',
+                  'Processing the receipt...'
+                )}
+              </span>
             </>
           ) : (
             <>
               <img
                 src={ICONS.FOCUS}
-                alt={t('lowcoder:create_expense_type_item.focus_alt_text', 'Focus')}
+                alt={getTranslationFromI18nKeyAndLabel('lowcoder:create_expense_type_item.focus_alt_text', 'Focus')}
                 style={{ width: '36px', height: '36px' }}
                 width="36"
                 height="36"
                 data-testid="upload-icon-large"
               />
               <span className="gba:font-medium gba:text-black" data-testid="attach-receipt-text-start">
-                {t('lowcoder:create_expense_type_item.attach_receipt', 'Attach Receipt')}
+                {getTranslationFromI18nKeyAndLabel(
+                  'lowcoder:create_expense_type_item.attach_receipt',
+                  'Attach Receipt'
+                )}
               </span>
             </>
           )}
@@ -204,7 +228,7 @@ export const UploadComponent: React.FC<UploadComponentProps> = ({ fileList, setF
             gap: '16px'
           }}
         >
-          {isProcessingFiles ? (
+          {showProcessing ? (
             <>
               <img
                 src={ICONS.SPINNER_ICON}
@@ -281,7 +305,7 @@ export const UploadComponent: React.FC<UploadComponentProps> = ({ fileList, setF
           multiple={true}
           accept={acceptedFileTypes}
           style={{ width: '100%', height: '100%' }}
-          disabled={isProcessingFiles}
+          disabled={isProcessingFiles || isHandlingUpload || showProcessing}
           data-testid="upload-input-empty"
         >
           {getButtonContent()}
@@ -321,7 +345,7 @@ export const UploadComponent: React.FC<UploadComponentProps> = ({ fileList, setF
               onChange={handleChange}
               multiple={true}
               accept={acceptedFileTypes}
-              disabled={isProcessingFiles}
+              disabled={isProcessingFiles || isHandlingUpload || showProcessing}
               data-testid="attach-more-upload"
             >
               <div
@@ -389,15 +413,10 @@ export const UploadComponent: React.FC<UploadComponentProps> = ({ fileList, setF
               style={{ marginBottom: '24px', fontSize: '16px', color: 'foreground', textAlign: 'center' }}
               data-testid="modal-message"
             >
-              {fileList.length > 1
-                ? t(
-                    'lowcoder:create_expense_type_item.upload_file_modal_message',
-                    'Do you want to keep the current file as well?'
-                  )
-                : t(
-                    'lowcoder:create_expense_type_item.upload_file_modal_message',
-                    'Do you want to keep the current file as well?'
-                  )}
+              {t(
+                'lowcoder:create_expense_type_item.upload_file_modal_message',
+                'Do you want to keep the current file as well?'
+              )}
             </p>
             <div style={{ display: 'flex', justifyContent: 'center', gap: '16px' }} data-testid="modal-buttons">
               <Button
