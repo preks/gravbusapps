@@ -1,6 +1,14 @@
 import React, { useState, useEffect, useRef } from 'react'
-import { Button, Input, Spinner } from '@newwork/nw-design-system'
-import { Plus, MagnifyingGlass } from '@phosphor-icons/react'
+import {
+  Button,
+  Input,
+  Spinner,
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger
+} from '@newwork/nw-design-system'
+import { Plus, MagnifyingGlass, Users, User } from '@phosphor-icons/react'
 import { ConversationItem } from './ConversationItem'
 import { UserSearch } from './UserSearch'
 import type { Conversation } from '../types'
@@ -12,6 +20,7 @@ interface ConversationListProps {
   onConversationSelect: (conversation: Conversation) => void
   onRemoveConversation?: (conversationId: string) => void
   onCreateConversation?: (user: any) => void
+  onCreateGroup?: () => void
   isLoading?: boolean
   isLoadingMore?: boolean
   hasMore?: boolean
@@ -26,6 +35,7 @@ export const ConversationList: React.FC<ConversationListProps> = ({
   onConversationSelect,
   onRemoveConversation,
   onCreateConversation,
+  onCreateGroup,
   isLoading = false,
   isLoadingMore = false,
   hasMore = false,
@@ -111,9 +121,25 @@ export const ConversationList: React.FC<ConversationListProps> = ({
       {/* Header */}
       <div className="gba:flex gba:items-center gba:justify-between gba:p-4 gba:border-b">
         <h1 className="gba:text-lg gba:font-semibold">{getTranslationFromI18nKeyAndLabel('chat.title', 'Chat')}</h1>
-        <Button variant="ghost" size="sm" onClick={() => setShowUserSearch(true)} data-testid="new-conversation-button">
-          <Plus className="gba:w-5 gba:h-5" />
-        </Button>
+        <DropdownMenu>
+          <DropdownMenuTrigger asChild>
+            <Button variant="ghost" size="sm" data-testid="new-conversation-button">
+              <Plus className="gba:w-5 gba:h-5" />
+            </Button>
+          </DropdownMenuTrigger>
+          <DropdownMenuContent align="end">
+            <DropdownMenuItem onClick={() => setShowUserSearch(true)} data-testid="new-direct-message-option">
+              <User className="gba:w-4 gba:h-4 gba:mr-2" />
+              {getTranslationFromI18nKeyAndLabel('chat.newDirectMessage', 'New Direct Message')}
+            </DropdownMenuItem>
+            {onCreateGroup && (
+              <DropdownMenuItem onClick={onCreateGroup} data-testid="new-group-chat-option">
+                <Users className="gba:w-4 gba:h-4 gba:mr-2" />
+                {getTranslationFromI18nKeyAndLabel('chat.newGroupChat', 'New Group Chat')}
+              </DropdownMenuItem>
+            )}
+          </DropdownMenuContent>
+        </DropdownMenu>
       </div>
 
       {/* Search */}

@@ -13,7 +13,7 @@ import {
   DialogHeader,
   DialogTitle
 } from '@newwork/nw-design-system'
-import { ArrowLeft, UserIcon, DotsThreeVertical, SignOut, X } from '@phosphor-icons/react'
+import { ArrowLeft, UserIcon, DotsThreeVertical, SignOut, X, Info } from '@phosphor-icons/react'
 import type { Conversation } from '../types'
 import { getTranslationFromI18nKeyAndLabel } from '@/common/utils/windowUtils'
 
@@ -22,6 +22,7 @@ interface ConversationHeaderProps {
   onBack?: () => void
   onClose?: () => void
   onRemove?: () => void
+  onGroupSettings?: () => void
   showBackButton?: boolean
   currentUserId?: string | null
 }
@@ -107,11 +108,13 @@ export const ConversationHeader: React.FC<ConversationHeaderProps> = ({
   onBack,
   onClose,
   onRemove,
+  onGroupSettings,
   showBackButton = false,
   currentUserId = null
 }) => {
   const name = getConversationName(conversation, currentUserId)
   const [showRemoveDialog, setShowRemoveDialog] = useState(false)
+  const isGroupChat = conversation.type === 'group'
 
   const handleRemoveClick = () => {
     setShowRemoveDialog(true)
@@ -167,7 +170,7 @@ export const ConversationHeader: React.FC<ConversationHeaderProps> = ({
           </Button>
         )}
 
-        {onRemove && (
+        {(onRemove || (isGroupChat && onGroupSettings)) && (
           <DropdownMenu>
             <DropdownMenuTrigger asChild>
               <Button variant="ghost" size="sm" className="gba:flex-shrink-0" data-testid="conversation-menu-button">
@@ -175,12 +178,20 @@ export const ConversationHeader: React.FC<ConversationHeaderProps> = ({
               </Button>
             </DropdownMenuTrigger>
             <DropdownMenuContent align="end">
-              <DropdownMenuItem onClick={handleRemoveClick} data-testid="conversation-remove-button">
-                <SignOut className="gba:w-4 gba:h-4 gba:mr-2" />
-                {conversation.type === 'group'
-                  ? getTranslationFromI18nKeyAndLabel('chat.leaveConversation', 'Leave conversation')
-                  : getTranslationFromI18nKeyAndLabel('chat.removeConversation', 'Remove conversation')}
-              </DropdownMenuItem>
+              {isGroupChat && onGroupSettings && (
+                <DropdownMenuItem onClick={onGroupSettings} data-testid="conversation-group-settings-button">
+                  <Info className="gba:w-4 gba:h-4 gba:mr-2" />
+                  {getTranslationFromI18nKeyAndLabel('chat.groupSettings', 'Group Settings')}
+                </DropdownMenuItem>
+              )}
+              {onRemove && (
+                <DropdownMenuItem onClick={handleRemoveClick} data-testid="conversation-remove-button">
+                  <SignOut className="gba:w-4 gba:h-4 gba:mr-2" />
+                  {isGroupChat
+                    ? getTranslationFromI18nKeyAndLabel('chat.leaveConversation', 'Leave conversation')
+                    : getTranslationFromI18nKeyAndLabel('chat.removeConversation', 'Remove conversation')}
+                </DropdownMenuItem>
+              )}
             </DropdownMenuContent>
           </DropdownMenu>
         )}

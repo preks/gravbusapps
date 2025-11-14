@@ -691,6 +691,36 @@ export function useChatClient({ accessToken, apiUrl, wsUrl }: UseChatClientOptio
     [conversationsHook]
   )
 
+  const createGroupConversation = useCallback(
+    async (name: string, participantIds: string[], description?: string, avatarUrl?: string) => {
+      if (!apiClientRef.current) {
+        throw new Error('Chat client not initialized')
+      }
+
+      try {
+        // Create new group conversation
+        const conversation = await apiClientRef.current.createGroupConversation({
+          name,
+          participantIds,
+          description,
+          avatarUrl
+        })
+
+        // Reload conversation with full participant data including user objects
+        const fullConversation = await apiClientRef.current.getConversationById(conversation.id)
+        // Add and enrich conversation - this returns the enriched version
+        const enrichedConversation = await conversationsHook.addConversation(fullConversation)
+        setActiveConversationId(enrichedConversation.id)
+
+        return enrichedConversation
+      } catch (err) {
+        console.error('Error creating group conversation:', err)
+        throw err
+      }
+    },
+    [conversationsHook]
+  )
+
   const setActiveConversation = useCallback(
     async (conversation: Conversation | null) => {
       if (!conversation) {
@@ -775,6 +805,7 @@ export function useChatClient({ accessToken, apiUrl, wsUrl }: UseChatClientOptio
     createDirectConversation,
     createContextConversation,
     createAiAgentConversation,
+    createGroupConversation,
     setActiveConversation,
     closeConversation,
     loadMoreMessages: messagesHook.loadMoreMessages,

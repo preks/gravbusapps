@@ -141,6 +141,21 @@ export class ChatApiClient {
     }
   }
 
+  async createGroupConversation(data: {
+    name: string
+    participantIds: string[]
+    description?: string
+    avatarUrl?: string
+  }) {
+    try {
+      const response = await this.client.post<Conversation>('/conversations/group', data)
+      return response.data
+    } catch (error: any) {
+      console.error('API Error creating group conversation:', error.response?.data)
+      throw error
+    }
+  }
+
   async addParticipant(conversationId: string, userId: string) {
     const response = await this.client.post(`/conversations/${conversationId}/participants`, {
       userId

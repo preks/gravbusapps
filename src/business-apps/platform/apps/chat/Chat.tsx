@@ -6,6 +6,8 @@ import { ConversationList } from './components/ConversationList'
 import { ConversationHeader } from './components/ConversationHeader'
 import { MessageList } from './components/MessageList'
 import { MessageInput } from './components/MessageInput'
+import { CreateGroupModal } from './components/CreateGroupModal'
+import { GroupSettingsModal } from './components/GroupSettingsModal'
 import type { Conversation, User } from './types'
 import { getTranslationFromI18nKeyAndLabel } from '@/common/utils/windowUtils'
 import { env } from '@/common/env/EnvUtils'
@@ -17,6 +19,8 @@ interface ChatProps extends BusinessAppContextProps {
 export const Chat: React.FC<ChatProps> = ({ accessToken, prefixDataTestId = 'chat' }) => {
   const [showConversationList, setShowConversationList] = useState(true)
   const [isMobile, setIsMobile] = useState(false)
+  const [showCreateGroupModal, setShowCreateGroupModal] = useState(false)
+  const [showGroupSettingsModal, setShowGroupSettingsModal] = useState(false)
   const urlContextProcessed = useRef(false)
 
   let baseUrl = env('NEXT_PUBLIC_BASE_URL') || ''
@@ -50,12 +54,15 @@ export const Chat: React.FC<ChatProps> = ({ accessToken, prefixDataTestId = 'cha
     createDirectConversation,
     createContextConversation,
     createAiAgentConversation,
+    createGroupConversation,
     setActiveConversation,
     closeConversation,
     loadMoreMessages,
     loadMoreConversations,
+    refreshConversations,
     startTyping,
-    stopTyping
+    stopTyping,
+    apiClient
   } = chatClient
 
   const handleSendMessage = useCallback(
@@ -119,6 +126,35 @@ export const Chat: React.FC<ChatProps> = ({ accessToken, prefixDataTestId = 'cha
       console.error('Failed to remove conversation:', error)
     }
   }, [activeConversation, closeConversation, isMobile])
+
+  const handleCreateGroup = useCallback(() => {
+    setShowCreateGroupModal(true)
+  }, [])
+
+  const handleCreateGroupSubmit = useCallback(
+    async (name: string, participantIds: string[], description?: string) => {
+      try {
+        await createGroupConversation(name, participantIds, description)
+        setShowCreateGroupModal(false)
+      } catch (error) {
+        console.error('Failed to create group:', error)
+        throw error
+      }
+    },
+    [createGroupConversation]
+  )
+
+  const handleShowGroupSettings = useCallback(() => {
+    setShowGroupSettingsModal(true)
+  }, [])
+
+  const handleCloseGroupSettings = useCallback(() => {
+    setShowGroupSettingsModal(false)
+    // Refresh conversations to get updated participant data
+    if (refreshConversations) {
+      refreshConversations()
+    }
+  }, [refreshConversations])
 
   // Mobile view detection
   useEffect(() => {
@@ -272,6 +308,7 @@ export const Chat: React.FC<ChatProps> = ({ accessToken, prefixDataTestId = 'cha
             onConversationSelect={handleConversationSelect}
             onRemoveConversation={conversationId => closeConversation(conversationId)}
             onCreateConversation={handleCreateConversation}
+            onCreateGroup={handleCreateGroup}
             isLoading={conversationsLoading}
             isLoadingMore={conversationsLoadingMore}
             hasMore={conversationsHasMore}
@@ -300,6 +337,7 @@ export const Chat: React.FC<ChatProps> = ({ accessToken, prefixDataTestId = 'cha
               onBack={handleBack}
               onClose={handleCloseConversation}
               onRemove={handleRemoveConversation}
+              onGroupSettings={handleShowGroupSettings}
               showBackButton={true}
               currentUserId={currentUser?.id || null}
             />
@@ -352,6 +390,7 @@ export const Chat: React.FC<ChatProps> = ({ accessToken, prefixDataTestId = 'cha
             onConversationSelect={handleConversationSelect}
             onRemoveConversation={conversationId => closeConversation(conversationId)}
             onCreateConversation={handleCreateConversation}
+            onCreateGroup={handleCreateGroup}
             isLoading={conversationsLoading}
             isLoadingMore={conversationsLoadingMore}
             hasMore={conversationsHasMore}
@@ -369,6 +408,7 @@ export const Chat: React.FC<ChatProps> = ({ accessToken, prefixDataTestId = 'cha
                 conversation={activeConversation}
                 onClose={handleCloseConversation}
                 onRemove={handleRemoveConversation}
+                onGroupSettings={handleShowGroupSettings}
                 showBackButton={false}
                 currentUserId={currentUser?.id || null}
               />
@@ -404,6 +444,25 @@ export const Chat: React.FC<ChatProps> = ({ accessToken, prefixDataTestId = 'cha
           )}
         </div>
       </div>
+
+      {/* Group Chat Modals */}
+      <CreateGroupModal
+        isOpen={showCreateGroupModal}
+        onClose={() => setShowCreateGroupModal(false)}
+        onCreateGroup={handleCreateGroupSubmit}
+        apiClient={apiClient}
+        currentUserId={currentUser?.id || null}
+        prefixDataTestId={`${prefixDataTestId}-create-group-modal`}
+      />
+      <GroupSettingsModal
+        isOpen={showGroupSettingsModal}
+        onClose={handleCloseGroupSettings}
+        conversation={activeConversation}
+        currentUserId={currentUser?.id || null}
+        apiClient={apiClient}
+        onRefresh={refreshConversations}
+        prefixDataTestId={`${prefixDataTestId}-group-settings-modal`}
+      />
     </div>
   )
 }
