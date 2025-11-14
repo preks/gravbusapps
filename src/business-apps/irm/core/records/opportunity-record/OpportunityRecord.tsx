@@ -107,42 +107,43 @@ const InvestmentOpportunityRecordContent: React.FC<OpportunityRecordContentProps
   const [loadingStages, setLoadingStages] = useState(false)
   const [stagesError, setStagesError] = useState<string | null>(null)
 
+  // Helper function to extract IRM stage conditions (reduces cognitive complexity)
+  const extractIrmStageConditions = useCallback(
+    (stageConditionStatuses: any[], stage: Stage): StageCondition[] => {
+      const stageCatalogConditions = catalogStageConditions.filter(
+        catalogCondition => catalogCondition.parentEntryId === stage.id
+      )
+
+      return stageCatalogConditions.map(catalogCondition => {
+        const statusRecord = stageConditionStatuses.find(
+          statusData => statusData.opportunityPipelineStageConditionRef === catalogCondition.id
+        )
+
+        const config = statusRecord?.configSnapshot || catalogCondition.objectValue || {}
+        const checkedType = config.check_type === 'MANUAL' ? 'User' : 'Automated'
+
+        return {
+          id: catalogCondition.id,
+          title: catalogCondition.value || 'Unknown Condition',
+          isCompleted: statusRecord?.completed || false,
+          checkedType: checkedType as 'Automated' | 'User' | 'Manager' | 'Owner',
+          completedBy: statusRecord?.completedByEmployee ? getEmployeeName(statusRecord.completedByEmployee) : null
+        }
+      })
+    },
+    [catalogStageConditions]
+  )
+
   // IRM-specific configuration for OpportunityStageProgression
   const irmPipelineConfig: OpportunityPipelineContextConfig = useMemo(
     () => ({
       transitionFlowContext: FlowContextName.investmentOpportunityStageTransition,
       opportunityIdField: 'opportunityId',
       targetStageRefField: 'targetStageRef',
-      extractStageConditions: (stageConditionStatuses: any[], stage: Stage): StageCondition[] => {
-        // Get catalog conditions for this stage
-        const stageCatalogConditions = catalogStageConditions.filter(
-          catalogCondition => catalogCondition.parentEntryId === stage.id
-        )
-
-        // Map catalog conditions to StageCondition format
-        return stageCatalogConditions.map(catalogCondition => {
-          // Find matching status record (if exists)
-          const statusRecord = stageConditionStatuses.find(statusData => {
-            const conditionRef = statusData.opportunityPipelineStageConditionRef
-            return conditionRef === catalogCondition.id
-          })
-
-          // Get config from status record or catalog
-          const config = statusRecord?.configSnapshot || catalogCondition.objectValue || {}
-          const checkedType = config.check_type === 'MANUAL' ? 'User' : 'Automated'
-
-          return {
-            id: catalogCondition.id,
-            title: catalogCondition.value || 'Unknown Condition',
-            isCompleted: statusRecord?.completed || false,
-            checkedType: checkedType as 'Automated' | 'User' | 'Manager' | 'Owner',
-            completedBy: statusRecord?.completedByEmployee ? getEmployeeName(statusRecord.completedByEmployee) : null
-          }
-        })
-      },
+      extractStageConditions: extractIrmStageConditions,
       isTooltipEnabled: isOpportunityOpen
     }),
-    [catalogStageConditions]
+    [extractIrmStageConditions]
   )
 
   const { fetchInvestmentOpportunityById } = useGetInvestmentOpportunityById(props)

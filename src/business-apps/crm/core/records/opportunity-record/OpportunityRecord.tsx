@@ -103,44 +103,43 @@ const OpportunityRecordContent: React.FC<OpportunityRecordContentProps> = ({
   // Extract stageConditionStatuses from opportunityData
   const stageConditionStatuses = opportunityData?.stageConditionStatuses || []
 
+  // Helper function to extract CRM stage conditions (reduces cognitive complexity)
+  const extractCrmStageConditions = useCallback(
+    (stageConditionStatuses: any[], stage: Stage): StageCondition[] => {
+      const expectedStageId = `SalesPipelineStage:v1:${stage.code}`
+      const stageCatalogConditions = catalogStageConditions.filter(
+        catalogCondition => catalogCondition.parentEntryId === expectedStageId
+      )
+
+      return stageCatalogConditions.map(catalogCondition => {
+        const statusRecord = stageConditionStatuses.find(
+          statusData => statusData.salesPipelineStageConditionRef === catalogCondition.id
+        )
+
+        const config = statusRecord?.configSnapshot || catalogCondition.objectValue || {}
+        const checkedType = config.check_type === 'MANUAL' ? 'User' : 'Automated'
+
+        return {
+          id: catalogCondition.id,
+          title: catalogCondition.value || 'Unknown Condition',
+          isCompleted: statusRecord?.completed || false,
+          checkedType: checkedType as 'Automated' | 'User' | 'Manager' | 'Owner',
+          completedBy: statusRecord?.completedByEmployee ? getEmployeeName(statusRecord.completedByEmployee) : null
+        }
+      })
+    },
+    [catalogStageConditions]
+  )
+
   // CRM-specific configuration for OpportunityStageProgression
   const crmPipelineConfig: OpportunityPipelineContextConfig = useMemo(
     () => ({
       transitionFlowContext: FlowContextName.customerOpportunityStageTransition,
       opportunityIdField: 'opportunityId',
       targetStageRefField: 'targetStageRef',
-      extractStageConditions: (stageConditionStatuses: any[], stage: Stage): StageCondition[] => {
-        // For CRM, build the expected stage ID from the code
-        const expectedStageId = `SalesPipelineStage:v1:${stage.code}`
-
-        // Get catalog conditions for this stage
-        const stageCatalogConditions = catalogStageConditions.filter(
-          catalogCondition => catalogCondition.parentEntryId === expectedStageId
-        )
-
-        // Map catalog conditions to StageCondition format
-        return stageCatalogConditions.map(catalogCondition => {
-          // Find matching status record (if exists)
-          const statusRecord = stageConditionStatuses.find(statusData => {
-            const conditionRef = statusData.salesPipelineStageConditionRef
-            return conditionRef === catalogCondition.id
-          })
-
-          // Get config from status record or catalog
-          const config = statusRecord?.configSnapshot || catalogCondition.objectValue || {}
-          const checkedType = config.check_type === 'MANUAL' ? 'User' : 'Automated'
-
-          return {
-            id: catalogCondition.id,
-            title: catalogCondition.value || 'Unknown Condition',
-            isCompleted: statusRecord?.completed || false,
-            checkedType: checkedType as 'Automated' | 'User' | 'Manager' | 'Owner',
-            completedBy: statusRecord?.completedByEmployee ? getEmployeeName(statusRecord.completedByEmployee) : null
-          }
-        })
-      }
+      extractStageConditions: extractCrmStageConditions
     }),
-    [catalogStageConditions]
+    [extractCrmStageConditions]
   )
 
   // AI Summary hook for HeaderSection
