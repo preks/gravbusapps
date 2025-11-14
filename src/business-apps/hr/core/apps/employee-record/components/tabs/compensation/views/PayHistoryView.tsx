@@ -21,6 +21,7 @@ import PayslipHistorySection from '../components/history/PayslipHistorySection'
 import dayjs from 'dayjs'
 import { formatCurrencyString } from '@/common/utils/numberFormatter'
 import { BusinessAppContextProps } from '@/common/BusinessAppContext'
+import { getTranslatedCatalogEntryValue } from '../utils/benefitTranslationUtils'
 
 interface PayHistoryViewProps extends BusinessAppContextProps {
   t: (key: string, params?: any) => string
@@ -249,11 +250,11 @@ const PayHistoryView: React.FC<PayHistoryViewProps> = ({
                   })}
                 </div>
               </TableCell>
-              <TableCell>{bonus.bonusType.value}</TableCell>
+              <TableCell>{getTranslatedCatalogEntryValue(bonus.bonusType, locale)}</TableCell>
               <TableCell>{bonus.fiscalYear}</TableCell>
               <TableCell>
                 <Badge variant={getCompensationStatusVariant(bonus.status)}>
-                  {getCompensationStatusLabel(bonus.status)}
+                  {getCompensationStatusLabel(bonus.status, t)}
                 </Badge>
               </TableCell>
               <TableCell>
