@@ -25,26 +25,20 @@ export const UploadComponent: React.FC<UploadComponentProps> = ({ fileList, setF
 
   const [isModalVisible, setIsModalVisible] = useState<boolean>(false)
 
-  // Smooth out quick state flips: delay show (avoid brief flashes) and delay hide (grace period)
+  // Smooth out quick state flips: set immediately on start, delay hide to avoid flicker
   useEffect(() => {
     const processingTarget = isProcessingFiles || isHandlingUpload
-    let showTimeoutId: number | undefined
     let hideTimeoutId: number | undefined
 
     if (processingTarget) {
-      // Only show spinner if processing persists beyond 150ms
-      showTimeoutId = window.setTimeout(() => {
-        setShowProcessing(true)
-      }, 150)
+      setShowProcessing(true)
     } else {
-      // Keep spinner visible slightly longer to avoid end-of-process flicker
       hideTimeoutId = window.setTimeout(() => {
         setShowProcessing(false)
       }, 300)
     }
 
     return () => {
-      if (showTimeoutId) window.clearTimeout(showTimeoutId)
       if (hideTimeoutId) window.clearTimeout(hideTimeoutId)
     }
   }, [isProcessingFiles, isHandlingUpload])
@@ -99,7 +93,6 @@ export const UploadComponent: React.FC<UploadComponentProps> = ({ fileList, setF
       if (isHandlingUpload || isProcessingFiles || files.length === 0) {
         return
       }
-
       setIsHandlingUpload(true)
 
       handleFileUpload(files).finally(() => {
@@ -305,7 +298,7 @@ export const UploadComponent: React.FC<UploadComponentProps> = ({ fileList, setF
           multiple={true}
           accept={acceptedFileTypes}
           style={{ width: '100%', height: '100%' }}
-          disabled={isProcessingFiles || isHandlingUpload || showProcessing}
+          disabled={isProcessingFiles || isHandlingUpload}
           data-testid="upload-input-empty"
         >
           {getButtonContent()}
@@ -345,7 +338,7 @@ export const UploadComponent: React.FC<UploadComponentProps> = ({ fileList, setF
               onChange={handleChange}
               multiple={true}
               accept={acceptedFileTypes}
-              disabled={isProcessingFiles || isHandlingUpload || showProcessing}
+              disabled={isProcessingFiles || isHandlingUpload}
               data-testid="attach-more-upload"
             >
               <div
