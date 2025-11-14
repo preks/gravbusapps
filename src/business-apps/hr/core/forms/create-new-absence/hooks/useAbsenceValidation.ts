@@ -131,13 +131,13 @@ export const useAbsenceValidation = ({
 
     const fetchExistingAbsences = async () => {
       try {
-        const startDateStr = dayjs(startDate).format('YYYY-MM-DD')
-        const endDateStr = dayjs(endDate).format('YYYY-MM-DD')
+        const startDateTimestamp = dayjs(startDate).startOf('day').subtract(1, 'day').toISOString()
+        const endDateTimestamp = dayjs(endDate).endOf('day').add(1, 'day').toISOString()
 
         const response = await client.request(getEmployeeAbsences, {
           employeeId,
-          startDate: startDateStr,
-          endDate: endDateStr
+          startDate: startDateTimestamp,
+          endDate: endDateTimestamp
         })
         const absences = response?.EmployeeAbsence || []
 
@@ -193,6 +193,10 @@ export const useAbsenceValidation = ({
     (newStartDate: Date, newEndDate: Date): AbsenceValidationError[] => {
       const errors: AbsenceValidationError[] = []
 
+      if (!selectedType || !absenceTypeDetails) {
+        return errors
+      }
+
       if (!existingAbsences.length) {
         return errors
       }
@@ -200,7 +204,22 @@ export const useAbsenceValidation = ({
       const newStart = dayjs(newStartDate)
       const newEnd = dayjs(newEndDate)
 
-      const newAbsencePriority = absenceTypeDetails?.objectValue?.priority
+      let newAbsencePriority: number | undefined
+      const newObjectValue = absenceTypeDetails?.objectValue
+
+      if (newObjectValue) {
+        if (typeof newObjectValue === 'string') {
+          try {
+            const parsed = JSON.parse(newObjectValue)
+            newAbsencePriority = typeof parsed?.priority === 'number' ? parsed.priority : undefined
+          } catch {
+            newAbsencePriority = undefined
+          }
+        } else if (typeof newObjectValue === 'object' && newObjectValue !== null) {
+          newAbsencePriority = typeof newObjectValue?.priority === 'number' ? newObjectValue.priority : undefined
+        }
+      }
+
       const newPriority = newAbsencePriority !== undefined ? newAbsencePriority : 999
 
       for (const absence of existingAbsences) {
@@ -208,14 +227,14 @@ export const useAbsenceValidation = ({
           continue
         }
 
-        if (existingSickLeave && absence.id === existingSickLeave.id) {
-          continue
-        }
+        const existingStart = dayjs(absence.startDate).startOf('day')
+        const existingEnd = dayjs(absence.endDate).endOf('day')
+        const normalizedNewStart = newStart.startOf('day')
+        const normalizedNewEnd = newEnd.endOf('day')
 
-        const existingStart = dayjs(absence.startDate)
-        const existingEnd = dayjs(absence.endDate)
+        const hasOverlap =
+          normalizedNewStart.isSameOrBefore(existingEnd) && normalizedNewEnd.isSameOrAfter(existingStart)
 
-        const hasOverlap = newStart.isSameOrBefore(existingEnd) && newEnd.isSameOrAfter(existingStart)
         if (hasOverlap) {
           let absenceTypeName = absence.typeRef
 
@@ -225,9 +244,25 @@ export const useAbsenceValidation = ({
             absenceTypeName = localeTranslation?.value || absence.type.translations[0].value
           }
 
-          const existingAbsencePriority = absence.type?.objectValue?.priority
+          let existingAbsencePriority: number | undefined
+          const objectValue = absence.type?.objectValue
+
+          if (objectValue) {
+            if (typeof objectValue === 'string') {
+              try {
+                const parsed = JSON.parse(objectValue)
+                existingAbsencePriority = typeof parsed?.priority === 'number' ? parsed.priority : undefined
+              } catch {
+                existingAbsencePriority = undefined
+              }
+            } else if (typeof objectValue === 'object' && objectValue !== null) {
+              existingAbsencePriority = typeof objectValue?.priority === 'number' ? objectValue.priority : undefined
+            }
+          }
+
           const existingPriority = existingAbsencePriority !== undefined ? existingAbsencePriority : 999
-          if (newPriority > existingPriority) {
+
+          if (newPriority >= existingPriority) {
             errors.push({
               type: 'overlap',
               message: `There is already a ${absenceTypeName} absence scheduled from ${existingStart.format(
@@ -245,7 +280,7 @@ export const useAbsenceValidation = ({
                 priorityComparison: {
                   existing: existingPriority,
                   new: newPriority,
-                  canOverride: newPriority <= existingPriority
+                  canOverride: newPriority < existingPriority
                 }
               }
             })
@@ -255,7 +290,7 @@ export const useAbsenceValidation = ({
 
       return errors
     },
-    [existingAbsences, absenceTypeDetails, existingSickLeave]
+    [selectedType, existingAbsences, absenceTypeDetails]
   )
 
   type BalanceValidationResult = {
@@ -315,7 +350,7 @@ export const useAbsenceValidation = ({
       const validationStartDate = validateStartDate || startDate
       const validationEndDate = validateEndDate || endDate
 
-      if (!validationStartDate || !validationEndDate) {
+      if (!validationStartDate || !validationEndDate || !selectedType) {
         setValidationErrors([])
         return []
       }
@@ -358,16 +393,16 @@ export const useAbsenceValidation = ({
         setIsValidating(false)
       }
     },
-    [startDate, endDate, checkOverlapValidation, checkBalanceValidation]
+    [startDate, endDate, selectedType, checkOverlapValidation, checkBalanceValidation]
   )
 
   useEffect(() => {
-    if (startDate && endDate) {
+    if (startDate && endDate && selectedType) {
       validateAbsence()
     } else {
       setValidationErrors([])
     }
-  }, [startDate, endDate, validateAbsence])
+  }, [startDate, endDate, selectedType, existingAbsences, validateAbsence])
 
   return {
     validationErrors,

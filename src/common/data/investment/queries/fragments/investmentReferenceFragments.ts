@@ -171,6 +171,14 @@ export const INVESTMENT_OPPORTUNITY_REF = `
   marketValue
   opportunityPipeline {
     ${CATALOG_ENTRY}
+    childEntries(orderBy: { displayOrder: ASC }) {
+      id
+      code
+      value
+      alternativeCode
+      displayOrder
+      parentEntryId
+    }
   }
   opportunityPipelineRef
   opportunityPipelineStage {
