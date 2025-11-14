@@ -523,7 +523,8 @@ const SummaryTab: React.FC<SummaryTabProps> = ({
                     return (
                       <div key={day} className="gba:text-center">
                         <div className="gba:text-xs gba:font-medium gba:text-muted-foreground gba:uppercase">
-                          {day.slice(0, 3)}
+                          <span className="gba:hidden gba:2xl:inline">{day.slice(0, 3)}</span>
+                          <span className="gba:inline gba:2xl:hidden">{day.slice(0, 1)}</span>
                         </div>
                         <div
                           className={`gba:h-2 gba:rounded-full gba:mt-1 ${isWorkDay ? 'gba:bg-info' : 'gba:bg-border'}`}
@@ -563,7 +564,7 @@ const SummaryTab: React.FC<SummaryTabProps> = ({
                         Quick Actions
                       </div>
                     </div>
-                    <div className="gba:flex gba:gap-2 gba:w-full">
+                    <div className="gba:flex gba:gap-2 gba:w-full gba:flex-wrap">
                       <Tooltip title="Clock In">
                         <Button
                           type="default"
@@ -610,7 +611,7 @@ const SummaryTab: React.FC<SummaryTabProps> = ({
                         prefixDataTestId="request-absence"
                         accessToken={accessToken}
                       >
-                        <div className="gba:flex gba:items-center gba:gap-2 gba:cursor-pointer">
+                        <div className="gba:flex gba:items-center gba:gap-2 gba:cursor-pointer gba:flex-1 gba:min-w-0">
                           <PiCalendarX className="gba:h-4 gba:w-4" />
                           <span className="gba:text-xs gba:md:text-sm gba:truncate">
                             {getTranslationFromI18nKeyAndLabel(

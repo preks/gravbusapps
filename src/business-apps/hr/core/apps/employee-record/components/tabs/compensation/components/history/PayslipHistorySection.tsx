@@ -14,7 +14,6 @@ import {
   TableCell,
   Badge,
   Button,
-  Input,
   Select,
   SelectTrigger,
   SelectValue,
@@ -28,6 +27,7 @@ import { getPayslipStatusLabel, getPayslipStatusVariant } from '../../types/comp
 import { sanitizeFilename } from '@/common/utils/textUtils'
 import { formatCurrencyString } from '@/common/utils/numberFormatter'
 import { BusinessAppContextProps } from '@/common/BusinessAppContext'
+import { DebouncedInput } from '@/components/debounced-input'
 
 interface PayslipHistorySectionProps extends BusinessAppContextProps {
   t: (key: string, params?: any) => string
@@ -134,7 +134,7 @@ const PayslipHistorySection: React.FC<PayslipHistorySectionProps> = ({ t, paysli
                   </TableCell>
                   <TableCell className="gba:w-[120px]">
                     <Badge variant={getPayslipStatusVariant(payslip.status)}>
-                      {getPayslipStatusLabel(payslip.status)}
+                      {getPayslipStatusLabel(payslip.status, t)}
                     </Badge>
                   </TableCell>
                   <TableCell className="gba:w-[80px] gba:text-center">
@@ -253,14 +253,15 @@ const PayslipHistorySection: React.FC<PayslipHistorySectionProps> = ({ t, paysli
           <CardTitle>{t('payslip-title')}</CardTitle>
           <div className="gba:flex gba:items-center gba:gap-3">
             {/* Search Input */}
-            <div className="gba:relative gba:w-64">
-              <PiMagnifyingGlass className="gba:absolute gba:left-3 gba:top-1/2 gba:-translate-y-1/2 gba:w-4 gba:h-4 gba:text-muted-foreground" />
-              <Input
-                data-testid="payslip-history-search-input"
-                placeholder={t('payslip-search-placeholder')}
+            <div className="gba:w-[260px] gba:shrink-0">
+              <DebouncedInput
                 value={searchQuery}
-                onChange={e => setSearchQuery(e.target.value)}
-                className="gba:pl-9"
+                onChange={setSearchQuery}
+                placeholder={t('payslip-search-placeholder')}
+                debounceDelay={300}
+                className="gba:w-full"
+                icon={<PiMagnifyingGlass className="gba:h-4 gba:w-4 gba:text-muted-foreground" />}
+                data-testid="payslip-history-search-input"
               />
             </div>
 
