@@ -2,9 +2,10 @@ import React, { useState, useEffect } from 'react'
 import { Tabs, Typography } from 'antd'
 import { DollarOutlined, TeamOutlined } from '@ant-design/icons'
 import { BusinessAppContextProps } from '@/common/BusinessAppContext'
-import { getTranslationFromI18nKeyAndLabel } from '@/common/utils/windowUtils'
+import { useTranslation } from '@newwork/nw-design-system'
 import SalaryForecasting from './components/tabs/SalaryForecasting'
 import WorkforceForecasting from './components/tabs/WorkforceForecasting'
+import hrTranslations from '@/business-apps/hr/core/apps/human-resources/_i18n'
 
 const { Title, Text } = Typography
 
@@ -14,6 +15,7 @@ interface ForecastingProps extends BusinessAppContextProps {
 
 export const Forecasting: React.FC<ForecastingProps> = props => {
   const { prefixDataTestId = 'Forecasting' } = props
+  const { t } = useTranslation(hrTranslations)
 
   // Define valid tabs
   const validTabs = ['salary', 'workforce']
@@ -64,7 +66,7 @@ export const Forecasting: React.FC<ForecastingProps> = props => {
       label: (
         <div className="gba:flex gba:items-center gba:gap-2">
           <DollarOutlined />
-          {getTranslationFromI18nKeyAndLabel('hr_analytics_salary_forecasting', 'Salary Forecasting')}
+          {t('hr-analytics-salary-forecasting')}
         </div>
       ),
       children: <SalaryForecasting {...props} prefixDataTestId="SalaryForecasting" />
@@ -74,7 +76,7 @@ export const Forecasting: React.FC<ForecastingProps> = props => {
       label: (
         <div className="gba:flex gba:items-center gba:gap-2">
           <TeamOutlined />
-          {getTranslationFromI18nKeyAndLabel('hr_analytics_workforce_forecasting', 'Workforce Forecasting')}
+          {t('hr-analytics-workforce-forecasting')}
         </div>
       ),
       children: <WorkforceForecasting {...props} prefixDataTestId="WorkforceForecasting" />
@@ -90,13 +92,10 @@ export const Forecasting: React.FC<ForecastingProps> = props => {
       <div className="gba:flex gba:justify-between gba:items-center">
         <div>
           <Title level={3} className="gba:m-0 gba:text-foreground">
-            {getTranslationFromI18nKeyAndLabel('hr_analytics_forecasting_analysis', 'Forecasting Analysis')}
+            {t('hr-analytics-forecasting-analysis')}
           </Title>
           <Text className="gba:text-muted-foreground">
-            {getTranslationFromI18nKeyAndLabel(
-              'hr_analytics_forecasting_description',
-              'Predictive workforce analytics, salary trends, and headcount projections'
-            )}
+            {t('hr-analytics-forecasting-description')}
           </Text>
         </div>
       </div>
