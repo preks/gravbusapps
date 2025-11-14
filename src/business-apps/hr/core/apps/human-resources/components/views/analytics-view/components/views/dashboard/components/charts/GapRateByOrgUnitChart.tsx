@@ -12,9 +12,10 @@ import {
   Cell,
   LabelList
 } from 'recharts'
-import { getTranslationFromI18nKeyAndLabel } from '@/common/utils/windowUtils'
+import { useTranslation } from '@newwork/nw-design-system'
 import { useGapRateByOrgUnit } from '../../../../../hooks/useGapRateByOrgUnit'
 import { mapValueToColor } from '@/common/utils/chartColorMapper'
+import hrTranslations from '@/business-apps/hr/core/apps/human-resources/_i18n'
 
 const { Title } = Typography
 
@@ -29,6 +30,7 @@ interface GapRateByOrgUnitChartProps {
 const GapRateByOrgUnitChart: React.FC<GapRateByOrgUnitChartProps> = ({ accessToken }) => {
   // Use the hook to fetch gap rate data
   const { data, loading, error } = useGapRateByOrgUnit(accessToken)
+  const { t } = useTranslation(hrTranslations)
 
   // Transform data for the bar chart - limit to top 10 org units with highest gap rates
   const chartData = useMemo(() => {
@@ -72,21 +74,15 @@ const GapRateByOrgUnitChart: React.FC<GapRateByOrgUnitChartProps> = ({ accessTok
       <div className="gba:p-4 gba:bg-card gba:rounded-lg gba:shadow-lg gba:border gba:border-border">
         <p className="gba:text-lg gba:font-semibold gba:border-b gba:border-border gba:pb-2 gba:mb-3">{label}</p>
         <div className="gba:flex gba:items-center gba:justify-between gba:mb-2">
-          <span className="gba:text-muted-foreground">
-            {getTranslationFromI18nKeyAndLabel('hr_analytics_gap_rate', 'Gap Rate')}
-          </span>
+          <span className="gba:text-muted-foreground">{t('hr-analytics-gap-rate')}</span>
           <span className="gba:text-foreground gba:font-medium">{data.gapRate}%</span>
         </div>
         <div className="gba:flex gba:items-center gba:justify-between gba:mb-2">
-          <span className="gba:text-muted-foreground">
-            {getTranslationFromI18nKeyAndLabel('hr_analytics_vacant_positions', 'Vacant Positions')}
-          </span>
+          <span className="gba:text-muted-foreground">{t('hr-analytics-vacant-positions')}</span>
           <span className="gba:text-foreground gba:font-medium">{data.vacantPositions}</span>
         </div>
         <div className="gba:flex gba:items-center gba:justify-between">
-          <span className="gba:text-muted-foreground">
-            {getTranslationFromI18nKeyAndLabel('hr_analytics_total_positions', 'Total Positions')}
-          </span>
+          <span className="gba:text-muted-foreground">{t('hr-analytics-total-positions')}</span>
           <span className="gba:text-foreground gba:font-medium">{data.totalPositions}</span>
         </div>
       </div>
@@ -124,7 +120,7 @@ const GapRateByOrgUnitChart: React.FC<GapRateByOrgUnitChartProps> = ({ accessTok
       title={
         <div className="gba:flex gba:justify-between gba:items-center">
           <Title level={4} className="gba:m-0">
-            {getTranslationFromI18nKeyAndLabel('hr_analytics_gap_rate_by_org_unit', 'Gap Rate by Org Unit')}
+            {t('hr-analytics-gap-rate-by-org-unit')}
           </Title>
           <div className="gba:flex gba:items-center">
             <InfoCircleOutlined className="gba:text-base" data-testid="gap-rate-by-org-unit-info-icon" />
@@ -147,16 +143,11 @@ const GapRateByOrgUnitChart: React.FC<GapRateByOrgUnitChartProps> = ({ accessTok
             </div>
           ) : error ? (
             <div className="gba:h-full gba:flex gba:items-center gba:justify-center gba:text-destructive">
-              <div data-testid="gap-rate-by-org-unit-chart-error">
-                {getTranslationFromI18nKeyAndLabel('hr_analytics_error_message', 'Error loading data')}
-              </div>
+              <div data-testid="gap-rate-by-org-unit-chart-error">{t('hr-analytics-error-message')}</div>
             </div>
           ) : data.length === 0 ? (
             <div className="gba:h-full gba:flex gba:items-center gba:justify-center">
-              <Empty
-                description={getTranslationFromI18nKeyAndLabel('hr_analytics_no_data', 'No data available')}
-                data-testid="gap-rate-by-org-unit-chart-empty"
-              />
+              <Empty description={t('hr-analytics-no-data')} data-testid="gap-rate-by-org-unit-chart-empty" />
             </div>
           ) : (
             <ResponsiveContainer
@@ -181,7 +172,7 @@ const GapRateByOrgUnitChart: React.FC<GapRateByOrgUnitChartProps> = ({ accessTok
                   axisLine={{ stroke: 'var(--nw-color-border)' }}
                   tickLine={{ stroke: 'var(--nw-color-border)' }}
                   label={{
-                    value: getTranslationFromI18nKeyAndLabel('hr_analytics_gap_rate_percent', 'Gap Rate (%)'),
+                    value: t('hr-analytics-gap-rate-percent'),
                     position: 'insideBottom',
                     offset: -10,
                     style: {
@@ -203,7 +194,7 @@ const GapRateByOrgUnitChart: React.FC<GapRateByOrgUnitChartProps> = ({ accessTok
                 />
                 <RechartsTooltip content={<CustomTooltip />} cursor={{ fill: 'var(--nw-color-muted)' }} />
                 <Bar
-                  name={getTranslationFromI18nKeyAndLabel('hr_analytics_gap_rate', 'Gap Rate')}
+                  name={t('hr-analytics-gap-rate')}
                   dataKey="gapRate"
                   radius={[0, 6, 6, 0]}
                   animationDuration={1200}
@@ -226,10 +217,7 @@ const GapRateByOrgUnitChart: React.FC<GapRateByOrgUnitChartProps> = ({ accessTok
             className="gba:text-center gba:text-sm gba:text-muted-foreground gba:pb-4 gba:px-6"
             data-testid="gap-rate-chart-footnote"
           >
-            {getTranslationFromI18nKeyAndLabel(
-              'hr_analytics_top_org_units_note',
-              `Showing top 10 organizational units with highest gap rates out of ${data.length} total`
-            )}
+            {t('hr-analytics-top-org-units-note', { total: data.length })}
           </div>
         )}
       </div>
