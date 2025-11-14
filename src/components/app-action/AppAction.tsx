@@ -9,8 +9,8 @@ import {
 } from '@/common/hooks/useAppActionData'
 import { formatDataTestId } from '@/common/utils/formatDataTestId'
 
-// Note: className and style props are flagged as unused by ESLint but are actually
-// extracted from cleanProps (line 58-59) and used in the render (line 110).
+// Note: className prop is flagged as unused by ESLint but is actually
+// extracted from cleanProps and used in the render (line 110).
 // This is a known false positive with React prop validation.
 export interface AppActionProps extends AppActionCommonProps {
   /**
@@ -30,13 +30,6 @@ export interface AppActionProps extends AppActionCommonProps {
    */
 
   className?: string
-
-  /**
-   * Optional inline styles to apply to the wrapper div (used on line 110)
-   * @see Line 110 where this is applied to the wrapper div
-   */
-
-  style?: React.CSSProperties
 }
 
 const DATA_TEST_ID_PREFIX = 'AppAction'
@@ -61,13 +54,11 @@ export const AppAction = React.memo(
       children,
       disabled,
       className,
-      style,
       'data-testid': customDataTestId
     } = cleanProps as {
       children: React.ReactElement
       disabled?: boolean
       className?: string
-      style?: React.CSSProperties
       'data-testid'?: string
     }
 
@@ -112,7 +103,7 @@ export const AppAction = React.memo(
     })
 
     return (
-      <div ref={ref} data-testid={containerTestId} className={className} style={style}>
+      <div ref={ref} data-testid={containerTestId} className={className}>
         {clonedChild}
       </div>
     )

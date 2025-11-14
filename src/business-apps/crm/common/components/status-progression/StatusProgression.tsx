@@ -34,6 +34,7 @@ interface StatusIndices {
 
 const renderActiveOpenStatus = (statuses: ReferenceData[], openIndex: number) => (
   <div
+    className="gba:bg-success gba:text-success-foreground"
     style={{
       position: 'relative',
       height: '40px',
@@ -43,10 +44,6 @@ const renderActiveOpenStatus = (statuses: ReferenceData[], openIndex: number) =>
       justifyContent: 'center',
       fontSize: '14px',
       fontWeight: '600',
-      // eslint-disable-next-line newwork-local/no-hardcoded-colors
-      backgroundColor: '#4CAF50',
-      // eslint-disable-next-line newwork-local/no-hardcoded-colors
-      color: 'white',
       borderRadius: '20px 0 0 20px',
       marginRight: '8px',
       transition: 'all 0.3s ease',
@@ -60,10 +57,8 @@ const renderActiveOpenStatus = (statuses: ReferenceData[], openIndex: number) =>
       style={{
         fontSize: '14px',
         fontWeight: 'bold',
-        // eslint-disable-next-line newwork-local/no-hardcoded-colors
-        backgroundColor: 'rgba(255,255,255,0.3)',
-        // eslint-disable-next-line newwork-local/no-hardcoded-colors
-        color: 'white',
+        backgroundColor: 'hsl(var(--success-foreground) / 0.3)',
+        color: 'hsl(var(--success-foreground))',
         borderRadius: '50%',
         width: '20px',
         height: '20px',
@@ -99,9 +94,10 @@ const renderInactiveOpenStatus = (
     accessToken={accessToken}
     emptyStateBehavior="enable"
     deferMainContextRequestsUntilClick
-    style={{ flex: 1, display: 'flex' }}
+    className="gba:flex gba:flex-1"
   >
     <div
+      className="gba:bg-transparent gba:text-muted-foreground"
       style={{
         position: 'relative',
         height: '40px',
@@ -111,8 +107,6 @@ const renderInactiveOpenStatus = (
         justifyContent: 'center',
         fontSize: '14px',
         fontWeight: '600',
-        backgroundColor: 'transparent',
-        color: 'hsl(var(--muted-foreground))',
         borderRadius: '20px 0 0 20px',
         marginRight: '8px',
         transition: 'all 0.3s ease',
@@ -258,10 +252,10 @@ const renderActiveStatusBadge = (
 ) => {
   const { isConverted, isLost, openIndex, convertedIndex, lostIndex } = indices
 
-  const getBackgroundColor = () => {
-    if (isConverted) return '#4CAF50'
-    if (isLost) return '#f44336'
-    return 'transparent'
+  const getColorClasses = () => {
+    if (isConverted) return 'gba:bg-success gba:text-success-foreground'
+    if (isLost) return 'gba:bg-destructive gba:text-destructive-foreground'
+    return 'gba:bg-transparent gba:text-muted-foreground'
   }
 
   return (
@@ -277,9 +271,10 @@ const renderActiveStatusBadge = (
       accessToken={accessToken}
       emptyStateBehavior="enable"
       deferMainContextRequestsUntilClick
-      style={{ flex: 1, display: 'flex' }}
+      className="gba:flex gba:flex-1"
     >
       <div
+        className={getColorClasses()}
         style={{
           position: 'relative',
           height: '40px',
@@ -289,8 +284,6 @@ const renderActiveStatusBadge = (
           justifyContent: 'center',
           fontSize: '14px',
           fontWeight: '600',
-          backgroundColor: getBackgroundColor(),
-          color: isConverted || isLost ? 'hsl(var(--background))' : 'hsl(var(--muted-foreground))',
           borderRadius: '0 20px 20px 0',
           marginRight: '0',
           transition: 'all 0.3s ease',
@@ -306,10 +299,10 @@ const renderActiveStatusBadge = (
               style={{
                 fontSize: '14px',
                 fontWeight: 'bold',
-                // eslint-disable-next-line newwork-local/no-hardcoded-colors
-                backgroundColor: 'rgba(255,255,255,0.3)',
-                // eslint-disable-next-line newwork-local/no-hardcoded-colors
-                color: 'white',
+                backgroundColor: isConverted
+                  ? 'hsl(var(--success-foreground) / 0.3)'
+                  : 'hsl(var(--destructive-foreground) / 0.3)',
+                color: isConverted ? 'hsl(var(--success-foreground))' : 'hsl(var(--destructive-foreground))',
                 borderRadius: '50%',
                 width: '20px',
                 height: '20px',
