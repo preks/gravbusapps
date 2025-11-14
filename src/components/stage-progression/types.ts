@@ -52,8 +52,13 @@ export interface StageProgressionProps {
   // Custom content
   renderStageContent?: (stage: Stage, isCurrentStage: boolean, isCompleted: boolean) => ReactNode
 
-  // Children render prop for custom stage wrapping (e.g., ActionMenu)
-  children?: (stage: Stage, isCurrentStage: boolean, isCompleted: boolean, stageElement: ReactNode) => ReactNode
+  // Render prop for custom stage wrapping (e.g., ActionMenu)
+  renderStageWrapper?: (
+    stage: Stage,
+    isCurrentStage: boolean,
+    isCompleted: boolean,
+    stageElement: ReactNode
+  ) => ReactNode
 
   // Data test id prefix
   dataTestIdPrefix?: string

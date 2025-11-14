@@ -61,7 +61,9 @@ const DefaultStageContent: React.FC<{
         ✓
       </span>
     )}
-    <span className={cn('gba:whitespace-nowrap', stagesCount > 4 ? 'gba:text-xs' : 'gba:text-sm')}>{stage.value}</span>
+    <span className={cn('gba:whitespace-nowrap gba:text-inherit', stagesCount > 4 ? 'gba:text-xs' : 'gba:text-sm')}>
+      {stage.value}
+    </span>
   </>
 )
 
@@ -74,7 +76,12 @@ interface StageItemProps {
   isCompleted: boolean
   onStageClick?: (stage: Stage) => void
   renderStageContent?: (stage: Stage, isCurrentStage: boolean, isCompleted: boolean) => React.ReactNode
-  children?: (stage: Stage, isCurrentStage: boolean, isCompleted: boolean, element: React.ReactNode) => React.ReactNode
+  renderStageWrapper?: (
+    stage: Stage,
+    isCurrentStage: boolean,
+    isCompleted: boolean,
+    element: React.ReactNode
+  ) => React.ReactNode
   dataTestIdPrefix: string
 }
 
@@ -86,7 +93,7 @@ const StageItem: React.FC<StageItemProps> = ({
   isCompleted,
   onStageClick,
   renderStageContent,
-  children,
+  renderStageWrapper,
   dataTestIdPrefix
 }) => {
   const colorClasses = getStageColorClasses(isCurrentStage, isCompleted)
@@ -99,52 +106,60 @@ const StageItem: React.FC<StageItemProps> = ({
     }
   }
 
-  const handleKeyDown = (event: React.KeyboardEvent) => {
-    if ((event.key === 'Enter' || event.key === ' ') && isInteractive) {
-      event.preventDefault()
-      onStageClick(stage)
-    }
-  }
+  const commonClassName = cn(
+    'gba:relative gba:h-10 gba:flex-1 gba:flex gba:items-center gba:justify-center gba:text-sm gba:font-semibold',
+    colorClasses,
+    isInteractive ? 'gba:cursor-pointer' : 'gba:cursor-default'
+  )
 
-  const stageElement = (
+  const commonStyle = { borderRadius, marginRight, clipPath, WebkitClipPath }
+
+  const contentDiv = (
     <div
-      role={isInteractive ? 'button' : undefined}
-      tabIndex={isInteractive ? 0 : undefined}
-      aria-label={isInteractive ? `Change stage to ${stage.value}` : stage.value}
       className={cn(
-        'gba:relative gba:h-10 gba:flex-1 gba:flex gba:items-center gba:justify-center gba:text-sm gba:font-semibold',
-        colorClasses,
-        isInteractive ? 'gba:cursor-pointer' : 'gba:cursor-default'
+        'gba:flex gba:items-center gba:gap-2 gba:px-4 gba:relative gba:z-10 gba:text-inherit',
+        index < totalStages - 1 && 'gba:pr-6',
+        index > 0 && 'gba:pl-6'
       )}
-      style={{ borderRadius, marginRight, clipPath, WebkitClipPath }}
+    >
+      {renderStageContent ? (
+        renderStageContent(stage, isCurrentStage, isCompleted)
+      ) : (
+        <DefaultStageContent
+          stage={stage}
+          isCurrentStage={isCurrentStage}
+          isCompleted={isCompleted}
+          stagesCount={totalStages}
+        />
+      )}
+    </div>
+  )
+
+  const stageElement = isInteractive ? (
+    <button
+      type="button"
+      aria-label={`Change stage to ${stage.value}`}
+      className={cn(commonClassName, 'gba:border-0 gba:p-0 gba:w-full gba:text-left')}
+      style={commonStyle}
       data-testid={formatDataTestId(dataTestIdPrefix, `stage-${stage.code}`)}
       onClick={handleClick}
-      onKeyDown={handleKeyDown}
     >
-      <div
-        className={cn(
-          'gba:flex gba:items-center gba:gap-2 gba:px-4 gba:relative gba:z-10',
-          index < totalStages - 1 && 'gba:pr-6',
-          index > 0 && 'gba:pl-6'
-        )}
-      >
-        {renderStageContent ? (
-          renderStageContent(stage, isCurrentStage, isCompleted)
-        ) : (
-          <DefaultStageContent
-            stage={stage}
-            isCurrentStage={isCurrentStage}
-            isCompleted={isCompleted}
-            stagesCount={totalStages}
-          />
-        )}
-      </div>
+      {contentDiv}
+    </button>
+  ) : (
+    <div
+      aria-label={stage.value}
+      className={cn(commonClassName, 'gba:w-full')}
+      style={commonStyle}
+      data-testid={formatDataTestId(dataTestIdPrefix, `stage-${stage.code}`)}
+    >
+      {contentDiv}
     </div>
   )
 
   return (
     <React.Fragment key={stage.id}>
-      {children ? children(stage, isCurrentStage, isCompleted, stageElement) : stageElement}
+      {renderStageWrapper ? renderStageWrapper(stage, isCurrentStage, isCompleted, stageElement) : stageElement}
     </React.Fragment>
   )
 }
@@ -154,7 +169,7 @@ export const StageProgression: React.FC<StageProgressionProps> = ({
   currentStage,
   onStageClick,
   renderStageContent,
-  children,
+  renderStageWrapper,
   dataTestIdPrefix = 'stage-progression'
 }) => {
   const getCurrentStageIndex = () => {
@@ -185,7 +200,7 @@ export const StageProgression: React.FC<StageProgressionProps> = ({
             isCompleted={index < currentIndex}
             onStageClick={onStageClick}
             renderStageContent={renderStageContent}
-            children={children}
+            renderStageWrapper={renderStageWrapper}
             dataTestIdPrefix={dataTestIdPrefix}
           />
         ))}

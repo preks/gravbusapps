@@ -74,7 +74,7 @@ export const OpportunityStageProgression: React.FC<OpportunityStageProgressionPr
       }
     > = {}
 
-    convertToStageFormat(stages).forEach(stage => {
+    for (const stage of convertToStageFormat(stages)) {
       const isCurrentStage = stage.code === currentStage
       const isDisabled = readonly && !isCurrentStage
 
@@ -89,7 +89,7 @@ export const OpportunityStageProgression: React.FC<OpportunityStageProgressionPr
         },
         contextsArray: isCurrentStage || isDisabled ? emptyContextsArray : transitionContextsArray
       }
-    })
+    }
 
     return props
   }, [
@@ -116,8 +116,7 @@ export const OpportunityStageProgression: React.FC<OpportunityStageProgressionPr
         currentStage={currentStage}
         dataTestIdPrefix={dataTestIdPrefix}
         onStageClick={() => {}} // Dummy function to enable pointer cursor for non-current stages
-      >
-        {(stage, isCurrentStage, _isCompleted, stageElement) => {
+        renderStageWrapper={(stage, isCurrentStage, _isCompleted, stageElement) => {
           const stagePropsData = stageProps[stage.id]
 
           // For the current stage, render a plain container (no action menu)
@@ -155,7 +154,7 @@ export const OpportunityStageProgression: React.FC<OpportunityStageProgressionPr
             </AppActionMenu>
           )
         }}
-      </StageProgression>
+      />
 
       {/* Custom Tooltip Overlay - only show if tooltips are enabled */}
       {tooltipsEnabled &&
