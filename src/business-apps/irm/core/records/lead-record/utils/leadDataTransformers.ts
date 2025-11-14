@@ -174,6 +174,8 @@ export function buildInvestmentFromLead(lead: InvestmentLead | any): Investment 
     investmentTypeRef: lead.investmentTypeRef,
     investmentStakeType: lead.investmentStakeType,
     investmentStakeTypeRef: lead.investmentStakeTypeRef,
+    investmentRole: lead.investmentRole,
+    investmentRoleRef: lead.investmentRoleRef,
 
     // Financial fields
     initialInvestmentAmount: lead.initialInvestmentAmount,

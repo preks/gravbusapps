@@ -10,7 +10,6 @@ import {
   DotsThreeVerticalIcon
 } from '@phosphor-icons/react'
 import dayjs from 'dayjs'
-import { AppAction } from '@/components/app-action'
 import { AppActionMenu } from '@/components/app-action-menu/AppActionMenu'
 import type { AppActionCommonProps } from '@/common/hooks/useAppActionData'
 import { getTranslationFromI18nKeyAndLabel } from '@/common/utils/windowUtils'
@@ -255,26 +254,27 @@ const ActivitySection: React.FC<ActivitySectionProps> = props => {
 
 // Static properties for SectionWrapper
 ;(ActivitySection as any).sectionTitle = 'Activities'
-;(ActivitySection as any).sectionActions = (props: ActivitySectionProps) => {
+;(ActivitySection as any).getActionButtonConfig = (_pageData: any, _pageIndex: number, props: ActivitySectionProps) => {
   const { accessToken, activitySectionActionProps } = props
 
-  if (!activitySectionActionProps) {
+  if (!activitySectionActionProps || !accessToken) {
     return null
   }
 
-  return (
-    <AppAction
-      accessToken={accessToken}
-      contextsArray={activitySectionActionProps.contextsArray}
-      externalContextData={activitySectionActionProps.externalContextData}
-      prefixDataTestId={activitySectionActionProps.prefixDataTestId}
-      emptyStateBehavior={activitySectionActionProps.emptyStateBehavior}
-    >
-      <Button data-testid="add-activity-button" variant="secondary" size="icon">
-        <PlusIcon />
-      </Button>
-    </AppAction>
-  )
+  return {
+    type: 'AppAction' as const,
+    config: {
+      contextsArray: activitySectionActionProps.contextsArray,
+      externalContextData: activitySectionActionProps.externalContextData,
+      prefixDataTestId: activitySectionActionProps.prefixDataTestId,
+      emptyStateBehavior: activitySectionActionProps.emptyStateBehavior || 'enable',
+      children: (
+        <Button data-testid="add-activity-button" variant="secondary" size="icon">
+          <PlusIcon />
+        </Button>
+      )
+    }
+  }
 }
 
 export default ActivitySection

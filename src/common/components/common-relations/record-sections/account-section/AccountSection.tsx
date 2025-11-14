@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useMemo } from 'react'
+import React from 'react'
 import { BusinessAppContextProps } from '@/common/BusinessAppContext'
 import {
   Avatar,
@@ -10,13 +10,13 @@ import {
   TooltipProvider,
   TooltipTrigger
 } from '@newwork/nw-design-system'
-import { AppActionButton } from '@/components/app-action-button/AppActionButton'
 import { FlowContextName } from '@/common/types/FlowRegistryTypes'
-import { PiGlobe, PiPhone, PiUsers, PiMapPin, PiCaretLeft, PiCaretRight, PiEnvelope } from 'react-icons/pi'
+import { PiGlobe, PiPhone, PiUsers, PiMapPin, PiEnvelope } from 'react-icons/pi'
 import { BankIcon, ChartLineUpIcon } from '@phosphor-icons/react'
 import { formatAddress } from '@/common/utils/addressFormatter'
 import { navigateTo } from '@/common/utils/navigationUtils'
 import { getEmailChannel, getPhoneChannel } from '@/common/data/common/utils/communicationChannelHelpers'
+import { createGetPages } from '../utils'
 
 interface AddressObject {
   addressLine?: {
@@ -74,77 +74,32 @@ interface AccountSectionProps extends Partial<BusinessAppContextProps> {
   recordUrl?: string
 }
 
+const createTitleClickHandler = (recordUrl?: string) => {
+  if (!recordUrl) {
+    return undefined
+  }
+  return () => navigateTo(recordUrl)
+}
+
 const AccountSection: React.FC<AccountSectionProps> = ({
   account,
   accounts,
   address,
   className = '',
-  actionButtonProps,
   recordUrl,
   ...props
 }) => {
-  const accountList = useMemo(() => {
-    const arr = Array.isArray(accounts) ? accounts.filter(Boolean) : []
-    return arr
-  }, [accounts])
-
-  const hasMultiple = accountList.length > 1
-  const initialSelected: any | null = account || (accountList.length > 0 ? accountList[0] : null)
-  const [selectedAccount, setSelectedAccount] = useState<any | null>(initialSelected)
-  const [currentIndex, setCurrentIndex] = useState(0)
-
-  // Update selected account when accountList changes
-  useEffect(() => {
-    if (accountList.length > 0 && !selectedAccount) {
-      setSelectedAccount(accountList[0])
-      setCurrentIndex(0)
-    }
-  }, [accountList, selectedAccount])
-
-  // Carousel navigation
-  const handlePrevious = () => {
-    if (hasMultiple) {
-      const newIndex = currentIndex > 0 ? currentIndex - 1 : accountList.length - 1
-      setCurrentIndex(newIndex)
-      setSelectedAccount(accountList[newIndex])
-    }
-  }
-
-  const handleNext = () => {
-    if (hasMultiple) {
-      const newIndex = currentIndex < accountList.length - 1 ? currentIndex + 1 : 0
-      setCurrentIndex(newIndex)
-      setSelectedAccount(accountList[newIndex])
-    }
-  }
-
-  // Navigation handler
-  const handleTitleClick = () => {
-    if (recordUrl) {
-      navigateTo(recordUrl)
-    }
-  }
-
-  // Conditional logic for clickable title
-  const shouldShowClickableTitle = !!recordUrl
-
-  // Use the correct account data source - direkt aus account/accounts
-  const displayAccount = hasMultiple ? selectedAccount : account || initialSelected
+  // If used directly (not via SectionWrapper), render first account
+  const accountList = Array.isArray(accounts) ? accounts.filter(Boolean) : []
+  const displayAccount = account || (accountList.length > 0 ? accountList[0] : null)
 
   return (
     <div data-testid={props['data-testid'] || 'account-section'} className={`gba:w-full gba:h-full ${className}`}>
       <AccountCompanyInformation
         account={displayAccount}
         address={address}
-        hasMultiple={hasMultiple}
-        currentIndex={currentIndex}
-        totalCount={accountList.length}
-        onPrevious={handlePrevious}
-        onNext={handleNext}
         className={className}
-        actionButtonProps={actionButtonProps}
-        onTitleClick={shouldShowClickableTitle ? handleTitleClick : undefined}
-        accessToken={props.accessToken}
+        onTitleClick={createTitleClickHandler(recordUrl)}
       />
     </div>
   )
@@ -152,28 +107,51 @@ const AccountSection: React.FC<AccountSectionProps> = ({
 
 // Static properties for SectionWrapper
 ;(AccountSection as any).sectionTitle = 'Account Information'
-;(AccountSection as any).sectionActions = (props: AccountSectionProps) => {
+;(AccountSection as any).getPages = createGetPages<any>(
+  (props: AccountSectionProps) => props.accounts,
+  (props: AccountSectionProps) => props.account
+)
+;(AccountSection as any).renderPage = (pageData: any, _pageIndex: number, props: AccountSectionProps) => {
+  const { address, className = '', recordUrl } = props
+
+  return (
+    <AccountCompanyInformation
+      account={pageData}
+      address={address}
+      className={className}
+      onTitleClick={createTitleClickHandler(recordUrl)}
+    />
+  )
+}
+;(AccountSection as any).getActionButtonConfig = (pageData: any, _pageIndex: number, props: AccountSectionProps) => {
   const { accessToken, actionButtonProps, account, accountId } = props
 
-  if (!actionButtonProps) {
+  if (!actionButtonProps || !accessToken) {
     return null
   }
 
-  return (
-    <AppActionButton
-      data-testid="account-action-button"
-      size="icon"
-      contextsArray={actionButtonProps.contextsArray || [FlowContextName.customerAccountEntity]}
-      externalContextData={{
-        accountId: account?.id || accountId,
-        ...actionButtonProps.externalContextData
-      }}
-      prefixDataTestId={actionButtonProps.prefixDataTestId || 'account-section-action'}
-      accessToken={accessToken}
-      emptyStateBehavior="enable"
-      deferMainContextRequestsUntilClick
-    />
-  )
+  // Use pageData if available (carousel), otherwise fallback to account/accountId from props
+  const accountIdToUse = pageData?.id || account?.id || accountId
+
+  if (!accountIdToUse) {
+    return null
+  }
+
+  const config = {
+    type: 'AppActionButton' as const,
+    config: {
+      contextsArray: actionButtonProps.contextsArray || [FlowContextName.customerAccountEntity],
+      externalContextData: {
+        ...actionButtonProps.externalContextData,
+        accountId: accountIdToUse // Override with current page accountId (must come after spread)
+      },
+      prefixDataTestId: actionButtonProps.prefixDataTestId || 'account-section-action',
+      emptyStateBehavior: 'enable' as const,
+      deferMainContextRequestsUntilClick: true
+    }
+  }
+
+  return config
 }
 
 export default AccountSection
@@ -200,20 +178,10 @@ interface InlinedCompanyInformationProps {
 const AccountCompanyInformation: React.FC<InlinedCompanyInformationProps> = ({
   account,
   address,
-  hasMultiple,
-  currentIndex = 0,
-  totalCount = 1,
-  onPrevious,
-  onNext,
   className = '',
-  onTitleClick,
-  accessToken,
-  actionButtonProps
+  onTitleClick
 }) => {
   const cardClassName = `gba:w-full ${className}`.trim()
-
-  // Get current account ID - prioritize account prop as it contains the selected carousel item
-  const currentAccountId = account?.id
 
   // Extract logo URL - support both picture and pictureThumbnail
   const logoUrl = account?.pictureThumbnail
@@ -316,26 +284,7 @@ const AccountCompanyInformation: React.FC<InlinedCompanyInformationProps> = ({
               </TooltipProvider>
             </div>
           </div>
-          {/* Action Button for this account */}
-          {accessToken && currentAccountId && (
-            <div className="gba:flex gba:items-start">
-              <AppActionButton
-                key={`account-action-${currentAccountId}`}
-                data-testid={`account-carousel-action-button-${currentAccountId}`}
-                size="icon"
-                contextsArray={actionButtonProps?.contextsArray || [FlowContextName.customerAccountEntity]}
-                externalContextData={{
-                  ...actionButtonProps?.externalContextData,
-                  accountId: currentAccountId
-                }}
-                prefixDataTestId={actionButtonProps?.prefixDataTestId || `account-item-action-${currentAccountId}`}
-                accessToken={accessToken}
-                emptyStateBehavior="enable"
-                deferMainContextRequestsUntilClick
-                onClick={e => e.stopPropagation()}
-              />
-            </div>
-          )}
+          {/* Action Button removed - handled by SectionWrapper */}
         </div>
 
         {/* Separator */}
@@ -502,30 +451,7 @@ const AccountCompanyInformation: React.FC<InlinedCompanyInformationProps> = ({
         </div>
       </div>
 
-      {/* Carousel Navigation - Bottom Right */}
-      {hasMultiple && (
-        <div className="gba:absolute gba:bottom-2 gba:right-2 gba:z-10">
-          <div className="gba:flex gba:items-center gba:gap-1 gba:rounded gba:border gba:bg-muted gba:px-2 gba:py-1 gba:shadow-sm gba:border-border">
-            <span className="gba:text-xs gba:font-medium gba:text-muted-foreground">
-              {currentIndex + 1}/{totalCount}
-            </span>
-            <button
-              onClick={onPrevious}
-              data-testid="accounts-carousel-prev"
-              className="gba:h-4 gba:w-4 gba:flex gba:items-center gba:justify-center gba:rounded gba:transition-colors gba:p-1 gba:text-muted-foreground gba:hover:bg-muted-foreground/10"
-            >
-              <PiCaretLeft className="gba:text-[10px]" />
-            </button>
-            <button
-              onClick={onNext}
-              data-testid="accounts-carousel-next"
-              className="gba:h-4 gba:w-4 gba:flex gba:items-center gba:justify-center gba:rounded gba:transition-colors gba:p-1 gba:text-muted-foreground gba:hover:bg-muted-foreground/10"
-            >
-              <PiCaretRight className="gba:text-[10px]" />
-            </button>
-          </div>
-        </div>
-      )}
+      {/* Carousel Navigation removed - handled by SectionWrapper */}
     </div>
   )
 }
