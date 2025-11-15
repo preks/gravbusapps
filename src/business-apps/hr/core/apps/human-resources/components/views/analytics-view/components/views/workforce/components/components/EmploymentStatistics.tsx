@@ -1,5 +1,6 @@
 import React from 'react'
-import { SectionKpiCards, KpiCardData } from '@newwork/nw-design-system'
+import { SectionKpiCards, KpiCardData, useTranslation } from '@newwork/nw-design-system'
+import hrTranslations from '@/business-apps/hr/core/apps/human-resources/_i18n'
 
 export interface EmploymentStatistics {
   totalFte: number
@@ -20,27 +21,28 @@ interface EmploymentStatisticsProps {
 }
 
 const EmploymentStatistics: React.FC<EmploymentStatisticsProps> = ({ statistics, isLoading, dataTestId }) => {
+  const { t } = useTranslation(hrTranslations)
   const kpiCards: KpiCardData[] = [
     {
       id: 'fte-employee-count',
-      title: 'FTE / Employee Count',
-      value: isLoading ? 'Loading...' : `${statistics.totalFte.toFixed(1)} / ${statistics.employeeCount}`,
+      title: t('hr-analytics-fte-employee-count'),
+      value: isLoading ? t('hr-data-filter-loading') : `${statistics.totalFte.toFixed(1)} / ${statistics.employeeCount}`,
       icon: 'users',
       iconColor: 'var(--nw-info)',
-      footer: 'Full-time equivalent ratio'
+      footer: t('hr-analytics-fte-ratio')
     },
     {
       id: 'average-tenure',
-      title: 'Average Tenure',
-      value: isLoading ? 'Loading...' : statistics.averageTenure,
+      title: t('hr-analytics-average-tenure'),
+      value: isLoading ? t('hr-data-filter-loading') : statistics.averageTenure,
       icon: 'calendar',
       iconColor: 'var(--nw-info)',
-      footer: 'Company-wide average'
+      footer: t('hr-analytics-company-wide-average')
     },
     {
       id: 'gap-rate',
-      title: 'Gap Rate',
-      value: isLoading ? 'Loading...' : `${statistics.gapRate.toFixed(1)}%`,
+      title: t('hr-analytics-gap-rate'),
+      value: isLoading ? t('hr-data-filter-loading') : `${statistics.gapRate.toFixed(1)}%`,
       icon: 'mail',
       iconColor:
         statistics.gapRate > 15
@@ -48,12 +50,12 @@ const EmploymentStatistics: React.FC<EmploymentStatisticsProps> = ({ statistics,
           : statistics.gapRate > 10
             ? 'var(--nw-warning)'
             : 'var(--nw-success)',
-      footer: `${statistics.vacantPositions}/${statistics.totalPositions} positions`
+      footer: `${statistics.vacantPositions}/${statistics.totalPositions} ${t('hr-analytics-positions')}`
     },
     {
       id: 'probation-rate',
-      title: 'Probation Rate',
-      value: isLoading ? 'Loading...' : `${statistics.probationRate.toFixed(1)}%`,
+      title: t('hr-analytics-probation-rate'),
+      value: isLoading ? t('hr-data-filter-loading') : `${statistics.probationRate.toFixed(1)}%`,
       icon: 'users',
       iconColor:
         statistics.probationRate > 20
@@ -61,7 +63,7 @@ const EmploymentStatistics: React.FC<EmploymentStatisticsProps> = ({ statistics,
           : statistics.probationRate > 10
             ? 'var(--nw-warning)'
             : 'var(--nw-success)',
-      footer: `${statistics.employeesInProbation}/${statistics.totalEmployees} employees`
+      footer: `${statistics.employeesInProbation}/${statistics.totalEmployees} ${t('hr-analytics-employees')}`
     }
   ]
 

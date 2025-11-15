@@ -2,6 +2,7 @@ import { AccountFormValues } from '../../account-form/types'
 import { ContactFormValues } from '../../contact-form/types'
 import { InvestmentOpportunityFormValues } from '../../opportunity-form/types'
 import { extractAddressFromObject } from '../../../../../crm/common/utils/addressUtils'
+import { getLinkedInChannel, getXingChannel } from '@/common/data/common/utils/communicationChannelHelpers'
 
 export const getAccountInitialValues = (leadData: any): Partial<AccountFormValues> => {
   if (!leadData) {
@@ -123,14 +124,8 @@ export const getContactInitialValues = (leadData: any): Partial<ContactFormValue
     type: 'UNKNOWN_CONTACT', // Default contact type for lead conversion
 
     // ===== SOCIAL MEDIA INFORMATION (extracted from communication channels) =====
-    linkedinUrl:
-      leadData.communicationChannels?.find(
-        (channel: any) => channel.communicationChannelRef === 'CommunicationChannel:v1:LinkedIn'
-      )?.value || '',
-    xingUrl:
-      leadData.communicationChannels?.find(
-        (channel: any) => channel.communicationChannelRef === 'CommunicationChannel:v1:Xing'
-      )?.value || '',
+    linkedinUrl: getLinkedInChannel(leadData.communicationChannels)?.value || '',
+    xingUrl: getXingChannel(leadData.communicationChannels)?.value || '',
 
     // ===== OWNER INFORMATION (from InvestmentLead) =====
     ownerEmployeeId: leadData.ownerEmployeeId || leadData.ownerEmployee?.id || '',

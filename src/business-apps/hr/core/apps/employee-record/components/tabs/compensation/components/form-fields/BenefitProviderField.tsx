@@ -1,13 +1,17 @@
 import React from 'react'
 import { Label, Select, SelectTrigger, SelectValue, SelectContent, SelectItem } from '@newwork/nw-design-system'
+import { ProviderEntry } from '../../types/benefitCatalogTypes'
+import { getCurrentActiveUserLocale } from '@/common/utils/windowUtils'
+import { getTranslatedProviderValue } from '../../utils/benefitTranslationUtils'
 
 interface BenefitProviderFieldProps {
   t: (key: string, params?: any) => string
   value: string
   onChange: (value: string) => void
-  providers: Array<{ id: string; value: string }>
+  providers: ProviderEntry[]
   disabled?: boolean
   required?: boolean
+  locale?: string
 }
 
 /**
@@ -19,23 +23,31 @@ const BenefitProviderField: React.FC<BenefitProviderFieldProps> = ({
   onChange,
   providers,
   disabled = false,
-  required = false
+  required = false,
+  locale
 }) => {
+  const currentLocale = locale || getCurrentActiveUserLocale()
+
+  // Filter out invalid providers
+  const validProviders = React.useMemo(() => {
+    return providers?.filter(p => p?.id && p?.value) ?? []
+  }, [providers])
+
   return (
     <div className="gba:space-y-2">
       <Label className="gba:text-sm gba:font-medium gba:text-foreground">
         {t('modal-request-provider-label')}
         {required && <span className="gba:text-destructive"> *</span>}
       </Label>
-      {providers && providers.length > 0 ? (
+      {validProviders && validProviders.length > 0 ? (
         <Select value={value} onValueChange={onChange} disabled={disabled}>
           <SelectTrigger data-testid="request-benefit-provider-select">
             <SelectValue placeholder={t('modal-request-provider-placeholder')} />
           </SelectTrigger>
           <SelectContent>
-            {providers.map(provider => (
+            {validProviders.map(provider => (
               <SelectItem key={provider.id} value={provider.id}>
-                {provider.value}
+                {getTranslatedProviderValue(provider, currentLocale)}
               </SelectItem>
             ))}
           </SelectContent>

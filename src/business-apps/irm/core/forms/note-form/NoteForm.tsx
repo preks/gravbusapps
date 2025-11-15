@@ -6,7 +6,8 @@ import NoteSegment, {
   createNoteSegmentResolver
 } from '@/common/components/common-relations/form-segments/note-segment/NoteSegment'
 import { buildInvestmentNotePayload } from '@/common/data/investment/payloads'
-import { useInvestmentEntities, useGetInvestmentNoteById } from '@/common/data/investment/hooks'
+import { useInvestmentEntities } from '@/common/data/investment/hooks/useInvestmentEntities'
+import { useGetInvestmentNoteById } from '@/common/data/investment/hooks/useInvestmentNotes'
 import { AppActionForm } from '@/components/app-action-form'
 import { useForm } from 'react-hook-form'
 import { Spinner, Alert } from '@newwork/nw-design-system'

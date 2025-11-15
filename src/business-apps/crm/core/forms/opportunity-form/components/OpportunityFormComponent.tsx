@@ -26,39 +26,33 @@ const OpportunityFormComponent: React.FC = () => {
     return value && value.trim() ? value.trim() : undefined
   }
 
+  // Helper: Build a single opportunity contact association
+  const buildOpportunityContactAssociation = (contact: any, opportunityId?: string): any => {
+    const baseAssociation = {
+      contactType: null,
+      opportunity: opportunityId,
+      contact: typeof contact === 'object' && contact.id ? contact.id : contact
+    }
+
+    // Include association metadata for existing associations
+    if (typeof contact === 'object' && contact.id && contact.associationId) {
+      return {
+        ...baseAssociation,
+        id: contact.associationId,
+        ...(contact.associationVersion !== undefined && { version: contact.associationVersion })
+      }
+    }
+
+    return baseAssociation
+  }
+
   // Helper: Build opportunityContacts array with full association objects
   const buildOpportunityContacts = (contactIds: any[], opportunityId?: string): any[] => {
     if (!contactIds || contactIds.length === 0) {
       return []
     }
 
-    return contactIds.map(contact => {
-      if (typeof contact === 'object' && contact.id) {
-        // Existing association - include association metadata if available
-        const opportunityContact: any = {
-          contactType: null,
-          opportunity: opportunityId, // Current opportunity ID
-          contact: contact.id
-        }
-
-        // Include association ID and version if it exists (for updates)
-        if (contact.associationId) {
-          opportunityContact.id = contact.associationId
-          if (contact.associationVersion !== undefined) {
-            opportunityContact.version = contact.associationVersion
-          }
-        }
-
-        return opportunityContact
-      }
-
-      // New association - simple format
-      return {
-        contactType: null,
-        opportunity: opportunityId,
-        contact: contact
-      }
-    })
+    return contactIds.map(contact => buildOpportunityContactAssociation(contact, opportunityId))
   }
 
   // Helper: Build complete opportunity payload with all optional fields

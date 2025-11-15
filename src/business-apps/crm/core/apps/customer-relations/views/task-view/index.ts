@@ -1,2 +1,4 @@
-export { default } from './TaskView'
-export { default as TaskView } from './TaskView'
+// New TaskView using TaskLayout from common-relations
+export { TaskView as default } from './TaskView'
+export { TaskView } from './TaskView'
+export type { TaskViewProps } from './TaskView'

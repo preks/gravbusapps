@@ -1,8 +1,8 @@
 import React from 'react'
 import { PieChart, Pie, Cell, ResponsiveContainer, Sector } from 'recharts'
-import { Card, Spinner, Alert, Badge } from '@newwork/nw-design-system'
-import { getTranslationFromI18nKeyAndLabel } from '@/common/utils/windowUtils'
+import { Card, Spinner, Alert, Badge, useTranslation } from '@newwork/nw-design-system'
 import { EmploymentTypeDistribution } from '../../../../../hooks/useEmploymentTypeDistribution'
+import hrTranslations from '@/business-apps/hr/core/apps/human-resources/_i18n'
 
 interface EmploymentTypePieChartProps {
   data: EmploymentTypeDistribution[]
@@ -16,6 +16,7 @@ interface EmploymentTypePieChartProps {
 const EmploymentTypePieChart: React.FC<EmploymentTypePieChartProps> = ({ data, loading = false, error = null }) => {
   const [activeIndex, setActiveIndex] = React.useState<number>(-1)
   const prefixDataTestId = 'EmploymentTypePieChart'
+  const { t } = useTranslation(hrTranslations)
 
   // Transform data for the pie chart
   const chartData = React.useMemo(() => {
@@ -73,7 +74,7 @@ const EmploymentTypePieChart: React.FC<EmploymentTypePieChartProps> = ({ data, l
           {payload.name}
         </text>
         <text x={cx} y={cy + 10} textAnchor="middle" fill="var(--nw-color-muted-foreground)" fontSize={16}>
-          {value.toLocaleString()} employees
+          {value.toLocaleString()} {t('hr-analytics-employees')}
         </text>
         <text x={cx} y={cy + 35} textAnchor="middle" fill="var(--nw-color-primary)" fontSize={16} fontWeight="600">
           {payload.percentage}%
@@ -96,10 +97,10 @@ const EmploymentTypePieChart: React.FC<EmploymentTypePieChartProps> = ({ data, l
       <Card className="gba:w-full gba:p-6 gba:shadow-sm" data-testid={`${prefixDataTestId}-loading`}>
         <div className="gba:mb-4">
           <h3 className="gba:text-lg gba:font-semibold gba:text-foreground gba:m-0">
-            {getTranslationFromI18nKeyAndLabel('hr_analytics_employment_type', 'Employment Type')}
+            {t('hr-analytics-employment-type')}
           </h3>
           <p className="gba:text-muted-foreground gba:text-sm gba:mt-1">
-            Distribution of employees by employment types such as internal, external, full-time, part-time, etc.
+            {t('hr-analytics-employment-type-description')}
           </p>
         </div>
         <div className="gba:flex gba:justify-center gba:items-center gba:h-96">
@@ -114,15 +115,13 @@ const EmploymentTypePieChart: React.FC<EmploymentTypePieChartProps> = ({ data, l
       <Card className="gba:w-full gba:p-6 gba:shadow-sm" data-testid={`${prefixDataTestId}-error`}>
         <div className="gba:mb-4">
           <h3 className="gba:text-lg gba:font-semibold gba:text-foreground gba:m-0">
-            {getTranslationFromI18nKeyAndLabel('hr_analytics_employment_type', 'Employment Type')}
+            {t('hr-analytics-employment-type')}
           </h3>
           <p className="gba:text-muted-foreground gba:text-sm gba:mt-1">
-            Distribution of employees by employment types such as internal, external, full-time, part-time, etc.
+            {t('hr-analytics-employment-type-description')}
           </p>
         </div>
-        <Alert variant="destructive">
-          {getTranslationFromI18nKeyAndLabel('hr_analytics_error_message', 'Error loading data')}
-        </Alert>
+        <Alert variant="destructive">{t('hr-analytics-error-message')}</Alert>
       </Card>
     )
   }
@@ -131,21 +130,17 @@ const EmploymentTypePieChart: React.FC<EmploymentTypePieChartProps> = ({ data, l
     <Card className="gba:w-full gba:p-6 gba:shadow-sm" data-testid={`${prefixDataTestId}-chart`}>
       <div className="gba:mb-4">
         <div className="gba:flex gba:items-center gba:justify-between gba:mb-2">
-          <h3 className="gba:text-lg gba:font-semibold gba:text-foreground gba:m-0">
-            {getTranslationFromI18nKeyAndLabel('hr_analytics_employment_type', 'Employment Type')}
-          </h3>
+          <h3 className="gba:text-lg gba:font-semibold gba:text-foreground gba:m-0">{t('hr-analytics-employment-type')}</h3>
           <Badge variant="outline" className="gba:text-xs">
-            {data.length} types
+            {t('hr-analytics-types', { count: data.length })}
           </Badge>
         </div>
-        <p className="gba:text-muted-foreground gba:text-sm">
-          Distribution of employees by employment types such as internal, external, full-time, part-time, etc.
-        </p>
+        <p className="gba:text-muted-foreground gba:text-sm">{t('hr-analytics-employment-type-description')}</p>
       </div>
 
       {data.length === 0 ? (
         <div className="gba:flex gba:justify-center gba:items-center gba:h-96 gba:text-muted-foreground">
-          {getTranslationFromI18nKeyAndLabel('hr_analytics_no_data', 'No data available')}
+          {t('hr-analytics-no-data')}
         </div>
       ) : (
         <>
@@ -186,7 +181,7 @@ const EmploymentTypePieChart: React.FC<EmploymentTypePieChartProps> = ({ data, l
                     fontWeight="600"
                     fill="var(--nw-color-foreground)"
                   >
-                    {getTranslationFromI18nKeyAndLabel('hr_analytics_total_employees', 'Total Employees')}
+                    {t('hr-analytics-total-employees')}
                   </text>
                   <text
                     x="50%"

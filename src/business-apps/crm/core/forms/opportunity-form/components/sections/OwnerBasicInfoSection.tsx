@@ -8,7 +8,7 @@ import AccountSelect from '@/common/components/common-relations/selects/account-
 import ContactSelect from '@/common/components/common-relations/selects/contact-select/ContactSelect'
 import { useAccountsData } from '../../hooks/useAccountsData'
 import { useSalesCampaignsGraphQL } from '@/business-apps/crm/common/hooks/useSalesCampaignsGraphQL'
-import { useGetContacts } from '../../../../apps/customer-relations/views/contact-view/hooks/useGetContacts'
+import { useGetCustomerContacts } from '@/common/data/customer/hooks/useCustomerContacts'
 
 const prefixDataTestId = 'OpportunityForm'
 
@@ -28,36 +28,21 @@ const OwnerBasicInfoSection: React.FC = () => {
   // Account data hook
   const { accountState, searchAccounts } = useAccountsData(businessAppContext)
 
-  // Contacts hook - Using useGetContacts from CRM customer relations
-  const [contactSearch, setContactSearch] = React.useState('')
+  // Contacts hook - Using useGetCustomerContacts from CRM customer relations
   const {
-    contacts: contactsList,
-    isLoading: contactsLoading,
-    error: contactsErrorObj
-  } = useGetContacts(businessAppContext, contactSearch, 0)
+    options: contactsList,
+    loading: contactsLoading,
+    error: contactsError,
+    search: searchContacts
+  } = useGetCustomerContacts(businessAppContext, {
+    withState: true,
+    autoFetch: true,
+    pageSize: 20,
+    mapToSelectOptions: true
+  })
 
-  // Create search wrapper for contacts
-  const searchContacts = React.useCallback((searchTerm: string) => {
-    setContactSearch(searchTerm)
-  }, [])
-
-  // Map contacts to the format expected by ContactSelect
-  const contacts = React.useMemo(
-    () =>
-      contactsList.map((contact: any) => ({
-        id: String(contact.id || ''),
-        value: String(contact.id || ''),
-        label: contact.name || '',
-        name: contact.name || '',
-        extraInfo: {
-          email: contact.email,
-          jobPosition: contact.jobTitle
-        }
-      })),
-    [contactsList]
-  )
-
-  const contactsError = contactsErrorObj ? String(contactsErrorObj) : null
+  // Map contacts to the format expected by ContactSelect (already mapped by hook)
+  const contacts = React.useMemo(() => (contactsList as any[]) || [], [contactsList])
 
   // Sales Campaign hook (CRM-specific)
   const {

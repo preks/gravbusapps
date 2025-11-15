@@ -1,9 +1,8 @@
 import React from 'react'
-import { useTranslation } from 'react-i18next'
 import { SelectField } from '@newwork/gravity-ui-catalog'
 import { Form } from 'antd'
 import { ExpenseGroup } from '../../../types'
-import { getCatalogValue } from '../../../../../../../../common/utils/windowUtils'
+import { getCatalogValue, getTranslationFromI18nKeyAndLabel } from '../../../../../../../../common/utils/windowUtils'
 
 interface ExpenseGroupFieldProps {
   index: number
@@ -20,8 +19,6 @@ export const ExpenseGroupField: React.FC<ExpenseGroupFieldProps> = ({
   isProcessingFiles,
   onChange
 }) => {
-  const { t } = useTranslation()
-
   return (
     <div className="gba:mb-4" data-testid={`expense-group-container-${index}`}>
       <div className="gba:relative">
@@ -30,7 +27,7 @@ export const ExpenseGroupField: React.FC<ExpenseGroupFieldProps> = ({
           rules={[
             {
               required: true,
-              message: t(
+              message: getTranslationFromI18nKeyAndLabel(
                 'lowcoder:create_expense_item.change_expense_item_container.current_expense_group_custom_rule',
                 'Please select an expense group'
               )
@@ -40,7 +37,7 @@ export const ExpenseGroupField: React.FC<ExpenseGroupFieldProps> = ({
         >
           <SelectField
             allowClear
-            label={t(
+            label={getTranslationFromI18nKeyAndLabel(
               'lowcoder:create_expense_item.change_expense_item_container.current_expense_group_label',
               'Expense Group'
             )}
@@ -56,7 +53,7 @@ export const ExpenseGroupField: React.FC<ExpenseGroupFieldProps> = ({
                 : []
             }
             onChange={(val: any) => onChange(val.value)}
-            placeholder={t(
+            placeholder={getTranslationFromI18nKeyAndLabel(
               'lowcoder:create_expense_item.change_expense_item_container.current_expense_group_placeholder',
               'Select Expense Group'
             )}

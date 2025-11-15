@@ -2,7 +2,7 @@ import React, { useState, useEffect } from 'react'
 import { AppActionForm } from '@/components/app-action-form/AppActionForm'
 import { BusinessAppContextProps } from '@/common/BusinessAppContext'
 import { formatDataTestId } from '@/common/utils/formatDataTestId'
-import { useGetInvestmentNoteById } from '@/common/data/investment/hooks'
+import { useGetInvestmentNoteById } from '@/common/data/investment/hooks/useInvestmentNotes'
 import { Alert, AlertDescription, Badge, Spinner } from '@newwork/nw-design-system'
 import { getTranslationFromI18nKeyAndLabel } from '@/common/utils/windowUtils'
 

@@ -5,6 +5,7 @@ import { Card, Badge, Button } from '@newwork/nw-design-system'
 import { BenefitCatalogItem } from '../../types/benefitCatalogTypes'
 import { formatCurrencyString } from '@/common/utils/numberFormatter'
 import { BusinessAppContextProps } from '@/common/BusinessAppContext'
+import { getTranslatedBenefitType, getTranslatedCatalogEntryValue } from '../../utils/benefitTranslationUtils'
 
 interface BenefitCatalogCardProps extends BusinessAppContextProps {
   /**
@@ -115,7 +116,7 @@ const BenefitCatalogCard: React.FC<BenefitCatalogCardProps> = ({
             className="gba:text-base gba:font-semibold gba:text-foreground gba:leading-tight"
             data-testid={`benefit-catalog-title-${benefit.code}`}
           >
-            {benefit.benefitType}
+            {getTranslatedBenefitType(benefit, locale)}
           </h3>
           {/* Description under title */}
           {benefit.description && (
@@ -145,10 +146,10 @@ const BenefitCatalogCard: React.FC<BenefitCatalogCardProps> = ({
       {benefit.isActive && (
         <div className="gba:flex gba:justify-between gba:items-start gba:space-y-1">
           {/* Provider and Value on same line */}
-          {(benefit.provider?.value || benefit.yearlyAmount) && (
+          {(benefit.provider || benefit.yearlyAmount) && (
             <div className="gba:text-xs gba:text-muted-foreground">
-              {benefit.provider?.value && <span>{benefit.provider.value}</span>}
-              {benefit.provider?.value && benefit.yearlyAmount && <span> • </span>}
+              {benefit.provider && <span>{getTranslatedCatalogEntryValue(benefit.provider, locale)}</span>}
+              {benefit.provider && benefit.yearlyAmount && <span> • </span>}
               {benefit.yearlyAmount && (
                 <span className="gba:font-medium gba:text-foreground">
                   {formatCurrencyString(benefit.yearlyAmount, {

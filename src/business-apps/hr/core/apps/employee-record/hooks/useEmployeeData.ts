@@ -465,6 +465,7 @@ export interface Employee {
     phone: string
     mobile: string
     userId?: string
+    SAPNumber?: string
   }
   salutation: CodeValue
   maritalStatus: CodeValue

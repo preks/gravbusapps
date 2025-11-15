@@ -1,6 +1,7 @@
 import React from 'react'
 import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from 'recharts'
-import { Spinner } from '@newwork/nw-design-system'
+import { Spinner, useTranslation } from '@newwork/nw-design-system'
+import hrTranslations from '@/business-apps/hr/core/apps/human-resources/_i18n'
 
 interface TurnoverRateChartProps {
   data: Array<{
@@ -13,6 +14,7 @@ interface TurnoverRateChartProps {
 }
 
 const TurnoverRateChart: React.FC<TurnoverRateChartProps> = ({ data, isLoading, dataTestId }) => {
+  const { t } = useTranslation(hrTranslations)
   // Transform data for recharts format
   const chartData = data.map(item => ({
     date: new Date(item.dateCategory).toLocaleDateString('en-US', {
@@ -34,7 +36,7 @@ const TurnoverRateChart: React.FC<TurnoverRateChartProps> = ({ data, isLoading, 
   if (!data || data.length === 0) {
     return (
       <div data-testid={`${dataTestId}-empty`} className="gba:flex gba:justify-center gba:items-center gba:h-full">
-        <p className="gba:text-muted-foreground">No turnover rate data available</p>
+        <p className="gba:text-muted-foreground">{t('hr-analytics-no-turnover-rate-data')}</p>
       </div>
     )
   }
@@ -48,11 +50,11 @@ const TurnoverRateChart: React.FC<TurnoverRateChartProps> = ({ data, isLoading, 
           <YAxis
             tick={{ fontSize: 12 }}
             stroke="var(--nw-muted-foreground)"
-            label={{ value: 'Turnover Rate (%)', angle: -90, position: 'insideLeft' }}
+            label={{ value: t('hr-analytics-turnover-rate-percent'), angle: -90, position: 'insideLeft' }}
           />
           <Tooltip
-            labelFormatter={value => `Month: ${value}`}
-            formatter={(value: number) => [`${value.toFixed(1)}%`, 'Turnover Rate']}
+            labelFormatter={value => `${t('hr-analytics-month')}: ${value}`}
+            formatter={(value: number) => [`${value.toFixed(1)}%`, t('hr-analytics-turnover-rate')]}
             contentStyle={{
               backgroundColor: 'var(--nw-card)',
               border: '1px solid var(--nw-border)',

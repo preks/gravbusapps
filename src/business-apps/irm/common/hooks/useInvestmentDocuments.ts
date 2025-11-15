@@ -5,10 +5,16 @@ import { useProcessCompletion } from '@/common/hooks/useProcessCompletion'
 import { transformInvestmentDocuments } from '../utils/documentUtils'
 import { DocumentItem } from '@/components/document-section'
 
+interface FetchOptions {
+  createdBy?: string // Filter by document creator
+  // Future filters can be added here without breaking changes
+}
+
 interface UseInvestmentDocumentsParams {
   entityId: string
   context: BusinessAppContextProps
-  fetchDocuments: (entityId: string) => Promise<InvestmentDocument[]>
+  fetchDocuments: (entityId: string, options?: FetchOptions) => Promise<InvestmentDocument[]>
+  fetchOptions?: FetchOptions
   errorMessage?: string
 }
 
@@ -28,6 +34,7 @@ export function useInvestmentDocuments({
   entityId,
   context,
   fetchDocuments,
+  fetchOptions,
   errorMessage = 'Failed to load documents'
 }: UseInvestmentDocumentsParams): UseInvestmentDocumentsReturn {
   const [rawDocuments, setRawDocuments] = useState<InvestmentDocument[]>([])
@@ -38,7 +45,7 @@ export function useInvestmentDocuments({
     try {
       setIsLoading(true)
       setError(null)
-      const documentsData = await fetchDocuments(entityId)
+      const documentsData = await fetchDocuments(entityId, fetchOptions)
       setRawDocuments(documentsData)
     } catch (err) {
       setError(err instanceof Error ? err.message : errorMessage)
@@ -52,12 +59,12 @@ export function useInvestmentDocuments({
     return transformInvestmentDocuments(rawDocuments)
   }, [rawDocuments])
 
-  // Load documents on mount and when entityId or accessToken changes
+  // Load documents on mount and when entityId, accessToken, or filter options change
   useEffect(() => {
     if (entityId && context.accessToken) {
       loadDocuments()
     }
-  }, [entityId, context.accessToken])
+  }, [entityId, context.accessToken, fetchOptions?.createdBy])
 
   // Auto-refresh documents on process completion
   useProcessCompletion({

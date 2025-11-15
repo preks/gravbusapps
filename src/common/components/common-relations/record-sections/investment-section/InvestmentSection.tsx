@@ -9,34 +9,59 @@ import {
   TooltipProvider,
   TooltipTrigger
 } from '@newwork/nw-design-system'
-import { AppActionButton } from '@/components/app-action-button/AppActionButton'
 import { FlowContextName } from '@/common/types/FlowRegistryTypes'
 import { BusinessAppContextProps } from '@/common/BusinessAppContext'
 import { getTranslationFromI18nKeyAndLabel } from '@/common/utils/windowUtils'
 import DynamicInvestmentFields from './DynamicInvestmentFields'
 import { TrendUpIcon } from '@phosphor-icons/react'
+import type { Investment } from '@/common/data/investment/types'
+import { createGetPages } from '../utils'
 
-interface InvestmentSectionProps {
-  investmentData: any // Generic prop that accepts both lead and opportunity data
-  businessAppContext?: BusinessAppContextProps
-  isLoading?: boolean
-  error?: string | null
+interface InvestmentSectionProps extends Partial<BusinessAppContextProps> {
+  investmentId?: string
+  investment?: Investment
+  investments?: Investment[]
   className?: string
-  // Optional configurable action props
+  'data-testid'?: string
   actionButtonProps?: {
     contextsArray?: FlowContextName[]
     externalContextData?: Record<string, any>
     prefixDataTestId?: string
   }
+  recordUrl?: string
+  isLoading?: boolean
+  error?: string | null
 }
 
-const InvestmentSection: React.FC<InvestmentSectionProps> = ({
-  investmentData,
-  businessAppContext,
-  isLoading = false,
-  error = null,
-  className = ''
-}) => {
+interface InvestmentDisplayProps {
+  investment: Investment
+  className?: string
+  'data-testid'?: string
+  businessAppContext?: BusinessAppContextProps
+}
+
+interface InvestmentStateProps {
+  isLoading?: boolean
+  error?: string | null
+  isEmpty?: boolean
+  className?: string
+}
+
+const extractBusinessAppContext = (props: Partial<BusinessAppContextProps>): BusinessAppContextProps | undefined => {
+  if (!props.accessToken) {
+    return undefined
+  }
+
+  return {
+    accessToken: props.accessToken,
+    locale: props.locale || '',
+    employeeId: props.employeeId || '',
+    structureId: props.structureId || '',
+    userInfo: props.userInfo || { sub: '', email: '' }
+  }
+}
+
+const InvestmentStateHandler: React.FC<InvestmentStateProps> = ({ isLoading, error, isEmpty, className = '' }) => {
   if (isLoading) {
     return (
       <div className={`gba:w-full ${className}`} data-testid="investment-section-loading">
@@ -69,8 +94,29 @@ const InvestmentSection: React.FC<InvestmentSectionProps> = ({
     )
   }
 
+  if (isEmpty) {
+    return (
+      <div className={`gba:w-full ${className}`} data-testid="investment-section-empty">
+        <div className="gba:flex gba:items-center gba:justify-center gba:py-6">
+          <span className="gba:text-sm gba:text-muted-foreground">
+            {getTranslationFromI18nKeyAndLabel('crm.common.noData', 'No investment data available')}
+          </span>
+        </div>
+      </div>
+    )
+  }
+
+  return null
+}
+
+const InvestmentDisplay: React.FC<InvestmentDisplayProps> = ({
+  investment,
+  className = '',
+  'data-testid': dataTestId = 'investment-section',
+  businessAppContext
+}) => {
   return (
-    <div className={`gba:w-full ${className}`} data-testid="investment-section">
+    <div className={`gba:w-full gba:h-full ${className}`} data-testid={dataTestId}>
       <div className="gba:flex gba:flex-col gba:gap-6">
         {/* Main Info Section */}
         <div className="gba:flex gba:flex-col gba:gap-3">
@@ -85,13 +131,15 @@ const InvestmentSection: React.FC<InvestmentSectionProps> = ({
                         className="gba:text-sm gba:font-semibold gba:text-gray-800 gba:truncate gba:flex-1"
                         data-testid="investment-name"
                       >
-                        {investmentData?.investmentName ||
+                        {investment?.name ||
+                          investment?.displayName ||
                           getTranslationFromI18nKeyAndLabel('crm.common.notSet', 'Not set')}
                       </h3>
                     </TooltipTrigger>
                     <TooltipContent>
                       <p className="gba:max-w-xs gba:break-words">
-                        {investmentData?.investmentName ||
+                        {investment?.name ||
+                          investment?.displayName ||
                           getTranslationFromI18nKeyAndLabel('crm.common.notSet', 'Not set')}
                       </p>
                     </TooltipContent>
@@ -100,12 +148,21 @@ const InvestmentSection: React.FC<InvestmentSectionProps> = ({
 
                 {/* Investment Role and Stake Type Badges */}
                 {(() => {
-                  const roleValue = investmentData?.investmentRole?.value || investmentData?.investmentRole?.code
+                  // investmentRole is an array, get first role if available
+                  const firstRole = Array.isArray(displayInvestment?.investmentRole)
+                    ? displayInvestment.investmentRole[0]
+                    : displayInvestment?.investmentRole
+                  // Handle both full Investment entity (nested catalog) and Lead/Opportunity (direct catalog)
+                  const roleValue =
+                    firstRole?.investmentRole?.value ||
+                    firstRole?.investmentRole?.code ||
+                    firstRole?.value ||
+                    firstRole?.code
                   const stakeValue =
-                    investmentData?.investmentStakeType?.value || investmentData?.investmentStakeType?.code
+                    displayInvestment?.investmentStakeType?.value || displayInvestment?.investmentStakeType?.code
 
-                  const hasValidRole = roleValue && roleValue.trim() && !roleValue.toLowerCase().includes('not set')
-                  const hasValidStake = stakeValue && stakeValue.trim() && !stakeValue.toLowerCase().includes('not set')
+                  const hasValidRole = roleValue?.trim() && !roleValue.toLowerCase().includes('not set')
+                  const hasValidStake = stakeValue?.trim() && !stakeValue.toLowerCase().includes('not set')
 
                   if (!hasValidRole && !hasValidStake) {
                     return null
@@ -122,8 +179,8 @@ const InvestmentSection: React.FC<InvestmentSectionProps> = ({
 
               {/* Investment Group and Type - combined in single badge */}
               {(() => {
-                const groupValue = investmentData?.investmentGroup?.value || investmentData?.investmentGroup?.code
-                const typeValue = investmentData?.investmentType?.value || investmentData?.investmentType?.code
+                const groupValue = investment?.investmentGroup?.value || investment?.investmentGroup?.code
+                const typeValue = investment?.investmentType?.value || investment?.investmentType?.code
                 const combinedValue = [groupValue, typeValue].filter(Boolean).join(' • ')
 
                 if (combinedValue) {
@@ -136,52 +193,100 @@ const InvestmentSection: React.FC<InvestmentSectionProps> = ({
         </div>
 
         {/* Dynamic Investment Fields */}
-        <DynamicInvestmentFields investmentData={investmentData} businessAppContext={businessAppContext} />
+        <DynamicInvestmentFields investmentData={investment} businessAppContext={businessAppContext} />
       </div>
     </div>
   )
 }
 
-// Static properties for SectionWrapper
-;(InvestmentSection as any).sectionTitle = 'Investment Information'
-;(InvestmentSection as any).sectionActions = (props: InvestmentSectionProps) => {
-  const { businessAppContext, actionButtonProps, investmentData } = props
+const InvestmentSection: React.FC<InvestmentSectionProps> = ({
+  investment,
+  investments,
+  className = '',
+  isLoading = false,
+  error = null,
+  ...props
+}) => {
+  const investmentList = Array.isArray(investments) ? investments.filter(Boolean) : []
+  const displayInvestment = investment || (investmentList.length > 0 ? investmentList[0] : null)
 
-  if (!actionButtonProps) {
-    return null
+  const stateHandler = (
+    <InvestmentStateHandler isLoading={isLoading} error={error} isEmpty={!displayInvestment} className={className} />
+  )
+
+  if (isLoading || error || !displayInvestment) {
+    return stateHandler
   }
 
   return (
-    <AppActionButton
-      data-testid="investment-action-button"
-      size="icon"
-      contextsArray={
-        actionButtonProps.contextsArray || [
-          (() => {
-            const code = (
-              investmentData?.investmentType?.code ||
-              investmentData?.investmentGroup?.code ||
-              ''
-            ).toUpperCase()
-            if (code.includes('REAL_ESTATE')) return FlowContextName.realEstateInvestmentEntity
-            if (code.includes('LIQUID_FUND')) return FlowContextName.liquidFundInvestmentEntity
-            if (code.includes('EQUITY')) return FlowContextName.equityInvestmentEntity
-            return FlowContextName.investmentEntity
-          })()
-        ]
-      }
-      externalContextData={{
-        investmentId: investmentData?.id || investmentData?.leadId || investmentData?.opportunityId,
-        leadId: investmentData?.leadId,
-        opportunityId: investmentData?.opportunityId,
-        ...actionButtonProps.externalContextData
-      }}
-      prefixDataTestId={actionButtonProps.prefixDataTestId || 'investment-section-action'}
-      accessToken={businessAppContext?.accessToken}
-      emptyStateBehavior="enable"
-      deferMainContextRequestsUntilClick
+    <InvestmentDisplay
+      investment={displayInvestment}
+      className={className}
+      data-testid={props['data-testid'] || 'investment-section'}
+      businessAppContext={extractBusinessAppContext(props)}
     />
   )
+}
+
+// Static properties for SectionWrapper
+;(InvestmentSection as any).sectionTitle = 'Investment Information'
+;(InvestmentSection as any).getPages = createGetPages<any>(
+  (props: InvestmentSectionProps) => props.investments,
+  (props: InvestmentSectionProps) => props.investment
+)
+;(InvestmentSection as any).renderPage = (pageData: any, _pageIndex: number, props: InvestmentSectionProps) => {
+  const { className = '', isLoading = false, error = null } = props
+
+  const stateHandler = (
+    <InvestmentStateHandler isLoading={isLoading} error={error} isEmpty={!pageData} className={className} />
+  )
+
+  if (isLoading || error || !pageData) {
+    return stateHandler
+  }
+
+  return (
+    <InvestmentDisplay
+      investment={pageData}
+      className={className}
+      data-testid="investment-section"
+      businessAppContext={extractBusinessAppContext(props)}
+    />
+  )
+}
+;(InvestmentSection as any).getActionButtonConfig = (
+  pageData: any,
+  _pageIndex: number,
+  props: InvestmentSectionProps
+) => {
+  const { accessToken, actionButtonProps } = props
+
+  if (!actionButtonProps || !accessToken) {
+    return null
+  }
+
+  // Determine context based on investment type
+  const getContext = () => {
+    const code = (pageData?.investmentType?.code || pageData?.investmentGroup?.code || '').toUpperCase()
+    if (code.includes('REAL_ESTATE')) return FlowContextName.realEstateInvestmentEntity
+    if (code.includes('LIQUID_FUND')) return FlowContextName.liquidFundInvestmentEntity
+    if (code.includes('EQUITY')) return FlowContextName.equityInvestmentEntity
+    return FlowContextName.investmentEntity
+  }
+
+  return {
+    type: 'AppActionButton' as const,
+    config: {
+      contextsArray: actionButtonProps.contextsArray || [getContext()],
+      externalContextData: {
+        ...actionButtonProps.externalContextData,
+        investmentId: pageData?.id // Override with current page investmentId (must come after spread)
+      },
+      prefixDataTestId: actionButtonProps.prefixDataTestId || 'investment-section-action',
+      emptyStateBehavior: 'enable' as const,
+      deferMainContextRequestsUntilClick: true
+    }
+  }
 }
 
 export default InvestmentSection

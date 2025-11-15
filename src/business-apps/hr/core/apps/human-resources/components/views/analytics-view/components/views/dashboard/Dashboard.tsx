@@ -1,8 +1,7 @@
 import React, { useMemo } from 'react'
 import { Typography, Spin } from 'antd'
-import { SectionKpiCards, KpiCardData } from '@newwork/nw-design-system'
+import { SectionKpiCards, KpiCardData, useTranslation } from '@newwork/nw-design-system'
 import { DashboardProps, AnalyticsKpiData } from './types/analyticsTypes'
-import { getTranslationFromI18nKeyAndLabel } from '@/common/utils/windowUtils'
 import { useEmployeeCount } from '../../../hooks/useEmployeeCount'
 import { useNewHiresCount } from '../../../hooks/useNewHiresCount'
 import { useTurnoverRate } from '../../../hooks/useTurnoverRate'
@@ -12,6 +11,7 @@ import { useEmployeesPerYear } from '../../../hooks/useEmployeesPerYear'
 import HiresPerYearChart from './components/charts/HiresPerYearChart'
 import EmployeesPerYearChart from './components/charts/EmployeesPerYearChart'
 import EmployeesByOrgUnitChart from './components/charts/EmployeesByOrgUnitChart'
+import hrTranslations from '@/business-apps/hr/core/apps/human-resources/_i18n'
 
 const { Title, Text } = Typography
 
@@ -19,6 +19,7 @@ const { Title, Text } = Typography
  * HR Analytics Dashboard component that displays various HR metrics and analytics
  */
 const Dashboard: React.FC<DashboardProps> = ({ accessToken }) => {
+  const { t } = useTranslation(hrTranslations)
   // Get data from custom hooks
   const { count: employeeCount, loading: employeeLoading } = useEmployeeCount(accessToken)
   const { count: newHiresCount, loading: hiresLoading } = useNewHiresCount(accessToken)
@@ -44,23 +45,23 @@ const Dashboard: React.FC<DashboardProps> = ({ accessToken }) => {
     () => ({
       employeeCount: {
         value: employeeCount,
-        label: getTranslationFromI18nKeyAndLabel('hr_analytics_total_employees', 'Total employees')
+        label: t('hr-analytics-total-employees')
       },
       newHires: {
         value: newHiresCount,
-        label: getTranslationFromI18nKeyAndLabel('hr_analytics_new_hires', 'New hires this year')
+        label: t('hr-analytics-new-hires')
       },
       turnoverRate: {
         value: turnoverRate,
         change: turnoverChange,
-        label: getTranslationFromI18nKeyAndLabel('hr_analytics_turnover_rate', 'Turnover rate')
+        label: t('hr-analytics-turnover-rate')
       },
       averageSalary: {
         value: Math.round(averageSalary / 1000), // Convert to thousands
-        label: getTranslationFromI18nKeyAndLabel('hr_analytics_annual_average', 'Annual average')
+        label: t('hr-analytics-annual-average')
       }
     }),
-    [employeeCount, newHiresCount, turnoverRate, turnoverChange, averageSalary]
+    [employeeCount, newHiresCount, turnoverRate, turnoverChange, averageSalary, t]
   )
 
   // Create KPI cards data for SectionKpiCards component
@@ -70,28 +71,28 @@ const Dashboard: React.FC<DashboardProps> = ({ accessToken }) => {
         {
           id: 'total-employees',
           title: analyticsData.employeeCount.label,
-          value: 'Loading...',
+          value: t('hr-data-filter-loading'),
           icon: 'users',
           iconColor: 'var(--nw-info)'
         },
         {
           id: 'new-hires',
           title: analyticsData.newHires.label,
-          value: 'Loading...',
+          value: t('hr-data-filter-loading'),
           icon: 'users',
           iconColor: 'var(--nw-success)'
         },
         {
           id: 'turnover-rate',
           title: analyticsData.turnoverRate.label,
-          value: 'Loading...',
+          value: t('hr-data-filter-loading'),
           icon: 'users',
           iconColor: 'var(--nw-warning)'
         },
         {
           id: 'average-salary',
           title: analyticsData.averageSalary.label,
-          value: 'Loading...',
+          value: t('hr-data-filter-loading'),
           icon: 'mail', // Using mail as currency icon mapping
           iconColor: 'var(--nw-decorative)'
         }
@@ -108,9 +109,9 @@ const Dashboard: React.FC<DashboardProps> = ({ accessToken }) => {
         trend: {
           value: analyticsData.newHires.value.toString(),
           positive: analyticsData.newHires.value > 0 ? true : false,
-          description: getTranslationFromI18nKeyAndLabel('hr_analytics_this_year', 'This year')
+          description: t('hr-analytics-this-year')
         },
-        footer: getTranslationFromI18nKeyAndLabel('hr_analytics_active_employees', 'Active employees')
+        footer: t('hr-analytics-active-employees')
       },
       {
         id: 'turnover-rate',
@@ -122,7 +123,7 @@ const Dashboard: React.FC<DashboardProps> = ({ accessToken }) => {
           value: `${analyticsData.turnoverRate.change > 0 ? '+' : ''}${analyticsData.turnoverRate.change.toFixed(1)}%`,
           positive: analyticsData.turnoverRate.change > 0 ? true : false
         },
-        footer: `${analyticsData.turnoverRate.change > 0 ? '+' : ''}${analyticsData.turnoverRate.change.toFixed(1)}% ${getTranslationFromI18nKeyAndLabel('hr_analytics_vs_last_month', 'vs last month')}`
+        footer: `${analyticsData.turnoverRate.change > 0 ? '+' : ''}${analyticsData.turnoverRate.change.toFixed(1)}% ${t('hr-analytics-vs-last-month')}`
       },
       {
         id: 'average-salary',
@@ -130,10 +131,10 @@ const Dashboard: React.FC<DashboardProps> = ({ accessToken }) => {
         value: `$${analyticsData.averageSalary.value}K`,
         icon: 'mail', // Using mail as currency icon mapping
         iconColor: 'var(--nw-info)',
-        footer: getTranslationFromI18nKeyAndLabel('hr_analytics_annual_average', 'Annual average')
+        footer: t('hr-analytics-annual-average')
       }
     ]
-  }, [loading, analyticsData])
+  }, [loading, analyticsData, t])
 
   if (loading) {
     return (
@@ -148,14 +149,9 @@ const Dashboard: React.FC<DashboardProps> = ({ accessToken }) => {
       <div className="gba:p-6 gba:pb-0">
         <div className="gba:mb-6">
           <Title level={2} className="gba:m-0 gba:text-foreground">
-            {getTranslationFromI18nKeyAndLabel('hr_analytics_dashboard_title', 'HR Analytics Dashboard')}
+            {t('hr-analytics-dashboard-title')}
           </Title>
-          <Text className="gba:text-muted-foreground">
-            {getTranslationFromI18nKeyAndLabel(
-              'hr_analytics_dashboard_subtitle',
-              'Comprehensive workforce insights and metrics'
-            )}
-          </Text>
+          <Text className="gba:text-muted-foreground">{t('hr-analytics-dashboard-subtitle')}</Text>
         </div>
 
         {/* KPI Cards Section - Using SectionKpiCards component */}

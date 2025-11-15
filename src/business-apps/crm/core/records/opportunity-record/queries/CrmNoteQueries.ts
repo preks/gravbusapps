@@ -12,6 +12,12 @@ export interface CrmNoteData {
   noteTitle: string
   createdAt: string
   createdBy: string
+  authorEmployee?: {
+    id: string
+    firstName?: string
+    lastName?: string
+    displayName?: string
+  }
 }
 
 export interface CrmNoteResponse {
@@ -28,6 +34,12 @@ export const GET_CRM_NOTES = (): string => {
         createdBy
         noteText
         noteTitle
+        authorEmployee {
+          id
+          firstName
+          lastName
+          displayName
+        }
       }
     }
   `

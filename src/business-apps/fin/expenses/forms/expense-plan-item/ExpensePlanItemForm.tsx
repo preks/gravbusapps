@@ -1,11 +1,15 @@
 import React, { useState } from 'react'
-import { useTranslation } from 'react-i18next'
 import { Button, DateInputField, Divider, InputField, SelectField, Switch } from '@newwork/gravity-ui-catalog'
 import { Form } from 'antd'
 import { ExpenseGroup, ExpenseType, CostCenter, Currency, CustomField } from './types'
 import { useExpensePlanItem } from './context/ExpensePlanItemContext'
 import { Alert } from 'antd'
-import { getCurrentActiveUserLocale, getDateFormat, getCatalogValue } from '@/common/utils/windowUtils'
+import {
+  getCurrentActiveUserLocale,
+  getDateFormat,
+  getCatalogValue,
+  getTranslationFromI18nKeyAndLabel
+} from '@/common/utils/windowUtils'
 import { parseAndFormatAmount } from '@/business-apps/fin/expenses/utils/amountFormatting'
 
 interface ExpensePlanItemFormProps {
@@ -37,7 +41,6 @@ export const ExpensePlanItemForm: React.FC<ExpensePlanItemFormProps> = ({
   handleCurrencyChange,
   loading
 }) => {
-  const { t } = useTranslation()
   const { isFormDisabled, expenseRuleError, isEditMode } = useExpensePlanItem()
 
   const [formIsValid, setFormIsValid] = useState(false)
@@ -85,16 +88,25 @@ export const ExpensePlanItemForm: React.FC<ExpensePlanItemFormProps> = ({
             rules={[
               {
                 required: true,
-                message: t('lowcoder:create_expense_type_item.current_title_custom_rule', 'Please enter a title')
+                message: getTranslationFromI18nKeyAndLabel(
+                  'lowcoder:create_expense_type_item.current_title_custom_rule',
+                  'Please enter a title'
+                )
               }
             ]}
             style={{ marginBottom: 0 }}
           >
             <InputField
-              label={t('lowcoder:create_expense_type_item.current_title_label', 'Title')}
+              label={getTranslationFromI18nKeyAndLabel(
+                'lowcoder:create_expense_type_item.current_title_label',
+                'Title'
+              )}
               name="title"
               disabled={isFormDisabled}
-              placeholder={t('lowcoder:create_expense_type_item.current_title_placeholder', 'Enter Title')}
+              placeholder={getTranslationFromI18nKeyAndLabel(
+                'lowcoder:create_expense_type_item.current_title_placeholder',
+                'Enter Title'
+              )}
               onChange={field => form.setFieldsValue({ title: field.value })}
               required={true}
               data-testid="title-input"
@@ -111,15 +123,21 @@ export const ExpensePlanItemForm: React.FC<ExpensePlanItemFormProps> = ({
             rules={[
               {
                 required: true,
-                message: t('lowcoder:create_expense_type_item.current_date_custom_rule', 'Please select a date')
+                message: getTranslationFromI18nKeyAndLabel(
+                  'lowcoder:create_expense_type_item.current_date_custom_rule',
+                  'Please select a date'
+                )
               }
             ]}
             style={{ marginBottom: 0 }}
           >
             <DateInputField
-              label={t('lowcoder:create_expense_item.change_expense_item_container.current_date_label', 'Date')}
+              label={getTranslationFromI18nKeyAndLabel(
+                'lowcoder:create_expense_item.change_expense_item_container.current_date_label',
+                'Date'
+              )}
               name="date"
-              placeholder={t(
+              placeholder={getTranslationFromI18nKeyAndLabel(
                 'lowcoder:create_expense_item.change_expense_item_container.current_date_placeholder',
                 'Select date'
               )}
@@ -134,7 +152,7 @@ export const ExpensePlanItemForm: React.FC<ExpensePlanItemFormProps> = ({
           </Form.Item>
           {expenseRuleError && (
             <Alert
-              message={t(
+              message={getTranslationFromI18nKeyAndLabel(
                 'lowcoder:create_expense_item.missing_expense_rule_message',
                 'No expense rule found for this date. Please contact your administrator.'
               )}
@@ -154,7 +172,7 @@ export const ExpensePlanItemForm: React.FC<ExpensePlanItemFormProps> = ({
             rules={[
               {
                 required: true,
-                message: t(
+                message: getTranslationFromI18nKeyAndLabel(
                   'lowcoder:create_expense_type_item.current_expense_group_custom_rule',
                   'Please select an expense group'
                 )
@@ -164,12 +182,12 @@ export const ExpensePlanItemForm: React.FC<ExpensePlanItemFormProps> = ({
           >
             <SelectField
               allowClear
-              label={t(
+              label={getTranslationFromI18nKeyAndLabel(
                 'lowcoder:create_expense_item.change_expense_item_container.current_expense_group_label',
                 'Expense Group'
               )}
               name="expenseGroup"
-              placeholder={t(
+              placeholder={getTranslationFromI18nKeyAndLabel(
                 'lowcoder:create_expense_item.change_expense_item_container.current_expense_group_placeholder',
                 'Select Expense Group'
               )}
@@ -199,7 +217,7 @@ export const ExpensePlanItemForm: React.FC<ExpensePlanItemFormProps> = ({
             rules={[
               {
                 required: true,
-                message: t(
+                message: getTranslationFromI18nKeyAndLabel(
                   'lowcoder:create_expense_item.change_expense_item_container.current_expense_type_custom_rule',
                   'Please select an expense type'
                 )
@@ -209,12 +227,12 @@ export const ExpensePlanItemForm: React.FC<ExpensePlanItemFormProps> = ({
           >
             <SelectField
               allowClear
-              label={t(
+              label={getTranslationFromI18nKeyAndLabel(
                 'lowcoder:create_expense_item.change_expense_item_container.current_expense_type_label',
                 'Expense Type'
               )}
               name="expenseType"
-              placeholder={t(
+              placeholder={getTranslationFromI18nKeyAndLabel(
                 'lowcoder:create_expense_item.change_expense_item_container.current_expense_type_placeholder',
                 'Select Expense Type'
               )}
@@ -249,7 +267,7 @@ export const ExpensePlanItemForm: React.FC<ExpensePlanItemFormProps> = ({
                     ? [
                         {
                           required: true,
-                          message: t(
+                          message: getTranslationFromI18nKeyAndLabel(
                             'lowcoder:create_expense_type_item.custom_field_required',
                             'This field is required'
                           )
@@ -262,7 +280,10 @@ export const ExpensePlanItemForm: React.FC<ExpensePlanItemFormProps> = ({
                 <InputField
                   label={field.infoValue}
                   name={field.infoValue}
-                  placeholder={t('lowcoder:create_expense_type_item.custom_field_placeholder', 'Enter value')}
+                  placeholder={getTranslationFromI18nKeyAndLabel(
+                    'lowcoder:create_expense_type_item.custom_field_placeholder',
+                    'Enter value'
+                  )}
                   data-testid={`custom-field-${field.id}-input`}
                   onChange={field => form.setFieldsValue({ [field.name]: field.value })}
                   required={field.mandatory}
@@ -280,17 +301,23 @@ export const ExpensePlanItemForm: React.FC<ExpensePlanItemFormProps> = ({
               rules={[
                 {
                   required: true,
-                  message: t('lowcoder:create_expense_type_item.current_amount_custom_rule', 'Please enter an amount')
+                  message: getTranslationFromI18nKeyAndLabel(
+                    'lowcoder:create_expense_type_item.current_amount_custom_rule',
+                    'Please enter an amount'
+                  )
                 }
               ]}
               style={{ marginBottom: 0 }}
             >
               <InputField
-                label={t('lowcoder:create_expense_item.change_expense_item_container.current_amount_label', 'Amount')}
+                label={getTranslationFromI18nKeyAndLabel(
+                  'lowcoder:create_expense_item.change_expense_item_container.current_amount_label',
+                  'Amount'
+                )}
                 name="amount"
                 type="text"
                 inputMode="decimal"
-                placeholder={t(
+                placeholder={getTranslationFromI18nKeyAndLabel(
                   'lowcoder:create_expense_item.change_expense_item_container.current_amount_placeholder',
                   'Enter Amount'
                 )}
@@ -321,7 +348,7 @@ export const ExpensePlanItemForm: React.FC<ExpensePlanItemFormProps> = ({
               rules={[
                 {
                   required: true,
-                  message: t(
+                  message: getTranslationFromI18nKeyAndLabel(
                     'lowcoder:create_expense_type_item.current_currency_custom_rule',
                     'Please select a currency'
                   )
@@ -331,12 +358,12 @@ export const ExpensePlanItemForm: React.FC<ExpensePlanItemFormProps> = ({
             >
               <SelectField
                 allowClear
-                label={t(
+                label={getTranslationFromI18nKeyAndLabel(
                   'lowcoder:create_expense_item.change_expense_item_container.current_currency_label',
                   'Currency'
                 )}
                 name="currency"
-                placeholder={t(
+                placeholder={getTranslationFromI18nKeyAndLabel(
                   'lowcoder:create_expense_item.change_expense_item_container.current_currency_placeholder',
                   'Select Currency'
                 )}
@@ -367,7 +394,7 @@ export const ExpensePlanItemForm: React.FC<ExpensePlanItemFormProps> = ({
             rules={[
               {
                 required: true,
-                message: t(
+                message: getTranslationFromI18nKeyAndLabel(
                   'lowcoder:create_expense_request.expense_request_container.current_cost_center_custom_rule',
                   'Please select a cost center'
                 )
@@ -377,12 +404,12 @@ export const ExpensePlanItemForm: React.FC<ExpensePlanItemFormProps> = ({
           >
             <SelectField
               allowClear
-              label={t(
+              label={getTranslationFromI18nKeyAndLabel(
                 'lowcoder:create_expense_request.expense_request_container.current_cost_center_label',
                 'Cost Center'
               )}
               name="costCenter"
-              placeholder={t(
+              placeholder={getTranslationFromI18nKeyAndLabel(
                 'lowcoder:create_expense_request.expense_request_container.current_cost_center_placeholder',
                 'Select Cost Center'
               )}
@@ -402,7 +429,10 @@ export const ExpensePlanItemForm: React.FC<ExpensePlanItemFormProps> = ({
         <div className={`gba:relative`}>
           <Form.Item name="reimbursable" style={{ marginBottom: 0 }}>
             <Switch
-              label={t('lowcoder:create_expense_type_item.is_reimbursable_solo_switch', 'is reimbursable')}
+              label={getTranslationFromI18nKeyAndLabel(
+                'lowcoder:create_expense_type_item.is_reimbursable_solo_switch',
+                'is reimbursable'
+              )}
               name="reimbursable"
               data-testid="reimbursable-switch"
               onChange={field => {
@@ -434,7 +464,7 @@ export const ExpensePlanItemForm: React.FC<ExpensePlanItemFormProps> = ({
           style={{ borderRadius: '22px', height: '40px' }}
           data-testid="cancel-button"
         >
-          {t('lowcoder:create_expense_request.initiate_cancel_button', 'Cancel')}
+          {getTranslationFromI18nKeyAndLabel('lowcoder:create_expense_request.initiate_cancel_button', 'Cancel')}
         </Button>
         <Button
           variant="primary"
@@ -445,11 +475,11 @@ export const ExpensePlanItemForm: React.FC<ExpensePlanItemFormProps> = ({
           data-testid="submit-button"
         >
           {isEditMode
-            ? t(
+            ? getTranslationFromI18nKeyAndLabel(
                 'lowcoder:expense_calculation_rule_details.calculation_rule_tab_custom_fields.custom_fields_modal.btn_update',
                 'Update'
               )
-            : t(
+            : getTranslationFromI18nKeyAndLabel(
                 'lowcoder:expense_calculation_rule_details.calculation_rule_tab_custom_fields.custom_fields_modal.btn_save',
                 'Create'
               )}
