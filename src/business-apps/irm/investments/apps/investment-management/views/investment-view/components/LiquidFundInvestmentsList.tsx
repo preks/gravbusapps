@@ -13,7 +13,7 @@ import {
 } from '@newwork/nw-design-system'
 import { BusinessAppContextProps } from '@/common/BusinessAppContext'
 import { useGetInvestments } from '@/common/data/investment/hooks/useInvestments'
-import { formatDate } from '@/common/data/investment'
+import { formatDate } from '@/common/data/investment/utils/formatters'
 import type { Investment } from '@/common/data/investment/types/investmentTypes'
 import type { InvestmentQueryVariables } from '@/common/data/investment/queries/investmentQueries'
 import { DataContainer } from '@/components/layout/dataContainer/DataContainer'

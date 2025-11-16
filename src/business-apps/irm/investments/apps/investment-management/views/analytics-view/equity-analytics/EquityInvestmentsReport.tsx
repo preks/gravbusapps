@@ -22,8 +22,8 @@ import { DollarCircleOutlined, CalendarOutlined, LineChartOutlined, TeamOutlined
 import { BusinessAppContextProps } from '@/common/BusinessAppContext'
 import { getTranslationFromI18nKeyAndLabel } from '@/common/utils/windowUtils'
 import { formatDataTestId } from '@/common/utils/formatDataTestId'
-import { useGetInvestments } from '@/common/data/investment'
-import type { Investment, EquityInvestment } from '@/common/data/investment'
+import { useGetInvestments } from '@/common/data/investment/hooks/useInvestments'
+import type { Investment, EquityInvestment } from '@/common/data/investment/types/investmentTypes'
 
 // Extended Investment type that includes specialization fields from GraphQL queries
 interface InvestmentWithSpecializations extends Investment {

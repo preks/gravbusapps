@@ -79,9 +79,6 @@ export const AccountFields = {
   website: 'website'
 } as const
 
-// Type helper
-export type AccountFieldName = (typeof AccountFields)[keyof typeof AccountFields]
-
 /**
  * Create Common Account Descriptors with fields mapping
  * @param fields - AccountFields mapping (default: AccountFields)
@@ -282,52 +279,30 @@ export const createAccountDescriptors = (
   { key: 'liquidationDateTo', path: fields.liquidationDate, kind: 'dateTo' }
 ]
 
-// Deprecated - remove later
-interface FilterOption {
-  id: string
-  label: string
-}
-
-export interface CommonAccountFilters {
-  // Standard catalog-based filters
-  owners: FilterOption[]
-  industries: FilterOption[]
-  legalForms: FilterOption[]
-  companySizes: FilterOption[]
-  revenueBands: FilterOption[]
-
-  // Geography filters
-  countries: FilterOption[]
-
-  // Loading state
-  isLoading: boolean
-
-  // Total counts for pagination
-  totalCounts?: {
-    owners?: number
-    industries?: number
-    legalForms?: number
-    companySizes?: number
-    revenueBands?: number
-    countries?: number
-  }
-
-  // Lifecycle functions
-  prefetchFilters?: () => Promise<void>
-
-  // Search functions (individual per filter group)
-  searchOwners?: (query: string) => Promise<FilterOption[]>
-  searchIndustries?: (query: string) => Promise<FilterOption[]>
-  searchLegalForms?: (query: string) => Promise<FilterOption[]>
-  searchCompanySizes?: (query: string) => Promise<FilterOption[]>
-  searchRevenueBands?: (query: string) => Promise<FilterOption[]>
-  searchCountries?: (query: string) => Promise<FilterOption[]>
-
-  // Load more functions (pagination)
-  loadMoreOwners?: () => Promise<void>
-  loadMoreIndustries?: () => Promise<void>
-  loadMoreLegalForms?: () => Promise<void>
-  loadMoreCompanySizes?: () => Promise<void>
-  loadMoreRevenueBands?: () => Promise<void>
-  loadMoreCountries?: () => Promise<void>
-}
+/**
+ * Account Form Fields Configuration
+ * Defines which fields to include in payload
+ * Sorted alphabetically by sourceKey
+ */
+export const accountFormFields = {
+  accountAnnualRevenueBandRef: 'accountAnnualRevenueBandRef',
+  accountContacts: 'accountContacts',
+  additionalProperties: 'additionalProperties',
+  addresses: 'addresses',
+  code: 'code',
+  communicationChannels: 'communicationChannels',
+  companySizeRef: 'companySizeRef',
+  foundationDate: 'foundationDate',
+  id: 'id',
+  industryClassRef: 'industryClassRef',
+  legalFormRef: 'legalFormRef',
+  liquidationDate: 'liquidationDate',
+  name: 'name',
+  notesSummary: 'notesSummary',
+  ownerEmployeeId: 'ownerEmployee',
+  picture: 'picture',
+  pictureThumbnail: 'pictureThumbnail',
+  timeZoneRef: 'timeZoneRef',
+  version: 'version',
+  website: 'website'
+} as const

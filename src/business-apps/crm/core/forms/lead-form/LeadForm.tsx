@@ -1,49 +1,24 @@
-import React, { useMemo, useCallback } from 'react'
+import React from 'react'
 import { LeadFormProvider } from './context/LeadFormContext'
 import LeadFormComponent from './components/LeadFormComponent'
-import { LeadFormValues } from './types'
+import type { CustomerLead } from '@/common/data/customer/types/customerLeadTypes'
 import { BusinessAppContextProps } from '@/common/BusinessAppContext'
+import { CatalogSelect } from '@/components/catalog-select'
 
 interface LeadFormProps {
-  initialValues?: Partial<LeadFormValues>
-  onSubmit?: (values: LeadFormValues) => Promise<void>
+  initialValues?: Partial<CustomerLead>
+  onSubmit?: (lead: Partial<CustomerLead>) => Promise<void>
   onCancel?: () => Promise<void>
 }
 
 const LeadForm: React.FC<BusinessAppContextProps & LeadFormProps> = ({
   initialValues,
-  onSubmit,
-  onCancel,
+  onSubmit = async () => {},
+  onCancel = async () => {},
   accessToken,
   userInfo,
   additionalData
 }) => {
-  // Memoize callbacks to prevent unnecessary re-renders
-  const handleSubmit = useCallback(
-    async (values: LeadFormValues) => {
-      if (onSubmit) {
-        await onSubmit(values)
-      }
-    },
-    [onSubmit]
-  )
-
-  const handleCancel = useCallback(async () => {
-    if (onCancel) {
-      await onCancel()
-    }
-  }, [onCancel])
-
-  // Memoize businessAppContext to prevent unnecessary re-renders
-  const businessAppContext: BusinessAppContextProps = useMemo(
-    () => ({
-      accessToken,
-      userInfo,
-      additionalData
-    }),
-    [accessToken, userInfo, additionalData]
-  )
-
   if (!accessToken) {
     return (
       <div className="gba:p-6 gba:text-center">
@@ -54,15 +29,23 @@ const LeadForm: React.FC<BusinessAppContextProps & LeadFormProps> = ({
     )
   }
 
+  const businessAppContext: BusinessAppContextProps = {
+    accessToken,
+    userInfo,
+    additionalData
+  }
+
   return (
-    <LeadFormProvider
-      businessAppContext={businessAppContext}
-      initialValues={initialValues}
-      onSubmit={handleSubmit}
-      onCancel={handleCancel}
-    >
-      <LeadFormComponent />
-    </LeadFormProvider>
+    <CatalogSelect.Provider accessToken={accessToken}>
+      <LeadFormProvider
+        businessAppContext={businessAppContext}
+        initialValues={initialValues}
+        onSubmit={onSubmit}
+        onCancel={onCancel}
+      >
+        <LeadFormComponent />
+      </LeadFormProvider>
+    </CatalogSelect.Provider>
   )
 }
 

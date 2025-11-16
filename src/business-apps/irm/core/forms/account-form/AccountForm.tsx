@@ -1,14 +1,14 @@
 import React from 'react'
-import { AccountFormProvider } from './context/AccountFormContext'
-import AccountFormComponent from './components/AccountFormComponent'
-import { AccountFormValues } from './types'
+import { AccountFormProvider } from './AccountFormContext'
+import AccountFormComponent from './AccountFormComponent'
+import type { InvestmentAccount } from '@/common/data/investment/types/investmentAccountTypes'
 import { BusinessAppContextProps } from '@/common/BusinessAppContext'
 
 interface AccountFormProps {
-  initialValues?: Partial<AccountFormValues>
-  onSubmit?: (values: AccountFormValues) => Promise<void>
+  initialValues?: Partial<InvestmentAccount>
+  onSubmit?: (account: Partial<InvestmentAccount>) => Promise<void>
   onCancel?: () => Promise<void>
-  hideActions?: boolean // Hide submit/cancel buttons when embedded
+  hideActions?: boolean
 }
 
 const AccountForm: React.FC<BusinessAppContextProps & AccountFormProps> = ({

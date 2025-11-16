@@ -4,7 +4,7 @@ import { useGraphQLClient } from '@/common/network/graphql/useGraphQLClient'
 import { BusinessAppContextProps } from '@/common/BusinessAppContext'
 
 // Types
-import type { BaseCustomerOpportunity, CustomerOpportunity } from '../types'
+import type { BaseCustomerOpportunity, CustomerOpportunity } from '../types/customerOpportunityTypes'
 
 // Queries (New)
 import {
@@ -17,7 +17,7 @@ import {
 } from '../queries/customerOpportunityQueries'
 
 // Mapper
-import { toCustomerOpportunity } from '../mappers/customerOpportunityMappers'
+import { toCustomerOpportunity } from '../types/customerOpportunityTypes'
 
 export interface CustomerOpportunityListQueryResponse {
   Opportunity: BaseCustomerOpportunity[]

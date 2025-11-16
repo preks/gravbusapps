@@ -5,11 +5,9 @@ import { ContactFormValues } from '../../contact-form/types'
 import { InvestmentOpportunityFormValues } from '../../opportunity-form/types'
 import { buildCommunicationChannelRef } from '@/common/data/common/utils/communicationChannelHelpers'
 import { CommunicationChannelCode } from '@/common/data/common/types/commonTypes'
-import {
-  buildInvestmentAccountPayload,
-  buildInvestmentContactPayload,
-  buildInvestmentOpportunityPayload
-} from '@/common/data/investment/payloads'
+import { buildInvestmentAccountPayload } from '@/common/data/investment/types/investmentAccountTypes'
+import { buildInvestmentContactPayload } from '@/common/data/investment/types/investmentContactTypes'
+import { buildInvestmentOpportunityPayload } from '@/common/data/investment/types/investmentOpportunityTypes'
 
 export const createSubmissionPayload = (
   data: ConvertLeadFormData,
@@ -162,7 +160,9 @@ export const createSubmissionPayload = (
     }
 
     // ✅ Use centralized payload builder - pass ALL available fields
-    const { investmentContact } = buildInvestmentContactPayload({
+    const investmentContact: Partial<
+      import('@/common/data/investment/types/investmentContactTypes').InvestmentContact
+    > = {
       // Personal Information
       firstName: completeContactData.firstName || legacyFormData.contactData.firstName,
       lastName: completeContactData.lastName || legacyFormData.contactData.lastName,
@@ -181,13 +181,12 @@ export const createSubmissionPayload = (
       phone: completeContactData.phone,
 
       // Titles
-      academicTitle: completeContactData.academicTitleRef,
-      language: completeContactData.languageRef,
+      academicTitleRef: completeContactData.academicTitleRef,
+      languageRef: completeContactData.languageRef,
 
       // Relationships
-      owner:
+      ownerEmployeeId:
         completeContactData.owner || completeContactData.ownerEmployeeId || legacyFormData.contactData.ownerEmployeeId,
-      accountIds: completeContactData.accountIds, // Account associations
 
       // Additional Information
       notesSummary: completeContactData.notesSummary,
@@ -202,11 +201,13 @@ export const createSubmissionPayload = (
       communicationChannels: communicationChannels.length > 0 ? communicationChannels : undefined,
 
       // System fields
-      id: completeContactData.id,
-      version: completeContactData.version
-    })
+      ...(completeContactData.id && { id: completeContactData.id }),
+      ...(completeContactData.version !== undefined && { version: completeContactData.version })
+    }
 
-    payload.contact = investmentContact
+    const { investmentContact: contactPayload } = buildInvestmentContactPayload(investmentContact)
+
+    payload.contact = contactPayload
   }
 
   // Handle Opportunity (using exact fields from current OpportunityFormComponent)
@@ -223,16 +224,17 @@ export const createSubmissionPayload = (
 
       // Financial Information
       estimatedAmount: completeOpportunityData.estimatedAmount || legacyFormData.opportunityData.estimatedAmount,
-      currency:
+      currencyRef:
         completeOpportunityData.currencyRef ||
         completeOpportunityData.currency ||
         legacyFormData.opportunityData.currency,
       closeDate: completeOpportunityData.closeDate,
 
       // Pipeline Information
-      pipeline: completeOpportunityData.pipeline || legacyFormData.opportunityData.pipeline,
-      pipelineStage: completeOpportunityData.pipelineStage || legacyFormData.opportunityData.pipelineStage,
-      opportunityStatus: 'InvestmentOpportunityStatus:v1:OPEN', // Always OPEN for new opportunities
+      opportunityPipelineRef: completeOpportunityData.pipeline || legacyFormData.opportunityData.pipeline,
+      opportunityPipelineStageRef:
+        completeOpportunityData.pipelineStage || legacyFormData.opportunityData.pipelineStage,
+      opportunityStatusRef: 'InvestmentOpportunityStatus:v1:OPEN', // Always OPEN for new opportunities
 
       // Investment-specific financial fields
       initialInvestmentAmount: completeOpportunityData.initialInvestmentAmount,
@@ -253,10 +255,10 @@ export const createSubmissionPayload = (
       // Real estate specific fields
       buildingYear: completeOpportunityData.buildingYear,
       size: completeOpportunityData.size,
-      measurementUnit: completeOpportunityData.measurementUnit, // maps to sizeMeasurementUnitRef
+      sizeMeasurementUnitRef: completeOpportunityData.measurementUnit || completeOpportunityData.sizeMeasurementUnitRef,
 
       // Relationships
-      owner: completeOpportunityData.owner || legacyFormData.opportunityData.owner,
+      ownerEmployeeId: completeOpportunityData.owner || legacyFormData.opportunityData.owner,
       ownerOrganizationId: completeOpportunityData.ownerOrganizationId,
       accountId:
         legacyFormData.selectedAccountId ||

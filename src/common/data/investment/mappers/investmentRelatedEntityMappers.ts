@@ -1,6 +1,8 @@
 // Investment Related Entity Mappers - Transform base types to enhanced types with computed fields
 
-import { InvestmentActivity, InvestmentNote, InvestmentDocument } from '../types'
+import { InvestmentActivity } from '../types/investmentActivityTypes'
+import { InvestmentNote } from '../types/investmentNoteTypes'
+import { InvestmentDocument } from '../types/investmentDocumentTypes'
 
 /**
  * Transform InvestmentActivity (GraphQL response) to InvestmentActivity

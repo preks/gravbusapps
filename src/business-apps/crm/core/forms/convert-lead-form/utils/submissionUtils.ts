@@ -3,11 +3,9 @@ import { ConvertLeadFormData, ConvertLeadFormDataLegacy } from '../types'
 import { AccountFormValues } from '../../account-form/types'
 import { ContactFormValues } from '../../contact-form/types'
 import { OpportunityFormValues } from '../../opportunity-form/types'
-import {
-  buildCustomerAccountPayload,
-  buildCustomerContactPayload,
-  buildCustomerOpportunityPayload
-} from '@/common/data/customer/payloads'
+import { buildCustomerAccountPayload } from '@/common/data/customer/types/customerAccountTypes'
+import { buildCustomerContactPayload } from '@/common/data/customer/types/customerContactTypes'
+import { buildCustomerOpportunityPayload } from '@/common/data/customer/types/customerOpportunityTypes'
 
 /**
  * Helper: Build account payload based on option (match vs create)
@@ -91,8 +89,8 @@ const buildContactPayload = (
   }
 
   if (legacyFormData.contactOption === 'create') {
-    // ✅ Use centralized payload builder - pass ALL available fields
-    const { customerContact } = buildCustomerContactPayload({
+    // ✅ Build CustomerContact object with all required fields
+    const customerContact: Partial<import('@/common/data/customer/types/customerContactTypes').CustomerContact> = {
       // Personal Information
       firstName: completeContactData.firstName || legacyFormData.contactData.firstName,
       lastName: completeContactData.lastName || legacyFormData.contactData.lastName,
@@ -113,24 +111,22 @@ const buildContactPayload = (
       xingUrl: completeContactData.xingUrl,
 
       // Titles
-      academicTitle: completeContactData.academicTitleRef || completeContactData.academicTitle,
-      language: completeContactData.languageRef,
+      academicTitleRef: completeContactData.academicTitleRef || completeContactData.academicTitle,
+      languageRef: completeContactData.languageRef,
 
       // Picture
       pictureUrl: completeContactData.pictureUrl,
 
       // Account Relationships
       accountId: completeContactData.accountId || completeContactData.account,
-      accountIds: completeContactData.accountIds,
 
       // Ownership
-      owner:
+      ownerEmployeeId:
         completeContactData.owner ||
         completeContactData.ownerEmployeeId ||
         legacyFormData.contactData.ownerEmployeeId ||
         leadData?.ownerEmployeeId ||
         leadData?.ownerEmployee,
-      ownerOrganizationId: completeContactData.ownerOrganizationId,
 
       // Additional Information
       notesSummary: completeContactData.notesSummary,
@@ -141,13 +137,19 @@ const buildContactPayload = (
       // System fields
       businessKey: completeContactData.businessKey,
       code: completeContactData.code,
-      id: completeContactData.id,
-      version: completeContactData.version,
-      sourceApp: completeContactData.sourceApp,
-      recordState: completeContactData.recordState
-    })
+      ...(completeContactData.id && { id: completeContactData.id }),
+      ...(completeContactData.version !== undefined && { version: completeContactData.version })
+    }
 
-    return customerContact
+    // ✅ Use centralized payload builder for CRM Contact
+    const { customerContact: contactPayload } = buildCustomerContactPayload(customerContact)
+
+    // Include recordState if it exists (system field)
+    if (completeContactData.recordState) {
+      contactPayload.recordState = completeContactData.recordState
+    }
+
+    return contactPayload
   }
 
   return null
@@ -173,28 +175,29 @@ const buildOpportunityPayload = (
     businessKey: completeOpportunityData.businessKey,
 
     // Status Information
-    opportunityStatus: completeOpportunityData.opportunityStatus,
+    opportunityStatusRef: completeOpportunityData.opportunityStatus,
     stage: completeOpportunityData.stage,
     status: completeOpportunityData.status,
 
     // Sales Information
     estimatedAmount: completeOpportunityData.estimatedAmount,
-    currency: completeOpportunityData.currency || legacyFormData.opportunityData.currency,
+    currencyRef: completeOpportunityData.currency || legacyFormData.opportunityData.currency,
     winningChance: completeOpportunityData.winningChance,
     closeDate: completeOpportunityData.closeDate,
 
     // Pipeline Information (CRM-specific field mapping)
-    pipeline: completeOpportunityData.pipeline || legacyFormData.opportunityData.pipeline,
-    pipelineStage: completeOpportunityData.salesPipelineStage || legacyFormData.opportunityData.pipelineStage,
+    opportunityPipelineRef: completeOpportunityData.pipeline || legacyFormData.opportunityData.pipeline,
+    opportunityPipelineStageRef:
+      completeOpportunityData.salesPipelineStage || legacyFormData.opportunityData.pipelineStage,
 
     // Relationship Information
-    account: completeOpportunityData.account,
-    lead: completeOpportunityData.lead,
+    accountId: completeOpportunityData.account,
+    leadId: completeOpportunityData.lead,
     companyName: completeOpportunityData.companyName,
     contactIds: completeOpportunityData.contactIds,
 
     // Ownership
-    owner:
+    ownerEmployeeId:
       completeOpportunityData.owner ||
       completeOpportunityData.ownerEmployeeId ||
       legacyFormData.opportunityData.owner ||

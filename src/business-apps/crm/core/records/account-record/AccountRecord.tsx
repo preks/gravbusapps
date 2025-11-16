@@ -10,7 +10,7 @@ import { useCustomerAccounts } from '@/common/data/customer/hooks/useCustomerAcc
 import { OpportunityView } from './views/opportunity-view/OpportunityView'
 import { DocumentView } from './views/document-view/DocumentView'
 import { HomeView } from './views/home-view/HomeView'
-import type { CustomerAccount } from '@/common/data/customer/types'
+import type { CustomerAccount } from '@/common/data/customer/types/customerAccountTypes'
 import { getEmailChannel, getPhoneChannel } from '@/common/data/common/utils/communicationChannelHelpers'
 
 interface AccountRecordContentProps extends BusinessAppContextProps {

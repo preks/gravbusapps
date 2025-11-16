@@ -410,7 +410,19 @@ export const AppActionForm: React.FC<AppActionFormProps> = ({
           // Custom layout: just provide form context and let children handle layout
           <Form {...(form as any)}>
             <form
-              onSubmit={form.handleSubmit(vals => handleSubmit(vals))}
+              onSubmit={form.handleSubmit(
+                vals => handleSubmit(vals),
+                errors => {
+                  // Development-only validation error logging
+                  if (process.env.NODE_ENV !== 'production') {
+                    console.error('[AppActionForm] Validation failed:', errors)
+                    // Note: form.formState.errors might not be updated yet, use errors parameter instead
+                    console.error('[AppActionForm] Validation errors (from callback):', errors)
+                    console.error('[AppActionForm] Form errors (from formState):', form.formState.errors)
+                    console.error('[AppActionForm] Form values:', form.getValues())
+                  }
+                }
+              )}
               className="gba:flex gba:flex-col gba:w-full gba:h-full"
               data-testid={`${dataTestId}-form`}
             >
@@ -422,7 +434,19 @@ export const AppActionForm: React.FC<AppActionFormProps> = ({
           // Standard layout
           <Form {...(form as any)}>
             <form
-              onSubmit={form.handleSubmit(vals => handleSubmit(vals))}
+              onSubmit={form.handleSubmit(
+                vals => handleSubmit(vals),
+                errors => {
+                  // Development-only validation error logging
+                  if (process.env.NODE_ENV !== 'production') {
+                    console.error('[AppActionForm] Validation failed:', errors)
+                    // Note: form.formState.errors might not be updated yet, use errors parameter instead
+                    console.error('[AppActionForm] Validation errors (from callback):', errors)
+                    console.error('[AppActionForm] Form errors (from formState):', form.formState.errors)
+                    console.error('[AppActionForm] Form values:', form.getValues())
+                  }
+                }
+              )}
               className="gba:flex gba:flex-col gba:w-full gba:max-w-md gba:h-full"
               data-testid={`${dataTestId}-form`}
             >

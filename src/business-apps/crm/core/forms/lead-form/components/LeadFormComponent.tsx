@@ -1,246 +1,280 @@
-import React from 'react'
-import { Button, Label, Alert, AlertDescription } from '@newwork/nw-design-system'
-import { formatDataTestId } from '@/common/utils/formatDataTestId'
-import { dispatchProcessContinueEvent } from '@/common/utils/processEventUtils'
+import React, { useCallback } from 'react'
+import { useForm } from 'react-hook-form'
 import { useLeadFormContext } from '../context/LeadFormContext'
-import { toStringOrUndefined } from '../utils/validationUtils'
-// no joinAddressLines needed anymore
-import OwnerSelector from './OwnerSelector'
-import LeadInformationSection from './LeadInformationSection'
-import ContactInformationSection from './ContactInformationSection'
-import CompanyInformationSection from './CompanyInformationSection'
+import { LeadLayout } from '@/common/components/common-relations/form-layouts/lead-layout'
+import { createLeadSegmentResolver } from '@/common/components/common-relations/schemas/leadSchema'
+import { buildCustomerLeadPayload } from '@/common/data/customer/types/customerLeadTypes'
+import { AppActionForm } from '@/components/app-action-form'
+import {
+  Alert,
+  AlertDescription,
+  FormField,
+  FormItem,
+  FormLabel,
+  FormControl,
+  FormMessage
+} from '@newwork/nw-design-system'
+import { CatalogSelect } from '@/components/catalog-select'
+import { AddressType } from '@/common/data/relations/types/relationEnums'
+import { CommunicationChannelCode } from '@/common/data/relations/types/relationEnums'
 import { buildCommunicationChannelRef } from '@/common/data/common/utils/communicationChannelHelpers'
-import { CommunicationChannelCode } from '@/common/data/common/types/commonTypes'
-import { buildCustomerLeadPayload } from '@/common/data/customer/payloads'
+import type { CustomerLead } from '@/common/data/customer/types/customerLeadTypes'
 
-const prefixDataTestId = 'LeadForm'
+const prefixDataTestId = 'CrmLeadForm'
 
 const LeadFormComponent: React.FC = () => {
-  const {
-    formValues,
-    onSubmit,
-    onCancel,
-    isLoading,
-    error,
-    setFormValues,
-    employeePositions,
-    employeePositionsLoading,
-    employeePositionsError,
-    employeePositionsHasMore,
-    loadMoreEmployeePositions,
-    searchEmployeePositions
-  } = useLeadFormContext()
+  const { lead, leadLoading, leadError, businessAppContext } = useLeadFormContext()
 
-  // Check if all mandatory fields are filled
-  const isFormValid =
-    toStringOrUndefined(formValues.firstName) &&
-    toStringOrUndefined(formValues.lastName) &&
-    toStringOrUndefined(formValues.company) &&
-    toStringOrUndefined(formValues.owner)
-
-  // Handle form submission
-  const handleSubmit = async () => {
-    try {
-      await onSubmit(formValues)
-
-      // Customer Leads: API expects addressLine as string
-      // Compose from form's dynamic address inputs into a single string (join by newline)
-      const collectedLines: string[] = []
-      // Build addresses array from dynamic addresses
-      const addresses: any[] = []
-      if (formValues.addresses && formValues.addresses.length > 0) {
-        formValues.addresses.forEach(address => {
-          const nonEmptyLines = (address.addressLines || [])
-            .map(line => toStringOrUndefined(line))
-            .filter((line): line is string => !!line)
-
-          // Collect for flat string
-          collectedLines.push(...nonEmptyLines)
-
-          // Preserve addresses array entries (one per line, as before)
-          nonEmptyLines.forEach(addressLine => {
-            addresses.push({
-              addressType: address.addressType || 'UNKNOWN_ADDRESS',
-              addressLine,
-              postalCode: toStringOrUndefined(address.postalCode),
-              city: toStringOrUndefined(address.city),
-              regionRef: toStringOrUndefined(address.region),
-              countryRef: toStringOrUndefined(address.country)
-            })
-          })
-
-          if (
-            nonEmptyLines.length === 0 &&
-            (toStringOrUndefined(address.city) ||
-              toStringOrUndefined(address.postalCode) ||
-              toStringOrUndefined(address.region) ||
-              toStringOrUndefined(address.country))
-          ) {
-            addresses.push({
-              addressType: address.addressType || 'UNKNOWN_ADDRESS',
-              addressLine: '',
-              postalCode: toStringOrUndefined(address.postalCode),
-              city: toStringOrUndefined(address.city),
-              regionRef: toStringOrUndefined(address.region),
-              countryRef: toStringOrUndefined(address.country)
-            })
+  // Transform CustomerLead to form values
+  const leadToFormValues = useCallback((ld: CustomerLead | null) => {
+    if (!ld) {
+      // New lead - initialize with defaults
+      return {
+        ownerEmployeeId: '',
+        firstName: '',
+        lastName: '',
+        company: '',
+        leadStatusRef: '',
+        leadSourceRef: '',
+        leadRatingRef: '',
+        sensitive: false,
+        academicTitleRef: '',
+        jobPosition: '',
+        legalFormRef: '',
+        industryClassRef: '',
+        website: '',
+        companyEmail: '',
+        companyPhone: '',
+        companySizeRef: '',
+        annualRevenueBandRef: '',
+        salesCampaignId: '',
+        addresses: [
+          {
+            addressType: AddressType.PRIMARY_ADDRESS,
+            addressLines: [''],
+            postalCode: '',
+            locality: '',
+            regionRef: '',
+            countryRef: ''
           }
-        })
+        ] as any,
+        communicationChannels: [
+          {
+            communicationChannelRef: buildCommunicationChannelRef(CommunicationChannelCode.PHONE),
+            value: '',
+            valueExtension: null
+          },
+          {
+            communicationChannelRef: buildCommunicationChannelRef(CommunicationChannelCode.EMAIL),
+            value: '',
+            valueExtension: null
+          },
+          {
+            communicationChannelRef: buildCommunicationChannelRef(CommunicationChannelCode.LINKEDIN_URL),
+            value: '',
+            valueExtension: null
+          },
+          {
+            communicationChannelRef: buildCommunicationChannelRef(CommunicationChannelCode.XING_URL),
+            value: '',
+            valueExtension: null
+          }
+        ] as any,
+        id: undefined,
+        version: undefined
       }
-      // Fallback from single addressLine field (support multi-line via newline split)
-      const singleLine = toStringOrUndefined((formValues as any).addressLine)
-      if (singleLine) {
-        collectedLines.push(
-          ...singleLine
-            .split(/\r?\n/)
-            .map(s => s.trim())
-            .filter(s => s.length > 0)
-        )
-      }
-
-      const addressString = collectedLines.join('\n')
-      leadPayload.addressLine = addressString || null
-      leadPayload.addresses = addresses.length > 0 ? addresses : null
-
-      // Initialize empty arrays for tags
-      leadPayload.tags = []
-
-      // Add communication channels for LinkedIn and Xing (like IRM)
-      const communicationChannels = []
-
-      // Add LinkedIn communication channel if provided
-      if (formValues.linkedinUrl?.trim()) {
-        communicationChannels.push({
-          communicationChannelRef: buildCommunicationChannelRef(CommunicationChannelCode.LINKEDIN),
-          value: formValues.linkedinUrl.trim(),
-          valueExtension: null,
-          source: 'FORM_INPUT',
-          activeFrom: new Date().toISOString(),
-          activeTo: null
-        })
-      }
-
-      // Add Xing communication channel if provided
-      if (formValues.xingUrl?.trim()) {
-        communicationChannels.push({
-          communicationChannelRef: buildCommunicationChannelRef(CommunicationChannelCode.XING),
-          value: formValues.xingUrl.trim(),
-          valueExtension: null,
-          source: 'FORM_INPUT',
-          activeFrom: new Date().toISOString(),
-          activeTo: null
-        })
-      }
-
-      // ✅ Use centralized payload builder for CRM Lead
-      const isUpdate = !!formValues.id
-      const { customerLead } = buildCustomerLeadPayload(
-        {
-          ...formValues,
-          companySize: formValues.numberOfEmployees, // Maps to numberOfEmployeesRef
-          industry: formValues.industry, // Maps to industryRef
-          annualRevenue: formValues.annualRevenue, // Maps to annualRevenueRef
-          owner: formValues.owner, // Maps to ownerEmployee
-          // Address fields
-          addressLine: addressString || undefined,
-          addresses: addresses.length > 0 ? addresses : undefined,
-          // Communication channels
-          communicationChannels: communicationChannels.length > 0 ? communicationChannels : undefined
-        },
-        { isUpdate }
-      )
-
-      // Use UPDATE mode if editing existing lead, INSERT for new lead
-      const changeMode = isUpdate ? 'UPDATE' : 'INSERT'
-
-      const payload = {
-        lead: customerLead,
-        changeMode: changeMode
-      }
-
-      // Dispatch process continue event on successful submission
-      dispatchProcessContinueEvent('pse_submit', payload)
-    } catch (err) {
-      console.error('Error submitting lead form:', err)
     }
+
+    // Transform addresses
+    const addresses = (ld.addresses || []).map((addr: any) => {
+      const addressLines = addr.addressLine
+        ? typeof addr.addressLine === 'string'
+          ? addr.addressLine
+              .split(',')
+              .map((line: string) => line.trim())
+              .filter(Boolean)
+          : []
+        : ['']
+      return {
+        ...(addr.id && { id: addr.id }),
+        ...(addr.version !== undefined && { version: addr.version }),
+        addressType: addr.addressType || AddressType.PRIMARY_ADDRESS,
+        addressLines: addressLines.length > 0 ? addressLines : [''],
+        postalCode: addr.postalCode || '',
+        locality: addr.locality || '',
+        regionRef: addr.regionRef || '',
+        countryRef: addr.countryRef || ''
+      }
+    })
+
+    if (addresses.length === 0) {
+      addresses.push({
+        addressType: AddressType.PRIMARY_ADDRESS,
+        addressLines: [''],
+        postalCode: '',
+        locality: '',
+        regionRef: '',
+        countryRef: ''
+      })
+    }
+
+    // Transform communication channels
+    const communicationChannels =
+      ld.communicationChannels?.map((ch: any) => ({
+        ...(ch.id && { id: ch.id }),
+        ...(ch.version !== undefined && { version: ch.version }),
+        communicationChannelRef: ch.communicationChannelRef || '',
+        value: ch.value || '',
+        valueExtension: ch.valueExtension || null
+      })) || []
+
+    return {
+      ownerEmployeeId: ld.ownerEmployeeId || '',
+      firstName: ld.firstName || '',
+      lastName: ld.lastName || '',
+      company: ld.company || '',
+      leadStatusRef: ld.leadStatusRef || '',
+      leadSourceRef: ld.leadSourceRef || '',
+      leadRatingRef: ld.leadRatingRef || '',
+      sensitive: ld.sensitive || false,
+      academicTitleRef: ld.academicTitleRef || '',
+      jobPosition: ld.jobPosition || '',
+      legalFormRef: ld.legalFormRef || '',
+      industryClassRef: ld.industryClassRef || '',
+      website: ld.website || '',
+      companyEmail: ld.companyEmail || '',
+      companyPhone: ld.companyPhone || '',
+      companySizeRef: ld.companySizeRef || '',
+      annualRevenueBandRef: ld.annualRevenueBandRef || '',
+      salesCampaignId: (ld as any).salesCampaignId || '',
+      addresses,
+      communicationChannels,
+      id: ld.id,
+      version: ld.version
+    }
+  }, [])
+
+  const form = useForm({
+    resolver: createLeadSegmentResolver(),
+    defaultValues: leadToFormValues(lead)
+  })
+
+  // Update form when lead changes
+  React.useEffect(() => {
+    if (lead) {
+      form.reset(leadToFormValues(lead))
+    }
+  }, [lead, form, leadToFormValues])
+
+  // Handle pre-submit (before AppActionForm processes)
+  const handlePreSubmit = useCallback(async (formValues: any) => {
+    // Transform addressLines (array) back to addressLine (string)
+    const addresses = (formValues.addresses || []).map((addr: any) => {
+      const addressLine = (addr.addressLines || []).filter((line: string) => line.trim()).join(', ')
+      return {
+        ...(addr.id && { id: addr.id }),
+        ...(addr.version !== undefined && { version: addr.version }),
+        addressType: addr.addressType || AddressType.PRIMARY_ADDRESS,
+        addressLine: addressLine || undefined,
+        postalCode: addr.postalCode || undefined,
+        locality: addr.locality || undefined,
+        regionRef: addr.regionRef || undefined,
+        countryRef: addr.countryRef || undefined
+      }
+    })
+
+    // Filter out empty communication channels
+    const communicationChannels = (formValues.communicationChannels || [])
+      .filter((ch: any) => ch.value?.trim())
+      .map((ch: any) => ({
+        ...(ch.id && { id: ch.id }),
+        ...(ch.version !== undefined && { version: ch.version }),
+        communicationChannelRef: ch.communicationChannelRef,
+        value: ch.value,
+        valueExtension: ch.valueExtension || null
+      }))
+
+    // Build lead payload
+    const leadPayload: Partial<CustomerLead> = {
+      ...(formValues.id && { id: formValues.id }),
+      ...(formValues.version !== undefined && { version: formValues.version }),
+      ownerEmployeeId: formValues.ownerEmployeeId,
+      firstName: formValues.firstName,
+      lastName: formValues.lastName,
+      company: formValues.company,
+      leadStatusRef: formValues.leadStatusRef || undefined,
+      leadSourceRef: formValues.leadSourceRef || undefined,
+      leadRatingRef: formValues.leadRatingRef || undefined,
+      sensitive: formValues.sensitive || false,
+      academicTitleRef: formValues.academicTitleRef || undefined,
+      jobPosition: formValues.jobPosition || undefined,
+      legalFormRef: formValues.legalFormRef || undefined,
+      industryClassRef: formValues.industryClassRef || undefined,
+      website: formValues.website || undefined,
+      companyEmail: formValues.companyEmail || undefined,
+      companyPhone: formValues.companyPhone || undefined,
+      companySizeRef: formValues.companySizeRef || undefined,
+      annualRevenueBandRef: formValues.annualRevenueBandRef || undefined,
+      addresses: addresses.length > 0 ? addresses : undefined,
+      communicationChannels: communicationChannels.length > 0 ? communicationChannels : undefined,
+      salesCampaignId: formValues.salesCampaignId || undefined
+    } as any
+
+    // Use buildCustomerLeadPayload to get the final API payload
+    return buildCustomerLeadPayload(leadPayload)
+  }, [])
+
+  if (leadLoading) {
+    return (
+      <div className="gba:p-6 gba:text-center" data-testid={`${prefixDataTestId}-loading`}>
+        Loading lead data...
+      </div>
+    )
   }
 
-  // Handle form cancellation
-  const handleCancel = async () => {
-    try {
-      await onCancel()
-
-      // Dispatch process continue event for cancellation (pause)
-      dispatchProcessContinueEvent('pse_pause', null)
-    } catch (err) {
-      console.error('Error cancelling lead form:', err)
-    }
+  if (leadError) {
+    return (
+      <div className="gba:p-6" data-testid={`${prefixDataTestId}-error`}>
+        <Alert variant="destructive">
+          <AlertDescription>Error loading lead: {leadError.message}</AlertDescription>
+        </Alert>
+      </div>
+    )
   }
 
   return (
-    <div className="gba:h-full gba:flex gba:flex-col gba:max-w-md gba:mx-auto gba:p-6">
-      <div className="gba:h-full gba:flex gba:flex-col" data-testid={formatDataTestId(prefixDataTestId, 'Form')}>
-        {/* Form Fields Container - Takes up available space */}
-        <div className="gba:flex-1 gba:overflow-y-auto gba:space-y-8">
-          {/* Owner - Same pattern as contact form */}
-          <div className="gba:space-y-2">
-            <Label className="gba:text-sm gba:font-medium gba:text-gray-900">
-              Owner <span className="gba:text-red-500">*</span>
-            </Label>
-            <OwnerSelector
-              value={formValues.owner}
-              onChange={value => setFormValues({ owner: value })}
-              employees={employeePositions}
-              loading={employeePositionsLoading}
-              hasMore={employeePositionsHasMore}
-              onLoadMore={loadMoreEmployeePositions}
-              onSearch={searchEmployeePositions}
-              error={employeePositionsError}
-              dataTestId={formatDataTestId(prefixDataTestId, 'OwnerSelector')}
-            />
-          </div>
-
-          {/* Lead Information Section */}
-          <LeadInformationSection />
-
-          {/* Contact Information Section */}
-          <ContactInformationSection />
-
-          {/* Company Information Section */}
-          <CompanyInformationSection />
-
-          {/* Error Display */}
-          {error && (
-            <Alert variant="destructive">
-              <AlertDescription>{error}</AlertDescription>
-            </Alert>
-          )}
-        </div>
-
-        {/* Submit and Cancel Buttons - Fixed at bottom */}
-        <div className="gba:mt-6 gba:pt-4 gba:border-t gba:border-gray-200 gba:flex gba:gap-3">
-          <Button
-            variant="secondary"
-            className="gba:flex-1"
-            size="lg"
-            onClick={handleCancel}
-            data-testid={formatDataTestId(prefixDataTestId, 'CancelButton')}
-          >
-            Cancel
-          </Button>
-          <Button
-            variant="default"
-            disabled={!isFormValid}
-            className="gba:flex-1"
-            size="lg"
-            onClick={handleSubmit}
-            data-testid={formatDataTestId(prefixDataTestId, 'SubmitButton')}
-          >
-            {isLoading ? 'Processing...' : formValues.id ? 'Update Lead' : 'Create Lead'}
-          </Button>
-        </div>
-      </div>
-    </div>
+    <AppActionForm form={form} onPreSubmit={handlePreSubmit} contextsArray={[]} data-testid={prefixDataTestId}>
+      <LeadLayout
+        businessAppContext={businessAppContext}
+        ownerEmployee={lead?.ownerEmployee}
+        leadStatusCatalogIdentifier="SalesLeadStatus:v1"
+        leadSourceCatalogIdentifier="SalesLeadSource:v1"
+        leadRatingCatalogIdentifier="SalesLeadRating:v1"
+        companySizeCatalogIdentifier="EmployeeSize:v1"
+        annualRevenueCatalogIdentifier="RevenueSize:v1"
+        addresses={lead?.addresses}
+        leadInformationCustomFields={
+          <FormField
+            control={form.control}
+            name="salesCampaignId"
+            render={({ field }) => (
+              <FormItem>
+                <FormLabel>Sales Campaign</FormLabel>
+                <FormControl>
+                  <CatalogSelect
+                    catalogIdentifier="SalesCampaign:v1"
+                    value={field.value || ''}
+                    onValueChange={v => field.onChange(v)}
+                    data-testid="lead-segment-sales-campaign"
+                  />
+                </FormControl>
+                <FormMessage />
+              </FormItem>
+            )}
+          />
+        }
+      />
+    </AppActionForm>
   )
 }
 

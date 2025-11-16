@@ -6,7 +6,10 @@
  * to avoid generating unnecessary data before conversion.
  */
 
-import type { InvestmentAccount, InvestmentContact, InvestmentLead, Investment } from '@/common/data/investment/types'
+import type { InvestmentAccount } from '@/common/data/investment/types/investmentAccountTypes'
+import type { InvestmentContact } from '@/common/data/investment/types/investmentContactTypes'
+import type { InvestmentLead } from '@/common/data/investment/types/investmentLeadTypes'
+import type { Investment } from '@/common/data/investment/types/investmentTypes'
 import {
   type Address,
   type CommunicationChannel,

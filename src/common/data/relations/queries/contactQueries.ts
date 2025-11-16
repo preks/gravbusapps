@@ -6,8 +6,7 @@
 import { AUDIT_FIELDS, CATALOG_ENTRY } from '@/common/network/graphql/commonFragments'
 import { COMMUNICATION_CHANNEL_REF } from '@/common/data/common/queries/communicationChannelFragments'
 import { EMPLOYEE_REF } from '@/common/data/employee/queries/fragments/employeeFragments'
-//import { ADDRESS_REF } from '@/common/data/common/queries/addressFragments'
-import { buildAddressFragment } from './_tempAddress'
+import { ADDRESS_REF } from '@/common/data/common/queries/addressFragments'
 import { buildWhere, buildOrderBy, type Descriptor } from '@/common/network/graphql/queryHelpers'
 import { ContactFields } from '../types/contactTypes'
 import type { BaseQueryVariables } from '@/common/network/graphql/commonTypes'
@@ -75,7 +74,7 @@ export const buildContactQuery = (
   const orderByType = `[${entityName}OrderBy!]`
 
   // AccountContacts relation (only if relationBuilders provided)
-  const accountAddressFragment = buildAddressFragment(entityName)
+  const accountAddressFragment = ADDRESS_REF
   const accountContactsRelation =
     relationBuilders?.buildAccountFragment && relationFields?.accountFields
       ? `
@@ -124,6 +123,7 @@ export const buildContactQuery = (
         ${entityFields.department}
         ${entityFields.id}
         ${entityFields.firstName}
+        ${entityFields.jobPosition}
         ${entityFields.language} {
           ${CATALOG_ENTRY}
         }
@@ -134,6 +134,7 @@ export const buildContactQuery = (
           ${EMPLOYEE_REF}
         }
         ${entityFields.ownerEmployeeId}
+        ${entityFields.pictureThumbnail}
         ${entityFields.salutation} {
           ${CATALOG_ENTRY}
         }
@@ -190,6 +191,7 @@ export const buildContactByIdQuery = (
           ${EMPLOYEE_REF}
         }
         ${entityFields.ownerEmployeeId}
+        ${entityFields.pictureThumbnail}
         ${entityFields.salutation} {
           ${CATALOG_ENTRY}
         }
@@ -240,7 +242,7 @@ export const buildContactByIdQuery = (
           ${COMMUNICATION_CHANNEL_REF}
         }
         ${relationFields.accountFields.addresses}(where: { isDeleted: { _eq: false } }) {
-          ${buildAddressFragment(entityName)}
+          ${ADDRESS_REF}
         }
       }
     }

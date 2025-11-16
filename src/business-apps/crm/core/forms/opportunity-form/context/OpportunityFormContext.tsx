@@ -1,8 +1,6 @@
 import React, { createContext, useContext, useState, useCallback, useEffect, useMemo, useRef } from 'react'
 import { message } from 'antd'
 import { BusinessAppContextProps } from '@/common/BusinessAppContext'
-import { useEmployeeById } from '@/business-apps/crm/core/forms/lead-form/hooks/useEmployeeById' // TODO: Extract to common urgent
-import { useEmployeePositions } from '@/business-apps/crm/core/forms/lead-form/hooks/useEmployeePositions' // TODO: Extract to common urgent
 import { useAccountsData } from '../hooks/useAccountsData'
 import { opportunityClient, OpportunityPayload } from '@/common/network/opportunity/OpportunityClient'
 import { dispatchProcessContinueEvent } from '@/common/utils/processEventUtils'
@@ -14,7 +12,7 @@ import {
   RECORD_STATES
 } from '../types'
 import { useOpportunityStatusCatalog, usePipelineCatalogs, useCurrencyCatalog, useOpportunityData } from '../hooks'
-import { useSalesCampaignsGraphQL } from '../../../../common/hooks/useSalesCampaignsGraphQL' // TODO: Extract
+import { useCustomerCampaigns } from '@/common/data/customer/hooks/useCustomerCampaigns'
 
 interface OpportunityFormContextValue {
   formValues: OpportunityFormValues
@@ -181,15 +179,19 @@ export const OpportunityFormProvider: React.FC<OpportunityFormProviderProps> = (
   // Refs for auto-selection control
   const autoSelectionDone = useRef(false)
 
-  // Employee positions hook
-  const {
-    employeePositions: employeePositionData,
-    loading: employeePositionsLoading,
-    error: employeePositionsError,
-    hasMore: employeePositionsHasMore,
-    loadMore: loadMoreEmployeePositions,
-    searchEmployees
-  } = useEmployeePositions({ accessToken: businessAppContext.accessToken })
+  // Employee positions hook - DEPRECATED: Now handled by OwnerSelect component
+  // const {
+  //   employeePositions: employeePositionData,
+  //   loading: employeePositionsLoading,
+  //   error: employeePositionsError,
+  //   hasMore: employeePositionsHasMore,
+  //   loadMore: loadMoreEmployeePositions,
+  //   searchEmployees
+  // } = useEmployeePositions({ accessToken: businessAppContext.accessToken })
+  const employeePositionData: any[] = []
+  const employeePositionsLoading = false
+  const employeePositionsError = null
+  const employeePositionsHasMore = false
 
   // Sales Campaigns hook
   const {
@@ -199,7 +201,7 @@ export const OpportunityFormProvider: React.FC<OpportunityFormProviderProps> = (
     hasMore: salesCampaignsHasMore,
     search: searchSalesCampaigns,
     loadMore: loadMoreSalesCampaigns
-  } = useSalesCampaignsGraphQL(businessAppContext.accessToken)
+  } = useCustomerCampaigns(businessAppContext.accessToken)
 
   // Create search wrapper for campaign autocomplete
   const searchSalesCampaignsWrapper = useCallback(
@@ -217,11 +219,12 @@ export const OpportunityFormProvider: React.FC<OpportunityFormProviderProps> = (
     loadMoreSalesCampaigns()
   }, [loadMoreSalesCampaigns])
 
-  // Current user employee hook
-  const { employee: currentUserEmployee } = useEmployeeById({
-    accessToken: businessAppContext.accessToken,
-    employeeId: businessAppContext.userInfo?.employeeDetails?.employeeId
-  })
+  // Current user employee hook - DEPRECATED: Now handled by OwnerSelect component
+  // const { employee: currentUserEmployee } = useEmployeeById({
+  //   accessToken: businessAppContext.accessToken,
+  //   employeeId: businessAppContext.userInfo?.employeeDetails?.employeeId
+  // })
+  const currentUserEmployee: any = null
 
   // Opportunity data fetching hook for pre-filling form when updating existing opportunity
   const { opportunityData, mapOpportunityToFormValues } = useOpportunityData({ businessAppContext })

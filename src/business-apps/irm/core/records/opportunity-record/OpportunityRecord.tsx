@@ -21,7 +21,7 @@ import { BusinessAppContextProps } from '@/common/BusinessAppContext'
 import { navigateTo, buildPlatformUrl } from '@/common/utils/navigationUtils'
 import { getTranslationFromI18nKeyAndLabel, formatDate } from '@/common/utils/windowUtils'
 import { useProcessCompletion } from '@/common/hooks/useProcessCompletion'
-import type { InvestmentOpportunity } from '@/common/data/investment/types'
+import type { InvestmentOpportunity } from '@/common/data/investment/types/investmentOpportunityTypes'
 import { formatCurrency, extractCurrencyCode } from '@/common/utils/numberFormatter'
 import { getOpportunityStatusBadgeVariant } from '@/common/utils/badgeUtils'
 import { useAiSummary } from './hooks/useAiSummary'
@@ -83,13 +83,6 @@ const InvestmentOpportunityRecordContent: React.FC<OpportunityRecordContentProps
     opportunityVersion?: number
     opportunityName?: string
   }>({ open: false })
-
-  // Construct businessAppContext from props for sections
-  const businessAppContext: BusinessAppContextProps = {
-    accessToken: props.accessToken,
-    userInfo: props.userInfo,
-    additionalData: props.additionalData
-  }
 
   // Initialize activeTab from URL on mount and write default if missing
   useEffect(() => {

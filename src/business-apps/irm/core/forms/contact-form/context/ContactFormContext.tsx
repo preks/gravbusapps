@@ -6,7 +6,7 @@ import { useEmployeeById } from '@/business-apps/irm/core/forms/lead-form/hooks/
 import { useSearchableCatalog } from '@/business-apps/irm/core/forms/lead-form/hooks/useSearchableCatalog'
 import { useInvestmentContactData, mapInvestmentContactToFormValues } from '../hooks/useContactData'
 import { useEmployeeByIdGraphQL } from '../hooks/useEmployeeByIdGraphQL'
-import { useGetInvestmentAccounts } from '@/common/data/investment'
+import { useGetInvestmentAccounts } from '@/common/data/investment/hooks/useInvestmentAccounts'
 
 // ✅ UPDATED: Catalog constants for InvestmentContact
 export const ACADEMIC_TITLE_CATALOG = 'AcademicTitle'

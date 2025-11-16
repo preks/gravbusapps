@@ -2,7 +2,11 @@
 import { useCallback } from 'react'
 import { useGraphQLClient } from '@/common/network/graphql/useGraphQLClient'
 import { BusinessAppContextProps } from '@/common/BusinessAppContext'
-import type { InvestmentLead, InvestmentTask, InvestmentActivity, InvestmentNote, InvestmentDocument } from '../types'
+import type { InvestmentLead } from '../types/investmentLeadTypes'
+import type { InvestmentTask } from '../types/investmentTaskTypes'
+import type { InvestmentActivity } from '../types/investmentActivityTypes'
+import type { InvestmentNote } from '../types/investmentNoteTypes'
+import type { InvestmentDocument } from '../types/investmentDocumentTypes'
 import type { Lead } from '@/common/data/relations/types/leadTypes'
 
 // Use the new query builders
@@ -37,13 +41,9 @@ import {
 } from '../queries/investmentDocumentQueries'
 
 // Use the mapper functions
-import {
-  toInvestmentLead,
-  toInvestmentTask,
-  toInvestmentActivity,
-  toInvestmentNote,
-  toInvestmentDocument
-} from '../mappers'
+import { toInvestmentLead } from '../types/investmentLeadTypes'
+import { toInvestmentTask } from '../mappers/investmentTaskMappers'
+import { toInvestmentActivity, toInvestmentNote, toInvestmentDocument } from '../mappers/investmentRelatedEntityMappers'
 
 // Response interfaces
 export interface InvestmentLeadQueryResponse {

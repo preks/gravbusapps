@@ -1,10 +1,14 @@
 import type { CatalogEntry } from '@/common/network/graphql/commonTypes'
-import { type Lead, LeadFields, createLeadDescriptors } from '@/common/data/relations/types/leadTypes'
+import { type Lead, LeadFields, createLeadDescriptors, leadFormFields } from '@/common/data/relations/types/leadTypes'
 import type { Descriptor } from '@/common/network/graphql/queryHelpers'
+import { buildPayload } from '@/common/data/common/utils/payloadBuilder'
 import type { InvestmentAccount } from './investmentAccountTypes'
 import type { InvestmentContact } from './investmentContactTypes'
 import type { InvestmentTask } from './investmentTaskTypes'
-import type { InvestmentDocument, InvestmentOpportunity, InvestmentActivity, InvestmentNote } from './'
+import type { InvestmentDocument } from './investmentDocumentTypes'
+import type { InvestmentOpportunity } from './investmentOpportunityTypes'
+import type { InvestmentActivity } from './investmentActivityTypes'
+import type { InvestmentNote } from './investmentNoteTypes'
 
 export interface InvestmentLead extends Lead {
   activities?: InvestmentActivity[]
@@ -51,8 +55,6 @@ export interface InvestmentLead extends Lead {
  * IRM uses same field names as Common, so we use LeadFields directly
  */
 export const InvestmentLeadFields = LeadFields
-
-export type InvestmentLeadFieldName = (typeof InvestmentLeadFields)[keyof typeof InvestmentLeadFields]
 
 /**
  * Investment Lead Descriptors
@@ -142,3 +144,60 @@ export const INVESTMENT_LEAD_DESCRIPTORS: Descriptor[] = [
   { key: 'sizeMeasurementUnitIds', path: 'sizeMeasurementUnitRef', kind: 'inIds' },
   { key: 'timeZoneIds', path: 'timeZoneRef', kind: 'inIds' }
 ]
+
+/**
+ * Investment Lead Form Fields Configuration
+ * Extends leadFormFields with IRM-specific fields
+ */
+export const investmentLeadFormFields = {
+  ...leadFormFields,
+  // IRM-specific fields
+  investmentGroupRef: 'investmentGroupRef',
+  investmentName: 'investmentName',
+  investmentRoleRef: 'investmentRoleRef',
+  investmentStakeTypeRef: 'investmentStakeTypeRef',
+  investmentTypeRef: 'investmentTypeRef',
+  stakePercentage: 'stakePercentage',
+  marketValue: 'marketValue',
+  initialInvestmentAmount: 'initialInvestmentAmount',
+  loanAmount: 'loanAmount',
+  requiredCapitalAmount: 'requiredCapitalAmount',
+  forecastedProfitAmount: 'forecastedProfitAmount',
+  annualNetColdRent: 'annualNetColdRent',
+  buildingYear: 'buildingYear',
+  size: 'size',
+  sizeMeasurementUnitRef: 'sizeMeasurementUnitRef'
+} as const
+
+/**
+ * Build Investment Lead payload for IRM module
+ *
+ * Automatically handles:
+ * - Field name mapping via investmentLeadFormFields
+ * - Empty value exclusion
+ * - ID/version automatically included if present (determines update vs create)
+ * - IRM-specific fields (investment fields, sensitive flag)
+ *
+ * @param lead - Partial InvestmentLead entity (only fields provided by form)
+ * @returns Payload object ready for API submission
+ */
+export const buildInvestmentLeadPayload = (lead: Partial<InvestmentLead>) => {
+  // Build base payload using investmentLeadFormFields for field mapping
+  const basePayload = buildPayload(lead, investmentLeadFormFields)
+
+  return {
+    investmentLead: basePayload
+  }
+}
+
+/**
+ * Transform InvestmentLead (raw GraphQL) to InvestmentLead (enhanced/standardized)
+ *
+ * NOTE: IRM field naming already matches Lead standards.
+ * No catalog field mappings needed (unlike CRM).
+ * This mapper is essentially a passthrough with proper typing.
+ */
+export function toInvestmentLead(raw: any): InvestmentLead {
+  // IRM uses correct field names, no mapping needed
+  return raw as InvestmentLead
+}

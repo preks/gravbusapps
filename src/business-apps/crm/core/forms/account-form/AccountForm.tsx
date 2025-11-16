@@ -1,12 +1,12 @@
 import React from 'react'
-import { AccountFormProvider } from './context/AccountFormContext'
-import AccountFormComponent from './components/AccountFormComponent'
-import { AccountFormValues } from './types'
+import { AccountFormProvider } from './AccountFormContext'
+import AccountFormComponent from './AccountFormComponent'
+import type { CustomerAccount } from '@/common/data/customer/types/customerAccountTypes'
 import { BusinessAppContextProps } from '@/common/BusinessAppContext'
 
 interface AccountFormProps {
-  initialValues?: Partial<AccountFormValues>
-  onSubmit?: (values: AccountFormValues) => Promise<void>
+  initialValues?: Partial<CustomerAccount>
+  onSubmit?: (account: Partial<CustomerAccount>) => Promise<void>
   onCancel?: () => Promise<void>
 }
 

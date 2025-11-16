@@ -2,7 +2,7 @@ import React, { useState, useEffect, useCallback, useMemo } from 'react'
 import { BusinessAppContextProps } from '@/common/BusinessAppContext'
 import { buildPlatformUrl } from '@/common/utils/navigationUtils'
 import { getTranslationFromI18nKeyAndLabel } from '@/common/utils/windowUtils'
-import { InvestmentAccount } from '@/common/data/investment/types'
+import { InvestmentAccount } from '@/common/data/investment/types/investmentAccountTypes'
 import { FlowContextName } from '@/common/types/FlowRegistryTypes'
 import type { TaskReference } from '@/common/components/common-relations/detail-sheets/task-detail-sheet'
 import {
@@ -236,12 +236,11 @@ const HomeView: React.FC<HomeViewProps> = ({ accountId, accountData, ...props })
             component: ContactSection,
             props: {
               ...props,
-              contacts:
-                (accountData as any)?.investmentAccountContact?.map((ac: any) => ac.contact).filter(Boolean) || [],
-              contactId: (accountData as any)?.investmentAccountContact?.[0]?.contact?.id || undefined,
-              recordUrl: (accountData as any)?.investmentAccountContact?.[0]?.contact?.id
+              contacts: accountData?.accountContacts?.map((ac: any) => ac.contact).filter(Boolean) || [],
+              contactId: accountData?.accountContacts?.[0]?.contact?.id || undefined,
+              recordUrl: accountData?.accountContacts?.[0]?.contact?.id
                 ? buildPlatformUrl('/platform/irm/contact-record', {
-                    contactId: (accountData as any).investmentAccountContact[0].contact.id,
+                    contactId: accountData.accountContacts[0].contact.id,
                     source: 'account-relations',
                     fromEntity: 'accounts'
                   })

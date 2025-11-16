@@ -1,238 +1,275 @@
-import React from 'react'
-import { Button, Label, Alert, AlertDescription } from '@newwork/nw-design-system'
-import { formatDataTestId } from '@/common/utils/formatDataTestId'
-import { dispatchProcessContinueEvent } from '@/common/utils/processEventUtils'
+import React, { useCallback } from 'react'
+import { useForm } from 'react-hook-form'
 import { useLeadFormContext } from '../context/LeadFormContext'
-import { toStringOrUndefined } from '../utils/validationUtils'
-import OwnerSelector from './OwnerSelector'
-import LeadInformationSection from './LeadInformationSection'
-import ContactInformationSection from './ContactInformationSection'
+import { LeadLayout } from '@/common/components/common-relations/form-layouts/lead-layout'
+import { createLeadSegmentResolver } from '@/common/components/common-relations/schemas/leadSchema'
+import { buildInvestmentLeadPayload } from '@/common/data/investment/types/investmentLeadTypes'
+import { AppActionForm } from '@/components/app-action-form'
+import { InvestmentProspectSegment } from '@/common/components/investment/form-segments/investment-prospect-segment'
+import { Alert, AlertDescription } from '@newwork/nw-design-system'
+import { AddressType } from '@/common/data/relations/types/relationEnums'
+import { CommunicationChannelCode } from '@/common/data/relations/types/relationEnums'
 import { buildCommunicationChannelRef } from '@/common/data/common/utils/communicationChannelHelpers'
-import { CommunicationChannelCode } from '@/common/data/common/types/commonTypes'
-import CompanyInformationSection from './CompanyInformationSection'
-import { buildInvestmentLeadPayload } from '@/common/data/investment/payloads'
+import type { InvestmentLead } from '@/common/data/investment/types/investmentLeadTypes'
 
-const prefixDataTestId = 'LeadForm'
+const prefixDataTestId = 'IrmLeadForm'
 
 const LeadFormComponent: React.FC = () => {
-  const {
-    formValues,
-    onCancel,
-    isLoading,
-    error,
-    setFormValues,
-    employeePositions,
-    employeePositionsLoading,
-    employeePositionsError,
-    employeePositionsHasMore,
-    loadMoreEmployeePositions,
-    searchEmployeePositions
-  } = useLeadFormContext()
+  const { lead, leadLoading, leadError, businessAppContext } = useLeadFormContext()
 
-  // Local loading state for submission
-  const [isSubmitting, setIsSubmitting] = React.useState(false)
-
-  // Check if all mandatory fields are filled
-  const isFormValid =
-    toStringOrUndefined(formValues.firstName) &&
-    toStringOrUndefined(formValues.lastName) &&
-    toStringOrUndefined(formValues.company) &&
-    toStringOrUndefined(formValues.owner)
-
-  // Handle form submission
-  const handleSubmit = async () => {
-    // Prevent duplicate submissions
-    if (isLoading || isSubmitting) {
-      return
-    }
-
-    setIsSubmitting(true)
-    try {
-      // ✅ Build addressLine structure (IRM-specific format)
-      const addressLines = [
-        formValues.addressLine1,
-        formValues.addressLine2,
-        formValues.addressLine3,
-        formValues.addressLine4
-      ]
-        .filter(line => line && line.trim())
-        .map(line => line!.trim())
-
-      const addressLine = addressLines.length > 0 ? { lines: addressLines } : undefined
-
-      // ✅ NEW: Add communication channels for LinkedIn and Xing
-      const communicationChannels = []
-
-      // Add LinkedIn communication channel if provided
-      if (formValues.linkedinUrl && formValues.linkedinUrl.trim()) {
-        communicationChannels.push({
-          communicationChannelRef: buildCommunicationChannelRef(CommunicationChannelCode.LINKEDIN),
-          value: formValues.linkedinUrl.trim(),
-          valueExtension: null,
-          source: 'FORM_INPUT',
-          activeFrom: new Date().toISOString(),
-          activeTo: null
-        })
-      }
-
-      // Add Xing communication channel if provided
-      if (formValues.xingUrl && formValues.xingUrl.trim()) {
-        communicationChannels.push({
-          communicationChannelRef: buildCommunicationChannelRef(CommunicationChannelCode.XING),
-          value: formValues.xingUrl.trim(),
-          valueExtension: null,
-          source: 'FORM_INPUT',
-          activeFrom: new Date().toISOString(),
-          activeTo: null
-        })
-      }
-
-      // ✅ Use centralized payload builder for IRM Lead
-      const isUpdate = !!formValues.id
-      const { investmentLead } = buildInvestmentLeadPayload(
-        {
-          ...formValues,
-          owner: formValues.owner, // Maps to ownerEmployee
-          companySize: formValues.numberOfEmployees, // Maps to companySizeRef
-          industry: formValues.industry, // Maps to industryClassRef
-          annualRevenue: formValues.annualRevenue, // Maps to accountAnnualRevenueBandRef
-          // Address fields
-          addressLine,
-          // Communication channels
-          communicationChannels: communicationChannels.length > 0 ? communicationChannels : undefined
-        },
-        { isUpdate }
-      )
-
-      // ✅ ADDED: Ensure numerical fields are properly set (API validation) - defaults to 0
-      investmentLead.stakePercentage = investmentLead.stakePercentage || 0
-      investmentLead.marketValue = investmentLead.marketValue || 0
-      investmentLead.initialInvestmentAmount = investmentLead.initialInvestmentAmount || 0
-      investmentLead.loanAmount = investmentLead.loanAmount || 0
-      investmentLead.loanInterestRate = investmentLead.loanInterestRate || 0
-      investmentLead.requiredCapitalAmount = investmentLead.requiredCapitalAmount || 0
-      investmentLead.forecastedProfitAmount = investmentLead.forecastedProfitAmount || 0
-      investmentLead.annualNetColdRent = investmentLead.annualNetColdRent || 0
-
-      // Use UPDATE mode if editing existing lead, INSERT for new lead
-      const changeMode = isUpdate ? 'UPDATE' : 'INSERT'
-
-      const payload = {
-        investmentLead,
-        changeMode
-      }
-
-      // Dispatch process continue event on successful submission
-      dispatchProcessContinueEvent('pse_submit', payload)
-
-      // Wait for process completion event
-      await new Promise<void>(resolve => {
-        const TIMEOUT = 10000
-        const timeoutId = setTimeout(() => {
-          cleanup()
-          resolve()
-        }, TIMEOUT)
-
-        const handleProcessCompletion = (event: Event) => {
-          const customEvent = event as CustomEvent<{ resolution: 'success' | 'failure' }>
-          if (customEvent.detail?.resolution === 'success' || customEvent.detail?.resolution === 'failure') {
-            cleanup()
-            resolve()
+  // Transform InvestmentLead to form values
+  const leadToFormValues = useCallback((ld: InvestmentLead | null) => {
+    if (!ld) {
+      // New lead - initialize with defaults
+      return {
+        ownerEmployeeId: '',
+        firstName: '',
+        lastName: '',
+        company: '',
+        leadStatusRef: '',
+        leadSourceRef: '',
+        leadRatingRef: '',
+        sensitive: false,
+        academicTitleRef: '',
+        jobPosition: '',
+        legalFormRef: '',
+        industryClassRef: '',
+        website: '',
+        companyEmail: '',
+        companyPhone: '',
+        companySizeRef: '',
+        annualRevenueBandRef: '',
+        addresses: [
+          {
+            addressType: AddressType.PRIMARY_ADDRESS,
+            addressLines: [''],
+            postalCode: '',
+            locality: '',
+            regionRef: '',
+            countryRef: ''
           }
-        }
-
-        const cleanup = () => {
-          clearTimeout(timeoutId)
-          window.removeEventListener('com.newwork.process.processCompletion', handleProcessCompletion)
-          window.removeEventListener('com.newwork.process.taskCompletion', handleProcessCompletion)
-        }
-
-        window.addEventListener('com.newwork.process.processCompletion', handleProcessCompletion)
-        window.addEventListener('com.newwork.process.taskCompletion', handleProcessCompletion)
-      })
-    } catch (err) {
-      console.error('Error submitting lead form:', err)
-    } finally {
-      setIsSubmitting(false)
+        ] as any,
+        communicationChannels: [
+          {
+            communicationChannelRef: buildCommunicationChannelRef(CommunicationChannelCode.PHONE),
+            value: '',
+            valueExtension: null
+          },
+          {
+            communicationChannelRef: buildCommunicationChannelRef(CommunicationChannelCode.EMAIL),
+            value: '',
+            valueExtension: null
+          },
+          {
+            communicationChannelRef: buildCommunicationChannelRef(CommunicationChannelCode.LINKEDIN),
+            value: '',
+            valueExtension: null
+          },
+          {
+            communicationChannelRef: buildCommunicationChannelRef(CommunicationChannelCode.XING),
+            value: '',
+            valueExtension: null
+          }
+        ] as any,
+        id: undefined,
+        version: undefined
+      }
     }
+
+    // Transform addresses
+    const addresses = (ld.addresses || []).map((addr: any) => {
+      const addressLines = addr.addressLine
+        ? typeof addr.addressLine === 'object' && addr.addressLine.value
+          ? addr.addressLine.value
+              .split(',')
+              .map((line: string) => line.trim())
+              .filter(Boolean)
+          : typeof addr.addressLine === 'string'
+            ? addr.addressLine
+                .split(',')
+                .map((line: string) => line.trim())
+                .filter(Boolean)
+            : []
+        : ['']
+      return {
+        ...(addr.id && { id: addr.id }),
+        ...(addr.version !== undefined && { version: addr.version }),
+        addressType: addr.addressType || AddressType.PRIMARY_ADDRESS,
+        addressLines: addressLines.length > 0 ? addressLines : [''],
+        postalCode: addr.postalCode || '',
+        locality: addr.locality || '',
+        regionRef: addr.regionRef || '',
+        countryRef: addr.countryRef || ''
+      }
+    })
+
+    if (addresses.length === 0) {
+      addresses.push({
+        addressType: AddressType.PRIMARY_ADDRESS,
+        addressLines: [''],
+        postalCode: '',
+        locality: '',
+        regionRef: '',
+        countryRef: ''
+      })
+    }
+
+    // Transform communication channels
+    const communicationChannels =
+      ld.communicationChannels?.map((ch: any) => ({
+        ...(ch.id && { id: ch.id }),
+        ...(ch.version !== undefined && { version: ch.version }),
+        communicationChannelRef: ch.communicationChannelRef || '',
+        value: ch.value || '',
+        valueExtension: ch.valueExtension || null
+      })) || []
+
+    return {
+      ownerEmployeeId: ld.ownerEmployeeId || '',
+      firstName: ld.firstName || '',
+      lastName: ld.lastName || '',
+      company: ld.company || '',
+      leadStatusRef: ld.leadStatusRef || '',
+      leadSourceRef: ld.leadSourceRef || '',
+      leadRatingRef: ld.leadRatingRef || '',
+      sensitive: ld.sensitive || false,
+      academicTitleRef: ld.academicTitleRef || '',
+      jobPosition: ld.jobPosition || '',
+      legalFormRef: ld.legalFormRef || '',
+      industryClassRef: ld.industryClassRef || '',
+      website: ld.website || '',
+      companyEmail: ld.companyEmail || '',
+      companyPhone: ld.companyPhone || '',
+      companySizeRef: ld.companySizeRef || '',
+      annualRevenueBandRef: ld.annualRevenueBandRef || '',
+      addresses,
+      communicationChannels,
+      id: ld.id,
+      version: ld.version
+    }
+  }, [])
+
+  const form = useForm<any>({
+    resolver: createLeadSegmentResolver() as any,
+    defaultValues: leadToFormValues(lead) as any
+  })
+
+  // Update form when lead changes
+  React.useEffect(() => {
+    if (lead) {
+      form.reset(leadToFormValues(lead))
+    }
+  }, [lead, form, leadToFormValues])
+
+  // Watch investment group and type for prospect segment (like Opportunity Form)
+  const investmentGroupId = form.watch('investmentGroup')
+  const investmentTypeValue = form.watch('investmentType')
+  const investmentTypeId =
+    typeof investmentTypeValue === 'object' ? investmentTypeValue?.id : investmentTypeValue || null
+
+  // Handle pre-submit (before AppActionForm processes)
+  const handlePreSubmit = useCallback(async (formValues: any) => {
+    // Transform addressLines (array) back to addressLine (object with value)
+    const addresses = (formValues.addresses || []).map((addr: any) => {
+      const addressLineValue = (addr.addressLines || []).filter((line: string) => line.trim()).join(', ')
+      return {
+        ...(addr.id && { id: addr.id }),
+        ...(addr.version !== undefined && { version: addr.version }),
+        addressType: addr.addressType || AddressType.PRIMARY_ADDRESS,
+        addressLine: addressLineValue ? { value: addressLineValue } : undefined,
+        postalCode: addr.postalCode || undefined,
+        locality: addr.locality || undefined,
+        regionRef: addr.regionRef || undefined,
+        countryRef: addr.countryRef || undefined
+      }
+    })
+
+    // Filter out empty communication channels
+    const communicationChannels = (formValues.communicationChannels || [])
+      .filter((ch: any) => ch.value?.trim())
+      .map((ch: any) => ({
+        ...(ch.id && { id: ch.id }),
+        ...(ch.version !== undefined && { version: ch.version }),
+        communicationChannelRef: ch.communicationChannelRef,
+        value: ch.value,
+        valueExtension: ch.valueExtension || null
+      }))
+
+    // Build lead payload
+    const leadPayload: Partial<InvestmentLead> = {
+      ...(formValues.id && { id: formValues.id }),
+      ...(formValues.version !== undefined && { version: formValues.version }),
+      ownerEmployeeId: formValues.ownerEmployeeId,
+      firstName: formValues.firstName,
+      lastName: formValues.lastName,
+      company: formValues.company,
+      leadStatusRef: formValues.leadStatusRef || undefined,
+      leadSourceRef: formValues.leadSourceRef || undefined,
+      leadRatingRef: formValues.leadRatingRef || undefined,
+      sensitive: formValues.sensitive || false,
+      academicTitleRef: formValues.academicTitleRef || undefined,
+      jobPosition: formValues.jobPosition || undefined,
+      legalFormRef: formValues.legalFormRef || undefined,
+      industryClassRef: formValues.industryClassRef || undefined,
+      website: formValues.website || undefined,
+      companyEmail: formValues.companyEmail || undefined,
+      companyPhone: formValues.companyPhone || undefined,
+      companySizeRef: formValues.companySizeRef || undefined,
+      annualRevenueBandRef: formValues.annualRevenueBandRef || undefined,
+      addresses: addresses.length > 0 ? addresses : undefined,
+      communicationChannels: communicationChannels.length > 0 ? communicationChannels : undefined
+    } as any
+
+    // Use buildInvestmentLeadPayload to get the final API payload
+    return buildInvestmentLeadPayload(leadPayload)
+  }, [])
+
+  if (leadLoading) {
+    return (
+      <div className="gba:p-6 gba:text-center" data-testid={`${prefixDataTestId}-loading`}>
+        Loading lead data...
+      </div>
+    )
   }
 
-  // Handle form cancellation
-  const handleCancel = async () => {
-    try {
-      await onCancel()
-
-      // Dispatch process continue event for cancellation (pause)
-      dispatchProcessContinueEvent('pse_pause', null)
-    } catch (err) {
-      console.error('Error cancelling lead form:', err)
-    }
+  if (leadError) {
+    return (
+      <div className="gba:p-6" data-testid={`${prefixDataTestId}-error`}>
+        <Alert variant="destructive">
+          <AlertDescription>Error loading lead: {leadError.message}</AlertDescription>
+        </Alert>
+      </div>
+    )
   }
 
   return (
-    <div className="gba:h-full gba:flex gba:flex-col gba:max-w-md gba:mx-auto gba:p-6">
-      <div className="gba:h-full gba:flex gba:flex-col" data-testid={formatDataTestId(prefixDataTestId, 'Form')}>
-        {/* Form Fields Container - Takes up available space */}
-        <div className="gba:flex-1 gba:overflow-y-auto gba:space-y-8">
-          {/* Owner - Same pattern as contact form */}
-          <div className="gba:space-y-2">
-            <Label className="gba:text-sm gba:font-medium gba:text-gray-900">
-              Owner <span className="gba:text-red-500">*</span>
-            </Label>
-            <OwnerSelector
-              value={formValues.owner}
-              onChange={value => setFormValues({ owner: value })}
-              employees={employeePositions}
-              loading={employeePositionsLoading}
-              hasMore={employeePositionsHasMore}
-              onLoadMore={loadMoreEmployeePositions}
-              onSearch={searchEmployeePositions}
-              error={employeePositionsError}
-              dataTestId={formatDataTestId(prefixDataTestId, 'owner-selector-select')}
-            />
-          </div>
-
-          {/* Lead Information Section */}
-          <LeadInformationSection />
-
-          {/* Contact Information Section */}
-          <ContactInformationSection />
-
-          {/* Company Information Section */}
-          <CompanyInformationSection />
-
-          {/* Error Display */}
-          {error && (
-            <Alert variant="destructive">
-              <AlertDescription>{error}</AlertDescription>
-            </Alert>
-          )}
-        </div>
-
-        {/* Submit and Cancel Buttons - Fixed at bottom */}
-        <div className="gba:mt-6 gba:pt-4 gba:border-t gba:border-gray-200 gba:flex gba:gap-3">
-          <Button
-            variant="secondary"
-            className="gba:flex-1"
-            size="lg"
-            onClick={handleCancel}
-            data-testid={formatDataTestId(prefixDataTestId, 'cancel-button')}
-          >
-            Cancel
-          </Button>
-          <Button
-            variant="default"
-            disabled={!isFormValid || isLoading || isSubmitting}
-            className="gba:flex-1"
-            size="lg"
-            onClick={handleSubmit}
-            data-testid={formatDataTestId(prefixDataTestId, 'submit-button')}
-          >
-            {formValues.id ? 'Update Lead' : 'Create Lead'}
-          </Button>
-        </div>
-      </div>
-    </div>
+    <AppActionForm form={form} onSubmit={handlePreSubmit} data-testid={prefixDataTestId}>
+      <LeadLayout
+        businessAppContext={businessAppContext}
+        ownerEmployee={lead?.ownerEmployee}
+        leadStatusCatalogIdentifier="InvestmentLeadStatus:v1"
+        leadSourceCatalogIdentifier="InvestmentLeadSource:v1"
+        leadRatingCatalogIdentifier="InvestmentLeadRating:v1"
+        companySizeCatalogIdentifier="CompanySize:v1"
+        annualRevenueCatalogIdentifier="AccountAnnualRevenueBand:v1"
+        addresses={(lead as any)?.addresses}
+        customSegments={[
+          {
+            id: 'investment-prospect',
+            title: 'Investment Information',
+            content: (
+              <InvestmentProspectSegment
+                investmentGroupId={investmentGroupId as string}
+                investmentTypeId={investmentTypeId as string}
+                businessAppContext={businessAppContext}
+                testIdPrefix={prefixDataTestId}
+                currencySymbol="€"
+              />
+            )
+          }
+        ]}
+      />
+    </AppActionForm>
   )
 }
 

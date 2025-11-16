@@ -1,12 +1,10 @@
 import React from 'react'
-import { OpportunityFormProvider } from './context/OpportunityFormContext'
 import OpportunityFormComponent from './components/OpportunityFormComponent'
-import { OpportunityFormValues } from './types'
 import { BusinessAppContextProps } from '@/common/BusinessAppContext'
 
 interface OpportunityFormProps {
-  initialValues?: Partial<OpportunityFormValues>
-  onSubmit?: (values: OpportunityFormValues) => Promise<void>
+  initialValues?: any
+  onSubmit?: (values: any) => Promise<void>
   onCancel?: () => Promise<void>
 }
 
@@ -35,14 +33,12 @@ const OpportunityForm: React.FC<BusinessAppContextProps & OpportunityFormProps> 
   }
 
   return (
-    <OpportunityFormProvider
+    <OpportunityFormComponent
       businessAppContext={businessAppContext}
       initialValues={initialValues}
       onSubmit={onSubmit}
       onCancel={onCancel}
-    >
-      <OpportunityFormComponent />
-    </OpportunityFormProvider>
+    />
   )
 }
 

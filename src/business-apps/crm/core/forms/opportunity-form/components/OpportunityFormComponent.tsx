@@ -1,72 +1,236 @@
-import React from 'react'
-import { useOpportunityFormContext } from '../context/OpportunityFormContext'
-import { Button, Alert, AlertDescription, Spinner } from '@newwork/nw-design-system'
+import React, { useEffect, useMemo, useState } from 'react'
+import { useForm } from 'react-hook-form'
 import { formatDataTestId } from '@/common/utils/formatDataTestId'
+import { AppActionForm } from '@/components/app-action-form'
+import { CatalogSelect } from '@/components/catalog-select'
+import { BusinessAppContextProps } from '@/common/BusinessAppContext'
+import { useCustomerOpportunities } from '@/common/data/customer/hooks/useCustomerOpportunities'
+import type { CustomerOpportunity } from '@/common/data/customer/types/customerOpportunityTypes'
+import { OpportunityLayout } from '@/common/components/common-relations/form-layouts/opportunity-layout'
+import { createOpportunitySegmentResolver } from '@/common/components/common-relations/schemas/opportunitySchema'
+import {
+  buildCustomerOpportunityPayload,
+  buildCustomerOpportunityContacts
+} from '@/common/data/customer/types/customerOpportunityTypes'
+import { CampaignSelect } from '@/common/components/customer/form-segments/campaign-select'
+import { FormField, FormItem, FormLabel, FormControl, FormMessage } from '@newwork/nw-design-system'
+import { useAccountsGraphQL } from '../hooks/useAccountsGraphQL'
+import { useGetCustomerContacts } from '@/common/data/customer/hooks/useCustomerContacts'
+import { usePipelineCatalogs, useOpportunityStatusCatalog } from '../hooks'
+import { useCurrenciesGraphQL } from '../hooks/useCurrenciesGraphQL'
+import { useCustomerCampaigns } from '@/common/data/customer/hooks/useCustomerCampaigns'
 import { dispatchProcessContinueEvent } from '@/common/utils/processEventUtils'
-import OpportunityInformationSection from './OpportunityInformationSection'
-import { buildCustomerOpportunityPayload, buildCustomerOpportunityContacts } from '@/common/data/customer/payloads'
 
 const prefixDataTestId = 'OpportunityForm'
 
-const OpportunityFormComponent: React.FC = () => {
-  const { formValues, onSubmit, onCancel, isLoading, error, hideActions } = useOpportunityFormContext()
+interface OpportunityFormComponentProps {
+  businessAppContext: BusinessAppContextProps
+  initialValues?: any
+  onSubmit?: (values: any) => Promise<void>
+  onCancel?: () => Promise<void>
+}
 
-  // Check if all mandatory fields are filled
-  const isFormValid =
-    formValues.owner &&
-    formValues.name &&
-    formValues.pipeline &&
-    formValues.salesPipelineStage &&
-    formValues.estimatedAmount &&
-    !isNaN(parseFloat(formValues.estimatedAmount)) &&
-    parseFloat(formValues.estimatedAmount) > 0 &&
-    formValues.currency
+// Map CustomerOpportunity to form values
+const mapCustomerOpportunityToFormValues = (opportunity: CustomerOpportunity): any => {
+  return {
+    id: opportunity.id,
+    version: opportunity.version,
+    ownerEmployeeId: opportunity.ownerEmployeeId || '',
+    name: opportunity.name || '',
+    pipeline: opportunity.opportunityPipelineRef || '',
+    salesPipelineStage: opportunity.opportunityPipelineStageRef || '',
+    opportunityStatus: opportunity.opportunityStatusRef || '',
+    estimatedAmount: opportunity.estimatedAmount?.toString() || '',
+    currency: opportunity.currencyRef || '',
+    closeDate: opportunity.closeDate ? new Date(opportunity.closeDate).toISOString().split('T')[0] : '',
+    accountId: opportunity.accountId || '',
+    contactIds:
+      opportunity.opportunityContacts?.map(oc => ({
+        id: oc.contact?.id || '',
+        name: oc.contact?.displayName || oc.contact?.fullName || '',
+        associationId: oc.id,
+        associationVersion: oc.version
+      })) || [],
+    salesCampaignId: opportunity.salesCampaignId || '',
+    notesSummary: opportunity.notesSummary || ''
+  }
+}
 
-  // Handle form submission
-  const handleSubmit = async () => {
-    // Prevent duplicate submissions
-    if (isLoading) {
-      return
+const OpportunityFormComponent: React.FC<OpportunityFormComponentProps> = ({
+  businessAppContext,
+  initialValues,
+  onCancel = async () => {}
+}) => {
+  // Load opportunity data when editing
+  const [opportunityData, setOpportunityData] = useState<CustomerOpportunity | null>(null)
+  const { fetchCustomerOpportunityById } = useCustomerOpportunities(businessAppContext)
+
+  // Extract opportunityId from businessAppContext
+  const opportunityId =
+    businessAppContext.additionalData?.opportunityId ||
+    businessAppContext.additionalData?.psi_taskPayload?.psi_initialParameters?.opportunityId
+
+  // Load opportunity data when opportunityId is provided
+  useEffect(() => {
+    const loadOpportunityData = async () => {
+      if (!opportunityId || !businessAppContext.accessToken) {
+        return
+      }
+
+      try {
+        const result = await fetchCustomerOpportunityById(opportunityId)
+        if (result) {
+          setOpportunityData(result)
+        }
+      } catch (err) {
+        console.error('Failed to load opportunity data:', err)
+      }
     }
 
+    loadOpportunityData()
+  }, [opportunityId, businessAppContext.accessToken, fetchCustomerOpportunityById])
+
+  // Account search hook
+  const {
+    options: accountOptions,
+    loading: accountsLoading,
+    search: searchAccounts
+  } = useAccountsGraphQL({ accessToken: businessAppContext.accessToken })
+
+  // Contacts hook
+  const {
+    options: contactsList,
+    loading: contactsLoading,
+    error: contactsError,
+    search: searchContacts
+  } = useGetCustomerContacts(businessAppContext, {
+    withState: true,
+    autoFetch: true,
+    pageSize: 20,
+    mapToSelectOptions: true
+  })
+
+  const contacts = useMemo(() => (contactsList as any[]) || [], [contactsList])
+
+  // Form setup (needs to be before hooks that use it)
+  const form = useForm({
+    resolver: createOpportunitySegmentResolver(),
+    defaultValues: {},
+    mode: 'onChange'
+  })
+
+  // Pipeline catalogs
+  const {
+    pipelineOptions: pipelines,
+    pipelineStageOptions: stages,
+    isLoadingStages: stagesLoading,
+    refetchStages
+  } = usePipelineCatalogs(businessAppContext, form.watch('pipeline'))
+
+  // Opportunity status catalog
+  const { opportunityStatusOptions: opportunityStatuses } = useOpportunityStatusCatalog(businessAppContext)
+
+  // Currencies
+  const {
+    options: currencies,
+    loading: currenciesLoading,
+    error: currenciesError,
+    hasMore: currenciesHasMore,
+    search: searchCurrencies,
+    loadMore: loadMoreCurrencies
+  } = useCurrenciesGraphQL({ accessToken: businessAppContext.accessToken })
+
+  // Sales Campaign hook (CRM-specific) - not used directly, but kept for future use
+  useCustomerCampaigns(businessAppContext.accessToken)
+
+  // Transform opportunity data to form values
+  const opportunityToFormValues = useMemo(() => {
+    const currentUserEmployeeId = businessAppContext.userInfo?.employeeDetails?.employeeId
+
+    if (!opportunityData) {
+      // Auto-set current user as owner for new opportunities
+      const defaultOwnerEmployeeId = initialValues?.ownerEmployeeId || currentUserEmployeeId || ''
+
+      return {
+        ownerEmployeeId: defaultOwnerEmployeeId,
+        name: '',
+        pipeline: '',
+        salesPipelineStage: '',
+        opportunityStatus: '',
+        estimatedAmount: '',
+        currency: '',
+        closeDate: '',
+        accountId: '',
+        contactIds: [],
+        salesCampaignId: '',
+        notesSummary: '',
+        ...initialValues
+      }
+    }
+
+    const mapped = mapCustomerOpportunityToFormValues(opportunityData)
+    return {
+      ownerEmployeeId: mapped.ownerEmployeeId || currentUserEmployeeId || '',
+      name: mapped.name || '',
+      pipeline: mapped.pipeline || '',
+      salesPipelineStage: mapped.salesPipelineStage || '',
+      opportunityStatus: mapped.opportunityStatus || '',
+      estimatedAmount: mapped.estimatedAmount || '',
+      currency: mapped.currency || '',
+      closeDate: mapped.closeDate || '',
+      accountId: mapped.accountId || '',
+      contactIds: mapped.contactIds || [],
+      salesCampaignId: mapped.salesCampaignId || '',
+      notesSummary: mapped.notesSummary || '',
+      id: mapped.id,
+      version: mapped.version,
+      ...initialValues
+    }
+  }, [
+    opportunityData,
+    initialValues,
+    businessAppContext.userInfo?.employeeDetails?.employeeId,
+    businessAppContext.additionalData?.opportunityId,
+    businessAppContext.additionalData?.psi_taskPayload?.psi_initialParameters?.opportunityId
+  ])
+
+  // Update form when opportunity data changes
+  useEffect(() => {
+    if (opportunityToFormValues) {
+      form.reset(opportunityToFormValues)
+    }
+  }, [opportunityToFormValues, form])
+
+  // Handle form submission
+  const handleSubmit = async (values: any) => {
     try {
-      // ✅ Use centralized payload builder for CRM Opportunity
-      const isUpdate = !!formValues.id
-      const { customerOpportunity } = buildCustomerOpportunityPayload(
-        {
-          ...formValues,
-          pipeline: formValues.pipeline, // Maps to salesPipelineRef
-          pipelineStage: formValues.salesPipelineStage // Maps to salesPipelineStageRef
-        },
-        { isUpdate }
-      )
+      const { customerOpportunity } = buildCustomerOpportunityPayload({
+        ...values,
+        opportunityPipelineRef: values.pipeline,
+        opportunityPipelineStageRef: values.salesPipelineStage,
+        ownerEmployeeId: values.ownerEmployeeId,
+        accountId: values.accountId,
+        currencyRef: values.currency,
+        contactIds: values.contactIds || []
+      })
 
-      // ✅ Use centralized opportunity contacts builder
-      const opportunityContacts = buildCustomerOpportunityContacts(formValues.contactIds || [], formValues.id)
+      const opportunityContacts = buildCustomerOpportunityContacts(values.contactIds || [], values.id)
 
-      // ✅ Create payload structure with opportunityContacts for UPDATE, contactIds for CREATE
+      const isUpdate = !!values.id
       const changeMode = isUpdate ? 'UPDATE' : 'INSERT'
       const payload = {
         opportunity: {
           ...customerOpportunity,
-          opportunityContacts: isUpdate ? opportunityContacts : undefined // Only for updates
+          opportunityContacts: isUpdate ? opportunityContacts : undefined
         },
         changeMode,
-        contactIds: isUpdate ? undefined : opportunityContacts.map(oc => oc.contact) // For CREATE mode only
+        contactIds: isUpdate ? undefined : opportunityContacts.map(oc => oc.contact)
       }
 
-      // Dispatch process continue event FIRST (like IRM)
       dispatchProcessContinueEvent('pse_submit', payload)
-
-      // Call the onSubmit callback after dispatching the process event
-      // This ensures the process event is always dispatched even if onSubmit fails
-      try {
-        await onSubmit(formValues)
-      } catch (submitError) {
-        console.warn('onSubmit callback failed, but process event was dispatched:', submitError)
-      }
     } catch (err) {
       console.error('Error submitting CRM opportunity form:', err)
+      throw err
     }
   }
 
@@ -74,67 +238,118 @@ const OpportunityFormComponent: React.FC = () => {
   const handleCancel = async () => {
     try {
       await onCancel()
-
-      // Dispatch process continue event for cancellation (pause)
       dispatchProcessContinueEvent('pse_pause', {})
     } catch (err) {
       console.error('Error cancelling CRM opportunity form:', err)
     }
   }
 
-  if (isLoading) {
-    return (
-      <div className="gba:flex gba:justify-center gba:items-center gba:p-8">
-        <Spinner size="lg" />
-        <span className="gba:ml-3 gba:text-gray-600">Loading opportunity data...</span>
-      </div>
-    )
+  // Handle pre-submit (for file uploads, etc.)
+  const handlePreSubmit = async (values: any) => {
+    // No special pre-submit logic needed for opportunities
+    return values
   }
 
+  // Sales Campaign selector (CRM-specific custom field)
+  const salesCampaignSelector = (
+    <FormField
+      control={form.control}
+      name="salesCampaignId"
+      render={({ field }) => (
+        <FormItem>
+          <FormLabel>Sales Campaign</FormLabel>
+          <FormControl>
+            <CampaignSelect
+              value={field.value || null}
+              onValueChange={(v: string | null) => field.onChange(v || '')}
+              businessAppContext={businessAppContext}
+              selectedCampaign={
+                opportunityData?.salesCampaignId
+                  ? {
+                      id: opportunityData.salesCampaignId || '',
+                      name: (opportunityData as any).salesCampaign?.name || '',
+                      type: undefined,
+                      typeRef: undefined
+                    }
+                  : null
+              }
+              placeholder="Search Campaign..."
+              data-testid={formatDataTestId(prefixDataTestId, 'campaign-select')}
+            />
+          </FormControl>
+          <FormMessage />
+        </FormItem>
+      )}
+    />
+  )
+
+  const processType = opportunityData?.id ? 'update' : 'create'
+
   return (
-    <div className="gba:h-full gba:flex gba:flex-col gba:max-w-md gba:mx-auto gba:p-6">
-      <div className="gba:h-full gba:flex gba:flex-col" data-testid={formatDataTestId(prefixDataTestId, 'Form')}>
-        {/* Form Fields Container - Takes up available space */}
+    <CatalogSelect.Provider {...businessAppContext} form={form}>
+      <AppActionForm
+        processType={processType}
+        onSubmit={handleSubmit}
+        onCancel={handleCancel}
+        handlePreSubmit={handlePreSubmit}
+        formData={form.getValues()}
+        form={form}
+        businessAppContext={businessAppContext}
+        showCancelButton={true}
+        data-testid={prefixDataTestId}
+        submitButtonText={opportunityData?.id ? 'Update Opportunity' : 'Create Opportunity'}
+      >
         <div className="gba:flex-1 gba:overflow-y-auto gba:space-y-8">
-          {/* Opportunity Information Section */}
-          <OpportunityInformationSection />
-
-          {/* Error Display */}
-          {error && (
-            <Alert variant="destructive" className="gba:bg-red-50 gba:border gba:border-red-200 gba:rounded-md gba:p-4">
-              <AlertDescription className="gba:text-red-800 gba:text-sm">{error}</AlertDescription>
-            </Alert>
-          )}
+          <OpportunityLayout
+            businessAppContext={businessAppContext}
+            ownerEmployee={opportunityData?.ownerEmployee}
+            accountId={form.watch('accountId') || undefined}
+            accounts={accountOptions}
+            accountsLoading={accountsLoading}
+            accountsError={null}
+            searchAccounts={searchAccounts}
+            onAccountChange={accountId => {
+              if (accountId) {
+                form.setValue('accountId', typeof accountId === 'object' ? accountId.id : accountId)
+              } else {
+                form.setValue('accountId', '')
+              }
+            }}
+            opportunityContacts={opportunityData?.opportunityContacts}
+            contacts={contacts}
+            contactsLoading={contactsLoading}
+            contactsError={contactsError}
+            searchContacts={searchContacts}
+            onContactsChange={contactIds => form.setValue('contactIds', contactIds)}
+            pipelines={pipelines.map((p: any) => ({
+              id: p.id,
+              value: p.value,
+              label: p.label || p.name,
+              name: p.name
+            }))}
+            stages={stages.map((s: any) => ({ id: s.id, value: s.value, label: s.label || s.name, name: s.name }))}
+            stagesLoading={stagesLoading}
+            onPipelineChange={refetchStages}
+            opportunityStatuses={opportunityStatuses.map((s: any) => ({ id: s.id, value: s.value, label: s.label }))}
+            currencies={currencies.map((c: any) => ({
+              id: c.id,
+              value: c.value,
+              label: c.label || c.name,
+              name: c.name
+            }))}
+            currenciesLoading={currenciesLoading}
+            currenciesError={currenciesError}
+            currenciesHasMore={currenciesHasMore}
+            searchCurrencies={searchCurrencies}
+            loadMoreCurrencies={loadMoreCurrencies}
+            pipelineFieldName="pipeline"
+            stageFieldName="salesPipelineStage"
+            opportunityStatusFieldName="opportunityStatus"
+            opportunityInformationCustomFields={salesCampaignSelector}
+          />
         </div>
-
-        {/* Submit and Cancel Buttons - Fixed at bottom (only if not hidden) */}
-        {!hideActions && (
-          <div className="gba:mt-6 gba:pt-4 gba:border-t gba:border-gray-200 gba:flex gba:gap-3">
-            <Button
-              type="button"
-              variant="secondary"
-              className="gba:flex-1"
-              size="lg"
-              onClick={handleCancel}
-              data-testid={formatDataTestId(prefixDataTestId, 'cancel-button')}
-            >
-              Cancel
-            </Button>
-            <Button
-              type="button"
-              variant="default"
-              disabled={!isFormValid || isLoading}
-              className="gba:flex-1"
-              size="lg"
-              onClick={handleSubmit}
-              data-testid={formatDataTestId(prefixDataTestId, 'submit-button')}
-            >
-              {formValues.id ? 'Update Opportunity' : 'Create Opportunity'}
-            </Button>
-          </div>
-        )}
-      </div>
-    </div>
+      </AppActionForm>
+    </CatalogSelect.Provider>
   )
 }
 

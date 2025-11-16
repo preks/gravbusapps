@@ -31,7 +31,7 @@ import {
   buildRejectionReasonPayload,
   type RejectionReasonFormData,
   type ExistingRejectionReason
-} from '@/common/data/investment/payloads'
+} from '@/common/data/investment/payloads/rejectionReasonPayloads'
 import { RejectionReasonPopupProps } from './types'
 
 const prefixDataTestId = 'rejection-reason-popup'

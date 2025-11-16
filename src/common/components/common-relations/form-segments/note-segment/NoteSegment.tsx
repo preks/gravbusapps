@@ -13,7 +13,7 @@ import {
 import { useFormContext } from 'react-hook-form'
 import { z } from 'zod'
 import { zodResolver } from '@hookform/resolvers/zod'
-import { EntitySelect } from '../shared/components'
+import { EntitySelect } from '../../selects/reference-select'
 
 export interface NoteSegmentProps {
   // Entity selection

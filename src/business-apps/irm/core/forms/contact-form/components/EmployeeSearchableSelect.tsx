@@ -14,7 +14,7 @@ import {
   AvatarFallback
 } from '@newwork/nw-design-system'
 import { PiMagnifyingGlass } from 'react-icons/pi'
-import { debounce, DEFAULT_SEARCH_DEBOUNCE_DELAY } from '@/common/data/investment'
+import { debounce, DEFAULT_SEARCH_DEBOUNCE_DELAY } from '@/common/data/investment/utils/debounce'
 import { SelectOption } from '../types'
 
 interface EmployeeSearchableSelectProps {

@@ -23,7 +23,7 @@ import {
 import { BusinessAppContextProps } from '@/common/BusinessAppContext'
 import { getTranslationFromI18nKeyAndLabel, formatDate } from '@/common/utils/windowUtils'
 import { formatDataTestId } from '@/common/utils/formatDataTestId'
-import type { Investment } from '@/common/data/investment'
+import type { Investment } from '@/common/data/investment/types/investmentTypes'
 import { InvestmentPortalDocuments } from './InvestmentPortalDocuments'
 import { InvestmentPortalTasks } from './InvestmentPortalTasks'
 

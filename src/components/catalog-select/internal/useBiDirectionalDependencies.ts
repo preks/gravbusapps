@@ -14,15 +14,15 @@
 
 import { useEffect, useMemo, useRef } from 'react'
 import type { CatalogEntry } from '@/common/data/catalog/types/catalogTypes'
-import type { CatalogSelectConfig } from './useCatalogSelect'
+import type { CatalogSelectConfig, CatalogSelectOption } from './useCatalogSelect'
 import { getLocalizedValue } from './catalogSelectUtils'
 import { fetchFilteredOptionsWithParent, resetToPrefetchedOptions, clearChildValue } from './dependencyHelpers'
 
 type State = {
   value: string
   loading: boolean
-  options: Array<{ value: string; label: string }>
-  prefetchedOptions?: Array<{ value: string; label: string }>
+  options: CatalogSelectOption[]
+  prefetchedOptions?: CatalogSelectOption[]
   total: number
   fullTotal?: number
   limit: number
@@ -77,7 +77,20 @@ const handleParentChange = ({
   }
 
   if (isInitialLoad) {
-    return // Keep both, just filter options
+    // Keep both values, but still filter child options by parent
+    if (parentValue) {
+      fetchFilteredOptionsWithParent({
+        id,
+        parentValue,
+        config,
+        defaultPageSize,
+        setFor,
+        fetchCatalogEntriesByIdentifier,
+        locale,
+        errorContext: 'useBiDirectionalDependencies'
+      })
+    }
+    return // Keep both values, options are being filtered above
   }
 
   if (parentValue && childValue) {
@@ -93,7 +106,7 @@ const handleParentChange = ({
   }
 
   // Refetch child options with new parent filter
-  if (parentValue && !isInitialLoad) {
+  if (parentValue) {
     fetchFilteredOptionsWithParent({
       id,
       parentValue,
@@ -236,6 +249,7 @@ export const useBiDirectionalDependencies = ({
       const parentState = stateById[parentField]
 
       // PART 1: Handle parent changes (Parent → Child filtering)
+      // This also handles initial load when lastParentValue is undefined
       if (lastParentValue !== parentValue) {
         // Update tracked value ONLY if parent has a value (don't track empty states)
         if (parentValue) {

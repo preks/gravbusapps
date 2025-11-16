@@ -1,4 +1,4 @@
-import { Investment } from '@/common/data/investment/types'
+import { Investment } from '@/common/data/investment/types/investmentTypes'
 
 // Extended interface that includes specialization arrays (as returned by GraphQL)
 interface InvestmentWithSpecializations extends Investment {

@@ -1,88 +1,269 @@
-import React from 'react'
-import { useOpportunityFormContext } from '../context/OpportunityFormContext'
-import { Button, Alert, AlertDescription, Spinner } from '@newwork/nw-design-system'
+import React, { useEffect, useMemo, useState } from 'react'
+import { useForm } from 'react-hook-form'
 import { formatDataTestId } from '@/common/utils/formatDataTestId'
-import { dispatchProcessContinueEvent } from '@/common/utils/processEventUtils'
-import OpportunityInformationSection from './OpportunityInformationSection'
+import { AppActionForm } from '@/components/app-action-form'
+import { CatalogSelect } from '@/components/catalog-select'
+import { BusinessAppContextProps } from '@/common/BusinessAppContext'
+import { useGetInvestmentOpportunityById } from '@/common/data/investment/hooks/useInvestmentOpportunities'
+import type { InvestmentOpportunity } from '@/common/data/investment/types/investmentOpportunityTypes'
+import { OpportunityLayout } from '@/common/components/common-relations/form-layouts/opportunity-layout'
+import { createOpportunitySegmentResolver } from '@/common/components/common-relations/schemas/opportunitySchema'
+import { InvestmentProspectSegment } from '@/common/components/investment/form-segments/investment-prospect-segment'
 import {
   buildInvestmentOpportunityPayload,
   buildInvestmentOpportunityContacts
-} from '@/common/data/investment/payloads'
+} from '@/common/data/investment/types/investmentOpportunityTypes'
+import {
+  FormField,
+  FormItem,
+  FormLabel,
+  FormControl,
+  FormMessage,
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue
+} from '@newwork/nw-design-system'
+import { useGetInvestmentAccounts } from '@/common/data/investment/hooks/useInvestmentAccounts'
+import { useGetInvestmentContacts } from '@/common/data/investment/hooks/useInvestmentContacts'
+import { usePipelineCatalogs } from '../hooks/usePipelineCatalogs'
+import { useCurrenciesGraphQL } from '../hooks/useCurrenciesGraphQL'
+import { DEAL_TYPES } from '../types'
+import { dispatchProcessContinueEvent } from '@/common/utils/processEventUtils'
+import { getCurrencySymbol } from '@/common/utils/numberFormatter'
 
 const prefixDataTestId = 'InvestmentOpportunityForm'
 
-const OpportunityFormComponent: React.FC = () => {
-  const { formValues, onSubmit, onCancel, isLoading, error, businessAppContext, hideActions } =
-    useOpportunityFormContext()
+interface OpportunityFormComponentProps {
+  businessAppContext: BusinessAppContextProps
+  initialValues?: any
+  onSubmit?: (values: any) => Promise<void>
+  onCancel?: () => Promise<void>
+}
 
-  // Check if all mandatory fields are filled for Investment Opportunity
-  const isFormValid =
-    formValues.owner &&
-    formValues.name &&
-    formValues.pipeline &&
-    formValues.pipelineStage &&
-    formValues.estimatedAmount &&
-    !isNaN(parseFloat(formValues.estimatedAmount)) &&
-    parseFloat(formValues.estimatedAmount) > 0 &&
-    formValues.currency
+// Map InvestmentOpportunity to form values
+const mapInvestmentOpportunityToFormValues = (opportunity: InvestmentOpportunity): any => {
+  // Extract investment type ID from object or string
+  const investmentTypeId =
+    typeof opportunity.investmentType === 'object' && opportunity.investmentType?.id
+      ? opportunity.investmentType.id
+      : opportunity.investmentTypeRef || opportunity.investmentType || ''
 
-  // Handle form submission for Investment Opportunity
-  const handleSubmit = async () => {
-    // Prevent duplicate submissions
-    if (isLoading) {
-      return
+  return {
+    id: opportunity.id,
+    version: opportunity.version,
+    ownerEmployeeId: opportunity.ownerEmployeeId || '',
+    name: opportunity.name || '',
+    investmentName: opportunity.investmentName || '',
+    dealType: opportunity.dealType || '',
+    pipeline: opportunity.opportunityPipelineRef || '',
+    pipelineStage: opportunity.opportunityPipelineStageRef || '',
+    estimatedAmount: opportunity.estimatedAmount?.toString() || '',
+    currency: opportunity.currencyRef || '',
+    closeDate: opportunity.closeDate ? new Date(opportunity.closeDate).toISOString().split('T')[0] : '',
+    accountId: opportunity.accountId || '',
+    contactIds:
+      opportunity.opportunityContacts?.map(oc => ({
+        id: oc.contact?.id || '',
+        name: oc.contact?.displayName || oc.contact?.fullName || '',
+        associationId: oc.id,
+        associationVersion: oc.version
+      })) || [],
+    // Use investmentGroup and investmentType (not investmentGroupRef/investmentTypeRef)
+    investmentGroup: opportunity.investmentGroupRef || '',
+    investmentType: investmentTypeId ? { id: investmentTypeId } : null,
+    notesSummary: opportunity.notesSummary || ''
+  }
+}
+
+const OpportunityFormComponent: React.FC<OpportunityFormComponentProps> = ({
+  businessAppContext,
+  initialValues,
+  onCancel = async () => {}
+}) => {
+  // Load opportunity data when editing
+  const [opportunityData, setOpportunityData] = useState<InvestmentOpportunity | null>(null)
+  const { fetchInvestmentOpportunityById } = useGetInvestmentOpportunityById(businessAppContext)
+
+  // Extract opportunityId from businessAppContext
+  const opportunityId =
+    businessAppContext.additionalData?.opportunityId ||
+    businessAppContext.additionalData?.psi_taskPayload?.psi_initialParameters?.opportunityId
+
+  // Load opportunity data when opportunityId is provided
+  useEffect(() => {
+    const loadOpportunityData = async () => {
+      if (!opportunityId || !businessAppContext.accessToken) {
+        return
+      }
+
+      try {
+        const result = await fetchInvestmentOpportunityById(opportunityId)
+        if (result?.opportunity) {
+          setOpportunityData(result.opportunity)
+        }
+      } catch (err) {
+        console.error('Failed to load investment opportunity data:', err)
+      }
     }
 
+    loadOpportunityData()
+  }, [opportunityId, businessAppContext.accessToken, fetchInvestmentOpportunityById])
+
+  // Account search hook
+  const {
+    options: accountOptions,
+    loading: accountsLoading,
+    search: searchAccounts
+  } = useGetInvestmentAccounts(businessAppContext, {
+    withState: true,
+    autoFetch: true,
+    pageSize: 20,
+    mapToSelectOptions: true
+  })
+
+  // Contacts hook
+  const {
+    options: contactsList,
+    loading: contactsLoading,
+    error: contactsError,
+    search: searchContacts
+  } = useGetInvestmentContacts(businessAppContext, {
+    withState: true,
+    autoFetch: true,
+    pageSize: 20,
+    mapToSelectOptions: true
+  })
+
+  const contacts = useMemo(() => (contactsList as any[]) || [], [contactsList])
+
+  // Form setup (needs to be before hooks that use it)
+  const form = useForm({
+    resolver: createOpportunitySegmentResolver(),
+    defaultValues: {},
+    mode: 'onChange'
+  })
+
+  // Pipeline catalogs
+  const {
+    pipelineOptions: pipelines,
+    pipelineStageOptions: stages,
+    isLoadingStages: stagesLoading,
+    refetchStages
+  } = usePipelineCatalogs(businessAppContext, form.watch('pipeline'))
+
+  // Currencies
+  const {
+    options: currencies,
+    loading: currenciesLoading,
+    error: currenciesError,
+    hasMore: currenciesHasMore,
+    search: searchCurrencies,
+    loadMore: loadMoreCurrencies
+  } = useCurrenciesGraphQL({ accessToken: businessAppContext.accessToken })
+
+  // Transform opportunity data to form values
+  const opportunityToFormValues = useMemo(() => {
+    const currentUserEmployeeId = businessAppContext.userInfo?.employeeDetails?.employeeId
+
+    if (!opportunityData) {
+      // Auto-set current user as owner for new opportunities
+      const defaultOwnerEmployeeId = initialValues?.ownerEmployeeId || currentUserEmployeeId || ''
+
+      return {
+        ownerEmployeeId: defaultOwnerEmployeeId,
+        name: '',
+        investmentName: '',
+        dealType: businessAppContext.additionalData?.dealType || '',
+        pipeline: '',
+        pipelineStage: '',
+        estimatedAmount: '',
+        currency: '',
+        closeDate: '',
+        accountId: '',
+        contactIds: [],
+        investmentGroup: '',
+        investmentType: null,
+        notesSummary: '',
+        ...initialValues
+      }
+    }
+
+    const mapped = mapInvestmentOpportunityToFormValues(opportunityData)
+    return {
+      ownerEmployeeId: mapped.ownerEmployeeId || currentUserEmployeeId || '',
+      name: mapped.name || '',
+      investmentName: mapped.investmentName || '',
+      dealType: mapped.dealType || businessAppContext.additionalData?.dealType || '',
+      pipeline: mapped.pipeline || '',
+      pipelineStage: mapped.pipelineStage || '',
+      estimatedAmount: mapped.estimatedAmount || '',
+      currency: mapped.currency || '',
+      closeDate: mapped.closeDate || '',
+      accountId: mapped.accountId || '',
+      contactIds: mapped.contactIds || [],
+      investmentGroup: mapped.investmentGroup || '',
+      investmentType: mapped.investmentType || null,
+      notesSummary: mapped.notesSummary || '',
+      id: mapped.id,
+      version: mapped.version,
+      ...initialValues
+    }
+  }, [
+    opportunityData,
+    initialValues,
+    businessAppContext.userInfo?.employeeDetails?.employeeId,
+    businessAppContext.additionalData?.opportunityId,
+    businessAppContext.additionalData?.dealType,
+    businessAppContext.additionalData?.psi_taskPayload?.psi_initialParameters?.opportunityId
+  ])
+
+  // Update form when opportunity data changes
+  useEffect(() => {
+    if (opportunityToFormValues) {
+      form.reset(opportunityToFormValues)
+    }
+  }, [opportunityToFormValues, form])
+
+  // Handle form submission
+  const handleSubmit = async (values: any) => {
     try {
-      // Determine dealType: default to "INVESTMENT_DEAL" unless business context provides one
-      const contextDealType = businessAppContext.additionalData?.dealType
-      const finalDealType = contextDealType || formValues.dealType || 'INVESTMENT_DEAL'
+      // Convert investmentGroup and investmentType to investmentGroupRef and investmentTypeRef for payload
+      const investmentTypeRef =
+        typeof values.investmentType === 'object' && values.investmentType?.id
+          ? values.investmentType.id
+          : values.investmentType || ''
 
-      // ✅ Use centralized payload builder for IRM Opportunity
-      const isUpdate = !!formValues.id
-      const { investmentOpportunity } = buildInvestmentOpportunityPayload(
-        {
-          ...formValues,
-          dealType: finalDealType,
-          pipeline: formValues.pipeline, // Maps to opportunityPipelineRef
-          pipelineStage: formValues.pipelineStage, // Maps to opportunityPipelineStageRef
-          currency: formValues.currency || formValues.currencyRef, // Handle both formats
-          // Handle account ID extraction
-          accountId:
-            typeof formValues.account === 'object' && formValues.account?.id
-              ? formValues.account.id
-              : typeof formValues.account === 'string'
-                ? formValues.account
-                : undefined
-        },
-        { isUpdate }
-      )
+      const { investmentOpportunity } = buildInvestmentOpportunityPayload({
+        ...values,
+        opportunityPipelineRef: values.pipeline,
+        opportunityPipelineStageRef: values.pipelineStage,
+        ownerEmployeeId: values.ownerEmployeeId,
+        accountId: values.accountId,
+        currencyRef: values.currency,
+        contactIds: values.contactIds || [],
+        // Convert form field names to API field names
+        investmentGroupRef: values.investmentGroup || '',
+        investmentTypeRef: investmentTypeRef
+      })
 
-      // ✅ Use centralized opportunity contacts builder
-      const opportunityContacts = buildInvestmentOpportunityContacts(formValues.contactIds || [], formValues.id)
+      const opportunityContacts = buildInvestmentOpportunityContacts(values.contactIds || [], values.id)
 
-      // ✅ Create payload structure with opportunityContacts for both CREATE and UPDATE
+      const isUpdate = !!values.id
       const changeMode = isUpdate ? 'UPDATE' : 'INSERT'
       const payload = {
         investmentOpportunity: {
           ...investmentOpportunity,
-          opportunityContacts // Include for both create and update
+          opportunityContacts
         },
         changeMode
       }
 
-      // Dispatch process continue event FIRST (like account form)
       dispatchProcessContinueEvent('pse_submit', payload)
-
-      // Call the onSubmit callback after dispatching the process event
-      // This ensures the process event is always dispatched even if onSubmit fails
-      try {
-        await onSubmit(formValues)
-      } catch (submitError) {
-        console.warn('onSubmit callback failed, but process event was dispatched:', submitError)
-      }
     } catch (err) {
       console.error('Error submitting investment opportunity form:', err)
+      throw err
     }
   }
 
@@ -90,67 +271,136 @@ const OpportunityFormComponent: React.FC = () => {
   const handleCancel = async () => {
     try {
       await onCancel()
-
-      // Dispatch process continue event for cancellation (pause)
       dispatchProcessContinueEvent('pse_pause', {})
     } catch (err) {
       console.error('Error cancelling investment opportunity form:', err)
     }
   }
 
-  if (isLoading) {
-    return (
-      <div className="gba:flex gba:justify-center gba:items-center gba:p-8">
-        <Spinner size="lg" />
-        <span className="gba:ml-3 gba:text-gray-600">Loading investment opportunity data...</span>
-      </div>
-    )
+  // Handle pre-submit (for file uploads, etc.)
+  const handlePreSubmit = async (values: any) => {
+    // No special pre-submit logic needed for opportunities
+    return values
   }
 
+  // Deal Type selector (IRM-specific custom field)
+  const isDealTypeLocked = !!businessAppContext.additionalData?.dealType
+  const dealTypeField = !isDealTypeLocked ? (
+    <FormField
+      control={form.control}
+      name="dealType"
+      render={({ field }) => (
+        <FormItem>
+          <FormLabel>Deal Type</FormLabel>
+          <FormControl>
+            <Select
+              value={field.value || ''}
+              onValueChange={field.onChange}
+              data-testid={formatDataTestId(prefixDataTestId, 'deal-type')}
+            >
+              <SelectTrigger className="gba:border-gray-300 gba:bg-white">
+                <SelectValue placeholder="Please select deal type..." />
+              </SelectTrigger>
+              <SelectContent>
+                {DEAL_TYPES.map(dealType => (
+                  <SelectItem key={dealType.id} value={dealType.value}>
+                    {dealType.label}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          </FormControl>
+          <FormMessage />
+        </FormItem>
+      )}
+    />
+  ) : null
+
+  const processType = opportunityData?.id ? 'update' : 'create'
+  const investmentGroupId = form.watch('investmentGroup')
+  const investmentTypeValue = form.watch('investmentType')
+  const investmentTypeId =
+    typeof investmentTypeValue === 'object' ? investmentTypeValue?.id : investmentTypeValue || null
+  const currencySymbol = form.watch('currency') ? getCurrencySymbol(form.watch('currency')) : undefined
+
   return (
-    <div className="gba:h-full gba:flex gba:flex-col gba:max-w-md gba:mx-auto gba:p-6">
-      <div className="gba:h-full gba:flex gba:flex-col" data-testid={formatDataTestId(prefixDataTestId, 'Form')}>
-        {/* Form Fields Container - Takes up available space */}
+    <CatalogSelect.Provider {...businessAppContext} form={form}>
+      <AppActionForm
+        processType={processType}
+        onSubmit={handleSubmit}
+        onCancel={handleCancel}
+        handlePreSubmit={handlePreSubmit}
+        formData={form.getValues()}
+        form={form}
+        businessAppContext={businessAppContext}
+        showCancelButton={true}
+        data-testid={prefixDataTestId}
+        submitButtonText={opportunityData?.id ? 'Update Investment Opportunity' : 'Create Investment Opportunity'}
+      >
         <div className="gba:flex-1 gba:overflow-y-auto gba:space-y-8">
-          {/* Investment Opportunity Information Section */}
-          <OpportunityInformationSection />
-
-          {/* Error Display */}
-          {error && (
-            <Alert variant="destructive" className="gba:bg-red-50 gba:border gba:border-red-200 gba:rounded-md gba:p-4">
-              <AlertDescription className="gba:text-red-800 gba:text-sm">{error}</AlertDescription>
-            </Alert>
-          )}
+          <OpportunityLayout
+            businessAppContext={businessAppContext}
+            ownerEmployee={opportunityData?.ownerEmployee}
+            accountId={form.watch('accountId') || undefined}
+            accounts={accountOptions}
+            accountsLoading={accountsLoading}
+            accountsError={null}
+            searchAccounts={searchAccounts}
+            onAccountChange={accountId => {
+              if (accountId) {
+                form.setValue('accountId', typeof accountId === 'object' ? accountId.id : accountId)
+              } else {
+                form.setValue('accountId', '')
+              }
+            }}
+            opportunityContacts={opportunityData?.opportunityContacts}
+            contacts={contacts}
+            contactsLoading={contactsLoading}
+            contactsError={contactsError}
+            searchContacts={searchContacts}
+            onContactsChange={contactIds => form.setValue('contactIds', contactIds)}
+            pipelines={pipelines.map((p: any) => ({
+              id: p.id,
+              value: p.value,
+              label: p.label || p.name,
+              name: p.name
+            }))}
+            stages={stages.map((s: any) => ({ id: s.id, value: s.value, label: s.label || s.name, name: s.name }))}
+            stagesLoading={stagesLoading}
+            onPipelineChange={refetchStages}
+            currencies={currencies.map((c: any) => ({
+              id: c.id,
+              value: c.value,
+              label: c.label || c.name,
+              name: c.name
+            }))}
+            currenciesLoading={currenciesLoading}
+            currenciesError={currenciesError}
+            currenciesHasMore={currenciesHasMore}
+            searchCurrencies={searchCurrencies}
+            loadMoreCurrencies={loadMoreCurrencies}
+            pipelineFieldName="pipeline"
+            stageFieldName="pipelineStage"
+            opportunityInformationCustomFields={dealTypeField}
+            customSegments={[
+              {
+                id: 'investment-prospect',
+                title: 'Investment Information',
+                content: (
+                  <InvestmentProspectSegment
+                    investmentGroupId={investmentGroupId}
+                    investmentTypeId={investmentTypeId}
+                    businessAppContext={businessAppContext}
+                    testIdPrefix={formatDataTestId(prefixDataTestId, 'investment-prospect')}
+                    currencySymbol={currencySymbol}
+                  />
+                )
+              }
+            ]}
+          />
         </div>
-
-        {/* Submit and Cancel Buttons - Fixed at bottom (only if not hidden) */}
-        {!hideActions && (
-          <div className="gba:mt-6 gba:pt-4 gba:border-t gba:border-gray-200 gba:flex gba:gap-3">
-            <Button
-              type="button"
-              variant="secondary"
-              className="gba:flex-1"
-              size="lg"
-              onClick={handleCancel}
-              data-testid={formatDataTestId(prefixDataTestId, 'cancel-button')}
-            >
-              Cancel
-            </Button>
-            <Button
-              type="button"
-              variant="default"
-              disabled={!isFormValid || isLoading}
-              className="gba:flex-1"
-              size="lg"
-              onClick={handleSubmit}
-              data-testid={formatDataTestId(prefixDataTestId, 'submit-button')}
-            >
-              {formValues.id ? 'Update Investment Opportunity' : 'Create Investment Opportunity'}
-            </Button>
-          </div>
-        )}
-      </div>
-    </div>
+      </AppActionForm>
+    </CatalogSelect.Provider>
   )
 }
 

@@ -4,7 +4,7 @@ import { useGraphQLClient } from '@/common/network/graphql/useGraphQLClient'
 import { BusinessAppContextProps } from '@/common/BusinessAppContext'
 
 // Types
-import type { CustomerAccount } from '../types'
+import type { CustomerAccount } from '../types/customerAccountTypes'
 
 // Use the new query builder functions
 import {
@@ -17,7 +17,7 @@ import {
 } from '../queries/customerAccountQueries'
 
 // Mapper
-import { toCustomerAccount } from '../mappers/customerAccountMappers'
+import { toCustomerAccount } from '../types/customerAccountTypes'
 import { CustomerAccountFields } from '../types/customerAccountTypes'
 
 export interface CustomerAccountListQueryResponse {

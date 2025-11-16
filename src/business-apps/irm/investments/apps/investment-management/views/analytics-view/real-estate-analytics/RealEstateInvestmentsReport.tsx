@@ -22,8 +22,8 @@ import { DollarCircleOutlined, RiseOutlined, TeamOutlined, PercentageOutlined } 
 import { BusinessAppContextProps } from '@/common/BusinessAppContext'
 import { getTranslationFromI18nKeyAndLabel } from '@/common/utils/windowUtils'
 import { formatDataTestId } from '@/common/utils/formatDataTestId'
-import { useGetInvestments } from '@/common/data/investment'
-import type { Investment } from '@/common/data/investment'
+import { useGetInvestments } from '@/common/data/investment/hooks/useInvestments'
+import type { Investment } from '@/common/data/investment/types/investmentTypes'
 import { useRealEstateKPIIntegration } from './hooks'
 import { RealEstateDistributionCharts, RealEstateTimelineCharts, RealEstateAnalyticsCharts } from './components'
 import {

@@ -1,7 +1,7 @@
 import React from 'react'
-import { useCatalogOptions } from '../shared/hooks/useCatalogOptions'
 import { EmployeeSelect } from '@/components/employee-select'
-import { EntitySelect } from '../shared/components'
+import { EntitySelect } from '../../selects/reference-select'
+import { CatalogSelect } from '@/components/catalog-select'
 import {
   FormField,
   FormItem,
@@ -41,17 +41,11 @@ export interface TaskSegmentProps {
   entityLabel?: string
   uploadFileLabel?: string
 
-  // Option sources
-  typeOptions?: TaskOption[]
-  priorityOptions?: TaskOption[]
-  statusOptions?: TaskOption[]
+  // Option sources (catalog identifiers for CatalogSelect)
   accessToken?: string
   typeCatalog?: { identifier: string; version: string }
   priorityCatalog?: { identifier: string; version: string }
   statusCatalog?: { identifier: string; version: string }
-  fetchTypeOptions?: (q?: string) => Promise<TaskOption[]>
-  fetchPriorityOptions?: (q?: string) => Promise<TaskOption[]>
-  fetchStatusOptions?: (q?: string) => Promise<TaskOption[]>
 
   // Entity selection
   showEntitySelection?: boolean
@@ -114,16 +108,9 @@ const TaskSegment: React.FC<TaskSegmentProps> = ({
   timingTypeLabel,
   entityLabel,
   uploadFileLabel,
-  typeOptions,
-  priorityOptions,
-  statusOptions,
-  accessToken,
   typeCatalog,
   priorityCatalog,
   statusCatalog,
-  fetchTypeOptions,
-  fetchPriorityOptions,
-  fetchStatusOptions,
   showEntitySelection = false,
   requireEntity = false,
   entities = [],
@@ -157,51 +144,17 @@ const TaskSegment: React.FC<TaskSegmentProps> = ({
     }
   }, [staticDefaults, form])
 
-  const typeState = useCatalogOptions({
-    accessToken,
-    catalog: typeCatalog,
-    providedOptions: typeOptions,
-    fetchOptions: fetchTypeOptions
-  })
-  const priorityState = useCatalogOptions({
-    accessToken,
-    catalog: priorityCatalog,
-    providedOptions: priorityOptions,
-    fetchOptions: fetchPriorityOptions
-  })
-  const statusState = useCatalogOptions({
-    accessToken,
-    catalog: statusCatalog,
-    providedOptions: statusOptions,
-    fetchOptions: fetchStatusOptions
-  })
-
   const timingTypeOptions: TaskOption[] = [
     { value: 'DEADLINE', label: 'Deadline' },
     { value: 'SCHEDULED', label: 'Scheduled' }
   ]
 
-  // Preselect defaults when options arrive
+  // Preselect default timing type
   React.useEffect(() => {
     if (!form.getValues('timingType')) {
       form.setValue('timingType', 'DEADLINE', { shouldValidate: true })
     }
-    if (typeState.options.length && !form.getValues('taskTypeRef')) {
-      form.setValue('taskTypeRef', typeState.options[0].value, {
-        shouldValidate: true
-      })
-    }
-    if (priorityState.options.length && !form.getValues('taskPriorityRef')) {
-      form.setValue('taskPriorityRef', priorityState.options[0].value, {
-        shouldValidate: true
-      })
-    }
-    if (statusState.options.length && !form.getValues('taskStatusRef')) {
-      form.setValue('taskStatusRef', statusState.options[0].value, {
-        shouldValidate: true
-      })
-    }
-  }, [form, typeState.options, priorityState.options, statusState.options])
+  }, [form])
 
   const entitySelectOptions = React.useMemo(
     () =>
@@ -416,31 +369,21 @@ const TaskSegment: React.FC<TaskSegmentProps> = ({
 
       {/* Type and Priority*/}
       <div className="gba:grid gba:grid-cols-2 gba:gap-4">
-        {showType && (
+        {showType && typeCatalog && (
           <FormField
             control={form.control as any}
             name="taskTypeRef"
             render={({ field }) => (
               <FormItem>
                 <FormLabel>{typeLabel}</FormLabel>
-                <Select onValueChange={field.onChange} value={field.value}>
-                  <FormControl>
-                    <SelectTrigger
-                      className="gba:w-full"
-                      data-testid={`${dataTestId}-type`}
-                      aria-invalid={!!(form.formState?.errors as any)?.taskTypeRef}
-                    >
-                      <SelectValue placeholder="Please Select..." />
-                    </SelectTrigger>
-                  </FormControl>
-                  <SelectContent>
-                    {typeState.options.map(opt => (
-                      <SelectItem key={opt.value} value={opt.value}>
-                        {opt.label}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
+                <FormControl>
+                  <CatalogSelect
+                    catalogIdentifier={`${typeCatalog.identifier}:${typeCatalog.version}`}
+                    value={field.value || ''}
+                    onValueChange={field.onChange}
+                    data-testid={`${dataTestId}-type`}
+                  />
+                </FormControl>
                 <FormMessage />
               </FormItem>
             )}
@@ -448,64 +391,48 @@ const TaskSegment: React.FC<TaskSegmentProps> = ({
         )}
 
         {/* Priority */}
+        {priorityCatalog && (
+          <FormField
+            control={form.control as any}
+            name="taskPriorityRef"
+            render={({ field }) => (
+              <FormItem>
+                <FormLabel>{priorityLabel}</FormLabel>
+                <FormControl>
+                  <CatalogSelect
+                    catalogIdentifier={`${priorityCatalog.identifier}:${priorityCatalog.version}`}
+                    value={field.value || ''}
+                    onValueChange={field.onChange}
+                    data-testid={`${dataTestId}-priority`}
+                  />
+                </FormControl>
+                <FormMessage />
+              </FormItem>
+            )}
+          />
+        )}
+      </div>
+      {/* Status */}
+      {statusCatalog && (
         <FormField
           control={form.control as any}
-          name="taskPriorityRef"
+          name="taskStatusRef"
           render={({ field }) => (
             <FormItem>
-              <FormLabel>{priorityLabel}</FormLabel>
-              <Select onValueChange={field.onChange} value={field.value}>
-                <FormControl>
-                  <SelectTrigger
-                    className="gba:w-full"
-                    data-testid={`${dataTestId}-priority`}
-                    aria-invalid={!!(form.formState?.errors as any)?.taskPriorityRef}
-                  >
-                    <SelectValue placeholder="Please Select..." />
-                  </SelectTrigger>
-                </FormControl>
-                <SelectContent>
-                  {priorityState.options.map(opt => (
-                    <SelectItem key={opt.value} value={opt.value}>
-                      {opt.label}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
+              <FormLabel>{statusLabel || 'Status'}</FormLabel>
+              <FormControl>
+                <CatalogSelect
+                  catalogIdentifier={`${statusCatalog.identifier}:${statusCatalog.version}`}
+                  value={field.value || ''}
+                  onValueChange={field.onChange}
+                  data-testid={`${dataTestId}-status`}
+                />
+              </FormControl>
               <FormMessage />
             </FormItem>
           )}
         />
-      </div>
-      {/* Status */}
-      <FormField
-        control={form.control as any}
-        name="taskStatusRef"
-        render={({ field }) => (
-          <FormItem>
-            <FormLabel>{statusLabel || 'Status'}</FormLabel>
-            <Select onValueChange={field.onChange} value={field.value}>
-              <FormControl>
-                <SelectTrigger
-                  className="gba:w-full"
-                  data-testid={`${dataTestId}-status`}
-                  aria-invalid={!!(form.formState?.errors as any)?.taskStatusRef}
-                >
-                  <SelectValue placeholder="Please Select..." />
-                </SelectTrigger>
-              </FormControl>
-              <SelectContent>
-                {statusState.options.map(opt => (
-                  <SelectItem key={opt.value} value={opt.value}>
-                    {opt.label}
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
-            <FormMessage />
-          </FormItem>
-        )}
-      />
+      )}
 
       {/* Assigned To */}
       {showAssigneeSelection !== false && (

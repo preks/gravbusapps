@@ -10,7 +10,7 @@
 
 import { useEffect, useRef } from 'react'
 import type { CatalogEntry } from '@/common/data/catalog/types/catalogTypes'
-import type { CatalogSelectConfig } from './useCatalogSelect'
+import type { CatalogSelectConfig, CatalogSelectOption } from './useCatalogSelect'
 import { toOptions } from './catalogSelectUtils'
 import useStandaloneDependencies from './useStandaloneDependencies'
 import useUniDirectionalDependencies from './useUniDirectionalDependencies'
@@ -19,8 +19,8 @@ import useBiDirectionalDependencies from './useBiDirectionalDependencies'
 type State = {
   value: string
   loading: boolean
-  options: Array<{ value: string; label: string }>
-  prefetchedOptions?: Array<{ value: string; label: string }>
+  options: CatalogSelectOption[]
+  prefetchedOptions?: CatalogSelectOption[]
   total: number
   fullTotal?: number
   limit: number

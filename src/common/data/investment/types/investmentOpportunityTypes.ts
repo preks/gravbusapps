@@ -5,9 +5,12 @@ import {
   OpportunityFields,
   createOpportunityDescriptors,
   OpportunityStageConditionFields,
-  createOpportunityStageConditionDescriptors
+  createOpportunityStageConditionDescriptors,
+  opportunityFormFields,
+  buildOpportunityContactAssociations
 } from '@/common/data/relations/types/opportunityTypes'
 import type { Descriptor } from '@/common/network/graphql/queryHelpers'
+import { buildPayload } from '@/common/data/common/utils/payloadBuilder'
 import type { InvestmentAccount } from './investmentAccountTypes'
 import type { InvestmentAddress } from './investmentAddressTypes'
 import type { InvestmentCommunicationChannel } from './investmentCommunicationChannelTypes'
@@ -21,10 +24,10 @@ import type { Investment } from './investmentTypes'
 
 /**
  * Investment Opportunity Type
- * Extends Opportunity with IRM-specific fields and proper type mappings
+ * Extends Opportunity with IRM-specific fields
  */
 export interface InvestmentOpportunity extends Opportunity {
-  // Map any types from Opportunity to specific Investment types
+  // Investment-specific typed relationships
   account?: InvestmentAccount
   activities?: InvestmentActivity[]
   addresses?: InvestmentAddress[]
@@ -63,26 +66,14 @@ export interface InvestmentOpportunity extends Opportunity {
   sizeMeasurementUnit?: CatalogEntry // IRM specific
   sizeMeasurementUnitRef?: string // IRM specific
   stakePercentage?: number // IRM specific
-
-  // Base fields for mapping (IRM-specific GraphQL field names that need mapping)
-  investment?: Investment[] // Mapped to investments (singular in GraphQL)
-  investmentActivity?: InvestmentActivity[] // Duplicate - mapped to activities
-  investmentAddress?: InvestmentAddress[] // Duplicate - mapped to addresses
-  investmentCommunicationChannel?: InvestmentCommunicationChannel[] // Duplicate - mapped to communicationChannels
-  investmentDocument?: InvestmentDocument[] // Duplicate - mapped to documents
-  investmentLead?: InvestmentLead[] // Mapped to leads
-  investmentNote?: InvestmentNote[] // Duplicate - mapped to notes
-  investmentOpportunityContact?: InvestmentOpportunityContact[] // Mapped to opportunityContacts
-  investmentOpportunityStageCondition?: InvestmentOpportunityStageCondition[] // Mapped to opportunityStageConditions
-  investmentTask?: InvestmentTask[] // Duplicate - mapped to tasks
 }
 
 /**
  * Investment Opportunity Stage Condition Type
- * Extends OpportunityStageCondition with IRM-specific fields and proper type mappings
+ * Extends OpportunityStageCondition with IRM-specific typed relationships
  */
 export interface InvestmentOpportunityStageCondition extends OpportunityStageCondition {
-  // Map any types from OpportunityStageCondition
+  // Investment-specific typed relationships
   opportunity?: InvestmentOpportunity
   task?: InvestmentTask
 }
@@ -229,3 +220,121 @@ export const INVESTMENT_OPPORTUNITY_STAGE_CONDITION_DESCRIPTORS: Descriptor[] = 
     InvestmentOpportunityStageConditionFields as Record<keyof typeof OpportunityStageConditionFields, string>
   )
 ]
+
+/**
+ * Investment Opportunity Form Fields Configuration
+ * Extends opportunityFormFields with IRM-specific fields
+ */
+export const investmentOpportunityFormFields = {
+  ...opportunityFormFields,
+  // IRM-specific fields
+  dealType: 'dealType',
+  divestmentId: 'divestment',
+  investmentGroupRef: 'investmentGroupRef',
+  investmentId: 'investment',
+  investmentName: 'investmentName',
+  investmentRoleRef: 'investmentRoleRef',
+  investmentStakeTypeRef: 'investmentStakeTypeRef',
+  investmentTypeRef: 'investmentTypeRef',
+  sizeMeasurementUnitRef: 'sizeMeasurementUnitRef'
+} as const
+
+/**
+ * Build Investment Opportunity payload for IRM module
+ *
+ * Automatically handles:
+ * - Field name mapping via investmentOpportunityFormFields
+ * - Empty value exclusion
+ * - ID/version automatically included if present (determines update vs create)
+ * - IRM-specific fields (dealType, investmentName, investment fields)
+ * - Contact associations
+ *
+ * @param opportunity - Partial InvestmentOpportunity entity (only fields provided by form)
+ * @returns Payload object ready for API submission
+ */
+export const buildInvestmentOpportunityPayload = (opportunity: Partial<InvestmentOpportunity>) => {
+  // Build base payload using investmentOpportunityFormFields for field mapping
+  const basePayload = buildPayload(opportunity, investmentOpportunityFormFields)
+
+  // Handle contact associations separately (not in formFields)
+  if ((opportunity as any).contactIds && (opportunity as any).contactIds.length > 0 && opportunity.id) {
+    basePayload.opportunityContacts = buildOpportunityContactAssociations(
+      (opportunity as any).contactIds,
+      opportunity.id
+    )
+  }
+
+  return {
+    investmentOpportunity: basePayload
+  }
+}
+
+/**
+ * Build opportunity contacts array for IRM
+ * Used in convert lead flow and form submissions
+ *
+ * @param contactIds - Array of contact IDs or contact objects with metadata
+ * @param opportunityId - Opportunity ID (for associations)
+ * @returns Array of opportunity contact association objects
+ */
+export const buildInvestmentOpportunityContacts = (contactIds: string[] = [], opportunityId?: string): any[] => {
+  return buildOpportunityContactAssociations(contactIds, opportunityId)
+}
+
+/**
+ * Transform InvestmentOpportunity (raw GraphQL) to InvestmentOpportunity (enhanced/standardized)
+ *
+ * Handles IRM-prefixed field name mappings (fallback only):
+ * - investment → investments
+ * - investmentActivity → activities
+ * - investmentAddress → addresses
+ * - investmentCommunicationChannel → communicationChannels
+ * - investmentDocument → documents
+ * - investmentLead → leads
+ * - investmentNote → notes
+ * - investmentOpportunityContact → opportunityContacts
+ * - investmentOpportunityStageCondition → opportunityStageConditions
+ * - investmentTask → tasks
+ */
+export function toInvestmentOpportunity(raw: any): InvestmentOpportunity {
+  // Extract incorrectly named fields to exclude from spread
+  const {
+    investment,
+    investmentActivity,
+    investmentAddress,
+    investmentCommunicationChannel,
+    investmentDocument,
+    investmentLead,
+    investmentNote,
+    investmentOpportunityContact,
+    investmentOpportunityStageCondition,
+    investmentTask,
+    ...rest
+  } = raw
+
+  return {
+    ...rest,
+    // Map only if target field doesn't already exist (fallback mapping)
+    investments: raw.investments ?? investment,
+    activities: raw.activities ?? investmentActivity,
+    addresses: raw.addresses ?? investmentAddress,
+    communicationChannels: raw.communicationChannels ?? investmentCommunicationChannel,
+    documents: raw.documents ?? investmentDocument,
+    leads: raw.leads ?? investmentLead,
+    notes: raw.notes ?? investmentNote,
+    opportunityContacts: raw.opportunityContacts ?? investmentOpportunityContact,
+    opportunityStageConditions: raw.opportunityStageConditions ?? investmentOpportunityStageCondition,
+    tasks: raw.tasks ?? investmentTask
+  } as InvestmentOpportunity
+}
+
+/**
+ * Transform InvestmentOpportunityStageCondition (raw GraphQL) to InvestmentOpportunityStageCondition (enhanced/standardized)
+ *
+ * NOTE: IRM field naming already matches OpportunityStageCondition standards.
+ * No field mappings needed. This mapper is essentially a passthrough with proper typing.
+ */
+export function toInvestmentOpportunityStageCondition(raw: any): InvestmentOpportunityStageCondition {
+  // IRM uses correct field names, no mapping needed
+  return raw as InvestmentOpportunityStageCondition
+}

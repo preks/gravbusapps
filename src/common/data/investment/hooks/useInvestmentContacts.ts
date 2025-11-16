@@ -2,13 +2,11 @@
 import { useCallback, useState, useEffect } from 'react'
 import { useGraphQLClient } from '@/common/network/graphql/useGraphQLClient'
 import { BusinessAppContextProps } from '@/common/BusinessAppContext'
-import type {
-  InvestmentContact,
-  InvestmentTask,
-  InvestmentActivity,
-  InvestmentNote,
-  InvestmentDocument
-} from '../types'
+import type { InvestmentContact } from '../types/investmentContactTypes'
+import type { InvestmentTask } from '../types/investmentTaskTypes'
+import type { InvestmentActivity } from '../types/investmentActivityTypes'
+import type { InvestmentNote } from '../types/investmentNoteTypes'
+import type { InvestmentDocument } from '../types/investmentDocumentTypes'
 
 // Use the new query builders
 import {
@@ -46,13 +44,9 @@ import {
 } from '../queries/investmentDocumentQueries'
 
 // Use the mapper function
-import {
-  toInvestmentContact,
-  toInvestmentTask,
-  toInvestmentActivity,
-  toInvestmentNote,
-  toInvestmentDocument
-} from '../mappers'
+import { toInvestmentContact } from '../types/investmentContactTypes'
+import { toInvestmentTask } from '../mappers/investmentTaskMappers'
+import { toInvestmentActivity, toInvestmentNote, toInvestmentDocument } from '../mappers/investmentRelatedEntityMappers'
 
 // Simplified hook alias for ContactView compatibility
 export const useInvestmentContacts = (context: BusinessAppContextProps) => {
@@ -451,8 +445,10 @@ export function useGetInvestmentContacts(
               value: contact.id,
               label: contact.fullName || `${contact.firstName} ${contact.lastName}`,
               name: contact.fullName || `${contact.firstName} ${contact.lastName}`,
+              pictureThumbnail: contact.pictureThumbnail || undefined,
               extraInfo: {
                 jobPosition: contact.jobPosition,
+                department: contact.department,
                 organizationalUnit: contact.ownerEmployee?.displayName || 'Unknown'
               }
             }))

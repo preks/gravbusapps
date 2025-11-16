@@ -1,10 +1,8 @@
 import React, { createContext, useContext, useState, useCallback, useEffect, useMemo, useRef } from 'react'
 import { BusinessAppContextProps } from '@/common/BusinessAppContext'
-import { useEmployeePositions } from '@/business-apps/irm/core/forms/lead-form/hooks/useEmployeePositions'
-import { useEmployeeById } from '@/business-apps/irm/core/forms/lead-form/hooks/useEmployeeById'
 import { InvestmentOpportunityFormValues, SelectOption, DEAL_TYPES } from '../types'
 import { useInvestmentOpportunityData } from '../hooks/useOpportunityData'
-import { useGetInvestmentById } from '@/common/data/investment'
+import { useGetInvestmentById } from '@/common/data/investment/hooks/useInvestments'
 import { usePipelineCatalogs } from '../hooks/usePipelineCatalogs'
 import { useSearchableCatalog } from '../hooks/useSearchableCatalog'
 import { useInvestmentGroupTypes } from '../hooks/useInvestmentGroupTypes'
@@ -19,7 +17,7 @@ import {
   MEASUREMENT_UNIT_VERSION
 } from '../hooks/useInvestmentCatalogs'
 import { getTranslationFromI18nKeyAndLabel } from '@/common/utils/windowUtils'
-import { useGetInvestmentContacts } from '@/common/data/investment'
+import { useGetInvestmentContacts } from '@/common/data/investment/hooks/useInvestmentContacts'
 
 // Interface for raw GraphQL Investment data with nested specializations
 // This represents the actual structure returned by the GraphQL API before mapping
@@ -78,14 +76,6 @@ interface InvestmentOpportunityFormContextValue {
   isLoading: boolean
   error: string | null
   hideActions: boolean
-
-  // Employee positions (for owner selection)
-  employeePositions: SelectOption[]
-  employeePositionsLoading: boolean
-  employeePositionsError: string | null
-  employeePositionsHasMore: boolean
-  loadMoreEmployeePositions: () => void
-  searchEmployeePositions: (search: string) => void
 
   // Static data
   dealTypes: SelectOption[]
@@ -165,11 +155,8 @@ export const OpportunityFormProvider: React.FC<InvestmentOpportunityFormProvider
   businessAppContext,
   initialValues = {},
   onSubmit = async () => {},
-  onCancel = async () => {},
-  hideActions = false
+  onCancel = async () => {}
 }) => {
-  const { accessToken } = businessAppContext
-
   // Form state
   const [formValues, setFormValuesState] = useState<InvestmentOpportunityFormValues>(() => {
     const defaultValues = {
@@ -273,20 +260,7 @@ export const OpportunityFormProvider: React.FC<InvestmentOpportunityFormProvider
   // Auto-selection tracking
   const autoSelectionDone = useRef(false)
 
-  // Get current user for auto-owner selection (using userInfo from BusinessAppContext)
-  const currentUserId = businessAppContext.userInfo?.employeeDetails?.employeeId
-  const { employee: currentUserEmployee } = useEmployeeById({
-    accessToken,
-    employeeId: currentUserId
-  })
-
-  // Get initial owner employee data (for lead conversion)
-  const { employee: initialOwnerEmployee } = useEmployeeById({
-    accessToken,
-    employeeId: initialValues?.owner
-  })
-
-  // Investment Opportunity data fetching hook for pre-filling form when updating existing opportunity (MUST BE BEFORE employee positions)
+  // Investment Opportunity data fetching hook for pre-filling form when updating existing opportunity
   const {
     opportunityData,
     loading: opportunityDataLoading,

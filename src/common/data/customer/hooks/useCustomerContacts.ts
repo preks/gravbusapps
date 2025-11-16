@@ -4,7 +4,7 @@ import { useGraphQLClient } from '@/common/network/graphql/useGraphQLClient'
 import { BusinessAppContextProps } from '@/common/BusinessAppContext'
 
 // Types
-import type { CustomerContact } from '../types'
+import type { CustomerContact } from '../types/customerContactTypes'
 
 // Queries (New)
 import {
@@ -17,7 +17,7 @@ import {
 } from '../queries/customerContactQueries'
 
 // Mapper
-import { toCustomerContact } from '../mappers/customerContactMappers'
+import { toCustomerContact } from '../types/customerContactTypes'
 
 export interface CustomerContactListQueryResponse {
   Contact: CustomerContact[]
@@ -181,9 +181,11 @@ export function useGetCustomerContacts(
                   contact.fullName ||
                   `${contact.firstName || ''} ${contact.lastName || ''}`.trim() ||
                   'Unnamed Contact',
+                pictureThumbnail: contact.pictureThumbnail || undefined,
                 extraInfo: {
                   email,
-                  jobTitle: contact.jobPosition,
+                  jobPosition: contact.jobPosition,
+                  department: contact.department,
                   organizationalUnit: contact.ownerEmployee?.displayName || 'Unknown'
                 }
               } as SelectOption

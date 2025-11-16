@@ -17,7 +17,7 @@ import {
   LiquidFundInvestmentReport,
   BaseInvestmentRoleReport,
   InvestmentRoleReport
-} from '../types'
+} from '../types/investmentTypes'
 
 /**
  * Transform BaseInvestmentReport (GraphQL response) to InvestmentReport (enhanced with computed fields)

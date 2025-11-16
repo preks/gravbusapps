@@ -12,7 +12,7 @@ import { AccountFields, type Account } from '../types/accountTypes'
 import { AUDIT_FIELDS, CATALOG_ENTRY } from '@/common/network/graphql/commonFragments'
 import { EMPLOYEE_REF } from '@/common/data/employee/queries/fragments/employeeFragments'
 import { COMMUNICATION_CHANNEL_REF } from '@/common/data/common/queries/communicationChannelFragments'
-import { buildAddressFragment } from './_tempAddress'
+import { ADDRESS_REF } from '@/common/data/common/queries/addressFragments'
 
 /**
  * Account Query Options
@@ -119,7 +119,7 @@ export const buildAccountQuery = (entityName: string, options: AccountQueryOptio
             relationFields.contactFields.addresses
               ? `
             ${relationFields.contactFields.addresses}(where: { isDeleted: { _eq: false } }) {
-              ${buildAddressFragment(entityName)}
+              ${ADDRESS_REF}
             }
           `
               : ''
@@ -174,7 +174,7 @@ export const buildAccountQuery = (entityName: string, options: AccountQueryOptio
         limit: ${relationLimit}
         offset: ${relationOffset}
       ) {
-        ${buildAddressFragment(entityName)}
+        ${ADDRESS_REF}
       }
     `
         : ''
@@ -438,7 +438,7 @@ export const buildAccountQuery = (entityName: string, options: AccountQueryOptio
     `
         : ''
     }
-    ${fields.includes('wesbite') ? entityFields.website : ''}
+    ${fields.includes('website') ? entityFields.website : ''}
   `
 }
 
@@ -472,7 +472,7 @@ export const exampleMinimal = () => {
 export const exampleWithFields = () => {
   buildAccountQuery('Account', {
     entityFields: AccountFields,
-    fields: ['ownerEmployee', 'industryClass', 'foundationDate', 'wesbite', 'legalForm', 'companySize']
+    fields: ['ownerEmployee', 'industryClass', 'foundationDate', 'website', 'legalForm', 'companySize']
   })
 }
 
@@ -671,7 +671,7 @@ export const ACCOUNT_RECORD_CONFIG: AccountQueryOptions = {
     'timeZone',
     'ownerEmployee',
     'communicationChannels',
-    'wesbite',
+    'website',
     'picture',
     'pictureThumbnail',
     'notesSummary'

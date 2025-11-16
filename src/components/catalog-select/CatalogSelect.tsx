@@ -6,11 +6,23 @@ import {
   SelectItem,
   SelectTrigger,
   SelectValue,
-  useFormField
+  useFormField,
+  Tooltip,
+  TooltipContent,
+  TooltipProvider,
+  TooltipTrigger
 } from '@newwork/nw-design-system'
 import { useFormContext } from 'react-hook-form'
+import { getPhosphorIcon } from '@/common/utils/phosphorIconUtils'
+import * as PhosphorIcons from '@phosphor-icons/react'
 
 type Variant = 'combobox' | 'select'
+
+export interface CatalogSelectOption {
+  value: string
+  label: string
+  icon?: string
+}
 
 export interface CatalogSelectProps {
   // Self-registration config props (optional - if provided, registers automatically)
@@ -26,7 +38,11 @@ export interface CatalogSelectProps {
   variant?: Variant // optional; auto-detected when using provider
   value?: string | null
   onValueChange?: (value: string) => void // ✅ Always returns empty string instead of null
+  className?: string
   ['data-testid']?: string
+
+  // Pre-selected option data (from account query) - ensures immediate display without loading
+  selectedOption?: CatalogSelectOption
 }
 
 import { useCatalogSelectController, CatalogSelectContext } from './CatalogSelectProvider'
@@ -44,7 +60,9 @@ const CatalogSelect: React.FC<CatalogSelectProps> = ({
   variant,
   value,
   onValueChange,
+  className,
   'data-testid': dataTestId,
+  selectedOption: propSelectedOption,
   ...props
 }) => {
   // Get registration API from context
@@ -73,10 +91,11 @@ const CatalogSelect: React.FC<CatalogSelectProps> = ({
     return filterField
   }, [filterField])
 
-  // ✅ Self-registration: Register ONCE on mount
-  const registeredRef = React.useRef(false)
+  // ✅ Self-registration: Register when fieldName changes (supports dynamic fields)
+  const registeredFieldNameRef = React.useRef<string | undefined>(undefined)
   React.useLayoutEffect(() => {
-    if (!registeredRef.current && catalogIdentifier && context?.registerCatalog && fieldName) {
+    // Only register if fieldName is available and has changed
+    if (catalogIdentifier && context?.registerCatalog && fieldName && registeredFieldNameRef.current !== fieldName) {
       context.registerCatalog({
         id: fieldName,
         catalogIdentifier,
@@ -87,7 +106,7 @@ const CatalogSelect: React.FC<CatalogSelectProps> = ({
         requireSourceForEnable,
         filterField: parsedFilterField
       })
-      registeredRef.current = true
+      registeredFieldNameRef.current = fieldName
     }
   }, [
     fieldName,
@@ -112,6 +131,30 @@ const CatalogSelect: React.FC<CatalogSelectProps> = ({
   const wiredDisabled = controller?.disabled ?? false
   const wiredControllerValue = controller?.value ?? ''
   const effectiveValue = value !== undefined ? value : wiredControllerValue
+
+  // Get selected option for icon display (prioritize propSelectedOption if value matches)
+  const selectedOption = React.useMemo(() => {
+    // If propSelectedOption matches current value, use it for display
+    if (propSelectedOption && String(propSelectedOption.value) === String(effectiveValue)) {
+      return propSelectedOption
+    }
+    // Otherwise, find in wiredOptions (which are already filtered by dependencies)
+    return wiredOptions.find(opt => String(opt.value) === effectiveValue)
+  }, [wiredOptions, effectiveValue, propSelectedOption])
+
+  // For options list: Use wiredOptions (filtered by dependencies)
+  // Add propSelectedOption only if it matches current value and is not already in wiredOptions
+  // This ensures the selected value is visible even if it's not yet in the filtered list
+  const mergedOptions = React.useMemo(() => {
+    // If propSelectedOption matches current value and is not in wiredOptions, add it
+    if (propSelectedOption && String(propSelectedOption.value) === String(effectiveValue)) {
+      const existsInWired = wiredOptions.some(opt => String(opt.value) === String(propSelectedOption.value))
+      if (!existsInWired) {
+        return [propSelectedOption, ...wiredOptions]
+      }
+    }
+    return wiredOptions
+  }, [wiredOptions, propSelectedOption, effectiveValue])
 
   // Initial sync: Set controller value from form's initial value (only once on mount)
   const hasInitializedRef = React.useRef(false)
@@ -193,9 +236,95 @@ const CatalogSelect: React.FC<CatalogSelectProps> = ({
     [wiredHasMore, wiredOnLoadMore]
   )
 
+  // Component for truncated text with conditional tooltip (only shows tooltip if actually truncated)
+  const TruncatedText: React.FC<{ text: string; className?: string }> = ({ text, className }) => {
+    const textRef = React.useRef<HTMLSpanElement>(null)
+    const [isTruncated, setIsTruncated] = React.useState(false)
+
+    React.useEffect(() => {
+      const checkTruncation = () => {
+        if (textRef.current) {
+          const isTextTruncated = textRef.current.scrollWidth > textRef.current.clientWidth
+          setIsTruncated(isTextTruncated)
+        }
+      }
+
+      // Check after a small delay to ensure DOM is ready
+      const timer = setTimeout(checkTruncation, 0)
+      // Re-check on resize
+      window.addEventListener('resize', checkTruncation)
+      return () => {
+        clearTimeout(timer)
+        window.removeEventListener('resize', checkTruncation)
+      }
+    }, [text])
+
+    const textSpan = (
+      <span ref={textRef} className={`gba:block gba:truncate ${className || ''}`}>
+        {text}
+      </span>
+    )
+
+    if (!isTruncated) {
+      return textSpan
+    }
+
+    return (
+      <TooltipProvider>
+        <Tooltip>
+          <TooltipTrigger asChild>{textSpan}</TooltipTrigger>
+          <TooltipContent>
+            <p>{text}</p>
+          </TooltipContent>
+        </Tooltip>
+      </TooltipProvider>
+    )
+  }
+
+  // Render truncated text with tooltip (shared for both Combobox and Select)
+  const renderTruncatedText = React.useCallback((text: string, className?: string) => {
+    if (!text) return null
+    return <TruncatedText text={text} className={className} />
+  }, [])
+
+  // Helper to check if icon name is valid (exists in PhosphorIcons)
+  const isValidIconName = React.useCallback((iconName: string): boolean => {
+    if (!iconName || !iconName.trim()) return false
+
+    // Check if icon exists in PhosphorIcons
+    if ((PhosphorIcons as any)[iconName]) return true
+
+    // Try without "Icon" suffix
+    const nameWithoutIcon = iconName.replace(/Icon$/, '')
+    if ((PhosphorIcons as any)[nameWithoutIcon]) return true
+
+    // Try case-insensitive match
+    const lowerName = iconName.toLowerCase()
+    const foundKey = Object.keys(PhosphorIcons).find(key => key.toLowerCase() === lowerName && /^[A-Z]/.test(key))
+
+    return !!foundKey
+  }, [])
+
   const comboboxOptions = React.useMemo(() => {
-    return wiredOptions.map(o => ({ value: String(o.value), label: typeof o.label === 'string' ? o.label : '' }))
-  }, [wiredOptions])
+    return mergedOptions.map(o => {
+      const labelText = typeof o.label === 'string' ? o.label : String(o.label || '')
+      // Only get icon if it's a valid icon name
+      const IconComponent = o.icon && isValidIconName(o.icon) ? getPhosphorIcon(o.icon) : null
+
+      return {
+        value: String(o.value),
+        label: IconComponent ? (
+          <div className="gba:flex gba:items-center gba:gap-2 gba:min-w-0 gba:w-full">
+            <IconComponent className="gba:w-4 gba:h-4 gba:flex-shrink-0" title={labelText} />
+            {renderTruncatedText(labelText, 'gba:flex-1 gba:min-w-0')}
+          </div>
+        ) : (
+          renderTruncatedText(labelText, 'gba:block')
+        ),
+        icon: o.icon
+      }
+    })
+  }, [mergedOptions, renderTruncatedText, isValidIconName])
 
   // Use a stable key that doesn't change during search or loading
   const stableKey = `${fieldName}-${wiredVariant}`
@@ -237,25 +366,27 @@ const CatalogSelect: React.FC<CatalogSelectProps> = ({
 
   if (wiredVariant === 'combobox') {
     return (
-      <Combobox
-        key={stableKey}
-        className="gba:w-full gba:h-auto"
-        options={comboboxOptions}
-        value={effectiveValue || ''}
-        onValueChange={v => handleExternalValueChange(v)}
-        placeholder="Select..."
-        searchPlaceholder="Type to search..."
-        emptyText={wiredLoading ? 'Loading...' : 'No results'}
-        onSearch={handleSearch}
-        searchDebounce={300}
-        loading={Boolean(wiredLoading)}
-        onLoadMore={handleLoadMore}
-        hasMore={Boolean(wiredHasMore)}
-        data-testid={testId}
-        align="start"
-        disabled={wiredDisabled}
-        {...props}
-      />
+      <div className="gba:w-full gba:max-w-full gba:overflow-hidden">
+        <Combobox
+          key={stableKey}
+          className="gba:w-full gba:max-w-full gba:h-auto gba:[&_button]:max-w-full gba:[&_button]:min-w-0 gba:[&_button]:overflow-hidden gba:[&_button_span]:truncate"
+          options={comboboxOptions}
+          value={effectiveValue || ''}
+          onValueChange={v => handleExternalValueChange(v)}
+          placeholder="Select..."
+          searchPlaceholder="Type to search..."
+          emptyText={wiredLoading ? 'Loading...' : 'No results'}
+          onSearch={handleSearch}
+          searchDebounce={300}
+          loading={Boolean(wiredLoading)}
+          onLoadMore={handleLoadMore}
+          hasMore={Boolean(wiredHasMore)}
+          data-testid={testId}
+          align="start"
+          disabled={wiredDisabled}
+          {...props}
+        />
+      </div>
     )
   }
 
@@ -266,19 +397,46 @@ const CatalogSelect: React.FC<CatalogSelectProps> = ({
       onValueChange={v => handleExternalValueChange(v)}
       disabled={wiredDisabled}
     >
-      <SelectTrigger className="gba:w-full" data-testid={testId} {...props}>
-        <SelectValue placeholder="Select..." />
+      <SelectTrigger className={className ? className : 'gba:w-full gba:max-w-full'} data-testid={testId} {...props}>
+        <SelectValue placeholder="Select..." className="gba:max-w-full gba:overflow-hidden">
+          {selectedOption?.icon && isValidIconName(selectedOption.icon)
+            ? (() => {
+                const IconComponent = getPhosphorIcon(selectedOption.icon)
+                return (
+                  <div className="gba:flex gba:items-center gba:gap-2 gba:min-w-0 gba:max-w-full">
+                    <IconComponent className="gba:w-4 gba:h-4 gba:flex-shrink-0" title={selectedOption.label} />
+                    {renderTruncatedText(selectedOption.label, 'gba:flex-1 gba:min-w-0')}
+                  </div>
+                )
+              })()
+            : selectedOption?.label
+              ? renderTruncatedText(selectedOption.label, 'gba:block')
+              : 'Select...'}
+        </SelectValue>
       </SelectTrigger>
-      <SelectContent className="gba:max-h-[300px] gba:overflow-y-auto">
-        {wiredOptions.map(opt => (
-          <SelectItem
-            key={String(opt.value)}
-            value={String(opt.value)}
-            data-testid={`${testId}-item-${String(opt.value)}`}
-          >
-            {opt.label}
-          </SelectItem>
-        ))}
+      <SelectContent className="gba:max-h-[300px] gba:overflow-y-auto gba:min-w-0 gba:max-w-[var(--radix-select-trigger-width)]">
+        {mergedOptions.map(opt => {
+          // Only get icon if it's a valid icon name
+          const IconComponent = opt.icon && isValidIconName(opt.icon) ? getPhosphorIcon(opt.icon) : null
+          return (
+            <SelectItem
+              key={String(opt.value)}
+              value={String(opt.value)}
+              data-testid={`${testId}-item-${String(opt.value)}`}
+              title={opt.label}
+              className="gba:max-w-full gba:overflow-hidden"
+            >
+              {IconComponent ? (
+                <div className="gba:flex gba:items-center gba:gap-2 gba:min-w-0 gba:max-w-full">
+                  <IconComponent className="gba:w-4 gba:h-4 gba:flex-shrink-0" title={opt.label} />
+                  {renderTruncatedText(opt.label, 'gba:flex-1 gba:min-w-0')}
+                </div>
+              ) : (
+                renderTruncatedText(opt.label, 'gba:block')
+              )}
+            </SelectItem>
+          )
+        })}
         {wiredHasMore ? (
           <div ref={setSentinelRef} data-testid={`${testId}-load-more-sentinel`}>
             {wiredLoading ? 'Loading...' : ''}

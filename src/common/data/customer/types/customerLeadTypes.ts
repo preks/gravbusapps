@@ -1,10 +1,13 @@
-import type { CatalogEntry } from '@/common/network/graphql/commonTypes'
-import { type Lead, LeadFields, createLeadDescriptors } from '@/common/data/relations/types/leadTypes'
+import { type Lead, LeadFields, createLeadDescriptors, leadFormFields } from '@/common/data/relations/types/leadTypes'
 import type { Descriptor } from '@/common/network/graphql/queryHelpers'
-import { CustomerAccount } from './customerAccountTypes'
-import { CustomerContact } from './customerContactTypes'
-import { CustomerTask } from './customerTaskTypes'
-import { CustomerDocument, CustomerOpportunity, CustomerActivity, CustomerNote } from './'
+import { buildPayload } from '@/common/data/common/utils/payloadBuilder'
+import type { CustomerAccount } from './customerAccountTypes'
+import type { CustomerContact } from './customerContactTypes'
+import type { CustomerTask } from './customerTaskTypes'
+import type { CustomerDocument } from './customerDocumentTypes'
+import type { CustomerOpportunity } from './customerOpportunityTypes'
+import type { CustomerActivity } from './customerActivityTypes'
+import type { CustomerNote } from './customerNoteTypes'
 
 export interface CustomerLead extends Lead {
   account?: CustomerAccount
@@ -17,16 +20,6 @@ export interface CustomerLead extends Lead {
   notes?: CustomerNote[]
   ownerOrganization?: any
   tasks?: CustomerTask[]
-
-  // Base fields for mapping
-  annualRevenue?: CatalogEntry // Mapped to accountAnnualRevenueBand
-  annualRevenueRef?: string // Mapped to accountAnnualRevenueBandRef
-  city?: string // Mapped to locality
-  industry?: CatalogEntry // Mapped to industryClass
-  industryRef?: string // Mapped to industryClassRef
-  numberOfEmployees?: CatalogEntry // Mapped to companySize
-  numberOfEmployeesRef?: string // Mapped to companySizeRef
-  source?: string // Mapped to sourceCompanyName / sourceIndividualName
 }
 
 /**
@@ -41,11 +34,8 @@ export const CustomerLeadFields = {
   companySize: 'numberOfEmployees',
   companySizeRef: 'numberOfEmployeesRef',
   industryClass: 'industry',
-  industryClassRef: 'industryRef',
-  locality: 'city'
+  industryClassRef: 'industryRef'
 } as const
-
-export type CustomerLeadFieldName = (typeof CustomerLeadFields)[keyof typeof CustomerLeadFields]
 
 /**
  * Customer Lead Descriptors
@@ -55,22 +45,10 @@ export type CustomerLeadFieldName = (typeof CustomerLeadFields)[keyof typeof Cus
 export const CUSTOMER_LEAD_DESCRIPTORS: Descriptor[] = [
   // Filter out descriptors that need structural overrides
   ...createLeadDescriptors(CustomerLeadFields as Record<keyof typeof LeadFields, string>).filter(
-    d => !['address', 'locality', 'notes', 'rejectionReasons'].includes(d.key)
+    d => !['notes', 'rejectionReasons'].includes(d.key)
   ),
 
   // CRM-specific structural overrides
-  {
-    key: 'address',
-    searchPaths: ['postalCode', 'city', 'region.value', 'country.value'], // CRM uses "city" not "locality"
-    sortPaths: ['postalCode', 'city', 'region.value', 'country.value'],
-    type: 'text'
-  },
-  {
-    key: 'locality',
-    searchPaths: ['city'], // CRM uses "city" not "locality"
-    sortPath: 'city',
-    type: 'text'
-  },
   {
     key: 'notes',
     searchPaths: ['notes.noteTitle', 'notes.noteText'], // CRM uses "noteTitle"/"noteText"
@@ -78,3 +56,80 @@ export const CUSTOMER_LEAD_DESCRIPTORS: Descriptor[] = [
     type: 'text'
   }
 ]
+
+/**
+ * Customer Lead Form Fields Configuration
+ * Extends leadFormFields with CRM-specific field mappings
+ */
+export const customerLeadFormFields = {
+  ...leadFormFields,
+  // Override mappings for CRM field name differences
+  accountAnnualRevenueBandRef: 'annualRevenueRef',
+  companySizeRef: 'numberOfEmployeesRef',
+  industryClassRef: 'industryRef',
+  salutationRef: 'salutation',
+  leadRatingRef: 'rating',
+  leadSourceRef: 'sourceRef',
+  leadStatusRef: 'statusRef',
+  // CRM-specific fields
+  salesCampaignId: 'salesCampaign'
+} as const
+
+/**
+ * Build Customer Lead payload for CRM module
+ *
+ * Automatically handles:
+ * - Field name mapping via customerLeadFormFields
+ * - Empty value exclusion
+ * - ID/version automatically included if present (determines update vs create)
+ * - CRM-specific fields (salesCampaign, accountId, timeZone)
+ *
+ * @param lead - Partial CustomerLead entity (only fields provided by form)
+ * @returns Payload object ready for API submission
+ */
+export const buildCustomerLeadPayload = (lead: Partial<CustomerLead>) => {
+  // Build base payload using customerLeadFormFields for field mapping
+  const basePayload = buildPayload(lead, customerLeadFormFields)
+
+  return {
+    customerLead: basePayload
+  }
+}
+
+/**
+ * Transform CustomerLead (raw GraphQL) to CustomerLead (enhanced/standardized)
+ *
+ * Handles CRM-specific field naming inconsistencies by mapping them to Lead standards.
+ * Uses fallback pattern: only maps if target field doesn't already exist.
+ *
+ * Key Mappings (fallback only):
+ * - annualRevenue → accountAnnualRevenueBand
+ * - city → locality
+ * - industry → industryClass
+ * - numberOfEmployees → companySize
+ */
+export function toCustomerLead(raw: any): CustomerLead {
+  // Extract incorrectly named fields to exclude from spread
+  const {
+    annualRevenue,
+    annualRevenueRef,
+    city,
+    industry,
+    industryRef,
+    numberOfEmployees,
+    numberOfEmployeesRef,
+    ...rest
+  } = raw
+
+  return {
+    ...rest,
+    // Map only if target field doesn't already exist (fallback mapping)
+    accountAnnualRevenueBand: raw.accountAnnualRevenueBand ?? annualRevenue,
+    accountAnnualRevenueBandRef: raw.accountAnnualRevenueBandRef ?? annualRevenueRef,
+    locality: raw.locality ?? city,
+    industryClass: raw.industryClass ?? industry,
+    industryClassRef: raw.industryClassRef ?? industryRef,
+    companySize: raw.companySize ?? numberOfEmployees,
+    companySizeRef: raw.companySizeRef ?? numberOfEmployeesRef
+  } as CustomerLead
+}

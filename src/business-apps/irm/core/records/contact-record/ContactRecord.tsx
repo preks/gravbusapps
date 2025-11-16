@@ -25,7 +25,7 @@ import {
   useGetInvestmentNotesByContactId,
   useGetInvestmentTasksByContactId
 } from '@/common/data/investment/hooks/useInvestmentContacts'
-import type { InvestmentContact } from '@/common/data/investment/types'
+import type { InvestmentContact } from '@/common/data/investment/types/investmentContactTypes'
 import { HomeView } from './views/home-view/HomeView'
 import { OpportunityView } from './views/opportunity-view/OpportunityView'
 import { DocumentView } from './views/document-view/DocumentView'

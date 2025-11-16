@@ -1,12 +1,10 @@
 import React from 'react'
-import { OpportunityFormProvider } from './context/OpportunityFormContext'
 import OpportunityFormComponent from './components/OpportunityFormComponent'
-import { InvestmentOpportunityFormValues } from './types'
 import { BusinessAppContextProps } from '@/common/BusinessAppContext'
 
 interface InvestmentOpportunityFormProps {
-  initialValues?: Partial<InvestmentOpportunityFormValues>
-  onSubmit?: (values: InvestmentOpportunityFormValues) => Promise<void>
+  initialValues?: any
+  onSubmit?: (values: any) => Promise<void>
   onCancel?: () => Promise<void>
   hideActions?: boolean
 }
@@ -15,7 +13,6 @@ const InvestmentOpportunityForm: React.FC<BusinessAppContextProps & InvestmentOp
   initialValues,
   onSubmit = async () => {},
   onCancel = async () => {},
-  hideActions = false,
   accessToken,
   userInfo,
   additionalData
@@ -37,15 +34,12 @@ const InvestmentOpportunityForm: React.FC<BusinessAppContextProps & InvestmentOp
   }
 
   return (
-    <OpportunityFormProvider
+    <OpportunityFormComponent
       businessAppContext={businessAppContext}
       initialValues={initialValues}
       onSubmit={onSubmit}
       onCancel={onCancel}
-      hideActions={hideActions}
-    >
-      <OpportunityFormComponent />
-    </OpportunityFormProvider>
+    />
   )
 }
 

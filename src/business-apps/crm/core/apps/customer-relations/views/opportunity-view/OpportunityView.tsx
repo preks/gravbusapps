@@ -6,7 +6,7 @@ import {
   type OpportunityViewConfig,
   type OpportunityBoardFilters
 } from '@/common/components/common-relations/view-layouts/opportunity-layout'
-import type { CustomerOpportunity } from '@/common/data/customer/types'
+import type { CustomerOpportunity } from '@/common/data/customer/types/customerOpportunityTypes'
 import type { CustomerOpportunityQueryVariables } from '@/common/data/customer/queries/customerOpportunityQueries'
 import { normalizeDateRange } from '@/common/utils/dateRangeNormalizer'
 import { FlowContextName } from '@/common/types/FlowRegistryTypes'

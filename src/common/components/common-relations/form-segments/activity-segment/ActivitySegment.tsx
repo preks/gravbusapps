@@ -7,20 +7,14 @@ import {
   FormMessage,
   Input,
   Textarea,
-  Select,
-  SelectTrigger,
-  SelectContent,
-  SelectItem,
-  SelectValue,
-  Spinner,
   FileUpload,
   type FileMetadata
 } from '@newwork/nw-design-system'
 import { useFormContext } from 'react-hook-form'
 import { z } from 'zod'
 import { zodResolver } from '@hookform/resolvers/zod'
-import { useCatalogOptions } from '../shared/hooks/useCatalogOptions'
-import EntitySelect from '../shared/components/EntitySelect'
+import { CatalogSelect } from '@/components/catalog-select'
+import EntitySelect from '../../selects/reference-select/EntitySelect'
 import { EmployeeSelect } from '@/components/employee-select'
 
 export interface ActivityTypeOption {
@@ -62,11 +56,7 @@ export interface Activity {
 
 export interface ActivitySegmentProps {
   // Type options for the select field (or let the segment load them)
-  typeOptions?: ActivityTypeOption[]
-  typeLoading?: boolean
-  accessToken?: string
   typeCatalog?: { identifier: string; version: string }
-  fetchTypeOptions?: () => Promise<ActivityTypeOption[]>
   onTypeSearch?: (searchTerm: string) => void
 
   // Entity selection
@@ -149,11 +139,7 @@ export interface ActivitySegmentProps {
 }
 
 const ActivitySegment: React.FC<ActivitySegmentProps> = ({
-  typeOptions,
-  typeLoading = false,
-  accessToken,
   typeCatalog,
-  fetchTypeOptions,
   onTypeSearch,
   showEntitySelection = false,
   entities = [],
@@ -191,14 +177,6 @@ const ActivitySegment: React.FC<ActivitySegmentProps> = ({
   const isRenderPropsMode = Boolean(
     renderTextField || renderSelectField || renderDateField || renderTextareaField || renderFileField
   )
-
-  const typeOptionsState = useCatalogOptions({
-    accessToken,
-    catalog: typeCatalog,
-    providedOptions: typeOptions,
-    providedLoading: typeLoading,
-    fetchOptions: fetchTypeOptions
-  })
 
   const normalizeDateTimeLocalValue = React.useCallback((v: string | undefined | null) => {
     if (!v) return ''
@@ -304,12 +282,12 @@ const ActivitySegment: React.FC<ActivitySegmentProps> = ({
           'data-testid': `${dataTestId}-title`
         })}
 
-        {/* Type Field */}
+        {/* Type Field - Note: CatalogSelect requires Provider context */}
         {renderSelectField?.({
           name: 'activityTypeRef',
           label: typeLabel,
-          options: typeOptionsState.options,
-          loading: typeOptionsState.loading,
+          options: [], // Options managed by CatalogSelect
+          loading: false,
           onSearch: onTypeSearch,
           required: true,
           'data-testid': `${dataTestId}-type`
@@ -365,33 +343,28 @@ const ActivitySegment: React.FC<ActivitySegmentProps> = ({
       />
 
       {/* Type */}
-      <FormField
-        control={form.control}
-        name="activityTypeRef"
-        render={({ field }) => (
-          <FormItem>
-            <FormLabel>
-              {typeLabel} <span className="gba:text-destructive gba:font-bold">*</span>
-            </FormLabel>
-            <Select onValueChange={field.onChange} value={field.value}>
+      {typeCatalog && (
+        <FormField
+          control={form.control}
+          name="activityTypeRef"
+          render={({ field }) => (
+            <FormItem>
+              <FormLabel>
+                {typeLabel} <span className="gba:text-destructive gba:font-bold">*</span>
+              </FormLabel>
               <FormControl>
-                <SelectTrigger data-testid={`${dataTestId}-type`}>
-                  <SelectValue placeholder="Select type..." />
-                </SelectTrigger>
+                <CatalogSelect
+                  catalogIdentifier={`${typeCatalog.identifier}:${typeCatalog.version}`}
+                  value={field.value || ''}
+                  onValueChange={field.onChange}
+                  data-testid={`${dataTestId}-type`}
+                />
               </FormControl>
-              <SelectContent>
-                {typeOptionsState.options.map(opt => (
-                  <SelectItem key={opt.value} value={opt.value}>
-                    {opt.label}
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
-            {typeOptionsState.loading && <Spinner size="sm" />}
-            <FormMessage />
-          </FormItem>
-        )}
-      />
+              <FormMessage />
+            </FormItem>
+          )}
+        />
+      )}
 
       {/* Occurred At */}
       <FormField

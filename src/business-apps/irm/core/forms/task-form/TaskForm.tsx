@@ -5,7 +5,8 @@ import TaskSegment, {
   TaskSegmentSchema
 } from '@/common/components/common-relations/form-segments/task-segment/TaskSegment'
 import { AppActionForm } from '@/components/app-action-form'
-import { buildInvestmentTaskPayload } from '@/common/data/investment/payloads'
+import { CatalogSelect } from '@/components/catalog-select'
+import { buildInvestmentTaskPayload } from '@/common/data/investment/payloads/investmentRelationPayloads'
 import type { InvestmentTaskFormData } from '@/common/data/investment/payloads/investmentRelationPayloads'
 import { useInvestmentEntities } from '@/common/data/investment/hooks/useInvestmentEntities'
 import { useInvestmentTasks } from '@/common/data/investment/hooks/useInvestmentTasks'
@@ -449,77 +450,79 @@ const InvestmentTaskForm: React.FC<InvestmentTaskFormProps> = ({
 
   return (
     <LocalizationProvider locale={locale}>
-      <AppActionForm
-        processType={formData.id ? 'update' : 'create'}
-        onSubmit={handleFormSubmit}
-        onSuccess={handleSuccess}
-        onCancel={onCancel}
-        formData={formData}
-        form={form}
-        submitButtonText={getTranslationFromI18nKeyAndLabel('crm:common.submit', 'Submit')}
-        cancelButtonText={getTranslationFromI18nKeyAndLabel('crm:common.cancel', 'Cancel')}
-        data-testid="investment-task-process-dialog"
-      >
-        <TaskSegment
-          // labels
-          titleLabel={
-            isApprovalMode
-              ? getTranslationFromI18nKeyAndLabel('crm:salesTask.title', 'Approval Name')
-              : getTranslationFromI18nKeyAndLabel('crm:salesTask.title', 'Task Name')
-          }
-          descriptionLabel={getTranslationFromI18nKeyAndLabel('crm:salesTask.description', 'Description')}
-          deadlineLabel={getTranslationFromI18nKeyAndLabel('crm:salesTask.deadline', 'Deadline')}
-          typeLabel={getTranslationFromI18nKeyAndLabel('crm:salesTask.type', 'Type')}
-          priorityLabel={getTranslationFromI18nKeyAndLabel('crm:salesTask.priority', 'Priority')}
-          statusLabel={getTranslationFromI18nKeyAndLabel('crm:salesTask.status', 'Status')}
-          assigneeLabel={getTranslationFromI18nKeyAndLabel('crm:salesTask.assignedTo', 'Assigned To')}
-          entityLabel={getTranslationFromI18nKeyAndLabel('crm:salesTask.relatedEntity', 'Related Entity')}
-          uploadFileLabel={getTranslationFromI18nKeyAndLabel('crm:salesTask.uploadFile', 'Attach Documents')}
-          onFilesChange={(files: File[]) => {
-            // Store files pending upload (will be uploaded on submit)
-            _setFormData((prev: TaskFormData) => ({
-              ...prev,
-              _pendingFiles: [...(prev._pendingFiles || []), ...files]
-            }))
-          }}
-          existingDocuments={formData.documents || []}
-          onDocumentRemove={(documentId: string) => {
-            // Remove document from list - backend will handle deletion
-            _setFormData((prev: TaskFormData) => ({
-              ...prev,
-              documents: prev.documents?.filter((doc: any) => doc.id !== documentId) || []
-            }))
-          }}
-          timingTypeLabel={getTranslationFromI18nKeyAndLabel('crm:salesTask.timingType', 'Timing Type')}
-          // catalogs
-          accessToken={accessToken}
-          typeCatalog={{ identifier: TASK_TYPE_CATALOG, version: 'v1' }}
-          priorityCatalog={{ identifier: TASK_PRIORITY_CATALOG, version: 'v1' }}
-          statusCatalog={{ identifier: TASK_STATUS_CATALOG, version: 'v1' }}
-          // entity search
-          // Hide entity selection if entity is provided from context
-          showEntitySelection={shouldShowEntitySelection}
-          requireEntity={true}
-          showAssigneeSelection={true}
-          entities={entities}
-          entitiesLoading={entitiesLoading}
-          entitiesError={Boolean(entitiesError)}
-          entitiesHasMore={entitiesHasMore}
-          onEntitySearch={handleEntitySearch}
-          onEntityLoadMore={loadMoreEntities}
-          initialEntityFromContext={{ accountId, contactId, opportunityId, leadId }}
-          // assignee combobox
-          assignees={mergedAssignees}
-          assigneesLoading={employeesLoading}
-          onAssigneeSearch={searchEmployees}
-          assigneesHasMore={employeesHasMore}
-          onAssigneeLoadMore={loadMoreEmployees}
-          data-testid="investment-task-segment"
-          // show/hide
-          showType={!isApprovalMode}
-          staticDefaults={{ taskTypeRef: isApprovalMode ? 'InvestmentTaskType:v1:APPROVAL' : undefined }}
-        />
-      </AppActionForm>
+      <CatalogSelect.Provider accessToken={accessToken}>
+        <AppActionForm
+          processType={formData.id ? 'update' : 'create'}
+          onSubmit={handleFormSubmit}
+          onSuccess={handleSuccess}
+          onCancel={onCancel}
+          formData={formData}
+          form={form}
+          submitButtonText={getTranslationFromI18nKeyAndLabel('crm:common.submit', 'Submit')}
+          cancelButtonText={getTranslationFromI18nKeyAndLabel('crm:common.cancel', 'Cancel')}
+          data-testid="investment-task-process-dialog"
+        >
+          <TaskSegment
+            // labels
+            titleLabel={
+              isApprovalMode
+                ? getTranslationFromI18nKeyAndLabel('crm:salesTask.title', 'Approval Name')
+                : getTranslationFromI18nKeyAndLabel('crm:salesTask.title', 'Task Name')
+            }
+            descriptionLabel={getTranslationFromI18nKeyAndLabel('crm:salesTask.description', 'Description')}
+            deadlineLabel={getTranslationFromI18nKeyAndLabel('crm:salesTask.deadline', 'Deadline')}
+            typeLabel={getTranslationFromI18nKeyAndLabel('crm:salesTask.type', 'Type')}
+            priorityLabel={getTranslationFromI18nKeyAndLabel('crm:salesTask.priority', 'Priority')}
+            statusLabel={getTranslationFromI18nKeyAndLabel('crm:salesTask.status', 'Status')}
+            assigneeLabel={getTranslationFromI18nKeyAndLabel('crm:salesTask.assignedTo', 'Assigned To')}
+            entityLabel={getTranslationFromI18nKeyAndLabel('crm:salesTask.relatedEntity', 'Related Entity')}
+            uploadFileLabel={getTranslationFromI18nKeyAndLabel('crm:salesTask.uploadFile', 'Attach Documents')}
+            onFilesChange={(files: File[]) => {
+              // Store files pending upload (will be uploaded on submit)
+              _setFormData((prev: TaskFormData) => ({
+                ...prev,
+                _pendingFiles: [...(prev._pendingFiles || []), ...files]
+              }))
+            }}
+            existingDocuments={formData.documents || []}
+            onDocumentRemove={(documentId: string) => {
+              // Remove document from list - backend will handle deletion
+              _setFormData((prev: TaskFormData) => ({
+                ...prev,
+                documents: prev.documents?.filter((doc: any) => doc.id !== documentId) || []
+              }))
+            }}
+            timingTypeLabel={getTranslationFromI18nKeyAndLabel('crm:salesTask.timingType', 'Timing Type')}
+            // catalogs
+            accessToken={accessToken}
+            typeCatalog={{ identifier: TASK_TYPE_CATALOG, version: 'v1' }}
+            priorityCatalog={{ identifier: TASK_PRIORITY_CATALOG, version: 'v1' }}
+            statusCatalog={{ identifier: TASK_STATUS_CATALOG, version: 'v1' }}
+            // entity search
+            // Hide entity selection if entity is provided from context
+            showEntitySelection={shouldShowEntitySelection}
+            requireEntity={true}
+            showAssigneeSelection={true}
+            entities={entities}
+            entitiesLoading={entitiesLoading}
+            entitiesError={Boolean(entitiesError)}
+            entitiesHasMore={entitiesHasMore}
+            onEntitySearch={handleEntitySearch}
+            onEntityLoadMore={loadMoreEntities}
+            initialEntityFromContext={{ accountId, contactId, opportunityId, leadId }}
+            // assignee combobox
+            assignees={mergedAssignees}
+            assigneesLoading={employeesLoading}
+            onAssigneeSearch={searchEmployees}
+            assigneesHasMore={employeesHasMore}
+            onAssigneeLoadMore={loadMoreEmployees}
+            data-testid="investment-task-segment"
+            // show/hide
+            showType={!isApprovalMode}
+            staticDefaults={{ taskTypeRef: isApprovalMode ? 'InvestmentTaskType:v1:APPROVAL' : undefined }}
+          />
+        </AppActionForm>
+      </CatalogSelect.Provider>
     </LocalizationProvider>
   )
 }

@@ -6,6 +6,7 @@ import ActivitySegment, {
   Activity
 } from '@/common/components/common-relations/form-segments/activity-segment/ActivitySegment'
 import { AppActionForm } from '@/components/app-action-form'
+import { CatalogSelect } from '@/components/catalog-select'
 import { useForm } from 'react-hook-form'
 import { useEmployeeSearch } from '@/common/data/employee/useEmployeeSearch'
 import { useGetSalesActivityById } from './queries/SalesActivityFormQueries'
@@ -323,56 +324,60 @@ export const SalesActivityForm: React.FC<SalesActivityFormProps> = props => {
 
   return (
     <LocalizationProvider locale={locale}>
-      <AppActionForm
-        processType={isUpdateMode ? 'update' : 'create'}
-        onSubmit={handleSubmit}
-        formData={formData}
-        form={form}
-        submitButtonText={getTranslationFromI18nKeyAndLabel('crm:common.submit', 'Submit')}
-        cancelButtonText={getTranslationFromI18nKeyAndLabel('crm:common.cancel', 'Cancel')}
-        data-testid="sales-activity-process-dialog"
-      >
-        <div className="gba:w-full" data-testid="sales-activity-form-container">
-          <h2 className="gba:text-xl gba:font-bold! gba:mb-4 gba:text-center gba:text-[20px]!" data-testid="form-title">
-            {isUpdateMode
-              ? getTranslationFromI18nKeyAndLabel('crm:salesActivity.editActivity', 'Edit Activity')
-              : getTranslationFromI18nKeyAndLabel('crm:salesActivity.newActivity', 'New Activity')}
-          </h2>
+      <CatalogSelect.Provider accessToken={accessToken}>
+        <AppActionForm
+          processType={isUpdateMode ? 'update' : 'create'}
+          onSubmit={handleSubmit}
+          formData={formData}
+          form={form}
+          submitButtonText={getTranslationFromI18nKeyAndLabel('crm:common.submit', 'Submit')}
+          cancelButtonText={getTranslationFromI18nKeyAndLabel('crm:common.cancel', 'Cancel')}
+          data-testid="sales-activity-process-dialog"
+        >
+          <div className="gba:w-full" data-testid="sales-activity-form-container">
+            <h2
+              className="gba:text-xl gba:font-bold! gba:mb-4 gba:text-center gba:text-[20px]!"
+              data-testid="form-title"
+            >
+              {isUpdateMode
+                ? getTranslationFromI18nKeyAndLabel('crm:salesActivity.editActivity', 'Edit Activity')
+                : getTranslationFromI18nKeyAndLabel('crm:salesActivity.newActivity', 'New Activity')}
+            </h2>
 
-          <ActivitySegment
-            accessToken={accessToken}
-            typeCatalog={typeCatalog}
-            showEntitySelection={false}
-            initialEntityFromContext={initialEntityFromContext}
-            titleLabel={getTranslationFromI18nKeyAndLabel('crm:salesActivity.title', 'Title')}
-            typeLabel={getTranslationFromI18nKeyAndLabel('crm:salesActivity.type', 'Type')}
-            dateLabel={getTranslationFromI18nKeyAndLabel('crm:salesActivity.date', 'Date & Time')}
-            descriptionLabel={getTranslationFromI18nKeyAndLabel('crm:salesActivity.description', 'Description')}
-            uploadFileLabel={getTranslationFromI18nKeyAndLabel('crm:salesActivity.uploadFile', 'Attach Documents')}
-            showOwnerSelection={true}
-            assignees={mergedAssignees}
-            assigneesLoading={employeesLoading}
-            onAssigneeSearch={searchEmployees}
-            assigneesHasMore={employeesHasMore}
-            onAssigneeLoadMore={loadMoreEmployees}
-            // File upload handlers
-            onFilesChange={(files: File[]) => {
-              setFormData(prev => ({
-                ...prev,
-                _pendingFiles: [...(prev._pendingFiles || []), ...files]
-              }))
-            }}
-            existingDocuments={formData.documents || []}
-            onDocumentRemove={(documentId: string) => {
-              setFormData(prev => ({
-                ...prev,
-                documents: prev.documents?.filter(doc => doc.id !== documentId) || []
-              }))
-            }}
-            data-testid="sales-activity-segment"
-          />
-        </div>
-      </AppActionForm>
+            <ActivitySegment
+              typeCatalog={typeCatalog}
+              showEntitySelection={false}
+              initialEntityFromContext={initialEntityFromContext}
+              titleLabel={getTranslationFromI18nKeyAndLabel('crm:salesActivity.title', 'Title')}
+              typeLabel={getTranslationFromI18nKeyAndLabel('crm:salesActivity.type', 'Type')}
+              dateLabel={getTranslationFromI18nKeyAndLabel('crm:salesActivity.date', 'Date & Time')}
+              descriptionLabel={getTranslationFromI18nKeyAndLabel('crm:salesActivity.description', 'Description')}
+              uploadFileLabel={getTranslationFromI18nKeyAndLabel('crm:salesActivity.uploadFile', 'Attach Documents')}
+              showOwnerSelection={true}
+              assignees={mergedAssignees}
+              assigneesLoading={employeesLoading}
+              onAssigneeSearch={searchEmployees}
+              assigneesHasMore={employeesHasMore}
+              onAssigneeLoadMore={loadMoreEmployees}
+              // File upload handlers
+              onFilesChange={(files: File[]) => {
+                setFormData(prev => ({
+                  ...prev,
+                  _pendingFiles: [...(prev._pendingFiles || []), ...files]
+                }))
+              }}
+              existingDocuments={formData.documents || []}
+              onDocumentRemove={(documentId: string) => {
+                setFormData(prev => ({
+                  ...prev,
+                  documents: prev.documents?.filter(doc => doc.id !== documentId) || []
+                }))
+              }}
+              data-testid="sales-activity-segment"
+            />
+          </div>
+        </AppActionForm>
+      </CatalogSelect.Provider>
     </LocalizationProvider>
   )
 }

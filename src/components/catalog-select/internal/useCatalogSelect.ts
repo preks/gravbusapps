@@ -63,10 +63,19 @@ export interface CatalogSelectConfig {
   filterField?: Array<{ from: string; on: string }> // external filtering: from form field, filter on catalog field
 }
 
+export interface CatalogSelectOption {
+  value: string
+  label: string
+  icon?: string
+}
+
+// Export for use in other files
+export type { CatalogSelectOption }
+
 export interface CatalogSelectController {
   value: string
   setValue: (v: string | null | undefined) => void // ✅ Accepts null/undefined but normalizes to ''
-  options: Array<{ value: string; label: string }>
+  options: CatalogSelectOption[]
   loading: boolean
   total: number
   limit: number
@@ -113,8 +122,8 @@ export const useCatalogSelect = (
   type State = {
     value: string // ✅ Use empty string instead of null for React Hook Form compatibility
     loading: boolean
-    options: Array<{ value: string; label: string }>
-    prefetchedOptions?: Array<{ value: string; label: string }>
+    options: CatalogSelectOption[]
+    prefetchedOptions?: CatalogSelectOption[]
     total: number
     fullTotal?: number
     limit: number
@@ -146,7 +155,22 @@ export const useCatalogSelect = (
   })
 
   const setFor = useCallback((id: string, updater: (prev: State) => State) => {
-    setStateById(prev => ({ ...prev, [id]: updater(prev[id]) }))
+    setStateById(prev => {
+      // Ensure state exists before calling updater
+      const currentState = prev[id] || {
+        value: '',
+        loading: true,
+        options: [],
+        prefetchedOptions: [],
+        total: 0,
+        fullTotal: 0,
+        limit: defaultPageSize,
+        offset: 0,
+        search: undefined,
+        variant: 'combobox'
+      }
+      return { ...prev, [id]: updater(currentState) }
+    })
   }, [])
 
   const getActiveFilters = useCallback(
@@ -205,11 +229,17 @@ export const useCatalogSelect = (
         const initialEntries = (cat.entries || []).slice(0, limit)
         const metaByValue = buildEntryMeta(initialEntries)
 
+        // Check if this config has a parent field that might filter it
+        // If parent has a value, don't set options/prefetchedOptions yet - let dependency logic handle it
+        const hasParentWithValue = cfg.parentField && stateById[cfg.parentField]?.value
+        const prefetchedOptions = toOptions(initialEntries, locale)
+
         setFor(cfg.id, prev => ({
           ...prev,
           loading: false,
-          options: toOptions(initialEntries, locale),
-          prefetchedOptions: toOptions(initialEntries, locale),
+          // Only set options if no parent filter is active (dependency logic will handle filtering)
+          options: hasParentWithValue ? [] : prefetchedOptions,
+          prefetchedOptions,
           total,
           fullTotal: total,
           limit,
@@ -219,7 +249,7 @@ export const useCatalogSelect = (
         }))
       }
     }
-  }, [configs, fetchCatalogs, locale])
+  }, [configs, fetchCatalogs, locale, stateById])
 
   // Initialize non-prefetch catalogs with a tiny call to decide variant and, if small, load all options
   const { fetchCatalog } = useCatalog(context)

@@ -8,7 +8,7 @@ import { useCustomerOpportunities } from '@/common/data/customer/hooks/useCustom
 import { useCustomerActivities } from '@/common/data/customer/hooks/useCustomerActivities'
 import { useCustomerNotes } from '@/common/data/customer/hooks/useCustomerNotes'
 import { useCustomerTasks } from '@/common/data/customer/hooks/useCustomerTasks'
-import type { CustomerOpportunity } from '@/common/data/customer/types'
+import type { CustomerOpportunity } from '@/common/data/customer/types/customerOpportunityTypes'
 import { useSalesPipelineStages } from './hooks/useSalesPipelineStages'
 import { useProcessCompletion } from '@/common/hooks/useProcessCompletion'
 import { formatCurrency, extractCurrencyCode } from '@/business-apps/crm/common/utils/currencyUtils'

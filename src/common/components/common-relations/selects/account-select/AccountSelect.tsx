@@ -1,13 +1,29 @@
-import React, { useState, useEffect } from 'react'
-import { Combobox, Label, Alert, AlertDescription, Badge } from '@newwork/nw-design-system'
-import { X } from 'lucide-react'
+import React, { useState } from 'react'
+import {
+  Button,
+  Combobox,
+  Alert,
+  AlertDescription,
+  Avatar,
+  AvatarImage,
+  AvatarFallback,
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue
+} from '@newwork/nw-design-system'
+import { PiPlus, PiX } from 'react-icons/pi'
+import { Building2 } from 'lucide-react'
 import { formatDataTestId } from '@/common/utils/formatDataTestId'
+import { ContactType, getContactTypeLabel } from '@/common/data/relations/constants/contactConstants'
 
 export interface SelectOption {
   id: string
   value: string
   label: string
   name: string
+  pictureThumbnail?: string
   extraInfo?: {
     businessKey?: string
     code?: string
@@ -21,19 +37,35 @@ export interface SelectOption {
   }
 }
 
+interface AccountValue {
+  id: string
+  name: string
+  contactType?: ContactType | string
+  pictureThumbnail?: string
+}
+
 interface AccountSelectProps {
-  value: string | { id: string; name: string } | Array<string | { id: string; name: string }>
-  onChange: (accountId: string | { id: string; name: string } | Array<string | { id: string; name: string }>) => void
+  value: AccountValue | Array<string | AccountValue> | string | null
+  onChange: (
+    accountIds: string | Array<string | AccountValue> | AccountValue | { id: string; name: string } | null
+  ) => void
   dataTestId?: string
   error?: string | null
-  label?: string
-  multiple?: boolean // ✅ NEW: Control single vs multi-select mode
 
   // Account data passed as props
   accounts: SelectOption[]
   accountsLoading: boolean
   accountsError: string | null
   searchAccounts: (search: string) => void
+
+  // Full account contacts with full account data (for email/phone extraction)
+  accountContacts?: any[]
+
+  // Component behavior
+  multiple?: boolean
+
+  // Optional callbacks
+  onNewAccount?: () => void
 }
 
 const AccountSelect: React.FC<AccountSelectProps> = ({
@@ -41,25 +73,99 @@ const AccountSelect: React.FC<AccountSelectProps> = ({
   onChange,
   dataTestId,
   error,
-  label = 'Related Account',
-  multiple = true, // ✅ Default to multi-select for backward compatibility with contact form
   accounts,
   accountsLoading,
   accountsError,
-  searchAccounts
+  searchAccounts,
+  accountContacts = [],
+  multiple = false
+  // onNewAccount - can be added later if needed
 }) => {
-  const [mergedAccounts, setMergedAccounts] = useState<SelectOption[]>([])
+  // Helper function to extract ID from value (string or object)
+  const getAccountId = (accountValue: string | AccountValue): string => {
+    return typeof accountValue === 'object' ? accountValue.id : accountValue
+  }
 
   // Normalize value to always work with arrays internally
-  const normalizedValue = Array.isArray(value) ? value : value ? [value] : []
+  const normalizedValue: Array<string | AccountValue> = React.useMemo(() => {
+    if (Array.isArray(value)) return value
+    if (value === null || value === '') return []
+    return [value]
+  }, [value])
+
+  // Internal state to preserve account names when adding new accounts
+  const [internalValue, setInternalValue] = useState<Array<string | AccountValue>>(normalizedValue)
+  const [mergedAccounts, setMergedAccounts] = useState<SelectOption[]>([])
+  const [showAddExisting, setShowAddExisting] = useState(false)
+
+  // Sync internal value with prop value
+  React.useEffect(() => {
+    const currentIds = new Set(internalValue.map(v => getAccountId(v)))
+    const newIds = new Set(normalizedValue.map(v => getAccountId(v)))
+
+    // Only update if IDs actually changed (account added/removed)
+    const idsChanged =
+      currentIds.size !== newIds.size ||
+      [...currentIds].some(id => !newIds.has(id)) ||
+      [...newIds].some(id => !currentIds.has(id))
+
+    if (idsChanged) {
+      const merged = normalizedValue.map(newAccount => {
+        const newId = getAccountId(newAccount)
+        const newAccountObj =
+          typeof newAccount === 'object' ? newAccount : { id: newAccount, name: '', contactType: undefined }
+        const existingAccount = internalValue.find(a => getAccountId(a) === newId)
+
+        // If existing account has complete data, keep it
+        if (existingAccount && typeof existingAccount === 'object' && existingAccount.name) {
+          const hasCompleteData = Boolean(existingAccount.pictureThumbnail)
+
+          if (hasCompleteData) {
+            // Keep existing data, but update contactType if present in newAccount
+            return {
+              ...existingAccount,
+              ...(newAccountObj.contactType && { contactType: newAccountObj.contactType })
+            }
+          }
+        }
+
+        // Otherwise use the new account (from accountContacts with full data from backend)
+        return newAccountObj
+      })
+      setInternalValue(merged)
+    } else {
+      // IDs haven't changed, but data might have been updated
+      // Merge: update contactType from value if it changed, but keep other data from internalValue if it exists
+      const merged = normalizedValue.map(newAccount => {
+        const newId = getAccountId(newAccount)
+        const newAccountObj =
+          typeof newAccount === 'object' ? newAccount : { id: newAccount, name: '', contactType: undefined }
+        const existingAccount = internalValue.find(a => getAccountId(a) === newId)
+
+        if (existingAccount && typeof existingAccount === 'object' && existingAccount.name) {
+          // Keep existing data, but update contactType if it changed
+          if (newAccountObj.contactType !== existingAccount.contactType) {
+            return {
+              ...existingAccount,
+              contactType: newAccountObj.contactType
+            }
+          }
+          return existingAccount
+        }
+
+        return newAccountObj
+      })
+      setInternalValue(merged)
+    }
+  }, [normalizedValue])
 
   // Merge pre-selected accounts with loaded accounts
-  useEffect(() => {
+  React.useEffect(() => {
     const preSelectedAccounts: SelectOption[] = []
 
     // Add pre-selected accounts that aren't already in the loaded list
-    if (normalizedValue.length > 0) {
-      normalizedValue.forEach(val => {
+    if (internalValue.length > 0) {
+      internalValue.forEach(val => {
         if (typeof val === 'object' && val.id && val.name) {
           const existsInLoadedAccounts = accounts.some(a => a.id === val.id)
           if (!existsInLoadedAccounts) {
@@ -76,116 +182,347 @@ const AccountSelect: React.FC<AccountSelectProps> = ({
 
     // Merge: pre-selected accounts first, then loaded accounts
     setMergedAccounts([...preSelectedAccounts, ...accounts])
-  }, [value, accounts]) // ✅ FIXED: Removed normalizedValue to prevent infinite loop
+  }, [internalValue, accounts])
 
-  // Helper function to extract ID from value (string or object)
-  const getAccountId = (accountValue: string | { id: string; name: string }): string => {
-    return typeof accountValue === 'object' ? accountValue.id : accountValue
-  }
+  // Helper to get account data for display
+  const getAccountData = (accountValue: string | AccountValue): SelectOption | null => {
+    const accountId = getAccountId(accountValue)
 
-  // Helper to get account name for display
-  const getAccountName = (accountValue: string | { id: string; name: string }): string => {
-    if (typeof accountValue === 'object' && accountValue.name) {
-      return accountValue.name
+    // Extract data from accountValue
+    const nameFromValue = typeof accountValue === 'object' && accountValue.name ? accountValue.name : null
+    const pictureThumbnailFromValue = typeof accountValue === 'object' ? accountValue.pictureThumbnail : undefined
+
+    // Priority 1: If accountValue has complete data, use it
+    if (typeof accountValue === 'object' && accountValue.name && pictureThumbnailFromValue) {
+      // Try to get email/phone from accountContacts if available
+      const accountContact = accountContacts.find(
+        (ac: any) => (ac.account?.id || ac.accountId || ac.account) === accountId
+      )
+
+      const emailChannel = accountContact?.account?.communicationChannels?.find(
+        (ch: any) => ch.communicationChannel?.code === 'EMAIL' || ch.communicationChannelRef?.includes(':EMAIL')
+      )
+      const phoneChannel = accountContact?.account?.communicationChannels?.find(
+        (ch: any) => ch.communicationChannel?.code === 'PHONE' || ch.communicationChannelRef?.includes(':PHONE')
+      )
+
+      return {
+        id: accountId,
+        value: accountId,
+        label: accountValue.name,
+        name: accountValue.name,
+        pictureThumbnail: pictureThumbnailFromValue,
+        extraInfo: {
+          email: emailChannel?.value || undefined,
+          phone: phoneChannel?.value || undefined
+        }
+      }
     }
 
-    // Try to find in the merged accounts list
-    const account = mergedAccounts.find(a => a.id === accountValue)
-    return account?.label || 'Unknown Account'
+    // Priority 2: Try to find full account data in accountContacts
+    const accountContact = accountContacts.find(
+      (ac: any) => (ac.account?.id || ac.accountId || ac.account) === accountId
+    )
+
+    if (accountContact?.account) {
+      const account = accountContact.account
+      const displayName = nameFromValue || account.name || 'Unknown Account'
+
+      // Extract email and phone from communicationChannels
+      const emailChannel = account.communicationChannels?.find(
+        (ch: any) => ch.communicationChannel?.code === 'EMAIL' || ch.communicationChannelRef?.includes(':EMAIL')
+      )
+      const phoneChannel = account.communicationChannels?.find(
+        (ch: any) => ch.communicationChannel?.code === 'PHONE' || ch.communicationChannelRef?.includes(':PHONE')
+      )
+
+      return {
+        id: accountId,
+        value: accountId,
+        label: displayName,
+        name: displayName,
+        pictureThumbnail: account.pictureThumbnail || undefined,
+        extraInfo: {
+          email: emailChannel?.value || undefined,
+          phone: phoneChannel?.value || undefined,
+          website: account.website || undefined
+        }
+      }
+    }
+
+    // Priority 3: Try mergedAccounts for additional data (from search results)
+    const accountFromMerged = mergedAccounts.find(a => a.id === accountId)
+    if (accountFromMerged) {
+      return {
+        ...accountFromMerged,
+        label: nameFromValue || accountFromMerged.label || accountFromMerged.name,
+        name: nameFromValue || accountFromMerged.name,
+        pictureThumbnail: accountFromMerged.pictureThumbnail,
+        extraInfo: accountFromMerged.extraInfo
+      }
+    }
+
+    // Priority 4: Fallback - use name from value if available
+    if (nameFromValue) {
+      return {
+        id: accountId,
+        value: accountId,
+        label: nameFromValue,
+        name: nameFromValue
+      }
+    }
+
+    return null
   }
 
-  // Handle add/select account
-  const handleSelectAccount = (accountId: string) => {
+  // Handle add account (appends to array or replaces for single-select)
+  const handleAddAccount = (accountId: string) => {
     if (!accountId) return
 
     const selectedAccount = mergedAccounts.find(a => a.id === accountId)
-    if (!selectedAccount) return
+    if (!selectedAccount) {
+      // Fallback: try to find in accounts list
+      const accountFromList = accounts.find(a => a.id === accountId)
+      if (accountFromList) {
+        const newAccount: AccountValue = {
+          id: accountId,
+          name: accountFromList.label || accountFromList.name,
+          contactType: undefined,
+          pictureThumbnail: accountFromList.pictureThumbnail
+        }
+        const newValue = multiple ? [...internalValue, newAccount] : [newAccount]
+        setInternalValue(newValue)
 
-    const accountObject = { id: accountId, name: selectedAccount.label }
-
-    if (multiple) {
-      // Multi-select: Add to existing accounts array
-      if (Array.isArray(value)) {
-        onChange([...value, accountObject])
-      } else {
-        onChange([accountObject])
+        // Emit correct format based on multiple flag
+        if (multiple) {
+          onChange(newValue)
+        } else {
+          onChange(newAccount)
+        }
+        setShowAddExisting(false)
       }
-    } else {
-      // Single-select: Replace with new selection
-      if (Array.isArray(value)) {
-        onChange([accountObject])
-      } else {
-        onChange(accountObject)
-      }
+      return
     }
+
+    // Add to existing accounts array with FULL account data
+    const newAccount: AccountValue = {
+      id: accountId,
+      name: selectedAccount.label || selectedAccount.name,
+      contactType: undefined,
+      pictureThumbnail: selectedAccount.pictureThumbnail
+    }
+    const newValue = multiple ? [...internalValue, newAccount] : [newAccount]
+    setInternalValue(newValue)
+
+    // Emit correct format based on multiple flag
+    if (multiple) {
+      onChange(newValue)
+    } else {
+      onChange(newAccount)
+    }
+    setShowAddExisting(false)
   }
 
-  // Handle remove account (only for multi-select)
+  // Handle contact type change
+  const handleContactTypeChange = (accountId: string, contactType: ContactType | string) => {
+    const newValue = internalValue.map(account => {
+      const id = getAccountId(account)
+      if (id === accountId) {
+        return typeof account === 'object' ? { ...account, contactType } : { id: account, name: '', contactType }
+      }
+      return account
+    })
+    setInternalValue(newValue)
+    onChange(multiple ? newValue : newValue[0] || null)
+  }
+
+  // Handle remove account (filters out)
   const handleRemoveAccount = (accountId: string) => {
-    const filtered = normalizedValue.filter(a => getAccountId(a) !== accountId)
-    if (Array.isArray(value)) {
-      onChange(filtered)
-    } else {
-      onChange(filtered[0] || '')
-    }
+    const newValue = internalValue.filter(a => getAccountId(a) !== accountId)
+    setInternalValue(newValue)
+    onChange(multiple ? newValue : newValue[0] || null)
   }
 
   // Filter out already selected accounts from available options
-  const selectedAccountIds = new Set(normalizedValue.map(a => getAccountId(a)))
-  const availableAccountOptions = mergedAccounts
-    .filter(a => !selectedAccountIds.has(a.id as string))
-    .map(a => ({ value: a.id as string, label: a.label }))
+  const selectedAccountIds = new Set(internalValue.map(a => getAccountId(a)))
+  const availableAccountOptions = React.useMemo(() => {
+    return mergedAccounts
+      .filter(a => !selectedAccountIds.has(a.id as string))
+      .map(a => {
+        const accountData = getAccountData({ id: a.id as string, name: a.label || a.name })
+        // Combobox only supports string labels, so we provide name + website
+        const label = accountData?.extraInfo?.website
+          ? `${accountData.label} - ${accountData.extraInfo.website}`
+          : accountData?.label || a.label
+        return {
+          value: a.id as string,
+          label
+        }
+      })
+  }, [mergedAccounts, selectedAccountIds])
 
-  // For single-select, get the current selection
-  const currentAccountId = normalizedValue.length > 0 ? getAccountId(normalizedValue[0]) : ''
+  // Empty state (only for multiple mode)
+  if (multiple && internalValue.length === 0 && !showAddExisting) {
+    return (
+      <div className="gba:space-y-2">
+        <div
+          className="gba:border-2 gba:border-dashed gba:border-muted-foreground/25 gba:rounded-lg gba:p-6 gba:text-center gba:cursor-pointer hover:gba:border-muted-foreground/50 gba:transition-colors"
+          onClick={() => setShowAddExisting(true)}
+          data-testid={formatDataTestId(dataTestId || 'account-list', 'empty-state')}
+        >
+          <PiPlus className="gba:mx-auto gba:h-8 gba:w-8 gba:text-muted-foreground gba:mb-2" />
+          <p className="gba:text-sm gba:text-muted-foreground">No accounts selected. Click to add an account.</p>
+        </div>
+
+        {error && (
+          <Alert variant="destructive">
+            <AlertDescription>{error}</AlertDescription>
+          </Alert>
+        )}
+
+        {accountsError && (
+          <Alert variant="destructive">
+            <AlertDescription>{accountsError}</AlertDescription>
+          </Alert>
+        )}
+      </div>
+    )
+  }
 
   return (
-    <div className="gba:space-y-2">
-      <Label className="gba:text-sm gba:font-medium gba:text-gray-900">{label}</Label>
+    <div className="gba:space-y-2" data-testid={dataTestId || 'account-list'}>
+      {/* Combobox for adding accounts */}
+      {showAddExisting && (
+        <div className="gba:space-y-2">
+          <Combobox
+            value=""
+            onValueChange={handleAddAccount}
+            options={availableAccountOptions}
+            placeholder="Search and select account..."
+            searchPlaceholder="Search accounts..."
+            emptyText={accountsLoading ? 'Loading...' : 'No accounts found'}
+            disabled={accountsLoading}
+            loading={accountsLoading}
+            onSearch={searchAccounts}
+            data-testid={formatDataTestId(dataTestId || 'account-list', 'combobox')}
+          />
+          <Button
+            type="button"
+            variant="ghost"
+            size="sm"
+            onClick={() => setShowAddExisting(false)}
+            data-testid={formatDataTestId(dataTestId || 'account-list', 'cancel-add')}
+          >
+            Cancel
+          </Button>
+        </div>
+      )}
 
-      {/* Combobox for adding/selecting accounts */}
-      <Combobox
-        value={multiple ? '' : currentAccountId}
-        onValueChange={handleSelectAccount}
-        options={
-          multiple ? availableAccountOptions : mergedAccounts.map(a => ({ value: a.id as string, label: a.label }))
-        }
-        placeholder={multiple ? 'Add account...' : 'Search and select account...'}
-        searchPlaceholder="Search accounts..."
-        emptyText={accountsLoading ? 'Loading...' : 'No accounts found'}
-        disabled={accountsLoading}
-        loading={accountsLoading}
-        onSearch={searchAccounts}
-        data-testid={dataTestId || 'account-selector'}
-      />
-
-      {/* Multi-select: Selected accounts displayed as badges */}
-      {multiple && normalizedValue.length > 0 && (
-        <div
-          className="gba:space-y-2 gba:mt-3"
-          data-testid={formatDataTestId(dataTestId || 'account-selector', 'selected-list')}
+      {/* Add Account Button */}
+      {multiple && !showAddExisting && (
+        <Button
+          type="button"
+          variant="outline"
+          size="sm"
+          onClick={() => setShowAddExisting(true)}
+          className="gba:w-full"
+          data-testid={formatDataTestId(dataTestId || 'account-list', 'add-button')}
         >
-          {normalizedValue.map((account, index) => {
+          <PiPlus className="gba:mr-2 gba:h-4 gba:w-4" />
+          Add Account
+        </Button>
+      )}
+
+      {/* For single-select mode: show combobox immediately if no value */}
+      {!multiple && internalValue.length === 0 && (
+        <Combobox
+          value=""
+          onValueChange={handleAddAccount}
+          options={availableAccountOptions}
+          placeholder="Search and select account..."
+          searchPlaceholder="Search accounts..."
+          emptyText={accountsLoading ? 'Loading...' : 'No accounts found'}
+          disabled={accountsLoading}
+          loading={accountsLoading}
+          onSearch={searchAccounts}
+          data-testid={formatDataTestId(dataTestId || 'account-list', 'combobox')}
+        />
+      )}
+
+      {/* Selected Accounts List */}
+      {internalValue.length > 0 && (
+        <div className="gba:space-y-2" data-testid={formatDataTestId(dataTestId || 'account-list', 'selected-list')}>
+          {internalValue.map((account, index) => {
             const accountId = getAccountId(account)
-            const accountName = getAccountName(account)
+            const accountData = getAccountData(account)
+            const accountValue =
+              typeof account === 'object' ? account : { id: account, name: '', contactType: undefined }
+
+            if (!accountData) return null
+
             return (
               <div
                 key={accountId}
-                className="gba:flex gba:items-center gba:gap-2 gba:p-2 gba:border gba:rounded gba:bg-card"
-                data-testid={formatDataTestId(dataTestId || 'account-selector', `selected-account-${index}`)}
+                className="gba:flex gba:items-center gba:gap-3 gba:p-3 gba:border gba:rounded-lg gba:bg-card"
+                data-testid={formatDataTestId(dataTestId || 'account-list', `account-${index}`)}
               >
-                <Badge variant="secondary" className="gba:flex-1">
-                  {accountName}
-                </Badge>
-                <button
+                {/* Avatar */}
+                {accountData.pictureThumbnail ? (
+                  <Avatar size="sm" className="gba:flex-shrink-0">
+                    <AvatarImage src={accountData.pictureThumbnail} alt={accountData.label} />
+                    <AvatarFallback>
+                      <Building2 className="gba:h-4 gba:w-4" />
+                    </AvatarFallback>
+                  </Avatar>
+                ) : (
+                  <Avatar size="sm" className="gba:flex-shrink-0">
+                    <AvatarFallback>
+                      <Building2 className="gba:h-4 gba:w-4" />
+                    </AvatarFallback>
+                  </Avatar>
+                )}
+
+                {/* Account Info */}
+                <div className="gba:flex-1 gba:min-w-0">
+                  <div className="gba:truncate gba:font-medium">{accountData.label}</div>
+                  {accountData.extraInfo?.website && (
+                    <div className="gba:text-xs gba:text-muted-foreground gba:truncate">
+                      {accountData.extraInfo.website}
+                    </div>
+                  )}
+                </div>
+
+                {/* Contact Type Select (only for multiple mode) */}
+                {multiple && (
+                  <Select
+                    value={accountValue.contactType || ''}
+                    onValueChange={contactType => handleContactTypeChange(accountId, contactType)}
+                    data-testid={formatDataTestId(dataTestId || 'account-list', `contact-type-${index}`)}
+                  >
+                    <SelectTrigger className="gba:w-[180px]">
+                      <SelectValue placeholder="Contact Type" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {Object.values(ContactType).map(type => (
+                        <SelectItem key={type} value={type}>
+                          {getContactTypeLabel(type)}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                )}
+
+                {/* Remove Button */}
+                <Button
                   type="button"
+                  variant="ghost"
+                  size="icon"
                   onClick={() => handleRemoveAccount(accountId)}
-                  className="gba:flex-shrink-0 gba:text-destructive hover:gba:text-destructive/80"
-                  data-testid={formatDataTestId(dataTestId || 'account-selector', `remove-account-${index}`)}
-                  aria-label={`Remove ${accountName}`}
+                  data-testid={formatDataTestId(dataTestId || 'account-list', `remove-${index}`)}
+                  aria-label={`Remove ${accountData.label}`}
                 >
-                  <X className="gba:h-4 gba:w-4" />
-                </button>
+                  <PiX className="gba:h-4 gba:w-4" />
+                </Button>
               </div>
             )
           })}

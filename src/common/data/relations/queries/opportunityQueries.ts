@@ -9,7 +9,7 @@ import { COMMUNICATION_CHANNEL_REF } from '@/common/data/common/queries/communic
 import { buildWhere, buildOrderBy, type Descriptor } from '@/common/network/graphql/queryHelpers'
 import { OpportunityFields } from '../types/opportunityTypes'
 import type { BaseQueryVariables } from '@/common/network/graphql/commonTypes'
-import { buildAddressFragment } from './_tempAddress'
+import { ADDRESS_REF } from '@/common/data/common/queries/addressFragments'
 
 // =====================================================
 // OPPORTUNITY RELATION TYPES
@@ -201,7 +201,7 @@ export const buildOpportunityByIdQuery = (
         ${COMMUNICATION_CHANNEL_REF}
       }
       ${relationFields.accountFields.addresses}(where: { isDeleted: { _eq: false } }) {
-        ${buildAddressFragment(entityName)}
+        ${ADDRESS_REF}
       }
     }`
         : ''

@@ -1,12 +1,10 @@
 import React from 'react'
-import { ContactFormProvider } from './context/ContactFormContext'
 import ContactFormComponent from './components/ContactFormComponent'
-import { ContactFormValues } from './types'
 import { BusinessAppContextProps } from '@/common/BusinessAppContext'
 
 interface ContactFormProps {
-  initialValues?: Partial<ContactFormValues>
-  onSubmit?: (values: ContactFormValues) => Promise<void>
+  initialValues?: any
+  onSubmit?: (values: any) => Promise<void>
   onCancel?: () => Promise<void>
 }
 
@@ -35,14 +33,12 @@ const ContactForm: React.FC<BusinessAppContextProps & ContactFormProps> = ({
   }
 
   return (
-    <ContactFormProvider
+    <ContactFormComponent
       businessAppContext={businessAppContext}
       initialValues={initialValues}
       onSubmit={onSubmit}
       onCancel={onCancel}
-    >
-      <ContactFormComponent />
-    </ContactFormProvider>
+    />
   )
 }
 

@@ -115,26 +115,18 @@ export const CatalogSelectProvider = <TFormValues extends FieldValues = FieldVal
   }, [activeForm, externalKeys])
 
   // Registration API - handles both initial and late registrations
-  const registerCatalog = useCallback(
-    (config: CatalogSelectConfig) => {
-      // Track in registry
-      if (!registrationMapRef.current.has(config.id)) {
-        registrationMapRef.current.set(config.id, config)
+  const registerCatalog = useCallback((config: CatalogSelectConfig) => {
+    // Track in registry
+    if (!registrationMapRef.current.has(config.id)) {
+      registrationMapRef.current.set(config.id, config)
 
-        setRegisteredConfigs(prev => {
-          const exists = prev.some(c => c.id === config.id)
-          if (exists) return prev
-          return [...prev, config]
-        })
-
-        // If registration happens after initial preload, trigger individual preload
-        if (isRegistrationComplete && config.prefetch !== false) {
-          // Late registration - will be handled by preload effect
-        }
-      }
-    },
-    [isRegistrationComplete]
-  )
+      setRegisteredConfigs(prev => {
+        const exists = prev.some(c => c.id === config.id)
+        if (exists) return prev
+        return [...prev, config]
+      })
+    }
+  }, [])
 
   // Explicit finalization - called by parent when initial registration is done
   const finalizeRegistration = useCallback(() => {
@@ -153,16 +145,23 @@ export const CatalogSelectProvider = <TFormValues extends FieldValues = FieldVal
 
   const { controllers, preload } = useCatalogSelect(context, allConfigs, externalValues)
 
-  // Track if preload was already called to prevent loops
-  const preloadedRef = React.useRef(false)
+  // Track which configs have been preloaded
+  const preloadedConfigIdsRef = React.useRef<Set<string>>(new Set())
 
-  // Preload once registration is complete
+  // Preload when registration is complete and when new configs are added
   useEffect(() => {
-    if (isRegistrationComplete && allConfigs.length > 0 && !preloadedRef.current) {
-      preloadedRef.current = true
-      preload()
+    if (isRegistrationComplete && allConfigs.length > 0) {
+      // Find configs that haven't been preloaded yet
+      const newConfigs = allConfigs.filter(cfg => !preloadedConfigIdsRef.current.has(cfg.id))
+
+      if (newConfigs.length > 0) {
+        // Mark new configs as preloaded
+        newConfigs.forEach(cfg => preloadedConfigIdsRef.current.add(cfg.id))
+        // Trigger preload (will handle all configs, but only new ones will be fetched)
+        preload()
+      }
     }
-  }, [isRegistrationComplete, allConfigs.length, preload])
+  }, [isRegistrationComplete, allConfigs, preload])
 
   const value = useMemo(
     () => ({ controllers, registerCatalog, finalizeRegistration, registerForm }),

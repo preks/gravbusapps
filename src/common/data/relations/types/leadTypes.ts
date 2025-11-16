@@ -41,7 +41,7 @@ export interface Lead extends BaseEntity {
   leadStatusRef?: string // IRM / CRM
   legalForm?: CatalogEntry // IRM / CRM
   legalFormRef?: string // IRM / CRM
-  locality?: string // IRM / TODO (city)
+  locality?: string // IRM / CRM
   notes?: any[] // IRM / CRM
   ownerEmployee?: Employee // IRM / CRM
   ownerEmployeeId?: string // IRM / CRM
@@ -380,3 +380,53 @@ export const createLeadDescriptors = (fields: Record<keyof typeof LeadFields, st
     type: 'text'
   }
 ]
+
+/**
+ * Lead Form Fields Configuration
+ * Defines which fields to include in payload
+ * Sorted alphabetically by sourceKey
+ *
+ * Transformations are handled automatically:
+ * - Dates → ISO format
+ * - Arrays → included only if not empty
+ * - Objects → included only if not empty
+ * - Primitives → string or undefined
+ */
+export const leadFormFields = {
+  academicTitleRef: 'academicTitleRef',
+  accountAnnualRevenueBandRef: 'accountAnnualRevenueBandRef',
+  addressLine: 'addressLine',
+  code: 'code',
+  companyEmail: 'companyEmail',
+  companyName: 'companyName',
+  companyPhone: 'companyPhone',
+  companySizeRef: 'companySizeRef',
+  companyWebsite: 'companyWebsite',
+  conversionDate: 'conversionDate',
+  convertedAccountId: 'convertedAccountId',
+  convertedContactId: 'convertedContactId',
+  convertedOpportunityId: 'convertedOpportunityId',
+  countryRef: 'countryRef',
+  description: 'description',
+  email: 'email',
+  firstName: 'firstName',
+  id: 'id',
+  industryClassRef: 'industryClassRef',
+  lastName: 'lastName',
+  leadRatingRef: 'leadRatingRef',
+  leadSourceRef: 'leadSourceRef',
+  leadStatusRef: 'leadStatusRef',
+  legalFormRef: 'legalFormRef',
+  locality: 'locality',
+  ownerEmployeeId: 'ownerEmployee',
+  phoneNumber: 'phoneNumber',
+  position: 'position',
+  postalCode: 'postalCode',
+  regionRef: 'regionRef',
+  salutationRef: 'salutationRef',
+  sensitive: 'sensitive',
+  sourceCompanyName: 'sourceCompanyName',
+  sourceIndividualName: 'sourceIndividualName',
+  timeZoneRef: 'timeZoneRef',
+  version: 'version'
+} as const

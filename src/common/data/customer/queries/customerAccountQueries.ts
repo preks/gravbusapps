@@ -75,10 +75,7 @@ export const buildCustomerAccountQuery = (fields: typeof CustomerAccountFields =
 /**
  * Build Customer Account by ID query
  */
-export const buildCustomerAccountByIdQuery = (
-  fields: typeof CustomerAccountFields = CustomerAccountFields,
-  id: string
-): string => {
+export const buildCustomerAccountByIdQuery = (fields: typeof CustomerAccountFields = CustomerAccountFields): string => {
   // Build relation builders and fields for common relations
   const relationBuilders: AccountRelationBuilders = {
     buildContactFragment,
@@ -120,7 +117,7 @@ export const buildCustomerAccountByIdQuery = (
     }
   `
 
-  return buildAccountByPkQuery('Account', id, fields, relationBuilders, relationFields, entityFields)
+  return buildAccountByPkQuery('Account', fields, relationBuilders, relationFields, entityFields)
 }
 
 /**

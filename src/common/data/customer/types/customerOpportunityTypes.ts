@@ -8,9 +8,12 @@ import {
   OpportunityFields,
   createOpportunityDescriptors,
   OpportunityStageConditionFields,
-  createOpportunityStageConditionDescriptors
+  createOpportunityStageConditionDescriptors,
+  opportunityFormFields,
+  buildOpportunityContactAssociations
 } from '@/common/data/relations/types/opportunityTypes'
 import type { Descriptor } from '@/common/network/graphql/queryHelpers'
+import { buildPayload } from '@/common/data/common/utils/payloadBuilder'
 import type { CustomerAccount } from './customerAccountTypes'
 import type { CustomerAddress } from './customerAddressTypes'
 import type { CustomerCommunicationChannel } from './customerCommunicationChannelTypes'
@@ -18,13 +21,15 @@ import type { CustomerDocument } from './customerDocumentTypes'
 import type { CustomerNote } from './customerNoteTypes'
 import type { CustomerTask } from './customerTaskTypes'
 import type { CustomerOpportunityContact } from './customerRelationTypes'
+import { toCustomerAccount } from './customerAccountTypes'
+import { toCustomerContact } from './customerContactTypes'
 
 /**
  * Customer Opportunity Type
- * Extends Opportunity with CRM-specific fields and proper type mappings
+ * Extends Opportunity with CRM-specific fields
  */
 export interface CustomerOpportunity extends Opportunity {
-  // Map any types from Opportunity to specific Customer types
+  // Customer-specific typed relationships
   account?: CustomerAccount
   addresses?: CustomerAddress[]
   communicationChannels?: CustomerCommunicationChannel[]
@@ -33,34 +38,19 @@ export interface CustomerOpportunity extends Opportunity {
   opportunityContacts?: CustomerOpportunityContact[]
   tasks?: any[] // CustomerTask
 
-  // Base fields for mapping (CRM-specific GraphQL field names that need mapping)
-  contacts?: CustomerOpportunityContact[] // Mapped to opportunityContacts
-  crmDocument?: CustomerDocument[] // Duplicate - mapped to documents
-  crmNote?: CustomerNote[] // Duplicate - mapped to notes
+  // CRM-specific fields
   salesCampaign?: any // CRM-specific (SalesCampaign)
   salesCampaignId?: string // CRM-specific
-  salesPipeline?: any // Mapped to opportunityPipeline (CatalogEntry)
-  salesPipelineRef?: string // Mapped to opportunityPipelineRef
-  salesPipelineStage?: any // Mapped to opportunityPipelineStage (CatalogEntry)
-  salesPipelineStageRef?: string // Mapped to opportunityPipelineStageRef
-  stageConditionStatuses?: CustomerOpportunityStageCondition[] // Mapped to opportunityStageConditions
   tags?: any[] // CRM-specific (deprecated)
 }
 
 /**
  * Customer Opportunity Stage Condition Type
- * Extends OpportunityStageCondition with CRM-specific fields and proper type mappings
+ * Extends OpportunityStageCondition with CRM-specific typed relationships
  */
 export interface CustomerOpportunityStageCondition extends OpportunityStageCondition {
-  // Map any types from OpportunityStageCondition
   opportunity?: CustomerOpportunity
   task?: CustomerTask
-
-  // Base fields for mapping (CRM-specific GraphQL field names)
-  salesPipelineStageCondition?: any // Mapped to opportunityPipelineStageCondition (CatalogEntry)
-  salesPipelineStageConditionRef?: string // Mapped to opportunityPipelineStageConditionRef
-  salesTask?: CustomerTask // Mapped to task
-  salesTaskId?: string // Mapped to taskId
 }
 
 /**
@@ -106,15 +96,7 @@ export type CustomerOpportunityStageConditionFieldName =
 export const CUSTOMER_OPPORTUNITY_DESCRIPTORS: Descriptor[] = [
   // Filter out descriptors that need structural overrides
   ...createOpportunityDescriptors(CustomerOpportunityFields as Record<keyof typeof OpportunityFields, string>).filter(
-    d =>
-      ![
-        'addresses',
-        'leads',
-        'notes',
-        'opportunityContacts',
-        'opportunityStageConditions',
-        'rejectionReasons'
-      ].includes(d.key)
+    d => !['leads', 'notes', 'opportunityContacts', 'opportunityStageConditions', 'rejectionReasons'].includes(d.key)
   ),
   {
     key: 'opportunityStageConditions',
@@ -123,17 +105,6 @@ export const CUSTOMER_OPPORTUNITY_DESCRIPTORS: Descriptor[] = [
     type: 'text'
   },
   // CRM-specific structural overrides
-  {
-    key: 'addresses',
-    searchPaths: [
-      'addresses.city', // CRM uses "city" not "locality"
-      'addresses.postalCode',
-      'addresses.region.value',
-      'addresses.country.value'
-    ],
-    sortPaths: ['addresses.city', 'addresses.postalCode', 'addresses.region.value', 'addresses.country.value'],
-    type: 'text'
-  },
   {
     key: 'notes',
     searchPaths: ['notes.noteTitle', 'notes.noteText'], // CRM uses "noteTitle"/"noteText"
@@ -161,3 +132,117 @@ export const CUSTOMER_OPPORTUNITY_STAGE_CONDITION_DESCRIPTORS: Descriptor[] = [
     CustomerOpportunityStageConditionFields as Record<keyof typeof OpportunityStageConditionFields, string>
   )
 ]
+
+/**
+ * Customer Opportunity Form Fields Configuration
+ * Extends opportunityFormFields with CRM-specific field mappings
+ */
+export const customerOpportunityFormFields = {
+  ...opportunityFormFields,
+  // Override mappings for CRM field name differences
+  opportunityPipelineRef: 'salesPipelineRef',
+  opportunityPipelineStageRef: 'salesPipelineStageRef',
+  // CRM-specific fields
+  salesCampaignId: 'salesCampaign'
+} as const
+
+/**
+ * Build Customer Opportunity payload for CRM module
+ *
+ * Automatically handles:
+ * - Field name mapping via customerOpportunityFormFields
+ * - Empty value exclusion
+ * - ID/version automatically included if present (determines update vs create)
+ * - CRM-specific fields (salesCampaign, tags, additionalProperties)
+ * - Contact associations
+ *
+ * @param opportunity - Partial CustomerOpportunity entity (only fields provided by form)
+ * @returns Payload object ready for API submission
+ */
+export const buildCustomerOpportunityPayload = (opportunity: Partial<CustomerOpportunity>) => {
+  // Build base payload using customerOpportunityFormFields for field mapping
+  const basePayload = buildPayload(opportunity, customerOpportunityFormFields)
+
+  // Handle contact associations separately (not in formFields)
+  if ((opportunity as any).contactIds && (opportunity as any).contactIds.length > 0 && opportunity.id) {
+    basePayload.opportunityContacts = buildOpportunityContactAssociations(
+      (opportunity as any).contactIds,
+      opportunity.id
+    )
+  }
+
+  return {
+    customerOpportunity: basePayload
+  }
+}
+
+/**
+ * Build opportunity contacts array for CRM
+ * Used in convert lead flow and form submissions
+ *
+ * @param contactIds - Array of contact IDs or contact objects with metadata
+ * @param opportunityId - Opportunity ID (for associations)
+ * @returns Array of opportunity contact association objects
+ */
+export const buildCustomerOpportunityContacts = (contactIds: string[] = [], opportunityId?: string): any[] => {
+  return buildOpportunityContactAssociations(contactIds, opportunityId)
+}
+
+/**
+ * Transform CustomerOpportunity (raw GraphQL) to CustomerOpportunity (enhanced/standardized)
+ *
+ * Handles CRM-specific field naming inconsistencies by mapping them to Opportunity standards.
+ * Uses fallback pattern: only maps if target field doesn't already exist.
+ *
+ * Key Mappings (fallback only):
+ * - salesPipeline → opportunityPipeline
+ * - salesPipelineStage → opportunityPipelineStage
+ * - contacts → opportunityContacts
+ * - crmDocument / crmNote → documents / notes
+ */
+export function toCustomerOpportunity(raw: any): CustomerOpportunity {
+  // Extract incorrectly named fields to exclude from spread
+  const { salesPipeline, salesPipelineRef, salesPipelineStage, salesPipelineStageRef, crmDocument, crmNote, ...rest } =
+    raw
+
+  // Map nested entities if present
+  const account = raw.account ? toCustomerAccount(raw.account) : raw.account
+  const mappedContacts = raw.contacts ? raw.contacts.map((c: any) => toCustomerContact(c)) : raw.contacts
+
+  return {
+    ...rest,
+    account,
+    // Map only if target field doesn't already exist (fallback mapping)
+    opportunityPipeline: raw.opportunityPipeline ?? salesPipeline,
+    opportunityPipelineRef: raw.opportunityPipelineRef ?? salesPipelineRef,
+    opportunityPipelineStage: raw.opportunityPipelineStage ?? salesPipelineStage,
+    opportunityPipelineStageRef: raw.opportunityPipelineStageRef ?? salesPipelineStageRef,
+    opportunityContacts: raw.opportunityContacts ?? mappedContacts,
+    documents: raw.documents ?? crmDocument,
+    notes: raw.notes ?? crmNote
+  } as CustomerOpportunity
+}
+
+/**
+ * Transform CustomerOpportunityStageCondition (raw GraphQL) to CustomerOpportunityStageCondition (enhanced/standardized)
+ *
+ * Handles CRM-specific field naming inconsistencies by mapping them to Opportunity standards.
+ * Uses fallback pattern: only maps if target field doesn't already exist.
+ *
+ * Key Mappings (fallback only):
+ * - salesPipelineStageCondition → opportunityPipelineStageCondition
+ * - salesTask → task
+ */
+export function toCustomerOpportunityStageCondition(raw: any): CustomerOpportunityStageCondition {
+  // Extract incorrectly named fields to exclude from spread
+  const { salesPipelineStageCondition, salesPipelineStageConditionRef, salesTask, salesTaskId, ...rest } = raw
+
+  return {
+    ...rest,
+    // Map only if target field doesn't already exist (fallback mapping)
+    opportunityPipelineStageCondition: raw.opportunityPipelineStageCondition ?? salesPipelineStageCondition,
+    opportunityPipelineStageConditionRef: raw.opportunityPipelineStageConditionRef ?? salesPipelineStageConditionRef,
+    task: raw.task ?? salesTask,
+    taskId: raw.taskId ?? salesTaskId
+  } as CustomerOpportunityStageCondition
+}

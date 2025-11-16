@@ -196,7 +196,7 @@ export const IDEStartScreen: React.FC<IDEStartScreenProps> = ({ businessApps, on
 
   const renderAppButton = (app: BusinessAppInfo) => (
     <a
-      key={app.name}
+      key={app.screenKey}
       href={createAppURL(app)}
       onClick={e => handleAppLinkClick(e, app)}
       onAuxClick={e => {
@@ -376,7 +376,7 @@ export const IDEStartScreen: React.FC<IDEStartScreenProps> = ({ businessApps, on
                 <div className="gba:grid gba:grid-cols-1 gba:sm:grid-cols-4 gba:md:grid-cols-8 gba:lg:grid-cols-12 gba:auto-cols-fr gba:auto-rows-min gba:gap-4">
                   {getRecentApps().map(app => (
                     <Card
-                      key={app.name}
+                      key={app.screenKey}
                       className="gba:col-span-1 gba:sm:col-span-2 gba:md:col-span-4 gba:lg:col-span-3 gba:shadow-sm hover:gba:shadow-md gba:transition-shadow gba:cursor-pointer"
                     >
                       <CardContent className="gba:p-3">

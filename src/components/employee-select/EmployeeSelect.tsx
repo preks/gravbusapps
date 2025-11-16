@@ -1,6 +1,9 @@
 import React from 'react'
 import { Combobox, Avatar, AvatarImage, AvatarFallback } from '@newwork/nw-design-system'
 import { Building2, Briefcase } from 'lucide-react'
+import { BusinessAppContextProps } from '@/common/BusinessAppContext'
+import { useEmployeeSelect, type UseEmployeeSelectReturn } from './useEmployeeSelect'
+import type { Employee } from '@/common/data/employee/types/employeeBaseTypes'
 
 export interface EmployeeOption {
   id: string
@@ -12,36 +15,68 @@ export interface EmployeeOption {
 
 export interface EmployeeSelectProps {
   value?: string | null
-  employees: EmployeeOption[]
   onValueChange?: (value: string | null) => void
-  onSearch?: (q: string) => void
-  loading?: boolean
-  hasMore?: boolean
-  onLoadMore?: () => void
   placeholder?: string
   searchPlaceholder?: string
   className?: string
   ['data-testid']?: string
+
+  // Optional: Use hook internally or pass data manually
+  businessAppContext?: BusinessAppContextProps
+  initialEmployee?: Employee | null // Initial employee to display (from entity data or current user)
+
+  // Manual mode: Pass data directly (for backward compatibility)
+  employees?: EmployeeOption[]
+  onSearch?: (q: string) => void
+  loading?: boolean
+  hasMore?: boolean
+  onLoadMore?: () => void
 }
 
 const EmployeeSelect = React.forwardRef<HTMLButtonElement, EmployeeSelectProps & Record<string, any>>(
   (
     {
       value,
-      employees,
       onValueChange,
-      onSearch,
-      loading,
-      hasMore,
-      onLoadMore,
       placeholder = 'Search Employee...',
       searchPlaceholder = 'Type to search...',
       className,
       'data-testid': dataTestId = 'employee-select',
+      businessAppContext,
+      initialEmployee,
+      // Manual mode props (for backward compatibility)
+      employees: manualEmployees,
+      onSearch: manualOnSearch,
+      loading: manualLoading,
+      hasMore: manualHasMore,
+      onLoadMore: manualOnLoadMore,
       ...rest
     },
     ref
   ) => {
+    // Use hook if businessAppContext is provided
+    const hookData: UseEmployeeSelectReturn | null = businessAppContext
+      ? useEmployeeSelect({ businessAppContext, initialEmployee, currentValue: value })
+      : null
+
+    // Use hook data if available, otherwise fall back to manual props
+    const employees = hookData?.employees || manualEmployees || []
+    const loading = hookData?.loading ?? manualLoading ?? false
+    const hasMore = hookData?.hasMore ?? manualHasMore ?? false
+    const onSearch = hookData?.onSearch || manualOnSearch
+    const onLoadMore = hookData?.onLoadMore || manualOnLoadMore
+
+    // Track if initial search was done
+    const initialSearchDone = React.useRef(false)
+
+    // Trigger initial search when onSearch becomes available
+    React.useEffect(() => {
+      if (onSearch && !initialSearchDone.current) {
+        console.log('🔍 EmployeeSelect: Triggering initial search')
+        onSearch('')
+        initialSearchDone.current = true
+      }
+    }, [onSearch])
     const options: any[] = React.useMemo(() => {
       return (employees || []).map((a: EmployeeOption) => {
         const initials = (a.displayName || '?')

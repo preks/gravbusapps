@@ -4,13 +4,11 @@ import { useGraphQLClient } from '@/common/network/graphql/useGraphQLClient'
 import { BusinessAppContextProps } from '@/common/BusinessAppContext'
 // buildWhere and buildOrderBy are now used internally by the new query builders
 // Descriptors are now used internally by the new query builders
-import type {
-  InvestmentAccount,
-  InvestmentTask,
-  InvestmentActivity,
-  InvestmentNote,
-  InvestmentDocument
-} from '../types'
+import type { InvestmentAccount } from '../types/investmentAccountTypes'
+import type { InvestmentTask } from '../types/investmentTaskTypes'
+import type { InvestmentActivity } from '../types/investmentActivityTypes'
+import type { InvestmentNote } from '../types/investmentNoteTypes'
+import type { InvestmentDocument } from '../types/investmentDocumentTypes'
 
 // Use the new query builder functions
 import {
@@ -51,13 +49,9 @@ import {
 } from '../queries/investmentDocumentQueries'
 
 // Use the mapper functions
-import {
-  toInvestmentAccount,
-  toInvestmentTask,
-  toInvestmentActivity,
-  toInvestmentNote,
-  toInvestmentDocument
-} from '../mappers'
+import { toInvestmentAccount } from '../types/investmentAccountTypes'
+import { toInvestmentTask } from '../mappers/investmentTaskMappers'
+import { toInvestmentActivity, toInvestmentNote, toInvestmentDocument } from '../mappers/investmentRelatedEntityMappers'
 // INVESTMENT_ACCOUNT_DESCRIPTORS is now used internally by buildInvestmentAccountWhereCondition/buildInvestmentAccountOrderBy
 
 // Note: InvestmentAccountQueryVariables is imported from queries

@@ -2,9 +2,9 @@
 import { useCallback, useState, useEffect } from 'react'
 import { useGraphQLClient } from '@/common/network/graphql/useGraphQLClient'
 import { BusinessAppContextProps } from '@/common/BusinessAppContext'
-import type { InvestmentTask } from '../types'
+import type { InvestmentTask } from '../types/investmentTaskTypes'
 import { buildInvestmentTaskByIdQuery } from '../queries/investmentTaskQueries'
-import { toInvestmentTask } from '../mappers'
+import { toInvestmentTask } from '../mappers/investmentTaskMappers'
 
 export interface UseInvestmentTaskReturn {
   task: InvestmentTask | null

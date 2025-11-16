@@ -1,3 +1,13 @@
+export interface EmployeePosition {
+  jobPosition?: {
+    name?: string
+  }
+  organizationalUnit?: {
+    id?: string
+    name?: string
+  }
+}
+
 export interface Employee {
   id: string
   code?: string
@@ -7,6 +17,7 @@ export interface Employee {
   fullName?: string
   picture?: string
   pictureThumbnail?: string
+  employeePosition?: EmployeePosition
 }
 
 // Backward compatibility alias

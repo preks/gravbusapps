@@ -4,7 +4,7 @@ import { useGraphQLClient } from '@/common/network/graphql/useGraphQLClient'
 import { BusinessAppContextProps } from '@/common/BusinessAppContext'
 
 // Types
-import type { BaseCustomerLead, CustomerLead } from '../types'
+import type { BaseCustomerLead, CustomerLead } from '../types/customerLeadTypes'
 
 // Queries (New)
 import {
@@ -17,7 +17,7 @@ import {
 } from '../queries/customerLeadQueries'
 
 // Mapper
-import { toCustomerLead } from '../mappers/customerLeadMappers'
+import { toCustomerLead } from '../types/customerLeadTypes'
 
 export interface CustomerLeadListQueryResponse {
   Lead: BaseCustomerLead[]

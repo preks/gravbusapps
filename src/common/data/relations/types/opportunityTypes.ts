@@ -345,3 +345,69 @@ export const createOpportunityStageConditionDescriptors = (
   { key: 'deadlineAtFrom', path: fields.deadlineAt, kind: 'dateFrom' },
   { key: 'deadlineAtTo', path: fields.deadlineAt, kind: 'dateTo' }
 ]
+
+/**
+ * Opportunity Form Fields Configuration
+ * Defines which fields to include in payload
+ * Sorted alphabetically by sourceKey
+ *
+ * Transformations are handled automatically:
+ * - Dates → ISO format
+ * - Arrays → included only if not empty
+ * - Objects → included only if not empty
+ * - Primitives → string or undefined
+ */
+export const opportunityFormFields = {
+  accountId: 'account',
+  businessKey: 'businessKey',
+  closeDate: 'closeDate',
+  code: 'code',
+  currencyRef: 'currencyRef',
+  estimatedAmount: 'estimatedAmount',
+  id: 'id',
+  leadId: 'lead',
+  name: 'name',
+  notesSummary: 'notesSummary',
+  opportunityPipelineRef: 'opportunityPipelineRef',
+  opportunityPipelineStageRef: 'opportunityPipelineStageRef',
+  opportunityStatusRef: 'opportunityStatusRef',
+  ownerEmployeeId: 'ownerEmployee',
+  personal: 'personal',
+  version: 'version',
+  winningChance: 'winningChance'
+} as const
+
+/**
+ * Helper function to build opportunity contact associations
+ * Used for managing many-to-many relationships between opportunities and contacts
+ */
+export const buildOpportunityContactAssociations = (contactIds: string[] = [], opportunityId?: string): any[] => {
+  return contactIds.map(contactId => {
+    if (typeof contactId === 'object' && (contactId as any).id) {
+      // Existing association with metadata
+      const contact = contactId as any
+      const association: any = {
+        contactType: contact.contactType || null,
+        opportunity: opportunityId,
+        contact: contact.id
+      }
+
+      // Include association ID and version if it exists (for updates)
+      if (contact.associationId) {
+        association.id = contact.associationId
+        if (contact.associationVersion !== undefined) {
+          association.version = contact.associationVersion
+        }
+      }
+
+      return association
+    }
+
+    // New association - simple format
+    return {
+      contactType: null,
+      opportunity: opportunityId,
+      contact: typeof contactId === 'string' ? contactId : (contactId as any).id
+    }
+  })
+}

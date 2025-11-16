@@ -1,12 +1,13 @@
 import React from 'react'
 import { LeadFormProvider } from './context/LeadFormContext'
 import LeadFormComponent from './components/LeadFormComponent'
-import { LeadFormValues } from './types'
+import type { InvestmentLead } from '@/common/data/investment/types/investmentLeadTypes'
 import { BusinessAppContextProps } from '@/common/BusinessAppContext'
+import { CatalogSelect } from '@/components/catalog-select'
 
 interface LeadFormProps {
-  initialValues?: Partial<LeadFormValues>
-  onSubmit?: (values: LeadFormValues) => Promise<void>
+  initialValues?: Partial<InvestmentLead>
+  onSubmit?: (lead: Partial<InvestmentLead>) => Promise<void>
   onCancel?: () => Promise<void>
 }
 
@@ -35,14 +36,16 @@ const LeadForm: React.FC<BusinessAppContextProps & LeadFormProps> = ({
   }
 
   return (
-    <LeadFormProvider
-      businessAppContext={businessAppContext}
-      initialValues={initialValues}
-      onSubmit={onSubmit}
-      onCancel={onCancel}
-    >
-      <LeadFormComponent />
-    </LeadFormProvider>
+    <CatalogSelect.Provider accessToken={accessToken}>
+      <LeadFormProvider
+        businessAppContext={businessAppContext}
+        initialValues={initialValues}
+        onSubmit={onSubmit}
+        onCancel={onCancel}
+      >
+        <LeadFormComponent />
+      </LeadFormProvider>
+    </CatalogSelect.Provider>
   )
 }
 

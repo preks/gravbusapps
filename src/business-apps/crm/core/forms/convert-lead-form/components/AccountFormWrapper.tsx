@@ -1,6 +1,6 @@
 import React, { useMemo } from 'react'
-import { AccountFormProvider } from '../../account-form/context/AccountFormContext'
-import AccountFormComponent from '../../account-form/components/AccountFormComponent'
+import { AccountFormProvider } from '../../account-form/AccountFormContext'
+import AccountFormComponent from '../../account-form/AccountFormComponent'
 import FormChangeMonitor from './FormChangeMonitor'
 import { AccountFormValues } from '../../account-form/types'
 import { BusinessAppContextProps } from '@/common/BusinessAppContext'
