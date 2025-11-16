@@ -17,122 +17,28 @@ import { ActionOption } from '@newwork/nw-design-system'
  * Unified component for all action-related use cases
  */
 export interface AppActionProps {
-  // === Core Context & Data ===
-  /**
-   * Array of context configurations with their data
-   * Each entry contains context name and an array of data objects
-   * If provided, this takes precedence over contextsArray + externalContextData
-   *
-   * @example
-   * contexts={[
-   *   {
-   *     context: FlowContextName.taskEntity,
-   *     contextData: [{ taskId: '123' }, { taskId: '456' }]
-   *   },
-   *   {
-   *     context: FlowContextName.projectEntity,
-   *     contextData: [{ projectId: '789' }]
-   *   }
-   * ]}
-   */
   contexts?: Array<{
     context: FlowContextName | string
     contextData: Record<string, string>[]
   }>
-
-  /**
-   * Legacy: Array of context names
-   * Used as fallback if 'contexts' is not provided
-   */
   contextsArray?: FlowContextName[]
-
-  /**
-   * Legacy: External context data as flat record
-   * Used as fallback if 'contexts' is not provided
-   */
   externalContextData?: Record<string, any>
-
   staticFlowData?: ActionOption[]
   accessToken?: string
-
-  // === Variant Selection ===
-  /**
-   * Pre-configured variant for common use cases
-   * @default 'custom'
-   */
   variant?: 'custom' | keyof typeof actionVariants
-
-  // === Mode (only for variant="custom") ===
-  /**
-   * Rendering mode (only used when variant="custom")
-   * - 'trigger': Wraps a child element to execute first action on click
-   * - 'button': Renders Button component
-   * - 'action-button': Renders ActionButton component with dropdown menu
-   */
   mode?: 'trigger' | 'button' | 'action-button'
-
-  // === Behavior (can override variant defaults) ===
-  /**
-   * Controls how the component behaves when no actions are available
-   * NOTE: When lazyLoad is true, this is automatically forced to 'enable'
-   * @default variant-specific or 'disable'
-   */
   emptyState?: 'disable' | 'hide' | 'enable'
-
-  /**
-   * Defers loading of context data until user interaction
-   * When true, emptyState is automatically set to 'enable'
-   * @default variant-specific or false
-   */
   lazyLoad?: boolean
-
-  /**
-   * Automatically executes when only one action is available
-   * When multiple actions exist, shows menu/dropdown instead
-   * @default variant-specific or false
-   */
   autoExecute?: boolean
-
-  // === Button & ActionButton Props (can override variant defaults) ===
-  /**
-   * Button size
-   */
-  buttonSize?: 'default' | 'sm' | 'lg' | 'icon'
-
-  /**
-   * Button visual variant
-   */
+  buttonSize?: 'default' | 'sm' | 'lg' | 'icon' | 'iconSm' | 'iconLg'
   buttonVariant?: 'default' | 'secondary' | 'destructive' | 'outline' | 'ghost' | 'link'
-
-  /**
-   * Disabled state
-   */
   disabled?: boolean
-
-  /**
-   * Button content/label or wrapped element
-   */
   children?: React.ReactNode
-
-  /**
-   * Additional CSS classes
-   */
   className?: string
-
-  // === ActionButton Specific ===
-  /**
-   * Callback when dropdown opens (for action-button mode)
-   */
   onDropdownOpen?: () => void
-
-  // === Shared Event Handlers ===
   onClick?: (e: React.MouseEvent) => void
-
-  // === Testing & Customization ===
   'data-testid'?: string
   prefixDataTestId?: string
-
-  // === Deprecated (backwards compatibility) ===
   /** @deprecated Use lazyLoad instead */
   deferMainContextRequestsUntilClick?: boolean
   /** @deprecated Use emptyState instead */
@@ -146,132 +52,121 @@ export interface AppActionProps {
 // ============================================================================
 
 /**
- * Shared event handler that stops propagation and prevents default
- */
-const createStopPropagationHandler = (handler?: (e: React.MouseEvent) => void) => {
-  return (e: React.MouseEvent) => {
-    e.stopPropagation()
-    e.preventDefault()
-    handler?.(e)
-  }
-}
-
-/**
  * AppAction variant configurations
  * Each variant has pre-configured settings for common use cases
  */
 const actionVariants = {
   'table-row': {
-    mode: 'button' as const,
-    buttonSize: 'icon' as const,
-    buttonVariant: 'ghost' as const,
+    mode: 'button',
+    buttonSize: 'icon',
+    buttonVariant: 'ghost',
     lazyLoad: true,
-    emptyState: 'enable' as const,
+    emptyState: 'enable',
     autoExecute: false,
-    defaultChildren: <Icon icon={DotsThreeVerticalIcon} size="md" />
+    defaultChildren: <Icon icon={DotsThreeVerticalIcon} />
   },
 
   'list-item': {
-    mode: 'button' as const,
-    buttonSize: 'icon' as const,
-    buttonVariant: 'ghost' as const,
+    mode: 'button',
+    buttonSize: 'iconSm',
+    buttonVariant: 'ghost',
     lazyLoad: true,
-    emptyState: 'enable' as const,
+    emptyState: 'enable',
     autoExecute: false,
-    defaultChildren: <Icon icon={DotsThreeVerticalIcon} size="sm" />
+    defaultChildren: <Icon icon={DotsThreeVerticalIcon} />
   },
 
   header: {
-    mode: 'action-button' as const,
-    buttonSize: 'icon' as const,
+    mode: 'action-button',
+    buttonSize: 'icon',
     lazyLoad: false,
-    emptyState: 'hide' as const,
+    emptyState: 'hide',
     autoExecute: false
   },
 
   'create-primary': {
-    mode: 'button' as const,
-    buttonSize: 'default' as const,
-    buttonVariant: 'default' as const,
+    mode: 'button',
+    buttonSize: 'default',
+    buttonVariant: 'default',
     lazyLoad: false,
-    emptyState: 'hide' as const,
+    emptyState: 'hide',
     autoExecute: true,
     defaultChildren: (
       <>
-        <Icon icon={PlusIcon} size="sm" />
+        <Icon icon={PlusIcon} />
         Create
       </>
     )
   },
 
   'create-secondary': {
-    mode: 'button' as const,
-    buttonSize: 'icon' as const,
-    buttonVariant: 'secondary' as const,
+    mode: 'button',
+    buttonSize: 'icon',
+    buttonVariant: 'secondary',
     lazyLoad: false,
-    emptyState: 'hide' as const,
+    emptyState: 'hide',
     autoExecute: true,
     defaultChildren: (
       <Button variant="secondary" size="icon">
-        <Icon icon={PlusIcon} size="sm" />
+        <Icon icon={PlusIcon} />
       </Button>
     )
   },
 
   'update-primary': {
-    mode: 'button' as const,
-    buttonSize: 'default' as const,
-    buttonVariant: 'default' as const,
+    mode: 'button',
+    buttonSize: 'default',
+    buttonVariant: 'default',
     lazyLoad: false,
-    emptyState: 'hide' as const,
+    emptyState: 'hide',
     autoExecute: true,
     defaultChildren: (
       <>
-        <Icon icon={PencilIcon} size="sm" />
+        <Icon icon={PencilIcon} />
         Update
       </>
     )
   },
 
   'update-secondary': {
-    mode: 'button' as const,
-    buttonSize: 'icon' as const,
-    buttonVariant: 'secondary' as const,
+    mode: 'button',
+    buttonSize: 'icon',
+    buttonVariant: 'secondary',
     lazyLoad: false,
-    emptyState: 'hide' as const,
+    emptyState: 'hide',
     autoExecute: true,
     defaultChildren: (
       <Button variant="secondary" size="icon">
-        <Icon icon={PencilIcon} size="sm" />
+        <Icon icon={PencilIcon} />
       </Button>
     )
   },
 
   'delete-primary': {
-    mode: 'button' as const,
-    buttonSize: 'default' as const,
-    buttonVariant: 'destructive' as const,
+    mode: 'button',
+    buttonSize: 'default',
+    buttonVariant: 'destructive',
     lazyLoad: false,
-    emptyState: 'hide' as const,
+    emptyState: 'hide',
     autoExecute: true,
     defaultChildren: (
       <>
-        <Icon icon={TrashIcon} size="sm" />
+        <Icon icon={TrashIcon} />
         Delete
       </>
     )
   },
 
   'delete-secondary': {
-    mode: 'button' as const,
-    buttonSize: 'icon' as const,
-    buttonVariant: 'destructive' as const,
+    mode: 'button',
+    buttonSize: 'icon',
+    buttonVariant: 'destructive',
     lazyLoad: false,
-    emptyState: 'hide' as const,
+    emptyState: 'hide',
     autoExecute: true,
     defaultChildren: (
       <Button variant="destructive" size="icon">
-        <Icon icon={TrashIcon} size="sm" />
+        <Icon icon={TrashIcon} />
       </Button>
     )
   }
@@ -288,7 +183,7 @@ const actionVariants = {
 const AppActionRenderer: React.FC<{
   mode: 'trigger' | 'button' | 'action-button'
   config: UseAppActionDataConfig
-  buttonSize?: 'default' | 'sm' | 'lg' | 'icon'
+  buttonSize?: 'default' | 'sm' | 'lg' | 'icon' | 'iconSm' | 'iconLg'
   buttonVariant?: 'default' | 'secondary' | 'destructive' | 'outline' | 'ghost' | 'link'
   disabled?: boolean
   className?: string
@@ -307,40 +202,27 @@ const AppActionRenderer: React.FC<{
   const dataTestIdPrefix =
     mode === 'trigger' ? 'AppActionTrigger' : mode === 'action-button' ? 'AppActionButton' : 'AppActionExecuteButton'
   const { combinedData, handleDeferredFetch, shouldShowLoading } = useAppActionData(forcedConfig, dataTestIdPrefix)
-
-  // Shared: Execute first action helper
   const executeFirstAction = useCallback(() => {
     if (combinedData[0]) {
       combinedData[0].onClick?.()
     }
   }, [combinedData])
 
-  // Shared: Standard click handler with stopPropagation
   const handleStandardClick = useCallback(
     (e: React.MouseEvent) => {
       e.stopPropagation()
       e.preventDefault()
-
       if (disabled) return
-
       handleDeferredFetch()
       executeFirstAction()
       onClick?.(e)
     },
     [disabled, handleDeferredFetch, executeFirstAction, onClick]
   )
-
-  // IMPORTANT: All hooks must be called unconditionally
-  // Note: autoExecute does NOT mean "execute on mount"
-  // It means "when clicked, execute immediately if single action, otherwise show menu"
-  // No useEffect needed - logic is handled in the button onClick and shouldShowMenu
-
-  // Shared: Empty state handling (must be after all hooks)
   if (config.emptyStateBehavior === 'hide' && combinedData.length === 0) {
     return null
   }
 
-  // Mode-specific rendering
   if (mode === 'trigger') {
     if (!children || !React.isValidElement(children)) {
       console.error('AppAction: mode="trigger" requires a valid React element as children')
@@ -378,7 +260,11 @@ const AppActionRenderer: React.FC<{
         actionsLoading={shouldShowLoading}
         emptyStateBehavior={config.emptyStateBehavior}
         onDropdownOpen={handleDropdownOpenInternal}
-        onClick={createStopPropagationHandler(onClick)}
+        onClick={e => {
+          e.stopPropagation()
+          e.preventDefault()
+          onClick?.(e)
+        }}
       >
         {children}
       </ActionButton>
@@ -389,14 +275,10 @@ const AppActionRenderer: React.FC<{
     const buttonTestId =
       customDataTestId || formatDataTestId(config.prefixDataTestId, 'AppActionExecuteButton', 'Button')
 
-    // Determine if we should show a menu:
-    // 1. Multiple actions available (always show menu)
-    // 2. Lazy loading (show menu with loading state on first click)
-    // 3. autoExecute is false AND at least one action (always show menu)
     const shouldShowMenu =
-      combinedData.length > 1 || // Multiple actions → always show menu
-      (config.deferMainContextRequestsUntilClick && combinedData.length === 0) || // Lazy loading
-      (!autoExecute && combinedData.length > 0) // autoExecute false + actions → show menu
+      combinedData.length > 1 ||
+      (config.deferMainContextRequestsUntilClick && combinedData.length === 0) ||
+      (!autoExecute && combinedData.length > 0)
 
     if (shouldShowMenu) {
       return (
@@ -416,7 +298,11 @@ const AppActionRenderer: React.FC<{
             disabled={disabled}
             className={props.className}
             data-testid={buttonTestId}
-            onClick={createStopPropagationHandler(onClick)}
+            onClick={e => {
+              e.stopPropagation()
+              e.preventDefault()
+              onClick?.(e)
+            }}
           >
             {children}
           </Button>
@@ -424,7 +310,6 @@ const AppActionRenderer: React.FC<{
       )
     }
 
-    // Single action with autoExecute: render button that executes it directly on click
     const isDisabled = disabled || (config.emptyStateBehavior === 'disable' && combinedData.length === 0)
 
     return (
@@ -451,51 +336,14 @@ const AppActionRenderer: React.FC<{
 /**
  * AppAction Component
  * Unified component for all action-related use cases
- *
- * @example
- * // Table row 3-dot menu
- * <AppAction
- *   variant="table-row"
- *   contextsArray={[FlowContextName.leadEntity]}
- *   externalContextData={{ leadId: record.id }}
- *   accessToken={accessToken}
- * />
- *
- * @example
- * // Record header ActionButton
- * <AppAction
- *   variant="header"
- *   contextsArray={[FlowContextName.leadEntity]}
- *   externalContextData={{ leadId }}
- *   accessToken={accessToken}
- * />
- *
- * @example
- * // Primary create button
- * <AppAction
- *   variant="create-primary"
- *   contextsArray={[FlowContextName.taskCreate]}
- *   accessToken={accessToken}
- * >
- *   <Button><Plus /> Add Task</Button>
- * </AppAction>
- *
- * @example
- * // Secondary create button (icon only)
- * <AppAction
- *   variant="create-secondary"
- *   contextsArray={[FlowContextName.taskCreate]}
- *   accessToken={accessToken}
- * />
  */
 export const AppAction: React.FC<AppActionProps> = React.memo(props => {
   const {
     variant = 'custom',
     mode: propMode,
-    // Handle deprecated props with fallbacks
-    lazyLoad: propLazyLoad = props.deferMainContextRequestsUntilClick,
-    autoExecute: propAutoExecute = props.autoExecuteSingleAction,
-    emptyState: propEmptyState = props.emptyStateBehavior,
+    lazyLoad: propLazyLoad,
+    autoExecute: propAutoExecute,
+    emptyState: propEmptyState,
     buttonSize: propButtonSize,
     buttonVariant: propButtonVariant,
     disabled,
@@ -509,25 +357,21 @@ export const AppAction: React.FC<AppActionProps> = React.memo(props => {
     contextsArray: legacyContextsArray,
     externalContextData: legacyExternalContextData,
     staticFlowData,
-    accessToken
+    accessToken,
+    deferMainContextRequestsUntilClick,
+    autoExecuteSingleAction,
+    emptyStateBehavior
   } = props
 
-  // Transform new 'contexts' format to legacy format for backward compatibility
   const { contextsArray, externalContextData } = React.useMemo(() => {
-    // If new 'contexts' prop is provided, use it
     if (contexts && contexts.length > 0) {
       const expandedContexts: (FlowContextName | string)[] = []
       const mergedData: Record<string, any> = {}
 
-      // Expand contexts: for each context with multiple contextData entries,
-      // add the context multiple times and merge all contextData
       contexts.forEach(({ context, contextData }) => {
-        // Add context once for each contextData entry
         contextData.forEach(() => {
           expandedContexts.push(context)
         })
-
-        // Merge all contextData objects into one
         contextData.forEach(data => {
           Object.assign(mergedData, data)
         })
@@ -539,35 +383,29 @@ export const AppAction: React.FC<AppActionProps> = React.memo(props => {
       }
     }
 
-    // Otherwise fall back to legacy props
     return {
       contextsArray: legacyContextsArray,
       externalContextData: legacyExternalContextData
     }
   }, [contexts, legacyContextsArray, legacyExternalContextData])
 
-  // Get variant configuration
   const variantConfig = variant !== 'custom' ? actionVariants[variant as keyof typeof actionVariants] : null
 
-  // Resolve final values (props override variant defaults)
-  const mode = propMode ?? variantConfig?.mode ?? 'action-button'
-  const lazyLoad = propLazyLoad ?? variantConfig?.lazyLoad ?? false
-  const autoExecute = propAutoExecute ?? variantConfig?.autoExecute ?? false
+  const mode = propMode ?? variantConfig?.mode ?? 'trigger'
+  const lazyLoad = propLazyLoad ?? deferMainContextRequestsUntilClick ?? variantConfig?.lazyLoad ?? false
+  const autoExecute = propAutoExecute ?? autoExecuteSingleAction ?? variantConfig?.autoExecute ?? false
   const buttonSize = propButtonSize ?? variantConfig?.buttonSize
   const buttonVariant =
     propButtonVariant ?? (variantConfig && 'buttonVariant' in variantConfig ? variantConfig.buttonVariant : undefined)
 
-  // Smart children resolution with automatic icon prepending for primary variants
   let children: React.ReactNode
   if (propChildren) {
-    // User provided children - check if we should prepend icon for primary variants
     const isPrimaryVariant =
       variant === 'create-primary' || variant === 'update-primary' || variant === 'delete-primary'
     const isTextChildren =
       typeof propChildren === 'string' || (React.isValidElement(propChildren) && typeof propChildren.type === 'string')
 
     if (isPrimaryVariant && isTextChildren) {
-      // Prepend icon for text children in primary variants (Button handles spacing automatically)
       const IconComponent =
         variant === 'create-primary' ? PlusIcon : variant === 'update-primary' ? PencilIcon : TrashIcon
       children = (
@@ -580,49 +418,36 @@ export const AppAction: React.FC<AppActionProps> = React.memo(props => {
       children = propChildren
     }
   } else {
-    // No children provided - use default from variant
     children = variantConfig && 'defaultChildren' in variantConfig ? variantConfig.defaultChildren : undefined
   }
 
-  // IMPORTANT: When lazyLoad is true, emptyState MUST be 'enable'
-  const emptyState = lazyLoad ? 'enable' : (propEmptyState ?? variantConfig?.emptyState ?? 'disable')
+  const finalEmptyState = lazyLoad
+    ? 'enable'
+    : (propEmptyState ?? emptyStateBehavior ?? variantConfig?.emptyState ?? 'disable')
 
   // Development warnings for deprecated props
   if (process.env.NODE_ENV === 'development') {
-    if (props.deferMainContextRequestsUntilClick !== undefined) {
+    if (deferMainContextRequestsUntilClick !== undefined) {
       console.warn('AppAction: "deferMainContextRequestsUntilClick" is deprecated. Use "lazyLoad" instead.')
     }
-    if (props.emptyStateBehavior !== undefined) {
+    if (emptyStateBehavior !== undefined) {
       console.warn('AppAction: "emptyStateBehavior" is deprecated. Use "emptyState" instead.')
     }
-    if (props.autoExecuteSingleAction !== undefined) {
+    if (autoExecuteSingleAction !== undefined) {
       console.warn('AppAction: "autoExecuteSingleAction" is deprecated. Use "autoExecute" instead.')
-    }
-    // Warn if user explicitly sets emptyState when lazyLoad is enabled
-    if (lazyLoad && propEmptyState && propEmptyState !== 'enable') {
-      console.warn(
-        `AppAction: When "lazyLoad" is true, "emptyState" is forced to "enable". ` +
-          `Your setting of "${propEmptyState}" is ignored.`
-      )
     }
   }
 
-  // Build configuration for useAppActionData
   const config: UseAppActionDataConfig = {
     contextsArray: contextsArray as FlowContextName[],
     externalContextData,
     staticFlowData,
     accessToken,
     prefixDataTestId,
-    emptyStateBehavior: emptyState,
+    emptyStateBehavior: finalEmptyState,
     deferMainContextRequestsUntilClick: lazyLoad
   }
 
-  // Special handling for table-row and list-item variants (auto stopPropagation)
-  const enhancedOnClick =
-    variant === 'table-row' || variant === 'list-item' ? createStopPropagationHandler(onClick) : onClick
-
-  // Unified rendering via AppActionRenderer
   return (
     <AppActionRenderer
       mode={mode}
@@ -631,7 +456,15 @@ export const AppAction: React.FC<AppActionProps> = React.memo(props => {
       buttonVariant={buttonVariant}
       disabled={disabled}
       className={className}
-      onClick={enhancedOnClick}
+      onClick={
+        variant === 'table-row' || variant === 'list-item'
+          ? e => {
+              e.stopPropagation()
+              e.preventDefault()
+              onClick?.(e)
+            }
+          : onClick
+      }
       onDropdownOpen={onDropdownOpen}
       autoExecute={autoExecute}
       data-testid={customDataTestId}

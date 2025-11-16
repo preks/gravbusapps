@@ -1,6 +1,6 @@
 import React, { useState } from 'react'
 import { BusinessAppContextProps } from '@/common/BusinessAppContext'
-import { AppAction } from '@/components/app-action/AppAction.new'
+import { AppAction } from '@/components/app-action/AppAction'
 import { FlowContextName } from '@/common/types/FlowRegistryTypes'
 import {
   Card,
