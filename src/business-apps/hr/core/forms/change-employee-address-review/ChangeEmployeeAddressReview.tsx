@@ -267,14 +267,20 @@ export const ChangeEmployeeAddressReview: React.FC<BusinessAppContextProps> = ({
   const oldDoc = String((oldAddr as any)?.employeeDocument ?? '').trim()
   const newDoc = String((newAddr as any)?.employeeDocument ?? '').trim()
   if (oldDoc !== '' || newDoc !== '') {
+    const oldDisplay =
+      docNameMap[oldDoc] ||
+      (oldDoc ? getTranslationFromI18nKeyAndLabel('lowcoder:review_forms.old_attachment_text', 'Old Attachment') : '')
+    const newDisplay =
+      docNameMap[newDoc] ||
+      (newDoc ? getTranslationFromI18nKeyAndLabel('lowcoder:review_forms.new_attachment_text', 'New Attachment') : '')
     rows.push({
       key: 'employeeDocument',
       label: getTranslationFromI18nKeyAndLabel(
         'lowcoder:employee_profile.details_layout.address_container.attachment',
         'Attachment'
       ),
-      oldValue: docNameMap[oldDoc] || oldDoc,
-      newValue: docNameMap[newDoc] || newDoc
+      oldValue: oldDisplay,
+      newValue: newDisplay
     })
   }
   const titleText = getTranslationFromI18nKeyAndLabel(

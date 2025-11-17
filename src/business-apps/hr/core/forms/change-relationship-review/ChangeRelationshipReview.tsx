@@ -196,14 +196,20 @@ export const ChangeRelationshipReview: React.FC<BusinessAppContextProps> = ({
   const oldDoc = String((oldRel as any)?.relationshipDocument ?? '').trim()
   const newDoc = String((newRel as any)?.relationshipDocument ?? '').trim()
   if (oldDoc !== '' || newDoc !== '') {
+    const oldDisplay =
+      docNameMap[oldDoc] ||
+      (oldDoc ? getTranslationFromI18nKeyAndLabel('lowcoder:review_forms.old_attachment_text', 'Old Attachment') : '')
+    const newDisplay =
+      docNameMap[newDoc] ||
+      (newDoc ? getTranslationFromI18nKeyAndLabel('lowcoder:review_forms.new_attachment_text', 'New Attachment') : '')
     rows.push({
       key: 'relationshipDocument',
       label: getTranslationFromI18nKeyAndLabel(
         'lowcoder:employee_profile.details_layout.address_container.attachment',
         'Attachment'
       ),
-      oldValue: docNameMap[oldDoc] || oldDoc,
-      newValue: docNameMap[newDoc] || newDoc
+      oldValue: oldDisplay,
+      newValue: newDisplay
     })
   }
 
