@@ -1,5 +1,5 @@
 import React from 'react'
-import { StatusProgression as SharedStatusProgression } from '@/components/status-progression'
+import { StatusProgression as SharedStatusProgression } from '@/components/status-progression/StatusProgression'
 import type { ReferenceData } from '../types'
 import { FlowContextName } from '@/common/types/FlowRegistryTypes'
 
