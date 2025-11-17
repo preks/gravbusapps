@@ -50,6 +50,9 @@ export const PositionFormFields: React.FC<PositionFormFieldsProps> = ({
 
   return (
     <>
+      {(() => {
+        return null
+      })()}
       <ExpenseGroupField
         index={index}
         value={position.expenseGroup}
@@ -80,7 +83,7 @@ export const PositionFormFields: React.FC<PositionFormFieldsProps> = ({
       <AmountField
         index={index}
         amountValue={position.amount}
-        currencyValue={position.currency}
+        currencyValue={form.getFieldValue('currency')}
         currencies={currencies}
         isProcessingFiles={isProcessingFiles}
         form={form}
@@ -91,15 +94,18 @@ export const PositionFormFields: React.FC<PositionFormFieldsProps> = ({
 
       <CostCenterField
         index={index}
-        value={position.costCenter}
+        value={form.getFieldValue(`costCenter-${index}`) ?? position.costCenter}
         costCenters={costCenters}
         isProcessingFiles={isProcessingFiles}
-        onChange={value => updatePosition({ costCenter: value })}
+        onChange={value => {
+          updatePosition({ costCenter: value })
+          form.setFieldsValue({ [`costCenter-${index}`]: value })
+        }}
       />
 
       <ReimbursableField
         index={index}
-        value={position.isReimbursable}
+        value={position.isReimbursable ?? false}
         isProcessingFiles={isProcessingFiles}
         onChange={value => updatePosition({ isReimbursable: value })}
       />
