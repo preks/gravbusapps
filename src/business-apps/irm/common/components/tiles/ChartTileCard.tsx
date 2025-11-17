@@ -1,6 +1,6 @@
 import React from 'react'
 import { Card, CardHeader, CardTitle, CardContent, Button } from '@newwork/nw-design-system'
-import { Pencil, Trash2, PieChart, BarChart3, LineChart } from 'lucide-react'
+import { Edit, Trash2, PieChart, BarChart3, LineChart } from 'lucide-react'
 import {
   PieChart as RechartsPieChart,
   Pie,
@@ -19,7 +19,6 @@ import { TileData, CHART_TYPES } from '../../types/tileTypes'
 import { AppAction } from '@/components/app-action'
 import { FlowContextName } from '@/common/types/FlowRegistryTypes'
 import { getTranslationFromI18nKeyAndLabel } from '@/common/utils/windowUtils'
-import { formatDataTestId } from '@/common/utils/formatDataTestId'
 import { BusinessAppContextProps } from '@/common/BusinessAppContext'
 
 export interface ChartTileCardProps extends BusinessAppContextProps {
@@ -107,11 +106,10 @@ export const ChartTileCard: React.FC<ChartTileCardProps> = ({ tile, investmentId
       )
     }
 
-    // Combine X and Y axis data for the chart
+    // X-axis provides labels, Y-axis provides bar heights
     const combinedData = chartData.barData.xAxis.map((xItem, index) => ({
       name: xItem.name,
-      xValue: xItem.amount,
-      yValue: chartData.barData!.yAxis[index]?.amount || 0
+      value: chartData.barData!.yAxis[index]?.amount || 0
     }))
 
     return (
@@ -122,8 +120,7 @@ export const ChartTileCard: React.FC<ChartTileCardProps> = ({ tile, investmentId
             <YAxis stroke="var(--nw-color-muted-foreground)" />
             <Tooltip />
             <Legend />
-            <Bar dataKey="xValue" fill={CHART_COLORS[0]} name="X-Axis" radius={[4, 4, 0, 0]} />
-            <Bar dataKey="yValue" fill={CHART_COLORS[1]} name="Y-Axis" radius={[4, 4, 0, 0]} />
+            <Bar dataKey="value" fill={CHART_COLORS[0]} name="Value" radius={[4, 4, 0, 0]} />
           </RechartsBarChart>
         </ResponsiveContainer>
       </div>
@@ -139,11 +136,10 @@ export const ChartTileCard: React.FC<ChartTileCardProps> = ({ tile, investmentId
       )
     }
 
-    // Combine X and Y axis data for the chart
+    // X-axis provides labels, Y-axis provides line values
     const combinedData = chartData.lineData.xAxis.map((xItem, index) => ({
       name: xItem.name,
-      xValue: xItem.amount,
-      yValue: chartData.lineData!.yAxis[index]?.amount || 0
+      value: chartData.lineData!.yAxis[index]?.amount || 0
     }))
 
     return (
@@ -156,20 +152,11 @@ export const ChartTileCard: React.FC<ChartTileCardProps> = ({ tile, investmentId
             <Legend />
             <Line
               type="monotone"
-              dataKey="xValue"
+              dataKey="value"
               stroke={CHART_COLORS[0]}
-              name="X-Axis"
+              name="Value"
               strokeWidth={3}
               dot={{ fill: CHART_COLORS[0], r: 4 }}
-              activeDot={{ r: 6 }}
-            />
-            <Line
-              type="monotone"
-              dataKey="yValue"
-              stroke={CHART_COLORS[1]}
-              name="Y-Axis"
-              strokeWidth={3}
-              dot={{ fill: CHART_COLORS[1], r: 4 }}
               activeDot={{ r: 6 }}
             />
           </RechartsLineChart>
@@ -205,43 +192,42 @@ export const ChartTileCard: React.FC<ChartTileCardProps> = ({ tile, investmentId
 
   return (
     <Card data-testid={`chart-tile-${tile.id}`} className="gba:border gba:shadow-sm">
-      <CardHeader className="gba:flex gba:flex-row gba:items-center gba:justify-between gba:space-y-0 gba:pb-4">
-        <div className="gba:flex gba:items-center gba:gap-2">
-          {getChartIcon()}
-          <CardTitle className="gba:text-lg gba:font-semibold" data-testid={`tile-title-${tile.id}`}>
-            {tile.title}
-          </CardTitle>
-        </div>
-        <div className="gba:flex gba:gap-2">
-          <AppAction
-            contextsArray={[FlowContextName.investmentKpiTilesUpdate]}
-            externalContextData={{
-              investmentId,
-              scope: 'chart',
-              tileId: tile.id
-            }}
-            accessToken={props.accessToken}
-            emptyStateBehavior="enable"
-            data-testid={formatDataTestId(`edit-chart-tile-${tile.id}`, 'action')}
-          >
-            <Button
-              variant="ghost"
-              size="icon"
-              data-testid={formatDataTestId(`edit-chart-tile-${tile.id}`, 'button')}
-              title={getTranslationFromI18nKeyAndLabel('common.edit', 'Edit')}
+      <CardHeader className="gba:pb-4">
+        <div className="gba:flex gba:justify-between gba:items-start">
+          <div className="gba:flex gba:items-center gba:gap-2">
+            {getChartIcon()}
+            <CardTitle className="gba:text-lg">{tile.title}</CardTitle>
+          </div>
+
+          {/* Action Buttons */}
+          <div className="gba:flex gba:gap-2">
+            {/* Edit Button - Opens popup via AppAction */}
+            <AppAction
+              contextsArray={[FlowContextName.investmentKpiTilesUpdate]}
+              externalContextData={{
+                investmentId,
+                scope: 'chart',
+                tileId: tile.id
+              }}
+              accessToken={props.accessToken}
+              emptyStateBehavior="hide"
+              data-testid={`edit-tile-action-${tile.id}`}
             >
-              <Pencil className="gba:h-4 gba:w-4" />
+              <Button size="icon" variant="ghost" data-testid={`edit-tile-button-${tile.id}`}>
+                <Edit className="gba:h-4 gba:w-4" />
+              </Button>
+            </AppAction>
+
+            {/* Delete Button */}
+            <Button
+              size="icon"
+              variant="ghost"
+              data-testid={`delete-tile-button-${tile.id}`}
+              onClick={() => onDelete(tile.id)}
+            >
+              <Trash2 className="gba:h-4 gba:w-4 gba:text-destructive" />
             </Button>
-          </AppAction>
-          <Button
-            variant="ghost"
-            size="icon"
-            onClick={() => onDelete(tile.id)}
-            data-testid={formatDataTestId(`delete-chart-tile-${tile.id}`, 'button')}
-            title={getTranslationFromI18nKeyAndLabel('common.delete', 'Delete')}
-          >
-            <Trash2 className="gba:h-4 gba:w-4 gba:text-destructive" />
-          </Button>
+          </div>
         </div>
       </CardHeader>
       <CardContent>

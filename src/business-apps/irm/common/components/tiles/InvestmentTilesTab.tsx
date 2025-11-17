@@ -182,22 +182,46 @@ export const InvestmentTilesTab: React.FC<InvestmentTilesTabProps> = ({
 
   // Render tile based on type
   const renderTile = (tile: TileData) => {
+    // Check if table tile should span full width (4+ columns)
+    const isTableWithManyColumns =
+      tile.type === TILE_TYPES.TABLE && tile.tableData && tile.tableData.columns.length >= 4
+
+    const wrapperClass = isTableWithManyColumns ? 'gba:lg:col-span-2' : ''
+
+    let tileComponent
     switch (tile.type) {
       case TILE_TYPES.TEXT:
-        return <TextTileCard key={tile.id} tile={tile} investmentId={investmentId} onDelete={handleDelete} {...props} />
+        tileComponent = (
+          <TextTileCard key={tile.id} tile={tile} investmentId={investmentId} onDelete={handleDelete} {...props} />
+        )
+        break
       case TILE_TYPES.KPI:
-        return <KpiTileCard key={tile.id} tile={tile} investmentId={investmentId} onDelete={handleDelete} {...props} />
+        tileComponent = (
+          <KpiTileCard key={tile.id} tile={tile} investmentId={investmentId} onDelete={handleDelete} {...props} />
+        )
+        break
       case TILE_TYPES.TABLE:
-        return (
+        tileComponent = (
           <TableTileCard key={tile.id} tile={tile} investmentId={investmentId} onDelete={handleDelete} {...props} />
         )
+        break
       case TILE_TYPES.CHART:
-        return (
+        tileComponent = (
           <ChartTileCard key={tile.id} tile={tile} investmentId={investmentId} onDelete={handleDelete} {...props} />
         )
+        break
       default:
         return null
     }
+
+    // Wrap in div with conditional class for wide tables
+    return wrapperClass ? (
+      <div key={tile.id} className={wrapperClass}>
+        {tileComponent}
+      </div>
+    ) : (
+      tileComponent
+    )
   }
 
   return (
