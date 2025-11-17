@@ -280,20 +280,6 @@ const ChangeEmployeeAddressContent: React.FC<BusinessAppContextProps> = ({ acces
                 addresses
               })
             }
-            console.log(
-              'da',
-              buildUpdatePayload({
-                employeeId,
-                employeeDocumentId: values.employeeDocumentId || null,
-                lines,
-                postalCode: values.postalCode,
-                city: values.city,
-                regionId: values.regionId,
-                countryId: values.countryId,
-                comment: values.comment,
-                selected
-              })
-            )
             return buildUpdatePayload({
               employeeId,
               employeeDocumentId: values.employeeDocumentId || null,
