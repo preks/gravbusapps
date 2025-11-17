@@ -213,12 +213,17 @@ export const calculateAbsenceStatistics = (
   }
 }
 
+import { getCurrentActiveUserLocale } from '@/common/utils/windowUtils'
+
 export const generateChartData = (
   absenceData: AbsenceRecord[],
   balanceData: AbsenceBalance[],
   absenceGroups: AbsenceGroup[]
 ): AbsenceChartData => {
-  const months = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec']
+  const locale = getCurrentActiveUserLocale() || 'en-US'
+  const months = Array.from({ length: 12 }, (_, i) =>
+    new Date(2000, i, 1).toLocaleString(locale, { month: 'short' })
+  )
 
   // Create dynamic monthly usage by group
   const monthlyMap = new Map<string, Record<string, number>>()

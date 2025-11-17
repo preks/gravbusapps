@@ -1,7 +1,6 @@
 import React, { useMemo } from 'react'
 import { Typography } from 'antd'
-import { SectionKpiCards, KpiCardData } from '@newwork/nw-design-system'
-import { getTranslationFromI18nKeyAndLabel } from '@/common/utils/windowUtils'
+import { SectionKpiCards, KpiCardData, useTranslation } from '@newwork/nw-design-system'
 import { BusinessAppContextProps } from '@/common/BusinessAppContext'
 import { WorkingConditionKpi } from '../../../../../hooks/useWorkingConditionForecast'
 import { useWorkingConditionForecast } from '../../../../../hooks/useWorkingConditionForecast'
@@ -11,6 +10,7 @@ import SalaryForecastChart from '../SalaryForecastChart'
 import SalaryChangesChart from '../SalaryChangesChart'
 import DepartmentSalaryStackedBarChart from '../DepartmentSalaryStackedBarChart'
 import DepartmentContributionAnalysis from '../DepartmentContributionAnalysis'
+import hrTranslations from '@/business-apps/hr/core/apps/human-resources/_i18n'
 
 const { Title, Text } = Typography
 
@@ -20,6 +20,7 @@ interface SalaryForecastingProps extends BusinessAppContextProps {
 
 export const SalaryForecasting: React.FC<SalaryForecastingProps> = props => {
   const { prefixDataTestId = 'SalaryForecasting' } = props
+  const { t } = useTranslation(hrTranslations)
   const kpiData = useWorkingConditionForecast(props)
   const { loading: payrollLoading } = useTotalPayroll(props.accessToken)
   const year = new Date().getFullYear()
@@ -34,29 +35,29 @@ export const SalaryForecasting: React.FC<SalaryForecastingProps> = props => {
       return [
         {
           id: 'total-annual-payroll',
-          title: getTranslationFromI18nKeyAndLabel('forecasting_kpi_total_annual_payroll', 'Total Annual Payroll'),
-          value: 'Loading...',
+          title: t('hr-analytics-forecasting-kpi-total-annual-payroll'),
+          value: t('hr-data-filter-loading'),
           icon: 'users',
           iconColor: 'var(--nw-chart-1)'
         },
         {
           id: 'total-monthly-salary',
-          title: getTranslationFromI18nKeyAndLabel('forecasting_kpi_total_salary', 'Total Monthly Salary'),
-          value: 'Loading...',
+          title: t('hr-analytics-forecasting-kpi-total-monthly-salary'),
+          value: t('hr-data-filter-loading'),
           icon: 'users',
           iconColor: 'var(--nw-chart-2)'
         },
         {
           id: 'next-month-forecast',
-          title: getTranslationFromI18nKeyAndLabel('forecasting_kpi_next_month_forecast', 'Next Month Forecast'),
-          value: 'Loading...',
+          title: t('hr-analytics-forecasting-kpi-next-month-forecast'),
+          value: t('hr-data-filter-loading'),
           icon: 'calendar',
           iconColor: 'var(--nw-chart-3)'
         },
         {
           id: 'six-month-forecast',
-          title: getTranslationFromI18nKeyAndLabel('forecasting_kpi_six_month_forecast', '6-Month Forecast'),
-          value: 'Loading...',
+          title: t('hr-analytics-forecasting-kpi-six-month-forecast'),
+          value: t('hr-data-filter-loading'),
           icon: 'calendar',
           iconColor: 'var(--nw-chart-4)'
         }
@@ -92,35 +93,35 @@ export const SalaryForecasting: React.FC<SalaryForecastingProps> = props => {
     return [
       {
         id: 'total-annual-payroll',
-        title: getTranslationFromI18nKeyAndLabel('forecasting_kpi_total_annual_payroll', 'Total Annual Payroll'),
+        title: t('hr-analytics-forecasting-kpi-total-annual-payroll'),
         value: activeEmployees.length === 0 ? '-' : `${formatSalary(totalAnnualSalary)} ${currencyCode}`,
         icon: 'users',
         iconColor: 'var(--nw-chart-1)',
-        footer: 'Annual employee compensation'
+        footer: t('hr-analytics-annual-employee-compensation')
       },
       {
         id: 'total-monthly-salary',
-        title: getTranslationFromI18nKeyAndLabel('forecasting_kpi_total_salary', 'Total Monthly Salary'),
+        title: t('hr-analytics-forecasting-kpi-total-monthly-salary'),
         value: activeEmployees.length === 0 ? '-' : `${formatSalary(totalMonthlySalary)} ${currencyCode}`,
         icon: 'users',
         iconColor: 'var(--nw-chart-2)',
-        footer: 'Current monthly payroll'
+        footer: t('hr-analytics-current-monthly-payroll')
       },
       {
         id: 'next-month-forecast',
-        title: getTranslationFromI18nKeyAndLabel('forecasting_kpi_next_month_forecast', 'Next Month Forecast'),
+        title: t('hr-analytics-forecasting-kpi-next-month-forecast'),
         value: activeEmployees.length === 0 ? '-' : `${formatSalary(nextMonthForecast)} ${currencyCode}`,
         icon: 'calendar',
         iconColor: 'var(--nw-chart-3)',
-        footer: 'Projected monthly payroll'
+        footer: t('hr-analytics-projected-monthly-payroll')
       },
       {
         id: 'six-month-forecast',
-        title: getTranslationFromI18nKeyAndLabel('forecasting_kpi_six_month_forecast', '6-Month Forecast'),
+        title: t('hr-analytics-forecasting-kpi-six-month-forecast'),
         value: activeEmployees.length === 0 ? '-' : `${formatSalary(sixMonthForecast)} ${currencyCode}`,
         icon: 'calendar',
         iconColor: 'var(--nw-chart-4)',
-        footer: 'Six-month projection'
+        footer: t('hr-analytics-six-month-projection')
       }
     ]
   }, [kpiData, payrollLoading])
@@ -130,14 +131,9 @@ export const SalaryForecasting: React.FC<SalaryForecastingProps> = props => {
       {/* Header */}
       <div className="gba:flex gba:justify-between gba:items-center">
         <div>
-          <Title level={4} className="gba:m-0 gba:text-foreground">
-            {getTranslationFromI18nKeyAndLabel('hr_analytics_salary_forecasting', 'Salary Forecasting')}
-          </Title>
+          <Title level={4} className="gba:m-0 gba:text-foreground">{t('hr-analytics-salary-forecasting')}</Title>
           <Text className="gba:text-muted-foreground">
-            {getTranslationFromI18nKeyAndLabel(
-              'hr_analytics_salary_forecasting_description',
-              'Salary trends, compensation projections, and payroll forecasting'
-            )}
+            {t('hr-analytics-salary-forecasting-description')}
           </Text>
         </div>
       </div>

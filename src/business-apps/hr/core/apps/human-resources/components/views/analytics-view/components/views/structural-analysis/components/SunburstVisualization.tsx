@@ -2,6 +2,8 @@ import React from 'react'
 import { Card, Typography } from 'antd'
 import { SunburstChart, ResponsiveContainer, Tooltip } from 'recharts'
 import { SunburstNode } from '../types/structuralTypes'
+import { useTranslation } from '@newwork/nw-design-system'
+import hrTranslations from '@/business-apps/hr/core/apps/human-resources/_i18n'
 
 const { Title, Text } = Typography
 
@@ -12,6 +14,7 @@ interface SunburstVisualizationProps {
 
 // Custom tooltip component for sunburst
 const SunburstTooltip: React.FC<any> = ({ active, payload }) => {
+  const { t } = useTranslation(hrTranslations)
   if (active && payload && payload.length > 0) {
     const data = payload[0]?.payload
 
@@ -21,15 +24,15 @@ const SunburstTooltip: React.FC<any> = ({ active, payload }) => {
     }
 
     // Extract the original name by removing the ID suffix
-    const displayName = data.name ? data.name.replace(/\s*\([^)]*\)$/, '') : 'Unknown'
+    const displayName = data.name ? data.name.replace(/\s*\([^)]*\)$/, '') : t('hr-analytics-none')
     const value = data.value || 0
     const companyName = data.companyName
 
     return (
       <div className="gba:bg-card gba:border gba:border-border gba:rounded gba:p-2 gba:shadow-sm">
         <p className="gba:m-0 gba:font-bold gba:text-foreground">{displayName}</p>
-        <p className="gba:m-0 gba:text-muted-foreground">Employees: {value}</p>
-        {companyName && <p className="gba:m-0 gba:text-muted-foreground">Company: {companyName}</p>}
+        <p className="gba:m-0 gba:text-muted-foreground">{t('hr-analytics-employees')}: {value}</p>
+        {companyName && <p className="gba:m-0 gba:text-muted-foreground">{t('hr-analytics-company')}: {companyName}</p>}
       </div>
     )
   }
@@ -72,6 +75,7 @@ export const SunburstVisualization: React.FC<SunburstVisualizationProps> = ({
   data,
   prefixDataTestId = 'StructuralAnalysis'
 }) => {
+  const { t } = useTranslation(hrTranslations)
   // Enhanced data validation
   const hasValidData = data && typeof data === 'object' && data.name && typeof data.value === 'number' && data.value > 0
 
@@ -82,11 +86,10 @@ export const SunburstVisualization: React.FC<SunburstVisualizationProps> = ({
     <Card data-testid={`${prefixDataTestId}-SunburstVisualization`} className="gba:h-[600px]">
       <div className="gba:p-4 gba:border-b">
         <Title level={4} className="gba:m-0 gba:text-foreground">
-          Organizational Hierarchy Sunburst
+          {t('hr-analytics-organizational-hierarchy-sunburst')}
         </Title>
         <Text className="gba:text-muted-foreground gba:text-sm gba:mt-1">
-          Interactive hierarchical visualization showing organizational depth and structure distribution across
-          different levels
+          {t('hr-analytics-sunburst-description')}
         </Text>
       </div>
 
@@ -111,12 +114,10 @@ export const SunburstVisualization: React.FC<SunburstVisualizationProps> = ({
           <div className="gba:flex gba:flex-col gba:justify-center gba:items-center gba:h-96 gba:text-muted-foreground">
             <div className="gba:text-4xl gba:mb-4 gba:text-muted">📊</div>
             <div className="gba:text-lg gba:font-semibold gba:mb-2 gba:text-foreground">
-              No Organizational Hierarchy Data
+              {t('hr-analytics-no-organizational-hierarchy-data')}
             </div>
             <div className="gba:text-sm gba:text-center gba:leading-6 gba:text-muted-foreground">
-              The organizational hierarchy data is either empty or still loading.
-              <br />
-              Please ensure your structure has organizational units with relationships.
+              {t('hr-analytics-data-empty-instruction')}
             </div>
           </div>
         )}

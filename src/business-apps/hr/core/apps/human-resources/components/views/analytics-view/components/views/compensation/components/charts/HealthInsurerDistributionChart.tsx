@@ -3,7 +3,8 @@ import { Typography, Spin, Empty } from 'antd'
 import { PieChart, Pie, Cell, ResponsiveContainer, Tooltip, Legend } from 'recharts'
 import { useHealthInsuranceDistribution } from '../../../../../hooks/useHealthInsuranceDistribution'
 import { BusinessAppContextProps } from '@/common/BusinessAppContext'
-import { getTranslationFromI18nKeyAndLabel } from '@/common/utils/windowUtils'
+import { useTranslation } from '@newwork/nw-design-system'
+import hrTranslations from '@/business-apps/hr/core/apps/human-resources/_i18n'
 
 const { Title, Text } = Typography
 
@@ -12,6 +13,7 @@ const { Title, Text } = Typography
  */
 export const HealthInsurerDistributionChart: React.FC<BusinessAppContextProps> = ({ accessToken }) => {
   const { distribution: data, loading, error } = useHealthInsuranceDistribution(accessToken)
+  const { t } = useTranslation(hrTranslations)
 
   // Chart color palette using design system tokens - cycle through 8 colors
   const COLORS = [
@@ -60,13 +62,10 @@ export const HealthInsurerDistributionChart: React.FC<BusinessAppContextProps> =
       {/* Header */}
       <div className="gba:mb-4">
         <Title level={4} className="gba:m-0 gba:text-foreground">
-          {getTranslationFromI18nKeyAndLabel('hr_analytics_health_insurer_distribution', 'Health Insurer Distribution')}
+          {t('hr-analytics-health-insurer-distribution')}
         </Title>
         <Text className="gba:text-muted-foreground gba:text-sm gba:mt-1">
-          {getTranslationFromI18nKeyAndLabel(
-            'hr_analytics_health_insurer_distribution_description',
-            'Distribution of employees across different health insurance providers showing coverage preferences and provider market share'
-          )}
+          {t('hr-analytics-health-insurer-distribution-description')}
         </Text>
       </div>
 
@@ -78,12 +77,12 @@ export const HealthInsurerDistributionChart: React.FC<BusinessAppContextProps> =
       ) : error ? (
         <div className="gba:flex gba:justify-center gba:items-center gba:h-96">
           <Text type="danger">
-            {getTranslationFromI18nKeyAndLabel('hr_analytics_error_loading_data', 'Error loading health insurer data')}
+            {t('hr-analytics-error-loading')}
           </Text>
         </div>
       ) : !data || data.length === 0 ? (
         <div className="gba:flex gba:justify-center gba:items-center gba:h-96">
-          <Empty description={getTranslationFromI18nKeyAndLabel('hr_analytics_no_data', 'No data available')} />
+          <Empty description={t('hr-analytics-no-data')} />
         </div>
       ) : (
         <div className="gba:h-96">
