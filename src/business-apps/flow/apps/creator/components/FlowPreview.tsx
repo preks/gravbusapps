@@ -44,10 +44,10 @@ export const FlowPreview: React.FC<FlowPreviewProps> = ({ template, 'data-testid
           }
         ]
 
-  // Calculate summary fields count from first step
+  // Calculate summary fields count from template level
   const summaryFieldsCount = React.useMemo(() => {
-    return template.steps?.[0]?.summaryFields?.length || 0
-  }, [template.steps])
+    return template.summaryFields?.length || 0
+  }, [template.summaryFields])
 
   return (
     <Card className="gba:h-full" data-testid={testId}>

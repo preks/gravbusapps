@@ -104,9 +104,6 @@ export interface FlowStep {
   inputs?: InputBlock[] // Legacy field for backward compatibility
   links?: Link[]
   assignment: TaskAssignment // Required to match backend API
-
-  // Summary fields (Step 0 only) - shown only in workflow summary view
-  summaryFields?: SummaryField[]
 }
 
 // Simplified init step for self-service flows
@@ -128,6 +125,10 @@ export interface FlowTemplate {
 
   // Self-service specific: simplified to just the init step
   initStep?: InitStep
+
+  // Flow-level summary fields - shown in workflow results view after completion
+  // Can contain forward references to any step (e.g., {{$steps.step_3.formData.result}})
+  summaryFields?: SummaryField[]
 }
 
 export interface ExecutionConfiguration {

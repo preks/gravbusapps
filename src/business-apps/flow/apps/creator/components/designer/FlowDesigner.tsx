@@ -25,7 +25,7 @@ import {
 } from '@newwork/nw-design-system'
 import { FileText, AlignLeft, Info } from 'lucide-react'
 import { FlowRenderer } from '@/business-apps/flow/common/components'
-import { FlowStep, FlowStepType, AssignmentMode } from '../../types/flowTemplate'
+import { FlowStep, FlowStepType, AssignmentMode, FlowTemplate as LocalFlowTemplate } from '../../types/flowTemplate'
 import { FlowTemplate } from '@/common/network/flows/FlowTemplateClient'
 import { useFlowTemplateClient } from '@/common/network/flows/useFlowTemplateClient'
 import { InputFieldsContent, InputFieldsTrigger } from '../steps/InputFieldsConfiguration'
@@ -89,11 +89,12 @@ export const FlowDesigner: React.FC<FlowDesignerProps> = ({
       setTemplateName(initialTemplate.name || '')
       setTemplateDescription(initialTemplate.description || '')
       setTemplateTags(initialTemplate.tags || {})
+      setSummaryFields((initialTemplate as any).summaryFields || [])
 
       // Update steps if they exist
       if (initialTemplate.steps && initialTemplate.steps.length > 0) {
         const newSteps = initialTemplate.steps.map(step => ({
-          ...step, // Preserve all fields including summaryFields
+          ...step,
           message: step.message || 'Describe the task to be performed.',
           dueInMinutes: step.dueInMinutes || 60,
           form: step.form || step.inputs || [],
@@ -133,11 +134,6 @@ export const FlowDesigner: React.FC<FlowDesignerProps> = ({
     return steps[selectedStepIndex] || steps[0]
   }, [isSummarySelected, selectedStepIndex, steps])
 
-  // Calculate summary fields count from step 0
-  const summaryFieldsCount = React.useMemo(() => {
-    return steps[0]?.summaryFields?.length || 0
-  }, [steps])
-
   // Handler for clicking the summary node
   const handleSelectSummary = () => {
     setIsSummarySelected(true)
@@ -158,6 +154,12 @@ export const FlowDesigner: React.FC<FlowDesignerProps> = ({
   const [templateName, setTemplateName] = React.useState<string>(initialTemplate?.name || '')
   const [templateDescription, setTemplateDescription] = React.useState<string>(initialTemplate?.description || '')
   const [templateTags, setTemplateTags] = React.useState<FlowTags>(initialTemplate?.tags || {})
+  const [summaryFields, setSummaryFields] = React.useState<any[]>((initialTemplate as any)?.summaryFields || [])
+
+  // Calculate summary fields count from template level
+  const summaryFieldsCount = React.useMemo(() => {
+    return summaryFields.length
+  }, [summaryFields])
 
   // Editing state
   const isEditMode = Boolean(initialTemplate?.id)
@@ -218,7 +220,7 @@ export const FlowDesigner: React.FC<FlowDesignerProps> = ({
     setSaveError(null)
 
     try {
-      const templateData: FlowTemplate = {
+      const templateData = {
         // Preserve the existing ID for edits (immutable ID)
         ...(isEditMode && initialTemplate?.id && { id: initialTemplate.id }),
         type: initialTemplate?.type || 'TEMPLATE',
@@ -226,26 +228,28 @@ export const FlowDesigner: React.FC<FlowDesignerProps> = ({
         description: templateDescription.trim(),
         version: initialTemplate?.version || 1,
         steps: steps.map(step => ({
-          ...step, // Preserve all fields including summaryFields
+          ...step,
           // Ensure form and inputs are properly set
           form: step.form || step.inputs || [],
           inputs: step.inputs || step.form || []
         })),
         // Include tags in the template
-        tags: Object.keys(templateTags).length > 0 ? templateTags : undefined
-      }
+        tags: Object.keys(templateTags).length > 0 ? templateTags : undefined,
+        // Include summary fields at template level
+        summaryFields: summaryFields.length > 0 ? summaryFields : undefined
+      } as LocalFlowTemplate
 
       if (onSave) {
-        // Use the provided onSave callback
-        await onSave(templateData)
+        // Use the provided onSave callback (cast to network type)
+        await onSave(templateData as FlowTemplate)
       } else {
-        // Direct API call
+        // Direct API call (cast to network type)
         if (isEditMode && initialTemplate?.id) {
           // Update existing template - ID remains immutable
-          await flowTemplateClient.updateTemplate(initialTemplate.id, templateData)
+          await flowTemplateClient.updateTemplate(initialTemplate.id, templateData as FlowTemplate)
         } else {
-          // Create new template - ID will be derived from name
-          await flowTemplateClient.createTemplate(templateData)
+          // Create new template - ID will be derived from name (cast to network type)
+          await flowTemplateClient.createTemplate(templateData as FlowTemplate)
         }
       }
     } catch (error) {
@@ -394,37 +398,29 @@ export const FlowDesigner: React.FC<FlowDesignerProps> = ({
                 <CardDescription>Configure fields to display in the workflow summary after completion</CardDescription>
               </CardHeader>
               <CardContent className="gba:h-[calc(75vh-80px)] gba:flex gba:flex-col">
-                {steps.length > 0 && steps[0] ? (
-                  <div className="gba:flex-1 gba:overflow-auto gba:pr-2 gba:pb-4">
-                    <SummaryFieldsConfiguration
-                      step={steps[0]}
-                      stepIndex={0}
-                      template={
-                        {
-                          type: initialTemplate?.type || 'TEMPLATE',
-                          name: initialTemplate?.name || templateName || 'Untitled',
-                          version: initialTemplate?.version || 1,
-                          description: initialTemplate?.description,
-                          id: initialTemplate?.id,
-                          initStep: initialTemplate?.initStep,
-                          steps: steps
-                        } as any
+                <div className="gba:flex-1 gba:overflow-auto gba:pr-2 gba:pb-4">
+                  <SummaryFieldsConfiguration
+                    template={
+                      {
+                        type: initialTemplate?.type || 'TEMPLATE',
+                        name: initialTemplate?.name || templateName || 'Untitled',
+                        version: initialTemplate?.version || 1,
+                        description: initialTemplate?.description,
+                        id: initialTemplate?.id,
+                        initStep: initialTemplate?.initStep,
+                        steps: steps,
+                        summaryFields: summaryFields
+                      } as any
+                    }
+                    context={{ accessToken, userInfo }}
+                    testId={`${testId}-summary`}
+                    onUpdateTemplate={updates => {
+                      if (updates.summaryFields !== undefined) {
+                        setSummaryFields(updates.summaryFields)
                       }
-                      context={{ accessToken, userInfo }}
-                      testId={`${testId}-summary`}
-                      onUpdateStep={updates => {
-                        setSteps(prev => prev.map((s, i) => (i === 0 ? { ...s, ...updates } : s)))
-                      }}
-                    />
-                  </div>
-                ) : (
-                  <div className="gba:flex-1 gba:flex gba:items-center gba:justify-center gba:text-gray-500">
-                    <div className="gba:text-center">
-                      <p>No steps available to configure summary fields.</p>
-                      <p className="gba:text-sm">Add at least one step to the workflow first.</p>
-                    </div>
-                  </div>
-                )}
+                    }}
+                  />
+                </div>
               </CardContent>
             </Card>
           )}

@@ -19,35 +19,31 @@ import {
   DialogTitle,
   DialogTrigger
 } from '@newwork/nw-design-system'
-import { GripVertical, Trash2, Eye, Globe, Users, User, AlertCircle, BarChart3, Info } from 'lucide-react'
-import { SummaryField, SummaryFieldVisibility, FlowStep, FlowTemplate } from '../../types/flowTemplate'
+import { GripVertical, Trash2, Eye, Globe, Users, User, BarChart3, Info } from 'lucide-react'
+import { SummaryField, SummaryFieldVisibility, FlowTemplate } from '../../types/flowTemplate'
 import { ExpressionInput } from '../shared/ExpressionInput'
 import { BusinessAppContextProps } from '@/common/BusinessAppContext'
 
 interface SummaryFieldsConfigurationProps {
-  step: FlowStep
-  stepIndex: number
-  template: FlowTemplate // For expression builder
+  template: FlowTemplate // Template for reading and updating summary fields
   context?: BusinessAppContextProps // For catalog fetching
   testId: string
-  onUpdateStep: (updates: Partial<FlowStep>) => void
+  onUpdateTemplate: (updates: Partial<FlowTemplate>) => void
 }
 
 /**
- * SummaryFieldsConfiguration - Editor for workflow summary fields (Step 0 only)
+ * SummaryFieldsConfiguration - Editor for workflow summary fields (Flow-level)
  *
  * Summary fields define what data is shown in the workflow summary view after completion.
- * They can contain forward references to later steps.
+ * They can contain forward references to any step in the workflow.
  */
 export const SummaryFieldsConfiguration: React.FC<SummaryFieldsConfigurationProps> = ({
-  step,
-  stepIndex,
   template,
   context,
   testId,
-  onUpdateStep
+  onUpdateTemplate
 }) => {
-  const summaryFields = step.summaryFields || []
+  const summaryFields = template.summaryFields || []
   const [draggedIndex, setDraggedIndex] = useState<number | null>(null)
 
   const handleAddField = () => {
@@ -59,7 +55,7 @@ export const SummaryFieldsConfiguration: React.FC<SummaryFieldsConfigurationProp
       type: 'text'
     }
 
-    onUpdateStep({
+    onUpdateTemplate({
       summaryFields: [...summaryFields, newField]
     })
   }
@@ -67,12 +63,12 @@ export const SummaryFieldsConfiguration: React.FC<SummaryFieldsConfigurationProp
   const handleUpdateField = (index: number, updates: Partial<SummaryField>) => {
     const updated = [...summaryFields]
     updated[index] = { ...updated[index], ...updates }
-    onUpdateStep({ summaryFields: updated })
+    onUpdateTemplate({ summaryFields: updated })
   }
 
   const handleRemoveField = (index: number) => {
     const updated = summaryFields.filter((_, i) => i !== index)
-    onUpdateStep({ summaryFields: updated })
+    onUpdateTemplate({ summaryFields: updated })
   }
 
   // Drag and drop handlers
@@ -95,24 +91,12 @@ export const SummaryFieldsConfiguration: React.FC<SummaryFieldsConfigurationProp
     const [draggedItem] = reordered.splice(draggedIndex, 1)
     reordered.splice(dropIndex, 0, draggedItem)
 
-    onUpdateStep({ summaryFields: reordered })
+    onUpdateTemplate({ summaryFields: reordered })
     setDraggedIndex(null)
   }
 
   const handleDragEnd = () => {
     setDraggedIndex(null)
-  }
-
-  // Check if expression references a future step
-  const isForwardReference = (value: string): boolean => {
-    const stepMatches = value.matchAll(/\$steps\.step_(\d+)/g)
-    for (const match of stepMatches) {
-      const referencedStep = parseInt(match[1])
-      if (referencedStep > 0) {
-        return true
-      }
-    }
-    return false
   }
 
   const getVisibilityIcon = (visibility: SummaryFieldVisibility) => {
@@ -246,7 +230,6 @@ export const SummaryFieldsConfiguration: React.FC<SummaryFieldsConfigurationProp
         ) : (
           summaryFields.map((field, index) => {
             const isDragging = draggedIndex === index
-            const hasForwardRef = isForwardReference(field.value)
 
             return (
               <Card
@@ -306,24 +289,13 @@ export const SummaryFieldsConfiguration: React.FC<SummaryFieldsConfigurationProp
                       mode="expression"
                       validateOnChange={true}
                       template={template}
-                      stepIndex={stepIndex}
+                      stepIndex={-1} // -1 indicates flow-level (can reference any step)
                       context={context}
                       useTreeBuilder={true}
                       placeholder="Click tree icon to build expression..."
                       data-testid={`${testId}-expression-${index}`}
                     />
                   </div>
-
-                  {/* Forward reference warning */}
-                  {hasForwardRef && (
-                    <Alert variant="default" className="gba:bg-yellow-50 gba:border-yellow-200">
-                      <AlertCircle className="gba:h-4 gba:w-4 gba:text-yellow-600" />
-                      <AlertDescription className="gba:text-xs gba:text-yellow-800">
-                        <strong>Forward reference detected.</strong> This field references data from a later step that
-                        will complete after Step 0.
-                      </AlertDescription>
-                    </Alert>
-                  )}
 
                   {/* Visibility and Type selectors */}
                   <div className="gba:grid gba:grid-cols-2 gba:gap-3">
@@ -416,9 +388,9 @@ export const SummaryFieldsConfiguration: React.FC<SummaryFieldsConfigurationProp
   )
 }
 
-// Export trigger component for accordion-style usage
-export const SummaryFieldsTrigger: React.FC<{ step: FlowStep }> = ({ step }) => {
-  const summaryFields = step.summaryFields || []
+// Export trigger component for accordion-style usage (Flow-level)
+export const SummaryFieldsTrigger: React.FC<{ template: FlowTemplate }> = ({ template }) => {
+  const summaryFields = template.summaryFields || []
 
   return (
     <div className="gba:flex gba:items-center gba:justify-between gba:w-full gba:pr-4">
