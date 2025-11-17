@@ -204,10 +204,7 @@ export const ChangeRelationshipReview: React.FC<BusinessAppContextProps> = ({
       (newDoc ? getTranslationFromI18nKeyAndLabel('lowcoder:review_forms.new_attachment_text', 'New Attachment') : '')
     rows.push({
       key: 'relationshipDocument',
-      label: getTranslationFromI18nKeyAndLabel(
-        'lowcoder:employee_profile.details_layout.address_container.attachment',
-        'Attachment'
-      ),
+      label: getTranslationFromI18nKeyAndLabel('lowcoder:review_forms.attachment_text', 'Attachment'),
       oldValue: oldDisplay,
       newValue: newDisplay
     })
