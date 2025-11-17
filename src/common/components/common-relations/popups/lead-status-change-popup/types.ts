@@ -1,5 +1,16 @@
 import { BusinessAppContextProps } from '@/common/BusinessAppContext'
 
+/**
+ * Base interface for lead data used in status change popup
+ * Supports both CRM CustomerLead and IRM InvestmentLead
+ */
+export interface BaseLeadData {
+  id: string
+  version: number | string
+  // Dynamic status field access (leadStatus, investmentLeadStatus, etc.)
+  [key: string]: any
+}
+
 export interface LeadStatusChangePopupConfig {
   translationPrefix: string
   entityKey: string
@@ -9,11 +20,10 @@ export interface LeadStatusChangePopupConfig {
     leadId: string,
     accessToken: string
   ) => {
-    lead: unknown
+    lead: BaseLeadData | null
     loading: boolean
     error: string | null
     refetch?: () => void
-    refetchLeadData?: () => void
   }
 }
 

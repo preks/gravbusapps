@@ -7,8 +7,6 @@ import { LeadStatusChangePopupProps } from './types'
 const LeadStatusChangePopup: React.FC<LeadStatusChangePopupProps> = props => {
   const { additionalData, accessToken, config } = props
 
-  console.log(`${config.testIdPrefix} - additionalData:`, JSON.stringify(additionalData, null, 2))
-
   // Extract data from additionalData, checking both top level and nested psi_taskPayload
   const taskPayload = additionalData?.psi_taskPayload?.psi_initialParameters
 
@@ -20,13 +18,6 @@ const LeadStatusChangePopup: React.FC<LeadStatusChangePopupProps> = props => {
   const newStatusRef = (additionalData?.newStatusRef || taskPayload?.newStatusRef) as string
   const statusDisplayName = (additionalData?.statusDisplayName || taskPayload?.statusDisplayName) as string
   const leadVersion = (additionalData?.leadVersion || taskPayload?.leadVersion) as number
-
-  console.log(`${config.testIdPrefix} - Extracted values:`, {
-    leadId,
-    newStatusRef,
-    statusDisplayName,
-    leadVersion
-  })
 
   // Use the configured hook
   const { lead, loading: isLoading, error } = config.useLeadDataHook(leadId, accessToken)
@@ -70,8 +61,6 @@ const LeadStatusChangePopup: React.FC<LeadStatusChangePopupProps> = props => {
         leadStatusRef: newStatusRef
       }
     }
-
-    console.log(`${config.testIdPrefix} - Payload:`, JSON.stringify(payload, null, 2))
 
     return payload
   }

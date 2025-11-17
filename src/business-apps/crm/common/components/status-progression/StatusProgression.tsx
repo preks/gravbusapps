@@ -1,6 +1,7 @@
 import React from 'react'
 import { AppAction } from '@/components/app-action/AppAction'
 import { FlowContextName } from '@/common/types/FlowRegistryTypes'
+import { getTranslationFromI18nKeyAndLabel } from '@/common/utils/windowUtils'
 
 export interface ReferenceData {
   code: string
@@ -21,6 +22,9 @@ export interface StatusProgressionProps {
   accessToken: string
   config: StatusProgressionConfig
 }
+
+// Constants for styling
+const TERMINAL_STATUS_PADDING = '0 12px 0 160px'
 
 interface StatusIndices {
   openIndex: number
@@ -184,10 +188,13 @@ const renderConvertedLostSection = (
                 display: 'flex',
                 alignItems: 'center',
                 gap: '6px',
-                padding: '0 12px 0 160px'
+                padding: TERMINAL_STATUS_PADDING
               }}
             >
-              <span style={{ fontSize: '13px' }}>{statuses[convertedIndex]?.value || 'Converted'}</span>
+              <span style={{ fontSize: '13px' }}>
+                {statuses[convertedIndex]?.value ||
+                  getTranslationFromI18nKeyAndLabel('common.status.converted', 'Converted')}
+              </span>
             </div>
           </div>
         </AppAction>
@@ -230,10 +237,12 @@ const renderConvertedLostSection = (
                 display: 'flex',
                 alignItems: 'center',
                 gap: '6px',
-                padding: '0 12px 0 160px'
+                padding: TERMINAL_STATUS_PADDING
               }}
             >
-              <span style={{ fontSize: '13px' }}>{statuses[lostIndex]?.value || 'Lost'}</span>
+              <span style={{ fontSize: '13px' }}>
+                {statuses[lostIndex]?.value || getTranslationFromI18nKeyAndLabel('common.status.lost', 'Lost')}
+              </span>
             </div>
           </div>
         </AppAction>
@@ -346,9 +355,10 @@ export const StatusProgression: React.FC<StatusProgressionProps> = ({
     return null
   }
 
-  const openIndex = statuses.findIndex(s => s.value.toLowerCase() === 'open')
-  const convertedIndex = statuses.findIndex(s => s.value.toLowerCase() === 'converted')
-  const lostIndex = statuses.findIndex(s => s.value.toLowerCase() === 'lost')
+  // Use status codes for matching instead of display values to support internationalization
+  const openIndex = statuses.findIndex(s => s.code.toLowerCase() === 'open')
+  const convertedIndex = statuses.findIndex(s => s.code.toLowerCase() === 'converted')
+  const lostIndex = statuses.findIndex(s => s.code.toLowerCase() === 'lost')
 
   const isOpen = currentIndex === openIndex
   const isConverted = currentIndex === convertedIndex
