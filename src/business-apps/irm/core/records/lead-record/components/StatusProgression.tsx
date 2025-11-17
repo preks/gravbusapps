@@ -16,7 +16,7 @@ export const StatusProgression: React.FC<StatusProgressionProps> = props => {
     <SharedStatusProgression
       {...props}
       config={{
-        flowContextName: FlowContextName.investmentSaveLead,
+        flowContextName: FlowContextName.investmentLeadStatusUpdate,
         statusReferencePrefix: 'InvestmentLeadStatus:v1:',
         testIdPrefix: 'investment-lead-status'
       }}

@@ -164,4 +164,5 @@ const LeadStatusChangePopup: React.FC<LeadStatusChangePopupProps> = props => {
 
 LeadStatusChangePopup.displayName = 'LeadStatusChangePopup'
 
+export { LeadStatusChangePopup }
 export default LeadStatusChangePopup
