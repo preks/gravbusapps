@@ -1,0 +1,393 @@
+import React, { useEffect } from 'react'
+import { useForm, useFieldArray } from 'react-hook-form'
+import { z } from 'zod'
+import { zodResolver } from '@hookform/resolvers/zod'
+import {
+  Form,
+  FormField,
+  FormItem,
+  FormLabel,
+  FormControl,
+  FormMessage,
+  Input,
+  Button,
+  Alert,
+  Spinner
+} from '@newwork/nw-design-system'
+import { Plus } from 'lucide-react'
+import { AppActionForm } from '@/components/app-action-form'
+import { useInvestmentPopupData } from '../hooks/useInvestmentPopupData'
+import { InvestmentLiquidityComponentProps, LiquidityFormData, LiquidityPreferenceItem } from '../types'
+import { getTranslationFromI18nKeyAndLabel } from '@/common/utils/windowUtils'
+import { buildInvestmentPayload } from '@/common/data/investment/payloads/investmentPayloads'
+import { formatDataTestId } from '@/common/utils/formatDataTestId'
+import {
+  extractInvestmentId,
+  parseAdditionalProperties,
+  validateInvestmentData,
+  INVESTMENT_ERRORS,
+  getInvestmentGroupType
+} from '../utils/investmentPopupUtils'
+
+const prefixDataTestId = 'investment-liquidity-component'
+
+// Validation schema
+const liquidityItemSchema = z.object({
+  id: z.string().optional(),
+  preference: z.string().min(1, 'Liquidity preference is required'),
+  interestMultiple: z.string().min(1, 'Interest/Multiple is required'),
+  amount: z.string().min(1, 'Amount is required')
+})
+
+const liquidityFormSchema = z.object({
+  liquidityPreferences: z.array(liquidityItemSchema)
+})
+
+export const InvestmentLiquidityComponent: React.FC<InvestmentLiquidityComponentProps> = ({
+  onClose,
+  onSave,
+  accessToken,
+  userInfo,
+  additionalData
+}) => {
+  const businessAppContext = { accessToken, userInfo, additionalData }
+
+  // Extract investmentId from multiple sources
+  const investmentId = extractInvestmentId(additionalData)
+
+  // Load investment data
+  const { investment, loading, error } = useInvestmentPopupData({
+    context: businessAppContext,
+    investmentId,
+    scope: 'status' // Use status scope as liquidity is not yet in the hook
+  })
+
+  // Initialize form
+  const form = useForm<LiquidityFormData>({
+    resolver: zodResolver(liquidityFormSchema),
+    defaultValues: {
+      liquidityPreferences: []
+    }
+  })
+
+  const { fields, append, remove } = useFieldArray({
+    control: form.control,
+    name: 'liquidityPreferences'
+  })
+
+  // Load existing liquidity preferences from additionalProperties
+  useEffect(() => {
+    if (investment) {
+      // Parse additionalProperties
+      const additionalProps = parseAdditionalProperties(investment.additionalProperties)
+
+      // Get liquidity preferences array from additionalProperties
+      const liquidityPreferences = additionalProps.liquidityPreferences || []
+
+      if (liquidityPreferences.length > 0) {
+        form.reset({
+          liquidityPreferences: liquidityPreferences.map((item: LiquidityPreferenceItem, index: number) => ({
+            id: `existing-${index}`, // Generate ID for tracking
+            preference: item.preference || '',
+            interestMultiple: item.interestMultiple || '',
+            amount: item.amount || ''
+          }))
+        })
+      } else {
+        // If no data, start with one empty row
+        form.reset({
+          liquidityPreferences: [
+            {
+              preference: '',
+              interestMultiple: '',
+              amount: ''
+            }
+          ]
+        })
+      }
+    }
+  }, [investment, form])
+
+  // Validation
+  if (!investmentId) {
+    return (
+      <Alert variant="destructive" data-testid={`${prefixDataTestId}-missing-investment-id`}>
+        {INVESTMENT_ERRORS.MISSING_ID()}
+      </Alert>
+    )
+  }
+
+  // Handle submission
+  const handleSubmit = async (formData: LiquidityFormData) => {
+    validateInvestmentData(investment)
+
+    // Get current additionalProperties
+    const currentAdditionalProps = parseAdditionalProperties(investment.additionalProperties)
+
+    // Update liquidity preferences array (remove the id field as it's only for UI tracking)
+    // eslint-disable-next-line @typescript-eslint/no-unused-vars
+    const updatedLiquidityPreferences = formData.liquidityPreferences.map(({ id: _id, ...item }) => item)
+
+    // Create updated additionalProperties
+    const updatedAdditionalProps = {
+      ...currentAdditionalProps,
+      liquidityPreferences: updatedLiquidityPreferences
+    }
+
+    // Determine investment group type
+    const groupType = getInvestmentGroupType(investment)
+
+    // Create investment form data with updated additionalProperties
+    const investmentFormData: any = {
+      investment: {
+        id: investmentId,
+        version: investment.version,
+        name: investment.name || '',
+        initialInvestmentAmount: investment.initialInvestmentAmount || 0,
+        investmentGroup: investment.investmentGroup, // Full object
+        ownerEmployee: investment.ownerEmployee, // Full object
+
+        // Include ALL existing investment fields to preserve them
+        code: investment.code,
+        isin: investment.isin,
+        investmentType: investment.investmentType, // Full object
+        investmentStakeType: investment.investmentStakeType, // Full object
+        investmentPhase: investment.investmentPhase, // Full object
+        investmentStatus: investment.investmentStatus, // Full object
+        investmentRiskLevel: investment.investmentRiskLevel, // Full object
+        acquisitionDate: investment.acquisitionDate,
+        planedExit: investment.planedExit,
+        plannedExitDate: investment.plannedExitDate,
+        exitDate: investment.exitDate,
+        totalInvestmentAmount: investment.totalInvestmentAmount,
+        investmentMarketValue: investment.investmentMarketValue,
+        debtFinancingAmount: investment.debtFinancingAmount,
+        requiredCapitalAmount: investment.requiredCapitalAmount,
+        forecastedRevenueAmount: investment.forecastedRevenueAmount,
+        forecastedProfitAmount: investment.forecastedProfitAmount,
+        stakePercentage: investment.stakePercentage,
+        loanRecipientName: investment.loanRecipientName,
+        loanAmount: investment.loanAmount,
+        loanOpenCommitmentAmount: investment.loanOpenCommitmentAmount,
+        loanInterestRate: investment.loanInterestRate,
+        loanStartDate: investment.loanStartDate,
+        loanEndDate: investment.loanEndDate,
+        loanInterestClaim: investment.loanInterestClaim,
+        totalCommitmentAmount: investment.totalCommitmentAmount,
+        totalDistributionAmount: investment.totalDistributionAmount,
+        currency: investment.currency, // Full object
+        fundManagerName: investment.fundManagerName,
+        identification: investment.identification,
+        investmentAccount: investment.investmentAccount, // Full object
+        investmentOpportunity: investment.investmentOpportunity?.id,
+        loanRecipientInvestmentAccount: investment.loanRecipientInvestmentAccount?.id,
+
+        // Updated field - additionalProperties with new liquidity preferences
+        additionalProperties: updatedAdditionalProps
+      }
+    }
+
+    // CRITICAL: Add the appropriate subtype based on investment group (required by API)
+    if (groupType === 'EQUITY') {
+      const existingEquity = Array.isArray((investment as any).equityInvestment)
+        ? (investment as any).equityInvestment[0]
+        : (investment as any).equityInvestment
+      investmentFormData.equityInvestment = existingEquity || {}
+    } else if (groupType === 'REAL_ESTATE') {
+      const existingRealEstate = Array.isArray((investment as any).realEstateInvestment)
+        ? (investment as any).realEstateInvestment[0]
+        : (investment as any).realEstateInvestment
+      investmentFormData.realEstateInvestment = existingRealEstate || {}
+    } else if (groupType === 'LIQUID_FUND') {
+      const existingLiquidFund = Array.isArray((investment as any).liquidFundInvestment)
+        ? (investment as any).liquidFundInvestment[0]
+        : (investment as any).liquidFundInvestment
+      investmentFormData.liquidFundInvestment = existingLiquidFund || {}
+    }
+
+    // Use the central payload builder with correct signature
+    const payload = buildInvestmentPayload(investmentFormData, businessAppContext, {
+      isUpdate: true,
+      rawInvestmentData: investment
+    })
+
+    // Add changeMode to the payload
+    ;(payload as any).changeMode = 'UPDATE'
+
+    return payload
+  }
+
+  // Success handler
+  const handleSuccess = () => {
+    onSave?.(form.getValues().liquidityPreferences)
+    onClose()
+  }
+
+  return (
+    <AppActionForm
+      form={form}
+      formData={form.getValues()}
+      processType="update"
+      submitButtonText={getTranslationFromI18nKeyAndLabel('investment.liquidity.save', 'Save Liquidity Preferences')}
+      onSubmit={handleSubmit}
+      onSuccess={handleSuccess}
+      businessAppContext={businessAppContext}
+      disableFormSubmission={loading}
+      data-testid={prefixDataTestId}
+    >
+      <Form {...form}>
+        <div className="gba:space-y-4" data-testid={`${prefixDataTestId}-content`}>
+          <div>
+            <h2 className="gba:text-lg gba:font-semibold gba:mb-2">
+              {getTranslationFromI18nKeyAndLabel('investment.liquidity.title', 'Manage Liquidity Preferences')}
+            </h2>
+            <p className="gba:text-sm gba:text-muted-foreground">
+              {getTranslationFromI18nKeyAndLabel(
+                'investment.liquidity.description',
+                'Define priority and terms for investment returns'
+              )}
+            </p>
+          </div>
+
+          {loading && (
+            <div className="gba:flex gba:items-center gba:gap-2">
+              <Spinner size="sm" />
+              <span className="gba:text-sm gba:text-muted-foreground">
+                {getTranslationFromI18nKeyAndLabel('investment.liquidity.loading', 'Loading...')}
+              </span>
+            </div>
+          )}
+
+          {error && <Alert variant="destructive">{error}</Alert>}
+
+          {/* Liquidity Preferences List */}
+          <div className="gba:space-y-4">
+            {fields.map((field, index) => (
+              <div
+                key={field.id}
+                className="gba:border gba:border-border gba:rounded-lg gba:p-4 gba:space-y-4"
+                data-testid={formatDataTestId(prefixDataTestId, `Row-${index}`)}
+              >
+                {/* Top Row: Liquidity Preference */}
+                <FormField
+                  control={form.control}
+                  name={`liquidityPreferences.${index}.preference`}
+                  render={({ field }) => (
+                    <FormItem>
+                      {/* Label and Delete Button Row */}
+                      <div className="gba:flex gba:items-center gba:justify-between gba:mb-2">
+                        <FormLabel>
+                          {getTranslationFromI18nKeyAndLabel(
+                            'investment.liquidity.field.preference',
+                            'Liquidity Preference'
+                          )}{' '}
+                          <span className="gba:text-destructive">*</span>
+                        </FormLabel>
+
+                        {/* Delete Button */}
+                        <button
+                          type="button"
+                          onClick={() => remove(index)}
+                          data-testid={formatDataTestId(prefixDataTestId, `RemoveButton-${index}`)}
+                          className="gba:text-destructive gba:hover:text-destructive gba:text-xl gba:font-bold gba:cursor-pointer gba:bg-transparent gba:border-none gba:p-0"
+                          aria-label="Remove liquidity preference"
+                        >
+                          ×
+                        </button>
+                      </div>
+
+                      <FormControl>
+                        <Input
+                          {...field}
+                          placeholder={getTranslationFromI18nKeyAndLabel(
+                            'investment.liquidity.placeholder.preference',
+                            'e.g., 1. Senior Loan'
+                          )}
+                          data-testid={formatDataTestId(prefixDataTestId, `PreferenceInput-${index}`)}
+                        />
+                      </FormControl>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+
+                {/* Bottom Row: Interest/Multiple + Amount side by side */}
+                <div className="gba:grid gba:grid-cols-2 gba:gap-3">
+                  <FormField
+                    control={form.control}
+                    name={`liquidityPreferences.${index}.interestMultiple`}
+                    render={({ field }) => (
+                      <FormItem>
+                        <FormLabel>
+                          {getTranslationFromI18nKeyAndLabel(
+                            'investment.liquidity.field.interestMultiple',
+                            'Interest/Multiple'
+                          )}{' '}
+                          <span className="gba:text-destructive">*</span>
+                        </FormLabel>
+                        <FormControl>
+                          <Input
+                            {...field}
+                            placeholder={getTranslationFromI18nKeyAndLabel(
+                              'investment.liquidity.placeholder.interestMultiple',
+                              'e.g., 8% p.a.'
+                            )}
+                            data-testid={formatDataTestId(prefixDataTestId, `InterestInput-${index}`)}
+                          />
+                        </FormControl>
+                        <FormMessage />
+                      </FormItem>
+                    )}
+                  />
+
+                  <FormField
+                    control={form.control}
+                    name={`liquidityPreferences.${index}.amount`}
+                    render={({ field }) => (
+                      <FormItem>
+                        <FormLabel>
+                          {getTranslationFromI18nKeyAndLabel('investment.liquidity.field.amount', 'Amount')}{' '}
+                          <span className="gba:text-destructive">*</span>
+                        </FormLabel>
+                        <FormControl>
+                          <Input
+                            {...field}
+                            placeholder={getTranslationFromI18nKeyAndLabel(
+                              'investment.liquidity.placeholder.amount',
+                              'e.g., 100'
+                            )}
+                            data-testid={formatDataTestId(prefixDataTestId, `AmountInput-${index}`)}
+                          />
+                        </FormControl>
+                        <FormMessage />
+                      </FormItem>
+                    )}
+                  />
+                </div>
+              </div>
+            ))}
+          </div>
+
+          {/* Add Row Button */}
+          <Button
+            type="button"
+            variant="outline"
+            size="sm"
+            onClick={() =>
+              append({
+                preference: '',
+                interestMultiple: '',
+                amount: ''
+              })
+            }
+            data-testid={formatDataTestId(prefixDataTestId, 'AddButton')}
+            className="gba:w-full"
+          >
+            <Plus className="gba:h-4 gba:w-4 gba:mr-2" />
+            {getTranslationFromI18nKeyAndLabel('investment.liquidity.addRow', 'Add Liquidity Preference')}
+          </Button>
+        </div>
+      </Form>
+    </AppActionForm>
+  )
+}

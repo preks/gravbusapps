@@ -131,6 +131,18 @@ export enum FlowContextName {
   investmentEquityInvestmentRoundUpdate = 'investmentEquityInvestmentRoundUpdate',
   investmentEquityInvestmentRoundDelete = 'investmentEquityInvestmentRoundDelete',
 
+  /// Investment Shareholders
+  investmentShareholderUpdate = 'investmentShareholderUpdate',
+
+  /// Investment Liquidity Preferences
+  investmentLiquidityPreferenceUpdate = 'investmentLiquidityPreferenceUpdate',
+
+  /// Investment PPM Forecasts
+  investmentPpmForecastUpdate = 'investmentPpmForecastUpdate',
+
+  /// Investment KPI Forecasts
+  investmentKpiForecastUpdate = 'investmentKpiForecastUpdate',
+
   /// Investment Reports
   investmentReportUpload = 'investmentReportUpload',
   investmentReportEntity = 'investmentReportEntity', // Integrate

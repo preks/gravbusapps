@@ -1,5 +1,5 @@
 // Investment Tab Configuration Utilities
-import { Home, BarChart3, Folder, FileText } from 'lucide-react'
+import { Home, BarChart3, Folder, FileText, TrendingUp } from 'lucide-react'
 import { InvestmentDocuments } from '../components/InvestmentDocuments'
 import { getTranslationFromI18nKeyAndLabel } from '@/common/utils/windowUtils'
 import { BusinessAppContextProps } from '@/common/BusinessAppContext'
@@ -10,7 +10,7 @@ import {
   InvestmentHomeTab,
   InvestmentReportsTab
 } from '../components/shared'
-import { EquityInvestmentRounds, RealEstateLiquidityForecast } from '../components/group-specific'
+import { EquityInvestmentRounds, RealEstateLiquidityForecast, EquityAnalyticsTab } from '../components/group-specific'
 // Remove dependency on investmentTypeUtils - now using dynamic types
 
 /**
@@ -100,6 +100,32 @@ export const createInvestmentTabsConfig = (
       content: <InvestmentHomeTab investmentId={investmentId} investment={investment} {...props} />
     }
   ]
+
+  // Add Analytics Tab only for equity investments
+  const isEquityInvestment =
+    investmentType === 'equity' ||
+    (investmentType || '').toLowerCase().includes('equity') ||
+    (investment?.investmentGroup?.code || '').includes('EQUITY') ||
+    (investment?.investmentType?.code || '').toLowerCase().includes('equity') ||
+    typeSpecificData?.equityInvestment
+
+  if (isEquityInvestment) {
+    tabs.push({
+      value: 'analytics',
+      label: getTranslationFromI18nKeyAndLabel('crm.investments.tabs.analytics', 'Analytics'),
+      icon: <TrendingUp className="gba:h-4 gba:w-4 gba:mr-2" />,
+      content: (
+        <div className="gba:col-span-12">
+          <EquityAnalyticsTab
+            investmentId={investmentId}
+            investment={investment}
+            equityData={typeSpecificData}
+            {...props}
+          />
+        </div>
+      )
+    })
+  }
 
   // Add Overview Tab only for non-liquid fund investments
   const typeStr = (investmentType || '').toUpperCase()

@@ -3,6 +3,9 @@ import { Alert } from '@newwork/nw-design-system'
 import { InvestmentTileComponent } from './components/InvestmentTileComponent'
 import { InvestmentExitComponent } from './components/InvestmentExitComponent'
 import { InvestmentStatusComponent } from './components/InvestmentStatusComponent'
+import { InvestmentLiquidityComponent } from './components/InvestmentLiquidityComponent'
+import { InvestmentPpmForecastComponent } from './components/InvestmentPpmForecastComponent'
+import { InvestmentKpiComponent } from './components/InvestmentKpiComponent'
 import { InvestmentPopupProps, INVESTMENT_POPUP_SCOPES } from './types'
 import { getTranslationFromI18nKeyAndLabel } from '@/common/utils/windowUtils'
 
@@ -24,7 +27,7 @@ export const InvestmentPopup: React.FC<InvestmentPopupProps> = ({
       <Alert variant="destructive" data-testid={`${prefixDataTestId}-missing-scope`}>
         {getTranslationFromI18nKeyAndLabel(
           'investment.popup.error.missingScope',
-          "No scope found in context data. Please specify 'tile', 'exit', or 'status'."
+          "No scope found in context data. Please specify 'tile', 'exit', 'status', 'liquidity', 'ppmforecast', or 'kpi'."
         )}
       </Alert>
     )
@@ -35,7 +38,7 @@ export const InvestmentPopup: React.FC<InvestmentPopupProps> = ({
       <Alert variant="destructive" data-testid={`${prefixDataTestId}-invalid-scope`}>
         {getTranslationFromI18nKeyAndLabel(
           'investment.popup.error.invalidScope',
-          `Invalid scope '${scope}'. Must be one of: tile, exit, status.`
+          `Invalid scope '${scope}'. Must be one of: tile, exit, status, liquidity, ppmforecast, kpi.`
         )}
       </Alert>
     )
@@ -91,6 +94,55 @@ export const InvestmentPopup: React.FC<InvestmentPopupProps> = ({
           additionalData={additionalData}
         />
       )
+
+    case INVESTMENT_POPUP_SCOPES.LIQUIDITY:
+      return (
+        <InvestmentLiquidityComponent
+          onClose={onClose}
+          onSave={liquidityPreferences => onSave?.(scope, { liquidityPreferences })}
+          accessToken={accessToken}
+          userInfo={userInfo}
+          additionalData={additionalData}
+        />
+      )
+
+    case INVESTMENT_POPUP_SCOPES.PPMFORECAST:
+      return (
+        <InvestmentPpmForecastComponent
+          onClose={onClose}
+          onSave={forecasts => onSave?.(scope, { forecasts })}
+          accessToken={accessToken}
+          userInfo={userInfo}
+          additionalData={additionalData}
+        />
+      )
+
+    case INVESTMENT_POPUP_SCOPES.KPI: {
+      // Extract kpiKey for kpi scope
+      const kpiKey = additionalData?.key || additionalData?.psi_taskPayload?.psi_initialParameters?.key
+
+      if (!kpiKey) {
+        return (
+          <Alert variant="destructive" data-testid={`${prefixDataTestId}-missing-kpi-key`}>
+            {getTranslationFromI18nKeyAndLabel(
+              'investment.popup.error.missingKpiKey',
+              'No key found for kpi scope. Please specify key in context data.'
+            )}
+          </Alert>
+        )
+      }
+
+      return (
+        <InvestmentKpiComponent
+          onClose={onClose}
+          onSave={(kpiKey, kpiValue) => onSave?.(scope, { kpiKey, kpiValue })}
+          accessToken={accessToken}
+          userInfo={userInfo}
+          additionalData={additionalData}
+          kpiKey={kpiKey}
+        />
+      )
+    }
 
     default:
       return (

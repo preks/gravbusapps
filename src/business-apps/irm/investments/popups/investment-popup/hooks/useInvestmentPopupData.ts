@@ -8,7 +8,7 @@ import { CatalogEntry } from '@/common/data/catalog/types/catalogTypes'
 interface UseInvestmentPopupDataParams {
   context: BusinessAppContextProps
   investmentId: string
-  scope: 'tile' | 'exit' | 'status'
+  scope: 'tile' | 'exit' | 'status' | 'liquidity' | 'ppmforecast' | 'kpi'
   tileKey?: string // Only needed for tile scope
   enabled?: boolean // Optional flag to disable data fetching
 }
