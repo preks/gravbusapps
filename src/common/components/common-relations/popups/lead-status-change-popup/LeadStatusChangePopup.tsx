@@ -1,4 +1,4 @@
-import React, { useState } from 'react'
+import React from 'react'
 import { Alert, AlertDescription, Spinner } from '@newwork/nw-design-system'
 import { getTranslationFromI18nKeyAndLabel } from '@/common/utils/windowUtils'
 import { AppActionForm } from '@/components/app-action-form'
@@ -31,8 +31,6 @@ const LeadStatusChangePopup: React.FC<LeadStatusChangePopupProps> = props => {
   // Use the configured hook
   const { lead, loading: isLoading, error } = config.useLeadDataHook(leadId, accessToken)
 
-  const [submitting, setSubmitting] = useState(false)
-
   // Validate required data
   if (!leadId) {
     return (
@@ -63,8 +61,6 @@ const LeadStatusChangePopup: React.FC<LeadStatusChangePopupProps> = props => {
         )
       )
     }
-
-    setSubmitting(true)
 
     const payload = {
       changeMode: 'UPDATE',
@@ -129,7 +125,6 @@ const LeadStatusChangePopup: React.FC<LeadStatusChangePopupProps> = props => {
       data-testid={`${config.testIdPrefix}-form`}
       submitButtonText={getTranslationFromI18nKeyAndLabel('common.confirm', 'Confirm')}
       cancelButtonText={getTranslationFromI18nKeyAndLabel('common.cancel', 'Cancel')}
-      isSubmitting={submitting}
     >
       <div className="gba:space-y-6" data-testid={`${config.testIdPrefix}-content`}>
         <div>
