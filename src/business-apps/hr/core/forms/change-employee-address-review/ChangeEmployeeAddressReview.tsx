@@ -17,6 +17,7 @@ import {
 } from './ChangeEmployeeAddressReviewQueries'
 
 import { CaretRightIcon } from '@phosphor-icons/react'
+import { Alert } from '@newwork/nw-design-system'
 
 export const ChangeEmployeeAddressReview: React.FC<BusinessAppContextProps> = ({
   accessToken,
@@ -56,6 +57,7 @@ export const ChangeEmployeeAddressReview: React.FC<BusinessAppContextProps> = ({
   const payload = (additionalData as any)?.psi_taskPayload || {}
   const newAddr = payload?.address || {}
   const oldAddr = payload?.oldAddressData || {}
+  const isDeleteMode = String(payload?.changeMode || '').toUpperCase() === 'DELETE'
 
   const [catalogMap, setCatalogMap] = useState<Record<string, any>>({})
   const [docNameMap, setDocNameMap] = useState<Record<string, string>>({})
@@ -324,7 +326,7 @@ export const ChangeEmployeeAddressReview: React.FC<BusinessAppContextProps> = ({
           </div>
 
           <div className="gba:flex gba:flex-col gba:gap-4" data-testid="change-employee-address-review-rows">
-            {rows.map(row => {
+            {(isDeleteMode ? rows.map(r => ({ ...r, newValue: '' })) : rows).map(row => {
               const hasDiff = String((row.oldValue || '').trim()) !== String((row.newValue || '').trim())
               return (
                 <div
@@ -335,7 +337,7 @@ export const ChangeEmployeeAddressReview: React.FC<BusinessAppContextProps> = ({
                   <div className="gba:grid gba:grid-rows-[auto_1fr] gba:gap-1 gba:self-stretch gba:min-w-0">
                     <div className="gba:text-sm">{row.oldLabel ?? row.label ?? ''}</div>
                     <div className="gba:h-full gba:min-h-12 gba:py-2 gba:bg-muted gba:text-muted-foreground gba:rounded-md gba:px-3 gba:flex gba:items-center gba:min-w-0 gba:w-full gba:whitespace-normal gba:break-all">
-                      {row.oldValue || ''}
+                      {(row.oldValue || '').trim() !== '' ? row.oldValue : '-'}
                     </div>
                   </div>
                   <div
@@ -348,18 +350,32 @@ export const ChangeEmployeeAddressReview: React.FC<BusinessAppContextProps> = ({
                     <div className={`gba:text-sm ${row.newLabel ? '' : 'gba:md:opacity-0'}`}>{row.newLabel || '.'}</div>
                     <div
                       className={`gba:h-full gba:min-h-12 gba:py-2 gba:rounded-md gba:px-3 gba:flex gba:items-center gba:min-w-0 gba:w-full gba:whitespace-normal gba:break-all ${
-                        hasDiff
-                          ? 'gba:bg-success-secondary gba:text-success-secondary-foreground'
-                          : 'gba:bg-muted gba:text-muted-foreground'
+                        isDeleteMode
+                          ? 'gba:bg-destructive gba:text-destructive-foreground'
+                          : hasDiff
+                            ? 'gba:bg-success-secondary gba:text-success-secondary-foreground'
+                            : 'gba:bg-muted gba:text-muted-foreground'
                       }`}
                     >
-                      {row.newValue || ''}
+                      {(row.newValue || '').trim() !== '' ? row.newValue : '-'}
                     </div>
                   </div>
                 </div>
               )
             })}
           </div>
+          {isDeleteMode ? (
+            <Alert
+              variant="destructive"
+              className="gba:mt-2 gba:w-full gba:whitespace-nowrap gba:border-destructive gba:text-destructive gba:border gba:border-error-ring gba:rounded-md"
+              data-testid="change-employee-address-review-delete-alert"
+            >
+              {getTranslationFromI18nKeyAndLabel(
+                'lowcoder:review_forms.delete_address_text',
+                'The selected address was deleted by the employee.'
+              )}
+            </Alert>
+          ) : null}
         </AppActionForm>
       </div>
     </div>
