@@ -11,21 +11,15 @@ import {
   FormMessage,
   Input,
   Button,
-  Alert,
-  Spinner
+  Alert
 } from '@newwork/nw-design-system'
 import { Plus } from 'lucide-react'
-import { AppActionForm } from '@/components/app-action-form'
-import { useInvestmentPopupData } from '../hooks/useInvestmentPopupData'
+import { useInvestmentPopupForm } from '../hooks/useInvestmentPopupForm'
+import { InvestmentPopupFormWrapper } from './InvestmentPopupFormWrapper'
 import { InvestmentLiquidityComponentProps, LiquidityFormData, LiquidityPreferenceItem } from '../types'
 import { getTranslationFromI18nKeyAndLabel } from '@/common/utils/windowUtils'
 import { formatDataTestId } from '@/common/utils/formatDataTestId'
-import {
-  extractInvestmentId,
-  parseAdditionalProperties,
-  validateInvestmentData,
-  INVESTMENT_ERRORS
-} from '../utils/investmentPopupUtils'
+import { parseAdditionalProperties, validateInvestmentData, INVESTMENT_ERRORS } from '../utils/investmentPopupUtils'
 import { buildInvestmentPopupPayload } from '../utils/investmentPopupPayloadHelper'
 
 const prefixDataTestId = 'investment-liquidity-component'
@@ -49,15 +43,11 @@ export const InvestmentLiquidityComponent: React.FC<InvestmentLiquidityComponent
   userInfo,
   additionalData
 }) => {
-  const businessAppContext = { accessToken, userInfo, additionalData }
-
-  // Extract investmentId from multiple sources
-  const investmentId = extractInvestmentId(additionalData)
-
-  // Load investment data
-  const { investment, loading, error } = useInvestmentPopupData({
-    context: businessAppContext,
-    investmentId,
+  // Use common setup hook
+  const { businessAppContext, investmentId, investment, loading, error } = useInvestmentPopupForm({
+    accessToken,
+    userInfo,
+    additionalData,
     scope: 'status' // Use status scope as liquidity is not yet in the hook
   })
 
@@ -120,6 +110,10 @@ export const InvestmentLiquidityComponent: React.FC<InvestmentLiquidityComponent
   const handleSubmit = async (formData: LiquidityFormData) => {
     validateInvestmentData(investment)
 
+    if (!investment) {
+      throw new Error('Investment data not loaded')
+    }
+
     // Get current additionalProperties
     const currentAdditionalProps = parseAdditionalProperties(investment.additionalProperties)
 
@@ -146,22 +140,23 @@ export const InvestmentLiquidityComponent: React.FC<InvestmentLiquidityComponent
   }
 
   // Success handler
-  const handleSuccess = () => {
-    onSave?.(form.getValues().liquidityPreferences)
-    onClose()
+  const handleSubmitWrapper = async (formData: LiquidityFormData) => {
+    const payload = await handleSubmit(formData)
+    onSave?.(formData.liquidityPreferences)
+    return payload
   }
 
   return (
-    <AppActionForm
+    <InvestmentPopupFormWrapper
+      loading={loading}
+      error={error}
+      investment={investment}
+      onSubmit={handleSubmitWrapper}
+      onClose={onClose}
       form={form}
-      formData={form.getValues()}
-      processType="update"
-      submitButtonText={getTranslationFromI18nKeyAndLabel('investment.liquidity.save', 'Save Liquidity Preferences')}
-      onSubmit={handleSubmit}
-      onSuccess={handleSuccess}
       businessAppContext={businessAppContext}
-      disableFormSubmission={loading}
-      data-testid={prefixDataTestId}
+      prefixDataTestId={prefixDataTestId}
+      submitButtonText={getTranslationFromI18nKeyAndLabel('investment.liquidity.save', 'Save Liquidity Preferences')}
     >
       <Form {...form}>
         <div className="gba:space-y-4" data-testid={`${prefixDataTestId}-content`}>
@@ -176,17 +171,6 @@ export const InvestmentLiquidityComponent: React.FC<InvestmentLiquidityComponent
               )}
             </p>
           </div>
-
-          {loading && (
-            <div className="gba:flex gba:items-center gba:gap-2">
-              <Spinner size="sm" />
-              <span className="gba:text-sm gba:text-muted-foreground">
-                {getTranslationFromI18nKeyAndLabel('investment.liquidity.loading', 'Loading...')}
-              </span>
-            </div>
-          )}
-
-          {error && <Alert variant="destructive">{error}</Alert>}
 
           {/* Liquidity Preferences List */}
           <div className="gba:space-y-4">
@@ -316,6 +300,6 @@ export const InvestmentLiquidityComponent: React.FC<InvestmentLiquidityComponent
           </Button>
         </div>
       </Form>
-    </AppActionForm>
+    </InvestmentPopupFormWrapper>
   )
 }

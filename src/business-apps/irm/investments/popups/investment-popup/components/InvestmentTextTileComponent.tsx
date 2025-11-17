@@ -7,30 +7,19 @@ import {
   FormMessage,
   Input,
   Textarea,
-  Alert,
-  Spinner
+  Alert
 } from '@newwork/nw-design-system'
-import { AppActionForm } from '@/components/app-action-form'
 import { useForm } from 'react-hook-form'
 import { z } from 'zod'
 import { zodResolver } from '@hookform/resolvers/zod'
-import { useInvestmentPopupData } from '../hooks/useInvestmentPopupData'
+import { useInvestmentPopupForm } from '../hooks/useInvestmentPopupForm'
+import { useTileSubmission } from '../hooks/useTileSubmission'
+import { InvestmentPopupFormWrapper } from './InvestmentPopupFormWrapper'
 import { getTranslationFromI18nKeyAndLabel } from '@/common/utils/windowUtils'
 import { formatDataTestId } from '@/common/utils/formatDataTestId'
-import {
-  extractInvestmentId,
-  parseAdditionalProperties,
-  validateInvestmentData,
-  INVESTMENT_ERRORS
-} from '../utils/investmentPopupUtils'
-import { buildInvestmentPopupPayload } from '../utils/investmentPopupPayloadHelper'
-import {
-  generateTileId,
-  loadTilesFromInvestment,
-  findTileById,
-  upsertTile
-} from '@/business-apps/irm/common/utils/tileUtils'
-import { TileData, TILE_TYPES } from '@/business-apps/irm/common/types/tileTypes'
+import { INVESTMENT_ERRORS } from '../utils/investmentPopupUtils'
+import { findTileById } from '@/business-apps/irm/common/utils/tileUtils'
+import { TileData } from '@/business-apps/irm/common/types/tileTypes'
 import { BusinessAppContextProps } from '@/common/BusinessAppContext'
 
 const prefixDataTestId = 'investment-text-tile-component'
@@ -57,19 +46,21 @@ export const InvestmentTextTileComponent: React.FC<InvestmentTextTileComponentPr
   additionalData,
   tileId
 }) => {
-  const businessAppContext = { accessToken, userInfo, additionalData }
-
-  // Extract investmentId
-  const investmentId = extractInvestmentId(additionalData)
-
-  // Determine if this is create or edit mode
-  const isEditMode = !!tileId
-
-  // Load investment data
-  const { investment, loading, error } = useInvestmentPopupData({
-    context: businessAppContext,
-    investmentId,
+  // Use common setup hook
+  const { businessAppContext, investmentId, investment, loading, error } = useInvestmentPopupForm({
+    accessToken,
+    userInfo,
+    additionalData,
     scope: 'text'
+  })
+
+  // Use tile submission hook
+  const { isEditMode, buildTileSubmission } = useTileSubmission({
+    investment,
+    businessAppContext,
+    tileId,
+    tileType: 'TEXT',
+    businessKeyPrefix: 'investment-text-tile'
   })
 
   // Initialize form
@@ -105,54 +96,10 @@ export const InvestmentTextTileComponent: React.FC<InvestmentTextTileComponentPr
 
   // Handle form submission
   const handleSubmit = async (formData: TextTileFormData) => {
-    validateInvestmentData(investment)
-
-    if (!investment) {
-      throw new Error(INVESTMENT_ERRORS.DATA_NOT_LOADED())
-    }
-
-    // Get current tiles
-    const currentTiles = loadTilesFromInvestment(investment)
-
-    // Create or update tile
-    const tileData: TileData = {
-      id: tileId || generateTileId(),
-      type: TILE_TYPES.TEXT,
+    // Build tile submission with specific data
+    const { payload, tileData } = buildTileSubmission({
       title: formData.title,
-      textContent: formData.textContent || '',
-      order: 0, // Will be calculated by upsertTile
-      createdAt: new Date().toISOString(),
-      updatedAt: new Date().toISOString()
-    }
-
-    // If editing, preserve creation date and order
-    if (isEditMode && tileId) {
-      const existingTile = findTileById(investment, tileId)
-      if (existingTile) {
-        tileData.createdAt = existingTile.createdAt
-        tileData.order = existingTile.order
-      }
-    }
-
-    // Update tiles array
-    const updatedTiles = upsertTile(currentTiles, tileData)
-
-    // Get current additionalProperties
-    const currentAdditionalProps = parseAdditionalProperties(investment.additionalProperties)
-
-    // Update additionalProperties with new tiles
-    const updatedAdditionalProperties = {
-      ...currentAdditionalProps,
-      tilesData: updatedTiles
-    }
-
-    // Build the payload using the centralized helper
-    const payload = buildInvestmentPopupPayload({
-      investment,
-      updatedAdditionalProperties,
-      businessAppContext,
-      businessKeyPrefix: 'investment-text-tile',
-      businessKeySuffix: tileData.id
+      textContent: formData.textContent || ''
     })
 
     // Call success callback
@@ -164,50 +111,21 @@ export const InvestmentTextTileComponent: React.FC<InvestmentTextTileComponentPr
     return payload
   }
 
-  // Show loading state
-  if (loading) {
-    return (
-      <div
-        className="gba:flex gba:items-center gba:justify-center gba:py-8"
-        data-testid={`${prefixDataTestId}-loading`}
-      >
-        <Spinner size="lg" />
-        <span className="gba:ml-2">
-          {getTranslationFromI18nKeyAndLabel('investment.tiles.loading', 'Loading investment data...')}
-        </span>
-      </div>
-    )
-  }
-
-  // Show error state
-  if (error) {
-    return (
-      <Alert variant="destructive" data-testid={`${prefixDataTestId}-error`}>
-        {error}
-      </Alert>
-    )
-  }
-
-  // Show form when investment data is loaded
-  if (!investment) {
-    return null
-  }
-
   const formTitle = isEditMode
     ? getTranslationFromI18nKeyAndLabel('investment.tiles.editTextTile', 'Edit Text Tile')
     : getTranslationFromI18nKeyAndLabel('investment.tiles.createTextTile', 'Create Text Tile')
 
   return (
-    <AppActionForm
-      processType="update"
+    <InvestmentPopupFormWrapper
+      loading={loading}
+      error={error}
+      investment={investment}
       onSubmit={handleSubmit}
-      onCancel={onClose}
-      formData={form.getValues()}
+      onClose={onClose}
       form={form}
       businessAppContext={businessAppContext}
-      data-testid={`${prefixDataTestId}-form`}
-      submitButtonText={getTranslationFromI18nKeyAndLabel('common.save', 'Save')}
-      cancelButtonText={getTranslationFromI18nKeyAndLabel('common.cancel', 'Cancel')}
+      prefixDataTestId={prefixDataTestId}
+      loadingMessage={getTranslationFromI18nKeyAndLabel('investment.tiles.loading', 'Loading investment data...')}
     >
       <div className="gba:space-y-4" data-testid={`${prefixDataTestId}-form-content`}>
         <h3 className="gba:text-lg gba:font-semibold">{formTitle}</h3>
@@ -260,7 +178,7 @@ export const InvestmentTextTileComponent: React.FC<InvestmentTextTileComponentPr
           )}
         />
       </div>
-    </AppActionForm>
+    </InvestmentPopupFormWrapper>
   )
 }
 

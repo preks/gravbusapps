@@ -10,14 +10,13 @@ import {
   SelectItem,
   SelectTrigger,
   SelectValue,
-  Alert,
-  Spinner
+  Alert
 } from '@newwork/nw-design-system'
-import { AppActionForm } from '@/components/app-action-form'
 import { useForm } from 'react-hook-form'
 import { z } from 'zod'
 import { zodResolver } from '@hookform/resolvers/zod'
 import { useInvestmentPopupData } from '../hooks/useInvestmentPopupData'
+import { InvestmentPopupFormWrapper } from './InvestmentPopupFormWrapper'
 import { InvestmentStatusComponentProps, StatusFormData } from '../types'
 import { getTranslationFromI18nKeyAndLabel } from '@/common/utils/windowUtils'
 import { buildInvestmentPayload } from '@/common/data/investment/payloads/investmentPayloads'
@@ -126,7 +125,7 @@ export const InvestmentStatusComponent: React.FC<InvestmentStatusComponentProps>
     }
 
     // Use the central payload builder (it will extract subtypes from rawInvestmentData)
-    const payload = buildInvestmentPayload(investmentFormData, businessAppContext, {
+    const payload = buildInvestmentPayload(investmentFormData as any, businessAppContext, {
       isUpdate: true,
       rawInvestmentData: investment
     })
@@ -143,46 +142,18 @@ export const InvestmentStatusComponent: React.FC<InvestmentStatusComponentProps>
     return payload
   }
 
-  // Show loading state
-  if (loading) {
-    return (
-      <div
-        className="gba:flex gba:items-center gba:justify-center gba:py-8"
-        data-testid={`${prefixDataTestId}-loading`}
-      >
-        <Spinner size="lg" />
-        <span className="gba:ml-2">
-          {getTranslationFromI18nKeyAndLabel('investment.status.loading', 'Loading investment data...')}
-        </span>
-      </div>
-    )
-  }
-
-  // Show error state
-  if (error) {
-    return (
-      <Alert variant="destructive" data-testid={`${prefixDataTestId}-error`}>
-        {error}
-      </Alert>
-    )
-  }
-
-  // Show form when investment data is loaded
-  if (!investment) {
-    return null
-  }
-
   return (
-    <AppActionForm
-      processType="update"
+    <InvestmentPopupFormWrapper
+      loading={loading}
+      error={error}
+      investment={investment}
       onSubmit={handleSubmit}
-      onCancel={onClose}
-      formData={form.getValues()}
+      onClose={onClose}
       form={form}
       businessAppContext={businessAppContext}
-      data-testid={`${prefixDataTestId}-form`}
+      prefixDataTestId={prefixDataTestId}
+      loadingMessage={getTranslationFromI18nKeyAndLabel('investment.status.loading', 'Loading investment data...')}
       submitButtonText={getTranslationFromI18nKeyAndLabel('investment.status.button.save', 'Save Status')}
-      cancelButtonText={getTranslationFromI18nKeyAndLabel('common.cancel', 'Cancel')}
     >
       <div className="gba:space-y-4" data-testid={`${prefixDataTestId}-form-content`}>
         {/* Status Selection Field */}
@@ -221,13 +192,13 @@ export const InvestmentStatusComponent: React.FC<InvestmentStatusComponentProps>
         />
 
         {/* Current status display */}
-        {investment.investmentStatus && (
+        {investment && investment.investmentStatus && (
           <div className="gba:text-sm gba:text-gray-600" data-testid={`${prefixDataTestId}-current-status`}>
             {getTranslationFromI18nKeyAndLabel('investment.status.current', 'Current status')}:{' '}
             {investment.investmentStatus.value}
           </div>
         )}
       </div>
-    </AppActionForm>
+    </InvestmentPopupFormWrapper>
   )
 }

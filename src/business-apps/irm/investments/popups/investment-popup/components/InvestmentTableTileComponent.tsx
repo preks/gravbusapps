@@ -7,34 +7,20 @@ import {
   FormMessage,
   Input,
   Alert,
-  Spinner,
   Button
 } from '@newwork/nw-design-system'
-import { AppActionForm } from '@/components/app-action-form'
 import { useForm } from 'react-hook-form'
 import { z } from 'zod'
 import { zodResolver } from '@hookform/resolvers/zod'
 import { Plus, Trash2 } from 'lucide-react'
-import { useInvestmentPopupData } from '../hooks/useInvestmentPopupData'
+import { useInvestmentPopupForm } from '../hooks/useInvestmentPopupForm'
+import { useTileSubmission } from '../hooks/useTileSubmission'
+import { InvestmentPopupFormWrapper } from './InvestmentPopupFormWrapper'
 import { getTranslationFromI18nKeyAndLabel } from '@/common/utils/windowUtils'
 import { formatDataTestId } from '@/common/utils/formatDataTestId'
-import {
-  extractInvestmentId,
-  parseAdditionalProperties,
-  validateInvestmentData,
-  INVESTMENT_ERRORS
-} from '../utils/investmentPopupUtils'
-import { buildInvestmentPopupPayload } from '../utils/investmentPopupPayloadHelper'
-import {
-  generateTileId,
-  loadTilesFromInvestment,
-  findTileById,
-  upsertTile,
-  createDefaultTable,
-  generateRowId,
-  generateColumnId
-} from '@/business-apps/irm/common/utils/tileUtils'
-import { TileData, TILE_TYPES, TableData, TableRow, TableColumn } from '@/business-apps/irm/common/types/tileTypes'
+import { INVESTMENT_ERRORS } from '../utils/investmentPopupUtils'
+import { findTileById, createDefaultTable } from '@/business-apps/irm/common/utils/tileUtils'
+import { TileData, TableData, TableRow, TableColumn } from '@/business-apps/irm/common/types/tileTypes'
 import { BusinessAppContextProps } from '@/common/BusinessAppContext'
 
 const prefixDataTestId = 'investment-table-tile-component'
@@ -60,23 +46,25 @@ export const InvestmentTableTileComponent: React.FC<InvestmentTableTileComponent
   additionalData,
   tileId
 }) => {
-  const businessAppContext = { accessToken, userInfo, additionalData }
+  // Use common setup hook
+  const { businessAppContext, investmentId, investment, loading, error } = useInvestmentPopupForm({
+    accessToken,
+    userInfo,
+    additionalData,
+    scope: 'table'
+  })
 
-  // Extract investmentId
-  const investmentId = extractInvestmentId(additionalData)
-
-  // Determine if this is create or edit mode
-  const isEditMode = !!tileId
+  // Use tile submission hook
+  const { isEditMode, buildTileSubmission } = useTileSubmission({
+    investment,
+    businessAppContext,
+    tileId,
+    tileType: 'TABLE',
+    businessKeyPrefix: 'investment-table-tile'
+  })
 
   // Local state for table data
   const [tableData, setTableData] = useState<TableData>(createDefaultTable())
-
-  // Load investment data
-  const { investment, loading, error } = useInvestmentPopupData({
-    context: businessAppContext,
-    investmentId,
-    scope: 'table'
-  })
 
   // Initialize form
   const form = useForm<TableTileFormData>({
@@ -113,7 +101,7 @@ export const InvestmentTableTileComponent: React.FC<InvestmentTableTileComponent
   // Table manipulation functions
   const handleAddColumn = () => {
     const newColumn: TableColumn = {
-      id: generateColumnId(),
+      id: crypto.randomUUID(),
       label: `Column ${tableData.columns.length + 1}`
     }
 
@@ -134,7 +122,7 @@ export const InvestmentTableTileComponent: React.FC<InvestmentTableTileComponent
 
   const handleAddRow = () => {
     const newRow: TableRow = {
-      id: generateRowId(),
+      id: crypto.randomUUID(),
       cells: {}
     }
 
@@ -209,54 +197,10 @@ export const InvestmentTableTileComponent: React.FC<InvestmentTableTileComponent
 
   // Handle form submission
   const handleSubmit = async (formData: TableTileFormData) => {
-    validateInvestmentData(investment)
-
-    if (!investment) {
-      throw new Error(INVESTMENT_ERRORS.DATA_NOT_LOADED())
-    }
-
-    // Get current tiles
-    const currentTiles = loadTilesFromInvestment(investment)
-
-    // Create or update tile
-    const tileData: TileData = {
-      id: tileId || generateTileId(),
-      type: TILE_TYPES.TABLE,
+    // Build tile submission with specific data
+    const { payload, tileData } = buildTileSubmission({
       title: formData.title,
-      tableData: tableData,
-      order: 0, // Will be calculated by upsertTile
-      createdAt: new Date().toISOString(),
-      updatedAt: new Date().toISOString()
-    }
-
-    // If editing, preserve creation date and order
-    if (isEditMode && tileId) {
-      const existingTile = findTileById(investment, tileId)
-      if (existingTile) {
-        tileData.createdAt = existingTile.createdAt
-        tileData.order = existingTile.order
-      }
-    }
-
-    // Update tiles array
-    const updatedTiles = upsertTile(currentTiles, tileData)
-
-    // Get current additionalProperties
-    const currentAdditionalProps = parseAdditionalProperties(investment.additionalProperties)
-
-    // Update additionalProperties with new tiles
-    const updatedAdditionalProperties = {
-      ...currentAdditionalProps,
-      tilesData: updatedTiles
-    }
-
-    // Build the payload using the centralized helper
-    const payload = buildInvestmentPopupPayload({
-      investment,
-      updatedAdditionalProperties,
-      businessAppContext,
-      businessKeyPrefix: 'investment-table-tile',
-      businessKeySuffix: tileData.id
+      tableData: tableData
     })
 
     // Call success callback
@@ -268,50 +212,21 @@ export const InvestmentTableTileComponent: React.FC<InvestmentTableTileComponent
     return payload
   }
 
-  // Show loading state
-  if (loading) {
-    return (
-      <div
-        className="gba:flex gba:items-center gba:justify-center gba:py-8"
-        data-testid={`${prefixDataTestId}-loading`}
-      >
-        <Spinner size="lg" />
-        <span className="gba:ml-2">
-          {getTranslationFromI18nKeyAndLabel('investment.tiles.loading', 'Loading investment data...')}
-        </span>
-      </div>
-    )
-  }
-
-  // Show error state
-  if (error) {
-    return (
-      <Alert variant="destructive" data-testid={`${prefixDataTestId}-error`}>
-        {error}
-      </Alert>
-    )
-  }
-
-  // Show form when investment data is loaded
-  if (!investment) {
-    return null
-  }
-
   const formTitle = isEditMode
     ? getTranslationFromI18nKeyAndLabel('investment.tiles.editTableTile', 'Edit Table Tile')
     : getTranslationFromI18nKeyAndLabel('investment.tiles.createTableTile', 'Create Table Tile')
 
   return (
-    <AppActionForm
-      processType="update"
+    <InvestmentPopupFormWrapper
+      loading={loading}
+      error={error}
+      investment={investment}
       onSubmit={handleSubmit}
-      onCancel={onClose}
-      formData={form.getValues()}
+      onClose={onClose}
       form={form}
       businessAppContext={businessAppContext}
-      data-testid={`${prefixDataTestId}-form`}
-      submitButtonText={getTranslationFromI18nKeyAndLabel('common.save', 'Save')}
-      cancelButtonText={getTranslationFromI18nKeyAndLabel('common.cancel', 'Cancel')}
+      prefixDataTestId={prefixDataTestId}
+      loadingMessage={getTranslationFromI18nKeyAndLabel('investment.tiles.loading', 'Loading investment data...')}
     >
       <div className="gba:space-y-4" data-testid={`${prefixDataTestId}-form-content`}>
         <h3 className="gba:text-lg gba:font-semibold">{formTitle}</h3>
@@ -436,7 +351,7 @@ export const InvestmentTableTileComponent: React.FC<InvestmentTableTileComponent
           </p>
         </div>
       </div>
-    </AppActionForm>
+    </InvestmentPopupFormWrapper>
   )
 }
 

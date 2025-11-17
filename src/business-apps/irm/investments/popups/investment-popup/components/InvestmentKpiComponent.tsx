@@ -1,28 +1,14 @@
 import React, { useEffect } from 'react'
-import {
-  FormField,
-  FormItem,
-  FormLabel,
-  FormControl,
-  FormMessage,
-  Input,
-  Alert,
-  Spinner
-} from '@newwork/nw-design-system'
-import { AppActionForm } from '@/components/app-action-form'
+import { FormField, FormItem, FormLabel, FormControl, FormMessage, Input, Alert } from '@newwork/nw-design-system'
 import { useForm } from 'react-hook-form'
 import { z } from 'zod'
 import { zodResolver } from '@hookform/resolvers/zod'
-import { useInvestmentPopupData } from '../hooks/useInvestmentPopupData'
+import { useInvestmentPopupForm } from '../hooks/useInvestmentPopupForm'
+import { InvestmentPopupFormWrapper } from './InvestmentPopupFormWrapper'
 import { InvestmentKpiComponentProps, KpiFormData } from '../types'
 import { getTranslationFromI18nKeyAndLabel } from '@/common/utils/windowUtils'
 import { formatDataTestId } from '@/common/utils/formatDataTestId'
-import {
-  extractInvestmentId,
-  parseAdditionalProperties,
-  validateInvestmentData,
-  INVESTMENT_ERRORS
-} from '../utils/investmentPopupUtils'
+import { parseAdditionalProperties, validateInvestmentData, INVESTMENT_ERRORS } from '../utils/investmentPopupUtils'
 import { buildInvestmentSubtypePayload } from '../utils/investmentPopupPayloadHelper'
 
 const prefixDataTestId = 'investment-kpi-component'
@@ -52,15 +38,11 @@ export const InvestmentKpiComponent: React.FC<InvestmentKpiComponentProps> = ({
   additionalData,
   kpiKey
 }) => {
-  const businessAppContext = { accessToken, userInfo, additionalData }
-
-  // Extract investmentId
-  const investmentId = extractInvestmentId(additionalData)
-
-  // Load investment data
-  const { investment, loading, error } = useInvestmentPopupData({
-    context: businessAppContext,
-    investmentId,
+  // Use common setup hook
+  const { businessAppContext, investmentId, investment, loading, error } = useInvestmentPopupForm({
+    accessToken,
+    userInfo,
+    additionalData,
     scope: 'kpi'
   })
 
@@ -163,46 +145,18 @@ export const InvestmentKpiComponent: React.FC<InvestmentKpiComponentProps> = ({
     return payload
   }
 
-  // Show loading state
-  if (loading) {
-    return (
-      <div
-        className="gba:flex gba:items-center gba:justify-center gba:py-8"
-        data-testid={`${prefixDataTestId}-loading`}
-      >
-        <Spinner size="lg" />
-        <span className="gba:ml-2">
-          {getTranslationFromI18nKeyAndLabel('investment.kpi.loading', 'Loading investment data...')}
-        </span>
-      </div>
-    )
-  }
-
-  // Show error state
-  if (error) {
-    return (
-      <Alert variant="destructive" data-testid={`${prefixDataTestId}-error`}>
-        {error}
-      </Alert>
-    )
-  }
-
-  // Show form when investment data is loaded
-  if (!investment) {
-    return null
-  }
-
   return (
-    <AppActionForm
-      processType="update"
+    <InvestmentPopupFormWrapper
+      loading={loading}
+      error={error}
+      investment={investment}
       onSubmit={handleSubmit}
-      onCancel={onClose}
-      formData={form.getValues()}
+      onClose={onClose}
       form={form}
       businessAppContext={businessAppContext}
-      data-testid={`${prefixDataTestId}-form`}
+      prefixDataTestId={prefixDataTestId}
+      loadingMessage={getTranslationFromI18nKeyAndLabel('investment.kpi.loading', 'Loading investment data...')}
       submitButtonText={getTranslationFromI18nKeyAndLabel('investment.kpi.save', 'Save')}
-      cancelButtonText={getTranslationFromI18nKeyAndLabel('common.cancel', 'Cancel')}
     >
       <div className="gba:space-y-4" data-testid={`${prefixDataTestId}-form-content`}>
         {/* KPI Value Input */}
@@ -228,7 +182,7 @@ export const InvestmentKpiComponent: React.FC<InvestmentKpiComponentProps> = ({
           )}
         />
       </div>
-    </AppActionForm>
+    </InvestmentPopupFormWrapper>
   )
 }
 

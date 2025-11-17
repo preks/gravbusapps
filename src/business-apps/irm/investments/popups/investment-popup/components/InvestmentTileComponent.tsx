@@ -1,19 +1,10 @@
 import React, { useEffect } from 'react'
-import {
-  FormField,
-  FormItem,
-  FormLabel,
-  FormControl,
-  FormMessage,
-  Textarea,
-  Alert,
-  Spinner
-} from '@newwork/nw-design-system'
-import { AppActionForm } from '@/components/app-action-form'
+import { FormField, FormItem, FormLabel, FormControl, FormMessage, Textarea, Alert } from '@newwork/nw-design-system'
 import { useForm } from 'react-hook-form'
 import { z } from 'zod'
 import { zodResolver } from '@hookform/resolvers/zod'
 import { useInvestmentPopupData } from '../hooks/useInvestmentPopupData'
+import { InvestmentPopupFormWrapper } from './InvestmentPopupFormWrapper'
 import { useInvestmentTileFields } from '../hooks/useInvestmentTileFields'
 import { InvestmentTileComponentProps, TileFormData } from '../types'
 import { getTranslationFromI18nKeyAndLabel } from '@/common/utils/windowUtils'
@@ -160,44 +151,16 @@ export const InvestmentTileComponent: React.FC<InvestmentTileComponentProps> = (
     return payload
   }
 
-  // Show loading state (investment data or tile fields)
-  if (loading || tilesLoading) {
-    return (
-      <div
-        className="gba:flex gba:items-center gba:justify-center gba:py-8"
-        data-testid={`${prefixDataTestId}-loading`}
-      >
-        <Spinner size="lg" />
-        <span className="gba:ml-2">
-          {getTranslationFromI18nKeyAndLabel('investment.tile.loading', 'Loading investment data...')}
-        </span>
-      </div>
-    )
-  }
-
-  // Show error state
-  if (error) {
-    return (
-      <Alert variant="destructive" data-testid={`${prefixDataTestId}-error`}>
-        {error}
-      </Alert>
-    )
-  }
-
-  // Show form when investment data is loaded
-  if (!investment) {
-    return null
-  }
-
   return (
-    <AppActionForm
-      processType="update"
+    <InvestmentPopupFormWrapper
+      loading={loading || tilesLoading}
+      error={error}
+      investment={investment}
       onSubmit={handleSubmit}
-      onCancel={onClose}
-      formData={form.getValues()}
+      onClose={onClose}
       form={form}
       businessAppContext={businessAppContext}
-      data-testid={`${prefixDataTestId}-form`}
+      prefixDataTestId={prefixDataTestId}
       submitButtonText={getTranslationFromI18nKeyAndLabel('investment.tile.button.save', 'Save Tile')}
       cancelButtonText={getTranslationFromI18nKeyAndLabel('common.cancel', 'Cancel')}
     >
@@ -225,6 +188,6 @@ export const InvestmentTileComponent: React.FC<InvestmentTileComponentProps> = (
           )}
         />
       </div>
-    </AppActionForm>
+    </InvestmentPopupFormWrapper>
   )
 }

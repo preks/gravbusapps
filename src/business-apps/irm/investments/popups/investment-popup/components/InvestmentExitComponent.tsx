@@ -7,14 +7,13 @@ import {
   FormMessage,
   Input,
   Alert,
-  Spinner,
   Switch
 } from '@newwork/nw-design-system'
-import { AppActionForm } from '@/components/app-action-form'
 import { useForm } from 'react-hook-form'
 import { z } from 'zod'
 import { zodResolver } from '@hookform/resolvers/zod'
 import { useInvestmentPopupData } from '../hooks/useInvestmentPopupData'
+import { InvestmentPopupFormWrapper } from './InvestmentPopupFormWrapper'
 import { InvestmentExitComponentProps, ExitFormData } from '../types'
 import { getTranslationFromI18nKeyAndLabel } from '@/common/utils/windowUtils'
 import { buildInvestmentPayload } from '@/common/data/investment/payloads/investmentPayloads'
@@ -120,7 +119,7 @@ export const InvestmentExitComponent: React.FC<InvestmentExitComponentProps> = (
     }
 
     // Use the central payload builder (it will extract subtypes from rawInvestmentData)
-    const payload = buildInvestmentPayload(investmentFormData, businessAppContext, {
+    const payload = buildInvestmentPayload(investmentFormData as any, businessAppContext, {
       isUpdate: true,
       rawInvestmentData: investment
     })
@@ -137,43 +136,17 @@ export const InvestmentExitComponent: React.FC<InvestmentExitComponentProps> = (
     return payload
   }
 
-  // Show loading state
-  if (loading) {
-    return (
-      <div
-        className="gba:flex gba:items-center gba:justify-center gba:py-8"
-        data-testid={`${prefixDataTestId}-loading`}
-      >
-        <Spinner size="lg" />
-        <span className="gba:ml-2">
-          {getTranslationFromI18nKeyAndLabel('investment.exit.loading', 'Loading investment data...')}
-        </span>
-      </div>
-    )
-  }
-
-  // Show error state
-  if (error) {
-    return (
-      <Alert variant="destructive" data-testid={`${prefixDataTestId}-error`}>
-        {error}
-      </Alert>
-    )
-  }
-
-  // Show form when investment data is loaded
-  if (!investment) {
-    return null
-  }
-
   return (
-    <AppActionForm
-      processType="update"
+    <InvestmentPopupFormWrapper
+      loading={loading}
+      error={error}
+      investment={investment}
       onSubmit={handleSubmit}
-      onCancel={onClose}
-      formData={form.getValues()}
+      onClose={onClose}
       form={form}
       businessAppContext={businessAppContext}
+      prefixDataTestId={prefixDataTestId}
+      loadingMessage={getTranslationFromI18nKeyAndLabel('investment.exit.loading', 'Loading investment data...')}
       data-testid={`${prefixDataTestId}-form`}
       submitButtonText={getTranslationFromI18nKeyAndLabel('investment.exit.button.save', 'Save Planned Exit')}
       cancelButtonText={getTranslationFromI18nKeyAndLabel('common.cancel', 'Cancel')}
@@ -231,13 +204,13 @@ export const InvestmentExitComponent: React.FC<InvestmentExitComponentProps> = (
         )}
 
         {/* Current planned exit info display */}
-        {investment.planedExit && investment.plannedExitDate && (
+        {investment && investment.planedExit && investment.plannedExitDate && (
           <div className="gba:text-sm gba:text-gray-600" data-testid={`${prefixDataTestId}-current-planned-exit`}>
             {getTranslationFromI18nKeyAndLabel('investment.exit.currentDate', 'Current planned exit date')}:{' '}
             {new Date(investment.plannedExitDate).toLocaleDateString()}
           </div>
         )}
       </div>
-    </AppActionForm>
+    </InvestmentPopupFormWrapper>
   )
 }

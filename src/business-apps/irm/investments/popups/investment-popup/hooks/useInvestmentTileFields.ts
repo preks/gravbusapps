@@ -97,8 +97,11 @@ export const useInvestmentTileFields = (context: BusinessAppContextProps, invest
       if (typeCode) {
         const typeEntry = catalogData.investmentTypes.find((type: any) => type.code === typeCode)
 
-        if (typeEntry && typeEntry.objectValue && typeEntry.objectValue?.tileFields?.length > 0) {
-          tileFieldsDefinition = typeEntry.objectValue as TileFieldsDefinition
+        if (typeEntry && typeEntry.objectValue) {
+          const objectValue = typeEntry.objectValue as TileFieldsDefinition
+          if (objectValue.tileFields && objectValue.tileFields.length > 0) {
+            tileFieldsDefinition = objectValue
+          }
         }
       }
 
@@ -106,8 +109,11 @@ export const useInvestmentTileFields = (context: BusinessAppContextProps, invest
       if (!tileFieldsDefinition && groupCode) {
         const groupEntry = catalogData.investmentGroups.find((group: any) => group.code === groupCode)
 
-        if (groupEntry && groupEntry.objectValue && groupEntry.objectValue?.tileFields?.length > 0) {
-          tileFieldsDefinition = groupEntry.objectValue as TileFieldsDefinition
+        if (groupEntry && groupEntry.objectValue) {
+          const objectValue = groupEntry.objectValue as TileFieldsDefinition
+          if (objectValue.tileFields && objectValue.tileFields.length > 0) {
+            tileFieldsDefinition = objectValue
+          }
         }
       }
 

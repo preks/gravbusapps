@@ -5,40 +5,16 @@
 import { TileData, TableData, TableRow, TableColumn } from '../types/tileTypes'
 
 /**
- * Generate a unique tile ID using timestamp and random string
- * Format: tile_<timestamp>_<random>
+ * Generate a unique tile ID using crypto.randomUUID when available
+ * Falls back to timestamp + random for older environments
+ * Format: tile_<uuid> or tile_<timestamp>_<random>
  */
 export const generateTileId = (): string => {
-  const timestamp = Date.now()
-  const random = Math.random().toString(36).substring(2, 9)
-  return `tile_${timestamp}_${random}`
-}
-
-/**
- * Generate a unique row ID
- */
-export const generateRowId = (): string => {
-  const timestamp = Date.now()
-  const random = Math.random().toString(36).substring(2, 9)
-  return `row_${timestamp}_${random}`
-}
-
-/**
- * Generate a unique column ID
- */
-export const generateColumnId = (): string => {
-  const timestamp = Date.now()
-  const random = Math.random().toString(36).substring(2, 9)
-  return `col_${timestamp}_${random}`
-}
-
-/**
- * Generate a unique chart data item ID
- */
-export const generateChartDataId = (): string => {
-  const timestamp = Date.now()
-  const random = Math.random().toString(36).substring(2, 9)
-  return `chart_${timestamp}_${random}`
+  if (typeof crypto !== 'undefined' && crypto.randomUUID) {
+    return `tile_${crypto.randomUUID()}`
+  }
+  // Fallback: timestamp + random
+  return `tile_${Date.now()}-${Math.random().toString(36).substring(2, 9)}`
 }
 
 /**
@@ -46,7 +22,7 @@ export const generateChartDataId = (): string => {
  */
 export const createDefaultTable = (): TableData => {
   const columns: TableColumn[] = Array.from({ length: 3 }, (_, i) => ({
-    id: generateColumnId(),
+    id: crypto.randomUUID(),
     label: `Column ${i + 1}`
   }))
 
@@ -56,7 +32,7 @@ export const createDefaultTable = (): TableData => {
       cells[col.id] = ''
     })
     return {
-      id: generateRowId(),
+      id: crypto.randomUUID(),
       cells
     }
   })

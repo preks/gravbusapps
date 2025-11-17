@@ -10,13 +10,11 @@ import {
   FormControl,
   FormMessage,
   Input,
-  Button,
-  Alert,
-  Spinner
+  Button
 } from '@newwork/nw-design-system'
 import { Plus } from 'lucide-react'
-import { AppActionForm } from '@/components/app-action-form'
 import { useInvestmentPopupData } from '../hooks/useInvestmentPopupData'
+import { InvestmentPopupFormWrapper } from './InvestmentPopupFormWrapper'
 import { InvestmentPpmForecastComponentProps, PpmForecastFormData } from '../types'
 import { getTranslationFromI18nKeyAndLabel } from '@/common/utils/windowUtils'
 import { formatDataTestId } from '@/common/utils/formatDataTestId'
@@ -151,7 +149,13 @@ export const InvestmentPpmForecastComponent: React.FC<InvestmentPpmForecastCompo
     }
 
     // Convert array to object structure for storage using helper
-    const forecastsObject = convertForecastsToObject(data.forecasts)
+    const forecastsObject = convertForecastsToObject(
+      data.forecasts.map(f => ({
+        year: f.year,
+        turnover: f.turnover || '',
+        ebitda: f.ebitda || ''
+      }))
+    )
 
     // Get current additionalProperties using helper
     const equityInvestment = getEquityInvestment(investment)
@@ -175,23 +179,23 @@ export const InvestmentPpmForecastComponent: React.FC<InvestmentPpmForecastCompo
     return payload
   }
 
-  // Success handler
-  const handleSuccess = () => {
-    onSave?.(form.getValues().forecasts)
-    onClose()
+  const handleSubmitWrapper = async (formData: PpmForecastFormData) => {
+    const payload = await handleSubmit(formData)
+    onSave?.(formData.forecasts)
+    return payload
   }
 
   return (
-    <AppActionForm
+    <InvestmentPopupFormWrapper
+      loading={loading}
+      error={error}
+      investment={investment}
+      onSubmit={handleSubmitWrapper}
+      onClose={onClose}
       form={form}
-      formData={form.getValues()}
-      processType="update"
-      submitButtonText={getTranslationFromI18nKeyAndLabel('investment.ppmForecast.save', 'Save Forecasts')}
-      onSubmit={handleSubmit}
-      onSuccess={handleSuccess}
       businessAppContext={businessAppContext}
-      disableFormSubmission={loading}
-      data-testid={prefixDataTestId}
+      prefixDataTestId={prefixDataTestId}
+      submitButtonText={getTranslationFromI18nKeyAndLabel('investment.ppmForecast.save', 'Save Forecasts')}
     >
       <Form {...form}>
         <div className="gba:space-y-6" data-testid={`${prefixDataTestId}-content`}>
@@ -207,17 +211,6 @@ export const InvestmentPpmForecastComponent: React.FC<InvestmentPpmForecastCompo
               )}
             </p>
           </div>
-
-          {loading && (
-            <div className="gba:flex gba:items-center gba:gap-2">
-              <Spinner size="sm" />
-              <span className="gba:text-sm gba:text-muted-foreground">
-                {getTranslationFromI18nKeyAndLabel('investment.ppmForecast.loading', 'Loading...')}
-              </span>
-            </div>
-          )}
-
-          {error && <Alert variant="destructive">{error}</Alert>}
 
           {/* Forecasts List */}
           <div className="gba:space-y-4">
@@ -325,6 +318,6 @@ export const InvestmentPpmForecastComponent: React.FC<InvestmentPpmForecastCompo
           </Button>
         </div>
       </Form>
-    </AppActionForm>
+    </InvestmentPopupFormWrapper>
   )
 }

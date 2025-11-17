@@ -64,7 +64,8 @@ export const useInvestmentSubType = () => {
 
     // Fallback: try to determine from investment group
     const groupCode =
-      investment.investmentGroup?.code ?? (hasSpecializations(investment) ? investment.groupRef : undefined)
+      investment.investmentGroup?.code ??
+      (hasSpecializations(investment) ? (investment as InvestmentWithSpecializations).groupRef : undefined)
     if (typeof groupCode === 'string') {
       const code = groupCode.includes(':') ? groupCode.split(':').pop() : groupCode
       switch (code?.toUpperCase()) {

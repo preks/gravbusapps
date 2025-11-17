@@ -12,39 +12,26 @@ import {
   Button,
   Alert,
   AlertDescription,
-  Spinner,
   RadioGroup,
   RadioGroupItem,
   Label
 } from '@newwork/nw-design-system'
 import { Plus, Trash2, PieChart, BarChart3, LineChart } from 'lucide-react'
-import { AppActionForm } from '@/components/app-action-form'
 import { BusinessAppContextProps } from '@/common/BusinessAppContext'
 import { getTranslationFromI18nKeyAndLabel } from '@/common/utils/windowUtils'
 import { formatDataTestId } from '@/common/utils/formatDataTestId'
-import { useInvestmentPopupData } from '../hooks/useInvestmentPopupData'
-import {
-  extractInvestmentId,
-  parseAdditionalProperties,
-  validateInvestmentData,
-  INVESTMENT_ERRORS
-} from '../utils/investmentPopupUtils'
-import { buildInvestmentPopupPayload } from '../utils/investmentPopupPayloadHelper'
+import { useInvestmentPopupForm } from '../hooks/useInvestmentPopupForm'
+import { useTileSubmission } from '../hooks/useTileSubmission'
+import { InvestmentPopupFormWrapper } from './InvestmentPopupFormWrapper'
+import { INVESTMENT_ERRORS } from '../utils/investmentPopupUtils'
 import {
   TileData,
-  TILE_TYPES,
   ChartType,
   PieChartData,
   BarChartData,
   LineChartData
 } from '@/business-apps/irm/common/types/tileTypes'
-import {
-  generateTileId,
-  generateChartDataId,
-  loadTilesFromInvestment,
-  findTileById,
-  upsertTile
-} from '@/business-apps/irm/common/utils/tileUtils'
+import { findTileById } from '@/business-apps/irm/common/utils/tileUtils'
 
 const prefixDataTestId = 'investment-chart-tile-component'
 
@@ -124,21 +111,30 @@ export const InvestmentChartTileComponent: React.FC<InvestmentChartTileComponent
   additionalData,
   tileId
 }) => {
-  const businessAppContext = { accessToken, userInfo, additionalData }
-  const investmentId = extractInvestmentId(additionalData)
-
+  // Use common setup hook
   const {
+    businessAppContext,
+    investmentId,
     investment,
     loading: isLoadingInvestment,
     error
-  } = useInvestmentPopupData({
-    context: businessAppContext,
-    investmentId,
+  } = useInvestmentPopupForm({
+    accessToken,
+    userInfo,
+    additionalData,
     scope: 'chart'
   })
 
-  const isEditMode = !!tileId
-  const existingTile = isEditMode && investment ? findTileById(investment, tileId) : undefined
+  // Use tile submission hook
+  const { isEditMode, buildTileSubmission } = useTileSubmission({
+    investment,
+    businessAppContext,
+    tileId,
+    tileType: 'CHART',
+    businessKeyPrefix: 'investment-chart-tile'
+  })
+
+  const existingTile = isEditMode && investment && tileId ? findTileById(investment, tileId) : undefined
   const existingChartType = existingTile?.chartData?.chartType || 'pie'
 
   const [chartType, setChartType] = useState<ChartType>(existingChartType)
@@ -162,16 +158,8 @@ export const InvestmentChartTileComponent: React.FC<InvestmentChartTileComponent
     defaultValues: {
       title: '',
       chartType: 'pie',
-      pieData: [{ id: generateChartDataId(), name: '', percentage: '' }],
-      barData: {
-        xAxis: [{ id: generateChartDataId(), name: '', amount: '' }],
-        yAxis: [{ id: generateChartDataId(), name: '', amount: '' }]
-      },
-      lineData: {
-        xAxis: [{ id: generateChartDataId(), name: '', amount: '' }],
-        yAxis: [{ id: generateChartDataId(), name: '', amount: '' }]
-      }
-    }
+      pieData: [{ id: crypto.randomUUID(), name: '', percentage: '' }]
+    } as any
   })
 
   // Load existing tile data
@@ -184,7 +172,7 @@ export const InvestmentChartTileComponent: React.FC<InvestmentChartTileComponent
           id: item.id,
           name: item.name,
           percentage: item.percentage.toString()
-        })) || [{ id: generateChartDataId(), name: '', percentage: '' }],
+        })) || [{ id: crypto.randomUUID(), name: '', percentage: '' }],
         barData: existingTile.chartData?.barData
           ? {
               xAxis: existingTile.chartData.barData.xAxis.map(item => ({
@@ -199,8 +187,8 @@ export const InvestmentChartTileComponent: React.FC<InvestmentChartTileComponent
               }))
             }
           : {
-              xAxis: [{ id: generateChartDataId(), name: '', amount: '' }],
-              yAxis: [{ id: generateChartDataId(), name: '', amount: '' }]
+              xAxis: [{ id: crypto.randomUUID(), name: '', amount: '' }],
+              yAxis: [{ id: crypto.randomUUID(), name: '', amount: '' }]
             },
         lineData: existingTile.chartData?.lineData
           ? {
@@ -216,8 +204,8 @@ export const InvestmentChartTileComponent: React.FC<InvestmentChartTileComponent
               }))
             }
           : {
-              xAxis: [{ id: generateChartDataId(), name: '', amount: '' }],
-              yAxis: [{ id: generateChartDataId(), name: '', amount: '' }]
+              xAxis: [{ id: crypto.randomUUID(), name: '', amount: '' }],
+              yAxis: [{ id: crypto.randomUUID(), name: '', amount: '' }]
             }
       } as any)
       setChartType(existingTile.chartData?.chartType || 'pie')
@@ -236,31 +224,7 @@ export const InvestmentChartTileComponent: React.FC<InvestmentChartTileComponent
     )
   }
 
-  if (isLoadingInvestment) {
-    return (
-      <div className="gba:flex gba:justify-center gba:items-center gba:p-8" data-testid={`${prefixDataTestId}-loading`}>
-        <Spinner size="large" />
-      </div>
-    )
-  }
-
-  if (error) {
-    return (
-      <Alert variant="destructive" data-testid={`${prefixDataTestId}-load-error-alert`}>
-        <AlertDescription>{error}</AlertDescription>
-      </Alert>
-    )
-  }
-
   const handleSubmit = async (formData: ChartTileFormData) => {
-    validateInvestmentData(investment)
-
-    if (!investment) {
-      throw new Error(INVESTMENT_ERRORS.DATA_NOT_LOADED())
-    }
-
-    const currentTiles = loadTilesFromInvestment(investment)
-
     // Build chart data based on type
     const chartData: any = { chartType: formData.chartType }
 
@@ -301,45 +265,13 @@ export const InvestmentChartTileComponent: React.FC<InvestmentChartTileComponent
       chartData.lineData = lineData
     }
 
-    const tileData: TileData = {
-      id: tileId || generateTileId(),
-      type: TILE_TYPES.CHART,
+    // Build tile submission with chart-specific data
+    const { payload } = buildTileSubmission({
       title: formData.title,
-      chartData,
-      order: 0,
-      createdAt: new Date().toISOString(),
-      updatedAt: new Date().toISOString()
-    }
-
-    if (isEditMode && tileId) {
-      const existingTile = findTileById(investment, tileId)
-      if (existingTile) {
-        tileData.createdAt = existingTile.createdAt
-        tileData.order = existingTile.order
-      }
-    }
-
-    const updatedTiles = upsertTile(currentTiles, tileData)
-    const currentAdditionalProps = parseAdditionalProperties(investment.additionalProperties)
-    const updatedAdditionalProperties = {
-      ...currentAdditionalProps,
-      tilesData: updatedTiles
-    }
-
-    // Build the payload using the centralized helper
-    const payload = buildInvestmentPopupPayload({
-      investment,
-      updatedAdditionalProperties,
-      businessAppContext,
-      businessKeyPrefix: 'investment-chart-tile',
-      businessKeySuffix: tileData.id
+      chartData
     })
 
     return payload
-  }
-
-  const handleSuccess = () => {
-    onClose()
   }
 
   const handleChartTypeChange = (newType: ChartType) => {
@@ -348,20 +280,21 @@ export const InvestmentChartTileComponent: React.FC<InvestmentChartTileComponent
   }
 
   return (
-    <AppActionForm
-      form={form}
+    <InvestmentPopupFormWrapper
+      loading={isLoadingInvestment}
+      error={error}
+      investment={investment}
       onSubmit={handleSubmit}
-      onSuccess={handleSuccess}
+      onClose={onClose}
+      form={form}
+      businessAppContext={businessAppContext}
+      prefixDataTestId={prefixDataTestId}
+      loadingMessage={getTranslationFromI18nKeyAndLabel('investment.tiles.loading', 'Loading investment data...')}
       submitButtonText={
         isEditMode
           ? getTranslationFromI18nKeyAndLabel('investment.tiles.saveChanges', 'Save Changes')
           : getTranslationFromI18nKeyAndLabel('investment.tiles.createTile', 'Create Tile')
       }
-      cancelButtonText={getTranslationFromI18nKeyAndLabel('common.cancel', 'Cancel')}
-      onCancel={onClose}
-      data-testid={prefixDataTestId}
-      accessToken={accessToken}
-      userInfo={userInfo}
     >
       <div className="gba:space-y-6" data-testid={`${prefixDataTestId}-form-content`}>
         <h3 className="gba:text-lg gba:font-semibold">{formTitle}</h3>
@@ -441,7 +374,7 @@ export const InvestmentChartTileComponent: React.FC<InvestmentChartTileComponent
         {chartType === 'bar' && <BarChartForm form={form} prefixDataTestId={prefixDataTestId} />}
         {chartType === 'line' && <LineChartForm form={form} prefixDataTestId={prefixDataTestId} />}
       </div>
-    </AppActionForm>
+    </InvestmentPopupFormWrapper>
   )
 }
 
@@ -540,7 +473,7 @@ const PieChartForm: React.FC<{ form: any; prefixDataTestId: string }> = ({ form,
         type="button"
         variant="outline"
         size="sm"
-        onClick={() => append({ id: generateChartDataId(), name: '', percentage: '' })}
+        onClick={() => append({ id: crypto.randomUUID(), name: '', percentage: '' })}
         className="gba:w-full"
         data-testid={formatDataTestId(prefixDataTestId, 'add-pie-item')}
       >
@@ -624,7 +557,7 @@ const BarChartForm: React.FC<{ form: any; prefixDataTestId: string }> = ({ form,
           type="button"
           variant="outline"
           size="sm"
-          onClick={() => xAxisFields.append({ id: generateChartDataId(), name: '', amount: '' })}
+          onClick={() => xAxisFields.append({ id: crypto.randomUUID(), name: '', amount: '' })}
           className="gba:w-full"
           data-testid={formatDataTestId(prefixDataTestId, 'add-x-axis-item')}
         >
@@ -692,7 +625,7 @@ const BarChartForm: React.FC<{ form: any; prefixDataTestId: string }> = ({ form,
           type="button"
           variant="outline"
           size="sm"
-          onClick={() => yAxisFields.append({ id: generateChartDataId(), name: '', amount: '' })}
+          onClick={() => yAxisFields.append({ id: crypto.randomUUID(), name: '', amount: '' })}
           className="gba:w-full"
           data-testid={formatDataTestId(prefixDataTestId, 'add-y-axis-item')}
         >
@@ -777,7 +710,7 @@ const LineChartForm: React.FC<{ form: any; prefixDataTestId: string }> = ({ form
           type="button"
           variant="outline"
           size="sm"
-          onClick={() => xAxisFields.append({ id: generateChartDataId(), name: '', amount: '' })}
+          onClick={() => xAxisFields.append({ id: crypto.randomUUID(), name: '', amount: '' })}
           className="gba:w-full"
           data-testid={formatDataTestId(prefixDataTestId, 'add-x-axis-item')}
         >
@@ -845,7 +778,7 @@ const LineChartForm: React.FC<{ form: any; prefixDataTestId: string }> = ({ form
           type="button"
           variant="outline"
           size="sm"
-          onClick={() => yAxisFields.append({ id: generateChartDataId(), name: '', amount: '' })}
+          onClick={() => yAxisFields.append({ id: crypto.randomUUID(), name: '', amount: '' })}
           className="gba:w-full"
           data-testid={formatDataTestId(prefixDataTestId, 'add-y-axis-item')}
         >
