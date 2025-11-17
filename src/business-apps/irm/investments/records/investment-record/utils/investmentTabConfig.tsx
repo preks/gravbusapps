@@ -11,7 +11,7 @@ import {
   InvestmentReportsTab
 } from '../components/shared'
 import { EquityInvestmentRounds, RealEstateLiquidityForecast, EquityAnalyticsTab } from '../components/group-specific'
-import { InvestmentTilesTab } from '@/business-apps/irm/common/components/tiles'
+import { InvestmentTilesTab } from '../tiles'
 // Remove dependency on investmentTypeUtils - now using dynamic types
 
 /**

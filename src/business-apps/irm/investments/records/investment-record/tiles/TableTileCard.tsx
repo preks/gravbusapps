@@ -4,25 +4,19 @@ import { Edit, Trash2, Table as TableIcon } from 'lucide-react'
 import { BusinessAppContextProps } from '@/common/BusinessAppContext'
 import { AppAction } from '@/components/app-action'
 import { FlowContextName } from '@/common/types/FlowRegistryTypes'
-import { TileData } from '../../types/tileTypes'
-import { getTranslationFromI18nKeyAndLabel } from '@/common/utils/windowUtils'
+import { TileData } from './types/tileTypes'
+import { getTranslationFromI18nKeyAndLabel, formatDate } from '@/common/utils/windowUtils'
 
 interface TableTileCardProps extends BusinessAppContextProps {
   tile: TileData
   investmentId: string
-  onDelete: (tileId: string) => void
+  onRefresh?: () => void
 }
 
-export const TableTileCard: React.FC<TableTileCardProps> = ({ tile, investmentId, onDelete, ...props }) => {
+export const TableTileCard: React.FC<TableTileCardProps> = ({ tile, investmentId, onRefresh, ...props }) => {
   const tableData = tile.tableData
 
-  const formattedDate = new Date(tile.updatedAt).toLocaleDateString(undefined, {
-    year: 'numeric',
-    month: 'short',
-    day: 'numeric',
-    hour: '2-digit',
-    minute: '2-digit'
-  })
+  const formattedDate = formatDate(tile.updatedAt, 'date.short')
 
   return (
     <Card data-testid={`table-tile-${tile.id}`} className="gba:border gba:shadow-sm">
@@ -54,15 +48,23 @@ export const TableTileCard: React.FC<TableTileCardProps> = ({ tile, investmentId
               </Button>
             </AppAction>
 
-            {/* Delete Button */}
-            <Button
-              size="icon"
-              variant="ghost"
-              data-testid={`delete-tile-button-${tile.id}`}
-              onClick={() => onDelete(tile.id)}
+            {/* Delete Button - Deletes tile via AppAction */}
+            <AppAction
+              contextsArray={[FlowContextName.investmentKpiTilesUpdate]}
+              externalContextData={{
+                investmentId,
+                scope: 'delete',
+                tileId: tile.id
+              }}
+              accessToken={props.accessToken}
+              emptyStateBehavior="hide"
+              onProcessCompletion={onRefresh}
+              data-testid={`delete-tile-action-${tile.id}`}
             >
-              <Trash2 className="gba:h-4 gba:w-4 gba:text-destructive" />
-            </Button>
+              <Button size="icon" variant="ghost" data-testid={`delete-tile-button-${tile.id}`}>
+                <Trash2 className="gba:h-4 gba:w-4 gba:text-destructive" />
+              </Button>
+            </AppAction>
           </div>
         </div>
       </CardHeader>

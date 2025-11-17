@@ -19,8 +19,14 @@ import { InvestmentPopupFormWrapper } from './InvestmentPopupFormWrapper'
 import { getTranslationFromI18nKeyAndLabel } from '@/common/utils/windowUtils'
 import { formatDataTestId } from '@/common/utils/formatDataTestId'
 import { INVESTMENT_ERRORS } from '../utils/investmentPopupUtils'
-import { findTileById, createDefaultTable } from '@/business-apps/irm/common/utils/tileUtils'
-import { TileData, TableData, TableRow, TableColumn } from '@/business-apps/irm/common/types/tileTypes'
+import {
+  findTileById,
+  createDefaultTable,
+  TileData,
+  TableData,
+  TableRow,
+  TableColumn
+} from '@/business-apps/irm/investments/records/investment-record/tiles'
 import { BusinessAppContextProps } from '@/common/BusinessAppContext'
 
 const prefixDataTestId = 'investment-table-tile-component'

@@ -146,6 +146,12 @@ export interface PieChartData {
  * Bar chart data structure
  */
 export interface BarChartData {
+  /** X-axis label/name */
+  xAxisName?: string
+
+  /** Y-axis label/name */
+  yAxisName?: string
+
   /** X-axis data points */
   xAxis: BarChartAxisData[]
 
@@ -171,6 +177,12 @@ export interface BarChartAxisData {
  * Line chart data structure
  */
 export interface LineChartData {
+  /** X-axis label/name */
+  xAxisName?: string
+
+  /** Y-axis label/name */
+  yAxisName?: string
+
   /** X-axis data points */
   xAxis: LineChartAxisData[]
 

@@ -11,7 +11,8 @@ export const INVESTMENT_POPUP_SCOPES = {
   STATUS: 'status',
   LIQUIDITY: 'liquidity',
   PPMFORECAST: 'ppmforecast',
-  KPI_FORECAST: 'kpiforecast' // KPI forecasts (MOIC/IRR) for investmentKpiForecastUpdate - renamed to avoid conflict
+  KPI_FORECAST: 'kpiforecast', // KPI forecasts (MOIC/IRR) for investmentKpiForecastUpdate - renamed to avoid conflict
+  DELETE: 'delete' // NEW - delete tiles via AppAction workflow
 } as const
 
 export type InvestmentPopupScope = (typeof INVESTMENT_POPUP_SCOPES)[keyof typeof INVESTMENT_POPUP_SCOPES]

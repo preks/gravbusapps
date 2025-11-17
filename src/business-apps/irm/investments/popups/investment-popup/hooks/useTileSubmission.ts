@@ -6,13 +6,14 @@
 import { useCallback } from 'react'
 import { BusinessAppContextProps } from '@/common/BusinessAppContext'
 import { Investment } from '@/common/data/investment/types'
-import { TileData, TILE_TYPES } from '@/business-apps/irm/common/types/tileTypes'
 import {
+  TileData,
+  TILE_TYPES,
   generateTileId,
   loadTilesFromInvestment,
   findTileById,
   upsertTile
-} from '@/business-apps/irm/common/utils/tileUtils'
+} from '@/business-apps/irm/investments/records/investment-record/tiles'
 import { parseAdditionalProperties, validateInvestmentData } from '../utils/investmentPopupUtils'
 import { buildInvestmentPopupPayload } from '../utils/investmentPopupPayloadHelper'
 

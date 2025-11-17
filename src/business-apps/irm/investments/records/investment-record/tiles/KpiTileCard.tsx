@@ -4,29 +4,23 @@ import { Edit, Trash2, TrendingUp } from 'lucide-react'
 import { BusinessAppContextProps } from '@/common/BusinessAppContext'
 import { AppAction } from '@/components/app-action'
 import { FlowContextName } from '@/common/types/FlowRegistryTypes'
-import { TileData } from '../../types/tileTypes'
-import { getTranslationFromI18nKeyAndLabel } from '@/common/utils/windowUtils'
+import { TileData } from './types/tileTypes'
+import { getTranslationFromI18nKeyAndLabel, formatDate } from '@/common/utils/windowUtils'
 
 interface KpiTileCardProps extends BusinessAppContextProps {
   tile: TileData
   investmentId: string
-  onDelete: (tileId: string) => void
+  onRefresh?: () => void
 }
 
-export const KpiTileCard: React.FC<KpiTileCardProps> = ({ tile, investmentId, onDelete, ...props }) => {
+export const KpiTileCard: React.FC<KpiTileCardProps> = ({ tile, investmentId, onRefresh, ...props }) => {
   // Format KPI value with unit
   const formattedValue =
     tile.kpiValue !== undefined && tile.kpiValue !== null
       ? `${tile.kpiValue}${tile.kpiUnit || ''}`
       : getTranslationFromI18nKeyAndLabel('common.notAvailable', 'N/A')
 
-  const formattedDate = new Date(tile.updatedAt).toLocaleDateString(undefined, {
-    year: 'numeric',
-    month: 'short',
-    day: 'numeric',
-    hour: '2-digit',
-    minute: '2-digit'
-  })
+  const formattedDate = formatDate(tile.updatedAt, 'date.short')
 
   return (
     <Card data-testid={`kpi-tile-${tile.id}`} className="gba:border gba:shadow-sm">
@@ -58,15 +52,23 @@ export const KpiTileCard: React.FC<KpiTileCardProps> = ({ tile, investmentId, on
               </Button>
             </AppAction>
 
-            {/* Delete Button */}
-            <Button
-              size="icon"
-              variant="ghost"
-              data-testid={`delete-tile-button-${tile.id}`}
-              onClick={() => onDelete(tile.id)}
+            {/* Delete Button - Deletes tile via AppAction */}
+            <AppAction
+              contextsArray={[FlowContextName.investmentKpiTilesUpdate]}
+              externalContextData={{
+                investmentId,
+                scope: 'delete',
+                tileId: tile.id
+              }}
+              accessToken={props.accessToken}
+              emptyStateBehavior="hide"
+              onProcessCompletion={onRefresh}
+              data-testid={`delete-tile-action-${tile.id}`}
             >
-              <Trash2 className="gba:h-4 gba:w-4 gba:text-destructive" />
-            </Button>
+              <Button size="icon" variant="ghost" data-testid={`delete-tile-button-${tile.id}`}>
+                <Trash2 className="gba:h-4 gba:w-4 gba:text-destructive" />
+              </Button>
+            </AppAction>
           </div>
         </div>
       </CardHeader>

@@ -30,8 +30,8 @@ import {
   PieChartData,
   BarChartData,
   LineChartData
-} from '@/business-apps/irm/common/types/tileTypes'
-import { findTileById } from '@/business-apps/irm/common/utils/tileUtils'
+} from '@/business-apps/irm/investments/records/investment-record/tiles'
+import { findTileById } from '@/business-apps/irm/investments/records/investment-record/tiles'
 
 const prefixDataTestId = 'investment-chart-tile-component'
 
@@ -78,6 +78,8 @@ const barChartSchema = z.object({
   title: z.string().min(1, 'Title is required'),
   chartType: z.literal('bar'),
   barData: z.object({
+    xAxisName: z.string().optional(),
+    yAxisName: z.string().optional(),
     xAxis: z.array(barChartAxisItemSchema).min(1, 'At least one X-axis point is required'),
     yAxis: z.array(barChartAxisItemSchema).min(1, 'At least one Y-axis point is required')
   })
@@ -88,6 +90,8 @@ const lineChartSchema = z.object({
   title: z.string().min(1, 'Title is required'),
   chartType: z.literal('line'),
   lineData: z.object({
+    xAxisName: z.string().optional(),
+    yAxisName: z.string().optional(),
     xAxis: z.array(barChartAxisItemSchema).min(1, 'At least one X-axis point is required'),
     yAxis: z.array(barChartAxisItemSchema).min(1, 'At least one Y-axis point is required')
   })
@@ -175,6 +179,8 @@ export const InvestmentChartTileComponent: React.FC<InvestmentChartTileComponent
         })) || [{ id: crypto.randomUUID(), name: '', percentage: '' }],
         barData: existingTile.chartData?.barData
           ? {
+              xAxisName: existingTile.chartData.barData.xAxisName || '',
+              yAxisName: existingTile.chartData.barData.yAxisName || '',
               xAxis: existingTile.chartData.barData.xAxis.map(item => ({
                 id: item.id,
                 name: item.name,
@@ -187,11 +193,15 @@ export const InvestmentChartTileComponent: React.FC<InvestmentChartTileComponent
               }))
             }
           : {
-              xAxis: [{ id: crypto.randomUUID(), name: '', amount: '' }],
-              yAxis: [{ id: crypto.randomUUID(), name: '', amount: '' }]
+              xAxisName: '',
+              yAxisName: '',
+              xAxis: [{ id: crypto.randomUUID(), name: '', amount: '0' }],
+              yAxis: [{ id: crypto.randomUUID(), name: '-', amount: '' }]
             },
         lineData: existingTile.chartData?.lineData
           ? {
+              xAxisName: existingTile.chartData.lineData.xAxisName || '',
+              yAxisName: existingTile.chartData.lineData.yAxisName || '',
               xAxis: existingTile.chartData.lineData.xAxis.map(item => ({
                 id: item.id,
                 name: item.name,
@@ -204,6 +214,8 @@ export const InvestmentChartTileComponent: React.FC<InvestmentChartTileComponent
               }))
             }
           : {
+              xAxisName: '',
+              yAxisName: '',
               xAxis: [{ id: crypto.randomUUID(), name: '', amount: '' }],
               yAxis: [{ id: crypto.randomUUID(), name: '', amount: '' }]
             }
@@ -237,6 +249,8 @@ export const InvestmentChartTileComponent: React.FC<InvestmentChartTileComponent
       chartData.pieData = pieData
     } else if (formData.chartType === 'bar' && 'barData' in formData) {
       const barData: BarChartData = {
+        xAxisName: formData.barData.xAxisName,
+        yAxisName: formData.barData.yAxisName,
         xAxis: formData.barData.xAxis.map(item => ({
           id: item.id,
           name: item.name,
@@ -251,6 +265,8 @@ export const InvestmentChartTileComponent: React.FC<InvestmentChartTileComponent
       chartData.barData = barData
     } else if (formData.chartType === 'line' && 'lineData' in formData) {
       const lineData: LineChartData = {
+        xAxisName: formData.lineData.xAxisName,
+        yAxisName: formData.lineData.yAxisName,
         xAxis: formData.lineData.xAxis.map(item => ({
           id: item.id,
           name: item.name,
@@ -496,16 +512,75 @@ const BarChartForm: React.FC<{ form: any; prefixDataTestId: string }> = ({ form,
     name: 'barData.yAxis'
   })
 
+  const handleAddDataPoint = () => {
+    const newId = crypto.randomUUID()
+    xAxisFields.append({ id: newId, name: '', amount: '0' })
+    yAxisFields.append({ id: newId, name: '-', amount: '' })
+  }
+
+  const handleRemoveDataPoint = (index: number) => {
+    xAxisFields.remove(index)
+    yAxisFields.remove(index)
+  }
+
   return (
     <div className="gba:space-y-6" data-testid={formatDataTestId(prefixDataTestId, 'bar-form')}>
-      {/* X Axis */}
+      {/* Axis Name Labels - Side by Side */}
+      <div className="gba:grid gba:grid-cols-2 gba:gap-4">
+        <FormField
+          control={form.control}
+          name="barData.xAxisName"
+          render={({ field }) => (
+            <FormItem>
+              <FormLabel>
+                {getTranslationFromI18nKeyAndLabel('investment.tiles.xAxisNameLabel', 'X-Axis Name')}
+              </FormLabel>
+              <FormControl>
+                <Input
+                  {...field}
+                  placeholder={getTranslationFromI18nKeyAndLabel(
+                    'investment.tiles.xAxisNamePlaceholder',
+                    'Enter X-axis name (e.g., Month, Quarter, Year)'
+                  )}
+                  data-testid={formatDataTestId(prefixDataTestId, 'x-axis-name-input')}
+                />
+              </FormControl>
+              <FormMessage />
+            </FormItem>
+          )}
+        />
+        <FormField
+          control={form.control}
+          name="barData.yAxisName"
+          render={({ field }) => (
+            <FormItem>
+              <FormLabel>
+                {getTranslationFromI18nKeyAndLabel('investment.tiles.yAxisNameLabel', 'Y-Axis Name')}
+              </FormLabel>
+              <FormControl>
+                <Input
+                  {...field}
+                  placeholder={getTranslationFromI18nKeyAndLabel(
+                    'investment.tiles.yAxisNamePlaceholder',
+                    'Enter Y-axis name (e.g., Revenue, Sales, Units)'
+                  )}
+                  data-testid={formatDataTestId(prefixDataTestId, 'y-axis-name-input')}
+                />
+              </FormControl>
+              <FormMessage />
+            </FormItem>
+          )}
+        />
+      </div>
+
+      {/* Data Points - X and Y Values Side by Side */}
       <div className="gba:space-y-4">
         <h4 className="gba:text-sm gba:font-semibold">
-          {getTranslationFromI18nKeyAndLabel('investment.tiles.xAxisLabel', 'X-Axis Data')}
+          {getTranslationFromI18nKeyAndLabel('investment.tiles.dataPoints', 'Data Points')}
         </h4>
         <div className="gba:space-y-3">
           {xAxisFields.fields.map((field, index) => (
-            <div key={field.id} className="gba:flex gba:gap-2 gba:items-start" data-testid={`x-axis-item-${index}`}>
+            <div key={field.id} className="gba:flex gba:gap-2 gba:items-start" data-testid={`data-point-${index}`}>
               <FormField
                 control={form.control}
                 name={`barData.xAxis.${index}.name`}
@@ -514,76 +589,8 @@ const BarChartForm: React.FC<{ form: any; prefixDataTestId: string }> = ({ form,
                     <FormControl>
                       <Input
                         {...field}
-                        placeholder={getTranslationFromI18nKeyAndLabel('investment.tiles.namePlaceholder', 'Name')}
-                        data-testid={formatDataTestId(prefixDataTestId, `x-axis-name-${index}`)}
-                      />
-                    </FormControl>
-                    <FormMessage />
-                  </FormItem>
-                )}
-              />
-              <FormField
-                control={form.control}
-                name={`barData.xAxis.${index}.amount`}
-                render={({ field }) => (
-                  <FormItem className="gba:w-32">
-                    <FormControl>
-                      <Input
-                        {...field}
-                        type="number"
-                        step="0.01"
-                        placeholder={getTranslationFromI18nKeyAndLabel('investment.tiles.amountPlaceholder', 'Amount')}
-                        data-testid={formatDataTestId(prefixDataTestId, `x-axis-amount-${index}`)}
-                      />
-                    </FormControl>
-                    <FormMessage />
-                  </FormItem>
-                )}
-              />
-              <Button
-                type="button"
-                variant="ghost"
-                size="icon"
-                onClick={() => xAxisFields.remove(index)}
-                disabled={xAxisFields.fields.length === 1}
-                data-testid={formatDataTestId(prefixDataTestId, `remove-x-axis-${index}`)}
-              >
-                <Trash2 className="gba:h-4 gba:w-4 gba:text-destructive" />
-              </Button>
-            </div>
-          ))}
-        </div>
-        <Button
-          type="button"
-          variant="outline"
-          size="sm"
-          onClick={() => xAxisFields.append({ id: crypto.randomUUID(), name: '', amount: '' })}
-          className="gba:w-full"
-          data-testid={formatDataTestId(prefixDataTestId, 'add-x-axis-item')}
-        >
-          <Plus className="gba:h-4 gba:w-4 gba:mr-2" />
-          {getTranslationFromI18nKeyAndLabel('investment.tiles.addXAxisPoint', 'Add X-Axis Point')}
-        </Button>
-      </div>
-
-      {/* Y Axis */}
-      <div className="gba:space-y-4">
-        <h4 className="gba:text-sm gba:font-semibold">
-          {getTranslationFromI18nKeyAndLabel('investment.tiles.yAxisLabel', 'Y-Axis Data')}
-        </h4>
-        <div className="gba:space-y-3">
-          {yAxisFields.fields.map((field, index) => (
-            <div key={field.id} className="gba:flex gba:gap-2 gba:items-start" data-testid={`y-axis-item-${index}`}>
-              <FormField
-                control={form.control}
-                name={`barData.yAxis.${index}.name`}
-                render={({ field }) => (
-                  <FormItem className="gba:flex-1">
-                    <FormControl>
-                      <Input
-                        {...field}
-                        placeholder={getTranslationFromI18nKeyAndLabel('investment.tiles.namePlaceholder', 'Name')}
-                        data-testid={formatDataTestId(prefixDataTestId, `y-axis-name-${index}`)}
+                        placeholder={getTranslationFromI18nKeyAndLabel('investment.tiles.xValuePlaceholder', 'X Value')}
+                        data-testid={formatDataTestId(prefixDataTestId, `x-value-${index}`)}
                       />
                     </FormControl>
                     <FormMessage />
@@ -594,27 +601,28 @@ const BarChartForm: React.FC<{ form: any; prefixDataTestId: string }> = ({ form,
                 control={form.control}
                 name={`barData.yAxis.${index}.amount`}
                 render={({ field }) => (
-                  <FormItem className="gba:w-32">
+                  <FormItem className="gba:flex-1">
                     <FormControl>
                       <Input
                         {...field}
                         type="number"
                         step="0.01"
-                        placeholder={getTranslationFromI18nKeyAndLabel('investment.tiles.amountPlaceholder', 'Amount')}
-                        data-testid={formatDataTestId(prefixDataTestId, `y-axis-amount-${index}`)}
+                        placeholder={getTranslationFromI18nKeyAndLabel('investment.tiles.yValuePlaceholder', 'Y Value')}
+                        data-testid={formatDataTestId(prefixDataTestId, `y-value-${index}`)}
                       />
                     </FormControl>
                     <FormMessage />
                   </FormItem>
                 )}
               />
+
               <Button
                 type="button"
                 variant="ghost"
                 size="icon"
-                onClick={() => yAxisFields.remove(index)}
-                disabled={yAxisFields.fields.length === 1}
-                data-testid={formatDataTestId(prefixDataTestId, `remove-y-axis-${index}`)}
+                onClick={() => handleRemoveDataPoint(index)}
+                disabled={xAxisFields.fields.length === 1}
+                data-testid={formatDataTestId(prefixDataTestId, `remove-data-point-${index}`)}
               >
                 <Trash2 className="gba:h-4 gba:w-4 gba:text-destructive" />
               </Button>
@@ -625,12 +633,12 @@ const BarChartForm: React.FC<{ form: any; prefixDataTestId: string }> = ({ form,
           type="button"
           variant="outline"
           size="sm"
-          onClick={() => yAxisFields.append({ id: crypto.randomUUID(), name: '', amount: '' })}
+          onClick={handleAddDataPoint}
           className="gba:w-full"
-          data-testid={formatDataTestId(prefixDataTestId, 'add-y-axis-item')}
+          data-testid={formatDataTestId(prefixDataTestId, 'add-data-point')}
         >
           <Plus className="gba:h-4 gba:w-4 gba:mr-2" />
-          {getTranslationFromI18nKeyAndLabel('investment.tiles.addYAxisPoint', 'Add Y-Axis Point')}
+          {getTranslationFromI18nKeyAndLabel('investment.tiles.addDataPoint', 'Add Data Point')}
         </Button>
       </div>
     </div>
@@ -656,6 +664,28 @@ const LineChartForm: React.FC<{ form: any; prefixDataTestId: string }> = ({ form
         <h4 className="gba:text-sm gba:font-semibold">
           {getTranslationFromI18nKeyAndLabel('investment.tiles.xAxisLabel', 'X-Axis Data')}
         </h4>
+        <FormField
+          control={form.control}
+          name="lineData.xAxisName"
+          render={({ field }) => (
+            <FormItem>
+              <FormLabel>
+                {getTranslationFromI18nKeyAndLabel('investment.tiles.xAxisNameLabel', 'X-Axis Name')}
+              </FormLabel>
+              <FormControl>
+                <Input
+                  {...field}
+                  placeholder={getTranslationFromI18nKeyAndLabel(
+                    'investment.tiles.xAxisNamePlaceholder',
+                    'Enter X-axis name (e.g., Month, Quarter, Year)'
+                  )}
+                  data-testid={formatDataTestId(prefixDataTestId, 'x-axis-name-input')}
+                />
+              </FormControl>
+              <FormMessage />
+            </FormItem>
+          )}
+        />
         <div className="gba:space-y-3">
           {xAxisFields.fields.map((field, index) => (
             <div key={field.id} className="gba:flex gba:gap-2 gba:items-start" data-testid={`x-axis-item-${index}`}>
@@ -724,6 +754,28 @@ const LineChartForm: React.FC<{ form: any; prefixDataTestId: string }> = ({ form
         <h4 className="gba:text-sm gba:font-semibold">
           {getTranslationFromI18nKeyAndLabel('investment.tiles.yAxisLabel', 'Y-Axis Data')}
         </h4>
+        <FormField
+          control={form.control}
+          name="lineData.yAxisName"
+          render={({ field }) => (
+            <FormItem>
+              <FormLabel>
+                {getTranslationFromI18nKeyAndLabel('investment.tiles.yAxisNameLabel', 'Y-Axis Name')}
+              </FormLabel>
+              <FormControl>
+                <Input
+                  {...field}
+                  placeholder={getTranslationFromI18nKeyAndLabel(
+                    'investment.tiles.yAxisNamePlaceholder',
+                    'Enter Y-axis name (e.g., Revenue, Sales, Units)'
+                  )}
+                  data-testid={formatDataTestId(prefixDataTestId, 'y-axis-name-input')}
+                />
+              </FormControl>
+              <FormMessage />
+            </FormItem>
+          )}
+        />
         <div className="gba:space-y-3">
           {yAxisFields.fields.map((field, index) => (
             <div key={field.id} className="gba:flex gba:gap-2 gba:items-start" data-testid={`y-axis-item-${index}`}>
