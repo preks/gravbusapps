@@ -4,7 +4,7 @@ import { getTranslationFromI18nKeyAndLabel } from '@/common/utils/windowUtils'
 import { StatusProgressionProps, StatusIndices, ReferenceData, StatusProgressionConfig } from './types'
 
 // Constants for styling
-const TERMINAL_STATUS_PADDING = '0 12px 0 160px'
+const DEFAULT_TERMINAL_STATUS_PADDING = '0 12px 0 24px'
 
 const renderActiveOpenStatus = (statuses: ReferenceData[], openIndex: number) => (
   <div
@@ -55,45 +55,59 @@ const renderInactiveOpenStatus = (
   openIndex: number,
   accessToken: string,
   config: StatusProgressionConfig
-) => (
-  <AppAction
-    contextsArray={[config.flowContextName]}
-    externalContextData={{
-      leadId,
-      leadVersion,
-      newStatusRef: `${config.statusReferencePrefix}${statuses[openIndex].code}`,
-      statusDisplayName: statuses[openIndex].value
-    }}
-    prefixDataTestId={`${config.testIdPrefix}-open`}
-    accessToken={accessToken}
-    emptyStateBehavior="enable"
-    deferMainContextRequestsUntilClick
-    className="gba:flex gba:flex-1"
-  >
-    <div
-      className="gba:bg-transparent gba:text-muted-foreground"
-      style={{
-        position: 'relative',
-        height: '40px',
-        flex: 1,
-        display: 'flex',
-        alignItems: 'center',
-        justifyContent: 'center',
-        fontSize: '14px',
-        fontWeight: '600',
-        borderRadius: '20px 0 0 20px',
-        marginRight: '8px',
-        transition: 'all 0.3s ease',
-        clipPath: 'polygon(0 0, calc(100% - 12px) 0, 100% 50%, calc(100% - 12px) 100%, 0 100%)',
-        WebkitClipPath: 'polygon(0 0, calc(100% - 12px) 0, 100% 50%, calc(100% - 12px) 100%, 0 100%)',
-        cursor: 'pointer'
+) => {
+  const handleKeyDown = (event: React.KeyboardEvent<HTMLDivElement>) => {
+    if (event.key === 'Enter' || event.key === ' ') {
+      event.preventDefault()
+      // Trigger the onClick that AppAction injected
+      event.currentTarget.click()
+    }
+  }
+
+  return (
+    <AppAction
+      contextsArray={[config.flowContextName]}
+      externalContextData={{
+        leadId,
+        leadVersion,
+        newStatusRef: `${config.statusReferencePrefix}${statuses[openIndex].code}`,
+        statusDisplayName: statuses[openIndex].value
       }}
-      data-testid="status-open"
+      prefixDataTestId={`${config.testIdPrefix}-open`}
+      accessToken={accessToken}
+      emptyStateBehavior="enable"
+      deferMainContextRequestsUntilClick
+      className="gba:flex gba:flex-1"
     >
-      <span style={{ whiteSpace: 'nowrap' }}>{statuses[openIndex].value}</span>
-    </div>
-  </AppAction>
-)
+      <div
+        className="gba:bg-transparent gba:text-muted-foreground"
+        style={{
+          position: 'relative',
+          height: '40px',
+          flex: 1,
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'center',
+          fontSize: '14px',
+          fontWeight: '600',
+          borderRadius: '20px 0 0 20px',
+          marginRight: '8px',
+          transition: 'all 0.3s ease',
+          clipPath: 'polygon(0 0, calc(100% - 12px) 0, 100% 50%, calc(100% - 12px) 100%, 0 100%)',
+          WebkitClipPath: 'polygon(0 0, calc(100% - 12px) 0, 100% 50%, calc(100% - 12px) 100%, 0 100%)',
+          cursor: 'pointer'
+        }}
+        role="button"
+        tabIndex={0}
+        aria-label={`Change status to ${statuses[openIndex].value}`}
+        onKeyDown={handleKeyDown}
+        data-testid="status-open"
+      >
+        <span style={{ whiteSpace: 'nowrap' }}>{statuses[openIndex].value}</span>
+      </div>
+    </AppAction>
+  )
+}
 
 const renderConvertedLostSection = (
   leadId: string,
@@ -103,123 +117,148 @@ const renderConvertedLostSection = (
   lostIndex: number,
   accessToken: string,
   config: StatusProgressionConfig
-) => (
-  <div
-    style={{
-      position: 'relative',
-      height: '40px',
-      flex: 1,
-      display: 'flex',
-      alignItems: 'center',
-      backgroundColor: 'hsl(var(--muted))',
-      borderRadius: '0 20px 20px 0',
-      marginRight: '0',
-      transition: 'all 0.3s ease',
-      border: '1px solid hsl(var(--border))',
-      overflow: 'hidden',
-      clipPath: 'polygon(12px 0, 100% 0, 100% 100%, 12px 100%, 24px 50%)',
-      WebkitClipPath: 'polygon(12px 0, 100% 0, 100% 100%, 12px 100%, 24px 50%)'
-    }}
-    data-testid="status-converted-lost-combined"
-  >
-    {convertedIndex !== -1 && (
-      <div style={{ flex: 1, display: 'flex' }}>
-        <AppAction
-          contextsArray={[config.flowContextName]}
-          externalContextData={{
-            leadId,
-            leadVersion,
-            newStatusRef: `${config.statusReferencePrefix}${statuses[convertedIndex].code}`,
-            statusDisplayName: statuses[convertedIndex].value
-          }}
-          prefixDataTestId={`${config.testIdPrefix}-converted`}
-          accessToken={accessToken}
-          emptyStateBehavior="enable"
-          deferMainContextRequestsUntilClick
-        >
-          <div
-            style={{
-              position: 'relative',
-              height: '38px',
-              width: '100%',
-              display: 'flex',
-              alignItems: 'center',
-              justifyContent: 'center',
-              fontSize: '14px',
-              fontWeight: '600',
-              backgroundColor: 'transparent',
-              transition: 'all 0.3s ease',
-              cursor: 'pointer'
+) => {
+  const handleKeyDown = (event: React.KeyboardEvent<HTMLDivElement>) => {
+    if (event.key === 'Enter' || event.key === ' ') {
+      event.preventDefault()
+      // Trigger the onClick that AppAction injected
+      event.currentTarget.click()
+    }
+  }
+
+  const padding = config.terminalStatusPadding || DEFAULT_TERMINAL_STATUS_PADDING
+
+  return (
+    <div
+      style={{
+        position: 'relative',
+        height: '40px',
+        flex: 1,
+        display: 'flex',
+        alignItems: 'center',
+        backgroundColor: 'hsl(var(--muted))',
+        borderRadius: '0 20px 20px 0',
+        marginRight: '0',
+        transition: 'all 0.3s ease',
+        border: '1px solid hsl(var(--border))',
+        overflow: 'hidden',
+        clipPath: 'polygon(12px 0, 100% 0, 100% 100%, 12px 100%, 24px 50%)',
+        WebkitClipPath: 'polygon(12px 0, 100% 0, 100% 100%, 12px 100%, 24px 50%)'
+      }}
+      data-testid="status-converted-lost-combined"
+    >
+      {convertedIndex !== -1 && (
+        <div style={{ flex: 1, display: 'flex' }}>
+          <AppAction
+            contextsArray={[config.flowContextName]}
+            externalContextData={{
+              leadId,
+              leadVersion,
+              newStatusRef: `${config.statusReferencePrefix}${statuses[convertedIndex].code}`,
+              statusDisplayName: statuses[convertedIndex].value
             }}
-            data-testid="status-converted"
+            prefixDataTestId={`${config.testIdPrefix}-converted`}
+            accessToken={accessToken}
+            emptyStateBehavior="enable"
+            deferMainContextRequestsUntilClick
           >
             <div
               style={{
+                position: 'relative',
+                height: '38px',
+                width: '100%',
                 display: 'flex',
                 alignItems: 'center',
-                gap: '6px',
-                padding: TERMINAL_STATUS_PADDING
+                justifyContent: 'center',
+                fontSize: '14px',
+                fontWeight: '600',
+                backgroundColor: 'transparent',
+                transition: 'all 0.3s ease',
+                cursor: 'pointer'
               }}
+              role="button"
+              tabIndex={0}
+              aria-label={`Change status to ${
+                statuses[convertedIndex]?.value ||
+                getTranslationFromI18nKeyAndLabel('common.status.converted', 'Converted')
+              }`}
+              onKeyDown={handleKeyDown}
+              data-testid="status-converted"
             >
-              <span style={{ fontSize: '13px' }}>
-                {statuses[convertedIndex]?.value ||
-                  getTranslationFromI18nKeyAndLabel('common.status.converted', 'Converted')}
-              </span>
+              <div
+                style={{
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: '6px',
+                  padding
+                }}
+              >
+                <span style={{ fontSize: '13px' }}>
+                  {statuses[convertedIndex]?.value ||
+                    getTranslationFromI18nKeyAndLabel('common.status.converted', 'Converted')}
+                </span>
+              </div>
             </div>
-          </div>
-        </AppAction>
-      </div>
-    )}
-    <div style={{ width: '1px', height: '24px', backgroundColor: 'hsl(var(--border))' }} />
-    {lostIndex !== -1 && (
-      <div style={{ flex: 1, display: 'flex' }}>
-        <AppAction
-          contextsArray={[config.flowContextName]}
-          externalContextData={{
-            leadId,
-            leadVersion,
-            newStatusRef: `${config.statusReferencePrefix}${statuses[lostIndex].code}`,
-            statusDisplayName: statuses[lostIndex].value
-          }}
-          prefixDataTestId={`${config.testIdPrefix}-lost`}
-          accessToken={accessToken}
-          emptyStateBehavior="enable"
-          deferMainContextRequestsUntilClick
-        >
-          <div
-            style={{
-              position: 'relative',
-              height: '38px',
-              width: '100%',
-              display: 'flex',
-              alignItems: 'center',
-              justifyContent: 'center',
-              fontSize: '14px',
-              fontWeight: '600',
-              backgroundColor: 'transparent',
-              transition: 'all 0.3s ease',
-              cursor: 'pointer'
+          </AppAction>
+        </div>
+      )}
+      <div style={{ width: '1px', height: '24px', backgroundColor: 'hsl(var(--border))' }} />
+      {lostIndex !== -1 && (
+        <div style={{ flex: 1, display: 'flex' }}>
+          <AppAction
+            contextsArray={[config.flowContextName]}
+            externalContextData={{
+              leadId,
+              leadVersion,
+              newStatusRef: `${config.statusReferencePrefix}${statuses[lostIndex].code}`,
+              statusDisplayName: statuses[lostIndex].value
             }}
-            data-testid="status-lost"
+            prefixDataTestId={`${config.testIdPrefix}-lost`}
+            accessToken={accessToken}
+            emptyStateBehavior="enable"
+            deferMainContextRequestsUntilClick
           >
             <div
               style={{
+                position: 'relative',
+                height: '38px',
+                width: '100%',
                 display: 'flex',
                 alignItems: 'center',
-                gap: '6px',
-                padding: TERMINAL_STATUS_PADDING
+                justifyContent: 'center',
+                fontSize: '14px',
+                fontWeight: '600',
+                backgroundColor: 'transparent',
+                transition: 'all 0.3s ease',
+                cursor: 'pointer'
               }}
+              role="button"
+              tabIndex={0}
+              aria-label={`Change status to ${
+                statuses[lostIndex]?.value || getTranslationFromI18nKeyAndLabel('common.status.lost', 'Lost')
+              }`}
+              onKeyDown={handleKeyDown}
+              data-testid="status-lost"
             >
-              <span style={{ fontSize: '13px' }}>
-                {statuses[lostIndex]?.value || getTranslationFromI18nKeyAndLabel('common.status.lost', 'Lost')}
-              </span>
+              <div
+                style={{
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: '6px',
+                  padding
+                }}
+              >
+                <span style={{ fontSize: '13px' }}>
+                  {statuses[lostIndex]?.value || getTranslationFromI18nKeyAndLabel('common.status.lost', 'Lost')}
+                </span>
+              </div>
             </div>
-          </div>
-        </AppAction>
-      </div>
-    )}
-  </div>
-)
+          </AppAction>
+        </div>
+      )}
+    </div>
+  )
+}
 
 const renderActiveStatusBadge = (
   leadId: string,
@@ -236,6 +275,16 @@ const renderActiveStatusBadge = (
     if (isLost) return 'gba:bg-destructive gba:text-destructive-foreground'
     return 'gba:bg-transparent gba:text-muted-foreground'
   }
+
+  const handleKeyDown = (event: React.KeyboardEvent<HTMLDivElement>) => {
+    if (event.key === 'Enter' || event.key === ' ') {
+      event.preventDefault()
+      // Trigger the onClick that AppAction injected
+      event.currentTarget.click()
+    }
+  }
+
+  const currentStatusValue = isConverted ? statuses[convertedIndex].value : statuses[lostIndex].value
 
   return (
     <AppAction
@@ -270,6 +319,10 @@ const renderActiveStatusBadge = (
           clipPath: 'polygon(12px 0, 100% 0, 100% 100%, 12px 100%, 24px 50%)',
           WebkitClipPath: 'polygon(12px 0, 100% 0, 100% 100%, 12px 100%, 24px 50%)'
         }}
+        role="button"
+        tabIndex={0}
+        aria-label={`Revert status to ${statuses[openIndex].value}`}
+        onKeyDown={handleKeyDown}
         data-testid={isConverted ? 'status-converted' : 'status-lost'}
       >
         <div style={{ display: 'flex', alignItems: 'center', gap: '8px', padding: '0 16px' }}>
@@ -293,9 +346,7 @@ const renderActiveStatusBadge = (
               ✓
             </span>
           )}
-          <span style={{ whiteSpace: 'nowrap' }}>
-            {isConverted ? statuses[convertedIndex].value : statuses[lostIndex].value}
-          </span>
+          <span style={{ whiteSpace: 'nowrap' }}>{currentStatusValue}</span>
         </div>
       </div>
     </AppAction>

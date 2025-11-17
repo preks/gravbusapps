@@ -9,6 +9,7 @@ export interface StatusProgressionConfig {
   flowContextName: FlowContextName
   statusReferencePrefix: string
   testIdPrefix: string
+  terminalStatusPadding?: string
 }
 
 export interface StatusProgressionProps {
