@@ -34,37 +34,28 @@ export interface ChartTileCardProps extends BusinessAppContextProps {
   onRefresh?: () => void
 }
 
-// Custom tooltip components moved outside parent component
-const PieChartTooltip: React.FC<{ active?: boolean; payload?: any[] }> = ({ active, payload }) => {
-  if (active && payload?.length) {
-    return (
-      <div className="gba:bg-card gba:border gba:rounded gba:p-2 gba:shadow-lg">
-        <p className="gba:font-medium">{payload[0].payload.displayName}</p>
-        <p className="gba:text-sm">{payload[0].value}%</p>
-      </div>
-    )
-  }
-  return null
+// Custom tooltip component - reusable for all chart types
+interface ChartTooltipProps {
+  active?: boolean
+  payload?: any[]
+  labelKey?: string
+  showPercentage?: boolean
 }
 
-const BarChartTooltip: React.FC<{ active?: boolean; payload?: any[] }> = ({ active, payload }) => {
+const ChartTooltipContent: React.FC<ChartTooltipProps> = ({
+  active,
+  payload,
+  labelKey = 'name',
+  showPercentage = false
+}) => {
   if (active && payload?.length) {
-    return (
-      <div className="gba:bg-card gba:border gba:rounded gba:p-2 gba:shadow-lg">
-        <p className="gba:font-medium">{payload[0].payload.name}</p>
-        <p className="gba:text-sm">Value: {payload[0].value}</p>
-      </div>
-    )
-  }
-  return null
-}
+    const label = payload[0].payload[labelKey]
+    const value = payload[0].value
 
-const LineChartTooltip: React.FC<{ active?: boolean; payload?: any[] }> = ({ active, payload }) => {
-  if (active && payload?.length) {
     return (
       <div className="gba:bg-card gba:border gba:rounded gba:p-2 gba:shadow-lg">
-        <p className="gba:font-medium">{payload[0].payload.name}</p>
-        <p className="gba:text-sm">Value: {payload[0].value}</p>
+        <p className="gba:font-medium">{label}</p>
+        <p className="gba:text-sm">{showPercentage ? `${value}%` : `Value: ${value}`}</p>
       </div>
     )
   }
@@ -74,13 +65,10 @@ const LineChartTooltip: React.FC<{ active?: boolean; payload?: any[] }> = ({ act
 export const ChartTileCard: React.FC<ChartTileCardProps> = ({ tile, investmentId, onRefresh, ...props }) => {
   const chartData = tile.chartData
 
-  if (!chartData) {
-    return null
-  }
-
+  // All hooks MUST be called before any early returns (Rules of Hooks)
   // Prepare pie chart data and config at top level (using useMemo)
   const { pieChartData, pieChartConfig } = useMemo(() => {
-    if (!chartData.pieData || chartData.pieData.length === 0) {
+    if (!chartData?.pieData || chartData.pieData.length === 0) {
       return { pieChartData: [], pieChartConfig: {} }
     }
 
@@ -99,7 +87,7 @@ export const ChartTileCard: React.FC<ChartTileCardProps> = ({ tile, investmentId
     })
 
     return { pieChartData: pieData, pieChartConfig: config }
-  }, [chartData.pieData])
+  }, [chartData?.pieData])
 
   // Prepare bar chart config at top level
   const barChartConfig = useMemo(
@@ -120,6 +108,11 @@ export const ChartTileCard: React.FC<ChartTileCardProps> = ({ tile, investmentId
     }),
     []
   )
+
+  // Early return AFTER all hooks
+  if (!chartData) {
+    return null
+  }
 
   const getChartIcon = () => {
     switch (chartData.chartType) {
@@ -161,7 +154,7 @@ export const ChartTileCard: React.FC<ChartTileCardProps> = ({ tile, investmentId
                 <Cell key={entry.name} fill={`var(--color-${entry.name})`} />
               ))}
             </Pie>
-            <ChartTooltip content={<PieChartTooltip />} />
+            <ChartTooltip content={<ChartTooltipContent labelKey="displayName" showPercentage={true} />} />
             <ChartLegend content={<ChartLegendContent />} />
           </RechartsPieChart>
         </ChartContainer>
@@ -211,7 +204,7 @@ export const ChartTileCard: React.FC<ChartTileCardProps> = ({ tile, investmentId
                   : undefined
               }
             />
-            <ChartTooltip content={<BarChartTooltip />} />
+            <ChartTooltip content={<ChartTooltipContent labelKey="name" showPercentage={false} />} />
             <Bar dataKey="value" fill="var(--color-value)" radius={[4, 4, 0, 0]} />
           </RechartsBarChart>
         </ChartContainer>
@@ -261,7 +254,7 @@ export const ChartTileCard: React.FC<ChartTileCardProps> = ({ tile, investmentId
                   : undefined
               }
             />
-            <ChartTooltip content={<LineChartTooltip />} />
+            <ChartTooltip content={<ChartTooltipContent labelKey="name" showPercentage={false} />} />
             <Line
               type="monotone"
               dataKey="value"
