@@ -19,15 +19,14 @@ import { AppActionForm } from '@/components/app-action-form'
 import { useInvestmentPopupData } from '../hooks/useInvestmentPopupData'
 import { InvestmentPpmForecastComponentProps, PpmForecastFormData } from '../types'
 import { getTranslationFromI18nKeyAndLabel } from '@/common/utils/windowUtils'
-import { buildInvestmentPayload } from '@/common/data/investment/payloads/investmentPayloads'
 import { formatDataTestId } from '@/common/utils/formatDataTestId'
 import {
   extractInvestmentId,
   parseAdditionalProperties,
   validateInvestmentData,
-  INVESTMENT_ERRORS,
-  getInvestmentGroupType
+  INVESTMENT_ERRORS
 } from '../utils/investmentPopupUtils'
+import { buildInvestmentSubtypePayload } from '../utils/investmentPopupPayloadHelper'
 
 const prefixDataTestId = 'investment-ppm-forecast-component'
 
@@ -164,83 +163,14 @@ export const InvestmentPpmForecastComponent: React.FC<InvestmentPpmForecastCompo
       forecasts: forecastsObject
     }
 
-    // Determine investment group type
-    const groupType = getInvestmentGroupType(investment)
-
-    // Create investment form data with updated additionalProperties
-    const investmentFormData: any = {
-      investment: {
-        id: investmentId,
-        version: investment.version,
-        name: investment.name || '',
-        initialInvestmentAmount: investment.initialInvestmentAmount || 0,
-        investmentGroup: investment.investmentGroup,
-        ownerEmployee: investment.ownerEmployee,
-
-        // Include ALL existing investment fields
-        code: investment.code,
-        isin: investment.isin,
-        investmentType: investment.investmentType,
-        investmentStakeType: investment.investmentStakeType,
-        investmentPhase: investment.investmentPhase,
-        investmentStatus: investment.investmentStatus,
-        investmentRiskLevel: investment.investmentRiskLevel,
-        acquisitionDate: investment.acquisitionDate,
-        planedExit: investment.planedExit,
-        plannedExitDate: investment.plannedExitDate,
-        exitDate: investment.exitDate,
-        totalInvestmentAmount: investment.totalInvestmentAmount,
-        investmentMarketValue: investment.investmentMarketValue,
-        debtFinancingAmount: investment.debtFinancingAmount,
-        requiredCapitalAmount: investment.requiredCapitalAmount,
-        forecastedRevenueAmount: investment.forecastedRevenueAmount,
-        forecastedProfitAmount: investment.forecastedProfitAmount,
-        stakePercentage: investment.stakePercentage,
-        loanRecipientName: investment.loanRecipientName,
-        loanAmount: investment.loanAmount,
-        loanOpenCommitmentAmount: investment.loanOpenCommitmentAmount,
-        loanInterestRate: investment.loanInterestRate,
-        loanStartDate: investment.loanStartDate,
-        loanEndDate: investment.loanEndDate,
-        loanInterestClaim: investment.loanInterestClaim,
-        totalCommitmentAmount: investment.totalCommitmentAmount,
-        totalDistributionAmount: investment.totalDistributionAmount,
-        currency: investment.currency,
-        fundManagerName: investment.fundManagerName,
-        identification: investment.identification,
-        investmentAccount: investment.investmentAccount,
-        investmentOpportunity: investment.investmentOpportunity?.id,
-        loanRecipientInvestmentAccount: investment.loanRecipientInvestmentAccount?.id,
-        additionalProperties: investment.additionalProperties
-      }
-    }
-
-    // Add the appropriate subtype with updated additionalProperties
-    if (groupType === 'EQUITY') {
-      investmentFormData.equityInvestment = {
-        ...equityInvestment,
-        additionalProperties: updatedAdditionalProps
-      }
-    } else if (groupType === 'REAL_ESTATE') {
-      const existingRealEstate = Array.isArray(investment.realEstateInvestment)
-        ? investment.realEstateInvestment[0]
-        : investment.realEstateInvestment
-      investmentFormData.realEstateInvestment = existingRealEstate || {}
-    } else if (groupType === 'LIQUID_FUND') {
-      const existingLiquidFund = Array.isArray(investment.liquidFundInvestment)
-        ? investment.liquidFundInvestment[0]
-        : investment.liquidFundInvestment
-      investmentFormData.liquidFundInvestment = existingLiquidFund || {}
-    }
-
-    // Use the central payload builder
-    const payload = buildInvestmentPayload(investmentFormData, businessAppContext, {
-      isUpdate: true,
-      rawInvestmentData: investment
+    // Build the payload using the centralized helper for subtype updates
+    const payload = buildInvestmentSubtypePayload({
+      investment,
+      updatedSubtypeAdditionalProperties: updatedAdditionalProps,
+      businessAppContext,
+      businessKeyPrefix: 'investment-ppm-forecast',
+      businessKeySuffix: undefined
     })
-
-    // Add changeMode
-    ;(payload as any).changeMode = 'UPDATE'
 
     return payload
   }

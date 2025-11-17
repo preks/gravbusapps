@@ -19,15 +19,14 @@ import { AppActionForm } from '@/components/app-action-form'
 import { useInvestmentPopupData } from '../hooks/useInvestmentPopupData'
 import { InvestmentLiquidityComponentProps, LiquidityFormData, LiquidityPreferenceItem } from '../types'
 import { getTranslationFromI18nKeyAndLabel } from '@/common/utils/windowUtils'
-import { buildInvestmentPayload } from '@/common/data/investment/payloads/investmentPayloads'
 import { formatDataTestId } from '@/common/utils/formatDataTestId'
 import {
   extractInvestmentId,
   parseAdditionalProperties,
   validateInvestmentData,
-  INVESTMENT_ERRORS,
-  getInvestmentGroupType
+  INVESTMENT_ERRORS
 } from '../utils/investmentPopupUtils'
+import { buildInvestmentPopupPayload } from '../utils/investmentPopupPayloadHelper'
 
 const prefixDataTestId = 'investment-liquidity-component'
 
@@ -134,85 +133,14 @@ export const InvestmentLiquidityComponent: React.FC<InvestmentLiquidityComponent
       liquidityPreferences: updatedLiquidityPreferences
     }
 
-    // Determine investment group type
-    const groupType = getInvestmentGroupType(investment)
-
-    // Create investment form data with updated additionalProperties
-    const investmentFormData: any = {
-      investment: {
-        id: investmentId,
-        version: investment.version,
-        name: investment.name || '',
-        initialInvestmentAmount: investment.initialInvestmentAmount || 0,
-        investmentGroup: investment.investmentGroup, // Full object
-        ownerEmployee: investment.ownerEmployee, // Full object
-
-        // Include ALL existing investment fields to preserve them
-        code: investment.code,
-        isin: investment.isin,
-        investmentType: investment.investmentType, // Full object
-        investmentStakeType: investment.investmentStakeType, // Full object
-        investmentPhase: investment.investmentPhase, // Full object
-        investmentStatus: investment.investmentStatus, // Full object
-        investmentRiskLevel: investment.investmentRiskLevel, // Full object
-        acquisitionDate: investment.acquisitionDate,
-        planedExit: investment.planedExit,
-        plannedExitDate: investment.plannedExitDate,
-        exitDate: investment.exitDate,
-        totalInvestmentAmount: investment.totalInvestmentAmount,
-        investmentMarketValue: investment.investmentMarketValue,
-        debtFinancingAmount: investment.debtFinancingAmount,
-        requiredCapitalAmount: investment.requiredCapitalAmount,
-        forecastedRevenueAmount: investment.forecastedRevenueAmount,
-        forecastedProfitAmount: investment.forecastedProfitAmount,
-        stakePercentage: investment.stakePercentage,
-        loanRecipientName: investment.loanRecipientName,
-        loanAmount: investment.loanAmount,
-        loanOpenCommitmentAmount: investment.loanOpenCommitmentAmount,
-        loanInterestRate: investment.loanInterestRate,
-        loanStartDate: investment.loanStartDate,
-        loanEndDate: investment.loanEndDate,
-        loanInterestClaim: investment.loanInterestClaim,
-        totalCommitmentAmount: investment.totalCommitmentAmount,
-        totalDistributionAmount: investment.totalDistributionAmount,
-        currency: investment.currency, // Full object
-        fundManagerName: investment.fundManagerName,
-        identification: investment.identification,
-        investmentAccount: investment.investmentAccount, // Full object
-        investmentOpportunity: investment.investmentOpportunity?.id,
-        loanRecipientInvestmentAccount: investment.loanRecipientInvestmentAccount?.id,
-
-        // Updated field - additionalProperties with new liquidity preferences
-        additionalProperties: updatedAdditionalProps
-      }
-    }
-
-    // CRITICAL: Add the appropriate subtype based on investment group (required by API)
-    if (groupType === 'EQUITY') {
-      const existingEquity = Array.isArray((investment as any).equityInvestment)
-        ? (investment as any).equityInvestment[0]
-        : (investment as any).equityInvestment
-      investmentFormData.equityInvestment = existingEquity || {}
-    } else if (groupType === 'REAL_ESTATE') {
-      const existingRealEstate = Array.isArray((investment as any).realEstateInvestment)
-        ? (investment as any).realEstateInvestment[0]
-        : (investment as any).realEstateInvestment
-      investmentFormData.realEstateInvestment = existingRealEstate || {}
-    } else if (groupType === 'LIQUID_FUND') {
-      const existingLiquidFund = Array.isArray((investment as any).liquidFundInvestment)
-        ? (investment as any).liquidFundInvestment[0]
-        : (investment as any).liquidFundInvestment
-      investmentFormData.liquidFundInvestment = existingLiquidFund || {}
-    }
-
-    // Use the central payload builder with correct signature
-    const payload = buildInvestmentPayload(investmentFormData, businessAppContext, {
-      isUpdate: true,
-      rawInvestmentData: investment
+    // Build the payload using the centralized helper
+    const payload = buildInvestmentPopupPayload({
+      investment,
+      updatedAdditionalProperties: updatedAdditionalProps,
+      businessAppContext,
+      businessKeyPrefix: 'investment-liquidity',
+      businessKeySuffix: undefined
     })
-
-    // Add changeMode to the payload
-    ;(payload as any).changeMode = 'UPDATE'
 
     return payload
   }

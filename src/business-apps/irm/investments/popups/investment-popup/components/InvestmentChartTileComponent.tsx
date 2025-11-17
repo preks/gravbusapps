@@ -23,14 +23,13 @@ import { BusinessAppContextProps } from '@/common/BusinessAppContext'
 import { getTranslationFromI18nKeyAndLabel } from '@/common/utils/windowUtils'
 import { formatDataTestId } from '@/common/utils/formatDataTestId'
 import { useInvestmentPopupData } from '../hooks/useInvestmentPopupData'
-import { buildInvestmentPayload } from '@/common/data/investment/payloads/investmentPayloads'
 import {
   extractInvestmentId,
   parseAdditionalProperties,
   validateInvestmentData,
-  INVESTMENT_ERRORS,
-  getInvestmentGroupType
+  INVESTMENT_ERRORS
 } from '../utils/investmentPopupUtils'
+import { buildInvestmentPopupPayload } from '../utils/investmentPopupPayloadHelper'
 import {
   TileData,
   TILE_TYPES,
@@ -322,94 +321,19 @@ export const InvestmentChartTileComponent: React.FC<InvestmentChartTileComponent
 
     const updatedTiles = upsertTile(currentTiles, tileData)
     const currentAdditionalProps = parseAdditionalProperties(investment.additionalProperties)
-    const updatedAdditionalProps = {
+    const updatedAdditionalProperties = {
       ...currentAdditionalProps,
       tilesData: updatedTiles
     }
 
-    const groupType = getInvestmentGroupType(investment)
-
-    // Create investment form data using the full structure with all investment fields
-    const investmentFormData: any = {
-      investment: {
-        id: investmentId,
-        version: investment.version,
-        name: investment.name || '',
-        initialInvestmentAmount: investment.initialInvestmentAmount || 0,
-        investmentGroup: investment.investmentGroup,
-        ownerEmployee: investment.ownerEmployee,
-
-        // Include ALL existing investment fields to preserve them
-        code: investment.code,
-        isin: investment.isin,
-        investmentType: investment.investmentType,
-        investmentStakeType: investment.investmentStakeType,
-        investmentPhase: investment.investmentPhase,
-        investmentStatus: investment.investmentStatus,
-        investmentRiskLevel: investment.investmentRiskLevel,
-        acquisitionDate: investment.acquisitionDate,
-        planedExit: investment.planedExit,
-        plannedExitDate: investment.plannedExitDate,
-        exitDate: investment.exitDate,
-        totalInvestmentAmount: investment.totalInvestmentAmount,
-        investmentMarketValue: investment.investmentMarketValue,
-        debtFinancingAmount: investment.debtFinancingAmount,
-        requiredCapitalAmount: investment.requiredCapitalAmount,
-        forecastedRevenueAmount: investment.forecastedRevenueAmount,
-        forecastedProfitAmount: investment.forecastedProfitAmount,
-        stakePercentage: investment.stakePercentage,
-        loanRecipientName: investment.loanRecipientName,
-        loanAmount: investment.loanAmount,
-        loanOpenCommitmentAmount: investment.loanOpenCommitmentAmount,
-        loanInterestRate: investment.loanInterestRate,
-        loanStartDate: investment.loanStartDate,
-        loanEndDate: investment.loanEndDate,
-        loanInterestClaim: investment.loanInterestClaim,
-        totalCommitmentAmount: investment.totalCommitmentAmount,
-        totalDistributionAmount: investment.totalDistributionAmount,
-        currency: investment.currency,
-        fundManagerName: investment.fundManagerName,
-        identification: investment.identification,
-        investmentAccount: investment.investmentAccount,
-        investmentOpportunity: investment.investmentOpportunity?.id,
-        loanRecipientInvestmentAccount: investment.loanRecipientInvestmentAccount?.id,
-        additionalProperties: updatedAdditionalProps
-      }
-    }
-
-    // Add the appropriate subtype based on investment group
-    if (groupType === 'EQUITY') {
-      const existingEquity = Array.isArray(investment.equityInvestment)
-        ? investment.equityInvestment[0]
-        : investment.equityInvestment
-      investmentFormData.equityInvestment = existingEquity || {}
-    } else if (groupType === 'REAL_ESTATE') {
-      const existingRealEstate = Array.isArray(investment.realEstateInvestment)
-        ? investment.realEstateInvestment[0]
-        : investment.realEstateInvestment
-      investmentFormData.realEstateInvestment = existingRealEstate || {}
-    } else if (groupType === 'LIQUID_FUND') {
-      const existingLiquidFund = Array.isArray(investment.liquidFundInvestment)
-        ? investment.liquidFundInvestment[0]
-        : investment.liquidFundInvestment
-      investmentFormData.liquidFundInvestment = existingLiquidFund || {}
-    } else if (groupType === 'PRIVATE_EQUITY') {
-      const existingPrivateEquity = Array.isArray(investment.privateEquityInvestment)
-        ? investment.privateEquityInvestment[0]
-        : investment.privateEquityInvestment
-      investmentFormData.privateEquityInvestment = existingPrivateEquity || {}
-    }
-
-    const payload = buildInvestmentPayload(investmentFormData, businessAppContext, {
-      isUpdate: true,
-      rawInvestmentData: investment
+    // Build the payload using the centralized helper
+    const payload = buildInvestmentPopupPayload({
+      investment,
+      updatedAdditionalProperties,
+      businessAppContext,
+      businessKeyPrefix: 'investment-chart-tile',
+      businessKeySuffix: tileData.id
     })
-
-    // Add changeMode
-    ;(payload as any).changeMode = 'UPDATE'
-
-    // Add businessKey
-    ;(payload as any).businessKey = `investment-chart-tile-${tileData.id}`
 
     return payload
   }
