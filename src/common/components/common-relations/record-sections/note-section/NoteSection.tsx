@@ -2,7 +2,6 @@ import React, { useMemo } from 'react'
 import { Card, CardContent, CardHeader, CardTitle, Button } from '@newwork/nw-design-system'
 import { PlusIcon, UserIcon, CalendarBlankIcon, BellIcon, DotsThreeVertical } from '@phosphor-icons/react'
 import dayjs from 'dayjs'
-import { AppAction } from '@/components/app-action'
 import { AppActionMenu } from '@/components/app-action-menu/AppActionMenu'
 import type { AppActionCommonProps } from '@/common/hooks/useAppActionData'
 import { BusinessAppContextProps } from '@/common/BusinessAppContext'
@@ -198,26 +197,27 @@ const NoteSection: React.FC<NoteSectionProps> = props => {
 
 // Static properties for SectionWrapper
 ;(NoteSection as any).sectionTitle = 'Notes'
-;(NoteSection as any).sectionActions = (props: NoteSectionProps) => {
+;(NoteSection as any).getActionButtonConfig = (_pageData: any, _pageIndex: number, props: NoteSectionProps) => {
   const { accessToken, noteActionProps } = props
 
-  if (!noteActionProps) {
+  if (!noteActionProps || !accessToken) {
     return null
   }
 
-  return (
-    <AppAction
-      accessToken={accessToken}
-      contextsArray={noteActionProps.contextsArray}
-      externalContextData={noteActionProps.externalContextData}
-      prefixDataTestId={noteActionProps.prefixDataTestId}
-      emptyStateBehavior={noteActionProps.emptyStateBehavior}
-    >
-      <Button data-testid="add-note-button" variant="secondary" size="icon">
-        <PlusIcon />
-      </Button>
-    </AppAction>
-  )
+  return {
+    type: 'AppAction' as const,
+    config: {
+      contextsArray: noteActionProps.contextsArray,
+      externalContextData: noteActionProps.externalContextData,
+      prefixDataTestId: noteActionProps.prefixDataTestId,
+      emptyStateBehavior: noteActionProps.emptyStateBehavior || 'enable',
+      children: (
+        <Button data-testid="add-note-button" variant="secondary" size="icon">
+          <PlusIcon />
+        </Button>
+      )
+    }
+  }
 }
 
 export default NoteSection

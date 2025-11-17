@@ -2,6 +2,8 @@ import { useState, useEffect } from 'react'
 import { useGraphqlClient } from '@/common/network/graphql/useGraphQLClient'
 import { GET_HEALTH_INSURANCE_TYPE_DISTRIBUTION } from '../queries/getHealthInsuranceTypeDistribution'
 import { getCurrentActiveUserLocale } from '@/common/utils/windowUtils'
+import { useTranslation } from '@newwork/nw-design-system'
+import hrTranslations from '@/business-apps/hr/core/apps/human-resources/_i18n'
 
 interface HealthInsuranceTypeItem {
   name: string
@@ -19,6 +21,7 @@ export const useHealthInsuranceTypeDistribution = (accessToken: string) => {
   const [loading, setLoading] = useState<boolean>(true)
   const [error, setError] = useState<Error | null>(null)
   const [totalEmployees, setTotalEmployees] = useState<number>(0)
+  const { t } = useTranslation(hrTranslations)
 
   const graphQLClient = useGraphqlClient(accessToken)
 
@@ -88,8 +91,8 @@ export const useHealthInsuranceTypeDistribution = (accessToken: string) => {
             healthInsuranceTypeRef = employee.taxDetails[0].healthInsuranceTypeRef
           }
 
-          // Get human-readable value from catalog or use 'Not Specified'
-          let displayValue = 'Not Specified'
+          // Get human-readable value from catalog or translated 'Not Specified'
+          let displayValue = t('hr-analytics-not-specified')
           if (healthInsuranceTypeRef) {
             // Extract the code part from the reference (e.g., "STATUTORILY" from "HealthInsuranceType:v1:STATUTORILY")
             const parts = healthInsuranceTypeRef.split(':')

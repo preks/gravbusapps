@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react'
-import { Tabs, TabsContent, TabsList, TabsTrigger, Button, Spinner, Card, CardContent } from '@newwork/nw-design-system'
+import { Tabs, TabsContent, TabsList, TabsTrigger, Button, Spinner, Card, CardContent, useTranslation } from '@newwork/nw-design-system'
 import { PiTrendUp, PiArrowClockwise, PiUsers, PiChartBar, PiBriefcase } from 'react-icons/pi'
 import { BusinessAppContextProps } from '@/common/BusinessAppContext'
 import HeadcountTrends from './components/tabs/HeadcountTrends'
@@ -7,8 +7,10 @@ import TurnoverRetention from './components/tabs/TurnoverRetention'
 import Performance from './components/tabs/Performance'
 import Employment from './components/tabs/Employment'
 import { useHeadcountTrendsData } from '../../../hooks/useHeadcountTrendsData'
+import hrTranslations from '@/business-apps/hr/core/apps/human-resources/_i18n'
 
 const Workforce: React.FC<BusinessAppContextProps> = context => {
+  const { t } = useTranslation(hrTranslations)
   // Define valid tabs
   const validTabs = ['headcount-trends', 'turnover-retention', 'employment', 'performance']
   const defaultTab = 'headcount-trends'
@@ -67,13 +69,13 @@ const Workforce: React.FC<BusinessAppContextProps> = context => {
             <div className="gba:flex gba:items-center gba:gap-4">
               <div className="gba:flex-1">
                 <h3 className="gba:text-destructive-secondary gba:font-medium gba:mb-2">
-                  Failed to Load Workforce Data
+                  {t('hr-analytics-failed-to-load-workforce')}
                 </h3>
                 <p className="gba:text-destructive-secondary">{error}</p>
               </div>
               <Button variant="outline" onClick={refetch} className="gba:flex gba:items-center gba:gap-2">
                 <PiArrowClockwise />
-                Retry
+                {t('common-retry')}
               </Button>
             </div>
           </CardContent>
@@ -89,7 +91,7 @@ const Workforce: React.FC<BusinessAppContextProps> = context => {
         className="gba:bg-gradient-to-b gba:from-background gba:to-muted gba:min-h-full gba:p-6 gba:rounded-lg gba:flex gba:justify-center gba:items-center gba:flex-col"
       >
         <Spinner className="gba:w-8 gba:h-8" />
-        <p className="gba:mt-4 gba:text-muted-foreground">Loading workforce data and analytics...</p>
+        <p className="gba:mt-4 gba:text-muted-foreground">{t('hr-analytics-loading-workforce')}</p>
       </div>
     )
   }
@@ -102,9 +104,9 @@ const Workforce: React.FC<BusinessAppContextProps> = context => {
       {/* Header */}
       <div className="gba:flex gba:justify-between gba:items-center gba:mb-6">
         <div className="gba:flex gba:items-center gba:gap-4">
-          <h2 className="gba:text-2xl gba:font-bold gba:text-foreground gba:m-0">Workforce Analytics</h2>
+          <h2 className="gba:text-2xl gba:font-bold gba:text-foreground gba:m-0">{t('hr-analytics-workforce-analytics')}</h2>
           <div className="gba:bg-card gba:px-3 gba:py-1 gba:rounded-full gba:border gba:border-border">
-            <span className="gba:font-semibold gba:text-info">{statistics.totalEmployees} Employees</span>
+            <span className="gba:font-semibold gba:text-info">{statistics.totalEmployees} {t('hr-analytics-employees')}</span>
           </div>
         </div>
         <Button
@@ -113,15 +115,13 @@ const Workforce: React.FC<BusinessAppContextProps> = context => {
           className="gba:flex gba:items-center gba:gap-2"
         >
           <PiArrowClockwise />
-          Refresh Data
+          {t('common-refresh-data')}
         </Button>
       </div>
 
       {/* Description */}
       <div className="gba:mb-6">
-        <p className="gba:text-muted-foreground">
-          Comprehensive workforce metrics, trends, and organizational insights
-        </p>
+        <p className="gba:text-muted-foreground">{t('hr-analytics-workforce-description')}</p>
       </div>
 
       {/* Tabs */}
@@ -133,7 +133,7 @@ const Workforce: React.FC<BusinessAppContextProps> = context => {
             className="gba:flex gba:items-center gba:gap-2"
           >
             <PiTrendUp />
-            Headcount Trends
+            {t('hr-analytics-headcount-trends')}
           </TabsTrigger>
           <TabsTrigger
             value="turnover-retention"
@@ -141,11 +141,11 @@ const Workforce: React.FC<BusinessAppContextProps> = context => {
             className="gba:flex gba:items-center gba:gap-2"
           >
             <PiUsers />
-            Turnover & Retention
+            {t('hr-analytics-turnover-retention')}
           </TabsTrigger>
           <TabsTrigger value="employment" data-testid="employment-tab" className="gba:flex gba:items-center gba:gap-2">
             <PiBriefcase />
-            Employment
+            {t('hr-analytics-employment')}
           </TabsTrigger>
           <TabsTrigger
             value="performance"
@@ -153,7 +153,7 @@ const Workforce: React.FC<BusinessAppContextProps> = context => {
             className="gba:flex gba:items-center gba:gap-2"
           >
             <PiChartBar />
-            Performance
+            {t('hr-analytics-performance')}
           </TabsTrigger>
         </TabsList>
 

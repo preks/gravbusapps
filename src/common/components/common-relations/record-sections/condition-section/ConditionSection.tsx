@@ -275,45 +275,5 @@ ConditionSection.displayName = 'ConditionSection'
 
 // Static properties for SectionWrapper
 ;(ConditionSection as any).sectionTitle = 'Stage Conditions'
-;(ConditionSection as any).sectionActions = (props: ConditionSectionProps) => {
-  const { accessToken, stageConditionActionProps, opportunity, stageConditionStatuses = [] } = props
-
-  if (!stageConditionActionProps) {
-    return null
-  }
-
-  // Check if there are any conditions for the current stage
-  const currentStageId = opportunity?.opportunityPipelineStage?.id
-  const hasConditions =
-    currentStageId &&
-    stageConditionStatuses.some(s => s.opportunityPipelineStageCondition?.parentEntryId === currentStageId)
-
-  const tooltipMessage = hasConditions
-    ? 'You need to complete the following conditions in order to transition to the next stage'
-    : 'No stage conditions configured, you can transition to the next stage at any time'
-
-  return (
-    <TooltipProvider>
-      <AppActionMenu
-        accessToken={accessToken as string}
-        contextsArray={stageConditionActionProps.contextsArray}
-        externalContextData={stageConditionActionProps.externalContextData}
-        prefixDataTestId={stageConditionActionProps.prefixDataTestId}
-        emptyStateBehavior={stageConditionActionProps.emptyStateBehavior}
-      >
-        <Tooltip>
-          <TooltipTrigger asChild>
-            <span className="gba:flex-shrink-0 gba:cursor-help gba:inline-flex gba:items-center">
-              <QuestionIcon size={24} weight="regular" className="gba:text-gray-400" />
-            </span>
-          </TooltipTrigger>
-          <TooltipContent className="gba:max-w-sm">
-            <p className="gba:text-sm">{tooltipMessage}</p>
-          </TooltipContent>
-        </Tooltip>
-      </AppActionMenu>
-    </TooltipProvider>
-  )
-}
 
 export default ConditionSection

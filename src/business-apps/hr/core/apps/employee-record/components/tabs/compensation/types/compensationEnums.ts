@@ -41,18 +41,24 @@ export enum PayslipStatus {
 
 /**
  * Get human-readable label for CompensationStatus
+ * Uses translation system from useTranslation hook
+ * @param status - The compensation status enum value
+ * @param t - Translation function from useTranslation hook (required)
  */
-export const getCompensationStatusLabel = (status: CompensationStatus | string): string => {
+export const getCompensationStatusLabel = (
+  status: CompensationStatus | string,
+  t: (key: string, params?: any) => string
+): string => {
   switch (status) {
     case CompensationStatus.PENDING:
-      return 'Pending'
+      return t('status-pending')
     case CompensationStatus.APPROVED:
-      return 'Approved'
+      return t('status-approved')
     case CompensationStatus.CANCELLED:
-      return 'Cancelled'
+      return t('status-cancelled')
     case CompensationStatus.UNKNOWN:
     default:
-      return 'Unknown'
+      return t('status-unknown')
   }
 }
 
@@ -73,18 +79,24 @@ export const getBenefitStatusLabel = (status: BenefitStatus | string): string =>
 
 /**
  * Get human-readable label for PayslipStatus
+ * Uses translation system from useTranslation hook
+ * @param status - The payslip status enum value
+ * @param t - Translation function from useTranslation hook (required)
  */
-export const getPayslipStatusLabel = (status: PayslipStatus | string): string => {
+export const getPayslipStatusLabel = (
+  status: PayslipStatus | string,
+  t: (key: string, params?: any) => string
+): string => {
   switch (status) {
     case PayslipStatus.GENERATED:
-      return 'Generated'
+      return t('status-generated')
     case PayslipStatus.PAID:
-      return 'Paid'
+      return t('status-paid')
     case PayslipStatus.CANCELLED:
-      return 'Cancelled'
+      return t('status-cancelled')
     case PayslipStatus.UNKNOWN:
     default:
-      return 'Unknown'
+      return t('status-unknown')
   }
 }
 
