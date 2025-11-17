@@ -15,7 +15,7 @@ import {
   SelectValue
 } from '@newwork/nw-design-system'
 import { formatDataTestId } from '@/common/utils/formatDataTestId'
-import { useTranslation } from 'react-i18next'
+import { getTranslationFromI18nKeyAndLabel } from '@/common/utils/windowUtils'
 import { z } from 'zod'
 import { zodResolver } from '@hookform/resolvers/zod'
 import { useRestClient } from '@/common/network/rest/useRestClient'
@@ -29,11 +29,35 @@ export const APPLIED_DAYS_OPTIONS = [
   { code: 'NEXT_APPLIED_DAY', displayValue: 'Next Applied Day' }
 ]
 
-// Validation schema
+// Validation schema - messages will be translated at runtime
 const dayTypeDetailsSchema = z.object({
-  fieldType: z.string().min(1, 'Field Type is required'),
-  appliedDay: z.string().min(1, 'Applied Day is required'),
-  timeValue: z.string().min(1, 'Time Value is required')
+  fieldType: z
+    .string()
+    .min(
+      1,
+      getTranslationFromI18nKeyAndLabel(
+        'master-data:hr.time_attendance.day_type_versions.field_type_required',
+        'Field Type is required'
+      )
+    ),
+  appliedDay: z
+    .string()
+    .min(
+      1,
+      getTranslationFromI18nKeyAndLabel(
+        'master-data:hr.time_attendance.day_type_versions.applied_day_required',
+        'Applied Day is required'
+      )
+    ),
+  timeValue: z
+    .string()
+    .min(
+      1,
+      getTranslationFromI18nKeyAndLabel(
+        'master-data:hr.time_attendance.day_type_versions.time_value_required',
+        'Time Value is required'
+      )
+    )
 })
 
 export type DayTypeDetailsFormData = z.infer<typeof dayTypeDetailsSchema>
@@ -60,10 +84,9 @@ const DayTypeDetailsForm: React.FC<DayTypeDetailsFormProps> = ({
   dayTypeDetails,
   childAddButton,
   refetch,
-  accessToken: accessToken,
+  accessToken,
   fieldTypeOptions
 }) => {
-  const { t } = useTranslation('master-data')
   const dataTestId = formatDataTestId(prefixDataTestId, 'DayTypeDetailsForm')
   const restClient = useRestClient(env('NEXT_PUBLIC_KOGITO_PROCESSES_ENDPOINT'))
 
@@ -117,8 +140,21 @@ const DayTypeDetailsForm: React.FC<DayTypeDetailsFormProps> = ({
   return (
     <FormWrapperModal
       childAddButton={childAddButton}
-      title={dayTypeDetails?.id ? 'Edit Day Type Details' : 'Create Day Type Details'}
-      description="Configure day type details"
+      title={
+        dayTypeDetails?.id
+          ? getTranslationFromI18nKeyAndLabel(
+              'master-data:hr.time_attendance.day_type_versions.actions.edit_day_type_details',
+              'Edit Day Type Details'
+            )
+          : getTranslationFromI18nKeyAndLabel(
+              'master-data:hr.time_attendance.day_type_versions.actions.create_day_type_details',
+              'Create Day Type Details'
+            )
+      }
+      description={getTranslationFromI18nKeyAndLabel(
+        'master-data:hr.time_attendance.day_type_versions.configure_day_type_details',
+        'Configure day type details'
+      )}
       onSubmit={handleSubmit}
       defaultValues={defaultValues}
       isEditing={!!dayTypeDetails}
@@ -131,14 +167,20 @@ const DayTypeDetailsForm: React.FC<DayTypeDetailsFormProps> = ({
         render={({ field }) => (
           <FormItem>
             <FormLabel>
-              {t('forms.dayTypeDetails.fields.fieldType.label', {
-                defaultValue: 'Field Type'
-              })}
+              {getTranslationFromI18nKeyAndLabel(
+                'master-data:hr.time_attendance.day_type_versions.field_type',
+                'Field Type'
+              )}
             </FormLabel>
             <FormControl>
               <Select onValueChange={field.onChange} defaultValue={field.value}>
                 <SelectTrigger>
-                  <SelectValue placeholder="Select field type" />
+                  <SelectValue
+                    placeholder={getTranslationFromI18nKeyAndLabel(
+                      'master-data:hr.time_attendance.day_type_versions.actions.select_field_type',
+                      'Select field type'
+                    )}
+                  />
                 </SelectTrigger>
                 <SelectContent>
                   {fieldTypeOptions.map(fieldType => (
@@ -159,14 +201,20 @@ const DayTypeDetailsForm: React.FC<DayTypeDetailsFormProps> = ({
         render={({ field }) => (
           <FormItem>
             <FormLabel>
-              {t('forms.dayTypeDetails.fields.appliedDay.label', {
-                defaultValue: 'Applied Day'
-              })}
+              {getTranslationFromI18nKeyAndLabel(
+                'master-data:hr.time_attendance.day_type_versions.applied_day',
+                'Applied Day'
+              )}
             </FormLabel>
             <FormControl>
               <Select onValueChange={field.onChange} defaultValue={field.value}>
                 <SelectTrigger>
-                  <SelectValue placeholder="Select applied day" />
+                  <SelectValue
+                    placeholder={getTranslationFromI18nKeyAndLabel(
+                      'master-data:hr.time_attendance.day_type_versions.actions.select_applied_day',
+                      'Select applied day'
+                    )}
+                  />
                 </SelectTrigger>
                 <SelectContent>
                   {APPLIED_DAYS_OPTIONS.map(appliedDay => (
@@ -187,16 +235,18 @@ const DayTypeDetailsForm: React.FC<DayTypeDetailsFormProps> = ({
         render={({ field }) => (
           <FormItem>
             <FormLabel>
-              {t('forms.dayTypeDetails.fields.timeValue.label', {
-                defaultValue: 'Time Value'
-              })}
+              {getTranslationFromI18nKeyAndLabel(
+                'master-data:hr.time_attendance.day_type_versions.time_value',
+                'Time Value'
+              )}
             </FormLabel>
             <FormControl>
               <Input
                 {...field}
-                placeholder={t('forms.dayTypeDetails.fields.timeValue.placeholder', {
-                  defaultValue: 'Enter time value'
-                })}
+                placeholder={getTranslationFromI18nKeyAndLabel(
+                  'master-data:hr.time_attendance.day_type_versions.actions.enter_time_value',
+                  'Enter time value'
+                )}
                 data-testid={`${dataTestId}-time-value-input`}
                 type="time"
               />

@@ -27,6 +27,7 @@ import DayTypesVersion from './DayTypesVersion'
 import ConfigureDayType from '../ConfigureDayType'
 import { useBreakTypesData } from '../../hooks/useBreakTypesData'
 import { TransformedDayTypeVersion } from '../../types/day-type-versions'
+import { getTranslationFromI18nKeyAndLabel } from '@/common/utils/windowUtils'
 
 export interface DayTypesProps extends BusinessAppContextProps {
   prefixDataTestId?: string
@@ -96,7 +97,12 @@ export const DayTypesTab: React.FC<DayTypesProps> = ({ accessToken, prefixDataTe
   if (error) {
     return (
       <Alert variant="destructive" data-testid={formatDataTestId(dataTestId, 'error-alert')}>
-        <AlertTitle>Error Loading Day Types</AlertTitle>
+        <AlertTitle>
+          {getTranslationFromI18nKeyAndLabel(
+            'master-data:hr.time_attendance.day_types.error.loading',
+            'Error Loading Day Types'
+          )}
+        </AlertTitle>
         <AlertDescription>{error.message}</AlertDescription>
       </Alert>
     )
@@ -110,11 +116,14 @@ export const DayTypesTab: React.FC<DayTypesProps> = ({ accessToken, prefixDataTe
             <div className="gba:flex gba:flex-col gba:gap-2 gba:h-full">
               <CardTitle className="gba:text-2xl gba:font-semibold gba:leading-none gba:tracking-tight">
                 {activeTab === 'items'
-                  ? `Day Types (${simpleDayTypes.length})`
-                  : `Day Type Versions (${dayTypeVersions.length})`}
+                  ? `${getTranslationFromI18nKeyAndLabel('master-data:hr.time_attendance.day_types.title', 'Day Types')} (${simpleDayTypes.length})`
+                  : `${getTranslationFromI18nKeyAndLabel('master-data:hr.time_attendance.day_type_versions.title', 'Day Type Versions')} (${dayTypeVersions.length})`}
               </CardTitle>
               <CardDescription className="gba:text-sm gba:text-muted-foreground">
-                Configure day types for attendance.
+                {getTranslationFromI18nKeyAndLabel(
+                  'master-data:hr.time_attendance.day_types.description',
+                  'Configure day types for attendance.'
+                )}
               </CardDescription>
             </div>
             <div className="gba:flex gba:gap-2">
@@ -129,7 +138,10 @@ export const DayTypesTab: React.FC<DayTypesProps> = ({ accessToken, prefixDataTe
                       className="gba:flex gba:items-center gba:gap-2"
                     >
                       <PlusIcon size={16} />
-                      Add Day Type
+                      {getTranslationFromI18nKeyAndLabel(
+                        'master-data:hr.time_attendance.day_types.actions.add',
+                        'Add Day Type'
+                      )}
                     </Button>
                   }
                   refetch={refetchSimple}
@@ -147,7 +159,10 @@ export const DayTypesTab: React.FC<DayTypesProps> = ({ accessToken, prefixDataTe
                   className="gba:flex gba:items-center gba:gap-2"
                 >
                   <PlusIcon size={16} />
-                  Add Day Type Version
+                  {getTranslationFromI18nKeyAndLabel(
+                    'master-data:hr.time_attendance.day_type_versions.actions.add',
+                    'Add Day Type Version'
+                  )}
                 </Button>
               )}
             </div>
@@ -159,10 +174,13 @@ export const DayTypesTab: React.FC<DayTypesProps> = ({ accessToken, prefixDataTe
         <Tabs value={activeTab} onValueChange={setActiveTab} data-testid={formatDataTestId(dataTestId, 'tabs')}>
           <TabsList className="gba:w-full gba:justify-start">
             <TabsTrigger value="items" data-testid={formatDataTestId(dataTestId, 'tab-items')}>
-              Day Types
+              {getTranslationFromI18nKeyAndLabel('master-data:hr.time_attendance.day_types.title', 'Day Types')}
             </TabsTrigger>
             <TabsTrigger value="versions" data-testid={formatDataTestId(dataTestId, 'tab-versions')}>
-              Day Type Versions
+              {getTranslationFromI18nKeyAndLabel(
+                'master-data:hr.time_attendance.day_type_versions.title',
+                'Day Type Versions'
+              )}
             </TabsTrigger>
           </TabsList>
 

@@ -20,7 +20,12 @@ import {
   FormItem,
   FormLabel,
   FormControl,
-  FormMessage
+  FormMessage,
+  Alert,
+  AlertTitle,
+  AlertDescription,
+  DateInput,
+  Combobox
 } from '@newwork/nw-design-system'
 import { ArrowLeftIcon, XIcon, FloppyDiskIcon } from '@phosphor-icons/react'
 import { useForm } from 'react-hook-form'
@@ -31,7 +36,6 @@ import { env } from '@/common/env/EnvUtils'
 import DayTypeSetup from './DayTypeSetup'
 import { TransformedDayTypeVersion } from '../types/day-type-versions'
 import { FieldTypeOption } from '../types/day-type-version-details'
-import { Alert, AlertTitle, AlertDescription } from '@newwork/nw-design-system'
 import { formatDate, getTranslationFromI18nKeyAndLabel } from '@/common/utils/windowUtils'
 
 export interface ConfigureDayTypeProps {
@@ -48,17 +52,41 @@ export interface ConfigureDayTypeProps {
   fieldTypeOptions: FieldTypeOption[]
 }
 
-// Validation schema
+// Validation schema - messages will be translated at runtime
 const dayTypeConfigSchema = z
   .object({
-    dayType: z.string().min(1, 'Day Type is required'),
-    breakRule: z.string().min(1, 'Break Rule is required'),
-    incrementType: z.string().min(1, 'Premium Pay Rule is required'),
-    roundingRule: z.string().min(1, 'Rounding Rule is required'),
-    color: z.string().min(1, 'Color is required'),
-    activeFrom: z.string().min(1, 'Valid From is required'),
-    activeTo: z.string().min(1, 'Valid To is required'),
-    activeVersion: z.string().min(1, 'Version is required')
+    dayType: z
+      .string()
+      .min(
+        1,
+        getTranslationFromI18nKeyAndLabel(
+          'master-data:hr.time_attendance.day_type_versions.day_type_required',
+          'Day Type is required'
+        )
+      ),
+    breakRule: z.string(),
+    incrementType: z.string(),
+    roundingRule: z.string(),
+    color: z.string(),
+    activeFrom: z
+      .string()
+      .min(
+        1,
+        getTranslationFromI18nKeyAndLabel(
+          'master-data:hr.time_attendance.day_type_versions.valid_from_required',
+          'Valid From is required'
+        )
+      ),
+    activeTo: z.string(),
+    activeVersion: z
+      .string()
+      .min(
+        1,
+        getTranslationFromI18nKeyAndLabel(
+          'master-data:hr.time_attendance.day_type_versions.version_required',
+          'Version is required'
+        )
+      )
   })
   .refine(
     data => {
@@ -155,7 +183,7 @@ const ConfigureDayType: React.FC<ConfigureDayTypeProps> = ({
     const isValid = form.formState.isValid
     const isDirty = form.formState.isDirty
 
-    const isNewVersion = !currentDayTypeVersion || !currentDayTypeVersion.id || currentDayTypeVersion.id === ''
+    const isNewVersion = !currentDayTypeVersion?.id || currentDayTypeVersion.id === ''
 
     if (isNewVersion) {
       return !isValid
@@ -190,7 +218,7 @@ const ConfigureDayType: React.FC<ConfigureDayTypeProps> = ({
 
   // Check for date overlap when creating a new version
   useEffect(() => {
-    const isNewVersion = !currentDayTypeVersion || !currentDayTypeVersion.id || currentDayTypeVersion.id === ''
+    const isNewVersion = !currentDayTypeVersion?.id || currentDayTypeVersion.id === ''
     if (!isNewVersion) {
       setOverlapWarning(null)
       return
@@ -205,7 +233,7 @@ const ConfigureDayType: React.FC<ConfigureDayTypeProps> = ({
     }
 
     const latestVersion = findLatestVersion(dayTypeId)
-    if (!latestVersion || !latestVersion.activeTo) {
+    if (!latestVersion?.activeTo) {
       setOverlapWarning(null)
       return
     }
@@ -287,6 +315,7 @@ const ConfigureDayType: React.FC<ConfigureDayTypeProps> = ({
           color: newDayTypeVersion.color || '',
           activeFrom: newDayTypeVersion.activeFrom || null,
           activeTo: newDayTypeVersion.activeTo || null,
+          status: 'inactive',
           activeVersion: newDayTypeVersion.activeVersion || null,
           dayTypeVersionDetail: [],
           roundingRule: newDayTypeVersion.roundingRule || null,
@@ -320,29 +349,44 @@ const ConfigureDayType: React.FC<ConfigureDayTypeProps> = ({
             data-testid={`${prefixDataTestId || ''}-back-to-overview-button`}
           >
             <ArrowLeftIcon size={16} />
-            Back to Overview
+            {getTranslationFromI18nKeyAndLabel(
+              'master-data:hr.time_attendance.day_type_versions.back_to_overview',
+              'Back to Overview'
+            )}
           </Button>
           <div>
             <h1 className="gba:text-2xl gba:font-semibold gba:leading-none gba:tracking-tight">
               {currentDayTypeVersion?.id && currentDayTypeVersion.id !== ''
-                ? `Configure Day Type Version: ${currentDayTypeVersion.dayType?.code || currentDayTypeVersion.id}`
-                : 'Create Day Type Version Configuration'}
+                ? `${getTranslationFromI18nKeyAndLabel('master-data:hr.time_attendance.day_type_versions.configure_day_type_version', 'Configure Day Type Version')}: ${currentDayTypeVersion.dayType?.code || currentDayTypeVersion.id}`
+                : getTranslationFromI18nKeyAndLabel(
+                    'master-data:hr.time_attendance.day_type_versions.create_day_type_version',
+                    'Create Day Type Version Configuration'
+                  )}
             </h1>
             <p className="gba:text-sm gba:text-muted-foreground gba:mt-1">
               {currentDayTypeVersion?.id && currentDayTypeVersion.id !== ''
-                ? 'Edit day type version configuration'
-                : 'Create new day type version configuration'}
+                ? getTranslationFromI18nKeyAndLabel(
+                    'master-data:hr.time_attendance.day_type_versions.edit_description',
+                    'Edit day type version configuration'
+                  )
+                : getTranslationFromI18nKeyAndLabel(
+                    'master-data:hr.time_attendance.day_type_versions.create_description',
+                    'Create new day type version configuration'
+                  )}
             </p>
           </div>
         </div>
         <div className="gba:flex gba:items-center gba:gap-2">
           <Button variant="outline" onClick={handleCancel}>
             <XIcon className="gba:h-4 gba:w-4 gba:mr-2" />
-            Cancel
+            {getTranslationFromI18nKeyAndLabel('master-data:forms.common.buttons.cancel', 'Cancel')}
           </Button>
           <Button onClick={form.handleSubmit(handleSaveChanges)} disabled={isSaveDisabled}>
             <FloppyDiskIcon className="gba:h-4 gba:w-4 gba:mr-2" />
-            Save Changes
+            {getTranslationFromI18nKeyAndLabel(
+              'master-data:hr.time_attendance.day_type_versions.actions.save_changes',
+              'Save Changes'
+            )}
           </Button>
         </div>
       </div>
@@ -350,7 +394,12 @@ const ConfigureDayType: React.FC<ConfigureDayTypeProps> = ({
       {/* Overlap Warning */}
       {overlapWarning && (
         <Alert variant="destructive" data-testid={`${prefixDataTestId || ''}-overlap-warning`}>
-          <AlertTitle>Date Overlap Detected</AlertTitle>
+          <AlertTitle>
+            {getTranslationFromI18nKeyAndLabel(
+              'master-data:hr.time_attendance.day_type_versions.date_overlap_detected',
+              'Date Overlap Detected'
+            )}
+          </AlertTitle>
           <AlertDescription>{overlapWarning}</AlertDescription>
         </Alert>
       )}
@@ -358,7 +407,12 @@ const ConfigureDayType: React.FC<ConfigureDayTypeProps> = ({
       {/* Day Type Configuration */}
       <Card>
         <CardHeader>
-          <CardTitle>Day Type Configuration</CardTitle>
+          <CardTitle>
+            {getTranslationFromI18nKeyAndLabel(
+              'master-data:hr.time_attendance.day_type_versions.day_type_configuration',
+              'Day Type Configuration'
+            )}
+          </CardTitle>
         </CardHeader>
         <CardContent>
           <Form {...form}>
@@ -369,7 +423,12 @@ const ConfigureDayType: React.FC<ConfigureDayTypeProps> = ({
                   name="dayType"
                   render={({ field }) => (
                     <FormItem>
-                      <FormLabel>Day Type</FormLabel>
+                      <FormLabel>
+                        {`${getTranslationFromI18nKeyAndLabel(
+                          'master-data:hr.time_attendance.day_types.single_day_type',
+                          'Day Type'
+                        )}*`}
+                      </FormLabel>
                       <Select
                         onValueChange={field.onChange}
                         defaultValue={field.value}
@@ -377,7 +436,12 @@ const ConfigureDayType: React.FC<ConfigureDayTypeProps> = ({
                       >
                         <FormControl>
                           <SelectTrigger className="gba:w-full">
-                            <SelectValue placeholder="Select day type" />
+                            <SelectValue
+                              placeholder={getTranslationFromI18nKeyAndLabel(
+                                'master-data:hr.time_attendance.day_type_versions.select_day_type',
+                                'Select day type'
+                              )}
+                            />
                           </SelectTrigger>
                         </FormControl>
                         <SelectContent>
@@ -397,13 +461,21 @@ const ConfigureDayType: React.FC<ConfigureDayTypeProps> = ({
                   name="activeFrom"
                   render={({ field }) => (
                     <FormItem>
-                      <FormLabel>Valid From</FormLabel>
+                      <FormLabel>
+                        {`${getTranslationFromI18nKeyAndLabel(
+                          'lowcoder:expense_calculation_rule.expense_table.valid_from',
+                          'Valid From'
+                        )}*`}
+                      </FormLabel>
                       <FormControl>
-                        <Input
+                        <DateInput
                           {...field}
                           data-testid={`${prefixDataTestId || ''}-valid-from-input`}
                           type="date"
-                          placeholder="Valid From"
+                          placeholder={getTranslationFromI18nKeyAndLabel(
+                            'lowcoder:expense_calculation_rule.expense_table.valid_from',
+                            'Valid From'
+                          )}
                         />
                       </FormControl>
                       <FormMessage />
@@ -415,13 +487,21 @@ const ConfigureDayType: React.FC<ConfigureDayTypeProps> = ({
                   name="activeTo"
                   render={({ field }) => (
                     <FormItem>
-                      <FormLabel>Valid To</FormLabel>
+                      <FormLabel>
+                        {getTranslationFromI18nKeyAndLabel(
+                          'lowcoder:expense_calculation_rule.expense_table.valid_to',
+                          'Valid To'
+                        )}
+                      </FormLabel>
                       <FormControl>
-                        <Input
+                        <DateInput
                           {...field}
-                          data-testid={`${prefixDataTestId || ''}-valid-to-input`}
                           type="date"
-                          placeholder="Valid To"
+                          placeholder={getTranslationFromI18nKeyAndLabel(
+                            'lowcoder:expense_calculation_rule.expense_table.valid_to',
+                            'Valid To'
+                          )}
+                          data-testid={`${prefixDataTestId || ''}-valid-to-input`}
                         />
                       </FormControl>
                       <FormMessage />
@@ -433,12 +513,20 @@ const ConfigureDayType: React.FC<ConfigureDayTypeProps> = ({
                   name="activeVersion"
                   render={({ field }) => (
                     <FormItem>
-                      <FormLabel>Version</FormLabel>
+                      <FormLabel>
+                        {`${getTranslationFromI18nKeyAndLabel(
+                          'flow:formio.form_builder.component_settings.data_source.version',
+                          'Version'
+                        )}*`}
+                      </FormLabel>
                       <FormControl>
                         <Input
                           {...field}
                           data-testid={`${prefixDataTestId || ''}-version-input`}
-                          placeholder="Version"
+                          placeholder={getTranslationFromI18nKeyAndLabel(
+                            'flow:formio.form_builder.component_settings.data_source.version',
+                            'Version'
+                          )}
                         />
                       </FormControl>
                       <FormMessage />
@@ -450,21 +538,30 @@ const ConfigureDayType: React.FC<ConfigureDayTypeProps> = ({
                   name="breakRule"
                   render={({ field }) => (
                     <FormItem>
-                      <FormLabel>Break Rule</FormLabel>
-                      <Select onValueChange={field.onChange} defaultValue={field.value}>
-                        <FormControl>
-                          <SelectTrigger className="gba:w-full">
-                            <SelectValue placeholder="Select break rule" />
-                          </SelectTrigger>
-                        </FormControl>
-                        <SelectContent>
-                          {breakTypes.map(rule => (
-                            <SelectItem key={rule.id} value={rule.id}>
-                              {rule.code} - {rule.name}
-                            </SelectItem>
-                          ))}
-                        </SelectContent>
-                      </Select>
+                      <FormLabel>
+                        {getTranslationFromI18nKeyAndLabel(
+                          'master-data:hr.time_attendance.break_types.break_rule',
+                          'Break Rule'
+                        )}
+                      </FormLabel>
+                      <Combobox
+                        options={breakTypes.map(rule => ({ value: rule.id, label: rule.name }))}
+                        value={field.value}
+                        onValueChange={value => field.onChange(value)}
+                        placeholder={getTranslationFromI18nKeyAndLabel(
+                          'master-data:hr.time_attendance.break_types.actions.select_break_rule',
+                          'Select break rule'
+                        )}
+                        searchPlaceholder={getTranslationFromI18nKeyAndLabel(
+                          'master-data:hr.time_attendance.break_types.actions.search_placeholder',
+                          'Search break rules...'
+                        )}
+                        emptyText={getTranslationFromI18nKeyAndLabel(
+                          'master-data:hr.time_attendance.break_types.no_break_rules_found',
+                          'No break rules found'
+                        )}
+                        className="w-full"
+                      />
                       <FormMessage />
                     </FormItem>
                   )}
@@ -474,21 +571,30 @@ const ConfigureDayType: React.FC<ConfigureDayTypeProps> = ({
                   name="incrementType"
                   render={({ field }) => (
                     <FormItem>
-                      <FormLabel>Premium Pay Rule</FormLabel>
-                      <Select onValueChange={field.onChange} defaultValue={field.value}>
-                        <FormControl>
-                          <SelectTrigger className="gba:w-full">
-                            <SelectValue placeholder="Select premium pay rule" />
-                          </SelectTrigger>
-                        </FormControl>
-                        <SelectContent>
-                          {incrementTypes.map(rule => (
-                            <SelectItem key={rule.id} value={rule.id}>
-                              {rule.code} - {rule.name}
-                            </SelectItem>
-                          ))}
-                        </SelectContent>
-                      </Select>
+                      <FormLabel>
+                        {getTranslationFromI18nKeyAndLabel(
+                          'master-data:hr.time_attendance.increment_types.premium_pay_rule',
+                          'Premium Pay Rule'
+                        )}
+                      </FormLabel>
+                      <Combobox
+                        options={incrementTypes.map(rule => ({ value: rule.id, label: rule.name }))}
+                        value={field.value}
+                        onValueChange={value => field.onChange(value)}
+                        placeholder={getTranslationFromI18nKeyAndLabel(
+                          'master-data:hr.time_attendance.increment_types.actions.select_premium_pay_rule',
+                          'Select premium pay rule'
+                        )}
+                        searchPlaceholder={getTranslationFromI18nKeyAndLabel(
+                          'master-data:hr.time_attendance.increment_types.actions.search_placeholder',
+                          'Search premium pay rules...'
+                        )}
+                        emptyText={getTranslationFromI18nKeyAndLabel(
+                          'master-data:hr.time_attendance.increment_types.no_premium_pay_rules_found',
+                          'No premium pay rules found'
+                        )}
+                        className="w-full"
+                      />
                       <FormMessage />
                     </FormItem>
                   )}
@@ -498,21 +604,30 @@ const ConfigureDayType: React.FC<ConfigureDayTypeProps> = ({
                   name="roundingRule"
                   render={({ field }) => (
                     <FormItem>
-                      <FormLabel>Rounding Rule</FormLabel>
-                      <Select onValueChange={field.onChange} defaultValue={field.value}>
-                        <FormControl>
-                          <SelectTrigger className="gba:w-full">
-                            <SelectValue placeholder="Select rounding rule" />
-                          </SelectTrigger>
-                        </FormControl>
-                        <SelectContent>
-                          {roundingRules.map(rule => (
-                            <SelectItem key={rule.id} value={rule.id}>
-                              {rule.code} - {rule.name}
-                            </SelectItem>
-                          ))}
-                        </SelectContent>
-                      </Select>
+                      <FormLabel>
+                        {getTranslationFromI18nKeyAndLabel(
+                          'master-data:hr.time_attendance.rounding_rules.rounding_rule',
+                          'Rounding Rule'
+                        )}
+                      </FormLabel>
+                      <Combobox
+                        options={roundingRules.map(rule => ({ value: rule.id, label: rule.name }))}
+                        value={field.value}
+                        onValueChange={value => field.onChange(value)}
+                        placeholder={getTranslationFromI18nKeyAndLabel(
+                          'master-data:hr.time_attendance.rounding_rules.actions.select_rounding_rule',
+                          'Select rounding rule'
+                        )}
+                        searchPlaceholder={getTranslationFromI18nKeyAndLabel(
+                          'master-data:hr.time_attendance.rounding_rules.actions.search_placeholder',
+                          'Search rounding rules...'
+                        )}
+                        emptyText={getTranslationFromI18nKeyAndLabel(
+                          'master-data:hr.time_attendance.rounding_rules.no_rounding_rules_found',
+                          'No rounding rules found'
+                        )}
+                        className="w-full"
+                      />
                       <FormMessage />
                     </FormItem>
                   )}
@@ -522,11 +637,21 @@ const ConfigureDayType: React.FC<ConfigureDayTypeProps> = ({
                   name="color"
                   render={({ field }) => (
                     <FormItem>
-                      <FormLabel>Color</FormLabel>
+                      <FormLabel>
+                        {getTranslationFromI18nKeyAndLabel(
+                          'flow:formio.form_builder.component_settings.color.label',
+                          'Color'
+                        )}
+                      </FormLabel>
                       <Select onValueChange={field.onChange} defaultValue={field.value}>
                         <FormControl>
                           <SelectTrigger>
-                            <SelectValue placeholder="Select color" />
+                            <SelectValue
+                              placeholder={getTranslationFromI18nKeyAndLabel(
+                                'master-data:hr.time_attendance.day_type_versions.actions.select_color',
+                                'Select color'
+                              )}
+                            />
                           </SelectTrigger>
                         </FormControl>
                         <SelectContent>
@@ -555,8 +680,18 @@ const ConfigureDayType: React.FC<ConfigureDayTypeProps> = ({
       {/* Tabs */}
       <Tabs defaultValue="setup" className="gba:w-full">
         <TabsList className="gba:grid gba:w-full gba:grid-cols-2">
-          <TabsTrigger value="setup">Setup Configuration</TabsTrigger>
-          <TabsTrigger value="usage">Usage & Schedules</TabsTrigger>
+          <TabsTrigger value="setup">
+            {getTranslationFromI18nKeyAndLabel(
+              'master-data:hr.time_attendance.day_type_versions.setup_configuration',
+              'Setup Configuration'
+            )}
+          </TabsTrigger>
+          <TabsTrigger value="usage">
+            {getTranslationFromI18nKeyAndLabel(
+              'master-data:hr.time_attendance.day_type_versions.usage_and_schedules',
+              'Usage & Schedules'
+            )}
+          </TabsTrigger>
         </TabsList>
 
         <TabsContent value="setup">
@@ -573,7 +708,12 @@ const ConfigureDayType: React.FC<ConfigureDayTypeProps> = ({
         <TabsContent value="usage">
           <Card>
             <CardHeader>
-              <CardTitle>Usage & Schedules</CardTitle>
+              <CardTitle>
+                {getTranslationFromI18nKeyAndLabel(
+                  'master-data:hr.time_attendance.day_type_versions.usage_and_schedules',
+                  'Usage & Schedules'
+                )}
+              </CardTitle>
             </CardHeader>
             <CardContent>
               <div className="gba:text-center gba:py-12">

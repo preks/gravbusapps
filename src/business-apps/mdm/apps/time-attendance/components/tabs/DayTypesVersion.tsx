@@ -8,10 +8,10 @@ import {
   DialogDescription,
   DialogFooter,
   DialogClose,
-  Badge
+  Badge,
+  Button
 } from '@newwork/nw-design-system'
-import { ColumnDef } from '@tanstack/react-table'
-import { Button } from '@newwork/nw-design-system'
+import { ColumnDef, SortingState } from '@tanstack/react-table'
 import { MagnifyingGlassIcon, PencilSimpleLineIcon, TrashIcon, WarningIcon } from '@phosphor-icons/react'
 import { DebouncedInput } from '@/components/debounced-input/DebouncedInput'
 import { formatDataTestId } from '@/common/utils/formatDataTestId'
@@ -44,6 +44,7 @@ export const DayTypesVersion: React.FC<DayTypesVersionProps> = ({
   const [selectedDayTypeVersion, setSelectedDayTypeVersion] = useState<TransformedDayTypeVersion | null>(null)
   const [isDeleteDialogOpen, setIsDeleteDialogOpen] = useState(false)
   const [isDeleting, setIsDeleting] = useState(false)
+  const [sorting, setSorting] = useState<SortingState>([])
 
   const handleSearch = useCallback((value: string) => {
     setSearchTerm(value)
@@ -96,7 +97,7 @@ export const DayTypesVersion: React.FC<DayTypesVersionProps> = ({
   const columns: ColumnDef<TransformedDayTypeVersion>[] = [
     {
       accessorKey: 'dayType',
-      header: 'Day Type',
+      header: getTranslationFromI18nKeyAndLabel('master-data:hr.time_attendance.day_types.single_day_type', 'Day Type'),
       cell: ({ getValue }) => {
         const dayType = getValue() as TransformedDayTypeVersion['dayType']
         return dayType ? `${dayType.code} - ${dayType.name}` : 'N/A'
@@ -104,7 +105,7 @@ export const DayTypesVersion: React.FC<DayTypesVersionProps> = ({
     },
     {
       accessorKey: 'color',
-      header: 'Color',
+      header: getTranslationFromI18nKeyAndLabel('flow:formio.form_builder.component_settings.color.label', 'Color'),
       cell: ({ getValue }) => {
         const color = getValue() as string
         return (
@@ -114,17 +115,23 @@ export const DayTypesVersion: React.FC<DayTypesVersionProps> = ({
     },
     {
       accessorKey: 'activeFrom',
-      header: 'Valid From',
+      header: getTranslationFromI18nKeyAndLabel(
+        'lowcoder:expense_calculation_rule.expense_table.valid_from',
+        'Valid From'
+      ),
       cell: ({ getValue }) => formatDate((getValue() as string) || '')
     },
     {
       accessorKey: 'activeTo',
-      header: 'Valid To',
+      header: getTranslationFromI18nKeyAndLabel('lowcoder:expense_calculation_rule.expense_table.valid_to', 'Valid To'),
       cell: ({ getValue }) => formatDate((getValue() as string) || '')
     },
     {
       accessorKey: 'activeVersion',
-      header: 'Version',
+      header: getTranslationFromI18nKeyAndLabel(
+        'flow:formio.form_builder.component_settings.data_source.version',
+        'Version'
+      ),
       cell: ({ getValue }) => {
         const version = getValue() as TransformedDayTypeVersion['activeVersion']
         return version || 'N/A'
@@ -132,44 +139,41 @@ export const DayTypesVersion: React.FC<DayTypesVersionProps> = ({
     },
     {
       accessorKey: 'status',
-      header: 'Status',
-      cell: ({ row }) => {
-        const activeFrom = row.original.activeFrom
-        const activeTo = row.original.activeTo
-        const currentDate = new Date()
-        if (activeFrom && activeTo) {
-          if (currentDate >= new Date(activeFrom) && currentDate <= new Date(activeTo)) {
-            return (
-              <Badge variant="outline">
-                {getTranslationFromI18nKeyAndLabel(
-                  'master-data:hr.time_attendance.day_types.version.status.active',
-                  'Active'
-                )}
-              </Badge>
-            )
-          }
+      header: getTranslationFromI18nKeyAndLabel('lowcoder:expense_request_list.expense_plan_table.status', 'Status'),
+      cell: ({ getValue }) => {
+        const status = getValue() as 'active' | 'expired' | 'inactive' | 'planned'
+        let translationKey: string
+        let defaultLabel: string
+        if (status === 'active') {
+          translationKey = 'master-data:forms.capability.fields.status.options.active'
+          defaultLabel = 'Active'
+        } else if (status === 'expired') {
+          translationKey = 'lowcoder:hr_assets.expired'
+          defaultLabel = 'Expired'
+        } else if (status === 'planned') {
+          translationKey = 'lowcoder:absence_management_hub_backoffice.planned'
+          defaultLabel = 'Planned'
+        } else {
+          translationKey = 'flow.flow_start_page.inactive'
+          defaultLabel = 'Inactive'
         }
-        return (
-          <Badge variant="outline">
-            {getTranslationFromI18nKeyAndLabel(
-              'master-data:hr.time_attendance.day_types.version.status.expired',
-              'Expired'
-            )}
-          </Badge>
-        )
+        return <Badge variant="outline">{getTranslationFromI18nKeyAndLabel(translationKey, defaultLabel)}</Badge>
       }
     },
     {
       accessorKey: 'dayTypeVersionDetail',
-      header: 'Fields',
+      header: getTranslationFromI18nKeyAndLabel('master-data:hr.time_attendance.day_type_versions.fields', 'Fields'),
       cell: ({ getValue }) => {
         const details = getValue() as TransformedDayTypeVersion['dayTypeVersionDetail']
-        return `${details?.length || 0} details`
+        return `${details?.length || 0} ${getTranslationFromI18nKeyAndLabel(
+          'lowcoder:employee_profile.employee_tabs.details',
+          'details'
+        )}`
       }
     },
     {
       id: 'actions',
-      header: 'Actions',
+      header: getTranslationFromI18nKeyAndLabel('translation:actions.actions', 'Actions'),
       enableSorting: false,
       cell: ({ row }) => {
         const version = row.original
@@ -210,20 +214,30 @@ export const DayTypesVersion: React.FC<DayTypesVersionProps> = ({
           <DebouncedInput
             value={searchTerm}
             onChange={handleSearch}
-            placeholder="Search day type versions..."
+            placeholder={getTranslationFromI18nKeyAndLabel(
+              'master-data:hr.time_attendance.day_type_versions.actions.search_placeholder',
+              'Search day type versions...'
+            )}
             icon={<MagnifyingGlassIcon size={16} />}
             data-testid={formatDataTestId(dataTestId, 'search-input')}
             className="gba:max-w-md"
           />
         </div>
         <div className="gba:text-sm gba:text-gray-600">
-          {filteredDayTypeVersions.length} of {dayTypeVersions.length} day types
+          {`${filteredDayTypeVersions.length} ${getTranslationFromI18nKeyAndLabel('lowcoder:personal_expenses.of', 'of')} ${dayTypeVersions.length} ${getTranslationFromI18nKeyAndLabel(
+            'master-data:hr.time_attendance.day_types.title',
+            'day types'
+          ).toLowerCase()}
+          `}
         </div>
       </div>
       <DataTable
         columns={columns}
         data={filteredDayTypeVersions}
         data-testid={formatDataTestId(dataTestId, 'day-types-version-table')}
+        sorting={sorting}
+        onSortingChange={setSorting}
+        enableSorting
       />
 
       <Dialog open={isDeleteDialogOpen} onOpenChange={setIsDeleteDialogOpen}>
@@ -231,16 +245,31 @@ export const DayTypesVersion: React.FC<DayTypesVersionProps> = ({
           <DialogHeader>
             <DialogTitle className="gba:flex gba:items-center gba:gap-2">
               <WarningIcon className="gba:text-destructive" />
-              Delete Day Type Version
+              {getTranslationFromI18nKeyAndLabel(
+                'master-data:hr.time_attendance.day_type_versions.actions.delete_title',
+                'Delete Day Type Version'
+              )}
             </DialogTitle>
-            <DialogDescription>{`Are you sure you want to delete ${`${selectedDayTypeVersion?.dayType?.name} Version`}?`}</DialogDescription>
+            <DialogDescription>
+              {getTranslationFromI18nKeyAndLabel(
+                'master-data:hr.time_attendance.day_type_versions.actions.delete_message',
+                'Are you sure you want to delete this day type version?'
+              )}
+            </DialogDescription>
           </DialogHeader>
           <DialogFooter>
             <DialogClose asChild>
-              <Button variant="outline">Cancel</Button>
+              <Button variant="outline">
+                {getTranslationFromI18nKeyAndLabel('master-data:forms.common.buttons.cancel', 'Cancel')}
+              </Button>
             </DialogClose>
             <Button variant="destructive" onClick={() => handleDeleteDayTypeVersion(selectedDayTypeVersion)}>
-              {isDeleting ? 'Deleting...' : 'Delete'}
+              {isDeleting
+                ? getTranslationFromI18nKeyAndLabel(
+                    'master-data:hr.time_attendance.day_type_versions.actions.deleting',
+                    'Deleting...'
+                  )
+                : getTranslationFromI18nKeyAndLabel('lowcoder:expense_calculation_rule.expense_table.delete', 'Delete')}
             </Button>
           </DialogFooter>
         </DialogContent>

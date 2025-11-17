@@ -3,17 +3,38 @@ import { BusinessAppContextProps } from '@/common/BusinessAppContext'
 import { FormWrapperModal } from '@/components/form-wrapper'
 import { Input, FormField, FormItem, FormLabel, FormControl, FormMessage } from '@newwork/nw-design-system'
 import { formatDataTestId } from '@/common/utils/formatDataTestId'
-import { useTranslation } from 'react-i18next'
+import { getTranslationFromI18nKeyAndLabel } from '@/common/utils/windowUtils'
 import { z } from 'zod'
 import { zodResolver } from '@hookform/resolvers/zod'
 import { useRestClient } from '@/common/network/rest/useRestClient'
 import { env } from '@/common/env/EnvUtils'
 import { SimpleDayType } from '../../apps/time-attendance/types/day-types'
 
-// Validation schema
+// Validation schema - messages will be translated at runtime
 const dayTypeSchema = z.object({
-  code: z.string().min(1, 'Code is required'),
-  name: z.string().min(1, 'Name is required')
+  code: z
+    .string()
+    .min(
+      1,
+      getTranslationFromI18nKeyAndLabel('master-data:hr.time_attendance.day_types.code_required', 'Code is required')
+    )
+    .max(
+      10,
+      getTranslationFromI18nKeyAndLabel(
+        'master-data:hr.time_attendance.day_types.code_max_length',
+        'Code must be less than 10 characters'
+      )
+    ),
+  name: z
+    .string()
+    .min(1, getTranslationFromI18nKeyAndLabel('flow:template_wizard.name_required', 'Name is required'))
+    .max(
+      100,
+      getTranslationFromI18nKeyAndLabel(
+        'master-data:hr.time_attendance.day_types.name_max_length',
+        'Name must be less than 100 characters'
+      )
+    )
 })
 
 export type DayTypeFormData = z.infer<typeof dayTypeSchema>
@@ -34,10 +55,9 @@ const DayTypeForm: React.FC<DayTypeFormProps> = ({
   onCancel,
   childAddButton,
   refetch,
-  accessToken: accessToken,
+  accessToken,
   usedCodes = []
 }) => {
-  const { t } = useTranslation('master-data')
   const dataTestId = formatDataTestId(prefixDataTestId, 'DayTypeForm')
   const restClient = useRestClient(env('NEXT_PUBLIC_KOGITO_PROCESSES_ENDPOINT'))
 
@@ -57,7 +77,10 @@ const DayTypeForm: React.FC<DayTypeFormProps> = ({
           return !usedCodes.includes(data.code)
         },
         {
-          message: 'Code already exists',
+          message: getTranslationFromI18nKeyAndLabel(
+            'master-data:hr.time_attendance.day_types.code_already_exists',
+            'Code already exists'
+          ),
           path: ['code']
         }
       )
@@ -104,8 +127,18 @@ const DayTypeForm: React.FC<DayTypeFormProps> = ({
   return (
     <FormWrapperModal
       childAddButton={childAddButton}
-      title={dayType ? 'Edit Day Type' : 'Create Day Type'}
-      description="Configure day type basic information"
+      title={
+        dayType
+          ? getTranslationFromI18nKeyAndLabel('master-data:hr.time_attendance.day_types.actions.edit', 'Edit Day Type')
+          : getTranslationFromI18nKeyAndLabel(
+              'master-data:hr.time_attendance.day_types.actions.create_new',
+              'Create Day Type'
+            )
+      }
+      description={getTranslationFromI18nKeyAndLabel(
+        'master-data:hr.time_attendance.day_types.configure_day_type_description',
+        'Configure day type basic information'
+      )}
       onSubmit={handleSubmit}
       onCancel={handleCancel}
       defaultValues={defaultValues}
@@ -119,16 +152,15 @@ const DayTypeForm: React.FC<DayTypeFormProps> = ({
         render={({ field }) => (
           <FormItem>
             <FormLabel>
-              {t('forms.dayType.fields.code.label', {
-                defaultValue: 'Code'
-              })}
+              {getTranslationFromI18nKeyAndLabel('master-data:forms.capability.fields.code.label', 'Code', 'Code')}
             </FormLabel>
             <FormControl>
               <Input
                 {...field}
-                placeholder={t('forms.dayType.fields.code.placeholder', {
-                  defaultValue: 'Enter code (e.g., WK, BR, OT)'
-                })}
+                placeholder={getTranslationFromI18nKeyAndLabel(
+                  'master-data:hr.time_attendance.time_types.actions.enter_code_placeholder',
+                  'Enter code (e.g., WK, BR, OT)'
+                )}
                 data-testid={`${dataTestId}-code-input`}
               />
             </FormControl>
@@ -142,16 +174,15 @@ const DayTypeForm: React.FC<DayTypeFormProps> = ({
         render={({ field }) => (
           <FormItem>
             <FormLabel>
-              {t('forms.dayType.fields.name.label', {
-                defaultValue: 'Name'
-              })}
+              {getTranslationFromI18nKeyAndLabel('master-data:forms.capability.fields.name.label', 'Name', 'Name')}
             </FormLabel>
             <FormControl>
               <Input
                 {...field}
-                placeholder={t('forms.dayType.fields.name.placeholder', {
-                  defaultValue: 'Enter name'
-                })}
+                placeholder={getTranslationFromI18nKeyAndLabel(
+                  'lowcoder:expense_calculation_rule_details.calculation_allowance_period_list.calculation_allowance_period_modal.name_placeholder',
+                  'Enter name'
+                )}
                 data-testid={`${dataTestId}-name-input`}
               />
             </FormControl>

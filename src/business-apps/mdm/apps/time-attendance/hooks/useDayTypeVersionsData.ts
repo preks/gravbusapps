@@ -77,6 +77,33 @@ export const useDayTypeVersionsData = (context: BusinessAppContextProps): UseDay
   const graphqlClient = useGraphQLClient(context.accessToken)
   const activeUserLocale = getCurrentActiveUserLocale()
 
+  // Calculate status based on activeFrom and activeTo dates
+  const calculateStatus = useCallback(
+    (activeFrom: string | null, activeTo: string | null): 'active' | 'expired' | 'inactive' | 'planned' => {
+      // If either date is missing, consider it inactive
+      if (!activeFrom || !activeTo) {
+        return 'inactive'
+      }
+      const currentDate = new Date()
+      const fromDate = new Date(activeFrom)
+      const toDate = new Date(activeTo)
+
+      // If activeFrom is in the future, it's planned
+      if (currentDate < fromDate) {
+        return 'planned'
+      }
+
+      // If current date is within the range, it's active
+      if (currentDate >= fromDate && currentDate <= toDate) {
+        return 'active'
+      }
+
+      // Otherwise, it's expired
+      return 'expired'
+    },
+    []
+  )
+
   // Transform GraphQL data to final format
   const transformDayTypeVersions = useCallback(
     (rawData: DayTypeVersionResponse['DayTypeVersion']): TransformedDayTypeVersion[] => {
@@ -93,6 +120,7 @@ export const useDayTypeVersionsData = (context: BusinessAppContextProps): UseDay
         color: item.color,
         activeFrom: item.activeFrom,
         activeTo: item.activeTo,
+        status: calculateStatus(item.activeFrom, item.activeTo),
         roundingRule: item.roundingRule,
         incrementType: item.incrementType,
         breakType: item.breakType,
@@ -100,7 +128,7 @@ export const useDayTypeVersionsData = (context: BusinessAppContextProps): UseDay
         version: item.version
       }))
     },
-    []
+    [calculateStatus]
   )
 
   // Transform catalog data to field type options
@@ -147,7 +175,21 @@ export const useDayTypeVersionsData = (context: BusinessAppContextProps): UseDay
     try {
       const result = await graphqlClient.request<DayTypeVersionResponse>(GET_DAY_TYPE_VERSIONS_QUERY, {})
       const transformedData = transformDayTypeVersions(result.DayTypeVersion || [])
-      setDayTypeVersions(transformedData)
+      // Sort by status: active first, then planned, then expired, then inactive
+      const sortedData = [...transformedData].sort((a, b) => {
+        // Active comes first
+        if (a.status === 'active' && b.status !== 'active') return -1
+        if (a.status !== 'active' && b.status === 'active') return 1
+        // Planned comes after active
+        if (a.status === 'planned' && b.status !== 'active' && b.status !== 'planned') return -1
+        if (a.status !== 'active' && a.status !== 'planned' && b.status === 'planned') return 1
+        // Expired comes after planned
+        if (a.status === 'expired' && b.status === 'inactive') return -1
+        if (a.status === 'inactive' && b.status === 'expired') return 1
+        // Same status, maintain original order
+        return 0
+      })
+      setDayTypeVersions(sortedData)
     } catch (err) {
       console.error('Error fetching day type versions data:', err)
       setError(err instanceof Error ? err : new Error('Failed to fetch day type versions data'))

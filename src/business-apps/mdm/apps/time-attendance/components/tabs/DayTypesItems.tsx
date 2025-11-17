@@ -1,18 +1,30 @@
 import React, { useCallback, useMemo, useState } from 'react'
-import { DataTable } from '@newwork/nw-design-system'
+import {
+  DataTable,
+  Button,
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  DialogDescription,
+  DialogFooter,
+  DialogClose
+} from '@newwork/nw-design-system'
 import { ColumnDef } from '@tanstack/react-table'
-import { Button } from '@newwork/nw-design-system'
-import { MagnifyingGlassIcon, PencilSimpleLineIcon, TrashIcon } from '@phosphor-icons/react'
+import { GearIcon, MagnifyingGlassIcon, PencilSimpleLineIcon, TrashIcon, WarningIcon } from '@phosphor-icons/react'
 import { DebouncedInput } from '@/components/debounced-input/DebouncedInput'
 import { formatDataTestId } from '@/common/utils/formatDataTestId'
 import DayTypeForm from '@/business-apps/mdm/forms/time-attendance/DayTypeForm'
 import { TransformedDayTypeVersion } from '../../types/day-type-versions'
 import { SimpleDayType } from '../../types/day-types'
+import { useRestClient } from '@/common/network/rest/useRestClient'
+import { env } from '@/common/env/EnvUtils'
+import { getTranslationFromI18nKeyAndLabel } from '@/common/utils/windowUtils'
 
 interface DayTypesItemsProps {
   dayTypes: SimpleDayType[]
   dayTypeVersions: TransformedDayTypeVersion[]
-  refetch: () => void
+  refetch: () => Promise<void>
   accessToken: string
   prefixDataTestId?: string
   onConfigure: (dayTypeVersion: TransformedDayTypeVersion) => void
@@ -29,7 +41,11 @@ export const DayTypesItems: React.FC<DayTypesItemsProps> = ({
   onConfigure
 }) => {
   const dataTestId = formatDataTestId(prefixDataTestId, DATA_TEST_ID_PREFIX)
+  const restClient = useRestClient(env('NEXT_PUBLIC_KOGITO_PROCESSES_ENDPOINT'))
   const [searchTerm, setSearchTerm] = useState('')
+  const [isDeleteDialogOpen, setIsDeleteDialogOpen] = useState(false)
+  const [selectedDayType, setSelectedDayType] = useState<SimpleDayType | null>(null)
+  const [isDeleting, setIsDeleting] = useState(false)
 
   const filteredDayTypes = useMemo(() => {
     if (!searchTerm.trim()) return dayTypes
@@ -40,6 +56,40 @@ export const DayTypesItems: React.FC<DayTypesItemsProps> = ({
         dayType.name.toLowerCase().includes(searchTerm.toLowerCase())
     )
   }, [dayTypes, searchTerm])
+
+  const handleDeleteDayType = useCallback(
+    async (dayType?: SimpleDayType | null) => {
+      if (!dayType) return
+      setIsDeleting(true)
+
+      try {
+        await restClient.post(
+          '/employee-time/deleteDayType',
+          {
+            changeMode: 'POST',
+            dayType: {
+              id: dayType.id,
+              version: dayType.version
+            }
+          },
+          {
+            headers: { Authorization: `Bearer ${accessToken}` }
+          }
+        )
+
+        await refetch()
+        setIsDeleteDialogOpen(false)
+        setSelectedDayType(null)
+      } catch (error) {
+        console.error('Error deleting day type:', error)
+      } finally {
+        setIsDeleting(false)
+        setIsDeleteDialogOpen(false)
+        setSelectedDayType(null)
+      }
+    },
+    [restClient, accessToken, refetch]
+  )
 
   const handleSearch = useCallback((value: string) => {
     setSearchTerm(value)
@@ -76,6 +126,7 @@ export const DayTypesItems: React.FC<DayTypesItemsProps> = ({
           color: '',
           activeFrom: null,
           activeTo: null,
+          status: 'inactive',
           version: 0,
           roundingRule: null,
           incrementType: null,
@@ -95,17 +146,17 @@ export const DayTypesItems: React.FC<DayTypesItemsProps> = ({
   const columns: ColumnDef<SimpleDayType>[] = [
     {
       accessorKey: 'code',
-      header: 'Code',
+      header: getTranslationFromI18nKeyAndLabel('master-data:forms.capability.fields.code.label', 'Code'),
       enableSorting: true
     },
     {
       accessorKey: 'name',
-      header: 'Name',
+      header: getTranslationFromI18nKeyAndLabel('master-data:forms.capability.fields.name.label', 'Name'),
       enableSorting: true
     },
     {
       id: 'actions',
-      header: 'Actions',
+      header: getTranslationFromI18nKeyAndLabel('translation:actions.actions', 'Actions'),
       enableSorting: false,
       enableHiding: true,
       cell: ({ row }) => {
@@ -128,7 +179,23 @@ export const DayTypesItems: React.FC<DayTypesItemsProps> = ({
             />
             <Button
               variant="ghost"
-              onClick={event => event.stopPropagation()}
+              onClick={event => {
+                event.stopPropagation()
+                if (targetDayType) {
+                  handleRowClick(targetDayType)
+                }
+              }}
+              data-testid={formatDataTestId(prefixDataTestId, `configure-button-${targetDayType?.id}`)}
+            >
+              <GearIcon />
+            </Button>
+            <Button
+              variant="ghost"
+              onClick={event => {
+                event.stopPropagation()
+                setSelectedDayType(targetDayType ?? null)
+                setIsDeleteDialogOpen(true)
+              }}
               data-testid={formatDataTestId(prefixDataTestId, `delete-button-${targetDayType?.id}`)}
             >
               <TrashIcon />
@@ -146,22 +213,62 @@ export const DayTypesItems: React.FC<DayTypesItemsProps> = ({
           <DebouncedInput
             value={searchTerm}
             onChange={handleSearch}
-            placeholder="Search day types..."
+            placeholder={getTranslationFromI18nKeyAndLabel(
+              'master-data:hr.time_attendance.day_types.actions.search_placeholder',
+              'Search day types...'
+            )}
             icon={<MagnifyingGlassIcon size={16} />}
             data-testid={formatDataTestId(dataTestId, 'search-input')}
             className="gba:max-w-md"
           />
         </div>
         <div className="gba:text-sm gba:text-gray-600">
-          {filteredDayTypes.length} of {dayTypes.length} day types
+          {`${filteredDayTypes.length} ${getTranslationFromI18nKeyAndLabel('lowcoder:personal_expenses.of', 'of')} ${dayTypes.length} ${getTranslationFromI18nKeyAndLabel(
+            'master-data:hr.time_attendance.day_types.title',
+            'day types'
+          ).toLowerCase()}`}
         </div>
       </div>
       <DataTable
         columns={columns}
         data={filteredDayTypes}
         data-testid={formatDataTestId(prefixDataTestId, 'day-types-items-table')}
-        onRowClick={handleRowClick}
       />
+
+      <Dialog open={isDeleteDialogOpen} onOpenChange={setIsDeleteDialogOpen}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle className="gba:flex gba:items-center gba:gap-2">
+              <WarningIcon className="gba:text-destructive" />
+              {getTranslationFromI18nKeyAndLabel(
+                'master-data:hr.time_attendance.day_types.actions.delete_title',
+                'Delete Day Type'
+              )}
+            </DialogTitle>
+            <DialogDescription>
+              {getTranslationFromI18nKeyAndLabel(
+                'master-data:hr.time_attendance.day_types.actions.delete_message',
+                'Are you sure you want to delete this day type?'
+              )}
+            </DialogDescription>
+          </DialogHeader>
+          <DialogFooter>
+            <DialogClose asChild>
+              <Button variant="outline">
+                {getTranslationFromI18nKeyAndLabel('master-data:forms.common.buttons.cancel', 'Cancel')}
+              </Button>
+            </DialogClose>
+            <Button variant="destructive" onClick={() => handleDeleteDayType(selectedDayType)}>
+              {isDeleting
+                ? getTranslationFromI18nKeyAndLabel(
+                    'master-data:hr.time_attendance.day_types.actions.deleting',
+                    'Deleting...'
+                  )
+                : getTranslationFromI18nKeyAndLabel('lowcoder:expense_calculation_rule.expense_table.delete', 'Delete')}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   )
 }
