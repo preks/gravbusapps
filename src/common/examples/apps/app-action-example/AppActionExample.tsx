@@ -194,7 +194,7 @@ const AppActionExample: React.FC<BusinessAppContextProps> = context => {
           <div>
             <h3 className="gba:text-lg gba:font-semibold gba:mb-2">Header Action</h3>
             <p className="gba:text-sm gba:text-muted-foreground gba:mb-4">
-              Used in page headers with ActionButton component
+              Used in page headers - shows dropdown menu with actions
             </p>
             <div className="gba:flex gba:justify-between gba:items-center gba:p-4 gba:bg-muted gba:rounded-md">
               <div>
@@ -436,34 +436,109 @@ const AppActionExample: React.FC<BusinessAppContextProps> = context => {
 
           <Separator />
 
-          {/* ActionButton Mode */}
+          {/* Trigger Mode with Lazy Load (Pipeline/Steps Pattern) */}
           <div>
-            <h3 className="gba:text-lg gba:font-semibold gba:mb-2">ActionButton Mode</h3>
+            <h3 className="gba:text-lg gba:font-semibold gba:mb-2">Trigger Mode with Lazy Load (Pipeline Steps)</h3>
             <p className="gba:text-sm gba:text-muted-foreground gba:mb-4">
-              Uses ActionButton component with dropdown menu
+              Pattern used in IRM & CRM Opportunity Records - each step is clickable with lazy loaded actions
             </p>
-            <div className="gba:flex gba:gap-4">
-              <AppAction
-                variant="custom"
-                mode="action-button"
-                buttonSize="default"
-                contextsArray={[FlowContextName.customerAccountEntity]}
-                externalContextData={{ accountId: realAccounts[0].id }}
-                accessToken={accessToken}
-                data-testid="action-button-default"
-              >
-                Actions (Default Size)
-              </AppAction>
+            <div className="gba:space-y-4">
+              {/* Pipeline Steps Example */}
+              <div className="gba:flex gba:items-center gba:gap-2 gba:p-4 gba:bg-muted gba:rounded-md">
+                {/* Step 1 - Qualification */}
+                <AppAction
+                  variant="custom"
+                  mode="trigger"
+                  lazyLoad={true}
+                  contextsArray={[FlowContextName.customerOpportunityEntity]}
+                  externalContextData={{ opportunityId: realOpportunities[0].id, targetStage: 'Qualification' }}
+                  accessToken={accessToken}
+                  data-testid="pipeline-step-qualification"
+                >
+                  <div className="gba:flex-1 gba:p-3 gba:bg-primary gba:text-primary-foreground gba:rounded-md gba:cursor-pointer gba:transition-colors hover:gba:bg-primary/80">
+                    <div className="gba:text-sm gba:font-medium">Qualification</div>
+                    <div className="gba:text-xs gba:opacity-80">Click to transition</div>
+                  </div>
+                </AppAction>
 
-              <AppAction
-                variant="custom"
-                mode="action-button"
-                buttonSize="icon"
-                contextsArray={[FlowContextName.customerLeadEntity]}
-                externalContextData={{ leadId: realLeads[0].id }}
-                accessToken={accessToken}
-                data-testid="action-button-icon"
-              />
+                <div className="gba:h-0.5 gba:w-8 gba:bg-border" />
+
+                {/* Step 2 - Needs Analysis */}
+                <AppAction
+                  variant="custom"
+                  mode="trigger"
+                  lazyLoad={true}
+                  contextsArray={[FlowContextName.customerOpportunityEntity]}
+                  externalContextData={{ opportunityId: realOpportunities[0].id, targetStage: 'Needs Analysis' }}
+                  accessToken={accessToken}
+                  data-testid="pipeline-step-needs-analysis"
+                >
+                  <div className="gba:flex-1 gba:p-3 gba:bg-muted-foreground gba:text-muted gba:rounded-md gba:cursor-pointer gba:transition-colors hover:gba:bg-muted-foreground/80">
+                    <div className="gba:text-sm gba:font-medium">Needs Analysis</div>
+                    <div className="gba:text-xs gba:opacity-80">Click to transition</div>
+                  </div>
+                </AppAction>
+
+                <div className="gba:h-0.5 gba:w-8 gba:bg-border" />
+
+                {/* Step 3 - Proposal */}
+                <AppAction
+                  variant="custom"
+                  mode="trigger"
+                  lazyLoad={true}
+                  contextsArray={[FlowContextName.customerOpportunityEntity]}
+                  externalContextData={{ opportunityId: realOpportunities[0].id, targetStage: 'Proposal' }}
+                  accessToken={accessToken}
+                  data-testid="pipeline-step-proposal"
+                >
+                  <div className="gba:flex-1 gba:p-3 gba:bg-muted-foreground gba:text-muted gba:rounded-md gba:cursor-pointer gba:transition-colors hover:gba:bg-muted-foreground/80">
+                    <div className="gba:text-sm gba:font-medium">Proposal</div>
+                    <div className="gba:text-xs gba:opacity-80">Click to transition</div>
+                  </div>
+                </AppAction>
+
+                <div className="gba:h-0.5 gba:w-8 gba:bg-border" />
+
+                {/* Step 4 - Negotiation */}
+                <AppAction
+                  variant="custom"
+                  mode="trigger"
+                  lazyLoad={true}
+                  contextsArray={[FlowContextName.customerOpportunityEntity]}
+                  externalContextData={{ opportunityId: realOpportunities[0].id, targetStage: 'Negotiation' }}
+                  accessToken={accessToken}
+                  data-testid="pipeline-step-negotiation"
+                >
+                  <div className="gba:flex-1 gba:p-3 gba:bg-muted-foreground gba:text-muted gba:rounded-md gba:cursor-pointer gba:transition-colors hover:gba:bg-muted-foreground/80">
+                    <div className="gba:text-sm gba:font-medium">Negotiation</div>
+                    <div className="gba:text-xs gba:opacity-80">Click to transition</div>
+                  </div>
+                </AppAction>
+
+                <div className="gba:h-0.5 gba:w-8 gba:bg-border" />
+
+                {/* Step 5 - Closed Won */}
+                <AppAction
+                  variant="custom"
+                  mode="trigger"
+                  lazyLoad={true}
+                  contextsArray={[FlowContextName.customerOpportunityEntity]}
+                  externalContextData={{ opportunityId: realOpportunities[0].id, targetStage: 'Closed Won' }}
+                  accessToken={accessToken}
+                  data-testid="pipeline-step-closed-won"
+                >
+                  <div className="gba:flex-1 gba:p-3 gba:bg-muted-foreground gba:text-muted gba:rounded-md gba:cursor-pointer gba:transition-colors hover:gba:bg-muted-foreground/80">
+                    <div className="gba:text-sm gba:font-medium">Closed Won</div>
+                    <div className="gba:text-xs gba:opacity-80">Click to transition</div>
+                  </div>
+                </AppAction>
+              </div>
+
+              <div className="gba:text-sm gba:text-muted-foreground gba:bg-info-secondary gba:text-info-secondary-foreground gba:p-3 gba:rounded-md">
+                <strong>Pattern Explanation:</strong> Each step uses <code>mode="trigger"</code> with{' '}
+                <code>lazyLoad={'{true}'}</code>. Actions are only fetched when the step is clicked, reducing initial
+                load time. This pattern is used in Opportunity Pipeline progression in both IRM and CRM modules.
+              </div>
             </div>
           </div>
 
@@ -681,7 +756,7 @@ const AppActionExample: React.FC<BusinessAppContextProps> = context => {
             <div className="gba:flex gba:gap-4">
               <AppAction
                 variant="custom"
-                mode="action-button"
+                mode="button"
                 staticFlowData={staticActions}
                 accessToken={accessToken}
                 data-testid="static-actions"
@@ -712,7 +787,7 @@ const AppActionExample: React.FC<BusinessAppContextProps> = context => {
             </p>
             <AppAction
               variant="custom"
-              mode="action-button"
+              mode="button"
               staticFlowData={staticActions}
               contextsArray={[FlowContextName.customerLeadEntity]}
               externalContextData={{ leadId: realLeads[0].id }}

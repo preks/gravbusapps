@@ -1,7 +1,7 @@
 'use client'
 
 import React, { useCallback } from 'react'
-import { Button, ActionButton, ActionMenu, Icon } from '@newwork/nw-design-system'
+import { Button, ActionMenu, Icon } from '@newwork/nw-design-system'
 import { DotsThreeVerticalIcon, PlusIcon, PencilIcon, TrashIcon } from '@phosphor-icons/react'
 import {
   useAppActionData,
@@ -17,16 +17,15 @@ import { ActionOption } from '@newwork/nw-design-system'
  * Unified component for all action-related use cases
  */
 export interface AppActionProps {
+  // Primary API
   contexts?: Array<{
     context: FlowContextName | string
     contextData: Record<string, string>[]
   }>
-  contextsArray?: FlowContextName[]
-  externalContextData?: Record<string, any>
-  staticFlowData?: ActionOption[]
+  customActions?: ActionOption[]
   accessToken?: string
   variant?: 'custom' | keyof typeof actionVariants
-  mode?: 'trigger' | 'button' | 'action-button'
+  mode?: 'trigger' | 'button'
   emptyState?: 'disable' | 'hide' | 'enable'
   lazyLoad?: boolean
   autoExecute?: boolean
@@ -39,6 +38,14 @@ export interface AppActionProps {
   onClick?: (e: React.MouseEvent) => void
   'data-testid'?: string
   prefixDataTestId?: string
+
+  // Deprecated API
+  /** @deprecated Use contexts instead */
+  contextsArray?: FlowContextName[]
+  /** @deprecated Use contexts instead */
+  externalContextData?: Record<string, any>
+  /** @deprecated Use customActions instead */
+  staticFlowData?: ActionOption[]
   /** @deprecated Use lazyLoad instead */
   deferMainContextRequestsUntilClick?: boolean
   /** @deprecated Use emptyState instead */
@@ -77,11 +84,13 @@ const actionVariants = {
   },
 
   header: {
-    mode: 'action-button',
+    mode: 'button',
     buttonSize: 'icon',
+    buttonVariant: 'outline',
     lazyLoad: false,
     emptyState: 'hide',
-    autoExecute: false
+    autoExecute: false,
+    defaultChildren: <Icon icon={DotsThreeVerticalIcon} />
   },
 
   'create-primary': {
@@ -178,10 +187,10 @@ const actionVariants = {
 
 /**
  * Unified internal rendering component
- * Handles all modes (trigger, button, action-button) with shared logic
+ * Handles all modes (trigger, button) with shared logic
  */
 const AppActionRenderer: React.FC<{
-  mode: 'trigger' | 'button' | 'action-button'
+  mode: 'trigger' | 'button'
   config: UseAppActionDataConfig
   buttonSize?: 'default' | 'sm' | 'lg' | 'icon' | 'iconSm' | 'iconLg'
   buttonVariant?: 'default' | 'secondary' | 'destructive' | 'outline' | 'ghost' | 'link'
@@ -199,8 +208,7 @@ const AppActionRenderer: React.FC<{
   const forcedConfig = mode === 'trigger' ? { ...config, deferMainContextRequestsUntilClick: false } : config
 
   // Unified data fetching
-  const dataTestIdPrefix =
-    mode === 'trigger' ? 'AppActionTrigger' : mode === 'action-button' ? 'AppActionButton' : 'AppActionExecuteButton'
+  const dataTestIdPrefix = mode === 'trigger' ? 'AppActionTrigger' : 'AppActionExecuteButton'
   const { combinedData, handleDeferredFetch, shouldShowLoading } = useAppActionData(forcedConfig, dataTestIdPrefix)
   const executeFirstAction = useCallback(() => {
     if (combinedData[0]) {
@@ -240,35 +248,6 @@ const AppActionRenderer: React.FC<{
     })
 
     return <div data-testid={containerTestId}>{clonedChild}</div>
-  }
-
-  if (mode === 'action-button') {
-    const buttonTestId = customDataTestId || formatDataTestId(config.prefixDataTestId, 'AppActionButton', 'Button')
-
-    const handleDropdownOpenInternal = () => {
-      handleDeferredFetch()
-      props.onDropdownOpen?.()
-    }
-
-    return (
-      <ActionButton
-        size={props.buttonSize}
-        disabled={disabled}
-        className={props.className}
-        data-testid={buttonTestId}
-        actions={combinedData}
-        actionsLoading={shouldShowLoading}
-        emptyStateBehavior={config.emptyStateBehavior}
-        onDropdownOpen={handleDropdownOpenInternal}
-        onClick={e => {
-          e.stopPropagation()
-          e.preventDefault()
-          onClick?.(e)
-        }}
-      >
-        {children}
-      </ActionButton>
-    )
   }
 
   if (mode === 'button') {
@@ -353,16 +332,20 @@ export const AppAction: React.FC<AppActionProps> = React.memo(props => {
     onDropdownOpen,
     'data-testid': customDataTestId,
     prefixDataTestId,
+    // Primary API
     contexts,
+    customActions,
+    accessToken,
+    // Deprecated API (fallbacks)
     contextsArray: legacyContextsArray,
     externalContextData: legacyExternalContextData,
-    staticFlowData,
-    accessToken,
+    staticFlowData: legacyStaticFlowData,
     deferMainContextRequestsUntilClick,
     autoExecuteSingleAction,
     emptyStateBehavior
   } = props
 
+  // Transform contexts to contextsArray and externalContextData
   const { contextsArray, externalContextData } = React.useMemo(() => {
     if (contexts && contexts.length > 0) {
       const expandedContexts: (FlowContextName | string)[] = []
@@ -383,11 +366,15 @@ export const AppAction: React.FC<AppActionProps> = React.memo(props => {
       }
     }
 
+    // Fallback to legacy API
     return {
       contextsArray: legacyContextsArray,
       externalContextData: legacyExternalContextData
     }
   }, [contexts, legacyContextsArray, legacyExternalContextData])
+
+  // Resolve customActions (primary) vs staticFlowData (legacy)
+  const staticFlowData = customActions ?? legacyStaticFlowData
 
   const variantConfig = variant !== 'custom' ? actionVariants[variant as keyof typeof actionVariants] : null
 
@@ -427,6 +414,15 @@ export const AppAction: React.FC<AppActionProps> = React.memo(props => {
 
   // Development warnings for deprecated props
   if (process.env.NODE_ENV === 'development') {
+    if (legacyContextsArray !== undefined) {
+      console.warn('AppAction: "contextsArray" is deprecated. Use "contexts" instead.')
+    }
+    if (legacyExternalContextData !== undefined) {
+      console.warn('AppAction: "externalContextData" is deprecated. Use "contexts" instead.')
+    }
+    if (legacyStaticFlowData !== undefined) {
+      console.warn('AppAction: "staticFlowData" is deprecated. Use "customActions" instead.')
+    }
     if (deferMainContextRequestsUntilClick !== undefined) {
       console.warn('AppAction: "deferMainContextRequestsUntilClick" is deprecated. Use "lazyLoad" instead.')
     }
@@ -456,15 +452,7 @@ export const AppAction: React.FC<AppActionProps> = React.memo(props => {
       buttonVariant={buttonVariant}
       disabled={disabled}
       className={className}
-      onClick={
-        variant === 'table-row' || variant === 'list-item'
-          ? e => {
-              e.stopPropagation()
-              e.preventDefault()
-              onClick?.(e)
-            }
-          : onClick
-      }
+      onClick={onClick}
       onDropdownOpen={onDropdownOpen}
       autoExecute={autoExecute}
       data-testid={customDataTestId}
