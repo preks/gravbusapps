@@ -514,9 +514,9 @@ export const ExpenseItemProvider: React.FC<ExpenseItemProviderProps> = ({
         }
       }
       setRerunRule(false)
-      setIsInitialized(true)
     } catch {
       showToast(t('lowcoder:create_expense_type_item.process_error_data_fetch', 'Error fetching data'), 'error')
+    } finally {
       setIsInitialized(true)
     }
   }
@@ -748,7 +748,7 @@ export const ExpenseItemProvider: React.FC<ExpenseItemProviderProps> = ({
       setIsProcessingFiles(true)
       setIsFormDisabled(true)
 
-      const result = await handleFileUpload(files, accessToken, aiGroupsAndTypes, t)
+      const result = await handleFileUpload(files, accessToken, aiGroupsAndTypes)
 
       if (result) {
         setByReceipts(result)
