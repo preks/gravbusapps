@@ -56,14 +56,6 @@ const renderInactiveOpenStatus = (
   accessToken: string,
   config: StatusProgressionConfig
 ) => {
-  const handleKeyDown = (event: React.KeyboardEvent<HTMLDivElement>) => {
-    if (event.key === 'Enter' || event.key === ' ') {
-      event.preventDefault()
-      // Trigger the onClick that AppAction injected
-      event.currentTarget.click()
-    }
-  }
-
   return (
     <AppAction
       contextsArray={[config.flowContextName]}
@@ -79,8 +71,9 @@ const renderInactiveOpenStatus = (
       deferMainContextRequestsUntilClick
       className="gba:flex gba:flex-1"
     >
-      <div
-        className="gba:bg-transparent gba:text-muted-foreground"
+      <button
+        type="button"
+        className="gba:bg-transparent gba:text-muted-foreground gba:border-0 gba:w-full"
         style={{
           position: 'relative',
           height: '40px',
@@ -97,14 +90,11 @@ const renderInactiveOpenStatus = (
           WebkitClipPath: 'polygon(0 0, calc(100% - 12px) 0, 100% 50%, calc(100% - 12px) 100%, 0 100%)',
           cursor: 'pointer'
         }}
-        role="button"
-        tabIndex={0}
         aria-label={`Change status to ${statuses[openIndex].value}`}
-        onKeyDown={handleKeyDown}
         data-testid="status-open"
       >
         <span style={{ whiteSpace: 'nowrap' }}>{statuses[openIndex].value}</span>
-      </div>
+      </button>
     </AppAction>
   )
 }
@@ -118,14 +108,6 @@ const renderConvertedLostSection = (
   accessToken: string,
   config: StatusProgressionConfig
 ) => {
-  const handleKeyDown = (event: React.KeyboardEvent<HTMLDivElement>) => {
-    if (event.key === 'Enter' || event.key === ' ') {
-      event.preventDefault()
-      // Trigger the onClick that AppAction injected
-      event.currentTarget.click()
-    }
-  }
-
   const padding = config.terminalStatusPadding || DEFAULT_TERMINAL_STATUS_PADDING
 
   return (
@@ -162,27 +144,24 @@ const renderConvertedLostSection = (
             emptyStateBehavior="enable"
             deferMainContextRequestsUntilClick
           >
-            <div
+            <button
+              type="button"
+              className="gba:bg-transparent gba:border-0 gba:w-full"
               style={{
                 position: 'relative',
                 height: '38px',
-                width: '100%',
                 display: 'flex',
                 alignItems: 'center',
                 justifyContent: 'center',
                 fontSize: '14px',
                 fontWeight: '600',
-                backgroundColor: 'transparent',
                 transition: 'all 0.3s ease',
                 cursor: 'pointer'
               }}
-              role="button"
-              tabIndex={0}
               aria-label={`Change status to ${
                 statuses[convertedIndex]?.value ||
                 getTranslationFromI18nKeyAndLabel('common.status.converted', 'Converted')
               }`}
-              onKeyDown={handleKeyDown}
               data-testid="status-converted"
             >
               <div
@@ -198,7 +177,7 @@ const renderConvertedLostSection = (
                     getTranslationFromI18nKeyAndLabel('common.status.converted', 'Converted')}
                 </span>
               </div>
-            </div>
+            </button>
           </AppAction>
         </div>
       )}
@@ -218,26 +197,23 @@ const renderConvertedLostSection = (
             emptyStateBehavior="enable"
             deferMainContextRequestsUntilClick
           >
-            <div
+            <button
+              type="button"
+              className="gba:bg-transparent gba:border-0 gba:w-full"
               style={{
                 position: 'relative',
                 height: '38px',
-                width: '100%',
                 display: 'flex',
                 alignItems: 'center',
                 justifyContent: 'center',
                 fontSize: '14px',
                 fontWeight: '600',
-                backgroundColor: 'transparent',
                 transition: 'all 0.3s ease',
                 cursor: 'pointer'
               }}
-              role="button"
-              tabIndex={0}
               aria-label={`Change status to ${
                 statuses[lostIndex]?.value || getTranslationFromI18nKeyAndLabel('common.status.lost', 'Lost')
               }`}
-              onKeyDown={handleKeyDown}
               data-testid="status-lost"
             >
               <div
@@ -252,7 +228,7 @@ const renderConvertedLostSection = (
                   {statuses[lostIndex]?.value || getTranslationFromI18nKeyAndLabel('common.status.lost', 'Lost')}
                 </span>
               </div>
-            </div>
+            </button>
           </AppAction>
         </div>
       )}
@@ -276,14 +252,6 @@ const renderActiveStatusBadge = (
     return 'gba:bg-transparent gba:text-muted-foreground'
   }
 
-  const handleKeyDown = (event: React.KeyboardEvent<HTMLDivElement>) => {
-    if (event.key === 'Enter' || event.key === ' ') {
-      event.preventDefault()
-      // Trigger the onClick that AppAction injected
-      event.currentTarget.click()
-    }
-  }
-
   const currentStatusValue = isConverted ? statuses[convertedIndex].value : statuses[lostIndex].value
 
   return (
@@ -301,12 +269,12 @@ const renderActiveStatusBadge = (
       deferMainContextRequestsUntilClick
       className="gba:flex gba:flex-1"
     >
-      <div
-        className={getColorClasses()}
+      <button
+        type="button"
+        className={`${getColorClasses()} gba:border-0 gba:w-full`}
         style={{
           position: 'relative',
           height: '40px',
-          width: '100%',
           display: 'flex',
           alignItems: 'center',
           justifyContent: 'center',
@@ -319,10 +287,7 @@ const renderActiveStatusBadge = (
           clipPath: 'polygon(12px 0, 100% 0, 100% 100%, 12px 100%, 24px 50%)',
           WebkitClipPath: 'polygon(12px 0, 100% 0, 100% 100%, 12px 100%, 24px 50%)'
         }}
-        role="button"
-        tabIndex={0}
         aria-label={`Revert status to ${statuses[openIndex].value}`}
-        onKeyDown={handleKeyDown}
         data-testid={isConverted ? 'status-converted' : 'status-lost'}
       >
         <div style={{ display: 'flex', alignItems: 'center', gap: '8px', padding: '0 16px' }}>
@@ -348,7 +313,7 @@ const renderActiveStatusBadge = (
           )}
           <span style={{ whiteSpace: 'nowrap' }}>{currentStatusValue}</span>
         </div>
-      </div>
+      </button>
     </AppAction>
   )
 }
