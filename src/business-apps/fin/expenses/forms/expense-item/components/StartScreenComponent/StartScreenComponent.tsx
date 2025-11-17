@@ -19,7 +19,6 @@ export const StartScreenComponent: React.FC<StartScreenComponentProps> = ({
   setCurrentStep,
   handleCancel
 }) => {
-  const t = getTranslationFromI18nKeyAndLabel
   const { isProcessingFiles } = useExpenseItem()
 
   return (
@@ -40,11 +39,14 @@ export const StartScreenComponent: React.FC<StartScreenComponentProps> = ({
         >
           <div className="gba:flex gba:items-center gba:justify-center gba:gap-2" data-testid="continue-button-content">
             <span className="gba:font-medium gba:text-black" data-testid="continue-without-receipt-text">
-              {t('lowcoder:create_expense_type_item.continue_button', 'Continue without receipt')}
+              {getTranslationFromI18nKeyAndLabel(
+                'lowcoder:create_expense_type_item.continue_button',
+                'Continue without receipt'
+              )}
             </span>
             <img
               src={ICONS.RIGHT_ARROW}
-              alt={t('lowcoder:create_expense_type_item.continue_alt_text', 'Continue')}
+              alt={getTranslationFromI18nKeyAndLabel('lowcoder:create_expense_type_item.continue_alt_text', 'Continue')}
               className="gba:w-6 gba:h-6"
               data-testid="continue-button-arrow"
             />
@@ -75,7 +77,7 @@ export const StartScreenComponent: React.FC<StartScreenComponentProps> = ({
             style={{ borderRadius: '22px', height: '40px' }}
             data-testid="start-screen-cancel-button"
           >
-            {t('lowcoder:create_expense_request.initiate_cancel_button', 'Cancel')}
+            {getTranslationFromI18nKeyAndLabel('lowcoder:create_expense_request.initiate_cancel_button', 'Cancel')}
           </Button>
         </div>
       </div>
