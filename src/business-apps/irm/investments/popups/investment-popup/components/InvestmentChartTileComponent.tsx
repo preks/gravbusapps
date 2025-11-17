@@ -29,9 +29,9 @@ import {
   ChartType,
   PieChartData,
   BarChartData,
-  LineChartData
+  LineChartData,
+  findTileById
 } from '@/business-apps/irm/investments/records/investment-record/tiles'
-import { findTileById } from '@/business-apps/irm/investments/records/investment-record/tiles'
 
 const prefixDataTestId = 'investment-chart-tile-component'
 

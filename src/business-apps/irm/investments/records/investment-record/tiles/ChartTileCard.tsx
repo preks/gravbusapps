@@ -34,12 +34,92 @@ export interface ChartTileCardProps extends BusinessAppContextProps {
   onRefresh?: () => void
 }
 
+// Custom tooltip components moved outside parent component
+const PieChartTooltip: React.FC<{ active?: boolean; payload?: any[] }> = ({ active, payload }) => {
+  if (active && payload?.length) {
+    return (
+      <div className="gba:bg-card gba:border gba:rounded gba:p-2 gba:shadow-lg">
+        <p className="gba:font-medium">{payload[0].payload.displayName}</p>
+        <p className="gba:text-sm">{payload[0].value}%</p>
+      </div>
+    )
+  }
+  return null
+}
+
+const BarChartTooltip: React.FC<{ active?: boolean; payload?: any[] }> = ({ active, payload }) => {
+  if (active && payload?.length) {
+    return (
+      <div className="gba:bg-card gba:border gba:rounded gba:p-2 gba:shadow-lg">
+        <p className="gba:font-medium">{payload[0].payload.name}</p>
+        <p className="gba:text-sm">Value: {payload[0].value}</p>
+      </div>
+    )
+  }
+  return null
+}
+
+const LineChartTooltip: React.FC<{ active?: boolean; payload?: any[] }> = ({ active, payload }) => {
+  if (active && payload?.length) {
+    return (
+      <div className="gba:bg-card gba:border gba:rounded gba:p-2 gba:shadow-lg">
+        <p className="gba:font-medium">{payload[0].payload.name}</p>
+        <p className="gba:text-sm">Value: {payload[0].value}</p>
+      </div>
+    )
+  }
+  return null
+}
+
 export const ChartTileCard: React.FC<ChartTileCardProps> = ({ tile, investmentId, onRefresh, ...props }) => {
   const chartData = tile.chartData
 
   if (!chartData) {
     return null
   }
+
+  // Prepare pie chart data and config at top level (using useMemo)
+  const { pieChartData, pieChartConfig } = useMemo(() => {
+    if (!chartData.pieData || chartData.pieData.length === 0) {
+      return { pieChartData: [], pieChartConfig: {} }
+    }
+
+    const pieData = chartData.pieData.map(item => {
+      const key = item.name.toLowerCase().replaceAll(/\s+/g, '')
+      return {
+        name: key,
+        displayName: item.name,
+        value: item.percentage
+      }
+    })
+
+    const config: Record<string, { label: string }> = {}
+    pieData.forEach(item => {
+      config[item.name] = { label: item.displayName }
+    })
+
+    return { pieChartData: pieData, pieChartConfig: config }
+  }, [chartData.pieData])
+
+  // Prepare bar chart config at top level
+  const barChartConfig = useMemo(
+    () => ({
+      value: {
+        label: 'Value'
+      }
+    }),
+    []
+  )
+
+  // Prepare line chart config at top level
+  const lineChartConfig = useMemo(
+    () => ({
+      value: {
+        label: 'Value'
+      }
+    }),
+    []
+  )
 
   const getChartIcon = () => {
     switch (chartData.chartType) {
@@ -55,32 +135,13 @@ export const ChartTileCard: React.FC<ChartTileCardProps> = ({ tile, investmentId
   }
 
   const renderPieChart = () => {
-    if (!chartData.pieData || chartData.pieData.length === 0) {
+    if (pieChartData.length === 0) {
       return (
         <div className="gba:text-center gba:text-muted-foreground gba:py-8">
           {getTranslationFromI18nKeyAndLabel('investment.tiles.noData', 'No data available')}
         </div>
       )
     }
-
-    // Format data for recharts with keys for config
-    const pieChartData = chartData.pieData.map(item => {
-      const key = item.name.toLowerCase().replaceAll(/\s+/g, '')
-      return {
-        name: key,
-        displayName: item.name,
-        value: item.percentage
-      }
-    })
-
-    // Config object - ChartContainer generates CSS variables from these keys
-    const pieChartConfig = useMemo(() => {
-      const config: Record<string, { label: string }> = {}
-      pieChartData.forEach(item => {
-        config[item.name] = { label: item.displayName }
-      })
-      return config
-    }, [pieChartData])
 
     return (
       <div data-testid={`pie-chart-data-${tile.id}`}>
@@ -100,19 +161,7 @@ export const ChartTileCard: React.FC<ChartTileCardProps> = ({ tile, investmentId
                 <Cell key={entry.name} fill={`var(--color-${entry.name})`} />
               ))}
             </Pie>
-            <ChartTooltip
-              content={({ active, payload }) => {
-                if (active && payload?.length) {
-                  return (
-                    <div className="gba:bg-card gba:border gba:rounded gba:p-2 gba:shadow-lg">
-                      <p className="gba:font-medium">{payload[0].payload.displayName}</p>
-                      <p className="gba:text-sm">{payload[0].value}%</p>
-                    </div>
-                  )
-                }
-                return null
-              }}
-            />
+            <ChartTooltip content={<PieChartTooltip />} />
             <ChartLegend content={<ChartLegendContent />} />
           </RechartsPieChart>
         </ChartContainer>
@@ -134,16 +183,6 @@ export const ChartTileCard: React.FC<ChartTileCardProps> = ({ tile, investmentId
       name: xItem.name,
       value: chartData.barData!.yAxis[index]?.amount || 0
     }))
-
-    // Config object - ChartContainer generates CSS variables from these keys
-    const barChartConfig = useMemo(
-      () => ({
-        value: {
-          label: 'Value'
-        }
-      }),
-      []
-    )
 
     return (
       <div data-testid={`bar-chart-data-${tile.id}`}>
@@ -172,19 +211,7 @@ export const ChartTileCard: React.FC<ChartTileCardProps> = ({ tile, investmentId
                   : undefined
               }
             />
-            <ChartTooltip
-              content={({ active, payload }) => {
-                if (active && payload?.length) {
-                  return (
-                    <div className="gba:bg-card gba:border gba:rounded gba:p-2 gba:shadow-lg">
-                      <p className="gba:font-medium">{payload[0].payload.name}</p>
-                      <p className="gba:text-sm">Value: {payload[0].value}</p>
-                    </div>
-                  )
-                }
-                return null
-              }}
-            />
+            <ChartTooltip content={<BarChartTooltip />} />
             <Bar dataKey="value" fill="var(--color-value)" radius={[4, 4, 0, 0]} />
           </RechartsBarChart>
         </ChartContainer>
@@ -206,16 +233,6 @@ export const ChartTileCard: React.FC<ChartTileCardProps> = ({ tile, investmentId
       name: xItem.name,
       value: chartData.lineData!.yAxis[index]?.amount || 0
     }))
-
-    // Config object - ChartContainer generates CSS variables from these keys
-    const lineChartConfig = useMemo(
-      () => ({
-        value: {
-          label: 'Value'
-        }
-      }),
-      []
-    )
 
     return (
       <div data-testid={`line-chart-data-${tile.id}`}>
@@ -244,19 +261,7 @@ export const ChartTileCard: React.FC<ChartTileCardProps> = ({ tile, investmentId
                   : undefined
               }
             />
-            <ChartTooltip
-              content={({ active, payload }) => {
-                if (active && payload?.length) {
-                  return (
-                    <div className="gba:bg-card gba:border gba:rounded gba:p-2 gba:shadow-lg">
-                      <p className="gba:font-medium">{payload[0].payload.name}</p>
-                      <p className="gba:text-sm">Value: {payload[0].value}</p>
-                    </div>
-                  )
-                }
-                return null
-              }}
-            />
+            <ChartTooltip content={<LineChartTooltip />} />
             <Line
               type="monotone"
               dataKey="value"
