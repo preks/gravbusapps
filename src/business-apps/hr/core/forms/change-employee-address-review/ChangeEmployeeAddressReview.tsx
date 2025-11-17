@@ -1,11 +1,7 @@
 import React, { useEffect, useState } from 'react'
 import { useForm } from 'react-hook-form'
 import { BusinessAppContextProps } from '@/common/BusinessAppContext'
-import {
-  getTranslationFromI18nKeyAndLabel,
-  getCurrentActiveUserLocale,
-  getCatalogValue
-} from '@/common/utils/windowUtils'
+import { getTranslationFromI18nKeyAndLabel, getCurrentActiveUserLocale } from '@/common/utils/windowUtils'
 import { AppActionForm } from '@/components/app-action-form/AppActionForm'
 import FormHeader from '../components/FormHeader'
 import flowIconUrl from '@/assets/icons/flowSmall.svg'
@@ -16,7 +12,8 @@ import {
   GET_EMPLOYEE_DOCUMENT_BY_ID
 } from './ChangeEmployeeAddressReviewQueries'
 
-import { CaretRightIcon } from '@phosphor-icons/react'
+import ReviewRows from '../components/ReviewRows'
+import { buildAddressReviewRows } from './buildRows'
 import { Alert } from '@newwork/nw-design-system'
 
 export const ChangeEmployeeAddressReview: React.FC<BusinessAppContextProps> = ({
@@ -97,7 +94,7 @@ export const ChangeEmployeeAddressReview: React.FC<BusinessAppContextProps> = ({
         if (!accessToken) return
         const ids = Array.from(
           new Set(
-            [String((oldAddr as any)?.employeeDocument || ''), String((newAddr as any)?.employeeDocument || '')]
+            [String((oldAddr as any)?.employeeDocument ?? ''), String((newAddr as any)?.employeeDocument ?? '')]
               .map(s => s?.trim())
               .filter(Boolean)
           )
@@ -123,163 +120,7 @@ export const ChangeEmployeeAddressReview: React.FC<BusinessAppContextProps> = ({
     fetchDocs()
   }, [accessToken, graphqlClient, oldAddr?.employeeDocument, newAddr?.employeeDocument])
 
-  const countryCode = (ref?: string) => (typeof ref === 'string' ? ref.split(':').pop() || '' : '')
-  const regionCode = (ref?: string) => (typeof ref === 'string' ? ref.split(':').pop() || '' : '')
-  const getPostalLabel = (countryRef?: string) =>
-    countryCode(countryRef) === 'US'
-      ? getTranslationFromI18nKeyAndLabel(
-          'lowcoder:employee_profile.details_layout.address_container.zip_code',
-          'ZIP Code'
-        )
-      : getTranslationFromI18nKeyAndLabel(
-          'lowcoder:employee_profile.details_layout.address_container.postal_code',
-          'Postal Code'
-        )
-
-  const getRegionLabel = (countryRef?: string) => {
-    const cc = countryCode(countryRef)
-    if (cc === 'DE') {
-      return getTranslationFromI18nKeyAndLabel(
-        'lowcoder:employee_profile.details_layout.address_container.region',
-        'Region'
-      )
-    }
-    if (cc === 'US') {
-      return getTranslationFromI18nKeyAndLabel(
-        'lowcoder:employee_profile.details_layout.address_container.state',
-        'State'
-      )
-    }
-    if (cc === 'RO') {
-      return getTranslationFromI18nKeyAndLabel(
-        'lowcoder:employee_profile.details_layout.address_container.county',
-        'County'
-      )
-    }
-    return getTranslationFromI18nKeyAndLabel(
-      'lowcoder:employee_profile.details_layout.address_container.region',
-      'Region'
-    )
-  }
-
-  const rows: {
-    key: string
-    label?: string
-    oldLabel?: string
-    newLabel?: string
-    oldValue: string
-    newValue: string
-  }[] = []
-
-  // Address lines (show only if present in either old or new)
-  const lineLabelBase = getTranslationFromI18nKeyAndLabel(
-    'lowcoder:employee_profile.details_layout.address_container.address_line',
-    'Address Line'
-  )
-  for (let i = 0; i < 4; i++) {
-    const oldVal = String((oldAddr.addressLine || [])[i] || '').trim()
-    const newVal = String((newAddr.addressLine || [])[i] || '').trim()
-    if (i === 0 || oldVal !== '' || newVal !== '') {
-      rows.push({
-        key: `addressLine${i + 1}`,
-        label: `${lineLabelBase} ${i + 1}`,
-        oldValue: oldVal,
-        newValue: newVal
-      })
-    }
-  }
-
-  // Postal code – always show, with side-specific labels (US => ZIP Code)
-  rows.push({
-    key: 'postalCode',
-    oldLabel: getPostalLabel(oldAddr?.countryRef),
-    newLabel: getPostalLabel(newAddr?.countryRef),
-    oldValue: String(oldAddr.postalCode || ''),
-    newValue: String(newAddr.postalCode || '')
-  })
-
-  // City – always
-  rows.push({
-    key: 'locality',
-    label: getTranslationFromI18nKeyAndLabel('lowcoder:employee_profile.details_layout.address_container.city', 'City'),
-    oldValue: String(oldAddr.locality || ''),
-    newValue: String(newAddr.locality || '')
-  })
-
-  // Region – show if either side requires it (DE / US / RO), with side-specific labels
-  const oldCC = countryCode(oldAddr?.countryRef)
-  const newCC = countryCode(newAddr?.countryRef)
-  const sideNeedsRegion = (cc?: string) => cc === 'DE' || cc === 'US' || cc === 'RO'
-  if (sideNeedsRegion(oldCC) || sideNeedsRegion(newCC)) {
-    const oldRegionDisplay = getCatalogValue(catalogMap[String(oldAddr.regionRef)]) || regionCode(oldAddr.regionRef)
-    const newRegionDisplay = getCatalogValue(catalogMap[String(newAddr.regionRef)]) || regionCode(newAddr.regionRef)
-    rows.push({
-      key: 'regionRef',
-      oldLabel: getRegionLabel(oldAddr?.countryRef),
-      newLabel: getRegionLabel(newAddr?.countryRef),
-      oldValue: String(oldRegionDisplay || ''),
-      newValue: String(newRegionDisplay || '')
-    })
-  }
-
-  // Country – always (use translated value if available)
-  rows.push({
-    key: 'countryRef',
-    label: getTranslationFromI18nKeyAndLabel(
-      'lowcoder:employee_profile.details_layout.address_container.country',
-      'Country'
-    ),
-    oldValue: getCatalogValue(catalogMap[String(oldAddr.countryRef)]) || countryCode(oldAddr.countryRef),
-    newValue: getCatalogValue(catalogMap[String(newAddr.countryRef)]) || countryCode(newAddr.countryRef)
-  })
-
-  // PO Box – show only if present/true in either side
-  const oldPo = Boolean(oldAddr.poBox || false)
-  const newPo = Boolean(newAddr.poBox || false)
-  if (oldPo || newPo) {
-    rows.push({
-      key: 'poBox',
-      label: getTranslationFromI18nKeyAndLabel(
-        'lowcoder:employee_profile.details_layout.address_container.po_box',
-        'PO Box'
-      ),
-      oldValue: String(oldPo),
-      newValue: String(newPo)
-    })
-  }
-
-  // Comment – show only if present in either side
-  const oldNotes = String(oldAddr.notes || '').trim()
-  const newNotes = String(newAddr.notes || '').trim()
-  if (oldNotes !== '' || newNotes !== '') {
-    rows.push({
-      key: 'notes',
-      label: getTranslationFromI18nKeyAndLabel(
-        'lowcoder:initiate_expense_plan.create_expense_plan.comment_text_area',
-        'Comment'
-      ),
-      oldValue: oldNotes,
-      newValue: newNotes
-    })
-  }
-
-  // Attachment – show raw employeeDocument string when present on either side
-  const oldDoc = String((oldAddr as any)?.employeeDocument ?? '').trim()
-  const newDoc = String((newAddr as any)?.employeeDocument ?? '').trim()
-  if (oldDoc !== '' || newDoc !== '') {
-    const oldDisplay =
-      docNameMap[oldDoc] ||
-      (oldDoc ? getTranslationFromI18nKeyAndLabel('lowcoder:review_forms.old_attachment_text', 'Old Attachment') : '')
-    const newDisplay =
-      docNameMap[newDoc] ||
-      (newDoc ? getTranslationFromI18nKeyAndLabel('lowcoder:review_forms.new_attachment_text', 'New Attachment') : '')
-    rows.push({
-      key: 'employeeDocument',
-      label: getTranslationFromI18nKeyAndLabel('lowcoder:review_forms.attachment_text', 'Attachment'),
-      oldValue: oldDisplay,
-      newValue: newDisplay
-    })
-  }
+  const rows = buildAddressReviewRows({ oldAddr, newAddr, catalogMap, docNameMap })
   const titleText = getTranslationFromI18nKeyAndLabel(
     'lowcoder:review_forms.employee_address_change_title',
     `Employee Address Change for ${employeeName ? employeeName : ''}`,
@@ -318,55 +159,16 @@ export const ChangeEmployeeAddressReview: React.FC<BusinessAppContextProps> = ({
           }}
           data-testid="change-employee-address-review"
         >
-          <div className="gba:hidden gba:md:grid gba:md:grid-cols-[minmax(0,1fr)_auto_minmax(0,1fr)] gba:gap-4 gba:mb-4">
-            <div className="gba:text-xl gba:font-semibold">
-              {getTranslationFromI18nKeyAndLabel('lowcoder:review_forms.old_data_text', 'Old Data')}{' '}
-            </div>
-            <div />
-            <div className="gba:text-xl gba:font-semibold">
-              {getTranslationFromI18nKeyAndLabel('lowcoder:review_forms.current_data_text', 'Current Data')}
-            </div>
-          </div>
-
-          <div className="gba:flex gba:flex-col gba:gap-4" data-testid="change-employee-address-review-rows">
-            {(isDeleteMode ? rows.map(r => ({ ...r, newValue: '' })) : rows).map(row => {
-              const hasDiff = String((row.oldValue || '').trim()) !== String((row.newValue || '').trim())
-              return (
-                <div
-                  key={row.key}
-                  className="gba:grid gba:grid-cols-1 gba:md:grid-cols-[minmax(0,1fr)_auto_minmax(0,1fr)] gba:gap-4"
-                  data-testid={`change-employee-address-review-row-${row.key}`}
-                >
-                  <div className="gba:grid gba:grid-rows-[auto_1fr] gba:gap-1 gba:self-stretch gba:min-w-0">
-                    <div className="gba:text-sm">{row.oldLabel ?? row.label ?? ''}</div>
-                    <div className="gba:h-full gba:min-h-12 gba:py-2 gba:bg-muted gba:text-muted-foreground gba:rounded-md gba:px-3 gba:flex gba:items-center gba:min-w-0 gba:w-full gba:whitespace-normal gba:break-all">
-                      {(row.oldValue || '').trim() !== '' ? row.oldValue : '-'}
-                    </div>
-                  </div>
-                  <div
-                    className="gba:hidden gba:md:flex gba:items-center gba:justify-center gba:mt-6"
-                    aria-hidden="true"
-                  >
-                    <CaretRightIcon size={20} weight="bold" className="gba:text-muted-foreground" />
-                  </div>
-                  <div className="gba:grid gba:grid-rows-[auto_1fr] gba:gap-1 gba:self-stretch gba:min-w-0">
-                    <div className={`gba:text-sm ${row.newLabel ? '' : 'gba:md:opacity-0'}`}>{row.newLabel || '.'}</div>
-                    <div
-                      className={`gba:h-full gba:min-h-12 gba:py-2 gba:rounded-md gba:px-3 gba:flex gba:items-center gba:min-w-0 gba:w-full gba:whitespace-normal gba:break-all ${
-                        isDeleteMode
-                          ? 'gba:bg-destructive gba:text-destructive-foreground'
-                          : hasDiff
-                            ? 'gba:bg-success-secondary gba:text-success-secondary-foreground'
-                            : 'gba:bg-muted gba:text-muted-foreground'
-                      }`}
-                    >
-                      {(row.newValue || '').trim() !== '' ? row.newValue : '-'}
-                    </div>
-                  </div>
-                </div>
-              )
-            })}
-          </div>
+          <ReviewRows
+            rows={isDeleteMode ? rows.map(r => ({ ...r, newValue: '' })) : rows}
+            dataTestIdPrefix="change-employee-address-review-row"
+            oldDataText={getTranslationFromI18nKeyAndLabel('lowcoder:review_forms.old_data_text', 'Old Data')}
+            currentDataText={getTranslationFromI18nKeyAndLabel(
+              'lowcoder:review_forms.current_data_text',
+              'Current Data'
+            )}
+            mode={isDeleteMode ? 'delete' : 'diff'}
+          />
           {isDeleteMode ? (
             <Alert
               variant="destructive"

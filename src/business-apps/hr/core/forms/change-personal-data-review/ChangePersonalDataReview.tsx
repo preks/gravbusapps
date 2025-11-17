@@ -1,18 +1,14 @@
 import React, { useEffect, useState } from 'react'
 import { useForm } from 'react-hook-form'
 import { BusinessAppContextProps } from '@/common/BusinessAppContext'
-import {
-  getTranslationFromI18nKeyAndLabel,
-  getCatalogValue,
-  getCurrentActiveUserLocale,
-  formatDate
-} from '@/common/utils/windowUtils'
+import { getTranslationFromI18nKeyAndLabel, getCurrentActiveUserLocale } from '@/common/utils/windowUtils'
 import { AppActionForm } from '@/components/app-action-form/AppActionForm'
 import FormHeader from '../components/FormHeader'
 import flowIconUrl from '@/assets/icons/flowSmall.svg'
 import { useGraphQLClient } from '@/common/network/graphql/useGraphQLClient'
 import { GET_EMPLOYEE_NAME, GET_PERSONAL_REVIEW_AUX } from './ChangePersonalDataReviewQueries'
-import { CaretRightIcon } from '@phosphor-icons/react'
+import ReviewRows from '../components/ReviewRows'
+import { buildPersonalDataRows } from './buildRows'
 
 export const ChangePersonalDataReview: React.FC<BusinessAppContextProps> = ({
   accessToken,
@@ -145,239 +141,7 @@ export const ChangePersonalDataReview: React.FC<BusinessAppContextProps> = ({
     newPI?.personalDocument
   ])
 
-  const rows: {
-    key: string
-    label?: string
-    oldLabel?: string
-    newLabel?: string
-    oldValue: string
-    newValue: string
-  }[] = []
-
-  const dash = (v?: string) => (String(v || '').trim() === '' ? '' : String(v || ''))
-  const formatCatalog = (ref?: string) => (ref ? getCatalogValue(catalogMap[String(ref)]) || '' : '')
-  const formatTitles = (refs?: any) => {
-    const list: string[] = Array.isArray(refs) ? refs.map((r: any) => String(r)) : refs ? [String(refs)] : []
-    const names = list.map(id => getCatalogValue(catalogMap[id]) || '').filter(s => s && s.trim() !== '')
-    return names.join(', ')
-  }
-
-  // Salutation
-  rows.push({
-    key: 'salutationRef',
-    label: getTranslationFromI18nKeyAndLabel(
-      'lowcoder:employee_profile.details_layout.personal_information_container.salutation',
-      'Salutation'
-    ),
-    oldValue: formatCatalog(oldPI.salutationRef),
-    newValue: formatCatalog(newPI.salutationRef)
-  })
-
-  // Title
-  rows.push({
-    key: 'title',
-    label: getTranslationFromI18nKeyAndLabel(
-      'lowcoder:employee_profile.details_layout.personal_information_container.title',
-      'Title'
-    ),
-    oldValue: dash(oldPI.title),
-    newValue: dash(newPI.title)
-  })
-
-  // First Name
-  rows.push({
-    key: 'firstName',
-    label: getTranslationFromI18nKeyAndLabel(
-      'lowcoder:employee_profile.details_layout.personal_information_container.first_name',
-      'First Name'
-    ),
-    oldValue: dash(oldPI.firstName),
-    newValue: dash(newPI.firstName)
-  })
-
-  // Preferred Name
-  rows.push({
-    key: 'preferredName',
-    label: getTranslationFromI18nKeyAndLabel(
-      'lowcoder:employee_profile.summary_layout.public_profile_container.display_name',
-      'Preferred Name'
-    ),
-    oldValue: dash(oldPI.preferredName),
-    newValue: dash(newPI.preferredName)
-  })
-
-  // Last Name
-  rows.push({
-    key: 'lastName',
-    label: getTranslationFromI18nKeyAndLabel(
-      'lowcoder:employee_profile.details_layout.personal_information_container.last_name',
-      'Last Name'
-    ),
-    oldValue: dash(oldPI.lastName),
-    newValue: dash(newPI.lastName)
-  })
-
-  // Display Name
-  rows.push({
-    key: 'displayName',
-    label: getTranslationFromI18nKeyAndLabel(
-      'lowcoder:employee_profile.details_layout.personal_information_container.preferred_name',
-      'Display Name'
-    ),
-    oldValue: dash(oldPI.displayName),
-    newValue: dash(newPI.displayName)
-  })
-
-  // Birth Name
-  rows.push({
-    key: 'birthName',
-    label: getTranslationFromI18nKeyAndLabel(
-      'lowcoder:employee_profile.details_layout.personal_information_container.birth_mame',
-      'Birth Name'
-    ),
-    oldValue: dash(oldPI.birthName),
-    newValue: dash(newPI.birthName)
-  })
-
-  // Birth Date
-  rows.push({
-    key: 'birthDate',
-    label: getTranslationFromI18nKeyAndLabel(
-      'lowcoder:employee_profile.details_layout.personal_information_container.date_of_birth',
-      'Date of Birth'
-    ),
-    oldValue: formatDate(dash(oldPI.birthDate), 'date.short') || '-',
-    newValue: formatDate(dash(newPI.birthDate), 'date.short') || '-'
-  })
-
-  // Birth Place
-  rows.push({
-    key: 'birthPlace',
-    label: getTranslationFromI18nKeyAndLabel(
-      'lowcoder:employee_profile.details_layout.personal_information_container.place_of_birth',
-      'Place of Birth'
-    ),
-    oldValue: dash(oldPI.birthPlace),
-    newValue: dash(newPI.birthPlace)
-  })
-
-  // Gender
-  rows.push({
-    key: 'genderRef',
-    label: getTranslationFromI18nKeyAndLabel(
-      'lowcoder:employee_profile.details_layout.personal_information_container.gender',
-      'Gender'
-    ),
-    oldValue: formatCatalog(oldPI.genderRef),
-    newValue: formatCatalog(newPI.genderRef)
-  })
-
-  // Nationality
-  rows.push({
-    key: 'nationalityRef',
-    label: getTranslationFromI18nKeyAndLabel(
-      'lowcoder:employee_profile.details_layout.personal_information_container.nationality',
-      'Nationality'
-    ),
-    oldValue: formatCatalog(oldPI.nationalityRef),
-    newValue: formatCatalog(newPI.nationalityRef)
-  })
-
-  // Native Language
-  rows.push({
-    key: 'languageRef',
-    label: getTranslationFromI18nKeyAndLabel(
-      'lowcoder:employee_profile.details_layout.personal_information_container.language',
-      'Native Language'
-    ),
-    oldValue: formatCatalog(oldPI.languageRef),
-    newValue: formatCatalog(newPI.languageRef)
-  })
-
-  // Marital Status
-  rows.push({
-    key: 'maritalStatusRef',
-    label: getTranslationFromI18nKeyAndLabel(
-      'lowcoder:employee_profile.details_layout.personal_information_container.marital_status',
-      'Marital Status'
-    ),
-    oldValue: formatCatalog(oldPI.maritalStatusRef),
-    newValue: formatCatalog(newPI.maritalStatusRef)
-  })
-
-  // Degree of Disability
-  rows.push({
-    key: 'severelyDisabilityDegree',
-    label: getTranslationFromI18nKeyAndLabel(
-      'lowcoder:employee_profile.details_layout.personal_information_container.disability',
-      'Degree of Disability'
-    ),
-    oldValue: dash(oldPI.severelyDisabilityDegree),
-    newValue: dash(newPI.severelyDisabilityDegree)
-  })
-
-  // Highest School Qualification
-  rows.push({
-    key: 'schoolQualificationRef',
-    label: getTranslationFromI18nKeyAndLabel(
-      'lowcoder:employee_profile.details_layout.personal_information_container.qualification',
-      'Highest School Qualification'
-    ),
-    oldValue: formatCatalog(oldPI.schoolQualificationRef),
-    newValue: formatCatalog(newPI.schoolQualificationRef)
-  })
-
-  // Academic Titles (multi)
-  {
-    const oldTitles = formatTitles(oldPI.academicTitleRef)
-    const newTitles = formatTitles(newPI.academicTitleRef)
-    rows.push({
-      key: 'academicTitleRefs',
-      label: getTranslationFromI18nKeyAndLabel(
-        'lowcoder:employee_profile.details_layout.personal_information_container.academic_titles',
-        'Academic Titles'
-      ),
-      oldValue: oldTitles,
-      newValue: newTitles
-    })
-  }
-
-  // Comment
-  {
-    const oldNotes = String(oldPI?.notes || '').trim()
-    const newNotes = String(newPI?.notes || '').trim()
-    if (oldNotes !== '' || newNotes !== '') {
-      rows.push({
-        key: 'notes',
-        label: getTranslationFromI18nKeyAndLabel(
-          'lowcoder:initiate_expense_plan.create_expense_plan.comment_text_area',
-          'Comment'
-        ),
-        oldValue: oldNotes,
-        newValue: newNotes
-      })
-    }
-  }
-
-  // Attachment (personalDocument)
-  {
-    const oldDoc = String((oldPI as any)?.personalDocument ?? '').trim()
-    const newDoc = String((newPI as any)?.personalDocument ?? '').trim()
-    if (oldDoc !== '' || newDoc !== '') {
-      const oldDisplay =
-        docNameMap[oldDoc] ||
-        (oldDoc ? getTranslationFromI18nKeyAndLabel('lowcoder:review_forms.old_attachment_text', 'Old Attachment') : '')
-      const newDisplay =
-        docNameMap[newDoc] ||
-        (newDoc ? getTranslationFromI18nKeyAndLabel('lowcoder:review_forms.new_attachment_text', 'New Attachment') : '')
-      rows.push({
-        key: 'personalDocument',
-        label: getTranslationFromI18nKeyAndLabel('lowcoder:review_forms.attachment_text', 'Attachment'),
-        oldValue: oldDisplay,
-        newValue: newDisplay
-      })
-    }
-  }
+  const rows = buildPersonalDataRows({ oldPI, newPI, catalogMap, docNameMap })
 
   const titleText = getTranslationFromI18nKeyAndLabel(
     'lowcoder:review_forms.employee_personal_data_change_title',
@@ -415,53 +179,16 @@ export const ChangePersonalDataReview: React.FC<BusinessAppContextProps> = ({
           onCancel={() => {}}
           data-testid="change-personal-data-review"
         >
-          <div className="gba:hidden gba:md:grid gba:md:grid-cols-[minmax(0,1fr)_auto_minmax(0,1fr)] gba:gap-4 gba:mb-4">
-            <div className="gba:text-xl gba:font-semibold">
-              {getTranslationFromI18nKeyAndLabel('lowcoder:review_forms.old_data_text', 'Old Data')}{' '}
-            </div>
-            <div />
-            <div className="gba:text-xl gba:font-semibold">
-              {getTranslationFromI18nKeyAndLabel('lowcoder:review_forms.current_data_text', 'Current Data')}
-            </div>
-          </div>
-
-          <div className="gba:flex gba:flex-col gba:gap-4" data-testid="change-personal-data-review-rows">
-            {rows.map(row => {
-              const hasDiff = String((row.oldValue || '').trim()) !== String((row.newValue || '').trim())
-              return (
-                <div
-                  key={row.key}
-                  className="gba:grid gba:grid-cols-1 gba:md:grid-cols-[minmax(0,1fr)_auto_minmax(0,1fr)] gba:gap-4"
-                  data-testid={`change-personal-data-review-row-${row.key}`}
-                >
-                  <div className="gba:grid gba:grid-rows-[auto_1fr] gba:gap-1 gba:self-stretch gba:min-w-0">
-                    <div className="gba:text-sm">{row.oldLabel ?? row.label ?? ''}</div>
-                    <div className="gba:h-full gba:min-h-12 gba:py-2 gba:bg-muted gba:text-muted-foreground gba:rounded-md gba:px-3 gba:flex gba:items-center gba:min-w-0 gba:w-full gba:whitespace-normal gba:break-all">
-                      {(row.oldValue || '').trim() !== '' ? row.oldValue : '-'}
-                    </div>
-                  </div>
-                  <div
-                    className="gba:hidden gba:md:flex gba:items-center gba:justify-center gba:mt-6"
-                    aria-hidden="true"
-                  >
-                    <CaretRightIcon size={20} weight="bold" className="gba:text-muted-foreground" />
-                  </div>
-                  <div className="gba:grid gba:grid-rows-[auto_1fr] gba:gap-1 gba:self-stretch gba:min-w-0">
-                    <div className={`gba:text-sm ${row.newLabel ? '' : 'gba:md:opacity-0'}`}>{row.newLabel || '.'}</div>
-                    <div
-                      className={`gba:h-full gba:min-h-12 gba:py-2 gba:rounded-md gba:px-3 gba:flex gba:items-center gba:min-w-0 gba:w-full gba:whitespace-normal gba:break-all ${
-                        hasDiff
-                          ? 'gba:bg-success-secondary gba:text-success-secondary-foreground'
-                          : 'gba:bg-muted gba:text-muted-foreground'
-                      }`}
-                    >
-                      {(row.newValue || '').trim() !== '' ? row.newValue : '-'}
-                    </div>
-                  </div>
-                </div>
-              )
-            })}
-          </div>
+          <ReviewRows
+            rows={rows}
+            dataTestIdPrefix="change-personal-data-review-row"
+            oldDataText={getTranslationFromI18nKeyAndLabel('lowcoder:review_forms.old_data_text', 'Old Data')}
+            currentDataText={getTranslationFromI18nKeyAndLabel(
+              'lowcoder:review_forms.current_data_text',
+              'Current Data'
+            )}
+            mode="diff"
+          />
         </AppActionForm>
       </div>
     </div>

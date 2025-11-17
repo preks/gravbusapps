@@ -9,10 +9,10 @@ import {
 } from '@/common/utils/windowUtils'
 import { AppActionForm } from '@/components/app-action-form/AppActionForm'
 import FormHeader from '../components/FormHeader'
+import ReviewRows from '../components/ReviewRows'
 import flowIconUrl from '@/assets/icons/flowSmall.svg'
 import { useGraphQLClient } from '@/common/network/graphql/useGraphQLClient'
 import { GET_EMPLOYEE_NAME, GET_RELATIONSHIP_REVIEW_AUX } from './ChangeRelationshipReviewQueries'
-import { CaretRightIcon } from '@phosphor-icons/react'
 
 export const ChangeRelationshipReview: React.FC<BusinessAppContextProps> = ({
   accessToken,
@@ -246,53 +246,16 @@ export const ChangeRelationshipReview: React.FC<BusinessAppContextProps> = ({
           onCancel={() => {}}
           data-testid="change-relationship-review"
         >
-          <div className="gba:hidden gba:md:grid gba:md:grid-cols-[minmax(0,1fr)_auto_minmax(0,1fr)] gba:gap-4 gba:mb-4">
-            <div className="gba:text-xl gba:font-semibold">
-              {getTranslationFromI18nKeyAndLabel('lowcoder:review_forms.old_data_text', 'Old Data')}{' '}
-            </div>
-            <div />
-            <div className="gba:text-xl gba:font-semibold">
-              {getTranslationFromI18nKeyAndLabel('lowcoder:review_forms.current_data_text', 'Current Data')}
-            </div>
-          </div>
-
-          <div className="gba:flex gba:flex-col gba:gap-4" data-testid="change-relationship-review-rows">
-            {rows.map(row => {
-              const hasDiff = String((row.oldValue || '').trim()) !== String((row.newValue || '').trim())
-              return (
-                <div
-                  key={row.key}
-                  className="gba:grid gba:grid-cols-1 gba:md:grid-cols-[minmax(0,1fr)_auto_minmax(0,1fr)] gba:gap-4"
-                  data-testid={`change-relationship-review-row-${row.key}`}
-                >
-                  <div className="gba:grid gba:grid-rows-[auto_1fr] gba:gap-1 gba:self-stretch gba:min-w-0">
-                    <div className="gba:text-sm">{row.oldLabel ?? row.label ?? ''}</div>
-                    <div className="gba:h-full gba:min-h-12 gba:py-2 gba:bg-muted gba:text-muted-foreground gba:rounded-md gba:px-3 gba:flex gba:items-center gba:min-w-0 gba:w-full gba:whitespace-normal gba:break-all">
-                      {(row.oldValue || '').trim() !== '' ? row.oldValue : '-'}
-                    </div>
-                  </div>
-                  <div
-                    className="gba:hidden gba:md:flex gba:items-center gba:justify-center gba:mt-6"
-                    aria-hidden="true"
-                  >
-                    <CaretRightIcon size={20} weight="bold" className="gba:text-muted-foreground" />
-                  </div>
-                  <div className="gba:grid gba:grid-rows-[auto_1fr] gba:gap-1 gba:self-stretch gba:min-w-0">
-                    <div className={`gba:text-sm ${row.newLabel ? '' : 'gba:md:opacity-0'}`}>{row.newLabel || '.'}</div>
-                    <div
-                      className={`gba:h-full gba:min-h-12 gba:py-2 gba:rounded-md gba:px-3 gba:flex gba:items-center gba:min-w-0 gba:w-full gba:whitespace-normal gba:break-all ${
-                        hasDiff
-                          ? 'gba:bg-success-secondary gba:text-success-secondary-foreground'
-                          : 'gba:bg-muted gba:text-muted-foreground'
-                      }`}
-                    >
-                      {(row.newValue || '').trim() !== '' ? row.newValue : '-'}
-                    </div>
-                  </div>
-                </div>
-              )
-            })}
-          </div>
+          <ReviewRows
+            rows={rows}
+            dataTestIdPrefix="change-relationship-review-row"
+            oldDataText={getTranslationFromI18nKeyAndLabel('lowcoder:review_forms.old_data_text', 'Old Data')}
+            currentDataText={getTranslationFromI18nKeyAndLabel(
+              'lowcoder:review_forms.current_data_text',
+              'Current Data'
+            )}
+            mode="diff"
+          />
         </AppActionForm>
       </div>
     </div>
