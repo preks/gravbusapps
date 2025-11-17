@@ -5,16 +5,11 @@
 import { TileData, TableData, TableRow, TableColumn } from '../types/tileTypes'
 
 /**
- * Generate a unique tile ID using crypto.randomUUID when available
- * Falls back to timestamp + random for older environments
- * Format: tile_<uuid> or tile_<timestamp>_<random>
+ * Generate a unique tile ID using crypto.randomUUID
+ * Format: tile_<uuid>
  */
 export const generateTileId = (): string => {
-  if (typeof crypto !== 'undefined' && crypto.randomUUID) {
-    return `tile_${crypto.randomUUID()}`
-  }
-  // Fallback: timestamp + random
-  return `tile_${Date.now()}-${Math.random().toString(36).substring(2, 9)}`
+  return `tile_${crypto.randomUUID()}`
 }
 
 /**

@@ -86,7 +86,7 @@ export const ChartTileCard: React.FC<ChartTileCardProps> = ({ tile, investmentId
               dataKey="value"
             >
               {pieChartData.map((entry, index) => (
-                <Cell key={`cell-${index}`} fill={CHART_COLORS[index % CHART_COLORS.length]} />
+                <Cell key={`cell-${entry.name}-${index}`} fill={CHART_COLORS[index % CHART_COLORS.length]} />
               ))}
             </Pie>
             <Tooltip formatter={(value: any) => `${value}%`} />

@@ -192,7 +192,7 @@ export const InvestmentStatusComponent: React.FC<InvestmentStatusComponentProps>
         />
 
         {/* Current status display */}
-        {investment && investment.investmentStatus && (
+        {investment?.investmentStatus && (
           <div className="gba:text-sm gba:text-gray-600" data-testid={`${prefixDataTestId}-current-status`}>
             {getTranslationFromI18nKeyAndLabel('investment.status.current', 'Current status')}:{' '}
             {investment.investmentStatus.value}

@@ -91,9 +91,9 @@ export const InvestmentKpiTileComponent: React.FC<InvestmentKpiTileComponentProp
   // Handle form submission
   const handleSubmit = async (formData: KpiTileFormData) => {
     // Parse KPI value as number
-    const numericValue = parseFloat(formData.kpiValue)
-    if (isNaN(numericValue)) {
-      throw new Error(getTranslationFromI18nKeyAndLabel('investment.tiles.invalidNumber', 'Invalid numeric value'))
+    const numericValue = Number.parseFloat(formData.kpiValue)
+    if (Number.isNaN(numericValue)) {
+      throw new TypeError(getTranslationFromI18nKeyAndLabel('investment.tiles.invalidNumber', 'Invalid numeric value'))
     }
 
     // Build tile submission with specific data
