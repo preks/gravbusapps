@@ -1,40 +1,10 @@
 import React from 'react'
 import { AppAction } from '@/components/app-action/AppAction'
-import { FlowContextName } from '@/common/types/FlowRegistryTypes'
 import { getTranslationFromI18nKeyAndLabel } from '@/common/utils/windowUtils'
-
-export interface ReferenceData {
-  code: string
-  value: string
-}
-
-export interface StatusProgressionConfig {
-  flowContextName: FlowContextName
-  statusReferencePrefix: string
-  testIdPrefix: string
-}
-
-export interface StatusProgressionProps {
-  currentStatus: string
-  statuses: ReferenceData[]
-  leadId: string
-  leadVersion: number
-  accessToken: string
-  config: StatusProgressionConfig
-}
+import { StatusProgressionProps, StatusIndices, ReferenceData, StatusProgressionConfig } from './types'
 
 // Constants for styling
 const TERMINAL_STATUS_PADDING = '0 12px 0 160px'
-
-interface StatusIndices {
-  openIndex: number
-  convertedIndex: number
-  lostIndex: number
-  currentIndex: number
-  isOpen: boolean
-  isConverted: boolean
-  isLost: boolean
-}
 
 const renderActiveOpenStatus = (statuses: ReferenceData[], openIndex: number) => (
   <div
