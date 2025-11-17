@@ -20,7 +20,7 @@ type InvestmentRecordProps = BusinessAppContextProps
 
 const InvestmentRecord: React.FC<InvestmentRecordProps> = props => {
   const [investmentId, setInvestmentId] = useState<string | null>(null)
-  const ALLOWED_TABS = ['home', 'analytics', 'overview', 'documents', 'reports'] as const
+  const ALLOWED_TABS = ['home', 'analytics', 'tiles', 'overview', 'documents', 'reports'] as const
   type TabKey = (typeof ALLOWED_TABS)[number]
 
   const getInitialTab = (): TabKey => {

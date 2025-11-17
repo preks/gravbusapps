@@ -2,12 +2,16 @@ import { BusinessAppContextProps } from '@/common/BusinessAppContext'
 
 // Scope constants
 export const INVESTMENT_POPUP_SCOPES = {
-  TILE: 'tile',
+  TILE: 'tile', // Legacy - kept for backward compatibility
+  TEXT: 'text', // NEW - text tiles for investmentKpiTilesUpdate
+  KPI: 'kpi', // NEW - KPI tiles for investmentKpiTilesUpdate
+  TABLE: 'table', // Future - table tiles
+  CHART: 'chart', // Future - chart tiles
   EXIT: 'exit',
   STATUS: 'status',
   LIQUIDITY: 'liquidity',
   PPMFORECAST: 'ppmforecast',
-  KPI: 'kpi'
+  KPI_FORECAST: 'kpiforecast' // KPI forecasts (MOIC/IRR) for investmentKpiForecastUpdate - renamed to avoid conflict
 } as const
 
 export type InvestmentPopupScope = (typeof INVESTMENT_POPUP_SCOPES)[keyof typeof INVESTMENT_POPUP_SCOPES]
