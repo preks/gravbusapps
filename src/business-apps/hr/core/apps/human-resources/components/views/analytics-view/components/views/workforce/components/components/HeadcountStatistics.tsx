@@ -1,6 +1,7 @@
 import React from 'react'
-import { SectionKpiCards, KpiCardData } from '@newwork/nw-design-system'
+import { SectionKpiCards, KpiCardData, useTranslation } from '@newwork/nw-design-system'
 import type { HeadcountStatistics } from '../../../../../hooks/useHeadcountTrendsData'
+import hrTranslations from '@/business-apps/hr/core/apps/human-resources/_i18n'
 
 interface HeadcountStatisticsProps {
   statistics: HeadcountStatistics
@@ -9,38 +10,39 @@ interface HeadcountStatisticsProps {
 }
 
 const HeadcountStatistics: React.FC<HeadcountStatisticsProps> = ({ statistics, isLoading, dataTestId }) => {
+  const { t } = useTranslation(hrTranslations)
   const kpiCards: KpiCardData[] = [
     {
       id: 'monthly-hires',
-      title: 'Monthly Hires',
+      title: t('hr-analytics-monthly-hires'),
       value: statistics.monthlyHires,
       icon: 'users',
       iconColor: 'var(--nw-success)',
-      footer: 'New hires this month'
+      footer: t('hr-analytics-new-hires-this-month')
     },
     {
       id: 'monthly-departures',
-      title: 'Monthly Departures',
+      title: t('hr-analytics-monthly-departures'),
       value: statistics.monthlyExits,
       icon: 'users',
       iconColor: 'var(--nw-destructive)',
-      footer: 'Departures this month'
+      footer: t('hr-analytics-departures-this-month')
     },
     {
       id: 'net-change',
-      title: 'Net Change',
+      title: t('hr-analytics-net-change'),
       value: statistics.netChange > 0 ? `+${statistics.netChange}` : statistics.netChange.toString(),
       icon: 'users',
       iconColor: statistics.netChange >= 0 ? 'var(--nw-success)' : 'var(--nw-destructive)',
-      footer: 'Monthly headcount change'
+      footer: t('hr-analytics-monthly-headcount-change')
     },
     {
       id: 'growth-rate',
-      title: 'Growth Rate',
+      title: t('hr-analytics-growth-rate'),
       value: `${statistics.growthRate > 0 ? '+' : ''}${statistics.growthRate.toFixed(2)}%`,
       icon: 'calendar',
       iconColor: statistics.growthRate >= 0 ? 'var(--nw-success)' : 'var(--nw-destructive)',
-      footer: 'Monthly growth percentage'
+      footer: t('hr-analytics-monthly-growth-percentage')
     }
   ]
 
@@ -48,7 +50,7 @@ const HeadcountStatistics: React.FC<HeadcountStatisticsProps> = ({ statistics, i
     // Create loading placeholder cards
     const loadingCards: KpiCardData[] = kpiCards.map(card => ({
       ...card,
-      value: 'Loading...'
+      value: t('hr-data-filter-loading')
     }))
 
     return (

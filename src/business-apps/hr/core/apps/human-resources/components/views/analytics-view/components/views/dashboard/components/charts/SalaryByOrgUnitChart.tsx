@@ -1,5 +1,5 @@
 import React, { useMemo, useEffect } from 'react'
-import { Card } from '@newwork/nw-design-system'
+import { Card, useTranslation } from '@newwork/nw-design-system'
 import { Typography, Spin, Empty, Tooltip, Statistic } from 'antd'
 import { InfoCircleOutlined, RiseOutlined, TeamOutlined } from '@ant-design/icons'
 import {
@@ -14,8 +14,8 @@ import {
   Cell,
   LabelList
 } from 'recharts'
-import { getTranslationFromI18nKeyAndLabel } from '@/common/utils/windowUtils'
 import { OrganizationalUnitSalary } from '../../../../../hooks/useSalaryByOrgUnit'
+import hrTranslations from '@/business-apps/hr/core/apps/human-resources/_i18n'
 
 const { Title, Text } = Typography
 
@@ -30,6 +30,7 @@ interface SalaryByOrgUnitChartProps {
  * Shows bars sorted by average salary in descending order with improved UI
  */
 const SalaryByOrgUnitChart: React.FC<SalaryByOrgUnitChartProps> = ({ data, loading = false, error = null }) => {
+  const { t } = useTranslation(hrTranslations)
   // Transform data for the bar chart
   const chartData = useMemo(() => {
     // Add validation to prevent rendering issues
@@ -99,21 +100,15 @@ const SalaryByOrgUnitChart: React.FC<SalaryByOrgUnitChartProps> = ({ data, loadi
           {label}
         </p>
         <div className="gba:flex gba:items-center gba:justify-between gba:mb-2">
-          <span className="gba:text-muted-foreground">
-            {getTranslationFromI18nKeyAndLabel('hr_analytics_average_salary', 'Average Salary')}
-          </span>
+          <span className="gba:text-muted-foreground">{t('hr-analytics-average-salary')}</span>
           <span className="gba:text-foreground gba:font-medium">${data.salary.toLocaleString()}</span>
         </div>
         <div className="gba:flex gba:items-center gba:justify-between gba:mb-2">
-          <span className="gba:text-muted-foreground">
-            {getTranslationFromI18nKeyAndLabel('hr_analytics_employee_count', 'Employee Count')}
-          </span>
+          <span className="gba:text-muted-foreground">{t('hr-analytics-employee-count')}</span>
           <span className="gba:text-foreground gba:font-medium">{data.count}</span>
         </div>
         <div className="gba:flex gba:items-center gba:justify-between">
-          <span className="gba:text-muted-foreground">
-            {getTranslationFromI18nKeyAndLabel('hr_analytics_percentage', 'Percentage of Total')}
-          </span>
+          <span className="gba:text-muted-foreground">{t('hr-analytics-percentage')}</span>
           <span className="gba:text-foreground gba:font-medium">{percentOfTotal}%</span>
         </div>
       </div>
@@ -163,16 +158,10 @@ const SalaryByOrgUnitChart: React.FC<SalaryByOrgUnitChartProps> = ({ data, loadi
               className="gba:m-0 gba:text-lg gba:font-medium gba:text-foreground"
               data-testid="salary-by-org-unit-chart-title"
             >
-              {getTranslationFromI18nKeyAndLabel(
-                'hr_analytics_salary_by_org_unit',
-                'Average Salary by Organizational Unit'
-              )}
+              {t('hr-analytics-salary-by-org-unit')}
             </Title>
             <Tooltip
-              title={getTranslationFromI18nKeyAndLabel(
-                'hr_analytics_salary_by_org_unit_tooltip',
-                'Displays the average salary for employees in each organizational unit, sorted from highest to lowest'
-              )}
+              title={t('hr-analytics-salary-by-org-unit-tooltip')}
             >
               <InfoCircleOutlined className="gba:ml-2 gba:text-muted-foreground" />
             </Tooltip>
@@ -186,7 +175,7 @@ const SalaryByOrgUnitChart: React.FC<SalaryByOrgUnitChartProps> = ({ data, loadi
           data-testid="salary-by-org-unit-total-employees"
         >
           <Statistic
-            title={getTranslationFromI18nKeyAndLabel('hr_analytics_total_employees', 'Total Employees')}
+            title={t('hr-analytics-total-employees')}
             value={totalEmployees}
             prefix={<TeamOutlined />}
             className="gba:text-foreground"
@@ -197,7 +186,7 @@ const SalaryByOrgUnitChart: React.FC<SalaryByOrgUnitChartProps> = ({ data, loadi
           data-testid="salary-by-org-unit-highest-avg-salary"
         >
           <Statistic
-            title={getTranslationFromI18nKeyAndLabel('hr_analytics_highest_salary', 'Highest Avg Salary')}
+            title={t('hr-analytics-highest-salary')}
             value={highestSalary}
             precision={0}
             prefix={<RiseOutlined />}
@@ -221,7 +210,7 @@ const SalaryByOrgUnitChart: React.FC<SalaryByOrgUnitChartProps> = ({ data, loadi
             <div className="gba:h-full gba:flex gba:flex-col gba:items-center gba:justify-center gba:bg-muted gba:rounded-lg gba:border">
               <Spin size="large" data-testid="salary-by-org-unit-chart-loading" />
               <Text className="gba:text-muted-foreground gba:mt-4">
-                {getTranslationFromI18nKeyAndLabel('hr_analytics_loading_data', 'Loading salary data...')}
+                {t('hr-analytics-loading-data')}
               </Text>
             </div>
           ) : error ? (
@@ -246,7 +235,7 @@ const SalaryByOrgUnitChart: React.FC<SalaryByOrgUnitChartProps> = ({ data, loadi
                 className="gba:text-destructive gba:text-lg gba:font-medium gba:mb-2 gba:text-center"
                 data-testid="salary-by-org-unit-chart-error"
               >
-                {getTranslationFromI18nKeyAndLabel('hr_analytics_error_message', 'Error loading data')}
+                {t('hr-analytics-error-message')}
               </div>
               <Text
                 className="gba:text-muted-foreground gba:text-center gba:max-w-md"
@@ -263,13 +252,10 @@ const SalaryByOrgUnitChart: React.FC<SalaryByOrgUnitChartProps> = ({ data, loadi
                 description={
                   <div className="gba:flex gba:flex-col gba:items-center">
                     <Text className="gba:text-muted-foreground gba:font-medium">
-                      {getTranslationFromI18nKeyAndLabel('hr_analytics_no_data', 'No data available')}
+                      {t('hr-analytics-no-data')}
                     </Text>
                     <Text className="gba:text-muted-foreground gba:text-sm gba:mt-1">
-                      {getTranslationFromI18nKeyAndLabel(
-                        'hr_analytics_no_data_description',
-                        'Try changing your search criteria'
-                      )}
+                      {t('hr-analytics-no-data-description')}
                     </Text>
                   </div>
                 }
@@ -295,7 +281,7 @@ const SalaryByOrgUnitChart: React.FC<SalaryByOrgUnitChartProps> = ({ data, loadi
                   axisLine={{ stroke: 'var(--nw-border)' }}
                   tickLine={{ stroke: 'var(--nw-border)' }}
                   label={{
-                    value: getTranslationFromI18nKeyAndLabel('hr_analytics_annual_salary', 'Annual Salary'),
+                    value: t('hr-analytics-annual-salary'),
                     position: 'insideBottom',
                     offset: -10,
                     style: {
@@ -325,7 +311,7 @@ const SalaryByOrgUnitChart: React.FC<SalaryByOrgUnitChartProps> = ({ data, loadi
                   }}
                 />
                 <Bar
-                  name={getTranslationFromI18nKeyAndLabel('hr_analytics_average_salary', 'Average Salary')}
+                  name={t('hr-analytics-average-salary')}
                   dataKey="salary"
                   radius={[0, 6, 6, 0]}
                   animationDuration={1200}
@@ -348,7 +334,7 @@ const SalaryByOrgUnitChart: React.FC<SalaryByOrgUnitChartProps> = ({ data, loadi
             /* Note: This space is intentionally left blank to maintain the else if structure */
             <div className="gba:h-full gba:flex gba:items-center gba:justify-center gba:bg-muted gba:rounded-lg gba:p-6 gba:border">
               <Text className="gba:text-muted-foreground">
-                {getTranslationFromI18nKeyAndLabel('hr_analytics_no_data', 'No data available')}
+                {t('hr-analytics-no-data')}
               </Text>
             </div>
           )}
@@ -360,10 +346,7 @@ const SalaryByOrgUnitChart: React.FC<SalaryByOrgUnitChartProps> = ({ data, loadi
             className="gba:text-center gba:text-sm gba:text-muted-foreground gba:pb-4 gba:px-6"
             data-testid="salary-chart-footnote"
           >
-            {getTranslationFromI18nKeyAndLabel(
-              'hr_analytics_top_org_units_note',
-              `Showing top 10 organizational units with highest average salaries out of ${data.length} total`
-            )}
+            {t('hr-analytics-top-org-units-note', { total: data.length })}
           </div>
         )}
       </div>
