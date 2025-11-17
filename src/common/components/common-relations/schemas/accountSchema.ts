@@ -3,45 +3,56 @@ import { zodResolver } from '@hookform/resolvers/zod'
 
 export const accountSegmentSchema = z.object({
   ownerEmployeeId: z.string().min(1, 'Owner is required'),
-  accountName: z.string().min(1, 'Account name is required'),
-  legalFormRef: z.string().optional(),
-  industryRef: z.string().optional(),
-  website: z.string().optional(),
-  description: z.string().optional(),
-  phone: z.string().optional(),
-  email: z.string().optional(),
-  geographicPresence: z.string().optional(),
-  annualRevenue: z.string().optional(),
-  numberOfEmployees: z.string().optional(),
-  timeZone: z.string().optional(),
-  foundationDate: z.string().optional(),
-  tickerSymbol: z.string().optional(),
-  liquidationDate: z.string().optional(),
-  mission: z.string().optional(),
-  specialty: z.string().optional(),
-  notesSummary: z.string().optional(),
+  name: z.string().min(1, 'Account name is required'), // Fixed: was 'accountName'
+  legalFormRef: z.string().nullable().optional(),
+  industryClassRef: z.string().nullable().optional(), // Fixed: was 'industryRef'
+  website: z.string().nullable().optional(),
+  description: z.string().nullable().optional(),
+  companySizeRef: z.string().nullable().optional(), // Fixed: was 'numberOfEmployees'
+  accountAnnualRevenueBandRef: z.string().nullable().optional(), // Fixed: was 'annualRevenue'
+  foundationDate: z.string().nullable().optional(),
+  notesSummary: z.string().nullable().optional(),
   pictureFile: z.any().optional(),
+  code: z.string().nullable().optional(),
+  id: z.string().optional(),
+  version: z.number().optional(),
   communicationChannels: z
     .array(
       z.object({
-        channelRef: z.string(),
-        value: z.string().min(1, 'Value is required')
+        id: z.string().optional(),
+        version: z.number().optional(),
+        communicationChannelRef: z.string(), // Fixed: was 'channelRef'
+        value: z.string().min(1, 'Value is required'),
+        valueExtension: z.string().nullable().optional()
       })
     )
     .optional(),
   addresses: z
     .array(
       z.object({
-        addressTypeRef: z.string().optional(),
-        countryRef: z.string().optional(),
-        line1: z.string().optional(),
-        line2: z.string().optional(),
-        postalCode: z.string().optional(),
-        city: z.string().optional()
+        id: z.string().optional(),
+        version: z.number().optional(),
+        addressType: z.string().nullable().optional(), // Fixed: was 'addressTypeRef'
+        addressLines: z.array(z.string().nullable()).nullable().optional(), // Fixed: was 'line1', 'line2'
+        countryRef: z.string().nullable().optional(),
+        regionRef: z.string().nullable().optional(),
+        postalCode: z.string().nullable().optional(),
+        locality: z.string().nullable().optional() // Fixed: was 'city'
       })
     )
     .optional(),
-  relatedEntityId: z.string().optional()
+  relatedEntityId: z.string().optional(),
+  contacts: z
+    .array(
+      z.object({
+        id: z.string(),
+        name: z.string(),
+        contactType: z.string().optional(),
+        associationId: z.string().optional(),
+        associationVersion: z.number().optional()
+      })
+    )
+    .optional()
 })
 
 export type AccountSegmentSchema = z.infer<typeof accountSegmentSchema>

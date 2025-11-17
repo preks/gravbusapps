@@ -21,7 +21,7 @@ import { BusinessAppContextProps } from '@/common/BusinessAppContext'
 import { navigateTo, buildPlatformUrl } from '@/common/utils/navigationUtils'
 import { getTranslationFromI18nKeyAndLabel, formatDate } from '@/common/utils/windowUtils'
 import { useProcessCompletion } from '@/common/hooks/useProcessCompletion'
-import type { InvestmentOpportunity } from '@/common/data/investment/types/investmentOpportunityTypes'
+import { useInvestmentOpportunity } from '@/common/data/investment/hooks/useInvestmentOpportunity'
 import { formatCurrency, extractCurrencyCode } from '@/common/utils/numberFormatter'
 import { getOpportunityStatusBadgeVariant } from '@/common/utils/badgeUtils'
 import { useAiSummary } from './hooks/useAiSummary'
@@ -45,7 +45,6 @@ import TaskSection from '@/common/components/common-relations/record-sections/ta
 import SectionWrapper from '@/common/components/common-relations/record-sections/section-card/SectionCard'
 import { DocumentSection, type DocumentItem } from '@/components/document-section'
 import {
-  useGetInvestmentOpportunityById,
   useGetInvestmentActivitiesByOpportunityId,
   useGetInvestmentNotesByOpportunityId,
   useGetInvestmentTasksByOpportunityId
@@ -103,31 +102,25 @@ const InvestmentOpportunityRecordContent: React.FC<OpportunityRecordContentProps
     window.addEventListener('popstate', onPopState)
     return () => window.removeEventListener('popstate', onPopState)
   }, [])
-  const [opportunityData, setOpportunityData] = useState<InvestmentOpportunity | null>(null)
-  const [loading, setLoading] = useState(true)
-  const [error, setError] = useState<string | null>(null)
   const [stageConditionStatuses, setStageConditionStatuses] = useState<any[]>([])
   const [opportunityStages, setOpportunityStages] = useState<any[]>([])
   const [loadingStages, setLoadingStages] = useState(false)
   const [stagesError, setStagesError] = useState<string | null>(null)
 
-  const { fetchInvestmentOpportunityById } = useGetInvestmentOpportunityById(props)
+  // Use new declarative hook for opportunity data
+  const { opportunity: opportunityData, loading, error, refetch } = useInvestmentOpportunity(props, opportunityId)
 
   // Refetch function for process completion events
   const refetchOpportunityData = useCallback(async () => {
-    if (!opportunityId || !props.accessToken) return
-    try {
-      const result = await fetchInvestmentOpportunityById(opportunityId)
-      if (result?.opportunity) {
-        setOpportunityData(result.opportunity)
-        if (result.opportunity.opportunityStageConditions) {
-          setStageConditionStatuses(result.opportunity.opportunityStageConditions)
-        }
-      }
-    } catch (err) {
-      console.error('Error refreshing opportunity:', err)
+    await refetch()
+  }, [refetch])
+
+  // Extract stageConditionStatuses from opportunityData when it changes
+  useEffect(() => {
+    if (opportunityData?.opportunityStageConditions) {
+      setStageConditionStatuses(opportunityData.opportunityStageConditions)
     }
-  }, [opportunityId, props.accessToken, fetchInvestmentOpportunityById])
+  }, [opportunityData])
 
   // Fetch opportunity stages from pipeline childEntries
   const fetchOpportunityStages = useCallback(async () => {
@@ -156,34 +149,6 @@ const InvestmentOpportunityRecordContent: React.FC<OpportunityRecordContentProps
       setLoadingStages(false)
     }
   }, [opportunityData?.opportunityPipeline])
-
-  // Fetch opportunity data
-  useEffect(() => {
-    const loadOpportunityData = async () => {
-      if (!opportunityId || !props.accessToken) return
-
-      try {
-        setLoading(true)
-        setError(null)
-        const result = await fetchInvestmentOpportunityById(opportunityId)
-        if (result?.opportunity) {
-          setOpportunityData(result.opportunity)
-          if (result.opportunity.opportunityStageConditions) {
-            setStageConditionStatuses(result.opportunity.opportunityStageConditions)
-          }
-        } else {
-          setError('Opportunity not found')
-        }
-      } catch (err) {
-        console.error('Error fetching opportunity:', err)
-        setError(err instanceof Error ? err.message : 'Failed to load opportunity')
-      } finally {
-        setLoading(false)
-      }
-    }
-
-    loadOpportunityData()
-  }, [opportunityId, props.accessToken, fetchInvestmentOpportunityById])
 
   // Fetch stages when opportunityData is available
   useEffect(() => {

@@ -4,8 +4,6 @@ import { Accordion, useTranslation } from '@newwork/nw-design-system'
 import { LeadInformationSegment } from '../../form-segments/lead-information-segment'
 import { LeadPersonSegment } from '../../form-segments/lead-person-segment'
 import { LeadCompanySegment } from '../../form-segments/lead-company-segment'
-import { AddressSegment } from '../../form-segments/address-segment'
-import { CommunicationSegment } from '../../form-segments/communication-segment'
 import translations from './_i18n'
 
 interface LeadLayoutProps {
@@ -17,15 +15,9 @@ interface LeadLayoutProps {
   leadRatingCatalogIdentifier: string
   companySizeCatalogIdentifier: string
   annualRevenueCatalogIdentifier: string
-  addresses?: Array<{
-    country?: { id: string; value: string; displayValue?: string; additionalValue3?: string }
-    region?: { id: string; value: string; displayValue?: string; additionalValue3?: string }
-  }>
   leadInformationCustomFields?: React.ReactNode
   leadPersonCustomFields?: React.ReactNode
   leadCompanyCustomFields?: React.ReactNode
-  addressCustomFields?: React.ReactNode
-  communicationCustomFields?: React.ReactNode
   customSegments?: Array<{ id: string; title: string; content: React.ReactNode }>
 }
 
@@ -38,12 +30,9 @@ const LeadLayout: React.FC<LeadLayoutProps> = ({
   leadRatingCatalogIdentifier,
   companySizeCatalogIdentifier,
   annualRevenueCatalogIdentifier,
-  addresses,
   leadInformationCustomFields,
   leadPersonCustomFields,
   leadCompanyCustomFields,
-  addressCustomFields,
-  communicationCustomFields,
   customSegments = []
 }) => {
   const { t } = useTranslation(translations)
@@ -55,16 +44,6 @@ const LeadLayout: React.FC<LeadLayoutProps> = ({
         id: 'personal-information',
         title: t('personal-title'),
         content: <LeadPersonSegment customFields={leadPersonCustomFields} />
-      },
-      {
-        id: 'communication-channels',
-        title: t('communication-title'),
-        content: <CommunicationSegment customFields={communicationCustomFields} />
-      },
-      {
-        id: 'address-information',
-        title: t('address-title'),
-        content: <AddressSegment addresses={addresses} customFields={addressCustomFields} />
       },
       {
         id: 'company-information',
@@ -81,12 +60,9 @@ const LeadLayout: React.FC<LeadLayoutProps> = ({
     ],
     [
       t,
-      addresses,
       companySizeCatalogIdentifier,
       annualRevenueCatalogIdentifier,
       leadPersonCustomFields,
-      addressCustomFields,
-      communicationCustomFields,
       leadCompanyCustomFields,
       customSegments
     ]

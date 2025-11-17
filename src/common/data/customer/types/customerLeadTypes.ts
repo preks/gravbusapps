@@ -8,6 +8,9 @@ import type { CustomerDocument } from './customerDocumentTypes'
 import type { CustomerOpportunity } from './customerOpportunityTypes'
 import type { CustomerActivity } from './customerActivityTypes'
 import type { CustomerNote } from './customerNoteTypes'
+import { buildCustomerAccountPayload } from './customerAccountTypes'
+import { buildCustomerContactPayload } from './customerContactTypes'
+import { buildCustomerOpportunityPayload } from './customerOpportunityTypes'
 
 export interface CustomerLead extends Lead {
   account?: CustomerAccount
@@ -132,4 +135,58 @@ export function toCustomerLead(raw: any): CustomerLead {
     companySize: raw.companySize ?? numberOfEmployees,
     companySizeRef: raw.companySizeRef ?? numberOfEmployeesRef
   } as CustomerLead
+}
+
+/**
+ * Build Customer Lead Convert Payload
+ * Simple function that takes lead ID and optional account, contact, opportunity objects
+ *
+ * @param leadId - The ID of the lead being converted
+ * @param account - Account object (full object for create, or { id: string } for match)
+ * @param contact - Contact object (full object for create, or { id: string } for match)
+ * @param opportunity - Opportunity object (only if creating opportunity)
+ */
+export const buildCustomerLeadConvertPayload = (
+  leadId: string,
+  account?: Partial<CustomerAccount> | { id: string },
+  contact?: Partial<CustomerContact> | { id: string },
+  opportunity?: Partial<CustomerOpportunity>
+) => {
+  const payload: any = {
+    leadId
+  }
+
+  // Handle Account
+  if (account) {
+    if ('id' in account && Object.keys(account).length === 1) {
+      // Match existing account - only send id
+      payload.account = { id: account.id }
+    } else {
+      // Create new account - use payload builder
+      const { account: accountPayload } = buildCustomerAccountPayload(account as Partial<CustomerAccount>)
+      payload.account = accountPayload
+    }
+  }
+
+  // Handle Contact
+  if (contact) {
+    if ('id' in contact && Object.keys(contact).length === 1) {
+      // Match existing contact - only send id
+      payload.contact = { id: contact.id }
+    } else {
+      // Create new contact - use payload builder
+      const { contact: contactPayload } = buildCustomerContactPayload(contact as Partial<CustomerContact>)
+      payload.contact = contactPayload
+    }
+  }
+
+  // Handle Opportunity
+  if (opportunity) {
+    const { opportunity: opportunityPayload } = buildCustomerOpportunityPayload(
+      opportunity as Partial<CustomerOpportunity>
+    )
+    payload.opportunity = opportunityPayload
+  }
+
+  return payload
 }

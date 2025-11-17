@@ -46,7 +46,6 @@ export const OwnerSelect: React.FC<OwnerSelectProps> = ({
   // Reset current user employee when owner becomes available
   useEffect(() => {
     if (ownerEmployee && currentUserEmployee) {
-      console.log('🧹 OwnerSelect: Clearing current user (owner is now available)')
       setCurrentUserEmployee(null)
       autoSelectDone.current = false
     }
@@ -56,7 +55,6 @@ export const OwnerSelect: React.FC<OwnerSelectProps> = ({
   useEffect(() => {
     // Early exit if we don't need current user
     if (!shouldFetchCurrentUser) {
-      console.log('⏭️ OwnerSelect: Skipping current user fetch', { isNewEntity, hasOwner: !!ownerEmployee })
       return
     }
 
@@ -67,7 +65,6 @@ export const OwnerSelect: React.FC<OwnerSelectProps> = ({
     if (!currentUserEmployeeId) return
 
     const fetchCurrentUserEmployee = async () => {
-      console.log('🔄 OwnerSelect: Fetching current user employee', currentUserEmployeeId)
       setLoading(true)
       try {
         const query = GET_EMPLOYEE_LIGHT_BY_ID(currentUserEmployeeId)
@@ -87,11 +84,9 @@ export const OwnerSelect: React.FC<OwnerSelectProps> = ({
             }
           }
 
-          console.log('✅ OwnerSelect: Fetched current user employee', employeeData)
           setCurrentUserEmployee(employeeData)
         }
-      } catch (error) {
-        console.error('❌ OwnerSelect: Failed to fetch current user employee', error)
+      } catch {
       } finally {
         setLoading(false)
       }
@@ -111,7 +106,6 @@ export const OwnerSelect: React.FC<OwnerSelectProps> = ({
   // Auto-select current user employee
   useEffect(() => {
     if (shouldFetchCurrentUser && !value && !autoSelectDone.current && currentUserEmployee && onValueChange) {
-      console.log('✅ OwnerSelect: Auto-selecting current user', currentUserEmployee.id)
       onValueChange(currentUserEmployee.id)
       autoSelectDone.current = true
     }
@@ -120,13 +114,6 @@ export const OwnerSelect: React.FC<OwnerSelectProps> = ({
   // Determine initial employee to display
   // Priority: ownerEmployee (from entity) > currentUserEmployee (fetched for new entities)
   const initialEmployee = ownerEmployee || (shouldFetchCurrentUser ? currentUserEmployee : null)
-
-  console.log('🎯 OwnerSelect: Initial employee decision', {
-    hasOwner: !!ownerEmployee,
-    shouldFetch: shouldFetchCurrentUser,
-    hasCurrentUser: !!currentUserEmployee,
-    finalInitial: !!initialEmployee
-  })
 
   return (
     <EmployeeSelect

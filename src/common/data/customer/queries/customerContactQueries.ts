@@ -92,10 +92,7 @@ export const buildCustomerContactQuery = (fields: typeof CustomerContactFields =
 /**
  * Build Customer Contact by ID query
  */
-export const buildCustomerContactByIdQuery = (
-  fields: typeof CustomerContactFields = CustomerContactFields,
-  id: string
-): string => {
+export const buildCustomerContactByIdQuery = (fields: typeof CustomerContactFields = CustomerContactFields): string => {
   // Build relation builders and fields for common relations
   // Use wrapper function to include relations (website, addresses, communicationChannels) in account fragment
   const buildAccountFragmentWithRelations = (accountFields: any) => {
@@ -135,7 +132,7 @@ export const buildCustomerContactByIdQuery = (
     }
   `
 
-  return buildContactByIdQuery('Contact', id, fields, relationBuilders, relationFields, entityFields)
+  return buildContactByIdQuery('Contact', fields, relationBuilders, relationFields, entityFields)
 }
 
 /**

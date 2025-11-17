@@ -19,13 +19,12 @@ import { AiActions, AiAction } from '@/common/components/common-relations/record
 import { getContactTypeDisplayValue, getContactFullName } from './utils'
 import { useContactAiSummary } from './hooks/useContactAiSummary'
 import { Bot } from 'lucide-react'
+import { useInvestmentContact } from '@/common/data/investment/hooks/useInvestmentContact'
 import {
-  useGetInvestmentContactById,
   useGetInvestmentActivitiesByContactId,
   useGetInvestmentNotesByContactId,
   useGetInvestmentTasksByContactId
 } from '@/common/data/investment/hooks/useInvestmentContacts'
-import type { InvestmentContact } from '@/common/data/investment/types/investmentContactTypes'
 import { HomeView } from './views/home-view/HomeView'
 import { OpportunityView } from './views/opportunity-view/OpportunityView'
 import { DocumentView } from './views/document-view/DocumentView'
@@ -43,29 +42,14 @@ const InvestmentContactRecordContent: React.FC<ContactRecordContentProps> = ({
   fromEntity,
   ...props
 }) => {
-  const [contactData, setContactData] = useState<InvestmentContact | null>(null)
-  const [loading, setLoading] = useState(true)
-  const [error, setError] = useState<string | null>(null)
   const [activeTab, setActiveTab] = useState<string>(() => {
     if (typeof window === 'undefined') return 'overview'
     const params = new URLSearchParams(window.location.search)
     return params.get('tab') || 'overview'
   })
 
-  const { fetchInvestmentContactById } = useGetInvestmentContactById(props)
-
-  // Refetch function for process completion events
-  const refetchContactData = useCallback(async () => {
-    if (!contactId || !props.accessToken) return
-    try {
-      const result = await fetchInvestmentContactById(contactId)
-      if (result?.contact) {
-        setContactData(result.contact)
-      }
-    } catch (err) {
-      console.error('Error refreshing contact:', err)
-    }
-  }, [contactId, props.accessToken, fetchInvestmentContactById])
+  // Use new declarative hook for contact data
+  const { contact: contactData, loading, error, refetch: refetchContactData } = useInvestmentContact(props, contactId)
 
   // AI Summary hook - must be called before any conditional returns
   const aiSummaryHook = useContactAiSummary(contactId, props.accessToken)
@@ -160,31 +144,6 @@ const InvestmentContactRecordContent: React.FC<ContactRecordContentProps> = ({
     fetchInvestmentNotesByContactId,
     fetchInvestmentTasksByContactId
   ])
-
-  // Fetch contact data
-  useEffect(() => {
-    const loadContactData = async () => {
-      if (!contactId || !props.accessToken) return
-
-      try {
-        setLoading(true)
-        setError(null)
-        const result = await fetchInvestmentContactById(contactId)
-        if (result?.contact) {
-          setContactData(result.contact)
-        } else {
-          setError('Contact not found')
-        }
-      } catch (err) {
-        console.error('Error fetching contact:', err)
-        setError(err instanceof Error ? err.message : 'Failed to load contact')
-      } finally {
-        setLoading(false)
-      }
-    }
-
-    loadContactData()
-  }, [contactId, props.accessToken, fetchInvestmentContactById])
 
   // Load section data on mount
   useEffect(() => {

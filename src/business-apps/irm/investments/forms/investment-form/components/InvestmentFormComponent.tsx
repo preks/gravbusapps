@@ -15,7 +15,7 @@ import {
 import { getCurrencySymbol } from '@/common/utils/numberFormatter'
 import { useCatalogManagerClient } from '@/common/network/catalogs/useCatalogManagerClient'
 import { useGetInvestmentById } from '@/common/data/investment/hooks/useInvestments'
-import { useGetInvestmentOpportunityById } from '@/common/data/investment/hooks/useInvestmentOpportunities'
+import { useInvestmentOpportunity } from '@/common/data/investment/hooks/useInvestmentOpportunity'
 import { getInvestmentGroupFromContext } from '../utils/investmentDataTransformer'
 import { createInvestmentFormResolver } from '../utils/investmentFormSchema'
 import { InvestmentFormValues } from '../types'
@@ -30,9 +30,19 @@ export const InvestmentFormComponent: React.FC = () => {
   const { businessAppContext, formValues, setFormValues, getFormFieldsDefinition, currentEmployee } =
     useInvestmentFormContext()
 
+  // Extract investmentId and opportunityId from additionalData (must be before hooks)
+  const externalInvestmentId =
+    formValues.investment.id ||
+    businessAppContext.additionalData?.investmentId ||
+    businessAppContext.additionalData?.psi_taskPayload?.psi_initialParameters?.investmentId
+  const externalOpportunityId =
+    businessAppContext.additionalData?.opportunityId ||
+    businessAppContext.additionalData?.psi_taskPayload?.psi_initialParameters?.opportunityId
+
   // Add the investment and opportunity fetch hooks
   const { fetchInvestmentById } = useGetInvestmentById(businessAppContext)
-  const { fetchInvestmentOpportunityById } = useGetInvestmentOpportunityById(businessAppContext)
+  // Use new declarative hook for opportunity
+  const { opportunity: fetchedOpportunity } = useInvestmentOpportunity(businessAppContext, externalOpportunityId)
 
   // UI state
   const [currentStep, setCurrentStep] = useState<FormStep>('select')
@@ -42,15 +52,6 @@ export const InvestmentFormComponent: React.FC = () => {
 
   // Store raw investment data for payload building
   const [rawInvestmentData, setRawInvestmentData] = useState<any>(null)
-
-  // Extract investmentId and opportunityId from additionalData
-  const externalInvestmentId =
-    formValues.investment.id ||
-    businessAppContext.additionalData?.investmentId ||
-    businessAppContext.additionalData?.psi_taskPayload?.psi_initialParameters?.investmentId
-  const externalOpportunityId =
-    businessAppContext.additionalData?.opportunityId ||
-    businessAppContext.additionalData?.psi_taskPayload?.psi_initialParameters?.opportunityId
   const preSelectedGroup = getInvestmentGroupFromContext(businessAppContext.additionalData)
   const isUpdate = Boolean(externalInvestmentId)
 
@@ -86,7 +87,8 @@ export const InvestmentFormComponent: React.FC = () => {
         // Step 2: Conditional flow based on opportunityId or investmentId
         if (externalOpportunityId && !externalInvestmentId) {
           // Opportunity pre-fill mode: Load opportunity data and map to investment form
-          const { opportunity } = await fetchInvestmentOpportunityById(externalOpportunityId)
+          // Use opportunity from declarative hook
+          const opportunity = fetchedOpportunity
 
           if (opportunity) {
             // Extract form fields definition directly from the opportunity's investment group

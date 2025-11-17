@@ -25,20 +25,12 @@ interface OpportunityLayoutProps {
   searchContacts?: (search: string) => void
   onContactsChange?: (contactIds: Array<string | { id: string; name: string }>) => void
   onNewContact?: () => void
-  pipelines: Array<{ id: string; value: string; label?: string; name?: string }>
-  stages: Array<{ id: string; value: string; label?: string; name?: string }>
-  stagesLoading?: boolean
-  onPipelineChange?: (pipelineId: string) => void
-  opportunityStatuses?: Array<{ id: string; value: string; label?: string }>
-  currencies: Array<{ id: string; value: string; label?: string; name?: string }>
-  currenciesLoading?: boolean
-  currenciesError?: string | null
-  currenciesHasMore?: boolean
-  searchCurrencies?: (search: string) => void
-  loadMoreCurrencies?: () => void
   pipelineFieldName?: string
   stageFieldName?: string
   opportunityStatusFieldName?: string
+  pipelineCatalogIdentifier?: string
+  stageCatalogIdentifier?: string
+  opportunityStatusCatalogIdentifier?: string
   opportunityInformationCustomFields?: React.ReactNode
   opportunityDetailsCustomFields?: React.ReactNode
   opportunityPipelineCustomFields?: React.ReactNode
@@ -62,20 +54,12 @@ const OpportunityLayout: React.FC<OpportunityLayoutProps> = ({
   searchContacts,
   onContactsChange,
   onNewContact,
-  pipelines,
-  stages,
-  stagesLoading,
-  onPipelineChange,
-  opportunityStatuses,
-  currencies,
-  currenciesLoading,
-  currenciesError,
-  currenciesHasMore,
-  searchCurrencies,
-  loadMoreCurrencies,
   pipelineFieldName,
   stageFieldName,
   opportunityStatusFieldName,
+  pipelineCatalogIdentifier,
+  stageCatalogIdentifier,
+  opportunityStatusCatalogIdentifier,
   opportunityInformationCustomFields,
   opportunityDetailsCustomFields,
   opportunityPipelineCustomFields,
@@ -91,14 +75,12 @@ const OpportunityLayout: React.FC<OpportunityLayoutProps> = ({
         title: t('pipeline-title'),
         content: (
           <OpportunityPipelineSegment
-            pipelines={pipelines}
-            stages={stages}
-            stagesLoading={stagesLoading}
-            onPipelineChange={onPipelineChange}
-            opportunityStatuses={opportunityStatuses}
             pipelineFieldName={pipelineFieldName}
             stageFieldName={stageFieldName}
             opportunityStatusFieldName={opportunityStatusFieldName}
+            pipelineCatalogIdentifier={pipelineCatalogIdentifier}
+            stageCatalogIdentifier={stageCatalogIdentifier}
+            opportunityStatusCatalogIdentifier={opportunityStatusCatalogIdentifier}
             customFields={opportunityPipelineCustomFields}
           />
         )
@@ -106,36 +88,19 @@ const OpportunityLayout: React.FC<OpportunityLayoutProps> = ({
       {
         id: 'amount-date',
         title: t('amount-title'),
-        content: (
-          <OpportunityDetailsSegment
-            currencies={currencies}
-            currenciesLoading={currenciesLoading}
-            currenciesError={currenciesError}
-            currenciesHasMore={currenciesHasMore}
-            searchCurrencies={searchCurrencies}
-            loadMoreCurrencies={loadMoreCurrencies}
-            customFields={opportunityDetailsCustomFields}
-          />
-        )
+        content: <OpportunityDetailsSegment customFields={opportunityDetailsCustomFields} />
       },
       ...customSegments
     ],
     [
       t,
-      pipelines,
-      stages,
-      stagesLoading,
-      onPipelineChange,
-      opportunityStatuses,
+      businessAppContext,
       pipelineFieldName,
       stageFieldName,
       opportunityStatusFieldName,
-      currencies,
-      currenciesLoading,
-      currenciesError,
-      currenciesHasMore,
-      searchCurrencies,
-      loadMoreCurrencies,
+      pipelineCatalogIdentifier,
+      stageCatalogIdentifier,
+      opportunityStatusCatalogIdentifier,
       opportunityPipelineCustomFields,
       opportunityDetailsCustomFields,
       customSegments

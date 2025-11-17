@@ -104,7 +104,11 @@ const OpportunityInformationSegment: React.FC<OpportunityInformationSegmentProps
               <Input
                 placeholder={t('opportunity-name-placeholder')}
                 data-testid="opportunity-segment-opportunity-name"
-                {...field}
+                value={field.value || ''}
+                onChange={e => field.onChange(e.target.value)}
+                onBlur={field.onBlur}
+                name={field.name}
+                ref={field.ref}
               />
             </FormControl>
             <FormMessage />
@@ -116,51 +120,51 @@ const OpportunityInformationSegment: React.FC<OpportunityInformationSegmentProps
       {customFields && <div>{customFields}</div>}
 
       {/* Account Selection - Single account for opportunities */}
-      {onAccountChange && searchAccounts && (
-        <FormField
-          control={form.control}
-          name="accountId"
-          render={({ field }) => (
-            <FormItem>
-              <FormLabel>{t('opportunity-related-account-label')}</FormLabel>
-              <FormControl>
-                <AccountSelect
-                  value={
-                    accountId
-                      ? typeof accountId === 'object'
-                        ? accountId
-                        : { id: accountId, name: accounts.find(a => a.id === accountId)?.name || '' }
-                      : null
-                  }
-                  onChange={value => {
-                    const accountValue =
-                      typeof value === 'object' && value !== null
-                        ? value
-                        : typeof value === 'string'
-                          ? { id: value, name: accounts.find(a => a.id === value)?.name || '' }
-                          : null
-                    field.onChange(accountValue ? accountValue.id : '')
+      <FormField
+        control={form.control}
+        name="accountId"
+        render={({ field }) => (
+          <FormItem>
+            <FormLabel>{t('opportunity-related-account-label')}</FormLabel>
+            <FormControl>
+              <AccountSelect
+                value={
+                  accountId
+                    ? typeof accountId === 'object'
+                      ? accountId
+                      : { id: accountId, name: accounts.find(a => a.id === accountId)?.name || '' }
+                    : null
+                }
+                onChange={value => {
+                  const accountValue =
+                    typeof value === 'object' && value !== null
+                      ? value
+                      : typeof value === 'string'
+                        ? { id: value, name: accounts.find(a => a.id === value)?.name || '' }
+                        : null
+                  field.onChange(accountValue ? accountValue.id : '')
+                  if (onAccountChange) {
                     onAccountChange(accountValue)
-                  }}
-                  dataTestId="opportunity-segment-account-select"
-                  error={accountsError}
-                  accounts={accounts.map(acc => ({
-                    id: typeof acc.id === 'string' ? acc.id : String(acc.id),
-                    value: typeof acc.id === 'string' ? acc.id : String(acc.id),
-                    label: acc.label || acc.name || '',
-                    name: acc.name || acc.label || ''
-                  }))}
-                  accountsLoading={accountsLoading}
-                  accountsError={accountsError}
-                  searchAccounts={searchAccounts}
-                  multiple={false}
-                />
-              </FormControl>
-              <FormMessage />
-            </FormItem>
-          )}
-        />
-      )}
+                  }
+                }}
+                dataTestId="opportunity-segment-account-select"
+                error={accountsError}
+                accounts={accounts.map(acc => ({
+                  id: typeof acc.id === 'string' ? acc.id : String(acc.id),
+                  value: typeof acc.id === 'string' ? acc.id : String(acc.id),
+                  label: acc.label || acc.name || '',
+                  name: acc.name || acc.label || ''
+                }))}
+                accountsLoading={accountsLoading}
+                accountsError={accountsError}
+                searchAccounts={searchAccounts || (() => {})}
+                multiple={false}
+              />
+            </FormControl>
+            <FormMessage />
+          </FormItem>
+        )}
+      />
 
       {/* Contacts List */}
       {onContactsChange && searchContacts && (

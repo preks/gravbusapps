@@ -66,16 +66,16 @@ export const useCustomerLeads = (context: BusinessAppContextProps) => {
       | (CustomerLead & { leadStatuses?: Array<{ id: string; code: string; value: string; alternativeCode?: string }> })
       | null
     > => {
-      const query = buildCustomerLeadByIdQuery(undefined, id)
+      const query = buildCustomerLeadByIdQuery()
       const result = await graphqlClient.request<{
-        LeadByPk: BaseCustomerLead | null
+        LeadByPk: CustomerLead | null
         leadStatuses?: Array<{
           id: string
           code: string
           value: string
           alternativeCode?: string
         }>
-      }>(query)
+      }>(query, { id })
       const lead = result.LeadByPk ? toCustomerLead(result.LeadByPk) : null
       return lead ? { ...lead, leadStatuses: result.leadStatuses || [] } : null
     },

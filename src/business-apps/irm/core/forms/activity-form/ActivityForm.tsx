@@ -7,7 +7,7 @@ import ActivitySegment, {
 } from '@/common/components/common-relations/form-segments/activity-segment/ActivitySegment'
 import { validateActivityData } from '@/common/components/common-relations/form-segments/activity-segment/utils'
 import { buildActivityPayload } from '@/common/data/investment/payloads/investmentRelationPayloads'
-import { useGetInvestmentActivityById } from '@/common/data/investment/hooks/useInvestmentActivities'
+import { useInvestmentActivity } from '@/common/data/investment/hooks/useInvestmentActivity'
 import { useInvestmentEntities } from '@/common/data/investment/hooks/useInvestmentEntities'
 import { useEmployeeSearch } from '@/common/data/employee/useEmployeeSearch'
 import { AppActionForm } from '@/components/app-action-form'
@@ -68,8 +68,11 @@ const ActivityForm: React.FC<ActivityFormProps> = ({ accessToken, userInfo, addi
   // Always hide the related entity selector
   const shouldShowEntitySelection = false
 
-  // Investment activity hooks
-  const { fetchInvestmentActivityById } = useGetInvestmentActivityById({ accessToken, additionalData })
+  // Investment activity hook - declarative single-by-PK
+  const { activity, loading: activityLoading } = useInvestmentActivity(
+    { accessToken, userInfo, additionalData },
+    activityId
+  )
 
   // Entity search hook (controlled search/path)
   const {
@@ -188,71 +191,67 @@ const ActivityForm: React.FC<ActivityFormProps> = ({ accessToken, userInfo, addi
 
   // Load existing activity if in update mode
   useEffect(() => {
-    if (isUpdateMode && activityId) {
-      fetchInvestmentActivityById(activityId).then((result: any) => {
-        if (result.activity) {
-          const activity = result.activity
-
-          // Construct new form data
-          const newFormData = {
-            id: activity.id,
-            title: activity.title || '',
-            activityTypeRef: activity.activityType?.id || '',
-            occurredAt: activity.occurredAt || '',
-            description: activity.description || '',
-            files: [],
-            documents:
-              (activity as Record<string, any>).documents?.map((doc: any) => ({
-                id: doc.id,
-                name: doc.name || '',
-                version: doc.version
-              })) || [],
-            _pendingFiles: [],
-            account: activity.account,
-            contact: activity.contact,
-            opportunity: activity.opportunity,
-            lead: activity.lead,
-            ownerEmployee: activity.ownerEmployee,
-            version: activity.version,
-            // keep relatedEntityId for validation convenience
-            ...(activity.account?.id ? { relatedEntityId: activity.account.id } : {}),
-            ...(activity.contact?.id ? { relatedEntityId: activity.contact.id } : {}),
-            ...(activity.opportunity?.id ? { relatedEntityId: activity.opportunity.id } : {}),
-            ...(activity.lead?.id ? { relatedEntityId: activity.lead.id } : {})
-          }
-
-          // Update state
-          setFormData(newFormData)
-
-          // Explicitly reset form with new data
-          form.reset({
-            ...newFormData,
-            ownerEmployeeId: activity.ownerEmployee?.id || ''
-          })
-
-          // Hydrate and pin related entity if present so combobox trigger keeps rich label
-          const relId = activity.account?.id || activity.contact?.id || activity.opportunity?.id || activity.lead?.id
-          if (relId) {
-            if (activity.account?.id) hydrateEntityById('account', activity.account.id)
-            else if (activity.contact?.id) hydrateEntityById('contact', activity.contact.id)
-            else if (activity.opportunity?.id) hydrateEntityById('opportunity', activity.opportunity.id)
-            else if (activity.lead?.id) hydrateEntityById('lead', activity.lead.id)
-          }
-
-          // Prefill owner employee for the combobox
-          if (activity.ownerEmployee?.id) {
-            const displayName =
-              activity.ownerEmployee.displayName ||
-              `${activity.ownerEmployee.firstName || ''} ${activity.ownerEmployee.lastName || ''}`.trim() ||
-              'Unknown'
-            setAssigneePrefill([{ id: activity.ownerEmployee.id, displayName }])
-            // Hydrate details for the selected employee so avatar/job/unit appear immediately
-            hydrateById(activity.ownerEmployee.id)
-          }
-        }
-      })
+    if (!isUpdateMode || !activity || activityLoading) {
+      return
     }
-  }, [isUpdateMode, activityId, fetchInvestmentActivityById, hydrateEntityById, hydrateById])
+
+    // Construct new form data
+    const newFormData = {
+      id: activity.id,
+      title: activity.title || '',
+      activityTypeRef: activity.activityType?.id || '',
+      occurredAt: activity.occurredAt || '',
+      description: activity.description || '',
+      files: [],
+      documents:
+        (activity as Record<string, any>).documents?.map((doc: any) => ({
+          id: doc.id,
+          name: doc.name || '',
+          version: doc.version
+        })) || [],
+      _pendingFiles: [],
+      account: activity.account,
+      contact: activity.contact,
+      opportunity: activity.opportunity,
+      lead: activity.lead,
+      ownerEmployee: activity.ownerEmployee,
+      version: activity.version,
+      // keep relatedEntityId for validation convenience
+      ...(activity.account?.id ? { relatedEntityId: activity.account.id } : {}),
+      ...(activity.contact?.id ? { relatedEntityId: activity.contact.id } : {}),
+      ...(activity.opportunity?.id ? { relatedEntityId: activity.opportunity.id } : {}),
+      ...(activity.lead?.id ? { relatedEntityId: activity.lead.id } : {})
+    }
+
+    // Update state
+    setFormData(newFormData)
+
+    // Explicitly reset form with new data
+    form.reset({
+      ...newFormData,
+      ownerEmployeeId: activity.ownerEmployee?.id || ''
+    })
+
+    // Hydrate and pin related entity if present so combobox trigger keeps rich label
+    const relId = activity.account?.id || activity.contact?.id || activity.opportunity?.id || activity.lead?.id
+    if (relId) {
+      if (activity.account?.id) hydrateEntityById('account', activity.account.id)
+      else if (activity.contact?.id) hydrateEntityById('contact', activity.contact.id)
+      else if (activity.opportunity?.id) hydrateEntityById('opportunity', activity.opportunity.id)
+      else if (activity.lead?.id) hydrateEntityById('lead', activity.lead.id)
+    }
+
+    // Prefill owner employee for the combobox
+    if (activity.ownerEmployee?.id) {
+      const displayName =
+        activity.ownerEmployee.displayName ||
+        `${activity.ownerEmployee.firstName || ''} ${activity.ownerEmployee.lastName || ''}`.trim() ||
+        'Unknown'
+      setAssigneePrefill([{ id: activity.ownerEmployee.id, displayName }])
+      // Hydrate details for the selected employee so avatar/job/unit appear immediately
+      hydrateById(activity.ownerEmployee.id)
+    }
+  }, [isUpdateMode, activity, activityLoading, hydrateEntityById, hydrateById, form])
 
   const handleEntitySearch = useCallback(
     (searchTerm: string) => {

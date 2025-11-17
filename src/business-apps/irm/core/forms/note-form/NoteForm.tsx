@@ -7,7 +7,7 @@ import NoteSegment, {
 } from '@/common/components/common-relations/form-segments/note-segment/NoteSegment'
 import { buildInvestmentNotePayload } from '@/common/data/investment/payloads/investmentRelationPayloads'
 import { useInvestmentEntities } from '@/common/data/investment/hooks/useInvestmentEntities'
-import { useGetInvestmentNoteById } from '@/common/data/investment/hooks/useInvestmentNotes'
+import { useInvestmentNote } from '@/common/data/investment/hooks/useInvestmentNote'
 import { AppActionForm } from '@/components/app-action-form'
 import { useForm } from 'react-hook-form'
 import { Spinner, Alert } from '@newwork/nw-design-system'
@@ -29,8 +29,6 @@ export interface NoteFormProps extends BusinessAppContextProps {
 
 const NoteForm: React.FC<NoteFormProps> = ({ accessToken, userInfo, additionalData, onSuccess, onCancel }) => {
   const [formData, setFormData] = useState<NoteSegmentSchema>(initialFormData)
-  const [isLoadingNote, setIsLoadingNote] = useState(false)
-  const [loadError, setLoadError] = useState<string | null>(null)
 
   // Resolve IDs from additionalData (platform may pass ids inside psi_taskPayload.psi_initialParameters)
   const platformParams = React.useMemo(() => {
@@ -52,11 +50,12 @@ const NoteForm: React.FC<NoteFormProps> = ({ accessToken, userInfo, additionalDa
   const noteId = platformParams.noteId
   const isUpdateMode = !!noteId
 
-  // Investment note hooks
-  const { fetchInvestmentNoteById } = useGetInvestmentNoteById({
-    accessToken,
-    additionalData
-  } as BusinessAppContextProps)
+  // Investment note hook - declarative single-by-PK
+  const {
+    note,
+    loading: noteLoading,
+    error: noteError
+  } = useInvestmentNote({ accessToken, userInfo, additionalData }, noteId)
 
   // Get entity IDs from platform params
   const { accountId, leadId, contactId, opportunityId, investmentId } = platformParams
@@ -110,82 +109,50 @@ const NoteForm: React.FC<NoteFormProps> = ({ accessToken, userInfo, additionalDa
 
   // Load existing note if in update mode
   useEffect(() => {
-    if (!isUpdateMode || !noteId) {
+    if (!isUpdateMode || !note || noteLoading) {
       return
     }
 
-    let isMounted = true
-    const loadExistingNote = async () => {
-      setIsLoadingNote(true)
-      setLoadError(null)
+    // Set form data
+    const newFormData = {
+      id: note.id,
+      title: note.title || '',
+      text: note.text || '',
+      reminderDate: note.reminderDate || undefined,
+      documents:
+        (note as any).documents?.map((doc: any) => ({
+          id: doc.id,
+          name: doc.name || '',
+          version: doc.version
+        })) || [],
+      _pendingFiles: [],
+      account: note.account,
+      contact: note.contact,
+      opportunity: note.opportunity,
+      lead: note.lead,
+      authorEmployee: note.authorEmployee,
+      version: note.version,
+      // keep relatedEntityId for validation convenience
+      ...(note.account?.id ? { relatedEntityId: note.account.id } : {}),
+      ...(note.contact?.id ? { relatedEntityId: note.contact.id } : {}),
+      ...(note.opportunity?.id ? { relatedEntityId: note.opportunity.id } : {}),
+      ...(note.lead?.id ? { relatedEntityId: note.lead.id } : {})
+    } as any
 
-      try {
-        const result = await fetchInvestmentNoteById(noteId)
-        if (!isMounted || !result?.note) {
-          return
-        }
+    setFormData(newFormData)
 
-        const note = result.note
+    // CRITICAL: Also update the React Hook Form values
+    form.reset(newFormData)
 
-        // Set form data
-        const newFormData = {
-          id: note.id,
-          title: note.title || '',
-          text: note.text || '',
-          reminderDate: note.reminderDate || undefined,
-          documents:
-            (note as any).documents?.map((doc: any) => ({
-              id: doc.id,
-              name: doc.name || '',
-              version: doc.version
-            })) || [],
-          _pendingFiles: [],
-          account: note.account,
-          contact: note.contact,
-          opportunity: note.opportunity,
-          lead: note.lead,
-          authorEmployee: note.authorEmployee,
-          version: note.version,
-          // keep relatedEntityId for validation convenience
-          ...(note.account?.id ? { relatedEntityId: note.account.id } : {}),
-          ...(note.contact?.id ? { relatedEntityId: note.contact.id } : {}),
-          ...(note.opportunity?.id ? { relatedEntityId: note.opportunity.id } : {}),
-          ...(note.lead?.id ? { relatedEntityId: note.lead.id } : {})
-        } as any
-
-        setFormData(newFormData)
-
-        // CRITICAL: Also update the React Hook Form values
-        form.reset(newFormData)
-
-        // Hydrate and pin related entity if present so combobox trigger keeps rich label
-        const relId = note.account?.id || note.contact?.id || note.opportunity?.id || note.lead?.id
-        if (relId) {
-          if (note.account?.id) hydrateEntityById('account', note.account.id)
-          else if (note.contact?.id) hydrateEntityById('contact', note.contact.id)
-          else if (note.opportunity?.id) hydrateEntityById('opportunity', note.opportunity.id)
-          else if (note.lead?.id) hydrateEntityById('lead', note.lead.id)
-        }
-
-        if (isMounted) {
-          setIsLoadingNote(false)
-        }
-      } catch (error) {
-        console.error('Failed to load investment note', error)
-        if (isMounted) {
-          setLoadError(
-            getTranslationFromI18nKeyAndLabel('crm:notes.loadError', 'Failed to load note. Please try again.')
-          )
-          setIsLoadingNote(false)
-        }
-      }
+    // Hydrate and pin related entity if present so combobox trigger keeps rich label
+    const relId = note.account?.id || note.contact?.id || note.opportunity?.id || note.lead?.id
+    if (relId) {
+      if (note.account?.id) hydrateEntityById('account', note.account.id)
+      else if (note.contact?.id) hydrateEntityById('contact', note.contact.id)
+      else if (note.opportunity?.id) hydrateEntityById('opportunity', note.opportunity.id)
+      else if (note.lead?.id) hydrateEntityById('lead', note.lead.id)
     }
-
-    loadExistingNote()
-    return () => {
-      isMounted = false
-    }
-  }, [isUpdateMode, noteId, fetchInvestmentNoteById, hydrateEntityById])
+  }, [isUpdateMode, note, noteLoading, hydrateEntityById, form])
   const handleEntitySearch = useCallback(
     (searchTerm: string) => {
       // Allow empty string to fetch first page
@@ -275,7 +242,7 @@ const NoteForm: React.FC<NoteFormProps> = ({ accessToken, userInfo, additionalDa
 
   // Check if form should be disabled
   const isFormDisabled =
-    isLoadingNote || !!loadError || (isUpdateMode && (!formData.id || formData.version === undefined))
+    noteLoading || !!noteError || (isUpdateMode && (!formData.id || formData.version === undefined))
 
   return (
     <AppActionForm
@@ -291,19 +258,19 @@ const NoteForm: React.FC<NoteFormProps> = ({ accessToken, userInfo, additionalDa
       disabled={isFormDisabled}
       data-testid="investment-note-process-dialog"
     >
-      {isLoadingNote && (
+      {noteLoading && (
         <div className="gba:flex gba:justify-center gba:items-center gba:py-8" data-testid="note-loading-spinner">
           <Spinner size="lg" />
         </div>
       )}
 
-      {loadError && (
+      {noteError && (
         <Alert variant="destructive" className="gba:mb-4" data-testid="note-load-error-alert">
-          {loadError}
+          {noteError}
         </Alert>
       )}
 
-      {!isLoadingNote && (
+      {!noteLoading && (
         <NoteSegment
           // Use controlled entity search from hook
           entities={entities.filter(e => e.type !== 'investment') as any}

@@ -10,24 +10,18 @@ import {
 } from '@newwork/nw-design-system'
 import { useFormContext } from 'react-hook-form'
 import { DateInput } from '@newwork/nw-design-system'
-import { Combobox } from '@newwork/nw-design-system'
+import { CatalogSelect } from '@/components/catalog-select'
 import translations from './_i18n'
 
 interface OpportunityDetailsSegmentProps {
-  // Currency options
-  currencies: Array<{ id: string; value: string; label?: string; name?: string }>
-  currenciesLoading?: boolean
-  currenciesError?: string | null
-  currenciesHasMore?: boolean
-  searchCurrencies?: (search: string) => void
-  loadMoreCurrencies?: () => void
+  // Currency catalog identifier
+  currencyCatalogIdentifier?: string // Default: 'Currency:v1'
   // Custom fields
   customFields?: React.ReactNode
 }
 
 const OpportunityDetailsSegment: React.FC<OpportunityDetailsSegmentProps> = ({
-  currencies = [],
-  searchCurrencies,
+  currencyCatalogIdentifier = 'Currency:v1',
   customFields
 }) => {
   const form = useFormContext<any>()
@@ -69,12 +63,11 @@ const OpportunityDetailsSegment: React.FC<OpportunityDetailsSegmentProps> = ({
                 {t('opportunity-currency-label')} <span>*</span>
               </FormLabel>
               <FormControl>
-                <Combobox
+                <CatalogSelect
+                  catalogIdentifier={currencyCatalogIdentifier}
+                  variant="combobox"
                   value={field.value || ''}
                   onValueChange={field.onChange}
-                  options={currencies.map(c => ({ value: c.value, label: c.label || c.name || c.value }))}
-                  onSearch={searchCurrencies}
-                  placeholder={t('opportunity-currency-placeholder') || 'Please Select...'}
                   data-testid="opportunity-segment-currency-select"
                 />
               </FormControl>

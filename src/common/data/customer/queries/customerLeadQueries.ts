@@ -54,10 +54,7 @@ export const buildCustomerLeadQuery = (fields: typeof CustomerLeadFields = Custo
 /**
  * Build Customer Lead by ID query
  */
-export const buildCustomerLeadByIdQuery = (
-  fields: typeof CustomerLeadFields = CustomerLeadFields,
-  id: string
-): string => {
+export const buildCustomerLeadByIdQuery = (fields: typeof CustomerLeadFields = CustomerLeadFields): string => {
   // Build relation builders and fields for common relations
   const relationBuilders: LeadRelationBuilders = {
     buildActivityFragment,
@@ -79,7 +76,7 @@ export const buildCustomerLeadByIdQuery = (
     opportunityFields: CustomerOpportunityFields
   }
 
-  return buildLeadByIdQuery('Lead', id, fields, relationBuilders, relationFields, undefined, 'SalesLeadStatus')
+  return buildLeadByIdQuery('Lead', fields, relationBuilders, relationFields, undefined, 'SalesLeadStatus')
 }
 
 /**

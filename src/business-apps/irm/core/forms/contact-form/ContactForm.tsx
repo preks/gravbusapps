@@ -1,5 +1,5 @@
 import React from 'react'
-import ContactFormComponent from './components/ContactFormComponent'
+import ContactFormComponent from './ContactFormComponent'
 import { BusinessAppContextProps } from '@/common/BusinessAppContext'
 
 interface ContactFormProps {

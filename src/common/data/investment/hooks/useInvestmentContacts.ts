@@ -97,10 +97,12 @@ export const useGetInvestmentContactById = (context: BusinessAppContextProps) =>
 
   const fetchInvestmentContactById = useCallback(
     async (id: string) => {
-      const query = buildInvestmentContactByIdQuery(undefined, id)
+      const query = buildInvestmentContactByIdQuery()
 
       try {
-        const result = await graphqlClient.request<{ InvestmentContactByPk: InvestmentContact | null }>(query)
+        const result = await graphqlClient.request<{ InvestmentContactByPk: InvestmentContact | null }>(query, {
+          id
+        })
 
         return {
           contact: result.InvestmentContactByPk ? toInvestmentContact(result.InvestmentContactByPk) : undefined

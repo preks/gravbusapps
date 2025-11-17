@@ -178,10 +178,12 @@ export const useGetInvestmentOpportunityById = (context: BusinessAppContextProps
 
   const fetchInvestmentOpportunityById = useCallback(
     async (id: string) => {
-      const query = buildInvestmentOpportunityByIdQuery(undefined, id)
+      const query = buildInvestmentOpportunityByIdQuery()
 
       try {
-        const result = await graphqlClient.request<{ InvestmentOpportunityByPk: InvestmentOpportunity | null }>(query)
+        const result = await graphqlClient.request<{ InvestmentOpportunityByPk: InvestmentOpportunity | null }>(query, {
+          id
+        })
 
         return {
           opportunity: result.InvestmentOpportunityByPk

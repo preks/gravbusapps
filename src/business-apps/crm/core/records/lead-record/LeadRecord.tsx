@@ -14,7 +14,7 @@ import { Flag, Bot } from 'lucide-react'
 import { BusinessAppContextProps } from '@/common/BusinessAppContext'
 import { navigateTo, buildPlatformUrl } from '@/common/utils/navigationUtils'
 import { getTranslationFromI18nKeyAndLabel } from '@/common/utils/windowUtils'
-import { useCustomerLeads } from '@/common/data/customer/hooks/useCustomerLeads'
+import { useCustomerLead } from '@/common/data/customer/hooks/useCustomerLead'
 import { useCustomerActivities } from '@/common/data/customer/hooks/useCustomerActivities'
 import { useCustomerNotes } from '@/common/data/customer/hooks/useCustomerNotes'
 import { useCustomerTasks } from '@/common/data/customer/hooks/useCustomerTasks'
@@ -39,54 +39,29 @@ const LeadRecordContent: React.FC<LeadRecordContentProps> = ({ leadId, onBack, f
     return params.get('tab') || 'overview'
   })
 
-  // Fetch lead data using central hook
-  const { fetchCustomerLeadById } = useCustomerLeads(props)
-
-  // State for lead data
-  const [leadData, setLeadData] = useState<any>(null)
-  const [loading, setLoading] = useState(true)
-  const [error, setError] = useState<string | null>(null)
+  // Use new declarative hook for lead data
+  const { lead: leadData, loading, error, refetch } = useCustomerLead(props, leadId)
   const [leadStatuses, setLeadStatuses] = useState<any[]>([])
 
-  // Fetch lead data
-  const fetchLeadData = useCallback(async () => {
-    if (!leadId || !props.accessToken) {
-      setLoading(false)
-      return
-    }
-
-    try {
-      setLoading(true)
-      setError(null)
-      const lead = await fetchCustomerLeadById(leadId)
-      if (lead) {
-        setLeadData(lead)
-        // Extract lead statuses from lead object if available
-        if (lead.leadStatuses && Array.isArray(lead.leadStatuses)) {
-          // Statuses are already sorted by alternativeCode from GraphQL query
-          setLeadStatuses(
-            lead.leadStatuses.map((status: any) => ({
-              id: status.id,
-              code: status.code,
-              value: status.value,
-              alternativeCode: status.alternativeCode
-            }))
-          )
-        }
-      } else {
-        setError('Lead not found')
-      }
-    } catch (err) {
-      setError(err instanceof Error ? err.message : 'Failed to fetch lead data')
-    } finally {
-      setLoading(false)
-    }
-  }, [leadId, props.accessToken, fetchCustomerLeadById])
-
-  // Load data on mount
+  // Extract lead statuses from leadData when it changes
   useEffect(() => {
-    fetchLeadData()
-  }, [fetchLeadData])
+    if (leadData?.leadStatuses && Array.isArray(leadData.leadStatuses)) {
+      // Statuses are already sorted by alternativeCode from GraphQL query
+      setLeadStatuses(
+        leadData.leadStatuses.map((status: any) => ({
+          id: status.id,
+          code: status.code,
+          value: status.value,
+          alternativeCode: status.alternativeCode
+        }))
+      )
+    }
+  }, [leadData])
+
+  // Fetch lead data function for refetch
+  const fetchLeadData = useCallback(async () => {
+    await refetch()
+  }, [refetch])
 
   // AI Summary hook - must be called before any conditional returns
   const aiSummaryHook = useAiSummary(leadId, props.accessToken)

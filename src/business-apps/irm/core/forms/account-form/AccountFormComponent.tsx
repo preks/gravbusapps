@@ -1,7 +1,9 @@
-import React, { useEffect, useCallback } from 'react'
+import React, { useEffect, useCallback, useState } from 'react'
 import type { InvestmentAccount } from '@/common/data/investment/types/investmentAccountTypes'
 import { useForm } from 'react-hook-form'
-import { useAccountFormContext } from './AccountFormContext'
+import { BusinessAppContextProps } from '@/common/BusinessAppContext'
+import { useInvestmentAccount } from '@/common/data/investment/hooks/useInvestmentAccount'
+import { useGetInvestmentContacts } from '@/common/data/investment/hooks/useInvestmentContacts'
 import { Alert, AlertDescription } from '@newwork/nw-design-system'
 import { formatDataTestId } from '@/common/utils/formatDataTestId'
 import { buildInvestmentAccountPayload } from '@/common/data/investment/types/investmentAccountTypes'
@@ -15,19 +17,54 @@ import { buildCommunicationChannelRef } from '@/common/data/common/utils/communi
 
 const prefixDataTestId = 'AccountForm'
 
-const AccountFormComponent: React.FC = () => {
+interface AccountFormComponentProps {
+  businessAppContext: BusinessAppContextProps
+  initialValues?: Partial<InvestmentAccount>
+  onSubmit?: (account: Partial<InvestmentAccount>) => Promise<void>
+  onCancel?: () => Promise<void>
+}
+
+const AccountFormComponent: React.FC<AccountFormComponentProps> = ({
+  businessAppContext,
+  initialValues,
+  onCancel = async () => {}
+}) => {
+  // Extract accountId from businessAppContext
+  const accountId =
+    businessAppContext.additionalData?.accountId ||
+    businessAppContext.additionalData?.psi_taskPayload?.psi_initialParameters?.accountId
+
+  // Fetch account data using declarative hook
   const {
-    account,
-    accountLoading,
-    accountError,
-    onCancel: contextOnCancel,
-    hideActions,
-    contacts,
-    contactsLoading,
-    contactsError,
-    searchContacts,
-    businessAppContext
-  } = useAccountFormContext()
+    account: fetchedAccount,
+    loading: accountLoading,
+    error: accountError
+  } = useInvestmentAccount(businessAppContext, accountId)
+
+  // Local state for account
+  const [account, setAccount] = useState<InvestmentAccount | null>(null)
+
+  // Sync fetched account with local state
+  useEffect(() => {
+    if (fetchedAccount) {
+      setAccount(fetchedAccount)
+    } else if (!accountId && initialValues && Object.keys(initialValues).length > 0) {
+      setAccount(initialValues as InvestmentAccount)
+    }
+  }, [fetchedAccount, accountId, initialValues])
+
+  // Contact selection hook
+  const {
+    options: contactsList,
+    loading: contactsLoading,
+    error: contactsError,
+    search: searchContacts
+  } = useGetInvestmentContacts(businessAppContext, {
+    withState: true,
+    autoFetch: true,
+    pageSize: 20,
+    mapToSelectOptions: true
+  })
 
   // Avatar image for preview (from existing account data)
   const avatarImage = (() => {
@@ -84,7 +121,8 @@ const AccountFormComponent: React.FC = () => {
         pictureThumbnail: undefined,
         id: undefined,
         version: undefined,
-        code: undefined
+        code: undefined,
+        contacts: []
       }
     }
 
@@ -143,6 +181,25 @@ const AccountFormComponent: React.FC = () => {
       )
     }
 
+    // Map accountContacts to form contacts array
+    const contacts = (acc.accountContacts || []).map((ac: any) => {
+      const contact = ac.contact
+      const contactId = contact?.id || ac.contactId || ac.contact
+      const contactName =
+        contact?.displayName ||
+        contact?.fullName ||
+        `${contact?.firstName || ''} ${contact?.lastName || ''}`.trim() ||
+        'Unknown Contact'
+
+      return {
+        id: contactId,
+        name: contactName,
+        contactType: ac.contactType || undefined,
+        associationId: ac.id, // Store association ID for updates
+        associationVersion: ac.version // Store association version for updates
+      }
+    })
+
     return {
       ownerEmployeeId: acc.ownerEmployeeId || '',
       name: acc.name || '',
@@ -158,7 +215,8 @@ const AccountFormComponent: React.FC = () => {
       pictureThumbnail: acc.pictureThumbnail,
       id: acc.id,
       version: acc.version,
-      code: acc.code
+      code: acc.code,
+      contacts: contacts.length > 0 ? contacts : []
     }
   }, [])
 
@@ -241,18 +299,19 @@ const AccountFormComponent: React.FC = () => {
           return addressPayload
         }) || []
 
-    // Build accountContacts array
-    const accountContacts = ((account?.accountContacts || []) as any[]).map((accountContact: any) => {
+    // Build accountContacts from form data (contacts field)
+    const accountContacts = ((data.contacts || []) as any[]).map((contact: any) => {
       const accountContactPayload: any = {
-        contactType: accountContact.contactType || null,
+        contactType: contact.contactType || null,
         account: data.id,
-        contact: accountContact.contact?.id || accountContact.contactId || accountContact.contact
+        contact: typeof contact === 'object' ? contact.id : contact
       }
 
-      if (accountContact.id) {
-        accountContactPayload.id = accountContact.id
-        if (accountContact.version !== undefined) {
-          accountContactPayload.version = accountContact.version
+      // If this is an existing contact (has associationId), include id and version
+      if (contact.associationId) {
+        accountContactPayload.id = contact.associationId
+        if (contact.associationVersion !== undefined) {
+          accountContactPayload.version = contact.associationVersion
         }
       }
 
@@ -283,7 +342,7 @@ const AccountFormComponent: React.FC = () => {
 
   // Handle form cancellation
   const handleCancel = async () => {
-    await contextOnCancel()
+    await onCancel()
   }
 
   // Determine process type based on whether account exists
@@ -298,7 +357,7 @@ const AccountFormComponent: React.FC = () => {
         formData={form.getValues()}
         form={form}
         businessAppContext={businessAppContext}
-        showCancelButton={!hideActions}
+        showCancelButton={true}
         data-testid={formatDataTestId(prefixDataTestId, 'Form')}
         submitButtonText={formValues.id ? 'Update Account' : 'Create Account'}
         isSubmitDisabled={!isFormValid || accountLoading}
@@ -313,6 +372,7 @@ const AccountFormComponent: React.FC = () => {
               getAvatarPath: InvestmentFilePaths.getAccountPicturePath
             }}
             ownerEmployee={account?.ownerEmployee}
+            entityId={account?.id}
             addresses={account?.addresses?.map((addr: any) => ({
               country: addr.country
                 ? {
@@ -334,7 +394,7 @@ const AccountFormComponent: React.FC = () => {
             annualRevenueCatalogIdentifier="AccountAnnualRevenueBand:v1"
             companySizeCatalogIdentifier="CompanySize:v1"
             avatarImage={avatarImage}
-            contacts={contacts}
+            contacts={contactsList as any}
             contactsLoading={contactsLoading}
             contactsError={contactsError}
             searchContacts={searchContacts}

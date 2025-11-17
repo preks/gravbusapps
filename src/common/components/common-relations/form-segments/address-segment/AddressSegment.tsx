@@ -126,7 +126,11 @@ const AddressItem: React.FC<{
                     <Input
                       placeholder={t('address-line-placeholder', { index: lineIndex + 1 })}
                       data-testid={`address-segment-line-${addressIndex}-${lineIndex + 1}`}
-                      {...addressLineField}
+                      value={addressLineField.value || ''}
+                      onChange={e => addressLineField.onChange(e.target.value)}
+                      onBlur={addressLineField.onBlur}
+                      name={addressLineField.name}
+                      ref={addressLineField.ref}
                     />
                   </FormControl>
                   <FormMessage />
@@ -161,7 +165,11 @@ const AddressItem: React.FC<{
                 <Input
                   placeholder={t('postal-code-placeholder')}
                   data-testid={`address-segment-postal-code-${addressIndex}`}
-                  {...field}
+                  value={field.value || ''}
+                  onChange={e => field.onChange(e.target.value)}
+                  onBlur={field.onBlur}
+                  name={field.name}
+                  ref={field.ref}
                 />
               </FormControl>
               <FormMessage />
@@ -179,7 +187,11 @@ const AddressItem: React.FC<{
                 <Input
                   placeholder={t('locality-placeholder')}
                   data-testid={`address-segment-locality-${addressIndex}`}
-                  {...field}
+                  value={field.value || ''}
+                  onChange={e => field.onChange(e.target.value)}
+                  onBlur={field.onBlur}
+                  name={field.name}
+                  ref={field.ref}
                 />
               </FormControl>
               <FormMessage />

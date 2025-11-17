@@ -4,11 +4,10 @@ import { User, FileText, Star, Lightbulb, Bot } from 'lucide-react'
 import { BusinessAppContextProps } from '@/common/BusinessAppContext'
 import { navigateTo } from '@/common/utils/navigationUtils'
 import { getTranslationFromI18nKeyAndLabel, formatDate } from '@/common/utils/windowUtils'
-import { useCustomerOpportunities } from '@/common/data/customer/hooks/useCustomerOpportunities'
+import { useCustomerOpportunity } from '@/common/data/customer/hooks/useCustomerOpportunity'
 import { useCustomerActivities } from '@/common/data/customer/hooks/useCustomerActivities'
 import { useCustomerNotes } from '@/common/data/customer/hooks/useCustomerNotes'
 import { useCustomerTasks } from '@/common/data/customer/hooks/useCustomerTasks'
-import type { CustomerOpportunity } from '@/common/data/customer/types/customerOpportunityTypes'
 import { useSalesPipelineStages } from './hooks/useSalesPipelineStages'
 import { useProcessCompletion } from '@/common/hooks/useProcessCompletion'
 import { formatCurrency, extractCurrencyCode } from '@/business-apps/crm/common/utils/currencyUtils'
@@ -67,45 +66,21 @@ const OpportunityRecordContent: React.FC<OpportunityRecordContentProps> = ({
     return () => globalThis.removeEventListener('popstate', onPopState)
   }, [])
 
-  const [opportunityData, setOpportunityData] = useState<CustomerOpportunity | null>(null)
-  const [loading, setLoading] = useState(true)
-  const [error, setError] = useState<string | null>(null)
-
-  const { fetchCustomerOpportunityById } = useCustomerOpportunities(props)
+  // Use new declarative hook for opportunity data
+  const { opportunity: opportunityData, loading, error, refetch } = useCustomerOpportunity(props, opportunityId)
   const {
     pipelineStages: opportunityStages,
     loadingPipelineStages: loadingStages,
     errorPipelineStages: stagesError
-  } = useSalesPipelineStages(opportunityData?.salesPipelineRef, props.accessToken)
+  } = useSalesPipelineStages(opportunityData?.opportunityPipelineRef, props.accessToken)
 
-  const fetchOpportunityData = useCallback(async () => {
-    if (!opportunityId || !props.accessToken) {
-      setLoading(false)
-      return
-    }
-    try {
-      setLoading(true)
-      setError(null)
-      const opportunity = await fetchCustomerOpportunityById(opportunityId)
-      if (opportunity) {
-        setOpportunityData(opportunity)
-      } else {
-        setError('Opportunity not found')
-      }
-    } catch (err) {
-      console.error('Error fetching opportunity:', err)
-      setError(err instanceof Error ? err.message : 'Failed to load opportunity')
-    } finally {
-      setLoading(false)
-    }
-  }, [opportunityId, props.accessToken, fetchCustomerOpportunityById])
-
-  useEffect(() => {
-    fetchOpportunityData()
-  }, [fetchOpportunityData])
+  // Refetch function for process completion events
+  const refetchOpportunityData = useCallback(async () => {
+    await refetch()
+  }, [refetch])
 
   // Extract stageConditionStatuses from opportunityData
-  const stageConditionStatuses = opportunityData?.stageConditionStatuses || []
+  const stageConditionStatuses = opportunityData?.opportunityStageConditions || []
 
   // AI Summary hook for HeaderSection
   const aiSummaryHook = useAiSummary(opportunityId, props.accessToken)
@@ -189,7 +164,7 @@ const OpportunityRecordContent: React.FC<OpportunityRecordContentProps> = ({
 
   useProcessCompletion({
     onSuccess: () => {
-      fetchOpportunityData()
+      refetchOpportunityData()
       loadActivities()
       loadNotes()
       loadTasksAndApprovals()
@@ -201,8 +176,8 @@ const OpportunityRecordContent: React.FC<OpportunityRecordContentProps> = ({
     setStatusUpdatePopup({
       open: true,
       opportunityId: opportunityId,
-      opportunityVersion: Number.parseInt(opportunity?.version || '0', 10),
-      opportunityName: opportunity?.name || opportunityData?.name || 'Unnamed Opportunity'
+      opportunityVersion: opportunityData?.version || 0,
+      opportunityName: opportunityData?.name || 'Unnamed Opportunity'
     })
   }
 
@@ -300,7 +275,7 @@ const OpportunityRecordContent: React.FC<OpportunityRecordContentProps> = ({
           {
             label: getTranslationFromI18nKeyAndLabel('crm.opportunity.stage', 'Stage'),
             value:
-              opportunityData?.salesPipelineStage?.value ||
+              opportunityData?.opportunityPipelineStage?.value ||
               getTranslationFromI18nKeyAndLabel('crm.common.notSet', 'Not set'),
             icon: Star
           },
@@ -339,7 +314,7 @@ const OpportunityRecordContent: React.FC<OpportunityRecordContentProps> = ({
     ]
   }, [
     opportunityData?.opportunityStatus?.value,
-    opportunityData?.salesPipelineStage?.code,
+    opportunityData?.opportunityPipelineStage?.code,
     opportunityData?.closeDate,
     opportunityData?.currency?.id,
     opportunityData?.estimatedAmount,
@@ -375,16 +350,16 @@ const OpportunityRecordContent: React.FC<OpportunityRecordContentProps> = ({
 
   const headerContent = useMemo(() => {
     // Show stage progression if data is ready
-    if (!loadingStages && !stagesError && opportunityStages.length > 0 && opportunityData?.salesPipelineRef) {
+    if (!loadingStages && !stagesError && opportunityStages.length > 0 && opportunityData?.opportunityPipelineRef) {
       return (
         <OpportunityStageProgression
-          currentStage={opportunityData?.salesPipelineStage?.code || 'Discovery'}
+          currentStage={opportunityData?.opportunityPipelineStage?.code || 'Discovery'}
           stages={opportunityStages}
           opportunityId={opportunityId || ''}
           opportunityVersion={opportunityData?.version}
           accessToken={props.accessToken}
           stageConditionStatuses={stageConditionStatuses}
-          onStageUpdate={fetchOpportunityData}
+          onStageUpdate={refetchOpportunityData}
         />
       )
     }
@@ -419,7 +394,7 @@ const OpportunityRecordContent: React.FC<OpportunityRecordContentProps> = ({
     }
 
     // Show no pipeline assigned message
-    if (opportunityData && !opportunityData.salesPipelineRef) {
+    if (opportunityData && !opportunityData.opportunityPipelineRef) {
       return (
         <div
           style={{
@@ -443,13 +418,13 @@ const OpportunityRecordContent: React.FC<OpportunityRecordContentProps> = ({
     loadingStages,
     stagesError,
     opportunityStages,
-    opportunityData?.salesPipelineRef,
-    opportunityData?.salesPipelineStage?.code,
+    opportunityData?.opportunityPipelineRef,
+    opportunityData?.opportunityPipelineStage?.code,
     opportunityId,
     opportunityData?.version,
     stageConditionStatuses,
     props.accessToken,
-    fetchOpportunityData,
+    refetchOpportunityData,
     opportunityData?.opportunityStatus?.value
   ])
 

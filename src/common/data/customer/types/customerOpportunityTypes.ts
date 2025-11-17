@@ -172,7 +172,7 @@ export const buildCustomerOpportunityPayload = (opportunity: Partial<CustomerOpp
   }
 
   return {
-    customerOpportunity: basePayload
+    opportunity: basePayload
   }
 }
 

@@ -29,7 +29,6 @@ export const useEmployeeSearch = (accessToken?: string, initialEmployee?: Employ
   // Pin initial employee if provided and update state
   useEffect(() => {
     if (initialEmployee && !pinnedRef.current.has(initialEmployee.id)) {
-      console.log('📌 useEmployeeSearch: Pinning initial employee', initialEmployee)
       pinnedRef.current.set(initialEmployee.id, initialEmployee)
 
       // Update employees list to include initial employee

@@ -9,6 +9,9 @@ import type { InvestmentDocument } from './investmentDocumentTypes'
 import type { InvestmentOpportunity } from './investmentOpportunityTypes'
 import type { InvestmentActivity } from './investmentActivityTypes'
 import type { InvestmentNote } from './investmentNoteTypes'
+import { buildInvestmentAccountPayload } from './investmentAccountTypes'
+import { buildInvestmentContactPayload } from './investmentContactTypes'
+import { buildInvestmentOpportunityPayload } from './investmentOpportunityTypes'
 
 export interface InvestmentLead extends Lead {
   activities?: InvestmentActivity[]
@@ -200,4 +203,56 @@ export const buildInvestmentLeadPayload = (lead: Partial<InvestmentLead>) => {
 export function toInvestmentLead(raw: any): InvestmentLead {
   // IRM uses correct field names, no mapping needed
   return raw as InvestmentLead
+}
+
+/**
+ * Build Investment Lead Convert Payload
+ * Simple function that takes lead ID and optional account, contact, opportunity objects
+ *
+ * @param leadId - The ID of the lead being converted
+ * @param account - Account object (full object for create, or { id: string } for match)
+ * @param contact - Contact object (full object for create, or { id: string } for match)
+ * @param opportunity - Opportunity object (only if creating opportunity)
+ */
+export const buildInvestmentLeadConvertPayload = (
+  leadId: string,
+  account?: Partial<InvestmentAccount> | { id: string },
+  contact?: Partial<InvestmentContact> | { id: string },
+  opportunity?: Partial<InvestmentOpportunity>
+) => {
+  const payload: any = {
+    leadId
+  }
+
+  // Handle Account
+  if (account) {
+    if ('id' in account && Object.keys(account).length === 1) {
+      // Match existing account - only send id
+      payload.account = { id: account.id }
+    } else {
+      // Create new account - use payload builder
+      const { investmentAccount } = buildInvestmentAccountPayload(account as Partial<InvestmentAccount>)
+      payload.account = investmentAccount
+    }
+  }
+
+  // Handle Contact
+  if (contact) {
+    if ('id' in contact && Object.keys(contact).length === 1) {
+      // Match existing contact - only send id
+      payload.contact = { id: contact.id }
+    } else {
+      // Create new contact - use payload builder
+      const { investmentContact } = buildInvestmentContactPayload(contact as Partial<InvestmentContact>)
+      payload.contact = investmentContact
+    }
+  }
+
+  // Handle Opportunity
+  if (opportunity) {
+    const { investmentOpportunity } = buildInvestmentOpportunityPayload(opportunity as Partial<InvestmentOpportunity>)
+    payload.opportunity = investmentOpportunity
+  }
+
+  return payload
 }

@@ -1,10 +1,11 @@
 import { UseFormReturn } from 'react-hook-form'
+import type { LeadConvertSchema } from '@/common/components/common-relations/schemas/leadConvertSchema'
 
 /**
  * Check if form is ready for conversion (lenient validation to allow wizard progression)
  * Context-agnostic validation logic
  */
-export const checkFormReadiness = (formValues: any): boolean => {
+export const checkFormReadiness = (formValues: LeadConvertSchema): boolean => {
   // Account validation - only check for "match" option
   if (formValues.accountOption === 'match' && !formValues.selectedAccountId) {
     return false
@@ -29,7 +30,7 @@ export const checkFormReadiness = (formValues: any): boolean => {
  * Set validation errors on form
  * Context-agnostic error handling
  */
-export const setValidationErrors = (form: UseFormReturn<any>, formValues: any) => {
+export const setValidationErrors = (form: UseFormReturn<LeadConvertSchema>, formValues: LeadConvertSchema) => {
   // Account errors
   if (formValues.accountOption === 'match' && !formValues.selectedAccountId) {
     form.setError('selectedAccountId', {

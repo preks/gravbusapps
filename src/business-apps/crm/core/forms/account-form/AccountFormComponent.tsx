@@ -1,7 +1,10 @@
-import React, { useEffect, useCallback } from 'react'
+import React, { useEffect, useCallback, useState } from 'react'
 import type { CustomerAccount } from '@/common/data/customer/types/customerAccountTypes'
 import { useForm } from 'react-hook-form'
-import { useAccountFormContext } from './AccountFormContext'
+import { BusinessAppContextProps } from '@/common/BusinessAppContext'
+import { useCustomerCampaigns } from '@/common/data/customer/hooks/useCustomerCampaigns'
+import { useCustomerAccount } from '@/common/data/customer/hooks/useCustomerAccount'
+import { useGetCustomerContacts } from '@/common/data/customer/hooks/useCustomerContacts'
 import {
   Alert,
   AlertDescription,
@@ -25,22 +28,60 @@ import { buildCommunicationChannelRef } from '@/common/data/common/utils/communi
 
 const prefixDataTestId = 'AccountForm'
 
-const AccountFormComponent: React.FC = () => {
-  const {
-    account,
-    accountId,
-    accountLoading,
-    accountError,
-    onCancel: contextOnCancel,
-    hideActions,
-    contacts,
-    contactsLoading,
-    contactsError,
-    searchContacts,
-    businessAppContext
-  } = useAccountFormContext()
+interface AccountFormComponentProps {
+  businessAppContext: BusinessAppContextProps
+  initialValues?: Partial<CustomerAccount>
+  onSubmit?: (account: Partial<CustomerAccount>) => Promise<void>
+  onCancel?: () => Promise<void>
+}
 
-  // Avatar image for preview (from existing account data)
+const AccountFormComponent: React.FC<AccountFormComponentProps> = ({
+  businessAppContext,
+  initialValues,
+  onCancel = async () => {}
+}) => {
+  // Extract accountId from businessAppContext
+  const accountId =
+    businessAppContext.additionalData?.accountId ||
+    businessAppContext.additionalData?.psi_taskPayload?.psi_initialParameters?.accountId
+
+  // Fetch account data using declarative hook
+  const {
+    account: fetchedAccount,
+    loading: accountLoading,
+    error: accountError
+  } = useCustomerAccount(businessAppContext, accountId)
+
+  // Local state for account
+  const [account, setAccount] = useState<CustomerAccount | null>(null)
+
+  // Sync fetched account with local state
+  useEffect(() => {
+    if (fetchedAccount) {
+      setAccount(fetchedAccount)
+    } else if (!accountId && initialValues && Object.keys(initialValues).length > 0) {
+      setAccount(initialValues as CustomerAccount)
+    }
+  }, [fetchedAccount, accountId, initialValues])
+
+  // Sales Campaigns hook (defer fetching until select opens)
+  // Note: CampaignSelect handles its own data fetching internally
+  useCustomerCampaigns(businessAppContext.accessToken, 20, false)
+
+  // Contact selection hook
+  const {
+    options: contactsList,
+    loading: contactsLoading,
+    error: contactsError,
+    search: searchContacts
+  } = useGetCustomerContacts(businessAppContext, {
+    withState: true,
+    autoFetch: true,
+    pageSize: 20,
+    mapToSelectOptions: true
+  })
+
+  // Avatar image for preview
   const avatarImage = (() => {
     if (account?.pictureThumbnail) {
       return `data:image/jpeg;base64,${account.pictureThumbnail}`
@@ -56,10 +97,9 @@ const AccountFormComponent: React.FC = () => {
     return undefined
   })()
 
-  // Helper function to transform CustomerAccount to form values
+  // Transform CustomerAccount to form values
   const accountToFormValues = useCallback((acc: CustomerAccount | null) => {
     if (!acc) {
-      // New account - initialize with defaults (no IDs - backend will generate)
       return {
         ownerEmployeeId: '',
         name: '',
@@ -96,11 +136,11 @@ const AccountFormComponent: React.FC = () => {
         pictureThumbnail: undefined,
         id: undefined,
         version: undefined,
-        code: undefined
+        code: undefined,
+        contacts: []
       }
     }
 
-    // Transform addressLine (string) to addressLines (array) for UI
     const addresses = (acc.addresses || []).map((addr: any) => {
       const addressLines = addr.addressLine
         ? typeof addr.addressLine === 'string'
@@ -133,7 +173,6 @@ const AccountFormComponent: React.FC = () => {
       })
     }
 
-    // Transform communication channels
     const communicationChannels =
       acc.communicationChannels?.map((ch: any) => ({
         ...(ch.id && { id: ch.id }),
@@ -143,7 +182,6 @@ const AccountFormComponent: React.FC = () => {
         valueExtension: ch.valueExtension || null
       })) || []
 
-    // For new accounts without channels, add default PHONE and EMAIL (no IDs - backend will generate)
     if (communicationChannels.length === 0 && !acc.id) {
       communicationChannels.push(
         {
@@ -158,6 +196,25 @@ const AccountFormComponent: React.FC = () => {
         }
       )
     }
+
+    // Map accountContacts to form contacts array
+    const contacts = (acc.accountContacts || []).map((ac: any) => {
+      const contact = ac.contact
+      const contactId = contact?.id || ac.contactId || ac.contact
+      const contactName =
+        contact?.displayName ||
+        contact?.fullName ||
+        `${contact?.firstName || ''} ${contact?.lastName || ''}`.trim() ||
+        'Unknown Contact'
+
+      return {
+        id: contactId,
+        name: contactName,
+        contactType: ac.contactType || undefined,
+        associationId: ac.id, // Store association ID for updates
+        associationVersion: ac.version // Store association version for updates
+      }
+    })
 
     return {
       ownerEmployeeId: acc.ownerEmployeeId || '',
@@ -175,7 +232,8 @@ const AccountFormComponent: React.FC = () => {
       pictureThumbnail: acc.pictureThumbnail,
       id: acc.id,
       version: acc.version,
-      code: acc.code
+      code: acc.code,
+      contacts: contacts.length > 0 ? contacts : []
     }
   }, [])
 
@@ -200,9 +258,8 @@ const AccountFormComponent: React.FC = () => {
   const formValues = form.getValues()
   const isFormValid = formValues.ownerEmployeeId && formValues.legalFormRef && formValues.name
 
-  // Handle form submission - returns payload for AppActionForm
+  // Handle form submission
   const handleSubmit = async (data: any) => {
-    // Transform addressLines (array) to addressLine (string for CRM)
     const addresses =
       data.addresses
         ?.filter(
@@ -216,7 +273,6 @@ const AccountFormComponent: React.FC = () => {
         .map((addr: any) => {
           const addressPayload: any = {
             addressType: addr.addressType || AddressType.PRIMARY_ADDRESS,
-            // CRM: addressLine is a String (join array into single line)
             addressLine: addr.addressLines?.some((line: string) => line.trim())
               ? addr.addressLines.filter((line: string) => line.trim()).join(', ')
               : null,
@@ -226,7 +282,6 @@ const AccountFormComponent: React.FC = () => {
             countryRef: addr.countryRef?.trim() || null
           }
 
-          // Only include ID and version when updating an existing address (must have valid ID from backend)
           if (data.id && addr.id) {
             addressPayload.id = addr.id
             if (addr.version !== undefined && addr.version !== null) {
@@ -238,7 +293,6 @@ const AccountFormComponent: React.FC = () => {
         })
         .filter(Boolean) || []
 
-    // Filter empty communication channels and ensure version is included
     const communicationChannels =
       data.communicationChannels
         ?.filter((ch: any) => ch.communicationChannelRef?.trim() && ch.value?.trim())
@@ -249,7 +303,6 @@ const AccountFormComponent: React.FC = () => {
             valueExtension: ch.valueExtension || null
           }
 
-          // Include ID and version when updating an existing channel
           if (ch.id) {
             channelPayload.id = ch.id
             if (ch.version !== undefined && ch.version !== null) {
@@ -261,44 +314,38 @@ const AccountFormComponent: React.FC = () => {
         })
         .filter(Boolean) || []
 
-    // Build accountContacts array
-    const accountContacts = ((account?.accountContacts || []) as any[]).map((accountContact: any) => {
+    // Build accountContacts from form data (contacts field)
+    const accountContacts = ((data.contacts || []) as any[]).map((contact: any) => {
       const accountContactPayload: any = {
-        contactType: accountContact.contactType || null,
+        contactType: contact.contactType || null,
         account: data.id,
-        contact: accountContact.contact?.id || accountContact.contactId || accountContact.contact
+        contact: typeof contact === 'object' ? contact.id : contact
       }
 
-      if (accountContact.id) {
-        accountContactPayload.id = accountContact.id
-        if (accountContact.version !== undefined) {
-          accountContactPayload.version = accountContact.version
+      // If this is an existing contact (has associationId), include id and version
+      if (contact.associationId) {
+        accountContactPayload.id = contact.associationId
+        if (contact.associationVersion !== undefined) {
+          accountContactPayload.version = contact.associationVersion
         }
       }
 
       return accountContactPayload
     })
 
-    // Build CustomerAccount object - data already has correct field names
-    // Note: salesCampaignId is managed separately via SearchableSelect, get it from form values
-    const formValues = form.getValues()
-    const customerAccount: Partial<import('@/common/data/customer/types/customerAccountTypes').CustomerAccount> = {
+    const customerAccount: Partial<CustomerAccount> = {
       ...data,
-      salesCampaignId: formValues.salesCampaignId || undefined,
+      salesCampaignId: form.getValues().salesCampaignId || undefined,
       communicationChannels: communicationChannels.length > 0 ? communicationChannels : undefined,
       addresses: addresses.length > 0 ? addresses : undefined,
       accountContacts: accountContacts.length > 0 ? accountContacts : undefined,
-      // Remove form-specific fields
       avatarFile: undefined,
       avatarThumbnail: undefined
     }
 
-    // ✅ Use centralized payload builder
     const { account: accountPayload } = buildCustomerAccountPayload(customerAccount)
-
     const changeMode = data.id ? 'UPDATE' : 'INSERT'
 
-    // Return payload for AppActionForm to handle process event
     return {
       account: accountPayload,
       changeMode: changeMode
@@ -307,7 +354,7 @@ const AccountFormComponent: React.FC = () => {
 
   // Handle form cancellation
   const handleCancel = async () => {
-    await contextOnCancel()
+    await onCancel()
   }
 
   // Sales Campaign selector component
@@ -350,7 +397,6 @@ const AccountFormComponent: React.FC = () => {
     />
   )
 
-  // Determine process type based on whether account exists
   const processType = account?.id ? 'update' : 'create'
 
   return (
@@ -362,7 +408,7 @@ const AccountFormComponent: React.FC = () => {
         formData={form.getValues()}
         form={form}
         businessAppContext={businessAppContext}
-        showCancelButton={!hideActions}
+        showCancelButton={true}
         data-testid={formatDataTestId(prefixDataTestId, 'Form')}
         submitButtonText={formValues.id ? 'Update Account' : 'Create Account'}
         isSubmitDisabled={!isFormValid || accountLoading}
@@ -400,7 +446,7 @@ const AccountFormComponent: React.FC = () => {
             annualRevenueCatalogIdentifier="RevenueSize:v1"
             companySizeCatalogIdentifier="EmployeeSize:v1"
             avatarImage={avatarImage}
-            contacts={contacts}
+            contacts={contactsList as any}
             contactsLoading={contactsLoading}
             contactsError={contactsError}
             searchContacts={searchContacts}

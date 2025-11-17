@@ -305,8 +305,8 @@ export const useCustomerContacts = (context: BusinessAppContextProps) => {
 
   const fetchCustomerContactById = useCallback(
     async (id: string): Promise<CustomerContact | null> => {
-      const query = buildCustomerContactByIdQuery(undefined, id)
-      const result = await graphqlClient.request<{ ContactByPk: CustomerContact | null }>(query)
+      const query = buildCustomerContactByIdQuery()
+      const result = await graphqlClient.request<{ ContactByPk: CustomerContact | null }>(query, { id })
       return result.ContactByPk ? toCustomerContact(result.ContactByPk) : null
     },
     [graphqlClient]

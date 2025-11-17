@@ -1,5 +1,4 @@
 import React from 'react'
-import { AccountFormProvider } from './AccountFormContext'
 import AccountFormComponent from './AccountFormComponent'
 import type { CustomerAccount } from '@/common/data/customer/types/customerAccountTypes'
 import { BusinessAppContextProps } from '@/common/BusinessAppContext'
@@ -35,14 +34,12 @@ const AccountForm: React.FC<BusinessAppContextProps & AccountFormProps> = ({
   }
 
   return (
-    <AccountFormProvider
+    <AccountFormComponent
       businessAppContext={businessAppContext}
       initialValues={initialValues}
       onSubmit={onSubmit}
       onCancel={onCancel}
-    >
-      <AccountFormComponent />
-    </AccountFormProvider>
+    />
   )
 }
 

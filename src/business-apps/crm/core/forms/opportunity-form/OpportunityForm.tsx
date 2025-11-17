@@ -1,5 +1,5 @@
 import React from 'react'
-import OpportunityFormComponent from './components/OpportunityFormComponent'
+import OpportunityFormComponent from './OpportunityFormComponent'
 import { BusinessAppContextProps } from '@/common/BusinessAppContext'
 
 interface OpportunityFormProps {

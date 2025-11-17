@@ -13,14 +13,13 @@ import { Users, FileText, User, DollarSign } from 'lucide-react'
 import { BusinessAppContextProps } from '@/common/BusinessAppContext'
 import { navigateTo, buildPlatformUrl } from '@/common/utils/navigationUtils'
 import { getTranslationFromI18nKeyAndLabel } from '@/common/utils/windowUtils'
-import { useCustomerContacts } from '@/common/data/customer/hooks/useCustomerContacts'
+import { useCustomerContact } from '@/common/data/customer/hooks/useCustomerContact'
 import { useCustomerActivities } from '@/common/data/customer/hooks/useCustomerActivities'
 import { useCustomerTasks } from '@/common/data/customer/hooks/useCustomerTasks'
 import { useCustomerNotes } from '@/common/data/customer/hooks/useCustomerNotes'
 import { AppActionButton } from '@/components/app-action-button/AppActionButton'
 import { FlowContextName } from '@/common/types/FlowRegistryTypes'
 import { HomeView } from './views/home-view/HomeView'
-import type { CustomerContact } from '@/common/data/customer/types/customerContactTypes'
 import { OpportunityView } from './views/opportunity-view/OpportunityView'
 import { DocumentView } from './views/document-view/DocumentView'
 import { getEmailChannel, getPhoneChannel } from '@/common/data/common/utils/communicationChannelHelpers'
@@ -32,16 +31,14 @@ interface ContactRecordContentProps extends BusinessAppContextProps {
 }
 
 const ContactRecordContent: React.FC<ContactRecordContentProps> = ({ contactId, onBack, fromEntity, ...props }) => {
-  const [contactData, setContactData] = useState<CustomerContact | null>(null)
-  const [loading, setLoading] = useState(true)
-  const [error, setError] = useState<string | null>(null)
   const [activeTab, setActiveTab] = useState<string>(() => {
     if (typeof window === 'undefined') return 'overview'
     const params = new URLSearchParams(window.location.search)
     return params.get('tab') || 'overview'
   })
 
-  const { fetchCustomerContactById } = useCustomerContacts(props)
+  // Use new declarative hook for contact data
+  const { contact: contactData, loading, error, refetch: refetchContactData } = useCustomerContact(props, contactId)
 
   // Data fetching hooks for sections - using central hooks
   const { fetchCustomerActivitiesByContactId } = useCustomerActivities(props)
@@ -142,31 +139,8 @@ const ContactRecordContent: React.FC<ContactRecordContentProps> = ({ contactId, 
 
   // Fetch contact data
   const fetchContactData = useCallback(async () => {
-    if (!contactId || !props.accessToken) {
-      setLoading(false)
-      return
-    }
-
-    try {
-      setLoading(true)
-      setError(null)
-      const contact = await fetchCustomerContactById(contactId)
-      if (contact) {
-        setContactData(contact)
-      } else {
-        setError('Contact not found')
-      }
-    } catch (err) {
-      console.error('Error fetching contact:', err)
-      setError(err instanceof Error ? err.message : 'Failed to load contact')
-    } finally {
-      setLoading(false)
-    }
-  }, [contactId, props.accessToken, fetchCustomerContactById])
-
-  useEffect(() => {
-    fetchContactData()
-  }, [fetchContactData])
+    await refetchContactData()
+  }, [refetchContactData])
 
   // Listen for process completion events to refresh contact data
   useEffect(() => {

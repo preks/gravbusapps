@@ -15,8 +15,8 @@ import { navigateTo, buildPlatformUrl } from '@/common/utils/navigationUtils'
 import { getTranslationFromI18nKeyAndLabel } from '@/common/utils/windowUtils'
 import { FlowContextName } from '@/common/types/FlowRegistryTypes'
 import { StatusProgression } from './components/StatusProgression'
+import { useInvestmentLead } from '@/common/data/investment/hooks/useInvestmentLead'
 import {
-  useGetInvestmentLeadById,
   useGetInvestmentActivitiesByLeadId,
   useGetInvestmentNotesByLeadId,
   useGetInvestmentTasksByLeadId
@@ -61,54 +61,29 @@ const InvestmentLeadRecordContent: React.FC<LeadRecordContentProps> = ({ leadId,
     return getValidTab(new URLSearchParams(window.location.search).get('tab'))
   })
 
-  // Fetch lead data using central hook
-  const { fetchInvestmentLeadById } = useGetInvestmentLeadById(props)
-
-  // State for lead data
-  const [leadData, setLeadData] = useState<any>(null)
-  const [loading, setLoading] = useState(true)
-  const [error, setError] = useState<string | null>(null)
+  // Use new declarative hook for lead data
+  const { lead: leadData, loading, error, refetch } = useInvestmentLead(props, leadId)
   const [leadStatuses, setLeadStatuses] = useState<any[]>([])
 
-  // Fetch lead data
-  const fetchLeadData = useCallback(async () => {
-    if (!leadId || !props.accessToken) {
-      setLoading(false)
-      return
-    }
-
-    try {
-      setLoading(true)
-      setError(null)
-      const result = await fetchInvestmentLeadById(leadId)
-      if (result && result.lead) {
-        setLeadData(result.lead)
-        // Extract lead statuses from lead object if available
-        if (result.lead.leadStatuses && Array.isArray(result.lead.leadStatuses)) {
-          // Statuses are already sorted by alternativeCode from GraphQL query
-          setLeadStatuses(
-            result.lead.leadStatuses.map((status: any) => ({
-              id: status.id,
-              code: status.code,
-              value: status.value,
-              alternativeCode: status.alternativeCode
-            }))
-          )
-        }
-      } else {
-        setError('Lead not found')
-      }
-    } catch (err) {
-      setError(err instanceof Error ? err.message : 'Failed to fetch lead data')
-    } finally {
-      setLoading(false)
-    }
-  }, [leadId, props.accessToken, fetchInvestmentLeadById])
-
-  // Load data on mount
+  // Extract lead statuses from leadData when it changes
   useEffect(() => {
-    fetchLeadData()
-  }, [fetchLeadData])
+    if (leadData?.leadStatuses && Array.isArray(leadData.leadStatuses)) {
+      // Statuses are already sorted by alternativeCode from GraphQL query
+      setLeadStatuses(
+        leadData.leadStatuses.map((status: any) => ({
+          id: status.id,
+          code: status.code,
+          value: status.value,
+          alternativeCode: status.alternativeCode
+        }))
+      )
+    }
+  }, [leadData])
+
+  // Fetch lead data function for refetch
+  const fetchLeadData = useCallback(async () => {
+    await refetch()
+  }, [refetch])
 
   // Always call useAiSummary hook, but conditionally use its result
   const aiSummary = useAiSummary(leadId, props.accessToken)

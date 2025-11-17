@@ -4,16 +4,16 @@ import { zodResolver } from '@hookform/resolvers/zod'
 export const opportunitySegmentSchema = z.object({
   ownerEmployeeId: z.string().min(1, 'Owner is required'),
   opportunityName: z.string().min(1, 'Opportunity name is required'),
-  accountId: z.string().optional(),
-  estimatedAmount: z.string().optional(),
-  currency: z.string().optional(),
-  estimatedCloseDate: z.string().optional(),
-  pipelineRef: z.string().optional(),
-  stageRef: z.string().optional(),
-  statusRef: z.string().optional(),
-  probability: z.string().optional(),
-  description: z.string().optional(),
-  notesSummary: z.string().optional()
+  accountId: z.string().nullable().optional(),
+  estimatedAmount: z.string().nullable().optional(),
+  currency: z.string().nullable().optional(),
+  estimatedCloseDate: z.string().nullable().optional(),
+  pipelineRef: z.string().nullable().optional(),
+  stageRef: z.string().nullable().optional(),
+  statusRef: z.string().nullable().optional(),
+  probability: z.string().nullable().optional(),
+  description: z.string().nullable().optional(),
+  notesSummary: z.string().nullable().optional()
 })
 
 export type OpportunitySegmentSchema = z.infer<typeof opportunitySegmentSchema>

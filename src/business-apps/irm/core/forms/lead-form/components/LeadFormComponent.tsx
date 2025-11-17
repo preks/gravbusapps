@@ -1,12 +1,14 @@
-import React, { useCallback } from 'react'
+import React, { useCallback, useState, useEffect } from 'react'
 import { useForm } from 'react-hook-form'
-import { useLeadFormContext } from '../context/LeadFormContext'
+import { BusinessAppContextProps } from '@/common/BusinessAppContext'
+import { useInvestmentLead } from '@/common/data/investment/hooks/useInvestmentLead'
 import { LeadLayout } from '@/common/components/common-relations/form-layouts/lead-layout'
 import { createLeadSegmentResolver } from '@/common/components/common-relations/schemas/leadSchema'
 import { buildInvestmentLeadPayload } from '@/common/data/investment/types/investmentLeadTypes'
 import { AppActionForm } from '@/components/app-action-form'
 import { InvestmentProspectSegment } from '@/common/components/investment/form-segments/investment-prospect-segment'
 import { Alert, AlertDescription } from '@newwork/nw-design-system'
+import { CatalogSelect } from '@/components/catalog-select'
 import { AddressType } from '@/common/data/relations/types/relationEnums'
 import { CommunicationChannelCode } from '@/common/data/relations/types/relationEnums'
 import { buildCommunicationChannelRef } from '@/common/data/common/utils/communicationChannelHelpers'
@@ -14,8 +16,31 @@ import type { InvestmentLead } from '@/common/data/investment/types/investmentLe
 
 const prefixDataTestId = 'IrmLeadForm'
 
-const LeadFormComponent: React.FC = () => {
-  const { lead, leadLoading, leadError, businessAppContext } = useLeadFormContext()
+interface LeadFormComponentProps {
+  businessAppContext: BusinessAppContextProps
+  initialValues?: Partial<InvestmentLead>
+  onSubmit?: (lead: Partial<InvestmentLead>) => Promise<void>
+  onCancel?: () => Promise<void>
+}
+
+const LeadFormComponent: React.FC<LeadFormComponentProps> = ({ businessAppContext, initialValues }) => {
+  // Extract leadId from multiple sources (same pattern as ConvertLeadForm)
+  const leadId =
+    initialValues?.id ||
+    businessAppContext.additionalData?.leadId ||
+    businessAppContext.additionalData?.psi_taskPayload?.psi_initialParameters?.leadId ||
+    undefined
+
+  // Lead state - use new declarative hook
+  const { lead: fetchedLead, loading: leadLoading, error: leadError } = useInvestmentLead(businessAppContext, leadId)
+  const [lead, setLead] = useState<InvestmentLead | null>((initialValues as InvestmentLead) || null)
+
+  // Update lead when fetched
+  useEffect(() => {
+    if (fetchedLead) {
+      setLead(fetchedLead)
+    }
+  }, [fetchedLead])
 
   // Transform InvestmentLead to form values
   const leadToFormValues = useCallback((ld: InvestmentLead | null) => {
@@ -128,20 +153,20 @@ const LeadFormComponent: React.FC = () => {
       ownerEmployeeId: ld.ownerEmployeeId || '',
       firstName: ld.firstName || '',
       lastName: ld.lastName || '',
-      company: ld.company || '',
+      company: ld.companyName || '',
       leadStatusRef: ld.leadStatusRef || '',
       leadSourceRef: ld.leadSourceRef || '',
       leadRatingRef: ld.leadRatingRef || '',
       sensitive: ld.sensitive || false,
       academicTitleRef: ld.academicTitleRef || '',
-      jobPosition: ld.jobPosition || '',
+      jobPosition: ld.position || '',
       legalFormRef: ld.legalFormRef || '',
       industryClassRef: ld.industryClassRef || '',
-      website: ld.website || '',
+      website: ld.companyWebsite || '',
       companyEmail: ld.companyEmail || '',
       companyPhone: ld.companyPhone || '',
       companySizeRef: ld.companySizeRef || '',
-      annualRevenueBandRef: ld.annualRevenueBandRef || '',
+      annualRevenueBandRef: ld.accountAnnualRevenueBandRef || '',
       addresses,
       communicationChannels,
       id: ld.id,
@@ -157,7 +182,8 @@ const LeadFormComponent: React.FC = () => {
   // Update form when lead changes
   React.useEffect(() => {
     if (lead) {
-      form.reset(leadToFormValues(lead))
+      const formValues = leadToFormValues(lead)
+      form.reset(formValues)
     }
   }, [lead, form, leadToFormValues])
 
@@ -244,31 +270,34 @@ const LeadFormComponent: React.FC = () => {
 
   return (
     <AppActionForm form={form} onSubmit={handlePreSubmit} data-testid={prefixDataTestId}>
-      <LeadLayout
-        businessAppContext={businessAppContext}
-        ownerEmployee={lead?.ownerEmployee}
-        leadStatusCatalogIdentifier="InvestmentLeadStatus:v1"
-        leadSourceCatalogIdentifier="InvestmentLeadSource:v1"
-        leadRatingCatalogIdentifier="InvestmentLeadRating:v1"
-        companySizeCatalogIdentifier="CompanySize:v1"
-        annualRevenueCatalogIdentifier="AccountAnnualRevenueBand:v1"
-        addresses={(lead as any)?.addresses}
-        customSegments={[
-          {
-            id: 'investment-prospect',
-            title: 'Investment Information',
-            content: (
-              <InvestmentProspectSegment
-                investmentGroupId={investmentGroupId as string}
-                investmentTypeId={investmentTypeId as string}
-                businessAppContext={businessAppContext}
-                testIdPrefix={prefixDataTestId}
-                currencySymbol="€"
-              />
-            )
-          }
-        ]}
-      />
+      <CatalogSelect.Provider {...businessAppContext} form={form}>
+        <LeadLayout
+          businessAppContext={businessAppContext}
+          ownerEmployee={lead?.ownerEmployee}
+          entityId={lead?.id}
+          leadStatusCatalogIdentifier="InvestmentLeadStatus:v1"
+          leadSourceCatalogIdentifier="InvestmentLeadSource:v1"
+          leadRatingCatalogIdentifier="InvestmentLeadRating:v1"
+          companySizeCatalogIdentifier="CompanySize:v1"
+          annualRevenueCatalogIdentifier="AccountAnnualRevenueBand:v1"
+          addresses={(lead as any)?.addresses}
+          customSegments={[
+            {
+              id: 'investment-prospect',
+              title: 'Investment Information',
+              content: (
+                <InvestmentProspectSegment
+                  investmentGroupId={investmentGroupId as string}
+                  investmentTypeId={investmentTypeId as string}
+                  businessAppContext={businessAppContext}
+                  testIdPrefix={prefixDataTestId}
+                  currencySymbol="€"
+                />
+              )
+            }
+          ]}
+        />
+      </CatalogSelect.Provider>
     </AppActionForm>
   )
 }

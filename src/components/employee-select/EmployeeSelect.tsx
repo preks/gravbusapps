@@ -72,7 +72,6 @@ const EmployeeSelect = React.forwardRef<HTMLButtonElement, EmployeeSelectProps &
     // Trigger initial search when onSearch becomes available
     React.useEffect(() => {
       if (onSearch && !initialSearchDone.current) {
-        console.log('🔍 EmployeeSelect: Triggering initial search')
         onSearch('')
         initialSearchDone.current = true
       }

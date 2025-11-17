@@ -115,8 +115,8 @@ export const useInvestmentLeads = (context: BusinessAppContextProps) => {
 
   const fetchInvestmentLeadById = useCallback(
     async (id: string): Promise<InvestmentLead | null> => {
-      const query = buildInvestmentLeadByIdQuery(undefined, id)
-      const result = await graphqlClient.request<{ InvestmentLeadByPk: Lead | null }>(query)
+      const query = buildInvestmentLeadByIdQuery()
+      const result = await graphqlClient.request<{ InvestmentLeadByPk: InvestmentLead | null }>(query, { id })
       return result.InvestmentLeadByPk ? toInvestmentLead(result.InvestmentLeadByPk as InvestmentLead) : null
     },
     [graphqlClient]
@@ -202,22 +202,20 @@ export const useGetInvestmentLeadById = (context: BusinessAppContextProps) => {
 
   const fetchInvestmentLeadById = useCallback(
     async (id: string) => {
-      const query = buildInvestmentLeadByIdQuery(undefined, id)
+      const query = buildInvestmentLeadByIdQuery()
 
       try {
         const result = await graphqlClient.request<{
-          InvestmentLeadByPk: Lead | null
+          InvestmentLeadByPk: InvestmentLead | null
           leadStatuses?: Array<{
             id: string
             code: string
             value: string
             alternativeCode?: string
           }>
-        }>(query)
+        }>(query, { id })
 
-        const lead = result.InvestmentLeadByPk
-          ? toInvestmentLead(result.InvestmentLeadByPk as InvestmentLead)
-          : undefined
+        const lead = result.InvestmentLeadByPk ? toInvestmentLead(result.InvestmentLeadByPk) : undefined
         return {
           lead: lead ? { ...lead, leadStatuses: result.leadStatuses || [] } : undefined
         } as InvestmentLeadByIdData & {

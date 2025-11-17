@@ -433,10 +433,10 @@ const AccountSelect: React.FC<AccountSelectProps> = ({
         </Button>
       )}
 
-      {/* For single-select mode: show combobox immediately if no value */}
-      {!multiple && internalValue.length === 0 && (
+      {/* For single-select mode: show combobox if no value or always show for editing */}
+      {!multiple && (
         <Combobox
-          value=""
+          value={internalValue.length > 0 ? getAccountId(internalValue[0]) : ''}
           onValueChange={handleAddAccount}
           options={availableAccountOptions}
           placeholder="Search and select account..."
@@ -449,8 +449,8 @@ const AccountSelect: React.FC<AccountSelectProps> = ({
         />
       )}
 
-      {/* Selected Accounts List */}
-      {internalValue.length > 0 && (
+      {/* Selected Accounts List - only for multiple mode */}
+      {multiple && internalValue.length > 0 && (
         <div className="gba:space-y-2" data-testid={formatDataTestId(dataTestId || 'account-list', 'selected-list')}>
           {internalValue.map((account, index) => {
             const accountId = getAccountId(account)

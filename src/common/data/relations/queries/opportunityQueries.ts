@@ -140,7 +140,6 @@ export const buildOpportunityQuery = (
  */
 export const buildOpportunityByIdQuery = (
   entityName: string,
-  id: string,
   entityFields: Record<keyof typeof OpportunityFields, string> = OpportunityFields,
   relationBuilders?: OpportunityRelationBuilders,
   relationFields?: OpportunityRelationFields,
@@ -294,8 +293,8 @@ export const buildOpportunityByIdQuery = (
       : ''
 
   return `
-    query Get${entityName}ById {
-      ${entityName}ByPk(id: "${id}") {
+    query Get${entityName}ById($id: uuid!) {
+      ${entityName}ByPk(id: $id) {
         ${baseFields}
         ${commonRelations}
         ${additionalFields || ''}

@@ -3,42 +3,61 @@ import { zodResolver } from '@hookform/resolvers/zod'
 
 export const contactSegmentSchema = z.object({
   ownerEmployeeId: z.string().min(1, 'Owner is required'),
-  contactTypeRef: z.string().optional(),
-  salutationRef: z.string().optional(),
+  contactTypeRef: z.string().nullable().optional(),
+  salutationRef: z.string().nullable().optional(),
   firstName: z.string().min(1, 'First name is required'),
   lastName: z.string().min(1, 'Last name is required'),
-  email: z.string().min(1, 'Email is required'),
-  phone: z.string().optional(),
-  academicTitleRef: z.string().optional(),
-  languageRef: z.string().optional(),
-  birthDate: z.string().optional(),
-  description: z.string().optional(),
-  notesSummary: z.string().optional(),
-  jobPosition: z.string().optional(),
-  department: z.string().optional(),
-  code: z.string().optional(),
+  academicTitleRef: z.string().nullable().optional(),
+  languageRef: z.string().nullable().optional(),
+  birthDate: z.string().nullable().optional(),
+  description: z.string().nullable().optional(),
+  notesSummary: z.string().nullable().optional(),
+  jobPosition: z.string().nullable().optional(),
+  department: z.string().nullable().optional(),
+  type: z.string().nullable().optional(),
+  code: z.string().nullable().optional(),
   communicationChannels: z
     .array(
       z.object({
-        channelRef: z.string(),
-        value: z.string().min(1, 'Value is required')
+        id: z.string().optional(),
+        version: z.number().optional(),
+        communicationChannelRef: z.string(),
+        value: z.string().min(1, 'Value is required'),
+        valueExtension: z.string().nullable().optional()
       })
     )
     .optional(),
   addresses: z
     .array(
       z.object({
-        addressTypeRef: z.string().optional(),
-        countryRef: z.string().optional(),
-        line1: z.string().optional(),
-        line2: z.string().optional(),
-        postalCode: z.string().optional(),
-        city: z.string().optional()
+        id: z.string().optional(),
+        version: z.number().optional(),
+        addressType: z.string().nullable().optional(),
+        addressLines: z.array(z.string().nullable()).nullable().optional(),
+        postalCode: z.string().nullable().optional(),
+        locality: z.string().nullable().optional(),
+        regionRef: z.string().nullable().optional(),
+        countryRef: z.string().nullable().optional()
       })
     )
     .optional(),
-  pictureFile: z.any().optional(),
-  relatedEntityId: z.string().optional()
+  accountContacts: z
+    .array(
+      z.object({
+        id: z.string().optional(),
+        version: z.number().optional(),
+        accountId: z.string().optional(),
+        contactId: z.string().optional(),
+        contactType: z.string().nullable().optional(),
+        account: z.any().optional()
+      })
+    )
+    .optional(),
+  salesCampaignId: z.string().nullable().optional(),
+  picture: z.string().nullable().optional(),
+  pictureThumbnail: z.string().nullable().optional(),
+  id: z.string().optional(),
+  version: z.number().optional()
 })
 
 export type ContactSegmentSchema = z.infer<typeof contactSegmentSchema>

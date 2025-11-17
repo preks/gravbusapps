@@ -1,9 +1,7 @@
 import React from 'react'
-import { LeadFormProvider } from './context/LeadFormContext'
-import LeadFormComponent from './components/LeadFormComponent'
+import LeadFormComponent from './LeadFormComponent'
 import type { InvestmentLead } from '@/common/data/investment/types/investmentLeadTypes'
 import { BusinessAppContextProps } from '@/common/BusinessAppContext'
-import { CatalogSelect } from '@/components/catalog-select'
 
 interface LeadFormProps {
   initialValues?: Partial<InvestmentLead>
@@ -36,16 +34,12 @@ const LeadForm: React.FC<BusinessAppContextProps & LeadFormProps> = ({
   }
 
   return (
-    <CatalogSelect.Provider accessToken={accessToken}>
-      <LeadFormProvider
-        businessAppContext={businessAppContext}
-        initialValues={initialValues}
-        onSubmit={onSubmit}
-        onCancel={onCancel}
-      >
-        <LeadFormComponent />
-      </LeadFormProvider>
-    </CatalogSelect.Provider>
+    <LeadFormComponent
+      businessAppContext={businessAppContext}
+      initialValues={initialValues}
+      onSubmit={onSubmit}
+      onCancel={onCancel}
+    />
   )
 }
 

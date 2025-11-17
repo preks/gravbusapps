@@ -1,35 +1,51 @@
-import { useState, useCallback, useMemo } from 'react'
+import { useState, useCallback, useMemo, useEffect } from 'react'
 import { useForm } from 'react-hook-form'
 import { zodResolver } from '@hookform/resolvers/zod'
 import { Spinner, type WizardStep } from '@newwork/nw-design-system'
 import { getTranslationFromI18nKeyAndLabel } from '@/common/utils/windowUtils'
 import { AppActionForm } from '@/components/app-action-form'
 
-// Import types
-import { ConvertLeadFormData, convertLeadSchema, ConvertInvestmentLeadFormProps } from './types'
+// Import central schema
+import {
+  leadConvertSchema,
+  type LeadConvertSchema
+} from '@/common/components/common-relations/schemas/leadConvertSchema'
+import type { BusinessAppContextProps } from '@/common/BusinessAppContext'
 
-// Import hooks
-import { useAccountsList, useContactsList, useLeadData } from './hooks'
+// Form data type (alias for central schema)
+type ConvertLeadFormData = LeadConvertSchema
+
+// Props interface (directly in component file)
+interface ConvertInvestmentLeadFormProps extends BusinessAppContextProps {
+  onCancel?: () => void
+  onSuccess?: () => void
+}
+
+// Import central hooks
+import { useGetInvestmentAccounts } from '@/common/data/investment/hooks/useInvestmentAccounts'
+import { useGetInvestmentContacts } from '@/common/data/investment/hooks/useInvestmentContacts'
+import { useInvestmentLead } from '@/common/data/investment/hooks/useInvestmentLead'
 
 // Import utilities
+import { getAccountInitialValues, getContactInitialValues, getOpportunityInitialValues } from './utils'
+import { buildInvestmentLeadConvertPayload } from '@/common/data/investment/types/investmentLeadTypes'
 import {
-  getAccountInitialValues,
-  getContactInitialValues,
-  getOpportunityInitialValues,
-  createSubmissionPayload,
-  submitConversionForm,
-  cancelConversionForm,
   checkFormReadiness,
   setValidationErrors
-} from './utils'
+} from '@/common/components/common-relations/form-segments/lead-convert-segment/utils/validationUtils'
 
-// Import components
-import { ChoicesStep, CreateAccountStep, CreateContactStep, CreateOpportunityStep } from './components'
-
-// Import form types
-import { AccountFormValues } from '../account-form/types'
-import { ContactFormValues } from '../contact-form/types'
-import { InvestmentOpportunityFormValues } from '../opportunity-form/types'
+// Import layouts and segments
+import { LeadConvertSegment } from '@/common/components/common-relations/form-segments/lead-convert-segment'
+import {
+  LeadConvertAccountStep,
+  LeadConvertContactStep,
+  LeadConvertOpportunityStep
+} from '@/common/components/common-relations/form-layouts/lead-convert-layout'
+import { FormProvider } from 'react-hook-form'
+import { CatalogSelect } from '@/components/catalog-select'
+import { createAccountSegmentResolver } from '@/common/components/common-relations/schemas/accountSchema'
+import { createContactSegmentResolver } from '@/common/components/common-relations/schemas/contactSchema'
+import { createOpportunitySegmentResolver } from '@/common/components/common-relations/schemas/opportunitySchema'
 
 export const ConvertInvestmentLeadForm = ({
   accessToken,
@@ -37,9 +53,15 @@ export const ConvertInvestmentLeadForm = ({
   additionalData,
   onSuccess
 }: ConvertInvestmentLeadFormProps) => {
+  // Extract leadId from additionalData
+  const actualLeadId = additionalData?.leadId || additionalData?.psi_taskPayload?.psi_initialParameters?.leadId || ''
+
+  // Business app context
+  const businessAppContext = { accessToken, userInfo }
+
   // React Hook Form setup
   const form = useForm<ConvertLeadFormData>({
-    resolver: zodResolver(convertLeadSchema),
+    resolver: zodResolver(leadConvertSchema),
     defaultValues: {
       accountOption: 'create',
       contactOption: 'create',
@@ -58,128 +80,105 @@ export const ConvertInvestmentLeadForm = ({
     }
   })
 
-  // Store complete form data from wrappers for payload construction
-  const [completeAccountData, setCompleteAccountData] = useState<Partial<AccountFormValues>>({})
-  const [completeContactData, setCompleteContactData] = useState<Partial<ContactFormValues>>({})
-  const [completeOpportunityData, setCompleteOpportunityData] = useState<Partial<InvestmentOpportunityFormValues>>({})
-
   // Watch form values for legacy compatibility
   const formData = form.watch()
 
-  // Load lead data
-  const { leadData, loading, actualLeadId } = useLeadData(accessToken, additionalData)
+  // Load lead data using central hook
+  const { lead: leadData, loading } = useInvestmentLead(businessAppContext, actualLeadId)
 
-  // Use dropdown hooks with infinite scrolling
+  // Separate forms for Account, Contact, Opportunity (used by layouts)
+  const accountForm = useForm({
+    resolver: createAccountSegmentResolver(),
+    defaultValues: getAccountInitialValues(leadData) as any,
+    mode: 'onChange'
+  })
+
+  const contactForm = useForm({
+    resolver: createContactSegmentResolver(),
+    defaultValues: getContactInitialValues(leadData) as any,
+    mode: 'onChange'
+  })
+
+  const opportunityForm = useForm({
+    resolver: createOpportunitySegmentResolver(),
+    defaultValues: getOpportunityInitialValues(leadData) as any,
+    mode: 'onChange'
+  })
+
+  // Update forms when leadData is loaded
+  useEffect(() => {
+    if (leadData) {
+      accountForm.reset(getAccountInitialValues(leadData) as any)
+      contactForm.reset(getContactInitialValues(leadData) as any)
+      opportunityForm.reset(getOpportunityInitialValues(leadData) as any)
+    }
+  }, [leadData?.id, leadData, accountForm, contactForm, opportunityForm])
+
+  // Store complete form data from nested forms for payload construction
+  const [completeAccountData, setCompleteAccountData] = useState<Partial<any>>({})
+  const [completeContactData, setCompleteContactData] = useState<Partial<any>>({})
+  const [completeOpportunityData, setCompleteOpportunityData] = useState<Partial<any>>({})
+
+  // Watch form changes and sync to main form
+  useEffect(() => {
+    const subscription = accountForm.watch(values => {
+      if (values.name) form.setValue('accountName', values.name)
+      if (values.ownerEmployeeId) form.setValue('accountOwner', values.ownerEmployeeId)
+      if (values.legalFormRef) form.setValue('accountLegalForm', values.legalFormRef)
+      if (values.industryClassRef) form.setValue('accountIndustry', values.industryClassRef)
+      setCompleteAccountData(values as any)
+    })
+    return () => subscription.unsubscribe()
+  }, [accountForm, form])
+
+  useEffect(() => {
+    const subscription = contactForm.watch(values => {
+      if (values.firstName) form.setValue('contactFirstName', values.firstName)
+      if (values.lastName) form.setValue('contactLastName', values.lastName)
+      if (values.email) form.setValue('contactEmail', values.email)
+      if (values.ownerEmployeeId) form.setValue('contactOwnerEmployeeId', values.ownerEmployeeId)
+      setCompleteContactData(values as any)
+    })
+    return () => subscription.unsubscribe()
+  }, [contactForm, form])
+
+  useEffect(() => {
+    const subscription = opportunityForm.watch(values => {
+      if (values.opportunityName) form.setValue('opportunityName', values.opportunityName)
+      if (values.ownerEmployeeId) form.setValue('opportunityOwner', values.ownerEmployeeId)
+      if (values.pipelineRef) form.setValue('opportunityPipeline', values.pipelineRef)
+      if (values.stageRef) form.setValue('opportunityPipelineStage', values.stageRef)
+      if (values.estimatedAmount) form.setValue('opportunityEstimatedAmount', values.estimatedAmount)
+      if (values.currency) form.setValue('opportunityCurrency', values.currency)
+      setCompleteOpportunityData(values as any)
+    })
+    return () => subscription.unsubscribe()
+  }, [opportunityForm, form])
+
+  // Use central hooks with state management
   const {
-    accounts,
-    isLoading: isLoadingAccounts,
-    hasMore: hasMoreAccounts,
-    searchAccounts,
-    loadMoreAccounts
-  } = useAccountsList(accessToken)
+    options: accounts,
+    loading: isLoadingAccounts,
+    search: searchAccounts
+  } = useGetInvestmentAccounts(businessAppContext, { withState: true, autoFetch: true, mapToSelectOptions: true })
 
   const {
-    contacts,
-    isLoading: isLoadingContacts,
-    hasMore: hasMoreContacts,
-    searchContacts,
-    loadMoreContacts
-  } = useContactsList(accessToken)
+    options: contacts,
+    loading: isLoadingContacts,
+    search: searchContacts
+  } = useGetInvestmentContacts(businessAppContext, { withState: true, autoFetch: true, mapToSelectOptions: true })
 
-  // Form handlers for each step
-  const handleAccountFormSubmit = useCallback(
-    async (values: AccountFormValues) => {
-      console.log('Account form submitted:', values)
-      // Map AccountFormValues to individual form fields
-      form.setValue('accountName', values.accountName)
-      form.setValue('accountOwner', values.owner)
-      form.setValue('accountLegalForm', values.legalForm)
-      form.setValue('accountIndustry', values.industry)
-      form.setValue('accountOption', 'create')
-      // Don't submit here, just store the data
-    },
-    [form]
-  )
-
-  // Auto-save handler for account form changes
-  const handleAccountFormChange = useCallback(
-    (values: Partial<AccountFormValues>) => {
-      // Store complete account data for payload construction
-      setCompleteAccountData(prev => ({ ...prev, ...values }))
-
-      // Map basic fields to form for validation
-      if (values.accountName !== undefined) form.setValue('accountName', values.accountName)
-      if (values.owner !== undefined) form.setValue('accountOwner', values.owner)
-      if (values.legalForm !== undefined) form.setValue('accountLegalForm', values.legalForm)
-      if (values.industry !== undefined) form.setValue('accountIndustry', values.industry)
-      form.setValue('accountOption', 'create')
-    },
-    [form]
-  )
-
-  // Auto-save handler for contact form changes
-  const handleContactFormChange = useCallback(
-    (values: Partial<ContactFormValues>) => {
-      // Store complete contact data for payload construction
-      setCompleteContactData(prev => ({ ...prev, ...values }))
-
-      // Map basic fields to form for validation
-      if (values.firstName !== undefined) form.setValue('contactFirstName', values.firstName)
-      if (values.lastName !== undefined) form.setValue('contactLastName', values.lastName)
-      if (values.email !== undefined) form.setValue('contactEmail', values.email)
-      if (values.ownerEmployeeId !== undefined) form.setValue('contactOwnerEmployeeId', values.ownerEmployeeId)
-      form.setValue('contactOption', 'create')
-    },
-    [form]
-  )
-
-  // Auto-save handler for opportunity form changes
-  const handleOpportunityFormChange = useCallback(
-    (values: Partial<InvestmentOpportunityFormValues>) => {
-      // Store complete opportunity data for payload construction
-      setCompleteOpportunityData(prev => ({ ...prev, ...values }))
-
-      // Map basic fields to form for validation
-      if (values.name !== undefined) form.setValue('opportunityName', values.name)
-      if (values.owner !== undefined) form.setValue('opportunityOwner', values.owner)
-      if (values.pipeline !== undefined) form.setValue('opportunityPipeline', values.pipeline)
-      if (values.pipelineStage !== undefined) form.setValue('opportunityPipelineStage', values.pipelineStage)
-      if (values.estimatedAmount !== undefined) form.setValue('opportunityEstimatedAmount', values.estimatedAmount)
-      if (values.currency !== undefined) form.setValue('opportunityCurrency', values.currency)
-      form.setValue('createOpportunity', true)
-    },
-    [form]
-  )
-
-  const handleContactFormSubmit = useCallback(
-    async (values: ContactFormValues) => {
-      console.log('Contact form submitted:', values)
-      // Map ContactFormValues to individual form fields
-      form.setValue('contactFirstName', values.firstName)
-      form.setValue('contactLastName', values.lastName)
-      form.setValue('contactEmail', values.email)
-      form.setValue('contactOwnerEmployeeId', values.ownerEmployeeId)
-      form.setValue('contactOption', 'create')
-      // Don't submit here, just store the data
-    },
-    [form]
-  )
-
-  const handleOpportunityFormSubmit = useCallback(
-    async (values: InvestmentOpportunityFormValues) => {
-      console.log('Opportunity form submitted:', values)
-      // Map InvestmentOpportunityFormValues to individual form fields
-      form.setValue('opportunityName', values.name)
-      form.setValue('opportunityOwner', values.owner)
-      form.setValue('opportunityPipeline', values.pipeline)
-      form.setValue('opportunityPipelineStage', values.pipelineStage)
-      form.setValue('opportunityEstimatedAmount', values.estimatedAmount)
-      form.setValue('opportunityCurrency', values.currency)
-      form.setValue('createOpportunity', true)
-      // Don't submit here, just store the data
-    },
-    [form]
-  )
+  // Pipeline catalogs and currencies - not needed for lead conversion
+  // The OpportunityLayout will handle loading these internally if needed
+  const pipelines: any[] = []
+  const stages: any[] = []
+  const stagesLoading = false
+  const currencies: any[] = []
+  const currenciesLoading = false
+  const currenciesError = null
+  const currenciesHasMore = false
+  const searchCurrencies = () => {}
+  const loadMoreCurrencies = () => {}
 
   // Helper function to check if form is ready for conversion - using watch for reactivity
   const formValues = form.watch()
@@ -188,8 +187,8 @@ export const ConvertInvestmentLeadForm = ({
   }, [formValues])
 
   // Create dynamic wizard steps based on user choices
-  const wizardSteps: WizardStep<ConvertLeadFormData>[] = useMemo(() => {
-    const steps: WizardStep<ConvertLeadFormData>[] = []
+  const wizardSteps: WizardStep<LeadConvertSchema>[] = useMemo(() => {
+    const steps: WizardStep<LeadConvertSchema>[] = []
 
     // Step 1: Always present - Choice step with all options
     steps.push({
@@ -206,18 +205,14 @@ export const ConvertInvestmentLeadForm = ({
         'createOpportunity'
       ],
       content: (
-        <ChoicesStep
+        <LeadConvertSegment
           form={form}
-          accounts={accounts}
+          accounts={accounts as any}
           isLoadingAccounts={isLoadingAccounts}
-          hasMoreAccounts={hasMoreAccounts}
           searchAccounts={searchAccounts}
-          loadMoreAccounts={loadMoreAccounts}
-          contacts={contacts}
+          contacts={contacts as any}
           isLoadingContacts={isLoadingContacts}
-          hasMoreContacts={hasMoreContacts}
           searchContacts={searchContacts}
-          loadMoreContacts={loadMoreContacts}
         />
       )
     })
@@ -228,19 +223,29 @@ export const ConvertInvestmentLeadForm = ({
         id: 'create-account',
         title: 'Create Account',
         description: 'Enter new account details',
-        fields: ['accountName', 'accountOwner', 'accountLegalForm', 'accountIndustry'],
+        fields: [],
         content: (
-          <CreateAccountStep
-            accessToken={accessToken}
-            userInfo={userInfo}
-            additionalData={additionalData}
-            loading={loading}
-            leadData={leadData}
-            actualLeadId={actualLeadId}
-            accountInitialValues={getAccountInitialValues(leadData)}
-            onFormChange={handleAccountFormChange}
-            onSubmit={handleAccountFormSubmit}
-          />
+          <CatalogSelect.Provider {...businessAppContext} form={accountForm}>
+            <FormProvider {...accountForm}>
+              <LeadConvertAccountStep
+                businessAppContext={businessAppContext}
+                ownerEmployee={leadData?.ownerEmployee}
+                addresses={undefined}
+                annualRevenueCatalogIdentifier="AccountAnnualRevenueBand:v1"
+                companySizeCatalogIdentifier="CompanySize:v1"
+                uploadConfig={{
+                  appName: 'irm',
+                  accessScope: 'tenant',
+                  getAvatarPath: id => `/accounts/${id || 'temp'}/pictures`
+                }}
+                contacts={contacts as any}
+                contactsLoading={isLoadingContacts}
+                contactsError={null}
+                searchContacts={searchContacts}
+                loading={loading}
+              />
+            </FormProvider>
+          </CatalogSelect.Provider>
         )
       })
     }
@@ -251,19 +256,22 @@ export const ConvertInvestmentLeadForm = ({
         id: 'create-contact',
         title: 'Create Contact',
         description: 'Enter new contact details',
-        fields: ['contactFirstName', 'contactLastName', 'contactEmail', 'contactOwnerEmployeeId'],
+        fields: [],
         content: (
-          <CreateContactStep
-            accessToken={accessToken}
-            userInfo={userInfo}
-            additionalData={additionalData}
-            loading={loading}
-            leadData={leadData}
-            actualLeadId={actualLeadId}
-            contactInitialValues={getContactInitialValues(leadData)}
-            onFormChange={handleContactFormChange}
-            onSubmit={handleContactFormSubmit}
-          />
+          <CatalogSelect.Provider {...businessAppContext} form={contactForm}>
+            <FormProvider {...contactForm}>
+              <LeadConvertContactStep
+                businessAppContext={businessAppContext}
+                ownerEmployee={leadData?.ownerEmployee}
+                addresses={undefined}
+                accounts={accounts as any}
+                accountsLoading={isLoadingAccounts}
+                accountsError={null}
+                searchAccounts={searchAccounts}
+                loading={loading}
+              />
+            </FormProvider>
+          </CatalogSelect.Provider>
         )
       })
     }
@@ -274,26 +282,61 @@ export const ConvertInvestmentLeadForm = ({
         id: 'create-opportunity',
         title: 'Create Opportunity',
         description: 'Enter new opportunity details',
-        fields: [
-          'opportunityName',
-          'opportunityOwner',
-          'opportunityPipeline',
-          'opportunityPipelineStage',
-          'opportunityEstimatedAmount',
-          'opportunityCurrency'
-        ],
+        fields: [],
         content: (
-          <CreateOpportunityStep
-            accessToken={accessToken}
-            userInfo={userInfo}
-            additionalData={additionalData}
-            loading={loading}
-            leadData={leadData}
-            actualLeadId={actualLeadId}
-            opportunityInitialValues={getOpportunityInitialValues(leadData)}
-            onFormChange={handleOpportunityFormChange}
-            onSubmit={handleOpportunityFormSubmit}
-          />
+          <CatalogSelect.Provider {...businessAppContext} form={opportunityForm}>
+            <FormProvider {...opportunityForm}>
+              <LeadConvertOpportunityStep
+                businessAppContext={businessAppContext}
+                ownerEmployee={leadData?.ownerEmployee}
+                accountId={form.watch('selectedAccountId') || undefined}
+                accounts={accounts as any}
+                accountsLoading={isLoadingAccounts}
+                accountsError={null}
+                searchAccounts={searchAccounts}
+                onAccountChange={accountId => {
+                  const id = typeof accountId === 'object' && accountId ? accountId.id : accountId
+                  if (id) {
+                    opportunityForm.setValue('accountId', id)
+                  }
+                }}
+                contacts={contacts as any}
+                contactsLoading={isLoadingContacts}
+                contactsError={null}
+                searchContacts={searchContacts}
+                onContactsChange={contactIds => {
+                  const ids = contactIds.map(c => (typeof c === 'object' ? c.id : c))
+                  opportunityForm.setValue('contactIds', ids)
+                }}
+                pipelines={pipelines.map((p: any) => ({
+                  id: p.id,
+                  value: p.value,
+                  label: p.label || p.name,
+                  name: p.name
+                }))}
+                stages={stages.map((s: any) => ({
+                  id: s.id,
+                  value: s.value,
+                  label: s.label || s.name,
+                  name: s.name
+                }))}
+                stagesLoading={stagesLoading}
+                onPipelineChange={() => {}}
+                currencies={currencies.map((c: any) => ({
+                  id: c.id,
+                  value: c.value,
+                  label: c.label || c.name,
+                  name: c.name
+                }))}
+                currenciesLoading={currenciesLoading}
+                currenciesError={currenciesError}
+                currenciesHasMore={currenciesHasMore}
+                searchCurrencies={searchCurrencies}
+                loadMoreCurrencies={loadMoreCurrencies}
+                loading={loading}
+              />
+            </FormProvider>
+          </CatalogSelect.Provider>
         )
       })
     }
@@ -302,52 +345,57 @@ export const ConvertInvestmentLeadForm = ({
   }, [
     form,
     formData,
-    accessToken,
-    userInfo,
-    additionalData,
+    businessAppContext,
     loading,
     leadData,
     actualLeadId,
     accounts,
     isLoadingAccounts,
-    hasMoreAccounts,
     searchAccounts,
-    loadMoreAccounts,
     contacts,
     isLoadingContacts,
-    hasMoreContacts,
     searchContacts,
-    loadMoreContacts,
-    handleAccountFormChange,
-    handleAccountFormSubmit,
-    handleContactFormChange,
-    handleContactFormSubmit,
-    handleOpportunityFormChange,
-    handleOpportunityFormSubmit
+    accountForm,
+    contactForm,
+    opportunityForm,
+    pipelines,
+    stages,
+    stagesLoading,
+    currencies,
+    currenciesLoading,
+    currenciesError,
+    currenciesHasMore,
+    searchCurrencies,
+    loadMoreCurrencies
   ])
 
   const handleSubmit = useCallback(
-    async (data: ConvertLeadFormData): Promise<any> => {
+    async (data: LeadConvertSchema): Promise<any> => {
       // Guard clause: Check if form is ready for conversion
       if (!isFormReadyForConversion()) {
         setValidationErrors(form, formValues)
         throw new Error('Form validation failed')
       }
 
-      // Create submission payload
-      const payload = createSubmissionPayload(
-        data,
-        completeAccountData,
-        completeContactData,
-        completeOpportunityData,
-        actualLeadId
-      )
+      // Determine account, contact, opportunity objects based on form data
+      const account =
+        data.accountOption === 'match' && data.selectedAccountId
+          ? { id: data.selectedAccountId }
+          : data.accountOption === 'create'
+            ? completeAccountData
+            : undefined
 
-      // Submit the form
-      submitConversionForm(payload)
+      const contact =
+        data.contactOption === 'match' && data.selectedContactId
+          ? { id: data.selectedContactId }
+          : data.contactOption === 'create'
+            ? completeContactData
+            : undefined
 
-      // Return success result for AppActionForm
-      return payload
+      const opportunity = data.createOpportunity ? completeOpportunityData : undefined
+
+      // Build payload using simple builder
+      return buildInvestmentLeadConvertPayload(actualLeadId, account, contact, opportunity)
     },
     [
       actualLeadId,
@@ -362,10 +410,7 @@ export const ConvertInvestmentLeadForm = ({
     ]
   )
 
-  // Cancel function following CRM convert lead form pattern
-  const handleDirectCancel = useCallback(() => {
-    cancelConversionForm()
-  }, [])
+  // Cancel is handled automatically by AppActionForm
 
   if (loading) {
     return (
@@ -393,7 +438,6 @@ export const ConvertInvestmentLeadForm = ({
         return handleSubmit(data)
       }}
       onSuccess={onSuccess}
-      onCancel={handleDirectCancel}
       formData={formData}
       form={form}
       wizardSteps={wizardSteps}

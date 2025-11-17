@@ -162,7 +162,6 @@ export const buildContactQuery = (
  */
 export const buildContactByIdQuery = (
   entityName: string,
-  id: string,
   entityFields: Record<keyof typeof ContactFields, string> = ContactFields,
   relationBuilders?: ContactRelationBuilders,
   relationFields?: ContactRelationFields,
@@ -260,8 +259,8 @@ export const buildContactByIdQuery = (
       : ''
 
   return `
-    query Get${entityName}ById {
-      ${entityName}ByPk(id: "${id}") {
+    query Get${entityName}ById($id: uuid!) {
+      ${entityName}ByPk(id: $id) {
         ${baseFields}
         ${commonRelations}
         ${additionalFields || ''}

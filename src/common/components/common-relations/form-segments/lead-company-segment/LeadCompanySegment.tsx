@@ -6,10 +6,12 @@ import {
   FormControl,
   FormMessage,
   Input,
+  Button,
   useTranslation
 } from '@newwork/nw-design-system'
-import { useFormContext } from 'react-hook-form'
+import { useFormContext, useFieldArray } from 'react-hook-form'
 import { CatalogSelect } from '@/components/catalog-select'
+import { PiPlus, PiMinus } from 'react-icons/pi'
 import translations from './_i18n'
 
 interface LeadCompanySegmentProps {
@@ -31,6 +33,9 @@ interface LeadCompanySegmentProps {
  * - Company Phone (Text Input)
  * - Number of Employees (Catalog Select - context-specific identifier)
  * - Annual Revenue (Catalog Select - context-specific identifier)
+ * - Address Lines 1-4 (Text Inputs - flat fields)
+ * - Postal Code, Locality (Text Inputs - flat fields)
+ * - Region, Country (Catalog Selects - flat fields)
  *
  * Used in Accordion
  */
@@ -41,6 +46,23 @@ const LeadCompanySegment: React.FC<LeadCompanySegmentProps> = ({
 }) => {
   const form = useFormContext<any>()
   const { t } = useTranslation(translations)
+
+  // Use field array for address lines
+  const {
+    fields: lineFields,
+    append: appendLine,
+    remove: removeLine
+  } = useFieldArray({
+    control: form.control,
+    name: 'addressLines'
+  })
+
+  // Ensure at least one line exists
+  React.useEffect(() => {
+    if (lineFields.length === 0) {
+      appendLine('')
+    }
+  }, [lineFields.length, appendLine])
 
   return (
     <div className="gba:space-y-6">
@@ -163,7 +185,7 @@ const LeadCompanySegment: React.FC<LeadCompanySegmentProps> = ({
       {/* Annual Revenue */}
       <FormField
         control={form.control}
-        name="annualRevenueBandRef"
+        name="accountAnnualRevenueBandRef"
         render={({ field }) => (
           <FormItem>
             <FormLabel>{t('lead-segment-annual-revenue')}</FormLabel>
@@ -179,6 +201,157 @@ const LeadCompanySegment: React.FC<LeadCompanySegmentProps> = ({
           </FormItem>
         )}
       />
+
+      {/* Address Section */}
+      <div className="gba:space-y-6 gba:pt-6 gba:border-t">
+        <h3 className="gba:text-base gba:font-semibold">{t('lead-segment-address-title')}</h3>
+
+        {/* Address Lines - Dynamic with useFieldArray */}
+        <div className="gba:space-y-2">
+          <div className="gba:flex gba:items-center gba:justify-between">
+            <FormLabel>{t('lead-segment-address-lines-label')}</FormLabel>
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={() => appendLine('')}
+              className="gba:text-xs gba:px-2 gba:py-1"
+              data-testid="lead-segment-add-address-line"
+            >
+              <PiPlus className="gba:w-3 gba:h-3 gba:mr-1" />
+              {t('lead-segment-add-address-line')}
+            </Button>
+          </div>
+
+          {lineFields.map((lineField, lineIndex) => (
+            <div key={lineField.id} className="gba:flex gba:items-center gba:gap-2">
+              <FormField
+                control={form.control}
+                name={`addressLines.${lineIndex}`}
+                render={({ field: addressLineField }) => (
+                  <FormItem className="gba:flex-1">
+                    <FormControl>
+                      <Input
+                        placeholder={t('lead-segment-address-line', { number: lineIndex + 1 })}
+                        data-testid={`lead-segment-address-line-${lineIndex + 1}`}
+                        value={addressLineField.value || ''}
+                        onChange={e => addressLineField.onChange(e.target.value)}
+                        onBlur={addressLineField.onBlur}
+                        name={addressLineField.name}
+                        ref={addressLineField.ref}
+                      />
+                    </FormControl>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+              {lineFields.length > 1 && (
+                <Button
+                  type="button"
+                  variant="outline"
+                  size="sm"
+                  onClick={() => removeLine(lineIndex)}
+                  className="gba:flex gba:items-center gba:gap-1"
+                  data-testid={`lead-segment-remove-address-line-${lineIndex + 1}`}
+                >
+                  <PiMinus className="gba:w-4 gba:h-4" />
+                </Button>
+              )}
+            </div>
+          ))}
+        </div>
+
+        {/* Postal Code and Locality - Side by side */}
+        <div className="gba:grid gba:grid-cols-1 gba:gap-6 gba:md:grid-cols-2">
+          <FormField
+            control={form.control}
+            name="postalCode"
+            render={({ field }) => (
+              <FormItem>
+                <FormLabel>{t('lead-segment-postal-code')}</FormLabel>
+                <FormControl>
+                  <Input
+                    placeholder={t('lead-segment-placeholder-enter')}
+                    data-testid="lead-segment-postal-code"
+                    value={field.value || ''}
+                    onChange={e => field.onChange(e.target.value)}
+                    onBlur={field.onBlur}
+                    name={field.name}
+                    ref={field.ref}
+                  />
+                </FormControl>
+                <FormMessage />
+              </FormItem>
+            )}
+          />
+
+          <FormField
+            control={form.control}
+            name="locality"
+            render={({ field }) => (
+              <FormItem>
+                <FormLabel>{t('lead-segment-locality')}</FormLabel>
+                <FormControl>
+                  <Input
+                    placeholder={t('lead-segment-placeholder-enter')}
+                    data-testid="lead-segment-locality"
+                    value={field.value || ''}
+                    onChange={e => field.onChange(e.target.value)}
+                    onBlur={field.onBlur}
+                    name={field.name}
+                    ref={field.ref}
+                  />
+                </FormControl>
+                <FormMessage />
+              </FormItem>
+            )}
+          />
+        </div>
+
+        {/* Region and Country - Side by side */}
+        <div className="gba:grid gba:grid-cols-1 gba:gap-6 gba:md:grid-cols-2">
+          <FormField
+            control={form.control}
+            name="regionRef"
+            render={({ field }) => (
+              <FormItem>
+                <FormLabel>{t('lead-segment-region')}</FormLabel>
+                <FormControl>
+                  <CatalogSelect
+                    catalogIdentifier="Region:v1"
+                    value={field.value || ''}
+                    onValueChange={v => field.onChange(v)}
+                    data-testid="lead-segment-region"
+                  />
+                </FormControl>
+                <FormMessage />
+              </FormItem>
+            )}
+          />
+
+          <FormField
+            control={form.control}
+            name="countryRef"
+            render={({ field }) => (
+              <FormItem>
+                <FormLabel>{t('lead-segment-country')}</FormLabel>
+                <FormControl>
+                  <CatalogSelect
+                    catalogIdentifier="Country:v1"
+                    value={field.value || ''}
+                    onValueChange={v => {
+                      field.onChange(v)
+                      // Clear region when country changes
+                      form.setValue('regionRef', '')
+                    }}
+                    data-testid="lead-segment-country"
+                  />
+                </FormControl>
+                <FormMessage />
+              </FormItem>
+            )}
+          />
+        </div>
+      </div>
 
       {/* Custom fields injection point */}
       {customFields && <div>{customFields}</div>}

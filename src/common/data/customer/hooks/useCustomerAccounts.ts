@@ -18,7 +18,6 @@ import {
 
 // Mapper
 import { toCustomerAccount } from '../types/customerAccountTypes'
-import { CustomerAccountFields } from '../types/customerAccountTypes'
 
 export interface CustomerAccountListQueryResponse {
   Account: any[]
@@ -64,8 +63,8 @@ export const useCustomerAccounts = (context: BusinessAppContextProps) => {
 
   const fetchCustomerAccountById = useCallback(
     async (id: string): Promise<CustomerAccount | null> => {
-      const query = buildCustomerAccountByIdQuery(CustomerAccountFields, id)
-      const result = await graphqlClient.request<{ AccountByPk: any }>(query)
+      const query = buildCustomerAccountByIdQuery()
+      const result = await graphqlClient.request<{ AccountByPk: CustomerAccount | null }>(query, { id })
       const raw = result.AccountByPk
       return raw ? toCustomerAccount(raw) : null
     },

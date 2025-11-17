@@ -149,17 +149,16 @@ const InvestmentDisplay: React.FC<InvestmentDisplayProps> = ({
                 {/* Investment Role and Stake Type Badges */}
                 {(() => {
                   // investmentRole is an array, get first role if available
-                  const firstRole = Array.isArray(displayInvestment?.investmentRole)
-                    ? displayInvestment.investmentRole[0]
-                    : displayInvestment?.investmentRole
+                  const firstRole = Array.isArray(investment?.investmentRole)
+                    ? investment.investmentRole[0]
+                    : investment?.investmentRole
                   // Handle both full Investment entity (nested catalog) and Lead/Opportunity (direct catalog)
                   const roleValue =
                     firstRole?.investmentRole?.value ||
                     firstRole?.investmentRole?.code ||
                     firstRole?.value ||
                     firstRole?.code
-                  const stakeValue =
-                    displayInvestment?.investmentStakeType?.value || displayInvestment?.investmentStakeType?.code
+                  const stakeValue = investment?.investmentStakeType?.value || investment?.investmentStakeType?.code
 
                   const hasValidRole = roleValue?.trim() && !roleValue.toLowerCase().includes('not set')
                   const hasValidStake = stakeValue?.trim() && !stakeValue.toLowerCase().includes('not set')

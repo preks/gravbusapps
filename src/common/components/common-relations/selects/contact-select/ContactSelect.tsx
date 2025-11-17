@@ -364,9 +364,8 @@ const ContactSelect: React.FC<ContactSelectProps> = ({
 
   return (
     <div className="gba:space-y-4" data-testid={dataTestId || 'contact-list'}>
-      {/* Header with Title and Action Buttons */}
-      <div className="gba:flex gba:items-center gba:justify-between">
-        <h3 className="gba:text-base gba:font-semibold">Contacts</h3>
+      {/* Header with Action Buttons */}
+      <div className="gba:flex gba:items-center gba:justify-end">
         <div className="gba:flex gba:items-center gba:gap-2">
           {onNewContact && (
             <Button

@@ -9,7 +9,7 @@ import { CatalogSelect } from '@/components/catalog-select'
 import { buildInvestmentTaskPayload } from '@/common/data/investment/payloads/investmentRelationPayloads'
 import type { InvestmentTaskFormData } from '@/common/data/investment/payloads/investmentRelationPayloads'
 import { useInvestmentEntities } from '@/common/data/investment/hooks/useInvestmentEntities'
-import { useInvestmentTasks } from '@/common/data/investment/hooks/useInvestmentTasks'
+import { useInvestmentTask } from '@/common/data/investment/hooks/useInvestmentTask'
 import { useEmployeeSearch } from '@/common/data/employee/useEmployeeSearch'
 import { useForm } from 'react-hook-form'
 import { createTaskSegmentResolver } from '@/common/components/common-relations/form-segments/task-segment/TaskSegment'
@@ -90,7 +90,6 @@ const InvestmentTaskForm: React.FC<InvestmentTaskFormProps> = ({
       jobPositionName?: string
     }>
   >([])
-  const { fetchInvestmentTaskById } = useInvestmentTasks({ accessToken, userInfo, additionalData })
 
   // File client for document uploads
   const fileClient = useFileClient({ accessToken, userInfo, additionalData })
@@ -118,6 +117,10 @@ const InvestmentTaskForm: React.FC<InvestmentTaskFormProps> = ({
     leadId?: string
   }
 
+  // Investment task hook - declarative single-by-PK
+  const taskId = platformParams.taskId
+  const { task, isLoading: taskLoading } = useInvestmentTask({ accessToken, userInfo, additionalData }, taskId)
+
   const investmentId = platformParams.investmentId
   const accountId = platformParams.accountId
   const contactId = platformParams.contactId
@@ -127,101 +130,98 @@ const InvestmentTaskForm: React.FC<InvestmentTaskFormProps> = ({
   // Determine if entity selection should be shown
   const hasEntityFromContext = investmentId || accountId || contactId || opportunityId || leadId
   const shouldShowEntitySelection = !hasEntityFromContext
+
+  // RHF + Zod resolver provided to AppActionForm
+  const form = useForm<any>({
+    resolver: createTaskSegmentResolver({
+      requireAssignee: false,
+      requireEntity: true,
+      requireType: !((additionalData as any)?.typeRef === 'InvestmentTaskType:v1:APPROVAL')
+    }),
+    defaultValues: formData as any,
+    mode: 'onChange'
+  })
+
   // Load existing task when taskId is provided via additionalData
   React.useEffect(() => {
-    const taskId = platformParams.taskId as string | undefined
-
-    if (!taskId) {
+    if (!taskId || !task || taskLoading) {
       return
     }
 
-    ;(async () => {
-      try {
-        const task = await fetchInvestmentTaskById(taskId)
+    // Map fetched task to form fields
+    const newFormData = {
+      id: task.id,
+      version: (task as any).version,
+      title: task.name || '',
+      code: task.code || '',
+      description: task.description || '',
+      taskTypeRef: task.taskType?.id || '',
+      taskPriorityRef: task.taskPriority?.id || '',
+      taskStatusRef: task.taskStatus?.id || 'InvestmentTaskStatus:v1:PENDING',
+      dueDate: task.dueDate || '',
+      timingType: (task.taskTiming as any) || 'DEADLINE',
+      assignedEmployeeId: task.assignedEmployee?.id || '',
+      relatedEntityId:
+        task.investment?.id || task.account?.id || task.contact?.id || task.opportunity?.id || task.lead?.id || '',
+      documents:
+        (task as any).documents?.map((doc: any) => ({
+          id: doc.id,
+          name: doc.name || '',
+          version: doc.version
+        })) || []
+    }
 
-        if (!task) {
-          return
-        }
+    _setFormData((prev: TaskFormData) => ({ ...prev, ...newFormData }))
 
-        // Map fetched task to form fields
-        const newFormData = {
-          id: task.id,
-          version: (task as any).version,
-          title: task.name || '',
-          code: task.code || '',
-          description: task.description || '',
-          taskTypeRef: task.taskType?.id || '',
-          taskPriorityRef: task.taskPriority?.id || '',
-          taskStatusRef: task.taskStatus?.id || 'InvestmentTaskStatus:v1:PENDING',
-          dueDate: task.dueDate || '',
-          timingType: (task.taskTiming as any) || 'DEADLINE',
-          assignedEmployeeId: task.assignedEmployee?.id || '',
-          relatedEntityId:
-            task.investment?.id || task.account?.id || task.contact?.id || task.opportunity?.id || task.lead?.id || '',
-          documents:
-            (task as any).documents?.map((doc: any) => ({
-              id: doc.id,
-              name: doc.name || '',
-              version: doc.version
-            })) || []
-        }
-
-        _setFormData((prev: TaskFormData) => ({ ...prev, ...newFormData }))
-
-        // CRITICAL: Also update the React Hook Form values
-        form.reset(newFormData)
-        // Ensure the related entity is hydrated and pinned so the combobox trigger keeps rich label
-        const relId =
-          task.investment?.id || task.account?.id || task.contact?.id || task.opportunity?.id || task.lead?.id
-        if (relId) {
-          if (task.investment?.id) hydrateEntityById('investment', task.investment.id)
-          else if (task.account?.id) hydrateEntityById('account', task.account.id)
-          else if (task.contact?.id) hydrateEntityById('contact', task.contact.id)
-          else if (task.opportunity?.id) hydrateEntityById('opportunity', task.opportunity.id)
-          else if (task.lead?.id) hydrateEntityById('lead', task.lead.id)
-        }
-        // Prefill assignee option so Combobox can display the name before search results
-        if (task.assignedEmployee?.id) {
-          const displayName =
-            task.assignedEmployee.displayName ||
-            `${task.assignedEmployee.firstName || ''} ${task.assignedEmployee.lastName || ''}`.trim() ||
-            'Unknown'
-          setAssigneePrefill([{ id: task.assignedEmployee.id, displayName }])
-          // Hydrate details for the selected employee so avatar/job/unit appear immediately
-          hydrateById(task.assignedEmployee.id)
-        }
-        // Also hydrate RHF defaults
-        form.reset({
-          title: task.name || '',
-          description: task.description || '',
-          taskTypeRef: task.taskType?.id || '',
-          taskPriorityRef: task.taskPriority?.id || '',
-          taskStatusRef: task.taskStatus?.id || '',
-          dueDate: task.dueDate || '',
-          timingType: (task.taskTiming as any) || 'DEADLINE',
-          assignedEmployeeId: task.assignedEmployee?.id || '',
-          assignedUserId: (task as any).assignedUserId || undefined,
-          creatorEmployeeId: task.creatorEmployee?.id || undefined,
-          creatorUserId: (task as any).creatorUserId || undefined,
-          relatedEntityId:
-            task.investment?.id || task.account?.id || task.contact?.id || task.opportunity?.id || task.lead?.id || '',
-          investment: task.investment ? { id: task.investment.id } : undefined,
-          account: task.account ? { id: task.account.id } : undefined,
-          contact: task.contact ? { id: task.contact.id } : undefined,
-          opportunity: task.opportunity ? { id: task.opportunity.id } : undefined,
-          lead: task.lead ? { id: task.lead.id } : undefined,
-          documents:
-            (task as any).investmentDocument?.map((doc: any) => ({
-              id: doc.id,
-              name: doc.name || '',
-              version: doc.version
-            })) || []
-        })
-      } catch (e) {
-        console.error('Error loading task:', e)
-      }
-    })()
-  }, [platformParams.taskId, accessToken])
+    // CRITICAL: Also update the React Hook Form values
+    form.reset(newFormData)
+    // Ensure the related entity is hydrated and pinned so the combobox trigger keeps rich label
+    const relId = task.investment?.id || task.account?.id || task.contact?.id || task.opportunity?.id || task.lead?.id
+    if (relId) {
+      if (task.investment?.id) hydrateEntityById('investment', task.investment.id)
+      else if (task.account?.id) hydrateEntityById('account', task.account.id)
+      else if (task.contact?.id) hydrateEntityById('contact', task.contact.id)
+      else if (task.opportunity?.id) hydrateEntityById('opportunity', task.opportunity.id)
+      else if (task.lead?.id) hydrateEntityById('lead', task.lead.id)
+    }
+    // Prefill assignee option so Combobox can display the name before search results
+    if (task.assignedEmployee?.id) {
+      const displayName =
+        task.assignedEmployee.displayName ||
+        `${task.assignedEmployee.firstName || ''} ${task.assignedEmployee.lastName || ''}`.trim() ||
+        'Unknown'
+      setAssigneePrefill([{ id: task.assignedEmployee.id, displayName }])
+      // Hydrate details for the selected employee so avatar/job/unit appear immediately
+      hydrateById(task.assignedEmployee.id)
+    }
+    // Also hydrate RHF defaults
+    form.reset({
+      title: task.name || '',
+      description: task.description || '',
+      taskTypeRef: task.taskType?.id || '',
+      taskPriorityRef: task.taskPriority?.id || '',
+      taskStatusRef: task.taskStatus?.id || '',
+      dueDate: task.dueDate || '',
+      timingType: (task.taskTiming as any) || 'DEADLINE',
+      assignedEmployeeId: task.assignedEmployee?.id || '',
+      assignedUserId: (task as any).assignedUserId || undefined,
+      creatorEmployeeId: task.creatorEmployee?.id || undefined,
+      creatorUserId: (task as any).creatorUserId || undefined,
+      relatedEntityId:
+        task.investment?.id || task.account?.id || task.contact?.id || task.opportunity?.id || task.lead?.id || '',
+      investment: task.investment ? { id: task.investment.id } : undefined,
+      account: task.account ? { id: task.account.id } : undefined,
+      contact: task.contact ? { id: task.contact.id } : undefined,
+      opportunity: task.opportunity ? { id: task.opportunity.id } : undefined,
+      lead: task.lead ? { id: task.lead.id } : undefined,
+      documents:
+        (task as any).documents?.map((doc: any) => ({
+          id: doc.id,
+          name: doc.name || '',
+          version: doc.version
+        })) || []
+    })
+  }, [taskId, task, taskLoading, hydrateEntityById, hydrateById, form])
 
   // Prefill current user as default assignee in create mode so Combobox shows a label
   React.useEffect(() => {
@@ -264,20 +264,6 @@ const InvestmentTaskForm: React.FC<InvestmentTaskFormProps> = ({
     })
   }
   const mergedAssignees = Array.from(assigneeMap.values())
-
-  // Local state update helper (kept if external code sets form data later)
-  // (reserved for future external state updates)
-
-  // RHF + Zod resolver provided to AppActionForm
-  const form = useForm<any>({
-    resolver: createTaskSegmentResolver({
-      requireAssignee: false,
-      requireEntity: true,
-      requireType: !((additionalData as any)?.typeRef === 'InvestmentTaskType:v1:APPROVAL')
-    }),
-    defaultValues: formData as any,
-    mode: 'onChange'
-  })
 
   // Upload files to storage and return document metadata
   const uploadFiles = useCallback(

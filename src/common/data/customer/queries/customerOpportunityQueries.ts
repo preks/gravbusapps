@@ -91,8 +91,7 @@ export const buildCustomerOpportunityQuery = (
  * Build Customer Opportunity by ID query
  */
 export const buildCustomerOpportunityByIdQuery = (
-  fields: typeof CustomerOpportunityFields = CustomerOpportunityFields,
-  id: string
+  fields: typeof CustomerOpportunityFields = CustomerOpportunityFields
 ): string => {
   // Build relation builders and fields for common relations
   // Use wrapper function to include relations (website, addresses, communicationChannels) in account fragment
@@ -148,7 +147,7 @@ export const buildCustomerOpportunityByIdQuery = (
     }
   `
 
-  return buildOpportunityByIdQuery('Opportunity', id, fields, relationBuilders, relationFields, entityFields)
+  return buildOpportunityByIdQuery('Opportunity', fields, relationBuilders, relationFields, entityFields)
 }
 
 /**

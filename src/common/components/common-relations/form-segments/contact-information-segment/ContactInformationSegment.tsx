@@ -202,26 +202,70 @@ const ContactInformationSegment: React.FC<ContactInformationSegmentProps> = ({
       {searchAccounts && (
         <FormField
           control={form.control}
-          name="accounts"
-          render={({ field, fieldState }) => (
-            <FormItem>
-              <FormLabel>{t('contact-accounts-label')}</FormLabel>
-              <FormControl>
-                <AccountSelect
-                  value={field.value || []}
-                  onChange={field.onChange}
-                  accounts={accounts}
-                  accountsLoading={accountsLoading}
-                  accountsError={accountsError}
-                  searchAccounts={searchAccounts}
-                  multiple={true}
-                  dataTestId="contact-information-segment-accounts"
-                  error={fieldState.error?.message || null}
-                />
-              </FormControl>
-              <FormMessage />
-            </FormItem>
-          )}
+          name="accountContacts"
+          render={({ field, fieldState }) => {
+            // Transform accountContacts to AccountSelect value format
+            const accountSelectValue = (field.value || []).map((ac: any) => {
+              const account = ac.account || ac.accountId
+              const accountId = typeof account === 'object' ? account.id : account
+              const accountName =
+                (typeof account === 'object' ? account.name : null) ||
+                (typeof account === 'object' ? account.displayName : null) ||
+                'Unknown Account'
+
+              return {
+                id: accountId,
+                name: accountName,
+                contactType: ac.contactType || undefined
+              }
+            })
+
+            return (
+              <FormItem>
+                <FormLabel>{t('contact-accounts-label')}</FormLabel>
+                <FormControl>
+                  <AccountSelect
+                    value={accountSelectValue}
+                    onChange={value => {
+                      // Transform AccountSelect value back to accountContacts format
+                      const accountContacts = (Array.isArray(value) ? value : value ? [value] : []).map((acc: any) => {
+                        const accountContactPayload: any = {
+                          contactType: acc.contactType || null,
+                          account: typeof acc === 'object' ? acc.id : acc,
+                          contact: form.getValues('id')
+                        }
+
+                        // If this is an existing account (find in original accountContacts), include id and version
+                        const existingAc = (field.value || []).find((ac: any) => {
+                          const acAccountId =
+                            typeof (ac.account || ac.accountId) === 'object'
+                              ? (ac.account || ac.accountId).id
+                              : ac.account || ac.accountId
+                          return acAccountId === (typeof acc === 'object' ? acc.id : acc)
+                        })
+                        if (existingAc?.id) {
+                          accountContactPayload.id = existingAc.id
+                          if (existingAc.version !== undefined) {
+                            accountContactPayload.version = existingAc.version
+                          }
+                        }
+                        return accountContactPayload
+                      })
+                      field.onChange(accountContacts)
+                    }}
+                    accounts={accounts}
+                    accountsLoading={accountsLoading}
+                    accountsError={accountsError}
+                    searchAccounts={searchAccounts}
+                    multiple={true}
+                    dataTestId="contact-information-segment-accounts"
+                    error={fieldState.error?.message || null}
+                  />
+                </FormControl>
+                <FormMessage />
+              </FormItem>
+            )
+          }}
         />
       )}
     </div>

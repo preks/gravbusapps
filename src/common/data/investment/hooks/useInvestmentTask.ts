@@ -13,7 +13,10 @@ export interface UseInvestmentTaskReturn {
   refetch: () => void
 }
 
-export const useInvestmentTask = (context: BusinessAppContextProps, taskId: string): UseInvestmentTaskReturn => {
+export const useInvestmentTask = (
+  context: BusinessAppContextProps,
+  taskId: string | undefined
+): UseInvestmentTaskReturn => {
   const graphqlClient = useGraphQLClient(context.accessToken)
   const [task, setTask] = useState<InvestmentTask | null>(null)
   const [isLoading, setIsLoading] = useState(true)

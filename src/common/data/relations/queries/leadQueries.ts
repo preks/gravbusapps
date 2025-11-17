@@ -179,7 +179,6 @@ export const buildLeadQuery = (
  */
 export const buildLeadByIdQuery = (
   entityName: string,
-  id: string,
   entityFields: Record<keyof typeof LeadFields, string> = LeadFields,
   relationBuilders?: LeadRelationBuilders,
   relationFields?: LeadRelationFields,
@@ -334,8 +333,8 @@ export const buildLeadByIdQuery = (
     : ''
 
   return `
-    query Get${entityName}ById {
-      ${entityName}ByPk(id: "${id}") {
+    query Get${entityName}ById($id: uuid!) {
+      ${entityName}ByPk(id: $id) {
         ${baseFields}
         ${commonRelations}
         ${additionalFields || ''}

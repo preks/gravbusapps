@@ -311,19 +311,21 @@ export const useGetInvestmentAccountById = (context: BusinessAppContextProps) =>
   const fetchInvestmentAccountById = useCallback(
     async (id: string) => {
       // Use new query builder with fields mapping
-      const query = buildInvestmentAccountByIdQuery(undefined, id)
+      const query = buildInvestmentAccountByIdQuery()
 
       try {
         // Use a more specific type that includes the contact relationship
         const result = await graphqlClient.request<{
-          InvestmentAccountByPk: any & {
-            investmentAccountContact?: Array<{
-              id: string
-              contactType?: string
-              contact?: any
-            }>
-          }
-        }>(query)
+          InvestmentAccountByPk:
+            | (InvestmentAccount & {
+                investmentAccountContact?: Array<{
+                  id: string
+                  contactType?: string
+                  contact?: any
+                }>
+              })
+            | null
+        }>(query, { id })
         const raw = result.InvestmentAccountByPk
 
         return {
