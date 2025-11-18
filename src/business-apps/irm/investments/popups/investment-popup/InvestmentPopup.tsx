@@ -6,6 +6,11 @@ import { InvestmentStatusComponent } from './components/InvestmentStatusComponen
 import { InvestmentLiquidityComponent } from './components/InvestmentLiquidityComponent'
 import { InvestmentPpmForecastComponent } from './components/InvestmentPpmForecastComponent'
 import { InvestmentKpiComponent } from './components/InvestmentKpiComponent'
+import { InvestmentTextTileComponent } from './components/InvestmentTextTileComponent'
+import { InvestmentKpiTileComponent } from './components/InvestmentKpiTileComponent'
+import { InvestmentTableTileComponent } from './components/InvestmentTableTileComponent'
+import { InvestmentChartTileComponent } from './components/InvestmentChartTileComponent'
+import { InvestmentTileDeleteComponent } from './components/InvestmentTileDeleteComponent'
 import { InvestmentPopupProps, INVESTMENT_POPUP_SCOPES } from './types'
 import { getTranslationFromI18nKeyAndLabel } from '@/common/utils/windowUtils'
 
@@ -27,7 +32,7 @@ export const InvestmentPopup: React.FC<InvestmentPopupProps> = ({
       <Alert variant="destructive" data-testid={`${prefixDataTestId}-missing-scope`}>
         {getTranslationFromI18nKeyAndLabel(
           'investment.popup.error.missingScope',
-          "No scope found in context data. Please specify 'tile', 'exit', 'status', 'liquidity', 'ppmforecast', or 'kpi'."
+          "No scope found in context data. Please specify 'tile', 'exit', 'status', 'liquidity', 'ppmforecast', 'kpi', or 'delete'."
         )}
       </Alert>
     )
@@ -38,7 +43,7 @@ export const InvestmentPopup: React.FC<InvestmentPopupProps> = ({
       <Alert variant="destructive" data-testid={`${prefixDataTestId}-invalid-scope`}>
         {getTranslationFromI18nKeyAndLabel(
           'investment.popup.error.invalidScope',
-          `Invalid scope '${scope}'. Must be one of: tile, exit, status, liquidity, ppmforecast, kpi.`
+          `Invalid scope '${scope}'. Must be one of: tile, exit, status, liquidity, ppmforecast, kpi, delete.`
         )}
       </Alert>
     )
@@ -117,8 +122,72 @@ export const InvestmentPopup: React.FC<InvestmentPopupProps> = ({
         />
       )
 
+    case INVESTMENT_POPUP_SCOPES.TEXT: {
+      // Extract tileId for text tile scope (optional - undefined for new tiles)
+      const tileId = additionalData?.tileId || additionalData?.psi_taskPayload?.psi_initialParameters?.tileId
+
+      return (
+        <InvestmentTextTileComponent
+          onClose={onClose}
+          onSave={tileData => onSave?.(scope, { tileData })}
+          accessToken={accessToken}
+          userInfo={userInfo}
+          additionalData={additionalData}
+          tileId={tileId}
+        />
+      )
+    }
+
     case INVESTMENT_POPUP_SCOPES.KPI: {
-      // Extract kpiKey for kpi scope
+      // Extract tileId for KPI tile scope (optional - undefined for new tiles)
+      const tileId = additionalData?.tileId || additionalData?.psi_taskPayload?.psi_initialParameters?.tileId
+
+      return (
+        <InvestmentKpiTileComponent
+          onClose={onClose}
+          onSave={tileData => onSave?.(scope, { tileData })}
+          accessToken={accessToken}
+          userInfo={userInfo}
+          additionalData={additionalData}
+          tileId={tileId}
+        />
+      )
+    }
+
+    case INVESTMENT_POPUP_SCOPES.TABLE: {
+      // Extract tileId for table tile scope (optional - undefined for new tiles)
+      const tileId = additionalData?.tileId || additionalData?.psi_taskPayload?.psi_initialParameters?.tileId
+
+      return (
+        <InvestmentTableTileComponent
+          onClose={onClose}
+          onSave={tileData => onSave?.(scope, { tileData })}
+          accessToken={accessToken}
+          userInfo={userInfo}
+          additionalData={additionalData}
+          tileId={tileId}
+        />
+      )
+    }
+
+    case INVESTMENT_POPUP_SCOPES.CHART: {
+      // Extract tileId for chart tile scope (optional - undefined for new tiles)
+      const tileId = additionalData?.tileId || additionalData?.psi_taskPayload?.psi_initialParameters?.tileId
+
+      return (
+        <InvestmentChartTileComponent
+          onClose={onClose}
+          onSave={tileData => onSave?.(scope, { tileData })}
+          accessToken={accessToken}
+          userInfo={userInfo}
+          additionalData={additionalData}
+          tileId={tileId}
+        />
+      )
+    }
+
+    case INVESTMENT_POPUP_SCOPES.KPI_FORECAST: {
+      // Extract kpiKey for kpi forecast scope (MOIC/IRR)
       const kpiKey = additionalData?.key || additionalData?.psi_taskPayload?.psi_initialParameters?.key
 
       if (!kpiKey) {
@@ -126,7 +195,7 @@ export const InvestmentPopup: React.FC<InvestmentPopupProps> = ({
           <Alert variant="destructive" data-testid={`${prefixDataTestId}-missing-kpi-key`}>
             {getTranslationFromI18nKeyAndLabel(
               'investment.popup.error.missingKpiKey',
-              'No key found for kpi scope. Please specify key in context data.'
+              'No key found for kpi forecast scope. Please specify key in context data.'
             )}
           </Alert>
         )
@@ -143,6 +212,17 @@ export const InvestmentPopup: React.FC<InvestmentPopupProps> = ({
         />
       )
     }
+
+    case INVESTMENT_POPUP_SCOPES.DELETE:
+      return (
+        <InvestmentTileDeleteComponent
+          onClose={onClose}
+          onSave={() => onSave?.(scope, {})}
+          accessToken={accessToken}
+          userInfo={userInfo}
+          additionalData={additionalData}
+        />
+      )
 
     default:
       return (
