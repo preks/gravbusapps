@@ -28,6 +28,26 @@ export const buildBankAccountPayload = (params: {
           catalogAccountNumber: '',
           locked: '',
           accountNumberType: ''
+        },
+        oldBankAccount: {
+          id: existingAccount?.id,
+          version: existingAccount?.version,
+          employeeId,
+          countryRef: existingAccount?.country?.id || '',
+          currencyRef: existingAccount?.currency?.id || '',
+          bankName: existingAccount?.bankName || '',
+          accountHolder: existingAccount?.accountHolder || '',
+          employeeAddress: existingAccount?.employeeAddressId || null,
+          routingNumberType: existingAccount?.routingNumberType || '',
+          routingNumber: existingAccount?.routingNumber || '',
+          accountType: existingAccount?.accountType || '',
+          accountNumber: existingAccount?.accountNumber || '',
+          iban: existingAccount?.iban || '',
+          swift: existingAccount?.swift || '',
+          notes: existingAccount?.notes || '',
+          catalogAccountNumber: '',
+          locked: '',
+          accountNumberType: existingAccount?.accountNumberType || ''
         }
       }
     : {
@@ -50,7 +70,8 @@ export const buildBankAccountPayload = (params: {
           catalogAccountNumber: '',
           locked: '',
           accountNumberType: ''
-        }
+        },
+        oldBankAccount: {}
       }
 }
 

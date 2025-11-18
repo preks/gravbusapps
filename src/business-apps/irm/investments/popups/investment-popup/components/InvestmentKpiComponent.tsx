@@ -1,31 +1,15 @@
 import React, { useEffect } from 'react'
-import {
-  FormField,
-  FormItem,
-  FormLabel,
-  FormControl,
-  FormMessage,
-  Input,
-  Alert,
-  Spinner
-} from '@newwork/nw-design-system'
-import { AppActionForm } from '@/components/app-action-form'
+import { FormField, FormItem, FormLabel, FormControl, FormMessage, Input, Alert } from '@newwork/nw-design-system'
 import { useForm } from 'react-hook-form'
 import { z } from 'zod'
 import { zodResolver } from '@hookform/resolvers/zod'
-import { useInvestmentPopupData } from '../hooks/useInvestmentPopupData'
+import { useInvestmentPopupForm } from '../hooks/useInvestmentPopupForm'
+import { InvestmentPopupFormWrapper } from './InvestmentPopupFormWrapper'
 import { InvestmentKpiComponentProps, KpiFormData } from '../types'
 import { getTranslationFromI18nKeyAndLabel } from '@/common/utils/windowUtils'
-import { buildInvestmentPayload } from '@/common/data/investment/payloads/investmentPayloads'
 import { formatDataTestId } from '@/common/utils/formatDataTestId'
-import {
-  extractInvestmentId,
-  parseAdditionalProperties,
-  validateInvestmentData,
-  INVESTMENT_ERRORS,
-  getInvestmentGroupType,
-  generateBusinessKey
-} from '../utils/investmentPopupUtils'
+import { parseAdditionalProperties, validateInvestmentData, INVESTMENT_ERRORS } from '../utils/investmentPopupUtils'
+import { buildInvestmentSubtypePayload } from '../utils/investmentPopupPayloadHelper'
 
 const prefixDataTestId = 'investment-kpi-component'
 
@@ -54,15 +38,11 @@ export const InvestmentKpiComponent: React.FC<InvestmentKpiComponentProps> = ({
   additionalData,
   kpiKey
 }) => {
-  const businessAppContext = { accessToken, userInfo, additionalData }
-
-  // Extract investmentId
-  const investmentId = extractInvestmentId(additionalData)
-
-  // Load investment data
-  const { investment, loading, error } = useInvestmentPopupData({
-    context: businessAppContext,
-    investmentId,
+  // Use common setup hook
+  const { businessAppContext, investmentId, investment, loading, error } = useInvestmentPopupForm({
+    accessToken,
+    userInfo,
+    additionalData,
     scope: 'kpi'
   })
 
@@ -126,7 +106,7 @@ export const InvestmentKpiComponent: React.FC<InvestmentKpiComponentProps> = ({
       throw new Error(INVESTMENT_ERRORS.DATA_NOT_LOADED())
     }
 
-    // Get current additionalProperties from equityInvestment
+    // Get current additionalProperties from subtype (equityInvestment, realEstateInvestment, etc.)
     const investmentData = investment as any
     const equityInvestment = Array.isArray(investmentData.equityInvestment)
       ? investmentData.equityInvestment[0]
@@ -142,100 +122,19 @@ export const InvestmentKpiComponent: React.FC<InvestmentKpiComponentProps> = ({
     }
 
     // Update additionalProperties with new KPIs
-    const updatedAdditionalProps = {
+    const updatedSubtypeAdditionalProperties = {
       ...currentAdditionalProps,
       kpis: updatedKpis
     }
 
-    // Determine investment group type
-    const groupType = getInvestmentGroupType(investment)
-
-    // Create investment form data using the full structure with all investment fields
-    const investmentFormData: any = {
-      investment: {
-        id: investmentId,
-        version: investment.version,
-        name: investment.name || '',
-        initialInvestmentAmount: investment.initialInvestmentAmount || 0,
-        investmentGroup: investment.investmentGroup,
-        ownerEmployee: investment.ownerEmployee,
-
-        // Include ALL existing investment fields to preserve them
-        code: investment.code,
-        isin: investment.isin,
-        investmentType: investment.investmentType,
-        investmentStakeType: investment.investmentStakeType,
-        investmentPhase: investment.investmentPhase,
-        investmentStatus: investment.investmentStatus,
-        investmentRiskLevel: investment.investmentRiskLevel,
-        acquisitionDate: investment.acquisitionDate,
-        planedExit: investment.planedExit,
-        plannedExitDate: investment.plannedExitDate,
-        exitDate: investment.exitDate,
-        totalInvestmentAmount: investment.totalInvestmentAmount,
-        investmentMarketValue: investment.investmentMarketValue,
-        debtFinancingAmount: investment.debtFinancingAmount,
-        requiredCapitalAmount: investment.requiredCapitalAmount,
-        forecastedRevenueAmount: investment.forecastedRevenueAmount,
-        forecastedProfitAmount: investment.forecastedProfitAmount,
-        stakePercentage: investment.stakePercentage,
-        loanRecipientName: investment.loanRecipientName,
-        loanAmount: investment.loanAmount,
-        loanOpenCommitmentAmount: investment.loanOpenCommitmentAmount,
-        loanInterestRate: investment.loanInterestRate,
-        loanStartDate: investment.loanStartDate,
-        loanEndDate: investment.loanEndDate,
-        loanInterestClaim: investment.loanInterestClaim,
-        totalCommitmentAmount: investment.totalCommitmentAmount,
-        totalDistributionAmount: investment.totalDistributionAmount,
-        currency: investment.currency,
-        fundManagerName: investment.fundManagerName,
-        identification: investment.identification,
-        investmentAccount: investment.investmentAccount,
-        investmentOpportunity: investment.investmentOpportunity?.id,
-        loanRecipientInvestmentAccount: investment.loanRecipientInvestmentAccount?.id,
-        additionalProperties: investment.additionalProperties
-      }
-    }
-
-    // Add the appropriate subtype based on investment group (with updated additionalProperties)
-    if (groupType === 'EQUITY') {
-      const existingEquity = Array.isArray((investment as any).equityInvestment)
-        ? (investment as any).equityInvestment[0]
-        : (investment as any).equityInvestment
-      investmentFormData.equityInvestment = {
-        ...existingEquity,
-        additionalProperties: updatedAdditionalProps
-      }
-    } else if (groupType === 'REAL_ESTATE') {
-      const existingRealEstate = Array.isArray((investment as any).realEstateInvestment)
-        ? (investment as any).realEstateInvestment[0]
-        : (investment as any).realEstateInvestment
-      investmentFormData.realEstateInvestment = {
-        ...existingRealEstate,
-        additionalProperties: updatedAdditionalProps
-      }
-    } else if (groupType === 'LIQUID_FUND') {
-      const existingLiquidFund = Array.isArray((investment as any).liquidFundInvestment)
-        ? (investment as any).liquidFundInvestment[0]
-        : (investment as any).liquidFundInvestment
-      investmentFormData.liquidFundInvestment = {
-        ...existingLiquidFund,
-        additionalProperties: updatedAdditionalProps
-      }
-    }
-
-    // Build the payload using buildInvestmentPayload with rawInvestmentData
-    const payload = buildInvestmentPayload(investmentFormData, businessAppContext, {
-      isUpdate: true,
-      rawInvestmentData: investment
+    // Build the payload using the centralized helper for subtype updates
+    const payload = buildInvestmentSubtypePayload({
+      investment,
+      updatedSubtypeAdditionalProperties,
+      businessAppContext,
+      businessKeyPrefix: 'investment-kpi',
+      businessKeySuffix: kpiKey
     })
-
-    // Add changeMode
-    ;(payload as any).changeMode = 'UPDATE'
-
-    // Add businessKey
-    ;(payload as any).businessKey = generateBusinessKey('investment-kpi', kpiKey)
 
     // Call success callback with updated values
     if (onSave) {
@@ -246,46 +145,18 @@ export const InvestmentKpiComponent: React.FC<InvestmentKpiComponentProps> = ({
     return payload
   }
 
-  // Show loading state
-  if (loading) {
-    return (
-      <div
-        className="gba:flex gba:items-center gba:justify-center gba:py-8"
-        data-testid={`${prefixDataTestId}-loading`}
-      >
-        <Spinner size="lg" />
-        <span className="gba:ml-2">
-          {getTranslationFromI18nKeyAndLabel('investment.kpi.loading', 'Loading investment data...')}
-        </span>
-      </div>
-    )
-  }
-
-  // Show error state
-  if (error) {
-    return (
-      <Alert variant="destructive" data-testid={`${prefixDataTestId}-error`}>
-        {error}
-      </Alert>
-    )
-  }
-
-  // Show form when investment data is loaded
-  if (!investment) {
-    return null
-  }
-
   return (
-    <AppActionForm
-      processType="update"
+    <InvestmentPopupFormWrapper
+      loading={loading}
+      error={error}
+      investment={investment}
       onSubmit={handleSubmit}
-      onCancel={onClose}
-      formData={form.getValues()}
+      onClose={onClose}
       form={form}
       businessAppContext={businessAppContext}
-      data-testid={`${prefixDataTestId}-form`}
+      prefixDataTestId={prefixDataTestId}
+      loadingMessage={getTranslationFromI18nKeyAndLabel('investment.kpi.loading', 'Loading investment data...')}
       submitButtonText={getTranslationFromI18nKeyAndLabel('investment.kpi.save', 'Save')}
-      cancelButtonText={getTranslationFromI18nKeyAndLabel('common.cancel', 'Cancel')}
     >
       <div className="gba:space-y-4" data-testid={`${prefixDataTestId}-form-content`}>
         {/* KPI Value Input */}
@@ -311,7 +182,7 @@ export const InvestmentKpiComponent: React.FC<InvestmentKpiComponentProps> = ({
           )}
         />
       </div>
-    </AppActionForm>
+    </InvestmentPopupFormWrapper>
   )
 }
 
