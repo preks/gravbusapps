@@ -37,17 +37,14 @@ export const CreateRequestCorrectionForm: React.FC<RequestCorrectionFormProps> =
 
   // Extract platform/flow-provided parameters (supports nested psi_taskPayload as well as externalContextData)
   const platformParams = React.useMemo(() => {
-    const nested =
-      (additionalData as any)?.psi_taskPayload?.psi_initialParameters ||
-      (additionalData as any)?.psi_initialParameters ||
-      {}
-    const externalContext = (additionalData as any)?.externalContextData || {}
+    const nested = additionalData?.psi_taskPayload?.psi_initialParameters || additionalData?.psi_initialParameters || {}
+    const externalContext = additionalData?.externalContextData || {}
 
     const attendanceDateISO =
-      externalContext.attendanceDateISO || nested.attendanceDateISO || (additionalData as any)?.attendanceDateISO
-    const startTimeISO = externalContext.startTimeISO || nested.startTimeISO || (additionalData as any)?.startTimeISO
-    const endTimeISO = externalContext.endTimeISO || nested.endTimeISO || (additionalData as any)?.endTimeISO
-    const notes = externalContext.notes || nested.notes || (additionalData as any)?.notes
+      externalContext.attendanceDateISO || nested.attendanceDateISO || additionalData?.attendanceDateISO
+    const startTimeISO = externalContext.startTimeISO || nested.startTimeISO || additionalData?.startTimeISO
+    const endTimeISO = externalContext.endTimeISO || nested.endTimeISO || additionalData?.endTimeISO
+    const notes = externalContext.notes || nested.notes || additionalData?.notes
 
     return { attendanceDateISO, startTimeISO, endTimeISO, notes }
   }, [additionalData])
