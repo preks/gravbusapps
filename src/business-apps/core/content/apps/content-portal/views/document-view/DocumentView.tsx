@@ -282,11 +282,6 @@ const DocumentView: React.FC<DocumentViewProps> = ({ accessToken, userInfo, hide
                 externalContextData: { contentEntryId: navigation.currentArea.id },
                 prefixDataTestId: 'content-document-upload'
               }}
-              createFolderActionProps={{
-                contextsArray: [FlowContextName.contentDocumentCreate],
-                externalContextData: { contentEntryId: navigation.currentArea.id, folder: true },
-                prefixDataTestId: 'content-folder-create'
-              }}
               deleteActionProps={{
                 contextsArray: [FlowContextName.contentDocumentDelete],
                 externalContextData: { contentEntryId: navigation.currentArea.id },

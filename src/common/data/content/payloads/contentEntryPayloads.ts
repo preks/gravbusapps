@@ -4,6 +4,26 @@
  */
 import { ContentRole } from '../types/contentEnums'
 
+export type ChangeMode = 'UPSERT' | 'REPLACE'
+
+export interface CategoryItem {
+  contentCategoryRef?: string
+}
+
+export interface DocumentItem {
+  documentGroupRef?: string
+  documentTypeRef?: string
+  parentDocument?: string | null
+  folder?: boolean
+  name?: string
+  description?: string | null
+  fileInfo?: any
+}
+
+export interface TagItem {
+  contentTagRef?: string
+}
+
 export interface BuildContentEntryPayloadParams {
   // Core fields
   title?: string
@@ -39,6 +59,20 @@ export interface BuildContentEntryPayloadParams {
   // Update-specific fields
   id?: string
   version?: number
+
+  // Bulk Operations
+  categories?: {
+    changeMode: ChangeMode
+    items: CategoryItem[]
+  }
+  documents?: {
+    changeMode: ChangeMode
+    items: DocumentItem[]
+  }
+  tags?: {
+    changeMode: ChangeMode
+    items: TagItem[]
+  }
 }
 
 /**
@@ -49,7 +83,7 @@ export const buildCreateContentEntryPayload = (params: BuildContentEntryPayloadP
     throw new Error('creatorEmployeeId is required for CREATE')
   }
 
-  return {
+  const payload: any = {
     contentEntry: {
       // Core fields
       title: params.title || null,
@@ -82,6 +116,36 @@ export const buildCreateContentEntryPayload = (params: BuildContentEntryPayloadP
       ...(params.entryVersion && { entryVersion: params.entryVersion })
     }
   }
+
+  // Add bulk operations if provided
+  if (params.categories) {
+    payload.contentEntryCategories = {
+      changeMode: params.categories.changeMode,
+      categories: {
+        Items: params.categories.items
+      }
+    }
+  }
+
+  if (params.documents) {
+    payload.contentDocuments = {
+      changeMode: params.documents.changeMode,
+      documents: {
+        Items: params.documents.items
+      }
+    }
+  }
+
+  if (params.tags) {
+    payload.contentEntryTags = {
+      changeMode: params.tags.changeMode,
+      tags: {
+        Items: params.tags.items
+      }
+    }
+  }
+
+  return payload
 }
 
 /**
@@ -98,7 +162,7 @@ export const buildUpdateContentEntryPayload = (params: BuildContentEntryPayloadP
     throw new Error('updaterEmployeeId is required for UPDATE')
   }
 
-  return {
+  const payload: any = {
     contentEntry: {
       // Identity
       id: params.id,
@@ -135,6 +199,36 @@ export const buildUpdateContentEntryPayload = (params: BuildContentEntryPayloadP
       ...(params.entryVersion && { entryVersion: params.entryVersion })
     }
   }
+
+  // Add bulk operations if provided
+  if (params.categories) {
+    payload.contentEntryCategories = {
+      changeMode: params.categories.changeMode,
+      categories: {
+        Items: params.categories.items
+      }
+    }
+  }
+
+  if (params.documents) {
+    payload.contentDocuments = {
+      changeMode: params.documents.changeMode,
+      documents: {
+        Items: params.documents.items
+      }
+    }
+  }
+
+  if (params.tags) {
+    payload.contentEntryTags = {
+      changeMode: params.tags.changeMode,
+      tags: {
+        Items: params.tags.items
+      }
+    }
+  }
+
+  return payload
 }
 
 /**

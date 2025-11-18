@@ -1,4 +1,4 @@
-import React, { useMemo, useState, useEffect } from 'react'
+import React, { useMemo, useState, useEffect, useRef, useCallback } from 'react'
 import { BusinessAppContextProps } from '@/common/BusinessAppContext'
 import { useForm } from 'react-hook-form'
 import { zodResolver } from '@hookform/resolvers/zod'
@@ -16,6 +16,8 @@ import {
 } from '@newwork/nw-design-system'
 import { AppActionForm } from '@/components/app-action-form/AppActionForm'
 import { CatalogSelect } from '@/components/catalog-select'
+import { CatalogMultiSelect, CatalogMultiSelectOption } from '@/components/catalog-multi-select'
+import { useCreateCatalogEntry } from '@/common/data/catalog/hooks/useCreateCatalogEntry'
 import { ContentRole, ContentGroup } from '@/common/data/content/types/contentEnums'
 import { buildContentEntryPayload } from '@/common/data/content/payloads'
 import { ArticleSegment, QuestionSegment, DocumentSegment } from './segments'
@@ -43,15 +45,26 @@ export interface ContentEntryFormValues {
   startDate: Date | null | string
   endDate: Date | null | string
   schedulePublication: boolean
+  categories: string[]
+  tags: string[]
 }
 
 const ContentEntryWindowContent: React.FC<ContentEntryWindowProps> = context => {
   const { t } = useTranslation(translations)
   const catalogContext = CatalogSelect.useContext()
   const { validateField } = CatalogSelect.useValidation()
+  const { createCatalogEntry } = useCreateCatalogEntry(context)
 
   const [image, setImage] = useState<string | null>(null)
   const [imageInfo, setImageInfo] = useState<{ name: string; size: string } | null>(null)
+
+  // Store new items that need to be created in PreSubmit
+  const [newCategories, setNewCategories] = useState<CatalogMultiSelectOption[]>([])
+  const [newTags, setNewTags] = useState<CatalogMultiSelectOption[]>([])
+
+  // Refs to access CatalogMultiSelect methods
+  const categoriesRef = useRef<any>(null)
+  const tagsRef = useRef<any>(null)
 
   // Extract contentGroupRef from props or additionalData
   const extractedContentGroupRef =
@@ -90,7 +103,9 @@ const ContentEntryWindowContent: React.FC<ContentEntryWindowProps> = context => 
           allowReaction: z.boolean(),
           startDate: z.union([z.date(), z.string()]).nullable(),
           endDate: z.union([z.date(), z.string()]).nullable(),
-          schedulePublication: z.boolean()
+          schedulePublication: z.boolean(),
+          categories: z.array(z.string()).optional(),
+          tags: z.array(z.string()).optional()
         })
         .superRefine((data, ctx) => {
           // Conditional validation: contentTypeRef required only when it has options
@@ -134,6 +149,7 @@ const ContentEntryWindowContent: React.FC<ContentEntryWindowProps> = context => 
       contentGroupRef: extractedContentGroupRef || '',
       articleTypeRef: '',
       tags: [],
+      categories: [],
       contentImage: null,
       displayAuthor: true,
       allowComment: true,
@@ -190,6 +206,64 @@ const ContentEntryWindowContent: React.FC<ContentEntryWindowProps> = context => 
     }
   }, [authorName, form])
 
+  // PreSubmit Handler: Create new categories and tags
+  const handlePreSubmit = useCallback(
+    async (data: ContentEntryFormValues): Promise<ContentEntryFormValues> => {
+      const updatedData = { ...data }
+
+      // Identify new categories (those with 'new-' prefix)
+      const categoriesToCreate = data.categories.filter(id => id.startsWith('new-'))
+      const existingCategories = data.categories.filter(id => !id.startsWith('new-'))
+
+      // Identify new tags (those with 'new-' prefix)
+      const tagsToCreate = data.tags.filter(id => id.startsWith('new-'))
+      const existingTags = data.tags.filter(id => !id.startsWith('new-'))
+
+      // Create new categories
+      const createdCategoryIds: string[] = []
+      for (const tempId of categoriesToCreate) {
+        const item = newCategories.find(c => c.id === tempId)
+        if (item) {
+          try {
+            const response = await createCatalogEntry('ContentCategory', 'v1', {
+              code: item.label.toUpperCase().replace(/\s+/g, '_'),
+              value: item.label
+            })
+            createdCategoryIds.push(response.id)
+          } catch (error) {
+            console.error('Error creating category:', error)
+            throw new Error(`Failed to create category: ${item.label}`)
+          }
+        }
+      }
+
+      // Create new tags
+      const createdTagIds: string[] = []
+      for (const tempId of tagsToCreate) {
+        const item = newTags.find(t => t.id === tempId)
+        if (item) {
+          try {
+            const response = await createCatalogEntry('ContentTag', 'v1', {
+              code: item.label.toUpperCase().replace(/\s+/g, '_'),
+              value: item.label
+            })
+            createdTagIds.push(response.id)
+          } catch (error) {
+            console.error('Error creating tag:', error)
+            throw new Error(`Failed to create tag: ${item.label}`)
+          }
+        }
+      }
+
+      // Update categories and tags with created IDs
+      updatedData.categories = [...existingCategories, ...createdCategoryIds]
+      updatedData.tags = [...existingTags, ...createdTagIds]
+
+      return updatedData
+    },
+    [createCatalogEntry, newCategories, newTags]
+  )
+
   const handleSubmit = async (data: ContentEntryFormValues) => {
     const isUpdate = Boolean(context.contentId)
     const employeeId = context.userInfo?.employeeDetails?.employeeId
@@ -229,7 +303,29 @@ const ContentEntryWindowContent: React.FC<ContentEntryWindowProps> = context => 
 
       // Optional fields
       activeFrom: data.startDate || null,
-      activeTo: data.endDate || null
+      activeTo: data.endDate || null,
+
+      // Bulk Operations: Categories
+      ...(data.categories &&
+        data.categories.length > 0 && {
+          categories: {
+            changeMode: 'UPSERT' as const,
+            items: data.categories.map(categoryRef => ({
+              contentCategoryRef: categoryRef
+            }))
+          }
+        }),
+
+      // Bulk Operations: Tags
+      ...(data.tags &&
+        data.tags.length > 0 && {
+          tags: {
+            changeMode: 'UPSERT' as const,
+            items: data.tags.map(tagRef => ({
+              contentTagRef: tagRef
+            }))
+          }
+        })
     })
 
     console.log('Content Entry Payload:', payload)
@@ -250,6 +346,7 @@ const ContentEntryWindowContent: React.FC<ContentEntryWindowProps> = context => 
     <AppActionForm
       processType={context.contentId ? 'update' : 'create'}
       onSubmit={handleSubmit}
+      handlePreSubmit={handlePreSubmit}
       formData={defaultValues}
       form={form}
       submitButtonText={context.contentId ? t('update-content') : t('create-content')}
@@ -314,6 +411,62 @@ const ContentEntryWindowContent: React.FC<ContentEntryWindowProps> = context => 
                       value={field.value || null}
                       onValueChange={field.onChange}
                       data-testid="content-entry-window-type-select"
+                    />
+                  </FormControl>
+                  <FormMessage />
+                </FormItem>
+              )}
+            />
+
+            {/* Categories Multi-Select */}
+            <FormField
+              control={control as any}
+              name="categories"
+              render={({ field }) => (
+                <FormItem>
+                  <FormLabel>Categories (Optional)</FormLabel>
+                  <FormControl>
+                    <CatalogMultiSelect
+                      ref={categoriesRef}
+                      catalogIdentifier="ContentCategory"
+                      catalogVersion="v1"
+                      value={field.value || []}
+                      onValueChange={value => {
+                        field.onChange(value)
+                      }}
+                      onNewItemsChange={items => setNewCategories(items)}
+                      placeholder="Select or create categories..."
+                      allowCreate={true}
+                      accessToken={context.accessToken}
+                      data-testid="content-entry-window-categories-select"
+                    />
+                  </FormControl>
+                  <FormMessage />
+                </FormItem>
+              )}
+            />
+
+            {/* Tags Multi-Select */}
+            <FormField
+              control={control as any}
+              name="tags"
+              render={({ field }) => (
+                <FormItem>
+                  <FormLabel>Tags (Optional)</FormLabel>
+                  <FormControl>
+                    <CatalogMultiSelect
+                      ref={tagsRef}
+                      catalogIdentifier="ContentTag"
+                      catalogVersion="v1"
+                      value={field.value || []}
+                      onValueChange={value => {
+                        field.onChange(value)
+                      }}
+                      onNewItemsChange={items => setNewTags(items)}
+                      placeholder="Select or create tags..."
+                      allowCreate={true}
+                      accessToken={context.accessToken}
+                      data-testid="content-entry-window-tags-select"
                     />
                   </FormControl>
                   <FormMessage />

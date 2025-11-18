@@ -141,6 +141,39 @@ export const createContentColumns = (config: ContentColumnConfig): ContentColumn
       }
     },
     {
+      id: 'tags',
+      accessorKey: 'contentEntryTags',
+      header: 'Tags',
+      size: 200,
+      enableSorting: false,
+      cell: ({ row }) => {
+        const tags = row.original.contentEntryTags || []
+        if (tags.length === 0) return null
+
+        const maxVisible = 2
+        const visibleTags = tags.slice(0, maxVisible)
+        const remainingCount = tags.length - maxVisible
+
+        return (
+          <div className="gba:flex gba:flex-wrap gba:gap-1">
+            {visibleTags.map((tagEntry: any, index: number) => {
+              const tagValue = tagEntry.contentTag?.value || tagEntry.value || 'Unknown'
+              return (
+                <Badge key={`tag-${index}`} variant="secondary" className="gba:text-xs">
+                  #{tagValue}
+                </Badge>
+              )
+            })}
+            {remainingCount > 0 && (
+              <Badge variant="outline" className="gba:text-xs">
+                +{remainingCount}
+              </Badge>
+            )}
+          </div>
+        )
+      }
+    },
+    {
       id: 'actions',
       header: '',
       size: 60,
@@ -197,7 +230,8 @@ export const createContentSortableColumns = () => [
   { id: 'author', label: 'Author' },
   { id: 'status', label: 'Status' },
   { id: 'reactions', label: 'Reactions' },
-  { id: 'comments', label: 'Comments' }
+  { id: 'comments', label: 'Comments' },
+  { id: 'tags', label: 'Tags' }
 ]
 
 // Column visibility configs for different content types
@@ -206,15 +240,15 @@ export const getDefaultVisibleColumns = (type: 'all' | 'news' | 'knowledge' | 'd
 
   switch (type) {
     case 'all':
-      return ['type', 'group', ...baseColumns, 'reactions', 'comments']
+      return ['type', 'group', ...baseColumns, 'tags', 'reactions', 'comments']
     case 'news':
-      return ['type', ...baseColumns, 'reactions', 'comments']
+      return ['type', ...baseColumns, 'tags', 'reactions', 'comments']
     case 'knowledge':
-      return ['type', ...baseColumns, 'reactions', 'comments']
+      return ['type', ...baseColumns, 'tags', 'reactions', 'comments']
     case 'document':
-      return ['type', ...baseColumns]
+      return ['type', ...baseColumns, 'tags']
     case 'question':
-      return ['type', ...baseColumns, 'reactions', 'comments']
+      return ['type', ...baseColumns, 'tags', 'reactions', 'comments']
     default:
       return baseColumns
   }

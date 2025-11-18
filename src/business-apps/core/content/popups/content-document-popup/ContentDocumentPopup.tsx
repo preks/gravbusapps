@@ -10,7 +10,6 @@ import {
   FormMessage,
   Input,
   Textarea,
-  Switch,
   LocalizationProvider,
   SupportedLocale,
   FileUpload,
@@ -28,7 +27,6 @@ import { useContentEntries } from '@/common/data/content/hooks/useContentEntries
 import { ContentGroup } from '@/common/data/content/types/contentEnums'
 import { useFileClient } from '@/common/network/files/useFileClient'
 import { useGraphQLClient } from '@/common/network/graphql/useGraphQLClient'
-import type { FileUploadResponse } from '@/common/types/FileTypes'
 
 export interface ContentDocumentPopupProps extends BusinessAppContextProps {
   documentId?: string
@@ -39,10 +37,9 @@ interface ContentDocumentFormValues {
   id?: string
   title: string
   description?: string
-  folder: boolean
   contentEntryId: string
   parentDocument?: string
-  file?: File
+  files?: File[]
   tags?: string[]
   documentGroupRef?: string
   documentTypeRef?: string
@@ -50,7 +47,7 @@ interface ContentDocumentFormValues {
 
 const ContentDocumentPopupContent: React.FC<ContentDocumentPopupProps> = context => {
   const catalogContext = CatalogSelect.useContext()
-  const [selectedFile, setSelectedFile] = useState<File | null>(null)
+  const [selectedFiles, setSelectedFiles] = useState<File[]>([])
   const fileClient = useFileClient(context)
   const graphqlClient = useGraphQLClient(context.accessToken)
 
@@ -79,9 +76,8 @@ const ContentDocumentPopupContent: React.FC<ContentDocumentPopupProps> = context
       z
         .object({
           id: z.string().optional(),
-          title: z.string().min(1, 'Title is required'),
+          title: z.string().optional(), // Optional since we auto-generate from file names
           description: z.string().optional(),
-          folder: z.boolean(),
           contentEntryId: z.string().min(1, 'Content Entry is required'),
           parentDocument: z.string().optional(),
           tags: z.array(z.string()).optional(),
@@ -89,16 +85,16 @@ const ContentDocumentPopupContent: React.FC<ContentDocumentPopupProps> = context
           documentTypeRef: z.string().optional()
         })
         .superRefine((data, ctx) => {
-          // If folder=false (file), file upload is required
-          if (!data.folder && !selectedFile && !context.documentId) {
+          // File upload is required
+          if (selectedFiles.length === 0 && !context.documentId) {
             ctx.addIssue({
               code: 'custom',
-              path: ['file'],
-              message: 'File upload is required for documents'
+              path: ['files'],
+              message: 'At least one file upload is required'
             })
           }
         }),
-    [selectedFile, context.documentId]
+    [selectedFiles, context.documentId]
   )
 
   const defaultValues = useMemo(
@@ -106,7 +102,6 @@ const ContentDocumentPopupContent: React.FC<ContentDocumentPopupProps> = context
       id: context.documentId || '',
       title: '',
       description: '',
-      folder: false,
       contentEntryId: context.contentEntryId || '',
       parentDocument: '',
       tags: [],
@@ -123,7 +118,6 @@ const ContentDocumentPopupContent: React.FC<ContentDocumentPopupProps> = context
   })
 
   const { control, watch } = form
-  const watchFolder = watch('folder')
   const watchContentEntryId = watch('contentEntryId')
 
   // Load folders when contentEntryId changes
@@ -174,56 +168,51 @@ const ContentDocumentPopupContent: React.FC<ContentDocumentPopupProps> = context
     }
   }, [catalogContext, form])
 
-  const handleFilesChange = useCallback(
-    (files: any[]) => {
-      const firstFile = files[0]
-      if (firstFile?.file instanceof File) {
-        setSelectedFile(firstFile.file)
+  const handleFilesChange = useCallback((files: any[]) => {
+    const validFiles = files.map(f => f?.file).filter((f): f is File => f instanceof File)
 
-        // Auto-set title from filename if title is empty
-        if (!form.getValues('title')) {
-          const fileName = firstFile.file.name.replace(/\.[^/.]+$/, '') // Remove extension
-          form.setValue('title', fileName)
-        }
-      } else {
-        setSelectedFile(null)
-      }
-    },
-    [form]
-  )
+    setSelectedFiles(validFiles)
+  }, [])
 
   const handlePreSubmit = useCallback(
-    async (data: ContentDocumentFormValues): Promise<ContentDocumentFormValues> => {
-      // If it's a document (not folder) and has a file, upload it first
-      if (!data.folder && selectedFile) {
+    async (data: ContentDocumentFormValues): Promise<any> => {
+      // Upload all selected files and collect fileInfo responses
+      if (selectedFiles.length > 0) {
         try {
-          const uploadResponse: FileUploadResponse = await fileClient.uploadFile(
-            selectedFile,
-            { accessScope: 'tenant' },
-            { appName: 'content', folderPath: '/documents' },
-            'fileContent'
+          const uploadPromises = selectedFiles.map(file =>
+            fileClient.uploadFile(
+              file,
+              { accessScope: 'tenant' },
+              { appName: 'content', folderPath: '/documents' },
+              'fileContent'
+            )
           )
 
-          // Store the fileInfo response to use in handleSubmit
+          const uploadResponses = await Promise.all(uploadPromises)
+
+          // Return data with uploaded file infos
           return {
             ...data,
-            fileInfo: uploadResponse.fileInfo
-          } as any
+            uploadedFiles: uploadResponses.map((response, index) => ({
+              fileInfo: response.fileInfo,
+              fileName: selectedFiles[index].name,
+              fileSize: selectedFiles[index].size
+            }))
+          }
         } catch (error) {
-          console.error('Error uploading file:', error)
+          console.error('Error uploading files:', error)
           throw new Error('File upload failed')
         }
       }
 
       return data
     },
-    [selectedFile, fileClient]
+    [selectedFiles, fileClient]
   )
 
   const handleSubmit = async (data: any) => {
     console.log('Content Document Form Submit:', data)
 
-    const isUpdate = Boolean(context.documentId)
     const employeeId = context.userInfo?.employeeDetails?.employeeId
 
     if (!employeeId) {
@@ -231,66 +220,53 @@ const ContentDocumentPopupContent: React.FC<ContentDocumentPopupProps> = context
       throw new Error('Employee ID is required')
     }
 
-    // Build contentDocument object
-    const contentDocument: any = {
-      name: data.title, // ContentDocument uses 'name' field, not 'title'
-      description: data.description,
-      folder: data.folder,
-      contentEntry: data.contentEntryId,
-      tags: data.tags || [],
-      documentGroupRef: data.documentGroupRef,
-      documentTypeRef: data.documentTypeRef
+    if (!data.contentEntryId) {
+      throw new Error('Content Entry ID is required')
     }
 
-    // Add parentDocument if selected (single string, not array)
-    if (data.parentDocument) {
-      contentDocument.parentDocument = data.parentDocument
+    // Build documents array from uploaded files
+    const documents = (data.uploadedFiles || []).map((uploadedFile: any) => ({
+      name: uploadedFile.fileName.replace(/\.[^/.]+$/, ''), // Remove extension for name
+      description: data.description || null,
+      folder: false,
+      fileInfo: uploadedFile.fileInfo,
+      documentGroupRef: data.documentGroupRef || null,
+      documentTypeRef: data.documentTypeRef || null,
+      ...(data.parentDocument && { parentDocument: data.parentDocument })
+    }))
+
+    // Build payload using Content Entry update with contentDocuments bulk operation
+    const payload = {
+      contentEntry: {
+        id: data.contentEntryId,
+        version: 0, // We don't have version info here, will be resolved by backend
+        updaterEmployee: employeeId
+      },
+      contentDocuments: {
+        changeMode: 'UPSERT',
+        documents: {
+          Items: documents
+        }
+      }
     }
 
-    // Add fileInfo from pre-submit upload
-    if (!data.folder && data.fileInfo) {
-      contentDocument.fileInfo = data.fileInfo
-    }
-
-    // Build payload with contentDocument nested
-    const payload: any = {
-      ...(isUpdate && { id: context.documentId }),
-      contentDocument,
-      creatorEmployeeId: isUpdate ? undefined : employeeId,
-      updaterEmployeeId: isUpdate ? employeeId : undefined
-    }
-
-    console.log('Content Document Payload:', payload)
+    console.log('Content Entry Payload with Documents:', payload)
     return payload
   }
 
   return (
     <AppActionForm
-      processType={context.documentId ? 'update' : 'create'}
+      processType="update"
       onSubmit={handleSubmit}
       handlePreSubmit={handlePreSubmit}
       formData={defaultValues}
       form={form}
-      submitButtonText={context.documentId ? 'Update' : watchFolder ? 'Create Folder' : 'Upload Document'}
+      submitButtonText="Upload Documents"
       showCancelButton={true}
       businessAppContext={context}
       data-testid="content-document-popup"
     >
       <div className="gba:space-y-6">
-        {/* Folder Toggle */}
-        <FormField
-          control={control as any}
-          name="folder"
-          render={({ field }) => (
-            <FormItem className="gba:flex gba:items-center gba:justify-between gba:space-y-0 gba:p-4 gba:border gba:border-border gba:rounded-lg">
-              <FormLabel>This is a folder</FormLabel>
-              <FormControl>
-                <Switch checked={field.value} onCheckedChange={field.onChange} />
-              </FormControl>
-            </FormItem>
-          )}
-        />
-
         {/* Document Area and Parent Folder - Side by Side */}
         <div className="gba:grid gba:grid-cols-2 gba:gap-4">
           {/* Content Entry Selection (Document Area) */}
@@ -400,44 +376,37 @@ const ContentDocumentPopupContent: React.FC<ContentDocumentPopupProps> = context
           )}
         />
 
-        {/* File Upload (only if folder=false) */}
-        {!watchFolder && (
-          <div>
-            <FormLabel>Upload File *</FormLabel>
-            <div className="gba:mt-2" data-testid="content-document-file-upload">
-              <FileUpload
-                multiple={false}
-                maxFiles={1}
-                maxSizeMB={50}
-                accept=".pdf,.doc,.docx,.xls,.xlsx,.ppt,.pptx,.txt,.jpg,.jpeg,.png,.gif,.zip,.rar"
-                layout="list"
-                preview="icon"
-                onFilesChange={handleFilesChange}
-              />
-            </div>
-            {form.formState.errors.file && (
-              <p className="gba:text-sm gba:text-destructive gba:mt-2">
-                {form.formState.errors.file.message as string}
-              </p>
-            )}
+        {/* File Upload */}
+        <div>
+          <FormLabel>Upload Files *</FormLabel>
+          <div className="gba:mt-2" data-testid="content-document-file-upload">
+            <FileUpload
+              multiple={true}
+              maxFiles={10}
+              maxSizeMB={50}
+              accept=".pdf,.doc,.docx,.xls,.xlsx,.ppt,.pptx,.txt,.jpg,.jpeg,.png,.gif,.zip,.rar"
+              layout="list"
+              preview="icon"
+              onFilesChange={handleFilesChange}
+            />
           </div>
-        )}
+          {form.formState.errors.files && (
+            <p className="gba:text-sm gba:text-destructive gba:mt-2">{form.formState.errors.files.message as string}</p>
+          )}
+        </div>
 
-        {/* Title */}
+        {/* Title (Optional) */}
         <FormField
           control={control as any}
           name="title"
           render={({ field }) => (
             <FormItem>
-              <FormLabel>{watchFolder ? 'Folder Name' : 'Document Title'} *</FormLabel>
+              <FormLabel>Title (Optional)</FormLabel>
               <FormControl>
-                <Input
-                  {...field}
-                  placeholder={watchFolder ? 'Enter folder name...' : 'Enter document title...'}
-                  data-testid="content-document-title-input"
-                />
+                <Input {...field} placeholder="Optional custom title..." data-testid="content-document-title-input" />
               </FormControl>
               <FormMessage />
+              <p className="gba:text-sm gba:text-muted-foreground">Leave empty to use file names as titles</p>
             </FormItem>
           )}
         />
