@@ -46,6 +46,7 @@ export interface SimpleStatistics {
   averageWorkStreak: string
   sickAbsencesByMonth: {
     month: string
+    monthNumber: number | null
     count: number
   }
   plannedAbsences: number
