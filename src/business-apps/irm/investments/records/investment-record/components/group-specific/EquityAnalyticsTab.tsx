@@ -118,7 +118,7 @@ export const EquityAnalyticsTab: React.FC<EquityAnalyticsTabProps> = ({ investme
                 contextsArray={[FlowContextName.investmentKpiForecastUpdate]}
                 externalContextData={{
                   investmentId: investment?.id,
-                  scope: 'kpi',
+                  scope: 'kpiforecast',
                   key: 'moic'
                 }}
                 accessToken={props.accessToken}
@@ -204,7 +204,7 @@ export const EquityAnalyticsTab: React.FC<EquityAnalyticsTabProps> = ({ investme
                 contextsArray={[FlowContextName.investmentKpiForecastUpdate]}
                 externalContextData={{
                   investmentId: investment?.id,
-                  scope: 'kpi',
+                  scope: 'kpiforecast',
                   key: 'irr'
                 }}
                 accessToken={props.accessToken}

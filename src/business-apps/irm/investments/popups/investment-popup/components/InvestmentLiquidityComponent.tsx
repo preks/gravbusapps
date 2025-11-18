@@ -11,23 +11,16 @@ import {
   FormMessage,
   Input,
   Button,
-  Alert,
-  Spinner
+  Alert
 } from '@newwork/nw-design-system'
 import { Plus } from 'lucide-react'
-import { AppActionForm } from '@/components/app-action-form'
-import { useInvestmentPopupData } from '../hooks/useInvestmentPopupData'
+import { useInvestmentPopupForm } from '../hooks/useInvestmentPopupForm'
+import { InvestmentPopupFormWrapper } from './InvestmentPopupFormWrapper'
 import { InvestmentLiquidityComponentProps, LiquidityFormData, LiquidityPreferenceItem } from '../types'
 import { getTranslationFromI18nKeyAndLabel } from '@/common/utils/windowUtils'
-import { buildInvestmentPayload } from '@/common/data/investment/payloads/investmentPayloads'
 import { formatDataTestId } from '@/common/utils/formatDataTestId'
-import {
-  extractInvestmentId,
-  parseAdditionalProperties,
-  validateInvestmentData,
-  INVESTMENT_ERRORS,
-  getInvestmentGroupType
-} from '../utils/investmentPopupUtils'
+import { parseAdditionalProperties, validateInvestmentData, INVESTMENT_ERRORS } from '../utils/investmentPopupUtils'
+import { buildInvestmentPopupPayload } from '../utils/investmentPopupPayloadHelper'
 
 const prefixDataTestId = 'investment-liquidity-component'
 
@@ -50,15 +43,11 @@ export const InvestmentLiquidityComponent: React.FC<InvestmentLiquidityComponent
   userInfo,
   additionalData
 }) => {
-  const businessAppContext = { accessToken, userInfo, additionalData }
-
-  // Extract investmentId from multiple sources
-  const investmentId = extractInvestmentId(additionalData)
-
-  // Load investment data
-  const { investment, loading, error } = useInvestmentPopupData({
-    context: businessAppContext,
-    investmentId,
+  // Use common setup hook
+  const { businessAppContext, investmentId, investment, loading, error } = useInvestmentPopupForm({
+    accessToken,
+    userInfo,
+    additionalData,
     scope: 'status' // Use status scope as liquidity is not yet in the hook
   })
 
@@ -121,6 +110,10 @@ export const InvestmentLiquidityComponent: React.FC<InvestmentLiquidityComponent
   const handleSubmit = async (formData: LiquidityFormData) => {
     validateInvestmentData(investment)
 
+    if (!investment) {
+      throw new Error('Investment data not loaded')
+    }
+
     // Get current additionalProperties
     const currentAdditionalProps = parseAdditionalProperties(investment.additionalProperties)
 
@@ -134,106 +127,36 @@ export const InvestmentLiquidityComponent: React.FC<InvestmentLiquidityComponent
       liquidityPreferences: updatedLiquidityPreferences
     }
 
-    // Determine investment group type
-    const groupType = getInvestmentGroupType(investment)
-
-    // Create investment form data with updated additionalProperties
-    const investmentFormData: any = {
-      investment: {
-        id: investmentId,
-        version: investment.version,
-        name: investment.name || '',
-        initialInvestmentAmount: investment.initialInvestmentAmount || 0,
-        investmentGroup: investment.investmentGroup, // Full object
-        ownerEmployee: investment.ownerEmployee, // Full object
-
-        // Include ALL existing investment fields to preserve them
-        code: investment.code,
-        isin: investment.isin,
-        investmentType: investment.investmentType, // Full object
-        investmentStakeType: investment.investmentStakeType, // Full object
-        investmentPhase: investment.investmentPhase, // Full object
-        investmentStatus: investment.investmentStatus, // Full object
-        investmentRiskLevel: investment.investmentRiskLevel, // Full object
-        acquisitionDate: investment.acquisitionDate,
-        planedExit: investment.planedExit,
-        plannedExitDate: investment.plannedExitDate,
-        exitDate: investment.exitDate,
-        totalInvestmentAmount: investment.totalInvestmentAmount,
-        investmentMarketValue: investment.investmentMarketValue,
-        debtFinancingAmount: investment.debtFinancingAmount,
-        requiredCapitalAmount: investment.requiredCapitalAmount,
-        forecastedRevenueAmount: investment.forecastedRevenueAmount,
-        forecastedProfitAmount: investment.forecastedProfitAmount,
-        stakePercentage: investment.stakePercentage,
-        loanRecipientName: investment.loanRecipientName,
-        loanAmount: investment.loanAmount,
-        loanOpenCommitmentAmount: investment.loanOpenCommitmentAmount,
-        loanInterestRate: investment.loanInterestRate,
-        loanStartDate: investment.loanStartDate,
-        loanEndDate: investment.loanEndDate,
-        loanInterestClaim: investment.loanInterestClaim,
-        totalCommitmentAmount: investment.totalCommitmentAmount,
-        totalDistributionAmount: investment.totalDistributionAmount,
-        currency: investment.currency, // Full object
-        fundManagerName: investment.fundManagerName,
-        identification: investment.identification,
-        investmentAccount: investment.investmentAccount, // Full object
-        investmentOpportunity: investment.investmentOpportunity?.id,
-        loanRecipientInvestmentAccount: investment.loanRecipientInvestmentAccount?.id,
-
-        // Updated field - additionalProperties with new liquidity preferences
-        additionalProperties: updatedAdditionalProps
-      }
-    }
-
-    // CRITICAL: Add the appropriate subtype based on investment group (required by API)
-    if (groupType === 'EQUITY') {
-      const existingEquity = Array.isArray((investment as any).equityInvestment)
-        ? (investment as any).equityInvestment[0]
-        : (investment as any).equityInvestment
-      investmentFormData.equityInvestment = existingEquity || {}
-    } else if (groupType === 'REAL_ESTATE') {
-      const existingRealEstate = Array.isArray((investment as any).realEstateInvestment)
-        ? (investment as any).realEstateInvestment[0]
-        : (investment as any).realEstateInvestment
-      investmentFormData.realEstateInvestment = existingRealEstate || {}
-    } else if (groupType === 'LIQUID_FUND') {
-      const existingLiquidFund = Array.isArray((investment as any).liquidFundInvestment)
-        ? (investment as any).liquidFundInvestment[0]
-        : (investment as any).liquidFundInvestment
-      investmentFormData.liquidFundInvestment = existingLiquidFund || {}
-    }
-
-    // Use the central payload builder with correct signature
-    const payload = buildInvestmentPayload(investmentFormData, businessAppContext, {
-      isUpdate: true,
-      rawInvestmentData: investment
+    // Build the payload using the centralized helper
+    const payload = buildInvestmentPopupPayload({
+      investment,
+      updatedAdditionalProperties: updatedAdditionalProps,
+      businessAppContext,
+      businessKeyPrefix: 'investment-liquidity',
+      businessKeySuffix: undefined
     })
-
-    // Add changeMode to the payload
-    ;(payload as any).changeMode = 'UPDATE'
 
     return payload
   }
 
   // Success handler
-  const handleSuccess = () => {
-    onSave?.(form.getValues().liquidityPreferences)
-    onClose()
+  const handleSubmitWrapper = async (formData: LiquidityFormData) => {
+    const payload = await handleSubmit(formData)
+    onSave?.(formData.liquidityPreferences)
+    return payload
   }
 
   return (
-    <AppActionForm
+    <InvestmentPopupFormWrapper
+      loading={loading}
+      error={error}
+      investment={investment}
+      onSubmit={handleSubmitWrapper}
+      onClose={onClose}
       form={form}
-      formData={form.getValues()}
-      processType="update"
-      submitButtonText={getTranslationFromI18nKeyAndLabel('investment.liquidity.save', 'Save Liquidity Preferences')}
-      onSubmit={handleSubmit}
-      onSuccess={handleSuccess}
       businessAppContext={businessAppContext}
-      disableFormSubmission={loading}
-      data-testid={prefixDataTestId}
+      prefixDataTestId={prefixDataTestId}
+      submitButtonText={getTranslationFromI18nKeyAndLabel('investment.liquidity.save', 'Save Liquidity Preferences')}
     >
       <Form {...form}>
         <div className="gba:space-y-4" data-testid={`${prefixDataTestId}-content`}>
@@ -248,17 +171,6 @@ export const InvestmentLiquidityComponent: React.FC<InvestmentLiquidityComponent
               )}
             </p>
           </div>
-
-          {loading && (
-            <div className="gba:flex gba:items-center gba:gap-2">
-              <Spinner size="sm" />
-              <span className="gba:text-sm gba:text-muted-foreground">
-                {getTranslationFromI18nKeyAndLabel('investment.liquidity.loading', 'Loading...')}
-              </span>
-            </div>
-          )}
-
-          {error && <Alert variant="destructive">{error}</Alert>}
 
           {/* Liquidity Preferences List */}
           <div className="gba:space-y-4">
@@ -388,6 +300,6 @@ export const InvestmentLiquidityComponent: React.FC<InvestmentLiquidityComponent
           </Button>
         </div>
       </Form>
-    </AppActionForm>
+    </InvestmentPopupFormWrapper>
   )
 }
