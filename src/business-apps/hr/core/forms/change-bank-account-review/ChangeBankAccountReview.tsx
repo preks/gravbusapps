@@ -163,6 +163,7 @@ export const ChangeBankAccountReview: React.FC<BusinessAppContextProps> = ({
               'Current Data'
             )}
             mode="diff"
+            hideNewLabels
           />
         </AppActionForm>
       </div>

@@ -16,6 +16,7 @@ interface ReviewRowsProps {
   oldDataText: string
   currentDataText: string
   mode?: 'diff' | 'delete'
+  hideNewLabels?: boolean
 }
 
 export const ReviewRows: React.FC<ReviewRowsProps> = ({
@@ -23,7 +24,8 @@ export const ReviewRows: React.FC<ReviewRowsProps> = ({
   dataTestIdPrefix,
   oldDataText,
   currentDataText,
-  mode = 'diff'
+  mode = 'diff',
+  hideNewLabels = false
 }) => {
   return (
     <>
@@ -58,7 +60,11 @@ export const ReviewRows: React.FC<ReviewRowsProps> = ({
                 <CaretRightIcon size={20} weight="bold" className="gba:text-muted-foreground" />
               </div>
               <div className="gba:grid gba:grid-rows-[auto_1fr] gba:gap-1 gba:self-stretch gba:min-w-0">
-                <div className={`gba:text-sm ${row.newLabel ? '' : 'gba:md:opacity-0'}`}>{row.newLabel || '.'}</div>
+                <div
+                  className={`gba:text-sm ${hideNewLabels ? 'gba:opacity-0' : row.newLabel ? '' : 'gba:md:opacity-0'}`}
+                >
+                  {hideNewLabels ? '.' : row.newLabel || '.'}
+                </div>
                 <div
                   className={`gba:h-full gba:min-h-12 gba:py-2 gba:rounded-md gba:px-3 gba:flex gba:items-center gba:min-w-0 gba:w-full gba:whitespace-normal gba:break-all ${newClasses}`}
                 >

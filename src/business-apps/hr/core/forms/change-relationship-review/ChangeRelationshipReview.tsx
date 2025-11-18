@@ -54,9 +54,6 @@ export const ChangeRelationshipReview: React.FC<BusinessAppContextProps> = ({
   const payload = (additionalData as any)?.psi_taskPayload || {}
   const newRel = payload?.employeeRelationship || {}
   const oldRel = payload?.oldEmployeeRelationship || {}
-  console.log('additionalData', additionalData)
-  console.log('oldRel', oldRel)
-  console.log('newRel', newRel)
 
   // Combined fetch for relationship type (catalog) and documents
   useEffect(() => {
