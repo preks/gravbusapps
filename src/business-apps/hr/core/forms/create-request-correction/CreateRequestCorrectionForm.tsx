@@ -252,7 +252,7 @@ export const CreateRequestCorrectionForm: React.FC<RequestCorrectionFormProps> =
               render={({ field }) => (
                 <FormItem>
                   <FormLabel>
-                    {getTranslationFromI18nKeyAndLabel('lowcoder:time_tracking.actions.end', 'Start')}{' '}
+                    {getTranslationFromI18nKeyAndLabel('lowcoder:time_tracking.actions.end', 'End')}{' '}
                     <span className="gba:text-destructive">*</span>
                   </FormLabel>
                   <FormControl>
