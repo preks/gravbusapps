@@ -35,7 +35,7 @@ export interface StatusIndices {
 }
 
 // Constants for styling
-const DEFAULT_TERMINAL_STATUS_PADDING = '0 12px 0 24px'
+const DEFAULT_TERMINAL_STATUS_PADDING = '0 12px 0 26px'
 
 const renderActiveOpenStatus = (statuses: ReferenceData[], openIndex: number) => (
   <div
@@ -50,7 +50,7 @@ const renderActiveOpenStatus = (statuses: ReferenceData[], openIndex: number) =>
       fontSize: '14px',
       fontWeight: '600',
       borderRadius: '20px 0 0 20px',
-      marginRight: '8px',
+      marginRight: '140px',
       transition: 'all 0.3s ease',
       clipPath: 'polygon(0 0, calc(100% - 12px) 0, 100% 50%, calc(100% - 12px) 100%, 0 100%)',
       WebkitClipPath: 'polygon(0 0, calc(100% - 12px) 0, 100% 50%, calc(100% - 12px) 100%, 0 100%)',
@@ -115,7 +115,7 @@ const renderInactiveOpenStatus = (
           fontSize: '14px',
           fontWeight: '600',
           borderRadius: '20px 0 0 20px',
-          marginRight: '8px',
+          marginRight: '100px',
           transition: 'all 0.3s ease',
           clipPath: 'polygon(0 0, calc(100% - 12px) 0, 100% 50%, calc(100% - 12px) 100%, 0 100%)',
           WebkitClipPath: 'polygon(0 0, calc(100% - 12px) 0, 100% 50%, calc(100% - 12px) 100%, 0 100%)',
@@ -155,8 +155,8 @@ const renderConvertedLostSection = (
         transition: 'all 0.3s ease',
         border: '1px solid hsl(var(--border))',
         overflow: 'hidden',
-        clipPath: 'polygon(12px 0, 100% 0, 100% 100%, 12px 100%, 24px 50%)',
-        WebkitClipPath: 'polygon(12px 0, 100% 0, 100% 100%, 12px 100%, 24px 50%)'
+        clipPath: 'polygon(14px 0, 100% 0, 100% 100%, 14px 100%, 26px 50%)',
+        WebkitClipPath: 'polygon(14px 0, 100% 0, 100% 100%, 14px 100%, 26px 50%)'
       }}
       data-testid="status-converted-lost-combined"
     >
@@ -315,8 +315,8 @@ const renderActiveStatusBadge = (
           marginRight: '0',
           transition: 'all 0.3s ease',
           cursor: 'pointer',
-          clipPath: 'polygon(12px 0, 100% 0, 100% 100%, 12px 100%, 24px 50%)',
-          WebkitClipPath: 'polygon(12px 0, 100% 0, 100% 100%, 12px 100%, 24px 50%)'
+          clipPath: 'polygon(14px 0, 100% 0, 100% 100%, 14px 100%, 26px 50%)',
+          WebkitClipPath: 'polygon(14px 0, 100% 0, 100% 100%, 14px 100%, 26px 50%)'
         }}
         aria-label={`Revert status to ${statuses[openIndex].value}`}
         data-testid={isConverted ? 'status-converted' : 'status-lost'}
