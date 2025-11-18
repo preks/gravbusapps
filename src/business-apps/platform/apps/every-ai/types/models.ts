@@ -82,9 +82,22 @@ export type EntityData = {
     | 'investment_company'
     | 'investment_account'
     | 'employee'
+    | 'reminder'
+    | 'blink'
   id: string
   operation?: 'create' | 'update' | 'delete' | 'read'
   flow_proposal?: string
+}
+
+export type ReminderData = {
+  type: 'reminder'
+  workflowId: string
+  title: string
+  message?: string
+  reminderDateTime: string // ISO datetime
+  reminderDateTimeFormatted: string
+  status: 'pending' | 'due' | 'completed' | 'dismissed'
+  createdAt: string
 }
 
 export type FileData = {
@@ -130,6 +143,7 @@ export type DisplayData =
   | FileData
   | CalendarViewData
   | NavigationData
+  | ReminderData
 
 export type NextStepProposal = {
   heading: string

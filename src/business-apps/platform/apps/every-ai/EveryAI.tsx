@@ -1,10 +1,12 @@
-import React, { useEffect, useRef, useMemo } from 'react'
+import React, { useEffect, useRef, useMemo, useState } from 'react'
 import { BusinessAppContextProps } from '@/common/BusinessAppContext'
 import { useFlowBot } from './hooks/useFlowBot'
 import { ChatInput } from './components/ChatInput'
 import { FormSubmissionProvider } from './components/FormSubmissionContext'
 import { ConversationRenderer } from './components/ConversationRenderer'
 import { useCurrentUserPicture } from './hooks/useCurrentUserPicture'
+import { RemindersPanel } from './components/RemindersPanel'
+import { Button } from '@newwork/nw-design-system'
 
 export interface EveryAIProps extends BusinessAppContextProps {
   className?: string
@@ -17,6 +19,7 @@ export interface EveryAIProps extends BusinessAppContextProps {
 export const EveryAI: React.FC<EveryAIProps> = props => {
   const { accessToken, className, userInfo } = props
   const scrollRef = useRef<HTMLDivElement>(null)
+  const [showRemindersPanel, setShowRemindersPanel] = useState(false)
 
   const { conversation, isLoading, sendMessage, clearConversation, nextStepProposals, isPrechatLoading } =
     useFlowBot(accessToken)
@@ -56,6 +59,40 @@ export const EveryAI: React.FC<EveryAIProps> = props => {
       className={`gba:h-full gba:flex gba:flex-col gba:bg-background gba:relative gba:overflow-hidden ${className || ''}`}
       data-testid="every-ai-app"
     >
+      {/* Reminders Bell Icon - Top Right */}
+      <div className="gba:absolute gba:top-4 gba:right-4 gba:z-30">
+        <Button
+          variant="ghost"
+          size="sm"
+          onClick={() => setShowRemindersPanel(!showRemindersPanel)}
+          className="gba:relative gba:p-2 gba:rounded-full gba:bg-card/80 gba:backdrop-blur-sm gba:border gba:border-border hover:gba:bg-accent gba:transition-all hover:gba:shadow-lg gba:group"
+          data-testid="reminders-bell-button"
+          title="My Reminders"
+        >
+          <svg
+            className="gba:h-5 gba:w-5 gba:text-muted-foreground group-hover:gba:text-primary gba:transition-colors"
+            fill="none"
+            stroke="currentColor"
+            viewBox="0 0 24 24"
+            aria-hidden="true"
+          >
+            <path
+              strokeLinecap="round"
+              strokeLinejoin="round"
+              strokeWidth={2}
+              d="M15 17h5l-1.405-1.405A2.032 2.032 0 0118 14.158V11a6.002 6.002 0 00-4-5.659V5a2 2 0 10-4 0v.341C7.67 6.165 6 8.388 6 11v3.159c0 .538-.214 1.055-.595 1.436L4 17h5m6 0v1a3 3 0 11-6 0v-1m6 0H9"
+            />
+          </svg>
+        </Button>
+      </div>
+
+      {/* Reminders Panel Overlay */}
+      {showRemindersPanel && (
+        <div className="gba:absolute gba:top-16 gba:right-4 gba:z-30">
+          <RemindersPanel accessToken={accessToken} userInfo={userInfo} onClose={() => setShowRemindersPanel(false)} />
+        </div>
+      )}
+
       <FormSubmissionProvider>
         {/* Conversation Area with subtle gradient */}
         <div

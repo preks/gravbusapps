@@ -30,6 +30,7 @@ import IrmNoteDisplay from './entities/IrmNoteDisplay'
 import IrmDocumentDisplay from './entities/IrmDocumentDisplay'
 import EntityLink, { markdownUrlTransform } from './links/EntityLink'
 import NavigationDisplay from './displays/NavigationDisplay'
+import { ReminderDisplay } from './displays/ReminderDisplay'
 
 interface FlowProposalBoundaryProps {
   data: FlowProposalOutput
@@ -392,6 +393,8 @@ function renderEntity(item: EntityData, accessToken: string) {
     case 'blink':
     case 'quick_task':
       return <BlinkDisplay key={item.id} blinkId={item.id} accessToken={accessToken} operation={item.operation} />
+    case 'reminder':
+      return <ReminderDisplay key={item.id} entity={item} accessToken={accessToken} />
     case 'service_ticket':
       return (
         <ServiceTicketDisplay
