@@ -154,6 +154,19 @@ export const INVESTMENT_OPPORTUNITY = `
   }
 `
 
+// Investment Shareholder fragment
+export const INVESTMENT_SHAREHOLDER = `
+    id
+    name
+    description
+    stakePercentage
+    activeFrom
+    activeTo
+    investmentId
+    businessKey
+    ${AUDIT_FIELDS}
+`
+
 /**
  * ============================================================================
  * INVESTMENT_DOCUMENT
@@ -209,6 +222,8 @@ export const INVESTMENT = `
     totalCommitmentAmount
     totalDistributionAmount
     fundManagerName
+    irr
+    moic
     additionalProperties
     ${AUDIT_FIELDS}
 
@@ -343,6 +358,8 @@ export const EQUITY_INVESTMENT = `
         id
         date
         marketValue
+        turnoverAmount
+        ebitdaAmount
         additionalProperties
     }
 `
