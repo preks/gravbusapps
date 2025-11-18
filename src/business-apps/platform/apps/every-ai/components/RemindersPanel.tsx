@@ -122,7 +122,20 @@ export const RemindersPanel: React.FC<RemindersPanelProps> = ({ accessToken, use
     <Card className="gba:w-96 gba:max-h-[600px] gba:overflow-y-auto gba:shadow-2xl" data-testid="reminders-panel">
       <CardHeader className="gba:flex gba:flex-row gba:items-center gba:justify-between gba:space-y-0 gba:pb-4 gba:border-b gba:border-border">
         <CardTitle className="gba:text-xl gba:flex gba:items-center gba:gap-2">
-          <span aria-label="bell icon">🔔</span>
+          <svg
+            className="gba:h-5 gba:w-5 gba:text-primary"
+            fill="none"
+            stroke="currentColor"
+            viewBox="0 0 24 24"
+            aria-label="bell icon"
+          >
+            <path
+              strokeLinecap="round"
+              strokeLinejoin="round"
+              strokeWidth={2}
+              d="M15 17h5l-1.405-1.405A2.032 2.032 0 0118 14.158V11a6.002 6.002 0 00-4-5.659V5a2 2 0 10-4 0v.341C7.67 6.165 6 8.388 6 11v3.159c0 .538-.214 1.055-.595 1.436L4 17h5m6 0v1a3 3 0 11-6 0v-1m6 0H9"
+            />
+          </svg>
           My Reminders
           {reminders.length > 0 && (
             <Badge variant="default" className="gba:ml-2">
@@ -151,7 +164,19 @@ export const RemindersPanel: React.FC<RemindersPanelProps> = ({ accessToken, use
           </div>
         ) : error ? (
           <div className="gba:text-center gba:py-8">
-            <div className="gba:text-4xl gba:mb-3">⚠️</div>
+            <svg
+              className="gba:h-12 gba:w-12 gba:text-destructive gba:mx-auto gba:mb-3"
+              fill="none"
+              stroke="currentColor"
+              viewBox="0 0 24 24"
+            >
+              <path
+                strokeLinecap="round"
+                strokeLinejoin="round"
+                strokeWidth={2}
+                d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z"
+              />
+            </svg>
             <div className="gba:text-destructive gba:font-semibold gba:mb-2">Failed to load reminders</div>
             <div className="gba:text-sm gba:text-muted-foreground gba:mb-4">{error}</div>
             <Button size="sm" onClick={loadReminders} data-testid="reminders-retry">
@@ -160,7 +185,19 @@ export const RemindersPanel: React.FC<RemindersPanelProps> = ({ accessToken, use
           </div>
         ) : reminders.length === 0 ? (
           <div className="gba:text-center gba:py-8">
-            <div className="gba:text-6xl gba:mb-3">📭</div>
+            <svg
+              className="gba:h-16 gba:w-16 gba:text-muted-foreground gba:mx-auto gba:mb-3"
+              fill="none"
+              stroke="currentColor"
+              viewBox="0 0 24 24"
+            >
+              <path
+                strokeLinecap="round"
+                strokeLinejoin="round"
+                strokeWidth={2}
+                d="M15 17h5l-1.405-1.405A2.032 2.032 0 0118 14.158V11a6.002 6.002 0 00-4-5.659V5a2 2 0 10-4 0v.341C7.67 6.165 6 8.388 6 11v3.159c0 .538-.214 1.055-.595 1.436L4 17h5m6 0v1a3 3 0 11-6 0v-1m6 0H9"
+              />
+            </svg>
             <div className="gba:text-muted-foreground gba:font-medium gba:mb-1">No upcoming reminders</div>
             <div className="gba:text-xs gba:text-muted-foreground">Ask EveryAI to set a reminder for you!</div>
           </div>
