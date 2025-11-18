@@ -1,9 +1,9 @@
 import React, { useEffect, useRef } from 'react'
-import { useTranslation } from 'react-i18next'
 import { InputField, SelectField } from '@newwork/gravity-ui-catalog'
 import { Form } from 'antd'
 import { Currency } from '../../../types'
 import { formatAmountForLocale, parseAndFormatAmount } from '@/business-apps/fin/expenses/utils/amountFormatting'
+import { getTranslationFromI18nKeyAndLabel } from '@/common/utils/windowUtils'
 
 interface AmountFieldProps {
   index: number
@@ -28,7 +28,7 @@ export const AmountField: React.FC<AmountFieldProps> = ({
   onAmountChange,
   onCurrencyChange
 }) => {
-  const { t } = useTranslation()
+  const t = getTranslationFromI18nKeyAndLabel
   const previousAmountValueRef = useRef<number | undefined>(amountValue)
   const isUserEditingRef = useRef(false)
 

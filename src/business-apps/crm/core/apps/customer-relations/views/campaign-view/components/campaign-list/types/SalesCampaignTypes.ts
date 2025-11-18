@@ -50,17 +50,47 @@ export interface SalesCampaignWithCountResponse {
 }
 
 export interface SalesCampaignStatistics {
-  totalCampaigns: number
-  activeCampaigns: number
-  completedCampaigns: number
-  averageDuration: number
+  totalCampaigns: {
+    current: number
+    changePercent: number
+    isPositive: boolean
+  }
+  activeCampaigns: {
+    current: number
+    changePercent: number
+    isPositive: boolean
+  }
+  completedCampaigns: {
+    current: number
+    changePercent: number
+    isPositive: boolean
+  }
+  averageDuration: {
+    current: number
+    changePercent: number
+    isPositive: boolean
+  }
 }
 
 export interface SalesCampaignStatisticsResponse {
-  totalCampaigns: number
-  activeCampaigns: number
-  completedCampaigns: number
+  // Current counts
+  totalCampaigns: { aggregate: { count: number } }
+  activeCampaigns: { aggregate: { count: number } }
+  completedCampaigns: { aggregate: { count: number } }
+
+  // Previous year counts for trend calculation
+  totalCampaignsPrevious: { aggregate: { count: number } }
+  activeCampaignsPrevious: { aggregate: { count: number } }
+  completedCampaignsPrevious: { aggregate: { count: number } }
+
+  // Campaigns with duration (current year)
   campaignsWithDuration: Array<{
+    startDate: string
+    endDate: string
+  }>
+
+  // Campaigns with duration (previous year)
+  campaignsWithDurationPrevious: Array<{
     startDate: string
     endDate: string
   }>

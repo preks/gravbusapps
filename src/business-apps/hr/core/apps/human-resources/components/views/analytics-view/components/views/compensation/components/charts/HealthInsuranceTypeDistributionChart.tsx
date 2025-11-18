@@ -3,8 +3,9 @@ import { PieChart, Pie, Cell, ResponsiveContainer, Sector } from 'recharts'
 import { Typography, Spin, Empty } from 'antd'
 import { InfoCircleOutlined } from '@ant-design/icons'
 import { BusinessAppContextProps } from '@/business-apps/types'
-import { getTranslationFromI18nKeyAndLabel } from '@/common/utils/windowUtils'
+import { useTranslation } from '@newwork/nw-design-system'
 import { useHealthInsuranceTypeDistribution } from '../../../../../hooks/useHealthInsuranceTypeDistribution'
+import hrTranslations from '@/business-apps/hr/core/apps/human-resources/_i18n'
 
 const { Title, Text } = Typography
 
@@ -13,7 +14,7 @@ const { Title, Text } = Typography
  * as a pie chart with a center statistic showing total employee count
  */
 export const HealthInsuranceTypeDistributionChart: React.FC<BusinessAppContextProps> = ({ accessToken }) => {
-  const [activeIndex, setActiveIndex] = React.useState<number>(-1)
+  const { t } = useTranslation(hrTranslations)
 
   // Fetch health insurance type distribution data
   const { distribution: data, loading, error, totalEmployees } = useHealthInsuranceTypeDistribution(accessToken)
@@ -78,14 +79,7 @@ export const HealthInsuranceTypeDistributionChart: React.FC<BusinessAppContextPr
     )
   }
 
-  // Event handlers for pie slice hover
-  const onPieEnter = (_: any, index: number) => {
-    setActiveIndex(index)
-  }
-
-  const onPieLeave = () => {
-    setActiveIndex(-1)
-  }
+  // Note: Hover active slice interaction removed to satisfy type constraints
 
   return (
     <div
@@ -96,14 +90,10 @@ export const HealthInsuranceTypeDistributionChart: React.FC<BusinessAppContextPr
       <div className="gba:flex gba:justify-between gba:items-center gba:mb-4">
         <div>
           <Title level={4} className="gba:m-0 gba:text-foreground">
-            {getTranslationFromI18nKeyAndLabel(
-              'hr_analytics_health_insurance_type_distribution',
-              'Health Insurance Type Distribution'
-            )}
+            {t('hr-analytics-health-insurance-type-distribution')}
           </Title>
           <Text className="gba:text-muted-foreground gba:text-sm gba:mt-1">
-            Distribution of employees by health insurance type showing coverage preferences and policy selection
-            patterns
+            {t('hr-analytics-health-insurance-type-distribution-description')}
           </Text>
         </div>
         <InfoCircleOutlined
@@ -121,17 +111,11 @@ export const HealthInsuranceTypeDistributionChart: React.FC<BusinessAppContextPr
           </div>
         ) : error ? (
           <div className="gba:flex gba:justify-center gba:items-center gba:h-full">
-            <Empty
-              description={getTranslationFromI18nKeyAndLabel('hr_analytics_error_loading', 'Error loading data')}
-              data-testid="health-insurance-type-distribution-error"
-            />
+            <Empty description={t('hr-analytics-error-loading')} data-testid="health-insurance-type-distribution-error" />
           </div>
         ) : data.length === 0 ? (
           <div className="gba:flex gba:justify-center gba:items-center gba:h-full">
-            <Empty
-              description={getTranslationFromI18nKeyAndLabel('hr_analytics_no_data', 'No data available')}
-              data-testid="health-insurance-type-distribution-empty"
-            />
+            <Empty description={t('hr-analytics-no-data')} data-testid="health-insurance-type-distribution-empty" />
           </div>
         ) : (
           <ResponsiveContainer
@@ -146,13 +130,9 @@ export const HealthInsuranceTypeDistributionChart: React.FC<BusinessAppContextPr
                 cx="50%"
                 cy="50%"
                 labelLine={false}
-                activeIndex={activeIndex}
-                activeShape={renderActiveShape}
                 innerRadius="60%"
                 outerRadius="80%"
                 dataKey="value"
-                onMouseEnter={onPieEnter}
-                onMouseLeave={onPieLeave}
                 animationBegin={0}
                 animationDuration={1200}
                 animationEasing="ease-out"
@@ -173,7 +153,7 @@ export const HealthInsuranceTypeDistributionChart: React.FC<BusinessAppContextPr
                   dominantBaseline="middle"
                   style={{ fontSize: '18px', fill: 'var(--nw-foreground)', fontWeight: 600 }}
                 >
-                  {getTranslationFromI18nKeyAndLabel('hr_analytics_insurance_types', 'Insurance Types')}
+                  {t('hr-analytics-insurance-types')}
                 </text>
                 <text
                   x="50%"

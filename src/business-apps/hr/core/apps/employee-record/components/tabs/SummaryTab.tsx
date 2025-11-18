@@ -117,26 +117,6 @@ const SummaryTab: React.FC<SummaryTabProps> = ({
       visible: false
     }))
   }
-  // Get additional attributes from additionalProperties
-  const getAdditionalAttributes = () => {
-    if (!employee.additionalProperties) return []
-
-    const attributes = []
-    for (const [key, value] of Object.entries(employee.additionalProperties)) {
-      if (key !== 'imported') {
-        // Try to get a hardcoded label for the key, or use the key itself if no label exists
-        const translatedKey = key.charAt(0).toUpperCase() + key.slice(1)
-        attributes.push({
-          key: translatedKey,
-          value: value === null || value === undefined ? '' : String(value)
-        })
-      }
-    }
-
-    return attributes
-  }
-
-  const additionalAttributes = getAdditionalAttributes()
 
   // Map real team members from GraphQL data
 
@@ -389,7 +369,11 @@ const SummaryTab: React.FC<SummaryTabProps> = ({
                   <div>
                     <div className="gba:text-sm gba:font-medium gba:text-foreground">Job Profile</div>
                     <div className="gba:text-sm gba:text-muted-foreground">
-                      {employee.employeePosition?.jobPosition?.name ?? 'Not assigned'}
+                      {employee.employeePosition?.jobPosition?.name ??
+                        getTranslationFromI18nKeyAndLabel(
+                          'lowcoder:employee_profile.left_side_bar.not_assigned',
+                          'Not assigned'
+                        )}
                     </div>
                   </div>
                 </div>
@@ -412,7 +396,11 @@ const SummaryTab: React.FC<SummaryTabProps> = ({
                         data-testid="job-family-button"
                       >
                         {/* Display job family from updated data structure, fallback to organizationalUnit name */}
-                        {employee.employeePosition?.jobPosition?.jobFunction?.jobFamily?.value || 'Not assigned'}
+                        {employee.employeePosition?.jobPosition?.jobFunction?.jobFamily?.value ||
+                          getTranslationFromI18nKeyAndLabel(
+                            'lowcoder:employee_profile.left_side_bar.not_assigned',
+                            'Not assigned'
+                          )}
                       </button>
                     </div>
                   </div>
@@ -437,7 +425,11 @@ const SummaryTab: React.FC<SummaryTabProps> = ({
                         className="gba:text-sm gba:!text-blue-600 gba:hover:underline gba:text-left gba:w-full"
                         data-testid="job-function-button"
                       >
-                        {employee.employeePosition?.jobPosition?.jobFunction?.name || 'Not assigned'}
+                        {employee.employeePosition?.jobPosition?.jobFunction?.name ||
+                          getTranslationFromI18nKeyAndLabel(
+                            'lowcoder:employee_profile.left_side_bar.not_assigned',
+                            'Not assigned'
+                          )}
                       </button>
                     </div>
                   </div>
@@ -460,8 +452,25 @@ const SummaryTab: React.FC<SummaryTabProps> = ({
                         className="gba:text-sm gba:!text-blue-600 gba:hover:underline gba:text-left gba:w-full"
                         data-testid="job-level-button"
                       >
-                        {employee.employeePosition?.jobPosition?.jobLevel?.name || 'Not assigned'}
+                        {employee.employeePosition?.jobPosition?.jobLevel?.name ||
+                          getTranslationFromI18nKeyAndLabel(
+                            'lowcoder:employee_profile.left_side_bar.not_assigned',
+                            'Not assigned'
+                          )}
                       </button>
+                    </div>
+                  </div>
+                )}
+
+                {/* SAP Number from additional properties */}
+                {employee?.additionalProperties?.SAPNumber && (
+                  <div className="gba:flex gba:items-center">
+                    <PiListNumbers className="gba:h-5 gba:w-5 gba:text-muted-foreground gba:mr-3" />
+                    <div>
+                      <div className="gba:text-sm gba:font-medium gba:text-foreground">SAP Number</div>
+                      <div className="gba:text-sm gba:text-muted-foreground">
+                        {String(employee.additionalProperties.SAPNumber)}
+                      </div>
                     </div>
                   </div>
                 )}
@@ -514,7 +523,8 @@ const SummaryTab: React.FC<SummaryTabProps> = ({
                     return (
                       <div key={day} className="gba:text-center">
                         <div className="gba:text-xs gba:font-medium gba:text-muted-foreground gba:uppercase">
-                          {day.slice(0, 3)}
+                          <span className="gba:hidden gba:2xl:inline">{day.slice(0, 3)}</span>
+                          <span className="gba:inline gba:2xl:hidden">{day.slice(0, 1)}</span>
                         </div>
                         <div
                           className={`gba:h-2 gba:rounded-full gba:mt-1 ${isWorkDay ? 'gba:bg-info' : 'gba:bg-border'}`}
@@ -554,7 +564,7 @@ const SummaryTab: React.FC<SummaryTabProps> = ({
                         Quick Actions
                       </div>
                     </div>
-                    <div className="gba:flex gba:gap-2 gba:w-full">
+                    <div className="gba:flex gba:gap-2 gba:w-full gba:flex-wrap">
                       <Tooltip title="Clock In">
                         <Button
                           type="default"
@@ -601,7 +611,7 @@ const SummaryTab: React.FC<SummaryTabProps> = ({
                         prefixDataTestId="request-absence"
                         accessToken={accessToken}
                       >
-                        <div className="gba:flex gba:items-center gba:gap-2 gba:cursor-pointer">
+                        <div className="gba:flex gba:items-center gba:gap-2 gba:cursor-pointer gba:flex-1 gba:min-w-0">
                           <PiCalendarX className="gba:h-4 gba:w-4" />
                           <span className="gba:text-xs gba:md:text-sm gba:truncate">
                             {getTranslationFromI18nKeyAndLabel(
@@ -674,36 +684,7 @@ const SummaryTab: React.FC<SummaryTabProps> = ({
           </Card>
         </div>
 
-        {/* Additional Attributes Section */}
-        {additionalAttributes.length > 0 && (
-          <div className="gba:lg:col-span-1 gba:xl:col-span-1">
-            <Card
-              variant="outlined"
-              className="gba:shadow-md gba:hover:shadow-lg gba:border gba:border-border gba:transition-all"
-              style={{ minHeight: '420px', backgroundColor: 'var(--nw-primary-foreground)' }}
-              data-testid="summary-section-additional-attributes"
-            >
-              <div className="gba:mb-6 gba:border-b gba:border-border gba:pb-2">
-                <h3 className="gba:text-xl gba:font-semibold gba:text-info">Additional Attributes</h3>
-              </div>
-              <div className="gba:p-4">
-                <div className="gba:space-y-4">
-                  {additionalAttributes.map((attr, index) => (
-                    <div key={index} className="gba:flex gba:items-center">
-                      <div className="gba:h-5 gba:w-5 gba:text-muted-foreground gba:mr-3">
-                        <div className="gba:w-2 gba:h-2 gba:bg-gray-400 gba:rounded-full"></div>
-                      </div>
-                      <div className="gba:flex-1">
-                        <div className="gba:text-sm gba:font-medium gba:text-foreground">{attr.key}</div>
-                        <div className="gba:text-sm gba:text-muted-foreground">{attr.value}</div>
-                      </div>
-                    </div>
-                  ))}
-                </div>
-              </div>
-            </Card>
-          </div>
-        )}
+        {/* Additional Attributes moved to HR Admin > Details tab */}
       </div>
 
       {/* Job Details Drawer */}

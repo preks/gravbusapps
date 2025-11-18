@@ -1,17 +1,19 @@
 import React from 'react'
 import { Card, Spin } from 'antd'
-import { getTranslationFromI18nKeyAndLabel } from '@/common/utils/windowUtils'
 import { BusinessAppContextProps } from '@/common/BusinessAppContext'
 import { useDepartmentMonthlySalaryStack } from '../../../../../hooks/useDepartmentMonthlySalaryStack'
+import { useTranslation } from '@newwork/nw-design-system'
+import hrTranslations from '@/business-apps/hr/core/apps/human-resources/_i18n'
 
 const DepartmentContributionAnalysis: React.FC<BusinessAppContextProps> = props => {
   const year = new Date().getFullYear()
   const { data, loading } = useDepartmentMonthlySalaryStack(props, year)
+  const { t } = useTranslation(hrTranslations)
   if (loading) {
     return <Spin data-testid="department-contribution-analysis-loading" />
   }
   if (!data.length) {
-    return <div data-testid="department-contribution-analysis-empty">No data available</div>
+    return <div data-testid="department-contribution-analysis-empty">{t('hr-analytics-no-data')}</div>
   }
   // Use first and last month for growth calculation
   const firstMonth = data[0]
@@ -23,13 +25,13 @@ const DepartmentContributionAnalysis: React.FC<BusinessAppContextProps> = props 
     <Card
       className="gba:shadow gba:rounded gba:p-4 gba:mb-6"
       data-testid="department-contribution-analysis"
-      title={getTranslationFromI18nKeyAndLabel('department_contribution_analysis', 'Department Contribution Analysis')}
+      title={t('hr-analytics-department-contribution-analysis')}
     >
       <div className="gba:flex gba:flex-row gba:gap-16 gba:w-full gba:py-2">
         {/* Current Month Breakdown */}
         <div className="gba:w-1/2">
           <div className="gba:text-xs gba:text-muted-foreground gba:mb-2">
-            {getTranslationFromI18nKeyAndLabel('current_month_breakdown', 'Current Month Breakdown')}
+            {t('hr-analytics-current-month-breakdown')}
           </div>
           {sorted.map(dep => (
             <div
@@ -52,7 +54,7 @@ const DepartmentContributionAnalysis: React.FC<BusinessAppContextProps> = props 
         {/* Growth Trends */}
         <div className="gba:w-1/2">
           <div className="gba:text-xs gba:text-muted-foreground gba:mb-2">
-            {getTranslationFromI18nKeyAndLabel('growth_trends', 'Growth Trends')}
+            {t('hr-analytics-growth-trends')}
           </div>
           {sorted.map(dep => {
             const first = firstMonth.departments.find(d => d.id === dep.id)
@@ -75,7 +77,7 @@ const DepartmentContributionAnalysis: React.FC<BusinessAppContextProps> = props 
                   {growth.toFixed(1)}%
                 </span>
                 <span className="gba:text-xs gba:text-muted-foreground gba:ml-2">
-                  YTD {getTranslationFromI18nKeyAndLabel('growth', 'growth')}
+                  YTD {t('hr-analytics-growth')}
                 </span>
               </div>
             )

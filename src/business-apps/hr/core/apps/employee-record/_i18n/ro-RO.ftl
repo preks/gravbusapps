@@ -18,6 +18,7 @@ current-active-benefits = Beneficii active
 current-bonus = bonus
 current-bonuses = bonusuri
 current-annually = Anual
+current-monthly = Lunar
 
 # Compensation Band
 band-title = Bandă de compensare
@@ -99,6 +100,7 @@ benefit-details-start-date = Data de început
 benefit-details-end-date = Data de încheiere
 benefit-details-notes = Note
 benefit-details-available-providers = Furnizori disponibili
+benefit-details-description = Detalii beneficiu
 common-close = Închide
 
 # Payslip History
@@ -170,6 +172,7 @@ validation-date-past = Data de încheiere trebuie să fie în trecut sau astăzi
 # Table Headers (reusable)
 table-effective-date = Data de intrare în vigoare
 table-base-salary = Salariu de bază
+table-monthly-salary = Salariu lunar
 table-compensation-band = Bandă de compensare
 table-pay-grade = Grad de salarizare
 table-notes = Note
@@ -195,6 +198,8 @@ status-inactive = Inactiv
 status-draft = Ciornă
 status-finalized = Finalizat
 status-cancelled = Anulat
+status-unknown = Necunoscut
+status-generated = Generat
 
 # Loading States
 loading-compensation-data = Se încarcă datele de compensare...

@@ -18,8 +18,7 @@ import { PiCalendar, PiUser, PiArrowUp, PiArrowDown } from 'react-icons/pi'
 import { BusinessAppContextProps } from '@/common/BusinessAppContext'
 import { EnhancedAbsence } from '../types'
 import { useAbsenceColors } from '../utils/absenceColors'
-import dayjs from 'dayjs'
-import { getDateFormat, getTranslationFromI18nKeyAndLabel } from '@/common/utils/windowUtils'
+import { getTranslationFromI18nKeyAndLabel, formatDate } from '@/common/utils/windowUtils'
 import { getAbsenceStatusLabel, getAbsenceStatusBadgeVariant } from '../../../utils/absenceStatusUtils'
 
 interface AbsenceTableProps extends BusinessAppContextProps {
@@ -60,6 +59,7 @@ export const AbsenceTable: React.FC<AbsenceTableProps> = ({
   ...props
 }) => {
   const { getColorForAbsence } = useAbsenceColors(props)
+
   const getEmployeeName = (absence: EnhancedAbsence) => {
     if (absence.employee.firstName || absence.employee.lastName) {
       return `${absence.employee.firstName || ''} ${absence.employee.lastName || ''}`.trim()
@@ -268,9 +268,7 @@ export const AbsenceTable: React.FC<AbsenceTableProps> = ({
                     {record.startDate ? (
                       <div className="gba:flex gba:items-center gba:gap-2">
                         <PiCalendar size={16} className="gba:text-muted-foreground" />
-                        <span className="gba:text-sm">
-                          {dayjs(record.startDate).format(getDateFormat('date.short'))}
-                        </span>
+                        <span className="gba:text-sm">{formatDate(record.startDate, 'date.short') || '-'}</span>
                       </div>
                     ) : (
                       '-'
@@ -283,7 +281,7 @@ export const AbsenceTable: React.FC<AbsenceTableProps> = ({
                     {record.endDate ? (
                       <div className="gba:flex gba:items-center gba:gap-2">
                         <PiCalendar size={16} className="gba:text-muted-foreground" />
-                        <span className="gba:text-sm">{dayjs(record.endDate).format(getDateFormat('date.short'))}</span>
+                        <span className="gba:text-sm">{formatDate(record.endDate, 'date.short') || '-'}</span>
                       </div>
                     ) : (
                       '-'
@@ -308,9 +306,7 @@ export const AbsenceTable: React.FC<AbsenceTableProps> = ({
                     {record.createdAt ? (
                       <div className="gba:flex gba:items-center gba:gap-2">
                         <PiCalendar size={16} className="gba:text-muted-foreground" />
-                        <span className="gba:text-sm">
-                          {dayjs(record.createdAt).format(getDateFormat('date.short'))}
-                        </span>
+                        <span className="gba:text-sm">{formatDate(record.createdAt, 'date.short') || '-'}</span>
                       </div>
                     ) : (
                       '-'

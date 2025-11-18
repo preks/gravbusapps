@@ -1,5 +1,6 @@
 import { useEffect, useState, useCallback } from 'react'
 import { useGraphqlClient } from '@/common/network/graphql/useGraphQLClient'
+import { getCatalogValue } from '@/common/utils/windowUtils'
 
 /**
  * Employee type definition for the directory.
@@ -117,11 +118,27 @@ const EMPLOYEE_POSITION_QUERY = `
         pictureThumbnail
         workingCondition {
           contractType {
-            value
-          }
+        value
+        id
+        code
+        catalogId
+        translations {
+          value
+          localeCode
+          id
+        }
+      }
           employmentType {
-            value
-          }
+        value
+        id
+        code
+        catalogId
+        translations {
+          value
+          localeCode
+          id
+        }
+      }
         }
         communication(where: { _and: [{ isDeleted: { _eq: false } }, { purpose: { _eq: "INTERNAL" } }] }) {
           id
@@ -305,8 +322,8 @@ export function useGetEmployees(filters: EmployeeFilters & { accessToken: string
             organizationalUnit: ep.organizationalUnit?.name ?? '',
             organizationalUnitId: ep.organizationalUnit?.id,
             workEmail: workEmail,
-            employmentType: workingCondition?.employmentType?.value ?? '',
-            contractType: workingCondition?.contractType?.value ?? '',
+            employmentType: getCatalogValue(workingCondition?.employmentType) || '',
+            contractType: getCatalogValue(workingCondition?.contractType) || '',
             matrixTeams: extractMatrixTeamNames(ep.matrixUnitEmployees),
             profilePicture: ep.employee?.pictureThumbnail ?? ''
           }
@@ -422,8 +439,8 @@ export function useGetEmployees(filters: EmployeeFilters & { accessToken: string
               organizationalUnit: ep.organizationalUnit?.name ?? '',
               organizationalUnitId: ep.organizationalUnit?.id,
               workEmail: workEmail,
-              employmentType: workingCondition?.employmentType?.value ?? '',
-              contractType: workingCondition?.contractType?.value ?? '',
+              employmentType: getCatalogValue(workingCondition?.employmentType) || '',
+              contractType: getCatalogValue(workingCondition?.contractType) || '',
               matrixTeams: extractMatrixTeamNames(ep.matrixUnitEmployees),
               profilePicture: ep.employee?.pictureThumbnail ?? ''
             }

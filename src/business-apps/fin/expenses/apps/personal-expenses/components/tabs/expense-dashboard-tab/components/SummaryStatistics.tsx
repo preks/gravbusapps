@@ -51,9 +51,15 @@ export const SummaryStatistics: React.FC<SummaryStatisticsProps> = ({
       key: 'current-month-expenses',
       title:
         period === 'yearly'
-          ? getTranslationFromI18nKeyAndLabel('lowcoder:cards.this_year_expenses', 'Current Year Expenses')
+          ? getTranslationFromI18nKeyAndLabel(
+              'lowcoder:personal_expenses.current_year_expenses',
+              'Current Year Expenses'
+            )
           : period === 'quarterly'
-            ? getTranslationFromI18nKeyAndLabel('lowcoder:cards.this_quarter_expenses', 'Current Quarter Expenses')
+            ? getTranslationFromI18nKeyAndLabel(
+                'lowcoder:personal_expenses.current_quarter_expenses',
+                'Current Quarter Expenses'
+              )
             : getTranslationFromI18nKeyAndLabel(
                 'lowcoder:personal_expenses.current_month_expenses',
                 'Current Month Expenses'

@@ -176,9 +176,20 @@ export const useTimeTrackingData = ({ employeeId, accessToken, workingHours }: U
     // derive open state from most recent row (ordered by startTime desc)
     const mostRecent = rows[0]
     const open = Boolean(mostRecent?.startTime) && !mostRecent?.endTime
-    setIsClockedIn(open)
+
+    // Enhancement: if open entry is from a past day, allow new clock-in (treat as not clocked in)
+    let isOpenAndToday = open
+    if (open && mostRecent?.attendanceDate) {
+      const todayKey = toLocalDateKey(new Date())
+      const rowKey = toLocalDateKey(new Date(mostRecent.attendanceDate))
+      if (rowKey !== todayKey) {
+        isOpenAndToday = false
+      }
+    }
+
+    setIsClockedIn(isOpenAndToday)
     setClockInSince(
-      open && mostRecent?.startTime
+      isOpenAndToday && mostRecent?.startTime
         ? new Date(mostRecent.startTime).toLocaleTimeString(locale, { hour: '2-digit', minute: '2-digit' })
         : null
     )

@@ -18,6 +18,7 @@ current-active-benefits = Active Benefits
 current-bonus = bonus
 current-bonuses = bonuses
 current-annually = Annually
+current-monthly = Monthly
 
 # Compensation Band
 band-title = Compensation Band
@@ -99,6 +100,7 @@ benefit-details-start-date = Start Date
 benefit-details-end-date = End Date
 benefit-details-notes = Notes
 benefit-details-available-providers = Available Providers
+benefit-details-description = Benefit details
 common-close = Close
 
 # Payslip History
@@ -170,6 +172,7 @@ validation-date-past = End date must be in the past or today
 # Table Headers (reusable)
 table-effective-date = Effective Date
 table-base-salary = Base Salary
+table-monthly-salary = Monthly Salary
 table-compensation-band = Compensation Band
 table-pay-grade = Pay Grade
 table-notes = Notes
@@ -195,6 +198,8 @@ status-inactive = Inactive
 status-draft = Draft
 status-finalized = Finalized
 status-cancelled = Cancelled
+status-unknown = Unknown
+status-generated = Generated
 
 # Loading States
 loading-compensation-data = Loading compensation data...

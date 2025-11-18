@@ -1,5 +1,6 @@
 import React from 'react'
 import { Alert, Spinner, Dialog, DialogContent, DialogHeader, DialogTitle } from '@newwork/nw-design-system'
+import { getTranslationFromI18nKeyAndLabel } from '@/common/utils/windowUtils'
 
 interface ExpenseRequestPdfModalProps {
   isVisible: boolean
@@ -46,7 +47,9 @@ const ExpenseRequestPdfModal: React.FC<ExpenseRequestPdfModalProps> = ({
             data-testid="expense-request-pdf-iframe"
           />
         ) : (
-          <div className="gba:text-center gba:p-8 gba:text-gray-500">No PDF URL available</div>
+          <div className="gba:text-center gba:p-8 gba:text-gray-500">
+            {getTranslationFromI18nKeyAndLabel('lowcoder:personal_expenses.no_document', 'No PDF URL available')}
+          </div>
         )}
       </DialogContent>
     </Dialog>

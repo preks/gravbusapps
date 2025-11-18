@@ -1,5 +1,4 @@
 import React, { useCallback } from 'react'
-import { useTranslation } from 'react-i18next'
 import { Button, DateInputField, Divider, InputField, SelectField, Switch } from '@newwork/gravity-ui-catalog'
 import { Form, Row, Col } from 'antd'
 import { ExpensePosition, ExpenseGroup, ExpenseType, CostCenter, Currency, CustomField } from '../../types'
@@ -9,7 +8,11 @@ import MultiPositionComponent from './MultiPositionComponent'
 import { useExpenseItem } from '../../context/ExpenseItemContext'
 
 import { Alert } from 'antd'
-import { getCurrentActiveUserLocale, getDateFormat } from '../../../../../../../common/utils/windowUtils'
+import {
+  getCurrentActiveUserLocale,
+  getDateFormat,
+  getTranslationFromI18nKeyAndLabel
+} from '../../../../../../../common/utils/windowUtils'
 import { ICONS } from '@/business-apps/fin/expenses/utils/icons'
 import { DEFAULT_CURRENCY_ID } from '../../constants/constants'
 
@@ -63,7 +66,7 @@ export const FormScreenComponent: React.FC<FormScreenComponentProps> = ({
   calculateTotal,
   isEmbeddedInRequestWizard = false
 }) => {
-  const { t } = useTranslation()
+  const t = getTranslationFromI18nKeyAndLabel
   const { isProcessingFiles, isFormDisabled, expenseRuleError, handleCurrencyChange, isEditMode } = useExpenseItem()
 
   // Memoize the submit handler to prevent re-creating on every render

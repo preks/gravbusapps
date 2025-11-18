@@ -13,6 +13,7 @@ import { formatNumberFunction } from '../../../../../../../common/utils/windowUt
 import { useHealthInsuranceTypeCatalog } from '../../hooks/useHealthInsuranceTypeCatalog'
 import { useReligionCatalog } from '../../hooks/useReligionCatalog'
 import { useTaxBracketCatalog } from '../../hooks/useTaxBracketCatalog'
+import { getCatalogValue } from '../../../../../../../common/utils/windowUtils'
 
 interface EmploymentTabProps {
   employee: Employee
@@ -78,7 +79,7 @@ const EmploymentTab: React.FC<EmploymentTabProps> = ({ employee, accessToken, is
     return [
       {
         label: 'Employment Type',
-        value: workingCondition?.employmentType?.value || ''
+        value: getCatalogValue(workingCondition?.employmentType) || ''
       },
       {
         label: 'Hire Date',
@@ -86,7 +87,7 @@ const EmploymentTab: React.FC<EmploymentTabProps> = ({ employee, accessToken, is
       },
       {
         label: 'Contract Type',
-        value: workingCondition?.contractType?.value || ''
+        value: getCatalogValue(workingCondition?.contractType) || ''
       },
       {
         label: 'Probation End Date',
@@ -351,8 +352,22 @@ const EmploymentTab: React.FC<EmploymentTabProps> = ({ employee, accessToken, is
           className="gba:border gba:border-border gba:shadow-md gba:hover:shadow-lg gba:transition-all"
           data-testid="employment-section-payroll"
         >
-          <div className="gba:mb-6 gba:border-b gba:border-border gba:pb-2">
+          <div className="gba:mb-6 gba:border-b gba:border-border gba:pb-2 gba:flex gba:justify-between gba:items-center">
             <h3 className="gba:text-xl gba:font-semibold gba:text-info">Payroll</h3>
+            {isSelfView && (
+              <AppActionMenu
+                data-testid="employment-bank-account-action-button"
+                contextsArray={[FlowContextName.updateEmployeeBankAccount]}
+                externalContextData={{
+                  employeeId: employee?.id
+                }}
+                prefixDataTestId="employment-bank-account-action"
+                accessToken={accessToken}
+                autoExecuteSingleAction={true}
+              >
+                <PiPencilSimple className="gba:cursor-pointer" />
+              </AppActionMenu>
+            )}
           </div>
           {renderDataItems(payrollData)}
         </Card>

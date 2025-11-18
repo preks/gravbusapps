@@ -5,7 +5,7 @@ import { FlowContextName } from '@/common/types/FlowRegistryTypes'
 import { getTranslationFromI18nKeyAndLabel } from '@/common/utils/windowUtils'
 import { useGetCrmDocuments, getCrmDocumentApiConfig } from '@/business-apps/crm/common/utils/documentUtils'
 import { useCrmDocuments } from '@/business-apps/crm/common/hooks/useCrmDocuments'
-import { createDocumentActions } from '@/business-apps/crm/common/utils/documentActions'
+import { createDocumentSectionActions } from '@/common/utils/documentSectionActions'
 
 interface DocumentViewProps {
   accountId: string
@@ -47,8 +47,12 @@ const DocumentView: React.FC<DocumentViewProps> = ({ accountId, context }) => {
 
   const customActions = useMemo(
     () =>
-      createDocumentActions({
+      createDocumentSectionActions({
+        domain: 'customer-relations',
+        documentFieldName: 'crmDocument',
         entityType: 'account',
+        updateProcessName: 'updateCrmDocument',
+        deleteEndpoint: '/customer-relations/deleteCrmDocument',
         getTranslation: getTranslationFromI18nKeyAndLabel
       }),
     []

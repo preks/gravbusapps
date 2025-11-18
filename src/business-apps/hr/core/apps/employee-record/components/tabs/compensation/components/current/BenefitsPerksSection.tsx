@@ -2,6 +2,7 @@
 
 import React, { useState } from 'react'
 import { Card, CardHeader, CardTitle, CardContent, Alert, Button } from '@newwork/nw-design-system'
+import { Search } from 'lucide-react'
 import { BusinessAppContextProps } from '@/common/BusinessAppContext'
 import { useBenefitsCatalog } from '../../hooks/useBenefitsCatalog'
 import BenefitCatalogCard from './BenefitCatalogCard'
@@ -151,13 +152,14 @@ const BenefitsPerksSection: React.FC<BenefitsPerksProps> = ({
             </div>
 
             {/* Search Control */}
-            <div className="gba:w-full gba:md:w-auto">
+            <div className="gba:w-full gba:md:w-[260px]">
               <DebouncedInput
                 placeholder={t('benefits-catalog-search-placeholder')}
                 value={searchQuery}
                 onChange={setSearchQuery}
                 debounceDelay={300}
-                className="gba:w-full gba:md:w-64"
+                className="gba:w-full"
+                icon={<Search className="gba:h-4 gba:w-4 gba:text-muted-foreground" />}
                 data-testid="benefits-catalog-search-input"
               />
             </div>
@@ -214,9 +216,7 @@ const BenefitsPerksSection: React.FC<BenefitsPerksProps> = ({
                 <Button
                   size="sm"
                   variant="outline"
-                  onClick={() => {
-                    setSearchQuery('')
-                  }}
+                  onClick={() => setSearchQuery('')}
                   className="gba:mt-4"
                   data-testid="benefits-catalog-clear-search-button"
                 >

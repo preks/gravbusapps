@@ -67,6 +67,16 @@ export interface InvestmentReport extends BaseInvestmentReport {
   scopeLabel?: string
   investmentStatusLabel?: string
   currencyLabel?: string
+
+  id: string
+  // Add specific fields as needed from GraphQL schema
+  reportType?: string
+  reportDate?: string
+  content?: any
+
+  // Entity references
+  investment?: any // Investment
+  investmentId?: string
 }
 
 // Enhanced Investment Role Report type with computed fields

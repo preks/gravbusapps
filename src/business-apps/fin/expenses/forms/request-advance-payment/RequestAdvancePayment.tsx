@@ -189,10 +189,7 @@ const RequestAdvancePayment: React.FC<RequestAdvancePaymentProps> = ({
     !formData.expensePlanId || !formData.amount || !formData.currency || !formData.costCenter || !formData.paymentMethod
 
   return (
-    <div
-      className="gba:max-w-2xl gba:mx-auto gba:bg-background gba:p-6"
-      data-testid="request-advance-payment-container"
-    >
+    <div className="gba:max-w-2xl gba:mx-auto gba:p-6" data-testid="request-advance-payment-container">
       <Header />
 
       {/* Form Content */}

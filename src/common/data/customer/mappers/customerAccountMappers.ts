@@ -1,32 +1,71 @@
-// Customer Account Mapper - Transform base type to enhanced type with computed fields
+/**
+ * Customer Account Mappers
+ * Transform raw GraphQL responses to CustomerAccount
+ */
 
-import { BaseCustomerAccount, CustomerAccount } from '../types'
+import type { CustomerAccount } from '../types/customerAccountTypes'
+import type { Address } from '@/common/data/common/types/commonTypes'
 
 /**
- * Transform BaseCustomerAccount (GraphQL response) to CustomerAccount (enhanced with computed fields)
+ * Transform raw GraphQL response to CustomerAccount
+ *
+ * NOTE: This mapper handles CRM-specific field naming inconsistencies:
+ * - industry → industryClass
+ * - numberOfEmployees → companySize
+ * - annualRevenue → accountAnnualRevenueBand
+ * - city → locality (in addresses)
+ * - salesCampaign → customerCampaign
+ * - pictureUrl → picture
+ * - pictureThumbnailUrl → pictureThumbnail
+ * - contact → contacts (singular to plural, if needed)
+ * - opportunity → opportunities (singular to plural)
+ * - lead → leads (singular to plural)
  */
-export function toCustomerAccount(base: BaseCustomerAccount): CustomerAccount {
-  // Extract labels from catalog entries
-  const legalFormLabel = base.legalForm?.value || base.legalForm?.code
-  const industryClassLabel = base.industryClass?.value || base.industryClass?.code
-  const companySizeLabel = base.companySize?.value || base.companySize?.code
-  const annualRevenueLabel = base.annualRevenue?.value || base.annualRevenue?.code
-  const ownerDisplayName =
-    base.ownerEmployee?.displayName ||
-    `${base.ownerEmployee?.firstName || ''} ${base.ownerEmployee?.lastName || ''}`.trim()
+export function toCustomerAccount(raw: any): CustomerAccount {
+  // Map CRM catalog field names to Account standard (IRM naming)
+  const industryClass = raw.industry
+  const industryClassRef = raw.industryRef
 
-  // Create computed display name
-  const displayName = base.name || base.code || `Account ${base.id}`
+  const companySize = raw.numberOfEmployees
+  const companySizeRef = raw.numberOfEmployeesRef
+
+  const accountAnnualRevenueBand = raw.annualRevenue
+  const accountAnnualRevenueBandRef = raw.annualRevenueRef
+
+  // Map CRM picture fields
+  const picture = raw.pictureUrl
+  const pictureThumbnail = raw.pictureThumbnailUrl
+
+  // Map addresses with city → locality transformation
+  const addresses: Address[] | undefined = raw.addresses?.map((addr: any) => ({
+    ...addr,
+    locality: addr.city // CRM uses 'city', Account uses 'locality'
+  }))
+
+  // Map CRM sales campaign to common naming
+  const customerCampaign = raw.salesCampaign
+  const customerCampaignId = raw.salesCampaignId
+
+  // Map singular/plural GraphQL field names to plural for common naming
+  const opportunities = raw.opportunity
+  const leads = raw.lead
 
   return {
-    ...base,
-
-    // Computed UI fields (only those defined in CustomerAccount interface)
-    displayName,
-    legalFormLabel,
-    companySizeLabel,
-    industryClassLabel,
-    annualRevenueLabel,
-    ownerDisplayName
-  }
+    ...raw,
+    // Map CRM catalog fields to Account standard
+    industryClass,
+    industryClassRef,
+    companySize,
+    companySizeRef,
+    accountAnnualRevenueBand,
+    accountAnnualRevenueBandRef,
+    picture,
+    pictureThumbnail,
+    addresses,
+    // Map CRM-specific fields to common naming
+    customerCampaign,
+    customerCampaignId,
+    opportunities,
+    leads
+  } as CustomerAccount
 }

@@ -21,6 +21,7 @@ import PayslipHistorySection from '../components/history/PayslipHistorySection'
 import dayjs from 'dayjs'
 import { formatCurrencyString } from '@/common/utils/numberFormatter'
 import { BusinessAppContextProps } from '@/common/BusinessAppContext'
+import { getTranslatedCatalogEntryValue } from '../utils/benefitTranslationUtils'
 
 interface PayHistoryViewProps extends BusinessAppContextProps {
   t: (key: string, params?: any) => string
@@ -115,48 +116,94 @@ const PayHistoryView: React.FC<PayHistoryViewProps> = ({
           <TableRow>
             <TableHead>{t('table-effective-date')}</TableHead>
             <TableHead>{t('table-base-salary')}</TableHead>
+            <TableHead>{t('table-monthly-salary')}</TableHead>
             <TableHead>{t('table-compensation-band')}</TableHead>
             <TableHead>{t('table-pay-grade')}</TableHead>
-            <TableHead>{t('table-notes')}</TableHead>
           </TableRow>
         </TableHeader>
         <TableBody>
-          {compensationHistory.map(record => (
-            <TableRow key={record.id} data-testid={`salary-history-row-${record.id}`}>
-              <TableCell>
-                <div className="gba:font-medium">
-                  {dayjs(record.effectiveDate).locale(locale).format('MMM D, YYYY')}
-                </div>
-                {record.endDate && (
-                  <div className="gba:text-xs gba:text-muted-foreground">
-                    to {dayjs(record.endDate).locale(locale).format('MMM D, YYYY')}
-                  </div>
-                )}
-              </TableCell>
-              <TableCell>
-                <div className="gba:font-semibold gba:text-foreground">
-                  {formatCurrencyString(record.baseSalary, {
-                    currency: record.currency.code,
-                    locale: locale,
-                    minimumFractionDigits: 0,
-                    maximumFractionDigits: 0
-                  })}
-                </div>
-                <div className="gba:text-xs gba:text-muted-foreground">{t('current-annually')}</div>
-              </TableCell>
-              <TableCell>{record.compensationBand ? record.compensationBand.name : '-'}</TableCell>
-              <TableCell>
-                {record.compensationBand ? (
-                  <Badge variant="outline">Level {record.compensationBand.payGrade}</Badge>
-                ) : (
-                  '-'
-                )}
-              </TableCell>
-              <TableCell>
-                <div className="gba:text-sm gba:text-muted-foreground">{record.notes || '-'}</div>
-              </TableCell>
-            </TableRow>
-          ))}
+          {compensationHistory.map(record => {
+            // Validate and format effective date
+            let effectiveDate: string | null = null
+            if (record.effectiveDate) {
+              const effectiveDateObj = dayjs(record.effectiveDate)
+              if (effectiveDateObj.isValid()) {
+                effectiveDate = effectiveDateObj.locale(locale).format('MMM D, YYYY')
+              }
+            }
+
+            // Validate and format end date
+            let endDate: string | null = null
+            if (record.endDate) {
+              const endDateObj = dayjs(record.endDate)
+              if (endDateObj.isValid()) {
+                endDate = endDateObj.locale(locale).format('MMM D, YYYY')
+              }
+            }
+
+            return (
+              <TableRow key={record.id} data-testid={`salary-history-row-${record.id}`}>
+                <TableCell>
+                  {effectiveDate ? (
+                    <>
+                      <div className="gba:font-medium">{effectiveDate}</div>
+                      {endDate && <div className="gba:text-xs gba:text-muted-foreground">to {endDate}</div>}
+                    </>
+                  ) : (
+                    <div className="gba:text-muted-foreground gba:italic">Date not available</div>
+                  )}
+                </TableCell>
+                <TableCell>
+                  {record.currency ? (
+                    <>
+                      <div className="gba:font-semibold gba:text-foreground">
+                        {formatCurrencyString(record.baseSalary, {
+                          currency: record.currency.code,
+                          locale: locale,
+                          minimumFractionDigits: 0,
+                          maximumFractionDigits: 0
+                        })}
+                      </div>
+                      <div className="gba:text-xs gba:text-muted-foreground">{t('current-annually')}</div>
+                    </>
+                  ) : (
+                    <div className="gba:text-muted-foreground">-</div>
+                  )}
+                </TableCell>
+                <TableCell>
+                  {record.monthlyGrossSalary ? (
+                    <>
+                      {record.currency ? (
+                        <>
+                          <div className="gba:font-semibold gba:text-foreground">
+                            {formatCurrencyString(record.monthlyGrossSalary, {
+                              currency: record.currency.code,
+                              locale: locale,
+                              minimumFractionDigits: 0,
+                              maximumFractionDigits: 0
+                            })}
+                          </div>
+                          <div className="gba:text-xs gba:text-muted-foreground">{t('current-monthly')}</div>
+                        </>
+                      ) : (
+                        <div className="gba:text-muted-foreground">-</div>
+                      )}
+                    </>
+                  ) : (
+                    '-'
+                  )}
+                </TableCell>
+                <TableCell>{record.compensationBand ? record.compensationBand.name : '-'}</TableCell>
+                <TableCell>
+                  {record.compensationBand ? (
+                    <Badge variant="outline">Level {record.compensationBand.payGrade}</Badge>
+                  ) : (
+                    '-'
+                  )}
+                </TableCell>
+              </TableRow>
+            )
+          })}
         </TableBody>
       </Table>
     )
@@ -203,11 +250,11 @@ const PayHistoryView: React.FC<PayHistoryViewProps> = ({
                   })}
                 </div>
               </TableCell>
-              <TableCell>{bonus.bonusType.value}</TableCell>
+              <TableCell>{getTranslatedCatalogEntryValue(bonus.bonusType, locale)}</TableCell>
               <TableCell>{bonus.fiscalYear}</TableCell>
               <TableCell>
                 <Badge variant={getCompensationStatusVariant(bonus.status)}>
-                  {getCompensationStatusLabel(bonus.status)}
+                  {getCompensationStatusLabel(bonus.status, t)}
                 </Badge>
               </TableCell>
               <TableCell>

@@ -18,6 +18,7 @@ current-active-benefits = Aktive Zusatzleistungen
 current-bonus = Bonus
 current-bonuses = Boni
 current-annually = Jährlich
+current-monthly = Monatlich
 
 # Compensation Band
 band-title = Vergütungsstufe
@@ -99,6 +100,7 @@ benefit-details-start-date = Startdatum
 benefit-details-end-date = Enddatum
 benefit-details-notes = Notizen
 benefit-details-available-providers = Verfügbare Anbieter
+benefit-details-description = Leistungsdetails
 common-close = Schließen
 
 # Payslip History
@@ -170,6 +172,7 @@ validation-date-past = Enddatum muss in der Vergangenheit oder heute sein
 # Table Headers (reusable)
 table-effective-date = Gültigkeitsdatum
 table-base-salary = Grundgehalt
+table-monthly-salary = Monatsgehalt
 table-compensation-band = Vergütungsstufe
 table-pay-grade = Gehaltsstufe
 table-notes = Notizen
@@ -195,6 +198,8 @@ status-inactive = Inaktiv
 status-draft = Entwurf
 status-finalized = Abgeschlossen
 status-cancelled = Storniert
+status-unknown = Unbekannt
+status-generated = Generiert
 
 # Loading States
 loading-compensation-data = Vergütungsdaten werden geladen...

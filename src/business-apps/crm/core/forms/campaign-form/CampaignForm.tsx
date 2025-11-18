@@ -3,6 +3,7 @@ import type { BusinessAppContextProps } from '@/common/BusinessAppContext'
 import { CampaignFormProvider } from './context/CampaignFormContext'
 import CampaignFormComponent from './components/CampaignFormComponent'
 import type { CampaignFormValues } from './types'
+import { CatalogSelect } from '@/components/catalog-select'
 
 interface CampaignFormProps {
   initialValues?: Partial<CampaignFormValues>
@@ -33,14 +34,16 @@ const CampaignForm: React.FC<BusinessAppContextProps & CampaignFormProps> = ({
   }
 
   return (
-    <CampaignFormProvider
-      businessAppContext={businessAppContext}
-      initialValues={initialValues}
-      onSubmit={onSubmit}
-      onCancel={onCancel}
-    >
-      <CampaignFormComponent />
-    </CampaignFormProvider>
+    <CatalogSelect.Provider<CampaignFormValues> {...businessAppContext}>
+      <CampaignFormProvider
+        businessAppContext={businessAppContext}
+        initialValues={initialValues}
+        onSubmit={onSubmit}
+        onCancel={onCancel}
+      >
+        <CampaignFormComponent />
+      </CampaignFormProvider>
+    </CatalogSelect.Provider>
   )
 }
 

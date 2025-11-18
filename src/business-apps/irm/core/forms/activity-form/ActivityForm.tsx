@@ -7,7 +7,8 @@ import ActivitySegment, {
 } from '@/common/components/common-relations/form-segments/activity-segment/ActivitySegment'
 import { validateActivityData } from '@/common/components/common-relations/form-segments/activity-segment/utils'
 import { buildActivityPayload } from '@/common/data/investment/payloads'
-import { useGetInvestmentActivityById, useInvestmentEntities } from '@/common/data/investment/hooks'
+import { useGetInvestmentActivityById } from '@/common/data/investment/hooks/useInvestmentActivities'
+import { useInvestmentEntities } from '@/common/data/investment/hooks/useInvestmentEntities'
 import { useEmployeeSearch } from '@/common/data/employee/useEmployeeSearch'
 import { AppActionForm } from '@/components/app-action-form'
 import { useForm } from 'react-hook-form'
@@ -200,7 +201,7 @@ const ActivityForm: React.FC<ActivityFormProps> = ({ accessToken, userInfo, addi
             description: activity.description || '',
             files: [],
             documents:
-              (activity as Record<string, any>).investmentDocument?.map((doc: any) => ({
+              (activity as Record<string, any>).documents?.map((doc: any) => ({
                 id: doc.id,
                 name: doc.name || '',
                 version: doc.version

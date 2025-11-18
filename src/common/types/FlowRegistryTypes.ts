@@ -10,6 +10,7 @@ export enum FlowContextName {
   // Human Resources
   employeeEntity = 'employeeEntity',
   jobPositionEntity = 'jobPositionEntity',
+  assetEntity = 'assetEntity',
 
   // HR Notes
   createEmployeeNote = 'createEmployeeNote',
@@ -37,9 +38,8 @@ export enum FlowContextName {
   customerOpportunityEntity = 'customerOpportunityEntity',
   customerOpportunityCreate = 'customerOpportunityCreate', // TODO: Replace startProcess
   customerOpportunityUpdate = 'customerOpportunityUpdate', // TODO: Replace startProcess
-
-  transitionOpportunityStage = 'transitionOpportunityStage',
-  saveOpportunityStageConditionStatus = 'saveOpportunityStageConditionStatus',
+  customerOpportunityStageTransition = 'customerOpportunityStageTransition',
+  customerOpportunityConditionUpdate = 'customerOpportunityConditionUpdate',
 
   /// Customer Campaigns
   customerCampaignEntity = 'customerCampaignEntity',
@@ -120,6 +120,7 @@ export enum FlowContextName {
   investmentCreate = 'investmentCreate', // TODO: Replace startProcess
   investmentEntity = 'investmentEntity',
   investmentTileUpdate = 'investmentTileUpdate',
+  investmentKpiTilesUpdate = 'investmentKpiTilesUpdate',
   investmentStatusUpdate = 'investmentStatusUpdate',
   investmentPlanExit = 'investmentPlanExit',
 
@@ -132,6 +133,18 @@ export enum FlowContextName {
   investmentEquityInvestmentRoundCreate = 'investmentEquityInvestmentRoundCreate',
   investmentEquityInvestmentRoundUpdate = 'investmentEquityInvestmentRoundUpdate',
   investmentEquityInvestmentRoundDelete = 'investmentEquityInvestmentRoundDelete',
+
+  /// Investment Shareholders
+  investmentShareholderUpdate = 'investmentShareholderUpdate',
+
+  /// Investment Liquidity Preferences
+  investmentLiquidityPreferenceUpdate = 'investmentLiquidityPreferenceUpdate',
+
+  /// Investment PPM Forecasts
+  investmentPpmForecastUpdate = 'investmentPpmForecastUpdate',
+
+  /// Investment KPI Forecasts
+  investmentKpiForecastUpdate = 'investmentKpiForecastUpdate',
 
   /// Investment Reports
   investmentReportUpload = 'investmentReportUpload',
@@ -154,6 +167,7 @@ export enum FlowContextName {
   employeeGiveFeedback = 'employeeGiveFeedback',
   employeeRequestFeedback = 'employeeRequestFeedback',
   employeeSkills = 'employeeSkills',
+  employeeAdditionalProperties = 'updateEmployeeAdditionalAttributes',
   employeeProfilePicture = 'employeeProfilePicture',
   employeeAttendanceCorrectionRequest = 'employeeAttendanceCorrectionRequest',
 

@@ -183,8 +183,11 @@ const DocumentCreationPopup: React.FC<DocumentCreationPopupProps> = ({ initialVa
   const [documentGroupRef, setDocumentGroupRef] = useState<string>('')
   const [documentTypeRef, setDocumentTypeRef] = useState<string>('')
   const [parentFolderId, setParentFolderId] = useState<string>(values.parentDocument || '')
-  // Catalog dropdowns for file creation
-  const { documentGroups, filteredDocumentTypes } = useDocumentCatalogs(props.accessToken || '', documentGroupRef)
+  // Catalog dropdowns for file creation - using CRM-specific catalogs
+  const { documentGroups, filteredDocumentTypes } = useDocumentCatalogs(props.accessToken || '', documentGroupRef, {
+    groupCatalogIdentifier: 'SalesDocumentGroup',
+    typeCatalogIdentifier: 'SalesDocumentType'
+  })
   const [description, setDescription] = useState<string>('')
   const [error, setError] = useState<string | null>(null)
   const [groupOpen, setGroupOpen] = useState<boolean>(false)
@@ -523,6 +526,133 @@ const DocumentCreationPopup: React.FC<DocumentCreationPopupProps> = ({ initialVa
     dispatchProcessContinueEvent('pse_pause', {})
   }
 
+  const renderFormContent = () => {
+    if (renameMode) {
+      return (
+        <div className="gba:mb-4">
+          <Input
+            placeholder="Document name"
+            value={name}
+            onChange={e => setName(e.target.value)}
+            data-testid={formatDataTestId(prefixDataTestId, 'RenameNameInput')}
+          />
+        </div>
+      )
+    }
+
+    if (values.folder) {
+      return (
+        <div className="gba:mb-4">
+          <Input
+            placeholder="Folder name"
+            value={name}
+            onChange={e => setName(e.target.value)}
+            data-testid={formatDataTestId(prefixDataTestId, 'NameInput')}
+          />
+        </div>
+      )
+    }
+
+    return (
+      <div className="gba:flex gba:flex-col gba:gap-3 gba:mb-4">
+        <Input
+          type="file"
+          onChange={e => {
+            const f = e.target.files?.[0] || null
+            setFile(f)
+            if (f && !name) {
+              setName(f.name)
+            }
+          }}
+          data-testid={formatDataTestId(prefixDataTestId, 'FileInput')}
+        />
+        <div className="gba:flex gba:flex-col gba:gap-2">
+          <label className="gba:text-sm">Document Group</label>
+          <Select
+            value={documentGroupRef || undefined}
+            onValueChange={v => {
+              setDocumentGroupRef(v as string)
+              setDocumentTypeRef('')
+            }}
+            data-testid={formatDataTestId(prefixDataTestId, 'DocumentGroupSelect')}
+            open={groupOpen}
+            onOpenChange={setGroupOpen}
+          >
+            <SelectTrigger>
+              <SelectValue placeholder="Select group..." />
+            </SelectTrigger>
+            <SelectContent className="gba:z-10000" style={{ zIndex: 100000 }}>
+              {documentGroups.map(g => (
+                <SelectItem key={g.id} value={g.id}>
+                  {g.value}
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+        </div>
+        <div className="gba:flex gba:flex-col gba:gap-2">
+          <label className="gba:text-sm">Document Type</label>
+          <Select
+            value={documentTypeRef || undefined}
+            onValueChange={v => setDocumentTypeRef(v as string)}
+            data-testid={formatDataTestId(prefixDataTestId, 'DocumentTypeSelect')}
+            open={typeOpen}
+            onOpenChange={setTypeOpen}
+          >
+            <SelectTrigger
+              disabled={!documentGroupRef}
+              onClick={() => {
+                if (!documentGroupRef) return
+              }}
+            >
+              <SelectValue placeholder="Select type..." />
+            </SelectTrigger>
+            <SelectContent className="gba:z-10000" style={{ zIndex: 100000 }}>
+              {filteredDocumentTypes.map(t => (
+                <SelectItem key={t.id} value={t.id}>
+                  {t.value}
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+        </div>
+        <div className="gba:flex gba:flex-col gba:gap-2">
+          <label className="gba:text-sm">Parent Folder (optional)</label>
+          <Select
+            value={parentFolderId || undefined}
+            onValueChange={v => setParentFolderId(v as string)}
+            data-testid={formatDataTestId(prefixDataTestId, 'ParentFolderSelect')}
+            open={parentOpen}
+            onOpenChange={setParentOpen}
+          >
+            <SelectTrigger>
+              <SelectValue placeholder={parentLoading ? 'Loading...' : 'Select parent...'} />
+            </SelectTrigger>
+            <SelectContent className="gba:z-10000" style={{ zIndex: 100000 }}>
+              {parentFolders.map(p => (
+                <SelectItem key={p.id} value={p.id}>
+                  {p.name}
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+        </div>
+        <Input
+          placeholder="Document name"
+          value={name}
+          onChange={e => setName(e.target.value)}
+          data-testid={formatDataTestId(prefixDataTestId, 'NameInput')}
+        />
+        <Textarea
+          placeholder="Description (optional)"
+          value={description}
+          onChange={e => setDescription(e.target.value)}
+          data-testid={formatDataTestId(prefixDataTestId, 'DescriptionInput')}
+        />
+      </div>
+    )
+  }
+
   return (
     <div className="gba:max-w-md gba:mx-auto gba:p-6" data-testid={formatDataTestId(prefixDataTestId, 'container')}>
       {error && (
@@ -538,122 +668,7 @@ const DocumentCreationPopup: React.FC<DocumentCreationPopupProps> = ({ initialVa
       </div>
 
       {/* Conditional form */}
-      {renameMode ? (
-        <div className="gba:mb-4">
-          <Input
-            placeholder="Document name"
-            value={name}
-            onChange={e => setName(e.target.value)}
-            data-testid={formatDataTestId(prefixDataTestId, 'RenameNameInput')}
-          />
-        </div>
-      ) : values.folder ? (
-        <div className="gba:mb-4">
-          <Input
-            placeholder="Folder name"
-            value={name}
-            onChange={e => setName(e.target.value)}
-            data-testid={formatDataTestId(prefixDataTestId, 'NameInput')}
-          />
-        </div>
-      ) : (
-        <div className="gba:flex gba:flex-col gba:gap-3 gba:mb-4">
-          <Input
-            type="file"
-            onChange={e => {
-              const f = e.target.files?.[0] || null
-              setFile(f)
-              if (f && !name) {
-                setName(f.name)
-              }
-            }}
-            data-testid={formatDataTestId(prefixDataTestId, 'FileInput')}
-          />
-          <div className="gba:flex gba:flex-col gba:gap-2">
-            <label className="gba:text-sm">Document Group</label>
-            <Select
-              value={documentGroupRef || undefined}
-              onValueChange={v => {
-                setDocumentGroupRef(v as string)
-                setDocumentTypeRef('')
-              }}
-              data-testid={formatDataTestId(prefixDataTestId, 'DocumentGroupSelect')}
-              open={groupOpen}
-              onOpenChange={setGroupOpen}
-            >
-              <SelectTrigger>
-                <SelectValue placeholder="Select group..." />
-              </SelectTrigger>
-              <SelectContent className="gba:z-[10000]" style={{ zIndex: 100000 }}>
-                {documentGroups.map(g => (
-                  <SelectItem key={g.id} value={g.id}>
-                    {g.value}
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
-          </div>
-          <div className="gba:flex gba:flex-col gba:gap-2">
-            <label className="gba:text-sm">Document Type</label>
-            <Select
-              value={documentTypeRef || undefined}
-              onValueChange={v => setDocumentTypeRef(v as string)}
-              data-testid={formatDataTestId(prefixDataTestId, 'DocumentTypeSelect')}
-              open={typeOpen}
-              onOpenChange={setTypeOpen}
-            >
-              <SelectTrigger
-                disabled={!documentGroupRef}
-                onClick={() => {
-                  if (!documentGroupRef) return
-                }}
-              >
-                <SelectValue placeholder="Select type..." />
-              </SelectTrigger>
-              <SelectContent className="gba:z-[10000]" style={{ zIndex: 100000 }}>
-                {filteredDocumentTypes.map(t => (
-                  <SelectItem key={t.id} value={t.id}>
-                    {t.value}
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
-          </div>
-          <div className="gba:flex gba:flex-col gba:gap-2">
-            <label className="gba:text-sm">Parent Folder (optional)</label>
-            <Select
-              value={parentFolderId || undefined}
-              onValueChange={v => setParentFolderId(v as string)}
-              data-testid={formatDataTestId(prefixDataTestId, 'ParentFolderSelect')}
-              open={parentOpen}
-              onOpenChange={setParentOpen}
-            >
-              <SelectTrigger>
-                <SelectValue placeholder={parentLoading ? 'Loading...' : 'Select parent...'} />
-              </SelectTrigger>
-              <SelectContent className="gba:z-[10000]" style={{ zIndex: 100000 }}>
-                {parentFolders.map(p => (
-                  <SelectItem key={p.id} value={p.id}>
-                    {p.name}
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
-          </div>
-          <Input
-            placeholder="Document name"
-            value={name}
-            onChange={e => setName(e.target.value)}
-            data-testid={formatDataTestId(prefixDataTestId, 'NameInput')}
-          />
-          <Textarea
-            placeholder="Description (optional)"
-            value={description}
-            onChange={e => setDescription(e.target.value)}
-            data-testid={formatDataTestId(prefixDataTestId, 'DescriptionInput')}
-          />
-        </div>
-      )}
+      {renderFormContent()}
 
       <div className="gba:flex gba:gap-3">
         <Button
