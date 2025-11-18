@@ -33,7 +33,7 @@ export const CreateRequestCorrectionForm: React.FC<RequestCorrectionFormProps> =
     defaultValues: { date: '', clockIn: '', clockOut: '', notes: '' },
     mode: 'onChange'
   })
-  const [submitting] = useState(false)
+  const [submitting, setSubmitting] = useState(false)
 
   // Extract platform/flow-provided parameters (supports nested psi_taskPayload as well as externalContextData)
   const platformParams = React.useMemo(() => {
@@ -119,31 +119,43 @@ export const CreateRequestCorrectionForm: React.FC<RequestCorrectionFormProps> =
   }
 
   const handleSubmit = async () => {
-    const { date, clockIn, clockOut, notes } = form.getValues()
+    setSubmitting(true)
+    try {
+      const { date, clockIn, clockOut, notes } = form.getValues()
 
-    // Attendance date: prefer platform param if present (already ISO), else form value
-    const attendanceDateISO = toUtcMidnightIso(platformParams.attendanceDateISO || date)
+      // Attendance date: prefer platform param if present (already ISO), else form value
+      const attendanceDateISO = toUtcMidnightIso(platformParams.attendanceDateISO || date)
 
-    const startTimeISO = combineDateAndTime(attendanceDateISO, clockIn)
-    const endTimeISO = combineDateAndTime(attendanceDateISO, clockOut)
+      const startTimeISO = combineDateAndTime(attendanceDateISO, clockIn)
+      const endTimeISO = combineDateAndTime(attendanceDateISO, clockOut)
 
-    const nowIso = new Date().toISOString()
+      const nowIso = new Date().toISOString()
 
-    const payload = {
-      employeeAttendanceCorrectionRequest: {
-        version: 0,
-        attendanceDate: attendanceDateISO,
-        requestDate: nowIso,
-        startTime: startTimeISO,
-        endTime: endTimeISO,
-        status: 'UNKNOWN_CORRECTION_REQUEST_STATUS',
-        correctionDescription: notes,
-        employee: employeeId
+      const payload = {
+        employeeAttendanceCorrectionRequest: {
+          attendanceDate: attendanceDateISO,
+          requestDate: nowIso,
+          startTime: startTimeISO,
+          endTime: endTimeISO,
+          status: 'UNKNOWN_CORRECTION_REQUEST_STATUS',
+          correctionDescription: notes,
+          employee:
+            employeeId ||
+            additionalData?.employeeId ||
+            additionalData?.psi_taskPayload?.employeeId ||
+            additionalData?.psi_taskPayload?.psi_initialParameters?.employeeId,
+          timeEntryId:
+            additionalData?.timeEntryId ||
+            additionalData?.psi_taskPayload?.timeEntryId ||
+            additionalData?.psi_taskPayload?.psi_initialParameters?.timeEntryId
+        }
       }
-    }
 
-    onSubmitted?.()
-    return payload
+      onSubmitted?.()
+      return payload
+    } finally {
+      setSubmitting(false)
+    }
   }
 
   return (
