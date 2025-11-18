@@ -2,6 +2,8 @@
 
 import React from 'react'
 import { Table, TableHeader, TableRow, TableHead, TableBody, TableCell, Badge } from '@newwork/nw-design-system'
+import { AppActionButton } from '@/components/app-action-button/AppActionButton'
+import { FlowContextName } from '@/common/types/FlowRegistryTypes'
 import { getTranslationFromI18nKeyAndLabel } from '@/common/utils/windowUtils'
 import type { TimeEntry } from '../hooks/useTimeTrackingData'
 
@@ -10,10 +12,12 @@ export interface TimeEntriesTableProps {
   locale: string
   pageSize: number
   onPageSizeChange: (s: number) => void
+  accessToken: string
+  employeeId: string
 }
 
 export const TimeEntriesTable: React.FC<TimeEntriesTableProps> = props => {
-  const { entries, locale, pageSize, onPageSizeChange } = props
+  const { entries, locale, pageSize, onPageSizeChange, accessToken, employeeId } = props
 
   const statusToVariant: Record<string, any> = {
     approved: 'success',
@@ -47,6 +51,9 @@ export const TimeEntriesTable: React.FC<TimeEntriesTableProps> = props => {
             <TableHead>{getTranslationFromI18nKeyAndLabel('lowcoder:time_tracking.table.manual', 'Manual')}</TableHead>
             <TableHead>{getTranslationFromI18nKeyAndLabel('lowcoder:time_tracking.table.notes', 'Notes')}</TableHead>
             <TableHead>{getTranslationFromI18nKeyAndLabel('lowcoder:time_tracking.table.status', 'Status')}</TableHead>
+            <TableHead className="gba:w-[60px]">
+              {getTranslationFromI18nKeyAndLabel('lowcoder:time_tracking.table.actions', 'Actions')}
+            </TableHead>
           </TableRow>
         </TableHeader>
         <TableBody>
@@ -89,6 +96,28 @@ export const TimeEntriesTable: React.FC<TimeEntriesTableProps> = props => {
                   ) : (
                     '-'
                   )}
+                </TableCell>
+                <TableCell className="gba:py-4 gba:px-6">
+                  <div className="gba:flex gba:justify-start gba:gap-2">
+                    <AppActionButton
+                      data-testid={`time-tracking-update-button-${e.id}`}
+                      size="icon"
+                      contextsArray={[FlowContextName.employeeAttendanceCorrectionRequest]}
+                      externalContextData={{
+                        employeeId,
+                        timeEntryId: e.id,
+                        attendanceDateISO: e.attendanceDateISO,
+                        startTimeISO: e.startTimeISO,
+                        endTimeISO: e.endTimeISO,
+                        notes: e.notes
+                      }}
+                      prefixDataTestId={`time-tracking-update`}
+                      accessToken={accessToken}
+                      emptyStateBehavior="enable"
+                      deferMainContextRequestsUntilClick
+                      onClick={evt => evt.stopPropagation()}
+                    />
+                  </div>
                 </TableCell>
               </TableRow>
             ))
