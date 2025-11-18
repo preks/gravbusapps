@@ -118,7 +118,7 @@ export const EveryAI: React.FC<EveryAIProps> = props => {
               </div>
 
               <h2 className="gba:text-3xl gba:font-bold gba:bg-gradient-to-r gba:from-primary gba:via-info gba:to-success gba:bg-clip-text gba:text-transparent gba:mb-3">
-                Welcome to EveryAI 🔔 TEST v2
+                Welcome to EveryAI
               </h2>
               <p className="gba:text-muted-foreground gba:max-w-md gba:text-lg gba:mb-8">
                 Your intelligent companion for managing tasks, analyzing data, and automating workflows across the
