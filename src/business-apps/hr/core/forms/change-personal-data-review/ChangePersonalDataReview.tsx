@@ -50,6 +50,9 @@ export const ChangePersonalDataReview: React.FC<BusinessAppContextProps> = ({
   const payload = (additionalData as any)?.psi_taskPayload || {}
   const newPI = payload?.personalInformation || {}
   const oldPI = payload?.oldPersonalInformation || {}
+  console.log('payload', payload)
+  console.log('newPI', newPI)
+  console.log('oldPI', oldPI)
 
   // Combined fetch for required catalog entries and documents
   useEffect(() => {
@@ -163,14 +166,16 @@ export const ChangePersonalDataReview: React.FC<BusinessAppContextProps> = ({
         <AppActionForm
           processType="update"
           form={form as any}
-          showCancelButton={false}
           formData={{}}
           submitEventType="pse_submit"
           submitButtonText={getTranslationFromI18nKeyAndLabel(
-            'lowcoder:modify_expense_request.btn_items_submit',
-            'Confirm'
+            'lowcoder:approve_expense_request.approve_button',
+            'Approve'
           )}
-          cancelButtonText={getTranslationFromI18nKeyAndLabel('lowcoder:modify_expense_request.btn_cancel', 'Cancel')}
+          cancelButtonText={getTranslationFromI18nKeyAndLabel(
+            'lowcoder:approve_expense_request.reject_button',
+            'Reject'
+          )}
           submitButtonTestId="change-personal-data-review-confirm-button"
           cancelButtonTestId="change-personal-data-review-cancel-button"
           onSubmit={async () => {
