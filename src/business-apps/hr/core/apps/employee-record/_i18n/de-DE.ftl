@@ -19,6 +19,7 @@ current-bonus = Bonus
 current-bonuses = Boni
 current-annually = Jährlich
 current-monthly = Monatlich
+current-hourly = Stündlich
 
 # Compensation Band
 band-title = Vergütungsstufe
@@ -263,7 +264,6 @@ modal-deactivate-reason-other = Sonstiges (bitte angeben)
 
 # Adjust Employee Salary Form
 adjust-salary-title = Gehalt anpassen
-adjust-salary-current-salary = Aktuelles Jahresgehalt
 adjust-salary-adjustment-type = Anpassungstyp
 adjust-salary-adjustment-type-amount = Betragserhöhung
 adjust-salary-adjustment-type-percentage = Prozentsatzerhöhung
@@ -282,8 +282,15 @@ adjust-salary-reason-other = Sonstiges
 adjust-salary-description = Beschreibung
 adjust-salary-notes = Notizen
 adjust-salary-adjustment-type-required = Anpassungstyp ist erforderlich. Bitte wählen Sie einen Anpassungstyp.
-adjust-salary-adjustment-value-required = Anpassungswert ist erforderlich. Bitte geben Sie den Anpassungswert ein.
-adjust-salary-adjustment-value-positive = Der Anpassungswert muss größer als null sein.
+adjust-salary-adjustment-value-required = Betrag oder Prozentsatz eingeben
+adjust-salary-adjustment-value-positive = Wert muss positiv sein
 adjust-salary-currency-required = Währung ist erforderlich. Bitte wählen Sie eine Währung.
 adjust-salary-effective-date-required = Gültigkeitsdatum ist erforderlich. Bitte wählen Sie ein Gültigkeitsdatum.
 adjust-salary-reason-required = Grund ist erforderlich. Bitte wählen Sie einen Grund.
+adjust-salary-frequency = Anpassungsfrequenz
+adjust-salary-frequency-required = Frequenz ist erforderlich. Bitte wählen Sie eine Frequenz.
+adjust-salary-frequency-annually = Jährlich
+adjust-salary-frequency-monthly = Monatlich
+adjust-salary-frequency-hourly = Stündlich
+adjust-salary-current-salary = Aktuelles Gehalt
+adjust-salary-calculation-breakdown = Gehaltsanpassung Zusammenfassung

@@ -19,6 +19,7 @@ current-bonus = bonus
 current-bonuses = bonusuri
 current-annually = Anual
 current-monthly = Lunar
+current-hourly = Pe oră
 
 # Compensation Band
 band-title = Bandă de compensare
@@ -263,7 +264,6 @@ modal-deactivate-reason-other = Altele (vă rugăm să specificați)
 
 # Adjust Employee Salary Form
 adjust-salary-title = Ajustare salariu angajat
-adjust-salary-current-salary = Salariu anual curent
 adjust-salary-adjustment-type = Tip ajustare
 adjust-salary-adjustment-type-amount = Creștere sumă
 adjust-salary-adjustment-type-percentage = Creștere procentuală
@@ -282,8 +282,15 @@ adjust-salary-reason-other = Altele
 adjust-salary-description = Descriere
 adjust-salary-notes = Note
 adjust-salary-adjustment-type-required = Tipul ajustării este obligatoriu. Vă rugăm să selectați un tip de ajustare.
-adjust-salary-adjustment-value-required = Valoarea ajustării este obligatorie. Vă rugăm să introduceți valoarea ajustării.
-adjust-salary-adjustment-value-positive = Valoarea ajustării trebuie să fie mai mare decât zero.
+adjust-salary-adjustment-value-required = Introduceți suma sau procentul
+adjust-salary-adjustment-value-positive = Valoarea trebuie să fie pozitivă
 adjust-salary-currency-required = Moneda este obligatorie. Vă rugăm să selectați o monedă.
 adjust-salary-effective-date-required = Data efectivă este obligatorie. Vă rugăm să selectați o dată efectivă.
 adjust-salary-reason-required = Motivul este obligatoriu. Vă rugăm să selectați un motiv.
+adjust-salary-frequency = Frecvență ajustare
+adjust-salary-frequency-required = Frecvența este obligatorie. Vă rugăm să selectați o frecvență.
+adjust-salary-frequency-annually = Anual
+adjust-salary-frequency-monthly = Lunar
+adjust-salary-frequency-hourly = Pe oră
+adjust-salary-current-salary = Salariu curent
+adjust-salary-calculation-breakdown = Rezumat ajustare salariu
