@@ -197,7 +197,14 @@ const TimeTrackingTab: React.FC<TimeTrackingTabProps> = ({ employee, accessToken
           </div>
         </div>
 
-        <TimeEntriesTable entries={entries} locale={locale} pageSize={pageSize} onPageSizeChange={setPageSize} />
+        <TimeEntriesTable
+          entries={entries}
+          locale={locale}
+          pageSize={pageSize}
+          onPageSizeChange={setPageSize}
+          accessToken={accessToken}
+          employeeId={employeeId}
+        />
       </Card>
 
       {/* Request Correction handled by AppActionMenu flow */}

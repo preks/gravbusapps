@@ -1,9 +1,9 @@
 import React, { useMemo } from 'react'
-import { Card } from '@newwork/nw-design-system'
+import { Card, useTranslation } from '@newwork/nw-design-system'
 import { Typography, Spin, Empty, Result } from 'antd'
 import { ComposedChart, Bar, Line, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer } from 'recharts'
-import { getTranslationFromI18nKeyAndLabel } from '@/common/utils/windowUtils'
 import { YearlyHireData } from '../../../../../hooks/useHiresPerYear'
+import hrTranslations from '@/business-apps/hr/core/apps/human-resources/_i18n'
 
 const { Title, Text } = Typography
 
@@ -17,6 +17,7 @@ interface HiresPerYearChartProps {
  * Chart component displaying hires per year as a bar chart with trend line
  */
 const HiresPerYearChart: React.FC<HiresPerYearChartProps> = ({ data, loading, error }) => {
+  const { t } = useTranslation(hrTranslations)
   // Get chart colors from design system
   const chartColors = [
     'var(--nw-chart-1)',
@@ -72,13 +73,10 @@ const HiresPerYearChart: React.FC<HiresPerYearChartProps> = ({ data, loading, er
       {/* Header */}
       <div className="gba:mb-4 gba:ml-4">
         <Title level={4} className="gba:m-0 gba:text-foreground">
-          {getTranslationFromI18nKeyAndLabel('hr_analytics_hires_per_year', 'Hires Per Year')}
+          {t('hr-analytics-hires-per-year')}
         </Title>
         <Text className="gba:text-muted-foreground gba:text-sm gba:mt-1">
-          {getTranslationFromI18nKeyAndLabel(
-            'hr_analytics_hires_per_year_description',
-            'Annual hiring trends with smoothed trend line showing recruitment patterns over time'
-          )}
+          {t('hr-analytics-hires-per-year-description')}
         </Text>
       </div>
 
@@ -91,13 +89,13 @@ const HiresPerYearChart: React.FC<HiresPerYearChartProps> = ({ data, loading, er
         <div className="gba:flex gba:justify-center gba:items-center gba:h-64" data-testid="hires-chart-error">
           <Result
             status="warning"
-            title={getTranslationFromI18nKeyAndLabel('hr_analytics_data_error', 'Could not load data')}
+            title={t('hr-analytics-data-error')}
             subTitle={error.toString().includes('CORS') ? 'API access blocked by CORS policy' : error.toString()}
           />
         </div>
       ) : chartData.length === 0 ? (
         <div className="gba:flex gba:justify-center gba:items-center gba:h-64" data-testid="hires-chart-empty">
-          <Empty description={getTranslationFromI18nKeyAndLabel('hr_analytics_no_data', 'No data available')} />
+          <Empty description={t('hr-analytics-no-data')} />
         </div>
       ) : (
         <div className="gba:h-64" data-testid="hires-chart-container">
@@ -111,7 +109,7 @@ const HiresPerYearChart: React.FC<HiresPerYearChartProps> = ({ data, loading, er
                 tick={{ fill: 'var(--nw-muted-foreground)', fontSize: 12 }}
                 dy={10}
                 label={{
-                  value: getTranslationFromI18nKeyAndLabel('hr_analytics_chart_year', 'Year'),
+                  value: t('hr-analytics-chart-year'),
                   position: 'insideBottom',
                   offset: -15,
                   fill: 'var(--nw-muted-foreground)',
@@ -124,7 +122,7 @@ const HiresPerYearChart: React.FC<HiresPerYearChartProps> = ({ data, loading, er
                 tick={{ fill: 'var(--nw-muted-foreground)', fontSize: 12 }}
                 width={50}
                 label={{
-                  value: getTranslationFromI18nKeyAndLabel('hr_analytics_chart_hires', 'Hires'),
+                  value: t('hr-analytics-chart-hires'),
                   angle: -90,
                   position: 'insideLeft',
                   dy: 40,
@@ -142,7 +140,7 @@ const HiresPerYearChart: React.FC<HiresPerYearChartProps> = ({ data, loading, er
                   color: 'var(--nw-card-foreground)'
                 }}
                 formatter={(value, name) => {
-                  const label = name === 'trend' ? 'Trend' : 'Hires'
+                  const label = name === 'trend' ? t('hr-analytics-trend') : t('hr-analytics-hires')
                   return [`${typeof value === 'number' ? value.toFixed(0) : value}`, label]
                 }}
                 labelStyle={{ fontWeight: 'bold', marginBottom: 5 }}
@@ -158,7 +156,7 @@ const HiresPerYearChart: React.FC<HiresPerYearChartProps> = ({ data, loading, er
               />
               <Bar
                 dataKey="hires"
-                name={getTranslationFromI18nKeyAndLabel('hr_analytics_chart_hires', 'Hires')}
+                name={t('hr-analytics-chart-hires')}
                 fill={chartColors[4]}
                 radius={[4, 4, 0, 0]}
                 animationDuration={1500}
@@ -167,7 +165,7 @@ const HiresPerYearChart: React.FC<HiresPerYearChartProps> = ({ data, loading, er
               <Line
                 type="monotone"
                 dataKey="trend"
-                name="Trend"
+                name={t('hr-analytics-trend')}
                 stroke="var(--nw-foreground)"
                 strokeWidth={2}
                 dot={{ fill: 'var(--nw-foreground)', r: 4 }}

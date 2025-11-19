@@ -3,6 +3,8 @@ import { Card, Typography, Table, Tag, List, Avatar } from 'antd'
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, ResponsiveContainer, Tooltip } from 'recharts'
 import { UserOutlined, AlertOutlined } from '@ant-design/icons'
 import { ReportingChainData, ReportingChainSummary } from '../types/structuralTypes'
+import { useTranslation } from '@newwork/nw-design-system'
+import hrTranslations from '@/business-apps/hr/core/apps/human-resources/_i18n'
 
 const { Title, Text } = Typography
 
@@ -17,23 +19,24 @@ export const ReportingChainAnalysis: React.FC<ReportingChainAnalysisProps> = ({
   summary,
   prefixDataTestId = 'StructuralAnalysis'
 }) => {
+  const { t } = useTranslation(hrTranslations)
   // Table columns for reporting chains
   const chainColumns = [
     {
-      title: 'Chain ID',
+      title: t('hr-analytics-chain-id'),
       dataIndex: 'chainId',
       key: 'chainId',
       width: 120
     },
     {
-      title: 'Top Manager',
+      title: t('hr-analytics-top-manager'),
       dataIndex: 'topManager',
       key: 'topManager',
       width: 200,
       render: (text: string) => <Text strong>{text}</Text>
     },
     {
-      title: 'Levels',
+      title: t('hr-analytics-levels-title'),
       dataIndex: 'levels',
       key: 'levels',
       width: 100,
@@ -43,11 +46,11 @@ export const ReportingChainAnalysis: React.FC<ReportingChainAnalysisProps> = ({
         if (levels > 6) color = 'red'
         else if (levels > 4) color = 'orange'
 
-        return <Tag color={color}>{levels} levels</Tag>
+        return <Tag color={color}>{levels} {t('hr-analytics-levels')}</Tag>
       }
     },
     {
-      title: 'Total Employees',
+      title: t('hr-analytics-total-employees'),
       dataIndex: 'totalEmployees',
       key: 'totalEmployees',
       width: 120,
@@ -59,7 +62,7 @@ export const ReportingChainAnalysis: React.FC<ReportingChainAnalysisProps> = ({
       )
     },
     {
-      title: 'Avg. Span of Control',
+      title: t('hr-analytics-avg-span-of-control'),
       dataIndex: 'averageSpanOfControl',
       key: 'averageSpanOfControl',
       width: 140,
@@ -67,7 +70,7 @@ export const ReportingChainAnalysis: React.FC<ReportingChainAnalysisProps> = ({
       render: (value: number) => value.toFixed(1)
     },
     {
-      title: 'Bottlenecks',
+      title: t('hr-analytics-bottlenecks'),
       dataIndex: 'bottlenecks',
       key: 'bottlenecks',
       render: (bottlenecks: string[]) => (
@@ -80,17 +83,17 @@ export const ReportingChainAnalysis: React.FC<ReportingChainAnalysisProps> = ({
                 </div>
               ))}
               {bottlenecks.length > 2 && (
-                <div className="gba:text-xs gba:text-muted-foreground">+{bottlenecks.length - 2} more</div>
+                <div className="gba:text-xs gba:text-muted-foreground">+{bottlenecks.length - 2} {t('hr-analytics-more')}</div>
               )}
             </div>
           ) : (
-            <Text className="gba:text-muted-foreground">None</Text>
+            <Text className="gba:text-muted-foreground">{t('hr-analytics-none')}</Text>
           )}
         </div>
       )
     },
     {
-      title: 'Efficiency',
+      title: t('hr-analytics-efficiency'),
       dataIndex: 'efficiency',
       key: 'efficiency',
       width: 100,
@@ -107,7 +110,7 @@ export const ReportingChainAnalysis: React.FC<ReportingChainAnalysisProps> = ({
 
   // Prepare data for chain distribution chart
   const distributionData = summary.chainDistribution.map(item => ({
-    chainLength: `${item.length} levels`,
+    chainLength: `${item.length} ${t('hr-analytics-levels')}`,
     count: item.count,
     percentage: item.percentage
   }))
@@ -117,28 +120,28 @@ export const ReportingChainAnalysis: React.FC<ReportingChainAnalysisProps> = ({
       {/* Summary Statistics */}
       <Card className="gba:mb-4">
         <Title level={5} className="gba:m-0 gba:mb-4 gba:text-foreground">
-          Reporting Chain Summary
+          {t('hr-analytics-reporting-chain-summary')}
         </Title>
         <div className="gba:grid gba:grid-cols-[repeat(auto-fit,minmax(150px,1fr))] gba:gap-4">
           <div className="gba:text-center gba:p-4 gba:bg-muted gba:rounded">
             <div className="gba:text-2xl gba:font-bold gba:text-foreground">
               {summary.averageChainLength.toFixed(1)}
             </div>
-            <div className="gba:text-xs gba:text-muted-foreground">Average Chain Length</div>
+            <div className="gba:text-xs gba:text-muted-foreground">{t('hr-analytics-average-chain-length')}</div>
           </div>
           <div className="gba:text-center gba:p-4 gba:bg-muted gba:rounded">
             <div className="gba:text-2xl gba:font-bold gba:text-foreground">{summary.maxChainLength}</div>
-            <div className="gba:text-xs gba:text-muted-foreground">Max Chain Length</div>
+            <div className="gba:text-xs gba:text-muted-foreground">{t('hr-analytics-max-chain-length')}</div>
           </div>
           <div className="gba:text-center gba:p-4 gba:bg-muted gba:rounded">
             <div className="gba:text-2xl gba:font-bold gba:text-foreground">{summary.minChainLength}</div>
-            <div className="gba:text-xs gba:text-muted-foreground">Min Chain Length</div>
+            <div className="gba:text-xs gba:text-muted-foreground">{t('hr-analytics-min-chain-length')}</div>
           </div>
           <div className="gba:text-center gba:p-4 gba:bg-warning-secondary/40 gba:rounded">
             <div className="gba:text-2xl gba:font-bold gba:text-warning-secondary-foreground">
               {summary.bottlenecks.length}
             </div>
-            <div className="gba:text-xs gba:text-muted-foreground">Bottlenecks Identified</div>
+            <div className="gba:text-xs gba:text-muted-foreground">{t('hr-analytics-bottlenecks-identified')}</div>
           </div>
         </div>
       </Card>
@@ -146,7 +149,7 @@ export const ReportingChainAnalysis: React.FC<ReportingChainAnalysisProps> = ({
       {/* Chain Distribution Chart */}
       <Card className="gba:mb-4">
         <Title level={5} className="gba:m-0 gba:mb-4 gba:text-foreground">
-          Chain Length Distribution
+          {t('hr-analytics-chain-length-distribution')}
         </Title>
         <ResponsiveContainer width="100%" height={300}>
           <BarChart data={distributionData} margin={{ top: 20, right: 30, left: 20, bottom: 5 }}>
@@ -163,7 +166,7 @@ export const ReportingChainAnalysis: React.FC<ReportingChainAnalysisProps> = ({
       <Card className="gba:mb-4">
         <Title level={5} className="gba:m-0 gba:mb-4 gba:text-foreground">
           <AlertOutlined className="gba:mr-2 gba:text-warning" />
-          Bottleneck Managers
+          {t('hr-analytics-bottleneck-managers')}
         </Title>
         <List
           dataSource={summary.bottlenecks}
@@ -174,22 +177,22 @@ export const ReportingChainAnalysis: React.FC<ReportingChainAnalysisProps> = ({
                 title={bottleneck.managerName}
                 description={
                   <div>
-                    <Text>{bottleneck.chainsThroughManager} reporting chains pass through this manager</Text>
+                    <Text>{bottleneck.chainsThroughManager} {t('hr-analytics-reporting-chains')} {t('hr-analytics-pass-through-this-manager')}</Text>
                     <br />
-                    <Tag color="var(--nw-warning)">Impact Score: {bottleneck.impact}</Tag>
+                    <Tag color="var(--nw-warning)">{t('hr-analytics-impact-score')}: {bottleneck.impact}</Tag>
                   </div>
                 }
               />
             </List.Item>
           )}
-          locale={{ emptyText: 'No significant bottlenecks identified' }}
+          locale={{ emptyText: t('hr-analytics-no-significant-bottlenecks') }}
         />
       </Card>
 
       {/* Detailed Reporting Chains Table */}
       <Card>
         <Title level={5} className="gba:m-0 gba:mb-4 gba:text-foreground">
-          Detailed Reporting Chains
+          {t('hr-analytics-detailed-reporting-chains')}
         </Title>
         <Table
           dataSource={chains}
@@ -198,7 +201,7 @@ export const ReportingChainAnalysis: React.FC<ReportingChainAnalysisProps> = ({
           pagination={{
             pageSize: 10,
             showSizeChanger: true,
-            showTotal: (total, range) => `${range[0]}-${range[1]} of ${total} chains`
+            showTotal: (total, range) => `${range[0]}-${range[1]} ${t('hr-analytics-of')} ${total} ${t('hr-analytics-reporting-chains')}`
           }}
           size="small"
           scroll={{ x: 1000 }}

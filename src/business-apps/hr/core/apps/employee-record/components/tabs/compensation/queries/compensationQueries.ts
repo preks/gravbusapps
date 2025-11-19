@@ -14,6 +14,8 @@
  * - BenefitProvider catalog (Insurance companies, pension funds, etc.)
  */
 
+import { CATALOG_ENTRY_REF } from '@/common/data/catalog/queries/catalogFragments'
+
 /**
  * Query for current employee compensation
  * Fetches from EmployeeWorkingCondition and CompensationBand
@@ -89,8 +91,7 @@ export const GET_EMPLOYEE_COMPENSATION_DATA = /*sql*/ `
       id
       employeeId
       employeeBonusType {
-        id
-        value
+        ${CATALOG_ENTRY_REF}
       }
       employeeBonusTypeRef
       amount
@@ -117,13 +118,11 @@ export const GET_EMPLOYEE_COMPENSATION_DATA = /*sql*/ `
       id
       employeeId
       benefitType {
-        id
-        value
+        ${CATALOG_ENTRY_REF}
       }
       benefitTypeRef
       benefitProvider {
-        id
-        value
+        ${CATALOG_ENTRY_REF}
       }
       benefitProviderRef
       yearlyAmount
@@ -184,8 +183,7 @@ export const GET_EMPLOYEE_COMPENSATION_HISTORY = /*sql*/ `
       id
       employeeId
       employeeBonusType {
-        id
-        value
+        ${CATALOG_ENTRY_REF}
       }
       employeeBonusTypeRef
       amount

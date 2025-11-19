@@ -1,5 +1,5 @@
 import React, { useMemo } from 'react'
-import { Card, Spinner, Alert, Badge } from '@newwork/nw-design-system'
+import { Card, Spinner, Alert, Badge, useTranslation } from '@newwork/nw-design-system'
 import {
   BarChart,
   Bar,
@@ -11,9 +11,9 @@ import {
   Cell,
   LabelList
 } from 'recharts'
-import { getTranslationFromI18nKeyAndLabel } from '@/common/utils/windowUtils'
 import { useProbationRateByOrgUnit } from '../../../../../hooks/useProbationRateByOrgUnit'
 import { mapValueToColor } from '@/common/utils/chartColorMapper'
+import hrTranslations from '@/business-apps/hr/core/apps/human-resources/_i18n'
 
 interface ProbationRateByOrgUnitChartProps {
   accessToken: string
@@ -26,6 +26,7 @@ interface ProbationRateByOrgUnitChartProps {
 const ProbationRateByOrgUnitChart: React.FC<ProbationRateByOrgUnitChartProps> = ({ accessToken }) => {
   const { data, loading, error } = useProbationRateByOrgUnit(accessToken)
   const prefixDataTestId = 'ProbationRateByOrgUnitChart'
+  const { t } = useTranslation(hrTranslations)
 
   // Transform data for the bar chart - limit to top 10 org units with highest probation rates
   const chartData = useMemo(() => {
@@ -77,21 +78,15 @@ const ProbationRateByOrgUnitChart: React.FC<ProbationRateByOrgUnitChartProps> = 
       <div className="gba:p-4 gba:bg-card gba:rounded-lg gba:shadow-lg gba:border gba:border-border">
         <p className="gba:text-lg gba:font-semibold gba:border-b gba:border-border gba:pb-2 gba:mb-3">{label}</p>
         <div className="gba:flex gba:items-center gba:justify-between gba:mb-2">
-          <span className="gba:text-muted-foreground">
-            {getTranslationFromI18nKeyAndLabel('hr_analytics_probation_rate', 'Probation Rate')}
-          </span>
+          <span className="gba:text-muted-foreground">{t('hr-analytics-probation-rate')}</span>
           <span className="gba:text-foreground gba:font-medium">{data.probationRate}%</span>
         </div>
         <div className="gba:flex gba:items-center gba:justify-between gba:mb-2">
-          <span className="gba:text-muted-foreground">
-            {getTranslationFromI18nKeyAndLabel('hr_analytics_employees_in_probation', 'Employees in Probation')}
-          </span>
+          <span className="gba:text-muted-foreground">{t('hr-analytics-employees-in-probation')}</span>
           <span className="gba:text-foreground gba:font-medium">{data.employeesInProbation}</span>
         </div>
         <div className="gba:flex gba:items-center gba:justify-between">
-          <span className="gba:text-muted-foreground">
-            {getTranslationFromI18nKeyAndLabel('hr_analytics_total_employees', 'Total Employees')}
-          </span>
+          <span className="gba:text-muted-foreground">{t('hr-analytics-total-employees')}</span>
           <span className="gba:text-foreground gba:font-medium">{data.totalEmployees}</span>
         </div>
       </div>
@@ -124,14 +119,10 @@ const ProbationRateByOrgUnitChart: React.FC<ProbationRateByOrgUnitChartProps> = 
       <Card className="gba:w-full gba:p-6 gba:shadow-sm" data-testid={`${prefixDataTestId}-loading`}>
         <div className="gba:mb-4">
           <h3 className="gba:text-lg gba:font-semibold gba:text-foreground gba:m-0">
-            {getTranslationFromI18nKeyAndLabel(
-              'hr_analytics_probation_rate_by_org',
-              'Probation Rate by Organizational Unit'
-            )}
+            {t('hr-analytics-probation-rate-by-org')}
           </h3>
           <p className="gba:text-muted-foreground gba:text-sm gba:mt-1">
-            Shows the percentage of employees in probation period relative to total employees across organizational
-            units
+            {t('hr-analytics-probation-rate-description')}
           </p>
         </div>
         <div className="gba:flex gba:justify-center gba:items-center gba:h-96">
@@ -146,18 +137,14 @@ const ProbationRateByOrgUnitChart: React.FC<ProbationRateByOrgUnitChartProps> = 
       <Card className="gba:w-full gba:p-6 gba:shadow-sm" data-testid={`${prefixDataTestId}-error`}>
         <div className="gba:mb-4">
           <h3 className="gba:text-lg gba:font-semibold gba:text-foreground gba:m-0">
-            {getTranslationFromI18nKeyAndLabel(
-              'hr_analytics_probation_rate_by_org',
-              'Probation Rate by Organizational Unit'
-            )}
+            {t('hr-analytics-probation-rate-by-org')}
           </h3>
           <p className="gba:text-muted-foreground gba:text-sm gba:mt-1">
-            Shows the percentage of employees in probation period relative to total employees across organizational
-            units
+            {t('hr-analytics-probation-rate-description')}
           </p>
         </div>
         <Alert variant="destructive">
-          {getTranslationFromI18nKeyAndLabel('hr_analytics_error_message', 'Error loading data')}
+          {t('hr-analytics-error-message')}
         </Alert>
       </Card>
     )
@@ -168,23 +155,20 @@ const ProbationRateByOrgUnitChart: React.FC<ProbationRateByOrgUnitChartProps> = 
       <div className="gba:mb-4">
         <div className="gba:flex gba:items-center gba:justify-between gba:mb-2">
           <h3 className="gba:text-lg gba:font-semibold gba:text-foreground gba:m-0">
-            {getTranslationFromI18nKeyAndLabel(
-              'hr_analytics_probation_rate_by_org',
-              'Probation Rate by Organizational Unit'
-            )}
+            {t('hr-analytics-probation-rate-by-org')}
           </h3>
           <Badge variant="outline" className="gba:text-xs">
-            Probation status
+            {t('hr-analytics-probation-status')}
           </Badge>
         </div>
         <p className="gba:text-muted-foreground gba:text-sm">
-          Shows the percentage of employees in probation period relative to total employees across organizational units
+          {t('hr-analytics-probation-rate-description')}
         </p>
       </div>
 
       {data.length === 0 ? (
         <div className="gba:flex gba:justify-center gba:items-center gba:h-96 gba:text-muted-foreground">
-          {getTranslationFromI18nKeyAndLabel('hr_analytics_no_data', 'No data available')}
+          {t('hr-analytics-no-data')}
         </div>
       ) : (
         <>
@@ -206,10 +190,7 @@ const ProbationRateByOrgUnitChart: React.FC<ProbationRateByOrgUnitChartProps> = 
                   axisLine={{ stroke: 'var(--nw-color-border)' }}
                   tickLine={{ stroke: 'var(--nw-color-border)' }}
                   label={{
-                    value: getTranslationFromI18nKeyAndLabel(
-                      'hr_analytics_probation_rate_percent',
-                      'Probation Rate (%)'
-                    ),
+                    value: t('hr-analytics-probation-rate-percent'),
                     position: 'insideBottom',
                     offset: -10,
                     style: {
@@ -231,7 +212,7 @@ const ProbationRateByOrgUnitChart: React.FC<ProbationRateByOrgUnitChartProps> = 
                 />
                 <RechartsTooltip content={<CustomTooltip />} cursor={{ fill: 'var(--nw-color-muted)' }} />
                 <Bar
-                  name={getTranslationFromI18nKeyAndLabel('hr_analytics_probation_rate', 'Probation Rate')}
+                  name={t('hr-analytics-probation-rate')}
                   dataKey="probationRate"
                   radius={[0, 6, 6, 0]}
                   animationDuration={1200}
@@ -251,10 +232,7 @@ const ProbationRateByOrgUnitChart: React.FC<ProbationRateByOrgUnitChartProps> = 
               className="gba:text-center gba:text-sm gba:text-muted-foreground gba:mt-4"
               data-testid={`${prefixDataTestId}-footnote`}
             >
-              {getTranslationFromI18nKeyAndLabel(
-                'hr_analytics_top_org_units_note',
-                `Showing top 10 organizational units with highest probation rates out of ${data.length} total`
-              )}
+              {t('hr-analytics-top-org-units-note', { total: data.length })}
             </div>
           )}
         </>
