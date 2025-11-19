@@ -35,7 +35,7 @@ export const ReminderDisplay: React.FC<ReminderDisplayProps> = ({ entity, access
 
       try {
         const baseUrl = window.location.origin
-        const response = await fetch(`${baseUrl}/flow-engine/api/workflow/${entity.id}`, {
+        const response = await fetch(`${baseUrl}/flow-engine/api/flows/${entity.id}`, {
           headers: {
             Authorization: `Bearer ${accessToken}`,
             'Content-Type': 'application/json'

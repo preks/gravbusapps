@@ -42,7 +42,7 @@ export const RemindersPanel: React.FC<RemindersPanelProps> = ({ accessToken, use
         query: `tags.app = 'reminder' AND tags.userId = '${userId}' AND status IN (RUNNING, SCHEDULED)`
       })
 
-      const response = await fetch(`${baseUrl}/flow-engine/api/workflow/search?${searchParams}`, {
+      const response = await fetch(`${baseUrl}/flow-engine/api/flows/search?${searchParams}`, {
         headers: {
           Authorization: `Bearer ${accessToken}`,
           'Content-Type': 'application/json'
@@ -127,7 +127,7 @@ export const RemindersPanel: React.FC<RemindersPanelProps> = ({ accessToken, use
 
     try {
       const baseUrl = window.location.origin
-      const response = await fetch(`${baseUrl}/flow-engine/api/workflow/${workflowId}`, {
+      const response = await fetch(`${baseUrl}/flow-engine/api/flows/${workflowId}`, {
         method: 'DELETE',
         headers: {
           Authorization: `Bearer ${accessToken}`,
@@ -157,7 +157,7 @@ export const RemindersPanel: React.FC<RemindersPanelProps> = ({ accessToken, use
       const baseUrl = window.location.origin
 
       // Update workflow input with new reminder time
-      const response = await fetch(`${baseUrl}/flow-engine/api/workflow/${workflowId}`, {
+      const response = await fetch(`${baseUrl}/flow-engine/api/flows/${workflowId}`, {
         method: 'PATCH',
         headers: {
           Authorization: `Bearer ${accessToken}`,
@@ -194,7 +194,7 @@ export const RemindersPanel: React.FC<RemindersPanelProps> = ({ accessToken, use
       const baseUrl = window.location.origin
 
       // Complete the workflow
-      const response = await fetch(`${baseUrl}/flow-engine/api/workflow/${workflowId}/complete`, {
+      const response = await fetch(`${baseUrl}/flow-engine/api/flows/${workflowId}/complete`, {
         method: 'POST',
         headers: {
           Authorization: `Bearer ${accessToken}`,
