@@ -51,7 +51,12 @@ export const ValueField: React.FC<ValueFieldProps> = ({
             }}
           >
             <SelectTrigger className="gba:w-[200px]" data-testid="flw_changePrivateCommunication_countryCode">
-              <SelectValue placeholder="Country" />
+              <SelectValue
+                placeholder={getTranslationFromI18nKeyAndLabel(
+                  'lowcoder:employee_profile.details_layout.bank_account_form.country_select_placeholder',
+                  'Select Country'
+                )}
+              />
             </SelectTrigger>
             <SelectContent>
               {countries.map(country => (
