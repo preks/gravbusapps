@@ -54,6 +54,7 @@ const CurrentCompensationView: React.FC<CurrentCompensationViewProps> = ({
   // const { isResourceAccessible } = usePermissionCheck(employeeId, bonusCreatePermissionMap, accessToken || '')
   // const hasPermissionToGrantBonus = isResourceAccessible('grantBonus')
   const hasPermissionToGrantBonusDev = true //for development purposes
+
   // Handle loading state - show loading indicators when data is not yet available
   if (loading && !compensationData) {
     return (
