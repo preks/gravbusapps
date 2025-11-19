@@ -29,6 +29,13 @@ export const ReminderDisplay: React.FC<ReminderDisplayProps> = ({ entity, access
   const [error, setError] = useState<string | null>(null)
 
   useEffect(() => {
+    // Safety check - don't fetch if missing required data
+    if (!entity?.id || !accessToken) {
+      setIsLoading(false)
+      setError('Missing required data')
+      return
+    }
+
     const fetchReminderData = async () => {
       setIsLoading(true)
       setError(null)
@@ -43,21 +50,31 @@ export const ReminderDisplay: React.FC<ReminderDisplayProps> = ({ entity, access
         })
 
         if (!response.ok) {
-          throw new Error(`Failed to fetch reminder: ${response.statusText}`)
+          console.warn(`Reminder fetch failed: ${response.statusText}`)
+          setError(`Could not load reminder details`)
+          setIsLoading(false)
+          return
         }
 
         const data = await response.json()
         setReminder(data)
       } catch (err) {
         console.error('Error fetching reminder:', err)
-        setError(err instanceof Error ? err.message : 'Failed to load reminder')
+        setError('Unable to load reminder')
       } finally {
         setIsLoading(false)
       }
     }
 
-    fetchReminderData()
-  }, [entity.id, accessToken])
+    // Wrap in try-catch to prevent any uncaught errors
+    try {
+      fetchReminderData()
+    } catch (err) {
+      console.error('Unexpected error in ReminderDisplay:', err)
+      setError('An unexpected error occurred')
+      setIsLoading(false)
+    }
+  }, [entity?.id, accessToken])
 
   const getOperationBadge = () => {
     const operation = entity.operation || 'create'

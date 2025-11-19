@@ -26,6 +26,9 @@ export const RemindersPanel: React.FC<RemindersPanelProps> = ({ accessToken, use
   const [error, setError] = useState<string | null>(null)
   const notifiedReminders = useRef<Set<string>>(new Set())
 
+  // Extract userId once to prevent dependency issues
+  const userId = userInfo?.employeeDetails?.employeeId || ''
+
   const loadReminders = useCallback(async () => {
     if (!accessToken) return
 
@@ -34,7 +37,6 @@ export const RemindersPanel: React.FC<RemindersPanelProps> = ({ accessToken, use
 
     try {
       const baseUrl = window.location.origin
-      const userId = userInfo?.employeeDetails?.employeeId || ''
 
       // Skip if no user ID
       if (!userId) {
@@ -97,7 +99,7 @@ export const RemindersPanel: React.FC<RemindersPanelProps> = ({ accessToken, use
     } finally {
       setIsLoading(false)
     }
-  }, [accessToken, userInfo])
+  }, [accessToken, userId])
 
   const checkAndNotifyReminders = useCallback((reminderList: Reminder[]) => {
     // Check if Notification API is available
@@ -141,8 +143,8 @@ export const RemindersPanel: React.FC<RemindersPanelProps> = ({ accessToken, use
   }, [])
 
   useEffect(() => {
-    // Only load if we have accessToken
-    if (!accessToken) return
+    // Only load if we have accessToken and userId
+    if (!accessToken || !userId) return
 
     loadReminders()
 
@@ -154,7 +156,7 @@ export const RemindersPanel: React.FC<RemindersPanelProps> = ({ accessToken, use
     return () => {
       clearInterval(interval)
     }
-  }, [accessToken, userInfo])
+  }, [accessToken, userId, loadReminders])
 
   const handleDismiss = async (workflowId: string) => {
     if (!confirm('Cancel this reminder?')) return

@@ -6,6 +6,7 @@ import { FormSubmissionProvider } from './components/FormSubmissionContext'
 import { ConversationRenderer } from './components/ConversationRenderer'
 import { useCurrentUserPicture } from './hooks/useCurrentUserPicture'
 import { RemindersPanel } from './components/RemindersPanel'
+import { ErrorBoundary } from './components/ErrorBoundary'
 import { Button } from '@newwork/nw-design-system'
 
 export interface EveryAIProps extends BusinessAppContextProps {
@@ -89,7 +90,25 @@ export const EveryAI: React.FC<EveryAIProps> = props => {
       {/* Reminders Panel Overlay */}
       {showRemindersPanel && (
         <div className="gba:absolute gba:top-16 gba:right-4 gba:z-30">
-          <RemindersPanel accessToken={accessToken} userInfo={userInfo} onClose={() => setShowRemindersPanel(false)} />
+          <ErrorBoundary
+            fallback={
+              <div className="gba:bg-card gba:p-4 gba:rounded-lg gba:shadow-lg gba:border gba:border-border">
+                <p className="gba:text-destructive gba:font-semibold">Failed to load reminders</p>
+                <button
+                  onClick={() => setShowRemindersPanel(false)}
+                  className="gba:mt-2 gba:text-sm gba:text-muted-foreground hover:gba:text-foreground"
+                >
+                  Close
+                </button>
+              </div>
+            }
+          >
+            <RemindersPanel
+              accessToken={accessToken}
+              userInfo={userInfo}
+              onClose={() => setShowRemindersPanel(false)}
+            />
+          </ErrorBoundary>
         </div>
       )}
 
