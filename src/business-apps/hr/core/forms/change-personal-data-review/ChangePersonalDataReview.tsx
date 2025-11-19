@@ -50,9 +50,6 @@ export const ChangePersonalDataReview: React.FC<BusinessAppContextProps> = ({
   const payload = (additionalData as any)?.psi_taskPayload || {}
   const newPI = payload?.personalInformation || {}
   const oldPI = payload?.oldPersonalInformation || {}
-  console.log('payload', payload)
-  console.log('newPI', newPI)
-  console.log('oldPI', oldPI)
 
   // Combined fetch for required catalog entries and documents
   useEffect(() => {
