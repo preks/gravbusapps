@@ -388,7 +388,7 @@ const ExpensePlansTable: React.FC<ExpensePlansTableProps> = props => {
                             'No expense plans found'
                           )
                         : getTranslationFromI18nKeyAndLabel(
-                            'lowcoder:emanager_expense_landing_page.no_plans_created_by_team',
+                            'lowcoder:manager_expense_landing_page.no_plans_created_by_team',
                             'No expense plan created by your team yet.'
                           )}
                     </div>
