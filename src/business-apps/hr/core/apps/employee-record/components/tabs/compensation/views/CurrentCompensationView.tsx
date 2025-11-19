@@ -7,7 +7,6 @@ import { BusinessAppContextProps } from '@/common/BusinessAppContext'
 import TotalRewardsCard from '../components/current/TotalRewardsCard'
 import BenefitsPerksSection from '../components/current/BenefitsPerksSection'
 import CompensationKPICards from '../components/current/CompensationKPICards'
-import CompensationBandSection from '../components/current/CompensationBandSection'
 
 interface CurrentCompensationViewProps extends BusinessAppContextProps {
   t: (key: string, params?: any) => string
@@ -37,24 +36,6 @@ const CurrentCompensationView: React.FC<CurrentCompensationViewProps> = ({
   locale,
   isSelfView
 }) => {
-  // Check if user has permission to create/grant employee bonuses
-  // Only managers and HR admins should have write/create permission on employee_bonus
-  // Note: We check permission on the employee being viewed (employeeId) - managers should have write access to their employees' bonuses
-  // TODO: Re-enable permission check when ready for production
-  // const bonusCreatePermissionMap: Record<string, ResourcePermissionMap> = useMemo(
-  //   () => ({
-  //     grantBonus: {
-  //       domain: 'employee',
-  //       resource: 'employee_bonus',
-  //       permission: 'write'
-  //     }
-  //   }),
-  //   []
-  // )
-  // const { isResourceAccessible } = usePermissionCheck(employeeId, bonusCreatePermissionMap, accessToken || '')
-  // const hasPermissionToGrantBonus = isResourceAccessible('grantBonus')
-  const hasPermissionToGrantBonusDev = true //for development purposes
-
   // Check if user has permission to adjust employee salary
   // Only managers and HR admins should have write permission on employee_working_condition
   // Note: We check permission on the employee being viewed (employeeId) - managers should have write access to their employees' salaries
@@ -135,7 +116,6 @@ const CurrentCompensationView: React.FC<CurrentCompensationViewProps> = ({
         accessToken={accessToken}
         locale={locale}
         isSelfView={isSelfView}
-        hasPermissionToGrantBonus={hasPermissionToGrantBonusDev}
         hasPermissionToAdjustSalary={hasPermissionToAdjustSalaryDev}
       />
 
