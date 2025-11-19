@@ -42,11 +42,6 @@ const CompensationKPICards: React.FC<CompensationKPICardsProps> = ({
     <div className="gba:grid gba:grid-cols-1 gba:md:grid-cols-3 gba:gap-4">
       {/* Base Salary Card */}
       <Card className="gba:p-6 gba:relative" data-testid="compensation-base-salary-card">
-        {isSelfView && (
-          <div className="gba:absolute gba:top-4 gba:right-4">
-            <PiPencilSimple className="gba:w-4 gba:h-4 gba:text-muted-foreground" />
-          </div>
-        )}
         <div className="gba:flex gba:items-start gba:justify-between">
           <div className="gba:flex-1">
             <div className="gba:text-sm gba:text-muted-foreground gba:mb-2">{t('current-base-salary')}</div>
