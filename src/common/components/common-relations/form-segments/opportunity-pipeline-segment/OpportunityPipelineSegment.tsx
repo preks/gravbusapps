@@ -2,6 +2,11 @@ import React, { useEffect } from 'react'
 import { FormField, FormItem, FormLabel, FormControl, FormMessage, useTranslation } from '@newwork/nw-design-system'
 import { useFormContext } from 'react-hook-form'
 import { CatalogSelect } from '@/components/catalog-select'
+import {
+  OPPORTUNITY_PIPELINE,
+  OPPORTUNITY_PIPELINE_STAGE,
+  OPPORTUNITY_STATUS
+} from '@/common/data/customer/constants/catalogConstants'
 import translations from './_i18n'
 
 interface OpportunityPipelineSegmentProps {
@@ -18,12 +23,12 @@ interface OpportunityPipelineSegmentProps {
 }
 
 const OpportunityPipelineSegment: React.FC<OpportunityPipelineSegmentProps> = ({
-  pipelineFieldName = 'pipeline',
-  stageFieldName = 'salesPipelineStage',
-  opportunityStatusFieldName = 'opportunityStatus',
-  pipelineCatalogIdentifier = 'SalesPipeline:v1',
-  stageCatalogIdentifier = 'SalesPipelineStage:v1',
-  opportunityStatusCatalogIdentifier = 'SalesOpportunityStatus:v1',
+  pipelineFieldName = 'opportunityPipelineRef',
+  stageFieldName = 'opportunityPipelineStageRef',
+  opportunityStatusFieldName = 'opportunityStatusRef',
+  pipelineCatalogIdentifier = OPPORTUNITY_PIPELINE,
+  stageCatalogIdentifier = OPPORTUNITY_PIPELINE_STAGE,
+  opportunityStatusCatalogIdentifier = OPPORTUNITY_STATUS,
   customFields
 }) => {
   const form = useFormContext<any>()
@@ -52,9 +57,7 @@ const OpportunityPipelineSegment: React.FC<OpportunityPipelineSegmentProps> = ({
           name={pipelineFieldName}
           render={({ field }) => (
             <FormItem>
-              <FormLabel>
-                {t('opportunity-pipeline-label')} <span>*</span>
-              </FormLabel>
+              <FormLabel>{t('opportunity-pipeline-label')}</FormLabel>
               <FormControl>
                 <CatalogSelect
                   catalogIdentifier={pipelineCatalogIdentifier}
@@ -78,9 +81,7 @@ const OpportunityPipelineSegment: React.FC<OpportunityPipelineSegmentProps> = ({
           name={stageFieldName}
           render={({ field }) => (
             <FormItem>
-              <FormLabel>
-                {t('opportunity-stage-label')} <span>*</span>
-              </FormLabel>
+              <FormLabel>{t('opportunity-stage-label')}</FormLabel>
               <FormControl>
                 <CatalogSelect
                   catalogIdentifier={stageCatalogIdentifier}

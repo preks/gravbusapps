@@ -28,6 +28,8 @@ import {
   buildOpportunityFragment
 } from '@/common/data/relations/queries/relationFragments'
 
+import { CUSTOMER_CAMPAIGN_REF } from './fragments/customerReferenceFragments'
+
 // Import Customer Fields
 import { CustomerActivityFields } from '../types/customerActivityTypes'
 import { CustomerDocumentFields } from '../types/customerDocumentTypes'
@@ -76,7 +78,15 @@ export const buildCustomerLeadByIdQuery = (fields: typeof CustomerLeadFields = C
     opportunityFields: CustomerOpportunityFields
   }
 
-  return buildLeadByIdQuery('Lead', fields, relationBuilders, relationFields, undefined, 'SalesLeadStatus')
+  // CRM-specific additional fields: salesCampaign and salesCampaignId
+  const additionalFields = `
+    salesCampaign {
+      ${CUSTOMER_CAMPAIGN_REF}
+    }
+    salesCampaignId
+  `
+
+  return buildLeadByIdQuery('Lead', fields, relationBuilders, relationFields, additionalFields, 'SalesLeadStatus')
 }
 
 /**

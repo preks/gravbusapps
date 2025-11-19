@@ -15,6 +15,7 @@ import { PiPlus, PiTrash } from 'react-icons/pi'
 import { useFormContext, useFieldArray } from 'react-hook-form'
 import { CatalogSelect } from '@/components/catalog-select'
 import { CommunicationChannelCode } from '@/common/data/relations/types/relationEnums'
+import { COMMUNICATION_CHANNEL } from '@/common/data/relations/constants/catalogConstants'
 import translations from './_i18n'
 
 interface CommunicationSegmentProps {
@@ -24,9 +25,8 @@ interface CommunicationSegmentProps {
 // Separate component for each communication channel item
 const CommunicationChannelItem: React.FC<{
   channelIndex: number
-  canRemove: boolean
   onRemove: () => void
-}> = ({ channelIndex, canRemove, onRemove }) => {
+}> = ({ channelIndex, onRemove }) => {
   const form = useFormContext<any>()
   const { t } = useTranslation(translations)
 
@@ -73,11 +73,11 @@ const CommunicationChannelItem: React.FC<{
                 {/* CatalogSelect for Communication Channel Type - Left side */}
                 <InputGroupAddon className="gba:min-w-0 gba:flex-shrink-0">
                   <CatalogSelect
-                    catalogIdentifier="CommunicationChannel:v1"
+                    catalogIdentifier={COMMUNICATION_CHANNEL}
                     variant="select"
                     value={channelRefField.value || ''}
                     onValueChange={v => {
-                      channelRefField.onChange(v || null)
+                      channelRefField.onChange(v || '')
                       form.trigger(`communicationChannels.${channelIndex}.communicationChannelRef`)
                     }}
                     data-testid={`communication-channel-type-${channelIndex}`}
@@ -99,7 +99,7 @@ const CommunicationChannelItem: React.FC<{
                       placeholder={t('communication-channel-value-placeholder')}
                       data-testid={`communication-channel-value-${channelIndex}`}
                       value={valueField.value || ''}
-                      onChange={e => valueField.onChange(e.target.value || null)}
+                      onChange={e => valueField.onChange(e.target.value)}
                       onBlur={valueField.onBlur}
                       aria-invalid={valueFieldState.invalid}
                       aria-describedby={
@@ -110,21 +110,19 @@ const CommunicationChannelItem: React.FC<{
                 />
 
                 {/* Remove Button - Right side */}
-                {canRemove && (
-                  <InputGroupAddon align="inline-end">
-                    <InputGroupButton
-                      type="button"
-                      variant="ghost"
-                      size="iconXs"
-                      onClick={onRemove}
-                      className="gba:text-destructive hover:gba:bg-destructive-secondary"
-                      data-testid={`communication-channel-remove-${channelIndex}`}
-                      aria-label="Remove channel"
-                    >
-                      <PiTrash className="gba:w-4 gba:h-4" />
-                    </InputGroupButton>
-                  </InputGroupAddon>
-                )}
+                <InputGroupAddon align="inline-end">
+                  <InputGroupButton
+                    type="button"
+                    variant="ghost"
+                    size="iconXs"
+                    onClick={onRemove}
+                    className="gba:text-destructive hover:gba:bg-destructive-secondary"
+                    data-testid={`communication-channel-remove-${channelIndex}`}
+                    aria-label="Remove channel"
+                  >
+                    <PiTrash className="gba:w-4 gba:h-4" />
+                  </InputGroupButton>
+                </InputGroupAddon>
               </InputGroup>
             </FormControl>
             <FormMessage />
@@ -160,7 +158,6 @@ const CommunicationSegment: React.FC<CommunicationSegmentProps> = ({ customField
 
   const handleAddChannel = () => {
     append({
-      id: `channel-${Date.now()}`,
       communicationChannelRef: '',
       value: ''
     })
@@ -176,7 +173,6 @@ const CommunicationSegment: React.FC<CommunicationSegmentProps> = ({ customField
         <CommunicationChannelItem
           key={field.id}
           channelIndex={channelIndex}
-          canRemove={fields.length > 1}
           onRemove={() => handleRemoveChannel(channelIndex)}
         />
       ))}

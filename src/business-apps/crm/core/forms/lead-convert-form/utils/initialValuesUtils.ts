@@ -58,7 +58,7 @@ export const getAccountInitialValues = (leadData: any): Partial<CustomerAccount>
     industryClassRef: leadData.industryClassRef || '',
     companySizeRef: leadData.companySizeRef || '',
     accountAnnualRevenueBandRef: leadData.accountAnnualRevenueBandRef || '',
-    notesSummary: leadData.description || '',
+    salesCampaignId: leadData.salesCampaignId || '',
     addresses: addresses,
     communicationChannels: communicationChannels.length > 0 ? communicationChannels : undefined
   }
@@ -91,11 +91,11 @@ export const getContactInitialValues = (leadData: any): Partial<CustomerContact>
     firstName: leadData.firstName || '',
     lastName: leadData.lastName || '',
     code: leadData.code || '',
-    jobPosition: leadData.position || '',
+    jobPosition: leadData.jobPosition || '',
     academicTitleRef: leadData.academicTitleRef || '',
     description: leadData.description || '',
-    notesSummary: leadData.description || '',
     ownerEmployeeId: leadData.ownerEmployeeId || '',
+    salesCampaignId: leadData.salesCampaignId || '',
     communicationChannels: communicationChannels.length > 0 ? communicationChannels : undefined
   }
 }
@@ -107,6 +107,7 @@ export const getOpportunityInitialValues = (leadData: any): Partial<CustomerOppo
   return {
     name: leadData.companyName ? `Opportunity for ${leadData.companyName}` : '',
     ownerEmployeeId: leadData.ownerEmployeeId || '',
+    salesCampaignId: leadData.salesCampaignId || '',
     // If lead was already converted, use the converted account
     accountId: leadData.convertedAccountId || undefined
   }

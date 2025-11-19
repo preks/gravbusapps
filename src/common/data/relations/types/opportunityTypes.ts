@@ -368,6 +368,7 @@ export const opportunityFormFields = {
   leadId: 'lead',
   name: 'name',
   notesSummary: 'notesSummary',
+  opportunityContacts: 'opportunityContacts',
   opportunityPipelineRef: 'opportunityPipelineRef',
   opportunityPipelineStageRef: 'opportunityPipelineStageRef',
   opportunityStatusRef: 'opportunityStatusRef',

@@ -76,8 +76,37 @@ const EmployeeSelect = React.forwardRef<HTMLButtonElement, EmployeeSelectProps &
         initialSearchDone.current = true
       }
     }, [onSearch])
+    // Ensure initialEmployee is included in options if it exists and matches value
+    const employeesWithInitial = React.useMemo(() => {
+      if (!initialEmployee || !value) {
+        return employees
+      }
+      // Check if initialEmployee is already in employees
+      const isInEmployees = employees.some(emp => emp.id === initialEmployee.id)
+      if (isInEmployees) {
+        return employees
+      }
+      // Add initialEmployee to employees if it matches the current value
+      if (value === initialEmployee.id) {
+        return [
+          {
+            id: initialEmployee.id,
+            displayName:
+              initialEmployee.displayName ||
+              `${initialEmployee.firstName || ''} ${initialEmployee.lastName || ''}`.trim() ||
+              'Unknown',
+            pictureThumbnail: initialEmployee.pictureThumbnail,
+            organizationalUnitName: initialEmployee.employeePosition?.organizationalUnit?.name,
+            jobPositionName: initialEmployee.employeePosition?.jobPosition?.name
+          },
+          ...employees
+        ]
+      }
+      return employees
+    }, [employees, initialEmployee, value])
+
     const options: any[] = React.useMemo(() => {
-      return (employees || []).map((a: EmployeeOption) => {
+      return (employeesWithInitial || []).map((a: EmployeeOption) => {
         const initials = (a.displayName || '?')
           .split(' ')
           .map((p: string) => p[0])
@@ -123,7 +152,7 @@ const EmployeeSelect = React.forwardRef<HTMLButtonElement, EmployeeSelectProps &
           )
         } as any
       })
-    }, [employees])
+    }, [employeesWithInitial])
 
     return (
       <Combobox

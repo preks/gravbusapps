@@ -89,10 +89,9 @@ export const getContactInitialValues = (leadData: any): Partial<InvestmentContac
     firstName: leadData.firstName || '',
     lastName: leadData.lastName || '',
     code: leadData.code || '',
-    jobPosition: leadData.position || '',
+    jobPosition: leadData.jobPosition || '',
     academicTitleRef: leadData.academicTitleRef || '',
     description: leadData.description || '',
-    notesSummary: leadData.description || '',
     ownerEmployeeId: leadData.ownerEmployeeId || '',
     communicationChannels: communicationChannels.length > 0 ? communicationChannels : undefined
   }

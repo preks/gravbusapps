@@ -23,32 +23,51 @@ interface ContactInformationSegmentProps {
   ownerEmployee?: any
   // Entity ID (contact ID for edit mode)
   entityId?: string
-  // Avatar image for preview (from existing contact data) - CRM only
-  avatarImage?: string
 
-  // Account selection props
-  accounts?: AccountSelectOption[]
-  accountsLoading?: boolean
-  accountsError?: string | null
-  searchAccounts?: (search: string) => void
+  // Account selection hook result (optional - if not provided, accounts section won't render)
+  // When mapToSelectOptions: true is used, options will always be SelectOption[]
+  accountsHook?: {
+    options: AccountSelectOption[]
+    loading: boolean
+    error: string | null
+    search: (searchTerm: string) => void
+  }
 
   // Custom fields (context-specific, e.g., CRM Sales Campaign)
   customFields?: React.ReactNode
+
+  // Ref to store current file and thumbnail (for handlePreSubmit in form component)
+  avatarFileRef?: React.MutableRefObject<{ file: File; thumbnail: string } | null>
 }
 
 const ContactInformationSegment: React.FC<ContactInformationSegmentProps> = ({
   businessAppContext,
   ownerEmployee,
   entityId,
-  avatarImage,
-  accounts = [],
-  accountsLoading = false,
-  accountsError = null,
-  searchAccounts,
-  customFields
+  accountsHook,
+  customFields,
+  avatarFileRef
 }) => {
   const form = useFormContext<any>()
   const { t } = useTranslation(translations)
+
+  // Get avatar image from form values (pictureThumbnail or picture)
+  const pictureThumbnail = form.watch('pictureThumbnail')
+  const picture = form.watch('picture')
+  const avatarImage = pictureThumbnail
+    ? `data:image/jpeg;base64,${pictureThumbnail}`
+    : picture
+      ? typeof picture === 'string'
+        ? (() => {
+            try {
+              const pictureData = JSON.parse(picture)
+              return pictureData?.url || pictureData?.fileUrl || undefined
+            } catch {
+              return picture
+            }
+          })()
+        : picture
+      : undefined
 
   return (
     <div className="gba:space-y-6 gba:w-full gba:max-w-full gba:overflow-hidden">
@@ -58,9 +77,7 @@ const ContactInformationSegment: React.FC<ContactInformationSegmentProps> = ({
         name="ownerEmployeeId"
         render={({ field }) => (
           <FormItem>
-            <FormLabel>
-              {t('contact-owner-label')} <span>*</span>
-            </FormLabel>
+            <FormLabel>{t('contact-owner-label')}</FormLabel>
             <FormControl>
               <OwnerSelect
                 value={field.value || null}
@@ -84,9 +101,7 @@ const ContactInformationSegment: React.FC<ContactInformationSegmentProps> = ({
           name="firstName"
           render={({ field }) => (
             <FormItem>
-              <FormLabel>
-                {t('contact-first-name-label')} <span>*</span>
-              </FormLabel>
+              <FormLabel>{t('contact-first-name-label')}</FormLabel>
               <FormControl>
                 <Input
                   placeholder={t('contact-first-name-placeholder')}
@@ -104,9 +119,7 @@ const ContactInformationSegment: React.FC<ContactInformationSegmentProps> = ({
           name="lastName"
           render={({ field }) => (
             <FormItem>
-              <FormLabel>
-                {t('contact-last-name-label')} <span>*</span>
-              </FormLabel>
+              <FormLabel>{t('contact-last-name-label')}</FormLabel>
               <FormControl>
                 <Input
                   placeholder={t('contact-last-name-placeholder')}
@@ -171,20 +184,19 @@ const ContactInformationSegment: React.FC<ContactInformationSegmentProps> = ({
                 image={avatarImage}
                 variant="compact"
                 onChange={value => {
-                  if (value?.file) {
-                    // Store file temporarily (not in schema, will be handled in handlePreSubmit)
-                    ;(form as any)._avatarFile = value.file
-                    // Extract plain base64 from thumbnail (remove data URL prefix if present)
-                    const thumbnailBase64 = value.thumbnail
-                      ? value.thumbnail.includes(',')
+                  // Store file and thumbnail in ref (no re-renders, no form state changes)
+                  if (avatarFileRef) {
+                    if (value?.file && value?.thumbnail) {
+                      const thumbnailBase64 = value.thumbnail.includes(',')
                         ? value.thumbnail.split(',').pop() || ''
                         : value.thumbnail
-                      : ''
-                    form.setValue('pictureThumbnail', thumbnailBase64)
-                  } else {
-                    ;(form as any)._avatarFile = undefined
-                    form.setValue('pictureThumbnail', null)
-                    form.setValue('picture', null)
+                      avatarFileRef.current = {
+                        file: value.file,
+                        thumbnail: thumbnailBase64
+                      }
+                    } else {
+                      avatarFileRef.current = null
+                    }
                   }
                 }}
                 data-testid="contact-information-segment-avatar"
@@ -199,26 +211,76 @@ const ContactInformationSegment: React.FC<ContactInformationSegmentProps> = ({
       {customFields}
 
       {/* Account Selection using AccountSelect */}
-      {searchAccounts && (
+      {accountsHook && (
         <FormField
           control={form.control}
           name="accountContacts"
           render={({ field, fieldState }) => {
-            // Transform accountContacts to AccountSelect value format
-            const accountSelectValue = (field.value || []).map((ac: any) => {
-              const account = ac.account || ac.accountId
-              const accountId = typeof account === 'object' ? account.id : account
-              const accountName =
-                (typeof account === 'object' ? account.name : null) ||
-                (typeof account === 'object' ? account.displayName : null) ||
-                'Unknown Account'
+            // Transform accountContacts to AccountSelect format
+            // accountContacts: Array<{ id, version, accountId, contactId, contactType }>
+            // AccountSelect expects: Array<{ id, name, contactType }>
+            const accountSelectValue = React.useMemo(() => {
+              const accountContacts = field.value || []
+              return accountContacts.map((ac: any) => {
+                // If accountContact has account object with full data, use it
+                if (ac.account) {
+                  const account = ac.account
+                  const displayName = account.displayName || account.name || 'Unknown Account'
+                  return {
+                    id: ac.accountId || ac.account?.id || '',
+                    name: displayName,
+                    contactType: ac.contactType || undefined,
+                    pictureThumbnail: account.pictureThumbnail
+                  }
+                }
+                // Otherwise, use minimal data from accountContact
+                return {
+                  id: ac.accountId || '',
+                  name: ac.account?.name || 'Unknown Account',
+                  contactType: ac.contactType || undefined
+                }
+              })
+            }, [field.value])
 
-              return {
-                id: accountId,
-                name: accountName,
-                contactType: ac.contactType || undefined
-              }
-            })
+            // Handle onChange - transform back to accountContacts format
+            const handleChange = (
+              accountIds:
+                | string
+                | Array<string | { id: string; name: string; contactType?: string }>
+                | { id: string; name: string; contactType?: string }
+                | { id: string; name: string }
+                | null
+            ) => {
+              // Normalize to array
+              const normalizedValue: Array<string | { id: string; name: string; contactType?: string }> = Array.isArray(
+                accountIds
+              )
+                ? accountIds
+                : accountIds === null || accountIds === ''
+                  ? []
+                  : [accountIds]
+
+              const contactId = form.getValues('id')
+              const accountContacts = normalizedValue.map((accountValue: any) => {
+                const accountId = typeof accountValue === 'object' ? accountValue.id : accountValue
+                const contactType = typeof accountValue === 'object' ? accountValue.contactType : undefined
+
+                // Find existing accountContact to preserve id and version
+                const existingAc = (field.value || []).find((ac: any) => {
+                  const acAccountId = ac.accountId || (ac.account?.id ? ac.account.id : '')
+                  return acAccountId === accountId
+                })
+
+                return {
+                  ...(existingAc?.id && { id: existingAc.id }),
+                  ...(existingAc?.version !== undefined && { version: existingAc.version }),
+                  accountId: accountId,
+                  contactId: contactId || undefined,
+                  contactType: contactType || null
+                }
+              })
+              field.onChange(accountContacts)
+            }
 
             return (
               <FormItem>
@@ -226,37 +288,12 @@ const ContactInformationSegment: React.FC<ContactInformationSegmentProps> = ({
                 <FormControl>
                   <AccountSelect
                     value={accountSelectValue}
-                    onChange={value => {
-                      // Transform AccountSelect value back to accountContacts format
-                      const accountContacts = (Array.isArray(value) ? value : value ? [value] : []).map((acc: any) => {
-                        const accountContactPayload: any = {
-                          contactType: acc.contactType || null,
-                          account: typeof acc === 'object' ? acc.id : acc,
-                          contact: form.getValues('id')
-                        }
-
-                        // If this is an existing account (find in original accountContacts), include id and version
-                        const existingAc = (field.value || []).find((ac: any) => {
-                          const acAccountId =
-                            typeof (ac.account || ac.accountId) === 'object'
-                              ? (ac.account || ac.accountId).id
-                              : ac.account || ac.accountId
-                          return acAccountId === (typeof acc === 'object' ? acc.id : acc)
-                        })
-                        if (existingAc?.id) {
-                          accountContactPayload.id = existingAc.id
-                          if (existingAc.version !== undefined) {
-                            accountContactPayload.version = existingAc.version
-                          }
-                        }
-                        return accountContactPayload
-                      })
-                      field.onChange(accountContacts)
-                    }}
-                    accounts={accounts}
-                    accountsLoading={accountsLoading}
-                    accountsError={accountsError}
-                    searchAccounts={searchAccounts}
+                    onChange={handleChange}
+                    accounts={accountsHook.options}
+                    accountsLoading={accountsHook.loading}
+                    accountsError={accountsHook.error}
+                    searchAccounts={accountsHook.search}
+                    accountContacts={field.value || []}
                     multiple={true}
                     dataTestId="contact-information-segment-accounts"
                     error={fieldState.error?.message || null}

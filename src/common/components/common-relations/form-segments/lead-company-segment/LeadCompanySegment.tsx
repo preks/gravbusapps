@@ -12,6 +12,7 @@ import {
 import { useFormContext, useFieldArray } from 'react-hook-form'
 import { CatalogSelect } from '@/components/catalog-select'
 import { PiPlus, PiMinus } from 'react-icons/pi'
+import { LEGAL_FORM, INDUSTRY_CLASS, COUNTRY, COUNTRY_REGION } from '@/common/data/relations/constants/catalogConstants'
 import translations from './_i18n'
 
 interface LeadCompanySegmentProps {
@@ -47,22 +48,23 @@ const LeadCompanySegment: React.FC<LeadCompanySegmentProps> = ({
   const form = useFormContext<any>()
   const { t } = useTranslation(translations)
 
-  // Use field array for address lines
+  // Use field array for address lines (working with addressLine.lines)
   const {
     fields: lineFields,
     append: appendLine,
     remove: removeLine
   } = useFieldArray({
     control: form.control,
-    name: 'addressLines'
+    name: 'addressLine.lines'
   })
 
-  // Ensure at least one line exists
+  // Ensure addressLine object and at least one line exists
   React.useEffect(() => {
-    if (lineFields.length === 0) {
-      appendLine('')
+    const currentAddressLine = form.getValues('addressLine')
+    if (!currentAddressLine || !currentAddressLine.lines || currentAddressLine.lines.length === 0) {
+      form.setValue('addressLine', { lines: [''] })
     }
-  }, [lineFields.length, appendLine])
+  }, [form])
 
   return (
     <div className="gba:space-y-6">
@@ -76,7 +78,7 @@ const LeadCompanySegment: React.FC<LeadCompanySegmentProps> = ({
               <FormLabel>{t('lead-segment-legal-form')}</FormLabel>
               <FormControl>
                 <CatalogSelect
-                  catalogIdentifier="LegalForm:v1"
+                  catalogIdentifier={LEGAL_FORM}
                   value={field.value || ''}
                   onValueChange={v => field.onChange(v)}
                   data-testid="lead-segment-legal-form"
@@ -95,7 +97,7 @@ const LeadCompanySegment: React.FC<LeadCompanySegmentProps> = ({
               <FormLabel>{t('lead-segment-industry')}</FormLabel>
               <FormControl>
                 <CatalogSelect
-                  catalogIdentifier="IndustryClass:v1"
+                  catalogIdentifier={INDUSTRY_CLASS}
                   value={field.value || ''}
                   onValueChange={v => field.onChange(v)}
                   data-testid="lead-segment-industry"
@@ -110,7 +112,7 @@ const LeadCompanySegment: React.FC<LeadCompanySegmentProps> = ({
       {/* Website */}
       <FormField
         control={form.control}
-        name="website"
+        name="companyWebsite"
         render={({ field }) => (
           <FormItem>
             <FormLabel>{t('lead-segment-website')}</FormLabel>
@@ -211,6 +213,7 @@ const LeadCompanySegment: React.FC<LeadCompanySegmentProps> = ({
           <div className="gba:flex gba:items-center gba:justify-between">
             <FormLabel>{t('lead-segment-address-lines-label')}</FormLabel>
             <Button
+              type="button"
               variant="outline"
               size="sm"
               onClick={() => appendLine('')}
@@ -226,7 +229,7 @@ const LeadCompanySegment: React.FC<LeadCompanySegmentProps> = ({
             <div key={lineField.id} className="gba:flex gba:items-center gba:gap-2">
               <FormField
                 control={form.control}
-                name={`addressLines.${lineIndex}`}
+                name={`addressLine.lines.${lineIndex}`}
                 render={({ field: addressLineField }) => (
                   <FormItem className="gba:flex-1">
                     <FormControl>
@@ -307,20 +310,21 @@ const LeadCompanySegment: React.FC<LeadCompanySegmentProps> = ({
           />
         </div>
 
-        {/* Region and Country - Side by side */}
+        {/* Country and Region - Side by side (bidirectional relationship) */}
         <div className="gba:grid gba:grid-cols-1 gba:gap-6 gba:md:grid-cols-2">
           <FormField
             control={form.control}
-            name="regionRef"
+            name="countryRef"
             render={({ field }) => (
               <FormItem>
-                <FormLabel>{t('lead-segment-region')}</FormLabel>
+                <FormLabel>{t('lead-segment-country')}</FormLabel>
                 <FormControl>
                   <CatalogSelect
-                    catalogIdentifier="Region:v1"
+                    catalogIdentifier={COUNTRY}
+                    childField="regionRef"
                     value={field.value || ''}
                     onValueChange={v => field.onChange(v)}
-                    data-testid="lead-segment-region"
+                    data-testid="lead-segment-country"
                   />
                 </FormControl>
                 <FormMessage />
@@ -330,20 +334,17 @@ const LeadCompanySegment: React.FC<LeadCompanySegmentProps> = ({
 
           <FormField
             control={form.control}
-            name="countryRef"
+            name="regionRef"
             render={({ field }) => (
               <FormItem>
-                <FormLabel>{t('lead-segment-country')}</FormLabel>
+                <FormLabel>{t('lead-segment-region')}</FormLabel>
                 <FormControl>
                   <CatalogSelect
-                    catalogIdentifier="Country:v1"
+                    catalogIdentifier={COUNTRY_REGION}
+                    parentField="countryRef"
                     value={field.value || ''}
-                    onValueChange={v => {
-                      field.onChange(v)
-                      // Clear region when country changes
-                      form.setValue('regionRef', '')
-                    }}
-                    data-testid="lead-segment-country"
+                    onValueChange={v => field.onChange(v)}
+                    data-testid="lead-segment-region"
                   />
                 </FormControl>
                 <FormMessage />

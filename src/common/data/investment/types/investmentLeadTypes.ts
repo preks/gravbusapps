@@ -55,9 +55,38 @@ export interface InvestmentLead extends Lead {
 
 /**
  * Investment Lead Query Field Mapping
- * IRM uses same field names as Common, so we use LeadFields directly
+ * Extends LeadFields with IRM-specific GraphQL field names
  */
-export const InvestmentLeadFields = LeadFields
+export const InvestmentLeadFields = {
+  ...LeadFields,
+  // IRM-specific fields
+  annualNetColdRent: 'annualNetColdRent',
+  buildingYear: 'buildingYear',
+  forecastedProfitAmount: 'forecastedProfitAmount',
+  initialInvestmentAmount: 'initialInvestmentAmount',
+  investmentGroup: 'investmentGroup',
+  investmentGroupRef: 'investmentGroupRef',
+  investmentName: 'investmentName',
+  investmentRole: 'investmentRole',
+  investmentRoleRef: 'investmentRoleRef',
+  investmentStakeType: 'investmentStakeType',
+  investmentStakeTypeRef: 'investmentStakeTypeRef',
+  investmentType: 'investmentType',
+  investmentTypeRef: 'investmentTypeRef',
+  leadSourceType: 'leadSourceType',
+  legalForm: 'legalForm',
+  legalFormRef: 'legalFormRef',
+  loanAmount: 'loanAmount',
+  loanInterestRate: 'loanInterestRate',
+  marketValue: 'marketValue',
+  requiredCapitalAmount: 'requiredCapitalAmount',
+  size: 'size',
+  sizeMeasurementUnit: 'sizeMeasurementUnit',
+  sizeMeasurementUnitRef: 'sizeMeasurementUnitRef',
+  stakePercentage: 'stakePercentage',
+  timeZone: 'timeZone',
+  timeZoneRef: 'timeZoneRef'
+} as const
 
 /**
  * Investment Lead Descriptors
@@ -164,6 +193,7 @@ export const investmentLeadFormFields = {
   marketValue: 'marketValue',
   initialInvestmentAmount: 'initialInvestmentAmount',
   loanAmount: 'loanAmount',
+  loanInterestRate: 'loanInterestRate',
   requiredCapitalAmount: 'requiredCapitalAmount',
   forecastedProfitAmount: 'forecastedProfitAmount',
   annualNetColdRent: 'annualNetColdRent',
@@ -202,7 +232,13 @@ export const buildInvestmentLeadPayload = (lead: Partial<InvestmentLead>) => {
  */
 export function toInvestmentLead(raw: any): InvestmentLead {
   // IRM uses correct field names, no mapping needed
-  return raw as InvestmentLead
+
+  const { position, ...rest } = raw
+
+  return {
+    ...rest,
+    jobPosition: raw.jobPosition ?? position
+  } as InvestmentLead
 }
 
 /**

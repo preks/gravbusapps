@@ -1,7 +1,6 @@
 // Customer Lead hook - single lead by ID with automatic state management
 import { useState, useEffect, useCallback } from 'react'
 import { useGraphQLClient } from '@/common/network/graphql/useGraphQLClient'
-import { BusinessAppContextProps } from '@/common/BusinessAppContext'
 import { toCustomerLead, type CustomerLead } from '../types/customerLeadTypes'
 import { buildCustomerLeadByIdQuery } from '../queries/customerLeadQueries'
 
@@ -16,12 +15,12 @@ export interface UseCustomerLeadResult {
  * Declarative hook for fetching a single customer lead by ID.
  * Automatically fetches data when component mounts or ID changes.
  *
- * @param context - Business app context with access token
+ * @param accessToken - Access token for authentication
  * @param id - Lead ID to fetch
  *
  * @example
  * // Basic usage
- * const { lead, loading, error } = useCustomerLead(context, leadId)
+ * const { lead, loading, error } = useCustomerLead(accessToken, leadId)
  *
  * if (loading) return <Spinner />
  * if (error) return <Alert>{error}</Alert>
@@ -30,7 +29,7 @@ export interface UseCustomerLeadResult {
  *
  * @example
  * // With refetch
- * const { lead, loading, refetch } = useCustomerLead(context, leadId)
+ * const { lead, loading, refetch } = useCustomerLead(accessToken, leadId)
  *
  * return (
  *   <div>
@@ -39,8 +38,8 @@ export interface UseCustomerLeadResult {
  *   </div>
  * )
  */
-export function useCustomerLead(context: BusinessAppContextProps, id: string | undefined): UseCustomerLeadResult {
-  const graphqlClient = useGraphQLClient(context.accessToken)
+export function useCustomerLead(accessToken: string, id: string | undefined): UseCustomerLeadResult {
+  const graphqlClient = useGraphQLClient(accessToken)
 
   const [state, setState] = useState<Omit<UseCustomerLeadResult, 'refetch'>>({
     lead: null,
@@ -50,7 +49,7 @@ export function useCustomerLead(context: BusinessAppContextProps, id: string | u
 
   const fetchLead = useCallback(async () => {
     // Don't fetch if no ID or no access token
-    if (!id || !context.accessToken) {
+    if (!id || !accessToken) {
       setState(prev => ({ ...prev, loading: false }))
       return
     }
@@ -73,7 +72,7 @@ export function useCustomerLead(context: BusinessAppContextProps, id: string | u
       console.error('Error fetching customer lead:', error)
       setState({ lead: null, loading: false, error: errorMessage })
     }
-  }, [id, context.accessToken, graphqlClient])
+  }, [id, accessToken, graphqlClient])
 
   // Auto-fetch on mount and when dependencies change
   useEffect(() => {

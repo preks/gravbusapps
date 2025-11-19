@@ -61,6 +61,9 @@ interface AccountSelectProps {
   // Full account contacts with full account data (for email/phone extraction)
   accountContacts?: any[]
 
+  // Initial account to display (from entity data)
+  initialAccount?: any
+
   // Component behavior
   multiple?: boolean
 
@@ -78,6 +81,7 @@ const AccountSelect: React.FC<AccountSelectProps> = ({
   accountsError,
   searchAccounts,
   accountContacts = [],
+  initialAccount,
   multiple = false
   // onNewAccount - can be added later if needed
 }) => {
@@ -87,11 +91,22 @@ const AccountSelect: React.FC<AccountSelectProps> = ({
   }
 
   // Normalize value to always work with arrays internally
+  // If value is string and initialAccount exists, create object with name (like EmployeeSelect does with initialEmployee)
   const normalizedValue: Array<string | AccountValue> = React.useMemo(() => {
     if (Array.isArray(value)) return value
     if (value === null || value === '') return []
+    // If value is string and initialAccount matches, create object with name from initialAccount
+    if (typeof value === 'string' && initialAccount && initialAccount.id === value) {
+      return [
+        {
+          id: value,
+          name: initialAccount.name || '',
+          pictureThumbnail: initialAccount.pictureThumbnail
+        }
+      ]
+    }
     return [value]
-  }, [value])
+  }, [value, initialAccount])
 
   // Internal state to preserve account names when adding new accounts
   const [internalValue, setInternalValue] = useState<Array<string | AccountValue>>(normalizedValue)
@@ -159,6 +174,34 @@ const AccountSelect: React.FC<AccountSelectProps> = ({
     }
   }, [normalizedValue])
 
+  // Ensure initialAccount is included in options if it exists and matches value
+  const accountsWithInitial = React.useMemo(() => {
+    const currentAccountId = normalizedValue.length > 0 ? getAccountId(normalizedValue[0]) : null
+
+    if (!initialAccount) {
+      return accounts
+    }
+    // Check if initialAccount is already in accounts
+    const isInAccounts = accounts.some(a => a.id === initialAccount.id)
+    if (isInAccounts) {
+      return accounts
+    }
+    // Add initialAccount to accounts if it matches the current value
+    if (currentAccountId === initialAccount.id) {
+      return [
+        {
+          id: initialAccount.id,
+          value: initialAccount.id,
+          label: initialAccount.name || 'Unknown Account',
+          name: initialAccount.name || 'Unknown Account',
+          pictureThumbnail: initialAccount.pictureThumbnail
+        },
+        ...accounts
+      ]
+    }
+    return accounts
+  }, [accounts, initialAccount, normalizedValue])
+
   // Merge pre-selected accounts with loaded accounts
   React.useEffect(() => {
     const preSelectedAccounts: SelectOption[] = []
@@ -167,7 +210,7 @@ const AccountSelect: React.FC<AccountSelectProps> = ({
     if (internalValue.length > 0) {
       internalValue.forEach(val => {
         if (typeof val === 'object' && val.id && val.name) {
-          const existsInLoadedAccounts = accounts.some(a => a.id === val.id)
+          const existsInLoadedAccounts = accountsWithInitial.some(a => a.id === val.id)
           if (!existsInLoadedAccounts) {
             preSelectedAccounts.push({
               id: val.id,
@@ -181,8 +224,8 @@ const AccountSelect: React.FC<AccountSelectProps> = ({
     }
 
     // Merge: pre-selected accounts first, then loaded accounts
-    setMergedAccounts([...preSelectedAccounts, ...accounts])
-  }, [internalValue, accounts])
+    setMergedAccounts([...preSelectedAccounts, ...accountsWithInitial])
+  }, [internalValue, accountsWithInitial])
 
   // Helper to get account data for display
   const getAccountData = (accountValue: string | AccountValue): SelectOption | null => {
@@ -250,7 +293,21 @@ const AccountSelect: React.FC<AccountSelectProps> = ({
       }
     }
 
-    // Priority 3: Try mergedAccounts for additional data (from search results)
+    // Priority 3: Try initialAccount (from entity data, like initialEmployee in EmployeeSelect)
+    if (initialAccount && initialAccount.id === accountId) {
+      return {
+        id: accountId,
+        value: accountId,
+        label: initialAccount.name || 'Unknown Account',
+        name: initialAccount.name || 'Unknown Account',
+        pictureThumbnail: initialAccount.pictureThumbnail,
+        extraInfo: {
+          website: initialAccount.website || undefined
+        }
+      }
+    }
+
+    // Priority 4: Try mergedAccounts for additional data (from search results)
     const accountFromMerged = mergedAccounts.find(a => a.id === accountId)
     if (accountFromMerged) {
       return {
@@ -262,7 +319,7 @@ const AccountSelect: React.FC<AccountSelectProps> = ({
       }
     }
 
-    // Priority 4: Fallback - use name from value if available
+    // Priority 5: Fallback - use name from value if available
     if (nameFromValue) {
       return {
         id: accountId,
@@ -282,7 +339,7 @@ const AccountSelect: React.FC<AccountSelectProps> = ({
     const selectedAccount = mergedAccounts.find(a => a.id === accountId)
     if (!selectedAccount) {
       // Fallback: try to find in accounts list
-      const accountFromList = accounts.find(a => a.id === accountId)
+      const accountFromList = accountsWithInitial.find(a => a.id === accountId)
       if (accountFromList) {
         const newAccount: AccountValue = {
           id: accountId,
@@ -333,21 +390,26 @@ const AccountSelect: React.FC<AccountSelectProps> = ({
       return account
     })
     setInternalValue(newValue)
-    onChange(multiple ? newValue : newValue[0] || null)
+    onChange(multiple ? newValue : newValue[0] || '')
   }
 
   // Handle remove account (filters out)
   const handleRemoveAccount = (accountId: string) => {
     const newValue = internalValue.filter(a => getAccountId(a) !== accountId)
     setInternalValue(newValue)
-    onChange(multiple ? newValue : newValue[0] || null)
+    onChange(multiple ? newValue : newValue[0] || '')
   }
 
   // Filter out already selected accounts from available options
+  // NOTE: For single-select mode, we DON'T filter out the selected account so the Combobox can display it
   const selectedAccountIds = new Set(internalValue.map(a => getAccountId(a)))
   const availableAccountOptions = React.useMemo(() => {
     return mergedAccounts
-      .filter(a => !selectedAccountIds.has(a.id as string))
+      .filter(a => {
+        // For single-select: keep all accounts (including selected) so Combobox can display the value
+        // For multiple-select: filter out already selected accounts
+        return multiple ? !selectedAccountIds.has(a.id as string) : true
+      })
       .map(a => {
         const accountData = getAccountData({ id: a.id as string, name: a.label || a.name })
         // Combobox only supports string labels, so we provide name + website
@@ -391,8 +453,8 @@ const AccountSelect: React.FC<AccountSelectProps> = ({
 
   return (
     <div className="gba:space-y-2" data-testid={dataTestId || 'account-list'}>
-      {/* Combobox for adding accounts */}
-      {showAddExisting && (
+      {/* Combobox for adding accounts (shown when empty state clicked) */}
+      {multiple && internalValue.length === 0 && showAddExisting && (
         <div className="gba:space-y-2">
           <Combobox
             value=""
@@ -416,21 +478,6 @@ const AccountSelect: React.FC<AccountSelectProps> = ({
             Cancel
           </Button>
         </div>
-      )}
-
-      {/* Add Account Button */}
-      {multiple && !showAddExisting && (
-        <Button
-          type="button"
-          variant="outline"
-          size="sm"
-          onClick={() => setShowAddExisting(true)}
-          className="gba:w-full"
-          data-testid={formatDataTestId(dataTestId || 'account-list', 'add-button')}
-        >
-          <PiPlus className="gba:mr-2 gba:h-4 gba:w-4" />
-          Add Account
-        </Button>
       )}
 
       {/* For single-select mode: show combobox if no value or always show for editing */}
@@ -527,6 +574,48 @@ const AccountSelect: React.FC<AccountSelectProps> = ({
             )
           })}
         </div>
+      )}
+
+      {/* Combobox or Add Account Button - shown when at least one account exists (multiple mode only) */}
+      {multiple && internalValue.length > 0 && (
+        <>
+          {showAddExisting ? (
+            <div className="gba:space-y-2">
+              <Combobox
+                value=""
+                onValueChange={handleAddAccount}
+                options={availableAccountOptions}
+                placeholder="Search and select account..."
+                searchPlaceholder="Search accounts..."
+                emptyText={accountsLoading ? 'Loading...' : 'No accounts found'}
+                disabled={accountsLoading}
+                loading={accountsLoading}
+                onSearch={searchAccounts}
+                data-testid={formatDataTestId(dataTestId || 'account-list', 'combobox')}
+              />
+              <Button
+                type="button"
+                variant="ghost"
+                size="sm"
+                onClick={() => setShowAddExisting(false)}
+                data-testid={formatDataTestId(dataTestId || 'account-list', 'cancel-add')}
+              >
+                Cancel
+              </Button>
+            </div>
+          ) : (
+            <Button
+              type="button"
+              variant="outline"
+              onClick={() => setShowAddExisting(true)}
+              className="gba:w-full"
+              data-testid={formatDataTestId(dataTestId || 'account-list', 'add-button')}
+            >
+              <PiPlus className="gba:w-4 gba:h-4 gba:mr-2" />
+              Add Account
+            </Button>
+          )}
+        </>
       )}
 
       {/* Error Display */}

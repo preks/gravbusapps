@@ -1,7 +1,6 @@
 // Customer Opportunity hook - single opportunity by ID with automatic state management
 import { useState, useEffect, useCallback } from 'react'
 import { useGraphQLClient } from '@/common/network/graphql/useGraphQLClient'
-import { BusinessAppContextProps } from '@/common/BusinessAppContext'
 import { toCustomerOpportunity, type CustomerOpportunity } from '../types/customerOpportunityTypes'
 import { buildCustomerOpportunityByIdQuery } from '../queries/customerOpportunityQueries'
 
@@ -16,12 +15,12 @@ export interface UseCustomerOpportunityResult {
  * Declarative hook for fetching a single customer opportunity by ID.
  * Automatically fetches data when component mounts or ID changes.
  *
- * @param context - Business app context with access token
+ * @param accessToken - Access token for authentication
  * @param id - Opportunity ID to fetch
  *
  * @example
  * // Basic usage
- * const { opportunity, loading, error } = useCustomerOpportunity(context, opportunityId)
+ * const { opportunity, loading, error } = useCustomerOpportunity(accessToken, opportunityId)
  *
  * if (loading) return <Spinner />
  * if (error) return <Alert>{error}</Alert>
@@ -30,7 +29,7 @@ export interface UseCustomerOpportunityResult {
  *
  * @example
  * // With refetch
- * const { opportunity, loading, refetch } = useCustomerOpportunity(context, opportunityId)
+ * const { opportunity, loading, refetch } = useCustomerOpportunity(accessToken, opportunityId)
  *
  * return (
  *   <div>
@@ -39,11 +38,8 @@ export interface UseCustomerOpportunityResult {
  *   </div>
  * )
  */
-export function useCustomerOpportunity(
-  context: BusinessAppContextProps,
-  id: string | undefined
-): UseCustomerOpportunityResult {
-  const graphqlClient = useGraphQLClient(context.accessToken)
+export function useCustomerOpportunity(accessToken: string, id: string | undefined): UseCustomerOpportunityResult {
+  const graphqlClient = useGraphQLClient(accessToken)
 
   const [state, setState] = useState<Omit<UseCustomerOpportunityResult, 'refetch'>>({
     opportunity: null,
@@ -53,7 +49,7 @@ export function useCustomerOpportunity(
 
   const fetchOpportunity = useCallback(async () => {
     // Don't fetch if no ID or no access token
-    if (!id || !context.accessToken) {
+    if (!id || !accessToken) {
       setState(prev => ({ ...prev, loading: false }))
       return
     }
@@ -76,7 +72,7 @@ export function useCustomerOpportunity(
       console.error('Error fetching customer opportunity:', error)
       setState({ opportunity: null, loading: false, error: errorMessage })
     }
-  }, [id, context.accessToken, graphqlClient])
+  }, [id, accessToken, graphqlClient])
 
   // Auto-fetch on mount and when dependencies change
   useEffect(() => {

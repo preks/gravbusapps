@@ -10,10 +10,10 @@ import { BusinessAppContextProps } from '@/common/BusinessAppContext'
 import {
   leadConvertSchema,
   type LeadConvertSchema
-} from '@/common/components/common-relations/schemas/leadConvertSchema'
+} from '@/common/components/common-relations/form-layouts/lead-convert-layout/leadConvertSchema'
 
 type ConvertLeadFormData = LeadConvertSchema
-type ConvertLeadFormProps = BusinessAppContextProps & {
+interface ConvertLeadFormProps extends BusinessAppContextProps {
   onCancel?: () => void
   onSuccess?: () => void
 }
@@ -41,10 +41,10 @@ import {
 } from '@/common/components/common-relations/form-layouts/lead-convert-layout'
 import { FormProvider } from 'react-hook-form'
 import { CatalogSelect } from '@/components/catalog-select'
-import { createAccountSegmentResolver } from '@/common/components/common-relations/schemas/accountSchema'
-import { createContactSegmentResolver } from '@/common/components/common-relations/schemas/contactSchema'
-import { createOpportunitySegmentResolver } from '@/common/components/common-relations/schemas/opportunitySchema'
-import { CampaignSelect } from '@/common/components/customer/form-segments/campaign-select'
+import { createAccountSegmentResolver } from '@/common/components/common-relations/form-layouts/account-layout'
+import { createContactSegmentResolver } from '@/common/components/common-relations/form-layouts/contact-layout'
+import { createOpportunitySegmentResolver } from '@/common/components/common-relations/form-layouts/opportunity-layout'
+import { CampaignSelect } from '@/common/components/customer/selects/campaign-select'
 import { FormField, FormItem, FormLabel, FormControl, FormMessage } from '@newwork/nw-design-system'
 
 export const ConvertLeadForm = ({ accessToken, userInfo, additionalData, onSuccess }: ConvertLeadFormProps) => {
@@ -79,7 +79,7 @@ export const ConvertLeadForm = ({ accessToken, userInfo, additionalData, onSucce
   const formData = form.watch()
 
   // Load lead data using central hook
-  const { lead: leadData, loading } = useCustomerLead(businessAppContext, actualLeadId)
+  const { lead: leadData, loading } = useCustomerLead(accessToken, actualLeadId)
 
   // Separate forms for Account, Contact, Opportunity (used by layouts)
   const accountForm = useForm({
@@ -102,12 +102,12 @@ export const ConvertLeadForm = ({ accessToken, userInfo, additionalData, onSucce
 
   // Update forms when leadData is loaded
   useEffect(() => {
-    if (leadData) {
+    if (leadData?.id) {
       accountForm.reset(getAccountInitialValues(leadData) as any)
       contactForm.reset(getContactInitialValues(leadData) as any)
       opportunityForm.reset(getOpportunityInitialValues(leadData) as any)
     }
-  }, [leadData?.id, leadData, accountForm, contactForm, opportunityForm])
+  }, [leadData?.id, accountForm, contactForm, opportunityForm])
 
   // Store complete form data from nested forms for payload construction
   const [completeAccountData, setCompleteAccountData] = useState<
@@ -213,7 +213,7 @@ export const ConvertLeadForm = ({ accessToken, userInfo, additionalData, onSucce
         setIsLoadingAccounts(false)
       }
     },
-    [accessToken, fetchCustomerAccounts, accounts.length]
+    [accessToken, fetchCustomerAccounts]
   )
 
   // Initial load
@@ -281,7 +281,6 @@ export const ConvertLeadForm = ({ accessToken, userInfo, additionalData, onSucce
               <LeadConvertAccountStep
                 businessAppContext={businessAppContext}
                 ownerEmployee={leadData?.ownerEmployee}
-                addresses={undefined}
                 annualRevenueCatalogIdentifier="RevenueSize:v1"
                 companySizeCatalogIdentifier="EmployeeSize:v1"
                 uploadConfig={{
@@ -335,7 +334,6 @@ export const ConvertLeadForm = ({ accessToken, userInfo, additionalData, onSucce
               <LeadConvertContactStep
                 businessAppContext={businessAppContext}
                 ownerEmployee={leadData?.ownerEmployee}
-                addresses={undefined}
                 accounts={accounts as any}
                 accountsLoading={isLoadingAccounts}
                 accountsError={null}

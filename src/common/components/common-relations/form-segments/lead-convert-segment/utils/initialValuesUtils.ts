@@ -10,10 +10,10 @@ export const getAccountInitialValues = (leadData: any) => {
   const firstAddress = leadData.addresses?.[0]
 
   return {
-    accountName: leadData.companyName || leadData.company || '',
+    accountName: leadData.companyName || '',
     email: leadData.companyEmail || leadData.email || '',
     phone: leadData.companyPhone || leadData.phoneNumber || '',
-    website: leadData.companyWebsite || leadData.website || '',
+    website: leadData.companyWebsite || '',
     // Owner - inherit from lead's owner
     owner: leadData.ownerEmployeeId || leadData.ownerEmployee || '',
     // Address information from lead
@@ -34,7 +34,7 @@ export const getContactInitialValues = (leadData: any) => {
     lastName: leadData.lastName || '',
     email: leadData.email || '',
     phone: leadData.phoneNumber || leadData.phone || '',
-    jobTitle: leadData.position || leadData.jobPosition || '',
+    jobTitle: leadData.jobPosition || '',
     academicTitle: leadData.academicTitleRef || leadData.academicTitle?.id || '',
     // Owner - inherit from lead's owner
     ownerEmployeeId: leadData.ownerEmployeeId || leadData.ownerEmployee || ''
@@ -45,7 +45,7 @@ export const getContactInitialValues = (leadData: any) => {
 export const getOpportunityInitialValues = (leadData: any) => {
   if (!leadData) return {}
 
-  const companyName = leadData.companyName || leadData.company
+  const companyName = leadData.companyName || ''
   const opportunityName = companyName ? `Opportunity for ${companyName}` : ''
 
   return {

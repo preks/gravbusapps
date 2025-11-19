@@ -3,11 +3,11 @@ import { useFormContext } from 'react-hook-form'
 import { FormField, FormItem, FormLabel, FormControl, FormMessage, Button, Badge } from '@newwork/nw-design-system'
 import { formatDataTestId } from '@/common/utils/formatDataTestId'
 import { BusinessAppContextProps } from '@/common/BusinessAppContext'
-import { useInvestmentTypeCatalog } from '@/business-apps/irm/investments/forms/investment-form/hooks/useInvestmentTypeCatalog'
+import { FilteredType } from '../investment-prospect-segment/useProspectFields'
 
 interface InvestmentTypeSelectProps {
-  /** Investment Group ID (catalog entry ID) - used to filter investment types */
-  investmentGroupId?: string | null
+  /** Investment Group Ref (catalog entry ID) - used to filter investment types */
+  investmentGroupRef?: string | null
   /** Form field name for investment type (default: "investmentType") */
   fieldName?: string
   /** Business app context for API access */
@@ -22,6 +22,10 @@ interface InvestmentTypeSelectProps {
   label?: string
   /** Description text */
   description?: string
+  /** Filtered types (passed from parent to avoid duplicate requests) */
+  types?: FilteredType[]
+  /** Loading state (passed from parent) */
+  isLoading?: boolean
 }
 
 /**
@@ -31,55 +35,51 @@ interface InvestmentTypeSelectProps {
  * Filters investment types by the parent investment group.
  * Supports both create mode (button grid) and update mode (read-only badge).
  *
+ * Receives types as props from parent component to avoid duplicate requests.
+ *
  * @example
  * ```tsx
  * <InvestmentTypeSelect
- *   investmentGroupId={formValues.investmentGroup?.id}
- *   fieldName="investmentType"
+ *   investmentGroupRef={formValues.investmentGroupRef}
+ *   fieldName="investmentTypeRef"
  *   businessAppContext={businessAppContext}
+ *   types={types}
+ *   isLoading={isLoading}
  *   testIdPrefix="LeadForm"
  *   required
  * />
  * ```
  */
 export const InvestmentTypeSelect: React.FC<InvestmentTypeSelectProps> = ({
-  investmentGroupId,
+  investmentGroupRef,
   fieldName = 'investmentType',
-  businessAppContext,
   testIdPrefix = 'InvestmentTypeSelect',
   required = false,
   readOnly = false,
   label = 'Investment Type',
-  description
+  description,
+  types = [],
+  isLoading = false
 }) => {
   const { control, setValue } = useFormContext()
 
-  // Fetch investment types filtered by group
-  const {
-    options: investmentTypes,
-    loading: investmentTypesLoading,
-    error: investmentTypesError
-  } = useInvestmentTypeCatalog(businessAppContext?.accessToken || '', investmentGroupId || undefined)
+  // Map types to the format expected by the component
+  const investmentTypes = types.map(type => ({
+    id: type.id,
+    value: type.value,
+    label: type.label
+  }))
 
   // Don't render if no investment group selected
-  if (!investmentGroupId) {
+  if (!investmentGroupRef) {
     return null
   }
 
   // Loading state
-  if (investmentTypesLoading) {
+  if (isLoading) {
     return (
       <div data-testid={formatDataTestId(testIdPrefix, 'Loading')} className="gba:text-muted-foreground gba:text-sm">
         Loading investment types...
-      </div>
-    )
-  }
-
-  // Error state
-  if (investmentTypesError) {
-    return (
-      <div data-testid={formatDataTestId(testIdPrefix, 'Error')} className="gba:text-destructive gba:text-sm">
-        {investmentTypesError}
       </div>
     )
   }
@@ -145,9 +145,9 @@ export const InvestmentTypeSelect: React.FC<InvestmentTypeSelectProps> = ({
         const investmentTypeId = typeof field.value === 'object' ? field.value?.id : field.value
 
         const handleTypeSelect = (typeValue: string) => {
-          const newValue = { id: typeValue } as any
-          field.onChange(newValue) // Update react-hook-form
-          setValue(fieldName, newValue)
+          // ✅ Store as string (like CatalogSelect), not as object
+          field.onChange(typeValue) // Update react-hook-form
+          setValue(fieldName, typeValue)
         }
 
         return (

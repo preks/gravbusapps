@@ -8,7 +8,7 @@ export interface Lead extends BaseEntity {
   accountAnnualRevenueBand?: CatalogEntry // IRM | TODO
   accountAnnualRevenueBandRef?: string // IRM / TODO
   activities?: any[] // IRM / CRM
-  addressLine?: string | { lines: string[] } | any // IRM / CRM is string
+  addressLine?: { lines: string[] } // IRM / CRM is string
   code?: string // IRM / CRM
   companyEmail?: string // IRM / CRM
   companyName?: string // IRM / CRM
@@ -46,7 +46,7 @@ export interface Lead extends BaseEntity {
   ownerEmployee?: Employee // IRM / CRM
   ownerEmployeeId?: string // IRM / CRM
   phoneNumber?: string // IRM / CRM
-  position?: string // IRM / CRM
+  jobPosition?: string // IRM / CRM
   postalCode?: string // IRM / CRM
   region?: CatalogEntry // IRM / CRM
   regionRef?: string // IRM / CRM
@@ -106,7 +106,7 @@ export const LeadFields = {
   ownerEmployee: 'ownerEmployee',
   ownerEmployeeId: 'ownerEmployeeId',
   phoneNumber: 'phoneNumber',
-  position: 'position',
+  jobPosition: 'position',
   postalCode: 'postalCode',
   region: 'region',
   regionRef: 'regionRef',
@@ -118,8 +118,6 @@ export const LeadFields = {
   sourceIndividualName: 'sourceIndividualName',
   tasks: 'tasks'
 } as const
-
-export type LeadFieldName = (typeof LeadFields)[keyof typeof LeadFields]
 
 /**
  * Create Common Lead Descriptors with fields mapping
@@ -251,7 +249,7 @@ export const createLeadDescriptors = (fields: Record<keyof typeof LeadFields, st
     type: 'text'
   },
   { key: 'phoneNumber', searchPaths: [fields.phoneNumber], sortPath: fields.phoneNumber, type: 'text' },
-  { key: 'position', searchPaths: [fields.position], sortPath: fields.position, type: 'text' },
+  { key: 'jobPosition', searchPaths: [fields.jobPosition], sortPath: fields.jobPosition, type: 'text' },
   { key: 'postalCode', searchPaths: [fields.postalCode], sortPath: fields.postalCode, type: 'text' },
   {
     key: 'region',
@@ -420,7 +418,7 @@ export const leadFormFields = {
   locality: 'locality',
   ownerEmployeeId: 'ownerEmployee',
   phoneNumber: 'phoneNumber',
-  position: 'position',
+  jobPosition: 'position',
   postalCode: 'postalCode',
   regionRef: 'regionRef',
   salutationRef: 'salutationRef',

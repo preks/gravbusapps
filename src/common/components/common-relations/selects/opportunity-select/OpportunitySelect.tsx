@@ -177,7 +177,7 @@ const OpportunitySelect: React.FC<OpportunitySelectProps> = ({
   const handleRemoveOpportunity = (opportunityId: string) => {
     const newValue = internalValue.filter(o => getOpportunityId(o) !== opportunityId)
     setInternalValue(newValue)
-    onChange(multiple ? (newValue as any) : newValue[0] || null)
+    onChange(multiple ? (newValue as any) : newValue[0] || '')
   }
 
   // Filter out already selected opportunities

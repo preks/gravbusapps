@@ -1,7 +1,6 @@
 // Investment Task hook - single task operations
 import { useCallback, useState, useEffect } from 'react'
 import { useGraphQLClient } from '@/common/network/graphql/useGraphQLClient'
-import { BusinessAppContextProps } from '@/common/BusinessAppContext'
 import type { InvestmentTask } from '../types/investmentTaskTypes'
 import { buildInvestmentTaskByIdQuery } from '../queries/investmentTaskQueries'
 import { toInvestmentTask } from '../mappers/investmentTaskMappers'
@@ -13,17 +12,14 @@ export interface UseInvestmentTaskReturn {
   refetch: () => void
 }
 
-export const useInvestmentTask = (
-  context: BusinessAppContextProps,
-  taskId: string | undefined
-): UseInvestmentTaskReturn => {
-  const graphqlClient = useGraphQLClient(context.accessToken)
+export const useInvestmentTask = (accessToken: string, taskId: string | undefined): UseInvestmentTaskReturn => {
+  const graphqlClient = useGraphQLClient(accessToken)
   const [task, setTask] = useState<InvestmentTask | null>(null)
   const [isLoading, setIsLoading] = useState(true)
   const [error, setError] = useState<Error | null>(null)
 
   const loadTask = useCallback(async () => {
-    if (!taskId || !context.accessToken) return
+    if (!taskId || !accessToken) return
 
     setIsLoading(true)
     setError(null)
@@ -39,7 +35,7 @@ export const useInvestmentTask = (
     } finally {
       setIsLoading(false)
     }
-  }, [taskId, context.accessToken, graphqlClient])
+  }, [taskId, accessToken, graphqlClient])
 
   useEffect(() => {
     loadTask()

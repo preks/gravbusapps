@@ -127,7 +127,7 @@ const NoteSegment: React.FC<NoteSegmentProps> = ({
     ]
     const found = map.find(m => m.id)
     if (found?.id) {
-      form.setValue(found.key, { id: found.id })
+      form.setValue(found.key, found.id)
     }
   }, [showEntitySelection, initialEntityFromContext, form])
 
@@ -250,7 +250,7 @@ const NoteSegment: React.FC<NoteSegmentProps> = ({
                   entities={entities}
                   value={field.value || ''}
                   onValueChange={(v: string | null) => {
-                    field.onChange(v)
+                    field.onChange(v || '')
                     const id = String(v || '')
                     const e = (entities || []).find(x => x.id === id)
                     form.setValue('account', undefined)
@@ -258,7 +258,7 @@ const NoteSegment: React.FC<NoteSegmentProps> = ({
                     form.setValue('opportunity', undefined)
                     form.setValue('lead', undefined)
                     if (e) {
-                      form.setValue(e.type, { id: e.id })
+                      form.setValue(e.type, e.id)
                     }
                   }}
                   onSearch={onEntitySearch}
@@ -292,7 +292,7 @@ const NoteSegment: React.FC<NoteSegmentProps> = ({
                   multiple={true}
                   accept=".pdf,.doc,.docx,.xls,.xlsx,.txt,.jpg,.jpeg,.png"
                   initialFiles={initialFiles}
-                  onFilesChange={handleFilesChange}
+                  onChange={handleFilesChange}
                   data-testid={`${dataTestId}-file-upload`}
                 />
               </FormControl>

@@ -68,6 +68,7 @@ export const buildCustomerAccountQuery = (fields: typeof CustomerAccountFields =
     salesCampaign {
       ${CUSTOMER_CAMPAIGN_REF}
     }
+    salesCampaignId
   `
   return buildAccountQuery('Account', fields, entityFields)
 }
@@ -115,6 +116,7 @@ export const buildCustomerAccountByIdQuery = (fields: typeof CustomerAccountFiel
     salesCampaign {
       ${CUSTOMER_CAMPAIGN_REF}
     }
+    salesCampaignId
   `
 
   return buildAccountByPkQuery('Account', fields, relationBuilders, relationFields, entityFields)

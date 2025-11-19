@@ -17,45 +17,38 @@ import {
 import { PiPlus, PiMinus, PiTrash } from 'react-icons/pi'
 import { useFormContext, useFieldArray } from 'react-hook-form'
 import { CatalogSelect } from '@/components/catalog-select'
+import { COUNTRY, COUNTRY_REGION } from '@/common/data/relations/constants/catalogConstants'
 import { AddressType, ADDRESS_TYPE_OPTIONS } from '@/common/data/relations/types/relationEnums'
 import translations from './_i18n'
 
 interface AddressSegmentProps {
-  // Pre-selected country and region data from account query (for immediate display)
-  addresses?: Array<{
-    country?: { id: string; value: string; displayValue?: string; additionalValue3?: string }
-    region?: { id: string; value: string; displayValue?: string; additionalValue3?: string }
-  }>
   customFields?: React.ReactNode
 }
 
 // Separate component for each address item to allow useFieldArray for address lines
 const AddressItem: React.FC<{
   addressIndex: number
-  canRemove: boolean
   onRemove: () => void
-  country?: { id: string; value: string; displayValue?: string; additionalValue3?: string }
-  region?: { id: string; value: string; displayValue?: string; additionalValue3?: string }
-}> = ({ addressIndex, canRemove, onRemove, country, region }) => {
+}> = ({ addressIndex, onRemove }) => {
   const form = useFormContext<any>()
   const { t } = useTranslation(translations)
 
-  // Use field array for address lines within this address
+  // Use field array for address lines within this address (working with addressLine.lines)
   const {
     fields: lineFields,
     append: appendLine,
     remove: removeLine
   } = useFieldArray({
     control: form.control,
-    name: `addresses.${addressIndex}.addressLines`
+    name: `addresses.${addressIndex}.addressLine.lines`
   })
 
-  // Ensure at least one line exists
+  // Ensure at least one address line always exists
   React.useEffect(() => {
     if (lineFields.length === 0) {
       appendLine('')
     }
-  }, [lineFields.length, appendLine])
+  }, [addressIndex, lineFields.length, appendLine])
 
   return (
     <div className="gba:space-y-4 gba:pb-6 gba:border-b last:gba:border-0">
@@ -85,18 +78,16 @@ const AddressItem: React.FC<{
             </FormItem>
           )}
         />
-        {canRemove && (
-          <Button
-            type="button"
-            variant="outline"
-            size="sm"
-            onClick={onRemove}
-            className="gba:mt-6"
-            data-testid={`address-segment-remove-address-${addressIndex}`}
-          >
-            <PiTrash className="gba:w-4 gba:h-4" />
-          </Button>
-        )}
+        <Button
+          type="button"
+          variant="outline"
+          size="sm"
+          onClick={onRemove}
+          className="gba:mt-6"
+          data-testid={`address-segment-remove-address-${addressIndex}`}
+        >
+          <PiTrash className="gba:w-4 gba:h-4" />
+        </Button>
       </div>
 
       {/* Address Lines - All directly available */}
@@ -105,6 +96,7 @@ const AddressItem: React.FC<{
           <FormLabel>{t('address-lines-label')}</FormLabel>
           <Button
             variant="outline"
+            type="button"
             size="sm"
             onClick={() => appendLine('')}
             className="gba:text-xs gba:px-2 gba:py-1"
@@ -119,7 +111,7 @@ const AddressItem: React.FC<{
           <div key={lineField.id} className="gba:flex gba:items-center gba:gap-2">
             <FormField
               control={form.control}
-              name={`addresses.${addressIndex}.addressLines.${lineIndex}`}
+              name={`addresses.${addressIndex}.addressLine.lines.${lineIndex}`}
               render={({ field: addressLineField }) => (
                 <FormItem className="gba:flex-1">
                   <FormControl>
@@ -142,7 +134,11 @@ const AddressItem: React.FC<{
                 type="button"
                 variant="outline"
                 size="sm"
-                onClick={() => removeLine(lineIndex)}
+                onClick={() => {
+                  if (lineFields.length > 1) {
+                    removeLine(lineIndex)
+                  }
+                }}
                 className="gba:flex gba:items-center gba:gap-1"
                 data-testid={`address-segment-remove-line-${addressIndex}-${lineIndex + 1}`}
               >
@@ -210,19 +206,10 @@ const AddressItem: React.FC<{
               <FormLabel>{t('country-label')}</FormLabel>
               <FormControl>
                 <CatalogSelect
-                  catalogIdentifier="Country:v1"
+                  catalogIdentifier={COUNTRY}
                   childField={`addresses.${addressIndex}.regionRef`}
                   value={field.value || ''}
                   onValueChange={v => field.onChange(v)}
-                  selectedOption={
-                    country && field.value === country.id
-                      ? {
-                          value: country.id,
-                          label: country.displayValue || country.value || '',
-                          icon: country.additionalValue3
-                        }
-                      : undefined
-                  }
                   data-testid={`address-segment-country-${addressIndex}`}
                 />
               </FormControl>
@@ -239,19 +226,10 @@ const AddressItem: React.FC<{
               <FormLabel>{t('region-label')}</FormLabel>
               <FormControl>
                 <CatalogSelect
-                  catalogIdentifier="CountryRegion:v1"
+                  catalogIdentifier={COUNTRY_REGION}
                   parentField={`addresses.${addressIndex}.countryRef`}
                   value={field.value || ''}
                   onValueChange={v => field.onChange(v)}
-                  selectedOption={
-                    region && field.value === region.id
-                      ? {
-                          value: region.id,
-                          label: region.displayValue || region.value || '',
-                          icon: region.additionalValue3
-                        }
-                      : undefined
-                  }
                   data-testid={`address-segment-region-${addressIndex}`}
                 />
               </FormControl>
@@ -264,7 +242,7 @@ const AddressItem: React.FC<{
   )
 }
 
-const AddressSegment: React.FC<AddressSegmentProps> = ({ addresses: propAddresses = [], customFields }) => {
+const AddressSegment: React.FC<AddressSegmentProps> = ({ customFields }) => {
   const form = useFormContext<any>()
   const { t } = useTranslation(translations)
 
@@ -274,26 +252,10 @@ const AddressSegment: React.FC<AddressSegmentProps> = ({ addresses: propAddresse
     name: 'addresses'
   })
 
-  // Ensure at least one address exists
-  React.useEffect(() => {
-    if (fields.length === 0) {
-      append({
-        id: `address-${Date.now()}`,
-        addressType: AddressType.PRIMARY_ADDRESS,
-        addressLines: [''],
-        postalCode: '',
-        locality: '',
-        regionRef: '',
-        countryRef: ''
-      })
-    }
-  }, [fields.length, append])
-
   const handleAddAddress = () => {
     append({
-      id: `address-${Date.now()}`,
       addressType: AddressType.SECONDARY_ADDRESS,
-      addressLines: [''],
+      addressLine: { lines: [''] },
       postalCode: '',
       locality: '',
       regionRef: '',
@@ -302,26 +264,14 @@ const AddressSegment: React.FC<AddressSegmentProps> = ({ addresses: propAddresse
   }
 
   const handleRemoveAddress = (index: number) => {
-    if (fields.length > 1) {
-      remove(index)
-    }
+    remove(index)
   }
 
   return (
     <div className="gba:space-y-6">
-      {fields.map((field, addressIndex) => {
-        const propAddress = propAddresses[addressIndex]
-        return (
-          <AddressItem
-            key={field.id}
-            addressIndex={addressIndex}
-            canRemove={fields.length > 1}
-            onRemove={() => handleRemoveAddress(addressIndex)}
-            country={propAddress?.country}
-            region={propAddress?.region}
-          />
-        )
-      })}
+      {fields.map((field, addressIndex) => (
+        <AddressItem key={field.id} addressIndex={addressIndex} onRemove={() => handleRemoveAddress(addressIndex)} />
+      ))}
 
       {/* Add Address Button */}
       <Button

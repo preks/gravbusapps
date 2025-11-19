@@ -136,7 +136,7 @@ export function buildInvestmentContactFromLead(lead: InvestmentLead | any): Inve
     firstName: lead.firstName || '',
     lastName: lead.lastName || '',
     // IRM field names already match Contact standard
-    jobPosition: lead.position,
+    jobPosition: lead.jobPosition,
     type: lead.type,
     academicTitle: lead.academicTitle,
     academicTitleRef: lead.academicTitleRef,

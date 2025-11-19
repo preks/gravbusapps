@@ -1,7 +1,6 @@
 // Customer Task hook - single task operations
 import { useCallback, useState, useEffect } from 'react'
 import { useGraphQLClient } from '@/common/network/graphql/useGraphQLClient'
-import { BusinessAppContextProps } from '@/common/BusinessAppContext'
 import type { CustomerTask } from '../types/customerTaskTypes'
 import { buildCustomerTaskByIdQuery } from '../queries/customerTaskQueries'
 import { toCustomerTask } from '../mappers/customerTaskMappers'
@@ -14,14 +13,14 @@ export interface UseCustomerTaskReturn {
   refetch: () => void
 }
 
-export const useCustomerTask = (context: BusinessAppContextProps, taskId: string): UseCustomerTaskReturn => {
-  const graphqlClient = useGraphQLClient(context.accessToken)
+export const useCustomerTask = (accessToken: string, taskId: string): UseCustomerTaskReturn => {
+  const graphqlClient = useGraphQLClient(accessToken)
   const [task, setTask] = useState<CustomerTask | null>(null)
   const [isLoading, setIsLoading] = useState(true)
   const [error, setError] = useState<Error | null>(null)
 
   const loadTask = useCallback(async () => {
-    if (!taskId || !context.accessToken) return
+    if (!taskId || !accessToken) return
 
     setIsLoading(true)
     setError(null)
@@ -36,7 +35,7 @@ export const useCustomerTask = (context: BusinessAppContextProps, taskId: string
     } finally {
       setIsLoading(false)
     }
-  }, [taskId, context.accessToken, graphqlClient])
+  }, [taskId, accessToken, graphqlClient])
 
   useEffect(() => {
     loadTask()

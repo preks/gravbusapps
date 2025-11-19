@@ -1,7 +1,6 @@
 // Investment Account hook - single account by ID with automatic state management
 import { useState, useEffect, useCallback } from 'react'
 import { useGraphQLClient } from '@/common/network/graphql/useGraphQLClient'
-import { BusinessAppContextProps } from '@/common/BusinessAppContext'
 import { toInvestmentAccount, type InvestmentAccount } from '../types/investmentAccountTypes'
 import { buildInvestmentAccountByIdQuery } from '../queries/investmentAccountQueries'
 
@@ -16,12 +15,12 @@ export interface UseInvestmentAccountResult {
  * Declarative hook for fetching a single investment account by ID.
  * Automatically fetches data when component mounts or ID changes.
  *
- * @param context - Business app context with access token
+ * @param accessToken - Access token for authentication
  * @param id - Account ID to fetch
  *
  * @example
  * // Basic usage
- * const { account, loading, error } = useInvestmentAccount(context, accountId)
+ * const { account, loading, error } = useInvestmentAccount(accessToken, accountId)
  *
  * if (loading) return <Spinner />
  * if (error) return <Alert>{error}</Alert>
@@ -30,7 +29,7 @@ export interface UseInvestmentAccountResult {
  *
  * @example
  * // With refetch
- * const { account, loading, refetch } = useInvestmentAccount(context, accountId)
+ * const { account, loading, refetch } = useInvestmentAccount(accessToken, accountId)
  *
  * return (
  *   <div>
@@ -39,11 +38,8 @@ export interface UseInvestmentAccountResult {
  *   </div>
  * )
  */
-export function useInvestmentAccount(
-  context: BusinessAppContextProps,
-  id: string | undefined
-): UseInvestmentAccountResult {
-  const graphqlClient = useGraphQLClient(context.accessToken)
+export function useInvestmentAccount(accessToken: string, id: string | undefined): UseInvestmentAccountResult {
+  const graphqlClient = useGraphQLClient(accessToken)
 
   const [state, setState] = useState<Omit<UseInvestmentAccountResult, 'refetch'>>({
     account: null,
@@ -53,7 +49,7 @@ export function useInvestmentAccount(
 
   const fetchAccount = useCallback(async () => {
     // Don't fetch if no ID or no access token
-    if (!id || !context.accessToken) {
+    if (!id || !accessToken) {
       setState(prev => ({ ...prev, loading: false }))
       return
     }
@@ -84,7 +80,7 @@ export function useInvestmentAccount(
       console.error('Error fetching investment account:', error)
       setState({ account: null, loading: false, error: errorMessage })
     }
-  }, [id, context.accessToken, graphqlClient])
+  }, [id, accessToken, graphqlClient])
 
   // Auto-fetch on mount and when dependencies change
   useEffect(() => {

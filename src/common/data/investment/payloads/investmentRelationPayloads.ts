@@ -8,13 +8,25 @@ export const buildActivityPayload = (
   businessAppContext: BusinessAppContextProps,
   options: { isUpdate?: boolean } = {}
 ) => {
+  // Helper to extract entity ID from object or string
+  const getEntityId = (entity: any): string | undefined => {
+    if (!entity) return undefined
+    if (typeof entity === 'string') return entity
+    return entity.id
+  }
+
   // Helper to build entity references
   const getEntityRef = () => {
     const refs: Record<string, any> = {}
-    if (activity.account) refs.account = activity.account.id
-    if (activity.contact) refs.contact = activity.contact.id
-    if (activity.opportunity) refs.opportunity = activity.opportunity.id
-    if (activity.lead) refs.lead = activity.lead.id
+    const accountId = getEntityId(activity.account)
+    const contactId = getEntityId(activity.contact)
+    const opportunityId = getEntityId(activity.opportunity)
+    const leadId = getEntityId(activity.lead)
+
+    if (accountId) refs.account = accountId
+    if (contactId) refs.contact = contactId
+    if (opportunityId) refs.opportunity = opportunityId
+    if (leadId) refs.lead = leadId
 
     // Always include parent investment when provided via additional/external context
     const additional: any = (businessAppContext as any)?.additionalData || {}
@@ -155,14 +167,27 @@ export const buildInvestmentTaskPayload = (
   businessAppContext: BusinessAppContextProps,
   options: { isUpdate?: boolean } = {}
 ) => {
+  // Helper to extract entity ID from object or string
+  const getEntityId = (entity: any): string | undefined => {
+    if (!entity) return undefined
+    if (typeof entity === 'string') return entity
+    return entity.id
+  }
+
   const getEntityRef = () => {
     const refs: Record<string, any> = {}
     // Check task object first for all entity types
-    if (task.investment) refs.investment = task.investment.id
-    if (task.account) refs.account = task.account.id
-    if (task.contact) refs.contact = task.contact.id
-    if (task.opportunity) refs.opportunity = task.opportunity.id
-    if (task.lead) refs.lead = task.lead.id
+    const investmentId = getEntityId(task.investment)
+    const accountId = getEntityId(task.account)
+    const contactId = getEntityId(task.contact)
+    const opportunityId = getEntityId(task.opportunity)
+    const leadId = getEntityId(task.lead)
+
+    if (investmentId) refs.investment = investmentId
+    if (accountId) refs.account = accountId
+    if (contactId) refs.contact = contactId
+    if (opportunityId) refs.opportunity = opportunityId
+    if (leadId) refs.lead = leadId
 
     // Fallback: Always include parent investment when provided via additionalData/externalContextData
     // This handles cases where the form doesn't have the investment object but context does
@@ -243,13 +268,25 @@ export const buildInvestmentNotePayload = (
   businessAppContext: BusinessAppContextProps,
   options: { isUpdate?: boolean } = {}
 ) => {
+  // Helper to extract entity ID from object or string
+  const getEntityId = (entity: any): string | undefined => {
+    if (!entity) return undefined
+    if (typeof entity === 'string') return entity
+    return entity.id
+  }
+
   // Helper to build entity references (same pattern as activity)
   const getEntityRef = () => {
     const refs: Record<string, any> = {}
-    if (note.account) refs.account = note.account.id
-    if (note.contact) refs.contact = note.contact.id
-    if (note.opportunity) refs.opportunity = note.opportunity.id
-    if (note.lead) refs.lead = note.lead.id
+    const accountId = getEntityId(note.account)
+    const contactId = getEntityId(note.contact)
+    const opportunityId = getEntityId(note.opportunity)
+    const leadId = getEntityId(note.lead)
+
+    if (accountId) refs.account = accountId
+    if (contactId) refs.contact = contactId
+    if (opportunityId) refs.opportunity = opportunityId
+    if (leadId) refs.lead = leadId
 
     // Always include parent investment when provided via additionalData or externalContextData
     const additional: any = (businessAppContext as any)?.additionalData || {}

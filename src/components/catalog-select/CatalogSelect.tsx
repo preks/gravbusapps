@@ -40,6 +40,7 @@ export interface CatalogSelectProps {
   onValueChange?: (value: string) => void // ✅ Always returns empty string instead of null
   className?: string
   ['data-testid']?: string
+  allowClear?: boolean // default: true
 
   // Pre-selected option data (from account query) - ensures immediate display without loading
   selectedOption?: CatalogSelectOption
@@ -63,6 +64,7 @@ const CatalogSelect: React.FC<CatalogSelectProps> = ({
   className,
   'data-testid': dataTestId,
   selectedOption: propSelectedOption,
+  allowClear = true,
   ...props
 }) => {
   // Get registration API from context
@@ -384,6 +386,7 @@ const CatalogSelect: React.FC<CatalogSelectProps> = ({
           data-testid={testId}
           align="start"
           disabled={wiredDisabled}
+          allowClear={allowClear}
           {...props}
         />
       </div>
@@ -396,6 +399,7 @@ const CatalogSelect: React.FC<CatalogSelectProps> = ({
       value={effectiveValue || ''}
       onValueChange={v => handleExternalValueChange(v)}
       disabled={wiredDisabled}
+      allowClear={allowClear}
     >
       <SelectTrigger className={className ? className : 'gba:w-full gba:max-w-full'} data-testid={testId} {...props}>
         <SelectValue placeholder="Select..." className="gba:max-w-full gba:overflow-hidden">

@@ -1,7 +1,6 @@
 // Customer Note hook - single note by ID with automatic state management
 import { useState, useEffect, useCallback } from 'react'
 import { useGraphQLClient } from '@/common/network/graphql/useGraphQLClient'
-import { BusinessAppContextProps } from '@/common/BusinessAppContext'
 import type { CustomerNote } from '../types/customerNoteTypes'
 import { toCustomerNote } from '../mappers/customerRelatedEntityMappers'
 import { buildCustomerNoteByIdQuery } from '../queries/customerNoteQueries'
@@ -18,12 +17,12 @@ export interface UseCustomerNoteResult {
  * Declarative hook for fetching a single customer note by ID.
  * Automatically fetches data when component mounts or ID changes.
  *
- * @param context - Business app context with access token
+ * @param accessToken - Access token for authentication
  * @param id - Note ID to fetch
  *
  * @example
  * // Basic usage
- * const { note, loading, error } = useCustomerNote(context, noteId)
+ * const { note, loading, error } = useCustomerNote(accessToken, noteId)
  *
  * if (loading) return <Spinner />
  * if (error) return <Alert>{error}</Alert>
@@ -32,7 +31,7 @@ export interface UseCustomerNoteResult {
  *
  * @example
  * // With refetch
- * const { note, loading, refetch } = useCustomerNote(context, noteId)
+ * const { note, loading, refetch } = useCustomerNote(accessToken, noteId)
  *
  * return (
  *   <div>
@@ -41,8 +40,8 @@ export interface UseCustomerNoteResult {
  *   </div>
  * )
  */
-export function useCustomerNote(context: BusinessAppContextProps, id: string | undefined): UseCustomerNoteResult {
-  const graphqlClient = useGraphQLClient(context.accessToken)
+export function useCustomerNote(accessToken: string, id: string | undefined): UseCustomerNoteResult {
+  const graphqlClient = useGraphQLClient(accessToken)
 
   const [state, setState] = useState<Omit<UseCustomerNoteResult, 'refetch'>>({
     note: null,
@@ -52,7 +51,7 @@ export function useCustomerNote(context: BusinessAppContextProps, id: string | u
 
   const fetchNote = useCallback(async () => {
     // Don't fetch if no ID or no access token
-    if (!id || !context.accessToken) {
+    if (!id || !accessToken) {
       setState(prev => ({ ...prev, loading: false }))
       return
     }
@@ -75,7 +74,7 @@ export function useCustomerNote(context: BusinessAppContextProps, id: string | u
       console.error('Error fetching customer note:', error)
       setState({ note: null, loading: false, error: errorMessage })
     }
-  }, [id, context.accessToken, graphqlClient])
+  }, [id, accessToken, graphqlClient])
 
   // Auto-fetch on mount and when dependencies change
   useEffect(() => {

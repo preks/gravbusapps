@@ -1,17 +1,16 @@
 import React, { useState, useEffect, useCallback } from 'react'
 import { BusinessAppContextProps } from '@/common/BusinessAppContext'
-import { getTranslationFromI18nKeyAndLabel, getCurrentActiveUserLocale } from '@/common/utils/windowUtils'
-import NoteSegment, {
-  NoteSegmentSchema,
-  createNoteSegmentResolver
-} from '@/common/components/common-relations/form-segments/note-segment/NoteSegment'
+import { getTranslationFromI18nKeyAndLabel } from '@/common/utils/windowUtils'
+import { NoteLayout, noteSchema } from '@/common/components/common-relations/form-layouts/note-layout'
+import { zodResolver } from '@hookform/resolvers/zod'
+import { z } from 'zod'
 import { AppActionForm } from '@/components/app-action-form'
 import { useForm } from 'react-hook-form'
-import { Spinner, Alert, LocalizationProvider, type SupportedLocale } from '@newwork/nw-design-system'
+import { Spinner, Alert, Skeleton } from '@newwork/nw-design-system'
 import { useFileClient } from '@/common/network/files/useFileClient'
 import { useCustomerNote } from '@/common/data/customer/hooks/useCustomerNote'
 
-const initialFormData: NoteSegmentSchema = {
+const initialFormData: Partial<z.infer<typeof noteSchema>> = {
   title: '',
   text: '',
   reminderDate: undefined,
@@ -20,12 +19,12 @@ const initialFormData: NoteSegmentSchema = {
 }
 
 export interface NoteFormProps extends BusinessAppContextProps {
-  onSuccess?: (note: NoteSegmentSchema) => void
+  onSuccess?: (note: Partial<z.infer<typeof noteSchema>>) => void
   onCancel?: () => void
 }
 
 const NoteForm: React.FC<NoteFormProps> = ({ accessToken, userInfo, additionalData, onSuccess, onCancel }) => {
-  const [formData, setFormData] = useState<NoteSegmentSchema>(initialFormData)
+  const [formData, setFormData] = useState<Partial<z.infer<typeof noteSchema>>>(initialFormData)
 
   // Resolve IDs from additionalData (platform may pass ids inside psi_taskPayload.psi_initialParameters)
   const platformParams = React.useMemo(() => {
@@ -47,11 +46,7 @@ const NoteForm: React.FC<NoteFormProps> = ({ accessToken, userInfo, additionalDa
   const isUpdateMode = !!noteId
 
   // Customer note hook - declarative single-by-PK
-  const {
-    note,
-    loading: noteLoading,
-    error: noteError
-  } = useCustomerNote({ accessToken, userInfo, additionalData }, noteId)
+  const { note, loading: noteLoading, error: noteError } = useCustomerNote(accessToken, noteId)
 
   // Get entity IDs from platform params
   const { accountId, leadId, contactId, opportunityId } = platformParams
@@ -61,7 +56,7 @@ const NoteForm: React.FC<NoteFormProps> = ({ accessToken, userInfo, additionalDa
   const shouldShowEntitySelection = !hasEntityFromContext
 
   // File upload client
-  const fileClient = useFileClient({ accessToken } as any)
+  const fileClient = useFileClient({ accessToken, userInfo, additionalData })
 
   // Upload files to file service and return file IDs with metadata
   const uploadFiles = useCallback(
@@ -93,8 +88,8 @@ const NoteForm: React.FC<NoteFormProps> = ({ accessToken, userInfo, additionalDa
   )
 
   // RHF + Zod resolver provided to AppActionForm
-  const form = useForm<any>({
-    resolver: createNoteSegmentResolver(),
+  const form = useForm<z.infer<typeof noteSchema>>({
+    resolver: zodResolver(noteSchema),
     defaultValues: formData,
     mode: 'onChange'
   })
@@ -105,7 +100,14 @@ const NoteForm: React.FC<NoteFormProps> = ({ accessToken, userInfo, additionalDa
       return
     }
 
-    // Set form data
+    // Helper to extract entity ID from object or string
+    const getEntityId = (entity: any): string | undefined => {
+      if (!entity) return undefined
+      if (typeof entity === 'string') return entity
+      return entity.id
+    }
+
+    // Set form data - only store entity IDs (strings), not objects
     const newFormData = {
       id: note.id,
       title: note.title || '',
@@ -118,10 +120,11 @@ const NoteForm: React.FC<NoteFormProps> = ({ accessToken, userInfo, additionalDa
         fileInfo: doc.fileInfo
       })),
       _pendingFiles: [],
-      account: note.account,
-      contact: note.contact,
-      opportunity: note.opportunity,
-      lead: note.lead,
+      // Only store entity IDs (strings), not objects
+      account: getEntityId(note.account) || undefined,
+      contact: getEntityId(note.contact) || undefined,
+      opportunity: getEntityId(note.opportunity) || undefined,
+      lead: getEntityId(note.lead) || undefined,
       authorEmployee: note.authorEmployee,
       version: note.version
     } as any
@@ -149,23 +152,25 @@ const NoteForm: React.FC<NoteFormProps> = ({ accessToken, userInfo, additionalDa
 
   // Form submission handler - business logic only
   const handleSubmit = useCallback(
-    async (data: NoteSegmentSchema) => {
-      // Upload pending files if any
-      let uploadedDocuments: Array<{ name: string; fileInfo: any }> = []
-      if (formData._pendingFiles && formData._pendingFiles.length > 0) {
-        const tempId = formData.id || 'temp-' + Date.now()
-        uploadedDocuments = await uploadFiles(formData._pendingFiles, tempId)
+    async (data: z.infer<typeof noteSchema>) => {
+      // Helper to extract entity ID from object or string
+      const getEntityId = (entity: any): string | undefined => {
+        if (!entity) return undefined
+        if (typeof entity === 'string') return entity
+        return entity.id
       }
 
-      // Combine existing documents (as objects with ID) and newly uploaded documents
-      const existingDocumentsAsObjects = (formData.documents || [])
-        .filter(doc => doc.id)
-        .map(doc => ({
-          id: doc.id,
-          version: doc.version
-        }))
+      // Extract entity IDs from form values (priority) or platformParams (fallback)
+      const entityRefs: Record<string, string> = {}
+      const accountId = getEntityId(data.account) || platformParams.accountId
+      const contactId = getEntityId(data.contact) || platformParams.contactId
+      const opportunityId = getEntityId(data.opportunity) || platformParams.opportunityId
+      const leadId = getEntityId(data.lead) || platformParams.leadId
 
-      const allDocuments = [...existingDocumentsAsObjects, ...uploadedDocuments]
+      if (accountId) entityRefs.account = accountId
+      if (contactId) entityRefs.contact = contactId
+      if (opportunityId) entityRefs.opportunity = opportunityId
+      if (leadId) entityRefs.lead = leadId
 
       // Build CRM Note payload
       const payload: any = {
@@ -181,11 +186,8 @@ const NoteForm: React.FC<NoteFormProps> = ({ accessToken, userInfo, additionalDa
           reminderDate: data.reminderDate,
           lastEditDate: new Date().toISOString(),
           authorEmployee: (userInfo as any)?.employeeDetails?.employeeId || (userInfo as any)?.employeeId,
-          documents: allDocuments,
-          ...(platformParams.leadId && { lead: platformParams.leadId }),
-          ...(platformParams.opportunityId && { opportunity: platformParams.opportunityId }),
-          ...(platformParams.contactId && { contact: platformParams.contactId }),
-          ...(platformParams.accountId && { account: platformParams.accountId })
+          // documents already processed in handlePreSubmit
+          ...entityRefs
         }
       }
 
@@ -198,7 +200,36 @@ const NoteForm: React.FC<NoteFormProps> = ({ accessToken, userInfo, additionalDa
 
       return payload
     },
-    [userInfo, additionalData, isUpdateMode, formData, uploadFiles, platformParams]
+    [userInfo, additionalData, isUpdateMode, formData, platformParams]
+  )
+
+  // PreSubmit handler - upload files before submission
+  const handlePreSubmit = useCallback(
+    async (data: any) => {
+      // Upload pending files if any
+      let uploadedDocuments: Array<{ name: string; fileInfo: any }> = []
+      if (data._pendingFiles && data._pendingFiles.length > 0) {
+        const tempId = formData.id || 'temp-' + Date.now()
+        uploadedDocuments = await uploadFiles(data._pendingFiles, tempId)
+      }
+
+      // Combine existing documents (as objects with ID) and newly uploaded documents
+      const existingDocumentsAsObjects = (data.documents || [])
+        .filter((doc: any) => doc.id)
+        .map((doc: any) => ({
+          id: doc.id,
+          version: doc.version
+        }))
+
+      const allDocuments = [...existingDocumentsAsObjects, ...uploadedDocuments]
+
+      // Return enhanced data with documents
+      return {
+        ...data,
+        documents: allDocuments
+      }
+    },
+    [formData.id, uploadFiles]
   )
 
   // Success handler
@@ -208,75 +239,90 @@ const NoteForm: React.FC<NoteFormProps> = ({ accessToken, userInfo, additionalDa
     }
   }, [formData, onSuccess])
 
-  // Get locale for LocalizationProvider (needed for FileUpload component)
-  const locale = getCurrentActiveUserLocale() as SupportedLocale
+  // Show skeleton while loading
+  if (noteLoading && isUpdateMode) {
+    return (
+      <AppActionForm processType="update" form={form} data-testid="customer-note-process-dialog">
+        <div className="gba:w-full gba:space-y-4">
+          <Skeleton className="gba:h-10 gba:w-full" />
+          <Skeleton className="gba:h-32 gba:w-full" />
+          <Skeleton className="gba:h-10 gba:w-full" />
+        </div>
+      </AppActionForm>
+    )
+  }
 
   return (
-    <LocalizationProvider locale={locale}>
-      <AppActionForm
-        processType={isUpdateMode ? 'update' : 'create'}
-        onSubmit={handleSubmit}
-        onSuccess={handleSuccess}
-        onCancel={onCancel}
-        formData={formData}
-        form={form}
-        validateForm={validateForm}
-        submitButtonText={getTranslationFromI18nKeyAndLabel('crm:common.submit', 'Submit')}
-        cancelButtonText={getTranslationFromI18nKeyAndLabel('crm:common.cancel', 'Cancel')}
-        data-testid="customer-note-process-dialog"
-      >
-        {noteLoading && (
-          <div className="gba:flex gba:justify-center gba:items-center gba:py-8" data-testid="note-loading-spinner">
-            <Spinner size="lg" />
-          </div>
-        )}
+    <AppActionForm
+      processType={isUpdateMode ? 'update' : 'create'}
+      onSubmit={handleSubmit}
+      handlePreSubmit={handlePreSubmit}
+      onSuccess={handleSuccess}
+      onCancel={onCancel}
+      formData={formData}
+      form={form}
+      validateForm={validateForm}
+      submitButtonText={getTranslationFromI18nKeyAndLabel('crm:common.submit', 'Submit')}
+      cancelButtonText={getTranslationFromI18nKeyAndLabel('crm:common.cancel', 'Cancel')}
+      data-testid="customer-note-process-dialog"
+    >
+      {noteLoading && (
+        <div className="gba:flex gba:justify-center gba:items-center gba:py-8" data-testid="note-loading-spinner">
+          <Spinner size="lg" />
+        </div>
+      )}
 
-        {noteError && (
-          <Alert variant="destructive" className="gba:mb-4" data-testid="note-load-error-alert">
-            {noteError}
-          </Alert>
-        )}
+      {noteError && (
+        <Alert variant="destructive" className="gba:mb-4" data-testid="note-load-error-alert">
+          {noteError}
+        </Alert>
+      )}
 
-        {!noteLoading && (
-          <NoteSegment
-            // No entity search for CRM - context provides the entity
-            entities={[]}
-            entitiesLoading={false}
-            entitiesHasMore={false}
-            onEntityLoadMore={() => {}}
-            onEntitySearch={() => {}}
-            showEntitySelection={shouldShowEntitySelection}
-            initialEntityFromContext={{ accountId, contactId, opportunityId, leadId }}
-            titleLabel={getTranslationFromI18nKeyAndLabel('crm:notes.title', 'Note Title')}
-            textLabel={getTranslationFromI18nKeyAndLabel('crm:notes.text', 'Note Content')}
-            reminderLabel={getTranslationFromI18nKeyAndLabel('crm:notes.reminderDate', 'Reminder Date (Optional)')}
-            entityLabel={getTranslationFromI18nKeyAndLabel('crm:notes.relatedEntity', 'Related Entity')}
-            titlePlaceholder={getTranslationFromI18nKeyAndLabel('crm:notes.titlePlaceholder', 'Enter note title...')}
-            textPlaceholder={getTranslationFromI18nKeyAndLabel('crm:notes.textPlaceholder', 'Write your note here...')}
-            reminderPlaceholder={getTranslationFromI18nKeyAndLabel(
-              'crm:notes.reminderDatePlaceholder',
-              'Select reminder date...'
-            )}
-            uploadFileLabel={getTranslationFromI18nKeyAndLabel('crm:notes.uploadFile', 'Attach Documents')}
-            // File upload handlers
-            onFilesChange={(files: File[]) => {
-              setFormData(prev => ({
-                ...prev,
-                _pendingFiles: [...(prev._pendingFiles || []), ...files]
-              }))
-            }}
-            existingDocuments={formData.documents || []}
-            onDocumentRemove={(documentId: string) => {
-              setFormData(prev => ({
-                ...prev,
-                documents: prev.documents?.filter(doc => doc.id !== documentId) || []
-              }))
-            }}
-            data-testid="note-segment"
-          />
-        )}
-      </AppActionForm>
-    </LocalizationProvider>
+      {!noteLoading && (
+        <NoteLayout
+          // No entity search for CRM - context provides the entity
+          entities={[]}
+          entitiesLoading={false}
+          entitiesHasMore={false}
+          onEntityLoadMore={() => {}}
+          onEntitySearch={() => {}}
+          showEntitySelection={shouldShowEntitySelection}
+          initialEntityFromContext={{ accountId, contactId, opportunityId, leadId }}
+          titleLabel={getTranslationFromI18nKeyAndLabel('crm:notes.title', 'Note Title')}
+          textLabel={getTranslationFromI18nKeyAndLabel('crm:notes.text', 'Note Content')}
+          reminderLabel={getTranslationFromI18nKeyAndLabel('crm:notes.reminderDate', 'Reminder Date (Optional)')}
+          entityLabel={getTranslationFromI18nKeyAndLabel('crm:notes.relatedEntity', 'Related Entity')}
+          titlePlaceholder={getTranslationFromI18nKeyAndLabel('crm:notes.titlePlaceholder', 'Enter note title...')}
+          textPlaceholder={getTranslationFromI18nKeyAndLabel('crm:notes.textPlaceholder', 'Write your note here...')}
+          reminderPlaceholder={getTranslationFromI18nKeyAndLabel(
+            'crm:notes.reminderDatePlaceholder',
+            'Select reminder date...'
+          )}
+          uploadFileLabel={getTranslationFromI18nKeyAndLabel('crm:notes.uploadFile', 'Attach Documents')}
+          // File upload handlers - use form.setValue instead of setFormData to avoid setState during render
+          onFilesChange={useCallback(
+            (files: File[]) => {
+              form.setValue('_pendingFiles', files, { shouldDirty: true })
+            },
+            [form]
+          )}
+          existingDocuments={form.watch('documents') || []}
+          onDocumentRemove={useCallback(
+            (documentId: string) => {
+              const currentDocs = form.getValues('documents') || []
+              form.setValue(
+                'documents',
+                currentDocs.filter((doc: any) => doc.id !== documentId),
+                { shouldDirty: true }
+              )
+            },
+            [form]
+          )}
+          loading={noteLoading && isUpdateMode}
+          data-testid="customer-note-layout"
+        />
+      )}
+    </AppActionForm>
   )
 }
 

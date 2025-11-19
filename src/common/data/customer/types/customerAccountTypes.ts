@@ -125,6 +125,31 @@ export const buildCustomerAccountPayload = (account: Partial<CustomerAccount>) =
   // Build base payload using customerAccountFormFields for field mapping
   const basePayload = buildPayload(account, customerAccountFormFields)
 
+  // Transform addressLine in addresses array: CRM expects string, not object
+  // Filter out empty lines before converting to string
+  if (basePayload.addresses && Array.isArray(basePayload.addresses)) {
+    basePayload.addresses = basePayload.addresses.map((addr: any) => {
+      if (addr.addressLine !== undefined && addr.addressLine !== null) {
+        if (typeof addr.addressLine === 'object' && addr.addressLine.lines) {
+          // Filter out empty lines (null, undefined, or empty string)
+          const filledLines = addr.addressLine.lines.filter(
+            (line: string | null | undefined) => line !== null && line !== undefined && line.trim() !== ''
+          )
+          // Only include addressLine if there are filled lines
+          if (filledLines.length > 0) {
+            addr.addressLine = JSON.stringify({ lines: filledLines })
+          } else {
+            delete addr.addressLine
+          }
+        } else {
+          // Already a string, keep as is
+          addr.addressLine = addr.addressLine
+        }
+      }
+      return addr
+    })
+  }
+
   return {
     account: basePayload
   }
@@ -166,6 +191,21 @@ export function toCustomerAccount(raw: any): CustomerAccount {
     ...rest
   } = raw
 
+  // Transform addresses array: convert addressLine from string to object (same logic as toCustomerLead)
+  const addresses = (raw.addresses ?? crmAddress)?.map((addr: any) => ({
+    ...addr,
+    addressLine:
+      typeof addr.addressLine === 'string'
+        ? (() => {
+            try {
+              return JSON.parse(addr.addressLine)
+            } catch {
+              return undefined
+            }
+          })()
+        : addr.addressLine
+  }))
+
   return {
     ...rest,
     // Map only if target field doesn't already exist (fallback mapping)
@@ -177,7 +217,7 @@ export function toCustomerAccount(raw: any): CustomerAccount {
     accountAnnualRevenueBandRef: raw.accountAnnualRevenueBandRef ?? annualRevenueRef,
     picture: raw.picture ?? pictureUrl,
     pictureThumbnail: raw.pictureThumbnail ?? pictureThumbnailUrl,
-    addresses: raw.addresses ?? crmAddress,
+    addresses: addresses,
     documents: raw.documents ?? crmDocument,
     notes: raw.notes ?? crmNote,
     opportunities: raw.opportunities ?? opportunity,

@@ -1,6 +1,7 @@
-import React, { useState, useMemo } from 'react'
+import React, { useMemo } from 'react'
 import { BusinessAppContextProps } from '@/common/BusinessAppContext'
-import { Accordion, useTranslation } from '@newwork/nw-design-system'
+import { useTranslation, Skeleton } from '@newwork/nw-design-system'
+import { FormAccordion } from '@/components/form-accordion'
 import { OpportunityInformationSegment } from '../../form-segments/opportunity-information-segment'
 import { OpportunityDetailsSegment } from '../../form-segments/opportunity-details-segment'
 import { OpportunityPipelineSegment } from '../../form-segments/opportunity-pipeline-segment'
@@ -12,17 +13,24 @@ interface OpportunityLayoutProps {
   businessAppContext?: BusinessAppContextProps
   ownerEmployee?: any
   entityId?: string
-  accountId?: string | { id: string; name: string }
-  accounts?: AccountSelectOption[]
-  accountsLoading?: boolean
-  accountsError?: string | null
-  searchAccounts?: (search: string) => void
-  onAccountChange?: (accountId: string | { id: string; name: string } | null) => void
+  account?: any
+  // Account selection hook result
+  // When mapToSelectOptions: true is used, options will always be SelectOption[]
+  accountsHook?: {
+    options: AccountSelectOption[]
+    loading: boolean
+    error: string | null
+    search: (searchTerm: string) => void
+  }
   opportunityContacts?: any[]
-  contacts?: ContactSelectOption[]
-  contactsLoading?: boolean
-  contactsError?: string | null
-  searchContacts?: (search: string) => void
+  // Contact selection hook result
+  // When mapToSelectOptions: true is used, options will always be SelectOption[]
+  contactsHook?: {
+    options: ContactSelectOption[]
+    loading: boolean
+    error: string | null
+    search: (searchTerm: string) => void
+  }
   onContactsChange?: (contactIds: Array<string | { id: string; name: string }>) => void
   onNewContact?: () => void
   pipelineFieldName?: string
@@ -35,24 +43,22 @@ interface OpportunityLayoutProps {
   opportunityDetailsCustomFields?: React.ReactNode
   opportunityPipelineCustomFields?: React.ReactNode
   customSegments?: Array<{ id: string; title: string; content: React.ReactNode }>
+
+  // Loading state - shows skeletons while data is being fetched
+  loading?: boolean
+
+  // Hide related entities (account/contact) sections - useful in Lead Convert context
+  hideRelatedEntities?: boolean
 }
 
 const OpportunityLayout: React.FC<OpportunityLayoutProps> = ({
   businessAppContext,
   ownerEmployee,
   entityId,
-  accountId,
-  accounts,
-  accountsLoading,
-  accountsError,
-  searchAccounts,
-  onAccountChange,
+  account,
+  accountsHook,
   opportunityContacts,
-  contacts,
-  contactsLoading,
-  contactsError,
-  searchContacts,
-  onContactsChange,
+  contactsHook,
   onNewContact,
   pipelineFieldName,
   stageFieldName,
@@ -63,10 +69,11 @@ const OpportunityLayout: React.FC<OpportunityLayoutProps> = ({
   opportunityInformationCustomFields,
   opportunityDetailsCustomFields,
   opportunityPipelineCustomFields,
-  customSegments = []
+  customSegments = [],
+  loading = false,
+  hideRelatedEntities = false
 }) => {
   const { t } = useTranslation(translations)
-  const [accordionValue, setAccordionValue] = useState<string | string[]>([])
 
   const accordionItems = useMemo(
     () => [
@@ -107,33 +114,42 @@ const OpportunityLayout: React.FC<OpportunityLayoutProps> = ({
     ]
   )
 
+  // Show skeletons while loading (after all hooks)
+  if (loading) {
+    return (
+      <div data-testid="opportunity-layout-loading" className="gba:space-y-6">
+        {/* Opportunity Information Skeleton */}
+        <div className="gba:space-y-4">
+          <Skeleton className="gba:h-10 gba:w-full" />
+          <Skeleton className="gba:h-10 gba:w-full" />
+          <Skeleton className="gba:h-10 gba:w-3/4" />
+          <Skeleton className="gba:h-10 gba:w-full" />
+          <Skeleton className="gba:h-32 gba:w-full" />
+        </div>
+        {/* Accordion Skeleton */}
+        <div className="gba:space-y-2">
+          <Skeleton className="gba:h-12 gba:w-full" />
+          <Skeleton className="gba:h-12 gba:w-full" />
+        </div>
+      </div>
+    )
+  }
+
   return (
     <div data-testid="opportunity-layout">
       <OpportunityInformationSegment
         businessAppContext={businessAppContext}
         ownerEmployee={ownerEmployee}
         entityId={entityId}
-        accountId={accountId}
-        accounts={accounts}
-        accountsLoading={accountsLoading}
-        accountsError={accountsError}
-        searchAccounts={searchAccounts}
-        onAccountChange={onAccountChange}
+        account={account}
+        accountsHook={accountsHook}
         opportunityContacts={opportunityContacts}
-        contacts={contacts}
-        contactsLoading={contactsLoading}
-        contactsError={contactsError}
-        searchContacts={searchContacts}
-        onContactsChange={onContactsChange}
+        contactsHook={contactsHook}
         onNewContact={onNewContact}
         customFields={opportunityInformationCustomFields}
+        hideRelatedEntities={hideRelatedEntities}
       />
-      <Accordion
-        className="gba:w-full gba:[&>div[data-slot=accordion-item]]:bg-transparent gba:[&_button[data-slot=accordion-trigger]]:bg-transparent gba:[&_button[data-slot=accordion-trigger][data-state=open]]:bg-transparent gba:[&_button[data-slot=accordion-trigger]]:pl-0 gba:[&_[data-slot=accordion-content]>div]:bg-transparent gba:[&_[data-slot=accordion-content]>div]:p-0"
-        value={accordionValue}
-        onValueChange={value => setAccordionValue(value)}
-        items={accordionItems}
-      />
+      <FormAccordion items={accordionItems} className="gba:w-full" data-testid="opportunity-layout-accordion" />
     </div>
   )
 }

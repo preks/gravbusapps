@@ -13,7 +13,7 @@ import {
   SelectTrigger,
   SelectValue
 } from '@newwork/nw-design-system'
-import { PiPlus, PiUserPlus, PiX } from 'react-icons/pi'
+import { PiPlus, PiX } from 'react-icons/pi'
 import { Building2, Briefcase } from 'lucide-react'
 import { formatDataTestId } from '@/common/utils/formatDataTestId'
 import { ContactType, getContactTypeLabel } from '@/common/data/relations/constants/contactConstants'
@@ -43,8 +43,8 @@ interface ContactValue {
 }
 
 interface ContactSelectProps {
-  value: Array<string | ContactValue>
-  onChange: (contactIds: Array<string | ContactValue>) => void
+  value: Array<string | ContactValue> | ContactValue | string | null
+  onChange: (contactIds: Array<string | ContactValue> | string | ContactValue | null) => void
   dataTestId?: string
   error?: string | null
 
@@ -57,8 +57,8 @@ interface ContactSelectProps {
   // Full account contacts with full contact data (for email/phone extraction)
   accountContacts?: any[]
 
-  // Callbacks for actions
-  onNewContact?: () => void
+  // Component behavior
+  multiple?: boolean
 }
 
 const ContactSelect: React.FC<ContactSelectProps> = ({
@@ -71,16 +71,23 @@ const ContactSelect: React.FC<ContactSelectProps> = ({
   contactsError,
   searchContacts,
   accountContacts = [],
-  onNewContact
+  multiple = true
 }) => {
   // Helper function to extract ID from value (string or object)
   const getContactId = (contactValue: string | ContactValue): string => {
     return typeof contactValue === 'object' ? contactValue.id : contactValue
   }
 
+  // Normalize value to always work with arrays internally for consistent handling
+  const normalizedValue: Array<string | ContactValue> = React.useMemo(() => {
+    if (Array.isArray(value)) return value
+    if (value === null || value === '') return []
+    return [value]
+  }, [value])
+
   // Internal state to preserve contact names when adding new contacts
   // This ensures that newly added contacts keep their names even if accountContacts doesn't have full data yet
-  const [internalValue, setInternalValue] = useState<Array<string | ContactValue>>(value)
+  const [internalValue, setInternalValue] = useState<Array<string | ContactValue>>(normalizedValue)
   const [mergedContacts, setMergedContacts] = useState<SelectOption[]>([])
   const [showAddExisting, setShowAddExisting] = useState(false)
 
@@ -90,7 +97,7 @@ const ContactSelect: React.FC<ContactSelectProps> = ({
   // 2. Otherwise → use data from value (from accountContacts with full data from backend)
   React.useEffect(() => {
     const currentIds = new Set(internalValue.map(v => getContactId(v)))
-    const newIds = new Set(value.map(v => getContactId(v)))
+    const newIds = new Set(normalizedValue.map(v => getContactId(v)))
 
     // Only update if IDs actually changed (contact added/removed)
     const idsChanged =
@@ -99,7 +106,7 @@ const ContactSelect: React.FC<ContactSelectProps> = ({
       [...newIds].some(id => !currentIds.has(id))
 
     if (idsChanged) {
-      const merged = value.map(newContact => {
+      const merged = normalizedValue.map(newContact => {
         const newId = getContactId(newContact)
         const newContactObj =
           typeof newContact === 'object' ? newContact : { id: newContact, name: '', contactType: undefined }
@@ -129,7 +136,7 @@ const ContactSelect: React.FC<ContactSelectProps> = ({
     } else {
       // IDs haven't changed, but data might have been updated
       // Merge: update contactType from value if it changed, but keep other data from internalValue if it exists
-      const merged = value.map(newContact => {
+      const merged = normalizedValue.map(newContact => {
         const newId = getContactId(newContact)
         const newContactObj =
           typeof newContact === 'object' ? newContact : { id: newContact, name: '', contactType: undefined }
@@ -150,7 +157,7 @@ const ContactSelect: React.FC<ContactSelectProps> = ({
       })
       setInternalValue(merged)
     }
-  }, [value])
+  }, [normalizedValue])
 
   // Merge pre-selected contacts with loaded contacts
   React.useEffect(() => {
@@ -284,7 +291,7 @@ const ContactSelect: React.FC<ContactSelectProps> = ({
     return null
   }
 
-  // Handle add contact (appends to array)
+  // Handle add contact (appends to array or replaces in single mode)
   const handleAddContact = (contactId: string) => {
     if (!contactId) return
 
@@ -301,9 +308,9 @@ const ContactSelect: React.FC<ContactSelectProps> = ({
           jobPosition: contactFromList.extraInfo?.jobPosition,
           department: contactFromList.extraInfo?.department
         }
-        const newValue = [...internalValue, newContact]
+        const newValue = multiple ? [...internalValue, newContact] : [newContact]
         setInternalValue(newValue)
-        onChange(newValue)
+        onChange(multiple ? newValue : newContact)
         setShowAddExisting(false)
       }
       return
@@ -318,9 +325,9 @@ const ContactSelect: React.FC<ContactSelectProps> = ({
       jobPosition: selectedContact.extraInfo?.jobPosition,
       department: selectedContact.extraInfo?.department
     }
-    const newValue = [...internalValue, newContact]
+    const newValue = multiple ? [...internalValue, newContact] : [newContact]
     setInternalValue(newValue)
-    onChange(newValue)
+    onChange(multiple ? newValue : newContact)
     setShowAddExisting(false)
   }
 
@@ -337,11 +344,16 @@ const ContactSelect: React.FC<ContactSelectProps> = ({
     onChange(newValue)
   }
 
-  // Handle remove contact (filters out)
+  // Handle remove contact (filters out or clears in single mode)
   const handleRemoveContact = (contactId: string) => {
-    const newValue = internalValue.filter(c => getContactId(c) !== contactId)
-    setInternalValue(newValue)
-    onChange(newValue)
+    if (multiple) {
+      const newValue = internalValue.filter(c => getContactId(c) !== contactId)
+      setInternalValue(newValue)
+      onChange(newValue)
+    } else {
+      setInternalValue([])
+      onChange(null)
+    }
   }
 
   // Filter out already selected contacts from available options
@@ -364,37 +376,21 @@ const ContactSelect: React.FC<ContactSelectProps> = ({
 
   return (
     <div className="gba:space-y-4" data-testid={dataTestId || 'contact-list'}>
-      {/* Header with Action Buttons */}
-      <div className="gba:flex gba:items-center gba:justify-end">
-        <div className="gba:flex gba:items-center gba:gap-2">
-          {onNewContact && (
-            <Button
-              type="button"
-              variant="outline"
-              size="sm"
-              onClick={onNewContact}
-              data-testid={formatDataTestId(dataTestId || 'contact-list', 'new-contact-button')}
-            >
-              <PiUserPlus className="gba:w-4 gba:h-4 gba:mr-2" />
-              New Contact
-            </Button>
-          )}
-          <Button
-            type="button"
-            variant="outline"
-            size="sm"
-            onClick={() => setShowAddExisting(!showAddExisting)}
-            data-testid={formatDataTestId(dataTestId || 'contact-list', 'add-existing-button')}
-          >
-            <PiPlus className="gba:w-4 gba:h-4 gba:mr-2" />
-            Add Existing
-          </Button>
+      {/* Empty State with Clickable Dashed Outline */}
+      {internalValue.length === 0 && !showAddExisting && (
+        <div
+          className="gba:border-2 gba:border-dashed gba:border-muted-foreground/25 gba:rounded-lg gba:p-6 gba:text-center gba:cursor-pointer hover:gba:border-muted-foreground/50 gba:transition-colors"
+          onClick={() => setShowAddExisting(true)}
+          data-testid={formatDataTestId(dataTestId || 'contact-list', 'empty-state')}
+        >
+          <PiPlus className="gba:mx-auto gba:h-8 gba:w-8 gba:text-muted-foreground gba:mb-2" />
+          <p className="gba:text-sm gba:text-muted-foreground">No contacts added yet. Click to add a contact.</p>
         </div>
-      </div>
+      )}
 
-      {/* Add Existing Combobox (shown when button clicked) */}
-      {showAddExisting && (
-        <div className="gba:pb-2">
+      {/* Combobox for adding contacts (shown when empty state clicked) */}
+      {internalValue.length === 0 && showAddExisting && (
+        <div className="gba:space-y-2">
           <Combobox
             value=""
             onValueChange={handleAddContact}
@@ -405,8 +401,17 @@ const ContactSelect: React.FC<ContactSelectProps> = ({
             disabled={contactsLoading}
             loading={contactsLoading}
             onSearch={searchContacts}
-            data-testid={formatDataTestId(dataTestId || 'contact-list', 'add-existing-combobox')}
+            data-testid={formatDataTestId(dataTestId || 'contact-list', 'add-contact-combobox')}
           />
+          <Button
+            type="button"
+            variant="ghost"
+            size="sm"
+            onClick={() => setShowAddExisting(false)}
+            data-testid={formatDataTestId(dataTestId || 'contact-list', 'cancel-add')}
+          >
+            Cancel
+          </Button>
         </div>
       )}
 
@@ -516,11 +521,46 @@ const ContactSelect: React.FC<ContactSelectProps> = ({
         </div>
       )}
 
-      {/* Empty State */}
-      {internalValue.length === 0 && !showAddExisting && (
-        <div className="gba:border-2 gba:border-dashed gba:rounded-lg gba:p-8 gba:text-center">
-          <p className="gba:text-sm">No contacts added yet. Click "Add Existing" or "New Contact" to get started.</p>
-        </div>
+      {/* Combobox or Add Contact Button - shown when at least one contact exists */}
+      {internalValue.length > 0 && multiple && (
+        <>
+          {showAddExisting ? (
+            <div className="gba:space-y-2">
+              <Combobox
+                value=""
+                onValueChange={handleAddContact}
+                options={availableContactOptions}
+                placeholder="Search and select contact..."
+                searchPlaceholder="Type to search..."
+                emptyText={contactsLoading ? 'Loading...' : 'No contacts found'}
+                disabled={contactsLoading}
+                loading={contactsLoading}
+                onSearch={searchContacts}
+                data-testid={formatDataTestId(dataTestId || 'contact-list', 'add-contact-combobox')}
+              />
+              <Button
+                type="button"
+                variant="ghost"
+                size="sm"
+                onClick={() => setShowAddExisting(false)}
+                data-testid={formatDataTestId(dataTestId || 'contact-list', 'cancel-add')}
+              >
+                Cancel
+              </Button>
+            </div>
+          ) : (
+            <Button
+              type="button"
+              variant="outline"
+              onClick={() => setShowAddExisting(true)}
+              className="gba:w-full"
+              data-testid={formatDataTestId(dataTestId || 'contact-list', 'add-contact-button')}
+            >
+              <PiPlus className="gba:w-4 gba:h-4 gba:mr-2" />
+              Add Contact
+            </Button>
+          )}
+        </>
       )}
 
       {/* Error Display */}

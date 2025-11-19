@@ -10,6 +10,7 @@ import {
 } from '@newwork/nw-design-system'
 import { useFormContext } from 'react-hook-form'
 import { CatalogSelect } from '@/components/catalog-select'
+import { ACADEMIC_TITLE } from '@/common/data/relations/constants/catalogConstants'
 import translations from './_i18n'
 
 interface LeadPersonSegmentProps {
@@ -43,7 +44,7 @@ const LeadPersonSegment: React.FC<LeadPersonSegmentProps> = ({ customFields }) =
             <FormLabel>{t('lead-segment-academic-title')}</FormLabel>
             <FormControl>
               <CatalogSelect
-                catalogIdentifier="AcademicTitle:v1"
+                catalogIdentifier={ACADEMIC_TITLE}
                 value={field.value || ''}
                 onValueChange={v => field.onChange(v)}
                 data-testid="lead-segment-academic-title"

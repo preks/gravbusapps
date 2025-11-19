@@ -22,7 +22,7 @@ import { OpportunityListLayout } from './components/OpportunityListLayout'
 import { useProcessCompletion } from '@/common/hooks/useProcessCompletion'
 import { useBoardEmployees } from './hooks/useBoardEmployees'
 import { opportunityBoardFilterConfig } from './config/opportunityBoardFilters'
-import type { OpportunityBoardFilters } from './config/opportunityBoardTypes'
+import type { OpportunityBoardFilters, OpportunityBoardConfig } from './config/opportunityBoardTypes'
 import {
   getFiltersForSection,
   getFilterConfigForSection,
@@ -128,9 +128,9 @@ export interface OpportunityViewConfig<TOpportunity extends { id: string }, TQue
   opportunityStatistics?: OpportunityStatisticsData
   renderStatistics?: () => React.ReactNode
 
-  boardConfig: import('./config/opportunityBoardTypes').OpportunityBoardConfig
+  boardConfig: OpportunityBoardConfig
   fetchOpportunitiesForBoard: (
-    filters: import('./config/opportunityBoardTypes').OpportunityBoardFilters & {
+    filters: OpportunityBoardFilters & {
       additionalFilters?: Record<string, any>
     }
   ) => Promise<{ opportunities: TOpportunity[]; total: number }>

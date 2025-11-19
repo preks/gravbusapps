@@ -1,9 +1,8 @@
 import { z } from 'zod'
 import { zodResolver } from '@hookform/resolvers/zod'
 
-export const contactSegmentSchema = z.object({
+export const contactSchema = z.object({
   ownerEmployeeId: z.string().min(1, 'Owner is required'),
-  contactTypeRef: z.string().nullable().optional(),
   salutationRef: z.string().nullable().optional(),
   firstName: z.string().min(1, 'First name is required'),
   lastName: z.string().min(1, 'Last name is required'),
@@ -33,7 +32,9 @@ export const contactSegmentSchema = z.object({
         id: z.string().optional(),
         version: z.number().optional(),
         addressType: z.string().nullable().optional(),
-        addressLines: z.array(z.string().nullable()).nullable().optional(),
+        addressLine: z
+          .union([z.string().nullable(), z.object({ lines: z.array(z.string().nullable()) }).nullable()])
+          .optional(),
         postalCode: z.string().nullable().optional(),
         locality: z.string().nullable().optional(),
         regionRef: z.string().nullable().optional(),
@@ -48,18 +49,16 @@ export const contactSegmentSchema = z.object({
         version: z.number().optional(),
         accountId: z.string().optional(),
         contactId: z.string().optional(),
-        contactType: z.string().nullable().optional(),
-        account: z.any().optional()
+        contactType: z.string().nullable().optional()
       })
     )
     .optional(),
-  salesCampaignId: z.string().nullable().optional(),
   picture: z.string().nullable().optional(),
   pictureThumbnail: z.string().nullable().optional(),
   id: z.string().optional(),
   version: z.number().optional()
 })
 
-export type ContactSegmentSchema = z.infer<typeof contactSegmentSchema>
+export type ContactSchema = z.infer<typeof contactSchema>
 
-export const createContactSegmentResolver = () => zodResolver(contactSegmentSchema)
+export const createContactSegmentResolver = () => zodResolver(contactSchema)

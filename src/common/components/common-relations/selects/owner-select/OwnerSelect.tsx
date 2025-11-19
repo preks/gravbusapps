@@ -37,10 +37,9 @@ export const OwnerSelect: React.FC<OwnerSelectProps> = ({
 }) => {
   const graphqlClient = useGraphQLClient(businessAppContext.accessToken)
   const [currentUserEmployee, setCurrentUserEmployee] = React.useState<Employee | null>(null)
-  const [loading, setLoading] = React.useState(false)
   const autoSelectDone = useRef(false)
 
-  // CRITICAL: Determine if we need to fetch BEFORE any rendering/effects
+  const currentUserEmployeeId = businessAppContext.userInfo?.employeeDetails?.employeeId
   const shouldFetchCurrentUser = isNewEntity && !ownerEmployee
 
   // Reset current user employee when owner becomes available
@@ -53,19 +52,15 @@ export const OwnerSelect: React.FC<OwnerSelectProps> = ({
 
   // Fetch current user employee data ONLY if needed (new entity + no owner)
   useEffect(() => {
-    // Early exit if we don't need current user
     if (!shouldFetchCurrentUser) {
       return
     }
 
-    // Already have current user or already loading
-    if (currentUserEmployee || loading) return
-
-    const currentUserEmployeeId = businessAppContext.userInfo?.employeeDetails?.employeeId
-    if (!currentUserEmployeeId) return
+    if (currentUserEmployee || !currentUserEmployeeId) {
+      return
+    }
 
     const fetchCurrentUserEmployee = async () => {
-      setLoading(true)
       try {
         const query = GET_EMPLOYEE_LIGHT_BY_ID(currentUserEmployeeId)
         const result = await graphqlClient.request<{ Employee: any[] }>(query)
@@ -87,21 +82,12 @@ export const OwnerSelect: React.FC<OwnerSelectProps> = ({
           setCurrentUserEmployee(employeeData)
         }
       } catch {
-      } finally {
-        setLoading(false)
+        // Silently fail - no retry
       }
     }
 
     fetchCurrentUserEmployee()
-  }, [
-    shouldFetchCurrentUser,
-    currentUserEmployee,
-    loading,
-    businessAppContext,
-    graphqlClient,
-    isNewEntity,
-    ownerEmployee
-  ])
+  }, [shouldFetchCurrentUser, currentUserEmployee, currentUserEmployeeId, isNewEntity, ownerEmployee])
 
   // Auto-select current user employee
   useEffect(() => {

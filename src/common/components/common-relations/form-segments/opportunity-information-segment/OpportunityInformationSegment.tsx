@@ -25,41 +25,41 @@ interface OpportunityInformationSegmentProps {
   // Entity ID (opportunity ID for edit mode)
   entityId?: string
   // Account selection props
-  accountId?: string | { id: string; name: string }
-  accounts?: any[]
-  accountsLoading?: boolean
-  accountsError?: string | null
-  searchAccounts?: (search: string) => void
-  onAccountChange?: (accountId: string | { id: string; name: string } | null) => void
+  account?: any
+  // Account selection hook result
+  // When mapToSelectOptions: true is used, options will always be SelectOption[]
+  accountsHook?: {
+    options: any[]
+    loading: boolean
+    error: string | null
+    search: (searchTerm: string) => void
+  }
   // Contact selection props
   opportunityContacts?: any[]
-  contacts?: ContactSelectOption[]
-  contactsLoading?: boolean
-  contactsError?: string | null
-  searchContacts?: (search: string) => void
-  onContactsChange?: (contactIds: Array<string | { id: string; name: string }>) => void
+  // Contact selection hook result
+  // When mapToSelectOptions: true is used, options will always be SelectOption[]
+  contactsHook?: {
+    options: ContactSelectOption[]
+    loading: boolean
+    error: string | null
+    search: (searchTerm: string) => void
+  }
   onNewContact?: () => void
   // Custom fields (context-specific, e.g., CRM Sales Campaign, IRM Deal Type)
   customFields?: React.ReactNode
+  // Hide related entities (account/contact) sections - useful in Lead Convert context
+  hideRelatedEntities?: boolean
 }
 
 const OpportunityInformationSegment: React.FC<OpportunityInformationSegmentProps> = ({
   businessAppContext,
   ownerEmployee,
   entityId,
-  accountId,
-  accounts = [],
-  accountsLoading = false,
-  accountsError = null,
-  searchAccounts,
-  onAccountChange,
-  opportunityContacts = [],
-  contacts = [],
-  contactsLoading = false,
-  contactsError = null,
-  searchContacts,
-  onContactsChange,
-  customFields
+  account,
+  accountsHook,
+  contactsHook,
+  customFields,
+  hideRelatedEntities = false
 }) => {
   const form = useFormContext<any>()
   const { t } = useTranslation(translations)
@@ -72,9 +72,7 @@ const OpportunityInformationSegment: React.FC<OpportunityInformationSegmentProps
         name="ownerEmployeeId"
         render={({ field }) => (
           <FormItem>
-            <FormLabel>
-              {t('opportunity-owner-label')} <span>*</span>
-            </FormLabel>
+            <FormLabel>{t('opportunity-owner-label')}</FormLabel>
             <FormControl>
               <OwnerSelect
                 value={field.value || null}
@@ -97,9 +95,7 @@ const OpportunityInformationSegment: React.FC<OpportunityInformationSegmentProps
         name="name"
         render={({ field }) => (
           <FormItem>
-            <FormLabel>
-              {t('opportunity-name-label')} <span>*</span>
-            </FormLabel>
+            <FormLabel>{t('opportunity-name-label')}</FormLabel>
             <FormControl>
               <Input
                 placeholder={t('opportunity-name-placeholder')}
@@ -120,95 +116,127 @@ const OpportunityInformationSegment: React.FC<OpportunityInformationSegmentProps
       {customFields && <div>{customFields}</div>}
 
       {/* Account Selection - Single account for opportunities */}
-      <FormField
-        control={form.control}
-        name="accountId"
-        render={({ field }) => (
-          <FormItem>
-            <FormLabel>{t('opportunity-related-account-label')}</FormLabel>
-            <FormControl>
-              <AccountSelect
-                value={
-                  accountId
-                    ? typeof accountId === 'object'
-                      ? accountId
-                      : { id: accountId, name: accounts.find(a => a.id === accountId)?.name || '' }
-                    : null
-                }
-                onChange={value => {
-                  const accountValue =
-                    typeof value === 'object' && value !== null
-                      ? value
-                      : typeof value === 'string'
-                        ? { id: value, name: accounts.find(a => a.id === value)?.name || '' }
-                        : null
-                  field.onChange(accountValue ? accountValue.id : '')
-                  if (onAccountChange) {
-                    onAccountChange(accountValue)
-                  }
-                }}
-                dataTestId="opportunity-segment-account-select"
-                error={accountsError}
-                accounts={accounts.map(acc => ({
-                  id: typeof acc.id === 'string' ? acc.id : String(acc.id),
-                  value: typeof acc.id === 'string' ? acc.id : String(acc.id),
-                  label: acc.label || acc.name || '',
-                  name: acc.name || acc.label || ''
-                }))}
-                accountsLoading={accountsLoading}
-                accountsError={accountsError}
-                searchAccounts={searchAccounts || (() => {})}
-                multiple={false}
-              />
-            </FormControl>
-            <FormMessage />
-          </FormItem>
-        )}
-      />
-
-      {/* Contacts List */}
-      {onContactsChange && searchContacts && (
+      {!hideRelatedEntities && (
         <FormField
           control={form.control}
-          name="contactIds"
-          render={() => (
+          name="accountId"
+          render={({ field }) => (
             <FormItem>
-              <FormLabel>{t('opportunity-related-contacts-label')}</FormLabel>
+              <FormLabel>{t('opportunity-related-account-label')}</FormLabel>
               <FormControl>
-                <ContactSelect
-                  value={
-                    (opportunityContacts || []).map((oc: any) => {
-                      const contactId = oc.contact?.id || oc.contactId || oc.contact
-                      const contact = oc.contact
-                      const contactName =
-                        contact?.displayName ||
-                        contact?.fullName ||
-                        `${contact?.firstName || ''} ${contact?.lastName || ''}`.trim() ||
-                        'Unknown Contact'
-                      return typeof contactId === 'string'
-                        ? {
-                            id: contactId,
-                            name: contactName
-                          }
-                        : contactId
-                    }) || []
-                  }
-                  onChange={onContactsChange}
-                  contacts={contacts.map(c => ({
-                    id: typeof c.id === 'string' ? c.id : String(c.id),
-                    value: typeof c.id === 'string' ? c.id : String(c.id),
-                    label: c.label || c.name || '',
-                    name: c.name || c.label || ''
-                  }))}
-                  contactsLoading={contactsLoading}
-                  contactsError={contactsError}
-                  searchContacts={searchContacts}
-                  dataTestId="opportunity-segment-contacts"
+                <AccountSelect
+                  value={field.value || null}
+                  onChange={value => {
+                    // Type guard: ensure value is not an array (single-select mode)
+                    if (Array.isArray(value)) {
+                      return
+                    }
+
+                    // Extract ID from value (string or object)
+                    const accountId =
+                      typeof value === 'object' && value !== null && 'id' in value
+                        ? value.id
+                        : typeof value === 'string'
+                          ? value
+                          : null
+
+                    field.onChange(accountId || '')
+                  }}
+                  initialAccount={account}
+                  dataTestId="opportunity-segment-account-select"
+                  error={accountsHook?.error || null}
+                  accounts={accountsHook?.options || []}
+                  accountsLoading={accountsHook?.loading || false}
+                  accountsError={accountsHook?.error || null}
+                  searchAccounts={accountsHook?.search || (() => {})}
+                  multiple={false}
                 />
               </FormControl>
               <FormMessage />
             </FormItem>
           )}
+        />
+      )}
+
+      {/* Contacts Selection using ContactSelect */}
+      {!hideRelatedEntities && contactsHook && (
+        <FormField
+          control={form.control}
+          name="opportunityContacts"
+          render={({ field, fieldState }) => {
+            // Transform opportunityContacts to ContactSelect format
+            // opportunityContacts: Array<{ id, version, opportunityId, contactId, contactType }>
+            // ContactSelect expects: Array<{ id, name, contactType }>
+            const contactSelectValue = React.useMemo(() => {
+              const opportunityContacts = field.value || []
+              return opportunityContacts.map((oc: any) => {
+                // If opportunityContact has contact object with full data, use it
+                if (oc.contact) {
+                  const contact = oc.contact
+                  const displayName =
+                    contact.displayName ||
+                    contact.fullName ||
+                    `${contact.firstName || ''} ${contact.lastName || ''}`.trim() ||
+                    'Unknown Contact'
+                  return {
+                    id: oc.contactId || oc.contact?.id || '',
+                    name: displayName,
+                    contactType: oc.contactType || undefined,
+                    pictureThumbnail: contact.pictureThumbnail,
+                    jobPosition: contact.jobPosition,
+                    department: contact.department
+                  }
+                }
+                // Otherwise, use minimal data from opportunityContact
+                return {
+                  id: oc.contactId || '',
+                  name: oc.contact?.name || 'Unknown Contact',
+                  contactType: oc.contactType || undefined
+                }
+              })
+            }, [field.value])
+
+            // Handle onChange - transform back to opportunityContacts format
+            const handleChange = (newValue: Array<string | { id: string; name: string; contactType?: string }>) => {
+              const opportunityId = form.getValues('id')
+              const opportunityContacts = newValue.map((contactValue: any) => {
+                const contactId = typeof contactValue === 'object' ? contactValue.id : contactValue
+                const contactType = typeof contactValue === 'object' ? contactValue.contactType : undefined
+
+                // Find existing opportunityContact to preserve id and version
+                const existingOc = (field.value || []).find((oc: any) => (oc.contactId || oc.contact?.id) === contactId)
+
+                return {
+                  ...(existingOc?.id && { id: existingOc.id }),
+                  ...(existingOc?.version !== undefined && { version: existingOc.version }),
+                  opportunityId: opportunityId || undefined,
+                  contactId: contactId,
+                  contactType: contactType || null
+                }
+              })
+              field.onChange(opportunityContacts)
+            }
+
+            return (
+              <FormItem>
+                <FormLabel>{t('opportunity-related-contacts-label')}</FormLabel>
+                <FormControl>
+                  <ContactSelect
+                    value={contactSelectValue}
+                    onChange={handleChange}
+                    contacts={contactsHook.options}
+                    contactsLoading={contactsHook.loading}
+                    contactsError={contactsHook.error}
+                    searchContacts={contactsHook.search}
+                    accountContacts={field.value || []}
+                    dataTestId="opportunity-segment-contacts"
+                    error={fieldState.error?.message || null}
+                  />
+                </FormControl>
+                <FormMessage />
+              </FormItem>
+            )
+          }}
         />
       )}
     </div>

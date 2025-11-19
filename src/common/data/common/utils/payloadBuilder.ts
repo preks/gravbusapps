@@ -17,13 +17,41 @@ export const toStringOrUndefined = (value: any): string | undefined => {
 }
 
 /**
+ * Recursively transform fields ending with "Id" to remove the suffix
+ * Example: accountId → account, contactId → contact
+ * Preserves "id" and "version" fields as-is
+ */
+const transformIdFields = (value: any): any => {
+  if (Array.isArray(value)) {
+    return value.map(item => transformIdFields(item))
+  }
+
+  if (value !== null && typeof value === 'object' && !(value instanceof Date)) {
+    const transformed: any = {}
+
+    for (const [key, val] of Object.entries(value)) {
+      // Transform key: accountId → account, contactId → contact
+      // But preserve "id" and "version" fields
+      const newKey = key.endsWith('Id') && key !== 'id' ? key.slice(0, -2) : key
+
+      // Recursively transform nested values
+      transformed[newKey] = transformIdFields(val)
+    }
+
+    return transformed
+  }
+
+  return value
+}
+
+/**
  * Generic entity payload builder
  * Processes form fields with automatic type-based transformations
  *
  * Transformations are handled automatically:
  * - Dates → ISO format
- * - Arrays → included only if not empty
- * - Objects → included only if not empty
+ * - Arrays → included only if not empty, with Id field transformation
+ * - Objects → included only if not empty, with Id field transformation
  * - Primitives → string or undefined
  *
  * @param entity - Partial entity object (Account, Contact, Lead, etc.)
@@ -40,6 +68,14 @@ export const toStringOrUndefined = (value: any): string | undefined => {
  */
 export const buildPayload = <T extends Record<string, any>>(entity: Partial<T>, formFields: Record<string, string>) => {
   const payload: any = {}
+
+  // Explicitly include id and version if present
+  if (entity.id !== undefined) {
+    payload.id = entity.id
+  }
+  if (entity.version !== undefined) {
+    payload.version = entity.version
+  }
 
   // Process all form fields
   for (const [sourceKey, targetKey] of Object.entries(formFields)) {
@@ -65,18 +101,28 @@ export const buildPayload = <T extends Record<string, any>>(entity: Partial<T>, 
         break
 
       case 'array':
-        // Arrays: Include only if not empty
-        transformedValue = (value as any[]).length > 0 ? value : undefined
+        // Arrays: Empty array [] means explicit deletion - include it in payload
+        // null/undefined means not set - ignore it
+        if (value === null || value === undefined) {
+          transformedValue = undefined
+        } else {
+          // Empty array [] should be included for explicit deletions
+          transformedValue = transformIdFields(value)
+        }
         break
 
       case 'object':
-        // Objects: Include only if not empty
-        transformedValue = Object.keys(value).length > 0 ? value : undefined
+        // Objects: Transform Id fields and include only if not empty
+        transformedValue = Object.keys(value).length > 0 ? transformIdFields(value) : undefined
         break
 
       case 'primitive':
-        // Primitives: Convert to string or undefined
-        transformedValue = toStringOrUndefined(value)
+        // Primitives: Keep numbers as numbers, convert others to string or undefined
+        if (typeof value === 'number') {
+          transformedValue = isNaN(value) ? undefined : value
+        } else {
+          transformedValue = toStringOrUndefined(value)
+        }
         break
 
       default:

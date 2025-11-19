@@ -1,13 +1,12 @@
 import React, { useState, useEffect, useMemo } from 'react'
 import { Alert } from '@newwork/nw-design-system'
-import { BusinessAppContextProps } from '@/common/BusinessAppContext'
 import { useCatalogEntry } from '@/common/data/catalog'
 import { getTranslationFromI18nKeyAndLabel } from '@/common/utils/windowUtils'
 import { getCurrencySymbol } from '@/common/utils/numberFormatter'
 
 interface DynamicInvestmentFieldsProps {
   investmentData: any // Generic prop that accepts both lead and opportunity data
-  businessAppContext?: BusinessAppContextProps
+  accessToken: string
 }
 
 // Helper function to format currency values using currency catalog entry
@@ -106,18 +105,18 @@ const convertUnicodeSymbol = (value: string): string => {
   return value
 }
 
-const DynamicInvestmentFields: React.FC<DynamicInvestmentFieldsProps> = ({ investmentData, businessAppContext }) => {
+const DynamicInvestmentFields: React.FC<DynamicInvestmentFieldsProps> = ({ investmentData, accessToken }) => {
   const [referenceFields, setReferenceFields] = useState<any[]>([])
   const [isLoading, setIsLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
 
   // Use centralized catalog hook
-  const { fetchCatalogEntryById } = useCatalogEntry(businessAppContext || ({} as BusinessAppContextProps))
+  const { fetchCatalogEntryById } = useCatalogEntry(accessToken)
 
   useEffect(() => {
     const fetchCatalogData = async () => {
-      // Check if we have a valid context
-      if (!businessAppContext?.accessToken) {
+      // Check if we have a valid access token
+      if (!accessToken) {
         setReferenceFields([])
         setIsLoading(false)
         return
@@ -201,12 +200,7 @@ const DynamicInvestmentFields: React.FC<DynamicInvestmentFieldsProps> = ({ inves
     }
 
     fetchCatalogData()
-  }, [
-    investmentData?.investmentGroup?.id,
-    investmentData?.investmentType?.id,
-    businessAppContext?.accessToken,
-    fetchCatalogEntryById
-  ])
+  }, [investmentData?.investmentGroup?.id, investmentData?.investmentType?.id, accessToken, fetchCatalogEntryById])
 
   // Memoized value formatting to prevent unnecessary re-renders
   const formattedFields = useMemo(() => {

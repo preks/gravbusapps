@@ -61,9 +61,7 @@ const LeadInformationSegment: React.FC<LeadInformationSegmentProps> = ({
         name="ownerEmployeeId"
         render={({ field }) => (
           <FormItem>
-            <FormLabel>
-              {t('lead-segment-owner')} <span>*</span>
-            </FormLabel>
+            <FormLabel>{t('lead-segment-owner')}</FormLabel>
             <FormControl>
               <OwnerSelect
                 value={field.value || null}
@@ -87,9 +85,7 @@ const LeadInformationSegment: React.FC<LeadInformationSegmentProps> = ({
           name="firstName"
           render={({ field }) => (
             <FormItem>
-              <FormLabel>
-                {t('lead-segment-first-name')} <span>*</span>
-              </FormLabel>
+              <FormLabel>{t('lead-segment-first-name')}</FormLabel>
               <FormControl>
                 <Input
                   placeholder={t('lead-segment-placeholder-enter')}
@@ -107,9 +103,7 @@ const LeadInformationSegment: React.FC<LeadInformationSegmentProps> = ({
           name="lastName"
           render={({ field }) => (
             <FormItem>
-              <FormLabel>
-                {t('lead-segment-last-name')} <span>*</span>
-              </FormLabel>
+              <FormLabel>{t('lead-segment-last-name')}</FormLabel>
               <FormControl>
                 <Input
                   placeholder={t('lead-segment-placeholder-enter')}
@@ -126,12 +120,10 @@ const LeadInformationSegment: React.FC<LeadInformationSegmentProps> = ({
       {/* Company Name */}
       <FormField
         control={form.control}
-        name="company"
+        name="companyName"
         render={({ field }) => (
           <FormItem>
-            <FormLabel>
-              {t('lead-segment-company-name')} <span>*</span>
-            </FormLabel>
+            <FormLabel>{t('lead-segment-company-name')}</FormLabel>
             <FormControl>
               <Input
                 placeholder={t('lead-segment-placeholder-enter')}

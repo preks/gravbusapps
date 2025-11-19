@@ -1,7 +1,6 @@
 // Customer Account hook - single account by ID with automatic state management
 import { useState, useEffect, useCallback } from 'react'
 import { useGraphQLClient } from '@/common/network/graphql/useGraphQLClient'
-import { BusinessAppContextProps } from '@/common/BusinessAppContext'
 import { toCustomerAccount, type CustomerAccount } from '../types/customerAccountTypes'
 import { buildCustomerAccountByIdQuery } from '../queries/customerAccountQueries'
 
@@ -16,12 +15,12 @@ export interface UseCustomerAccountResult {
  * Declarative hook for fetching a single customer account by ID.
  * Automatically fetches data when component mounts or ID changes.
  *
- * @param context - Business app context with access token
+ * @param accessToken - Access token for authentication
  * @param id - Account ID to fetch
  *
  * @example
  * // Basic usage
- * const { account, loading, error } = useCustomerAccount(context, accountId)
+ * const { account, loading, error } = useCustomerAccount(accessToken, accountId)
  *
  * if (loading) return <Spinner />
  * if (error) return <Alert>{error}</Alert>
@@ -30,7 +29,7 @@ export interface UseCustomerAccountResult {
  *
  * @example
  * // With refetch
- * const { account, loading, refetch } = useCustomerAccount(context, accountId)
+ * const { account, loading, refetch } = useCustomerAccount(accessToken, accountId)
  *
  * return (
  *   <div>
@@ -39,8 +38,8 @@ export interface UseCustomerAccountResult {
  *   </div>
  * )
  */
-export function useCustomerAccount(context: BusinessAppContextProps, id: string | undefined): UseCustomerAccountResult {
-  const graphqlClient = useGraphQLClient(context.accessToken)
+export function useCustomerAccount(accessToken: string, id: string | undefined): UseCustomerAccountResult {
+  const graphqlClient = useGraphQLClient(accessToken)
 
   const [state, setState] = useState<Omit<UseCustomerAccountResult, 'refetch'>>({
     account: null,
@@ -50,7 +49,7 @@ export function useCustomerAccount(context: BusinessAppContextProps, id: string 
 
   const fetchAccount = useCallback(async () => {
     // Don't fetch if no ID or no access token
-    if (!id || !context.accessToken) {
+    if (!id || !accessToken) {
       setState(prev => ({ ...prev, loading: false }))
       return
     }
@@ -73,7 +72,7 @@ export function useCustomerAccount(context: BusinessAppContextProps, id: string 
       console.error('Error fetching customer account:', error)
       setState({ account: null, loading: false, error: errorMessage })
     }
-  }, [id, context.accessToken, graphqlClient])
+  }, [id, accessToken, graphqlClient])
 
   // Auto-fetch on mount and when dependencies change
   useEffect(() => {

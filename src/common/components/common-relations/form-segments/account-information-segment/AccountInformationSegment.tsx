@@ -14,81 +14,63 @@ import { CatalogSelect } from '@/components/catalog-select'
 import { OwnerSelect } from '@/common/components/common-relations/selects/owner-select'
 import { ContactSelect } from '@/common/components/common-relations/selects/contact-select'
 import { BusinessAppContextProps } from '@/common/BusinessAppContext'
-import { useFileClient } from '@/common/network/files/useFileClient'
 import type { SelectOption as ContactSelectOption } from '@/common/components/common-relations/selects/contact-select'
+import { LEGAL_FORM, INDUSTRY_CLASS } from '@/common/data/relations/constants/catalogConstants'
 import translations from './_i18n'
 
 interface AccountInformationSegmentProps {
-  // Business app context for EmployeeSelect and file uploads
+  // Business app context for EmployeeSelect
   businessAppContext?: BusinessAppContextProps
-
-  // Upload configuration (provided by parent segment, from form's constants)
-  uploadConfig?: {
-    appName: string
-    accessScope: 'public' | 'private' | 'tenant'
-    getAvatarPath: (entityId: string | undefined) => string
-  }
 
   // Owner employee from account data (to display immediately)
   ownerEmployee?: any
   // Entity ID (account ID for edit mode)
   entityId?: string
-  // Avatar image for preview (from existing account data)
-  avatarImage?: string
 
-  // Contact selection props
-  contacts?: ContactSelectOption[]
-  contactsLoading?: boolean
-  contactsError?: string | null
-  searchContacts?: (search: string) => void
+  // Contact selection hook result (optional - if not provided, contacts section won't render)
+  // When mapToSelectOptions: true is used, options will always be SelectOption[]
+  contactsHook?: {
+    options: ContactSelectOption[]
+    loading: boolean
+    error: string | null
+    search: (searchTerm: string) => void
+  }
 
   // Custom fields (context-specific, e.g., CRM Sales Campaign)
   customFields?: React.ReactNode
+
+  // Ref to store current file and thumbnail (for handlePreSubmit in form component)
+  avatarFileRef?: React.MutableRefObject<{ file: File; thumbnail: string } | null>
 }
 
 const AccountInformationSegment: React.FC<AccountInformationSegmentProps> = ({
   businessAppContext,
-  uploadConfig,
   ownerEmployee,
   entityId,
-  avatarImage,
-  contacts = [],
-  contactsLoading = false,
-  contactsError = null,
-  searchContacts,
-  customFields
+  contactsHook,
+  customFields,
+  avatarFileRef
 }) => {
   const form = useFormContext<any>()
   const { t } = useTranslation(translations)
-  const fileClient = businessAppContext ? useFileClient(businessAppContext) : null
 
-  // Handle avatar upload (only if uploadConfig is provided)
-  const handleAvatarUpload = async (file: File): Promise<{ picture: string; pictureThumbnail: string }> => {
-    if (!fileClient || !uploadConfig) {
-      throw new Error('File client or upload configuration not provided')
-    }
-
-    try {
-      const entityId = form.getValues('id')
-      const pathParams = { accessScope: uploadConfig.accessScope } as { accessScope: 'tenant' }
-      const queryParams = {
-        appName: uploadConfig.appName,
-        folderPath: uploadConfig.getAvatarPath(entityId),
-        mimeType: file.type || 'image/jpeg'
-      }
-
-      const uploadResponse = await fileClient.uploadFile(file, pathParams, queryParams)
-
-      // Return picture and pictureThumbnail for form
-      return {
-        picture: JSON.stringify(uploadResponse.fileInfo),
-        pictureThumbnail: '' // Will be set from AvatarUpload thumbnail
-      }
-    } catch (error) {
-      console.error('Failed to upload avatar:', error)
-      throw error
-    }
-  }
+  // Get avatar image from form values (pictureThumbnail or picture)
+  const pictureThumbnail = form.watch('pictureThumbnail')
+  const picture = form.watch('picture')
+  const avatarImage = pictureThumbnail
+    ? `data:image/jpeg;base64,${pictureThumbnail}`
+    : picture
+      ? typeof picture === 'string'
+        ? (() => {
+            try {
+              const pictureData = JSON.parse(picture)
+              return pictureData?.url || pictureData?.fileUrl || undefined
+            } catch {
+              return picture
+            }
+          })()
+        : picture
+      : undefined
 
   return (
     <div className="gba:space-y-6 gba:w-full gba:max-w-full gba:overflow-hidden">
@@ -98,9 +80,7 @@ const AccountInformationSegment: React.FC<AccountInformationSegmentProps> = ({
         name="ownerEmployeeId"
         render={({ field }) => (
           <FormItem>
-            <FormLabel>
-              {t('account-owner-label')} <span>*</span>
-            </FormLabel>
+            <FormLabel>{t('account-owner-label')}</FormLabel>
             <FormControl>
               <OwnerSelect
                 value={field.value || null}
@@ -123,14 +103,16 @@ const AccountInformationSegment: React.FC<AccountInformationSegmentProps> = ({
         name="name"
         render={({ field }) => (
           <FormItem>
-            <FormLabel>
-              {t('account-name-label')} <span>*</span>
-            </FormLabel>
+            <FormLabel>{t('account-name-label')}</FormLabel>
             <FormControl>
               <Input
                 placeholder={t('account-name-placeholder')}
                 data-testid="account-information-segment-name"
-                {...field}
+                value={field.value || ''}
+                onChange={field.onChange}
+                onBlur={field.onBlur}
+                name={field.name}
+                ref={field.ref}
               />
             </FormControl>
             <FormMessage />
@@ -149,34 +131,20 @@ const AccountInformationSegment: React.FC<AccountInformationSegmentProps> = ({
               <AvatarUpload
                 image={avatarImage}
                 variant="compact"
-                onChange={async value => {
-                  if (value?.file) {
-                    // Upload immediately if uploadConfig and fileClient are configured
-                    if (uploadConfig && fileClient) {
-                      try {
-                        const { picture } = await handleAvatarUpload(value.file)
-                        form.setValue('picture', picture)
-                      } catch (error) {
-                        console.error('Avatar upload failed:', error)
-                        // Still store file for later retry
-                        ;(form as any)._avatarFile = value.file
-                      }
-                    } else {
-                      // Store file temporarily for handlePreSubmit in form component
-                      ;(form as any)._avatarFile = value.file
-                    }
-
-                    // Extract plain base64 from thumbnail (remove data URL prefix if present)
-                    const thumbnailBase64 = value.thumbnail
-                      ? value.thumbnail.includes(',')
+                onChange={value => {
+                  // Store file and thumbnail in ref (no re-renders, no form state changes)
+                  if (avatarFileRef) {
+                    if (value?.file && value?.thumbnail) {
+                      const thumbnailBase64 = value.thumbnail.includes(',')
                         ? value.thumbnail.split(',').pop() || ''
                         : value.thumbnail
-                      : ''
-                    form.setValue('pictureThumbnail', thumbnailBase64)
-                  } else {
-                    ;(form as any)._avatarFile = undefined
-                    form.setValue('pictureThumbnail', null)
-                    form.setValue('picture', null)
+                      avatarFileRef.current = {
+                        file: value.file,
+                        thumbnail: thumbnailBase64
+                      }
+                    } else {
+                      avatarFileRef.current = null
+                    }
                   }
                 }}
                 data-testid="account-information-segment-avatar"
@@ -197,7 +165,7 @@ const AccountInformationSegment: React.FC<AccountInformationSegmentProps> = ({
               <FormLabel>{t('legal-form-label')}</FormLabel>
               <FormControl>
                 <CatalogSelect
-                  catalogIdentifier="LegalForm:v1"
+                  catalogIdentifier={LEGAL_FORM}
                   value={field.value || ''}
                   onValueChange={v => field.onChange(v)}
                   data-testid="account-information-segment-legal-form"
@@ -216,7 +184,7 @@ const AccountInformationSegment: React.FC<AccountInformationSegmentProps> = ({
               <FormLabel>{t('industry-label')}</FormLabel>
               <FormControl>
                 <CatalogSelect
-                  catalogIdentifier="IndustryClass:v1"
+                  catalogIdentifier={INDUSTRY_CLASS}
                   value={field.value || ''}
                   onValueChange={v => field.onChange(v)}
                   data-testid="account-information-segment-industry"
@@ -251,28 +219,84 @@ const AccountInformationSegment: React.FC<AccountInformationSegmentProps> = ({
       {customFields}
 
       {/* Contacts Selection using ContactSelect */}
-      {searchContacts && (
+      {contactsHook && (
         <FormField
           control={form.control}
-          name="contacts"
-          render={({ field, fieldState }) => (
-            <FormItem>
-              <FormLabel>{t('contacts-label')}</FormLabel>
-              <FormControl>
-                <ContactSelect
-                  value={field.value || []}
-                  onChange={field.onChange}
-                  contacts={contacts}
-                  contactsLoading={contactsLoading}
-                  contactsError={contactsError}
-                  searchContacts={searchContacts}
-                  dataTestId="account-information-segment-contacts"
-                  error={fieldState.error?.message || null}
-                />
-              </FormControl>
-              <FormMessage />
-            </FormItem>
-          )}
+          name="accountContacts"
+          render={({ field, fieldState }) => {
+            // Transform accountContacts to ContactSelect format
+            // accountContacts: Array<{ id, version, accountId, contactId, contactType }>
+            // ContactSelect expects: Array<{ id, name, contactType }>
+            const contactSelectValue = React.useMemo(() => {
+              const accountContacts = field.value || []
+              return accountContacts.map((ac: any) => {
+                // If accountContact has contact object with full data, use it
+                if (ac.contact) {
+                  const contact = ac.contact
+                  const displayName =
+                    contact.displayName ||
+                    contact.fullName ||
+                    `${contact.firstName || ''} ${contact.lastName || ''}`.trim() ||
+                    'Unknown Contact'
+                  return {
+                    id: ac.contactId || ac.contact?.id || '',
+                    name: displayName,
+                    contactType: ac.contactType || undefined,
+                    pictureThumbnail: contact.pictureThumbnail,
+                    jobPosition: contact.jobPosition,
+                    department: contact.department
+                  }
+                }
+                // Otherwise, use minimal data from accountContact
+                return {
+                  id: ac.contactId || '',
+                  name: ac.contact?.name || 'Unknown Contact',
+                  contactType: ac.contactType || undefined
+                }
+              })
+            }, [field.value])
+
+            // Handle onChange - transform back to accountContacts format
+            const handleChange = (newValue: Array<string | { id: string; name: string; contactType?: string }>) => {
+              const accountId = form.getValues('id')
+              const accountContacts = newValue.map((contactValue: any) => {
+                const contactId = typeof contactValue === 'object' ? contactValue.id : contactValue
+                const contactType = typeof contactValue === 'object' ? contactValue.contactType : undefined
+
+                // Find existing accountContact to preserve id and version
+                const existingAc = (field.value || []).find((ac: any) => (ac.contactId || ac.contact?.id) === contactId)
+
+                return {
+                  ...(existingAc?.id && { id: existingAc.id }),
+                  ...(existingAc?.version !== undefined && { version: existingAc.version }),
+                  accountId: accountId || undefined,
+                  contactId: contactId,
+                  contactType: contactType || null
+                }
+              })
+              field.onChange(accountContacts)
+            }
+
+            return (
+              <FormItem>
+                <FormLabel>{t('contacts-label')}</FormLabel>
+                <FormControl>
+                  <ContactSelect
+                    value={contactSelectValue}
+                    onChange={handleChange}
+                    contacts={contactsHook.options}
+                    contactsLoading={contactsHook.loading}
+                    contactsError={contactsHook.error}
+                    searchContacts={contactsHook.search}
+                    accountContacts={field.value || []}
+                    dataTestId="account-information-segment-contacts"
+                    error={fieldState.error?.message || null}
+                  />
+                </FormControl>
+                <FormMessage />
+              </FormItem>
+            )
+          }}
         />
       )}
     </div>

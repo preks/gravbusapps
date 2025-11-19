@@ -1,7 +1,6 @@
 // Customer Contact hook - single contact by ID with automatic state management
 import { useState, useEffect, useCallback } from 'react'
 import { useGraphQLClient } from '@/common/network/graphql/useGraphQLClient'
-import { BusinessAppContextProps } from '@/common/BusinessAppContext'
 import { toCustomerContact, type CustomerContact } from '../types/customerContactTypes'
 import { buildCustomerContactByIdQuery } from '../queries/customerContactQueries'
 
@@ -16,12 +15,12 @@ export interface UseCustomerContactResult {
  * Declarative hook for fetching a single customer contact by ID.
  * Automatically fetches data when component mounts or ID changes.
  *
- * @param context - Business app context with access token
+ * @param accessToken - Access token for authentication
  * @param id - Contact ID to fetch
  *
  * @example
  * // Basic usage
- * const { contact, loading, error } = useCustomerContact(context, contactId)
+ * const { contact, loading, error } = useCustomerContact(accessToken, contactId)
  *
  * if (loading) return <Spinner />
  * if (error) return <Alert>{error}</Alert>
@@ -30,7 +29,7 @@ export interface UseCustomerContactResult {
  *
  * @example
  * // With refetch
- * const { contact, loading, refetch } = useCustomerContact(context, contactId)
+ * const { contact, loading, refetch } = useCustomerContact(accessToken, contactId)
  *
  * return (
  *   <div>
@@ -39,8 +38,8 @@ export interface UseCustomerContactResult {
  *   </div>
  * )
  */
-export function useCustomerContact(context: BusinessAppContextProps, id: string | undefined): UseCustomerContactResult {
-  const graphqlClient = useGraphQLClient(context.accessToken)
+export function useCustomerContact(accessToken: string, id: string | undefined): UseCustomerContactResult {
+  const graphqlClient = useGraphQLClient(accessToken)
 
   const [state, setState] = useState<Omit<UseCustomerContactResult, 'refetch'>>({
     contact: null,
@@ -50,7 +49,7 @@ export function useCustomerContact(context: BusinessAppContextProps, id: string 
 
   const fetchContact = useCallback(async () => {
     // Don't fetch if no ID or no access token
-    if (!id || !context.accessToken) {
+    if (!id || !accessToken) {
       setState(prev => ({ ...prev, loading: false }))
       return
     }
@@ -73,7 +72,7 @@ export function useCustomerContact(context: BusinessAppContextProps, id: string 
       console.error('Error fetching customer contact:', error)
       setState({ contact: null, loading: false, error: errorMessage })
     }
-  }, [id, context.accessToken, graphqlClient])
+  }, [id, accessToken, graphqlClient])
 
   // Auto-fetch on mount and when dependencies change
   useEffect(() => {

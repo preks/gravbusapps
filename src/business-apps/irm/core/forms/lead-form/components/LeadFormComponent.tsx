@@ -3,7 +3,7 @@ import { useForm } from 'react-hook-form'
 import { BusinessAppContextProps } from '@/common/BusinessAppContext'
 import { useInvestmentLead } from '@/common/data/investment/hooks/useInvestmentLead'
 import { LeadLayout } from '@/common/components/common-relations/form-layouts/lead-layout'
-import { createLeadSegmentResolver } from '@/common/components/common-relations/schemas/leadSchema'
+import { createLeadSegmentResolver } from '@/common/components/common-relations/form-layouts/lead-layout'
 import { buildInvestmentLeadPayload } from '@/common/data/investment/types/investmentLeadTypes'
 import { AppActionForm } from '@/components/app-action-form'
 import { InvestmentProspectSegment } from '@/common/components/investment/form-segments/investment-prospect-segment'
@@ -159,7 +159,7 @@ const LeadFormComponent: React.FC<LeadFormComponentProps> = ({ businessAppContex
       leadRatingRef: ld.leadRatingRef || '',
       sensitive: ld.sensitive || false,
       academicTitleRef: ld.academicTitleRef || '',
-      jobPosition: ld.position || '',
+      jobPosition: ld.jobPosition || '',
       legalFormRef: ld.legalFormRef || '',
       industryClassRef: ld.industryClassRef || '',
       website: ld.companyWebsite || '',
@@ -193,83 +193,38 @@ const LeadFormComponent: React.FC<LeadFormComponentProps> = ({ businessAppContex
   const investmentTypeId =
     typeof investmentTypeValue === 'object' ? investmentTypeValue?.id : investmentTypeValue || null
 
-  // Handle pre-submit (before AppActionForm processes)
-  const handlePreSubmit = useCallback(async (formValues: any) => {
-    // Transform addressLines (array) back to addressLine (object with value)
-    const addresses = (formValues.addresses || []).map((addr: any) => {
-      const addressLineValue = (addr.addressLines || []).filter((line: string) => line.trim()).join(', ')
-      return {
-        ...(addr.id && { id: addr.id }),
-        ...(addr.version !== undefined && { version: addr.version }),
-        addressType: addr.addressType || AddressType.PRIMARY_ADDRESS,
-        addressLine: addressLineValue ? { value: addressLineValue } : undefined,
-        postalCode: addr.postalCode || undefined,
-        locality: addr.locality || undefined,
-        regionRef: addr.regionRef || undefined,
-        countryRef: addr.countryRef || undefined
-      }
-    })
-
-    // Filter out empty communication channels
-    const communicationChannels = (formValues.communicationChannels || [])
-      .filter((ch: any) => ch.value?.trim())
-      .map((ch: any) => ({
-        ...(ch.id && { id: ch.id }),
-        ...(ch.version !== undefined && { version: ch.version }),
-        communicationChannelRef: ch.communicationChannelRef,
-        value: ch.value,
-        valueExtension: ch.valueExtension || null
-      }))
-
-    // Build lead payload
+  // Handle form submission - data already matches interface structure exactly
+  const handleSubmit = useCallback(async (formValues: any) => {
+    // Build complete InvestmentLead object - ALL form values included
+    // addressLine is already in correct format { lines: string[] } from schema
+    // buildInvestmentLeadPayload will handle field mapping and transformations
     const leadPayload: Partial<InvestmentLead> = {
-      ...(formValues.id && { id: formValues.id }),
-      ...(formValues.version !== undefined && { version: formValues.version }),
-      ownerEmployeeId: formValues.ownerEmployeeId,
-      firstName: formValues.firstName,
-      lastName: formValues.lastName,
-      company: formValues.company,
-      leadStatusRef: formValues.leadStatusRef || undefined,
-      leadSourceRef: formValues.leadSourceRef || undefined,
-      leadRatingRef: formValues.leadRatingRef || undefined,
-      sensitive: formValues.sensitive || false,
-      academicTitleRef: formValues.academicTitleRef || undefined,
-      jobPosition: formValues.jobPosition || undefined,
-      legalFormRef: formValues.legalFormRef || undefined,
-      industryClassRef: formValues.industryClassRef || undefined,
-      website: formValues.website || undefined,
-      companyEmail: formValues.companyEmail || undefined,
-      companyPhone: formValues.companyPhone || undefined,
-      companySizeRef: formValues.companySizeRef || undefined,
-      annualRevenueBandRef: formValues.annualRevenueBandRef || undefined,
-      addresses: addresses.length > 0 ? addresses : undefined,
-      communicationChannels: communicationChannels.length > 0 ? communicationChannels : undefined
-    } as any
+      ...formValues // All form values match interface structure exactly
+    } as Partial<InvestmentLead>
 
-    // Use buildInvestmentLeadPayload to get the final API payload
+    // buildInvestmentLeadPayload handles:
+    // - Field mapping via investmentLeadFormFields
+    // - Empty value exclusion
+    // - Type transformations
     return buildInvestmentLeadPayload(leadPayload)
   }, [])
 
-  if (leadLoading) {
-    return (
-      <div className="gba:p-6 gba:text-center" data-testid={`${prefixDataTestId}-loading`}>
-        Loading lead data...
-      </div>
-    )
+  // Handle form cancellation
+  const handleCancel = async () => {
+    // Cancel is handled automatically by AppActionForm
   }
 
-  if (leadError) {
-    return (
-      <div className="gba:p-6" data-testid={`${prefixDataTestId}-error`}>
-        <Alert variant="destructive">
-          <AlertDescription>Error loading lead: {leadError.message}</AlertDescription>
-        </Alert>
-      </div>
-    )
-  }
+  const processType = lead?.id ? 'update' : 'create'
 
   return (
-    <AppActionForm form={form} onSubmit={handlePreSubmit} data-testid={prefixDataTestId}>
+    <AppActionForm
+      processType={processType}
+      form={form}
+      onSubmit={handleSubmit}
+      onCancel={handleCancel}
+      formData={form.getValues()}
+      data-testid={prefixDataTestId}
+    >
       <CatalogSelect.Provider {...businessAppContext} form={form}>
         <LeadLayout
           businessAppContext={businessAppContext}
@@ -280,7 +235,7 @@ const LeadFormComponent: React.FC<LeadFormComponentProps> = ({ businessAppContex
           leadRatingCatalogIdentifier="InvestmentLeadRating:v1"
           companySizeCatalogIdentifier="CompanySize:v1"
           annualRevenueCatalogIdentifier="AccountAnnualRevenueBand:v1"
-          addresses={(lead as any)?.addresses}
+          loading={leadLoading && !!leadId}
           customSegments={[
             {
               id: 'investment-prospect',
@@ -297,6 +252,12 @@ const LeadFormComponent: React.FC<LeadFormComponentProps> = ({ businessAppContex
             }
           ]}
         />
+        {/* Error Display */}
+        {leadError && (
+          <Alert variant="destructive">
+            <AlertDescription>Error loading lead: {leadError.message || leadError}</AlertDescription>
+          </Alert>
+        )}
       </CatalogSelect.Provider>
     </AppActionForm>
   )

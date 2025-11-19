@@ -41,7 +41,6 @@ export interface CustomerOpportunity extends Opportunity {
   // CRM-specific fields
   salesCampaign?: any // CRM-specific (SalesCampaign)
   salesCampaignId?: string // CRM-specific
-  tags?: any[] // CRM-specific (deprecated)
 }
 
 /**
@@ -68,8 +67,6 @@ export const CustomerOpportunityFields = {
   opportunityPipelineStageRef: 'salesPipelineStageRef',
   opportunityStageConditions: 'stageConditionStatuses'
 } as const
-
-export type CustomerOpportunityFieldName = (typeof CustomerOpportunityFields)[keyof typeof CustomerOpportunityFields]
 
 /**
  * Customer Opportunity Stage Condition Query Field Mapping
@@ -161,15 +158,8 @@ export const customerOpportunityFormFields = {
  */
 export const buildCustomerOpportunityPayload = (opportunity: Partial<CustomerOpportunity>) => {
   // Build base payload using customerOpportunityFormFields for field mapping
+  // opportunityContacts is automatically processed by buildPayload (like accountContacts in AccountForm)
   const basePayload = buildPayload(opportunity, customerOpportunityFormFields)
-
-  // Handle contact associations separately (not in formFields)
-  if ((opportunity as any).contactIds && (opportunity as any).contactIds.length > 0 && opportunity.id) {
-    basePayload.opportunityContacts = buildOpportunityContactAssociations(
-      (opportunity as any).contactIds,
-      opportunity.id
-    )
-  }
 
   return {
     opportunity: basePayload
@@ -207,7 +197,13 @@ export function toCustomerOpportunity(raw: any): CustomerOpportunity {
 
   // Map nested entities if present
   const account = raw.account ? toCustomerAccount(raw.account) : raw.account
-  const mappedContacts = raw.contacts ? raw.contacts.map((c: any) => toCustomerContact(c)) : raw.contacts
+  // Map opportunityContacts: each item is an OpportunityContact with a nested contact field
+  const mappedOpportunityContacts = raw.contacts
+    ? raw.contacts.map((oc: any) => ({
+        ...oc,
+        contact: oc.contact ? toCustomerContact(oc.contact) : oc.contact
+      }))
+    : raw.opportunityContacts
 
   return {
     ...rest,
@@ -217,7 +213,7 @@ export function toCustomerOpportunity(raw: any): CustomerOpportunity {
     opportunityPipelineRef: raw.opportunityPipelineRef ?? salesPipelineRef,
     opportunityPipelineStage: raw.opportunityPipelineStage ?? salesPipelineStage,
     opportunityPipelineStageRef: raw.opportunityPipelineStageRef ?? salesPipelineStageRef,
-    opportunityContacts: raw.opportunityContacts ?? mappedContacts,
+    opportunityContacts: raw.opportunityContacts ?? mappedOpportunityContacts,
     documents: raw.documents ?? crmDocument,
     notes: raw.notes ?? crmNote
   } as CustomerOpportunity

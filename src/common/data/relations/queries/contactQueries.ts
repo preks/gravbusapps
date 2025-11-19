@@ -93,6 +93,8 @@ export const buildContactQuery = (
           ${accountAddressFragment}
         }
       }
+      accountId
+      contactId
     }
   `
       : ''
@@ -244,6 +246,8 @@ export const buildContactByIdQuery = (
           ${ADDRESS_REF}
         }
       }
+        accountId
+        contactId
     }
     
     # OpportunityContacts relation (field name varies: opportunityContacts vs investmentOpportunityContact)

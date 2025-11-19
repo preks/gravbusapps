@@ -9,7 +9,7 @@ import { AppActionForm } from '@/components/app-action-form'
 import {
   leadConvertSchema,
   type LeadConvertSchema
-} from '@/common/components/common-relations/schemas/leadConvertSchema'
+} from '@/common/components/common-relations/form-layouts/lead-convert-layout/leadConvertSchema'
 import type { BusinessAppContextProps } from '@/common/BusinessAppContext'
 
 // Form data type (alias for central schema)
@@ -43,9 +43,9 @@ import {
 } from '@/common/components/common-relations/form-layouts/lead-convert-layout'
 import { FormProvider } from 'react-hook-form'
 import { CatalogSelect } from '@/components/catalog-select'
-import { createAccountSegmentResolver } from '@/common/components/common-relations/schemas/accountSchema'
-import { createContactSegmentResolver } from '@/common/components/common-relations/schemas/contactSchema'
-import { createOpportunitySegmentResolver } from '@/common/components/common-relations/schemas/opportunitySchema'
+import { createAccountSegmentResolver } from '@/common/components/common-relations/form-layouts/account-layout'
+import { createContactSegmentResolver } from '@/common/components/common-relations/form-layouts/contact-layout'
+import { createOpportunitySegmentResolver } from '@/common/components/common-relations/form-layouts/opportunity-layout'
 
 export const ConvertInvestmentLeadForm = ({
   accessToken,
@@ -84,7 +84,7 @@ export const ConvertInvestmentLeadForm = ({
   const formData = form.watch()
 
   // Load lead data using central hook
-  const { lead: leadData, loading } = useInvestmentLead(businessAppContext, actualLeadId)
+  const { lead: leadData, loading } = useInvestmentLead(accessToken, actualLeadId)
 
   // Separate forms for Account, Contact, Opportunity (used by layouts)
   const accountForm = useForm({
@@ -107,12 +107,12 @@ export const ConvertInvestmentLeadForm = ({
 
   // Update forms when leadData is loaded
   useEffect(() => {
-    if (leadData) {
+    if (leadData?.id) {
       accountForm.reset(getAccountInitialValues(leadData) as any)
       contactForm.reset(getContactInitialValues(leadData) as any)
       opportunityForm.reset(getOpportunityInitialValues(leadData) as any)
     }
-  }, [leadData?.id, leadData, accountForm, contactForm, opportunityForm])
+  }, [leadData?.id, accountForm, contactForm, opportunityForm])
 
   // Store complete form data from nested forms for payload construction
   const [completeAccountData, setCompleteAccountData] = useState<Partial<any>>({})
@@ -230,7 +230,6 @@ export const ConvertInvestmentLeadForm = ({
               <LeadConvertAccountStep
                 businessAppContext={businessAppContext}
                 ownerEmployee={leadData?.ownerEmployee}
-                addresses={undefined}
                 annualRevenueCatalogIdentifier="AccountAnnualRevenueBand:v1"
                 companySizeCatalogIdentifier="CompanySize:v1"
                 uploadConfig={{
@@ -263,7 +262,6 @@ export const ConvertInvestmentLeadForm = ({
               <LeadConvertContactStep
                 businessAppContext={businessAppContext}
                 ownerEmployee={leadData?.ownerEmployee}
-                addresses={undefined}
                 accounts={accounts as any}
                 accountsLoading={isLoadingAccounts}
                 accountsError={null}

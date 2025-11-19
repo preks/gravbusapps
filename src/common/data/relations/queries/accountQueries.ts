@@ -205,6 +205,8 @@ export const buildAccountByPkQuery = (
           ${ADDRESS_REF}
         }
       }
+      contactId
+      accountId
     }
     
     # Leads relation (only in IRM, field name: leads vs investmentLead)

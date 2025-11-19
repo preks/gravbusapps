@@ -11,6 +11,7 @@ import {
 import { useFormContext } from 'react-hook-form'
 import { DateInput } from '@newwork/nw-design-system'
 import { CatalogSelect } from '@/components/catalog-select'
+import { CURRENCY } from '@/common/data/relations/constants/catalogConstants'
 import translations from './_i18n'
 
 interface OpportunityDetailsSegmentProps {
@@ -21,7 +22,7 @@ interface OpportunityDetailsSegmentProps {
 }
 
 const OpportunityDetailsSegment: React.FC<OpportunityDetailsSegmentProps> = ({
-  currencyCatalogIdentifier = 'Currency:v1',
+  currencyCatalogIdentifier = CURRENCY,
   customFields
 }) => {
   const form = useFormContext<any>()
@@ -36,9 +37,7 @@ const OpportunityDetailsSegment: React.FC<OpportunityDetailsSegmentProps> = ({
           name="estimatedAmount"
           render={({ field }) => (
             <FormItem>
-              <FormLabel>
-                {t('opportunity-estimated-amount-label')} <span>*</span>
-              </FormLabel>
+              <FormLabel>{t('opportunity-estimated-amount-label')}</FormLabel>
               <FormControl>
                 <Input
                   type="number"
@@ -56,12 +55,10 @@ const OpportunityDetailsSegment: React.FC<OpportunityDetailsSegmentProps> = ({
 
         <FormField
           control={form.control}
-          name="currency"
+          name="currencyRef"
           render={({ field }) => (
             <FormItem>
-              <FormLabel>
-                {t('opportunity-currency-label')} <span>*</span>
-              </FormLabel>
+              <FormLabel>{t('opportunity-currency-label')}</FormLabel>
               <FormControl>
                 <CatalogSelect
                   catalogIdentifier={currencyCatalogIdentifier}

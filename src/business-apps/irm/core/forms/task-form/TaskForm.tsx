@@ -1,9 +1,9 @@
-import React, { useCallback, useState } from 'react'
+import React, { useCallback, useState, useMemo } from 'react'
 import { BusinessAppContextProps } from '@/common/BusinessAppContext'
-import { getTranslationFromI18nKeyAndLabel, getCurrentActiveUserLocale } from '@/common/utils/windowUtils'
-import TaskSegment, {
-  TaskSegmentSchema
-} from '@/common/components/common-relations/form-segments/task-segment/TaskSegment'
+import { getTranslationFromI18nKeyAndLabel } from '@/common/utils/windowUtils'
+import { TaskLayout, buildTaskSchema } from '@/common/components/common-relations/form-layouts/task-layout'
+import { zodResolver } from '@hookform/resolvers/zod'
+import { z } from 'zod'
 import { AppActionForm } from '@/components/app-action-form'
 import { CatalogSelect } from '@/components/catalog-select'
 import { buildInvestmentTaskPayload } from '@/common/data/investment/payloads/investmentRelationPayloads'
@@ -12,11 +12,9 @@ import { useInvestmentEntities } from '@/common/data/investment/hooks/useInvestm
 import { useInvestmentTask } from '@/common/data/investment/hooks/useInvestmentTask'
 import { useEmployeeSearch } from '@/common/data/employee/useEmployeeSearch'
 import { useForm } from 'react-hook-form'
-import { createTaskSegmentResolver } from '@/common/components/common-relations/form-segments/task-segment/TaskSegment'
 import { useFileClient } from '@/common/network/files/useFileClient'
-import { LocalizationProvider, type SupportedLocale } from '@newwork/nw-design-system'
 
-type TaskFormData = TaskSegmentSchema & {
+type TaskFormData = z.infer<ReturnType<typeof buildTaskSchema>> & {
   id?: string
   version?: number
   code?: string
@@ -48,16 +46,16 @@ const TASK_PRIORITY_CATALOG = 'InvestmentTaskPriority'
 const TASK_STATUS_CATALOG = 'InvestmentTaskStatus'
 
 export interface InvestmentTaskFormProps extends BusinessAppContextProps {
-  onSuccess?: (task: TaskFormData) => void
-  onCancel?: () => void
+  initialValues?: TaskFormData
+  onSubmit?: (task: TaskFormData) => Promise<void>
+  onCancel?: () => Promise<void>
 }
 
 const InvestmentTaskForm: React.FC<InvestmentTaskFormProps> = ({
   accessToken,
   userInfo,
   additionalData,
-  onSuccess,
-  onCancel
+  onCancel = async () => {}
 }: InvestmentTaskFormProps) => {
   const [formData, _setFormData] = useState<TaskFormData>({
     ...initialFormData,
@@ -119,7 +117,7 @@ const InvestmentTaskForm: React.FC<InvestmentTaskFormProps> = ({
 
   // Investment task hook - declarative single-by-PK
   const taskId = platformParams.taskId
-  const { task, isLoading: taskLoading } = useInvestmentTask({ accessToken, userInfo, additionalData }, taskId)
+  const { task, isLoading: taskLoading } = useInvestmentTask(accessToken, taskId)
 
   const investmentId = platformParams.investmentId
   const accountId = platformParams.accountId
@@ -131,13 +129,20 @@ const InvestmentTaskForm: React.FC<InvestmentTaskFormProps> = ({
   const hasEntityFromContext = investmentId || accountId || contactId || opportunityId || leadId
   const shouldShowEntitySelection = !hasEntityFromContext
 
+  // Build task schema with options
+  const taskSchema = useMemo(
+    () =>
+      buildTaskSchema({
+        requireAssignee: false,
+        requireEntity: true,
+        requireType: !((additionalData as any)?.typeRef === 'InvestmentTaskType:v1:APPROVAL')
+      }),
+    [additionalData]
+  )
+
   // RHF + Zod resolver provided to AppActionForm
-  const form = useForm<any>({
-    resolver: createTaskSegmentResolver({
-      requireAssignee: false,
-      requireEntity: true,
-      requireType: !((additionalData as any)?.typeRef === 'InvestmentTaskType:v1:APPROVAL')
-    }),
+  const form = useForm<z.infer<typeof taskSchema>>({
+    resolver: zodResolver(taskSchema),
     defaultValues: formData as any,
     mode: 'onChange'
   })
@@ -194,7 +199,14 @@ const InvestmentTaskForm: React.FC<InvestmentTaskFormProps> = ({
       // Hydrate details for the selected employee so avatar/job/unit appear immediately
       hydrateById(task.assignedEmployee.id)
     }
-    // Also hydrate RHF defaults
+    // Helper to extract entity ID from object or string
+    const getEntityId = (entity: any): string | undefined => {
+      if (!entity) return undefined
+      if (typeof entity === 'string') return entity
+      return entity.id
+    }
+
+    // Also hydrate RHF defaults - only store entity IDs (strings), not objects
     form.reset({
       title: task.name || '',
       description: task.description || '',
@@ -209,11 +221,12 @@ const InvestmentTaskForm: React.FC<InvestmentTaskFormProps> = ({
       creatorUserId: (task as any).creatorUserId || undefined,
       relatedEntityId:
         task.investment?.id || task.account?.id || task.contact?.id || task.opportunity?.id || task.lead?.id || '',
-      investment: task.investment ? { id: task.investment.id } : undefined,
-      account: task.account ? { id: task.account.id } : undefined,
-      contact: task.contact ? { id: task.contact.id } : undefined,
-      opportunity: task.opportunity ? { id: task.opportunity.id } : undefined,
-      lead: task.lead ? { id: task.lead.id } : undefined,
+      // Only store entity IDs (strings), not objects
+      investment: getEntityId(task.investment) || undefined,
+      account: getEntityId(task.account) || undefined,
+      contact: getEntityId(task.contact) || undefined,
+      opportunity: getEntityId(task.opportunity) || undefined,
+      lead: getEntityId(task.lead) || undefined,
       documents:
         (task as any).documents?.map((doc: any) => ({
           id: doc.id,
@@ -295,7 +308,7 @@ const InvestmentTaskForm: React.FC<InvestmentTaskFormProps> = ({
   )
 
   const handleSubmit = useCallback(
-    async (data: TaskSegmentSchema) => {
+    async (data: z.infer<typeof taskSchema>) => {
       try {
         // Pull full form values to include non-registered fields (account/contact/opportunity/lead)
         const allValues = (form as any).getValues?.() || {}
@@ -303,34 +316,26 @@ const InvestmentTaskForm: React.FC<InvestmentTaskFormProps> = ({
         // assignedUserId is maintained by TaskSegment effect; prefer the form value if present
         const assignedUserId = allValues.assignedUserId
 
-        // Build entity ref from whichever field is set
-        const entityRef = (() => {
-          if (allValues.investment?.id) return { investment: { id: allValues.investment.id } }
-          if (allValues.account?.id) return { account: { id: allValues.account.id } }
-          if (allValues.contact?.id) return { contact: { id: allValues.contact.id } }
-          if (allValues.opportunity?.id) return { opportunity: { id: allValues.opportunity.id } }
-          if (allValues.lead?.id) return { lead: { id: allValues.lead.id } }
-          return {} as any
-        })()
-
-        // Upload pending files if any
-        let uploadedDocuments: Array<{ name: string; fileInfo: any }> = []
-        if (formData._pendingFiles && formData._pendingFiles.length > 0) {
-          // Use a temporary ID for folder structure during upload
-          const tempId = formData.id || 'temp-' + Date.now()
-          uploadedDocuments = await uploadFiles(formData._pendingFiles, tempId)
+        // Helper to extract entity ID from object or string
+        const getEntityId = (entity: any): string | undefined => {
+          if (!entity) return undefined
+          if (typeof entity === 'string') return entity
+          return entity.id
         }
 
-        // Combine existing documents (as objects with ID) and newly uploaded documents
-        // Backend expects all documents as objects, not mixed strings/objects
-        const existingDocumentsAsObjects = (formData.documents || [])
-          .filter((doc: any) => doc.id) // Only existing docs with IDs
-          .map((doc: any) => ({
-            id: doc.id,
-            version: doc.version
-          }))
+        // Build entity ref from whichever field is set - return IDs as strings (not objects)
+        const entityRef: Record<string, string> = {}
+        const investmentId = getEntityId(allValues.investment)
+        const accountId = getEntityId(allValues.account)
+        const contactId = getEntityId(allValues.contact)
+        const opportunityId = getEntityId(allValues.opportunity)
+        const leadId = getEntityId(allValues.lead)
 
-        const allDocuments = [...existingDocumentsAsObjects, ...uploadedDocuments]
+        if (investmentId) entityRef.investment = investmentId
+        if (accountId) entityRef.account = accountId
+        if (contactId) entityRef.contact = contactId
+        if (opportunityId) entityRef.opportunity = opportunityId
+        if (leadId) entityRef.lead = leadId
 
         const base: InvestmentTaskFormData = {
           title: data.title,
@@ -348,7 +353,7 @@ const InvestmentTaskForm: React.FC<InvestmentTaskFormProps> = ({
           assignedUserId: assignedUserId,
           creatorEmployeeId: allValues.creatorEmployeeId,
           creatorUserId: allValues.creatorUserId,
-          documents: allDocuments, // Always send array (empty array deletes all documents)
+          // documents already processed in handlePreSubmit
           ...(entityRef as any)
         }
 
@@ -369,25 +374,41 @@ const InvestmentTaskForm: React.FC<InvestmentTaskFormProps> = ({
         throw error
       }
     },
-    [accessToken, userInfo, additionalData, formData, employees, form, uploadFiles]
+    [accessToken, userInfo, additionalData, formData, employees, form]
   )
 
-  const handleSuccess = useCallback(() => {
-    onSuccess?.(formData)
-  }, [formData, onSuccess])
-
-  const handleFormSubmit = useCallback(
+  // PreSubmit handler - upload files before submission
+  const handlePreSubmit = useCallback(
     async (data: any) => {
-      try {
-        const result = await handleSubmit(data)
-        return result
-      } catch (error) {
-        console.error('Form submission failed:', error)
-        throw error
+      // Upload pending files if any
+      let uploadedDocuments: Array<{ name: string; fileInfo: any }> = []
+      if (data._pendingFiles && data._pendingFiles.length > 0) {
+        const tempId = formData.id || 'temp-' + Date.now()
+        uploadedDocuments = await uploadFiles(data._pendingFiles, tempId)
+      }
+
+      // Combine existing documents (as objects with ID) and newly uploaded documents
+      const existingDocumentsAsObjects = (data.documents || [])
+        .filter((doc: any) => doc.id)
+        .map((doc: any) => ({
+          id: doc.id,
+          version: doc.version
+        }))
+
+      const allDocuments = [...existingDocumentsAsObjects, ...uploadedDocuments]
+
+      // Return enhanced data with documents
+      return {
+        ...data,
+        documents: allDocuments
       }
     },
-    [handleSubmit, formData]
+    [formData.id, uploadFiles]
   )
+
+  const handleCancel = async () => {
+    await onCancel()
+  }
 
   const handleEntitySearch = useCallback(
     (q: string) => {
@@ -417,7 +438,7 @@ const InvestmentTaskForm: React.FC<InvestmentTaskFormProps> = ({
     if (hasEntity) return
 
     // Set investment entity in form
-    form.setValue('investment', { id: investmentId })
+    form.setValue('investment', investmentId)
     form.setValue('relatedEntityId', investmentId)
 
     // Hydrate investment details for display
@@ -431,85 +452,85 @@ const InvestmentTaskForm: React.FC<InvestmentTaskFormProps> = ({
     typeRef === 'InvestmentTaskType:v1:APPROVAL' ||
     (typeof typeRef === 'string' && typeRef.toLowerCase() === 'approval')
 
-  // Get locale for LocalizationProvider (needed for FileUpload component)
-  const locale = getCurrentActiveUserLocale() as SupportedLocale
-
   return (
-    <LocalizationProvider locale={locale}>
-      <CatalogSelect.Provider accessToken={accessToken}>
-        <AppActionForm
-          processType={formData.id ? 'update' : 'create'}
-          onSubmit={handleFormSubmit}
-          onSuccess={handleSuccess}
-          onCancel={onCancel}
-          formData={formData}
-          form={form}
-          submitButtonText={getTranslationFromI18nKeyAndLabel('crm:common.submit', 'Submit')}
-          cancelButtonText={getTranslationFromI18nKeyAndLabel('crm:common.cancel', 'Cancel')}
-          data-testid="investment-task-process-dialog"
-        >
-          <TaskSegment
-            // labels
-            titleLabel={
-              isApprovalMode
-                ? getTranslationFromI18nKeyAndLabel('crm:salesTask.title', 'Approval Name')
-                : getTranslationFromI18nKeyAndLabel('crm:salesTask.title', 'Task Name')
-            }
-            descriptionLabel={getTranslationFromI18nKeyAndLabel('crm:salesTask.description', 'Description')}
-            deadlineLabel={getTranslationFromI18nKeyAndLabel('crm:salesTask.deadline', 'Deadline')}
-            typeLabel={getTranslationFromI18nKeyAndLabel('crm:salesTask.type', 'Type')}
-            priorityLabel={getTranslationFromI18nKeyAndLabel('crm:salesTask.priority', 'Priority')}
-            statusLabel={getTranslationFromI18nKeyAndLabel('crm:salesTask.status', 'Status')}
-            assigneeLabel={getTranslationFromI18nKeyAndLabel('crm:salesTask.assignedTo', 'Assigned To')}
-            entityLabel={getTranslationFromI18nKeyAndLabel('crm:salesTask.relatedEntity', 'Related Entity')}
-            uploadFileLabel={getTranslationFromI18nKeyAndLabel('crm:salesTask.uploadFile', 'Attach Documents')}
-            onFilesChange={(files: File[]) => {
-              // Store files pending upload (will be uploaded on submit)
-              _setFormData((prev: TaskFormData) => ({
-                ...prev,
-                _pendingFiles: [...(prev._pendingFiles || []), ...files]
-              }))
-            }}
-            existingDocuments={formData.documents || []}
-            onDocumentRemove={(documentId: string) => {
-              // Remove document from list - backend will handle deletion
-              _setFormData((prev: TaskFormData) => ({
-                ...prev,
-                documents: prev.documents?.filter((doc: any) => doc.id !== documentId) || []
-              }))
-            }}
-            timingTypeLabel={getTranslationFromI18nKeyAndLabel('crm:salesTask.timingType', 'Timing Type')}
-            // catalogs
-            accessToken={accessToken}
-            typeCatalog={{ identifier: TASK_TYPE_CATALOG, version: 'v1' }}
-            priorityCatalog={{ identifier: TASK_PRIORITY_CATALOG, version: 'v1' }}
-            statusCatalog={{ identifier: TASK_STATUS_CATALOG, version: 'v1' }}
-            // entity search
-            // Hide entity selection if entity is provided from context
-            showEntitySelection={shouldShowEntitySelection}
-            requireEntity={true}
-            showAssigneeSelection={true}
-            entities={entities}
-            entitiesLoading={entitiesLoading}
-            entitiesError={Boolean(entitiesError)}
-            entitiesHasMore={entitiesHasMore}
-            onEntitySearch={handleEntitySearch}
-            onEntityLoadMore={loadMoreEntities}
-            initialEntityFromContext={{ accountId, contactId, opportunityId, leadId }}
-            // assignee combobox
-            assignees={mergedAssignees}
-            assigneesLoading={employeesLoading}
-            onAssigneeSearch={searchEmployees}
-            assigneesHasMore={employeesHasMore}
-            onAssigneeLoadMore={loadMoreEmployees}
-            data-testid="investment-task-segment"
-            // show/hide
-            showType={!isApprovalMode}
-            staticDefaults={{ taskTypeRef: isApprovalMode ? 'InvestmentTaskType:v1:APPROVAL' : undefined }}
-          />
-        </AppActionForm>
-      </CatalogSelect.Provider>
-    </LocalizationProvider>
+    <CatalogSelect.Provider accessToken={accessToken} userInfo={userInfo} additionalData={additionalData} form={form}>
+      <AppActionForm
+        processType={formData.id ? 'update' : 'create'}
+        onSubmit={handleSubmit}
+        handlePreSubmit={handlePreSubmit}
+        onCancel={handleCancel}
+        formData={form.getValues()}
+        form={form}
+        schema={taskSchema}
+        submitButtonText={getTranslationFromI18nKeyAndLabel('crm:common.submit', 'Submit')}
+        cancelButtonText={getTranslationFromI18nKeyAndLabel('crm:common.cancel', 'Cancel')}
+        data-testid="investment-task-process-dialog"
+      >
+        <TaskLayout
+          // labels
+          titleLabel={
+            isApprovalMode
+              ? getTranslationFromI18nKeyAndLabel('crm:salesTask.title', 'Approval Name')
+              : getTranslationFromI18nKeyAndLabel('crm:salesTask.title', 'Task Name')
+          }
+          descriptionLabel={getTranslationFromI18nKeyAndLabel('crm:salesTask.description', 'Description')}
+          deadlineLabel={getTranslationFromI18nKeyAndLabel('crm:salesTask.deadline', 'Deadline')}
+          typeLabel={getTranslationFromI18nKeyAndLabel('crm:salesTask.type', 'Type')}
+          priorityLabel={getTranslationFromI18nKeyAndLabel('crm:salesTask.priority', 'Priority')}
+          statusLabel={getTranslationFromI18nKeyAndLabel('crm:salesTask.status', 'Status')}
+          assigneeLabel={getTranslationFromI18nKeyAndLabel('crm:salesTask.assignedTo', 'Assigned To')}
+          entityLabel={getTranslationFromI18nKeyAndLabel('crm:salesTask.relatedEntity', 'Related Entity')}
+          uploadFileLabel={getTranslationFromI18nKeyAndLabel('crm:salesTask.uploadFile', 'Attach Documents')}
+          timingTypeLabel={getTranslationFromI18nKeyAndLabel('crm:salesTask.timingType', 'Timing Type')}
+          // catalogs
+          accessToken={accessToken}
+          typeCatalog={{ identifier: TASK_TYPE_CATALOG, version: 'v1' }}
+          priorityCatalog={{ identifier: TASK_PRIORITY_CATALOG, version: 'v1' }}
+          statusCatalog={{ identifier: TASK_STATUS_CATALOG, version: 'v1' }}
+          // entity search
+          // Hide entity selection if entity is provided from context
+          showEntitySelection={shouldShowEntitySelection}
+          requireEntity={true}
+          showAssigneeSelection={true}
+          entities={entities}
+          entitiesLoading={entitiesLoading}
+          entitiesError={Boolean(entitiesError)}
+          entitiesHasMore={entitiesHasMore}
+          onEntitySearch={handleEntitySearch}
+          onEntityLoadMore={loadMoreEntities}
+          initialEntityFromContext={{ accountId, contactId, opportunityId, leadId }}
+          // assignee combobox
+          assignees={mergedAssignees}
+          assigneesLoading={employeesLoading}
+          onAssigneeSearch={searchEmployees}
+          assigneesHasMore={employeesHasMore}
+          onAssigneeLoadMore={loadMoreEmployees}
+          onFilesChange={useCallback(
+            (files: File[]) => {
+              form.setValue('_pendingFiles', files, { shouldDirty: true })
+            },
+            [form]
+          )}
+          existingDocuments={form.watch('documents') || []}
+          onDocumentRemove={useCallback(
+            (documentId: string) => {
+              const currentDocs = form.getValues('documents') || []
+              form.setValue(
+                'documents',
+                currentDocs.filter((doc: any) => doc.id !== documentId),
+                { shouldDirty: true }
+              )
+            },
+            [form]
+          )}
+          loading={taskLoading && !!taskId}
+          // show/hide
+          showType={!isApprovalMode}
+          staticDefaults={{ taskTypeRef: isApprovalMode ? 'InvestmentTaskType:v1:APPROVAL' : undefined }}
+          data-testid="investment-task-layout"
+        />
+      </AppActionForm>
+    </CatalogSelect.Provider>
   )
 }
 

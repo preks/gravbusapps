@@ -240,6 +240,8 @@ export const buildOpportunityByIdQuery = (
       contact {
         ${relationBuilders.buildContactFragment(relationFields.contactFields)}
       }
+      contactId
+      opportunityId
     }
     
     # OpportunityStageConditions relation (field name varies: opportunityStageConditions vs investmentOpportunityStageCondition vs stageConditionStatuses)

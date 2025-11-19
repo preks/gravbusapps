@@ -49,8 +49,6 @@ export const ActivityFields = {
   title: 'title'
 } as const
 
-export type ActivityFieldName = (typeof ActivityFields)[keyof typeof ActivityFields]
-
 /**
  * Create Common Activity Descriptors with fields mapping
  */

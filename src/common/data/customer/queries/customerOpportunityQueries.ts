@@ -83,6 +83,7 @@ export const buildCustomerOpportunityQuery = (
     salesCampaign {
       ${CUSTOMER_CAMPAIGN_REF}
     }
+    salesCampaignId
   `
   return buildOpportunityQuery('Opportunity', fields, entityFields)
 }
@@ -145,6 +146,7 @@ export const buildCustomerOpportunityByIdQuery = (
     salesCampaign {
       ${CUSTOMER_CAMPAIGN_REF}
     }
+    salesCampaignId
   `
 
   return buildOpportunityByIdQuery('Opportunity', fields, relationBuilders, relationFields, entityFields)

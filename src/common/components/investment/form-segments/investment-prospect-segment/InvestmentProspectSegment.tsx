@@ -1,24 +1,43 @@
 import React from 'react'
 import { useFormContext } from 'react-hook-form'
-import { DynamicForm } from '@/components/dynamic-form'
-import { FormField, FormItem, FormLabel, FormControl, FormMessage, Input } from '@newwork/nw-design-system'
+import { DynamicForm, DynamicFormConfiguration } from '@/components/dynamic-form'
+import {
+  FormField,
+  FormItem,
+  FormLabel,
+  FormControl,
+  FormMessage,
+  Input,
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue
+} from '@newwork/nw-design-system'
 import { BusinessAppContextProps } from '@/common/BusinessAppContext'
-import { useProspectFields } from './useProspectFields'
+import { FilteredGroup, FilteredType } from './useProspectFields'
 import { formatDataTestId } from '@/common/utils/formatDataTestId'
 import { InvestmentTypeSelect } from '../investment-type-select'
-import { CatalogSelect } from '@/components/catalog-select'
 
 interface InvestmentProspectSegmentProps {
-  /** Investment Group ID (catalog entry ID) */
-  investmentGroupId?: string | null
-  /** Investment Type ID (catalog entry ID) */
-  investmentTypeId?: string | null
+  /** Investment Group Ref (catalog entry ID) - matches interface field name */
+  investmentGroupRef?: string | null
+  /** Investment Type Ref (catalog entry ID) - matches interface field name */
+  investmentTypeRef?: string | null
   /** Business app context for API access */
   businessAppContext?: BusinessAppContextProps
   /** Optional data-testid prefix */
   testIdPrefix?: string
   /** Optional currency symbol for amount fields */
   currencySymbol?: string
+  /** Prospect fields configuration (passed from parent) */
+  configuration?: DynamicFormConfiguration | null
+  /** Filtered groups with referenceFields (passed from parent) */
+  groups?: FilteredGroup[]
+  /** Filtered types for selected group (passed from parent) */
+  types?: FilteredType[]
+  /** Loading state (passed from parent) */
+  isLoading?: boolean
 }
 
 /**
@@ -27,36 +46,42 @@ interface InvestmentProspectSegmentProps {
  * Renders dynamic prospect fields (referenceFields) from Investment Group/Type catalog configuration.
  * Uses DynamicForm to render form fields based on referenceFields configuration.
  *
+ * Receives all catalog data as props from parent component (LeadForm/OpportunityForm) to avoid duplicate requests.
+ *
  * @example
  * ```tsx
  * <InvestmentProspectSegment
- *   investmentGroupId={formValues.investmentGroup?.id}
- *   investmentTypeId={formValues.investmentType?.id}
+ *   investmentGroupRef={formValues.investmentGroupRef}
+ *   investmentTypeRef={formValues.investmentTypeRef}
  *   businessAppContext={businessAppContext}
+ *   configuration={configuration}
+ *   groups={groups}
+ *   types={types}
+ *   isLoading={isLoading}
  *   testIdPrefix="LeadForm"
  * />
  * ```
  */
 export const InvestmentProspectSegment: React.FC<InvestmentProspectSegmentProps> = ({
-  investmentGroupId,
-  investmentTypeId: initialInvestmentTypeId,
+  investmentGroupRef: initialInvestmentGroupRef,
+  investmentTypeRef: initialInvestmentTypeRef,
   businessAppContext,
   testIdPrefix = 'InvestmentProspectSegment',
-  currencySymbol
+  currencySymbol,
+  configuration = null,
+  groups = [],
+  types = [],
+  isLoading = false
 }) => {
   const { control, watch, setValue } = useFormContext()
 
-  // Watch the investment type from form state (in case it changes via InvestmentTypeSelect)
-  const formInvestmentType = watch('investmentType')
-  const currentInvestmentTypeId =
-    typeof formInvestmentType === 'object' ? formInvestmentType?.id : formInvestmentType || initialInvestmentTypeId
+  // Watch investmentGroupRef and investmentTypeRef from form state (matches interface)
+  const formInvestmentGroupRef = watch('investmentGroupRef')
+  const formInvestmentTypeRef = watch('investmentTypeRef')
 
-  // Load prospect fields configuration from catalog
-  const { configuration, isLoading, error } = useProspectFields({
-    investmentGroupId,
-    investmentTypeId: currentInvestmentTypeId,
-    businessAppContext
-  })
+  // Use form values directly (they are already strings) or fallback to initial props
+  const currentInvestmentGroupRef = formInvestmentGroupRef || initialInvestmentGroupRef || null
+  const currentInvestmentTypeRef = formInvestmentTypeRef || initialInvestmentTypeRef || null
 
   return (
     <div data-testid={formatDataTestId(testIdPrefix, 'Container')} className="gba:space-y-6">
@@ -79,24 +104,35 @@ export const InvestmentProspectSegment: React.FC<InvestmentProspectSegmentProps>
         )}
       />
 
-      {/* Investment Group Selection - Always visible */}
+      {/* Investment Group Selection - Always visible (filtered to only groups with referenceFields) */}
       <FormField
         control={control}
-        name="investmentGroup"
+        name="investmentGroupRef"
         render={({ field }) => (
           <FormItem>
             <FormLabel>Investment Group</FormLabel>
             <FormControl>
-              <CatalogSelect
-                catalogIdentifier="InvestmentGroup:v1"
+              <Select
                 value={field.value || ''}
                 onValueChange={v => {
                   field.onChange(v || '')
                   // Clear investment type when group changes
-                  setValue('investmentType', null)
+                  setValue('investmentTypeRef', null)
                 }}
+                disabled={isLoading}
                 data-testid={formatDataTestId(testIdPrefix, 'investment-group')}
-              />
+              >
+                <SelectTrigger>
+                  <SelectValue placeholder="Select investment group..." />
+                </SelectTrigger>
+                <SelectContent>
+                  {groups.map(group => (
+                    <SelectItem key={group.id} value={group.value}>
+                      {group.label}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
             </FormControl>
             <FormMessage />
           </FormItem>
@@ -104,22 +140,24 @@ export const InvestmentProspectSegment: React.FC<InvestmentProspectSegmentProps>
       />
 
       {/* Investment Type Selection and prospect fields - only if investment group is selected */}
-      {investmentGroupId && (
+      {currentInvestmentGroupRef && (
         <>
           {/* Investment Type Selection - shown before prospect fields */}
           <InvestmentTypeSelect
-            investmentGroupId={investmentGroupId}
-            fieldName="investmentType"
+            investmentGroupRef={currentInvestmentGroupRef}
+            fieldName="investmentTypeRef"
             businessAppContext={businessAppContext}
             testIdPrefix={formatDataTestId(testIdPrefix, 'type-select')}
             required={false}
             readOnly={false}
             label="Investment Type"
             description="Select the investment type to configure investment details"
+            types={types}
+            isLoading={isLoading}
           />
 
           {/* Render DynamicForm with prospect fields configuration - only if type is selected */}
-          {currentInvestmentTypeId && (
+          {currentInvestmentTypeRef && (
             <DynamicForm
               configuration={configuration || { formFields: [] }}
               control={control}
@@ -127,7 +165,7 @@ export const InvestmentProspectSegment: React.FC<InvestmentProspectSegmentProps>
               testIdPrefix={formatDataTestId(testIdPrefix, 'prospect-fields')}
               currencySymbol={currencySymbol}
               isLoading={isLoading}
-              error={error}
+              error={null}
               emptyMessage="No investment details fields configured for this investment type"
             />
           )}

@@ -1,6 +1,7 @@
-import React, { useState, useMemo } from 'react'
+import React, { useMemo } from 'react'
 import { BusinessAppContextProps } from '@/common/BusinessAppContext'
-import { Accordion, useTranslation } from '@newwork/nw-design-system'
+import { useTranslation, Skeleton } from '@newwork/nw-design-system'
+import { FormAccordion } from '@/components/form-accordion'
 import { AccountInformationSegment } from '../../form-segments/account-information-segment'
 import { AccountDetailsSegment } from '../../form-segments/account-details-segment'
 import { AddressSegment } from '../../form-segments/address-segment'
@@ -9,15 +10,8 @@ import type { SelectOption as ContactSelectOption } from '../../selects/contact-
 import translations from './_i18n'
 
 interface AccountLayoutProps {
-  // Business app context for EmployeeSelect and file uploads
+  // Business app context for EmployeeSelect
   businessAppContext?: BusinessAppContextProps
-
-  // Upload configuration (provided by the form, from its respective constants)
-  uploadConfig?: {
-    appName: string
-    accessScope: 'public' | 'private' | 'tenant'
-    getAvatarPath: (entityId: string | undefined) => string
-  }
 
   // Owner employee from account data (to display immediately in EmployeeSelect)
   ownerEmployee?: any
@@ -29,20 +23,14 @@ interface AccountLayoutProps {
   annualRevenueCatalogIdentifier?: string // e.g., "RevenueSize:v1" (CRM) or "AccountAnnualRevenueBand:v1" (IRM)
   companySizeCatalogIdentifier?: string // e.g., "EmployeeSize:v1" (CRM) or "CompanySize:v1" (IRM)
 
-  // Avatar image for preview (from existing account data)
-  avatarImage?: string
-
-  // Contact selection props
-  contacts?: ContactSelectOption[]
-  contactsLoading?: boolean
-  contactsError?: string | null
-  searchContacts?: (search: string) => void
-
-  // Address data from account query (for immediate display of country/region)
-  addresses?: Array<{
-    country?: { id: string; value: string; displayValue?: string; additionalValue3?: string }
-    region?: { id: string; value: string; displayValue?: string; additionalValue3?: string }
-  }>
+  // Contact selection hook result
+  // When mapToSelectOptions: true is used, options will always be SelectOption[]
+  contactsHook?: {
+    options: ContactSelectOption[]
+    loading: boolean
+    error: string | null
+    search: (searchTerm: string) => void
+  }
 
   // Custom fields injection for AccountInformationSegment
   accountInformationCustomFields?: React.ReactNode
@@ -59,29 +47,30 @@ interface AccountLayoutProps {
     title: string
     content: React.ReactNode
   }>
+
+  // Ref to store current file and thumbnail (for handlePreSubmit in form component)
+  avatarFileRef?: React.MutableRefObject<{ file: File; thumbnail: string } | null>
+
+  // Loading state - shows skeletons while data is being fetched
+  loading?: boolean
 }
 
 const AccountLayout: React.FC<AccountLayoutProps> = ({
   businessAppContext,
-  uploadConfig,
   ownerEmployee,
   entityId,
   annualRevenueCatalogIdentifier = 'AccountAnnualRevenueBand:v1',
   companySizeCatalogIdentifier = 'CompanySize:v1',
-  avatarImage,
-  contacts,
-  contactsLoading,
-  contactsError,
-  searchContacts,
-  addresses,
+  contactsHook,
   accountInformationCustomFields,
   accountDetailsCustomFields,
   addressCustomFields,
   communicationCustomFields,
-  customSegments = []
+  customSegments = [],
+  avatarFileRef,
+  loading = false
 }) => {
   const { t } = useTranslation(translations)
-  const [accordionValue, setAccordionValue] = useState<string | string[]>([])
 
   const accordionItems = useMemo(
     () => [
@@ -93,7 +82,7 @@ const AccountLayout: React.FC<AccountLayoutProps> = ({
       {
         id: 'address-information',
         title: t('address-title'),
-        content: <AddressSegment addresses={addresses} customFields={addressCustomFields} />
+        content: <AddressSegment customFields={addressCustomFields} />
       },
       {
         id: 'financial-information',
@@ -110,7 +99,6 @@ const AccountLayout: React.FC<AccountLayoutProps> = ({
     ],
     [
       t,
-      addresses,
       annualRevenueCatalogIdentifier,
       companySizeCatalogIdentifier,
       accountDetailsCustomFields,
@@ -120,29 +108,49 @@ const AccountLayout: React.FC<AccountLayoutProps> = ({
     ]
   )
 
+  // Show skeletons while loading (after all hooks)
+  if (loading) {
+    return (
+      <div data-testid="account-layout-loading" className="gba:space-y-6">
+        {/* Account Information Skeleton */}
+        <div className="gba:space-y-4">
+          <div className="gba:flex gba:items-center gba:gap-4">
+            <Skeleton className="gba:h-20 gba:w-20 gba:rounded-full" />
+            <div className="gba:flex-1 gba:space-y-2">
+              <Skeleton className="gba:h-6 gba:w-3/4" />
+              <Skeleton className="gba:h-4 gba:w-1/2" />
+            </div>
+          </div>
+          <Skeleton className="gba:h-10 gba:w-full" />
+          <Skeleton className="gba:h-10 gba:w-full" />
+          <Skeleton className="gba:h-10 gba:w-3/4" />
+          <Skeleton className="gba:h-10 gba:w-full" />
+          <Skeleton className="gba:h-32 gba:w-full" />
+        </div>
+        {/* Accordion Skeleton */}
+        <div className="gba:space-y-2">
+          <Skeleton className="gba:h-12 gba:w-full" />
+          <Skeleton className="gba:h-12 gba:w-full" />
+          <Skeleton className="gba:h-12 gba:w-full" />
+        </div>
+      </div>
+    )
+  }
+
   return (
     <div data-testid="account-layout">
       {/* Account Information - Not in Accordion */}
       <AccountInformationSegment
         businessAppContext={businessAppContext}
-        uploadConfig={uploadConfig}
         ownerEmployee={ownerEmployee}
         entityId={entityId}
-        avatarImage={avatarImage}
-        contacts={contacts}
-        contactsLoading={contactsLoading}
-        contactsError={contactsError}
-        searchContacts={searchContacts}
+        contactsHook={contactsHook}
         customFields={accountInformationCustomFields}
+        avatarFileRef={avatarFileRef}
       />
 
       {/* Other Segments in Accordion */}
-      <Accordion
-        className="gba:w-full gba:[&>div[data-slot=accordion-item]]:bg-transparent gba:[&_button[data-slot=accordion-trigger]]:bg-transparent gba:[&_button[data-slot=accordion-trigger][data-state=open]]:bg-transparent gba:[&_button[data-slot=accordion-trigger]]:pl-0 gba:[&_[data-slot=accordion-content]>div]:bg-transparent gba:[&_[data-slot=accordion-content]>div]:p-0"
-        value={accordionValue}
-        onValueChange={value => setAccordionValue(value)}
-        items={accordionItems}
-      />
+      <FormAccordion items={accordionItems} className="gba:w-full" data-testid="account-layout-accordion" />
     </div>
   )
 }

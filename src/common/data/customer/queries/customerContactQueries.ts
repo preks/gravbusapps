@@ -28,6 +28,7 @@ import {
   buildOpportunityFragment,
   buildTaskFragment
 } from '@/common/data/relations/queries/relationFragments'
+import { CUSTOMER_CAMPAIGN_REF } from './fragments/customerReferenceFragments'
 
 // Import Customer Fields
 import { CustomerActivityFields } from '../types/customerActivityTypes'
@@ -85,6 +86,11 @@ export const buildCustomerContactQuery = (fields: typeof CustomerContactFields =
     ${fields.leads} {
       ${buildLeadFragment(CustomerLeadFields)}
     }
+    # CRM-specific fields
+    salesCampaign {
+      ${CUSTOMER_CAMPAIGN_REF}
+    }
+    salesCampaignId
   `
   return buildContactQuery('Contact', fields, relationBuilders, relationFields, entityFields)
 }
@@ -130,6 +136,11 @@ export const buildCustomerContactByIdQuery = (fields: typeof CustomerContactFiel
     ${fields.leads} {
       ${buildLeadFragment(CustomerLeadFields)}
     }
+    # CRM-specific fields
+    salesCampaign {
+      ${CUSTOMER_CAMPAIGN_REF}
+    }
+    salesCampaignId
   `
 
   return buildContactByIdQuery('Contact', fields, relationBuilders, relationFields, entityFields)

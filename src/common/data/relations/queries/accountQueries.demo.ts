@@ -25,12 +25,10 @@ export interface AccountQueryOptions {
 
   // Welche Felder sollen geholt werden? (Array von Account Interface Keys)
   // Leer = nur Basis-Felder (id, code, name, audit fields)
-  fields?: Array<keyof Account>
+  // Enthält sowohl normale Felder als auch Relations (z.B. 'documents', 'notes', 'tasks')
+  fields?: Array<keyof Account | string>
 
-  // Welche Relations sollen geholt werden?
-  relations?: string[] // z.B. ['documents', 'notes', 'tasks', 'accountContacts']
-
-  // Relation field mappings (nur wenn relations angegeben)
+  // Field mappings für Relations
   relationFields?: {
     contactFields?: Record<string, string>
     documentFields?: Record<string, string>
@@ -54,12 +52,11 @@ export interface AccountQueryOptions {
  * Gibt nur den Query-Inhalt zurück (Felder zwischen geschweiften Klammern)
  * Die komplette Query-Struktur wird vom Hook gebaut
  *
- * @param entityName - GraphQL entity name (z.B. 'Account', 'InvestmentAccount')
- * @param options - Query options mit fields, relations, etc.
+ * @param options - Query options mit fields, etc.
  * @returns GraphQL query content string
  */
-export const buildAccountQuery = (entityName: string, options: AccountQueryOptions): string => {
-  const { entityFields, fields = [], relations = [], relationFields = {}, relationPagination = {} } = options
+export const buildAccountQuery = (options: AccountQueryOptions): string => {
+  const { entityFields, fields = [], relationFields = {}, relationPagination = {} } = options
 
   // Default values für Relations (immer gesetzt)
   const relationLimit = relationPagination.limit ?? 10
@@ -79,7 +76,7 @@ export const buildAccountQuery = (entityName: string, options: AccountQueryOptio
         : ''
     }
     ${
-      relations.includes('accountContacts') && relationFields.contactFields
+      fields.includes('accountContacts') && relationFields.contactFields
         ? `
       ${entityFields.accountContacts}(
         where: { isDeleted: { _eq: false } }
@@ -130,7 +127,7 @@ export const buildAccountQuery = (entityName: string, options: AccountQueryOptio
         : ''
     }
     ${
-      relations.includes('activities') && relationFields.activityFields
+      fields.includes('activities') && relationFields.activityFields
         ? `
       ${entityFields.activities}(
         where: { isDeleted: { _eq: false } }
@@ -167,7 +164,7 @@ export const buildAccountQuery = (entityName: string, options: AccountQueryOptio
         : ''
     }
     ${
-      relations.includes('addresses')
+      fields.includes('addresses')
         ? `
       ${entityFields.addresses}(
         where: { isDeleted: { _eq: false } }
@@ -205,7 +202,7 @@ export const buildAccountQuery = (entityName: string, options: AccountQueryOptio
         : ''
     }
     ${
-      relations.includes('contacts') && relationFields.contactFields
+      fields.includes('contacts') && relationFields.contactFields
         ? `
       ${entityFields.contacts}(
         where: { isDeleted: { _eq: false } }
@@ -225,7 +222,7 @@ export const buildAccountQuery = (entityName: string, options: AccountQueryOptio
         : ''
     }
     ${
-      relations.includes('documents') && relationFields.documentFields
+      fields.includes('documents') && relationFields.documentFields
         ? `
       ${entityFields.documents}(
         where: { isDeleted: { _eq: false } }
@@ -266,7 +263,7 @@ export const buildAccountQuery = (entityName: string, options: AccountQueryOptio
         : ''
     }
     ${
-      relations.includes('leads') && relationFields.leadFields
+      fields.includes('leads') && relationFields.leadFields
         ? `
       ${entityFields.leads}(
         where: { isDeleted: { _eq: false } }
@@ -305,7 +302,7 @@ export const buildAccountQuery = (entityName: string, options: AccountQueryOptio
     ${fields.includes('liquidationDate') ? entityFields.liquidationDate : ''}
     ${entityFields.name}
     ${
-      relations.includes('notes') && relationFields.noteFields
+      fields.includes('notes') && relationFields.noteFields
         ? `
       ${entityFields.notes}(
         where: { isDeleted: { _eq: false } }
@@ -332,7 +329,7 @@ export const buildAccountQuery = (entityName: string, options: AccountQueryOptio
     }
     ${fields.includes('notesSummary') ? entityFields.notesSummary : ''}
     ${
-      relations.includes('opportunities') && relationFields.opportunityFields
+      fields.includes('opportunities') && relationFields.opportunityFields
         ? `
       ${entityFields.opportunities}(
         where: { isDeleted: { _eq: false } }
@@ -380,7 +377,7 @@ export const buildAccountQuery = (entityName: string, options: AccountQueryOptio
     ${fields.includes('picture') ? entityFields.picture : ''}
     ${fields.includes('pictureThumbnail') ? entityFields.pictureThumbnail : ''}
     ${
-      relations.includes('tasks') && relationFields.taskFields
+      fields.includes('tasks') && relationFields.taskFields
         ? `
       ${entityFields.tasks}(
         where: { isDeleted: { _eq: false } }
@@ -450,7 +447,7 @@ export const buildAccountQuery = (entityName: string, options: AccountQueryOptio
  * Beispiel 1: Minimal - nur Basis-Felder
  */
 export const exampleMinimal = () => {
-  buildAccountQuery('Account', {
+  buildAccountQuery({
     entityFields: AccountFields,
     fields: [] // nur id, code, name, audit fields
   })
@@ -470,7 +467,7 @@ export const exampleMinimal = () => {
  * Beispiel 2: Mit Feldern
  */
 export const exampleWithFields = () => {
-  buildAccountQuery('Account', {
+  buildAccountQuery({
     entityFields: AccountFields,
     fields: ['ownerEmployee', 'industryClass', 'foundationDate', 'website', 'legalForm', 'companySize']
   })
@@ -481,10 +478,9 @@ export const exampleWithFields = () => {
  */
 export const exampleWithRelations = () => {
   // Annahme: CustomerDocumentFields, CustomerContactFields existieren
-  buildAccountQuery('Account', {
+  buildAccountQuery({
     entityFields: AccountFields,
-    fields: ['ownerEmployee', 'industryClass'],
-    relations: ['documents', 'accountContacts', 'tasks'],
+    fields: ['ownerEmployee', 'industryClass', 'documents', 'accountContacts', 'tasks'],
     relationFields: {
       documentFields: {
         id: 'id',
@@ -534,10 +530,9 @@ export const exampleWithRelations = () => {
  * Beispiel 4: Mit Domain-specific Fields (Investment)
  */
 export const exampleWithAdditionalFields = () => {
-  buildAccountQuery('InvestmentAccount', {
+  buildAccountQuery({
     entityFields: AccountFields, // InvestmentAccountFields in real
-    fields: ['ownerEmployee', 'industryClass'],
-    relations: ['documents', 'accountContacts'],
+    fields: ['ownerEmployee', 'industryClass', 'documents', 'accountContacts'],
     relationFields: {
       documentFields: {
         id: 'id',
@@ -566,10 +561,9 @@ export const exampleHookUsage = () => {
   /*
   const fetchAccounts = useCallback(async (variables: AccountQueryVariables) => {
     // 1. Query-Inhalt bauen
-    const queryContent = buildAccountQuery('Account', {
+    const queryContent = buildAccountQuery({
       entityFields: CustomerAccountFields,
-      fields: ['ownerEmployee', 'industryClass', 'foundationDate'],
-      relations: ['documents', 'accountContacts'],
+      fields: ['ownerEmployee', 'industryClass', 'foundationDate', 'documents', 'accountContacts'],
       relationFields: {
         documentFields: CustomerDocumentFields,
         contactFields: CustomerContactFields
@@ -640,9 +634,9 @@ export const ACCOUNT_LIST_CONFIG: AccountQueryOptions = {
     'companySize',
     'ownerEmployee',
     'foundationDate',
-    'pictureThumbnail' // Für Avatar in Tabelle
+    'pictureThumbnail', // Für Avatar in Tabelle
+    'addresses' // Für Adress-Anzeige in Tabelle
   ],
-  relations: ['addresses'], // Für Adress-Anzeige in Tabelle
   relationPagination: {
     limit: 1, // Nur erste Adresse für Tabelle
     offset: 0
@@ -674,9 +668,7 @@ export const ACCOUNT_RECORD_CONFIG: AccountQueryOptions = {
     'website',
     'picture',
     'pictureThumbnail',
-    'notesSummary'
-  ],
-  relations: [
+    'notesSummary',
     'addresses',
     'documents',
     'notes',

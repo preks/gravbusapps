@@ -87,11 +87,32 @@ export const InvestmentOpportunityFields = {
   // Override IRM-specific field names
   leads: 'investmentLead',
   opportunityContacts: 'investmentOpportunityContact',
-  opportunityStageConditions: 'investmentOpportunityStageCondition'
+  opportunityStageConditions: 'investmentOpportunityStageCondition',
+  // IRM-specific fields
+  annualNetColdRent: 'annualNetColdRent',
+  buildingYear: 'buildingYear',
+  dealType: 'dealType',
+  divestmentId: 'divestmentId',
+  forecastedProfitAmount: 'forecastedProfitAmount',
+  initialInvestmentAmount: 'initialInvestmentAmount',
+  investmentGroup: 'investmentGroup',
+  investmentGroupRef: 'investmentGroupRef',
+  investmentName: 'investmentName',
+  investmentRole: 'investmentRole',
+  investmentRoleRef: 'investmentRoleRef',
+  investmentStakeType: 'investmentStakeType',
+  investmentStakeTypeRef: 'investmentStakeTypeRef',
+  investmentType: 'investmentType',
+  investmentTypeRef: 'investmentTypeRef',
+  loanAmount: 'loanAmount',
+  loanInterestRate: 'loanInterestRate',
+  marketValue: 'marketValue',
+  requiredCapitalAmount: 'requiredCapitalAmount',
+  size: 'size',
+  sizeMeasurementUnit: 'sizeMeasurementUnit',
+  sizeMeasurementUnitRef: 'sizeMeasurementUnitRef',
+  stakePercentage: 'stakePercentage'
 } as const
-
-export type InvestmentOpportunityFieldName =
-  (typeof InvestmentOpportunityFields)[keyof typeof InvestmentOpportunityFields]
 
 /**
  * Investment Opportunity Stage Condition Query Field Mapping
@@ -100,9 +121,6 @@ export type InvestmentOpportunityFieldName =
 export const InvestmentOpportunityStageConditionFields = {
   ...OpportunityStageConditionFields
 } as const
-
-export type InvestmentOpportunityStageConditionFieldName =
-  (typeof InvestmentOpportunityStageConditionFields)[keyof typeof InvestmentOpportunityStageConditionFields]
 
 /**
  * Investment Opportunity Descriptors
@@ -236,7 +254,18 @@ export const investmentOpportunityFormFields = {
   investmentRoleRef: 'investmentRoleRef',
   investmentStakeTypeRef: 'investmentStakeTypeRef',
   investmentTypeRef: 'investmentTypeRef',
-  sizeMeasurementUnitRef: 'sizeMeasurementUnitRef'
+  sizeMeasurementUnitRef: 'sizeMeasurementUnitRef',
+  // IRM-specific prospect fields (dynamically added based on investmentGroup/investmentType)
+  annualNetColdRent: 'annualNetColdRent',
+  buildingYear: 'buildingYear',
+  forecastedProfitAmount: 'forecastedProfitAmount',
+  initialInvestmentAmount: 'initialInvestmentAmount',
+  loanAmount: 'loanAmount',
+  loanInterestRate: 'loanInterestRate',
+  marketValue: 'marketValue',
+  requiredCapitalAmount: 'requiredCapitalAmount',
+  size: 'size',
+  stakePercentage: 'stakePercentage'
 } as const
 
 /**
@@ -254,15 +283,8 @@ export const investmentOpportunityFormFields = {
  */
 export const buildInvestmentOpportunityPayload = (opportunity: Partial<InvestmentOpportunity>) => {
   // Build base payload using investmentOpportunityFormFields for field mapping
+  // opportunityContacts is automatically processed by buildPayload (like accountContacts in AccountForm)
   const basePayload = buildPayload(opportunity, investmentOpportunityFormFields)
-
-  // Handle contact associations separately (not in formFields)
-  if ((opportunity as any).contactIds && (opportunity as any).contactIds.length > 0 && opportunity.id) {
-    basePayload.opportunityContacts = buildOpportunityContactAssociations(
-      (opportunity as any).contactIds,
-      opportunity.id
-    )
-  }
 
   return {
     investmentOpportunity: basePayload

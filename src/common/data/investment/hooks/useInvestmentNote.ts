@@ -1,7 +1,6 @@
 // Investment Note hook - single note by ID with automatic state management
 import { useState, useEffect, useCallback } from 'react'
 import { useGraphQLClient } from '@/common/network/graphql/useGraphQLClient'
-import { BusinessAppContextProps } from '@/common/BusinessAppContext'
 import type { InvestmentNote } from '../types/investmentNoteTypes'
 import { toInvestmentNote } from '../mappers/investmentRelatedEntityMappers'
 import { buildInvestmentNoteByIdQuery } from '../queries/investmentNoteQueries'
@@ -17,12 +16,12 @@ export interface UseInvestmentNoteResult {
  * Declarative hook for fetching a single investment note by ID.
  * Automatically fetches data when component mounts or ID changes.
  *
- * @param context - Business app context with access token
+ * @param accessToken - Access token for authentication
  * @param id - Note ID to fetch
  *
  * @example
  * // Basic usage
- * const { note, loading, error } = useInvestmentNote(context, noteId)
+ * const { note, loading, error } = useInvestmentNote(accessToken, noteId)
  *
  * if (loading) return <Spinner />
  * if (error) return <Alert>{error}</Alert>
@@ -31,7 +30,7 @@ export interface UseInvestmentNoteResult {
  *
  * @example
  * // With refetch
- * const { note, loading, refetch } = useInvestmentNote(context, noteId)
+ * const { note, loading, refetch } = useInvestmentNote(accessToken, noteId)
  *
  * return (
  *   <div>
@@ -40,8 +39,8 @@ export interface UseInvestmentNoteResult {
  *   </div>
  * )
  */
-export function useInvestmentNote(context: BusinessAppContextProps, id: string | undefined): UseInvestmentNoteResult {
-  const graphqlClient = useGraphQLClient(context.accessToken)
+export function useInvestmentNote(accessToken: string, id: string | undefined): UseInvestmentNoteResult {
+  const graphqlClient = useGraphQLClient(accessToken)
 
   const [state, setState] = useState<Omit<UseInvestmentNoteResult, 'refetch'>>({
     note: null,
@@ -51,7 +50,7 @@ export function useInvestmentNote(context: BusinessAppContextProps, id: string |
 
   const fetchNote = useCallback(async () => {
     // Don't fetch if no ID or no access token
-    if (!id || !context.accessToken) {
+    if (!id || !accessToken) {
       setState(prev => ({ ...prev, loading: false }))
       return
     }
@@ -74,7 +73,7 @@ export function useInvestmentNote(context: BusinessAppContextProps, id: string |
       console.error('Error fetching investment note:', error)
       setState({ note: null, loading: false, error: errorMessage })
     }
-  }, [id, context.accessToken, graphqlClient])
+  }, [id, accessToken, graphqlClient])
 
   // Auto-fetch on mount and when dependencies change
   useEffect(() => {

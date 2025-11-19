@@ -1,7 +1,6 @@
 // Investment Contact hook - single contact by ID with automatic state management
 import { useState, useEffect, useCallback } from 'react'
 import { useGraphQLClient } from '@/common/network/graphql/useGraphQLClient'
-import { BusinessAppContextProps } from '@/common/BusinessAppContext'
 import { toInvestmentContact, type InvestmentContact } from '../types/investmentContactTypes'
 import { buildInvestmentContactByIdQuery } from '../queries/investmentContactQueries'
 
@@ -16,12 +15,12 @@ export interface UseInvestmentContactResult {
  * Declarative hook for fetching a single investment contact by ID.
  * Automatically fetches data when component mounts or ID changes.
  *
- * @param context - Business app context with access token
+ * @param accessToken - Access token for authentication
  * @param id - Contact ID to fetch
  *
  * @example
  * // Basic usage
- * const { contact, loading, error } = useInvestmentContact(context, contactId)
+ * const { contact, loading, error } = useInvestmentContact(accessToken, contactId)
  *
  * if (loading) return <Spinner />
  * if (error) return <Alert>{error}</Alert>
@@ -30,7 +29,7 @@ export interface UseInvestmentContactResult {
  *
  * @example
  * // With refetch
- * const { contact, loading, refetch } = useInvestmentContact(context, contactId)
+ * const { contact, loading, refetch } = useInvestmentContact(accessToken, contactId)
  *
  * return (
  *   <div>
@@ -39,11 +38,8 @@ export interface UseInvestmentContactResult {
  *   </div>
  * )
  */
-export function useInvestmentContact(
-  context: BusinessAppContextProps,
-  id: string | undefined
-): UseInvestmentContactResult {
-  const graphqlClient = useGraphQLClient(context.accessToken)
+export function useInvestmentContact(accessToken: string, id: string | undefined): UseInvestmentContactResult {
+  const graphqlClient = useGraphQLClient(accessToken)
 
   const [state, setState] = useState<Omit<UseInvestmentContactResult, 'refetch'>>({
     contact: null,
@@ -53,7 +49,7 @@ export function useInvestmentContact(
 
   const fetchContact = useCallback(async () => {
     // Don't fetch if no ID or no access token
-    if (!id || !context.accessToken) {
+    if (!id || !accessToken) {
       setState(prev => ({ ...prev, loading: false }))
       return
     }
@@ -78,7 +74,7 @@ export function useInvestmentContact(
       console.error('Error fetching investment contact:', error)
       setState({ contact: null, loading: false, error: errorMessage })
     }
-  }, [id, context.accessToken, graphqlClient])
+  }, [id, accessToken, graphqlClient])
 
   // Auto-fetch on mount and when dependencies change
   useEffect(() => {

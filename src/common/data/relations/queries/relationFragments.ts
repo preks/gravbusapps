@@ -213,7 +213,7 @@ export const buildLeadFragment = (fields: Record<keyof typeof LeadFields, string
   }
   ${fields.ownerEmployeeId}
   ${fields.phoneNumber}
-  ${fields.position}
+  ${fields.jobPosition}
   ${fields.postalCode}
   ${fields.region} {
     ${CATALOG_ENTRY}

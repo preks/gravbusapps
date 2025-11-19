@@ -112,7 +112,6 @@ const TaskSegment: React.FC<TaskSegmentProps> = ({
   priorityCatalog,
   statusCatalog,
   showEntitySelection = false,
-  requireEntity = false,
   entities = [],
   entitiesLoading = false,
   onEntitySearch,
@@ -275,7 +274,7 @@ const TaskSegment: React.FC<TaskSegmentProps> = ({
     ]
     const found = map.find(m => m.id)
     if (found?.id) {
-      form.setValue(found.key, { id: found.id })
+      form.setValue(found.key, found.id)
       form.setValue('relatedEntityId', found.id)
     }
   }, [initialEntityFromContext, form])
@@ -294,10 +293,7 @@ const TaskSegment: React.FC<TaskSegmentProps> = ({
         name="title"
         render={({ field }) => (
           <FormItem>
-            <FormLabel>
-              {titleLabel}
-              <span className="gba:text-destructive">*</span>
-            </FormLabel>
+            <FormLabel>{titleLabel}</FormLabel>
             <FormControl>
               <Input placeholder="Please Enter..." data-testid={`${dataTestId}-title`} {...field} />
             </FormControl>
@@ -314,10 +310,7 @@ const TaskSegment: React.FC<TaskSegmentProps> = ({
           name="dueDate"
           render={({ field }) => (
             <FormItem>
-              <FormLabel>
-                {deadlineLabel}
-                <span className="gba:text-destructive">*</span>
-              </FormLabel>
+              <FormLabel>{deadlineLabel}</FormLabel>
               <FormControl>
                 <Input
                   className="gba:w-full"
@@ -447,7 +440,7 @@ const TaskSegment: React.FC<TaskSegmentProps> = ({
                   employees={assigneeOptions as any}
                   value={field.value || ''}
                   onValueChange={(v: string | null) => {
-                    field.onChange(v)
+                    field.onChange(v || '')
                     const uid = assigneeUserMap.get(String(v || ''))
                     if (uid) {
                       form.setValue('assignedUserId', uid)
@@ -473,16 +466,13 @@ const TaskSegment: React.FC<TaskSegmentProps> = ({
           name="relatedEntityId"
           render={({ field }) => (
             <FormItem>
-              <FormLabel>
-                {entityLabel || 'Related Entity'}
-                {requireEntity && <span className="gba:text-destructive">*</span>}
-              </FormLabel>
+              <FormLabel>{entityLabel || 'Related Entity'}</FormLabel>
               <FormControl>
                 <EntitySelect
                   entities={entitySelectOptions as any}
                   value={field.value || ''}
                   onValueChange={(v: string | null) => {
-                    field.onChange(v)
+                    field.onChange(v || '')
                     const id = String(v || '')
                     const e = (entities || []).find(x => x.id === id)
                     form.setValue('account', undefined)
@@ -491,7 +481,7 @@ const TaskSegment: React.FC<TaskSegmentProps> = ({
                     form.setValue('lead', undefined)
                     form.setValue('investment', undefined)
                     if (e) {
-                      form.setValue(e.type, { id: e.id })
+                      form.setValue(e.type, e.id)
                     }
                   }}
                   onSearch={onEntitySearch}
@@ -541,7 +531,7 @@ const TaskSegment: React.FC<TaskSegmentProps> = ({
                   multiple={true}
                   accept=".pdf,.doc,.docx,.xls,.xlsx,.txt,.jpg,.jpeg,.png"
                   initialFiles={initialFiles}
-                  onFilesChange={handleFilesChange}
+                  onChange={handleFilesChange}
                   data-testid={`${dataTestId}-file-upload`}
                 />
               </FormControl>

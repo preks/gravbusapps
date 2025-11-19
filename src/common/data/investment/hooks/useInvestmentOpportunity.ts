@@ -1,7 +1,6 @@
 // Investment Opportunity hook - single opportunity by ID with automatic state management
 import { useState, useEffect, useCallback } from 'react'
 import { useGraphQLClient } from '@/common/network/graphql/useGraphQLClient'
-import { BusinessAppContextProps } from '@/common/BusinessAppContext'
 import { toInvestmentOpportunity, type InvestmentOpportunity } from '../types/investmentOpportunityTypes'
 import { buildInvestmentOpportunityByIdQuery } from '../queries/investmentOpportunityQueries'
 
@@ -16,12 +15,12 @@ export interface UseInvestmentOpportunityResult {
  * Declarative hook for fetching a single investment opportunity by ID.
  * Automatically fetches data when component mounts or ID changes.
  *
- * @param context - Business app context with access token
+ * @param accessToken - Access token for authentication
  * @param id - Opportunity ID to fetch
  *
  * @example
  * // Basic usage
- * const { opportunity, loading, error } = useInvestmentOpportunity(context, opportunityId)
+ * const { opportunity, loading, error } = useInvestmentOpportunity(accessToken, opportunityId)
  *
  * if (loading) return <Spinner />
  * if (error) return <Alert>{error}</Alert>
@@ -30,7 +29,7 @@ export interface UseInvestmentOpportunityResult {
  *
  * @example
  * // With refetch
- * const { opportunity, loading, refetch } = useInvestmentOpportunity(context, opportunityId)
+ * const { opportunity, loading, refetch } = useInvestmentOpportunity(accessToken, opportunityId)
  *
  * return (
  *   <div>
@@ -39,11 +38,8 @@ export interface UseInvestmentOpportunityResult {
  *   </div>
  * )
  */
-export function useInvestmentOpportunity(
-  context: BusinessAppContextProps,
-  id: string | undefined
-): UseInvestmentOpportunityResult {
-  const graphqlClient = useGraphQLClient(context.accessToken)
+export function useInvestmentOpportunity(accessToken: string, id: string | undefined): UseInvestmentOpportunityResult {
+  const graphqlClient = useGraphQLClient(accessToken)
 
   const [state, setState] = useState<Omit<UseInvestmentOpportunityResult, 'refetch'>>({
     opportunity: null,
@@ -53,7 +49,7 @@ export function useInvestmentOpportunity(
 
   const fetchOpportunity = useCallback(async () => {
     // Don't fetch if no ID or no access token
-    if (!id || !context.accessToken) {
+    if (!id || !accessToken) {
       setState(prev => ({ ...prev, loading: false }))
       return
     }
@@ -78,7 +74,7 @@ export function useInvestmentOpportunity(
       console.error('Error fetching investment opportunity:', error)
       setState({ opportunity: null, loading: false, error: errorMessage })
     }
-  }, [id, context.accessToken, graphqlClient])
+  }, [id, accessToken, graphqlClient])
 
   // Auto-fetch on mount and when dependencies change
   useEffect(() => {

@@ -10,6 +10,7 @@ import {
 } from '@newwork/nw-design-system'
 import { useFormContext } from 'react-hook-form'
 import { CatalogSelect } from '@/components/catalog-select'
+import { ACADEMIC_TITLE, LANGUAGE } from '@/common/data/relations/constants/catalogConstants'
 import translations from './_i18n'
 
 interface ContactDetailsSegmentProps {
@@ -32,9 +33,9 @@ const ContactDetailsSegment: React.FC<ContactDetailsSegmentProps> = ({ customFie
               <FormLabel>{t('contact-academic-title-label')}</FormLabel>
               <FormControl>
                 <CatalogSelect
-                  catalogIdentifier="AcademicTitle:v1"
+                  catalogIdentifier={ACADEMIC_TITLE}
                   value={field.value || ''}
-                  onValueChange={v => field.onChange(v || null)}
+                  onValueChange={v => field.onChange(v || '')}
                   data-testid="contact-details-segment-academic-title"
                 />
               </FormControl>
@@ -51,9 +52,9 @@ const ContactDetailsSegment: React.FC<ContactDetailsSegmentProps> = ({ customFie
               <FormLabel>{t('contact-language-label')}</FormLabel>
               <FormControl>
                 <CatalogSelect
-                  catalogIdentifier="Languages:v1"
+                  catalogIdentifier={LANGUAGE}
                   value={field.value || ''}
-                  onValueChange={v => field.onChange(v || null)}
+                  onValueChange={v => field.onChange(v || '')}
                   data-testid="contact-details-segment-language"
                 />
               </FormControl>
@@ -73,7 +74,7 @@ const ContactDetailsSegment: React.FC<ContactDetailsSegmentProps> = ({ customFie
             <FormControl>
               <DateInput
                 value={field.value || ''}
-                onChange={value => field.onChange(value || null)}
+                onChange={value => field.onChange(value || '')}
                 placeholder={t('contact-birth-date-placeholder')}
                 data-testid="contact-details-segment-birth-date"
               />

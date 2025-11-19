@@ -1,5 +1,5 @@
 import { UseFormReturn } from 'react-hook-form'
-import type { LeadConvertSchema } from '@/common/components/common-relations/schemas/leadConvertSchema'
+import type { LeadConvertSchema } from '@/common/components/common-relations/form-layouts/lead-convert-layout/leadConvertSchema'
 
 /**
  * Check if form is ready for conversion (lenient validation to allow wizard progression)

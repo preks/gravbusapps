@@ -97,7 +97,7 @@ export const LeadConvertSegment: React.FC<LeadConvertSegmentProps> = ({
                       <AccountSelect
                         value={field.value || null}
                         onChange={value => {
-                          const accountId = typeof value === 'object' && value !== null ? value.id : value
+                          const accountId = typeof value === 'object' && value !== null ? value.id : value || ''
                           field.onChange(accountId)
                           // Also store the account name and ownerEmployeeId for payload
                           const selectedAccount = accounts.find(acc => acc.id === accountId)
@@ -171,14 +171,9 @@ export const LeadConvertSegment: React.FC<LeadConvertSegmentProps> = ({
                   render={({ field, fieldState }) => (
                     <FormItem>
                       <ContactSelect
-                        value={field.value ? [field.value] : []}
+                        value={field.value || null}
                         onChange={value => {
-                          const contactId =
-                            Array.isArray(value) && value.length > 0
-                              ? typeof value[0] === 'object'
-                                ? value[0].id
-                                : value[0]
-                              : null
+                          const contactId = typeof value === 'object' && value !== null ? value.id : value || ''
                           field.onChange(contactId)
                           // Also store the contact name for display
                           const selectedContact = contacts.find(cont => cont.id === contactId)
@@ -192,6 +187,7 @@ export const LeadConvertSegment: React.FC<LeadConvertSegmentProps> = ({
                         contactsLoading={isLoadingContacts}
                         contactsError={null}
                         searchContacts={searchContacts}
+                        multiple={false}
                       />
                       <FormMessage />
                     </FormItem>

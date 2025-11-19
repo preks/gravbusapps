@@ -5,62 +5,28 @@ import { useCatalogEntries } from '@/common/data/catalog/hooks/useCatalogEntries
 import useCatalog from '@/common/data/catalog/hooks/useCatalog'
 import {
   ActiveFilters,
-  EntryMeta,
   buildEntryMeta,
   buildFiltersSignature,
   toOptions,
   getLocalizedValue
 } from './catalogSelectUtils'
-import useCatalogSelectDependencies from './useCatalogSelectDependencies'
+import useCatalogDependencies from './useCatalogDependencies'
 import { useLocalizationContext } from '@newwork/nw-design-system'
 
-// Utility function to parse catalogIdentifier with version
 const parseCatalogIdentifier = (catalogIdentifier: string): { identifier: string; version: string } => {
   const [identifier, version = 'v1'] = catalogIdentifier.split(':')
   return { identifier, version }
 }
 
-/**
- * Enhanced catalog select configuration supporting multiple instances and versioning.
- *
- * Key improvements:
- * - Separates instance identity (id) from catalog data (catalogIdentifier)
- * - Supports catalog versioning via "identifier:version" format
- * - Enables multiple instances of the same catalog with different configurations
- * - Maintains dependency relationships using instance IDs
- *
- * @example
- * ```typescript
- * const configs = [
- *   {
- *     id: 'birthCountry',
- *     catalogIdentifier: 'Country:v2',     // Specific version
- *     prefetch: true,
- *     childField: 'birthRegion'         // Bi-directional with birth region
- *   },
- *   {
- *     id: 'birthRegion',
- *     catalogIdentifier: 'CountryRegion:v1',
- *     parentField: 'birthCountry'       // Depends on birth country
- *   },
- *   {
- *     id: 'residenceCountry',
- *     catalogIdentifier: 'Country:v1',     // Defaults to v1
- *     prefetch: false
- *   }
- * ];
- * ```
- */
 export interface CatalogSelectConfig {
-  id: string // unique instance identifier (for dependencies and state management)
-  catalogIdentifier: string // catalog identifier with optional version ("Country:v2" or "Country")
-  prefetch?: boolean // include in initial batched prefetch (default: true)
-  pageSize?: number // default 25
-  // Dependency config
-  parentField?: string // this instance depends on (filters by) the selected value of parent instance
-  childField?: string // this instance has a bi-directional relationship with child instance
-  requireSourceForEnable?: boolean // disable until source has a value
-  filterField?: Array<{ from: string; on: string }> // external filtering: from form field, filter on catalog field
+  id: string
+  catalogIdentifier: string
+  prefetch?: boolean
+  pageSize?: number
+  parentField?: string
+  childField?: string
+  requireSourceForEnable?: boolean
+  filterField?: Array<{ from: string; on: string }>
 }
 
 export interface CatalogSelectOption {
@@ -69,12 +35,9 @@ export interface CatalogSelectOption {
   icon?: string
 }
 
-// Export for use in other files
-export type { CatalogSelectOption }
-
 export interface CatalogSelectController {
   value: string
-  setValue: (v: string | null | undefined) => void // ✅ Accepts null/undefined but normalizes to ''
+  setValue: (v: string | null | undefined) => void
   options: CatalogSelectOption[]
   loading: boolean
   total: number
@@ -90,6 +53,22 @@ export interface CatalogSelectController {
   filterSignature?: string
 }
 
+type State = {
+  value: string
+  loading: boolean
+  options: CatalogSelectOption[]
+  prefetchedOptions?: CatalogSelectOption[]
+  total: number
+  fullTotal?: number
+  limit: number
+  offset: number
+  search?: string
+  variant: 'select' | 'combobox'
+  metaByValue?: Record<string, { parentEntryId?: string; type?: string }>
+  lastFiltersSig?: string
+  manuallyCleared?: boolean
+}
+
 export const useCatalogSelect = (
   context: BusinessAppContextProps,
   configs: CatalogSelectConfig[],
@@ -99,17 +78,12 @@ export const useCatalogSelect = (
   const { fetchCatalogEntriesByIdentifier: baseFetchCatalogEntries } = useCatalogEntries({
     accessToken: context.accessToken
   })
-
-  // Get locale from LocalizationProvider for translations
   const { locale } = useLocalizationContext()
 
-  // Wrapper function that converts instance id to catalog identifier
   const fetchCatalogEntriesByIdentifier = useCallback(
     async (instanceId: string, params: Parameters<typeof baseFetchCatalogEntries>[1]) => {
       const config = configs.find(c => c.id === instanceId)
-      if (!config) {
-        throw new Error(`No config found for instance id: ${instanceId}`)
-      }
+      if (!config) throw new Error(`No config found for instance id: ${instanceId}`)
       const { identifier, version } = parseCatalogIdentifier(config.catalogIdentifier)
       return baseFetchCatalogEntries(identifier, { ...params, version })
     },
@@ -118,22 +92,6 @@ export const useCatalogSelect = (
 
   const defaultPageSize = 25
   const defaultThreshold = 7
-
-  type State = {
-    value: string // ✅ Use empty string instead of null for React Hook Form compatibility
-    loading: boolean
-    options: CatalogSelectOption[]
-    prefetchedOptions?: CatalogSelectOption[]
-    total: number
-    fullTotal?: number
-    limit: number
-    offset: number
-    search?: string
-    variant: 'select' | 'combobox'
-    metaByValue?: Record<string, EntryMeta>
-    lastFiltersSig?: string
-    manuallyCleared?: boolean // Flag to prevent bi-directional auto-select after manual clear
-  }
 
   const [stateById, setStateById] = useState<Record<string, State>>(() => {
     const initial: Record<string, State> = {}
@@ -156,7 +114,6 @@ export const useCatalogSelect = (
 
   const setFor = useCallback((id: string, updater: (prev: State) => State) => {
     setStateById(prev => {
-      // Ensure state exists before calling updater
       const currentState = prev[id] || {
         value: '',
         loading: true,
@@ -178,20 +135,17 @@ export const useCatalogSelect = (
       const cfg = configs.find(c => c.id === id)
       const filters: ActiveFilters = {}
       if (!cfg) return filters
-      // Parent filter
       if (cfg.parentField) {
-        const source = stateById[cfg.parentField]
-        if (source?.value) filters.parentEntryId = source.value
+        const parentValue = externalValues?.[cfg.parentField] || stateById[cfg.parentField]?.value
+        if (parentValue) filters.parentEntryId = parentValue
       }
-      // External filters
       if (cfg.filterField && externalValues) {
         for (const map of cfg.filterField) {
           const v = externalValues[map.from]
-          if (v && map.on === 'type') {
-            filters.typeEquals = v
-          }
+          if (v && map.on === 'type') filters.typeEquals = v
         }
       }
+
       return filters
     },
     [configs, stateById, externalValues]
@@ -199,7 +153,6 @@ export const useCatalogSelect = (
 
   const preload = useCallback(async () => {
     const allIdentifiers = configs.filter(c => c.prefetch !== false).map(c => c.catalogIdentifier)
-    // Deduplicate catalog identifiers - multiple instances might use the same catalog
     const identifiers = [...new Set(allIdentifiers)]
     if (identifiers.length === 0) return
 
@@ -211,9 +164,8 @@ export const useCatalogSelect = (
       entriesOffset: 0,
       limit: identifiers.length
     })
-    const items = list.items || []
-    for (const cat of items) {
-      // Find ALL configs that match this catalog identifier:version
+
+    for (const cat of list.items || []) {
       const catalogIdentifierWithVersion = `${cat.identifier}:${cat.version || 'v1'}`
       const matchingConfigs = configs.filter(
         c =>
@@ -222,78 +174,98 @@ export const useCatalogSelect = (
       )
       if (matchingConfigs.length === 0) continue
 
-      // Apply data to ALL matching instances
       for (const cfg of matchingConfigs) {
         const limit = cfg.pageSize ?? defaultPageSize
         const total = cat.total ?? cat.entriesCount ?? 0
         const initialEntries = (cat.entries || []).slice(0, limit)
         const metaByValue = buildEntryMeta(initialEntries)
-
-        // Check if this config has a parent field that might filter it
-        // If parent has a value, don't set options/prefetchedOptions yet - let dependency logic handle it
-        const hasParentWithValue = cfg.parentField && stateById[cfg.parentField]?.value
+        const hasParentWithValue =
+          cfg.parentField && (externalValues?.[cfg.parentField] || stateById[cfg.parentField]?.value)
         const prefetchedOptions = toOptions(initialEntries, locale)
 
-        setFor(cfg.id, prev => ({
-          ...prev,
-          loading: false,
-          // Only set options if no parent filter is active (dependency logic will handle filtering)
-          options: hasParentWithValue ? [] : prefetchedOptions,
-          prefetchedOptions,
-          total,
-          fullTotal: total,
-          limit,
-          offset: initialEntries.length,
-          variant: total <= defaultThreshold ? 'select' : 'combobox',
-          metaByValue
-        }))
+        setFor(cfg.id, prev => {
+          if (prev?.lastFiltersSig) {
+            return prev
+          }
+
+          return {
+            ...prev,
+            loading: false,
+            options: hasParentWithValue ? [] : prefetchedOptions,
+            prefetchedOptions,
+            total: hasParentWithValue ? 0 : total,
+            fullTotal: total,
+            limit,
+            offset: hasParentWithValue ? 0 : initialEntries.length,
+            variant: total <= defaultThreshold ? 'select' : 'combobox',
+            metaByValue
+          }
+        })
       }
     }
-  }, [configs, fetchCatalogs, locale, stateById])
+  }, [configs, fetchCatalogs, locale, stateById, externalValues, setFor])
 
-  // Initialize non-prefetch catalogs with a tiny call to decide variant and, if small, load all options
   const { fetchCatalog } = useCatalog(context)
   const primeNonPrefetch = useCallback(async () => {
     const nonPrefetch = configs.filter(c => c.prefetch === false)
+    if (nonPrefetch.length === 0) return
+
     await Promise.all(
       nonPrefetch.map(async cfg => {
         const { identifier, version } = parseCatalogIdentifier(cfg.catalogIdentifier)
         try {
           const full = await fetchCatalog(
-            {
-              identifier,
-              version,
-              entriesLimit: defaultThreshold,
-              entriesOffset: 0
-            },
+            { identifier, version, entriesLimit: defaultThreshold, entriesOffset: 0 },
             { includeCatalogEntries: true }
           )
           const total = full?.total ?? full?.entriesCount ?? 0
           const entries = full?.entries || []
-          setFor(cfg.id, prev => ({
-            ...prev,
-            loading: false,
-            options: total <= defaultThreshold ? toOptions(entries, locale) : [],
-            prefetchedOptions: total <= defaultThreshold ? toOptions(entries, locale) : [],
-            total,
-            fullTotal: total,
-            limit: cfg.pageSize ?? defaultPageSize,
-            offset: total <= defaultThreshold ? entries.length : 0,
-            variant: total <= defaultThreshold ? 'select' : 'combobox'
-          }))
+          const hasParentWithValue =
+            cfg.parentField && (externalValues?.[cfg.parentField] || stateById[cfg.parentField]?.value)
+          setFor(cfg.id, prev => {
+            if (prev?.lastFiltersSig) {
+              return prev
+            }
+
+            return {
+              ...prev,
+              loading: false,
+              options: hasParentWithValue ? [] : total <= defaultThreshold ? toOptions(entries, locale) : [],
+              prefetchedOptions: total <= defaultThreshold ? toOptions(entries, locale) : [],
+              total: hasParentWithValue ? 0 : total,
+              fullTotal: total,
+              limit: cfg.pageSize ?? defaultPageSize,
+              offset: hasParentWithValue ? 0 : total <= defaultThreshold ? entries.length : 0,
+              variant: total <= defaultThreshold ? 'select' : 'combobox'
+            }
+          })
         } catch {
           setFor(cfg.id, prev => ({ ...prev, loading: false }))
         }
       })
     )
-  }, [configs, fetchCatalog, locale])
+  }, [configs, fetchCatalog, locale, stateById, externalValues, setFor])
 
-  // Prime non-prefetch catalogs once
   const initOnce = useCallback(async () => {
     await Promise.all([preload(), primeNonPrefetch()])
-  }, [preload, primeNonPrefetch])
 
-  // Fetch missing options for initial values (batched, run once after preload)
+    for (const cfg of configs) {
+      setFor(cfg.id, prev => {
+        if (
+          prev &&
+          prev.loading &&
+          !prev.lastFiltersSig &&
+          prev.options.length === 0 &&
+          (prev.prefetchedOptions?.length || 0) === 0
+        ) {
+          return { ...prev, loading: false }
+        }
+        return prev
+      })
+    }
+  }, [preload, primeNonPrefetch, configs, setFor])
+
+  // Fetch missing options for initial values after preload (run once)
   const missingOptionsFetchedRef = useRef(false)
   useEffect(() => {
     const fetchMissingOptions = async () => {
@@ -303,7 +275,7 @@ export const useCatalogSelect = (
       // Wait for configs to be registered
       if (configs.length === 0) return
 
-      // Wait for preload to finish (all configs have finished loading, regardless of whether initial values exist)
+      // Wait for preload to finish (all configs have finished loading)
       const allReady = configs.every(cfg => {
         const state = stateById[cfg.id]
         return state && !state.loading
@@ -313,62 +285,60 @@ export const useCatalogSelect = (
       // Mark as fetched to prevent re-runs
       missingOptionsFetchedRef.current = true
 
-      // Collect all missing options in ONE go
-      const missing: Array<{ cfg: (typeof configs)[0]; value: string }> = []
-      for (const cfg of configs) {
+      // Collect all missing options
+      const missing: Array<{ cfg: CatalogSelectConfig; value: string }> = []
+      configs.forEach(cfg => {
         const state = stateById[cfg.id]
-        if (!state?.value || !state?.options) continue
-        const hasOption = state.options.some(opt => opt.value === state.value)
+        const externalValue = externalValues?.[cfg.id] || ''
+        const stateValue = state?.value || ''
+        const effectiveValue = externalValue || stateValue
+
+        if (!effectiveValue || !state?.options) return
+
+        const hasOption = state.options.some(opt => opt.value === effectiveValue)
         if (!hasOption) {
-          missing.push({ cfg, value: state.value })
+          missing.push({ cfg, value: effectiveValue })
         }
-      }
+      })
 
       if (missing.length === 0) return
 
-      // Batch all fetches in parallel
-      const fetchMissingOption = async ({ cfg, value }: { cfg: CatalogSelectConfig; value: string }) => {
-        try {
-          const res = await fetchCatalogEntriesByIdentifier(cfg.id, {
-            limit: 1,
-            offset: 0,
-            entryId: value
-          })
+      // Fetch all missing options in parallel
+      await Promise.all(
+        missing.map(async ({ cfg, value }) => {
+          try {
+            const res = await fetchCatalogEntriesByIdentifier(cfg.id, { limit: 1, offset: 0, entryId: value })
+            if (res.entries.length === 0) return
 
-          if (res.entries.length === 0) return
+            const entry = res.entries[0]
+            const option = { value: entry.id, label: getLocalizedValue(entry, locale) }
+            const meta = { parentEntryId: entry.parentEntryId, type: entry.type }
 
-          const entry = res.entries[0]
-          const option = { value: entry.id, label: getLocalizedValue(entry, locale) }
-          const meta = { parentEntryId: entry.parentEntryId, type: entry.type }
-
-          setFor(cfg.id, prev => {
-            if (!prev) return prev
-            const optionExists = prev.options.some(opt => opt.value === option.value)
-            return {
-              ...prev,
-              options: optionExists ? prev.options : [...prev.options, option],
-              metaByValue: { ...prev.metaByValue, [entry.id]: meta }
-            }
-          })
-        } catch {
-          // Ignore fetch errors
-        }
-      }
-
-      await Promise.all(missing.map(fetchMissingOption))
+            setFor(cfg.id, prev => {
+              if (!prev) return prev
+              const optionExists = prev.options.some(opt => opt.value === option.value)
+              return {
+                ...prev,
+                options: optionExists ? prev.options : [option, ...prev.options],
+                metaByValue: { ...prev.metaByValue, [entry.id]: meta }
+              }
+            })
+          } catch {
+            // Ignore fetch errors
+          }
+        })
+      )
     }
 
     fetchMissingOptions()
-  }, [configs, stateById, fetchCatalogEntriesByIdentifier, locale])
+  }, [configs, stateById, externalValues, fetchCatalogEntriesByIdentifier, locale, setFor])
 
-  // Extract handler functions to reduce nesting
   const createOnSearch = useCallback(
     (id: string, cfg: CatalogSelectConfig) => async (q: string) => {
       const trimmed = (q || '').trim()
       const activeFilters: ActiveFilters = getActiveFilters(id)
       const filtersSig = buildFiltersSignature(activeFilters)
 
-      // If search is cleared, reset to prefetched options without extra request
       if (trimmed === '' && !activeFilters.parentEntryId && !activeFilters.typeEquals) {
         setFor(id, prev => ({
           ...prev,
@@ -376,7 +346,8 @@ export const useCatalogSelect = (
           options: prev.prefetchedOptions || [],
           search: undefined,
           offset: (prev.prefetchedOptions || []).length,
-          total: prev.fullTotal ?? prev.total
+          total: prev.fullTotal ?? prev.total,
+          lastFiltersSig: undefined
         }))
         return
       }
@@ -444,15 +415,15 @@ export const useCatalogSelect = (
     for (const cfg of configs) {
       const id = cfg.id
       const current = stateById[id]
-
       const onSearch = createOnSearch(id, cfg)
       const onLoadMore = createOnLoadMore(id, cfg, current)
 
-      // disabled rules: requireSourceForEnable when missing source (parent or external), or no options available under active filters
-      const hasParentSelected = Boolean(cfg.parentField && stateById[cfg.parentField || '']?.value)
+      // Get parent value from externalValues (form) or stateById (internal)
+      const parentValue = cfg.parentField
+        ? externalValues?.[cfg.parentField] || stateById[cfg.parentField]?.value || ''
+        : ''
+      const hasParentSelected = Boolean(cfg.parentField && parentValue)
       const hasExternalFilterValue = Boolean(cfg.filterField?.some(m => Boolean(externalValues?.[m.from])))
-
-      // Check if this is a bi-directional relationship (not strict dependency)
       const parentConfig = configs.find(c => c.id === cfg.parentField)
       const isBiDirectional = parentConfig?.childField === id
 
@@ -463,21 +434,18 @@ export const useCatalogSelect = (
       const hasAnyFilterActive = Boolean(
         (cfg.parentField && hasParentSelected) || (cfg.filterField && hasExternalFilterValue)
       )
-      // Don't disable bi-directional children during loading (they keep their value during filtering)
+      // FIX: Wenn Parent-Wert existiert, aber Child-State noch nicht existiert → disabled
+      const childStateNotInitialized = Boolean(hasAnyFilterActive && !current)
+      // FIX: Wenn Parent-Wert existiert und Child-State existiert, aber noch loading → disabled (außer bi-directional)
       const disabledWhileLoading = Boolean(hasAnyFilterActive && current?.loading && !isBiDirectional)
-      // Disable when loading is complete and no options found
+      // FIX: Wenn Parent-Wert existiert und Child-State geladen ist, aber keine Options → disabled
+      // WICHTIG: total === 0 bedeutet, dass wirklich keine Options existieren (nicht nur noch nicht geladen)
       const disabledNoOptions = Boolean(
-        hasAnyFilterActive && !current?.loading && (current?.options?.length || 0) === 0
+        hasAnyFilterActive && current && !current.loading && (current.options?.length || 0) === 0 && current.total === 0
       )
-      const disabled = disabledRequire || disabledWhileLoading || disabledNoOptions
+      const disabled = disabledRequire || childStateNotInitialized || disabledWhileLoading || disabledNoOptions
 
-      // ✅ hasOptions logic for validation:
-      // - Strict dependencies (requireSourceForEnable: true): only valid when parent is selected
-      // - Bi-directional dependencies (no requireSourceForEnable): valid whenever options exist
-      // - Standalone fields (no parentField): valid whenever options exist
       const hasOptionsInState = (current?.options?.length || 0) > 0
-
-      // Only strict dependencies require parent selection for validation
       const requiresParentForValidation = cfg.requireSourceForEnable && cfg.parentField && !hasParentSelected
       const hasOptions = hasOptionsInState && !requiresParentForValidation
 
@@ -507,14 +475,13 @@ export const useCatalogSelect = (
       }
     }
     return record
-  }, [configs, stateById, externalValues, createOnSearch, createOnLoadMore])
+  }, [configs, stateById, externalValues, createOnSearch, createOnLoadMore, setFor, defaultPageSize])
 
-  // Use extracted dependency management hook (filters and bi-directional behavior)
-  useCatalogSelectDependencies({
+  // Handle all dependencies in unified hook
+  useCatalogDependencies({
     configs,
     stateById,
     setFor,
-    getActiveFilters,
     fetchCatalogEntriesByIdentifier,
     defaultPageSize,
     externalValues,

@@ -58,7 +58,7 @@ const AccountDetailsSegment: React.FC<AccountDetailsSegmentProps> = ({
               <FormControl>
                 <DateInput
                   value={field.value || ''}
-                  onChange={value => field.onChange(value || null)}
+                  onChange={value => field.onChange(value || '')}
                   placeholder={t('foundation-date-placeholder')}
                   data-testid="account-details-segment-foundation-date"
                 />

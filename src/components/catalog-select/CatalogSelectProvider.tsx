@@ -18,7 +18,7 @@
  * initial components are mounted, or it will auto-finalize after layout for
  * backwards compatibility.
  */
-import React, { createContext, useContext, useEffect, useMemo, useState, useCallback, useLayoutEffect } from 'react'
+import React, { createContext, useContext, useEffect, useMemo, useState, useCallback } from 'react'
 import { UseFormReturn, FieldValues } from 'react-hook-form'
 import { BusinessAppContextProps } from '@/common/BusinessAppContext'
 import type { CatalogSelectConfig, CatalogSelectController } from './internal/useCatalogSelect'
@@ -80,6 +80,10 @@ export const CatalogSelectProvider = <TFormValues extends FieldValues = FieldVal
           keys.add(filter.from)
         }
       }
+      // Also watch parent fields to read parent values from form when CatalogSelect is unmounted (e.g., in accordions)
+      if (cfg.parentField) {
+        keys.add(cfg.parentField)
+      }
     }
     return Array.from(keys)
   }, [allConfigs])
@@ -133,33 +137,29 @@ export const CatalogSelectProvider = <TFormValues extends FieldValues = FieldVal
     setIsRegistrationComplete(true)
   }, [])
 
-  // Auto-finalize after layout if no explicit call (backwards compatibility)
-  useLayoutEffect(() => {
-    const timer = setTimeout(() => {
-      if (!isRegistrationComplete) {
+  // Auto-finalize after all components have had a chance to register
+  // Wait until registration count stabilizes (no new registrations for 50ms)
+  useEffect(() => {
+    if (!isRegistrationComplete && registeredConfigs.length > 0) {
+      const timer = setTimeout(() => {
         finalizeRegistration()
-      }
-    }, 0)
-    return () => clearTimeout(timer)
-  }, [isRegistrationComplete, finalizeRegistration])
+      }, 50) // Wait 50ms after last registration
+      return () => clearTimeout(timer)
+    }
+  }, [isRegistrationComplete, finalizeRegistration, registeredConfigs.length])
 
   const { controllers, preload } = useCatalogSelect(context, allConfigs, externalValues)
 
   // Track which configs have been preloaded
   const preloadedConfigIdsRef = React.useRef<Set<string>>(new Set())
 
-  // Preload when registration is complete and when new configs are added
+  // Preload when registration is complete - only once for all configs
   useEffect(() => {
-    if (isRegistrationComplete && allConfigs.length > 0) {
-      // Find configs that haven't been preloaded yet
-      const newConfigs = allConfigs.filter(cfg => !preloadedConfigIdsRef.current.has(cfg.id))
-
-      if (newConfigs.length > 0) {
-        // Mark new configs as preloaded
-        newConfigs.forEach(cfg => preloadedConfigIdsRef.current.add(cfg.id))
-        // Trigger preload (will handle all configs, but only new ones will be fetched)
-        preload()
-      }
+    if (isRegistrationComplete && allConfigs.length > 0 && preloadedConfigIdsRef.current.size === 0) {
+      // Mark all configs as preloaded
+      allConfigs.forEach(cfg => preloadedConfigIdsRef.current.add(cfg.id))
+      // Trigger preload once for all configs
+      preload()
     }
   }, [isRegistrationComplete, allConfigs, preload])
 

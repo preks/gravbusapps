@@ -1,6 +1,7 @@
-import React, { useState, useMemo } from 'react'
+import React, { useMemo } from 'react'
 import { BusinessAppContextProps } from '@/common/BusinessAppContext'
-import { Accordion, useTranslation } from '@newwork/nw-design-system'
+import { useTranslation, Skeleton } from '@newwork/nw-design-system'
+import { FormAccordion } from '@/components/form-accordion'
 import { LeadInformationSegment } from '../../form-segments/lead-information-segment'
 import { LeadPersonSegment } from '../../form-segments/lead-person-segment'
 import { LeadCompanySegment } from '../../form-segments/lead-company-segment'
@@ -19,6 +20,9 @@ interface LeadLayoutProps {
   leadPersonCustomFields?: React.ReactNode
   leadCompanyCustomFields?: React.ReactNode
   customSegments?: Array<{ id: string; title: string; content: React.ReactNode }>
+
+  // Loading state - shows skeletons while data is being fetched
+  loading?: boolean
 }
 
 const LeadLayout: React.FC<LeadLayoutProps> = ({
@@ -33,10 +37,10 @@ const LeadLayout: React.FC<LeadLayoutProps> = ({
   leadInformationCustomFields,
   leadPersonCustomFields,
   leadCompanyCustomFields,
-  customSegments = []
+  customSegments = [],
+  loading = false
 }) => {
   const { t } = useTranslation(translations)
-  const [accordionValue, setAccordionValue] = useState<string | string[]>([])
 
   const accordionItems = useMemo(
     () => [
@@ -68,6 +72,27 @@ const LeadLayout: React.FC<LeadLayoutProps> = ({
     ]
   )
 
+  // Show skeletons while loading (after all hooks)
+  if (loading) {
+    return (
+      <div data-testid="lead-layout-loading" className="gba:space-y-6">
+        {/* Lead Information Skeleton */}
+        <div className="gba:space-y-4">
+          <Skeleton className="gba:h-10 gba:w-full" />
+          <Skeleton className="gba:h-10 gba:w-full" />
+          <Skeleton className="gba:h-10 gba:w-3/4" />
+          <Skeleton className="gba:h-10 gba:w-full" />
+          <Skeleton className="gba:h-32 gba:w-full" />
+        </div>
+        {/* Accordion Skeleton */}
+        <div className="gba:space-y-2">
+          <Skeleton className="gba:h-12 gba:w-full" />
+          <Skeleton className="gba:h-12 gba:w-full" />
+        </div>
+      </div>
+    )
+  }
+
   return (
     <div data-testid="lead-layout">
       <LeadInformationSegment
@@ -79,12 +104,7 @@ const LeadLayout: React.FC<LeadLayoutProps> = ({
         leadRatingCatalogIdentifier={leadRatingCatalogIdentifier}
         customFields={leadInformationCustomFields}
       />
-      <Accordion
-        className="gba:w-full gba:[&>div[data-slot=accordion-item]]:bg-transparent gba:[&_button[data-slot=accordion-trigger]]:bg-transparent gba:[&_button[data-slot=accordion-trigger][data-state=open]]:bg-transparent gba:[&_button[data-slot=accordion-trigger]]:pl-0 gba:[&_[data-slot=accordion-content]>div]:bg-transparent gba:[&_[data-slot=accordion-content]>div]:p-0"
-        value={accordionValue}
-        onValueChange={value => setAccordionValue(value)}
-        items={accordionItems}
-      />
+      <FormAccordion items={accordionItems} className="gba:w-full" data-testid="lead-layout-accordion" />
     </div>
   )
 }

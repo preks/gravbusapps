@@ -43,8 +43,6 @@ export const NoteFields = {
   title: 'title'
 } as const
 
-export type NoteFieldName = (typeof NoteFields)[keyof typeof NoteFields]
-
 /**
  * Create Common Note Descriptors with fields mapping
  */

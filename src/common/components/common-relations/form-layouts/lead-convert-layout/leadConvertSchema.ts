@@ -4,6 +4,10 @@ import { zodResolver } from '@hookform/resolvers/zod'
 /**
  * Central Lead Convert Schema
  * Used for validating lead conversion forms in both CRM and IRM
+ *
+ * Note: This schema uses lenient validation to allow wizard progression.
+ * The wizard steps handle their own validation through nested forms.
+ * Only critical fields for the first step are validated here.
  */
 export const leadConvertSchema = z
   .object({
@@ -46,7 +50,8 @@ export const leadConvertSchema = z
   })
   .refine(
     data => {
-      // If "match existing account" is selected, selectedAccountId is required
+      // Only validate "match" selections on first step
+      // "create" validations are handled by nested forms in subsequent steps
       if (data.accountOption === 'match' && !data.selectedAccountId) {
         return false
       }
@@ -59,7 +64,7 @@ export const leadConvertSchema = z
   )
   .refine(
     data => {
-      // If "match existing contact" is selected, selectedContactId is required
+      // Only validate "match" selections on first step
       if (data.contactOption === 'match' && !data.selectedContactId) {
         return false
       }
@@ -68,51 +73,6 @@ export const leadConvertSchema = z
     {
       message: 'Please select a contact when matching existing contact',
       path: ['selectedContactId']
-    }
-  )
-  .refine(
-    data => {
-      // Account validation
-      if (data.accountOption === 'match' && !data.selectedAccountId) {
-        return false
-      }
-      if (data.accountOption === 'create' && !data.accountName?.trim()) {
-        return false
-      }
-      return true
-    },
-    {
-      message: 'Please complete account requirements',
-      path: ['accountName']
-    }
-  )
-  .refine(
-    data => {
-      // Contact validation
-      if (data.contactOption === 'match' && !data.selectedContactId) {
-        return false
-      }
-      if (data.contactOption === 'create' && (!data.contactFirstName?.trim() || !data.contactLastName?.trim())) {
-        return false
-      }
-      return true
-    },
-    {
-      message: 'Please complete contact requirements',
-      path: ['contactFirstName']
-    }
-  )
-  .refine(
-    data => {
-      // Opportunity validation (if creating)
-      if (data.createOpportunity && !data.opportunityName?.trim()) {
-        return false
-      }
-      return true
-    },
-    {
-      message: 'Please provide opportunity name when creating opportunity',
-      path: ['opportunityName']
     }
   )
 

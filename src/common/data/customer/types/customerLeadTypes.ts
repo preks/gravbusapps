@@ -23,6 +23,9 @@ export interface CustomerLead extends Lead {
   notes?: CustomerNote[]
   ownerOrganization?: any
   tasks?: CustomerTask[]
+
+  salesCampaign?: any
+  salesCampaignId?: string
 }
 
 /**
@@ -37,7 +40,9 @@ export const CustomerLeadFields = {
   companySize: 'numberOfEmployees',
   companySizeRef: 'numberOfEmployeesRef',
   industryClass: 'industry',
-  industryClassRef: 'industryRef'
+  industryClassRef: 'industryRef',
+  jobPosition: 'position',
+  locality: 'city'
 } as const
 
 /**
@@ -65,15 +70,13 @@ export const CUSTOMER_LEAD_DESCRIPTORS: Descriptor[] = [
  * Extends leadFormFields with CRM-specific field mappings
  */
 export const customerLeadFormFields = {
-  ...leadFormFields,
+  ...Object.fromEntries(Object.entries(leadFormFields).filter(([key]) => key !== 'addressLine')),
   // Override mappings for CRM field name differences
   accountAnnualRevenueBandRef: 'annualRevenueRef',
   companySizeRef: 'numberOfEmployeesRef',
   industryClassRef: 'industryRef',
-  salutationRef: 'salutation',
-  leadRatingRef: 'rating',
-  leadSourceRef: 'sourceRef',
-  leadStatusRef: 'statusRef',
+  jobPosition: 'position',
+  locality: 'city',
   // CRM-specific fields
   salesCampaignId: 'salesCampaign'
 } as const
@@ -91,11 +94,16 @@ export const customerLeadFormFields = {
  * @returns Payload object ready for API submission
  */
 export const buildCustomerLeadPayload = (lead: Partial<CustomerLead>) => {
+  const { addressLine, ...leadWithoutAddressLine } = lead
   // Build base payload using customerLeadFormFields for field mapping
-  const basePayload = buildPayload(lead, customerLeadFormFields)
+  const basePayload = buildPayload(leadWithoutAddressLine, customerLeadFormFields)
+
+  if (addressLine !== undefined && addressLine !== null) {
+    basePayload.addressLine = typeof addressLine === 'object' ? JSON.stringify(addressLine) : addressLine
+  }
 
   return {
-    customerLead: basePayload
+    lead: basePayload
   }
 }
 
@@ -107,7 +115,6 @@ export const buildCustomerLeadPayload = (lead: Partial<CustomerLead>) => {
  *
  * Key Mappings (fallback only):
  * - annualRevenue → accountAnnualRevenueBand
- * - city → locality
  * - industry → industryClass
  * - numberOfEmployees → companySize
  */
@@ -119,6 +126,7 @@ export function toCustomerLead(raw: any): CustomerLead {
     city,
     industry,
     industryRef,
+    position,
     numberOfEmployees,
     numberOfEmployeesRef,
     ...rest
@@ -129,11 +137,24 @@ export function toCustomerLead(raw: any): CustomerLead {
     // Map only if target field doesn't already exist (fallback mapping)
     accountAnnualRevenueBand: raw.accountAnnualRevenueBand ?? annualRevenue,
     accountAnnualRevenueBandRef: raw.accountAnnualRevenueBandRef ?? annualRevenueRef,
+    jobPosition: raw.jobPosition ?? position,
     locality: raw.locality ?? city,
     industryClass: raw.industryClass ?? industry,
     industryClassRef: raw.industryClassRef ?? industryRef,
     companySize: raw.companySize ?? numberOfEmployees,
-    companySizeRef: raw.companySizeRef ?? numberOfEmployeesRef
+    companySizeRef: raw.companySizeRef ?? numberOfEmployeesRef,
+
+    // Map addressLine from string to { lines: string[] } if it's a string
+    addressLine:
+      typeof raw.addressLine === 'string'
+        ? (() => {
+            try {
+              return JSON.parse(raw.addressLine)
+            } catch {
+              return undefined
+            }
+          })()
+        : raw.addressLine
   } as CustomerLead
 }
 

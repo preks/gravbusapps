@@ -1,6 +1,7 @@
-import React, { useState, useMemo } from 'react'
+import React, { useMemo } from 'react'
 import { BusinessAppContextProps } from '@/common/BusinessAppContext'
-import { Accordion, useTranslation } from '@newwork/nw-design-system'
+import { useTranslation, Skeleton } from '@newwork/nw-design-system'
+import { FormAccordion } from '@/components/form-accordion'
 import { ContactInformationSegment } from '../../form-segments/contact-information-segment'
 import { ContactDetailsSegment } from '../../form-segments/contact-details-segment'
 import { AddressSegment } from '../../form-segments/address-segment'
@@ -18,20 +19,14 @@ interface ContactLayoutProps {
   // Entity ID (contact ID for edit mode)
   entityId?: string
 
-  // Avatar image for preview (from existing contact data) - CRM only
-  avatarImage?: string
-
-  // Account selection props
-  accounts?: AccountSelectOption[]
-  accountsLoading?: boolean
-  accountsError?: string | null
-  searchAccounts?: (search: string) => void
-
-  // Address data from contact query (for immediate display of country/region)
-  addresses?: Array<{
-    country?: { id: string; value: string; displayValue?: string; additionalValue3?: string }
-    region?: { id: string; value: string; displayValue?: string; additionalValue3?: string }
-  }>
+  // Account selection hook result
+  // When mapToSelectOptions: true is used, options will always be SelectOption[]
+  accountsHook?: {
+    options: AccountSelectOption[]
+    loading: boolean
+    error: string | null
+    search: (searchTerm: string) => void
+  }
 
   // Custom fields injection for ContactInformationSegment
   contactInformationCustomFields?: React.ReactNode
@@ -48,26 +43,28 @@ interface ContactLayoutProps {
     title: string
     content: React.ReactNode
   }>
+
+  // Ref to store current file and thumbnail (for handlePreSubmit in form component)
+  avatarFileRef?: React.MutableRefObject<{ file: File; thumbnail: string } | null>
+
+  // Loading state - shows skeletons while data is being fetched
+  loading?: boolean
 }
 
 const ContactLayout: React.FC<ContactLayoutProps> = ({
   businessAppContext,
   ownerEmployee,
   entityId,
-  avatarImage,
-  accounts,
-  accountsLoading,
-  accountsError,
-  searchAccounts,
-  addresses,
+  accountsHook,
   contactInformationCustomFields,
   contactDetailsCustomFields,
   addressCustomFields,
   communicationCustomFields,
-  customSegments = []
+  customSegments = [],
+  avatarFileRef,
+  loading = false
 }) => {
   const { t } = useTranslation(translations)
-  const [accordionValue, setAccordionValue] = useState<string | string[]>([])
 
   const accordionItems = useMemo(
     () => [
@@ -84,12 +81,41 @@ const ContactLayout: React.FC<ContactLayoutProps> = ({
       {
         id: 'address-information',
         title: t('address-title'),
-        content: <AddressSegment addresses={addresses} customFields={addressCustomFields} />
+        content: <AddressSegment customFields={addressCustomFields} />
       },
       ...customSegments
     ],
-    [t, addresses, contactDetailsCustomFields, addressCustomFields, communicationCustomFields, customSegments]
+    [t, contactDetailsCustomFields, addressCustomFields, communicationCustomFields, customSegments]
   )
+
+  // Show skeletons while loading (after all hooks)
+  if (loading) {
+    return (
+      <div data-testid="contact-layout-loading" className="gba:space-y-6">
+        {/* Contact Information Skeleton */}
+        <div className="gba:space-y-4">
+          <div className="gba:flex gba:items-center gba:gap-4">
+            <Skeleton className="gba:h-20 gba:w-20 gba:rounded-full" />
+            <div className="gba:flex-1 gba:space-y-2">
+              <Skeleton className="gba:h-6 gba:w-3/4" />
+              <Skeleton className="gba:h-4 gba:w-1/2" />
+            </div>
+          </div>
+          <Skeleton className="gba:h-10 gba:w-full" />
+          <Skeleton className="gba:h-10 gba:w-full" />
+          <Skeleton className="gba:h-10 gba:w-3/4" />
+          <Skeleton className="gba:h-10 gba:w-full" />
+          <Skeleton className="gba:h-32 gba:w-full" />
+        </div>
+        {/* Accordion Skeleton */}
+        <div className="gba:space-y-2">
+          <Skeleton className="gba:h-12 gba:w-full" />
+          <Skeleton className="gba:h-12 gba:w-full" />
+          <Skeleton className="gba:h-12 gba:w-full" />
+        </div>
+      </div>
+    )
+  }
 
   return (
     <div data-testid="contact-layout">
@@ -98,21 +124,13 @@ const ContactLayout: React.FC<ContactLayoutProps> = ({
         businessAppContext={businessAppContext}
         ownerEmployee={ownerEmployee}
         entityId={entityId}
-        avatarImage={avatarImage}
-        accounts={accounts}
-        accountsLoading={accountsLoading}
-        accountsError={accountsError}
-        searchAccounts={searchAccounts}
+        accountsHook={accountsHook}
         customFields={contactInformationCustomFields}
+        avatarFileRef={avatarFileRef}
       />
 
       {/* Other Segments in Accordion */}
-      <Accordion
-        className="gba:w-full gba:[&>div[data-slot=accordion-item]]:bg-transparent gba:[&_button[data-slot=accordion-trigger]]:bg-transparent gba:[&_button[data-slot=accordion-trigger][data-state=open]]:bg-transparent gba:[&_button[data-slot=accordion-trigger]]:pl-0 gba:[&_[data-slot=accordion-content]>div]:bg-transparent gba:[&_[data-slot=accordion-content]>div]:p-0"
-        value={accordionValue}
-        onValueChange={value => setAccordionValue(value)}
-        items={accordionItems}
-      />
+      <FormAccordion items={accordionItems} className="gba:w-full" data-testid="contact-layout-accordion" />
     </div>
   )
 }

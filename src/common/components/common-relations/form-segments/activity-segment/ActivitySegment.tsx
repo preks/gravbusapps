@@ -208,7 +208,7 @@ const ActivitySegment: React.FC<ActivitySegmentProps> = ({
     ]
     const found = map.find(m => m.id)
     if (found?.id) {
-      form.setValue(found.key, { id: found.id })
+      form.setValue(found.key, found.id)
       form.setValue('relatedEntityId', found.id)
     }
   }, [showEntitySelection, initialEntityFromContext, form])
@@ -331,9 +331,7 @@ const ActivitySegment: React.FC<ActivitySegmentProps> = ({
         name="title"
         render={({ field }) => (
           <FormItem>
-            <FormLabel>
-              {titleLabel} <span className="gba:text-destructive gba:font-bold">*</span>
-            </FormLabel>
+            <FormLabel>{titleLabel}</FormLabel>
             <FormControl>
               <Input data-testid={`${dataTestId}-title`} maxLength={100} {...field} />
             </FormControl>
@@ -349,9 +347,7 @@ const ActivitySegment: React.FC<ActivitySegmentProps> = ({
           name="activityTypeRef"
           render={({ field }) => (
             <FormItem>
-              <FormLabel>
-                {typeLabel} <span className="gba:text-destructive gba:font-bold">*</span>
-              </FormLabel>
+              <FormLabel>{typeLabel}</FormLabel>
               <FormControl>
                 <CatalogSelect
                   catalogIdentifier={`${typeCatalog.identifier}:${typeCatalog.version}`}
@@ -372,9 +368,7 @@ const ActivitySegment: React.FC<ActivitySegmentProps> = ({
         name="occurredAt"
         render={({ field }) => (
           <FormItem>
-            <FormLabel>
-              {dateLabel} <span className="gba:text-destructive gba:font-bold">*</span>
-            </FormLabel>
+            <FormLabel>{dateLabel}</FormLabel>
             <FormControl>
               <Input
                 type="datetime-local"
@@ -395,15 +389,13 @@ const ActivitySegment: React.FC<ActivitySegmentProps> = ({
           name="relatedEntityId"
           render={({ field }) => (
             <FormItem>
-              <FormLabel>
-                {entityLabel || 'Related Entity'} <span className="gba:text-destructive gba:font-bold">*</span>
-              </FormLabel>
+              <FormLabel>{entityLabel || 'Related Entity'}</FormLabel>
               <FormControl>
                 <EntitySelect
                   entities={entities}
                   value={field.value || ''}
                   onValueChange={(v: string | null) => {
-                    field.onChange(v)
+                    field.onChange(v || '')
                     if (form) {
                       const id = String(v || '')
                       const e = (entities || []).find(x => x.id === id)
@@ -412,7 +404,7 @@ const ActivitySegment: React.FC<ActivitySegmentProps> = ({
                       form.setValue('opportunity', undefined)
                       form.setValue('lead', undefined)
                       if (e) {
-                        form.setValue(e.type, { id: e.id })
+                        form.setValue(e.type, e.id)
                         form.setValue('relatedEntityId', e.id)
                       }
                     }
@@ -438,9 +430,7 @@ const ActivitySegment: React.FC<ActivitySegmentProps> = ({
         name="description"
         render={({ field }) => (
           <FormItem>
-            <FormLabel>
-              {descriptionLabel} <span className="gba:text-destructive gba:font-bold">*</span>
-            </FormLabel>
+            <FormLabel>{descriptionLabel}</FormLabel>
             <FormControl>
               <Textarea data-testid={`${dataTestId}-description`} {...field} />
             </FormControl>
@@ -463,7 +453,7 @@ const ActivitySegment: React.FC<ActivitySegmentProps> = ({
                   employees={assignees as any}
                   value={field.value || ''}
                   onValueChange={(v: string | null) => {
-                    field.onChange(v)
+                    field.onChange(v || '')
                     // Optionally set owner user id if provided later
                   }}
                   onSearch={onAssigneeSearch}
@@ -497,7 +487,7 @@ const ActivitySegment: React.FC<ActivitySegmentProps> = ({
                   multiple={true}
                   accept=".pdf,.doc,.docx,.xls,.xlsx,.txt,.jpg,.jpeg,.png"
                   initialFiles={initialFiles}
-                  onFilesChange={handleFilesChange}
+                  onChange={handleFilesChange}
                   data-testid={`${dataTestId}-file-upload`}
                 />
               </FormControl>

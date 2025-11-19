@@ -135,6 +135,7 @@ export const buildLeadQuery = (
           ${CATALOG_ENTRY}
         }
         ${entityFields.leadStatusRef}
+        ${entityFields.locality}
         ${entityFields.ownerEmployee} {
           ${EMPLOYEE_REF}
         }
@@ -144,7 +145,7 @@ export const buildLeadQuery = (
         ${entityFields.legalFormRef}
         ${entityFields.ownerEmployeeId}
         ${entityFields.phoneNumber}
-        ${entityFields.position}
+        ${entityFields.jobPosition}
         ${entityFields.postalCode}
         ${entityFields.region} {
           ${CATALOG_ENTRY}
@@ -232,6 +233,7 @@ export const buildLeadByIdQuery = (
           ${CATALOG_ENTRY}
         }
         ${entityFields.leadStatusRef}
+        ${entityFields.locality}
         ${entityFields.ownerEmployee} {
           ${EMPLOYEE_REF}
         }
@@ -241,7 +243,7 @@ export const buildLeadByIdQuery = (
         ${entityFields.legalFormRef}
         ${entityFields.ownerEmployeeId}
         ${entityFields.phoneNumber}
-        ${entityFields.position}
+        ${entityFields.jobPosition}
         ${entityFields.postalCode}
         ${entityFields.region} {
           ${CATALOG_ENTRY}

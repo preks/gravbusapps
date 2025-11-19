@@ -11,10 +11,8 @@ import translations from './_i18n'
 export interface LeadConvertAccountStepProps {
   businessAppContext: BusinessAppContextProps
   ownerEmployee?: any
-  addresses?: any[]
   annualRevenueCatalogIdentifier?: string
   companySizeCatalogIdentifier?: string
-  avatarImage?: string
   contacts?: ContactSelectOption[]
   contactsLoading?: boolean
   contactsError?: string | null
@@ -35,10 +33,8 @@ export interface LeadConvertAccountStepProps {
 export const LeadConvertAccountStep: React.FC<LeadConvertAccountStepProps> = ({
   businessAppContext,
   ownerEmployee,
-  addresses,
   annualRevenueCatalogIdentifier = 'AccountAnnualRevenueBand:v1',
   companySizeCatalogIdentifier = 'CompanySize:v1',
-  avatarImage,
   contacts,
   contactsLoading,
   contactsError,
@@ -66,10 +62,8 @@ export const LeadConvertAccountStep: React.FC<LeadConvertAccountStepProps> = ({
           <AccountLayout
             businessAppContext={businessAppContext}
             ownerEmployee={ownerEmployee}
-            addresses={addresses}
             annualRevenueCatalogIdentifier={annualRevenueCatalogIdentifier}
             companySizeCatalogIdentifier={companySizeCatalogIdentifier}
-            avatarImage={avatarImage}
             contacts={contacts}
             contactsLoading={contactsLoading}
             contactsError={contactsError}
@@ -90,8 +84,6 @@ export const LeadConvertAccountStep: React.FC<LeadConvertAccountStepProps> = ({
 export interface LeadConvertContactStepProps {
   businessAppContext: BusinessAppContextProps
   ownerEmployee?: any
-  addresses?: any[]
-  avatarImage?: string
   accounts?: AccountSelectOption[]
   accountsLoading?: boolean
   accountsError?: string | null
@@ -107,8 +99,6 @@ export interface LeadConvertContactStepProps {
 export const LeadConvertContactStep: React.FC<LeadConvertContactStepProps> = ({
   businessAppContext,
   ownerEmployee,
-  addresses,
-  avatarImage,
   accounts,
   accountsLoading,
   accountsError,
@@ -135,8 +125,6 @@ export const LeadConvertContactStep: React.FC<LeadConvertContactStepProps> = ({
           <ContactLayout
             businessAppContext={businessAppContext}
             ownerEmployee={ownerEmployee}
-            addresses={addresses}
-            avatarImage={avatarImage}
             accounts={accounts}
             accountsLoading={accountsLoading}
             accountsError={accountsError}
@@ -188,6 +176,8 @@ export interface LeadConvertOpportunityStepProps {
   opportunityDetailsCustomFields?: React.ReactNode
   opportunityPipelineCustomFields?: React.ReactNode
   customSegments?: Array<{ id: string; title: string; content: React.ReactNode }>
+  // Hide related entities (account/contact) - true for Lead Convert context
+  hideRelatedEntities?: boolean
 }
 
 export const LeadConvertOpportunityStep: React.FC<LeadConvertOpportunityStepProps> = ({
@@ -224,7 +214,8 @@ export const LeadConvertOpportunityStep: React.FC<LeadConvertOpportunityStepProp
   opportunityInformationCustomFields,
   opportunityDetailsCustomFields,
   opportunityPipelineCustomFields,
-  customSegments
+  customSegments,
+  hideRelatedEntities = true // Default to true for Lead Convert context
 }) => {
   const { t } = useTranslation(translations)
 
@@ -272,6 +263,7 @@ export const LeadConvertOpportunityStep: React.FC<LeadConvertOpportunityStepProp
             opportunityDetailsCustomFields={opportunityDetailsCustomFields}
             opportunityPipelineCustomFields={opportunityPipelineCustomFields}
             customSegments={customSegments}
+            hideRelatedEntities={hideRelatedEntities}
           />
         )}
       </div>
