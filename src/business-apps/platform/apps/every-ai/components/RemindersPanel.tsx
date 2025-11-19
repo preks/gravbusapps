@@ -36,6 +36,13 @@ export const RemindersPanel: React.FC<RemindersPanelProps> = ({ accessToken, use
       const baseUrl = window.location.origin
       const userId = userInfo?.employeeDetails?.employeeId || ''
 
+      // Skip if no user ID
+      if (!userId) {
+        setReminders([])
+        setIsLoading(false)
+        return
+      }
+
       // Query Conductor for workflows with reminder tag
       const searchParams = new URLSearchParams({
         freeText: '*',
@@ -50,11 +57,14 @@ export const RemindersPanel: React.FC<RemindersPanelProps> = ({ accessToken, use
       })
 
       if (!response.ok) {
-        throw new Error(`Failed to fetch reminders: ${response.statusText}`)
+        console.warn(`Failed to fetch reminders: ${response.statusText}`)
+        setReminders([])
+        setIsLoading(false)
+        return
       }
 
       const data = await response.json()
-      const workflows = data.results || []
+      const workflows = Array.isArray(data.results) ? data.results : []
 
       // Transform workflows to reminders
       const reminderList: Reminder[] = workflows
@@ -67,6 +77,7 @@ export const RemindersPanel: React.FC<RemindersPanelProps> = ({ accessToken, use
           status: wf.status,
           createdAt: wf.input?.createdAt || wf.createTime
         }))
+        .filter(r => r.reminderDateTime) // Filter out reminders without time
         .sort((a: Reminder, b: Reminder) => {
           // Sort by reminder time (earliest first)
           return new Date(a.reminderDateTime).getTime() - new Date(b.reminderDateTime).getTime()
@@ -74,8 +85,12 @@ export const RemindersPanel: React.FC<RemindersPanelProps> = ({ accessToken, use
 
       setReminders(reminderList)
 
-      // Check for due reminders and send browser notifications
-      checkAndNotifyReminders(reminderList)
+      // Check for due reminders and send browser notifications (wrapped in try-catch)
+      try {
+        checkAndNotifyReminders(reminderList)
+      } catch (notifyErr) {
+        console.error('Failed to check/notify reminders:', notifyErr)
+      }
     } catch (err) {
       console.error('Failed to load reminders:', err)
       setError(err instanceof Error ? err.message : 'Failed to load reminders')
@@ -85,42 +100,61 @@ export const RemindersPanel: React.FC<RemindersPanelProps> = ({ accessToken, use
   }, [accessToken, userInfo])
 
   const checkAndNotifyReminders = useCallback((reminderList: Reminder[]) => {
+    // Check if Notification API is available
+    if (typeof Notification === 'undefined') {
+      return
+    }
+
     reminderList.forEach(reminder => {
-      const isDue = dayjs(reminder.reminderDateTime).isBefore(dayjs())
+      try {
+        // Skip if no valid reminder time
+        if (!reminder.reminderDateTime) return
 
-      // If reminder is due and we haven't notified yet
-      if (isDue && !notifiedReminders.current.has(reminder.workflowId)) {
-        notifiedReminders.current.add(reminder.workflowId)
+        const isDue = dayjs(reminder.reminderDateTime).isBefore(dayjs())
 
-        // Request notification permission if needed
-        if (Notification.permission === 'granted') {
-          new Notification(`⏰ Reminder: ${reminder.title}`, {
-            body: reminder.message || `Time to: ${reminder.title}`,
-            icon: '/icon.png', // Optional: add your app icon
-            tag: reminder.workflowId // Prevents duplicate notifications
-          })
-        } else if (Notification.permission !== 'denied') {
-          Notification.requestPermission().then(permission => {
-            if (permission === 'granted') {
-              new Notification(`⏰ Reminder: ${reminder.title}`, {
-                body: reminder.message || `Time to: ${reminder.title}`,
-                tag: reminder.workflowId
-              })
-            }
-          })
+        // If reminder is due and we haven't notified yet
+        if (isDue && !notifiedReminders.current.has(reminder.workflowId)) {
+          notifiedReminders.current.add(reminder.workflowId)
+
+          // Request notification permission if needed
+          if (Notification.permission === 'granted') {
+            new Notification(`⏰ Reminder: ${reminder.title}`, {
+              body: reminder.message || `Time to: ${reminder.title}`,
+              icon: '/icon.png', // Optional: add your app icon
+              tag: reminder.workflowId // Prevents duplicate notifications
+            })
+          } else if (Notification.permission !== 'denied') {
+            Notification.requestPermission().then(permission => {
+              if (permission === 'granted') {
+                new Notification(`⏰ Reminder: ${reminder.title}`, {
+                  body: reminder.message || `Time to: ${reminder.title}`,
+                  tag: reminder.workflowId
+                })
+              }
+            })
+          }
         }
+      } catch (err) {
+        console.error(`Failed to notify for reminder ${reminder.workflowId}:`, err)
       }
     })
   }, [])
 
   useEffect(() => {
+    // Only load if we have accessToken
+    if (!accessToken) return
+
     loadReminders()
 
     // Poll every 60 seconds for updates
-    const interval = setInterval(loadReminders, 60000)
+    const interval = setInterval(() => {
+      loadReminders()
+    }, 60000)
 
-    return () => clearInterval(interval)
-  }, [loadReminders])
+    return () => {
+      clearInterval(interval)
+    }
+  }, [accessToken, userInfo])
 
   const handleDismiss = async (workflowId: string) => {
     if (!confirm('Cancel this reminder?')) return
