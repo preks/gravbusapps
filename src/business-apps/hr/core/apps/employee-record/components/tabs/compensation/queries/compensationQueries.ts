@@ -34,6 +34,7 @@ export const GET_EMPLOYEE_COMPENSATION_DATA = /*sql*/ `
       employeeId
       monthlyGrossSalary
       annualGrossSalary
+      hourlyGrossSalary
       currency {
         id
         code

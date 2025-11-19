@@ -34,24 +34,21 @@ export interface EmployeeCompensationResponse {
     employeeId: string
     annualGrossSalary: number
     monthlyGrossSalary: number | null
+    hourlyGrossSalary: number | null
     currencyRef: string
     currency: CatalogEntry
-    payFrequencyRef: string | null
-    payFrequency: CatalogEntry | null
   }>
 }
 
-export interface CatalogsDataResponse {
-  currency: CatalogEntry[]
-}
+// No catalogs needed - pay frequency is determined from employee data
+export type CatalogsDataResponse = Record<string, never>
 
 export type AdjustEmployeeSalaryFormValues = {
   amountIncrease: number | null
   percentageIncrease: number | null
-  currencyRef: string
+  adjustmentFrequency: 'annually' | 'monthly' | 'hourly'
   effectiveDate: string
   reason: string
-  description: string
   notes: string
 }
 
