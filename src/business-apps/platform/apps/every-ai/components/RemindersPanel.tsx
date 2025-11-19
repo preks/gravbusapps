@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useCallback } from 'react'
+import React, { useState, useEffect, useCallback, useRef } from 'react'
 import { Card, CardHeader, CardTitle, CardContent, Button, Badge } from '@newwork/nw-design-system'
 import { BusinessAppContextProps } from '@/common/BusinessAppContext'
 import dayjs from 'dayjs'
@@ -24,6 +24,7 @@ export const RemindersPanel: React.FC<RemindersPanelProps> = ({ accessToken, use
   const [reminders, setReminders] = useState<Reminder[]>([])
   const [isLoading, setIsLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
+  const notifiedReminders = useRef<Set<string>>(new Set())
 
   const loadReminders = useCallback(async () => {
     if (!accessToken) return
@@ -72,6 +73,9 @@ export const RemindersPanel: React.FC<RemindersPanelProps> = ({ accessToken, use
         })
 
       setReminders(reminderList)
+
+      // Check for due reminders and send browser notifications
+      checkAndNotifyReminders(reminderList)
     } catch (err) {
       console.error('Failed to load reminders:', err)
       setError(err instanceof Error ? err.message : 'Failed to load reminders')
@@ -79,6 +83,35 @@ export const RemindersPanel: React.FC<RemindersPanelProps> = ({ accessToken, use
       setIsLoading(false)
     }
   }, [accessToken, userInfo])
+
+  const checkAndNotifyReminders = useCallback((reminderList: Reminder[]) => {
+    reminderList.forEach(reminder => {
+      const isDue = dayjs(reminder.reminderDateTime).isBefore(dayjs())
+
+      // If reminder is due and we haven't notified yet
+      if (isDue && !notifiedReminders.current.has(reminder.workflowId)) {
+        notifiedReminders.current.add(reminder.workflowId)
+
+        // Request notification permission if needed
+        if (Notification.permission === 'granted') {
+          new Notification(`⏰ Reminder: ${reminder.title}`, {
+            body: reminder.message || `Time to: ${reminder.title}`,
+            icon: '/icon.png', // Optional: add your app icon
+            tag: reminder.workflowId // Prevents duplicate notifications
+          })
+        } else if (Notification.permission !== 'denied') {
+          Notification.requestPermission().then(permission => {
+            if (permission === 'granted') {
+              new Notification(`⏰ Reminder: ${reminder.title}`, {
+                body: reminder.message || `Time to: ${reminder.title}`,
+                tag: reminder.workflowId
+              })
+            }
+          })
+        }
+      }
+    })
+  }, [])
 
   useEffect(() => {
     loadReminders()
@@ -106,11 +139,80 @@ export const RemindersPanel: React.FC<RemindersPanelProps> = ({ accessToken, use
         throw new Error('Failed to cancel reminder')
       }
 
-      // Remove from list
+      // Remove from list and from notified set
       setReminders(prev => prev.filter(r => r.workflowId !== workflowId))
+      notifiedReminders.current.delete(workflowId)
     } catch (err) {
       console.error('Failed to cancel reminder:', err)
       alert('Failed to cancel reminder. Please try again.')
+    }
+  }
+
+  const handlePostpone = async (workflowId: string, minutesToAdd: number) => {
+    const reminder = reminders.find(r => r.workflowId === workflowId)
+    if (!reminder) return
+
+    try {
+      const newReminderTime = dayjs(reminder.reminderDateTime).add(minutesToAdd, 'minute')
+      const baseUrl = window.location.origin
+
+      // Update workflow input with new reminder time
+      const response = await fetch(`${baseUrl}/flow-engine/api/workflow/${workflowId}`, {
+        method: 'PATCH',
+        headers: {
+          Authorization: `Bearer ${accessToken}`,
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify({
+          input: {
+            ...reminder,
+            reminderDateTime: newReminderTime.toISOString(),
+            reminderDateTimeFormatted: newReminderTime.format('dddd, MMMM D, YYYY [at] h:mm A'),
+            postponedAt: new Date().toISOString(),
+            postponedBy: minutesToAdd
+          }
+        })
+      })
+
+      if (!response.ok) {
+        throw new Error('Failed to postpone reminder')
+      }
+
+      // Remove from notified set so it can notify again
+      notifiedReminders.current.delete(workflowId)
+
+      // Reload reminders to show updated time
+      await loadReminders()
+    } catch (err) {
+      console.error('Failed to postpone reminder:', err)
+      alert('Failed to postpone reminder. Please try again.')
+    }
+  }
+
+  const handleMarkAsDone = async (workflowId: string) => {
+    try {
+      const baseUrl = window.location.origin
+
+      // Complete the workflow
+      const response = await fetch(`${baseUrl}/flow-engine/api/workflow/${workflowId}/complete`, {
+        method: 'POST',
+        headers: {
+          Authorization: `Bearer ${accessToken}`,
+          'Content-Type': 'application/json'
+        }
+      })
+
+      if (!response.ok) {
+        throw new Error('Failed to mark reminder as done')
+      }
+
+      // Remove from list
+      setReminders(prev => prev.filter(r => r.workflowId !== workflowId))
+      notifiedReminders.current.delete(workflowId)
+    } catch (err) {
+      console.error('Failed to mark reminder as done:', err)
+      // If complete endpoint doesn't exist, just dismiss it
+      handleDismiss(workflowId)
     }
   }
 
@@ -245,17 +347,44 @@ export const RemindersPanel: React.FC<RemindersPanelProps> = ({ accessToken, use
                       )}
                     </div>
 
-                    {/* Cancel button */}
-                    <Button
-                      variant="ghost"
-                      size="sm"
-                      onClick={() => handleDismiss(reminder.workflowId)}
-                      className="gba:h-6 gba:w-6 gba:p-0 gba:flex-shrink-0 hover:gba:bg-destructive/10 hover:gba:text-destructive"
-                      data-testid={`dismiss-reminder-${reminder.workflowId}`}
-                      title="Cancel reminder"
-                    >
-                      ✕
-                    </Button>
+                    {/* Action buttons */}
+                    <div className="gba:flex gba:flex-col gba:gap-1 gba:flex-shrink-0">
+                      {due && (
+                        <Button
+                          variant="ghost"
+                          size="sm"
+                          onClick={() => handleMarkAsDone(reminder.workflowId)}
+                          className="gba:h-6 gba:px-2 gba:text-xs hover:gba:bg-success/10 hover:gba:text-success"
+                          data-testid={`mark-done-reminder-${reminder.workflowId}`}
+                          title="Mark as done"
+                        >
+                          ✓
+                        </Button>
+                      )}
+                      <Button
+                        variant="ghost"
+                        size="sm"
+                        onClick={() => {
+                          const minutes = window.prompt('Postpone by how many minutes?', '10')
+                          if (minutes) handlePostpone(reminder.workflowId, parseInt(minutes))
+                        }}
+                        className="gba:h-6 gba:px-2 gba:text-xs hover:gba:bg-info/10 hover:gba:text-info"
+                        data-testid={`postpone-reminder-${reminder.workflowId}`}
+                        title="Postpone"
+                      >
+                        ⏰
+                      </Button>
+                      <Button
+                        variant="ghost"
+                        size="sm"
+                        onClick={() => handleDismiss(reminder.workflowId)}
+                        className="gba:h-6 gba:px-2 gba:text-xs hover:gba:bg-destructive/10 hover:gba:text-destructive"
+                        data-testid={`dismiss-reminder-${reminder.workflowId}`}
+                        title="Cancel"
+                      >
+                        ✕
+                      </Button>
+                    </div>
                   </div>
                 </Card>
               )
