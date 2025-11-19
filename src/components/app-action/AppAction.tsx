@@ -20,7 +20,7 @@ export interface AppActionProps {
   // Primary API
   contexts?: Array<{
     context: FlowContextName | string
-    contextData: Record<string, string>[]
+    contextData: Record<string, string>
   }>
   customActions?: ActionOption[]
   accessToken?: string
@@ -115,11 +115,7 @@ const actionVariants = {
     lazyLoad: false,
     emptyState: 'hide',
     autoExecute: true,
-    defaultChildren: (
-      <Button variant="secondary" size="icon">
-        <Icon icon={PlusIcon} />
-      </Button>
-    )
+    defaultChildren: <Icon icon={PlusIcon} />
   },
 
   'update-primary': {
@@ -144,11 +140,7 @@ const actionVariants = {
     lazyLoad: false,
     emptyState: 'hide',
     autoExecute: true,
-    defaultChildren: (
-      <Button variant="secondary" size="icon">
-        <Icon icon={PencilIcon} />
-      </Button>
-    )
+    defaultChildren: <Icon icon={PencilIcon} />
   },
 
   'delete-primary': {
@@ -173,11 +165,7 @@ const actionVariants = {
     lazyLoad: false,
     emptyState: 'hide',
     autoExecute: true,
-    defaultChildren: (
-      <Button variant="destructive" size="icon">
-        <Icon icon={TrashIcon} />
-      </Button>
-    )
+    defaultChildren: <Icon icon={TrashIcon} />
   }
 } as const
 
@@ -247,7 +235,11 @@ const AppActionRenderer: React.FC<{
       'aria-disabled': disabled || (config.emptyStateBehavior === 'disable' && combinedData.length === 0) || undefined
     })
 
-    return <div data-testid={containerTestId}>{clonedChild}</div>
+    return (
+      <div data-testid={containerTestId} className={props.className}>
+        {clonedChild}
+      </div>
+    )
   }
 
   if (mode === 'button') {
@@ -352,12 +344,8 @@ export const AppAction: React.FC<AppActionProps> = React.memo(props => {
       const mergedData: Record<string, any> = {}
 
       contexts.forEach(({ context, contextData }) => {
-        contextData.forEach(() => {
-          expandedContexts.push(context)
-        })
-        contextData.forEach(data => {
-          Object.assign(mergedData, data)
-        })
+        expandedContexts.push(context)
+        Object.assign(mergedData, contextData)
       })
 
       return {

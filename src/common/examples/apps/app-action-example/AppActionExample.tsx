@@ -319,7 +319,7 @@ const AppActionExample: React.FC<BusinessAppContextProps> = context => {
               contexts={[
                 {
                   context: FlowContextName.customerLeadCreate,
-                  contextData: [{}]
+                  contextData: {}
                 }
               ]}
               accessToken={accessToken}
@@ -342,7 +342,7 @@ const AppActionExample: React.FC<BusinessAppContextProps> = context => {
               contexts={[
                 {
                   context: FlowContextName.customerAccountUpdate,
-                  contextData: [{ accountId: realAccounts[0].id }]
+                  contextData: { accountId: realAccounts[0].id }
                 }
               ]}
               accessToken={accessToken}
@@ -363,11 +363,11 @@ const AppActionExample: React.FC<BusinessAppContextProps> = context => {
               contexts={[
                 {
                   context: FlowContextName.customerLeadCreate,
-                  contextData: [{}]
+                  contextData: {}
                 },
                 {
                   context: FlowContextName.customerAccountCreate,
-                  contextData: [{}]
+                  contextData: {}
                 }
               ]}
               accessToken={accessToken}
@@ -379,26 +379,26 @@ const AppActionExample: React.FC<BusinessAppContextProps> = context => {
 
           <Separator />
 
-          {/* Complex: Multiple Contexts with Multiple Data */}
+          {/* Complex: Multiple Contexts with Merged Data */}
           <div>
-            <h3 className="gba:text-lg gba:font-semibold gba:mb-2">Multiple Contexts with Multiple Data Each</h3>
+            <h3 className="gba:text-lg gba:font-semibold gba:mb-2">Multiple Contexts with Merged Data</h3>
             <p className="gba:text-sm gba:text-muted-foreground gba:mb-4">
-              Most flexible configuration - each context can have multiple data objects
+              Most flexible configuration - each context can have merged data objects
             </p>
             <AppAction
               variant="table-row"
               contexts={[
                 {
                   context: FlowContextName.customerLeadEntity,
-                  contextData: [{ leadId: realLeads[0].id }, { leadId: realLeads[1].id }]
+                  contextData: { leadId: realLeads[0].id, leadId2: realLeads[1].id }
                 },
                 {
                   context: FlowContextName.customerAccountEntity,
-                  contextData: [{ accountId: realAccounts[0].id }]
+                  contextData: { accountId: realAccounts[0].id }
                 },
                 {
                   context: FlowContextName.customerContactEntity,
-                  contextData: [{ contactId: realContacts[0].id }, { contactId: realContacts[1].id }]
+                  contextData: { contactId: realContacts[0].id, contactId2: realContacts[1].id }
                 }
               ]}
               accessToken={accessToken}
