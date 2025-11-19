@@ -153,9 +153,6 @@ const CurrentCompensationView: React.FC<CurrentCompensationViewProps> = ({
         currencyCode={currencyCode}
         locale={locale}
       />
-
-      {/* Compensation Band Info */}
-      <CompensationBandSection t={t} compensationData={compensationData} loading={loading} locale={locale} />
     </div>
   )
 }

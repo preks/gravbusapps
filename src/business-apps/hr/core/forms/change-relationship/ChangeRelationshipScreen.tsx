@@ -307,7 +307,23 @@ const ChangeRelationshipScreen: React.FC<BusinessAppContextProps> = ({ additiona
     } as any
 
     const relationshipChange = {
-      employeeRelationship
+      employeeRelationship,
+      oldEmployeeRelationship: selectedExisting
+        ? {
+            id: selectedExisting.id,
+            version: selectedExisting.version,
+            businessKey: initialPayload?.relationship?.businessKey || '',
+            additionalProperties: initialPayload?.relationship?.additionalProperties || {},
+            employeeId,
+            firstName: selectedExisting.firstName || '',
+            lastName: selectedExisting.lastName || '',
+            phoneNumber: selectedExisting.phoneNumber || '',
+            typeRef: selectedExisting.typeRef || '',
+            birthDate: selectedExisting.birthDate || '',
+            emergencyContact: Boolean(selectedExisting.isEmergencyContact),
+            relationshipDocument: selectedExisting.relationshipDocumentId || ''
+          }
+        : {}
     }
 
     // Only show modal for specific relationship types (Child or Marriage)
@@ -510,7 +526,7 @@ const ChangeRelationshipScreen: React.FC<BusinessAppContextProps> = ({ additiona
                 <DateInput
                   type="date"
                   value={birthDate || ''}
-                  onChange={(v?: string) => setBirthDate(v || '')}
+                  onChange={value => setBirthDate(Array.isArray(value) ? (value?.[0] ?? '') : (value ?? ''))}
                   placeholder={getTranslationFromI18nKeyAndLabel(
                     'lowcoder:relationship_form.birth_date_placeholder',
                     'YYYY-MM-DD'

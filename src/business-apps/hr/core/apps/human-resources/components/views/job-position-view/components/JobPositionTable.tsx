@@ -28,6 +28,8 @@ import { FlowContextName } from '@/common/types/FlowRegistryTypes'
 import { JobPosition } from '../hooks/useJobPositionListData'
 import { getTranslationFromI18nKeyAndLabel, formatDate } from '@/common/utils/windowUtils'
 import { formatDataTestId } from '@/common/utils/formatDataTestId'
+import { useTranslation } from '@newwork/nw-design-system'
+import hrTranslations from '@/business-apps/hr/core/apps/human-resources/_i18n'
 
 // Memoized AppActionButton to prevent unnecessary re-renders and API calls
 const MemoizedAppActionButton = React.memo<{
@@ -102,6 +104,7 @@ export const JobPositionTable: React.FC<JobPositionTableProps> = ({
   sortOrder,
   onSortingChange
 }) => {
+  const { t } = useTranslation(hrTranslations)
   // Calculate pagination values
   const totalPages = Math.ceil(total / pageSize)
 
@@ -397,11 +400,15 @@ export const JobPositionTable: React.FC<JobPositionTableProps> = ({
                   </div>
                 </TableHead>
                 {/* Marked for termination */}
-                <TableHead className="gba:w-[15%] gba:font-semibold gba:text-foreground gba:py-4 gba:px-6">
-                  {getTranslationFromI18nKeyAndLabel(
-                    'lowcoder:human_resources_page.job_positions_section.marked_for_termination',
-                    'Marked for termination'
-                  )}
+                <TableHead
+                  className="gba:w-[15%] gba:font-semibold gba:text-foreground gba:py-4 gba:px-6 gba:cursor-pointer gba:select-none hover:gba:bg-muted"
+                  onClick={() => handleSort('markedForTermination')}
+                  data-testid={formatDataTestId(DATA_TEST_ID_PREFIX, 'marked-for-termination-header')}
+                >
+                  <div className="gba:flex gba:items-center">
+                    {t('hr-positions-marked-for-termination-title')}
+                    {renderSortIcon('markedForTermination')}
+                  </div>
                 </TableHead>
                 <TableHead
                   className="gba:w-[5%] gba:font-semibold gba:text-foreground gba:py-4 gba:px-6"
@@ -523,7 +530,7 @@ export const JobPositionTable: React.FC<JobPositionTableProps> = ({
             className="gba:text-sm gba:text-muted-foreground"
             data-testid={formatDataTestId(DATA_TEST_ID_PREFIX, 'pagination-info')}
           >
-            {`${(currentPage - 1) * pageSize + 1}-${Math.min(currentPage * pageSize, total)} of ${total} job positions`}
+            {t('hr-pagination-page-of', { current: currentPage, totalPages: Math.ceil(total / pageSize) })}
           </div>
           <div className="gba:flex gba:items-center gba:space-x-6 gba:lg:space-x-8">
             <div className="gba:flex gba:items-center gba:space-x-2">
@@ -549,7 +556,15 @@ export const JobPositionTable: React.FC<JobPositionTableProps> = ({
               className="gba:flex gba:w-[100px] gba:items-center gba:justify-center gba:text-sm gba:font-medium"
               data-testid={formatDataTestId(DATA_TEST_ID_PREFIX, 'page-info')}
             >
-              Page {currentPage} of {Math.ceil(total / pageSize)}
+              {getTranslationFromI18nKeyAndLabel(
+                'lowcoder:human_resources_page.pagination.page_of',
+                `Page ${currentPage} of ${Math.ceil(total / pageSize)}`,
+                {
+                  current: currentPage,
+                  totalPages: Math.ceil(total / pageSize),
+                  interpolation: { escapeValue: false }
+                }
+              )}
             </div>
             <div className="gba:flex gba:items-center gba:space-x-2">
               <Button
@@ -559,7 +574,7 @@ export const JobPositionTable: React.FC<JobPositionTableProps> = ({
                 disabled={currentPage === 1 || loading}
                 data-testid={formatDataTestId(DATA_TEST_ID_PREFIX, 'first-page-button')}
               >
-                <span className="gba:sr-only">Go to first page</span>
+                <span className="gba:sr-only">{t('hr-pagination-first-page-sr')}</span>
                 ⟨⟨
               </Button>
               <Button
@@ -569,7 +584,7 @@ export const JobPositionTable: React.FC<JobPositionTableProps> = ({
                 disabled={currentPage === 1 || loading}
                 data-testid={formatDataTestId(DATA_TEST_ID_PREFIX, 'previous-page-button')}
               >
-                <span className="gba:sr-only">Go to previous page</span>⟨
+                <span className="gba:sr-only">{t('hr-pagination-prev-page-sr')}</span>⟨
               </Button>
               <Button
                 variant="outline"
@@ -578,7 +593,7 @@ export const JobPositionTable: React.FC<JobPositionTableProps> = ({
                 disabled={currentPage === totalPages || loading}
                 data-testid={formatDataTestId(DATA_TEST_ID_PREFIX, 'next-page-button')}
               >
-                <span className="gba:sr-only">Go to next page</span>⟩
+                <span className="gba:sr-only">{t('hr-pagination-next-page-sr')}</span>⟩
               </Button>
               <Button
                 variant="outline"
@@ -587,7 +602,7 @@ export const JobPositionTable: React.FC<JobPositionTableProps> = ({
                 disabled={currentPage === totalPages || loading}
                 data-testid={formatDataTestId(DATA_TEST_ID_PREFIX, 'last-page-button')}
               >
-                <span className="gba:sr-only">Go to last page</span>
+                <span className="gba:sr-only">{t('hr-pagination-last-page-sr')}</span>
                 ⟩⟩
               </Button>
             </div>

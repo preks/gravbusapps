@@ -21,6 +21,7 @@ const AddSkillContent: React.FC<BusinessAppContextProps> = props => {
   const [propValue, setPropValue] = useState('')
   const [newProps, setNewProps] = useState<string[]>([])
   const [existingList, setExistingList] = useState<string[]>(existingProps || [])
+  const [modifiedProps, setModifiedProps] = useState<string[]>([])
   const [removedProps, setRemovedProps] = useState<string[]>([])
   const [inputKey, setInputKey] = useState(0)
   const [addError, setAddError] = useState<string | null>(null)
@@ -63,8 +64,8 @@ const AddSkillContent: React.FC<BusinessAppContextProps> = props => {
   // placeholder ref kept for consistency (no behavior needed)
 
   const isSubmitDisabled = useMemo(() => {
-    return newProps.length === 0 && removedProps.length === 0
-  }, [newProps.length, removedProps.length])
+    return newProps.length === 0 && removedProps.length === 0 && modifiedProps.length === 0
+  }, [newProps.length, removedProps.length, modifiedProps.length])
 
   const handleAddProperty = () => {
     const name = propName.trim()
@@ -79,21 +80,28 @@ const AddSkillContent: React.FC<BusinessAppContextProps> = props => {
       return
     }
     const kv = `${name}:${value}`
-    // prevent duplicates against existing and new
-    const exists =
-      (existingProps || []).some(p => String(p).toLowerCase() === kv.toLowerCase()) ||
-      newProps.some(p => p.toLowerCase() === kv.toLowerCase())
-    if (exists) {
-      setAddError(
-        getTranslationFromI18nKeyAndLabel(
-          'lowcoder:additional_props_form.validation_duplicate',
-          'This property already exists.'
-        )
-      )
-      return
-    }
+
+    // Check if property name already exists in existing properties (by name, regardless of value)
+    const nameExistsInExisting = (existingList || []).some(
+      p => (p.split(':')[0] || '').trim().toLowerCase() === name.toLowerCase()
+    )
+
+    // Helper to remove any entry with the same name
+    const filterOutSameName = (arr: string[]) =>
+      arr.filter(p => (p.split(':')[0] || '').trim().toLowerCase() !== name.toLowerCase())
+
     setAddError(null)
-    setNewProps(prev => [...prev, kv])
+
+    if (nameExistsInExisting) {
+      // Treat as modified if an existing property with the same name is present
+      setModifiedProps(prev => [...filterOutSameName(prev), kv])
+      // Ensure it's not also tracked as new
+      setNewProps(prev => filterOutSameName(prev))
+    } else {
+      // Treat as new property (ensure no duplicate names in new/modified buckets)
+      setNewProps(prev => [...filterOutSameName(prev), kv])
+      setModifiedProps(prev => filterOutSameName(prev))
+    }
     setPropName('')
     setPropValue('')
     setInputKey(prev => prev + 1)
@@ -101,6 +109,10 @@ const AddSkillContent: React.FC<BusinessAppContextProps> = props => {
 
   const handleRemoveNewProperty = (value: string) => {
     setNewProps(prev => prev.filter(p => p !== value))
+  }
+
+  const handleRemoveModifiedProperty = (value: string) => {
+    setModifiedProps(prev => prev.filter(p => p !== value))
   }
 
   const handleRemoveExistingProperty = (value: string) => {
@@ -150,6 +162,15 @@ const AddSkillContent: React.FC<BusinessAppContextProps> = props => {
               if (key) delete finalMap[key]
             })
             newProps.forEach(kv => {
+              const idx = kv.indexOf(':')
+              if (idx > 0) {
+                const k = kv.slice(0, idx).trim()
+                const v = kv.slice(idx + 1).trim()
+                if (k) finalMap[k] = v
+              }
+            })
+            // Apply modified properties (overwrite existing values)
+            modifiedProps.forEach(kv => {
               const idx = kv.indexOf(':')
               if (idx > 0) {
                 const k = kv.slice(0, idx).trim()
@@ -311,6 +332,60 @@ const AddSkillContent: React.FC<BusinessAppContextProps> = props => {
                         )}
                         className="gba:cursor-pointer gba:rounded-full gba:p-0.5 gba:flex gba:items-center gba:flex-shrink-0 gba:ml-2"
                         data-testid={`new-prop-remove-${idx}`}
+                      >
+                        <XCircleIcon className="gba:w-3 gba:h-3" />
+                      </span>
+                    </Badge>
+                  ))}
+                </div>
+              </div>
+            )}
+
+            {/* Modified properties (same name as existing, new value) */}
+            {modifiedProps.length > 0 && (
+              <div className="gba:mt-4">
+                <span className="gba:block gba:text-muted-foreground gba:font-bold gba:mb-3">
+                  {getTranslationFromI18nKeyAndLabel(
+                    'lowcoder:additional_props_form.modified_properties_label',
+                    'Modified Properties'
+                  )}
+                </span>
+                <div className="gba:flex gba:flex-wrap gba:gap-2" data-testid="modified-additional-properties">
+                  {modifiedProps.map((p, idx) => (
+                    <Badge
+                      key={`modified-${p}-${idx}`}
+                      variant="secondary"
+                      className="gba:flex gba:items-center gba:gap-2 gba:h-10 gba:py-0 gba:px-4 gba:text-sm gba:max-w-full"
+                      data-testid={`modified-prop-${idx}`}
+                    >
+                      <span className="gba:flex-1 gba:min-w-0 gba:px-1 gba:truncate" title={p}>
+                        {p}
+                      </span>
+                      <span
+                        role="button"
+                        tabIndex={0}
+                        onMouseDown={evt => {
+                          evt.preventDefault()
+                          evt.stopPropagation()
+                        }}
+                        onClick={evt => {
+                          evt.preventDefault()
+                          evt.stopPropagation()
+                          handleRemoveModifiedProperty(p)
+                        }}
+                        onKeyDown={evt => {
+                          if (evt.key === 'Enter' || evt.key === ' ') {
+                            evt.preventDefault()
+                            evt.stopPropagation()
+                            handleRemoveModifiedProperty(p)
+                          }
+                        }}
+                        aria-label={getTranslationFromI18nKeyAndLabel(
+                          'lowcoder:employee_profile.details_layout.add_skill_form.remove_aria_label',
+                          'Remove'
+                        )}
+                        className="gba:cursor-pointer gba:rounded-full gba:p-0.5 gba:flex gba:items-center gba:flex-shrink-0 gba:ml-2"
+                        data-testid={`modified-prop-remove-${idx}`}
                       >
                         <XCircleIcon className="gba:w-3 gba:h-3" />
                       </span>

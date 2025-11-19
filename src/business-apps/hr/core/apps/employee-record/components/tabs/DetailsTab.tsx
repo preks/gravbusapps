@@ -4,7 +4,7 @@ import React from 'react'
 import dayjs from 'dayjs'
 import { Card } from '@newwork/gravity-ui-catalog'
 import { Employee } from '../../hooks/useEmployeeData'
-import { formatPhoneNumber, getTranslatedValue } from '../../utils/formatters'
+import { formatPhoneNumber, formatPhoneNumberWithCountryCode, getTranslatedValue } from '../../utils/formatters'
 import { getTranslationFromI18nKeyAndLabel } from '../../../../../../../common/utils/windowUtils'
 import useEmployeePermissions, { SECTION_KEYS } from '../../hooks/useEmployeePermissions'
 import { AppActionMenu } from '@/components/app-action-menu/AppActionMenu'
@@ -162,13 +162,13 @@ const DetailsTab: React.FC<DetailsTabProps> = ({ employee, accessToken, employee
     return [
       {
         label: 'Private Phone',
-        value: primaryPhone?.value ? formatPhoneNumber(primaryPhone.value) : '',
-        secondary: secondaryPhone?.value ? formatPhoneNumber(secondaryPhone.value) : undefined
+        value: primaryPhone?.value ? formatPhoneNumberWithCountryCode(primaryPhone.value) : '',
+        secondary: secondaryPhone?.value ? formatPhoneNumberWithCountryCode(secondaryPhone.value) : undefined
       },
       {
         label: 'Private Mobile',
-        value: primaryMobile?.value ? formatPhoneNumber(primaryMobile.value) : '',
-        secondary: secondaryMobile?.value ? formatPhoneNumber(secondaryMobile.value) : undefined
+        value: primaryMobile?.value ? formatPhoneNumberWithCountryCode(primaryMobile.value) : '',
+        secondary: secondaryMobile?.value ? formatPhoneNumberWithCountryCode(secondaryMobile.value) : undefined
       },
       {
         label: 'Private Email',

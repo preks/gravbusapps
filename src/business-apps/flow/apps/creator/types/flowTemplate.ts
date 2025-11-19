@@ -20,7 +20,9 @@ export enum InputType {
   DATE = 'DATE',
   DATETIME = 'DATETIME',
   CHECKBOX = 'CHECKBOX',
-  FILE = 'FILE'
+  RADIO = 'RADIO',
+  FILE = 'FILE',
+  SIGNATURE = 'SIGNATURE'
 }
 
 export enum AssignmentMode {
@@ -33,12 +35,41 @@ export interface InputOption {
   label: string
 }
 
+export interface DataSource {
+  type: 'CATALOG' | 'ENTITY' | 'API'
+  catalog?: string
+  entity?: string
+  valueField?: string
+  labelField?: string
+}
+
 export interface InputBlock {
   type: InputType
   name: string
   label: string
   required?: boolean
   options?: InputOption[]
+
+  // Expression support
+  value?: string // Expression-based default value (e.g., {{$steps.step_0.output.formData.field}})
+  readOnly?: boolean // For reference fields
+  dataSource?: DataSource // Catalog or entity data source
+}
+
+export enum SummaryFieldVisibility {
+  PUBLIC = 'PUBLIC',
+  WORKFLOW_PARTICIPANTS = 'WORKFLOW_PARTICIPANTS',
+  STEP_PARTICIPANTS = 'STEP_PARTICIPANTS',
+  INITIATOR_ONLY = 'INITIATOR_ONLY'
+}
+
+export interface SummaryField {
+  id?: string // For React key management
+  label: string
+  value: string // Expression to resolve
+  visibility: SummaryFieldVisibility
+  type?: 'text' | 'date' | 'number' | 'currency' | 'boolean'
+  format?: string
 }
 
 export interface Link {
@@ -94,6 +125,10 @@ export interface FlowTemplate {
 
   // Self-service specific: simplified to just the init step
   initStep?: InitStep
+
+  // Flow-level summary fields - shown in workflow results view after completion
+  // Can contain forward references to any step (e.g., {{$steps.step_3.formData.result}})
+  summaryFields?: SummaryField[]
 }
 
 export interface ExecutionConfiguration {

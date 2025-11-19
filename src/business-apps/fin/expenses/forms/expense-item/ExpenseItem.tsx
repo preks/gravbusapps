@@ -1,5 +1,4 @@
 import React from 'react'
-import { useTranslation } from 'react-i18next'
 import { ExpenseItemProvider, useExpenseItem } from './context'
 import { Button } from '@newwork/gravity-ui-catalog'
 import { Typography, Divider } from 'antd'
@@ -67,8 +66,6 @@ const ExpenseItem: React.FC<BusinessAppContextProps & ExpenseItemProps> = ({
   }, [])
 
   const ExpenseItemContent: React.FC<{ onClose?: (shouldRefetch?: boolean) => void }> = ({ onClose }) => {
-    const { t } = useTranslation()
-
     const {
       form,
       currentStep,
@@ -155,7 +152,7 @@ const ExpenseItem: React.FC<BusinessAppContextProps & ExpenseItemProps> = ({
               >
                 <img
                   src={ICONS.BACK_ARROW}
-                  alt={t(
+                  alt={getTranslationFromI18nKeyAndLabel(
                     'lowcoder:expense_calculation_rule.expense_calculation_rule_modal.affected_expense_modal.back_btn',
                     'Back'
                   )}
@@ -176,8 +173,14 @@ const ExpenseItem: React.FC<BusinessAppContextProps & ExpenseItemProps> = ({
               data-testid="expense-item-header-title"
             >
               {isEditMode
-                ? t('lowcoder:create_expense_type_item.header_container_title_edit', 'Edit Item | Expense')
-                : t('lowcoder:create_expense_type_item.header_container_title_new', 'New Item | Expense')}
+                ? getTranslationFromI18nKeyAndLabel(
+                    'lowcoder:create_expense_type_item.header_container_title_edit',
+                    'Edit Item | Expense'
+                  )
+                : getTranslationFromI18nKeyAndLabel(
+                    'lowcoder:create_expense_type_item.header_container_title_new',
+                    'New Item | Expense'
+                  )}
             </Title>
           </div>
         </div>

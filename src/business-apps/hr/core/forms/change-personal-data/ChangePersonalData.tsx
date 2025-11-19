@@ -317,7 +317,9 @@ const ChangePersonalDataContent: React.FC<BusinessAppContextProps> = ({ accessTo
                 birthPlace: employee?.birthPlace || '',
                 severelyDisabilityDegree: employee?.severelyDisabilityDegree ?? '',
                 schoolQualificationRef: employee?.schoolQualificationRef || '',
-                userId: employee?.userId || ''
+                userId: employee?.userId || '',
+                notes: employee?.notes || '',
+                title: employee?.title || ''
               }
             }
             return payload

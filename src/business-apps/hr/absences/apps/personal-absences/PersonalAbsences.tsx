@@ -21,6 +21,7 @@ import { startProcess } from '@/common/utils/start-process'
 
 import AbsencesTab from '@/business-apps/hr/core/apps/employee-record/components/tabs/AbsencesTab'
 import { useEmployeeData } from '@/business-apps/hr/core/apps/employee-record/hooks/useEmployeeData'
+import { AbsenceList } from './components/absence-list-table'
 
 export const PersonalAbsences = (props: BusinessAppContextProps) => {
   const [activeTab, setActiveTab] = useState('calendar')
@@ -73,7 +74,13 @@ export const PersonalAbsences = (props: BusinessAppContextProps) => {
     setError(null)
     Promise.all([
       client.request(GET_EMPLOYEE_ABSENCES, {
-        employeeId,
+        where: {
+          employee: { id: { _eq: employeeId } },
+          isDeleted: { _eq: false }
+        },
+        offset: 0,
+        limit: 1000,
+        orderBy: [{ createdAt: 'DESC' }],
         activeUserLocale: getCurrentActiveUserLocale()
       }),
       client.request(GET_EMPLOYEE_ENTITLEMENTS, {
@@ -308,7 +315,6 @@ export const PersonalAbsences = (props: BusinessAppContextProps) => {
 
     switch (activeTab) {
       case 'calendar':
-      case 'absence-list':
       case 'entitlements':
         if (employee && absenceEntitlements) {
           return (
@@ -319,6 +325,12 @@ export const PersonalAbsences = (props: BusinessAppContextProps) => {
               shownTab={activeTab}
             />
           )
+        }
+        return null
+
+      case 'absence-list':
+        if (employeeId && accessToken) {
+          return <AbsenceList {...props} employeeId={employeeId} />
         }
         return null
 

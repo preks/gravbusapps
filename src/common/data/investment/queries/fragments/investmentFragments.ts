@@ -119,6 +119,7 @@ export const INVESTMENT_OPPORTUNITY = `
     opportunityId
     opportunityPipelineStageCondition {
       ${CATALOG_ENTRY}
+      parentEntryId
     }
     opportunityPipelineStageConditionRef
     task {
@@ -151,6 +152,19 @@ export const INVESTMENT_OPPORTUNITY = `
   investmentTask(where: { isDeleted: { _eq: false } }) {
     ${INVESTMENT_TASK_REF}
   }
+`
+
+// Investment Shareholder fragment
+export const INVESTMENT_SHAREHOLDER = `
+    id
+    name
+    description
+    stakePercentage
+    activeFrom
+    activeTo
+    investmentId
+    businessKey
+    ${AUDIT_FIELDS}
 `
 
 /**
@@ -208,6 +222,8 @@ export const INVESTMENT = `
     totalCommitmentAmount
     totalDistributionAmount
     fundManagerName
+    irr
+    moic
     additionalProperties
     ${AUDIT_FIELDS}
 
@@ -342,6 +358,8 @@ export const EQUITY_INVESTMENT = `
         id
         date
         marketValue
+        turnoverAmount
+        ebitdaAmount
         additionalProperties
     }
 `

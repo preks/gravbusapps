@@ -1,5 +1,5 @@
 import React, { createContext, useContext, useState, useEffect, useRef, ReactNode, useMemo } from 'react'
-import { useTranslation } from 'react-i18next'
+
 import { Form, message } from 'antd'
 import { ExpensePosition, ExpenseType, CostCenter, Currency, ExpenseGroup, CustomField } from '../types'
 
@@ -40,6 +40,7 @@ interface ExpenseItemContextProps {
   setCurrentStep: (step: 'start' | 'form') => void
   loading: boolean
   setLoading: (loading: boolean) => void
+  isInitialized: boolean
   fileList: any[]
   setFileList: (files: any[]) => void
   isProcessingFiles: boolean
@@ -94,11 +95,12 @@ export const ExpenseItemProvider: React.FC<ExpenseItemProviderProps> = ({
   userInfo,
   additionalData
 }): React.ReactNode => {
-  const { t } = useTranslation()
+  const t = (key: string, fallback: string) => getTranslationFromI18nKeyAndLabel(key, fallback)
 
   const [form] = Form.useForm()
   const [currentStep, setCurrentStep] = useState<FormStepType>(FORM_STEPS.START)
   const [loading, setLoading] = useState<boolean>(false)
+  const [isInitialized, setIsInitialized] = useState<boolean>(false)
   const [fileList, setFileList] = useState<any[]>([])
   const [isProcessingFiles, setIsProcessingFiles] = useState<boolean>(false)
   const [isFormDisabled, setIsFormDisabled] = useState<boolean>(false)
@@ -327,6 +329,7 @@ export const ExpenseItemProvider: React.FC<ExpenseItemProviderProps> = ({
           'There is no rule set for your user, please reach out to your administrator.'
         )
         setExpenseRuleError(errorMsg)
+        setIsInitialized(true)
       }
     } catch {
       const errorMsg = t(
@@ -335,6 +338,7 @@ export const ExpenseItemProvider: React.FC<ExpenseItemProviderProps> = ({
       )
       setExpenseRuleError(errorMsg)
       showToast(errorMsg, 'error')
+      setIsInitialized(true)
     }
   }
 
@@ -413,7 +417,7 @@ export const ExpenseItemProvider: React.FC<ExpenseItemProviderProps> = ({
   /**
    * Initializes cost centers for employee position
    */
-  const initializeCostCenters = async (structureId: string, employeePosition: any, costCenterData: any) => {
+  const initializeCostCenters = async (employeePosition: any, costCenterData: any) => {
     try {
       const updatedPositions = [...positions]
       const employeePositionCostCenterId = employeePosition[0]?.costCenterId
@@ -501,7 +505,7 @@ export const ExpenseItemProvider: React.FC<ExpenseItemProviderProps> = ({
           }
 
           // Initialize cost centers for positions
-          await initializeCostCenters(structureId, employeePosition, costCenterData)
+          await initializeCostCenters(employeePosition, costCenterData)
 
           // Initialize currencies
           initializeCurrencies(catalogueData)
@@ -512,6 +516,8 @@ export const ExpenseItemProvider: React.FC<ExpenseItemProviderProps> = ({
       setRerunRule(false)
     } catch {
       showToast(t('lowcoder:create_expense_type_item.process_error_data_fetch', 'Error fetching data'), 'error')
+    } finally {
+      setIsInitialized(true)
     }
   }
 
@@ -742,7 +748,7 @@ export const ExpenseItemProvider: React.FC<ExpenseItemProviderProps> = ({
       setIsProcessingFiles(true)
       setIsFormDisabled(true)
 
-      const result = await handleFileUpload(files, accessToken, aiGroupsAndTypes, t)
+      const result = await handleFileUpload(files, accessToken, aiGroupsAndTypes)
 
       if (result) {
         setByReceipts(result)
@@ -951,6 +957,7 @@ export const ExpenseItemProvider: React.FC<ExpenseItemProviderProps> = ({
       setCurrentStep,
       loading,
       setLoading,
+      isInitialized,
       fileList,
       setFileList,
       isProcessingFiles,
@@ -990,6 +997,7 @@ export const ExpenseItemProvider: React.FC<ExpenseItemProviderProps> = ({
       form,
       currentStep,
       loading,
+      isInitialized,
       fileList,
       isProcessingFiles,
       isFormDisabled,

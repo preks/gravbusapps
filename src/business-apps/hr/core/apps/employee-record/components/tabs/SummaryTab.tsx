@@ -369,7 +369,11 @@ const SummaryTab: React.FC<SummaryTabProps> = ({
                   <div>
                     <div className="gba:text-sm gba:font-medium gba:text-foreground">Job Profile</div>
                     <div className="gba:text-sm gba:text-muted-foreground">
-                      {employee.employeePosition?.jobPosition?.name ?? 'Not assigned'}
+                      {employee.employeePosition?.jobPosition?.name ??
+                        getTranslationFromI18nKeyAndLabel(
+                          'lowcoder:employee_profile.left_side_bar.not_assigned',
+                          'Not assigned'
+                        )}
                     </div>
                   </div>
                 </div>
@@ -392,7 +396,11 @@ const SummaryTab: React.FC<SummaryTabProps> = ({
                         data-testid="job-family-button"
                       >
                         {/* Display job family from updated data structure, fallback to organizationalUnit name */}
-                        {employee.employeePosition?.jobPosition?.jobFunction?.jobFamily?.value || 'Not assigned'}
+                        {employee.employeePosition?.jobPosition?.jobFunction?.jobFamily?.value ||
+                          getTranslationFromI18nKeyAndLabel(
+                            'lowcoder:employee_profile.left_side_bar.not_assigned',
+                            'Not assigned'
+                          )}
                       </button>
                     </div>
                   </div>
@@ -417,7 +425,11 @@ const SummaryTab: React.FC<SummaryTabProps> = ({
                         className="gba:text-sm gba:!text-blue-600 gba:hover:underline gba:text-left gba:w-full"
                         data-testid="job-function-button"
                       >
-                        {employee.employeePosition?.jobPosition?.jobFunction?.name || 'Not assigned'}
+                        {employee.employeePosition?.jobPosition?.jobFunction?.name ||
+                          getTranslationFromI18nKeyAndLabel(
+                            'lowcoder:employee_profile.left_side_bar.not_assigned',
+                            'Not assigned'
+                          )}
                       </button>
                     </div>
                   </div>
@@ -440,7 +452,11 @@ const SummaryTab: React.FC<SummaryTabProps> = ({
                         className="gba:text-sm gba:!text-blue-600 gba:hover:underline gba:text-left gba:w-full"
                         data-testid="job-level-button"
                       >
-                        {employee.employeePosition?.jobPosition?.jobLevel?.name || 'Not assigned'}
+                        {employee.employeePosition?.jobPosition?.jobLevel?.name ||
+                          getTranslationFromI18nKeyAndLabel(
+                            'lowcoder:employee_profile.left_side_bar.not_assigned',
+                            'Not assigned'
+                          )}
                       </button>
                     </div>
                   </div>
@@ -507,7 +523,8 @@ const SummaryTab: React.FC<SummaryTabProps> = ({
                     return (
                       <div key={day} className="gba:text-center">
                         <div className="gba:text-xs gba:font-medium gba:text-muted-foreground gba:uppercase">
-                          {day.slice(0, 3)}
+                          <span className="gba:hidden gba:2xl:inline">{day.slice(0, 3)}</span>
+                          <span className="gba:inline gba:2xl:hidden">{day.slice(0, 1)}</span>
                         </div>
                         <div
                           className={`gba:h-2 gba:rounded-full gba:mt-1 ${isWorkDay ? 'gba:bg-info' : 'gba:bg-border'}`}
@@ -547,7 +564,7 @@ const SummaryTab: React.FC<SummaryTabProps> = ({
                         Quick Actions
                       </div>
                     </div>
-                    <div className="gba:flex gba:gap-2 gba:w-full">
+                    <div className="gba:flex gba:gap-2 gba:w-full gba:flex-wrap">
                       <Tooltip title="Clock In">
                         <Button
                           type="default"
@@ -594,7 +611,7 @@ const SummaryTab: React.FC<SummaryTabProps> = ({
                         prefixDataTestId="request-absence"
                         accessToken={accessToken}
                       >
-                        <div className="gba:flex gba:items-center gba:gap-2 gba:cursor-pointer">
+                        <div className="gba:flex gba:items-center gba:gap-2 gba:cursor-pointer gba:flex-1 gba:min-w-0">
                           <PiCalendarX className="gba:h-4 gba:w-4" />
                           <span className="gba:text-xs gba:md:text-sm gba:truncate">
                             {getTranslationFromI18nKeyAndLabel(

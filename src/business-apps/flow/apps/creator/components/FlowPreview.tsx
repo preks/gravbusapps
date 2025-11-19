@@ -44,13 +44,24 @@ export const FlowPreview: React.FC<FlowPreviewProps> = ({ template, 'data-testid
           }
         ]
 
+  // Calculate summary fields count from template level
+  const summaryFieldsCount = React.useMemo(() => {
+    return template.summaryFields?.length || 0
+  }, [template.summaryFields])
+
   return (
     <Card className="gba:h-full" data-testid={testId}>
       <CardHeader>
         <CardTitle>Flow Preview - {template.name}</CardTitle>
       </CardHeader>
       <CardContent className="gba:h-[calc(100%-80px)]">
-        <FlowRenderer steps={steps} mode="view" data-testid={`${testId}-renderer`} />
+        <FlowRenderer
+          steps={steps}
+          mode="view"
+          showSummaryNode={true}
+          summaryFieldsCount={summaryFieldsCount}
+          data-testid={`${testId}-renderer`}
+        />
       </CardContent>
     </Card>
   )

@@ -100,6 +100,7 @@ benefit-details-start-date = Data de început
 benefit-details-end-date = Data de încheiere
 benefit-details-notes = Note
 benefit-details-available-providers = Furnizori disponibili
+benefit-details-description = Detalii beneficiu
 common-close = Închide
 
 # Payslip History
@@ -197,6 +198,8 @@ status-inactive = Inactiv
 status-draft = Ciornă
 status-finalized = Finalizat
 status-cancelled = Anulat
+status-unknown = Necunoscut
+status-generated = Generat
 
 # Loading States
 loading-compensation-data = Se încarcă datele de compensare...

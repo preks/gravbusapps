@@ -15,6 +15,8 @@ import { SpanOfControlChart } from './components/SpanOfControlChart'
 import { ReportingChainAnalysis } from './components/ReportingChainAnalysis'
 import { AnalysisTab } from './types/structuralTypes'
 import OrganizationalHierarchyReport from './components/organizational-hierarchy-report/OrgHierarchyReport'
+import { useTranslation } from '@newwork/nw-design-system'
+import hrTranslations from '@/business-apps/hr/core/apps/human-resources/_i18n'
 
 const { Title, Text } = Typography
 
@@ -24,6 +26,7 @@ interface StructuralAnalysisReportProps extends BusinessAppContextProps {
 
 export const StructuralAnalysisReport: React.FC<StructuralAnalysisReportProps> = props => {
   const { prefixDataTestId = 'StructuralAnalysisReport' } = props
+  const { t } = useTranslation(hrTranslations)
 
   // Define valid tabs
   const validTabs: AnalysisTab[] = [
@@ -86,7 +89,7 @@ export const StructuralAnalysisReport: React.FC<StructuralAnalysisReportProps> =
       >
         <Space direction="vertical" align="center">
           <Spin size="large" />
-          <Text>Loading structural analysis data...</Text>
+          <Text>{t('hr-analytics-structural-loading')}</Text>
         </Space>
       </div>
     )
@@ -100,13 +103,13 @@ export const StructuralAnalysisReport: React.FC<StructuralAnalysisReportProps> =
         className="gba:bg-gradient-to-b gba:from-background gba:to-muted gba:min-h-[400px] gba:p-6 gba:rounded-lg"
       >
         <Alert
-          message="Error Loading Structural Analysis Data"
+          message={t('hr-analytics-structural-error-title')}
           description={error}
           type="error"
           showIcon
           action={
             <Button size="small" icon={<ReloadOutlined />} onClick={refetch}>
-              Retry
+              {t('common-retry')}
             </Button>
           }
         />
@@ -122,8 +125,8 @@ export const StructuralAnalysisReport: React.FC<StructuralAnalysisReportProps> =
         className="gba:bg-gradient-to-b gba:from-background gba:to-muted gba:min-h-[400px] gba:p-6 gba:rounded-lg"
       >
         <Alert
-          message="No Data Available"
-          description="No structural analysis data found for the current structure."
+          message={t('hr-analytics-no-data-available')}
+          description={t('hr-analytics-structural-no-data-description')}
           type="info"
           showIcon
         />
@@ -137,14 +140,14 @@ export const StructuralAnalysisReport: React.FC<StructuralAnalysisReportProps> =
       {/* Key Statistics */}
       <Card>
         <Title level={4} className="gba:m-0 gba:mb-6 gba:text-foreground">
-          Structural Health Overview
+          {t('hr-analytics-structural-health-overview')}
         </Title>
         <div className="gba:grid gba:grid-cols-[repeat(auto-fit,minmax(200px,1fr))] gba:gap-5">
           <div className="gba:text-center gba:p-5 gba:bg-muted gba:rounded-lg">
             <div className="gba:text-3xl gba:font-bold gba:text-foreground">
               {data.structuralStatistics.structuralHealthScore}%
             </div>
-            <div className="gba:text-sm gba:text-muted-foreground gba:mt-1">Structural Health Score</div>
+            <div className="gba:text-sm gba:text-muted-foreground gba:mt-1">{t('hr-analytics-structural-health-score')}</div>
             <Tag
               color={
                 data.structuralStatistics.structuralHealthScore >= 80
@@ -156,41 +159,41 @@ export const StructuralAnalysisReport: React.FC<StructuralAnalysisReportProps> =
               style={{ marginTop: '8px' }}
             >
               {data.structuralStatistics.structuralHealthScore >= 80
-                ? 'Excellent'
+                ? t('hr-analytics-excellent')
                 : data.structuralStatistics.structuralHealthScore >= 60
-                  ? 'Good'
-                  : 'Needs Improvement'}
+                  ? t('hr-analytics-good')
+                  : t('hr-analytics-needs-improvement')}
             </Tag>
           </div>
           <div className="gba:text-center gba:p-5 gba:bg-muted gba:rounded-lg">
             <div className="gba:text-3xl gba:font-bold gba:text-foreground">
               {data.structuralStatistics.totalEmployees}
             </div>
-            <div className="gba:text-sm gba:text-muted-foreground gba:mt-1">Total Employees</div>
+            <div className="gba:text-sm gba:text-muted-foreground gba:mt-1">{t('hr-analytics-total-employees')}</div>
           </div>
           <div className="gba:text-center gba:p-5 gba:bg-muted gba:rounded-lg">
             <div className="gba:text-3xl gba:font-bold gba:text-foreground">
               {data.structuralStatistics.totalManagers}
             </div>
-            <div className="gba:text-sm gba:text-muted-foreground gba:mt-1">Total Managers</div>
+            <div className="gba:text-sm gba:text-muted-foreground gba:mt-1">{t('hr-analytics-total-managers')}</div>
           </div>
           <div className="gba:text-center gba:p-5 gba:bg-muted gba:rounded-lg">
             <div className="gba:text-3xl gba:font-bold gba:text-foreground">
               {data.structuralStatistics.hierarchyDepth}
             </div>
-            <div className="gba:text-sm gba:text-muted-foreground gba:mt-1">Hierarchy Depth</div>
+            <div className="gba:text-sm gba:text-muted-foreground gba:mt-1">{t('hr-analytics-hierarchy-depth')}</div>
           </div>
           <div className="gba:text-center gba:p-5 gba:bg-muted gba:rounded-lg">
             <div className="gba:text-3xl gba:font-bold gba:text-foreground">
               {data.structuralStatistics.averageSpanOfControl.toFixed(1)}
             </div>
-            <div className="gba:text-sm gba:text-muted-foreground gba:mt-1">Avg. Span of Control</div>
+            <div className="gba:text-sm gba:text-muted-foreground gba:mt-1">{t('hr-analytics-avg-span-of-control')}</div>
           </div>
           <div className="gba:text-center gba:p-5 gba:bg-muted gba:rounded-lg">
             <div className="gba:text-3xl gba:font-bold gba:text-foreground">
               {data.structuralStatistics.averageReportingChainLength.toFixed(1)}
             </div>
-            <div className="gba:text-sm gba:text-muted-foreground gba:mt-1">Avg. Chain Length</div>
+            <div className="gba:text-sm gba:text-muted-foreground gba:mt-1">{t('hr-analytics-avg-chain-length')}</div>
           </div>
         </div>
       </Card>
@@ -198,31 +201,33 @@ export const StructuralAnalysisReport: React.FC<StructuralAnalysisReportProps> =
       {/* Quick Insights */}
       <Card>
         <Title level={4} className="gba:m-0 gba:mb-4 gba:text-foreground">
-          Key Insights
+          {t('hr-analytics-key-insights')}
         </Title>
         <div className="gba:grid gba:gap-3">
           <div className="gba:p-3 gba:bg-success-secondary/40 gba:rounded gba:border-l-4 gba:border-l-success">
             <Text strong className="gba:text-success-secondary-foreground">
-              Span of Control: {data.spanOfControlSummary.optimalCount} of {data.spanOfControlSummary.totalManagers}{' '}
-              managers have optimal span
+              {t('hr-analytics-span-of-control-label')}: {data.spanOfControlSummary.optimalCount} {t('hr-analytics-of')}{' '}
+              {data.spanOfControlSummary.totalManagers} {t('hr-analytics-managers-have-optimal-span')}
             </Text>
           </div>
           {data.spanOfControlSummary.overBurdenedCount > 0 && (
             <div className="gba:p-3 gba:bg-destructive-secondary/40 gba:rounded gba:border-l-4 gba:border-l-destructive">
               <Text strong className="gba:text-destructive-secondary-foreground">
-                Alert: {data.spanOfControlSummary.overBurdenedCount} managers are over-burdened
+                {t('hr-analytics-alert')}: {data.spanOfControlSummary.overBurdenedCount} {t('hr-analytics-managers-overburdened')}
               </Text>
             </div>
           )}
           <div className="gba:p-3 gba:bg-info-secondary/40 gba:rounded gba:border-l-4 gba:border-l-info">
             <Text strong className="gba:text-info-secondary-foreground">
-              Organizational Depth: Maximum hierarchy depth is {data.structuralStatistics.hierarchyDepth} levels
+              {t('hr-analytics-organizational-depth-label')}: {t('hr-analytics-maximum-hierarchy-depth-is')}{' '}
+              {data.structuralStatistics.hierarchyDepth} {t('hr-analytics-levels')}
             </Text>
           </div>
           {data.reportingChainSummary.bottlenecks.length > 0 && (
             <div className="gba:p-3 gba:bg-warning-secondary gba:rounded gba:border-l-4 gba:border-l-warning">
               <Text strong className="gba:text-warning-secondary-foreground">
-                Warning: {data.reportingChainSummary.bottlenecks.length} management bottlenecks identified
+                {t('hr-analytics-warning')}: {data.reportingChainSummary.bottlenecks.length}{' '}
+                {t('hr-analytics-management-bottlenecks-identified')}
               </Text>
             </div>
           )}
@@ -238,7 +243,7 @@ export const StructuralAnalysisReport: React.FC<StructuralAnalysisReportProps> =
       label: (
         <span>
           <DashboardOutlined />
-          Overview
+          {t('hr-analytics-overview-tab')}
         </span>
       ),
       children: renderOverviewTab()
@@ -248,7 +253,7 @@ export const StructuralAnalysisReport: React.FC<StructuralAnalysisReportProps> =
       label: (
         <span>
           <BarChartOutlined />
-          Span of Control
+          {t('hr-analytics-span-of-control')}
         </span>
       ),
       children: (
@@ -264,7 +269,7 @@ export const StructuralAnalysisReport: React.FC<StructuralAnalysisReportProps> =
       label: (
         <span>
           <ApartmentOutlined />
-          Depth Analysis
+          {t('hr-analytics-depth-analysis')}
         </span>
       ),
       children: <SunburstVisualization data={data.sunburstData} prefixDataTestId={prefixDataTestId} />
@@ -274,7 +279,7 @@ export const StructuralAnalysisReport: React.FC<StructuralAnalysisReportProps> =
       label: (
         <span>
           <TeamOutlined />
-          Reporting Chains
+          {t('hr-analytics-reporting-chains')}
         </span>
       ),
       children: (
@@ -290,7 +295,7 @@ export const StructuralAnalysisReport: React.FC<StructuralAnalysisReportProps> =
       label: (
         <span>
           <NodeExpandOutlined />
-          Organizational Hierarchy
+          {t('hr-analytics-organizational-hierarchy')}
         </span>
       ),
       children: <OrganizationalHierarchyReport {...props} />
@@ -306,14 +311,14 @@ export const StructuralAnalysisReport: React.FC<StructuralAnalysisReportProps> =
       <div className="gba:flex gba:justify-between gba:items-center gba:mb-6">
         <div>
           <Title level={3} className="gba:m-0 gba:text-foreground">
-            Structural Analysis Reports
+            {t('hr-analytics-structural-analysis-reports')}
           </Title>
           <Text className="gba:text-muted-foreground">
-            Comprehensive analysis of organizational structure, span of control, and reporting efficiency
+            {t('hr-analytics-structural-analysis-description')}
           </Text>
         </div>
         <Button icon={<ReloadOutlined />} onClick={refetch} type="primary" ghost>
-          Refresh Data
+          {t('common-refresh-data')}
         </Button>
       </div>
 

@@ -229,7 +229,7 @@ const EmployeeRecordContent: React.FC<EmployeeRecordContentProps> = ({
       <div className="gba:employee-profile gba:w-full gba:h-full">
         <ScreenBody className="gba:h-full gba:w-full">
           <ProfileLayout
-            headerContent={<ProfileHeader accessToken={accessToken} employee={employee} />}
+            headerContent={<ProfileHeader accessToken={accessToken} employee={employee} isSelfView={isSelfView} />}
             contentHeader={tabNavigation}
             contentContainer={getTabContent()}
             headerPlacement="left"
@@ -377,32 +377,36 @@ const EmployeeRecordContent: React.FC<EmployeeRecordContentProps> = ({
             accessToken={accessToken}
             userInfo={userInfo}
             isSelfView={isSelfView}
-            feedbackTabFeatureFlag={devFeatureFlag as boolean}
+            devFeatureFlag={devFeatureFlag as boolean}
             employeePerformanceGoals={performanceGoals}
             feedback={feedback}
             additionalData={additionalData}
           />
         )
       },
-      {
-        key: TAB_KEYS.assets,
-        label: (
-          <div className="gba:flex gba:items-center gba:gap-2">
-            <PiPackage className="gba:text-xl gba:inline-block gba:align-middle" />
-            <span className="gba:inline-block gba:align-middle">
-              {getTranslationFromI18nKeyAndLabel('lowcoder:hr_assets.assets', 'Assets')}
-            </span>
-          </div>
-        ),
-        children: (
-          <AssetsTab
-            employee={employee}
-            accessToken={accessToken}
-            employeeId={employeeIdToShow}
-            isSelfView={isSelfView}
-          />
-        )
-      },
+      ...(devFeatureFlag
+        ? [
+            {
+              key: TAB_KEYS.assets,
+              label: (
+                <div className="gba:flex gba:items-center gba:gap-2">
+                  <PiPackage className="gba:text-xl gba:inline-block gba:align-middle" />
+                  <span className="gba:inline-block gba:align-middle">
+                    {getTranslationFromI18nKeyAndLabel('lowcoder:hr_assets.assets', 'Assets')}
+                  </span>
+                </div>
+              ),
+              children: (
+                <AssetsTab
+                  employee={employee}
+                  accessToken={accessToken}
+                  employeeId={employeeIdToShow}
+                  isSelfView={isSelfView}
+                />
+              )
+            }
+          ]
+        : []),
       {
         key: TAB_KEYS.serviceRequests,
         label: (
