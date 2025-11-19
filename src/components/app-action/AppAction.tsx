@@ -13,52 +13,6 @@ import { FlowContextName } from '@/common/types/FlowRegistryTypes'
 import { ActionOption } from '@newwork/nw-design-system'
 
 /**
- * AppAction Component Props
- * Unified component for all action-related use cases
- */
-export interface AppActionProps {
-  // Primary API
-  contexts?: Array<{
-    context: FlowContextName | string
-    contextData: Record<string, string>
-  }>
-  customActions?: ActionOption[]
-  accessToken?: string
-  variant?: 'custom' | keyof typeof actionVariants
-  mode?: 'trigger' | 'button'
-  emptyState?: 'disable' | 'hide' | 'enable'
-  lazyLoad?: boolean
-  autoExecute?: boolean
-  buttonSize?: 'default' | 'sm' | 'lg' | 'icon' | 'iconSm' | 'iconLg'
-  buttonVariant?: 'default' | 'secondary' | 'destructive' | 'outline' | 'ghost' | 'link'
-  disabled?: boolean
-  children?: React.ReactNode
-  className?: string
-  onDropdownOpen?: () => void
-  onClick?: (e: React.MouseEvent) => void
-  'data-testid'?: string
-  prefixDataTestId?: string
-
-  // Deprecated API
-  /** @deprecated Use contexts instead */
-  contextsArray?: FlowContextName[]
-  /** @deprecated Use contexts instead */
-  externalContextData?: Record<string, any>
-  /** @deprecated Use customActions instead */
-  staticFlowData?: ActionOption[]
-  /** @deprecated Use lazyLoad instead */
-  deferMainContextRequestsUntilClick?: boolean
-  /** @deprecated Use emptyState instead */
-  emptyStateBehavior?: 'disable' | 'hide' | 'enable'
-  /** @deprecated Use autoExecute instead */
-  autoExecuteSingleAction?: boolean
-}
-
-// ============================================================================
-// Shared Utilities
-// ============================================================================
-
-/**
  * AppAction variant configurations
  * Each variant has pre-configured settings for common use cases
  */
@@ -168,6 +122,48 @@ const actionVariants = {
     defaultChildren: <Icon icon={TrashIcon} />
   }
 } as const
+
+/**
+ * AppAction Component Props
+ * Unified component for all action-related use cases
+ */
+export interface AppActionProps {
+  // Primary API
+  contexts?: Array<{
+    context: FlowContextName | string
+    contextData: Record<string, any>
+  }>
+  customActions?: ActionOption[]
+  accessToken?: string
+  variant?: 'custom' | keyof typeof actionVariants
+  mode?: 'trigger' | 'button'
+  emptyState?: 'disable' | 'hide' | 'enable'
+  lazyLoad?: boolean
+  autoExecute?: boolean
+  buttonSize?: 'default' | 'sm' | 'lg' | 'icon' | 'iconSm' | 'iconLg'
+  buttonVariant?: 'default' | 'secondary' | 'destructive' | 'outline' | 'ghost' | 'link'
+  disabled?: boolean
+  children?: React.ReactNode
+  className?: string
+  onDropdownOpen?: () => void
+  onClick?: (e: React.MouseEvent) => void
+  'data-testid'?: string
+  prefixDataTestId?: string
+
+  // Deprecated API
+  /** @deprecated Use contexts instead */
+  contextsArray?: FlowContextName[]
+  /** @deprecated Use contexts instead */
+  externalContextData?: Record<string, any>
+  /** @deprecated Use customActions instead */
+  staticFlowData?: ActionOption[]
+  /** @deprecated Use lazyLoad instead */
+  deferMainContextRequestsUntilClick?: boolean
+  /** @deprecated Use emptyState instead */
+  emptyStateBehavior?: 'disable' | 'hide' | 'enable'
+  /** @deprecated Use autoExecute instead */
+  autoExecuteSingleAction?: boolean
+}
 
 // ============================================================================
 // Internal Components
