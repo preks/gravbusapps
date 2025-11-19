@@ -11,6 +11,7 @@ import { AppActionMenu } from '@/components/app-action-menu/AppActionMenu'
 import { FlowContextName } from '@/common/types/FlowRegistryTypes'
 import { PiPencilSimple } from 'react-icons/pi'
 import { UserInfoProps } from '../../../../../../../common/BusinessAppContext'
+import { useUserGroups } from '@/common/network/users/useUserGroups'
 
 interface DetailsTabProps {
   employee: Employee
@@ -24,13 +25,38 @@ interface DetailsTabProps {
  * Details Tab Component
  * Displays detailed personal information about the employee
  */
-const DetailsTab: React.FC<DetailsTabProps> = ({ employee, accessToken, employeeId, isSelfView }) => {
+const DetailsTab: React.FC<DetailsTabProps> = ({ employee, accessToken, employeeId, isSelfView, userInfo }) => {
   // Remove debug log
   // Use employee ID from props or fallback to employee data
   const employeeIdForPermissions = employeeId || employee?.id
 
   // Check permissions for sections
   const { isSectionVisible } = useEmployeePermissions(employeeIdForPermissions, accessToken)
+
+  // Determine if masking should be bypassed based on viewer's user-management groups
+  const { getUserGroups } = useUserGroups(accessToken)
+  const [bypassMasking, setBypassMasking] = React.useState(false)
+
+  React.useEffect(() => {
+    let isMounted = true
+
+    const loadGroups = async () => {
+      try {
+        if (!userInfo?.id) return
+        const groups = await getUserGroups(userInfo.id, 50, 0)
+        // if user has hr-backoffice or all-hr-backoffice -> do not mask
+        const hasBackoffice = groups.includes('hr-backoffice') || groups.includes('all-hr-backoffice')
+        if (isMounted) setBypassMasking(hasBackoffice)
+      } catch {
+        // ignore errors and keep masking by default
+      }
+    }
+
+    loadGroups()
+    return () => {
+      isMounted = false
+    }
+  }, [getUserGroups, userInfo?.id])
 
   const personalData = [
     {
@@ -210,6 +236,11 @@ const DetailsTab: React.FC<DetailsTabProps> = ({ employee, accessToken, employee
 
     // If user is viewing their own profile, always show the data
     if (isSelfView) {
+      return value
+    }
+
+    // If viewer belongs to backoffice groups, do not mask
+    if (bypassMasking) {
       return value
     }
 
