@@ -205,8 +205,7 @@ const ExpenseRequestsTable: React.FC<ExpenseRequestsTableProps> = props => {
     handleStatusFilter,
     handleAmountFilter,
     amountMinFilter,
-    amountMaxFilter,
-    availableStatuses
+    amountMaxFilter
   })
 
   // Selected filter chips to display above the table (DataContainer)
@@ -251,6 +250,16 @@ const ExpenseRequestsTable: React.FC<ExpenseRequestsTableProps> = props => {
       endTo
     ]
   )
+
+  const hasActiveFilters = useMemo(() => {
+    if (totalItems === 0 && !loading) {
+      return false
+    }
+
+    const hasSearch = (searchText || '').trim() !== ''
+
+    return hasSearch || selectedFilters.length > 0
+  }, [searchText, selectedFilters, totalItems, loading])
 
   useEffect(() => {
     // Mirror personal expenses: use a fixed enum list for statuses
@@ -885,14 +894,19 @@ const ExpenseRequestsTable: React.FC<ExpenseRequestsTableProps> = props => {
                 </TableRow>
               </TableHeader>
               <TableBody>
-                {!loading && (!expenses || expenses.length === 0) ? (
+                {!loading && totalItems === 0 && (!expenses || expenses.length === 0) ? (
                   <TableRow>
                     <TableCell colSpan={12} className="gba:py-8 gba:text-center">
                       <div className="gba:text-muted-foreground">
-                        {getTranslationFromI18nKeyAndLabel(
-                          'lowcoder:expense_request_list.no_expense_requests_found',
-                          'No expense requests found matching the current filters.'
-                        )}
+                        {hasActiveFilters
+                          ? getTranslationFromI18nKeyAndLabel(
+                              'lowcoder:expense_request_list.no_expense_requests_found',
+                              'No expense requests found matching the current filters.'
+                            )
+                          : getTranslationFromI18nKeyAndLabel(
+                              'lowcoder:backoffice_expense_landing_page.no_expense_requests_created_yet',
+                              'No expense requests created yet.'
+                            )}
                       </div>
                     </TableCell>
                   </TableRow>
@@ -1361,10 +1375,12 @@ const ExpenseRequestsTable: React.FC<ExpenseRequestsTableProps> = props => {
         toast.success('Export Successful', {
           description: `Exported ${formattedData.length} expense requests to CSV`
         })
-      } catch {
-        console.error('[EXPORT CSV] Error during export:', error)
+      } catch (err) {
+        console.error('[EXPORT CSV] Error during export:', err)
         toast.error('Export Failed', {
-          description: 'Failed to export CSV: ' + (error instanceof Error ? error.message : String(error))
+          description:
+            'Failed to export CSV: ' +
+            (err instanceof Error ? err.message : typeof err === 'string' ? err : String(err))
         })
       } finally {
         setIsExporting(false)
@@ -1410,10 +1426,12 @@ const ExpenseRequestsTable: React.FC<ExpenseRequestsTableProps> = props => {
         toast.success('Export Successful', {
           description: `Exported ${formattedData.length} expense requests to Excel`
         })
-      } catch {
-        console.error('[EXPORT EXCEL] Error during export:', error)
+      } catch (err) {
+        console.error('[EXPORT EXCEL] Error during export:', err)
         toast.error('Export Failed', {
-          description: 'Failed to export Excel: ' + (error instanceof Error ? error.message : String(error))
+          description:
+            'Failed to export Excel: ' +
+            (err instanceof Error ? err.message : typeof err === 'string' ? err : String(err))
         })
       } finally {
         setIsExporting(false)
@@ -1466,7 +1484,7 @@ const ExpenseRequestsTable: React.FC<ExpenseRequestsTableProps> = props => {
       )}
 
       <DataContainer
-        contentBackground="background"
+        contentBackground="white"
         dataControllerProps={{
           listTitle: getTranslationFromI18nKeyAndLabel(
             'lowcoder:employee_list.flows_button.expense_requests',
@@ -1479,7 +1497,7 @@ const ExpenseRequestsTable: React.FC<ExpenseRequestsTableProps> = props => {
             'lowcoder:expense_request_list.search_module',
             'Search in Expense Requests'
           ),
-          filter: selectedFilters,
+          filter: totalItems === 0 && !loading ? [] : selectedFilters,
           setFilter: setFilters,
           filterLabelMap: {
             status:
@@ -1496,7 +1514,7 @@ const ExpenseRequestsTable: React.FC<ExpenseRequestsTableProps> = props => {
           actions: dataControllerActions
         }}
         dataFilterProps={{
-          filterGroups: filterGroups,
+          filterGroups: totalItems === 0 && !loading ? [] : filterGroups,
           onFilterChange: (filterId: string, selected: boolean) => {
             // Clear all filters
             if (filterId === '' && selected) {

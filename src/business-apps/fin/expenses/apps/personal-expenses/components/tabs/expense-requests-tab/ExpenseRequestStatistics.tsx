@@ -222,6 +222,7 @@ const ExpenseRequestStatistics: React.FC<ExpenseRequestStatisticsProps> = ({
   return (
     <WidgetGroup
       widgets={widgets}
+      // Show skeletons while loading; after load, cards will show 0 values when there's no data
       isLoading={isLoading}
       error={error}
       onRetry={fetchRequestStatistics}

@@ -109,6 +109,18 @@ const ExpensePlansTable: React.FC<ExpensePlansTableProps> = props => {
     setPageSize
   } = props
 
+  const hasActiveFilters = useMemo(() => {
+    if (totalCount === 0 && !loading) {
+      return false
+    }
+
+    const hasSearch = (props.search || '').trim() !== ''
+    const hasStatusFilters = Array.isArray(props.activeFilter) && props.activeFilter.length > 0
+    const hasCurrencyFilter = !!props.currencyFilter
+
+    return hasSearch || hasStatusFilters || hasCurrencyFilter
+  }, [totalCount, loading, props.search, props.activeFilter, props.currencyFilter])
+
   // Reset page to 1 when filter changes (fixes pagination issue when switching filters)
   const prevFilterRef = useRef<ExpenseStatus[] | null>(null)
   useEffect(() => {
@@ -263,20 +275,6 @@ const ExpensePlansTable: React.FC<ExpensePlansTableProps> = props => {
     )
   }
 
-  // Show empty state
-  if (!expensePlans || expensePlans.length === 0) {
-    return (
-      <div className="gba:flex gba:flex-col gba:items-center gba:justify-center gba:p-8 gba:text-center">
-        <div className="gba:text-muted-foreground gba:text-lg gba:font-medium gba:mb-2">
-          {getTranslationFromI18nKeyAndLabel(
-            'lowcoder:create_expense_request.no_plans_found_search',
-            'No expense plans found'
-          )}
-        </div>
-      </div>
-    )
-  }
-
   return (
     <div data-testid={`${DATA_TEST_ID_PREFIX}-container`}>
       {/* Table with border containing both table and pagination */}
@@ -376,140 +374,164 @@ const ExpensePlansTable: React.FC<ExpensePlansTableProps> = props => {
               </TableRow>
             </TableHeader>
             <TableBody>
-              {expensePlans.map((plan: ExpensePlan) => {
-                const display = getExpensePlanStatusDisplay(plan.status as ExpenseStatus)
-                return (
-                  <TableRow
-                    key={plan.id}
-                    data-testid={`${DATA_TEST_ID_PREFIX}-row-${plan.id}`}
-                    className={`gba:cursor-pointer gba:hover:bg-accent gba:transition-colors ${
-                      selectedItem?.id === plan.id ? 'gba:bg-accent/50' : ''
-                    }`}
-                    onClick={() => handleSelectItem(plan)}
+              {!loading && totalCount === 0 && (!expensePlans || expensePlans.length === 0) ? (
+                <TableRow>
+                  <TableCell
+                    colSpan={9}
+                    className="gba:py-8 gba:text-center"
+                    data-testid={`${DATA_TEST_ID_PREFIX}-empty-state`}
                   >
-                    <TableCell
-                      className="gba:w-[60px] gba:min-w-[60px] gba:max-w-[60px] gba:box-border gba:py-3 gba:px-4"
-                      data-testid={`${DATA_TEST_ID_PREFIX}-actions-cell-${plan.id}`}
-                      onClick={e => e.stopPropagation()}
+                    <div className="gba:text-muted-foreground">
+                      {hasActiveFilters
+                        ? getTranslationFromI18nKeyAndLabel(
+                            'lowcoder:create_expense_request.no_plans_found_search',
+                            'No expense plans found'
+                          )
+                        : getTranslationFromI18nKeyAndLabel(
+                            'lowcoder:emanager_expense_landing_page.no_plans_created_by_team',
+                            'No expense plan created by your team yet.'
+                          )}
+                    </div>
+                  </TableCell>
+                </TableRow>
+              ) : (
+                expensePlans.map((plan: ExpensePlan) => {
+                  const display = getExpensePlanStatusDisplay(plan.status as ExpenseStatus)
+                  return (
+                    <TableRow
+                      key={plan.id}
+                      data-testid={`${DATA_TEST_ID_PREFIX}-row-${plan.id}`}
+                      className={`gba:cursor-pointer gba:hover:bg-accent gba:transition-colors ${
+                        selectedItem?.id === plan.id ? 'gba:bg-accent/50' : ''
+                      }`}
+                      onClick={() => handleSelectItem(plan)}
                     >
-                      <div className="gba:flex gba:justify-start gba:gap-2">
-                        <AppActionButton
-                          onClick={e => e.stopPropagation()}
-                          data-testid={`${DATA_TEST_ID_PREFIX}-update-expense-plan-button-${plan.id}`}
-                          size="icon"
-                          staticFlowData={[
-                            // Print action - only available for finalized plans with documents
-                            ...((plan.status === 'APPROVED' ||
-                              plan.status === 'VERIFIED' ||
-                              plan.status === 'BOOKED' ||
-                              plan.status === 'TRANSFERRED' ||
-                              plan.status === 'PAID') &&
-                            plan.employeeDocument?.file?.trim()
-                              ? [
-                                  {
-                                    category: getTranslationFromI18nKeyAndLabel(
-                                      'lowcoder:employee_list.flows_button.actions',
-                                      'Actions'
-                                    ),
-                                    key: 'print',
-                                    label: getTranslationFromI18nKeyAndLabel(
-                                      'lowcoder:expense_plan_list.expense_plan_flows.print',
-                                      'Print'
-                                    ),
-                                    onClick: (e?: React.MouseEvent) => {
-                                      e?.stopPropagation()
-                                      handlePrintPlan(plan)
-                                    }
-                                  }
-                                ]
-                              : []),
-                            // View Plan Details - always available
-                            {
-                              category: getTranslationFromI18nKeyAndLabel(
-                                'lowcoder:employee_list.flows_button.navigations',
-                                'Navigations'
-                              ),
-                              key: 'view-plan-details',
-                              label: getTranslationFromI18nKeyAndLabel(
-                                'lowcoder:expense_plan_list.expense_plan_flows.view_plan_details',
-                                'View Plan Details'
-                              ),
-                              onClick: (e?: React.MouseEvent) => {
-                                e?.stopPropagation()
-                                handleViewDetails(plan)
-                              }
-                            }
-                          ]}
-                          prefixDataTestId={`${DATA_TEST_ID_PREFIX}-update-expense-plan`}
-                          accessToken={contextProps.accessToken}
-                          emptyStateBehavior="enable"
-                          deferMainContextRequestsUntilClick
-                        />
-                      </div>
-                    </TableCell>
-                    <TableCell className="gba:text-left gba:py-3 gba:px-4 gba:w-[18%]">
-                      <div className="gba:font-medium gba:text-sm gba:whitespace-nowrap gba:truncate">{plan.title}</div>
-                      <div className="gba:text-xs gba:text-muted-foreground gba:whitespace-nowrap gba:truncate">
-                        {plan.code || getTranslationFromI18nKeyAndLabel('lowcoder:common.not_available', 'N/A')}
-                      </div>
-                    </TableCell>
-                    <TableCell className="gba:w-[10%] gba:py-4 gba:px-3 gba:text-sm">
-                      {Array.isArray(plan.expenseRequest) && plan.expenseRequest.length > 0
-                        ? plan.expenseRequest[0]?.code ||
-                          getTranslationFromI18nKeyAndLabel('lowcoder:common.not_available', 'N/A')
-                        : getTranslationFromI18nKeyAndLabel('lowcoder:common.not_available', 'N/A')}
-                    </TableCell>
-                    <TableCell className="gba:text-sm gba:py-3 gba:px-4">
-                      {plan.startDate
-                        ? ensureShortDateFormat(plan.startDate)
-                        : getTranslationFromI18nKeyAndLabel('lowcoder:common.not_available', 'N/A')}
-                    </TableCell>
-                    <TableCell className="gba:text-sm gba:py-3 gba:px-4">
-                      {plan.endDate
-                        ? ensureShortDateFormat(plan.endDate)
-                        : getTranslationFromI18nKeyAndLabel('lowcoder:common.not_available', 'N/A')}
-                    </TableCell>
-                    <TableCell>
-                      <div className="gba:flex gba:items-center gba:gap-2">
-                        <Avatar className="gba:h-6 gba:w-6">
-                          <AvatarImage
-                            src={
-                              plan.employee?.pictureThumbnail
-                                ? `data:image/gif;base64,${plan.employee.pictureThumbnail}`
-                                : undefined
-                            }
-                            alt={plan.employee?.fullName}
-                          />
-                          <AvatarFallback>{plan.employee?.displayName?.charAt(0) || 'U'}</AvatarFallback>
-                        </Avatar>
-                        <span className="gba:font-medium gba:text-sm">{plan.employee?.displayName}</span>
-                      </div>
-                    </TableCell>
-                    <TableCell className="gba:text-sm gba:py-3 gba:px-4">
-                      {plan.createdAt
-                        ? ensureShortDateFormat(plan.createdAt)
-                        : getTranslationFromI18nKeyAndLabel('lowcoder:common.not_available', 'N/A')}
-                    </TableCell>
-                    <TableCell className="gba:text-right">
-                      <span className="gba:font-medium gba:text-sm">
-                        {typeof plan.totalAmount === 'number'
-                          ? formatCurrencyDisplay(plan.totalAmount, currentCurrencyFilter || plan.currency || 'EUR')
-                          : formatCurrencyDisplay(0, currentCurrencyFilter || plan.currency || 'EUR')}
-                      </span>
-                    </TableCell>
-                    <TableCell className="gba:pr-6 gba:w-[20%]">
-                      <span
-                        className={`gba:inline-block gba:rounded-full gba:px-3 gba:py-1 gba:text-xs gba:font-medium gba:whitespace-nowrap ${
-                          PLAN_STATUS_CLASSES[String(display.type).toLowerCase()] || PLAN_STATUS_CLASSES.draft
-                        }`}
-                        data-testid={`status-pill-${String(display.type).toLowerCase()}`}
+                      <TableCell
+                        className="gba:w-[60px] gba:min-w-[60px] gba:max-w-[60px] gba:box-border gba:py-3 gba:px-4"
+                        data-testid={`${DATA_TEST_ID_PREFIX}-actions-cell-${plan.id}`}
+                        onClick={e => e.stopPropagation()}
                       >
-                        {display.label}
-                      </span>
-                    </TableCell>
-                  </TableRow>
-                )
-              })}
+                        <div className="gba:flex gba:justify-start gba:gap-2">
+                          <AppActionButton
+                            onClick={e => e.stopPropagation()}
+                            data-testid={`${DATA_TEST_ID_PREFIX}-update-expense-plan-button-${plan.id}`}
+                            size="icon"
+                            staticFlowData={[
+                              // Print action - only available for finalized plans with documents
+                              ...((plan.status === 'APPROVED' ||
+                                plan.status === 'VERIFIED' ||
+                                plan.status === 'BOOKED' ||
+                                plan.status === 'TRANSFERRED' ||
+                                plan.status === 'PAID') &&
+                              plan.employeeDocument?.file?.trim()
+                                ? [
+                                    {
+                                      category: getTranslationFromI18nKeyAndLabel(
+                                        'lowcoder:employee_list.flows_button.actions',
+                                        'Actions'
+                                      ),
+                                      key: 'print',
+                                      label: getTranslationFromI18nKeyAndLabel(
+                                        'lowcoder:expense_plan_list.expense_plan_flows.print',
+                                        'Print'
+                                      ),
+                                      onClick: (e?: React.MouseEvent) => {
+                                        e?.stopPropagation()
+                                        handlePrintPlan(plan)
+                                      }
+                                    }
+                                  ]
+                                : []),
+                              // View Plan Details - always available
+                              {
+                                category: getTranslationFromI18nKeyAndLabel(
+                                  'lowcoder:employee_list.flows_button.navigations',
+                                  'Navigations'
+                                ),
+                                key: 'view-plan-details',
+                                label: getTranslationFromI18nKeyAndLabel(
+                                  'lowcoder:expense_plan_list.expense_plan_flows.view_plan_details',
+                                  'View Plan Details'
+                                ),
+                                onClick: (e?: React.MouseEvent) => {
+                                  e?.stopPropagation()
+                                  handleViewDetails(plan)
+                                }
+                              }
+                            ]}
+                            prefixDataTestId={`${DATA_TEST_ID_PREFIX}-update-expense-plan`}
+                            accessToken={contextProps.accessToken}
+                            emptyStateBehavior="enable"
+                            deferMainContextRequestsUntilClick
+                          />
+                        </div>
+                      </TableCell>
+                      <TableCell className="gba:text-left gba:py-3 gba:px-4 gba:w-[18%]">
+                        <div className="gba:font-medium gba:text-sm gba:whitespace-nowrap gba:truncate">
+                          {plan.title}
+                        </div>
+                        <div className="gba:text-xs gba:text-muted-foreground gba:whitespace-nowrap gba:truncate">
+                          {plan.code || getTranslationFromI18nKeyAndLabel('lowcoder:common.not_available', 'N/A')}
+                        </div>
+                      </TableCell>
+                      <TableCell className="gba:w-[10%] gba:py-4 gba:px-3 gba:text-sm">
+                        {Array.isArray(plan.expenseRequest) && plan.expenseRequest.length > 0
+                          ? plan.expenseRequest[0]?.code ||
+                            getTranslationFromI18nKeyAndLabel('lowcoder:common.not_available', 'N/A')
+                          : getTranslationFromI18nKeyAndLabel('lowcoder:common.not_available', 'N/A')}
+                      </TableCell>
+                      <TableCell className="gba:text-sm gba:py-3 gba:px-4">
+                        {plan.startDate
+                          ? ensureShortDateFormat(plan.startDate)
+                          : getTranslationFromI18nKeyAndLabel('lowcoder:common.not_available', 'N/A')}
+                      </TableCell>
+                      <TableCell className="gba:text-sm gba:py-3 gba:px-4">
+                        {plan.endDate
+                          ? ensureShortDateFormat(plan.endDate)
+                          : getTranslationFromI18nKeyAndLabel('lowcoder:common.not_available', 'N/A')}
+                      </TableCell>
+                      <TableCell>
+                        <div className="gba:flex gba:items-center gba:gap-2">
+                          <Avatar className="gba:h-6 gba:w-6">
+                            <AvatarImage
+                              src={
+                                plan.employee?.pictureThumbnail
+                                  ? `data:image/gif;base64,${plan.employee.pictureThumbnail}`
+                                  : undefined
+                              }
+                              alt={plan.employee?.fullName}
+                            />
+                            <AvatarFallback>{plan.employee?.displayName?.charAt(0) || 'U'}</AvatarFallback>
+                          </Avatar>
+                          <span className="gba:font-medium gba:text-sm">{plan.employee?.displayName}</span>
+                        </div>
+                      </TableCell>
+                      <TableCell className="gba:text-sm gba:py-3 gba:px-4">
+                        {plan.createdAt
+                          ? ensureShortDateFormat(plan.createdAt)
+                          : getTranslationFromI18nKeyAndLabel('lowcoder:common.not_available', 'N/A')}
+                      </TableCell>
+                      <TableCell className="gba:text-right">
+                        <span className="gba:font-medium gba:text-sm">
+                          {typeof plan.totalAmount === 'number'
+                            ? formatCurrencyDisplay(plan.totalAmount, currentCurrencyFilter || plan.currency || 'EUR')
+                            : formatCurrencyDisplay(0, currentCurrencyFilter || plan.currency || 'EUR')}
+                        </span>
+                      </TableCell>
+                      <TableCell className="gba:pr-6 gba:w-[20%]">
+                        <span
+                          className={`gba:inline-block gba:rounded-full gba:px-3 gba:py-1 gba:text-xs gba:font-medium gba:whitespace-nowrap ${
+                            PLAN_STATUS_CLASSES[String(display.type).toLowerCase()] || PLAN_STATUS_CLASSES.draft
+                          }`}
+                          data-testid={`status-pill-${String(display.type).toLowerCase()}`}
+                        >
+                          {display.label}
+                        </span>
+                      </TableCell>
+                    </TableRow>
+                  )
+                })
+              )}
             </TableBody>
           </Table>
         </div>
