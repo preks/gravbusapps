@@ -156,8 +156,8 @@ export const RemindersPanel: React.FC<RemindersPanelProps> = ({ accessToken, use
   }, [])
 
   useEffect(() => {
-    // Only load if we have accessToken
-    if (!accessToken) return
+    // Only load if we have accessToken and userId
+    if (!accessToken || !userId) return
 
     loadReminders()
 
