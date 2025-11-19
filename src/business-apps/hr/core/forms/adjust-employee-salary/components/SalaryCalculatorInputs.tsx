@@ -1,4 +1,4 @@
-import React, { useRef, useEffect } from 'react'
+import React, { useMemo } from 'react'
 import {
   FormField,
   FormItem,
@@ -8,57 +8,38 @@ import {
   Input,
   useTranslation
 } from '@newwork/nw-design-system'
-import type { Control, Path } from 'react-hook-form'
 import { useWatch } from 'react-hook-form'
+import type { Control, Path } from 'react-hook-form'
 import type { AdjustEmployeeSalaryFormValues } from '../types'
-import { calculatePercentageFromAmount, calculateAmountFromPercentage } from '../utils/salaryCalculator'
 import translations from '../../../apps/employee-record/_i18n'
 
 interface SalaryCalculatorInputsProps {
   control: Control<AdjustEmployeeSalaryFormValues>
-  setValue: (name: keyof AdjustEmployeeSalaryFormValues, value: any) => void
-  currentSalary: number
+  adjustmentFrequency: 'annually' | 'monthly' | 'hourly'
 }
 
-const SalaryCalculatorInputs: React.FC<SalaryCalculatorInputsProps> = ({ control, setValue, currentSalary }) => {
+const SalaryCalculatorInputs: React.FC<SalaryCalculatorInputsProps> = ({ control, adjustmentFrequency }) => {
   const { t } = useTranslation(translations)
   const placeholderEnter = t('action-enter-placeholder', { defaultValue: 'Please Enter' })
 
-  const amountIncrease = useWatch({ control, name: 'amountIncrease' }) || null
-  const percentageIncrease = useWatch({ control, name: 'percentageIncrease' }) || null
+  // Watch both field values to determine which should be disabled
+  const amountIncrease = useWatch({ control, name: 'amountIncrease' })
+  const percentageIncrease = useWatch({ control, name: 'percentageIncrease' })
 
-  const lastChangedRef = useRef<'amount' | 'percentage' | null>(null)
-  const isUpdatingRef = useRef(false)
+  // Calculate disabled states - disable one when the other has a value
+  const isAmountDisabled = useMemo(() => {
+    return percentageIncrease != null && percentageIncrease > 0
+  }, [percentageIncrease])
 
-  // Sync values when one changes
-  useEffect(() => {
-    if (isUpdatingRef.current) return
+  const isPercentageDisabled = useMemo(() => {
+    return amountIncrease != null && amountIncrease > 0
+  }, [amountIncrease])
 
-    if (amountIncrease && amountIncrease > 0 && lastChangedRef.current === 'amount' && currentSalary > 0) {
-      const calculatedPercentage = calculatePercentageFromAmount(currentSalary, amountIncrease)
-      if (Math.abs((percentageIncrease || 0) - calculatedPercentage) > 0.01) {
-        isUpdatingRef.current = true
-        setValue('percentageIncrease', Math.round(calculatedPercentage * 100) / 100, { shouldValidate: false })
-        setTimeout(() => {
-          isUpdatingRef.current = false
-        }, 10)
-      }
-    } else if (
-      percentageIncrease &&
-      percentageIncrease > 0 &&
-      lastChangedRef.current === 'percentage' &&
-      currentSalary > 0
-    ) {
-      const calculatedAmount = calculateAmountFromPercentage(currentSalary, percentageIncrease)
-      if (Math.abs((amountIncrease || 0) - calculatedAmount) > 0.01) {
-        isUpdatingRef.current = true
-        setValue('amountIncrease', Math.round(calculatedAmount * 100) / 100, { shouldValidate: false })
-        setTimeout(() => {
-          isUpdatingRef.current = false
-        }, 10)
-      }
-    }
-  }, [amountIncrease, percentageIncrease, currentSalary, setValue])
+  const frequencyLabels: Record<'annually' | 'monthly' | 'hourly', string> = {
+    annually: t('adjust-salary-frequency-annually'),
+    monthly: t('adjust-salary-frequency-monthly'),
+    hourly: t('adjust-salary-frequency-hourly')
+  }
 
   return (
     <div className="gba:grid gba:grid-cols-1 gba:md:grid-cols-2 gba:gap-4">
@@ -67,16 +48,19 @@ const SalaryCalculatorInputs: React.FC<SalaryCalculatorInputsProps> = ({ control
         control={control}
         name={'amountIncrease' as Path<AdjustEmployeeSalaryFormValues>}
         rules={{
-          validate: (value: string | number | null) => {
-            if (value === null || value === undefined || value === '') {
-              if (!percentageIncrease || percentageIncrease === 0) {
-                return t('adjust-salary-adjustment-value-required')
+          validate: (value: string | number | null, formValues: AdjustEmployeeSalaryFormValues) => {
+            // Only validate if this field has a value (not disabled)
+            if (value !== null && value !== undefined && value !== '') {
+              const numValue = typeof value === 'string' ? parseFloat(value) : value
+              if (typeof numValue === 'number' && (Number.isNaN(numValue) || numValue <= 0)) {
+                return t('adjust-salary-adjustment-value-positive')
               }
-              return true
             }
-            const numValue = typeof value === 'string' ? parseFloat(value) : value
-            if (typeof numValue === 'number' && (Number.isNaN(numValue) || numValue < 0)) {
-              return t('adjust-salary-adjustment-value-positive')
+            // Check if at least one field has a value
+            const hasAmount = formValues.amountIncrease != null && formValues.amountIncrease > 0
+            const hasPercentage = formValues.percentageIncrease != null && formValues.percentageIncrease > 0
+            if (!hasAmount && !hasPercentage) {
+              return t('adjust-salary-adjustment-value-required')
             }
             return true
           }
@@ -84,7 +68,7 @@ const SalaryCalculatorInputs: React.FC<SalaryCalculatorInputsProps> = ({ control
         render={({ field }) => (
           <FormItem>
             <FormLabel data-testid="adjust-employee-salary-amount-label">
-              {t('adjust-salary-increase-amount')}
+              {t('adjust-salary-increase-amount')} ({frequencyLabels[adjustmentFrequency]})
               <span className="gba:text-destructive"> *</span>
             </FormLabel>
             <FormControl>
@@ -92,6 +76,7 @@ const SalaryCalculatorInputs: React.FC<SalaryCalculatorInputsProps> = ({ control
                 type="number"
                 step="0.01"
                 min="0"
+                disabled={isAmountDisabled}
                 className="gba:w-full"
                 value={field.value ?? ''}
                 onChange={e => {
@@ -99,10 +84,6 @@ const SalaryCalculatorInputs: React.FC<SalaryCalculatorInputsProps> = ({ control
                   const parsed = parseFloat(val)
                   const newValue = val === '' ? null : Number.isNaN(parsed) ? null : parsed
                   field.onChange(newValue)
-                  lastChangedRef.current = 'amount'
-                  if (!newValue || newValue === 0) {
-                    setValue('percentageIncrease', null)
-                  }
                 }}
                 placeholder={placeholderEnter}
                 data-testid="adjust-employee-salary-amount-input"
@@ -118,16 +99,19 @@ const SalaryCalculatorInputs: React.FC<SalaryCalculatorInputsProps> = ({ control
         control={control}
         name={'percentageIncrease' as Path<AdjustEmployeeSalaryFormValues>}
         rules={{
-          validate: (value: string | number | null) => {
-            if (value === null || value === undefined || value === '') {
-              if (!amountIncrease || amountIncrease === 0) {
-                return t('adjust-salary-adjustment-value-required')
+          validate: (value: string | number | null, formValues: AdjustEmployeeSalaryFormValues) => {
+            // Only validate if this field has a value (not disabled)
+            if (value !== null && value !== undefined && value !== '') {
+              const numValue = typeof value === 'string' ? parseFloat(value) : value
+              if (typeof numValue === 'number' && (Number.isNaN(numValue) || numValue <= 0)) {
+                return t('adjust-salary-adjustment-value-positive')
               }
-              return true
             }
-            const numValue = typeof value === 'string' ? parseFloat(value) : value
-            if (typeof numValue === 'number' && (Number.isNaN(numValue) || numValue < 0)) {
-              return t('adjust-salary-adjustment-value-positive')
+            // Check if at least one field has a value
+            const hasAmount = formValues.amountIncrease != null && formValues.amountIncrease > 0
+            const hasPercentage = formValues.percentageIncrease != null && formValues.percentageIncrease > 0
+            if (!hasAmount && !hasPercentage) {
+              return t('adjust-salary-adjustment-value-required')
             }
             return true
           }
@@ -143,6 +127,7 @@ const SalaryCalculatorInputs: React.FC<SalaryCalculatorInputsProps> = ({ control
                 type="number"
                 step="0.01"
                 min="0"
+                disabled={isPercentageDisabled}
                 className="gba:w-full"
                 value={field.value ?? ''}
                 onChange={e => {
@@ -150,10 +135,6 @@ const SalaryCalculatorInputs: React.FC<SalaryCalculatorInputsProps> = ({ control
                   const parsed = parseFloat(val)
                   const newValue = val === '' ? null : Number.isNaN(parsed) ? null : parsed
                   field.onChange(newValue)
-                  lastChangedRef.current = 'percentage'
-                  if (!newValue || newValue === 0) {
-                    setValue('amountIncrease', null)
-                  }
                 }}
                 placeholder={placeholderEnter}
                 data-testid="adjust-employee-salary-percentage-input"

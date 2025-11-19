@@ -244,7 +244,6 @@ const AdjustEmployeeSalaryContent: React.FC<BusinessAppContextProps> = ({ additi
             {/* Salary Adjustment Group */}
             <SalaryAdjustmentGroup
               control={form.control}
-              catalogs={{} as Record<string, never>}
               currentSalaryAnnual={currentSalaryAnnual}
               currentSalaryMonthly={currentSalaryMonthly}
               currentSalaryHourly={currentSalaryHourly}

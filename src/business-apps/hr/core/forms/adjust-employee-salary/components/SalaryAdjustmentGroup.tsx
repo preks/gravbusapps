@@ -1,68 +1,69 @@
-import React, { useMemo } from 'react'
+import React from 'react'
 import type { Control } from 'react-hook-form'
 import { useWatch } from 'react-hook-form'
 import type { AdjustEmployeeSalaryFormValues, CatalogEntry } from '../types'
-import { calculateAmountFromPercentage } from '../utils/salaryCalculator'
 import CurrentSalaryDisplay from './CurrentSalaryDisplay'
+import SalaryFrequencySelector from './SalaryFrequencySelector'
 import SalaryCalculatorInputs from './SalaryCalculatorInputs'
-import NewSalaryPreview from './NewSalaryPreview'
+import SalaryCalculationVisualization from './SalaryCalculationVisualization'
 import SalaryAdjustmentFields from './SalaryAdjustmentFields'
 
 export interface SalaryAdjustmentGroupProps {
   control: Control<AdjustEmployeeSalaryFormValues>
-  setValue: (name: keyof AdjustEmployeeSalaryFormValues, value: any) => void
-  catalogs: {
-    currency?: CatalogEntry[]
-  }
-  currentSalary: number
+  currentSalaryAnnual: number
+  currentSalaryMonthly: number | null
+  currentSalaryHourly: number | null
   currentCurrency: CatalogEntry | null
   locale: string
 }
 
 const SalaryAdjustmentGroup: React.FC<SalaryAdjustmentGroupProps> = ({
   control,
-  setValue,
-  catalogs,
-  currentSalary,
+  currentSalaryAnnual,
+  currentSalaryMonthly,
+  currentSalaryHourly,
   currentCurrency,
   locale
 }) => {
-  // Watch form values for calculator
+  // Watch form values
+  const adjustmentFrequency = useWatch({ control, name: 'adjustmentFrequency' }) || 'annually'
   const amountIncrease = useWatch({ control, name: 'amountIncrease' }) || null
   const percentageIncrease = useWatch({ control, name: 'percentageIncrease' }) || null
 
-  // Calculate new salary based on whichever value is available
-  const newSalary = useMemo(() => {
-    if (amountIncrease && amountIncrease > 0) {
-      return currentSalary + amountIncrease
-    }
-    if (percentageIncrease && percentageIncrease > 0) {
-      const increaseAmount = calculateAmountFromPercentage(currentSalary, percentageIncrease)
-      return currentSalary + increaseAmount
-    }
-    return currentSalary
-  }, [currentSalary, amountIncrease, percentageIncrease])
-
   return (
     <div className="gba:space-y-4" data-testid="adjust-employee-salary-details-group">
-      {/* Current Salary Display */}
-      <CurrentSalaryDisplay currentSalary={currentSalary} currentCurrency={currentCurrency} locale={locale} />
+      {/* Frequency Selector */}
+      <SalaryFrequencySelector control={control} />
+
+      {/* Current Salary Display - Reduced top spacing */}
+      <div className="gba:-mt-2">
+        <CurrentSalaryDisplay
+          currentSalaryAnnual={currentSalaryAnnual}
+          currentSalaryMonthly={currentSalaryMonthly}
+          currentSalaryHourly={currentSalaryHourly}
+          currentCurrency={currentCurrency}
+          selectedFrequency={adjustmentFrequency}
+          locale={locale}
+        />
+      </div>
 
       {/* Amount and Percentage Inputs - Side by Side */}
-      <SalaryCalculatorInputs control={control} setValue={setValue} currentSalary={currentSalary} />
+      <SalaryCalculatorInputs control={control} adjustmentFrequency={adjustmentFrequency} />
 
-      {/* New Salary Preview */}
-      <NewSalaryPreview
-        currentSalary={currentSalary}
-        newSalary={newSalary}
+      {/* Salary Adjustment Summary - Combines calculation and new salary preview */}
+      <SalaryCalculationVisualization
+        currentSalaryAnnual={currentSalaryAnnual}
+        currentSalaryMonthly={currentSalaryMonthly}
+        currentSalaryHourly={currentSalaryHourly}
         amountIncrease={amountIncrease}
         percentageIncrease={percentageIncrease}
+        adjustmentFrequency={adjustmentFrequency}
         currentCurrency={currentCurrency}
         locale={locale}
       />
 
       {/* Other Form Fields */}
-      <SalaryAdjustmentFields control={control} catalogs={catalogs} />
+      <SalaryAdjustmentFields control={control} />
     </div>
   )
 }

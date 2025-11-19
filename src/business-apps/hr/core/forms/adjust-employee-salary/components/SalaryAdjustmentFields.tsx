@@ -5,7 +5,6 @@ import {
   FormLabel,
   FormControl,
   FormMessage,
-  Input,
   DateInput,
   Select,
   SelectTrigger,
@@ -16,18 +15,13 @@ import {
   useTranslation
 } from '@newwork/nw-design-system'
 import type { Control, Path } from 'react-hook-form'
-import { getCatalogValue } from '@/common/utils/windowUtils'
-import type { AdjustEmployeeSalaryFormValues, CatalogEntry } from '../types'
+import type { AdjustEmployeeSalaryFormValues } from '../types'
 import translations from '../../../apps/employee-record/_i18n'
 
 interface SalaryAdjustmentFieldsProps {
   control: Control<AdjustEmployeeSalaryFormValues>
-  catalogs: {
-    currency?: CatalogEntry[]
-  }
 }
-
-const SalaryAdjustmentFields: React.FC<SalaryAdjustmentFieldsProps> = ({ control, catalogs }) => {
+const SalaryAdjustmentFields: React.FC<SalaryAdjustmentFieldsProps> = ({ control }) => {
   const { t } = useTranslation(translations)
   const placeholderSelect = t('action-select-placeholder', { defaultValue: 'Please Select' })
   const placeholderEnter = t('action-enter-placeholder', { defaultValue: 'Please Enter' })
@@ -41,48 +35,6 @@ const SalaryAdjustmentFields: React.FC<SalaryAdjustmentFieldsProps> = ({ control
 
   return (
     <>
-      {/* Currency */}
-      <FormField
-        control={control}
-        name={'currencyRef' as Path<AdjustEmployeeSalaryFormValues>}
-        rules={{
-          required: t('adjust-salary-currency-required')
-        }}
-        render={({ field }) => (
-          <FormItem>
-            <FormLabel data-testid="adjust-employee-salary-currency-label">
-              {t('adjust-salary-currency')}
-              <span className="gba:text-destructive"> *</span>
-            </FormLabel>
-            <Select
-              value={field.value && field.value !== '' ? String(field.value) : ''}
-              onValueChange={v => field.onChange(v || '')}
-            >
-              <FormControl>
-                <SelectTrigger
-                  className="gba:block gba:w-full! gba:min-w-0 gba:max-w-none!"
-                  data-testid="adjust-employee-salary-currency-select"
-                >
-                  <SelectValue placeholder={placeholderSelect} />
-                </SelectTrigger>
-              </FormControl>
-              <SelectContent>
-                {(catalogs.currency || []).map((entry: CatalogEntry) => (
-                  <SelectItem
-                    key={entry.id}
-                    value={String(entry.id)}
-                    data-testid={`adjust-employee-salary-currency-option-${entry.id}`}
-                  >
-                    {getCatalogValue(entry)}
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
-            <FormMessage />
-          </FormItem>
-        )}
-      />
-
       {/* Effective Date */}
       <FormField
         control={control}
@@ -101,7 +53,10 @@ const SalaryAdjustmentFields: React.FC<SalaryAdjustmentFieldsProps> = ({ control
                 <DateInput
                   type="date"
                   value={(field.value as string) || ''}
-                  onChange={(v?: string) => field.onChange(v || '')}
+                  onChange={(v: string | [string | null, string | null] | null) => {
+                    const value = typeof v === 'string' ? v : v === null ? '' : ''
+                    field.onChange(value)
+                  }}
                   placeholder={placeholderSelect}
                   className="gba:w-full"
                 />
@@ -149,29 +104,6 @@ const SalaryAdjustmentFields: React.FC<SalaryAdjustmentFieldsProps> = ({ control
                 ))}
               </SelectContent>
             </Select>
-            <FormMessage />
-          </FormItem>
-        )}
-      />
-
-      {/* Description */}
-      <FormField
-        control={control}
-        name={'description' as Path<AdjustEmployeeSalaryFormValues>}
-        render={({ field }) => (
-          <FormItem>
-            <FormLabel data-testid="adjust-employee-salary-description-label">
-              {t('adjust-salary-description')}
-            </FormLabel>
-            <FormControl>
-              <Input
-                className="gba:w-full"
-                {...field}
-                value={field.value ?? ''}
-                placeholder={placeholderEnter}
-                data-testid="adjust-employee-salary-description-input"
-              />
-            </FormControl>
             <FormMessage />
           </FormItem>
         )}
