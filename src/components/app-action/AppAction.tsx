@@ -9,6 +9,9 @@ import {
 } from '@/common/hooks/useAppActionData'
 import { formatDataTestId } from '@/common/utils/formatDataTestId'
 
+// Note: className prop is flagged as unused by ESLint but is actually
+// extracted from cleanProps and used in the render (line 110).
+// This is a known false positive with React prop validation.
 export interface AppActionProps extends AppActionCommonProps {
   /**
    * A single child element to attach the action execution to.
@@ -20,6 +23,13 @@ export interface AppActionProps extends AppActionCommonProps {
    * When true, adds aria-disabled and prevents click execution.
    */
   disabled?: boolean
+
+  /**
+   * Optional className to apply to the wrapper div (used on line 110)
+   * @see Line 110 where this is applied to the wrapper div
+   */
+
+  className?: string
 }
 
 const DATA_TEST_ID_PREFIX = 'AppAction'
@@ -43,8 +53,14 @@ export const AppAction = React.memo(
     const {
       children,
       disabled,
+      className,
       'data-testid': customDataTestId
-    } = cleanProps as { children: React.ReactElement; disabled?: boolean; 'data-testid'?: string }
+    } = cleanProps as {
+      children: React.ReactElement
+      disabled?: boolean
+      className?: string
+      'data-testid'?: string
+    }
 
     const { emptyStateBehavior = 'disable' } = forcedConfig
 
@@ -87,7 +103,7 @@ export const AppAction = React.memo(
     })
 
     return (
-      <div ref={ref} data-testid={containerTestId}>
+      <div ref={ref} data-testid={containerTestId} className={className}>
         {clonedChild}
       </div>
     )
