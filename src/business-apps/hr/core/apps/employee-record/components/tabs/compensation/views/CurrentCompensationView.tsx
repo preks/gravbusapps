@@ -7,7 +7,6 @@ import { BusinessAppContextProps } from '@/common/BusinessAppContext'
 import TotalRewardsCard from '../components/current/TotalRewardsCard'
 import BenefitsPerksSection from '../components/current/BenefitsPerksSection'
 import CompensationKPICards from '../components/current/CompensationKPICards'
-import CompensationBandSection from '../components/current/CompensationBandSection'
 
 interface CurrentCompensationViewProps extends BusinessAppContextProps {
   t: (key: string, params?: any) => string
@@ -135,9 +134,6 @@ const CurrentCompensationView: React.FC<CurrentCompensationViewProps> = ({
         currencyCode={currencyCode}
         locale={locale}
       />
-
-      {/* Compensation Band Info */}
-      <CompensationBandSection t={t} compensationData={compensationData} loading={loading} locale={locale} />
     </div>
   )
 }
