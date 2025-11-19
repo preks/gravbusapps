@@ -307,12 +307,18 @@ export interface BaseLiquidFundInvestment extends BaseEntity {
   interestRate?: number
   maturityDate?: string // ISO date string
 
+  // Additional metadata fields
+  additionalProperties?: any // Jsonb
+
   // Catalog references
   investmentLiquidFundType?: CatalogEntry
   interestPaymentFrequency?: CatalogEntry
 
   // Entity references (using Ref types)
   investment?: Investment
+
+  // Reports relationship (array)
+  liquidFundInvestmentReport?: BaseLiquidFundInvestmentReport[]
 }
 
 // liquid_fund_investment_report table

@@ -22,6 +22,7 @@ export enum FlowContextName {
   /// Customer Leads
   customerLeadEntity = 'customerLeadEntity',
   customerLeadCreate = 'customerLeadCreate',
+  customerLeadStatusUpdate = 'customerLeadStatusUpdate', // Status change context
 
   /// Customer Accounts
   customerAccountEntity = 'customerAccountEntity',
@@ -70,6 +71,7 @@ export enum FlowContextName {
   investmentLeadCreate = 'investmentLeadCreate',
   investmentLeadUpdate = 'investmentLeadUpdate',
   investmentLeadReject = 'investmentLeadReject',
+  investmentLeadStatusUpdate = 'investmentLeadStatusUpdate', // Status change context
 
   /// Investment Accounts
   investmentAccountEntity = 'investmentAccountEntity',
@@ -118,6 +120,7 @@ export enum FlowContextName {
   investmentCreate = 'investmentCreate', // TODO: Replace startProcess
   investmentEntity = 'investmentEntity',
   investmentTileUpdate = 'investmentTileUpdate',
+  investmentKpiTilesUpdate = 'investmentKpiTilesUpdate',
   investmentStatusUpdate = 'investmentStatusUpdate',
   investmentPlanExit = 'investmentPlanExit',
 

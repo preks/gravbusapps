@@ -72,7 +72,7 @@ export const InvestmentStatistics: React.FC<InvestmentStatisticsProps> = ({ sele
     },
     {
       key: 'total-invested',
-      title: `Total Invested (${selectedCurrency})`,
+      title: 'Total Invested',
       value: formatCurrencyCompact(totalInvested, extractCurrencyCode(selectedCurrency), undefined, 1, true),
       prefix: <DollarOutlined />,
       color: '#52c41a',
@@ -102,7 +102,7 @@ export const InvestmentStatistics: React.FC<InvestmentStatisticsProps> = ({ sele
     },
     {
       key: 'total-market-value',
-      title: `Total Market Value (${selectedCurrency})`,
+      title: 'Total Market Value',
       value: formatCurrencyCompact(totalMarketValue, extractCurrencyCode(selectedCurrency), undefined, 1, true),
       prefix: <RiseOutlined />,
       color: '#722ed1',

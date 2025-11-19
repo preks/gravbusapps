@@ -1,5 +1,5 @@
 // Investment Tab Configuration Utilities
-import { Home, BarChart3, Folder, FileText, TrendingUp } from 'lucide-react'
+import { Home, BarChart3, Folder, FileText, TrendingUp, LayoutGrid } from 'lucide-react'
 import { InvestmentDocuments } from '../components/InvestmentDocuments'
 import { getTranslationFromI18nKeyAndLabel } from '@/common/utils/windowUtils'
 import { BusinessAppContextProps } from '@/common/BusinessAppContext'
@@ -11,6 +11,7 @@ import {
   InvestmentReportsTab
 } from '../components/shared'
 import { EquityInvestmentRounds, RealEstateLiquidityForecast, EquityAnalyticsTab } from '../components/group-specific'
+import { InvestmentTilesTab } from '../tiles'
 // Remove dependency on investmentTypeUtils - now using dynamic types
 
 /**
@@ -126,6 +127,18 @@ export const createInvestmentTabsConfig = (
       )
     })
   }
+
+  // Add Tiles Tab for ALL investment types
+  tabs.push({
+    value: 'tiles',
+    label: getTranslationFromI18nKeyAndLabel('crm.investments.tabs.tiles', 'Tiles'),
+    icon: <LayoutGrid className="gba:h-4 gba:w-4 gba:mr-2" />,
+    content: (
+      <div className="gba:col-span-12">
+        <InvestmentTilesTab investmentId={investmentId} investment={investment} onRefresh={loadData} {...props} />
+      </div>
+    )
+  })
 
   // Add Overview Tab only for non-liquid fund investments
   const typeStr = (investmentType || '').toUpperCase()
