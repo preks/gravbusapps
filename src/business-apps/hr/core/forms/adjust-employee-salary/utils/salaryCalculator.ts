@@ -71,3 +71,66 @@ export const formatCurrencyDisplay = (
     maximumFractionDigits: options?.maximumFractionDigits ?? 2
   }).format(amount)
 }
+
+/**
+ * Convert salary to annual equivalent
+ * ⚠️ Returns null for hourly (cannot convert - hours vary)
+ * @param salary - Salary amount
+ * @param frequency - Frequency of the salary
+ * @returns Annual salary or null if hourly
+ */
+export const convertToAnnual = (salary: number, frequency: 'annually' | 'monthly' | 'hourly'): number | null => {
+  if (frequency === 'hourly') {
+    return null // Cannot convert hourly to annual - hours vary
+  }
+  if (frequency === 'monthly') {
+    return salary * 12
+  }
+  // annually
+  return salary
+}
+
+/**
+ * Convert annual salary to other frequencies
+ * ⚠️ Only supports annually/monthly (no hourly conversion)
+ * @param annualSalary - Annual salary amount
+ * @param frequency - Target frequency
+ * @returns Converted salary
+ */
+export const convertFromAnnual = (annualSalary: number, frequency: 'annually' | 'monthly'): number => {
+  if (frequency === 'monthly') {
+    return annualSalary / 12
+  }
+  // annually
+  return annualSalary
+}
+
+/**
+ * Calculate adjustment in annual terms
+ * ⚠️ Only supports annually/monthly (hourly handled separately)
+ * @param adjustmentValue - Adjustment amount
+ * @param adjustmentFrequency - Frequency of the adjustment
+ * @returns Annual equivalent of adjustment (null for hourly)
+ */
+export const calculateAdjustmentInAnnual = (
+  adjustmentValue: number,
+  adjustmentFrequency: 'annually' | 'monthly' | 'hourly'
+): number | null => {
+  if (adjustmentFrequency === 'hourly') {
+    return null // Hourly adjustments are NOT converted to annual
+  }
+  if (adjustmentFrequency === 'monthly') {
+    return adjustmentValue * 12
+  }
+  // annually
+  return adjustmentValue
+}
+
+/**
+ * Check if frequency is hourly
+ * @param frequency - Frequency to check
+ * @returns True if frequency is hourly
+ */
+export const isHourlyFrequency = (frequency: string): boolean => {
+  return frequency === 'hourly'
+}

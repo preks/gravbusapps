@@ -77,7 +77,8 @@ export const transformWorkingConditionToCompensation = (
   return {
     id: workingCondition.id,
     employeeId: workingCondition.employeeId,
-    baseSalary: workingCondition.annualGrossSalary || 0,
+    // Preserve null values - don't convert null to 0
+    baseSalary: workingCondition.annualGrossSalary ?? null,
     currency: {
       id: currencyCode,
       code: currencyCode,
@@ -90,7 +91,8 @@ export const transformWorkingConditionToCompensation = (
     compensationBand,
     effectiveDate: workingCondition.hireDate,
     endDate: workingCondition.exitDate,
-    monthlyGrossSalary: workingCondition.monthlyGrossSalary
+    monthlyGrossSalary: workingCondition.monthlyGrossSalary ?? null,
+    hourlyGrossSalary: workingCondition.hourlyGrossSalary ?? null
   }
 }
 
