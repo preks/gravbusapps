@@ -12,8 +12,16 @@ interface ReminderDisplayProps {
 }
 
 interface ReminderWorkflowData {
-  workflowId: string
+  workflowId?: string
+  id?: string
   status: string
+  tags?: {
+    reminderTitle?: string
+    reminderMessage?: string
+    reminderDateTime?: string
+    reminderDateTimeFormatted?: string
+    createdAt?: string
+  }
   input?: {
     reminderTitle?: string
     reminderMessage?: string
@@ -29,6 +37,13 @@ export const ReminderDisplay: React.FC<ReminderDisplayProps> = ({ entity, access
   const [error, setError] = useState<string | null>(null)
 
   useEffect(() => {
+    // Safety check - don't fetch if missing required data
+    if (!entity?.id || !accessToken) {
+      setIsLoading(false)
+      setError('Missing required data')
+      return
+    }
+
     const fetchReminderData = async () => {
       setIsLoading(true)
       setError(null)
@@ -43,21 +58,31 @@ export const ReminderDisplay: React.FC<ReminderDisplayProps> = ({ entity, access
         })
 
         if (!response.ok) {
-          throw new Error(`Failed to fetch reminder: ${response.statusText}`)
+          console.warn(`Reminder fetch failed: ${response.statusText}`)
+          setError(`Could not load reminder details`)
+          setIsLoading(false)
+          return
         }
 
         const data = await response.json()
         setReminder(data)
       } catch (err) {
         console.error('Error fetching reminder:', err)
-        setError(err instanceof Error ? err.message : 'Failed to load reminder')
+        setError('Unable to load reminder')
       } finally {
         setIsLoading(false)
       }
     }
 
-    fetchReminderData()
-  }, [entity.id, accessToken])
+    // Wrap in try-catch to prevent any uncaught errors
+    try {
+      fetchReminderData()
+    } catch (err) {
+      console.error('Unexpected error in ReminderDisplay:', err)
+      setError('An unexpected error occurred')
+      setIsLoading(false)
+    }
+  }, [entity?.id, accessToken])
 
   const getOperationBadge = () => {
     const operation = entity.operation || 'create'
@@ -122,10 +147,11 @@ export const ReminderDisplay: React.FC<ReminderDisplayProps> = ({ entity, access
     )
   }
 
-  const title = reminder.input?.reminderTitle || 'Reminder'
-  const message = reminder.input?.reminderMessage
-  const reminderTime = reminder.input?.reminderDateTime
-  const formattedTime = reminder.input?.reminderDateTimeFormatted
+  // Try tags first (primary location), then fall back to input
+  const title = reminder.tags?.reminderTitle || reminder.input?.reminderTitle || 'Reminder'
+  const message = reminder.tags?.reminderMessage || reminder.input?.reminderMessage
+  const reminderTime = reminder.tags?.reminderDateTime || reminder.input?.reminderDateTime
+  const formattedTime = reminder.tags?.reminderDateTimeFormatted || reminder.input?.reminderDateTimeFormatted
   const timeFromNow = reminderTime ? dayjs(reminderTime).fromNow() : ''
 
   return (
@@ -192,7 +218,9 @@ export const ReminderDisplay: React.FC<ReminderDisplayProps> = ({ entity, access
 
         {/* Workflow Status */}
         <div className="gba:pt-2 gba:border-t gba:border-border gba:flex gba:items-center gba:justify-between">
-          <div className="gba:text-xs gba:text-muted-foreground">Workflow: {reminder.workflowId.slice(0, 8)}...</div>
+          <div className="gba:text-xs gba:text-muted-foreground">
+            Workflow: {(reminder.workflowId || (reminder as any).id || 'unknown').slice(0, 8)}...
+          </div>
           <Badge variant="outline" className="gba:text-xs">
             {reminder.status === 'RUNNING' ? 'Pending' : reminder.status}
           </Badge>

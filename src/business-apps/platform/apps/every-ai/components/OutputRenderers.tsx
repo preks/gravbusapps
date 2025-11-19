@@ -603,6 +603,10 @@ function renderDisplayData(item: DisplayData, idx: number, accessToken: string) 
       return renderEntity(item, accessToken)
     case 'file':
       return <FileDisplay key={idx} data={item} />
+    case 'reminder':
+      // ReminderData is already handled via EntityData with entity: 'reminder'
+      // Skip rendering to avoid duplicates
+      return null
     default:
       return null
   }
@@ -610,9 +614,23 @@ function renderDisplayData(item: DisplayData, idx: number, accessToken: string) 
 
 // Answer Output Renderer
 export const AnswerOutputRenderer: React.FC<{ data: AnswerOutput; accessToken: string }> = ({ data, accessToken }) => {
+  // Deduplicate reminder entities to prevent double display
+  const deduplicatedData = data.displayData.filter((item, idx, arr) => {
+    // If this is a reminder entity, check if it's a duplicate
+    if (item.type === 'entity' && item.entity === 'reminder') {
+      // Find the first occurrence of this reminder ID
+      const firstIdx = arr.findIndex(
+        other => other.type === 'entity' && other.entity === 'reminder' && other.id === item.id
+      )
+      // Only keep the first occurrence
+      return firstIdx === idx
+    }
+    return true
+  })
+
   return (
     <div className="gba:flex gba:flex-col gba:gap-6 gba:w-full" data-testid="answer-output-renderer">
-      {data.displayData.map((item, idx) => (
+      {deduplicatedData.map((item, idx) => (
         <div key={idx} className="gba:pt-1">
           {renderDisplayData(item, idx, accessToken)}
         </div>

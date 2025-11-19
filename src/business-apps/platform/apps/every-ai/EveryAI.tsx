@@ -6,7 +6,9 @@ import { FormSubmissionProvider } from './components/FormSubmissionContext'
 import { ConversationRenderer } from './components/ConversationRenderer'
 import { useCurrentUserPicture } from './hooks/useCurrentUserPicture'
 import { RemindersPanel } from './components/RemindersPanel'
+import { ErrorBoundary } from './components/ErrorBoundary'
 import { Button } from '@newwork/nw-design-system'
+import { Bell, Sparkle } from '@phosphor-icons/react'
 
 export interface EveryAIProps extends BusinessAppContextProps {
   className?: string
@@ -59,39 +61,58 @@ export const EveryAI: React.FC<EveryAIProps> = props => {
       className={`gba:h-full gba:flex gba:flex-col gba:bg-background gba:relative gba:overflow-hidden ${className || ''}`}
       data-testid="every-ai-app"
     >
-      {/* Reminders Bell Icon - Top Right */}
-      <div className="gba:absolute gba:top-4 gba:right-4 gba:z-30">
+      {/* Reminders Bell / AI Icon - Top Right */}
+      <div className="gba:absolute gba:top-4 gba:right-4 gba:z-50">
         <Button
           variant="ghost"
           size="sm"
           onClick={() => setShowRemindersPanel(!showRemindersPanel)}
           className="gba:relative gba:p-2 gba:rounded-full gba:bg-card/80 gba:backdrop-blur-sm gba:border gba:border-border hover:gba:bg-accent gba:transition-all hover:gba:shadow-lg gba:group"
           data-testid="reminders-bell-button"
-          title="My Reminders"
+          title={showRemindersPanel ? 'Back to Chat' : 'My Reminders'}
         >
-          <svg
-            className="gba:h-5 gba:w-5 gba:text-muted-foreground group-hover:gba:text-primary gba:transition-colors"
-            fill="none"
-            stroke="currentColor"
-            viewBox="0 0 24 24"
-            aria-hidden="true"
-          >
-            <path
-              strokeLinecap="round"
-              strokeLinejoin="round"
-              strokeWidth={2}
-              d="M15 17h5l-1.405-1.405A2.032 2.032 0 0118 14.158V11a6.002 6.002 0 00-4-5.659V5a2 2 0 10-4 0v.341C7.67 6.165 6 8.388 6 11v3.159c0 .538-.214 1.055-.595 1.436L4 17h5m6 0v1a3 3 0 11-6 0v-1m6 0H9"
+          {showRemindersPanel ? (
+            <Sparkle
+              className="gba:h-5 gba:w-5 gba:text-muted-foreground group-hover:gba:text-primary gba:transition-colors"
+              weight="regular"
+              aria-hidden="true"
             />
-          </svg>
+          ) : (
+            <Bell
+              className="gba:h-5 gba:w-5 gba:text-muted-foreground group-hover:gba:text-primary gba:transition-colors"
+              weight="regular"
+              aria-hidden="true"
+            />
+          )}
         </Button>
       </div>
 
-      {/* Reminders Panel Overlay */}
-      {showRemindersPanel && (
-        <div className="gba:absolute gba:top-16 gba:right-4 gba:z-30">
-          <RemindersPanel accessToken={accessToken} userInfo={userInfo} onClose={() => setShowRemindersPanel(false)} />
-        </div>
-      )}
+      {/* Reminders Panel - Always mounted to check for due reminders */}
+      <div
+        className={`gba:absolute gba:inset-0 gba:z-40 gba:bg-background gba:flex gba:flex-col ${showRemindersPanel ? '' : 'gba:hidden'}`}
+        data-testid="reminders-panel-overlay"
+      >
+        <ErrorBoundary
+          fallback={
+            <div className="gba:bg-card gba:p-4 gba:rounded-lg gba:shadow-lg gba:border gba:border-border gba:m-4">
+              <p className="gba:text-destructive gba:font-semibold">Failed to load reminders</p>
+              <button
+                onClick={() => setShowRemindersPanel(false)}
+                className="gba:mt-2 gba:text-sm gba:text-muted-foreground hover:gba:text-foreground"
+              >
+                Close
+              </button>
+            </div>
+          }
+        >
+          <RemindersPanel
+            accessToken={accessToken}
+            userInfo={userInfo}
+            onClose={() => setShowRemindersPanel(false)}
+            onReminderDue={() => setShowRemindersPanel(true)}
+          />
+        </ErrorBoundary>
+      </div>
 
       <FormSubmissionProvider>
         {/* Conversation Area with subtle gradient */}
