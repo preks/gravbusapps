@@ -679,7 +679,7 @@ const ExpenseItemsTable: React.FC<ExpenseItemsTableProps> = React.memo(props => 
                                     },
                                     {
                                       includeDetails: true,
-                                      includeAssignToRequest: false
+                                      includeAssignToRequest: true
                                     }
                                   ).map(action => {
                                     // Override the details action onClick to use the table's handleSelectItem
