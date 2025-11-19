@@ -19,6 +19,7 @@ export const EMPLOYEE_COMPENSATION_QUERY = `query fetchEmployeeCompensation($idE
     employeeId
     annualGrossSalary
     monthlyGrossSalary
+    hourlyGrossSalary
     currencyRef
     currency {
       id
@@ -32,33 +33,8 @@ export const EMPLOYEE_COMPENSATION_QUERY = `query fetchEmployeeCompensation($idE
         defaultLocale
       }
     }
-    payFrequencyRef
-    payFrequency {
-      id
-      value
-      translations {
-        localeCode
-        value
-      }
-      catalog {
-        defaultLocale
-      }
-    }
   }
 }
 `
 
-export const CURRENCY_CATALOG_QUERY = `query fetchCurrencyCatalog($activeUserLocale: String!) {
-  currency: CatalogEntry(where: {catalog: {version: {_eq: "v1"}, identifier: {_eq: "Currency"}}, isDeleted: {_eq: false}}, orderBy: {displayOrder: ASC}) {
-    value
-    id
-    translations(where: {localeCode: {_eq: $activeUserLocale}}) {
-      localeCode
-      value
-    }
-    catalog {
-      defaultLocale
-    }
-  }
-}
-`
+// No pay frequency catalog query needed - frequency is determined from employee compensation data

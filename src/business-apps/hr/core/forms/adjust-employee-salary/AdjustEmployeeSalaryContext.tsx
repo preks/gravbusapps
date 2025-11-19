@@ -1,14 +1,8 @@
 import React, { createContext, useContext, useEffect, useMemo, useState, useCallback } from 'react'
 import { BusinessAppContextProps } from '@/common/BusinessAppContext'
 import { useGraphQLClient } from '@/common/network/graphql/useGraphQLClient'
-import { EMPLOYEE_DATA_QUERY, EMPLOYEE_COMPENSATION_QUERY, CURRENCY_CATALOG_QUERY } from './AdjustEmployeeSalaryQueries'
-import { getCurrentActiveUserLocale } from '@/common/utils/windowUtils'
-import type {
-  AdjustEmployeeSalaryContextData,
-  EmployeeDataResponse,
-  EmployeeCompensationResponse,
-  CatalogsDataResponse
-} from './types'
+import { EMPLOYEE_DATA_QUERY, EMPLOYEE_COMPENSATION_QUERY } from './AdjustEmployeeSalaryQueries'
+import type { AdjustEmployeeSalaryContextData, EmployeeDataResponse, EmployeeCompensationResponse } from './types'
 
 interface AdjustEmployeeSalaryContextValue {
   data: AdjustEmployeeSalaryContextData | null
@@ -46,8 +40,6 @@ export const AdjustEmployeeSalaryProvider: React.FC<ProviderProps> = ({
     )
   }, [additionalData, userInfo])
 
-  const activeUserLocale = useMemo(() => getCurrentActiveUserLocale(), [])
-
   const fetchData = useCallback(async () => {
     if (!accessToken || !employeeId) {
       setIsLoading(false)
@@ -71,30 +63,25 @@ export const AdjustEmployeeSalaryProvider: React.FC<ProviderProps> = ({
         setData(prev => ({
           employee: prev?.employee ?? null,
           compensation: compensationData,
-          catalogs: prev?.catalogs ?? null
+          catalogs: null
         }))
       } catch (compensationErr: any) {
+        console.error('Failed to fetch compensation data:', compensationErr)
         setError(compensationErr?.message || 'Compensation data load failed')
-      }
-
-      // Fetch currency catalog
-      try {
-        const catalogVariables = { activeUserLocale }
-        const catalogData = await graphqlClient.request<CatalogsDataResponse>(CURRENCY_CATALOG_QUERY, catalogVariables)
+        // Still set data with null compensation so form can render
         setData(prev => ({
           employee: prev?.employee ?? null,
-          compensation: prev?.compensation ?? null,
-          catalogs: catalogData
+          compensation: null,
+          catalogs: null
         }))
-      } catch (catalogErr: any) {
-        setError(catalogErr?.message || 'Catalogs load failed')
       }
       setIsLoading(false)
     } catch (e: any) {
+      console.error('Failed to fetch employee data:', e)
       setError(e?.message || 'Unknown error')
       setIsLoading(false)
     }
-  }, [accessToken, employeeId, activeUserLocale, graphqlClient])
+  }, [accessToken, employeeId, graphqlClient])
 
   useEffect(() => {
     fetchData()
