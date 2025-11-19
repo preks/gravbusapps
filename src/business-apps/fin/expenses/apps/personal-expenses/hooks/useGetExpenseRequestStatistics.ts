@@ -35,7 +35,8 @@ export const useGetExpenseRequestStatistics = (
     pendingApproval: 0,
     reimbursableAmount: 0
   })
-  const [isLoading, setIsLoading] = useState<boolean>(true)
+  // Start in "not loading" state; we only show skeletons while an actual request is in flight.
+  const [isLoading, setIsLoading] = useState<boolean>(false)
   const [error, setError] = useState<Error | null>(null)
 
   const fetchStatistics = useCallback(async () => {

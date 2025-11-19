@@ -508,6 +508,9 @@ const ExpenseItemsTable: React.FC<ExpenseItemsTableProps> = React.memo(props => 
         }}
         dataFilterProps={{
           filterGroups: useMemo(() => {
+            if (totalCount === 0 && !isLoading) {
+              return []
+            }
             const currencyGroup: DataFilterGroup | null =
               currencyStats.length > 0
                 ? {
@@ -524,10 +527,10 @@ const ExpenseItemsTable: React.FC<ExpenseItemsTableProps> = React.memo(props => 
                   }
                 : null
             return currencyGroup ? [currencyGroup, ...filterGroups] : filterGroups
-          }, [currencyStats, filterGroups, allSelectedFilters]),
+          }, [currencyStats, filterGroups, allSelectedFilters, totalCount, isLoading]),
           onFilterChange: handleFilterChange as (filterId: string, selected: boolean) => void
         }}
-        contentBackground="background"
+        contentBackground="white"
         dataBody={
           <div className="">
             <Card data-testid={`${DATA_TEST_ID_PREFIX}-container`}>
@@ -676,7 +679,7 @@ const ExpenseItemsTable: React.FC<ExpenseItemsTableProps> = React.memo(props => 
                                     },
                                     {
                                       includeDetails: true,
-                                      includeAssignToRequest: false
+                                      includeAssignToRequest: true
                                     }
                                   ).map(action => {
                                     // Override the details action onClick to use the table's handleSelectItem
