@@ -1,12 +1,8 @@
 import React, { useEffect, useMemo, useRef } from 'react'
 import { BusinessAppContextProps } from '@/common/BusinessAppContext'
-import {
-  getTranslationFromI18nKeyAndLabel,
-  formatDateToISO,
-  getCurrentActiveUserLocale
-} from '@/common/utils/windowUtils'
+import { formatDateToISO, getCurrentActiveUserLocale } from '@/common/utils/windowUtils'
 import FormHeader from '../components/FormHeader'
-import { LocalizationProvider } from '@newwork/nw-design-system'
+import { LocalizationProvider, useTranslation, type SupportedLocale } from '@newwork/nw-design-system'
 import flowIconUrl from '@/assets/icons/flowSmall.svg'
 import { GrantEmployeeBonusProvider, useGrantEmployeeBonus } from './GrantEmployeeBonusContext'
 import { useForm } from 'react-hook-form'
@@ -14,9 +10,11 @@ import type { GrantEmployeeBonusFormValues, CatalogEntry } from './types'
 import BonusDetailsGroup from './components/BonusDetailsGroup'
 import { AppActionForm } from '@/components/app-action-form/AppActionForm'
 import { CompensationStatus } from '../../apps/employee-record/components/tabs/compensation/types/compensationEnums'
+import translations from '../_i18n'
 
-const GrantEmployeeBonusContent: React.FC<BusinessAppContextProps> = ({ additionalData }) => {
+const GrantEmployeeBonusContent: React.FC<BusinessAppContextProps> = ({ additionalData, userInfo }) => {
   const { data } = useGrantEmployeeBonus()
+  const { t } = useTranslation(translations)
 
   const employee = useMemo(() => data?.employee?.EmployeeByPk, [data])
   const catalogs = useMemo(
@@ -99,14 +97,7 @@ const GrantEmployeeBonusContent: React.FC<BusinessAppContextProps> = ({ addition
     )
   }, [watchedValues])
 
-  const title = useMemo(
-    () =>
-      getTranslationFromI18nKeyAndLabel(
-        'lowcoder:employee_profile.employee_tabs.flows_button.grant_employee_bonus',
-        'Grant Employee Bonus'
-      ),
-    []
-  )
+  const title = useMemo(() => t('form-title'), [t])
 
   // Extract employeeId with priority: externalContextData (from AppAction) > process payload > direct > employee data
   const externalContext = (additionalData as any)?.externalContextData || {}
@@ -118,6 +109,9 @@ const GrantEmployeeBonusContent: React.FC<BusinessAppContextProps> = ({ addition
     employee?.code ||
     employee?.id ||
     ''
+
+  // Extract manager employee ID (logged-in user who initiates the flow)
+  const managerEmployeeId = userInfo?.employeeDetails?.employeeId || ''
 
   return (
     <div
@@ -132,35 +126,26 @@ const GrantEmployeeBonusContent: React.FC<BusinessAppContextProps> = ({ addition
       >
         <AppActionForm
           processType="create"
-          form={form as any}
+          form={form}
           formData={normalizedDefaults}
           submitEventType="pse_submit"
           cancelEventType="pse_abort"
-          cancelButtonText={getTranslationFromI18nKeyAndLabel(
-            'lowcoder:create_expense_request.initiate_cancel_button',
-            'Cancel'
-          )}
-          submitButtonText={getTranslationFromI18nKeyAndLabel('lowcoder:hr_absences.create_absence.submit', 'Submit')}
+          cancelButtonText={t('action-cancel')}
+          submitButtonText={t('action-submit')}
           isSubmitDisabled={!form.formState.isValid || isUnchangedNow}
           onSubmit={async (values: GrantEmployeeBonusFormValues) => {
             const payload = {
-              event: 'pse_submit',
+              // Manager context for Kogito flow
+              employeeIdManager: managerEmployeeId,
+              requireManagerApproval: false,
+              // Employee bonus details
               employeeBonus: {
                 employee: employeeId,
                 employeeBonusTypeRef:
                   values.employeeBonusTypeRef && values.employeeBonusTypeRef !== '' ? values.employeeBonusTypeRef : '',
                 amount: values.amount || 0,
                 currencyRef: values.currencyRef && values.currencyRef !== '' ? values.currencyRef : '',
-                paymentDate: values.paymentDate
-                  ? (() => {
-                      const date = new Date(values.paymentDate)
-                      if (isNaN(date.getTime())) {
-                        console.error('Invalid payment date:', values.paymentDate)
-                        return ''
-                      }
-                      return formatDateToISO(date)
-                    })()
-                  : '',
+                paymentDate: values.paymentDate ? formatDateToISO(new Date(values.paymentDate)) : '',
                 fiscalYear: values.fiscalYear || new Date().getFullYear(),
                 status: CompensationStatus.APPROVED, // Set to APPROVED_COMPENSATION until approval process is implemented
                 description: values.description || '',
@@ -174,7 +159,7 @@ const GrantEmployeeBonusContent: React.FC<BusinessAppContextProps> = ({ addition
         >
           <div className="gba:flex-1 gba:space-y-4" data-testid="grant-employee-bonus-groups">
             {/* Bonus Details Group */}
-            <BonusDetailsGroup control={form.control} catalogs={catalogs} />
+            <BonusDetailsGroup control={form.control} catalogs={catalogs} t={t} />
           </div>
         </AppActionForm>
       </div>
@@ -183,9 +168,9 @@ const GrantEmployeeBonusContent: React.FC<BusinessAppContextProps> = ({ addition
 }
 
 export const GrantEmployeeBonus: React.FC<BusinessAppContextProps> = context => {
-  const locale = useMemo(() => getCurrentActiveUserLocale(), [])
+  const locale = useMemo(() => getCurrentActiveUserLocale() as SupportedLocale, [])
   return (
-    <LocalizationProvider locale={locale as any}>
+    <LocalizationProvider locale={locale}>
       <GrantEmployeeBonusProvider {...context}>
         <GrantEmployeeBonusContent {...context} />
       </GrantEmployeeBonusProvider>

@@ -15,7 +15,7 @@ import {
   Textarea
 } from '@newwork/nw-design-system'
 import type { Control, Path } from 'react-hook-form'
-import { getTranslationFromI18nKeyAndLabel, getCatalogValue } from '@/common/utils/windowUtils'
+import { getCatalogValue } from '@/common/utils/windowUtils'
 import type { GrantEmployeeBonusFormValues, CatalogEntry } from '../types'
 
 export interface BonusDetailsGroupProps {
@@ -24,17 +24,12 @@ export interface BonusDetailsGroupProps {
     bonusType?: CatalogEntry[]
     currency?: CatalogEntry[]
   }
+  t: (key: string, params?: any) => string
 }
 
-const BonusDetailsGroup: React.FC<BonusDetailsGroupProps> = ({ control, catalogs }) => {
-  const placeholderSelect = getTranslationFromI18nKeyAndLabel(
-    'lowcoder:employee_profile.details_layout.personal_information_container.select_placeholder',
-    'Please Select'
-  )
-  const placeholderEnter = getTranslationFromI18nKeyAndLabel(
-    'lowcoder:employee_profile.details_layout.personal_information_container.enter_placeholder',
-    'Please Enter'
-  )
+const BonusDetailsGroup: React.FC<BonusDetailsGroupProps> = ({ control, catalogs, t }) => {
+  const placeholderSelect = t('placeholder-select')
+  const placeholderEnter = t('placeholder-enter')
 
   return (
     <div className="gba:space-y-4" data-testid="grant-employee-bonus-details-group">
@@ -43,15 +38,12 @@ const BonusDetailsGroup: React.FC<BonusDetailsGroupProps> = ({ control, catalogs
         control={control}
         name={'employeeBonusTypeRef' as Path<GrantEmployeeBonusFormValues>}
         rules={{
-          required: getTranslationFromI18nKeyAndLabel(
-            'lowcoder:grant_employee_bonus.bonus_type_required',
-            'Bonus type is required. Please select a bonus type.'
-          )
+          required: t('validation-bonus-type-required')
         }}
         render={({ field }) => (
           <FormItem>
             <FormLabel data-testid="grant-employee-bonus-type-label">
-              {getTranslationFromI18nKeyAndLabel('lowcoder:grant_employee_bonus.bonus_type', 'Bonus Type')}
+              {t('field-bonus-type')}
               <span className="gba:text-destructive"> *</span>
             </FormLabel>
             <Select
@@ -88,23 +80,14 @@ const BonusDetailsGroup: React.FC<BonusDetailsGroupProps> = ({ control, catalogs
         control={control}
         name={'amount' as Path<GrantEmployeeBonusFormValues>}
         rules={{
-          required: getTranslationFromI18nKeyAndLabel(
-            'lowcoder:grant_employee_bonus.amount_required',
-            'Amount is required. Please enter the bonus amount.'
-          ),
+          required: t('validation-amount-required'),
           validate: (value: string | number | null) => {
             if (value === null || value === undefined) {
-              return getTranslationFromI18nKeyAndLabel(
-                'lowcoder:grant_employee_bonus.amount_required',
-                'Amount is required. Please enter the bonus amount.'
-              )
+              return t('validation-amount-required')
             }
             const numValue = typeof value === 'string' ? parseFloat(value) : value
             if (typeof numValue === 'number' && (Number.isNaN(numValue) || numValue <= 0)) {
-              return getTranslationFromI18nKeyAndLabel(
-                'lowcoder:grant_employee_bonus.amount_positive',
-                'Amount must be greater than zero.'
-              )
+              return t('validation-amount-positive')
             }
             return true
           }
@@ -112,7 +95,7 @@ const BonusDetailsGroup: React.FC<BonusDetailsGroupProps> = ({ control, catalogs
         render={({ field }) => (
           <FormItem>
             <FormLabel data-testid="grant-employee-bonus-amount-label">
-              {getTranslationFromI18nKeyAndLabel('lowcoder:grant_employee_bonus.amount', 'Amount')}
+              {t('field-amount')}
               <span className="gba:text-destructive"> *</span>
             </FormLabel>
             <FormControl>
@@ -142,15 +125,12 @@ const BonusDetailsGroup: React.FC<BonusDetailsGroupProps> = ({ control, catalogs
         control={control}
         name={'currencyRef' as Path<GrantEmployeeBonusFormValues>}
         rules={{
-          required: getTranslationFromI18nKeyAndLabel(
-            'lowcoder:grant_employee_bonus.currency_required',
-            'Currency is required. Please select a currency.'
-          )
+          required: t('validation-currency-required')
         }}
         render={({ field }) => (
           <FormItem>
             <FormLabel data-testid="grant-employee-bonus-currency-label">
-              {getTranslationFromI18nKeyAndLabel('lowcoder:grant_employee_bonus.currency', 'Currency')}
+              {t('field-currency')}
               <span className="gba:text-destructive"> *</span>
             </FormLabel>
             <Select
@@ -187,15 +167,23 @@ const BonusDetailsGroup: React.FC<BonusDetailsGroupProps> = ({ control, catalogs
         control={control}
         name={'paymentDate' as Path<GrantEmployeeBonusFormValues>}
         rules={{
-          required: getTranslationFromI18nKeyAndLabel(
-            'lowcoder:grant_employee_bonus.payment_date_required',
-            'Payment date is required. Please select a payment date.'
-          )
+          required: t('validation-payment-date-required'),
+          validate: (value: string | number | null) => {
+            if (!value || value === '') {
+              return t('validation-payment-date-required')
+            }
+            const dateValue = typeof value === 'number' ? String(value) : value
+            const date = new Date(dateValue)
+            if (isNaN(date.getTime())) {
+              return t('validation-payment-date-invalid')
+            }
+            return true
+          }
         }}
         render={({ field }) => (
           <FormItem>
             <FormLabel data-testid="grant-employee-bonus-payment-date-label">
-              {getTranslationFromI18nKeyAndLabel('lowcoder:grant_employee_bonus.payment_date', 'Payment Date')}
+              {t('field-payment-date')}
               <span className="gba:text-destructive"> *</span>
             </FormLabel>
             <FormControl>
@@ -203,7 +191,7 @@ const BonusDetailsGroup: React.FC<BonusDetailsGroupProps> = ({ control, catalogs
                 <DateInput
                   type="date"
                   value={(field.value as string) || ''}
-                  onChange={(v?: string) => field.onChange(v || '')}
+                  onChange={v => field.onChange(v || '')}
                   placeholder={placeholderSelect}
                   className="gba:w-full"
                 />
@@ -219,32 +207,20 @@ const BonusDetailsGroup: React.FC<BonusDetailsGroupProps> = ({ control, catalogs
         control={control}
         name={'fiscalYear' as Path<GrantEmployeeBonusFormValues>}
         rules={{
-          required: getTranslationFromI18nKeyAndLabel(
-            'lowcoder:grant_employee_bonus.fiscal_year_required',
-            'Fiscal year is required. Please enter the fiscal year.'
-          ),
+          required: t('validation-fiscal-year-required'),
           validate: (value: string | number | null) => {
             if (!value) {
-              return getTranslationFromI18nKeyAndLabel(
-                'lowcoder:grant_employee_bonus.fiscal_year_required',
-                'Fiscal year is required. Please enter the fiscal year.'
-              )
+              return t('validation-fiscal-year-required')
             }
             const numValue = typeof value === 'string' ? parseInt(String(value), 10) : value
             if (typeof numValue !== 'number' || Number.isNaN(numValue)) {
-              return getTranslationFromI18nKeyAndLabel(
-                'lowcoder:grant_employee_bonus.fiscal_year_required',
-                'Fiscal year is required. Please enter the fiscal year.'
-              )
+              return t('validation-fiscal-year-required')
             }
             const currentYear = new Date().getFullYear()
             const minYear = currentYear - 10
             const maxYear = currentYear + 10
             if (numValue < minYear || numValue > maxYear) {
-              return getTranslationFromI18nKeyAndLabel(
-                'lowcoder:grant_employee_bonus.fiscal_year_range',
-                `Fiscal year must be between ${minYear} and ${maxYear}.`
-              )
+              return t('validation-fiscal-year-range', { minYear, maxYear })
             }
             return true
           }
@@ -252,7 +228,7 @@ const BonusDetailsGroup: React.FC<BonusDetailsGroupProps> = ({ control, catalogs
         render={({ field }) => (
           <FormItem>
             <FormLabel data-testid="grant-employee-bonus-fiscal-year-label">
-              {getTranslationFromI18nKeyAndLabel('lowcoder:grant_employee_bonus.fiscal_year', 'Fiscal Year')}
+              {t('field-fiscal-year')}
               <span className="gba:text-destructive"> *</span>
             </FormLabel>
             <FormControl>
@@ -283,9 +259,7 @@ const BonusDetailsGroup: React.FC<BonusDetailsGroupProps> = ({ control, catalogs
         name={'description' as Path<GrantEmployeeBonusFormValues>}
         render={({ field }) => (
           <FormItem>
-            <FormLabel data-testid="grant-employee-bonus-description-label">
-              {getTranslationFromI18nKeyAndLabel('lowcoder:grant_employee_bonus.description', 'Description')}
-            </FormLabel>
+            <FormLabel data-testid="grant-employee-bonus-description-label">{t('field-description')}</FormLabel>
             <FormControl>
               <Input
                 className="gba:w-full"
@@ -306,9 +280,7 @@ const BonusDetailsGroup: React.FC<BonusDetailsGroupProps> = ({ control, catalogs
         name={'notes' as Path<GrantEmployeeBonusFormValues>}
         render={({ field }) => (
           <FormItem>
-            <FormLabel data-testid="grant-employee-bonus-notes-label">
-              {getTranslationFromI18nKeyAndLabel('lowcoder:grant_employee_bonus.notes', 'Notes')}
-            </FormLabel>
+            <FormLabel data-testid="grant-employee-bonus-notes-label">{t('field-notes')}</FormLabel>
             <FormControl>
               <Textarea
                 className="gba:w-full"
