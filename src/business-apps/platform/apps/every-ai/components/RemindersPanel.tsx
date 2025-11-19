@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useCallback, useRef, useMemo } from 'react'
-import { Button, Badge } from '@newwork/nw-design-system'
+import { Button, Badge, Card } from '@newwork/nw-design-system'
 import { BusinessAppContextProps } from '@/common/BusinessAppContext'
 import { Bell } from '@phosphor-icons/react'
 import dayjs from 'dayjs'
@@ -70,7 +70,24 @@ export const RemindersPanel: React.FC<RemindersPanelProps> = ({ accessToken, use
       }
 
       const data = await response.json()
-      const workflows = Array.isArray(data.data?.flows) ? data.data.flows : []
+      console.log('[RemindersPanel] API response:', data)
+
+      // Handle different response structures
+      let workflows: any[] = []
+      if (Array.isArray(data)) {
+        workflows = data
+      } else if (Array.isArray(data.data?.flows)) {
+        workflows = data.data.flows
+      } else if (Array.isArray(data.flows)) {
+        workflows = data.flows
+      } else if (data.data && Array.isArray(data.data)) {
+        workflows = data.data
+      } else {
+        console.warn('[RemindersPanel] Unexpected response structure:', data)
+        workflows = []
+      }
+
+      console.log('[RemindersPanel] Parsed workflows:', workflows.length)
 
       // Transform workflows to reminders
       const reminderList: Reminder[] = workflows
@@ -156,8 +173,8 @@ export const RemindersPanel: React.FC<RemindersPanelProps> = ({ accessToken, use
   }, [])
 
   useEffect(() => {
-    // Only load if we have accessToken
-    if (!accessToken) return
+    // Only load if we have accessToken and userId
+    if (!accessToken || !userId) return
 
     loadReminders()
 
@@ -170,76 +187,6 @@ export const RemindersPanel: React.FC<RemindersPanelProps> = ({ accessToken, use
       clearInterval(interval)
     }
   }, [accessToken, loadReminders])
-
-  const handleDismiss = async (workflowId: string) => {
-    if (!confirm('Cancel this reminder?')) return
-
-    try {
-      const baseUrl = window.location.origin
-      const response = await fetch(`${baseUrl}/flow-engine/api/flows/${workflowId}`, {
-        method: 'DELETE',
-        headers: {
-          Authorization: `Bearer ${accessToken}`,
-          'Content-Type': 'application/json'
-        }
-      })
-
-      if (!response.ok) {
-        throw new Error('Failed to cancel reminder')
-      }
-
-      // Remove from list and from notified set
-      setReminders(prev => prev.filter(r => r.workflowId !== workflowId))
-      notifiedReminders.current.delete(workflowId)
-    } catch (err) {
-      console.error('Failed to cancel reminder:', err)
-      alert('Failed to cancel reminder. Please try again.')
-    }
-  }
-
-  const handlePostpone = async (workflowId: string, minutesToAdd: number) => {
-    const reminder = reminders.find(r => r.workflowId === workflowId)
-    if (!reminder) return
-
-    try {
-      const baseUrl = window.location.origin
-
-      // Calculate new reminder time
-      const currentTime = new Date(reminder.reminderDateTime)
-      const newTime = new Date(currentTime.getTime() + minutesToAdd * 60 * 1000)
-      const newTimeISO = newTime.toISOString()
-
-      // Format the new time
-      const formattedTime = dayjs(newTime).format('dddd, MMMM D, YYYY [at] hh:mm A [UTC]')
-
-      // Update workflow tags via POST endpoint (Kong blocks PATCH)
-      const response = await fetch(`${baseUrl}/flow-engine/api/flows/${workflowId}/update`, {
-        method: 'POST',
-        headers: {
-          Authorization: `Bearer ${accessToken}`,
-          'Content-Type': 'application/json'
-        },
-        body: JSON.stringify({
-          userId: userId,
-          tags: {
-            reminderDateTime: newTimeISO,
-            reminderDateTimeFormatted: formattedTime
-          }
-        })
-      })
-
-      if (!response.ok) {
-        const errorData = await response.json().catch(() => ({}))
-        throw new Error(errorData.message || `Failed to postpone reminder: ${response.statusText}`)
-      }
-
-      // Reload reminders to show updated time
-      await loadReminders()
-    } catch (err) {
-      console.error('Failed to postpone reminder:', err)
-      alert(`Failed to postpone reminder: ${err instanceof Error ? err.message : 'Unknown error'}`)
-    }
-  }
 
   const handleMarkAsDone = async (workflowId: string) => {
     try {
@@ -417,47 +364,17 @@ export const RemindersPanel: React.FC<RemindersPanelProps> = ({ accessToken, use
                       </div>
                     )}
 
-                    {/* Action buttons - at the bottom */}
-                    <div className="gba:flex gba:gap-2 gba:mt-auto">
+                    {/* Action button - at the bottom */}
+                    <div className="gba:flex gba:mt-auto">
                       <Button
                         variant="default"
                         size="sm"
                         onClick={() => handleMarkAsDone(reminder.workflowId)}
-                        className="gba:flex-1"
+                        className="gba:w-full"
                         data-testid={`mark-done-reminder-${reminder.workflowId}`}
                         title="Mark as done"
                       >
                         ✓ Done
-                      </Button>
-                      <Button
-                        variant="outline"
-                        size="sm"
-                        onClick={() => {
-                          const minutes = window.prompt('Postpone by how many minutes?', '10')
-                          if (minutes) handlePostpone(reminder.workflowId, parseInt(minutes))
-                        }}
-                        data-testid={`postpone-reminder-${reminder.workflowId}`}
-                        title="Postpone"
-                      >
-                        <svg className="gba:h-4 gba:w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                          <path
-                            strokeLinecap="round"
-                            strokeLinejoin="round"
-                            strokeWidth={2}
-                            d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"
-                          />
-                        </svg>
-                      </Button>
-                      <Button
-                        variant="ghost"
-                        size="sm"
-                        onClick={() => handleDismiss(reminder.workflowId)}
-                        data-testid={`dismiss-reminder-${reminder.workflowId}`}
-                        title="Cancel"
-                      >
-                        <svg className="gba:h-4 gba:w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
-                        </svg>
                       </Button>
                     </div>
                   </div>

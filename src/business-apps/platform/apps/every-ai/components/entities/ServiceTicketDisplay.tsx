@@ -4,6 +4,7 @@ import { env } from '@/common/env/EnvUtils'
 import { useCatalogManagerClient } from '@/common/network/catalogs/useCatalogManagerClient'
 import { useGraphQLClient } from '@/common/network/graphql/useGraphQLClient'
 import { AvatarWithInitials } from '../shared/AvatarWithInitials'
+import { navigateTo, buildPlatformUrl } from '@/common/utils/navigationUtils'
 
 interface ServiceTicketDisplayProps {
   serviceTicketId: string
@@ -226,6 +227,11 @@ export const ServiceTicketDisplay: React.FC<ServiceTicketDisplayProps> = ({
   const displayTitle = ticket.flowName || ticket.title || 'Service Ticket'
   const subtitle = ticket.title || ticket.message || ''
 
+  // Handle card click - navigate to service requests overview
+  const handleCardClick = () => {
+    navigateTo(buildPlatformUrl('/platform/employee-record', { tab: 'serviceRequests' }))
+  }
+
   // Merge form data
   const formData = { ...(ticket.inputData || {}), ...(ticket.outputData || {}) }
 
@@ -247,8 +253,9 @@ export const ServiceTicketDisplay: React.FC<ServiceTicketDisplayProps> = ({
 
   return (
     <Card
-      className="gba:w-full gba:rounded-2xl hover:gba:bg-accent gba:border-2 gba:shadow-lg"
+      className="gba:w-full gba:rounded-2xl hover:gba:bg-accent gba:border-2 gba:shadow-lg gba:cursor-pointer gba:transition-colors"
       data-testid="service-ticket-display"
+      onClick={handleCardClick}
     >
       <CardContent className="gba:p-6">
         <div className="gba:flex gba:items-start gba:justify-between gba:mb-4">
