@@ -24,7 +24,7 @@ const NotesField: React.FC<NotesFieldProps> = ({
         value={value}
         onChange={e => onChange(e.target.value)}
         disabled={disabled}
-        className="gba:w-full gba:min-h-[80px] gba:border-none gba:rounded-none gba:px-3 gba:py-2 gba:resize-y gba:bg-muted"
+        className="gba:w-full gba:min-h-[80px] gba:border-none gba:rounded-none gba:px-3 gba:py-2 gba:resize-y gba:!bg-gray-100"
         data-testid="request-advance-payment-notes-textarea"
       />
     </div>

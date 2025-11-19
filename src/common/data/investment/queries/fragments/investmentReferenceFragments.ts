@@ -380,6 +380,7 @@ export const INVESTMENT_REF = `
  */
 export const EQUITY_INVESTMENT_REF = `
     id
+    version
     foundationDate
     marketValue
     ebitdaAmount
@@ -393,6 +394,7 @@ export const EQUITY_INVESTMENT_REF = `
  */
 export const REAL_ESTATE_INVESTMENT_REF = `
     id
+    version
     buildingYear
     numberOfUnits
     annualNetColdRent
@@ -413,6 +415,7 @@ export const REAL_ESTATE_INVESTMENT_REF = `
  */
 export const LIQUID_FUND_INVESTMENT_REF = `
     id
+    version
     proprietorName
     bankName
     bankAccountNumber

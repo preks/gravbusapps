@@ -18,6 +18,7 @@ export * from './useInvestmentEntities'
 // Core Investment Entity Hooks
 export * from './useInvestments'
 export * from './useInvestmentReports'
+export * from './useInvestmentShareholders'
 
 // Data Integration Hook (combines multiple data sources)
 export * from './useInvestmentDataIntegration'

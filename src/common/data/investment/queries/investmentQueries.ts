@@ -1,14 +1,14 @@
 // Investment Queries - Core investment entities and their specializations
 // Built using actual schema discovered via newwork-mcp
 import { CATALOG_ENTRY } from '@/common/network/graphql/commonFragments'
-import { INVESTMENT } from './fragments/investmentFragments'
+import { buildDocumentFragment } from '@/common/data/relations/queries/relationFragments'
+import { InvestmentDocumentFields } from '../types/investmentDocumentTypes'
+import { INVESTMENT, INVESTMENT_SHAREHOLDER } from './fragments/investmentFragments'
 import {
   INVESTMENT_ACTIVITY_REF,
   INVESTMENT_TASK_REF,
   INVESTMENT_ACCOUNT_REF
 } from './fragments/investmentReferenceFragments'
-import { buildDocumentFragment } from '@/common/data/relations/queries/relationFragments'
-import { InvestmentDocumentFields } from '../types/investmentDocumentTypes'
 
 export interface InvestmentQueryVariables {
   ids?: string[]
@@ -422,6 +422,23 @@ export const SEARCH_INVESTMENTS = (variables: InvestmentQueryVariables): string 
         investmentAccount {
           ${INVESTMENT_ACCOUNT_REF}
         }
+      }
+    }
+  `
+}
+
+// Get Investment Shareholders by Investment ID
+export const GET_INVESTMENT_SHAREHOLDERS_BY_INVESTMENT_ID = (investmentId: string): string => {
+  return `
+    query GetInvestmentShareholdersByInvestmentId {
+      InvestmentShareholder(
+        where: { 
+          investmentId: { _eq: "${investmentId}" }
+          isDeleted: { _eq: false }
+        }
+        orderBy: { stakePercentage: DESC_NULLS_LAST }
+      ) {
+        ${INVESTMENT_SHAREHOLDER}
       }
     }
   `
