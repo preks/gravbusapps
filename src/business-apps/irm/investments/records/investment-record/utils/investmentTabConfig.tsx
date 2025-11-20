@@ -62,6 +62,7 @@ export const getTypeSpecificOverviewContent = (
         <RealEstateLiquidityForecast
           realEstateData={typeSpecificData}
           isLoading={false}
+          accessToken={businessAppContext?.accessToken || ''}
           data-testid="real-estate-liquidity-forecast-overview"
         />
       </div>
@@ -70,7 +71,13 @@ export const getTypeSpecificOverviewContent = (
 
   switch (investmentType) {
     case 'real_estate':
-      return <RealEstateLiquidityForecast realEstateData={typeSpecificData} isLoading={false} />
+      return (
+        <RealEstateLiquidityForecast
+          realEstateData={typeSpecificData}
+          isLoading={false}
+          accessToken={businessAppContext?.accessToken || ''}
+        />
+      )
     default:
       return null
   }

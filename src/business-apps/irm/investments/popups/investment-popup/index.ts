@@ -8,6 +8,7 @@ export { InvestmentExitComponent } from './components/InvestmentExitComponent'
 export { InvestmentStatusComponent } from './components/InvestmentStatusComponent'
 export { InvestmentLiquidityComponent } from './components/InvestmentLiquidityComponent'
 export { InvestmentPpmForecastComponent } from './components/InvestmentPpmForecastComponent'
+export { RealEstateLiquidityForecastComponent } from './components/RealEstateLiquidityForecastComponent'
 export { InvestmentKpiComponent } from './components/InvestmentKpiComponent'
 
 // Types and constants
@@ -20,6 +21,7 @@ export {
   type InvestmentStatusComponentProps,
   type InvestmentLiquidityComponentProps,
   type InvestmentPpmForecastComponentProps,
+  type InvestmentLiquidityForecastComponentProps,
   type InvestmentKpiComponentProps,
   type TileFormData,
   type ExitFormData,
@@ -29,6 +31,9 @@ export {
   type PpmForecastFormData,
   type PpmForecastItem,
   type KpiFormData,
+  type YearAmountPair,
+  type LiquidityForecastFormData,
+  type LiquidityForecastData,
   type InvestmentTiles
 } from './types'
 
