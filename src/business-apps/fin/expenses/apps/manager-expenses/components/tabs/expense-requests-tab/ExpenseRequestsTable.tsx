@@ -469,8 +469,8 @@ const ExpenseRequestsTable: React.FC<ExpenseRequestsTableProps> = props => {
                     <div className="gba:text-muted-foreground">
                       {hasActiveFilters
                         ? getTranslationFromI18nKeyAndLabel(
-                            'lowcoder:expense_request_list.no_manager_requests_found',
-                            'No expense requests found matching the current filters.'
+                            'lowcoder:team_expenses_page.dashboard_tab.no_data_found',
+                            'No data available'
                           )
                         : getTranslationFromI18nKeyAndLabel(
                             'lowcoder:manager_expense_landing_page.no_requests_created_by_team',

@@ -283,8 +283,8 @@ const AdvancePaymentsTable: React.FC<AdvancePaymentsTableProps> = props => {
                     <div className="gba:text-muted-foreground">
                       {hasActiveFilters
                         ? getTranslationFromI18nKeyAndLabel(
-                            'lowcoder:advance_payment_table.no_advance_payments_found',
-                            'No advance payments found matching the current filters.'
+                            'lowcoder:team_expenses_page.dashboard_tab.no_data_found',
+                            'No data available'
                           )
                         : getTranslationFromI18nKeyAndLabel(
                             'lowcoder:manager_expense_landing_page.no_advance_payments_created_by_team',
