@@ -18,6 +18,8 @@ import type { Control, Path } from 'react-hook-form'
 import { getCatalogValue } from '@/common/utils/windowUtils'
 import type { GrantEmployeeBonusFormValues, CatalogEntry } from '../types'
 
+type FormFieldValue = string | number | null
+
 export interface BonusDetailsGroupProps {
   control: Control<GrantEmployeeBonusFormValues>
   catalogs: {
@@ -81,11 +83,11 @@ const BonusDetailsGroup: React.FC<BonusDetailsGroupProps> = ({ control, catalogs
         name={'amount' as Path<GrantEmployeeBonusFormValues>}
         rules={{
           required: t('validation-amount-required'),
-          validate: (value: string | number | null) => {
+          validate: (value: FormFieldValue) => {
             if (value === null || value === undefined) {
               return t('validation-amount-required')
             }
-            const numValue = typeof value === 'string' ? parseFloat(value) : value
+            const numValue = typeof value === 'string' ? Number.parseFloat(value) : value
             if (typeof numValue === 'number' && (Number.isNaN(numValue) || numValue <= 0)) {
               return t('validation-amount-positive')
             }
@@ -108,8 +110,13 @@ const BonusDetailsGroup: React.FC<BonusDetailsGroupProps> = ({ control, catalogs
                 value={field.value ?? ''}
                 onChange={e => {
                   const val = e.target.value
-                  const parsed = parseFloat(val)
-                  field.onChange(val === '' ? null : Number.isNaN(parsed) ? null : parsed)
+                  if (val === '') {
+                    field.onChange(null)
+                    return
+                  }
+                  const parsed = Number.parseFloat(val)
+                  const finalValue = Number.isNaN(parsed) ? null : parsed
+                  field.onChange(finalValue)
                 }}
                 placeholder={placeholderEnter}
                 data-testid="grant-employee-bonus-amount-input"
@@ -168,13 +175,13 @@ const BonusDetailsGroup: React.FC<BonusDetailsGroupProps> = ({ control, catalogs
         name={'paymentDate' as Path<GrantEmployeeBonusFormValues>}
         rules={{
           required: t('validation-payment-date-required'),
-          validate: (value: string | number | null) => {
+          validate: (value: FormFieldValue) => {
             if (!value || value === '') {
               return t('validation-payment-date-required')
             }
             const dateValue = typeof value === 'number' ? String(value) : value
             const date = new Date(dateValue)
-            if (isNaN(date.getTime())) {
+            if (Number.isNaN(date.getTime())) {
               return t('validation-payment-date-invalid')
             }
             return true
@@ -208,11 +215,11 @@ const BonusDetailsGroup: React.FC<BonusDetailsGroupProps> = ({ control, catalogs
         name={'fiscalYear' as Path<GrantEmployeeBonusFormValues>}
         rules={{
           required: t('validation-fiscal-year-required'),
-          validate: (value: string | number | null) => {
+          validate: (value: FormFieldValue) => {
             if (!value) {
               return t('validation-fiscal-year-required')
             }
-            const numValue = typeof value === 'string' ? parseInt(String(value), 10) : value
+            const numValue = typeof value === 'string' ? Number.parseInt(String(value), 10) : value
             if (typeof numValue !== 'number' || Number.isNaN(numValue)) {
               return t('validation-fiscal-year-required')
             }
@@ -241,8 +248,13 @@ const BonusDetailsGroup: React.FC<BonusDetailsGroupProps> = ({ control, catalogs
                 value={field.value ?? ''}
                 onChange={e => {
                   const val = e.target.value
-                  const parsed = parseInt(val, 10)
-                  field.onChange(val === '' ? null : Number.isNaN(parsed) ? null : parsed)
+                  if (val === '') {
+                    field.onChange(null)
+                    return
+                  }
+                  const parsed = Number.parseInt(val, 10)
+                  const finalValue = Number.isNaN(parsed) ? null : parsed
+                  field.onChange(finalValue)
                 }}
                 placeholder={placeholderEnter}
                 data-testid="grant-employee-bonus-fiscal-year-input"
