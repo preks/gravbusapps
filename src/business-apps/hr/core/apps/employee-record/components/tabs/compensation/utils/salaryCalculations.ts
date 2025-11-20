@@ -39,7 +39,7 @@ export const calculateMonthlyFromYearly = (yearly: number): number => {
  * @returns True if value is a valid positive number
  */
 const isValidSalaryValue = (value: number | null | undefined): boolean => {
-  return value != null && typeof value === 'number' && !isNaN(value) && value !== 0
+  return value != null && typeof value === 'number' && !Number.isNaN(value) && value !== 0
 }
 
 /**

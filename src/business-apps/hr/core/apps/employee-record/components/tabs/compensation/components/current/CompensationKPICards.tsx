@@ -31,7 +31,6 @@ const CompensationKPICards: React.FC<CompensationKPICardsProps> = ({
   employeeId,
   accessToken,
   locale,
-  isSelfView,
   hasPermissionToAdjustSalary
 }) => {
   const { currentCompensation, totalBonusesYTD, activeBenefitsCount, bonuses } = compensationData
@@ -72,14 +71,17 @@ const CompensationKPICards: React.FC<CompensationKPICardsProps> = ({
         {hasPermissionToAdjustSalary && (
           <div className="gba:absolute gba:top-4 gba:right-4">
             <AppAction
-              contextsArray={[FlowContextName.adjustEmployeeSalary]}
-              externalContextData={{
-                employeeId: employeeId
-              }}
+              mode="trigger"
+              contexts={[
+                {
+                  context: FlowContextName.adjustEmployeeSalary,
+                  contextData: { employeeId: employeeId }
+                }
+              ]}
               prefixDataTestId="adjust-employee-salary-action"
               accessToken={accessToken}
-              emptyStateBehavior="enable"
-              deferMainContextRequestsUntilClick
+              emptyState="enable"
+              lazyLoad={true}
             >
               <PiPencilSimple
                 className="gba:w-4 gba:h-4 gba:text-muted-foreground hover:gba:text-primary gba:cursor-pointer"
@@ -97,7 +99,7 @@ const CompensationKPICards: React.FC<CompensationKPICardsProps> = ({
                 {normalizedSalary.isHourlyOnly ? (
                   <div className="gba:flex gba:items-baseline gba:gap-2">
                     <div className="gba:text-3xl gba:font-bold gba:text-foreground">
-                      {loading ? '-' : formatCurrencyString(normalizedSalary.hourly!, hourlyFormatOptions)}
+                      {loading ? '-' : formatCurrencyString(normalizedSalary.hourly, hourlyFormatOptions)}
                     </div>
                     <div className="gba:text-sm gba:text-muted-foreground">{t('current-hourly')}</div>
                   </div>
@@ -107,21 +109,20 @@ const CompensationKPICards: React.FC<CompensationKPICardsProps> = ({
                     {normalizedSalary.hasYearly && (
                       <div className="gba:flex gba:items-baseline gba:gap-2">
                         <div className="gba:text-3xl gba:font-bold gba:text-foreground">
-                          {loading ? '-' : formatCurrencyString(normalizedSalary.yearly!, currencyFormatOptions)}
+                          {loading ? '-' : formatCurrencyString(normalizedSalary.yearly, currencyFormatOptions)}
                         </div>
                         <div className="gba:text-sm gba:text-muted-foreground">{t('current-annually')}</div>
                       </div>
                     )}
                     {normalizedSalary.hasMonthly && (
                       <div className="gba:text-sm gba:text-muted-foreground gba:mt-2">
-                        {formatCurrencyString(normalizedSalary.monthly!, currencyFormatOptions)} /{' '}
-                        {t('current-monthly')}
+                        {formatCurrencyString(normalizedSalary.monthly, currencyFormatOptions)} / {t('current-monthly')}
                       </div>
                     )}
                     {/* Hourly rate - show if provided AND we also have yearly/monthly (mixed mode) */}
                     {normalizedSalary.hourlyWasProvided && !normalizedSalary.isHourlyOnly && (
                       <div className="gba:text-sm gba:text-muted-foreground gba:mt-1">
-                        {formatCurrencyString(normalizedSalary.hourly!, hourlyFormatOptions)} / {t('current-hourly')}
+                        {formatCurrencyString(normalizedSalary.hourly, hourlyFormatOptions)} / {t('current-hourly')}
                       </div>
                     )}
                   </>
@@ -170,11 +171,6 @@ const CompensationKPICards: React.FC<CompensationKPICardsProps> = ({
 
       {/* Benefits Value Card */}
       <Card className="gba:p-6 gba:relative" data-testid="compensation-benefits-card">
-        {isSelfView && (
-          <div className="gba:absolute gba:top-4 gba:right-4">
-            <div className="gba:w-4 gba:h-4" />
-          </div>
-        )}
         <div className="gba:min-h-[120px]">
           <div className="gba:pr-20">
             <div className="gba:text-sm gba:text-muted-foreground gba:mb-2">{t('current-benefits-value')}</div>

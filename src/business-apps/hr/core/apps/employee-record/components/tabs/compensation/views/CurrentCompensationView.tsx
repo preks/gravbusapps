@@ -39,7 +39,7 @@ const CurrentCompensationView: React.FC<CurrentCompensationViewProps> = ({
   // Check if user has permission to adjust employee salary
   // Only managers and HR admins should have write permission on employee_working_condition
   // Note: We check permission on the employee being viewed (employeeId) - managers should have write access to their employees' salaries
-  // TODO: Re-enable permission check when ready for production
+  // Re-enable permission check when ready for production
   // const salaryAdjustPermissionMap: Record<string, ResourcePermissionMap> = useMemo(
   //   () => ({
   //     adjustSalary: {
