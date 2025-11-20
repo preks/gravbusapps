@@ -1,8 +1,7 @@
 import React, { useState, useEffect } from 'react'
 import { LeadStatusChangePopup as SharedLeadStatusChangePopup } from '@/common/components/common-relations/popups/lead-status-change-popup/LeadStatusChangePopup'
 import { BusinessAppContextProps } from '@/common/BusinessAppContext'
-import { useGraphQLClient } from '@/common/network/graphql/useGraphQLClient'
-import { GET_INVESTMENT_LEAD_BY_ID } from '../../forms/lead-form/queries/LeadQueries'
+import { useGetInvestmentLeadById } from '../../forms/lead-form/queries/LeadQueries'
 
 export interface IRMInvestmentStatusChangePopupProps extends BusinessAppContextProps {
   initialValues?: {
@@ -14,10 +13,11 @@ const useInvestmentLeadData = (leadId: string, accessToken: string) => {
   const [lead, setLead] = useState<any>(null)
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
-  const graphqlClient = useGraphQLClient(accessToken)
+
+  const { fetchInvestmentLeadById } = useGetInvestmentLeadById({ accessToken } as BusinessAppContextProps)
 
   useEffect(() => {
-    const fetchLead = async () => {
+    const loadLead = async () => {
       if (!leadId || !accessToken) {
         setLoading(false)
         return
@@ -27,12 +27,8 @@ const useInvestmentLeadData = (leadId: string, accessToken: string) => {
       setError(null)
 
       try {
-        const result = await graphqlClient.request<{ InvestmentLead: any[] }>(GET_INVESTMENT_LEAD_BY_ID, { leadId })
-        if (result.InvestmentLead && result.InvestmentLead.length > 0) {
-          setLead(result.InvestmentLead[0])
-        } else {
-          setError('Lead not found')
-        }
+        const result = await fetchInvestmentLeadById(leadId)
+        setLead(result)
       } catch (err) {
         console.error('Error fetching lead data:', err)
         setError('Failed to load lead data')
@@ -41,8 +37,8 @@ const useInvestmentLeadData = (leadId: string, accessToken: string) => {
       }
     }
 
-    fetchLead()
-  }, [leadId, accessToken, graphqlClient])
+    loadLead()
+  }, [leadId, accessToken, fetchInvestmentLeadById])
 
   return { lead, loading, error }
 }
