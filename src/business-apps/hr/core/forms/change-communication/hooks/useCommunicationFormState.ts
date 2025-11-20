@@ -1,4 +1,4 @@
-import { useState, useEffect, useMemo } from 'react'
+import { useState, useEffect, useMemo, useRef } from 'react'
 import {
   parseNumber,
   getCountryCallingCode,
@@ -41,6 +41,8 @@ export const useCommunicationFormState = ({
   const [selectedCountryCode, setSelectedCountryCode] = useState<CountryCode | ''>('')
   const [phoneNumber, setPhoneNumber] = useState<string>('')
   const [baseline, setBaseline] = useState<Baseline | null>(null)
+  const previousCountryRef = useRef<CountryCode | ''>('')
+  const isManualCountryChangeRef = useRef<boolean>(false)
 
   const primaryTypeId = useMemo(() => {
     const t = types.find(x => (x.label || x.value || '').toLowerCase() === 'primary')
@@ -123,14 +125,12 @@ export const useCommunicationFormState = ({
     return Boolean(match)
   }, [communications, channelType, purpose, primaryTypeId])
 
-  // Initialize channel type
   useEffect(() => {
     if (!channelType && channels && channels.length > 0) {
       setChannelType(channels[0].id)
     }
   }, [channelType, channels])
 
-  // Handle channel type change
   useEffect(() => {
     if (!channelType) return
     if (baseline && baseline.channelRef === channelType) return
@@ -176,7 +176,6 @@ export const useCommunicationFormState = ({
     })
   }, [channelType, channels, types, latestByChannelRef, baseline, communications])
 
-  // Handle type change
   useEffect(() => {
     if (!channelType || !valueType) return
     if (baseline && baseline.channelRef === channelType && baseline.typeRefId === valueType) return
@@ -216,7 +215,6 @@ export const useCommunicationFormState = ({
     })
   }, [channelType, valueType, communications, baseline, channels])
 
-  // Handle purpose change
   useEffect(() => {
     if (!channelType || !valueType || !purpose) return
     if (
@@ -263,7 +261,6 @@ export const useCommunicationFormState = ({
     })
   }, [channelType, valueType, purpose, communications, baseline, channels])
 
-  // Reset secondary type if no primary
   useEffect(() => {
     if (valueType === secondaryTypeId && !hasPrimaryForSelection) {
       setValueType(undefined)
@@ -279,53 +276,96 @@ export const useCommunicationFormState = ({
     }
   }, [hasPrimaryForSelection, valueType, secondaryTypeId, channelType, purpose])
 
-  // Parse phone number from value
   useEffect(() => {
-    if (isPhoneType && value) {
-      try {
-        const parsed = parseNumber(value)
-        if (parsed && 'country' in parsed && parsed.country) {
-          setSelectedCountryCode(parsed.country)
-          if ('nationalNumber' in parsed && typeof parsed.nationalNumber === 'string') {
-            setPhoneNumber(parsed.nationalNumber)
-          } else {
-            const callingCode = getCountryCallingCode(parsed.country)
-            const numberWithoutCode = value.replace(`+${callingCode}`, '').trim()
-            setPhoneNumber(numberWithoutCode)
-          }
-        } else {
-          setSelectedCountryCode('')
-          setPhoneNumber(value)
-        }
-      } catch {
-        if (value.startsWith('+')) {
-          const parts = value.split(' ')
-          if (parts.length > 1) {
-            const codePart = parts[0].substring(1)
-            const country = countries.find(c => c.callingCode === codePart)
-            if (country) {
-              setSelectedCountryCode(country.code)
-              setPhoneNumber(parts.slice(1).join(' '))
-            } else {
-              setSelectedCountryCode('')
-              setPhoneNumber(value)
-            }
-          } else {
-            setSelectedCountryCode('')
-            setPhoneNumber(value)
-          }
-        } else {
-          setSelectedCountryCode('')
-          setPhoneNumber(value)
-        }
-      }
-    } else if (!isPhoneType) {
+    if (!isPhoneType) {
       setSelectedCountryCode('')
       setPhoneNumber('')
+      isManualCountryChangeRef.current = false
+      return
+    }
+
+    if (!value || countries.length === 0) {
+      return
+    }
+
+    if (isManualCountryChangeRef.current) {
+      isManualCountryChangeRef.current = false
+      return
+    }
+
+    if (selectedCountryCode) {
+      const currentCallingCode = countries.find(c => c.code === selectedCountryCode)?.callingCode
+      if (currentCallingCode && value.startsWith('+')) {
+        const valueWithoutPlus = value.substring(1).trim()
+        if (valueWithoutPlus.startsWith(String(currentCallingCode))) {
+          if (phoneNumber) {
+            const expectedValue = `+${currentCallingCode}${phoneNumber}`
+            if (value === expectedValue) {
+              return
+            }
+            return
+          } else {
+            return
+          }
+        }
+      }
+    }
+
+    if (value.startsWith('+')) {
+      const valueWithoutPlus = value.substring(1).trim()
+
+      const sortedCountries = [...countries].sort((a, b) => {
+        const codeA = String(a.callingCode).length
+        const codeB = String(b.callingCode).length
+        return codeB - codeA
+      })
+
+      for (const country of sortedCountries) {
+        const callingCode = String(country.callingCode)
+        if (valueWithoutPlus.startsWith(callingCode)) {
+          const remaining = valueWithoutPlus.substring(callingCode.length).trim()
+          if (remaining.length >= 3) {
+            setSelectedCountryCode(country.code)
+            setPhoneNumber(remaining)
+            return
+          }
+        }
+      }
+    }
+
+    try {
+      const parsed = parseNumber(value)
+      if (parsed && 'country' in parsed && parsed.country) {
+        setSelectedCountryCode(parsed.country)
+        if ('nationalNumber' in parsed && typeof parsed.nationalNumber === 'string') {
+          setPhoneNumber(parsed.nationalNumber)
+        } else {
+          const callingCode = getCountryCallingCode(parsed.country)
+          const numberWithoutCode = value.replace(`+${callingCode}`, '').trim()
+          setPhoneNumber(numberWithoutCode)
+        }
+        return
+      }
+    } catch {}
+
+    if (!selectedCountryCode) {
+      setSelectedCountryCode('')
+      setPhoneNumber(value)
     }
   }, [isPhoneType, value, countries])
 
-  // Sync phone number to value for non-phone types
+  useEffect(() => {
+    if (
+      isPhoneType &&
+      selectedCountryCode &&
+      previousCountryRef.current &&
+      selectedCountryCode !== previousCountryRef.current
+    ) {
+      setPhoneNumber('')
+    }
+    previousCountryRef.current = selectedCountryCode
+  }, [selectedCountryCode, isPhoneType])
+
   useEffect(() => {
     if (!isPhoneType) {
       setValue(phoneNumber)
@@ -333,7 +373,6 @@ export const useCommunicationFormState = ({
   }, [isPhoneType, phoneNumber])
 
   return {
-    // State
     channelType,
     valueType,
     value,
@@ -344,7 +383,6 @@ export const useCommunicationFormState = ({
     selectedCountryCode,
     phoneNumber,
     baseline,
-    // Setters
     setChannelType: (v: string) => {
       setChannelTouched(true)
       setChannelType(v)
@@ -357,10 +395,14 @@ export const useCommunicationFormState = ({
     setPurpose,
     setValueTouched,
     setPhoneNumber,
-    setSelectedCountryCode,
+    setSelectedCountryCode: (code: CountryCode | '') => {
+      if (code) {
+        isManualCountryChangeRef.current = true
+      }
+      setSelectedCountryCode(code)
+    },
     setChannelTouched,
     setTypeTouched,
-    // Computed
     primaryTypeId,
     secondaryTypeId,
     normalizedChannelType,
