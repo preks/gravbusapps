@@ -112,10 +112,8 @@ const ExpensePlansTable: React.FC<ExpensePlansTableProps> = props => {
   const hasActiveFilters = useMemo(() => {
     const hasSearch = (props.search || '').trim() !== ''
     const hasStatusFilters = Array.isArray(props.activeFilter) && props.activeFilter.length > 0
-    const hasCurrencyFilter = !!props.currencyFilter
-
-    return hasSearch || hasStatusFilters || hasCurrencyFilter
-  }, [props.search, props.activeFilter, props.currencyFilter])
+    return hasSearch || hasStatusFilters
+  }, [props.search, props.activeFilter])
 
   // Reset page to 1 when filter changes (fixes pagination issue when switching filters)
   const prevFilterRef = useRef<ExpenseStatus[] | null>(null)
