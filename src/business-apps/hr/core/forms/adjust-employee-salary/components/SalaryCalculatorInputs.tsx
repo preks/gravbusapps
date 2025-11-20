@@ -41,30 +41,46 @@ const SalaryCalculatorInputs: React.FC<SalaryCalculatorInputsProps> = ({ control
     hourly: t('adjust-salary-frequency-hourly')
   }
 
+  // Shared validation function
+  const validateField = (
+    value: string | number | null,
+    formValues: AdjustEmployeeSalaryFormValues
+  ): string | boolean => {
+    // Only validate if this field has a value (not disabled)
+    if (value !== null && value !== undefined && value !== '') {
+      const numValue = typeof value === 'string' ? Number.parseFloat(value) : value
+      if (typeof numValue === 'number' && (Number.isNaN(numValue) || numValue <= 0)) {
+        return t('adjust-salary-adjustment-value-positive')
+      }
+    }
+    // Check if at least one field has a value
+    const hasAmount = formValues.amountIncrease != null && formValues.amountIncrease > 0
+    const hasPercentage = formValues.percentageIncrease != null && formValues.percentageIncrease > 0
+    if (!hasAmount && !hasPercentage) {
+      return t('adjust-salary-adjustment-value-required')
+    }
+    return true
+  }
+
+  // Shared onChange handler
+  const handleInputChange = (e: React.ChangeEvent<HTMLInputElement>, fieldOnChange: (value: number | null) => void) => {
+    const val = e.target.value
+    if (val === '') {
+      fieldOnChange(null)
+      return
+    }
+    const parsed = Number.parseFloat(val)
+    const newValue = Number.isNaN(parsed) ? null : parsed
+    fieldOnChange(newValue)
+  }
+
   return (
     <div className="gba:grid gba:grid-cols-1 gba:md:grid-cols-2 gba:gap-4">
       {/* Amount Increase Input */}
       <FormField
         control={control}
         name={'amountIncrease' as Path<AdjustEmployeeSalaryFormValues>}
-        rules={{
-          validate: (value: string | number | null, formValues: AdjustEmployeeSalaryFormValues) => {
-            // Only validate if this field has a value (not disabled)
-            if (value !== null && value !== undefined && value !== '') {
-              const numValue = typeof value === 'string' ? Number.parseFloat(value) : value
-              if (typeof numValue === 'number' && (Number.isNaN(numValue) || numValue <= 0)) {
-                return t('adjust-salary-adjustment-value-positive')
-              }
-            }
-            // Check if at least one field has a value
-            const hasAmount = formValues.amountIncrease != null && formValues.amountIncrease > 0
-            const hasPercentage = formValues.percentageIncrease != null && formValues.percentageIncrease > 0
-            if (!hasAmount && !hasPercentage) {
-              return t('adjust-salary-adjustment-value-required')
-            }
-            return true
-          }
-        }}
+        rules={{ validate: validateField }}
         render={({ field }) => (
           <FormItem>
             <FormLabel data-testid="adjust-employee-salary-amount-label">
@@ -79,16 +95,7 @@ const SalaryCalculatorInputs: React.FC<SalaryCalculatorInputsProps> = ({ control
                 disabled={isAmountDisabled}
                 className="gba:w-full"
                 value={field.value ?? ''}
-                onChange={e => {
-                  const val = e.target.value
-                  if (val === '') {
-                    field.onChange(null)
-                    return
-                  }
-                  const parsed = Number.parseFloat(val)
-                  const newValue = Number.isNaN(parsed) ? null : parsed
-                  field.onChange(newValue)
-                }}
+                onChange={e => handleInputChange(e, field.onChange)}
                 placeholder={placeholderEnter}
                 data-testid="adjust-employee-salary-amount-input"
               />
@@ -102,24 +109,7 @@ const SalaryCalculatorInputs: React.FC<SalaryCalculatorInputsProps> = ({ control
       <FormField
         control={control}
         name={'percentageIncrease' as Path<AdjustEmployeeSalaryFormValues>}
-        rules={{
-          validate: (value: string | number | null, formValues: AdjustEmployeeSalaryFormValues) => {
-            // Only validate if this field has a value (not disabled)
-            if (value !== null && value !== undefined && value !== '') {
-              const numValue = typeof value === 'string' ? Number.parseFloat(value) : value
-              if (typeof numValue === 'number' && (Number.isNaN(numValue) || numValue <= 0)) {
-                return t('adjust-salary-adjustment-value-positive')
-              }
-            }
-            // Check if at least one field has a value
-            const hasAmount = formValues.amountIncrease != null && formValues.amountIncrease > 0
-            const hasPercentage = formValues.percentageIncrease != null && formValues.percentageIncrease > 0
-            if (!hasAmount && !hasPercentage) {
-              return t('adjust-salary-adjustment-value-required')
-            }
-            return true
-          }
-        }}
+        rules={{ validate: validateField }}
         render={({ field }) => (
           <FormItem>
             <FormLabel data-testid="adjust-employee-salary-percentage-label">
@@ -134,16 +124,7 @@ const SalaryCalculatorInputs: React.FC<SalaryCalculatorInputsProps> = ({ control
                 disabled={isPercentageDisabled}
                 className="gba:w-full"
                 value={field.value ?? ''}
-                onChange={e => {
-                  const val = e.target.value
-                  if (val === '') {
-                    field.onChange(null)
-                    return
-                  }
-                  const parsed = Number.parseFloat(val)
-                  const newValue = Number.isNaN(parsed) ? null : parsed
-                  field.onChange(newValue)
-                }}
+                onChange={e => handleInputChange(e, field.onChange)}
                 placeholder={placeholderEnter}
                 data-testid="adjust-employee-salary-percentage-input"
               />
