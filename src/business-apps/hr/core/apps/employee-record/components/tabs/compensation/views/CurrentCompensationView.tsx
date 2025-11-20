@@ -39,7 +39,8 @@ const CurrentCompensationView: React.FC<CurrentCompensationViewProps> = ({
   // Check if user has permission to create/grant employee bonuses
   // Only managers and HR admins should have write/create permission on employee_bonus
   // Note: We check permission on the employee being viewed (employeeId) - managers should have write access to their employees' bonuses
-  // TODO: Re-enable permission check when ready for production
+  // Permission check is currently disabled for development purposes
+  // When ready for production, uncomment the following code and replace hasPermissionToGrantBonusDev with hasPermissionToGrantBonus:
   // const bonusCreatePermissionMap: Record<string, ResourcePermissionMap> = useMemo(
   //   () => ({
   //     grantBonus: {
