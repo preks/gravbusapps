@@ -81,7 +81,7 @@ const AdvancePaymentsTable: React.FC<AdvancePaymentsTableProps> = props => {
   const setCurrentPage = props.setCurrentPage ?? (() => {})
   const sorting = props.sorting ?? null
   const updateSorting = props.updateSorting ?? (() => {})
-  const pageSize = props.pageSize ?? 10
+  const pageSize = props.pageSize ?? 20
   const setPageSize = props.setPageSize ?? (() => {})
   const currencyFilter = props.currencyFilter ?? ''
 
@@ -418,22 +418,27 @@ const AdvancePaymentsTable: React.FC<AdvancePaymentsTableProps> = props => {
           </Table>
         </div>
 
-        {/* Pagination - Always show when there are records */}
-        {totalCount > 0 && (
+        {/* Pagination */}
+        {totalCount > pageSize ? (
           <div
-            className="gba:flex gba:items-center gba:justify-between gba:px-2 gba:py-4 gba:border-t gba:border-border"
+            className="gba:flex gba:items-center gba:justify-between gba:px-6 gba:py-4"
             data-testid="advance-payments-pagination"
           >
             <div className="gba:text-sm gba:text-muted-foreground" data-testid="advance-payments-pagination-info">
-              {`${(currentPage - 1) * pageSize + 1}-${Math.min(
-                currentPage * pageSize,
-                totalCount
-              )} ${getTranslationFromI18nKeyAndLabel('lowcoder:personal_expenses.of', 'of')} ${totalCount} ${getTranslationFromI18nKeyAndLabel('lowcoder:personal_expenses.advance_payments', 'advance payments')}`}
+              {getTranslationFromI18nKeyAndLabel('lowcoder:personal_expenses.showing', 'Showing')}{' '}
+              {`${(currentPage - 1) * pageSize + 1}-${Math.min(currentPage * pageSize, totalCount)}`}{' '}
+              {getTranslationFromI18nKeyAndLabel('lowcoder:personal_expenses.of', 'of')} {totalCount}{' '}
+              {getTranslationFromI18nKeyAndLabel(
+                'lowcoder:personal_expenses.advance_payments',
+                getTranslationFromI18nKeyAndLabel(
+                  'lowcoder:backoffice_expense_landing_page.advance_title',
+                  'Advance Payments'
+                )
+              )}
             </div>
             <div className="gba:flex gba:items-center gba:space-x-6 gba:lg:space-x-8">
               <div className="gba:flex gba:items-center gba:space-x-2">
                 <p className="gba:text-sm gba:font-medium">
-                  {' '}
                   {getTranslationFromI18nKeyAndLabel('lowcoder:personal_expenses.rows_per_page', 'Rows per page')}
                 </p>
                 <select
@@ -464,8 +469,7 @@ const AdvancePaymentsTable: React.FC<AdvancePaymentsTableProps> = props => {
                   disabled={currentPage === 1}
                   data-testid="advance-payments-first-page-button"
                 >
-                  <span className="gba:sr-only">Go to first page</span>
-                  ⟪⟪
+                  <span className="gba:sr-only">Go to first page</span>⟪
                 </Button>
                 <Button
                   variant="outline"
@@ -474,7 +478,7 @@ const AdvancePaymentsTable: React.FC<AdvancePaymentsTableProps> = props => {
                   disabled={currentPage === 1}
                   data-testid="advance-payments-previous-page-button"
                 >
-                  <span className="gba:sr-only">Go to previous page</span>⟪
+                  <span className="gba:sr-only">Go to previous page</span>⟨
                 </Button>
                 <Button
                   variant="outline"
@@ -483,7 +487,7 @@ const AdvancePaymentsTable: React.FC<AdvancePaymentsTableProps> = props => {
                   disabled={currentPage >= Math.ceil(totalCount / pageSize)}
                   data-testid="advance-payments-next-page-button"
                 >
-                  <span className="gba:sr-only">Go to next page</span>⟫
+                  <span className="gba:sr-only">Go to next page</span>⟩
                 </Button>
                 <Button
                   variant="outline"
@@ -492,13 +496,40 @@ const AdvancePaymentsTable: React.FC<AdvancePaymentsTableProps> = props => {
                   disabled={currentPage >= Math.ceil(totalCount / pageSize)}
                   data-testid="advance-payments-last-page-button"
                 >
-                  <span className="gba:sr-only">Go to last page</span>
-                  ⟫⟫
+                  <span className="gba:sr-only">Go to last page</span>⟫
                 </Button>
               </div>
             </div>
           </div>
-        )}
+        ) : totalCount > 0 ? (
+          <div
+            className="gba:flex gba:items-center gba:justify-between gba:px-6 gba:py-4"
+            data-testid="advance-payments-pagination-info-single-page"
+          >
+            <div className="gba:text-sm gba:text-muted-foreground">
+              {`${totalCount} ${getTranslationFromI18nKeyAndLabel(
+                'lowcoder:backoffice_expense_landing_page.advance_title',
+                'Advance Payments'
+              )}`}
+            </div>
+            <div className="gba:flex gba:items-center gba:space-x-2">
+              <p className="gba:text-sm gba:font-medium">
+                {getTranslationFromI18nKeyAndLabel('lowcoder:personal_expenses.rows_per_page', 'Rows per page')}
+              </p>
+              <select
+                value={pageSize}
+                onChange={e => handlePageSizeChange(Number(e.target.value))}
+                className="gba:h-8 gba:w-[70px] gba:rounded gba:border gba:border-input gba:px-3 gba:py-1 gba:text-sm"
+                data-testid="advance-payments-page-size-select-single"
+              >
+                <option value={10}>10</option>
+                <option value={20}>20</option>
+                <option value={50}>50</option>
+                <option value={100}>100</option>
+              </select>
+            </div>
+          </div>
+        ) : null}
       </div>
     )
   }, [

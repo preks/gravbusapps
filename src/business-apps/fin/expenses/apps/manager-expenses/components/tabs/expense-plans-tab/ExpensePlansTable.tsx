@@ -536,20 +536,23 @@ const ExpensePlansTable: React.FC<ExpensePlansTableProps> = props => {
           </Table>
         </div>
 
-        {/* Pagination - Always show when there are records */}
-        {totalCount > 0 && (
+        {/* Pagination */}
+        {totalCount > pageSize ? (
           <div
-            className="gba:flex gba:items-center gba:justify-between gba:px-2 gba:py-4 gba:border-t gba:border-border"
+            className="gba:flex gba:items-center gba:justify-between gba:px-6 gba:py-4"
             data-testid={`${DATA_TEST_ID_PREFIX}-pagination`}
           >
             <div
               className="gba:text-sm gba:text-muted-foreground"
               data-testid={`${DATA_TEST_ID_PREFIX}-pagination-info`}
             >
-              {`${(currentPage - 1) * pageSize + 1}-${Math.min(
-                currentPage * pageSize,
-                totalCount
-              )} ${getTranslationFromI18nKeyAndLabel('lowcoder:personal_expenses.of', 'of')} ${totalCount} ${getTranslationFromI18nKeyAndLabel('lowcoder:team_expenses_page.expense_plans_tab.footer_expense_plans', 'expense plans')} `}
+              {getTranslationFromI18nKeyAndLabel('lowcoder:personal_expenses.showing', 'Showing')}{' '}
+              {`${(currentPage - 1) * pageSize + 1}-${Math.min(currentPage * pageSize, totalCount)}`}{' '}
+              {getTranslationFromI18nKeyAndLabel('lowcoder:personal_expenses.of', 'of')} {totalCount}{' '}
+              {getTranslationFromI18nKeyAndLabel(
+                'lowcoder:team_expenses_page.dashboard_tab.expense_plans',
+                'Expense Plans'
+              )}
             </div>
             <div className="gba:flex gba:items-center gba:space-x-6 gba:lg:space-x-8">
               <div className="gba:flex gba:items-center gba:space-x-2">
@@ -584,8 +587,7 @@ const ExpensePlansTable: React.FC<ExpensePlansTableProps> = props => {
                   disabled={currentPage === 1}
                   data-testid={`${DATA_TEST_ID_PREFIX}-first-page-button`}
                 >
-                  <span className="gba:sr-only">Go to first page</span>
-                  ⟪⟪
+                  <span className="gba:sr-only">Go to first page</span>⟪
                 </Button>
                 <Button
                   variant="outline"
@@ -594,7 +596,7 @@ const ExpensePlansTable: React.FC<ExpensePlansTableProps> = props => {
                   disabled={currentPage === 1}
                   data-testid={`${DATA_TEST_ID_PREFIX}-previous-page-button`}
                 >
-                  <span className="gba:sr-only">Go to previous page</span>⟪
+                  <span className="gba:sr-only">Go to previous page</span>⟨
                 </Button>
                 <Button
                   variant="outline"
@@ -603,7 +605,7 @@ const ExpensePlansTable: React.FC<ExpensePlansTableProps> = props => {
                   disabled={currentPage >= Math.ceil(totalCount / pageSize)}
                   data-testid={`${DATA_TEST_ID_PREFIX}-next-page-button`}
                 >
-                  <span className="gba:sr-only">Go to next page</span>⟫
+                  <span className="gba:sr-only">Go to next page</span>⟩
                 </Button>
                 <Button
                   variant="outline"
@@ -612,13 +614,40 @@ const ExpensePlansTable: React.FC<ExpensePlansTableProps> = props => {
                   disabled={currentPage >= Math.ceil(totalCount / pageSize)}
                   data-testid={`${DATA_TEST_ID_PREFIX}-last-page-button`}
                 >
-                  <span className="gba:sr-only">Go to last page</span>
-                  ⟫⟫
+                  <span className="gba:sr-only">Go to last page</span>⟫
                 </Button>
               </div>
             </div>
           </div>
-        )}
+        ) : totalCount > 0 ? (
+          <div
+            className="gba:flex gba:items-center gba:justify-between gba:px-6 gba:py-4"
+            data-testid={`${DATA_TEST_ID_PREFIX}-pagination-info-single-page`}
+          >
+            <div className="gba:text-sm gba:text-muted-foreground">
+              {`${totalCount} ${getTranslationFromI18nKeyAndLabel(
+                'lowcoder:team_expenses_page.dashboard_tab.expense_plans',
+                'Expense Plans'
+              )}`}
+            </div>
+            <div className="gba:flex gba:items-center gba:space-x-2">
+              <p className="gba:text-sm gba:font-medium">
+                {getTranslationFromI18nKeyAndLabel('lowcoder:personal_expenses.rows_per_page', 'Rows per page')}
+              </p>
+              <select
+                className="gba:h-8 gba:w-[70px] gba:rounded gba:border gba:border-input gba:px-3 gba:py-1 gba:text-sm"
+                value={pageSize}
+                onChange={handlePageSizeChange}
+                data-testid={`${DATA_TEST_ID_PREFIX}-page-size-select-single`}
+              >
+                <option value={10}>10</option>
+                <option value={20}>20</option>
+                <option value={50}>50</option>
+                <option value={100}>100</option>
+              </select>
+            </div>
+          </div>
+        ) : null}
       </div>
 
       {/* Print Dialog using design system */}

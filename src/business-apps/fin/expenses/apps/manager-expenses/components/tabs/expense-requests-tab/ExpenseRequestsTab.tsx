@@ -30,7 +30,7 @@ const ExpenseRequestsTab: React.FC<ExpenseRequestsTabProps> = props => {
   // Stats will be computed from overview (declared below)
 
   // Local paging + sorting managed here; overview hook refetches on dependency change
-  const [pageSize, setPageSize] = useState<number>(10)
+  const [pageSize, setPageSize] = useState<number>(20)
   const [currentPage, setCurrentPage] = useState<number>(1)
   const [sortBy, setSortBy] = useState<string>('requestDate:desc')
 
