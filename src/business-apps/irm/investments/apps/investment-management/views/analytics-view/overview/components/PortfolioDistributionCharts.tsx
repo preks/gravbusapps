@@ -14,7 +14,7 @@ import {
   Alert
 } from '@newwork/nw-design-system'
 import { PieChart, Pie, Cell } from 'recharts'
-import { formatCurrencyCompact } from '../../../../utils/currencyUtils'
+import { formatCurrencyCompact, extractCurrencyCode } from '@/common/utils/numberFormatter'
 import { ChartPieSliceIcon, ChartDonutIcon, CurrencyCircleDollarIcon } from '@phosphor-icons/react'
 import { CurrencyFilter } from '../../shared/components'
 import { useCurrencySync } from '../../shared/hooks'
@@ -345,7 +345,13 @@ export const PortfolioDistributionCharts: React.FC<PortfolioDistributionChartsPr
                                 <span className="gba:font-medium">{data.payload.group}</span>
                               </div>
                               <div className="gba:text-lg gba:font-semibold">
-                                {formatCurrencyCompact(data.value as number, groupAmountCurrency)}
+                                {formatCurrencyCompact(
+                                  data.value as number,
+                                  extractCurrencyCode(groupAmountCurrency),
+                                  undefined,
+                                  1,
+                                  true
+                                )}
                               </div>
                               <div className="gba:text-sm gba:text-gray-500">{percentage}% of total</div>
                             </div>
@@ -555,7 +561,13 @@ export const PortfolioDistributionCharts: React.FC<PortfolioDistributionChartsPr
                                 <span className="gba:font-medium">{data.payload.status}</span>
                               </div>
                               <div className="gba:text-lg gba:font-semibold">
-                                {formatCurrencyCompact(data.value as number, statusAmountCurrency)}
+                                {formatCurrencyCompact(
+                                  data.value as number,
+                                  extractCurrencyCode(statusAmountCurrency),
+                                  undefined,
+                                  1,
+                                  true
+                                )}
                               </div>
                               <div className="gba:text-sm gba:text-gray-500">{percentage}% of total</div>
                             </div>
@@ -746,7 +758,13 @@ export const PortfolioDistributionCharts: React.FC<PortfolioDistributionChartsPr
                                 <span className="gba:font-medium">{data.payload.currency}</span>
                               </div>
                               <div className="gba:text-lg gba:font-semibold">
-                                {formatCurrencyCompact(data.value as number, data.payload.currency)}
+                                {formatCurrencyCompact(
+                                  data.value as number,
+                                  extractCurrencyCode(data.payload.currency),
+                                  undefined,
+                                  1,
+                                  true
+                                )}
                               </div>
                               <div className="gba:text-sm gba:text-gray-500">{percentage}% of total</div>
                             </div>

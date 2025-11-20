@@ -7,6 +7,7 @@ import { Button, Spinner } from '@newwork/nw-design-system'
 import { Employee } from '../../../hooks/useEmployeeData'
 import { useJobFunctionNameCount } from '../../../hooks/useJobFunctionNameCount'
 import { useJobFunctionProfilesCount } from '../../../hooks/useJobFunctionProfilesCount'
+import { getTranslationFromI18nKeyAndLabel } from '@/common/utils/windowUtils'
 
 interface JobFunctionDrawerContentProps {
   employee: Employee
@@ -115,6 +116,7 @@ export const getJobFunctionIcon = () => <PiFunction className="gba:h-5 gba:w-5" 
 
 // Export the title to use for the drawer
 export const getJobFunctionTitle = (employee: Employee) =>
-  employee.employeePosition?.jobPosition?.jobFunction?.name || 'Not assigned'
+  employee.employeePosition?.jobPosition?.jobFunction?.name ||
+  getTranslationFromI18nKeyAndLabel('lowcoder:employee_profile.left_side_bar.not_assigned', 'Not assigned')
 
 export default JobFunctionDrawerContent

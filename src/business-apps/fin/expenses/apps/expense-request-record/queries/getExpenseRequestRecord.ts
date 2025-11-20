@@ -1,5 +1,5 @@
 export const getExpenseRequestRecordQuery = `
-  query MyQuery($expenseRequestId: uuid!) {
+  query MyQuery($expenseRequestId: uuid!, $activeUserLocale: String!) {
     expenseRequest: ExpenseRequestByPk(id: $expenseRequestId) {
       code
       title
@@ -72,9 +72,11 @@ export const getExpenseRequestRecordQuery = `
         title
         expenseGroup {
           value
+          translations(where: {localeCode: {_eq: $activeUserLocale}}) { localeCode value }
         }
         expenseClass {
           value
+          translations(where: {localeCode: {_eq: $activeUserLocale}}) { localeCode value }
         }
         currency {
           code
@@ -82,6 +84,7 @@ export const getExpenseRequestRecordQuery = `
         expensePosition {
           expenseGroup {
             value
+            translations(where: {localeCode: {_eq: $activeUserLocale}}) { localeCode value }
           }
         }
         expenseDate
@@ -113,9 +116,17 @@ export const getExpenseRequestRecordQuery = `
         pointType
         country {
           value
+          translations(where: {localeCode: {_eq: $activeUserLocale}}) {
+           localeCode 
+           value 
+           }
         }
         travelRegion {
           value
+          translations(where: {localeCode: {_eq: $activeUserLocale}}) { 
+            localeCode 
+            value 
+          }
         }
       }
     }

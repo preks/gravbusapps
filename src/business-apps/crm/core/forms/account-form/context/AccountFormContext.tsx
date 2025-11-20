@@ -8,19 +8,19 @@ import {
   LEGAL_FORM_CATALOG,
   INDUSTRY_CATALOG,
   EMPLOYEE_SIZE_CATALOG,
-  REVENUE_SIZE_CATALOG,
-  TIMEZONE_CATALOG
+  REVENUE_SIZE_CATALOG
 } from '@/business-apps/crm/core/forms/lead-form/hooks/useLeadCatalogs'
-import { useCurrenciesGraphQL } from '../hooks/useCurrenciesGraphQL'
 import { useCountriesGraphQL } from '../hooks/useCountriesGraphQL'
 import { useSalesCampaignsGraphQL } from '../../../../common/hooks/useSalesCampaignsGraphQL'
 import { useAccountData, mapAccountToFormValues } from '../hooks/useAccountData'
+import { useGetCustomerContacts } from '@/common/data/customer/hooks/useCustomerContacts'
 
 interface AccountFormContextValue extends AccountContextState {
   formValues: AccountFormValues
   setFormValues: (updates: Partial<AccountFormValues>) => void
   onSubmit: (values: AccountFormValues) => Promise<void>
   onCancel: () => Promise<void>
+  hideActions: boolean
 
   // Business app context for hooks
   businessAppContext: BusinessAppContextProps
@@ -81,30 +81,6 @@ interface AccountFormContextValue extends AccountContextState {
   loadMoreRevenueSizes: () => void
   showMoreRevenueSizes: () => void
 
-  // Currencies with search and pagination
-  currencies: SelectOption[]
-  currenciesLoading: boolean
-  currenciesError: string | null
-  currenciesHasMore: boolean
-  currenciesNeedsMoreData: boolean
-  currenciesDisplayCount: number
-  currenciesTotalFetched: number
-  searchCurrencies: (search: string) => void
-  loadMoreCurrencies: () => void
-  showMoreCurrencies: () => void
-
-  // TimeZones with search and pagination
-  timeZones: SelectOption[]
-  timeZonesLoading: boolean
-  timeZonesError: string | null
-  timeZonesHasMore: boolean
-  timeZonesNeedsMoreData: boolean
-  timeZonesDisplayCount: number
-  timeZonesTotalFetched: number
-  searchTimeZones: (search: string) => void
-  loadMoreTimeZones: () => void
-  showMoreTimeZones: () => void
-
   // Countries with search and pagination
   countries: SelectOption[]
   countriesLoading: boolean
@@ -127,6 +103,12 @@ interface AccountFormContextValue extends AccountContextState {
   salesCampaignsHasMore: boolean
   searchSalesCampaigns: (searchTerm: string) => void
   loadMoreSalesCampaigns: () => void
+
+  // Contact selection (matching IRM pattern)
+  contacts: SelectOption[]
+  contactsLoading: boolean
+  contactsError: string | null
+  searchContacts: (search: string) => void
 
   // Address lines management (legacy)
   addressLineCount: number
@@ -152,6 +134,7 @@ interface AccountFormProviderProps {
   initialValues?: Partial<AccountFormValues>
   onSubmit?: (values: AccountFormValues) => Promise<void>
   onCancel?: () => Promise<void>
+  hideActions?: boolean
 }
 
 export const AccountFormProvider: React.FC<AccountFormProviderProps> = ({
@@ -159,7 +142,8 @@ export const AccountFormProvider: React.FC<AccountFormProviderProps> = ({
   businessAppContext,
   initialValues = {},
   onSubmit = async () => {},
-  onCancel = async () => {}
+  onCancel = async () => {},
+  hideActions = false
 }) => {
   // Form state
   const [formValues, setFormValuesState] = useState<AccountFormValues>({
@@ -168,11 +152,9 @@ export const AccountFormProvider: React.FC<AccountFormProviderProps> = ({
 
     // Company Information
     accountName: '',
-    parentAccount: '',
     legalForm: '',
     industry: '',
     website: '',
-    description: '',
 
     // Campaign Information
     salesCampaignId: '',
@@ -180,7 +162,7 @@ export const AccountFormProvider: React.FC<AccountFormProviderProps> = ({
     // Contact Information
     phone: '',
     email: '',
-    fax: '',
+    contactIds: [], // ✅ ADDED - Related contacts (matching IRM pattern)
 
     // Dynamic Addresses
     addresses: [
@@ -208,13 +190,7 @@ export const AccountFormProvider: React.FC<AccountFormProviderProps> = ({
     // Financial Information
     annualRevenue: '',
     numberOfEmployees: '',
-    currency: '',
-
-    // Additional Information
-    timeZone: '',
     foundationDate: '',
-    tickerSymbol: '',
-    sicCode: '',
 
     // System fields
     id: undefined,
@@ -284,6 +260,22 @@ export const AccountFormProvider: React.FC<AccountFormProviderProps> = ({
     loadMoreSalesCampaigns()
   }, [loadMoreSalesCampaigns])
 
+  // Contact selection hook (matching IRM pattern)
+  const {
+    options: contactsList,
+    loading: contactsLoading,
+    error: contactsError,
+    search: searchContactsWrapper
+  } = useGetCustomerContacts(businessAppContext, {
+    withState: true,
+    autoFetch: true,
+    pageSize: 20,
+    mapToSelectOptions: true
+  })
+
+  // Map contacts to SelectOption format (already mapped by hook)
+  const contactsOptions: SelectOption[] = useMemo(() => (contactsList as SelectOption[]) || [], [contactsList])
+
   // Countries hook
   const {
     options: countries,
@@ -293,18 +285,6 @@ export const AccountFormProvider: React.FC<AccountFormProviderProps> = ({
     search: searchCountries,
     loadMore: loadMoreCountries
   } = useCountriesGraphQL({
-    accessToken: businessAppContext.accessToken
-  })
-
-  // Currencies hook (simple like countries)
-  const {
-    options: currencies,
-    loading: currenciesLoading,
-    error: currenciesError,
-    hasMore: currenciesHasMore,
-    search: searchCurrencies,
-    loadMore: loadMoreCurrencies
-  } = useCurrenciesGraphQL({
     accessToken: businessAppContext.accessToken
   })
 
@@ -352,48 +332,13 @@ export const AccountFormProvider: React.FC<AccountFormProviderProps> = ({
 
   const revenueSizesHook = useSearchableCatalog(revenueSizesConfig)
 
-  // TimeZones catalog hook - using searchable catalog like opportunity form
-  const timeZonesConfig = useMemo(
-    () => ({
-      accessToken: businessAppContext.accessToken,
-      catalogIdentifier: TIMEZONE_CATALOG
-    }),
-    [businessAppContext.accessToken]
-  )
-
-  const timeZonesHook = useSearchableCatalog(timeZonesConfig)
-
   // Initialize all catalog hooks on mount
   useEffect(() => {
     legalFormsHook.initialize()
     industriesHook.initialize()
     employeeSizesHook.initialize()
     revenueSizesHook.initialize()
-    timeZonesHook.initialize()
-  }, [
-    legalFormsHook.initialize,
-    industriesHook.initialize,
-    employeeSizesHook.initialize,
-    revenueSizesHook.initialize,
-    timeZonesHook.initialize
-  ])
-
-  // Custom transformation for timeZones to preserve the code field
-  const transformedTimeZones = useMemo(() => {
-    return timeZonesHook.options.map((option: SelectOption) => {
-      // Extract code from catalog ID: "TimeZone:v1:UTC-07:00" → "UTC-07:00"
-      const catalogId = option.id as string
-      const code = catalogId.includes(':') ? catalogId.split(':')[2] : option.label
-
-      return {
-        ...option,
-        code: code,
-        value: catalogId, // ✅ Store full ID: "TimeZone:v1:UTC-07:00" for database
-        label: code, // ✅ Display code: "UTC-07:00" to users
-        name: code
-      }
-    })
-  }, [timeZonesHook.options])
+  }, [legalFormsHook.initialize, industriesHook.initialize, employeeSizesHook.initialize, revenueSizesHook.initialize])
 
   // Convert employee position data to SelectOption format
   const employeePositions: SelectOption[] = useMemo(() => {
@@ -459,8 +404,8 @@ export const AccountFormProvider: React.FC<AccountFormProviderProps> = ({
           `${accountOwner?.ownerEmployee?.firstName} ${accountOwner?.ownerEmployee?.lastName}`.trim()
 
         const accountOwnerOption: SelectOption = {
-          id: ownerEmployeeId,
-          value: ownerEmployeeId,
+          id: String(ownerEmployeeId || ''),
+          value: String(ownerEmployeeId || ''),
           label: `${accountOwnerDisplayName} - Account Owner`,
           name: accountOwnerDisplayName,
           extraInfo: {
@@ -478,11 +423,6 @@ export const AccountFormProvider: React.FC<AccountFormProviderProps> = ({
 
     return finalEmployees
   }, [employeePositionData, currentUserEmployee, accountData])
-
-  // Use dynamic forms from catalog (same as lead form)
-  const timeZones: SelectOption[] = useMemo(() => {
-    return transformedTimeZones
-  }, [transformedTimeZones])
 
   // Form value setter
   const setFormValues = useCallback((updates: Partial<AccountFormValues>) => {
@@ -644,135 +584,207 @@ export const AccountFormProvider: React.FC<AccountFormProviderProps> = ({
     accountData
   ])
 
-  // Context value
-  const value: AccountFormContextValue = {
-    // Form state
-    formValues,
-    setFormValues,
-    onSubmit,
-    onCancel,
-    isLoading,
-    error,
+  // Context value - memoized to prevent unnecessary re-renders
+  const value: AccountFormContextValue = useMemo(
+    () => ({
+      // Form state
+      formValues,
+      setFormValues,
+      onSubmit,
+      onCancel,
+      hideActions,
+      isLoading,
+      error,
 
-    // Business app context
-    businessAppContext,
+      // Business app context
+      businessAppContext,
 
-    // Employee positions
-    employeePositions,
-    employeePositionsLoading,
-    employeePositionsError,
-    employeePositionsHasMore,
-    loadMoreEmployeePositions,
-    searchEmployeePositions: searchEmployees,
+      // Employee positions
+      employeePositions,
+      employeePositionsLoading,
+      employeePositionsError,
+      employeePositionsHasMore,
+      loadMoreEmployeePositions,
+      searchEmployeePositions: searchEmployees,
 
-    // Legal Forms with search and pagination
-    legalForms: legalFormsHook.allOptions,
-    legalFormsLoading: legalFormsHook.loading,
-    legalFormsError: legalFormsHook.error,
-    legalFormsHasMore: legalFormsHook.hasMore,
-    legalFormsNeedsMoreData: legalFormsHook.needsMoreData,
-    legalFormsDisplayCount: legalFormsHook.displayCount,
-    legalFormsTotalFetched: legalFormsHook.totalFetched,
-    searchLegalForms: legalFormsHook.search,
-    loadMoreLegalForms: legalFormsHook.loadMore,
-    showMoreLegalForms: legalFormsHook.showMore,
+      // Legal Forms with search and pagination
+      legalForms: legalFormsHook.allOptions,
+      legalFormsLoading: legalFormsHook.loading,
+      legalFormsError: legalFormsHook.error,
+      legalFormsHasMore: legalFormsHook.hasMore,
+      legalFormsNeedsMoreData: legalFormsHook.needsMoreData,
+      legalFormsDisplayCount: legalFormsHook.displayCount,
+      legalFormsTotalFetched: legalFormsHook.totalFetched,
+      searchLegalForms: legalFormsHook.search,
+      loadMoreLegalForms: legalFormsHook.loadMore,
+      showMoreLegalForms: legalFormsHook.showMore,
 
-    // Industries with search and pagination
-    industries: industriesHook.allOptions,
-    industriesLoading: industriesHook.loading,
-    industriesError: industriesHook.error,
-    industriesHasMore: industriesHook.hasMore,
-    industriesNeedsMoreData: industriesHook.needsMoreData,
-    industriesDisplayCount: industriesHook.displayCount,
-    industriesTotalFetched: industriesHook.totalFetched,
-    searchIndustries: industriesHook.search,
-    loadMoreIndustries: industriesHook.loadMore,
-    showMoreIndustries: industriesHook.showMore,
+      // Industries with search and pagination
+      industries: industriesHook.allOptions,
+      industriesLoading: industriesHook.loading,
+      industriesError: industriesHook.error,
+      industriesHasMore: industriesHook.hasMore,
+      industriesNeedsMoreData: industriesHook.needsMoreData,
+      industriesDisplayCount: industriesHook.displayCount,
+      industriesTotalFetched: industriesHook.totalFetched,
+      searchIndustries: industriesHook.search,
+      loadMoreIndustries: industriesHook.loadMore,
+      showMoreIndustries: industriesHook.showMore,
 
-    // Employee Sizes with search and pagination
-    employeeSizes: employeeSizesHook.allOptions,
-    employeeSizesLoading: employeeSizesHook.loading,
-    employeeSizesError: employeeSizesHook.error,
-    employeeSizesHasMore: employeeSizesHook.hasMore,
-    employeeSizesNeedsMoreData: employeeSizesHook.needsMoreData,
-    employeeSizesDisplayCount: employeeSizesHook.displayCount,
-    employeeSizesTotalFetched: employeeSizesHook.totalFetched,
-    searchEmployeeSizes: employeeSizesHook.search,
-    loadMoreEmployeeSizes: employeeSizesHook.loadMore,
-    showMoreEmployeeSizes: employeeSizesHook.showMore,
+      // Employee Sizes with search and pagination
+      employeeSizes: employeeSizesHook.allOptions,
+      employeeSizesLoading: employeeSizesHook.loading,
+      employeeSizesError: employeeSizesHook.error,
+      employeeSizesHasMore: employeeSizesHook.hasMore,
+      employeeSizesNeedsMoreData: employeeSizesHook.needsMoreData,
+      employeeSizesDisplayCount: employeeSizesHook.displayCount,
+      employeeSizesTotalFetched: employeeSizesHook.totalFetched,
+      searchEmployeeSizes: employeeSizesHook.search,
+      loadMoreEmployeeSizes: employeeSizesHook.loadMore,
+      showMoreEmployeeSizes: employeeSizesHook.showMore,
 
-    // Revenue Sizes with search and pagination
-    revenueSizes: revenueSizesHook.allOptions,
-    revenueSizesLoading: revenueSizesHook.loading,
-    revenueSizesError: revenueSizesHook.error,
-    revenueSizesHasMore: revenueSizesHook.hasMore,
-    revenueSizesNeedsMoreData: revenueSizesHook.needsMoreData,
-    revenueSizesDisplayCount: revenueSizesHook.displayCount,
-    revenueSizesTotalFetched: revenueSizesHook.totalFetched,
-    searchRevenueSizes: revenueSizesHook.search,
-    loadMoreRevenueSizes: revenueSizesHook.loadMore,
-    showMoreRevenueSizes: revenueSizesHook.showMore,
+      // Revenue Sizes with search and pagination
+      revenueSizes: revenueSizesHook.allOptions,
+      revenueSizesLoading: revenueSizesHook.loading,
+      revenueSizesError: revenueSizesHook.error,
+      revenueSizesHasMore: revenueSizesHook.hasMore,
+      revenueSizesNeedsMoreData: revenueSizesHook.needsMoreData,
+      revenueSizesDisplayCount: revenueSizesHook.displayCount,
+      revenueSizesTotalFetched: revenueSizesHook.totalFetched,
+      searchRevenueSizes: revenueSizesHook.search,
+      loadMoreRevenueSizes: revenueSizesHook.loadMore,
+      showMoreRevenueSizes: revenueSizesHook.showMore,
 
-    // Currencies with search and pagination
-    currencies,
-    currenciesLoading,
-    currenciesError,
-    currenciesHasMore,
-    currenciesNeedsMoreData: false, // Currencies are not paginated in this hook
-    currenciesDisplayCount: currencies.length,
-    currenciesTotalFetched: currencies.length,
-    searchCurrencies: searchCurrencies,
-    loadMoreCurrencies: loadMoreCurrencies,
-    showMoreCurrencies: () => {}, // No show more for simple list
-    timeZones,
-    timeZonesLoading: timeZonesHook.loading,
-    timeZonesError: timeZonesHook.error,
-    timeZonesHasMore: timeZonesHook.hasMore,
-    timeZonesNeedsMoreData: timeZonesHook.needsMoreData,
-    timeZonesDisplayCount: timeZonesHook.displayCount,
-    timeZonesTotalFetched: timeZonesHook.totalFetched,
-    searchTimeZones: timeZonesHook.search,
-    loadMoreTimeZones: timeZonesHook.loadMore,
-    showMoreTimeZones: timeZonesHook.showMore,
+      // Countries with search and pagination
+      countries,
+      countriesLoading,
+      countriesError,
+      countriesHasMore,
+      searchCountries,
+      loadMoreCountries,
 
-    // Countries with search and pagination
-    countries,
-    countriesLoading,
-    countriesError,
-    countriesHasMore,
-    searchCountries,
-    loadMoreCountries,
+      // Parent account autocomplete
+      parentAccountSuggestions,
+      searchParentAccounts,
+      isSearchingParentAccounts,
+      setIsSearchingParentAccounts,
+      setParentAccountSuggestions,
 
-    // Parent account autocomplete
-    parentAccountSuggestions,
-    searchParentAccounts,
-    isSearchingParentAccounts,
-    setIsSearchingParentAccounts,
-    setParentAccountSuggestions,
+      // Sales Campaigns
+      salesCampaigns: salesCampaignsOptions,
+      salesCampaignsLoading: salesCampaignsLoading,
+      salesCampaignsError: salesCampaignsError,
+      salesCampaignsHasMore: salesCampaignsHasMore,
+      searchSalesCampaigns: searchSalesCampaignsWrapper,
+      loadMoreSalesCampaigns: loadMoreSalesCampaignsWrapper,
 
-    // Sales Campaigns
-    salesCampaigns: salesCampaignsOptions,
-    salesCampaignsLoading: salesCampaignsLoading,
-    salesCampaignsError: salesCampaignsError,
-    salesCampaignsHasMore: salesCampaignsHasMore,
-    searchSalesCampaigns: searchSalesCampaignsWrapper,
-    loadMoreSalesCampaigns: loadMoreSalesCampaignsWrapper,
+      // Contact selection (matching IRM pattern)
+      contacts: contactsOptions,
+      contactsLoading: contactsLoading,
+      contactsError: contactsError ? String(contactsError) : null,
+      searchContacts: searchContactsWrapper,
 
-    // Address lines management (legacy)
-    addressLineCount,
-    addAddressLine,
-    removeAddressLine,
+      // Address lines management (legacy)
+      addressLineCount,
+      addAddressLine,
+      removeAddressLine,
 
-    // Dynamic addresses management
-    addAddress,
-    removeAddress,
-    updateAddress,
-    addAddressLineToAddress,
-    removeAddressLineFromAddress,
+      // Dynamic addresses management
+      addAddress,
+      removeAddress,
+      updateAddress,
+      addAddressLineToAddress,
+      removeAddressLineFromAddress,
 
-    // Legacy compatibility (using employeeSizes data)
-    numberOfEmployeesOptions: employeeSizesHook.allOptions
-  }
+      // Legacy compatibility (using employeeSizes data)
+      numberOfEmployeesOptions: employeeSizesHook.allOptions
+    }),
+    [
+      formValues,
+      setFormValues,
+      onSubmit,
+      onCancel,
+      hideActions,
+      isLoading,
+      error,
+      businessAppContext,
+      employeePositions,
+      employeePositionsLoading,
+      employeePositionsError,
+      employeePositionsHasMore,
+      loadMoreEmployeePositions,
+      searchEmployees,
+      legalFormsHook.allOptions,
+      legalFormsHook.loading,
+      legalFormsHook.error,
+      legalFormsHook.hasMore,
+      legalFormsHook.needsMoreData,
+      legalFormsHook.displayCount,
+      legalFormsHook.totalFetched,
+      legalFormsHook.search,
+      legalFormsHook.loadMore,
+      legalFormsHook.showMore,
+      industriesHook.allOptions,
+      industriesHook.loading,
+      industriesHook.error,
+      industriesHook.hasMore,
+      industriesHook.needsMoreData,
+      industriesHook.displayCount,
+      industriesHook.totalFetched,
+      industriesHook.search,
+      industriesHook.loadMore,
+      industriesHook.showMore,
+      employeeSizesHook.allOptions,
+      employeeSizesHook.loading,
+      employeeSizesHook.error,
+      employeeSizesHook.hasMore,
+      employeeSizesHook.needsMoreData,
+      employeeSizesHook.displayCount,
+      employeeSizesHook.totalFetched,
+      employeeSizesHook.search,
+      employeeSizesHook.loadMore,
+      employeeSizesHook.showMore,
+      revenueSizesHook.allOptions,
+      revenueSizesHook.loading,
+      revenueSizesHook.error,
+      revenueSizesHook.hasMore,
+      revenueSizesHook.needsMoreData,
+      revenueSizesHook.displayCount,
+      revenueSizesHook.totalFetched,
+      revenueSizesHook.search,
+      revenueSizesHook.loadMore,
+      revenueSizesHook.showMore,
+      countries,
+      countriesLoading,
+      countriesError,
+      countriesHasMore,
+      searchCountries,
+      loadMoreCountries,
+      parentAccountSuggestions,
+      searchParentAccounts,
+      isSearchingParentAccounts,
+      setIsSearchingParentAccounts,
+      setParentAccountSuggestions,
+      salesCampaignsOptions,
+      salesCampaignsLoading,
+      salesCampaignsError,
+      salesCampaignsHasMore,
+      searchSalesCampaignsWrapper,
+      loadMoreSalesCampaignsWrapper,
+      contactsOptions,
+      contactsLoading,
+      contactsError,
+      searchContactsWrapper,
+      addressLineCount,
+      addAddressLine,
+      removeAddressLine,
+      addAddress,
+      removeAddress,
+      updateAddress,
+      addAddressLineToAddress,
+      removeAddressLineFromAddress
+    ]
+  )
 
   return <AccountFormContext.Provider value={value}>{children}</AccountFormContext.Provider>
 }

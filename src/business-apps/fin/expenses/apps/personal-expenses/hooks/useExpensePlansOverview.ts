@@ -2,6 +2,7 @@ import dayjs from 'dayjs'
 import { useCallback, useRef, useState } from 'react'
 import { BusinessAppContextProps } from '@/common/BusinessAppContext'
 import { useGraphQLClient } from '@/common/network/graphql/useGraphQLClient'
+import { getCatalogValue } from '@/common/utils/windowUtils'
 import { GET_EXPENSE_PLANS_OVERVIEW } from '../queries/expensePlans'
 
 export interface PlansOverviewResult {
@@ -61,7 +62,6 @@ export const useExpensePlansOverview = (context: BusinessAppContextProps) => {
         limit: pageSize,
         offset,
         orderBy,
-        activeUserLocale: 'en',
         currentStart,
         currentEnd,
         previousStart,
@@ -106,20 +106,33 @@ export const useExpensePlansOverview = (context: BusinessAppContextProps) => {
         const items = data?.plans ?? []
         const totalCount = data?.plansAggregate?.aggregate?.count ?? 0
 
-        const destinationRegions: string[] = (data?.destinations ?? [])
-          .flatMap((plan: any) =>
-            (plan.expenseRequestTrip || []).map(
-              (trip: any) => trip?.travelRegion?.translations?.[0]?.value || trip?.travelRegion?.value
-            )
-          )
-          .filter(Boolean)
+        // Extract catalog objects for travel regions
+        const allRegionObjects = (data?.destinations ?? []).flatMap((plan: any) =>
+          (plan.expenseRequestTrip || []).map((trip: any) => trip?.travelRegion).filter(Boolean)
+        )
+
         const topDestination = (() => {
-          if (destinationRegions.length === 0) return 'N/A'
-          const map = destinationRegions.reduce((acc: Record<string, number>, v: string) => {
-            acc[v] = (acc[v] || 0) + 1
-            return acc
-          }, {})
-          return Object.keys(map).reduce((a, b) => (map[a] > map[b] ? a : b))
+          if (allRegionObjects.length === 0) return 'N/A'
+
+          // Count frequency using getCatalogValue for consistent translation handling
+          const frequencyMap = allRegionObjects.reduce(
+            (acc: Record<string, { count: number; catalog: any }>, catalog: any) => {
+              const translatedValue = getCatalogValue(catalog)
+              if (!acc[translatedValue]) {
+                acc[translatedValue] = { count: 0, catalog }
+              }
+              acc[translatedValue].count += 1
+              return acc
+            },
+            {}
+          )
+
+          // Find the most frequent value
+          const frequencyEntries = Object.values(frequencyMap) as Array<{ count: number; catalog: any }>
+          const mostFrequent = frequencyEntries.reduce((a, b) => (a.count > b.count ? a : b))
+
+          // Return the catalog object for proper translation display
+          return mostFrequent?.catalog || 'N/A'
         })()
 
         setData({

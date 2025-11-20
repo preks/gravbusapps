@@ -1,6 +1,6 @@
 import React, { useMemo } from 'react'
 import { Badge } from '@newwork/nw-design-system'
-import { GripVertical, UserCheck, UserPlus } from 'lucide-react'
+import { GripVertical, UserCheck, UserPlus, BarChart3, CheckCircle } from 'lucide-react'
 
 import ReactFlow, {
   Node,
@@ -24,6 +24,10 @@ export interface FlowRendererProps {
   selectedStepIndex?: number | null
   onSelectStep?: (index: number) => void
   onReorderSteps?: (fromIndex: number, toIndex: number) => void
+  onSelectSummary?: () => void // Callback when summary node is clicked
+  showSummaryNode?: boolean // Whether to show the summary/end node
+  summaryFieldsCount?: number // Number of configured summary fields
+  isSummarySelected?: boolean // Whether the summary node is currently selected
   mode?: 'view' | 'edit'
   'data-testid'?: string
 }
@@ -163,11 +167,94 @@ const StepNode = ({ data }: { data: any }) => {
   )
 }
 
+// Custom Summary/End Node - Circular design matching step node styling
+const SummaryNode = ({ data }: { data: any }) => {
+  const hasFields = data.summaryFieldsCount > 0
+  const isSelected = data.isSelected
+
+  // Selection state (blue) overrides configured state (green)
+  const getBorderColor = () => {
+    if (isSelected) return 'gba:border-blue-500'
+    if (hasFields) return 'gba:border-green-500'
+    return 'gba:border-gray-300'
+  }
+
+  const getBgColor = () => {
+    if (isSelected) return 'gba:bg-blue-50'
+    if (hasFields) return 'gba:bg-green-50'
+    return 'gba:bg-gray-50'
+  }
+
+  return (
+    <button
+      type="button"
+      className={`nopan nodrag gba:rounded-full gba:w-[160px] gba:h-[160px] gba:border-2 gba:transition-all gba:duration-200 gba:cursor-pointer gba:flex gba:flex-col gba:items-center gba:justify-center gba:gap-1 gba:shadow-sm hover:gba:shadow-md hover:gba:scale-105 ${getBorderColor()} ${getBgColor()}`}
+      onClick={() => data?.onSelect?.()}
+    >
+      <Handle
+        type="target"
+        position={Position.Top}
+        style={{
+          visibility: 'hidden',
+          width: 10,
+          height: 10,
+          top: '20%',
+          left: '50%',
+          transform: 'translateX(-50%)'
+        }}
+      />
+
+      {/* Icon with background circle */}
+      <div
+        className={`gba:flex gba:items-center gba:justify-center gba:w-12 gba:h-12 gba:rounded-full gba:mb-1 ${
+          hasFields ? 'gba:bg-green-100' : 'gba:bg-gray-200'
+        }`}
+      >
+        {hasFields ? (
+          <BarChart3
+            className={`gba:h-6 gba:w-6 ${hasFields ? 'gba:text-green-600' : 'gba:text-gray-500'}`}
+            strokeWidth={2}
+          />
+        ) : (
+          <CheckCircle
+            className={`gba:h-6 gba:w-6 ${hasFields ? 'gba:text-green-600' : 'gba:text-gray-500'}`}
+            strokeWidth={2}
+          />
+        )}
+      </div>
+
+      {/* Label */}
+      <div className={`gba:font-semibold gba:text-sm ${hasFields ? 'gba:text-gray-900' : 'gba:text-gray-600'}`}>
+        Workflow
+      </div>
+      <div className={`gba:font-semibold gba:text-sm ${hasFields ? 'gba:text-gray-900' : 'gba:text-gray-600'}`}>
+        Summary
+      </div>
+
+      {/* Badge with count */}
+      {hasFields && (
+        <Badge
+          variant="outline"
+          className="gba:bg-green-600 gba:text-white gba:text-xs gba:font-bold gba:px-2 gba:py-0.5 gba:border-0 gba:mt-1"
+        >
+          {data.summaryFieldsCount} {data.summaryFieldsCount === 1 ? 'field' : 'fields'}
+        </Badge>
+      )}
+
+      {hasFields || <div className="gba:text-gray-500 gba:text-xs gba:italic gba:mt-1">No fields</div>}
+    </button>
+  )
+}
+
 export const FlowRenderer: React.FC<FlowRendererProps> = ({
   steps,
   selectedStepIndex = null,
   onSelectStep,
   onReorderSteps,
+  onSelectSummary,
+  showSummaryNode = true, // Show by default
+  summaryFieldsCount = 0,
+  isSummarySelected = false,
   mode = 'view',
   'data-testid': testId = 'flow-renderer'
 }) => {
@@ -197,6 +284,28 @@ export const FlowRenderer: React.FC<FlowRendererProps> = ({
       }
     }))
 
+    // Add summary/end node if enabled
+    if (showSummaryNode) {
+      const summaryNodeY = steps.length * 150 + 20
+      nodes.push({
+        id: 'summary-node',
+        type: 'summary',
+        position: { x: 60, y: summaryNodeY }, // Centered horizontally
+        data: {
+          summaryFieldsCount,
+          isSelected: isSummarySelected,
+          onSelect: onSelectSummary
+        },
+        style: {
+          background: 'transparent',
+          border: 'none',
+          padding: 0,
+          width: 160,
+          height: 160
+        }
+      })
+    }
+
     const edges: Edge[] = steps.slice(0, -1).map((_, index) => ({
       id: `edge-${index}`,
       source: `step-${index}`,
@@ -212,8 +321,38 @@ export const FlowRenderer: React.FC<FlowRendererProps> = ({
         color: '#6b7280'
       }
     }))
+
+    // Add edge from last step to summary node
+    if (showSummaryNode && steps.length > 0) {
+      edges.push({
+        id: `edge-to-summary`,
+        source: `step-${steps.length - 1}`,
+        target: 'summary-node',
+        type: 'straight',
+        animated: false,
+        style: {
+          stroke: summaryFieldsCount > 0 ? '#22c55e' : '#9ca3af', // Green if configured, gray otherwise
+          strokeWidth: 2
+        },
+        markerEnd: {
+          type: MarkerType.ArrowClosed,
+          color: summaryFieldsCount > 0 ? '#22c55e' : '#9ca3af'
+        }
+      })
+    }
+
     return { nodes, edges }
-  }, [steps, selectedStepIndex, onSelectStep, onReorderSteps, mode])
+  }, [
+    steps,
+    selectedStepIndex,
+    onSelectStep,
+    onReorderSteps,
+    showSummaryNode,
+    summaryFieldsCount,
+    isSummarySelected,
+    onSelectSummary,
+    mode
+  ])
 
   const [flowNodes, setNodes, onNodesChange] = useNodesState(nodes)
   const [flowEdges, setEdges, onEdgesChange] = useEdgesState(edges)
@@ -226,7 +365,8 @@ export const FlowRenderer: React.FC<FlowRendererProps> = ({
   // Custom node types - memoized to prevent React Flow warning
   const nodeTypes = React.useMemo(
     () => ({
-      default: StepNode
+      default: StepNode,
+      summary: SummaryNode
     }),
     []
   )
@@ -279,6 +419,10 @@ export const FlowRenderer: React.FC<FlowRendererProps> = ({
           zoomOnScroll={true}
           zoomOnPinch={true}
           onNodeClick={(_, node) => {
+            // Don't handle summary node clicks here - they have their own handler
+            if (node.id === 'summary-node') {
+              return
+            }
             const idx = Number(node.id.replace('step-', ''))
             onSelectStep?.(idx)
           }}

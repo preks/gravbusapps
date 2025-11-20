@@ -1,13 +1,9 @@
 import React, { useEffect, useRef } from 'react'
-import { useTranslation } from 'react-i18next'
 import { InputField, SelectField } from '@newwork/gravity-ui-catalog'
 import { Form } from 'antd'
 import { Currency } from '../../../types'
-import {
-  parseNumericValue,
-  formatAmountForLocale,
-  parseAndFormatAmount
-} from '@/business-apps/fin/expenses/utils/amountFormatting'
+import { formatAmountForLocale, parseAndFormatAmount } from '@/business-apps/fin/expenses/utils/amountFormatting'
+import { getTranslationFromI18nKeyAndLabel } from '@/common/utils/windowUtils'
 
 interface AmountFieldProps {
   index: number
@@ -32,11 +28,9 @@ export const AmountField: React.FC<AmountFieldProps> = ({
   onAmountChange,
   onCurrencyChange
 }) => {
-  const { t } = useTranslation()
-  const previousValueRef = useRef<string | undefined>()
-
-  // Watch the form field value to detect OCR changes
-  const watchedAmount = Form.useWatch(`amount-${index}`, form)
+  const t = getTranslationFromI18nKeyAndLabel
+  const previousAmountValueRef = useRef<number | undefined>(amountValue)
+  const isUserEditingRef = useRef(false)
 
   const handleAmountBlur = () => {
     const currentValue = form.getFieldValue(`amount-${index}`)
@@ -52,45 +46,38 @@ export const AmountField: React.FC<AmountFieldProps> = ({
 
     form.setFieldsValue({ [`amount-${index}`]: result.formattedValue })
     onAmountChange(result.numValue)
-  }
-
-  const updateFormWithFormattedValue = (numValue: number, finalDisplay: string) => {
-    setTimeout(() => {
-      form.setFieldsValue({ [`amount-${index}`]: finalDisplay })
-      previousValueRef.current = finalDisplay
-      onAmountChange(numValue)
-      form.validateFields([`amount-${index}`])
-    }, 100)
+    isUserEditingRef.current = false
   }
 
   // Format amount when it changes from external source (e.g., OCR from receipt)
+  // Only trigger when amountValue prop changes (not on user input)
   useEffect(() => {
-    const currentValueStr = String(watchedAmount || '')
-
-    // Early return if value hasn't changed or is empty
-    if (previousValueRef.current === currentValueStr || !watchedAmount) {
+    // Skip if user is actively editing
+    if (isUserEditingRef.current) {
       return
     }
 
-    previousValueRef.current = currentValueStr
-
-    // Early return if not a numeric value
-    if (!/^[\d,.]+$/.test(currentValueStr)) {
+    // Only process if amountValue changed from external source (OCR)
+    if (amountValue === previousAmountValueRef.current) {
       return
     }
 
-    const numValue = parseNumericValue(watchedAmount)
-    if (!numValue) {
+    previousAmountValueRef.current = amountValue
+
+    // Skip if no value
+    if (!amountValue || amountValue === 0) {
       return
     }
 
-    const finalDisplay = formatAmountForLocale(numValue)
+    // Format the OCR value
+    const finalDisplay = formatAmountForLocale(amountValue)
 
-    // Only update if format is different
-    if (currentValueStr !== finalDisplay) {
-      updateFormWithFormattedValue(numValue, finalDisplay)
-    }
-  }, [watchedAmount, form, index, onAmountChange])
+    setTimeout(() => {
+      form.setFieldsValue({ [`amount-${index}`]: finalDisplay })
+      onAmountChange(amountValue)
+      form.validateFields([`amount-${index}`])
+    }, 100)
+  }, [amountValue, form, index, onAmountChange])
 
   const renderAmountInput = () => (
     <InputField
@@ -106,6 +93,9 @@ export const AmountField: React.FC<AmountFieldProps> = ({
         'Enter Amount'
       )}
       onChange={field => {
+        // Mark that user is actively editing (prevents useEffect from interfering)
+        isUserEditingRef.current = true
+
         let value = String(field.value)
 
         // Limit to 2 decimal places (accept both . and , as decimal separator)

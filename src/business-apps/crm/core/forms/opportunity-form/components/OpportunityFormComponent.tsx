@@ -4,32 +4,18 @@ import { Button, Alert, AlertDescription, Spinner } from '@newwork/nw-design-sys
 import { formatDataTestId } from '@/common/utils/formatDataTestId'
 import { dispatchProcessContinueEvent } from '@/common/utils/processEventUtils'
 import OpportunityInformationSection from './OpportunityInformationSection'
-import AdditionalInformationSection from './AdditionalInformationSection'
-import SearchableSelect from './SearchableSelect'
 
 const prefixDataTestId = 'OpportunityForm'
 
 const OpportunityFormComponent: React.FC = () => {
-  const {
-    formValues,
-    setFormValues,
-    onSubmit,
-    onCancel,
-    isLoading,
-    error,
-    salesCampaigns,
-    salesCampaignsLoading,
-    salesCampaignsError,
-    salesCampaignsHasMore,
-    searchSalesCampaigns,
-    loadMoreSalesCampaigns
-  } = useOpportunityFormContext()
+  const { formValues, onSubmit, onCancel, isLoading, error, hideActions } = useOpportunityFormContext()
 
-  // Check if all mandatory fields are filled - Pipeline is now mandatory instead of opportunity status
+  // Check if all mandatory fields are filled
   const isFormValid =
     formValues.owner &&
     formValues.name &&
     formValues.pipeline &&
+    formValues.salesPipelineStage &&
     formValues.estimatedAmount &&
     !isNaN(parseFloat(formValues.estimatedAmount)) &&
     parseFloat(formValues.estimatedAmount) > 0 &&
@@ -40,50 +26,116 @@ const OpportunityFormComponent: React.FC = () => {
     return value && value.trim() ? value.trim() : undefined
   }
 
+  // Helper: Build a single opportunity contact association
+  const buildOpportunityContactAssociation = (contact: any, opportunityId?: string): any => {
+    const baseAssociation = {
+      contactType: null,
+      opportunity: opportunityId,
+      contact: typeof contact === 'object' && contact.id ? contact.id : contact
+    }
+
+    // Include association metadata for existing associations
+    if (typeof contact === 'object' && contact.id && contact.associationId) {
+      return {
+        ...baseAssociation,
+        id: contact.associationId,
+        ...(contact.associationVersion !== undefined && { version: contact.associationVersion })
+      }
+    }
+
+    return baseAssociation
+  }
+
+  // Helper: Build opportunityContacts array with full association objects
+  const buildOpportunityContacts = (contactIds: any[], opportunityId?: string): any[] => {
+    if (!contactIds || contactIds.length === 0) {
+      return []
+    }
+
+    return contactIds.map(contact => buildOpportunityContactAssociation(contact, opportunityId))
+  }
+
+  // Helper: Build complete opportunity payload with all optional fields
+  const buildOpportunityPayload = (formValues: any): any => {
+    const payload: any = {
+      sourceApp: 'CRM',
+      name: toStringOrUndefined(formValues.name),
+      businessKey: toStringOrUndefined(formValues.businessKey),
+      code: toStringOrUndefined(formValues.code),
+      estimatedAmount: formValues.estimatedAmount ? Number.parseFloat(formValues.estimatedAmount) : undefined,
+      currencyRef: toStringOrUndefined(formValues.currency),
+      closeDate: toStringOrUndefined(formValues.closeDate),
+      winningChance: formValues.winningChance ? Number.parseFloat(formValues.winningChance) : undefined,
+      salesPipelineRef: toStringOrUndefined(formValues.pipeline),
+      salesPipelineStageRef: toStringOrUndefined(formValues.salesPipelineStage),
+      opportunityStatusRef: toStringOrUndefined(formValues.opportunityStatus),
+      personal: formValues.personal || false,
+      notesSummary: toStringOrUndefined(formValues.notesSummary),
+      account: toStringOrUndefined(formValues.accountId || formValues.account),
+      salesCampaign: toStringOrUndefined(formValues.salesCampaignId),
+      lead: toStringOrUndefined(formValues.leadId || formValues.lead),
+      ownerEmployee: toStringOrUndefined(formValues.owner),
+      additionalProperties: formValues.additionalProperties || {}
+    }
+
+    // Add optional complex fields if they exist
+    if (formValues.addresses?.length > 0) payload.addresses = formValues.addresses
+    if (formValues.communicationChannels?.length > 0) payload.communicationChannels = formValues.communicationChannels
+    if (formValues.tags?.length > 0) payload.tags = formValues.tags
+    if (formValues.express1 && Object.keys(formValues.express1).length > 0) payload.express1 = formValues.express1
+    if (formValues.express2 && Object.keys(formValues.express2).length > 0) payload.express2 = formValues.express2
+    if (formValues.recordState) payload.recordState = formValues.recordState
+    if (formValues.processInstanceId) payload.processInstanceId = formValues.processInstanceId
+
+    // Add ID and version for updates
+    if (formValues.id) {
+      payload.id = formValues.id
+      payload.version = formValues.version || 0
+    }
+
+    return payload
+  }
+
   // Handle form submission
   const handleSubmit = async () => {
-    console.log('Form values:', formValues)
+    // Prevent duplicate submissions
+    if (isLoading) {
+      return
+    }
+
     try {
-      await onSubmit(formValues)
+      // Build opportunity payload using helper function
+      const opportunityPayload = buildOpportunityPayload(formValues)
 
-      // Prepare comprehensive opportunity payload following the API structure
-      const opportunityPayload: any = {
-        sourceApp: 'CRM',
-        name: toStringOrUndefined(formValues.name),
-        accountId: toStringOrUndefined(formValues.accountId), // Account ID from selected company
-        salesCampaign: toStringOrUndefined(formValues.salesCampaignId), // Campaign ID for backend
-        opportunityStatusRef: toStringOrUndefined(formValues.opportunityStatus),
-        salesPipelineRef: toStringOrUndefined(formValues.pipeline), // Use salesPipelineRef instead of deprecated pipelineRef
-        salesPipelineStageRef: toStringOrUndefined(formValues.salesPipelineStage),
-        stage: toStringOrUndefined(formValues.stage),
-        status: toStringOrUndefined(formValues.status),
-        estimatedAmount: formValues.estimatedAmount ? parseFloat(formValues.estimatedAmount) : undefined,
-        currencyRef: toStringOrUndefined(formValues.currency),
-        closeDate: toStringOrUndefined(formValues.closeDate),
-        winningChance: formValues.winningChance ? Number(formValues.winningChance) : undefined,
-        personal: formValues.personal || false,
-        notesSummary: toStringOrUndefined(formValues.notesSummary),
-        ownerEmployee: toStringOrUndefined(formValues.owner)
-      }
-
-      // Use UPDATE mode if editing existing opportunity, INSERT for new opportunity
+      // Determine change mode based on whether we have an ID
       const changeMode = formValues.id ? 'UPDATE' : 'INSERT'
+      const isUpdate = changeMode === 'UPDATE'
 
+      // Build opportunityContacts array with full association objects (matching IRM pattern)
+      const opportunityContacts = buildOpportunityContacts(formValues.contactIds || [], formValues.id)
+
+      // ✅ UPDATED: Create payload structure with opportunityContacts for UPDATE, contactIds for CREATE
       const payload = {
-        opportunity: opportunityPayload,
-        changeMode: changeMode
+        opportunity: {
+          ...opportunityPayload,
+          opportunityContacts: isUpdate ? opportunityContacts : undefined // Only for updates
+        },
+        changeMode: changeMode,
+        contactIds: isUpdate ? undefined : opportunityContacts.map(oc => oc.contact) // For CREATE mode only
       }
 
-      // Add id and version for UPDATE mode
-      if (changeMode === 'UPDATE' && formValues.id) {
-        opportunityPayload.id = formValues.id
-        opportunityPayload.version = formValues.version
-      }
-
-      // Dispatch process continue event on successful submission
+      // Dispatch process continue event FIRST (like IRM)
       dispatchProcessContinueEvent('pse_submit', payload)
+
+      // Call the onSubmit callback after dispatching the process event
+      // This ensures the process event is always dispatched even if onSubmit fails
+      try {
+        await onSubmit(formValues)
+      } catch (submitError) {
+        console.warn('onSubmit callback failed, but process event was dispatched:', submitError)
+      }
     } catch (err) {
-      console.error('Error submitting opportunity form:', err)
+      console.error('Error submitting CRM opportunity form:', err)
     }
   }
 
@@ -93,10 +145,19 @@ const OpportunityFormComponent: React.FC = () => {
       await onCancel()
 
       // Dispatch process continue event for cancellation (pause)
-      dispatchProcessContinueEvent('pse_pause', null)
+      dispatchProcessContinueEvent('pse_pause', {})
     } catch (err) {
-      console.error('Error cancelling opportunity form:', err)
+      console.error('Error cancelling CRM opportunity form:', err)
     }
+  }
+
+  if (isLoading) {
+    return (
+      <div className="gba:flex gba:justify-center gba:items-center gba:p-8">
+        <Spinner size="lg" />
+        <span className="gba:ml-3 gba:text-gray-600">Loading opportunity data...</span>
+      </div>
+    )
   }
 
   return (
@@ -107,32 +168,6 @@ const OpportunityFormComponent: React.FC = () => {
           {/* Opportunity Information Section */}
           <OpportunityInformationSection />
 
-          {/* Campaign Section */}
-          <div className="gba:space-y-2">
-            <SearchableSelect
-              label="Sales Campaign"
-              name="salesCampaignId"
-              value={formValues.salesCampaignId}
-              placeholder="Please Select Campaign..."
-              options={salesCampaigns as any}
-              loading={salesCampaignsLoading}
-              hasMore={salesCampaignsHasMore}
-              onSearch={searchSalesCampaigns}
-              onLoadMore={loadMoreSalesCampaigns}
-              onChange={value => {
-                setFormValues({
-                  salesCampaignId: value // Store only ID for backend
-                })
-              }}
-              error={salesCampaignsError}
-              className="gba:w-full gba:min-w-[300px]"
-              data-testid={formatDataTestId(prefixDataTestId, 'CampaignSelect')}
-            />
-          </div>
-
-          {/* Additional Information Section */}
-          <AdditionalInformationSection />
-
           {/* Error Display */}
           {error && (
             <Alert variant="destructive" className="gba:bg-red-50 gba:border gba:border-red-200 gba:rounded-md gba:p-4">
@@ -141,29 +176,32 @@ const OpportunityFormComponent: React.FC = () => {
           )}
         </div>
 
-        {/* Submit and Cancel Buttons - Fixed at bottom */}
-        <div className="gba:mt-6 gba:pt-4 gba:border-t gba:border-gray-200 gba:flex gba:gap-3">
-          <Button
-            variant="secondary"
-            className="gba:flex-1"
-            size="lg"
-            onClick={handleCancel}
-            data-testid={formatDataTestId(prefixDataTestId, 'CancelButton')}
-          >
-            Cancel
-          </Button>
-          <Button
-            variant="default"
-            disabled={!isFormValid}
-            className="gba:flex-1"
-            size="lg"
-            onClick={handleSubmit}
-            data-testid={formatDataTestId(prefixDataTestId, 'SubmitButton')}
-          >
-            {isLoading && <Spinner size="sm" className="gba:mr-2" />}
-            {formValues.id ? 'Update Opportunity' : 'Create Opportunity'}
-          </Button>
-        </div>
+        {/* Submit and Cancel Buttons - Fixed at bottom (only if not hidden) */}
+        {!hideActions && (
+          <div className="gba:mt-6 gba:pt-4 gba:border-t gba:border-gray-200 gba:flex gba:gap-3">
+            <Button
+              type="button"
+              variant="secondary"
+              className="gba:flex-1"
+              size="lg"
+              onClick={handleCancel}
+              data-testid={formatDataTestId(prefixDataTestId, 'cancel-button')}
+            >
+              Cancel
+            </Button>
+            <Button
+              type="button"
+              variant="default"
+              disabled={!isFormValid || isLoading}
+              className="gba:flex-1"
+              size="lg"
+              onClick={handleSubmit}
+              data-testid={formatDataTestId(prefixDataTestId, 'submit-button')}
+            >
+              {formValues.id ? 'Update Opportunity' : 'Create Opportunity'}
+            </Button>
+          </div>
+        )}
       </div>
     </div>
   )

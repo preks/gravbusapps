@@ -111,6 +111,19 @@ const ExpenseRequestsTable: React.FC<ExpenseRequestsTableProps> = props => {
     primaryCurrency
   } = props
 
+  const shouldShowFilters = useMemo(() => !(totalCount === 0 && !isLoading), [totalCount, isLoading])
+
+  const hasActiveFilters = useMemo(() => {
+    if (totalCount === 0 && !isLoading) {
+      return false
+    }
+
+    const hasSearch = (searchTerm || '').trim() !== ''
+    const hasFilters = (selectedFilters || []).length > 0
+
+    return hasSearch || hasFilters
+  }, [searchTerm, selectedFilters, totalCount, isLoading])
+
   const handleSearchChange = useCallback(
     (value: string) => {
       setSearchTerm(value)
@@ -288,18 +301,6 @@ const ExpenseRequestsTable: React.FC<ExpenseRequestsTableProps> = props => {
     [error]
   )
 
-  const renderEmpty = useCallback(
-    () => (
-      <div className="gba:flex gba:justify-center gba:items-center gba:py-12 gba:text-muted-foreground">
-        {getTranslationFromI18nKeyAndLabel(
-          'lowcoder:personal_expenses.no_expense_data_available',
-          'No expense data available.'
-        )}
-      </div>
-    ),
-    []
-  )
-
   const buildStaticFlowData = useCallback(
     (record: ExpenseRequest) => {
       const hasValidStatus =
@@ -351,10 +352,6 @@ const ExpenseRequestsTable: React.FC<ExpenseRequestsTableProps> = props => {
 
     if (error) {
       return renderError()
-    }
-
-    if (requests.length === 0) {
-      return renderEmpty()
     }
 
     return (
@@ -472,112 +469,130 @@ const ExpenseRequestsTable: React.FC<ExpenseRequestsTableProps> = props => {
               </TableRow>
             </TableHeader>
             <TableBody>
-              {requests.map(record => {
-                const { type, label } = getExpenseRequestStatusDisplay(record.status)
-                return (
-                  <TableRow
-                    key={record.id}
-                    className="gba:cursor-pointer gba:hover:bg-accent"
-                    onClick={() => handleSelectRequest(record)}
-                    data-testid={`expense-requests-row-${record.id}`}
-                  >
-                    <TableCell
-                      className="gba:w-[60px] gba:min-w-[60px] gba:max-w-[60px] gba:box-border gba:py-3 gba:px-4"
-                      data-testid={`expense-requests-actions-cell-${record.id}`}
-                      onClick={e => e.stopPropagation()}
+              {!isLoading && totalCount === 0 && requests.length === 0 ? (
+                <TableRow>
+                  <TableCell colSpan={9} className="gba:py-8 gba:text-center">
+                    <div className="gba:text-muted-foreground">
+                      {hasActiveFilters
+                        ? getTranslationFromI18nKeyAndLabel(
+                            'lowcoder:expense_request_list.no_manager_requests_found',
+                            'No expense requests found matching the current filters.'
+                          )
+                        : getTranslationFromI18nKeyAndLabel(
+                            'lowcoder:manager_expense_landing_page.no_requests_created_by_team',
+                            'No expense request created by your team yet.'
+                          )}
+                    </div>
+                  </TableCell>
+                </TableRow>
+              ) : (
+                requests.map(record => {
+                  const { type, label } = getExpenseRequestStatusDisplay(record.status)
+                  return (
+                    <TableRow
+                      key={record.id}
+                      className="gba:cursor-pointer gba:hover:bg-accent"
+                      onClick={() => handleSelectRequest(record)}
+                      data-testid={`expense-requests-row-${record.id}`}
                     >
-                      <div className="gba:flex gba:justify-start gba:gap-2">
-                        <AppActionButton
-                          onClick={e => e.stopPropagation()}
-                          data-testid={`expense-requests-update-button-${record.id}`}
-                          size="icon"
-                          staticFlowData={buildStaticFlowData(record)}
-                          prefixDataTestId="expense-requests-update"
-                          accessToken={props.accessToken}
-                          emptyStateBehavior="enable"
-                          deferMainContextRequestsUntilClick
-                        />
-                      </div>
-                    </TableCell>
-                    <TableCell className="gba:text-left gba:py-3 gba:px-4 gba:w-[13%]">
-                      <div className="gba:font-medium gba:text-sm gba:whitespace-nowrap gba:truncate">
-                        {record.title ??
-                          getTranslationFromI18nKeyAndLabel('lowcoder:common.untitled_request', 'Untitled Request')}
-                      </div>
-                      <div className="gba:text-xs gba:text-muted-foreground gba:whitespace-nowrap gba:truncate">
-                        {record.code ?? getTranslationFromI18nKeyAndLabel('lowcoder:common.not_available', 'N/A')}
-                      </div>
-                    </TableCell>
-                    <TableCell className="gba:w-[10%] gba:py-4 gba:px-3 gba:text-sm">
-                      {(record as any)?.expensePlan?.code ??
-                        getTranslationFromI18nKeyAndLabel('lowcoder:common.not_available', 'N/A')}
-                    </TableCell>
-                    <TableCell
-                      className="gba:text-sm gba:py-3 gba:px-4"
-                      data-testid={`expense-requests-start-date-cell-${record.id}`}
-                    >
-                      {formatShortDateSafe(record.startDate)}
-                    </TableCell>
-                    <TableCell
-                      className="gba:text-sm gba:py-3 gba:px-4"
-                      data-testid={`expense-requests-end-date-cell-${record.id}`}
-                    >
-                      {formatShortDateSafe(record.endDate)}
-                    </TableCell>
-                    <TableCell data-testid={`expense-requests-employee-cell-${record.id}`}>
-                      <div className="gba:flex gba:items-center gba:gap-2">
-                        <Avatar className="gba:h-6 gba:w-6">
-                          <AvatarImage
-                            src={
-                              record.employee?.pictureThumbnail
-                                ? `data:image/gif;base64,${record.employee.pictureThumbnail}`
-                                : undefined
-                            }
-                            alt={record.employee?.fullName}
+                      <TableCell
+                        className="gba:w-[60px] gba:min-w-[60px] gba:max-w-[60px] gba:box-border gba:py-3 gba:px-4"
+                        data-testid={`expense-requests-actions-cell-${record.id}`}
+                        onClick={e => e.stopPropagation()}
+                      >
+                        <div className="gba:flex gba:justify-start gba:gap-2">
+                          <AppActionButton
+                            onClick={e => e.stopPropagation()}
+                            data-testid={`expense-requests-update-button-${record.id}`}
+                            size="icon"
+                            staticFlowData={buildStaticFlowData(record)}
+                            prefixDataTestId="expense-requests-update"
+                            accessToken={props.accessToken}
+                            emptyStateBehavior="enable"
+                            deferMainContextRequestsUntilClick
                           />
-                          <AvatarFallback>
-                            {record.employee?.displayName?.charAt(0) || record.employee?.fullName?.charAt(0) || 'U'}
-                          </AvatarFallback>
-                        </Avatar>
-                        <div>
-                          <div className="gba:font-medium gba:text-sm">
-                            {record.employee?.displayName || record.employee?.fullName}
-                          </div>
-                          <div className="gba:text-xs gba:text-muted-foreground">
-                            {record.employee?.department ||
-                              getTranslationFromI18nKeyAndLabel('lowcoder:common.not_available', 'N/A')}
+                        </div>
+                      </TableCell>
+                      <TableCell className="gba:text-left gba:py-3 gba:px-4 gba:w-[13%]">
+                        <div className="gba:font-medium gba:text-sm gba:whitespace-nowrap gba:truncate">
+                          {record.title ??
+                            getTranslationFromI18nKeyAndLabel('lowcoder:common.untitled_request', 'Untitled Request')}
+                        </div>
+                        <div className="gba:text-xs gba:text-muted-foreground gba:whitespace-nowrap gba:truncate">
+                          {record.code ?? getTranslationFromI18nKeyAndLabel('lowcoder:common.not_available', 'N/A')}
+                        </div>
+                      </TableCell>
+                      <TableCell className="gba:w-[10%] gba:py-4 gba:px-3 gba:text-sm">
+                        {(record as any)?.expensePlan?.code ??
+                          getTranslationFromI18nKeyAndLabel('lowcoder:common.not_available', 'N/A')}
+                      </TableCell>
+                      <TableCell
+                        className="gba:text-sm gba:py-3 gba:px-4"
+                        data-testid={`expense-requests-start-date-cell-${record.id}`}
+                      >
+                        {formatShortDateSafe(record.startDate)}
+                      </TableCell>
+                      <TableCell
+                        className="gba:text-sm gba:py-3 gba:px-4"
+                        data-testid={`expense-requests-end-date-cell-${record.id}`}
+                      >
+                        {formatShortDateSafe(record.endDate)}
+                      </TableCell>
+                      <TableCell data-testid={`expense-requests-employee-cell-${record.id}`}>
+                        <div className="gba:flex gba:items-center gba:gap-2">
+                          <Avatar className="gba:h-6 gba:w-6">
+                            <AvatarImage
+                              src={
+                                record.employee?.pictureThumbnail
+                                  ? `data:image/gif;base64,${record.employee.pictureThumbnail}`
+                                  : undefined
+                              }
+                              alt={record.employee?.fullName}
+                            />
+                            <AvatarFallback>
+                              {record.employee?.displayName?.charAt(0) || record.employee?.fullName?.charAt(0) || 'U'}
+                            </AvatarFallback>
+                          </Avatar>
+                          <div>
+                            <div className="gba:font-medium gba:text-sm">
+                              {record.employee?.displayName || record.employee?.fullName}
+                            </div>
+                            <div className="gba:text-xs gba:text-muted-foreground">
+                              {record.employee?.department ||
+                                getTranslationFromI18nKeyAndLabel('lowcoder:common.not_available', 'N/A')}
+                            </div>
                           </div>
                         </div>
-                      </div>
-                    </TableCell>
-                    <TableCell
-                      className="gba:text-sm gba:py-3 gba:px-4"
-                      data-testid={`expense-requests-request-date-cell-${record.id}`}
-                    >
-                      {formatShortDateSafe(record.requestDate)}
-                    </TableCell>
-                    <TableCell
-                      className="gba:text-right gba:text-sm"
-                      data-testid={`expense-request-amount-cell-${record.id}`}
-                    >
-                      {typeof record.amount === 'number'
-                        ? formatCurrencyDisplay(record.amount, record.currency)
-                        : formatCurrencyDisplay(0, record.currency || 'EUR')}
-                    </TableCell>
-                    <TableCell className="gba:pr-6 gba:w-[20%]">
-                      <span
-                        className={`gba:inline-block gba:rounded-full gba:px-3 gba:py-1 gba:text-xs gba:font-medium gba:whitespace-nowrap ${
-                          pillTypeClassMap[String(type).toLowerCase() as keyof typeof pillTypeClassMap] ||
-                          pillTypeClassMap.draft
-                        }`}
-                        data-testid={`status-pill-${record.status?.toLowerCase()}`}
+                      </TableCell>
+                      <TableCell
+                        className="gba:text-sm gba:py-3 gba:px-4"
+                        data-testid={`expense-requests-request-date-cell-${record.id}`}
                       >
-                        {label}
-                      </span>
-                    </TableCell>
-                  </TableRow>
-                )
-              })}
+                        {formatShortDateSafe(record.requestDate)}
+                      </TableCell>
+                      <TableCell
+                        className="gba:text-right gba:text-sm"
+                        data-testid={`expense-request-amount-cell-${record.id}`}
+                      >
+                        {typeof record.amount === 'number'
+                          ? formatCurrencyDisplay(record.amount, record.currency)
+                          : formatCurrencyDisplay(0, record.currency || 'EUR')}
+                      </TableCell>
+                      <TableCell className="gba:pr-6 gba:w-[20%]">
+                        <span
+                          className={`gba:inline-block gba:rounded-full gba:px-3 gba:py-1 gba:text-xs gba:font-medium gba:whitespace-nowrap ${
+                            pillTypeClassMap[String(type).toLowerCase() as keyof typeof pillTypeClassMap] ||
+                            pillTypeClassMap.draft
+                          }`}
+                          data-testid={`status-pill-${record.status?.toLowerCase()}`}
+                        >
+                          {label}
+                        </span>
+                      </TableCell>
+                    </TableRow>
+                  )
+                })
+              )}
             </TableBody>
           </Table>
         </div>
@@ -723,7 +738,7 @@ const ExpenseRequestsTable: React.FC<ExpenseRequestsTableProps> = props => {
         )}
       </div>
     )
-  }, [requests, isLoading, error, totalCount, pageSize, currentPage])
+  }, [requests, isLoading, error, totalCount, pageSize, currentPage, hasActiveFilters])
 
   return (
     <>
@@ -733,7 +748,7 @@ const ExpenseRequestsTable: React.FC<ExpenseRequestsTableProps> = props => {
         dataControllerProps={{
           search: searchTerm,
           setSearch: handleSearchChange,
-          filter: buildDeduplicatedFilters(selectedFilters, primaryCurrency),
+          filter: shouldShowFilters ? buildDeduplicatedFilters(selectedFilters, primaryCurrency) : [],
           setFilter: (newFilters: string[]): void => {
             // Separate currency and status filters
             const currencyFilters = newFilters.filter(f => f.startsWith('currency:'))
@@ -764,10 +779,12 @@ const ExpenseRequestsTable: React.FC<ExpenseRequestsTableProps> = props => {
 
             setCurrentPage(1)
           },
-          filterLabelMap: {
-            ...filterLabelMap,
-            ...(primaryCurrency ? { [`currency:${primaryCurrency}`]: primaryCurrency } : {})
-          },
+          filterLabelMap: shouldShowFilters
+            ? {
+                ...filterLabelMap,
+                ...(primaryCurrency ? { [`currency:${primaryCurrency}`]: primaryCurrency } : {})
+              }
+            : {},
           listTitle: (
             <div className="gba:flex gba:items-center gba:gap-4">
               <div className="gba:flex gba:items-center gba:gap-2">
@@ -784,11 +801,10 @@ const ExpenseRequestsTable: React.FC<ExpenseRequestsTableProps> = props => {
           debounceDelay: 300
         }}
         dataFilterProps={{
-          filterGroups: filterGroups,
+          filterGroups: shouldShowFilters ? filterGroups : [],
           onFilterChange: handleDataFilterChange
         }}
         dataBody={renderDataBody()}
-        contentBackground="background"
         data-testid="expense-requests-container"
       />
 
@@ -821,7 +837,7 @@ const ExpenseRequestsTable: React.FC<ExpenseRequestsTableProps> = props => {
         </SheetContent>
       </Sheet>
 
-      {/* Print Dialog */}
+      {/* Print Dialog (design system) */}
       <Dialog
         open={printModalOpen}
         onOpenChange={open => {
@@ -831,47 +847,41 @@ const ExpenseRequestsTable: React.FC<ExpenseRequestsTableProps> = props => {
           }
         }}
       >
-        <DialogContent className="gba:max-w-[90vw] gba:h-[90vh]" data-testid="print-request-dialog">
-          <DialogHeader>
+        <DialogContent
+          className="gba:!w-[90vw] gba:!max-w-[90vw] gba:!p-0 gba:!rounded-md"
+          style={{ height: '90vh' }}
+          data-testid="print-request-modal"
+        >
+          <DialogHeader className="gba:p-4">
             <DialogTitle>
               {getTranslationFromI18nKeyAndLabel('lowcoder:print.preview_title', 'Print Preview')}
             </DialogTitle>
           </DialogHeader>
-          {(() => {
-            if (printLoading) {
-              return (
-                <div className="gba:flex gba:justify-center gba:items-center gba:py-8">
-                  <Spinner />
-                </div>
-              )
-            }
-            if (printPdfUrl) {
-              return (
-                <iframe
-                  src={printPdfUrl}
-                  className="gba:w-full gba:h-full gba:border-0"
-                  title={getTranslationFromI18nKeyAndLabel('lowcoder:print.preview_title', 'Print Preview')}
-                  data-testid="print-request-iframe"
-                />
-              )
-            }
-            return (
-              <div className="gba:flex gba:flex-col gba:items-center gba:justify-center gba:py-8 gba:text-center">
-                <div className="gba:text-muted-foreground gba:mb-4">
-                  {getTranslationFromI18nKeyAndLabel(
-                    'lowcoder:print.no_document',
-                    'No document available for printing'
-                  )}
-                </div>
-                <div className="gba:text-sm gba:text-muted-foreground">
-                  {getTranslationFromI18nKeyAndLabel(
-                    'lowcoder:print.no_document_details',
-                    'This expense request does not have an associated document to print.'
-                  )}
-                </div>
+          {printLoading ? (
+            <div className="gba:flex gba:justify-center gba:items-center gba:py-8">
+              <Spinner />
+            </div>
+          ) : printPdfUrl ? (
+            <iframe
+              src={printPdfUrl}
+              className="gba:w-full gba:border-0"
+              style={{ height: 'calc(90vh - 55px)' }}
+              title={getTranslationFromI18nKeyAndLabel('lowcoder:print.preview_title', 'Print Preview')}
+              data-testid="print-request-iframe"
+            />
+          ) : (
+            <div className="gba:flex gba:flex-col gba:items-center gba:justify-center gba:py-8 gba:text-center">
+              <div className="gba:text-muted-foreground gba:mb-4">
+                {getTranslationFromI18nKeyAndLabel('lowcoder:print.no_document', 'No document available for printing')}
               </div>
-            )
-          })()}
+              <div className="gba:text-sm gba:text-muted-foreground">
+                {getTranslationFromI18nKeyAndLabel(
+                  'lowcoder:print.no_document_details',
+                  'This expense request does not have an associated document to print.'
+                )}
+              </div>
+            </div>
+          )}
         </DialogContent>
       </Dialog>
     </>

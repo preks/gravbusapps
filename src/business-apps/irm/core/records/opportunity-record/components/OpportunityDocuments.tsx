@@ -1,26 +1,13 @@
 import React, { useState, useEffect, useMemo, useCallback } from 'react'
-import { Card, CardHeader, CardTitle, CardContent, Spinner, Alert, Badge, Button } from '@newwork/nw-design-system'
 import {
-  FileTextOutlined,
-  FilePdfOutlined,
-  FileImageOutlined,
-  FileExcelOutlined,
-  FileWordOutlined,
-  FileOutlined,
-  FolderOpenOutlined,
-  DownloadOutlined,
-  EyeOutlined,
-  CaretRightOutlined,
-  AppstoreOutlined,
-  BarsOutlined,
-  CalendarOutlined,
-  UserOutlined,
-  FolderAddOutlined,
-  EditOutlined,
-  DeleteOutlined,
-  MoreOutlined
-} from '@ant-design/icons'
-import {
+  Card,
+  CardHeader,
+  CardTitle,
+  CardContent,
+  Spinner,
+  Alert,
+  Badge,
+  Button,
   Dialog,
   DialogContent,
   DialogHeader,

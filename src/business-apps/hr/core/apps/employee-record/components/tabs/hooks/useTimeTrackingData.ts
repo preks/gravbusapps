@@ -176,9 +176,20 @@ export const useTimeTrackingData = ({ employeeId, accessToken, workingHours }: U
     // derive open state from most recent row (ordered by startTime desc)
     const mostRecent = rows[0]
     const open = Boolean(mostRecent?.startTime) && !mostRecent?.endTime
-    setIsClockedIn(open)
+
+    // Enhancement: if open entry is from a past day, allow new clock-in (treat as not clocked in)
+    let isOpenAndToday = open
+    if (open && mostRecent?.attendanceDate) {
+      const todayKey = toLocalDateKey(new Date())
+      const rowKey = toLocalDateKey(new Date(mostRecent.attendanceDate))
+      if (rowKey !== todayKey) {
+        isOpenAndToday = false
+      }
+    }
+
+    setIsClockedIn(isOpenAndToday)
     setClockInSince(
-      open && mostRecent?.startTime
+      isOpenAndToday && mostRecent?.startTime
         ? new Date(mostRecent.startTime).toLocaleTimeString(locale, { hour: '2-digit', minute: '2-digit' })
         : null
     )
@@ -325,7 +336,7 @@ export const useTimeTrackingData = ({ employeeId, accessToken, workingHours }: U
           recordedTime: '0h',
           breakTime: '1h',
           effectiveTime: '0h',
-          plannedTime: '8h',
+          plannedTime: formatMinutes(getPlannedMinutesForDate(isoNow)),
           differenceTime: '0h',
           manualOverride: false,
           notes: 'Clock-in',
@@ -367,7 +378,7 @@ export const useTimeTrackingData = ({ employeeId, accessToken, workingHours }: U
       const plannedMinutes = getPlannedMinutesForDate(mostRecent.attendanceDateISO)
       // hardcoded 1h break
       const breakMinutes = 60
-      const effectiveMinutes = recordedMinutes + breakMinutes
+      const effectiveMinutes = Math.max(0, recordedMinutes - breakMinutes)
       const diffMs = effectiveMinutes * 60000 - plannedMinutes * 60000
       const diffMinutes = diffMs === 0 ? 0 : Math.sign(diffMs) * Math.ceil(Math.abs(diffMs) / 60000)
 

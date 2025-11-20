@@ -91,6 +91,19 @@ const AdvancePaymentsTable: React.FC<AdvancePaymentsTableProps> = props => {
   // Filter payments based on data from props
   const filteredPayments = useMemo(() => payments || [], [payments])
 
+  // Track if any filters are active to control empty-state messaging
+  const hasActiveFilters = useMemo(() => {
+    if (totalCount === 0 && !isLoading) {
+      return false
+    }
+
+    const hasSearch = (props.search || '').trim() !== ''
+    const hasStatusFilters = Array.isArray(props.activeFilter) && props.activeFilter.length > 0
+    const hasCurrencyFilter = !!currencyFilter
+
+    return hasSearch || hasStatusFilters || hasCurrencyFilter
+  }, [totalCount, isLoading, props.search, props.activeFilter, currencyFilter])
+
   // Handle page size changes
   const handlePageSizeChange = useCallback(
     (newPageSize: number) => {
@@ -117,19 +130,6 @@ const AdvancePaymentsTable: React.FC<AdvancePaymentsTableProps> = props => {
       </Alert>
     )
   }, [error])
-
-  const renderEmptyState = useCallback(() => {
-    return (
-      <div className="gba:flex gba:items-center gba:justify-center gba:h-64" data-testid="advance-payments-empty-state">
-        <span className="gba:text-muted-foreground">
-          {getTranslationFromI18nKeyAndLabel(
-            'lowcoder:personal_expenses.no_advance_payments_found',
-            'No advance payments found.'
-          )}
-        </span>
-      </div>
-    )
-  }, [])
 
   const renderTableContent = useCallback(() => {
     return (
@@ -277,121 +277,143 @@ const AdvancePaymentsTable: React.FC<AdvancePaymentsTableProps> = props => {
               </TableRow>
             </TableHeader>
             <TableBody>
-              {filteredPayments.map(record => (
-                <TableRow
-                  key={record.id}
-                  className="gba:cursor-pointer gba:hover:bg-accent"
-                  onClick={() => setSelectedPayment(record)}
-                >
+              {!isLoading && totalCount === 0 && filteredPayments.length === 0 ? (
+                <TableRow>
                   <TableCell
-                    className="gba:w-[60px] gba:min-w-[60px] gba:max-w-[60px] gba:box-border gba:py-3 gba:px-4"
-                    data-testid={`advance-payments-actions-cell-${record.id}`}
-                    onClick={e => e.stopPropagation()}
+                    colSpan={8}
+                    className="gba:py-8 gba:text-center"
+                    data-testid="advance-payments-empty-state"
                   >
-                    <div className="gba:flex gba:justify-start gba:gap-2">
-                      <AppActionButton
-                        onClick={e => e.stopPropagation()}
-                        data-testid={`advance-payments-update-button-${record.id}`}
-                        size="icon"
-                        staticFlowData={[
-                          {
-                            category: getTranslationFromI18nKeyAndLabel(
-                              'lowcoder:employee_list.flows_button.actions',
-                              'Actions'
-                            ),
-                            key: 'view-advance-payment-details',
-                            label: getTranslationFromI18nKeyAndLabel(
-                              'lowcoder:advance_payment_table.advance_payment_details',
-                              'View Advance Payment Details'
-                            ),
-                            onClick: () => {
-                              // Navigate to advance payment details page
-                              const url = buildPlatformUrl('/platform/fin/expenses/advance-payment-record', {
-                                advancePaymentId: record.id
-                              })
-                              navigateTo(url)
-                            }
-                          }
-                        ]}
-                        prefixDataTestId="advance-payments-update"
-                        accessToken={props.accessToken}
-                        emptyStateBehavior="enable"
-                      />
-                    </div>
-                  </TableCell>
-                  <TableCell className="gba:text-left gba:py-3 gba:px-4 gba:w-[18%]">
-                    <div className="gba:font-medium gba:text-sm gba:whitespace-nowrap gba:truncate">
-                      {record.expensePlan?.title ??
-                        getTranslationFromI18nKeyAndLabel('lowcoder:common.not_available', 'N/A')}
-                    </div>
-                    <div className="gba:text-xs gba:text-muted-foreground gba:whitespace-nowrap gba:truncate">
-                      {record.expensePlan?.code ??
-                        getTranslationFromI18nKeyAndLabel('lowcoder:common.not_available', 'N/A')}
-                    </div>
-                  </TableCell>
-                  <TableCell className="gba:text-sm gba:py-3 gba:px-4">
-                    {ensureShortDateFormat(record.expensePlan?.startDate)}
-                  </TableCell>
-                  <TableCell className="gba:text-sm gba:py-3 gba:px-4">
-                    {ensureShortDateFormat(record.expensePlan?.endDate)}
-                  </TableCell>
-                  <TableCell>
-                    <div className="gba:flex gba:items-center gba:gap-2">
-                      <Avatar className="gba:h-6 gba:w-6">
-                        <AvatarImage
-                          src={
-                            record.expensePlan?.employee?.pictureThumbnail
-                              ? `data:image/gif;base64,${record.expensePlan.employee.pictureThumbnail}`
-                              : undefined
-                          }
-                          alt={record.expensePlan?.employee?.fullName}
-                        />
-                        <AvatarFallback>{record.expensePlan?.employee?.displayName?.charAt(0) || 'U'}</AvatarFallback>
-                      </Avatar>
-                      <span className="gba:font-medium gba:text-sm">
-                        {(() => {
-                          const emp = record.expensePlan?.employee as any
-                          const full = (emp?.fullName || '').trim()
-                          const fallback = `${emp?.firstName || ''} ${emp?.lastName || ''}`.trim()
-                          return (
-                            full ||
-                            fallback ||
-                            getTranslationFromI18nKeyAndLabel('lowcoder:common.not_available', 'N/A')
+                    <div className="gba:text-muted-foreground">
+                      {hasActiveFilters
+                        ? getTranslationFromI18nKeyAndLabel(
+                            'lowcoder:advance_payment_table.no_advance_payments_found',
+                            'No advance payments found matching the current filters.'
                           )
-                        })()}
-                      </span>
+                        : getTranslationFromI18nKeyAndLabel(
+                            'lowcoder:manager_expense_landing_page.no_advance_payments_created_by_team',
+                            'No advance payment created by your team yet.'
+                          )}
                     </div>
-                  </TableCell>
-                  <TableCell className="gba:text-sm gba:py-3 gba:px-4">
-                    {ensureShortDateFormat(record.createdAt)}
-                  </TableCell>
-                  <TableCell className="gba:text-right" data-testid={`advance-payments-amount-cell-${record.id}`}>
-                    <span className="gba:font-medium gba:text-sm">
-                      {typeof record.amount === 'number'
-                        ? formatCurrencyDisplay(
-                            record.amount,
-                            (record.currencyRef || currencyFilter || '').replaceAll('Currency:v1:', '') || 'EUR'
-                          )
-                        : formatCurrencyDisplay(0, 'EUR')}
-                    </span>
-                  </TableCell>
-                  <TableCell className="gba:pr-6 gba:w-[20%]">
-                    {(() => {
-                      const status = getAdvancePaymentStatusDisplay(record.status)
-                      return (
-                        <span
-                          className={`gba:inline-block gba:rounded-full gba:px-3 gba:py-1 gba:text-xs gba:font-medium gba:whitespace-nowrap ${
-                            ADV_STATUS_CLASSES[String(status.type).toLowerCase()] || ADV_STATUS_CLASSES.draft
-                          }`}
-                          data-testid={`status-pill-${String(status.type).toLowerCase()}`}
-                        >
-                          {status.label}
-                        </span>
-                      )
-                    })()}
                   </TableCell>
                 </TableRow>
-              ))}
+              ) : (
+                filteredPayments.map(record => (
+                  <TableRow
+                    key={record.id}
+                    className="gba:cursor-pointer gba:hover:bg-accent"
+                    onClick={() => setSelectedPayment(record)}
+                  >
+                    <TableCell
+                      className="gba:w-[60px] gba:min-w-[60px] gba:max-w-[60px] gba:box-border gba:py-3 gba:px-4"
+                      data-testid={`advance-payments-actions-cell-${record.id}`}
+                      onClick={e => e.stopPropagation()}
+                    >
+                      <div className="gba:flex gba:justify-start gba:gap-2">
+                        <AppActionButton
+                          onClick={e => e.stopPropagation()}
+                          data-testid={`advance-payments-update-button-${record.id}`}
+                          size="icon"
+                          staticFlowData={[
+                            {
+                              category: getTranslationFromI18nKeyAndLabel(
+                                'lowcoder:employee_list.flows_button.actions',
+                                'Actions'
+                              ),
+                              key: 'view-advance-payment-details',
+                              label: getTranslationFromI18nKeyAndLabel(
+                                'lowcoder:advance_payment_table.advance_payment_details',
+                                'View Advance Payment Details'
+                              ),
+                              onClick: () => {
+                                // Navigate to advance payment details page
+                                const url = buildPlatformUrl('/platform/fin/expenses/advance-payment-record', {
+                                  advancePaymentId: record.id
+                                })
+                                navigateTo(url)
+                              }
+                            }
+                          ]}
+                          prefixDataTestId="advance-payments-update"
+                          accessToken={props.accessToken}
+                          emptyStateBehavior="enable"
+                        />
+                      </div>
+                    </TableCell>
+                    <TableCell className="gba:text-left gba:py-3 gba:px-4 gba:w-[18%]">
+                      <div className="gba:font-medium gba:text-sm gba:whitespace-nowrap gba:truncate">
+                        {record.expensePlan?.title ??
+                          getTranslationFromI18nKeyAndLabel('lowcoder:common.not_available', 'N/A')}
+                      </div>
+                      <div className="gba:text-xs gba:text-muted-foreground gba:whitespace-nowrap gba:truncate">
+                        {record.expensePlan?.code ??
+                          getTranslationFromI18nKeyAndLabel('lowcoder:common.not_available', 'N/A')}
+                      </div>
+                    </TableCell>
+                    <TableCell className="gba:text-sm gba:py-3 gba:px-4">
+                      {ensureShortDateFormat(record.expensePlan?.startDate)}
+                    </TableCell>
+                    <TableCell className="gba:text-sm gba:py-3 gba:px-4">
+                      {ensureShortDateFormat(record.expensePlan?.endDate)}
+                    </TableCell>
+                    <TableCell>
+                      <div className="gba:flex gba:items-center gba:gap-2">
+                        <Avatar className="gba:h-6 gba:w-6">
+                          <AvatarImage
+                            src={
+                              record.expensePlan?.employee?.pictureThumbnail
+                                ? `data:image/gif;base64,${record.expensePlan.employee.pictureThumbnail}`
+                                : undefined
+                            }
+                            alt={record.expensePlan?.employee?.fullName}
+                          />
+                          <AvatarFallback>{record.expensePlan?.employee?.displayName?.charAt(0) || 'U'}</AvatarFallback>
+                        </Avatar>
+                        <span className="gba:font-medium gba:text-sm">
+                          {(() => {
+                            const emp = record.expensePlan?.employee as any
+                            const full = (emp?.fullName || '').trim()
+                            const fallback = `${emp?.firstName || ''} ${emp?.lastName || ''}`.trim()
+                            return (
+                              full ||
+                              fallback ||
+                              getTranslationFromI18nKeyAndLabel('lowcoder:common.not_available', 'N/A')
+                            )
+                          })()}
+                        </span>
+                      </div>
+                    </TableCell>
+                    <TableCell className="gba:text-sm gba:py-3 gba:px-4">
+                      {ensureShortDateFormat(record.createdAt)}
+                    </TableCell>
+                    <TableCell className="gba:text-right" data-testid={`advance-payments-amount-cell-${record.id}`}>
+                      <span className="gba:font-medium gba:text-sm">
+                        {typeof record.amount === 'number'
+                          ? formatCurrencyDisplay(
+                              record.amount,
+                              (record.currencyRef || currencyFilter || '').replaceAll('Currency:v1:', '') || 'EUR'
+                            )
+                          : formatCurrencyDisplay(0, 'EUR')}
+                      </span>
+                    </TableCell>
+                    <TableCell className="gba:pr-6 gba:w-[20%]">
+                      {(() => {
+                        const status = getAdvancePaymentStatusDisplay(record.status)
+                        return (
+                          <span
+                            className={`gba:inline-block gba:rounded-full gba:px-3 gba:py-1 gba:text-xs gba:font-medium gba:whitespace-nowrap ${
+                              ADV_STATUS_CLASSES[String(status.type).toLowerCase()] || ADV_STATUS_CLASSES.draft
+                            }`}
+                            data-testid={`status-pill-${String(status.type).toLowerCase()}`}
+                          >
+                            {status.label}
+                          </span>
+                        )
+                      })()}
+                    </TableCell>
+                  </TableRow>
+                ))
+              )}
             </TableBody>
           </Table>
         </div>
@@ -494,9 +516,8 @@ const AdvancePaymentsTable: React.FC<AdvancePaymentsTableProps> = props => {
   // Render the table (low-complexity orchestrator)
   const renderDataBody = useCallback(() => {
     if (error) return renderErrorAlert()
-    if (!isLoading && filteredPayments.length === 0) return renderEmptyState()
     return renderTableContent()
-  }, [error, isLoading, filteredPayments.length, renderErrorAlert, renderEmptyState, renderTableContent])
+  }, [error, renderErrorAlert, renderTableContent])
 
   return (
     <>

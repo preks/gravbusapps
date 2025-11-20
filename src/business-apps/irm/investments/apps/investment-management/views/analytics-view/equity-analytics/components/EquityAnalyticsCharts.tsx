@@ -13,7 +13,7 @@ import {
 } from '@newwork/nw-design-system'
 import { ComposedChart, ScatterChart, Scatter, Bar, Line, XAxis, YAxis } from 'recharts'
 import { ChartScatterIcon, ChartBarIcon } from '@phosphor-icons/react'
-import { formatCurrencyCompact } from '../../../../utils/currencyUtils'
+import { formatCurrencyCompact, extractCurrencyCode } from '@/common/utils/numberFormatter'
 import { CurrencyFilter } from '../../shared/components'
 import { useCurrencySync } from '../../shared/hooks'
 import { useEquityStakeVsAmount, useEquityRoleVsAmount, useEquityConcentrationByRole } from '../hooks'
@@ -316,7 +316,9 @@ export const EquityAnalyticsCharts: React.FC<EquityAnalyticsChartsProps> = props
                     dataKey="investmentAmount"
                     name="Investment Amount"
                     tick={{ fontSize: 12 }}
-                    tickFormatter={value => formatCurrencyCompact(value, stakeAmountCurrency)}
+                    tickFormatter={value =>
+                      formatCurrencyCompact(value, extractCurrencyCode(stakeAmountCurrency), undefined, 1, true)
+                    }
                   />
                   <ChartTooltip content={renderStakeTooltip} />
                   <Scatter
@@ -398,7 +400,9 @@ export const EquityAnalyticsCharts: React.FC<EquityAnalyticsChartsProps> = props
                     dataKey="investmentAmount"
                     name="Investment Amount"
                     tick={{ fontSize: 12 }}
-                    tickFormatter={value => formatCurrencyCompact(value, roleAmountCurrency)}
+                    tickFormatter={value =>
+                      formatCurrencyCompact(value, extractCurrencyCode(roleAmountCurrency), undefined, 1, true)
+                    }
                   />
                   <ChartTooltip content={renderRoleTooltip} />
                   <Scatter

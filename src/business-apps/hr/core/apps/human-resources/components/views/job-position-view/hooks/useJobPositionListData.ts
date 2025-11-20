@@ -120,6 +120,12 @@ export interface EmployeePosition {
   lastName: string
   employeeId: string
   employee: Employee
+  supervisor?: {
+    id: string
+    firstName: string
+    lastName: string
+    pictureThumbnail?: string | null
+  }
 }
 
 /**
@@ -128,6 +134,7 @@ export interface EmployeePosition {
 export interface JobPosition {
   id: string
   name: string
+  activeTo?: string | null
   jobFunction: JobFunction | null
   jobLevel: JobLevel | null
   jobProfile: JobProfile | null
@@ -178,6 +185,11 @@ const buildSortCondition = (sortField: string, sortOrder: 'ASC' | 'DESC', orderB
     case 'employee':
       // Fixed: Use correct GraphQL path for employee sorting
       orderBy.employeePositionsAggregate = { max: { firstName: sortDirection } }
+      break
+    case 'markedForTermination':
+      // Sort by activeTo with desired null handling:
+      // ASC -> NULLS FIRST, DESC -> NULLS LAST
+      orderBy.activeTo = sortField && sortOrder === 'ASC' ? 'ASC_NULLS_FIRST' : 'DESC_NULLS_LAST'
       break
   }
 }
@@ -245,6 +257,11 @@ export function useJobPositionListData(filters: JobPositionListFilters & { acces
 
       // Build filter object for all filter types
       const filterConditions: any[] = []
+      // Always show only positions still active: activeTo is null or in the future
+      const todayIso = new Date().toISOString()
+      filterConditions.push({
+        _or: [{ activeTo: { _isNull: true } }, { activeTo: { _gte: todayIso } }]
+      })
 
       // Handle both departments and organizationalUnits (for backward compatibility)
       const orgUnits = currentFilters.departments

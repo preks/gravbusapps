@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useCallback, useMemo, useRef } from 'react'
 import { useDebounce } from '@/common/hooks/useDebounce'
 import { BusinessAppContextProps } from '@/common/BusinessAppContext'
-import { Alert, Empty, Modal } from 'antd'
+import { Alert } from 'antd'
 import {
   Table,
   TableHeader,
@@ -16,7 +16,11 @@ import {
   Sheet,
   SheetContent,
   SheetHeader,
-  SheetTitle
+  SheetTitle,
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle
 } from '@newwork/nw-design-system'
 import { DataContainer } from '@/components/layout/dataContainer/DataContainer'
 import { getExpenseRequestStatusDisplay } from '../../../utils'
@@ -113,8 +117,12 @@ const ExpenseRequestsTable: React.FC<ExpenseRequestsTableProps> = React.memo(pro
 
   // Track if any filters are active to show conditional messages
   const hasActiveFilters = useMemo(() => {
+    // When there's no data, don't show active filters
+    if (totalCount === 0 && !isLoading) {
+      return false
+    }
     return search || selectedFilters.length > 0
-  }, [search, selectedFilters])
+  }, [search, selectedFilters, totalCount, isLoading])
 
   // Sync local search input with prop changes
   useEffect(() => {
@@ -318,14 +326,6 @@ const ExpenseRequestsTable: React.FC<ExpenseRequestsTableProps> = React.memo(pro
       return <Alert message="Error" description={errorMessage} type="error" showIcon />
     }
 
-    // Show empty state only when not loading and there are no items
-    if (!isLoading && (!items || items.length === 0)) {
-      return <Empty description="No expense requests found matching your criteria." style={{ margin: '40px 0' }} />
-    }
-
-    // Always render the table, but use the loading prop to show loading state
-    // This keeps the table visible during loading for better UX
-
     return (
       <div className="expense-requests-table">
         <Card data-testid="expense-requests-table-container">
@@ -443,7 +443,7 @@ const ExpenseRequestsTable: React.FC<ExpenseRequestsTableProps> = React.memo(pro
                   </TableRow>
                 </TableHeader>
                 <TableBody>
-                  {!isLoading && (!items || items.length === 0) ? (
+                  {!isLoading && totalCount === 0 && (!items || items.length === 0) ? (
                     <TableRow>
                       <TableCell colSpan={9} className="gba:py-8 gba:text-center">
                         <div className="gba:text-gray-500">
@@ -625,7 +625,9 @@ const ExpenseRequestsTable: React.FC<ExpenseRequestsTableProps> = React.memo(pro
                     className="gba:flex gba:w-[100px] gba:items-center gba:justify-center gba:text-sm gba:font-medium"
                     data-testid="expense-requests-page-info"
                   >
-                    Page {currentPage} of {Math.ceil(totalCount / pageSize)}
+                    {getTranslationFromI18nKeyAndLabel('lowcoder:personal_expenses.page', 'Page')} {currentPage}{' '}
+                    {getTranslationFromI18nKeyAndLabel('lowcoder:personal_expenses.of', 'of')}{' '}
+                    {Math.ceil(totalCount / pageSize)}
                   </div>
                   <div className="gba:flex gba:items-center gba:space-x-2">
                     <Button
@@ -721,7 +723,6 @@ const ExpenseRequestsTable: React.FC<ExpenseRequestsTableProps> = React.memo(pro
   return (
     <>
       <DataContainer
-        sidebarScrollable={false}
         dataControllerProps={{
           listTitle: getTranslationFromI18nKeyAndLabel(
             'lowcoder:employee_list.flows_button.expense_requests',
@@ -753,6 +754,10 @@ const ExpenseRequestsTable: React.FC<ExpenseRequestsTableProps> = React.memo(pro
         }}
         dataFilterProps={{
           filterGroups: useMemo(() => {
+            // Hide filters when there's no data
+            if (totalCount === 0 && !isLoading) {
+              return []
+            }
             const currencyFilters =
               (props as any).currencyStats?.map((cs: any) => ({
                 id: `currency:${cs.ref}`,
@@ -764,13 +769,16 @@ const ExpenseRequestsTable: React.FC<ExpenseRequestsTableProps> = React.memo(pro
                 ? [
                     {
                       id: 'currency',
-                      title: getTranslationFromI18nKeyAndLabel('lowcoder:expense_item_list.currency', 'Currency'),
+                      title: getTranslationFromI18nKeyAndLabel(
+                        'lowcoder:create_expense_item.change_expense_item_container.current_currency_label',
+                        'Currency'
+                      ),
                       filters: currencyFilters
                     }
                   ]
                 : []
             return [...currencyGroup, ...filterGroups]
-          }, [filterGroups, selectedFilters, (props as any).currencyStats]),
+          }, [filterGroups, selectedFilters, (props as any).currencyStats, totalCount, isLoading]),
           onFilterChange: handleFilterChangeCallback
         }}
         dataBody={renderDataBody()}
@@ -813,35 +821,48 @@ const ExpenseRequestsTable: React.FC<ExpenseRequestsTableProps> = React.memo(pro
         </SheetContent>
       </Sheet>
 
-      {/* Print Modal */}
-      <Modal
-        title={getTranslationFromI18nKeyAndLabel(
-          'lowcoder:personal_expenses.print_expense_request',
-          'Print Expense Request'
-        )}
+      {/* Print Dialog using design system */}
+      <Dialog
         open={printModalOpen}
-        onCancel={() => setPrintModalOpen(false)}
-        footer={null}
-        width={800}
-        data-testid="expense-request-print-modal"
+        onOpenChange={open => {
+          setPrintModalOpen(open)
+          if (!open) {
+            setPrintPdfUrl('')
+          }
+        }}
       >
-        {printLoading ? (
-          <div className="gba:flex gba:justify-center gba:p-8">
-            <Spinner />
-          </div>
-        ) : printPdfUrl ? (
-          <iframe
-            src={printPdfUrl}
-            style={{ width: '100%', height: '600px', border: 'none' }}
-            title="Expense Request PDF"
-            data-testid="expense-request-pdf-iframe"
-          />
-        ) : (
-          <div className="gba:text-center gba:p-8 gba:text-gray-500">
-            {getTranslationFromI18nKeyAndLabel('lowcoder:personal_expenses.failed_to_load_pdf', 'Failed to load PDF')}
-          </div>
-        )}
-      </Modal>
+        <DialogContent
+          className="gba:!w-[90vw] gba:!max-w-[90vw] gba:!p-0 gba:!rounded-md"
+          style={{ height: '90vh' }}
+          data-testid="expense-request-print-modal"
+        >
+          <DialogHeader className="gba:p-4">
+            <DialogTitle>
+              {getTranslationFromI18nKeyAndLabel(
+                'lowcoder:personal_expenses.print_expense_request',
+                'Print Expense Request'
+              )}
+            </DialogTitle>
+          </DialogHeader>
+          {printLoading ? (
+            <div className="gba:flex gba:justify-center gba:p-8">
+              <Spinner />
+            </div>
+          ) : printPdfUrl ? (
+            <iframe
+              src={printPdfUrl}
+              className="gba:w-full gba:border-0"
+              style={{ height: 'calc(90vh - 55px)' }}
+              title="Expense Request PDF"
+              data-testid="expense-request-pdf-iframe"
+            />
+          ) : (
+            <div className="gba:text-center gba:p-8 gba:text-gray-500">
+              {getTranslationFromI18nKeyAndLabel('lowcoder:personal_expenses.failed_to_load_pdf', 'Failed to load PDF')}
+            </div>
+          )}
+        </DialogContent>
+      </Dialog>
     </>
   )
 })

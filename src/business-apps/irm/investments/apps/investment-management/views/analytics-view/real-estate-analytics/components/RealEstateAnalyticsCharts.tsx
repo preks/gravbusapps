@@ -15,7 +15,7 @@ import {
 } from '@newwork/nw-design-system'
 import { ScatterChart, Scatter, XAxis, YAxis, Bar, ComposedChart } from 'recharts'
 import { ChartBarIcon, PercentIcon } from '@phosphor-icons/react'
-import { formatCurrencyCompact } from '../../../../utils/currencyUtils'
+import { formatCurrencyCompact } from '@/common/utils/numberFormatter'
 import { CurrencyFilter } from '../../shared/components'
 import { useCurrencySync } from '../../shared/hooks'
 import { useRealEstateOccupancyDistribution, useRealEstatePropertyValueVsRent } from '../hooks'

@@ -4,7 +4,7 @@ import { Card, CardHeader, CardTitle, CardContent } from '@newwork/nw-design-sys
 import type { ColumnsType } from 'antd/es/table'
 import Pill from '@/components/pill'
 import { ExpensePlanItem } from '../types/expensePlanRecord.types'
-import { getTranslationFromI18nKeyAndLabel } from '@/common/utils/windowUtils'
+import { getTranslationFromI18nKeyAndLabel, getCatalogValue } from '@/common/utils/windowUtils'
 import { formatCurrencyDisplay } from '../utils/currency'
 import type { WidgetItem } from '@/components/widget-group'
 import { SectionKpiCards, type KpiCardData } from '@newwork/nw-design-system'
@@ -39,13 +39,21 @@ const ExpensePlanItems: React.FC<ExpensePlanItemsProps> = ({ expensePlanItems, c
       width: 100
     },
     {
-      title: getTranslationFromI18nKeyAndLabel(
-        'lowcoder:calculation_rule_tab_custom_fields.custom_fields_modal.affected_expense_modal.title',
-        'Title'
-      ),
+      title: getTranslationFromI18nKeyAndLabel('lowcoder:expense_item_list.expense_table.title', 'Title'),
       dataIndex: 'title',
       key: 'title',
-      render: (text: string) => <span className="gba:font-semibold">{text}</span>
+      render: (text: string, record) => {
+        const isGeneratedAllowance =
+          (record as any)?.expenseGroup?.value === 'Allowances' &&
+          typeof text === 'string' &&
+          text.trim().toLowerCase() === 'generated allowance'
+
+        const displayTitle = isGeneratedAllowance
+          ? getTranslationFromI18nKeyAndLabel('lowcoder:personal_expenses.generated_allowance', 'Generated Allowance')
+          : text
+
+        return <span className="gba:font-semibold">{displayTitle}</span>
+      }
     },
     {
       title: getTranslationFromI18nKeyAndLabel(
@@ -54,12 +62,19 @@ const ExpensePlanItems: React.FC<ExpensePlanItemsProps> = ({ expensePlanItems, c
       ),
       dataIndex: ['expenseGroup', 'value'],
       key: 'expenseGroup',
-      render: (text: string) => <Pill label={text} type="waiting" data-testid={`expense-group-pill-${text}`} />
+      render: (_: string, record: ExpensePlanItem) => {
+        const label = record.expenseGroup ? (getCatalogValue(record.expenseGroup) ?? _) : _
+        return <Pill label={label} type="waiting" data-testid={`expense-group-pill-${label}`} />
+      }
     },
     {
       title: getTranslationFromI18nKeyAndLabel('lowcoder:personal_expenses.expense_class', 'Expense Class'),
       dataIndex: ['expenseClass', 'value'],
-      key: 'expenseClass'
+      key: 'expenseClass',
+      render: (_: string, record: ExpensePlanItem) => {
+        const label = record.expenseClass ? (getCatalogValue(record.expenseClass) ?? _) : _
+        return <span data-testid="expense-class-cell">{label}</span>
+      }
     },
     {
       title: getTranslationFromI18nKeyAndLabel('lowcoder:expense_request_list.expense_plan_table.date', 'Date'),
@@ -156,10 +171,7 @@ const ExpensePlanItems: React.FC<ExpensePlanItemsProps> = ({ expensePlanItems, c
       },
       {
         key: 'non-reimbursable-amount',
-        title: getTranslationFromI18nKeyAndLabel(
-          'lowcoder:expense_plan.item.nonReimbursableAmount',
-          'Non-Reimbursable'
-        ),
+        title: getTranslationFromI18nKeyAndLabel('lowcoder:personal_expenses.non-reimbursable', 'Non-Reimbursable'),
         value: formatAmount(summaryAmounts.nonReimbursable),
         valueIsString: true
       },

@@ -2,6 +2,8 @@ import React from 'react'
 import { Card, Typography, Table, Tag, Progress, Tooltip as AntTooltip } from 'antd'
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, ResponsiveContainer, Cell, Tooltip } from 'recharts'
 import { SpanOfControlData, SpanOfControlSummary } from '../types/structuralTypes'
+import { useTranslation } from '@newwork/nw-design-system'
+import hrTranslations from '@/business-apps/hr/core/apps/human-resources/_i18n'
 
 const { Title, Text } = Typography
 
@@ -16,6 +18,7 @@ export const SpanOfControlChart: React.FC<SpanOfControlChartProps> = ({
   summary,
   prefixDataTestId = 'StructuralAnalysis'
 }) => {
+  const { t } = useTranslation(hrTranslations)
   // Prepare data for the bar chart
   const chartData = data.map(item => ({
     name: item.managerName.length > 15 ? `${item.managerName.substring(0, 12)}...` : item.managerName,
@@ -29,7 +32,7 @@ export const SpanOfControlChart: React.FC<SpanOfControlChartProps> = ({
   // Table columns configuration
   const columns = [
     {
-      title: 'Manager',
+      title: t('hr-analytics-top-manager'),
       dataIndex: 'managerName',
       key: 'managerName',
       width: 200,
@@ -41,13 +44,13 @@ export const SpanOfControlChart: React.FC<SpanOfControlChartProps> = ({
       )
     },
     {
-      title: 'Organizational Unit',
+      title: t('hr-analytics-organizational-hierarchy'),
       dataIndex: 'organizationalUnit',
       key: 'organizationalUnit',
       width: 180
     },
     {
-      title: 'Level',
+      title: t('hr-analytics-level'),
       dataIndex: 'managerLevel',
       key: 'managerLevel',
       width: 80,
@@ -55,7 +58,7 @@ export const SpanOfControlChart: React.FC<SpanOfControlChartProps> = ({
       render: (value: string | null) => value || '-'
     },
     {
-      title: 'Direct Reports',
+      title: t('hr-analytics-direct-reports'),
       dataIndex: 'directReports',
       key: 'directReports',
       width: 120,
@@ -67,22 +70,22 @@ export const SpanOfControlChart: React.FC<SpanOfControlChartProps> = ({
       )
     },
     {
-      title: 'Status',
+      title: t('hr-analytics-status'),
       dataIndex: 'efficiency',
       key: 'efficiency',
       width: 100,
       align: 'center' as const,
       render: (efficiency: 'Optimal' | 'Overloaded' | 'Underutilized') => {
         const config = {
-          Underutilized: { color: 'orange', text: 'Under' },
-          Optimal: { color: 'green', text: 'Optimal' },
-          Overloaded: { color: 'red', text: 'Over' }
+          Underutilized: { color: 'orange', text: t('hr-analytics-underutilized') },
+          Optimal: { color: 'green', text: t('hr-analytics-optimal') },
+          Overloaded: { color: 'red', text: t('hr-analytics-overloaded') }
         }
         return <Tag color={config[efficiency].color}>{config[efficiency].text}</Tag>
       }
     },
     {
-      title: 'Recommendation',
+      title: t('hr-analytics-recommendation'),
       dataIndex: 'recommendation',
       key: 'recommendation',
       render: (text: string) =>
@@ -112,22 +115,22 @@ export const SpanOfControlChart: React.FC<SpanOfControlChartProps> = ({
       {/* Summary Statistics */}
       <Card className="gba:mb-4">
         <Title level={5} className="gba:m-0 gba:mb-4 gba:text-foreground">
-          Span of Control Summary
+          {t('hr-analytics-span-of-control-summary')}
         </Title>
         <div className="gba:grid gba:grid-cols-[repeat(auto-fit,minmax(150px,1fr))] gba:gap-4">
           <div className="gba:text-center gba:p-4 gba:bg-muted gba:rounded">
             <div className="gba:text-2xl gba:font-bold gba:text-foreground">{summary.totalManagers}</div>
-            <div className="gba:text-xs gba:text-muted-foreground">Total Managers</div>
+            <div className="gba:text-xs gba:text-muted-foreground">{t('hr-analytics-total-managers')}</div>
           </div>
           <div className="gba:text-center gba:p-4 gba:bg-muted gba:rounded">
             <div className="gba:text-2xl gba:font-bold gba:text-foreground">{summary.averageSpan.toFixed(1)}</div>
-            <div className="gba:text-xs gba:text-muted-foreground">Average Span</div>
+            <div className="gba:text-xs gba:text-muted-foreground">{t('hr-analytics-average-span')}</div>
           </div>
           <div className="gba:text-center gba:p-4 gba:bg-success-secondary/40 gba:rounded">
             <div className="gba:text-2xl gba:font-bold gba:text-success-secondary-foreground">
               {summary.optimalCount}
             </div>
-            <div className="gba:text-xs gba:text-muted-foreground">Optimal</div>
+            <div className="gba:text-xs gba:text-muted-foreground">{t('hr-analytics-optimal')}</div>
             <Progress
               percent={summary.totalManagers > 0 ? (summary.optimalCount / summary.totalManagers) * 100 : 0}
               size="small"
@@ -139,7 +142,7 @@ export const SpanOfControlChart: React.FC<SpanOfControlChartProps> = ({
             <div className="gba:text-2xl gba:font-bold gba:text-warning-secondary-foreground">
               {summary.underUtilizedCount}
             </div>
-            <div className="gba:text-xs gba:text-muted-foreground">Under-utilized</div>
+            <div className="gba:text-xs gba:text-muted-foreground">{t('hr-analytics-underutilized')}</div>
             <Progress
               percent={summary.totalManagers > 0 ? (summary.underUtilizedCount / summary.totalManagers) * 100 : 0}
               size="small"
@@ -151,7 +154,7 @@ export const SpanOfControlChart: React.FC<SpanOfControlChartProps> = ({
             <div className="gba:text-2xl gba:font-bold gba:text-destructive-secondary-foreground">
               {summary.overBurdenedCount}
             </div>
-            <div className="gba:text-xs gba:text-muted-foreground">Over-burdened</div>
+            <div className="gba:text-xs gba:text-muted-foreground">{t('hr-analytics-overloaded')}</div>
             <Progress
               percent={summary.totalManagers > 0 ? (summary.overBurdenedCount / summary.totalManagers) * 100 : 0}
               size="small"
@@ -163,7 +166,8 @@ export const SpanOfControlChart: React.FC<SpanOfControlChartProps> = ({
 
         <div className="gba:mt-4 gba:p-3 gba:bg-info-secondary/40 gba:rounded gba:text-center">
           <Text className="gba:text-info-secondary-foreground">
-            Recommended span range: {summary.recommendedSpanMin} - {summary.recommendedSpanMax} direct reports
+            {t('hr-analytics-recommended-span-range')}: {summary.recommendedSpanMin} - {summary.recommendedSpanMax}{' '}
+            {t('hr-analytics-direct-reports')}
           </Text>
         </div>
       </Card>
@@ -171,13 +175,13 @@ export const SpanOfControlChart: React.FC<SpanOfControlChartProps> = ({
       {/* Bar Chart */}
       <Card className="gba:mb-4">
         <Title level={5} className="gba:m-0 gba:mb-4 gba:text-foreground">
-          Span of Control Distribution
+          {t('hr-analytics-span-of-control-distribution')}
         </Title>
         <ResponsiveContainer width="100%" height={300}>
           <BarChart data={chartData} margin={{ top: 20, right: 30, left: 20, bottom: 60 }}>
             <CartesianGrid strokeDasharray="3 3" />
             <XAxis dataKey="name" angle={-45} textAnchor="end" height={80} interval={0} />
-            <YAxis label={{ value: 'Direct Reports', angle: -90, position: 'insideLeft' }} />
+            <YAxis label={{ value: t('hr-analytics-direct-reports'), angle: -90, position: 'insideLeft' }} />
             <Tooltip />
             <Bar dataKey="directReports" radius={[4, 4, 0, 0]}>
               {chartData.map((entry, index) => (
@@ -191,7 +195,7 @@ export const SpanOfControlChart: React.FC<SpanOfControlChartProps> = ({
       {/* Detailed Table */}
       <Card>
         <Title level={5} className="gba:m-0 gba:mb-4 gba:text-foreground">
-          Detailed Span of Control Analysis
+          {t('hr-analytics-detailed-span-of-control-analysis')}
         </Title>
         <Table
           dataSource={data}

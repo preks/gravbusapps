@@ -80,7 +80,6 @@ const ApprovalsPage: React.FC<ApprovalsPageProps> = ({ onNavigateBack, ...props 
       [activeTab]: { ...prev[activeTab], ...updates }
     }))
   }
-
   return (
     <div data-testid="approvals-page-container">
       <div className="gba:px-6 gba:pt-6 gba:pb-0">

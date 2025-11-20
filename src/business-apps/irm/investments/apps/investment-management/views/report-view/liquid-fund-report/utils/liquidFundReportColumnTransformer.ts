@@ -5,7 +5,7 @@ import {
   FormFieldsDefinition,
   FormFieldDefinition
 } from '@/business-apps/irm/investments/forms/investment-form/queries/InvestmentCatalogQueries'
-import { formatCurrency, extractCurrencyCode } from '@/business-apps/crm/common/utils/currencyUtils'
+import { formatCurrency, extractCurrencyCode } from '@/common/utils/numberFormatter'
 import { formatNumberFunction } from '@/common/utils/windowUtils'
 import { getValueByPath } from '@/common/utils/objectUtils'
 

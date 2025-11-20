@@ -1,10 +1,10 @@
 import React from 'react'
 import { Spin, Typography, Empty } from 'antd'
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer } from 'recharts'
-import { Card } from '@newwork/nw-design-system'
+import { Card, useTranslation } from '@newwork/nw-design-system'
 import { useYearlyPayroll } from '../../../../../hooks/useYearlyPayroll'
 import { BusinessAppContextProps } from '@/common/BusinessAppContext'
-import { getTranslationFromI18nKeyAndLabel } from '@/common/utils/windowUtils'
+import hrTranslations from '@/business-apps/hr/core/apps/human-resources/_i18n'
 
 const { Title, Text } = Typography
 
@@ -14,6 +14,7 @@ const { Title, Text } = Typography
 const YearlyPayrollChart: React.FC<BusinessAppContextProps> = ({ accessToken }) => {
   // Fetch yearly payroll data
   const { data, loading, error } = useYearlyPayroll(accessToken)
+  const { t } = useTranslation(hrTranslations)
 
   console.log('[YearlyPayrollChart] Rendering chart with data:', data)
 
@@ -36,13 +37,10 @@ const YearlyPayrollChart: React.FC<BusinessAppContextProps> = ({ accessToken }) 
       {/* Header */}
       <div className="gba:mb-4 gba:ml-4">
         <Title level={4} className="gba:m-0 gba:text-foreground">
-          {getTranslationFromI18nKeyAndLabel('hr_analytics_yearly_payroll_chart_title', 'Total Payroll by Year')}
+          {t('hr-analytics-yearly-payroll-chart-title')}
         </Title>
         <Text className="gba:text-muted-foreground gba:text-sm gba:mt-1">
-          {getTranslationFromI18nKeyAndLabel(
-            'hr_analytics_yearly_payroll_description',
-            'Annual payroll expenditure trends showing total compensation costs across the organization'
-          )}
+          {t('hr-analytics-yearly-payroll-description')}
         </Text>
       </div>
 
@@ -53,21 +51,11 @@ const YearlyPayrollChart: React.FC<BusinessAppContextProps> = ({ accessToken }) 
         </div>
       ) : error ? (
         <div className="gba:flex gba:flex-col gba:items-center gba:justify-center gba:h-96">
-          <Text className="gba:text-destructive">
-            {getTranslationFromI18nKeyAndLabel(
-              'hr_analytics_yearly_payroll_error',
-              'Error loading yearly payroll data'
-            )}
-          </Text>
+          <Text className="gba:text-destructive">{t('hr-analytics-yearly-payroll-error')}</Text>
         </div>
       ) : !data || data.length === 0 ? (
         <div className="gba:flex gba:flex-col gba:items-center gba:justify-center gba:h-96">
-          <Empty
-            description={getTranslationFromI18nKeyAndLabel(
-              'hr_analytics_yearly_payroll_no_data',
-              'No yearly payroll data available'
-            )}
-          />
+          <Empty description={t('hr-analytics-yearly-payroll-no-data')} />
         </div>
       ) : (
         <div className="gba:h-96">
@@ -82,12 +70,12 @@ const YearlyPayrollChart: React.FC<BusinessAppContextProps> = ({ accessToken }) 
               }}
             >
               <CartesianGrid strokeDasharray="3 3" />
-              <XAxis dataKey="year" name="Year" />
-              <YAxis name="Total Payroll" tickFormatter={tooltipFormatter} />
-              <Tooltip formatter={tooltipFormatter} labelFormatter={label => `Year: ${label}`} />
+              <XAxis dataKey="year" name={t('hr-analytics-chart-year')} />
+              <YAxis name={t('hr-analytics-total-payroll')} tickFormatter={tooltipFormatter} />
+              <Tooltip formatter={tooltipFormatter} labelFormatter={label => `${t('hr-analytics-chart-year')}: ${label}`} />
               <Legend />
               <Bar
-                name={getTranslationFromI18nKeyAndLabel('hr_analytics_total_payroll', 'Total Payroll')}
+                name={t('hr-analytics-total-payroll')}
                 dataKey="totalPayroll"
                 fill="var(--nw-chart-3)"
                 barSize={38}

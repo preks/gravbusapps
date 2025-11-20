@@ -1,6 +1,5 @@
 import React, { useState, useEffect, useCallback } from 'react'
 import { BusinessAppContextProps } from '@/common/BusinessAppContext'
-import { getTranslationFromI18nKeyAndLabel } from '@/common/utils/windowUtils'
 import { buildPlatformUrl } from '@/common/utils/navigationUtils'
 import { useGetInvestmentTasksByInvestmentId } from '../../hooks/useInvestmentTasksByInvestmentId'
 import { useGetInvestmentActivitiesByInvestmentId } from '../../hooks/useInvestmentActivitiesByInvestmentId'
@@ -11,7 +10,6 @@ import ContactSection from '@/common/components/common-relations/record-sections
 import ActivitySection from '@/common/components/common-relations/record-sections/activity-section/ActivitySection'
 import NoteSection from '@/common/components/common-relations/record-sections/note-section/NoteSection'
 import TaskSection from '@/common/components/common-relations/record-sections/task-section/TaskSection'
-import { transformTaskOrApproval } from '@/common/components/common-relations/record-sections/task-section/utils/taskMappers'
 import SectionWrapper from '@/common/components/common-relations/record-sections/section-card/SectionCard'
 import type { TaskReference } from '@/common/components/common-relations/detail-sheets/task-detail-sheet'
 
@@ -203,38 +201,7 @@ export const InvestmentHomeTab: React.FC<InvestmentHomeTabProps> = ({ investment
             component: AccountSection,
             props: {
               ...context,
-              account: investment?.investmentAccount
-                ? {
-                    id: investment.investmentAccount.id,
-                    name: investment.investmentAccount.name,
-                    email: investment.investmentAccount.email,
-                    phone: investment.investmentAccount.phone,
-                    website: investment.investmentAccount.website,
-                    legalForm: investment.investmentAccount.legalForm?.value,
-                    industry: investment.investmentAccount.industryClass?.value,
-                    size: investment.investmentAccount.companySize?.value,
-                    revenue: investment.investmentAccount.accountAnnualRevenueBand?.value,
-                    numberOfEmployees: investment.investmentAccount.companySize,
-                    annualRevenue: investment.investmentAccount.accountAnnualRevenueBand
-                  }
-                : undefined,
-              address: investment?.investmentAccount
-                ? (() => {
-                    const addresses = investment.investmentAccount.addresses || []
-                    const primaryAddress = addresses.find((addr: any) => addr.addressType === 'PRIMARY_ADDRESS')
-                    const address = primaryAddress || addresses[0]
-
-                    return address
-                      ? {
-                          addressLine: address.addressLine,
-                          postalCode: address.postalCode,
-                          locality: address.locality,
-                          country: typeof address.country === 'string' ? address.country : address.country?.value,
-                          region: typeof address.region === 'string' ? address.region : address.region?.value
-                        }
-                      : undefined
-                  })()
-                : undefined,
+              account: investment?.investmentAccount,
               accountId: investment?.investmentAccount?.id,
               recordUrl: investment?.investmentAccount?.id
                 ? buildPlatformUrl('/platform/irm/account-record', {
@@ -273,7 +240,7 @@ export const InvestmentHomeTab: React.FC<InvestmentHomeTabProps> = ({ investment
                     lastName: iac.contact?.lastName,
                     email: iac.contact?.email,
                     phone: iac.contact?.phone,
-                    jobTitle: iac.contact?.jobPosition,
+                    jobPosition: iac.contact?.jobPosition,
                     department: iac.contact?.department,
                     communicationChannels: iac.contact?.communicationChannels
                   }))
@@ -342,12 +309,7 @@ export const InvestmentHomeTab: React.FC<InvestmentHomeTabProps> = ({ investment
             props: {
               ...context,
               buildReferenceUrl,
-              tasks: tasks.map(task =>
-                transformTaskOrApproval(
-                  task,
-                  getTranslationFromI18nKeyAndLabel('crm.common.untitledTask', 'Untitled Task')
-                )
-              ),
+              tasks: tasks,
               taskActionProps: {
                 contextsArray: [FlowContextName.investmentTaskCreate],
                 externalContextData: { investmentId },
@@ -369,12 +331,7 @@ export const InvestmentHomeTab: React.FC<InvestmentHomeTabProps> = ({ investment
               ...context,
               sectionTitle: 'Approval Tasks',
               buildReferenceUrl,
-              tasks: approvals.map(approval =>
-                transformTaskOrApproval(
-                  approval,
-                  getTranslationFromI18nKeyAndLabel('crm.common.untitledApproval', 'Approval Task')
-                )
-              ),
+              tasks: approvals,
               taskActionProps: {
                 contextsArray: [FlowContextName.investmentTaskCreate],
                 externalContextData: {
@@ -406,21 +363,7 @@ export const InvestmentHomeTab: React.FC<InvestmentHomeTabProps> = ({ investment
             component: NoteSection,
             props: {
               ...context,
-              notes: notes.map(note => ({
-                id: note.id,
-                noteTitle:
-                  note.title ||
-                  note.displayName ||
-                  getTranslationFromI18nKeyAndLabel('crm.common.untitledNote', 'Untitled Note'),
-                noteText: note.text || '',
-                createdAt: note.createdAt,
-                createdBy:
-                  note.authorDisplayName ||
-                  note.authorEmployee?.displayName ||
-                  getTranslationFromI18nKeyAndLabel('crm.common.unknown', 'Unknown'),
-                authorEmployee: note.authorEmployee,
-                reminderAt: note.reminderDate
-              })),
+              notes: notes,
               noteActionProps: {
                 contextsArray: [FlowContextName.investmentNoteCreate],
                 externalContextData: { investmentId },

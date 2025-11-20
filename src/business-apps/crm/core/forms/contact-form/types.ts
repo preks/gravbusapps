@@ -22,9 +22,18 @@ export interface ContactFormValues {
   xingUrl: string
 
   // Account Information
-  accountId: string
+  accountId: string // Legacy single account field
   account: string // Account ID for selection
   companyName: string // Company name for display (same as opportunity form)
+  accountIds: Array<
+    | string
+    | {
+        id: string
+        name: string
+        associationId?: string // Association object ID for tracking account-contact relationships
+        associationVersion?: number // Association version for optimistic locking
+      }
+  > // ✅ NEW: Array of account IDs or objects with id/name and association metadata (matching IRM pattern)
   ownerEmployeeId: string
   owner: string // Owner employee ID for selection
   ownerOrganizationId: string
@@ -41,6 +50,8 @@ export interface ContactFormValues {
   // System fields
   id?: string
   version?: number
+  businessKey?: string // ✅ ADDED - business key for external systems
+  code?: string // ✅ ADDED - internal code for reference
 
   // Audit fields
   createdAt?: string

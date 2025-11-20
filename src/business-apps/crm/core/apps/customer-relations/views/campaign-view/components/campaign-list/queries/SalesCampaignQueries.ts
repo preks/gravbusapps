@@ -244,19 +244,34 @@ export const GET_SALES_CAMPAIGNS_WITH_COUNT = (
 }
 
 export const GET_SALES_CAMPAIGN_STATISTICS = (): string => {
+  const now = new Date().toISOString()
+  const oneYearAgo = dayjs().subtract(1, 'year').toISOString()
+  const startOfThisYear = dayjs().startOf('year').toISOString()
+  const startOfLastYear = dayjs().subtract(1, 'year').startOf('year').toISOString()
+  const endOfLastYear = dayjs().subtract(1, 'year').endOf('year').toISOString()
+
   return `
     query GetSalesCampaignStatistics {
-      totalCampaigns: SalesCampaignAggregate(where: { isDeleted: { _eq: false } }) {
+      # Current period totals (this year)
+      totalCampaigns: SalesCampaignAggregate(
+        where: { 
+          _and: [
+            { isDeleted: { _eq: false } },
+            { createdAt: { _gte: "${startOfThisYear}" } }
+          ]
+        }
+      ) {
         aggregate {
           count
         }
       }
+      
       activeCampaigns: SalesCampaignAggregate(
         where: { 
           _and: [
             { isDeleted: { _eq: false } },
-            { startDate: { _lte: "now()" } },
-            { endDate: { _gte: "now()" } }
+            { startDate: { _lte: "${now}" } },
+            { endDate: { _gte: "${now}" } }
           ]
         }
       ) {
@@ -264,11 +279,12 @@ export const GET_SALES_CAMPAIGN_STATISTICS = (): string => {
           count
         }
       }
+      
       completedCampaigns: SalesCampaignAggregate(
         where: { 
           _and: [
             { isDeleted: { _eq: false } },
-            { endDate: { _lt: "now()" } }
+            { endDate: { _gte: "${startOfThisYear}", _lt: "${now}" } }
           ]
         }
       ) {
@@ -276,12 +292,69 @@ export const GET_SALES_CAMPAIGN_STATISTICS = (): string => {
           count
         }
       }
+      
+      # Previous year counts for trend calculation
+      totalCampaignsPrevious: SalesCampaignAggregate(
+        where: { 
+          _and: [
+            { isDeleted: { _eq: false } },
+            { createdAt: { _gte: "${startOfLastYear}", _lt: "${startOfThisYear}" } }
+          ]
+        }
+      ) {
+        aggregate {
+          count
+        }
+      }
+      
+      activeCampaignsPrevious: SalesCampaignAggregate(
+        where: { 
+          _and: [
+            { isDeleted: { _eq: false } },
+            { startDate: { _lte: "${oneYearAgo}" } },
+            { endDate: { _gte: "${oneYearAgo}" } }
+          ]
+        }
+      ) {
+        aggregate {
+          count
+        }
+      }
+      
+      completedCampaignsPrevious: SalesCampaignAggregate(
+        where: { 
+          _and: [
+            { isDeleted: { _eq: false } },
+            { endDate: { _gte: "${startOfLastYear}", _lt: "${endOfLastYear}" } }
+          ]
+        }
+      ) {
+        aggregate {
+          count
+        }
+      }
+      
       campaignsWithDuration: SalesCampaign(
         where: { 
           _and: [
             { isDeleted: { _eq: false } },
             { startDate: { _isNull: false } },
-            { endDate: { _isNull: false } }
+            { endDate: { _isNull: false } },
+            { createdAt: { _gte: "${startOfThisYear}" } }
+          ]
+        }
+      ) {
+        startDate
+        endDate
+      }
+      
+      campaignsWithDurationPrevious: SalesCampaign(
+        where: { 
+          _and: [
+            { isDeleted: { _eq: false } },
+            { startDate: { _isNull: false } },
+            { endDate: { _isNull: false } },
+            { createdAt: { _gte: "${startOfLastYear}", _lt: "${startOfThisYear}" } }
           ]
         }
       ) {

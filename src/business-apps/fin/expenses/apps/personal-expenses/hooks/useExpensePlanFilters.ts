@@ -149,12 +149,12 @@ export const useExpensePlanFilters = () => {
         filters: [
           {
             id: 'planType:EXPENSES',
-            label: getTranslationFromI18nKeyAndLabel('lowcoder:expense_request_list.category.expenses', 'Expenses'),
+            label: getTranslationFromI18nKeyAndLabel('lowcoder:personal_expenses.expense', 'Expense'),
             selected: selectedFilters.includes('planType:EXPENSES')
           },
           {
             id: 'planType:TRIP',
-            label: getTranslationFromI18nKeyAndLabel('lowcoder:expense_request_list.category.trip', 'Trip'),
+            label: getTranslationFromI18nKeyAndLabel('lowcoder:personal_expenses.trip', 'Trip'),
             selected: selectedFilters.includes('planType:TRIP')
           }
         ]

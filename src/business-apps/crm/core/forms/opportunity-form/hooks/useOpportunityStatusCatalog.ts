@@ -19,7 +19,7 @@ export interface UseOpportunityStatusCatalogReturn {
 
 export const useOpportunityStatusCatalog = (context: BusinessAppContextProps): UseOpportunityStatusCatalogReturn => {
   const [opportunityStatusOptions, setOpportunityStatusOptions] = useState<OpportunityStatusOption[]>([])
-  const [isLoading, setIsLoading] = useState(true)
+  const [isLoading, setIsLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)
 
   const catalogClient = useCatalogManagerClient(context.accessToken)
@@ -75,8 +75,11 @@ export const useOpportunityStatusCatalog = (context: BusinessAppContextProps): U
   }, [catalogClient, context.accessToken, userLocale])
 
   useEffect(() => {
-    loadOpportunityStatuses()
-  }, [loadOpportunityStatuses])
+    // Only load once when accessToken becomes available
+    if (context.accessToken && opportunityStatusOptions.length === 0) {
+      loadOpportunityStatuses()
+    }
+  }, [context.accessToken, opportunityStatusOptions.length, loadOpportunityStatuses])
 
   return {
     opportunityStatusOptions,
