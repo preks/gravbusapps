@@ -259,40 +259,7 @@ const HomeView: React.FC<HomeViewProps> = ({ accountId, accountData, ...props })
             component: AccountSection,
             props: {
               ...props,
-              account: accountData
-                ? {
-                    id: accountData.id,
-                    name: accountData.name,
-                    website: accountData.website,
-                    email: accountData.email,
-                    phone: accountData.phone,
-                    // Map catalog entries to expected format
-                    legalForm: accountData.legalForm?.value,
-                    industry: accountData.industry?.value,
-                    size: accountData.numberOfEmployees?.value,
-                    revenue: accountData.annualRevenue?.value,
-                    // Map other fields
-                    numberOfEmployees: accountData.numberOfEmployees,
-                    annualRevenue: accountData.annualRevenue
-                  }
-                : undefined,
-              address: accountData
-                ? (() => {
-                    const addresses = accountData.addresses || []
-                    const primaryAddress = addresses.find((addr: any) => addr.addressType === 'PRIMARY_ADDRESS')
-                    const address = primaryAddress || addresses[0]
-
-                    return address
-                      ? {
-                          addressLine: address.addressLine,
-                          postalCode: address.postalCode,
-                          locality: address.city, // CRM uses 'city' field, map to 'locality' for AccountSection
-                          country: typeof address.country === 'string' ? address.country : address.country?.value,
-                          region: typeof address.region === 'string' ? address.region : address.region?.value
-                        }
-                      : undefined
-                  })()
-                : undefined,
+              account: accountData, // ✅ Vollständiges CustomerAccount-Objekt
               accountId: accountId,
               actionButtonProps: {
                 contextsArray: [FlowContextName.customerAccountEntity],
@@ -315,9 +282,12 @@ const HomeView: React.FC<HomeViewProps> = ({ accountId, accountData, ...props })
             props: {
               ...props,
               contacts:
-                accountData?.accountContacts?.map((accountContact: any) => accountContact.contact).filter(Boolean) ||
-                [],
-              contact: accountData?.accountContacts?.[0]?.contact || undefined,
+                accountData?.accountContacts
+                  ?.map((ac: any) => ({
+                    ...ac.contact,
+                    jobPosition: ac.contact?.jobTitle // Map CRM jobTitle to jobPosition for ContactSection
+                  }))
+                  .filter(Boolean) || [],
               contactId: accountData?.accountContacts?.[0]?.contact?.id || undefined,
               recordUrl: accountData?.accountContacts?.[0]?.contact?.id
                 ? buildPlatformUrl('/platform/crm/contact-record', {
@@ -369,54 +339,7 @@ const HomeView: React.FC<HomeViewProps> = ({ accountId, accountData, ...props })
             props: {
               ...props,
               buildReferenceUrl,
-              tasks: tasks.map(task => ({
-                id: task.id,
-                title:
-                  task.name ||
-                  task.displayName ||
-                  getTranslationFromI18nKeyAndLabel('crm.tasks.untitled', 'Untitled Task'),
-                description: task.description,
-                createdAt: task.createdAt,
-                due: task.dueDate,
-                assignee: task.assignedEmployee?.displayName || task.assignedEmployee?.fullName,
-                statusCode: task.taskStatus?.value?.toUpperCase(),
-                taskStatus: task.taskStatus,
-                taskPriority: task.taskPriority,
-                assigneeEmployee: task.assignedEmployee,
-                taskTiming: task.taskTiming,
-                startDate: task.startDate,
-                creatorEmployee: task.creatorEmployee,
-                documents: task.documents,
-                reference: task.lead
-                  ? {
-                      type: 'lead' as const,
-                      id: task.lead.id,
-                      name:
-                        `${task.lead.firstName || ''} ${task.lead.lastName || ''}`.trim() || task.lead.code || 'Lead'
-                    }
-                  : task.account
-                    ? {
-                        type: 'account' as const,
-                        id: task.account.id,
-                        name: task.account.name || task.account.code || 'Account'
-                      }
-                    : task.contact
-                      ? {
-                          type: 'contact' as const,
-                          id: task.contact.id,
-                          name:
-                            `${task.contact.firstName || ''} ${task.contact.lastName || ''}`.trim() ||
-                            task.contact.code ||
-                            'Contact'
-                        }
-                      : task.opportunity
-                        ? {
-                            type: 'opportunity' as const,
-                            id: task.opportunity.id,
-                            name: task.opportunity.name || task.opportunity.code || 'Opportunity'
-                          }
-                        : undefined
-              })),
+              tasks: tasks,
               taskActionProps: taskActionProps,
               taskEntityActionProps: taskEntityActionProps
             }
@@ -428,56 +351,7 @@ const HomeView: React.FC<HomeViewProps> = ({ accountId, accountData, ...props })
               ...props,
               sectionTitle: 'Approval Tasks',
               buildReferenceUrl,
-              tasks: approvals.map(approval => ({
-                id: approval.id,
-                title:
-                  approval.name ||
-                  approval.displayName ||
-                  getTranslationFromI18nKeyAndLabel('crm.approvals.request', 'Approval Request'),
-                description: approval.description,
-                createdAt: approval.createdAt,
-                due: approval.dueDate,
-                assignee: approval.assignedEmployee?.displayName || approval.assignedEmployee?.fullName,
-                statusCode: approval.taskStatus?.value?.toUpperCase(),
-                taskStatus: approval.taskStatus,
-                taskPriority: approval.taskPriority,
-                assigneeEmployee: approval.assignedEmployee,
-                taskTiming: approval.taskTiming,
-                startDate: approval.startDate,
-                creatorEmployee: approval.creatorEmployee,
-                documents: approval.documents,
-                reference: approval.lead
-                  ? {
-                      type: 'lead' as const,
-                      id: approval.lead.id,
-                      name:
-                        `${approval.lead.firstName || ''} ${approval.lead.lastName || ''}`.trim() ||
-                        approval.lead.code ||
-                        'Lead'
-                    }
-                  : approval.account
-                    ? {
-                        type: 'account' as const,
-                        id: approval.account.id,
-                        name: approval.account.name || approval.account.code || 'Account'
-                      }
-                    : approval.contact
-                      ? {
-                          type: 'contact' as const,
-                          id: approval.contact.id,
-                          name:
-                            `${approval.contact.firstName || ''} ${approval.contact.lastName || ''}`.trim() ||
-                            approval.contact.code ||
-                            'Contact'
-                        }
-                      : approval.opportunity
-                        ? {
-                            type: 'opportunity' as const,
-                            id: approval.opportunity.id,
-                            name: approval.opportunity.name || approval.opportunity.code || 'Opportunity'
-                          }
-                        : undefined
-              })),
+              tasks: approvals,
               taskEntityActionProps: approvalEntityActionProps,
               taskActionProps: approvalActionProps
             }
@@ -495,18 +369,7 @@ const HomeView: React.FC<HomeViewProps> = ({ accountId, accountData, ...props })
             component: NoteSection,
             props: {
               ...props,
-              notes: notes.map(note => ({
-                id: note.id,
-                version: note.version,
-                noteTitle: note.noteTitle || getTranslationFromI18nKeyAndLabel('crm.notes.untitled', 'Untitled Note'),
-                noteText: note.noteText || '',
-                createdAt: note.createdAt,
-                createdBy:
-                  note.authorEmployee?.displayName ||
-                  getTranslationFromI18nKeyAndLabel('crm.common.unknown', 'Unknown'),
-                authorEmployee: note.authorEmployee,
-                reminderDate: note.reminderDate
-              })),
+              notes: notes,
               noteActionProps: noteActionProps,
               noteEntityActionProps: noteEntityActionProps,
               'data-testid': 'account-notes-section'

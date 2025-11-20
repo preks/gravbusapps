@@ -30,7 +30,7 @@ interface HrGrowthTabProps extends BusinessAppContextProps {
   employee: Employee
   employeeId: string
   isSelfView: boolean
-  feedbackTabFeatureFlag: boolean
+  devFeatureFlag: boolean
   employeePerformanceGoals?: EmployeePerformanceGoal[]
   feedback?: EmployeeFeedback[]
 }
@@ -62,7 +62,7 @@ const HrGrowthTab: React.FC<HrGrowthTabProps> = ({
   accessToken,
   userInfo,
   isSelfView,
-  feedbackTabFeatureFlag,
+  devFeatureFlag,
   employeePerformanceGoals,
   feedback,
   additionalData
@@ -77,9 +77,10 @@ const HrGrowthTab: React.FC<HrGrowthTabProps> = ({
 
   // Determine if user has compensation permission (only when permissions are loaded)
   const hasCompensationPermission = permissionsLoading ? false : compensationPermission === true || isSelfView
-  // Show compensation tabs during loading to prevent layout shift, but hide them if permissions are loaded and user doesn't have access
-  const shouldShowCompensationTabs = permissionsLoading || hasCompensationPermission
+  // Show compensation tabs only when dev feature flag is enabled and user has permission (or during loading to prevent layout shift)
+  const shouldShowCompensationTabs = devFeatureFlag && (permissionsLoading || hasCompensationPermission)
   const shouldLoadCompensationData =
+    devFeatureFlag &&
     !permissionsLoading &&
     hasCompensationPermission &&
     (activeSubView === 'currentCompensation' || activeSubView === 'compensationHistory')
@@ -122,23 +123,22 @@ const HrGrowthTab: React.FC<HrGrowthTabProps> = ({
   useEffect(() => {
     if (typeof window === 'undefined') return
 
-    if (!feedbackTabFeatureFlag && activeSubView === 'feedback') {
+    if (!devFeatureFlag && activeSubView === 'feedback') {
       const newSubView = 'skills'
       setActiveSubView(newSubView)
       updateUrl(newSubView)
     }
 
-    // Redirect compensation tabs to skills if user doesn't have permission
+    // Redirect compensation tabs to skills if dev feature flag is disabled or user doesn't have permission
     if (
-      !permissionsLoading &&
-      !hasCompensationPermission &&
+      (!devFeatureFlag || (!permissionsLoading && !hasCompensationPermission)) &&
       (activeSubView === 'currentCompensation' || activeSubView === 'compensationHistory')
     ) {
       const newSubView = 'skills'
       setActiveSubView(newSubView)
       updateUrl(newSubView)
     }
-  }, [feedbackTabFeatureFlag, activeSubView, permissionsLoading, hasCompensationPermission, updateUrl])
+  }, [devFeatureFlag, activeSubView, permissionsLoading, hasCompensationPermission, updateUrl])
 
   // Ensure URL is properly set on initial load
   // Intentionally empty dependency array - this should only run once on mount
@@ -183,7 +183,7 @@ const HrGrowthTab: React.FC<HrGrowthTabProps> = ({
               </span>
             </div>
           </TabsTrigger>
-          {feedbackTabFeatureFlag && (
+          {devFeatureFlag && (
             <TabsTrigger value="feedback" data-testid="hr-growth-feedback-subtab" className="gba:flex-1">
               <div className="gba:flex gba:items-center gba:gap-2 gba:justify-center">
                 <PiChatCircle />
@@ -236,16 +236,10 @@ const HrGrowthTab: React.FC<HrGrowthTabProps> = ({
         </TabsList>
 
         <TabsContent value="skills" data-testid="hr-growth-skills-content" className="gba:mt-4">
-          <SkillsTab
-            employee={employee}
-            accessToken={accessToken}
-            employeeId={employeeId}
-            userInfo={userInfo}
-            isSelfView={isSelfView}
-          />
+          <SkillsTab employee={employee} accessToken={accessToken} employeeId={employeeId} userInfo={userInfo} />
         </TabsContent>
 
-        {feedbackTabFeatureFlag && (
+        {devFeatureFlag && (
           <TabsContent value="feedback" data-testid="hr-growth-feedback-content" className="gba:mt-4">
             <FeedbackTab
               employee={employee}
@@ -265,7 +259,6 @@ const HrGrowthTab: React.FC<HrGrowthTabProps> = ({
             employeeId={employeeId}
             userInfo={userInfo}
             employeePerformanceGoals={employeePerformanceGoals}
-            isSelfView={isSelfView}
           />
         </TabsContent>
 

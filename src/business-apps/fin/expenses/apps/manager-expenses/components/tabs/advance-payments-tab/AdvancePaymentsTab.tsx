@@ -29,7 +29,7 @@ const AdvancePaymentsTab: React.FC<BusinessAppContextProps> = props => {
   })
 
   // State for page size
-  const [pageSize, setPageSize] = useState<number>(10)
+  const [pageSize, setPageSize] = useState<number>(20)
 
   // Stats from overview aggregates (declared after overview)
   let advancePaymentStats: any = null
@@ -221,6 +221,8 @@ const AdvancePaymentsTab: React.FC<BusinessAppContextProps> = props => {
     setStatusFilter([])
   }, [setSearchTerm, setStatusFilter])
 
+  const shouldShowFilters = useMemo(() => !(totalCount === 0 && !paymentsLoading), [totalCount, paymentsLoading])
+
   return (
     <div className="gba:h-full gba:flex gba:flex-col" data-testid="advance-payments-tab-container">
       {/* Statistics Section - fixed height to prevent layout shift */}
@@ -241,7 +243,7 @@ const AdvancePaymentsTab: React.FC<BusinessAppContextProps> = props => {
         addLeftPaddingWhenNoFilter={true}
         dataControllerProps={{
           search: searchTerm,
-          filter: buildDeduplicatedFilters(statusFilter ?? undefined, currencyFilter),
+          filter: shouldShowFilters ? buildDeduplicatedFilters(statusFilter ?? undefined, currencyFilter) : [],
           setSearch: handleSearchChange,
           setFilter: (newFilters: string[]) => {
             const currencyFilters = newFilters.filter(f => f.startsWith('currency:'))
@@ -256,10 +258,12 @@ const AdvancePaymentsTab: React.FC<BusinessAppContextProps> = props => {
               handleDataFilterChange(`currency:${newCurrencyCode}`, true)
             }
           },
-          filterLabelMap: {
-            ...filterLabelMap,
-            ...(currencyFilter ? { [`currency:${currencyFilter}`]: currencyFilter } : {})
-          },
+          filterLabelMap: shouldShowFilters
+            ? {
+                ...filterLabelMap,
+                ...(currencyFilter ? { [`currency:${currencyFilter}`]: currencyFilter } : {})
+              }
+            : {},
           listTitle: (
             <div className="gba:flex gba:items-center gba:gap-4">
               <div className="gba:flex gba:items-center gba:gap-2">
@@ -276,7 +280,7 @@ const AdvancePaymentsTab: React.FC<BusinessAppContextProps> = props => {
           debounceDelay: 300
         }}
         dataFilterProps={{
-          filterGroups,
+          filterGroups: shouldShowFilters ? filterGroups : [],
           onFilterChange: handleDataFilterChange
         }}
         dataBody={

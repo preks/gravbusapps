@@ -58,7 +58,7 @@ export interface FlowExecutionTasksParams {
   filterProcessName?: string
   filterTaskName?: string
   state?: string // Filter by task state (e.g., 'open', 'completed')
-  filterState?: string[] // Filter by task states for HISTORY/ALL cockpitPage (e.g., ['Closed', 'Canceled'])
+  filterState?: string // Filter by task state (e.g., 'open', 'completed')
 }
 
 export class FlowMetricsClient extends RestClient {
@@ -111,16 +111,16 @@ export class FlowMetricsClient extends RestClient {
       queryParams.taskName = taskName
     }
 
+    if (filterState) {
+      queryParams.filterState = filterState
+    }
+
     if (filterProcessName) {
       queryParams.filterProcessName = filterProcessName
     }
 
     if (filterTaskName) {
       queryParams.filterTaskName = filterTaskName
-    }
-
-    if (state) {
-      queryParams.state = state
     }
 
     if (search) {
@@ -130,18 +130,10 @@ export class FlowMetricsClient extends RestClient {
     // Build URL with query params
     const url = new URL('/flow-executions/tasks', this.baseUrl)
 
-    // Add regular query params
+    // Add query params
     Object.entries(queryParams).forEach(([key, value]) => {
       url.searchParams.append(key, String(value))
     })
-
-    // Add filterState array params (each value as separate param)
-    // The API expects multiple filterState parameters like: filterState=Closed&filterState=Canceled
-    if (filterState && filterState.length > 0) {
-      filterState.forEach(state => {
-        url.searchParams.append('filterState', state)
-      })
-    }
 
     return this.get<FlowExecutionTasksResponse>(url.pathname + url.search)
   }

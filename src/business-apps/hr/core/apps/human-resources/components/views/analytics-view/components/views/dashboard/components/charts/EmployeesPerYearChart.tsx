@@ -1,9 +1,9 @@
 import React, { useMemo } from 'react'
-import { Card } from '@newwork/nw-design-system'
+import { Card, useTranslation } from '@newwork/nw-design-system'
 import { Typography, Spin, Empty, Result } from 'antd'
 import { ComposedChart, Bar, Line, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer } from 'recharts'
-import { getTranslationFromI18nKeyAndLabel } from '@/common/utils/windowUtils'
 import { YearlyEmployeeData } from '../../../../../hooks/useEmployeesPerYear'
+import hrTranslations from '@/business-apps/hr/core/apps/human-resources/_i18n'
 
 const { Title, Text } = Typography
 
@@ -17,6 +17,7 @@ interface EmployeesPerYearChartProps {
  * Chart component displaying total employees per year as a bar chart with trend line
  */
 const EmployeesPerYearChart: React.FC<EmployeesPerYearChartProps> = ({ data, loading, error }) => {
+  const { t } = useTranslation(hrTranslations)
   // Get chart colors that automatically update with theme changes
   const chartColors = [
     'var(--nw-chart-1)',
@@ -72,13 +73,10 @@ const EmployeesPerYearChart: React.FC<EmployeesPerYearChartProps> = ({ data, loa
       {/* Header */}
       <div className="gba:mb-4 gba:ml-4">
         <Title level={4} className="gba:m-0 gba:text-foreground">
-          {getTranslationFromI18nKeyAndLabel('hr_analytics_employees_per_year', 'Total Employees Per Year')}
+          {t('hr-analytics-employees-per-year')}
         </Title>
         <Text className="gba:text-muted-foreground gba:text-sm gba:mt-1">
-          {getTranslationFromI18nKeyAndLabel(
-            'hr_analytics_employees_per_year_description',
-            'Company workforce growth trends with smoothed trend line showing organizational expansion over time'
-          )}
+          {t('hr-analytics-employees-per-year-description')}
         </Text>
       </div>
 
@@ -97,7 +95,7 @@ const EmployeesPerYearChart: React.FC<EmployeesPerYearChartProps> = ({ data, loa
         >
           <Result
             status="warning"
-            title={getTranslationFromI18nKeyAndLabel('hr_analytics_data_error', 'Could not load data')}
+            title={t('hr-analytics-data-error')}
             subTitle={error.toString().includes('CORS') ? 'API access blocked by CORS policy' : error.toString()}
           />
         </div>
@@ -106,7 +104,7 @@ const EmployeesPerYearChart: React.FC<EmployeesPerYearChartProps> = ({ data, loa
           className="gba:flex gba:items-center gba:justify-center gba:h-64"
           data-testid="employees-per-year-chart-empty"
         >
-          <Empty description={getTranslationFromI18nKeyAndLabel('hr_analytics_no_data', 'No data available')} />
+          <Empty description={t('hr-analytics-no-data')} />
         </div>
       ) : (
         <div className="gba:h-64" data-testid="employees-chart-container">
@@ -120,7 +118,7 @@ const EmployeesPerYearChart: React.FC<EmployeesPerYearChartProps> = ({ data, loa
                 tick={{ fill: 'var(--nw-muted-foreground)', fontSize: 12 }}
                 dy={10}
                 label={{
-                  value: getTranslationFromI18nKeyAndLabel('hr_analytics_chart_year', 'Year'),
+                  value: t('hr-analytics-chart-year'),
                   position: 'insideBottom',
                   offset: -15,
                   fill: 'var(--nw-muted-foreground)',
@@ -133,7 +131,7 @@ const EmployeesPerYearChart: React.FC<EmployeesPerYearChartProps> = ({ data, loa
                 tick={{ fill: 'var(--nw-muted-foreground)', fontSize: 12 }}
                 width={60}
                 label={{
-                  value: getTranslationFromI18nKeyAndLabel('hr_analytics_chart_employees', 'Employees'),
+                  value: t('hr-analytics-chart-employees'),
                   angle: -90,
                   position: 'insideLeft',
                   dy: 50,
@@ -152,7 +150,7 @@ const EmployeesPerYearChart: React.FC<EmployeesPerYearChartProps> = ({ data, loa
                   color: 'var(--nw-card-foreground)'
                 }}
                 formatter={(value, name) => {
-                  const label = name === 'trend' ? 'Trend' : 'Employees'
+                  const label = name === 'trend' ? t('hr-analytics-trend') : t('hr-analytics-employees')
                   return [`${typeof value === 'number' ? value.toFixed(0) : value}`, label]
                 }}
                 labelStyle={{ fontWeight: 'bold', marginBottom: 5 }}
@@ -168,7 +166,7 @@ const EmployeesPerYearChart: React.FC<EmployeesPerYearChartProps> = ({ data, loa
               />
               <Bar
                 dataKey="employees"
-                name={getTranslationFromI18nKeyAndLabel('hr_analytics_chart_employees', 'Employees')}
+                name={t('hr-analytics-chart-employees')}
                 fill={chartColors[0]}
                 radius={[4, 4, 0, 0]}
                 animationDuration={1500}
@@ -177,7 +175,7 @@ const EmployeesPerYearChart: React.FC<EmployeesPerYearChartProps> = ({ data, loa
               <Line
                 type="monotone"
                 dataKey="trend"
-                name="Trend"
+                name={t('hr-analytics-trend')}
                 stroke="var(--nw-foreground)"
                 strokeWidth={2}
                 dot={{ fill: 'var(--nw-foreground)', r: 4 }}

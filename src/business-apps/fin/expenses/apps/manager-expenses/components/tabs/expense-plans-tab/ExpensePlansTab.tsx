@@ -36,7 +36,7 @@ const ExpensePlansTab: React.FC<ExpensePlansTabProps> = props => {
   })
 
   // State for page size
-  const [pageSize, setPageSize] = useState<number>(10)
+  const [pageSize, setPageSize] = useState<number>(20)
 
   // Stats from overview aggregates (declared after overview)
   let planStats: any = null
@@ -151,6 +151,8 @@ const ExpensePlansTab: React.FC<ExpensePlansTabProps> = props => {
   const plansError = overview.error ? new Error(overview.error) : null
   const totalCount = overview.data?.expensePlansTotal ?? 0
 
+  const shouldShowFilters = useMemo(() => !(totalCount === 0 && !plansLoading), [totalCount, plansLoading])
+
   const updateSorting = useCallback((field: any) => {
     setSorting(prev => {
       if (prev.field === field) {
@@ -217,7 +219,7 @@ const ExpensePlansTab: React.FC<ExpensePlansTabProps> = props => {
         addLeftPaddingWhenNoFilter={true}
         dataControllerProps={{
           search: searchTerm,
-          filter: buildDeduplicatedFilters(statusFilter, primaryCurrency),
+          filter: shouldShowFilters ? buildDeduplicatedFilters(statusFilter, primaryCurrency) : [],
           setSearch: handleSearchChange,
           setFilter: newFilters => {
             // Separate currency and status filters
@@ -253,10 +255,12 @@ const ExpensePlansTab: React.FC<ExpensePlansTabProps> = props => {
             // Don't clear currency when clearing all filters - currency always stays selected
           },
 
-          filterLabelMap: {
-            ...filterLabelMap,
-            ...(primaryCurrency ? { [`currency:${primaryCurrency}`]: primaryCurrency } : {})
-          },
+          filterLabelMap: shouldShowFilters
+            ? {
+                ...filterLabelMap,
+                ...(primaryCurrency ? { [`currency:${primaryCurrency}`]: primaryCurrency } : {})
+              }
+            : {},
           listTitle: (
             <div className="gba:flex gba:items-center gba:gap-4">
               <div className="gba:flex gba:items-center gba:gap-2">
@@ -270,7 +274,7 @@ const ExpensePlansTab: React.FC<ExpensePlansTabProps> = props => {
           debounceDelay: 300
         }}
         dataFilterProps={{
-          filterGroups,
+          filterGroups: shouldShowFilters ? filterGroups : [],
           onFilterChange: handleDataFilterChange
         }}
         dataBody={

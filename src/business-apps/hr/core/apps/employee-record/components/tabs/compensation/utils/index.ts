@@ -12,3 +12,9 @@ export {
   transformPayslip,
   transformWorkingConditionToHistory
 } from './compensationTransformers'
+
+export {
+  getTranslatedBenefitType,
+  getTranslatedProviderValue,
+  getTranslatedCatalogEntryValue
+} from './benefitTranslationUtils'

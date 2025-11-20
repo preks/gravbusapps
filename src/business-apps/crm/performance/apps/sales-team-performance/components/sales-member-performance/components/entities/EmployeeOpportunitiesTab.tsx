@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useMemo } from 'react'
 import { DataContainer } from '@/components/layout/dataContainer'
-import { useOpportunityFilters } from '@/business-apps/crm/core/apps/customer-relations/views/opportunity-view/hooks/useOpportunityFilters'
+import { useOpportunityFilters } from '../../hooks/useOpportunityFilters'
 import { useEmployeeOpportunitiesData } from '../../hooks/useEmployeeOpportunitiesData'
 import { OpportunitiesTable } from './OpportunitiesTable'
 import { BusinessAppContextProps } from '@/common/BusinessAppContext'

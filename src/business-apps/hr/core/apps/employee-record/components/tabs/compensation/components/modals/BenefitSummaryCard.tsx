@@ -2,23 +2,29 @@ import React from 'react'
 import { BenefitCatalogItem } from '../../types/benefitCatalogTypes'
 import { formatCurrencyString } from '@/common/utils/numberFormatter'
 import { formatForDisplay } from '@/common/utils/dateFormatter'
+import { getCurrentActiveUserLocale } from '@/common/utils/windowUtils'
+import { getTranslatedBenefitType, getTranslatedCatalogEntryValue } from '../../utils/benefitTranslationUtils'
 
 interface BenefitSummaryCardProps {
   t: (key: string, params?: any) => string
   benefit: BenefitCatalogItem
+  locale?: string
 }
 
 /**
  * Displays a summary card for a benefit with key information
  */
-const BenefitSummaryCard: React.FC<BenefitSummaryCardProps> = ({ t, benefit }) => {
+const BenefitSummaryCard: React.FC<BenefitSummaryCardProps> = ({ t, benefit, locale }) => {
+  const currentLocale = locale || getCurrentActiveUserLocale()
+
   return (
     <div className="gba:p-4 gba:bg-muted gba:rounded-lg gba:space-y-2" data-testid="deactivate-benefit-summary-card">
-      <div className="gba:font-semibold gba:text-foreground">{benefit.benefitType}</div>
+      <div className="gba:font-semibold gba:text-foreground">{getTranslatedBenefitType(benefit, currentLocale)}</div>
 
-      {benefit.provider?.value && (
+      {benefit.provider && (
         <div className="gba:text-sm gba:text-muted-foreground">
-          <span className="gba:font-medium">{t('benefit-provider')}:</span> {benefit.provider.value}
+          <span className="gba:font-medium">{t('benefit-provider')}:</span>{' '}
+          {getTranslatedCatalogEntryValue(benefit.provider, currentLocale)}
         </div>
       )}
 

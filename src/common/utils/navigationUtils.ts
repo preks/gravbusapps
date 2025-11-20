@@ -38,7 +38,7 @@ const PLATFORM_URL_TO_APP_MAPPING: NavigationMapping = {
 
   /// Investments: Apps
   '/platform/irm/investment-management': 'irm/investments/apps/investment-management',
-  '/platform/irm/investment-report-portal': 'irm/investments/apps/investment-report-portal',
+  '/platform/irm/investment-portal': 'irm/investments/apps/investment-portal',
 
   /// Investments: Records
   '/platform/irm/investment-record': 'irm/investments/records/investment-record',
@@ -116,8 +116,15 @@ export const navigateTo = (url: string): void => {
   const isProduction = process.env.NODE_ENV === 'production'
 
   if (isProduction) {
-    // Production: use original URL behavior
-    window.location.href = url
+    // Production: use host-provided SPA navigation if available, otherwise fallback
+    const nwNavigate = (window as any).nwNavigate as
+      | undefined
+      | ((path: string, options?: { replace?: boolean; scroll?: boolean }) => void)
+    if (typeof nwNavigate === 'function') {
+      nwNavigate(url)
+    } else {
+      window.location.href = url
+    }
   } else {
     // Development: check if it's a platform URL
     if (isPlatformUrl(url)) {

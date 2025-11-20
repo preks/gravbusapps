@@ -7,6 +7,8 @@ import AccountInformationSection from './AccountInformationSection'
 import AddressInformationSection from './AddressInformationSection'
 import FinancialInformationSection from './FinancialInformationSection'
 import ContactSelect from '@/common/components/common-relations/selects/contact-select/ContactSelect'
+import { buildCommunicationChannelRef } from '@/common/data/common/utils/communicationChannelHelpers'
+import { CommunicationChannelCode } from '@/common/data/common/types/commonTypes'
 
 const prefixDataTestId = 'AccountForm'
 
@@ -49,9 +51,9 @@ const AccountFormComponent: React.FC = () => {
         industryRef: toStringOrUndefined(formValues.industry),
         website: toStringOrUndefined(formValues.website),
 
-        // Contact Information
-        phone: toStringOrUndefined(formValues.phone),
-        email: toStringOrUndefined(formValues.email),
+        // Contact Information - moved to communicationChannels
+        // phone: toStringOrUndefined(formValues.phone), // ❌ REMOVED - use communicationChannels
+        // email: toStringOrUndefined(formValues.email), // ❌ REMOVED - use communicationChannels
 
         // Financial Information
         annualRevenueRef: toStringOrUndefined(formValues.annualRevenue),
@@ -67,6 +69,29 @@ const AccountFormComponent: React.FC = () => {
         // Additional properties (JSONB field)
         additionalProperties: {},
         tags: []
+      }
+
+      // ✅ NEW: Build communication channels array (Email, Phone)
+      const communicationChannels: any[] = []
+
+      if (formValues.email?.trim()) {
+        communicationChannels.push({
+          communicationChannelRef: buildCommunicationChannelRef(CommunicationChannelCode.EMAIL),
+          value: formValues.email.trim(),
+          valueExtension: null
+        })
+      }
+
+      if (formValues.phone?.trim()) {
+        communicationChannels.push({
+          communicationChannelRef: buildCommunicationChannelRef(CommunicationChannelCode.PHONE),
+          value: formValues.phone.trim(),
+          valueExtension: null
+        })
+      }
+
+      if (communicationChannels.length > 0) {
+        accountPayload.communicationChannels = communicationChannels
       }
 
       // For updates, include the account ID and version

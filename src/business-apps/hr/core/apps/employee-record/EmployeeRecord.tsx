@@ -7,12 +7,21 @@ import ProfileHeader from './components/ProfileHeader'
 import { ScreenBody, Spinner, notification, Tabs } from '@newwork/gravity-ui-catalog'
 import { ProfileLayout } from '@/components/layout/profileLayout'
 import { useScopePermissionCheck } from '@/common/hooks/useScopePermissionCheck'
-import { PiUser, PiBriefcase, PiChartBar, PiCalendar, PiClockCounterClockwise, PiReceipt } from 'react-icons/pi'
+import {
+  PiUser,
+  PiBriefcase,
+  PiChartBar,
+  PiCalendar,
+  PiClockCounterClockwise,
+  PiReceipt,
+  PiPackage
+} from 'react-icons/pi'
 import SummaryTab from './components/tabs/SummaryTab'
 import AbsencesTab from './components/tabs/AbsencesTab'
 import ServiceRequestsTab from './components/tabs/ServiceRequestsTab'
 import HrAdminTab from './components/tabs/HrAdminTab'
 import HrGrowthTab from './components/tabs/HrGrowthTab'
+import AssetsTab from './components/tabs/AssetsTab'
 import { BusinessAppContextProps } from '../../../../../common/BusinessAppContext'
 import { getCurrentActiveStructureId, getTranslationFromI18nKeyAndLabel } from '@/common/utils/windowUtils'
 import { useFeature } from '@/common/hooks/useFeature'
@@ -22,6 +31,7 @@ import { Feature } from '@/common/types/constants/FeatureHub'
 const TAB_KEYS = {
   summary: 'summary',
   timeTracking: 'timeTracking',
+  assets: 'assets',
   absences: 'absences',
   hrAdmin: 'hrAdmin',
   hrGrowth: 'hrGrowth',
@@ -157,6 +167,7 @@ const EmployeeRecordContent: React.FC<EmployeeRecordContentProps> = ({
   const [activeTab, setActiveTab] = useState(initialActiveTab)
   const activeStructureId = getCurrentActiveStructureId()
   const devFeatureFlag = useFeature(Feature.Dev.Enabled.Key)
+  const changeLogFeatureFlag = useFeature('dev.employee-record.changelog.enabled')
 
   useEffect(() => {
     if (typeof window === 'undefined') return
@@ -218,7 +229,7 @@ const EmployeeRecordContent: React.FC<EmployeeRecordContentProps> = ({
       <div className="gba:employee-profile gba:w-full gba:h-full">
         <ScreenBody className="gba:h-full gba:w-full">
           <ProfileLayout
-            headerContent={<ProfileHeader accessToken={accessToken} employee={employee} />}
+            headerContent={<ProfileHeader accessToken={accessToken} employee={employee} isSelfView={isSelfView} />}
             contentHeader={tabNavigation}
             contentContainer={getTabContent()}
             headerPlacement="left"
@@ -241,6 +252,13 @@ const EmployeeRecordContent: React.FC<EmployeeRecordContentProps> = ({
     'employee-record-absences',
     accessToken
   )
+
+  const employeeRecordHrBackoffice = useScopePermissionCheck(
+    '/platform/employee-record',
+    'employee-record-hr-backoffice',
+    accessToken
+  )
+
   const isSelfView: boolean = !!(currentUserEmployeeId && employeeIdToShow === currentUserEmployeeId)
 
   const getTabItems = () => {
@@ -341,9 +359,10 @@ const EmployeeRecordContent: React.FC<EmployeeRecordContentProps> = ({
               accessToken={accessToken}
               userInfo={userInfo}
               isSelfView={isSelfView}
-              changeLogTabFeatureFlag={devFeatureFlag as boolean}
+              changeLogTabFeatureFlag={changeLogFeatureFlag as boolean}
               hasHrNotesAccess={hasHrNotesAccess}
-              scopePermissionLoading={scopePermissionLoading}
+              scopePermissionLoading={scopePermissionLoading || employeeRecordHrBackoffice.loading}
+              employeeRecordHrBackoffice={employeeRecordHrBackoffice}
               additionalData={additionalData}
             />
           )
@@ -366,13 +385,36 @@ const EmployeeRecordContent: React.FC<EmployeeRecordContentProps> = ({
             accessToken={accessToken}
             userInfo={userInfo}
             isSelfView={isSelfView}
-            feedbackTabFeatureFlag={devFeatureFlag as boolean}
+            devFeatureFlag={devFeatureFlag as boolean}
             employeePerformanceGoals={performanceGoals}
             feedback={feedback}
             additionalData={additionalData}
           />
         )
       },
+      ...(devFeatureFlag
+        ? [
+            {
+              key: TAB_KEYS.assets,
+              label: (
+                <div className="gba:flex gba:items-center gba:gap-2">
+                  <PiPackage className="gba:text-xl gba:inline-block gba:align-middle" />
+                  <span className="gba:inline-block gba:align-middle">
+                    {getTranslationFromI18nKeyAndLabel('lowcoder:hr_assets.assets', 'Assets')}
+                  </span>
+                </div>
+              ),
+              children: (
+                <AssetsTab
+                  employee={employee}
+                  accessToken={accessToken}
+                  employeeId={employeeIdToShow}
+                  isSelfView={isSelfView}
+                />
+              )
+            }
+          ]
+        : []),
       {
         key: TAB_KEYS.serviceRequests,
         label: (

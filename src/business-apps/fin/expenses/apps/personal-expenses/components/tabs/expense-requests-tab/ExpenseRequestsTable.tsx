@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useCallback, useMemo, useRef } from 'react'
 import { useDebounce } from '@/common/hooks/useDebounce'
 import { BusinessAppContextProps } from '@/common/BusinessAppContext'
-import { Alert, Empty } from 'antd'
+import { Alert } from 'antd'
 import {
   Table,
   TableHeader,
@@ -117,8 +117,12 @@ const ExpenseRequestsTable: React.FC<ExpenseRequestsTableProps> = React.memo(pro
 
   // Track if any filters are active to show conditional messages
   const hasActiveFilters = useMemo(() => {
+    // When there's no data, don't show active filters
+    if (totalCount === 0 && !isLoading) {
+      return false
+    }
     return search || selectedFilters.length > 0
-  }, [search, selectedFilters])
+  }, [search, selectedFilters, totalCount, isLoading])
 
   // Sync local search input with prop changes
   useEffect(() => {
@@ -322,14 +326,6 @@ const ExpenseRequestsTable: React.FC<ExpenseRequestsTableProps> = React.memo(pro
       return <Alert message="Error" description={errorMessage} type="error" showIcon />
     }
 
-    // Show empty state only when not loading and there are no items
-    if (!isLoading && (!items || items.length === 0)) {
-      return <Empty description="No expense requests found matching your criteria." style={{ margin: '40px 0' }} />
-    }
-
-    // Always render the table, but use the loading prop to show loading state
-    // This keeps the table visible during loading for better UX
-
     return (
       <div className="expense-requests-table">
         <Card data-testid="expense-requests-table-container">
@@ -447,7 +443,7 @@ const ExpenseRequestsTable: React.FC<ExpenseRequestsTableProps> = React.memo(pro
                   </TableRow>
                 </TableHeader>
                 <TableBody>
-                  {!isLoading && (!items || items.length === 0) ? (
+                  {!isLoading && totalCount === 0 && (!items || items.length === 0) ? (
                     <TableRow>
                       <TableCell colSpan={9} className="gba:py-8 gba:text-center">
                         <div className="gba:text-gray-500">
@@ -457,7 +453,7 @@ const ExpenseRequestsTable: React.FC<ExpenseRequestsTableProps> = React.memo(pro
                                 'No data available'
                               )
                             : getTranslationFromI18nKeyAndLabel(
-                                'lowcoder:personal_expenses.no_expense_requests_found',
+                                'lowcoder:personal_expenses.no_expense_request_data',
                                 'No expense requests found. Create your first expense request to get started.'
                               )}
                         </div>
@@ -758,6 +754,10 @@ const ExpenseRequestsTable: React.FC<ExpenseRequestsTableProps> = React.memo(pro
         }}
         dataFilterProps={{
           filterGroups: useMemo(() => {
+            // Hide filters when there's no data
+            if (totalCount === 0 && !isLoading) {
+              return []
+            }
             const currencyFilters =
               (props as any).currencyStats?.map((cs: any) => ({
                 id: `currency:${cs.ref}`,
@@ -778,7 +778,7 @@ const ExpenseRequestsTable: React.FC<ExpenseRequestsTableProps> = React.memo(pro
                   ]
                 : []
             return [...currencyGroup, ...filterGroups]
-          }, [filterGroups, selectedFilters, (props as any).currencyStats]),
+          }, [filterGroups, selectedFilters, (props as any).currencyStats, totalCount, isLoading]),
           onFilterChange: handleFilterChangeCallback
         }}
         dataBody={renderDataBody()}

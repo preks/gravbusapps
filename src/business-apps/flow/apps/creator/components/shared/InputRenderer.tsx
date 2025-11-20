@@ -11,8 +11,14 @@ import {
   Button,
   RadioGroup,
   RadioGroupItem,
-  Label
+  Label,
+  Badge,
+  Tooltip,
+  TooltipProvider,
+  TooltipTrigger,
+  TooltipContent
 } from '@newwork/nw-design-system'
+import { Database } from 'lucide-react'
 import { InputType } from '@/common/network/flows/FlowTemplateClient'
 
 interface InputRendererProps {
@@ -201,12 +207,32 @@ export const InputRenderer: React.FC<InputRendererProps> = ({
       case InputType.SELECT:
         return (
           <div className="gba:mb-4">
-            <label
-              className="gba:block gba:text-sm gba:font-medium gba:mb-2"
-              style={{ color: 'var(--color-text-primary)' }}
-            >
-              {input.label}
-            </label>
+            <div className="gba:flex gba:items-center gba:gap-2 gba:mb-2">
+              <label className="gba:block gba:text-sm gba:font-medium" style={{ color: 'var(--color-text-primary)' }}>
+                {input.label}
+              </label>
+              {/* Show catalog indicator if dataSource is present */}
+              {input.dataSource?.type === 'CATALOG' && (
+                <TooltipProvider>
+                  <Tooltip>
+                    <TooltipTrigger asChild>
+                      <Badge
+                        variant="secondary"
+                        className="gba:text-xs gba:bg-blue-100 gba:text-blue-800 gba:flex gba:items-center gba:gap-1"
+                      >
+                        <Database className="gba:h-3 gba:w-3" />
+                        {input.dataSource.catalog}
+                      </Badge>
+                    </TooltipTrigger>
+                    <TooltipContent>
+                      <p className="gba:text-xs">
+                        Options from <strong>{input.dataSource.catalog}</strong> catalog
+                      </p>
+                    </TooltipContent>
+                  </Tooltip>
+                </TooltipProvider>
+              )}
+            </div>
             <Select
               disabled={readOnly}
               value={value || ''}
@@ -243,12 +269,32 @@ export const InputRenderer: React.FC<InputRendererProps> = ({
       case InputType.MULTISELECT:
         return (
           <div className="gba:mb-4">
-            <label
-              className="gba:block gba:text-sm gba:font-medium gba:mb-2"
-              style={{ color: 'var(--color-text-primary)' }}
-            >
-              {input.label}
-            </label>
+            <div className="gba:flex gba:items-center gba:gap-2 gba:mb-2">
+              <label className="gba:block gba:text-sm gba:font-medium" style={{ color: 'var(--color-text-primary)' }}>
+                {input.label}
+              </label>
+              {/* Show catalog indicator if dataSource is present */}
+              {input.dataSource?.type === 'CATALOG' && (
+                <TooltipProvider>
+                  <Tooltip>
+                    <TooltipTrigger asChild>
+                      <Badge
+                        variant="secondary"
+                        className="gba:text-xs gba:bg-blue-100 gba:text-blue-800 gba:flex gba:items-center gba:gap-1"
+                      >
+                        <Database className="gba:h-3 gba:w-3" />
+                        {input.dataSource.catalog}
+                      </Badge>
+                    </TooltipTrigger>
+                    <TooltipContent>
+                      <p className="gba:text-xs">
+                        Options from <strong>{input.dataSource.catalog}</strong> catalog
+                      </p>
+                    </TooltipContent>
+                  </Tooltip>
+                </TooltipProvider>
+              )}
+            </div>
             <Select
               disabled={readOnly}
               value={value || ''}

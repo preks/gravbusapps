@@ -11,6 +11,7 @@ import HrNotesTab from './HrNotesTab'
 import { BusinessAppContextProps } from '@/common/BusinessAppContext'
 import { Employee } from '../../hooks/useEmployeeData'
 import { getTranslationFromI18nKeyAndLabel } from '@/common/utils/windowUtils'
+import { ScopePermissionCheckResult } from '@/common/hooks/useScopePermissionCheck'
 
 interface HrAdminTabProps extends BusinessAppContextProps {
   employee: Employee
@@ -19,6 +20,7 @@ interface HrAdminTabProps extends BusinessAppContextProps {
   changeLogTabFeatureFlag: boolean
   hasHrNotesAccess: boolean
   scopePermissionLoading: boolean
+  employeeRecordHrBackoffice: ScopePermissionCheckResult
 }
 
 const HR_ADMIN_SUBVIEW_VALUES = ['details', 'employment', 'changeLog', 'documents', 'hrNotes'] as const
@@ -49,7 +51,8 @@ const HrAdminTab: React.FC<HrAdminTabProps> = ({
   changeLogTabFeatureFlag,
   hasHrNotesAccess,
   scopePermissionLoading,
-  additionalData
+  additionalData,
+  employeeRecordHrBackoffice
 }) => {
   const [activeSubView, setActiveSubView] = useState<HrAdminSubView>(getInitialHrAdminSubView())
 
@@ -148,19 +151,13 @@ const HrAdminTab: React.FC<HrAdminTabProps> = ({
             employee={employee}
             accessToken={accessToken}
             employeeId={employeeId}
-            userInfo={userInfo}
             isSelfView={isSelfView}
+            employeeRecordHrBackoffice={employeeRecordHrBackoffice}
           />
         </TabsContent>
 
         <TabsContent value="employment" data-testid="hr-admin-employment-content" className="gba:mt-4">
-          <EmploymentTab
-            employee={employee}
-            accessToken={accessToken}
-            employeeId={employeeId}
-            userInfo={userInfo}
-            isSelfView={isSelfView}
-          />
+          <EmploymentTab employee={employee} accessToken={accessToken} employeeId={employeeId} userInfo={userInfo} />
         </TabsContent>
 
         {changeLogTabFeatureFlag && (
@@ -177,13 +174,7 @@ const HrAdminTab: React.FC<HrAdminTabProps> = ({
         )}
 
         <TabsContent value="documents" data-testid="hr-admin-documents-content" className="gba:mt-4">
-          <DocumentsTab
-            employee={employee}
-            accessToken={accessToken}
-            employeeId={employeeId}
-            userInfo={userInfo}
-            isSelfView={isSelfView}
-          />
+          <DocumentsTab employee={employee} accessToken={accessToken} employeeId={employeeId} userInfo={userInfo} />
         </TabsContent>
 
         {shouldShowHrNotes && (
