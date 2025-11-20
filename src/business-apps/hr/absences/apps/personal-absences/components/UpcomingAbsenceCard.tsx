@@ -23,8 +23,10 @@ export const UpcomingAbsenceCard = ({ absence }: UpcomingAbsenceCardProps) => {
       }
       data-testid="upcoming-absence-card"
     >
-      {/* Header with type and time until */}
-      <div className="gba:flex gba:items-center gba:justify-between" data-testid="absence-card-top-row">
+      <div
+        className="gba:absenceCardTopRow gba:flex gba:items-center gba:justify-between gba:mb-2"
+        data-testid="absence-card-top-row"
+      >
         <div className="gba:flex gba:items-center gba:gap-2">
           <span className="gba:absenceCardIcon" data-testid="absence-icon">
             <Calendar className="gba:w-5 gba:h-5" style={{ color: `#${bgColor}` }} />
@@ -65,7 +67,11 @@ export const UpcomingAbsenceCard = ({ absence }: UpcomingAbsenceCardProps) => {
         {Array.isArray(dates) ? dates.map(date => date).join(', ') : dates}
       </div>
       {description && (
-        <div className="gba:text-sm gba:text-muted-foreground" data-testid="absence-description">
+        <div
+          className="gba:absenceCardDescription gba:text-sm gba:mt-1"
+          data-testid="absence-description"
+          style={{ color: `#${bgColor}` }}
+        >
           {description}
         </div>
       )}

@@ -84,7 +84,6 @@ const KeyInsightsSection: React.FC<KeyInsightsSectionProps> = ({
           )}
         </div>
       </Card>
-      
       {/* Avg Days Card */}
       <Card className="gba:h-full gba:shadow-sm gba:p-6" data-testid="key-insights-section-avg-days-per-request">
         <div className="gba:flex gba:items-center">
@@ -99,7 +98,6 @@ const KeyInsightsSection: React.FC<KeyInsightsSectionProps> = ({
           {getTranslationFromI18nKeyAndLabel('lowcoder:absence_hub.avg_days_scope', 'Based on Approved requests')}
         </div>
       </Card>
-      
       {/* Approval Rate Card */}
       <Card className="gba:h-full gba:shadow-sm gba:p-6" data-testid="key-insights-section-approval-rate">
         <div className="gba:flex gba:items-center">

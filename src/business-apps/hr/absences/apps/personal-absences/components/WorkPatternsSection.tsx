@@ -176,7 +176,7 @@ const WorkPatternsSection: React.FC<WorkPatternsSectionProps> = ({ absences }) =
             {recommendation}
           </span>
         </div>
-      </Card>
+      </div>
     </div>
   )
 }

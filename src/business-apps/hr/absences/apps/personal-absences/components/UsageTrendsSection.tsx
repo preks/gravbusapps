@@ -81,19 +81,13 @@ const UsageTrendsSection: React.FC<UsageTrendsSectionProps> = ({ absences }) => 
           'Your absence patterns over time'
         )}
       </div>
-      {/* Monthly Usage */}
-      <div className="gba:space-y-4">
-        <div className="gba:flex gba:items-center gba:justify-between">
-          <h4 className="gba:font-medium gba:text-foreground" data-testid="usage-trends-section-subsection-title">
-            {getTranslationFromI18nKeyAndLabel('lowcoder:absence_hub.monthly_usage', `Monthly Usage (${currentYear})`, { currentYear })}
-          </h4>
-          <Badge variant="outline" className="gba:text-xs">
-            {monthlyUsage.reduce((sum, val) => sum + val, 0)} total
-          </Badge>
+      <div className="gba:statisticsSubSection" data-testid="usage-trends-section-subsection">
+        <div className="gba:statisticsSubSectionTitle" data-testid="usage-trends-section-subsection-title">
+          {getTranslationFromI18nKeyAndLabel('lowcoder:absence_hub.monthly_usage', 'Monthly Usage', { currentYear })}
         </div>
-        <div className="gba:grid gba:grid-cols-6 md:gba:grid-cols-12 gba:gap-2" data-testid="usage-trends-section-subsection-bar-chart">
+        <div className="gba:statisticsMonthlyBarChart" data-testid="usage-trends-section-subsection-bar-chart">
           {monthlyUsage.map((val, i) => (
-            <div className="gba:text-center gba:space-y-2" key={months[i]}>
+            <div className="gba:monthlyBarCol" key={months[i]}>
               <div
                 className="gba:monthlyBarBg"
                 style={{
@@ -106,7 +100,6 @@ const UsageTrendsSection: React.FC<UsageTrendsSectionProps> = ({ absences }) => 
                 }}
               >
                 <div
-                  className="gba:w-full gba:bg-primary gba:transition-all gba:duration-300 gba:rounded-b-md"
                   style={{
                     width: '100%',
                     height: `${val > 0 ? val * 10 + 8 : 4}px`,
@@ -133,18 +126,17 @@ const UsageTrendsSection: React.FC<UsageTrendsSectionProps> = ({ absences }) => 
         >
           Day of Week Preferences
         </div>
-        <div className="gba:grid gba:grid-cols-7 gba:gap-2" data-testid="usage-trends-section-subsection-week-bar-chart">
+        <div className="gba:statisticsWeekBarChart" data-testid="usage-trends-section-subsection-week-bar-chart">
           {dayOfWeekUsage.map((val, i) => (
             <div
               className={`gba:weekBarCol${i === mostCommonIdx && val > 0 ? ' gba:weekBarCol--highlight' : ''}`}
               key={days[i]}
+              aria-label={`weekday-bar-${days[i]}`}
               data-testid={`weekday-bar-${days[i]}`}
             >
-              <div className="gba:relative gba:h-12 gba:bg-muted gba:rounded-md gba:flex gba:items-end gba:justify-center gba:overflow-hidden">
+              <div className="gba:weekBarBg">
                 <div
-                  className={`gba:w-full gba:transition-all gba:duration-300 gba:rounded-b-md ${
-                    i === mostCommonIdx && val > 0 ? "gba:bg-primary" : "gba:bg-secondary"
-                  }`}
+                  className="gba:weekBarFg"
                   style={{
                     height: `${val > 0 ? val * 10 + 6 : 4}px`
                   }}

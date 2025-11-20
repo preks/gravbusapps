@@ -108,16 +108,13 @@ const YearComparisonSection: React.FC<YearComparisonSectionProps> = ({ absences 
       </div>
       <div className="gba:yearComparisonRows">
         {yearData.map((row: { year: number; label: string; value: number; color: string }) => (
-          <div className="gba:flex gba:items-center gba:justify-between" key={row.year}>
-            <span className="gba:text-sm gba:font-medium gba:text-foreground gba:w-24">{row.label}</span>
-            <div className="gba:flex-1 gba:mx-4">
-              <div className="gba:h-2 gba:bg-muted gba:rounded-full gba:overflow-hidden">
+          <div className="gba:yearComparisonRow gba:flex gba:items-center" key={row.year}>
+            <span className="gba:yearComparisonLabel gba:flex-1 gba:text-left">{row.label}</span>
+            <div className="gba:flex gba:items-center gba:gap-3">
+              <div className="gba:yearComparisonBarBg">
                 <div
-                  className="gba:h-full gba:rounded-full gba:transition-all gba:duration-300"
-                  style={{ 
-                    width: `${Math.max((row.value / Math.max(...yearData.map(y => y.value), 1)) * 100, 4)}%`,
-                    backgroundColor: row.year === currentYear ? 'var(--nw-color-primary-500)' : 'var(--nw-color-secondary-400)'
-                  }}
+                  className="gba:yearComparisonBarFg"
+                  style={{ width: `${row.value * 6}px`, background: row.color }}
                 />
               </div>
               <span className="gba:yearComparisonValue">
@@ -128,9 +125,6 @@ const YearComparisonSection: React.FC<YearComparisonSectionProps> = ({ absences 
                 )}
               </span>
             </div>
-            <span className="gba:text-sm gba:font-medium gba:text-foreground gba:w-16 gba:text-right">
-              {row.value} {getTranslationFromI18nKeyAndLabel(row.value === 1 ? 'lowcoder:absence_hub.day' : 'lowcoder:absence_hub.days', row.value === 1 ? 'day' : 'days')}
-            </span>
           </div>
         ))}
       </div>

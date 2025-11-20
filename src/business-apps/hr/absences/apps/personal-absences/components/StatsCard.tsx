@@ -15,7 +15,7 @@ export const StatsCard = ({ stat }: StatsCardProps) => {
           </span>
           <span className="gba:statsCardTitle" data-testid="stats-card-title">
             {title}
-          </h4>
+          </span>
         </div>
         <div className="gba:statsCardRow gba:statsCardRow--bottom" data-testid="stats-card-row-bottom">
           <span

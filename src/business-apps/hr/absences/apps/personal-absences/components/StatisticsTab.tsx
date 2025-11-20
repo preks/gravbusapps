@@ -9,10 +9,9 @@ export interface StatisticsTabProps {
 }
 
 export const StatisticsTab: React.FC<StatisticsTabProps> = ({ absences }) => (
-  <div className="gba:space-y-6" data-testid="statistics-tab">
-    {/* Key Insights Section */}
-    <div data-testid="statistics-tab-key-insights">
-      <KeyInsightsSection absences={absences} />
+  <div className="gba:statisticsRoot" data-testid="statistics-tab">
+    <div className="gba:pb-6" data-testid="statistics-tab-key-insights">
+      <KeyInsightsSection absences={absences} data-testid="statistics-tab-key-insights" />
     </div>
     <div className="gba:statisticsSection" data-testid="statistics-tab-usage-trends">
       <UsageTrendsSection absences={absences} data-testid="statistics-tab-usage-trends" />
