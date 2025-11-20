@@ -14,7 +14,7 @@ import {
 } from '@newwork/nw-design-system'
 import type { Control, Path } from 'react-hook-form'
 import type { AdjustEmployeeSalaryFormValues } from '../types'
-import translations from '../../../apps/employee-record/_i18n'
+import translations from '../../_i18n'
 
 interface SalaryFrequencySelectorProps {
   control: Control<AdjustEmployeeSalaryFormValues>

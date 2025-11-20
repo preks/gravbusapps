@@ -2,19 +2,19 @@ import React, { useEffect, useMemo, useRef } from 'react'
 import { BusinessAppContextProps } from '@/common/BusinessAppContext'
 import { formatDateToISO, getCurrentActiveUserLocale } from '@/common/utils/windowUtils'
 import FormHeader from '../components/FormHeader'
-import { LocalizationProvider, useTranslation } from '@newwork/nw-design-system'
+import { LocalizationProvider, useTranslation, Spinner } from '@newwork/nw-design-system'
 import flowIconUrl from '@/assets/icons/flowSmall.svg'
 import { AdjustEmployeeSalaryProvider, useAdjustEmployeeSalary } from './AdjustEmployeeSalaryContext'
 import { useForm } from 'react-hook-form'
 import type { AdjustEmployeeSalaryFormValues } from './types'
 import SalaryAdjustmentGroup from './components/SalaryAdjustmentGroup'
 import { AppActionForm } from '@/components/app-action-form/AppActionForm'
-import { calculateAmountFromPercentage, calculateAdjustmentInAnnual } from './utils/salaryCalculator'
-import translations from '../../apps/employee-record/_i18n'
+import { calculateSalaryAdjustment } from './utils/calculateSalaryAdjustment'
+import translations from '../_i18n'
 
 const AdjustEmployeeSalaryContent: React.FC<BusinessAppContextProps> = ({ additionalData }) => {
   const { t } = useTranslation(translations)
-  const { data } = useAdjustEmployeeSalary()
+  const { data, isLoading } = useAdjustEmployeeSalary()
 
   const employee = useMemo(() => data?.employee?.EmployeeByPk, [data])
   const currentCompensation = useMemo(() => data?.compensation?.EmployeeWorkingCondition?.[0] || null, [data])
@@ -126,6 +126,21 @@ const AdjustEmployeeSalaryContent: React.FC<BusinessAppContextProps> = ({ additi
     employee?.id ||
     ''
 
+  // Show loading state while fetching data to prevent displaying zero values
+  if (isLoading) {
+    return (
+      <div
+        className="gba:mx-auto gba:font-primary gba:flex gba:flex-col gba:w-full gba:max-w-[800px]"
+        data-testid="flw_adjustEmployeeSalary_screenContentLayout"
+      >
+        <FormHeader title={title} flowIconUrl={flowIconUrl} className="gba:px-6" />
+        <div className="gba:flex gba:justify-center gba:items-center gba:min-h-[400px]">
+          <Spinner size="lg" />
+        </div>
+      </div>
+    )
+  }
+
   return (
     <div
       className="gba:mx-auto gba:font-primary gba:flex gba:flex-col gba:w-full gba:max-w-[800px]"
@@ -151,60 +166,8 @@ const AdjustEmployeeSalaryContent: React.FC<BusinessAppContextProps> = ({ additi
             isSubmittingRef.current = true
             try {
               // Calculate adjustment based on frequency
-              let newAnnualSalary: number | null = null
-              let newMonthlySalary: number | null = null
-              let newHourlySalary: number | null = null
-              let adjustmentValue = 0
-              let adjustmentType: 'amount' | 'percentage' = 'amount'
-
-              if (values.adjustmentFrequency === 'hourly') {
-                // Hourly: Only calculate hourly rate, no annual/monthly conversions
-                if (currentSalaryHourly == null || currentSalaryHourly === 0) {
-                  throw new Error('Hourly salary is required for hourly adjustments')
-                }
-                const currentHourly = currentSalaryHourly
-                if (values.amountIncrease && values.amountIncrease > 0) {
-                  adjustmentValue = values.amountIncrease
-                  adjustmentType = 'amount'
-                  newHourlySalary = currentHourly + values.amountIncrease
-                } else if (values.percentageIncrease && values.percentageIncrease > 0) {
-                  adjustmentValue = values.percentageIncrease
-                  adjustmentType = 'percentage'
-                  const increaseAmount = calculateAmountFromPercentage(currentHourly, values.percentageIncrease)
-                  newHourlySalary = currentHourly + increaseAmount
-                }
-              } else {
-                // Annually/Monthly: Convert to annual and calculate monthly
-                const currentSalaryInFrequency =
-                  values.adjustmentFrequency === 'monthly'
-                    ? (currentSalaryMonthly ?? currentSalaryAnnual / 12)
-                    : currentSalaryAnnual
-
-                if (values.amountIncrease && values.amountIncrease > 0) {
-                  adjustmentValue = values.amountIncrease
-                  adjustmentType = 'amount'
-                  const adjustmentAnnual = calculateAdjustmentInAnnual(
-                    values.amountIncrease,
-                    values.adjustmentFrequency
-                  )
-                  if (adjustmentAnnual != null) {
-                    newAnnualSalary = currentSalaryAnnual + adjustmentAnnual
-                    newMonthlySalary = newAnnualSalary / 12
-                  }
-                } else if (values.percentageIncrease && values.percentageIncrease > 0) {
-                  adjustmentValue = values.percentageIncrease
-                  adjustmentType = 'percentage'
-                  const increaseAmount = calculateAmountFromPercentage(
-                    currentSalaryInFrequency,
-                    values.percentageIncrease
-                  )
-                  const adjustmentAnnual = calculateAdjustmentInAnnual(increaseAmount, values.adjustmentFrequency)
-                  if (adjustmentAnnual != null) {
-                    newAnnualSalary = currentSalaryAnnual + adjustmentAnnual
-                    newMonthlySalary = newAnnualSalary / 12
-                  }
-                }
-              }
+              const { newAnnualSalary, newMonthlySalary, newHourlySalary, adjustmentValue, adjustmentType } =
+                calculateSalaryAdjustment(values, currentSalaryAnnual, currentSalaryMonthly, currentSalaryHourly)
 
               const payload = {
                 event: 'pse_submit',
@@ -221,7 +184,7 @@ const AdjustEmployeeSalaryContent: React.FC<BusinessAppContextProps> = ({ additi
                   effectiveDate: values.effectiveDate
                     ? (() => {
                         const date = new Date(values.effectiveDate)
-                        if (isNaN(date.getTime())) {
+                        if (Number.isNaN(date.getTime())) {
                           return ''
                         }
                         return formatDateToISO(date)

@@ -3,7 +3,7 @@ import { Card, useTranslation } from '@newwork/nw-design-system'
 import { formatCurrencyString } from '@/common/utils/numberFormatter'
 import type { CatalogEntry } from '../types'
 import { calculateMonthlyFromYearly } from '../../../apps/employee-record/components/tabs/compensation/utils/salaryCalculations'
-import translations from '../../../apps/employee-record/_i18n'
+import translations from '../../_i18n'
 
 interface CurrentSalaryDisplayProps {
   currentSalaryAnnual: number
@@ -71,14 +71,14 @@ const CurrentSalaryDisplay: React.FC<CurrentSalaryDisplayProps> = ({
           <div className="gba:text-sm gba:text-muted-foreground">{t('adjust-salary-current-salary')}</div>
           <div className="gba:flex gba:items-baseline gba:gap-2">
             <div className="gba:text-xl gba:font-bold gba:text-foreground">
-              {currentSalaryInFrequency != null
-                ? formatCurrencyString(currentSalaryInFrequency, {
+              {currentSalaryInFrequency == null
+                ? '-'
+                : formatCurrencyString(currentSalaryInFrequency, {
                     currency: currencyCode,
                     locale: locale,
                     minimumFractionDigits: selectedFrequency === 'hourly' ? 2 : 0,
                     maximumFractionDigits: selectedFrequency === 'hourly' ? 2 : 0
-                  })
-                : '-'}
+                  })}
             </div>
             <div className="gba:text-xs gba:text-muted-foreground">{frequencyLabels[selectedFrequency]}</div>
           </div>

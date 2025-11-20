@@ -43,41 +43,29 @@ export const AdjustEmployeeSalaryProvider: React.FC<ProviderProps> = ({
   const fetchData = useCallback(async () => {
     if (!accessToken || !employeeId) {
       setIsLoading(false)
-      setError(!employeeId ? 'Missing employeeId' : 'Missing accessToken')
+      setError(employeeId ? 'Missing accessToken' : 'Missing employeeId')
       return
     }
     setIsLoading(true)
     setError(null)
     try {
-      // Fetch employee data
       const empVariables = { idEmployee: employeeId }
-      const employeeData = await graphqlClient.request<EmployeeDataResponse>(EMPLOYEE_DATA_QUERY, empVariables)
-      setData({ employee: employeeData, compensation: null, catalogs: null })
 
-      // Fetch compensation data
-      try {
-        const compensationData = await graphqlClient.request<EmployeeCompensationResponse>(
-          EMPLOYEE_COMPENSATION_QUERY,
-          empVariables
-        )
-        setData(prev => ({
-          employee: prev?.employee ?? null,
-          compensation: compensationData,
-          catalogs: null
-        }))
-      } catch (compensationErr: any) {
-        console.error('Failed to fetch compensation data:', compensationErr)
-        setError(compensationErr?.message || 'Compensation data load failed')
-        // Still set data with null compensation so form can render
-        setData(prev => ({
-          employee: prev?.employee ?? null,
-          compensation: null,
-          catalogs: null
-        }))
-      }
+      // Fetch both queries in parallel to prevent UI twitch
+      const [employeeData, compensationData] = await Promise.all([
+        graphqlClient.request<EmployeeDataResponse>(EMPLOYEE_DATA_QUERY, empVariables),
+        graphqlClient.request<EmployeeCompensationResponse>(EMPLOYEE_COMPENSATION_QUERY, empVariables)
+      ])
+
+      // Set data only once with both results
+      setData({
+        employee: employeeData,
+        compensation: compensationData,
+        catalogs: null
+      })
       setIsLoading(false)
     } catch (e: any) {
-      console.error('Failed to fetch employee data:', e)
+      console.error('Failed to fetch data:', e)
       setError(e?.message || 'Unknown error')
       setIsLoading(false)
     }
