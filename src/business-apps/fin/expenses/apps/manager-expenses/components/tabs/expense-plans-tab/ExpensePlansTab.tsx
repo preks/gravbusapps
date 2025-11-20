@@ -36,7 +36,7 @@ const ExpensePlansTab: React.FC<ExpensePlansTabProps> = props => {
   })
 
   // State for page size
-  const [pageSize, setPageSize] = useState<number>(10)
+  const [pageSize, setPageSize] = useState<number>(20)
 
   // Stats from overview aggregates (declared after overview)
   let planStats: any = null

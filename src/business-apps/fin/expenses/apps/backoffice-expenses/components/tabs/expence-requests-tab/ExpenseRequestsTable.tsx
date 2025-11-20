@@ -252,14 +252,10 @@ const ExpenseRequestsTable: React.FC<ExpenseRequestsTableProps> = props => {
   )
 
   const hasActiveFilters = useMemo(() => {
-    if (totalItems === 0 && !loading) {
-      return false
-    }
-
     const hasSearch = (searchText || '').trim() !== ''
 
     return hasSearch || selectedFilters.length > 0
-  }, [searchText, selectedFilters, totalItems, loading])
+  }, [searchText, selectedFilters])
 
   useEffect(() => {
     // Mirror personal expenses: use a fixed enum list for statuses
@@ -900,11 +896,11 @@ const ExpenseRequestsTable: React.FC<ExpenseRequestsTableProps> = props => {
                       <div className="gba:text-muted-foreground">
                         {hasActiveFilters
                           ? getTranslationFromI18nKeyAndLabel(
-                              'lowcoder:expense_request_list.no_expense_requests_found',
-                              'No expense requests found matching the current filters.'
+                              'lowcoder:team_expenses_page.dashboard_tab.no_data_found',
+                              'No data available'
                             )
                           : getTranslationFromI18nKeyAndLabel(
-                              'lowcoder:backoffice_expense_landing_page.no_expense_requests_created_yet',
+                              'lowcoder:backoffice_expense_landing_page.no_requests_created_yet',
                               'No expense requests created yet.'
                             )}
                       </div>
