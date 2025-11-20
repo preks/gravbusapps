@@ -1,7 +1,19 @@
-import React, { useEffect, useState, useCallback } from 'react'
-import { Tabs, TabsContent, TabsList, TabsTrigger } from '@newwork/nw-design-system'
+import React, { useEffect, useState, useCallback, useMemo } from 'react'
+import {
+  Tabs,
+  TabsContent,
+  TabsList,
+  TabsTrigger,
+  Select,
+  SelectTrigger,
+  SelectValue,
+  SelectContent,
+  SelectItem
+} from '@newwork/nw-design-system'
 import { LayoutGrid, TrendingUp, Building2, PieChart } from 'lucide-react'
 import { BusinessAppContextProps } from '@/common/BusinessAppContext'
+import { useGetInvestments } from '@/common/data/investment/hooks/useInvestments'
+import { extractAvailableCurrencies } from '@/common/utils/numberFormatter'
 import AllInvestmentsList from './components/AllInvestmentsList'
 import EquityInvestmentsList from './components/EquityInvestmentsList'
 import RealEstateInvestmentsList from './components/RealEstateInvestmentsList'
@@ -26,6 +38,40 @@ export const InvestmentView: React.FC<InvestmentViewProps> = context => {
   }, [])
 
   const [activeTab, setActiveTab] = useState(normalize(initialSubTab))
+  const [selectedCurrency, setSelectedCurrency] = useState<string>('EUR')
+  const [investmentsForCurrency, setInvestmentsForCurrency] = useState<any[]>([])
+
+  const { fetchInvestments } = useGetInvestments(context)
+
+  // Load investments to extract available currencies (pattern from analytics view)
+  useEffect(() => {
+    const loadInvestments = async () => {
+      if (!context.accessToken) return
+
+      try {
+        const response = await fetchInvestments({ limit: 1000, offset: 0 })
+        setInvestmentsForCurrency(response?.Investment || [])
+      } catch (err) {
+        console.error('Error loading investments for currency extraction:', err)
+      }
+    }
+
+    loadInvestments()
+  }, [context.accessToken, fetchInvestments])
+
+  // Extract unique currencies from investments (pattern from analytics view)
+  const availableCurrencies = useMemo(() => {
+    const currencies = extractAvailableCurrencies(investmentsForCurrency, inv => inv.currency?.id)
+
+    // Sort with EUR first, then alphabetically
+    const sorted = currencies.sort((a, b) => {
+      if (a === 'EUR') return -1
+      if (b === 'EUR') return 1
+      return a.localeCompare(b)
+    })
+
+    return sorted.length > 0 ? sorted : ['EUR']
+  }, [investmentsForCurrency])
 
   useEffect(() => {
     setActiveTab(normalize(initialSubTab))
@@ -41,22 +87,41 @@ export const InvestmentView: React.FC<InvestmentViewProps> = context => {
 
   return (
     <div data-testid="investment-view">
-      {/* Header */}
+      {/* Header with Currency Filter */}
       <div className="gba:mb-6">
         <div className="gba:flex gba:items-center gba:justify-between gba:mb-4">
           <div>
             <h1 className="gba:text-2xl gba:font-bold gba:text-gray-900">Investment Portfolio</h1>
             <p className="gba:text-gray-600">Manage and track investment portfolio across asset classes</p>
           </div>
+
+          {/* Currency Filter - Top Right */}
+          <div className="gba:flex gba:items-center gba:gap-2">
+            <span className="gba:text-sm gba:font-medium gba:text-gray-700">Currency:</span>
+            <Select value={selectedCurrency} onValueChange={setSelectedCurrency}>
+              <SelectTrigger className="gba:w-[120px]" data-testid="investment-view-currency-filter">
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                {availableCurrencies.map(currency => (
+                  <SelectItem key={currency} value={currency}>
+                    {currency}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          </div>
         </div>
       </div>
 
-      {/* Statistics - Render different KPIs based on active tab */}
+      {/* Statistics - Render different KPIs based on active tab with selected currency */}
       <div className="gba:mb-6">
-        {activeTab === 'overview' && <InvestmentStatistics {...context} />}
-        {activeTab === 'equity' && <EquityInvestmentStatistics {...context} />}
-        {activeTab === 'liquid-funds' && <LiquidFundInvestmentStatistics {...context} />}
-        {activeTab === 'real-estate' && <RealEstateInvestmentStatistics {...context} />}
+        {activeTab === 'overview' && <InvestmentStatistics {...context} currencyCode={selectedCurrency} />}
+        {activeTab === 'equity' && <EquityInvestmentStatistics {...context} currencyCode={selectedCurrency} />}
+        {activeTab === 'liquid-funds' && (
+          <LiquidFundInvestmentStatistics {...context} currencyCode={selectedCurrency} />
+        )}
+        {activeTab === 'real-estate' && <RealEstateInvestmentStatistics {...context} currencyCode={selectedCurrency} />}
       </div>
 
       {/* Tabs */}
@@ -77,19 +142,19 @@ export const InvestmentView: React.FC<InvestmentViewProps> = context => {
         </TabsList>
 
         <TabsContent value="overview" className="gba:mt-6">
-          <AllInvestmentsList {...context} />
+          <AllInvestmentsList {...context} currencyCode={selectedCurrency} />
         </TabsContent>
 
         <TabsContent value="equity" className="gba:mt-6">
-          <EquityInvestmentsList {...context} />
+          <EquityInvestmentsList {...context} currencyCode={selectedCurrency} />
         </TabsContent>
 
         <TabsContent value="real-estate" className="gba:mt-6">
-          <RealEstateInvestmentsList {...context} />
+          <RealEstateInvestmentsList {...context} currencyCode={selectedCurrency} />
         </TabsContent>
 
         <TabsContent value="liquid-funds" className="gba:mt-6">
-          <LiquidFundInvestmentsList {...context} />
+          <LiquidFundInvestmentsList {...context} currencyCode={selectedCurrency} />
         </TabsContent>
       </Tabs>
     </div>

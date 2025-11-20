@@ -25,11 +25,11 @@ interface EquityDistributionChartsProps extends BusinessAppContextProps {
 export const EquityDistributionCharts: React.FC<EquityDistributionChartsProps> = props => {
   const { masterCurrency, availableCurrencies, ...context } = props
 
-  // Currency state for count-based charts - start with "All Currencies", then sync with master
-  const [roleCountCurrency, setRoleCountCurrency] = useState<string>('All Currencies')
-  const [statusCountCurrency, setStatusCountCurrency] = useState<string>('All Currencies')
-  const [stakeTypeCountCurrency, setStakeTypeCountCurrency] = useState<string>('All Currencies')
-  const [investmentTypeCountCurrency, setInvestmentTypeCountCurrency] = useState<string>('All Currencies')
+  // Currency state for count-based charts - start with "All", then sync with master
+  const [roleCountCurrency, setRoleCountCurrency] = useState<string>('All')
+  const [statusCountCurrency, setStatusCountCurrency] = useState<string>('All')
+  const [stakeTypeCountCurrency, setStakeTypeCountCurrency] = useState<string>('All')
+  const [investmentTypeCountCurrency, setInvestmentTypeCountCurrency] = useState<string>('All')
 
   const prevMasterCurrencyForCount = useRef<string>(masterCurrency)
 
@@ -123,8 +123,8 @@ export const EquityDistributionCharts: React.FC<EquityDistributionChartsProps> =
     prevMasterCurrencyForCount.current = masterCurrency
   }, [masterCurrency])
 
-  // Enhanced currency options with "All Currencies" option for count charts
-  const currencyOptionsWithAll = ['All Currencies', ...availableCurrencies]
+  // Enhanced currency options with "All" option for count charts
+  const currencyOptionsWithAll = ['All', ...availableCurrencies]
 
   // Helper function for consistent currency formatting
   const formatCurrency = (amount: number, currency: string = 'EUR'): string => {
@@ -276,7 +276,7 @@ export const EquityDistributionCharts: React.FC<EquityDistributionChartsProps> =
       {/* Role Distribution - Side by Side */}
       <div className="gba:grid gba:grid-cols-2 gba:gap-4">
         <DistributionPieChart
-          title={`Role Distribution by Count (${roleCountCurrency === 'All' ? 'All Currencies' : roleCountCurrency})`}
+          title={`Role Distribution by Count (${roleCountCurrency})`}
           description="Distribution of equity positions by role"
           icon={ChartPieSliceIcon}
           iconVariant="default"
@@ -303,7 +303,7 @@ export const EquityDistributionCharts: React.FC<EquityDistributionChartsProps> =
       {/* Status Distribution - Side by Side */}
       <div className="gba:grid gba:grid-cols-2 gba:gap-4">
         <DistributionPieChart
-          title={`Status Distribution by Count (${statusCountCurrency === 'All' ? 'All Currencies' : statusCountCurrency})`}
+          title={`Status Distribution by Count (${statusCountCurrency})`}
           description="Distribution by investment status"
           icon={ChartDonutIcon}
           iconVariant="default"
@@ -330,7 +330,7 @@ export const EquityDistributionCharts: React.FC<EquityDistributionChartsProps> =
       {/* Stake Type Distribution - Side by Side */}
       <div className="gba:grid gba:grid-cols-2 gba:gap-4">
         <DistributionPieChart
-          title={`Stake Type Distribution by Count (${stakeTypeCountCurrency === 'All' ? 'All Currencies' : stakeTypeCountCurrency})`}
+          title={`Stake Type Distribution by Count (${stakeTypeCountCurrency})`}
           description="Distribution by stake type"
           icon={PercentIcon}
           iconVariant="success"
@@ -357,7 +357,7 @@ export const EquityDistributionCharts: React.FC<EquityDistributionChartsProps> =
       {/* Investment Type Distribution - Side by Side */}
       <div className="gba:grid gba:grid-cols-2 gba:gap-4">
         <DistributionPieChart
-          title={`Investment Type Distribution by Count (${investmentTypeCountCurrency === 'All' ? 'All Currencies' : investmentTypeCountCurrency})`}
+          title={`Investment Type Distribution by Count (${investmentTypeCountCurrency})`}
           description="Distribution by investment type classification"
           icon={ChartPieSliceIcon}
           iconVariant="secondary"

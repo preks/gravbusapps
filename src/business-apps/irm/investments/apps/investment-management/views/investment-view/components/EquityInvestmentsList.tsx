@@ -21,10 +21,11 @@ import { getTranslationFromI18nKeyAndLabel } from '@/common/utils/windowUtils'
 
 export interface EquityInvestmentsListProps extends BusinessAppContextProps {
   sourceApp?: string
+  currencyCode?: string
 }
 
 const EquityInvestmentsList: React.FC<EquityInvestmentsListProps> = props => {
-  const { accessToken } = props
+  const { accessToken, currencyCode } = props
 
   // Use the shared controller for URL sync and state management
   const {
@@ -110,12 +111,13 @@ const EquityInvestmentsList: React.FC<EquityInvestmentsListProps> = props => {
       orderBy: sortField
         ? [{ field: sortField, direction: sortOrder === 'ASC' ? 'ASC_NULLS_LAST' : 'DESC_NULLS_LAST' }]
         : [{ field: 'createdAt', direction: 'DESC_NULLS_LAST' }],
+      currencyCode: currencyCode || undefined,
       ...filters
     }
     // Always filter by equity investment types
     v.investmentGroupIds = ['InvestmentGroup:v1:EQUITY']
     return v
-  }, [currentPage, pageSize, search, sortField, sortOrder, getFilters])
+  }, [currentPage, pageSize, search, sortField, sortOrder, currencyCode, getFilters])
 
   const loadData = useCallback(async () => {
     if (!accessToken) return

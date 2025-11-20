@@ -29,7 +29,9 @@ import { useRealEstateInvestmentsFilters } from '../hooks/useRealEstateInvestmen
 import { OwnerDisplay } from '@/business-apps/irm/core/apps/investment-relations/views/task-view/components/OwnerDisplay' // TODO: Extract to common
 import { getTranslationFromI18nKeyAndLabel } from '@/common/utils/windowUtils'
 
-export type RealEstateInvestmentsListProps = BusinessAppContextProps
+export interface RealEstateInvestmentsListProps extends BusinessAppContextProps {
+  currencyCode?: string
+}
 
 // Sortable table header component
 const SortableTableHead: React.FC<{
@@ -168,12 +170,13 @@ const RealEstateInvestmentsList: React.FC<RealEstateInvestmentsListProps> = cont
       offset: (currentPage - 1) * pageSize,
       search: search.trim() || undefined,
       orderBy: [{ field: sortField, direction: sortOrder === 'ASC' ? 'ASC_NULLS_LAST' : 'DESC_NULLS_LAST' }],
+      currencyCode: currencyCode || undefined,
       ...filters
     }
     // Always filter by real estate investment types
     v.investmentGroupIds = ['InvestmentGroup:v1:REAL_ESTATE']
     return v
-  }, [currentPage, pageSize, search, sortField, sortOrder, getFilters])
+  }, [currentPage, pageSize, search, sortField, sortOrder, currencyCode, getFilters])
 
   const loadData = useCallback(async () => {
     if (!accessToken) return

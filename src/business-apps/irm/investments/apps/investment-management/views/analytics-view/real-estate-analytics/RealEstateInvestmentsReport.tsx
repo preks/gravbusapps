@@ -282,7 +282,7 @@ const RealEstateInvestmentsReport: React.FC<RealEstateInvestmentsReportProps> = 
             {
               key: 'total-amount-invested',
               title: getTranslationFromI18nKeyAndLabel('kpi.totalAmountInvested', 'Total Amount Invested'),
-              value: formatCurrency(kpis.totalAmountInvested),
+              value: formatCurrency(kpis.totalAmountInvested, selectedCurrency),
               prefix: <DollarCircleOutlined />,
               color: 'var(--nw-color-success-500)',
               valueIsString: true,
@@ -297,7 +297,7 @@ const RealEstateInvestmentsReport: React.FC<RealEstateInvestmentsReportProps> = 
             {
               key: 'total-market-value',
               title: getTranslationFromI18nKeyAndLabel('kpi.totalMarketValue', 'Total Market Value'),
-              value: formatCurrency(kpis.totalMarketValue),
+              value: formatCurrency(kpis.totalMarketValue, selectedCurrency),
               prefix: <RiseOutlined />,
               color: 'var(--nw-color-warning-500)',
               valueIsString: true,

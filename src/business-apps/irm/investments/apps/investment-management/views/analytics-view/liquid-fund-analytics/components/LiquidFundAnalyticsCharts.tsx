@@ -213,7 +213,7 @@ export const LiquidFundAnalyticsCharts: React.FC<LiquidFundAnalyticsChartsProps>
                     type="number"
                     dataKey="investmentAmount"
                     name="Investment Amount"
-                    tickFormatter={value => formatCurrencyCompact(value, 'EUR', undefined, 1, true)}
+                    tickFormatter={value => formatCurrencyCompact(value, correlationCurrencyFilter, undefined, 1, true)}
                   />
                   <ChartTooltip content={renderRateTooltip} />
                   <Scatter name="ratevsamount" fill="var(--color-ratevsamount)" />
@@ -282,7 +282,7 @@ export const LiquidFundAnalyticsCharts: React.FC<LiquidFundAnalyticsChartsProps>
                   <YAxis
                     yAxisId="right"
                     orientation="right"
-                    tickFormatter={value => formatCurrencyCompact(value, 'EUR', undefined, 1, true)}
+                    tickFormatter={value => formatCurrencyCompact(value, performanceCurrencyFilter, undefined, 1, true)}
                   />
                   <ChartTooltip content={renderAverageMetricsTooltip} />
                   <ChartLegend content={<ChartLegendContent />} />

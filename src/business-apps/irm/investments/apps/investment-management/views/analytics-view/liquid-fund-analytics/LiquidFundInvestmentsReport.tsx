@@ -162,6 +162,7 @@ export const LiquidFundInvestmentsReport: React.FC<LiquidFundInvestmentsReportPr
       {/* KPI Cards */}
       <LiquidFundKPICards
         kpis={kpis}
+        currency={selectedCurrency}
         isLoading={kpiLoading}
         error={kpiError ? new Error(kpiError) : null}
         onRetry={refetchKpis}
