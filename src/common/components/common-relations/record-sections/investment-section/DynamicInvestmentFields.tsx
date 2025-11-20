@@ -7,6 +7,7 @@ import { getCurrencySymbol } from '@/common/utils/numberFormatter'
 
 interface DynamicInvestmentFieldsProps {
   investmentData: any // Generic prop that accepts both lead and opportunity data
+  fields?: any[] // Optional fields from parent component (Lead/Opportunity records)
   businessAppContext?: BusinessAppContextProps
 }
 
@@ -113,19 +114,30 @@ const convertUnicodeSymbol = (value: string): string => {
   return value
 }
 
-const DynamicInvestmentFields: React.FC<DynamicInvestmentFieldsProps> = ({ investmentData, businessAppContext }) => {
-  const [referenceFields, setReferenceFields] = useState<any[]>([])
-  const [isLoading, setIsLoading] = useState(true)
+const DynamicInvestmentFields: React.FC<DynamicInvestmentFieldsProps> = ({
+  investmentData,
+  fields,
+  businessAppContext
+}) => {
+  const [fetchedFields, setFetchedFields] = useState<any[]>([])
+  const [isLoading, setIsLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)
 
-  // Use centralized catalog hook
   const { fetchCatalogEntryById } = useCatalogEntry(businessAppContext || ({} as BusinessAppContextProps))
 
+  // Fetch fields from catalog only if not provided by parent (backwards compatibility)
   useEffect(() => {
+    // If fields are provided by parent, use them and skip fetching
+    if (fields && fields.length > 0) {
+      setFetchedFields([])
+      setIsLoading(false)
+      return
+    }
+
+    // Otherwise, fetch from catalog (for Account/Contact/Investment records)
     const fetchCatalogData = async () => {
-      // Check if we have a valid context
       if (!businessAppContext?.accessToken) {
-        setReferenceFields([])
+        setFetchedFields([])
         setIsLoading(false)
         return
       }
@@ -133,39 +145,32 @@ const DynamicInvestmentFields: React.FC<DynamicInvestmentFieldsProps> = ({ inves
       try {
         setIsLoading(true)
 
-        // Validate IDs before making API calls
         const groupId = investmentData?.investmentGroup?.id
         const typeId = investmentData?.investmentType?.id
 
-        // Check if IDs are valid (not test/mock IDs like 'ig_1', 'it_1')
+        // Validate IDs
         const isValidId = (id: string) => {
           if (!id) return false
-          // Reject obvious test/mock IDs
           if (id.match(/^(ig_|it_|test_|mock_|demo_)\d+$/)) return false
-          // Accept UUIDs or other valid catalog IDs
-          return id.length > 10 // Basic length check for real IDs
+          return id.length > 10
         }
 
         const validGroupId = isValidId(groupId) ? groupId : null
         const validTypeId = isValidId(typeId) ? typeId : null
 
-        // Only fetch if we have valid IDs
         if (!validGroupId && !validTypeId) {
-          setReferenceFields([])
+          setFetchedFields([])
           setIsLoading(false)
           return
         }
 
-        // Fetch both Investment Group and Investment Type catalog data in parallel
+        // Fetch catalog data
         const [groupData, typeData] = await Promise.all([
-          // Fetch Investment Group only if valid ID
           validGroupId ? fetchCatalogEntryById(validGroupId).catch(() => null) : Promise.resolve(null),
-
-          // Fetch Investment Type only if valid ID
           validTypeId ? fetchCatalogEntryById(validTypeId).catch(() => null) : Promise.resolve(null)
         ])
 
-        // Handle objectValue - it might be a JSON string that needs parsing
+        // Parse objectValue
         let typeObjectValue: any = null
         let groupObjectValue: any = null
 
@@ -174,7 +179,7 @@ const DynamicInvestmentFields: React.FC<DynamicInvestmentFieldsProps> = ({ inves
             typeObjectValue =
               typeof typeData.objectValue === 'string' ? JSON.parse(typeData.objectValue) : typeData.objectValue
           } catch (err) {
-            console.error('DynamicInvestmentFields: Error parsing type objectValue:', err)
+            console.error('Error parsing type objectValue:', err)
             typeObjectValue = typeData.objectValue
           }
         }
@@ -184,47 +189,31 @@ const DynamicInvestmentFields: React.FC<DynamicInvestmentFieldsProps> = ({ inves
             groupObjectValue =
               typeof groupData.objectValue === 'string' ? JSON.parse(groupData.objectValue) : groupData.objectValue
           } catch (err) {
-            console.error('DynamicInvestmentFields: Error parsing group objectValue:', err)
+            console.error('Error parsing group objectValue:', err)
             groupObjectValue = groupData.objectValue
           }
         }
 
-        // Priority-based field resolution:
-        // 1. Try formFields from Type (for Account/Contact/Investment records)
-        // 2. Fallback to formFields from Group
-        // 3. Fallback to referenceFields from Type (for Lead/Opportunity records)
-        // 4. Final fallback to referenceFields from Group
-        let fields: any[] = []
+        // Extract formFields (nested paths for Investment/Account/Contact records)
+        let catalogFields: any[] = []
 
-        // Priority 1: Try formFields from Type
         if (typeObjectValue?.formFields && Array.isArray(typeObjectValue.formFields)) {
-          const flattenedTypeFields = typeObjectValue.formFields.flatMap((fieldGroup: any) => fieldGroup.fields || [])
-          const recordFields = flattenedTypeFields.filter((field: any) => field.record === true)
+          const flattenedFields = typeObjectValue.formFields.flatMap((group: any) => group.fields || [])
+          const recordFields = flattenedFields.filter((field: any) => field.record === true)
           if (recordFields.length > 0) {
-            fields = recordFields
+            catalogFields = recordFields
           }
         }
 
-        // Priority 2: Fallback to formFields from Group
-        if (fields.length === 0 && groupObjectValue?.formFields && Array.isArray(groupObjectValue.formFields)) {
-          const flattenedGroupFields = groupObjectValue.formFields.flatMap((fieldGroup: any) => fieldGroup.fields || [])
-          const recordFields = flattenedGroupFields.filter((field: any) => field.record === true)
+        if (catalogFields.length === 0 && groupObjectValue?.formFields && Array.isArray(groupObjectValue.formFields)) {
+          const flattenedFields = groupObjectValue.formFields.flatMap((group: any) => group.fields || [])
+          const recordFields = flattenedFields.filter((field: any) => field.record === true)
           if (recordFields.length > 0) {
-            fields = recordFields
+            catalogFields = recordFields
           }
         }
 
-        // Priority 3: Fallback to referenceFields from Type
-        if (fields.length === 0 && typeObjectValue?.referenceFields) {
-          fields = typeObjectValue.referenceFields
-        }
-
-        // Priority 4: Final fallback to referenceFields from Group
-        if (fields.length === 0 && groupObjectValue?.referenceFields) {
-          fields = groupObjectValue.referenceFields
-        }
-
-        setReferenceFields(fields || [])
+        setFetchedFields(catalogFields)
       } catch (err) {
         console.error('Error fetching catalog data:', err)
         setError(err instanceof Error ? err.message : 'Unknown error occurred')
@@ -235,15 +224,25 @@ const DynamicInvestmentFields: React.FC<DynamicInvestmentFieldsProps> = ({ inves
 
     fetchCatalogData()
   }, [
+    fields,
     investmentData?.investmentGroup?.id,
     investmentData?.investmentType?.id,
     businessAppContext?.accessToken,
     fetchCatalogEntryById
   ])
 
+  // Use provided fields or fallback to fetched fields
+  const fieldsToRender = useMemo(() => {
+    if (fields && fields.length > 0) {
+      // Flatten formFields structure if provided by parent (Lead/Opportunity)
+      return fields.flatMap(group => group.fields || [])
+    }
+    return fetchedFields
+  }, [fields, fetchedFields])
+
   // Memoized value formatting to prevent unnecessary re-renders
   const formattedFields = useMemo(() => {
-    return referenceFields.map(field => {
+    return fieldsToRender.map(field => {
       const fieldName = field.property || field.name
       const fieldType = field.type || 'text'
 
@@ -388,7 +387,7 @@ const DynamicInvestmentFields: React.FC<DynamicInvestmentFieldsProps> = ({ inves
         suffix
       }
     })
-  }, [referenceFields, investmentData])
+  }, [fieldsToRender, investmentData])
 
   if (isLoading) {
     return (

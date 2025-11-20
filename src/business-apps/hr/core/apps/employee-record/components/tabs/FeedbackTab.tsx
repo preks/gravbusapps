@@ -7,7 +7,7 @@ import { Empty, Spin, Input, Select, Rate, Pagination } from 'antd'
 import { useGraphqlClient } from '@/common/network/graphql/useGraphQLClient'
 import { EMPLOYEE_FEEDBACK_REQUESTS_QUERY_PAGED_WITH_COUNT } from './queries/EmployeeFeedbackRequestQueries'
 import { employeeFeedbackQuery } from '../../queries/feedbackQueries'
-import { AppActionMenu } from '@/components/app-action-menu'
+import { AppAction } from '@/components/app-action/AppAction'
 import { FlowContextName } from '@/common/types/FlowRegistryTypes'
 import { getTranslationFromI18nKeyAndLabel, formatDate } from '@/common/utils/windowUtils'
 import { startProcess } from '@/common/utils/start-process'
@@ -375,44 +375,38 @@ const FeedbackTab: React.FC<FeedbackTabProps> = ({
           {/* Header Actions - right aligned, inline with title */}
           <div className="gba:flex gba:gap-4 gba:items-center gba:self-center">
             {/* Request Feedback Button - Only shown when viewing own profile */}
-            {isSelfView && (
-              <div>
-                <AppActionMenu
-                  data-testid="employee-feedback-request-button"
-                  contextsArray={[FlowContextName.employeeRequestFeedback]}
-                  externalContextData={{
-                    employeeId: employee?.id,
-                    isRequestingFeedback: true
-                  }}
-                  prefixDataTestId="request-feedback"
-                  accessToken={accessToken}
-                  autoExecuteSingleAction={true}
-                >
-                  <div className="gba:flex gba:items-center gba:gap-2 gba:cursor-pointer">
-                    <PiPencilSimple />
-                    {getTranslationFromI18nKeyAndLabel('lowcoder:feedback_tab.request_feedback', 'Request Feedback')}
-                  </div>
-                </AppActionMenu>
-              </div>
-            )}
+            <div>
+              <AppAction
+                variant="update-primary"
+                data-testid="employee-feedback-request-button"
+                contexts={[
+                  {
+                    context: FlowContextName.employeeRequestFeedback,
+                    contextData: { employeeId: employee?.id, isRequestingFeedback: true }
+                  }
+                ]}
+                prefixDataTestId="request-feedback"
+                accessToken={accessToken}
+                autoExecute={true}
+              >
+                {getTranslationFromI18nKeyAndLabel('lowcoder:feedback_tab.request_feedback', 'Request Feedback')}
+              </AppAction>
+            </div>
 
             {/* Give Feedback Button */}
             <div>
-              <AppActionMenu
+              <AppAction
+                variant="update-primary"
                 data-testid="employee-feedback-give-button"
-                contextsArray={[FlowContextName.employeeGiveFeedback]}
-                externalContextData={{
-                  employeeId: employee?.id
-                }}
+                contexts={[
+                  { context: FlowContextName.employeeGiveFeedback, contextData: { employeeId: employee?.id } }
+                ]}
                 prefixDataTestId="add-feedback"
                 accessToken={accessToken}
-                autoExecuteSingleAction={true}
+                autoExecute={true}
               >
-                <div className="gba:flex gba:items-center gba:gap-2 gba:cursor-pointer">
-                  <PiPencilSimple />
-                  {getTranslationFromI18nKeyAndLabel('lowcoder:feedback_tab.give_feedback', 'Give Feedback')}
-                </div>
-              </AppActionMenu>
+                {getTranslationFromI18nKeyAndLabel('lowcoder:feedback_tab.give_feedback', 'Give Feedback')}
+              </AppAction>
             </div>
           </div>
         </div>
