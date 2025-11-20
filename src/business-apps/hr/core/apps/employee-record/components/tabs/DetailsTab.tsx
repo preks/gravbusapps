@@ -36,7 +36,6 @@ const DetailsTab: React.FC<DetailsTabProps> = ({
 
   // Check permissions for sections
   const { isSectionVisible } = useEmployeePermissions(employeeIdForPermissions, accessToken)
-  console.log('employeeRecordHrBackoffice', employeeRecordHrBackoffice)
 
   const personalData = [
     {
