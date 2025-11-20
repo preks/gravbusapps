@@ -236,13 +236,7 @@ const HrGrowthTab: React.FC<HrGrowthTabProps> = ({
         </TabsList>
 
         <TabsContent value="skills" data-testid="hr-growth-skills-content" className="gba:mt-4">
-          <SkillsTab
-            employee={employee}
-            accessToken={accessToken}
-            employeeId={employeeId}
-            userInfo={userInfo}
-            isSelfView={isSelfView}
-          />
+          <SkillsTab employee={employee} accessToken={accessToken} employeeId={employeeId} userInfo={userInfo} />
         </TabsContent>
 
         {devFeatureFlag && (
@@ -265,7 +259,6 @@ const HrGrowthTab: React.FC<HrGrowthTabProps> = ({
             employeeId={employeeId}
             userInfo={userInfo}
             employeePerformanceGoals={employeePerformanceGoals}
-            isSelfView={isSelfView}
           />
         </TabsContent>
 

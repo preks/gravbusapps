@@ -154,13 +154,7 @@ const HrAdminTab: React.FC<HrAdminTabProps> = ({
         </TabsContent>
 
         <TabsContent value="employment" data-testid="hr-admin-employment-content" className="gba:mt-4">
-          <EmploymentTab
-            employee={employee}
-            accessToken={accessToken}
-            employeeId={employeeId}
-            userInfo={userInfo}
-            isSelfView={isSelfView}
-          />
+          <EmploymentTab employee={employee} accessToken={accessToken} employeeId={employeeId} userInfo={userInfo} />
         </TabsContent>
 
         {changeLogTabFeatureFlag && (
@@ -177,13 +171,7 @@ const HrAdminTab: React.FC<HrAdminTabProps> = ({
         )}
 
         <TabsContent value="documents" data-testid="hr-admin-documents-content" className="gba:mt-4">
-          <DocumentsTab
-            employee={employee}
-            accessToken={accessToken}
-            employeeId={employeeId}
-            userInfo={userInfo}
-            isSelfView={isSelfView}
-          />
+          <DocumentsTab employee={employee} accessToken={accessToken} employeeId={employeeId} userInfo={userInfo} />
         </TabsContent>
 
         {shouldShowHrNotes && (
