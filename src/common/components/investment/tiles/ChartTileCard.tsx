@@ -4,13 +4,12 @@ import {
   CardHeader,
   CardTitle,
   CardContent,
-  Button,
   ChartContainer,
   ChartTooltip,
   ChartLegend,
   ChartLegendContent
 } from '@newwork/nw-design-system'
-import { Edit, Trash2, PieChart, BarChart3, LineChart } from 'lucide-react'
+import { PieChart, BarChart3, LineChart } from 'lucide-react'
 import {
   PieChart as RechartsPieChart,
   Pie,
@@ -25,13 +24,13 @@ import {
 import { TileData, CHART_TYPES } from './types/tileTypes'
 import { AppAction } from '@/components/app-action'
 import { FlowContextName } from '@/common/types/FlowRegistryTypes'
-import { getTranslationFromI18nKeyAndLabel, formatDate } from '@/common/utils/windowUtils'
+import { getTranslationFromI18nKeyAndLabel } from '@/common/utils/windowUtils'
+import { formatForDisplay } from '@/common/utils/dateFormatter'
 import { BusinessAppContextProps } from '@/common/BusinessAppContext'
 
 export interface ChartTileCardProps extends BusinessAppContextProps {
   tile: TileData
   investmentId: string
-  onRefresh?: () => void
 }
 
 // Custom tooltip component - reusable for all chart types
@@ -62,7 +61,7 @@ const ChartTooltipContent: React.FC<ChartTooltipProps> = ({
   return null
 }
 
-export const ChartTileCard: React.FC<ChartTileCardProps> = ({ tile, investmentId, onRefresh, ...props }) => {
+export const ChartTileCard: React.FC<ChartTileCardProps> = ({ tile, investmentId, ...props }) => {
   const chartData = tile.chartData
 
   // All hooks MUST be called before any early returns (Rules of Hooks)
@@ -73,7 +72,8 @@ export const ChartTileCard: React.FC<ChartTileCardProps> = ({ tile, investmentId
     }
 
     const pieData = chartData.pieData.map(item => {
-      const key = item.name.toLowerCase().replaceAll(/\s+/g, '')
+      // Using replace() instead of replaceAll() for ES2020 compatibility
+      const key = item.name.toLowerCase().replace(/\s+/g, '')
       return {
         name: key,
         displayName: item.name,
@@ -286,7 +286,7 @@ export const ChartTileCard: React.FC<ChartTileCardProps> = ({ tile, investmentId
     }
   }
 
-  const formattedDate = formatDate(tile.updatedAt, 'date.short')
+  const formattedDate = formatForDisplay(tile.updatedAt)
 
   return (
     <Card data-testid={`chart-tile-${tile.id}`} className="gba:border gba:shadow-sm">
@@ -299,40 +299,37 @@ export const ChartTileCard: React.FC<ChartTileCardProps> = ({ tile, investmentId
 
           {/* Action Buttons */}
           <div className="gba:flex gba:gap-2">
-            {/* Edit Button - Opens popup via AppAction */}
             <AppAction
-              contextsArray={[FlowContextName.investmentKpiTilesUpdate]}
-              externalContextData={{
-                investmentId,
-                scope: 'chart',
-                tileId: tile.id
-              }}
+              variant="update-secondary"
+              contexts={[
+                {
+                  context: FlowContextName.investmentKpiTilesUpdate,
+                  contextData: {
+                    investmentId,
+                    scope: 'chart',
+                    tileId: tile.id
+                  }
+                }
+              ]}
               accessToken={props.accessToken}
-              emptyStateBehavior="hide"
-              data-testid={`edit-tile-action-${tile.id}`}
-            >
-              <Button size="icon" variant="ghost" data-testid={`edit-tile-button-${tile.id}`}>
-                <Edit className="gba:h-4 gba:w-4" />
-              </Button>
-            </AppAction>
+              data-testid={`edit-tile-${tile.id}`}
+            />
 
-            {/* Delete Button - Deletes tile via AppAction */}
             <AppAction
-              contextsArray={[FlowContextName.investmentKpiTilesUpdate]}
-              externalContextData={{
-                investmentId,
-                scope: 'delete',
-                tileId: tile.id
-              }}
+              variant="delete-secondary"
+              contexts={[
+                {
+                  context: FlowContextName.investmentKpiTilesUpdate,
+                  contextData: {
+                    investmentId,
+                    scope: 'delete',
+                    tileId: tile.id
+                  }
+                }
+              ]}
               accessToken={props.accessToken}
-              emptyStateBehavior="hide"
-              onProcessCompletion={onRefresh}
-              data-testid={`delete-tile-action-${tile.id}`}
-            >
-              <Button size="icon" variant="ghost" data-testid={`delete-tile-button-${tile.id}`}>
-                <Trash2 className="gba:h-4 gba:w-4 gba:text-destructive" />
-              </Button>
-            </AppAction>
+              data-testid={`delete-tile-${tile.id}`}
+            />
           </div>
         </div>
       </CardHeader>

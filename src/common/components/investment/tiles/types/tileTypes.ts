@@ -37,6 +37,9 @@ export interface TileData {
   /** ISO timestamp of last update */
   updatedAt: string
 
+  /** User ID of the tile creator (for filtering) */
+  createdBy: string
+
   // Type-specific data fields
 
   /** Text content for TEXT tiles */

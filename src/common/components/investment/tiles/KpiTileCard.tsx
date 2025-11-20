@@ -1,26 +1,26 @@
 import React from 'react'
-import { Card, CardHeader, CardTitle, CardContent, Button } from '@newwork/nw-design-system'
-import { Edit, Trash2, TrendingUp } from 'lucide-react'
+import { Card, CardHeader, CardTitle, CardContent } from '@newwork/nw-design-system'
+import { TrendingUp } from 'lucide-react'
 import { BusinessAppContextProps } from '@/common/BusinessAppContext'
 import { AppAction } from '@/components/app-action'
 import { FlowContextName } from '@/common/types/FlowRegistryTypes'
 import { TileData } from './types/tileTypes'
-import { getTranslationFromI18nKeyAndLabel, formatDate } from '@/common/utils/windowUtils'
+import { getTranslationFromI18nKeyAndLabel } from '@/common/utils/windowUtils'
+import { formatForDisplay } from '@/common/utils/dateFormatter'
 
 interface KpiTileCardProps extends BusinessAppContextProps {
   tile: TileData
   investmentId: string
-  onRefresh?: () => void
 }
 
-export const KpiTileCard: React.FC<KpiTileCardProps> = ({ tile, investmentId, onRefresh, ...props }) => {
+export const KpiTileCard: React.FC<KpiTileCardProps> = ({ tile, investmentId, ...props }) => {
   // Format KPI value with unit
   const formattedValue =
     tile.kpiValue !== undefined && tile.kpiValue !== null
       ? `${tile.kpiValue}${tile.kpiUnit || ''}`
       : getTranslationFromI18nKeyAndLabel('common.notAvailable', 'N/A')
 
-  const formattedDate = formatDate(tile.updatedAt, 'date.short')
+  const formattedDate = formatForDisplay(tile.updatedAt)
 
   return (
     <Card data-testid={`kpi-tile-${tile.id}`} className="gba:border gba:shadow-sm">
@@ -35,40 +35,37 @@ export const KpiTileCard: React.FC<KpiTileCardProps> = ({ tile, investmentId, on
 
           {/* Action Buttons */}
           <div className="gba:flex gba:gap-2">
-            {/* Edit Button - Opens popup via AppAction */}
             <AppAction
-              contextsArray={[FlowContextName.investmentKpiTilesUpdate]}
-              externalContextData={{
-                investmentId,
-                scope: 'kpi',
-                tileId: tile.id
-              }}
+              variant="update-secondary"
+              contexts={[
+                {
+                  context: FlowContextName.investmentKpiTilesUpdate,
+                  contextData: {
+                    investmentId,
+                    scope: 'kpi',
+                    tileId: tile.id
+                  }
+                }
+              ]}
               accessToken={props.accessToken}
-              emptyStateBehavior="hide"
-              data-testid={`edit-tile-action-${tile.id}`}
-            >
-              <Button size="icon" variant="ghost" data-testid={`edit-tile-button-${tile.id}`}>
-                <Edit className="gba:h-4 gba:w-4" />
-              </Button>
-            </AppAction>
+              data-testid={`edit-tile-${tile.id}`}
+            />
 
-            {/* Delete Button - Deletes tile via AppAction */}
             <AppAction
-              contextsArray={[FlowContextName.investmentKpiTilesUpdate]}
-              externalContextData={{
-                investmentId,
-                scope: 'delete',
-                tileId: tile.id
-              }}
+              variant="delete-secondary"
+              contexts={[
+                {
+                  context: FlowContextName.investmentKpiTilesUpdate,
+                  contextData: {
+                    investmentId,
+                    scope: 'delete',
+                    tileId: tile.id
+                  }
+                }
+              ]}
               accessToken={props.accessToken}
-              emptyStateBehavior="hide"
-              onProcessCompletion={onRefresh}
-              data-testid={`delete-tile-action-${tile.id}`}
-            >
-              <Button size="icon" variant="ghost" data-testid={`delete-tile-button-${tile.id}`}>
-                <Trash2 className="gba:h-4 gba:w-4 gba:text-destructive" />
-              </Button>
-            </AppAction>
+              data-testid={`delete-tile-${tile.id}`}
+            />
           </div>
         </div>
       </CardHeader>

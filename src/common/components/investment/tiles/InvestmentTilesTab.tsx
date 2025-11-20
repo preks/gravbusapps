@@ -15,15 +15,9 @@ import { loadTilesFromInvestment } from './utils/tileUtils'
 interface InvestmentTilesTabProps extends BusinessAppContextProps {
   investmentId: string
   investment: any
-  onRefresh?: () => void
 }
 
-export const InvestmentTilesTab: React.FC<InvestmentTilesTabProps> = ({
-  investmentId,
-  investment,
-  onRefresh,
-  ...props
-}) => {
+export const InvestmentTilesTab: React.FC<InvestmentTilesTabProps> = ({ investmentId, investment, ...props }) => {
   // Parse tiles from additionalProperties
   const tiles = useMemo(() => {
     const tilesData = loadTilesFromInvestment(investment)
@@ -41,24 +35,16 @@ export const InvestmentTilesTab: React.FC<InvestmentTilesTabProps> = ({
     let tileComponent
     switch (tile.type) {
       case TILE_TYPES.TEXT:
-        tileComponent = (
-          <TextTileCard key={tile.id} tile={tile} investmentId={investmentId} onRefresh={onRefresh} {...props} />
-        )
+        tileComponent = <TextTileCard key={tile.id} tile={tile} investmentId={investmentId} {...props} />
         break
       case TILE_TYPES.KPI:
-        tileComponent = (
-          <KpiTileCard key={tile.id} tile={tile} investmentId={investmentId} onRefresh={onRefresh} {...props} />
-        )
+        tileComponent = <KpiTileCard key={tile.id} tile={tile} investmentId={investmentId} {...props} />
         break
       case TILE_TYPES.TABLE:
-        tileComponent = (
-          <TableTileCard key={tile.id} tile={tile} investmentId={investmentId} onRefresh={onRefresh} {...props} />
-        )
+        tileComponent = <TableTileCard key={tile.id} tile={tile} investmentId={investmentId} {...props} />
         break
       case TILE_TYPES.CHART:
-        tileComponent = (
-          <ChartTileCard key={tile.id} tile={tile} investmentId={investmentId} onRefresh={onRefresh} {...props} />
-        )
+        tileComponent = <ChartTileCard key={tile.id} tile={tile} investmentId={investmentId} {...props} />
         break
       default:
         return null
@@ -94,13 +80,17 @@ export const InvestmentTilesTab: React.FC<InvestmentTilesTabProps> = ({
         <div className="gba:flex gba:gap-2">
           {/* Add Text Tile */}
           <AppAction
-            contextsArray={[FlowContextName.investmentKpiTilesUpdate]}
-            externalContextData={{
-              investmentId,
-              scope: 'text'
-            }}
+            contexts={[
+              {
+                context: FlowContextName.investmentKpiTilesUpdate,
+                contextData: {
+                  investmentId,
+                  scope: 'text'
+                }
+              }
+            ]}
             accessToken={props.accessToken}
-            emptyStateBehavior="enable"
+            emptyState="enable"
             data-testid="add-text-tile-action"
           >
             <Button variant="default" size="sm" data-testid="add-text-tile-button">
@@ -111,13 +101,17 @@ export const InvestmentTilesTab: React.FC<InvestmentTilesTabProps> = ({
 
           {/* Add KPI Tile */}
           <AppAction
-            contextsArray={[FlowContextName.investmentKpiTilesUpdate]}
-            externalContextData={{
-              investmentId,
-              scope: 'kpi'
-            }}
+            contexts={[
+              {
+                context: FlowContextName.investmentKpiTilesUpdate,
+                contextData: {
+                  investmentId,
+                  scope: 'kpi'
+                }
+              }
+            ]}
             accessToken={props.accessToken}
-            emptyStateBehavior="enable"
+            emptyState="enable"
             data-testid="add-kpi-tile-action"
           >
             <Button variant="default" size="sm" data-testid="add-kpi-tile-button">
@@ -128,13 +122,17 @@ export const InvestmentTilesTab: React.FC<InvestmentTilesTabProps> = ({
 
           {/* Add Table Tile */}
           <AppAction
-            contextsArray={[FlowContextName.investmentKpiTilesUpdate]}
-            externalContextData={{
-              investmentId,
-              scope: 'table'
-            }}
+            contexts={[
+              {
+                context: FlowContextName.investmentKpiTilesUpdate,
+                contextData: {
+                  investmentId,
+                  scope: 'table'
+                }
+              }
+            ]}
             accessToken={props.accessToken}
-            emptyStateBehavior="enable"
+            emptyState="enable"
             data-testid="add-table-tile-action"
           >
             <Button variant="default" size="sm" data-testid="add-table-tile-button">
@@ -145,13 +143,17 @@ export const InvestmentTilesTab: React.FC<InvestmentTilesTabProps> = ({
 
           {/* Add Chart Tile */}
           <AppAction
-            contextsArray={[FlowContextName.investmentKpiTilesUpdate]}
-            externalContextData={{
-              investmentId,
-              scope: 'chart'
-            }}
+            contexts={[
+              {
+                context: FlowContextName.investmentKpiTilesUpdate,
+                contextData: {
+                  investmentId,
+                  scope: 'chart'
+                }
+              }
+            ]}
             accessToken={props.accessToken}
-            emptyStateBehavior="enable"
+            emptyState="enable"
             data-testid="add-chart-tile-action"
           >
             <Button variant="default" size="sm" data-testid="add-chart-tile-button">
