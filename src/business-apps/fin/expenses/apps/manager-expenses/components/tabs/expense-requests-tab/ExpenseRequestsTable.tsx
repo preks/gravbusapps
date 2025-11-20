@@ -78,7 +78,7 @@ const ExpenseRequestsTable: React.FC<ExpenseRequestsTableProps> = props => {
   )
 
   const [currentPage, setCurrentPage] = useState<number>(1)
-  const [pageSize, setPageSize] = useState<number>(10)
+  const [pageSize, setPageSize] = useState<number>(20)
   const [selectedRequest, setSelectedRequest] = useState<ExpenseRequest | null>(null)
   const [printModalOpen, setPrintModalOpen] = useState<boolean>(false)
   const [printPdfUrl, setPrintPdfUrl] = useState<string>('')
@@ -597,16 +597,19 @@ const ExpenseRequestsTable: React.FC<ExpenseRequestsTableProps> = props => {
           </Table>
         </div>
 
-        {totalCount > 0 && (
+        {totalCount > pageSize ? (
           <div
-            className="gba:flex gba:items-center gba:justify-between gba:px-2 gba:py-4 gba:border-t gba:border-border"
+            className="gba:flex gba:items-center gba:justify-between gba:px-6 gba:py-4 gba:border-t"
             data-testid="expense-requests-pagination"
           >
             <div className="gba:text-sm gba:text-muted-foreground" data-testid="expense-requests-pagination-info">
-              {`${(currentPage - 1) * pageSize + 1}-${Math.min(
-                currentPage * pageSize,
-                totalCount
-              )} ${getTranslationFromI18nKeyAndLabel('lowcoder:personal_expenses.of', 'of')} ${totalCount} ${getTranslationFromI18nKeyAndLabel('lowcoder:personal_expenses.expense_requests', 'expense requests')}`}
+              {getTranslationFromI18nKeyAndLabel('lowcoder:personal_expenses.showing', 'Showing')}{' '}
+              {`${(currentPage - 1) * pageSize + 1}-${Math.min(currentPage * pageSize, totalCount)}`}{' '}
+              {getTranslationFromI18nKeyAndLabel('lowcoder:personal_expenses.of', 'of')} {totalCount}{' '}
+              {getTranslationFromI18nKeyAndLabel(
+                'lowcoder:employee_list.flows_button.expense_requests',
+                'Expense Requests'
+              )}
             </div>
             <div className="gba:flex gba:items-center gba:space-x-6 gba:lg:space-x-8">
               <div className="gba:flex gba:items-center gba:space-x-2">
@@ -665,8 +668,7 @@ const ExpenseRequestsTable: React.FC<ExpenseRequestsTableProps> = props => {
                   disabled={currentPage === 1}
                   data-testid="expense-requests-first-page-button"
                 >
-                  <span className="gba:sr-only">Go to first page</span>
-                  ⟪⟪
+                  <span className="gba:sr-only">Go to first page</span>⟪
                 </Button>
                 <Button
                   variant="outline"
@@ -687,7 +689,7 @@ const ExpenseRequestsTable: React.FC<ExpenseRequestsTableProps> = props => {
                   disabled={currentPage === 1}
                   data-testid="expense-requests-previous-page-button"
                 >
-                  <span className="gba:sr-only">Go to previous page</span>⟪
+                  <span className="gba:sr-only">Go to previous page</span>⟨
                 </Button>
                 <Button
                   variant="outline"
@@ -708,7 +710,7 @@ const ExpenseRequestsTable: React.FC<ExpenseRequestsTableProps> = props => {
                   disabled={currentPage >= Math.ceil(totalCount / pageSize)}
                   data-testid="expense-requests-next-page-button"
                 >
-                  <span className="gba:sr-only">Go to next page</span>⟫
+                  <span className="gba:sr-only">Go to next page</span>⟩
                 </Button>
                 <Button
                   variant="outline"
@@ -729,13 +731,53 @@ const ExpenseRequestsTable: React.FC<ExpenseRequestsTableProps> = props => {
                   disabled={currentPage >= Math.ceil(totalCount / pageSize)}
                   data-testid="expense-requests-last-page-button"
                 >
-                  <span className="gba:sr-only">Go to last page</span>
-                  ⟫⟫
+                  <span className="gba:sr-only">Go to last page</span>⟫
                 </Button>
               </div>
             </div>
           </div>
-        )}
+        ) : totalCount > 0 ? (
+          <div
+            className="gba:flex gba:items-center gba:justify-between gba:px-6 gba:py-4 gba:border-t"
+            data-testid="expense-requests-pagination-info-single-page"
+          >
+            <div className="gba:text-sm gba:text-muted-foreground">
+              {`${totalCount} ${getTranslationFromI18nKeyAndLabel(
+                'lowcoder:employee_list.flows_button.expense_requests',
+                'Expense Requests'
+              )}`}
+            </div>
+            <div className="gba:flex gba:items-center gba:space-x-2">
+              <p className="gba:text-sm gba:font-medium">
+                {getTranslationFromI18nKeyAndLabel('lowcoder:personal_expenses.rows_per_page', 'Rows per page')}
+              </p>
+              <select
+                value={pageSize}
+                onChange={e => {
+                  const newPageSize = Number(e.target.value)
+                  setPageSize(newPageSize)
+                  setCurrentPage(1)
+                  fetchRequests(
+                    searchTerm,
+                    1,
+                    newPageSize,
+                    sorting.field ? `${sorting.field}:${sorting.order?.toLowerCase()}` : 'requestDate:desc',
+                    selectedFilters,
+                    undefined,
+                    primaryCurrency
+                  )
+                }}
+                className="gba:h-8 gba:w-[70px] gba:rounded gba:border gba:border-input gba:px-3 gba:py-1 gba:text-sm"
+                data-testid="expense-requests-page-size-select-single"
+              >
+                <option value={10}>10</option>
+                <option value={20}>20</option>
+                <option value={50}>50</option>
+                <option value={100}>100</option>
+              </select>
+            </div>
+          </div>
+        ) : null}
       </div>
     )
   }, [requests, isLoading, error, totalCount, pageSize, currentPage, hasActiveFilters])
