@@ -1,7 +1,7 @@
 import React from 'react'
 import { LeadStatusChangePopup as SharedLeadStatusChangePopup } from '@/common/components/common-relations/popups/lead-status-change-popup/LeadStatusChangePopup'
 import { BusinessAppContextProps } from '@/common/BusinessAppContext'
-import { useLeadData } from '../../records/lead-record/hooks/useLeadData'
+import { useLeadDataForStatusChange } from './hooks/useLeadDataForStatusChange'
 
 export interface IRMInvestmentStatusChangePopupProps extends BusinessAppContextProps {
   initialValues?: {
@@ -18,7 +18,7 @@ const InvestmentStatusChangePopup: React.FC<IRMInvestmentStatusChangePopupProps>
         entityKey: 'investmentLead',
         testIdPrefix: 'investment-lead-status-change-popup',
         statusFieldName: 'leadStatus',
-        useLeadDataHook: useLeadData
+        useLeadDataHook: useLeadDataForStatusChange
       }}
     />
   )
