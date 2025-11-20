@@ -453,7 +453,7 @@ const ExpenseRequestsTable: React.FC<ExpenseRequestsTableProps> = React.memo(pro
                                 'No data available'
                               )
                             : getTranslationFromI18nKeyAndLabel(
-                                'lowcoder:personal_expenses.no_expense_requests_found',
+                                'lowcoder:personal_expenses.no_expense_request_data',
                                 'No expense requests found. Create your first expense request to get started.'
                               )}
                         </div>

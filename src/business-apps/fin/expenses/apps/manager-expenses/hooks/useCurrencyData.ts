@@ -18,7 +18,7 @@ const processCurrencyCollection = (
   if (!items) return
 
   for (const item of items) {
-    const code = extractCurrencyCode(item.currencyRef)
+    const code = extractCurrencyCode(item.currencyRef || '')
     if (code) {
       currencyMap.set(code, (currencyMap.get(code) || 0) + 1)
     }

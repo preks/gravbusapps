@@ -21,7 +21,7 @@ import { BusinessAppContextProps } from '@/common/BusinessAppContext'
 import { navigateTo, buildPlatformUrl } from '@/common/utils/navigationUtils'
 import { getTranslationFromI18nKeyAndLabel, formatDate } from '@/common/utils/windowUtils'
 import { useProcessCompletion } from '@/common/hooks/useProcessCompletion'
-import type { InvestmentOpportunity } from '@/common/data/investment/types'
+import type { InvestmentOpportunity, Investment } from '@/common/data/investment/types'
 import { formatCurrency, extractCurrencyCode } from '@/common/utils/numberFormatter'
 import { getOpportunityStatusBadgeVariant } from '@/common/utils/badgeUtils'
 import { useAiSummary } from './hooks/useAiSummary'
@@ -40,6 +40,7 @@ import { getEmployeeName } from '@/common/components/common-relations/record-sec
 import type { Stage, StageCondition } from '@/components/stage-progression/types'
 import { isOpportunityOpen } from './utils/opportunityStatusUtils'
 import { buildInvestmentFromOpportunity } from './utils/opportunityDataTransformers'
+import { buildFormFieldsFromCatalogData } from '../utils/investmentFieldsBuilder'
 import AccountSection from '@/common/components/common-relations/record-sections/account-section/AccountSection'
 import ContactSection from '@/common/components/common-relations/record-sections/contact-section/ContactSection'
 import ActivitySection from '@/common/components/common-relations/record-sections/activity-section/ActivitySection'
@@ -87,13 +88,6 @@ const InvestmentOpportunityRecordContent: React.FC<OpportunityRecordContentProps
     opportunityVersion?: number
     opportunityName?: string
   }>({ open: false })
-
-  // Construct businessAppContext from props for sections
-  const businessAppContext: BusinessAppContextProps = {
-    accessToken: props.accessToken,
-    userInfo: props.userInfo,
-    additionalData: props.additionalData
-  }
 
   // Initialize activeTab from URL on mount and write default if missing
   useEffect(() => {
@@ -226,8 +220,9 @@ const InvestmentOpportunityRecordContent: React.FC<OpportunityRecordContentProps
     try {
       setLoadingStages(true)
       setStagesError(null)
-      if (opportunityData?.opportunityPipeline?.childEntries?.length) {
-        const sorted = [...(opportunityData.opportunityPipeline.childEntries as any[])].sort(
+      const childEntries = (opportunityData?.opportunityPipeline as any)?.childEntries
+      if (childEntries?.length) {
+        const sorted = [...(childEntries as any[])].sort(
           (a: any, b: any) => (a?.displayOrder ?? 0) - (b?.displayOrder ?? 0)
         )
         const stageData = sorted.map((entry: any) => ({
@@ -627,13 +622,15 @@ const InvestmentOpportunityRecordContent: React.FC<OpportunityRecordContentProps
   // Handler to open status update popup
   const handleUpdateStatus = () => {
     const versionNumber =
-      typeof opportunity?.version === 'number' ? opportunity.version : Number.parseInt(opportunity?.version || '1', 10)
+      typeof opportunityData?.version === 'number'
+        ? opportunityData.version
+        : Number.parseInt(opportunityData?.version || '1', 10)
 
     setStatusUpdatePopup({
       open: true,
       opportunityId: opportunityId,
       opportunityVersion: versionNumber,
-      opportunityName: opportunity?.name || opportunityData?.name || 'Unnamed Opportunity'
+      opportunityName: opportunityData?.name || 'Unnamed Opportunity'
     })
   }
 
@@ -659,6 +656,12 @@ const InvestmentOpportunityRecordContent: React.FC<OpportunityRecordContentProps
       </div>
     ),
     [opportunityData?.estimatedAmount, opportunityData?.currency?.id, opportunityData?.opportunityStatus?.value]
+  )
+
+  // Transform catalog referenceFields to formFields format for InvestmentSection
+  const investmentFields = useMemo(
+    () => buildFormFieldsFromCatalogData(opportunityData?.investmentType, opportunityData?.investmentGroup),
+    [opportunityData?.investmentType, opportunityData?.investmentGroup]
   )
 
   // Helper function to convert deal type codes to human-readable values
@@ -932,10 +935,14 @@ const InvestmentOpportunityRecordContent: React.FC<OpportunityRecordContentProps
                   component: InvestmentSection,
                   props: {
                     ...props,
-                    investment: buildInvestmentFromOpportunity(opportunityData),
+                    investment: buildInvestmentFromOpportunity(opportunityData) || undefined,
                     investments: opportunityData
-                      ? [buildInvestmentFromOpportunity(opportunityData)].filter(Boolean)
+                      ? [buildInvestmentFromOpportunity(opportunityData)].filter(
+                          (inv): inv is Investment => inv !== null
+                        )
                       : undefined,
+                    fields: investmentFields,
+                    recordUrl: undefined, // No navigation - investment data is part of opportunity, not a separate entity
                     isLoading: loading,
                     error: error
                   }
