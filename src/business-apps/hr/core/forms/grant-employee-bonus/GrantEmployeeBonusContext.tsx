@@ -46,7 +46,7 @@ export const GrantEmployeeBonusProvider: React.FC<ProviderProps> = ({
   const fetchData = useCallback(async () => {
     if (!accessToken || !employeeId) {
       setIsLoading(false)
-      setError(!employeeId ? 'Missing employeeId' : 'Missing accessToken')
+      setError(employeeId ? 'Missing accessToken' : 'Missing employeeId')
       return
     }
     setIsLoading(true)
@@ -60,8 +60,8 @@ export const GrantEmployeeBonusProvider: React.FC<ProviderProps> = ({
         const catalogVariables = { activeUserLocale }
         const catalogData = await graphqlClient.request<CatalogsDataResponse>(CATALOG_DATA_QUERY, catalogVariables)
         setData(prev => ({ employee: prev?.employee ?? null, catalogs: catalogData }))
-      } catch (catalogErr: any) {
-        setError(catalogErr?.message || 'Catalogs load failed')
+      } catch (error_: any) {
+        setError(error_?.message || 'Catalogs load failed')
       }
       setIsLoading(false)
     } catch (e: any) {
