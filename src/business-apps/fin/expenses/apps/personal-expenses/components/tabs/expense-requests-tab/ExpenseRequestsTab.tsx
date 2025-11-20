@@ -1,4 +1,4 @@
-import React, { useState, useEffect, ReactNode, useMemo, useCallback } from 'react'
+import React, { useState, useEffect, ReactNode, useMemo, useCallback, useRef } from 'react'
 import { BusinessAppContextProps } from '@/common/BusinessAppContext'
 import { startProcess } from '@/common/utils/start-process'
 import ExpenseRequestStatistics from './ExpenseRequestStatistics'
@@ -48,7 +48,6 @@ const ExpenseRequestsTab: React.FC<ExpenseRequestsTabProps> = props => {
     setStartDateRange,
     setEndDateRange,
     setRequestDateRange,
-    // @ts-expect-error - new field exists in hook state
     setEffectiveDateRange,
     filterLabelMap,
     addFilter,
@@ -70,6 +69,9 @@ const ExpenseRequestsTab: React.FC<ExpenseRequestsTabProps> = props => {
     selectedFilters,
     setFilters
   )
+
+  // Track previous filters to reset pagination when filters change.
+  const prevSelectedFiltersRef = useRef<string | null>(null)
 
   // Helper function to get current month date range
   // Removed local getCurrentMonthRange; card strategy handles current month range
@@ -138,6 +140,18 @@ const ExpenseRequestsTab: React.FC<ExpenseRequestsTabProps> = props => {
     contextProps.userInfo?.employeeDetails?.employeeId,
     currenciesInitialized
   ])
+
+  // Reset pagination when filters change (e.g., applying a status filter while on a later page).
+  useEffect(() => {
+    const currentFiltersKey = JSON.stringify(selectedFilters)
+    const previousFiltersKey = prevSelectedFiltersRef.current
+
+    if (previousFiltersKey !== null && previousFiltersKey !== currentFiltersKey) {
+      setCurrentPage(1)
+    }
+
+    prevSelectedFiltersRef.current = currentFiltersKey
+  }, [selectedFilters])
 
   // Process completion event listener to refresh data
   useEffect(() => {

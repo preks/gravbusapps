@@ -1495,7 +1495,7 @@ const ExpenseRequestsTable: React.FC<ExpenseRequestsTableProps> = props => {
             'lowcoder:expense_request_list.search_module',
             'Search in Expense Requests'
           ),
-          filter: totalItems === 0 && !loading ? [] : selectedFilters,
+          filter: selectedFilters,
           setFilter: setFilters,
           filterLabelMap: {
             status:
@@ -1512,7 +1512,8 @@ const ExpenseRequestsTable: React.FC<ExpenseRequestsTableProps> = props => {
           actions: dataControllerActions
         }}
         dataFilterProps={{
-          filterGroups: totalItems === 0 && !loading ? [] : filterGroups,
+          // Keep filter sidebar available regardless of current result count
+          filterGroups,
           onFilterChange: (filterId: string, selected: boolean) => {
             // Clear all filters
             if (filterId === '' && selected) {

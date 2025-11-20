@@ -93,16 +93,12 @@ const AdvancePaymentsTable: React.FC<AdvancePaymentsTableProps> = props => {
 
   // Track if any filters are active to control empty-state messaging
   const hasActiveFilters = useMemo(() => {
-    if (totalCount === 0 && !isLoading) {
-      return false
-    }
-
     const hasSearch = (props.search || '').trim() !== ''
     const hasStatusFilters = Array.isArray(props.activeFilter) && props.activeFilter.length > 0
     const hasCurrencyFilter = !!currencyFilter
 
     return hasSearch || hasStatusFilters || hasCurrencyFilter
-  }, [totalCount, isLoading, props.search, props.activeFilter, currencyFilter])
+  }, [props.search, props.activeFilter, currencyFilter])
 
   // Handle page size changes
   const handlePageSizeChange = useCallback(
@@ -388,12 +384,16 @@ const AdvancePaymentsTable: React.FC<AdvancePaymentsTableProps> = props => {
                     </TableCell>
                     <TableCell className="gba:text-right" data-testid={`advance-payments-amount-cell-${record.id}`}>
                       <span className="gba:font-medium gba:text-sm">
-                        {typeof record.amount === 'number'
-                          ? formatCurrencyDisplay(
-                              record.amount,
-                              (record.currencyRef || currencyFilter || '').replaceAll('Currency:v1:', '') || 'EUR'
-                            )
-                          : formatCurrencyDisplay(0, 'EUR')}
+                        {(() => {
+                          const rawCurrencyRef = record.currencyRef || currencyFilter || ''
+                          const normalizedCurrencyRef = rawCurrencyRef
+                            ? rawCurrencyRef.split('Currency:v1:').pop() || rawCurrencyRef
+                            : 'EUR'
+
+                          return typeof record.amount === 'number'
+                            ? formatCurrencyDisplay(record.amount, normalizedCurrencyRef)
+                            : formatCurrencyDisplay(0, 'EUR')
+                        })()}
                       </span>
                     </TableCell>
                     <TableCell className="gba:pr-6 gba:w-[20%]">

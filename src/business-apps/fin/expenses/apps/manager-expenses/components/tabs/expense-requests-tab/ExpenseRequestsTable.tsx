@@ -111,18 +111,12 @@ const ExpenseRequestsTable: React.FC<ExpenseRequestsTableProps> = props => {
     primaryCurrency
   } = props
 
-  const shouldShowFilters = useMemo(() => !(totalCount === 0 && !isLoading), [totalCount, isLoading])
-
   const hasActiveFilters = useMemo(() => {
-    if (totalCount === 0 && !isLoading) {
-      return false
-    }
-
     const hasSearch = (searchTerm || '').trim() !== ''
     const hasFilters = (selectedFilters || []).length > 0
 
     return hasSearch || hasFilters
-  }, [searchTerm, selectedFilters, totalCount, isLoading])
+  }, [searchTerm, selectedFilters])
 
   const handleSearchChange = useCallback(
     (value: string) => {
@@ -790,7 +784,8 @@ const ExpenseRequestsTable: React.FC<ExpenseRequestsTableProps> = props => {
         dataControllerProps={{
           search: searchTerm,
           setSearch: handleSearchChange,
-          filter: shouldShowFilters ? buildDeduplicatedFilters(selectedFilters, primaryCurrency) : [],
+          // Always keep applied filters visible, even when the current result set is empty
+          filter: buildDeduplicatedFilters(selectedFilters, primaryCurrency),
           setFilter: (newFilters: string[]): void => {
             // Separate currency and status filters
             const currencyFilters = newFilters.filter(f => f.startsWith('currency:'))
@@ -821,12 +816,10 @@ const ExpenseRequestsTable: React.FC<ExpenseRequestsTableProps> = props => {
 
             setCurrentPage(1)
           },
-          filterLabelMap: shouldShowFilters
-            ? {
-                ...filterLabelMap,
-                ...(primaryCurrency ? { [`currency:${primaryCurrency}`]: primaryCurrency } : {})
-              }
-            : {},
+          filterLabelMap: {
+            ...filterLabelMap,
+            ...(primaryCurrency ? { [`currency:${primaryCurrency}`]: primaryCurrency } : {})
+          },
           listTitle: (
             <div className="gba:flex gba:items-center gba:gap-4">
               <div className="gba:flex gba:items-center gba:gap-2">
@@ -843,7 +836,8 @@ const ExpenseRequestsTable: React.FC<ExpenseRequestsTableProps> = props => {
           debounceDelay: 300
         }}
         dataFilterProps={{
-          filterGroups: shouldShowFilters ? filterGroups : [],
+          // Keep filter sidebar available regardless of current result count
+          filterGroups,
           onFilterChange: handleDataFilterChange
         }}
         dataBody={renderDataBody()}

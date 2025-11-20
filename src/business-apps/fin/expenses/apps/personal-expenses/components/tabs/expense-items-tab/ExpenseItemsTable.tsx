@@ -508,9 +508,6 @@ const ExpenseItemsTable: React.FC<ExpenseItemsTableProps> = React.memo(props => 
         }}
         dataFilterProps={{
           filterGroups: useMemo(() => {
-            if (totalCount === 0 && !isLoading) {
-              return []
-            }
             const currencyGroup: DataFilterGroup | null =
               currencyStats.length > 0
                 ? {
@@ -527,7 +524,7 @@ const ExpenseItemsTable: React.FC<ExpenseItemsTableProps> = React.memo(props => 
                   }
                 : null
             return currencyGroup ? [currencyGroup, ...filterGroups] : filterGroups
-          }, [currencyStats, filterGroups, allSelectedFilters, totalCount, isLoading]),
+          }, [currencyStats, filterGroups, allSelectedFilters]),
           onFilterChange: handleFilterChange as (filterId: string, selected: boolean) => void
         }}
         contentBackground="white"

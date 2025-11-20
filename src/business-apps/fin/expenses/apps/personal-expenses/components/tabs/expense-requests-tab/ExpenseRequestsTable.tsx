@@ -117,12 +117,9 @@ const ExpenseRequestsTable: React.FC<ExpenseRequestsTableProps> = React.memo(pro
 
   // Track if any filters are active to show conditional messages
   const hasActiveFilters = useMemo(() => {
-    // When there's no data, don't show active filters
-    if (totalCount === 0 && !isLoading) {
-      return false
-    }
-    return search || selectedFilters.length > 0
-  }, [search, selectedFilters, totalCount, isLoading])
+    const trimmedSearch = (search || '').trim()
+    return trimmedSearch !== '' || selectedFilters.length > 0
+  }, [search, selectedFilters])
 
   // Sync local search input with prop changes
   useEffect(() => {
@@ -754,10 +751,6 @@ const ExpenseRequestsTable: React.FC<ExpenseRequestsTableProps> = React.memo(pro
         }}
         dataFilterProps={{
           filterGroups: useMemo(() => {
-            // Hide filters when there's no data
-            if (totalCount === 0 && !isLoading) {
-              return []
-            }
             const currencyFilters =
               (props as any).currencyStats?.map((cs: any) => ({
                 id: `currency:${cs.ref}`,
@@ -778,7 +771,7 @@ const ExpenseRequestsTable: React.FC<ExpenseRequestsTableProps> = React.memo(pro
                   ]
                 : []
             return [...currencyGroup, ...filterGroups]
-          }, [filterGroups, selectedFilters, (props as any).currencyStats, totalCount, isLoading]),
+          }, [filterGroups, selectedFilters, (props as any).currencyStats]),
           onFilterChange: handleFilterChangeCallback
         }}
         dataBody={renderDataBody()}
