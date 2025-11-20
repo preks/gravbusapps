@@ -17,8 +17,7 @@ dayjs.extend(customParseFormat)
 dayjs.extend(updateLocale)
 
 import { getTranslationFromI18nKeyAndLabel, getCurrentActiveUserLocale } from '@/common/utils/windowUtils'
-import { AppActionMenu } from '@/components/app-action-menu'
-import { PiPencilSimple } from 'react-icons/pi'
+import { AppAction } from '@/components/app-action/AppAction'
 
 import { AbsencesTabProps } from '../../queries/types'
 import { useAbsenceData } from '../../hooks/useAbsenceData'
@@ -222,24 +221,26 @@ const AbsencesTab: React.FC<AbsencesTabProps> = ({
 
           <div className="gba:flex gba:gap-4 gba:items-center gba:self-center">
             {/* Request Absence - always visible */}
-            <AppActionMenu
+            <AppAction
+              variant="update-primary"
               data-testid="employee-absence-request-button"
-              contextsArray={[FlowContextName.employeeAbsenceRecord]}
-              externalContextData={{
-                employeeId: employee.id,
-                absenceType: employeeAbsenceEntitlement.find(e => e.type?.id === 'AbsenceType:v1:A001')?.type?.id,
-                flowType: 'vacation',
-                startDate: selectedStartDate?.format('YYYY-MM-DD'),
-                endDate: selectedEndDate?.format('YYYY-MM-DD')
-              }}
+              contexts={[
+                {
+                  context: FlowContextName.employeeAbsenceRecord,
+                  contextData: {
+                    employeeId: employee.id,
+                    absenceType: employeeAbsenceEntitlement.find(e => e.type?.id === 'AbsenceType:v1:A001')?.type?.id,
+                    flowType: 'vacation',
+                    startDate: selectedStartDate?.format('YYYY-MM-DD'),
+                    endDate: selectedEndDate?.format('YYYY-MM-DD')
+                  }
+                }
+              ]}
               prefixDataTestId="employee-absence-request"
               accessToken={accessToken}
             >
-              <div className="gba:flex gba:items-center gba:gap-2 gba:cursor-pointer">
-                <PiPencilSimple className="gba:h-5 gba:w-5" />
-                {getTranslationFromI18nKeyAndLabel('lowcoder:absence_hub.request_absence', 'Request Absence')}
-              </div>
-            </AppActionMenu>
+              {getTranslationFromI18nKeyAndLabel('lowcoder:absence_hub.request_absence', 'Request Absence')}
+            </AppAction>
 
             {/* Add Entitlement - shown for HR backoffice, hidden on self view */}
             {!isFetchingGroups && hasHrBackoffice && !isSelfView && (
@@ -274,24 +275,26 @@ const AbsencesTab: React.FC<AbsencesTabProps> = ({
 
       {(shownTab === 'calendar' || shownTab === 'absence-list' || shownTab === 'entitlements') && (
         <div className="gba:flex gba:justify-end gba:mt-4" data-testid="absencehub-inline-action">
-          <AppActionMenu
+          <AppAction
+            variant="update-primary"
             data-testid="employee-absence-request-inline-button"
-            contextsArray={[FlowContextName.employeeAbsenceRecord]}
-            externalContextData={{
-              employeeId: employee.id,
-              absenceType: employeeAbsenceEntitlement.find(e => e.type?.id === 'AbsenceType:v1:A001')?.type?.id,
-              flowType: 'vacation',
-              startDate: selectedStartDate?.format('YYYY-MM-DD'),
-              endDate: selectedEndDate?.format('YYYY-MM-DD')
-            }}
+            contexts={[
+              {
+                context: FlowContextName.employeeAbsenceRecord,
+                contextData: {
+                  employeeId: employee.id,
+                  absenceType: employeeAbsenceEntitlement.find(e => e.type?.id === 'AbsenceType:v1:A001')?.type?.id,
+                  flowType: 'vacation',
+                  startDate: selectedStartDate?.format('YYYY-MM-DD'),
+                  endDate: selectedEndDate?.format('YYYY-MM-DD')
+                }
+              }
+            ]}
             prefixDataTestId="employee-absence-request-inline"
             accessToken={accessToken}
           >
-            <div className="gba:flex gba:items-center gba:gap-2 gba:cursor-pointer">
-              <PiPencilSimple className="gba:h-5 gba:w-5" />
-              {getTranslationFromI18nKeyAndLabel('lowcoder:absence_hub.request_absence', 'Request Absence')}
-            </div>
-          </AppActionMenu>
+            {getTranslationFromI18nKeyAndLabel('lowcoder:absence_hub.request_absence', 'Request Absence')}
+          </AppAction>
         </div>
       )}
 
