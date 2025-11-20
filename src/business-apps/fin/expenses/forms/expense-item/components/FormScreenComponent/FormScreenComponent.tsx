@@ -1,5 +1,4 @@
-import React, { useState } from 'react'
-import { useTranslation } from 'react-i18next'
+import React, { useCallback } from 'react'
 import { Button, DateInputField, Divider, InputField, SelectField, Switch } from '@newwork/gravity-ui-catalog'
 import { Form, Row, Col } from 'antd'
 import { ExpensePosition, ExpenseGroup, ExpenseType, CostCenter, Currency, CustomField } from '../../types'
@@ -9,7 +8,11 @@ import MultiPositionComponent from './MultiPositionComponent'
 import { useExpenseItem } from '../../context/ExpenseItemContext'
 
 import { Alert } from 'antd'
-import { getCurrentActiveUserLocale, getDateFormat } from '../../../../../../../common/utils/windowUtils'
+import {
+  getCurrentActiveUserLocale,
+  getDateFormat,
+  getTranslationFromI18nKeyAndLabel
+} from '../../../../../../../common/utils/windowUtils'
 import { ICONS } from '@/business-apps/fin/expenses/utils/icons'
 import { DEFAULT_CURRENCY_ID } from '../../constants/constants'
 
@@ -63,10 +66,41 @@ export const FormScreenComponent: React.FC<FormScreenComponentProps> = ({
   calculateTotal,
   isEmbeddedInRequestWizard = false
 }) => {
-  const { t } = useTranslation()
+  const t = getTranslationFromI18nKeyAndLabel
   const { isProcessingFiles, isFormDisabled, expenseRuleError, handleCurrencyChange, isEditMode } = useExpenseItem()
 
-  const [formIsValid, setFormIsValid] = useState(false)
+  // Memoize the submit handler to prevent re-creating on every render
+  const handleCreateClick = useCallback(
+    async (e: React.MouseEvent) => {
+      e.stopPropagation()
+      e.preventDefault()
+
+      // Defer validation to next tick to prevent visual jumps
+      setTimeout(async () => {
+        try {
+          // Validate without scroll to prevent DOM jumping
+          await form.validateFields()
+
+          // Check for expense rule errors
+          if (expenseRuleError) {
+            return
+          }
+
+          handleSubmit()
+        } catch (errorInfo) {
+          // Form validation failed - scroll to first error smoothly
+          const firstErrorField = (errorInfo as any)?.errorFields?.[0]?.name?.[0]
+          if (firstErrorField) {
+            const element = document.querySelector(`[name="${firstErrorField}"]`)
+            if (element) {
+              element.scrollIntoView({ behavior: 'smooth', block: 'center' })
+            }
+          }
+        }
+      }, 0)
+    },
+    [form, expenseRuleError, handleSubmit]
+  )
 
   return (
     <Form
@@ -74,15 +108,6 @@ export const FormScreenComponent: React.FC<FormScreenComponentProps> = ({
       layout="vertical"
       data-testid="expense-form"
       className="gba:flex gba:flex-col gba:flex-grow"
-      onFieldsChange={() => {
-        const isFormValidValue = form.getFieldsError().every((fieldErr: any) => fieldErr.errors.length === 0)
-        setFormIsValid(isFormValidValue)
-      }}
-      onValuesChange={() => {
-        form.validateFields()
-        const isFormValidValue = form.getFieldsError().every((fieldErr: any) => fieldErr.errors.length === 0)
-        setFormIsValid(isFormValidValue)
-      }}
       validateTrigger={['onChange', 'onBlur']}
       initialValues={{
         date: new Date(),
@@ -260,15 +285,9 @@ export const FormScreenComponent: React.FC<FormScreenComponentProps> = ({
             <Form.Item className="gba:mb-0" data-testid="total-amount-form-item">
               <InputField
                 label={t('lowcoder:create_expense_item.change_expense_item_container.current_amount_label', 'Amount')}
-                className="gba:[&>input[type=number]]:appearance-textfield 
-         gba:[&>input[type=number]::-webkit-inner-spin-button]:appearance-none 
-         gba:[&>input[type=number]::-webkit-inner-spin-button]:m-0 
-         gba:[&>input[type=number]::-webkit-outer-spin-button]:appearance-none 
-         gba:[&>input[type=number]::-webkit-outer-spin-button]:m-0"
                 name="amount"
-                type="number"
-                step="0.01"
-                min="0"
+                type="text"
+                inputMode="decimal"
                 data-testid="total-amount-input"
                 value={calculateTotal().toFixed(2)}
                 placeholder={t(
@@ -385,11 +404,8 @@ export const FormScreenComponent: React.FC<FormScreenComponentProps> = ({
         </Button>
         <Button
           variant="primary"
-          onClick={e => {
-            e.stopPropagation()
-            handleSubmit()
-          }}
-          disabled={isProcessingFiles || !formIsValid || !!expenseRuleError}
+          onClick={handleCreateClick}
+          disabled={isProcessingFiles}
           className="gba:min-w-[100px] gba:border-2 gba:text-base gba:font-semibold gba:px-4"
           style={{ borderRadius: '22px', width: 'auto', height: '40px' }}
           data-testid="submit-button"

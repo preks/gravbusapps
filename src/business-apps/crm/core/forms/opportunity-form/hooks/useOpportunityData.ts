@@ -9,6 +9,7 @@ interface UseOpportunityDataProps {
 
 interface UseOpportunityDataReturn {
   opportunityData: OpportunityQueryResult | null
+  opportunityContactsData: OpportunityDataResponse | null
   loading: boolean
   error: string | null
   refetch: () => Promise<void>
@@ -23,6 +24,13 @@ export const mapOpportunityDataToFormValues = (
   }
 
   const opportunity = opportunityData.Opportunity[0]
+  const opportunityContacts = opportunityData.OpportunityContact || []
+
+  console.log('🔍 CRM Opportunity Mapping: Raw opportunity contacts from query', {
+    opportunityId: opportunity.id,
+    contactCount: opportunityContacts.length,
+    contacts: opportunityContacts
+  })
 
   // Map addresses to the format expected by the form
   let addresses = []
@@ -61,6 +69,31 @@ export const mapOpportunityDataToFormValues = (
       tagValue: tag.tagValue || ''
     }))
   }
+  const contactIds: any[] = opportunityContacts.map(oc => {
+    const firstName = oc.contact?.firstName || ''
+    const lastName = oc.contact?.lastName || ''
+    const fullName = `${firstName} ${lastName}`.trim()
+
+    return {
+      id: oc.contactId || oc.contact?.id || '',
+      name: fullName || oc.contact?.email || oc.contactId || 'Unknown Contact',
+      associationId: oc.id,
+      associationVersion: oc.version || 0
+    }
+  })
+
+  console.log('✅ CRM Opportunity Mapping: Mapped contact IDs for form', {
+    opportunityId: opportunity.id,
+    mappedContactCount: contactIds.length,
+    mappedContacts: contactIds
+  })
+
+  console.log('📦 CRM Opportunity Mapping: Account data from query', {
+    opportunityId: opportunity.id,
+    accountIdFromQuery: opportunity.accountId,
+    accountObjectFromQuery: opportunity.account,
+    accountName: opportunity.account?.name
+  })
 
   const formValues: Partial<OpportunityFormValues> = {
     // System fields
@@ -80,15 +113,18 @@ export const mapOpportunityDataToFormValues = (
     estimatedAmount: opportunity.estimatedAmount?.toString() || '',
     currency: opportunity.currencyRef || opportunity.currency?.id || '',
     winningChance: opportunity.winningChance?.toString() || '',
-    closeDate: opportunity.closeDate || '',
+    closeDate: opportunity.closeDate ? opportunity.closeDate.split('T')[0] : '', // Extract date part only (YYYY-MM-DD)
 
-    // Relationship Information
-    account: opportunity.accountId || opportunity.account?.id || '',
-    lead: opportunity.leadId || opportunity.lead?.id || '',
-    companyName: opportunity.account?.name || '', // Company name from account
+    // Relationship Information (FIXED: form expects accountId/leadId, not account/lead)
+    accountId: opportunity.accountId || opportunity.account?.id || '', // Account ID
+    leadId: opportunity.leadId || opportunity.lead?.id || '', // Lead ID
+    companyName: opportunity.account?.name || '', // Company name from account for display
 
     // Campaign Information
     salesCampaignId: opportunity.salesCampaignId || opportunity.salesCampaign?.id || '',
+
+    // Contact Information (CRM-specific)
+    contactIds: contactIds,
 
     // Business Information
     businessKey: opportunity.businessKey || '',
@@ -129,9 +165,8 @@ export const mapOpportunityDataToFormValues = (
     updatedBy: opportunity.updatedBy || '',
     synchronizedAt: opportunity.synchronizedAt || '',
 
-    // Legacy fields (for backward compatibility)
-    accountId: opportunity.accountId || opportunity.account?.id || '',
-    leadId: opportunity.leadId || opportunity.lead?.id || '',
+    // Legacy fields (for backward compatibility) - REMOVED DUPLICATES
+    // accountId and leadId are now mapped above in Relationship Information section
     ownerEmployeeId: opportunity.ownerEmployeeId || '',
     ownerOrganizationId: opportunity.ownerOrganizationId || ''
   }
@@ -145,12 +180,15 @@ interface UseOpportunityDataProps {
 
 export const useOpportunityData = ({ businessAppContext }: UseOpportunityDataProps): UseOpportunityDataReturn => {
   const [opportunityData, setOpportunityData] = useState<OpportunityQueryResult | null>(null)
+  const [opportunityContactsData, setOpportunityContactsData] = useState<OpportunityDataResponse | null>(null)
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)
 
   const { fetchOpportunityData } = useGetOpportunityData(businessAppContext)
 
-  // Extract opportunityId from additionalData
+  // Extract opportunityId from additionalData - NOT memoized (matching Contact/Account pattern)
+  // Simple extraction works better with dynamic additionalData updates from AppActionButton
+  // The context itself handles initialValues fallback
   const opportunityId =
     businessAppContext.additionalData?.opportunityId ||
     businessAppContext.additionalData?.psi_taskPayload?.psi_initialParameters?.opportunityId
@@ -158,35 +196,56 @@ export const useOpportunityData = ({ businessAppContext }: UseOpportunityDataPro
   const mapOpportunityToFormValues = useMemo(
     () =>
       (opportunity: OpportunityQueryResult): Partial<OpportunityFormValues> => {
-        // Create a mock response structure for the mapping function
-        const mockResponse: OpportunityDataResponse = {
-          Opportunity: [opportunity]
+        // Use stored contact data if available, otherwise create minimal response
+        const responseWithContacts: OpportunityDataResponse = opportunityContactsData || {
+          Opportunity: [opportunity],
+          OpportunityContact: []
         }
-        return mapOpportunityDataToFormValues(mockResponse)
+
+        console.log('🔄 Mapping opportunity with contacts:', {
+          opportunityId: opportunity.id,
+          hasStoredContacts: !!opportunityContactsData,
+          contactCount: responseWithContacts.OpportunityContact?.length || 0
+        })
+
+        return mapOpportunityDataToFormValues(responseWithContacts)
       },
-    []
+    [opportunityContactsData]
   )
 
   useEffect(() => {
     const loadOpportunityData = async () => {
       if (!opportunityId || !businessAppContext.accessToken) {
+        console.log('⚠️ CRM Opportunity Data Hook: Cannot load - missing opportunityId or accessToken', {
+          hasOpportunityId: !!opportunityId,
+          hasAccessToken: !!businessAppContext.accessToken
+        })
         return
       }
+
+      console.log('🔍 CRM Opportunity Data Hook: Fetching opportunity data', { opportunityId })
 
       try {
         setLoading(true)
         setError(null)
 
         const result = await fetchOpportunityData({ opportunityId })
+        console.log('✅ CRM Opportunity Data Hook: Fetched opportunity data', result)
 
         if (result.Opportunity?.[0]) {
+          console.log('✅ CRM Opportunity Data Hook: Setting opportunity data with contacts', {
+            opportunity: result.Opportunity[0],
+            contactCount: result.OpportunityContact?.length || 0
+          })
           setOpportunityData(result.Opportunity[0])
+          setOpportunityContactsData(result) // Store full response including contacts
         } else {
+          console.error('❌ CRM Opportunity Data Hook: No opportunity found in result')
           setError('Opportunity not found')
         }
       } catch (err) {
         const errorMessage = err instanceof Error ? err.message : 'Unknown error loading opportunity data'
-        console.error('❌ Opportunity Data Hook: Error loading opportunity data:', err)
+        console.error('❌ CRM Opportunity Data Hook: Error loading opportunity data:', err)
         setError(errorMessage)
       } finally {
         setLoading(false)
@@ -195,6 +254,8 @@ export const useOpportunityData = ({ businessAppContext }: UseOpportunityDataPro
 
     if (opportunityId) {
       loadOpportunityData()
+    } else {
+      console.log('⚠️ CRM Opportunity Data Hook: No opportunityId provided')
     }
   }, [opportunityId, businessAppContext.accessToken]) // Removed fetchOpportunityData to prevent infinite loops
 
@@ -209,6 +270,7 @@ export const useOpportunityData = ({ businessAppContext }: UseOpportunityDataPro
       const result = await fetchOpportunityData({ opportunityId })
       if (result.Opportunity?.[0]) {
         setOpportunityData(result.Opportunity[0])
+        setOpportunityContactsData(result) // Store full response including contacts
       }
     } catch (err) {
       const errorMessage = err instanceof Error ? err.message : 'Unknown error loading opportunity data'
@@ -220,6 +282,7 @@ export const useOpportunityData = ({ businessAppContext }: UseOpportunityDataPro
 
   return {
     opportunityData,
+    opportunityContactsData,
     loading,
     error,
     refetch,

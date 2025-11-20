@@ -1,101 +1,196 @@
-import React from 'react'
+import React, { useState, useEffect, useCallback, useMemo } from 'react'
+import { BusinessAppContextProps } from '@/common/BusinessAppContext'
 import { buildPlatformUrl } from '@/common/utils/navigationUtils'
 import { getTranslationFromI18nKeyAndLabel } from '@/common/utils/windowUtils'
+import { InvestmentContact } from '@/common/data/investment/types'
 import { FlowContextName } from '@/common/types/FlowRegistryTypes'
 import type { TaskReference } from '@/common/components/common-relations/detail-sheets/task-detail-sheet'
+import {
+  useGetInvestmentActivitiesByContactId,
+  useGetInvestmentNotesByContactId,
+  useGetInvestmentTasksByContactId
+} from '@/common/data/investment/hooks/useInvestmentContacts'
+import { useGetInvestmentsByContactId } from '@/common/data/investment'
+import AccountSection from '@/common/components/common-relations/record-sections/account-section/AccountSection'
+import ContactSection from '@/common/components/common-relations/record-sections/contact-section/ContactSection'
+import InvestmentSection from '@/common/components/common-relations/record-sections/investment-section/InvestmentSection'
 import ActivitySection from '@/common/components/common-relations/record-sections/activity-section/ActivitySection'
 import NoteSection from '@/common/components/common-relations/record-sections/note-section/NoteSection'
 import TaskSection from '@/common/components/common-relations/record-sections/task-section/TaskSection'
-import AccountSection from '@/common/components/common-relations/record-sections/account-section/AccountSection'
-import ContactSection from '@/common/components/common-relations/record-sections/contact-section/ContactSection'
 import SectionWrapper from '@/common/components/common-relations/record-sections/section-card/SectionCard'
-import type { HomeViewProps } from './types'
-import { transformTaskOrApproval } from '@/common/components/common-relations/record-sections/task-section/utils/taskMappers'
 
-// Build reference URLs for IRM context
-const buildReferenceUrl = (reference: TaskReference): string => {
-  switch (reference.type) {
-    case 'lead':
-      return buildPlatformUrl('/platform/irm/lead-record', { leadId: reference.id })
-    case 'account':
-      return buildPlatformUrl('/platform/irm/account-record', { accountId: reference.id })
-    case 'contact':
-      return buildPlatformUrl('/platform/irm/contact-record', { contactId: reference.id })
-    case 'opportunity':
-      return buildPlatformUrl('/platform/irm/opportunity-record', { opportunityId: reference.id })
-    case 'investment':
-      return buildPlatformUrl('/platform/irm/investment-record', { investmentId: reference.id })
-    default:
-      return ''
-  }
+interface HomeViewProps extends BusinessAppContextProps {
+  contactId: string
+  contactData: InvestmentContact | undefined
 }
 
-export const HomeView: React.FC<HomeViewProps> = ({
-  contactId,
-  contact,
-  rawContactData,
-  activities,
-  notes,
-  tasks,
-  approvals,
-  sectionsLoading,
-  sectionsError,
-  loadSectionData,
-  activityActionProps,
-  noteActionProps,
-  taskActionProps,
-  approvalActionProps,
-  ...props
-}) => {
+const HomeView: React.FC<HomeViewProps> = ({ contactId, contactData, ...props }) => {
+  // Data fetching hooks for sections
+  const { fetchInvestmentActivitiesByContactId } = useGetInvestmentActivitiesByContactId(props)
+  const { fetchInvestmentNotesByContactId } = useGetInvestmentNotesByContactId(props)
+  const { fetchInvestmentTasksByContactId } = useGetInvestmentTasksByContactId(props)
+  const { fetchInvestmentsByContactId } = useGetInvestmentsByContactId(props)
+
+  // State for section data
+  const [activities, setActivities] = useState<any[]>([])
+  const [notes, setNotes] = useState<any[]>([])
+  const [tasks, setTasks] = useState<any[]>([])
+  const [approvals, setApprovals] = useState<any[]>([])
+  const [investments, setInvestments] = useState<any[]>([])
+  const [sectionsLoading, setSectionsLoading] = useState(true)
+  const [sectionsError, setSectionsError] = useState<string | null>(null)
+
+  // Extract account IDs from contact data
+  const contactAccountIds = useMemo(() => {
+    return (contactData?.accountContacts || []).map((ac: any) => ac.account?.id).filter(Boolean)
+  }, [contactData])
+
+  // Build reference URLs for IRM context
+  const buildReferenceUrl = (reference: TaskReference): string => {
+    switch (reference.type) {
+      case 'lead':
+        return buildPlatformUrl('/platform/irm/lead-record', { leadId: reference.id })
+      case 'account':
+        return buildPlatformUrl('/platform/irm/account-record', { accountId: reference.id })
+      case 'contact':
+        return buildPlatformUrl('/platform/irm/contact-record', { contactId: reference.id })
+      case 'opportunity':
+        return buildPlatformUrl('/platform/irm/opportunity-record', { opportunityId: reference.id })
+      case 'investment':
+        return buildPlatformUrl('/platform/irm/investment-record', { investmentId: reference.id })
+      default:
+        return ''
+    }
+  }
+
+  // Load section data
+  const loadSectionData = useCallback(async () => {
+    if (!contactId || !props.accessToken) return
+
+    setSectionsLoading(true)
+    setSectionsError(null)
+
+    try {
+      const [activitiesData, notesData, tasksData, investmentsData] = await Promise.all([
+        fetchInvestmentActivitiesByContactId(contactId),
+        fetchInvestmentNotesByContactId(contactId),
+        fetchInvestmentTasksByContactId(contactId),
+        fetchInvestmentsByContactId(contactId, contactAccountIds)
+      ])
+
+      const sortedActivities = (activitiesData || []).sort(
+        (a: any, b: any) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime()
+      )
+      const sortedNotes = (notesData || []).sort(
+        (a: any, b: any) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime()
+      )
+      const sortedTasks = (tasksData || []).sort(
+        (a: any, b: any) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime()
+      )
+
+      // Separate regular tasks from approvals based on taskType catalog entry
+      const regularTasks = sortedTasks.filter((task: any) => {
+        const taskTypeCode = task?.taskType?.code || ''
+        const taskTypeValue = task?.taskType?.value || ''
+        return taskTypeCode?.toUpperCase() !== 'APPROVAL' && taskTypeValue?.toUpperCase() !== 'APPROVAL'
+      })
+      const approvalTasks = sortedTasks.filter((task: any) => {
+        const taskTypeCode = task?.taskType?.code || ''
+        const taskTypeValue = task?.taskType?.value || ''
+        return taskTypeCode?.toUpperCase() === 'APPROVAL' || taskTypeValue?.toUpperCase() === 'APPROVAL'
+      })
+
+      setActivities(sortedActivities)
+      setNotes(sortedNotes)
+      setTasks(regularTasks)
+      setApprovals(approvalTasks)
+      setInvestments(investmentsData?.Investment || [])
+    } catch (error) {
+      console.error('Error loading section data:', error)
+      setSectionsError(
+        error instanceof Error
+          ? error.message
+          : getTranslationFromI18nKeyAndLabel('crm.common.loadFailed', 'Failed to load data')
+      )
+    } finally {
+      setSectionsLoading(false)
+    }
+  }, [
+    contactId,
+    props.accessToken,
+    contactAccountIds,
+    fetchInvestmentActivitiesByContactId,
+    fetchInvestmentNotesByContactId,
+    fetchInvestmentTasksByContactId,
+    fetchInvestmentsByContactId
+  ])
+
+  // Load section data on mount
+  useEffect(() => {
+    loadSectionData()
+  }, [loadSectionData])
+
+  // Listen for process completion events to refresh section data
+  useEffect(() => {
+    const handleProcessCompletion = async (event: any) => {
+      try {
+        // Check for successful completion
+        if (event.detail?.resolution === 'success') {
+          await loadSectionData()
+          return
+        }
+
+        // Also check for different event structure
+        const response = event.detail?.response
+        if (response?.detail?.resolution === 'success' || response?.contact) {
+          await loadSectionData()
+        }
+      } catch (err) {
+        console.error('Error handling process completion in HomeView:', err)
+      }
+    }
+
+    // Listen to multiple possible event names
+    const eventNames = [
+      'com.newwork.process.taskCompletion',
+      'com.newwork.process.completion',
+      'com.newwork.process.continue',
+      'com.newwork.process.processCompletion',
+      'processCompletion',
+      'taskCompletion',
+      'taskCompleted',
+      'processCompleted',
+      'task-completion',
+      'process-completion'
+    ]
+
+    for (const eventName of eventNames) {
+      globalThis.addEventListener(eventName, handleProcessCompletion as EventListener)
+    }
+
+    return () => {
+      for (const eventName of eventNames) {
+        globalThis.removeEventListener(eventName, handleProcessCompletion as EventListener)
+      }
+    }
+  }, [loadSectionData])
+
   return (
     <>
-      {/* Account Section - 1/3 width */}
+      {/* Account Section - 1/4 width - EXACT MATCH TO LEAD */}
       <SectionWrapper
-        className="gba:col-span-1 gba:sm:col-span-3 gba:md:col-span-4 gba:lg:col-span-4 gba:row-span-1"
+        className="gba:col-span-1 gba:sm:col-span-3 gba:md:col-span-3 gba:lg:col-span-3 gba:row-span-1"
         sections={[
           {
             id: 'account-section',
             component: AccountSection,
             props: {
               ...props,
-              accounts:
-                (rawContactData as any)?.investmentAccountContact
-                  ?.map((iac: any) => ({
-                    id: iac.account?.id,
-                    name: iac.account?.name,
-                    email: iac.account?.email,
-                    phone: iac.account?.phone,
-                    website: iac.account?.website,
-                    legalForm: iac.account?.legalForm?.value,
-                    industry: iac.account?.industryClass?.value,
-                    size: iac.account?.companySize?.value,
-                    revenue: iac.account?.accountAnnualRevenueBand?.value,
-                    numberOfEmployees: iac.account?.companySize,
-                    annualRevenue: iac.account?.accountAnnualRevenueBand,
-                    addresses: iac.account?.addresses
-                  }))
-                  .filter(Boolean) || [],
-              address: (rawContactData as any)?.investmentAccountContact?.[0]?.account
-                ? (() => {
-                    const addresses = (rawContactData as any).investmentAccountContact[0].account.addresses || []
-                    const primaryAddress = addresses.find((addr: any) => addr.addressType === 'PRIMARY_ADDRESS')
-                    const address = primaryAddress || addresses[0]
-
-                    return address
-                      ? {
-                          addressLine: address.addressLine,
-                          postalCode: address.postalCode,
-                          locality: address.locality,
-                          country: typeof address.country === 'string' ? address.country : address.country?.value,
-                          region: typeof address.region === 'string' ? address.region : address.region?.value
-                        }
-                      : undefined
-                  })()
-                : undefined,
-              accountId: (rawContactData as any)?.investmentAccountContact?.[0]?.account?.id,
-              recordUrl: (rawContactData as any)?.investmentAccountContact?.[0]?.account?.id
+              accounts: contactData?.accountContacts?.map((ac: any) => ac.account).filter(Boolean) || [],
+              accountId: contactData?.accountContacts?.[0]?.account?.id,
+              recordUrl: contactData?.accountContacts?.[0]?.account?.id
                 ? buildPlatformUrl('/platform/irm/account-record', {
-                    accountId: (rawContactData as any).investmentAccountContact[0].account.id,
+                    accountId: contactData.accountContacts[0].account.id,
                     source: 'contact-relations',
                     fromEntity: 'contacts'
                   })
@@ -103,7 +198,7 @@ export const HomeView: React.FC<HomeViewProps> = ({
               actionButtonProps: {
                 contextsArray: [FlowContextName.investmentAccountEntity],
                 externalContextData: {
-                  accountId: (rawContactData as any)?.investmentAccountContact?.[0]?.account?.id
+                  accountId: contactData?.accountContacts?.[0]?.account?.id
                 },
                 prefixDataTestId: 'contact-account'
               }
@@ -113,31 +208,20 @@ export const HomeView: React.FC<HomeViewProps> = ({
         data-testid="contact-account-section-wrapper"
       />
 
-      {/* Contact Section - 1/3 width */}
+      {/* Contact Section - 1/4 width - EXACT MATCH TO LEAD */}
       <SectionWrapper
-        className="gba:col-span-1 gba:sm:col-span-3 gba:md:col-span-4 gba:lg:col-span-4 gba:row-span-1"
+        className="gba:col-span-1 gba:sm:col-span-3 gba:md:col-span-3 gba:lg:col-span-3 gba:row-span-1"
         sections={[
           {
             id: 'contact-section',
             component: ContactSection,
             props: {
               ...props,
-              contact: {
-                id: contact?.id,
-                firstName: contact?.firstName,
-                lastName: contact?.lastName,
-                email: contact?.email,
-                phone: contact?.phone,
-                jobTitle: (contact as any)?.jobTitle || (rawContactData as any)?.jobPosition,
-                department: (contact as any)?.department || (rawContactData as any)?.department,
-                academicTitle: contact?.academicTitle,
-                professionalTitle: contact?.professionalTitle,
-                communicationChannels: rawContactData?.communicationChannels
-              },
-              contactId: contact?.id,
+              contact: contactData,
+              contactId: contactData?.id,
               actionButtonProps: {
                 contextsArray: [FlowContextName.investmentContactEntity],
-                externalContextData: { contactId: contact?.id },
+                externalContextData: { contactId: contactData?.id },
                 prefixDataTestId: 'contact-contact'
               }
             }
@@ -146,9 +230,32 @@ export const HomeView: React.FC<HomeViewProps> = ({
         data-testid="contact-contact-section-wrapper"
       />
 
-      {/* Activities Section - 1/3 width, full height */}
+      {/* Investment Section - 1/2 width - EXACT MATCH TO LEAD */}
       <SectionWrapper
-        className="gba:col-span-1 gba:sm:col-span-3 gba:md:col-span-4 gba:lg:col-span-4 gba:row-span-5"
+        className="gba:col-span-1 gba:sm:col-span-3 gba:md:col-span-6 gba:lg:col-span-6 gba:row-span-1"
+        sections={[
+          {
+            id: 'investment-section',
+            component: InvestmentSection,
+            props: {
+              ...props,
+              investments: investments,
+              isLoading: sectionsLoading,
+              error: sectionsError,
+              actionButtonProps: {
+                contextsArray: [FlowContextName.investmentEntity],
+                externalContextData: { contactId },
+                prefixDataTestId: 'contact-investment'
+              }
+            }
+          }
+        ]}
+        data-testid="contact-investment-section-wrapper"
+      />
+
+      {/* Activities & Notes - 1/2 width, spans 2 rows - EXACT MATCH TO LEAD */}
+      <SectionWrapper
+        className="gba:col-span-1 gba:sm:col-span-3 gba:md:col-span-6 gba:lg:col-span-6 gba:row-span-2"
         sections={[
           {
             id: 'activities-section',
@@ -159,26 +266,45 @@ export const HomeView: React.FC<HomeViewProps> = ({
               activitiesLoading: sectionsLoading,
               activitiesError: sectionsError,
               onReloadActivities: loadSectionData,
-              alignment: 'right',
               activitySectionActionProps: {
-                ...activityActionProps,
-                emptyStateBehavior: 'enable'
+                contextsArray: [FlowContextName.investmentActivityCreate],
+                externalContextData: { contactId },
+                prefixDataTestId: 'contact-activities'
               },
               activityEntityActionProps: {
                 contextsArray: [FlowContextName.investmentActivityEntity],
                 externalContextData: { contactId },
-                prefixDataTestId: 'contact-activity-entity',
+                prefixDataTestId: 'contact-activity-entity'
+              }
+            }
+          },
+          {
+            id: 'notes-section',
+            component: NoteSection as React.ComponentType<any>,
+            props: {
+              ...props,
+              notes: notes,
+              noteActionProps: {
+                contextsArray: [FlowContextName.investmentNoteCreate],
+                externalContextData: { contactId },
+                prefixDataTestId: 'contact-notes',
+                emptyStateBehavior: 'enable'
+              },
+              noteEntityActionProps: {
+                contextsArray: [FlowContextName.investmentNoteEntity],
+                externalContextData: { contactId },
+                prefixDataTestId: 'contact-note-entity',
                 emptyStateBehavior: 'enable'
               }
             }
           }
         ]}
-        data-testid="contact-activities-section-wrapper"
+        data-testid="contact-activities-notes-section-wrapper"
       />
 
-      {/* Tasks & Approvals - 2/3 width, spans 2 rows */}
+      {/* Tasks & Approvals - 1/2 width, spans 2 rows - EXACT MATCH TO LEAD */}
       <SectionWrapper
-        className="gba:col-span-1 gba:sm:col-span-3 gba:md:col-span-8 gba:lg:col-span-8 gba:row-span-2"
+        className="gba:col-span-1 gba:sm:col-span-3 gba:md:col-span-6 gba:lg:col-span-6 gba:row-span-2"
         sections={[
           {
             id: 'tasks-section',
@@ -186,14 +312,11 @@ export const HomeView: React.FC<HomeViewProps> = ({
             props: {
               ...props,
               buildReferenceUrl,
-              tasks: tasks.map(task =>
-                transformTaskOrApproval(
-                  task,
-                  getTranslationFromI18nKeyAndLabel('crm.common.untitledTask', 'Untitled Task')
-                )
-              ),
+              tasks: tasks,
               taskActionProps: {
-                ...taskActionProps,
+                contextsArray: [FlowContextName.investmentTaskCreate],
+                externalContextData: { contactId },
+                prefixDataTestId: 'contact-tasks',
                 emptyStateBehavior: 'enable'
               },
               taskEntityActionProps: {
@@ -211,12 +334,7 @@ export const HomeView: React.FC<HomeViewProps> = ({
               ...props,
               sectionTitle: 'Approval Tasks',
               buildReferenceUrl,
-              tasks: approvals.map(approval =>
-                transformTaskOrApproval(
-                  approval,
-                  getTranslationFromI18nKeyAndLabel('crm.common.untitledApproval', 'Approval Request')
-                )
-              ),
+              tasks: approvals,
               taskEntityActionProps: {
                 contextsArray: [FlowContextName.investmentTaskEntity],
                 externalContextData: { contactId },
@@ -224,7 +342,14 @@ export const HomeView: React.FC<HomeViewProps> = ({
                 emptyStateBehavior: 'enable'
               },
               taskActionProps: {
-                ...approvalActionProps,
+                contextsArray: [FlowContextName.investmentTaskCreate],
+                externalContextData: {
+                  contactId,
+                  contact: contactId,
+                  typeRef: 'InvestmentTaskType:v1:APPROVAL',
+                  investmentTask: { contact: contactId, type: 'InvestmentTaskType:v1:APPROVAL' }
+                },
+                prefixDataTestId: 'contact-approvals',
                 emptyStateBehavior: 'enable'
               }
             }
@@ -232,47 +357,9 @@ export const HomeView: React.FC<HomeViewProps> = ({
         ]}
         data-testid="contact-tasks-approvals-section-wrapper"
       />
-
-      {/* Notes Section - 2/3 width, spans 2 rows */}
-      <SectionWrapper
-        className="gba:col-span-1 gba:sm:col-span-3 gba:md:col-span-8 gba:lg:col-span-8 gba:row-span-2"
-        sections={[
-          {
-            id: 'notes-section',
-            component: NoteSection,
-            props: {
-              ...props,
-              notes: notes.map(note => ({
-                id: note.id,
-                noteTitle:
-                  note.title ||
-                  note.displayName ||
-                  getTranslationFromI18nKeyAndLabel('crm.common.untitledNote', 'Untitled Note'),
-                noteText: note.text || '',
-                createdAt: note.createdAt,
-                createdBy:
-                  note.authorDisplayName ||
-                  note.authorEmployee?.displayName ||
-                  getTranslationFromI18nKeyAndLabel('crm.common.unknown', 'Unknown'),
-                authorEmployee: note.authorEmployee,
-                reminderAt: note.reminderDate,
-                documents: note.documents
-              })),
-              noteActionProps: {
-                ...noteActionProps,
-                emptyStateBehavior: 'enable'
-              },
-              noteEntityActionProps: {
-                contextsArray: [FlowContextName.investmentNoteEntity],
-                externalContextData: { contactId },
-                prefixDataTestId: 'contact-note-entity',
-                emptyStateBehavior: 'enable'
-              }
-            }
-          }
-        ]}
-        data-testid="contact-notes-section-wrapper"
-      />
     </>
   )
 }
+
+export { HomeView }
+export default HomeView

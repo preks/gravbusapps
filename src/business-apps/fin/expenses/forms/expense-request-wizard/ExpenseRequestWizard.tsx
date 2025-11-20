@@ -180,9 +180,21 @@ const ExpenseRequestWizardContent: React.FC<BusinessAppContextProps> = ({ access
     setIsEditingTitle(false)
   }
 
+  // useEffect for initial screen setup ONLY
+  const hasInitializedRef = React.useRef<boolean>(false)
   useEffect(() => {
-    setInitialScreen(additionalData, expenseRequestData, isTrip, setCurrentScreen, currentScreen)
-  }, [expenseRequestData, isTrip, loading, additionalData])
+    if (!loading && expenseRequestData && !hasInitializedRef.current) {
+      setInitialScreen(additionalData, expenseRequestData, isTrip, setCurrentScreen, currentScreen)
+      hasInitializedRef.current = true
+    }
+  }, [loading, expenseRequestData])
+
+  // Listen for process events (Next/Back button clicks) to navigate
+  useEffect(() => {
+    if (hasInitializedRef.current && expenseRequestData) {
+      setInitialScreen(additionalData, expenseRequestData, isTrip, setCurrentScreen, currentScreen)
+    }
+  }, [additionalData])
 
   const navigateToPreviousScreen = () => {
     try {
@@ -533,16 +545,19 @@ const ExpenseRequestWizardContent: React.FC<BusinessAppContextProps> = ({ access
               data-testid="expense-request-wizard-subtitle"
             >
               {currentScreen === SCREEN_NAMES_ENUM.ITEMS_TAB &&
-                getTranslationFromI18nKeyAndLabel('lowcoder:create_expense_request.items_subtitle', 'Expense Items')}
+                getTranslationFromI18nKeyAndLabel(
+                  'lowcoder:expense_request_overview.expense_items.expense_items_title',
+                  'Expense Items'
+                )}
               {currentScreen === SCREEN_NAMES_ENUM.TRIPS_TAB &&
                 getTranslationFromI18nKeyAndLabel(
                   'lowcoder:add_items_to_plan.add_trip_info_to_plan.title',
                   'Trip Details'
                 )}
               {currentScreen === SCREEN_NAMES_ENUM.ALLOWANCE_TAB &&
-                getTranslationFromI18nKeyAndLabel('lowcoder:create_expense_request.allowances_subtitle', 'Allowances')}
+                getTranslationFromI18nKeyAndLabel('lowcoder:cards.allowances', 'Allowances')}
               {currentScreen === SCREEN_NAMES_ENUM.SUMMARY_TAB &&
-                getTranslationFromI18nKeyAndLabel('lowcoder:create_expense_request.summary_subtitle', 'Summary')}
+                getTranslationFromI18nKeyAndLabel('lowcoder:employee_profile.employee_tabs.summary', 'Summary')}
             </div>
           </div>
         </div>

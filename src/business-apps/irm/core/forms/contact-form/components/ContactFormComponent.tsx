@@ -5,8 +5,43 @@ import { dispatchProcessContinueEvent } from '@/common/utils/processEventUtils'
 import { useContactFormContext } from '../context/ContactFormContext'
 import PersonalInformationSection from './PersonalInformationSection'
 import OwnerInformationSection from './OwnerInformationSection'
+import { buildCommunicationChannelRef } from '@/common/data/common/utils/communicationChannelHelpers'
+import { CommunicationChannelCode } from '@/common/data/common/types/commonTypes'
 
 const prefixDataTestId = 'ContactForm'
+
+// Helper function to create communication channel object
+const createCommunicationChannel = (channelCode: CommunicationChannelCode, value: string) => ({
+  communicationChannelRef: buildCommunicationChannelRef(channelCode),
+  value: value.trim(),
+  valueExtension: null,
+  source: 'FORM_INPUT',
+  activeFrom: new Date().toISOString(),
+  activeTo: null
+})
+
+// Helper function to build communication channels array
+const buildCommunicationChannels = (formValues: any): any[] => {
+  const channels: any[] = []
+
+  if (formValues.email?.trim()) {
+    channels.push(createCommunicationChannel(CommunicationChannelCode.EMAIL, formValues.email))
+  }
+
+  if (formValues.phone?.trim()) {
+    channels.push(createCommunicationChannel(CommunicationChannelCode.PHONE, formValues.phone))
+  }
+
+  if (formValues.linkedinUrl?.trim()) {
+    channels.push(createCommunicationChannel(CommunicationChannelCode.LINKEDIN, formValues.linkedinUrl))
+  }
+
+  if (formValues.xingUrl?.trim()) {
+    channels.push(createCommunicationChannel(CommunicationChannelCode.XING, formValues.xingUrl))
+  }
+
+  return channels
+}
 
 const ContactFormComponent: React.FC = () => {
   const { formValues, onSubmit, onCancel, isLoading, error, hideActions } = useContactFormContext()
@@ -50,8 +85,9 @@ const ContactFormComponent: React.FC = () => {
         jobPosition: toStringOrUndefined(formValues.jobPosition),
         department: toStringOrUndefined(formValues.department),
 
-        email: toStringOrUndefined(formValues.email),
-        phone: toStringOrUndefined(formValues.phone),
+        // Contact Information - moved to communicationChannels
+        // email: toStringOrUndefined(formValues.email), // ❌ REMOVED - use communicationChannels
+        // phone: toStringOrUndefined(formValues.phone), // ❌ REMOVED - use communicationChannels
 
         ownerEmployee: toStringOrUndefined(formValues.ownerEmployeeId), // ✅ FIXED: ownerEmployeeId → ownerEmployee
 
@@ -64,32 +100,8 @@ const ContactFormComponent: React.FC = () => {
         additionalProperties: formValues.additionalProperties || {}
       }
 
-      // ✅ NEW: Add communication channels for LinkedIn and Xing
-      const communicationChannels = []
-
-      // Add LinkedIn communication channel if provided
-      if (formValues.linkedinUrl && formValues.linkedinUrl.trim()) {
-        communicationChannels.push({
-          communicationChannelRef: 'CommunicationChannel:v1:LinkedIn',
-          value: formValues.linkedinUrl.trim(),
-          valueExtension: null,
-          source: 'FORM_INPUT',
-          activeFrom: new Date().toISOString(),
-          activeTo: null
-        })
-      }
-
-      // Add Xing communication channel if provided
-      if (formValues.xingUrl && formValues.xingUrl.trim()) {
-        communicationChannels.push({
-          communicationChannelRef: 'CommunicationChannel:v1:Xing',
-          value: formValues.xingUrl.trim(),
-          valueExtension: null,
-          source: 'FORM_INPUT',
-          activeFrom: new Date().toISOString(),
-          activeTo: null
-        })
-      }
+      // ✅ NEW: Add communication channels for Email, Phone, LinkedIn and Xing using helper
+      const communicationChannels = buildCommunicationChannels(formValues)
 
       // Add communication channels to payload if any exist
       if (communicationChannels.length > 0) {
@@ -139,15 +151,13 @@ const ContactFormComponent: React.FC = () => {
         }
       })
 
-      // ✅ UPDATED: Create clean payload structure with accountContacts for UPDATE, accountIds for CREATE
+      // ✅ UPDATED: Create clean payload structure with accountContacts for both CREATE and UPDATE
       const cleanPayload = {
         investmentContact: {
           ...investmentContactPayload,
-          accountContacts: isUpdate ? accountContacts : undefined, // Only for updates
-          opportunityContacts: isUpdate ? [] : undefined // Include empty array for updates
+          accountContacts: accountContacts // Include for both create and update
         },
-        changeMode: changeMode,
-        accountIds: isUpdate ? undefined : accountContacts.map(ac => ac.account) // For CREATE mode only
+        changeMode: changeMode
       }
 
       const isolatedPayload = JSON.parse(JSON.stringify(cleanPayload))

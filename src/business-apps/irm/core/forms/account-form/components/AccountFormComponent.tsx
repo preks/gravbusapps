@@ -7,6 +7,8 @@ import AccountInformationSection from './AccountInformationSection'
 import AddressInformationSection from './AddressInformationSection'
 import FinancialInformationSection from './FinancialInformationSection'
 import ContactSelect from '@/common/components/common-relations/selects/contact-select/ContactSelect'
+import { buildCommunicationChannelRef } from '@/common/data/common/utils/communicationChannelHelpers'
+import { CommunicationChannelCode } from '@/common/data/common/types/commonTypes'
 
 const prefixDataTestId = 'AccountForm'
 
@@ -55,8 +57,9 @@ const AccountFormComponent: React.FC = () => {
         industryClassRef: toStringOrUndefined(formValues.industry), // ✅ FIXED: industryRef → industryClassRef
         website: toStringOrUndefined(formValues.website),
         mission: toStringOrUndefined(formValues.description), // ✅ UPDATED: description → mission
-        phone: toStringOrUndefined(formValues.phone),
-        email: toStringOrUndefined(formValues.email),
+        // Contact Information - moved to communicationChannels
+        // phone: toStringOrUndefined(formValues.phone), // ❌ REMOVED - use communicationChannels
+        // email: toStringOrUndefined(formValues.email), // ❌ REMOVED - use communicationChannels
         geographicPresence: toStringOrUndefined(formValues.geographicPresence), // ✅ FIXED: Use dedicated geographicPresence field
 
         // Address relationships (using the new addresses array structure)
@@ -107,6 +110,29 @@ const AccountFormComponent: React.FC = () => {
         ownerEmployee: toStringOrUndefined(formValues.owner) // ✅ CORRECT: Keep as ownerEmployee (relationship field)
       }
 
+      // ✅ NEW: Build communication channels array (Email, Phone)
+      const communicationChannels: any[] = []
+
+      if (formValues.email?.trim()) {
+        communicationChannels.push({
+          communicationChannelRef: buildCommunicationChannelRef(CommunicationChannelCode.EMAIL),
+          value: formValues.email.trim(),
+          valueExtension: null
+        })
+      }
+
+      if (formValues.phone?.trim()) {
+        communicationChannels.push({
+          communicationChannelRef: buildCommunicationChannelRef(CommunicationChannelCode.PHONE),
+          value: formValues.phone.trim(),
+          valueExtension: null
+        })
+      }
+
+      if (communicationChannels.length > 0) {
+        investmentAccountPayload.communicationChannels = communicationChannels
+      }
+
       // ✅ FIXED: Handle ID and version for UPDATE mode only
       if (isUpdate) {
         investmentAccountPayload.id = formValues.id
@@ -153,14 +179,13 @@ const AccountFormComponent: React.FC = () => {
         }
       })
 
-      // ✅ UPDATED: Create clean payload structure with accountContacts for UPDATE, contactIds for CREATE
+      // ✅ UPDATED: Create clean payload structure with accountContacts for both CREATE and UPDATE
       const cleanPayload = {
         investmentAccount: {
           ...investmentAccountPayload,
-          accountContacts: isUpdate ? accountContacts : undefined // Only for updates
+          accountContacts: accountContacts // Include for both create and update
         },
-        changeMode: changeMode,
-        contactIds: isUpdate ? undefined : accountContacts.map(ac => ac.contact) // For CREATE mode only
+        changeMode: changeMode
       }
 
       // ✅ FIXED: Create completely isolated payload to prevent context field pollution

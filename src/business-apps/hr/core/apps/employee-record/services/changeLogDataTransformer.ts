@@ -42,22 +42,55 @@ export class ChangeLogDataTransformer {
     // Transform communication
     if (employee.communication) {
       employee.communication.forEach((comm: any, index: number) => {
+        const timestamp = comm.updatedAt || comm.createdAt
+        if (!timestamp) return
+        entries.push({
+          id: `communication-${comm.id}`,
+          fieldName: 'Communication',
+          fieldCategory: 'address',
+          fieldDetail: comm?.channel?.value ? `Channel: ${comm.channel.value}` : undefined,
+          channelName: comm?.channel?.value || undefined,
+          previousValue: index > 0 ? this.formatCommunicationValue(employee.communication[index - 1]) : null,
+          newValue: this.formatCommunicationValue(comm),
+          timestamp,
+          changedBy: {
+            userId: comm.updatedBy || comm.createdBy || 'system',
+            userName: comm.updatedBy || comm.createdBy || 'System',
+            userRole: 'System'
+          },
+          changeOrigin: {
+            flowId: `communication-${comm.id}`,
+            flowName: 'Employee Communication Update',
+            isSystemGenerated: true,
+            isAIGenerated: false
+          },
+          isVisible: true,
+          isMasked: false
+        })
+      })
+    }
+
+    // Transform relationship (array). Push an entry for each change (index > 0)
+    if (Array.isArray(employee.relationship) && employee.relationship.length > 0) {
+      employee.relationship.forEach((rel: any, index: number) => {
         if (index > 0) {
+          const timestamp = rel?.updatedAt || rel?.createdAt
+          if (!timestamp) return
           entries.push({
-            id: `communication-${comm.id}`,
-            fieldName: 'Communication',
-            fieldCategory: 'address',
-            previousValue: this.formatCommunicationValue(employee.communication[index - 1]),
-            newValue: this.formatCommunicationValue(comm),
-            timestamp: comm.updatedAt || comm.createdAt,
+            id: `relationship-${rel.id || index}`,
+            fieldName: 'Relationship',
+            fieldCategory: 'personal',
+            previousValue: this.formatRelationshipValue(employee.relationship[index - 1]),
+            newValue: this.formatRelationshipValue(rel),
+            timestamp,
             changedBy: {
-              userId: comm.createdBy || 'system',
-              userName: comm.createdBy || 'System',
+              userId: rel.updatedBy || rel.createdBy || 'system',
+              userName: rel.updatedBy || rel.createdBy || 'System',
               userRole: 'System'
             },
             changeOrigin: {
-              flowId: `communication-${comm.id}`,
-              flowName: 'Employee Communication Update',
+              flowId: `relationship-${rel.id || index}`,
+              flowName: 'Employee Relationship Update',
               isSystemGenerated: true,
               isAIGenerated: false
             },
@@ -65,32 +98,6 @@ export class ChangeLogDataTransformer {
             isMasked: false
           })
         }
-      })
-    }
-
-    // Transform relationship
-    if (employee.relationship) {
-      const rel = employee.relationship
-      entries.push({
-        id: `relationship-${rel.id || 'current'}`,
-        fieldName: 'Relationship',
-        fieldCategory: 'personal',
-        previousValue: null,
-        newValue: this.formatRelationshipValue(rel),
-        timestamp: rel.updatedAt || rel.createdAt || new Date().toISOString(),
-        changedBy: {
-          userId: rel.createdBy || 'system',
-          userName: rel.createdBy || 'System',
-          userRole: 'System'
-        },
-        changeOrigin: {
-          flowId: `relationship-${rel.id || 'current'}`,
-          flowName: 'Employee Relationship Update',
-          isSystemGenerated: true,
-          isAIGenerated: false
-        },
-        isVisible: true,
-        isMasked: false
       })
     }
 
@@ -113,6 +120,71 @@ export class ChangeLogDataTransformer {
           changeOrigin: {
             flowId: `skill-${skillItem.id || skillName}`,
             flowName: 'Employee Skill Update',
+            isSystemGenerated: true,
+            isAIGenerated: false
+          },
+          isVisible: true,
+          isMasked: false
+        })
+      })
+    }
+
+    // Transform working conditions (array of snapshots)
+    if (Array.isArray(employee.workingCondition) && employee.workingCondition.length > 0) {
+      employee.workingCondition.forEach((wc: any, index: number) => {
+        const timestamp = wc?.updatedAt || wc?.createdAt
+        if (!timestamp) return
+        entries.push({
+          id: `working-condition-${wc.id || index}`,
+          fieldName: 'Working Conditions',
+          fieldCategory: 'working',
+          previousValue: index > 0 ? this.formatWorkingConditionValue(employee.workingCondition[index - 1]) : null,
+          newValue: this.formatWorkingConditionValue(wc),
+          timestamp,
+          changedBy: {
+            userId: wc.updatedBy || wc.createdBy || 'system',
+            userName: wc.updatedBy || wc.createdBy || 'System',
+            userRole: 'System'
+          },
+          changeOrigin: {
+            flowId: `working-condition-${wc.id || index}`,
+            flowName: 'Employee Working Conditions Update',
+            isSystemGenerated: true,
+            isAIGenerated: false
+          },
+          isVisible: true,
+          isMasked: false
+        })
+      })
+    }
+
+    // Transform working hours (array of snapshots)
+    if (Array.isArray(employee.workingHours) && employee.workingHours.length > 0) {
+      console.log(employee.workingHours, 'employee.workingHours')
+      employee.workingHours.forEach((wh: any, index: number) => {
+        const timestamp =
+          wh?.updatedAt ||
+          wh?.createdAt ||
+          // Fallback: try to align with first workingCondition hireDate if present
+          (Array.isArray(employee.workingCondition) && employee.workingCondition[0]?.hireDate
+            ? employee.workingCondition[0]?.hireDate
+            : null)
+        if (!timestamp) return
+        entries.push({
+          id: `working-hours-${wh.id || index}`,
+          fieldName: 'Working Hours',
+          fieldCategory: 'working',
+          previousValue: index > 0 ? this.formatWorkingHoursValue(employee.workingHours[index - 1]) : null,
+          newValue: this.formatWorkingHoursValue(wh),
+          timestamp,
+          changedBy: {
+            userId: wh.updatedBy || wh.createdBy || 'system',
+            userName: wh.updatedBy || wh.createdBy || 'System',
+            userRole: 'System'
+          },
+          changeOrigin: {
+            flowId: `working-hours-${wh.id || index}`,
+            flowName: 'Employee Working Hours Update',
             isSystemGenerated: true,
             isAIGenerated: false
           },
@@ -156,6 +228,43 @@ export class ChangeLogDataTransformer {
     if (rel.phoneNumber) parts.push(`Phone: ${rel.phoneNumber}`)
     if (rel.email) parts.push(`Email: ${rel.email}`)
     if (rel.birthDate) parts.push(`Birth: ${rel.birthDate}`)
+    return parts.join(' | ') || 'N/A'
+  }
+
+  private static formatWorkingConditionValue(wc: any): string {
+    if (!wc) return 'N/A'
+    const parts: string[] = []
+    if (wc.contractType?.value) parts.push(`Contract: ${wc.contractType.value}`)
+    if (wc.employmentType?.value) parts.push(`Employment: ${wc.employmentType.value}`)
+    if (wc.hireDate) parts.push(`Hire: ${wc.hireDate}`)
+    if (wc.exitDate) parts.push(`Exit: ${wc.exitDate}`)
+    if (wc.vacationDays != null) parts.push(`Vacation: ${wc.vacationDays}`)
+    if (wc.remote?.value) parts.push(`Remote: ${wc.remote.value}`)
+    if (wc.region?.value) parts.push(`Region: ${wc.region.value}`)
+    return parts.join(' | ') || 'N/A'
+  }
+
+  private static formatWorkingHoursValue(wh: any): string {
+    if (!wh) return 'N/A'
+    const parts: string[] = []
+    if (wh.weeklyHours != null) parts.push(`Weekly: ${wh.weeklyHours}h`)
+    if (wh.fullTimeEquivalent != null) parts.push(`FTE: ${wh.fullTimeEquivalent}`)
+    const dayParts: string[] = []
+    const days = [
+      ['Mon', wh.mondayHours],
+      ['Tue', wh.tuesdayHours],
+      ['Wed', wh.wednesdayHours],
+      ['Thu', wh.thursdayHours],
+      ['Fri', wh.fridayHours],
+      ['Sat', wh.saturdayHours],
+      ['Sun', wh.sundayHours]
+    ]
+    days.forEach(([d, h]: any) => {
+      if (h != null) dayParts.push(`${d}:${h}`)
+    })
+    if (dayParts.length) parts.push(dayParts.join(' '))
+    if (wh.weeklyDays != null) parts.push(`Days/Week: ${wh.weeklyDays}`)
+    if (wh.remote?.value) parts.push(`Remote: ${wh.remote.value}`)
     return parts.join(' | ') || 'N/A'
   }
 

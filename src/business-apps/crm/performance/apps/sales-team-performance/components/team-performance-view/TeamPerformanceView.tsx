@@ -21,7 +21,7 @@ import TeamOverviewCharts from './components/TeamOverviewCharts'
 import { useSalesTeamDataIntegration } from '../sales-members-list/hooks/useSalesTeamDataIntegration'
 import { useSalesTeamTrendData } from '../sales-members-list/hooks/useSalesTeamTrendData'
 import { SalesTeamMember } from '../sales-members-list/types'
-import { formatCurrency } from '@/business-apps/crm/common/utils/currencyUtils'
+import { formatCurrency } from '@/common/utils/numberFormatter'
 import { DataContainer } from '@/components/layout/dataContainer'
 
 const DATA_TEST_ID_PREFIX = 'TeamPerformanceView'

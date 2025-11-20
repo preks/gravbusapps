@@ -1,0 +1,641 @@
+import React, { useState, useCallback, useEffect, useMemo } from 'react'
+import {
+  Button,
+  DataDisplay,
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+  Label,
+  type FilterConfiguration
+} from '@newwork/nw-design-system'
+import type { ColumnDef } from '@tanstack/react-table'
+import { Plus } from 'lucide-react'
+import { BusinessAppContextProps } from '@/common/BusinessAppContext'
+import { AppAction } from '@/components/app-action/AppAction'
+import { FlowContextName } from '@/common/types/FlowRegistryTypes'
+import { getTranslationFromI18nKeyAndLabel } from '@/common/utils/windowUtils'
+import { navigateTo } from '@/common/utils/navigationUtils'
+import { OpportunityBoardLayout } from './components/OpportunityBoardLayout'
+import { OpportunityListLayout } from './components/OpportunityListLayout'
+import { useProcessCompletion } from '@/common/hooks/useProcessCompletion'
+import { useBoardEmployees } from './hooks/useBoardEmployees'
+import { opportunityBoardFilterConfig } from './config/opportunityBoardFilters'
+import type { OpportunityBoardFilters } from './config/opportunityBoardTypes'
+import {
+  getFiltersForSection,
+  getFilterConfigForSection,
+  getFilterChangeHandlerForSection
+} from './utils/layoutHelpers'
+import { OpportunityStatisticsLayout, type OpportunityStatisticsData } from './components/OpportunityStatisticsLayout'
+import { AppActionMenu } from '@/components/app-action-menu/AppActionMenu'
+
+// Helper: Update filter options
+const updateFilterOptions = (
+  filterConfig: FilterConfiguration,
+  groupId: string,
+  filterId: string,
+  options: Array<{ id: string; label: string }>
+) => {
+  if (options.length === 0) return
+
+  const group = filterConfig.groups.find(g => g.id === groupId)
+  if (!group) return
+
+  const filter = group.filters.find(f => f.id === filterId)
+  if (filter?.config && 'options' in filter.config) {
+    filter.config.options = options
+  }
+}
+
+// Helper: Determine opportunity filter from board filters
+const determineOpportunityFilter = (
+  boardFilters: Record<string, any>,
+  currentEmployeeId?: string
+): { opportunityFilter: 'my' | 'all' | 'selected'; ownerEmployeeIds: string[] | undefined } => {
+  let ownerEmployeeIds: string[] | undefined = undefined
+
+  if (boardFilters.owner && Array.isArray(boardFilters.owner) && boardFilters.owner.length > 0) {
+    ownerEmployeeIds = boardFilters.owner
+  }
+
+  let opportunityFilter: 'my' | 'all' | 'selected' = 'all'
+  if (ownerEmployeeIds) {
+    const isOnlyMe = ownerEmployeeIds.length === 1 && ownerEmployeeIds[0] === currentEmployeeId
+
+    if (isOnlyMe) {
+      opportunityFilter = 'my'
+    } else {
+      opportunityFilter = 'selected'
+    }
+  }
+
+  return { opportunityFilter, ownerEmployeeIds }
+}
+
+// Helper: Update amount range filter
+const updateAmountRangeFilter = (filterConfig: FilterConfiguration, amountRange: { min: number; max: number }) => {
+  const group = filterConfig.groups.find(g => g.id === 'amount-group')
+  if (!group) return
+
+  const filter = group.filters.find(f => f.id === 'amount')
+  if (filter?.config && 'min' in filter.config && 'max' in filter.config) {
+    filter.config.min = amountRange.min
+    filter.config.max = amountRange.max
+    const range = amountRange.max - amountRange.min
+    filter.config.step = Math.max(100, Math.ceil(range * 0.01))
+  }
+}
+
+export interface OpportunityViewConfig<TOpportunity extends { id: string }, TQueryVariables> {
+  contextType: 'customer' | 'investment'
+
+  fetchOpportunities: (variables: TQueryVariables) => Promise<{
+    opportunities?: TOpportunity[]
+    total?: number
+  }>
+
+  filterDataHook: (context: BusinessAppContextProps) => {
+    owners: Array<{ id: string; label: string }>
+    stages: Array<{ id: string; label: string }>
+    pipelines: Array<{ id: string; label: string }>
+    accounts: Array<{ id: string; label: string }>
+    statuses: Array<{ id: string; label: string }>
+  }
+
+  createColumns: (buildAccountUrl: (id: string) => string) => ColumnDef<TOpportunity>[]
+  createSortableColumns: (availableColumnIds?: string[]) => Array<{ id: string; label: string }>
+
+  baseFilterConfig: FilterConfiguration
+
+  buildQueryVariables: (params: {
+    pagination: { pageIndex: number; pageSize: number }
+    searchTerm: string
+    selectedFilters: Record<string, any>
+    sorting: Array<{ id: string; desc: boolean }>
+  }) => TQueryVariables
+
+  flowContexts: {
+    entityContext: FlowContextName
+    createContext: FlowContextName
+    createContextData?: Record<string, any> // Optional external context data for create action
+  }
+
+  buildRecordUrl: (id: string) => string
+  buildAccountUrl: (id: string) => string
+
+  opportunityStatistics?: OpportunityStatisticsData
+  renderStatistics?: () => React.ReactNode
+
+  boardConfig: import('./config/opportunityBoardTypes').OpportunityBoardConfig
+  fetchOpportunitiesForBoard: (
+    filters: import('./config/opportunityBoardTypes').OpportunityBoardFilters & {
+      additionalFilters?: Record<string, any>
+    }
+  ) => Promise<{ opportunities: TOpportunity[]; total: number }>
+  renderBoardCard?: (opportunity: TOpportunity) => React.ReactNode
+
+  processCompletionEvents?: string[]
+
+  rowActionsContextArray: FlowContextName[]
+  buildRowActionsExternalContextData: (row: { original: TOpportunity }) => Record<string, string>
+}
+
+export type OpportunityTabKey = 'list' | 'board'
+
+export interface OpportunityLayoutProps<TOpportunity extends { id: string } = any, TQueryVariables = any> {
+  context: BusinessAppContextProps
+  config: OpportunityViewConfig<TOpportunity, TQueryVariables>
+  dataTestId?: string
+  initialFilters?: Record<string, any>
+  hideFilters?: boolean
+  customPrimaryAction?: React.ReactNode
+}
+
+interface OpportunityRowActionsProps<TOpportunity extends { id: string }> {
+  row: { original: TOpportunity }
+  config: OpportunityViewConfig<TOpportunity, any>
+  accessToken: string
+}
+
+const OpportunityRowActions = <TOpportunity extends { id: string } = any>({
+  row,
+  config,
+  accessToken
+}: OpportunityRowActionsProps<TOpportunity>) => (
+  <AppActionMenu
+    contextsArray={config.rowActionsContextArray}
+    externalContextData={config.buildRowActionsExternalContextData(row)}
+    prefixDataTestId="opportunity-actions"
+    accessToken={accessToken}
+    emptyStateBehavior="enable"
+    deferMainContextRequestsUntilClick
+  >
+    <Button variant="ghost" size="icon" data-testid={`opportunity-actions-${row.original.id}`}>
+      <svg className="gba:h-4 gba:w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+        <path
+          strokeLinecap="round"
+          strokeLinejoin="round"
+          strokeWidth={2}
+          d="M12 5v.01M12 12v.01M12 19v.01M12 6a1 1 0 110-2 1 1 0 010 2zm0 7a1 1 0 110-2 1 1 0 010 2zm0 7a1 1 0 110-2 1 1 0 010 2z"
+        />
+      </svg>
+    </Button>
+  </AppActionMenu>
+)
+
+interface BoardSecondaryActionsProps {
+  currentSection: 'list' | 'board'
+  boardPipelineId: string
+  pipelines?: Array<{ id: string; label: string }>
+  onPipelineChange: (pipelineId: string) => void
+}
+
+const BoardSecondaryActions: React.FC<BoardSecondaryActionsProps> = ({
+  currentSection,
+  boardPipelineId,
+  pipelines,
+  onPipelineChange
+}) => {
+  if (currentSection !== 'board') return undefined
+
+  return (
+    <div className="gba:flex gba:items-center gba:gap-2">
+      <Label className="gba:text-sm gba:font-medium gba:whitespace-nowrap">Pipeline:</Label>
+      <Select value={boardPipelineId} onValueChange={onPipelineChange}>
+        <SelectTrigger className="gba:w-48">
+          <SelectValue placeholder="Select Pipeline" />
+        </SelectTrigger>
+        <SelectContent>
+          {pipelines?.map(pipeline => (
+            <SelectItem key={pipeline.id} value={pipeline.id}>
+              {pipeline.label}
+            </SelectItem>
+          ))}
+        </SelectContent>
+      </Select>
+    </div>
+  )
+}
+
+function ConfigOpportunityLayout<TOpportunity extends { id: string } = any, TQueryVariables = any>(
+  props: OpportunityLayoutProps<TOpportunity, TQueryVariables>
+): React.ReactElement {
+  const {
+    context,
+    config,
+    dataTestId = 'opportunity-view',
+    initialFilters = {},
+    hideFilters = false,
+    customPrimaryAction
+  } = props
+  const { accessToken } = context
+
+  // View State
+  const [currentSection, setCurrentSection] = useState<'list' | 'board'>('list')
+
+  // List View State
+  const [searchTerm, setSearchTerm] = useState('')
+  const [selectedFilters, setSelectedFilters] = useState<Record<string, any>>(initialFilters)
+  const [sorting, setSorting] = useState<Array<{ id: string; desc: boolean }>>([{ id: 'createdAt', desc: true }])
+  const [pagination, setPagination] = useState({ pageIndex: 0, pageSize: 20 })
+  const [visibleColumns, setVisibleColumns] = useState<string[]>([
+    'opportunity',
+    'amount',
+    'opportunityPipeline',
+    'opportunityPipelineStage',
+    'opportunityStatus',
+    'closeDate',
+    'account',
+    'owner',
+    'created'
+  ])
+
+  // Board View State
+  const [boardPipelineId, setBoardPipelineId] = useState('')
+  const [boardFilters, setBoardFilters] = useState<Record<string, any>>({})
+  const [boardSearch, setBoardSearch] = useState('')
+  const [boardOpportunities, setBoardOpportunities] = useState<TOpportunity[]>([])
+  const [boardTotalCount, setBoardTotalCount] = useState(0)
+  const [boardLoading, setBoardLoading] = useState(false)
+  const [boardError, setBoardError] = useState<string | null>(null)
+  const [boardRefreshTrigger, setBoardRefreshTrigger] = useState(0)
+
+  // List Data State
+  const [opportunities, setOpportunities] = useState<TOpportunity[]>([])
+  const [totalCount, setTotalCount] = useState(0)
+  const [isLoading, setIsLoading] = useState(true)
+  const [error, setError] = useState<string | null>(null)
+  const [isInitialLoad, setIsInitialLoad] = useState(true)
+
+  // Dynamic Filter Data
+  const filterData = config.filterDataHook(context)
+  const { owners, stages, pipelines, accounts, statuses } = filterData
+  const amountRange =
+    'amountRange' in filterData && typeof filterData.amountRange === 'object'
+      ? (filterData.amountRange as { min: number; max: number })
+      : { min: 0, max: 1000000 }
+
+  // Board Employees (for owner filter in board view)
+  const { employees: boardEmployees } = useBoardEmployees({
+    accessToken,
+    currentEmployeeId: context.userInfo?.employeeDetails?.employeeId,
+    opportunityType: config.boardConfig.opportunityType,
+    selectedPipelineId: boardPipelineId
+  })
+
+  // Dynamic Filter Configuration for Board
+  const boardFilterConfig = useMemo(() => {
+    const filterConfig = { ...opportunityBoardFilterConfig }
+    updateFilterOptions(filterConfig, 'owner-group', 'owner', boardEmployees)
+    return filterConfig
+  }, [boardEmployees])
+
+  // Dynamic Filter Configuration for List
+  const dynamicFilterConfig = useMemo(() => {
+    const filterConfig = { ...config.baseFilterConfig }
+
+    updateFilterOptions(
+      filterConfig,
+      'stage-group',
+      'opportunityPipelineStageIds',
+      stages.map(s => ({ id: s.id, label: s.label }))
+    )
+    updateFilterOptions(
+      filterConfig,
+      'status-group',
+      'opportunityStatusIds',
+      statuses.map(s => ({ id: s.id, label: s.label }))
+    )
+    updateFilterOptions(
+      filterConfig,
+      'pipeline-group',
+      'opportunityPipelineIds',
+      pipelines.map(p => ({ id: p.id, label: p.label }))
+    )
+    updateFilterOptions(
+      filterConfig,
+      'owner-group',
+      'ownerEmployeeIds',
+      owners.map(o => ({ id: o.id, label: o.label }))
+    )
+    updateFilterOptions(
+      filterConfig,
+      'account-group',
+      'accountIds',
+      accounts.map(a => ({ id: a.id, label: a.label }))
+    )
+
+    updateAmountRangeFilter(filterConfig, amountRange)
+
+    return filterConfig
+  }, [owners, stages, pipelines, accounts, statuses, amountRange, config.baseFilterConfig])
+
+  // List Query Variables
+  const queryVariables = useMemo(
+    () =>
+      config.buildQueryVariables({
+        pagination,
+        searchTerm,
+        selectedFilters,
+        sorting
+      }),
+    [pagination, searchTerm, selectedFilters, sorting, config]
+  )
+
+  // Load List Data
+  const loadListData = useCallback(
+    async (showLoading: boolean = true) => {
+      if (!accessToken) return
+
+      if (showLoading) setIsLoading(true)
+      setError(null)
+
+      try {
+        const result = await config.fetchOpportunities(queryVariables)
+        setOpportunities(result.opportunities || [])
+        setTotalCount(result.total || 0)
+      } catch (err) {
+        setError(err instanceof Error ? err.message : 'Unknown error occurred')
+      } finally {
+        if (showLoading) setIsLoading(false)
+        setIsInitialLoad(false)
+      }
+    },
+    [accessToken, config, queryVariables]
+  )
+
+  // Load Board Data
+  const loadBoardData = useCallback(async () => {
+    if (!accessToken) return
+
+    setBoardLoading(true)
+    setBoardError(null)
+
+    try {
+      // Determine filter mode using helper
+      const currentEmployeeId = context.userInfo?.employeeDetails?.employeeId
+      const { opportunityFilter, ownerEmployeeIds } = determineOpportunityFilter(boardFilters, currentEmployeeId)
+
+      const boardFiltersObj: OpportunityBoardFilters = {
+        selectedPipelineId: boardPipelineId,
+        opportunityFilter,
+        selectedEmployeeIds: ownerEmployeeIds || [],
+        search: boardSearch.trim() || undefined
+      }
+
+      const result = await config.fetchOpportunitiesForBoard(boardFiltersObj)
+      setBoardOpportunities(result.opportunities || [])
+      setBoardTotalCount(result.total || 0)
+    } catch (err) {
+      console.error('Error loading board opportunities:', err)
+      setBoardError(err instanceof Error ? err.message : 'Unknown error occurred')
+    } finally {
+      setBoardLoading(false)
+    }
+  }, [accessToken, config, boardPipelineId, boardFilters, boardSearch, context.userInfo?.employeeDetails?.employeeId])
+
+  // Set default board pipeline FIRST
+  useEffect(() => {
+    if (pipelines && pipelines.length > 0 && !boardPipelineId) {
+      setBoardPipelineId(pipelines[0].id)
+    }
+  }, [pipelines, boardPipelineId])
+
+  // Initial parallel load: Load BOTH list and board data for badge counts
+  useEffect(() => {
+    if (!accessToken || !isInitialLoad || !boardPipelineId) return
+
+    const loadBothSections = async () => {
+      // Load both sections in parallel
+      await Promise.all([loadListData(true), loadBoardData()])
+    }
+
+    loadBothSections()
+  }, [accessToken, isInitialLoad, boardPipelineId, loadListData, loadBoardData])
+
+  // Reload list data when filters/search/sort change (only when list is active, skip initial load)
+  useEffect(() => {
+    if (isInitialLoad || !accessToken || currentSection !== 'list') return
+    loadListData(false)
+  }, [queryVariables, isInitialLoad, accessToken, loadListData])
+
+  // Reload board data when filters/search change (only when board is active, skip initial load)
+  useEffect(() => {
+    if (isInitialLoad || !accessToken || currentSection !== 'board' || !boardPipelineId) return
+    loadBoardData()
+  }, [boardPipelineId, boardFilters, boardSearch, isInitialLoad, accessToken, loadBoardData])
+
+  // Process Completion Handlers
+  const handleProcessComplete = useCallback(() => {
+    if (currentSection === 'list') {
+      loadListData(false)
+    } else {
+      loadBoardData()
+    }
+    setBoardRefreshTrigger(prev => prev + 1)
+  }, [currentSection, loadListData, loadBoardData])
+
+  useProcessCompletion({ onSuccess: handleProcessComplete })
+
+  useEffect(() => {
+    const events = config.processCompletionEvents || ['taskCompletion']
+    const handlers = events.map(eventName => {
+      const handler = () => handleProcessComplete()
+      globalThis.addEventListener(eventName, handler)
+      return { eventName, handler }
+    })
+
+    return () => {
+      for (const { eventName, handler } of handlers) {
+        globalThis.removeEventListener(eventName, handler)
+      }
+    }
+  }, [handleProcessComplete, config.processCompletionEvents])
+
+  // Event Handlers
+  const handleSearch = useCallback((value: string) => {
+    setSearchTerm(value)
+    setPagination(prev => ({ ...prev, pageIndex: 0 }))
+  }, [])
+
+  const handleFilterUpdate = useCallback((filters: Record<string, any>) => {
+    setSelectedFilters(filters)
+    setPagination(prev => ({ ...prev, pageIndex: 0 }))
+  }, [])
+
+  const handleRowClick = useCallback(
+    (opportunity: TOpportunity) => {
+      const url = config.buildRecordUrl(opportunity.id)
+      navigateTo(url)
+    },
+    [config]
+  )
+
+  // Columns
+  const columns = useMemo(() => config.createColumns(config.buildAccountUrl), [config])
+  const availableColumns = useMemo(
+    () => [
+      { id: 'opportunity', label: 'Opportunity' },
+      { id: 'amount', label: 'Value' },
+      { id: 'opportunityPipeline', label: 'Pipeline' },
+      { id: 'opportunityPipelineStage', label: 'Stage' },
+      { id: 'opportunityStatus', label: 'Status' },
+      { id: 'closeDate', label: 'Close Date' },
+      { id: 'account', label: 'Account' },
+      { id: 'owner', label: 'Owner' },
+      { id: 'created', label: 'Created' }
+    ],
+    []
+  )
+
+  // Row actions - rendered internally
+  const rowActions = useMemo(
+    () => (row: { original: TOpportunity }) => (
+      <OpportunityRowActions row={row} config={config} accessToken={accessToken} />
+    ),
+    [config, accessToken]
+  )
+
+  // Board secondary action: Pipeline selector
+  const boardSecondaryActions = useMemo(
+    () => (
+      <BoardSecondaryActions
+        currentSection={currentSection}
+        boardPipelineId={boardPipelineId}
+        pipelines={pipelines}
+        onPipelineChange={setBoardPipelineId}
+      />
+    ),
+    [currentSection, boardPipelineId, pipelines]
+  )
+
+  return (
+    <div data-testid={dataTestId}>
+      {/* Statistics */}
+      {config.renderStatistics ? (
+        <div data-testid={`${dataTestId}-statistics`}>{config.renderStatistics()}</div>
+      ) : config.opportunityStatistics ? (
+        <OpportunityStatisticsLayout
+          statistics={config.opportunityStatistics}
+          data-testid={`${dataTestId}-statistics`}
+        />
+      ) : null}
+
+      {/* DataDisplay with titleSections as Tabs */}
+      <DataDisplay
+        key={currentSection}
+        titleSections={[
+          {
+            id: 'list',
+            label: getTranslationFromI18nKeyAndLabel('common:listView', 'List'),
+            metadata: {
+              count: totalCount,
+              isLoading: isLoading
+            }
+          },
+          {
+            id: 'board',
+            label: getTranslationFromI18nKeyAndLabel('common:boardView', 'Board'),
+            metadata: {
+              count: boardTotalCount,
+              isLoading: boardLoading
+            }
+          }
+        ]}
+        currentSection={currentSection}
+        onSectionChange={value => setCurrentSection(value as 'list' | 'board')}
+        searchValue={currentSection === 'list' ? searchTerm : boardSearch}
+        searchPlaceholder={currentSection === 'list' ? 'Search opportunities...' : 'Search board...'}
+        onSearchChange={currentSection === 'list' ? handleSearch : setBoardSearch}
+        filters={getFiltersForSection(currentSection, hideFilters, selectedFilters, boardFilters)}
+        filterConfiguration={getFilterConfigForSection(
+          currentSection,
+          hideFilters,
+          dynamicFilterConfig,
+          boardFilterConfig
+        )}
+        onFilterChange={getFilterChangeHandlerForSection(
+          currentSection,
+          hideFilters,
+          handleFilterUpdate,
+          setBoardFilters
+        )}
+        sorting={currentSection === 'list' ? sorting : undefined}
+        sortableColumns={
+          currentSection === 'list'
+            ? (() => {
+                const availableColumnIds = availableColumns.map(col => col.id)
+                return config.createSortableColumns(availableColumnIds)
+              })()
+            : undefined
+        }
+        onSortingChange={currentSection === 'list' ? setSorting : undefined}
+        availableColumns={currentSection === 'list' ? availableColumns : undefined}
+        visibleColumns={currentSection === 'list' ? visibleColumns : undefined}
+        onVisibleColumnsChange={currentSection === 'list' ? setVisibleColumns : undefined}
+        primaryAction={
+          customPrimaryAction ||
+          (config.flowContexts.createContext ? (
+            <AppAction
+              contextsArray={[config.flowContexts.createContext]}
+              externalContextData={config.flowContexts.createContextData}
+              accessToken={accessToken}
+              data-testid="add-opportunity-action"
+              emptyStateBehavior="hide"
+            >
+              <Button size="sm" variant="default" data-testid="add-opportunity-button" type="button">
+                <Plus size={16} />
+                {getTranslationFromI18nKeyAndLabel('crm:opportunity.addOpportunity', 'Add Opportunity')}
+              </Button>
+            </AppAction>
+          ) : undefined)
+        }
+        secondaryActions={boardSecondaryActions}
+        toolbarDensity="default"
+        enableLiveFiltering={currentSection === 'board'}
+        filterSheetTitle={currentSection === 'board' ? 'Filter Board' : 'Filter Opportunities'}
+        filterSheetDescription={
+          currentSection === 'board'
+            ? 'Filter opportunities by owner'
+            : 'Apply filters to narrow down the opportunity list'
+        }
+      >
+        {currentSection === 'list' ? (
+          <OpportunityListLayout<TOpportunity>
+            data={opportunities}
+            loading={isLoading}
+            error={error}
+            totalCount={totalCount}
+            columns={columns.filter(col => visibleColumns.includes(col.id as string))}
+            sorting={sorting}
+            onSortingChange={setSorting}
+            pagination={pagination}
+            onPaginationChange={setPagination}
+            actions={rowActions}
+            onRowClick={handleRowClick}
+            dataTestId={`${dataTestId}-list`}
+          />
+        ) : (
+          <OpportunityBoardLayout
+            accessToken={accessToken}
+            userInfo={context.userInfo}
+            config={config.boardConfig}
+            opportunities={boardOpportunities as any}
+            isLoading={boardLoading}
+            error={boardError}
+            selectedPipelineId={boardPipelineId}
+            onRefresh={loadBoardData}
+            refreshTrigger={boardRefreshTrigger}
+            renderCard={config.renderBoardCard as any}
+            dataTestId={`${dataTestId}-board`}
+          />
+        )}
+      </DataDisplay>
+    </div>
+  )
+}
+
+export const OpportunityLayout = ConfigOpportunityLayout
+export default OpportunityLayout

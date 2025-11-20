@@ -10,13 +10,13 @@ import {
   DotsThreeVerticalIcon
 } from '@phosphor-icons/react'
 import dayjs from 'dayjs'
-import { AppAction } from '@/components/app-action'
 import { AppActionMenu } from '@/components/app-action-menu/AppActionMenu'
 import type { AppActionCommonProps } from '@/common/hooks/useAppActionData'
 import { getTranslationFromI18nKeyAndLabel } from '@/common/utils/windowUtils'
 import { navigateTo, buildPlatformUrl } from '@/common/utils/navigationUtils'
 import { buildFileUrl, getFileIcon } from '@/common/utils/fileUtils'
 import { FileInfo } from '@/common/types/FileTypes'
+import type { Activity } from '@/common/data/relations/types/activityTypes'
 
 export type ActivityDocument = {
   id: string
@@ -51,7 +51,7 @@ export type ActivityItem = {
 }
 
 export interface ActivitySectionProps extends BusinessAppContextProps {
-  activities?: ActivityItem[]
+  activities?: Activity[]
   activitiesLoading?: boolean
   activitiesError?: string | null
   onReloadActivities?: () => void
@@ -74,18 +74,21 @@ const ActivitySection: React.FC<ActivitySectionProps> = props => {
     alignment = 'left'
   } = props
 
-  // Process activities
+  // Process activities - map from Activity to ActivityItem
   const processedActivities = useMemo(() => {
     if (!rawActivities || rawActivities.length === 0) return []
 
-    return rawActivities.map((activity: any) => ({
+    return rawActivities.map((activity: Activity) => ({
       id: activity.id,
       title: activity.title || 'Untitled Activity',
       description: activity.description || '',
       occurredAt: activity.occurredAt || activity.createdAt,
       createdAt: activity.createdAt,
       ownerEmployee: activity.ownerEmployee,
-      createdBy: activity.createdBy,
+      createdBy: activity.ownerEmployee
+        ? `${activity.ownerEmployee.firstName || ''} ${activity.ownerEmployee.lastName || ''}`.trim() ||
+          activity.ownerEmployee.displayName
+        : undefined,
       activityType: activity.activityType,
       documents: activity.documents || []
     }))
@@ -251,26 +254,27 @@ const ActivitySection: React.FC<ActivitySectionProps> = props => {
 
 // Static properties for SectionWrapper
 ;(ActivitySection as any).sectionTitle = 'Activities'
-;(ActivitySection as any).sectionActions = (props: ActivitySectionProps) => {
+;(ActivitySection as any).getActionButtonConfig = (_pageData: any, _pageIndex: number, props: ActivitySectionProps) => {
   const { accessToken, activitySectionActionProps } = props
 
-  if (!activitySectionActionProps) {
+  if (!activitySectionActionProps || !accessToken) {
     return null
   }
 
-  return (
-    <AppAction
-      accessToken={accessToken}
-      contextsArray={activitySectionActionProps.contextsArray}
-      externalContextData={activitySectionActionProps.externalContextData}
-      prefixDataTestId={activitySectionActionProps.prefixDataTestId}
-      emptyStateBehavior={activitySectionActionProps.emptyStateBehavior}
-    >
-      <Button data-testid="add-activity-button" variant="secondary" size="icon">
-        <PlusIcon />
-      </Button>
-    </AppAction>
-  )
+  return {
+    type: 'AppAction' as const,
+    config: {
+      contextsArray: activitySectionActionProps.contextsArray,
+      externalContextData: activitySectionActionProps.externalContextData,
+      prefixDataTestId: activitySectionActionProps.prefixDataTestId,
+      emptyStateBehavior: activitySectionActionProps.emptyStateBehavior || 'enable',
+      children: (
+        <Button data-testid="add-activity-button" variant="secondary" size="icon">
+          <PlusIcon />
+        </Button>
+      )
+    }
+  }
 }
 
 export default ActivitySection

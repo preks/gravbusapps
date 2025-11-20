@@ -1,9 +1,17 @@
-import React, { useState, useCallback, useEffect, useRef } from 'react'
-import { Button, Alert, Form, WizardForm, useWizard, type WizardStep } from '@newwork/nw-design-system'
+import React, { useState, useCallback, useEffect, useRef, useMemo } from 'react'
+import {
+  Button,
+  Alert,
+  Form,
+  WizardForm,
+  useWizard,
+  type WizardStep,
+  LocalizationProvider
+} from '@newwork/nw-design-system'
 import { useForm, type Resolver, type UseFormReturn } from 'react-hook-form'
 import { BusinessAppContextProps } from '@/common/BusinessAppContext'
 import { dispatchProcessContinueEvent } from '@/common/utils/processEventUtils'
-import { getTranslationFromI18nKeyAndLabel } from '@/common/utils/windowUtils'
+import { getCurrentActiveUserLocale, getTranslationFromI18nKeyAndLabel } from '@/common/utils/windowUtils'
 
 export interface ProcessMessage {
   type: 'success' | 'error' | 'info'
@@ -372,65 +380,67 @@ export const AppActionForm: React.FC<AppActionFormProps> = ({
   }
 
   return (
-    <div className="gba:p-6 gba:h-full gba:flex gba:flex-col" data-testid={dataTestId}>
-      {message && message.type === 'error' && (
-        <Alert variant="destructive" className="gba:mb-4" data-testid={`${dataTestId}-message`}>
-          {message.message}
-        </Alert>
-      )}
+    <LocalizationProvider locale={useMemo(() => getCurrentActiveUserLocale() as any, [])}>
+      <div className="gba:p-6 gba:h-full gba:flex gba:flex-col" data-testid={dataTestId}>
+        {message && message.type === 'error' && (
+          <Alert variant="destructive" className="gba:mb-4" data-testid={`${dataTestId}-message`}>
+            {message.message}
+          </Alert>
+        )}
 
-      {formType === 'wizard' && wizardSteps && form ? (
-        // Use WizardForm with custom navigation as children
-        <WizardForm
-          form={form}
-          steps={wizardSteps}
-          onSubmit={data => handleSubmit(data)}
-          showStepIndicator={showStepIndicator}
-          allowStepJumping={allowStepJumping}
-          className="gba:w-full"
-        >
-          <WizardNavigation />
-        </WizardForm>
-      ) : disableFormSubmission ? (
-        // Custom form handling - don't wrap in Form/form elements
-        <div className="gba:flex gba:flex-col gba:w-full gba:h-full" data-testid={`${dataTestId}-content`}>
-          {children}
-          {customActions}
-        </div>
-      ) : customFormLayout && form ? (
-        // Custom layout: just provide form context and let children handle layout
-        <Form {...(form as any)}>
-          <form
-            onSubmit={form.handleSubmit(vals => handleSubmit(vals))}
-            className="gba:flex gba:flex-col gba:w-full gba:h-full"
-            data-testid={`${dataTestId}-form`}
+        {formType === 'wizard' && wizardSteps && form ? (
+          // Use WizardForm with custom navigation as children
+          <WizardForm
+            form={form}
+            steps={wizardSteps}
+            onSubmit={data => handleSubmit(data)}
+            showStepIndicator={showStepIndicator}
+            allowStepJumping={allowStepJumping}
+            className="gba:w-full"
           >
+            <WizardNavigation />
+          </WizardForm>
+        ) : disableFormSubmission ? (
+          // Custom form handling - don't wrap in Form/form elements
+          <div className="gba:flex gba:flex-col gba:w-full gba:h-full" data-testid={`${dataTestId}-content`}>
             {children}
             {customActions}
-          </form>
-        </Form>
-      ) : form ? (
-        // Standard layout
-        <Form {...(form as any)}>
-          <form
-            onSubmit={form.handleSubmit(vals => handleSubmit(vals))}
-            className="gba:flex gba:flex-col gba:w-full gba:max-w-md gba:h-full"
-            data-testid={`${dataTestId}-form`}
-          >
-            <div className="gba:flex-1 gba:space-y-4" data-testid={`${dataTestId}-form-content`}>
+          </div>
+        ) : customFormLayout && form ? (
+          // Custom layout: just provide form context and let children handle layout
+          <Form {...(form as any)}>
+            <form
+              onSubmit={form.handleSubmit(vals => handleSubmit(vals))}
+              className="gba:flex gba:flex-col gba:w-full gba:h-full"
+              data-testid={`${dataTestId}-form`}
+            >
               {children}
-            </div>
-            {formNavigation}
-          </form>
-        </Form>
-      ) : (
-        // Fallback: no form wrapper (shouldn't happen in normal scenarios)
-        <div className="gba:flex gba:flex-col gba:w-full gba:h-full" data-testid={`${dataTestId}-content`}>
-          {children}
-          {customActions}
-        </div>
-      )}
-    </div>
+              {customActions}
+            </form>
+          </Form>
+        ) : form ? (
+          // Standard layout
+          <Form {...(form as any)}>
+            <form
+              onSubmit={form.handleSubmit(vals => handleSubmit(vals))}
+              className="gba:flex gba:flex-col gba:w-full gba:max-w-md gba:h-full"
+              data-testid={`${dataTestId}-form`}
+            >
+              <div className="gba:flex-1 gba:space-y-4" data-testid={`${dataTestId}-form-content`}>
+                {children}
+              </div>
+              {formNavigation}
+            </form>
+          </Form>
+        ) : (
+          // Fallback: no form wrapper (shouldn't happen in normal scenarios)
+          <div className="gba:flex gba:flex-col gba:w-full gba:h-full" data-testid={`${dataTestId}-content`}>
+            {children}
+            {customActions}
+          </div>
+        )}
+      </div>
+    </LocalizationProvider>
   )
 }
 

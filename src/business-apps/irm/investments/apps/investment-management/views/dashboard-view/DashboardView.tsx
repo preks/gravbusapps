@@ -25,16 +25,6 @@ interface DashboardViewProps extends BusinessAppContextProps {
   onNavigateToInvestments?: (subTab?: string) => void
 }
 
-// Helper function to format currency
-const formatCurrency = (amount: number, currency: string = 'EUR'): string => {
-  return new Intl.NumberFormat('de-DE', {
-    style: 'currency',
-    currency: currency,
-    minimumFractionDigits: 0,
-    maximumFractionDigits: 0
-  }).format(amount)
-}
-
 // Helper function to format group names for display
 const formatGroupName = (groupName: string): string => {
   if (groupName === 'RealEstate') {
@@ -61,7 +51,7 @@ const getIconComponent = (groupName: string) => {
   }
 }
 
-// Helper function to calculate trend data - matches KPI card logic
+// Helper function to calculate trend data
 // Compares current total investment vs total investment 30 days ago (based on createdAt)
 const calculateTrendData = (investments: Investment[]): TrendData => {
   const now = new Date()
@@ -130,8 +120,10 @@ const DashboardView: React.FC<DashboardViewProps> = ({
   const [investments, setInvestments] = React.useState<Investment[]>([])
   const [isLoading, setIsLoading] = React.useState(true)
   const [error, setError] = React.useState<string | null>(null)
-  const [masterCurrency, setMasterCurrency] = React.useState<string>('EUR')
-  const [availableCurrencies, setAvailableCurrencies] = React.useState<string[]>(['EUR'])
+  const [masterCurrency, setMasterCurrency] = React.useState<string>('Currency:v1:EUR')
+  const [availableCurrencies, setAvailableCurrencies] = React.useState<Array<{ id: string; code: string }>>([
+    { id: 'Currency:v1:EUR', code: 'EUR' }
+  ])
 
   // Fetch all investments once to get available currencies
   React.useEffect(() => {
@@ -142,45 +134,52 @@ const DashboardView: React.FC<DashboardViewProps> = ({
         const result = await fetchInvestments({ limit: 1000 })
         if (!mounted) return
 
-        // Extract unique currencies
-        const currencies = new Set<string>()
+        // Extract unique currencies with both ID and code
+        const currencyMap = new Map<string, { id: string; code: string }>()
         result?.Investment?.forEach((inv: Investment) => {
           if (inv.currency) {
             const currency = inv.currency as any
+            let currencyId: string | null = null
             let currencyCode: string | null = null
 
             if (typeof currency === 'string') {
+              currencyId = currency
               const parts = currency.split(':')
               currencyCode = parts[parts.length - 1] || null
             } else if (typeof currency === 'object' && currency !== null) {
-              const currencyStr = currency.code || currency.value
-              if (currencyStr) {
-                const parts = String(currencyStr).split(':')
+              currencyId = currency.id || null
+              const codeStr = currency.code || currency.value
+              if (codeStr) {
+                const parts = String(codeStr).split(':')
                 currencyCode = parts[parts.length - 1] || null
               }
             }
 
-            if (currencyCode) {
-              currencies.add(currencyCode)
+            if (currencyId && currencyCode && !currencyMap.has(currencyId)) {
+              currencyMap.set(currencyId, { id: currencyId, code: currencyCode })
             }
           }
         })
 
-        const currencyArray = Array.from(currencies)
-        // Sort with EUR first, then alphabetically
-        const sorted = currencyArray.sort((a, b) => {
-          if (a === 'EUR') return -1
-          if (b === 'EUR') return 1
-          return a.localeCompare(b)
+        const currencyArray = Array.from(currencyMap.values())
+        // Sort with EUR first, then alphabetically by code
+        const sorted = currencyArray.toSorted((a, b) => {
+          if (a.code === 'EUR') return -1
+          if (b.code === 'EUR') return 1
+          return a.code.localeCompare(b.code)
         })
 
         if (mounted) {
-          setAvailableCurrencies(sorted.length > 0 ? sorted : ['EUR'])
+          setAvailableCurrencies(sorted.length > 0 ? sorted : [{ id: 'Currency:v1:EUR', code: 'EUR' }])
         }
       } catch (err) {
         console.error('Error fetching available currencies:', err)
         if (mounted) {
-          setAvailableCurrencies(['EUR', 'USD', 'GBP']) // Fallback
+          setAvailableCurrencies([
+            { id: 'Currency:v1:EUR', code: 'EUR' },
+            { id: 'Currency:v1:USD', code: 'USD' },
+            { id: 'Currency:v1:GBP', code: 'GBP' }
+          ])
         }
       }
     })()
@@ -192,14 +191,16 @@ const DashboardView: React.FC<DashboardViewProps> = ({
   // Use centralized groups and types data
   const { data: groupsData, error: groupsError, isLoading: groupsLoading } = useInvestmentGroupsAndTypes(accessToken)
 
-  // Fetch all investments once (cards will do their own currency filtering)
+  // Fetch ALL investments once (cards can filter by their individual currency)
   React.useEffect(() => {
     let mounted = true
     ;(async () => {
       try {
         setIsLoading(true)
-        // Fetch ALL investments - currency filtering is done at card level
-        const result = await fetchInvestments({ limit: 100 })
+        // Fetch ALL investments - cards will do their own currency filtering
+        const result = await fetchInvestments({
+          limit: 1000
+        })
         if (!mounted) return
 
         setInvestments(result?.Investment || [])
@@ -355,8 +356,8 @@ const DashboardView: React.FC<DashboardViewProps> = ({
             </SelectTrigger>
             <SelectContent>
               {availableCurrencies.map(currency => (
-                <SelectItem key={currency} value={currency}>
-                  {currency}
+                <SelectItem key={currency.id} value={currency.id}>
+                  {currency.code}
                 </SelectItem>
               ))}
             </SelectContent>
@@ -415,7 +416,6 @@ const DashboardView: React.FC<DashboardViewProps> = ({
                 calculateTrendData={calculateTrendData}
                 masterCurrency={masterCurrency}
                 availableCurrencies={availableCurrencies}
-                formatCurrency={formatCurrency}
               />
             ))
           )}

@@ -12,7 +12,7 @@ import {
   LiquidFundTypeSelectSegment,
   DynamicSegment
 } from './segments'
-import { getCurrencySymbol } from '@/common/utils/currencyUtils'
+import { getCurrencySymbol } from '@/common/utils/numberFormatter'
 import { useCatalogManagerClient } from '@/common/network/catalogs/useCatalogManagerClient'
 import { useGetInvestmentById, useGetInvestmentOpportunityById } from '@/common/data/investment'
 import { getInvestmentGroupFromContext } from '../utils/investmentDataTransformer'
@@ -134,9 +134,23 @@ export const InvestmentFormComponent: React.FC = () => {
                 ...(rawInvestment.investmentAccount && { investmentAccount: rawInvestment.investmentAccount }), // Full account object
                 ...(rawInvestment.investmentType && { investmentType: rawInvestment.investmentType }) // Full catalog object
               },
-              // Load subtype data (keep full catalog objects)
-              ...((rawInvestment as any).liquidFundInvestment?.[0]?.investmentLiquidFundType && {
+              // Load subtype data (keep full catalog objects and preserve id/version for updates)
+              ...((rawInvestment as any).equityInvestment?.[0] && {
+                equityInvestment: {
+                  id: (rawInvestment as any).equityInvestment[0].id,
+                  version: (rawInvestment as any).equityInvestment[0].version
+                }
+              }),
+              ...((rawInvestment as any).realEstateInvestment?.[0] && {
+                realEstateInvestment: {
+                  id: (rawInvestment as any).realEstateInvestment[0].id,
+                  version: (rawInvestment as any).realEstateInvestment[0].version
+                }
+              }),
+              ...((rawInvestment as any).liquidFundInvestment?.[0] && {
                 liquidFundInvestment: {
+                  id: (rawInvestment as any).liquidFundInvestment[0].id,
+                  version: (rawInvestment as any).liquidFundInvestment[0].version,
                   investmentLiquidFundType: (rawInvestment as any).liquidFundInvestment[0].investmentLiquidFundType // Full catalog object
                 }
               })

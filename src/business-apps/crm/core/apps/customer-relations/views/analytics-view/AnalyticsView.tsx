@@ -1,6 +1,5 @@
 import React, { useState } from 'react'
-import { Alert, AlertTitle, AlertDescription, Button } from '@newwork/nw-design-system'
-import { Spinner } from '@newwork/nw-design-system'
+import { Alert, AlertTitle, AlertDescription, Button, Spinner } from '@newwork/nw-design-system'
 import { BusinessAppContextProps } from '@/common/BusinessAppContext'
 import { AnalyticsLayout } from '@/common/components/common-relations/view-layouts/analytics-layout/AnalyticsLayout'
 import { useOpportunitiesOverTime } from './hooks/useOpportunitiesOverTime'

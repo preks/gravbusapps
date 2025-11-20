@@ -406,7 +406,7 @@ export const useInvestmentAccountFilters = (
         ])
       },
       {
-        id: 'contactInfo',
+        id: 'communicationChannels',
         title: 'Contact Info',
         filters: toFilters([
           { id: 'has:website', label: 'Has website' },

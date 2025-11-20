@@ -1,8 +1,8 @@
 import React from 'react'
 import { PieChart, Pie, Cell, ResponsiveContainer, Sector } from 'recharts'
-import { Card, Spinner, Alert, Badge } from '@newwork/nw-design-system'
-import { getTranslationFromI18nKeyAndLabel } from '@/common/utils/windowUtils'
+import { Card, Spinner, Alert, Badge, useTranslation } from '@newwork/nw-design-system'
 import { useContractTypeDistribution } from '../../../../../hooks/useContractTypeDistribution'
+import hrTranslations from '@/business-apps/hr/core/apps/human-resources/_i18n'
 
 interface ContractTypePieChartProps {
   accessToken: string
@@ -14,6 +14,7 @@ interface ContractTypePieChartProps {
 const ContractTypePieChart: React.FC<ContractTypePieChartProps> = ({ accessToken }) => {
   const [activeIndex, setActiveIndex] = React.useState<number>(-1)
   const prefixDataTestId = 'ContractTypePieChart'
+  const { t } = useTranslation(hrTranslations)
 
   // Fetch contract type distribution data
   const { distribution: data, loading, error } = useContractTypeDistribution(accessToken)
@@ -74,7 +75,7 @@ const ContractTypePieChart: React.FC<ContractTypePieChartProps> = ({ accessToken
           {payload.name}
         </text>
         <text x={cx} y={cy + 10} textAnchor="middle" fill="var(--nw-color-muted-foreground)" fontSize={16}>
-          {value.toLocaleString()} employees
+          {value.toLocaleString()} {t('hr-analytics-employees')}
         </text>
         <text x={cx} y={cy + 35} textAnchor="middle" fill="var(--nw-color-primary)" fontSize={16} fontWeight="600">
           {payload.percentage}%
@@ -97,10 +98,10 @@ const ContractTypePieChart: React.FC<ContractTypePieChartProps> = ({ accessToken
       <Card className="gba:w-full gba:p-6 gba:shadow-sm" data-testid={`${prefixDataTestId}-loading`}>
         <div className="gba:mb-4">
           <h3 className="gba:text-lg gba:font-semibold gba:text-foreground gba:m-0">
-            {getTranslationFromI18nKeyAndLabel('hr_analytics_contract_types', 'Contract Types')}
+            {t('hr-analytics-contract-types')}
           </h3>
           <p className="gba:text-muted-foreground gba:text-sm gba:mt-1">
-            Distribution of employees by contract types such as permanent, fixed-term, etc.
+            {t('hr-analytics-contract-types-description')}
           </p>
         </div>
         <div className="gba:flex gba:justify-center gba:items-center gba:h-96">
@@ -115,15 +116,13 @@ const ContractTypePieChart: React.FC<ContractTypePieChartProps> = ({ accessToken
       <Card className="gba:w-full gba:p-6 gba:shadow-sm" data-testid={`${prefixDataTestId}-error`}>
         <div className="gba:mb-4">
           <h3 className="gba:text-lg gba:font-semibold gba:text-foreground gba:m-0">
-            {getTranslationFromI18nKeyAndLabel('hr_analytics_contract_types', 'Contract Types')}
+            {t('hr-analytics-contract-types')}
           </h3>
           <p className="gba:text-muted-foreground gba:text-sm gba:mt-1">
-            Distribution of employees by contract types such as permanent, fixed-term, etc.
+            {t('hr-analytics-contract-types-description')}
           </p>
         </div>
-        <Alert variant="destructive">
-          {getTranslationFromI18nKeyAndLabel('hr_analytics_error_message', 'Error loading data')}
-        </Alert>
+        <Alert variant="destructive">{t('hr-analytics-error-message')}</Alert>
       </Card>
     )
   }
@@ -132,21 +131,17 @@ const ContractTypePieChart: React.FC<ContractTypePieChartProps> = ({ accessToken
     <Card className="gba:w-full gba:p-6 gba:shadow-sm" data-testid={`${prefixDataTestId}-chart`}>
       <div className="gba:mb-4">
         <div className="gba:flex gba:items-center gba:justify-between gba:mb-2">
-          <h3 className="gba:text-lg gba:font-semibold gba:text-foreground gba:m-0">
-            {getTranslationFromI18nKeyAndLabel('hr_analytics_contract_types', 'Contract Types')}
-          </h3>
+          <h3 className="gba:text-lg gba:font-semibold gba:text-foreground gba:m-0">{t('hr-analytics-contract-types')}</h3>
           <Badge variant="outline" className="gba:text-xs">
-            Contract breakdown
+            {t('hr-analytics-contract-breakdown')}
           </Badge>
         </div>
-        <p className="gba:text-muted-foreground gba:text-sm">
-          Distribution of employees by contract types such as permanent, fixed-term, etc.
-        </p>
+        <p className="gba:text-muted-foreground gba:text-sm">{t('hr-analytics-contract-types-description')}</p>
       </div>
 
       {data.length === 0 ? (
         <div className="gba:flex gba:justify-center gba:items-center gba:h-96 gba:text-muted-foreground">
-          {getTranslationFromI18nKeyAndLabel('hr_analytics_no_data', 'No data available')}
+          {t('hr-analytics-no-data')}
         </div>
       ) : (
         <>
@@ -185,7 +180,7 @@ const ContractTypePieChart: React.FC<ContractTypePieChartProps> = ({ accessToken
                     dominantBaseline="middle"
                     style={{ fontSize: '20px', fill: 'var(--nw-color-foreground)', fontWeight: 600 }}
                   >
-                    {getTranslationFromI18nKeyAndLabel('hr_analytics_contract_types', 'Contract Types')}
+                    {t('hr-analytics-contract-types')}
                   </text>
                   <text
                     x="50%"

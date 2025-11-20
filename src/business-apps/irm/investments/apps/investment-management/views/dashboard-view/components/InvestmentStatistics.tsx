@@ -3,13 +3,13 @@ import { WidgetGroup, WidgetItem } from '@/components/widget-group'
 import { DollarOutlined, RiseOutlined, PercentageOutlined, PieChartOutlined } from '@ant-design/icons'
 import { BusinessAppContextProps } from '@/common/BusinessAppContext'
 import { useInvestmentKPIIntegration } from '../hooks/useInvestmentKPIIntegration'
-import { formatCurrencyCompact } from '../../../utils/currencyUtils'
+import { formatCurrencyCompact, extractCurrencyCode } from '@/common/utils/numberFormatter'
 
 interface InvestmentStatisticsProps extends BusinessAppContextProps {
   selectedCurrency: string
 }
 
-// Removed formatCurrency - now using formatCurrencyCompact utility
+// Removed formatCurrencyCompact - now using formatCurrencyCompact utility
 
 const formatPercentage = (value: number): string => {
   return `${value.toFixed(1)}%`
@@ -72,8 +72,8 @@ export const InvestmentStatistics: React.FC<InvestmentStatisticsProps> = ({ sele
     },
     {
       key: 'total-invested',
-      title: `Total Invested (${selectedCurrency})`,
-      value: formatCurrencyCompact(totalInvested, selectedCurrency),
+      title: 'Total Invested',
+      value: formatCurrencyCompact(totalInvested, extractCurrencyCode(selectedCurrency), undefined, 1, true),
       prefix: <DollarOutlined />,
       color: '#52c41a',
       valueIsString: true,
@@ -102,8 +102,8 @@ export const InvestmentStatistics: React.FC<InvestmentStatisticsProps> = ({ sele
     },
     {
       key: 'total-market-value',
-      title: `Total Market Value (${selectedCurrency})`,
-      value: formatCurrencyCompact(totalMarketValue, selectedCurrency),
+      title: 'Total Market Value',
+      value: formatCurrencyCompact(totalMarketValue, extractCurrencyCode(selectedCurrency), undefined, 1, true),
       prefix: <RiseOutlined />,
       color: '#722ed1',
       valueIsString: true,

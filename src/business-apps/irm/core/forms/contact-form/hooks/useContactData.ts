@@ -2,6 +2,12 @@ import { useState, useEffect } from 'react'
 import { BusinessAppContextProps } from '@/common/BusinessAppContext'
 import { useGetInvestmentContactData, InvestmentContactDataResponse } from '../queries/ContactQueries'
 import { ContactFormValues } from '../types'
+import {
+  getEmailChannel,
+  getPhoneChannel,
+  getLinkedInChannel,
+  getXingChannel
+} from '@/common/data/common/utils/communicationChannelHelpers'
 
 // Helper function to map InvestmentContact data to form values
 export const mapInvestmentContactToFormValues = (
@@ -30,17 +36,12 @@ export const mapInvestmentContactToFormValues = (
     department: contact.department || '',
 
     // Social Media Information - Extract from communication channels
-    linkedinUrl:
-      contact.communicationChannels?.find(
-        channel => channel.communicationChannelRef === 'CommunicationChannel:v1:LinkedIn'
-      )?.value || '',
-    xingUrl:
-      contact.communicationChannels?.find(channel => channel.communicationChannelRef === 'CommunicationChannel:v1:Xing')
-        ?.value || '',
+    linkedinUrl: getLinkedInChannel(contact.communicationChannels)?.value || '',
+    xingUrl: getXingChannel(contact.communicationChannels)?.value || '',
 
-    // Contact Information
-    email: contact.email || '',
-    phone: contact.phone || '',
+    // Contact Information - Extract from communication channels
+    email: getEmailChannel(contact.communicationChannels)?.value || contact.email || '', // Fallback to deprecated field for backward compatibility
+    phone: getPhoneChannel(contact.communicationChannels)?.value || contact.phone || '', // Fallback to deprecated field for backward compatibility
 
     // picture: contact.picture || "", // ❌ NOT in schema
     // pictureThumbnail: contact.pictureThumbnail || "", // ❌ NOT in schema
@@ -62,18 +63,9 @@ export const mapInvestmentContactToFormValues = (
               associationVersion: rel.version // ✅ NEW: Capture association version
             }
           })
-          .filter(
-            (
-              account
-            ): account is {
-              id: string
-              name: string
-              associationId?: string
-              associationVersion?: number
-            } => Boolean(account)
-          )
+          .filter(account => Boolean(account))
       )
-    ),
+    ) as any,
 
     // Additional Information
     notesSummary: contact.notesSummary || '',

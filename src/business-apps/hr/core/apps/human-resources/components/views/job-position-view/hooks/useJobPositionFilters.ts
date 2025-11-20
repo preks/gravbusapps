@@ -1,7 +1,8 @@
 'use client'
 
 import { useState, useCallback, useMemo } from 'react'
-import { useTranslation } from 'react-i18next'
+import { useTranslation } from '@newwork/nw-design-system'
+import translations from '../_i18n'
 import { useDepartmentFilters, DepartmentFilterOption } from './useDepartmentFilters'
 import { useJobProfileFilters, JobProfileFilterOption } from './useJobProfileFilters'
 import { useJobFunctionFilters, JobFunctionFilterOption } from './useJobFunctionFilters'
@@ -42,8 +43,8 @@ export interface JobPositionFilters {
  * @returns Filter state and utility functions
  */
 export function useJobPositionFilters(accessToken: string) {
-  const { t } = useTranslation()
   const [search, setSearch] = useState('')
+  const { t } = useTranslation(translations)
   const [selectedFilters, setSelectedFilters] = useState<string[]>([])
   const [filtersInitialized] = useState(true) // OPTIMIZED: Initialize immediately
 
@@ -185,17 +186,17 @@ export function useJobPositionFilters(accessToken: string) {
     () => [
       {
         id: 'departments',
-        title: t('job_position.filter.departments', 'Department'),
+        title: t('hr-positions-filters-departments'),
         backendSearch: getDepartmentFilters
       },
       {
         id: 'jobFunctions',
-        title: t('job_position.filter.job_functions', 'Job Functions'),
+        title: t('hr-positions-filters-job-functions'),
         backendSearch: getJobFunctionFilters
       },
       {
         id: 'jobProfiles',
-        title: t('job_position.filter.job_profiles', 'Job Profiles'),
+        title: t('hr-positions-filters-job-profiles'),
         backendSearch: getJobProfileFilters
       }
     ],

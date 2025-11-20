@@ -1,5 +1,4 @@
 import React from 'react'
-import { useTranslation } from 'react-i18next'
 import { ExpenseItemProvider, useExpenseItem } from './context'
 import { Button } from '@newwork/gravity-ui-catalog'
 import { Typography, Divider } from 'antd'
@@ -67,8 +66,6 @@ const ExpenseItem: React.FC<BusinessAppContextProps & ExpenseItemProps> = ({
   }, [])
 
   const ExpenseItemContent: React.FC<{ onClose?: (shouldRefetch?: boolean) => void }> = ({ onClose }) => {
-    const { t } = useTranslation()
-
     const {
       form,
       currentStep,
@@ -141,28 +138,31 @@ const ExpenseItem: React.FC<BusinessAppContextProps & ExpenseItemProps> = ({
           style={{ height: '32px' }}
           data-testid="expense-item-header-container"
         >
-          {currentStep === FORM_STEPS.FORM && (
-            <Button
-              variant="ghost"
-              onClick={() => {
-                setCurrentStep(FORM_STEPS.START)
-                setFileList([])
-              }}
-              className="gba:z-[1] gba:relative"
-              data-testid="back-button"
-            >
-              <img
-                src={ICONS.BACK_ARROW}
-                alt={t(
-                  'lowcoder:expense_calculation_rule.expense_calculation_rule_modal.affected_expense_modal.back_btn',
-                  'Back'
-                )}
-                className="gba:w-6 gba:h-6"
-                width="24"
-                height="24"
-              />
-            </Button>
-          )}
+          {/* Reserve space for back button to prevent layout shift */}
+          <div style={{ width: '48px', height: '32px', flexShrink: 0 }}>
+            {currentStep === FORM_STEPS.FORM && (
+              <Button
+                variant="ghost"
+                onClick={() => {
+                  setCurrentStep(FORM_STEPS.START)
+                  setFileList([])
+                }}
+                className="gba:z-[1] gba:relative"
+                data-testid="back-button"
+              >
+                <img
+                  src={ICONS.BACK_ARROW}
+                  alt={getTranslationFromI18nKeyAndLabel(
+                    'lowcoder:expense_calculation_rule.expense_calculation_rule_modal.affected_expense_modal.back_btn',
+                    'Back'
+                  )}
+                  className="gba:w-6 gba:h-6"
+                  width="24"
+                  height="24"
+                />
+              </Button>
+            )}
+          </div>
           <div
             className="gba:absolute gba:left-0 gba:right-0 gba:flex gba:justify-center gba:pointer-events-none"
             data-testid="expense-item-title-container"
@@ -173,8 +173,14 @@ const ExpenseItem: React.FC<BusinessAppContextProps & ExpenseItemProps> = ({
               data-testid="expense-item-header-title"
             >
               {isEditMode
-                ? t('lowcoder:create_expense_type_item.header_container_title_edit', 'Edit Item | Expense')
-                : t('lowcoder:create_expense_type_item.header_container_title_new', 'New Item | Expense')}
+                ? getTranslationFromI18nKeyAndLabel(
+                    'lowcoder:create_expense_type_item.header_container_title_edit',
+                    'Edit Item | Expense'
+                  )
+                : getTranslationFromI18nKeyAndLabel(
+                    'lowcoder:create_expense_type_item.header_container_title_new',
+                    'New Item | Expense'
+                  )}
             </Title>
           </div>
         </div>

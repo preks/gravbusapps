@@ -38,6 +38,7 @@ interface ExpenseTimelineEvent {
   startDate: string
   endDate: string
   type: string
+  color?: string
   note: string
   status: string
   title: string
@@ -71,8 +72,8 @@ export const ExpenseCalendar: React.FC<ExpenseCalendarProps> = props => {
           managerId
         })
         setAllTeamMembers(result.Employee || [])
-      } catch {
-        console.error('Error fetching team members:', error)
+      } catch (err) {
+        console.error('Error fetching team members:', err)
         setTeamMembersError(getTranslationFromI18nKeyAndLabel('lowcoder:common.error', 'Error loading team members'))
       } finally {
         setLoadingTeamMembers(false)
@@ -116,17 +117,17 @@ export const ExpenseCalendar: React.FC<ExpenseCalendarProps> = props => {
   const getColorForType = (type: string): string => {
     switch (type) {
       case 'draft':
-        return 'var(--nw-color-neutral-500)'
+        return 'var(--nw-muted-foreground)'
       case 'waiting':
-        return 'var(--nw-color-info-500)'
+        return 'var(--nw-info)'
       case 'task':
-        return 'var(--nw-color-warning-500)'
+        return 'var(--nw-warning)'
       case 'completed':
-        return 'var(--nw-color-success-500)'
+        return 'var(--nw-success)'
       case 'error':
-        return 'var(--nw-color-destructive-500)'
+        return 'var(--nw-destructive)'
       default:
-        return 'var(--nw-color-neutral-500)'
+        return 'var(--nw-muted-foreground)'
     }
   }
 
@@ -204,6 +205,7 @@ export const ExpenseCalendar: React.FC<ExpenseCalendarProps> = props => {
         startDate: new Date(eventStartDate).toISOString(),
         endDate: new Date(eventEndDate).toISOString(),
         type: mapToCalendarTimelineType(statusDisplay.type), // Map to CalendarTimeline recognized types
+        color: getColorForType(statusDisplay.type), // Add color matching legend
         note: `${plan.title || 'Expense Plan'} - ${statusDisplay.label} (${new Date(eventStartDate).toLocaleDateString(
           userLocale
         )} - ${new Date(eventEndDate).toLocaleDateString(userLocale)})`,
@@ -234,6 +236,7 @@ export const ExpenseCalendar: React.FC<ExpenseCalendarProps> = props => {
         startDate: new Date(eventStartDate).toISOString(),
         endDate: new Date(eventEndDate).toISOString(),
         type: mapToCalendarTimelineType(statusDisplay.type), // Map to CalendarTimeline recognized types
+        color: getColorForType(statusDisplay.type), // Add color matching legend
         note: `${request.title || 'Expense Request'} - ${statusDisplay.label} (${new Date(
           eventStartDate
         ).toLocaleDateString(userLocale)} - ${new Date(eventEndDate).toLocaleDateString(userLocale)})`,

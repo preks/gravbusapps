@@ -1,6 +1,5 @@
-import React, { useState } from 'react'
-import { Alert, AlertTitle, AlertDescription, Button } from '@newwork/nw-design-system'
-import { Spinner } from '@newwork/nw-design-system'
+import React, { useState, useEffect } from 'react'
+import { Alert, AlertTitle, AlertDescription, Button, Spinner } from '@newwork/nw-design-system'
 import { BusinessAppContextProps } from '@/common/BusinessAppContext'
 import { AnalyticsLayout } from '@/common/components/common-relations/view-layouts/analytics-layout/AnalyticsLayout'
 import { useOpportunitiesOverTime } from './hooks/useOpportunitiesOverTime'
@@ -40,6 +39,7 @@ export const AnalyticsView: React.FC<AnalyticsViewProps> = ({ moduleColor = 'def
     'sixMonths'
   )
   const [selectedPipelineId, setSelectedPipelineId] = useState<string | undefined>(undefined)
+  const [selectedStagePipelineId, setSelectedStagePipelineId] = useState<string | undefined>(undefined)
 
   // Helper function to convert our time filter to contacts time filter
   const convertToContactsTimeFilter = (
@@ -52,8 +52,15 @@ export const AnalyticsView: React.FC<AnalyticsViewProps> = ({ moduleColor = 'def
   // Data hooks
   const { data, isLoading, error, refetch } = useCrmAnalyticsData(context)
   const { trendData: kpiTrendData } = useKpiTrendData(context.accessToken)
-  const { revenueTrends, isLoading: revenueLoading } = useRevenueTrends(context.accessToken, revenueTimeFilter)
-  const { pipelineHealth, isLoading: pipelineHealthLoading } = usePipelineHealth(context.accessToken)
+  const { revenueTrends, isLoading: revenueLoading } = useRevenueTrends(
+    context.accessToken,
+    revenueTimeFilter,
+    selectedPipelineId
+  )
+  const { pipelineHealth, isLoading: pipelineHealthLoading } = usePipelineHealth(
+    context.accessToken,
+    selectedPipelineId
+  )
   const { activityData: activityHeatmap, isLoading: activityLoading } = useActivityHeatmap(context.accessToken)
   const { geographicData, isLoading: geoLoading } = useGeographicDistribution(context.accessToken)
   const { data: oppVelocityData } = useOpportunityVelocityData(context.accessToken)
@@ -64,7 +71,7 @@ export const AnalyticsView: React.FC<AnalyticsViewProps> = ({ moduleColor = 'def
   )
   const { data: oppLifecycleData } = useOpportunitiesOverTime(context.accessToken, oppTimeFilter, selectedPipelineId)
   const { trendData: oppTrendData } = useOpportunityTrendData(context.accessToken, 'quarter')
-  const { data: oppStageAll } = useOpportunitiesByStage(context.accessToken)
+  const { data: oppStageData } = useOpportunitiesByStage(context.accessToken, selectedStagePipelineId)
   const { data: contactsMetrics } = useInvestmentContactsOverTime({
     accessToken: context.accessToken,
     timeFilter: convertToContactsTimeFilter(contactsTimeFilter)
@@ -75,6 +82,18 @@ export const AnalyticsView: React.FC<AnalyticsViewProps> = ({ moduleColor = 'def
     context.accessToken
   )
   const { count: investmentAccountCount } = useInvestmentAccountsCount(context.accessToken)
+
+  // Extract pipelines from opportunities data
+  const pipelines = data?.opportunities?.opportunitiesByPipeline
+    ? data.opportunities.opportunitiesByPipeline.map(p => ({ id: p.pipelineId, name: p.pipeline }))
+    : []
+
+  // Initialize selectedStagePipelineId to first pipeline if not set
+  useEffect(() => {
+    if (pipelines.length > 0 && !selectedStagePipelineId) {
+      setSelectedStagePipelineId(pipelines[0].id)
+    }
+  }, [pipelines.length])
 
   if (isLoading) {
     return (
@@ -140,7 +159,7 @@ export const AnalyticsView: React.FC<AnalyticsViewProps> = ({ moduleColor = 'def
         conversionMetrics: data.overview.conversionMetrics,
         trendData: transformedTrendData,
         trendLoading: false,
-        pipelines: [],
+        pipelines: pipelines,
         selectedPipelineId: selectedPipelineId,
         onPipelineChange: setSelectedPipelineId,
         revenueTimeFilter: revenueTimeFilter,
@@ -180,7 +199,6 @@ export const AnalyticsView: React.FC<AnalyticsViewProps> = ({ moduleColor = 'def
           count: x.count,
           percentage: x.percentage
         })),
-        leadsBySourceType: data.leads.leadsBySourceType.map(x => ({ sourceType: x.sourceType, count: x.count })),
         leadsByStatus: data.leads.leadsByStatus.map(x => ({ status: x.status, count: x.count })),
         topOwners: data.leads.topOwners.map(o => ({
           employeeId: o.employeeId,
@@ -236,13 +254,19 @@ export const AnalyticsView: React.FC<AnalyticsViewProps> = ({ moduleColor = 'def
           opportunitiesCreated: d.opportunitiesCreated,
           opportunitiesWon: d.opportunitiesWon
         })),
-        pipelines: (data.opportunities.opportunitiesByPipeline || []).map(p => ({ id: p.pipeline, name: p.pipeline })),
+        pipelines: (data.opportunities.opportunitiesByPipeline || []).map(p => ({
+          id: p.pipelineId,
+          name: p.pipeline
+        })),
         selectedPipelineId: selectedPipelineId,
         onPipelineChange: (id: string) => setSelectedPipelineId(id === 'all' ? undefined : id),
         selectedTimeFilter: oppTimeFilter,
         onTimeFilterChange: setOppTimeFilter,
-        opportunitiesByStage: (oppStageAll || []).map(s => ({ stage: s.stage, count: s.count, value: s.value })),
+        opportunitiesByStage: (oppStageData || []).map(s => ({ stage: s.stage, count: s.count, value: s.value })),
+        selectedStagePipelineId: selectedStagePipelineId,
+        onStagePipelineChange: (id: string) => setSelectedStagePipelineId(id),
         opportunitiesByPipeline: data.opportunities.opportunitiesByPipeline.map(p => ({
+          pipelineId: p.pipelineId,
           pipeline: p.pipeline,
           count: p.count,
           percentage: p.percentage

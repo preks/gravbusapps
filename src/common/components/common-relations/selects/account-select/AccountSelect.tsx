@@ -192,16 +192,6 @@ const AccountSelect: React.FC<AccountSelectProps> = ({
         </div>
       )}
 
-      {/* Single-select: Display selected account label */}
-      {!multiple && currentAccountId && (
-        <div
-          className="gba:text-sm gba:text-muted-foreground gba:mt-1"
-          data-testid={formatDataTestId(dataTestId || 'account-selector', 'selected-label')}
-        >
-          Selected: {getAccountName(normalizedValue[0])}
-        </div>
-      )}
-
       {/* Error Display */}
       {(error || accountsError) && (
         <Alert variant="destructive">

@@ -319,12 +319,14 @@ export const GET_INVESTMENT_LEAD_BY_ID = `
         id
         code
         value
+        objectValue
       }
       investmentTypeRef
       investmentType {
         id
         code
         value
+        objectValue
       }
       investmentRoleRef
       investmentRole {

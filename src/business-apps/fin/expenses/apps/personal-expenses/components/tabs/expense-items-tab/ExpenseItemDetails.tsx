@@ -28,7 +28,7 @@ import {
 import { FileClient } from '@/common/network/files/FileClient'
 import { ExpenseItem, useGetExpenseItem } from '../../../hooks/useGetExpenseItems'
 import { getExpenseItemStatusDisplay } from '../../../utils'
-import { getTranslationFromI18nKeyAndLabel, formatDate } from '@/common/utils/windowUtils'
+import { getTranslationFromI18nKeyAndLabel, formatDate, getCatalogValue } from '@/common/utils/windowUtils'
 import { formatCurrencyDisplay } from '../../../utils'
 import { AppActionButton } from '@/components/app-action-button/AppActionButton'
 import { generateExpenseItemActions } from '../../../utils/expenseItemActions'
@@ -575,7 +575,7 @@ export const ExpenseItemDetails: React.FC<ExpenseItemDetailsProps> = ({ selected
                   )}
                   :
                 </span>
-                <span className="gba:text-gray-900">{String(displayItem.expenseClass.value)}</span>
+                <span className="gba:text-gray-900">{getCatalogValue(displayItem.expenseClass)}</span>
               </div>
             )}
             {displayItem.costCenter && displayItem.costCenter.name && (

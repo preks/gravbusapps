@@ -1,9 +1,9 @@
 import React from 'react'
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, ResponsiveContainer, Tooltip } from 'recharts'
-import { Card } from '@newwork/nw-design-system'
+import { Card, useTranslation } from '@newwork/nw-design-system'
 import { Spin, Empty, Typography } from 'antd'
-import { getTranslationFromI18nKeyAndLabel } from '@/common/utils/windowUtils'
 import { useEmployeesByOrgUnit } from '../../../../../hooks/useEmployeesByOrgUnit'
+import hrTranslations from '@/business-apps/hr/core/apps/human-resources/_i18n'
 
 const { Title, Text } = Typography
 
@@ -16,6 +16,7 @@ interface EmployeesByOrgUnitChartProps {
  */
 const EmployeesByOrgUnitChart: React.FC<EmployeesByOrgUnitChartProps> = ({ accessToken }) => {
   const { data, loading, error } = useEmployeesByOrgUnit(accessToken)
+  const { t } = useTranslation(hrTranslations)
 
   // Get chart colors that automatically update with theme changes
   const chartColors = [
@@ -47,11 +48,11 @@ const EmployeesByOrgUnitChart: React.FC<EmployeesByOrgUnitChartProps> = ({ acces
             {label}
           </p>
           <div className="gba:flex gba:justify-between gba:items-center gba:mb-1">
-            <span className="gba:text-muted-foreground">Employees:</span>
+            <span className="gba:text-muted-foreground">{t('hr-analytics-employees')}:</span>
             <span className="gba:font-semibold gba:ml-4 gba:text-foreground">{payload[0].value.toLocaleString()}</span>
           </div>
           <div className="gba:flex gba:justify-between gba:items-center">
-            <span className="gba:text-muted-foreground">Percentage:</span>
+            <span className="gba:text-muted-foreground">{t('hr-analytics-percentage')}:</span>
             <span className="gba:font-semibold gba:ml-4 gba:text-foreground">{payload[0].payload.percentage}%</span>
           </div>
         </div>
@@ -65,13 +66,10 @@ const EmployeesByOrgUnitChart: React.FC<EmployeesByOrgUnitChartProps> = ({ acces
       {/* Header */}
       <div className="gba:mb-4 gba:ml-4">
         <Title level={4} className="gba:m-0 gba:text-foreground ">
-          {getTranslationFromI18nKeyAndLabel('hr_analytics_employees_by_org_unit', 'Employees by Org Unit')}
+          {t('hr-analytics-employees-by-org-unit')}
         </Title>
         <Text className="gba:text-muted-foreground gba:text-sm gba:mt-1">
-          {getTranslationFromI18nKeyAndLabel(
-            'hr_analytics_employees_by_org_unit_description',
-            'Employee distribution across organizational units showing workforce concentration and department sizes'
-          )}
+          {t('hr-analytics-employees-by-org-unit-description')}
         </Text>
       </div>
 
@@ -83,16 +81,11 @@ const EmployeesByOrgUnitChart: React.FC<EmployeesByOrgUnitChartProps> = ({ acces
           </div>
         ) : error ? (
           <div className="gba:h-full gba:flex gba:items-center gba:justify-center gba:text-destructive">
-            <div data-testid="employees-by-org-unit-chart-error">
-              {getTranslationFromI18nKeyAndLabel('hr_analytics_error_message', 'Error loading data')}
-            </div>
+            <div data-testid="employees-by-org-unit-chart-error">{t('hr-analytics-error-message')}</div>
           </div>
         ) : data.length === 0 ? (
           <div className="gba:h-full gba:flex gba:items-center gba:justify-center">
-            <Empty
-              description={getTranslationFromI18nKeyAndLabel('hr_analytics_no_data', 'No data available')}
-              data-testid="employees-by-org-unit-chart-empty"
-            />
+            <Empty description={t('hr-analytics-no-data')} data-testid="employees-by-org-unit-chart-empty" />
           </div>
         ) : (
           <ResponsiveContainer width="100%" height="100%" data-testid="employees-by-org-unit-chart-rendered">
@@ -114,7 +107,7 @@ const EmployeesByOrgUnitChart: React.FC<EmployeesByOrgUnitChartProps> = ({ acces
                 axisLine={{ stroke: 'var(--nw-border)' }}
               />
               <Tooltip content={<CustomTooltip />} />
-              <Bar dataKey="value" name="Employees" fill={chartColors[2]} radius={[4, 4, 0, 0]} />
+              <Bar dataKey="value" name={t('hr-analytics-employees')} fill={chartColors[2]} radius={[4, 4, 0, 0]} />
             </BarChart>
           </ResponsiveContainer>
         )}
@@ -126,10 +119,7 @@ const EmployeesByOrgUnitChart: React.FC<EmployeesByOrgUnitChartProps> = ({ acces
           className="gba:mt-4 gba:text-center gba:text-sm gba:text-muted-foreground"
           data-testid="org-unit-chart-footnote"
         >
-          {getTranslationFromI18nKeyAndLabel(
-            'hr_analytics_top_org_units_note',
-            `Showing top 10 org units out of ${data.length} total`
-          )}
+          {t('hr-analytics-top-org-units-note', { total: data.length })}
         </div>
       )}
     </Card>

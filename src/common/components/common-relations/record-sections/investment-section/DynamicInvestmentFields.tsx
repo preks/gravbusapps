@@ -3,34 +3,12 @@ import { Alert } from '@newwork/nw-design-system'
 import { BusinessAppContextProps } from '@/common/BusinessAppContext'
 import { useCatalogEntry } from '@/common/data/catalog'
 import { getTranslationFromI18nKeyAndLabel } from '@/common/utils/windowUtils'
+import { getCurrencySymbol } from '@/common/utils/numberFormatter'
 
 interface DynamicInvestmentFieldsProps {
   investmentData: any // Generic prop that accepts both lead and opportunity data
+  fields?: any[] // Optional fields from parent component (Lead/Opportunity records)
   businessAppContext?: BusinessAppContextProps
-}
-
-// Helper function to get currency symbol from currency catalog entry
-const getCurrencySymbol = (currencyEntry?: any): string => {
-  if (!currencyEntry) {
-    return ''
-  }
-
-  // Check if additionalValue1 contains a unicode symbol (e.g., "U+20AC")
-  if (currencyEntry.additionalValue1) {
-    const additionalValue = currencyEntry.additionalValue1.trim()
-    if (additionalValue.startsWith('U+')) {
-      // Convert unicode code to actual symbol
-      const unicodeCode = additionalValue.substring(2)
-      const codePoint = parseInt(unicodeCode, 16)
-      return String.fromCodePoint(codePoint)
-    } else {
-      // Use the additionalValue1 as symbol directly
-      return additionalValue
-    }
-  }
-
-  // Fallback to code if no additionalValue1
-  return currencyEntry.code || ''
 }
 
 // Helper function to format currency values using currency catalog entry
@@ -104,7 +82,14 @@ const resolvePrefixSuffix = (prefixSuffix: any, investmentData: any): string => 
 // Helper function to get nested property value using dot notation
 const getNestedProperty = (obj: any, path: string): any => {
   return path.split('.').reduce((current, key) => {
-    return current && current[key] !== undefined ? current[key] : null
+    if (!current) return null
+
+    // If current value is an array, take the first element
+    if (Array.isArray(current) && current.length > 0) {
+      current = current[0]
+    }
+
+    return current[key] !== undefined ? current[key] : null
   }, obj)
 }
 
@@ -129,19 +114,30 @@ const convertUnicodeSymbol = (value: string): string => {
   return value
 }
 
-const DynamicInvestmentFields: React.FC<DynamicInvestmentFieldsProps> = ({ investmentData, businessAppContext }) => {
-  const [referenceFields, setReferenceFields] = useState<any[]>([])
-  const [isLoading, setIsLoading] = useState(true)
+const DynamicInvestmentFields: React.FC<DynamicInvestmentFieldsProps> = ({
+  investmentData,
+  fields,
+  businessAppContext
+}) => {
+  const [fetchedFields, setFetchedFields] = useState<any[]>([])
+  const [isLoading, setIsLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)
 
-  // Use centralized catalog hook
   const { fetchCatalogEntryById } = useCatalogEntry(businessAppContext || ({} as BusinessAppContextProps))
 
+  // Fetch fields from catalog only if not provided by parent (backwards compatibility)
   useEffect(() => {
+    // If fields are provided by parent, use them and skip fetching
+    if (fields && fields.length > 0) {
+      setFetchedFields([])
+      setIsLoading(false)
+      return
+    }
+
+    // Otherwise, fetch from catalog (for Account/Contact/Investment records)
     const fetchCatalogData = async () => {
-      // Check if we have a valid context
       if (!businessAppContext?.accessToken) {
-        setReferenceFields([])
+        setFetchedFields([])
         setIsLoading(false)
         return
       }
@@ -149,42 +145,32 @@ const DynamicInvestmentFields: React.FC<DynamicInvestmentFieldsProps> = ({ inves
       try {
         setIsLoading(true)
 
-        // Validate IDs before making API calls
         const groupId = investmentData?.investmentGroup?.id
         const typeId = investmentData?.investmentType?.id
 
-        // Check if IDs are valid (not test/mock IDs like 'ig_1', 'it_1')
+        // Validate IDs
         const isValidId = (id: string) => {
           if (!id) return false
-          // Reject obvious test/mock IDs
           if (id.match(/^(ig_|it_|test_|mock_|demo_)\d+$/)) return false
-          // Accept UUIDs or other valid catalog IDs
-          return id.length > 10 // Basic length check for real IDs
+          return id.length > 10
         }
 
         const validGroupId = isValidId(groupId) ? groupId : null
         const validTypeId = isValidId(typeId) ? typeId : null
 
-        // Only fetch if we have valid IDs
         if (!validGroupId && !validTypeId) {
-          setReferenceFields([])
+          setFetchedFields([])
           setIsLoading(false)
           return
         }
 
-        // Fetch both Investment Group and Investment Type catalog data in parallel
+        // Fetch catalog data
         const [groupData, typeData] = await Promise.all([
-          // Fetch Investment Group only if valid ID
           validGroupId ? fetchCatalogEntryById(validGroupId).catch(() => null) : Promise.resolve(null),
-
-          // Fetch Investment Type only if valid ID
           validTypeId ? fetchCatalogEntryById(validTypeId).catch(() => null) : Promise.resolve(null)
         ])
 
-        // Priority: Type's referenceFields, fallback to Group's referenceFields
-        let fields: any[] = []
-
-        // Handle objectValue - it might be a JSON string that needs parsing
+        // Parse objectValue
         let typeObjectValue: any = null
         let groupObjectValue: any = null
 
@@ -193,7 +179,7 @@ const DynamicInvestmentFields: React.FC<DynamicInvestmentFieldsProps> = ({ inves
             typeObjectValue =
               typeof typeData.objectValue === 'string' ? JSON.parse(typeData.objectValue) : typeData.objectValue
           } catch (err) {
-            console.error('DynamicInvestmentFields: Error parsing type objectValue:', err)
+            console.error('Error parsing type objectValue:', err)
             typeObjectValue = typeData.objectValue
           }
         }
@@ -203,18 +189,31 @@ const DynamicInvestmentFields: React.FC<DynamicInvestmentFieldsProps> = ({ inves
             groupObjectValue =
               typeof groupData.objectValue === 'string' ? JSON.parse(groupData.objectValue) : groupData.objectValue
           } catch (err) {
-            console.error('DynamicInvestmentFields: Error parsing group objectValue:', err)
+            console.error('Error parsing group objectValue:', err)
             groupObjectValue = groupData.objectValue
           }
         }
 
-        if (typeObjectValue?.referenceFields) {
-          fields = typeObjectValue.referenceFields
-        } else if (groupObjectValue?.referenceFields) {
-          fields = groupObjectValue.referenceFields
+        // Extract formFields (nested paths for Investment/Account/Contact records)
+        let catalogFields: any[] = []
+
+        if (typeObjectValue?.formFields && Array.isArray(typeObjectValue.formFields)) {
+          const flattenedFields = typeObjectValue.formFields.flatMap((group: any) => group.fields || [])
+          const recordFields = flattenedFields.filter((field: any) => field.record === true)
+          if (recordFields.length > 0) {
+            catalogFields = recordFields
+          }
         }
 
-        setReferenceFields(fields || [])
+        if (catalogFields.length === 0 && groupObjectValue?.formFields && Array.isArray(groupObjectValue.formFields)) {
+          const flattenedFields = groupObjectValue.formFields.flatMap((group: any) => group.fields || [])
+          const recordFields = flattenedFields.filter((field: any) => field.record === true)
+          if (recordFields.length > 0) {
+            catalogFields = recordFields
+          }
+        }
+
+        setFetchedFields(catalogFields)
       } catch (err) {
         console.error('Error fetching catalog data:', err)
         setError(err instanceof Error ? err.message : 'Unknown error occurred')
@@ -225,18 +224,63 @@ const DynamicInvestmentFields: React.FC<DynamicInvestmentFieldsProps> = ({ inves
 
     fetchCatalogData()
   }, [
+    fields,
     investmentData?.investmentGroup?.id,
     investmentData?.investmentType?.id,
     businessAppContext?.accessToken,
     fetchCatalogEntryById
   ])
 
+  // Use provided fields or fallback to fetched fields
+  const fieldsToRender = useMemo(() => {
+    if (fields && fields.length > 0) {
+      // Flatten formFields structure if provided by parent (Lead/Opportunity)
+      return fields.flatMap(group => group.fields || [])
+    }
+    return fetchedFields
+  }, [fields, fetchedFields])
+
   // Memoized value formatting to prevent unnecessary re-renders
   const formattedFields = useMemo(() => {
-    return referenceFields.map(field => {
+    return fieldsToRender.map(field => {
       const fieldName = field.property || field.name
       const fieldType = field.type || 'text'
-      const fieldValue = investmentData?.[fieldName]
+
+      // Strip "investment." prefix from field paths (but not "equityInvestment." or other entity prefixes)
+      const cleanFieldName =
+        fieldName.startsWith('investment.') && !fieldName.startsWith('equityInvestment.')
+          ? fieldName.replace('investment.', '')
+          : fieldName
+
+      // Use getNestedProperty for dot notation (like "equityInvestment.marketValue")
+      // Use direct property access for flat properties (like "totalInvestmentAmount")
+      let fieldValue = cleanFieldName.includes('.')
+        ? getNestedProperty(investmentData, cleanFieldName)
+        : investmentData?.[cleanFieldName]
+
+      // For catalog fields: We now get both the expanded object and the Ref string from GraphQL
+      // Priority: expanded catalog object (with .value) > Ref string > fallback
+      if (fieldType.toUpperCase().startsWith('CATALOG_')) {
+        // If we have an expanded catalog object, keep it (it will have .value, .code, etc.)
+        if (fieldValue && typeof fieldValue === 'object' && !Array.isArray(fieldValue)) {
+          // Already have the expanded catalog object, great!
+        }
+        // If we got a string reference ID or null/undefined, try the Ref field
+        else {
+          const refFieldName = cleanFieldName.includes('.')
+            ? cleanFieldName.replace(/\.([^.]+)$/, '.$1Ref') // "realEstateInvestment.sizeMeasurementUnit" -> "realEstateInvestment.sizeMeasurementUnitRef"
+            : `${cleanFieldName}Ref` // "currency" -> "currencyRef"
+
+          const refValue = refFieldName.includes('.')
+            ? getNestedProperty(investmentData, refFieldName)
+            : investmentData?.[refFieldName]
+
+          // Only use the Ref value if we don't already have the expanded object
+          if (refValue !== null && refValue !== undefined) {
+            fieldValue = refValue
+          }
+        }
+      }
 
       let formattedValue: string
 
@@ -343,7 +387,7 @@ const DynamicInvestmentFields: React.FC<DynamicInvestmentFieldsProps> = ({ inves
         suffix
       }
     })
-  }, [referenceFields, investmentData])
+  }, [fieldsToRender, investmentData])
 
   if (isLoading) {
     return (

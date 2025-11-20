@@ -237,7 +237,9 @@ const EquityInvestmentsList: React.FC<EquityInvestmentsListProps> = props => {
       } else {
         // Handle individual filter removal - find which filters were removed and remove them
         const removedFilters = selectedFilters.filter((f: any) => !filters.includes(f))
-        removedFilters.forEach((filterId: any) => removeFilter(filterId))
+        removedFilters.forEach((filterId: any) => {
+          removeFilter(filterId)
+        })
       }
     },
     [clearAllFilters, selectedFilters, removeFilter]
@@ -280,7 +282,7 @@ const EquityInvestmentsList: React.FC<EquityInvestmentsListProps> = props => {
         ),
         actions: (
           <AppAction
-            contextsArray={[FlowContextName.createInvestment]}
+            contextsArray={[FlowContextName.investmentCreate]}
             externalContextData={{
               investmentGroup: 'InvestmentGroup:v1:EQUITY',
               fromView: 'investments',
@@ -468,10 +470,31 @@ const EquityInvestmentsList: React.FC<EquityInvestmentsListProps> = props => {
                     </TableCell>
                   )}
                   {visibleColumns.includes('ebitda') && (
-                    <TableCell>
-                      <div className="gba:flex gba:items-center gba:gap-2">
-                        <span>N/A</span>
-                      </div>
+                    <TableCell className="gba:text-right">
+                      {(() => {
+                        // equityInvestment is an array relationship, get first element
+                        const equityInvestment = Array.isArray(investment.equityInvestment)
+                          ? investment.equityInvestment[0]
+                          : investment.equityInvestment
+                        const ebitdaAmount = equityInvestment?.ebitdaAmount
+
+                        if (!ebitdaAmount) return <span className="gba:text-gray-400">N/A</span>
+
+                        const { number, symbol } = formatCurrencyParts(ebitdaAmount, {
+                          currency: investment.currency?.code,
+                          minimumFractionDigits: 0,
+                          maximumFractionDigits: 2
+                        })
+
+                        return (
+                          <>
+                            <span className="gba:text-sm gba:[font-variant-numeric:tabular-nums]">{number}</span>
+                            <span className="gba:text-xs gba:text-gray-400 gba:inline-block gba:text-right gba:shrink-0 gba:w-[5ch]">
+                              {symbol}
+                            </span>
+                          </>
+                        )
+                      })()}
                     </TableCell>
                   )}
                   {visibleColumns.includes('owner') && (

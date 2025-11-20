@@ -1,4 +1,4 @@
-export const ADD_SKILL_QUERY = `query MyQuery($id: uuid!, $structureId: uuid!) {
+export const ADD_SKILL_QUERY = `query MyQuery($id: uuid!) {
   employee: EmployeeByPk(id: $id) {
     firstName
     lastName
@@ -11,11 +11,6 @@ export const ADD_SKILL_QUERY = `query MyQuery($id: uuid!, $structureId: uuid!) {
         name
       }
     }
-  }
-  allEmployees: Employee(where: {isDeleted: {_eq: false}, employeePosition: {structureId: {_eq: $structureId}}}, orderBy: {firstName: ASC}) {
-    firstName
-    lastName
-    id
   }
 }
 `

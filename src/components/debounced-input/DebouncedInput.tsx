@@ -65,7 +65,7 @@ export const DebouncedInput = forwardRef<HTMLInputElement, DebouncedInputProps>(
       if (debouncedValue !== value) {
         onChange(debouncedValue)
       }
-    }, [debouncedValue, onChange, value])
+    }, [debouncedValue, onChange])
 
     // Handle local input changes
     const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -82,7 +82,7 @@ export const DebouncedInput = forwardRef<HTMLInputElement, DebouncedInputProps>(
         <Input
           ref={ref}
           type={type}
-          className={`${icon ? 'gba:pl-10' : ''} ${className}`}
+          className={`${icon ? 'gba:!pl-10' : ''} ${className}`}
           placeholder={placeholder}
           value={localValue}
           onChange={handleChange}

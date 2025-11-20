@@ -180,8 +180,6 @@ export const useAccountsGraphQL = ({ accessToken, pageSize = 20 }: AccountsHookP
   useEffect(() => {
     if (accessToken) {
       initialize()
-    } else {
-      console.log('⚠️ Accounts GraphQL hook: No access token, waiting...')
     }
   }, [accessToken, initialize])
 

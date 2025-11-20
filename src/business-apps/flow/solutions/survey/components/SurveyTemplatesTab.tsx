@@ -29,7 +29,7 @@ import {
 import { FileText, Filter, RefreshCw, Eye, Play, Calendar, Users } from 'lucide-react'
 import { DebouncedInput } from '@/components/data-filter/DebouncedInput'
 import { env } from '@/common/env/EnvUtils'
-import { toast } from '@newwork/nw-design-system'
+import { toast } from 'sonner'
 import { AssignmentSelector } from '@/components/assignment-selector'
 import { AssignmentMode } from '@/common/network/flows/FlowTemplateClient'
 
@@ -288,8 +288,8 @@ export const SurveyTemplatesTab: React.FC<SurveyTemplatesTabProps> = ({ accessTo
               const engineTargets: any = {}
 
               // Map user IDs if present
-              if (assignments.targets.userIds && assignments.targets.userIds.length > 0) {
-                engineTargets.users = assignments.targets.userIds
+              if (assignments.targets.users && assignments.targets.users.length > 0) {
+                engineTargets.users = assignments.targets.users
               }
 
               // Map organizational units if present
@@ -683,7 +683,7 @@ export const SurveyTemplatesTab: React.FC<SurveyTemplatesTabProps> = ({ accessTo
                   value={assignments}
                   onChange={setAssignments}
                   assignmentMode={AssignmentMode.ASSIGN}
-                  accessToken={context.accessToken}
+                  accessToken={accessToken}
                   userInfo={context.userInfo}
                   data-testid="survey-launch-assignments"
                 />

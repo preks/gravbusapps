@@ -1,4 +1,5 @@
 import { Employee } from '../hooks/useEmployeeData'
+import { parseNumber, getCountryCallingCode } from 'libphonenumber-js'
 
 /**
  * Format a phone number for display
@@ -25,6 +26,77 @@ export const formatPhoneNumber = (phoneNumber: string): string => {
 }
 
 /**
+ * Format a phone number for display with country code separated: +{countryCode} {rest}
+ * @param phoneNumber The raw phone number string (typically in E.164 format)
+ * @returns Formatted phone number with country code separated by space
+ */
+export const formatPhoneNumberWithCountryCode = (phoneNumber: string): string => {
+  if (!phoneNumber) return ''
+
+  // If already formatted with space after country code, return as is
+  if (phoneNumber.startsWith('+') && phoneNumber.includes(' ')) {
+    // Normalize: ensure single space after country code
+    const parts = phoneNumber.split(' ')
+    if (parts.length >= 2) {
+      return `${parts[0]} ${parts.slice(1).join(' ')}`
+    }
+    return phoneNumber
+  }
+
+  // Try to parse with libphonenumber-js
+  if (phoneNumber.startsWith('+')) {
+    try {
+      const parsed = parseNumber(phoneNumber)
+      if (parsed && 'country' in parsed && parsed.country) {
+        const callingCode = getCountryCallingCode(parsed.country)
+        // Remove the country code from the number
+        const numberWithoutCode = phoneNumber.replace(`+${callingCode}`, '').trim()
+
+        // If we successfully extracted the rest, format it
+        if (numberWithoutCode) {
+          return `+${callingCode} ${numberWithoutCode}`
+        }
+      }
+    } catch {
+      // Fall through to heuristic parsing
+    }
+
+    // Heuristic fallback: try to detect country code (1-3 digits)
+    const withoutPlus = phoneNumber.substring(1).trim()
+
+    // Try 1-digit country code (US, Canada) - typically 11 digits total
+    if (withoutPlus.length >= 11 && withoutPlus.startsWith('1')) {
+      const rest = withoutPlus.substring(1).trim()
+      if (rest.length >= 10) {
+        return `+1 ${rest}`
+      }
+    }
+
+    // Try 2-digit country code (most common: +40, +69, etc.)
+    if (withoutPlus.length >= 10) {
+      const twoDigitCode = withoutPlus.substring(0, 2)
+      const rest = withoutPlus.substring(2).trim()
+      // Validate: rest should be reasonable length for a phone number
+      if (rest.length >= 6 && rest.length <= 15) {
+        return `+${twoDigitCode} ${rest}`
+      }
+    }
+
+    // Try 3-digit country code (less common)
+    if (withoutPlus.length >= 11) {
+      const threeDigitCode = withoutPlus.substring(0, 3)
+      const rest = withoutPlus.substring(3).trim()
+      if (rest.length >= 6 && rest.length <= 15) {
+        return `+${threeDigitCode} ${rest}`
+      }
+    }
+  }
+
+  // If we can't format it, return the original
+  return phoneNumber
+}
+
+/**
  * Get the full name of an employee
  * @param employee The employee object
  * @returns Formatted full name
@@ -39,10 +111,6 @@ export const getEmployeeFullName = (employee: Employee): string => {
 
   // Fallback to constructing name from parts if displayName is not available
   const parts = []
-
-  if (employee.academicTitleRef) {
-    parts.push(employee.academicTitleRef)
-  }
 
   if (employee.firstName) {
     parts.push(employee.firstName)
@@ -112,3 +180,9 @@ export const getStatusColorClass = (status: string): string => {
 
   return statusMap[status] || 'gba:bg-muted gba:text-muted-foreground'
 }
+
+export const getTranslatedValue = (localeObject?: {
+  id?: string
+  value?: string
+  translations?: { localeCode?: string; value: string }[]
+}): string => localeObject?.translations?.[0]?.value || localeObject?.value || ''

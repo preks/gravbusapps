@@ -1,101 +1,226 @@
-import React, { useEffect, useState, useCallback } from 'react'
-import { Tabs, TabsContent, TabsList, TabsTrigger } from '@newwork/nw-design-system'
+import { useMemo } from 'react'
 import { BusinessAppContextProps } from '@/common/BusinessAppContext'
-import { OpportunityList } from './opportunity-list'
-import { OpportunityBoard } from './opportunity-board'
-import { OpportunityStatisticsWithTrend } from './opportunity-list/components/OpportunityStatistics'
-import { useOpportunityStatisticsWithTrend } from './opportunity-list/hooks/useOpportunityStatisticsWithTrend'
+import { useCustomerOpportunities } from '@/common/data/customer/hooks/useCustomerOpportunities'
+import {
+  OpportunityLayout,
+  type OpportunityViewConfig,
+  type OpportunityBoardFilters
+} from '@/common/components/common-relations/view-layouts/opportunity-layout'
+import type { CustomerOpportunity } from '@/common/data/customer/types'
+import type { CustomerOpportunityQueryVariables } from '@/common/data/customer/queries/customerOpportunityQueries'
+import { normalizeDateRange } from '@/common/utils/dateRangeNormalizer'
+import { FlowContextName } from '@/common/types/FlowRegistryTypes'
+import { buildPlatformUrl } from '@/common/utils/navigationUtils'
+import {
+  createOpportunityColumns,
+  createOpportunitySortableColumns
+} from '@/common/components/common-relations/view-layouts/opportunity-layout/config/opportunityColumns'
+import { CUSTOMER_OPPORTUNITY_DESCRIPTORS } from '@/common/data/customer/types/customerOpportunityTypes'
+import { opportunityFilterConfig } from '@/common/components/common-relations/view-layouts/opportunity-layout/config/opportunityFilters'
+import { useCustomerOpportunityFilters } from './hooks/useCustomerOpportunityFilters'
+import { useCustomerOpportunityStatistics } from '@/common/data/customer/hooks/useCustomerOpportunityStatistics'
+import { formatNumberFunction } from '@/common/utils/windowUtils'
+import { createBoardCardRenderer } from '@/common/components/common-relations/view-layouts/opportunity-layout/utils/boardCardRenderer'
+
+// Helper function to process amount filter
+const processAmountFilter = (selectedFilters: Record<string, any>, vars: CustomerOpportunityQueryVariables): void => {
+  if (selectedFilters.amount && typeof selectedFilters.amount === 'object') {
+    const { min, max } = selectedFilters.amount
+    if ((min !== null && min !== undefined) || (max !== null && max !== undefined)) {
+      vars.estimatedAmountRanges = [
+        {
+          ...(min !== null && min !== undefined && { min }),
+          ...(max !== null && max !== undefined && { max })
+        }
+      ]
+    }
+  }
+}
+
+// Helper function to process date range filters
+const processOpportunityDateRanges = (
+  selectedFilters: Record<string, any>,
+  vars: CustomerOpportunityQueryVariables
+): void => {
+  const dateRangeKeys = ['createdAtRange', 'updatedAtRange', 'closeDateRange']
+  for (const rangeKey of dateRangeKeys) {
+    const normalized = normalizeDateRange(selectedFilters[rangeKey])
+    if (normalized) {
+      const baseKey = rangeKey.replace('Range', '')
+      if (normalized.from) vars[`${baseKey}From` as keyof CustomerOpportunityQueryVariables] = normalized.from
+      if (normalized.to) vars[`${baseKey}To` as keyof CustomerOpportunityQueryVariables] = normalized.to
+    }
+  }
+}
+
+// Helper function to copy other filters
+const copyOpportunityFilters = (
+  selectedFilters: Record<string, any>,
+  dateRangeKeys: string[],
+  vars: CustomerOpportunityQueryVariables
+): void => {
+  for (const key of Object.keys(selectedFilters)) {
+    if (
+      key !== 'amount' &&
+      !dateRangeKeys.includes(key) &&
+      selectedFilters[key] !== undefined &&
+      selectedFilters[key] !== null
+    ) {
+      vars[key as keyof CustomerOpportunityQueryVariables] = selectedFilters[key]
+    }
+  }
+}
 
 export type OpportunityViewProps = BusinessAppContextProps
 
-// Map URL subView values to internal tab values and vice versa
-const mapUrlToTab = (subView: string | null): 'list' | 'board' => {
-  if (subView === 'pipeline') return 'board'
-  return 'list'
-}
-
-const mapTabToUrl = (tab: 'list' | 'board'): 'list' | 'pipeline' => {
-  return tab === 'board' ? 'pipeline' : 'list'
-}
-
 export const OpportunityView: React.FC<OpportunityViewProps> = context => {
-  const getInitialSubTab = useCallback((): 'list' | 'board' => {
-    const urlParams = new URLSearchParams(window.location.search)
-    return mapUrlToTab(urlParams.get('subView'))
-  }, [])
+  const { fetchCustomerOpportunities } = useCustomerOpportunities(context)
+  const opportunityStatistics = useCustomerOpportunityStatistics(context)
 
-  const [activeSubTab, setActiveSubTab] = useState<'list' | 'board'>(getInitialSubTab())
+  const config: OpportunityViewConfig<CustomerOpportunity, CustomerOpportunityQueryVariables> = useMemo(
+    () => ({
+      contextType: 'customer',
 
-  const updateSubViewInUrl = useCallback((tab: 'list' | 'board') => {
-    const urlParams = new URLSearchParams(window.location.search)
-    urlParams.set('subView', mapTabToUrl(tab))
-    const newUrl = `${window.location.pathname}?${urlParams.toString()}`
-    window.history.replaceState({}, '', newUrl)
-  }, [])
+      fetchOpportunities: async (variables: CustomerOpportunityQueryVariables) => {
+        return await fetchCustomerOpportunities(variables)
+      },
 
-  useEffect(() => {
-    // Ensure subView param is present on mount using current tab
-    const urlParams = new URLSearchParams(window.location.search)
-    if (!urlParams.has('subView')) {
-      updateSubViewInUrl(getInitialSubTab())
-    }
-  }, [getInitialSubTab, updateSubViewInUrl])
+      filterDataHook: useCustomerOpportunityFilters,
 
-  // Listen for browser navigation to keep tab in sync
-  useEffect(() => {
-    const handlePopState = () => {
-      setActiveSubTab(getInitialSubTab())
-    }
-    window.addEventListener('popstate', handlePopState)
-    return () => window.removeEventListener('popstate', handlePopState)
-  }, [getInitialSubTab])
+      createColumns: createOpportunityColumns as any,
+      createSortableColumns: (availableColumnIds?: string[]) =>
+        createOpportunitySortableColumns(CUSTOMER_OPPORTUNITY_DESCRIPTORS, availableColumnIds),
 
-  const handleSubTabChange = (value: string) => {
-    const tab = (value === 'board' ? 'board' : 'list') as 'list' | 'board'
-    setActiveSubTab(tab)
-    updateSubViewInUrl(tab)
-  }
+      baseFilterConfig: opportunityFilterConfig,
 
-  // Load statistics once at view level (shared across tabs)
-  const opportunityStatistics = useOpportunityStatisticsWithTrend({ ...context, sourceApp: 'CRM' })
-  const handleRetryStatistics = useCallback(() => {
-    opportunityStatistics.refetch()
-  }, [opportunityStatistics])
+      buildQueryVariables: (params: {
+        pagination: { pageIndex: number; pageSize: number }
+        searchTerm: string
+        selectedFilters: Record<string, any>
+        sorting: Array<{ id: string; desc: boolean }>
+      }) => {
+        const vars: CustomerOpportunityQueryVariables = {
+          limit: params.pagination.pageSize,
+          offset: params.pagination.pageIndex * params.pagination.pageSize,
+          search: params.searchTerm.trim() || undefined
+        }
 
-  return (
-    <div data-testid="customer-opportunities-view">
-      {/* Statistics above tabs */}
-      <div data-testid="customer-opportunity-statistics" className="gba:mb-6">
-        {opportunityStatistics.trendData ? (
-          <OpportunityStatisticsWithTrend
-            trendData={opportunityStatistics.trendData}
-            isLoading={opportunityStatistics.isLoading}
-            error={opportunityStatistics.error}
-            onRetry={handleRetryStatistics}
-          />
-        ) : (
-          <div>Loading statistics...</div>
-        )}
-      </div>
+        const dateRangeKeys = ['createdAtRange', 'updatedAtRange', 'closeDateRange']
 
-      <Tabs value={activeSubTab} onValueChange={handleSubTabChange}>
-        <TabsList className="gba:mb-4">
-          <TabsTrigger value="list" data-testid="opportunities-list-tab">
-            List View
-          </TabsTrigger>
-          <TabsTrigger value="board" data-testid="opportunities-board-tab">
-            Board View
-          </TabsTrigger>
-        </TabsList>
-        <TabsContent value="list">
-          <OpportunityList {...context} sourceApp="CRM" />
-        </TabsContent>
-        <TabsContent value="board">
-          <OpportunityBoard {...context} sourceApp="CRM" />
-        </TabsContent>
-      </Tabs>
-    </div>
+        // Process amount filter using helper
+        processAmountFilter(params.selectedFilters, vars)
+
+        // Process date range filters using helper
+        processOpportunityDateRanges(params.selectedFilters, vars)
+
+        // Copy all other filters using helper
+        copyOpportunityFilters(params.selectedFilters, dateRangeKeys, vars)
+
+        if (params.sorting.length > 0) {
+          // Use column ID directly - buildOrderBy will use CUSTOMER_OPPORTUNITY_DESCRIPTORS to resolve correct GraphQL paths
+          // This allows nested paths like account.name, ownerEmployee.displayName to work correctly
+          vars.orderBy = [
+            {
+              field: params.sorting[0].id as any,
+              direction: params.sorting[0].desc ? 'DESC_NULLS_LAST' : 'ASC_NULLS_LAST'
+            }
+          ]
+        } else {
+          vars.orderBy = [{ field: 'createdAt' as any, direction: 'DESC_NULLS_LAST' }]
+        }
+
+        return vars
+      },
+
+      flowContexts: {
+        entityContext: FlowContextName.customerOpportunityEntity,
+        createContext: FlowContextName.customerOpportunityCreate
+      },
+
+      buildRecordUrl: (id: string) =>
+        buildPlatformUrl('/platform/crm/opportunity-record', {
+          opportunityId: id,
+          source: 'customer-relations'
+        }),
+
+      buildAccountUrl: (id: string) =>
+        buildPlatformUrl('/platform/crm/account-record', {
+          accountId: id
+        }),
+
+      opportunityStatistics: opportunityStatistics.trendData
+        ? {
+            recentOpportunities: opportunityStatistics.trendData.recentOpportunities,
+            opportunityValue: opportunityStatistics.trendData.opportunityValue,
+            winRate: opportunityStatistics.trendData.winRate,
+            opportunitiesThisYear: opportunityStatistics.trendData.opportunitiesThisYear,
+            isLoading: opportunityStatistics.isLoading,
+            error: opportunityStatistics.error,
+            refetch: opportunityStatistics.refetch
+          }
+        : undefined,
+
+      // Board configuration
+      boardConfig: {
+        pipelineCatalog: 'SalesPipeline',
+        pipelineStageCatalog: 'SalesPipelineStage',
+        opportunityType: 'CustomerOpportunity',
+        defaultFilter: 'all',
+        formatCurrency: (amount: number) => formatNumberFunction(amount, '0.0a').toUpperCase(),
+        buildQueryVariables: () => ({}),
+        processConfig: {
+          domain: 'customer-relations',
+          processName: 'transitionOpportunity',
+          buildPayload: (opportunityId: string, targetStageRef: string) => ({
+            opportunityId,
+            targetStageRef
+          })
+        }
+      },
+
+      fetchOpportunitiesForBoard: async (
+        filters: OpportunityBoardFilters & { additionalFilters?: Record<string, any> }
+      ) => {
+        const variables: CustomerOpportunityQueryVariables = {
+          limit: 200,
+          orderBy: [{ field: 'createdAt', direction: 'DESC_NULLS_LAST' }],
+          search: filters.search?.trim() || undefined
+        }
+
+        if (filters.selectedPipelineId) {
+          variables.opportunityPipelineIds = [filters.selectedPipelineId]
+        }
+
+        if (filters.opportunityFilter === 'my' && context.userInfo?.employeeDetails?.employeeId) {
+          variables.ownerEmployeeIds = [context.userInfo.employeeDetails.employeeId]
+        } else if (filters.opportunityFilter === 'selected') {
+          if (filters.selectedEmployeeIds.length > 0) {
+            variables.ownerEmployeeIds = filters.selectedEmployeeIds
+          } else {
+            variables.ownerEmployeeIds = ['00000000-0000-0000-0000-000000000000']
+          }
+        }
+
+        const result = await fetchCustomerOpportunities(variables)
+        return {
+          opportunities: result.opportunities || [],
+          total: result.total || 0
+        }
+      },
+
+      renderBoardCard: createBoardCardRenderer(),
+
+      processCompletionEvents: ['taskCompletion'],
+
+      rowActionsContextArray: [FlowContextName.customerOpportunityEntity],
+      buildRowActionsExternalContextData: (row: { original: CustomerOpportunity }) => ({
+        opportunityId: row.original.id
+      })
+    }),
+    [context, fetchCustomerOpportunities, opportunityStatistics]
   )
+
+  return <OpportunityLayout context={context} config={config} dataTestId="customer-opportunities-view" />
 }
 
 export default OpportunityView

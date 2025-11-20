@@ -14,14 +14,14 @@ import { Flag, Bot } from 'lucide-react'
 import { BusinessAppContextProps } from '@/common/BusinessAppContext'
 import { navigateTo, buildPlatformUrl } from '@/common/utils/navigationUtils'
 import { getTranslationFromI18nKeyAndLabel } from '@/common/utils/windowUtils'
-import { useLeadData } from './hooks/useLeadData'
+import { useCustomerLeads } from '@/common/data/customer/hooks/useCustomerLeads'
+import { useCustomerActivities } from '@/common/data/customer/hooks/useCustomerActivities'
+import { useCustomerNotes } from '@/common/data/customer/hooks/useCustomerNotes'
+import { useCustomerTasks } from '@/common/data/customer/hooks/useCustomerTasks'
 import { AppActionButton } from '@/components/app-action-button/AppActionButton'
 import { FlowContextName } from '@/common/types/FlowRegistryTypes'
 import { AiActions, AiAction } from '@/common/components/common-relations/record-sections/header-section/ai-actions'
 import { useAiSummary } from './hooks/useAiSummary'
-import { useGetSalesActivities } from './queries/SalesActivityQueries'
-import { useGetCrmNotes } from './queries/CrmNoteQueries'
-import { useGetSalesTasks } from './queries/SalesTaskQueries'
 import { StatusProgression } from './components/StatusProgression'
 import { HomeView } from './views/home-view/HomeView'
 import { DocumentView } from './views/document-view/DocumentView'
@@ -39,18 +39,62 @@ const LeadRecordContent: React.FC<LeadRecordContentProps> = ({ leadId, onBack, f
     return params.get('tab') || 'overview'
   })
 
-  const { lead, leadData, loading, error, leadStatuses, loadingStatuses, refetchLeadData } = useLeadData(
-    leadId,
-    props.accessToken
-  )
+  // Fetch lead data using central hook
+  const { fetchCustomerLeadById } = useCustomerLeads(props)
+
+  // State for lead data
+  const [leadData, setLeadData] = useState<any>(null)
+  const [loading, setLoading] = useState(true)
+  const [error, setError] = useState<string | null>(null)
+  const [leadStatuses, setLeadStatuses] = useState<any[]>([])
+
+  // Fetch lead data
+  const fetchLeadData = useCallback(async () => {
+    if (!leadId || !props.accessToken) {
+      setLoading(false)
+      return
+    }
+
+    try {
+      setLoading(true)
+      setError(null)
+      const lead = await fetchCustomerLeadById(leadId)
+      if (lead) {
+        setLeadData(lead)
+        // Extract lead statuses from lead object if available
+        if (lead.leadStatuses && Array.isArray(lead.leadStatuses)) {
+          // Statuses are already sorted by alternativeCode from GraphQL query
+          setLeadStatuses(
+            lead.leadStatuses.map((status: any) => ({
+              id: status.id,
+              code: status.code,
+              value: status.value,
+              alternativeCode: status.alternativeCode
+            }))
+          )
+        }
+      } else {
+        setError('Lead not found')
+      }
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Failed to fetch lead data')
+    } finally {
+      setLoading(false)
+    }
+  }, [leadId, props.accessToken, fetchCustomerLeadById])
+
+  // Load data on mount
+  useEffect(() => {
+    fetchLeadData()
+  }, [fetchLeadData])
 
   // AI Summary hook - must be called before any conditional returns
   const aiSummaryHook = useAiSummary(leadId, props.accessToken)
 
   // Data fetching hooks for sections
-  const { fetchSalesActivities } = useGetSalesActivities(props)
-  const { fetchCrmNotes } = useGetCrmNotes(props)
-  const { fetchSalesTasks } = useGetSalesTasks(props)
+  const { fetchCustomerActivitiesByLeadId } = useCustomerActivities(props)
+  const { fetchCustomerNotesByLeadId } = useCustomerNotes(props)
+  const { fetchCustomerTasksByLeadId } = useCustomerTasks(props)
 
   // State for section data
   const [activities, setActivities] = useState<any[]>([])
@@ -116,30 +160,32 @@ const LeadRecordContent: React.FC<LeadRecordContentProps> = ({ leadId, onBack, f
       }
 
       // Staggered serial execution to reduce burst load on API
-      const activitiesData = await withRetry(() => fetchSalesActivities({ leadId }))
+      const activitiesData = await withRetry(() => fetchCustomerActivitiesByLeadId(leadId))
       await sleep(120)
-      const notesData = await withRetry(() => fetchCrmNotes({ leadId }))
+      const notesData = await withRetry(() => fetchCustomerNotesByLeadId(leadId))
       await sleep(120)
-      const tasksData = await withRetry(() => fetchSalesTasks({ leadId }))
+      const tasksData = await withRetry(() => fetchCustomerTasksByLeadId(leadId))
 
-      const sortedActivities = (activitiesData.SalesActivity || []).sort(
-        (a: any, b: any) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime()
+      const sortedActivities = (activitiesData || []).sort(
+        (a: any, b: any) => new Date(b.createdAt || 0).getTime() - new Date(a.createdAt || 0).getTime()
       )
-      const sortedNotes = (notesData.CrmNote || []).sort(
-        (a: any, b: any) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime()
+      const sortedNotes = (notesData || []).sort(
+        (a: any, b: any) => new Date(b.createdAt || 0).getTime() - new Date(a.createdAt || 0).getTime()
       )
-      const sortedTasks = (tasksData.SalesTask || []).sort(
-        (a: any, b: any) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime()
+      const sortedTasks = (tasksData || []).sort(
+        (a: any, b: any) => new Date(b.createdAt || 0).getTime() - new Date(a.createdAt || 0).getTime()
       )
 
-      // Separate regular tasks from approvals
+      // Separate regular tasks from approvals based on taskType catalog entry
       const regularTasks = sortedTasks.filter((task: any) => {
-        const taskTypeValue = task.type?.value || ''
-        return taskTypeValue.toLowerCase() !== 'approval'
+        const taskTypeCode = task?.taskType?.code || ''
+        const taskTypeValue = task?.taskType?.value || ''
+        return taskTypeCode?.toUpperCase() !== 'APPROVAL' && taskTypeValue?.toUpperCase() !== 'APPROVAL'
       })
       const approvalTasks = sortedTasks.filter((task: any) => {
-        const taskTypeValue = task.type?.value || ''
-        return taskTypeValue.toLowerCase() === 'approval'
+        const taskTypeCode = task?.taskType?.code || ''
+        const taskTypeValue = task?.taskType?.value || ''
+        return taskTypeCode?.toUpperCase() === 'APPROVAL' || taskTypeValue?.toUpperCase() === 'APPROVAL'
       })
 
       setActivities(sortedActivities)
@@ -161,7 +207,13 @@ const LeadRecordContent: React.FC<LeadRecordContentProps> = ({ leadId, onBack, f
     } finally {
       setSectionsLoading(false)
     }
-  }, [leadId, props.accessToken, fetchSalesActivities, fetchCrmNotes, fetchSalesTasks])
+  }, [
+    leadId,
+    props.accessToken,
+    fetchCustomerActivitiesByLeadId,
+    fetchCustomerNotesByLeadId,
+    fetchCustomerTasksByLeadId
+  ])
 
   // Load section data on mount
   useEffect(() => {
@@ -170,20 +222,20 @@ const LeadRecordContent: React.FC<LeadRecordContentProps> = ({ leadId, onBack, f
 
   // Listen for process completion events to refresh lead data
   useEffect(() => {
-    const handleProcessCompletion = (event: any) => {
+    const handleProcessCompletion = async (event: any) => {
       try {
         // Check for successful completion
         if (event.detail?.resolution === 'success') {
-          refetchLeadData()
-          loadSectionData() // Also refresh section data
+          await fetchLeadData()
+          await loadSectionData() // Also refresh section data
           return
         }
 
         // Also check for different event structure
         const response = event.detail?.response
         if (response?.detail?.resolution === 'success' || response?.lead) {
-          refetchLeadData()
-          loadSectionData() // Also refresh section data
+          await fetchLeadData()
+          await loadSectionData() // Also refresh section data
         }
       } catch (err) {
         console.error('Error handling process completion in LeadRecord:', err)
@@ -213,7 +265,7 @@ const LeadRecordContent: React.FC<LeadRecordContentProps> = ({ leadId, onBack, f
         window.removeEventListener(eventName, handleProcessCompletion as EventListener)
       })
     }
-  }, [leadId, refetchLeadData, loadSectionData])
+  }, [leadId, fetchLeadData, loadSectionData])
 
   const getBackButtonText = () => {
     if (fromEntity === 'salesPerformance') {
@@ -309,6 +361,10 @@ const LeadRecordContent: React.FC<LeadRecordContentProps> = ({ leadId, onBack, f
         leadId,
         lead: leadId,
         salesActivity: { lead: leadId },
+        // Set current user as default owner
+        ...(props.userInfo?.employeeDetails?.employeeId && {
+          ownerEmployeeId: props.userInfo.employeeDetails.employeeId
+        }),
         // Ensure employee details are present
         ...(props.userInfo?.id && {
           employeeId: props.userInfo.id,
@@ -336,59 +392,44 @@ const LeadRecordContent: React.FC<LeadRecordContentProps> = ({ leadId, onBack, f
 
   const taskActionProps = useMemo(
     () => ({
-      contextsArray: [FlowContextName.createCustomerTask],
-      externalContextData: {
-        leadId,
-        lead: leadId,
-        salesTask: { lead: leadId },
-        // Ensure employee details are present
-        ...(props.userInfo?.id && {
-          employeeId: props.userInfo.id,
-          userId: props.userInfo.id,
-          employeeDetails: { userId: props.userInfo.id }
-        })
-      },
-      prefixDataTestId: 'lead-task'
+      contextsArray: [FlowContextName.customerTaskCreate],
+      externalContextData: { leadId },
+      prefixDataTestId: 'lead-task',
+      emptyStateBehavior: 'enable' as const
     }),
-    [leadId, props.userInfo]
+    [leadId]
   )
 
   const approvalActionProps = useMemo(
     () => ({
-      contextsArray: [FlowContextName.createCustomerTask],
+      contextsArray: [FlowContextName.customerTaskCreate],
       externalContextData: {
         leadId,
-        lead: leadId,
         typeRef: 'SalesTaskType:v1:APPROVAL',
-        salesTask: { lead: leadId, type: 'SalesTaskType:v1:APPROVAL' },
-        // Ensure employee details are present
-        ...(props.userInfo?.id && {
-          employeeId: props.userInfo.id,
-          userId: props.userInfo.id,
-          employeeDetails: { userId: props.userInfo.id }
-        })
+        salesTask: { lead: leadId, type: 'SalesTaskType:v1:APPROVAL' }
       },
-      prefixDataTestId: 'lead-approval'
+      prefixDataTestId: 'lead-approval',
+      emptyStateBehavior: 'enable' as const
     }),
-    [leadId, props.userInfo]
+    [leadId]
   )
 
   // Header content with status progression
   const headerContent = useMemo(() => {
-    if (!loadingStatuses && leadStatuses && leadStatuses.length > 0 && lead) {
+    if (leadStatuses && leadStatuses.length > 0 && leadData) {
       return (
         <StatusProgression
-          currentStatus={leadData?.leadStatus?.value || lead?.status || 'New'}
+          currentStatus={leadData?.leadStatus?.value || 'New'}
           statuses={leadStatuses}
           leadId={leadId}
-          leadVersion={parseInt(lead.version) || 0}
+          leadVersion={Number.parseInt(leadData?.version || '1', 10) || 0}
           accessToken={props.accessToken}
-          onStatusUpdate={refetchLeadData}
+          onStatusUpdate={fetchLeadData}
         />
       )
     }
     return null
-  }, [loadingStatuses, leadStatuses, lead, leadData, leadId, props.accessToken, refetchLeadData])
+  }, [leadStatuses, leadData, leadId, props.accessToken, fetchLeadData])
 
   const subViewsConfig = useMemo(
     () => ({
@@ -402,7 +443,7 @@ const LeadRecordContent: React.FC<LeadRecordContentProps> = ({ leadId, onBack, f
           content: (
             <HomeView
               leadId={leadId}
-              lead={lead}
+              lead={leadData}
               rawLeadData={leadData}
               activities={activities}
               notes={notes}
@@ -434,7 +475,6 @@ const LeadRecordContent: React.FC<LeadRecordContentProps> = ({ leadId, onBack, f
     [
       activeTab,
       handleTabChange,
-      lead,
       leadId,
       leadData,
       props,
@@ -450,8 +490,7 @@ const LeadRecordContent: React.FC<LeadRecordContentProps> = ({ leadId, onBack, f
       noteActionProps,
       activityActionProps,
       leadStatuses,
-      loadingStatuses,
-      refetchLeadData
+      fetchLeadData
     ]
   )
 
@@ -463,7 +502,7 @@ const LeadRecordContent: React.FC<LeadRecordContentProps> = ({ leadId, onBack, f
     )
   }
 
-  if (error || !lead) {
+  if (error || !leadData) {
     return (
       <div className="gba:flex gba:items-center gba:justify-center gba:min-h-screen">
         <div className="gba:text-center">
@@ -483,13 +522,16 @@ const LeadRecordContent: React.FC<LeadRecordContentProps> = ({ leadId, onBack, f
     )
   }
 
-  const leadName = lead.name || getTranslationFromI18nKeyAndLabel('crm.lead.unnamed', 'Unnamed Lead')
+  const leadName =
+    leadData?.companyName ||
+    (leadData?.firstName && leadData?.lastName ? `${leadData.firstName} ${leadData.lastName}`.trim() : '') ||
+    getTranslationFromI18nKeyAndLabel('crm.lead.unnamed', 'Unnamed Lead')
 
   // Create header title with sensitive badge
   const headerTitle = (
     <div className="gba:flex gba:items-center gba:gap-2">
       <span>{leadName}</span>
-      {(leadData?.sensitive === true || lead.sensitive === true) && (
+      {leadData?.sensitive === true && (
         <TooltipProvider>
           <Tooltip>
             <TooltipTrigger asChild>

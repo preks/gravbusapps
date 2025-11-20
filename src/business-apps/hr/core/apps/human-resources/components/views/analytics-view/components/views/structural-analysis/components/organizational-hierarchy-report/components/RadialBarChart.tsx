@@ -36,6 +36,8 @@ import {
 } from 'recharts'
 import { SunburstVisualizationProps, HierarchyLevelReportData } from '../types/hierarchyTypes'
 import { ViewMode } from '../hooks/useHierarchyData'
+import { useTranslation } from '@newwork/nw-design-system'
+import hrTranslations from '@/business-apps/hr/core/apps/human-resources/_i18n'
 
 const { Title, Text } = Typography
 
@@ -55,6 +57,7 @@ const RadialBarChart: React.FC<RadialBarChartProps> = ({
   onViewModeChange
 }) => {
   const [selectedLevel, setSelectedLevel] = useState<number | null>(null)
+  const { t } = useTranslation(hrTranslations)
 
   // Colors are now handled through the colorMap from the data integration hook
 
@@ -64,7 +67,7 @@ const RadialBarChart: React.FC<RadialBarChartProps> = ({
   // Prepare data for stacked radial bar chart
   const chartData = levels.map((level, levelIndex) => {
     const levelData: any = {
-      level: `Level ${levelIndex}`,
+      level: `${t('hr-analytics-level')} ${levelIndex}`,
       levelIndex,
       total: level.value
     }
@@ -119,7 +122,7 @@ const RadialBarChart: React.FC<RadialBarChartProps> = ({
   // Table columns configuration
   const tableColumns = [
     {
-      title: 'Level',
+      title: t('hr-analytics-level'),
       dataIndex: 'levelName',
       key: 'levelName',
       width: 120,
@@ -128,13 +131,13 @@ const RadialBarChart: React.FC<RadialBarChartProps> = ({
           <Text strong>{text}</Text>
           <br />
           <Text type="secondary" className="gba:text-xs">
-            {record.organizationalUnits} units
+            {record.organizationalUnits} {t('hr-analytics-units')}
           </Text>
         </div>
       )
     },
     {
-      title: 'Total Employees',
+      title: t('hr-analytics-total-employees'),
       dataIndex: 'totalEmployees',
       key: 'totalEmployees',
       width: 150,
@@ -146,13 +149,13 @@ const RadialBarChart: React.FC<RadialBarChartProps> = ({
           <br />
           <Progress percent={record.percentage} size="small" showInfo={false} strokeColor="var(--nw-chart-1)" />
           <Text type="secondary" className="gba:text-xs">
-            {record.percentage}% of total
+            {record.percentage}% {t('hr-analytics-of')} {t('hr-analytics-total')}
           </Text>
         </div>
       )
     },
     {
-      title: viewMode === 'company' ? 'Companies' : viewMode === 'costcenter' ? 'Cost Centers' : 'Countries',
+      title: viewMode === 'company' ? t('hr-analytics-companies') : viewMode === 'costcenter' ? t('hr-analytics-cost-centers') : t('hr-analytics-countries'),
       dataIndex: 'segments',
       key: 'segments',
       render: (segments: any[]) => (
@@ -192,7 +195,7 @@ const RadialBarChart: React.FC<RadialBarChartProps> = ({
           <Title level={5} className="gba:m-0 gba:mb-2">
             {label}
           </Title>
-          <Text strong>Total Employees: {data.total}</Text>
+          <Text strong>{t('hr-analytics-total-employees')}: {data.total}</Text>
           <Divider className="gba:my-2" />
           {Object.keys(data)
             .filter(
@@ -212,7 +215,7 @@ const RadialBarChart: React.FC<RadialBarChartProps> = ({
                   <div key={key} className="gba:mb-1 gba:flex gba:items-center">
                     <div className="gba:w-3 gba:h-3 gba:rounded-sm gba:mr-2" style={{ backgroundColor: color }} />
                     <Text>
-                      {name}: <strong>{value}</strong> employees
+                      {name}: <strong>{value}</strong> {t('hr-analytics-employees')}
                     </Text>
                   </div>
                 )
@@ -240,13 +243,13 @@ const RadialBarChart: React.FC<RadialBarChartProps> = ({
     return (
       <Alert
         data-testid="OrganizationalHierarchyReport-RadialBarChart-Error"
-        message="Error Loading Hierarchy Data"
+        message={t('hr-analytics-error-loading-hierarchy-data')}
         description={error}
         type="error"
         showIcon
         action={
           <Button size="small" onClick={onRefresh} icon={<ReloadOutlined />}>
-            Retry
+            {t('common-retry')}
           </Button>
         }
       />
@@ -263,10 +266,10 @@ const RadialBarChart: React.FC<RadialBarChartProps> = ({
         <div className="gba:flex gba:items-center gba:gap-4">
           <Title level={3} className="gba:m-0 gba:text-foreground">
             <ApartmentOutlined className="gba:mr-2 gba:text-info" />
-            Organizational Hierarchy Report
+            {t('hr-analytics-organizational-hierarchy-report')}
           </Title>
           <Tag color="var(--nw-color-info-secondary)" icon={<TeamOutlined />}>
-            {statistics.totalEmployees} employees
+            {statistics.totalEmployees} {t('hr-analytics-employees')}
           </Tag>
         </div>
 
@@ -274,7 +277,7 @@ const RadialBarChart: React.FC<RadialBarChartProps> = ({
         <Space>
           <Text strong>
             <EyeOutlined className="gba:mr-2" />
-            View by:
+            {t('hr-analytics-view-by')}
           </Text>
           <Radio.Group
             value={viewMode}
@@ -288,18 +291,18 @@ const RadialBarChart: React.FC<RadialBarChartProps> = ({
               data-testid="OrganizationalHierarchyReport-RadialBarChart-LocationModeButton"
             >
               <GlobalOutlined className="gba:mr-1" />
-              Location
+              {t('hr-analytics-location')}
             </Radio.Button>
             <Radio.Button value="company" data-testid="OrganizationalHierarchyReport-RadialBarChart-CompanyModeButton">
               <BankOutlined className="gba:mr-1" />
-              Company
+              {t('hr-analytics-company')}
             </Radio.Button>
             <Radio.Button
               value="costcenter"
               data-testid="OrganizationalHierarchyReport-RadialBarChart-CostCenterModeButton"
             >
               <DollarCircleOutlined className="gba:mr-1" />
-              Cost Center
+              {t('hr-analytics-cost-center')}
             </Radio.Button>
           </Radio.Group>
         </Space>
@@ -308,14 +311,8 @@ const RadialBarChart: React.FC<RadialBarChartProps> = ({
       {/* Description */}
       <div className="gba:mb-6 gba:p-4 gba:bg-muted gba:rounded-lg gba:border gba:border-border">
         <Text className="gba:text-foreground">
-          Interactive radial bar chart visualization showing organizational hierarchy distribution across different
-          levels. Each ring represents an organizational level with segments showing distribution by{' '}
-          {viewMode === 'company'
-            ? 'company affiliations'
-            : viewMode === 'costcenter'
-              ? 'cost center assignments'
-              : 'geographic locations'}
-          . Use the view mode buttons above to switch between different organizational perspectives.
+          {t('hr-analytics-organizational-hierarchy-report')}{' '}
+          {t('hr-analytics-organizational-hierarchy')}
         </Text>
       </div>
 
@@ -324,7 +321,7 @@ const RadialBarChart: React.FC<RadialBarChartProps> = ({
         <Col xs={24} sm={12} md={6}>
           <Card>
             <Statistic
-              title="Total Employees"
+              title={t('hr-analytics-total-employees')}
               value={statistics.totalEmployees}
               prefix={<TeamOutlined style={{ color: 'var(--nw-entity-employee)' }} />}
               valueStyle={{ color: 'var(--nw-entity-employee)' }}
@@ -334,7 +331,7 @@ const RadialBarChart: React.FC<RadialBarChartProps> = ({
         <Col xs={24} sm={12} md={6}>
           <Card>
             <Statistic
-              title="Organizational Units"
+              title={t('hr-analytics-organizational-units')}
               value={statistics.totalOrganizationalUnits}
               prefix={<ApartmentOutlined style={{ color: 'var(--nw-entity-department)' }} />}
               valueStyle={{ color: 'var(--nw-entity-department)' }}
@@ -344,7 +341,7 @@ const RadialBarChart: React.FC<RadialBarChartProps> = ({
         <Col xs={24} sm={12} md={6}>
           <Card>
             <Statistic
-              title="Hierarchy Levels"
+              title={t('hr-analytics-hierarchy-levels')}
               value={statistics.maxLevels}
               prefix={<SwitcherOutlined style={{ color: 'var(--nw-entity-strategy)' }} />}
               valueStyle={{ color: 'var(--nw-entity-strategy)' }}
@@ -389,8 +386,8 @@ const RadialBarChart: React.FC<RadialBarChartProps> = ({
         title={
           <span>
             <BarChartOutlined className="gba:mr-2" />
-            Organizational Hierarchy -{' '}
-            {viewMode === 'company' ? 'By Company' : viewMode === 'costcenter' ? 'By Cost Center' : 'By Location'}
+            {t('hr-analytics-organizational-hierarchy')} -{' '}
+            {viewMode === 'company' ? t('hr-analytics-by-company') : viewMode === 'costcenter' ? t('hr-analytics-by-cost-center') : t('hr-analytics-by-location')}
           </span>
         }
         className="gba:mb-6"
@@ -431,7 +428,7 @@ const RadialBarChart: React.FC<RadialBarChartProps> = ({
               title={
                 <span>
                   <SwitcherOutlined className="gba:mr-2" />
-                  Level Breakdown
+                  {t('hr-analytics-level-breakdown')}
                 </span>
               }
               size="small"
@@ -447,9 +444,9 @@ const RadialBarChart: React.FC<RadialBarChartProps> = ({
                   onClick={() => setSelectedLevel(selectedLevel === index ? null : index)}
                 >
                   <div className="gba:flex gba:justify-between gba:items-center gba:mb-1">
-                    <Text strong>Level {index}</Text>
+                    <Text strong>{t('hr-analytics-level')} {index}</Text>
                     <Tag className="gba:text-info-secondary-foreground gba:bg-info-secondary/50">
-                      {level.value} employees
+                      {level.value} {t('hr-analytics-employees')}
                     </Tag>
                   </div>
                   <Progress
@@ -469,13 +466,13 @@ const RadialBarChart: React.FC<RadialBarChartProps> = ({
         title={
           <span>
             <TableOutlined className="gba:mr-2" />
-            Detailed Level Report -{' '}
-            {viewMode === 'company' ? 'By Company' : viewMode === 'costcenter' ? 'By Cost Center' : 'By Location'}
+            {t('hr-analytics-detailed-level-report')} -{' '}
+            {viewMode === 'company' ? t('hr-analytics-by-company') : viewMode === 'costcenter' ? t('hr-analytics-by-cost-center') : t('hr-analytics-by-location')}
           </span>
         }
       >
         <div className="gba:mb-4">
-          <Text type="secondary">Detailed breakdown of employee distribution across organizational levels</Text>
+          <Text type="secondary">{t('hr-analytics-detailed-breakdown-of-distribution')}</Text>
         </div>
         <Table
           dataSource={currentTableData}

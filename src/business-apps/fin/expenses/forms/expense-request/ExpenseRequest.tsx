@@ -3,14 +3,13 @@ import { Divider, Typography, Form } from 'antd'
 import { BusinessAppContextProps } from '@/common/BusinessAppContext'
 import { ICONS } from '../../utils/icons'
 import { Button } from '@newwork/gravity-ui-catalog'
-import { useTranslation } from 'react-i18next'
 import { ExpenseRequestProvider, useExpenseRequestContext } from './context/ExpenseRequestContext'
 import FormFooter from './components/FormFooter'
 import ExpenseFormContent from './components/ExpenseFormContent'
 import PlanFormContent from './components/PlanFormContent'
 import { getCatalogTypeTransformer, transformPlansToCardData } from './utils/planUtils'
 import { useProcessEventState } from '@/business-apps/fin/expenses/utils/useProcessEventState'
-import { formatDateToISO } from '@/common/utils/windowUtils'
+import { formatDateToISO, getTranslationFromI18nKeyAndLabel } from '@/common/utils/windowUtils'
 import { showToast } from '../../utils/notificationUtils'
 import { FORM_STEPS, REQUEST_TYPES, REQUEST_STATUS, DISABLED_FLAG, PLAN_TYPE_ENUM } from './constants/constants'
 import { EVENTS } from '../../utils/constants'
@@ -46,7 +45,6 @@ interface PlanData {
 }
 
 const ExpenseRequestContent: React.FC<ExpenseRequestContentProps> = ({ accessToken, userInfo, additionalData }) => {
-  const { t } = useTranslation()
   const [form] = Form.useForm()
   const {
     step,
@@ -67,12 +65,17 @@ const ExpenseRequestContent: React.FC<ExpenseRequestContentProps> = ({ accessTok
 
   const { dispatchProcessContinueEventIfEnabled } = useProcessEventState(additionalData)
 
+  // Extract expensePlanId from additionalData if available
+  const expensePlanId = React.useMemo(() => {
+    return additionalData?.psi_taskPayload?.psi_initialParameters?.expensePlanId
+  }, [additionalData])
+
   const planData =
     React.useMemo(() => {
       if (!expenseCatalogueData?.ExpensePlan) return []
 
-      return transformPlansToCardData(expenseCatalogueData, t)
-    }, [expenseCatalogueData, t]) || []
+      return transformPlansToCardData(expenseCatalogueData)
+    }, [expenseCatalogueData]) || []
 
   const isExpenseDisabled = React.useMemo(() => {
     const expenseType = getCatalogTypeTransformer(REQUEST_TYPES.EXPENSE, expenseCatalogueData)
@@ -157,16 +160,31 @@ const ExpenseRequestContent: React.FC<ExpenseRequestContentProps> = ({ accessTok
     }
   }
 
-  const handlePlanSelect = (plan: PlanData) => {
-    setSelectedPlan(plan)
-    const fullPlanData = expenseCatalogueData?.ExpensePlan?.find((p: any) => p.id === plan.id)
+  const handlePlanSelect = React.useCallback(
+    (plan: PlanData) => {
+      setSelectedPlan(plan)
+      const fullPlanData = expenseCatalogueData?.ExpensePlan?.find((p: any) => p.id === plan.id)
 
-    if (!fullPlanData) return
+      if (!fullPlanData) return
 
-    const formValues = buildFormValuesFromPlan(fullPlanData, plan)
-    form.setFieldsValue(formValues)
-    updateFormValidity()
-  }
+      const formValues = buildFormValuesFromPlan(fullPlanData, plan)
+      form.setFieldsValue(formValues)
+      updateFormValidity()
+    },
+    [expenseCatalogueData, form, setSelectedCostCenter]
+  )
+
+  // Auto-select plan when expensePlanId is provided and form is at start step
+  React.useEffect(() => {
+    if (expensePlanId && step === FORM_STEPS.START && expenseCatalogueData?.ExpensePlan && planData.length > 0) {
+      const planToSelect = planData.find((plan: PlanData) => plan.id === expensePlanId)
+
+      if (planToSelect) {
+        handlePlanSelect(planToSelect)
+        setStep(FORM_STEPS.PLAN)
+      }
+    }
+  }, [expensePlanId, step, expenseCatalogueData, planData, handlePlanSelect, setStep])
 
   const backButtonClick = () => {
     if (selectedPlan && step === FORM_STEPS.PLAN) {
@@ -185,14 +203,20 @@ const ExpenseRequestContent: React.FC<ExpenseRequestContentProps> = ({ accessTok
         pso_exitStrategy: 'abort',
         pso_completeNotification: {
           type: 'error',
-          messageKey: t(
+          messageKey: getTranslationFromI18nKeyAndLabel(
             'lowcoder:absence_module.toast_notification_cancel_create_absence',
             'The action has been canceled.'
           )
         }
       })
     } catch {
-      showToast(t('lowcoder:create_expense_type_item.error_flows_message', 'Error in flow process'), 'error')
+      showToast(
+        getTranslationFromI18nKeyAndLabel(
+          'lowcoder:create_expense_type_item.error_flows_message',
+          'Error in flow process'
+        ),
+        'error'
+      )
       form.resetFields()
       setSelectedPlan(null)
       setStep(FORM_STEPS.START)
@@ -271,13 +295,19 @@ const ExpenseRequestContent: React.FC<ExpenseRequestContentProps> = ({ accessTok
 
       // Validate required data
       if (!accessToken || !employeeId) {
-        showToast(t('lowcoder:create_expense_request.error_missing_user_info', 'Missing user information'), 'error')
+        showToast(
+          getTranslationFromI18nKeyAndLabel(
+            'lowcoder:create_expense_request.error_missing_user_info',
+            'Missing user information'
+          ),
+          'error'
+        )
         setLoading(false)
         return
       }
 
       // Determine request type and prepare data
-      const isTrip = step === FORM_STEPS.TRIP || (selectedPlan && selectedPlan?.planType === PLAN_TYPE_ENUM.TRIP)
+      const isTrip = step === FORM_STEPS.TRIP || selectedPlan?.planType === PLAN_TYPE_ENUM.TRIP
       const expenseTypeRef = determineExpenseTypeRef(isTrip)
       const selectedPlanCurrency = getSelectedPlanCurrency()
 
@@ -287,11 +317,20 @@ const ExpenseRequestContent: React.FC<ExpenseRequestContentProps> = ({ accessTok
       try {
         dispatchProcessContinueEventIfEnabled(EVENTS.SUBMIT, submitData)
       } catch {
-        showToast(t('lowcoder:create_expense_type_item.error_flows_message', 'Error in flow process'), 'error')
+        showToast(
+          getTranslationFromI18nKeyAndLabel(
+            'lowcoder:create_expense_type_item.error_flows_message',
+            'Error in flow process'
+          ),
+          'error'
+        )
       }
     } catch {
       showToast(
-        t('lowcoder:create_expense_request.error_fields_validation', 'Please check all required fields'),
+        getTranslationFromI18nKeyAndLabel(
+          'lowcoder:create_expense_request.error_fields_validation',
+          'Please check all required fields'
+        ),
         'error'
       )
     } finally {
@@ -354,13 +393,16 @@ const ExpenseRequestContent: React.FC<ExpenseRequestContentProps> = ({ accessTok
                 data-testid="expense-form-header-title"
               >
                 {step == FORM_STEPS.PLAN
-                  ? t('lowcoder:create_expense_request.initial_expense_plan_select_placeholder', 'Select Expense Plan')
+                  ? getTranslationFromI18nKeyAndLabel(
+                      'lowcoder:create_expense_request.initial_expense_plan_select_placeholder',
+                      'Select Expense Plan'
+                    )
                   : step == REQUEST_TYPES.EXPENSE
-                    ? t(
+                    ? getTranslationFromI18nKeyAndLabel(
                         'lowcoder:create_expense_request.expense_request_container.create_expense_header',
                         'New Expense Request'
                       )
-                    : t(
+                    : getTranslationFromI18nKeyAndLabel(
                         'lowcoder:create_expense_request.expense_request_container.create_expense_header_trip',
                         'New Expense Request for Trip'
                       )}
@@ -379,7 +421,7 @@ const ExpenseRequestContent: React.FC<ExpenseRequestContentProps> = ({ accessTok
                       className="gba:block gba:px-4 gba:text-base gba:font-medium gba:mb-0 gba:text-foreground"
                       data-testid="selected-plan-label"
                     >
-                      {t(
+                      {getTranslationFromI18nKeyAndLabel(
                         'lowcoder:create_expense_request.expense_request_container.selected_plan_text',
                         'Selected Plan for your Request'
                       )}
@@ -464,7 +506,10 @@ const ExpenseRequestContent: React.FC<ExpenseRequestContentProps> = ({ accessTok
                 style={{ margin: 0, textAlign: 'center', fontFamily: "'Roboto', sans-serif", pointerEvents: 'auto' }}
                 data-testid="expense-request-header-title"
               >
-                {t('lowcoder:create_expense_request.initiate_title_header', 'Expense Request')}
+                {getTranslationFromI18nKeyAndLabel(
+                  'lowcoder:create_expense_request.initiate_title_header',
+                  'Expense Request'
+                )}
               </Title>
             </div>
           </div>
@@ -489,7 +534,10 @@ const ExpenseRequestContent: React.FC<ExpenseRequestContentProps> = ({ accessTok
                   }}
                   data-testid="expense-request-without-plan-title"
                 >
-                  {t('lowcoder:create_expense_request.not_based_plan_text', 'Without Plan')}
+                  {getTranslationFromI18nKeyAndLabel(
+                    'lowcoder:create_expense_request.not_based_plan_text',
+                    'Without Plan'
+                  )}
                 </p>
 
                 {/* Expense Button - Only show if not disabled */}
@@ -524,7 +572,10 @@ const ExpenseRequestContent: React.FC<ExpenseRequestContentProps> = ({ accessTok
                             }}
                             data-testid="expense-request-expense-text"
                           >
-                            {t('lowcoder:create_expense_request.expense_select_button', 'Expense')}
+                            {getTranslationFromI18nKeyAndLabel(
+                              'lowcoder:create_expense_request.expense_select_button',
+                              'Expense'
+                            )}
                           </span>
                         </div>
                         <img
@@ -570,7 +621,10 @@ const ExpenseRequestContent: React.FC<ExpenseRequestContentProps> = ({ accessTok
                             }}
                             data-testid="expense-request-trip-text"
                           >
-                            {t('lowcoder:create_expense_request.trip_select_button', 'Trip')}
+                            {getTranslationFromI18nKeyAndLabel(
+                              'lowcoder:create_expense_request.trip_select_button',
+                              'Trip'
+                            )}
                           </span>
                         </div>
                         <img
@@ -602,7 +656,10 @@ const ExpenseRequestContent: React.FC<ExpenseRequestContentProps> = ({ accessTok
                       }}
                       data-testid="expense-request-with-plan-title"
                     >
-                      {t('lowcoder:create_expense_request.based_plan_text', 'Based on Plan')}
+                      {getTranslationFromI18nKeyAndLabel(
+                        'lowcoder:create_expense_request.based_plan_text',
+                        'Based on Plan'
+                      )}
                     </p>
 
                     {/* Plan Button */}
@@ -636,8 +693,11 @@ const ExpenseRequestContent: React.FC<ExpenseRequestContentProps> = ({ accessTok
                               }}
                               data-testid="expense-request-plan-text"
                             >
-                              {t('lowcoder:create_expense_request.plan_select_button', 'My expense plans')} (
-                              {expenseCatalogueData?.ExpensePlan?.length})
+                              {getTranslationFromI18nKeyAndLabel(
+                                'lowcoder:create_expense_request.plan_select_button',
+                                'My expense plans'
+                              )}{' '}
+                              ({expenseCatalogueData?.ExpensePlan?.length})
                             </span>
                           </div>
                           <img

@@ -1,4 +1,4 @@
-import { useState, useCallback } from 'react'
+import { useState, useCallback, useRef } from 'react'
 import { SelectOption } from '../types'
 import { useCatalogManagerClient } from '@/common/network/catalogs/useCatalogManagerClient'
 
@@ -17,7 +17,6 @@ interface SearchableCatalogState {
   currentSearch: string
   offset: number
   displayCount: number // New field to track how many items to display
-  initialized: boolean // Track if initial load has been done
 }
 
 export const useSearchableCatalog = ({
@@ -26,6 +25,10 @@ export const useSearchableCatalog = ({
   version = 'v1',
   pageSize = 100 // Increased from 20 to 100 for better UX
 }: SearchableCatalogHookParams) => {
+  // Use ref to track initialization to prevent re-initialization on re-renders
+  const initializedRef = useRef(false)
+  const isLoadingRef = useRef(false)
+
   const [state, setState] = useState<SearchableCatalogState>({
     options: [],
     loading: false,
@@ -33,14 +36,19 @@ export const useSearchableCatalog = ({
     hasMore: false,
     currentSearch: '',
     offset: 0,
-    displayCount: 5, // Back to 5 as requested by user
-    initialized: false // Track initialization
+    displayCount: 5 // Back to 5 as requested by user
   })
 
   const catalogClient = useCatalogManagerClient(accessToken)
 
   const fetchCatalogEntries = useCallback(
     async (searchTerm: string = '', offset: number = 0, isLoadMore: boolean = false): Promise<void> => {
+      // Prevent concurrent requests
+      if (isLoadingRef.current) {
+        return
+      }
+
+      isLoadingRef.current = true
       setState(prev => ({
         ...prev,
         loading: true,
@@ -49,8 +57,6 @@ export const useSearchableCatalog = ({
       }))
 
       try {
-        console.log(`Fetching ${catalogIdentifier} with offset: ${offset}, searchTerm: "${searchTerm}"`)
-
         const response = await catalogClient.getCatalogEntriesList(
           {
             catalogIdentifier,
@@ -65,9 +71,6 @@ export const useSearchableCatalog = ({
           }
         )
 
-        console.log(`${catalogIdentifier} Response:`, response)
-        console.log(`Received ${response.data.length} items, total records: ${response.paging?.totalRecords}`)
-
         const mappedOptions: SelectOption[] = response.data.map((entry: any) => ({
           id: entry.id,
           name: entry.value || entry.label || entry.name || 'Unknown',
@@ -79,17 +82,16 @@ export const useSearchableCatalog = ({
         const currentOffset = offset + response.data.length // Update offset based on actual received items
         const hasMoreRecords = currentOffset < totalRecords
 
-        console.log(`Updated offset: ${currentOffset}, hasMore: ${hasMoreRecords}`)
-
         setState(prev => ({
           ...prev,
           loading: false,
           options: isLoadMore ? [...prev.options, ...mappedOptions] : mappedOptions,
           hasMore: hasMoreRecords,
           currentSearch: searchTerm,
-          offset: currentOffset, // Store the current offset (where next request should start)
-          initialized: true // Mark as initialized after successful load
+          offset: currentOffset // Store the current offset (where next request should start)
         }))
+
+        initializedRef.current = true
       } catch (err) {
         console.error(`Error fetching ${catalogIdentifier} catalog:`, err)
         setState(prev => ({
@@ -97,6 +99,8 @@ export const useSearchableCatalog = ({
           loading: false,
           error: err instanceof Error ? err.message : 'Unknown error occurred'
         }))
+      } finally {
+        isLoadingRef.current = false
       }
     },
     [catalogClient, catalogIdentifier, version, pageSize]
@@ -111,23 +115,22 @@ export const useSearchableCatalog = ({
   )
 
   const loadMore = useCallback(() => {
-    console.log(`LoadMore called for ${catalogIdentifier}:`, {
-      hasMore: state.hasMore,
-      loading: state.loading,
-      currentOffset: state.offset,
-      optionsLength: state.options.length,
-      currentSearch: state.currentSearch
-    })
-
-    if (state.hasMore && !state.loading) {
-      console.log(`Executing loadMore for ${catalogIdentifier} from offset ${state.offset}`)
-      fetchCatalogEntries(state.currentSearch, state.offset, true)
-    } else {
-      console.log(`LoadMore skipped for ${catalogIdentifier} - hasMore: ${state.hasMore}, loading: ${state.loading}`)
+    if (isLoadingRef.current) {
+      return
     }
-  }, [fetchCatalogEntries, state.hasMore, state.loading, state.currentSearch, state.offset, catalogIdentifier])
+
+    setState(prev => {
+      if (prev.hasMore && !prev.loading) {
+        fetchCatalogEntries(prev.currentSearch, prev.offset, true)
+      }
+
+      return prev
+    })
+  }, [fetchCatalogEntries])
 
   const reset = useCallback(() => {
+    initializedRef.current = false
+    isLoadingRef.current = false
     setState({
       options: [],
       loading: false,
@@ -135,21 +138,18 @@ export const useSearchableCatalog = ({
       hasMore: false,
       currentSearch: '',
       offset: 0,
-      displayCount: 5, // Back to 5 as requested
-      initialized: false
+      displayCount: 5 // Back to 5 as requested
     })
   }, [])
 
-  // Initial load - simplified version that works
+  // Initial load - use ref to prevent multiple initializations
   const initialize = useCallback(() => {
-    if (state.initialized || state.loading) {
-      console.log(`${catalogIdentifier} already initialized or loading, skipping...`)
+    if (initializedRef.current || isLoadingRef.current) {
       return
     }
 
-    console.log(`Initializing ${catalogIdentifier}...`)
     fetchCatalogEntries('', 0, false)
-  }, [fetchCatalogEntries, catalogIdentifier, state.initialized, state.loading])
+  }, [fetchCatalogEntries])
 
   // Show more items from already fetched data
   const showMore = useCallback(() => {

@@ -5,6 +5,7 @@ import {
   CardContent,
   CardHeader,
   CardTitle,
+  CardDescription,
   Tabs,
   TabsContent,
   TabsList,
@@ -22,17 +23,18 @@ import {
   SelectTrigger,
   SelectValue
 } from '@newwork/nw-design-system'
-import { FileText, AlignLeft } from 'lucide-react'
+import { FileText, AlignLeft, Info } from 'lucide-react'
 import { FlowRenderer } from '@/business-apps/flow/common/components'
-import { FlowStep, FlowStepType, AssignmentMode } from '../../types/flowTemplate'
+import { FlowStep, FlowStepType, AssignmentMode, FlowTemplate as LocalFlowTemplate } from '../../types/flowTemplate'
 import { FlowTemplate } from '@/common/network/flows/FlowTemplateClient'
 import { useFlowTemplateClient } from '@/common/network/flows/useFlowTemplateClient'
-import { BasicConfiguration } from '../steps/BasicConfiguration'
 import { InputFieldsContent, InputFieldsTrigger } from '../steps/InputFieldsConfiguration'
 import { LinksContent, LinksTrigger } from '../steps/LinksConfiguration'
 import { TagConfiguration } from '../steps/TagConfiguration'
+import { SummaryFieldsConfiguration } from '../steps/SummaryFieldsConfiguration'
 import { AssignmentSelector } from '../shared/AssignmentSelector'
-import { FlowTags } from '../../../types'
+import { FlowTags } from '@/business-apps/flow/types'
+import { ExpressionInput } from '../shared/ExpressionInput'
 
 interface FlowDesignerProps extends BusinessAppContextProps {
   initialTemplate?: FlowTemplate | null
@@ -87,18 +89,16 @@ export const FlowDesigner: React.FC<FlowDesignerProps> = ({
       setTemplateName(initialTemplate.name || '')
       setTemplateDescription(initialTemplate.description || '')
       setTemplateTags(initialTemplate.tags || {})
+      setSummaryFields((initialTemplate as any).summaryFields || [])
 
       // Update steps if they exist
       if (initialTemplate.steps && initialTemplate.steps.length > 0) {
         const newSteps = initialTemplate.steps.map(step => ({
-          id: step.id,
-          title: step.title,
+          ...step,
           message: step.message || 'Describe the task to be performed.',
-          type: step.type,
           dueInMinutes: step.dueInMinutes || 60,
           form: step.form || step.inputs || [],
-          links: step.links || [],
-          assignment: step.assignment
+          type: step.type as FlowStepType
         }))
         setSteps(newSteps)
         setSelectedStepIndex(0)
@@ -107,13 +107,59 @@ export const FlowDesigner: React.FC<FlowDesignerProps> = ({
   }, [initialTemplate])
 
   const [selectedStepIndex, setSelectedStepIndex] = React.useState<number>(0)
-  const selectedStep = steps[selectedStepIndex]
   const [activeTab, setActiveTab] = React.useState<'general' | 'form' | 'assignment'>('general')
+  const [isSummarySelected, setIsSummarySelected] = React.useState<boolean>(false)
+
+  // Get selected step - always return a valid step object
+  const selectedStep = React.useMemo(() => {
+    if (steps.length === 0) {
+      // Return a default step if no steps exist
+      return {
+        title: 'Default Step',
+        message: 'Describe the task to be performed.',
+        type: FlowStepType.TASK,
+        dueInMinutes: 60,
+        form: [],
+        links: [],
+        assignment: { assignmentMode: AssignmentMode.CLAIM, targets: null, allowReassignment: true }
+      }
+    }
+
+    // When summary is selected, return step 0 (for compatibility)
+    if (isSummarySelected) {
+      return steps[0]
+    }
+
+    // Return the selected step, or step 0 if index is out of bounds
+    return steps[selectedStepIndex] || steps[0]
+  }, [isSummarySelected, selectedStepIndex, steps])
+
+  // Handler for clicking the summary node
+  const handleSelectSummary = () => {
+    setIsSummarySelected(true)
+  }
+
+  // Handler for clicking a step node
+  const handleSelectStep = (index: number) => {
+    setSelectedStepIndex(index)
+    // Only reset tab to general if switching FROM summary TO step
+    // Otherwise, preserve the current tab when switching between steps
+    if (isSummarySelected) {
+      setActiveTab('general')
+    }
+    setIsSummarySelected(false)
+  }
 
   // Template metadata state
   const [templateName, setTemplateName] = React.useState<string>(initialTemplate?.name || '')
   const [templateDescription, setTemplateDescription] = React.useState<string>(initialTemplate?.description || '')
   const [templateTags, setTemplateTags] = React.useState<FlowTags>(initialTemplate?.tags || {})
+  const [summaryFields, setSummaryFields] = React.useState<any[]>((initialTemplate as any)?.summaryFields || [])
+
+  // Calculate summary fields count from template level
+  const summaryFieldsCount = React.useMemo(() => {
+    return summaryFields.length
+  }, [summaryFields])
 
   // Editing state
   const isEditMode = Boolean(initialTemplate?.id)
@@ -154,6 +200,15 @@ export const FlowDesigner: React.FC<FlowDesignerProps> = ({
     setSelectedStepIndex(i => Math.max(0, i - 1))
   }
 
+  const handleReorderSteps = (fromIndex: number, toIndex: number) => {
+    setSteps(prev => {
+      const newSteps = [...prev]
+      const [draggedStep] = newSteps.splice(fromIndex, 1)
+      newSteps.splice(toIndex, 0, draggedStep)
+      return newSteps
+    })
+  }
+
   // Save handler - implements template ID immutability
   const handleSave = async () => {
     if (!templateName.trim()) {
@@ -165,7 +220,7 @@ export const FlowDesigner: React.FC<FlowDesignerProps> = ({
     setSaveError(null)
 
     try {
-      const templateData: FlowTemplate = {
+      const templateData = {
         // Preserve the existing ID for edits (immutable ID)
         ...(isEditMode && initialTemplate?.id && { id: initialTemplate.id }),
         type: initialTemplate?.type || 'TEMPLATE',
@@ -179,24 +234,24 @@ export const FlowDesigner: React.FC<FlowDesignerProps> = ({
           inputs: step.inputs || step.form || []
         })),
         // Include tags in the template
-        tags: Object.keys(templateTags).length > 0 ? templateTags : undefined
-      }
+        tags: Object.keys(templateTags).length > 0 ? templateTags : undefined,
+        // Include summary fields at template level
+        summaryFields: summaryFields.length > 0 ? summaryFields : undefined
+      } as LocalFlowTemplate
 
       if (onSave) {
-        // Use the provided onSave callback
-        await onSave(templateData)
+        // Use the provided onSave callback (cast to network type)
+        await onSave(templateData as FlowTemplate)
       } else {
-        // Direct API call
+        // Direct API call (cast to network type)
         if (isEditMode && initialTemplate?.id) {
           // Update existing template - ID remains immutable
-          await flowTemplateClient.updateTemplate(initialTemplate.id, templateData)
+          await flowTemplateClient.updateTemplate(initialTemplate.id, templateData as FlowTemplate)
         } else {
-          // Create new template - ID will be derived from name
-          await flowTemplateClient.createTemplate(templateData)
+          // Create new template - ID will be derived from name (cast to network type)
+          await flowTemplateClient.createTemplate(templateData as FlowTemplate)
         }
       }
-
-      console.log(`Template ${isEditMode ? 'updated' : 'created'} successfully`)
     } catch (error) {
       console.error('Error saving template:', error)
       setSaveError(error instanceof Error ? error.message : 'Failed to save template')
@@ -227,17 +282,6 @@ export const FlowDesigner: React.FC<FlowDesignerProps> = ({
                 Cancel
               </Button>
             )}
-            <Button variant="outline" data-testid={`${testId}-add-step`} onClick={addStepBelow}>
-              Add Step
-            </Button>
-            <Button
-              variant="outline"
-              data-testid={`${testId}-remove-step`}
-              onClick={removeSelectedStep}
-              disabled={steps.length <= 1}
-            >
-              Remove Step
-            </Button>
             <Button onClick={handleSave} disabled={isSaving || !templateName.trim()} data-testid={`${testId}-save`}>
               {isSaving ? (
                 <>
@@ -260,13 +304,14 @@ export const FlowDesigner: React.FC<FlowDesignerProps> = ({
           </div>
         )}
 
-        {/* Template Information */}
-        <Card className="gba:mb-6">
-          <CardHeader>
-            <CardTitle>Template Information</CardTitle>
-          </CardHeader>
-          <CardContent>
-            <div className="gba:grid gba:grid-cols-1 md:gba:grid-cols-2 gba:gap-6">
+        {/* Template Information and Tags Row */}
+        <div className="gba:grid gba:grid-cols-1 gba:lg:grid-cols-5 gba:gap-6 gba:mb-6">
+          {/* Template Information Card */}
+          <Card className="gba:lg:col-span-3">
+            <CardHeader>
+              <CardTitle>Template Information</CardTitle>
+            </CardHeader>
+            <CardContent>
               <div className="gba:space-y-4">
                 <div className="gba:space-y-2">
                   <Label htmlFor="template-name" className="gba:flex gba:items-center gba:gap-2">
@@ -296,19 +341,32 @@ export const FlowDesigner: React.FC<FlowDesignerProps> = ({
                   />
                 </div>
               </div>
+            </CardContent>
+          </Card>
 
-              {/* Tag Configuration Section */}
-              <div className="gba:space-y-2">
-                <TagConfiguration
-                  tags={templateTags}
-                  onTagsChange={setTemplateTags}
-                  accessToken={accessToken}
-                  data-testid={`${testId}-tag-configuration`}
-                />
-              </div>
-            </div>
-          </CardContent>
-        </Card>
+          {/* Tags Card */}
+          <Card className="gba:lg:col-span-2">
+            <CardHeader>
+              <CardTitle className="gba:flex gba:items-center gba:gap-2">
+                Tags
+                <div className="gba:group gba:relative">
+                  <Info className="gba:h-4 gba:w-4 gba:text-gray-400 gba:cursor-help" />
+                  <div className="gba:absolute gba:bottom-full gba:left-1/2 gba:transform gba:-translate-x-1/2 gba:mb-2 gba:px-3 gba:py-2 gba:bg-gray-900 gba:text-white gba:text-xs gba:rounded gba:opacity-0 gba:pointer-events-none group-hover:gba:opacity-100 gba:transition-opacity gba:duration-200 gba:z-[100] gba:max-w-xs gba:text-center gba:whitespace-normal">
+                    Tags control template visibility in different parts of the application
+                  </div>
+                </div>
+              </CardTitle>
+            </CardHeader>
+            <CardContent>
+              <TagConfiguration
+                tags={templateTags}
+                onTagsChange={setTemplateTags}
+                accessToken={accessToken}
+                data-testid={`${testId}-tag-configuration`}
+              />
+            </CardContent>
+          </Card>
+        </div>
 
         <div className="gba:grid gba:grid-cols-1 gba:lg:grid-cols-5 gba:gap-6">
           {/* Canvas - 60% width */}
@@ -319,217 +377,302 @@ export const FlowDesigner: React.FC<FlowDesignerProps> = ({
             <CardContent className="gba:h-[calc(75vh-64px)]">
               <FlowRenderer
                 steps={steps}
-                selectedStepIndex={selectedStepIndex}
-                onSelectStep={setSelectedStepIndex}
+                selectedStepIndex={isSummarySelected ? null : selectedStepIndex}
+                onSelectStep={handleSelectStep}
+                onReorderSteps={handleReorderSteps}
+                onSelectSummary={handleSelectSummary}
+                showSummaryNode={true}
+                summaryFieldsCount={summaryFieldsCount}
+                isSummarySelected={isSummarySelected}
                 mode="edit"
                 data-testid={`${testId}-renderer`}
               />
             </CardContent>
           </Card>
 
-          {/* Inspector - 40% width */}
-          <Card className="gba:lg:col-span-2 gba:h-[75vh]">
-            <CardHeader>
-              <CardTitle>Step Configuration</CardTitle>
-            </CardHeader>
-            <CardContent className="gba:h-[calc(75vh-64px)] gba:flex gba:flex-col">
-              <div className="gba:mb-3 gba:flex-none" style={{ color: 'var(--color-text-secondary)' }}>
-                Selected: Step {selectedStepIndex + 1}
-              </div>
-              <Tabs
-                value={activeTab}
-                onValueChange={v => setActiveTab(v as any)}
-                className="gba:flex-1 gba:flex gba:flex-col gba:min-h-0"
-              >
-                <TabsList className="gba:mb-3 gba:flex-none">
-                  <TabsTrigger value="general">General</TabsTrigger>
-                  <TabsTrigger value="form">Form</TabsTrigger>
-                  <TabsTrigger value="assignment">Assignment</TabsTrigger>
-                </TabsList>
-                <div className="gba:flex-1 gba:min-h-0 gba:relative">
-                  <TabsContent value="general" className="gba:absolute gba:inset-0 gba:overflow-auto">
-                    <div className="gba:space-y-4 gba:pr-2 gba:pb-4">
-                      {/* Step Type Configuration */}
-                      <div className="gba:space-y-2">
-                        <Label>Step Type:</Label>
-                        <select
-                          value={selectedStep.type}
-                          onChange={e => updateStep({ type: e.target.value as FlowStepType })}
-                          className="gba:w-full gba:px-3 gba:py-2 gba:border gba:rounded-md"
-                        >
-                          <option value={FlowStepType.TASK}>Task</option>
-                          <option value={FlowStepType.APPROVAL}>Approval</option>
-                          <option value={FlowStepType.INFORMATION}>Information</option>
-                          <option value={FlowStepType.ACKNOWLEDGE}>Acknowledge</option>
-                        </select>
-                      </div>
+          {/* Workflow Summary Configuration Card - 40% width */}
+          {isSummarySelected && (
+            <Card className="gba:lg:col-span-2 gba:h-[75vh]" data-testid="workflow-summary-card">
+              <CardHeader>
+                <CardTitle>Workflow Summary</CardTitle>
+                <CardDescription>Configure fields to display in the workflow summary after completion</CardDescription>
+              </CardHeader>
+              <CardContent className="gba:h-[calc(75vh-80px)] gba:flex gba:flex-col">
+                <div className="gba:flex-1 gba:overflow-auto gba:pr-2 gba:pb-4">
+                  <SummaryFieldsConfiguration
+                    template={
+                      {
+                        type: initialTemplate?.type || 'TEMPLATE',
+                        name: initialTemplate?.name || templateName || 'Untitled',
+                        version: initialTemplate?.version || 1,
+                        description: initialTemplate?.description,
+                        id: initialTemplate?.id,
+                        initStep: initialTemplate?.initStep,
+                        steps: steps,
+                        summaryFields: summaryFields
+                      } as any
+                    }
+                    context={{ accessToken, userInfo }}
+                    testId={`${testId}-summary`}
+                    onUpdateTemplate={updates => {
+                      if (updates.summaryFields !== undefined) {
+                        setSummaryFields(updates.summaryFields)
+                      }
+                    }}
+                  />
+                </div>
+              </CardContent>
+            </Card>
+          )}
 
-                      {/* Step Title */}
-                      <div className="gba:space-y-2">
-                        <Label>Step Title:</Label>
-                        <Input
-                          value={selectedStep.title}
-                          onChange={e => updateStep({ title: e.target.value })}
-                          className="gba:w-full"
+          {/* Step Configuration Card - 40% width */}
+          {!isSummarySelected && (
+            <Card className="gba:lg:col-span-2 gba:h-[75vh]">
+              <CardHeader>
+                <CardTitle>Step Configuration</CardTitle>
+              </CardHeader>
+              <CardContent className="gba:h-[calc(75vh-64px)] gba:flex gba:flex-col">
+                <div className="gba:mb-3 gba:flex gba:items-center gba:justify-between gba:flex-none">
+                  <div style={{ color: 'var(--color-text-secondary)' }}>Selected: Step {selectedStepIndex + 1}</div>
+                  <div className="gba:flex gba:gap-2">
+                    <Button size="sm" variant="outline" data-testid={`${testId}-add-step`} onClick={addStepBelow}>
+                      Add Step
+                    </Button>
+                    <Button
+                      size="sm"
+                      variant="outline"
+                      data-testid={`${testId}-remove-step`}
+                      onClick={removeSelectedStep}
+                      disabled={steps.length <= 1}
+                    >
+                      Remove Step
+                    </Button>
+                  </div>
+                </div>
+
+                <Tabs
+                  value={activeTab}
+                  onValueChange={v => setActiveTab(v as any)}
+                  className="gba:flex-1 gba:flex gba:flex-col gba:min-h-0"
+                >
+                  <TabsList className="gba:mb-3 gba:flex-none">
+                    <TabsTrigger value="general">General</TabsTrigger>
+                    <TabsTrigger value="form">Form</TabsTrigger>
+                    <TabsTrigger value="assignment">Assignment</TabsTrigger>
+                  </TabsList>
+                  <div className="gba:flex-1 gba:min-h-0 gba:relative">
+                    <TabsContent value="general" className="gba:absolute gba:inset-0 gba:overflow-auto">
+                      <div className="gba:space-y-4 gba:pr-2 gba:pb-4">
+                        {/* Step Type Configuration */}
+                        <div className="gba:space-y-2">
+                          <Label>Step Type:</Label>
+                          <select
+                            value={selectedStep.type}
+                            onChange={e => updateStep({ type: e.target.value as FlowStepType })}
+                            className="gba:w-full gba:px-3 gba:py-2 gba:border gba:rounded-md"
+                          >
+                            <option value={FlowStepType.TASK}>Task</option>
+                            <option value={FlowStepType.APPROVAL}>Approval</option>
+                            <option value={FlowStepType.INFORMATION}>Information</option>
+                            <option value={FlowStepType.ACKNOWLEDGE}>Acknowledge</option>
+                          </select>
+                        </div>
+
+                        {/* Step Title */}
+                        <div className="gba:space-y-2">
+                          <Label>Step Title:</Label>
+                          <ExpressionInput
+                            key={`title-${selectedStepIndex}`}
+                            value={selectedStep.title}
+                            onChange={value => updateStep({ title: value })}
+                            mode="auto"
+                            template={{ ...initialTemplate, steps } as any}
+                            stepIndex={selectedStepIndex}
+                            useTreeBuilder={true}
+                            context={{ accessToken, userInfo }}
+                            placeholder="Enter step title..."
+                            data-testid={`${testId}-title-input`}
+                          />
+                        </div>
+
+                        {/* Step Message */}
+                        <div className="gba:space-y-2">
+                          <Label>Message:</Label>
+                          <ExpressionInput
+                            key={`message-${selectedStepIndex}`}
+                            value={selectedStep.message || ''}
+                            onChange={value => updateStep({ message: value })}
+                            mode="auto"
+                            template={{ ...initialTemplate, steps } as any}
+                            stepIndex={selectedStepIndex}
+                            useTreeBuilder={true}
+                            context={{ accessToken, userInfo }}
+                            multiline={true}
+                            rows={4}
+                            placeholder="Enter message..."
+                            data-testid={`${testId}-message-input`}
+                          />
+                        </div>
+
+                        {/* Links */}
+                        <div className="gba:space-y-2">
+                          <LinksTrigger step={selectedStep} testId={`${testId}-links`} onUpdateStep={updateStep} />
+                          <LinksContent step={selectedStep} testId={`${testId}-links`} onUpdateStep={updateStep} />
+                        </div>
+                      </div>
+                    </TabsContent>
+                    <TabsContent value="form" className="gba:absolute gba:inset-0 gba:overflow-auto">
+                      <div className="gba:space-y-2 gba:pr-2 gba:pb-4">
+                        <Label>Form Inputs</Label>
+                        <Separator />
+                        <InputFieldsTrigger step={selectedStep} testId={`${testId}-form`} onUpdateStep={updateStep} />
+                        <InputFieldsContent
+                          step={selectedStep}
+                          stepIndex={selectedStepIndex}
+                          template={
+                            {
+                              ...initialTemplate,
+                              steps: steps // Use live steps state, not initialTemplate.steps
+                            } as any
+                          }
+                          context={{ accessToken, userInfo }}
+                          testId={`${testId}-form`}
+                          onUpdateStep={updateStep}
                         />
                       </div>
-
-                      {/* Step Message */}
-                      <div className="gba:space-y-2">
-                        <Label>Message:</Label>
-                        <Textarea
-                          value={selectedStep.message || ''}
-                          onChange={e => updateStep({ message: e.target.value })}
-                          className="gba:w-full gba:min-h-[100px]"
-                        />
-                      </div>
-
-                      {/* Links */}
-                      <div className="gba:space-y-2">
-                        <LinksTrigger step={selectedStep} testId={`${testId}-links`} onUpdateStep={updateStep} />
-                        <LinksContent step={selectedStep} testId={`${testId}-links`} onUpdateStep={updateStep} />
-                      </div>
-                    </div>
-                  </TabsContent>
-                  <TabsContent value="form" className="gba:absolute gba:inset-0 gba:overflow-auto">
-                    <div className="gba:space-y-2 gba:pr-2 gba:pb-4">
-                      <Label>Form Inputs</Label>
-                      <Separator />
-                      <InputFieldsTrigger step={selectedStep} testId={`${testId}-form`} onUpdateStep={updateStep} />
-                      <InputFieldsContent step={selectedStep} testId={`${testId}-form`} onUpdateStep={updateStep} />
-                    </div>
-                  </TabsContent>
-                  <TabsContent value="assignment" className="gba:absolute gba:inset-0 gba:overflow-auto">
-                    <div className="gba:space-y-4 gba:pr-2 gba:pb-4">
-                      {/* Due Time Configuration */}
-                      <div className="gba:space-y-2">
-                        <Label>Due Time:</Label>
-                        <div className="gba:flex gba:gap-2 gba:items-center">
-                          <Input
-                            type="number"
-                            min="1"
-                            value={(() => {
-                              const minutes = selectedStep.dueInMinutes || 0
-                              if (minutes === 0) return ''
-
-                              // Convert minutes to the appropriate unit for display
-                              if (minutes % (7 * 24 * 60) === 0) return (minutes / (7 * 24 * 60)).toString() // weeks
-                              if (minutes % (24 * 60) === 0) return (minutes / (24 * 60)).toString() // days
-                              if (minutes % 60 === 0) return (minutes / 60).toString() // hours
-                              return minutes.toString() // minutes
-                            })()}
-                            onChange={e => {
-                              const value = parseInt(e.target.value) || 0
-                              const unit = (() => {
+                    </TabsContent>
+                    <TabsContent value="assignment" className="gba:absolute gba:inset-0 gba:overflow-auto">
+                      <div className="gba:space-y-4 gba:pr-2 gba:pb-4">
+                        {/* Due Time Configuration */}
+                        <div className="gba:space-y-2">
+                          <Label>Due Time:</Label>
+                          <div className="gba:flex gba:gap-2 gba:items-center">
+                            <Input
+                              type="number"
+                              min="1"
+                              value={(() => {
                                 const minutes = selectedStep.dueInMinutes || 0
+                                if (minutes === 0) return ''
+
+                                // Convert minutes to the appropriate unit for display
+                                if (minutes % (7 * 24 * 60) === 0) return (minutes / (7 * 24 * 60)).toString() // weeks
+                                if (minutes % (24 * 60) === 0) return (minutes / (24 * 60)).toString() // days
+                                if (minutes % 60 === 0) return (minutes / 60).toString() // hours
+                                return minutes.toString() // minutes
+                              })()}
+                              onChange={e => {
+                                const value = parseInt(e.target.value) || 0
+                                const unit = (() => {
+                                  const minutes = selectedStep.dueInMinutes || 0
+                                  if (minutes % (7 * 24 * 60) === 0) return 'weeks'
+                                  if (minutes % (24 * 60) === 0) return 'days'
+                                  if (minutes % 60 === 0) return 'hours'
+                                  return 'minutes'
+                                })()
+
+                                let totalMinutes = value
+                                if (unit === 'hours') totalMinutes = value * 60
+                                else if (unit === 'days') totalMinutes = value * 24 * 60
+                                else if (unit === 'weeks') totalMinutes = value * 7 * 24 * 60
+
+                                updateStep({ dueInMinutes: totalMinutes || undefined })
+                              }}
+                              placeholder="0"
+                              className="gba:flex-1"
+                            />
+                            <Select
+                              value={(() => {
+                                const minutes = selectedStep.dueInMinutes || 0
+                                if (minutes === 0) return 'minutes'
+
+                                // Determine the best unit based on the current value
                                 if (minutes % (7 * 24 * 60) === 0) return 'weeks'
                                 if (minutes % (24 * 60) === 0) return 'days'
                                 if (minutes % 60 === 0) return 'hours'
                                 return 'minutes'
-                              })()
+                              })()}
+                              onValueChange={unit => {
+                                const currentValue = (() => {
+                                  const minutes = selectedStep.dueInMinutes || 0
+                                  if (minutes === 0) return 1
 
-                              let totalMinutes = value
-                              if (unit === 'hours') totalMinutes = value * 60
-                              else if (unit === 'days') totalMinutes = value * 24 * 60
-                              else if (unit === 'weeks') totalMinutes = value * 7 * 24 * 60
+                                  // Get current display value
+                                  if (minutes % (7 * 24 * 60) === 0) return minutes / (7 * 24 * 60)
+                                  if (minutes % (24 * 60) === 0) return minutes / (24 * 60)
+                                  if (minutes % 60 === 0) return minutes / 60
+                                  return minutes
+                                })()
 
-                              updateStep({ dueInMinutes: totalMinutes || undefined })
-                            }}
-                            placeholder="0"
-                            className="gba:flex-1"
-                          />
-                          <Select
-                            value={(() => {
-                              const minutes = selectedStep.dueInMinutes || 0
-                              if (minutes === 0) return 'minutes'
+                                let totalMinutes = currentValue
+                                if (unit === 'hours') totalMinutes = currentValue * 60
+                                else if (unit === 'days') totalMinutes = currentValue * 24 * 60
+                                else if (unit === 'weeks') totalMinutes = currentValue * 7 * 24 * 60
 
-                              // Determine the best unit based on the current value
-                              if (minutes % (7 * 24 * 60) === 0) return 'weeks'
-                              if (minutes % (24 * 60) === 0) return 'days'
-                              if (minutes % 60 === 0) return 'hours'
-                              return 'minutes'
-                            })()}
-                            onValueChange={unit => {
-                              const currentValue = (() => {
-                                const minutes = selectedStep.dueInMinutes || 0
-                                if (minutes === 0) return 1
-
-                                // Get current display value
-                                if (minutes % (7 * 24 * 60) === 0) return minutes / (7 * 24 * 60)
-                                if (minutes % (24 * 60) === 0) return minutes / (24 * 60)
-                                if (minutes % 60 === 0) return minutes / 60
-                                return minutes
-                              })()
-
-                              let totalMinutes = currentValue
-                              if (unit === 'hours') totalMinutes = currentValue * 60
-                              else if (unit === 'days') totalMinutes = currentValue * 24 * 60
-                              else if (unit === 'weeks') totalMinutes = currentValue * 7 * 24 * 60
-
-                              updateStep({ dueInMinutes: totalMinutes || undefined })
-                            }}
-                          >
-                            <SelectTrigger className="gba:w-24">
-                              <SelectValue />
-                            </SelectTrigger>
-                            <SelectContent>
-                              <SelectItem value="minutes">minutes</SelectItem>
-                              <SelectItem value="hours">hours</SelectItem>
-                              <SelectItem value="days">days</SelectItem>
-                              <SelectItem value="weeks">weeks</SelectItem>
-                            </SelectContent>
-                          </Select>
+                                updateStep({ dueInMinutes: totalMinutes || undefined })
+                              }}
+                            >
+                              <SelectTrigger className="gba:w-24">
+                                <SelectValue />
+                              </SelectTrigger>
+                              <SelectContent>
+                                <SelectItem value="minutes">minutes</SelectItem>
+                                <SelectItem value="hours">hours</SelectItem>
+                                <SelectItem value="days">days</SelectItem>
+                                <SelectItem value="weeks">weeks</SelectItem>
+                              </SelectContent>
+                            </Select>
+                          </div>
+                          {selectedStep.dueInMinutes && (
+                            <p className="gba:text-xs gba:text-gray-500">= {selectedStep.dueInMinutes} minutes total</p>
+                          )}
                         </div>
-                        {selectedStep.dueInMinutes && (
-                          <p className="gba:text-xs gba:text-gray-500">= {selectedStep.dueInMinutes} minutes total</p>
-                        )}
-                      </div>
 
-                      {/* Assignment Mode Selection */}
-                      <div className="gba:space-y-2">
-                        <Label>Assignment Mode:</Label>
-                        <select
-                          value={selectedStep.assignment?.assignmentMode || AssignmentMode.CLAIM}
-                          onChange={e =>
-                            updateStep({
-                              assignment: {
-                                ...selectedStep.assignment,
-                                assignmentMode: e.target.value as AssignmentMode,
-                                targets: null, // Reset targets when mode changes
+                        {/* Assignment Mode Selection */}
+                        <div className="gba:space-y-2">
+                          <Label>Assignment Mode:</Label>
+                          <select
+                            value={selectedStep.assignment?.assignmentMode || AssignmentMode.CLAIM}
+                            onChange={e =>
+                              updateStep({
+                                assignment: {
+                                  ...selectedStep.assignment,
+                                  assignmentMode: e.target.value as AssignmentMode,
+                                  targets: null, // Reset targets when mode changes
+                                  allowReassignment: true
+                                }
+                              })
+                            }
+                            className="gba:w-full gba:px-3 gba:py-2 gba:border gba:rounded-md"
+                          >
+                            <option value={AssignmentMode.CLAIM}>Claim (Users can claim tasks)</option>
+                            <option value={AssignmentMode.ASSIGN}>Assign (Tasks are assigned to specific users)</option>
+                          </select>
+                        </div>
+
+                        {/* Modern Assignment Selector */}
+                        <div className="gba:space-y-2">
+                          <AssignmentSelector
+                            value={
+                              selectedStep.assignment || {
+                                targets: null,
+                                assignmentMode: AssignmentMode.CLAIM,
                                 allowReassignment: true
                               }
-                            })
-                          }
-                          className="gba:w-full gba:px-3 gba:py-2 gba:border gba:rounded-md"
-                        >
-                          <option value={AssignmentMode.CLAIM}>Claim (Users can claim tasks)</option>
-                          <option value={AssignmentMode.ASSIGN}>Assign (Tasks are assigned to specific users)</option>
-                        </select>
-                      </div>
-
-                      {/* Modern Assignment Selector */}
-                      <div className="gba:space-y-2">
-                        <AssignmentSelector
-                          value={
-                            selectedStep.assignment || {
-                              targets: null,
-                              assignmentMode: AssignmentMode.CLAIM,
-                              allowReassignment: true
                             }
-                          }
-                          onChange={assignment => updateStep({ assignment })}
-                          assignmentMode={selectedStep.assignment?.assignmentMode || AssignmentMode.CLAIM}
-                          accessToken={accessToken}
-                          userInfo={userInfo}
-                          data-testid={`${testId}-assignment-selector`}
-                        />
+                            onChange={assignment => updateStep({ assignment })}
+                            assignmentMode={selectedStep.assignment?.assignmentMode || AssignmentMode.CLAIM}
+                            accessToken={accessToken}
+                            userInfo={userInfo}
+                            data-testid={`${testId}-assignment-selector`}
+                          />
+                        </div>
                       </div>
-                    </div>
-                  </TabsContent>
-                </div>
-              </Tabs>
-            </CardContent>
-          </Card>
+                    </TabsContent>
+                  </div>
+                </Tabs>
+              </CardContent>
+            </Card>
+          )}
         </div>
       </div>
     </div>

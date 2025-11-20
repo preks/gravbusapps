@@ -508,11 +508,17 @@ const ExpenseItemsTable: React.FC<ExpenseItemsTableProps> = React.memo(props => 
         }}
         dataFilterProps={{
           filterGroups: useMemo(() => {
+            if (totalCount === 0 && !isLoading) {
+              return []
+            }
             const currencyGroup: DataFilterGroup | null =
               currencyStats.length > 0
                 ? {
                     id: 'currency',
-                    title: getTranslationFromI18nKeyAndLabel('lowcoder:expense_item_list.currency', 'Currency'),
+                    title: getTranslationFromI18nKeyAndLabel(
+                      'lowcoder:create_expense_item.change_expense_item_container.current_currency_label',
+                      'Currency'
+                    ),
                     filters: currencyStats.map(cs => ({
                       id: `currency:${cs.ref}`,
                       label: cs.code,
@@ -521,10 +527,10 @@ const ExpenseItemsTable: React.FC<ExpenseItemsTableProps> = React.memo(props => 
                   }
                 : null
             return currencyGroup ? [currencyGroup, ...filterGroups] : filterGroups
-          }, [currencyStats, filterGroups, allSelectedFilters]),
+          }, [currencyStats, filterGroups, allSelectedFilters, totalCount, isLoading]),
           onFilterChange: handleFilterChange as (filterId: string, selected: boolean) => void
         }}
-        contentBackground="background"
+        contentBackground="white"
         dataBody={
           <div className="">
             <Card data-testid={`${DATA_TEST_ID_PREFIX}-container`}>
@@ -673,7 +679,7 @@ const ExpenseItemsTable: React.FC<ExpenseItemsTableProps> = React.memo(props => 
                                     },
                                     {
                                       includeDetails: true,
-                                      includeAssignToRequest: false
+                                      includeAssignToRequest: true
                                     }
                                   ).map(action => {
                                     // Override the details action onClick to use the table's handleSelectItem
@@ -857,7 +863,9 @@ const ExpenseItemsTable: React.FC<ExpenseItemsTableProps> = React.memo(props => 
                       {`${totalCount} ${getTranslationFromI18nKeyAndLabel('lowcoder:employee_list.flows_button.expense_items', 'Expense Items')}`}
                     </div>
                     <div className="gba:flex gba:items-center gba:space-x-2">
-                      <p className="gba:text-sm gba:font-medium">Rows per page</p>
+                      <p className="gba:text-sm gba:font-medium">
+                        {getTranslationFromI18nKeyAndLabel('lowcoder:personal_expenses.rows_per_page', 'Rows per page')}
+                      </p>
                       <select
                         value={pageSize}
                         onChange={e => handlePaginationChange(1, Number(e.target.value))}

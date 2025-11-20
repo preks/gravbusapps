@@ -1,76 +1,50 @@
 'use client'
 
-import React, { useMemo } from 'react'
+import React from 'react'
 import dayjs from 'dayjs'
 import { Card } from '@newwork/gravity-ui-catalog'
 import { Employee } from '../../hooks/useEmployeeData'
-import { formatPhoneNumber } from '../../utils/formatters'
-import { useGetAcademicTitles } from '../../../../hooks/useGetAcademicTitles'
+import { formatPhoneNumber, formatPhoneNumberWithCountryCode, getTranslatedValue } from '../../utils/formatters'
 import { getTranslationFromI18nKeyAndLabel } from '../../../../../../../common/utils/windowUtils'
 import useEmployeePermissions, { SECTION_KEYS } from '../../hooks/useEmployeePermissions'
-import { AppActionMenu } from '@/components/app-action-menu/AppActionMenu'
+import { AppAction } from '@/components/app-action/AppAction'
 import { FlowContextName } from '@/common/types/FlowRegistryTypes'
-import { PiPencilSimple } from 'react-icons/pi'
-import { UserInfoProps } from '../../../../../../../common/BusinessAppContext'
+import { ScopePermissionCheckResult } from '@/common/hooks/useScopePermissionCheck'
 
 interface DetailsTabProps {
   employee: Employee
   accessToken: string
   employeeId?: string // Optional employeeId override for permissions check
-  userInfo?: UserInfoProps // Current user info
   isSelfView: boolean // Whether user is viewing their own profile
+  employeeRecordHrBackoffice: ScopePermissionCheckResult
 }
 
 /**
  * Details Tab Component
  * Displays detailed personal information about the employee
  */
-const DetailsTab: React.FC<DetailsTabProps> = ({ employee, accessToken, employeeId, isSelfView }) => {
+const DetailsTab: React.FC<DetailsTabProps> = ({
+  employee,
+  accessToken,
+  employeeId,
+  isSelfView,
+  employeeRecordHrBackoffice
+}) => {
   // Remove debug log
   // Use employee ID from props or fallback to employee data
   const employeeIdForPermissions = employeeId || employee?.id
 
   // Check permissions for sections
   const { isSectionVisible } = useEmployeePermissions(employeeIdForPermissions, accessToken)
-  // Fetch academic titles from catalog
-  const { titles: academicTitles, loading: loadingTitles } = useGetAcademicTitles(accessToken)
-
-  // Find the academic titles that match the employee's title references
-  const academicTitleName = useMemo(() => {
-    if (loadingTitles) {
-      return ''
-    }
-
-    if (
-      !employee.academicTitleRef ||
-      !Array.isArray(employee.academicTitleRef) ||
-      employee.academicTitleRef.length === 0 ||
-      academicTitles.length === 0
-    ) {
-      // Return the raw academicTitleRef if it's a string, or join them if it's an array
-      return Array.isArray(employee.academicTitleRef)
-        ? employee.academicTitleRef.join(', ')
-        : employee.academicTitleRef || ''
-    }
-
-    // Find all matching titles by ID in the academicTitles array
-    const matchingTitles = employee.academicTitleRef.map(titleRef => {
-      const match = academicTitles.find(title => title.id === titleRef || title.id.includes(titleRef))
-      return match ? match.value : titleRef
-    })
-
-    // Join all titles with a comma
-    return matchingTitles.join(', ')
-  }, [employee.academicTitleRef, academicTitles, loadingTitles])
 
   const personalData = [
     {
       label: 'Salutation',
-      value: employee.salutation?.value || ''
+      value: employee.salutation?.translations?.[0]?.value || employee.salutation?.value || ''
     },
     {
       label: 'Academic Titles',
-      value: academicTitleName || ''
+      value: employee.academicTitleRef || ''
     },
     {
       label: 'First Name',
@@ -96,22 +70,22 @@ const DetailsTab: React.FC<DetailsTabProps> = ({ employee, accessToken, employee
     },
     {
       label: 'Place of Birth',
-      value: employee.birthPlace?.value || '',
+      value: employee.birthPlace || '',
       sectionKey: SECTION_KEYS.details.personalInfoPrivate
     },
     {
       label: 'Nationality',
-      value: employee.nationality?.translations?.[0]?.value || employee.nationality?.value || '',
+      value: getTranslatedValue(employee.nationality),
       sectionKey: SECTION_KEYS.details.personalInfoPrivate
     },
     {
       label: 'Gender',
-      value: employee.gender?.value || '',
+      value: getTranslatedValue(employee.gender),
       sectionKey: SECTION_KEYS.details.personalInfoPrivate
     },
     {
       label: 'Marital Status',
-      value: employee.maritalStatus?.value || '',
+      value: getTranslatedValue(employee.maritalStatus),
       sectionKey: SECTION_KEYS.details.personalInfoPrivate
     }
   ]
@@ -193,13 +167,13 @@ const DetailsTab: React.FC<DetailsTabProps> = ({ employee, accessToken, employee
     return [
       {
         label: 'Private Phone',
-        value: primaryPhone?.value ? formatPhoneNumber(primaryPhone.value) : '',
-        secondary: secondaryPhone?.value ? formatPhoneNumber(secondaryPhone.value) : undefined
+        value: primaryPhone?.value ? formatPhoneNumberWithCountryCode(primaryPhone.value) : '',
+        secondary: secondaryPhone?.value ? formatPhoneNumberWithCountryCode(secondaryPhone.value) : undefined
       },
       {
         label: 'Private Mobile',
-        value: primaryMobile?.value ? formatPhoneNumber(primaryMobile.value) : '',
-        secondary: secondaryMobile?.value ? formatPhoneNumber(secondaryMobile.value) : undefined
+        value: primaryMobile?.value ? formatPhoneNumberWithCountryCode(primaryMobile.value) : '',
+        secondary: secondaryMobile?.value ? formatPhoneNumberWithCountryCode(secondaryMobile.value) : undefined
       },
       {
         label: 'Private Email',
@@ -212,21 +186,20 @@ const DetailsTab: React.FC<DetailsTabProps> = ({ employee, accessToken, employee
   const privateCommunicationData = getPrivateCommunication()
 
   // Prepare emergency contact data
-  const getEmergencyContact = () => {
-    const emergencyContact = employee.relationship?.find(rel => rel.isEmergencyContact)
 
-    return [
+  const getEmergencyContact = () => {
+    const emergencyContacts = employee.relationship?.filter(rel => rel.isEmergencyContact)
+
+    return emergencyContacts.map(contact => [
       {
         label: 'Contact Name',
-        value: emergencyContact
-          ? `${emergencyContact.firstName || ''} ${emergencyContact.lastName || ''}`.trim() || ''
-          : ''
+        value: emergencyContacts ? `${contact.firstName || ''} ${contact.lastName || ''}`.trim() || '' : ''
       },
       {
         label: 'Phone Number',
-        value: emergencyContact?.phoneNumber ? formatPhoneNumber(emergencyContact.phoneNumber) : ''
+        value: contact?.phoneNumber ? formatPhoneNumber(contact.phoneNumber) : ''
       }
-    ]
+    ])
   }
 
   const emergencyContactData = getEmergencyContact()
@@ -242,6 +215,11 @@ const DetailsTab: React.FC<DetailsTabProps> = ({ employee, accessToken, employee
 
     // If user is viewing their own profile, always show the data
     if (isSelfView) {
+      return value
+    }
+
+    // If viewer belongs to backoffice groups, do not mask
+    if (employeeRecordHrBackoffice.hasPermission) {
       return value
     }
 
@@ -307,20 +285,16 @@ const DetailsTab: React.FC<DetailsTabProps> = ({ employee, accessToken, employee
         >
           <div className="gba:mb-6 gba:border-b gba:border-border gba:pb-2 gba:flex gba:justify-between gba:items-center">
             <h3 className="gba:text-xl gba:font-semibold gba:text-info">Personal Data</h3>
-            {isSelfView && (
-              <AppActionMenu
-                data-testid="personal-data-action-button"
-                contextsArray={[FlowContextName.updateEmployeePersonalData]}
-                externalContextData={{
-                  employeeId: employee?.id
-                }}
-                prefixDataTestId="personal-data-action"
-                accessToken={accessToken}
-                autoExecuteSingleAction={true}
-              >
-                <PiPencilSimple className="gba:cursor-pointer" />
-              </AppActionMenu>
-            )}
+            <AppAction
+              variant="update-secondary"
+              data-testid="personal-data-action-button"
+              contexts={[
+                { context: FlowContextName.updateEmployeePersonalData, contextData: { employeeId: employee?.id } }
+              ]}
+              prefixDataTestId="personal-data-action"
+              accessToken={accessToken}
+              autoExecute={true}
+            />
           </div>
           {/* Personal data with masking already applied in the data definition */}
           {renderDataItems(personalData)}
@@ -334,20 +308,14 @@ const DetailsTab: React.FC<DetailsTabProps> = ({ employee, accessToken, employee
         >
           <div className="gba:mb-6 gba:border-b gba:border-border gba:pb-2 gba:flex gba:justify-between gba:items-center">
             <h3 className="gba:text-xl gba:font-semibold gba:text-info">Address</h3>
-            {isSelfView && (
-              <AppActionMenu
-                data-testid="employee-address-action-button"
-                contextsArray={[FlowContextName.updateEmployeeAddress]}
-                externalContextData={{
-                  employeeId: employee?.id
-                }}
-                prefixDataTestId="employee-address-action"
-                accessToken={accessToken}
-                autoExecuteSingleAction={true}
-              >
-                <PiPencilSimple className="gba:cursor-pointer" />
-              </AppActionMenu>
-            )}
+            <AppAction
+              variant="update-secondary"
+              data-testid="employee-address-action-button"
+              contexts={[{ context: FlowContextName.updateEmployeeAddress, contextData: { employeeId: employee?.id } }]}
+              prefixDataTestId="employee-address-action"
+              accessToken={accessToken}
+              autoExecute={true}
+            />
           </div>
           {renderDataItems(addressData.map(item => ({ ...item, sectionKey: SECTION_KEYS.details.addressPublic })))}
         </Card>
@@ -360,20 +328,16 @@ const DetailsTab: React.FC<DetailsTabProps> = ({ employee, accessToken, employee
         >
           <div className="gba:mb-6 gba:border-b gba:border-border gba:pb-2 gba:flex gba:justify-between gba:items-center">
             <h3 className="gba:text-xl gba:font-semibold gba:text-info">Bank Account</h3>
-            {isSelfView && (
-              <AppActionMenu
-                data-testid="bank-account-action-button"
-                contextsArray={[FlowContextName.updateEmployeeBankAccount]}
-                externalContextData={{
-                  employeeId: employee?.id
-                }}
-                prefixDataTestId="bank-account-action"
-                accessToken={accessToken}
-                autoExecuteSingleAction={true}
-              >
-                <PiPencilSimple className="gba:cursor-pointer" />
-              </AppActionMenu>
-            )}
+            <AppAction
+              variant="update-secondary"
+              data-testid="bank-account-action-button"
+              contexts={[
+                { context: FlowContextName.updateEmployeeBankAccount, contextData: { employeeId: employee?.id } }
+              ]}
+              prefixDataTestId="bank-account-action"
+              accessToken={accessToken}
+              autoExecute={true}
+            />
           </div>
           {renderDataItems(bankAccountData.map(item => ({ ...item, sectionKey: SECTION_KEYS.details.bankAccount })))}
         </Card>
@@ -386,20 +350,16 @@ const DetailsTab: React.FC<DetailsTabProps> = ({ employee, accessToken, employee
         >
           <div className="gba:mb-6 gba:border-b gba:border-border gba:pb-2 gba:flex gba:justify-between gba:items-center">
             <h3 className="gba:text-xl gba:font-semibold gba:text-info">Private Communication</h3>
-            {isSelfView && (
-              <AppActionMenu
-                data-testid="private-communication-action-button"
-                contextsArray={[FlowContextName.updateEmployeeCommunication]}
-                externalContextData={{
-                  employeeId: employee?.id
-                }}
-                prefixDataTestId="private-communication-action"
-                accessToken={accessToken}
-                autoExecuteSingleAction={true}
-              >
-                <PiPencilSimple className="gba:cursor-pointer" />
-              </AppActionMenu>
-            )}
+            <AppAction
+              variant="update-secondary"
+              data-testid="private-communication-action-button"
+              contexts={[
+                { context: FlowContextName.updateEmployeeCommunication, contextData: { employeeId: employee?.id } }
+              ]}
+              prefixDataTestId="private-communication-action"
+              accessToken={accessToken}
+              autoExecute={true}
+            />
           </div>
           {renderDataItems(
             privateCommunicationData.map(item => ({ ...item, sectionKey: SECTION_KEYS.details.contactInfoPrivate }))
@@ -415,10 +375,48 @@ const DetailsTab: React.FC<DetailsTabProps> = ({ employee, accessToken, employee
           <div className="gba:mb-6 gba:border-b gba:border-border gba:pb-2">
             <h3 className="gba:text-xl gba:font-semibold gba:text-info">Emergency Contact</h3>
           </div>
-          {renderDataItems(
-            emergencyContactData.map(item => ({ ...item, sectionKey: SECTION_KEYS.details.relationships }))
-          )}
+          <div className="gba:flex gba:flex-col gba:gap-2">
+            {emergencyContactData.map((items, idx) => (
+              <div key={`emergency-contact-${idx}`}>
+                {renderDataItems(items.map(item => ({ ...item, sectionKey: SECTION_KEYS.details.relationships })))}
+              </div>
+            ))}
+          </div>
         </Card>
+
+        {/* Additional Attributes - moved from Summary tab */}
+        {(() => {
+          const props = employee?.additionalProperties || {}
+          const items = Object.entries(props)
+            .filter(([key]) => key !== 'imported' && key !== 'SAPNumber')
+            .map(([key, value]) => ({
+              label: key.charAt(0).toUpperCase() + key.slice(1),
+              value: value === null || value === undefined ? '' : String(value)
+            }))
+          if (items.length === 0) return null
+          return (
+            <Card
+              variant="outlined"
+              className="gba:border gba:border-border gba:shadow-md gba:hover:shadow-lg gba:transition-all"
+              data-testid="details-section-additional-attributes"
+            >
+              <div className="gba:mb-6 gba:border-b gba:border-border gba:pb-2 gba:flex gba:justify-between gba:items-center">
+                <h3 className="gba:text-xl gba:font-semibold gba:text-info">Additional Attributes</h3>
+                <AppAction
+                  variant="update-secondary"
+                  data-testid="additional-attributes-action-button"
+                  contexts={[
+                    { context: FlowContextName.employeeAdditionalProperties, contextData: { employeeId: employee?.id } }
+                  ]}
+                  prefixDataTestId="additional-attributes-action"
+                  accessToken={accessToken}
+                  autoExecute={true}
+                />
+              </div>
+              {renderDataItems(items)}
+            </Card>
+          )
+        })()}
 
         {/* Payroll Data Card has been moved to EmploymentTab */}
       </div>

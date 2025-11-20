@@ -1,10 +1,7 @@
 import React, { useMemo, useState } from 'react'
 import { BusinessAppContextProps } from '@/common/BusinessAppContext'
 import { RecordLayout, Card, CardHeader, CardTitle, CardContent, Button } from '@newwork/nw-design-system'
-import {
-  DocumentSection,
-  type DocumentItem
-} from '@/common/components/common-relations/record-sections/document-section'
+import { DocumentSection, type DocumentItem } from '@/components/document-section'
 import { SummarySection } from '@/common/components/common-relations/record-sections/summary-section'
 import SectionWrapper from '@/common/components/common-relations/record-sections/section-card/SectionCard'
 import AccountSection from '@/common/components/common-relations/record-sections/account-section/AccountSection'
@@ -617,7 +614,7 @@ const RecordExample: React.FC<BusinessAppContextProps> = context => {
                       activitiesError: null,
                       onReloadActivities: () => {},
                       activitySectionActionProps: {
-                        contextsArray: [FlowContextName.createInvestmentActivity],
+                        contextsArray: [FlowContextName.investmentActivityCreate],
                         externalContextData: { ...entityIds },
                         prefixDataTestId: 'record-example-activities',
                         emptyStateBehavior: 'enable'
