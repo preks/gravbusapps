@@ -93,9 +93,9 @@ export const useGetExpenseDashboard = (
       return
     }
     if (!depsRef.current.filters?.currency) {
-      // Keep loading state until currency is available
-      setIsLoading(true)
+      setStats(null)
       setError(null)
+      setIsLoading(false)
       return
     }
 

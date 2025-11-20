@@ -34,7 +34,10 @@ import { useProspectRejectionReasons } from '@/common/data/investment/hooks/useP
 import type { RejectionReason } from '@/common/data/investment/types/rejectionReasonTypes'
 import ConditionSection from '@/common/components/common-relations/record-sections/condition-section/ConditionSection'
 import InvestmentSection from '@/common/components/common-relations/record-sections/investment-section/InvestmentSection'
-import { OpportunityStageProgression } from './components/OpportunityStageProgression'
+import { OpportunityStageProgression } from '@/common/components/common-relations/record-sections/opportunity-pipeline-section/OpportunityStageProgression'
+import type { OpportunityPipelineContextConfig } from '@/common/components/common-relations/record-sections/opportunity-pipeline-section/types'
+import { getEmployeeName } from '@/common/components/common-relations/record-sections/opportunity-pipeline-section/utils'
+import type { Stage, StageCondition } from '@/components/stage-progression/types'
 import { isOpportunityOpen } from './utils/opportunityStatusUtils'
 import { buildInvestmentFromOpportunity } from './utils/opportunityDataTransformers'
 import AccountSection from '@/common/components/common-relations/record-sections/account-section/AccountSection'
@@ -57,6 +60,7 @@ import {
   useGetIrmDocuments,
   transformInvestmentDocuments
 } from '@/business-apps/irm/common/utils/documentUtils'
+import { useGraphQLClient } from '@/common/network/graphql/useGraphQLClient'
 
 interface OpportunityRecordContentProps extends BusinessAppContextProps {
   opportunityId: string
@@ -104,23 +108,66 @@ const InvestmentOpportunityRecordContent: React.FC<OpportunityRecordContentProps
   }, [])
   const [stageConditionStatuses, setStageConditionStatuses] = useState<any[]>([])
   const [opportunityStages, setOpportunityStages] = useState<any[]>([])
+  const [catalogStageConditions, setCatalogStageConditions] = useState<any[]>([])
   const [loadingStages, setLoadingStages] = useState(false)
   const [stagesError, setStagesError] = useState<string | null>(null)
 
-  // Use new declarative hook for opportunity data
-  const { opportunity: opportunityData, loading, error, refetch } = useInvestmentOpportunity(props, opportunityId)
+  // Helper function to extract IRM stage conditions (reduces cognitive complexity)
+  const extractIrmStageConditions = useCallback(
+    (stageConditionStatuses: any[], stage: Stage): StageCondition[] => {
+      const stageCatalogConditions = catalogStageConditions.filter(
+        catalogCondition => catalogCondition.parentEntryId === stage.id
+      )
+
+      return stageCatalogConditions.map(catalogCondition => {
+        const statusRecord = stageConditionStatuses.find(
+          statusData => statusData.opportunityPipelineStageConditionRef === catalogCondition.id
+        )
+
+        const config = statusRecord?.configSnapshot || catalogCondition.objectValue || {}
+        const checkedType = config.check_type === 'MANUAL' ? 'User' : 'Automated'
+
+        return {
+          id: catalogCondition.id,
+          title: catalogCondition.value || 'Unknown Condition',
+          isCompleted: statusRecord?.completed || false,
+          checkedType: checkedType as 'Automated' | 'User' | 'Manager' | 'Owner',
+          completedBy: statusRecord?.completedByEmployee ? getEmployeeName(statusRecord.completedByEmployee) : null
+        }
+      })
+    },
+    [catalogStageConditions]
+  )
+
+  // IRM-specific configuration for OpportunityStageProgression
+  const irmPipelineConfig: OpportunityPipelineContextConfig = useMemo(
+    () => ({
+      transitionFlowContext: FlowContextName.investmentOpportunityStageTransition,
+      opportunityIdField: 'opportunityId',
+      targetStageRefField: 'targetStageRef',
+      extractStageConditions: extractIrmStageConditions,
+      isTooltipEnabled: isOpportunityOpen
+    }),
+    [extractIrmStageConditions]
+  )
+
+  const { fetchInvestmentOpportunityById } = useGetInvestmentOpportunityById(props)
 
   // Refetch function for process completion events
   const refetchOpportunityData = useCallback(async () => {
-    await refetch()
-  }, [refetch])
-
-  // Extract stageConditionStatuses from opportunityData when it changes
-  useEffect(() => {
-    if (opportunityData?.opportunityStageConditions) {
-      setStageConditionStatuses(opportunityData.opportunityStageConditions)
+    if (!opportunityId || !props.accessToken) return
+    try {
+      const result = await fetchInvestmentOpportunityById(opportunityId)
+      if (result?.opportunity) {
+        setOpportunityData(result.opportunity)
+        if (result.opportunity.opportunityStageConditions) {
+          setStageConditionStatuses(result.opportunity.opportunityStageConditions)
+        }
+      }
+    } catch (err) {
+      console.error('Error refreshing opportunity:', err)
     }
-  }, [opportunityData])
+  }, [opportunityId, props.accessToken, fetchInvestmentOpportunityById])
 
   // Fetch opportunity stages from pipeline childEntries
   const fetchOpportunityStages = useCallback(async () => {
@@ -138,17 +185,50 @@ const InvestmentOpportunityRecordContent: React.FC<OpportunityRecordContentProps
           alternativeCode: entry.alternativeCode
         }))
         setOpportunityStages(stageData)
+
+        // Fetch catalog conditions for all stages
+        await fetchCatalogConditions(stageData.map(s => s.id))
       } else {
         setOpportunityStages([])
+        setCatalogStageConditions([])
       }
     } catch (err) {
       console.error('Error mapping investment opportunity pipeline stages:', err)
       setStagesError(err instanceof Error ? err.message : 'Failed to fetch stages')
       setOpportunityStages([])
+      setCatalogStageConditions([])
     } finally {
       setLoadingStages(false)
     }
   }, [opportunityData?.opportunityPipeline])
+
+  // Fetch opportunity data
+  useEffect(() => {
+    const loadOpportunityData = async () => {
+      if (!opportunityId || !props.accessToken) return
+
+      try {
+        setLoading(true)
+        setError(null)
+        const result = await fetchInvestmentOpportunityById(opportunityId)
+        if (result?.opportunity) {
+          setOpportunityData(result.opportunity)
+          if (result.opportunity.opportunityStageConditions) {
+            setStageConditionStatuses(result.opportunity.opportunityStageConditions)
+          }
+        } else {
+          setError('Opportunity not found')
+        }
+      } catch (err) {
+        console.error('Error fetching opportunity:', err)
+        setError(err instanceof Error ? err.message : 'Failed to load opportunity')
+      } finally {
+        setLoading(false)
+      }
+    }
+
+    loadOpportunityData()
+  }, [opportunityId, props.accessToken, fetchInvestmentOpportunityById])
 
   // Fetch stages when opportunityData is available
   useEffect(() => {
@@ -309,6 +389,7 @@ const InvestmentOpportunityRecordContent: React.FC<OpportunityRecordContentProps
   useProcessCompletion({
     onSuccess: () => {
       refetchOpportunityData()
+      fetchOpportunityStages() // Refetch stages and catalog conditions after stage transition
       loadActivities()
       loadNotes()
       loadTasksAndApprovals()
@@ -635,6 +716,7 @@ const InvestmentOpportunityRecordContent: React.FC<OpportunityRecordContentProps
         accessToken={props.accessToken}
         readonly={isReadonly}
         opportunityStatus={opportunityData?.opportunityStatus?.value}
+        contextConfig={irmPipelineConfig}
       />
     ) : loadingStages ? (
       <div

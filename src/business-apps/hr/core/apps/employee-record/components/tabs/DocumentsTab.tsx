@@ -20,18 +20,16 @@ import { useGraphqlClient } from '@/common/network/graphql/useGraphQLClient'
 import { useFileClient } from '@/common/network/files/useFileClient'
 import { employeeDocumentsQuery, documentTypeCatalogQuery } from '../../queries/documentQueries'
 import { DebouncedInput } from '@/components/data-filter/DebouncedInput'
-import { PiPencilSimple } from 'react-icons/pi'
 import { FlowContextName } from '@/common/types/FlowRegistryTypes'
 import { getTranslationFromI18nKeyAndLabel } from '@/common/utils/windowUtils'
 import { UserInfoProps } from '../../../../../../../common/BusinessAppContext'
-import { AppActionMenu } from '@/components/app-action-menu'
+import { AppAction } from '@/components/app-action/AppAction'
 
 interface DocumentsTabProps {
   employee: Employee
   accessToken: string
   employeeId?: string // Optional employeeId override for permissions check
   userInfo?: UserInfoProps // Current user info for self-view check
-  isSelfView: boolean // Whether user is viewing their own profile
 }
 
 interface EmployeeDocument {
@@ -77,7 +75,7 @@ interface Document {
  * Documents Tab Component
  * Displays documents related to the employee
  */
-const DocumentsTab: React.FC<DocumentsTabProps> = ({ employee, accessToken, isSelfView }) => {
+const DocumentsTab: React.FC<DocumentsTabProps> = ({ employee, accessToken }) => {
   const [documents, setDocuments] = useState<Document[]>([])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
@@ -612,25 +610,19 @@ const DocumentsTab: React.FC<DocumentsTabProps> = ({ employee, accessToken, isSe
             </div>
           </div>
 
-          {isSelfView && (
-            <div>
-              <AppActionMenu
-                data-testid="employee-document-upload-button"
-                contextsArray={[FlowContextName.documentPersonal]}
-                externalContextData={{
-                  employeeId: employee?.id
-                }}
-                prefixDataTestId="employee-document-upload"
-                accessToken={accessToken}
-                autoExecuteSingleAction={true}
-              >
-                <div className="gba:flex gba:items-center gba:gap-2 gba:cursor-pointer">
-                  <PiPencilSimple />
-                  Upload Document
-                </div>
-              </AppActionMenu>
-            </div>
-          )}
+          <AppAction
+            variant="update-primary"
+            data-testid="employee-document-upload-button"
+            contexts={[{ context: FlowContextName.documentPersonal, contextData: { employeeId: employee?.id } }]}
+            prefixDataTestId="employee-document-upload"
+            accessToken={accessToken}
+            autoExecute={true}
+          >
+            {getTranslationFromI18nKeyAndLabel(
+              'lowcoder:employee_profile.employee_tabs.flow_button.upload_document',
+              'Upload Document'
+            )}
+          </AppAction>
         </div>
 
         <Empty description="No documents available" className="gba:py-10" data-testid="empty-documents-state" />
@@ -656,18 +648,14 @@ const DocumentsTab: React.FC<DocumentsTabProps> = ({ employee, accessToken, isSe
 
         {/* Upload button */}
         <div>
-          <AppActionMenu
+          <AppAction
+            variant="update-secondary"
             data-testid="employee-document-upload-button"
-            contextsArray={[FlowContextName.documentPersonal]}
-            externalContextData={{
-              employeeId: employee?.id
-            }}
+            contexts={[{ context: FlowContextName.documentPersonal, contextData: { employeeId: employee?.id } }]}
             prefixDataTestId="employee-document-upload"
             accessToken={accessToken}
-            autoExecuteSingleAction={true}
-          >
-            <PiPencilSimple className="gba:cursor-pointer" />
-          </AppActionMenu>
+            autoExecute={true}
+          />
         </div>
       </div>
 

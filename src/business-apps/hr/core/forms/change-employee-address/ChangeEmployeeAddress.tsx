@@ -280,7 +280,6 @@ const ChangeEmployeeAddressContent: React.FC<BusinessAppContextProps> = ({ acces
                 addresses
               })
             }
-
             return buildUpdatePayload({
               employeeId,
               employeeDocumentId: values.employeeDocumentId || null,

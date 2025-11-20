@@ -17,6 +17,8 @@ import { Typography } from 'antd'
 import { PiFileText, PiFilePdf } from 'react-icons/pi'
 import { PieChart, Pie, Cell, Tooltip, ResponsiveContainer, Legend } from 'recharts'
 import type { DemographicsData } from '../../../../hooks/useDemographicsDataIntegration'
+import { useTranslation } from '@newwork/nw-design-system'
+import hrTranslations from '@/business-apps/hr/core/apps/human-resources/_i18n'
 
 const { Title, Text } = Typography
 
@@ -35,6 +37,7 @@ interface TableData {
 const DemographicsChartsView: React.FC<DemographicsChartsViewProps> = ({ demographicsData, isLoading, dataTestId }) => {
   const [selectedChart, setSelectedChart] = useState<string | null>(null)
   const [exportingTable, setExportingTable] = useState<string | null>(null)
+  const { t } = useTranslation(hrTranslations)
 
   // Chart colors from design system
   const chartColors = [
@@ -102,31 +105,31 @@ const DemographicsChartsView: React.FC<DemographicsChartsViewProps> = ({ demogra
 
   const chartConfigs = [
     {
-      title: 'Gender Distribution',
+      title: t('hr-analytics-gender-distribution'),
       data: genderData,
       tableData: transformData(genderData),
       colors: chartColors,
       testId: 'gender-chart',
-      tag: `${genderData.length} categories`,
-      description: 'Employee distribution by gender identity showing workforce gender composition'
+      tag: t('hr-analytics-categories', { count: genderData.length }),
+      description: t('hr-analytics-gender-description')
     },
     {
-      title: 'Age Distribution',
+      title: t('hr-analytics-age-distribution'),
       data: ageData,
       tableData: transformData(ageData),
       colors: chartColors,
       testId: 'age-chart',
-      tag: `${ageData.length} age groups`,
-      description: 'Employee distribution across age groups showing generational workforce makeup'
+      tag: t('hr-analytics-age-groups', { count: ageData.length }),
+      description: t('hr-analytics-age-description')
     },
     {
-      title: 'Nationality Distribution',
+      title: t('hr-analytics-nationality-distribution'),
       data: nationalityData.slice(0, 8), // Show top 8 nationalities in chart
       tableData: transformData(nationalityData), // Show all in table
       colors: chartColors,
       testId: 'nationality-chart',
-      tag: `Top 8 of ${nationalityData.length} nationalities`,
-      description: 'Employee distribution by nationality showing international workforce diversity'
+      tag: t('hr-analytics-top-8-of-nationalities', { total: nationalityData.length }),
+      description: t('hr-analytics-nationality-description')
     }
   ]
 
@@ -186,7 +189,11 @@ const DemographicsChartsView: React.FC<DemographicsChartsViewProps> = ({ demogra
                   </Badge>
                 </div>
                 <Text className="gba:text-muted-foreground gba:text-sm gba:mt-1">{config.description}</Text>
-                {isSelected && <p className="gba:text-xs gba:text-info gba:mt-1">✓ Selected - Table shown below</p>}
+                {isSelected && (
+                  <p className="gba:text-xs gba:text-info gba:mt-1">
+                    ✓ {t('common-selected')} - {t('hr-analytics-table-shown-below')}
+                  </p>
+                )}
               </CardHeader>
 
               <CardContent>
@@ -209,7 +216,9 @@ const DemographicsChartsView: React.FC<DemographicsChartsViewProps> = ({ demogra
                             <Cell key={`cell-${entryIndex}`} fill={config.colors[entryIndex % config.colors.length]} />
                           ))}
                         </Pie>
-                        <Tooltip formatter={(value: number, name: string) => [`${value} employees`, name]} />
+                        <Tooltip
+                          formatter={(value: number, name: string) => [`${value} ${t('hr-analytics-employees')}`, name]}
+                        />
                         <Legend
                           wrapperStyle={{
                             fontSize: '10px',
@@ -220,7 +229,7 @@ const DemographicsChartsView: React.FC<DemographicsChartsViewProps> = ({ demogra
                     </ResponsiveContainer>
                   ) : (
                     <div className="gba:h-full gba:flex gba:items-center gba:justify-center">
-                      <p className="gba:text-muted-foreground gba:text-sm">No data available</p>
+                      <p className="gba:text-muted-foreground gba:text-sm">{t('hr-analytics-no-data')}</p>
                     </div>
                   )}
                 </div>
@@ -236,9 +245,9 @@ const DemographicsChartsView: React.FC<DemographicsChartsViewProps> = ({ demogra
           <CardHeader>
             <div className="gba:flex gba:justify-between gba:items-center">
               <div className="gba:flex gba:items-center gba:gap-2">
-                <CardTitle className="gba:text-xl">Data Table: {selectedConfig.title}</CardTitle>
+                <CardTitle className="gba:text-xl">{t('hr-analytics-data-table', { title: selectedConfig.title })}</CardTitle>
                 <Badge variant="outline" className="gba:bg-success-secondary gba:text-success-secondary-foreground">
-                  {selectedConfig.tableData.length} entries
+                  {t('hr-analytics-total-entries', { count: selectedConfig.tableData.length })}
                 </Badge>
               </div>
               <div className="gba:flex gba:gap-2">
@@ -254,7 +263,7 @@ const DemographicsChartsView: React.FC<DemographicsChartsViewProps> = ({ demogra
                   className="gba:flex gba:items-center gba:gap-1"
                 >
                   <PiFileText className="gba:w-3 gba:h-3" />
-                  Export Excel
+                  {t('common-export-excel')}
                 </Button>
 
                 <Button
@@ -269,7 +278,7 @@ const DemographicsChartsView: React.FC<DemographicsChartsViewProps> = ({ demogra
                   className="gba:flex gba:items-center gba:gap-1"
                 >
                   <PiFilePdf className="gba:w-3 gba:h-3" />
-                  Export PDF
+                  {t('common-export-pdf')}
                 </Button>
               </div>
             </div>
@@ -281,9 +290,9 @@ const DemographicsChartsView: React.FC<DemographicsChartsViewProps> = ({ demogra
               <Table>
                 <TableHeader>
                   <TableRow>
-                    <TableHead className="gba:w-2/5">{selectedConfig.title.split(' ')[0]}</TableHead>
-                    <TableHead className="gba:w-1/5">Count</TableHead>
-                    <TableHead className="gba:w-2/5">Percentage</TableHead>
+                    <TableHead className="gba:w-2/5">{t('common-category')}</TableHead>
+                    <TableHead className="gba:w-1/5">{t('hr-analytics-employee-count')}</TableHead>
+                    <TableHead className="gba:w-2/5">{t('hr-analytics-percentage')}</TableHead>
                   </TableRow>
                 </TableHeader>
                 <TableBody>
@@ -305,10 +314,12 @@ const DemographicsChartsView: React.FC<DemographicsChartsViewProps> = ({ demogra
             {/* Summary */}
             <div className="gba:mt-4 gba:p-3 gba:bg-muted gba:rounded-md gba:flex gba:justify-between gba:items-center">
               <span className="gba:font-medium gba:text-sm">
-                Total: {selectedConfig.tableData.reduce((sum, item) => sum + item.value, 0).toLocaleString()} employees
+                {t('hr-analytics-total-label')}:{' '}
+                {selectedConfig.tableData.reduce((sum, item) => sum + item.value, 0).toLocaleString()}{' '}
+                {t('hr-analytics-employees')}
               </span>
               <span className="gba:text-sm gba:text-muted-foreground">
-                {selectedConfig.tableData.length} categories
+                {t('hr-analytics-categories', { count: selectedConfig.tableData.length })}
               </span>
             </div>
           </CardContent>
@@ -318,7 +329,7 @@ const DemographicsChartsView: React.FC<DemographicsChartsViewProps> = ({ demogra
       {/* Help Text */}
       {!selectedConfig && (
         <div className="gba:text-center gba:py-8">
-          <p className="gba:text-muted-foreground">Click on any chart above to view its detailed data table</p>
+          <p className="gba:text-muted-foreground">{t('hr-analytics-click-to-view-table')}</p>
         </div>
       )}
     </div>

@@ -6,6 +6,9 @@ export { InvestmentPopup as default } from './InvestmentPopup'
 export { InvestmentTileComponent } from './components/InvestmentTileComponent'
 export { InvestmentExitComponent } from './components/InvestmentExitComponent'
 export { InvestmentStatusComponent } from './components/InvestmentStatusComponent'
+export { InvestmentLiquidityComponent } from './components/InvestmentLiquidityComponent'
+export { InvestmentPpmForecastComponent } from './components/InvestmentPpmForecastComponent'
+export { InvestmentKpiComponent } from './components/InvestmentKpiComponent'
 
 // Types and constants
 export {
@@ -15,9 +18,17 @@ export {
   type InvestmentTileComponentProps,
   type InvestmentExitComponentProps,
   type InvestmentStatusComponentProps,
+  type InvestmentLiquidityComponentProps,
+  type InvestmentPpmForecastComponentProps,
+  type InvestmentKpiComponentProps,
   type TileFormData,
   type ExitFormData,
   type StatusFormData,
+  type LiquidityFormData,
+  type LiquidityPreferenceItem,
+  type PpmForecastFormData,
+  type PpmForecastItem,
+  type KpiFormData,
   type InvestmentTiles
 } from './types'
 

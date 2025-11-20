@@ -2,6 +2,8 @@ import { useState, useEffect, useCallback, useRef } from 'react'
 import dayjs from 'dayjs'
 import { useGraphqlClient } from '@/common/network/graphql/useGraphQLClient'
 import { getEmployeeTenureDataQuery } from '../queries/getEmployeeTenureData'
+import { useTranslation } from '@newwork/nw-design-system'
+import hrTranslations from '@/business-apps/hr/core/apps/human-resources/_i18n'
 
 /**
  * GraphQL response type for employee tenure data query
@@ -37,6 +39,7 @@ export const useAverageTenure = (accessToken: string) => {
   const [loading, setLoading] = useState<boolean>(true)
   const [error, setError] = useState<Error | null>(null)
   const isMounted = useRef<boolean>(true)
+  const { t } = useTranslation(hrTranslations)
 
   // Get GraphQL client using the project's pattern
   const graphQLClient = useGraphqlClient(accessToken)
@@ -63,12 +66,12 @@ export const useAverageTenure = (accessToken: string) => {
 
     // If less than a year, show months only
     if (years === 0) {
-      return `${months} ${months === 1 ? 'month' : 'months'}`
+      return `${months} ${months === 1 ? t('hr-analytics-month-singular') : t('hr-analytics-months-plural')}`
     }
 
     // For more than a year, show years with decimal point
     const decimalMonths = Math.round((months / 12) * 10) / 10
-    return `${years + decimalMonths} yrs`
+    return `${years + decimalMonths} ${t('hr-analytics-years-abbr')}`
   }
 
   /**
@@ -111,7 +114,7 @@ export const useAverageTenure = (accessToken: string) => {
 
         if (isMounted.current) {
           setAverageTenure({ years: 0, months: 0 })
-          setFormattedTenure('0 months')
+          setFormattedTenure(`0 ${t('hr-analytics-months-plural')}`)
           setEmployeeCount(0)
           setError(null)
           setLoading(false)

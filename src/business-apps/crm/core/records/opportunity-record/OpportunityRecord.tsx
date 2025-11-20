@@ -15,7 +15,10 @@ import { getOpportunityStatusBadgeVariant } from '@/common/utils/badgeUtils'
 import { useAiSummary } from './hooks/useAiSummary'
 import { AiActions, AiAction } from '@/common/components/common-relations/record-sections/header-section/ai-actions'
 import { AppActionButton } from '@/components/app-action-button/AppActionButton'
-import { OpportunityStageProgression } from './components/OpportunityStageProgression'
+import { OpportunityStageProgression } from '@/common/components/common-relations/record-sections/opportunity-pipeline-section/OpportunityStageProgression'
+import type { OpportunityPipelineContextConfig } from '@/common/components/common-relations/record-sections/opportunity-pipeline-section/types'
+import { getEmployeeName } from '@/common/components/common-relations/record-sections/opportunity-pipeline-section/utils'
+import type { Stage, StageCondition } from '@/components/stage-progression/types'
 import { FlowContextName } from '@/common/types/FlowRegistryTypes'
 import { HomeView } from './views/home-view/HomeView'
 import { DocumentView } from './views/document-view'
@@ -70,17 +73,13 @@ const OpportunityRecordContent: React.FC<OpportunityRecordContentProps> = ({
   const { opportunity: opportunityData, loading, error, refetch } = useCustomerOpportunity(props, opportunityId)
   const {
     pipelineStages: opportunityStages,
+    catalogStageConditions,
     loadingPipelineStages: loadingStages,
     errorPipelineStages: stagesError
-  } = useSalesPipelineStages(opportunityData?.opportunityPipelineRef, props.accessToken)
-
-  // Refetch function for process completion events
-  const refetchOpportunityData = useCallback(async () => {
-    await refetch()
-  }, [refetch])
+  } = useSalesPipelineStages(opportunityData?.salesPipelineRef, props.accessToken)
 
   // Extract stageConditionStatuses from opportunityData
-  const stageConditionStatuses = opportunityData?.opportunityStageConditions || []
+  const stageConditionStatuses = opportunityData?.stageConditionStatuses || []
 
   // AI Summary hook for HeaderSection
   const aiSummaryHook = useAiSummary(opportunityId, props.accessToken)
@@ -164,7 +163,7 @@ const OpportunityRecordContent: React.FC<OpportunityRecordContentProps> = ({
 
   useProcessCompletion({
     onSuccess: () => {
-      refetchOpportunityData()
+      refetch()
       loadActivities()
       loadNotes()
       loadTasksAndApprovals()
@@ -359,7 +358,7 @@ const OpportunityRecordContent: React.FC<OpportunityRecordContentProps> = ({
           opportunityVersion={opportunityData?.version}
           accessToken={props.accessToken}
           stageConditionStatuses={stageConditionStatuses}
-          onStageUpdate={refetchOpportunityData}
+          onStageUpdate={refetch}
         />
       )
     }
@@ -424,7 +423,7 @@ const OpportunityRecordContent: React.FC<OpportunityRecordContentProps> = ({
     opportunityData?.version,
     stageConditionStatuses,
     props.accessToken,
-    refetchOpportunityData,
+    refetch,
     opportunityData?.opportunityStatus?.value
   ])
 
@@ -528,7 +527,7 @@ const OpportunityRecordContent: React.FC<OpportunityRecordContentProps> = ({
           opportunityVersion={statusUpdatePopup.opportunityVersion}
           opportunityName={statusUpdatePopup.opportunityName}
           onSuccess={() => {
-            refetchOpportunityData()
+            refetch()
             setStatusUpdatePopup({ open: false })
           }}
           onError={() => {

@@ -7,9 +7,8 @@ import { BusinessAppContextProps } from '@/common/BusinessAppContext'
 import { getCurrentActiveUserLocale, getTranslationFromI18nKeyAndLabel } from '@/common/utils/windowUtils'
 import { useTimeTrackingData } from './hooks/useTimeTrackingData'
 import { TimeEntriesTable } from './components/TimeEntriesTable'
-import AppActionMenu from '@/components/app-action-menu/AppActionMenu'
+import { AppAction } from '@/components/app-action/AppAction'
 import { FlowContextName } from '@/common/types/FlowRegistryTypes'
-import { PiPencilSimple } from 'react-icons/pi'
 
 interface TimeTrackingTabProps extends BusinessAppContextProps {
   employee: any
@@ -88,25 +87,24 @@ const TimeTrackingTab: React.FC<TimeTrackingTabProps> = ({ employee, accessToken
           >
             {getTranslationFromI18nKeyAndLabel('lowcoder:time_tracking.actions.clock_out', 'Clock Out')}
           </Button>
-          <AppActionMenu
+          <AppAction
+            variant="update-primary"
             data-testid="employee-update-employee-attendance-correction-request"
-            contextsArray={[FlowContextName.employeeAttendanceCorrectionRequest]}
-            externalContextData={{
-              employeeId: employeeId
-            }}
+            contexts={[
+              {
+                context: FlowContextName.employeeAttendanceCorrectionRequest,
+                contextData: { employeeId: employee?.id }
+              }
+            ]}
             prefixDataTestId="employee-attendance-correction-request"
+            autoExecute={true}
             accessToken={accessToken}
-            autoExecuteSingleAction={true}
-            deferMainContextRequestsUntilClick={true}
           >
-            <div className="gba:flex gba:items-center gba:gap-2 gba:cursor-pointer">
-              <PiPencilSimple />
-              {getTranslationFromI18nKeyAndLabel(
-                'lowcoder:time_tracking.actions.request_correction',
-                'Request Correction'
-              )}
-            </div>
-          </AppActionMenu>
+            {getTranslationFromI18nKeyAndLabel(
+              'lowcoder:time_tracking.actions.request_correction',
+              'Request Correction'
+            )}
+          </AppAction>
         </div>
       </div>
 
@@ -197,7 +195,14 @@ const TimeTrackingTab: React.FC<TimeTrackingTabProps> = ({ employee, accessToken
           </div>
         </div>
 
-        <TimeEntriesTable entries={entries} locale={locale} pageSize={pageSize} onPageSizeChange={setPageSize} />
+        <TimeEntriesTable
+          entries={entries}
+          locale={locale}
+          pageSize={pageSize}
+          onPageSizeChange={setPageSize}
+          accessToken={accessToken}
+          employeeId={employeeId}
+        />
       </Card>
 
       {/* Request Correction handled by AppActionMenu flow */}

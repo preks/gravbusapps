@@ -1,10 +1,10 @@
 import React from 'react'
 import { Spin, Typography, Empty } from 'antd'
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer } from 'recharts'
-import { Card } from '@newwork/nw-design-system'
+import { Card, useTranslation } from '@newwork/nw-design-system'
 import { useYearlyPayroll } from '../../../../../hooks/useYearlyPayroll'
 import { BusinessAppContextProps } from '@/business-apps/types'
-import { getTranslationFromI18nKeyAndLabel } from '@/common/utils/windowUtils'
+import hrTranslations from '@/business-apps/hr/core/apps/human-resources/_i18n'
 
 const { Text } = Typography
 
@@ -14,6 +14,7 @@ const { Text } = Typography
 const YearlyPayrollChart: React.FC<BusinessAppContextProps> = ({ accessToken }) => {
   // Fetch yearly payroll data
   const { data, loading, error } = useYearlyPayroll(accessToken)
+  const { t } = useTranslation(hrTranslations)
 
   console.log('[YearlyPayrollChart] Rendering chart with data:', data)
 
@@ -47,12 +48,7 @@ const YearlyPayrollChart: React.FC<BusinessAppContextProps> = ({ accessToken }) 
     return (
       <Card className="gba:w-full gba:mb-6" data-testid="hr-analytics-yearly-payroll-chart-error">
         <div className="gba:flex gba:flex-col gba:items-center gba:justify-center gba:h-64">
-          <Text className="gba:text-destructive">
-            {getTranslationFromI18nKeyAndLabel(
-              'hr_analytics_yearly_payroll_error',
-              'Error loading yearly payroll data'
-            )}
-          </Text>
+          <Text className="gba:text-destructive">{t('hr-analytics-yearly-payroll-error')}</Text>
         </div>
       </Card>
     )
@@ -63,12 +59,7 @@ const YearlyPayrollChart: React.FC<BusinessAppContextProps> = ({ accessToken }) 
     return (
       <Card className="gba:w-full gba:mb-6" data-testid="hr-analytics-yearly-payroll-chart-empty">
         <div className="gba:flex gba:flex-col gba:items-center gba:justify-center gba:h-64">
-          <Empty
-            description={getTranslationFromI18nKeyAndLabel(
-              'hr_analytics_yearly_payroll_no_data',
-              'No yearly payroll data available'
-            )}
-          />
+          <Empty description={t('hr-analytics-yearly-payroll-no-data')} />
         </div>
       </Card>
     )
@@ -79,13 +70,10 @@ const YearlyPayrollChart: React.FC<BusinessAppContextProps> = ({ accessToken }) 
       {/* Header */}
       <div className="gba:mb-4">
         <h3 className="gba:text-lg gba:font-semibold gba:text-foreground gba:m-0">
-          {getTranslationFromI18nKeyAndLabel('hr_analytics_yearly_payroll_chart_title', 'Total Payroll by Year')}
+          {t('hr-analytics-yearly-payroll-chart-title')}
         </h3>
         <p className="gba:text-muted-foreground gba:text-sm gba:mt-1">
-          {getTranslationFromI18nKeyAndLabel(
-            'hr_analytics_yearly_payroll_description',
-            'Annual payroll expenditure trends showing total compensation costs across the organization'
-          )}
+          {t('hr-analytics-yearly-payroll-description')}
         </p>
       </div>
 
@@ -101,12 +89,12 @@ const YearlyPayrollChart: React.FC<BusinessAppContextProps> = ({ accessToken }) 
             }}
           >
             <CartesianGrid strokeDasharray="3 3" />
-            <XAxis dataKey="year" name="Year" />
-            <YAxis name="Total Payroll" tickFormatter={tooltipFormatter} />
-            <Tooltip formatter={tooltipFormatter} labelFormatter={label => `Year: ${label}`} />
+            <XAxis dataKey="year" name={t('hr-analytics-chart-year')} />
+            <YAxis name={t('hr-analytics-total-payroll')} tickFormatter={tooltipFormatter} />
+            <Tooltip formatter={tooltipFormatter} labelFormatter={label => `${t('hr-analytics-chart-year')}: ${label}`} />
             <Legend />
             <Bar
-              name={getTranslationFromI18nKeyAndLabel('hr_analytics_total_payroll', 'Total Payroll')}
+              name={t('hr-analytics-total-payroll')}
               dataKey="totalPayroll"
               fill="var(--nw-chart-3)"
               barSize={38}

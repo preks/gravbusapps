@@ -81,8 +81,12 @@ const ExpensePlansTable: React.FC<ExpensePlansTableProps> = React.memo(props => 
 
   // Track if any filters are active to show conditional messages
   const hasActiveFilters = useMemo(() => {
+    // When there's no data, don't show active filters
+    if (totalCount === 0 && !isLoading) {
+      return false
+    }
     return search || selectedFilters.length > 0
-  }, [search, selectedFilters])
+  }, [search, selectedFilters, totalCount, isLoading])
 
   // Server-side sorting state - managed by parent component
   // Remove local sorting state as it should be managed by parent
@@ -380,7 +384,7 @@ const ExpensePlansTable: React.FC<ExpensePlansTableProps> = React.memo(props => 
                   </TableRow>
                 </TableHeader>
                 <TableBody>
-                  {!isLoading && (!plans || plans.length === 0) ? (
+                  {!isLoading && totalCount === 0 && (!plans || plans.length === 0) ? (
                     <TableRow>
                       <TableCell colSpan={9} className="gba:py-8 gba:text-center">
                         <div className="gba:text-gray-500">
@@ -808,7 +812,7 @@ const ExpensePlansTable: React.FC<ExpensePlansTableProps> = React.memo(props => 
         dataControllerProps={{
           search: props.search,
           setSearch: props.onSearchChange,
-          filter: props.selectedFilters,
+          filter: totalCount === 0 && !isLoading ? [] : props.selectedFilters,
           setFilter: props.setFilters,
           filterLabelMap: useMemo(() => {
             const currencyLabelMap: Record<string, string> = {}
@@ -833,6 +837,10 @@ const ExpensePlansTable: React.FC<ExpensePlansTableProps> = React.memo(props => 
         }}
         dataFilterProps={{
           filterGroups: useMemo(() => {
+            // Hide filters when there's no data
+            if (totalCount === 0 && !isLoading) {
+              return []
+            }
             const currencyFilters =
               props.currencyStats?.map(cs => ({
                 id: `currency:${cs.ref}`,
@@ -853,7 +861,7 @@ const ExpensePlansTable: React.FC<ExpensePlansTableProps> = React.memo(props => 
                   ]
                 : []
             return [...currencyGroup, ...props.filterGroups]
-          }, [props.filterGroups, props.selectedFilters, (props as any).currencyStats]),
+          }, [props.filterGroups, props.selectedFilters, (props as any).currencyStats, totalCount, isLoading]),
           onFilterChange: props.handleFilterChange
         }}
         hideFilter={false}

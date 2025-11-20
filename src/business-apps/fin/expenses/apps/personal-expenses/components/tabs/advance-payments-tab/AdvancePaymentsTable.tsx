@@ -96,13 +96,17 @@ const AdvancePaymentsTable = React.forwardRef<HTMLDivElement, AdvancePaymentsTab
 
   // Track if any filters are active to show conditional messages
   const hasActiveFilters = useMemo(() => {
+    // When there's no data, don't show active filters
+    if (totalCount === 0 && !isLoading) {
+      return false
+    }
     return (
       searchText ||
       currentStatusFilter.length > 0 ||
       (currentAmountRange && (currentAmountRange.min !== undefined || currentAmountRange.max !== undefined)) ||
       (currentAdvanceRange && (currentAdvanceRange.min !== undefined || currentAdvanceRange.max !== undefined))
     )
-  }, [searchText, currentStatusFilter, currentAmountRange, currentAdvanceRange])
+  }, [searchText, currentStatusFilter, currentAmountRange, currentAdvanceRange, totalCount, isLoading])
 
   // Build fetch parameters
   const fetchParams = useMemo(
@@ -408,7 +412,7 @@ const AdvancePaymentsTable = React.forwardRef<HTMLDivElement, AdvancePaymentsTab
                   </TableRow>
                 </TableHeader>
                 <TableBody>
-                  {!isLoading && (!items || items.length === 0) ? (
+                  {!isLoading && totalCount === 0 && (!items || items.length === 0) ? (
                     <TableRow>
                       <TableCell colSpan={7} className="gba:py-8 gba:text-center">
                         <div className="gba:text-gray-500">
@@ -729,7 +733,7 @@ const AdvancePaymentsTable = React.forwardRef<HTMLDivElement, AdvancePaymentsTab
   const dataControllerProps = useMemo(
     () => ({
       search: searchText,
-      filter: props.selectedFilters || currentStatusFilter,
+      filter: totalCount === 0 && !isLoading ? [] : props.selectedFilters || currentStatusFilter,
       setSearch: handleSearchChange,
       setFilter: (newFilters: any) => {
         // Handle filter changes
@@ -760,12 +764,16 @@ const AdvancePaymentsTable = React.forwardRef<HTMLDivElement, AdvancePaymentsTab
       props.onFilterChange,
       handleAddAdvancePayment,
       totalCount,
+      isLoading,
       filterLabelMap,
       currencyLabelMap
     ]
   )
 
   const currencyAugmentedFilterGroups = useMemo(() => {
+    if (totalCount === 0 && !isLoading) {
+      return []
+    }
     const currencyGroup =
       currencyStats.length > 0
         ? [
@@ -785,7 +793,7 @@ const AdvancePaymentsTable = React.forwardRef<HTMLDivElement, AdvancePaymentsTab
           ]
         : []
     return [...currencyGroup, ...filterGroups]
-  }, [currencyStats, filterGroups, props.selectedFilters])
+  }, [currencyStats, filterGroups, props.selectedFilters, totalCount, isLoading])
 
   const dataFilterProps = useMemo(
     () => ({
@@ -806,7 +814,7 @@ const AdvancePaymentsTable = React.forwardRef<HTMLDivElement, AdvancePaymentsTab
         dataFilterProps={dataFilterProps}
         hideFilter={false}
         dataBody={renderDataBody()}
-        contentBackground="background"
+        contentBackground="white"
         addLeftPaddingWhenNoFilter={true}
       />
 

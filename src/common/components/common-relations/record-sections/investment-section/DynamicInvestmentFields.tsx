@@ -80,7 +80,14 @@ const resolvePrefixSuffix = (prefixSuffix: any, investmentData: any): string => 
 // Helper function to get nested property value using dot notation
 const getNestedProperty = (obj: any, path: string): any => {
   return path.split('.').reduce((current, key) => {
-    return current && current[key] !== undefined ? current[key] : null
+    if (!current) return null
+
+    // If current value is an array, take the first element
+    if (Array.isArray(current) && current.length > 0) {
+      current = current[0]
+    }
+
+    return current[key] !== undefined ? current[key] : null
   }, obj)
 }
 
@@ -157,9 +164,6 @@ const DynamicInvestmentFields: React.FC<DynamicInvestmentFieldsProps> = ({ inves
           validTypeId ? fetchCatalogEntryById(validTypeId).catch(() => null) : Promise.resolve(null)
         ])
 
-        // Priority: Type's referenceFields, fallback to Group's referenceFields
-        let fields: any[] = []
-
         // Handle objectValue - it might be a JSON string that needs parsing
         let typeObjectValue: any = null
         let groupObjectValue: any = null
@@ -184,9 +188,38 @@ const DynamicInvestmentFields: React.FC<DynamicInvestmentFieldsProps> = ({ inves
           }
         }
 
-        if (typeObjectValue?.referenceFields) {
+        // Priority-based field resolution:
+        // 1. Try formFields from Type (for Account/Contact/Investment records)
+        // 2. Fallback to formFields from Group
+        // 3. Fallback to referenceFields from Type (for Lead/Opportunity records)
+        // 4. Final fallback to referenceFields from Group
+        let fields: any[] = []
+
+        // Priority 1: Try formFields from Type
+        if (typeObjectValue?.formFields && Array.isArray(typeObjectValue.formFields)) {
+          const flattenedTypeFields = typeObjectValue.formFields.flatMap((fieldGroup: any) => fieldGroup.fields || [])
+          const recordFields = flattenedTypeFields.filter((field: any) => field.record === true)
+          if (recordFields.length > 0) {
+            fields = recordFields
+          }
+        }
+
+        // Priority 2: Fallback to formFields from Group
+        if (fields.length === 0 && groupObjectValue?.formFields && Array.isArray(groupObjectValue.formFields)) {
+          const flattenedGroupFields = groupObjectValue.formFields.flatMap((fieldGroup: any) => fieldGroup.fields || [])
+          const recordFields = flattenedGroupFields.filter((field: any) => field.record === true)
+          if (recordFields.length > 0) {
+            fields = recordFields
+          }
+        }
+
+        // Priority 3: Fallback to referenceFields from Type
+        if (fields.length === 0 && typeObjectValue?.referenceFields) {
           fields = typeObjectValue.referenceFields
-        } else if (groupObjectValue?.referenceFields) {
+        }
+
+        // Priority 4: Final fallback to referenceFields from Group
+        if (fields.length === 0 && groupObjectValue?.referenceFields) {
           fields = groupObjectValue.referenceFields
         }
 
@@ -207,7 +240,42 @@ const DynamicInvestmentFields: React.FC<DynamicInvestmentFieldsProps> = ({ inves
     return referenceFields.map(field => {
       const fieldName = field.property || field.name
       const fieldType = field.type || 'text'
-      const fieldValue = investmentData?.[fieldName]
+
+      // Strip "investment." prefix from field paths (but not "equityInvestment." or other entity prefixes)
+      const cleanFieldName =
+        fieldName.startsWith('investment.') && !fieldName.startsWith('equityInvestment.')
+          ? fieldName.replace('investment.', '')
+          : fieldName
+
+      // Use getNestedProperty for dot notation (like "equityInvestment.marketValue")
+      // Use direct property access for flat properties (like "totalInvestmentAmount")
+      let fieldValue = cleanFieldName.includes('.')
+        ? getNestedProperty(investmentData, cleanFieldName)
+        : investmentData?.[cleanFieldName]
+
+      // For catalog fields: We now get both the expanded object and the Ref string from GraphQL
+      // Priority: expanded catalog object (with .value) > Ref string > fallback
+      if (fieldType.toUpperCase().startsWith('CATALOG_')) {
+        // If we have an expanded catalog object, keep it (it will have .value, .code, etc.)
+        if (fieldValue && typeof fieldValue === 'object' && !Array.isArray(fieldValue)) {
+          // Already have the expanded catalog object, great!
+        }
+        // If we got a string reference ID or null/undefined, try the Ref field
+        else {
+          const refFieldName = cleanFieldName.includes('.')
+            ? cleanFieldName.replace(/\.([^.]+)$/, '.$1Ref') // "realEstateInvestment.sizeMeasurementUnit" -> "realEstateInvestment.sizeMeasurementUnitRef"
+            : `${cleanFieldName}Ref` // "currency" -> "currencyRef"
+
+          const refValue = refFieldName.includes('.')
+            ? getNestedProperty(investmentData, refFieldName)
+            : investmentData?.[refFieldName]
+
+          // Only use the Ref value if we don't already have the expanded object
+          if (refValue !== null && refValue !== undefined) {
+            fieldValue = refValue
+          }
+        }
+      }
 
       let formattedValue: string
 
