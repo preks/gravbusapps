@@ -274,6 +274,11 @@ const ConfigureDayType: React.FC<ConfigureDayTypeProps> = ({
     return `${dateString}T00:00:00.000Z`
   }
 
+  // Helper function to convert empty strings to null
+  const toNullIfEmpty = (value: string | undefined | null): string | null => {
+    return value === '' || value === undefined ? null : value
+  }
+
   const handleSaveChanges = async (data: DayTypeConfigFormData) => {
     try {
       setLoading(true)
@@ -286,13 +291,13 @@ const ConfigureDayType: React.FC<ConfigureDayTypeProps> = ({
         dayTypeVersion: {
           ...(isUpdate ? { id: currentDayTypeVersion.id, version: currentDayTypeVersion.version } : {}),
           dayType: data.dayType,
-          breakType: data.breakRule,
-          incrementType: data.incrementType,
-          roundingRule: data.roundingRule,
-          color: data.color,
+          breakType: toNullIfEmpty(data.breakRule),
+          incrementType: toNullIfEmpty(data.incrementType),
+          roundingRule: toNullIfEmpty(data.roundingRule),
+          color: toNullIfEmpty(data.color),
           activeVersion: data.activeVersion,
           activeFrom: convertDateToInstant(data.activeFrom),
-          activeTo: convertDateToInstant(data.activeTo)
+          activeTo: toNullIfEmpty(convertDateToInstant(data.activeTo))
         }
       }
 
@@ -357,7 +362,7 @@ const ConfigureDayType: React.FC<ConfigureDayTypeProps> = ({
           <div>
             <h1 className="gba:text-2xl gba:font-semibold gba:leading-none gba:tracking-tight">
               {currentDayTypeVersion?.id && currentDayTypeVersion.id !== ''
-                ? `${getTranslationFromI18nKeyAndLabel('master-data:hr.time_attendance.day_type_versions.configure_day_type_version', 'Configure Day Type Version')}: ${currentDayTypeVersion.dayType?.code || currentDayTypeVersion.id}`
+                ? `${getTranslationFromI18nKeyAndLabel('master-data:hr.time_attendance.day_type_versions.configure_day_type_version', 'Configure Day Type Version')}: ${currentDayTypeVersion.activeVersion || currentDayTypeVersion.id}`
                 : getTranslationFromI18nKeyAndLabel(
                     'master-data:hr.time_attendance.day_type_versions.create_day_type_version',
                     'Create Day Type Version Configuration'
