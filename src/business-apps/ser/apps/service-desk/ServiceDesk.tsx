@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react'
 import { BusinessAppContextProps } from '@/common/BusinessAppContext'
 import { getTranslationFromI18nKeyAndLabel } from '@/common/utils/windowUtils'
 import { useFeature } from '@/common/hooks/useFeature'
+import { Feature } from '@/common/types/constants/FeatureHub'
 import type { StepReceiver } from '../../../packages/services-plus-core/src'
 import { Dashboard } from './components/dashboard'
 import { Tickets } from './components/Tickets'
@@ -57,8 +58,8 @@ const ServiceDesk: React.FC<ServiceDeskProps> = ({ accessToken, userInfo, deskKe
   const resolvedDeskKey = deskKey || ticketTabFromUrl || ''
   const resolvedTicketId = ticketId || ticketIdFromUrl || null
 
-  // Feature flag guard - default to enabled for development
-  const servicesFeature = useFeature<boolean>('SERVICES_PLUS_ENABLED')
+  // Feature flag guard - check if Services module is enabled
+  const servicesFeature = useFeature(Feature.Services.Enabled.Key)
   const isServicesEnabled = servicesFeature !== false // true if undefined (development) or true
 
   // Submenu and tab state management with URL parameter support

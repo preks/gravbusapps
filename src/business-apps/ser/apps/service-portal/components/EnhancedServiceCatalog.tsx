@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react'
 import { BusinessAppContextProps } from '@/common/BusinessAppContext'
-import { useServicesFeatureFlag } from '../../../utils/featureFlags'
+import { useFeature } from '@/common/hooks/useFeature'
+import { Feature } from '@/common/types/constants/FeatureHub'
 import {
   createConductorWorkflowEngine,
   employeeOnboardingServiceTemplate,
@@ -41,7 +42,10 @@ export const EnhancedServiceCatalog: React.FC<EnhancedServiceCatalogProps> = ({
   onServiceDeskClick,
   ...contextProps
 }) => {
-  const { isEnabled } = useServicesFeatureFlag()
+  // Feature flag check - Services module enabled
+  const servicesFeature = useFeature(Feature.Services.Enabled.Key)
+  const isEnabled = servicesFeature !== false // true if undefined (development) or true
+
   const [searchTerm, setSearchTerm] = useState('')
   const [selectedCategory, setSelectedCategory] = useState<string>('all')
   const [isStartingRequest, setIsStartingRequest] = useState(false)
@@ -212,7 +216,7 @@ export const EnhancedServiceCatalog: React.FC<EnhancedServiceCatalogProps> = ({
                   <h3 className="gba:text-lg gba:font-semibold gba:text-gray-900">
                     {employeeOnboardingServiceTemplate.title}
                   </h3>
-                  <Badge color="blue" text="Integrated with Custom Flow Engine" />
+                  <Badge status="processing" text="Integrated with Custom Flow Engine" />
                 </div>
               </div>
 
@@ -324,7 +328,7 @@ export const EnhancedServiceCatalog: React.FC<EnhancedServiceCatalogProps> = ({
 
                   <p className="gba:text-sm gba:text-gray-600 gba:mb-4">{category.description}</p>
 
-                  {category.id === 'hr' && <Badge color="blue" text="Employee Onboarding Available" />}
+                  {category.id === 'hr' && <Badge status="processing" text="Employee Onboarding Available" />}
                 </div>
                 <RightOutlined className="gba:text-gray-400 gba:ml-2" />
               </div>

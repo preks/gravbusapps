@@ -5,6 +5,7 @@ Employee-facing catalog of predefined service requests for Services+ platform.
 ## Structure
 
 ### Apps
+
 - **ServicePortal** - Single unified app with internal navigation for:
   - Service Catalog (browse categories and templates)
   - Service Detail (view templates within a category)
@@ -12,10 +13,12 @@ Employee-facing catalog of predefined service requests for Services+ platform.
   - My Requests (list and timeline view of user's requests)
 
 ### Components
+
 - **ServicesLayout** - Top-level layout using nw-design-system shell with feature flag protection
 
 ### Features
-- ✅ SERVICES_PLUS_ENABLED feature flag integration with redirect
+
+- ✅ `services.enabled` feature flag integration (`Feature.Services.Enabled.Key`)
 - ✅ nw-design-system components and styling
 - ✅ Service category catalog with search
 - ✅ Dynamic form generation (placeholder - TODO: implement JSON schema forms)
@@ -23,18 +26,22 @@ Employee-facing catalog of predefined service requests for Services+ platform.
 - ✅ Responsive design with proper data-testid attributes
 
 ### Dependencies
+
 - `@newwork/services-plus-core` - Core types and WorkflowEngine interface
 - `@newwork/services-plus-seed` - Service categories seed data
 - `@newwork/nw-design-system` - UI components and layout
 
 ### Internal Navigation
+
 The Service Portal handles internal routing between views:
+
 - **Catalog** - Browse service categories
 - **Service Detail** - View services within a category
 - **Request Form** - Fill out and submit service requests
 - **My Requests** - Track submitted requests with timeline
 
 ### TODO Items
+
 - [ ] Implement MockWorkflowEngineAdapter
 - [ ] JSON Schema form generation for RequestForm
 - [ ] Real service template loading from API
@@ -63,6 +70,7 @@ import { ServicePortal } from '@/business-apps/ser';
 ```
 
 ### User Experience Flow
+
 1. **Browse** → User sees service categories
 2. **Explore** → User clicks category to see available services
 3. **Select** → User chooses specific service to request
