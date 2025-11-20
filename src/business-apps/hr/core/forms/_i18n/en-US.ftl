@@ -30,3 +30,9 @@ adjust-salary-frequency-hourly = Hourly
 adjust-salary-current-salary = Current Salary
 adjust-salary-calculation-breakdown = Salary Adjustment Summary
 
+# Common Actions
+action-cancel = Cancel
+action-submit = Submit
+action-select-placeholder = Please Select
+action-enter-placeholder = Please Enter
+

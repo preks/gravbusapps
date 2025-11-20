@@ -30,3 +30,9 @@ adjust-salary-frequency-hourly = Stündlich
 adjust-salary-current-salary = Aktuelles Gehalt
 adjust-salary-calculation-breakdown = Gehaltsanpassung Zusammenfassung
 
+# Common Actions
+action-cancel = Abbrechen
+action-submit = Einreichen
+action-select-placeholder = Bitte auswählen
+action-enter-placeholder = Bitte eingeben
+

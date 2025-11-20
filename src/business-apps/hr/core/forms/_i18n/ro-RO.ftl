@@ -30,3 +30,9 @@ adjust-salary-frequency-hourly = Pe oră
 adjust-salary-current-salary = Salariu curent
 adjust-salary-calculation-breakdown = Rezumat ajustare salariu
 
+# Common Actions
+action-cancel = Anulează
+action-submit = Trimite
+action-select-placeholder = Vă rugăm să selectați
+action-enter-placeholder = Vă rugăm să introduceți
+
