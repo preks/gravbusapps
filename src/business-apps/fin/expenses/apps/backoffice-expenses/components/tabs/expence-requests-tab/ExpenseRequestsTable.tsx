@@ -227,29 +227,31 @@ const ExpenseRequestsTable: React.FC<ExpenseRequestsTableProps> = props => {
     return found?.name || ''
   }, [organizationalUnits, departmentId])
 
-  const selectedFilters: string[] = useMemo(
-    () => [
-      ...(statusFilter.length > 0 ? ['status'] : []),
+  const selectedFilters: string[] = useMemo(() => {
+    const hasNonDefaultStatusFilter =
+      statusFilter.length > 0 && !(statusFilter.length === 1 && statusFilter[0] === ExpenseStatus.BOOKED)
+
+    return [
+      ...(hasNonDefaultStatusFilter ? ['status'] : []),
       ...(employeeFilter ? ['employee'] : []),
       ...(amountMinFilter || amountMaxFilter ? ['amount'] : []),
       ...(departmentId ? ['department'] : []),
       ...(currencyRef ? ['currency'] : []),
       ...(startFrom || startTo ? ['startDate'] : []),
       ...(endFrom || endTo ? ['endDate'] : [])
-    ],
-    [
-      statusFilter,
-      employeeFilter,
-      amountMinFilter,
-      amountMaxFilter,
-      departmentId,
-      currencyRef,
-      startFrom,
-      startTo,
-      endFrom,
-      endTo
     ]
-  )
+  }, [
+    statusFilter,
+    employeeFilter,
+    amountMinFilter,
+    amountMaxFilter,
+    departmentId,
+    currencyRef,
+    startFrom,
+    startTo,
+    endFrom,
+    endTo
+  ])
 
   const hasActiveFilters = useMemo(() => {
     const hasSearch = (searchText || '').trim() !== ''
