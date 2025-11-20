@@ -11,7 +11,7 @@ import {
 import { useWatch } from 'react-hook-form'
 import type { Control, Path } from 'react-hook-form'
 import type { AdjustEmployeeSalaryFormValues } from '../types'
-import translations from '../../../apps/employee-record/_i18n'
+import translations from '../../_i18n'
 
 interface SalaryCalculatorInputsProps {
   control: Control<AdjustEmployeeSalaryFormValues>
@@ -51,7 +51,7 @@ const SalaryCalculatorInputs: React.FC<SalaryCalculatorInputsProps> = ({ control
           validate: (value: string | number | null, formValues: AdjustEmployeeSalaryFormValues) => {
             // Only validate if this field has a value (not disabled)
             if (value !== null && value !== undefined && value !== '') {
-              const numValue = typeof value === 'string' ? parseFloat(value) : value
+              const numValue = typeof value === 'string' ? Number.parseFloat(value) : value
               if (typeof numValue === 'number' && (Number.isNaN(numValue) || numValue <= 0)) {
                 return t('adjust-salary-adjustment-value-positive')
               }
@@ -81,8 +81,12 @@ const SalaryCalculatorInputs: React.FC<SalaryCalculatorInputsProps> = ({ control
                 value={field.value ?? ''}
                 onChange={e => {
                   const val = e.target.value
-                  const parsed = parseFloat(val)
-                  const newValue = val === '' ? null : Number.isNaN(parsed) ? null : parsed
+                  if (val === '') {
+                    field.onChange(null)
+                    return
+                  }
+                  const parsed = Number.parseFloat(val)
+                  const newValue = Number.isNaN(parsed) ? null : parsed
                   field.onChange(newValue)
                 }}
                 placeholder={placeholderEnter}
@@ -102,7 +106,7 @@ const SalaryCalculatorInputs: React.FC<SalaryCalculatorInputsProps> = ({ control
           validate: (value: string | number | null, formValues: AdjustEmployeeSalaryFormValues) => {
             // Only validate if this field has a value (not disabled)
             if (value !== null && value !== undefined && value !== '') {
-              const numValue = typeof value === 'string' ? parseFloat(value) : value
+              const numValue = typeof value === 'string' ? Number.parseFloat(value) : value
               if (typeof numValue === 'number' && (Number.isNaN(numValue) || numValue <= 0)) {
                 return t('adjust-salary-adjustment-value-positive')
               }
@@ -132,8 +136,12 @@ const SalaryCalculatorInputs: React.FC<SalaryCalculatorInputsProps> = ({ control
                 value={field.value ?? ''}
                 onChange={e => {
                   const val = e.target.value
-                  const parsed = parseFloat(val)
-                  const newValue = val === '' ? null : Number.isNaN(parsed) ? null : parsed
+                  if (val === '') {
+                    field.onChange(null)
+                    return
+                  }
+                  const parsed = Number.parseFloat(val)
+                  const newValue = Number.isNaN(parsed) ? null : parsed
                   field.onChange(newValue)
                 }}
                 placeholder={placeholderEnter}

@@ -48,31 +48,6 @@ export const calculateNewSalary = (
 }
 
 /**
- * Format currency for display
- * @param amount - Amount to format
- * @param currencyCode - Currency code (e.g., 'EUR', 'USD')
- * @param locale - Locale string (e.g., 'en-US', 'de-DE')
- * @param options - Additional Intl.NumberFormat options
- * @returns Formatted currency string
- */
-export const formatCurrencyDisplay = (
-  amount: number,
-  currencyCode: string,
-  locale: string,
-  options?: {
-    minimumFractionDigits?: number
-    maximumFractionDigits?: number
-  }
-): string => {
-  return new Intl.NumberFormat(locale, {
-    style: 'currency',
-    currency: currencyCode,
-    minimumFractionDigits: options?.minimumFractionDigits ?? 0,
-    maximumFractionDigits: options?.maximumFractionDigits ?? 2
-  }).format(amount)
-}
-
-/**
  * Convert salary to annual equivalent
  * ⚠️ Returns null for hourly (cannot convert - hours vary)
  * @param salary - Salary amount

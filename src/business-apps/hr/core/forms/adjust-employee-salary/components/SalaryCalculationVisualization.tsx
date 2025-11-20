@@ -8,7 +8,7 @@ import {
   calculateAmountFromPercentage
 } from '../utils/salaryCalculator'
 import { calculateMonthlyFromYearly } from '../../../apps/employee-record/components/tabs/compensation/utils/salaryCalculations'
-import translations from '../../../apps/employee-record/_i18n'
+import translations from '../../_i18n'
 
 interface SalaryCalculationVisualizationProps {
   currentSalaryAnnual: number

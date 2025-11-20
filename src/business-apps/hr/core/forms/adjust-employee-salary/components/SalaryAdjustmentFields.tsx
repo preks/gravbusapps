@@ -16,7 +16,7 @@ import {
 } from '@newwork/nw-design-system'
 import type { Control, Path } from 'react-hook-form'
 import type { AdjustEmployeeSalaryFormValues } from '../types'
-import translations from '../../../apps/employee-record/_i18n'
+import translations from '../../_i18n'
 
 interface SalaryAdjustmentFieldsProps {
   control: Control<AdjustEmployeeSalaryFormValues>
@@ -54,7 +54,7 @@ const SalaryAdjustmentFields: React.FC<SalaryAdjustmentFieldsProps> = ({ control
                   type="date"
                   value={(field.value as string) || ''}
                   onChange={(v: string | [string | null, string | null] | null) => {
-                    const value = typeof v === 'string' ? v : v === null ? '' : ''
+                    const value = typeof v === 'string' ? v : ''
                     field.onChange(value)
                   }}
                   placeholder={placeholderSelect}
