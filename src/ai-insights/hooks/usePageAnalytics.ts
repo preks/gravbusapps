@@ -25,6 +25,7 @@
 import { useState, useCallback, useRef } from 'react'
 import { openAiInsightsChatOnce, prepareCurrentPageContext, resetAnalyticsSentFlag } from '../send/page-analytics'
 import { AnalyticsContext } from '../types/analytics-context'
+import { useGraphQLClient } from '@/common/network/graphql/useGraphQLClient'
 
 interface UsePageAnalyticsParams {
   entity: { type: string; id: string; name?: string }
@@ -68,6 +69,7 @@ export function usePageAnalytics(params: UsePageAnalyticsParams): UsePageAnalyti
   const { entity, accessToken, currency, sessionId } = params
   const [analyticsCollected, setAnalyticsCollected] = useState(false)
   const analyticsRef = useRef<AnalyticsContext | null>(null)
+  const graphqlClient = useGraphQLClient(accessToken)
 
   const collectAnalytics = useCallback(async (): Promise<AnalyticsContext | null> => {
     if (analyticsRef.current) {
@@ -81,7 +83,7 @@ export function usePageAnalytics(params: UsePageAnalyticsParams): UsePageAnalyti
           route: window.location.pathname
         },
         entity,
-        accessToken,
+        graphqlClient,
         sessionId,
         currency
       })
@@ -96,7 +98,7 @@ export function usePageAnalytics(params: UsePageAnalyticsParams): UsePageAnalyti
     }
 
     return null
-  }, [entity, accessToken, sessionId, currency])
+  }, [entity, graphqlClient, sessionId, currency])
 
   const getPageAnalyticsContext = useCallback(
     async (currentPage: {

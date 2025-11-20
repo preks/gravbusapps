@@ -14,87 +14,17 @@ import {
   AnalyticsLink,
   AnalyticsRawSnapshot
 } from '../types/analytics-context'
-import { BusinessAppContextProps } from '@/common/BusinessAppContext'
-import { graphQLClient } from '@/common/network/graphql/GraphQLClient'
+import type { GraphQLClient } from '@/common/network/graphql/GraphQLClient'
 import { GET_INVESTMENT_BY_ID } from '@/common/data/investment/queries/investmentQueries'
-
-type Nullable<T> = T | null | undefined
-
-function limitArray<T>(items: Nullable<T[]>, limit: number): T[] {
-  if (!Array.isArray(items) || items.length === 0) {
-    return []
-  }
-  return items.slice(0, Math.max(0, limit))
-}
-
-function compactRecord(record: Record<string, unknown>): Record<string, unknown> {
-  return Object.entries(record).reduce<Record<string, unknown>>((acc, [key, value]) => {
-    if (value === undefined || value === null) {
-      return acc
-    }
-    if (Array.isArray(value) && value.length === 0) {
-      return acc
-    }
-    if (
-      typeof value === 'object' &&
-      !Array.isArray(value) &&
-      Object.keys(value as Record<string, unknown>).length === 0
-    ) {
-      return acc
-    }
-    acc[key] = value
-    return acc
-  }, {})
-}
-
-function isEmptyObject(value: unknown): boolean {
-  return (
-    !!value &&
-    typeof value === 'object' &&
-    !Array.isArray(value) &&
-    Object.keys(value as Record<string, unknown>).length === 0
-  )
-}
-
-function normalizePhone(value: Nullable<string>): string | undefined {
-  if (!value) return undefined
-  const trimmed = value.trim()
-  return trimmed.length > 0 ? trimmed : undefined
-}
-
-function normalizeEmail(value: Nullable<string>): string | undefined {
-  if (!value) return undefined
-  const trimmed = value.trim().toLowerCase()
-  return trimmed.length > 0 ? trimmed : undefined
-}
-
-function buildContactFromOwner(
-  owner?: Nullable<{ id?: string; displayName?: string; employeePosition?: any }>
-): AnalyticsContact | null {
-  if (!owner?.id) return null
-  const jobTitle = owner.employeePosition?.jobPosition?.name
-  return {
-    id: owner.id,
-    name: owner.displayName || undefined,
-    relation: 'ownerEmployee',
-    role: jobTitle || undefined,
-    type: 'employee'
-  }
-}
-
-function buildContactFromAccountOwner(
-  owner?: Nullable<{ id?: string; displayName?: string; employeePosition?: any }>
-): AnalyticsContact | null {
-  if (!owner?.id) return null
-  const jobTitle = owner.employeePosition?.jobPosition?.name
-  return {
-    id: owner.id,
-    name: owner.displayName || undefined,
-    relation: 'accountOwner',
-    role: jobTitle || undefined,
-    type: 'employee'
-  }
-}
+import {
+  buildContactFromAccountOwner,
+  buildContactFromOwner,
+  compactRecord,
+  isEmptyObject,
+  limitArray,
+  normalizeEmail,
+  normalizePhone
+} from './collectorUtils'
 
 function buildContactsFromAccount(account: any): AnalyticsContact[] {
   if (!account) return []
@@ -293,7 +223,7 @@ function buildRawSnapshot(investment: any, currency: string): AnalyticsRawSnapsh
   }
 
   if (Array.isArray(investment.equityInvestment) && investment.equityInvestment.length > 0) {
-    raw.equityInvestment = limitArray(investment.equityInvestment, 3).map(item =>
+    raw.equityInvestment = limitArray(investment.equityInvestment, 3).map((item: any) =>
       compactRecord({
         id: item.id,
         marketValue: item.marketValue,
@@ -335,14 +265,13 @@ function toFixedNumber(value: number, fractionDigits = 2): number {
 
 async function buildInvestmentAnalytics(params: {
   entity: { type: string; id: string; name?: string }
-  accessToken: string
+  graphqlClient: GraphQLClient
   currency?: string
 }): Promise<AnalyticsHeaderContext> {
-  const { entity, accessToken, currency: currencyHint } = params
+  const { entity, graphqlClient, currency: currencyHint } = params
 
-  graphQLClient.setAccessToken(accessToken)
   const query = GET_INVESTMENT_BY_ID(entity.id)
-  const result = await graphQLClient.request<any>(query)
+  const result = await graphqlClient.request<any>(query)
   const investment = result?.Investment?.[0]
 
   if (!investment) {
@@ -481,7 +410,7 @@ async function buildInvestmentAnalytics(params: {
 
 export async function buildAnalyticsHeader(params: {
   entity: { type: string; id: string; name?: string }
-  accessToken: string
+  graphqlClient: GraphQLClient
   currency?: string
 }): Promise<AnalyticsContext> {
   const { entity } = params
@@ -510,16 +439,4 @@ export async function buildAnalyticsHeader(params: {
     console.error(`Error building analytics header for ${entity.type}:`, error)
     throw error
   }
-}
-
-export async function buildAnalyticsHeaderFromContext(
-  context: BusinessAppContextProps,
-  entity: { type: string; id: string; name?: string },
-  currency?: string
-): Promise<AnalyticsContext> {
-  return buildAnalyticsHeader({
-    entity,
-    accessToken: context.accessToken,
-    currency
-  })
 }

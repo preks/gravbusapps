@@ -16,19 +16,7 @@ import { TrendingUp, Home, BarChart3 } from 'lucide-react'
 import { createHeaderMeta, getTypeSpecificDetailGroups } from './utils/investmentHeaderConfig'
 import { createInvestmentTabsConfig } from './utils/investmentTabConfig'
 import { InvestmentRecordAnalyticsChat } from '@/ai-insights/components/InvestmentRecordAnalyticsChat'
-
-// Helper to extract currency code (same as in buildAnalyticsHeader)
-function extractCurrencyCode(currencyId?: string | { value?: string } | null): string {
-  if (!currencyId) return 'EUR'
-  if (typeof currencyId === 'string') {
-    const parts = currencyId.split(':')
-    return parts[parts.length - 1] || 'EUR'
-  }
-  if (typeof currencyId === 'object' && currencyId.value) {
-    return extractCurrencyCode(currencyId.value)
-  }
-  return 'EUR'
-}
+import { extractCurrencyCode } from '@/common/utils/numberFormatter'
 
 type InvestmentRecordProps = BusinessAppContextProps
 

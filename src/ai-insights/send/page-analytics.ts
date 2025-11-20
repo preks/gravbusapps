@@ -7,6 +7,7 @@
 
 import { AnalyticsContext, AnalyticsHeaderContext } from '../types/analytics-context'
 import { buildAnalyticsHeader } from '../collectors/buildAnalyticsHeader'
+import type { GraphQLClient } from '@/common/network/graphql/GraphQLClient'
 
 // Track if analytics have been sent for current session
 // Reset when session_id changes
@@ -100,11 +101,15 @@ export function resetAnalyticsSentFlag(sessionId?: string) {
 export async function openAiInsightsChatOnce(params: {
   currentPage: { url: string; route: string; view?: string }
   entity: { type: string; id: string; name?: string }
-  accessToken: string
+  /**
+   * GraphQL client configured with a valid access token.
+   * Obtain via useGraphQLClient(accessToken) in React components.
+   */
+  graphqlClient: GraphQLClient
   sessionId?: string
   currency?: string
 }): Promise<{ page_analytics?: AnalyticsContext }> {
-  const { entity, accessToken, sessionId, currency } = params
+  const { entity, graphqlClient, sessionId, currency } = params
 
   // Reset flag if session changed
   if (sessionId) {
@@ -118,7 +123,7 @@ export async function openAiInsightsChatOnce(params: {
     try {
       const rawHeader = await buildAnalyticsHeader({
         entity,
-        accessToken,
+        graphqlClient,
         currency
       })
       // Cap analytics to 6 KB limit

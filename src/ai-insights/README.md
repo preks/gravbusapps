@@ -59,13 +59,22 @@ function InvestmentRecordChat({ investmentId, investmentName, accessToken }) {
 ### Manual Collection
 
 ```tsx
+import { useGraphQLClient } from '@/common/network/graphql/useGraphQLClient'
 import { buildAnalyticsHeader } from '@/ai-insights/collectors/buildAnalyticsHeader'
 
-const analytics = await buildAnalyticsHeader({
-  entity: { type: 'investment', id: '123', name: 'My Investment' },
-  accessToken: '...',
-  currency: 'EUR'
-})
+function useManualAnalytics(accessToken: string) {
+  const graphqlClient = useGraphQLClient(accessToken)
+
+  const collect = async () => {
+    return buildAnalyticsHeader({
+      entity: { type: 'investment', id: '123', name: 'My Investment' },
+      graphqlClient,
+      currency: 'EUR'
+    })
+  }
+
+  return collect
+}
 ```
 
 ## Data Structure

@@ -6,6 +6,7 @@
 import React, { useState, useRef, useEffect } from 'react'
 import { Card, CardContent, Button, Input } from '@newwork/nw-design-system'
 import { Send, X } from 'lucide-react'
+import { useTranslation } from 'react-i18next'
 import { env } from '@/common/env/EnvUtils'
 import { useRestClient } from '@/common/network/rest/useRestClient'
 import { usePageAnalytics } from '../hooks/usePageAnalytics'
@@ -27,6 +28,7 @@ export const InvestmentRecordAnalyticsChat: React.FC<InvestmentRecordAnalyticsCh
   accessToken,
   currency = 'EUR'
 }) => {
+  const { t } = useTranslation('ai-insights')
   const [message, setMessage] = useState('')
   const [conversation, setConversation] = useState<Array<{ side: 'user' | 'agent'; text: string; timestamp: Date }>>([])
   const [isLoading, setIsLoading] = useState(false)
@@ -89,8 +91,7 @@ export const InvestmentRecordAnalyticsChat: React.FC<InvestmentRecordAnalyticsCh
         headers: {
           Authorization: `Bearer ${accessToken}`,
           Accept: 'text/event-stream'
-        },
-        body: form
+        }
       })
       let accumulatedResponse = ''
       let newSessionId = sessionId
@@ -131,7 +132,8 @@ export const InvestmentRecordAnalyticsChat: React.FC<InvestmentRecordAnalyticsCh
       }
 
       // Add agent response
-      const responseText = accumulatedResponse || 'The service returned an empty response.'
+      const responseText =
+        accumulatedResponse || t('analyticsAssistant.emptyResponse', 'The service returned an empty response.')
       setConversation(prev => [...prev, { side: 'agent', text: responseText, timestamp: new Date() }])
     } catch (error) {
       console.error('Error calling AI agent:', error)
@@ -139,7 +141,7 @@ export const InvestmentRecordAnalyticsChat: React.FC<InvestmentRecordAnalyticsCh
         ...prev,
         {
           side: 'agent',
-          text: 'Failed to get a response from the service. Please try again later.',
+          text: t('analyticsAssistant.error', 'Failed to get a response from the service. Please try again later.'),
           timestamp: new Date()
         }
       ])
@@ -153,11 +155,13 @@ export const InvestmentRecordAnalyticsChat: React.FC<InvestmentRecordAnalyticsCh
     setSessionId('')
   }
 
+  const loadingLabel = t('analyticsAssistant.sending', 'Sending…')
+
   return (
     <Card className="gba:mb-4" data-testid="investment-record-analytics-chat">
       <CardContent className="gba:p-4">
         <div className="gba:flex gba:items-center gba:justify-between gba:mb-3">
-          <h3 className="gba:text-sm gba:font-medium">Analytics Assistant</h3>
+          <h3 className="gba:text-sm gba:font-medium">{t('analyticsAssistant.title', 'Analytics Assistant')}</h3>
           {conversation.length > 0 && (
             <Button variant="ghost" size="sm" onClick={clearConversation} data-testid="analytics-chat-clear-button">
               <X size={14} />
@@ -191,7 +195,9 @@ export const InvestmentRecordAnalyticsChat: React.FC<InvestmentRecordAnalyticsCh
             {isLoading && (
               <div className="gba:flex gba:justify-start gba:mb-3">
                 <div className="gba:bg-muted gba:rounded-lg gba:px-3 gba:py-2">
-                  <p className="gba:text-sm gba:text-muted-foreground">Thinking...</p>
+                  <p className="gba:text-sm gba:text-muted-foreground">
+                    {t('analyticsAssistant.thinking', 'Thinking...')}
+                  </p>
                 </div>
               </div>
             )}
@@ -202,7 +208,7 @@ export const InvestmentRecordAnalyticsChat: React.FC<InvestmentRecordAnalyticsCh
           <Input
             value={message}
             onChange={e => setMessage(e.target.value)}
-            placeholder="Ask about MOIC, IRR, EBITDA, or this page"
+            placeholder={t('analyticsAssistant.placeholder', 'Ask about MOIC, IRR, EBITDA, or this page')}
             className="gba:flex-1 gba:text-sm"
             disabled={isLoading}
             data-testid="analytics-chat-input"
@@ -214,17 +220,17 @@ export const InvestmentRecordAnalyticsChat: React.FC<InvestmentRecordAnalyticsCh
             disabled={isLoading || !message.trim()}
             data-testid="analytics-chat-submit-button"
           >
-            {isLoading ? '…' : <Send size={14} />}
+            {isLoading ? loadingLabel : <Send size={14} />}
           </Button>
         </form>
 
         {conversation.length === 0 && (
           <div className="gba:mt-2 gba:text-xs gba:text-muted-foreground">
-            <p>Example questions:</p>
+            <p>{t('analyticsAssistant.exampleHeading', 'Example questions:')}</p>
             <ul className="gba:list-disc gba:list-inside gba:mt-1">
-              <li>"Show the current MOIC"</li>
-              <li>"What is the EBITDA for this investment?"</li>
-              <li>"Summarize what this page shows"</li>
+              <li>{t('analyticsAssistant.examples.moic', '"Show the current MOIC"')}</li>
+              <li>{t('analyticsAssistant.examples.ebitda', '"What is the EBITDA for this investment?"')}</li>
+              <li>{t('analyticsAssistant.examples.summary', '"Summarize what this page shows"')}</li>
             </ul>
           </div>
         )}
