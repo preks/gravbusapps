@@ -75,14 +75,18 @@ const CompensationKPICards: React.FC<CompensationKPICardsProps> = ({
         {hasPermissionToGrantBonus && (
           <div className="gba:absolute gba:top-4 gba:right-4">
             <AppAction
-              contextsArray={[FlowContextName.grantEmployeeBonus]}
-              externalContextData={{
-                employeeId: employeeId
-              }}
+              contexts={[
+                {
+                  context: FlowContextName.grantEmployeeBonus,
+                  contextData: {
+                    employeeId: employeeId
+                  }
+                }
+              ]}
               prefixDataTestId="grant-employee-bonus-action"
               accessToken={accessToken}
-              emptyStateBehavior="enable"
-              deferMainContextRequestsUntilClick
+              emptyState="enable"
+              lazyLoad
             >
               <PiPencilSimple
                 className="gba:w-4 gba:h-4 gba:text-muted-foreground hover:gba:text-primary gba:cursor-pointer"
