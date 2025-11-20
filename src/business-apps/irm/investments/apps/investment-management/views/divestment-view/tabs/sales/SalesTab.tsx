@@ -20,10 +20,12 @@ import { navigateTo, buildPlatformUrl } from '@/common/utils/navigationUtils'
 import { SalesStatistics } from './components/SalesStatistics'
 import { useProcessCompletion } from '@/common/hooks/useProcessCompletion'
 
-export type SalesTabProps = BusinessAppContextProps
+export interface SalesTabProps extends BusinessAppContextProps {
+  currencyCode?: string
+}
 
 export const SalesTab: React.FC<SalesTabProps> = context => {
-  const { accessToken } = context
+  const { accessToken, currencyCode } = context
   const { fetchInvestmentOpportunities } = useGetInvestmentOpportunities(context)
 
   // State management
@@ -171,6 +173,7 @@ export const SalesTab: React.FC<SalesTabProps> = context => {
         offset: pagination.pageIndex * pagination.pageSize,
         search: searchTerm.trim() || undefined,
         dealType: 'DIVESTMENT_DEAL',
+        currencyCode: currencyCode || undefined,
         // Server-side filtering for WON opportunities
         statusIds: wonStatusIds
       }
@@ -201,7 +204,16 @@ export const SalesTab: React.FC<SalesTabProps> = context => {
     } finally {
       setLoading(false)
     }
-  }, [accessToken, wonStatusIds, pagination, searchTerm, selectedFilters, sorting, fetchInvestmentOpportunities])
+  }, [
+    accessToken,
+    wonStatusIds,
+    pagination,
+    searchTerm,
+    selectedFilters,
+    sorting,
+    currencyCode,
+    fetchInvestmentOpportunities
+  ])
 
   // Load data on mount and when dependencies change
   useEffect(() => {
@@ -281,7 +293,7 @@ export const SalesTab: React.FC<SalesTabProps> = context => {
   return (
     <div data-testid="sales-tab-container" className="gba:space-y-6">
       {/* Statistics */}
-      <SalesStatistics {...context} />
+      <SalesStatistics {...context} currencyCode={currencyCode} />
 
       {/* Data Display with List */}
       <DataDisplay

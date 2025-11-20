@@ -10,6 +10,7 @@ import type { InvestmentOpportunity } from '@/common/data/investment/types'
 
 export interface SalesStatisticsProps extends BusinessAppContextProps {
   onRefresh?: () => void
+  currencyCode?: string
 }
 
 interface SalesMetrics {
@@ -21,9 +22,10 @@ interface SalesMetrics {
   totalRevenueChange: number
   averageRevenueChange: number
   salesThisYearChange: number
+  currencyCode: string
 }
 
-export const SalesStatistics: React.FC<SalesStatisticsProps> = ({ accessToken, userInfo }) => {
+export const SalesStatistics: React.FC<SalesStatisticsProps> = ({ accessToken, userInfo, currencyCode }) => {
   const [metrics, setMetrics] = useState<SalesMetrics | null>(null)
   const [isLoading, setIsLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
@@ -38,10 +40,11 @@ export const SalesStatistics: React.FC<SalesStatisticsProps> = ({ accessToken, u
     setError(null)
 
     try {
-      // Fetch current WON opportunities
+      // Fetch current WON opportunities with currency filter
       const currentVariables: InvestmentOpportunityQueryVariables = {
         limit: 1000,
-        dealType: 'DIVESTMENT_DEAL'
+        dealType: 'DIVESTMENT_DEAL',
+        currencyCode: currencyCode || undefined
       }
 
       const currentResult = await fetchInvestmentOpportunities(currentVariables)
@@ -120,8 +123,15 @@ export const SalesStatistics: React.FC<SalesStatisticsProps> = ({ accessToken, u
         return closeDate >= lastYearStart && closeDate <= lastYearEnd
       }).length
 
+      // Extract currency from opportunities or use provided currencyCode
+      const extractedCurrency =
+        wonOpportunities.length > 0 && wonOpportunities[0].currency
+          ? wonOpportunities[0].currency.code || 'EUR'
+          : currencyCode || 'EUR'
+
       setMetrics({
         ...current,
+        currencyCode: extractedCurrency,
         totalSoldChange: calculatePercentageChange(current.totalSold, historical.totalSold),
         totalRevenueChange: calculatePercentageChange(current.totalRevenue, historical.totalRevenue),
         averageRevenueChange: calculatePercentageChange(current.averageRevenue, historical.averageRevenue),
@@ -132,14 +142,11 @@ export const SalesStatistics: React.FC<SalesStatisticsProps> = ({ accessToken, u
     } finally {
       setIsLoading(false)
     }
-  }, [accessToken, fetchInvestmentOpportunities])
+  }, [accessToken, fetchInvestmentOpportunities, currencyCode])
 
   useEffect(() => {
     loadMetrics()
   }, [loadMetrics])
-
-  // Extract currency code
-  const currencyCode = 'EUR' // Default currency for sales metrics
 
   // Helper function to format percentage change
   const formatPercentageChange = (change: number): string => {
@@ -182,7 +189,7 @@ export const SalesStatistics: React.FC<SalesStatisticsProps> = ({ accessToken, u
     {
       key: 'average-sale-amount',
       title: getTranslationFromI18nKeyAndLabel('average_sale_amount', 'Average Sale Amount'),
-      value: formatCompactCurrency(metrics.averageRevenue, currencyCode),
+      value: formatCompactCurrency(metrics.averageRevenue, metrics.currencyCode),
       valueIsString: true,
       prefix: <Target className="gba:h-5 gba:w-5 gba:text-purple-600" />,
       color: '#722ed1',
@@ -197,7 +204,7 @@ export const SalesStatistics: React.FC<SalesStatisticsProps> = ({ accessToken, u
     {
       key: 'total-revenue',
       title: getTranslationFromI18nKeyAndLabel('total_revenue', 'Total Revenue'),
-      value: formatCompactCurrency(metrics.totalRevenue, currencyCode),
+      value: formatCompactCurrency(metrics.totalRevenue, metrics.currencyCode),
       valueIsString: true,
       prefix: <DollarSign className="gba:h-5 gba:w-5 gba:text-green-600" />,
       color: '#389e0d',

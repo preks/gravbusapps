@@ -64,7 +64,7 @@ const SortableTableHead: React.FC<{
 }
 
 const RealEstateInvestmentsList: React.FC<RealEstateInvestmentsListProps> = context => {
-  const { accessToken } = context
+  const { accessToken, currencyCode } = context
 
   // Use the shared controller for URL sync and state management
   const {

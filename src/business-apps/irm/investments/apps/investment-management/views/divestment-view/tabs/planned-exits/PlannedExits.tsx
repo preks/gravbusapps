@@ -19,7 +19,8 @@ import { AppActionButton } from '@/components/app-action-button/AppActionButton'
 import { FlowContextName } from '@/common/types/FlowRegistryTypes'
 // no i18n usage here
 import { navigateTo, buildPlatformUrl } from '@/common/utils/navigationUtils'
-import { formatCurrency, formatDate } from '../../utils'
+import { formatDate } from '../../utils'
+import { formatCurrencyParts } from '@/common/utils/numberFormatter'
 import PlannedExitsMetrics from './components/PlannedExitsMetrics'
 import { usePlannedExitsData } from './hooks/usePlannedExitsData'
 import { OwnerDisplay } from '@/business-apps/irm/core/apps/investment-relations/views/task-view/components/OwnerDisplay' // TODO: Extract to common
@@ -27,9 +28,29 @@ import { DateRangeFilter } from '@/business-apps/crm/core/apps/customer-relation
 import ExpenseAmountRangeFilter from '@/business-apps/fin/expenses/apps/personal-expenses/components/tabs/expense-items-tab/ExpenseAmountRangeFilter'
 import { useEmployeeSearch } from '@/common/data/employee/useEmployeeSearch'
 
-type PlannedExitsProps = BusinessAppContextProps
+export interface PlannedExitsProps extends BusinessAppContextProps {
+  currencyCode?: string
+}
 
-const PlannedExits: React.FC<PlannedExitsProps> = ({ accessToken, userInfo }) => {
+const PlannedExits: React.FC<PlannedExitsProps> = ({ accessToken, userInfo, currencyCode }) => {
+  // Currency helpers to match investment view (number-only + narrow symbol)
+  const renderAmount = (amount: number | undefined, currencyCode?: string) => {
+    if (typeof amount !== 'number') return <span className="gba:text-gray-400">-</span>
+    const { number, symbol } = formatCurrencyParts(amount, {
+      currency: currencyCode,
+      minimumFractionDigits: 0,
+      maximumFractionDigits: 2
+    })
+    return (
+      <div className="gba:w-full gba:flex gba:justify-end gba:items-baseline">
+        <span className="gba:text-sm gba:[font-variant-numeric:tabular-nums]">{number}</span>
+        <span className="gba:text-xs gba:text-gray-400 gba:inline-block gba:text-right gba:shrink-0 gba:w-[5ch]">
+          {symbol}
+        </span>
+      </div>
+    )
+  }
+
   const [searchTerm, setSearchTerm] = useState('')
   const [currentPage, setCurrentPage] = useState(1)
   const [pageSize, setPageSize] = useState(20)
@@ -62,6 +83,7 @@ const PlannedExits: React.FC<PlannedExitsProps> = ({ accessToken, userInfo }) =>
     sortDirection: sortOrder.toLowerCase() as 'asc' | 'desc',
     limit: pageSize,
     offset: (currentPage - 1) * pageSize,
+    currencyCode: currencyCode || undefined,
     filters: {
       // map selectedFilters -> where as needed (DataContainer sends array of ids)
       // include directly; server understands these IDs inside our hook
@@ -406,7 +428,7 @@ const PlannedExits: React.FC<PlannedExitsProps> = ({ accessToken, userInfo }) =>
   return (
     <div data-testid="planned-exits-container" className="gba:space-y-6">
       {/* Metrics Section */}
-      <PlannedExitsMetrics context={{ accessToken, userInfo }} />
+      <PlannedExitsMetrics context={{ accessToken, userInfo }} currencyCode={currencyCode} />
 
       <DataContainer
         dataControllerProps={{
@@ -444,12 +466,40 @@ const PlannedExits: React.FC<PlannedExitsProps> = ({ accessToken, userInfo }) =>
                   {visibleColumns.includes('group') && <SortableHead label="Group" field="investmentGroup.value" />}
                   {visibleColumns.includes('type') && <SortableHead label="Type" field="investmentType.value" />}
                   {visibleColumns.includes('totalInvestment') && (
-                    <SortableHead label="Total Investment" field="totalInvestmentAmount" />
+                    <TableHead
+                      className="gba:cursor-pointer gba:text-right"
+                      onClick={() => handleSortingChange('totalInvestmentAmount')}
+                    >
+                      <div className="gba:flex gba:items-center gba:gap-1 gba:justify-end">
+                        Total Investment
+                        {sortField === 'totalInvestmentAmount' &&
+                          (sortOrder === 'ASC' ? (
+                            <ChevronUp className="gba:w-4 gba:h-4" />
+                          ) : (
+                            <ChevronDown className="gba:w-4 gba:h-4" />
+                          ))}
+                      </div>
+                    </TableHead>
                   )}
                   {visibleColumns.includes('marketValue') && (
-                    <SortableHead label="Market Value" field="investmentMarketValue" />
+                    <TableHead
+                      className="gba:cursor-pointer gba:text-right"
+                      onClick={() => handleSortingChange('investmentMarketValue')}
+                    >
+                      <div className="gba:flex gba:items-center gba:gap-1 gba:justify-end">
+                        Market Value
+                        {sortField === 'investmentMarketValue' &&
+                          (sortOrder === 'ASC' ? (
+                            <ChevronUp className="gba:w-4 gba:h-4" />
+                          ) : (
+                            <ChevronDown className="gba:w-4 gba:h-4" />
+                          ))}
+                      </div>
+                    </TableHead>
                   )}
-                  {visibleColumns.includes('performance') && <TableHead>Performance</TableHead>}
+                  {visibleColumns.includes('performance') && (
+                    <TableHead className="gba:text-right">Performance</TableHead>
+                  )}
                   {visibleColumns.includes('plannedExitDate') && (
                     <SortableHead label="Planned Exit Date" field="plannedExitDate" />
                   )}
@@ -484,17 +534,17 @@ const PlannedExits: React.FC<PlannedExitsProps> = ({ accessToken, userInfo }) =>
                       </TableCell>
                     )}
                     {visibleColumns.includes('totalInvestment') && (
-                      <TableCell>
-                        <span>{formatCurrency(investment.totalInvestmentAmount || 0)}</span>
+                      <TableCell className="gba:text-right">
+                        {renderAmount(investment.totalInvestmentAmount, investment.currency?.code)}
                       </TableCell>
                     )}
                     {visibleColumns.includes('marketValue') && (
-                      <TableCell>
-                        <span>{formatCurrency(investment.investmentMarketValue || 0)}</span>
+                      <TableCell className="gba:text-right">
+                        {renderAmount(investment.investmentMarketValue, investment.currency?.code)}
                       </TableCell>
                     )}
                     {visibleColumns.includes('performance') && (
-                      <TableCell>
+                      <TableCell className="gba:text-right">
                         {(() => {
                           const currentValue = investment.investmentMarketValue || 0
                           const totalInvestmentValue = investment.totalInvestmentAmount || 0
@@ -502,19 +552,30 @@ const PlannedExits: React.FC<PlannedExitsProps> = ({ accessToken, userInfo }) =>
                           const performancePercentage =
                             totalInvestmentValue > 0 ? (performanceAmount / totalInvestmentValue) * 100 : 0
 
+                          const { number, symbol } = formatCurrencyParts(performanceAmount, {
+                            currency: investment.currency?.code,
+                            minimumFractionDigits: 0,
+                            maximumFractionDigits: 2
+                          })
+
                           return (
-                            <div className="gba:flex gba:flex-col gba:items-start">
-                              <span
-                                className={`gba:font-semibold ${
-                                  performancePercentage === 0
-                                    ? 'gba:text-gray-500'
-                                    : performancePercentage > 0
-                                      ? 'gba:text-green-600'
-                                      : 'gba:text-red-600'
-                                }`}
-                              >
-                                {formatCurrency(performanceAmount)}
-                              </span>
+                            <div className="gba:flex gba:flex-col gba:items-end">
+                              <div className="gba:flex gba:items-baseline gba:gap-1">
+                                <span
+                                  className={`gba:text-sm gba:font-semibold gba:[font-variant-numeric:tabular-nums] ${
+                                    performancePercentage === 0
+                                      ? 'gba:text-gray-500'
+                                      : performancePercentage > 0
+                                        ? 'gba:text-green-600'
+                                        : 'gba:text-red-600'
+                                  }`}
+                                >
+                                  {number}
+                                </span>
+                                <span className="gba:text-xs gba:text-gray-400 gba:inline-block gba:shrink-0 gba:w-[5ch] gba:text-right">
+                                  {symbol}
+                                </span>
+                              </div>
                               <span
                                 className={`gba:text-sm ${
                                   performancePercentage === 0

@@ -141,7 +141,7 @@ const EquityInvestmentsList: React.FC<EquityInvestmentsListProps> = props => {
   // Trigger search when search term changes
   useEffect(() => {
     if (initialLoadDone.current && filtersInitialized) {
-      updateURLParams({ search, page: 1 })
+      updateURLParams({ page: 1 })
       loadData()
     }
   }, [search, filtersInitialized, loadData, updateURLParams])
