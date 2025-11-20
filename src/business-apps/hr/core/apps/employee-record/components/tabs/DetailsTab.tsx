@@ -9,21 +9,27 @@ import { getTranslationFromI18nKeyAndLabel } from '../../../../../../../common/u
 import useEmployeePermissions, { SECTION_KEYS } from '../../hooks/useEmployeePermissions'
 import { AppAction } from '@/components/app-action/AppAction'
 import { FlowContextName } from '@/common/types/FlowRegistryTypes'
-import { UserInfoProps } from '../../../../../../../common/BusinessAppContext'
+import { ScopePermissionCheckResult } from '@/common/hooks/useScopePermissionCheck'
 
 interface DetailsTabProps {
   employee: Employee
   accessToken: string
   employeeId?: string // Optional employeeId override for permissions check
-  userInfo?: UserInfoProps // Current user info
   isSelfView: boolean // Whether user is viewing their own profile
+  employeeRecordHrBackoffice: ScopePermissionCheckResult
 }
 
 /**
  * Details Tab Component
  * Displays detailed personal information about the employee
  */
-const DetailsTab: React.FC<DetailsTabProps> = ({ employee, accessToken, employeeId, isSelfView }) => {
+const DetailsTab: React.FC<DetailsTabProps> = ({
+  employee,
+  accessToken,
+  employeeId,
+  isSelfView,
+  employeeRecordHrBackoffice
+}) => {
   // Remove debug log
   // Use employee ID from props or fallback to employee data
   const employeeIdForPermissions = employeeId || employee?.id
@@ -209,6 +215,11 @@ const DetailsTab: React.FC<DetailsTabProps> = ({ employee, accessToken, employee
 
     // If user is viewing their own profile, always show the data
     if (isSelfView) {
+      return value
+    }
+
+    // If viewer belongs to backoffice groups, do not mask
+    if (employeeRecordHrBackoffice.hasPermission) {
       return value
     }
 
