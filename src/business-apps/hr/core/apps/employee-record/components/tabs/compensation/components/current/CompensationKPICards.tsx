@@ -16,7 +16,6 @@ interface CompensationKPICardsProps {
   employeeId: string
   accessToken?: string
   locale: string
-  isSelfView: boolean
   hasPermissionToAdjustSalary: boolean
 }
 
