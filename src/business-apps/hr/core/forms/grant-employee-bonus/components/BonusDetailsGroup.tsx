@@ -7,16 +7,12 @@ import {
   FormMessage,
   Input,
   DateInput,
-  Select,
-  SelectTrigger,
-  SelectValue,
-  SelectContent,
-  SelectItem,
   Textarea
 } from '@newwork/nw-design-system'
 import type { Control, Path } from 'react-hook-form'
-import { getCatalogValue } from '@/common/utils/windowUtils'
 import type { GrantEmployeeBonusFormValues, CatalogEntry } from '../types'
+import { CatalogSelectField } from './CatalogSelectField'
+import { NumberInputField } from './NumberInputField'
 
 type FormFieldValue = string | number | null
 
@@ -36,52 +32,28 @@ const BonusDetailsGroup: React.FC<BonusDetailsGroupProps> = ({ control, catalogs
   return (
     <div className="gba:space-y-4" data-testid="grant-employee-bonus-details-group">
       {/* Employee Bonus Type */}
-      <FormField
+      <CatalogSelectField
         control={control}
         name={'employeeBonusTypeRef' as Path<GrantEmployeeBonusFormValues>}
-        rules={{
-          required: t('validation-bonus-type-required')
-        }}
-        render={({ field }) => (
-          <FormItem>
-            <FormLabel data-testid="grant-employee-bonus-type-label">
-              {t('field-bonus-type')}
-              <span className="gba:text-destructive"> *</span>
-            </FormLabel>
-            <Select
-              value={field.value && field.value !== '' ? String(field.value) : ''}
-              onValueChange={v => field.onChange(v || '')}
-            >
-              <FormControl>
-                <SelectTrigger
-                  className="gba:block gba:w-full! gba:min-w-0 gba:max-w-none!"
-                  data-testid="grant-employee-bonus-type-select"
-                >
-                  <SelectValue placeholder={placeholderSelect} />
-                </SelectTrigger>
-              </FormControl>
-              <SelectContent>
-                {(catalogs.bonusType || []).map((entry: CatalogEntry) => (
-                  <SelectItem
-                    key={entry.id}
-                    value={String(entry.id)}
-                    data-testid={`grant-employee-bonus-type-option-${entry.id}`}
-                  >
-                    {getCatalogValue(entry)}
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
-            <FormMessage />
-          </FormItem>
-        )}
+        label={t('field-bonus-type')}
+        placeholder={placeholderSelect}
+        required
+        catalogEntries={catalogs.bonusType}
+        validationMessage={t('validation-bonus-type-required')}
+        dataTestIdPrefix="grant-employee-bonus-type"
+        t={t}
       />
 
       {/* Amount */}
-      <FormField
+      <NumberInputField
         control={control}
         name={'amount' as Path<GrantEmployeeBonusFormValues>}
-        rules={{
+        label={t('field-amount')}
+        placeholder={placeholderEnter}
+        required
+        step="0.01"
+        min={0}
+        validationRules={{
           required: t('validation-amount-required'),
           validate: (value: FormFieldValue) => {
             if (value === null || value === undefined) {
@@ -94,79 +66,20 @@ const BonusDetailsGroup: React.FC<BonusDetailsGroupProps> = ({ control, catalogs
             return true
           }
         }}
-        render={({ field }) => (
-          <FormItem>
-            <FormLabel data-testid="grant-employee-bonus-amount-label">
-              {t('field-amount')}
-              <span className="gba:text-destructive"> *</span>
-            </FormLabel>
-            <FormControl>
-              <Input
-                type="number"
-                step="0.01"
-                min="0"
-                className="gba:w-full"
-                {...field}
-                value={field.value ?? ''}
-                onChange={e => {
-                  const val = e.target.value
-                  if (val === '') {
-                    field.onChange(null)
-                    return
-                  }
-                  const parsed = Number.parseFloat(val)
-                  const finalValue = Number.isNaN(parsed) ? null : parsed
-                  field.onChange(finalValue)
-                }}
-                placeholder={placeholderEnter}
-                data-testid="grant-employee-bonus-amount-input"
-              />
-            </FormControl>
-            <FormMessage />
-          </FormItem>
-        )}
+        dataTestIdPrefix="grant-employee-bonus-amount"
       />
 
       {/* Currency */}
-      <FormField
+      <CatalogSelectField
         control={control}
         name={'currencyRef' as Path<GrantEmployeeBonusFormValues>}
-        rules={{
-          required: t('validation-currency-required')
-        }}
-        render={({ field }) => (
-          <FormItem>
-            <FormLabel data-testid="grant-employee-bonus-currency-label">
-              {t('field-currency')}
-              <span className="gba:text-destructive"> *</span>
-            </FormLabel>
-            <Select
-              value={field.value && field.value !== '' ? String(field.value) : ''}
-              onValueChange={v => field.onChange(v || '')}
-            >
-              <FormControl>
-                <SelectTrigger
-                  className="gba:block gba:w-full! gba:min-w-0 gba:max-w-none!"
-                  data-testid="grant-employee-bonus-currency-select"
-                >
-                  <SelectValue placeholder={placeholderSelect} />
-                </SelectTrigger>
-              </FormControl>
-              <SelectContent>
-                {(catalogs.currency || []).map((entry: CatalogEntry) => (
-                  <SelectItem
-                    key={entry.id}
-                    value={String(entry.id)}
-                    data-testid={`grant-employee-bonus-currency-option-${entry.id}`}
-                  >
-                    {getCatalogValue(entry)}
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
-            <FormMessage />
-          </FormItem>
-        )}
+        label={t('field-currency')}
+        placeholder={placeholderSelect}
+        required
+        catalogEntries={catalogs.currency}
+        validationMessage={t('validation-currency-required')}
+        dataTestIdPrefix="grant-employee-bonus-currency"
+        t={t}
       />
 
       {/* Payment Date */}
@@ -210,10 +123,15 @@ const BonusDetailsGroup: React.FC<BonusDetailsGroupProps> = ({ control, catalogs
       />
 
       {/* Fiscal Year */}
-      <FormField
+      <NumberInputField
         control={control}
         name={'fiscalYear' as Path<GrantEmployeeBonusFormValues>}
-        rules={{
+        label={t('field-fiscal-year')}
+        placeholder={placeholderEnter}
+        required
+        min={new Date().getFullYear() - 10}
+        max={new Date().getFullYear() + 10}
+        validationRules={{
           required: t('validation-fiscal-year-required'),
           validate: (value: FormFieldValue) => {
             if (!value) {
@@ -232,37 +150,7 @@ const BonusDetailsGroup: React.FC<BonusDetailsGroupProps> = ({ control, catalogs
             return true
           }
         }}
-        render={({ field }) => (
-          <FormItem>
-            <FormLabel data-testid="grant-employee-bonus-fiscal-year-label">
-              {t('field-fiscal-year')}
-              <span className="gba:text-destructive"> *</span>
-            </FormLabel>
-            <FormControl>
-              <Input
-                type="number"
-                min={new Date().getFullYear() - 10}
-                max={new Date().getFullYear() + 10}
-                className="gba:w-full"
-                {...field}
-                value={field.value ?? ''}
-                onChange={e => {
-                  const val = e.target.value
-                  if (val === '') {
-                    field.onChange(null)
-                    return
-                  }
-                  const parsed = Number.parseInt(val, 10)
-                  const finalValue = Number.isNaN(parsed) ? null : parsed
-                  field.onChange(finalValue)
-                }}
-                placeholder={placeholderEnter}
-                data-testid="grant-employee-bonus-fiscal-year-input"
-              />
-            </FormControl>
-            <FormMessage />
-          </FormItem>
-        )}
+        dataTestIdPrefix="grant-employee-bonus-fiscal-year"
       />
 
       {/* Description */}

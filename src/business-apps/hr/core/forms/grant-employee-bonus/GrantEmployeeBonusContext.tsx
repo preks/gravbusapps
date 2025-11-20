@@ -3,6 +3,7 @@ import { BusinessAppContextProps } from '@/common/BusinessAppContext'
 import { useGraphQLClient } from '@/common/network/graphql/useGraphQLClient'
 import { EMPLOYEE_DATA_QUERY, CATALOG_DATA_QUERY } from './GrantEmployeeBonusQueries'
 import { getCurrentActiveUserLocale } from '@/common/utils/windowUtils'
+import { extractEmployeeId } from './utils/employeeIdUtils'
 import type { GrantEmployeeBonusContextData, EmployeeDataResponse, CatalogsDataResponse } from './types'
 
 interface GrantEmployeeBonusContextValue {
@@ -29,17 +30,10 @@ export const GrantEmployeeBonusProvider: React.FC<ProviderProps> = ({
   const [isLoading, setIsLoading] = useState<boolean>(true)
   const [error, setError] = useState<string | null>(null)
 
-  const employeeId: string | undefined = useMemo(() => {
-    // Extract employeeId with priority: externalContextData (from AppAction) > process payload > direct > userInfo
-    const externalContext = (additionalData as any)?.externalContextData || {}
-    return (
-      externalContext?.employeeId || // From AppAction externalContextData (highest priority)
-      additionalData?.psi_taskPayload?.employeeId ||
-      additionalData?.psi_taskPayload?.initialParameters?.employeeId ||
-      additionalData?.employeeId ||
-      userInfo?.employeeDetails?.employeeId
-    )
-  }, [additionalData, userInfo])
+  const employeeId: string | undefined = useMemo(
+    () => extractEmployeeId(additionalData, userInfo),
+    [additionalData, userInfo]
+  )
 
   const activeUserLocale = useMemo(() => getCurrentActiveUserLocale(), [])
 

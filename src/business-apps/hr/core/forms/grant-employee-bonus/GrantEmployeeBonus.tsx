@@ -10,6 +10,7 @@ import type { GrantEmployeeBonusFormValues, CatalogEntry } from './types'
 import BonusDetailsGroup from './components/BonusDetailsGroup'
 import { AppActionForm } from '@/components/app-action-form/AppActionForm'
 import { CompensationStatus } from '../../apps/employee-record/components/tabs/compensation/types/compensationEnums'
+import { extractEmployeeId } from './utils/employeeIdUtils'
 import translations from '../_i18n'
 
 const GrantEmployeeBonusContent: React.FC<BusinessAppContextProps> = ({ additionalData, userInfo }) => {
@@ -99,16 +100,11 @@ const GrantEmployeeBonusContent: React.FC<BusinessAppContextProps> = ({ addition
 
   const title = useMemo(() => t('form-title'), [t])
 
-  // Extract employeeId with priority: externalContextData (from AppAction) > process payload > direct > employee data
-  const externalContext = (additionalData as any)?.externalContextData || {}
-  const employeeId =
-    externalContext?.employeeId || // From AppAction externalContextData (highest priority)
-    additionalData?.psi_taskPayload?.employeeId ||
-    additionalData?.psi_taskPayload?.initialParameters?.employeeId ||
-    additionalData?.employeeId ||
-    employee?.code ||
-    employee?.id ||
-    ''
+  // Extract employeeId using shared utility function
+  const employeeId = useMemo(
+    () => extractEmployeeId(additionalData, userInfo, employee),
+    [additionalData, userInfo, employee]
+  )
 
   // Extract manager employee ID (logged-in user who initiates the flow)
   const managerEmployeeId = userInfo?.employeeDetails?.employeeId || ''
