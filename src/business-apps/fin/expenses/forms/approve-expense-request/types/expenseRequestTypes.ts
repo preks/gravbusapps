@@ -80,6 +80,7 @@ export interface ExpenseRequestApprovalData {
   expenseItem: Array<ExpenseRequestItem>
   expenseRequestTrip: Array<ExpenseRequestTrip>
   expenseAllowance: Array<ExpenseRequestAllowance>
+  expenseRequestComment?: Array<ExpenseRequestComment>
 }
 
 export interface ExpenseRequestItem {
@@ -148,5 +149,19 @@ export interface ExpenseRequestAllowance {
   allowanceDate: string
   currency: {
     code: string
+  }
+}
+
+export interface ExpenseRequestComment {
+  id: string
+  comment: string
+  commentDate: string
+  commentType: string
+  authorEmployee?: {
+    id: string
+    firstName: string
+    lastName: string
+    displayName: string
+    pictureThumbnail?: string
   }
 }

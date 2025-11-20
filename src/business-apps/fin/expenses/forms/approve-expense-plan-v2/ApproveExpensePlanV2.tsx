@@ -1,0 +1,538 @@
+import React, { useState, useEffect, useMemo } from 'react'
+import {
+  Card,
+  CardContent,
+  CardHeader,
+  CardTitle,
+  Badge,
+  Label,
+  Spinner,
+  Alert,
+  AlertTitle,
+  AlertDescription
+} from '@newwork/nw-design-system'
+import { PiCalendarDuotone, PiClock, PiMapPin } from 'react-icons/pi'
+import { ThumbsUp, XCircle } from 'lucide-react'
+import { BusinessAppContextProps } from '@/common/BusinessAppContext'
+import { dispatchProcessContinueEvent } from '@/common/utils/processEventUtils'
+import { formatDateTime } from '@/business-apps/platform/apps/every-box-2/utils/taskFormatters'
+import { splitExpenseItems } from './utils/expenseItemUtils'
+import { useExpensePlanData } from './hooks/useExpensePlanData'
+import { formatCurrency, getCatalogValue } from './utils/formatters'
+import { REQUEST_TYPES } from '../expense-request/constants/constants'
+
+// Component imports
+import {
+  ExpensePlanTotalsSection,
+  EnhancedTripSection,
+  ExpensePlanItemsSection,
+  AdvancePaymentSection,
+  ExpensePlanRequestDetailsSection,
+  ApprovalDetailsSection
+} from './components'
+import { TaskDetailHeader } from '@/business-apps/platform/apps/every-box-2/components/TaskDetailHeader'
+import { TaskDetailFooter } from '@/business-apps/platform/apps/every-box-2/components/TaskDetailFooter'
+
+interface ApproveExpensePlanV2Props extends BusinessAppContextProps {
+  onClose?: () => void
+}
+
+const ApproveExpensePlanV2Content: React.FC<ApproveExpensePlanV2Props> = ({
+  accessToken,
+  additionalData,
+  userInfo,
+  onClose
+}) => {
+  // Extract planId from additionalData or URL parameters
+  const planId =
+    additionalData?.planId ||
+    additionalData?.psi_taskPayload?.expensePlan?.id ||
+    new URLSearchParams(window.location.search).get('planId')
+
+  const [isApproving, setIsApproving] = useState(false)
+  const [isRejecting, setIsRejecting] = useState(false)
+
+  const { expensePlan, loading, error, refetch } = useExpensePlanData({ planId, accessToken })
+
+  // Extract task metadata
+  const taskPayload = additionalData?.psi_taskPayload || {}
+  const processMetadata = additionalData?.psi_processMetadata || {}
+  const taskStatus = additionalData?.psi_taskStatus || processMetadata?.status || 'IN_PROGRESS'
+  const taskCompletedAt = processMetadata?.completedAt || (additionalData as any)?.psi_taskCompletedAt
+  // Task is completed if status is COMPLETED OR if completedAt exists (matching InboxView logic)
+  const isTaskCompleted = taskStatus === 'COMPLETED' || !!taskCompletedAt
+  const taskTitle =
+    processMetadata?.referenceTaskName || processMetadata?.nodeName || expensePlan?.title || 'Approve Expense Plan'
+  const taskSource: 'kogito' | 'cflow' = processMetadata?.source || (processMetadata?.endpoint ? 'kogito' : 'kogito')
+  const creatorName = taskPayload?.creatorName as string | undefined
+
+  // Extract approval data from task outputs/inputs (for completed tasks)
+  const taskOutputApprovalStatus = useMemo(() => {
+    if (!isTaskCompleted) return null
+
+    // Check outputs first (most reliable for completed tasks)
+    if (processMetadata?.outputs?.approval) {
+      return processMetadata.outputs.approval
+    }
+
+    // Check if stored directly in processMetadata
+    if (processMetadata?.approval) {
+      return processMetadata.approval
+    }
+
+    // Check taskPayload
+    if (taskPayload?.approval) {
+      return taskPayload.approval
+    }
+
+    // Check formData
+    if ((additionalData as any)?.formData?.approval) {
+      return (additionalData as any).formData.approval
+    }
+
+    return null
+  }, [isTaskCompleted, processMetadata, taskPayload, additionalData])
+
+  const taskOutputApprovalNote = useMemo(() => {
+    if (!isTaskCompleted) return null
+
+    // Check outputs first
+    if (processMetadata?.outputs?.approvalNote) {
+      return processMetadata.outputs.approvalNote
+    }
+
+    // Check if stored directly in processMetadata
+    if (processMetadata?.approvalNote) {
+      return processMetadata.approvalNote
+    }
+
+    // Check taskPayload
+    if (taskPayload?.approvalNote) {
+      return taskPayload.approvalNote
+    }
+
+    // Check formData
+    if ((additionalData as any)?.formData?.approvalNote) {
+      return (additionalData as any).formData.approvalNote
+    }
+
+    return null
+  }, [isTaskCompleted, processMetadata, taskPayload, additionalData])
+
+  const completedAt = processMetadata?.completedAt || (additionalData as any)?.psi_taskCompletedAt || null
+
+  // Extract approval data from expensePlanComment (for completed tasks)
+  const approvalCommentFromPlan = useMemo(() => {
+    if (!isTaskCompleted || !expensePlan?.expensePlanComment || expensePlan.expensePlanComment.length === 0) {
+      return null
+    }
+
+    // Find the most recent APPROVE_COMMENT or REJECT_COMMENT
+    const approvalComment = expensePlan.expensePlanComment.find(
+      comment => comment.commentType === 'APPROVE_COMMENT' || comment.commentType === 'REJECT_COMMENT'
+    )
+
+    return approvalComment?.comment || null
+  }, [isTaskCompleted, expensePlan?.expensePlanComment])
+
+  const approvalDateFromPlan = useMemo(() => {
+    if (!isTaskCompleted || !expensePlan?.expensePlanComment || expensePlan.expensePlanComment.length === 0) {
+      return null
+    }
+
+    // Find the most recent APPROVE_COMMENT or REJECT_COMMENT
+    const approvalComment = expensePlan.expensePlanComment.find(
+      comment => comment.commentType === 'APPROVE_COMMENT' || comment.commentType === 'REJECT_COMMENT'
+    )
+
+    return approvalComment?.commentDate || null
+  }, [isTaskCompleted, expensePlan?.expensePlanComment])
+
+  // Determine approval status from expense plan status or task outputs
+  const approvalStatus = useMemo(() => {
+    if (!isTaskCompleted) return null
+
+    // Priority order:
+    // 1. Task outputs (most reliable for completed tasks)
+    // 2. ExpensePlan.status (but only if it's an approval status, not PENDING)
+    if (taskOutputApprovalStatus) {
+      return taskOutputApprovalStatus
+    }
+
+    // Only use expensePlan.status if it's an actual approval status (APPROVED, REJECTED, etc.)
+    // Don't use PENDING as that's the initial status, not an approval status
+    if (expensePlan?.status && expensePlan.status !== 'PENDING') {
+      return expensePlan.status
+    }
+
+    // If we have approval comments, infer status from comment type
+    if (expensePlan?.expensePlanComment && expensePlan.expensePlanComment.length > 0) {
+      const approvalComment = expensePlan.expensePlanComment.find(
+        comment => comment.commentType === 'APPROVE_COMMENT' || comment.commentType === 'REJECT_COMMENT'
+      )
+      if (approvalComment) {
+        if (approvalComment.commentType === 'APPROVE_COMMENT') {
+          return 'APPROVED'
+        }
+        if (approvalComment.commentType === 'REJECT_COMMENT') {
+          return 'REJECTED'
+        }
+      }
+    }
+
+    return null
+  }, [isTaskCompleted, taskOutputApprovalStatus, expensePlan?.status, expensePlan?.expensePlanComment])
+
+  // Determine approval comment (priority: task outputs > expensePlanComment)
+  const approvalComment = taskOutputApprovalNote || approvalCommentFromPlan
+
+  // Determine approval date (priority: completedAt > expensePlanComment date)
+  const approvalDate = completedAt || approvalDateFromPlan
+
+  // Detect if we're in every-box-2 context (has onClose callback)
+  const isEveryBox2Context = !!onClose
+
+  const handleClose = () => {
+    if (onClose) {
+      onClose()
+    } else {
+      dispatchProcessContinueEvent('pse_abort', {
+        event: 'pse_abort'
+      })
+    }
+  }
+
+  // Handle modal close events to prevent task removal
+  useEffect(() => {
+    const handleBeforeUnload = () => {
+      try {
+        dispatchProcessContinueEvent('pse_cancel', {
+          event: 'pse_cancel',
+          pso_exitStrategy: 'cancel',
+          pso_completeNotification: {
+            type: 'info',
+            messageKey: 'The approval process has been canceled.'
+          }
+        })
+      } catch (err) {
+        console.error('Error canceling process:', err)
+      }
+    }
+
+    window.addEventListener('beforeunload', handleBeforeUnload)
+    return () => {
+      window.removeEventListener('beforeunload', handleBeforeUnload)
+    }
+  }, [])
+
+  const handleApprove = async () => {
+    setIsApproving(true)
+    try {
+      const isTrip = expensePlan?.requestType?.code.toLowerCase() === REQUEST_TYPES.TRIP
+      const approvalPayload = {
+        event: 'pse_approve',
+        expensePlanComment: {
+          commentDate: new Date().toISOString().slice(0, 19),
+          comment: '',
+          commentType: 'APPROVE_COMMENT',
+          authorEmployee: userInfo?.employeeDetails?.employeeId,
+          expensePlan: expensePlan?.id
+        },
+        ...(isTrip
+          ? {
+              employeeAbsence: {
+                typeRef: 'AbsenceType:v1:A101',
+                employeeId: expensePlan?.employee?.id,
+                startDate: expensePlan?.startDate,
+                endDate: expensePlan?.endDate,
+                description: expensePlan?.description,
+                substituteEmployee: '',
+                status: 'APPROVED'
+              }
+            }
+          : {})
+      }
+
+      dispatchProcessContinueEvent('pse_approve', approvalPayload)
+    } catch (err) {
+      console.error('Error approving expense plan:', err)
+    } finally {
+      setIsApproving(false)
+    }
+  }
+
+  const handleReject = async () => {
+    setIsRejecting(true)
+    try {
+      const rejectionPayload = {
+        event: 'pse_reject',
+        expensePlanComment: {
+          commentDate: new Date().toISOString().slice(0, 19),
+          comment: '',
+          commentType: 'REJECT_COMMENT',
+          authorEmployee: userInfo?.employeeDetails?.employeeId,
+          expensePlan: expensePlan?.id
+        }
+      }
+
+      dispatchProcessContinueEvent('pse_reject', rejectionPayload)
+    } catch (err) {
+      console.error('Error returning expense plan:', err)
+    } finally {
+      setIsRejecting(false)
+    }
+  }
+
+  if (loading) {
+    return (
+      <div
+        className="gba:flex gba:justify-center gba:items-center gba:min-h-[400px]"
+        data-testid="approve-expense-plan-v2-loading"
+      >
+        <Spinner size="lg" />
+      </div>
+    )
+  }
+
+  if (error) {
+    return (
+      <Alert variant="destructive" data-testid="approve-expense-plan-v2-error">
+        <AlertTitle>Error Loading Expense Plan</AlertTitle>
+        <AlertDescription>
+          {error}
+          <button
+            onClick={refetch}
+            className="gba:mt-2 gba:px-3 gba:py-1 gba:bg-destructive gba:text-destructive-foreground gba:rounded gba:text-sm"
+          >
+            Retry
+          </button>
+        </AlertDescription>
+      </Alert>
+    )
+  }
+
+  if (!expensePlan) {
+    return (
+      <Alert data-testid="approve-expense-plan-v2-no-data">
+        <AlertTitle>No Data</AlertTitle>
+        <AlertDescription>Expense plan not found</AlertDescription>
+      </Alert>
+    )
+  }
+
+  // Extract currency code
+  const currencyCode = expensePlan.currency?.code || 'EUR'
+  const totalAmount = Number(expensePlan.totalAmount ?? 0)
+  const reimbursableAmount = Number(expensePlan.reimbursableAmount ?? 0)
+  const nonReimbursableAmount = Number(expensePlan.nonReimbursableAmount ?? 0)
+  const deductibleAmount = Number(expensePlan.deductibleAmount ?? 0)
+  const nonDeductibleAmount = Number(expensePlan.nonDeductibleAmount ?? 0)
+  const advancePaymentAmount = Number(expensePlan?.advancePaymentAggregate?.aggregate?.sum?.amount ?? 0)
+  const { expenseItems } = splitExpenseItems(expensePlan.expensePlanItem)
+
+  // Use expenseAllowance if available
+  const allowances =
+    expensePlan.expenseAllowance && expensePlan.expenseAllowance.length > 0 ? expensePlan.expenseAllowance : []
+
+  // Calculate expenses and allowances totals
+  const totalAmountExpense = expenseItems.reduce((sum, item) => sum + Number(item.totalAmount ?? 0), 0)
+  const totalAmountAllowance =
+    allowances.length > 0
+      ? allowances.reduce((sum, allowance) => sum + Number(allowance.dayRate ?? 0), 0)
+      : splitExpenseItems(expensePlan.expensePlanItem).expenseAllowances.reduce(
+          (sum, item) => sum + Number(item.totalAmount ?? 0),
+          0
+        )
+
+  // Get status display
+  const getStatusDisplay = (status?: string) => {
+    if (!status) return { label: 'Pending', variant: 'default' as const }
+    const statusLower = status.toLowerCase()
+    if (statusLower.includes('approved')) return { label: 'Approved', variant: 'success' as const }
+    if (statusLower.includes('rejected')) return { label: 'Rejected', variant: 'destructive' as const }
+    return { label: status, variant: 'default' as const }
+  }
+
+  const statusDisplay = getStatusDisplay(expensePlan.status)
+  const displayName =
+    `${expensePlan.employee?.firstName || ''} ${expensePlan.employee?.lastName || ''}`.trim() || 'Employee'
+
+  return (
+    <div className="gba:flex gba:flex-col gba:h-full gba:relative" data-testid="approve-expense-plan-v2-container">
+      {/* Task Header with Employee Info */}
+      <TaskDetailHeader
+        title={taskTitle}
+        status={taskStatus}
+        source={taskSource}
+        showEmployeeInfo={true}
+        employeeData={
+          expensePlan?.employee
+            ? {
+                displayName,
+                firstName: expensePlan.employee.firstName,
+                lastName: expensePlan.employee.lastName,
+                avatarUrl: expensePlan.employee.pictureThumbnail
+                  ? `data:image/jpeg;base64,${expensePlan.employee.pictureThumbnail}`
+                  : undefined,
+                position: expensePlan.employee.employeePosition?.jobPosition?.name
+              }
+            : undefined
+        }
+        isLoadingEmployee={loading}
+        creatorName={creatorName}
+        onClose={isEveryBox2Context ? handleClose : undefined}
+        customBadges={
+          <Badge variant={statusDisplay.variant} data-testid="expense-plan-status-badge">
+            {statusDisplay.label}
+          </Badge>
+        }
+      />
+
+      {/* Content with padding - matches header padding for alignment */}
+      <div className="gba:flex-1 gba:overflow-y-auto gba:space-y-4 gba:min-h-0 gba:p-6">
+        {/* 1. Approval Details (only for completed tasks) */}
+        {isTaskCompleted && (
+          <ApprovalDetailsSection
+            approvalStatus={approvalStatus}
+            approvalComment={approvalComment}
+            approvalDate={approvalDate}
+            isLoading={loading}
+            prefixDataTestId="approve-expense-plan-v2"
+          />
+        )}
+
+        {/* 2. Expense Plan Request Details */}
+        <ExpensePlanRequestDetailsSection expensePlan={expensePlan} prefixDataTestId="approve-expense-plan-v2" />
+
+        {/* 3. Financial Overview */}
+        <ExpensePlanTotalsSection
+          totalAmount={totalAmount}
+          totalAmountExpense={totalAmountExpense}
+          totalAmountAllowance={totalAmountAllowance}
+          reimbursableAmount={reimbursableAmount}
+          nonReimbursableAmount={nonReimbursableAmount}
+          deductibleAmount={deductibleAmount}
+          nonDeductibleAmount={nonDeductibleAmount}
+          advancePaymentAmount={advancePaymentAmount}
+          currencyCode={currencyCode}
+          formatCurrency={formatCurrency}
+        />
+
+        {/* 4. Items */}
+        {expensePlan.expensePlanItem && expensePlan.expensePlanItem.length > 0 && (
+          <ExpensePlanItemsSection
+            expensePlanItems={expensePlan.expensePlanItem}
+            currencyCode={currencyCode}
+            formatCurrency={formatCurrency}
+            getCatalogValue={getCatalogValue}
+            prefixDataTestId="approve-expense-plan-v2"
+          />
+        )}
+
+        {/* 5. Trip Details (only if has trips) */}
+        {expensePlan.expenseRequestTrip && expensePlan.expenseRequestTrip.length > 0 && (
+          <Card>
+            <CardHeader>
+              <CardTitle className="gba:flex gba:items-center gba:gap-2">
+                <PiMapPin className="gba:h-5 gba:w-5" />
+                Trip Details
+              </CardTitle>
+            </CardHeader>
+            <CardContent className="gba:space-y-4">
+              {/* Dates */}
+              <div className="gba:grid gba:grid-cols-2 gba:gap-4">
+                <div className="gba:flex gba:items-start gba:gap-2">
+                  <PiCalendarDuotone className="gba:h-5 gba:w-5 gba:text-muted-foreground gba:mt-0.5" />
+                  <div>
+                    <Label className="gba:text-sm gba:font-medium gba:text-muted-foreground">Start Date</Label>
+                    <p className="gba:text-sm">{formatDateTime(expensePlan.startDate)}</p>
+                  </div>
+                </div>
+                <div className="gba:flex gba:items-start gba:gap-2">
+                  <PiClock className="gba:h-5 gba:w-5 gba:text-muted-foreground gba:mt-0.5" />
+                  <div>
+                    <Label className="gba:text-sm gba:font-medium gba:text-muted-foreground">End Date</Label>
+                    <p className="gba:text-sm">{formatDateTime(expensePlan.endDate)}</p>
+                  </div>
+                </div>
+              </div>
+
+              {/* Trip Table/Timeline */}
+              <EnhancedTripSection
+                expenseRequestTrip={expensePlan.expenseRequestTrip}
+                startDate={expensePlan.startDate}
+                endDate={expensePlan.endDate}
+                prefixDataTestId="approve-expense-plan-v2"
+              />
+            </CardContent>
+          </Card>
+        )}
+
+        {/* 6. Advance Payment (only if has advance payments) */}
+        {expensePlan.advancePayment && expensePlan.advancePayment.length > 0 && (
+          <AdvancePaymentSection
+            advancePayments={expensePlan.advancePayment}
+            currencyCode={currencyCode}
+            formatCurrency={formatCurrency}
+            prefixDataTestId="approve-expense-plan-v2"
+          />
+        )}
+      </div>
+
+      {/* Action Footer - Fixed at bottom */}
+      {!isTaskCompleted && (
+        <TaskDetailFooter
+          data-testid="approve-expense-plan-v2-actions"
+          actions={[
+            {
+              label: 'Return',
+              onClick: handleReject,
+              variant: 'outline' as const,
+              disabled: isRejecting || isApproving,
+              loading: isRejecting,
+              icon: XCircle,
+              testId: 'return-button'
+            },
+            {
+              label: 'Approve',
+              onClick: handleApprove,
+              variant: 'default' as const,
+              disabled: isApproving || isRejecting,
+              loading: isApproving,
+              icon: ThumbsUp,
+              className: 'gba:bg-success gba:text-success-foreground hover:gba:bg-success/90',
+              testId: 'approve-button'
+            }
+          ]}
+        />
+      )}
+    </div>
+  )
+}
+
+/**
+ * Approve Expense Plan V2 component
+ * @param props - Business app context props
+ * @returns Approve Expense Plan V2 component
+ */
+const ApproveExpensePlanV2: React.FC<ApproveExpensePlanV2Props> = props => {
+  const { accessToken, additionalData, userInfo, onClose } = props
+
+  // Fallback additional data for testing when none is provided
+  const fallbackAdditionalData = additionalData || {
+    planId: '954d93df-4b5b-4da9-9a22-914be14541d7'
+  }
+
+  return (
+    <div data-testid="approve-expense-plan-v2-wrapper">
+      <ApproveExpensePlanV2Content
+        accessToken={accessToken}
+        additionalData={fallbackAdditionalData}
+        userInfo={userInfo}
+        onClose={onClose}
+      />
+    </div>
+  )
+}
+
+export default ApproveExpensePlanV2

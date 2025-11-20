@@ -1,0 +1,520 @@
+/**
+ * FeedbackApprovalV2 Component
+ * Standalone form for approving feedback requests from Kogito processes
+ * Based on ApproveEmployeeVacationV2 structure with header, content, and footer
+ */
+
+import React, { useState, useMemo } from 'react'
+import { Separator, Alert, Badge, Textarea, Switch, Label } from '@newwork/nw-design-system'
+import { XCircle, CheckCircle, Calendar, Lock, Globe, MessageSquare, AlertCircle } from 'lucide-react'
+import { BusinessAppContextProps } from '@/common/BusinessAppContext'
+import { dispatchProcessContinueEvent } from '@/common/utils/processEventUtils'
+import { TaskDetailHeader } from '@/business-apps/platform/apps/every-box-2/components/TaskDetailHeader'
+import { TaskDetailFooter } from '@/business-apps/platform/apps/every-box-2/components/TaskDetailFooter'
+import { useEmployeeDetails } from '../feedback-form/hooks/useEmployeeDetails'
+import dayjs from 'dayjs'
+
+type AnyObject = Record<string, any>
+
+interface FeedbackApprovalV2Props extends BusinessAppContextProps {
+  // Additional props from task payload
+  onClose?: () => void // Optional callback to close the modal
+}
+
+const FeedbackApprovalV2: React.FC<FeedbackApprovalV2Props> = ({ accessToken, additionalData, onClose }) => {
+  const [showComment, setShowComment] = useState(false)
+  const [comment, setComment] = useState('')
+  const [isAccepting, setIsAccepting] = useState(false)
+  const [isRejecting, setIsRejecting] = useState(false)
+  const [successMessage, setSuccessMessage] = useState<string | null>(null)
+  const [errorMessage, setErrorMessage] = useState<string | null>(null)
+
+  // Extract task data from additionalData
+  const taskPayload = additionalData?.psi_taskPayload || {}
+  const processMetadata = additionalData?.psi_processMetadata || {}
+
+  // Extract task status
+  const taskStatus = additionalData?.psi_taskStatus || processMetadata?.status || 'IN_PROGRESS'
+  const isTaskCompleted = taskStatus === 'COMPLETED'
+
+  // Get task title from process metadata or use default
+  const taskTitle = processMetadata?.referenceTaskName || processMetadata?.nodeName || 'Approve Feedback'
+
+  // Extract feedback data from the actual structure
+  // Data structure:
+  // - psi_taskPayload = task.sourceMetadata.inputs (which contains feedback object)
+  // - psi_processMetadata = task.sourceMetadata (which also contains inputs)
+  // So feedback is in: psi_taskPayload.feedback OR psi_processMetadata.inputs.feedback
+  const feedbackData = useMemo(() => {
+    const psiTaskPayload = (additionalData as AnyObject)?.psi_taskPayload || {}
+    const processMetadata = additionalData?.psi_processMetadata || {}
+
+    // Try psi_taskPayload.feedback first (this is task.sourceMetadata.inputs.feedback)
+    // Then try psi_processMetadata.inputs.feedback as fallback
+    const feedback = psiTaskPayload?.feedback || processMetadata?.inputs?.feedback
+
+    if (!feedback) {
+      return null
+    }
+
+    return {
+      id: feedback.id,
+      text: feedback.feedback,
+      feedbackDate: feedback.feedbackDate,
+      senderEmployeeId: feedback.senderEmployeeId,
+      employeeId: feedback.employeeId,
+      typeRef: feedback.typeRef,
+      // Use feedbackPublic (from Kogito) or fallback to public
+      public: feedback.feedbackPublic !== undefined ? feedback.feedbackPublic : feedback.public
+    }
+  }, [additionalData])
+
+  // Fetch sender employee details
+  const {
+    employee: senderEmployee,
+    loading: senderLoading,
+    rawEmployee
+  } = useEmployeeDetails(accessToken, feedbackData?.senderEmployeeId)
+
+  // Note: Receiver employee details are not currently displayed in the UI
+
+  // Convert rawEmployee data to format expected by TaskDetailHeader
+  const employeeDataForHeader = useMemo(() => {
+    if (!rawEmployee) {
+      // Fallback to senderEmployee if rawEmployee is not available
+      if (senderEmployee) {
+        return {
+          displayName: senderEmployee.name || 'Unknown',
+          position: senderEmployee.jobTitle
+        }
+      }
+      return undefined
+    }
+
+    // Convert pictureThumbnail to data URL format
+    const toDataUrl = (raw: string | null | undefined): string | undefined => {
+      if (!raw) return undefined
+      if (raw.startsWith('data:')) return raw
+      try {
+        JSON.parse(raw)
+        return undefined // JSON metadata, cannot use directly
+      } catch {
+        // Not JSON, proceed with base64 conversion
+      }
+      if (raw.startsWith('/9j/')) return `data:image/jpeg;base64,${raw}`
+      if (raw.startsWith('iVBOR')) return `data:image/png;base64,${raw}`
+      if (raw.startsWith('R0lGOD')) return `data:image/gif;base64,${raw}`
+      return `data:image/gif;base64,${raw}` // Default to GIF
+    }
+
+    // rawEmployee is EmployeeByIdData from useEmployeeById
+    const employee = rawEmployee.employee
+    const jobPosition = rawEmployee.jobPosition
+
+    return {
+      displayName: employee?.displayName || senderEmployee?.name || 'Unknown',
+      firstName: rawEmployee.firstName,
+      lastName: rawEmployee.lastName,
+      avatarUrl: toDataUrl(employee?.pictureThumbnail),
+      position: jobPosition?.name || senderEmployee?.jobTitle
+    }
+  }, [rawEmployee, senderEmployee])
+
+  // Get task source from process metadata (fallback to 'kogito' if not available)
+  const taskSource: 'kogito' | 'cflow' = processMetadata?.source || (processMetadata?.endpoint ? 'kogito' : 'kogito')
+
+  // Format feedback date
+  const formattedDate = feedbackData?.feedbackDate
+    ? dayjs(feedbackData.feedbackDate).format('MMMM D, YYYY [at] h:mm A')
+    : null
+
+  // Extract approval data from task outputs/inputs (for completed tasks)
+  const taskOutputApprovalStatus = useMemo(() => {
+    if (!isTaskCompleted) return null
+
+    // Check outputs first (most reliable for completed tasks)
+    if (processMetadata?.outputs?.approval) {
+      return processMetadata.outputs.approval
+    }
+
+    // Check if stored directly in processMetadata
+    if (processMetadata?.approval) {
+      return processMetadata.approval
+    }
+
+    // Check taskPayload
+    if (taskPayload?.approval) {
+      return taskPayload.approval
+    }
+
+    // Check inputs (fallback)
+    if (processMetadata?.inputs?.approval) {
+      return processMetadata.inputs.approval
+    }
+
+    return null
+  }, [isTaskCompleted, processMetadata, taskPayload])
+
+  const taskOutputApprovalNote = useMemo(() => {
+    if (!isTaskCompleted) return null
+
+    // Check outputs first
+    if (processMetadata?.outputs?.approvalNote) {
+      return processMetadata.outputs.approvalNote
+    }
+
+    // Check if stored directly in processMetadata
+    if (processMetadata?.approvalNote) {
+      return processMetadata.approvalNote
+    }
+
+    // Check taskPayload
+    if (taskPayload?.approvalNote) {
+      return taskPayload.approvalNote
+    }
+
+    // Check inputs (fallback)
+    if (processMetadata?.inputs?.approvalNote) {
+      return processMetadata.inputs.approvalNote
+    }
+
+    // Check for comment field (alternative name)
+    if (processMetadata?.outputs?.comment) {
+      return processMetadata.outputs.comment
+    }
+
+    if (processMetadata?.inputs?.comment) {
+      return processMetadata.inputs.comment
+    }
+
+    return null
+  }, [isTaskCompleted, processMetadata, taskPayload])
+
+  const completedAt = processMetadata?.completedAt || (additionalData as AnyObject)?.psi_taskCompletedAt || null
+
+  const handleAccept = async () => {
+    setIsAccepting(true)
+    setErrorMessage(null)
+    setSuccessMessage(null)
+
+    try {
+      // Dispatch process continue event - same structure as ApproveFeedbackDetails
+      dispatchProcessContinueEvent('pse_submit', {
+        approval: 'approved',
+        comment: comment || undefined,
+        event: 'pse_submit'
+      })
+
+      setSuccessMessage('Feedback approved successfully!')
+
+      // Allow time for user to see success message before closing
+      setTimeout(() => {
+        // Platform will handle closing the modal
+      }, 1500)
+    } catch (err) {
+      const errorMsg = err instanceof Error ? err.message : 'Failed to approve'
+      setErrorMessage(`Failed to approve: ${errorMsg}`)
+    } finally {
+      setIsAccepting(false)
+    }
+  }
+
+  const handleReject = async () => {
+    if (!comment.trim()) {
+      setErrorMessage('Please provide a reason for rejection')
+      setShowComment(true)
+      return
+    }
+
+    setIsRejecting(true)
+    setErrorMessage(null)
+    setSuccessMessage(null)
+
+    try {
+      // Dispatch process continue event - same structure as ApproveFeedbackDetails
+      dispatchProcessContinueEvent('pse_submit', {
+        approval: 'rejected',
+        comment: comment,
+        event: 'pse_submit'
+      })
+
+      setSuccessMessage('Feedback rejected successfully!')
+
+      // Allow time for user to see success message before closing
+      setTimeout(() => {
+        // Platform will handle closing the modal
+      }, 1500)
+    } catch (err) {
+      const errorMsg = err instanceof Error ? err.message : 'Failed to reject'
+      setErrorMessage(`Failed to reject: ${errorMsg}`)
+    } finally {
+      setIsRejecting(false)
+    }
+  }
+
+  const handleCancel = () => {
+    // Simply close the modal using the onClose callback if available
+    // This avoids aborting the process - just closes the UI
+    if (onClose) {
+      onClose()
+    } else {
+      // Fallback: if onClose is not provided, use pse_pause (shouldn't happen in normal flow)
+      dispatchProcessContinueEvent('pse_pause', {})
+    }
+  }
+
+  // Detect if we're in every-box-2 context (has onClose callback)
+  const isEveryBox2Context = !!onClose
+
+  // If we don't have feedback data, show error
+  if (!feedbackData) {
+    return (
+      <div className="gba:flex gba:flex-col gba:h-full gba:relative" data-testid="feedback-approval-v2">
+        <TaskDetailHeader
+          title={taskTitle}
+          status={taskStatus}
+          source={taskSource}
+          onClose={isEveryBox2Context ? handleCancel : undefined}
+        />
+        <div className="gba:flex-1 gba:overflow-y-auto gba:flex gba:items-center gba:justify-center gba:p-6">
+          <Alert variant="destructive" data-testid="error-message">
+            No feedback data available
+          </Alert>
+        </div>
+      </div>
+    )
+  }
+
+  return (
+    <div className="gba:flex gba:flex-col gba:h-full gba:relative" data-testid="feedback-approval-v2">
+      {/* Task Header with Employee Info - Always full width, X button only in every-box-2 */}
+      {/* Header uses absolute positioning to extend to edges of RemoteScreenLoader container */}
+      <TaskDetailHeader
+        title={taskTitle}
+        status={taskStatus}
+        source={taskSource}
+        showEmployeeInfo={true}
+        employeeData={employeeDataForHeader}
+        isLoadingEmployee={senderLoading}
+        creatorName={senderEmployee?.name}
+        onClose={isEveryBox2Context ? handleCancel : undefined}
+      />
+
+      {/* Content with padding - matches header padding for alignment */}
+      <div className="gba:flex-1 gba:overflow-y-auto gba:space-y-6 gba:min-h-0">
+        {/* Error Messages */}
+        {errorMessage && (
+          <Alert variant="destructive" data-testid="error-message">
+            {errorMessage}
+          </Alert>
+        )}
+
+        {/* Feedback Details */}
+        {feedbackData && (
+          <>
+            <div data-testid="feedback-details-section">
+              <h4 className="gba:font-semibold gba:mb-4 gba:text-lg">Feedback Details</h4>
+
+              {/* SECTION 1: Meta Information (Date + Visibility) */}
+              <div className="gba:grid gba:grid-cols-2 gba:gap-4 gba:mb-6">
+                {/* Date Card */}
+                {formattedDate && (
+                  <div className="gba:bg-muted gba:border gba:border-border gba:rounded-lg gba:p-4">
+                    <div className="gba:flex gba:items-center gba:gap-2 gba:mb-2">
+                      <Calendar className="gba:h-4 gba:w-4 gba:text-muted-foreground" />
+                      <span className="gba:text-xs gba:font-medium gba:text-muted-foreground gba:uppercase gba:tracking-wide">
+                        DATE
+                      </span>
+                    </div>
+                    <p className="gba:text-sm gba:font-semibold gba:text-foreground gba:leading-tight">
+                      {formattedDate}
+                    </p>
+                  </div>
+                )}
+
+                {/* Visibility Card */}
+                {feedbackData.public !== undefined && (
+                  <div className="gba:bg-muted gba:border gba:border-border gba:rounded-lg gba:p-4">
+                    <div className="gba:flex gba:items-center gba:gap-2 gba:mb-2">
+                      {feedbackData.public ? (
+                        <Globe className="gba:h-4 gba:w-4 gba:text-muted-foreground" />
+                      ) : (
+                        <Lock className="gba:h-4 gba:w-4 gba:text-muted-foreground" />
+                      )}
+                      <span className="gba:text-xs gba:font-medium gba:text-muted-foreground gba:uppercase gba:tracking-wide">
+                        VISIBILITY
+                      </span>
+                    </div>
+                    <div className="gba:flex gba:items-center gba:gap-2">
+                      {feedbackData.public ? (
+                        <Badge variant="default" className="gba:bg-blue-500 gba:text-white gba:font-semibold">
+                          <Globe className="gba:h-3 gba:w-3 gba:mr-1" />
+                          Public
+                        </Badge>
+                      ) : (
+                        <Badge variant="outline" className="gba:font-semibold">
+                          <Lock className="gba:h-3 gba:w-3 gba:mr-1" />
+                          Private
+                        </Badge>
+                      )}
+                    </div>
+                  </div>
+                )}
+              </div>
+
+              {/* SECTION 2: Feedback Content */}
+              <div>
+                <div className="gba:flex gba:items-center gba:gap-2 gba:mb-3">
+                  <MessageSquare className="gba:h-4 gba:w-4 gba:text-muted-foreground" />
+                  <span className="gba:text-xs gba:font-medium gba:text-muted-foreground gba:uppercase gba:tracking-wide">
+                    FEEDBACK
+                  </span>
+                </div>
+                <div className="gba:bg-card gba:border gba:border-border gba:rounded-lg gba:p-5">
+                  <p className="gba:text-sm gba:text-foreground gba:whitespace-pre-wrap gba:leading-relaxed">
+                    {feedbackData.text || 'No feedback text available'}
+                  </p>
+                </div>
+              </div>
+            </div>
+            <Separator />
+          </>
+        )}
+
+        {/* Approval Details - Only show when task is completed */}
+        {isTaskCompleted && taskOutputApprovalStatus && (
+          <>
+            <div data-testid="approval-details-section">
+              <h4 className="gba:font-semibold gba:mb-4 gba:text-lg">Approval Details</h4>
+              <div className="gba:bg-muted gba:p-4 gba:rounded-lg gba:space-y-3">
+                {/* Approval Status */}
+                <div className="gba:flex gba:items-start gba:gap-3">
+                  <span className="gba:text-sm gba:font-medium gba:text-muted-foreground gba:min-w-[140px]">
+                    Approval Status:
+                  </span>
+                  <span
+                    className={`gba:text-sm gba:flex-1 gba:font-medium ${
+                      taskOutputApprovalStatus === 'approved' || taskOutputApprovalStatus === 'APPROVED'
+                        ? 'gba:text-success'
+                        : 'gba:text-destructive'
+                    }`}
+                  >
+                    {taskOutputApprovalStatus === 'approved' || taskOutputApprovalStatus === 'APPROVED' ? (
+                      <span className="gba:flex gba:items-center gba:gap-2">
+                        <CheckCircle className="gba:h-4 gba:w-4" />
+                        Approved
+                      </span>
+                    ) : (
+                      <span className="gba:flex gba:items-center gba:gap-2">
+                        <AlertCircle className="gba:h-4 gba:w-4" />
+                        Rejected
+                      </span>
+                    )}
+                  </span>
+                </div>
+
+                {/* Approval Time */}
+                {completedAt && (
+                  <div className="gba:flex gba:items-start gba:gap-3">
+                    <span className="gba:text-sm gba:font-medium gba:text-muted-foreground gba:min-w-[140px]">
+                      Approval Time:
+                    </span>
+                    <span className="gba:text-sm gba:flex-1">
+                      {dayjs(completedAt).format('MMM D, YYYY [at] h:mm A')}
+                    </span>
+                  </div>
+                )}
+
+                {/* Approval Comment - Only show if there is a comment */}
+                {taskOutputApprovalNote?.trim() && (
+                  <div className="gba:flex gba:items-start gba:gap-3">
+                    <span className="gba:text-sm gba:font-medium gba:text-muted-foreground gba:min-w-[140px]">
+                      Approval Comment:
+                    </span>
+                    <span className="gba:text-sm gba:flex-1 gba:text-muted-foreground">
+                      {taskOutputApprovalNote.trim()}
+                    </span>
+                  </div>
+                )}
+              </div>
+            </div>
+            <Separator />
+          </>
+        )}
+
+        {/* Comment Section - Only show for non-completed tasks */}
+        {!isTaskCompleted && (
+          <div data-testid="comment-section">
+            <div className="gba:flex gba:items-center gba:gap-2 gba:mb-3">
+              <MessageSquare className="gba:h-4 gba:w-4" />
+              <Label htmlFor="approval-comment" className="gba:text-sm gba:font-medium">
+                Add Comment (Required for rejection)
+              </Label>
+              <Switch
+                id="approval-comment"
+                checked={showComment}
+                onCheckedChange={checked => {
+                  setShowComment(checked)
+                  if (!checked) {
+                    setComment('')
+                  }
+                }}
+                data-testid="comment-toggle"
+              />
+            </div>
+            {showComment && (
+              <Textarea
+                rows={3}
+                placeholder="Add your approval comment or rejection reason..."
+                value={comment}
+                onChange={e => setComment(e.target.value)}
+                maxLength={500}
+                className="gba:w-full"
+                data-testid="approval-comment-input"
+              />
+            )}
+          </div>
+        )}
+      </div>
+
+      {/* Action Footer - Fixed at bottom */}
+      {/* Hardcoded actions for Kogito tasks - always show Cancel/Reject/Accept unless task is completed */}
+      {/* CFlow tasks will be handled later */}
+      {!isTaskCompleted && (
+        <TaskDetailFooter
+          data-testid="action-footer"
+          actions={[
+            {
+              label: 'Cancel',
+              onClick: handleCancel,
+              variant: 'outline' as const,
+              disabled: isRejecting || isAccepting || !!successMessage,
+              testId: 'cancel-button'
+            },
+            {
+              label: 'Reject',
+              onClick: handleReject,
+              variant: 'destructive' as const,
+              disabled: isRejecting || isAccepting || !!successMessage,
+              loading: isRejecting,
+              icon: XCircle,
+              testId: 'reject-button'
+            },
+            {
+              label: 'Accept',
+              onClick: handleAccept,
+              variant: 'default' as const,
+              disabled: isAccepting || isRejecting || !!successMessage,
+              loading: isAccepting,
+              icon: CheckCircle,
+              className: 'gba:bg-success gba:text-success-foreground hover:gba:bg-success/90',
+              testId: 'accept-button'
+            }
+          ]}
+        />
+      )}
+    </div>
+  )
+}
+
+export default FeedbackApprovalV2
