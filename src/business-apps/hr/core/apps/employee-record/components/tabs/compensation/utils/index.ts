@@ -18,3 +18,11 @@ export {
   getTranslatedProviderValue,
   getTranslatedCatalogEntryValue
 } from './benefitTranslationUtils'
+
+export {
+  normalizeSalaryData,
+  hasAnySalaryData,
+  calculateYearlyFromMonthly,
+  calculateMonthlyFromYearly,
+  type NormalizedSalaryData
+} from './salaryCalculations'

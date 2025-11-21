@@ -19,6 +19,7 @@ current-bonus = Bonus
 current-bonuses = Boni
 current-annually = Jährlich
 current-monthly = Monatlich
+current-hourly = Stündlich
 
 # Compensation Band
 band-title = Vergütungsstufe
@@ -228,6 +229,8 @@ action-deactivate = Deaktivieren
 action-download = Herunterladen
 action-view = Anzeigen
 action-close = Schließen
+action-select-placeholder = Bitte auswählen
+action-enter-placeholder = Bitte eingeben
 
 # Benefits Catalog Section
 benefit-per-year = /Jahr
