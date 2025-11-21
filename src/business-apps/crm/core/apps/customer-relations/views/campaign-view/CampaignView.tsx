@@ -2,17 +2,21 @@ import React, { useState, useCallback, useEffect, useMemo } from 'react'
 import { DataDisplay, DataTable, Button } from '@newwork/nw-design-system'
 import { Plus } from 'lucide-react'
 import { BusinessAppContextProps } from '@/common/BusinessAppContext'
-import { useSalesCampaignData } from './components/campaign-list/hooks/useSalesCampaignData'
-import { useCampaignFilters } from './components/campaign-list/hooks/useCampaignFilters'
-import { useGetCampaignTypes } from './components/campaign-list/hooks/useGetCampaignTypes'
-import { CampaignStatistics } from './components'
+import {
+  useSalesCampaignData,
+  useCampaignFilters,
+  useGetCampaignTypes,
+  CampaignStatistics,
+  createCampaignColumns,
+  createCampaignSortableColumns,
+  campaignFilterConfig
+} from '@/business-apps/crm/campaigns/apps/campaign-management'
 import { navigateTo, buildPlatformUrl } from '@/common/utils/navigationUtils'
 import { AppAction } from '@/components/app-action/AppAction'
 import { AppActionMenu } from '@/components/app-action-menu/AppActionMenu'
 import { FlowContextName } from '@/common/types/FlowRegistryTypes'
 import { getTranslationFromI18nKeyAndLabel } from '@/common/utils/windowUtils'
-import type { SalesCampaign } from './components/campaign-list/types/SalesCampaignTypes'
-import { createCampaignColumns, createCampaignSortableColumns, campaignFilterConfig } from './config'
+import type { SalesCampaign } from '@/business-apps/crm/campaigns/apps/campaign-management/components/campaign-list/types/SalesCampaignTypes'
 
 type CampaignViewProps = BusinessAppContextProps
 
