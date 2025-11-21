@@ -767,7 +767,6 @@ const AdvancePaymentsTable: React.FC<AdvancePaymentsTableProps> = props => {
 
   const hasActiveFilters = useMemo(() => {
     const hasSearch = (searchText || '').trim() !== ''
-
     return (
       hasSearch ||
       statusFilter.length > 0 ||
@@ -837,7 +836,7 @@ const AdvancePaymentsTable: React.FC<AdvancePaymentsTableProps> = props => {
           actions: []
         }}
         dataFilterProps={{
-          filterGroups: totalCount === 0 && !isLoading ? [] : filterGroups,
+          filterGroups,
           onFilterChange: handleFilterChange as (filterId: string, selected: boolean) => void
         }}
         dataBody={renderDataBody()}
