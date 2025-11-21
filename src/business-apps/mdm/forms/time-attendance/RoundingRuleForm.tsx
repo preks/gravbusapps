@@ -6,9 +6,9 @@ import { formatDataTestId } from '@/common/utils/formatDataTestId'
 import { useTranslation } from 'react-i18next'
 import { z } from 'zod'
 import { zodResolver } from '@hookform/resolvers/zod'
-import { RoundingRule } from '../../apps/time-attendance/hooks/useRoundingRulesData'
 import { useRestClient } from '@/common/network/rest/useRestClient'
 import { env } from '@/common/env/EnvUtils'
+import { RoundingRule } from '../../apps/time-attendance/types/rounding-rules'
 
 // Validation schema
 const roundingRuleSchema = z.object({

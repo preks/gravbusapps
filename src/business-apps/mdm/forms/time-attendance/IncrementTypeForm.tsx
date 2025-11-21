@@ -6,9 +6,9 @@ import { formatDataTestId } from '@/common/utils/formatDataTestId'
 import { useTranslation } from 'react-i18next'
 import { z } from 'zod'
 import { zodResolver } from '@hookform/resolvers/zod'
-import { IncrementType } from '../../apps/time-attendance/hooks/useIncrementTypesData'
 import { useRestClient } from '@/common/network/rest/useRestClient'
 import { env } from '@/common/env/EnvUtils'
+import { IncrementType } from '../../apps/time-attendance/types/increment-types'
 
 // Validation schema
 const incrementTypeSchema = z.object({

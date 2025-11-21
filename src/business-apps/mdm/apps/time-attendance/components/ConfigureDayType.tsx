@@ -179,6 +179,9 @@ const ConfigureDayType: React.FC<ConfigureDayTypeProps> = ({
     // Disable during loading
     if (loading) return true
 
+    // Disable if there are overlap warnings
+    if (overlapWarning) return true
+
     // Check if form is valid
     const isValid = form.formState.isValid
     const isDirty = form.formState.isDirty
@@ -191,79 +194,174 @@ const ConfigureDayType: React.FC<ConfigureDayTypeProps> = ({
 
     // For edit: must have changes (isDirty) and form must be valid
     return !isDirty || !isValid
-  }, [loading, form.formState.isValid, form.formState.isDirty, currentDayTypeVersion])
+  }, [loading, overlapWarning, form.formState.isValid, form.formState.isDirty, currentDayTypeVersion])
 
-  // Find the latest version for a given dayType
-  const findLatestVersion = useCallback(
+  // Find versions that overlap with the version's date range
+  const findOverlappingVersions = useCallback(
+    (dayTypeId: string, newActiveFrom: Date, newActiveTo: Date | null): TransformedDayTypeVersion[] => {
+      if (!dayTypeId) return []
+
+      return dayTypeVersions.filter(version => {
+        if (version.dayType?.id !== dayTypeId || version.id === currentDayTypeVersion?.id) return false
+        if (!version.activeFrom) return false
+
+        const versionActiveFrom = new Date(version.activeFrom)
+        const versionActiveTo = version.activeTo ? new Date(version.activeTo) : null
+
+        // Two periods overlap if: newActiveFrom <= versionActiveTo AND newActiveTo >= versionActiveFrom
+        // Handle cases where one or both periods have no end date (infinite)
+        const newStartsBeforeVersionEnds = !versionActiveTo || newActiveFrom <= versionActiveTo
+        const newEndsAfterVersionStarts = !newActiveTo || newActiveTo >= versionActiveFrom
+
+        return newStartsBeforeVersionEnds && newEndsAfterVersionStarts
+      })
+    },
+    [dayTypeVersions, currentDayTypeVersion]
+  )
+
+  // Find version without end date (infinite version) for a given dayType
+  const findVersionWithoutEndDate = useCallback(
     (dayTypeId: string): TransformedDayTypeVersion | null => {
       if (!dayTypeId) return null
 
-      // Filter versions for this dayType
       const versionsForDayType = dayTypeVersions.filter(
-        version => version.dayType?.id === dayTypeId && version.id !== currentDayTypeVersion?.id
+        version => version.dayType?.id === dayTypeId && version.id !== currentDayTypeVersion?.id && !version.activeTo
       )
 
       if (versionsForDayType.length === 0) return null
 
-      // Sort by activeTo descending (most recent first) or by activeFrom if activeTo is null
+      // Sort by activeFrom descending (most recent first)
       const sortedVersions = [...versionsForDayType].sort((a, b) => {
-        const dateA = a.activeTo ? new Date(a.activeTo).getTime() : new Date(a.activeFrom || '').getTime()
-        const dateB = b.activeTo ? new Date(b.activeTo).getTime() : new Date(b.activeFrom || '').getTime()
-        return dateB - dateA // Descending order
+        const dateA = new Date(a.activeFrom || '').getTime()
+        const dateB = new Date(b.activeFrom || '').getTime()
+        return dateB - dateA
       })
       return sortedVersions[0] || null
     },
     [dayTypeVersions, currentDayTypeVersion]
   )
 
-  // Check for date overlap when creating a new version
-  useEffect(() => {
-    const isNewVersion = !currentDayTypeVersion?.id || currentDayTypeVersion.id === ''
-    if (!isNewVersion) {
-      setOverlapWarning(null)
-      return
-    }
+  // Find next planned version after a given date for a given dayType
+  const findNextPlannedVersion = useCallback(
+    (dayTypeId: string, afterDate: string): TransformedDayTypeVersion | null => {
+      if (!dayTypeId || !afterDate) return null
 
+      const afterDateObj = new Date(afterDate)
+
+      const versionsForDayType = dayTypeVersions.filter(version => {
+        if (version.dayType?.id !== dayTypeId || version.id === currentDayTypeVersion?.id) return false
+        if (!version.activeFrom) return false
+
+        const versionActiveFrom = new Date(version.activeFrom)
+        return versionActiveFrom > afterDateObj
+      })
+
+      if (versionsForDayType.length === 0) return null
+
+      // Sort by activeFrom ascending (earliest first)
+      const sortedVersions = [...versionsForDayType].sort((a, b) => {
+        const dateA = new Date(a.activeFrom || '').getTime()
+        const dateB = new Date(b.activeFrom || '').getTime()
+        return dateA - dateB
+      })
+      return sortedVersions[0] || null
+    },
+    [dayTypeVersions, currentDayTypeVersion]
+  )
+
+  // Check for date overlap when creating or editing a version
+  useEffect(() => {
     const dayTypeId = form.watch('dayType')
     const activeFrom = form.watch('activeFrom')
+    const activeTo = form.watch('activeTo')
 
     if (!dayTypeId || !activeFrom) {
       setOverlapWarning(null)
       return
     }
 
-    const latestVersion = findLatestVersion(dayTypeId)
-    if (!latestVersion?.activeTo) {
-      setOverlapWarning(null)
-      return
-    }
-
     const newActiveFrom = new Date(activeFrom)
-    const latestActiveTo = new Date(latestVersion.activeTo)
+    const newActiveTo = activeTo ? new Date(activeTo) : null
 
-    // Check if new activeFrom is before or equal to latest activeTo (overlap)
-    if (newActiveFrom <= latestActiveTo) {
-      // Calculate suggested start date (one day after latest activeTo)
-      const suggestedDate = new Date(latestActiveTo)
-      suggestedDate.setDate(suggestedDate.getDate() + 1)
-      const suggestedDateStr = suggestedDate.toISOString().split('T')[0]
-
-      setOverlapWarning(
-        getTranslationFromI18nKeyAndLabel(
-          'master-data:hr.time_attendance.day_types.version.a_version_already_exists_for_this_period',
-          'A version already exists for this period'
-        ) +
-          ` The existing version ends on ${formatDate(latestActiveTo.toLocaleDateString())}. ` +
+    // Case 1: Check if there's a version without end date (infinite version)
+    const versionWithoutEndDate = findVersionWithoutEndDate(dayTypeId)
+    if (versionWithoutEndDate) {
+      const versionActiveFrom = new Date(versionWithoutEndDate.activeFrom || '')
+      // If version starts after the infinite version starts, there will be overlap
+      if (newActiveFrom >= versionActiveFrom) {
+        const versionActiveFromStr = formatDate(versionActiveFrom.toISOString().split('T')[0])
+        setOverlapWarning(
           getTranslationFromI18nKeyAndLabel(
-            'master-data:hr.time_attendance.day_types.version.please_either_modify_the_existing_version_or_create_the_new_version_starting_from',
-            'Please either modify the existing version or create the new version starting from'
-          ) +
-          `Please either modify the existing version or create the new version starting from ${formatDate(suggestedDateStr)}.`
-      )
-    } else {
-      setOverlapWarning(null)
+            'master-data:hr.time_attendance.day_types_version.warnings.version_without_end_date',
+            `A version without an end date exists for this day type. The existing version starts on ${versionActiveFromStr} and has no end date. Please close the existing version first by setting an end date, then create the version.`,
+            { startDate: versionActiveFromStr }
+          )
+        )
+        return
+      }
     }
-  }, [form.watch('dayType'), form.watch('activeFrom'), currentDayTypeVersion, findLatestVersion])
+
+    // Case 2: Check if there's a planned version after the version's start date
+    // Only show warning if version doesn't have end date OR end date is after planned version's start
+    const nextPlannedVersion = findNextPlannedVersion(dayTypeId, activeFrom)
+    if (nextPlannedVersion) {
+      const nextVersionActiveFrom = new Date(nextPlannedVersion.activeFrom || '')
+      // If version doesn't have end date OR version's end date is after or equal to next version's start date
+      if (!newActiveTo || newActiveTo >= nextVersionActiveFrom) {
+        const nextVersionActiveFromStr = formatDate(nextVersionActiveFrom.toISOString().split('T')[0])
+        setOverlapWarning(
+          getTranslationFromI18nKeyAndLabel(
+            'master-data:hr.time_attendance.day_types_version.warnings.planned_version_after_start',
+            `A version is already planned after the start date of this version. The planned version starts on {${nextVersionActiveFromStr}. Please set an end date for this version before the planned version starts, or modify the planned version.`,
+            { plannedStartDate: nextVersionActiveFromStr }
+          )
+        )
+        return
+      }
+    }
+
+    // Case 3: Check for actual overlap with existing versions
+    const overlappingVersions = findOverlappingVersions(dayTypeId, newActiveFrom, newActiveTo)
+    if (overlappingVersions.length > 0) {
+      // Find the version that ends latest among overlapping versions
+      const latestOverlappingVersion = overlappingVersions.reduce((latest, current) => {
+        const latestEnd = latest.activeTo ? new Date(latest.activeTo).getTime() : Infinity
+        const currentEnd = current.activeTo ? new Date(current.activeTo).getTime() : Infinity
+        return currentEnd > latestEnd ? current : latest
+      }, overlappingVersions[0])
+
+      if (latestOverlappingVersion.activeTo) {
+        const latestActiveTo = new Date(latestOverlappingVersion.activeTo)
+        // Calculate suggested start date (one day after latest activeTo)
+        const suggestedDate = new Date(latestActiveTo)
+        suggestedDate.setDate(suggestedDate.getDate() + 1)
+        const suggestedDateStr = suggestedDate.toISOString().split('T')[0]
+
+        setOverlapWarning(
+          getTranslationFromI18nKeyAndLabel(
+            'master-data:hr.time_attendance.day_types.version.a_version_already_exists_for_this_period',
+            `A version already exists for this period. The existing version ends on ${formatDate(latestActiveTo.toISOString().split('T')[0])}. Please either modify the existing version or create the version starting from ${formatDate(suggestedDateStr)}.`,
+            {
+              endDate: formatDate(latestActiveTo.toISOString().split('T')[0]),
+              suggestedDate: formatDate(suggestedDateStr)
+            }
+          )
+        )
+        return
+      }
+    }
+
+    // No warnings
+    setOverlapWarning(null)
+  }, [
+    form.watch('dayType'),
+    form.watch('activeFrom'),
+    form.watch('activeTo'),
+    currentDayTypeVersion,
+    findOverlappingVersions,
+    findVersionWithoutEndDate,
+    findNextPlannedVersion
+  ])
 
   // Helper function to convert date string (YYYY-MM-DD) to ISO 8601 Instant format
   const convertDateToInstant = (dateString: string): string => {
@@ -281,6 +379,12 @@ const ConfigureDayType: React.FC<ConfigureDayTypeProps> = ({
 
   const handleSaveChanges = async (data: DayTypeConfigFormData) => {
     try {
+      // Prevent save if there are overlap warnings
+      if (overlapWarning) {
+        console.warn('Cannot save: Date overlap detected', overlapWarning)
+        return
+      }
+
       setLoading(true)
 
       // Check if this is an update (has valid id) or create (no id or empty id)

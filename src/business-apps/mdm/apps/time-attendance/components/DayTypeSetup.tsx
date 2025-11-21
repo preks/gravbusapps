@@ -33,6 +33,86 @@ export interface DayTypeSetupProps {
 
 const DATA_TEST_ID_PREFIX = 'DayTypeSetup'
 
+interface DayTypeSetupActionsCellProps {
+  row: { original: TransformedDayTypeVersionDetail }
+  dayTypeVersionId: string | null
+  accessToken: string
+  dataTestId: string
+  dayTypeVersionDetails: TransformedDayTypeVersionDetail[]
+  fieldTypeOptions: FieldTypeOption[]
+  refetch: () => Promise<void>
+  onDeleteClick: (dayTypeDetail: TransformedDayTypeVersionDetail) => void
+}
+
+const DayTypeSetupActionsCell: React.FC<DayTypeSetupActionsCellProps> = ({
+  row,
+  dayTypeVersionId,
+  accessToken,
+  dataTestId,
+  dayTypeVersionDetails,
+  fieldTypeOptions,
+  refetch,
+  onDeleteClick
+}) => {
+  const targetDayTypeDetail = dayTypeVersionDetails.find(dayTypeDetail => dayTypeDetail.id === row.original.id)
+
+  return (
+    <div className="gba:flex gba:items-center gba:gap-2">
+      <DayTypeDetailsForm
+        dayTypeVersionId={dayTypeVersionId || ''}
+        accessToken={accessToken}
+        prefixDataTestId={dataTestId}
+        childAddButton={
+          <Button
+            onClick={event => event.stopPropagation()}
+            variant="ghost"
+            className="gba:flex gba:items-center gba:gap-2"
+          >
+            <PencilSimpleLineIcon />
+          </Button>
+        }
+        refetch={refetch}
+        dayTypeDetails={targetDayTypeDetail}
+        fieldTypeOptions={fieldTypeOptions}
+      />
+      <Button
+        variant="ghost"
+        size="sm"
+        onClick={event => {
+          event.stopPropagation()
+          onDeleteClick(row.original)
+        }}
+        data-testid={formatDataTestId(dataTestId, `delete-row-button-${row.original.id}`)}
+      >
+        <TrashIcon className="gba:h-4 gba:w-4" />
+      </Button>
+    </div>
+  )
+}
+
+const createActionsCellRenderer = (
+  dayTypeVersionId: string | null,
+  accessToken: string,
+  dataTestId: string,
+  dayTypeVersionDetails: TransformedDayTypeVersionDetail[],
+  fieldTypeOptions: FieldTypeOption[],
+  refetch: () => Promise<void>,
+  onDeleteClick: (dayTypeDetail: TransformedDayTypeVersionDetail) => void
+) => {
+  return ({ row }: { row: { original: TransformedDayTypeVersionDetail } }) => (
+    <DayTypeSetupActionsCell
+      row={row}
+      dayTypeVersionId={dayTypeVersionId}
+      accessToken={accessToken}
+      dataTestId={dataTestId}
+      dayTypeVersionDetails={dayTypeVersionDetails}
+      fieldTypeOptions={fieldTypeOptions}
+      refetch={refetch}
+      onDeleteClick={onDeleteClick}
+    />
+  )
+}
+
 export const DayTypeSetup: React.FC<DayTypeSetupProps> = ({
   dayTypeVersionId,
   accessToken,
@@ -130,46 +210,21 @@ export const DayTypeSetup: React.FC<DayTypeSetupProps> = ({
       {
         id: 'actions',
         header: getTranslationFromI18nKeyAndLabel('translation:actions.actions', 'Actions'),
-        cell: ({ row }) => {
-          const targetDayTypeDetail = dayTypeVersionDetails.find(dayTypeDetail => dayTypeDetail.id === row.original.id)
-
-          return (
-            <div className="gba:flex gba:items-center gba:gap-2">
-              <DayTypeDetailsForm
-                dayTypeVersionId={dayTypeVersionId || ''}
-                accessToken={accessToken}
-                prefixDataTestId={dataTestId}
-                childAddButton={
-                  <Button
-                    onClick={event => event.stopPropagation()}
-                    variant="ghost"
-                    className="gba:flex gba:items-center gba:gap-2"
-                  >
-                    <PencilSimpleLineIcon />
-                  </Button>
-                }
-                refetch={refetch}
-                dayTypeDetails={targetDayTypeDetail}
-                fieldTypeOptions={fieldTypeOptions}
-              />
-              <Button
-                variant="ghost"
-                size="sm"
-                onClick={event => {
-                  event.stopPropagation()
-                  setSelectedDayTypeDetail(row.original)
-                  setIsDeleteDialogOpen(true)
-                }}
-                data-testid={formatDataTestId(dataTestId, `delete-row-button-${row.original.id}`)}
-              >
-                <TrashIcon className="gba:h-4 gba:w-4" />
-              </Button>
-            </div>
-          )
-        }
+        cell: createActionsCellRenderer(
+          dayTypeVersionId,
+          accessToken,
+          dataTestId,
+          dayTypeVersionDetails,
+          fieldTypeOptions,
+          refetch,
+          dayTypeDetail => {
+            setSelectedDayTypeDetail(dayTypeDetail)
+            setIsDeleteDialogOpen(true)
+          }
+        )
       }
     ],
-    [dataTestId, dayTypeVersionDetails, fieldTypeOptions]
+    [dataTestId, dayTypeVersionDetails, fieldTypeOptions, dayTypeVersionId, accessToken, refetch]
   )
 
   if (error) {

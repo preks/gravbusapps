@@ -31,6 +31,90 @@ interface DayTypesVersionProps {
 
 const DATA_TEST_ID_PREFIX = 'DayTypesVersion'
 
+interface DayTypesVersionActionsCellProps {
+  row: { original: TransformedDayTypeVersion }
+  dataTestId: string
+  onEdit?: (version: TransformedDayTypeVersion) => void
+  onDeleteClick: (version: TransformedDayTypeVersion) => void
+}
+
+const DayTypesVersionActionsCell: React.FC<DayTypesVersionActionsCellProps> = ({
+  row,
+  dataTestId,
+  onEdit,
+  onDeleteClick
+}) => {
+  const version = row.original
+
+  return (
+    <div className="gba:flex gba:items-center gba:justify-center gba:gap-1">
+      <Button
+        variant="ghost"
+        onClick={event => {
+          event.stopPropagation()
+          onEdit?.(version)
+        }}
+        data-testid={formatDataTestId(dataTestId, `edit-version-button-${version.id}`)}
+      >
+        <PencilSimpleLineIcon />
+      </Button>
+      <Button
+        variant="ghost"
+        onClick={event => {
+          event.stopPropagation()
+          onDeleteClick(version)
+        }}
+        data-testid={formatDataTestId(dataTestId, `delete-version-button-${version.id}`)}
+      >
+        <TrashIcon />
+      </Button>
+    </div>
+  )
+}
+
+const ColorCell: React.FC<{ color: string }> = ({ color }) => {
+  return <div className="gba:w-6 gba:h-6 gba:rounded-md gba:border" style={{ backgroundColor: color || '#111827' }} />
+}
+
+const StatusCell: React.FC<{ status: 'active' | 'expired' | 'inactive' | 'planned' }> = ({ status }) => {
+  let translationKey: string
+  let defaultLabel: string
+  if (status === 'active') {
+    translationKey = 'master-data:forms.capability.fields.status.options.active'
+    defaultLabel = 'Active'
+  } else if (status === 'expired') {
+    translationKey = 'lowcoder:hr_assets.expired'
+    defaultLabel = 'Expired'
+  } else if (status === 'planned') {
+    translationKey = 'lowcoder:absence_management_hub_backoffice.planned'
+    defaultLabel = 'Planned'
+  } else {
+    translationKey = 'flow.flow_start_page.inactive'
+    defaultLabel = 'Inactive'
+  }
+  return <Badge variant="outline">{getTranslationFromI18nKeyAndLabel(translationKey, defaultLabel)}</Badge>
+}
+
+const createColorCellRenderer = () => {
+  return ({ getValue }: { getValue: () => unknown }) => <ColorCell color={getValue() as string} />
+}
+
+const createStatusCellRenderer = () => {
+  return ({ getValue }: { getValue: () => unknown }) => (
+    <StatusCell status={getValue() as 'active' | 'expired' | 'inactive' | 'planned'} />
+  )
+}
+
+const createActionsCellRenderer = (
+  dataTestId: string,
+  onDeleteClick: (version: TransformedDayTypeVersion) => void,
+  onEdit?: (version: TransformedDayTypeVersion) => void
+) => {
+  return ({ row }: { row: { original: TransformedDayTypeVersion } }) => (
+    <DayTypesVersionActionsCell row={row} dataTestId={dataTestId} onEdit={onEdit} onDeleteClick={onDeleteClick} />
+  )
+}
+
 export const DayTypesVersion: React.FC<DayTypesVersionProps> = ({
   dayTypeVersions,
   refetch,
@@ -106,12 +190,7 @@ export const DayTypesVersion: React.FC<DayTypesVersionProps> = ({
     {
       accessorKey: 'color',
       header: getTranslationFromI18nKeyAndLabel('flow:formio.form_builder.component_settings.color.label', 'Color'),
-      cell: ({ getValue }) => {
-        const color = getValue() as string
-        return (
-          <div className="gba:w-6 gba:h-6 gba:rounded-md gba:border" style={{ backgroundColor: color || '#111827' }} />
-        )
-      }
+      cell: createColorCellRenderer()
     },
     {
       accessorKey: 'activeFrom',
@@ -140,25 +219,7 @@ export const DayTypesVersion: React.FC<DayTypesVersionProps> = ({
     {
       accessorKey: 'status',
       header: getTranslationFromI18nKeyAndLabel('lowcoder:expense_request_list.expense_plan_table.status', 'Status'),
-      cell: ({ getValue }) => {
-        const status = getValue() as 'active' | 'expired' | 'inactive' | 'planned'
-        let translationKey: string
-        let defaultLabel: string
-        if (status === 'active') {
-          translationKey = 'master-data:forms.capability.fields.status.options.active'
-          defaultLabel = 'Active'
-        } else if (status === 'expired') {
-          translationKey = 'lowcoder:hr_assets.expired'
-          defaultLabel = 'Expired'
-        } else if (status === 'planned') {
-          translationKey = 'lowcoder:absence_management_hub_backoffice.planned'
-          defaultLabel = 'Planned'
-        } else {
-          translationKey = 'flow.flow_start_page.inactive'
-          defaultLabel = 'Inactive'
-        }
-        return <Badge variant="outline">{getTranslationFromI18nKeyAndLabel(translationKey, defaultLabel)}</Badge>
-      }
+      cell: createStatusCellRenderer()
     },
     {
       accessorKey: 'dayTypeVersionDetail',
@@ -175,35 +236,14 @@ export const DayTypesVersion: React.FC<DayTypesVersionProps> = ({
       id: 'actions',
       header: getTranslationFromI18nKeyAndLabel('translation:actions.actions', 'Actions'),
       enableSorting: false,
-      cell: ({ row }) => {
-        const version = row.original
-
-        return (
-          <div className="gba:flex gba:items-center gba:justify-center gba:gap-1">
-            <Button
-              variant="ghost"
-              onClick={event => {
-                event.stopPropagation()
-                onEdit?.(version)
-              }}
-              data-testid={formatDataTestId(dataTestId, `edit-version-button-${version.id}`)}
-            >
-              <PencilSimpleLineIcon />
-            </Button>
-            <Button
-              variant="ghost"
-              onClick={event => {
-                event.stopPropagation()
-                setSelectedDayTypeVersion(version ?? null)
-                setIsDeleteDialogOpen(true)
-              }}
-              data-testid={formatDataTestId(dataTestId, `delete-version-button-${version.id}`)}
-            >
-              <TrashIcon />
-            </Button>
-          </div>
-        )
-      }
+      cell: createActionsCellRenderer(
+        dataTestId,
+        version => {
+          setSelectedDayTypeVersion(version ?? null)
+          setIsDeleteDialogOpen(true)
+        },
+        onEdit
+      )
     }
   ]
 

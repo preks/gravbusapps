@@ -6,9 +6,9 @@ import { formatDataTestId } from '@/common/utils/formatDataTestId'
 import { useTranslation } from 'react-i18next'
 import { z } from 'zod'
 import { zodResolver } from '@hookform/resolvers/zod'
-import { BreakType } from '../../apps/time-attendance/hooks/useBreakTypesData'
 import { useRestClient } from '@/common/network/rest/useRestClient'
 import { env } from '@/common/env/EnvUtils'
+import { BreakType } from '../../apps/time-attendance/types/break-types'
 
 // Validation schema
 const breakTypeSchema = z.object({

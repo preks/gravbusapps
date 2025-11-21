@@ -32,6 +32,130 @@ interface DayTypesItemsProps {
 
 const DATA_TEST_ID_PREFIX = 'DayTypesItems'
 
+interface DayTypesItemsActionsCellProps {
+  row: { original: SimpleDayType }
+  dayTypes: SimpleDayType[]
+  dayTypeVersions: TransformedDayTypeVersion[]
+  prefixDataTestId: string
+  accessToken: string
+  refetch: () => Promise<void>
+  onConfigure: (dayTypeVersion: TransformedDayTypeVersion) => void
+  onDeleteClick: (dayType: SimpleDayType) => void
+}
+
+const DayTypesItemsActionsCell: React.FC<DayTypesItemsActionsCellProps> = ({
+  row,
+  dayTypes,
+  dayTypeVersions,
+  prefixDataTestId,
+  accessToken,
+  refetch,
+  onConfigure,
+  onDeleteClick
+}) => {
+  const targetDayType = dayTypes.find(dayType => dayType.id === row.original.id)
+
+  const handleConfigureClick = (event: React.MouseEvent) => {
+    event.stopPropagation()
+    if (targetDayType) {
+      // Find the latest active dayTypeVersion for a given dayType
+      const getLatestDayTypeVersion = (dayType: SimpleDayType): TransformedDayTypeVersion | null => {
+        if (!dayType.dayTypeVersion || dayType.dayTypeVersion.length === 0) {
+          return null
+        }
+        const latestVersionId = dayType.dayTypeVersion[dayType.dayTypeVersion.length - 1]
+        return dayTypeVersions.find(version => version.id === latestVersionId) || null
+      }
+
+      const latestVersion = getLatestDayTypeVersion(targetDayType)
+
+      if (latestVersion) {
+        onConfigure(latestVersion)
+      } else {
+        const partialVersion: TransformedDayTypeVersion = {
+          id: '',
+          activeVersion: '',
+          dayTypeVersionDetail: [],
+          color: '',
+          activeFrom: null,
+          activeTo: null,
+          status: 'inactive',
+          version: 0,
+          roundingRule: null,
+          incrementType: null,
+          breakType: null,
+          dayType: {
+            id: targetDayType.id,
+            name: targetDayType.name,
+            code: targetDayType.code
+          }
+        }
+        onConfigure(partialVersion)
+      }
+    }
+  }
+
+  return (
+    <div className="gba:flex gba:items-center gba:justify-center gba:gap-1">
+      <DayTypeForm
+        childAddButton={
+          <Button variant="ghost" onClick={event => event.stopPropagation()}>
+            <PencilSimpleLineIcon />
+          </Button>
+        }
+        refetch={refetch}
+        accessToken={accessToken}
+        prefixDataTestId={prefixDataTestId}
+        dayType={targetDayType || undefined}
+        usedCodes={dayTypes.map(dt => dt.code).filter((code, index, self) => self.indexOf(code) === index)}
+        key={targetDayType?.id}
+      />
+      <Button
+        variant="ghost"
+        onClick={handleConfigureClick}
+        data-testid={formatDataTestId(prefixDataTestId, `configure-button-${targetDayType?.id}`)}
+      >
+        <GearIcon />
+      </Button>
+      <Button
+        variant="ghost"
+        onClick={event => {
+          event.stopPropagation()
+          if (targetDayType) {
+            onDeleteClick(targetDayType)
+          }
+        }}
+        data-testid={formatDataTestId(prefixDataTestId, `delete-button-${targetDayType?.id}`)}
+      >
+        <TrashIcon />
+      </Button>
+    </div>
+  )
+}
+
+const createActionsCellRenderer = (
+  dayTypes: SimpleDayType[],
+  dayTypeVersions: TransformedDayTypeVersion[],
+  prefixDataTestId: string,
+  accessToken: string,
+  refetch: () => Promise<void>,
+  onConfigure: (dayTypeVersion: TransformedDayTypeVersion) => void,
+  onDeleteClick: (dayType: SimpleDayType) => void
+) => {
+  return ({ row }: { row: { original: SimpleDayType } }) => (
+    <DayTypesItemsActionsCell
+      row={row}
+      dayTypes={dayTypes}
+      dayTypeVersions={dayTypeVersions}
+      prefixDataTestId={prefixDataTestId}
+      accessToken={accessToken}
+      refetch={refetch}
+      onConfigure={onConfigure}
+      onDeleteClick={onDeleteClick}
+    />
+  )
+}
+
 export const DayTypesItems: React.FC<DayTypesItemsProps> = ({
   dayTypes,
   dayTypeVersions,
@@ -95,54 +219,6 @@ export const DayTypesItems: React.FC<DayTypesItemsProps> = ({
     setSearchTerm(value)
   }, [])
 
-  // Find the latest active dayTypeVersion for a given dayType
-  const getLatestDayTypeVersion = useCallback(
-    (dayType: SimpleDayType): TransformedDayTypeVersion | null => {
-      if (!dayType.dayTypeVersion || dayType.dayTypeVersion.length === 0) {
-        return null
-      }
-
-      // Get the last ID from the dayTypeVersion array (most recent)
-      const latestVersionId = dayType.dayTypeVersion[dayType.dayTypeVersion.length - 1]
-
-      // Find the corresponding dayTypeVersion in the versions list
-      return dayTypeVersions.find(version => version.id === latestVersionId) || null
-    },
-    [dayTypeVersions]
-  )
-
-  // Handle row click to configure the latest dayTypeVersion
-  const handleRowClick = useCallback(
-    (dayType: SimpleDayType) => {
-      const latestVersion = getLatestDayTypeVersion(dayType)
-
-      if (latestVersion) {
-        onConfigure(latestVersion)
-      } else {
-        const partialVersion: TransformedDayTypeVersion = {
-          id: '',
-          activeVersion: '',
-          dayTypeVersionDetail: [],
-          color: '',
-          activeFrom: null,
-          activeTo: null,
-          status: 'inactive',
-          version: 0,
-          roundingRule: null,
-          incrementType: null,
-          breakType: null,
-          dayType: {
-            id: dayType.id,
-            name: dayType.name,
-            code: dayType.code
-          }
-        }
-        onConfigure(partialVersion)
-      }
-    },
-    [getLatestDayTypeVersion, onConfigure]
-  )
-
   const columns: ColumnDef<SimpleDayType>[] = [
     {
       accessorKey: 'code',
@@ -159,50 +235,18 @@ export const DayTypesItems: React.FC<DayTypesItemsProps> = ({
       header: getTranslationFromI18nKeyAndLabel('translation:actions.actions', 'Actions'),
       enableSorting: false,
       enableHiding: true,
-      cell: ({ row }) => {
-        const targetDayType = dayTypes.find(dayType => dayType.id === row.original.id)
-
-        return (
-          <div className="gba:flex gba:items-center gba:justify-center gba:gap-1">
-            <DayTypeForm
-              childAddButton={
-                <Button variant="ghost" onClick={event => event.stopPropagation()}>
-                  <PencilSimpleLineIcon />
-                </Button>
-              }
-              refetch={refetch}
-              accessToken={accessToken}
-              prefixDataTestId={prefixDataTestId}
-              dayType={targetDayType || undefined}
-              usedCodes={dayTypes.map(dt => dt.code).filter((code, index, self) => self.indexOf(code) === index)}
-              key={targetDayType?.id}
-            />
-            <Button
-              variant="ghost"
-              onClick={event => {
-                event.stopPropagation()
-                if (targetDayType) {
-                  handleRowClick(targetDayType)
-                }
-              }}
-              data-testid={formatDataTestId(prefixDataTestId, `configure-button-${targetDayType?.id}`)}
-            >
-              <GearIcon />
-            </Button>
-            <Button
-              variant="ghost"
-              onClick={event => {
-                event.stopPropagation()
-                setSelectedDayType(targetDayType ?? null)
-                setIsDeleteDialogOpen(true)
-              }}
-              data-testid={formatDataTestId(prefixDataTestId, `delete-button-${targetDayType?.id}`)}
-            >
-              <TrashIcon />
-            </Button>
-          </div>
-        )
-      }
+      cell: createActionsCellRenderer(
+        dayTypes,
+        dayTypeVersions,
+        prefixDataTestId,
+        accessToken,
+        refetch,
+        onConfigure,
+        dayType => {
+          setSelectedDayType(dayType ?? null)
+          setIsDeleteDialogOpen(true)
+        }
+      )
     }
   ]
 
