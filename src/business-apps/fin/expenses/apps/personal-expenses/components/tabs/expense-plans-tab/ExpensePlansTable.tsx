@@ -653,7 +653,7 @@ const ExpensePlansTable: React.FC<ExpensePlansTableProps> = React.memo(props => 
                           >
                             {record.reimbursableAmount
                               ? formatCurrencyDisplay(record.reimbursableAmount, record.currency?.code)
-                              : formatCurrencyDisplay(0, 'EUR')}
+                              : formatCurrencyDisplay(0, record.currency?.code)}
                           </div>
                         </TableCell>
                         <TableCell
