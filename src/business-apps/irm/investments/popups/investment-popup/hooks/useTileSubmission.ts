@@ -13,7 +13,7 @@ import {
   loadTilesFromInvestment,
   findTileById,
   upsertTile
-} from '@/business-apps/irm/investments/records/investment-record/tiles'
+} from '@/common/components/investment/tiles'
 import { parseAdditionalProperties, validateInvestmentData } from '../utils/investmentPopupUtils'
 import { buildInvestmentPopupPayload } from '../utils/investmentPopupPayloadHelper'
 
@@ -49,15 +49,17 @@ export const useTileSubmission = (params: UseTileSubmissionParams) => {
         order: 0, // Will be calculated by upsertTile
         createdAt: new Date().toISOString(),
         updatedAt: new Date().toISOString(),
+        createdBy: businessAppContext.userInfo?.id || '',
         ...tileSpecificData
       } as TileData
 
-      // If editing, preserve creation date and order
+      // If editing, preserve creation date, order, and creator
       if (isEditMode && tileId) {
         const existingTile = findTileById(investment, tileId)
         if (existingTile) {
           tileData.createdAt = existingTile.createdAt
           tileData.order = existingTile.order
+          tileData.createdBy = existingTile.createdBy || tileData.createdBy
         }
       }
 

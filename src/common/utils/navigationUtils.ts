@@ -53,10 +53,8 @@ const PLATFORM_URL_TO_APP_MAPPING: NavigationMapping = {
 
   // HR
   '/platform/employee-record': 'hr/core/apps/employee-record',
-
-  // SALES-DEMO (Service Requests)
-  '/platform/sales-demo/service-launcher': 'sales-demo/core/apps/service-launcher',
-
+  '/platform/sales-demo/service-desk': 'ser/apps/service-desk',
+  '/platform/sales-demo/service-launcher': 'ser/apps/service-portal',
   '/platform/mdm/pipeline-data': 'mdm/apps/pipeline-data',
   '/platform/mdm/lead-data': 'mdm/apps/lead-data',
   '/platform/mdm/operation-data': 'mdm/apps/operation-data',

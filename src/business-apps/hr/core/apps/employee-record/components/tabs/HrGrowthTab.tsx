@@ -300,6 +300,7 @@ const HrGrowthTab: React.FC<HrGrowthTabProps> = ({
                 userInfo={userInfo}
                 additionalData={additionalData}
                 locale={currentLocale}
+                isSelfView={isSelfView}
               />
             )}
           </TabsContent>

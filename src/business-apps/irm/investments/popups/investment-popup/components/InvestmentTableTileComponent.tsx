@@ -26,7 +26,7 @@ import {
   TableData,
   TableRow,
   TableColumn
-} from '@/business-apps/irm/investments/records/investment-record/tiles'
+} from '@/common/components/investment/tiles'
 import { BusinessAppContextProps } from '@/common/BusinessAppContext'
 
 const prefixDataTestId = 'investment-table-tile-component'
