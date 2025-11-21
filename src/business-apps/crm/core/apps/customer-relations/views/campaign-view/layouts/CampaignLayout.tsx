@@ -10,7 +10,10 @@ import { getTranslationFromI18nKeyAndLabel } from '@/common/utils/windowUtils'
 import { navigateTo } from '@/common/utils/navigationUtils'
 import { CampaignListLayout } from './CampaignListLayout'
 import { useProcessCompletion } from '@/common/hooks/useProcessCompletion'
-import type { SalesCampaign, SalesCampaignQueryVariables } from '../components/campaign-list/types/SalesCampaignTypes'
+import type {
+  SalesCampaign,
+  SalesCampaignQueryVariables
+} from '@/business-apps/crm/campaigns/apps/campaign-management/components/campaign-list/types/SalesCampaignTypes'
 
 // Helper: Update filter options
 const updateFilterOptions = (
