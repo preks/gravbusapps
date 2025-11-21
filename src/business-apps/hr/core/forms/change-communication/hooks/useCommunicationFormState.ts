@@ -180,7 +180,9 @@ export const useCommunicationFormState = ({
     if (!channelType || !valueType) return
     if (baseline && baseline.channelRef === channelType && baseline.typeRefId === valueType) return
 
-    const matches = (communications || []).filter((c: any) => c.channelRef === channelType && c.typeRef === valueType)
+    const matches = (communications || []).filter(
+      (c: any) => c.channelRef === channelType && c.typeRef === valueType && c.purpose === purpose
+    )
     if (matches.length > 0) {
       const latest = matches.reduce((prev: any, cur: any) => {
         const prevV = typeof prev?.version === 'number' ? prev.version : -1
@@ -190,6 +192,13 @@ export const useCommunicationFormState = ({
 
       const prefillValue = normalizePhoneNumber(latest?.value || '', channelType, channels)
       const prefillPurpose = latest?.purpose || 'PRIVATE'
+
+      // Clear phone fields when value changes to allow proper parsing
+      if (isPhoneType) {
+        setSelectedCountryCode('')
+        setPhoneNumber('')
+      }
+
       setValue(prefillValue)
       setPurpose(prefillPurpose)
       setBaseline({
@@ -203,6 +212,12 @@ export const useCommunicationFormState = ({
       return
     }
 
+    // Clear phone fields when no match found
+    if (isPhoneType) {
+      setSelectedCountryCode('')
+      setPhoneNumber('')
+    }
+
     setValue('')
     setPurpose('PRIVATE')
     setBaseline({
@@ -213,7 +228,7 @@ export const useCommunicationFormState = ({
       version: undefined,
       id: undefined
     })
-  }, [channelType, valueType, communications, baseline, channels])
+  }, [channelType, valueType, purpose, communications, baseline, channels, isPhoneType])
 
   useEffect(() => {
     if (!channelType || !valueType || !purpose) return
@@ -303,10 +318,13 @@ export const useCommunicationFormState = ({
             if (value === expectedValue) {
               return
             }
-            return
+            // Value changed but still matches current country code - continue parsing
           } else {
-            return
+            // No phone number but country code matches - continue parsing
           }
+        } else {
+          // Value doesn't match current country code - clear and continue parsing
+          setSelectedCountryCode('')
         }
       }
     }
