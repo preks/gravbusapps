@@ -259,8 +259,6 @@ const EmployeeRecordContent: React.FC<EmployeeRecordContentProps> = ({
     accessToken
   )
 
-  console.log('employeeRecordHrBackoffice', employeeRecordHrBackoffice)
-
   const isSelfView: boolean = !!(currentUserEmployeeId && employeeIdToShow === currentUserEmployeeId)
 
   const getTabItems = () => {
