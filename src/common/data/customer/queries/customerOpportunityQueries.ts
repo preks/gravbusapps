@@ -71,11 +71,11 @@ export const buildCustomerOpportunityQuery = (
     }
     
     # CRM duplicate relations (mapped to main relations in mapper)
-    crmDocument(where: { isDeleted: { _eq: false } }) {
+    ${fields.documents}(where: { isDeleted: { _eq: false } }) {
       ${buildDocumentFragment(CustomerDocumentFields)}
     }
     
-    crmNote(where: { isDeleted: { _eq: false } }) {
+    ${fields.notes}(where: { isDeleted: { _eq: false } }) {
       ${buildNoteFragment(CustomerNoteFields)}
     }
     
@@ -95,14 +95,9 @@ export const buildCustomerOpportunityByIdQuery = (
   id: string
 ): string => {
   // Build relation builders and fields for common relations
-  // Use wrapper function to include relations (website, addresses, communicationChannels) in account fragment
-  const buildAccountFragmentWithRelations = (accountFields: any) => {
-    return buildAccountFragment(accountFields, true, CUSTOMER_ADDRESS_FRAGMENT)
-  }
-
   const relationBuilders: OpportunityRelationBuilders = {
     buildActivityFragment,
-    buildAccountFragment: buildAccountFragmentWithRelations,
+    buildAccountFragment,
     buildContactFragment,
     buildDocumentFragment,
     buildLeadFragment,
@@ -134,11 +129,11 @@ export const buildCustomerOpportunityByIdQuery = (
     }
     
     # CRM duplicate relations (mapped to main relations in mapper)
-    crmDocument(where: { isDeleted: { _eq: false } }) {
+    ${fields.documents}(where: { isDeleted: { _eq: false } }) {
       ${buildDocumentFragment(CustomerDocumentFields)}
     }
     
-    crmNote(where: { isDeleted: { _eq: false } }) {
+    ${fields.notes}(where: { isDeleted: { _eq: false } }) {
       ${buildNoteFragment(CustomerNoteFields)}
     }
     
