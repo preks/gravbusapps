@@ -482,7 +482,7 @@ const ExpenseRequestsTable: React.FC<ExpenseRequestsTableProps> = props => {
               <SelectTrigger data-testid="expense-requests-department-select">
                 <SelectValue
                   placeholder={getTranslationFromI18nKeyAndLabel(
-                    'lowcoder:employee_list.employee_report_filter.department_placeholder',
+                    'lowcoder:backoffice_expense_landing_page.department_placeholder',
                     'Select department'
                   )}
                 />
@@ -514,7 +514,7 @@ const ExpenseRequestsTable: React.FC<ExpenseRequestsTableProps> = props => {
               <SelectTrigger data-testid="expense-requests-currency-select" className="gba:border-border">
                 <SelectValue
                   placeholder={getTranslationFromI18nKeyAndLabel(
-                    'lowcoder:team_expenses_page.all_currencies',
+                    'lowcoder:manager_expense_landing_page.all_currencies',
                     'All Currencies'
                   )}
                 />
@@ -1495,7 +1495,7 @@ const ExpenseRequestsTable: React.FC<ExpenseRequestsTableProps> = props => {
             'lowcoder:expense_request_list.search_module',
             'Search in Expense Requests'
           ),
-          filter: totalItems === 0 && !loading ? [] : selectedFilters,
+          filter: selectedFilters,
           setFilter: setFilters,
           filterLabelMap: {
             status:
@@ -1512,7 +1512,8 @@ const ExpenseRequestsTable: React.FC<ExpenseRequestsTableProps> = props => {
           actions: dataControllerActions
         }}
         dataFilterProps={{
-          filterGroups: totalItems === 0 && !loading ? [] : filterGroups,
+          // Keep filter sidebar available regardless of current result count
+          filterGroups,
           onFilterChange: (filterId: string, selected: boolean) => {
             // Clear all filters
             if (filterId === '' && selected) {

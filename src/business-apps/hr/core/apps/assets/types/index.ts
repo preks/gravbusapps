@@ -72,7 +72,6 @@ export interface AssetStatistics {
   totalAssets: number
   availableAssets: number
   allocatedAssets: number
-  retiredAssets: number
   underRepairAssets: number
 }
 

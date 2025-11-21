@@ -67,6 +67,21 @@ export const GET_EXPENSE_REQUESTS_BY_EMPLOYEE = `
   }
 `
 
+export const GET_USED_REQUEST_CURRENCIES_BY_EMPLOYEE = `
+  query GetUsedRequestCurrenciesByEmployee($employeeId: uuid!, $limit: Int = 2000) {
+    ExpenseRequest(
+      where: {
+        employeeId: { _eq: $employeeId }
+        isDeleted: { _eq: false }
+      }
+      limit: $limit
+    ) {
+      currencyRef
+      currency { code }
+    }
+  }
+`
+
 export const GET_EXPENSE_REQUEST_BY_ID = `
   query GetExpenseRequestById($id: uuid!) {
     ExpenseRequest(where: {id: {_eq: $id}}) {
@@ -152,6 +167,7 @@ export const GET_EXPENSE_REQUEST_STATISTICS = `
         employeeId: {_eq: $employeeId},
         isDeleted: {_eq: false},
         status: {_eq: "PENDING"},
+        currencyRef: {_eq: $currencyRef}
       }
     ) {
       aggregate {
@@ -238,7 +254,8 @@ export const GET_EXPENSE_REQUEST_STATISTICS_CONSOLIDATED = `
       where: {
         employeeId: { _eq: $employeeId },
         isDeleted: { _eq: false },
-        status: { _eq: "PENDING" }
+        status: { _eq: "PENDING" },
+        currencyRef: { _eq: $currencyRef }
       }
     ) {
       aggregate { count }

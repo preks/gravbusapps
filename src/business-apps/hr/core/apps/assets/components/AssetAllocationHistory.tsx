@@ -1,12 +1,18 @@
-import React from 'react'
+import React, { useMemo } from 'react'
 import { AssetAllocation } from '../types'
 import { Card, CardHeader, CardTitle, CardContent, Badge } from '@newwork/nw-design-system'
 import { UserIcon, CalendarIcon, CheckCircleIcon } from '@phosphor-icons/react'
 import { getTranslationFromI18nKeyAndLabel, formatDate } from '@/common/utils/windowUtils'
+import {
+  useAssetConditionCatalog,
+  AssetConditionOption
+} from '../../../forms/equipment-registration/hooks/useAssetConditionCatalog'
+import { BusinessAppContextProps } from '@/common/BusinessAppContext'
 
 interface AssetAllocationHistoryProps {
   allocations: AssetAllocation[]
   isLoading?: boolean
+  accessToken: string
 }
 
 const calculateDuration = (startDate: string, endDate?: string): string => {
@@ -43,7 +49,30 @@ const calculateDuration = (startDate: string, endDate?: string): string => {
   }
 }
 
-export const AssetAllocationHistory: React.FC<AssetAllocationHistoryProps> = ({ allocations, isLoading = false }) => {
+export const AssetAllocationHistory: React.FC<AssetAllocationHistoryProps> = ({
+  allocations,
+  isLoading = false,
+  accessToken
+}) => {
+  const { options: conditionOptions } = useAssetConditionCatalog({ accessToken } as BusinessAppContextProps)
+
+  const conditionLookup = useMemo(() => {
+    const lookup = new Map<string, string>()
+    conditionOptions.forEach((option: AssetConditionOption) => {
+      lookup.set(option.id, option.value)
+    })
+    return lookup
+  }, [conditionOptions])
+
+  const getConditionDisplayValue = (conditionRef?: string, conditionValue?: string): string => {
+    if (!conditionRef && !conditionValue)
+      return getTranslationFromI18nKeyAndLabel('lowcoder:hr_assets.not_available', 'N/A')
+    if (conditionRef && conditionLookup.has(conditionRef)) {
+      return conditionLookup.get(conditionRef)!
+    }
+    return conditionValue || getTranslationFromI18nKeyAndLabel('lowcoder:hr_assets.not_available', 'N/A')
+  }
+
   if (isLoading) {
     return (
       <Card data-testid="asset-allocation-history-loading">
@@ -120,7 +149,9 @@ export const AssetAllocationHistory: React.FC<AssetAllocationHistoryProps> = ({ 
                   <span className="gba:font-medium">
                     {getTranslationFromI18nKeyAndLabel('lowcoder:hr_assets.start_condition', 'Start Condition')}:{' '}
                   </span>
-                  <span className="gba:text-muted-foreground">{allocation.startAssetCondition.value}</span>
+                  <span className="gba:text-muted-foreground">
+                    {getConditionDisplayValue(allocation.startAssetConditionRef, allocation.startAssetCondition.value)}
+                  </span>
                 </div>
               )}
 
@@ -129,7 +160,9 @@ export const AssetAllocationHistory: React.FC<AssetAllocationHistoryProps> = ({ 
                   <span className="gba:font-medium">
                     {getTranslationFromI18nKeyAndLabel('lowcoder:hr_assets.return_condition', 'Return Condition')}:{' '}
                   </span>
-                  <span className="gba:text-muted-foreground">{allocation.endAssetCondition.value}</span>
+                  <span className="gba:text-muted-foreground">
+                    {getConditionDisplayValue(allocation.endAssetConditionRef, allocation.endAssetCondition.value)}
+                  </span>
                 </div>
               )}
 
