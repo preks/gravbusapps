@@ -9,15 +9,16 @@ import {
   TableCell,
   Badge,
   Button,
-  Input,
   Select,
   SelectTrigger,
   SelectValue,
   SelectContent,
   SelectItem
 } from '@newwork/nw-design-system'
+import { MagnifyingGlass, X, CaretUp, CaretDown } from '@phosphor-icons/react'
 import { BusinessAppContextProps } from '@/common/BusinessAppContext'
 import { AppActionButton } from '@/components/app-action-button/AppActionButton'
+import { DebouncedInput } from '@/components/debounced-input'
 import {
   getTranslationFromI18nKeyAndLabel,
   formatDate,
@@ -123,14 +124,54 @@ interface AssetTableProps extends BusinessAppContextProps {
   isLoading?: boolean
   currentPage?: number
   pageSize?: number
+  statusFilter?: string
+  searchQuery?: string
+  sortField?: string
+  sortOrder?: 'ASC' | 'DESC'
   onPageChange?: (page: number) => void
+  onPageSizeChange?: (pageSize: number) => void
   onSearchChange?: (search: string) => void
   onStatusFilterChange?: (status: string) => void
+  onSortChange?: (field: string, order: 'ASC' | 'DESC' | '') => void
   onAssetClick?: (asset: Asset) => void
   onAllocateAsset?: (assetId: string) => void
   onUpdateAsset?: (assetId: string) => void
   onRetireAsset?: (assetId: string) => void
   onRetrieveAsset?: (assetId: string) => void
+}
+
+// Sortable table header component
+const SortableTableHead: React.FC<{
+  children: React.ReactNode
+  field: string
+  currentSortField?: string
+  currentSortOrder?: 'ASC' | 'DESC'
+  onSort?: (field: string, order: 'ASC' | 'DESC' | '') => void
+  className?: string
+}> = ({ children, field, currentSortField, currentSortOrder, onSort, className }) => {
+  if (!onSort) {
+    return <TableHead className={className}>{children}</TableHead>
+  }
+
+  const isSorted = currentSortField === field
+  const nextOrder = isSorted ? (currentSortOrder === 'ASC' ? 'DESC' : '') : 'ASC'
+
+  return (
+    <TableHead
+      className={`gba:cursor-pointer gba:select-none gba:hover:gba:bg-muted gba:transition-colors ${className || ''}`}
+      onClick={() => onSort(field, nextOrder)}
+    >
+      <div className="gba:flex gba:items-center gba:gap-1">
+        {children}
+        {isSorted &&
+          (currentSortOrder === 'ASC' ? (
+            <CaretUp className="gba:w-4 gba:h-4" />
+          ) : (
+            <CaretDown className="gba:w-4 gba:h-4" />
+          ))}
+      </div>
+    </TableHead>
+  )
 }
 
 const getStatusBadgeVariant = (status: AssetStatus): 'success' | 'info' | 'warning' | 'destructive' | 'default' => {
@@ -161,7 +202,6 @@ const formatStatus = (status: AssetStatus | string): string => {
   if (status === AssetStatus.RETIRED) {
     return getTranslationFromI18nKeyAndLabel('lowcoder:hr_assets.status_retired', 'Retired')
   }
-  // Fallback: format by removing _ASSET and replacing underscores with spaces
   const statusStr = status as string
   return statusStr
     .replace(/_ASSET$/, '')
@@ -188,9 +228,15 @@ export const AssetTable: React.FC<AssetTableProps> = ({
   isLoading = false,
   currentPage = 1,
   pageSize = 10,
+  statusFilter: statusFilterProp = 'all',
+  searchQuery: searchQueryProp = '',
+  sortField: sortFieldProp,
+  sortOrder: sortOrderProp,
   onPageChange,
+  onPageSizeChange,
   onSearchChange,
   onStatusFilterChange,
+  onSortChange,
   onAssetClick,
   onAllocateAsset,
   onUpdateAsset,
@@ -200,9 +246,18 @@ export const AssetTable: React.FC<AssetTableProps> = ({
 }) => {
   const DATA_TEST_ID_PREFIX = 'asset-table'
   const [localState, setLocalState] = useState<AssetTableState>({
-    searchQuery: '',
-    statusFilter: 'all'
+    searchQuery: searchQueryProp,
+    statusFilter: statusFilterProp
   })
+  const [inputKey, setInputKey] = useState(0)
+
+  React.useEffect(() => {
+    setLocalState(prev => ({ ...prev, statusFilter: statusFilterProp }))
+  }, [statusFilterProp])
+
+  React.useEffect(() => {
+    setLocalState(prev => ({ ...prev, searchQuery: searchQueryProp }))
+  }, [searchQueryProp])
 
   const handleStatusFilterChange = (value: string) => {
     setLocalState(prev => ({ ...prev, statusFilter: value }))
@@ -210,11 +265,18 @@ export const AssetTable: React.FC<AssetTableProps> = ({
     onPageChange?.(1)
   }
 
-  const handleSearchChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const value = e.target.value
+  const handleSearchChange = (value: string) => {
     setLocalState(prev => ({ ...prev, searchQuery: value }))
     onSearchChange?.(value)
     onPageChange?.(1)
+  }
+
+  const handleClearSearch = () => {
+    const emptyValue = ''
+    setLocalState(prev => ({ ...prev, searchQuery: emptyValue }))
+    onSearchChange?.(emptyValue)
+    onPageChange?.(1)
+    setInputKey(prev => prev + 1)
   }
 
   const totalPages = Math.ceil(totalCount / pageSize)
@@ -222,14 +284,32 @@ export const AssetTable: React.FC<AssetTableProps> = ({
   return (
     <div className="gba:space-y-4" data-testid="asset-table-container">
       <div className="gba:flex gba:gap-4 gba:flex-wrap">
-        <div className="gba:flex-1 gba:min-w-[200px]">
-          <Input
-            placeholder={getTranslationFromI18nKeyAndLabel('lowcoder:hr_assets.search_assets', 'Search assets...')}
-            value={localState.searchQuery}
+        <div className="gba:flex-1 gba:min-w-[200px] gba:relative">
+          <DebouncedInput
+            key={`search-input-${inputKey}`}
+            value={searchQueryProp}
             onChange={handleSearchChange}
-            className="gba:w-full"
+            placeholder={getTranslationFromI18nKeyAndLabel('lowcoder:hr_assets.search_assets', 'Search assets...')}
+            className="gba:w-full gba:pr-10"
+            debounceDelay={300}
+            ariaLabel={getTranslationFromI18nKeyAndLabel('lowcoder:hr_assets.search_assets', 'Search assets...')}
             data-testid="asset-search-input"
+            icon={
+              <MagnifyingGlass className="gba:w-4 gba:h-4 gba:text-muted-foreground" data-testid="asset-search-icon" />
+            }
           />
+          {searchQueryProp && (
+            <Button
+              variant="ghost"
+              size="sm"
+              onClick={handleClearSearch}
+              className="gba:absolute gba:right-1 gba:top-1/2 gba:transform gba:-translate-y-1/2 gba:h-6 gba:w-6 gba:p-0 gba:rounded-full hover:gba:bg-muted gba:transition-colors"
+              data-testid="asset-search-clear-button"
+              aria-label={getTranslationFromI18nKeyAndLabel('lowcoder:hr_assets.clear_search', 'Clear search')}
+            >
+              <X className="gba:h-3 gba:w-3 gba:text-muted-foreground" />
+            </Button>
+          )}
         </div>
 
         <Select value={localState.statusFilter} onValueChange={handleStatusFilterChange}>
@@ -253,41 +333,83 @@ export const AssetTable: React.FC<AssetTableProps> = ({
         </Select>
       </div>
 
-      <div className="gba:text-sm gba:text-muted-foreground">
-        {getTranslationFromI18nKeyAndLabel('lowcoder:hr_assets.showing', 'Showing')} {assets.length}{' '}
-        {getTranslationFromI18nKeyAndLabel('lowcoder:hr_assets.of', 'of')} {totalCount}{' '}
-        {getTranslationFromI18nKeyAndLabel('lowcoder:hr_assets.assets', 'assets')}
-      </div>
-
       <div className="gba:border gba:rounded-lg">
         <Table data-testid="assets-table">
           <TableHeader>
             <TableRow>
               <TableHead className="gba:w-[60px]"></TableHead>
-              <TableHead className="gba:w-[120px]">
+              <SortableTableHead
+                field="assetCategory.value"
+                currentSortField={sortFieldProp}
+                currentSortOrder={sortOrderProp}
+                onSort={onSortChange}
+                className="gba:w-[120px]"
+              >
                 {getTranslationFromI18nKeyAndLabel('lowcoder:hr_assets.category', 'Category')}
-              </TableHead>
-              <TableHead className="gba:w-[130px]">
+              </SortableTableHead>
+              <SortableTableHead
+                field="assetBrand.value"
+                currentSortField={sortFieldProp}
+                currentSortOrder={sortOrderProp}
+                onSort={onSortChange}
+                className="gba:w-[130px]"
+              >
                 {getTranslationFromI18nKeyAndLabel('lowcoder:hr_assets.producer', 'Producer')}
-              </TableHead>
-              <TableHead className="gba:w-[160px]">
+              </SortableTableHead>
+              <SortableTableHead
+                field="model"
+                currentSortField={sortFieldProp}
+                currentSortOrder={sortOrderProp}
+                onSort={onSortChange}
+                className="gba:w-[160px]"
+              >
                 {getTranslationFromI18nKeyAndLabel('lowcoder:hr_assets.model', 'Model')}
-              </TableHead>
-              <TableHead className="gba:w-[140px]">
+              </SortableTableHead>
+              <SortableTableHead
+                field="serialNumber"
+                currentSortField={sortFieldProp}
+                currentSortOrder={sortOrderProp}
+                onSort={onSortChange}
+                className="gba:w-[140px]"
+              >
                 {getTranslationFromI18nKeyAndLabel('lowcoder:hr_assets.serial_number', 'Serial Number')}
-              </TableHead>
-              <TableHead className="gba:w-[100px]">
+              </SortableTableHead>
+              <SortableTableHead
+                field="assetStatus"
+                currentSortField={sortFieldProp}
+                currentSortOrder={sortOrderProp}
+                onSort={onSortChange}
+                className="gba:w-[100px]"
+              >
                 {getTranslationFromI18nKeyAndLabel('lowcoder:hr_assets.status', 'Status')}
-              </TableHead>
-              <TableHead className="gba:w-[150px]">
+              </SortableTableHead>
+              <SortableTableHead
+                field="siteLocation.name"
+                currentSortField={sortFieldProp}
+                currentSortOrder={sortOrderProp}
+                onSort={onSortChange}
+                className="gba:w-[150px]"
+              >
                 {getTranslationFromI18nKeyAndLabel('lowcoder:hr_assets.location', 'Location')}
-              </TableHead>
-              <TableHead className="gba:w-[120px]">
+              </SortableTableHead>
+              <SortableTableHead
+                field="acquisitionDate"
+                currentSortField={sortFieldProp}
+                currentSortOrder={sortOrderProp}
+                onSort={onSortChange}
+                className="gba:w-[120px]"
+              >
                 {getTranslationFromI18nKeyAndLabel('lowcoder:hr_assets.warranty', 'Warranty')}
-              </TableHead>
-              <TableHead className="gba:w-[100px]">
+              </SortableTableHead>
+              <SortableTableHead
+                field="inventoryValue"
+                currentSortField={sortFieldProp}
+                currentSortOrder={sortOrderProp}
+                onSort={onSortChange}
+                className="gba:w-[100px]"
+              >
                 {getTranslationFromI18nKeyAndLabel('lowcoder:hr_assets.value', 'Value')}
-              </TableHead>
+              </SortableTableHead>
             </TableRow>
           </TableHeader>
           <TableBody>
@@ -397,31 +519,62 @@ export const AssetTable: React.FC<AssetTableProps> = ({
         </Table>
       </div>
 
-      {totalPages > 1 && (
-        <div className="gba:flex gba:justify-between gba:items-center">
-          <div className="gba:text-sm gba:text-muted-foreground">
-            {getTranslationFromI18nKeyAndLabel('lowcoder:hr_assets.page', 'Page')} {currentPage}{' '}
-            {getTranslationFromI18nKeyAndLabel('lowcoder:hr_assets.of', 'of')} {totalPages}
+      {totalPages > 0 && (
+        <div
+          className="gba:flex gba:items-center gba:justify-between gba:px-2 gba:py-4"
+          data-testid="asset-table-pagination"
+        >
+          <div className="gba:text-sm gba:text-muted-foreground" data-testid="asset-table-pagination-info">
+            {`${(currentPage - 1) * pageSize + 1}-${Math.min(currentPage * pageSize, totalCount)} ${getTranslationFromI18nKeyAndLabel('lowcoder:personal_expenses.of', 'of')} ${totalCount} ${getTranslationFromI18nKeyAndLabel('lowcoder:hr_assets.assets', 'assets')}`}
           </div>
-          <div className="gba:flex gba:gap-2">
-            <Button
-              variant="outline"
-              size="sm"
-              onClick={() => onPageChange && onPageChange(Math.max(1, currentPage - 1))}
-              disabled={currentPage === 1}
-              data-testid="asset-table-prev-page"
+          <div className="gba:flex gba:items-center gba:space-x-6 gba:lg:space-x-8">
+            <div className="gba:flex gba:items-center gba:space-x-2">
+              <p className="gba:text-sm gba:font-medium">
+                {getTranslationFromI18nKeyAndLabel('lowcoder:personal_expenses.rows_per_page', 'Rows per page')}
+              </p>
+              <select
+                value={pageSize}
+                onChange={e => {
+                  const newPageSize = Number(e.target.value)
+                  onPageSizeChange?.(newPageSize)
+                  onPageChange?.(1)
+                }}
+                className="gba:h-8 gba:w-[70px] gba:rounded gba:border gba:border-input gba:px-3 gba:py-1 gba:text-sm"
+                data-testid="asset-table-page-size-select"
+              >
+                <option value={10}>10</option>
+                <option value={20}>20</option>
+                <option value={50}>50</option>
+                <option value={100}>100</option>
+              </select>
+            </div>
+            <div
+              className="gba:flex gba:w-[100px] gba:items-center gba:justify-center gba:text-sm gba:font-medium"
+              data-testid="asset-table-page-info"
             >
-              {getTranslationFromI18nKeyAndLabel('lowcoder:hr_assets.previous', 'Previous')}
-            </Button>
-            <Button
-              variant="outline"
-              size="sm"
-              onClick={() => onPageChange && onPageChange(Math.min(totalPages, currentPage + 1))}
-              disabled={currentPage === totalPages}
-              data-testid="asset-table-next-page"
-            >
-              {getTranslationFromI18nKeyAndLabel('lowcoder:hr_assets.next', 'Next')}
-            </Button>
+              {getTranslationFromI18nKeyAndLabel('lowcoder:personal_expenses.page', 'Page')} {currentPage}{' '}
+              {getTranslationFromI18nKeyAndLabel('lowcoder:personal_expenses.of', 'of')} {totalPages}
+            </div>
+            <div className="gba:flex gba:items-center gba:space-x-2">
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={() => onPageChange && onPageChange(Math.max(1, currentPage - 1))}
+                disabled={currentPage === 1}
+                data-testid="asset-table-prev-page"
+              >
+                {getTranslationFromI18nKeyAndLabel('lowcoder:hr_assets.previous', 'Previous')}
+              </Button>
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={() => onPageChange && onPageChange(Math.min(totalPages, currentPage + 1))}
+                disabled={currentPage === totalPages}
+                data-testid="asset-table-next-page"
+              >
+                {getTranslationFromI18nKeyAndLabel('lowcoder:hr_assets.next', 'Next')}
+              </Button>
+            </div>
           </div>
         </div>
       )}
