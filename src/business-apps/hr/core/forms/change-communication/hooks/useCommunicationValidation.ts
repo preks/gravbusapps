@@ -122,11 +122,21 @@ export const useCommunicationValidation = ({
 
   const isValid = useMemo(() => {
     if (!channelType || !valueType) return false
+    if (channelRequiredMessage || typeRequiredMessage || valueValidationMessage) return false
     if (isPhoneType) {
       return phoneNumber.trim().length > 0
     }
     return value.trim().length > 0
-  }, [channelType, valueType, value, isPhoneType, phoneNumber])
+  }, [
+    channelType,
+    valueType,
+    value,
+    isPhoneType,
+    phoneNumber,
+    channelRequiredMessage,
+    typeRequiredMessage,
+    valueValidationMessage
+  ])
 
   return {
     valueValidationMessage,

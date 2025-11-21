@@ -54,7 +54,7 @@ export const useAssetService = (context: BusinessAppContextProps) => {
 
         const defaultVariables: AssetQueryVariables = {
           where: finalWhere,
-          orderBy: { createdAt: 'DESC' },
+          orderBy: variables.orderBy || [{ createdAt: 'DESC' }],
           limit: variables.limit,
           offset: variables.offset
         }
@@ -150,8 +150,7 @@ export const useAssetService = (context: BusinessAppContextProps) => {
         totalAssets: result.totalAssets.aggregate.count,
         allocatedAssets: result.allocatedAssets.aggregate.count,
         availableAssets: result.availableAssets.aggregate.count,
-        underRepairAssets: 0,
-        retiredAssets: result.retiredAssets.aggregate.count
+        underRepairAssets: result.underRepairAssets.aggregate.count
       } as AssetStatistics
     } catch (error) {
       console.error('Error fetching asset statistics:', error)
