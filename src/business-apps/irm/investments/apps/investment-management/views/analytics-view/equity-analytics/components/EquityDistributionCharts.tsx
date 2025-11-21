@@ -261,14 +261,16 @@ export const EquityDistributionCharts: React.FC<EquityDistributionChartsProps> =
       return []
     }
 
-    return investmentSizeData.map(range => ({
-      type: range.range,
-      count: range.count,
-      percentage: range.percentage || 0,
-      minValue: range.minValue,
-      maxValue: range.maxValue || Infinity,
-      sortOrder: investmentSizeData.indexOf(range)
-    }))
+    return investmentSizeData
+      .filter(range => range.count && range.count > 0)
+      .map(range => ({
+        type: range.range,
+        count: range.count,
+        percentage: range.percentage || 0,
+        minValue: range.minValue,
+        maxValue: range.maxValue || Infinity,
+        sortOrder: investmentSizeData.indexOf(range)
+      }))
   }, [investmentSizeData, investmentSizeLoading, investmentSizeError])
 
   // Transform investment duration data from server-side aggregates to chart format
@@ -277,14 +279,16 @@ export const EquityDistributionCharts: React.FC<EquityDistributionChartsProps> =
       return []
     }
 
-    return investmentDurationRawData.map(range => ({
-      type: range.range,
-      count: range.count,
-      percentage: range.percentage || 0,
-      minValue: range.minYears,
-      maxValue: range.maxYears || Infinity,
-      sortOrder: investmentDurationRawData.indexOf(range)
-    }))
+    return investmentDurationRawData
+      .filter(range => range.count && range.count > 0)
+      .map(range => ({
+        type: range.range,
+        count: range.count,
+        percentage: range.percentage || 0,
+        minValue: range.minYears,
+        maxValue: range.maxYears || Infinity,
+        sortOrder: investmentDurationRawData.indexOf(range)
+      }))
   }, [investmentDurationRawData, investmentDurationLoading, investmentDurationError])
 
   return (

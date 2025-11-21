@@ -107,7 +107,14 @@ export const DistributionPieChart: React.FC<DistributionPieChartProps> = ({
       .filter((item: any) => {
         const value = valueType === 'count' ? item.count : item.totalAmount
         // Strict validation: must have type, value must be positive number
-        return item.type && item.type.trim() !== '' && value && typeof value === 'number' && value > 0 && !isNaN(value)
+        return (
+          item.type &&
+          item.type.trim() !== '' &&
+          value &&
+          typeof value === 'number' &&
+          value > 0 &&
+          !Number.isNaN(value)
+        )
       })
       .map((item: any) => {
         const normalizedName = item.type.toLowerCase().replaceAll(/\s+/g, '')
