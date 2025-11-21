@@ -18,6 +18,7 @@ export const ChangeExternalId: React.FC<BusinessAppContextProps> = ({ accessToke
 
   const [isLoading, setIsLoading] = useState(true)
   const [employee, setEmployee] = useState<any>(null)
+  const ignorePrefillAfterSubmitRef = useRef(false)
 
   const form = useForm<ExternalIdFormValues>({
     defaultValues: {
@@ -29,6 +30,10 @@ export const ChangeExternalId: React.FC<BusinessAppContextProps> = ({ accessToke
   // Prefill
   useEffect(() => {
     const fetchEmployee = async () => {
+      // After submit, emulate no reload by skipping any prefill fetch/reset
+      if (ignorePrefillAfterSubmitRef.current) {
+        return
+      }
       try {
         setIsLoading(true)
         const employeeId =
@@ -41,14 +46,18 @@ export const ChangeExternalId: React.FC<BusinessAppContextProps> = ({ accessToke
           const res = await graphqlClient.request<any>(EMPLOYEE_DATA_QUERY, { idEmployee: employeeId })
           const emp = res?.EmployeeByPk || null
           setEmployee(emp)
-          form.reset({
-            externalId: emp?.externalId || ''
-          })
-          initialRef.current = { externalId: emp?.externalId || '' }
+          if (!ignorePrefillAfterSubmitRef.current) {
+            form.reset({
+              externalId: emp?.externalId || ''
+            })
+            initialRef.current = { externalId: emp?.externalId || '' }
+          }
         } else {
           setEmployee(null)
-          form.reset({ externalId: '' })
-          initialRef.current = { externalId: '' }
+          if (!ignorePrefillAfterSubmitRef.current) {
+            form.reset({ externalId: '' })
+            initialRef.current = { externalId: '' }
+          }
         }
       } catch {
         // ignore
@@ -124,6 +133,8 @@ export const ChangeExternalId: React.FC<BusinessAppContextProps> = ({ accessToke
           submitButtonTestId="flw_changeExternalId_submitButton"
           cancelButtonTestId="flw_changeExternalId_cancelButton"
           onSubmit={async (values: ExternalIdFormValues) => {
+            // Prevent prefill reset while the process is completing and the modal is about to close
+            ignorePrefillAfterSubmitRef.current = true
             const employeeId =
               additionalData?.psi_taskPayload?.employeeId ||
               additionalData?.psi_taskPayload?.initialParameters?.employeeId ||
@@ -133,12 +144,14 @@ export const ChangeExternalId: React.FC<BusinessAppContextProps> = ({ accessToke
 
             const payload = {
               event: 'pse_submit',
-              employeeExternalId: {
+              employeeId,
+              changeMode: 'UPDATE',
+              employee: {
                 id: employeeId,
                 ...(employee?.version !== undefined ? { version: employee?.version } : {}),
                 externalId: values.externalId || ''
               },
-              oldEmployeeExternalId: {
+              oldEmployee: {
                 id: employeeId,
                 ...(employee?.version !== undefined ? { version: employee?.version } : {}),
                 externalId: employee?.externalId || ''
