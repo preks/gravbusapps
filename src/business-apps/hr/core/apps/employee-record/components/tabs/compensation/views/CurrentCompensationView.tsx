@@ -7,7 +7,7 @@ import { BusinessAppContextProps } from '@/common/BusinessAppContext'
 import TotalRewardsCard from '../components/current/TotalRewardsCard'
 import BenefitsPerksSection from '../components/current/BenefitsPerksSection'
 import CompensationKPICards from '../components/current/CompensationKPICards'
-import CompensationKPICards from '../components/current/CompensationKPICards'
+import { useCompensationPermissions } from '../../../../hooks/useCompensationPermissions'
 
 interface CurrentCompensationViewProps extends BusinessAppContextProps {
   t: (key: string, params?: any) => string
@@ -17,7 +17,6 @@ interface CurrentCompensationViewProps extends BusinessAppContextProps {
   onRetry?: () => void
   employeeId: string
   locale: string
-  isSelfView: boolean // Whether user is viewing their own profile
   isSelfView: boolean // Whether user is viewing their own profile
 }
 
@@ -35,26 +34,16 @@ const CurrentCompensationView: React.FC<CurrentCompensationViewProps> = ({
   accessToken,
   userInfo,
   additionalData,
-  locale,
-  isSelfView
+  locale
 }) => {
-  // Check if user has permission to adjust employee salary
-  // Only managers and HR admins should have write permission on employee_working_condition
+  // Check compensation-related permissions
+  // Only managers and HR admins should have write permission on employee_working_condition and employee_bonus
   // Note: We check permission on the employee being viewed (employeeId) - managers should have write access to their employees' salaries
-  // Re-enable permission check when ready for production
-  // const salaryAdjustPermissionMap: Record<string, ResourcePermissionMap> = useMemo(
-  //   () => ({
-  //     adjustSalary: {
-  //       domain: 'employee',
-  //       resource: 'employee_working_condition',
-  //       permission: 'write'
-  //     }
-  //   }),
-  //   []
-  // )
-  // const { isResourceAccessible: isSalaryAdjustAccessible } = usePermissionCheck(employeeId, salaryAdjustPermissionMap, accessToken || '')
-  // const hasPermissionToAdjustSalary = isSalaryAdjustAccessible('adjustSalary')
-  const hasPermissionToAdjustSalaryDev = true //for development purposes
+  const { hasPermissionToAdjustSalary, hasPermissionToGrantBonus } = useCompensationPermissions(
+    employeeId,
+    accessToken || ''
+  )
+
   // Handle loading state - show loading indicators when data is not yet available
   if (loading && !compensationData) {
     return (
@@ -117,8 +106,8 @@ const CurrentCompensationView: React.FC<CurrentCompensationViewProps> = ({
         employeeId={employeeId}
         accessToken={accessToken}
         locale={locale}
-        isSelfView={isSelfView}
-        hasPermissionToAdjustSalary={hasPermissionToAdjustSalaryDev}
+        hasPermissionToAdjustSalary={hasPermissionToAdjustSalary ?? false}
+        hasPermissionToGrantBonus={hasPermissionToGrantBonus ?? false}
       />
 
       {/* Total Rewards 360° View */}
