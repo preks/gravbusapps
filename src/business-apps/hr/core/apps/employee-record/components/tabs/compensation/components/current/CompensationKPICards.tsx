@@ -17,6 +17,7 @@ interface CompensationKPICardsProps {
   accessToken?: string
   locale: string
   hasPermissionToAdjustSalary: boolean
+  hasPermissionToGrantBonus: boolean
 }
 
 /**
@@ -30,7 +31,8 @@ const CompensationKPICards: React.FC<CompensationKPICardsProps> = ({
   employeeId,
   accessToken,
   locale,
-  hasPermissionToAdjustSalary
+  hasPermissionToAdjustSalary,
+  hasPermissionToGrantBonus
 }) => {
   const { currentCompensation, totalBonusesYTD, activeBenefitsCount, bonuses } = compensationData
 
@@ -142,6 +144,30 @@ const CompensationKPICards: React.FC<CompensationKPICardsProps> = ({
 
       {/* Total Bonuses Card */}
       <Card className="gba:p-6 gba:relative" data-testid="compensation-bonuses-card">
+        {/* Show pencil icon only if user has permission to grant bonuses (managers/HR admins) */}
+        {hasPermissionToGrantBonus && (
+          <div className="gba:absolute gba:top-4 gba:right-4">
+            <AppAction
+              contexts={[
+                {
+                  context: FlowContextName.grantEmployeeBonus,
+                  contextData: {
+                    employeeId: employeeId
+                  }
+                }
+              ]}
+              prefixDataTestId="grant-employee-bonus-action"
+              accessToken={accessToken}
+              emptyState="enable"
+              lazyLoad
+            >
+              <PiPencilSimple
+                className="gba:w-4 gba:h-4 gba:text-muted-foreground hover:gba:text-primary gba:cursor-pointer"
+                data-testid="grant-employee-bonus-action-button"
+              />
+            </AppAction>
+          </div>
+        )}
         <div className="gba:min-h-[120px]">
           <div className="gba:pr-20">
             <div className="gba:text-sm gba:text-muted-foreground gba:mb-2">{t('current-total-bonuses-ytd')}</div>

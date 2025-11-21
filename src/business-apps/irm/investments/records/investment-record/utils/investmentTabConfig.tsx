@@ -11,7 +11,7 @@ import {
   InvestmentReportsTab
 } from '../components/shared'
 import { EquityInvestmentRounds, RealEstateLiquidityForecast, EquityAnalyticsTab } from '../components/group-specific'
-import { InvestmentTilesTab } from '../tiles'
+import { InvestmentTilesTab } from '@/common/components/investment/tiles'
 // Remove dependency on investmentTypeUtils - now using dynamic types
 
 /**
@@ -62,6 +62,7 @@ export const getTypeSpecificOverviewContent = (
         <RealEstateLiquidityForecast
           realEstateData={typeSpecificData}
           isLoading={false}
+          accessToken={businessAppContext?.accessToken || ''}
           data-testid="real-estate-liquidity-forecast-overview"
         />
       </div>
@@ -70,7 +71,13 @@ export const getTypeSpecificOverviewContent = (
 
   switch (investmentType) {
     case 'real_estate':
-      return <RealEstateLiquidityForecast realEstateData={typeSpecificData} isLoading={false} />
+      return (
+        <RealEstateLiquidityForecast
+          realEstateData={typeSpecificData}
+          isLoading={false}
+          accessToken={businessAppContext?.accessToken || ''}
+        />
+      )
     default:
       return null
   }

@@ -2,6 +2,7 @@ import React, { useState } from 'react'
 import { Avatar, AvatarImage, AvatarFallback, Badge } from '@newwork/nw-design-system'
 import { RightOutlined, FileTextOutlined } from '@ant-design/icons'
 import { getTranslationFromI18nKeyAndLabel, formatDate } from '@/common/utils/windowUtils'
+import { getAdvancePaymentStatusDisplay } from '@/business-apps/fin/expenses/apps/backoffice-expenses/utils/utils'
 import DocumentPdfModal from './DocumentPdfModal'
 
 interface EmployeeInfoSectionProps {
@@ -160,13 +161,20 @@ const EmployeeInfoSection: React.FC<EmployeeInfoSectionProps> = ({
             </div>
 
             <div className="gba:flex gba:flex-col">
-              <span className="gba:text-sm gba:font-medium gba:text-muted-foreground gba:mb-1">Status</span>
-              <Badge
-                variant="secondary"
-                className="gba:bg-warning-100 gba:text-warning-700 gba:px-2 gba:py-1 gba:rounded-full gba:text-xs gba:w-fit"
-              >
-                {status}
-              </Badge>
+              <span className="gba:text-sm gba:font-medium gba:text-muted-foreground gba:mb-1">
+                {getTranslationFromI18nKeyAndLabel('lowcoder:expense_request_list.expense_plan_table.status', 'Status')}
+              </span>
+              {(() => {
+                const statusConfig = getAdvancePaymentStatusDisplay(status)
+                return (
+                  <Badge
+                    variant={(statusConfig as any).badgeVariant || 'outline'}
+                    className="gba:px-2 gba:py-1 gba:rounded-full gba:text-xs gba:w-fit"
+                  >
+                    {statusConfig.label}
+                  </Badge>
+                )
+              })()}
             </div>
           </div>
 
