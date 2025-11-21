@@ -6,8 +6,6 @@ import { CompensationData } from '../types/compensationTypes'
 import { BusinessAppContextProps } from '@/common/BusinessAppContext'
 import TotalRewardsCard from '../components/current/TotalRewardsCard'
 import BenefitsPerksSection from '../components/current/BenefitsPerksSection'
-import { formatCurrencyString } from '@/common/utils/numberFormatter'
-
 import CompensationKPICards from '../components/current/CompensationKPICards'
 import { ScopePermissionCheckResult } from '@/common/hooks/useScopePermissionCheck'
 
