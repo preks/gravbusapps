@@ -1,4 +1,4 @@
-import React, { useEffect, useState, useCallback, useMemo } from 'react'
+import React, { useEffect, useState, useCallback } from 'react'
 import {
   Tabs,
   TabsContent,
@@ -12,8 +12,7 @@ import {
 } from '@newwork/nw-design-system'
 import { LayoutGrid, TrendingUp, Building2, PieChart } from 'lucide-react'
 import { BusinessAppContextProps } from '@/common/BusinessAppContext'
-import { useGetInvestments } from '@/common/data/investment/hooks/useInvestments'
-import { extractAvailableCurrencies } from '@/common/utils/numberFormatter'
+import { useAvailableCurrencies } from '@/common/data/investment/hooks/useAvailableCurrencies'
 import AllInvestmentsList from './components/AllInvestmentsList'
 import EquityInvestmentsList from './components/EquityInvestmentsList'
 import RealEstateInvestmentsList from './components/RealEstateInvestmentsList'
@@ -39,39 +38,12 @@ export const InvestmentView: React.FC<InvestmentViewProps> = context => {
 
   const [activeTab, setActiveTab] = useState(normalize(initialSubTab))
   const [selectedCurrency, setSelectedCurrency] = useState<string>('EUR')
-  const [investmentsForCurrency, setInvestmentsForCurrency] = useState<any[]>([])
 
-  const { fetchInvestments } = useGetInvestments(context)
-
-  // Load investments to extract available currencies (pattern from analytics view)
-  useEffect(() => {
-    const loadInvestments = async () => {
-      if (!context.accessToken) return
-
-      try {
-        const response = await fetchInvestments({ limit: 1000, offset: 0 })
-        setInvestmentsForCurrency(response?.Investment || [])
-      } catch (err) {
-        console.error('Error loading investments for currency extraction:', err)
-      }
-    }
-
-    loadInvestments()
-  }, [context.accessToken, fetchInvestments])
-
-  // Extract unique currencies from investments (pattern from analytics view)
-  const availableCurrencies = useMemo(() => {
-    const currencies = extractAvailableCurrencies(investmentsForCurrency, inv => inv.currency?.id)
-
-    // Sort with EUR first, then alphabetically
-    const sorted = currencies.sort((a, b) => {
-      if (a === 'EUR') return -1
-      if (b === 'EUR') return 1
-      return a.localeCompare(b)
-    })
-
-    return sorted.length > 0 ? sorted : ['EUR']
-  }, [investmentsForCurrency])
+  // Fetch available currencies efficiently using distinctOn
+  const { currencies: availableCurrencies } = useAvailableCurrencies(context, {
+    filters: { entity: 'Investment' },
+    returnFormat: 'codes'
+  })
 
   useEffect(() => {
     setActiveTab(normalize(initialSubTab))

@@ -1,7 +1,16 @@
 import React, { useState, useCallback, useEffect, useMemo } from 'react'
-import { DataDisplay } from '@newwork/nw-design-system'
+import {
+  DataDisplay,
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+  Label
+} from '@newwork/nw-design-system'
 import { BusinessAppContextProps } from '@/common/BusinessAppContext'
 import { useGetInvestmentOpportunities } from '@/common/data/investment/hooks/useInvestmentOpportunities'
+import { useAvailableCurrencies } from '@/common/data/investment/hooks/useAvailableCurrencies'
 import { OpportunityListLayout } from '@/common/components/common-relations/view-layouts/opportunity-layout'
 import {
   createOpportunityColumns,
@@ -20,12 +29,11 @@ import { navigateTo, buildPlatformUrl } from '@/common/utils/navigationUtils'
 import { SalesStatistics } from './components/SalesStatistics'
 import { useProcessCompletion } from '@/common/hooks/useProcessCompletion'
 
-export interface SalesTabProps extends BusinessAppContextProps {
-  currencyCode?: string
-}
+export type SalesTabProps = BusinessAppContextProps
 
 export const SalesTab: React.FC<SalesTabProps> = context => {
-  const { accessToken, currencyCode } = context
+  const { accessToken } = context
+  const [selectedCurrency, setSelectedCurrency] = useState('EUR')
   const { fetchInvestmentOpportunities } = useGetInvestmentOpportunities(context)
 
   // State management
@@ -173,7 +181,7 @@ export const SalesTab: React.FC<SalesTabProps> = context => {
         offset: pagination.pageIndex * pagination.pageSize,
         search: searchTerm.trim() || undefined,
         dealType: 'DIVESTMENT_DEAL',
-        currencyCode: currencyCode || undefined,
+        currencyCode: selectedCurrency || undefined,
         // Server-side filtering for WON opportunities
         statusIds: wonStatusIds
       }
@@ -211,7 +219,7 @@ export const SalesTab: React.FC<SalesTabProps> = context => {
     searchTerm,
     selectedFilters,
     sorting,
-    currencyCode,
+    selectedCurrency,
     fetchInvestmentOpportunities
   ])
 
@@ -288,12 +296,41 @@ export const SalesTab: React.FC<SalesTabProps> = context => {
 
   const sortableColumns = useMemo(() => createOpportunitySortableColumns(), [])
 
+  // Fetch available currencies efficiently using distinctOn
+  const { currencies: availableCurrencies } = useAvailableCurrencies(context, {
+    filters: { entity: 'InvestmentOpportunity', dealType: 'DIVESTMENT_DEAL' },
+    returnFormat: 'codes'
+  })
+
+  // Currency Filter Component
+  const currencyFilterUI = useMemo(() => {
+    if (availableCurrencies.length === 0) return null
+
+    return (
+      <div className="gba:flex gba:items-center gba:gap-2">
+        <Label className="gba:text-sm gba:font-medium gba:whitespace-nowrap">Currency:</Label>
+        <Select value={selectedCurrency} onValueChange={setSelectedCurrency}>
+          <SelectTrigger className="gba:w-32">
+            <SelectValue />
+          </SelectTrigger>
+          <SelectContent>
+            {availableCurrencies.map(currency => (
+              <SelectItem key={currency} value={currency}>
+                {currency}
+              </SelectItem>
+            ))}
+          </SelectContent>
+        </Select>
+      </div>
+    )
+  }, [availableCurrencies, selectedCurrency])
+
   // No need for client-side pagination anymore - using server-side pagination
 
   return (
     <div data-testid="sales-tab-container" className="gba:space-y-6">
       {/* Statistics */}
-      <SalesStatistics {...context} currencyCode={currencyCode} />
+      <SalesStatistics {...context} currencyCode={selectedCurrency} />
 
       {/* Data Display with List */}
       <DataDisplay
@@ -319,6 +356,7 @@ export const SalesTab: React.FC<SalesTabProps> = context => {
         availableColumns={availableColumns}
         visibleColumns={visibleColumns}
         onVisibleColumnsChange={setVisibleColumns}
+        secondaryActions={currencyFilterUI}
         toolbarDensity="default"
       >
         <OpportunityListLayout<InvestmentOpportunity>

@@ -9,10 +9,17 @@ import {
   Badge,
   Spinner,
   Alert,
-  Button
+  Button,
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+  Label
 } from '@newwork/nw-design-system'
 import { Building2, Calendar, ChevronUp, ChevronDown } from 'lucide-react'
 import { BusinessAppContextProps } from '@/common/BusinessAppContext'
+import { useAvailableCurrencies } from '@/common/data/investment/hooks/useAvailableCurrencies'
 import { DataContainer } from '@/components/layout/dataContainer/DataContainer'
 import { ColumnConfig } from '@/components/dataController'
 import { AppActionButton } from '@/components/app-action-button/AppActionButton'
@@ -28,11 +35,10 @@ import { DateRangeFilter } from '@/business-apps/crm/core/apps/customer-relation
 import ExpenseAmountRangeFilter from '@/business-apps/fin/expenses/apps/personal-expenses/components/tabs/expense-items-tab/ExpenseAmountRangeFilter'
 import { useEmployeeSearch } from '@/common/data/employee/useEmployeeSearch'
 
-export interface PlannedExitsProps extends BusinessAppContextProps {
-  currencyCode?: string
-}
+export type PlannedExitsProps = BusinessAppContextProps
 
-const PlannedExits: React.FC<PlannedExitsProps> = ({ accessToken, userInfo, currencyCode }) => {
+const PlannedExits: React.FC<PlannedExitsProps> = ({ accessToken, userInfo }) => {
+  const [selectedCurrency, setSelectedCurrency] = useState('EUR')
   // Currency helpers to match investment view (number-only + narrow symbol)
   const renderAmount = (amount: number | undefined, currencyCode?: string) => {
     if (typeof amount !== 'number') return <span className="gba:text-gray-400">-</span>
@@ -83,7 +89,7 @@ const PlannedExits: React.FC<PlannedExitsProps> = ({ accessToken, userInfo, curr
     sortDirection: sortOrder.toLowerCase() as 'asc' | 'desc',
     limit: pageSize,
     offset: (currentPage - 1) * pageSize,
-    currencyCode: currencyCode || undefined,
+    currencyCode: selectedCurrency || undefined,
     filters: {
       // map selectedFilters -> where as needed (DataContainer sends array of ids)
       // include directly; server understands these IDs inside our hook
@@ -101,6 +107,15 @@ const PlannedExits: React.FC<PlannedExitsProps> = ({ accessToken, userInfo, curr
       investmentMarketValueMaxAmount: marketRange?.max
     }
   })
+
+  // Fetch available currencies efficiently using distinctOn
+  const { currencies: availableCurrencies } = useAvailableCurrencies(
+    { accessToken, userInfo },
+    {
+      filters: { entity: 'Investment' },
+      returnFormat: 'codes'
+    }
+  )
 
   const handleSearch = useCallback((value: string) => {
     setSearchTerm(value)
@@ -428,7 +443,7 @@ const PlannedExits: React.FC<PlannedExitsProps> = ({ accessToken, userInfo, curr
   return (
     <div data-testid="planned-exits-container" className="gba:space-y-6">
       {/* Metrics Section */}
-      <PlannedExitsMetrics context={{ accessToken, userInfo }} currencyCode={currencyCode} />
+      <PlannedExitsMetrics context={{ accessToken, userInfo }} currencyCode={selectedCurrency} />
 
       <DataContainer
         dataControllerProps={{
@@ -443,11 +458,28 @@ const PlannedExits: React.FC<PlannedExitsProps> = ({ accessToken, userInfo, curr
             'data-testid': 'planned-exits-column-visibility'
           },
           listTitle: (
-            <div className="gba:flex gba:items-center gba:gap-4">
+            <div className="gba:flex gba:items-center gba:justify-between gba:w-full">
               <div className="gba:flex gba:items-center gba:gap-2">
                 <span>Planned Exits</span>
                 <span className="gba:text-gray-500">({totalCount})</span>
               </div>
+              {availableCurrencies.length > 0 && (
+                <div className="gba:flex gba:items-center gba:gap-2">
+                  <Label className="gba:text-sm gba:font-medium gba:whitespace-nowrap">Currency:</Label>
+                  <Select value={selectedCurrency} onValueChange={setSelectedCurrency}>
+                    <SelectTrigger className="gba:w-32">
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {availableCurrencies.map(currency => (
+                        <SelectItem key={currency} value={currency}>
+                          {currency}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
+              )}
             </div>
           )
         }}

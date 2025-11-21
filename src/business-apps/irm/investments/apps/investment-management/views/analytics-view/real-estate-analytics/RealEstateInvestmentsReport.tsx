@@ -1,4 +1,4 @@
-import React, { useState, useCallback, useEffect, useMemo } from 'react'
+import React, { useState, useCallback, useEffect } from 'react'
 import {
   Alert,
   AlertTitle,
@@ -24,6 +24,7 @@ import { getTranslationFromI18nKeyAndLabel } from '@/common/utils/windowUtils'
 import { formatDataTestId } from '@/common/utils/formatDataTestId'
 import { useGetInvestments } from '@/common/data/investment'
 import type { Investment } from '@/common/data/investment'
+import { useAvailableCurrencies } from '@/common/data/investment/hooks/useAvailableCurrencies'
 import { useRealEstateKPIIntegration } from './hooks'
 import { RealEstateDistributionCharts, RealEstateTimelineCharts, RealEstateAnalyticsCharts } from './components'
 import {
@@ -103,18 +104,11 @@ const RealEstateInvestmentsReport: React.FC<RealEstateInvestmentsReportProps> = 
   const [dataLoading, setDataLoading] = useState(true)
   const [dataError, setDataError] = useState<string | null>(null)
 
-  // Extract unique currencies from real estate investments
-  const availableCurrencies = useMemo(() => {
-    const currencies = new Set<string>()
-    for (const inv of realEstateInvestments) {
-      if (inv.currencyCode) {
-        currencies.add(inv.currencyCode)
-      }
-    }
-    const currencyArray = Array.from(currencies).sort((a, b) => a.localeCompare(b))
-    // Ensure at least the default currency is available
-    return currencyArray.length > 0 ? currencyArray : ['EUR']
-  }, [realEstateInvestments])
+  // Fetch available currencies efficiently using distinctOn
+  const { currencies: availableCurrencies } = useAvailableCurrencies(props, {
+    filters: { entity: 'Investment', investmentGroupId: 'InvestmentGroup:v1:REAL_ESTATE' },
+    returnFormat: 'codes'
+  })
 
   // Use the new KPI integration hook for real GraphQL aggregate queries with currency filter
   const {

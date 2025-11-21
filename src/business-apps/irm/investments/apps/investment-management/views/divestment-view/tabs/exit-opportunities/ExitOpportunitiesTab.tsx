@@ -9,12 +9,9 @@ import { FlowContextName } from '@/common/types/FlowRegistryTypes'
 import { useInvestmentOpportunityFilters } from '@/business-apps/irm/core/apps/investment-relations/views/opportunity-view/hooks/useInvestmentOpportunityFilters'
 import { ExitOpportunityStatistics } from './components/ExitOpportunityStatistics'
 
-export interface ExitOpportunitiesTabProps extends BusinessAppContextProps {
-  currencyCode?: string
-}
+export type ExitOpportunitiesTabProps = BusinessAppContextProps
 
 export const ExitOpportunitiesTab: React.FC<ExitOpportunitiesTabProps> = context => {
-  const { currencyCode } = context
   const { fetchInvestmentOpportunities } = useGetInvestmentOpportunities(context)
 
   const config = useMemo(
@@ -24,8 +21,7 @@ export const ExitOpportunitiesTab: React.FC<ExitOpportunitiesTabProps> = context
 
         extendQueryVariables: vars => ({
           ...vars,
-          dealType: 'DIVESTMENT_DEAL',
-          currencyCode: currencyCode || undefined
+          dealType: 'DIVESTMENT_DEAL'
         }),
 
         fetchOpportunities: async variables => {
@@ -69,13 +65,15 @@ export const ExitOpportunitiesTab: React.FC<ExitOpportunitiesTabProps> = context
         fetchBoardOpportunities: fetchInvestmentOpportunities,
         extractBoardOpportunities: result => result.InvestmentOpportunity || [],
         extractBoardTotalCount: result => result.InvestmentOpportunityAggregate?.aggregate?.count || 0,
-        renderStatistics: () => <ExitOpportunityStatistics {...context} currencyCode={currencyCode} />,
+        renderStatistics: (selectedCurrency?: string) => (
+          <ExitOpportunityStatistics {...context} currencyCode={selectedCurrency} />
+        ),
         rowActionsContextArray: [FlowContextName.investmentOpportunityEntity],
         buildRowActionsExternalContextData: (row: { original: InvestmentOpportunity & { id: string } }) => ({
           opportunityId: row.original.id
         })
       }),
-    [context, fetchInvestmentOpportunities, currencyCode]
+    [context, fetchInvestmentOpportunities]
   )
 
   return <OpportunityLayout context={context} config={config} dataTestId="exit-opportunities-view" />

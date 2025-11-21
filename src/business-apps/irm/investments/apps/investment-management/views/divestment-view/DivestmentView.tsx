@@ -1,21 +1,9 @@
-import React, { useState, useEffect, useMemo } from 'react'
-import {
-  Tabs,
-  TabsContent,
-  TabsList,
-  TabsTrigger,
-  Select,
-  SelectTrigger,
-  SelectValue,
-  SelectContent,
-  SelectItem
-} from '@newwork/nw-design-system'
+import React, { useState, useEffect } from 'react'
+import { Tabs, TabsContent, TabsList, TabsTrigger } from '@newwork/nw-design-system'
 import { DollarSign, Target, TrendingDown } from 'lucide-react'
 import { BusinessAppContextProps } from '@/common/BusinessAppContext'
 import { getTranslationFromI18nKeyAndLabel } from '@/common/utils/windowUtils'
 import { buildPlatformUrl } from '@/common/utils/navigationUtils'
-import { useGetInvestments } from '@/common/data/investment/hooks/useInvestments'
-import { extractAvailableCurrencies } from '@/common/utils/numberFormatter'
 import PlannedExits from './tabs/planned-exits'
 import { ExitOpportunitiesTab } from './tabs/exit-opportunities'
 import { SalesTab } from './tabs/sales'
@@ -23,41 +11,6 @@ import { SalesTab } from './tabs/sales'
 export type DivestmentViewProps = BusinessAppContextProps
 
 export const DivestmentView: React.FC<DivestmentViewProps> = context => {
-  const [selectedCurrency, setSelectedCurrency] = useState<string>('EUR')
-  const [investmentsForCurrency, setInvestmentsForCurrency] = useState<any[]>([])
-
-  const { fetchInvestments } = useGetInvestments(context)
-
-  // Load investments to extract available currencies
-  useEffect(() => {
-    const loadInvestments = async () => {
-      if (!context.accessToken) return
-
-      try {
-        const response = await fetchInvestments({ limit: 1000, offset: 0 })
-        setInvestmentsForCurrency(response?.Investment || [])
-      } catch (err) {
-        console.error('Error loading investments for currency extraction:', err)
-      }
-    }
-
-    loadInvestments()
-  }, [context.accessToken, fetchInvestments])
-
-  // Extract unique currencies from investments
-  const availableCurrencies = useMemo(() => {
-    const currencies = extractAvailableCurrencies(investmentsForCurrency, inv => inv.currency?.id)
-
-    // Sort with EUR first, then alphabetically
-    const sorted = currencies.sort((a, b) => {
-      if (a === 'EUR') return -1
-      if (b === 'EUR') return 1
-      return a.localeCompare(b)
-    })
-
-    return sorted.length > 0 ? sorted : ['EUR']
-  }, [investmentsForCurrency])
-
   const tabOptions = [
     {
       key: 'planned-exits',
@@ -140,30 +93,11 @@ export const DivestmentView: React.FC<DivestmentViewProps> = context => {
 
   return (
     <div data-testid="divestment-relations-tabs" className="gba:h-full gba:flex gba:flex-col">
-      {/* Header with Currency Filter */}
+      {/* Header */}
       <div className="gba:mb-6">
-        <div className="gba:flex gba:items-center gba:justify-between gba:mb-4">
-          <div>
-            <h1 className="gba:text-2xl gba:font-bold gba:text-gray-900">Divestment Management</h1>
-            <p className="gba:text-gray-600">Track and manage planned exits, opportunities, and completed sales</p>
-          </div>
-
-          {/* Currency Filter - Top Right */}
-          <div className="gba:flex gba:items-center gba:gap-2">
-            <span className="gba:text-sm gba:font-medium gba:text-gray-700">Currency:</span>
-            <Select value={selectedCurrency} onValueChange={setSelectedCurrency}>
-              <SelectTrigger className="gba:w-[120px]" data-testid="divestment-view-currency-filter">
-                <SelectValue />
-              </SelectTrigger>
-              <SelectContent>
-                {availableCurrencies.map(currency => (
-                  <SelectItem key={currency} value={currency}>
-                    {currency}
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
-          </div>
+        <div className="gba:mb-4">
+          <h1 className="gba:text-2xl gba:font-bold gba:text-gray-900">Divestment Management</h1>
+          <p className="gba:text-gray-600">Track and manage planned exits, opportunities, and completed sales</p>
         </div>
       </div>
 
@@ -187,7 +121,7 @@ export const DivestmentView: React.FC<DivestmentViewProps> = context => {
           data-testid="planned-exits-tab-content"
         >
           <div className="gba:p-6">
-            <PlannedExits {...context} currencyCode={selectedCurrency} />
+            <PlannedExits {...context} />
           </div>
         </TabsContent>
 
@@ -197,13 +131,13 @@ export const DivestmentView: React.FC<DivestmentViewProps> = context => {
           data-testid="exit-opportunities-tab-content"
         >
           <div className="gba:p-6">
-            <ExitOpportunitiesTab {...context} currencyCode={selectedCurrency} />
+            <ExitOpportunitiesTab {...context} />
           </div>
         </TabsContent>
 
         <TabsContent value="sales" className="gba:flex-1 gba:overflow-auto gba:mt-0" data-testid="sales-tab-content">
           <div className="gba:p-6">
-            <SalesTab {...context} currencyCode={selectedCurrency} />
+            <SalesTab {...context} />
           </div>
         </TabsContent>
       </Tabs>

@@ -18,6 +18,7 @@ import { InvestmentStatistics } from './components/InvestmentStatistics'
 import InvestmentBreakdownCard, { type InvestmentGroup, type TrendData } from './components/InvestmentBreakdownCard'
 import { useGetInvestments } from '@/common/data/investment/hooks/useInvestments'
 import { Investment } from '@/common/data/investment/types/investmentTypes'
+import { useAvailableCurrencies } from '@/common/data/investment/hooks/useAvailableCurrencies'
 import { useInvestmentGroupsAndTypes } from './hooks/useInvestmentGroupsAndTypes'
 
 interface DashboardViewProps extends BusinessAppContextProps {
@@ -121,72 +122,20 @@ const DashboardView: React.FC<DashboardViewProps> = ({
   const [isLoading, setIsLoading] = React.useState(true)
   const [error, setError] = React.useState<string | null>(null)
   const [masterCurrency, setMasterCurrency] = React.useState<string>('Currency:v1:EUR')
-  const [availableCurrencies, setAvailableCurrencies] = React.useState<Array<{ id: string; code: string }>>([
-    { id: 'Currency:v1:EUR', code: 'EUR' }
-  ])
 
-  // Fetch all investments once to get available currencies
-  React.useEffect(() => {
-    let mounted = true
-    ;(async () => {
-      try {
-        // Fetch ALL investments without currency filter to get available currencies
-        const result = await fetchInvestments({ limit: 1000 })
-        if (!mounted) return
-
-        // Extract unique currencies with both ID and code
-        const currencyMap = new Map<string, { id: string; code: string }>()
-        result?.Investment?.forEach((inv: Investment) => {
-          if (inv.currency) {
-            const currency = inv.currency as any
-            let currencyId: string | null = null
-            let currencyCode: string | null = null
-
-            if (typeof currency === 'string') {
-              currencyId = currency
-              const parts = currency.split(':')
-              currencyCode = parts[parts.length - 1] || null
-            } else if (typeof currency === 'object' && currency !== null) {
-              currencyId = currency.id || null
-              const codeStr = currency.code || currency.value
-              if (codeStr) {
-                const parts = String(codeStr).split(':')
-                currencyCode = parts[parts.length - 1] || null
-              }
-            }
-
-            if (currencyId && currencyCode && !currencyMap.has(currencyId)) {
-              currencyMap.set(currencyId, { id: currencyId, code: currencyCode })
-            }
-          }
-        })
-
-        const currencyArray = Array.from(currencyMap.values())
-        // Sort with EUR first, then alphabetically by code
-        const sorted = currencyArray.toSorted((a, b) => {
-          if (a.code === 'EUR') return -1
-          if (b.code === 'EUR') return 1
-          return a.code.localeCompare(b.code)
-        })
-
-        if (mounted) {
-          setAvailableCurrencies(sorted.length > 0 ? sorted : [{ id: 'Currency:v1:EUR', code: 'EUR' }])
-        }
-      } catch (err) {
-        console.error('Error fetching available currencies:', err)
-        if (mounted) {
-          setAvailableCurrencies([
-            { id: 'Currency:v1:EUR', code: 'EUR' },
-            { id: 'Currency:v1:USD', code: 'USD' },
-            { id: 'Currency:v1:GBP', code: 'GBP' }
-          ])
-        }
-      }
-    })()
-    return () => {
-      mounted = false
+  // Fetch available currencies efficiently using distinctOn
+  const { currencies: currencyOptions } = useAvailableCurrencies(
+    { accessToken, userInfo },
+    {
+      filters: { entity: 'Investment' },
+      returnFormat: 'full'
     }
-  }, [fetchInvestments])
+  )
+
+  const availableCurrencies = React.useMemo(
+    () => currencyOptions as Array<{ id: string; code: string; value: string }>,
+    [currencyOptions]
+  )
 
   // Use centralized groups and types data
   const { data: groupsData, error: groupsError, isLoading: groupsLoading } = useInvestmentGroupsAndTypes(accessToken)
