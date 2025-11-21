@@ -389,6 +389,7 @@ const EmployeeRecordContent: React.FC<EmployeeRecordContentProps> = ({
             employeePerformanceGoals={performanceGoals}
             feedback={feedback}
             additionalData={additionalData}
+            employeeRecordHrBackoffice={employeeRecordHrBackoffice}
           />
         )
       },
