@@ -310,7 +310,7 @@ const ChangePersonalDataContent: React.FC<BusinessAppContextProps> = ({ accessTo
                 salutationRef: employee?.salutationRef || '',
                 firstName: employee?.firstName || '',
                 lastName: employee?.lastName || '',
-                displayName: employee?.displayName || '',
+                fullName: employee?.fullName || '',
                 preferredName: employee?.preferredName || '',
                 birthName: employee?.birthName || '',
                 birthDate: employee?.birthDate ? formatDateToISO(new Date(employee.birthDate)) : '',
