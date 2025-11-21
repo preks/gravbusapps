@@ -168,6 +168,7 @@ const EmployeeRecordContent: React.FC<EmployeeRecordContentProps> = ({
   const activeStructureId = getCurrentActiveStructureId()
   const devFeatureFlag = useFeature(Feature.Dev.Enabled.Key)
   const changeLogFeatureFlag = useFeature('dev.employee-record.changelog.enabled')
+  console.log('userInfo', userInfo)
 
   useEffect(() => {
     if (typeof window === 'undefined') return

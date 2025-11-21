@@ -2,6 +2,8 @@
 
 import React from 'react'
 import { Card, Badge, Button } from '@newwork/nw-design-system'
+import { AppAction } from '@/components/app-action/AppAction'
+import { FlowContextName } from '@/common/types/FlowRegistryTypes'
 import { BenefitCatalogItem } from '../../types/benefitCatalogTypes'
 import { formatCurrencyString } from '@/common/utils/numberFormatter'
 import { BusinessAppContextProps } from '@/common/BusinessAppContext'
@@ -52,10 +54,12 @@ const BenefitCatalogCard: React.FC<BenefitCatalogCardProps> = ({
   benefit,
   currencyCode = 'EUR',
   locale,
-  onRequest,
   onDeactivate,
-  onViewDetails
+  onViewDetails,
+  accessToken,
+  userInfo
 }) => {
+  const employeeId = userInfo?.employeeDetails?.employeeId
   /**
    * Get status badge variant based on benefit state
    */
@@ -73,14 +77,7 @@ const BenefitCatalogCard: React.FC<BenefitCatalogCardProps> = ({
     return t('benefit-status-available')
   }
 
-  /**
-   * Handle request benefit action
-   */
-  const handleRequest = () => {
-    if (onRequest && benefit.canRequest) {
-      onRequest(benefit.catalogId)
-    }
-  }
+  // Request handled via AppActionButton
 
   /**
    * Handle deactivate benefit action
@@ -124,21 +121,27 @@ const BenefitCatalogCard: React.FC<BenefitCatalogCardProps> = ({
           )}
         </div>
 
-        {/* For active benefits: show badge; for available: show request button */}
+        {/* For active benefits: show badge; for available: show AppAction button */}
         {benefit.isActive ? (
           <Badge variant={getStatusVariant()} data-testid={`benefit-catalog-status-badge-${benefit.code}`}>
             {getStatusLabel()}
           </Badge>
         ) : (
-          <Button
-            variant="outline"
-            size="sm"
-            onClick={handleRequest}
-            disabled={!benefit.canRequest || benefit.isPending}
+          <AppAction
+            variant="update-primary"
             data-testid={`benefit-catalog-request-button-${benefit.code}`}
+            contexts={[
+              {
+                context: FlowContextName.employeeEntity,
+                contextData: { employeeId: employeeId }
+              }
+            ]}
+            prefixDataTestId={`benefit-request-${benefit.code}`}
+            autoExecute={true}
+            accessToken={accessToken}
           >
             {benefit.isPending ? t('benefit-status-pending') : t('benefit-request-button')}
-          </Button>
+          </AppAction>
         )}
       </div>
 

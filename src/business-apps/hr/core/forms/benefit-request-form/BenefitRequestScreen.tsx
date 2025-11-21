@@ -8,7 +8,7 @@ import { BenefitCatalogItem } from '@/business-apps/hr/core/apps/employee-record
 import { BENEFIT_FORM_VALIDATION } from '@/business-apps/hr/core/apps/employee-record/components/tabs/compensation/constants/benefitFormValidation'
 import { getDefaultStartDate } from '@/business-apps/hr/core/apps/employee-record/utils/utils'
 import BenefitProviderField from '@/business-apps/hr/core/apps/employee-record/components/tabs/compensation/components/form-fields/BenefitProviderField'
-import BenefitValueField from '@/business-apps/hr/core/apps/employee-record/components/tabs/compensation/components/form-fields/BenefitValueField'
+import { getCurrentActiveUserLocale } from '@/common/utils/windowUtils'
 
 export interface BenefitRequestScreenProps extends BusinessAppContextProps {
   /**
@@ -62,7 +62,6 @@ const BenefitRequestScreen: React.FC<BenefitRequestScreenProps> = ({
 }) => {
   // Form state
   const [provider, setProvider] = useState<string>('')
-  const [yearlyValue, setYearlyValue] = useState<string>('')
   const [startDate, setStartDate] = useState<string>('')
   const [justification, setJustification] = useState('')
 
@@ -74,6 +73,30 @@ const BenefitRequestScreen: React.FC<BenefitRequestScreenProps> = ({
       setStartDate(getDefaultStartDate())
     }
   }, [isOpen])
+
+  const currentLocale = getCurrentActiveUserLocale()
+
+  /**
+   * Resolve localized additional values from catalog entry
+   * - additionalValue1: numeric value
+   * - additionalValue2: unit label
+   */
+  const { additionalValue1Display, additionalValue2Display, additionalValue1Number } = useMemo(() => {
+    const tr = benefit?.catalogEntry?.translations?.find(t => t.localeCode === currentLocale)
+
+    const av1 = (tr?.additionalValue1 ?? benefit?.catalogEntry?.additionalValue1 ?? '').toString()
+    const av2 = (tr?.additionalValue2 ?? benefit?.catalogEntry?.additionalValue2 ?? '').toString()
+
+    // Normalize decimal separators (e.g., "100,50" -> "100.50")
+    const normalized = av1.replace(',', '.')
+    const parsed = Number.parseFloat(normalized)
+
+    return {
+      additionalValue1Display: av1,
+      additionalValue2Display: av2,
+      additionalValue1Number: Number.isFinite(parsed) ? parsed : 0
+    }
+  }, [benefit, currentLocale])
 
   /**
    * Validation function for AppActionForm
@@ -144,8 +167,8 @@ const BenefitRequestScreen: React.FC<BenefitRequestScreenProps> = ({
    * Builds the payload for the benefit request process
    */
   const handleSubmit = useCallback(async () => {
-    // Parse yearly value
-    const yearlyAmountValue = yearlyValue.trim() ? Number.parseFloat(yearlyValue) : 0
+    // Derive yearly amount from catalog Additional Value 1 (if numeric)
+    const yearlyAmountValue = additionalValue1Number || 0
 
     // Build and return payload for Kogito process
     return {
@@ -160,7 +183,7 @@ const BenefitRequestScreen: React.FC<BenefitRequestScreenProps> = ({
       requestDate: new Date().toISOString(),
       status: 'PENDING'
     }
-  }, [employeeId, benefit.catalogId, provider, yearlyValue, startDate, justification])
+  }, [employeeId, benefit.catalogId, provider, additionalValue1Number, startDate, justification])
 
   /**
    * Success handler - called after process starts
@@ -171,7 +194,6 @@ const BenefitRequestScreen: React.FC<BenefitRequestScreenProps> = ({
 
     // Reset form state
     setProvider('')
-    setYearlyValue('')
     setStartDate(getDefaultStartDate())
     setJustification('')
   }, [onSuccess, onClose])
@@ -224,8 +246,20 @@ const BenefitRequestScreen: React.FC<BenefitRequestScreenProps> = ({
               required
             />
 
-            {/* Expected Yearly Value (Optional) */}
-            <BenefitValueField t={t} value={yearlyValue} onChange={setYearlyValue} />
+            {/* Catalog Value (from Additional Value 1 + Additional Value 2) */}
+            <div className="gba:space-y-2">
+              <Label className="gba:text-sm gba:font-medium gba:text-foreground">
+                {t('modal-request-value-label')}
+              </Label>
+              <div
+                className="gba:w-full gba:rounded-md gba:border gba:border-border gba:bg-muted gba:px-3 gba:py-2 gba:text-sm"
+                data-testid="request-benefit-included-value-display"
+              >
+                {additionalValue1Display || additionalValue2Display
+                  ? `${additionalValue1Display}${additionalValue2Display ? ` ${additionalValue2Display}` : ''}`
+                  : '-'}
+              </div>
+            </div>
 
             {/* Preferred Start Date (Required) */}
             <div className="gba:space-y-2">
