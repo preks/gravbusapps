@@ -19,6 +19,7 @@ current-bonus = bonus
 current-bonuses = bonuses
 current-annually = Annually
 current-monthly = Monthly
+current-hourly = Hourly
 
 # Compensation Band
 band-title = Compensation Band
@@ -228,6 +229,8 @@ action-deactivate = Deactivate
 action-download = Download
 action-view = View
 action-close = Close
+action-select-placeholder = Please Select
+action-enter-placeholder = Please Enter
 
 # Benefits Catalog Section
 benefit-per-year = /yr
