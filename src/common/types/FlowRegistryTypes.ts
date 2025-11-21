@@ -146,6 +146,9 @@ export enum FlowContextName {
   /// Investment KPI Forecasts
   investmentKpiForecastUpdate = 'investmentKpiForecastUpdate',
 
+  /// Investment Liquidity Forecasts (Real Estate)
+  investmentLiquidityForecastUpdate = 'investmentLiquidityForecastUpdate',
+
   /// Investment Reports
   investmentReportUpload = 'investmentReportUpload',
   investmentReportEntity = 'investmentReportEntity', // Integrate

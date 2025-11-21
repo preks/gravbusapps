@@ -9,7 +9,7 @@ import { InvestmentPopupFormWrapper } from './InvestmentPopupFormWrapper'
 import { getTranslationFromI18nKeyAndLabel } from '@/common/utils/windowUtils'
 import { formatDataTestId } from '@/common/utils/formatDataTestId'
 import { INVESTMENT_ERRORS } from '../utils/investmentPopupUtils'
-import { findTileById, TileData } from '@/business-apps/irm/investments/records/investment-record/tiles'
+import { findTileById, TileData } from '@/common/components/investment/tiles'
 import { BusinessAppContextProps } from '@/common/BusinessAppContext'
 
 const prefixDataTestId = 'investment-kpi-tile-component'

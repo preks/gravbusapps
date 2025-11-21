@@ -1,6 +1,12 @@
 import { useState, useEffect } from 'react'
 import AuthorizationClient from '../network/authorization/AuthorizationClient'
 
+export interface ScopePermissionCheckResult {
+  loading: boolean
+  error: Error | null
+  hasPermission: boolean
+}
+
 /**
  * Hook for checking scope permissions for a resource URL
  * @param resourceUrl - The resource URL path (e.g., '/platform/employee-record')

@@ -7,12 +7,10 @@ import { Card } from '@newwork/gravity-ui-catalog'
 import { Empty, Spin } from 'antd'
 import { useGraphqlClient } from '@/common/network/graphql/useGraphQLClient'
 import { employeePerformanceQuery } from '../../queries/performanceQueries'
-import { AppActionMenu } from '@/components/app-action-menu/AppActionMenu'
+import { AppAction } from '@/components/app-action/AppAction'
 import { FlowContextName } from '@/common/types/FlowRegistryTypes'
 import { getTranslationFromI18nKeyAndLabel } from '@/common/utils/windowUtils'
 import { UserInfoProps } from '../../../../../../../common/BusinessAppContext'
-import { PiPencilSimple } from 'react-icons/pi'
-import { Button } from '@newwork/nw-design-system'
 
 interface PerformanceTabProps {
   employee: Employee
@@ -20,7 +18,6 @@ interface PerformanceTabProps {
   employeeId?: string // Optional employeeId override for permissions check
   userInfo?: UserInfoProps // Current user info for self-view check
   employeePerformanceGoals?: EmployeePerformanceGoal[]
-  isSelfView: boolean // Whether user is viewing their own profile
 }
 
 // Extend the EmployeePerformanceGoal interface to include additional properties
@@ -38,7 +35,6 @@ const PerformanceTab: React.FC<PerformanceTabProps> = ({
   employee,
   accessToken,
   employeePerformanceGoals = [],
-  isSelfView,
   userInfo
 }) => {
   const [localPerformanceGoals, setLocalPerformanceGoals] = useState<ExtendedEmployeePerformanceGoal[]>([])
@@ -196,26 +192,16 @@ const PerformanceTab: React.FC<PerformanceTabProps> = ({
           </div>
         </div>
 
-        {isSelfView && (
-          <div>
-            <AppActionMenu
-              data-testid="employee-goal-add-button"
-              contextsArray={[FlowContextName.employeePerformanceGoal]}
-              externalContextData={{
-                employeeId: employee?.id
-              }}
-              prefixDataTestId="employee-goal-add"
-              accessToken={accessToken}
-              autoExecuteSingleAction={true}
-              deferMainContextRequestsUntilClick={true}
-            >
-              <div className="gba:flex gba:items-center gba:gap-2 gba:cursor-pointer">
-                <PiPencilSimple />
-                Set New Goal
-              </div>
-            </AppActionMenu>
-          </div>
-        )}
+        <AppAction
+          variant="update-primary"
+          data-testid="employee-goal-add-button"
+          contexts={[{ context: FlowContextName.employeePerformanceGoal, contextData: { employeeId: employee?.id } }]}
+          prefixDataTestId="employee-goal-add"
+          accessToken={accessToken}
+          autoExecute={true}
+        >
+          {getTranslationFromI18nKeyAndLabel('lowcoder:new_goal.set_new_goal', 'Set New Goal')}
+        </AppAction>
       </div>
 
       {/* Goals Content */}
@@ -276,34 +262,31 @@ const PerformanceTab: React.FC<PerformanceTabProps> = ({
                     </div>
 
                     {/* Edit button at the bottom right */}
-                    {(isSelfView || userInfo?.employeeDetails?.employeeId === supevisor) && (
+                    {userInfo?.employeeDetails?.employeeId === supevisor && (
                       <div className="gba:flex gba:justify-end gba:mt-4">
-                        <AppActionMenu
+                        <AppAction
+                          variant="update-secondary"
                           data-testid={`employee-goal-edit-button-${goal.id}`}
-                          contextsArray={[FlowContextName.employeePerformanceGoal]}
-                          externalContextData={{
-                            employeeId: employee?.id,
-                            goalId: goal.id,
-                            title: goal.title,
-                            startDate: goal.startDate,
-                            dueDate: goal.dueDate,
-                            completionDate: goal.completionDate,
-                            progressPercent: goal.progressPercent,
-                            status: goal.status,
-                            version: goal.version
-                          }}
+                          contexts={[
+                            {
+                              context: FlowContextName.employeePerformanceGoal,
+                              contextData: {
+                                employeeId: employee?.id,
+                                goalId: goal.id,
+                                title: goal.title,
+                                startDate: goal.startDate,
+                                dueDate: goal.dueDate,
+                                completionDate: goal.completionDate,
+                                progressPercent: goal.progressPercent,
+                                status: goal.status,
+                                version: goal.version
+                              }
+                            }
+                          ]}
                           prefixDataTestId={`employee-goal-edit-${goal.id}`}
                           accessToken={accessToken}
-                          className="gba:text-sm gba:py-1 gba:px-3"
-                          autoExecuteSingleAction={true}
-                          deferMainContextRequestsUntilClick={true}
-                        >
-                          <Button variant="outline">
-                            <div className="gba:flex gba:items-center gba:gap-2 gba:cursor-pointer">
-                              <PiPencilSimple className="gba:cursor-pointer" />
-                            </div>
-                          </Button>
-                        </AppActionMenu>
+                          autoExecute={true}
+                        />
                       </div>
                     )}
                   </Card>

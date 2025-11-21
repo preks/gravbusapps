@@ -40,8 +40,8 @@ const CRMFeature = {
   Accounts: { Key: 'crm.accounts.enabled' }
 }
 
-const Servicedesk = {
-  Servicedesk: { Key: 'servicedesk.enabled' }
+const ServicesFeature = {
+  Enabled: { Key: 'services.enabled' }
 }
 
 const FLOWFeature = {
@@ -68,7 +68,7 @@ export const Feature = {
   Core: CoreFeature,
   HCM: HCMFeature,
   CRM: CRMFeature,
-  ServiceDesk: Servicedesk,
+  Services: ServicesFeature,
   FLOW: FLOWFeature,
   Platform: PlatformFeature,
   Dev: DevFeature

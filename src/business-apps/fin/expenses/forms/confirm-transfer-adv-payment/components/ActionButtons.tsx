@@ -17,7 +17,7 @@ const ActionButtons: React.FC<ActionButtonsProps> = ({ onConfirm, isLoading, con
         data-testid="confirm-transfer-adv-payment-confirm-button"
       >
         {isLoading ? <Spinner size="sm" className="gba:mr-2" /> : null}
-        {getTranslationFromI18nKeyAndLabel('lowcoder:common.confirm', 'Confirm')}
+        {getTranslationFromI18nKeyAndLabel('lowcoder:modify_expense_request.btn_items_submit', 'Confirm')}
       </Button>
     </div>
   )

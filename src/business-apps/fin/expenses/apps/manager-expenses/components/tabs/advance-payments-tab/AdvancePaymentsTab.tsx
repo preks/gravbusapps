@@ -29,7 +29,7 @@ const AdvancePaymentsTab: React.FC<BusinessAppContextProps> = props => {
   })
 
   // State for page size
-  const [pageSize, setPageSize] = useState<number>(10)
+  const [pageSize, setPageSize] = useState<number>(20)
 
   // Stats from overview aggregates (declared after overview)
   let advancePaymentStats: any = null

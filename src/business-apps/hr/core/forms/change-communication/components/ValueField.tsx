@@ -44,7 +44,8 @@ export const ValueField: React.FC<ValueFieldProps> = ({
       {isPhoneType ? (
         <div className="gba:flex gba:gap-2">
           <Select
-            value={selectedCountryCode || undefined}
+            key={`country-select-${selectedCountryCode}`}
+            value={selectedCountryCode || ''}
             onValueChange={code => {
               onCountryCodeChange(code as CountryCode)
               onTouched()

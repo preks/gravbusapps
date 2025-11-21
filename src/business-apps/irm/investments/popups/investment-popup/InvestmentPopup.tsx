@@ -5,6 +5,7 @@ import { InvestmentExitComponent } from './components/InvestmentExitComponent'
 import { InvestmentStatusComponent } from './components/InvestmentStatusComponent'
 import { InvestmentLiquidityComponent } from './components/InvestmentLiquidityComponent'
 import { InvestmentPpmForecastComponent } from './components/InvestmentPpmForecastComponent'
+import { RealEstateLiquidityForecastComponent } from './components/RealEstateLiquidityForecastComponent'
 import { InvestmentKpiComponent } from './components/InvestmentKpiComponent'
 import { InvestmentTextTileComponent } from './components/InvestmentTextTileComponent'
 import { InvestmentKpiTileComponent } from './components/InvestmentKpiTileComponent'
@@ -32,7 +33,7 @@ export const InvestmentPopup: React.FC<InvestmentPopupProps> = ({
       <Alert variant="destructive" data-testid={`${prefixDataTestId}-missing-scope`}>
         {getTranslationFromI18nKeyAndLabel(
           'investment.popup.error.missingScope',
-          "No scope found in context data. Please specify 'tile', 'exit', 'status', 'liquidity', 'ppmforecast', 'kpi', or 'delete'."
+          "No scope found in context data. Please specify 'tile', 'exit', 'status', 'liquidity', 'ppmforecast', 'liquidityForecast', 'kpi', or 'delete'."
         )}
       </Alert>
     )
@@ -43,7 +44,7 @@ export const InvestmentPopup: React.FC<InvestmentPopupProps> = ({
       <Alert variant="destructive" data-testid={`${prefixDataTestId}-invalid-scope`}>
         {getTranslationFromI18nKeyAndLabel(
           'investment.popup.error.invalidScope',
-          `Invalid scope '${scope}'. Must be one of: tile, exit, status, liquidity, ppmforecast, kpi, delete.`
+          `Invalid scope '${scope}'. Must be one of: tile, exit, status, liquidity, ppmforecast, liquidityForecast, kpi, delete.`
         )}
       </Alert>
     )
@@ -116,6 +117,17 @@ export const InvestmentPopup: React.FC<InvestmentPopupProps> = ({
         <InvestmentPpmForecastComponent
           onClose={onClose}
           onSave={forecasts => onSave?.(scope, { forecasts })}
+          accessToken={accessToken}
+          userInfo={userInfo}
+          additionalData={additionalData}
+        />
+      )
+
+    case INVESTMENT_POPUP_SCOPES.LIQUIDITY_FORECAST:
+      return (
+        <RealEstateLiquidityForecastComponent
+          onClose={onClose}
+          onSave={forecastData => onSave?.(scope, { liquidityForecast: forecastData })}
           accessToken={accessToken}
           userInfo={userInfo}
           additionalData={additionalData}
