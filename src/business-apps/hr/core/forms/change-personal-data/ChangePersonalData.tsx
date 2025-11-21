@@ -275,7 +275,7 @@ const ChangePersonalDataContent: React.FC<BusinessAppContextProps> = ({ accessTo
             const uploadedEmployeeDocumentId = values.employeeDocumentId || ''
             const firstName = values.firstName || ''
             const lastName = values.lastName || ''
-            const fullName = [firstName, lastName].filter(Boolean).join(' ') || ''
+            const fullName = [firstName, lastName].filter(Boolean).join(' ')
             const payload = {
               event: 'pse_submit',
               employeeDocument: null,
