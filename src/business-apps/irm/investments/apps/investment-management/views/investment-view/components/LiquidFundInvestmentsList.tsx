@@ -29,6 +29,29 @@ import { useLiquidFundInvestmentsFilters } from '../hooks/useLiquidFundInvestmen
 import { OwnerDisplay } from '@/business-apps/irm/core/apps/investment-relations/views/task-view/components/OwnerDisplay' // TODO: Extract to common
 import { getTranslationFromI18nKeyAndLabel } from '@/common/utils/windowUtils'
 
+// Currency Display Component
+interface CurrencyDisplayProps {
+  amount: number
+  currencyCode?: string
+}
+
+const CurrencyDisplay: React.FC<CurrencyDisplayProps> = ({ amount, currencyCode }) => {
+  const { number, symbol } = formatCurrencyParts(amount, {
+    currency: currencyCode,
+    minimumFractionDigits: 0,
+    maximumFractionDigits: 2
+  })
+
+  return (
+    <>
+      <span className="gba:text-sm gba:[font-variant-numeric:tabular-nums]">{number}</span>
+      <span className="gba:text-xs gba:text-gray-400 gba:inline-block gba:text-right gba:shrink-0 gba:w-[5ch]">
+        {symbol}
+      </span>
+    </>
+  )
+}
+
 export interface LiquidFundInvestmentsListProps extends BusinessAppContextProps {
   currencyCode?: string
 }
@@ -496,21 +519,7 @@ const LiquidFundInvestmentsList: React.FC<LiquidFundInvestmentsListProps> = ({ c
                   )}
                   {visibleColumns.includes('totalInvestment') && (
                     <TableCell className="gba:text-right">
-                      {(() => {
-                        const { number, symbol } = formatCurrencyParts(inv.totalInvestmentAmount || 0, {
-                          currency: inv.currency?.code,
-                          minimumFractionDigits: 0,
-                          maximumFractionDigits: 2
-                        })
-                        return (
-                          <>
-                            <span className="gba:text-sm gba:[font-variant-numeric:tabular-nums]">{number}</span>
-                            <span className="gba:text-xs gba:text-gray-400 gba:inline-block gba:text-right gba:shrink-0 gba:w-[5ch]">
-                              {symbol}
-                            </span>
-                          </>
-                        )
-                      })()}
+                      <CurrencyDisplay amount={inv.totalInvestmentAmount || 0} currencyCode={inv.currency?.code} />
                     </TableCell>
                   )}
                   {visibleColumns.includes('fundType') && (

@@ -25,6 +25,64 @@ interface SalesMetrics {
   currencyCode: string
 }
 
+// Helper: Check if opportunity status indicates WON
+const isWonOpportunity = (opp: InvestmentOpportunity): boolean => {
+  const statusValue = opp.opportunityStatus?.value?.toUpperCase()
+  const statusCode = opp.opportunityStatus?.code?.toUpperCase()
+  const wonVariations = ['WON', 'CLOSED WON', 'SOLD', 'SUCCESS', 'COMPLETED']
+
+  return wonVariations.some(
+    variation =>
+      statusValue === variation ||
+      statusCode === variation ||
+      statusValue?.includes('WON') ||
+      statusCode?.includes('WON')
+  )
+}
+
+// Helper: Filter for WON opportunities
+const filterWonOpportunities = (opportunities: InvestmentOpportunity[]): InvestmentOpportunity[] => {
+  return opportunities.filter(isWonOpportunity)
+}
+
+// Helper: Calculate percentage change
+const calculatePercentageChange = (current: number, previous: number): number => {
+  if (previous === 0) return current > 0 ? 100 : 0
+  return ((current - previous) / previous) * 100
+}
+
+// Helper: Calculate metrics for a dataset
+const calculateMetrics = (opportunities: InvestmentOpportunity[], beforeDate?: Date) => {
+  let filteredOpportunities = opportunities
+
+  if (beforeDate) {
+    filteredOpportunities = opportunities.filter(opp => {
+      const updatedAt = new Date(opp.updatedAt)
+      return updatedAt <= beforeDate
+    })
+  }
+
+  const wonOpportunities = filterWonOpportunities(filteredOpportunities)
+  const totalValue = wonOpportunities.reduce((sum, opp) => sum + (opp.estimatedAmount || 0), 0)
+  const averageValue = wonOpportunities.length > 0 ? totalValue / wonOpportunities.length : 0
+
+  // Count sales closed this year
+  const now = new Date()
+  const thisYearStart = new Date(now.getFullYear(), 0, 1)
+  const salesThisYear = wonOpportunities.filter(opp => {
+    if (!opp.closeDate) return false
+    const closeDate = new Date(opp.closeDate)
+    return closeDate >= thisYearStart
+  }).length
+
+  return {
+    totalSold: wonOpportunities.length,
+    totalRevenue: totalValue,
+    averageRevenue: averageValue,
+    salesThisYear
+  }
+}
+
 export const SalesStatistics: React.FC<SalesStatisticsProps> = ({ accessToken, userInfo, currencyCode }) => {
   const [metrics, setMetrics] = useState<SalesMetrics | null>(null)
   const [isLoading, setIsLoading] = useState(true)
@@ -49,55 +107,6 @@ export const SalesStatistics: React.FC<SalesStatisticsProps> = ({ accessToken, u
 
       const currentResult = await fetchInvestmentOpportunities(currentVariables)
 
-      // Filter for WON opportunities
-      const filterWonOpportunities = (opportunities: InvestmentOpportunity[]) => {
-        return opportunities.filter(opp => {
-          const statusValue = opp.opportunityStatus?.value?.toUpperCase()
-          const statusCode = opp.opportunityStatus?.code?.toUpperCase()
-          const wonVariations = ['WON', 'CLOSED WON', 'SOLD', 'SUCCESS', 'COMPLETED']
-
-          return wonVariations.some(
-            variation =>
-              statusValue === variation ||
-              statusCode === variation ||
-              statusValue?.includes('WON') ||
-              statusCode?.includes('WON')
-          )
-        })
-      }
-
-      // Calculate metrics for a dataset
-      const calculateMetrics = (opportunities: InvestmentOpportunity[], beforeDate?: Date) => {
-        let filteredOpportunities = opportunities
-
-        if (beforeDate) {
-          filteredOpportunities = opportunities.filter(opp => {
-            const updatedAt = new Date(opp.updatedAt)
-            return updatedAt <= beforeDate
-          })
-        }
-
-        const wonOpportunities = filterWonOpportunities(filteredOpportunities)
-        const totalValue = wonOpportunities.reduce((sum, opp) => sum + (opp.estimatedAmount || 0), 0)
-        const averageValue = wonOpportunities.length > 0 ? totalValue / wonOpportunities.length : 0
-
-        // Count sales closed this year
-        const now = new Date()
-        const thisYearStart = new Date(now.getFullYear(), 0, 1)
-        const salesThisYear = wonOpportunities.filter(opp => {
-          if (!opp.closeDate) return false
-          const closeDate = new Date(opp.closeDate)
-          return closeDate >= thisYearStart
-        }).length
-
-        return {
-          totalSold: wonOpportunities.length,
-          totalRevenue: totalValue,
-          averageRevenue: averageValue,
-          salesThisYear
-        }
-      }
-
       // Calculate current and historical metrics
       const currentDate = new Date()
       const thirtyDaysAgo = new Date()
@@ -105,12 +114,6 @@ export const SalesStatistics: React.FC<SalesStatisticsProps> = ({ accessToken, u
 
       const current = calculateMetrics(currentResult.InvestmentOpportunity || [])
       const historical = calculateMetrics(currentResult.InvestmentOpportunity || [], thirtyDaysAgo)
-
-      // Calculate percentage changes
-      const calculatePercentageChange = (current: number, previous: number): number => {
-        if (previous === 0) return current > 0 ? 100 : 0
-        return ((current - previous) / previous) * 100
-      }
 
       // Year-over-year for sales this year
       const lastYearStart = new Date(currentDate.getFullYear() - 1, 0, 1)
