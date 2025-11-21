@@ -19,6 +19,7 @@ current-bonus = bonus
 current-bonuses = bonusuri
 current-annually = Anual
 current-monthly = Lunar
+current-hourly = Pe oră
 
 # Compensation Band
 band-title = Bandă de compensare
@@ -228,6 +229,8 @@ action-deactivate = Dezactivează
 action-download = Descarcă
 action-view = Vezi
 action-close = Închide
+action-select-placeholder = Vă rugăm să selectați
+action-enter-placeholder = Vă rugăm să introduceți
 
 # Benefits Catalog Section
 benefit-per-year = /an
