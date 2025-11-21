@@ -93,16 +93,12 @@ const AdvancePaymentsTable: React.FC<AdvancePaymentsTableProps> = props => {
 
   // Track if any filters are active to control empty-state messaging
   const hasActiveFilters = useMemo(() => {
-    if (totalCount === 0 && !isLoading) {
-      return false
-    }
-
     const hasSearch = (props.search || '').trim() !== ''
     const hasStatusFilters = Array.isArray(props.activeFilter) && props.activeFilter.length > 0
     const hasCurrencyFilter = !!currencyFilter
 
     return hasSearch || hasStatusFilters || hasCurrencyFilter
-  }, [totalCount, isLoading, props.search, props.activeFilter, currencyFilter])
+  }, [props.search, props.activeFilter, currencyFilter])
 
   // Handle page size changes
   const handlePageSizeChange = useCallback(
@@ -287,8 +283,8 @@ const AdvancePaymentsTable: React.FC<AdvancePaymentsTableProps> = props => {
                     <div className="gba:text-muted-foreground">
                       {hasActiveFilters
                         ? getTranslationFromI18nKeyAndLabel(
-                            'lowcoder:advance_payment_table.no_advance_payments_found',
-                            'No advance payments found matching the current filters.'
+                            'lowcoder:team_expenses_page.dashboard_tab.no_data_found',
+                            'No data available'
                           )
                         : getTranslationFromI18nKeyAndLabel(
                             'lowcoder:manager_expense_landing_page.no_advance_payments_created_by_team',
@@ -388,12 +384,16 @@ const AdvancePaymentsTable: React.FC<AdvancePaymentsTableProps> = props => {
                     </TableCell>
                     <TableCell className="gba:text-right" data-testid={`advance-payments-amount-cell-${record.id}`}>
                       <span className="gba:font-medium gba:text-sm">
-                        {typeof record.amount === 'number'
-                          ? formatCurrencyDisplay(
-                              record.amount,
-                              (record.currencyRef || currencyFilter || '').replaceAll('Currency:v1:', '') || 'EUR'
-                            )
-                          : formatCurrencyDisplay(0, 'EUR')}
+                        {(() => {
+                          const rawCurrencyRef = record.currencyRef || currencyFilter || ''
+                          const normalizedCurrencyRef = rawCurrencyRef
+                            ? rawCurrencyRef.split('Currency:v1:').pop() || rawCurrencyRef
+                            : 'EUR'
+
+                          return typeof record.amount === 'number'
+                            ? formatCurrencyDisplay(record.amount, normalizedCurrencyRef)
+                            : formatCurrencyDisplay(0, 'EUR')
+                        })()}
                       </span>
                     </TableCell>
                     <TableCell className="gba:pr-6 gba:w-[20%]">
