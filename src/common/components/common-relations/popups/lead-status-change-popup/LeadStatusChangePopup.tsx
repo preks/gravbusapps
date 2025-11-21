@@ -99,7 +99,7 @@ const LeadStatusChangePopup: React.FC<LeadStatusChangePopupProps> = props => {
       changeMode: 'UPDATE',
       [config.entityKey]: {
         id: leadId,
-        version: leadVersion || lead.version,
+        version: lead.version ?? leadVersion,
         leadStatusRef: newStatusRef
       }
     }
