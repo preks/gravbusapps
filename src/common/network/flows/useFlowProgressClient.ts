@@ -78,13 +78,14 @@ export interface StepDataResponse {
  */
 export const useFlowProgressClient = (context: BusinessAppContextProps) => {
   // Base URL for the custom flow engine API
-  const baseUrl = env('NEXT_PUBLIC_CUSTOM_FLOW_ENGINE_API_URL') || 'https://newwork-dev.newwork.com/flow-engine'
+  const baseUrl = env('NEXT_PUBLIC_CUSTOM_FLOW_ENGINE_API_URL') || env('NEXT_PUBLIC_BASE_URL') + '/flow-engine'
 
   const getFlowOverview = async (flowId: string): Promise<FlowOverview> => {
     const response = await fetch(`${baseUrl}/api/flows/${flowId}`, {
       method: 'GET',
       headers: {
-        'Content-Type': 'application/json'
+        'Content-Type': 'application/json',
+        Authorization: `Bearer ${context.accessToken}`
       }
     })
 
@@ -99,7 +100,8 @@ export const useFlowProgressClient = (context: BusinessAppContextProps) => {
     const response = await fetch(`${baseUrl}/api/flows/${flowId}/comments`, {
       method: 'GET',
       headers: {
-        'Content-Type': 'application/json'
+        'Content-Type': 'application/json',
+        Authorization: `Bearer ${context.accessToken}`
       }
     })
 
@@ -126,7 +128,8 @@ export const useFlowProgressClient = (context: BusinessAppContextProps) => {
     const response = await fetch(url, {
       method: 'GET',
       headers: {
-        'Content-Type': 'application/json'
+        'Content-Type': 'application/json',
+        Authorization: `Bearer ${context.accessToken}`
       }
     })
 
@@ -153,7 +156,8 @@ export const useFlowProgressClient = (context: BusinessAppContextProps) => {
     const response = await fetch(url, {
       method: 'GET',
       headers: {
-        'Content-Type': 'application/json'
+        'Content-Type': 'application/json',
+        Authorization: `Bearer ${context.accessToken}`
       }
     })
 
