@@ -8,6 +8,7 @@ import TotalRewardsCard from '../components/current/TotalRewardsCard'
 import BenefitsPerksSection from '../components/current/BenefitsPerksSection'
 import CompensationKPICards from '../components/current/CompensationKPICards'
 import { useCompensationPermissions } from '../../../../hooks/useCompensationPermissions'
+import { ScopePermissionCheckResult } from '@/common/hooks/useScopePermissionCheck'
 
 interface CurrentCompensationViewProps extends BusinessAppContextProps {
   t: (key: string, params?: any) => string
@@ -17,6 +18,7 @@ interface CurrentCompensationViewProps extends BusinessAppContextProps {
   onRetry?: () => void
   employeeId: string
   locale: string
+  employeeRecordHrBackoffice: ScopePermissionCheckResult
   isSelfView: boolean // Whether user is viewing their own profile
 }
 
@@ -34,7 +36,9 @@ const CurrentCompensationView: React.FC<CurrentCompensationViewProps> = ({
   accessToken,
   userInfo,
   additionalData,
-  locale
+  locale,
+  employeeRecordHrBackoffice,
+  isSelfView
 }) => {
   // Check compensation-related permissions
   // Only managers and HR admins should have write permission on employee_working_condition and employee_bonus
@@ -123,6 +127,7 @@ const CurrentCompensationView: React.FC<CurrentCompensationViewProps> = ({
         loading={loading}
         currencyCode={currencyCode}
         locale={locale}
+        hrBackofficeHasPermission={employeeRecordHrBackoffice?.hasPermission}
       />
     </div>
   )

@@ -33,6 +33,10 @@ interface BenefitsPerksProps extends BusinessAppContextProps {
    * Locale for formatting currency
    */
   locale: string
+  /**
+   * Whether user has HR backoffice permission; when false exclude HR_BACKOFFICE benefits
+   */
+  hrBackofficeHasPermission?: boolean
 }
 
 /**
@@ -54,7 +58,8 @@ const BenefitsPerksSection: React.FC<BenefitsPerksProps> = ({
   additionalData,
   currencyCode = 'EUR',
   loading: externalLoading = false,
-  locale
+  locale,
+  hrBackofficeHasPermission
 }) => {
   // State
   const [searchQuery, setSearchQuery] = useState('')
@@ -64,7 +69,14 @@ const BenefitsPerksSection: React.FC<BenefitsPerksProps> = ({
   const [selectedBenefit, setSelectedBenefit] = useState<BenefitCatalogItem | null>(null)
 
   // Fetch benefits catalog
-  const { catalogData, loading: catalogLoading, error, refetch } = useBenefitsCatalog(employeeId, accessToken)
+  const {
+    catalogData,
+    loading: catalogLoading,
+    error,
+    refetch
+  } = useBenefitsCatalog(employeeId, accessToken, {
+    excludeHrBackoffice: hrBackofficeHasPermission === false
+  })
 
   // Use external loading or internal loading
   const loading = externalLoading || catalogLoading
