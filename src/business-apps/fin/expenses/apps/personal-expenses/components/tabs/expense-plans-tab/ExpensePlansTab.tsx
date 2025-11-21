@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useCallback, ReactNode, useMemo } from 'react'
+import React, { useState, useEffect, useCallback, ReactNode, useMemo, useRef } from 'react'
 import { BusinessAppContextProps } from '@/common/BusinessAppContext'
 import ExpensePlansTable from './ExpensePlansTable'
 import { useExpensePlansOverview } from '../../../hooks/useExpensePlansOverview'
@@ -74,6 +74,9 @@ const ExpensePlansTab: React.FC<ExpensePlansTabProps> = props => {
     return token ? token.substring('currency:'.length) : undefined
   }, [selectedFilters])
   const { currencyStats, initialized: currencyInit } = useExpensePlanCurrencies(props, selectedFilters, setFilters)
+
+  // Track previous selectedFilters to reset pagination when filters change.
+  const prevSelectedFiltersRef = useRef<string | null>(null)
 
   // Persist and restore currency filter per user to avoid losing it on tab switches
   useEffect(() => {
@@ -285,6 +288,19 @@ const ExpensePlansTab: React.FC<ExpensePlansTabProps> = props => {
     explicitSelectedCurrencyRef,
     suppressCurrencyAutoSelect
   ])
+
+  // Reset pagination when filters change (e.g., applying a status filter while on a later page).
+  useEffect(() => {
+    const currentFiltersKey = JSON.stringify(selectedFilters)
+    const previousFiltersKey = prevSelectedFiltersRef.current
+
+    // Skip on initial render; only react to actual changes.
+    if (previousFiltersKey !== null && previousFiltersKey !== currentFiltersKey) {
+      setCurrentPage(1)
+    }
+
+    prevSelectedFiltersRef.current = currentFiltersKey
+  }, [selectedFilters])
 
   // Process completion event listener for refreshing data
   useEffect(() => {
