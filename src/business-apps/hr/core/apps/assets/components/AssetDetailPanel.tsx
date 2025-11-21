@@ -22,6 +22,11 @@ import {
   getCurrentActiveUserLocale,
   getCatalogValue
 } from '@/common/utils/windowUtils'
+import {
+  useAssetConditionCatalog,
+  AssetConditionOption
+} from '../../../forms/equipment-registration/hooks/useAssetConditionCatalog'
+import { BusinessAppContextProps } from '@/common/BusinessAppContext'
 import dayjs from 'dayjs'
 import relativeTime from 'dayjs/plugin/relativeTime'
 import 'dayjs/locale/en'
@@ -107,6 +112,25 @@ export const AssetDetailPanel: React.FC<AssetDetailPanelProps> = ({
   onRetrieveAsset
 }) => {
   if (!asset) return null
+
+  const { options: conditionOptions } = useAssetConditionCatalog({ accessToken } as BusinessAppContextProps)
+
+  const conditionLookup = useMemo(() => {
+    const lookup = new Map<string, string>()
+    conditionOptions.forEach((option: AssetConditionOption) => {
+      lookup.set(option.id, option.value)
+    })
+    return lookup
+  }, [conditionOptions])
+
+  const getConditionDisplayValue = (conditionRef?: string, conditionValue?: string): string => {
+    if (!conditionRef && !conditionValue)
+      return getTranslationFromI18nKeyAndLabel('lowcoder:hr_assets.not_available', 'N/A')
+    if (conditionRef && conditionLookup.has(conditionRef)) {
+      return conditionLookup.get(conditionRef)!
+    }
+    return conditionValue || getTranslationFromI18nKeyAndLabel('lowcoder:hr_assets.not_available', 'N/A')
+  }
 
   const isAllocated = asset.assetStatus === AssetStatus.ALLOCATED
   const isRetired = asset.assetStatus === AssetStatus.RETIRED
@@ -227,7 +251,7 @@ export const AssetDetailPanel: React.FC<AssetDetailPanelProps> = ({
           }}
         >
           <div className="gba:mt-6 gba:space-y-6 gba:pb-6">
-            <Card variant="outlined" data-testid="asset-info-card">
+            <Card className="gba:border" data-testid="asset-info-card">
               <CardHeader>
                 <CardTitle className="gba:text-base">
                   {getTranslationFromI18nKeyAndLabel('lowcoder:hr_assets.asset_information', 'Asset Information')}
@@ -294,7 +318,7 @@ export const AssetDetailPanel: React.FC<AssetDetailPanelProps> = ({
               </CardContent>
             </Card>
 
-            <Card variant="outlined" data-testid="asset-warranty-card">
+            <Card className="gba:border" data-testid="asset-warranty-card">
               <CardHeader>
                 <CardTitle className="gba:text-base">
                   {getTranslationFromI18nKeyAndLabel('lowcoder:hr_assets.warranty', 'Warranty')}
@@ -342,7 +366,7 @@ export const AssetDetailPanel: React.FC<AssetDetailPanelProps> = ({
             </Card>
 
             {asset.notes && (
-              <Card variant="outlined" data-testid="asset-notes-card">
+              <Card className="gba:border" data-testid="asset-notes-card">
                 <CardHeader>
                   <CardTitle className="gba:text-base">
                     {getTranslationFromI18nKeyAndLabel('lowcoder:hr_assets.notes', 'Notes')}
@@ -356,7 +380,7 @@ export const AssetDetailPanel: React.FC<AssetDetailPanelProps> = ({
               </Card>
             )}
 
-            <Card variant="outlined" data-testid="asset-allocation-history-card">
+            <Card className="gba:border" data-testid="asset-allocation-history-card">
               <CardHeader>
                 <CardTitle className="gba:text-base">
                   {getTranslationFromI18nKeyAndLabel(
@@ -432,7 +456,11 @@ export const AssetDetailPanel: React.FC<AssetDetailPanelProps> = ({
                                   'lowcoder:hr_assets.condition_at_handover',
                                   'Condition at handover'
                                 )}
-                                : {allocation.startAssetCondition.value}
+                                :{' '}
+                                {getConditionDisplayValue(
+                                  allocation.startAssetConditionRef,
+                                  allocation.startAssetCondition.value
+                                )}
                               </p>
                             )}
 
@@ -445,7 +473,11 @@ export const AssetDetailPanel: React.FC<AssetDetailPanelProps> = ({
                                   'lowcoder:hr_assets.condition_at_return',
                                   'Condition at return'
                                 )}
-                                : {allocation.endAssetCondition.value}
+                                :{' '}
+                                {getConditionDisplayValue(
+                                  allocation.endAssetConditionRef,
+                                  allocation.endAssetCondition.value
+                                )}
                               </p>
                             )}
                           </div>

@@ -12,7 +12,8 @@ import {
   SelectValue,
   SelectContent,
   SelectItem,
-  Textarea
+  Textarea,
+  DateInput
 } from '@newwork/nw-design-system'
 import { useForm } from 'react-hook-form'
 import { z } from 'zod'
@@ -29,6 +30,7 @@ import { useAssetConditionCatalog } from '../equipment-registration/hooks/useAss
 import { useAssetFormData } from '../return-asset/hooks/useAssetFormData'
 import { useAssetVersion } from '../return-asset/hooks/useAssetVersion'
 import { dispatchProcessCompletionEvents } from '../return-asset/utils/processEventUtils'
+import { useAssetService } from '../../apps/assets/services/useAssetService'
 
 type FormValues = {
   employeeId: string
@@ -50,8 +52,10 @@ const AllocateAssetContent: React.FC<BusinessAppContextProps> = (context: Busine
   const [isSubmitting, setIsSubmitting] = React.useState(false)
   const [searchQuery, setSearchQuery] = React.useState('')
   const [currentLocale, setCurrentLocale] = useState(getCurrentActiveUserLocale())
+  const [allocationError, setAllocationError] = React.useState<string | null>(null)
 
-  // Track locale changes to ensure translations update
+  const { getAllocationsForAsset } = useAssetService(context)
+
   useEffect(() => {
     const checkLocale = () => {
       const newLocale = getCurrentActiveUserLocale()
@@ -60,16 +64,13 @@ const AllocateAssetContent: React.FC<BusinessAppContextProps> = (context: Busine
       }
     }
 
-    // Check immediately
     checkLocale()
 
-    // Set up interval to check for locale changes
     const interval = setInterval(checkLocale, 500)
 
     return () => clearInterval(interval)
   }, [currentLocale])
 
-  // Create form schema dynamically based on current locale
   const formSchema = useMemo(
     () =>
       z.object({
@@ -119,19 +120,16 @@ const AllocateAssetContent: React.FC<BusinessAppContextProps> = (context: Busine
     }
   })
 
-  // Re-create title when locale changes
   const title = useMemo(
     () => getTranslationFromI18nKeyAndLabel('lowcoder:hr_assets.allocate_asset_form', 'Allocate Asset'),
     [currentLocale]
   )
 
-  // Re-create button text when locale changes
   const allocateButtonText = useMemo(
     () => getTranslationFromI18nKeyAndLabel('lowcoder:hr_assets.allocate_asset', 'Allocate Asset'),
     [currentLocale]
   )
 
-  // Re-create cancel button text when locale changes
   const cancelButtonText = useMemo(
     () => getTranslationFromI18nKeyAndLabel('lowcoder:create_expense_request.initiate_cancel_button', 'Cancel'),
     [currentLocale]
@@ -148,8 +146,58 @@ const AllocateAssetContent: React.FC<BusinessAppContextProps> = (context: Busine
     }
   }
 
+  const handleSearchInputKeyDown = (e: React.KeyboardEvent<HTMLInputElement>) => {
+    e.stopPropagation()
+  }
+
+  const handleSearchInputClick = (e: React.MouseEvent<HTMLInputElement>) => {
+    e.stopPropagation()
+  }
+
   const filteredEmployees = employees.filter(
     emp => !searchQuery || emp.name.toLowerCase().includes(searchQuery.toLowerCase())
+  )
+
+  const checkAllocationOverlap = React.useCallback(
+    async (startDate: string, expectedEndDate?: string) => {
+      if (!assetId) return null
+
+      try {
+        const existingAllocations = await getAllocationsForAsset(assetId)
+        const newStart = new Date(startDate)
+        const newEnd = expectedEndDate ? new Date(expectedEndDate) : null
+
+        for (const allocation of existingAllocations) {
+          if (allocation.isDeleted || allocation.endDate) continue
+
+          const existingStart = new Date(allocation.startDate)
+          const existingEnd = allocation.expectedEndDate ? new Date(allocation.expectedEndDate) : null
+
+          const hasOverlap =
+            (newEnd === null || newEnd >= existingStart) && (existingEnd === null || newStart <= existingEnd)
+
+          if (hasOverlap) {
+            const existingEndDateStr = existingEnd
+              ? existingEnd.toLocaleDateString()
+              : getTranslationFromI18nKeyAndLabel('lowcoder:hr_assets.present', 'Present')
+
+            const fromText = existingStart.toLocaleDateString()
+            const toText = getTranslationFromI18nKeyAndLabel('lowcoder:hr_assets.to', 'to')
+
+            return getTranslationFromI18nKeyAndLabel(
+              'lowcoder:hr_assets.allocation_overlap_error',
+              `This allocation overlaps with an existing allocation from ${fromText} ${toText} ${existingEndDateStr}`
+            )
+          }
+        }
+
+        return null
+      } catch (error) {
+        console.error('Error checking allocation overlap:', error)
+        return null
+      }
+    },
+    [assetId, getAllocationsForAsset]
   )
 
   const formFields = (
@@ -196,7 +244,11 @@ const AllocateAssetContent: React.FC<BusinessAppContextProps> = (context: Busine
                     )}
                     value={searchQuery}
                     onChange={e => handleEmployeeSearch(e.target.value)}
+                    onKeyDown={handleSearchInputKeyDown}
+                    onClick={handleSearchInputClick}
+                    onFocus={e => e.stopPropagation()}
                     className="gba:mb-2"
+                    data-testid="employee-search-input"
                   />
                 </div>
                 {filteredEmployees.length === 0 ? (
@@ -237,12 +289,34 @@ const AllocateAssetContent: React.FC<BusinessAppContextProps> = (context: Busine
             <Label htmlFor="startDate" data-testid="start-date-label">
               {getTranslationFromI18nKeyAndLabel('lowcoder:hr_assets.allocation_start_date', 'Allocation Start Date')} *
             </Label>
-            <Input
-              id="startDate"
+            <DateInput
               type="date"
               value={field.value || ''}
-              onChange={field.onChange}
-              onBlur={field.onBlur}
+              onChange={(v: string | [string | null, string | null] | null) => {
+                const dateValue = typeof v === 'string' ? v : ''
+                field.onChange(dateValue)
+                setAllocationError(null)
+                form.clearErrors('startDate')
+                form.clearErrors('expectedEndDate')
+
+                if (dateValue) {
+                  const expectedEndDate = form.getValues('expectedEndDate')
+                  checkAllocationOverlap(dateValue, expectedEndDate).then(error => {
+                    if (error) {
+                      setAllocationError(error)
+                      form.setError('startDate', { type: 'manual', message: error })
+                    } else {
+                      form.clearErrors('startDate')
+                      form.clearErrors('expectedEndDate')
+                    }
+                  })
+                }
+              }}
+              placeholder={getTranslationFromI18nKeyAndLabel(
+                'lowcoder:employee_profile.details_layout.personal_information_container.select_placeholder',
+                'Please Select'
+              )}
+              className="gba:w-full"
               data-testid="start-date-input"
             />
           </FormItem>
@@ -252,21 +326,51 @@ const AllocateAssetContent: React.FC<BusinessAppContextProps> = (context: Busine
       <FormField
         control={form.control}
         name="expectedEndDate"
-        render={({ field }) => (
-          <FormItem>
-            <Label htmlFor="expectedEndDate" data-testid="expected-end-date-label">
-              {getTranslationFromI18nKeyAndLabel('lowcoder:hr_assets.expected_return_date', 'Expected Return Date')}
-            </Label>
-            <Input
-              id="expectedEndDate"
-              type="date"
-              value={field.value || ''}
-              onChange={field.onChange}
-              onBlur={field.onBlur}
-              data-testid="expected-end-date-input"
-            />
-          </FormItem>
-        )}
+        render={({ field }) => {
+          const startDate = form.watch('startDate')
+
+          return (
+            <FormItem>
+              <Label htmlFor="expectedEndDate" data-testid="expected-end-date-label">
+                {getTranslationFromI18nKeyAndLabel('lowcoder:hr_assets.expected_return_date', 'Expected Return Date')}
+              </Label>
+              <DateInput
+                type="date"
+                value={field.value || ''}
+                onChange={(v: string | [string | null, string | null] | null) => {
+                  const dateValue = typeof v === 'string' ? v : ''
+                  field.onChange(dateValue)
+                  setAllocationError(null)
+                  form.clearErrors('startDate')
+                  form.clearErrors('expectedEndDate')
+
+                  if (dateValue && startDate) {
+                    checkAllocationOverlap(startDate, dateValue).then(error => {
+                      if (error) {
+                        setAllocationError(error)
+                        form.setError('expectedEndDate', { type: 'manual', message: error })
+                      } else {
+                        form.clearErrors('startDate')
+                        form.clearErrors('expectedEndDate')
+                      }
+                    })
+                  }
+                }}
+                placeholder={getTranslationFromI18nKeyAndLabel(
+                  'lowcoder:employee_profile.details_layout.personal_information_container.select_placeholder',
+                  'Please Select'
+                )}
+                className="gba:w-full"
+                data-testid="expected-end-date-input"
+              />
+              {allocationError && (
+                <p className="gba:text-sm gba:font-medium gba:text-destructive" data-testid="allocation-overlap-error">
+                  {allocationError}
+                </p>
+              )}
+            </FormItem>
+          )
+        }}
       />
 
       <FormField
@@ -393,10 +497,20 @@ const AllocateAssetContent: React.FC<BusinessAppContextProps> = (context: Busine
                   if (!isValid) {
                     return
                   }
+
+                  const values = form.getValues()
+
+                  if (values.startDate) {
+                    const overlapError = await checkAllocationOverlap(values.startDate, values.expectedEndDate)
+                    if (overlapError) {
+                      setAllocationError(overlapError)
+                      form.setError('startDate', { type: 'manual', message: overlapError })
+                      return
+                    }
+                  }
+
                   setIsSubmitting(true)
                   try {
-                    const values = form.getValues()
-
                     if (!assetId) {
                       throw new Error(
                         getTranslationFromI18nKeyAndLabel(
