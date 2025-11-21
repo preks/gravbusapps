@@ -130,7 +130,7 @@ export const isValidDate = (dateString: string | undefined | null): boolean => {
   try {
     const date = new Date(dateString)
     return !isNaN(date.getTime())
-  } catch (error) {
+  } catch {
     return false
   }
 }
