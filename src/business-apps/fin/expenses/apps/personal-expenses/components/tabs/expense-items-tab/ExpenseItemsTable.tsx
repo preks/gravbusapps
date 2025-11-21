@@ -9,7 +9,6 @@ import {
   TableCell,
   Card,
   CardContent,
-  Spinner,
   Button,
   Alert,
   Checkbox,
@@ -532,12 +531,6 @@ const ExpenseItemsTable: React.FC<ExpenseItemsTableProps> = React.memo(props => 
           <div className="">
             <Card data-testid={`${DATA_TEST_ID_PREFIX}-container`}>
               <CardContent className="gba:p-0">
-                {isLoading && (
-                  <div className="gba:flex gba:justify-center gba:p-4">
-                    <Spinner />
-                  </div>
-                )}
-
                 <div className="gba:overflow-x-auto">
                   <Table data-testid={`${DATA_TEST_ID_PREFIX}-table`}>
                     <TableHeader>

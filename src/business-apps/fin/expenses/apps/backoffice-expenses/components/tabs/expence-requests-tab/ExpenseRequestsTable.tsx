@@ -482,7 +482,7 @@ const ExpenseRequestsTable: React.FC<ExpenseRequestsTableProps> = props => {
               <SelectTrigger data-testid="expense-requests-department-select">
                 <SelectValue
                   placeholder={getTranslationFromI18nKeyAndLabel(
-                    'lowcoder:employee_list.employee_report_filter.department_placeholder',
+                    'lowcoder:backoffice_expense_landing_page.department_placeholder',
                     'Select department'
                   )}
                 />
@@ -514,7 +514,7 @@ const ExpenseRequestsTable: React.FC<ExpenseRequestsTableProps> = props => {
               <SelectTrigger data-testid="expense-requests-currency-select" className="gba:border-border">
                 <SelectValue
                   placeholder={getTranslationFromI18nKeyAndLabel(
-                    'lowcoder:team_expenses_page.all_currencies',
+                    'lowcoder:manager_expense_landing_page.all_currencies',
                     'All Currencies'
                   )}
                 />

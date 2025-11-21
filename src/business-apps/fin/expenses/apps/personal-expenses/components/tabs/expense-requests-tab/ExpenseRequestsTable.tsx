@@ -327,12 +327,6 @@ const ExpenseRequestsTable: React.FC<ExpenseRequestsTableProps> = React.memo(pro
       <div className="expense-requests-table">
         <Card data-testid="expense-requests-table-container">
           <CardContent className="gba:p-0">
-            {isLoading && (
-              <div className="gba:flex gba:justify-center gba:p-4">
-                <Spinner />
-              </div>
-            )}
-
             <div className="gba:overflow-x-auto">
               <Table data-testid="expense-requests-data-table">
                 <TableHeader>
