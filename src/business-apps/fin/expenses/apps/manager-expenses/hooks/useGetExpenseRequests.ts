@@ -123,7 +123,7 @@ export interface ExpenseRequestsResult {
 export const useGetExpenseRequests = ({
   accessToken,
   userInfo,
-  pageSize = 10,
+  pageSize = 20,
   searchTerm,
   currentStatusFilter,
   currentCurrencyFilter,

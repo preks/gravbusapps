@@ -65,7 +65,7 @@ export const DebouncedInput = forwardRef<HTMLInputElement, DebouncedInputProps>(
       if (debouncedValue !== value) {
         onChange(debouncedValue)
       }
-    }, [debouncedValue, onChange, value])
+    }, [debouncedValue, onChange])
 
     // Handle local input changes
     const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {

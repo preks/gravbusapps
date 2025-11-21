@@ -41,17 +41,25 @@ export interface LeadStatusChangePopupProps extends BusinessAppContextProps {
 const LeadStatusChangePopup: React.FC<LeadStatusChangePopupProps> = props => {
   const { additionalData, accessToken, config } = props
 
-  // Extract data from additionalData, checking both top level and nested psi_taskPayload
+  // Extract data from additionalData, checking externalContextData, top level and nested psi_taskPayload
+  const externalContext = additionalData?.externalContextData || {}
   const taskPayload = additionalData?.psi_taskPayload?.psi_initialParameters
 
-  const leadId = (additionalData?.leadId ||
+  const leadId = (externalContext?.leadId ||
+    additionalData?.leadId ||
     taskPayload?.leadId ||
     additionalData?.id ||
     props.initialValues?.leadId) as string
 
-  const newStatusRef = (additionalData?.newStatusRef || taskPayload?.newStatusRef) as string
-  const statusDisplayName = (additionalData?.statusDisplayName || taskPayload?.statusDisplayName) as string
-  const leadVersion = (additionalData?.leadVersion || taskPayload?.leadVersion) as number
+  const newStatusRef = (externalContext?.newStatusRef ||
+    additionalData?.newStatusRef ||
+    taskPayload?.newStatusRef) as string
+  const statusDisplayName = (externalContext?.statusDisplayName ||
+    additionalData?.statusDisplayName ||
+    taskPayload?.statusDisplayName) as string
+  const leadVersion = (externalContext?.leadVersion ||
+    additionalData?.leadVersion ||
+    taskPayload?.leadVersion) as number
 
   // Use the configured hook
   const { lead, loading: isLoading, error } = config.useLeadDataHook(leadId, accessToken)
@@ -91,7 +99,7 @@ const LeadStatusChangePopup: React.FC<LeadStatusChangePopupProps> = props => {
       changeMode: 'UPDATE',
       [config.entityKey]: {
         id: leadId,
-        version: leadVersion || lead.version,
+        version: lead.version ?? leadVersion,
         leadStatusRef: newStatusRef
       }
     }

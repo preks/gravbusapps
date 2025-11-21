@@ -19,6 +19,7 @@ type InvestmentPopupScope =
   | 'liquidity'
   | 'ppmforecast'
   | 'kpiforecast'
+  | 'liquidityForecast'
   | 'delete'
 
 interface UseInvestmentPopupFormParams extends BusinessAppContextProps {

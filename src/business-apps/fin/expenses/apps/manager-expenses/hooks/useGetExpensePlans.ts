@@ -93,7 +93,7 @@ interface UseGetExpensePlansProps extends BusinessAppContextProps {
 export const useGetExpensePlans = ({
   accessToken,
   userInfo,
-  pageSize = 10,
+  pageSize = 20,
   searchTerm,
   currentStatusFilter
 }: UseGetExpensePlansProps) => {

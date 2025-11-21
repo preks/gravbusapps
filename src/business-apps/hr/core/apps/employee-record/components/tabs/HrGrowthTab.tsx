@@ -25,6 +25,7 @@ import { Employee, EmployeePerformanceGoal, EmployeeFeedback } from '../../hooks
 import { getTranslationFromI18nKeyAndLabel } from '@/common/utils/windowUtils'
 import { useEmployeePermissions, TAB_KEYS } from '../../hooks/useEmployeePermissions'
 import translations from '../../_i18n'
+import { ScopePermissionCheckResult } from '@/common/hooks/useScopePermissionCheck'
 
 interface HrGrowthTabProps extends BusinessAppContextProps {
   employee: Employee
@@ -33,6 +34,7 @@ interface HrGrowthTabProps extends BusinessAppContextProps {
   devFeatureFlag: boolean
   employeePerformanceGoals?: EmployeePerformanceGoal[]
   feedback?: EmployeeFeedback[]
+  employeeRecordHrBackoffice: ScopePermissionCheckResult
 }
 
 const HR_GROWTH_SUBVIEW_VALUES = [
@@ -65,7 +67,8 @@ const HrGrowthTab: React.FC<HrGrowthTabProps> = ({
   devFeatureFlag,
   employeePerformanceGoals,
   feedback,
-  additionalData
+  additionalData,
+  employeeRecordHrBackoffice
 }) => {
   const [activeSubView, setActiveSubView] = useState<HrGrowthSubView>(getInitialHrGrowthSubView())
   const { t } = useTranslation(translations)
@@ -236,13 +239,7 @@ const HrGrowthTab: React.FC<HrGrowthTabProps> = ({
         </TabsList>
 
         <TabsContent value="skills" data-testid="hr-growth-skills-content" className="gba:mt-4">
-          <SkillsTab
-            employee={employee}
-            accessToken={accessToken}
-            employeeId={employeeId}
-            userInfo={userInfo}
-            isSelfView={isSelfView}
-          />
+          <SkillsTab employee={employee} accessToken={accessToken} employeeId={employeeId} userInfo={userInfo} />
         </TabsContent>
 
         {devFeatureFlag && (
@@ -265,7 +262,6 @@ const HrGrowthTab: React.FC<HrGrowthTabProps> = ({
             employeeId={employeeId}
             userInfo={userInfo}
             employeePerformanceGoals={employeePerformanceGoals}
-            isSelfView={isSelfView}
           />
         </TabsContent>
 
@@ -307,6 +303,8 @@ const HrGrowthTab: React.FC<HrGrowthTabProps> = ({
                 userInfo={userInfo}
                 additionalData={additionalData}
                 locale={currentLocale}
+                isSelfView={isSelfView}
+                employeeRecordHrBackoffice={employeeRecordHrBackoffice}
               />
             )}
           </TabsContent>

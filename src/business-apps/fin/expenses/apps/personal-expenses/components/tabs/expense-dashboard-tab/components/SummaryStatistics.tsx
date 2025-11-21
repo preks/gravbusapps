@@ -28,18 +28,34 @@ export const SummaryStatistics: React.FC<SummaryStatisticsProps> = ({
 }) => {
   const [hoveredWidgetKey, setHoveredWidgetKey] = React.useState<string | null>(null)
 
+  // Provide simple defaults so widgets always show numeric values (0) when stats are missing
+  const stats =
+    statistics ||
+    ({
+      currentMonthExpenses: { total: 0, count: 0 },
+      previousMonthExpenses: { total: 0, count: 0 },
+      currentQuarterExpenses: { total: 0, count: 0 },
+      previousQuarterExpenses: { total: 0, count: 0 },
+      currentYearExpenses: { total: 0, count: 0 },
+      previousYearExpenses: { total: 0, count: 0 },
+      pendingPayouts: 0,
+      bookedAndPendingCount: 0,
+      upcomingTrips: 0,
+      pendingItems: 0
+    } as DashboardStats)
+
   const periodCurrent =
     period === 'yearly'
-      ? statistics?.currentYearExpenses?.total || 0
+      ? stats.currentYearExpenses?.total || 0
       : period === 'quarterly'
-        ? statistics?.currentQuarterExpenses?.total || 0
-        : statistics?.currentMonthExpenses?.total || 0
+        ? stats.currentQuarterExpenses?.total || 0
+        : stats.currentMonthExpenses?.total || 0
   const periodPrevious =
     period === 'yearly'
-      ? statistics?.previousYearExpenses?.total || 0
+      ? stats.previousYearExpenses?.total || 0
       : period === 'quarterly'
-        ? statistics?.previousQuarterExpenses?.total || 0
-        : statistics?.previousMonthExpenses?.total || 0
+        ? stats.previousQuarterExpenses?.total || 0
+        : stats.previousMonthExpenses?.total || 0
 
   const currentTotal = periodCurrent
   const previousTotal = periodPrevious
@@ -68,7 +84,7 @@ export const SummaryStatistics: React.FC<SummaryStatisticsProps> = ({
       prefix: <PiCurrencyCircleDollar />,
       color: isPositiveChange ? '#cf1322' : '#3f8600',
       valueIsString: true,
-      description: `${statistics?.currentMonthExpenses?.count || 0} ${getTranslationFromI18nKeyAndLabel('lowcoder:employee_list.flows_button.expense_requests', 'Expense Requests')}`,
+      description: `${stats.currentMonthExpenses?.count || 0} ${getTranslationFromI18nKeyAndLabel('lowcoder:employee_list.flows_button.expense_requests', 'Expense Requests')}`,
       trend: {
         value: `${Math.abs(percentChange).toFixed(1)}%`,
         positive: isPositiveChange,
@@ -84,16 +100,16 @@ export const SummaryStatistics: React.FC<SummaryStatisticsProps> = ({
     {
       key: 'pending-payouts',
       title: getTranslationFromI18nKeyAndLabel('lowcoder:personal_expenses.pending_payouts', 'Pending Payouts'),
-      value: formatCurrencyDisplay(statistics?.pendingPayouts || 0, currencyCode),
+      value: formatCurrencyDisplay(stats.pendingPayouts || 0, currencyCode),
       prefix: <PiCurrencyCircleDollar />,
       color: '#1890ff',
       valueIsString: true,
-      description: `${statistics?.bookedAndPendingCount} ${getTranslationFromI18nKeyAndLabel('lowcoder:personal_expenses.awaiting_payment', 'Awaiting payment')}`
+      description: `${statistics?.bookedAndPendingCount || 0} ${getTranslationFromI18nKeyAndLabel('lowcoder:personal_expenses.awaiting_payment', 'Awaiting payment')}`
     },
     {
       key: 'upcoming-trips',
       title: getTranslationFromI18nKeyAndLabel('lowcoder:personal_expenses.upcoming_trips', 'Upcoming Trips'),
-      value: statistics?.upcomingTrips || 0,
+      value: stats.upcomingTrips || 0,
       prefix: <GlobalOutlined />,
       color: '#722ed1',
       description: getTranslationFromI18nKeyAndLabel(
@@ -107,7 +123,7 @@ export const SummaryStatistics: React.FC<SummaryStatisticsProps> = ({
         'lowcoder:personal_expenses.unallocated_expenses',
         'Unallocated Expenses'
       ),
-      value: statistics?.pendingItems || 0,
+      value: stats.pendingItems || 0,
       prefix: <ArrowUpOutlined />,
       color: '#8c8c8c',
       valueIsString: true,
@@ -133,6 +149,7 @@ export const SummaryStatistics: React.FC<SummaryStatisticsProps> = ({
     >
       <WidgetGroup
         widgets={widgets}
+        // Show skeletons while loading; after load, always show cards (with 0s when no data)
         isLoading={isLoading}
         error={error}
         onRetry={onRetry}

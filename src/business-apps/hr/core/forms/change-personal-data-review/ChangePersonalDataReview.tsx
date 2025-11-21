@@ -163,20 +163,25 @@ export const ChangePersonalDataReview: React.FC<BusinessAppContextProps> = ({
         <AppActionForm
           processType="update"
           form={form as any}
-          showCancelButton={false}
           formData={{}}
           submitEventType="pse_submit"
+          cancelEventType="pse_cancel"
           submitButtonText={getTranslationFromI18nKeyAndLabel(
-            'lowcoder:modify_expense_request.btn_items_submit',
-            'Confirm'
+            'lowcoder:approve_expense_request.approve_button',
+            'Approve'
           )}
-          cancelButtonText={getTranslationFromI18nKeyAndLabel('lowcoder:modify_expense_request.btn_cancel', 'Cancel')}
+          cancelButtonText={getTranslationFromI18nKeyAndLabel(
+            'lowcoder:approve_expense_request.reject_button',
+            'Reject'
+          )}
           submitButtonTestId="change-personal-data-review-confirm-button"
           cancelButtonTestId="change-personal-data-review-cancel-button"
           onSubmit={async () => {
             return { approval: 'approved' }
           }}
-          onCancel={() => {}}
+          onCancel={async () => {
+            return { approval: 'rejected' }
+          }}
           data-testid="change-personal-data-review"
         >
           <ReviewRows

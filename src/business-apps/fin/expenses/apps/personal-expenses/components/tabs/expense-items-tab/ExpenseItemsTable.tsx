@@ -9,7 +9,6 @@ import {
   TableCell,
   Card,
   CardContent,
-  Spinner,
   Button,
   Alert,
   Checkbox,
@@ -527,17 +526,11 @@ const ExpenseItemsTable: React.FC<ExpenseItemsTableProps> = React.memo(props => 
           }, [currencyStats, filterGroups, allSelectedFilters]),
           onFilterChange: handleFilterChange as (filterId: string, selected: boolean) => void
         }}
-        contentBackground="background"
+        contentBackground="white"
         dataBody={
           <div className="">
             <Card data-testid={`${DATA_TEST_ID_PREFIX}-container`}>
               <CardContent className="gba:p-0">
-                {isLoading && (
-                  <div className="gba:flex gba:justify-center gba:p-4">
-                    <Spinner />
-                  </div>
-                )}
-
                 <div className="gba:overflow-x-auto">
                   <Table data-testid={`${DATA_TEST_ID_PREFIX}-table`}>
                     <TableHeader>
@@ -676,7 +669,7 @@ const ExpenseItemsTable: React.FC<ExpenseItemsTableProps> = React.memo(props => 
                                     },
                                     {
                                       includeDetails: true,
-                                      includeAssignToRequest: false
+                                      includeAssignToRequest: true
                                     }
                                   ).map(action => {
                                     // Override the details action onClick to use the table's handleSelectItem
