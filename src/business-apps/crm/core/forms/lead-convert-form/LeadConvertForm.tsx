@@ -2,15 +2,7 @@ import { useCallback, useMemo, useEffect, useRef } from 'react'
 import { useForm } from 'react-hook-form'
 import { zodResolver } from '@hookform/resolvers/zod'
 import { z } from 'zod'
-import {
-  Skeleton,
-  type WizardStep,
-  FormField,
-  FormItem,
-  FormLabel,
-  FormControl,
-  FormMessage
-} from '@newwork/nw-design-system'
+import { type WizardStep, FormField, FormItem, FormLabel, FormControl, FormMessage } from '@newwork/nw-design-system'
 import { getTranslationFromI18nKeyAndLabel } from '@/common/utils/windowUtils'
 import { AppActionForm } from '@/components/app-action-form'
 import { BusinessAppContextProps } from '@/common/BusinessAppContext'
@@ -378,6 +370,7 @@ export const LeadConvertForm = ({ accessToken, userInfo, additionalData, onSucce
           contacts={contactOptions}
           isLoadingContacts={contactsLoading}
           searchContacts={searchContacts}
+          loading={loading}
         />
       )
     })
@@ -511,7 +504,8 @@ export const LeadConvertForm = ({ accessToken, userInfo, additionalData, onSucce
     loading,
     createCampaignSelectField,
     accountAvatarFileRef,
-    contactAvatarFileRef
+    contactAvatarFileRef,
+    leadData?.ownerEmployee
   ])
 
   const handleSubmit = useCallback(
@@ -566,25 +560,7 @@ export const LeadConvertForm = ({ accessToken, userInfo, additionalData, onSucce
       submitButtonText={getTranslationFromI18nKeyAndLabel('crm:convertLead.convertLead', 'Convert Lead')}
       cancelButtonText={getTranslationFromI18nKeyAndLabel('common:button.cancel', 'Cancel')}
       data-testid="convert-lead-process-dialog"
-    >
-      {loading ? (
-        <div data-testid="convert-lead-loading" className="gba:space-y-6">
-          <div className="gba:space-y-4">
-            <Skeleton className="gba:h-8 gba:w-48" />
-            <Skeleton className="gba:h-4 gba:w-64" />
-            <div className="gba:space-y-3 gba:mt-6">
-              <Skeleton className="gba:h-10 gba:w-full" />
-              <Skeleton className="gba:h-10 gba:w-full" />
-              <Skeleton className="gba:h-10 gba:w-3/4" />
-              <Skeleton className="gba:h-10 gba:w-full" />
-              <Skeleton className="gba:h-10 gba:w-2/3" />
-            </div>
-          </div>
-        </div>
-      ) : (
-        <div />
-      )}
-    </AppActionForm>
+    />
   )
 }
 
