@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useMemo, useCallback } from 'react'
+import React, { useState, useEffect, useMemo } from 'react'
 import { Spinner, Button, RecordLayout, Badge } from '@newwork/nw-design-system'
 import { User, FileText, Star, Lightbulb, Bot } from 'lucide-react'
 import { BusinessAppContextProps } from '@/common/BusinessAppContext'
@@ -70,16 +70,68 @@ const OpportunityRecordContent: React.FC<OpportunityRecordContentProps> = ({
   }, [])
 
   // Use new declarative hook for opportunity data
-  const { opportunity: opportunityData, loading, error, refetch } = useCustomerOpportunity(props, opportunityId)
+  const {
+    opportunity: opportunityData,
+    loading,
+    error,
+    refetch
+  } = useCustomerOpportunity(props.accessToken, opportunityId)
   const {
     pipelineStages: opportunityStages,
     catalogStageConditions,
     loadingPipelineStages: loadingStages,
     errorPipelineStages: stagesError
-  } = useSalesPipelineStages(opportunityData?.salesPipelineRef, props.accessToken)
+  } = useSalesPipelineStages(opportunityData?.opportunityPipelineRef, props.accessToken)
 
   // Extract stageConditionStatuses from opportunityData
-  const stageConditionStatuses = opportunityData?.stageConditionStatuses || []
+  const stageConditionStatuses = opportunityData?.opportunityStageConditions || []
+
+  // Helper function to extract CRM stage conditions
+  const extractCrmStageConditions = useMemo(
+    () =>
+      (stageConditionStatuses: any[], stage: Stage): StageCondition[] => {
+        const stageCatalogConditions = catalogStageConditions.filter(
+          catalogCondition => catalogCondition.parentEntryId === stage.id
+        )
+
+        return stageCatalogConditions.map(catalogCondition => {
+          const statusRecord = stageConditionStatuses.find(
+            statusData => statusData.opportunityPipelineStageConditionRef === catalogCondition.id
+          )
+
+          const config = statusRecord?.configSnapshot || catalogCondition.objectValue || {}
+          const checkedType = config.check_type === 'MANUAL' ? 'User' : 'Automated'
+
+          return {
+            id: catalogCondition.id,
+            title: catalogCondition.value || 'Unknown Condition',
+            isCompleted: statusRecord?.completed || false,
+            checkedType: checkedType as 'Automated' | 'User' | 'Manager' | 'Owner',
+            completedBy: statusRecord?.completedByEmployee ? getEmployeeName(statusRecord.completedByEmployee) : null
+          }
+        })
+      },
+    [catalogStageConditions]
+  )
+
+  // Check if opportunity is open (for tooltip enabling)
+  const isOpportunityOpen = (status?: string): boolean => {
+    if (!status) return false
+    const openStatuses = ['OPPORTUNITY_OPEN', 'OPEN', 'IN_PROGRESS']
+    return openStatuses.some(openStatus => status.toUpperCase().includes(openStatus))
+  }
+
+  // CRM-specific configuration for OpportunityStageProgression
+  const crmPipelineConfig: OpportunityPipelineContextConfig = useMemo(
+    () => ({
+      transitionFlowContext: FlowContextName.customerOpportunityStageTransition,
+      opportunityIdField: 'opportunityId',
+      targetStageRefField: 'targetStageRef',
+      extractStageConditions: extractCrmStageConditions,
+      isTooltipEnabled: (status?: string) => isOpportunityOpen(status)
+    }),
+    [extractCrmStageConditions]
+  )
 
   // AI Summary hook for HeaderSection
   const aiSummaryHook = useAiSummary(opportunityId, props.accessToken)
@@ -359,6 +411,7 @@ const OpportunityRecordContent: React.FC<OpportunityRecordContentProps> = ({
           accessToken={props.accessToken}
           stageConditionStatuses={stageConditionStatuses}
           onStageUpdate={refetch}
+          contextConfig={crmPipelineConfig}
         />
       )
     }
@@ -418,6 +471,7 @@ const OpportunityRecordContent: React.FC<OpportunityRecordContentProps> = ({
     stagesError,
     opportunityStages,
     opportunityData?.opportunityPipelineRef,
+    crmPipelineConfig,
     opportunityData?.opportunityPipelineStage?.code,
     opportunityId,
     opportunityData?.version,

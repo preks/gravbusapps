@@ -98,16 +98,39 @@ export const CatalogSelectProvider = <TFormValues extends FieldValues = FieldVal
       return
     }
 
+    // Performance: Track subscription creation
+    const subscriptionStartTime = performance.now()
+    console.log(`[PERF] CatalogSelectProvider: Creating form.watch() subscription`, {
+      externalKeys,
+      externalKeysLength: externalKeys.length,
+      timestamp: new Date().toISOString()
+    })
+
     // Subscribe to form changes for external keys
     const subscription = activeForm.watch(values => {
+      const callbackStartTime = performance.now()
+
       const newValues: Record<string, string | null> = {}
       for (const key of externalKeys) {
         newValues[key] = ((values as any)[key] as string) || null
       }
+
+      const callbackDuration = performance.now() - callbackStartTime
+      if (callbackDuration > 5) {
+        // Only log if > 5ms
+        console.warn(`[PERF] CatalogSelectProvider: form.watch() callback took ${callbackDuration.toFixed(2)}ms`, {
+          externalKeys,
+          externalKeysLength: externalKeys.length,
+          valuesSize: JSON.stringify(values).length,
+          timestamp: new Date().toISOString()
+        })
+      }
+
       setExternalValues(newValues)
     })
 
     // Initialize with current values
+    const initStartTime = performance.now()
     const currentValues = activeForm.getValues()
     const initialValues: Record<string, string | null> = {}
     for (const key of externalKeys) {
@@ -115,7 +138,19 @@ export const CatalogSelectProvider = <TFormValues extends FieldValues = FieldVal
     }
     setExternalValues(initialValues)
 
-    return () => subscription.unsubscribe()
+    const initDuration = performance.now() - initStartTime
+    const subscriptionDuration = performance.now() - subscriptionStartTime
+    if (subscriptionDuration > 10) {
+      console.warn(`[PERF] CatalogSelectProvider: Subscription setup took ${subscriptionDuration.toFixed(2)}ms`, {
+        initDuration: initDuration.toFixed(2),
+        externalKeysLength: externalKeys.length,
+        timestamp: new Date().toISOString()
+      })
+    }
+
+    return () => {
+      subscription.unsubscribe()
+    }
   }, [activeForm, externalKeys])
 
   // Registration API - handles both initial and late registrations
@@ -161,6 +196,21 @@ export const CatalogSelectProvider = <TFormValues extends FieldValues = FieldVal
       // Trigger preload once for all configs
       preload()
     }
+  }, [isRegistrationComplete, allConfigs, preload])
+
+  // Handle late registrations (dynamically added items)
+  useEffect(() => {
+    if (!isRegistrationComplete) return
+
+    // Find configs that haven't been preloaded yet
+    const newConfigs = allConfigs.filter(cfg => !preloadedConfigIdsRef.current.has(cfg.id))
+    if (newConfigs.length === 0) return
+
+    // Mark new configs as preloaded
+    newConfigs.forEach(cfg => preloadedConfigIdsRef.current.add(cfg.id))
+
+    // Trigger preload - it will reuse existing data where possible
+    preload()
   }, [isRegistrationComplete, allConfigs, preload])
 
   const value = useMemo(

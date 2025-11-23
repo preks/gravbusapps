@@ -1,51 +1,30 @@
 import { z } from 'zod'
-import { zodResolver } from '@hookform/resolvers/zod'
-import { opportunitySchema } from '@/common/components/common-relations/form-layouts/opportunity-layout'
-import { FormFieldsDefinition } from '@/common/components/investment/form-segments/investment-prospect-segment/useProspectFields'
-
-// Catalog entry schema - accepts either string ID, catalog object, or null (for clearing)
-const catalogEntrySchema = z.union([
-  z.string().min(1),
-  z
-    .object({
-      id: z.string().min(1),
-      code: z.string().optional(),
-      value: z.string().optional()
-    })
-    .passthrough(),
-  z.null()
-])
+import { FormFieldsDefinition } from './useInvestmentProspectFields'
 
 /**
- * Creates a dynamic Zod schema for Opportunity form based on prospect fields definition
- * Extends the base opportunitySchema with dynamic fields from FormFieldsDefinition
+ * Builds dynamic prospect field validations from FormFieldsDefinition
+ * Returns only the dynamic fields as Record<string, z.ZodTypeAny>
+ *
+ * @param formFieldsDefinition - Prospect fields configuration from catalog
+ * @param existingFields - Set of field names that already exist in schema (to skip)
+ * @returns Record of dynamic field validations
  */
-export const createDynamicOpportunitySchema = (formFieldsDefinition?: FormFieldsDefinition) => {
-  // Start with base opportunity schema extended with IRM-specific fields
-  const baseOpportunitySchema = opportunitySchema.extend({
-    // IRM-specific fields - consistent with LeadForm schema
-    investmentName: z.string().nullable().optional(),
-    investmentGroupRef: catalogEntrySchema.optional(),
-    investmentTypeRef: catalogEntrySchema.optional(),
-    dealType: z.string().nullable().optional()
-  })
-
-  // If no dynamic fields, return base schema
-  if (!formFieldsDefinition?.formFields || formFieldsDefinition.formFields.length === 0) {
-    return baseOpportunitySchema
-  }
-
-  // Collect all dynamic fields (prospect fields are at root level, not nested)
+export const buildInvestmentProspectSchema = (
+  formFieldsDefinition?: FormFieldsDefinition,
+  existingFields?: Set<string>
+): Record<string, z.ZodTypeAny> => {
   const dynamicFields: Record<string, z.ZodTypeAny> = {}
+
+  if (!formFieldsDefinition?.formFields || formFieldsDefinition.formFields.length === 0) {
+    return dynamicFields
+  }
 
   for (const group of formFieldsDefinition.formFields) {
     for (const field of group.fields) {
-      // For Opportunity/Lead, fields are at root level (property is just the field name)
-      // Example: "investmentName", "acquisitionDate", etc.
       const fieldName = field.property
 
-      // Skip if field already exists in base schema
-      if (fieldName in baseOpportunitySchema.shape) {
+      // Skip if field already exists in schema
+      if (existingFields?.has(fieldName)) {
         continue
       }
 
@@ -99,9 +78,22 @@ export const createDynamicOpportunitySchema = (formFieldsDefinition?: FormFields
             break
           default:
             if (field.type.startsWith('CATALOG_')) {
-              validationRule = catalogEntrySchema.refine(val => val !== null && val !== undefined, {
-                message: errorMessage
-              })
+              // Catalog entry - accepts either string ID, catalog object, or null (for clearing)
+              validationRule = z
+                .union([
+                  z.string().min(1),
+                  z
+                    .object({
+                      id: z.string().min(1),
+                      code: z.string().optional(),
+                      value: z.string().optional()
+                    })
+                    .passthrough(),
+                  z.null()
+                ])
+                .refine(val => val !== null && val !== undefined, {
+                  message: errorMessage
+                })
             } else if (field.type.startsWith('REF_')) {
               // Reference fields - accepts string or object
               validationRule = z
@@ -165,7 +157,20 @@ export const createDynamicOpportunitySchema = (formFieldsDefinition?: FormFields
             break
           default:
             if (field.type.startsWith('CATALOG_')) {
-              validationRule = catalogEntrySchema.optional()
+              // Catalog entry - accepts either string ID, catalog object, or null (for clearing)
+              validationRule = z
+                .union([
+                  z.string().min(1),
+                  z
+                    .object({
+                      id: z.string().min(1),
+                      code: z.string().optional(),
+                      value: z.string().optional()
+                    })
+                    .passthrough(),
+                  z.null()
+                ])
+                .optional()
             } else if (field.type.startsWith('REF_')) {
               // Reference fields - accepts string or object
               validationRule = z
@@ -189,20 +194,5 @@ export const createDynamicOpportunitySchema = (formFieldsDefinition?: FormFields
     }
   }
 
-  // Extend base schema with dynamic fields
-  if (Object.keys(dynamicFields).length > 0) {
-    return baseOpportunitySchema.extend(dynamicFields)
-  }
-
-  return baseOpportunitySchema
+  return dynamicFields
 }
-
-/**
- * Creates a zodResolver with the dynamic schema
- */
-export const createOpportunityFormResolver = (formFieldsDefinition?: FormFieldsDefinition) => {
-  const schema = createDynamicOpportunitySchema(formFieldsDefinition)
-  return zodResolver(schema)
-}
-
-export type OpportunityFormSchema = z.infer<ReturnType<typeof createDynamicOpportunitySchema>>

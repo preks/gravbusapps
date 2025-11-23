@@ -26,7 +26,7 @@
    - Ersetze: `<LeadSegment customFields={...} />`
    - Mit: `<LeadLayout leadInformationCustomFields={...} />`
 
-4. **ConvertLeadForm** (`src/business-apps/crm/core/forms/convert-lead-form/ConvertLeadForm.tsx`)
+4. **LeadConvertForm** (`src/business-apps/crm/core/forms/convert-lead-form/LeadConvertForm.tsx`)
    - Ersetze: `import { LeadConvertAccountStep, LeadConvertContactStep, LeadConvertOpportunityStep } from '@/common/components/common-relations/form-segments/lead-convert-segment/segments'`
    - Mit: `import { LeadConvertAccountStep, LeadConvertContactStep, LeadConvertOpportunityStep } from '@/common/components/common-relations/form-layouts/lead-convert-layout'`
    - Props ändern: `customFields` → segment-spezifische Props (z.B. `accountInformationCustomFields`)
@@ -47,8 +47,8 @@
    - Identisch zu CRM LeadForm Migration
    - Zusätzlich: `investmentSegment` → `customSegments` (Array)
 
-9. **ConvertLeadForm** (`src/business-apps/irm/core/forms/lead-convert-form/ConvertLeadForm.tsx`)
-   - Identisch zu CRM ConvertLeadForm Migration
+9. **LeadConvertForm** (`src/business-apps/irm/core/forms/lead-convert-form/LeadConvertForm.tsx`)
+   - Identisch zu CRM LeadConvertForm Migration
 
 ## Wichtige Prop-Mappings:
 

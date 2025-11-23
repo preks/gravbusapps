@@ -1,7 +1,13 @@
-import React, { useMemo } from 'react'
+import React from 'react'
 import { BusinessAppContextProps } from '@/common/BusinessAppContext'
-import { useTranslation, Skeleton } from '@newwork/nw-design-system'
-import { FormAccordion } from '@/components/form-accordion'
+import {
+  useTranslation,
+  Skeleton,
+  FormAccordion,
+  FormAccordionItem,
+  FormAccordionTrigger,
+  FormAccordionContent
+} from '@newwork/nw-design-system'
 import { LeadInformationSegment } from '../../form-segments/lead-information-segment'
 import { LeadPersonSegment } from '../../form-segments/lead-person-segment'
 import { LeadCompanySegment } from '../../form-segments/lead-company-segment'
@@ -42,36 +48,6 @@ const LeadLayout: React.FC<LeadLayoutProps> = ({
 }) => {
   const { t } = useTranslation(translations)
 
-  const accordionItems = useMemo(
-    () => [
-      {
-        id: 'personal-information',
-        title: t('personal-title'),
-        content: <LeadPersonSegment customFields={leadPersonCustomFields} />
-      },
-      {
-        id: 'company-information',
-        title: t('company-title'),
-        content: (
-          <LeadCompanySegment
-            companySizeCatalogIdentifier={companySizeCatalogIdentifier}
-            annualRevenueCatalogIdentifier={annualRevenueCatalogIdentifier}
-            customFields={leadCompanyCustomFields}
-          />
-        )
-      },
-      ...customSegments
-    ],
-    [
-      t,
-      companySizeCatalogIdentifier,
-      annualRevenueCatalogIdentifier,
-      leadPersonCustomFields,
-      leadCompanyCustomFields,
-      customSegments
-    ]
-  )
-
   // Show skeletons while loading (after all hooks)
   if (loading) {
     return (
@@ -104,7 +80,30 @@ const LeadLayout: React.FC<LeadLayoutProps> = ({
         leadRatingCatalogIdentifier={leadRatingCatalogIdentifier}
         customFields={leadInformationCustomFields}
       />
-      <FormAccordion items={accordionItems} className="gba:w-full" data-testid="lead-layout-accordion" />
+      <FormAccordion type="multiple" className="gba:w-full" data-testid="lead-layout-accordion">
+        <FormAccordionItem value="personal-information">
+          <FormAccordionTrigger>{t('personal-title')}</FormAccordionTrigger>
+          <FormAccordionContent>
+            <LeadPersonSegment customFields={leadPersonCustomFields} />
+          </FormAccordionContent>
+        </FormAccordionItem>
+        <FormAccordionItem value="company-information">
+          <FormAccordionTrigger>{t('company-title')}</FormAccordionTrigger>
+          <FormAccordionContent>
+            <LeadCompanySegment
+              companySizeCatalogIdentifier={companySizeCatalogIdentifier}
+              annualRevenueCatalogIdentifier={annualRevenueCatalogIdentifier}
+              customFields={leadCompanyCustomFields}
+            />
+          </FormAccordionContent>
+        </FormAccordionItem>
+        {customSegments.map(segment => (
+          <FormAccordionItem key={segment.id} value={segment.id}>
+            <FormAccordionTrigger>{segment.title}</FormAccordionTrigger>
+            <FormAccordionContent>{segment.content}</FormAccordionContent>
+          </FormAccordionItem>
+        ))}
+      </FormAccordion>
     </div>
   )
 }

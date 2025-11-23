@@ -79,11 +79,29 @@ export const AccountFields = {
   website: 'website'
 } as const
 
-/**
- * Create Common Account Descriptors with fields mapping
- * @param fields - AccountFields mapping (default: AccountFields)
- * @returns Descriptor array with field paths using the provided mapping
- */
+export const AccountFormFields = {
+  accountAnnualRevenueBandRef: 'accountAnnualRevenueBandRef',
+  accountContacts: 'accountContacts',
+  additionalProperties: 'additionalProperties',
+  addresses: 'addresses',
+  code: 'code',
+  communicationChannels: 'communicationChannels',
+  companySizeRef: 'companySizeRef',
+  foundationDate: 'foundationDate',
+  id: 'id',
+  industryClassRef: 'industryClassRef',
+  legalFormRef: 'legalFormRef',
+  liquidationDate: 'liquidationDate',
+  name: 'name',
+  notesSummary: 'notesSummary',
+  ownerEmployeeId: 'ownerEmployee',
+  picture: 'picture',
+  pictureThumbnail: 'pictureThumbnail',
+  timeZoneRef: 'timeZoneRef',
+  version: 'version',
+  website: 'website'
+} as const
+
 export const createAccountDescriptors = (
   fields: Record<keyof typeof AccountFields, string> = AccountFields
 ): Descriptor[] => [
@@ -278,31 +296,3 @@ export const createAccountDescriptors = (
   { key: 'liquidationDateFrom', path: fields.liquidationDate, kind: 'dateFrom' },
   { key: 'liquidationDateTo', path: fields.liquidationDate, kind: 'dateTo' }
 ]
-
-/**
- * Account Form Fields Configuration
- * Defines which fields to include in payload
- * Sorted alphabetically by sourceKey
- */
-export const accountFormFields = {
-  accountAnnualRevenueBandRef: 'accountAnnualRevenueBandRef',
-  accountContacts: 'accountContacts',
-  additionalProperties: 'additionalProperties',
-  addresses: 'addresses',
-  code: 'code',
-  communicationChannels: 'communicationChannels',
-  companySizeRef: 'companySizeRef',
-  foundationDate: 'foundationDate',
-  id: 'id',
-  industryClassRef: 'industryClassRef',
-  legalFormRef: 'legalFormRef',
-  liquidationDate: 'liquidationDate',
-  name: 'name',
-  notesSummary: 'notesSummary',
-  ownerEmployeeId: 'ownerEmployee',
-  picture: 'picture',
-  pictureThumbnail: 'pictureThumbnail',
-  timeZoneRef: 'timeZoneRef',
-  version: 'version',
-  website: 'website'
-} as const

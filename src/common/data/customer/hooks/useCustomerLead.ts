@@ -1,14 +1,26 @@
 // Customer Lead hook - single lead by ID with automatic state management
-import { useState, useEffect, useCallback } from 'react'
+import { useState, useEffect, useCallback, useMemo } from 'react'
 import { useGraphQLClient } from '@/common/network/graphql/useGraphQLClient'
 import { toCustomerLead, type CustomerLead } from '../types/customerLeadTypes'
 import { buildCustomerLeadByIdQuery } from '../queries/customerLeadQueries'
+
+export interface AdditionalQuery<TResult = any> {
+  query: string
+  variables?: Record<string, any>
+  data: (result: any) => TResult
+  key: string
+}
+
+export interface UseCustomerLeadOptions {
+  additionalQueries?: AdditionalQuery[]
+}
 
 export interface UseCustomerLeadResult {
   lead: CustomerLead | null
   loading: boolean
   error: string | null
   refetch: () => Promise<void>
+  [key: string]: any
 }
 
 /**
@@ -38,13 +50,19 @@ export interface UseCustomerLeadResult {
  *   </div>
  * )
  */
-export function useCustomerLead(accessToken: string, id: string | undefined): UseCustomerLeadResult {
+export function useCustomerLead(
+  accessToken: string,
+  id: string | undefined,
+  options?: UseCustomerLeadOptions
+): UseCustomerLeadResult {
   const graphqlClient = useGraphQLClient(accessToken)
+  const additionalQueries = useMemo(() => options?.additionalQueries || [], [options?.additionalQueries])
 
   const [state, setState] = useState<Omit<UseCustomerLeadResult, 'refetch'>>({
     lead: null,
     loading: true,
-    error: null
+    error: null,
+    ...Object.fromEntries(additionalQueries.map(aq => [aq.key, undefined]))
   })
 
   const fetchLead = useCallback(async () => {
@@ -57,22 +75,47 @@ export function useCustomerLead(accessToken: string, id: string | undefined): Us
     setState(prev => ({ ...prev, loading: true, error: null }))
 
     try {
-      // Build query
-      const query = buildCustomerLeadByIdQuery()
+      // Build main query
+      let combinedQuery = buildCustomerLeadByIdQuery()
 
-      // Execute query with ID as GraphQL variable
-      const result = await graphqlClient.request<{ LeadByPk: CustomerLead | null }>(query, { id })
+      // Combine additional query bodies into main query
+      if (additionalQueries.length > 0) {
+        const additionalQueryBodies = additionalQueries.map(aq => aq.query).join('\n')
+        // Insert additional queries before the closing brace of the query
+        // Pattern: query GetLeadById($id: uuid!) { LeadByPk(...) { ... } }
+        // becomes: query GetLeadById($id: uuid!) { LeadByPk(...) { ... } additionalQueries }
+        combinedQuery = combinedQuery.replace(/(\s*}\s*)$/, `\n${additionalQueryBodies}\n$1`)
+      }
+
+      // Execute combined query with ID as GraphQL variable
+      const result = await graphqlClient.request<{ LeadByPk: CustomerLead | null } & Record<string, any>>(
+        combinedQuery,
+        { id }
+      )
 
       const raw = result.LeadByPk
       const lead = raw ? toCustomerLead(raw) : null
 
-      setState({ lead, loading: false, error: null })
+      // Extract additional results from combined response
+      const additionalData = Object.fromEntries(additionalQueries.map(aq => [aq.key, aq.data(result)]))
+
+      setState({
+        lead,
+        loading: false,
+        error: null,
+        ...additionalData
+      })
     } catch (error) {
       const errorMessage = error instanceof Error ? error.message : 'Failed to fetch customer lead'
       console.error('Error fetching customer lead:', error)
-      setState({ lead: null, loading: false, error: errorMessage })
+      setState({
+        lead: null,
+        loading: false,
+        error: errorMessage,
+        ...Object.fromEntries(additionalQueries.map(aq => [aq.key, undefined]))
+      })
     }
-  }, [id, accessToken, graphqlClient])
+  }, [id, accessToken, graphqlClient, additionalQueries])
 
   // Auto-fetch on mount and when dependencies change
   useEffect(() => {

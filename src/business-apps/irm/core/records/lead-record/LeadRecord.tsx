@@ -16,6 +16,7 @@ import { getTranslationFromI18nKeyAndLabel } from '@/common/utils/windowUtils'
 import { FlowContextName } from '@/common/types/FlowRegistryTypes'
 import { StatusProgression } from './components/StatusProgression'
 import { useInvestmentLead } from '@/common/data/investment/hooks/useInvestmentLead'
+import { buildLeadStatusesQuery } from '@/common/data/relations/queries/leadQueries'
 import {
   useGetInvestmentActivitiesByLeadId,
   useGetInvestmentNotesByLeadId,
@@ -61,24 +62,27 @@ const InvestmentLeadRecordContent: React.FC<LeadRecordContentProps> = ({ leadId,
     return getValidTab(new URLSearchParams(window.location.search).get('tab'))
   })
 
-  // Use new declarative hook for lead data
-  const { lead: leadData, loading, error, refetch } = useInvestmentLead(props, leadId)
-  const [leadStatuses, setLeadStatuses] = useState<any[]>([])
+  // Use new declarative hook for lead data with additional leadStatuses query
+  const additionalQueries = useMemo(
+    () => [
+      {
+        query: buildLeadStatusesQuery('InvestmentLeadStatus'),
+        data: (result: any) => result.leadStatuses || [],
+        key: 'leadStatuses' as const
+      }
+    ],
+    []
+  )
 
-  // Extract lead statuses from leadData when it changes
-  useEffect(() => {
-    if (leadData?.leadStatuses && Array.isArray(leadData.leadStatuses)) {
-      // Statuses are already sorted by alternativeCode from GraphQL query
-      setLeadStatuses(
-        leadData.leadStatuses.map((status: any) => ({
-          id: status.id,
-          code: status.code,
-          value: status.value,
-          alternativeCode: status.alternativeCode
-        }))
-      )
-    }
-  }, [leadData])
+  const {
+    lead: leadData,
+    leadStatuses,
+    loading,
+    error,
+    refetch
+  } = useInvestmentLead(props.accessToken, leadId, {
+    additionalQueries
+  })
 
   // Fetch lead data function for refetch
   const fetchLeadData = useCallback(async () => {
@@ -479,7 +483,7 @@ const InvestmentLeadRecordContent: React.FC<LeadRecordContentProps> = ({ leadId,
   // Status progression content
   const headerContent = (
     <>
-      {leadStatuses.length > 0 && lead && (
+      {leadStatuses && Array.isArray(leadStatuses) && leadStatuses.length > 0 && lead && (
         <StatusProgression
           currentStatus={lead?.leadStatus?.value || getTranslationFromI18nKeyAndLabel('crm.common.status.new', 'New')}
           statuses={leadStatuses}

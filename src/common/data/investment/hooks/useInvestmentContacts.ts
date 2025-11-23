@@ -1,5 +1,5 @@
 // Investment Contact hooks - CRM contact entity operations
-import { useCallback, useState, useEffect } from 'react'
+import { useCallback, useState, useEffect, useMemo } from 'react'
 import { useGraphQLClient } from '@/common/network/graphql/useGraphQLClient'
 import { BusinessAppContextProps } from '@/common/BusinessAppContext'
 import type { InvestmentContact } from '../types/investmentContactTypes'
@@ -346,6 +346,13 @@ interface StatefulReturn {
   initialize: () => void
 }
 
+/**
+ * @deprecated This hook is in transition. Use `useInvestmentContactsList` instead.
+ * The name `useInvestmentContacts` will be restored to the new declarative hook after migration.
+ *
+ * Legacy dual-mode hook for investment contacts (function-only or stateful).
+ * Prefer the new declarative `useInvestmentContactsList` hook.
+ */
 // Function overloads for type safety
 export function useGetInvestmentContacts(
   context: BusinessAppContextProps,
@@ -534,4 +541,99 @@ export function useGetInvestmentContacts(
 
   // Backward compatible: return only the fetch function
   return { fetchInvestmentContacts }
+}
+
+/**
+ * Declarative List Hook for Investment Contacts
+ *
+ * Automatically fetches and manages state for a list of investment contacts.
+ * Follows the Hook Refactoring Guide Pattern 2.
+ *
+ * @example
+ * const { contacts, loading, error, refetch } = useInvestmentContactsList(context, { limit: 20 })
+ *
+ * @todo MIGRATION: Replace all usages of deprecated `useGetInvestmentContacts` with this hook
+ * @todo RENAME: After migration is complete, rename this hook to `useInvestmentContacts` and remove the deprecated hook
+ */
+export interface UseInvestmentContactsListResult {
+  contacts: InvestmentContact[]
+  total: number
+  loading: boolean
+  error: string | null
+  refetch: (variables?: InvestmentContactQueryVariables) => Promise<void>
+}
+
+export function useInvestmentContactsList(
+  context: BusinessAppContextProps,
+  variables?: InvestmentContactQueryVariables
+): UseInvestmentContactsListResult {
+  const graphqlClient = useGraphQLClient(context.accessToken)
+
+  // Memoize variables to prevent infinite loops when object is recreated on each render
+  const stableVariables = useMemo(() => variables, [JSON.stringify(variables)])
+
+  const [state, setState] = useState({
+    contacts: [] as InvestmentContact[],
+    total: 0,
+    loading: true,
+    error: null as string | null
+  })
+
+  const fetchContacts = useCallback(
+    async (queryVariables?: InvestmentContactQueryVariables) => {
+      if (!context.accessToken) {
+        setState(prev => ({ ...prev, loading: false }))
+        return
+      }
+
+      setState(prev => ({ ...prev, loading: true, error: null }))
+
+      try {
+        const vars = { ...stableVariables, ...queryVariables }
+        const query = buildInvestmentContactQuery()
+
+        const customConditions: Record<string, any>[] = []
+        if (vars.hasEmail) customConditions.push({ email: { _isNull: false, _neq: '' } })
+        if (vars.missingEmail) customConditions.push({ _or: [{ email: { _isNull: true } }, { email: { _eq: '' } }] })
+        if (vars.hasPhone) customConditions.push({ phone: { _isNull: false, _neq: '' } })
+        if (vars.missingPhone) customConditions.push({ _or: [{ phone: { _isNull: true } }, { phone: { _eq: '' } }] })
+
+        const whereCondition = buildInvestmentContactWhereCondition(vars, [], customConditions)
+        const orderBy = buildInvestmentContactOrderBy(vars.orderBy || [])
+
+        const graphQLVariables: Record<string, any> = {
+          limit: Math.min(vars.limit || 50, 100),
+          offset: vars.offset || 0,
+          where: whereCondition,
+          orderBy: orderBy
+        }
+
+        const result = await graphqlClient.request<InvestmentContactQueryResponse>(query, graphQLVariables)
+        const contacts = result.InvestmentContact.map(toInvestmentContact)
+        const total = result.InvestmentContactAggregate?.aggregate?.count || 0
+
+        setState({ contacts, total, loading: false, error: null })
+      } catch (error) {
+        const errorMessage = error instanceof Error ? error.message : 'Failed to fetch investment contacts'
+
+        setState(prev => ({
+          ...prev,
+          contacts: [],
+          total: 0,
+          loading: false,
+          error: errorMessage
+        }))
+      }
+    },
+    [context.accessToken, graphqlClient, stableVariables]
+  )
+
+  useEffect(() => {
+    fetchContacts()
+  }, [fetchContacts])
+
+  return {
+    ...state,
+    refetch: fetchContacts
+  }
 }

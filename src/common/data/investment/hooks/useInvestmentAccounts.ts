@@ -1,5 +1,5 @@
 // Investment Account hooks - CRM account entity operations
-import { useCallback, useState, useEffect } from 'react'
+import { useCallback, useState, useEffect, useMemo } from 'react'
 import { useGraphQLClient } from '@/common/network/graphql/useGraphQLClient'
 import { BusinessAppContextProps } from '@/common/BusinessAppContext'
 // buildWhere and buildOrderBy are now used internally by the new query builders
@@ -115,6 +115,13 @@ interface StatefulReturn {
   initialize: () => void
 }
 
+/**
+ * @deprecated This hook is in transition. Use `useInvestmentAccountsList` instead.
+ * The name `useInvestmentAccounts` will be restored to the new declarative hook after migration.
+ *
+ * Legacy dual-mode hook for investment accounts (function-only or stateful).
+ * Prefer the new declarative `useInvestmentAccountsList` hook.
+ */
 // Function overloads for type safety
 export function useGetInvestmentAccounts(
   context: BusinessAppContextProps,
@@ -304,6 +311,94 @@ export function useGetInvestmentAccounts(
   return { fetchInvestmentAccounts }
 }
 
+/**
+ * Declarative List Hook for Investment Accounts
+ *
+ * Automatically fetches and manages state for a list of investment accounts.
+ * Follows the Hook Refactoring Guide Pattern 2.
+ *
+ * @example
+ * const { accounts, loading, error, refetch } = useInvestmentAccountsList(context, { limit: 20 })
+ *
+ * @todo MIGRATION: Replace all usages of deprecated `useGetInvestmentAccounts` with this hook
+ * @todo RENAME: After migration is complete, rename this hook to `useInvestmentAccounts` and remove the deprecated hook
+ */
+export interface UseInvestmentAccountsListResult {
+  accounts: InvestmentAccount[]
+  total: number
+  loading: boolean
+  error: string | null
+  refetch: (variables?: InvestmentAccountQueryVariables) => Promise<void>
+}
+
+export function useInvestmentAccountsList(
+  context: BusinessAppContextProps,
+  variables?: InvestmentAccountQueryVariables
+): UseInvestmentAccountsListResult {
+  const graphqlClient = useGraphQLClient(context.accessToken)
+
+  // Memoize variables to prevent infinite loops when object is recreated on each render
+  const stableVariables = useMemo(() => variables, [JSON.stringify(variables)])
+
+  const [state, setState] = useState({
+    accounts: [] as InvestmentAccount[],
+    total: 0,
+    loading: true,
+    error: null as string | null
+  })
+
+  const fetchAccounts = useCallback(
+    async (queryVariables?: InvestmentAccountQueryVariables) => {
+      if (!context.accessToken) {
+        setState(prev => ({ ...prev, loading: false }))
+        return
+      }
+
+      setState(prev => ({ ...prev, loading: true, error: null }))
+
+      try {
+        const vars = { ...stableVariables, ...queryVariables }
+        const query = buildInvestmentAccountQuery()
+        const whereCondition = buildInvestmentAccountWhereCondition(vars)
+        const orderBy = buildInvestmentAccountOrderBy(vars.orderBy || [])
+
+        const graphQLVariables: Record<string, any> = {
+          limit: Math.min(vars.limit || 50, 100),
+          offset: vars.offset || 0,
+          where: whereCondition,
+          orderBy: orderBy
+        }
+
+        const result = await graphqlClient.request<InvestmentAccountQueryResponse>(query, graphQLVariables)
+        const accounts = result.InvestmentAccount.map(toInvestmentAccount)
+        const total = result.InvestmentAccountAggregate?.aggregate?.count || 0
+
+        setState({ accounts, total, loading: false, error: null })
+      } catch (error) {
+        const errorMessage = error instanceof Error ? error.message : 'Failed to fetch investment accounts'
+
+        setState(prev => ({
+          ...prev,
+          accounts: [],
+          total: 0,
+          loading: false,
+          error: errorMessage
+        }))
+      }
+    },
+    [context.accessToken, graphqlClient, stableVariables]
+  )
+
+  useEffect(() => {
+    fetchAccounts()
+  }, [fetchAccounts])
+
+  return {
+    ...state,
+    refetch: fetchAccounts
+  }
+}
+
 // Hook for getting investment account by ID
 export const useGetInvestmentAccountById = (context: BusinessAppContextProps) => {
   const graphqlClient = useGraphQLClient(context.accessToken)
@@ -340,56 +435,6 @@ export const useGetInvestmentAccountById = (context: BusinessAppContextProps) =>
   )
 
   return { fetchInvestmentAccountById }
-}
-
-// Hook for searching investment accounts
-export const useSearchInvestmentAccounts = (context: BusinessAppContextProps) => {
-  const graphqlClient = useGraphQLClient(context.accessToken)
-
-  const searchInvestmentAccounts = useCallback(
-    async (searchTerm: string, variables: InvestmentAccountQueryVariables = {}) => {
-      // Use new query builder with fields mapping
-      const query = buildInvestmentAccountQuery()
-
-      const searchVariables = { ...variables, search: searchTerm }
-
-      // Use new WHERE/ORDER BY builders with fields mapping
-      const whereCondition = buildInvestmentAccountWhereCondition(
-        undefined, // Use default InvestmentAccountFields
-        searchVariables
-      )
-
-      const orderBy = buildInvestmentAccountOrderBy(
-        undefined, // Use default InvestmentAccountFields
-        searchVariables.orderBy || []
-      )
-
-      const graphQLVariables: Record<string, any> = {
-        limit: Math.min(searchVariables.limit || 50, 100),
-        offset: searchVariables.offset || 0,
-        where: whereCondition,
-        orderBy: orderBy
-      }
-
-      try {
-        const result = await graphqlClient.request<InvestmentAccountQueryResponse>(query, graphQLVariables)
-
-        // Transform base types to enhanced types using mapper
-        const enhancedAccounts = result.InvestmentAccount.map(toInvestmentAccount)
-
-        return {
-          ...result,
-          InvestmentAccount: enhancedAccounts
-        }
-      } catch (error) {
-        console.error('Error searching investment accounts:', error)
-        throw error
-      }
-    },
-    [graphqlClient]
-  )
-
-  return { searchInvestmentAccounts }
 }
 
 // =====================================================

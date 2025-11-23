@@ -10,10 +10,11 @@ import {
   AvatarUpload
 } from '@newwork/nw-design-system'
 import { useFormContext } from 'react-hook-form'
-import { OwnerSelect } from '@/common/components/common-relations/selects/owner-select'
+import { EmployeeSelect } from '@/components/employee-select'
 import { AccountSelect } from '@/common/components/common-relations/selects/account-select'
 import { BusinessAppContextProps } from '@/common/BusinessAppContext'
 import type { SelectOption as AccountSelectOption } from '@/common/components/common-relations/selects/account-select'
+import { useMemo, useCallback } from 'react'
 import translations from './_i18n'
 
 interface ContactInformationSegmentProps {
@@ -25,12 +26,12 @@ interface ContactInformationSegmentProps {
   entityId?: string
 
   // Account selection hook result (optional - if not provided, accounts section won't render)
-  // When mapToSelectOptions: true is used, options will always be SelectOption[]
-  accountsHook?: {
-    options: AccountSelectOption[]
+  // Raw entities and refetch function - generic types for context-agnostic component
+  useAccounts?: {
+    accounts: any[]
     loading: boolean
     error: string | null
-    search: (searchTerm: string) => void
+    refetch: (variables?: any) => Promise<void>
   }
 
   // Custom fields (context-specific, e.g., CRM Sales Campaign)
@@ -44,12 +45,55 @@ const ContactInformationSegment: React.FC<ContactInformationSegmentProps> = ({
   businessAppContext,
   ownerEmployee,
   entityId,
-  accountsHook,
+  useAccounts,
   customFields,
   avatarFileRef
 }) => {
   const form = useFormContext<any>()
   const { t } = useTranslation(translations)
+
+  // Transform accounts to SelectOption[] internally
+  const accountOptions = useMemo<AccountSelectOption[]>(() => {
+    if (!useAccounts?.accounts) return []
+    return useAccounts.accounts.map((account: any) => {
+      const emailChannel = account.communicationChannels?.find(
+        (ch: any) => ch.communicationChannel?.code === 'EMAIL' || ch.communicationChannelRef?.includes(':EMAIL')
+      )
+      const phoneChannel = account.communicationChannels?.find(
+        (ch: any) => ch.communicationChannel?.code === 'PHONE' || ch.communicationChannelRef?.includes(':PHONE')
+      )
+
+      return {
+        id: account.id || '',
+        value: account.id || '',
+        label: account.displayName || account.name || 'Unknown Account',
+        name: account.displayName || account.name || 'Unknown Account',
+        pictureThumbnail: account.pictureThumbnail || undefined,
+        extraInfo: {
+          email: emailChannel?.value || undefined,
+          phone: phoneChannel?.value || undefined,
+          website: account.website || undefined,
+          businessKey: account.businessKey || undefined,
+          code: account.code || undefined,
+          ownerEmployee: account.ownerEmployee
+            ? {
+                firstName: account.ownerEmployee.firstName,
+                lastName: account.ownerEmployee.lastName
+              }
+            : undefined
+        }
+      } as AccountSelectOption
+    })
+  }, [useAccounts?.accounts])
+
+  // Search function that calls refetch with search variables
+  const searchAccounts = useCallback(
+    (searchTerm: string) => {
+      if (!useAccounts?.refetch) return
+      useAccounts.refetch({ search: searchTerm.trim(), limit: 20, offset: 0 })
+    },
+    [useAccounts?.refetch]
+  )
 
   // Get avatar image from form values (pictureThumbnail or picture)
   const pictureThumbnail = form.watch('pictureThumbnail')
@@ -79,12 +123,12 @@ const ContactInformationSegment: React.FC<ContactInformationSegmentProps> = ({
           <FormItem>
             <FormLabel>{t('contact-owner-label')}</FormLabel>
             <FormControl>
-              <OwnerSelect
+              <EmployeeSelect
                 value={field.value || null}
                 onValueChange={(v: string | null) => field.onChange(v || '')}
                 businessAppContext={businessAppContext!}
-                ownerEmployee={ownerEmployee}
-                isNewEntity={!entityId}
+                initialEmployee={ownerEmployee}
+                autoSelect={!entityId ? 'current-user' : undefined}
                 placeholder={t('please-select')}
                 data-testid="contact-information-segment-owner"
               />
@@ -211,7 +255,7 @@ const ContactInformationSegment: React.FC<ContactInformationSegmentProps> = ({
       {customFields}
 
       {/* Account Selection using AccountSelect */}
-      {accountsHook && (
+      {useAccounts && (
         <FormField
           control={form.control}
           name="accountContacts"
@@ -289,10 +333,10 @@ const ContactInformationSegment: React.FC<ContactInformationSegmentProps> = ({
                   <AccountSelect
                     value={accountSelectValue}
                     onChange={handleChange}
-                    accounts={accountsHook.options}
-                    accountsLoading={accountsHook.loading}
-                    accountsError={accountsHook.error}
-                    searchAccounts={accountsHook.search}
+                    accounts={accountOptions}
+                    accountsLoading={useAccounts.loading}
+                    accountsError={useAccounts.error}
+                    searchAccounts={searchAccounts}
                     accountContacts={field.value || []}
                     multiple={true}
                     dataTestId="contact-information-segment-accounts"

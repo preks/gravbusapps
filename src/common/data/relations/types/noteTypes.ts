@@ -43,6 +43,21 @@ export const NoteFields = {
   title: 'title'
 } as const
 
+export const NoteFormFields = {
+  accountId: 'account',
+  authorEmployeeId: 'authorEmployee',
+  contactId: 'contact',
+  documents: 'documents',
+  id: 'id',
+  leadId: 'lead',
+  lastEditDate: 'lastEditDate',
+  opportunityId: 'opportunity',
+  reminderDate: 'reminderDate',
+  text: 'text',
+  title: 'title',
+  version: 'version'
+} as const
+
 /**
  * Create Common Note Descriptors with fields mapping
  */

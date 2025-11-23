@@ -1,4 +1,4 @@
-import React, { useCallback, useEffect, useRef } from 'react'
+import React, { useEffect, useRef, useCallback } from 'react'
 import { useForm } from 'react-hook-form'
 import { AppActionForm } from '@/components/app-action-form'
 import { CatalogSelect } from '@/components/catalog-select'
@@ -10,138 +10,95 @@ import { z } from 'zod'
 import { zodResolver } from '@hookform/resolvers/zod'
 import { mapToFormValues } from '@/common/utils/formMappingUtils'
 import { buildInvestmentContactPayload } from '@/common/data/investment/types/investmentContactTypes'
-import { useGetInvestmentAccounts } from '@/common/data/investment/hooks/useInvestmentAccounts'
+import { useInvestmentAccountsList } from '@/common/data/investment/hooks/useInvestmentAccounts'
 import { useFileClient } from '@/common/network/files/useFileClient'
 import { InvestmentFilePaths } from '@/common/data/investment/constants/investmentFilePaths'
+import { buildFilePath } from '@/common/utils/fileUtils'
+import { APP_NAME, FILE_ENTITY, FILE_CONTEXT } from '@/common/data/investment/constants/investmentConstants'
+import { ErrorAlert } from '@/components/error-alert/ErrorAlert'
+import { formatDataTestId } from '@/common/utils/formatDataTestId'
 
-const prefixDataTestId = 'ContactForm'
+type ContactFormProps = BusinessAppContextProps
 
-interface ContactFormProps extends BusinessAppContextProps {
-  initialValues?: Partial<InvestmentContact>
-  onSubmit?: (values: Partial<InvestmentContact>) => Promise<void>
-  onCancel?: () => Promise<void>
-}
-
-// Map InvestmentContact to form values - automatic mapping
-const mapInvestmentContactToFormValues = (
-  contact: InvestmentContact | null
-): Partial<z.infer<typeof contactSchema>> => {
-  if (!contact) {
-    return {}
-  }
-
-  // ✅ Automatic mapping - schema matches interface exactly
-  // Note: account objects are kept for display purposes (like contact objects in AccountForm)
-  // They are automatically ignored by payloadBuilder since they're not in the schema
-  return mapToFormValues(contact, contactSchema)
-}
-
-const ContactForm: React.FC<ContactFormProps> = ({
-  initialValues,
-  onCancel = async () => {},
-  accessToken,
-  userInfo,
-  additionalData
-}) => {
-  if (!accessToken) {
-    return (
-      <div className="gba:p-6 gba:text-center">
-        <div className="gba:text-red-500">
-          Error: No access token found. Please ensure you are properly authenticated.
-        </div>
-      </div>
-    )
-  }
-
+const ContactForm: React.FC<ContactFormProps> = ({ accessToken, userInfo, additionalData }) => {
   // Extract contactId from additionalData
   const contactId = additionalData?.contactId || additionalData?.psi_taskPayload?.psi_initialParameters?.contactId
 
   // Load contact data when editing - using new declarative hook
-  const { contact: contactData, loading: contactLoading } = useInvestmentContact(accessToken, contactId)
-
-  // Account search hook
-  const accountsHookResult = useGetInvestmentAccounts(
-    { accessToken, userInfo, additionalData },
-    {
-      withState: true,
-      autoFetch: true,
-      pageSize: 20,
-      mapToSelectOptions: true
-    }
-  )
-
-  // Extract hook result for accountsHook prop (mapToSelectOptions ensures options are SelectOption[])
-  const accountsHook = {
-    options: accountsHookResult.options as any[],
-    loading: accountsHookResult.loading,
-    error: accountsHookResult.error,
-    search: accountsHookResult.search
-  }
+  const { contact, loading, error } = useInvestmentContact(accessToken || '', contactId)
 
   // File client for avatar upload
   const fileClient = useFileClient({ accessToken, userInfo, additionalData })
 
+  // Account selection hook - using new declarative list hook
+  const useAccounts = useInvestmentAccountsList({ accessToken, userInfo, additionalData }, { limit: 20 })
+
+  // Collect all errors for centralized early return
+  const errors: Array<{ error?: string | unknown; type?: 'accessToken'; context?: string }> = []
+  if (!accessToken) {
+    errors.push({ type: 'accessToken' })
+  }
+  if (error) {
+    errors.push({ error, context: 'Failed to load contact data' })
+  }
+  if (useAccounts.error) {
+    errors.push({ error: useAccounts.error, context: 'Failed to load accounts' })
+  }
+
+  // Early return if any errors exist
+  if (errors.length > 0) {
+    return (
+      <>
+        {errors.map((err, index) => (
+          <ErrorAlert
+            key={index}
+            error={err.error}
+            type={err.type}
+            context={err.context}
+            dataTestId={formatDataTestId('investment-contact-form', `error-alert-${index}`)}
+          />
+        ))}
+      </>
+    )
+  }
+
   // Ref to store current file and thumbnail from AvatarUpload (no re-renders)
   const avatarFileRef = useRef<{ file: File; thumbnail: string } | null>(null)
 
-  // Map contact data to form values - automatic mapping
-  const mapContactToFormValues = useCallback(
-    (contact: InvestmentContact | null): Partial<z.infer<typeof contactSchema>> => {
-      if (!contact) {
-        return {}
-      }
-      return mapInvestmentContactToFormValues(contact)
-    },
-    []
-  )
-
-  // Initialize React Hook Form (using Partial<InvestmentContact> as type)
+  // Initialize React Hook Form
   const form = useForm<z.infer<typeof contactSchema>>({
     resolver: zodResolver(contactSchema),
-    defaultValues: {
-      ...mapContactToFormValues(contactData),
-      ...initialValues
-    } as any,
+    defaultValues: mapToFormValues(contact || {}, contactSchema) as Partial<InvestmentContact>,
     mode: 'onSubmit',
     reValidateMode: 'onSubmit'
   })
 
   // Sync form when contact changes
+  const contactRef = useRef(contact)
   useEffect(() => {
-    if (contactData) {
-      const formValues = mapContactToFormValues(contactData)
-      form.reset({
-        ...formValues,
-        ...initialValues
-      } as any)
+    if (contactRef.current?.id !== contact?.id) {
+      form.reset(mapToFormValues(contact || {}, contactSchema) as Partial<InvestmentContact>)
+      contactRef.current = contact
     }
-  }, [contactData?.id, contactData, form, mapContactToFormValues, initialValues])
-
-  // NOTE: Auto-selection of current user is now handled by OwnerSelect component
-  // No need for manual auto-selection logic here
+  }, [contact?.id, contact, form])
 
   // Handle form submission - data already matches interface structure exactly
-  const handleSubmit = async (data: any) => {
-    // Build InvestmentContact object - data already matches interface structure exactly
-    const investmentContact: Partial<InvestmentContact> = {
-      ...data
+  const handleSubmit = useCallback(async (data: any) => {
+    try {
+      const { investmentContact } = buildInvestmentContactPayload(data)
+      return {
+        investmentContact,
+        changeMode: data.id ? 'UPDATE' : 'INSERT'
+      }
+    } catch (error) {
+      console.error('Error submitting contact:', error)
+      throw error
     }
-
-    // Use centralized payload builder
-    const payload = buildInvestmentContactPayload(investmentContact)
-
-    const changeMode = data.id ? 'UPDATE' : 'INSERT'
-
-    // Return payload for AppActionForm to handle process event
-    return {
-      ...payload,
-      changeMode: changeMode
-    }
-  }
+  }, [])
 
   // Handle form cancellation
   const handleCancel = async () => {
-    await onCancel()
+    // AppActionForm handles cancellation via process events
   }
 
   // Handle pre-submit: Upload avatar file if present
@@ -153,12 +110,13 @@ const ContactForm: React.FC<ContactFormProps> = ({
     }
 
     try {
-      const contactId = formData.id || contactData?.id || 'new'
+      const contactId = formData.id || contact?.id || null
+      const folderPath = buildFilePath(FILE_ENTITY.CONTACT, contactId, FILE_CONTEXT.PICTURE)
       const pathParams = { accessScope: InvestmentFilePaths.ACCESS_SCOPE } as const
       const queryParams = {
-        appName: InvestmentFilePaths.APP_NAME,
-        folderPath: InvestmentFilePaths.getContactPicturePath(contactId),
-        mimeType: avatarData.file.type || 'image/jpeg'
+        appName: APP_NAME,
+        folderPath: folderPath,
+        mimeType: avatarData.file.type
       }
 
       const uploadResponse = await fileClient.uploadFile(avatarData.file, pathParams, queryParams)
@@ -174,8 +132,7 @@ const ContactForm: React.FC<ContactFormProps> = ({
     }
   }
 
-  // Determine process type based on whether contact exists
-  const processType = contactData?.id ? 'update' : 'create'
+  const processType = contact?.id ? 'update' : 'create'
 
   return (
     <CatalogSelect.Provider accessToken={accessToken} userInfo={userInfo} additionalData={additionalData} form={form}>
@@ -187,16 +144,17 @@ const ContactForm: React.FC<ContactFormProps> = ({
         formData={form.getValues()}
         form={form}
         schema={contactSchema}
-        data-testid={prefixDataTestId}
-        submitButtonText={contactData?.id ? 'Update Contact' : 'Create Contact'}
+        data-testid={formatDataTestId('investment-contact-form', 'Form')}
+        submitButtonText={contact?.id ? 'Update Contact' : 'Create Contact'}
+        isSubmitDisabled={loading}
       >
         <ContactLayout
           businessAppContext={{ accessToken, userInfo, additionalData }}
-          ownerEmployee={contactData?.ownerEmployee}
-          entityId={contactData?.id}
-          accountsHook={accountsHook}
+          ownerEmployee={contact?.ownerEmployee}
+          entityId={contact?.id || contactId}
+          useAccounts={useAccounts}
           avatarFileRef={avatarFileRef}
-          loading={contactLoading && !!contactId}
+          loading={loading && !!contactId}
         />
       </AppActionForm>
     </CatalogSelect.Provider>

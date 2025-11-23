@@ -169,22 +169,43 @@ export const buildLeadQuery = (
 }
 
 /**
+ * Build Lead Statuses query body (to be combined with main query)
+ * @param catalogIdentifier - Catalog identifier for lead statuses (e.g., 'SalesLeadStatus', 'InvestmentLeadStatus')
+ * @returns GraphQL query body string (without query wrapper) for combining with main queries
+ */
+export const buildLeadStatusesQuery = (catalogIdentifier: string): string => {
+  return `
+    leadStatuses: CatalogEntry(
+      where: {
+        _and: [
+          { catalog: { identifier: { _eq: "${catalogIdentifier}" }, version: { _eq: "v1" } } },
+          { isDeleted: { _eq: false } }
+        ]
+      }
+      orderBy: { alternativeCode: ASC }
+    ) {
+      id
+      code
+      value
+      alternativeCode
+    }
+  `
+}
+
+/**
  * Build Lead by ID query
  * @param entityName - GraphQL entity name (REQUIRED)
- * @param id - Lead ID
  * @param entityFields - LeadFields mapping (default: LeadFields)
  * @param relationBuilders - Object containing fragment builder functions for relations (optional)
  * @param relationFields - Object containing field mappings for relations (optional)
  * @param additionalFields - Additional domain-specific fields (optional)
- * @param leadStatusCatalogIdentifier - Optional catalog identifier for lead statuses (e.g., 'SalesLeadStatus', 'InvestmentLeadStatus')
  */
 export const buildLeadByIdQuery = (
   entityName: string,
   entityFields: Record<keyof typeof LeadFields, string> = LeadFields,
   relationBuilders?: LeadRelationBuilders,
   relationFields?: LeadRelationFields,
-  additionalFields?: string,
-  leadStatusCatalogIdentifier?: string
+  additionalFields?: string
 ): string => {
   // Base fields inline
   const baseFields = `
@@ -314,26 +335,6 @@ export const buildLeadByIdQuery = (
   `
       : ''
 
-  // Build lead statuses query if catalog identifier provided
-  const leadStatusesQuery = leadStatusCatalogIdentifier
-    ? `
-      leadStatuses: CatalogEntry(
-        where: {
-          _and: [
-            { catalog: { identifier: { _eq: "${leadStatusCatalogIdentifier}" }, version: { _eq: "v1" } } },
-            { isDeleted: { _eq: false } }
-          ]
-        }
-        orderBy: { alternativeCode: ASC }
-      ) {
-        id
-        code
-        value
-        alternativeCode
-      }
-    `
-    : ''
-
   return `
     query Get${entityName}ById($id: uuid!) {
       ${entityName}ByPk(id: $id) {
@@ -341,7 +342,6 @@ export const buildLeadByIdQuery = (
         ${commonRelations}
         ${additionalFields || ''}
       }
-      ${leadStatusesQuery}
     }
   `
 }

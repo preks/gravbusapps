@@ -20,7 +20,7 @@ type SummarySchema = z.infer<typeof summarySchema>
 type UseAiSummaryReturn = UseInformationExtractionReturn<SummarySchema>
 
 export function useAiSummary(leadId: string, accessToken: string): UseAiSummaryReturn {
-  const { lead } = useInvestmentLead({ accessToken }, leadId)
+  const { lead } = useInvestmentLead(accessToken, leadId)
   const { fetchInvestmentActivitiesByLeadId } = useGetInvestmentActivitiesByLeadId({ accessToken })
   const { fetchInvestmentNotesByLeadId } = useGetInvestmentNotesByLeadId({ accessToken })
   const { fetchInvestmentTasksByLeadId } = useGetInvestmentTasksByLeadId({ accessToken })

@@ -1,22 +1,16 @@
-import React, { useEffect, useCallback, useState, useRef } from 'react'
+import React, { useEffect, useRef, useCallback } from 'react'
 import type { CustomerAccount } from '@/common/data/customer/types/customerAccountTypes'
 import { useForm } from 'react-hook-form'
 import { BusinessAppContextProps } from '@/common/BusinessAppContext'
-import { useCustomerCampaigns } from '@/common/data/customer/hooks/useCustomerCampaigns'
 import { useCustomerAccount } from '@/common/data/customer/hooks/useCustomerAccount'
-import { useGetCustomerContacts } from '@/common/data/customer/hooks/useCustomerContacts'
-import {
-  Alert,
-  AlertDescription,
-  FormField,
-  FormItem,
-  FormLabel,
-  FormControl,
-  FormMessage
-} from '@newwork/nw-design-system'
+import { useCustomerContactsList } from '@/common/data/customer/hooks/useCustomerContacts'
+import { FormField, FormItem, FormLabel, FormControl, FormMessage } from '@newwork/nw-design-system'
+import { ErrorAlert } from '@/components/error-alert/ErrorAlert'
 import { formatDataTestId } from '@/common/utils/formatDataTestId'
 import { buildCustomerAccountPayload } from '@/common/data/customer/types/customerAccountTypes'
 import { CustomerFilePaths } from '@/common/data/customer/constants/customerFilePaths'
+import { buildFilePath } from '@/common/utils/fileUtils'
+import { APP_NAME, FILE_ENTITY, FILE_CONTEXT } from '@/common/data/customer/constants/customerConstants'
 import { AccountLayout, accountSchema } from '@/common/components/common-relations/form-layouts/account-layout'
 import { z } from 'zod'
 import { zodResolver } from '@hookform/resolvers/zod'
@@ -24,82 +18,52 @@ import { mapToFormValues } from '@/common/utils/formMappingUtils'
 import { CampaignSelect } from '@/common/components/customer/selects/campaign-select'
 import { CatalogSelect } from '@/components/catalog-select'
 import { AppActionForm } from '@/components/app-action-form'
-import type { SelectOption as ContactSelectOption } from '@/common/components/common-relations/selects/contact-select'
 import { useFileClient } from '@/common/network/files/useFileClient'
-
-const prefixDataTestId = 'customer-account-form'
 
 // CRM-specific schema extension (adds salesCampaignId)
 export const customerAccountSchema = accountSchema.extend({
   salesCampaignId: z.string().nullable().optional()
 })
 
-interface AccountFormProps extends BusinessAppContextProps {
-  initialValues?: Partial<CustomerAccount>
-  onSubmit?: (account: Partial<CustomerAccount>) => Promise<void>
-  onCancel?: () => Promise<void>
-}
+type AccountFormProps = BusinessAppContextProps
 
-const AccountForm: React.FC<AccountFormProps> = ({
-  initialValues,
-  onCancel = async () => {},
-  accessToken,
-  userInfo,
-  additionalData
-}) => {
-  if (!accessToken) {
-    return (
-      <div className="gba:p-6 gba:text-center">
-        <div className="gba:text-red-500">
-          Error: No access token found. Please ensure you are properly authenticated.
-        </div>
-      </div>
-    )
-  }
-
+const AccountForm: React.FC<AccountFormProps> = ({ accessToken, userInfo, additionalData }) => {
   // Extract accountId from additionalData
   const accountId = additionalData?.accountId || additionalData?.psi_taskPayload?.psi_initialParameters?.accountId
 
   // Fetch account data using declarative hook
-  const {
-    account: fetchedAccount,
-    loading: accountLoading,
-    error: accountError
-  } = useCustomerAccount(accessToken, accountId)
+  const { account, loading, error } = useCustomerAccount(accessToken || '', accountId)
 
-  // Local state for account
-  const [account, setAccount] = useState<CustomerAccount | null>(null)
+  // Contact selection hook - using new declarative list hook
+  const useContacts = useCustomerContactsList({ accessToken, userInfo, additionalData }, { limit: 20 })
 
-  // Sync fetched account with local state
-  useEffect(() => {
-    if (fetchedAccount) {
-      setAccount(fetchedAccount)
-    } else if (!accountId && initialValues && Object.keys(initialValues).length > 0) {
-      setAccount(initialValues as CustomerAccount)
-    }
-  }, [fetchedAccount, accountId, initialValues])
+  // Collect all errors for centralized early return
+  const errors: Array<{ error?: string | unknown; type?: 'accessToken'; context?: string }> = []
+  if (!accessToken) {
+    errors.push({ type: 'accessToken' })
+  }
+  if (error) {
+    errors.push({ error, context: 'Failed to load account data' })
+  }
+  if (useContacts.error) {
+    errors.push({ error: useContacts.error, context: 'Failed to load contacts' })
+  }
 
-  // Sales Campaigns hook (defer fetching until select opens)
-  // Note: CampaignSelect handles its own data fetching internally
-  useCustomerCampaigns(accessToken, 20, false)
-
-  // Contact selection hook
-  const contactsHookResult = useGetCustomerContacts(
-    { accessToken, userInfo, additionalData },
-    {
-      withState: true,
-      autoFetch: true,
-      pageSize: 20,
-      mapToSelectOptions: true
-    }
-  )
-
-  // Extract hook result for contactsHook prop (mapToSelectOptions ensures options are SelectOption[])
-  const contactsHook = {
-    options: contactsHookResult.options as ContactSelectOption[],
-    loading: contactsHookResult.loading,
-    error: contactsHookResult.error,
-    search: contactsHookResult.search
+  // Early return if any errors exist
+  if (errors.length > 0) {
+    return (
+      <>
+        {errors.map((err, index) => (
+          <ErrorAlert
+            key={index}
+            error={err.error}
+            type={err.type}
+            context={err.context}
+            dataTestId={formatDataTestId('customer-account-form', `error-alert-${index}`)}
+          />
+        ))}
+      </>
+    )
   }
 
   // File client for avatar upload
@@ -108,55 +72,40 @@ const AccountForm: React.FC<AccountFormProps> = ({
   // Ref to store current file and thumbnail from AvatarUpload (no re-renders)
   const avatarFileRef = useRef<{ file: File; thumbnail: string } | null>(null)
 
-  // Map CustomerAccount to form values - using mapToFormValues
-  const mapCustomerAccountToFormValues = useCallback(
-    (acc: CustomerAccount | null): Partial<z.infer<typeof customerAccountSchema>> => {
-      if (!acc) {
-        return {} // Empty object - form will handle defaults via schema
-      }
-
-      // ✅ Use mapToFormValues for automatic mapping - schema handles all defaults
-      // Date transformations (foundationDate) are now automatic
-      return mapToFormValues(acc, customerAccountSchema)
-    },
-    []
-  )
-
   // Initialize React Hook Form with CRM-specific schema
   const form = useForm<z.infer<typeof customerAccountSchema>>({
     resolver: zodResolver(customerAccountSchema),
-    defaultValues: mapCustomerAccountToFormValues(account) as any,
+    defaultValues: mapToFormValues(account || {}, customerAccountSchema) as Partial<CustomerAccount>,
     mode: 'onSubmit',
     reValidateMode: 'onSubmit'
   })
 
   // Sync form when account changes
-  const accountRef = React.useRef(account)
+  const accountRef = useRef(account)
   useEffect(() => {
     if (accountRef.current?.id !== account?.id) {
-      form.reset(mapCustomerAccountToFormValues(account) as any)
+      form.reset(mapToFormValues(account || {}, customerAccountSchema) as Partial<CustomerAccount>)
       accountRef.current = account
     }
-  }, [account?.id, account, form, mapCustomerAccountToFormValues])
+  }, [account?.id, account, form])
 
   // Handle form submission - data already matches interface structure exactly
-  const handleSubmit = async (data: any) => {
-    const customerAccount: Partial<CustomerAccount> = {
-      ...data
+  const handleSubmit = useCallback(async (data: any) => {
+    try {
+      const { account } = buildCustomerAccountPayload(data)
+      return {
+        account,
+        changeMode: data.id ? 'UPDATE' : 'INSERT'
+      }
+    } catch (error) {
+      console.error('Error submitting account:', error)
+      throw error
     }
-
-    const { account: accountPayload } = buildCustomerAccountPayload(customerAccount)
-    const changeMode = data.id ? 'UPDATE' : 'INSERT'
-
-    return {
-      account: accountPayload,
-      changeMode: changeMode
-    }
-  }
+  }, [])
 
   // Handle form cancellation
   const handleCancel = async () => {
-    await onCancel()
+    // AppActionForm handles cancellation via process events
   }
 
   // Handle pre-submit: Upload avatar file if present
@@ -168,12 +117,13 @@ const AccountForm: React.FC<AccountFormProps> = ({
     }
 
     try {
-      const accountId = formData.id || account?.id || 'new'
+      const accountId = formData.id || account?.id || null
+      const folderPath = buildFilePath(FILE_ENTITY.ACCOUNT, accountId, FILE_CONTEXT.PICTURE)
       const pathParams = { accessScope: CustomerFilePaths.ACCESS_SCOPE } as const
       const queryParams = {
-        appName: CustomerFilePaths.APP_NAME,
-        folderPath: CustomerFilePaths.getAccountPicturePath(accountId),
-        mimeType: avatarData.file.type || 'image/jpeg'
+        appName: APP_NAME,
+        folderPath: folderPath,
+        mimeType: avatarData.file.type
       }
 
       const uploadResponse = await fileClient.uploadFile(avatarData.file, pathParams, queryParams)
@@ -190,7 +140,7 @@ const AccountForm: React.FC<AccountFormProps> = ({
   }
 
   // Sales Campaign selector component
-  const salesCampaignSelector = (
+  const campaignSelect = (
     <FormField
       control={form.control}
       name="salesCampaignId"
@@ -220,7 +170,7 @@ const AccountForm: React.FC<AccountFormProps> = ({
                   : null
               }
               placeholder="Search Campaign..."
-              data-testid={formatDataTestId(prefixDataTestId, 'campaign-select')}
+              data-testid={formatDataTestId('customer-account-form', 'campaign-select')}
             />
           </FormControl>
           <FormMessage />
@@ -241,29 +191,22 @@ const AccountForm: React.FC<AccountFormProps> = ({
         formData={form.getValues()}
         form={form}
         schema={customerAccountSchema}
-        data-testid={formatDataTestId(prefixDataTestId, 'Form')}
+        data-testid={formatDataTestId('customer-account-form', 'Form')}
         submitButtonText={account?.id ? 'Update Account' : 'Create Account'}
-        isSubmitDisabled={accountLoading}
+        isSubmitDisabled={loading}
       >
         {/* Account Layout */}
         <AccountLayout
           businessAppContext={{ accessToken, userInfo, additionalData }}
           ownerEmployee={account?.ownerEmployee}
-          entityId={accountId}
-          accountInformationCustomFields={salesCampaignSelector}
+          entityId={account?.id || accountId}
+          accountInformationCustomFields={campaignSelect}
           annualRevenueCatalogIdentifier="RevenueSize:v1"
           companySizeCatalogIdentifier="EmployeeSize:v1"
-          contactsHook={contactsHook}
+          useContacts={useContacts}
           avatarFileRef={avatarFileRef}
-          loading={accountLoading && !!accountId}
+          loading={loading && !!accountId}
         />
-
-        {/* Error Display */}
-        {accountError && (
-          <Alert variant="destructive">
-            <AlertDescription>{accountError}</AlertDescription>
-          </Alert>
-        )}
       </AppActionForm>
     </CatalogSelect.Provider>
   )

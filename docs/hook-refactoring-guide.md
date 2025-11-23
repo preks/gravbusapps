@@ -161,8 +161,16 @@ export function useInvestmentAccount(context: BusinessAppContextProps, id: strin
 
 **Verwendung:** Wenn eine Komponente eine Liste von Entities mit Pagination/Search benötigt.
 
+**Wichtig:**
+
+- `refetch` akzeptiert optionale Variablen (Apollo Client Pattern - Best Practice)
+- `variables` müssen mit `useMemo` und `JSON.stringify` memoized werden, um rekursive Aufrufe zu vermeiden
+- Hooks geben rohe Entity-Arrays zurück - Transformation zu SelectOption[] sollte in Komponenten mit `useMemo` erfolgen
+
 ```typescript
 // src/common/data/investment/hooks/useInvestmentAccounts.ts
+
+import { useCallback, useState, useEffect, useMemo } from 'react'
 
 export interface UseInvestmentAccountsResult {
   accounts: InvestmentAccount[]
@@ -183,6 +191,11 @@ export interface UseInvestmentAccountsResult {
  *     search: 'Tech'
  *   })
  *
+ *   // Search with new variables
+ *   const handleSearch = (searchTerm: string) => {
+ *     refetch({ search: searchTerm, offset: 0 })
+ *   }
+ *
  *   return <Table dataSource={accounts} loading={loading} />
  * }
  */
@@ -191,6 +204,10 @@ export function useInvestmentAccounts(
   variables?: InvestmentAccountQueryVariables
 ): UseInvestmentAccountsResult {
   const graphqlClient = useGraphQLClient(context.accessToken)
+
+  // ⚠️ CRITICAL: Memoize variables to prevent infinite loops when object is recreated on each render
+  // This is necessary because inline objects like { limit: 20 } create new references on every render
+  const stableVariables = useMemo(() => variables, [JSON.stringify(variables)])
 
   const [state, setState] = useState({
     accounts: [] as InvestmentAccount[],
@@ -209,7 +226,8 @@ export function useInvestmentAccounts(
       setState(prev => ({ ...prev, loading: true, error: null }))
 
       try {
-        const vars = { ...variables, ...queryVariables }
+        // Merge stable default variables with query-specific variables
+        const vars = { ...stableVariables, ...queryVariables }
         const query = buildInvestmentAccountQuery()
         const whereCondition = buildInvestmentAccountWhereCondition(vars)
         const orderBy = buildInvestmentAccountOrderBy(vars.orderBy || [])
@@ -239,7 +257,7 @@ export function useInvestmentAccounts(
         }))
       }
     },
-    [context.accessToken, graphqlClient, variables]
+    [context.accessToken, graphqlClient, stableVariables] // Use stableVariables, not variables!
   )
 
   useEffect(() => {
@@ -344,21 +362,28 @@ useCustomerAccounts(context, variables) // List - Declarative (REQUIRED)
   account: Account | null
   loading: boolean
   error: string | null
-  refetch: () => Promise<void>
+  refetch: () => Promise<void>  // No parameters - refetches with same ID
 }
 
 // List Hook (ALWAYS USED)
 {
-  accounts: Account[]
+  accounts: Account[]           // Raw entity array - transform in components with useMemo if needed
   total: number
   loading: boolean
   error: string | null
-  refetch: (variables?) => Promise<void>
+  refetch: (variables?: QueryVariables) => Promise<void>  // Apollo Client Pattern - accepts optional variables
 }
 
 // Imperative Hook (OPTIONAL - NOT IN USE)
 // (id: string) => Promise<Account | null>
 ```
+
+**Wichtig zu `refetch` in List Hooks:**
+
+- **Best Practice:** `refetch(variables?)` folgt dem Apollo Client Pattern
+- **Verwendung:** `refetch()` ohne Parameter = refetch mit ursprünglichen Variablen, `refetch({ search: 'new' })` = refetch mit neuen Variablen
+- **Naming:** `refetch` ist der Standard-Name (nicht `search`, `reload`, etc.)
+- **Keine Convenience Wrapper:** Hooks sollten direkt verwendet werden, keine Wrapper-Funktionen erstellen
 
 ---
 
@@ -651,10 +676,82 @@ export const useInvestmentAccountNotes = (context, accountId) => {
 
 ---
 
+## Implementation Best Practices
+
+### List Hook: Variables Memoization
+
+**Problem:** Wenn `variables` als inline-Objekt übergeben wird (z.B. `{ limit: 20 }`), wird es bei jedem Render neu erstellt, was zu rekursiven Aufrufen führt.
+
+**Lösung:** Verwende `useMemo` mit `JSON.stringify` für stabile Referenzen:
+
+```typescript
+// ✅ CORRECT
+const stableVariables = useMemo(() => variables, [JSON.stringify(variables)])
+
+const fetchAccounts = useCallback(
+  async (queryVariables?: InvestmentAccountQueryVariables) => {
+    const vars = { ...stableVariables, ...queryVariables }
+    // ...
+  },
+  [context.accessToken, graphqlClient, stableVariables] // Use stableVariables!
+)
+```
+
+**Warum `JSON.stringify`?**
+
+- Flexibel: Funktioniert mit allen Objekt-Strukturen ohne manuelle Property-Auflistung
+- Zukunftssicher: Neue Properties werden automatisch erfasst
+- Best Practice: Empfohlen in React-Community für Objekt-Dependencies
+
+### List Hook: Data Transformation
+
+**Prinzip:** Hooks geben rohe Entity-Arrays zurück. Transformation zu SelectOption[] oder anderen Formaten sollte in Komponenten erfolgen.
+
+```typescript
+// ✅ CORRECT: Transform in component with useMemo
+const ContactInformationSegment = ({ useAccounts }) => {
+  const accountOptions = useMemo(() => {
+    if (!useAccounts?.accounts) return []
+    return useAccounts.accounts.map(account => ({
+      id: account.id,
+      value: account.id,
+      label: account.name || account.displayName
+    }))
+  }, [useAccounts?.accounts])
+
+  return <AccountSelect accounts={accountOptions} />
+}
+
+// ❌ INCORRECT: Don't create convenience wrappers
+const useAccountSelectOptions = (context) => {
+  const { accounts } = useInvestmentAccountsList(context)
+  return accounts.map(/* ... */) // Don't do this!
+}
+```
+
+### Hook Usage: Direct, No Wrappers
+
+**Prinzip:** Verwende Hooks direkt, keine Convenience-Wrapper erstellen.
+
+```typescript
+// ✅ CORRECT: Direct usage
+const { accounts, loading, error, refetch } = useInvestmentAccountsList(context, { limit: 20 })
+
+// ❌ INCORRECT: Don't create wrappers
+const useAccountSelect = context => {
+  const hookResult = useInvestmentAccountsList(context)
+  return {
+    options: hookResult.accounts.map(/* ... */)
+    // ...
+  }
+}
+```
+
 ## References
 
 - React Hooks Best Practices: https://react.dev/reference/react
 - React Query Patterns: https://tanstack.com/query/latest
+- Apollo Client refetch Pattern: https://www.apollographql.com/docs/react/data/queries/#refetching
 - TypeScript Handbook: https://www.typescriptlang.org/docs/handbook/
 
 ---
@@ -685,3 +782,15 @@ A:
 
 **Q: Was ist das Hauptziel des Refactorings?**
 A: Ersetze ~20+ umständliche useEffect-Patterns durch saubere declarative Hooks!
+
+**Q: Warum `useMemo` mit `JSON.stringify` für variables in List Hooks?**
+A: Inline-Objekte wie `{ limit: 20 }` werden bei jedem Render neu erstellt. Ohne Memoization führt das zu rekursiven Aufrufen, da `useCallback` bei jedem Render neu erstellt wird. `JSON.stringify` ist flexibel und zukunftssicher - funktioniert mit allen Objekt-Strukturen ohne manuelle Property-Auflistung.
+
+**Q: Warum gibt `refetch` in List Hooks optionale Variablen zurück?**
+A: Das folgt dem Apollo Client Pattern (Best Practice). `refetch()` ohne Parameter = refetch mit ursprünglichen Variablen, `refetch({ search: 'new' })` = refetch mit neuen Variablen. Dies ist flexibler als separate `search()` Funktionen.
+
+**Q: Sollten wir Convenience Wrapper für Hooks erstellen?**
+A: **NEIN!** Hooks sollten direkt verwendet werden. Transformationen (z.B. zu SelectOption[]) sollten in Komponenten mit `useMemo` erfolgen, nicht in Wrapper-Hooks.
+
+**Q: Warum geben List Hooks rohe Entity-Arrays zurück statt SelectOption[]?**
+A: Separation of Concerns. Hooks sind für Datenabfrage zuständig, Komponenten für UI-Transformation. Dies macht Hooks wiederverwendbarer und testbarer.

@@ -1,82 +1,253 @@
-import { useMemo } from 'react'
+import { useEffect, useRef, useState, useMemo, useCallback } from 'react'
+import { useGraphQLClient } from '@/common/network/graphql/useGraphQLClient'
 import { useEmployeeSearch } from '@/common/data/employee/useEmployeeSearch'
-import { BusinessAppContextProps } from '@/common/BusinessAppContext'
 import type { Employee } from '@/common/data/employee/types/employeeBaseTypes'
-import type { EmployeeOption } from './EmployeeSelect'
+import type { BusinessAppContextProps } from '@/common/BusinessAppContext'
+
+// Query to fetch employee with all necessary fields for select
+const GET_EMPLOYEE_FOR_SELECT = (id: string): string => {
+  const safeId = (id || '').replace(/"/g, '')
+  return `
+    query GetEmployeeForSelect {
+      Employee(where: { id: { _eq: "${safeId}" } }, limit: 1) {
+        id
+        userId
+        pictureThumbnail
+        displayName
+        firstName
+        lastName
+        employeePosition {
+          jobPosition {
+            name
+          }
+          organizationalUnit {
+            id
+            name
+          }
+        }
+      }
+    }
+  `
+}
 
 export interface UseEmployeeSelectProps {
-  businessAppContext: BusinessAppContextProps
+  value?: string | null
+  onValueChange?: (value: string | null) => void
+  onEmployeeChange?: (employee: Employee | null) => void
+  businessAppContext?: BusinessAppContextProps
+  accessToken?: string
   initialEmployee?: Employee | null
-  currentValue?: string | null
+  autoSelect?: 'current-user'
+  // Manual mode props
+  employees?: Employee[]
+  onSearch?: (q: string) => void
+  loading?: boolean
+  hasMore?: boolean
+  onLoadMore?: () => void
 }
 
 export interface UseEmployeeSelectReturn {
-  employees: EmployeeOption[]
+  employees: Employee[]
   loading: boolean
-  error: string | null
   hasMore: boolean
-  onSearch: (searchTerm: string) => void
+  onSearch: (q: string) => void
   onLoadMore: () => void
+  handleValueChange: (newValue: string | null) => void
+  employeesWithInitial: Employee[]
 }
 
-/**
- * Hook for EmployeeSelect component
- * Uses central Employee interface
- */
 export const useEmployeeSelect = ({
+  value,
+  onValueChange,
+  onEmployeeChange,
   businessAppContext,
-  initialEmployee
+  accessToken,
+  initialEmployee,
+  autoSelect,
+  employees: manualEmployees,
+  onSearch: manualOnSearch,
+  loading: manualLoading,
+  hasMore: manualHasMore,
+  onLoadMore: manualOnLoadMore
 }: UseEmployeeSelectProps): UseEmployeeSelectReturn => {
-  // Transform initialEmployee to search format
-  const initialEmployeeForSearch = useMemo(() => {
-    if (!initialEmployee) return null
+  const token = accessToken || businessAppContext?.accessToken
+  const graphqlClient = useGraphQLClient(token || '')
+  const [currentUserEmployee, setCurrentUserEmployee] = useState<Employee | null>(null)
+  const autoSelectDone = useRef(false)
+  const initialSearchDone = useRef(false)
 
-    return {
-      id: initialEmployee.id,
-      displayName:
-        initialEmployee.displayName ||
-        `${initialEmployee.firstName || ''} ${initialEmployee.lastName || ''}`.trim() ||
-        'Unknown',
-      firstName: initialEmployee.firstName,
-      lastName: initialEmployee.lastName,
-      userId: undefined,
-      pictureThumbnail: initialEmployee.pictureThumbnail,
-      organizationalUnitName: initialEmployee.employeePosition?.organizationalUnit?.name,
-      jobPositionName: initialEmployee.employeePosition?.jobPosition?.name
+  const currentUserEmployeeId = businessAppContext?.userInfo?.employeeDetails?.employeeId
+  // Auto-select ONLY if: autoSelect is set AND no initialEmployee (existing entity has owner)
+  const shouldFetchCurrentUser = autoSelect === 'current-user' && !initialEmployee
+
+  // Reset current user employee when initialEmployee becomes available
+  useEffect(() => {
+    if (initialEmployee && currentUserEmployee) {
+      setCurrentUserEmployee(null)
+      autoSelectDone.current = false
     }
-  }, [initialEmployee])
+  }, [initialEmployee, currentUserEmployee])
 
+  // Fetch current user employee data ONLY if needed (autoSelect + no initialEmployee)
+  useEffect(() => {
+    if (!shouldFetchCurrentUser) return
+    if (currentUserEmployee || !currentUserEmployeeId) return
+
+    let cancelled = false
+
+    const fetchCurrentUserEmployee = async () => {
+      try {
+        const query = GET_EMPLOYEE_FOR_SELECT(currentUserEmployeeId)
+        const result = await graphqlClient.request<{ Employee: any[] }>(query)
+
+        if (cancelled) return
+
+        const employee = result.Employee?.[0]
+
+        if (employee) {
+          const employeeData: Employee = {
+            id: employee.id,
+            displayName: employee.displayName,
+            firstName: employee.firstName,
+            lastName: employee.lastName,
+            pictureThumbnail: employee.pictureThumbnail,
+            userId: employee.userId,
+            employeePosition: {
+              jobPosition: employee.employeePosition?.jobPosition,
+              organizationalUnit: employee.employeePosition?.organizationalUnit
+            }
+          }
+          setCurrentUserEmployee(employeeData)
+        }
+      } catch {
+        // Silently fail - don't retry to prevent loops
+      }
+    }
+
+    fetchCurrentUserEmployee()
+
+    return () => {
+      cancelled = true
+    }
+  }, [shouldFetchCurrentUser, currentUserEmployee, currentUserEmployeeId, token, graphqlClient])
+
+  // Auto-select current user employee
+  useEffect(() => {
+    if (shouldFetchCurrentUser && !value && !autoSelectDone.current && currentUserEmployee && onValueChange) {
+      onValueChange(currentUserEmployee.id)
+      autoSelectDone.current = true
+
+      // Also set employee object
+      if (onEmployeeChange) {
+        onEmployeeChange({
+          ...currentUserEmployee,
+          userId: currentUserEmployee.userId || businessAppContext?.userInfo?.id
+        })
+      }
+    }
+  }, [shouldFetchCurrentUser, value, currentUserEmployee, onValueChange, onEmployeeChange, businessAppContext])
+
+  // Determine initial employee to display
+  // Priority: initialEmployee (from entity) > currentUserEmployee (fetched for new entities)
+  const effectiveInitialEmployee = initialEmployee || (shouldFetchCurrentUser ? currentUserEmployee : null)
+
+  // Transform initialEmployee to search format (EmployeeLiteOption for useEmployeeSearch)
+  const initialEmployeeForSearch = useMemo(() => {
+    if (!effectiveInitialEmployee) return null
+    return {
+      id: effectiveInitialEmployee.id,
+      displayName:
+        effectiveInitialEmployee.displayName ||
+        `${effectiveInitialEmployee.firstName || ''} ${effectiveInitialEmployee.lastName || ''}`.trim() ||
+        'Unknown',
+      firstName: effectiveInitialEmployee.firstName,
+      lastName: effectiveInitialEmployee.lastName,
+      userId: effectiveInitialEmployee.userId,
+      pictureThumbnail: effectiveInitialEmployee.pictureThumbnail,
+      organizationalUnitName: effectiveInitialEmployee.employeePosition?.organizationalUnit?.name,
+      jobPositionName: effectiveInitialEmployee.employeePosition?.jobPosition?.name
+    }
+  }, [effectiveInitialEmployee])
+
+  // Use hook if token available
   const {
-    employees: employeeRecords,
-    loading,
-    error,
-    hasMore,
-    search,
-    loadMore
-  } = useEmployeeSearch(businessAppContext.accessToken, initialEmployeeForSearch)
+    employees: hookEmployees,
+    loading: hookLoading,
+    hasMore: hookHasMore,
+    error: hookError,
+    search: hookSearch,
+    loadMore: hookLoadMore
+  } = useEmployeeSearch(token || '', initialEmployeeForSearch)
 
-  // Transform to EmployeeOption format
-  const employees: EmployeeOption[] = useMemo(() => {
-    return employeeRecords.map(emp => ({
+  // Transform EmployeeLiteOption[] from useEmployeeSearch to Employee[]
+  const transformedEmployees = useMemo(() => {
+    return hookEmployees.map(emp => ({
       id: emp.id,
       displayName: emp.displayName,
+      firstName: emp.firstName,
+      lastName: emp.lastName,
+      userId: emp.userId,
       pictureThumbnail: emp.pictureThumbnail,
-      organizationalUnitName: emp.organizationalUnitName,
-      jobPositionName: emp.jobPositionName
-    }))
-  }, [employeeRecords])
+      employeePosition: {
+        jobPosition: emp.jobPositionName ? { name: emp.jobPositionName } : undefined,
+        organizationalUnit: emp.organizationalUnitName ? { name: emp.organizationalUnitName } : undefined
+      }
+    })) as Employee[]
+  }, [hookEmployees])
 
-  // Search handler
-  const onSearch = (searchTerm: string) => {
-    search(searchTerm || '')
-  }
+  // Use hook data or manual props
+  const employees = manualEmployees || transformedEmployees || []
+  const loading = manualLoading ?? hookLoading ?? false
+  const hasMore = manualHasMore ?? hookHasMore ?? false
+  const onSearch = manualOnSearch || ((q: string) => hookSearch(q || ''))
+  const onLoadMore = manualOnLoadMore || hookLoadMore
+
+  // Handle value change - find and pass employee object
+  const handleValueChange = useCallback(
+    (newValue: string | null) => {
+      onValueChange?.(newValue)
+
+      if (onEmployeeChange) {
+        const employee = employees.find(emp => emp.id === newValue)
+        onEmployeeChange(employee || null)
+      }
+    },
+    [onValueChange, onEmployeeChange, employees]
+  )
+
+  // Ensure initialEmployee is in options
+  const employeesWithInitial = useMemo(() => {
+    if (!effectiveInitialEmployee || !value || value === effectiveInitialEmployee.id) {
+      return employees
+    }
+    const isInEmployees = employees.some(emp => emp.id === effectiveInitialEmployee.id)
+    if (isInEmployees) return employees
+
+    return [effectiveInitialEmployee, ...employees]
+  }, [employees, effectiveInitialEmployee, value])
+
+  // Trigger initial search - ONLY ONCE and NOT when there's an error
+  useEffect(() => {
+    if (onSearch && employees.length === 0 && !hookError && !initialSearchDone.current && !hookLoading) {
+      initialSearchDone.current = true
+      onSearch('')
+    }
+  }, [onSearch, employees.length, hookError, hookLoading])
+
+  // Reset initial search flag when error is cleared or token changes
+  useEffect(() => {
+    if (hookError) {
+      initialSearchDone.current = false
+    }
+  }, [hookError])
 
   return {
     employees,
     loading,
-    error,
     hasMore,
     onSearch,
-    onLoadMore: loadMore
+    onLoadMore,
+    handleValueChange,
+    employeesWithInitial
   }
 }

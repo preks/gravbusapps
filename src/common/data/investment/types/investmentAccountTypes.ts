@@ -6,7 +6,7 @@ import {
   type Account,
   AccountFields,
   createAccountDescriptors,
-  accountFormFields
+  AccountFormFields
 } from '@/common/data/relations/types/accountTypes'
 import type { Descriptor } from '@/common/network/graphql/queryHelpers'
 import { buildPayload } from '@/common/data/common/utils/payloadBuilder'
@@ -81,11 +81,11 @@ export const INVESTMENT_ACCOUNT_DESCRIPTORS: Descriptor[] = [
 
 /**
  * Investment Account Form Fields Configuration
- * Extends accountFormFields with IRM-specific fields (currently just mirrors accountFormFields)
+ * Extends AccountFormFields with IRM-specific fields (currently just mirrors AccountFormFields)
  *
  * This allows for future IRM-specific field additions or overrides
  */
-export const investmentAccountFormFields = { ...accountFormFields } as const
+export const investmentAccountFormFields = { ...AccountFormFields } as const
 
 export const buildInvestmentAccountPayload = (account: Partial<InvestmentAccount>) => {
   // Build base payload using investmentAccountFormFields for field mapping

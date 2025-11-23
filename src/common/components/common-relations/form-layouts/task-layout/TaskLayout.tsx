@@ -3,38 +3,12 @@ import { Skeleton } from '@newwork/nw-design-system'
 import TaskSegment from '../../form-segments/task-segment/TaskSegment'
 import type { TaskSegmentProps } from '../../form-segments/task-segment/TaskSegment'
 
-export interface TaskLayoutProps
-  extends Omit<TaskSegmentProps, 'titleLabel' | 'descriptionLabel' | 'deadlineLabel' | 'typeLabel' | 'priorityLabel'> {
-  // Labels (required)
-  titleLabel: string
-  descriptionLabel: string
-  deadlineLabel: string
-  typeLabel: string
-  priorityLabel: string
-  statusLabel?: string
-  assigneeLabel?: string
-  timingTypeLabel?: string
-  entityLabel?: string
-  uploadFileLabel?: string
-
+export interface TaskLayoutProps extends TaskSegmentProps {
   // Loading state - shows skeletons while data is being fetched
   loading?: boolean
 }
 
-const TaskLayout: React.FC<TaskLayoutProps> = ({
-  titleLabel,
-  descriptionLabel,
-  deadlineLabel,
-  typeLabel,
-  priorityLabel,
-  statusLabel,
-  assigneeLabel,
-  timingTypeLabel,
-  entityLabel,
-  uploadFileLabel,
-  loading = false,
-  ...segmentProps
-}) => {
+const TaskLayout: React.FC<TaskLayoutProps> = ({ loading = false, ...segmentProps }) => {
   // Show skeletons while loading
   if (loading) {
     return (
@@ -48,23 +22,7 @@ const TaskLayout: React.FC<TaskLayoutProps> = ({
     )
   }
 
-  return (
-    <div data-testid="task-layout">
-      <TaskSegment
-        {...segmentProps}
-        titleLabel={titleLabel}
-        descriptionLabel={descriptionLabel}
-        deadlineLabel={deadlineLabel}
-        typeLabel={typeLabel}
-        priorityLabel={priorityLabel}
-        statusLabel={statusLabel}
-        assigneeLabel={assigneeLabel}
-        timingTypeLabel={timingTypeLabel}
-        entityLabel={entityLabel}
-        uploadFileLabel={uploadFileLabel}
-      />
-    </div>
-  )
+  return <TaskSegment data-testid="task-layout" {...segmentProps} />
 }
 
 export default TaskLayout

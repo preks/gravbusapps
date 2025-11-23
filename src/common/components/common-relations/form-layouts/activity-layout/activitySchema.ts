@@ -8,14 +8,14 @@ export const activitySchema = z.object({
   // BaseEntity fields
   id: z.string().optional(),
   version: z.number().optional(),
-  createdAt: z.string().optional(),
-  createdBy: z.string().optional(),
-  updatedAt: z.string().optional(),
-  updatedBy: z.string().optional(),
+  createdAt: z.string().nullable().optional(),
+  createdBy: z.string().nullable().optional(),
+  updatedAt: z.string().nullable().optional(),
+  updatedBy: z.string().nullable().optional(),
   isDeleted: z.boolean().optional(),
-  recordState: z.string().optional(),
-  activeFrom: z.string().optional(),
-  activeTo: z.string().optional(),
+  recordState: z.string().nullable().optional(),
+  activeFrom: z.string().nullable().optional(),
+  activeTo: z.string().nullable().optional(),
   additionalProperties: z.any().optional(),
 
   // Activity specific fields
@@ -23,21 +23,23 @@ export const activitySchema = z.object({
   activityTypeRef: z.string().min(1, 'Activity type is required'),
   occurredAt: z.string().min(1, 'Date is required'),
   description: z.string().min(1, 'Description is required'),
-  completedAt: z.string().optional(),
-  source: z.string().optional(),
+  completedAt: z.string().nullable().optional(),
+  source: z.string().nullable().optional(),
 
   // Related entities (IDs only for form)
-  accountId: z.string().optional(),
-  contactId: z.string().optional(),
-  opportunityId: z.string().optional(),
-  leadId: z.string().optional(),
-  ownerEmployeeId: z.string().optional(),
+  accountId: z.string().nullable().optional(),
+  contactId: z.string().nullable().optional(),
+  opportunityId: z.string().nullable().optional(),
+  leadId: z.string().nullable().optional(),
+  investmentId: z.string().nullable().optional(), // IRM-specific
+  ownerEmployeeId: z.string().nullable().optional(),
 
   // Related entities (full objects for display - not in form values)
   account: z.any().optional(),
   contact: z.any().optional(),
   opportunity: z.any().optional(),
   lead: z.any().optional(),
+  investment: z.any().optional(), // IRM-specific
   ownerEmployee: z.any().optional(),
 
   // Documents
@@ -57,7 +59,7 @@ export const activitySchema = z.object({
   // Legacy/helper fields
   files: z.any().optional(), // Legacy field - kept for backward compatibility
   _pendingFiles: z.array(z.instanceof(File)).optional(), // Files pending upload
-  relatedEntityId: z.string().optional() // Helper field for validation
+  relatedEntityId: z.string().nullable().optional() // Helper field for validation
 })
 
 export type ActivitySchema = z.infer<typeof activitySchema>

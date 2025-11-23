@@ -49,7 +49,12 @@ const InvestmentContactRecordContent: React.FC<ContactRecordContentProps> = ({
   })
 
   // Use new declarative hook for contact data
-  const { contact: contactData, loading, error, refetch: refetchContactData } = useInvestmentContact(props, contactId)
+  const {
+    contact: contactData,
+    loading,
+    error,
+    refetch: refetchContactData
+  } = useInvestmentContact(props.accessToken, contactId)
 
   // AI Summary hook - must be called before any conditional returns
   const aiSummaryHook = useContactAiSummary(contactId, props.accessToken)

@@ -82,3 +82,13 @@ export const getFileIcon = (mimeType?: string): Icon => {
 
   return FileIcon
 }
+
+export type FileEntity = string & { readonly __brand: 'FileEntity' }
+export type FileContext = string & { readonly __brand: 'FileContext' }
+
+export const buildFilePath = (entity: FileEntity, entityId: string | null, context: FileContext): string => {
+  if (!entityId) {
+    entityId = 'temp-' + crypto.randomUUID()
+  }
+  return `/${entity}/${entityId}/${context}`
+}

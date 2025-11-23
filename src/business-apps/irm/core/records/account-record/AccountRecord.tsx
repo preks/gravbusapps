@@ -4,8 +4,7 @@ import { UsersIcon, TrendUpIcon, FileTextIcon, BankIcon } from '@phosphor-icons/
 import { BusinessAppContextProps } from '@/common/BusinessAppContext'
 import { navigateTo, buildPlatformUrl } from '@/common/utils/navigationUtils'
 import { getTranslationFromI18nKeyAndLabel } from '@/common/utils/windowUtils'
-import { useGetInvestmentAccountById } from '@/common/data/investment/hooks/useInvestmentAccounts'
-import { InvestmentAccount } from '@/common/data/investment/types/investmentAccountTypes'
+import { useInvestmentAccount } from '@/common/data/investment/hooks/useInvestmentAccount'
 import { AppActionButton } from '@/components/app-action-button/AppActionButton'
 import { FlowContextName } from '@/common/types/FlowRegistryTypes'
 import { AiActions, AiAction } from '@/common/components/common-relations/record-sections/header-section/ai-actions'
@@ -23,9 +22,6 @@ interface AccountRecordContentProps extends BusinessAppContextProps {
 }
 
 const InvestmentAccountRecordContent: React.FC<AccountRecordContentProps> = ({ accountId, onBack, ...props }) => {
-  const [account, setAccount] = useState<any>(null)
-  const [loading, setLoading] = useState(true)
-  const [error, setError] = useState<string | null>(null)
   const ALLOWED_TABS = ['overview', 'opportunities', 'documents'] as const
   type TabKey = (typeof ALLOWED_TABS)[number]
   const [activeTab, setActiveTab] = useState<TabKey>(() => {
@@ -56,33 +52,12 @@ const InvestmentAccountRecordContent: React.FC<AccountRecordContentProps> = ({ a
     return () => window.removeEventListener('popstate', onPopState)
   }, [])
 
-  const { fetchInvestmentAccountById } = useGetInvestmentAccountById(props)
-  const [accountData, setAccountData] = useState<InvestmentAccount | undefined>(undefined)
-  const [dataLoading, setDataLoading] = useState(true)
-  const [dataError, setDataError] = useState<string | null>(null)
-
-  // Fetch account data
-  useEffect(() => {
-    const loadAccountData = async () => {
-      if (!accountId) return
-
-      try {
-        setDataLoading(true)
-        setDataError(null)
-        const result = await fetchInvestmentAccountById(accountId)
-        if (result?.account) {
-          setAccountData(result.account)
-        }
-      } catch (error) {
-        console.error('Error fetching investment account:', error)
-        setDataError(error instanceof Error ? error.message : 'Unknown error')
-      } finally {
-        setDataLoading(false)
-      }
-    }
-
-    loadAccountData()
-  }, [accountId, fetchInvestmentAccountById])
+  const {
+    account: accountData,
+    loading: dataLoading,
+    error: dataError,
+    refetch: refetchAccountData
+  } = useInvestmentAccount(props.accessToken, accountId)
 
   // AI Summary hook - must be called before any conditional returns
   const aiSummaryHook = useAccountAiSummary(accountId, props.accessToken)
@@ -101,25 +76,6 @@ const InvestmentAccountRecordContent: React.FC<AccountRecordContentProps> = ({ a
       window.history.replaceState(null, '', `${window.location.pathname}?${params.toString()}`)
     }
   }, [])
-
-  // Refetch function for process completion
-  const refetchAccountData = useCallback(async () => {
-    if (!accountId) return
-
-    try {
-      setDataLoading(true)
-      setDataError(null)
-      const result = await fetchInvestmentAccountById(accountId)
-      if (result?.account) {
-        setAccountData(result.account)
-      }
-    } catch (error) {
-      console.error('Error refetching investment account:', error)
-      setDataError(error instanceof Error ? error.message : 'Unknown error')
-    } finally {
-      setDataLoading(false)
-    }
-  }, [accountId, fetchInvestmentAccountById])
 
   // Listen for process completion events to refresh account data
   useEffect(() => {
@@ -307,41 +263,7 @@ const InvestmentAccountRecordContent: React.FC<AccountRecordContentProps> = ({ a
     [activeTab, handleTabChange, accountData, accountId, props]
   )
 
-  useEffect(() => {
-    const fetchAccountData = async () => {
-      if (!accountId) {
-        setLoading(false)
-        return
-      }
-
-      try {
-        setLoading(true)
-        setError(null)
-
-        if (accountData) {
-          setAccount(accountData)
-        } else if (dataError) {
-          setError(dataError)
-        }
-      } catch (err) {
-        console.error('Error fetching investment account:', err)
-        setError(err instanceof Error ? err.message : 'Failed to load investment account')
-      } finally {
-        setLoading(false)
-      }
-    }
-
-    if (!dataLoading) {
-      fetchAccountData()
-    }
-  }, [accountId, accountData, dataLoading, dataError])
-
-  // Update loading state based on data loading
-  useEffect(() => {
-    setLoading(dataLoading)
-  }, [dataLoading])
-
-  if (loading) {
+  if (dataLoading) {
     return (
       <div className="gba:flex gba:items-center gba:justify-center gba:min-h-screen">
         <Spinner size="lg" />
@@ -349,12 +271,12 @@ const InvestmentAccountRecordContent: React.FC<AccountRecordContentProps> = ({ a
     )
   }
 
-  if (error || !account) {
+  if (dataError || !accountData) {
     return (
       <div className="gba:flex gba:items-center gba:justify-center gba:min-h-screen">
         <div className="gba:text-center">
           <p className="gba:text-lg" data-testid="investment-account-error-message">
-            {error ||
+            {dataError ||
               getTranslationFromI18nKeyAndLabel('crm.investments.account.notFound', 'Investment Account not found')}
           </p>
           <Button
@@ -377,7 +299,7 @@ const InvestmentAccountRecordContent: React.FC<AccountRecordContentProps> = ({ a
         headerIcon={BankIcon}
         headerCategory={getTranslationFromI18nKeyAndLabel('crm.common.account', 'ACCOUNT')}
         onBack={onBack}
-        headerTitle={account.name}
+        headerTitle={accountData.name}
         headerDetailGroups={headerDetailGroups}
         headerActions={headerActions}
         headerActionButton={headerActionButton}

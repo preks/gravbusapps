@@ -17,6 +17,7 @@ export interface Employee {
   fullName?: string
   picture?: string
   pictureThumbnail?: string
+  userId?: string
   employeePosition?: EmployeePosition
 }
 

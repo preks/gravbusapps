@@ -61,6 +61,8 @@ const AccountDetailsSegment: React.FC<AccountDetailsSegmentProps> = ({
                   onChange={value => field.onChange(value || '')}
                   placeholder={t('foundation-date-placeholder')}
                   data-testid="account-details-segment-foundation-date"
+                  captionLayout="dropdown"
+                  outputFormat="utc"
                 />
               </FormControl>
               <FormMessage />

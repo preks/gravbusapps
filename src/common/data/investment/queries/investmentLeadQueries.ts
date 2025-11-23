@@ -148,14 +148,7 @@ export const buildInvestmentLeadByIdQuery = (fields: typeof LeadFields = LeadFie
     sizeMeasurementUnitRef
   `
 
-  return buildLeadByIdQuery(
-    'InvestmentLead',
-    fields,
-    relationBuilders,
-    relationFields,
-    entityFields,
-    'InvestmentLeadStatus'
-  )
+  return buildLeadByIdQuery('InvestmentLead', fields, relationBuilders, relationFields, entityFields)
 }
 
 /**

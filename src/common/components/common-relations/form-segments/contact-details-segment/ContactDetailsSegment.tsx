@@ -77,6 +77,8 @@ const ContactDetailsSegment: React.FC<ContactDetailsSegmentProps> = ({ customFie
                 onChange={value => field.onChange(value || '')}
                 placeholder={t('contact-birth-date-placeholder')}
                 data-testid="contact-details-segment-birth-date"
+                captionLayout="dropdown"
+                outputFormat="utc"
               />
             </FormControl>
             <FormMessage />

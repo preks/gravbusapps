@@ -10,7 +10,7 @@ export const CustomerFilePaths = {
   /**
    * App name for all customer/CRM file uploads
    */
-  APP_NAME: 'crm' as const,
+  APP_NAME: 'customerRelations' as const,
 
   /**
    * Access scope for customer file uploads (tenant-specific)

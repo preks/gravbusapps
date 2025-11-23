@@ -44,19 +44,18 @@ const NoteLayout: React.FC<NoteLayoutProps> = ({
   }
 
   return (
-    <div data-testid="note-layout">
-      <NoteSegment
-        {...segmentProps}
-        titleLabel={titleLabel}
-        textLabel={textLabel}
-        reminderLabel={reminderLabel}
-        entityLabel={entityLabel}
-        uploadFileLabel={uploadFileLabel}
-        titlePlaceholder={titlePlaceholder}
-        textPlaceholder={textPlaceholder}
-        reminderPlaceholder={reminderPlaceholder}
-      />
-    </div>
+    <NoteSegment
+      {...segmentProps}
+      data-testid="note-layout"
+      titleLabel={titleLabel}
+      textLabel={textLabel}
+      reminderLabel={reminderLabel}
+      entityLabel={entityLabel}
+      uploadFileLabel={uploadFileLabel}
+      titlePlaceholder={titlePlaceholder}
+      textPlaceholder={textPlaceholder}
+      reminderPlaceholder={reminderPlaceholder}
+    />
   )
 }
 

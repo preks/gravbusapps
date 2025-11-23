@@ -1,19 +1,24 @@
+import type { Lead } from '@/common/data/relations/types/leadTypes'
+import type { CustomerAccount } from '@/common/data/customer/types/customerAccountTypes'
 import type { InvestmentAccount } from '@/common/data/investment/types/investmentAccountTypes'
+import type { CustomerContact } from '@/common/data/customer/types/customerContactTypes'
 import type { InvestmentContact } from '@/common/data/investment/types/investmentContactTypes'
+import type { CustomerOpportunity } from '@/common/data/customer/types/customerOpportunityTypes'
 import type { InvestmentOpportunity } from '@/common/data/investment/types/investmentOpportunityTypes'
-import {
-  mapLeadAddresses,
-  mapLeadCommunicationChannels
-} from '@/common/components/common-relations/form-layouts/lead-convert-layout/utils'
+import { mapLeadAddresses, mapLeadCommunicationChannels } from './index'
 
-export const getAccountInitialValues = (leadData: any): Partial<InvestmentAccount> => {
+/**
+ * Map Lead data to Account initial values
+ * Works for both CustomerAccount and InvestmentAccount
+ */
+export function mapLeadToAccount<T extends CustomerAccount | InvestmentAccount>(leadData: Lead | any): Partial<T> {
   if (!leadData) return {}
 
   const addressData = mapLeadAddresses(leadData)
   const communicationData = mapLeadCommunicationChannels(leadData, 'companyEmail', 'companyPhone')
 
   // Convert flat address fields to addresses array format for Account
-  const addresses: Partial<InvestmentAccount>['addresses'] =
+  const addresses: Partial<T>['addresses'] =
     addressData.addressLines.length > 0 ||
     addressData.postalCode ||
     addressData.locality ||
@@ -22,11 +27,11 @@ export const getAccountInitialValues = (leadData: any): Partial<InvestmentAccoun
       ? [
           {
             addressType: 'PRIMARY_ADDRESS',
-            addressLines: addressData.addressLines.length > 0 ? addressData.addressLines : [''],
-            postalCode: addressData.postalCode || '',
-            locality: addressData.locality || '',
-            regionRef: addressData.regionRef || '',
-            countryRef: addressData.countryRef || ''
+            addressLine: addressData.addressLines.length > 0 ? { lines: addressData.addressLines } : undefined,
+            postalCode: addressData.postalCode || undefined,
+            locality: addressData.locality || undefined,
+            regionRef: addressData.regionRef || undefined,
+            countryRef: addressData.countryRef || undefined
           } as any
         ]
       : undefined
@@ -60,10 +65,14 @@ export const getAccountInitialValues = (leadData: any): Partial<InvestmentAccoun
     notesSummary: leadData.description || '',
     addresses: addresses,
     communicationChannels: communicationChannels.length > 0 ? communicationChannels : undefined
-  }
+  } as Partial<T>
 }
 
-export const getContactInitialValues = (leadData: any): Partial<InvestmentContact> => {
+/**
+ * Map Lead data to Contact initial values
+ * Works for both CustomerContact and InvestmentContact
+ */
+export function mapLeadToContact<T extends CustomerContact | InvestmentContact>(leadData: Lead | any): Partial<T> {
   if (!leadData) return {}
 
   const communicationData = mapLeadCommunicationChannels(leadData, 'email', 'phoneNumber')
@@ -91,13 +100,33 @@ export const getContactInitialValues = (leadData: any): Partial<InvestmentContac
     code: leadData.code || '',
     jobPosition: leadData.jobPosition || '',
     academicTitleRef: leadData.academicTitleRef || '',
+    salutationRef: leadData.salutationRef || '',
     description: leadData.description || '',
     ownerEmployeeId: leadData.ownerEmployeeId || '',
     communicationChannels: communicationChannels.length > 0 ? communicationChannels : undefined
+  } as Partial<T>
+}
+
+/**
+ * Map Lead data to Customer Opportunity initial values
+ */
+export function mapLeadToCustomerOpportunity(leadData: Lead | any): Partial<CustomerOpportunity> {
+  if (!leadData) return {}
+
+  return {
+    name: leadData.companyName || '',
+    code: leadData.code || '',
+    estimatedAmount: leadData.initialInvestmentAmount || undefined,
+    ownerEmployeeId: leadData.ownerEmployeeId || '',
+    notesSummary: leadData.description || '',
+    accountId: leadData.convertedAccountId || undefined
   }
 }
 
-export const getOpportunityInitialValues = (leadData: any): Partial<InvestmentOpportunity> => {
+/**
+ * Map Lead data to Investment Opportunity initial values
+ */
+export function mapLeadToInvestmentOpportunity(leadData: Lead | any): Partial<InvestmentOpportunity> {
   if (!leadData) return {}
 
   return {
@@ -124,7 +153,6 @@ export const getOpportunityInitialValues = (leadData: any): Partial<InvestmentOp
     ownerEmployeeId: leadData.ownerEmployeeId || '',
     notesSummary: leadData.description || '',
     description: leadData.description || '',
-    // If lead was already converted, use the converted account
     accountId: leadData.convertedAccountId || undefined
   }
 }

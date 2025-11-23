@@ -6,11 +6,10 @@ import { navigateTo, buildPlatformUrl } from '@/common/utils/navigationUtils'
 import { getTranslationFromI18nKeyAndLabel } from '@/common/utils/windowUtils'
 import { AppActionButton } from '@/components/app-action-button/AppActionButton'
 import { FlowContextName } from '@/common/types/FlowRegistryTypes'
-import { useCustomerAccounts } from '@/common/data/customer/hooks/useCustomerAccounts'
+import { useCustomerAccount } from '@/common/data/customer/hooks/useCustomerAccount'
 import { OpportunityView } from './views/opportunity-view/OpportunityView'
 import { DocumentView } from './views/document-view/DocumentView'
 import { HomeView } from './views/home-view/HomeView'
-import type { CustomerAccount } from '@/common/data/customer/types/customerAccountTypes'
 import { getEmailChannel, getPhoneChannel } from '@/common/data/common/utils/communicationChannelHelpers'
 
 interface AccountRecordContentProps extends BusinessAppContextProps {
@@ -19,9 +18,6 @@ interface AccountRecordContentProps extends BusinessAppContextProps {
 }
 
 const AccountRecordContent: React.FC<AccountRecordContentProps> = ({ accountId, onBack, ...props }) => {
-  const [accountData, setAccountData] = useState<CustomerAccount | null>(null)
-  const [loading, setLoading] = useState(true)
-  const [error, setError] = useState<string | null>(null)
   const ALLOWED_TABS = ['overview', 'opportunities', 'documents'] as const
   type TabKey = (typeof ALLOWED_TABS)[number]
   const [activeTab, setActiveTab] = useState<TabKey>(() => {
@@ -52,7 +48,7 @@ const AccountRecordContent: React.FC<AccountRecordContentProps> = ({ accountId, 
     return () => window.removeEventListener('popstate', onPopState)
   }, [])
 
-  const { fetchCustomerAccountById } = useCustomerAccounts(props)
+  const { account: accountData, loading, error, refetch } = useCustomerAccount(props.accessToken, accountId)
 
   const handleTabChange = useCallback((value: string) => {
     if ((ALLOWED_TABS as readonly string[]).includes(value)) {
@@ -65,48 +61,20 @@ const AccountRecordContent: React.FC<AccountRecordContentProps> = ({ accountId, 
     }
   }, [])
 
-  // Fetch account data
-  const fetchAccountData = useCallback(async () => {
-    if (!accountId || !props.accessToken) {
-      setLoading(false)
-      return
-    }
-
-    try {
-      setLoading(true)
-      setError(null)
-      const account = await fetchCustomerAccountById(accountId)
-      if (account) {
-        setAccountData(account)
-      } else {
-        setError('Account not found')
-      }
-    } catch (err) {
-      console.error('Error fetching account:', err)
-      setError(err instanceof Error ? err.message : 'Failed to load account')
-    } finally {
-      setLoading(false)
-    }
-  }, [accountId, props.accessToken, fetchCustomerAccountById])
-
-  useEffect(() => {
-    fetchAccountData()
-  }, [fetchAccountData])
-
   // Listen for process completion events to refresh account data
   useEffect(() => {
     const handleProcessCompletion = async (event: any) => {
       try {
         // Check for successful completion
         if (event.detail?.resolution === 'success') {
-          await fetchAccountData()
+          await refetch()
           return
         }
 
         // Also check for different event structure
         const response = event.detail?.response
         if (response?.detail?.resolution === 'success' || response?.account) {
-          await fetchAccountData()
+          await refetch()
         }
       } catch (err) {
         console.error('Error handling process completion in AccountRecord:', err)
@@ -136,7 +104,7 @@ const AccountRecordContent: React.FC<AccountRecordContentProps> = ({ accountId, 
         window.removeEventListener(eventName, handleProcessCompletion as EventListener)
       })
     }
-  }, [fetchAccountData])
+  }, [refetch])
 
   // Memoize header data - must be called before conditional returns
   const headerDetailGroups = useMemo(

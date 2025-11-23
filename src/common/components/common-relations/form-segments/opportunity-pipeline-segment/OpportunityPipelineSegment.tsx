@@ -85,10 +85,9 @@ const OpportunityPipelineSegment: React.FC<OpportunityPipelineSegmentProps> = ({
               <FormControl>
                 <CatalogSelect
                   catalogIdentifier={stageCatalogIdentifier}
+                  parentField={pipelineFieldName}
                   value={field.value || ''}
                   onValueChange={field.onChange}
-                  filterField={[{ from: pipelineFieldName, on: 'parentEntryId' }]}
-                  requireSourceForEnable={true}
                   data-testid="opportunity-segment-stage-select"
                 />
               </FormControl>

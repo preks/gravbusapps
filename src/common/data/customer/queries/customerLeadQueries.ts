@@ -86,7 +86,7 @@ export const buildCustomerLeadByIdQuery = (fields: typeof CustomerLeadFields = C
     salesCampaignId
   `
 
-  return buildLeadByIdQuery('Lead', fields, relationBuilders, relationFields, additionalFields, 'SalesLeadStatus')
+  return buildLeadByIdQuery('Lead', fields, relationBuilders, relationFields, additionalFields)
 }
 
 /**

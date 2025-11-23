@@ -21,7 +21,7 @@ type SummarySchema = z.infer<typeof summarySchema>
 type UseContactAiSummaryReturn = UseInformationExtractionReturn<SummarySchema>
 
 export function useContactAiSummary(contactId: string, accessToken: string): UseContactAiSummaryReturn {
-  const { contact } = useInvestmentContact({ accessToken }, contactId)
+  const { contact } = useInvestmentContact(accessToken, contactId)
   const { fetchInvestmentActivitiesByContactId } = useGetInvestmentActivitiesByContactId({ accessToken })
   const { fetchInvestmentTasksByContactId } = useGetInvestmentTasksByContactId({ accessToken })
   const { fetchInvestmentNotesByContactId } = useGetInvestmentNotesByContactId({ accessToken })

@@ -12,7 +12,7 @@ import {
 } from '@newwork/nw-design-system'
 import { useFormContext } from 'react-hook-form'
 import { CatalogSelect } from '@/components/catalog-select'
-import { OwnerSelect } from '@/common/components/common-relations/selects/owner-select'
+import { EmployeeSelect } from '@/components/employee-select'
 import { BusinessAppContextProps } from '@/common/BusinessAppContext'
 import translations from './_i18n'
 
@@ -63,12 +63,12 @@ const LeadInformationSegment: React.FC<LeadInformationSegmentProps> = ({
           <FormItem>
             <FormLabel>{t('lead-segment-owner')}</FormLabel>
             <FormControl>
-              <OwnerSelect
+              <EmployeeSelect
                 value={field.value || null}
                 onValueChange={(v: string | null) => field.onChange(v || '')}
                 businessAppContext={businessAppContext!}
-                ownerEmployee={ownerEmployee}
-                isNewEntity={!entityId}
+                initialEmployee={ownerEmployee}
+                autoSelect={!entityId ? 'current-user' : undefined}
                 placeholder={t('lead-segment-placeholder-select')}
                 data-testid="lead-information-segment-owner"
               />

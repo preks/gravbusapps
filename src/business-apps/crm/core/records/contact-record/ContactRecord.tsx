@@ -38,7 +38,12 @@ const ContactRecordContent: React.FC<ContactRecordContentProps> = ({ contactId, 
   })
 
   // Use new declarative hook for contact data
-  const { contact: contactData, loading, error, refetch: refetchContactData } = useCustomerContact(props, contactId)
+  const {
+    contact: contactData,
+    loading,
+    error,
+    refetch: refetchContactData
+  } = useCustomerContact(props.accessToken, contactId)
 
   // Data fetching hooks for sections - using central hooks
   const { fetchCustomerActivitiesByContactId } = useCustomerActivities(props)

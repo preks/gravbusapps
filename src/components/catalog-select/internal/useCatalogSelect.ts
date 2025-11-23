@@ -156,21 +156,72 @@ export const useCatalogSelect = (
     const identifiers = [...new Set(allIdentifiers)]
     if (identifiers.length === 0) return
 
+    // Find configs that need data vs can reuse existing data
+    const configsNeedingData = new Set<string>()
+    const configsToReuse = new Map<string, string>() // newConfigId -> sourceConfigId
+
+    for (const cfg of configs.filter(c => c.prefetch !== false)) {
+      // Check if this config already has data
+      const currentState = stateById[cfg.id]
+      if (currentState && currentState.prefetchedOptions && currentState.prefetchedOptions.length > 0) {
+        continue // Already has data
+      }
+
+      // Check if another config with same catalogIdentifier has data we can reuse
+      // Only if no parentField or filterField (those would filter the data)
+      if (!cfg.parentField && !cfg.filterField) {
+        const sourceConfig = configs.find(
+          c =>
+            c.id !== cfg.id &&
+            c.catalogIdentifier === cfg.catalogIdentifier &&
+            stateById[c.id]?.prefetchedOptions &&
+            stateById[c.id].prefetchedOptions.length > 0
+        )
+
+        if (sourceConfig) {
+          // Reuse data from source config
+          const sourceState = stateById[sourceConfig.id]
+          setFor(cfg.id, prev => ({
+            ...prev,
+            loading: false,
+            options: sourceState.prefetchedOptions || [],
+            prefetchedOptions: sourceState.prefetchedOptions || [],
+            total: sourceState.fullTotal || sourceState.total || 0,
+            fullTotal: sourceState.fullTotal || sourceState.total || 0,
+            limit: cfg.pageSize ?? defaultPageSize,
+            offset: (sourceState.prefetchedOptions || []).length,
+            variant: sourceState.variant || 'combobox',
+            metaByValue: sourceState.metaByValue || {}
+          }))
+          configsToReuse.set(cfg.id, sourceConfig.id)
+          continue // Skip API call for this config
+        }
+      }
+
+      // Need to fetch data for this config
+      configsNeedingData.add(cfg.catalogIdentifier)
+    }
+
+    // Only fetch data for identifiers that don't have cached data
+    const identifiersToFetch = identifiers.filter(id => configsNeedingData.has(id))
+    if (identifiersToFetch.length === 0) return
+
     const largestPageSize = Math.max(...configs.map(c => c.pageSize ?? defaultPageSize))
     const list = await fetchCatalogs({
-      catalogIdentifiers: identifiers,
+      catalogIdentifiers: identifiersToFetch,
       includeCatalogEntries: true,
       entriesLimit: largestPageSize,
       entriesOffset: 0,
-      limit: identifiers.length
+      limit: identifiersToFetch.length
     })
 
     for (const cat of list.items || []) {
       const catalogIdentifierWithVersion = `${cat.identifier}:${cat.version || 'v1'}`
       const matchingConfigs = configs.filter(
         c =>
-          c.catalogIdentifier === catalogIdentifierWithVersion ||
-          (c.catalogIdentifier === cat.identifier && (cat.version || 'v1') === 'v1')
+          (c.catalogIdentifier === catalogIdentifierWithVersion ||
+            (c.catalogIdentifier === cat.identifier && (cat.version || 'v1') === 'v1')) &&
+          !configsToReuse.has(c.id) // Skip configs that already reused data
       )
       if (matchingConfigs.length === 0) continue
 

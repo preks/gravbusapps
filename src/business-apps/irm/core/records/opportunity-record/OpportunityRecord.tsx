@@ -106,6 +106,15 @@ const InvestmentOpportunityRecordContent: React.FC<OpportunityRecordContentProps
     window.addEventListener('popstate', onPopState)
     return () => window.removeEventListener('popstate', onPopState)
   }, [])
+  // Use new declarative hook for opportunity data
+  const {
+    opportunity: opportunityData,
+    loading,
+    error,
+    refetch
+  } = useInvestmentOpportunity(props.accessToken, opportunityId)
+  const graphQLClient = useGraphQLClient(props.accessToken)
+
   const [stageConditionStatuses, setStageConditionStatuses] = useState<any[]>([])
   const [opportunityStages, setOpportunityStages] = useState<any[]>([])
   const [catalogStageConditions, setCatalogStageConditions] = useState<any[]>([])
@@ -151,23 +160,59 @@ const InvestmentOpportunityRecordContent: React.FC<OpportunityRecordContentProps
     [extractIrmStageConditions]
   )
 
-  const { fetchInvestmentOpportunityById } = useGetInvestmentOpportunityById(props)
+  // Extract stageConditionStatuses from opportunityData
+  useEffect(() => {
+    if (opportunityData?.opportunityStageConditions) {
+      setStageConditionStatuses(opportunityData.opportunityStageConditions)
+    } else {
+      setStageConditionStatuses([])
+    }
+  }, [opportunityData?.opportunityStageConditions])
 
   // Refetch function for process completion events
   const refetchOpportunityData = useCallback(async () => {
-    if (!opportunityId || !props.accessToken) return
-    try {
-      const result = await fetchInvestmentOpportunityById(opportunityId)
-      if (result?.opportunity) {
-        setOpportunityData(result.opportunity)
-        if (result.opportunity.opportunityStageConditions) {
-          setStageConditionStatuses(result.opportunity.opportunityStageConditions)
-        }
+    await refetch()
+  }, [refetch])
+
+  // Fetch catalog conditions for stages
+  const fetchCatalogConditions = useCallback(
+    async (stageIds: string[]) => {
+      if (!stageIds.length || !props.accessToken) {
+        setCatalogStageConditions([])
+        return
       }
-    } catch (err) {
-      console.error('Error refreshing opportunity:', err)
-    }
-  }, [opportunityId, props.accessToken, fetchInvestmentOpportunityById])
+
+      try {
+        const GET_STAGE_CONDITIONS = `
+        query GetStageConditions($stageIds: [String!]!) {
+          conditions: CatalogEntry(
+            where: {
+              catalog: { identifier: { _eq: "InvestmentOpportunityPipelineStageCondition" } }
+              parentEntryId: { _in: $stageIds }
+              isDeleted: { _eq: false }
+            }
+            orderBy: { additionalValue1: ASC }
+          ) {
+            id
+            code
+            value
+            parentEntryId
+            additionalValue1
+            objectValue
+            type
+          }
+        }
+      `
+
+        const result = await graphQLClient.request<{ conditions: any[] }>(GET_STAGE_CONDITIONS, { stageIds })
+        setCatalogStageConditions(result.conditions || [])
+      } catch (err) {
+        console.error('Error fetching catalog stage conditions:', err)
+        setCatalogStageConditions([])
+      }
+    },
+    [props.accessToken, graphQLClient]
+  )
 
   // Fetch opportunity stages from pipeline childEntries
   const fetchOpportunityStages = useCallback(async () => {
@@ -200,35 +245,7 @@ const InvestmentOpportunityRecordContent: React.FC<OpportunityRecordContentProps
     } finally {
       setLoadingStages(false)
     }
-  }, [opportunityData?.opportunityPipeline])
-
-  // Fetch opportunity data
-  useEffect(() => {
-    const loadOpportunityData = async () => {
-      if (!opportunityId || !props.accessToken) return
-
-      try {
-        setLoading(true)
-        setError(null)
-        const result = await fetchInvestmentOpportunityById(opportunityId)
-        if (result?.opportunity) {
-          setOpportunityData(result.opportunity)
-          if (result.opportunity.opportunityStageConditions) {
-            setStageConditionStatuses(result.opportunity.opportunityStageConditions)
-          }
-        } else {
-          setError('Opportunity not found')
-        }
-      } catch (err) {
-        console.error('Error fetching opportunity:', err)
-        setError(err instanceof Error ? err.message : 'Failed to load opportunity')
-      } finally {
-        setLoading(false)
-      }
-    }
-
-    loadOpportunityData()
-  }, [opportunityId, props.accessToken, fetchInvestmentOpportunityById])
+  }, [opportunityData?.opportunityPipeline, fetchCatalogConditions])
 
   // Fetch stages when opportunityData is available
   useEffect(() => {
@@ -575,13 +592,15 @@ const InvestmentOpportunityRecordContent: React.FC<OpportunityRecordContentProps
   // Handler to open status update popup
   const handleUpdateStatus = () => {
     const versionNumber =
-      typeof opportunity?.version === 'number' ? opportunity.version : Number.parseInt(opportunity?.version || '1', 10)
+      typeof opportunityData?.version === 'number'
+        ? opportunityData.version
+        : Number.parseInt(opportunityData?.version || '1', 10)
 
     setStatusUpdatePopup({
       open: true,
       opportunityId: opportunityId,
       opportunityVersion: versionNumber,
-      opportunityName: opportunity?.name || opportunityData?.name || 'Unnamed Opportunity'
+      opportunityName: opportunityData?.name || 'Unnamed Opportunity'
     })
   }
 
@@ -880,9 +899,11 @@ const InvestmentOpportunityRecordContent: React.FC<OpportunityRecordContentProps
                   component: InvestmentSection,
                   props: {
                     ...props,
-                    investment: buildInvestmentFromOpportunity(opportunityData),
+                    investment: buildInvestmentFromOpportunity(opportunityData) || undefined,
                     investments: opportunityData
-                      ? [buildInvestmentFromOpportunity(opportunityData)].filter(Boolean)
+                      ? [buildInvestmentFromOpportunity(opportunityData)].filter(
+                          (inv): inv is NonNullable<typeof inv> => inv !== null
+                        )
                       : undefined,
                     isLoading: loading,
                     error: error

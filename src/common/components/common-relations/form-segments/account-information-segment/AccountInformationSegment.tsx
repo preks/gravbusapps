@@ -11,11 +11,12 @@ import {
 } from '@newwork/nw-design-system'
 import { useFormContext } from 'react-hook-form'
 import { CatalogSelect } from '@/components/catalog-select'
-import { OwnerSelect } from '@/common/components/common-relations/selects/owner-select'
+import { EmployeeSelect } from '@/components/employee-select'
 import { ContactSelect } from '@/common/components/common-relations/selects/contact-select'
 import { BusinessAppContextProps } from '@/common/BusinessAppContext'
 import type { SelectOption as ContactSelectOption } from '@/common/components/common-relations/selects/contact-select'
 import { LEGAL_FORM, INDUSTRY_CLASS } from '@/common/data/relations/constants/catalogConstants'
+import { useMemo, useCallback } from 'react'
 import translations from './_i18n'
 
 interface AccountInformationSegmentProps {
@@ -28,12 +29,12 @@ interface AccountInformationSegmentProps {
   entityId?: string
 
   // Contact selection hook result (optional - if not provided, contacts section won't render)
-  // When mapToSelectOptions: true is used, options will always be SelectOption[]
-  contactsHook?: {
-    options: ContactSelectOption[]
+  // Raw entities and refetch function - generic types for context-agnostic component
+  useContacts?: {
+    contacts: any[]
     loading: boolean
     error: string | null
-    search: (searchTerm: string) => void
+    refetch: (variables?: any) => Promise<void>
   }
 
   // Custom fields (context-specific, e.g., CRM Sales Campaign)
@@ -47,12 +48,46 @@ const AccountInformationSegment: React.FC<AccountInformationSegmentProps> = ({
   businessAppContext,
   ownerEmployee,
   entityId,
-  contactsHook,
+  useContacts,
   customFields,
   avatarFileRef
 }) => {
   const form = useFormContext<any>()
   const { t } = useTranslation(translations)
+
+  // Transform contacts to SelectOption[] internally
+  const contactOptions = useMemo<ContactSelectOption[]>(() => {
+    if (!useContacts?.contacts) return []
+    return useContacts.contacts.map((contact: any) => {
+      const emailChannel = contact.communicationChannels?.find(
+        (ch: any) => ch.communicationChannel?.code === 'EMAIL' || ch.communicationChannelRef?.includes(':EMAIL')
+      )
+      const email = emailChannel?.value || (contact as any).email || undefined
+
+      return {
+        id: contact.id || '',
+        value: contact.id || '',
+        label: contact.fullName || `${contact.firstName || ''} ${contact.lastName || ''}`.trim() || 'Unnamed Contact',
+        name: contact.fullName || `${contact.firstName || ''} ${contact.lastName || ''}`.trim() || 'Unnamed Contact',
+        pictureThumbnail: contact.pictureThumbnail || undefined,
+        extraInfo: {
+          email,
+          jobPosition: contact.jobPosition,
+          department: contact.department,
+          organizationalUnit: contact.ownerEmployee?.displayName || 'Unknown'
+        }
+      } as ContactSelectOption
+    })
+  }, [useContacts?.contacts])
+
+  // Search function that calls refetch with search variables
+  const searchContacts = useCallback(
+    (searchTerm: string) => {
+      if (!useContacts?.refetch) return
+      useContacts.refetch({ search: searchTerm.trim(), limit: 20, offset: 0 })
+    },
+    [useContacts?.refetch]
+  )
 
   // Get avatar image from form values (pictureThumbnail or picture)
   const pictureThumbnail = form.watch('pictureThumbnail')
@@ -82,12 +117,12 @@ const AccountInformationSegment: React.FC<AccountInformationSegmentProps> = ({
           <FormItem>
             <FormLabel>{t('account-owner-label')}</FormLabel>
             <FormControl>
-              <OwnerSelect
+              <EmployeeSelect
                 value={field.value || null}
                 onValueChange={(v: string | null) => field.onChange(v || '')}
                 businessAppContext={businessAppContext!}
-                ownerEmployee={ownerEmployee}
-                isNewEntity={!entityId}
+                initialEmployee={ownerEmployee}
+                autoSelect={!entityId ? 'current-user' : undefined}
                 placeholder={t('please-select')}
                 data-testid="account-information-segment-owner"
               />
@@ -219,7 +254,7 @@ const AccountInformationSegment: React.FC<AccountInformationSegmentProps> = ({
       {customFields}
 
       {/* Contacts Selection using ContactSelect */}
-      {contactsHook && (
+      {useContacts && (
         <FormField
           control={form.control}
           name="accountContacts"
@@ -257,9 +292,19 @@ const AccountInformationSegment: React.FC<AccountInformationSegmentProps> = ({
             }, [field.value])
 
             // Handle onChange - transform back to accountContacts format
-            const handleChange = (newValue: Array<string | { id: string; name: string; contactType?: string }>) => {
+            const handleChange = (
+              contactIds:
+                | Array<string | { id: string; name: string; contactType?: string }>
+                | string
+                | { id: string; name: string; contactType?: string }
+                | null
+            ) => {
+              // Normalize to array: handle null, single values, and arrays
+              const normalizedValue: Array<string | { id: string; name: string; contactType?: string }> =
+                contactIds === null ? [] : Array.isArray(contactIds) ? contactIds : [contactIds]
+
               const accountId = form.getValues('id')
-              const accountContacts = newValue.map((contactValue: any) => {
+              const accountContacts = normalizedValue.map((contactValue: any) => {
                 const contactId = typeof contactValue === 'object' ? contactValue.id : contactValue
                 const contactType = typeof contactValue === 'object' ? contactValue.contactType : undefined
 
@@ -284,10 +329,10 @@ const AccountInformationSegment: React.FC<AccountInformationSegmentProps> = ({
                   <ContactSelect
                     value={contactSelectValue}
                     onChange={handleChange}
-                    contacts={contactsHook.options}
-                    contactsLoading={contactsHook.loading}
-                    contactsError={contactsHook.error}
-                    searchContacts={contactsHook.search}
+                    contacts={contactOptions}
+                    contactsLoading={useContacts.loading}
+                    contactsError={useContacts.error}
+                    searchContacts={searchContacts}
                     accountContacts={field.value || []}
                     dataTestId="account-information-segment-contacts"
                     error={fieldState.error?.message || null}

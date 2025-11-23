@@ -58,13 +58,12 @@ const LeadCompanySegment: React.FC<LeadCompanySegmentProps> = ({
     name: 'addressLine.lines'
   })
 
-  // Ensure addressLine object and at least one line exists
+  // Ensure at least one address line always exists
   React.useEffect(() => {
-    const currentAddressLine = form.getValues('addressLine')
-    if (!currentAddressLine || !currentAddressLine.lines || currentAddressLine.lines.length === 0) {
-      form.setValue('addressLine', { lines: [''] })
+    if (lineFields.length === 0) {
+      appendLine('')
     }
-  }, [form])
+  }, [lineFields.length, appendLine])
 
   return (
     <div className="gba:space-y-6">

@@ -15,6 +15,7 @@ import { BusinessAppContextProps } from '@/common/BusinessAppContext'
 import { navigateTo, buildPlatformUrl } from '@/common/utils/navigationUtils'
 import { getTranslationFromI18nKeyAndLabel } from '@/common/utils/windowUtils'
 import { useCustomerLead } from '@/common/data/customer/hooks/useCustomerLead'
+import { buildLeadStatusesQuery } from '@/common/data/relations/queries/leadQueries'
 import { useCustomerActivities } from '@/common/data/customer/hooks/useCustomerActivities'
 import { useCustomerNotes } from '@/common/data/customer/hooks/useCustomerNotes'
 import { useCustomerTasks } from '@/common/data/customer/hooks/useCustomerTasks'
@@ -39,24 +40,27 @@ const LeadRecordContent: React.FC<LeadRecordContentProps> = ({ leadId, onBack, f
     return params.get('tab') || 'overview'
   })
 
-  // Use new declarative hook for lead data
-  const { lead: leadData, loading, error, refetch } = useCustomerLead(props, leadId)
-  const [leadStatuses, setLeadStatuses] = useState<any[]>([])
+  // Use new declarative hook for lead data with additional leadStatuses query
+  const additionalQueries = useMemo(
+    () => [
+      {
+        query: buildLeadStatusesQuery('SalesLeadStatus'),
+        data: (result: any) => result.leadStatuses || [],
+        key: 'leadStatuses' as const
+      }
+    ],
+    []
+  )
 
-  // Extract lead statuses from leadData when it changes
-  useEffect(() => {
-    if (leadData?.leadStatuses && Array.isArray(leadData.leadStatuses)) {
-      // Statuses are already sorted by alternativeCode from GraphQL query
-      setLeadStatuses(
-        leadData.leadStatuses.map((status: any) => ({
-          id: status.id,
-          code: status.code,
-          value: status.value,
-          alternativeCode: status.alternativeCode
-        }))
-      )
-    }
-  }, [leadData])
+  const {
+    lead: leadData,
+    leadStatuses,
+    loading,
+    error,
+    refetch
+  } = useCustomerLead(props.accessToken, leadId, {
+    additionalQueries
+  })
 
   // Fetch lead data function for refetch
   const fetchLeadData = useCallback(async () => {
@@ -391,7 +395,7 @@ const LeadRecordContent: React.FC<LeadRecordContentProps> = ({ leadId, onBack, f
 
   // Header content with status progression
   const headerContent = useMemo(() => {
-    if (leadStatuses && leadStatuses.length > 0 && leadData) {
+    if (leadStatuses && Array.isArray(leadStatuses) && leadStatuses.length > 0 && leadData) {
       return (
         <StatusProgression
           currentStatus={leadData?.leadStatus?.value || 'New'}

@@ -2,7 +2,7 @@ import React from 'react'
 import { Combobox, Avatar, AvatarImage, AvatarFallback, Badge } from '@newwork/nw-design-system'
 import { Rocket } from 'lucide-react'
 
-export type EntityType = 'account' | 'contact' | 'opportunity' | 'lead' | 'investment'
+export type EntityType = string
 
 export interface EntitySelectOption {
   id: string

@@ -1,4 +1,4 @@
-import React, { useEffect, useCallback, useState } from 'react'
+import React, { useEffect, useRef, useCallback } from 'react'
 import { useForm } from 'react-hook-form'
 import { formatDataTestId } from '@/common/utils/formatDataTestId'
 import { AppActionForm } from '@/components/app-action-form'
@@ -16,186 +16,106 @@ import { mapToFormValues } from '@/common/utils/formMappingUtils'
 import { buildCustomerOpportunityPayload } from '@/common/data/customer/types/customerOpportunityTypes'
 import { CampaignSelect } from '@/common/components/customer/selects/campaign-select'
 import { FormField, FormItem, FormLabel, FormControl, FormMessage } from '@newwork/nw-design-system'
-import { useCustomerAccounts } from '@/common/data/customer/hooks/useCustomerAccounts'
-import { useGetCustomerContacts } from '@/common/data/customer/hooks/useCustomerContacts'
-
-const prefixDataTestId = 'OpportunityForm'
+import { useCustomerAccountsList } from '@/common/data/customer/hooks/useCustomerAccounts'
+import { useCustomerContactsList } from '@/common/data/customer/hooks/useCustomerContacts'
+import { ErrorAlert } from '@/components/error-alert/ErrorAlert'
 
 // CRM-specific schema extension (adds salesCampaignId only)
 export const customerOpportunitySchema = opportunitySchema.extend({
   salesCampaignId: z.string().nullable().optional()
 })
 
-interface OpportunityFormProps extends BusinessAppContextProps {
-  initialValues?: any
-  onSubmit?: (values: any) => Promise<void>
-  onCancel?: () => Promise<void>
-}
+type OpportunityFormProps = BusinessAppContextProps
 
-// Map CustomerOpportunity to form values - automatic mapping with transformations
-const mapCustomerOpportunityToFormValues = (
-  opportunity: CustomerOpportunity
-): Partial<z.infer<typeof customerOpportunitySchema>> => {
-  // ✅ Automatic mapping - schema matches interface exactly
-  // Note: opportunityContacts objects are kept for display purposes (like accountContacts in AccountForm)
-  // They are automatically processed by payloadBuilder
-  // Date (closeDate) and number (estimatedAmount) transformations are now automatic
-  return mapToFormValues(opportunity, customerOpportunitySchema)
-}
-
-const OpportunityForm: React.FC<OpportunityFormProps> = ({
-  initialValues,
-  onCancel = async () => {},
-  accessToken,
-  userInfo,
-  additionalData
-}) => {
-  if (!accessToken) {
-    return (
-      <div className="gba:p-6 gba:text-center">
-        <div className="gba:text-red-500">
-          Error: No access token found. Please ensure you are properly authenticated.
-        </div>
-      </div>
-    )
-  }
-
+const OpportunityForm: React.FC<OpportunityFormProps> = ({ accessToken, userInfo, additionalData }) => {
   // Extract opportunityId from additionalData
   const opportunityId =
     additionalData?.opportunityId || additionalData?.psi_taskPayload?.psi_initialParameters?.opportunityId
 
-  // Load opportunity data when editing - using new declarative hook
-  const { opportunity: opportunityData, loading: opportunityLoading } = useCustomerOpportunity(
-    accessToken,
-    opportunityId
-  )
+  // Fetch opportunity data using declarative hook
+  const { opportunity, loading, error } = useCustomerOpportunity(accessToken || '', opportunityId)
 
-  // Map opportunity data to form values - automatic mapping
-  const mapOpportunityToFormValues = useCallback(
-    (opp: CustomerOpportunity | null): Partial<z.infer<typeof customerOpportunitySchema>> => {
-      if (!opp) {
-        return {}
-      }
-      return mapCustomerOpportunityToFormValues(opp)
-    },
-    []
-  )
+  // Account selection hook - using new declarative list hook
+  const useAccounts = useCustomerAccountsList({ accessToken, userInfo, additionalData }, { limit: 20 })
 
-  // Form setup with CRM-specific schema
-  const currentUserEmployeeId = userInfo?.employeeDetails?.employeeId
-  const mappedOpportunity = mapOpportunityToFormValues(opportunityData)
+  // Contact selection hook - using new declarative list hook
+  const useContacts = useCustomerContactsList({ accessToken, userInfo, additionalData }, { limit: 20 })
+
+  // Collect all errors for centralized early return
+  const errors: Array<{ error?: string | unknown; type?: 'accessToken'; context?: string }> = []
+  if (!accessToken) {
+    errors.push({ type: 'accessToken' })
+  }
+  if (error) {
+    errors.push({ error, context: 'Failed to load opportunity data' })
+  }
+  if (useAccounts.error) {
+    errors.push({ error: useAccounts.error, context: 'Failed to load accounts' })
+  }
+  if (useContacts.error) {
+    errors.push({ error: useContacts.error, context: 'Failed to load contacts' })
+  }
+
+  // Early return if any errors exist
+  if (errors.length > 0) {
+    return (
+      <>
+        {errors.map((err, index) => (
+          <ErrorAlert
+            key={index}
+            error={err.error}
+            type={err.type}
+            context={err.context}
+            dataTestId={formatDataTestId('customer-opportunity-form', `error-alert-${index}`)}
+          />
+        ))}
+      </>
+    )
+  }
+
+  // Initialize React Hook Form with CRM-specific schema
   const form = useForm<z.infer<typeof customerOpportunitySchema>>({
     resolver: zodResolver(customerOpportunitySchema),
-    defaultValues: {
-      ...mappedOpportunity,
-      ownerEmployeeId: mappedOpportunity.ownerEmployeeId || currentUserEmployeeId || '',
-      ...initialValues
-    } as any,
-    mode: 'onChange'
+    defaultValues: mapToFormValues(opportunity || {}, customerOpportunitySchema) as Partial<CustomerOpportunity>,
+    mode: 'onSubmit',
+    reValidateMode: 'onSubmit'
   })
 
-  // Account search - using central hook
-  const { fetchCustomerAccounts } = useCustomerAccounts({ accessToken, userInfo, additionalData })
-  const [accounts, setAccounts] = useState<Array<{ id: string; value: string; label: string; name: string }>>([])
-  const [accountsLoading, setAccountsLoading] = useState(false)
-  const [accountsError, setAccountsError] = useState<string | null>(null)
-
-  const searchAccounts = useCallback(
-    async (search: string) => {
-      setAccountsLoading(true)
-      setAccountsError(null)
-      try {
-        const result = await fetchCustomerAccounts({ search, limit: 20, offset: 0 })
-        const mappedAccounts = (result.accounts || []).map((acc: any) => ({
-          id: acc.id,
-          value: acc.id,
-          label: acc.name,
-          name: acc.name
-        }))
-        setAccounts(mappedAccounts)
-        setAccountsLoading(false)
-        return mappedAccounts
-      } catch (error) {
-        const errorMessage = error instanceof Error ? error.message : 'Failed to search accounts'
-        setAccountsError(errorMessage)
-        setAccountsLoading(false)
-        return []
-      }
-    },
-    [fetchCustomerAccounts]
-  )
-
-  // Initial load of accounts
-  useEffect(() => {
-    if (accessToken) {
-      searchAccounts('')
-    }
-  }, [accessToken, searchAccounts])
-
-  // Extract hook result for accountsHook prop
-  const accountsHook = {
-    options: accounts,
-    loading: accountsLoading,
-    error: accountsError,
-    search: searchAccounts
-  }
-
-  // Contacts hook - using central hook
-  const contactsHookResult = useGetCustomerContacts(
-    { accessToken, userInfo, additionalData },
-    {
-      withState: true,
-      autoFetch: true,
-      pageSize: 20,
-      mapToSelectOptions: true
-    }
-  )
-
-  // Extract hook result for contactsHook prop (mapToSelectOptions ensures options are SelectOption[])
-  const contactsHook = {
-    options: contactsHookResult.options as any[],
-    loading: contactsHookResult.loading,
-    error: contactsHookResult.error,
-    search: contactsHookResult.search
-  }
-
   // Sync form when opportunity changes
-  const opportunityRef = React.useRef(opportunityData)
+  const opportunityRef = useRef(opportunity)
   useEffect(() => {
-    if (opportunityRef.current?.id !== opportunityData?.id) {
-      const mapped = mapOpportunityToFormValues(opportunityData)
-      form.reset({
-        ...mapped,
-        ownerEmployeeId: mapped.ownerEmployeeId || currentUserEmployeeId || '',
-        ...initialValues
-      } as any)
-      opportunityRef.current = opportunityData
+    if (opportunityRef.current?.id !== opportunity?.id) {
+      form.reset(mapToFormValues(opportunity || {}, customerOpportunitySchema) as Partial<CustomerOpportunity>)
+      opportunityRef.current = opportunity
     }
-  }, [opportunityData?.id, opportunityData, form, mapOpportunityToFormValues, currentUserEmployeeId, initialValues])
+  }, [opportunity?.id, opportunity, form])
 
   // Handle form submission - data already matches interface structure exactly
-  const handleSubmit = async (data: any) => {
-    const customerOpportunity: Partial<CustomerOpportunity> = {
-      ...data
+  const handleSubmit = useCallback(async (data: any) => {
+    try {
+      const { opportunity } = buildCustomerOpportunityPayload(data)
+      return {
+        opportunity,
+        changeMode: data.id ? 'UPDATE' : 'INSERT'
+      }
+    } catch (error) {
+      console.error('Error submitting opportunity:', error)
+      throw error
     }
-
-    const { opportunity: opportunityPayload } = buildCustomerOpportunityPayload(customerOpportunity)
-    const changeMode = data.id ? 'UPDATE' : 'INSERT'
-
-    return {
-      opportunity: opportunityPayload,
-      changeMode
-    }
-  }
+  }, [])
 
   // Handle form cancellation
-  // Note: AppActionForm automatically dispatches 'pse_pause' event, no need to call dispatchProcessContinueEvent
   const handleCancel = async () => {
-    await onCancel()
+    // AppActionForm handles cancellation via process events
+  }
+
+  // Handle pre-submit: Upload files if present (placeholder for future implementation)
+  const handlePreSubmit = async (formData: any) => {
+    return formData
   }
 
   // Sales Campaign selector (CRM-specific custom field)
-  const salesCampaignSelector = (
+  const salesCampaignSelect = (
     <FormField
       control={form.control}
       name="salesCampaignId"
@@ -208,17 +128,17 @@ const OpportunityForm: React.FC<OpportunityFormProps> = ({
               onValueChange={(v: string | null) => field.onChange(v || '')}
               businessAppContext={{ accessToken, userInfo, additionalData }}
               selectedCampaign={
-                field.value
+                opportunity?.salesCampaign
                   ? {
-                      id: field.value,
-                      name: (opportunityData as any)?.salesCampaign?.name || '',
+                      id: opportunity.salesCampaignId || '',
+                      name: opportunity.salesCampaign?.name || '',
                       type: undefined,
                       typeRef: undefined
                     }
                   : null
               }
               placeholder="Search Campaign..."
-              data-testid={formatDataTestId(prefixDataTestId, 'campaign-select')}
+              data-testid={formatDataTestId('customer-opportunity-form', 'campaign-select')}
             />
           </FormControl>
           <FormMessage />
@@ -227,7 +147,7 @@ const OpportunityForm: React.FC<OpportunityFormProps> = ({
     />
   )
 
-  const processType = opportunityData?.id ? 'update' : 'create'
+  const processType = opportunity?.id ? 'update' : 'create'
 
   return (
     <CatalogSelect.Provider accessToken={accessToken} userInfo={userInfo} additionalData={additionalData} form={form}>
@@ -235,25 +155,27 @@ const OpportunityForm: React.FC<OpportunityFormProps> = ({
         processType={processType}
         onSubmit={handleSubmit}
         onCancel={handleCancel}
+        handlePreSubmit={handlePreSubmit}
         formData={form.getValues()}
         form={form}
         schema={customerOpportunitySchema}
-        data-testid={prefixDataTestId}
-        submitButtonText={opportunityData?.id ? 'Update Opportunity' : 'Create Opportunity'}
+        data-testid={formatDataTestId('customer-opportunity-form', 'Form')}
+        submitButtonText={opportunity?.id ? 'Update Opportunity' : 'Create Opportunity'}
+        isSubmitDisabled={loading}
       >
         <OpportunityLayout
           businessAppContext={{ accessToken, userInfo, additionalData }}
-          ownerEmployee={opportunityData?.ownerEmployee}
-          entityId={opportunityData?.id}
-          account={opportunityData?.account || undefined}
-          accountsHook={accountsHook}
-          opportunityContacts={opportunityData?.opportunityContacts}
-          contactsHook={contactsHook}
+          ownerEmployee={opportunity?.ownerEmployee}
+          entityId={opportunity?.id || opportunityId}
+          account={opportunity?.account || undefined}
+          useAccounts={useAccounts}
+          opportunityContacts={opportunity?.opportunityContacts}
+          useContacts={useContacts}
           pipelineFieldName="opportunityPipelineRef"
           stageFieldName="opportunityPipelineStageRef"
           opportunityStatusFieldName="opportunityStatusRef"
-          opportunityInformationCustomFields={salesCampaignSelector}
-          loading={opportunityLoading && !!opportunityId}
+          opportunityInformationCustomFields={salesCampaignSelect}
+          loading={loading && !!opportunityId}
         />
       </AppActionForm>
     </CatalogSelect.Provider>

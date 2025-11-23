@@ -92,20 +92,7 @@ const AddressItem: React.FC<{
 
       {/* Address Lines - All directly available */}
       <div className="gba:space-y-2">
-        <div className="gba:flex gba:items-center gba:justify-between">
-          <FormLabel>{t('address-lines-label')}</FormLabel>
-          <Button
-            variant="outline"
-            type="button"
-            size="sm"
-            onClick={() => appendLine('')}
-            className="gba:text-xs gba:px-2 gba:py-1"
-            data-testid={`address-segment-add-line-${addressIndex}`}
-          >
-            <PiPlus className="gba:w-3 gba:h-3 gba:mr-1" />
-            {t('address-add-line')}
-          </Button>
-        </div>
+        <FormLabel>{t('address-lines-label')}</FormLabel>
 
         {lineFields.map((lineField, lineIndex) => (
           <div key={lineField.id} className="gba:flex gba:items-center gba:gap-2">
@@ -147,6 +134,21 @@ const AddressItem: React.FC<{
             )}
           </div>
         ))}
+
+        {/* Add Line Button - Below the last address line, aligned right */}
+        <div className="gba:flex gba:justify-end">
+          <Button
+            variant="outline"
+            type="button"
+            size="sm"
+            onClick={() => appendLine('')}
+            className="gba:text-xs gba:px-2 gba:py-1"
+            data-testid={`address-segment-add-line-${addressIndex}`}
+          >
+            <PiPlus className="gba:w-3 gba:h-3 gba:mr-1" />
+            {t('address-add-line')}
+          </Button>
+        </div>
       </div>
 
       {/* Postal Code and City/Locality - Side by side */}

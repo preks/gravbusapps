@@ -1,5 +1,5 @@
 // Investment Lead hooks - CRM lead entity operations
-import { useCallback } from 'react'
+import { useCallback, useState, useEffect, useMemo } from 'react'
 import { useGraphQLClient } from '@/common/network/graphql/useGraphQLClient'
 import { BusinessAppContextProps } from '@/common/BusinessAppContext'
 import type { InvestmentLead } from '../types/investmentLeadTypes'
@@ -82,7 +82,10 @@ export interface InvestmentDocumentQueryResponse {
 }
 
 /**
- * Main hook for Investment Leads (matches Customer Leads structure)
+ * @deprecated This hook is in transition. Use `useInvestmentLeadsList` instead.
+ *
+ * Legacy function-only hook for investment leads.
+ * Returns fetch functions without state management.
  */
 export const useInvestmentLeads = (context: BusinessAppContextProps) => {
   const graphqlClient = useGraphQLClient(context.accessToken)
@@ -147,6 +150,98 @@ export const useInvestmentLeads = (context: BusinessAppContextProps) => {
   )
 
   return { fetchInvestmentLeads, fetchInvestmentLeadById, searchInvestmentLeads }
+}
+
+/**
+ * Declarative List Hook for Investment Leads
+ *
+ * Automatically fetches and manages state for a list of investment leads.
+ * Follows the Hook Refactoring Guide Pattern 2.
+ *
+ * @example
+ * const { leads, loading, error, refetch } = useInvestmentLeadsList(context, { limit: 20 })
+ *
+ * @todo MIGRATION: Replace all usages of deprecated `useInvestmentLeads` with this hook
+ * @todo RENAME: After migration is complete, rename this hook to `useInvestmentLeads` and remove the deprecated hook
+ */
+export interface UseInvestmentLeadsListResult {
+  leads: InvestmentLead[]
+  total: number
+  loading: boolean
+  error: string | null
+  refetch: (variables?: InvestmentLeadQueryVariables) => Promise<void>
+}
+
+export function useInvestmentLeadsList(
+  context: BusinessAppContextProps,
+  variables?: InvestmentLeadQueryVariables
+): UseInvestmentLeadsListResult {
+  const graphqlClient = useGraphQLClient(context.accessToken)
+
+  // Memoize variables to prevent infinite loops when object is recreated on each render
+  const stableVariables = useMemo(() => variables, [JSON.stringify(variables)])
+
+  const [state, setState] = useState({
+    leads: [] as InvestmentLead[],
+    total: 0,
+    loading: true,
+    error: null as string | null
+  })
+
+  const fetchLeads = useCallback(
+    async (queryVariables?: InvestmentLeadQueryVariables) => {
+      if (!context.accessToken) {
+        setState(prev => ({ ...prev, loading: false }))
+        return
+      }
+
+      setState(prev => ({ ...prev, loading: true, error: null }))
+
+      try {
+        const vars = { ...stableVariables, ...queryVariables }
+        const query = buildInvestmentLeadQuery()
+
+        const whereCondition = buildInvestmentLeadWhereCondition(vars)
+        const orderBy = buildInvestmentLeadOrderBy(vars.orderBy || [])
+        if (orderBy.length === 0) {
+          orderBy.push({ createdAt: 'DESC' } as any)
+        }
+
+        const graphQLVariables: Record<string, any> = {
+          limit: Math.min(vars.limit || 50, 100),
+          offset: vars.offset || 0,
+          where: whereCondition,
+          orderBy: orderBy
+        }
+
+        const result = await graphqlClient.request<InvestmentLeadQueryResponse>(query, graphQLVariables)
+        const leads = result.InvestmentLead.map(toInvestmentLead)
+        const total = result.InvestmentLeadAggregate?.aggregate?.count || 0
+
+        setState({ leads, total, loading: false, error: null })
+      } catch (error) {
+        const errorMessage = error instanceof Error ? error.message : 'Failed to fetch investment leads'
+
+        setState(prev => ({
+          ...prev,
+          leads: [],
+          total: 0,
+          loading: false,
+          error: errorMessage
+        }))
+      }
+    },
+    [context.accessToken, graphqlClient, stableVariables]
+  )
+
+  useEffect(() => {
+    fetchLeads()
+  }, [fetchLeads])
+
+  return {
+    ...state,
+    refetch: fetchLeads
+  }
 }
 
 // =====================================================

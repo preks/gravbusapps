@@ -31,47 +31,26 @@ export const checkFormReadiness = (formValues: LeadConvertSchema): boolean => {
  * Context-agnostic error handling
  */
 export const setValidationErrors = (form: UseFormReturn<LeadConvertSchema>, formValues: LeadConvertSchema) => {
-  // Account errors
+  // Account errors - only validate "match" option
   if (formValues.accountOption === 'match' && !formValues.selectedAccountId) {
     form.setError('selectedAccountId', {
       type: 'manual',
       message: 'Please select an account'
     })
   }
-  if (formValues.accountOption === 'create' && !formValues.accountName?.trim()) {
-    form.setError('accountName', {
-      type: 'manual',
-      message: 'Account name is required'
-    })
-  }
+  // For "create" option, validation is handled by nested form in the Account step
+  // We don't set errors here to allow wizard progression
 
-  // Contact errors
+  // Contact errors - only validate "match" option
   if (formValues.contactOption === 'match' && !formValues.selectedContactId) {
     form.setError('selectedContactId', {
       type: 'manual',
       message: 'Please select a contact'
     })
   }
-  if (formValues.contactOption === 'create') {
-    if (!formValues.contactFirstName?.trim()) {
-      form.setError('contactFirstName', {
-        type: 'manual',
-        message: 'First name is required'
-      })
-    }
-    if (!formValues.contactLastName?.trim()) {
-      form.setError('contactLastName', {
-        type: 'manual',
-        message: 'Last name is required'
-      })
-    }
-  }
+  // For "create" option, validation is handled by nested form in the Contact step
+  // We don't set errors here to allow wizard progression
 
-  // Opportunity errors
-  if (formValues.createOpportunity && !formValues.opportunityName?.trim()) {
-    form.setError('opportunityName', {
-      type: 'manual',
-      message: 'Opportunity name is required'
-    })
-  }
+  // Opportunity validation is handled by nested form in the Opportunity step
+  // We don't set errors here to allow wizard progression
 }

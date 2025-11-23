@@ -1,12 +1,16 @@
-import React, { useMemo } from 'react'
+import React from 'react'
 import { BusinessAppContextProps } from '@/common/BusinessAppContext'
-import { useTranslation, Skeleton } from '@newwork/nw-design-system'
-import { FormAccordion } from '@/components/form-accordion'
+import {
+  useTranslation,
+  Skeleton,
+  FormAccordion,
+  FormAccordionItem,
+  FormAccordionTrigger,
+  FormAccordionContent
+} from '@newwork/nw-design-system'
 import { OpportunityInformationSegment } from '../../form-segments/opportunity-information-segment'
 import { OpportunityDetailsSegment } from '../../form-segments/opportunity-details-segment'
 import { OpportunityPipelineSegment } from '../../form-segments/opportunity-pipeline-segment'
-import type { SelectOption as AccountSelectOption } from '../../selects/account-select'
-import type { SelectOption as ContactSelectOption } from '../../selects/contact-select'
 import translations from './_i18n'
 
 interface OpportunityLayoutProps {
@@ -14,22 +18,22 @@ interface OpportunityLayoutProps {
   ownerEmployee?: any
   entityId?: string
   account?: any
-  // Account selection hook result
-  // When mapToSelectOptions: true is used, options will always be SelectOption[]
-  accountsHook?: {
-    options: AccountSelectOption[]
+  // Account selection hook result - raw entities and refetch function
+  useAccounts?: {
+    accounts: any[]
+    total: number
     loading: boolean
     error: string | null
-    search: (searchTerm: string) => void
+    refetch: (variables?: any) => Promise<void>
   }
   opportunityContacts?: any[]
-  // Contact selection hook result
-  // When mapToSelectOptions: true is used, options will always be SelectOption[]
-  contactsHook?: {
-    options: ContactSelectOption[]
+  // Contact selection hook result - raw entities and refetch function
+  useContacts?: {
+    contacts: any[]
+    total: number
     loading: boolean
     error: string | null
-    search: (searchTerm: string) => void
+    refetch: (variables?: any) => Promise<void>
   }
   onContactsChange?: (contactIds: Array<string | { id: string; name: string }>) => void
   onNewContact?: () => void
@@ -56,9 +60,9 @@ const OpportunityLayout: React.FC<OpportunityLayoutProps> = ({
   ownerEmployee,
   entityId,
   account,
-  accountsHook,
+  useAccounts,
   opportunityContacts,
-  contactsHook,
+  useContacts,
   onNewContact,
   pipelineFieldName,
   stageFieldName,
@@ -74,45 +78,6 @@ const OpportunityLayout: React.FC<OpportunityLayoutProps> = ({
   hideRelatedEntities = false
 }) => {
   const { t } = useTranslation(translations)
-
-  const accordionItems = useMemo(
-    () => [
-      {
-        id: 'pipeline-stage',
-        title: t('pipeline-title'),
-        content: (
-          <OpportunityPipelineSegment
-            pipelineFieldName={pipelineFieldName}
-            stageFieldName={stageFieldName}
-            opportunityStatusFieldName={opportunityStatusFieldName}
-            pipelineCatalogIdentifier={pipelineCatalogIdentifier}
-            stageCatalogIdentifier={stageCatalogIdentifier}
-            opportunityStatusCatalogIdentifier={opportunityStatusCatalogIdentifier}
-            customFields={opportunityPipelineCustomFields}
-          />
-        )
-      },
-      {
-        id: 'amount-date',
-        title: t('amount-title'),
-        content: <OpportunityDetailsSegment customFields={opportunityDetailsCustomFields} />
-      },
-      ...customSegments
-    ],
-    [
-      t,
-      businessAppContext,
-      pipelineFieldName,
-      stageFieldName,
-      opportunityStatusFieldName,
-      pipelineCatalogIdentifier,
-      stageCatalogIdentifier,
-      opportunityStatusCatalogIdentifier,
-      opportunityPipelineCustomFields,
-      opportunityDetailsCustomFields,
-      customSegments
-    ]
-  )
 
   // Show skeletons while loading (after all hooks)
   if (loading) {
@@ -142,14 +107,41 @@ const OpportunityLayout: React.FC<OpportunityLayoutProps> = ({
         ownerEmployee={ownerEmployee}
         entityId={entityId}
         account={account}
-        accountsHook={accountsHook}
+        useAccounts={useAccounts}
         opportunityContacts={opportunityContacts}
-        contactsHook={contactsHook}
+        useContacts={useContacts}
         onNewContact={onNewContact}
         customFields={opportunityInformationCustomFields}
         hideRelatedEntities={hideRelatedEntities}
       />
-      <FormAccordion items={accordionItems} className="gba:w-full" data-testid="opportunity-layout-accordion" />
+      <FormAccordion type="multiple" className="gba:w-full" data-testid="opportunity-layout-accordion">
+        <FormAccordionItem value="pipeline-stage">
+          <FormAccordionTrigger>{t('pipeline-title')}</FormAccordionTrigger>
+          <FormAccordionContent>
+            <OpportunityPipelineSegment
+              pipelineFieldName={pipelineFieldName}
+              stageFieldName={stageFieldName}
+              opportunityStatusFieldName={opportunityStatusFieldName}
+              pipelineCatalogIdentifier={pipelineCatalogIdentifier}
+              stageCatalogIdentifier={stageCatalogIdentifier}
+              opportunityStatusCatalogIdentifier={opportunityStatusCatalogIdentifier}
+              customFields={opportunityPipelineCustomFields}
+            />
+          </FormAccordionContent>
+        </FormAccordionItem>
+        <FormAccordionItem value="amount-date">
+          <FormAccordionTrigger>{t('amount-title')}</FormAccordionTrigger>
+          <FormAccordionContent>
+            <OpportunityDetailsSegment customFields={opportunityDetailsCustomFields} />
+          </FormAccordionContent>
+        </FormAccordionItem>
+        {customSegments.map(segment => (
+          <FormAccordionItem key={segment.id} value={segment.id}>
+            <FormAccordionTrigger>{segment.title}</FormAccordionTrigger>
+            <FormAccordionContent>{segment.content}</FormAccordionContent>
+          </FormAccordionItem>
+        ))}
+      </FormAccordion>
     </div>
   )
 }

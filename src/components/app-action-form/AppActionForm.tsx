@@ -28,10 +28,6 @@ export interface AppActionFormProps {
    */
   showCancelButton?: boolean
   submitButtonVariant?: 'default' | 'destructive' | 'outline' | 'secondary' | 'ghost' | 'link'
-  /**
-   * @deprecated This prop is obsolete and will be removed in a future version. It is not used by AppActionForm.
-   */
-  businessAppContext?: BusinessAppContextProps
   form?: UseFormReturn<any>
   resolver?: Resolver<any>
   schema?: ZodSchema<any>
@@ -48,13 +44,15 @@ export interface AppActionFormProps {
   formType?: 'form' | 'wizard'
   // Wizard-specific props
   wizardSteps?: WizardStep<any>[]
-  showStepIndicator?: boolean
-  allowStepJumping?: boolean
   // Pre-submission handler (e.g., for file uploads)
   handlePreSubmit?: (formData: any) => Promise<any>
   isSubmitDisabled?: boolean
   // Optional completion callback and success navigation
   onProcessCompletion?: (detail: { resolution?: 'success' | 'failure' } | null) => void
+  /**
+   * @deprecated This prop is obsolete and will be removed in a future version. It is not used by AppActionForm.
+   */
+  businessAppContext?: BusinessAppContextProps
 }
 
 const getSuccessMessage = (processType: string, t: (key: string, args?: Record<string, any>) => string): string => {
@@ -212,8 +210,6 @@ export const AppActionForm: React.FC<AppActionFormProps> = ({
   disableFormSubmission = false,
   formType = 'form',
   wizardSteps,
-  showStepIndicator = true,
-  allowStepJumping = false,
   handlePreSubmit,
   isSubmitDisabled = false,
   onProcessCompletion
@@ -258,12 +254,12 @@ export const AppActionForm: React.FC<AppActionFormProps> = ({
           enhancedData = await handlePreSubmit(dataForValidation)
         }
 
-        // Development-only payload logging (input data)
-        if (process.env.NODE_ENV !== 'production') {
-          console.log('[AppActionForm] Form data (before transformation):', enhancedData)
-        }
-
         const result = await onSubmit(enhancedData)
+
+        // Development-only payload logging (output data)
+        if (process.env.NODE_ENV !== 'production') {
+          console.log('[AppActionForm] Payload:', result)
+        }
 
         // Create a promise that resolves when process completes OR after timeout
         const waitForProcessCompletion = new Promise<void>(resolve => {
@@ -399,9 +395,21 @@ export const AppActionForm: React.FC<AppActionFormProps> = ({
         <WizardForm
           form={form}
           steps={wizardSteps}
-          onSubmit={data => handleSubmit(data)}
-          showStepIndicator={showStepIndicator}
-          allowStepJumping={allowStepJumping}
+          onSubmit={form.handleSubmit(
+            vals => handleSubmit(vals),
+            errors => {
+              // Development-only validation error logging
+              if (process.env.NODE_ENV !== 'production') {
+                console.error('[AppActionForm] Validation failed:', errors)
+                // Note: form.formState.errors might not be updated yet, use errors parameter instead
+                console.error('[AppActionForm] Validation errors (from callback):', errors)
+                console.error('[AppActionForm] Form errors (from formState):', form.formState.errors)
+                console.error('[AppActionForm] Form values:', form.getValues())
+              }
+            }
+          )}
+          showStepIndicator={true}
+          allowStepJumping={true}
           className="gba:w-full"
           {...(schema ? { schema: schema as any } : {})}
         >

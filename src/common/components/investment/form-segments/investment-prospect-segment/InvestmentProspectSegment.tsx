@@ -15,7 +15,7 @@ import {
   SelectValue
 } from '@newwork/nw-design-system'
 import { BusinessAppContextProps } from '@/common/BusinessAppContext'
-import { FilteredGroup, FilteredType } from './useProspectFields'
+import { FilteredGroup, FilteredType } from './useInvestmentProspectFields'
 import { formatDataTestId } from '@/common/utils/formatDataTestId'
 import { InvestmentTypeSelect } from '../investment-type-select'
 

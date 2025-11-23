@@ -1,12 +1,17 @@
-import React, { useMemo } from 'react'
+import React from 'react'
 import { BusinessAppContextProps } from '@/common/BusinessAppContext'
-import { useTranslation, Skeleton } from '@newwork/nw-design-system'
-import { FormAccordion } from '@/components/form-accordion'
+import {
+  useTranslation,
+  Skeleton,
+  FormAccordion,
+  FormAccordionItem,
+  FormAccordionTrigger,
+  FormAccordionContent
+} from '@newwork/nw-design-system'
 import { AccountInformationSegment } from '../../form-segments/account-information-segment'
 import { AccountDetailsSegment } from '../../form-segments/account-details-segment'
 import { AddressSegment } from '../../form-segments/address-segment'
 import { CommunicationSegment } from '../../form-segments/communication-segment'
-import type { SelectOption as ContactSelectOption } from '../../selects/contact-select'
 import translations from './_i18n'
 
 interface AccountLayoutProps {
@@ -23,13 +28,12 @@ interface AccountLayoutProps {
   annualRevenueCatalogIdentifier?: string // e.g., "RevenueSize:v1" (CRM) or "AccountAnnualRevenueBand:v1" (IRM)
   companySizeCatalogIdentifier?: string // e.g., "EmployeeSize:v1" (CRM) or "CompanySize:v1" (IRM)
 
-  // Contact selection hook result
-  // When mapToSelectOptions: true is used, options will always be SelectOption[]
-  contactsHook?: {
-    options: ContactSelectOption[]
+  // Contact selection hook result - raw entities and refetch function - generic types for context-agnostic component
+  useContacts?: {
+    contacts: any[]
     loading: boolean
     error: string | null
-    search: (searchTerm: string) => void
+    refetch: (variables?: any) => Promise<void>
   }
 
   // Custom fields injection for AccountInformationSegment
@@ -61,7 +65,7 @@ const AccountLayout: React.FC<AccountLayoutProps> = ({
   entityId,
   annualRevenueCatalogIdentifier = 'AccountAnnualRevenueBand:v1',
   companySizeCatalogIdentifier = 'CompanySize:v1',
-  contactsHook,
+  useContacts,
   accountInformationCustomFields,
   accountDetailsCustomFields,
   addressCustomFields,
@@ -71,42 +75,6 @@ const AccountLayout: React.FC<AccountLayoutProps> = ({
   loading = false
 }) => {
   const { t } = useTranslation(translations)
-
-  const accordionItems = useMemo(
-    () => [
-      {
-        id: 'communication-channels',
-        title: t('communication-title'),
-        content: <CommunicationSegment customFields={communicationCustomFields} />
-      },
-      {
-        id: 'address-information',
-        title: t('address-title'),
-        content: <AddressSegment customFields={addressCustomFields} />
-      },
-      {
-        id: 'financial-information',
-        title: t('financial-title'),
-        content: (
-          <AccountDetailsSegment
-            annualRevenueCatalogIdentifier={annualRevenueCatalogIdentifier}
-            companySizeCatalogIdentifier={companySizeCatalogIdentifier}
-            customFields={accountDetailsCustomFields}
-          />
-        )
-      },
-      ...customSegments
-    ],
-    [
-      t,
-      annualRevenueCatalogIdentifier,
-      companySizeCatalogIdentifier,
-      accountDetailsCustomFields,
-      addressCustomFields,
-      communicationCustomFields,
-      customSegments
-    ]
-  )
 
   // Show skeletons while loading (after all hooks)
   if (loading) {
@@ -144,13 +112,42 @@ const AccountLayout: React.FC<AccountLayoutProps> = ({
         businessAppContext={businessAppContext}
         ownerEmployee={ownerEmployee}
         entityId={entityId}
-        contactsHook={contactsHook}
+        useContacts={useContacts}
         customFields={accountInformationCustomFields}
         avatarFileRef={avatarFileRef}
       />
 
       {/* Other Segments in Accordion */}
-      <FormAccordion items={accordionItems} className="gba:w-full" data-testid="account-layout-accordion" />
+      <FormAccordion type="multiple" className="gba:w-full" data-testid="account-layout-accordion">
+        <FormAccordionItem value="communication-channels">
+          <FormAccordionTrigger>{t('communication-title')}</FormAccordionTrigger>
+          <FormAccordionContent>
+            <CommunicationSegment customFields={communicationCustomFields} />
+          </FormAccordionContent>
+        </FormAccordionItem>
+        <FormAccordionItem value="address-information">
+          <FormAccordionTrigger>{t('address-title')}</FormAccordionTrigger>
+          <FormAccordionContent>
+            <AddressSegment customFields={addressCustomFields} />
+          </FormAccordionContent>
+        </FormAccordionItem>
+        <FormAccordionItem value="financial-information">
+          <FormAccordionTrigger>{t('financial-title')}</FormAccordionTrigger>
+          <FormAccordionContent>
+            <AccountDetailsSegment
+              annualRevenueCatalogIdentifier={annualRevenueCatalogIdentifier}
+              companySizeCatalogIdentifier={companySizeCatalogIdentifier}
+              customFields={accountDetailsCustomFields}
+            />
+          </FormAccordionContent>
+        </FormAccordionItem>
+        {customSegments.map(segment => (
+          <FormAccordionItem key={segment.id} value={segment.id}>
+            <FormAccordionTrigger>{segment.title}</FormAccordionTrigger>
+            <FormAccordionContent>{segment.content}</FormAccordionContent>
+          </FormAccordionItem>
+        ))}
+      </FormAccordion>
     </div>
   )
 }

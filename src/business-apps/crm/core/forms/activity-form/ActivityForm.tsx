@@ -1,4 +1,4 @@
-import React, { useMemo, useCallback, useState, useEffect } from 'react'
+import React, { useMemo, useCallback, useState, useEffect, useRef } from 'react'
 import { BusinessAppContextProps } from '@/common/BusinessAppContext'
 import { getTranslationFromI18nKeyAndLabel } from '@/common/utils/windowUtils'
 import { ActivityLayout, activitySchema } from '@/common/components/common-relations/form-layouts/activity-layout'
@@ -12,26 +12,18 @@ import { useEmployeeSearch } from '@/common/data/employee/useEmployeeSearch'
 import { useCustomerActivity } from '@/common/data/customer/hooks/useCustomerActivity'
 import { useCustomerRelatedEntities } from '@/common/data/customer/hooks/useCustomerRelatedEntities'
 import { useFileClient } from '@/common/network/files/useFileClient'
+import { type CustomerActivity, buildCustomerActivityPayload } from '@/common/data/customer/types/customerActivityTypes'
+import { buildFilePath } from '@/common/utils/fileUtils'
+import { APP_NAME, FILE_ENTITY, FILE_CONTEXT } from '@/common/data/customer/constants/customerConstants'
+import { mapToFormValues } from '@/common/utils/formMappingUtils'
+import { ErrorAlert } from '@/components/error-alert/ErrorAlert'
+import { formatDataTestId } from '@/common/utils/formatDataTestId'
 
 export interface ActivityFormProps extends BusinessAppContextProps {
   initialValues?: Partial<ActivitySchema>
   onSubmit?: (activity: Partial<ActivitySchema>) => Promise<void>
   onCancel?: () => Promise<void>
 }
-
-const initialFormData: Partial<ActivitySchema> = {
-  title: '',
-  activityTypeRef: '',
-  occurredAt: '',
-  description: '',
-  files: [],
-  documents: [],
-  _pendingFiles: [],
-  ownerEmployeeId: ''
-}
-
-const SALES_ACTIVITY_TYPE_CATALOG = 'SalesActivityType'
-const SALES_ACTIVITY_TYPE_VERSION = 'v1'
 
 export const ActivityForm: React.FC<ActivityFormProps> = ({
   accessToken,
@@ -41,13 +33,6 @@ export const ActivityForm: React.FC<ActivityFormProps> = ({
 }) => {
   // Get owner employee ID from additionalData or userInfo
   const defaultOwnerEmployeeId = (additionalData as any)?.ownerEmployeeId || userInfo?.employeeDetails?.employeeId
-
-  // Form state
-  const [formData, setFormData] = useState<Partial<ActivitySchema>>({
-    ...initialFormData,
-    ownerEmployee: defaultOwnerEmployeeId ? { id: defaultOwnerEmployeeId } : undefined,
-    ownerEmployeeId: defaultOwnerEmployeeId || ''
-  })
 
   // Resolve IDs from additionalData (platform may pass ids inside psi_taskPayload.psi_initialParameters)
   const platformParams = useMemo(() => {
@@ -71,10 +56,39 @@ export const ActivityForm: React.FC<ActivityFormProps> = ({
   const isUpdateMode = !!activityId
 
   // Sales activity hook - declarative single-by-PK
-  const { activity, loading: activityLoading } = useCustomerActivity(accessToken, activityId)
+  const { activity, loading: activityLoading, error } = useCustomerActivity(accessToken || '', activityId)
 
   // Get entity IDs from platform params
-  const { accountId, contactId, opportunityId, leadId } = platformParams
+  const accountId = platformParams.accountId
+  const contactId = platformParams.contactId
+  const opportunityId = platformParams.opportunityId
+  const leadId = platformParams.leadId
+
+  // Collect all errors for centralized early return
+  const errors: Array<{ error?: string | unknown; type?: 'accessToken'; context?: string }> = []
+  if (!accessToken) {
+    errors.push({ type: 'accessToken' })
+  }
+  if (error) {
+    errors.push({ error, context: 'Failed to load activity data' })
+  }
+
+  // Early return if any errors exist
+  if (errors.length > 0) {
+    return (
+      <>
+        {errors.map((err, index) => (
+          <ErrorAlert
+            key={index}
+            error={err.error}
+            type={err.type}
+            context={err.context}
+            dataTestId={formatDataTestId('customer-activity-form', `error-alert-${index}`)}
+          />
+        ))}
+      </>
+    )
+  }
 
   // Determine if entity selection should be shown
   const hasEntityFromContext = accountId || contactId || opportunityId || leadId
@@ -116,19 +130,35 @@ export const ActivityForm: React.FC<ActivityFormProps> = ({
 
   // Upload files to file service and return file IDs with metadata
   const uploadFiles = useCallback(
-    async (files: File[], entityId: string): Promise<Array<{ name: string; fileInfo: any }>> => {
+    async (
+      files: File[],
+      referenceEntityId: string,
+      referenceEntityType: 'account' | 'contact' | 'lead' | 'opportunity' | 'unknown'
+    ): Promise<Array<{ name: string; fileInfo: any }>> => {
       if (!files || files.length === 0) return []
 
-      const uploadPromises = files.map(async file => {
-        const folderPath = `/customerRelations/activities/${entityId}/documents`
+      // Determine FILE_ENTITY based on reference entity type
+      const fileEntity =
+        referenceEntityType === 'account'
+          ? FILE_ENTITY.ACCOUNT
+          : referenceEntityType === 'contact'
+            ? FILE_ENTITY.CONTACT
+            : referenceEntityType === 'lead'
+              ? FILE_ENTITY.LEAD
+              : referenceEntityType === 'opportunity'
+                ? FILE_ENTITY.OPPORTUNITY
+                : FILE_ENTITY.UNKNOWN
 
+      const folderPath = buildFilePath(fileEntity, referenceEntityId, FILE_CONTEXT.ACTIVITY)
+
+      const uploadPromises = files.map(async file => {
         const result = await fileClient.uploadFile(
           file,
           { accessScope: 'tenant' },
           {
-            appName: 'customerRelations',
+            appName: APP_NAME,
             folderPath: folderPath,
-            mimeType: file.type || 'application/octet-stream'
+            mimeType: file.type
           }
         )
 
@@ -198,153 +228,105 @@ export const ActivityForm: React.FC<ActivityFormProps> = ({
   // Initialize form BEFORE useEffect that uses it
   const form = useForm<z.infer<typeof activitySchema>>({
     resolver: zodResolver(activitySchema),
-    defaultValues: {
-      ...initialFormData,
-      ownerEmployeeId: defaultOwnerEmployeeId || ''
-    },
-    mode: 'onChange'
+    defaultValues: mapToFormValues(activity || {}, activitySchema) as any,
+    mode: 'onSubmit',
+    reValidateMode: 'onSubmit'
   })
 
-  // Load existing activity if in update mode
-  useEffect(() => {
-    if (!isUpdateMode || !activity || activityLoading) {
-      return
-    }
-
-    // Map documents with file metadata
-    const documents = (activity.documents || []).map((doc: any) => ({
-      id: doc.id,
-      name: doc.name,
-      version: doc.version,
-      file: doc.file,
-      fileInfo: doc.fileInfo,
-      mimeType: doc.mimeType || doc.fileInfo?.fileMetadata?.mimeType || '',
-      fileSize: doc.fileSize || doc.fileInfo?.fileMetadata?.fileSize || 0
-    }))
-
-    // Helper to extract entity ID from object or string
-    const getEntityId = (entity: any): string | undefined => {
-      if (!entity) return undefined
-      if (typeof entity === 'string') return entity
-      return entity.id
-    }
-
-    // Construct new form data - only store entity IDs (strings), not objects
-    const newFormData: Partial<ActivitySchema> = {
-      id: activity.id,
-      title: activity.title || '',
-      activityTypeRef: activity.activityType?.id || '',
-      occurredAt: activity.occurredAt || '',
-      description: activity.description || '',
-      files: [],
-      documents,
-      _pendingFiles: [],
-      // Only store entity IDs (strings), not objects
-      account: getEntityId(activity.account) || undefined,
-      contact: getEntityId(activity.contact) || undefined,
-      opportunity: getEntityId(activity.opportunity) || undefined,
-      lead: getEntityId(activity.lead) || undefined,
-      ownerEmployee: activity.ownerEmployee,
-      version: activity.version,
-      // keep relatedEntityId for validation convenience
-      ...(activity.account?.id ? { relatedEntityId: activity.account.id } : {}),
-      ...(activity.contact?.id ? { relatedEntityId: activity.contact.id } : {}),
-      ...(activity.opportunity?.id ? { relatedEntityId: activity.opportunity.id } : {}),
-      ...(activity.lead?.id ? { relatedEntityId: activity.lead.id } : {})
-    }
-
-    // Update state
-    setFormData(newFormData)
-
-    // Small delay to ensure form is mounted
-    setTimeout(() => {
-      // Explicitly reset form with ownerEmployeeId
-      form.reset({
-        ...newFormData,
-        ownerEmployeeId: activity.ownerEmployee?.id || ''
-      })
-    }, 100)
-
-    // Prefill owner employee for the combobox
-    if (activity.ownerEmployee?.id) {
-      const displayName =
-        activity.ownerEmployee.displayName ||
-        `${activity.ownerEmployee.firstName || ''} ${activity.ownerEmployee.lastName || ''}`.trim() ||
-        'Unknown'
-      setAssigneePrefill([{ id: activity.ownerEmployee.id, displayName }])
-      // Hydrate details for the selected employee so avatar/job/unit appear immediately
-      hydrateById(activity.ownerEmployee.id)
-    }
-
-    // Hydrate and pin related entity if present so combobox trigger keeps rich label
-    const relId = activity.account?.id || activity.contact?.id || activity.opportunity?.id || activity.lead?.id
-    if (relId) {
-      if (activity.account?.id) hydrateEntityById('account', activity.account.id)
-      else if (activity.contact?.id) hydrateEntityById('contact', activity.contact.id)
-      else if (activity.opportunity?.id) hydrateEntityById('opportunity', activity.opportunity.id)
-      else if (activity.lead?.id) hydrateEntityById('lead', activity.lead.id)
-    }
-  }, [isUpdateMode, activity, activityLoading, hydrateEntityById, hydrateById, form])
-
-  // Form submission handler - supports both create and update
-  const handleSubmit = useCallback(
-    async (values: z.infer<typeof activitySchema>) => {
-      const changeMode = isUpdateMode ? 'UPDATE' : 'INSERT'
-
-      // Helper to extract entity ID from object or string
-      const getEntityId = (entity: any): string | undefined => {
-        if (!entity) return undefined
-        if (typeof entity === 'string') return entity
-        return entity.id
-      }
-
-      // Extract entity IDs from form values (priority) or platformParams (fallback)
-      const entityRefs: Record<string, string> = {}
-      const accountId = getEntityId(values.account) || platformParams.accountId
-      const contactId = getEntityId(values.contact) || platformParams.contactId
-      const opportunityId = getEntityId(values.opportunity) || platformParams.opportunityId
-      const leadId = getEntityId(values.lead) || platformParams.leadId
-
-      if (accountId) entityRefs.account = accountId
-      if (contactId) entityRefs.contact = contactId
-      if (opportunityId) entityRefs.opportunity = opportunityId
-      if (leadId) entityRefs.lead = leadId
-
-      const payload = {
-        employeeId: additionalData?.employeeId,
-        managerId: additionalData?.managerId,
-        structureId: additionalData?.structureId,
-        locationId: additionalData?.locationId,
-        organizationalUnitId: additionalData?.organizationalUnitId,
-        ...(additionalData?.contactId && { contactId: additionalData.contactId }),
-        changeMode,
-        salesActivity: {
-          // Include id and version for updates
-          ...(isUpdateMode && formData.id && { id: formData.id }),
-          ...(isUpdateMode && { version: formData.version || 0 }),
-          activityTypeRef: values.activityTypeRef,
-          title: values.title,
-          occurredAt: values.occurredAt ? new Date(values.occurredAt).toISOString() : null,
-          ...entityRefs,
-          description: values.description || '',
-          ownerEmployee: values.ownerEmployeeId || additionalData?.employeeId
-          // documents already processed in handlePreSubmit
-        }
-      }
-
-      return payload
-    },
-    [additionalData, isUpdateMode, formData, platformParams]
+  // Combine context + activity IDs (activity has priority)
+  const relatedEntityIds = React.useMemo(
+    () => ({
+      accountId: activity?.accountId || accountId,
+      contactId: activity?.contactId || contactId,
+      opportunityId: activity?.opportunityId || opportunityId,
+      leadId: activity?.leadId || leadId
+    }),
+    [accountId, contactId, opportunityId, leadId, activity]
   )
+
+  // Load existing activity if in update mode - using mapToFormValues (AccountForm pattern)
+  const activityRef = useRef(activity)
+  useEffect(() => {
+    if (activityRef.current?.id !== activity?.id) {
+      form.reset(mapToFormValues(activity || {}, activitySchema) as any)
+      activityRef.current = activity
+
+      // Hydrate first found entity
+      const entity = [
+        { type: 'account' as const, id: activity?.accountId },
+        { type: 'contact' as const, id: activity?.contactId },
+        { type: 'opportunity' as const, id: activity?.opportunityId },
+        { type: 'lead' as const, id: activity?.leadId }
+      ].find(e => e.id)
+
+      if (entity?.id) {
+        hydrateEntityById(entity.type, entity.id)
+      }
+
+      // Hydrate owner employee for display
+      if (activity?.ownerEmployee?.id) {
+        const displayName =
+          activity.ownerEmployee.displayName ||
+          `${activity.ownerEmployee.firstName || ''} ${activity.ownerEmployee.lastName || ''}`.trim() ||
+          'Unknown'
+        setAssigneePrefill([{ id: activity.ownerEmployee.id, displayName }])
+        hydrateById(activity.ownerEmployee.id)
+      }
+    }
+  }, [activity?.id, activity, form, hydrateEntityById, hydrateById])
+
+  // Form submission handler - business logic only
+  const handleSubmit = useCallback(async (data: z.infer<typeof activitySchema>) => {
+    try {
+      delete data.files
+      delete data._pendingFiles
+      delete data.relatedEntityId
+
+      // Build payload (buildPayload will include creator fields from activityData)
+      const { salesActivity } = buildCustomerActivityPayload(data as Partial<CustomerActivity>)
+
+      return {
+        salesActivity
+      }
+    } catch (error) {
+      console.error('Error submitting activity:', error)
+      throw error
+    }
+  }, [])
 
   // PreSubmit handler - upload files before submission
   const handlePreSubmit = useCallback(
     async (data: any) => {
+      // Set creator fields if not present
+      if (!data.creatorEmployeeId && userInfo?.employeeDetails?.employeeId) {
+        data.creatorEmployeeId = userInfo.employeeDetails.employeeId
+      }
+      if (!data.creatorUserId && userInfo?.id) {
+        data.creatorUserId = userInfo.id
+      }
+
       // Upload pending files if any
       let uploadedDocuments: Array<{ name: string; fileInfo: any }> = []
       if (data._pendingFiles && data._pendingFiles.length > 0) {
-        const tempId = formData.id || 'temp-' + Date.now()
-        uploadedDocuments = await uploadFiles(data._pendingFiles, tempId)
+        try {
+          // Determine reference entity from form data
+          const referenceEntityId =
+            data.accountId || data.contactId || data.leadId || data.opportunityId || 'temp-' + Date.now()
+          const referenceEntityType = data.accountId
+            ? 'account'
+            : data.contactId
+              ? 'contact'
+              : data.leadId
+                ? 'lead'
+                : data.opportunityId
+                  ? 'opportunity'
+                  : 'unknown'
+
+          uploadedDocuments = await uploadFiles(data._pendingFiles, referenceEntityId, referenceEntityType)
+        } catch (error) {
+          console.error('Failed to upload files:', error)
+          throw error
+        }
       }
 
       // Combine existing documents (as objects with ID) and newly uploaded documents
@@ -363,7 +345,7 @@ export const ActivityForm: React.FC<ActivityFormProps> = ({
         documents: allDocuments
       }
     },
-    [formData.id, uploadFiles]
+    [uploadFiles, userInfo]
   )
 
   // Handle form cancellation
@@ -380,23 +362,31 @@ export const ActivityForm: React.FC<ActivityFormProps> = ({
     [searchEntities]
   )
 
+  const handleFilesChange = useCallback(
+    (files: File[]) => {
+      form.setValue('_pendingFiles', files, { shouldDirty: true })
+    },
+    [form]
+  )
+
+  const handleDocumentRemove = useCallback(
+    (documentId: string) => {
+      const currentDocs = form.getValues('documents') || []
+      form.setValue(
+        'documents',
+        currentDocs.filter((doc: any) => doc.id !== documentId),
+        { shouldDirty: true }
+      )
+    },
+    [form]
+  )
+
   // Prefetch entities on mount if selection is visible
   useEffect(() => {
     if (shouldShowEntitySelection) {
       searchEntities('')
     }
   }, [shouldShowEntitySelection, searchEntities])
-
-  // Memoize to prevent infinite re-renders
-  const typeCatalog = useMemo(
-    () => ({ identifier: SALES_ACTIVITY_TYPE_CATALOG, version: SALES_ACTIVITY_TYPE_VERSION }),
-    []
-  )
-
-  const initialEntityFromContext = useMemo(
-    () => ({ accountId, contactId, opportunityId, leadId }),
-    [accountId, contactId, opportunityId, leadId]
-  )
 
   // Handle entity context - hydrate entity if provided from context
   useEffect(() => {
@@ -426,10 +416,12 @@ export const ActivityForm: React.FC<ActivityFormProps> = ({
     }
   }, [accountId, contactId, opportunityId, leadId, form, hydrateEntityById])
 
+  const processType = isUpdateMode ? 'update' : 'create'
+
   return (
-    <CatalogSelect.Provider accessToken={accessToken} userInfo={userInfo} additionalData={additionalData}>
+    <CatalogSelect.Provider accessToken={accessToken} userInfo={userInfo} additionalData={additionalData} form={form}>
       <AppActionForm
-        processType={isUpdateMode ? 'update' : 'create'}
+        processType={processType}
         onSubmit={handleSubmit}
         handlePreSubmit={handlePreSubmit}
         onCancel={handleCancel}
@@ -438,7 +430,8 @@ export const ActivityForm: React.FC<ActivityFormProps> = ({
         schema={activitySchema}
         submitButtonText={getTranslationFromI18nKeyAndLabel('crm:common.submit', 'Submit')}
         cancelButtonText={getTranslationFromI18nKeyAndLabel('crm:common.cancel', 'Cancel')}
-        data-testid="sales-activity-process-dialog"
+        data-testid={formatDataTestId('customer-activity-form', 'Form')}
+        isSubmitDisabled={activityLoading}
       >
         <div className="gba:w-full" data-testid="sales-activity-form-container">
           <h2 className="gba:text-xl gba:font-bold! gba:mb-4 gba:text-center gba:text-[20px]!" data-testid="form-title">
@@ -448,14 +441,19 @@ export const ActivityForm: React.FC<ActivityFormProps> = ({
           </h2>
 
           <ActivityLayout
-            typeCatalog={typeCatalog}
+            typeCatalog="SalesActivityType:v1"
             showEntitySelection={shouldShowEntitySelection}
             entities={entities}
             entitiesLoading={entitiesLoading}
             entitiesHasMore={entitiesHasMore}
             onEntityLoadMore={loadMoreEntities}
             onEntitySearch={handleEntitySearch}
-            initialEntityFromContext={initialEntityFromContext}
+            initialEntityFromContext={{
+              accountId: relatedEntityIds.accountId,
+              contactId: relatedEntityIds.contactId,
+              opportunityId: relatedEntityIds.opportunityId,
+              leadId: relatedEntityIds.leadId
+            }}
             titleLabel={getTranslationFromI18nKeyAndLabel('crm:salesActivity.title', 'Title')}
             typeLabel={getTranslationFromI18nKeyAndLabel('crm:salesActivity.type', 'Type')}
             dateLabel={getTranslationFromI18nKeyAndLabel('crm:salesActivity.date', 'Date & Time')}
@@ -468,25 +466,9 @@ export const ActivityForm: React.FC<ActivityFormProps> = ({
             onAssigneeSearch={searchEmployees}
             assigneesHasMore={employeesHasMore}
             onAssigneeLoadMore={loadMoreEmployees}
-            // File upload handlers - use form.setValue instead of setFormData to avoid setState during render
-            onFilesChange={useCallback(
-              (files: File[]) => {
-                form.setValue('_pendingFiles', files, { shouldDirty: true })
-              },
-              [form]
-            )}
+            onFilesChange={handleFilesChange}
             existingDocuments={form.watch('documents') || []}
-            onDocumentRemove={useCallback(
-              (documentId: string) => {
-                const currentDocs = form.getValues('documents') || []
-                form.setValue(
-                  'documents',
-                  currentDocs.filter((doc: any) => doc.id !== documentId),
-                  { shouldDirty: true }
-                )
-              },
-              [form]
-            )}
+            onDocumentRemove={handleDocumentRemove}
             loading={activityLoading && isUpdateMode}
             data-testid="sales-activity-layout"
           />

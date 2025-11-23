@@ -1,4 +1,4 @@
-import React, { useEffect, useCallback } from 'react'
+import React, { useEffect, useRef, useCallback } from 'react'
 import { useForm } from 'react-hook-form'
 import { formatDataTestId } from '@/common/utils/formatDataTestId'
 import { AppActionForm } from '@/components/app-action-form'
@@ -20,115 +20,91 @@ import {
   COMPANY_SIZE,
   ANNUAL_REVENUE
 } from '@/common/data/customer/constants/catalogConstants'
-
-const prefixDataTestId = 'LeadForm'
+import { ErrorAlert } from '@/components/error-alert/ErrorAlert'
 
 // CRM-specific schema extension (adds salesCampaignId)
 export const customerLeadSchema = leadSchema.extend({
   salesCampaignId: z.string().nullable().optional()
 })
 
-interface LeadFormProps extends BusinessAppContextProps {
-  initialValues?: Partial<CustomerLead>
-  onSubmit?: (values: Partial<CustomerLead>) => Promise<void>
-  onCancel?: () => Promise<void>
-}
+type LeadFormProps = BusinessAppContextProps
 
-// Map CustomerLead to form values - automatic mapping with addressLine transformation
-const mapCustomerLeadToFormValues = (lead: CustomerLead | null): Partial<z.infer<typeof customerLeadSchema>> => {
-  if (!lead) {
-    return {}
+const LeadForm: React.FC<LeadFormProps> = ({ accessToken, userInfo, additionalData }) => {
+  // Extract leadId from additionalData
+  const leadId = additionalData?.leadId || additionalData?.psi_taskPayload?.psi_initialParameters?.leadId || undefined
+
+  // Fetch lead data using declarative hook
+  const { lead, loading, error } = useCustomerLead(accessToken || '', leadId)
+
+  // Collect all errors for centralized early return
+  const errors: Array<{ error?: string | unknown; type?: 'accessToken'; context?: string }> = []
+  if (!accessToken) {
+    errors.push({ type: 'accessToken' })
+  }
+  if (error) {
+    errors.push({ error, context: 'Failed to load lead data' })
   }
 
-  // ✅ Automatic mapping - addressLine is now { lines: string[] } in schema, matches interface
-  return mapToFormValues(lead, customerLeadSchema)
-}
-
-const LeadForm: React.FC<LeadFormProps> = ({
-  initialValues,
-  onCancel = async () => {},
-  accessToken,
-  userInfo,
-  additionalData
-}) => {
-  if (!accessToken) {
+  // Early return if any errors exist
+  if (errors.length > 0) {
     return (
-      <div className="gba:p-6 gba:text-center">
-        <div className="gba:text-red-500">
-          Error: No access token found. Please ensure you are properly authenticated.
-        </div>
-      </div>
+      <>
+        {errors.map((err, index) => (
+          <ErrorAlert
+            key={index}
+            error={err.error}
+            type={err.type}
+            context={err.context}
+            dataTestId={formatDataTestId('customer-lead-form', `error-alert-${index}`)}
+          />
+        ))}
+      </>
     )
   }
 
-  // Extract leadId from additionalData
-  const leadId =
-    initialValues?.id ||
-    additionalData?.leadId ||
-    additionalData?.psi_taskPayload?.psi_initialParameters?.leadId ||
-    undefined
-
-  // Load lead data when editing - using new declarative hook
-  const { lead: leadData, loading: leadLoading } = useCustomerLead(accessToken, leadId)
-
-  // Map lead data to form values - automatic mapping
-  const mapLeadToFormValues = useCallback((lead: CustomerLead | null): Partial<z.infer<typeof customerLeadSchema>> => {
-    if (!lead) {
-      return {}
-    }
-    return mapCustomerLeadToFormValues(lead)
-  }, [])
-
-  // Initialize React Hook Form (using any for salesCampaignId which is not in CustomerLead interface but used in form)
-  const form = useForm<z.infer<typeof customerLeadSchema>>({
+  // Initialize React Hook Form with CRM-specific schema
+  const form = useForm({
     resolver: zodResolver(customerLeadSchema),
-    defaultValues: {
-      ...mapLeadToFormValues(leadData),
-      ...initialValues
-    } as any,
+    defaultValues: mapToFormValues(lead || {}, customerLeadSchema) as any,
     mode: 'onSubmit',
     reValidateMode: 'onSubmit'
   })
 
   // Sync form when lead changes
+  const leadRef = useRef(lead)
   useEffect(() => {
-    if (leadData) {
-      const formValues = mapLeadToFormValues(leadData)
-      form.reset({
-        ...formValues,
-        ...initialValues
-      } as any)
+    if (leadRef.current?.id !== lead?.id) {
+      form.reset(mapToFormValues(lead || {}, customerLeadSchema) as Partial<CustomerLead>)
+      leadRef.current = lead
     }
-  }, [leadData?.id, leadData, form, mapLeadToFormValues, initialValues])
+  }, [lead?.id, lead, form])
 
   // Handle form submission - returns payload for AppActionForm
-  const handleSubmit = async (data: any) => {
-    // Build CustomerLead object (salesCampaignId is handled by payload builder mapping)
-    // addressLine is already in correct format { lines: string[] } from schema
-    // Note: null values are transformed to empty strings by schema preprocessor
-    const customerLead: Partial<CustomerLead & { salesCampaignId?: string }> = {
-      ...data
+  const handleSubmit = useCallback(async (data: any) => {
+    try {
+      const payload = buildCustomerLeadPayload(data)
+      return {
+        ...payload,
+        changeMode: data.id ? 'UPDATE' : 'INSERT'
+      }
+    } catch (error) {
+      console.error('Error submitting lead:', error)
+      throw error
     }
-
-    // Use centralized payload builder (maps salesCampaignId to salesCampaign)
-    const payload = buildCustomerLeadPayload(customerLead as any)
-
-    const changeMode = data.id ? 'UPDATE' : 'INSERT'
-
-    // Return payload for AppActionForm to handle process event
-    return {
-      ...payload,
-      changeMode: changeMode
-    }
-  }
+  }, [])
 
   // Handle form cancellation
   const handleCancel = async () => {
-    await onCancel()
+    // AppActionForm handles cancellation via process events
+  }
+
+  // Handle pre-submit: Upload files if present (placeholder for future implementation)
+  const handlePreSubmit = async (formData: any) => {
+    return formData
   }
 
   // Sales Campaign selector component
-  const salesCampaignSelector = (
+  const salesCampaignSelect = (
     <FormField
       control={form.control}
       name="salesCampaignId"
@@ -141,17 +117,17 @@ const LeadForm: React.FC<LeadFormProps> = ({
               onValueChange={(v: string | null) => field.onChange(v || '')}
               businessAppContext={{ accessToken, userInfo, additionalData }}
               selectedCampaign={
-                (leadData as any)?.salesCampaignId
+                lead?.salesCampaign
                   ? {
-                      id: (leadData as any).salesCampaignId || '',
-                      name: (leadData as any).salesCampaign?.name || '',
+                      id: lead.salesCampaignId || '',
+                      name: lead.salesCampaign?.name || '',
                       type: undefined,
                       typeRef: undefined
                     }
                   : null
               }
               placeholder="Search Campaign..."
-              data-testid={formatDataTestId(prefixDataTestId, 'campaign-select')}
+              data-testid={formatDataTestId('customer-lead-form', 'campaign-select')}
             />
           </FormControl>
           <FormMessage />
@@ -160,8 +136,7 @@ const LeadForm: React.FC<LeadFormProps> = ({
     />
   )
 
-  // Determine process type based on whether lead exists
-  const processType = leadData?.id ? 'update' : 'create'
+  const processType = lead?.id ? 'update' : 'create'
 
   return (
     <CatalogSelect.Provider accessToken={accessToken} userInfo={userInfo} additionalData={additionalData} form={form}>
@@ -169,23 +144,25 @@ const LeadForm: React.FC<LeadFormProps> = ({
         processType={processType}
         onSubmit={handleSubmit}
         onCancel={handleCancel}
+        handlePreSubmit={handlePreSubmit}
         formData={form.getValues()}
         form={form}
         schema={customerLeadSchema}
-        data-testid={prefixDataTestId}
-        submitButtonText={leadData?.id ? 'Update Lead' : 'Create Lead'}
+        data-testid={formatDataTestId('customer-lead-form', 'Form')}
+        submitButtonText={lead?.id ? 'Update Lead' : 'Create Lead'}
+        isSubmitDisabled={loading}
       >
         <LeadLayout
           businessAppContext={{ accessToken, userInfo, additionalData }}
-          ownerEmployee={leadData?.ownerEmployee}
-          entityId={leadData?.id}
+          ownerEmployee={lead?.ownerEmployee}
+          entityId={lead?.id || leadId}
           leadStatusCatalogIdentifier={LEAD_STATUS}
           leadSourceCatalogIdentifier={LEAD_SOURCE}
           leadRatingCatalogIdentifier={LEAD_RATING}
           companySizeCatalogIdentifier={COMPANY_SIZE}
           annualRevenueCatalogIdentifier={ANNUAL_REVENUE}
-          leadInformationCustomFields={salesCampaignSelector}
-          loading={leadLoading && !!leadId}
+          leadInformationCustomFields={salesCampaignSelect}
+          loading={loading && !!leadId}
         />
       </AppActionForm>
     </CatalogSelect.Provider>

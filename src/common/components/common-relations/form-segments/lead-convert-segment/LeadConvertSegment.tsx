@@ -1,5 +1,5 @@
 import React from 'react'
-import { UseFormReturn } from 'react-hook-form'
+import { UseFormReturn, useWatch } from 'react-hook-form'
 import {
   RadioGroup,
   RadioGroupItem,
@@ -9,7 +9,8 @@ import {
   FormField,
   FormItem,
   FormMessage,
-  Checkbox
+  Checkbox,
+  Skeleton
 } from '@newwork/nw-design-system'
 import { getTranslationFromI18nKeyAndLabel } from '@/common/utils/windowUtils'
 import {
@@ -29,6 +30,7 @@ interface LeadConvertSegmentProps {
   contacts: ContactSelectOption[]
   isLoadingContacts: boolean
   searchContacts: (searchTerm: string) => void
+  loading?: boolean
 }
 
 /**
@@ -43,8 +45,34 @@ export const LeadConvertSegment: React.FC<LeadConvertSegmentProps> = ({
   searchAccounts,
   contacts,
   isLoadingContacts,
-  searchContacts
+  searchContacts,
+  loading = false
 }) => {
+  // Use useWatch instead of form.watch() to prevent re-render loops
+  const accountOption = useWatch({ control: form.control, name: 'accountOption' })
+  const contactOption = useWatch({ control: form.control, name: 'contactOption' })
+
+  // Show skeleton while loading
+  if (loading) {
+    return (
+      <WizardFormStep>
+        <div data-testid="lead-convert-segment-loading" className="gba:space-y-6">
+          <div className="gba:space-y-4">
+            <Skeleton className="gba:h-8 gba:w-48" />
+            <Skeleton className="gba:h-4 gba:w-64" />
+            <div className="gba:space-y-3 gba:mt-6">
+              <Skeleton className="gba:h-10 gba:w-full" />
+              <Skeleton className="gba:h-10 gba:w-full" />
+              <Skeleton className="gba:h-10 gba:w-3/4" />
+              <Skeleton className="gba:h-10 gba:w-full" />
+              <Skeleton className="gba:h-10 gba:w-2/3" />
+            </div>
+          </div>
+        </div>
+      </WizardFormStep>
+    )
+  }
+
   return (
     <WizardFormStep>
       <div data-testid="lead-convert-segment">
@@ -87,7 +115,7 @@ export const LeadConvertSegment: React.FC<LeadConvertSegmentProps> = ({
             />
 
             {/* Show account selector when matching existing */}
-            {form.watch('accountOption') === 'match' && (
+            {accountOption === 'match' && (
               <div className="gba:mt-4">
                 <FormField
                   control={form.control}
@@ -163,7 +191,7 @@ export const LeadConvertSegment: React.FC<LeadConvertSegmentProps> = ({
             />
 
             {/* Show contact selector when matching existing */}
-            {form.watch('contactOption') === 'match' && (
+            {contactOption === 'match' && (
               <div className="gba:mt-4">
                 <FormField
                   control={form.control}

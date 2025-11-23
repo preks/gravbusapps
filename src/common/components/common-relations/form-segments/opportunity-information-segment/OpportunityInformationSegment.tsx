@@ -1,4 +1,4 @@
-import React from 'react'
+import React, { useMemo, useCallback } from 'react'
 import {
   FormField,
   FormItem,
@@ -9,12 +9,13 @@ import {
   useTranslation
 } from '@newwork/nw-design-system'
 import { useFormContext } from 'react-hook-form'
-import { OwnerSelect } from '@/common/components/common-relations/selects/owner-select'
+import { EmployeeSelect } from '@/components/employee-select'
 import { BusinessAppContextProps } from '@/common/BusinessAppContext'
 import AccountSelect from '@/common/components/common-relations/selects/account-select/AccountSelect'
 import ContactSelect, {
   type SelectOption as ContactSelectOption
 } from '@/common/components/common-relations/selects/contact-select/ContactSelect'
+import type { SelectOption as AccountSelectOption } from '@/common/components/common-relations/selects/account-select'
 import translations from './_i18n'
 
 interface OpportunityInformationSegmentProps {
@@ -26,23 +27,23 @@ interface OpportunityInformationSegmentProps {
   entityId?: string
   // Account selection props
   account?: any
-  // Account selection hook result
-  // When mapToSelectOptions: true is used, options will always be SelectOption[]
-  accountsHook?: {
-    options: any[]
+  // Account selection hook result - raw entities and refetch function
+  useAccounts?: {
+    accounts: any[]
+    total: number
     loading: boolean
     error: string | null
-    search: (searchTerm: string) => void
+    refetch: (variables?: any) => Promise<void>
   }
   // Contact selection props
   opportunityContacts?: any[]
-  // Contact selection hook result
-  // When mapToSelectOptions: true is used, options will always be SelectOption[]
-  contactsHook?: {
-    options: ContactSelectOption[]
+  // Contact selection hook result - raw entities and refetch function
+  useContacts?: {
+    contacts: any[]
+    total: number
     loading: boolean
     error: string | null
-    search: (searchTerm: string) => void
+    refetch: (variables?: any) => Promise<void>
   }
   onNewContact?: () => void
   // Custom fields (context-specific, e.g., CRM Sales Campaign, IRM Deal Type)
@@ -56,13 +57,69 @@ const OpportunityInformationSegment: React.FC<OpportunityInformationSegmentProps
   ownerEmployee,
   entityId,
   account,
-  accountsHook,
-  contactsHook,
+  useAccounts,
+  useContacts,
   customFields,
   hideRelatedEntities = false
 }) => {
   const form = useFormContext<any>()
   const { t } = useTranslation(translations)
+
+  // Transform accounts to SelectOption[] internally
+  const accountOptions = useMemo<AccountSelectOption[]>(() => {
+    if (!useAccounts?.accounts) return []
+    return useAccounts.accounts.map((acc: any) => ({
+      id: acc.id,
+      value: acc.id,
+      label: acc.name || acc.displayName || '',
+      name: acc.name || acc.displayName || ''
+    }))
+  }, [useAccounts?.accounts])
+
+  // Search function for accounts - calls refetch with search variables
+  const searchAccounts = useCallback(
+    (searchTerm: string) => {
+      if (useAccounts?.refetch) {
+        useAccounts.refetch({ search: searchTerm, offset: 0 })
+      }
+    },
+    [useAccounts?.refetch]
+  )
+
+  // Transform contacts to SelectOption[] internally
+  const contactOptions = useMemo<ContactSelectOption[]>(() => {
+    if (!useContacts?.contacts) return []
+    return useContacts.contacts.map((contact: any) => {
+      const emailChannel = contact.communicationChannels?.find((ch: any) => ch.type === 'EMAIL')
+      const phoneChannel = contact.communicationChannels?.find((ch: any) => ch.type === 'PHONE')
+      const displayName =
+        contact.displayName ||
+        contact.fullName ||
+        `${contact.firstName || ''} ${contact.lastName || ''}`.trim() ||
+        'Unknown Contact'
+      return {
+        id: contact.id,
+        value: contact.id,
+        label: displayName,
+        name: displayName,
+        email: emailChannel?.value || undefined,
+        phone: phoneChannel?.value || undefined,
+        pictureThumbnail: contact.pictureThumbnail,
+        jobPosition: contact.jobPosition,
+        department: contact.department
+      }
+    })
+  }, [useContacts?.contacts])
+
+  // Search function for contacts - calls refetch with search variables
+  const searchContacts = useCallback(
+    (searchTerm: string) => {
+      if (useContacts?.refetch) {
+        useContacts.refetch({ search: searchTerm, offset: 0 })
+      }
+    },
+    [useContacts?.refetch]
+  )
 
   return (
     <div className="gba:space-y-6 gba:w-full gba:max-w-full gba:overflow-hidden">
@@ -74,12 +131,12 @@ const OpportunityInformationSegment: React.FC<OpportunityInformationSegmentProps
           <FormItem>
             <FormLabel>{t('opportunity-owner-label')}</FormLabel>
             <FormControl>
-              <OwnerSelect
+              <EmployeeSelect
                 value={field.value || null}
                 onValueChange={(v: string | null) => field.onChange(v || '')}
                 businessAppContext={businessAppContext!}
-                ownerEmployee={ownerEmployee}
-                isNewEntity={!entityId}
+                initialEmployee={ownerEmployee}
+                autoSelect={!entityId ? 'current-user' : undefined}
                 placeholder={t('please-select')}
                 data-testid="opportunity-information-segment-owner"
               />
@@ -144,11 +201,11 @@ const OpportunityInformationSegment: React.FC<OpportunityInformationSegmentProps
                   }}
                   initialAccount={account}
                   dataTestId="opportunity-segment-account-select"
-                  error={accountsHook?.error || null}
-                  accounts={accountsHook?.options || []}
-                  accountsLoading={accountsHook?.loading || false}
-                  accountsError={accountsHook?.error || null}
-                  searchAccounts={accountsHook?.search || (() => {})}
+                  error={useAccounts?.error || null}
+                  accounts={accountOptions}
+                  accountsLoading={useAccounts?.loading || false}
+                  accountsError={useAccounts?.error || null}
+                  searchAccounts={searchAccounts}
                   multiple={false}
                 />
               </FormControl>
@@ -159,7 +216,7 @@ const OpportunityInformationSegment: React.FC<OpportunityInformationSegmentProps
       )}
 
       {/* Contacts Selection using ContactSelect */}
-      {!hideRelatedEntities && contactsHook && (
+      {!hideRelatedEntities && useContacts && (
         <FormField
           control={form.control}
           name="opportunityContacts"
@@ -224,10 +281,10 @@ const OpportunityInformationSegment: React.FC<OpportunityInformationSegmentProps
                   <ContactSelect
                     value={contactSelectValue}
                     onChange={handleChange}
-                    contacts={contactsHook.options}
-                    contactsLoading={contactsHook.loading}
-                    contactsError={contactsHook.error}
-                    searchContacts={contactsHook.search}
+                    contacts={contactOptions}
+                    contactsLoading={useContacts.loading}
+                    contactsError={useContacts.error}
+                    searchContacts={searchContacts}
                     accountContacts={field.value || []}
                     dataTestId="opportunity-segment-contacts"
                     error={fieldState.error?.message || null}

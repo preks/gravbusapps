@@ -6,7 +6,7 @@ import {
   type Account,
   AccountFields,
   createAccountDescriptors,
-  accountFormFields
+  AccountFormFields
 } from '@/common/data/relations/types/accountTypes'
 import type { Descriptor } from '@/common/network/graphql/queryHelpers'
 import { buildPayload } from '@/common/data/common/utils/payloadBuilder'
@@ -107,10 +107,10 @@ export const CUSTOMER_ACCOUNT_DESCRIPTORS: Descriptor[] = [
 
 /**
  * Customer Account Form Fields Configuration
- * Extends accountFormFields with CRM-specific fields
+ * Extends AccountFormFields with CRM-specific fields
  */
 export const customerAccountFormFields = {
-  ...accountFormFields,
+  ...AccountFormFields,
   // CRM-specific fields
   salesCampaignId: 'salesCampaign',
   // Overwrite

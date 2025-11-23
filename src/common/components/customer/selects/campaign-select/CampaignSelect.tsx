@@ -56,6 +56,11 @@ const CampaignSelect = React.forwardRef<HTMLButtonElement, CampaignSelectProps &
       loadMore
     } = useCustomerCampaigns(businessAppContext.accessToken)
 
+    // Initialize with empty search to load default campaigns on mount
+    React.useEffect(() => {
+      search('')
+    }, [search])
+
     // Transform campaigns to Combobox options with type display
     const options: any[] = useMemo(() => {
       return (campaignsOptions || []).map((campaign: any) => {

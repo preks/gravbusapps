@@ -1,14 +1,26 @@
 // Investment Lead hook - single lead by ID with automatic state management
-import { useState, useEffect, useCallback } from 'react'
+import { useState, useEffect, useCallback, useMemo } from 'react'
 import { useGraphQLClient } from '@/common/network/graphql/useGraphQLClient'
 import { toInvestmentLead, type InvestmentLead } from '../types/investmentLeadTypes'
 import { buildInvestmentLeadByIdQuery } from '../queries/investmentLeadQueries'
+
+export interface AdditionalQuery<TResult = any> {
+  query: string
+  variables?: Record<string, any>
+  data: (result: any) => TResult
+  key: string
+}
+
+export interface UseInvestmentLeadOptions {
+  additionalQueries?: AdditionalQuery[]
+}
 
 export interface UseInvestmentLeadResult {
   lead: InvestmentLead | null
   loading: boolean
   error: string | null
   refetch: () => Promise<void>
+  [key: string]: any
 }
 
 /**
@@ -38,13 +50,19 @@ export interface UseInvestmentLeadResult {
  *   </div>
  * )
  */
-export function useInvestmentLead(accessToken: string, id: string | undefined): UseInvestmentLeadResult {
+export function useInvestmentLead(
+  accessToken: string,
+  id: string | undefined,
+  options?: UseInvestmentLeadOptions
+): UseInvestmentLeadResult {
   const graphqlClient = useGraphQLClient(accessToken)
+  const additionalQueries = useMemo(() => options?.additionalQueries || [], [options?.additionalQueries])
 
   const [state, setState] = useState<Omit<UseInvestmentLeadResult, 'refetch'>>({
     lead: null,
     loading: true,
-    error: null
+    error: null,
+    ...Object.fromEntries(additionalQueries.map(aq => [aq.key, undefined]))
   })
 
   const fetchLead = useCallback(async () => {
@@ -57,22 +75,47 @@ export function useInvestmentLead(accessToken: string, id: string | undefined): 
     setState(prev => ({ ...prev, loading: true, error: null }))
 
     try {
-      // Build query
-      const query = buildInvestmentLeadByIdQuery()
+      // Build main query
+      let combinedQuery = buildInvestmentLeadByIdQuery()
 
-      // Execute query with ID as GraphQL variable
-      const result = await graphqlClient.request<{ InvestmentLeadByPk: InvestmentLead | null }>(query, { id })
+      // Combine additional query bodies into main query
+      if (additionalQueries.length > 0) {
+        const additionalQueryBodies = additionalQueries.map(aq => aq.query).join('\n')
+        // Insert additional queries before the closing brace of the query
+        // Pattern: query GetInvestmentLeadById($id: uuid!) { InvestmentLeadByPk(...) { ... } }
+        // becomes: query GetInvestmentLeadById($id: uuid!) { InvestmentLeadByPk(...) { ... } additionalQueries }
+        combinedQuery = combinedQuery.replace(/(\s*}\s*)$/, `\n${additionalQueryBodies}\n$1`)
+      }
+
+      // Execute combined query with ID as GraphQL variable
+      const result = await graphqlClient.request<{ InvestmentLeadByPk: InvestmentLead | null } & Record<string, any>>(
+        combinedQuery,
+        { id }
+      )
 
       const raw = result.InvestmentLeadByPk
       const lead = raw ? toInvestmentLead(raw) : null
 
-      setState({ lead, loading: false, error: null })
+      // Extract additional results from combined response
+      const additionalData = Object.fromEntries(additionalQueries.map(aq => [aq.key, aq.data(result)]))
+
+      setState({
+        lead,
+        loading: false,
+        error: null,
+        ...additionalData
+      })
     } catch (error) {
       const errorMessage = error instanceof Error ? error.message : 'Failed to fetch investment lead'
       console.error('Error fetching investment lead:', error)
-      setState({ lead: null, loading: false, error: errorMessage })
+      setState({
+        lead: null,
+        loading: false,
+        error: errorMessage,
+        ...Object.fromEntries(additionalQueries.map(aq => [aq.key, undefined]))
+      })
     }
-  }, [id, accessToken, graphqlClient])
+  }, [id, accessToken, graphqlClient, additionalQueries])
 
   // Auto-fetch on mount and when dependencies change
   useEffect(() => {

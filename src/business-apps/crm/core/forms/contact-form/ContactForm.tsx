@@ -1,4 +1,4 @@
-import React, { useEffect, useState, useCallback, useRef } from 'react'
+import React, { useEffect, useRef, useCallback } from 'react'
 import { useForm } from 'react-hook-form'
 import { formatDataTestId } from '@/common/utils/formatDataTestId'
 import { AppActionForm } from '@/components/app-action-form'
@@ -13,147 +13,100 @@ import { mapToFormValues } from '@/common/utils/formMappingUtils'
 import { buildCustomerContactPayload } from '@/common/data/customer/types/customerContactTypes'
 import { CampaignSelect } from '@/common/components/customer/selects/campaign-select'
 import { FormField, FormItem, FormLabel, FormControl, FormMessage } from '@newwork/nw-design-system'
-import { useCustomerAccounts } from '@/common/data/customer/hooks/useCustomerAccounts'
+import { useCustomerAccountsList } from '@/common/data/customer/hooks/useCustomerAccounts'
 import { useFileClient } from '@/common/network/files/useFileClient'
 import { CustomerFilePaths } from '@/common/data/customer/constants/customerFilePaths'
-
-const prefixDataTestId = 'ContactForm'
+import { buildFilePath } from '@/common/utils/fileUtils'
+import { APP_NAME, FILE_ENTITY, FILE_CONTEXT } from '@/common/data/customer/constants/customerConstants'
+import { ErrorAlert } from '@/components/error-alert/ErrorAlert'
 
 // CRM-specific schema extension (adds salesCampaignId)
 export const customerContactSchema = contactSchema.extend({
   salesCampaignId: z.string().nullable().optional()
 })
 
-interface ContactFormProps extends BusinessAppContextProps {
-  initialValues?: Partial<CustomerContact>
-  onSubmit?: (values: Partial<CustomerContact>) => Promise<void>
-  onCancel?: () => Promise<void>
-}
+type ContactFormProps = BusinessAppContextProps
 
-// Map CustomerContact to form values - automatic mapping
-const mapCustomerContactToFormValues = (
-  contact: CustomerContact | null
-): Partial<z.infer<typeof customerContactSchema>> => {
-  if (!contact) {
-    return {}
-  }
-
-  // ✅ Automatic mapping - schema matches interface exactly
-  // Note: account objects are kept for display purposes (like contact objects in AccountForm)
-  // They are automatically ignored by payloadBuilder since they're not in the schema
-  return mapToFormValues(contact, customerContactSchema)
-}
-
-const ContactForm: React.FC<ContactFormProps> = ({
-  initialValues,
-  onCancel = async () => {},
-  accessToken,
-  userInfo,
-  additionalData
-}) => {
-  if (!accessToken) {
-    return (
-      <div className="gba:p-6 gba:text-center">
-        <div className="gba:text-red-500">
-          Error: No access token found. Please ensure you are properly authenticated.
-        </div>
-      </div>
-    )
-  }
-
+const ContactForm: React.FC<ContactFormProps> = ({ accessToken, userInfo, additionalData }) => {
   // Extract contactId from additionalData
   const contactId = additionalData?.contactId || additionalData?.psi_taskPayload?.psi_initialParameters?.contactId
 
   // Load contact data when editing - using new declarative hook
-  const { contact: contactData, loading: contactLoading } = useCustomerContact(accessToken, contactId)
+  const { contact, loading, error } = useCustomerContact(accessToken || '', contactId)
 
   // File client for avatar upload
   const fileClient = useFileClient({ accessToken, userInfo, additionalData })
 
-  // Account search - using central hook
-  const { fetchCustomerAccounts } = useCustomerAccounts({ accessToken, userInfo, additionalData })
-  const [accountOptions, setAccountOptions] = useState<
-    Array<{ id: string; value: string; label: string; name: string }>
-  >([])
-  const [accountsLoading, setAccountsLoading] = useState(false)
-  const [accountsError, setAccountsError] = useState<string | null>(null)
+  // Account selection hook - using new declarative list hook
+  const useAccounts = useCustomerAccountsList({ accessToken, userInfo, additionalData }, { limit: 20 })
 
-  const searchAccounts = useCallback(
-    async (search: string) => {
-      setAccountsLoading(true)
-      setAccountsError(null)
-      try {
-        const result = await fetchCustomerAccounts({ search, limit: 20, offset: 0 })
-        const mappedAccounts = (result.accounts || []).map((acc: any) => ({
-          id: acc.id,
-          value: acc.id,
-          label: acc.name,
-          name: acc.name
-        }))
-        setAccountOptions(mappedAccounts)
-        setAccountsLoading(false)
-        return mappedAccounts
-      } catch (error) {
-        setAccountsLoading(false)
-        setAccountsError(error instanceof Error ? error.message : 'Failed to fetch accounts')
-        return []
-      }
-    },
-    [fetchCustomerAccounts]
-  )
-
-  useEffect(() => {
-    if (accessToken) {
-      searchAccounts('')
-    }
-  }, [accessToken, searchAccounts])
-
-  // Extract hook result for accountsHook prop
-  const accountsHook = {
-    options: accountOptions,
-    loading: accountsLoading,
-    error: accountsError,
-    search: searchAccounts
+  // Collect all errors for centralized early return
+  const errors: Array<{ error?: string | unknown; type?: 'accessToken'; context?: string }> = []
+  if (!accessToken) {
+    errors.push({ type: 'accessToken' })
+  }
+  if (error) {
+    errors.push({ error, context: 'Failed to load contact data' })
+  }
+  if (useAccounts.error) {
+    errors.push({ error: useAccounts.error, context: 'Failed to load accounts' })
   }
 
-  // Map contact data to form values - automatic mapping
-  const mapContactToFormValues = useCallback(
-    (contact: CustomerContact | null): Partial<z.infer<typeof customerContactSchema>> => {
-      if (!contact) {
-        return {}
-      }
-      return mapCustomerContactToFormValues(contact)
-    },
-    []
-  )
+  // Early return if any errors exist
+  if (errors.length > 0) {
+    return (
+      <>
+        {errors.map((err, index) => (
+          <ErrorAlert
+            key={index}
+            error={err.error}
+            type={err.type}
+            context={err.context}
+            dataTestId={formatDataTestId('customer-contact-form', `error-alert-${index}`)}
+          />
+        ))}
+      </>
+    )
+  }
 
   // Initialize React Hook Form
   const form = useForm<z.infer<typeof customerContactSchema>>({
     resolver: zodResolver(customerContactSchema),
-    defaultValues: {
-      ...mapContactToFormValues(contactData),
-      ...initialValues
-    } as any,
+    defaultValues: mapToFormValues(contact || {}, customerContactSchema) as Partial<CustomerContact>,
     mode: 'onSubmit',
     reValidateMode: 'onSubmit'
   })
 
   // Sync form when contact changes
+  const contactRef = useRef(contact)
   useEffect(() => {
-    if (contactData) {
-      const formValues = mapContactToFormValues(contactData)
-      form.reset({
-        ...formValues,
-        ...initialValues
-      } as any)
+    if (contactRef.current?.id !== contact?.id) {
+      form.reset(mapToFormValues(contact || {}, customerContactSchema) as Partial<CustomerContact>)
+      contactRef.current = contact
     }
-  }, [contactData?.id, contactData, form, mapContactToFormValues, initialValues])
-
-  // NOTE: Auto-selection of current user is now handled by OwnerSelect component
-  // No need for manual auto-selection logic here
+  }, [contact?.id, contact, form])
 
   // Ref to store current file and thumbnail from AvatarUpload (no re-renders)
   const avatarFileRef = useRef<{ file: File; thumbnail: string } | null>(null)
+
+  // Handle form submission - data already matches interface structure exactly
+  const handleSubmit = useCallback(async (data: any) => {
+    try {
+      const { contact } = buildCustomerContactPayload(data)
+      return {
+        contact,
+        changeMode: data.id ? 'UPDATE' : 'INSERT'
+      }
+    } catch (error) {
+      console.error('Error submitting contact:', error)
+      throw error
+    }
+  }, [])
+
+  // Handle form cancellation
+  const handleCancel = async () => {
+    // AppActionForm handles cancellation via process events
+  }
 
   // Handle pre-submit: Upload avatar file if present
   const handlePreSubmit = async (formData: any) => {
@@ -164,12 +117,13 @@ const ContactForm: React.FC<ContactFormProps> = ({
     }
 
     try {
-      const contactId = formData.id || contactData?.id || 'new'
+      const contactId = formData.id || contact?.id || null
+      const folderPath = buildFilePath(FILE_ENTITY.CONTACT, contactId, FILE_CONTEXT.PICTURE)
       const pathParams = { accessScope: CustomerFilePaths.ACCESS_SCOPE } as const
       const queryParams = {
-        appName: CustomerFilePaths.APP_NAME,
-        folderPath: CustomerFilePaths.getContactPicturePath(contactId),
-        mimeType: avatarData.file.type || 'image/jpeg'
+        appName: APP_NAME,
+        folderPath: folderPath,
+        mimeType: avatarData.file.type
       }
 
       const uploadResponse = await fileClient.uploadFile(avatarData.file, pathParams, queryParams)
@@ -185,32 +139,8 @@ const ContactForm: React.FC<ContactFormProps> = ({
     }
   }
 
-  // Handle form submission - data already matches interface structure exactly
-  const handleSubmit = async (data: any) => {
-    // Build CustomerContact object - data already matches interface structure exactly
-    const customerContact: Partial<CustomerContact> = {
-      ...data
-    }
-
-    // Use centralized payload builder
-    const payload = buildCustomerContactPayload(customerContact)
-
-    const changeMode = data.id ? 'UPDATE' : 'INSERT'
-
-    // Return payload for AppActionForm to handle process event
-    return {
-      ...payload,
-      changeMode: changeMode
-    }
-  }
-
-  // Handle form cancellation
-  const handleCancel = async () => {
-    await onCancel()
-  }
-
   // Sales Campaign selector component
-  const salesCampaignSelector = (
+  const salesCampaignSelect = (
     <FormField
       control={form.control}
       name="salesCampaignId"
@@ -223,17 +153,17 @@ const ContactForm: React.FC<ContactFormProps> = ({
               onValueChange={(v: string | null) => field.onChange(v || '')}
               businessAppContext={{ accessToken, userInfo, additionalData }}
               selectedCampaign={
-                contactData?.salesCampaignId
+                contact?.salesCampaignId
                   ? {
-                      id: contactData.salesCampaignId || '',
-                      name: (contactData as any).salesCampaign?.name || '',
+                      id: contact.salesCampaignId || '',
+                      name: (contact as any).salesCampaign?.name || '',
                       type: undefined,
                       typeRef: undefined
                     }
                   : null
               }
               placeholder="Search Campaign..."
-              data-testid={formatDataTestId(prefixDataTestId, 'campaign-select')}
+              data-testid={formatDataTestId('customer-contact-form', 'campaign-select')}
             />
           </FormControl>
           <FormMessage />
@@ -242,8 +172,7 @@ const ContactForm: React.FC<ContactFormProps> = ({
     />
   )
 
-  // Determine process type based on whether contact exists
-  const processType = contactData?.id ? 'update' : 'create'
+  const processType = contact?.id ? 'update' : 'create'
 
   return (
     <CatalogSelect.Provider accessToken={accessToken} userInfo={userInfo} additionalData={additionalData} form={form}>
@@ -255,17 +184,18 @@ const ContactForm: React.FC<ContactFormProps> = ({
         formData={form.getValues()}
         form={form}
         schema={customerContactSchema}
-        data-testid={prefixDataTestId}
-        submitButtonText={contactData?.id ? 'Update Contact' : 'Create Contact'}
+        data-testid={formatDataTestId('customer-contact-form', 'Form')}
+        submitButtonText={contact?.id ? 'Update Contact' : 'Create Contact'}
+        isSubmitDisabled={loading}
       >
         <ContactLayout
           businessAppContext={{ accessToken, userInfo, additionalData }}
-          ownerEmployee={contactData?.ownerEmployee}
-          entityId={contactData?.id}
-          accountsHook={accountsHook}
-          contactInformationCustomFields={salesCampaignSelector}
+          ownerEmployee={contact?.ownerEmployee}
+          entityId={contact?.id || contactId}
+          useAccounts={useAccounts}
+          contactInformationCustomFields={salesCampaignSelect}
           avatarFileRef={avatarFileRef}
-          loading={contactLoading && !!contactId}
+          loading={loading && !!contactId}
         />
       </AppActionForm>
     </CatalogSelect.Provider>

@@ -1,24 +1,21 @@
-import React, { useState, useEffect, useCallback } from 'react'
+import React, { useEffect, useCallback, useRef } from 'react'
 import { BusinessAppContextProps } from '@/common/BusinessAppContext'
 import { getTranslationFromI18nKeyAndLabel } from '@/common/utils/windowUtils'
 import { NoteLayout, noteSchema } from '@/common/components/common-relations/form-layouts/note-layout'
 import { zodResolver } from '@hookform/resolvers/zod'
 import { z } from 'zod'
-import { buildInvestmentNotePayload } from '@/common/data/investment/payloads/investmentRelationPayloads'
+import { type InvestmentNote, buildInvestmentNotePayload } from '@/common/data/investment/types/investmentNoteTypes'
 import { useInvestmentEntities } from '@/common/data/investment/hooks/useInvestmentEntities'
 import { useInvestmentNote } from '@/common/data/investment/hooks/useInvestmentNote'
 import { AppActionForm } from '@/components/app-action-form'
+import { CatalogSelect } from '@/components/catalog-select'
 import { useForm } from 'react-hook-form'
-import { Alert } from '@newwork/nw-design-system'
 import { useFileClient } from '@/common/network/files/useFileClient'
-
-const initialFormData: Partial<z.infer<typeof noteSchema>> = {
-  title: '',
-  text: '',
-  reminderDate: undefined,
-  documents: [],
-  _pendingFiles: []
-}
+import { buildFilePath } from '@/common/utils/fileUtils'
+import { APP_NAME, FILE_ENTITY, FILE_CONTEXT } from '@/common/data/investment/constants/investmentConstants'
+import { mapToFormValues } from '@/common/utils/formMappingUtils'
+import { ErrorAlert } from '@/components/error-alert/ErrorAlert'
+import { formatDataTestId } from '@/common/utils/formatDataTestId'
 
 export interface NoteFormProps extends BusinessAppContextProps {
   initialData?: Partial<z.infer<typeof noteSchema>>
@@ -27,8 +24,6 @@ export interface NoteFormProps extends BusinessAppContextProps {
 }
 
 const NoteForm: React.FC<NoteFormProps> = ({ accessToken, userInfo, additionalData, onCancel = async () => {} }) => {
-  const [formData, setFormData] = useState<Partial<z.infer<typeof noteSchema>>>(initialFormData)
-
   // Resolve IDs from additionalData (platform may pass ids inside psi_taskPayload.psi_initialParameters)
   const platformParams = React.useMemo(() => {
     const nested =
@@ -50,14 +45,44 @@ const NoteForm: React.FC<NoteFormProps> = ({ accessToken, userInfo, additionalDa
   const isUpdateMode = !!noteId
 
   // Investment note hook - declarative single-by-PK
-  const { note, loading: noteLoading, error: noteError } = useInvestmentNote(accessToken, noteId)
+  const { note, loading: noteLoading, error } = useInvestmentNote(accessToken || '', noteId)
 
   // Get entity IDs from platform params
-  const { accountId, leadId, contactId, opportunityId, investmentId } = platformParams
-  const hasEntityFromContext = accountId || leadId || contactId || opportunityId
+  const accountId = platformParams.accountId
+  const contactId = platformParams.contactId
+  const opportunityId = platformParams.opportunityId
+  const leadId = platformParams.leadId
+  const investmentId = platformParams.investmentId
+
+  // Collect all errors for centralized early return
+  const errors: Array<{ error?: string | unknown; type?: 'accessToken'; context?: string }> = []
+  if (!accessToken) {
+    errors.push({ type: 'accessToken' })
+  }
+  if (error) {
+    errors.push({ error, context: 'Failed to load note data' })
+  }
+
+  // Early return if any errors exist
+  if (errors.length > 0) {
+    return (
+      <>
+        {errors.map((err, index) => (
+          <ErrorAlert
+            key={index}
+            error={err.error}
+            type={err.type}
+            context={err.context}
+            dataTestId={formatDataTestId('investment-note-form', `error-alert-${index}`)}
+          />
+        ))}
+      </>
+    )
+  }
 
   // For investment notes, we hide entity selection since investment + account context is sufficient
   const isInvestmentContext = Boolean(investmentId)
+  const hasEntityFromContext = accountId || leadId || contactId || opportunityId
   const shouldShowEntitySelection = !isInvestmentContext && !hasEntityFromContext
 
   // Entity search hook (controlled search/path) - same as activity form
@@ -75,19 +100,49 @@ const NoteForm: React.FC<NoteFormProps> = ({ accessToken, userInfo, additionalDa
 
   // Upload files to file service and return file IDs with metadata
   const uploadFiles = useCallback(
-    async (files: File[], entityId: string): Promise<Array<{ name: string; fileInfo: any }>> => {
+    async (
+      files: File[],
+      referenceEntityId: string,
+      referenceEntityType: 'account' | 'contact' | 'lead' | 'opportunity' | 'investment' | 'unknown'
+    ): Promise<Array<{ name: string; fileInfo: any }>> => {
       if (!files || files.length === 0) return []
 
+      // Determine FILE_ENTITY based on reference entity type
+      let fileEntity: any
+      switch (referenceEntityType) {
+        case 'account':
+          fileEntity = FILE_ENTITY.ACCOUNT
+          break
+        case 'contact':
+          fileEntity = FILE_ENTITY.CONTACT
+          break
+        case 'lead':
+          fileEntity = FILE_ENTITY.LEAD
+          break
+        case 'opportunity':
+          fileEntity = FILE_ENTITY.OPPORTUNITY
+          break
+        case 'investment':
+          fileEntity = FILE_ENTITY.INVESTMENT
+          break
+        default:
+          fileEntity = FILE_ENTITY.UNKNOWN
+          break
+      }
+
+      const folderPath = buildFilePath(fileEntity, referenceEntityId, FILE_CONTEXT.NOTE)
+
       const uploadPromises = files.map(async file => {
-        const folderPath = `/investmentRelations/notes/${entityId}/documents`
+        // Ensure we have a valid MIME type - fallback to octet-stream if empty
+        const mimeType = file.type
 
         const result = await fileClient.uploadFile(
           file,
           { accessScope: 'tenant' },
           {
-            appName: 'investmentRelations',
+            appName: APP_NAME,
             folderPath: folderPath,
-            mimeType: file.type
+            mimeType: mimeType
           }
         )
 
@@ -105,64 +160,44 @@ const NoteForm: React.FC<NoteFormProps> = ({ accessToken, userInfo, additionalDa
   // RHF + Zod resolver provided to AppActionForm
   const form = useForm<z.infer<typeof noteSchema>>({
     resolver: zodResolver(noteSchema),
-    defaultValues: formData,
-    mode: 'onChange'
+    defaultValues: mapToFormValues(note || {}, noteSchema) as any,
+    mode: 'onSubmit',
+    reValidateMode: 'onSubmit'
   })
 
-  // Load existing note if in update mode
+  // Combine context + note IDs (note has priority)
+  const relatedEntityIds = React.useMemo(
+    () => ({
+      accountId: note?.accountId || accountId,
+      contactId: note?.contactId || contactId,
+      opportunityId: note?.opportunityId || opportunityId,
+      leadId: note?.leadId || leadId,
+      investmentId: note?.investmentId || investmentId
+    }),
+    [accountId, contactId, opportunityId, leadId, investmentId, note]
+  )
+
+  // Load existing note if in update mode - using mapToFormValues (AccountForm pattern)
+  const noteRef = useRef(note)
   useEffect(() => {
-    if (!isUpdateMode || !note || noteLoading) {
-      return
+    if (noteRef.current?.id !== note?.id) {
+      form.reset(mapToFormValues(note || {}, noteSchema) as any)
+      noteRef.current = note
+
+      // Hydrate first found entity
+      const entity = [
+        { type: 'investment' as const, id: note?.investmentId },
+        { type: 'account' as const, id: note?.accountId },
+        { type: 'contact' as const, id: note?.contactId },
+        { type: 'opportunity' as const, id: note?.opportunityId },
+        { type: 'lead' as const, id: note?.leadId }
+      ].find(e => e.id)
+
+      if (entity?.id) {
+        hydrateEntityById(entity.type, entity.id)
+      }
     }
-
-    // Helper to extract entity ID from object or string
-    const getEntityId = (entity: any): string | undefined => {
-      if (!entity) return undefined
-      if (typeof entity === 'string') return entity
-      return entity.id
-    }
-
-    // Set form data - only store entity IDs (strings), not objects
-    const newFormData = {
-      id: note.id,
-      title: note.title || '',
-      text: note.text || '',
-      reminderDate: note.reminderDate || undefined,
-      documents:
-        (note as any).documents?.map((doc: any) => ({
-          id: doc.id,
-          name: doc.name || '',
-          version: doc.version
-        })) || [],
-      _pendingFiles: [],
-      // Only store entity IDs (strings), not objects
-      account: getEntityId(note.account) || undefined,
-      contact: getEntityId(note.contact) || undefined,
-      opportunity: getEntityId(note.opportunity) || undefined,
-      lead: getEntityId(note.lead) || undefined,
-      authorEmployee: note.authorEmployee,
-      version: note.version,
-      // keep relatedEntityId for validation convenience
-      ...(note.account?.id ? { relatedEntityId: note.account.id } : {}),
-      ...(note.contact?.id ? { relatedEntityId: note.contact.id } : {}),
-      ...(note.opportunity?.id ? { relatedEntityId: note.opportunity.id } : {}),
-      ...(note.lead?.id ? { relatedEntityId: note.lead.id } : {})
-    } as any
-
-    setFormData(newFormData)
-
-    // CRITICAL: Also update the React Hook Form values
-    form.reset(newFormData)
-
-    // Hydrate and pin related entity if present so combobox trigger keeps rich label
-    const relId = note.account?.id || note.contact?.id || note.opportunity?.id || note.lead?.id
-    if (relId) {
-      if (note.account?.id) hydrateEntityById('account', note.account.id)
-      else if (note.contact?.id) hydrateEntityById('contact', note.contact.id)
-      else if (note.opportunity?.id) hydrateEntityById('opportunity', note.opportunity.id)
-      else if (note.lead?.id) hydrateEntityById('lead', note.lead.id)
-    }
-  }, [isUpdateMode, note, noteLoading, hydrateEntityById, form])
+  }, [note?.id, note, form, hydrateEntityById])
   const handleEntitySearch = useCallback(
     (searchTerm: string) => {
       // Allow empty string to fetch first page
@@ -171,12 +206,59 @@ const NoteForm: React.FC<NoteFormProps> = ({ accessToken, userInfo, additionalDa
     [searchEntities]
   )
 
+  const handleFilesChange = useCallback(
+    (files: File[]) => {
+      form.setValue('_pendingFiles', files, { shouldDirty: true })
+    },
+    [form]
+  )
+
+  const handleDocumentRemove = useCallback(
+    (documentId: string) => {
+      const currentDocs = form.getValues('documents') || []
+      form.setValue(
+        'documents',
+        currentDocs.filter((doc: any) => doc.id !== documentId),
+        { shouldDirty: true }
+      )
+    },
+    [form]
+  )
+
   // Prefetch entities on mount if selection is visible
   useEffect(() => {
     if (shouldShowEntitySelection) {
       searchEntities('')
     }
   }, [shouldShowEntitySelection, searchEntities])
+
+  // Handler for investment entity changes (injected into NoteSegment)
+  // Also handles initial investmentId from context or loaded note
+  const handleAdditionalEntityChange = useCallback(
+    (type: string, entityId: string | null) => {
+      if (type === 'investment') {
+        if (entityId) {
+          form.setValue('investmentId', entityId)
+          form.setValue('relatedEntityId', entityId)
+          hydrateEntityById('investment', entityId)
+        } else {
+          form.setValue('investmentId', undefined)
+        }
+      }
+    },
+    [form, hydrateEntityById]
+  )
+
+  // Handle investmentId from context or loaded note (IRM-specific, outside NoteSegment)
+  useEffect(() => {
+    const contextInvestmentId = relatedEntityIds.investmentId
+    if (!contextInvestmentId) return
+
+    const currentInvestmentId = form.getValues('investmentId')
+    if (currentInvestmentId !== contextInvestmentId) {
+      handleAdditionalEntityChange('investment', contextInvestmentId)
+    }
+  }, [relatedEntityIds.investmentId, form, handleAdditionalEntityChange])
 
   // Compose validation using the shared util, with domain toggle on entity requirement
   const validateForm = useCallback(
@@ -194,7 +276,7 @@ const NoteForm: React.FC<NoteFormProps> = ({ accessToken, userInfo, additionalDa
       }
 
       // Only require entity selection if not in investment context
-      if (shouldShowEntitySelection && !data.account && !data.contact && !data.opportunity && !data.lead) {
+      if (shouldShowEntitySelection && !data.accountId && !data.contactId && !data.opportunityId && !data.leadId) {
         errors.push('Please select a related entity')
       }
 
@@ -203,63 +285,66 @@ const NoteForm: React.FC<NoteFormProps> = ({ accessToken, userInfo, additionalDa
     [shouldShowEntitySelection]
   )
 
+  const processType = isUpdateMode ? 'update' : 'create'
+
   // Form submission handler - business logic only
-  const handleSubmit = useCallback(
-    async (data: z.infer<typeof noteSchema>) => {
-      // Helper to extract entity ID from object or string
-      const getEntityId = (entity: any): string | undefined => {
-        if (!entity) return undefined
-        if (typeof entity === 'string') return entity
-        return entity.id
+  const handleSubmit = useCallback(async (data: z.infer<typeof noteSchema>) => {
+    try {
+      delete data._pendingFiles
+      delete data.relatedEntityId
+
+      // Build payload (buildPayload will include creator fields from noteData)
+      const { investmentNote } = buildInvestmentNotePayload(data as Partial<InvestmentNote>)
+
+      return {
+        investmentNote
       }
-
-      // Extract entity IDs - must be strings, not objects
-      const accountId = getEntityId(data.account) || getEntityId(formData.account) || undefined
-      const contactId = getEntityId(data.contact) || getEntityId(formData.contact) || undefined
-      const opportunityId = getEntityId(data.opportunity) || getEntityId(formData.opportunity) || undefined
-      const leadId = getEntityId(data.lead) || getEntityId(formData.lead) || undefined
-
-      // Merge form data with state to include id, version, documents (already uploaded in preSubmit), and entity IDs
-      // Remove entity objects from data and only include IDs (strings)
-      const dataWithoutEntities = { ...data }
-      const noteData = formData.id
-        ? {
-            ...dataWithoutEntities,
-            id: formData.id,
-            version: formData.version,
-            // documents already processed in handlePreSubmit
-            // Only include entity IDs as strings (not objects)
-            ...(accountId && { account: accountId }),
-            ...(contactId && { contact: contactId }),
-            ...(opportunityId && { opportunity: opportunityId }),
-            ...(leadId && { lead: leadId })
-          }
-        : {
-            ...dataWithoutEntities,
-            // documents already processed in handlePreSubmit
-            // Only include entity IDs as strings (not objects)
-            ...(accountId && { account: accountId }),
-            ...(contactId && { contact: contactId }),
-            ...(opportunityId && { opportunity: opportunityId }),
-            ...(leadId && { lead: leadId })
-          }
-
-      const payload = buildInvestmentNotePayload(noteData, { accessToken, userInfo, additionalData } as any, {
-        isUpdate: isUpdateMode
-      })
-      return payload
-    },
-    [accessToken, userInfo, additionalData, isUpdateMode, formData]
-  )
+    } catch (error) {
+      console.error('Error submitting note:', error)
+      throw error
+    }
+  }, [])
 
   // PreSubmit handler - upload files before submission
   const handlePreSubmit = useCallback(
     async (data: any) => {
+      // Set creator fields if not present
+      if (!data.creatorEmployeeId && userInfo?.employeeDetails?.employeeId) {
+        data.creatorEmployeeId = userInfo.employeeDetails.employeeId
+      }
+      if (!data.creatorUserId && userInfo?.id) {
+        data.creatorUserId = userInfo.id
+      }
+
       // Upload pending files if any
       let uploadedDocuments: Array<{ name: string; fileInfo: any }> = []
       if (data._pendingFiles && data._pendingFiles.length > 0) {
-        const tempId = formData.id || 'temp-' + Date.now()
-        uploadedDocuments = await uploadFiles(data._pendingFiles, tempId)
+        try {
+          // Determine reference entity from form data (including investmentId)
+          const referenceEntityId =
+            data.investmentId ||
+            data.accountId ||
+            data.contactId ||
+            data.leadId ||
+            data.opportunityId ||
+            'temp-' + Date.now()
+          const referenceEntityType = data.investmentId
+            ? 'investment'
+            : data.accountId
+              ? 'account'
+              : data.contactId
+                ? 'contact'
+                : data.leadId
+                  ? 'lead'
+                  : data.opportunityId
+                    ? 'opportunity'
+                    : 'unknown'
+
+          uploadedDocuments = await uploadFiles(data._pendingFiles, referenceEntityId, referenceEntityType)
+        } catch (error) {
+          console.error('Failed to upload files:', error)
+          throw error
+        }
       }
 
       // Combine existing documents (as objects with ID) and newly uploaded documents
@@ -278,7 +363,7 @@ const NoteForm: React.FC<NoteFormProps> = ({ accessToken, userInfo, additionalDa
         documents: allDocuments
       }
     },
-    [formData.id, uploadFiles]
+    [uploadFiles, userInfo]
   )
 
   // Handle form cancellation
@@ -287,68 +372,57 @@ const NoteForm: React.FC<NoteFormProps> = ({ accessToken, userInfo, additionalDa
   }
 
   return (
-    <AppActionForm
-      processType={isUpdateMode ? 'update' : 'create'}
-      onSubmit={handleSubmit}
-      handlePreSubmit={handlePreSubmit}
-      onCancel={handleCancel}
-      formData={form.getValues()}
-      form={form}
-      schema={noteSchema}
-      validateForm={validateForm}
-      submitButtonText={getTranslationFromI18nKeyAndLabel('crm:common.submit', 'Submit')}
-      cancelButtonText={getTranslationFromI18nKeyAndLabel('crm:common.cancel', 'Cancel')}
-      data-testid="investment-note-process-dialog"
-    >
-      {noteError && (
-        <Alert variant="destructive" className="gba:mb-4" data-testid="note-load-error-alert">
-          {noteError}
-        </Alert>
-      )}
-
-      <NoteLayout
-        // Use controlled entity search from hook
-        entities={entities.filter(e => e.type !== 'investment') as any}
-        entitiesLoading={entitiesLoading}
-        entitiesHasMore={entitiesHasMore}
-        onEntityLoadMore={loadMoreEntities}
-        onEntitySearch={handleEntitySearch}
-        showEntitySelection={shouldShowEntitySelection}
-        initialEntityFromContext={{ accountId, contactId, opportunityId, leadId }}
-        titleLabel={getTranslationFromI18nKeyAndLabel('crm:notes.title', 'Note Title')}
-        textLabel={getTranslationFromI18nKeyAndLabel('crm:notes.text', 'Note Content')}
-        reminderLabel={getTranslationFromI18nKeyAndLabel('crm:notes.reminderDate', 'Reminder Date (Optional)')}
-        entityLabel={getTranslationFromI18nKeyAndLabel('crm:notes.relatedEntity', 'Related Entity')}
-        titlePlaceholder={getTranslationFromI18nKeyAndLabel('crm:notes.titlePlaceholder', 'Enter note title...')}
-        textPlaceholder={getTranslationFromI18nKeyAndLabel('crm:notes.textPlaceholder', 'Write your note here...')}
-        reminderPlaceholder={getTranslationFromI18nKeyAndLabel(
-          'crm:notes.reminderDatePlaceholder',
-          'Select reminder date...'
-        )}
-        uploadFileLabel={getTranslationFromI18nKeyAndLabel('crm:notes.uploadFile', 'Attach Documents')}
-        // File upload handlers - use form.setValue instead of setFormData to avoid setState during render
-        onFilesChange={useCallback(
-          (files: File[]) => {
-            form.setValue('_pendingFiles', files, { shouldDirty: true })
-          },
-          [form]
-        )}
-        existingDocuments={form.watch('documents') || []}
-        onDocumentRemove={useCallback(
-          (documentId: string) => {
-            const currentDocs = form.getValues('documents') || []
-            form.setValue(
-              'documents',
-              currentDocs.filter((doc: any) => doc.id !== documentId),
-              { shouldDirty: true }
-            )
-          },
-          [form]
-        )}
-        loading={noteLoading && isUpdateMode}
-        data-testid="investment-note-layout"
-      />
-    </AppActionForm>
+    <CatalogSelect.Provider accessToken={accessToken} userInfo={userInfo} additionalData={additionalData} form={form}>
+      <AppActionForm
+        processType={processType}
+        onSubmit={handleSubmit}
+        handlePreSubmit={handlePreSubmit}
+        onCancel={handleCancel}
+        formData={form.getValues()}
+        form={form}
+        schema={noteSchema}
+        validateForm={validateForm}
+        submitButtonText={getTranslationFromI18nKeyAndLabel('crm:common.submit', 'Submit')}
+        cancelButtonText={getTranslationFromI18nKeyAndLabel('crm:common.cancel', 'Cancel')}
+        data-testid={formatDataTestId('investment-note-form', 'Form')}
+        isSubmitDisabled={noteLoading}
+      >
+        <NoteLayout
+          accessToken={accessToken}
+          // Use controlled entity search from hook
+          entities={entities.filter(e => e.type !== 'investment') as any}
+          entitiesLoading={entitiesLoading}
+          entitiesHasMore={entitiesHasMore}
+          onEntityLoadMore={loadMoreEntities}
+          onEntitySearch={handleEntitySearch}
+          showEntitySelection={shouldShowEntitySelection}
+          initialEntityFromContext={{
+            // Only pass standard entities to NoteSegment (investmentId handled separately via onAdditionalEntityChange)
+            accountId: relatedEntityIds.accountId,
+            contactId: relatedEntityIds.contactId,
+            opportunityId: relatedEntityIds.opportunityId,
+            leadId: relatedEntityIds.leadId
+          }}
+          onAdditionalEntityChange={handleAdditionalEntityChange}
+          titleLabel={getTranslationFromI18nKeyAndLabel('crm:notes.title', 'Note Title')}
+          textLabel={getTranslationFromI18nKeyAndLabel('crm:notes.text', 'Note Content')}
+          reminderLabel={getTranslationFromI18nKeyAndLabel('crm:notes.reminderDate', 'Reminder Date (Optional)')}
+          entityLabel={getTranslationFromI18nKeyAndLabel('crm:notes.relatedEntity', 'Related Entity')}
+          titlePlaceholder={getTranslationFromI18nKeyAndLabel('crm:notes.titlePlaceholder', 'Enter note title...')}
+          textPlaceholder={getTranslationFromI18nKeyAndLabel('crm:notes.textPlaceholder', 'Write your note here...')}
+          reminderPlaceholder={getTranslationFromI18nKeyAndLabel(
+            'crm:notes.reminderDatePlaceholder',
+            'Select reminder date...'
+          )}
+          uploadFileLabel={getTranslationFromI18nKeyAndLabel('crm:notes.uploadFile', 'Attach Documents')}
+          onFilesChange={handleFilesChange}
+          existingDocuments={form.watch('documents') || []}
+          onDocumentRemove={handleDocumentRemove}
+          loading={noteLoading && isUpdateMode}
+          data-testid="investment-note-layout"
+        />
+      </AppActionForm>
+    </CatalogSelect.Provider>
   )
 }
 

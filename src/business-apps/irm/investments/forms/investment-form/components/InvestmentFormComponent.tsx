@@ -42,7 +42,10 @@ export const InvestmentFormComponent: React.FC = () => {
   // Add the investment and opportunity fetch hooks
   const { fetchInvestmentById } = useGetInvestmentById(businessAppContext)
   // Use new declarative hook for opportunity
-  const { opportunity: fetchedOpportunity } = useInvestmentOpportunity(businessAppContext, externalOpportunityId)
+  const { opportunity: fetchedOpportunity } = useInvestmentOpportunity(
+    businessAppContext.accessToken,
+    externalOpportunityId
+  )
 
   // UI state
   const [currentStep, setCurrentStep] = useState<FormStep>('select')

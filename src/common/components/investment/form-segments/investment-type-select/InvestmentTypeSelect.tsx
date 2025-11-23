@@ -3,7 +3,7 @@ import { useFormContext } from 'react-hook-form'
 import { FormField, FormItem, FormLabel, FormControl, FormMessage, Button, Badge } from '@newwork/nw-design-system'
 import { formatDataTestId } from '@/common/utils/formatDataTestId'
 import { BusinessAppContextProps } from '@/common/BusinessAppContext'
-import { FilteredType } from '../investment-prospect-segment/useProspectFields'
+import { FilteredType } from '../investment-prospect-segment/useInvestmentProspectFields'
 
 interface InvestmentTypeSelectProps {
   /** Investment Group Ref (catalog entry ID) - used to filter investment types */

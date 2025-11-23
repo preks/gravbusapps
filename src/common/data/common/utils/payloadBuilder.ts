@@ -62,7 +62,7 @@ const transformIdFields = (value: any): any => {
  * ```typescript
  * const payload = buildPayload(
  *   account,
- *   accountFormFields
+ *   AccountFormFields
  * )
  * ```
  */

@@ -11,7 +11,8 @@ import {
   SelectContent,
   SelectItem,
   SelectTrigger,
-  SelectValue
+  SelectValue,
+  Skeleton
 } from '@newwork/nw-design-system'
 import { PiPlus, PiX } from 'react-icons/pi'
 import { Building2, Briefcase } from 'lucide-react'
@@ -90,6 +91,9 @@ const ContactSelect: React.FC<ContactSelectProps> = ({
   const [internalValue, setInternalValue] = useState<Array<string | ContactValue>>(normalizedValue)
   const [mergedContacts, setMergedContacts] = useState<SelectOption[]>([])
   const [showAddExisting, setShowAddExisting] = useState(false)
+  // Track if initial load has completed (only show loading on first open when no data exists)
+  const [hasInitialData, setHasInitialData] = useState(false)
+  const [isInitialLoad, setIsInitialLoad] = useState(false)
 
   // Sync internal value with prop value
   // Strategy:
@@ -160,6 +164,7 @@ const ContactSelect: React.FC<ContactSelectProps> = ({
   }, [normalizedValue])
 
   // Merge pre-selected contacts with loaded contacts
+  // Keep existing contacts during loading to prevent them from disappearing
   React.useEffect(() => {
     const preSelectedContacts: SelectOption[] = []
 
@@ -180,9 +185,31 @@ const ContactSelect: React.FC<ContactSelectProps> = ({
       })
     }
 
-    // Merge: pre-selected contacts first, then loaded contacts
-    setMergedContacts([...preSelectedContacts, ...contacts])
-  }, [internalValue, contacts])
+    // If loading and we have existing contacts, keep them and merge with new ones
+    // Otherwise, use the new contacts directly
+    if (contactsLoading && mergedContacts.length > 0) {
+      // During loading: merge existing contacts with new ones (avoid duplicates)
+      const existingIds = new Set(mergedContacts.map(c => c.id))
+      const newContacts = contacts.filter(c => !existingIds.has(c.id))
+      setMergedContacts([...preSelectedContacts, ...mergedContacts, ...newContacts])
+    } else {
+      // Not loading or no existing contacts: use new contacts
+      setMergedContacts([...preSelectedContacts, ...contacts])
+    }
+
+    // Mark as having initial data once contacts are loaded (even if empty)
+    if (!contactsLoading && !hasInitialData) {
+      setHasInitialData(true)
+      setIsInitialLoad(false)
+    }
+  }, [internalValue, contacts, contactsLoading, hasInitialData])
+
+  // Track when combobox is opened for the first time (initial load)
+  React.useEffect(() => {
+    if (showAddExisting && !hasInitialData && contactsLoading) {
+      setIsInitialLoad(true)
+    }
+  }, [showAddExisting, hasInitialData, contactsLoading])
 
   // Helper to get contact data for display
   // Priority: 1. contactValue (if has complete data), 2. accountContacts, 3. mergedContacts, 4. fallback
@@ -374,6 +401,17 @@ const ContactSelect: React.FC<ContactSelectProps> = ({
       })
   }, [mergedContacts, selectedContactIds])
 
+  // Determine empty text: only show "No contacts found" when not loading and no options
+  const getEmptyText = () => {
+    if (contactsLoading) {
+      return '' // Don't show text while loading
+    }
+    if (availableContactOptions.length === 0) {
+      return 'No contacts found'
+    }
+    return 'No contacts found' // Fallback
+  }
+
   return (
     <div className="gba:space-y-4" data-testid={dataTestId || 'contact-list'}>
       {/* Empty State with Clickable Dashed Outline */}
@@ -391,18 +429,27 @@ const ContactSelect: React.FC<ContactSelectProps> = ({
       {/* Combobox for adding contacts (shown when empty state clicked) */}
       {internalValue.length === 0 && showAddExisting && (
         <div className="gba:space-y-2">
-          <Combobox
-            value=""
-            onValueChange={handleAddContact}
-            options={availableContactOptions}
-            placeholder="Search and select contact..."
-            searchPlaceholder="Type to search..."
-            emptyText={contactsLoading ? 'Loading...' : 'No contacts found'}
-            disabled={contactsLoading}
-            loading={contactsLoading}
-            onSearch={searchContacts}
-            data-testid={formatDataTestId(dataTestId || 'contact-list', 'add-contact-combobox')}
-          />
+          {/* Show skeleton during initial load */}
+          {isInitialLoad && contactsLoading && contacts.length === 0 ? (
+            <div className="gba:space-y-2">
+              <Skeleton className="gba:h-10 gba:w-full" />
+              <Skeleton className="gba:h-10 gba:w-full" />
+              <Skeleton className="gba:h-10 gba:w-full" />
+            </div>
+          ) : (
+            <Combobox
+              value=""
+              onValueChange={handleAddContact}
+              options={availableContactOptions}
+              placeholder="Search and select contact..."
+              searchPlaceholder="Type to search..."
+              emptyText={getEmptyText()}
+              disabled={false}
+              loading={false}
+              onSearch={searchContacts}
+              data-testid={formatDataTestId(dataTestId || 'contact-list', 'add-contact-combobox')}
+            />
+          )}
           <Button
             type="button"
             variant="ghost"
@@ -532,9 +579,9 @@ const ContactSelect: React.FC<ContactSelectProps> = ({
                 options={availableContactOptions}
                 placeholder="Search and select contact..."
                 searchPlaceholder="Type to search..."
-                emptyText={contactsLoading ? 'Loading...' : 'No contacts found'}
-                disabled={contactsLoading}
-                loading={contactsLoading}
+                emptyText={getEmptyText()}
+                disabled={false}
+                loading={false}
                 onSearch={searchContacts}
                 data-testid={formatDataTestId(dataTestId || 'contact-list', 'add-contact-combobox')}
               />

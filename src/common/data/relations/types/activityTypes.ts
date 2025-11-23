@@ -49,6 +49,24 @@ export const ActivityFields = {
   title: 'title'
 } as const
 
+export const ActivityFormFields = {
+  ...ActivityFields,
+  accountId: 'account',
+  activityTypeRef: 'activityType',
+  completedAt: 'completedAt',
+  contactId: 'contact',
+  description: 'description',
+  documents: 'documents',
+  id: 'id',
+  leadId: 'lead',
+  occuredAt: 'occuredAt',
+  opportunityId: 'opportunity',
+  ownerEmployeeId: 'ownerEmployee',
+  source: 'source',
+  title: 'title',
+  version: 'version'
+} as const
+
 /**
  * Create Common Activity Descriptors with fields mapping
  */

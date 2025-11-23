@@ -1,2 +1,2 @@
-export { default as ConvertLeadForm } from './LeadConvertForm'
+export { default as LeadConvertForm } from './LeadConvertForm'
 export { default } from './LeadConvertForm'

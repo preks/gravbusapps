@@ -1,38 +1,39 @@
-import { useState, useCallback, useMemo, useEffect } from 'react'
+import { useCallback, useMemo, useEffect, useRef } from 'react'
 import { useForm } from 'react-hook-form'
 import { zodResolver } from '@hookform/resolvers/zod'
-import { Spinner, type WizardStep } from '@newwork/nw-design-system'
+import { z } from 'zod'
+import {
+  Skeleton,
+  type WizardStep,
+  FormField,
+  FormItem,
+  FormLabel,
+  FormControl,
+  FormMessage
+} from '@newwork/nw-design-system'
 import { getTranslationFromI18nKeyAndLabel } from '@/common/utils/windowUtils'
 import { AppActionForm } from '@/components/app-action-form'
-
-// Import types
 import { BusinessAppContextProps } from '@/common/BusinessAppContext'
 import {
   leadConvertSchema,
   type LeadConvertSchema
 } from '@/common/components/common-relations/form-layouts/lead-convert-layout/leadConvertSchema'
-
-type ConvertLeadFormData = LeadConvertSchema
-interface ConvertLeadFormProps extends BusinessAppContextProps {
-  onCancel?: () => void
-  onSuccess?: () => void
-}
-const convertLeadSchema = leadConvertSchema
-
-// Import central hooks
-import { useCustomerAccounts } from '@/common/data/customer/hooks/useCustomerAccounts'
-import { useGetCustomerContacts } from '@/common/data/customer/hooks/useCustomerContacts'
+import { accountSchema } from '@/common/components/common-relations/form-layouts/account-layout'
+import { contactSchema } from '@/common/components/common-relations/form-layouts/contact-layout'
+import { opportunitySchema } from '@/common/components/common-relations/form-layouts/opportunity-layout'
+import { useCustomerAccountsList } from '@/common/data/customer/hooks/useCustomerAccounts'
+import { useCustomerContactsList } from '@/common/data/customer/hooks/useCustomerContacts'
 import { useCustomerLead } from '@/common/data/customer/hooks/useCustomerLead'
-
-// Import utilities
-import { getAccountInitialValues, getContactInitialValues, getOpportunityInitialValues } from './utils'
+import {
+  mapLeadToAccount,
+  mapLeadToContact,
+  mapLeadToCustomerOpportunity
+} from '@/common/components/common-relations/form-layouts/lead-convert-layout/utils'
 import { buildCustomerLeadConvertPayload } from '@/common/data/customer/types/customerLeadTypes'
 import {
   checkFormReadiness,
   setValidationErrors
 } from '@/common/components/common-relations/form-segments/lead-convert-segment/utils/validationUtils'
-
-// Import layouts and segments
 import { LeadConvertSegment } from '@/common/components/common-relations/form-segments/lead-convert-segment'
 import {
   LeadConvertAccountStep,
@@ -41,203 +42,316 @@ import {
 } from '@/common/components/common-relations/form-layouts/lead-convert-layout'
 import { FormProvider } from 'react-hook-form'
 import { CatalogSelect } from '@/components/catalog-select'
-import { createAccountSegmentResolver } from '@/common/components/common-relations/form-layouts/account-layout'
-import { createContactSegmentResolver } from '@/common/components/common-relations/form-layouts/contact-layout'
-import { createOpportunitySegmentResolver } from '@/common/components/common-relations/form-layouts/opportunity-layout'
 import { CampaignSelect } from '@/common/components/customer/selects/campaign-select'
-import { FormField, FormItem, FormLabel, FormControl, FormMessage } from '@newwork/nw-design-system'
+import { ErrorAlert } from '@/components/error-alert/ErrorAlert'
+import { formatDataTestId } from '@/common/utils/formatDataTestId'
+import { useFileClient } from '@/common/network/files/useFileClient'
+import { buildFilePath } from '@/common/utils/fileUtils'
+import { APP_NAME, FILE_ENTITY, FILE_CONTEXT } from '@/common/data/customer/constants/customerConstants'
+import { CustomerFilePaths } from '@/common/data/customer/constants/customerFilePaths'
+import type { CustomerAccount } from '@/common/data/customer/types/customerAccountTypes'
+import type { CustomerContact } from '@/common/data/customer/types/customerContactTypes'
+import type { SelectOption as AccountSelectOption } from '@/common/components/common-relations/selects/account-select'
+import type { SelectOption as ContactSelectOption } from '@/common/components/common-relations/selects/contact-select'
 
-export const ConvertLeadForm = ({ accessToken, userInfo, additionalData, onSuccess }: ConvertLeadFormProps) => {
+// CRM-specific schema extensions (adds salesCampaignId)
+const customerAccountSchema = accountSchema.extend({
+  salesCampaignId: z.string().nullable().optional()
+})
+
+const customerContactSchema = contactSchema.extend({
+  salesCampaignId: z.string().nullable().optional()
+})
+
+const customerOpportunitySchema = opportunitySchema.extend({
+  salesCampaignId: z.string().nullable().optional()
+})
+
+type ConvertLeadFormData = LeadConvertSchema
+
+interface ConvertLeadFormProps extends BusinessAppContextProps {
+  onCancel?: () => void
+  onSuccess?: () => void
+}
+
+export const LeadConvertForm = ({ accessToken, userInfo, additionalData, onSuccess }: ConvertLeadFormProps) => {
   // Extract leadId from additionalData
   const actualLeadId = additionalData?.leadId || additionalData?.psi_taskPayload?.psi_initialParameters?.leadId || ''
 
-  // Business app context
-  const businessAppContext = { accessToken, userInfo }
+  // Business app context - memoized to prevent re-renders
+  const businessAppContext = useMemo(
+    () => ({ accessToken, userInfo, additionalData }),
+    [accessToken, userInfo, additionalData]
+  )
 
-  // React Hook Form setup
+  // Main form for Step 1 (selection)
   const form = useForm<ConvertLeadFormData>({
-    resolver: zodResolver(convertLeadSchema),
+    resolver: zodResolver(leadConvertSchema),
     defaultValues: {
       accountOption: 'create',
       contactOption: 'create',
-      createOpportunity: false,
-      // Initialize other fields as empty to ensure validation fails initially
-      selectedAccountId: '',
-      selectedAccountName: '',
-      accountName: '',
-      accountOwner: '',
-      selectedContactId: '',
-      selectedContactName: '',
-      contactFirstName: '',
-      contactLastName: '',
-      contactEmail: '',
-      opportunityName: ''
+      createOpportunity: false
     }
   })
 
-  // Watch form values for legacy compatibility
-  const formData = form.watch()
+  // Watch only specific form fields (not entire form object)
+  const accountOption = form.watch('accountOption')
+  const contactOption = form.watch('contactOption')
+  const createOpportunity = form.watch('createOpportunity')
 
-  // Load lead data using central hook
-  const { lead: leadData, loading } = useCustomerLead(accessToken, actualLeadId)
+  // Load lead data
+  const { lead: leadData, loading, error: leadError } = useCustomerLead(accessToken, actualLeadId)
 
-  // Separate forms for Account, Contact, Opportunity (used by layouts)
-  const accountForm = useForm({
-    resolver: createAccountSegmentResolver(),
-    defaultValues: getAccountInitialValues(leadData) as any,
+  // Nested forms for entity creation with CRM-specific schemas
+  const accountForm = useForm<z.infer<typeof customerAccountSchema>>({
+    resolver: zodResolver(customerAccountSchema),
+    defaultValues: mapLeadToAccount<CustomerAccount>(leadData),
     mode: 'onChange'
   })
 
-  const contactForm = useForm({
-    resolver: createContactSegmentResolver(),
-    defaultValues: getContactInitialValues(leadData) as any,
+  const contactForm = useForm<z.infer<typeof customerContactSchema>>({
+    resolver: zodResolver(customerContactSchema),
+    defaultValues: mapLeadToContact<CustomerContact>(leadData),
     mode: 'onChange'
   })
 
-  const opportunityForm = useForm({
-    resolver: createOpportunitySegmentResolver(),
-    defaultValues: getOpportunityInitialValues(leadData) as any,
+  const opportunityForm = useForm<z.infer<typeof customerOpportunitySchema>>({
+    resolver: zodResolver(customerOpportunitySchema),
+    defaultValues: mapLeadToCustomerOpportunity(leadData),
     mode: 'onChange'
   })
 
   // Update forms when leadData is loaded
   useEffect(() => {
     if (leadData?.id) {
-      accountForm.reset(getAccountInitialValues(leadData) as any)
-      contactForm.reset(getContactInitialValues(leadData) as any)
-      opportunityForm.reset(getOpportunityInitialValues(leadData) as any)
+      accountForm.reset(mapLeadToAccount<CustomerAccount>(leadData))
+      contactForm.reset(mapLeadToContact<CustomerContact>(leadData))
+      opportunityForm.reset(mapLeadToCustomerOpportunity(leadData))
     }
   }, [leadData?.id, accountForm, contactForm, opportunityForm])
 
-  // Store complete form data from nested forms for payload construction
-  const [completeAccountData, setCompleteAccountData] = useState<
-    Partial<import('@/common/data/customer/types/customerAccountTypes').CustomerAccount>
-  >({})
-  const [completeContactData, setCompleteContactData] = useState<
-    Partial<import('@/common/data/customer/types/customerContactTypes').CustomerContact>
-  >({})
-  const [completeOpportunityData, setCompleteOpportunityData] = useState<
-    Partial<import('@/common/data/customer/types/customerOpportunityTypes').CustomerOpportunity>
-  >({})
+  // File client for avatar uploads
+  const fileClient = useFileClient({ accessToken, userInfo, additionalData })
 
-  // Watch form changes and sync to main form
-  useEffect(() => {
-    const subscription = accountForm.watch(values => {
-      if (values.name) form.setValue('accountName', values.name)
-      if (values.ownerEmployeeId) form.setValue('accountOwner', values.ownerEmployeeId)
-      if (values.legalFormRef) form.setValue('accountLegalForm', values.legalFormRef)
-      if (values.industryClassRef) form.setValue('accountIndustry', values.industryClassRef)
-      if (values.salesCampaignId) form.setValue('accountSalesCampaign', values.salesCampaignId)
-      setCompleteAccountData(values as any)
-    })
-    return () => subscription.unsubscribe()
-  }, [accountForm, form])
+  // Refs to store current file and thumbnail from AvatarUpload (no re-renders)
+  const accountAvatarFileRef = useRef<{ file: File; thumbnail: string } | null>(null)
+  const contactAvatarFileRef = useRef<{ file: File; thumbnail: string } | null>(null)
 
-  useEffect(() => {
-    const subscription = contactForm.watch(values => {
-      if (values.firstName) form.setValue('contactFirstName', values.firstName)
-      if (values.lastName) form.setValue('contactLastName', values.lastName)
-      if (values.email) form.setValue('contactEmail', values.email)
-      if (values.ownerEmployeeId) form.setValue('contactOwnerEmployeeId', values.ownerEmployeeId)
-      if (values.salesCampaignId) form.setValue('contactSalesCampaign', values.salesCampaignId)
-      setCompleteContactData(values as any)
-    })
-    return () => subscription.unsubscribe()
-  }, [contactForm, form])
-
-  useEffect(() => {
-    const subscription = opportunityForm.watch(values => {
-      if (values.opportunityName) form.setValue('opportunityName', values.opportunityName)
-      if (values.ownerEmployeeId) form.setValue('opportunityOwner', values.ownerEmployeeId)
-      if (values.pipelineRef) form.setValue('opportunityPipeline', values.pipelineRef)
-      if (values.stageRef) form.setValue('opportunityPipelineStage', values.stageRef)
-      if (values.estimatedAmount) form.setValue('opportunityEstimatedAmount', values.estimatedAmount)
-      if (values.currency) form.setValue('opportunityCurrency', values.currency)
-      if (values.salesCampaignId) form.setValue('opportunitySalesCampaign', values.salesCampaignId)
-      setCompleteOpportunityData(values as any)
-    })
-    return () => subscription.unsubscribe()
-  }, [opportunityForm, form])
-
-  // Use central hooks for accounts and contacts
-  const { fetchCustomerAccounts } = useCustomerAccounts(businessAppContext)
+  // Use central hooks for accounts and contacts - extract refetch directly
   const {
-    options: contacts,
-    loading: isLoadingContacts,
-    search: searchContacts
-  } = useGetCustomerContacts(businessAppContext, { withState: true, autoFetch: true, mapToSelectOptions: true })
+    accounts: accountsList,
+    total: accountsTotal,
+    loading: accountsLoading,
+    error: accountsError,
+    refetch: refetchAccounts
+  } = useCustomerAccountsList(businessAppContext, { limit: 20 })
 
-  // Note: Pipeline, Stage, Opportunity Status, and Currency are now handled by CatalogSelect
-  // within OpportunityLayout segments, so no hooks needed here
+  const {
+    contacts: contactsList,
+    total: contactsTotal,
+    loading: contactsLoading,
+    error: contactsError,
+    refetch: refetchContacts
+  } = useCustomerContactsList(businessAppContext, { limit: 20 })
 
-  // State management for accounts (since useCustomerAccounts doesn't have withState)
-  const [accounts, setAccounts] = useState<
-    Array<{ id: string; value: string; label: string; name: string; extraInfo?: any }>
-  >([])
-  const [isLoadingAccounts, setIsLoadingAccounts] = useState(false)
-  const limit = 20
-
-  // Fetch accounts function - convert to SelectOption format for LeadConvertSegment
-  const fetchAccounts = useCallback(
-    async (search: string = '', offset: number = 0, append: boolean = false) => {
-      if (!accessToken) return
-      setIsLoadingAccounts(true)
-      try {
-        const result = await fetchCustomerAccounts({
-          search: search.trim() || undefined,
-          limit,
-          offset
-        })
-        const mappedAccounts = result.accounts.map(account => ({
-          id: account.id || '',
-          value: account.id || '',
-          label: account.name || account.code || 'Unnamed Account',
-          name: account.name || account.code || 'Unnamed Account',
-          extraInfo: {
-            email: account.communicationChannels?.find((ch: any) => ch.communicationChannelRef?.includes('Email'))
-              ?.value,
-            website: account.website,
-            ownerEmployee: account.ownerEmployee
-              ? {
-                  id: account.ownerEmployeeId,
-                  firstName: account.ownerEmployee.firstName,
-                  lastName: account.ownerEmployee.lastName
-                }
-              : undefined
-          }
-        }))
-        setAccounts(prev => (append ? [...prev, ...mappedAccounts] : mappedAccounts))
-      } catch (err) {
-        console.error('Error fetching accounts:', err)
-      } finally {
-        setIsLoadingAccounts(false)
-      }
-    },
-    [accessToken, fetchCustomerAccounts]
-  )
-
-  // Initial load
-  useEffect(() => {
-    if (accessToken) {
-      fetchAccounts('', 0, false)
-    }
-  }, [accessToken, fetchAccounts])
-
-  // Search accounts
+  // Memoize search functions to prevent re-renders - use refetch directly
   const searchAccounts = useCallback(
-    (searchTerm: string) => {
-      fetchAccounts(searchTerm, 0, false)
+    (search: string) => {
+      refetchAccounts({ search, limit: 20, offset: 0 })
     },
-    [fetchAccounts]
+    [refetchAccounts]
   )
 
-  // Helper function to check if form is ready for conversion - using watch for reactivity
-  const formValues = form.watch()
-  const isFormReadyForConversion = useCallback((): boolean => {
-    return checkFormReadiness(formValues)
-  }, [formValues])
+  const searchContacts = useCallback(
+    (search: string) => {
+      refetchContacts({ search, limit: 20, offset: 0 })
+    },
+    [refetchContacts]
+  )
 
-  // Create dynamic wizard steps based on user choices
+  // Transform accounts to SelectOption[] (like AccountInformationSegment does)
+  const accountOptions = useMemo<AccountSelectOption[]>(() => {
+    if (!accountsList || accountsList.length === 0) return []
+
+    return accountsList.map((account: any) => {
+      const emailChannel = account.communicationChannels?.find(
+        (ch: any) => ch.communicationChannel?.code === 'EMAIL' || ch.communicationChannelRef?.includes(':EMAIL')
+      )
+      const phoneChannel = account.communicationChannels?.find(
+        (ch: any) => ch.communicationChannel?.code === 'PHONE' || ch.communicationChannelRef?.includes(':PHONE')
+      )
+
+      return {
+        id: account.id || '',
+        value: account.id || '',
+        label: account.displayName || account.name || 'Unknown Account',
+        name: account.displayName || account.name || 'Unknown Account',
+        pictureThumbnail: account.pictureThumbnail || undefined,
+        extraInfo: {
+          email: emailChannel?.value || undefined,
+          phone: phoneChannel?.value || undefined,
+          website: account.website || undefined,
+          businessKey: account.businessKey || undefined,
+          code: account.code || undefined,
+          ownerEmployee: account.ownerEmployee
+            ? {
+                firstName: account.ownerEmployee.firstName,
+                lastName: account.ownerEmployee.lastName
+              }
+            : undefined
+        }
+      } as AccountSelectOption
+    })
+  }, [accountsList])
+
+  // Transform contacts to SelectOption[] (like ContactInformationSegment does)
+  const contactOptions = useMemo<ContactSelectOption[]>(() => {
+    if (!contactsList || contactsList.length === 0) return []
+
+    return contactsList.map((contact: any) => {
+      const emailChannel = contact.communicationChannels?.find(
+        (ch: any) => ch.communicationChannel?.code === 'EMAIL' || ch.communicationChannelRef?.includes(':EMAIL')
+      )
+      const email = emailChannel?.value || (contact as any).email || undefined
+
+      return {
+        id: contact.id || '',
+        value: contact.id || '',
+        label: contact.fullName || `${contact.firstName || ''} ${contact.lastName || ''}`.trim() || 'Unnamed Contact',
+        name: contact.fullName || `${contact.firstName || ''} ${contact.lastName || ''}`.trim() || 'Unnamed Contact',
+        pictureThumbnail: contact.pictureThumbnail || undefined,
+        extraInfo: {
+          email,
+          jobPosition: contact.jobPosition,
+          department: contact.department,
+          organizationalUnit: contact.ownerEmployee?.displayName || 'Unknown'
+        }
+      } as ContactSelectOption
+    })
+  }, [contactsList])
+
+  // Campaign Select component factory - memoized to prevent re-renders
+  // MUST be defined BEFORE currentRenderValues to avoid "Cannot access before initialization" error
+  const createCampaignSelectField = useCallback(
+    (formControl: any, formName: string) => (
+      <FormField
+        control={formControl}
+        name={formName}
+        render={({ field }) => (
+          <FormItem>
+            <FormLabel>Sales Campaign</FormLabel>
+            <FormControl>
+              <CampaignSelect
+                value={field.value || null}
+                onValueChange={(v: string | null) => field.onChange(v || '')}
+                businessAppContext={businessAppContext}
+                selectedCampaign={null}
+                placeholder="Search Campaign..."
+              />
+            </FormControl>
+            <FormMessage />
+          </FormItem>
+        )}
+      />
+    ),
+    [businessAppContext]
+  )
+
+  // Collect all errors for centralized early return
+  const errors: Array<{ error?: string | unknown; type?: 'accessToken'; context?: string }> = []
+  if (!accessToken) {
+    errors.push({ type: 'accessToken' })
+  }
+  if (!loading && leadError) {
+    errors.push({ error: leadError, context: 'Failed to load lead data' })
+  }
+  if (accountsError) {
+    errors.push({ error: accountsError, context: 'Failed to load accounts' })
+  }
+  if (contactsError) {
+    errors.push({ error: contactsError, context: 'Failed to load contacts' })
+  }
+
+  // Early return if any errors exist
+  if (errors.length > 0) {
+    return (
+      <>
+        {errors.map((err, index) => (
+          <ErrorAlert
+            key={index}
+            error={err.error}
+            type={err.type}
+            context={err.context}
+            dataTestId={formatDataTestId('convert-lead-form', `error-alert-${index}`)}
+          />
+        ))}
+      </>
+    )
+  }
+
+  // Helper function to check if form is ready for conversion
+  const isFormReadyForConversion = useCallback((): boolean => {
+    const currentValues = form.getValues()
+    return checkFormReadiness(currentValues)
+  }, [form])
+
+  // Handle pre-submit: Upload avatar files if present
+  const handlePreSubmit = useCallback(
+    async (formData: any) => {
+      // Upload Account Avatar if creating new account
+      if (formData.accountOption === 'create' && accountAvatarFileRef.current?.file) {
+        const avatarData = accountAvatarFileRef.current
+        try {
+          const accountId = accountForm.getValues().id || null
+          const folderPath = buildFilePath(FILE_ENTITY.ACCOUNT, accountId, FILE_CONTEXT.PICTURE)
+          const pathParams = { accessScope: CustomerFilePaths.ACCESS_SCOPE } as const
+          const queryParams = {
+            appName: APP_NAME,
+            folderPath: folderPath,
+            mimeType: avatarData.file.type || 'image/jpeg'
+          }
+
+          const uploadResponse = await fileClient.uploadFile(avatarData.file, pathParams, queryParams)
+
+          // Add avatar data to accountForm
+          accountForm.setValue('picture', JSON.stringify(uploadResponse.fileInfo))
+          accountForm.setValue('pictureThumbnail', avatarData.thumbnail)
+        } catch (error) {
+          console.error('Failed to upload account avatar:', error)
+          throw error
+        }
+      }
+
+      // Upload Contact Avatar if creating new contact
+      if (formData.contactOption === 'create' && contactAvatarFileRef.current?.file) {
+        const avatarData = contactAvatarFileRef.current
+        try {
+          const contactId = contactForm.getValues().id || null
+          const folderPath = buildFilePath(FILE_ENTITY.CONTACT, contactId, FILE_CONTEXT.PICTURE)
+          const pathParams = { accessScope: CustomerFilePaths.ACCESS_SCOPE } as const
+          const queryParams = {
+            appName: APP_NAME,
+            folderPath: folderPath,
+            mimeType: avatarData.file.type || 'image/jpeg'
+          }
+
+          const uploadResponse = await fileClient.uploadFile(avatarData.file, pathParams, queryParams)
+
+          // Add avatar data to contactForm
+          contactForm.setValue('picture', JSON.stringify(uploadResponse.fileInfo))
+          contactForm.setValue('pictureThumbnail', avatarData.thumbnail)
+        } catch (error) {
+          console.error('Failed to upload contact avatar:', error)
+          throw error
+        }
+      }
+
+      return formData
+    },
+    [fileClient, accountForm, contactForm]
+  )
+
+  // Create dynamic wizard steps based on user choices - MEMOIZED to prevent re-creation on every render
   const wizardSteps: WizardStep<ConvertLeadFormData>[] = useMemo(() => {
     const steps: WizardStep<ConvertLeadFormData>[] = []
 
@@ -258,18 +372,18 @@ export const ConvertLeadForm = ({ accessToken, userInfo, additionalData, onSucce
       content: (
         <LeadConvertSegment
           form={form}
-          accounts={accounts as any}
-          isLoadingAccounts={isLoadingAccounts}
+          accounts={accountOptions}
+          isLoadingAccounts={accountsLoading}
           searchAccounts={searchAccounts}
-          contacts={contacts as any}
-          isLoadingContacts={isLoadingContacts}
+          contacts={contactOptions}
+          isLoadingContacts={contactsLoading}
           searchContacts={searchContacts}
         />
       )
     })
 
     // Step 2: Account Creation (if user chose to create new account)
-    if (form.watch('accountOption') === 'create') {
+    if (accountOption === 'create') {
       steps.push({
         id: 'create-account',
         title: 'Create Account',
@@ -283,37 +397,16 @@ export const ConvertLeadForm = ({ accessToken, userInfo, additionalData, onSucce
                 ownerEmployee={leadData?.ownerEmployee}
                 annualRevenueCatalogIdentifier="RevenueSize:v1"
                 companySizeCatalogIdentifier="EmployeeSize:v1"
-                uploadConfig={{
-                  appName: 'crm',
-                  accessScope: 'tenant',
-                  getAvatarPath: id => `/accounts/${id || 'temp'}/pictures`
+                useContacts={{
+                  contacts: contactsList,
+                  total: contactsTotal,
+                  loading: contactsLoading,
+                  error: contactsError,
+                  refetch: refetchContacts
                 }}
-                contacts={contacts as any}
-                contactsLoading={isLoadingContacts}
-                contactsError={null}
-                searchContacts={searchContacts}
                 loading={loading}
-                accountInformationCustomFields={
-                  <FormField
-                    control={accountForm.control}
-                    name="salesCampaignId"
-                    render={({ field }) => (
-                      <FormItem>
-                        <FormLabel>Sales Campaign</FormLabel>
-                        <FormControl>
-                          <CampaignSelect
-                            value={field.value || null}
-                            onValueChange={(v: string | null) => field.onChange(v || '')}
-                            businessAppContext={businessAppContext}
-                            selectedCampaign={null}
-                            placeholder="Search Campaign..."
-                          />
-                        </FormControl>
-                        <FormMessage />
-                      </FormItem>
-                    )}
-                  />
-                }
+                accountInformationCustomFields={createCampaignSelectField(accountForm.control, 'salesCampaignId')}
+                avatarFileRef={accountAvatarFileRef}
               />
             </FormProvider>
           </CatalogSelect.Provider>
@@ -321,8 +414,8 @@ export const ConvertLeadForm = ({ accessToken, userInfo, additionalData, onSucce
       })
     }
 
-    // Step N: Contact Creation (if user chose to create new contact)
-    if (form.watch('contactOption') === 'create') {
+    // Step 3: Contact Creation (if user chose to create new contact)
+    if (contactOption === 'create') {
       steps.push({
         id: 'create-contact',
         title: 'Create Contact',
@@ -334,32 +427,16 @@ export const ConvertLeadForm = ({ accessToken, userInfo, additionalData, onSucce
               <LeadConvertContactStep
                 businessAppContext={businessAppContext}
                 ownerEmployee={leadData?.ownerEmployee}
-                accounts={accounts as any}
-                accountsLoading={isLoadingAccounts}
-                accountsError={null}
-                searchAccounts={searchAccounts}
+                useAccounts={{
+                  accounts: accountsList,
+                  total: accountsTotal,
+                  loading: accountsLoading,
+                  error: accountsError,
+                  refetch: refetchAccounts
+                }}
                 loading={loading}
-                contactInformationCustomFields={
-                  <FormField
-                    control={contactForm.control}
-                    name="salesCampaignId"
-                    render={({ field }) => (
-                      <FormItem>
-                        <FormLabel>Sales Campaign</FormLabel>
-                        <FormControl>
-                          <CampaignSelect
-                            value={field.value || null}
-                            onValueChange={(v: string | null) => field.onChange(v || '')}
-                            businessAppContext={businessAppContext}
-                            selectedCampaign={null}
-                            placeholder="Search Campaign..."
-                          />
-                        </FormControl>
-                        <FormMessage />
-                      </FormItem>
-                    )}
-                  />
-                }
+                contactInformationCustomFields={createCampaignSelectField(contactForm.control, 'salesCampaignId')}
+                avatarFileRef={contactAvatarFileRef}
               />
             </FormProvider>
           </CatalogSelect.Provider>
@@ -367,8 +444,8 @@ export const ConvertLeadForm = ({ accessToken, userInfo, additionalData, onSucce
       })
     }
 
-    // Step N: Opportunity Creation (if user chose to create opportunity)
-    if (form.watch('createOpportunity')) {
+    // Step 4: Opportunity Creation (if user chose to create opportunity)
+    if (createOpportunity) {
       steps.push({
         id: 'create-opportunity',
         title: 'Create Opportunity',
@@ -380,61 +457,25 @@ export const ConvertLeadForm = ({ accessToken, userInfo, additionalData, onSucce
               <LeadConvertOpportunityStep
                 businessAppContext={businessAppContext}
                 ownerEmployee={leadData?.ownerEmployee}
-                accountId={form.watch('selectedAccountId') || undefined}
-                accounts={accounts as any}
-                accountsLoading={isLoadingAccounts}
-                accountsError={null}
-                searchAccounts={searchAccounts}
-                onAccountChange={accountId => {
-                  const id = typeof accountId === 'object' && accountId ? accountId.id : accountId
-                  if (id) {
-                    opportunityForm.setValue('accountId', id)
-                  }
+                useAccounts={{
+                  accounts: accountsList,
+                  total: accountsTotal,
+                  loading: accountsLoading,
+                  error: accountsError,
+                  refetch: refetchAccounts
                 }}
-                contacts={contacts as any}
-                contactsLoading={isLoadingContacts}
-                contactsError={null}
-                searchContacts={searchContacts}
-                onContactsChange={contactIds => {
-                  const ids = contactIds.map(c => (typeof c === 'object' ? c.id : c))
-                  opportunityForm.setValue('contactIds', ids)
+                useContacts={{
+                  contacts: contactsList,
+                  total: contactsTotal,
+                  loading: contactsLoading,
+                  error: contactsError,
+                  refetch: refetchContacts
                 }}
-                pipelines={[]}
-                stages={[]}
-                stagesLoading={false}
-                onPipelineChange={() => {}}
-                opportunityStatuses={[]}
-                currencies={[]}
-                currenciesLoading={false}
-                currenciesError={null}
-                currenciesHasMore={false}
-                searchCurrencies={() => {}}
-                loadMoreCurrencies={() => {}}
-                pipelineFieldName="pipeline"
-                stageFieldName="salesPipelineStage"
-                opportunityStatusFieldName="opportunityStatus"
                 loading={loading}
-                opportunityInformationCustomFields={
-                  <FormField
-                    control={opportunityForm.control}
-                    name="salesCampaignId"
-                    render={({ field }) => (
-                      <FormItem>
-                        <FormLabel>Sales Campaign</FormLabel>
-                        <FormControl>
-                          <CampaignSelect
-                            value={field.value || null}
-                            onValueChange={(v: string | null) => field.onChange(v || '')}
-                            businessAppContext={businessAppContext}
-                            selectedCampaign={null}
-                            placeholder="Search Campaign..."
-                          />
-                        </FormControl>
-                        <FormMessage />
-                      </FormItem>
-                    )}
-                  />
-                }
+                opportunityInformationCustomFields={createCampaignSelectField(
+                  opportunityForm.control,
+                  'salesCampaignId'
+                )}
               />
             </FormProvider>
           </CatalogSelect.Provider>
@@ -444,78 +485,67 @@ export const ConvertLeadForm = ({ accessToken, userInfo, additionalData, onSucce
 
     return steps
   }, [
+    accountOption,
+    contactOption,
+    createOpportunity,
     form,
-    formData,
-    businessAppContext,
-    loading,
-    leadData,
-    actualLeadId,
-    accounts,
-    isLoadingAccounts,
+    accountOptions,
+    contactOptions,
+    accountsLoading,
+    contactsLoading,
     searchAccounts,
-    contacts,
-    isLoadingContacts,
     searchContacts,
+    businessAppContext,
     accountForm,
     contactForm,
-    opportunityForm
+    opportunityForm,
+    leadData?.ownerEmployee?.id,
+    contactsList.length,
+    contactsTotal,
+    contactsError,
+    refetchContacts,
+    accountsList.length,
+    accountsTotal,
+    accountsError,
+    refetchAccounts,
+    loading,
+    createCampaignSelectField,
+    accountAvatarFileRef,
+    contactAvatarFileRef
   ])
 
   const handleSubmit = useCallback(
     async (data: ConvertLeadFormData): Promise<any> => {
       // Guard clause: Check if form is ready for conversion
       if (!isFormReadyForConversion()) {
-        setValidationErrors(form, formValues)
+        const currentValues = form.getValues()
+        setValidationErrors(form, currentValues)
         throw new Error('Form validation failed')
       }
 
       // Determine account, contact, opportunity objects based on form data
+      // Get form values directly when needed (like other forms - no subscriptions!)
       const account =
         data.accountOption === 'match' && data.selectedAccountId
           ? { id: data.selectedAccountId }
           : data.accountOption === 'create'
-            ? completeAccountData
+            ? accountForm.getValues()
             : undefined
 
       const contact =
         data.contactOption === 'match' && data.selectedContactId
           ? { id: data.selectedContactId }
           : data.contactOption === 'create'
-            ? completeContactData
+            ? contactForm.getValues()
             : undefined
 
-      const opportunity = data.createOpportunity ? completeOpportunityData : undefined
+      const opportunity = data.createOpportunity ? opportunityForm.getValues() : undefined
 
       // Build payload using simple builder
       return buildCustomerLeadConvertPayload(actualLeadId, account, contact, opportunity)
     },
-    [
-      actualLeadId,
-      leadData,
-      isFormReadyForConversion,
-      formValues,
-      form,
-      formData,
-      completeAccountData,
-      completeContactData,
-      completeOpportunityData
-    ]
+    [actualLeadId, isFormReadyForConversion, form, accountForm, contactForm, opportunityForm]
   )
-
-  // Cancel is handled automatically by AppActionForm
-
-  if (loading) {
-    return (
-      <div className="gba:p-6 gba:text-center" data-testid="convert-lead-loading">
-        <Spinner className="gba:w-8 gba:h-8" />
-        <div className="gba:mt-4">
-          <p className="gba:text-sm gba:text-gray-600">
-            {getTranslationFromI18nKeyAndLabel('common:loading', 'Loading...')}
-          </p>
-        </div>
-      </div>
-    )
-  }
 
   return (
     <AppActionForm
@@ -529,19 +559,33 @@ export const ConvertLeadForm = ({ accessToken, userInfo, additionalData, onSucce
         return handleSubmit(data)
       }}
       onSuccess={onSuccess}
-      formData={formData}
+      handlePreSubmit={handlePreSubmit}
+      formData={form.getValues()}
       form={form}
       wizardSteps={wizardSteps}
-      showStepIndicator={true}
-      allowStepJumping={false}
       submitButtonText={getTranslationFromI18nKeyAndLabel('crm:convertLead.convertLead', 'Convert Lead')}
       cancelButtonText={getTranslationFromI18nKeyAndLabel('common:button.cancel', 'Cancel')}
       data-testid="convert-lead-process-dialog"
     >
-      {/* Children required by AppActionForm - content is handled by wizard steps */}
-      <div />
+      {loading ? (
+        <div data-testid="convert-lead-loading" className="gba:space-y-6">
+          <div className="gba:space-y-4">
+            <Skeleton className="gba:h-8 gba:w-48" />
+            <Skeleton className="gba:h-4 gba:w-64" />
+            <div className="gba:space-y-3 gba:mt-6">
+              <Skeleton className="gba:h-10 gba:w-full" />
+              <Skeleton className="gba:h-10 gba:w-full" />
+              <Skeleton className="gba:h-10 gba:w-3/4" />
+              <Skeleton className="gba:h-10 gba:w-full" />
+              <Skeleton className="gba:h-10 gba:w-2/3" />
+            </div>
+          </div>
+        </div>
+      ) : (
+        <div />
+      )}
     </AppActionForm>
   )
 }
 
-export default ConvertLeadForm
+export default LeadConvertForm

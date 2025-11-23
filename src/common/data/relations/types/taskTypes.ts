@@ -81,7 +81,31 @@ export const TaskFields = {
   templateStartDate: 'templateStartDate'
 } as const
 
-export type TaskFieldName = (typeof TaskFields)[keyof typeof TaskFields]
+export const TaskFormFields = {
+  accountId: 'account',
+  assignedEmployeeId: 'assignedEmployee',
+  assignedUserId: 'assignedUserId',
+  code: 'code',
+  contactId: 'contact',
+  creatorEmployeeId: 'creatorEmployee',
+  creatorUserId: 'creatorUserId',
+  description: 'description',
+  documents: 'documents',
+  dueDate: 'dueDate',
+  endDate: 'endDate',
+  id: 'id',
+  leadId: 'lead',
+  name: 'name',
+  opportunityId: 'opportunity',
+  startDate: 'startDate',
+  taskPriorityRef: 'taskPriorityRef',
+  taskStatusRef: 'taskStatusRef',
+  taskTemplateId: 'taskTemplate',
+  taskTiming: 'taskTiming',
+  taskTypeRef: 'taskTypeRef',
+  templateStartDate: 'templateStartDate',
+  version: 'version'
+}
 
 /**
  * Create Common Task Descriptors with fields mapping
