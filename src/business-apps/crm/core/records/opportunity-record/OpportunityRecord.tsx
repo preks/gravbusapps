@@ -412,6 +412,7 @@ const OpportunityRecordContent: React.FC<OpportunityRecordContentProps> = ({
           stageConditionStatuses={stageConditionStatuses}
           onStageUpdate={refetch}
           contextConfig={crmPipelineConfig}
+          opportunityStatus={opportunityData?.opportunityStatus?.value}
         />
       )
     }

@@ -144,7 +144,7 @@ export const HomeView: React.FC<HomeViewProps> = ({
                 ? {
                     ...opportunityData,
                     // Map salesPipelineStage to opportunityPipelineStage (ConditionSection expects this)
-                    opportunityPipelineStage: opportunityData.salesPipelineStage
+                    opportunityPipelineStage: opportunityData.opportunityPipelineStage
                   }
                 : undefined,
               // Transform stage condition statuses to use IRM field names

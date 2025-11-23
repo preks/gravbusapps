@@ -192,8 +192,16 @@ export const buildCustomerOpportunityContacts = (contactIds: string[] = [], oppo
  */
 export function toCustomerOpportunity(raw: any): CustomerOpportunity {
   // Extract incorrectly named fields to exclude from spread
-  const { salesPipeline, salesPipelineRef, salesPipelineStage, salesPipelineStageRef, crmDocument, crmNote, ...rest } =
-    raw
+  const {
+    salesPipeline,
+    salesPipelineRef,
+    salesPipelineStage,
+    salesPipelineStageRef,
+    stageConditionStatuses,
+    crmDocument,
+    crmNote,
+    ...rest
+  } = raw
 
   // Map nested entities if present
   const account = raw.account ? toCustomerAccount(raw.account) : raw.account
@@ -213,6 +221,7 @@ export function toCustomerOpportunity(raw: any): CustomerOpportunity {
     opportunityPipelineRef: raw.opportunityPipelineRef ?? salesPipelineRef,
     opportunityPipelineStage: raw.opportunityPipelineStage ?? salesPipelineStage,
     opportunityPipelineStageRef: raw.opportunityPipelineStageRef ?? salesPipelineStageRef,
+    opportunityStageConditions: raw.opportunityStageConditions ?? stageConditionStatuses,
     opportunityContacts: raw.opportunityContacts ?? mappedOpportunityContacts,
     documents: raw.documents ?? crmDocument,
     notes: raw.notes ?? crmNote

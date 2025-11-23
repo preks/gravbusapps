@@ -253,7 +253,7 @@ const NoteSegment: React.FC<NoteSegmentProps> = ({
                 placeholder={t('note-reminder-placeholder')}
                 data-testid={`${dataTestId}-reminder-date`}
                 captionLayout="dropdown"
-                outputFormat="utc"
+                outputFormat="iso"
               />
             </FormControl>
             <FormMessage />

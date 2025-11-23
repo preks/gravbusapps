@@ -62,7 +62,7 @@ const AccountDetailsSegment: React.FC<AccountDetailsSegmentProps> = ({
                   placeholder={t('foundation-date-placeholder')}
                   data-testid="account-details-segment-foundation-date"
                   captionLayout="dropdown"
-                  outputFormat="utc"
+                  outputFormat="iso"
                 />
               </FormControl>
               <FormMessage />

@@ -290,7 +290,7 @@ const ActivitySegment: React.FC<ActivitySegmentProps> = ({
                 placeholder={t('activity-date-placeholder')}
                 data-testid={`${dataTestId}-date`}
                 captionLayout="dropdown"
-                outputFormat="utc"
+                outputFormat="iso"
               />
             </FormControl>
             <FormMessage />

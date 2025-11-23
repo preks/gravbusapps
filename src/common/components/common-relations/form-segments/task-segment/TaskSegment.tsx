@@ -279,7 +279,7 @@ const TaskSegment: React.FC<TaskSegmentProps> = ({
                   placeholder={t('task-deadline-placeholder')}
                   data-testid={`${dataTestId}-deadline`}
                   captionLayout="dropdown"
-                  outputFormat="utc"
+                  outputFormat="iso"
                 />
               </FormControl>
               <FormMessage />

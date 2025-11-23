@@ -12,4 +12,4 @@ export const COMMUNICATION_CHANNEL = 'CommunicationChannel:v1'
 export const COUNTRY = 'Country:v1'
 export const COUNTRY_REGION = 'CountryRegion:v1'
 export const ACADEMIC_TITLE = 'AcademicTitle:v1'
-export const LANGUAGE = 'Language:v1'
+export const LANGUAGE = 'Languages:v1' // TODO: needs to be replaced with Language:v1

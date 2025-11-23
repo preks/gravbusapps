@@ -88,7 +88,7 @@ const OpportunityDetailsSegment: React.FC<OpportunityDetailsSegmentProps> = ({
                   onChange={value => field.onChange(value || '')}
                   placeholder={t('opportunity-close-date-placeholder') || 'Select date...'}
                   data-testid="opportunity-segment-close-date"
-                  outputFormat="utc"
+                  outputFormat="iso"
                 />
               </FormControl>
               <FormMessage />
