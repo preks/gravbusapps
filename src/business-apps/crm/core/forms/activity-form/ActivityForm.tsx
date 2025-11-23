@@ -1,4 +1,4 @@
-import React, { useMemo, useCallback, useState, useEffect, useRef } from 'react'
+import React, { useMemo, useCallback, useEffect, useRef } from 'react'
 import { BusinessAppContextProps } from '@/common/BusinessAppContext'
 import { getTranslationFromI18nKeyAndLabel } from '@/common/utils/windowUtils'
 import { ActivityLayout, activitySchema } from '@/common/components/common-relations/form-layouts/activity-layout'
@@ -8,7 +8,6 @@ import { AppActionForm } from '@/components/app-action-form'
 import { CatalogSelect } from '@/components/catalog-select'
 import { useForm } from 'react-hook-form'
 import { z } from 'zod'
-import { useEmployeeSearch } from '@/common/data/employee/useEmployeeSearch'
 import { useCustomerActivity } from '@/common/data/customer/hooks/useCustomerActivity'
 import { useCustomerRelatedEntities } from '@/common/data/customer/hooks/useCustomerRelatedEntities'
 import { useFileClient } from '@/common/network/files/useFileClient'
@@ -31,9 +30,6 @@ export const ActivityForm: React.FC<ActivityFormProps> = ({
   userInfo,
   onCancel = async () => {}
 }) => {
-  // Get owner employee ID from additionalData or userInfo
-  const defaultOwnerEmployeeId = (additionalData as any)?.ownerEmployeeId || userInfo?.employeeDetails?.employeeId
-
   // Resolve IDs from additionalData (platform may pass ids inside psi_taskPayload.psi_initialParameters)
   const platformParams = useMemo(() => {
     const additionalDataRecord = additionalData as Record<string, any>
@@ -104,27 +100,6 @@ export const ActivityForm: React.FC<ActivityFormProps> = ({
     hydrateEntityById
   } = useCustomerRelatedEntities({ accessToken, additionalData })
 
-  // Employee search hook for owner/assignee selection
-  const {
-    employees,
-    search: searchEmployees,
-    loading: employeesLoading,
-    hasMore: employeesHasMore,
-    loadMore: loadMoreEmployees,
-    hydrateById
-  } = useEmployeeSearch(accessToken)
-
-  const [assigneePrefill, setAssigneePrefill] = useState<
-    Array<{
-      id: string
-      displayName: string
-      userId?: string
-      pictureThumbnail?: string
-      organizationalUnitName?: string
-      jobPositionName?: string
-    }>
-  >([])
-
   // File upload client
   const fileClient = useFileClient({ accessToken, userInfo, additionalData })
 
@@ -173,58 +148,6 @@ export const ActivityForm: React.FC<ActivityFormProps> = ({
     [fileClient]
   )
 
-  // Prefill current user as default assignee in create mode
-  useEffect(() => {
-    if (isUpdateMode) return // Only for create mode
-    if (!defaultOwnerEmployeeId) return
-
-    const displayName =
-      `${userInfo?.employeeDetails?.firstName || ''} ${userInfo?.employeeDetails?.lastName || ''}`.trim() ||
-      userInfo?.userName ||
-      'Current User'
-
-    setAssigneePrefill([{ id: defaultOwnerEmployeeId, displayName }])
-    // Hydrate employee details for better display
-    hydrateById(defaultOwnerEmployeeId)
-  }, [
-    isUpdateMode,
-    defaultOwnerEmployeeId,
-    userInfo?.employeeDetails?.firstName,
-    userInfo?.employeeDetails?.lastName,
-    userInfo?.userName,
-    hydrateById
-  ])
-
-  // Merge prefilled assignee with live search results
-  const mergedAssignees = useMemo(() => {
-    const map = new Map<
-      string,
-      {
-        id: string
-        displayName: string
-        userId?: string
-        pictureThumbnail?: string
-        organizationalUnitName?: string
-        jobPositionName?: string
-      }
-    >()
-    for (const o of assigneePrefill) {
-      map.set(o.id, o)
-    }
-    for (const e of employees) {
-      const employeeRecord = e as Record<string, any>
-      map.set(e.id, {
-        id: e.id,
-        displayName: e.displayName,
-        userId: e.userId,
-        pictureThumbnail: employeeRecord.pictureThumbnail,
-        organizationalUnitName: employeeRecord.organizationalUnitName,
-        jobPositionName: employeeRecord.jobPositionName
-      })
-    }
-    return Array.from(map.values())
-  }, [assigneePrefill, employees])
-
   // Initialize form BEFORE useEffect that uses it
   const form = useForm<z.infer<typeof activitySchema>>({
     resolver: zodResolver(activitySchema),
@@ -262,18 +185,8 @@ export const ActivityForm: React.FC<ActivityFormProps> = ({
       if (entity?.id) {
         hydrateEntityById(entity.type, entity.id)
       }
-
-      // Hydrate owner employee for display
-      if (activity?.ownerEmployee?.id) {
-        const displayName =
-          activity.ownerEmployee.displayName ||
-          `${activity.ownerEmployee.firstName || ''} ${activity.ownerEmployee.lastName || ''}`.trim() ||
-          'Unknown'
-        setAssigneePrefill([{ id: activity.ownerEmployee.id, displayName }])
-        hydrateById(activity.ownerEmployee.id)
-      }
     }
-  }, [activity?.id, activity, form, hydrateEntityById, hydrateById])
+  }, [activity?.id, activity, form, hydrateEntityById])
 
   // Form submission handler - business logic only
   const handleSubmit = useCallback(async (data: z.infer<typeof activitySchema>) => {
@@ -441,6 +354,10 @@ export const ActivityForm: React.FC<ActivityFormProps> = ({
           </h2>
 
           <ActivityLayout
+            accessToken={accessToken}
+            businessAppContext={{ accessToken, userInfo, additionalData }}
+            ownerEmployee={activity?.ownerEmployee}
+            entityId={activity?.id}
             typeCatalog="SalesActivityType:v1"
             showEntitySelection={shouldShowEntitySelection}
             entities={entities}
@@ -460,12 +377,6 @@ export const ActivityForm: React.FC<ActivityFormProps> = ({
             descriptionLabel={getTranslationFromI18nKeyAndLabel('crm:salesActivity.description', 'Description')}
             uploadFileLabel={getTranslationFromI18nKeyAndLabel('crm:salesActivity.uploadFile', 'Attach Documents')}
             entityLabel={getTranslationFromI18nKeyAndLabel('crm:salesActivity.relatedEntity', 'Related Entity')}
-            showOwnerSelection={true}
-            assignees={mergedAssignees}
-            assigneesLoading={employeesLoading}
-            onAssigneeSearch={searchEmployees}
-            assigneesHasMore={employeesHasMore}
-            onAssigneeLoadMore={loadMoreEmployees}
             onFilesChange={handleFilesChange}
             existingDocuments={form.watch('documents') || []}
             onDocumentRemove={handleDocumentRemove}

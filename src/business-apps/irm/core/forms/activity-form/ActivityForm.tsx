@@ -387,6 +387,9 @@ const ActivityForm: React.FC<ActivityFormProps> = ({
       >
         <ActivityLayout
           accessToken={accessToken}
+          businessAppContext={{ accessToken, userInfo, additionalData }}
+          ownerEmployee={activity?.ownerEmployee}
+          entityId={activity?.id}
           // Let segment load type options from catalog
           typeCatalog={'InvestmentActivityType:v1'}
           // Use controlled entity search from hook
@@ -396,7 +399,6 @@ const ActivityForm: React.FC<ActivityFormProps> = ({
           onEntityLoadMore={loadMoreEntities}
           onEntitySearch={handleEntitySearch}
           showEntitySelection={shouldShowEntitySelection}
-          ownerEmployee={activity?.ownerEmployee}
           initialEntityFromContext={{
             // Only pass standard entities to ActivitySegment (investmentId handled separately via onAdditionalEntityChange)
             accountId: relatedEntityIds.accountId,

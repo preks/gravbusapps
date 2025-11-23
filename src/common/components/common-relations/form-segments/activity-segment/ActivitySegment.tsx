@@ -18,6 +18,7 @@ import { zodResolver } from '@hookform/resolvers/zod'
 import { CatalogSelect } from '@/components/catalog-select'
 import EntitySelect from '../../selects/reference-select/EntitySelect'
 import { EmployeeSelect } from '@/components/employee-select'
+import { BusinessAppContextProps } from '@/common/BusinessAppContext'
 import type { Employee } from '@/common/data/employee/types/employeeBaseTypes'
 import translations from './_i18n'
 
@@ -48,6 +49,7 @@ export interface Activity {
 export interface ActivitySegmentProps {
   // Context
   accessToken: string
+  businessAppContext?: BusinessAppContextProps
 
   // Owner employee from activity entity (to display without extra request)
   ownerEmployee?: Employee | null
@@ -102,6 +104,7 @@ export interface ActivitySegmentProps {
 
 const ActivitySegment: React.FC<ActivitySegmentProps> = ({
   accessToken,
+  businessAppContext,
   ownerEmployee,
   entityId,
   typeCatalog,
@@ -397,6 +400,7 @@ const ActivitySegment: React.FC<ActivitySegmentProps> = ({
               <EmployeeSelect
                 className="gba:w-full gba:h-auto"
                 accessToken={accessToken}
+                businessAppContext={businessAppContext}
                 initialEmployee={ownerEmployee}
                 autoSelect={isNewEntity ? 'current-user' : undefined}
                 value={field.value || ''}
