@@ -409,6 +409,7 @@ export const REAL_ESTATE_INVESTMENT_REF = `
     }
     locality
     postalCode
+    liquidityForecast
     additionalProperties
 `
 

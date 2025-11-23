@@ -12,6 +12,7 @@ export const INVESTMENT_POPUP_SCOPES = {
   LIQUIDITY: 'liquidity',
   PPMFORECAST: 'ppmforecast',
   KPI_FORECAST: 'kpiforecast', // KPI forecasts (MOIC/IRR) for investmentKpiForecastUpdate - renamed to avoid conflict
+  LIQUIDITY_FORECAST: 'liquidityForecast', // Real estate liquidity forecasts for investmentLiquidityForecastUpdate
   DELETE: 'delete' // NEW - delete tiles via AppAction workflow
 } as const
 
@@ -63,6 +64,12 @@ export interface InvestmentKpiComponentProps extends BusinessAppContextProps {
   kpiKey: string
 }
 
+// Liquidity Forecast component specific props (Real Estate)
+export interface InvestmentLiquidityForecastComponentProps extends BusinessAppContextProps {
+  onClose: () => void
+  onSave?: (forecastData: LiquidityForecastData) => void
+}
+
 // Form data interfaces
 export interface TileFormData {
   tileValue: string
@@ -101,6 +108,28 @@ export interface PpmForecastFormData {
 
 export interface KpiFormData {
   kpiValue: string
+}
+
+// Year/Amount pair interface for liquidity forecast
+export interface YearAmountPair {
+  id?: string // For internal tracking (not stored in DB)
+  year: string | number
+  amount: string | number
+}
+
+// Liquidity Forecast form data (input format)
+export interface LiquidityForecastFormData {
+  yearAmounts: YearAmountPair[]
+  balancedCashflowDate: string
+  balancedAmount: string | number
+}
+
+// Liquidity Forecast stored data (output format - matches GraphQL jsonb)
+export interface LiquidityForecastData {
+  years: number[]
+  amounts: number[]
+  balancedCashflowDate: string
+  balancedAmount: number
 }
 
 // Investment tiles interface

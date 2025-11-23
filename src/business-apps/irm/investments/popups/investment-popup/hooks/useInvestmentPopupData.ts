@@ -19,6 +19,7 @@ interface UseInvestmentPopupDataParams {
     | 'liquidity'
     | 'ppmforecast'
     | 'kpiforecast'
+    | 'liquidityForecast'
     | 'delete'
   tileKey?: string // Only needed for legacy tile scope
   enabled?: boolean // Optional flag to disable data fetching

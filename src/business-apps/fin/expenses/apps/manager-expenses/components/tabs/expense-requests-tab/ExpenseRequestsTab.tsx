@@ -30,7 +30,7 @@ const ExpenseRequestsTab: React.FC<ExpenseRequestsTabProps> = props => {
   // Stats will be computed from overview (declared below)
 
   // Local paging + sorting managed here; overview hook refetches on dependency change
-  const [pageSize, setPageSize] = useState<number>(10)
+  const [pageSize, setPageSize] = useState<number>(20)
   const [currentPage, setCurrentPage] = useState<number>(1)
   const [sortBy, setSortBy] = useState<string>('requestDate:desc')
 
@@ -136,6 +136,21 @@ const ExpenseRequestsTab: React.FC<ExpenseRequestsTabProps> = props => {
   const requestsLoading = overview.isLoading && !overview.data
   const requestsError = overview.error
   const totalCount = overview.data?.expenseRequestsTotal ?? 0
+
+  // Reset pagination when filters or search change so filtered results are visible from page 1.
+  const prevFilterSignatureRef = useRef<string | null>(null)
+  useEffect(() => {
+    const signature = JSON.stringify({
+      searchTerm,
+      selectedFilters,
+      primaryCurrency
+    })
+    const prev = prevFilterSignatureRef.current
+    if (prev !== null && prev !== signature) {
+      setCurrentPage(1)
+    }
+    prevFilterSignatureRef.current = signature
+  }, [searchTerm, selectedFilters, primaryCurrency])
 
   const fetchRequests = useCallback(
     (newSearchTerm?: string, page?: number, newPageSize?: number, newSortBy?: string) => {

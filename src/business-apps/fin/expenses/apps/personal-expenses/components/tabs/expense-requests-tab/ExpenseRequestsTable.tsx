@@ -117,12 +117,9 @@ const ExpenseRequestsTable: React.FC<ExpenseRequestsTableProps> = React.memo(pro
 
   // Track if any filters are active to show conditional messages
   const hasActiveFilters = useMemo(() => {
-    // When there's no data, don't show active filters
-    if (totalCount === 0 && !isLoading) {
-      return false
-    }
-    return search || selectedFilters.length > 0
-  }, [search, selectedFilters, totalCount, isLoading])
+    const trimmedSearch = (search || '').trim()
+    return trimmedSearch !== '' || selectedFilters.length > 0
+  }, [search, selectedFilters])
 
   // Sync local search input with prop changes
   useEffect(() => {
@@ -330,12 +327,6 @@ const ExpenseRequestsTable: React.FC<ExpenseRequestsTableProps> = React.memo(pro
       <div className="expense-requests-table">
         <Card data-testid="expense-requests-table-container">
           <CardContent className="gba:p-0">
-            {isLoading && (
-              <div className="gba:flex gba:justify-center gba:p-4">
-                <Spinner />
-              </div>
-            )}
-
             <div className="gba:overflow-x-auto">
               <Table data-testid="expense-requests-data-table">
                 <TableHeader>
@@ -453,7 +444,7 @@ const ExpenseRequestsTable: React.FC<ExpenseRequestsTableProps> = React.memo(pro
                                 'No data available'
                               )
                             : getTranslationFromI18nKeyAndLabel(
-                                'lowcoder:personal_expenses.no_expense_requests_found',
+                                'lowcoder:personal_expenses.no_expense_request_data',
                                 'No expense requests found. Create your first expense request to get started.'
                               )}
                         </div>
@@ -754,10 +745,6 @@ const ExpenseRequestsTable: React.FC<ExpenseRequestsTableProps> = React.memo(pro
         }}
         dataFilterProps={{
           filterGroups: useMemo(() => {
-            // Hide filters when there's no data
-            if (totalCount === 0 && !isLoading) {
-              return []
-            }
             const currencyFilters =
               (props as any).currencyStats?.map((cs: any) => ({
                 id: `currency:${cs.ref}`,
@@ -778,7 +765,7 @@ const ExpenseRequestsTable: React.FC<ExpenseRequestsTableProps> = React.memo(pro
                   ]
                 : []
             return [...currencyGroup, ...filterGroups]
-          }, [filterGroups, selectedFilters, (props as any).currencyStats, totalCount, isLoading]),
+          }, [filterGroups, selectedFilters, (props as any).currencyStats]),
           onFilterChange: handleFilterChangeCallback
         }}
         dataBody={renderDataBody()}

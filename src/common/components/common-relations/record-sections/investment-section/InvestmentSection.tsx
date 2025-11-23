@@ -32,6 +32,7 @@ interface InvestmentSectionProps extends Partial<BusinessAppContextProps> {
   recordUrl?: string
   isLoading?: boolean
   error?: string | null
+  fields?: any[] // Optional fields from parent component (Lead/Opportunity records)
 }
 
 interface InvestmentDisplayProps {
@@ -40,6 +41,7 @@ interface InvestmentDisplayProps {
   'data-testid'?: string
   businessAppContext?: BusinessAppContextProps
   onTitleClick?: () => void
+  fields?: any[] // Optional fields from parent component
 }
 
 interface InvestmentStateProps {
@@ -54,13 +56,7 @@ const extractBusinessAppContext = (props: Partial<BusinessAppContextProps>): Bus
     return undefined
   }
 
-  return {
-    accessToken: props.accessToken,
-    locale: props.locale || '',
-    employeeId: props.employeeId || '',
-    structureId: props.structureId || '',
-    userInfo: props.userInfo || { sub: '', email: '' }
-  }
+  return props as BusinessAppContextProps
 }
 
 const createTitleClickHandler = (recordUrl?: string) => {
@@ -123,7 +119,8 @@ const InvestmentDisplay: React.FC<InvestmentDisplayProps> = ({
   className = '',
   'data-testid': dataTestId = 'investment-section',
   businessAppContext,
-  onTitleClick
+  onTitleClick,
+  fields
 }) => {
   return (
     <div className={`gba:w-full gba:h-full ${className}`} data-testid={dataTestId}>
@@ -134,45 +131,44 @@ const InvestmentDisplay: React.FC<InvestmentDisplayProps> = ({
             <IconAvatar icon={TrendUpIcon} variant="default" size="lg" title="Investment" />
             <div className="gba:flex gba:flex-col gba:gap-1 gba:flex-1 gba:min-w-0">
               <div className="gba:flex gba:gap-2.5 gba:items-center">
-                <TooltipProvider>
-                  <Tooltip>
-                    <TooltipTrigger asChild>
-                      {onTitleClick ? (
+                {onTitleClick ? (
+                  <TooltipProvider>
+                    <Tooltip>
+                      <TooltipTrigger asChild>
                         <button
                           onClick={onTitleClick}
                           className="gba:text-sm gba:font-semibold gba:text-card-foreground gba:truncate gba:min-w-0 gba:cursor-pointer gba:hover:underline gba:text-left gba:bg-transparent gba:border-none gba:p-0 gba:flex-1"
                           data-testid="investment-name-clickable"
-                          title="Click to view investment record"
                         >
                           {investment?.name ||
                             investment?.displayName ||
                             getTranslationFromI18nKeyAndLabel('crm.common.notSet', 'Not set')}
                         </button>
-                      ) : (
-                        <h3
-                          className="gba:text-sm gba:font-semibold gba:text-gray-800 gba:truncate gba:flex-1"
-                          data-testid="investment-name"
-                        >
+                      </TooltipTrigger>
+                      <TooltipContent>
+                        <p className="gba:max-w-xs gba:break-words">
                           {investment?.name ||
                             investment?.displayName ||
                             getTranslationFromI18nKeyAndLabel('crm.common.notSet', 'Not set')}
-                        </h3>
-                      )}
-                    </TooltipTrigger>
-                    <TooltipContent>
-                      <p className="gba:max-w-xs gba:break-words">
-                        {investment?.name ||
-                          investment?.displayName ||
-                          getTranslationFromI18nKeyAndLabel('crm.common.notSet', 'Not set')}
-                      </p>
-                    </TooltipContent>
-                  </Tooltip>
-                </TooltipProvider>
+                        </p>
+                      </TooltipContent>
+                    </Tooltip>
+                  </TooltipProvider>
+                ) : (
+                  <h3
+                    className="gba:text-sm gba:font-semibold gba:text-card-foreground gba:truncate gba:flex-1"
+                    data-testid="investment-name"
+                  >
+                    {investment?.name ||
+                      investment?.displayName ||
+                      getTranslationFromI18nKeyAndLabel('crm.common.notSet', 'Not set')}
+                  </h3>
+                )}
 
                 {/* Investment Role and Stake Type Badges */}
                 {(() => {
                   // investmentRole is an array, get first role if available
-                  const firstRole = Array.isArray(investment?.investmentRole)
+                  const firstRole: any = Array.isArray(investment?.investmentRole)
                     ? investment.investmentRole[0]
                     : investment?.investmentRole
                   // Handle both full Investment entity (nested catalog) and Lead/Opportunity (direct catalog)
@@ -256,12 +252,12 @@ const InvestmentSection: React.FC<InvestmentSectionProps> = ({
 
 // Static properties for SectionWrapper
 ;(InvestmentSection as any).sectionTitle = 'Investment Information'
-;(InvestmentSection as any).getPages = createGetPages<any>(
+;(InvestmentSection as any).getPages = createGetPages<Investment, InvestmentSectionProps>(
   (props: InvestmentSectionProps) => props.investments,
   (props: InvestmentSectionProps) => props.investment
 )
 ;(InvestmentSection as any).renderPage = (pageData: any, _pageIndex: number, props: InvestmentSectionProps) => {
-  const { className = '', isLoading = false, error = null, recordUrl } = props
+  const { className = '', isLoading = false, error = null, recordUrl, fields } = props
 
   const stateHandler = (
     <InvestmentStateHandler isLoading={isLoading} error={error} isEmpty={!pageData} className={className} />
@@ -271,10 +267,21 @@ const InvestmentSection: React.FC<InvestmentSectionProps> = ({
     return stateHandler
   }
 
-  // Generate dynamic recordUrl based on pageData (for carousel)
-  const dynamicRecordUrl = pageData?.id
-    ? buildPlatformUrl('/platform/irm/investment-record', { investmentId: pageData.id })
-    : recordUrl
+  // Only generate dynamic URL if recordUrl is explicitly provided or not set in props
+  // If recordUrl is explicitly undefined, don't auto-generate (for Lead/Opportunity records)
+  let dynamicRecordUrl: string | undefined
+  if ('recordUrl' in props && recordUrl === undefined) {
+    // Explicitly disabled navigation (Lead/Opportunity)
+    dynamicRecordUrl = undefined
+  } else if (recordUrl) {
+    // Use provided recordUrl
+    dynamicRecordUrl = recordUrl
+  } else {
+    // Auto-generate for carousel items (Account/Contact/Investment records)
+    dynamicRecordUrl = pageData?.id
+      ? buildPlatformUrl('/platform/irm/investment-record', { investmentId: pageData.id })
+      : undefined
+  }
 
   return (
     <InvestmentDisplay
@@ -283,6 +290,7 @@ const InvestmentSection: React.FC<InvestmentSectionProps> = ({
       data-testid="investment-section"
       businessAppContext={extractBusinessAppContext(props)}
       onTitleClick={createTitleClickHandler(dynamicRecordUrl)}
+      fields={fields}
     />
   )
 }

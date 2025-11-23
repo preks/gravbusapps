@@ -3,11 +3,12 @@
 import React from 'react'
 import { Card, Button } from '@newwork/nw-design-system'
 import { CompensationData } from '../types/compensationTypes'
-import { PiCurrencyEur, PiGift, PiHeartbeat } from 'react-icons/pi'
 import { BusinessAppContextProps } from '@/common/BusinessAppContext'
 import TotalRewardsCard from '../components/current/TotalRewardsCard'
 import BenefitsPerksSection from '../components/current/BenefitsPerksSection'
-import { formatCurrencyString } from '@/common/utils/numberFormatter'
+import CompensationKPICards from '../components/current/CompensationKPICards'
+import { useCompensationPermissions } from '../../../../hooks/useCompensationPermissions'
+import { ScopePermissionCheckResult } from '@/common/hooks/useScopePermissionCheck'
 
 interface CurrentCompensationViewProps extends BusinessAppContextProps {
   t: (key: string, params?: any) => string
@@ -17,6 +18,8 @@ interface CurrentCompensationViewProps extends BusinessAppContextProps {
   onRetry?: () => void
   employeeId: string
   locale: string
+  employeeRecordHrBackoffice: ScopePermissionCheckResult
+  isSelfView: boolean // Whether user is viewing their own profile
 }
 
 /**
@@ -33,8 +36,18 @@ const CurrentCompensationView: React.FC<CurrentCompensationViewProps> = ({
   accessToken,
   userInfo,
   additionalData,
-  locale
+  locale,
+  employeeRecordHrBackoffice,
+  isSelfView
 }) => {
+  // Check compensation-related permissions
+  // Only managers and HR admins should have write permission on employee_working_condition and employee_bonus
+  // Note: We check permission on the employee being viewed (employeeId) - managers should have write access to their employees' salaries
+  const { hasPermissionToAdjustSalary, hasPermissionToGrantBonus } = useCompensationPermissions(
+    employeeId,
+    accessToken || ''
+  )
+
   // Handle loading state - show loading indicators when data is not yet available
   if (loading && !compensationData) {
     return (
@@ -84,81 +97,22 @@ const CurrentCompensationView: React.FC<CurrentCompensationViewProps> = ({
     )
   }
 
-  const { currentCompensation, totalBonusesYTD, activeBenefitsCount, bonuses } = compensationData
-
-  const baseSalary = currentCompensation?.baseSalary || 0
+  const { currentCompensation } = compensationData
   const currencyCode = currentCompensation?.currency?.code || 'EUR'
 
   return (
     <div className="gba:space-y-6" data-testid="current-compensation-view">
       {/* KPI Cards Row */}
-      <div className="gba:grid gba:grid-cols-1 gba:md:grid-cols-3 gba:gap-4">
-        {/* Base Salary Card */}
-        <Card className="gba:p-6" data-testid="compensation-base-salary-card">
-          <div className="gba:flex gba:items-start gba:justify-between">
-            <div className="gba:flex-1">
-              <div className="gba:text-sm gba:text-muted-foreground gba:mb-2">{t('current-base-salary')}</div>
-              <div className="gba:text-3xl gba:font-bold gba:text-foreground">
-                {loading
-                  ? '-'
-                  : formatCurrencyString(baseSalary, {
-                      currency: currencyCode,
-                      locale: locale,
-                      minimumFractionDigits: 0,
-                      maximumFractionDigits: 0
-                    })}
-              </div>
-              {currentCompensation?.payFrequency && (
-                <div className="gba:text-xs gba:text-muted-foreground gba:mt-1">
-                  {currentCompensation.payFrequency.value}
-                </div>
-              )}
-            </div>
-            <div className="gba:p-3 gba:rounded-lg gba:bg-muted">
-              <PiCurrencyEur className="gba:w-6 gba:h-6 gba:text-primary" />
-            </div>
-          </div>
-        </Card>
-
-        {/* Total Bonuses Card */}
-        <Card className="gba:p-6" data-testid="compensation-bonuses-card">
-          <div className="gba:flex gba:items-start gba:justify-between">
-            <div className="gba:flex-1">
-              <div className="gba:text-sm gba:text-muted-foreground gba:mb-2">{t('current-total-bonuses-ytd')}</div>
-              <div className="gba:text-3xl gba:font-bold gba:text-foreground">
-                {loading
-                  ? '-'
-                  : formatCurrencyString(totalBonusesYTD, {
-                      currency: currencyCode,
-                      locale: locale,
-                      minimumFractionDigits: 0,
-                      maximumFractionDigits: 0
-                    })}
-              </div>
-              <div className="gba:text-xs gba:text-muted-foreground gba:mt-1">
-                {bonuses.length} {bonuses.length === 1 ? t('current-bonus') : t('current-bonuses')}
-              </div>
-            </div>
-            <div className="gba:p-3 gba:rounded-lg gba:bg-muted">
-              <PiGift className="gba:w-6 gba:h-6 gba:text-primary" />
-            </div>
-          </div>
-        </Card>
-
-        {/* Benefits Value Card */}
-        <Card className="gba:p-6" data-testid="compensation-benefits-card">
-          <div className="gba:flex gba:items-start gba:justify-between">
-            <div className="gba:flex-1">
-              <div className="gba:text-sm gba:text-muted-foreground gba:mb-2">{t('current-benefits-value')}</div>
-              <div className="gba:text-3xl gba:font-bold gba:text-foreground">{activeBenefitsCount}</div>
-              <div className="gba:text-xs gba:text-muted-foreground gba:mt-1">{t('current-active-benefits')}</div>
-            </div>
-            <div className="gba:p-3 gba:rounded-lg gba:bg-muted">
-              <PiHeartbeat className="gba:w-6 gba:h-6 gba:text-primary" />
-            </div>
-          </div>
-        </Card>
-      </div>
+      <CompensationKPICards
+        t={t}
+        compensationData={compensationData}
+        loading={loading}
+        employeeId={employeeId}
+        accessToken={accessToken}
+        locale={locale}
+        hasPermissionToAdjustSalary={hasPermissionToAdjustSalary ?? false}
+        hasPermissionToGrantBonus={hasPermissionToGrantBonus ?? false}
+      />
 
       {/* Total Rewards 360° View */}
       <TotalRewardsCard t={t} compensationData={compensationData} loading={loading} locale={locale} />
@@ -173,6 +127,7 @@ const CurrentCompensationView: React.FC<CurrentCompensationViewProps> = ({
         loading={loading}
         currencyCode={currencyCode}
         locale={locale}
+        hrBackofficeHasPermission={employeeRecordHrBackoffice?.hasPermission}
       />
     </div>
   )

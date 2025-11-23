@@ -252,6 +252,13 @@ const EmployeeRecordContent: React.FC<EmployeeRecordContentProps> = ({
     'employee-record-absences',
     accessToken
   )
+
+  const employeeRecordHrBackoffice = useScopePermissionCheck(
+    '/platform/employee-record',
+    'employee-record-hr-backoffice',
+    accessToken
+  )
+
   const isSelfView: boolean = !!(currentUserEmployeeId && employeeIdToShow === currentUserEmployeeId)
 
   const getTabItems = () => {
@@ -354,7 +361,8 @@ const EmployeeRecordContent: React.FC<EmployeeRecordContentProps> = ({
               isSelfView={isSelfView}
               changeLogTabFeatureFlag={changeLogFeatureFlag as boolean}
               hasHrNotesAccess={hasHrNotesAccess}
-              scopePermissionLoading={scopePermissionLoading}
+              scopePermissionLoading={scopePermissionLoading || employeeRecordHrBackoffice.loading}
+              employeeRecordHrBackoffice={employeeRecordHrBackoffice}
               additionalData={additionalData}
             />
           )
@@ -381,6 +389,7 @@ const EmployeeRecordContent: React.FC<EmployeeRecordContentProps> = ({
             employeePerformanceGoals={performanceGoals}
             feedback={feedback}
             additionalData={additionalData}
+            employeeRecordHrBackoffice={employeeRecordHrBackoffice}
           />
         )
       },

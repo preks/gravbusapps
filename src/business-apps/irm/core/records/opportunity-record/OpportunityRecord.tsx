@@ -40,6 +40,7 @@ import { getEmployeeName } from '@/common/components/common-relations/record-sec
 import type { Stage, StageCondition } from '@/components/stage-progression/types'
 import { isOpportunityOpen } from './utils/opportunityStatusUtils'
 import { buildInvestmentFromOpportunity } from './utils/opportunityDataTransformers'
+import { buildFormFieldsFromCatalogData } from '../utils/investmentFieldsBuilder'
 import AccountSection from '@/common/components/common-relations/record-sections/account-section/AccountSection'
 import ContactSection from '@/common/components/common-relations/record-sections/contact-section/ContactSection'
 import ActivitySection from '@/common/components/common-relations/record-sections/activity-section/ActivitySection'
@@ -219,8 +220,9 @@ const InvestmentOpportunityRecordContent: React.FC<OpportunityRecordContentProps
     try {
       setLoadingStages(true)
       setStagesError(null)
-      if (opportunityData?.opportunityPipeline?.childEntries?.length) {
-        const sorted = [...(opportunityData.opportunityPipeline.childEntries as any[])].sort(
+      const childEntries = (opportunityData?.opportunityPipeline as any)?.childEntries
+      if (childEntries?.length) {
+        const sorted = [...(childEntries as any[])].sort(
           (a: any, b: any) => (a?.displayOrder ?? 0) - (b?.displayOrder ?? 0)
         )
         const stageData = sorted.map((entry: any) => ({
@@ -628,6 +630,12 @@ const InvestmentOpportunityRecordContent: React.FC<OpportunityRecordContentProps
     [opportunityData?.estimatedAmount, opportunityData?.currency?.id, opportunityData?.opportunityStatus?.value]
   )
 
+  // Transform catalog referenceFields to formFields format for InvestmentSection
+  const investmentFields = useMemo(
+    () => buildFormFieldsFromCatalogData(opportunityData?.investmentType, opportunityData?.investmentGroup),
+    [opportunityData?.investmentType, opportunityData?.investmentGroup]
+  )
+
   // Helper function to convert deal type codes to human-readable values
   const getDealTypeDisplayValue = (dealType: string | undefined): string => {
     if (!dealType) return getTranslationFromI18nKeyAndLabel('crm.common.notSet', 'Not set')
@@ -905,6 +913,8 @@ const InvestmentOpportunityRecordContent: React.FC<OpportunityRecordContentProps
                           (inv): inv is NonNullable<typeof inv> => inv !== null
                         )
                       : undefined,
+                    fields: investmentFields,
+                    recordUrl: undefined, // No navigation - investment data is part of opportunity, not a separate entity
                     isLoading: loading,
                     error: error
                   }

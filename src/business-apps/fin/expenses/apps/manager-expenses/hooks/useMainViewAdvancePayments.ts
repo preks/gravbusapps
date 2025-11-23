@@ -94,7 +94,7 @@ interface UseMainViewAdvancePaymentsProps extends BusinessAppContextProps {
 export const useMainViewAdvancePayments = ({
   accessToken,
   userInfo,
-  pageSize = 10,
+  pageSize = 20,
   searchTerm,
   currentStatusFilter,
   currentPage: externalCurrentPage,

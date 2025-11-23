@@ -26,11 +26,13 @@ import { LeadDocuments } from './components/LeadDocuments'
 import AccountSection from '@/common/components/common-relations/record-sections/account-section/AccountSection'
 import ContactSection from '@/common/components/common-relations/record-sections/contact-section/ContactSection'
 import InvestmentSection from '@/common/components/common-relations/record-sections/investment-section/InvestmentSection'
+import type { Investment } from '@/common/data/investment/types'
 import {
   buildInvestmentAccountFromLead,
   buildInvestmentContactFromLead,
   buildInvestmentFromLead
 } from './utils/leadDataTransformers'
+import { buildFormFieldsFromCatalogData } from '../utils/investmentFieldsBuilder'
 import ActivitySection from '@/common/components/common-relations/record-sections/activity-section/ActivitySection'
 import NoteSection from '@/common/components/common-relations/record-sections/note-section/NoteSection'
 import TaskSection from '@/common/components/common-relations/record-sections/task-section/TaskSection'
@@ -326,6 +328,12 @@ const InvestmentLeadRecordContent: React.FC<LeadRecordContentProps> = ({ leadId,
     )
   }, [props.accessToken, leadId, rejectionReasons, rejectionReasonsError, loadRejectionReasons])
 
+  // Transform catalog referenceFields to formFields format for InvestmentSection
+  const investmentFields = useMemo(
+    () => buildFormFieldsFromCatalogData(leadData?.investmentType, leadData?.investmentGroup),
+    [leadData?.investmentType, leadData?.investmentGroup]
+  )
+
   // Prepare header content for RecordLayout - MUST be before conditional returns
   const headerTitle = (
     <div className="gba:flex gba:items-center gba:gap-2">
@@ -492,7 +500,6 @@ const InvestmentLeadRecordContent: React.FC<LeadRecordContentProps> = ({ leadId,
             typeof leadData?.version === 'string' ? Number.parseInt(leadData.version, 10) : leadData?.version || 0
           }
           accessToken={props.accessToken}
-          onStatusUpdate={fetchLeadData}
         />
       )}
     </>
@@ -552,8 +559,12 @@ const InvestmentLeadRecordContent: React.FC<LeadRecordContentProps> = ({ leadId,
                   component: InvestmentSection,
                   props: {
                     ...props,
-                    investment: buildInvestmentFromLead(leadData),
-                    investments: leadData ? [buildInvestmentFromLead(leadData)].filter(Boolean) : undefined,
+                    investment: buildInvestmentFromLead(leadData) || undefined,
+                    investments: leadData
+                      ? [buildInvestmentFromLead(leadData)].filter((inv): inv is Investment => inv !== null)
+                      : undefined,
+                    fields: investmentFields,
+                    recordUrl: undefined, // No navigation - investment data is part of lead, not a separate entity
                     isLoading: loading,
                     error: error
                   }

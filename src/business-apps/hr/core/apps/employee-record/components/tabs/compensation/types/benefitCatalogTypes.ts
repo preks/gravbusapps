@@ -6,6 +6,7 @@ export interface ProviderEntry {
   value: string
   code: string
   description?: string
+  parentEntryId?: string
   translations?: Array<{
     localeCode: string
     value: string
@@ -21,6 +22,7 @@ export interface CatalogBenefitEntry {
   code: string
   description?: string
   displayOrder: number
+  parentEntryId?: string
   additionalValue1?: string
   additionalValue2?: string
   additionalValue3?: string
@@ -45,6 +47,7 @@ export interface BenefitCatalogItem {
   code: string
   description?: string
   displayOrder: number
+  parentEntryId?: string
   availableProviders?: ProviderEntry[]
   isActive: boolean
   employeeBenefitId?: string

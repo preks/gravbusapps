@@ -227,39 +227,37 @@ const ExpenseRequestsTable: React.FC<ExpenseRequestsTableProps> = props => {
     return found?.name || ''
   }, [organizationalUnits, departmentId])
 
-  const selectedFilters: string[] = useMemo(
-    () => [
-      ...(statusFilter.length > 0 ? ['status'] : []),
+  const selectedFilters: string[] = useMemo(() => {
+    const hasNonDefaultStatusFilter =
+      statusFilter.length > 0 && !(statusFilter.length === 1 && statusFilter[0] === ExpenseStatus.BOOKED)
+
+    return [
+      ...(hasNonDefaultStatusFilter ? ['status'] : []),
       ...(employeeFilter ? ['employee'] : []),
       ...(amountMinFilter || amountMaxFilter ? ['amount'] : []),
       ...(departmentId ? ['department'] : []),
       ...(currencyRef ? ['currency'] : []),
       ...(startFrom || startTo ? ['startDate'] : []),
       ...(endFrom || endTo ? ['endDate'] : [])
-    ],
-    [
-      statusFilter,
-      employeeFilter,
-      amountMinFilter,
-      amountMaxFilter,
-      departmentId,
-      currencyRef,
-      startFrom,
-      startTo,
-      endFrom,
-      endTo
     ]
-  )
+  }, [
+    statusFilter,
+    employeeFilter,
+    amountMinFilter,
+    amountMaxFilter,
+    departmentId,
+    currencyRef,
+    startFrom,
+    startTo,
+    endFrom,
+    endTo
+  ])
 
   const hasActiveFilters = useMemo(() => {
-    if (totalItems === 0 && !loading) {
-      return false
-    }
-
     const hasSearch = (searchText || '').trim() !== ''
 
     return hasSearch || selectedFilters.length > 0
-  }, [searchText, selectedFilters, totalItems, loading])
+  }, [searchText, selectedFilters])
 
   useEffect(() => {
     // Mirror personal expenses: use a fixed enum list for statuses
@@ -484,7 +482,7 @@ const ExpenseRequestsTable: React.FC<ExpenseRequestsTableProps> = props => {
               <SelectTrigger data-testid="expense-requests-department-select">
                 <SelectValue
                   placeholder={getTranslationFromI18nKeyAndLabel(
-                    'lowcoder:employee_list.employee_report_filter.department_placeholder',
+                    'lowcoder:backoffice_expense_landing_page.department_placeholder',
                     'Select department'
                   )}
                 />
@@ -516,7 +514,7 @@ const ExpenseRequestsTable: React.FC<ExpenseRequestsTableProps> = props => {
               <SelectTrigger data-testid="expense-requests-currency-select" className="gba:border-border">
                 <SelectValue
                   placeholder={getTranslationFromI18nKeyAndLabel(
-                    'lowcoder:team_expenses_page.all_currencies',
+                    'lowcoder:manager_expense_landing_page.all_currencies',
                     'All Currencies'
                   )}
                 />
@@ -900,11 +898,11 @@ const ExpenseRequestsTable: React.FC<ExpenseRequestsTableProps> = props => {
                       <div className="gba:text-muted-foreground">
                         {hasActiveFilters
                           ? getTranslationFromI18nKeyAndLabel(
-                              'lowcoder:expense_request_list.no_expense_requests_found',
-                              'No expense requests found matching the current filters.'
+                              'lowcoder:team_expenses_page.dashboard_tab.no_data_found',
+                              'No data available'
                             )
                           : getTranslationFromI18nKeyAndLabel(
-                              'lowcoder:backoffice_expense_landing_page.no_expense_requests_created_yet',
+                              'lowcoder:backoffice_expense_landing_page.no_requests_created_yet',
                               'No expense requests created yet.'
                             )}
                       </div>
@@ -1497,7 +1495,7 @@ const ExpenseRequestsTable: React.FC<ExpenseRequestsTableProps> = props => {
             'lowcoder:expense_request_list.search_module',
             'Search in Expense Requests'
           ),
-          filter: totalItems === 0 && !loading ? [] : selectedFilters,
+          filter: selectedFilters,
           setFilter: setFilters,
           filterLabelMap: {
             status:
@@ -1514,7 +1512,8 @@ const ExpenseRequestsTable: React.FC<ExpenseRequestsTableProps> = props => {
           actions: dataControllerActions
         }}
         dataFilterProps={{
-          filterGroups: totalItems === 0 && !loading ? [] : filterGroups,
+          // Keep filter sidebar available regardless of current result count
+          filterGroups,
           onFilterChange: (filterId: string, selected: boolean) => {
             // Clear all filters
             if (filterId === '' && selected) {

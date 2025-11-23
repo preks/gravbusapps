@@ -22,7 +22,7 @@ export const OpportunityStageTooltipContent: React.FC<OpportunityStageTooltipCon
       <div className="gba:text-popover-foreground gba:text-sm gba:font-semibold gba:mb-2 gba:pb-1.5 gba:border-b gba:border-border">
         {stage.value} Stage Conditions
       </div>
-      <div className="gba:max-h-[150px] gba:overflow-y-auto">
+      <div>
         {sortedConditions.length > 0 ? (
           sortedConditions.map(condition => (
             <div key={condition.id} className="gba:flex gba:items-start gba:gap-2 gba:py-1 gba:text-xs">
