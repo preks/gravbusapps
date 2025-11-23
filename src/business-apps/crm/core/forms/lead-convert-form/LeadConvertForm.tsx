@@ -43,6 +43,7 @@ import { APP_NAME, FILE_ENTITY, FILE_CONTEXT } from '@/common/data/customer/cons
 import { CustomerFilePaths } from '@/common/data/customer/constants/customerFilePaths'
 import type { CustomerAccount } from '@/common/data/customer/types/customerAccountTypes'
 import type { CustomerContact } from '@/common/data/customer/types/customerContactTypes'
+import type { CustomerOpportunity } from '@/common/data/customer/types/customerOpportunityTypes'
 import type { SelectOption as AccountSelectOption } from '@/common/components/common-relations/selects/account-select'
 import type { SelectOption as ContactSelectOption } from '@/common/components/common-relations/selects/contact-select'
 
@@ -392,7 +393,6 @@ export const LeadConvertForm = ({ accessToken, userInfo, additionalData, onSucce
                 companySizeCatalogIdentifier="EmployeeSize:v1"
                 useContacts={{
                   contacts: contactsList,
-                  total: contactsTotal,
                   loading: contactsLoading,
                   error: contactsError,
                   refetch: refetchContacts
@@ -422,7 +422,6 @@ export const LeadConvertForm = ({ accessToken, userInfo, additionalData, onSucce
                 ownerEmployee={leadData?.ownerEmployee}
                 useAccounts={{
                   accounts: accountsList,
-                  total: accountsTotal,
                   loading: accountsLoading,
                   error: accountsError,
                   refetch: refetchAccounts
@@ -523,17 +522,19 @@ export const LeadConvertForm = ({ accessToken, userInfo, additionalData, onSucce
         data.accountOption === 'match' && data.selectedAccountId
           ? { id: data.selectedAccountId }
           : data.accountOption === 'create'
-            ? accountForm.getValues()
+            ? (accountForm.getValues() as Partial<CustomerAccount>)
             : undefined
 
       const contact =
         data.contactOption === 'match' && data.selectedContactId
           ? { id: data.selectedContactId }
           : data.contactOption === 'create'
-            ? contactForm.getValues()
+            ? (contactForm.getValues() as Partial<CustomerContact>)
             : undefined
 
-      const opportunity = data.createOpportunity ? opportunityForm.getValues() : undefined
+      const opportunity = data.createOpportunity
+        ? (opportunityForm.getValues() as Partial<CustomerOpportunity>)
+        : undefined
 
       // Build payload using simple builder
       return buildCustomerLeadConvertPayload(actualLeadId, account, contact, opportunity)
@@ -560,7 +561,9 @@ export const LeadConvertForm = ({ accessToken, userInfo, additionalData, onSucce
       submitButtonText={getTranslationFromI18nKeyAndLabel('crm:convertLead.convertLead', 'Convert Lead')}
       cancelButtonText={getTranslationFromI18nKeyAndLabel('common:button.cancel', 'Cancel')}
       data-testid="convert-lead-process-dialog"
-    />
+    >
+      <></>
+    </AppActionForm>
   )
 }
 

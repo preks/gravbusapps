@@ -3,8 +3,9 @@ import type { CustomerAccount } from '@/common/data/customer/types/customerAccou
 import type { InvestmentAccount } from '@/common/data/investment/types/investmentAccountTypes'
 import type { CustomerContact } from '@/common/data/customer/types/customerContactTypes'
 import type { InvestmentContact } from '@/common/data/investment/types/investmentContactTypes'
-import type { CustomerOpportunity } from '@/common/data/customer/types/customerOpportunityTypes'
 import type { InvestmentOpportunity } from '@/common/data/investment/types/investmentOpportunityTypes'
+import { opportunitySchema } from '@/common/components/common-relations/form-layouts/opportunity-layout'
+import { z } from 'zod'
 import { mapLeadAddresses, mapLeadCommunicationChannels } from './index'
 
 /**
@@ -110,13 +111,12 @@ export function mapLeadToContact<T extends CustomerContact | InvestmentContact>(
 /**
  * Map Lead data to Customer Opportunity initial values
  */
-export function mapLeadToCustomerOpportunity(leadData: Lead | any): Partial<CustomerOpportunity> {
+export function mapLeadToCustomerOpportunity(leadData: Lead | any): Partial<z.infer<typeof opportunitySchema>> {
   if (!leadData) return {}
 
   return {
     name: leadData.companyName || '',
-    code: leadData.code || '',
-    estimatedAmount: leadData.initialInvestmentAmount || undefined,
+    estimatedAmount: leadData.initialInvestmentAmount ? String(leadData.initialInvestmentAmount) : undefined,
     ownerEmployeeId: leadData.ownerEmployeeId || '',
     notesSummary: leadData.description || '',
     accountId: leadData.convertedAccountId || undefined
@@ -152,7 +152,6 @@ export function mapLeadToInvestmentOpportunity(leadData: Lead | any): Partial<In
     investmentTypeRef: leadData.investmentTypeRef || '',
     ownerEmployeeId: leadData.ownerEmployeeId || '',
     notesSummary: leadData.description || '',
-    description: leadData.description || '',
     accountId: leadData.convertedAccountId || undefined
   }
 }
