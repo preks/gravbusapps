@@ -6,8 +6,6 @@ salary-forecast-headcount = Mitarbeitende
 salary-forecast-new-hires = Neueinstellungen
 
 company-salary-forecast-title = Gehaltsprognose des Unternehmens
-
-currency-symbol = €
 suffix-million = Mio.
 suffix-thousand = Tsd.
 total-salary = Gesamtgehälter

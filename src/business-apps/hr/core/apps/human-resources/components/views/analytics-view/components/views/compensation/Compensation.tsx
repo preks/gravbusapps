@@ -72,7 +72,6 @@ export const Compensation: React.FC<CompensationProps> = ({ accessToken, prefixD
         id: 'total-payroll',
         title: t('hr-analytics-total-payroll'),
         value: loading ? t('hr-data-filter-loading') : `${formattedTotalPayroll.value.toFixed(1)}M`,
-        prefix: '$',
         icon: <Icon icon={CurrencyDollarIcon} size="sm" decorative />,
         iconColor: 'var(--nw-chart-1)',
         footer: t('hr-analytics-annual-payroll')
@@ -81,7 +80,6 @@ export const Compensation: React.FC<CompensationProps> = ({ accessToken, prefixD
         id: 'median-salary',
         title: t('hr-analytics-median-salary'),
         value: loading ? t('hr-data-filter-loading') : `${formattedMedianSalary.value}K`,
-        prefix: '$',
         icon: <Icon icon={CurrencyDollarIcon} size="sm" decorative />,
         iconColor: 'var(--nw-chart-2)',
         footer: t('hr-analytics-company-median')
@@ -90,7 +88,6 @@ export const Compensation: React.FC<CompensationProps> = ({ accessToken, prefixD
         id: 'avg-salary',
         title: t('hr-analytics-avg-salary'),
         value: loading ? t('hr-data-filter-loading') : `${formattedAverageSalary.value}K`,
-        prefix: '$',
         icon: <Icon icon={CurrencyDollarIcon} size="sm" decorative />,
         iconColor: 'var(--nw-chart-3)',
         footer: t('hr-analytics-annual-average')

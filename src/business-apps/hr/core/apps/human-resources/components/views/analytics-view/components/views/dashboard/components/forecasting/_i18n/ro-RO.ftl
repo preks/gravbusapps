@@ -6,8 +6,6 @@ salary-forecast-headcount = Număr angajați
 salary-forecast-new-hires = Noi angajări
 
 company-salary-forecast-title = Prognoza Salariilor Companiei
-
-currency-symbol = €
 suffix-million = mil.
 suffix-thousand = mii
 total-salary = Salariu total
