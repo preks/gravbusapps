@@ -233,8 +233,6 @@ export const TimeTypesTab: React.FC<TimeTypesProps> = ({ accessToken, prefixData
         )
 
         await refetch()
-        setIsDeleteDialogOpen(false)
-        setSelectedTimeType(null)
       } catch (error) {
         console.error('Error deleting time type:', error)
       } finally {

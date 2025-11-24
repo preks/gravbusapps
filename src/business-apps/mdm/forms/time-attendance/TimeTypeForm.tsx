@@ -92,7 +92,7 @@ const TimeTypeForm: React.FC<TimeTypeFormProps> = ({
       setLoading(true)
 
       const payload = {
-        changeMode: 'INSERT',
+        changeMode: 'UPDATE',
         timeType: {
           code: values.code,
           name: values.name,
