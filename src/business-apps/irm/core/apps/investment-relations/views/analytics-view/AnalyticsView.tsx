@@ -24,6 +24,7 @@ import { useGeographicDistribution } from './hooks/useGeographicDistribution'
 
 import { useOpportunityVelocityData } from './hooks/useOpportunityVelocityData'
 import { useDealHealthData } from './hooks/useDealHealthData'
+import { useTopDeals } from './hooks/useTopDeals'
 
 export interface AnalyticsViewProps extends BusinessAppContextProps {
   moduleColor?: string
@@ -178,6 +179,7 @@ export const AnalyticsView: React.FC<AnalyticsViewProps> = ({ moduleColor = 'def
     topPerformersCurrency
   )
   const { count: investmentAccountCount } = useInvestmentAccountsCount(context.accessToken)
+  const { data: topDealsData } = useTopDeals(context.accessToken, topDealsCurrency)
 
   // Extract pipelines from opportunities data
   const pipelines = data?.opportunities?.opportunitiesByPipeline
@@ -370,14 +372,14 @@ export const AnalyticsView: React.FC<AnalyticsViewProps> = ({ moduleColor = 'def
         onTimeFilterChange: setOppTimeFilter,
         opportunitiesByStage: (oppStageData || []).map(s => ({ stage: s.stage, count: s.count, value: s.value })),
         selectedStagePipelineId: selectedStagePipelineId,
-        onStagePipelineChange: (id: string) => setSelectedStagePipelineId(id),
+        onStagePipelineChange: (id: string | undefined) => setSelectedStagePipelineId(id),
         opportunitiesByPipeline: data.opportunities.opportunitiesByPipeline.map(p => ({
           pipelineId: p.pipelineId,
           pipeline: p.pipeline,
           count: p.count,
           percentage: p.percentage
         })),
-        topDeals: data.opportunities.topDeals,
+        topDeals: topDealsData,
         velocityData: oppVelocityData || null,
         dealHealthData: oppHealthData || null,
         kpiCurrency: opportunitiesKpiCurrency,

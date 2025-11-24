@@ -23,6 +23,7 @@ import { useGeographicDistribution } from './hooks/useGeographicDistribution'
 import { useOpportunityVelocityData } from './hooks/useOpportunityVelocityData'
 import { useDealHealthData } from './hooks/useDealHealthData'
 import { useLeadsTrendData } from './hooks/useLeadsTrendData'
+import { useTopDeals } from './hooks/useTopDeals'
 
 export interface AnalyticsViewProps extends BusinessAppContextProps {
   moduleColor?: string
@@ -42,6 +43,7 @@ export const AnalyticsView: React.FC<AnalyticsViewProps> = ({ moduleColor = 'def
     'sixMonths'
   )
   const [selectedPipelineId, setSelectedPipelineId] = useState<string | undefined>(undefined)
+  const [selectedStagePipelineId, setSelectedStagePipelineId] = useState<string | undefined>(undefined)
 
   // Currency filters for analytics
   const [kpiCurrency, setKpiCurrency] = useState('EUR') // Master currency
@@ -161,7 +163,7 @@ export const AnalyticsView: React.FC<AnalyticsViewProps> = ({ moduleColor = 'def
     undefined,
     opportunitiesKpiCurrency
   )
-  const { data: oppStageAll } = useOpportunitiesByStage(context.accessToken)
+  const { data: oppStageData } = useOpportunitiesByStage(context.accessToken, selectedStagePipelineId)
   const { data: contactsMetrics } = useCustomerContactsOverTime({
     accessToken: context.accessToken,
     timeFilter: convertToContactsTimeFilter(contactsTimeFilter)
@@ -173,6 +175,7 @@ export const AnalyticsView: React.FC<AnalyticsViewProps> = ({ moduleColor = 'def
     topPerformersCurrency
   )
   const { count: customerAccountCount } = useAccountsCount(context.accessToken)
+  const { data: topDealsData } = useTopDeals(context.accessToken, topDealsCurrency)
 
   if (isLoading) {
     return (
@@ -321,18 +324,24 @@ export const AnalyticsView: React.FC<AnalyticsViewProps> = ({ moduleColor = 'def
           opportunitiesCreated: d.opportunitiesCreated,
           opportunitiesWon: d.opportunitiesWon
         })),
-        pipelines: (data.opportunities.opportunitiesByPipeline || []).map(p => ({ id: p.pipeline, name: p.pipeline })),
+        pipelines: (data.opportunities.opportunitiesByPipeline || []).map(p => ({
+          id: p.pipelineId,
+          name: p.pipeline
+        })),
         selectedPipelineId: selectedPipelineId,
         onPipelineChange: (id: string) => setSelectedPipelineId(id === 'all' ? undefined : id),
         selectedTimeFilter: oppTimeFilter,
         onTimeFilterChange: setOppTimeFilter,
-        opportunitiesByStage: (oppStageAll || []).map(s => ({ stage: s.stage, count: s.count, value: s.value })),
+        opportunitiesByStage: (oppStageData || []).map(s => ({ stage: s.stage, count: s.count, value: s.value })),
+        selectedStagePipelineId: selectedStagePipelineId,
+        onStagePipelineChange: (id: string | undefined) => setSelectedStagePipelineId(id),
         opportunitiesByPipeline: data.opportunities.opportunitiesByPipeline.map(p => ({
+          pipelineId: p.pipelineId,
           pipeline: p.pipeline,
           count: p.count,
           percentage: p.percentage
         })),
-        topDeals: data.opportunities.topDeals,
+        topDeals: topDealsData,
         velocityData: oppVelocityData || null,
         dealHealthData: oppHealthData || null,
         kpiCurrency: opportunitiesKpiCurrency,

@@ -32,7 +32,7 @@ interface OpportunitiesByStageBarProps {
   moduleColor?: string
   pipelines?: Array<{ id: string; name: string }>
   selectedPipelineId?: string
-  onPipelineChange?: (pipelineId: string) => void
+  onPipelineChange?: (pipelineId: string | undefined) => void
 }
 
 export const OpportunitiesByStageBar: React.FC<OpportunitiesByStageBarProps> = ({
@@ -43,7 +43,7 @@ export const OpportunitiesByStageBar: React.FC<OpportunitiesByStageBarProps> = (
   onPipelineChange
 }) => {
   const handlePipelineChange = (value: string) => {
-    onPipelineChange?.(value)
+    onPipelineChange?.(value === 'all' ? undefined : value)
   }
 
   // Format large numbers for Y-axis
@@ -88,11 +88,12 @@ export const OpportunitiesByStageBar: React.FC<OpportunitiesByStageBarProps> = (
           </div>
           {pipelines.length > 0 && onPipelineChange && (
             <div className="gba:min-w-48">
-              <Select value={selectedPipelineId} onValueChange={handlePipelineChange}>
+              <Select value={selectedPipelineId || 'all'} onValueChange={handlePipelineChange}>
                 <SelectTrigger data-testid="opportunities-stage-pipeline-selector">
                   <SelectValue placeholder="Select pipeline" />
                 </SelectTrigger>
                 <SelectContent>
+                  <SelectItem value="all">All Pipelines</SelectItem>
                   {pipelines.map(pipeline => (
                     <SelectItem key={pipeline.id} value={pipeline.id}>
                       {pipeline.name}

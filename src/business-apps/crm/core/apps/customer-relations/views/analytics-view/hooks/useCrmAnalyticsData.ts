@@ -342,12 +342,22 @@ const transformOpportunitiesData = (data: any): OpportunitiesAnalytics => {
     percentage: totalOpportunities > 0 ? Math.round((group.count / totalOpportunities) * 100) : 0
   }))
 
-  // Group by pipeline
-  const pipelineGroups = groupByFieldWithValue(opportunities, 'salesPipeline', 'value', 'estimatedAmount')
-  const opportunitiesByPipeline = pipelineGroups.map(group => ({
-    pipeline: group.key || 'Unknown',
+  // Group by pipeline - include pipeline ID for filtering
+  const pipelineGroupsMap = opportunities.reduce((acc: any, opp: any) => {
+    const pipelineId = opp.salesPipeline?.id || 'unknown'
+    const pipelineName = opp.salesPipeline?.value || 'Unknown'
+    if (!acc[pipelineId]) {
+      acc[pipelineId] = { pipelineId, pipeline: pipelineName, count: 0, value: 0 }
+    }
+    acc[pipelineId].count += 1
+    acc[pipelineId].value += opp.estimatedAmount || 0
+    return acc
+  }, {})
+  const opportunitiesByPipeline = Object.values(pipelineGroupsMap).map((group: any) => ({
+    pipelineId: group.pipelineId,
+    pipeline: group.pipeline,
     count: group.count,
-    value: group.totalValue,
+    value: group.value,
     percentage: totalOpportunities > 0 ? Math.round((group.count / totalOpportunities) * 100) : 0
   }))
 
@@ -365,7 +375,8 @@ const transformOpportunitiesData = (data: any): OpportunitiesAnalytics => {
       stage: opp.salesPipelineStage?.value || 'Unknown',
       winChance: opp.winningChance || 0,
       owner:
-        opp.ownerEmployee?.displayName || `${opp.ownerEmployee?.firstName} ${opp.ownerEmployee?.lastName}` || 'Unknown'
+        opp.ownerEmployee?.displayName || `${opp.ownerEmployee?.firstName} ${opp.ownerEmployee?.lastName}` || 'Unknown',
+      currencyCode: opp.currency?.code || 'EUR'
     }))
 
   return {

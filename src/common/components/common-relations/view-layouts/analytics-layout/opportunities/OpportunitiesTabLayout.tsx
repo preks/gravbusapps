@@ -76,9 +76,17 @@ export interface OpportunitiesTabLayoutProps {
   onTimeFilterChange: (filter: OpportunityTimeFilter) => void
   opportunitiesByStage: Array<{ stage: string; count: number; value: number }>
   selectedStagePipelineId?: string
-  onStagePipelineChange?: (id: string) => void
+  onStagePipelineChange?: (id: string | undefined) => void
   opportunitiesByPipeline: Array<{ pipelineId: string; pipeline: string; count: number; percentage: number }>
-  topDeals: Array<{ id: string; name: string; value: number; stage: string; winChance: number; owner: string }>
+  topDeals: Array<{
+    id: string
+    name: string
+    value: number
+    stage: string
+    winChance: number
+    owner: string
+    currencyCode?: string
+  }>
   velocityData?: { averageDaysInPipeline: number; velocityTrend: any[]; quickWins: any[]; slowMovers: any[] } | null
   dealHealthData?: { healthDistribution: any; matrixData: any[] } | null
   moduleColor?: string

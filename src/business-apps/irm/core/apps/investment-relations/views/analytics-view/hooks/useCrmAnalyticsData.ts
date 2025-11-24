@@ -379,7 +379,8 @@ const transformOpportunitiesData = (data: any): OpportunitiesAnalytics => {
       stage: opp.opportunityPipelineStage?.value || 'Unknown',
       winChance: 0,
       owner:
-        opp.ownerEmployee?.displayName || `${opp.ownerEmployee?.firstName} ${opp.ownerEmployee?.lastName}` || 'Unknown'
+        opp.ownerEmployee?.displayName || `${opp.ownerEmployee?.firstName} ${opp.ownerEmployee?.lastName}` || 'Unknown',
+      currencyCode: opp.currency?.code || 'EUR'
     }))
 
   return {

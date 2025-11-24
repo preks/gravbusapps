@@ -20,23 +20,23 @@ export const useOpportunitiesByStage = (accessToken: string, pipelineId?: string
         setIsLoading(true)
         setError(null)
 
-        const query = pipelineId
-          ? `
-          query GetOpportunitiesByStage($pipelineId: uuid!) {
+        // Build the pipeline filter using string interpolation like IRM version
+        const pipelineFilter = pipelineId ? `salesPipeline: {id: {_eq: "${pipelineId}"}}` : ''
+        const whereClause = pipelineFilter ? `isDeleted: {_eq: false}, ${pipelineFilter}` : `isDeleted: {_eq: false}`
+
+        const query = `
+          query GetOpportunitiesByStage {
             opportunities: Opportunity(
-              where: { isDeleted: { _eq: false }, salesPipeline: { id: { _eq: $pipelineId } } }
-            ) { id stage estimatedAmount }
+              where: { ${whereClause} }
+            ) {
+              id
+              stage
+              estimatedAmount
+            }
           }
         `
-          : `
-          query GetOpportunitiesByStageAll {
-            opportunities: Opportunity(
-              where: { isDeleted: { _eq: false } }
-            ) { id stage estimatedAmount }
-          }
-        `
-        const variables: any = pipelineId ? { pipelineId } : {}
-        const result = await graphqlClient.request<any>(query, variables)
+
+        const result = await graphqlClient.request<any>(query)
         const stageGroups = (result.opportunities || []).reduce((acc: Record<string, StageItem>, opp: any) => {
           const stage = opp.stage || 'Unknown'
           if (!acc[stage]) acc[stage] = { stage, count: 0, value: 0 }
