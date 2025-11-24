@@ -19,16 +19,16 @@ import { ErrorAlert } from '@/components/error-alert/ErrorAlert'
 import { formatDataTestId } from '@/common/utils/formatDataTestId'
 
 export interface ActivityFormProps extends BusinessAppContextProps {
-  initialValues?: Partial<ActivitySchema>
-  onSubmit?: (activity: Partial<ActivitySchema>) => Promise<void>
-  onCancel?: () => Promise<void>
+  onSuccess?: (activity: Partial<ActivitySchema>) => void
+  onCancel?: () => void
 }
 
 export const ActivityForm: React.FC<ActivityFormProps> = ({
   accessToken,
   additionalData,
   userInfo,
-  onCancel = async () => {}
+  onSuccess,
+  onCancel
 }) => {
   // Resolve IDs from additionalData (platform may pass ids inside psi_taskPayload.psi_initialParameters)
   const platformParams = useMemo(() => {
@@ -261,10 +261,15 @@ export const ActivityForm: React.FC<ActivityFormProps> = ({
     [uploadFiles, userInfo]
   )
 
+  // Success handler
+  const handleSuccess = useCallback(() => {
+    onSuccess?.(form.getValues())
+  }, [onSuccess, form])
+
   // Handle form cancellation
-  const handleCancel = async () => {
-    await onCancel()
-  }
+  const handleCancel = useCallback(async () => {
+    await onCancel?.()
+  }, [onCancel])
 
   // Entity search handler
   const handleEntitySearch = useCallback(
@@ -305,25 +310,28 @@ export const ActivityForm: React.FC<ActivityFormProps> = ({
   useEffect(() => {
     if (!accountId && !contactId && !opportunityId && !leadId) return
     const hasEntity = Boolean(
-      form.getValues('account') || form.getValues('contact') || form.getValues('opportunity') || form.getValues('lead')
+      form.getValues('accountId') ||
+        form.getValues('contactId') ||
+        form.getValues('opportunityId') ||
+        form.getValues('leadId')
     )
     if (hasEntity) return
 
     // Set entity in form based on what's available
     if (accountId) {
-      form.setValue('account', accountId)
+      form.setValue('accountId', accountId)
       form.setValue('relatedEntityId', accountId)
       hydrateEntityById('account', accountId)
     } else if (contactId) {
-      form.setValue('contact', contactId)
+      form.setValue('contactId', contactId)
       form.setValue('relatedEntityId', contactId)
       hydrateEntityById('contact', contactId)
     } else if (opportunityId) {
-      form.setValue('opportunity', opportunityId)
+      form.setValue('opportunityId', opportunityId)
       form.setValue('relatedEntityId', opportunityId)
       hydrateEntityById('opportunity', opportunityId)
     } else if (leadId) {
-      form.setValue('lead', leadId)
+      form.setValue('leadId', leadId)
       form.setValue('relatedEntityId', leadId)
       hydrateEntityById('lead', leadId)
     }
@@ -337,6 +345,7 @@ export const ActivityForm: React.FC<ActivityFormProps> = ({
         processType={processType}
         onSubmit={handleSubmit}
         handlePreSubmit={handlePreSubmit}
+        onSuccess={handleSuccess}
         onCancel={handleCancel}
         formData={form.getValues()}
         form={form}

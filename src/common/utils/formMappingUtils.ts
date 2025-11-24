@@ -10,13 +10,23 @@ function isISODateTimeString(value: any): boolean {
 }
 
 /**
- * Transforms ISO datetime string to date-only string for form inputs
- * "2024-01-15T00:00:00Z" → "2024-01-15"
+ * Transforms ISO datetime string for form inputs
+ * - Date-only fields (dueDate, closeDate, birthDate, etc.): strip time
+ * - Datetime fields (occurredAt, completedAt, reminderDate, etc.): preserve time
  */
-function transformDateForForm(value: string): string {
+function transformDateForForm(value: string, fieldName: string): string {
   if (!value) return ''
-  // Remove time part: "2024-01-15T00:00:00Z" → "2024-01-15"
-  return value.split('T')[0]
+
+  // List of fields that should be date-only (no time component)
+  const dateOnlyFields = ['dueDate', 'closeDate', 'birthDate', 'foundationDate', 'startDate', 'endDate']
+
+  // If it's a date-only field, strip the time
+  if (dateOnlyFields.includes(fieldName)) {
+    return value.split('T')[0]
+  }
+
+  // Otherwise preserve the full datetime string
+  return value
 }
 
 /**
@@ -48,9 +58,9 @@ export function mapToFormValues<TEntity extends Record<string, any>, TSchema ext
       if (transformations && key in transformations) {
         result[key] = transformations[key as keyof TEntity]?.(value)
       }
-      // Automatic date transformation: ISO datetime → date-only string
+      // Automatic date transformation: ISO datetime → date-only string or preserve datetime
       else if (isISODateTimeString(value)) {
-        result[key] = transformDateForForm(value)
+        result[key] = transformDateForForm(value, key)
       }
       // Automatic number → string transformation (for form inputs)
       // BUT: Keep numbers as numbers if schema expects number type (e.g., version from BaseEntity)

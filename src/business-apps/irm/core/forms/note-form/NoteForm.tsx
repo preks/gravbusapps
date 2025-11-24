@@ -232,6 +232,38 @@ const NoteForm: React.FC<NoteFormProps> = ({ accessToken, userInfo, additionalDa
     }
   }, [shouldShowEntitySelection, searchEntities])
 
+  // Handle standard entity context (account, contact, opportunity, lead)
+  useEffect(() => {
+    if (!accountId && !contactId && !opportunityId && !leadId) return
+
+    const hasEntity = Boolean(
+      form.getValues('accountId') ||
+        form.getValues('contactId') ||
+        form.getValues('opportunityId') ||
+        form.getValues('leadId')
+    )
+    if (hasEntity) return
+
+    // Set entity ID fields in form (these get mapped to backend fields by buildPayload)
+    if (accountId) {
+      form.setValue('accountId', accountId)
+      form.setValue('relatedEntityId', accountId)
+      hydrateEntityById('account', accountId)
+    } else if (contactId) {
+      form.setValue('contactId', contactId)
+      form.setValue('relatedEntityId', contactId)
+      hydrateEntityById('contact', contactId)
+    } else if (opportunityId) {
+      form.setValue('opportunityId', opportunityId)
+      form.setValue('relatedEntityId', opportunityId)
+      hydrateEntityById('opportunity', opportunityId)
+    } else if (leadId) {
+      form.setValue('leadId', leadId)
+      form.setValue('relatedEntityId', leadId)
+      hydrateEntityById('lead', leadId)
+    }
+  }, [accountId, contactId, opportunityId, leadId, form, hydrateEntityById])
+
   // Handler for investment entity changes (injected into NoteSegment)
   // Also handles initial investmentId from context or loaded note
   const handleAdditionalEntityChange = useCallback(
@@ -308,12 +340,9 @@ const NoteForm: React.FC<NoteFormProps> = ({ accessToken, userInfo, additionalDa
   // PreSubmit handler - upload files before submission
   const handlePreSubmit = useCallback(
     async (data: any) => {
-      // Set creator fields if not present
-      if (!data.creatorEmployeeId && userInfo?.employeeDetails?.employeeId) {
-        data.creatorEmployeeId = userInfo.employeeDetails.employeeId
-      }
-      if (!data.creatorUserId && userInfo?.id) {
-        data.creatorUserId = userInfo.id
+      // Set author fields if not present (Notes use authorEmployeeId, not creatorEmployeeId)
+      if (!data.authorEmployeeId && userInfo?.employeeDetails?.employeeId) {
+        data.authorEmployeeId = userInfo.employeeDetails.employeeId
       }
 
       // Upload pending files if any
