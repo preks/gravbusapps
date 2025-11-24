@@ -12,6 +12,7 @@ import SalaryChangesChart from '../SalaryChangesChart'
 import DepartmentSalaryStackedBarChart from '../DepartmentSalaryStackedBarChart'
 import DepartmentContributionAnalysis from '../DepartmentContributionAnalysis'
 import hrTranslations from '@/business-apps/hr/core/apps/human-resources/_i18n'
+import { getCurrentActiveUserLocale } from '@/common/utils/windowUtils'
 
 const { Title, Text } = Typography
 
@@ -83,10 +84,10 @@ export const SalaryForecasting: React.FC<SalaryForecastingProps> = props => {
     // Format large numbers
     const formatSalary = (value: number) => {
       if (value >= 1_000_000) {
-        return `${(value / 1_000_000).toLocaleString(undefined, { maximumFractionDigits: 2 })}M`
+        return `${(value / 1_000_000).toLocaleString(getCurrentActiveUserLocale() ?? 'en-US', { maximumFractionDigits: 2 })}M`
       }
       if (value >= 1_000) {
-        return `${(value / 1_000).toLocaleString(undefined, { maximumFractionDigits: 1 })}K`
+        return `${(value / 1_000).toLocaleString(getCurrentActiveUserLocale() ?? 'en-US', { maximumFractionDigits: 1 })}K`
       }
       return value.toLocaleString()
     }

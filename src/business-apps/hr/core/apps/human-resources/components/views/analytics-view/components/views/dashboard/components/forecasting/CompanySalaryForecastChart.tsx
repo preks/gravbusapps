@@ -5,6 +5,7 @@ import { useTranslation } from '@newwork/nw-design-system'
 import translations from './_i18n'
 import { BusinessAppContextProps } from '@/common/BusinessAppContext'
 import { WorkingConditionKpiResult } from '../../../../../hooks/useWorkingConditionForecast'
+import { getCurrentActiveUserLocale } from '@/common/utils/windowUtils'
 
 interface CompanySalaryForecastChartProps extends BusinessAppContextProps {
   kpiData: WorkingConditionKpiResult
@@ -17,7 +18,7 @@ function getSalaryForecastTrend(data: any[]): { month: string; salary: number }[
   const totalSalary = data.reduce((sum, wc) => sum + (wc.salary || 0), 0)
   const months = Array.from({ length: 12 }, (_, i) => {
     const date = new Date(now.getFullYear(), now.getMonth() + i, 1)
-    const label = date.toLocaleString(undefined, { month: 'short', year: '2-digit' })
+    const label = date.toLocaleString(getCurrentActiveUserLocale() ?? 'en-US', { month: 'short', year: '2-digit' })
     return {
       month: label,
       salary: Math.round(totalSalary * Math.pow(1.02, i))
