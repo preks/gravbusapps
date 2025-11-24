@@ -345,12 +345,14 @@ export const ShareEntityDialog: React.FC<ShareEntityDialogProps> = ({
             <div className="gba:space-y-2">
               <Label>Send to</Label>
               <div className="gba:relative">
-                <Search className="gba:absolute gba:left-3 gba:top-1/2 gba:-translate-y-1/2 gba:w-4 gba:h-4 gba:text-muted-foreground gba:pointer-events-none" />
+                <div className="gba:absolute gba:left-3 gba:top-1/2 gba:transform gba:-translate-y-1/2 gba:pointer-events-none gba:z-10">
+                  <Search className="gba:w-4 gba:h-4 gba:text-muted-foreground" />
+                </div>
                 <Input
                   value={searchTerm}
                   onChange={e => setSearchTerm(e.target.value)}
                   placeholder="Search for employees..."
-                  style={{ paddingLeft: '2.5rem' }}
+                  className="gba:!pl-10"
                   data-testid="share-entity-search-input"
                 />
               </div>
