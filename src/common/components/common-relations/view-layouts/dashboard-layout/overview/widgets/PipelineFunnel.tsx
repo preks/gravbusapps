@@ -209,18 +209,20 @@ export const PipelineFunnel: React.FC<PipelineFunnelProps> = ({
           <CardTitle>{title}</CardTitle>
           <CardDescription>{description}</CardDescription>
         </div>
-        {availableCurrencies && availableCurrencies.length > 1 && onCurrencyChange && (
-          <CurrencyFilter
-            value={selectedCurrency || 'EUR'}
-            onChange={onCurrencyChange}
-            currencies={availableCurrencies}
-            showLabel={true}
-            label="Currency:"
-            dataTestId="pipeline-funnel-currency-filter"
-          />
-        )}
       </CardHeader>
       <CardContent>
+        {availableCurrencies && availableCurrencies.length > 1 && onCurrencyChange && (
+          <div className="gba:mb-4">
+            <CurrencyFilter
+              value={selectedCurrency || 'EUR'}
+              onChange={onCurrencyChange}
+              currencies={availableCurrencies}
+              showLabel={true}
+              label="Currency:"
+              dataTestId="pipeline-funnel-currency-filter"
+            />
+          </div>
+        )}
         {aggregatedFunnel && aggregatedFunnel.length > 0 ? (
           <div className="gba:space-y-4">
             {/* Funnel Chart */}
