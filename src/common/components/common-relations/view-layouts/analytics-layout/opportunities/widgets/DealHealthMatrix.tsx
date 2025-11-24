@@ -26,6 +26,7 @@ export interface DealHealthItem {
   riskFactors: string[]
   account?: string
   owner?: string
+  currencyCode?: string
 }
 
 export interface DealHealthData {
@@ -46,6 +47,26 @@ export const DealHealthMatrix: React.FC<DealHealthMatrixProps> = ({ data, module
       selectedCategory === 'all' ? data.matrixData : data.matrixData.filter(d => d.healthCategory === selectedCategory),
     [selectedCategory, data]
   )
+
+  // Helper function to navigate to opportunity record
+  const handleOpportunityClick = (opportunityId: string) => {
+    window.dispatchEvent(
+      new CustomEvent('navigate', {
+        detail: { path: `/opportunity/${opportunityId}` }
+      })
+    )
+  }
+
+  // Helper function to format currency
+  const formatCurrency = (value: number, currencyCode?: string) => {
+    const currency = currencyCode || 'EUR'
+    return new Intl.NumberFormat('en-US', {
+      style: 'currency',
+      currency: currency,
+      notation: 'standard',
+      maximumFractionDigits: 0
+    }).format(value)
+  }
 
   const chartConfig = useMemo(
     () =>
@@ -149,7 +170,9 @@ export const DealHealthMatrix: React.FC<DealHealthMatrixProps> = ({ data, module
                         <p className="gba:font-medium">{d.name}</p>
                         <p className="gba:text-sm gba:text-gray-600">Health Score: {d.healthScore}/100</p>
                         <p className="gba:text-sm gba:text-gray-600">Win Chance: {d.winningChance}%</p>
-                        <p className="gba:text-sm gba:text-gray-600">Value: €{d.estimatedAmount.toLocaleString()}</p>
+                        <p className="gba:text-sm gba:text-gray-600">
+                          Value: {formatCurrency(d.estimatedAmount, d.currencyCode)}
+                        </p>
                         <p className="gba:text-sm gba:text-gray-600">Days in Pipeline: {d.daysInPipeline}</p>
                       </div>
                     )
@@ -176,12 +199,13 @@ export const DealHealthMatrix: React.FC<DealHealthMatrixProps> = ({ data, module
                 .map((deal, index) => (
                   <div
                     key={deal.id}
-                    className="gba:p-4 gba:border-l-4 gba:border-red-500 gba:bg-red-50 gba:rounded"
+                    className="gba:p-4 gba:border-l-4 gba:border-red-500 gba:bg-red-50 gba:rounded gba:cursor-pointer gba:hover:bg-red-100 gba:transition-colors"
                     data-testid={`critical-deal-${index}`}
+                    onClick={() => handleOpportunityClick(deal.id)}
                   >
                     <div className="gba:flex gba:justify-between gba:items-start gba:mb-2">
                       <div>
-                        <div className="gba:font-medium">{deal.name}</div>
+                        <div className="gba:font-medium gba:hover:underline">{deal.name}</div>
                         <div className="gba:text-sm gba:text-gray-600">
                           {deal.account && `${deal.account} • `}
                           {deal.owner && `${deal.owner} • `}
@@ -191,7 +215,7 @@ export const DealHealthMatrix: React.FC<DealHealthMatrixProps> = ({ data, module
                       <div className="gba:text-right">
                         <Badge variant="destructive">Health Score: {deal.healthScore}/100</Badge>
                         <div className="gba:text-sm gba:font-medium gba:mt-1">
-                          €{deal.estimatedAmount.toLocaleString()} • {deal.winningChance}% win chance
+                          {formatCurrency(deal.estimatedAmount, deal.currencyCode)} • {deal.winningChance}% win chance
                         </div>
                       </div>
                     </div>

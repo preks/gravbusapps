@@ -17,7 +17,12 @@ import {
   GET_CONTACTS_ANALYTICS
 } from '../queries/analyticsQueries'
 
-export const useCrmAnalyticsData = (context: BusinessAppContextProps) => {
+export const useCrmAnalyticsData = (
+  context: BusinessAppContextProps,
+  kpiCurrency?: string,
+  accountsCurrency?: string,
+  opportunitiesCurrency?: string
+) => {
   const [data, setData] = useState<CrmAnalyticsData | null>(null)
   const [isLoading, setIsLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
@@ -34,15 +39,23 @@ export const useCrmAnalyticsData = (context: BusinessAppContextProps) => {
     setError(null)
 
     try {
-      // Fetch all analytics data in parallel
-      const [overviewResponse, leadsResponse, accountsResponse, opportunitiesResponse, contactsResponse] =
-        await Promise.all([
-          graphqlClient.request(GET_CRM_OVERVIEW_ANALYTICS, {}),
-          graphqlClient.request(GET_LEADS_ANALYTICS, {}),
-          graphqlClient.request(GET_ACCOUNTS_ANALYTICS, {}),
-          graphqlClient.request(GET_OPPORTUNITIES_ANALYTICS, {}),
-          graphqlClient.request(GET_CONTACTS_ANALYTICS, {})
-        ])
+      // Fetch all analytics data in parallel with optional currency filter
+      // Fetch opportunities twice: once for accounts tab, once for opportunities tab
+      const [
+        overviewResponse,
+        leadsResponse,
+        accountsResponse,
+        opportunitiesForAccountsResponse,
+        opportunitiesResponse,
+        contactsResponse
+      ] = await Promise.all([
+        graphqlClient.request(GET_CRM_OVERVIEW_ANALYTICS(kpiCurrency)),
+        graphqlClient.request(GET_LEADS_ANALYTICS, {}),
+        graphqlClient.request(GET_ACCOUNTS_ANALYTICS, {}),
+        graphqlClient.request(GET_OPPORTUNITIES_ANALYTICS(accountsCurrency || kpiCurrency)), // For accounts tab (topAccounts)
+        graphqlClient.request(GET_OPPORTUNITIES_ANALYTICS(opportunitiesCurrency || kpiCurrency)), // For opportunities tab
+        graphqlClient.request(GET_CONTACTS_ANALYTICS, {})
+      ])
 
       // Transform and combine the data
       const analyticsData: CrmAnalyticsData = {
@@ -54,8 +67,8 @@ export const useCrmAnalyticsData = (context: BusinessAppContextProps) => {
           contactsResponse
         ),
         leads: transformLeadsData(leadsResponse),
-        accounts: transformAccountsData(accountsResponse, opportunitiesResponse),
-        opportunities: transformOpportunitiesData(opportunitiesResponse),
+        accounts: transformAccountsData(accountsResponse, opportunitiesForAccountsResponse), // Use accounts-specific opportunities
+        opportunities: transformOpportunitiesData(opportunitiesResponse), // Use opportunities-specific data
         contacts: transformContactsData(contactsResponse)
       }
 
@@ -65,11 +78,11 @@ export const useCrmAnalyticsData = (context: BusinessAppContextProps) => {
     } finally {
       setIsLoading(false)
     }
-  }, [context.accessToken, graphqlClient])
+  }, [context.accessToken, graphqlClient, kpiCurrency, accountsCurrency, opportunitiesCurrency])
 
   useEffect(() => {
     fetchAnalyticsData()
-  }, [fetchAnalyticsData])
+  }, [fetchAnalyticsData, kpiCurrency, accountsCurrency, opportunitiesCurrency])
 
   const refetch = useCallback(() => {
     fetchAnalyticsData()
@@ -846,7 +859,14 @@ const calculatePipelineVelocity = (opportunities: any): number => {
     const created = new Date(opp.createdAt)
     const updated = new Date(opp.updatedAt)
     const daysDiff = Math.ceil((updated.getTime() - created.getTime()) / (1000 * 60 * 60 * 24))
-    return sum + daysDiff
+
+    // Skip invalid dates
+    if (isNaN(daysDiff)) {
+      return sum
+    }
+
+    // Use Math.max to ensure non-negative values
+    return sum + Math.max(0, daysDiff)
   }, 0)
 
   return Math.round(totalDays / opportunitiesList.length)

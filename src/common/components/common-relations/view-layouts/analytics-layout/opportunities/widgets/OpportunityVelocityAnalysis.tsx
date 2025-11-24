@@ -21,8 +21,23 @@ import { TrendUpIcon } from '@phosphor-icons/react'
 export interface OpportunityVelocityData {
   averageDaysInPipeline: number
   velocityTrend: { month: string; averageDays: number; opportunityCount: number; conversionRate: number }[]
-  quickWins: { id: string; title: string; value: number; closeDate: string; daysSinceClosed: number; isWon: boolean }[]
-  slowMovers: { id: string; title: string; value: number; createdAt: string; daysSinceCreated: number }[]
+  quickWins: {
+    id: string
+    title: string
+    value: number
+    closeDate: string
+    daysSinceClosed: number
+    isWon: boolean
+    currencyCode: string
+  }[]
+  slowMovers: {
+    id: string
+    title: string
+    value: number
+    createdAt: string
+    daysSinceCreated: number
+    currencyCode: string
+  }[]
 }
 
 interface OpportunityVelocityAnalysisProps {
@@ -42,6 +57,26 @@ export const OpportunityVelocityAnalysis: React.FC<OpportunityVelocityAnalysisPr
       label: 'Conversion Rate (%)'
     }
   } satisfies ChartConfig
+
+  // Helper function to format currency
+  const formatCurrency = (value: number, currencyCode: string) => {
+    return new Intl.NumberFormat('en-US', {
+      style: 'currency',
+      currency: currencyCode,
+      notation: 'standard',
+      maximumFractionDigits: 0
+    }).format(value)
+  }
+
+  // Helper function to navigate to opportunity record
+  const handleOpportunityClick = (opportunityId: string) => {
+    window.dispatchEvent(
+      new CustomEvent('navigate', {
+        detail: { path: `/opportunity/${opportunityId}` }
+      })
+    )
+  }
+
   return (
     <Card data-testid="opportunity-velocity-analysis">
       <CardHeader className="gba:flex gba:items-center gba:gap-3">
@@ -115,17 +150,20 @@ export const OpportunityVelocityAnalysis: React.FC<OpportunityVelocityAnalysisPr
               {data.quickWins.map(win => (
                 <div
                   key={win.id}
-                  className="gba:p-3 gba:bg-green-50 gba:border gba:border-green-200 gba:rounded-lg"
+                  className="gba:p-3 gba:bg-green-50 gba:border gba:border-green-200 gba:rounded-lg gba:cursor-pointer gba:hover:bg-green-100 gba:transition-colors"
                   data-testid={`recent-win-${win.id}`}
+                  onClick={() => handleOpportunityClick(win.id)}
                 >
                   <div className="gba:flex gba:justify-between gba:items-start">
                     <div className="gba:flex-1">
-                      <h5 className="gba:font-medium gba:text-green-900 gba:text-sm gba:truncate">{win.title}</h5>
+                      <h5 className="gba:font-medium gba:text-green-900 gba:text-sm gba:truncate gba:hover:underline">
+                        {win.title}
+                      </h5>
                       <p className="gba:text-xs gba:text-green-600 gba:mt-1">Closed {win.daysSinceClosed} days ago</p>
                     </div>
                     <div className="gba:text-right">
                       <div className="gba:text-sm gba:font-semibold gba:text-green-800">
-                        €{win.value.toLocaleString()}
+                        {formatCurrency(win.value, win.currencyCode)}
                       </div>
                     </div>
                   </div>
@@ -146,17 +184,20 @@ export const OpportunityVelocityAnalysis: React.FC<OpportunityVelocityAnalysisPr
               {data.slowMovers.map(mover => (
                 <div
                   key={mover.id}
-                  className="gba:p-3 gba:bg-orange-50 gba:border gba:border-orange-200 gba:rounded-lg"
+                  className="gba:p-3 gba:bg-orange-50 gba:border gba:border-orange-200 gba:rounded-lg gba:cursor-pointer gba:hover:bg-orange-100 gba:transition-colors"
                   data-testid={`slow-mover-${mover.id}`}
+                  onClick={() => handleOpportunityClick(mover.id)}
                 >
                   <div className="gba:flex gba:justify-between gba:items-start">
                     <div className="gba:flex-1">
-                      <h5 className="gba:font-medium gba:text-orange-900 gba:text-sm gba:truncate">{mover.title}</h5>
+                      <h5 className="gba:font-medium gba:text-orange-900 gba:text-sm gba:truncate gba:hover:underline">
+                        {mover.title}
+                      </h5>
                       <p className="gba:text-xs gba:text-orange-600 gba:mt-1">Open for {mover.daysSinceCreated} days</p>
                     </div>
                     <div className="gba:text-right">
                       <div className="gba:text-sm gba:font-semibold gba:text-orange-800">
-                        €{mover.value.toLocaleString()}
+                        {formatCurrency(mover.value, mover.currencyCode)}
                       </div>
                     </div>
                   </div>

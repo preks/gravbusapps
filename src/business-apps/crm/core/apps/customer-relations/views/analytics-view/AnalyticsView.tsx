@@ -1,7 +1,11 @@
-import React, { useState } from 'react'
+import React, { useState, useEffect, useCallback } from 'react'
 import { Alert, AlertTitle, AlertDescription, Button, Spinner } from '@newwork/nw-design-system'
 import { BusinessAppContextProps } from '@/common/BusinessAppContext'
-import { AnalyticsLayout } from '@/common/components/common-relations/view-layouts/analytics-layout/AnalyticsLayout'
+import {
+  AnalyticsLayout,
+  AnalyticsTabKey
+} from '@/common/components/common-relations/view-layouts/analytics-layout/AnalyticsLayout'
+import { useAvailableCurrencies } from '@/common/data/common/hooks/useAvailableCurrencies'
 import { useOpportunitiesOverTime } from './hooks/useOpportunitiesOverTime'
 import { useOpportunityTrendData } from './hooks/useOpportunityTrendData'
 import { useOpportunitiesByStage } from './hooks/useOpportunitiesByStage'
@@ -39,6 +43,86 @@ export const AnalyticsView: React.FC<AnalyticsViewProps> = ({ moduleColor = 'def
   )
   const [selectedPipelineId, setSelectedPipelineId] = useState<string | undefined>(undefined)
 
+  // Currency filters for analytics
+  const [kpiCurrency, setKpiCurrency] = useState('EUR') // Master currency
+  const [revenueCurrency, setRevenueCurrency] = useState('EUR')
+  const [topPerformersCurrency, setTopPerformersCurrency] = useState('EUR')
+  const [accountsCurrency, setAccountsCurrency] = useState('EUR') // Currency for Accounts tab
+  const [opportunitiesKpiCurrency, setOpportunitiesKpiCurrency] = useState('EUR') // Master currency for Opportunities tab
+  const [topDealsCurrency, setTopDealsCurrency] = useState('EUR') // Currency for Top Opportunities table
+
+  // Reset chart currencies when master KPI currency changes
+  useEffect(() => {
+    setRevenueCurrency(kpiCurrency)
+    setTopPerformersCurrency(kpiCurrency)
+  }, [kpiCurrency])
+
+  // Reset top deals currency when opportunities KPI currency changes
+  useEffect(() => {
+    setTopDealsCurrency(opportunitiesKpiCurrency)
+  }, [opportunitiesKpiCurrency])
+
+  // Get initial analytics tab from URL
+  const getInitialAnalyticsTab = useCallback(() => {
+    const urlParams = new URLSearchParams(window.location.search)
+    const tabFromUrl = urlParams.get('analyticsTab')
+
+    // Valid analytics tab values
+    if (tabFromUrl && ['overview', 'leads', 'accounts', 'opportunities', 'contacts'].includes(tabFromUrl)) {
+      return tabFromUrl as AnalyticsTabKey
+    }
+
+    // Default to overview
+    return 'overview' as AnalyticsTabKey
+  }, [])
+
+  const [activeAnalyticsTab, setActiveAnalyticsTab] = useState<AnalyticsTabKey>(getInitialAnalyticsTab())
+
+  // Update URL when analytics tab changes
+  const updateAnalyticsTabUrl = useCallback((tab: AnalyticsTabKey) => {
+    const urlParams = new URLSearchParams(window.location.search)
+    urlParams.set('analyticsTab', tab)
+    const newUrl = `${window.location.pathname}?${urlParams.toString()}`
+    window.history.replaceState({}, '', newUrl)
+  }, [])
+
+  const handleAnalyticsTabChange = useCallback(
+    (tab: AnalyticsTabKey) => {
+      setActiveAnalyticsTab(tab)
+      updateAnalyticsTabUrl(tab)
+    },
+    [updateAnalyticsTabUrl]
+  )
+
+  // Initialize URL on mount if not present
+  useEffect(() => {
+    const urlParams = new URLSearchParams(window.location.search)
+    if (!urlParams.has('analyticsTab')) {
+      updateAnalyticsTabUrl(activeAnalyticsTab)
+    }
+  }, []) // Run only on mount
+
+  // Handle browser back/forward navigation
+  useEffect(() => {
+    const handlePopState = () => {
+      const newTab = getInitialAnalyticsTab()
+      setActiveAnalyticsTab(newTab)
+    }
+
+    window.addEventListener('popstate', handlePopState)
+    return () => window.removeEventListener('popstate', handlePopState)
+  }, [getInitialAnalyticsTab])
+
+  // Fetch available currencies
+  const { currencies: currencyOptions } = useAvailableCurrencies(context, {
+    filters: {
+      entity: 'Opportunity'
+    },
+    returnFormat: 'codes'
+  })
+
+  const availableCurrencies = currencyOptions as string[]
+
   // Helper function to convert our time filter to contacts time filter
   const convertToContactsTimeFilter = (
     filter: 'month' | 'quarter' | 'sixMonths' | 'year' | 'historical'
@@ -48,9 +132,19 @@ export const AnalyticsView: React.FC<AnalyticsViewProps> = ({ moduleColor = 'def
   }
 
   // Data hooks
-  const { data, isLoading, error, refetch } = useCrmAnalyticsData(context)
-  const { trendData: kpiTrendData } = useKpiTrendData(context.accessToken)
-  const { revenueTrends, isLoading: revenueLoading } = useRevenueTrends(context.accessToken, revenueTimeFilter)
+  const { data, isLoading, error, refetch } = useCrmAnalyticsData(
+    context,
+    kpiCurrency,
+    accountsCurrency,
+    opportunitiesKpiCurrency
+  )
+  const { trendData: kpiTrendData } = useKpiTrendData(context.accessToken, kpiCurrency)
+  const { revenueTrends, isLoading: revenueLoading } = useRevenueTrends(
+    context.accessToken,
+    revenueTimeFilter,
+    selectedPipelineId,
+    revenueCurrency
+  )
   const { pipelineHealth, isLoading: pipelineHealthLoading } = usePipelineHealth(context.accessToken)
   const { activityData: activityHeatmap, isLoading: activityLoading } = useActivityHeatmap(context.accessToken)
   const { geographicData, isLoading: geoLoading } = useGeographicDistribution(context.accessToken)
@@ -61,7 +155,12 @@ export const AnalyticsView: React.FC<AnalyticsViewProps> = ({ moduleColor = 'def
     leadsTimeFilter as 'month' | 'quarter' | 'sixMonths' | 'year' | 'historical'
   )
   const { data: oppLifecycleData } = useOpportunitiesOverTime(context.accessToken, oppTimeFilter, selectedPipelineId)
-  const { trendData: oppTrendData } = useOpportunityTrendData(context.accessToken, 'quarter')
+  const { trendData: oppTrendData } = useOpportunityTrendData(
+    context.accessToken,
+    'quarter',
+    undefined,
+    opportunitiesKpiCurrency
+  )
   const { data: oppStageAll } = useOpportunitiesByStage(context.accessToken)
   const { data: contactsMetrics } = useCustomerContactsOverTime({
     accessToken: context.accessToken,
@@ -69,7 +168,10 @@ export const AnalyticsView: React.FC<AnalyticsViewProps> = ({ moduleColor = 'def
   })
   const { data: contactInsights } = useContactInsights(context.accessToken)
   const { data: contactQuality } = useContactQualityData(context.accessToken)
-  const { contacts: topRevenueContacts, isLoading: topRevenueLoading } = useTopRevenueEarners(context.accessToken)
+  const { contacts: topRevenueContacts, isLoading: topRevenueLoading } = useTopRevenueEarners(
+    context.accessToken,
+    topPerformersCurrency
+  )
   const { count: customerAccountCount } = useAccountsCount(context.accessToken)
 
   if (isLoading) {
@@ -132,7 +234,14 @@ export const AnalyticsView: React.FC<AnalyticsViewProps> = ({ moduleColor = 'def
           data: activityHeatmap || [],
           isLoading: activityLoading
         },
-        topPerformers: data.overview.topPerformers
+        topPerformers: data.overview.topPerformers,
+        kpiCurrency,
+        onKpiCurrencyChange: setKpiCurrency,
+        availableCurrencies,
+        revenueCurrency,
+        onRevenueCurrencyChange: setRevenueCurrency,
+        topPerformersCurrency,
+        onTopPerformersCurrencyChange: setTopPerformersCurrency
       }
     : undefined
 
@@ -188,7 +297,10 @@ export const AnalyticsView: React.FC<AnalyticsViewProps> = ({ moduleColor = 'def
         accountsOverTime: data.accounts.accountsOverTime,
         accountsByIndustry: data.accounts.accountsByIndustry,
         accountsBySize: data.accounts.accountsBySize,
-        topAccounts: data.accounts.topAccounts
+        topAccounts: data.accounts.topAccounts,
+        selectedCurrency: accountsCurrency,
+        onCurrencyChange: setAccountsCurrency,
+        availableCurrencies: availableCurrencies as string[]
       }
     : undefined
 
@@ -222,7 +334,12 @@ export const AnalyticsView: React.FC<AnalyticsViewProps> = ({ moduleColor = 'def
         })),
         topDeals: data.opportunities.topDeals,
         velocityData: oppVelocityData || null,
-        dealHealthData: oppHealthData || null
+        dealHealthData: oppHealthData || null,
+        kpiCurrency: opportunitiesKpiCurrency,
+        onKpiCurrencyChange: setOpportunitiesKpiCurrency,
+        topDealsCurrency: topDealsCurrency,
+        onTopDealsCurrencyChange: setTopDealsCurrency,
+        availableCurrencies: availableCurrencies as string[]
       }
     : undefined
 
@@ -264,7 +381,8 @@ export const AnalyticsView: React.FC<AnalyticsViewProps> = ({ moduleColor = 'def
   return (
     <div data-testid="crm-analytics" className="gba:h-full gba:p-6">
       <AnalyticsLayout
-        defaultTab="overview"
+        defaultTab={activeAnalyticsTab}
+        onTabChange={handleAnalyticsTabChange}
         overviewProps={overviewProps}
         leadsProps={leadsProps}
         accountsProps={accountsProps}

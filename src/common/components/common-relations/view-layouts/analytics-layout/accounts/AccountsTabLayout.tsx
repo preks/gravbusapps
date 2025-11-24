@@ -44,6 +44,11 @@ export interface AccountsTabLayoutProps {
     totalValue: number
   }>
   moduleColor?: string
+
+  // Currency filter props
+  selectedCurrency?: string
+  onCurrencyChange?: (currency: string) => void
+  availableCurrencies?: string[]
 }
 
 const calculateTrend = (
@@ -76,7 +81,10 @@ export const AccountsTabLayout: React.FC<AccountsTabLayoutProps> = ({
   accountsByIndustry,
   accountsBySize,
   topAccounts,
-  moduleColor = 'default'
+  moduleColor = 'default',
+  selectedCurrency = 'EUR',
+  onCurrencyChange,
+  availableCurrencies = ['EUR', 'USD']
 }) => {
   const [selectedTimeFilter, setSelectedTimeFilter] = useState<AccountsTimeFilter>('quarter')
   const [visibleLines, setVisibleLines] = useState({
@@ -265,7 +273,13 @@ export const AccountsTabLayout: React.FC<AccountsTabLayoutProps> = ({
         moduleColor={moduleColor}
       />
 
-      <TopAccountsByRevenue topAccounts={topAccounts} moduleColor={moduleColor} />
+      <TopAccountsByRevenue
+        topAccounts={topAccounts}
+        moduleColor={moduleColor}
+        selectedCurrency={selectedCurrency}
+        onCurrencyChange={onCurrencyChange}
+        availableCurrencies={availableCurrencies}
+      />
     </div>
   )
 }

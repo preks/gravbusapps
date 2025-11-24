@@ -1,5 +1,8 @@
 // CRM Overview Analytics Query
-export const GET_CRM_OVERVIEW_ANALYTICS = `
+export const GET_CRM_OVERVIEW_ANALYTICS = (currencyCode?: string) => {
+  const currencyFilter = currencyCode ? `, currency: { code: { _eq: "${currencyCode}" } }` : ''
+
+  return `
   query GetCrmOverviewAnalytics {
     LeadAggregate(where: { isDeleted: { _eq: false } }) {
       aggregate {
@@ -35,7 +38,7 @@ export const GET_CRM_OVERVIEW_ANALYTICS = `
     RecentOpportunities: Opportunity(
       where: { 
         isDeleted: { _eq: false },
-        createdAt: { _gte: "2024-01-01T00:00:00Z" }
+        createdAt: { _gte: "2024-01-01T00:00:00Z" }${currencyFilter}
       },
       limit: 10,
       orderBy: { createdAt: DESC }
@@ -52,6 +55,7 @@ export const GET_CRM_OVERVIEW_ANALYTICS = `
     }
   }
 `
+}
 
 // Leads Analytics Query
 export const GET_LEADS_ANALYTICS = `
@@ -139,32 +143,34 @@ export const GET_ACCOUNTS_ANALYTICS = `
 `
 
 // Opportunities Analytics Query
-export const GET_OPPORTUNITIES_ANALYTICS = (() => {
+export const GET_OPPORTUNITIES_ANALYTICS = (currencyCode?: string) => {
+  const currencyFilter = currencyCode ? `, currency: { code: { _eq: "${currencyCode}" } }` : ''
   const now = new Date()
   const previousMonthStart = new Date(now.getFullYear(), now.getMonth() - 1, 1).toISOString()
   const currentMonthStart = new Date(now.getFullYear(), now.getMonth(), 1).toISOString()
 
   return `
   query GetOpportunitiesAnalytics {
-    totalEstimatedAmount: OpportunityAggregate {
+    totalEstimatedAmount: OpportunityAggregate(where: { isDeleted: { _eq: false }${currencyFilter} }) {
       aggregate {
         sum {
           estimatedAmount
         }
       }
     }
-    OpportunityAggregate(where: { isDeleted: { _eq: false } }) {
+    OpportunityAggregate(where: { isDeleted: { _eq: false }${currencyFilter} }) {
       aggregate {
         count
       }
     }
-    Opportunity(where: { isDeleted: { _eq: false } }) {
+    Opportunity(where: { isDeleted: { _eq: false }${currencyFilter} }) {
       id
       name
       estimatedAmount
       winningChance
       closeDate
       createdAt
+      updatedAt
       stage
       salesPipelineStage {
         id
@@ -202,7 +208,7 @@ export const GET_OPPORTUNITIES_ANALYTICS = (() => {
       where: { 
         isDeleted: { _eq: false }
         opportunityStatus: { code: { _eq: "WON" } }
-        closeDate: { _isNull: false }
+        closeDate: { _isNull: false }${currencyFilter}
       }
     ) {
       id
@@ -248,7 +254,7 @@ export const GET_OPPORTUNITIES_ANALYTICS = (() => {
     WonOpportunities: OpportunityAggregate(
       where: { 
         isDeleted: { _eq: false },
-        opportunityStatus: { code: { _eq: "WON" } }
+        opportunityStatus: { code: { _eq: "WON" } }${currencyFilter}
       }
     ) {
       aggregate {
@@ -260,7 +266,7 @@ export const GET_OPPORTUNITIES_ANALYTICS = (() => {
     PreviousMonthOpportunities: OpportunityAggregate(
       where: {
         isDeleted: { _eq: false },
-        createdAt: { _gte: "${previousMonthStart}", _lt: "${currentMonthStart}" }
+        createdAt: { _gte: "${previousMonthStart}", _lt: "${currentMonthStart}" }${currencyFilter}
       }
     ) {
       aggregate {
@@ -272,7 +278,7 @@ export const GET_OPPORTUNITIES_ANALYTICS = (() => {
       where: {
         isDeleted: { _eq: false },
         opportunityStatus: { code: { _eq: "WON" } },
-        createdAt: { _gte: "${previousMonthStart}", _lt: "${currentMonthStart}" }
+        createdAt: { _gte: "${previousMonthStart}", _lt: "${currentMonthStart}" }${currencyFilter}
       }
     ) {
       aggregate {
@@ -281,7 +287,7 @@ export const GET_OPPORTUNITIES_ANALYTICS = (() => {
     }
   }
 `
-})()
+}
 
 // Contacts Analytics Query
 export const GET_CONTACTS_ANALYTICS = `

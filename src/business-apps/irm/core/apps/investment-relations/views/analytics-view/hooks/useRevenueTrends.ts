@@ -13,7 +13,8 @@ export type TimeFilter = 'month' | 'quarter' | 'sixMonths' | 'year' | 'historica
 export const useRevenueTrends = (
   accessToken: string,
   timeFilter: TimeFilter = 'sixMonths',
-  selectedPipelineId?: string
+  selectedPipelineId?: string,
+  currencyCode?: string
 ) => {
   const [revenueTrends, setRevenueTrends] = useState<RevenueTrendData[]>([])
   const [isLoading, setIsLoading] = useState(true)
@@ -29,9 +30,10 @@ export const useRevenueTrends = (
         // Generate time periods based on the selected filter
         const periods = generateTimePeriods(timeFilter)
 
-        // Add pipeline filter to the where condition if specified
+        // Add pipeline and currency filters to the where condition if specified
         const pipelineFilter = selectedPipelineId ? `opportunityPipeline: {id: {_eq: "${selectedPipelineId}"}}` : ''
-        const baseWhere = `isDeleted: {_eq: false}${pipelineFilter ? ', ' + pipelineFilter : ''}`
+        const currencyFilter = currencyCode ? `currency: {code: {_eq: "${currencyCode}"}}` : ''
+        const baseWhere = `isDeleted: {_eq: false}${pipelineFilter ? ', ' + pipelineFilter : ''}${currencyFilter ? ', ' + currencyFilter : ''}`
 
         const queries = periods.map(
           (period, index) => `
@@ -93,7 +95,7 @@ export const useRevenueTrends = (
     if (accessToken) {
       fetchRevenueTrends()
     }
-  }, [accessToken, graphqlClient, timeFilter, selectedPipelineId])
+  }, [accessToken, graphqlClient, timeFilter, selectedPipelineId, currencyCode])
 
   return { revenueTrends, isLoading, error }
 }

@@ -12,6 +12,7 @@ export interface DealHealthItem {
   riskFactors: string[]
   account?: string
   owner?: string
+  currencyCode?: string
 }
 
 export interface DealHealthData {
@@ -101,6 +102,7 @@ export const useDealHealthData = (accessToken: string) => {
               updatedAt
               account { name }
               ownerEmployee { displayName }
+              currency { code value }
             }
           }
         `
@@ -126,7 +128,8 @@ export const useDealHealthData = (accessToken: string) => {
             healthCategory,
             riskFactors,
             account: opp.account?.name,
-            owner: opp.ownerEmployee?.displayName
+            owner: opp.ownerEmployee?.displayName,
+            currencyCode: opp.currency?.code || 'EUR'
           } as DealHealthItem
         })
         const distribution = processed.reduce(

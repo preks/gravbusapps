@@ -11,7 +11,7 @@ export interface TopRevenueContact {
   wonOpportunities: number
 }
 
-export const useTopRevenueEarners = (accessToken: string) => {
+export const useTopRevenueEarners = (accessToken: string, currencyCode?: string) => {
   const [contacts, setContacts] = useState<TopRevenueContact[]>([])
   const [isLoading, setIsLoading] = useState<boolean>(true)
   const graphqlClient = useGraphQLClient(accessToken)
@@ -20,10 +20,14 @@ export const useTopRevenueEarners = (accessToken: string) => {
     const fetchData = async () => {
       try {
         setIsLoading(true)
+
+        // Build currency filter if provided
+        const currencyFilter = currencyCode ? `, currency: { code: { _eq: "${currencyCode}" } }` : ''
+
         const query = `
           query GetTopRevenueContacts {
             contacts: InvestmentContact(where: { isDeleted: { _eq: false } }, orderBy: [{ createdAt: DESC }]) { id firstName lastName email investmentAccountContact { accountId account { id name } } }
-            opportunities: InvestmentOpportunity(where: { isDeleted: { _eq: false } }) { id name estimatedAmount opportunityPipelineStage { value } opportunityStatus { code alternativeCode } accountId }
+            opportunities: InvestmentOpportunity(where: { isDeleted: { _eq: false }${currencyFilter} }) { id name estimatedAmount opportunityPipelineStage { value } opportunityStatus { code alternativeCode } accountId }
           }
         `
         const result = await graphqlClient.request<any>(query)
@@ -60,7 +64,7 @@ export const useTopRevenueEarners = (accessToken: string) => {
       }
     }
     if (accessToken) fetchData()
-  }, [accessToken, graphqlClient])
+  }, [accessToken, graphqlClient, currencyCode])
 
   return { contacts, isLoading }
 }

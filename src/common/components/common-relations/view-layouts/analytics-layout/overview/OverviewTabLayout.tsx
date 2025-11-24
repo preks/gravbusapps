@@ -89,6 +89,15 @@ export interface OverviewTabLayoutProps {
   }
 
   topPerformers: TopPerformerItem[]
+
+  // Currency filters
+  kpiCurrency?: string
+  onKpiCurrencyChange?: (currency: string) => void
+  availableCurrencies?: string[]
+  revenueCurrency?: string
+  onRevenueCurrencyChange?: (currency: string) => void
+  topPerformersCurrency?: string
+  onTopPerformersCurrencyChange?: (currency: string) => void
 }
 
 export const OverviewTabLayout: React.FC<OverviewTabLayoutProps> = ({
@@ -108,7 +117,14 @@ export const OverviewTabLayout: React.FC<OverviewTabLayoutProps> = ({
   geographicDistribution,
   activityHeatmap,
   topPerformers,
-  moduleColor = 'default'
+  moduleColor = 'default',
+  kpiCurrency = 'EUR',
+  onKpiCurrencyChange,
+  availableCurrencies = ['EUR', 'USD'],
+  revenueCurrency = 'EUR',
+  onRevenueCurrencyChange,
+  topPerformersCurrency = 'EUR',
+  onTopPerformersCurrencyChange
 }) => {
   return (
     <div className="gba:space-y-6" data-testid="overview-analytics-tab">
@@ -119,6 +135,9 @@ export const OverviewTabLayout: React.FC<OverviewTabLayoutProps> = ({
           conversionMetrics={conversionMetrics}
           trendData={trendData}
           trendLoading={trendLoading}
+          selectedCurrency={kpiCurrency}
+          onCurrencyChange={onKpiCurrencyChange}
+          availableCurrencies={availableCurrencies}
         />
       </div>
 
@@ -131,6 +150,9 @@ export const OverviewTabLayout: React.FC<OverviewTabLayoutProps> = ({
         onPipelineChange={onPipelineChange}
         selectedTimeFilter={revenueTimeFilter}
         onTimeFilterChange={onRevenueTimeFilterChange}
+        selectedCurrency={revenueCurrency}
+        onCurrencyChange={onRevenueCurrencyChange}
+        availableCurrencies={availableCurrencies}
       />
 
       <div className="gba:flex gba:gap-6" data-testid="analytics-charts-container">
@@ -162,7 +184,13 @@ export const OverviewTabLayout: React.FC<OverviewTabLayoutProps> = ({
         />
       </div>
 
-      <TopPerformers performers={topPerformers} moduleColor={moduleColor} />
+      <TopPerformers
+        performers={topPerformers}
+        moduleColor={moduleColor}
+        selectedCurrency={topPerformersCurrency}
+        onCurrencyChange={onTopPerformersCurrencyChange}
+        availableCurrencies={availableCurrencies}
+      />
     </div>
   )
 }

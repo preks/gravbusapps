@@ -14,7 +14,18 @@ import {
 } from './widgets/OpportunityLifecycleChart'
 import { OpportunityVelocityAnalysis } from './widgets/OpportunityVelocityAnalysis'
 import { DealHealthMatrix } from './widgets/DealHealthMatrix'
-import { Card, CardContent, CardHeader, CardTitle } from '@newwork/nw-design-system'
+import {
+  Card,
+  CardContent,
+  CardHeader,
+  CardTitle,
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+  Label
+} from '@newwork/nw-design-system'
 import { OpportunitiesByStageBar } from './widgets/OpportunitiesByStageBar'
 import { OpportunitiesByPipelinePie } from './widgets/OpportunitiesByPipelinePie'
 import { formatCurrencyCompact } from '@/common/utils/numberFormatter'
@@ -71,6 +82,13 @@ export interface OpportunitiesTabLayoutProps {
   velocityData?: { averageDaysInPipeline: number; velocityTrend: any[]; quickWins: any[]; slowMovers: any[] } | null
   dealHealthData?: { healthDistribution: any; matrixData: any[] } | null
   moduleColor?: string
+
+  // Currency filter props
+  kpiCurrency?: string
+  onKpiCurrencyChange?: (currency: string) => void
+  topDealsCurrency?: string
+  onTopDealsCurrencyChange?: (currency: string) => void
+  availableCurrencies?: string[]
 }
 
 // colors local to pie widget
@@ -98,7 +116,12 @@ export const OpportunitiesTabLayout: React.FC<OpportunitiesTabLayoutProps> = ({
   topDeals,
   velocityData,
   dealHealthData,
-  moduleColor = 'default'
+  moduleColor = 'default',
+  kpiCurrency = 'EUR',
+  onKpiCurrencyChange,
+  topDealsCurrency = 'EUR',
+  onTopDealsCurrencyChange,
+  availableCurrencies = ['EUR', 'USD']
 }) => {
   const kpis = [
     {
@@ -120,7 +143,7 @@ export const OpportunitiesTabLayout: React.FC<OpportunitiesTabLayoutProps> = ({
     {
       key: 'total-value',
       title: selectedPipelineId ? 'Pipeline Value (Filtered)' : 'Total Pipeline Value',
-      value: formatCurrencyCompact(totalValue, 'USD', undefined, 1, true),
+      value: formatCurrencyCompact(totalValue, kpiCurrency, undefined, 1, true),
       valueIsString: true,
       prefix: <DollarCircleOutlined />,
       description: selectedPipelineId ? 'Combined value in selected pipeline' : 'Combined value of all opportunities',
@@ -129,7 +152,7 @@ export const OpportunitiesTabLayout: React.FC<OpportunitiesTabLayoutProps> = ({
             trend: {
               value: calculatePercentChange(totalValue, trendData.previousPeriodPipelineValue || 0),
               positive: totalValue >= (trendData.previousPeriodPipelineValue || 0),
-              description: `${formatCurrencyCompact(totalValue, 'USD', undefined, 1, true)} total vs ${formatCurrencyCompact(trendData.previousPeriodPipelineValue || 0, 'USD', undefined, 1, true)} last month`
+              description: `${formatCurrencyCompact(totalValue, kpiCurrency, undefined, 1, true)} total vs ${formatCurrencyCompact(trendData.previousPeriodPipelineValue || 0, kpiCurrency, undefined, 1, true)} last month`
             }
           }
         : {})
@@ -154,7 +177,13 @@ export const OpportunitiesTabLayout: React.FC<OpportunitiesTabLayoutProps> = ({
     {
       key: 'avg-deal-size',
       title: 'Avg. Deal Size',
-      value: formatCurrencyCompact(trendData?.actualAvgDealSizeThisMonth || avgDealSize, 'USD', undefined, 1, true),
+      value: formatCurrencyCompact(
+        trendData?.actualAvgDealSizeThisMonth || avgDealSize,
+        kpiCurrency,
+        undefined,
+        1,
+        true
+      ),
       valueIsString: true,
       prefix: <DollarCircleOutlined />,
       description: 'Average opportunity value',
@@ -167,7 +196,7 @@ export const OpportunitiesTabLayout: React.FC<OpportunitiesTabLayoutProps> = ({
               ),
               positive:
                 (trendData.actualAvgDealSizeThisMonth || avgDealSize) >= (trendData.actualAvgDealSizeLastMonth || 0),
-              description: `${formatCurrencyCompact(trendData.actualAvgDealSizeThisMonth || avgDealSize, 'USD', undefined, 1, true)} this period vs ${formatCurrencyCompact(trendData.actualAvgDealSizeLastMonth || 0, 'USD', undefined, 1, true)} last month`
+              description: `${formatCurrencyCompact(trendData.actualAvgDealSizeThisMonth || avgDealSize, kpiCurrency, undefined, 1, true)} this period vs ${formatCurrencyCompact(trendData.actualAvgDealSizeLastMonth || 0, kpiCurrency, undefined, 1, true)} last month`
             }
           }
         : {})
@@ -252,6 +281,27 @@ export const OpportunitiesTabLayout: React.FC<OpportunitiesTabLayoutProps> = ({
     <div className="gba:space-y-6" data-testid="opportunities-analytics-tab">
       <div>
         <h2 className="gba:text-2xl gba:font-bold gba:mb-4">{title}</h2>
+        {/* Currency Filter for KPIs */}
+        {availableCurrencies && availableCurrencies.length > 1 && onKpiCurrencyChange && (
+          <div
+            className="gba:mb-4 gba:flex gba:items-center gba:gap-2 gba:justify-end"
+            data-testid="opportunities-kpi-currency-filter"
+          >
+            <Label className="gba:text-sm gba:font-medium">Currency</Label>
+            <Select value={kpiCurrency} onValueChange={onKpiCurrencyChange}>
+              <SelectTrigger className="gba:w-32">
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                {availableCurrencies.map(currency => (
+                  <SelectItem key={currency} value={currency}>
+                    {currency}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          </div>
+        )}
         <WidgetGroup widgets={kpis} data-testid="opportunities-key-metrics" />
       </div>
 
@@ -298,7 +348,27 @@ export const OpportunitiesTabLayout: React.FC<OpportunitiesTabLayoutProps> = ({
 
       <Card data-testid="top-deals-section">
         <CardHeader>
-          <CardTitle className="gba:flex gba:items-center gba:gap-2">Top Opportunities by Value</CardTitle>
+          <div className="gba:flex gba:items-center gba:justify-between">
+            <CardTitle className="gba:flex gba:items-center gba:gap-2">Top Opportunities by Value</CardTitle>
+            {/* Currency Filter */}
+            {availableCurrencies && availableCurrencies.length > 1 && onTopDealsCurrencyChange && (
+              <div className="gba:flex gba:items-center gba:gap-2 gba:ml-auto" data-testid="top-deals-currency-filter">
+                <Label className="gba:text-sm gba:font-medium gba:whitespace-nowrap">Currency</Label>
+                <Select value={topDealsCurrency} onValueChange={onTopDealsCurrencyChange}>
+                  <SelectTrigger className="gba:w-32">
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {availableCurrencies.map(currency => (
+                      <SelectItem key={currency} value={currency}>
+                        {currency}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+            )}
+          </div>
         </CardHeader>
         <CardContent>
           {topDeals.length > 0 ? (
@@ -319,7 +389,9 @@ export const OpportunitiesTabLayout: React.FC<OpportunitiesTabLayoutProps> = ({
                     </div>
                   </div>
                   <div className="gba:text-right">
-                    <div className="gba:font-bold">{formatCurrencyCompact(deal.value, 'USD', undefined, 1, true)}</div>
+                    <div className="gba:font-bold">
+                      {formatCurrencyCompact(deal.value, topDealsCurrency, undefined, 1, true)}
+                    </div>
                     <div className="gba:text-sm gba:text-gray-600">Opportunity Value</div>
                   </div>
                 </div>

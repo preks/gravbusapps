@@ -1,5 +1,6 @@
 import React from 'react'
 import { WidgetGroup, WidgetItem } from '@/components/widget-group'
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue, Label } from '@newwork/nw-design-system'
 import {
   UserOutlined,
   BankOutlined,
@@ -48,6 +49,9 @@ export interface OverviewMetricsWidgetsProps {
   conversionMetrics: ConversionMetrics
   trendData?: TrendData | null
   trendLoading?: boolean
+  selectedCurrency?: string
+  onCurrencyChange?: (currency: string) => void
+  availableCurrencies?: string[]
 }
 
 const calculateTrend = (current: number, previous: number) => {
@@ -63,7 +67,10 @@ export const OverviewMetricsWidgets: React.FC<OverviewMetricsWidgetsProps> = ({
   counts,
   conversionMetrics,
   trendData,
-  trendLoading = false
+  trendLoading = false,
+  selectedCurrency = 'EUR',
+  onCurrencyChange,
+  availableCurrencies = ['EUR', 'USD']
 }) => {
   const keyMetricsWidgets: WidgetItem[] = [
     {
@@ -157,7 +164,30 @@ export const OverviewMetricsWidgets: React.FC<OverviewMetricsWidgetsProps> = ({
 
   const allKpiWidgets = [...keyMetricsWidgets, ...conversionWidgets]
 
-  return <WidgetGroup widgets={allKpiWidgets} isLoading={trendLoading} data-testid="overview-all-kpis" />
+  return (
+    <div data-testid="overview-metrics-section">
+      {/* Currency Filter for KPIs */}
+      {availableCurrencies && availableCurrencies.length > 1 && onCurrencyChange && (
+        <div className="gba:mb-4 gba:flex gba:items-center gba:justify-end gba:gap-2" data-testid="kpi-currency-filter">
+          <Label className="gba:text-sm gba:font-medium">Currency</Label>
+          <Select value={selectedCurrency} onValueChange={onCurrencyChange}>
+            <SelectTrigger className="gba:w-32">
+              <SelectValue />
+            </SelectTrigger>
+            <SelectContent>
+              {availableCurrencies.map(currency => (
+                <SelectItem key={currency} value={currency}>
+                  {currency}
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+        </div>
+      )}
+
+      <WidgetGroup widgets={allKpiWidgets} isLoading={trendLoading} data-testid="overview-all-kpis" />
+    </div>
+  )
 }
 
 export default OverviewMetricsWidgets

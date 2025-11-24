@@ -43,7 +43,7 @@ export interface KpiTrendData {
 }
 
 // Custom hook for KPI trend data
-export const useKpiTrendData = (accessToken: string) => {
+export const useKpiTrendData = (accessToken: string, currencyCode?: string) => {
   const [trendData, setTrendData] = useState<KpiTrendData | null>(null)
   const [isLoading, setIsLoading] = useState(true)
   const graphqlClient = useGraphQLClient(accessToken)
@@ -69,6 +69,9 @@ export const useKpiTrendData = (accessToken: string) => {
             ? `${currentYear - 1}-12-01T00:00:00Z`
             : `${currentYear}-${String(currentMonth - 1).padStart(2, '0')}-01T00:00:00Z`
 
+        // Build currency filter condition if provided
+        const currencyFilter = currencyCode ? `, currency: { code: { _eq: "${currencyCode}" } }` : ''
+
         const query = `
           query GetKpiTrendData {
             # Current month data
@@ -89,7 +92,7 @@ export const useKpiTrendData = (accessToken: string) => {
             currentMonthOpportunities: OpportunityAggregate(
               where: {
                 isDeleted: {_eq: false}
-                createdAt: {_gte: "${currentMonthStart}", _lt: "${nextMonthStart}"}
+                createdAt: {_gte: "${currentMonthStart}", _lt: "${nextMonthStart}"}${currencyFilter}
               }
             ) { aggregate { count sum { estimatedAmount } } }
             
@@ -124,13 +127,13 @@ export const useKpiTrendData = (accessToken: string) => {
             ) { aggregate { count } }
             
             totalOpportunitiesNow: OpportunityAggregate(
-              where: { isDeleted: {_eq: false} }
+              where: { isDeleted: {_eq: false}${currencyFilter} }
             ) { aggregate { count } }
             
             totalOpportunitiesLastMonth: OpportunityAggregate(
               where: {
                 isDeleted: {_eq: false}
-                createdAt: {_lt: "${currentMonthStart}"}
+                createdAt: {_lt: "${currentMonthStart}"}${currencyFilter}
               }
             ) { aggregate { count } }
             
@@ -157,7 +160,7 @@ export const useKpiTrendData = (accessToken: string) => {
               where: {
                 isDeleted: {_eq: false}
                 createdAt: {_gte: "${currentMonthStart}", _lt: "${nextMonthStart}"}
-                opportunityStatus: {code: {_eq: "WON"}}
+                opportunityStatus: {code: {_eq: "WON"}}${currencyFilter}
               }
             ) { aggregate { count sum { estimatedAmount } } }
             
@@ -179,7 +182,7 @@ export const useKpiTrendData = (accessToken: string) => {
             previousMonthOpportunities: OpportunityAggregate(
               where: {
                 isDeleted: {_eq: false}
-                createdAt: {_gte: "${previousMonthStart}", _lt: "${currentMonthStart}"}
+                createdAt: {_gte: "${previousMonthStart}", _lt: "${currentMonthStart}"}${currencyFilter}
               }
             ) { aggregate { count sum { estimatedAmount } } }
             
@@ -202,7 +205,7 @@ export const useKpiTrendData = (accessToken: string) => {
               where: {
                 isDeleted: {_eq: false}
                 createdAt: {_gte: "${previousMonthStart}", _lt: "${currentMonthStart}"}
-                opportunityStatus: {code: {_eq: "WON"}}
+                opportunityStatus: {code: {_eq: "WON"}}${currencyFilter}
               }
             ) { aggregate { count sum { estimatedAmount } } }
           }
@@ -276,7 +279,7 @@ export const useKpiTrendData = (accessToken: string) => {
     if (accessToken) {
       fetchTrendData()
     }
-  }, [accessToken, graphqlClient])
+  }, [accessToken, graphqlClient, currencyCode])
 
   return { trendData, isLoading }
 }
