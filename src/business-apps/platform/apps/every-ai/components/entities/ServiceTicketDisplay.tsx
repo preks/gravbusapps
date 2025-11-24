@@ -227,9 +227,14 @@ export const ServiceTicketDisplay: React.FC<ServiceTicketDisplayProps> = ({
   const displayTitle = ticket.flowName || ticket.title || 'Service Ticket'
   const subtitle = ticket.title || ticket.message || ''
 
-  // Handle card click - navigate to service requests overview
+  // Handle card click - navigate to my requests in service launcher with the specific request
   const handleCardClick = () => {
-    navigateTo(buildPlatformUrl('/platform/employee-record', { tab: 'serviceRequests' }))
+    navigateTo(
+      buildPlatformUrl('/platform/sales-demo/service-launcher', {
+        view: 'myRequests',
+        requestId: serviceTicketId
+      })
+    )
   }
 
   // Merge form data
