@@ -60,6 +60,7 @@ const BenefitCatalogCard: React.FC<BenefitCatalogCardProps> = ({
   userInfo
 }) => {
   const employeeId = userInfo?.employeeDetails?.employeeId
+  console.log('benefit', benefit)
   /**
    * Get status badge variant based on benefit state
    */
@@ -132,8 +133,8 @@ const BenefitCatalogCard: React.FC<BenefitCatalogCardProps> = ({
             data-testid={`benefit-catalog-request-button-${benefit.code}`}
             contexts={[
               {
-                context: FlowContextName.employeeEntity,
-                contextData: { employeeId: employeeId }
+                context: FlowContextName.employeeBenefitRequest,
+                contextData: { employeeId: employeeId, benefit: benefit }
               }
             ]}
             prefixDataTestId={`benefit-request-${benefit.code}`}
