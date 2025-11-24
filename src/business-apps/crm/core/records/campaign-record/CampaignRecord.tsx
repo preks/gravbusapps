@@ -224,7 +224,12 @@ const CampaignRecord: React.FC<CampaignRecordComponentProps> = ({
 
       {/* Header above tabs */}
       <div className="gba:px-6" data-testid="campaign-header-section">
-        <CampaignHeader campaign={campaign} isLoading={campaignLoading} accessToken={props.accessToken} />
+        <CampaignHeader
+          campaign={campaign}
+          isLoading={campaignLoading}
+          accessToken={props.accessToken}
+          currentUserId={props.userInfo?.id}
+        />
       </div>
 
       <div className="gba:px-6 gba:py-2" data-testid="campaign-record-container">

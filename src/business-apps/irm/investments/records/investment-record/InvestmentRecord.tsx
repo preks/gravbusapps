@@ -6,6 +6,7 @@ import { useGetInvestmentCatalogData } from '@/business-apps/irm/investments/for
 import { AiActions, AiAction } from '@/common/components/common-relations/record-sections/header-section/ai-actions'
 import { AppActionButton } from '@/components/app-action-button/AppActionButton'
 import { FlowContextName } from '@/common/types/FlowRegistryTypes'
+import { useShareAction } from '@/components/share-entity'
 import { Bot } from 'lucide-react'
 import { getTranslationFromI18nKeyAndLabel } from '@/common/utils/windowUtils'
 import { navigateTo, buildPlatformUrl } from '@/common/utils/navigationUtils'
@@ -329,6 +330,18 @@ const InvestmentRecord: React.FC<InvestmentRecordProps> = props => {
     />
   )
 
+  // Use the reusable share action hook
+  const { shareAction, ShareDialog } = useShareAction({
+    accessToken: props.accessToken,
+    currentUserId: props.userInfo?.id || '',
+    entity: {
+      entityType: investmentType || 'investment',
+      entityId: investmentId || '',
+      entityName: investment?.name || 'Investment',
+      entityUrl: `/platform/irm/investment-record?investmentId=${investmentId}`
+    }
+  })
+
   const headerActionButton = (
     <AppActionButton
       size="icon"
@@ -338,6 +351,7 @@ const InvestmentRecord: React.FC<InvestmentRecordProps> = props => {
       emptyStateBehavior="enable"
       deferMainContextRequestsUntilClick={false}
       accessToken={props.accessToken}
+      staticFlowData={[shareAction]}
     />
   )
 
@@ -374,6 +388,8 @@ const InvestmentRecord: React.FC<InvestmentRecordProps> = props => {
         headerDetailGroups={headerDetailGroups}
         subViews={subViewsConfig}
       />
+      {/* Share Dialog */}
+      {ShareDialog}
     </div>
   )
 }

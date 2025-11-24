@@ -6,9 +6,14 @@ import { AppActionButton } from '@/components/app-action-button/AppActionButton'
 import { FlowContextName } from '@/common/types/FlowRegistryTypes'
 import { CampaignHeaderProps } from '../types'
 import { getTranslationFromI18nKeyAndLabel } from '@/common/utils/windowUtils'
+import { useShareAction } from '@/components/share-entity'
 import dayjs from 'dayjs'
 
-const CampaignHeader: React.FC<CampaignHeaderProps> = ({ campaign, isLoading, accessToken }) => {
+interface ExtendedCampaignHeaderProps extends CampaignHeaderProps {
+  currentUserId?: string
+}
+
+const CampaignHeader: React.FC<ExtendedCampaignHeaderProps> = ({ campaign, isLoading, accessToken, currentUserId }) => {
   // (no single-date display in header)
 
   // Helper function to calculate campaign duration
@@ -68,6 +73,18 @@ const CampaignHeader: React.FC<CampaignHeaderProps> = ({ campaign, isLoading, ac
   }
 
   const statusInfo = getCampaignStatus(campaign.startDate, campaign.endDate)
+
+  // Use the reusable share action hook
+  const { shareAction, ShareDialog } = useShareAction({
+    accessToken: accessToken || '',
+    currentUserId: currentUserId || '',
+    entity: {
+      entityType: 'campaign',
+      entityId: campaign.id,
+      entityName: campaign.name,
+      entityUrl: `/platform/crm/campaign-record?campaignId=${campaign.id}`
+    }
+  })
 
   return (
     <div
@@ -131,10 +148,10 @@ const CampaignHeader: React.FC<CampaignHeaderProps> = ({ campaign, isLoading, ac
               externalContextData={{
                 campaignId: campaign.id
               }}
-              staticFlowData={[]}
+              staticFlowData={[shareAction]}
               prefixDataTestId="campaign-record-action"
               accessToken={accessToken}
-              emptyStateBehavior="hide"
+              emptyStateBehavior="enable"
               deferMainContextRequestsUntilClick={false}
             >
               Actions
@@ -142,6 +159,9 @@ const CampaignHeader: React.FC<CampaignHeaderProps> = ({ campaign, isLoading, ac
           )}
         </div>
       </div>
+
+      {/* Share Dialog */}
+      {ShareDialog}
     </div>
   )
 }

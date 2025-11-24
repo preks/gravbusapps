@@ -55,6 +55,7 @@ import {
 } from '@/common/data/investment/hooks/useInvestmentOpportunities'
 import { FlowContextName } from '@/common/types/FlowRegistryTypes'
 import { startProcess } from '@/common/utils/start-process'
+import { useShareAction } from '@/components/share-entity'
 
 interface OpportunityRecordContentProps extends BusinessAppContextProps {
   opportunityId: string
@@ -337,6 +338,18 @@ const InvestmentOpportunityRecordContent: React.FC<OpportunityRecordContentProps
     []
   )
 
+  // Use the reusable share action hook
+  const { shareAction, ShareDialog } = useShareAction({
+    accessToken: props.accessToken,
+    currentUserId: props.userInfo?.id || '',
+    entity: {
+      entityType: 'investment-opportunity',
+      entityId: opportunityId,
+      entityName: opportunity?.name || 'Investment Opportunity',
+      entityUrl: `/platform/irm/opportunity-record?opportunityId=${opportunityId}`
+    }
+  })
+
   // Memoize header action button to prevent recreation
   const headerActionButton = useMemo(
     () => (
@@ -345,12 +358,13 @@ const InvestmentOpportunityRecordContent: React.FC<OpportunityRecordContentProps
         contextsArray={[FlowContextName.investmentOpportunityEntity]}
         externalContextData={{ opportunityId }}
         prefixDataTestId="opportunity-record-action"
-        emptyStateBehavior="hide"
+        emptyStateBehavior="enable"
         deferMainContextRequestsUntilClick={false}
         accessToken={props.accessToken}
+        staticFlowData={[shareAction]}
       />
     ),
-    [opportunityId, props.accessToken]
+    [opportunityId, props.accessToken, shareAction]
   )
 
   // Memoize action props to prevent recreation and unnecessary re-renders
@@ -1078,6 +1092,8 @@ const InvestmentOpportunityRecordContent: React.FC<OpportunityRecordContentProps
         headerContent={headerContent}
         subViews={subViewsConfig}
       />
+      {/* Share Dialog */}
+      {ShareDialog}
     </div>
   )
 }

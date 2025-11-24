@@ -8,6 +8,7 @@ import { useGetInvestmentAccountById } from '@/common/data/investment/hooks/useI
 import { InvestmentAccount } from '@/common/data/investment/types'
 import { AppActionButton } from '@/components/app-action-button/AppActionButton'
 import { FlowContextName } from '@/common/types/FlowRegistryTypes'
+import { useShareAction } from '@/components/share-entity'
 import { AiActions, AiAction } from '@/common/components/common-relations/record-sections/header-section/ai-actions'
 import { useAccountAiSummary } from './hooks/useAccountAiSummary'
 import { useGenerateAIBooklet } from './hooks/useGenerateAIBooklet'
@@ -243,6 +244,18 @@ const InvestmentAccountRecordContent: React.FC<AccountRecordContentProps> = ({ a
     )
   }, [props.accessToken, aiSummaryHook, aiBookletHook, accountId])
 
+  // Use the reusable share action hook
+  const { shareAction, ShareDialog } = useShareAction({
+    accessToken: props.accessToken,
+    currentUserId: props.userInfo?.id || '',
+    entity: {
+      entityType: 'investment-account',
+      entityId: accountId,
+      entityName: accountData?.name || 'Investment Account',
+      entityUrl: `/platform/irm/account-record?accountId=${accountId}`
+    }
+  })
+
   const headerActionButton = useMemo(
     () => (
       <AppActionButton
@@ -254,11 +267,12 @@ const InvestmentAccountRecordContent: React.FC<AccountRecordContentProps> = ({ a
         }}
         prefixDataTestId="investment-account-record-action"
         accessToken={props.accessToken}
-        emptyStateBehavior="hide"
+        emptyStateBehavior="enable"
         deferMainContextRequestsUntilClick={false}
+        staticFlowData={[shareAction]}
       />
     ),
-    [accountId, props.accessToken]
+    [accountId, props.accessToken, shareAction]
   )
 
   const subViewsConfig = useMemo(
@@ -373,6 +387,8 @@ const InvestmentAccountRecordContent: React.FC<AccountRecordContentProps> = ({ a
         headerActionButton={headerActionButton}
         subViews={subViewsConfig}
       />
+      {/* Share Dialog */}
+      {ShareDialog}
     </div>
   )
 }
