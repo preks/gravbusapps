@@ -106,6 +106,15 @@ const OpportunityRecordContent: React.FC<OpportunityRecordContentProps> = ({
   )
 
   /**
+   * Helper function to find status record for a catalog condition
+   */
+  const findStatusRecord = (stageConditionStatuses: any[], catalogConditionId: string) => {
+    return stageConditionStatuses.find(
+      statusData => statusData.opportunityPipelineStageConditionRef === catalogConditionId
+    )
+  }
+
+  /**
    * Helper function to extract CRM stage conditions
    */
   const extractCrmStageConditions = useMemo(
@@ -116,9 +125,7 @@ const OpportunityRecordContent: React.FC<OpportunityRecordContentProps> = ({
         )
 
         return stageCatalogConditions.map(catalogCondition => {
-          const statusRecord = stageConditionStatuses.find(
-            statusData => statusData.opportunityPipelineStageConditionRef === catalogCondition.id
-          )
+          const statusRecord = findStatusRecord(stageConditionStatuses, catalogCondition.id)
           return transformCatalogConditionToStageCondition(catalogCondition, statusRecord)
         })
       },

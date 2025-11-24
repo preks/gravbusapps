@@ -35,7 +35,6 @@ interface OpportunityLayoutProps {
     error: string | null
     refetch: (variables?: any) => Promise<void>
   }
-  onContactsChange?: (contactIds: Array<string | { id: string; name: string }>) => void
   onNewContact?: () => void
   pipelineFieldName?: string
   stageFieldName?: string

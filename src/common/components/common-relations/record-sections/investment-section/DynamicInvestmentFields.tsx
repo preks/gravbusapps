@@ -30,6 +30,50 @@ const formatCurrency = (amount: number | string, investmentData?: any): string =
   return currencySymbol ? `${currencySymbol} ${formattedNumber}` : formattedNumber
 }
 
+// Helper function to extract catalog value from object
+const extractCatalogValue = (fieldValue: any): string => {
+  if (typeof fieldValue === 'object') {
+    return (
+      fieldValue.value ||
+      fieldValue.label ||
+      fieldValue.displayName ||
+      fieldValue.additionalValue1 ||
+      String(fieldValue)
+    )
+  }
+  return String(fieldValue)
+}
+
+// Helper function to format number value for prefix/suffix
+const formatNumberValueForPrefixSuffix = (fieldValue: any): string => {
+  const numericValue = typeof fieldValue === 'string' ? Number.parseFloat(fieldValue) : fieldValue
+  return Number.isNaN(numericValue) ? '' : numericValue.toLocaleString('en-US')
+}
+
+// Helper function to handle dynamic prefix/suffix by type
+const handleDynamicPrefixSuffixByType = (type: string, fieldValue: any): string => {
+  const upperType = type.toUpperCase()
+  if (upperType === 'CATALOG_MEASUREMENTUNIT' || upperType === 'CATALOG_') {
+    return convertUnicodeSymbol(extractCatalogValue(fieldValue))
+  }
+  if (upperType === 'TEXT') {
+    return convertUnicodeSymbol(String(fieldValue))
+  }
+  if (upperType === 'NUMBER') {
+    return formatNumberValueForPrefixSuffix(fieldValue)
+  }
+  return convertUnicodeSymbol(String(fieldValue))
+}
+
+// Helper function to resolve dynamic prefix/suffix
+const resolveDynamicPrefixSuffix = (prefixSuffix: any, investmentData: any): string => {
+  const fieldValue = getNestedProperty(investmentData, prefixSuffix.property)
+  if (fieldValue === null || fieldValue === undefined || fieldValue === '') {
+    return ''
+  }
+  return handleDynamicPrefixSuffixByType(prefixSuffix.type, fieldValue)
+}
+
 // Helper function to resolve prefix/suffix values
 const resolvePrefixSuffix = (prefixSuffix: any, investmentData: any): string => {
   if (!prefixSuffix) {
@@ -43,36 +87,7 @@ const resolvePrefixSuffix = (prefixSuffix: any, investmentData: any): string => 
 
   // If it's a dynamic value with type and property
   if (prefixSuffix.type && prefixSuffix.property) {
-    const fieldValue = getNestedProperty(investmentData, prefixSuffix.property)
-
-    if (fieldValue === null || fieldValue === undefined || fieldValue === '') {
-      return ''
-    }
-
-    // Handle different types
-    switch (prefixSuffix.type.toUpperCase()) {
-      case 'CATALOG_MEASUREMENTUNIT':
-      case 'CATALOG_':
-        // For catalog types, show the value or label if it's an object
-        if (typeof fieldValue === 'object') {
-          const value =
-            fieldValue.value ||
-            fieldValue.label ||
-            fieldValue.displayName ||
-            fieldValue.additionalValue1 ||
-            String(fieldValue)
-          return convertUnicodeSymbol(value)
-        } else {
-          return convertUnicodeSymbol(String(fieldValue))
-        }
-      case 'TEXT':
-        return convertUnicodeSymbol(String(fieldValue))
-      case 'NUMBER':
-        const numericValue = typeof fieldValue === 'string' ? Number.parseFloat(fieldValue) : fieldValue
-        return Number.isNaN(numericValue) ? '' : numericValue.toLocaleString('en-US')
-      default:
-        return convertUnicodeSymbol(String(fieldValue))
-    }
+    return resolveDynamicPrefixSuffix(prefixSuffix, investmentData)
   }
 
   return ''
@@ -111,6 +126,26 @@ const convertUnicodeSymbol = (value: string): string => {
   }
 
   return value
+}
+
+// Helper function to parse objectValue from catalog data
+const parseObjectValue = (data: any): any => {
+  if (!data?.objectValue) return null
+  try {
+    return typeof data.objectValue === 'string' ? JSON.parse(data.objectValue) : data.objectValue
+  } catch (err) {
+    console.error('Error parsing objectValue:', err)
+    return data.objectValue
+  }
+}
+
+// Helper function to extract record fields from objectValue
+const extractRecordFields = (objectValue: any): any[] => {
+  if (!objectValue?.formFields || !Array.isArray(objectValue.formFields)) {
+    return []
+  }
+  const flattenedFields = objectValue.formFields.flatMap((group: any) => group.fields || [])
+  return flattenedFields.filter((field: any) => field.record === true)
 }
 
 const DynamicInvestmentFields: React.FC<DynamicInvestmentFieldsProps> = ({ investmentData, fields, accessToken }) => {
@@ -167,28 +202,8 @@ const DynamicInvestmentFields: React.FC<DynamicInvestmentFieldsProps> = ({ inves
           validTypeId ? fetchCatalogEntryById(validTypeId).catch(() => null) : Promise.resolve(null)
         ])
 
-        // Parse objectValue
-        const parseObjectValue = (data: any): any => {
-          if (!data?.objectValue) return null
-          try {
-            return typeof data.objectValue === 'string' ? JSON.parse(data.objectValue) : data.objectValue
-          } catch (err) {
-            console.error('Error parsing objectValue:', err)
-            return data.objectValue
-          }
-        }
-
         const typeObjectValue = parseObjectValue(typeData)
         const groupObjectValue = parseObjectValue(groupData)
-
-        // Extract formFields (nested paths for Investment/Account/Contact records)
-        const extractRecordFields = (objectValue: any): any[] => {
-          if (!objectValue?.formFields || !Array.isArray(objectValue.formFields)) {
-            return []
-          }
-          const flattenedFields = objectValue.formFields.flatMap((group: any) => group.fields || [])
-          return flattenedFields.filter((field: any) => field.record === true)
-        }
 
         const typeFields = extractRecordFields(typeObjectValue)
         const groupFields = extractRecordFields(groupObjectValue)
@@ -212,6 +227,149 @@ const DynamicInvestmentFields: React.FC<DynamicInvestmentFieldsProps> = ({ inves
     fetchCatalogEntryById
   ])
 
+  // Helper function to clean field name (strip investment. prefix)
+  const cleanFieldName = (fieldName: string): string => {
+    if (fieldName.startsWith('investment.') && !fieldName.startsWith('equityInvestment.')) {
+      return fieldName.replace('investment.', '')
+    }
+    return fieldName
+  }
+
+  // Helper function to get field value with catalog handling
+  const getFieldValue = (cleanFieldName: string, fieldType: string, investmentData: any): any => {
+    // Use getNestedProperty for dot notation (like "equityInvestment.marketValue")
+    // Use direct property access for flat properties (like "totalInvestmentAmount")
+    const fieldValue = cleanFieldName.includes('.')
+      ? getNestedProperty(investmentData, cleanFieldName)
+      : investmentData?.[cleanFieldName]
+
+    // For catalog fields: We now get both the expanded object and the Ref string from GraphQL
+    // Priority: expanded catalog object (with .value) > Ref string > fallback
+    if (fieldType.toUpperCase().startsWith('CATALOG_')) {
+      // If we have an expanded catalog object, keep it (it will have .value, .code, etc.)
+      if (fieldValue && typeof fieldValue === 'object' && !Array.isArray(fieldValue)) {
+        return fieldValue
+      }
+      // If we got a string reference ID or null/undefined, try the Ref field
+      const refFieldName = cleanFieldName.includes('.')
+        ? cleanFieldName.replace(/\.([^.]+)$/, '.$1Ref') // "realEstateInvestment.sizeMeasurementUnit" -> "realEstateInvestment.sizeMeasurementUnitRef"
+        : `${cleanFieldName}Ref` // "currency" -> "currencyRef"
+
+      const refValue = refFieldName.includes('.')
+        ? getNestedProperty(investmentData, refFieldName)
+        : investmentData?.[refFieldName]
+
+      // Only use the Ref value if we don't already have the expanded object
+      if (refValue !== null && refValue !== undefined) {
+        return refValue
+      }
+    }
+
+    return fieldValue
+  }
+
+  // Helper function to format amount value
+  const formatAmountValue = (fieldValue: any, investmentData: any): string => {
+    if (fieldValue === null || fieldValue === undefined || fieldValue === '') {
+      return getTranslationFromI18nKeyAndLabel('crm.common.notSet', 'Not set')
+    }
+    return formatCurrency(fieldValue, investmentData)
+  }
+
+  // Helper function to format percentage value
+  const formatPercentageValue = (fieldValue: any): string => {
+    if (fieldValue === null || fieldValue === undefined || fieldValue === '') {
+      return getTranslationFromI18nKeyAndLabel('crm.common.notSet', 'Not set')
+    }
+    const numericValue = typeof fieldValue === 'string' ? Number.parseFloat(fieldValue) : fieldValue
+    if (Number.isNaN(numericValue)) {
+      return getTranslationFromI18nKeyAndLabel('crm.common.notSet', 'Not set')
+    }
+    return `${numericValue}%`
+  }
+
+  // Helper function to format number value
+  const formatNumberValueForField = (fieldValue: any): string => {
+    if (fieldValue === null || fieldValue === undefined || fieldValue === '') {
+      return getTranslationFromI18nKeyAndLabel('crm.common.notSet', 'Not set')
+    }
+    const numericValue = typeof fieldValue === 'string' ? Number.parseFloat(fieldValue) : fieldValue
+    if (Number.isNaN(numericValue)) {
+      return getTranslationFromI18nKeyAndLabel('crm.common.notSet', 'Not set')
+    }
+    return numericValue.toLocaleString('en-US')
+  }
+
+  // Helper function to format text value
+  const formatTextValue = (fieldValue: any): string => {
+    if (fieldValue === null || fieldValue === undefined || fieldValue === '') {
+      return getTranslationFromI18nKeyAndLabel('crm.common.notSet', 'Not set')
+    }
+    return String(fieldValue)
+  }
+
+  // Helper function to format catalog value
+  const formatCatalogValue = (fieldValue: any): string => {
+    if (fieldValue === null || fieldValue === undefined || fieldValue === '') {
+      return getTranslationFromI18nKeyAndLabel('crm.common.notSet', 'Not set')
+    }
+    if (typeof fieldValue === 'object') {
+      // For catalog objects, prefer value, then label, then displayName
+      return fieldValue.value || fieldValue.label || fieldValue.displayName || String(fieldValue)
+    }
+    // If it's a string (likely an ID), we need to look up the actual value
+    // For now, just show the string value, but this could be enhanced to fetch catalog data
+    return String(fieldValue)
+  }
+
+  // Helper function to format default/other types
+  const formatDefaultValue = (fieldValue: any): string => {
+    if (fieldValue === null || fieldValue === undefined || fieldValue === '') {
+      return getTranslationFromI18nKeyAndLabel('crm.common.notSet', 'Not set')
+    }
+    if (typeof fieldValue === 'boolean') {
+      return fieldValue
+        ? getTranslationFromI18nKeyAndLabel('crm.common.yes', 'Yes')
+        : getTranslationFromI18nKeyAndLabel('crm.common.no', 'No')
+    }
+    return String(fieldValue)
+  }
+
+  // Helper function to format value by field type
+  const formatValueByType = (fieldType: string, fieldValue: any, investmentData: any): string => {
+    const upperType = fieldType.toUpperCase()
+    if (upperType === 'AMOUNT') {
+      return formatAmountValue(fieldValue, investmentData)
+    }
+    if (upperType === 'PERCENTAGE') {
+      return formatPercentageValue(fieldValue)
+    }
+    if (upperType === 'NUMBER') {
+      return formatNumberValueForField(fieldValue)
+    }
+    if (upperType === 'TEXT') {
+      return formatTextValue(fieldValue)
+    }
+    if (fieldType.startsWith('CATALOG_')) {
+      return formatCatalogValue(fieldValue)
+    }
+    return formatDefaultValue(fieldValue)
+  }
+
+  // Helper function to combine prefix, value, and suffix
+  const combinePrefixSuffix = (formattedValue: string, prefix: string, suffix: string): string => {
+    if (!prefix && !suffix) {
+      return formattedValue
+    }
+    const parts = []
+    if (prefix) parts.push(prefix)
+    if (formattedValue !== getTranslationFromI18nKeyAndLabel('crm.common.notSet', 'Not set')) {
+      parts.push(formattedValue)
+    }
+    if (suffix) parts.push(suffix)
+    return parts.join(' ')
+  }
+
   // Use provided fields or fallback to fetched fields
   const fieldsToRender = useMemo(() => {
     if (fields && fields.length > 0) {
@@ -226,136 +384,12 @@ const DynamicInvestmentFields: React.FC<DynamicInvestmentFieldsProps> = ({ inves
     return fieldsToRender.map(field => {
       const fieldName = field.property || field.name
       const fieldType = field.type || 'text'
-
-      // Strip "investment." prefix from field paths (but not "equityInvestment." or other entity prefixes)
-      const cleanFieldName =
-        fieldName.startsWith('investment.') && !fieldName.startsWith('equityInvestment.')
-          ? fieldName.replace('investment.', '')
-          : fieldName
-
-      // Use getNestedProperty for dot notation (like "equityInvestment.marketValue")
-      // Use direct property access for flat properties (like "totalInvestmentAmount")
-      let fieldValue = cleanFieldName.includes('.')
-        ? getNestedProperty(investmentData, cleanFieldName)
-        : investmentData?.[cleanFieldName]
-
-      // For catalog fields: We now get both the expanded object and the Ref string from GraphQL
-      // Priority: expanded catalog object (with .value) > Ref string > fallback
-      if (fieldType.toUpperCase().startsWith('CATALOG_')) {
-        // If we have an expanded catalog object, keep it (it will have .value, .code, etc.)
-        if (fieldValue && typeof fieldValue === 'object' && !Array.isArray(fieldValue)) {
-          // Already have the expanded catalog object, great!
-        }
-        // If we got a string reference ID or null/undefined, try the Ref field
-        else {
-          const refFieldName = cleanFieldName.includes('.')
-            ? cleanFieldName.replace(/\.([^.]+)$/, '.$1Ref') // "realEstateInvestment.sizeMeasurementUnit" -> "realEstateInvestment.sizeMeasurementUnitRef"
-            : `${cleanFieldName}Ref` // "currency" -> "currencyRef"
-
-          const refValue = refFieldName.includes('.')
-            ? getNestedProperty(investmentData, refFieldName)
-            : investmentData?.[refFieldName]
-
-          // Only use the Ref value if we don't already have the expanded object
-          if (refValue !== null && refValue !== undefined) {
-            fieldValue = refValue
-          }
-        }
-      }
-
-      let formattedValue: string
-
-      // Handle different field types
-      switch (fieldType.toUpperCase()) {
-        case 'AMOUNT':
-          // Money formatting with currency
-          if (fieldValue === null || fieldValue === undefined || fieldValue === '') {
-            formattedValue = getTranslationFromI18nKeyAndLabel('crm.common.notSet', 'Not set')
-          } else {
-            formattedValue = formatCurrency(fieldValue, investmentData)
-          }
-          break
-
-        case 'PERCENTAGE':
-          // Percentage formatting
-          if (fieldValue === null || fieldValue === undefined || fieldValue === '') {
-            formattedValue = getTranslationFromI18nKeyAndLabel('crm.common.notSet', 'Not set')
-          } else {
-            const numericValue = typeof fieldValue === 'string' ? Number.parseFloat(fieldValue) : fieldValue
-            if (Number.isNaN(numericValue)) {
-              formattedValue = getTranslationFromI18nKeyAndLabel('crm.common.notSet', 'Not set')
-            } else {
-              formattedValue = `${numericValue}%`
-            }
-          }
-          break
-
-        case 'NUMBER':
-          // Number formatting with thousands separators
-          if (fieldValue === null || fieldValue === undefined || fieldValue === '') {
-            formattedValue = getTranslationFromI18nKeyAndLabel('crm.common.notSet', 'Not set')
-          } else {
-            const numericValue = typeof fieldValue === 'string' ? Number.parseFloat(fieldValue) : fieldValue
-            if (Number.isNaN(numericValue)) {
-              formattedValue = getTranslationFromI18nKeyAndLabel('crm.common.notSet', 'Not set')
-            } else {
-              formattedValue = numericValue.toLocaleString('en-US')
-            }
-          }
-          break
-
-        case 'TEXT':
-          // Plain text
-          if (fieldValue === null || fieldValue === undefined || fieldValue === '') {
-            formattedValue = getTranslationFromI18nKeyAndLabel('crm.common.notSet', 'Not set')
-          } else {
-            formattedValue = String(fieldValue)
-          }
-          break
-
-        default:
-          // Handle CATALOG_<catalogName> types and other types
-          if (fieldType.startsWith('CATALOG_')) {
-            // For catalog types, show the value or label if it's an object
-            if (fieldValue === null || fieldValue === undefined || fieldValue === '') {
-              formattedValue = getTranslationFromI18nKeyAndLabel('crm.common.notSet', 'Not set')
-            } else if (typeof fieldValue === 'object') {
-              // For catalog objects, prefer value, then label, then displayName
-              formattedValue = fieldValue.value || fieldValue.label || fieldValue.displayName || String(fieldValue)
-            } else {
-              // If it's a string (likely an ID), we need to look up the actual value
-              // For now, just show the string value, but this could be enhanced to fetch catalog data
-              formattedValue = String(fieldValue)
-            }
-          } else {
-            // For other types, treat as text
-            if (fieldValue === null || fieldValue === undefined || fieldValue === '') {
-              formattedValue = getTranslationFromI18nKeyAndLabel('crm.common.notSet', 'Not set')
-            } else if (typeof fieldValue === 'boolean') {
-              formattedValue = fieldValue
-                ? getTranslationFromI18nKeyAndLabel('crm.common.yes', 'Yes')
-                : getTranslationFromI18nKeyAndLabel('crm.common.no', 'No')
-            } else {
-              formattedValue = String(fieldValue)
-            }
-          }
-      }
-
-      // Resolve prefix and suffix
+      const cleanedName = cleanFieldName(fieldName)
+      const fieldValue = getFieldValue(cleanedName, fieldType, investmentData)
+      const formattedValue = formatValueByType(fieldType, fieldValue, investmentData)
       const prefix = resolvePrefixSuffix(field.prefix, investmentData)
       const suffix = resolvePrefixSuffix(field.suffix, investmentData)
-
-      // Combine prefix, value, and suffix
-      let finalFormattedValue = formattedValue
-      if (prefix || suffix) {
-        const parts = []
-        if (prefix) parts.push(prefix)
-        if (formattedValue !== getTranslationFromI18nKeyAndLabel('crm.common.notSet', 'Not set')) {
-          parts.push(formattedValue)
-        }
-        if (suffix) parts.push(suffix)
-        finalFormattedValue = parts.join(' ')
-      }
+      const finalFormattedValue = combinePrefixSuffix(formattedValue, prefix, suffix)
 
       return {
         ...field,

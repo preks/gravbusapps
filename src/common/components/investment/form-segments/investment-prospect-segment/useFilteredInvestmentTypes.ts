@@ -37,7 +37,10 @@ const hasReferenceFieldsInObject = (objectValue: any): boolean => {
 /**
  * Check if a type has referenceFields (either directly or in its parent group)
  */
-const typeHasReferenceFields = (typeEntry: any, groupEntry: any | null): boolean => {
+const typeHasReferenceFields = (
+  typeEntry: Record<string, unknown>,
+  groupEntry: Record<string, unknown> | null
+): boolean => {
   // Check type's own referenceFields
   const typeObjectValue = parseObjectValue(typeEntry)
   if (hasReferenceFieldsInObject(typeObjectValue)) {
@@ -104,8 +107,8 @@ export const useFilteredInvestmentTypes = (
       const typesForGroup = allTypes.filter(entry => {
         return (
           entry.parentEntryId === expectedParentRef ||
-          (entry.parentEntry && entry.parentEntry.id === groupId) ||
-          (entry.parentEntry && entry.parentEntry.code === groupCode)
+          entry.parentEntry?.id === groupId ||
+          entry.parentEntry?.code === groupCode
         )
       })
 

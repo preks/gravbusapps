@@ -20,7 +20,7 @@ import {
   LEAD_RATING,
   COMPANY_SIZE,
   ANNUAL_REVENUE
-} from '@/common/data/investment/constants/catalogConstants'
+} from '@/common/data/investment/constants/investmentCatalogs'
 import { ErrorAlert } from '@/components/error-alert'
 import { formatDataTestId } from '@/common/utils/formatDataTestId'
 

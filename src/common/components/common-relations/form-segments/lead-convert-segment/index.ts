@@ -1,1 +1,2 @@
-export { LeadConvertSegment, default as default } from './LeadConvertSegment'
+export { default } from './LeadConvertSegment'
+export { LeadConvertSegment } from './LeadConvertSegment'

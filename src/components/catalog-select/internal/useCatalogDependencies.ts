@@ -278,7 +278,7 @@ const handleInitialLoad = async ({
     // This ensures the value is displayed in the UI
     const parentState = stateById[parentField]
     const parentHasOption = parentState?.options?.some(opt => opt.value === parentValue)
-    if (!parentHasOption && parentValue) {
+    if (!parentHasOption && Boolean(parentValue)) {
       try {
         const res = await fetchCatalogEntriesByIdentifier(parentField, {
           limit: 1,
@@ -598,19 +598,23 @@ const handleChildCleared = ({
 }
 
 // Handle external filter dependencies
+interface FetchFilteredEntriesOptions {
+  id: string
+  config: CatalogSelectConfig
+  filter: NonNullable<CatalogSelectConfig['filterField']>[0]
+  externalValue: string
+  fetchCatalogEntriesByIdentifier: any
+  defaultPageSize: number
+  locale: string | undefined
+  setFor: (id: string, updater: (prev: State) => State) => void
+}
+
 /**
  * Handles fetching filtered catalog entries
  */
-const fetchFilteredEntries = async (
-  id: string,
-  config: CatalogSelectConfig,
-  filter: NonNullable<CatalogSelectConfig['filterField']>[0],
-  externalValue: string,
-  fetchCatalogEntriesByIdentifier: any,
-  defaultPageSize: number,
-  locale: string | undefined,
-  setFor: (id: string, updater: (prev: State) => State) => void
-): Promise<void> => {
+const fetchFilteredEntries = async (options: FetchFilteredEntriesOptions): Promise<void> => {
+  const { id, config, filter, externalValue, fetchCatalogEntriesByIdentifier, defaultPageSize, locale, setFor } =
+    options
   setFor(id, prev =>
     prev
       ? {
@@ -645,21 +649,35 @@ const fetchFilteredEntries = async (
   }
 }
 
+interface HandleSingleExternalFilterOptions {
+  id: string
+  filter: NonNullable<CatalogSelectConfig['filterField']>[0]
+  config: CatalogSelectConfig
+  stateById: Record<string, State>
+  setFor: (id: string, updater: (prev: State) => State) => void
+  fetchCatalogEntriesByIdentifier: any
+  defaultPageSize: number
+  locale: string | undefined
+  externalValues: Record<string, string | null> | undefined
+  lastExternalValuesRef: React.MutableRefObject<Map<string, string | null>>
+}
+
 /**
  * Handles a single external filter change
  */
-const handleSingleExternalFilter = async (
-  id: string,
-  filter: NonNullable<CatalogSelectConfig['filterField']>[0],
-  config: CatalogSelectConfig,
-  stateById: Record<string, State>,
-  setFor: (id: string, updater: (prev: State) => State) => void,
-  fetchCatalogEntriesByIdentifier: any,
-  defaultPageSize: number,
-  locale: string | undefined,
-  externalValues: Record<string, string | null> | undefined,
-  lastExternalValuesRef: React.MutableRefObject<Map<string, string | null>>
-): Promise<void> => {
+const handleSingleExternalFilter = async (options: HandleSingleExternalFilterOptions): Promise<void> => {
+  const {
+    id,
+    filter,
+    config,
+    stateById,
+    setFor,
+    fetchCatalogEntriesByIdentifier,
+    defaultPageSize,
+    locale,
+    externalValues,
+    lastExternalValuesRef
+  } = options
   const externalValue = externalValues?.[filter.from] || null
   const lastExternalValue = lastExternalValuesRef.current.get(`${id}_${filter.from}`)
 
@@ -673,7 +691,7 @@ const handleSingleExternalFilter = async (
   }
 
   if (externalValue) {
-    await fetchFilteredEntries(
+    await fetchFilteredEntries({
       id,
       config,
       filter,
@@ -682,7 +700,7 @@ const handleSingleExternalFilter = async (
       defaultPageSize,
       locale,
       setFor
-    )
+    })
   } else {
     resetToPrefetchedOptions({ id, setFor })
   }
@@ -714,7 +732,7 @@ const handleExternalFilters = async ({
   if (!filterField) return
 
   for (const filter of filterField) {
-    await handleSingleExternalFilter(
+    await handleSingleExternalFilter({
       id,
       filter,
       config,
@@ -725,7 +743,7 @@ const handleExternalFilters = async ({
       locale,
       externalValues,
       lastExternalValuesRef
-    )
+    })
   }
 }
 
@@ -758,7 +776,8 @@ export const useCatalogDependencies = ({
     if (!cfg.parentField || !parentValueFromForm || parentValueFromForm === parentValueInState) return
 
     const parentConfig = configs.find(c => c.id === cfg.parentField)
-    if (!stateById[cfg.parentField]) {
+    const parentState = stateById[cfg.parentField]
+    if (!parentState) {
       setFor(cfg.parentField, () => ({
         value: parentValueFromForm,
         loading: false,

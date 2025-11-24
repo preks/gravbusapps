@@ -6,12 +6,12 @@ import {
   FormControl,
   FormMessage,
   Input,
-  useTranslation
+  useTranslation,
+  DateInput
 } from '@newwork/nw-design-system'
 import { useFormContext } from 'react-hook-form'
-import { DateInput } from '@newwork/nw-design-system'
 import { CatalogSelect } from '@/components/catalog-select'
-import { CURRENCY } from '@/common/data/relations/constants/catalogConstants'
+import { CURRENCY } from '@/common/constants/catalogConstants'
 import translations from './_i18n'
 
 interface OpportunityDetailsSegmentProps {

@@ -2,7 +2,6 @@ import React from 'react'
 import { useFormContext } from 'react-hook-form'
 import { FormField, FormItem, FormLabel, FormControl, FormMessage, Button, Badge } from '@newwork/nw-design-system'
 import { formatDataTestId } from '@/common/utils/formatDataTestId'
-import { BusinessAppContextProps } from '@/common/BusinessAppContext'
 import { FilteredType } from '../investment-prospect-segment/useInvestmentProspectFields'
 
 interface InvestmentTypeSelectProps {
@@ -10,8 +9,6 @@ interface InvestmentTypeSelectProps {
   investmentGroupRef?: string | null
   /** Form field name for investment type (default: "investmentType") */
   fieldName?: string
-  /** Business app context for API access */
-  businessAppContext?: BusinessAppContextProps
   /** Optional data-testid prefix */
   testIdPrefix?: string
   /** Whether the field is required */
@@ -42,7 +39,6 @@ interface InvestmentTypeSelectProps {
  * <InvestmentTypeSelect
  *   investmentGroupRef={formValues.investmentGroupRef}
  *   fieldName="investmentTypeRef"
- *   businessAppContext={businessAppContext}
  *   types={types}
  *   isLoading={isLoading}
  *   testIdPrefix="LeadForm"

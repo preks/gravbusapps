@@ -5,7 +5,7 @@
  * This allows centralized maintenance of common catalogs while providing IRM-specific overrides.
  */
 
-export * from '@/common/data/relations/constants/catalogConstants'
+export * from '@/common/constants/catalogConstants'
 
 // IRM-specific overrides
 export const OPPORTUNITY_PIPELINE = 'InvestmentOpportunityPipeline:v1'

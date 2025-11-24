@@ -184,13 +184,13 @@ const OpportunitySelect: React.FC<OpportunitySelectProps> = ({
   const selectedOpportunityIds = new Set(internalValue.map(o => getOpportunityId(o)))
   const availableOpportunityOptions = React.useMemo(() => {
     return mergedOpportunities
-      .filter(o => !selectedOpportunityIds.has(o.id as string))
+      .filter(o => !selectedOpportunityIds.has(o.id))
       .map(o => {
         const accountInfo = o.extraInfo?.accountName ? ` - ${o.extraInfo.accountName}` : ''
         const stageInfo = o.extraInfo?.stage ? ` (${o.extraInfo.stage})` : ''
         const label = `${o.label}${accountInfo}${stageInfo}`
         return {
-          value: o.id as string,
+          value: o.id,
           label
         }
       })
@@ -200,24 +200,17 @@ const OpportunitySelect: React.FC<OpportunitySelectProps> = ({
   if (multiple && internalValue.length === 0 && !showAddExisting) {
     return (
       <div className="gba:space-y-2">
-        <div
-          role="button"
-          tabIndex={0}
-          className="gba:border-2 gba:border-dashed gba:border-muted-foreground/25 gba:rounded-lg gba:p-6 gba:text-center gba:cursor-pointer hover:gba:border-muted-foreground/50 gba:transition-colors"
+        <button
+          type="button"
+          className="gba:border-2 gba:border-dashed gba:border-muted-foreground/25 gba:rounded-lg gba:p-6 gba:text-center gba:cursor-pointer hover:gba:border-muted-foreground/50 gba:transition-colors gba:w-full gba:bg-transparent"
           onClick={() => setShowAddExisting(true)}
-          onKeyDown={e => {
-            if (e.key === 'Enter' || e.key === ' ') {
-              e.preventDefault()
-              setShowAddExisting(true)
-            }
-          }}
           data-testid={formatDataTestId(dataTestId || 'opportunity-list', 'empty-state')}
         >
           <PiPlus className="gba:mx-auto gba:h-8 gba:w-8 gba:text-muted-foreground gba:mb-2" />
           <p className="gba:text-sm gba:text-muted-foreground">
             No opportunities selected. Click to add an opportunity.
           </p>
-        </div>
+        </button>
 
         {error && (
           <Alert variant="destructive">

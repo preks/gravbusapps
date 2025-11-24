@@ -66,8 +66,8 @@ export const useInvestmentProspectForm = ({
       for (const group of formFieldsDefinition.formFields) {
         for (const field of group.fields) {
           const property = field.property
-          if (property && entity && (entity as any)[property] !== undefined) {
-            dynamicFieldValues[property] = (entity as any)[property]
+          if (property && entity && entity[property] !== undefined) {
+            dynamicFieldValues[property] = entity[property]
           }
         }
       }
@@ -99,7 +99,7 @@ export const useInvestmentProspectForm = ({
       // Update dynamic fields: use value from entity if available, otherwise undefined
       for (const property of dynamicFieldProperties) {
         if (entity && property in entity) {
-          updatedValues[property] = (entity as any)[property]
+          updatedValues[property] = entity[property]
         } else {
           // New dynamic field that doesn't exist in entity: set to undefined
           updatedValues[property] = undefined

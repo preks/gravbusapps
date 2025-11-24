@@ -32,6 +32,13 @@ export interface CampaignSelectProps {
   selectedCampaign?: CampaignOption | null
 }
 
+// Helper function to get empty text based on loading and error state
+const getEmptyText = (loading?: boolean, error?: Error | null): string => {
+  if (loading) return 'Loading...'
+  if (error) return 'Error loading campaigns'
+  return 'No campaigns found'
+}
+
 const CampaignSelect = React.forwardRef<HTMLButtonElement, CampaignSelectProps & Record<string, any>>(
   (
     {
@@ -149,7 +156,7 @@ const CampaignSelect = React.forwardRef<HTMLButtonElement, CampaignSelectProps &
         onValueChange={onValueChange}
         placeholder={placeholder}
         searchPlaceholder={searchPlaceholder}
-        emptyText={loading ? 'Loading...' : error ? 'Error loading campaigns' : 'No campaigns found'}
+        emptyText={getEmptyText(loading, error)}
         onSearch={search}
         searchDebounce={300}
         loading={Boolean(loading)}

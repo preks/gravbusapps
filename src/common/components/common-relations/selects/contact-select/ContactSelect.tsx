@@ -57,9 +57,6 @@ interface ContactSelectProps {
 
   // Full account contacts with full contact data (for email/phone extraction)
   accountContacts?: any[]
-
-  // Component behavior
-  multiple?: boolean
 }
 
 const ContactSelect: React.FC<ContactSelectProps> = ({
@@ -71,13 +68,17 @@ const ContactSelect: React.FC<ContactSelectProps> = ({
   contactsLoading,
   contactsError,
   searchContacts,
-  accountContacts = [],
-  multiple = true
+  accountContacts = []
 }) => {
   // Helper function to extract ID from value (string or object)
   const getContactId = (contactValue: string | ContactValue): string => {
     return typeof contactValue === 'object' ? contactValue.id : contactValue
   }
+
+  // Derive multiple mode from value type (array = multiple, single value = single)
+  const multiple = React.useMemo(() => {
+    return Array.isArray(value)
+  }, [value])
 
   // Normalize value to always work with arrays internally for consistent handling
   const normalizedValue: Array<string | ContactValue> = React.useMemo(() => {
@@ -423,7 +424,7 @@ const ContactSelect: React.FC<ContactSelectProps> = ({
   const selectedContactIds = new Set(internalValue.map(c => getContactId(c)))
   const availableContactOptions = React.useMemo(() => {
     return mergedContacts
-      .filter(c => !selectedContactIds.has(c.id as string))
+      .filter(c => !selectedContactIds.has(c.id))
       .map((c: SelectOption) => {
         // Combobox only supports string labels, so we build a simple text representation
         const jobPosText = c.extraInfo?.jobPosition ? ` - ${c.extraInfo.jobPosition}` : ''
@@ -431,7 +432,7 @@ const ContactSelect: React.FC<ContactSelectProps> = ({
         const label = `${c.label || c.name}${jobPosText}${deptText}`
 
         return {
-          value: c.id as string,
+          value: c.id,
           label
         } as any
       })
@@ -452,22 +453,15 @@ const ContactSelect: React.FC<ContactSelectProps> = ({
     <div className="gba:space-y-4" data-testid={dataTestId || 'contact-list'}>
       {/* Empty State with Clickable Dashed Outline */}
       {internalValue.length === 0 && !showAddExisting && (
-        <div
-          role="button"
-          tabIndex={0}
-          className="gba:border-2 gba:border-dashed gba:border-muted-foreground/25 gba:rounded-lg gba:p-6 gba:text-center gba:cursor-pointer hover:gba:border-muted-foreground/50 gba:transition-colors"
+        <button
+          type="button"
+          className="gba:border-2 gba:border-dashed gba:border-muted-foreground/25 gba:rounded-lg gba:p-6 gba:text-center gba:cursor-pointer hover:gba:border-muted-foreground/50 gba:transition-colors gba:w-full gba:bg-transparent"
           onClick={() => setShowAddExisting(true)}
-          onKeyDown={e => {
-            if (e.key === 'Enter' || e.key === ' ') {
-              e.preventDefault()
-              setShowAddExisting(true)
-            }
-          }}
           data-testid={formatDataTestId(dataTestId || 'contact-list', 'empty-state')}
         >
           <PiPlus className="gba:mx-auto gba:h-8 gba:w-8 gba:text-muted-foreground gba:mb-2" />
           <p className="gba:text-sm gba:text-muted-foreground">No contacts added yet. Click to add a contact.</p>
-        </div>
+        </button>
       )}
 
       {/* Combobox for adding contacts (shown when empty state clicked) */}

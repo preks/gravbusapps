@@ -1,7 +1,7 @@
 import React, { useState, useCallback, useEffect, useRef } from 'react'
 import { Button, Alert, Form, WizardForm, useWizard, type WizardStep, useTranslation } from '@newwork/nw-design-system'
 import { useForm, type Resolver, type UseFormReturn } from 'react-hook-form'
-import { type ZodSchema } from 'zod'
+import { type z } from 'zod'
 import { BusinessAppContextProps } from '@/common/BusinessAppContext'
 import { dispatchProcessContinueEvent } from '@/common/utils/processEventUtils'
 import translations from './_i18n'
@@ -30,7 +30,7 @@ export interface AppActionFormProps {
   submitButtonVariant?: 'default' | 'destructive' | 'outline' | 'secondary' | 'ghost' | 'link'
   form?: UseFormReturn<any>
   resolver?: Resolver<any>
-  schema?: ZodSchema<any>
+  schema?: z.ZodType<any>
   'data-testid'?: string
   // Optional overrides for test ids on action buttons
   submitButtonTestId?: string
@@ -333,7 +333,7 @@ export const AppActionForm: React.FC<AppActionFormProps> = ({
   const form = externalForm || internalForm
 
   // Auto-determine showCancelButton from onCancel (deprecated prop takes precedence for backward compatibility)
-  const shouldShowCancelButton = showCancelButton !== undefined ? showCancelButton : !!onCancel
+  const shouldShowCancelButton = showCancelButton ?? !!onCancel
 
   // Navigation component for forms (standard forms only show Cancel and Submit)
   const formNavigation = (
@@ -382,32 +382,27 @@ export const AppActionForm: React.FC<AppActionFormProps> = ({
     )
   }
 
-  return (
-    <div className="gba:p-6 gba:h-full gba:flex gba:flex-col" data-testid={dataTestId}>
-      {message && message.type === 'error' && (
-        <Alert variant="destructive" className="gba:mb-4" data-testid={`${dataTestId}-message`}>
-          {message.message}
-        </Alert>
-      )}
+  // Helper function to render form content based on conditions
+  const renderFormContent = (): React.ReactNode => {
+    // Validation error handler for form submission
+    const handleValidationErrors = (errors: any) => {
+      // Development-only validation error logging
+      if (process.env.NODE_ENV !== 'production') {
+        console.error('[AppActionForm] Validation failed:', errors)
+        // Note: form.formState.errors might not be updated yet, use errors parameter instead
+        console.error('[AppActionForm] Validation errors (from callback):', errors)
+        console.error('[AppActionForm] Form errors (from formState):', form.formState.errors)
+        console.error('[AppActionForm] Form values:', form.getValues())
+      }
+    }
 
-      {formType === 'wizard' && wizardSteps && form ? (
-        // Use WizardForm with custom navigation as children
+    // Wizard form
+    if (formType === 'wizard' && wizardSteps && form) {
+      return (
         <WizardForm
           form={form}
           steps={wizardSteps}
-          onSubmit={form.handleSubmit(
-            vals => handleSubmit(vals),
-            errors => {
-              // Development-only validation error logging
-              if (process.env.NODE_ENV !== 'production') {
-                console.error('[AppActionForm] Validation failed:', errors)
-                // Note: form.formState.errors might not be updated yet, use errors parameter instead
-                console.error('[AppActionForm] Validation errors (from callback):', errors)
-                console.error('[AppActionForm] Form errors (from formState):', form.formState.errors)
-                console.error('[AppActionForm] Form values:', form.getValues())
-              }
-            }
-          )}
+          onSubmit={form.handleSubmit(vals => handleSubmit(vals), handleValidationErrors)}
           showStepIndicator={true}
           allowStepJumping={true}
           className="gba:w-full"
@@ -415,29 +410,25 @@ export const AppActionForm: React.FC<AppActionFormProps> = ({
         >
           <WizardNavigation />
         </WizardForm>
-      ) : disableFormSubmission ? (
-        // Custom form handling - don't wrap in Form/form elements
+      )
+    }
+
+    // Disabled form submission (custom handling)
+    if (disableFormSubmission) {
+      return (
         <div className="gba:flex gba:flex-col gba:w-full gba:h-full" data-testid={`${dataTestId}-content`}>
           {children}
           {customActions}
         </div>
-      ) : customFormLayout && form ? (
-        // Custom layout: just provide form context and let children handle layout
+      )
+    }
+
+    // Custom layout with form
+    if (customFormLayout && form) {
+      return (
         <Form {...(form as any)} schema={schema}>
           <form
-            onSubmit={form.handleSubmit(
-              vals => handleSubmit(vals),
-              errors => {
-                // Development-only validation error logging
-                if (process.env.NODE_ENV !== 'production') {
-                  console.error('[AppActionForm] Validation failed:', errors)
-                  // Note: form.formState.errors might not be updated yet, use errors parameter instead
-                  console.error('[AppActionForm] Validation errors (from callback):', errors)
-                  console.error('[AppActionForm] Form errors (from formState):', form.formState.errors)
-                  console.error('[AppActionForm] Form values:', form.getValues())
-                }
-              }
-            )}
+            onSubmit={form.handleSubmit(vals => handleSubmit(vals), handleValidationErrors)}
             className="gba:flex gba:flex-col gba:w-full gba:h-full"
             data-testid={`${dataTestId}-form`}
           >
@@ -445,23 +436,15 @@ export const AppActionForm: React.FC<AppActionFormProps> = ({
             {customActions}
           </form>
         </Form>
-      ) : form ? (
-        // Standard layout
+      )
+    }
+
+    // Standard layout with form
+    if (form) {
+      return (
         <Form {...(form as any)} schema={schema}>
           <form
-            onSubmit={form.handleSubmit(
-              vals => handleSubmit(vals),
-              errors => {
-                // Development-only validation error logging
-                if (process.env.NODE_ENV !== 'production') {
-                  console.error('[AppActionForm] Validation failed:', errors)
-                  // Note: form.formState.errors might not be updated yet, use errors parameter instead
-                  console.error('[AppActionForm] Validation errors (from callback):', errors)
-                  console.error('[AppActionForm] Form errors (from formState):', form.formState.errors)
-                  console.error('[AppActionForm] Form values:', form.getValues())
-                }
-              }
-            )}
+            onSubmit={form.handleSubmit(vals => handleSubmit(vals), handleValidationErrors)}
             className="gba:flex gba:flex-col gba:w-full gba:max-w-md gba:h-full"
             data-testid={`${dataTestId}-form`}
           >
@@ -471,13 +454,27 @@ export const AppActionForm: React.FC<AppActionFormProps> = ({
             {formNavigation}
           </form>
         </Form>
-      ) : (
-        // Fallback: no form wrapper (shouldn't happen in normal scenarios)
-        <div className="gba:flex gba:flex-col gba:w-full gba:h-full" data-testid={`${dataTestId}-content`}>
-          {children}
-          {customActions}
-        </div>
+      )
+    }
+
+    // Fallback: no form wrapper (shouldn't happen in normal scenarios)
+    return (
+      <div className="gba:flex gba:flex-col gba:w-full gba:h-full" data-testid={`${dataTestId}-content`}>
+        {children}
+        {customActions}
+      </div>
+    )
+  }
+
+  return (
+    <div className="gba:p-6 gba:h-full gba:flex gba:flex-col" data-testid={dataTestId}>
+      {message && message.type === 'error' && (
+        <Alert variant="destructive" className="gba:mb-4" data-testid={`${dataTestId}-message`}>
+          {message.message}
+        </Alert>
       )}
+
+      {renderFormContent()}
     </div>
   )
 }

@@ -5,7 +5,7 @@
  * This allows centralized maintenance of common catalogs while providing CRM-specific overrides.
  */
 
-export * from '@/common/data/relations/constants/catalogConstants'
+export * from '@/common/constants/catalogConstants'
 
 // CRM-specific overrides
 export const OPPORTUNITY_PIPELINE = 'SalesPipeline:v1'

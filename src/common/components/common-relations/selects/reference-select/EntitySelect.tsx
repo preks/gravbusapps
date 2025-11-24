@@ -24,6 +24,21 @@ export interface EntitySelectProps {
   ['data-testid']?: string
 }
 
+// Helper function to render avatar content
+const renderAvatarContent = (entity: EntitySelectOption, initials: string): React.ReactNode => {
+  if (entity.pictureThumbnail) {
+    return <AvatarImage src={`data:image/jpeg;base64,${entity.pictureThumbnail}`} alt={entity.name} />
+  }
+  if (entity.type === 'opportunity') {
+    return (
+      <AvatarFallback className="gba:text-xs">
+        <Rocket className="gba:w-3 gba:h-3" />
+      </AvatarFallback>
+    )
+  }
+  return <AvatarFallback className="gba:text-xs">{initials}</AvatarFallback>
+}
+
 const EntitySelect = React.forwardRef<HTMLButtonElement, EntitySelectProps & Record<string, any>>(
   (
     {
@@ -55,17 +70,7 @@ const EntitySelect = React.forwardRef<HTMLButtonElement, EntitySelectProps & Rec
           value: e.id,
           label: (
             <div className="gba:flex gba:items-start gba:gap-3 gba:w-full">
-              <Avatar className="gba:h-6 gba:w-6 gba:self-center">
-                {e.pictureThumbnail ? (
-                  <AvatarImage src={`data:image/jpeg;base64,${e.pictureThumbnail}`} alt={e.name} />
-                ) : e.type === 'opportunity' ? (
-                  <AvatarFallback className="gba:text-xs">
-                    <Rocket className="gba:w-3 gba:h-3" />
-                  </AvatarFallback>
-                ) : (
-                  <AvatarFallback className="gba:text-xs">{initials}</AvatarFallback>
-                )}
-              </Avatar>
+              <Avatar className="gba:h-6 gba:w-6 gba:self-center">{renderAvatarContent(e, initials)}</Avatar>
               <div className="gba:flex gba:flex-col gba:min-w-0 gba:flex-1">
                 <div className="gba:flex gba:items-center gba:w-full">
                   <div className="gba:flex-1 gba:min-w-0 gba:text-sm gba:font-medium gba:truncate gba:text-left">

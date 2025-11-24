@@ -286,7 +286,7 @@ export const buildInvestmentLeadConvertPayload = (
 
   // Handle Opportunity
   if (opportunity) {
-    const { investmentOpportunity } = buildInvestmentOpportunityPayload(opportunity as Partial<InvestmentOpportunity>)
+    const { investmentOpportunity } = buildInvestmentOpportunityPayload(opportunity)
     payload.opportunity = investmentOpportunity
   }
 

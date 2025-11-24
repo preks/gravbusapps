@@ -1,4 +1,4 @@
-import React from 'react'
+import React, { useMemo, useCallback } from 'react'
 import {
   FormField,
   FormItem,
@@ -14,7 +14,6 @@ import { EmployeeSelect } from '@/components/employee-select'
 import { AccountSelect } from '@/common/components/common-relations/selects/account-select'
 import { BusinessAppContextProps } from '@/common/BusinessAppContext'
 import type { SelectOption as AccountSelectOption } from '@/common/components/common-relations/selects/account-select'
-import { useMemo, useCallback } from 'react'
 import translations from './_i18n'
 
 interface ContactInformationSegmentProps {
@@ -95,23 +94,31 @@ const ContactInformationSegment: React.FC<ContactInformationSegmentProps> = ({
     [useAccounts?.refetch]
   )
 
+  // Helper function to parse picture string
+  const parsePictureString = (pictureStr: string): string | undefined => {
+    try {
+      const pictureData = JSON.parse(pictureStr)
+      return pictureData?.url || pictureData?.fileUrl || undefined
+    } catch {
+      return pictureStr
+    }
+  }
+
   // Get avatar image from form values (pictureThumbnail or picture)
   const pictureThumbnail = form.watch('pictureThumbnail')
   const picture = form.watch('picture')
-  const avatarImage = pictureThumbnail
-    ? `data:image/jpeg;base64,${pictureThumbnail}`
-    : picture
-      ? typeof picture === 'string'
-        ? (() => {
-            try {
-              const pictureData = JSON.parse(picture)
-              return pictureData?.url || pictureData?.fileUrl || undefined
-            } catch {
-              return picture
-            }
-          })()
-        : picture
-      : undefined
+  const avatarImage = (() => {
+    if (pictureThumbnail) {
+      return `data:image/jpeg;base64,${pictureThumbnail}`
+    }
+    if (picture) {
+      if (typeof picture === 'string') {
+        return parsePictureString(picture)
+      }
+      return picture
+    }
+    return undefined
+  })()
 
   return (
     <div className="gba:space-y-6 gba:w-full gba:max-w-full gba:overflow-hidden">
@@ -128,7 +135,7 @@ const ContactInformationSegment: React.FC<ContactInformationSegmentProps> = ({
                 onValueChange={(v: string | null) => field.onChange(v || '')}
                 businessAppContext={businessAppContext!}
                 initialEmployee={ownerEmployee}
-                autoSelect={!entityId ? 'current-user' : undefined}
+                autoSelect={entityId ? undefined : 'current-user'}
                 placeholder={t('please-select')}
                 data-testid="contact-information-segment-owner"
               />
@@ -263,34 +270,49 @@ const ContactInformationSegment: React.FC<ContactInformationSegmentProps> = ({
             // Transform accountContacts to AccountSelect format
             // accountContacts: Array<{ id, version, accountId, contactId, contactType }>
             // AccountSelect expects: Array<{ id, name, contactType }>
-            const accountSelectValue = React.useMemo(() => {
-              const accountContacts = field.value || []
-              return accountContacts.map((ac: any) => {
-                // If accountContact has account object with full data, use it
-                if (ac.account) {
-                  const account = ac.account
-                  const displayName = account.displayName || account.name || 'Unknown Account'
-                  return {
-                    id: ac.accountId || ac.account?.id || '',
-                    name: displayName,
-                    contactType: ac.contactType || undefined,
-                    pictureThumbnail: account.pictureThumbnail
-                  }
-                }
-                // Otherwise, use minimal data from accountContact
+            const accountContacts = field.value || []
+            const accountSelectValue = accountContacts.map((ac: any) => {
+              // If accountContact has account object with full data, use it
+              if (ac.account) {
+                const account = ac.account
+                const displayName = account.displayName || account.name || 'Unknown Account'
                 return {
-                  id: ac.accountId || '',
-                  name: ac.account?.name || 'Unknown Account',
-                  contactType: ac.contactType || undefined
+                  id: ac.accountId || ac.account?.id || '',
+                  name: displayName,
+                  contactType: ac.contactType || undefined,
+                  pictureThumbnail: account.pictureThumbnail
                 }
-              })
-            }, [field.value])
+              }
+              // Otherwise, use minimal data from accountContact
+              return {
+                id: ac.accountId || '',
+                name: ac.account?.name || 'Unknown Account',
+                contactType: ac.contactType || undefined
+              }
+            })
 
-            /**
-             * Transforms an account value to accountContact format
-             */
-            const transformAccountValueToAccountContact = useCallback(
-              (accountValue: any, contactId: string | undefined, existingAccountContacts: any[]) => {
+            // Handle onChange - transform back to accountContacts format
+            const handleChange = (
+              accountIds:
+                | string
+                | Array<string | { id: string; name: string; contactType?: string }>
+                | { id: string; name: string; contactType?: string }
+                | { id: string; name: string }
+                | null
+            ) => {
+              // Normalize to array
+              let normalizedValue: Array<string | { id: string; name: string; contactType?: string }>
+              if (Array.isArray(accountIds)) {
+                normalizedValue = accountIds
+              } else if (accountIds === null || accountIds === '') {
+                normalizedValue = []
+              } else {
+                normalizedValue = [accountIds]
+              }
+
+              const contactId = form.getValues('id')
+              const existingAccountContacts = field.value || []
+              const accountContacts = normalizedValue.map((accountValue: any) => {
                 const accountId = typeof accountValue === 'object' ? accountValue.id : accountValue
                 const contactType = typeof accountValue === 'object' ? accountValue.contactType : undefined
 
@@ -307,38 +329,9 @@ const ContactInformationSegment: React.FC<ContactInformationSegmentProps> = ({
                   contactId: contactId || undefined,
                   contactType: contactType || null
                 }
-              },
-              []
-            )
-
-            // Handle onChange - transform back to accountContacts format
-            const handleChange = useCallback(
-              (
-                accountIds:
-                  | string
-                  | Array<string | { id: string; name: string; contactType?: string }>
-                  | { id: string; name: string; contactType?: string }
-                  | { id: string; name: string }
-                  | null
-              ) => {
-                // Normalize to array
-                let normalizedValue: Array<string | { id: string; name: string; contactType?: string }>
-                if (Array.isArray(accountIds)) {
-                  normalizedValue = accountIds
-                } else if (accountIds === null || accountIds === '') {
-                  normalizedValue = []
-                } else {
-                  normalizedValue = [accountIds]
-                }
-
-                const contactId = form.getValues('id')
-                const accountContacts = normalizedValue.map((accountValue: any) =>
-                  transformAccountValueToAccountContact(accountValue, contactId, field.value || [])
-                )
-                field.onChange(accountContacts)
-              },
-              [form, field, transformAccountValueToAccountContact]
-            )
+              })
+              field.onChange(accountContacts)
+            }
 
             return (
               <FormItem>

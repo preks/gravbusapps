@@ -10,7 +10,7 @@ import type { Lead } from '@/common/data/relations/types/leadTypes'
  * @param phoneField - Field name for phone (e.g., 'phoneNumber' or 'companyPhone')
  */
 export function mapLeadCommunicationChannels(
-  leadData: Lead | any,
+  leadData: Lead | Record<string, unknown>,
   emailField: string = 'email',
   phoneField: string = 'phoneNumber'
 ): {

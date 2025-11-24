@@ -12,7 +12,7 @@ import {
 import { useFormContext, useFieldArray } from 'react-hook-form'
 import { CatalogSelect } from '@/components/catalog-select'
 import { PiPlus, PiMinus } from 'react-icons/pi'
-import { LEGAL_FORM, INDUSTRY_CLASS, COUNTRY, COUNTRY_REGION } from '@/common/data/relations/constants/catalogConstants'
+import { LEGAL_FORM, INDUSTRY_CLASS, COUNTRY, COUNTRY_REGION } from '@/common/constants/catalogConstants'
 import translations from './_i18n'
 
 interface LeadCompanySegmentProps {

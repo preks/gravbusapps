@@ -19,7 +19,7 @@ import {
   LEAD_RATING,
   COMPANY_SIZE,
   ANNUAL_REVENUE
-} from '@/common/data/customer/constants/catalogConstants'
+} from '@/common/data/customer/constants/customerCatalogs'
 import { ErrorAlert } from '@/components/error-alert'
 
 // CRM-specific schema extension (adds salesCampaignId)

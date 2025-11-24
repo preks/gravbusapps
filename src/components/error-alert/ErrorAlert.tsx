@@ -22,7 +22,7 @@ export interface ErrorItem {
 
 export interface ErrorAlertProps {
   // Single error mode
-  error?: Error | string | unknown
+  error?: Error | string
   type?: ErrorType // Optional: Auto-detect wenn nicht angegeben
   context?: string // Optional: Zusätzlicher Kontext
   dataTestId?: string
@@ -32,8 +32,18 @@ export interface ErrorAlertProps {
   prefixDataTestId?: string // For error collection (e.g., 'customer-activity-form')
 }
 
+const getErrorString = (error: unknown): string => {
+  if (typeof error === 'string') {
+    return error
+  }
+  if (error instanceof Error) {
+    return error.message
+  }
+  return String(error)
+}
+
 const getErrorType = (error: unknown): ErrorType => {
-  const errorString = typeof error === 'string' ? error : error instanceof Error ? error.message : String(error)
+  const errorString = getErrorString(error)
 
   if (!errorString) return 'unknown'
 

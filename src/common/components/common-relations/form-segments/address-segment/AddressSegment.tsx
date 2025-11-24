@@ -17,7 +17,7 @@ import {
 import { PiPlus, PiMinus, PiTrash } from 'react-icons/pi'
 import { useFormContext, useFieldArray } from 'react-hook-form'
 import { CatalogSelect } from '@/components/catalog-select'
-import { COUNTRY, COUNTRY_REGION } from '@/common/data/relations/constants/catalogConstants'
+import { COUNTRY, COUNTRY_REGION } from '@/common/constants/catalogConstants'
 import { AddressType, ADDRESS_TYPE_OPTIONS } from '@/common/data/relations/types/relationEnums'
 import translations from './_i18n'
 

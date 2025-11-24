@@ -1,5 +1,5 @@
 import { useCallback, useMemo, useEffect, useRef } from 'react'
-import { useForm } from 'react-hook-form'
+import { useForm, FormProvider } from 'react-hook-form'
 import { zodResolver } from '@hookform/resolvers/zod'
 import { z } from 'zod'
 import { type WizardStep } from '@newwork/nw-design-system'
@@ -32,7 +32,6 @@ import {
   LeadConvertContactStep,
   LeadConvertOpportunityStep
 } from '@/common/components/common-relations/form-layouts/lead-convert-layout'
-import { FormProvider } from 'react-hook-form'
 import { CatalogSelect } from '@/components/catalog-select'
 import { ErrorAlert } from '@/components/error-alert'
 import { formatDataTestId } from '@/common/utils/formatDataTestId'
@@ -300,7 +299,7 @@ export const ConvertInvestmentLeadForm = ({
       const emailChannel = contact.communicationChannels?.find(
         (ch: any) => ch.communicationChannel?.code === 'EMAIL' || ch.communicationChannelRef?.includes(':EMAIL')
       )
-      const email = emailChannel?.value || (contact as any).email || undefined
+      const email = emailChannel?.value || contact.email || undefined
 
       return {
         id: contact.id || '',
@@ -566,6 +565,28 @@ export const ConvertInvestmentLeadForm = ({
     contactAvatarFileRef
   ])
 
+  // Helper function to determine account object from form data
+  const getAccountFromFormData = (data: LeadConvertSchema): Partial<InvestmentAccount> | { id: string } | undefined => {
+    if (data.accountOption === 'match' && data.selectedAccountId) {
+      return { id: data.selectedAccountId }
+    }
+    if (data.accountOption === 'create') {
+      return accountForm.getValues() as Partial<InvestmentAccount>
+    }
+    return undefined
+  }
+
+  // Helper function to determine contact object from form data
+  const getContactFromFormData = (data: LeadConvertSchema): Partial<InvestmentContact> | { id: string } | undefined => {
+    if (data.contactOption === 'match' && data.selectedContactId) {
+      return { id: data.selectedContactId }
+    }
+    if (data.contactOption === 'create') {
+      return contactForm.getValues() as Partial<InvestmentContact>
+    }
+    return undefined
+  }
+
   const handleSubmit = useCallback(
     async (data: LeadConvertSchema): Promise<any> => {
       // Guard clause: Check if form is ready for conversion
@@ -577,19 +598,8 @@ export const ConvertInvestmentLeadForm = ({
 
       // Determine account, contact, opportunity objects based on form data
       // Get form values directly when needed (like other forms - no subscriptions!)
-      const account =
-        data.accountOption === 'match' && data.selectedAccountId
-          ? { id: data.selectedAccountId }
-          : data.accountOption === 'create'
-            ? (accountForm.getValues() as Partial<InvestmentAccount>)
-            : undefined
-
-      const contact =
-        data.contactOption === 'match' && data.selectedContactId
-          ? { id: data.selectedContactId }
-          : data.contactOption === 'create'
-            ? (contactForm.getValues() as Partial<InvestmentContact>)
-            : undefined
+      const account = getAccountFromFormData(data)
+      const contact = getContactFromFormData(data)
 
       // For opportunity: merge base form values with dynamic prospect fields
       const opportunity = data.createOpportunity

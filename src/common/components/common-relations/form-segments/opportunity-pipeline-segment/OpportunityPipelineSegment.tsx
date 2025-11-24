@@ -6,7 +6,7 @@ import {
   OPPORTUNITY_PIPELINE,
   OPPORTUNITY_PIPELINE_STAGE,
   OPPORTUNITY_STATUS
-} from '@/common/data/customer/constants/catalogConstants'
+} from '@/common/data/customer/constants/customerCatalogs'
 import translations from './_i18n'
 
 interface OpportunityPipelineSegmentProps {

@@ -37,14 +37,24 @@ function transformDateForForm(value: string, fieldName: string): string {
  * - numbers → strings (for number inputs)
  */
 /**
+ * Helper to unwrap ZodOptional or ZodNullable to get inner type
+ */
+const unwrapZodType = (schemaField: z.ZodTypeAny): z.ZodTypeAny => {
+  if (schemaField instanceof z.ZodOptional) {
+    return schemaField.unwrap()
+  }
+  if (schemaField instanceof z.ZodNullable) {
+    return schemaField.unwrap()
+  }
+  return schemaField
+}
+
+/**
  * Checks if schema field expects a number type
  */
 const isNumberSchemaType = (schemaField: z.ZodTypeAny): boolean => {
-  return (
-    schemaField instanceof z.ZodNumber ||
-    (schemaField instanceof z.ZodOptional && schemaField._def.innerType instanceof z.ZodNumber) ||
-    (schemaField instanceof z.ZodNullable && schemaField._def.innerType instanceof z.ZodNumber)
-  )
+  const unwrapped = unwrapZodType(schemaField)
+  return unwrapped instanceof z.ZodNumber
 }
 
 /**

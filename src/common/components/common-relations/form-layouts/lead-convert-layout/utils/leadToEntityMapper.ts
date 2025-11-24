@@ -12,7 +12,9 @@ import { mapLeadAddresses, mapLeadCommunicationChannels } from './index'
  * Map Lead data to Account initial values
  * Works for both CustomerAccount and InvestmentAccount
  */
-export function mapLeadToAccount<T extends CustomerAccount | InvestmentAccount>(leadData: Lead | any): Partial<T> {
+export function mapLeadToAccount<T extends CustomerAccount | InvestmentAccount>(
+  leadData: Lead | Record<string, unknown>
+): Partial<T> {
   if (!leadData) return {}
 
   const addressData = mapLeadAddresses(leadData)
@@ -33,12 +35,16 @@ export function mapLeadToAccount<T extends CustomerAccount | InvestmentAccount>(
             locality: addressData.locality || undefined,
             regionRef: addressData.regionRef || undefined,
             countryRef: addressData.countryRef || undefined
-          } as any
+          } as Partial<T>['addresses'] extends (infer U)[] ? U : never
         ]
       : undefined
 
   // Convert flat communication fields to communicationChannels array format for Account
-  const communicationChannels: any[] = []
+  const communicationChannels: Array<{
+    communicationChannelRef: string
+    value: string
+    valueExtension: string | null
+  }> = []
   if (communicationData.email) {
     communicationChannels.push({
       communicationChannelRef: 'CommunicationChannel:v1:EMAIL',
@@ -73,13 +79,19 @@ export function mapLeadToAccount<T extends CustomerAccount | InvestmentAccount>(
  * Map Lead data to Contact initial values
  * Works for both CustomerContact and InvestmentContact
  */
-export function mapLeadToContact<T extends CustomerContact | InvestmentContact>(leadData: Lead | any): Partial<T> {
+export function mapLeadToContact<T extends CustomerContact | InvestmentContact>(
+  leadData: Lead | Record<string, unknown>
+): Partial<T> {
   if (!leadData) return {}
 
   const communicationData = mapLeadCommunicationChannels(leadData, 'email', 'phoneNumber')
 
   // Convert flat communication fields to communicationChannels array format for Contact
-  const communicationChannels: any[] = []
+  const communicationChannels: Array<{
+    communicationChannelRef: string
+    value: string
+    valueExtension: string | null
+  }> = []
   if (communicationData.email) {
     communicationChannels.push({
       communicationChannelRef: 'CommunicationChannel:v1:EMAIL',
@@ -111,7 +123,9 @@ export function mapLeadToContact<T extends CustomerContact | InvestmentContact>(
 /**
  * Map Lead data to Customer Opportunity initial values
  */
-export function mapLeadToCustomerOpportunity(leadData: Lead | any): Partial<z.infer<typeof opportunitySchema>> {
+export function mapLeadToCustomerOpportunity(
+  leadData: Lead | Record<string, unknown>
+): Partial<z.infer<typeof opportunitySchema>> {
   if (!leadData) return {}
 
   return {
@@ -126,7 +140,9 @@ export function mapLeadToCustomerOpportunity(leadData: Lead | any): Partial<z.in
 /**
  * Map Lead data to Investment Opportunity initial values
  */
-export function mapLeadToInvestmentOpportunity(leadData: Lead | any): Partial<InvestmentOpportunity> {
+export function mapLeadToInvestmentOpportunity(
+  leadData: Lead | Record<string, unknown>
+): Partial<InvestmentOpportunity> {
   if (!leadData) return {}
 
   return {

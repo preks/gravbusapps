@@ -1,5 +1,6 @@
 import React from 'react'
 import * as PhosphorIcons from '@phosphor-icons/react'
+import { InfoIcon } from '@phosphor-icons/react'
 
 // Type for icon components
 export type IconComponent = React.ComponentType<React.SVGProps<SVGSVGElement>>
@@ -13,7 +14,7 @@ export type IconComponent = React.ComponentType<React.SVGProps<SVGSVGElement>>
  */
 export const getPhosphorIcon = (iconName: string): IconComponent => {
   if (!iconName) {
-    return PhosphorIcons.Info
+    return InfoIcon
   }
 
   // Try exact match first
@@ -46,5 +47,5 @@ export const getPhosphorIcon = (iconName: string): IconComponent => {
   }
 
   // Fallback to Info icon
-  return PhosphorIcons.Info
+  return InfoIcon
 }

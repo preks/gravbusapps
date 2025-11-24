@@ -66,9 +66,6 @@ interface AccountSelectProps {
 
   // Component behavior
   multiple?: boolean
-
-  // Optional callbacks
-  onNewAccount?: () => void
 }
 
 const AccountSelect: React.FC<AccountSelectProps> = ({
@@ -96,7 +93,7 @@ const AccountSelect: React.FC<AccountSelectProps> = ({
     if (Array.isArray(value)) return value
     if (value === null || value === '') return []
     // If value is string and initialAccount matches, create object with name from initialAccount
-    if (typeof value === 'string' && initialAccount && initialAccount.id === value) {
+    if (typeof value === 'string' && initialAccount?.id === value) {
       return [
         {
           id: value,
@@ -294,7 +291,7 @@ const AccountSelect: React.FC<AccountSelectProps> = ({
     }
 
     // Priority 3: Try initialAccount (from entity data, like initialEmployee in EmployeeSelect)
-    if (initialAccount && initialAccount.id === accountId) {
+    if (initialAccount?.id === accountId) {
       return {
         id: accountId,
         value: accountId,
@@ -408,16 +405,16 @@ const AccountSelect: React.FC<AccountSelectProps> = ({
       .filter(a => {
         // For single-select: keep all accounts (including selected) so Combobox can display the value
         // For multiple-select: filter out already selected accounts
-        return multiple ? !selectedAccountIds.has(a.id as string) : true
+        return multiple ? !selectedAccountIds.has(a.id) : true
       })
       .map(a => {
-        const accountData = getAccountData({ id: a.id as string, name: a.label || a.name })
+        const accountData = getAccountData({ id: a.id, name: a.label || a.name })
         // Combobox only supports string labels, so we provide name + website
         const label = accountData?.extraInfo?.website
           ? `${accountData.label} - ${accountData.extraInfo.website}`
           : accountData?.label || a.label
         return {
-          value: a.id as string,
+          value: a.id,
           label
         }
       })
@@ -427,22 +424,15 @@ const AccountSelect: React.FC<AccountSelectProps> = ({
   if (multiple && internalValue.length === 0 && !showAddExisting) {
     return (
       <div className="gba:space-y-2">
-        <div
-          role="button"
-          tabIndex={0}
-          className="gba:border-2 gba:border-dashed gba:border-muted-foreground/25 gba:rounded-lg gba:p-6 gba:text-center gba:cursor-pointer hover:gba:border-muted-foreground/50 gba:transition-colors"
+        <button
+          type="button"
+          className="gba:border-2 gba:border-dashed gba:border-muted-foreground/25 gba:rounded-lg gba:p-6 gba:text-center gba:cursor-pointer hover:gba:border-muted-foreground/50 gba:transition-colors gba:w-full gba:bg-transparent"
           onClick={() => setShowAddExisting(true)}
-          onKeyDown={e => {
-            if (e.key === 'Enter' || e.key === ' ') {
-              e.preventDefault()
-              setShowAddExisting(true)
-            }
-          }}
           data-testid={formatDataTestId(dataTestId || 'account-list', 'empty-state')}
         >
           <PiPlus className="gba:mx-auto gba:h-8 gba:w-8 gba:text-muted-foreground gba:mb-2" />
           <p className="gba:text-sm gba:text-muted-foreground">No accounts selected. Click to add an account.</p>
-        </div>
+        </button>
 
         {error && (
           <Alert variant="destructive">

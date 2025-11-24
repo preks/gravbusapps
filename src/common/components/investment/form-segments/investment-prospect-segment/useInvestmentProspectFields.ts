@@ -8,7 +8,7 @@ import {
 
 // FormFieldsDefinition interface (matching InvestmentCatalogQueries)
 export interface FormFieldDefinition {
-  type: 'DATE' | 'DATETIME' | 'AMOUNT' | 'TEXT' | 'TEXTAREA' | string
+  type: 'DATE' | 'DATETIME' | 'AMOUNT' | 'TEXT' | 'TEXTAREA'
   label: string
   property: string
   required: boolean
@@ -98,7 +98,10 @@ const hasReferenceFields = (entry: any, childEntries?: any[]): boolean => {
 /**
  * Helper: Check if type has referenceFields (directly or in parent group)
  */
-const typeHasReferenceFields = (typeEntry: any, groupEntry: any | null): boolean => {
+const typeHasReferenceFields = (
+  typeEntry: Record<string, unknown>,
+  groupEntry: Record<string, unknown> | null
+): boolean => {
   const typeObjValue = parseObjectValue(typeEntry.objectValue)
   if (
     typeObjValue?.referenceFields &&

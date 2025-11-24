@@ -1,5 +1,5 @@
 import { useCallback, useMemo, useEffect, useRef } from 'react'
-import { useForm } from 'react-hook-form'
+import { useForm, FormProvider } from 'react-hook-form'
 import { zodResolver } from '@hookform/resolvers/zod'
 import { z } from 'zod'
 import { type WizardStep, FormField, FormItem, FormLabel, FormControl, FormMessage } from '@newwork/nw-design-system'
@@ -32,7 +32,6 @@ import {
   LeadConvertContactStep,
   LeadConvertOpportunityStep
 } from '@/common/components/common-relations/form-layouts/lead-convert-layout'
-import { FormProvider } from 'react-hook-form'
 import { CatalogSelect } from '@/components/catalog-select'
 import { CampaignSelect } from '@/common/components/customer/selects/campaign-select'
 import { ErrorAlert } from '@/components/error-alert'
@@ -230,7 +229,7 @@ export const LeadConvertForm = ({ accessToken, userInfo, additionalData, onSucce
       const emailChannel = contact.communicationChannels?.find(
         (ch: any) => ch.communicationChannel?.code === 'EMAIL' || ch.communicationChannelRef?.includes(':EMAIL')
       )
-      const email = emailChannel?.value || (contact as any).email || undefined
+      const email = emailChannel?.value || contact.email || undefined
 
       return {
         id: contact.id || '',

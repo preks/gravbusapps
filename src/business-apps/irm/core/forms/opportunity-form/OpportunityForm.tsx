@@ -41,7 +41,7 @@ import {
   OPPORTUNITY_PIPELINE,
   OPPORTUNITY_PIPELINE_STAGE,
   OPPORTUNITY_STATUS
-} from '@/common/data/investment/constants/catalogConstants'
+} from '@/common/data/investment/constants/investmentCatalogs'
 
 const prefixDataTestId = 'InvestmentOpportunityForm'
 
@@ -221,7 +221,7 @@ const InvestmentOpportunityForm: React.FC<InvestmentOpportunityFormProps> = ({
   }
 
   // Deal Type selector (IRM-specific custom field)
-  const dealTypeField = !dealType ? (
+  const dealTypeField = dealType ? null : (
     <FormField
       control={form.control as any}
       name="dealType"
@@ -250,7 +250,7 @@ const InvestmentOpportunityForm: React.FC<InvestmentOpportunityFormProps> = ({
         </FormItem>
       )}
     />
-  ) : null
+  )
 
   // Collect all errors for centralized early return (AFTER all hooks)
   const errors: Array<{ error?: string | Error; type?: 'accessToken'; context?: string }> = []

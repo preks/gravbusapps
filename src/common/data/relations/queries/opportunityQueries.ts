@@ -185,26 +185,32 @@ export const buildOpportunityByIdQuery = (
         ${entityFields.winningChance}
   `
 
+  // Helper function to build account relation string
+  const buildAccountRelation = (
+    accountField: string | undefined,
+    relationBuilders: OpportunityRelationBuilders,
+    accountFields: any
+  ): string => {
+    if (!accountField) return ''
+    return `${accountField} {
+      ${relationBuilders.buildAccountFragment(accountFields)}
+      # ✅ Relations direkt hier hinzufügen (nicht im Fragment)
+      ${accountFields.communicationChannels}(where: { isDeleted: { _eq: false } }) {
+        ${COMMUNICATION_CHANNEL_REF}
+      }
+      ${accountFields.addresses}(where: { isDeleted: { _eq: false } }) {
+        ${ADDRESS_REF}
+      }
+    }`
+  }
+
   // Common entity relations
   const commonRelations =
     relationBuilders && relationFields
       ? `
     # Account relation
     ${entityFields.accountId}
-    ${
-      entityFields.account
-        ? `${entityFields.account} {
-      ${relationBuilders.buildAccountFragment(relationFields.accountFields)}
-      # ✅ Relations direkt hier hinzufügen (nicht im Fragment)
-      ${relationFields.accountFields.communicationChannels}(where: { isDeleted: { _eq: false } }) {
-        ${COMMUNICATION_CHANNEL_REF}
-      }
-      ${relationFields.accountFields.addresses}(where: { isDeleted: { _eq: false } }) {
-        ${ADDRESS_REF}
-      }
-    }`
-        : ''
-    }
+    ${buildAccountRelation(entityFields.account, relationBuilders, relationFields.accountFields)}
     
     # Common entity relations (present in both IRM and CRM)
     ${entityFields.communicationChannels}(where: { isDeleted: { _eq: false } }) {

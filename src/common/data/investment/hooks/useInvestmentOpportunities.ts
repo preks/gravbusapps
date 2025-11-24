@@ -2,7 +2,8 @@
 import { useCallback, useState, useEffect, useMemo } from 'react'
 import { useGraphQLClient } from '@/common/network/graphql/useGraphQLClient'
 import { BusinessAppContextProps } from '@/common/BusinessAppContext'
-import type { InvestmentOpportunity } from '../types/investmentOpportunityTypes'
+import type { InvestmentOpportunity, INVESTMENT_OPPORTUNITY_DESCRIPTORS } from '../types/investmentOpportunityTypes'
+import { toInvestmentOpportunity } from '../types/investmentOpportunityTypes'
 import type { InvestmentTask } from '../types/investmentTaskTypes'
 import type { InvestmentActivity } from '../types/investmentActivityTypes'
 import type { InvestmentNote } from '../types/investmentNoteTypes'
@@ -42,10 +43,8 @@ import {
 import { buildWhere } from '@/common/network/graphql/queryHelpers'
 
 // Use the mapper function
-import { toInvestmentOpportunity } from '../types/investmentOpportunityTypes'
 import { toInvestmentTask } from '../mappers/investmentTaskMappers'
 import { toInvestmentActivity, toInvestmentNote, toInvestmentDocument } from '../mappers/investmentRelatedEntityMappers'
-import { INVESTMENT_OPPORTUNITY_DESCRIPTORS } from '../types/investmentOpportunityTypes'
 
 // Note: InvestmentOpportunityQueryVariables is imported from queries
 

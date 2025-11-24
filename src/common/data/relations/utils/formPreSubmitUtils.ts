@@ -4,7 +4,7 @@
  */
 
 import type { FileClient } from '@/common/network/files/FileClient'
-import { uploadFiles, type FileEntity } from '@/common/utils/fileUtils'
+import { uploadFiles, type FileEntity, type FileContext } from '@/common/utils/fileUtils'
 
 export interface PreSubmitOptions {
   /** User info for setting creator/author fields */
@@ -51,17 +51,20 @@ export const createFormPreSubmitHandler = (options: PreSubmitOptions) => {
 
   return async (data: any) => {
     // Set creator/author fields if not present
+    const employeeId = userInfo?.employeeDetails?.employeeId
+    const userId = userInfo?.id
+
     if (useCreatorFields) {
-      if (!data.creatorEmployeeId && userInfo?.employeeDetails?.employeeId) {
-        data.creatorEmployeeId = userInfo.employeeDetails.employeeId
+      if (!data.creatorEmployeeId && employeeId) {
+        data.creatorEmployeeId = employeeId
       }
-      if (!data.creatorUserId && userInfo?.id) {
-        data.creatorUserId = userInfo.id
+      if (!data.creatorUserId && userId) {
+        data.creatorUserId = userId
       }
     } else {
       // Notes use authorEmployeeId instead of creatorEmployeeId
-      if (!data.authorEmployeeId && userInfo?.employeeDetails?.employeeId) {
-        data.authorEmployeeId = userInfo.employeeDetails.employeeId
+      if (!data.authorEmployeeId && employeeId) {
+        data.authorEmployeeId = employeeId
       }
     }
 
@@ -71,22 +74,25 @@ export const createFormPreSubmitHandler = (options: PreSubmitOptions) => {
       try {
         // Determine reference entity from form data
         // Check additional fields first (e.g., investmentId), then standard fields
-        const referenceEntityId =
-          additionalEntityIdFields.map(field => data[field]).find(id => id) ||
-          data.accountId ||
-          data.contactId ||
-          data.leadId ||
-          data.opportunityId ||
-          'temp-' + Date.now()
+        const findReferenceEntityId = (): string => {
+          const additionalId = additionalEntityIdFields.map(field => data[field]).find(Boolean)
+          if (additionalId) return additionalId
+          if (data.accountId) return data.accountId
+          if (data.contactId) return data.contactId
+          if (data.leadId) return data.leadId
+          if (data.opportunityId) return data.opportunityId
+          return 'temp-' + Date.now()
+        }
+        const referenceEntityId = findReferenceEntityId()
 
         const referenceEntityType = getReferenceEntityType(data)
-        const fileEntity = getFileEntityFromType(referenceEntityType as any) as FileEntity
+        const fileEntity = getFileEntityFromType(referenceEntityType) as FileEntity
 
         uploadedDocuments = await uploadFiles(
           data._pendingFiles,
           referenceEntityId,
           fileEntity,
-          fileContext as any,
+          fileContext as FileContext,
           appName,
           fileClient
         )

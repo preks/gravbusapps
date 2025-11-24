@@ -50,6 +50,53 @@ const extractOpportunityId = (additionalDataRecord: Record<string, any>): string
   )
 }
 
+// Helper to add investment and account from context
+const addInvestmentAndAccountFromContext = (
+  refs: Record<string, any>,
+  additionalDataRecord: Record<string, any>
+): void => {
+  const investmentId = extractInvestmentId(additionalDataRecord)
+  if (investmentId) {
+    refs.investment = investmentId
+    const accountIdFromContext = extractAccountId(additionalDataRecord)
+    if (accountIdFromContext && !refs.account) {
+      refs.account = accountIdFromContext
+    }
+  }
+}
+
+// Helper to add entities from context as fallback
+const addEntitiesFromContextFallback = (refs: Record<string, any>, additionalDataRecord: Record<string, any>): void => {
+  if (!refs.account) {
+    const accountIdFromContext = extractAccountId(additionalDataRecord)
+    if (accountIdFromContext) {
+      refs.account = accountIdFromContext
+    }
+  }
+  if (!refs.contact) {
+    const contactIdFromContext = extractContactId(additionalDataRecord)
+    if (contactIdFromContext) {
+      refs.contact = contactIdFromContext
+    }
+  }
+  if (!refs.opportunity) {
+    const opportunityIdFromContext = extractOpportunityId(additionalDataRecord)
+    if (opportunityIdFromContext) {
+      refs.opportunity = opportunityIdFromContext
+    }
+  }
+}
+
+// Helper to add lead from context
+const addLeadFromContext = (refs: Record<string, any>, additionalDataRecord: Record<string, any>): void => {
+  if (refs.lead) return
+  const external = additionalDataRecord.externalContextData || {}
+  const leadId = additionalDataRecord.leadId || additionalDataRecord.lead?.id || external.leadId || external.lead?.id
+  if (leadId) {
+    refs.lead = leadId
+  }
+}
+
 export const buildActivityPayload = (
   activity: Activity,
   businessAppContext: BusinessAppContextProps,
@@ -70,39 +117,9 @@ export const buildActivityPayload = (
 
     // Always include parent investment when provided via additional/external context
     const additionalDataRecord = extractAdditionalData((businessAppContext as any)?.additionalData)
-    const investmentId = extractInvestmentId(additionalDataRecord)
-
-    if (investmentId) {
-      refs.investment = investmentId
-      // Also include the investment's account if available and not already set
-      const accountIdFromContext = extractAccountId(additionalDataRecord)
-      if (accountIdFromContext && !refs.account) {
-        refs.account = accountIdFromContext
-      }
-    }
-
-    // If related entity was not set via ActivitySegment, try to infer from additional/external context
-    if (!refs.account) {
-      const accountIdFromContext = extractAccountId(additionalDataRecord)
-      if (accountIdFromContext) {
-        refs.account = accountIdFromContext
-      }
-    }
-    if (!refs.contact) {
-      const contactIdFromContext = extractContactId(additionalDataRecord)
-      if (contactIdFromContext) {
-        refs.contact = contactIdFromContext
-      }
-    }
-    if (!refs.opportunity) {
-      const opportunityIdFromContext = extractOpportunityId(additionalDataRecord)
-      if (opportunityIdFromContext) {
-        refs.opportunity = opportunityIdFromContext
-      }
-    }
-    if (!refs.lead && (additional.leadId || additional.lead?.id || external.leadId || external.lead?.id)) {
-      refs.lead = additional.leadId || additional.lead?.id || external.leadId || external.lead?.id
-    }
+    addInvestmentAndAccountFromContext(refs, additionalDataRecord)
+    addEntitiesFromContextFallback(refs, additionalDataRecord)
+    addLeadFromContext(refs, additionalDataRecord)
     return refs
   }
 
@@ -309,40 +326,9 @@ export const buildInvestmentNotePayload = (
 
     // Always include parent investment when provided via additionalData or externalContextData
     const additionalDataRecord = extractAdditionalData((businessAppContext as any)?.additionalData)
-    const investmentId = extractInvestmentId(additionalDataRecord)
-
-    if (investmentId) {
-      refs.investment = investmentId
-
-      // Include the investment's account to satisfy backend validation when available
-      const accountIdFromContext = extractAccountId(additionalDataRecord)
-      if (accountIdFromContext && !refs.account) {
-        refs.account = accountIdFromContext
-      }
-    }
-
-    // If related entity was not set via NoteSegment, try to infer from additional/external context
-    if (!refs.account) {
-      const accountIdFromContext = extractAccountId(additionalDataRecord)
-      if (accountIdFromContext) {
-        refs.account = accountIdFromContext
-      }
-    }
-    if (!refs.contact) {
-      const contactIdFromContext = extractContactId(additionalDataRecord)
-      if (contactIdFromContext) {
-        refs.contact = contactIdFromContext
-      }
-    }
-    if (!refs.opportunity) {
-      const opportunityIdFromContext = extractOpportunityId(additionalDataRecord)
-      if (opportunityIdFromContext) {
-        refs.opportunity = opportunityIdFromContext
-      }
-    }
-    if (!refs.lead && (additional.leadId || additional.lead?.id || external.leadId || external.lead?.id)) {
-      refs.lead = additional.leadId || additional.lead?.id || external.leadId || external.lead?.id
-    }
+    addInvestmentAndAccountFromContext(refs, additionalDataRecord)
+    addEntitiesFromContextFallback(refs, additionalDataRecord)
+    addLeadFromContext(refs, additionalDataRecord)
     return refs
   }
 

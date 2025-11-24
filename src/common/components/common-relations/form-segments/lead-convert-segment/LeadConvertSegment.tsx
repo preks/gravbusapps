@@ -143,7 +143,6 @@ export const LeadConvertSegment: React.FC<LeadConvertSegmentProps> = ({
                         accountsLoading={isLoadingAccounts}
                         accountsError={null}
                         searchAccounts={searchAccounts}
-                        multiple={false}
                       />
                       <FormMessage />
                     </FormItem>
@@ -215,7 +214,6 @@ export const LeadConvertSegment: React.FC<LeadConvertSegmentProps> = ({
                         contactsLoading={isLoadingContacts}
                         contactsError={null}
                         searchContacts={searchContacts}
-                        multiple={false}
                       />
                       <FormMessage />
                     </FormItem>

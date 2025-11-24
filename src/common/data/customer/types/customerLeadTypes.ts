@@ -203,9 +203,7 @@ export const buildCustomerLeadConvertPayload = (
 
   // Handle Opportunity
   if (opportunity) {
-    const { opportunity: opportunityPayload } = buildCustomerOpportunityPayload(
-      opportunity as Partial<CustomerOpportunity>
-    )
+    const { opportunity: opportunityPayload } = buildCustomerOpportunityPayload(opportunity)
     payload.opportunity = opportunityPayload
   }
 

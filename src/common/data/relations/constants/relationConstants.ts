@@ -1,5 +1,4 @@
-import type { FileEntity, FileContext } from '@/common/utils/fileUtils'
-export type { FileEntity, FileContext }
+export type { FileEntity, FileContext } from '@/common/utils/fileUtils'
 
 export const FILE_ENTITY = {
   UNKNOWN: 'unknown' as FileEntity,

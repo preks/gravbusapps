@@ -243,6 +243,36 @@ const CatalogSelect: React.FC<CatalogSelectProps> = ({
   }, [isControlled, onValueChange, wiredControllerValue, value, fieldName])
   const testId = dataTestId || `catalog-select-${fieldName}-${wiredVariant}`
 
+  // Helper: Find nearest scrollable parent element
+  const findScrollableParent = React.useCallback((element: Element | null): Element | undefined => {
+    let cur: Element | null = element
+    while (cur) {
+      const style = window.getComputedStyle(cur)
+      const overflowY = style.overflowY
+      if (overflowY === 'auto' || overflowY === 'scroll') {
+        return cur
+      }
+      cur = cur.parentElement
+    }
+    return undefined
+  }, [])
+
+  // Helper: Create intersection observer for load more sentinel
+  const createLoadMoreObserver = React.useCallback(
+    (node: HTMLDivElement, root: Element | undefined) => {
+      return new IntersectionObserver(
+        entries => {
+          const entry = entries[0]
+          if (entry && entry.isIntersecting) {
+            wiredOnLoadMore?.()
+          }
+        },
+        { root }
+      )
+    },
+    [wiredOnLoadMore]
+  )
+
   // Do not force a no-op search; rely on prefetched options and sentinel observer
   const observerRef = React.useRef<IntersectionObserver | null>(null)
   const setSentinelRef = React.useCallback(
@@ -252,35 +282,16 @@ const CatalogSelect: React.FC<CatalogSelectProps> = ({
         observerRef.current = null
       }
       if (!node || !wiredOnLoadMore || !wiredHasMore) return
+
       // Use dropdown viewport as root if available to get correct intersection behavior
-      let root: Element | undefined = undefined
       const parent = node.parentElement
-      if (parent) {
-        // find nearest scrollable parent
-        let cur: Element | null = parent
-        while (cur) {
-          const style = window.getComputedStyle(cur)
-          const overflowY = style.overflowY
-          if (overflowY === 'auto' || overflowY === 'scroll') {
-            root = cur
-            break
-          }
-          cur = cur.parentElement
-        }
-      }
-      const obs = new IntersectionObserver(
-        entries => {
-          const entry = entries[0]
-          if (entry && entry.isIntersecting) {
-            wiredOnLoadMore()
-          }
-        },
-        { root }
-      )
+      const root = findScrollableParent(parent)
+
+      const obs = createLoadMoreObserver(node, root)
       observerRef.current = obs
       obs.observe(node)
     },
-    [wiredHasMore, wiredOnLoadMore]
+    [wiredHasMore, wiredOnLoadMore, findScrollableParent, createLoadMoreObserver]
   )
 
   // Render truncated text with tooltip (shared for both Combobox and Select)
@@ -289,9 +300,28 @@ const CatalogSelect: React.FC<CatalogSelectProps> = ({
     return <TruncatedText text={text} className={className} />
   }, [])
 
+  // Helper: Render SelectValue content with icon support
+  const renderSelectValueContent = React.useCallback(() => {
+    if (!selectedOption?.label) {
+      return 'Select...'
+    }
+    const labelText =
+      typeof selectedOption.label === 'string' ? selectedOption.label : String(selectedOption.label || '')
+    if (selectedOption.icon && isValidIconName(selectedOption.icon)) {
+      const IconComponent = getPhosphorIcon(selectedOption.icon)
+      return (
+        <div className="gba:flex gba:items-center gba:gap-2 gba:min-w-0 gba:max-w-full">
+          <IconComponent className="gba:w-4 gba:h-4 gba:flex-shrink-0" aria-label={labelText} />
+          {renderTruncatedText(labelText, 'gba:flex-1 gba:min-w-0')}
+        </div>
+      )
+    }
+    return renderTruncatedText(labelText, 'gba:block')
+  }, [selectedOption, isValidIconName, renderTruncatedText])
+
   // Helper to check if icon name is valid (exists in PhosphorIcons)
   const isValidIconName = React.useCallback((iconName: string): boolean => {
-    if (!iconName || !iconName.trim()) return false
+    if (!iconName?.trim()) return false
 
     // Check if icon exists in PhosphorIcons
     if ((PhosphorIcons as any)[iconName]) return true
@@ -401,26 +431,9 @@ const CatalogSelect: React.FC<CatalogSelectProps> = ({
       disabled={wiredDisabled}
       allowClear={allowClear}
     >
-      <SelectTrigger className={className ? className : 'gba:w-full gba:max-w-full'} data-testid={testId} {...props}>
+      <SelectTrigger className={className ?? 'gba:w-full gba:max-w-full'} data-testid={testId} {...props}>
         <SelectValue placeholder="Select..." className="gba:max-w-full gba:overflow-hidden">
-          {selectedOption?.icon && isValidIconName(selectedOption.icon)
-            ? (() => {
-                const IconComponent = getPhosphorIcon(selectedOption.icon)
-                const labelText =
-                  typeof selectedOption.label === 'string' ? selectedOption.label : String(selectedOption.label || '')
-                return (
-                  <div className="gba:flex gba:items-center gba:gap-2 gba:min-w-0 gba:max-w-full">
-                    <IconComponent className="gba:w-4 gba:h-4 gba:flex-shrink-0" aria-label={labelText} />
-                    {renderTruncatedText(labelText, 'gba:flex-1 gba:min-w-0')}
-                  </div>
-                )
-              })()
-            : selectedOption?.label
-              ? renderTruncatedText(
-                  typeof selectedOption.label === 'string' ? selectedOption.label : String(selectedOption.label || ''),
-                  'gba:block'
-                )
-              : 'Select...'}
+          {renderSelectValueContent()}
         </SelectValue>
       </SelectTrigger>
       <SelectContent className="gba:max-h-[300px] gba:overflow-y-auto gba:min-w-0 gba:max-w-[var(--radix-select-trigger-width)]">
