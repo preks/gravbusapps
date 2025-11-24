@@ -18,6 +18,11 @@ import { CampaignSelect } from '@/common/components/customer/selects/campaign-se
 import { FormField, FormItem, FormLabel, FormControl, FormMessage } from '@newwork/nw-design-system'
 import { useCustomerAccountsList } from '@/common/data/customer/hooks/useCustomerAccounts'
 import { useCustomerContactsList } from '@/common/data/customer/hooks/useCustomerContacts'
+import {
+  OPPORTUNITY_PIPELINE,
+  OPPORTUNITY_PIPELINE_STAGE,
+  OPPORTUNITY_STATUS
+} from '@/common/data/customer/constants/customerCatalogs'
 import { ErrorAlert } from '@/components/error-alert'
 
 // CRM-specific schema extension (adds salesCampaignId only)
@@ -163,6 +168,9 @@ const OpportunityForm: React.FC<OpportunityFormProps> = ({ accessToken, userInfo
           pipelineFieldName="opportunityPipelineRef"
           stageFieldName="opportunityPipelineStageRef"
           opportunityStatusFieldName="opportunityStatusRef"
+          pipelineCatalogIdentifier={OPPORTUNITY_PIPELINE}
+          stageCatalogIdentifier={OPPORTUNITY_PIPELINE_STAGE}
+          opportunityStatusCatalogIdentifier={OPPORTUNITY_STATUS}
           opportunityInformationCustomFields={salesCampaignSelect}
           loading={loading && !!opportunityId}
         />

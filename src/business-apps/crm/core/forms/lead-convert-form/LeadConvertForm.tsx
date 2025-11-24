@@ -38,6 +38,7 @@ import { ErrorAlert } from '@/components/error-alert'
 import { useFileClient } from '@/common/network/files/useFileClient'
 import { buildFilePath } from '@/common/utils/fileUtils'
 import { APP_NAME, FILE_ENTITY, FILE_CONTEXT } from '@/common/data/customer/constants/customerConstants'
+import { COMPANY_SIZE, ANNUAL_REVENUE } from '@/common/data/customer/constants/customerCatalogs'
 import type { CustomerAccount } from '@/common/data/customer/types/customerAccountTypes'
 import type { CustomerContact } from '@/common/data/customer/types/customerContactTypes'
 import type { CustomerOpportunity } from '@/common/data/customer/types/customerOpportunityTypes'
@@ -382,8 +383,8 @@ export const LeadConvertForm = ({ accessToken, userInfo, additionalData, onSucce
               <LeadConvertAccountStep
                 businessAppContext={businessAppContext}
                 ownerEmployee={leadData?.ownerEmployee}
-                annualRevenueCatalogIdentifier="RevenueSize:v1"
-                companySizeCatalogIdentifier="EmployeeSize:v1"
+                annualRevenueCatalogIdentifier={ANNUAL_REVENUE}
+                companySizeCatalogIdentifier={COMPANY_SIZE}
                 useContacts={{
                   contacts: contactsList,
                   loading: contactsLoading,

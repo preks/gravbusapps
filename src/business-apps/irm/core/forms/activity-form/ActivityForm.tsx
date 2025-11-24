@@ -1,5 +1,5 @@
 import React, { useMemo, useEffect, useCallback, useRef } from 'react'
-import { BusinessAppContextProps, extractAdditionalData } from '@/common/BusinessAppContext'
+import { BusinessAppContextProps } from '@/common/BusinessAppContext'
 import { getTranslationFromI18nKeyAndLabel } from '@/common/utils/windowUtils'
 import { ActivityLayout, activitySchema } from '@/common/components/common-relations/form-layouts/activity-layout'
 import { zodResolver } from '@hookform/resolvers/zod'
@@ -35,21 +35,23 @@ export const ActivityForm: React.FC<ActivityFormProps> = ({
   onSuccess,
   onCancel
 }) => {
-  const additionalDataRecord = useMemo(() => extractAdditionalData(additionalData), [additionalData])
+  const initialParameters = useMemo(() => {
+    return additionalData?.psi_taskPayload?.psi_initialParameters || null
+  }, [additionalData])
 
   // Check if we're in update mode
-  const activityId = additionalDataRecord.activityId
+  const activityId = additionalData?.activityId || initialParameters?.activityId || null
   const isUpdateMode = !!activityId
 
   // Investment activity hook - declarative single-by-PK
   const { activity, loading: activityLoading, error } = useInvestmentActivity(accessToken || '', activityId)
 
-  // Get entity IDs from platform params
-  const accountId = additionalDataRecord.accountId
-  const contactId = additionalDataRecord.contactId
-  const opportunityId = additionalDataRecord.opportunityId
-  const leadId = additionalDataRecord.leadId
-  const investmentId = additionalDataRecord.investmentId
+  // Get entity IDs from additionalData or initialParameters
+  const accountId = additionalData?.accountId || initialParameters?.accountId || null
+  const contactId = additionalData?.contactId || initialParameters?.contactId || null
+  const opportunityId = additionalData?.opportunityId || initialParameters?.opportunityId || null
+  const leadId = additionalData?.leadId || initialParameters?.leadId || null
+  const investmentId = additionalData?.investmentId || initialParameters?.investmentId || null
 
   // Determine if entity selection should be shown
   // For investment context, we hide entity selection since investment + account context is sufficient

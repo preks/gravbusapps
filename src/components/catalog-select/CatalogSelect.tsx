@@ -247,7 +247,7 @@ const CatalogSelect: React.FC<CatalogSelectProps> = ({
   const findScrollableParent = React.useCallback((element: Element | null): Element | undefined => {
     let cur: Element | null = element
     while (cur) {
-      const style = window.getComputedStyle(cur)
+      const style = globalThis.getComputedStyle(cur)
       const overflowY = style.overflowY
       if (overflowY === 'auto' || overflowY === 'scroll') {
         return cur
@@ -259,11 +259,11 @@ const CatalogSelect: React.FC<CatalogSelectProps> = ({
 
   // Helper: Create intersection observer for load more sentinel
   const createLoadMoreObserver = React.useCallback(
-    (node: HTMLDivElement, root: Element | undefined) => {
+    (root: Element | undefined) => {
       return new IntersectionObserver(
         entries => {
           const entry = entries[0]
-          if (entry && entry.isIntersecting) {
+          if (entry?.isIntersecting) {
             wiredOnLoadMore?.()
           }
         },
@@ -287,7 +287,7 @@ const CatalogSelect: React.FC<CatalogSelectProps> = ({
       const parent = node.parentElement
       const root = findScrollableParent(parent)
 
-      const obs = createLoadMoreObserver(node, root)
+      const obs = createLoadMoreObserver(root)
       observerRef.current = obs
       obs.observe(node)
     },
@@ -298,6 +298,24 @@ const CatalogSelect: React.FC<CatalogSelectProps> = ({
   const renderTruncatedText = React.useCallback((text: string, className?: string) => {
     if (!text) return null
     return <TruncatedText text={text} className={className} />
+  }, [])
+
+  // Helper to check if icon name is valid (exists in PhosphorIcons)
+  const isValidIconName = React.useCallback((iconName: string): boolean => {
+    if (!iconName?.trim()) return false
+
+    // Check if icon exists in PhosphorIcons
+    if ((PhosphorIcons as any)[iconName]) return true
+
+    // Try without "Icon" suffix
+    const nameWithoutIcon = iconName.replace(/Icon$/, '')
+    if ((PhosphorIcons as any)[nameWithoutIcon]) return true
+
+    // Try case-insensitive match
+    const lowerName = iconName.toLowerCase()
+    const foundKey = Object.keys(PhosphorIcons).find(key => key.toLowerCase() === lowerName && /^[A-Z]/.test(key))
+
+    return !!foundKey
   }, [])
 
   // Helper: Render SelectValue content with icon support
@@ -318,24 +336,6 @@ const CatalogSelect: React.FC<CatalogSelectProps> = ({
     }
     return renderTruncatedText(labelText, 'gba:block')
   }, [selectedOption, isValidIconName, renderTruncatedText])
-
-  // Helper to check if icon name is valid (exists in PhosphorIcons)
-  const isValidIconName = React.useCallback((iconName: string): boolean => {
-    if (!iconName?.trim()) return false
-
-    // Check if icon exists in PhosphorIcons
-    if ((PhosphorIcons as any)[iconName]) return true
-
-    // Try without "Icon" suffix
-    const nameWithoutIcon = iconName.replace(/Icon$/, '')
-    if ((PhosphorIcons as any)[nameWithoutIcon]) return true
-
-    // Try case-insensitive match
-    const lowerName = iconName.toLowerCase()
-    const foundKey = Object.keys(PhosphorIcons).find(key => key.toLowerCase() === lowerName && /^[A-Z]/.test(key))
-
-    return !!foundKey
-  }, [])
 
   const comboboxOptions = React.useMemo(() => {
     return mergedOptions.map(o => {

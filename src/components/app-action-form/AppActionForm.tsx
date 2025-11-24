@@ -468,7 +468,7 @@ export const AppActionForm: React.FC<AppActionFormProps> = ({
 
   return (
     <div className="gba:p-6 gba:h-full gba:flex gba:flex-col" data-testid={dataTestId}>
-      {message && message.type === 'error' && (
+      {message?.type === 'error' && (
         <Alert variant="destructive" className="gba:mb-4" data-testid={`${dataTestId}-message`}>
           {message.message}
         </Alert>

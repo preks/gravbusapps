@@ -15,7 +15,7 @@ import { EmployeeSelect } from '@/components/employee-select'
 import { ContactSelect } from '@/common/components/common-relations/selects/contact-select'
 import { BusinessAppContextProps } from '@/common/BusinessAppContext'
 import type { SelectOption as ContactSelectOption } from '@/common/components/common-relations/selects/contact-select'
-import { LEGAL_FORM, INDUSTRY_CLASS } from '@/common/constants/catalogConstants'
+import { LEGAL_FORM, INDUSTRY_CLASS } from '@/common/constants/commonCatalogs'
 import translations from './_i18n'
 
 interface AccountInformationSegmentProps {
@@ -97,6 +97,60 @@ const AccountInformationSegment: React.FC<AccountInformationSegmentProps> = ({
       return pictureStr
     }
   }
+
+  // Helper function to transform accountContact to ContactSelect format
+  const transformAccountContactToContactSelect = (
+    ac: any
+  ): {
+    id: string
+    name: string
+    contactType?: string
+    pictureThumbnail?: string
+    jobPosition?: string
+    department?: string
+  } => {
+    if (ac.contact) {
+      const contact = ac.contact
+      const displayName =
+        contact.displayName ||
+        contact.fullName ||
+        `${contact.firstName || ''} ${contact.lastName || ''}`.trim() ||
+        'Unknown Contact'
+      return {
+        id: ac.contactId || ac.contact?.id || '',
+        name: displayName,
+        contactType: ac.contactType || undefined,
+        pictureThumbnail: contact.pictureThumbnail,
+        jobPosition: contact.jobPosition,
+        department: contact.department
+      }
+    }
+    return {
+      id: ac.contactId || '',
+      name: ac.contact?.name || 'Unknown Contact',
+      contactType: ac.contactType || undefined
+    }
+  }
+
+  // Helper function to transform contact value to accountContact format
+  const transformContactValueToAccountContact = useCallback(
+    (contactValue: any, accountId: string | undefined, existingAccountContacts: any[]) => {
+      const contactId = typeof contactValue === 'object' ? contactValue.id : contactValue
+      const contactType = typeof contactValue === 'object' ? contactValue.contactType : undefined
+
+      // Find existing accountContact to preserve id and version
+      const existingAc = existingAccountContacts.find((ac: any) => (ac.contactId || ac.contact?.id) === contactId)
+
+      return {
+        ...(existingAc?.id && { id: existingAc.id }),
+        ...(existingAc?.version !== undefined && { version: existingAc.version }),
+        accountId: accountId || undefined,
+        contactId: contactId,
+        contactType: contactType || null
+      }
+    },
+    []
+  )
 
   // Get avatar image from form values (pictureThumbnail or picture)
   const pictureThumbnail = form.watch('pictureThumbnail')
@@ -267,34 +321,8 @@ const AccountInformationSegment: React.FC<AccountInformationSegmentProps> = ({
           name="accountContacts"
           render={({ field, fieldState }) => {
             // Transform accountContacts to ContactSelect format
-            // accountContacts: Array<{ id, version, accountId, contactId, contactType }>
-            // ContactSelect expects: Array<{ id, name, contactType }>
             const accountContacts = field.value || []
-            const contactSelectValue = accountContacts.map((ac: any) => {
-              // If accountContact has contact object with full data, use it
-              if (ac.contact) {
-                const contact = ac.contact
-                const displayName =
-                  contact.displayName ||
-                  contact.fullName ||
-                  `${contact.firstName || ''} ${contact.lastName || ''}`.trim() ||
-                  'Unknown Contact'
-                return {
-                  id: ac.contactId || ac.contact?.id || '',
-                  name: displayName,
-                  contactType: ac.contactType || undefined,
-                  pictureThumbnail: contact.pictureThumbnail,
-                  jobPosition: contact.jobPosition,
-                  department: contact.department
-                }
-              }
-              // Otherwise, use minimal data from accountContact
-              return {
-                id: ac.contactId || '',
-                name: ac.contact?.name || 'Unknown Contact',
-                contactType: ac.contactType || undefined
-              }
-            })
+            const contactSelectValue = accountContacts.map(transformAccountContactToContactSelect)
 
             // Handle onChange - transform back to accountContacts format
             const handleChange = (
@@ -316,23 +344,9 @@ const AccountInformationSegment: React.FC<AccountInformationSegmentProps> = ({
 
               const accountId = form.getValues('id')
               const existingAccountContacts = field.value || []
-              const accountContacts = normalizedValue.map((contactValue: any) => {
-                const contactId = typeof contactValue === 'object' ? contactValue.id : contactValue
-                const contactType = typeof contactValue === 'object' ? contactValue.contactType : undefined
-
-                // Find existing accountContact to preserve id and version
-                const existingAc = existingAccountContacts.find(
-                  (ac: any) => (ac.contactId || ac.contact?.id) === contactId
-                )
-
-                return {
-                  ...(existingAc?.id && { id: existingAc.id }),
-                  ...(existingAc?.version !== undefined && { version: existingAc.version }),
-                  accountId: accountId || undefined,
-                  contactId: contactId,
-                  contactType: contactType || null
-                }
-              })
+              const accountContacts = normalizedValue.map((contactValue: any) =>
+                transformContactValueToAccountContact(contactValue, accountId, existingAccountContacts)
+              )
               field.onChange(accountContacts)
             }
 

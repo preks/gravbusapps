@@ -10,7 +10,7 @@ import {
 } from '@newwork/nw-design-system'
 import { useFormContext } from 'react-hook-form'
 import { CatalogSelect } from '@/components/catalog-select'
-import { ACADEMIC_TITLE, LANGUAGE } from '@/common/constants/catalogConstants'
+import { ACADEMIC_TITLE, LANGUAGE } from '@/common/constants/commonCatalogs'
 import translations from './_i18n'
 
 interface ContactDetailsSegmentProps {

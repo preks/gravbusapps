@@ -1,5 +1,5 @@
 import React, { useMemo, useCallback, useEffect, useRef } from 'react'
-import { BusinessAppContextProps, extractAdditionalData } from '@/common/BusinessAppContext'
+import { BusinessAppContextProps } from '@/common/BusinessAppContext'
 import { getTranslationFromI18nKeyAndLabel } from '@/common/utils/windowUtils'
 import { TaskLayout, taskSchema } from '@/common/components/common-relations/form-layouts/task-layout'
 import { zodResolver } from '@hookform/resolvers/zod'
@@ -45,7 +45,9 @@ export const TaskForm: React.FC<TaskFormProps> = ({
   onSuccess,
   onCancel
 }: TaskFormProps) => {
-  const additionalDataRecord = useMemo(() => extractAdditionalData(additionalData), [additionalData])
+  const initialParameters = useMemo(() => {
+    return additionalData?.psi_taskPayload?.psi_initialParameters || null
+  }, [additionalData])
 
   const {
     entities,
@@ -57,16 +59,16 @@ export const TaskForm: React.FC<TaskFormProps> = ({
   } = useCustomerRelatedEntities({ accessToken, additionalData })
 
   // Customer task hook - declarative single-by-PK
-  const taskId = additionalDataRecord.taskId
+  const taskId = additionalData?.taskId || initialParameters?.taskId || null
   const { task, loading: taskLoading, error } = useCustomerTask(accessToken || '', taskId)
 
   // File client for document uploads
   const fileClient = useFileClient({ accessToken, userInfo, additionalData })
 
-  const accountId = additionalDataRecord.accountId
-  const contactId = additionalDataRecord.contactId
-  const opportunityId = additionalDataRecord.opportunityId
-  const leadId = additionalDataRecord.leadId
+  const accountId = additionalData?.accountId || initialParameters?.accountId || null
+  const contactId = additionalData?.contactId || initialParameters?.contactId || null
+  const opportunityId = additionalData?.opportunityId || initialParameters?.opportunityId || null
+  const leadId = additionalData?.leadId || initialParameters?.leadId || null
 
   // Determine if entity selection should be shown
   const hasEntityFromContext = accountId || contactId || opportunityId || leadId
@@ -192,11 +194,11 @@ export const TaskForm: React.FC<TaskFormProps> = ({
   }, [task?.id, task, form, hydrateEntityById])
 
   useEffect(() => {
-    if (accessToken && !additionalDataRecord.taskId) {
+    if (accessToken && !taskId) {
       // Only trigger initial search in create mode
       searchEntities('')
     }
-  }, [accessToken, additionalDataRecord.taskId, searchEntities])
+  }, [accessToken, taskId, searchEntities])
 
   useEffect(() => {
     if (!accountId && !contactId && !opportunityId && !leadId) return

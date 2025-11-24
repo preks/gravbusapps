@@ -31,14 +31,18 @@ export const investmentLeadSchema = leadSchema.extend({
   investmentGroupRef: z
     .union([
       z.string().min(1),
-      z.object({ id: z.string().min(1), code: z.string().optional(), value: z.string().optional() }).passthrough(),
+      z
+        .object({ id: z.string().min(1), code: z.string().optional(), value: z.string().optional() })
+        .catchall(z.unknown()),
       z.null()
     ])
     .optional(),
   investmentTypeRef: z
     .union([
       z.string().min(1),
-      z.object({ id: z.string().min(1), code: z.string().optional(), value: z.string().optional() }).passthrough(),
+      z
+        .object({ id: z.string().min(1), code: z.string().optional(), value: z.string().optional() })
+        .catchall(z.unknown()),
       z.null()
     ])
     .optional(),

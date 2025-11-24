@@ -12,7 +12,7 @@ import {
 import { useFormContext, useFieldArray } from 'react-hook-form'
 import { CatalogSelect } from '@/components/catalog-select'
 import { PiPlus, PiMinus } from 'react-icons/pi'
-import { LEGAL_FORM, INDUSTRY_CLASS, COUNTRY, COUNTRY_REGION } from '@/common/constants/catalogConstants'
+import { LEGAL_FORM, INDUSTRY_CLASS, COUNTRY, COUNTRY_REGION } from '@/common/constants/commonCatalogs'
 import translations from './_i18n'
 
 interface LeadCompanySegmentProps {
@@ -41,8 +41,8 @@ interface LeadCompanySegmentProps {
  * Used in Accordion
  */
 const LeadCompanySegment: React.FC<LeadCompanySegmentProps> = ({
-  companySizeCatalogIdentifier = 'EmployeeSize:v1',
-  annualRevenueCatalogIdentifier = 'RevenueSize:v1',
+  companySizeCatalogIdentifier,
+  annualRevenueCatalogIdentifier,
   customFields
 }) => {
   const form = useFormContext<any>()

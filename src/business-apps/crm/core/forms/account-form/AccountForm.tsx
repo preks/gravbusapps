@@ -10,6 +10,7 @@ import { formatDataTestId } from '@/common/utils/formatDataTestId'
 import { buildCustomerAccountPayload } from '@/common/data/customer/types/customerAccountTypes'
 import { buildFilePath } from '@/common/utils/fileUtils'
 import { APP_NAME, FILE_ENTITY, FILE_CONTEXT } from '@/common/data/customer/constants/customerConstants'
+import { COMPANY_SIZE, ANNUAL_REVENUE } from '@/common/data/customer/constants/customerCatalogs'
 import { AccountLayout, accountSchema } from '@/common/components/common-relations/form-layouts/account-layout'
 import { z } from 'zod'
 import { zodResolver } from '@hookform/resolvers/zod'
@@ -189,8 +190,8 @@ const AccountForm: React.FC<AccountFormProps> = ({ accessToken, userInfo, additi
           ownerEmployee={account?.ownerEmployee}
           entityId={account?.id || accountId}
           accountInformationCustomFields={campaignSelect}
-          annualRevenueCatalogIdentifier="RevenueSize:v1"
-          companySizeCatalogIdentifier="EmployeeSize:v1"
+          annualRevenueCatalogIdentifier={ANNUAL_REVENUE}
+          companySizeCatalogIdentifier={COMPANY_SIZE}
           useContacts={useContacts}
           avatarFileRef={avatarFileRef}
           loading={loading && !!accountId}

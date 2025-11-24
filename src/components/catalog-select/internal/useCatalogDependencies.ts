@@ -777,7 +777,9 @@ export const useCatalogDependencies = ({
 
     const parentConfig = configs.find(c => c.id === cfg.parentField)
     const parentState = stateById[cfg.parentField]
-    if (!parentState) {
+    if (parentState) {
+      setFor(cfg.parentField, prev => (prev ? { ...prev, value: parentValueFromForm } : prev))
+    } else {
       setFor(cfg.parentField, () => ({
         value: parentValueFromForm,
         loading: false,
@@ -787,8 +789,6 @@ export const useCatalogDependencies = ({
         offset: 0,
         variant: 'combobox'
       }))
-    } else {
-      setFor(cfg.parentField, prev => (prev ? { ...prev, value: parentValueFromForm } : prev))
     }
   }
 

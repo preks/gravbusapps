@@ -24,28 +24,19 @@ export interface NoteFormProps extends BusinessAppContextProps {
 }
 
 export const NoteForm: React.FC<NoteFormProps> = ({ accessToken, userInfo, additionalData, onSuccess, onCancel }) => {
-  const platformParams = useMemo(() => {
-    const additionalDataRecord = additionalData as Record<string, any>
-    const nested =
-      additionalDataRecord?.psi_taskPayload?.psi_initialParameters || additionalDataRecord?.psi_initialParameters || {}
-    return {
-      noteId: additionalDataRecord?.noteId || nested?.noteId,
-      accountId: additionalDataRecord?.accountId || nested?.accountId,
-      contactId: additionalDataRecord?.contactId || nested?.contactId,
-      opportunityId: additionalDataRecord?.opportunityId || nested?.opportunityId,
-      leadId: additionalDataRecord?.leadId || nested?.leadId
-    }
+  const initialParameters = useMemo(() => {
+    return additionalData?.psi_taskPayload?.psi_initialParameters || null
   }, [additionalData])
 
-  const noteId = platformParams.noteId
+  const noteId = additionalData?.noteId || initialParameters?.noteId || null
   const isUpdateMode = !!noteId
 
   const { note, loading: noteLoading, error } = useCustomerNote(accessToken || '', noteId)
 
-  const accountId = platformParams.accountId
-  const contactId = platformParams.contactId
-  const opportunityId = platformParams.opportunityId
-  const leadId = platformParams.leadId
+  const accountId = additionalData?.accountId || initialParameters?.accountId || null
+  const contactId = additionalData?.contactId || initialParameters?.contactId || null
+  const opportunityId = additionalData?.opportunityId || initialParameters?.opportunityId || null
+  const leadId = additionalData?.leadId || initialParameters?.leadId || null
 
   const hasEntityFromContext = accountId || contactId || opportunityId || leadId
   const shouldShowEntitySelection = !hasEntityFromContext
@@ -251,17 +242,6 @@ export const NoteForm: React.FC<NoteFormProps> = ({ accessToken, userInfo, addit
             opportunityId: relatedEntityIds.opportunityId,
             leadId: relatedEntityIds.leadId
           }}
-          titleLabel={getTranslationFromI18nKeyAndLabel('crm:notes.title', 'Note Title')}
-          textLabel={getTranslationFromI18nKeyAndLabel('crm:notes.text', 'Note Content')}
-          reminderLabel={getTranslationFromI18nKeyAndLabel('crm:notes.reminderDate', 'Reminder Date (Optional)')}
-          entityLabel={getTranslationFromI18nKeyAndLabel('crm:notes.relatedEntity', 'Related Entity')}
-          titlePlaceholder={getTranslationFromI18nKeyAndLabel('crm:notes.titlePlaceholder', 'Enter note title...')}
-          textPlaceholder={getTranslationFromI18nKeyAndLabel('crm:notes.textPlaceholder', 'Write your note here...')}
-          reminderPlaceholder={getTranslationFromI18nKeyAndLabel(
-            'crm:notes.reminderDatePlaceholder',
-            'Select reminder date...'
-          )}
-          uploadFileLabel={getTranslationFromI18nKeyAndLabel('crm:notes.uploadFile', 'Attach Documents')}
           onFilesChange={handleFilesChange}
           existingDocuments={form.watch('documents') || []}
           onDocumentRemove={handleDocumentRemove}

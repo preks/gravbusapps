@@ -120,6 +120,91 @@ const OpportunityInformationSegment: React.FC<OpportunityInformationSegmentProps
     [useContacts?.refetch]
   )
 
+  // Helper function to transform opportunityContact to ContactSelect format
+  const transformOpportunityContactToContactSelect = (
+    oc: any
+  ): {
+    id: string
+    name: string
+    contactType?: string
+    pictureThumbnail?: string
+    jobPosition?: string
+    department?: string
+  } => {
+    if (oc.contact) {
+      const contact = oc.contact
+      const displayName =
+        contact.displayName ||
+        contact.fullName ||
+        `${contact.firstName || ''} ${contact.lastName || ''}`.trim() ||
+        'Unknown Contact'
+      return {
+        id: oc.contactId || oc.contact?.id || '',
+        name: displayName,
+        contactType: oc.contactType || undefined,
+        pictureThumbnail: contact.pictureThumbnail,
+        jobPosition: contact.jobPosition,
+        department: contact.department
+      }
+    }
+    return {
+      id: oc.contactId || '',
+      name: oc.contact?.name || 'Unknown Contact',
+      contactType: oc.contactType || undefined
+    }
+  }
+
+  // Helper function to normalize contact value to array
+  const normalizeContactValueToArray = (
+    newValue:
+      | Array<string | { id: string; name: string; contactType?: string }>
+      | string
+      | { id: string; name: string; contactType?: string }
+      | null
+  ): Array<string | { id: string; name: string; contactType?: string }> => {
+    if (Array.isArray(newValue)) {
+      return newValue
+    }
+    if (newValue === null) {
+      return []
+    }
+    return [newValue]
+  }
+
+  // Helper function to transform contact value to opportunityContact format
+  const transformContactValueToOpportunityContact = useCallback(
+    (contactValue: any, opportunityId: string | undefined, existingOpportunityContacts: any[]) => {
+      const contactId = typeof contactValue === 'object' ? contactValue.id : contactValue
+      const contactType = typeof contactValue === 'object' ? contactValue.contactType : undefined
+
+      // Find existing opportunityContact to preserve id and version
+      const existingOc = existingOpportunityContacts.find((oc: any) => (oc.contactId || oc.contact?.id) === contactId)
+
+      return {
+        ...(existingOc?.id && { id: existingOc.id }),
+        ...(existingOc?.version !== undefined && { version: existingOc.version }),
+        opportunityId: opportunityId || undefined,
+        contactId: contactId,
+        contactType: contactType || null
+      }
+    },
+    []
+  )
+
+  // Helper function to get account ID from value
+  const getAccountIdFromValue = (value: any): string | null => {
+    if (Array.isArray(value)) {
+      return null
+    }
+    if (typeof value === 'object' && value !== null && 'id' in value) {
+      return value.id
+    }
+    if (typeof value === 'string') {
+      return value
+    }
+    return null
+  }
+
   return (
     <div className="gba:space-y-6 gba:w-full gba:max-w-full gba:overflow-hidden">
       {/* Owner */}
@@ -189,13 +274,7 @@ const OpportunityInformationSegment: React.FC<OpportunityInformationSegmentProps
                     }
 
                     // Extract ID from value (string or object)
-                    let accountId: string | null = null
-                    if (typeof value === 'object' && value !== null && 'id' in value) {
-                      accountId = value.id
-                    } else if (typeof value === 'string') {
-                      accountId = value
-                    }
-
+                    const accountId = getAccountIdFromValue(value)
                     field.onChange(accountId || '')
                   }}
                   initialAccount={account}
@@ -221,34 +300,8 @@ const OpportunityInformationSegment: React.FC<OpportunityInformationSegmentProps
           name="opportunityContacts"
           render={({ field, fieldState }) => {
             // Transform opportunityContacts to ContactSelect format
-            // opportunityContacts: Array<{ id, version, opportunityId, contactId, contactType }>
-            // ContactSelect expects: Array<{ id, name, contactType }>
             const opportunityContacts = field.value || []
-            const contactSelectValue = opportunityContacts.map((oc: any) => {
-              // If opportunityContact has contact object with full data, use it
-              if (oc.contact) {
-                const contact = oc.contact
-                const displayName =
-                  contact.displayName ||
-                  contact.fullName ||
-                  `${contact.firstName || ''} ${contact.lastName || ''}`.trim() ||
-                  'Unknown Contact'
-                return {
-                  id: oc.contactId || oc.contact?.id || '',
-                  name: displayName,
-                  contactType: oc.contactType || undefined,
-                  pictureThumbnail: contact.pictureThumbnail,
-                  jobPosition: contact.jobPosition,
-                  department: contact.department
-                }
-              }
-              // Otherwise, use minimal data from opportunityContact
-              return {
-                id: oc.contactId || '',
-                name: oc.contact?.name || 'Unknown Contact',
-                contactType: oc.contactType || undefined
-              }
-            })
+            const contactSelectValue = opportunityContacts.map(transformOpportunityContactToContactSelect)
 
             // Handle onChange - transform back to opportunityContacts format
             const handleChange = (
@@ -261,24 +314,10 @@ const OpportunityInformationSegment: React.FC<OpportunityInformationSegmentProps
               const opportunityId = form.getValues('id')
               const existingOpportunityContacts = field.value || []
               // Normalize to array
-              const normalizedValue = Array.isArray(newValue) ? newValue : newValue === null ? [] : [newValue]
-              const opportunityContacts = normalizedValue.map((contactValue: any) => {
-                const contactId = typeof contactValue === 'object' ? contactValue.id : contactValue
-                const contactType = typeof contactValue === 'object' ? contactValue.contactType : undefined
-
-                // Find existing opportunityContact to preserve id and version
-                const existingOc = existingOpportunityContacts.find(
-                  (oc: any) => (oc.contactId || oc.contact?.id) === contactId
-                )
-
-                return {
-                  ...(existingOc?.id && { id: existingOc.id }),
-                  ...(existingOc?.version !== undefined && { version: existingOc.version }),
-                  opportunityId: opportunityId || undefined,
-                  contactId: contactId,
-                  contactType: contactType || null
-                }
-              })
+              const normalizedValue = normalizeContactValueToArray(newValue)
+              const opportunityContacts = normalizedValue.map((contactValue: any) =>
+                transformContactValueToOpportunityContact(contactValue, opportunityId, existingOpportunityContacts)
+              )
               field.onChange(opportunityContacts)
             }
 

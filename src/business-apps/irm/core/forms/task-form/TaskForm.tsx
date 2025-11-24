@@ -1,5 +1,5 @@
 import React, { useMemo, useCallback, useEffect, useRef } from 'react'
-import { BusinessAppContextProps, extractAdditionalData } from '@/common/BusinessAppContext'
+import { BusinessAppContextProps } from '@/common/BusinessAppContext'
 import { getTranslationFromI18nKeyAndLabel } from '@/common/utils/windowUtils'
 import { TaskLayout, taskSchema } from '@/common/components/common-relations/form-layouts/task-layout'
 import { zodResolver } from '@hookform/resolvers/zod'
@@ -28,7 +28,9 @@ export interface TaskFormProps extends BusinessAppContextProps {
 }
 
 export const TaskForm: React.FC<TaskFormProps> = ({ accessToken, userInfo, additionalData, onSuccess, onCancel }) => {
-  const additionalDataRecord = useMemo(() => extractAdditionalData(additionalData), [additionalData])
+  const initialParameters = useMemo(() => {
+    return additionalData?.psi_taskPayload?.psi_initialParameters || null
+  }, [additionalData])
 
   const {
     entities,
@@ -40,18 +42,18 @@ export const TaskForm: React.FC<TaskFormProps> = ({ accessToken, userInfo, addit
   } = useInvestmentEntities({ accessToken, additionalData })
 
   // Investment task hook - declarative single-by-PK
-  const taskId = additionalDataRecord.taskId
+  const taskId = additionalData?.taskId || initialParameters?.taskId || null
   const { task, loading, error } = useInvestmentTask(accessToken || '', taskId)
 
   // File client for document uploads
   const fileClient = useFileClient({ accessToken, userInfo, additionalData })
 
-  // Extract entity IDs from additionalDataRecord
-  const accountId = additionalDataRecord.accountId
-  const contactId = additionalDataRecord.contactId
-  const opportunityId = additionalDataRecord.opportunityId
-  const leadId = additionalDataRecord.leadId
-  const investmentId = additionalDataRecord.investmentId
+  // Extract entity IDs from additionalData or initialParameters
+  const accountId = additionalData?.accountId || initialParameters?.accountId || null
+  const contactId = additionalData?.contactId || initialParameters?.contactId || null
+  const opportunityId = additionalData?.opportunityId || initialParameters?.opportunityId || null
+  const leadId = additionalData?.leadId || initialParameters?.leadId || null
+  const investmentId = additionalData?.investmentId || initialParameters?.investmentId || null
 
   const form = useForm<z.infer<typeof investmentTaskSchema>>({
     resolver: zodResolver(investmentTaskSchema) as any,

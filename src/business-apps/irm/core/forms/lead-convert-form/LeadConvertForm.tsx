@@ -38,6 +38,7 @@ import { formatDataTestId } from '@/common/utils/formatDataTestId'
 import { useFileClient } from '@/common/network/files/useFileClient'
 import { buildFilePath } from '@/common/utils/fileUtils'
 import { APP_NAME, FILE_ENTITY, FILE_CONTEXT } from '@/common/data/investment/constants/investmentConstants'
+import { COMPANY_SIZE, ANNUAL_REVENUE } from '@/common/data/investment/constants/investmentCatalogs'
 import type { InvestmentAccount } from '@/common/data/investment/types/investmentAccountTypes'
 import type { InvestmentContact } from '@/common/data/investment/types/investmentContactTypes'
 import type { InvestmentOpportunity } from '@/common/data/investment/types/investmentOpportunityTypes'
@@ -55,14 +56,18 @@ const investmentOpportunitySchema = opportunitySchema.extend({
   investmentGroupRef: z
     .union([
       z.string().min(1),
-      z.object({ id: z.string().min(1), code: z.string().optional(), value: z.string().optional() }).passthrough(),
+      z
+        .object({ id: z.string().min(1), code: z.string().optional(), value: z.string().optional() })
+        .catchall(z.unknown()),
       z.null()
     ])
     .optional(),
   investmentTypeRef: z
     .union([
       z.string().min(1),
-      z.object({ id: z.string().min(1), code: z.string().optional(), value: z.string().optional() }).passthrough(),
+      z
+        .object({ id: z.string().min(1), code: z.string().optional(), value: z.string().optional() })
+        .catchall(z.unknown()),
       z.null()
     ])
     .optional(),
@@ -425,8 +430,8 @@ export const ConvertInvestmentLeadForm = ({
               <LeadConvertAccountStep
                 businessAppContext={businessAppContext}
                 ownerEmployee={leadData?.ownerEmployee}
-                annualRevenueCatalogIdentifier="AccountAnnualRevenueBand:v1"
-                companySizeCatalogIdentifier="CompanySize:v1"
+                annualRevenueCatalogIdentifier={ANNUAL_REVENUE}
+                companySizeCatalogIdentifier={COMPANY_SIZE}
                 useContacts={{
                   contacts: contactsList,
                   loading: contactsLoading,

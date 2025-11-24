@@ -19,8 +19,8 @@ interface AccountDetailsSegmentProps {
 }
 
 const AccountDetailsSegment: React.FC<AccountDetailsSegmentProps> = ({
-  annualRevenueCatalogIdentifier = 'AccountAnnualRevenueBand:v1',
-  companySizeCatalogIdentifier = 'CompanySize:v1',
+  annualRevenueCatalogIdentifier,
+  companySizeCatalogIdentifier,
   customFields
 }) => {
   const form = useFormContext<any>()

@@ -61,11 +61,9 @@ export const createFormPreSubmitHandler = (options: PreSubmitOptions) => {
       if (!data.creatorUserId && userId) {
         data.creatorUserId = userId
       }
-    } else {
+    } else if (!data.authorEmployeeId && employeeId) {
       // Notes use authorEmployeeId instead of creatorEmployeeId
-      if (!data.authorEmployeeId && employeeId) {
-        data.authorEmployeeId = employeeId
-      }
+      data.authorEmployeeId = employeeId
     }
 
     // Upload pending files if any

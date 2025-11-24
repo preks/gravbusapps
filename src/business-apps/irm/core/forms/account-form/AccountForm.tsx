@@ -9,6 +9,7 @@ import { formatDataTestId } from '@/common/utils/formatDataTestId'
 import { buildInvestmentAccountPayload } from '@/common/data/investment/types/investmentAccountTypes'
 import { buildFilePath } from '@/common/utils/fileUtils'
 import { APP_NAME, FILE_ENTITY, FILE_CONTEXT } from '@/common/data/investment/constants/investmentConstants'
+import { COMPANY_SIZE, ANNUAL_REVENUE } from '@/common/data/investment/constants/investmentCatalogs'
 import { AccountLayout, accountSchema } from '@/common/components/common-relations/form-layouts/account-layout'
 import { z } from 'zod'
 import { zodResolver } from '@hookform/resolvers/zod'
@@ -141,8 +142,8 @@ export const AccountForm: React.FC<AccountFormProps> = ({ accessToken, userInfo,
           businessAppContext={{ accessToken, userInfo, additionalData }}
           ownerEmployee={account?.ownerEmployee}
           entityId={account?.id || accountId}
-          annualRevenueCatalogIdentifier="AccountAnnualRevenueBand:v1"
-          companySizeCatalogIdentifier="CompanySize:v1"
+          annualRevenueCatalogIdentifier={ANNUAL_REVENUE}
+          companySizeCatalogIdentifier={COMPANY_SIZE}
           useContacts={useContacts}
           avatarFileRef={avatarFileRef}
           loading={loading && !!accountId}

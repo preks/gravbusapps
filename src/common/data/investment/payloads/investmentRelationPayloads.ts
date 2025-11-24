@@ -1,5 +1,5 @@
 import { Activity } from '@/common/components/common-relations/form-segments/activity-segment/ActivitySegment'
-import { BusinessAppContextProps, extractAdditionalData } from '@/common/BusinessAppContext'
+import { BusinessAppContextProps } from '@/common/BusinessAppContext'
 import { toISOFormat } from '@/common/utils/dateFormatter'
 import type { NoteSegmentSchema } from '@/common/components/common-relations/form-segments/note-segment/NoteSegment'
 
@@ -116,7 +116,12 @@ export const buildActivityPayload = (
     if (leadId) refs.lead = leadId
 
     // Always include parent investment when provided via additional/external context
-    const additionalDataRecord = extractAdditionalData((businessAppContext as any)?.additionalData)
+    const additionalData = (businessAppContext as any)?.additionalData || {}
+    const initialParameters = additionalData?.psi_taskPayload?.psi_initialParameters || null
+    const additionalDataRecord = {
+      ...additionalData,
+      ...(initialParameters || {})
+    }
     addInvestmentAndAccountFromContext(refs, additionalDataRecord)
     addEntitiesFromContextFallback(refs, additionalDataRecord)
     addLeadFromContext(refs, additionalDataRecord)
@@ -325,7 +330,12 @@ export const buildInvestmentNotePayload = (
     if (leadId) refs.lead = leadId
 
     // Always include parent investment when provided via additionalData or externalContextData
-    const additionalDataRecord = extractAdditionalData((businessAppContext as any)?.additionalData)
+    const additionalData = (businessAppContext as any)?.additionalData || {}
+    const initialParameters = additionalData?.psi_taskPayload?.psi_initialParameters || null
+    const additionalDataRecord = {
+      ...additionalData,
+      ...(initialParameters || {})
+    }
     addInvestmentAndAccountFromContext(refs, additionalDataRecord)
     addEntitiesFromContextFallback(refs, additionalDataRecord)
     addLeadFromContext(refs, additionalDataRecord)

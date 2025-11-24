@@ -66,7 +66,7 @@ export const useInvestmentProspectForm = ({
       for (const group of formFieldsDefinition.formFields) {
         for (const field of group.fields) {
           const property = field.property
-          if (property && entity && entity[property] !== undefined) {
+          if (property && entity?.[property] !== undefined) {
             dynamicFieldValues[property] = entity[property]
           }
         }

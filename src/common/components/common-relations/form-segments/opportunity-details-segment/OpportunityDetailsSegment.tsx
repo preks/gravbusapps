@@ -11,7 +11,7 @@ import {
 } from '@newwork/nw-design-system'
 import { useFormContext } from 'react-hook-form'
 import { CatalogSelect } from '@/components/catalog-select'
-import { CURRENCY } from '@/common/constants/catalogConstants'
+import { CURRENCY } from '@/common/constants/commonCatalogs'
 import translations from './_i18n'
 
 interface OpportunityDetailsSegmentProps {

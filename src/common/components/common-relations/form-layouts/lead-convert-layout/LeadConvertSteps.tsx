@@ -29,8 +29,8 @@ export interface LeadConvertAccountStepProps {
 export const LeadConvertAccountStep: React.FC<LeadConvertAccountStepProps> = ({
   businessAppContext,
   ownerEmployee,
-  annualRevenueCatalogIdentifier = 'AccountAnnualRevenueBand:v1',
-  companySizeCatalogIdentifier = 'CompanySize:v1',
+  annualRevenueCatalogIdentifier,
+  companySizeCatalogIdentifier,
   useContacts,
   loading = false,
   accountInformationCustomFields,

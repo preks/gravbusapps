@@ -23,7 +23,7 @@ const createRequiredCatalogRule = (errorMessage: string): z.ZodTypeAny => {
           code: z.string().optional(),
           value: z.string().optional()
         })
-        .passthrough(),
+        .catchall(z.unknown()),
       z.null()
     ])
     .refine(val => val !== null && val !== undefined, {
@@ -44,7 +44,7 @@ const createOptionalCatalogRule = (): z.ZodTypeAny => {
           code: z.string().optional(),
           value: z.string().optional()
         })
-        .passthrough(),
+        .catchall(z.unknown()),
       z.null()
     ])
     .optional()
@@ -61,7 +61,7 @@ const createRequiredReferenceRule = (errorMessage: string): z.ZodTypeAny => {
         .object({
           id: z.string().min(1, errorMessage)
         })
-        .passthrough()
+        .catchall(z.unknown())
     ])
     .refine(val => val !== null && val !== undefined, {
       message: errorMessage
@@ -79,7 +79,7 @@ const createOptionalReferenceRule = (): z.ZodTypeAny => {
         .object({
           id: z.string().optional()
         })
-        .passthrough()
+        .catchall(z.unknown())
     ])
     .optional()
 }

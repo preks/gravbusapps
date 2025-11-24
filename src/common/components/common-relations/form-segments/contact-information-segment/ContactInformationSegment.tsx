@@ -104,6 +104,55 @@ const ContactInformationSegment: React.FC<ContactInformationSegmentProps> = ({
     }
   }
 
+  // Helper function to transform accountContact to AccountSelect format
+  const transformAccountContactToAccountSelect = (
+    ac: any
+  ): { id: string; name: string; contactType?: string; pictureThumbnail?: string } => {
+    if (ac.account) {
+      const account = ac.account
+      const displayName = account.displayName || account.name || 'Unknown Account'
+      return {
+        id: ac.accountId || ac.account?.id || '',
+        name: displayName,
+        contactType: ac.contactType || undefined,
+        pictureThumbnail: account.pictureThumbnail
+      }
+    }
+    return {
+      id: ac.accountId || '',
+      name: ac.account?.name || 'Unknown Account',
+      contactType: ac.contactType || undefined
+    }
+  }
+
+  // Helper function to get account ID from accountContact
+  const getAccountIdFromAccountContact = (ac: any): string => {
+    return ac.accountId || (ac.account?.id ? ac.account.id : '')
+  }
+
+  // Helper function to transform account value to accountContact format
+  const transformAccountValueToAccountContact = useCallback(
+    (accountValue: any, contactId: string | undefined, existingAccountContacts: any[]) => {
+      const accountId = typeof accountValue === 'object' ? accountValue.id : accountValue
+      const contactType = typeof accountValue === 'object' ? accountValue.contactType : undefined
+
+      // Find existing accountContact to preserve id and version
+      const existingAc = existingAccountContacts.find((ac: any) => {
+        const acAccountId = getAccountIdFromAccountContact(ac)
+        return acAccountId === accountId
+      })
+
+      return {
+        ...(existingAc?.id && { id: existingAc.id }),
+        ...(existingAc?.version !== undefined && { version: existingAc.version }),
+        accountId: accountId,
+        contactId: contactId || undefined,
+        contactType: contactType || null
+      }
+    },
+    []
+  )
+
   // Get avatar image from form values (pictureThumbnail or picture)
   const pictureThumbnail = form.watch('pictureThumbnail')
   const picture = form.watch('picture')
@@ -268,28 +317,8 @@ const ContactInformationSegment: React.FC<ContactInformationSegmentProps> = ({
           name="accountContacts"
           render={({ field, fieldState }) => {
             // Transform accountContacts to AccountSelect format
-            // accountContacts: Array<{ id, version, accountId, contactId, contactType }>
-            // AccountSelect expects: Array<{ id, name, contactType }>
             const accountContacts = field.value || []
-            const accountSelectValue = accountContacts.map((ac: any) => {
-              // If accountContact has account object with full data, use it
-              if (ac.account) {
-                const account = ac.account
-                const displayName = account.displayName || account.name || 'Unknown Account'
-                return {
-                  id: ac.accountId || ac.account?.id || '',
-                  name: displayName,
-                  contactType: ac.contactType || undefined,
-                  pictureThumbnail: account.pictureThumbnail
-                }
-              }
-              // Otherwise, use minimal data from accountContact
-              return {
-                id: ac.accountId || '',
-                name: ac.account?.name || 'Unknown Account',
-                contactType: ac.contactType || undefined
-              }
-            })
+            const accountSelectValue = accountContacts.map(transformAccountContactToAccountSelect)
 
             // Handle onChange - transform back to accountContacts format
             const handleChange = (
@@ -312,24 +341,9 @@ const ContactInformationSegment: React.FC<ContactInformationSegmentProps> = ({
 
               const contactId = form.getValues('id')
               const existingAccountContacts = field.value || []
-              const accountContacts = normalizedValue.map((accountValue: any) => {
-                const accountId = typeof accountValue === 'object' ? accountValue.id : accountValue
-                const contactType = typeof accountValue === 'object' ? accountValue.contactType : undefined
-
-                // Find existing accountContact to preserve id and version
-                const existingAc = existingAccountContacts.find((ac: any) => {
-                  const acAccountId = ac.accountId || (ac.account?.id ? ac.account.id : '')
-                  return acAccountId === accountId
-                })
-
-                return {
-                  ...(existingAc?.id && { id: existingAc.id }),
-                  ...(existingAc?.version !== undefined && { version: existingAc.version }),
-                  accountId: accountId,
-                  contactId: contactId || undefined,
-                  contactType: contactType || null
-                }
-              })
+              const accountContacts = normalizedValue.map((accountValue: any) =>
+                transformAccountValueToAccountContact(accountValue, contactId, existingAccountContacts)
+              )
               field.onChange(accountContacts)
             }
 

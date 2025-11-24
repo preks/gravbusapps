@@ -24,21 +24,23 @@ export interface NoteFormProps extends BusinessAppContextProps {
 }
 
 export const NoteForm: React.FC<NoteFormProps> = ({ accessToken, userInfo, additionalData, onSuccess, onCancel }) => {
-  const additionalDataRecord = useMemo(() => extractAdditionalData(additionalData), [additionalData])
+  const initialParameters = useMemo(() => {
+    return additionalData?.psi_taskPayload?.psi_initialParameters || null
+  }, [additionalData])
 
   // Check if we're in update mode
-  const noteId = additionalDataRecord.noteId
+  const noteId = additionalData?.noteId || initialParameters?.noteId || null
   const isUpdateMode = !!noteId
 
   // Investment note hook - declarative single-by-PK
   const { note, loading: noteLoading, error } = useInvestmentNote(accessToken || '', noteId)
 
-  // Get entity IDs from additionalDataRecord
-  const accountId = additionalDataRecord.accountId
-  const contactId = additionalDataRecord.contactId
-  const opportunityId = additionalDataRecord.opportunityId
-  const leadId = additionalDataRecord.leadId
-  const investmentId = additionalDataRecord.investmentId
+  // Get entity IDs from additionalData or initialParameters
+  const accountId = additionalData?.accountId || initialParameters?.accountId || null
+  const contactId = additionalData?.contactId || initialParameters?.contactId || null
+  const opportunityId = additionalData?.opportunityId || initialParameters?.opportunityId || null
+  const leadId = additionalData?.leadId || initialParameters?.leadId || null
+  const investmentId = additionalData?.investmentId || initialParameters?.investmentId || null
 
   // For investment notes, we hide entity selection since investment + account context is sufficient
   const isInvestmentContext = Boolean(investmentId)
@@ -278,7 +280,6 @@ export const NoteForm: React.FC<NoteFormProps> = ({ accessToken, userInfo, addit
         isSubmitDisabled={noteLoading}
       >
         <NoteLayout
-          accessToken={accessToken}
           // Use controlled entity search from hook
           entities={entities.filter(e => e.type !== 'investment') as any}
           entitiesLoading={entitiesLoading}
@@ -294,17 +295,6 @@ export const NoteForm: React.FC<NoteFormProps> = ({ accessToken, userInfo, addit
             leadId: relatedEntityIds.leadId
           }}
           onAdditionalEntityChange={handleAdditionalEntityChange}
-          titleLabel={getTranslationFromI18nKeyAndLabel('crm:notes.title', 'Note Title')}
-          textLabel={getTranslationFromI18nKeyAndLabel('crm:notes.text', 'Note Content')}
-          reminderLabel={getTranslationFromI18nKeyAndLabel('crm:notes.reminderDate', 'Reminder Date (Optional)')}
-          entityLabel={getTranslationFromI18nKeyAndLabel('crm:notes.relatedEntity', 'Related Entity')}
-          titlePlaceholder={getTranslationFromI18nKeyAndLabel('crm:notes.titlePlaceholder', 'Enter note title...')}
-          textPlaceholder={getTranslationFromI18nKeyAndLabel('crm:notes.textPlaceholder', 'Write your note here...')}
-          reminderPlaceholder={getTranslationFromI18nKeyAndLabel(
-            'crm:notes.reminderDatePlaceholder',
-            'Select reminder date...'
-          )}
-          uploadFileLabel={getTranslationFromI18nKeyAndLabel('crm:notes.uploadFile', 'Attach Documents')}
           onFilesChange={handleFilesChange}
           existingDocuments={form.watch('documents') || []}
           onDocumentRemove={handleDocumentRemove}

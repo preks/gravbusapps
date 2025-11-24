@@ -2,11 +2,6 @@ import React, { useEffect } from 'react'
 import { FormField, FormItem, FormLabel, FormControl, FormMessage, useTranslation } from '@newwork/nw-design-system'
 import { useFormContext } from 'react-hook-form'
 import { CatalogSelect } from '@/components/catalog-select'
-import {
-  OPPORTUNITY_PIPELINE,
-  OPPORTUNITY_PIPELINE_STAGE,
-  OPPORTUNITY_STATUS
-} from '@/common/data/customer/constants/customerCatalogs'
 import translations from './_i18n'
 
 interface OpportunityPipelineSegmentProps {
@@ -26,9 +21,9 @@ const OpportunityPipelineSegment: React.FC<OpportunityPipelineSegmentProps> = ({
   pipelineFieldName = 'opportunityPipelineRef',
   stageFieldName = 'opportunityPipelineStageRef',
   opportunityStatusFieldName = 'opportunityStatusRef',
-  pipelineCatalogIdentifier = OPPORTUNITY_PIPELINE,
-  stageCatalogIdentifier = OPPORTUNITY_PIPELINE_STAGE,
-  opportunityStatusCatalogIdentifier = OPPORTUNITY_STATUS,
+  pipelineCatalogIdentifier,
+  stageCatalogIdentifier,
+  opportunityStatusCatalogIdentifier,
   customFields
 }) => {
   const form = useFormContext<any>()

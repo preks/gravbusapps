@@ -15,7 +15,7 @@ import { PiPlus, PiTrash } from 'react-icons/pi'
 import { useFormContext, useFieldArray } from 'react-hook-form'
 import { CatalogSelect } from '@/components/catalog-select'
 import { CommunicationChannelCode } from '@/common/data/relations/types/relationEnums'
-import { COMMUNICATION_CHANNEL } from '@/common/constants/catalogConstants'
+import { COMMUNICATION_CHANNEL } from '@/common/constants/commonCatalogs'
 import translations from './_i18n'
 
 interface CommunicationSegmentProps {
