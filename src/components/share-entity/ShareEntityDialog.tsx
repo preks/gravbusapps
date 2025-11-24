@@ -9,7 +9,6 @@ import {
   Button,
   Textarea,
   Label,
-  Input,
   Avatar,
   AvatarImage,
   AvatarFallback,
@@ -344,15 +343,14 @@ export const ShareEntityDialog: React.FC<ShareEntityDialogProps> = ({
             {/* Employee Search */}
             <div className="gba:space-y-2">
               <Label>Send to</Label>
-              <div className="gba:relative">
-                <div className="gba:absolute gba:left-3 gba:top-1/2 gba:transform gba:-translate-y-1/2 gba:pointer-events-none gba:z-10">
-                  <Search className="gba:w-4 gba:h-4 gba:text-muted-foreground" />
-                </div>
-                <Input
+              <div className="gba:flex gba:items-center gba:border gba:border-input gba:rounded-md gba:px-3 gba:h-10 gba:bg-background gba:focus-within:ring-2 gba:focus-within:ring-ring gba:focus-within:ring-offset-2">
+                <Search className="gba:w-4 gba:h-4 gba:text-muted-foreground gba:mr-2 gba:flex-shrink-0" />
+                <input
+                  type="text"
                   value={searchTerm}
                   onChange={e => setSearchTerm(e.target.value)}
                   placeholder="Search for employees..."
-                  className="gba:!pl-10"
+                  className="gba:flex-1 gba:bg-transparent gba:border-none gba:outline-none gba:text-sm gba:placeholder:text-muted-foreground"
                   data-testid="share-entity-search-input"
                 />
               </div>
