@@ -1,7 +1,8 @@
 import React from 'react'
 import { Card } from 'antd'
 import { LineChart, Line, XAxis, YAxis, Tooltip, ResponsiveContainer, CartesianGrid } from 'recharts'
-import { getTranslationFromI18nKeyAndLabel } from '@/common/utils/windowUtils'
+import { useTranslation } from '@newwork/nw-design-system'
+import translations from './_i18n'
 import { BusinessAppContextProps } from '@/common/BusinessAppContext'
 import { WorkingConditionKpiResult } from '../../../../../hooks/useWorkingConditionForecast'
 
@@ -28,12 +29,13 @@ function getSalaryForecastTrend(data: any[]): { month: string; salary: number }[
 const CompanySalaryForecastChart: React.FC<CompanySalaryForecastChartProps> = ({ kpiData }) => {
   const { data, loading } = kpiData
   const chartData = getSalaryForecastTrend(data)
+  const { t } = useTranslation(translations)
 
   return (
     <Card
       className="gba:shadow gba:rounded gba:p-4 gba:mb-6 gba:border gba:border-border"
       data-testid="company-salary-forecast-chart"
-      title={getTranslationFromI18nKeyAndLabel('company_salary_forecast', 'Company Salary Forecast')}
+      title={t('company-salary-forecast-title')}
       loading={loading}
     >
       <div className="gba:w-full gba:h-72">
@@ -41,8 +43,8 @@ const CompanySalaryForecastChart: React.FC<CompanySalaryForecastChartProps> = ({
           <LineChart data={chartData} margin={{ top: 16, right: 24, left: 0, bottom: 0 }}>
             <CartesianGrid strokeDasharray="3 3" />
             <XAxis dataKey="month" className="gba:text-xs" />
-            <YAxis className="gba:text-xs" tickFormatter={v => `$${v.toLocaleString()}`} />
-            <Tooltip formatter={v => `$${v.toLocaleString()}`} />
+            <YAxis className="gba:text-xs" tickFormatter={v => `${v.toLocaleString()}`} />
+            <Tooltip formatter={(v: any) => `${(Number(v) || 0).toLocaleString()}`} />
             <Line type="monotone" dataKey="salary" stroke="var(--nw-chart-1)" strokeWidth={2} dot={false} />
           </LineChart>
         </ResponsiveContainer>

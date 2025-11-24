@@ -2,7 +2,8 @@ import React, { useMemo } from 'react'
 import { Typography, Row, Col } from 'antd'
 import { useTranslation } from '@newwork/nw-design-system'
 import { BusinessAppContextProps } from '@/common/BusinessAppContext'
-import { SectionKpiCards, KpiCardData } from '@newwork/nw-design-system'
+import { SectionKpiCards, KpiCardData, Icon } from '@newwork/nw-design-system'
+import { CalendarIcon, CurrencyDollarIcon } from '@phosphor-icons/react'
 import { useMedianSalary } from '../../../hooks/useMedianSalary'
 import { useTotalPayroll } from '../../../hooks/useTotalPayroll'
 import { useAverageSalary } from '../../../hooks/useAverageSalary'
@@ -72,7 +73,7 @@ export const Compensation: React.FC<CompensationProps> = ({ accessToken, prefixD
         title: t('hr-analytics-total-payroll'),
         value: loading ? t('hr-data-filter-loading') : `${formattedTotalPayroll.value.toFixed(1)}M`,
         prefix: '$',
-        icon: 'users',
+        icon: <Icon icon={CurrencyDollarIcon} size="sm" decorative />,
         iconColor: 'var(--nw-chart-1)',
         footer: t('hr-analytics-annual-payroll')
       },
@@ -81,7 +82,7 @@ export const Compensation: React.FC<CompensationProps> = ({ accessToken, prefixD
         title: t('hr-analytics-median-salary'),
         value: loading ? t('hr-data-filter-loading') : `${formattedMedianSalary.value}K`,
         prefix: '$',
-        icon: 'users',
+        icon: <Icon icon={CurrencyDollarIcon} size="sm" decorative />,
         iconColor: 'var(--nw-chart-2)',
         footer: t('hr-analytics-company-median')
       },
@@ -90,7 +91,7 @@ export const Compensation: React.FC<CompensationProps> = ({ accessToken, prefixD
         title: t('hr-analytics-avg-salary'),
         value: loading ? t('hr-data-filter-loading') : `${formattedAverageSalary.value}K`,
         prefix: '$',
-        icon: 'users',
+        icon: <Icon icon={CurrencyDollarIcon} size="sm" decorative />,
         iconColor: 'var(--nw-chart-3)',
         footer: t('hr-analytics-annual-average')
       },
@@ -98,7 +99,7 @@ export const Compensation: React.FC<CompensationProps> = ({ accessToken, prefixD
         id: 'merit-increases',
         title: t('hr-analytics-merit-increases'),
         value: loading ? t('hr-data-filter-loading') : `${meritIncreases.value}%`,
-        icon: 'calendar',
+        icon: <Icon icon={CalendarIcon} size="sm" decorative />,
         iconColor: 'var(--nw-chart-4)',
         footer: t('hr-analytics-average-increase')
       }
@@ -130,9 +131,7 @@ export const Compensation: React.FC<CompensationProps> = ({ accessToken, prefixD
           <Title level={3} className="gba:m-0 gba:text-foreground">
             {t('hr-analytics-compensation-analysis')}
           </Title>
-          <Text className="gba:text-muted-foreground">
-            {t('hr-analytics-compensation-description')}
-          </Text>
+          <Text className="gba:text-muted-foreground">{t('hr-analytics-compensation-description')}</Text>
         </div>
       </div>
 
