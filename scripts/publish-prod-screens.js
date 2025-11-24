@@ -14,6 +14,7 @@ import dotenv from '@dotenvx/dotenvx'
 import { BlobServiceClient } from '@azure/storage-blob'
 import { glob } from 'glob'
 import axios from 'axios'
+import crypto from 'crypto'
 import {
   OAuthClient,
   getResourceUrls,
@@ -165,6 +166,211 @@ const SECONDARY_TARGET =
         }
       }
     : null
+
+// ============================================================================
+// Hash-based Publishing Utility Functions
+// ============================================================================
+
+/**
+ * Calculate MD5 hash of a single file
+ * @param {string} filePath - Absolute path to file
+ * @returns {string} MD5 hash in hex format
+ */
+function calculateFileMd5(filePath) {
+  const content = fs.readFileSync(filePath)
+  const hash = crypto.createHash('md5')
+  hash.update(content)
+  return hash.digest('hex')
+}
+
+/**
+ * Get MD5 hashes for all source artifacts (per-file)
+ * @param {string} directory - Build output directory
+ * @returns {Promise<Object>} Object with filename -> hash mapping
+ */
+async function getSourceArtifactsHashes(directory) {
+  const files = await glob('**/*', { cwd: directory, nodir: true })
+  const hashes = {}
+
+  for (const file of files) {
+    const filePath = path.join(directory, file)
+    const md5 = calculateFileMd5(filePath)
+
+    // Store with relative filename as key
+    hashes[file] = md5
+  }
+
+  return hashes
+}
+
+/**
+ * Get Azure's Content-MD5 property from blob metadata (no download!)
+ * @param {string} blobName - Full blob path
+ * @param {Object} azureTarget - Azure configuration object
+ * @returns {Promise<string|null>} MD5 hash in hex or null
+ */
+async function getAzureBlobContentMd5(blobName, azureTarget) {
+  try {
+    const { accountName, sasToken, containerName } = azureTarget
+    const blobServiceUrl = `https://${accountName}.blob.core.windows.net/?${sasToken}`
+    const blobServiceClient = new BlobServiceClient(blobServiceUrl)
+    const containerClient = blobServiceClient.getContainerClient(containerName)
+    const blockBlobClient = containerClient.getBlockBlobClient(blobName)
+
+    const properties = await blockBlobClient.getProperties()
+
+    // Content-MD5 is base64-encoded, convert to hex
+    if (properties.contentMD5) {
+      const md5Hex = Buffer.from(properties.contentMD5, 'base64').toString('hex')
+      return md5Hex
+    }
+
+    return null
+  } catch (error) {
+    if (error.statusCode === 404) {
+      return null // File doesn't exist
+    }
+    console.log(`   ⚠️  Error getting MD5 for ${blobName}: ${error.message}`)
+    return null
+  }
+}
+
+/**
+ * Dynamically discover and get per-file MD5 hashes from Azure
+ * @param {string} azureDestinationPath - Azure blob path
+ * @param {Object} azureTarget - Azure configuration object
+ * @param {string} deployedVersion - Currently deployed version
+ * @returns {Promise<Object|null>} Object with filename -> hash mapping or null
+ */
+async function getTargetArtifactsHashes(azureDestinationPath, azureTarget, deployedVersion) {
+  try {
+    const { accountName, sasToken, containerName } = azureTarget
+    const blobServiceUrl = `https://${accountName}.blob.core.windows.net/?${sasToken}`
+    const blobServiceClient = new BlobServiceClient(blobServiceUrl)
+    const containerClient = blobServiceClient.getContainerClient(containerName)
+
+    const hashes = {}
+
+    // List all blobs with the screen path prefix
+    const prefix = `${azureDestinationPath}/`
+    const versionSuffix = `-${deployedVersion}.`
+
+    // Iterate through blobs matching the prefix
+    for await (const blob of containerClient.listBlobsFlat({ prefix })) {
+      // Check if blob name contains the version suffix (e.g., "-1233.js" or "-1233.css")
+      if (blob.name.includes(versionSuffix)) {
+        // Extract just the filename (not the full path)
+        const filename = blob.name.substring(prefix.length)
+
+        // Get the Content-MD5 from blob properties
+        const md5 = await getAzureBlobContentMd5(blob.name, azureTarget)
+
+        if (md5) {
+          hashes[filename] = md5
+        }
+      }
+    }
+
+    return Object.keys(hashes).length > 0 ? hashes : null
+  } catch (error) {
+    console.log(`   ⚠️  Error listing target artifacts: ${error.message}`)
+    return null
+  }
+}
+
+/**
+ * Compare source and target hashes file-by-file
+ * @param {Object} sourceHashes - Source file hashes
+ * @param {Object} targetHashes - Target file hashes
+ * @param {string} sourceVersion - Source version for filename mapping
+ * @param {string} targetVersion - Target version for filename mapping
+ * @returns {Object} Comparison result with allMatch boolean and differences array
+ */
+function compareArtifactHashes(sourceHashes, targetHashes, sourceVersion, targetVersion) {
+  const differences = []
+
+  // Map source filenames to target filenames (version numbers differ)
+  const sourceToTargetMap = {}
+  for (const sourceFile in sourceHashes) {
+    const targetFile = sourceFile.replace(`-${sourceVersion}.`, `-${targetVersion}.`)
+    sourceToTargetMap[sourceFile] = targetFile
+  }
+
+  // Check each source file
+  for (const sourceFile in sourceHashes) {
+    const targetFile = sourceToTargetMap[sourceFile]
+    const sourceHash = sourceHashes[sourceFile]
+    const targetHash = targetHashes[targetFile]
+
+    if (!targetHash) {
+      differences.push({
+        file: sourceFile,
+        reason: 'new_file',
+        sourceHash,
+        targetHash: null
+      })
+    } else if (sourceHash !== targetHash) {
+      differences.push({
+        file: sourceFile,
+        reason: 'content_changed',
+        sourceHash,
+        targetHash
+      })
+    }
+  }
+
+  // Check for removed files (in target but not in source)
+  for (const targetFile in targetHashes) {
+    const sourceFile = targetFile.replace(`-${targetVersion}.`, `-${sourceVersion}.`)
+    if (!sourceHashes[sourceFile]) {
+      differences.push({
+        file: sourceFile,
+        reason: 'file_removed',
+        sourceHash: null,
+        targetHash: targetHashes[targetFile]
+      })
+    }
+  }
+
+  return {
+    allMatch: differences.length === 0,
+    differences
+  }
+}
+
+/**
+ * Query Screen Management API for deployed version (FIRST STEP)
+ * @param {string} screenPath - Screen path
+ * @param {Object} target - Target configuration
+ * @returns {Promise<string|null>} Version string or null
+ */
+async function getCurrentDeployedVersion(screenPath, target) {
+  try {
+    const screenKey = generateScreenKeyFromPath(screenPath)
+
+    const oauthConfig = {
+      clientId: target.oauth.clientId,
+      clientSecret: target.oauth.clientSecret,
+      oauthUrl: target.oauth.oauthUrl,
+      realm: target.oauth.realm
+    }
+
+    const screen = await getScreenByKey(screenKey, target.services.screenManagementApi, oauthConfig)
+
+    if (screen?.screenComponents?.formDefinition?.version) {
+      return screen.screenComponents.formDefinition.version
+    }
+
+    return null
+  } catch (error) {
+    console.log(`   ⚠️  Unable to get deployed version: ${error.message}`)
+    return null
+  }
+}
+
+// ============================================================================
+// End of Hash-based Publishing Utility Functions
+// ============================================================================
 
 // Helper function to detect if the screen is a form
 function isFormScreen(screenPath) {
@@ -1027,6 +1233,87 @@ async function publishScreen(screenPath, options = {}) {
   }
 
   await renameFilesWithBuildNumber(buildOutputDir, PUBLISH_VERSION)
+
+  // ============================================================================
+  // HASH COMPARISON STEP - Optimized order: target first, then source
+  // ============================================================================
+  console.log('🔍 Checking if content changed...')
+
+  const targets = options.targets && options.targets.length > 0 ? options.targets : [PRIMARY_TARGET]
+
+  // STEP 1: Get deployed version from Screen Management API
+  let deployedVersion = null
+  let targetHashes = null
+
+  for (const target of targets) {
+    deployedVersion = await getCurrentDeployedVersion(screenPath, target)
+
+    if (deployedVersion) {
+      console.log(`   Current deployed version: ${deployedVersion}`)
+      console.log(`   New build version: ${PUBLISH_VERSION}`)
+
+      // STEP 2: Dynamically discover and get target hashes from Azure
+      const azureTarget = target.azure || PRIMARY_TARGET.azure
+      targetHashes = await getTargetArtifactsHashes(azureDestinationPath, azureTarget, deployedVersion)
+
+      if (targetHashes) {
+        console.log(`   Found ${Object.keys(targetHashes).length} deployed artifact(s):`)
+        for (const [file, hash] of Object.entries(targetHashes)) {
+          console.log(`     - ${file}: ${hash.substring(0, 8)}...`)
+        }
+        break // Use first successful result
+      }
+    }
+  }
+
+  // STEP 3: If no target version exists, this is a new screen - skip hash calculation
+  if (!deployedVersion || !targetHashes) {
+    console.log('   ✅ New screen or unable to retrieve target - proceeding with publish')
+    // Continue with upload...
+  } else {
+    // STEP 4: Calculate source hashes (per-file, matching Azure format)
+    console.log('   Calculating source artifact hashes...')
+    const sourceHashes = await getSourceArtifactsHashes(buildOutputDir)
+
+    console.log(`   Found ${Object.keys(sourceHashes).length} source artifact(s):`)
+    for (const [file, hash] of Object.entries(sourceHashes)) {
+      console.log(`     - ${file}: ${hash.substring(0, 8)}...`)
+    }
+
+    // STEP 5: Compare file-by-file
+    const comparison = compareArtifactHashes(sourceHashes, targetHashes, PUBLISH_VERSION, deployedVersion)
+
+    if (comparison.allMatch) {
+      console.log('✅ All artifact hashes match - content unchanged, skipping publish')
+
+      return {
+        success: true,
+        skipped: true,
+        reason: 'content_unchanged',
+        outputPath: buildOutputDir,
+        sourceHashes,
+        targetHashes,
+        sourceVersion: PUBLISH_VERSION,
+        targetVersion: deployedVersion
+      }
+    } else {
+      console.log(`   ⚠️  Content changed - found ${comparison.differences.length} difference(s):`)
+      for (const diff of comparison.differences) {
+        if (diff.reason === 'new_file') {
+          console.log(`     - ${diff.file}: NEW FILE`)
+        } else if (diff.reason === 'file_removed') {
+          console.log(`     - ${diff.file}: REMOVED FILE`)
+        } else {
+          console.log(`     - ${diff.file}: CHANGED`)
+          console.log(`       Source: ${diff.sourceHash.substring(0, 16)}...`)
+          console.log(`       Target: ${diff.targetHash.substring(0, 16)}...`)
+        }
+      }
+      console.log('   Proceeding with publish...')
+    }
+  }
+
+  // Continue with existing upload logic
   const azureTargets =
     options.azureTargets && options.azureTargets.length > 0 ? options.azureTargets : [PRIMARY_TARGET.azure]
   for (const target of azureTargets) {
@@ -1110,8 +1397,6 @@ async function publishScreen(screenPath, options = {}) {
   // Check if resource URL sync should be skipped
   const skipResourceUrlSync = options.skipResourceUrlSync || process.env.SKIP_RESOURCE_URL_SYNC === 'true'
   const skipScreenRegistration = options.skipScreenRegistration || false
-
-  const targets = options.targets && options.targets.length > 0 ? options.targets : [PRIMARY_TARGET]
 
   for (const target of targets) {
     let resourceUrlResult
@@ -1495,6 +1780,7 @@ async function main() {
   console.log(`${'='.repeat(80)}`)
 
   const failedScreens = []
+  const skippedScreens = [] // Track skipped screens
 
   // Add comprehensive sync failures to failed screens list (aggregate)
   for (const { result, label } of comprehensiveSyncResults) {
@@ -1511,7 +1797,7 @@ async function main() {
       // Use existing publishScreen function but skip resource URL and screen registration
       // since those are handled by comprehensive sync above; upload to all Azure targets
       const azureTargets = targets.map(t => t.azure).filter(t => t !== null)
-      await publishScreen(screen, {
+      const result = await publishScreen(screen, {
         skipResourceUrlSync: true,
         skipScreenRegistration: true,
         buildOnly: true,
@@ -1519,7 +1805,19 @@ async function main() {
         targets
       })
 
-      console.log(`   ✅ Screen built and uploaded successfully`)
+      if (result.skipped) {
+        console.log(`   ⏩ Screen skipped - all artifact hashes match`)
+        console.log(`   Build ${result.sourceVersion} identical to deployed ${result.targetVersion}`)
+        skippedScreens.push({
+          screen,
+          reason: result.reason,
+          fileCount: Object.keys(result.sourceHashes || {}).length,
+          sourceVersion: result.sourceVersion,
+          targetVersion: result.targetVersion
+        })
+      } else {
+        console.log(`   ✅ Screen built and uploaded successfully`)
+      }
     } catch (error) {
       console.error(`   ❌ Error building/uploading ${screen}: ${error.message}`)
       failedScreens.push({
@@ -1541,9 +1839,11 @@ async function main() {
   console.log(`📈 Total screens processed: ${changedScreens.length}`)
 
   const totalFailures = failedScreens.length
-  const actualSuccessCount = changedScreens.length - totalFailures
+  const totalSkipped = skippedScreens.length
+  const actualSuccessCount = changedScreens.length - totalFailures - totalSkipped
 
   console.log(`✅ Successfully published: ${actualSuccessCount}`)
+  console.log(`⏩ Skipped (unchanged): ${totalSkipped}`)
   console.log(`❌ Failed: ${totalFailures}`)
 
   // Add comprehensive sync summary per target
@@ -1561,6 +1861,19 @@ async function main() {
     } else {
       console.log(`   ❌ Comprehensive sync: FAILED${result.error ? ` (${result.error})` : ''}`)
     }
+  }
+
+  // Display skipped screens details
+  if (skippedScreens.length > 0) {
+    console.log(`\n⏩ SKIPPED SCREENS (all artifact hashes matched):`)
+    console.log(`${'='.repeat(50)}`)
+    skippedScreens.forEach((skip, index) => {
+      console.log(`\n${index + 1}. Screen: ${skip.screen}`)
+      console.log(`   Files checked: ${skip.fileCount}`)
+      console.log(`   New build: ${skip.sourceVersion}`)
+      console.log(`   Deployed: ${skip.targetVersion}`)
+      console.log(`   ${'─'.repeat(40)}`)
+    })
   }
 
   if (failedScreens.length > 0) {
