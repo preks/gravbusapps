@@ -74,7 +74,7 @@ const SummaryTab: React.FC<SummaryTabProps> = ({
       entityType: 'employee',
       entityId: employee?.id || '',
       entityName: getEmployeeFullName(employee),
-      entityUrl: `/platform/hr/employee-record?employeeId=${employee?.id}`
+      entityUrl: `/platform/employee-record?employeeId=${employee?.id}`
     }
   })
 
