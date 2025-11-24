@@ -12,11 +12,12 @@ import { useCustomerActivity } from '@/common/data/customer/hooks/useCustomerAct
 import { useCustomerRelatedEntities } from '@/common/data/customer/hooks/useCustomerRelatedEntities'
 import { useFileClient } from '@/common/network/files/useFileClient'
 import { type CustomerActivity, buildCustomerActivityPayload } from '@/common/data/customer/types/customerActivityTypes'
-import { buildFilePath } from '@/common/utils/fileUtils'
-import { APP_NAME, FILE_ENTITY, FILE_CONTEXT } from '@/common/data/customer/constants/customerConstants'
+import { FILE_CONTEXT, APP_NAME, getFileEntityFromType } from '@/common/data/customer/constants/customerConstants'
 import { mapToFormValues } from '@/common/utils/formMappingUtils'
 import { ErrorAlert } from '@/components/error-alert/ErrorAlert'
 import { formatDataTestId } from '@/common/utils/formatDataTestId'
+import { getReferenceEntityType } from '@/common/data/customer/utils'
+import { uploadFiles } from '@/common/utils/fileUtils'
 
 export interface ActivityFormProps extends BusinessAppContextProps {
   onSuccess?: (activity: Partial<ActivitySchema>) => void
@@ -60,37 +61,10 @@ export const ActivityForm: React.FC<ActivityFormProps> = ({
   const opportunityId = platformParams.opportunityId
   const leadId = platformParams.leadId
 
-  // Collect all errors for centralized early return
-  const errors: Array<{ error?: string | unknown; type?: 'accessToken'; context?: string }> = []
-  if (!accessToken) {
-    errors.push({ type: 'accessToken' })
-  }
-  if (error) {
-    errors.push({ error, context: 'Failed to load activity data' })
-  }
-
-  // Early return if any errors exist
-  if (errors.length > 0) {
-    return (
-      <>
-        {errors.map((err, index) => (
-          <ErrorAlert
-            key={index}
-            error={err.error}
-            type={err.type}
-            context={err.context}
-            dataTestId={formatDataTestId('customer-activity-form', `error-alert-${index}`)}
-          />
-        ))}
-      </>
-    )
-  }
-
   // Determine if entity selection should be shown
   const hasEntityFromContext = accountId || contactId || opportunityId || leadId
   const shouldShowEntitySelection = !hasEntityFromContext
 
-  // Entity search hook for related entities (only if selection is shown)
   const {
     entities,
     loading: entitiesLoading,
@@ -100,55 +74,8 @@ export const ActivityForm: React.FC<ActivityFormProps> = ({
     hydrateEntityById
   } = useCustomerRelatedEntities({ accessToken, additionalData })
 
-  // File upload client
   const fileClient = useFileClient({ accessToken, userInfo, additionalData })
 
-  // Upload files to file service and return file IDs with metadata
-  const uploadFiles = useCallback(
-    async (
-      files: File[],
-      referenceEntityId: string,
-      referenceEntityType: 'account' | 'contact' | 'lead' | 'opportunity' | 'unknown'
-    ): Promise<Array<{ name: string; fileInfo: any }>> => {
-      if (!files || files.length === 0) return []
-
-      // Determine FILE_ENTITY based on reference entity type
-      const fileEntity =
-        referenceEntityType === 'account'
-          ? FILE_ENTITY.ACCOUNT
-          : referenceEntityType === 'contact'
-            ? FILE_ENTITY.CONTACT
-            : referenceEntityType === 'lead'
-              ? FILE_ENTITY.LEAD
-              : referenceEntityType === 'opportunity'
-                ? FILE_ENTITY.OPPORTUNITY
-                : FILE_ENTITY.UNKNOWN
-
-      const folderPath = buildFilePath(fileEntity, referenceEntityId, FILE_CONTEXT.ACTIVITY)
-
-      const uploadPromises = files.map(async file => {
-        const result = await fileClient.uploadFile(
-          file,
-          { accessScope: 'tenant' },
-          {
-            appName: APP_NAME,
-            folderPath: folderPath,
-            mimeType: file.type
-          }
-        )
-
-        return {
-          name: file.name,
-          fileInfo: result.fileInfo // Pass entire fileInfo JSON
-        }
-      })
-
-      return await Promise.all(uploadPromises)
-    },
-    [fileClient]
-  )
-
-  // Initialize form BEFORE useEffect that uses it
   const form = useForm<z.infer<typeof activitySchema>>({
     resolver: zodResolver(activitySchema),
     defaultValues: mapToFormValues(activity || {}, activitySchema) as any,
@@ -156,8 +83,7 @@ export const ActivityForm: React.FC<ActivityFormProps> = ({
     reValidateMode: 'onSubmit'
   })
 
-  // Combine context + activity IDs (activity has priority)
-  const relatedEntityIds = React.useMemo(
+  const relatedEntityIds = useMemo(
     () => ({
       accountId: activity?.accountId || accountId,
       contactId: activity?.contactId || contactId,
@@ -167,28 +93,8 @@ export const ActivityForm: React.FC<ActivityFormProps> = ({
     [accountId, contactId, opportunityId, leadId, activity]
   )
 
-  // Load existing activity if in update mode - using mapToFormValues (AccountForm pattern)
   const activityRef = useRef(activity)
-  useEffect(() => {
-    if (activityRef.current?.id !== activity?.id) {
-      form.reset(mapToFormValues(activity || {}, activitySchema) as any)
-      activityRef.current = activity
 
-      // Hydrate first found entity
-      const entity = [
-        { type: 'account' as const, id: activity?.accountId },
-        { type: 'contact' as const, id: activity?.contactId },
-        { type: 'opportunity' as const, id: activity?.opportunityId },
-        { type: 'lead' as const, id: activity?.leadId }
-      ].find(e => e.id)
-
-      if (entity?.id) {
-        hydrateEntityById(entity.type, entity.id)
-      }
-    }
-  }, [activity?.id, activity, form, hydrateEntityById])
-
-  // Form submission handler - business logic only
   const handleSubmit = useCallback(async (data: z.infer<typeof activitySchema>) => {
     try {
       delete data.files
@@ -207,7 +113,6 @@ export const ActivityForm: React.FC<ActivityFormProps> = ({
     }
   }, [])
 
-  // PreSubmit handler - upload files before submission
   const handlePreSubmit = useCallback(
     async (data: any) => {
       // Set creator fields if not present
@@ -225,17 +130,17 @@ export const ActivityForm: React.FC<ActivityFormProps> = ({
           // Determine reference entity from form data
           const referenceEntityId =
             data.accountId || data.contactId || data.leadId || data.opportunityId || 'temp-' + Date.now()
-          const referenceEntityType = data.accountId
-            ? 'account'
-            : data.contactId
-              ? 'contact'
-              : data.leadId
-                ? 'lead'
-                : data.opportunityId
-                  ? 'opportunity'
-                  : 'unknown'
+          const referenceEntityType = getReferenceEntityType(data)
 
-          uploadedDocuments = await uploadFiles(data._pendingFiles, referenceEntityId, referenceEntityType)
+          const fileEntity = getFileEntityFromType(referenceEntityType)
+          uploadedDocuments = await uploadFiles(
+            data._pendingFiles,
+            referenceEntityId,
+            fileEntity,
+            FILE_CONTEXT.ACTIVITY,
+            APP_NAME,
+            fileClient
+          )
         } catch (error) {
           console.error('Failed to upload files:', error)
           throw error
@@ -261,17 +166,14 @@ export const ActivityForm: React.FC<ActivityFormProps> = ({
     [uploadFiles, userInfo]
   )
 
-  // Success handler
   const handleSuccess = useCallback(() => {
     onSuccess?.(form.getValues())
   }, [onSuccess, form])
 
-  // Handle form cancellation
-  const handleCancel = useCallback(async () => {
-    await onCancel?.()
+  const handleCancel = useCallback(() => {
+    onCancel?.()
   }, [onCancel])
 
-  // Entity search handler
   const handleEntitySearch = useCallback(
     (searchTerm: string) => {
       // Allow empty string to fetch first page
@@ -299,14 +201,31 @@ export const ActivityForm: React.FC<ActivityFormProps> = ({
     [form]
   )
 
-  // Prefetch entities on mount if selection is visible
+  useEffect(() => {
+    if (activityRef.current?.id !== activity?.id) {
+      form.reset(mapToFormValues(activity || {}, activitySchema) as any)
+      activityRef.current = activity
+
+      // Hydrate first found entity
+      const entity = [
+        { type: 'account' as const, id: activity?.accountId },
+        { type: 'contact' as const, id: activity?.contactId },
+        { type: 'opportunity' as const, id: activity?.opportunityId },
+        { type: 'lead' as const, id: activity?.leadId }
+      ].find(e => e.id)
+
+      if (entity?.id) {
+        hydrateEntityById(entity.type, entity.id)
+      }
+    }
+  }, [activity?.id, activity, form, hydrateEntityById])
+
   useEffect(() => {
     if (shouldShowEntitySelection) {
       searchEntities('')
     }
   }, [shouldShowEntitySelection, searchEntities])
 
-  // Handle entity context - hydrate entity if provided from context
   useEffect(() => {
     if (!accountId && !contactId && !opportunityId && !leadId) return
     const hasEntity = Boolean(
@@ -336,6 +255,30 @@ export const ActivityForm: React.FC<ActivityFormProps> = ({
       hydrateEntityById('lead', leadId)
     }
   }, [accountId, contactId, opportunityId, leadId, form, hydrateEntityById])
+
+  const errors: Array<{ error?: string | unknown; type?: 'accessToken'; context?: string }> = []
+  if (!accessToken) {
+    errors.push({ type: 'accessToken' })
+  }
+  if (error) {
+    errors.push({ error, context: 'Failed to load activity data' })
+  }
+
+  if (errors.length > 0) {
+    return (
+      <>
+        {errors.map((err, index) => (
+          <ErrorAlert
+            key={err.type || `error-${index}`}
+            error={err.error}
+            type={err.type}
+            context={err.context}
+            dataTestId={formatDataTestId('customer-activity-form', `error-alert-${index}`)}
+          />
+        ))}
+      </>
+    )
+  }
 
   const processType = isUpdateMode ? 'update' : 'create'
 

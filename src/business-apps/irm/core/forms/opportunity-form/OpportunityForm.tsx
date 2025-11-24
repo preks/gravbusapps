@@ -102,43 +102,12 @@ const InvestmentOpportunityForm: React.FC<InvestmentOpportunityFormProps> = ({
   // Fetch opportunity data using declarative hook
   const { opportunity, loading, error } = useInvestmentOpportunity(accessToken || '', opportunityId)
 
+  // ALL HOOKS MUST BE CALLED BEFORE EARLY RETURN (Rules of Hooks)
   // Account selection hook - using new declarative list hook
   const useAccounts = useInvestmentAccountsList({ accessToken, userInfo, additionalData }, { limit: 20 })
 
   // Contact selection hook - using new declarative list hook
   const useContacts = useInvestmentContactsList({ accessToken, userInfo, additionalData }, { limit: 20 })
-
-  // Collect all errors for centralized early return
-  const errors: Array<{ error?: string | unknown; type?: 'accessToken'; context?: string }> = []
-  if (!accessToken) {
-    errors.push({ type: 'accessToken' })
-  }
-  if (error) {
-    errors.push({ error, context: 'Failed to load opportunity data' })
-  }
-  if (useAccounts.error) {
-    errors.push({ error: useAccounts.error, context: 'Failed to load accounts' })
-  }
-  if (useContacts.error) {
-    errors.push({ error: useContacts.error, context: 'Failed to load contacts' })
-  }
-
-  // Early return if any errors exist
-  if (errors.length > 0) {
-    return (
-      <>
-        {errors.map((err, index) => (
-          <ErrorAlert
-            key={index}
-            error={err.error}
-            type={err.type}
-            context={err.context}
-            dataTestId={formatDataTestId('investment-opportunity-form', `error-alert-${index}`)}
-          />
-        ))}
-      </>
-    )
-  }
 
   // Initialize React Hook Form with base schema first (will be updated by hook)
   // Note: Schema is dynamic, so we use 'as any' for TypeScript compatibility
@@ -282,6 +251,38 @@ const InvestmentOpportunityForm: React.FC<InvestmentOpportunityFormProps> = ({
       )}
     />
   ) : null
+
+  // Collect all errors for centralized early return (AFTER all hooks)
+  const errors: Array<{ error?: string | unknown; type?: 'accessToken'; context?: string }> = []
+  if (!accessToken) {
+    errors.push({ type: 'accessToken' })
+  }
+  if (error) {
+    errors.push({ error, context: 'Failed to load opportunity data' })
+  }
+  if (useAccounts.error) {
+    errors.push({ error: useAccounts.error, context: 'Failed to load accounts' })
+  }
+  if (useContacts.error) {
+    errors.push({ error: useContacts.error, context: 'Failed to load contacts' })
+  }
+
+  // Early return if any errors exist (now safe - all hooks called above)
+  if (errors.length > 0) {
+    return (
+      <>
+        {errors.map((err, index) => (
+          <ErrorAlert
+            key={err.type || `error-${index}`}
+            error={err.error}
+            type={err.type}
+            context={err.context}
+            dataTestId={formatDataTestId('investment-opportunity-form', `error-alert-${index}`)}
+          />
+        ))}
+      </>
+    )
+  }
 
   const processType = opportunity?.id ? 'update' : 'create'
   const currencyRefValue = form.watch('currencyRef')

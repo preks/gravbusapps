@@ -36,32 +36,7 @@ const LeadForm: React.FC<LeadFormProps> = ({ accessToken, userInfo, additionalDa
   // Fetch lead data using declarative hook
   const { lead, loading, error } = useCustomerLead(accessToken || '', leadId)
 
-  // Collect all errors for centralized early return
-  const errors: Array<{ error?: string | unknown; type?: 'accessToken'; context?: string }> = []
-  if (!accessToken) {
-    errors.push({ type: 'accessToken' })
-  }
-  if (error) {
-    errors.push({ error, context: 'Failed to load lead data' })
-  }
-
-  // Early return if any errors exist
-  if (errors.length > 0) {
-    return (
-      <>
-        {errors.map((err, index) => (
-          <ErrorAlert
-            key={index}
-            error={err.error}
-            type={err.type}
-            context={err.context}
-            dataTestId={formatDataTestId('customer-lead-form', `error-alert-${index}`)}
-          />
-        ))}
-      </>
-    )
-  }
-
+  // ALL HOOKS MUST BE CALLED BEFORE EARLY RETURN (Rules of Hooks)
   // Initialize React Hook Form with CRM-specific schema
   const form = useForm({
     resolver: zodResolver(customerLeadSchema),
@@ -92,6 +67,32 @@ const LeadForm: React.FC<LeadFormProps> = ({ accessToken, userInfo, additionalDa
       throw error
     }
   }, [])
+
+  // Collect all errors for centralized early return (AFTER all hooks)
+  const errors: Array<{ error?: string | unknown; type?: 'accessToken'; context?: string }> = []
+  if (!accessToken) {
+    errors.push({ type: 'accessToken' })
+  }
+  if (error) {
+    errors.push({ error, context: 'Failed to load lead data' })
+  }
+
+  // Early return if any errors exist (now safe - all hooks called above)
+  if (errors.length > 0) {
+    return (
+      <>
+        {errors.map((err, index) => (
+          <ErrorAlert
+            key={err.type || `error-${index}`}
+            error={err.error}
+            type={err.type}
+            context={err.context}
+            dataTestId={formatDataTestId('customer-lead-form', `error-alert-${index}`)}
+          />
+        ))}
+      </>
+    )
+  }
 
   // Handle form cancellation
   const handleCancel = async () => {

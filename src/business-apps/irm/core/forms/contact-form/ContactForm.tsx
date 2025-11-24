@@ -12,15 +12,16 @@ import { mapToFormValues } from '@/common/utils/formMappingUtils'
 import { buildInvestmentContactPayload } from '@/common/data/investment/types/investmentContactTypes'
 import { useInvestmentAccountsList } from '@/common/data/investment/hooks/useInvestmentAccounts'
 import { useFileClient } from '@/common/network/files/useFileClient'
-import { InvestmentFilePaths } from '@/common/data/investment/constants/investmentFilePaths'
 import { buildFilePath } from '@/common/utils/fileUtils'
 import { APP_NAME, FILE_ENTITY, FILE_CONTEXT } from '@/common/data/investment/constants/investmentConstants'
 import { ErrorAlert } from '@/components/error-alert/ErrorAlert'
 import { formatDataTestId } from '@/common/utils/formatDataTestId'
 
+export const investmentContactSchema = contactSchema.extend({})
+
 type ContactFormProps = BusinessAppContextProps
 
-const ContactForm: React.FC<ContactFormProps> = ({ accessToken, userInfo, additionalData }) => {
+export const ContactForm: React.FC<ContactFormProps> = ({ accessToken, userInfo, additionalData }) => {
   // Extract contactId from additionalData
   const contactId = additionalData?.contactId || additionalData?.psi_taskPayload?.psi_initialParameters?.contactId
 
@@ -30,54 +31,24 @@ const ContactForm: React.FC<ContactFormProps> = ({ accessToken, userInfo, additi
   // File client for avatar upload
   const fileClient = useFileClient({ accessToken, userInfo, additionalData })
 
+  // ALL HOOKS MUST BE CALLED BEFORE EARLY RETURN (Rules of Hooks)
   // Account selection hook - using new declarative list hook
   const useAccounts = useInvestmentAccountsList({ accessToken, userInfo, additionalData }, { limit: 20 })
-
-  // Collect all errors for centralized early return
-  const errors: Array<{ error?: string | unknown; type?: 'accessToken'; context?: string }> = []
-  if (!accessToken) {
-    errors.push({ type: 'accessToken' })
-  }
-  if (error) {
-    errors.push({ error, context: 'Failed to load contact data' })
-  }
-  if (useAccounts.error) {
-    errors.push({ error: useAccounts.error, context: 'Failed to load accounts' })
-  }
-
-  // Early return if any errors exist
-  if (errors.length > 0) {
-    return (
-      <>
-        {errors.map((err, index) => (
-          <ErrorAlert
-            key={index}
-            error={err.error}
-            type={err.type}
-            context={err.context}
-            dataTestId={formatDataTestId('investment-contact-form', `error-alert-${index}`)}
-          />
-        ))}
-      </>
-    )
-  }
 
   // Ref to store current file and thumbnail from AvatarUpload (no re-renders)
   const avatarFileRef = useRef<{ file: File; thumbnail: string } | null>(null)
 
-  // Initialize React Hook Form
-  const form = useForm<z.infer<typeof contactSchema>>({
-    resolver: zodResolver(contactSchema),
-    defaultValues: mapToFormValues(contact || {}, contactSchema) as Partial<InvestmentContact>,
+  const form = useForm<z.infer<typeof investmentContactSchema>>({
+    resolver: zodResolver(investmentContactSchema),
+    defaultValues: mapToFormValues(contact || {}, investmentContactSchema) as Partial<InvestmentContact>,
     mode: 'onSubmit',
     reValidateMode: 'onSubmit'
   })
 
-  // Sync form when contact changes
   const contactRef = useRef(contact)
   useEffect(() => {
     if (contactRef.current?.id !== contact?.id) {
-      form.reset(mapToFormValues(contact || {}, contactSchema) as Partial<InvestmentContact>)
+      form.reset(mapToFormValues(contact || {}, investmentContactSchema) as Partial<InvestmentContact>)
       contactRef.current = contact
     }
   }, [contact?.id, contact, form])
@@ -96,6 +67,35 @@ const ContactForm: React.FC<ContactFormProps> = ({ accessToken, userInfo, additi
     }
   }, [])
 
+  // Collect all errors for centralized early return (AFTER all hooks)
+  const errors: Array<{ error?: string | unknown; type?: 'accessToken'; context?: string }> = []
+  if (!accessToken) {
+    errors.push({ type: 'accessToken' })
+  }
+  if (error) {
+    errors.push({ error, context: 'Failed to load contact data' })
+  }
+  if (useAccounts.error) {
+    errors.push({ error: useAccounts.error, context: 'Failed to load accounts' })
+  }
+
+  // Early return if any errors exist (now safe - all hooks called above)
+  if (errors.length > 0) {
+    return (
+      <>
+        {errors.map((err, index) => (
+          <ErrorAlert
+            key={err.type || `error-${index}`}
+            error={err.error}
+            type={err.type}
+            context={err.context}
+            dataTestId={formatDataTestId('investment-contact-form', `error-alert-${index}`)}
+          />
+        ))}
+      </>
+    )
+  }
+
   // Handle form cancellation
   const handleCancel = async () => {
     // AppActionForm handles cancellation via process events
@@ -112,7 +112,7 @@ const ContactForm: React.FC<ContactFormProps> = ({ accessToken, userInfo, additi
     try {
       const contactId = formData.id || contact?.id || null
       const folderPath = buildFilePath(FILE_ENTITY.CONTACT, contactId, FILE_CONTEXT.PICTURE)
-      const pathParams = { accessScope: InvestmentFilePaths.ACCESS_SCOPE } as const
+      const pathParams = { accessScope: 'tenant' } as const
       const queryParams = {
         appName: APP_NAME,
         folderPath: folderPath,

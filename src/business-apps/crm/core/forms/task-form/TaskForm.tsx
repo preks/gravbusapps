@@ -1,4 +1,4 @@
-import React, { useCallback, useEffect, useRef } from 'react'
+import React, { useMemo, useCallback, useEffect, useRef } from 'react'
 import { BusinessAppContextProps } from '@/common/BusinessAppContext'
 import { getTranslationFromI18nKeyAndLabel } from '@/common/utils/windowUtils'
 import { TaskLayout, taskSchema } from '@/common/components/common-relations/form-layouts/task-layout'
@@ -11,11 +11,12 @@ import { useCustomerRelatedEntities } from '@/common/data/customer/hooks/useCust
 import { useCustomerTask } from '@/common/data/customer/hooks/useCustomerTask'
 import { useForm } from 'react-hook-form'
 import { useFileClient } from '@/common/network/files/useFileClient'
-import { buildFilePath } from '@/common/utils/fileUtils'
-import { APP_NAME, FILE_ENTITY, FILE_CONTEXT } from '@/common/data/customer/constants/customerConstants'
 import { mapToFormValues } from '@/common/utils/formMappingUtils'
 import { ErrorAlert } from '@/components/error-alert/ErrorAlert'
 import { formatDataTestId } from '@/common/utils/formatDataTestId'
+import { getReferenceEntityType } from '@/common/data/customer/utils'
+import { FILE_CONTEXT, APP_NAME, getFileEntityFromType } from '@/common/data/customer/constants/customerConstants'
+import { uploadFiles } from '@/common/utils/fileUtils'
 
 type TaskFormData = z.infer<typeof taskSchema> & {
   id?: string
@@ -32,38 +33,31 @@ const TASK_TYPE_CATALOG = 'SalesTaskType:v1'
 const TASK_PRIORITY_CATALOG = 'SalesTaskPriority:v1'
 const TASK_STATUS_CATALOG = 'SalesTaskStatus:v1'
 
-export interface CustomerTaskFormProps extends BusinessAppContextProps {
+export interface TaskFormProps extends BusinessAppContextProps {
   onSuccess?: (task: TaskFormData) => void
   onCancel?: () => void
 }
 
-const CustomerTaskForm: React.FC<CustomerTaskFormProps> = ({
+export const TaskForm: React.FC<TaskFormProps> = ({
   accessToken,
   userInfo,
   additionalData,
   onSuccess,
   onCancel
-}: CustomerTaskFormProps) => {
-  // Resolve IDs from additionalData (platform may pass ids inside psi_taskPayload.psi_initialParameters)
-  const nested =
-    (additionalData as any)?.psi_taskPayload?.psi_initialParameters ||
-    (additionalData as any)?.psi_initialParameters ||
-    {}
-  const platformParams = {
-    taskId: (additionalData as any)?.taskId || nested?.taskId,
-    employeeId: (additionalData as any)?.employeeId || nested?.employeeId,
-    accountId: (additionalData as any)?.accountId || nested?.accountId,
-    contactId: (additionalData as any)?.contactId || nested?.contactId,
-    opportunityId: (additionalData as any)?.opportunityId || nested?.opportunityId,
-    leadId: (additionalData as any)?.leadId || nested?.leadId
-  } as {
-    taskId?: string
-    employeeId?: string
-    accountId?: string
-    contactId?: string
-    opportunityId?: string
-    leadId?: string
-  }
+}: TaskFormProps) => {
+  const platformParams = useMemo(() => {
+    const additionalDataRecord = additionalData as Record<string, any>
+    const nested =
+      additionalDataRecord?.psi_taskPayload?.psi_initialParameters || additionalDataRecord?.psi_initialParameters || {}
+    return {
+      taskId: (additionalData as any)?.taskId || nested?.taskId,
+      employeeId: (additionalData as any)?.employeeId || nested?.employeeId,
+      accountId: additionalDataRecord?.accountId || nested?.accountId,
+      contactId: additionalDataRecord?.contactId || nested?.contactId,
+      opportunityId: additionalDataRecord?.opportunityId || nested?.opportunityId,
+      leadId: additionalDataRecord?.leadId || nested?.leadId
+    }
+  }, [additionalData])
 
   const {
     entities,
@@ -86,46 +80,18 @@ const CustomerTaskForm: React.FC<CustomerTaskFormProps> = ({
   const opportunityId = platformParams.opportunityId
   const leadId = platformParams.leadId
 
-  // Collect all errors for centralized early return
-  const errors: Array<{ error?: string | unknown; type?: 'accessToken'; context?: string }> = []
-  if (!accessToken) {
-    errors.push({ type: 'accessToken' })
-  }
-  if (error) {
-    errors.push({ error, context: 'Failed to load task data' })
-  }
-
-  // Early return if any errors exist
-  if (errors.length > 0) {
-    return (
-      <>
-        {errors.map((err, index) => (
-          <ErrorAlert
-            key={index}
-            error={err.error}
-            type={err.type}
-            context={err.context}
-            dataTestId={formatDataTestId('customer-task-form', `error-alert-${index}`)}
-          />
-        ))}
-      </>
-    )
-  }
-
   // Determine if entity selection should be shown
   const hasEntityFromContext = accountId || contactId || opportunityId || leadId
   const shouldShowEntitySelection = !hasEntityFromContext
 
-  // RHF + Zod resolver provided to AppActionForm
   const form = useForm<z.infer<typeof taskSchema>>({
-    resolver: zodResolver(taskSchema),
+    resolver: zodResolver(taskSchema) as any,
     defaultValues: mapToFormValues(task || {}, taskSchema) as any,
     mode: 'onSubmit',
     reValidateMode: 'onSubmit'
   })
 
-  // Combine context + task IDs (task has priority)
-  const relatedEntityIds = React.useMemo(
+  const relatedEntityIds = useMemo(
     () => ({
       accountId: task?.accountId || accountId,
       contactId: task?.contactId || contactId,
@@ -135,80 +101,7 @@ const CustomerTaskForm: React.FC<CustomerTaskFormProps> = ({
     [accountId, contactId, opportunityId, leadId, task]
   )
 
-  // Sync form when task changes (following AccountForm pattern)
   const taskRef = useRef(task)
-  useEffect(() => {
-    if (taskRef.current?.id !== task?.id) {
-      form.reset(mapToFormValues(task || {}, taskSchema) as any)
-      taskRef.current = task
-
-      // Sync assignedUserId from assignedEmployee after reset
-      const assignedEmployee = form.getValues('assignedEmployee')
-      if (assignedEmployee?.userId) {
-        form.setValue('assignedUserId', assignedEmployee.userId)
-      }
-
-      // Hydrate first found entity
-      const entity = [
-        { type: 'account' as const, id: task?.accountId },
-        { type: 'contact' as const, id: task?.contactId },
-        { type: 'opportunity' as const, id: task?.opportunityId },
-        { type: 'lead' as const, id: task?.leadId }
-      ].find(e => e.id)
-
-      if (entity?.id) {
-        hydrateEntityById(entity.type, entity.id)
-      }
-    }
-  }, [task?.id, task, form, hydrateEntityById])
-
-  // Upload files to storage and return document metadata
-  const uploadFiles = useCallback(
-    async (
-      files: File[],
-      referenceEntityId: string,
-      referenceEntityType: 'account' | 'contact' | 'lead' | 'opportunity' | 'unknown'
-    ): Promise<Array<{ name: string; fileInfo: any }>> => {
-      if (!files || files.length === 0) return []
-
-      // Determine FILE_ENTITY based on reference entity type
-      const fileEntity =
-        referenceEntityType === 'account'
-          ? FILE_ENTITY.ACCOUNT
-          : referenceEntityType === 'contact'
-            ? FILE_ENTITY.CONTACT
-            : referenceEntityType === 'lead'
-              ? FILE_ENTITY.LEAD
-              : referenceEntityType === 'opportunity'
-                ? FILE_ENTITY.OPPORTUNITY
-                : FILE_ENTITY.UNKNOWN
-
-      const folderPath = buildFilePath(fileEntity, referenceEntityId, FILE_CONTEXT.TASK)
-
-      const uploadPromises = files.map(async file => {
-        // Ensure we have a valid MIME type - fallback to octet-stream if empty
-        const mimeType = file.type
-
-        const result = await fileClient.uploadFile(
-          file,
-          { accessScope: 'tenant' },
-          {
-            appName: APP_NAME,
-            folderPath: folderPath,
-            mimeType: mimeType
-          }
-        )
-
-        return {
-          name: file.name,
-          fileInfo: result.fileInfo // Pass entire fileInfo JSON
-        }
-      })
-
-      return await Promise.all(uploadPromises)
-    },
-    [fileClient]
-  )
 
   const handleSubmit = useCallback(
     async (data: z.infer<typeof taskSchema>) => {
@@ -238,7 +131,6 @@ const CustomerTaskForm: React.FC<CustomerTaskFormProps> = ({
     [userInfo]
   )
 
-  // PreSubmit handler - upload files before submission
   const handlePreSubmit = useCallback(
     async (data: any) => {
       // Set creator fields if not present
@@ -256,17 +148,17 @@ const CustomerTaskForm: React.FC<CustomerTaskFormProps> = ({
           // Determine reference entity from form data
           const referenceEntityId =
             data.accountId || data.contactId || data.leadId || data.opportunityId || 'temp-' + Date.now()
-          const referenceEntityType = data.accountId
-            ? 'account'
-            : data.contactId
-              ? 'contact'
-              : data.leadId
-                ? 'lead'
-                : data.opportunityId
-                  ? 'opportunity'
-                  : 'unknown'
+          const referenceEntityType = getReferenceEntityType(data)
 
-          uploadedDocuments = await uploadFiles(data._pendingFiles, referenceEntityId, referenceEntityType)
+          const fileEntity = getFileEntityFromType(referenceEntityType)
+          uploadedDocuments = await uploadFiles(
+            data._pendingFiles,
+            referenceEntityId,
+            fileEntity,
+            FILE_CONTEXT.TASK,
+            APP_NAME,
+            fileClient
+          )
         } catch (error) {
           console.error('Failed to upload files:', error)
           throw error
@@ -296,8 +188,8 @@ const CustomerTaskForm: React.FC<CustomerTaskFormProps> = ({
     onSuccess?.(form.getValues() as any)
   }, [onSuccess, form])
 
-  const handleCancel = useCallback(async () => {
-    await onCancel?.()
+  const handleCancel = useCallback(() => {
+    onCancel?.()
   }, [onCancel])
 
   const handleEntitySearch = useCallback(
@@ -326,16 +218,39 @@ const CustomerTaskForm: React.FC<CustomerTaskFormProps> = ({
     [form]
   )
 
-  // Trigger initial search to load some default entities
-  React.useEffect(() => {
+  useEffect(() => {
+    if (taskRef.current?.id !== task?.id) {
+      form.reset(mapToFormValues(task || {}, taskSchema) as any)
+      taskRef.current = task
+
+      // Sync assignedUserId from assignedEmployee after reset
+      const assignedEmployee = form.getValues('assignedEmployee')
+      if (assignedEmployee?.userId) {
+        form.setValue('assignedUserId', assignedEmployee.userId)
+      }
+
+      // Hydrate first found entity
+      const entity = [
+        { type: 'account' as const, id: task?.accountId },
+        { type: 'contact' as const, id: task?.contactId },
+        { type: 'opportunity' as const, id: task?.opportunityId },
+        { type: 'lead' as const, id: task?.leadId }
+      ].find(e => e.id)
+
+      if (entity?.id) {
+        hydrateEntityById(entity.type, entity.id)
+      }
+    }
+  }, [task?.id, task, form, hydrateEntityById])
+
+  useEffect(() => {
     if (accessToken && !platformParams.taskId) {
       // Only trigger initial search in create mode
       searchEntities('')
     }
   }, [accessToken, platformParams.taskId, searchEntities])
 
-  // Handle customer-specific entity context (extends common TaskSegment behavior)
-  React.useEffect(() => {
+  useEffect(() => {
     if (!accountId && !contactId && !opportunityId && !leadId) return
     const hasEntity = Boolean(
       form.getValues('accountId') ||
@@ -364,6 +279,30 @@ const CustomerTaskForm: React.FC<CustomerTaskFormProps> = ({
       hydrateEntityById('lead', leadId)
     }
   }, [accountId, contactId, opportunityId, leadId, form, hydrateEntityById])
+
+  const errors: Array<{ error?: string | unknown; type?: 'accessToken'; context?: string }> = []
+  if (!accessToken) {
+    errors.push({ type: 'accessToken' })
+  }
+  if (error) {
+    errors.push({ error, context: 'Failed to load task data' })
+  }
+
+  if (errors.length > 0) {
+    return (
+      <>
+        {errors.map((err, index) => (
+          <ErrorAlert
+            key={err.type || `error-${index}`}
+            error={err.error}
+            type={err.type}
+            context={err.context}
+            dataTestId={formatDataTestId('customer-task-form', `error-alert-${index}`)}
+          />
+        ))}
+      </>
+    )
+  }
 
   const processType = taskId ? 'update' : 'create'
 
@@ -419,4 +358,4 @@ const CustomerTaskForm: React.FC<CustomerTaskFormProps> = ({
   )
 }
 
-export default CustomerTaskForm
+export default TaskForm

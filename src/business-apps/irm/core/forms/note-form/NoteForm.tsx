@@ -1,4 +1,4 @@
-import React, { useEffect, useCallback, useRef } from 'react'
+import React, { useMemo, useEffect, useCallback, useRef } from 'react'
 import { BusinessAppContextProps } from '@/common/BusinessAppContext'
 import { getTranslationFromI18nKeyAndLabel } from '@/common/utils/windowUtils'
 import { NoteLayout, noteSchema } from '@/common/components/common-relations/form-layouts/note-layout'
@@ -11,21 +11,20 @@ import { AppActionForm } from '@/components/app-action-form'
 import { CatalogSelect } from '@/components/catalog-select'
 import { useForm } from 'react-hook-form'
 import { useFileClient } from '@/common/network/files/useFileClient'
-import { buildFilePath } from '@/common/utils/fileUtils'
-import { APP_NAME, FILE_ENTITY, FILE_CONTEXT } from '@/common/data/investment/constants/investmentConstants'
 import { mapToFormValues } from '@/common/utils/formMappingUtils'
 import { ErrorAlert } from '@/components/error-alert/ErrorAlert'
 import { formatDataTestId } from '@/common/utils/formatDataTestId'
+import { getReferenceEntityType } from '@/common/data/investment/utils'
+import { FILE_CONTEXT, APP_NAME, getFileEntityFromType } from '@/common/data/investment/constants/investmentConstants'
+import { uploadFiles } from '@/common/utils/fileUtils'
 
 export interface NoteFormProps extends BusinessAppContextProps {
-  initialData?: Partial<z.infer<typeof noteSchema>>
-  onSubmit?: (note: Partial<z.infer<typeof noteSchema>>) => Promise<void>
-  onCancel?: () => Promise<void>
+  onSuccess?: (note: Partial<z.infer<typeof noteSchema>>) => void
+  onCancel?: () => void
 }
 
-const NoteForm: React.FC<NoteFormProps> = ({ accessToken, userInfo, additionalData, onCancel = async () => {} }) => {
-  // Resolve IDs from additionalData (platform may pass ids inside psi_taskPayload.psi_initialParameters)
-  const platformParams = React.useMemo(() => {
+export const NoteForm: React.FC<NoteFormProps> = ({ accessToken, userInfo, additionalData, onSuccess, onCancel }) => {
+  const platformParams = useMemo(() => {
     const nested =
       (additionalData as any)?.psi_taskPayload?.psi_initialParameters ||
       (additionalData as any)?.psi_initialParameters ||
@@ -54,38 +53,11 @@ const NoteForm: React.FC<NoteFormProps> = ({ accessToken, userInfo, additionalDa
   const leadId = platformParams.leadId
   const investmentId = platformParams.investmentId
 
-  // Collect all errors for centralized early return
-  const errors: Array<{ error?: string | unknown; type?: 'accessToken'; context?: string }> = []
-  if (!accessToken) {
-    errors.push({ type: 'accessToken' })
-  }
-  if (error) {
-    errors.push({ error, context: 'Failed to load note data' })
-  }
-
-  // Early return if any errors exist
-  if (errors.length > 0) {
-    return (
-      <>
-        {errors.map((err, index) => (
-          <ErrorAlert
-            key={index}
-            error={err.error}
-            type={err.type}
-            context={err.context}
-            dataTestId={formatDataTestId('investment-note-form', `error-alert-${index}`)}
-          />
-        ))}
-      </>
-    )
-  }
-
   // For investment notes, we hide entity selection since investment + account context is sufficient
   const isInvestmentContext = Boolean(investmentId)
   const hasEntityFromContext = accountId || leadId || contactId || opportunityId
   const shouldShowEntitySelection = !isInvestmentContext && !hasEntityFromContext
 
-  // Entity search hook (controlled search/path) - same as activity form
   const {
     entities,
     loading: entitiesLoading,
@@ -95,69 +67,8 @@ const NoteForm: React.FC<NoteFormProps> = ({ accessToken, userInfo, additionalDa
     hydrateEntityById
   } = useInvestmentEntities({ accessToken, additionalData })
 
-  // File upload client
   const fileClient = useFileClient({ accessToken, userInfo, additionalData })
 
-  // Upload files to file service and return file IDs with metadata
-  const uploadFiles = useCallback(
-    async (
-      files: File[],
-      referenceEntityId: string,
-      referenceEntityType: 'account' | 'contact' | 'lead' | 'opportunity' | 'investment' | 'unknown'
-    ): Promise<Array<{ name: string; fileInfo: any }>> => {
-      if (!files || files.length === 0) return []
-
-      // Determine FILE_ENTITY based on reference entity type
-      let fileEntity: any
-      switch (referenceEntityType) {
-        case 'account':
-          fileEntity = FILE_ENTITY.ACCOUNT
-          break
-        case 'contact':
-          fileEntity = FILE_ENTITY.CONTACT
-          break
-        case 'lead':
-          fileEntity = FILE_ENTITY.LEAD
-          break
-        case 'opportunity':
-          fileEntity = FILE_ENTITY.OPPORTUNITY
-          break
-        case 'investment':
-          fileEntity = FILE_ENTITY.INVESTMENT
-          break
-        default:
-          fileEntity = FILE_ENTITY.UNKNOWN
-          break
-      }
-
-      const folderPath = buildFilePath(fileEntity, referenceEntityId, FILE_CONTEXT.NOTE)
-
-      const uploadPromises = files.map(async file => {
-        // Ensure we have a valid MIME type - fallback to octet-stream if empty
-        const mimeType = file.type
-
-        const result = await fileClient.uploadFile(
-          file,
-          { accessScope: 'tenant' },
-          {
-            appName: APP_NAME,
-            folderPath: folderPath,
-            mimeType: mimeType
-          }
-        )
-
-        return {
-          name: file.name,
-          fileInfo: result.fileInfo // Pass entire fileInfo JSON
-        }
-      })
-
-      return await Promise.all(uploadPromises)
-    },
-    [fileClient]
-  )
-
-  // RHF + Zod resolver provided to AppActionForm
   const form = useForm<z.infer<typeof noteSchema>>({
     resolver: zodResolver(noteSchema),
     defaultValues: mapToFormValues(note || {}, noteSchema) as any,
@@ -165,8 +76,7 @@ const NoteForm: React.FC<NoteFormProps> = ({ accessToken, userInfo, additionalDa
     reValidateMode: 'onSubmit'
   })
 
-  // Combine context + note IDs (note has priority)
-  const relatedEntityIds = React.useMemo(
+  const relatedEntityIds = useMemo(
     () => ({
       accountId: note?.accountId || accountId,
       contactId: note?.contactId || contactId,
@@ -177,7 +87,6 @@ const NoteForm: React.FC<NoteFormProps> = ({ accessToken, userInfo, additionalDa
     [accountId, contactId, opportunityId, leadId, investmentId, note]
   )
 
-  // Load existing note if in update mode - using mapToFormValues (AccountForm pattern)
   const noteRef = useRef(note)
   useEffect(() => {
     if (noteRef.current?.id !== note?.id) {
@@ -225,14 +134,12 @@ const NoteForm: React.FC<NoteFormProps> = ({ accessToken, userInfo, additionalDa
     [form]
   )
 
-  // Prefetch entities on mount if selection is visible
   useEffect(() => {
     if (shouldShowEntitySelection) {
       searchEntities('')
     }
   }, [shouldShowEntitySelection, searchEntities])
 
-  // Handle standard entity context (account, contact, opportunity, lead)
   useEffect(() => {
     if (!accountId && !contactId && !opportunityId && !leadId) return
 
@@ -264,8 +171,6 @@ const NoteForm: React.FC<NoteFormProps> = ({ accessToken, userInfo, additionalDa
     }
   }, [accountId, contactId, opportunityId, leadId, form, hydrateEntityById])
 
-  // Handler for investment entity changes (injected into NoteSegment)
-  // Also handles initial investmentId from context or loaded note
   const handleAdditionalEntityChange = useCallback(
     (type: string, entityId: string | null) => {
       if (type === 'investment') {
@@ -281,7 +186,6 @@ const NoteForm: React.FC<NoteFormProps> = ({ accessToken, userInfo, additionalDa
     [form, hydrateEntityById]
   )
 
-  // Handle investmentId from context or loaded note (IRM-specific, outside NoteSegment)
   useEffect(() => {
     const contextInvestmentId = relatedEntityIds.investmentId
     if (!contextInvestmentId) return
@@ -292,7 +196,6 @@ const NoteForm: React.FC<NoteFormProps> = ({ accessToken, userInfo, additionalDa
     }
   }, [relatedEntityIds.investmentId, form, handleAdditionalEntityChange])
 
-  // Compose validation using the shared util, with domain toggle on entity requirement
   const validateForm = useCallback(
     (data: any): string[] | null => {
       // For investment context, we don't require entity selection since investment context is sufficient
@@ -317,9 +220,6 @@ const NoteForm: React.FC<NoteFormProps> = ({ accessToken, userInfo, additionalDa
     [shouldShowEntitySelection]
   )
 
-  const processType = isUpdateMode ? 'update' : 'create'
-
-  // Form submission handler - business logic only
   const handleSubmit = useCallback(async (data: z.infer<typeof noteSchema>) => {
     try {
       delete data._pendingFiles
@@ -337,7 +237,6 @@ const NoteForm: React.FC<NoteFormProps> = ({ accessToken, userInfo, additionalDa
     }
   }, [])
 
-  // PreSubmit handler - upload files before submission
   const handlePreSubmit = useCallback(
     async (data: any) => {
       // Set author fields if not present (Notes use authorEmployeeId, not creatorEmployeeId)
@@ -357,19 +256,17 @@ const NoteForm: React.FC<NoteFormProps> = ({ accessToken, userInfo, additionalDa
             data.leadId ||
             data.opportunityId ||
             'temp-' + Date.now()
-          const referenceEntityType = data.investmentId
-            ? 'investment'
-            : data.accountId
-              ? 'account'
-              : data.contactId
-                ? 'contact'
-                : data.leadId
-                  ? 'lead'
-                  : data.opportunityId
-                    ? 'opportunity'
-                    : 'unknown'
+          const referenceEntityType = getReferenceEntityType(data)
 
-          uploadedDocuments = await uploadFiles(data._pendingFiles, referenceEntityId, referenceEntityType)
+          const fileEntity = getFileEntityFromType(referenceEntityType)
+          uploadedDocuments = await uploadFiles(
+            data._pendingFiles,
+            referenceEntityId,
+            fileEntity,
+            FILE_CONTEXT.NOTE,
+            APP_NAME,
+            fileClient
+          )
         } catch (error) {
           console.error('Failed to upload files:', error)
           throw error
@@ -395,10 +292,39 @@ const NoteForm: React.FC<NoteFormProps> = ({ accessToken, userInfo, additionalDa
     [uploadFiles, userInfo]
   )
 
-  // Handle form cancellation
-  const handleCancel = async () => {
-    await onCancel()
+  const handleSuccess = useCallback(() => {
+    onSuccess?.(form.getValues())
+  }, [onSuccess, form])
+
+  const handleCancel = useCallback(() => {
+    onCancel?.()
+  }, [onCancel])
+
+  const errors: Array<{ error?: string | unknown; type?: 'accessToken'; context?: string }> = []
+  if (!accessToken) {
+    errors.push({ type: 'accessToken' })
   }
+  if (error) {
+    errors.push({ error, context: 'Failed to load note data' })
+  }
+
+  if (errors.length > 0) {
+    return (
+      <>
+        {errors.map((err, index) => (
+          <ErrorAlert
+            key={err.type || `error-${index}`}
+            error={err.error}
+            type={err.type}
+            context={err.context}
+            dataTestId={formatDataTestId('investment-note-form', `error-alert-${index}`)}
+          />
+        ))}
+      </>
+    )
+  }
+
+  const processType = isUpdateMode ? 'update' : 'create'
 
   return (
     <CatalogSelect.Provider accessToken={accessToken} userInfo={userInfo} additionalData={additionalData} form={form}>
@@ -406,6 +332,7 @@ const NoteForm: React.FC<NoteFormProps> = ({ accessToken, userInfo, additionalDa
         processType={processType}
         onSubmit={handleSubmit}
         handlePreSubmit={handlePreSubmit}
+        onSuccess={handleSuccess}
         onCancel={handleCancel}
         formData={form.getValues()}
         form={form}

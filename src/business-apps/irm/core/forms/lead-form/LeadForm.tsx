@@ -52,32 +52,7 @@ const LeadForm: React.FC<LeadFormProps> = ({ accessToken, userInfo, additionalDa
   // Fetch lead data using declarative hook
   const { lead, loading, error } = useInvestmentLead(accessToken || '', leadId)
 
-  // Collect all errors for centralized early return
-  const errors: Array<{ error?: string | unknown; type?: 'accessToken'; context?: string }> = []
-  if (!accessToken) {
-    errors.push({ type: 'accessToken' })
-  }
-  if (error) {
-    errors.push({ error, context: 'Failed to load lead data' })
-  }
-
-  // Early return if any errors exist
-  if (errors.length > 0) {
-    return (
-      <>
-        {errors.map((err, index) => (
-          <ErrorAlert
-            key={index}
-            error={err.error}
-            type={err.type}
-            context={err.context}
-            dataTestId={formatDataTestId('investment-lead-form', `error-alert-${index}`)}
-          />
-        ))}
-      </>
-    )
-  }
-
+  // ALL HOOKS MUST BE CALLED BEFORE EARLY RETURN (Rules of Hooks)
   // Initialize React Hook Form with base schema first (will be updated by hook)
   // Note: Schema is dynamic, so we use 'as any' for TypeScript compatibility
   const form = useForm({
@@ -178,6 +153,32 @@ const LeadForm: React.FC<LeadFormProps> = ({ accessToken, userInfo, additionalDa
   // Handle pre-submit: Upload files if present (placeholder for future implementation)
   const handlePreSubmit = async (formData: any) => {
     return formData
+  }
+
+  // Collect all errors for centralized early return (AFTER all hooks)
+  const errors: Array<{ error?: string | unknown; type?: 'accessToken'; context?: string }> = []
+  if (!accessToken) {
+    errors.push({ type: 'accessToken' })
+  }
+  if (error) {
+    errors.push({ error, context: 'Failed to load lead data' })
+  }
+
+  // Early return if any errors exist (now safe - all hooks called above)
+  if (errors.length > 0) {
+    return (
+      <>
+        {errors.map((err, index) => (
+          <ErrorAlert
+            key={err.type || `error-${index}`}
+            error={err.error}
+            type={err.type}
+            context={err.context}
+            dataTestId={formatDataTestId('investment-lead-form', `error-alert-${index}`)}
+          />
+        ))}
+      </>
+    )
   }
 
   const processType = lead?.id ? 'update' : 'create'

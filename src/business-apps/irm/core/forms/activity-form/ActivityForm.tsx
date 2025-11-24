@@ -1,4 +1,4 @@
-import React, { useEffect, useCallback, useRef } from 'react'
+import React, { useMemo, useEffect, useCallback, useRef } from 'react'
 import { BusinessAppContextProps } from '@/common/BusinessAppContext'
 import { getTranslationFromI18nKeyAndLabel } from '@/common/utils/windowUtils'
 import { ActivityLayout, activitySchema } from '@/common/components/common-relations/form-layouts/activity-layout'
@@ -16,20 +16,26 @@ import { CatalogSelect } from '@/components/catalog-select'
 import { useForm } from 'react-hook-form'
 import { z } from 'zod'
 import { useFileClient } from '@/common/network/files/useFileClient'
-import { buildFilePath } from '@/common/utils/fileUtils'
-import { APP_NAME, FILE_ENTITY, FILE_CONTEXT } from '@/common/data/investment/constants/investmentConstants'
 import { mapToFormValues } from '@/common/utils/formMappingUtils'
 import { ErrorAlert } from '@/components/error-alert/ErrorAlert'
 import { formatDataTestId } from '@/common/utils/formatDataTestId'
+import { getReferenceEntityType } from '@/common/data/investment/utils'
+import { FILE_CONTEXT, APP_NAME, getFileEntityFromType } from '@/common/data/investment/constants/investmentConstants'
+import { uploadFiles } from '@/common/utils/fileUtils'
 
 export interface ActivityFormProps extends BusinessAppContextProps {
   onSuccess?: (activity: Partial<ActivitySchema>) => void
   onCancel?: () => void
 }
 
-const ActivityForm: React.FC<ActivityFormProps> = ({ accessToken, userInfo, additionalData, onSuccess, onCancel }) => {
-  // Resolve IDs from additionalData (platform may pass ids inside psi_taskPayload.psi_initialParameters)
-  const platformParams = React.useMemo(() => {
+export const ActivityForm: React.FC<ActivityFormProps> = ({
+  accessToken,
+  userInfo,
+  additionalData,
+  onSuccess,
+  onCancel
+}) => {
+  const platformParams = useMemo(() => {
     const additionalDataRecord = additionalData as Record<string, any>
     const nested =
       additionalDataRecord?.psi_taskPayload?.psi_initialParameters || additionalDataRecord?.psi_initialParameters || {}
@@ -57,32 +63,6 @@ const ActivityForm: React.FC<ActivityFormProps> = ({ accessToken, userInfo, addi
   const leadId = platformParams.leadId
   const investmentId = platformParams.investmentId
 
-  // Collect all errors for centralized early return
-  const errors: Array<{ error?: string | unknown; type?: 'accessToken'; context?: string }> = []
-  if (!accessToken) {
-    errors.push({ type: 'accessToken' })
-  }
-  if (error) {
-    errors.push({ error, context: 'Failed to load activity data' })
-  }
-
-  // Early return if any errors exist
-  if (errors.length > 0) {
-    return (
-      <>
-        {errors.map((err, index) => (
-          <ErrorAlert
-            key={index}
-            error={err.error}
-            type={err.type}
-            context={err.context}
-            dataTestId={formatDataTestId('investment-activity-form', `error-alert-${index}`)}
-          />
-        ))}
-      </>
-    )
-  }
-
   // Determine if entity selection should be shown
   // For investment context, we hide entity selection since investment + account context is sufficient
   // Otherwise, show selection if no entity is provided from context
@@ -90,7 +70,6 @@ const ActivityForm: React.FC<ActivityFormProps> = ({ accessToken, userInfo, addi
   const hasEntityFromContext = accountId || leadId || contactId || opportunityId
   const shouldShowEntitySelection = !isInvestmentContext && !hasEntityFromContext
 
-  // Entity search hook (controlled search/path)
   const {
     entities,
     loading: entitiesLoading,
@@ -100,10 +79,8 @@ const ActivityForm: React.FC<ActivityFormProps> = ({ accessToken, userInfo, addi
     hydrateEntityById
   } = useInvestmentEntities({ accessToken, additionalData })
 
-  // File upload client
   const fileClient = useFileClient({ accessToken, userInfo, additionalData })
 
-  // Initialize form early so it can be used in useEffect hooks
   const form = useForm<z.infer<typeof activitySchema>>({
     resolver: zodResolver(activitySchema),
     defaultValues: mapToFormValues(activity || {}, activitySchema) as any,
@@ -111,8 +88,7 @@ const ActivityForm: React.FC<ActivityFormProps> = ({ accessToken, userInfo, addi
     reValidateMode: 'onSubmit'
   })
 
-  // Combine context + activity IDs (activity has priority)
-  const relatedEntityIds = React.useMemo(
+  const relatedEntityIds = useMemo(
     () => ({
       accountId: activity?.accountId || accountId,
       contactId: activity?.contactId || contactId,
@@ -123,66 +99,6 @@ const ActivityForm: React.FC<ActivityFormProps> = ({ accessToken, userInfo, addi
     [accountId, contactId, opportunityId, leadId, investmentId, activity]
   )
 
-  // Upload files to file service and return file IDs with metadata
-  const uploadFiles = useCallback(
-    async (
-      files: File[],
-      referenceEntityId: string,
-      referenceEntityType: 'account' | 'contact' | 'lead' | 'opportunity' | 'investment' | 'unknown'
-    ): Promise<Array<{ name: string; fileInfo: any }>> => {
-      if (!files || files.length === 0) return []
-
-      // Determine FILE_ENTITY based on reference entity type
-      let fileEntity: any
-      switch (referenceEntityType) {
-        case 'account':
-          fileEntity = FILE_ENTITY.ACCOUNT
-          break
-        case 'contact':
-          fileEntity = FILE_ENTITY.CONTACT
-          break
-        case 'lead':
-          fileEntity = FILE_ENTITY.LEAD
-          break
-        case 'opportunity':
-          fileEntity = FILE_ENTITY.OPPORTUNITY
-          break
-        case 'investment':
-          fileEntity = FILE_ENTITY.INVESTMENT
-          break
-        default:
-          fileEntity = FILE_ENTITY.UNKNOWN
-          break
-      }
-
-      const folderPath = buildFilePath(fileEntity, referenceEntityId, FILE_CONTEXT.ACTIVITY)
-
-      const uploadPromises = files.map(async file => {
-        // Ensure we have a valid MIME type - fallback to octet-stream if empty
-        const mimeType = file.type
-
-        const result = await fileClient.uploadFile(
-          file,
-          { accessScope: 'tenant' },
-          {
-            appName: APP_NAME,
-            folderPath: folderPath,
-            mimeType: mimeType
-          }
-        )
-
-        return {
-          name: file.name,
-          fileInfo: result.fileInfo // Pass entire fileInfo JSON
-        }
-      })
-
-      return await Promise.all(uploadPromises)
-    },
-    [fileClient]
-  )
-
-  // Load existing activity if in update mode - using mapToFormValues (AccountForm pattern)
   const activityRef = useRef(activity)
   useEffect(() => {
     if (activityRef.current?.id !== activity?.id) {
@@ -204,7 +120,6 @@ const ActivityForm: React.FC<ActivityFormProps> = ({ accessToken, userInfo, addi
     }
   }, [activity?.id, activity, form, hydrateEntityById])
 
-  // Form submission handler - business logic only
   const handleSubmit = useCallback(async (data: z.infer<typeof activitySchema>) => {
     try {
       delete data.files
@@ -223,7 +138,6 @@ const ActivityForm: React.FC<ActivityFormProps> = ({ accessToken, userInfo, addi
     }
   }, [])
 
-  // PreSubmit handler - upload files before submission
   const handlePreSubmit = useCallback(
     async (data: any) => {
       // Set creator fields if not present
@@ -246,19 +160,17 @@ const ActivityForm: React.FC<ActivityFormProps> = ({ accessToken, userInfo, addi
             data.leadId ||
             data.opportunityId ||
             'temp-' + Date.now()
-          const referenceEntityType = data.investmentId
-            ? 'investment'
-            : data.accountId
-              ? 'account'
-              : data.contactId
-                ? 'contact'
-                : data.leadId
-                  ? 'lead'
-                  : data.opportunityId
-                    ? 'opportunity'
-                    : 'unknown'
+          const referenceEntityType = getReferenceEntityType(data)
 
-          uploadedDocuments = await uploadFiles(data._pendingFiles, referenceEntityId, referenceEntityType)
+          const fileEntity = getFileEntityFromType(referenceEntityType)
+          uploadedDocuments = await uploadFiles(
+            data._pendingFiles,
+            referenceEntityId,
+            fileEntity,
+            FILE_CONTEXT.ACTIVITY,
+            APP_NAME,
+            fileClient
+          )
         } catch (error) {
           console.error('Failed to upload files:', error)
           throw error
@@ -284,17 +196,14 @@ const ActivityForm: React.FC<ActivityFormProps> = ({ accessToken, userInfo, addi
     [uploadFiles, userInfo]
   )
 
-  // Success handler
   const handleSuccess = useCallback(() => {
     onSuccess?.(form.getValues())
   }, [onSuccess, form])
 
-  // Handle form cancellation
-  const handleCancel = useCallback(async () => {
-    await onCancel?.()
+  const handleCancel = useCallback(() => {
+    onCancel?.()
   }, [onCancel])
 
-  // Entity search handler
   const handleEntitySearch = useCallback(
     (searchTerm: string) => {
       // Allow empty string to fetch first page
@@ -322,14 +231,12 @@ const ActivityForm: React.FC<ActivityFormProps> = ({ accessToken, userInfo, addi
     [form]
   )
 
-  // Prefetch entities on mount if selection is visible
   useEffect(() => {
     if (shouldShowEntitySelection) {
       searchEntities('')
     }
   }, [shouldShowEntitySelection, searchEntities])
 
-  // Handle standard entity context (account, contact, opportunity, lead)
   useEffect(() => {
     if (!accountId && !contactId && !opportunityId && !leadId) return
     const hasEntity = Boolean(
@@ -360,8 +267,6 @@ const ActivityForm: React.FC<ActivityFormProps> = ({ accessToken, userInfo, addi
     }
   }, [accountId, contactId, opportunityId, leadId, form, hydrateEntityById])
 
-  // Handler for investment entity changes (injected into ActivitySegment)
-  // Also handles initial investmentId from context or loaded activity
   const handleAdditionalEntityChange = useCallback(
     (type: string, entityId: string | null) => {
       if (type === 'investment') {
@@ -377,7 +282,6 @@ const ActivityForm: React.FC<ActivityFormProps> = ({ accessToken, userInfo, addi
     [form, hydrateEntityById]
   )
 
-  // Handle investmentId from context or loaded activity (IRM-specific, outside ActivitySegment)
   useEffect(() => {
     const contextInvestmentId = relatedEntityIds.investmentId
     if (!contextInvestmentId) return
@@ -388,7 +292,6 @@ const ActivityForm: React.FC<ActivityFormProps> = ({ accessToken, userInfo, addi
     }
   }, [relatedEntityIds.investmentId, form, handleAdditionalEntityChange])
 
-  // Compose validation using the shared util, with domain toggle on entity requirement
   const validateForm = useCallback(
     (data: any): string[] | null => {
       // For investment context, we don't require entity selection since investment context is sufficient
@@ -396,6 +299,30 @@ const ActivityForm: React.FC<ActivityFormProps> = ({ accessToken, userInfo, addi
     },
     [shouldShowEntitySelection]
   )
+
+  const errors: Array<{ error?: string | unknown; type?: 'accessToken'; context?: string }> = []
+  if (!accessToken) {
+    errors.push({ type: 'accessToken' })
+  }
+  if (error) {
+    errors.push({ error, context: 'Failed to load activity data' })
+  }
+
+  if (errors.length > 0) {
+    return (
+      <>
+        {errors.map((err, index) => (
+          <ErrorAlert
+            key={err.type || `error-${index}`}
+            error={err.error}
+            type={err.type}
+            context={err.context}
+            dataTestId={formatDataTestId('investment-activity-form', `error-alert-${index}`)}
+          />
+        ))}
+      </>
+    )
+  }
 
   const processType = isUpdateMode ? 'update' : 'create'
 

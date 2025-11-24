@@ -20,6 +20,11 @@ import EntitySelect from '../../selects/reference-select/EntitySelect'
 import { EmployeeSelect } from '@/components/employee-select'
 import { BusinessAppContextProps } from '@/common/BusinessAppContext'
 import type { Employee } from '@/common/data/employee/types/employeeBaseTypes'
+import {
+  applyInitialCommonEntityFromContext,
+  createCommonEntitySelectHandler,
+  type CommonEntityContext
+} from '../../selects/reference-select/entityHandlingUtils'
 import translations from './_i18n'
 
 // Base Activity interface with all common fields
@@ -139,46 +144,22 @@ const ActivitySegment: React.FC<ActivitySegmentProps> = ({
   React.useEffect(() => {
     if (!initialEntityFromContext) return
 
-    // Handle standard entity types (account, contact, opportunity, lead)
-    const { accountId, contactId, opportunityId, leadId, ...additionalEntities } = initialEntityFromContext
+    // Handle common entity types (account, contact, opportunity, lead)
+    const commonEntityApplied = applyInitialCommonEntityFromContext(initialEntityFromContext as CommonEntityContext, {
+      form,
+      useIdFields: false
+    })
 
-    // Get current form values
-    const currentAccount = form.getValues('account')
-    const currentContact = form.getValues('contact')
-    const currentOpportunity = form.getValues('opportunity')
-    const currentLead = form.getValues('lead')
-
-    if (accountId) {
-      if (currentAccount !== accountId) {
-        form.setValue('account', accountId)
-        form.setValue('relatedEntityId', accountId)
-      }
-    } else if (contactId) {
-      if (currentContact !== contactId) {
-        form.setValue('contact', contactId)
-        form.setValue('relatedEntityId', contactId)
-      }
-    } else if (opportunityId) {
-      if (currentOpportunity !== opportunityId) {
-        form.setValue('opportunity', opportunityId)
-        form.setValue('relatedEntityId', opportunityId)
-      }
-    } else if (leadId) {
-      if (currentLead !== leadId) {
-        form.setValue('lead', leadId)
-        form.setValue('relatedEntityId', leadId)
-      }
-    } else {
-      // Handle additional entity types (e.g. investmentId) via handler
-      if (onAdditionalEntityChange) {
-        for (const [key, value] of Object.entries(additionalEntities)) {
-          if (value) {
-            // Extract type from field name (e.g. 'investmentId' -> 'investment')
-            const type = key.replace(/Id$/, '').toLowerCase()
-            onAdditionalEntityChange(type, value)
-            form.setValue('relatedEntityId', value)
-            break // Only set first additional entity
-          }
+    // If no common entity was applied, handle additional entity types (e.g. investmentId) via handler
+    if (!commonEntityApplied && onAdditionalEntityChange) {
+      const standardEntityKeys = ['accountId', 'contactId', 'opportunityId', 'leadId']
+      for (const [key, value] of Object.entries(initialEntityFromContext)) {
+        if (value && !standardEntityKeys.includes(key)) {
+          // Extract type from field name (e.g. 'investmentId' -> 'investment')
+          const type = key.replace(/Id$/, '').toLowerCase()
+          onAdditionalEntityChange(type, value)
+          form.setValue('relatedEntityId', value)
+          break // Only set first additional entity
         }
       }
     }
@@ -316,43 +297,13 @@ const ActivitySegment: React.FC<ActivitySegmentProps> = ({
                   onValueChange={(v: string | null) => {
                     field.onChange(v || '')
                     if (form) {
-                      const id = String(v || '')
-                      const e = (entities || []).find(x => x.id === id)
-
-                      // Clear all standard entity fields
-                      form.setValue('account', undefined)
-                      form.setValue('contact', undefined)
-                      form.setValue('opportunity', undefined)
-                      form.setValue('lead', undefined)
-
-                      // Clear additional entities via handler (if provided)
-                      if (onAdditionalEntityChange) {
-                        // Get current related entity to clear it
-                        const currentRelatedId = form.getValues('relatedEntityId')
-                        if (currentRelatedId) {
-                          const currentEntity = (entities || []).find(x => x.id === currentRelatedId)
-                          if (
-                            currentEntity &&
-                            !['account', 'contact', 'opportunity', 'lead'].includes(currentEntity.type)
-                          ) {
-                            onAdditionalEntityChange(currentEntity.type, null)
-                          }
-                        }
-                      }
-
-                      if (e) {
-                        // Handle standard entity types (account, contact, opportunity, lead)
-                        if (['account', 'contact', 'opportunity', 'lead'].includes(e.type)) {
-                          form.setValue(e.type as 'account' | 'contact' | 'opportunity' | 'lead', e.id)
-                          form.setValue('relatedEntityId', e.id)
-                        } else {
-                          // Handle additional entity types via handler (e.g. investment)
-                          if (onAdditionalEntityChange) {
-                            onAdditionalEntityChange(e.type, e.id)
-                          }
-                          form.setValue('relatedEntityId', e.id)
-                        }
-                      }
+                      const handleEntityChange = createCommonEntitySelectHandler({
+                        form,
+                        useIdFields: false,
+                        entities: entities || [],
+                        onAdditionalEntityChange
+                      })
+                      handleEntityChange(v)
                     }
                   }}
                   placeholder="Search leads, contacts, accounts, or opportunities..."

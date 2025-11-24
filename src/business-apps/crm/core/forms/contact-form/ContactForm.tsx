@@ -15,7 +15,6 @@ import { CampaignSelect } from '@/common/components/customer/selects/campaign-se
 import { FormField, FormItem, FormLabel, FormControl, FormMessage } from '@newwork/nw-design-system'
 import { useCustomerAccountsList } from '@/common/data/customer/hooks/useCustomerAccounts'
 import { useFileClient } from '@/common/network/files/useFileClient'
-import { CustomerFilePaths } from '@/common/data/customer/constants/customerFilePaths'
 import { buildFilePath } from '@/common/utils/fileUtils'
 import { APP_NAME, FILE_ENTITY, FILE_CONTEXT } from '@/common/data/customer/constants/customerConstants'
 import { ErrorAlert } from '@/components/error-alert/ErrorAlert'
@@ -34,40 +33,12 @@ const ContactForm: React.FC<ContactFormProps> = ({ accessToken, userInfo, additi
   // Load contact data when editing - using new declarative hook
   const { contact, loading, error } = useCustomerContact(accessToken || '', contactId)
 
+  // ALL HOOKS MUST BE CALLED BEFORE EARLY RETURN (Rules of Hooks)
   // File client for avatar upload
   const fileClient = useFileClient({ accessToken, userInfo, additionalData })
 
   // Account selection hook - using new declarative list hook
   const useAccounts = useCustomerAccountsList({ accessToken, userInfo, additionalData }, { limit: 20 })
-
-  // Collect all errors for centralized early return
-  const errors: Array<{ error?: string | unknown; type?: 'accessToken'; context?: string }> = []
-  if (!accessToken) {
-    errors.push({ type: 'accessToken' })
-  }
-  if (error) {
-    errors.push({ error, context: 'Failed to load contact data' })
-  }
-  if (useAccounts.error) {
-    errors.push({ error: useAccounts.error, context: 'Failed to load accounts' })
-  }
-
-  // Early return if any errors exist
-  if (errors.length > 0) {
-    return (
-      <>
-        {errors.map((err, index) => (
-          <ErrorAlert
-            key={index}
-            error={err.error}
-            type={err.type}
-            context={err.context}
-            dataTestId={formatDataTestId('customer-contact-form', `error-alert-${index}`)}
-          />
-        ))}
-      </>
-    )
-  }
 
   // Initialize React Hook Form
   const form = useForm<z.infer<typeof customerContactSchema>>({
@@ -103,6 +74,35 @@ const ContactForm: React.FC<ContactFormProps> = ({ accessToken, userInfo, additi
     }
   }, [])
 
+  // Collect all errors for centralized early return (AFTER all hooks)
+  const errors: Array<{ error?: string | unknown; type?: 'accessToken'; context?: string }> = []
+  if (!accessToken) {
+    errors.push({ type: 'accessToken' })
+  }
+  if (error) {
+    errors.push({ error, context: 'Failed to load contact data' })
+  }
+  if (useAccounts.error) {
+    errors.push({ error: useAccounts.error, context: 'Failed to load accounts' })
+  }
+
+  // Early return if any errors exist (now safe - all hooks called above)
+  if (errors.length > 0) {
+    return (
+      <>
+        {errors.map((err, index) => (
+          <ErrorAlert
+            key={err.type || `error-${index}`}
+            error={err.error}
+            type={err.type}
+            context={err.context}
+            dataTestId={formatDataTestId('customer-contact-form', `error-alert-${index}`)}
+          />
+        ))}
+      </>
+    )
+  }
+
   // Handle form cancellation
   const handleCancel = async () => {
     // AppActionForm handles cancellation via process events
@@ -119,7 +119,7 @@ const ContactForm: React.FC<ContactFormProps> = ({ accessToken, userInfo, additi
     try {
       const contactId = formData.id || contact?.id || null
       const folderPath = buildFilePath(FILE_ENTITY.CONTACT, contactId, FILE_CONTEXT.PICTURE)
-      const pathParams = { accessScope: CustomerFilePaths.ACCESS_SCOPE } as const
+      const pathParams = { accessScope: 'tenant' } as const
       const queryParams = {
         appName: APP_NAME,
         folderPath: folderPath,

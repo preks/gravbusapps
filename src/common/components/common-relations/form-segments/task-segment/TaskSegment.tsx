@@ -26,6 +26,11 @@ import { z } from 'zod'
 import { Clock3, CalendarClock } from 'lucide-react'
 import { zodResolver } from '@hookform/resolvers/zod'
 import type { Employee } from '@/common/data/employee/types/employeeBaseTypes'
+import {
+  applyInitialCommonEntityFromContext,
+  createCommonEntitySelectHandler,
+  type CommonEntityContext
+} from '../../selects/reference-select/entityHandlingUtils'
 import translations from './_i18n'
 
 export interface TaskSegmentProps {
@@ -193,49 +198,25 @@ const TaskSegment: React.FC<TaskSegmentProps> = ({
   React.useEffect(() => {
     if (!initialEntityFromContext) return
 
-    // Handle standard entity types (account, contact, opportunity, lead)
-    const { accountId, contactId, opportunityId, leadId, ...additionalEntities } = initialEntityFromContext
+    // Handle common entity types (account, contact, opportunity, lead)
+    const commonEntityApplied = applyInitialCommonEntityFromContext(initialEntityFromContext as CommonEntityContext, {
+      form,
+      useIdFields: true // TaskSegment uses accountId, contactId, etc.
+    })
 
-    // Get current form values
-    const currentAccountId = form.getValues('accountId')
-    const currentContactId = form.getValues('contactId')
-    const currentOpportunityId = form.getValues('opportunityId')
-    const currentLeadId = form.getValues('leadId')
-
-    if (accountId) {
-      if (currentAccountId !== accountId) {
-        form.setValue('accountId', accountId)
-        form.setValue('relatedEntityId', accountId)
-      }
-    } else if (contactId) {
-      if (currentContactId !== contactId) {
-        form.setValue('contactId', contactId)
-        form.setValue('relatedEntityId', contactId)
-      }
-    } else if (opportunityId) {
-      if (currentOpportunityId !== opportunityId) {
-        form.setValue('opportunityId', opportunityId)
-        form.setValue('relatedEntityId', opportunityId)
-      }
-    } else if (leadId) {
-      if (currentLeadId !== leadId) {
-        form.setValue('leadId', leadId)
-        form.setValue('relatedEntityId', leadId)
-      }
-    } else {
-      // Handle additional entity types (e.g. investmentId) via handler
-      if (onAdditionalEntityChange) {
-        for (const [key, value] of Object.entries(additionalEntities)) {
-          if (value) {
-            // Extract type from field name (e.g. 'investmentId' -> 'investment')
-            const type = key.replace(/Id$/, '').toLowerCase()
-            const currentValue = form.getValues(key as any)
-            if (currentValue !== value) {
-              onAdditionalEntityChange(type, value)
-              form.setValue('relatedEntityId', value)
-            }
-            break // Only set first additional entity
+    // If no common entity was applied, handle additional entity types (e.g. investmentId) via handler
+    if (!commonEntityApplied && onAdditionalEntityChange) {
+      const standardEntityKeys = ['accountId', 'contactId', 'opportunityId', 'leadId']
+      for (const [key, value] of Object.entries(initialEntityFromContext)) {
+        if (value && !standardEntityKeys.includes(key)) {
+          // Extract type from field name (e.g. 'investmentId' -> 'investment')
+          const type = key.replace(/Id$/, '').toLowerCase()
+          const currentValue = form.getValues(key as any)
+          if (currentValue !== value) {
+            onAdditionalEntityChange(type, value)
+            form.setValue('relatedEntityId', value)
           }
+          break // Only set first additional entity
         }
       }
     }
@@ -437,47 +418,13 @@ const TaskSegment: React.FC<TaskSegmentProps> = ({
                   value={field.value || ''}
                   onValueChange={(v: string | null) => {
                     field.onChange(v || '')
-                    const id = String(v || '')
-                    const e = (entities || []).find(x => x.id === id)
-
-                    // Clear all standard entity ID fields
-                    form.setValue('accountId', undefined)
-                    form.setValue('contactId', undefined)
-                    form.setValue('opportunityId', undefined)
-                    form.setValue('leadId', undefined)
-
-                    // Clear additional entities via handler (if provided)
-                    if (onAdditionalEntityChange) {
-                      // Get current additional entity to clear it
-                      const currentRelatedId = form.getValues('relatedEntityId')
-                      if (currentRelatedId) {
-                        const currentEntity = (entities || []).find(x => x.id === currentRelatedId)
-                        if (
-                          currentEntity &&
-                          !['account', 'contact', 'opportunity', 'lead'].includes(currentEntity.type)
-                        ) {
-                          onAdditionalEntityChange(currentEntity.type, null)
-                        }
-                      }
-                    }
-
-                    if (e) {
-                      // Handle standard entity types (account, contact, opportunity, lead)
-                      if (e.type === 'account') {
-                        form.setValue('accountId', e.id)
-                      } else if (e.type === 'contact') {
-                        form.setValue('contactId', e.id)
-                      } else if (e.type === 'opportunity') {
-                        form.setValue('opportunityId', e.id)
-                      } else if (e.type === 'lead') {
-                        form.setValue('leadId', e.id)
-                      } else {
-                        // Handle additional entity types via handler (e.g. investment)
-                        if (onAdditionalEntityChange) {
-                          onAdditionalEntityChange(e.type, e.id)
-                        }
-                      }
-                    }
+                    const handleEntityChange = createCommonEntitySelectHandler({
+                      form,
+                      useIdFields: true, // TaskSegment uses accountId, contactId, etc.
+                      entities: entities || [],
+                      onAdditionalEntityChange
+                    })
+                    handleEntityChange(v)
                   }}
                   onSearch={onEntitySearch}
                   loading={Boolean(entitiesLoading)}

@@ -39,7 +39,6 @@ import { formatDataTestId } from '@/common/utils/formatDataTestId'
 import { useFileClient } from '@/common/network/files/useFileClient'
 import { buildFilePath } from '@/common/utils/fileUtils'
 import { APP_NAME, FILE_ENTITY, FILE_CONTEXT } from '@/common/data/investment/constants/investmentConstants'
-import { InvestmentFilePaths } from '@/common/data/investment/constants/investmentFilePaths'
 import type { InvestmentAccount } from '@/common/data/investment/types/investmentAccountTypes'
 import type { InvestmentContact } from '@/common/data/investment/types/investmentContactTypes'
 import type { SelectOption as AccountSelectOption } from '@/common/components/common-relations/selects/account-select'
@@ -318,38 +317,7 @@ export const ConvertInvestmentLeadForm = ({
     })
   }, [contactsList])
 
-  // Collect all errors for centralized early return
-  const errors: Array<{ error?: string | unknown; type?: 'accessToken'; context?: string }> = []
-  if (!accessToken) {
-    errors.push({ type: 'accessToken' })
-  }
-  if (!loading && leadError) {
-    errors.push({ error: leadError, context: 'Failed to load lead data' })
-  }
-  if (accountsError) {
-    errors.push({ error: accountsError, context: 'Failed to load accounts' })
-  }
-  if (contactsError) {
-    errors.push({ error: contactsError, context: 'Failed to load contacts' })
-  }
-
-  // Early return if any errors exist
-  if (errors.length > 0) {
-    return (
-      <>
-        {errors.map((err, index) => (
-          <ErrorAlert
-            key={index}
-            error={err.error}
-            type={err.type}
-            context={err.context}
-            dataTestId={formatDataTestId('convert-investment-lead-form', `error-alert-${index}`)}
-          />
-        ))}
-      </>
-    )
-  }
-
+  // ALL HOOKS MUST BE CALLED BEFORE EARLY RETURN (Rules of Hooks)
   // Helper function to check if form is ready for conversion
   const isFormReadyForConversion = useCallback((): boolean => {
     const currentValues = form.getValues()
@@ -365,7 +333,7 @@ export const ConvertInvestmentLeadForm = ({
         try {
           const accountId = accountForm.getValues().id || null
           const folderPath = buildFilePath(FILE_ENTITY.ACCOUNT, accountId, FILE_CONTEXT.PICTURE)
-          const pathParams = { accessScope: InvestmentFilePaths.ACCESS_SCOPE } as const
+          const pathParams = { accessScope: 'tenant' } as const
           const queryParams = {
             appName: APP_NAME,
             folderPath: folderPath,
@@ -389,7 +357,7 @@ export const ConvertInvestmentLeadForm = ({
         try {
           const contactId = contactForm.getValues().id || null
           const folderPath = buildFilePath(FILE_ENTITY.CONTACT, contactId, FILE_CONTEXT.PICTURE)
-          const pathParams = { accessScope: InvestmentFilePaths.ACCESS_SCOPE } as const
+          const pathParams = { accessScope: 'tenant' } as const
           const queryParams = {
             appName: APP_NAME,
             folderPath: folderPath,
@@ -647,6 +615,38 @@ export const ConvertInvestmentLeadForm = ({
       extractProspectFieldsFromFormValues
     ]
   )
+
+  // Collect all errors for centralized early return (AFTER all hooks)
+  const errors: Array<{ error?: string | unknown; type?: 'accessToken'; context?: string }> = []
+  if (!accessToken) {
+    errors.push({ type: 'accessToken' })
+  }
+  if (!loading && leadError) {
+    errors.push({ error: leadError, context: 'Failed to load lead data' })
+  }
+  if (accountsError) {
+    errors.push({ error: accountsError, context: 'Failed to load accounts' })
+  }
+  if (contactsError) {
+    errors.push({ error: contactsError, context: 'Failed to load contacts' })
+  }
+
+  // Early return if any errors exist (now safe - all hooks called above)
+  if (errors.length > 0) {
+    return (
+      <>
+        {errors.map((err, index) => (
+          <ErrorAlert
+            key={err.type || `error-${index}`}
+            error={err.error}
+            type={err.type}
+            context={err.context}
+            dataTestId={formatDataTestId('convert-investment-lead-form', `error-alert-${index}`)}
+          />
+        ))}
+      </>
+    )
+  }
 
   return (
     <AppActionForm

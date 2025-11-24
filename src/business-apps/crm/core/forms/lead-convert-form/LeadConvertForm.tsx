@@ -40,12 +40,38 @@ import { formatDataTestId } from '@/common/utils/formatDataTestId'
 import { useFileClient } from '@/common/network/files/useFileClient'
 import { buildFilePath } from '@/common/utils/fileUtils'
 import { APP_NAME, FILE_ENTITY, FILE_CONTEXT } from '@/common/data/customer/constants/customerConstants'
-import { CustomerFilePaths } from '@/common/data/customer/constants/customerFilePaths'
 import type { CustomerAccount } from '@/common/data/customer/types/customerAccountTypes'
 import type { CustomerContact } from '@/common/data/customer/types/customerContactTypes'
 import type { CustomerOpportunity } from '@/common/data/customer/types/customerOpportunityTypes'
 import type { SelectOption as AccountSelectOption } from '@/common/components/common-relations/selects/account-select'
 import type { SelectOption as ContactSelectOption } from '@/common/components/common-relations/selects/contact-select'
+
+// Helper functions to extract entity data from form
+const getAccountFromFormData = (
+  data: ConvertLeadFormData,
+  accountForm: any
+): Partial<CustomerAccount> | { id: string } | undefined => {
+  if (data.accountOption === 'match' && data.selectedAccountId) {
+    return { id: data.selectedAccountId }
+  }
+  if (data.accountOption === 'create') {
+    return accountForm.getValues() as Partial<CustomerAccount>
+  }
+  return undefined
+}
+
+const getContactFromFormData = (
+  data: ConvertLeadFormData,
+  contactForm: any
+): Partial<CustomerContact> | { id: string } | undefined => {
+  if (data.contactOption === 'match' && data.selectedContactId) {
+    return { id: data.selectedContactId }
+  }
+  if (data.contactOption === 'create') {
+    return contactForm.getValues() as Partial<CustomerContact>
+  }
+  return undefined
+}
 
 // CRM-specific schema extensions (adds salesCampaignId)
 const customerAccountSchema = accountSchema.extend({
@@ -250,38 +276,7 @@ export const LeadConvertForm = ({ accessToken, userInfo, additionalData, onSucce
     [businessAppContext]
   )
 
-  // Collect all errors for centralized early return
-  const errors: Array<{ error?: string | unknown; type?: 'accessToken'; context?: string }> = []
-  if (!accessToken) {
-    errors.push({ type: 'accessToken' })
-  }
-  if (!loading && leadError) {
-    errors.push({ error: leadError, context: 'Failed to load lead data' })
-  }
-  if (accountsError) {
-    errors.push({ error: accountsError, context: 'Failed to load accounts' })
-  }
-  if (contactsError) {
-    errors.push({ error: contactsError, context: 'Failed to load contacts' })
-  }
-
-  // Early return if any errors exist
-  if (errors.length > 0) {
-    return (
-      <>
-        {errors.map((err, index) => (
-          <ErrorAlert
-            key={index}
-            error={err.error}
-            type={err.type}
-            context={err.context}
-            dataTestId={formatDataTestId('convert-lead-form', `error-alert-${index}`)}
-          />
-        ))}
-      </>
-    )
-  }
-
+  // ALL HOOKS MUST BE CALLED BEFORE EARLY RETURN (Rules of Hooks)
   // Helper function to check if form is ready for conversion
   const isFormReadyForConversion = useCallback((): boolean => {
     const currentValues = form.getValues()
@@ -297,7 +292,7 @@ export const LeadConvertForm = ({ accessToken, userInfo, additionalData, onSucce
         try {
           const accountId = accountForm.getValues().id || null
           const folderPath = buildFilePath(FILE_ENTITY.ACCOUNT, accountId, FILE_CONTEXT.PICTURE)
-          const pathParams = { accessScope: CustomerFilePaths.ACCESS_SCOPE } as const
+          const pathParams = { accessScope: 'tenant' } as const
           const queryParams = {
             appName: APP_NAME,
             folderPath: folderPath,
@@ -321,7 +316,7 @@ export const LeadConvertForm = ({ accessToken, userInfo, additionalData, onSucce
         try {
           const contactId = contactForm.getValues().id || null
           const folderPath = buildFilePath(FILE_ENTITY.CONTACT, contactId, FILE_CONTEXT.PICTURE)
-          const pathParams = { accessScope: CustomerFilePaths.ACCESS_SCOPE } as const
+          const pathParams = { accessScope: 'tenant' } as const
           const queryParams = {
             appName: APP_NAME,
             folderPath: folderPath,
@@ -518,20 +513,8 @@ export const LeadConvertForm = ({ accessToken, userInfo, additionalData, onSucce
 
       // Determine account, contact, opportunity objects based on form data
       // Get form values directly when needed (like other forms - no subscriptions!)
-      const account =
-        data.accountOption === 'match' && data.selectedAccountId
-          ? { id: data.selectedAccountId }
-          : data.accountOption === 'create'
-            ? (accountForm.getValues() as Partial<CustomerAccount>)
-            : undefined
-
-      const contact =
-        data.contactOption === 'match' && data.selectedContactId
-          ? { id: data.selectedContactId }
-          : data.contactOption === 'create'
-            ? (contactForm.getValues() as Partial<CustomerContact>)
-            : undefined
-
+      const account = getAccountFromFormData(data, accountForm)
+      const contact = getContactFromFormData(data, contactForm)
       const opportunity = data.createOpportunity
         ? (opportunityForm.getValues() as Partial<CustomerOpportunity>)
         : undefined
@@ -541,6 +524,38 @@ export const LeadConvertForm = ({ accessToken, userInfo, additionalData, onSucce
     },
     [actualLeadId, isFormReadyForConversion, form, accountForm, contactForm, opportunityForm]
   )
+
+  // Collect all errors for centralized early return (AFTER all hooks)
+  const errors: Array<{ error?: string | unknown; type?: 'accessToken'; context?: string }> = []
+  if (!accessToken) {
+    errors.push({ type: 'accessToken' })
+  }
+  if (!loading && leadError) {
+    errors.push({ error: leadError, context: 'Failed to load lead data' })
+  }
+  if (accountsError) {
+    errors.push({ error: accountsError, context: 'Failed to load accounts' })
+  }
+  if (contactsError) {
+    errors.push({ error: contactsError, context: 'Failed to load contacts' })
+  }
+
+  // Early return if any errors exist (now safe - all hooks called above)
+  if (errors.length > 0) {
+    return (
+      <>
+        {errors.map((err, index) => (
+          <ErrorAlert
+            key={err.type || `error-${index}`}
+            error={err.error}
+            type={err.type}
+            context={err.context}
+            dataTestId={formatDataTestId('convert-lead-form', `error-alert-${index}`)}
+          />
+        ))}
+      </>
+    )
+  }
 
   return (
     <AppActionForm
