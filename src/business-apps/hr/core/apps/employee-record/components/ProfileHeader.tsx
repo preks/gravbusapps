@@ -25,10 +25,9 @@ import { useOpenChat } from '@/modules/chat-sidebar/utils/hooks/useOpenChat'
 import { useEmployeeWorkCommunications } from '../hooks/useEmployeeWorkCommunications'
 import { getTranslationFromI18nKeyAndLabel } from '@/common/utils/windowUtils'
 import { notification } from 'antd'
-import { StarIcon, Share2 } from 'lucide-react'
+import { StarIcon } from 'lucide-react'
 import { TeamOutlined } from '@ant-design/icons'
 import AppActionMenu from '@/components/app-action-menu/AppActionMenu'
-import { useShareAction } from '@/components/share-entity'
 
 // Team item type
 interface MatrixUnitEmployee {
@@ -141,18 +140,6 @@ const ProfileInfoItem: React.FC<ProfileInfoItemProps> = ({
 }
 
 const ProfileHeader: React.FC<BusinessAppContextProps & ProfileHeaderProps> = ({ userInfo, employee, accessToken }) => {
-  // Use the reusable share action hook
-  const { shareAction, ShareDialog } = useShareAction({
-    accessToken: accessToken || '',
-    currentUserId: userInfo?.id || '',
-    entity: {
-      entityType: 'employee',
-      entityId: employee?.id || '',
-      entityName: getEmployeeFullName(employee),
-      entityUrl: `/platform/hr/employee-record?employeeId=${employee?.id}`
-    }
-  })
-
   // Reference for container and observer
   const resizeObserverRef = useRef<ResizeObserver | null>(null)
   const [containerHeight, setContainerHeight] = useState<number | null>(null)
@@ -400,19 +387,9 @@ const ProfileHeader: React.FC<BusinessAppContextProps & ProfileHeaderProps> = ({
                       >
                         <PiVideoCamera className="gba:h-5 gba:w-5" />
                       </button>
-                      <button
-                        onClick={shareAction.onClick}
-                        className="gba:bg-muted gba:hover:bg-info-secondary gba:rounded-full gba:p-2.5 gba:shadow-sm gba:transition-colors"
-                        title="Share"
-                        aria-label="Share"
-                        data-testid="employee-share-button"
-                      >
-                        <Share2 className="gba:h-5 gba:w-5" />
-                      </button>
                     </>
                   )}
                 </div>
-                {ShareDialog}
               </div>
             </div>
 
