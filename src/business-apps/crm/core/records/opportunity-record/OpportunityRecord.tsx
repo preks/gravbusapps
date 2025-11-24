@@ -132,6 +132,7 @@ const OpportunityRecordContent: React.FC<OpportunityRecordContentProps> = ({
         opportunityId={opportunityId}
         additionalData={props}
         accessToken={props.accessToken}
+        currentUserId={props.userInfo?.id}
       />
 
       {/* Stage Progression - Show filtered pipeline stages */}

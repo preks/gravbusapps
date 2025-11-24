@@ -4,6 +4,7 @@ import { AppActionButton } from '@/components/app-action-button/AppActionButton'
 import { FlowContextName } from '@/common/types/FlowRegistryTypes'
 import { Opportunity } from '../types'
 import { formatCurrency, extractCurrencyCode } from '@/common/utils/numberFormatter'
+import { useShareAction } from '@/components/share-entity'
 
 interface OpportunityHeaderProps {
   opportunity: Opportunity
@@ -11,18 +12,32 @@ interface OpportunityHeaderProps {
   opportunityId: string
   additionalData?: any
   accessToken: string
+  currentUserId?: string
 }
 
 export const OpportunityHeader: React.FC<OpportunityHeaderProps> = ({
   opportunity,
   opportunityData,
   opportunityId,
-  accessToken
+  accessToken,
+  currentUserId
 }) => {
   const formatDate = (dateString: string) => {
     if (!dateString) return 'Not set'
     return new Date(dateString).toLocaleDateString('en-GB')
   }
+
+  // Use the reusable share action hook
+  const { shareAction, ShareDialog } = useShareAction({
+    accessToken,
+    currentUserId: currentUserId || '',
+    entity: {
+      entityType: 'opportunity',
+      entityId: opportunityId,
+      entityName: opportunity.name,
+      entityUrl: `/platform/crm/opportunity-record?opportunityId=${opportunityId}`
+    }
+  })
 
   return (
     <div
@@ -109,14 +124,18 @@ export const OpportunityHeader: React.FC<OpportunityHeaderProps> = ({
               }}
               prefixDataTestId="opportunity-record-action"
               accessToken={accessToken}
-              emptyStateBehavior="hide"
+              emptyStateBehavior="enable"
               deferMainContextRequestsUntilClick={false}
+              staticFlowData={[shareAction]}
             >
               Actions
             </AppActionButton>
           )}
         </div>
       </div>
+
+      {/* Share Dialog - rendered by the hook */}
+      {ShareDialog}
     </div>
   )
 }

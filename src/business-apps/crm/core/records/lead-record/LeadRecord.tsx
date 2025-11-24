@@ -19,6 +19,7 @@ import { AppActionButton } from '@/components/app-action-button/AppActionButton'
 import { FlowContextName } from '@/common/types/FlowRegistryTypes'
 import { AiActions, AiAction } from '@/common/components/common-relations/record-sections/header-section/ai-actions'
 import { useAiSummary } from './hooks/useAiSummary'
+import { useShareAction } from '@/components/share-entity'
 import { useGetSalesActivities } from './queries/SalesActivityQueries'
 import { useGetCrmNotes } from './queries/CrmNoteQueries'
 import { useGetSalesTasks } from './queries/SalesTaskQueries'
@@ -46,6 +47,19 @@ const LeadRecordContent: React.FC<LeadRecordContentProps> = ({ leadId, onBack, f
 
   // AI Summary hook - must be called before any conditional returns
   const aiSummaryHook = useAiSummary(leadId, props.accessToken)
+
+  // Share action hook
+  const leadName = lead?.name || getTranslationFromI18nKeyAndLabel('crm.lead.unnamed', 'Unnamed Lead')
+  const { shareAction, ShareDialog } = useShareAction({
+    accessToken: props.accessToken,
+    currentUserId: props.userInfo?.id || '',
+    entity: {
+      entityType: 'lead',
+      entityId: leadId,
+      entityName: leadName,
+      entityUrl: `/platform/crm/lead-record?leadId=${leadId}`
+    }
+  })
 
   // Data fetching hooks for sections
   const { fetchSalesActivities } = useGetSalesActivities(props)
@@ -285,20 +299,26 @@ const LeadRecordContent: React.FC<LeadRecordContentProps> = ({ leadId, onBack, f
 
   const headerActionButton = useMemo(
     () => (
-      <AppActionButton
-        data-testid="lead-record-action-button"
-        size="icon"
-        contextsArray={[FlowContextName.customerLeadEntity]}
-        externalContextData={{
-          leadId: leadId
-        }}
-        prefixDataTestId="lead-record-action"
-        accessToken={props.accessToken}
-        emptyStateBehavior="hide"
-        deferMainContextRequestsUntilClick={false}
-      />
+      <>
+        <AppActionButton
+          data-testid="lead-record-action-button"
+          size="lg"
+          contextsArray={[FlowContextName.customerLeadEntity]}
+          externalContextData={{
+            leadId: leadId
+          }}
+          prefixDataTestId="lead-record-action"
+          accessToken={props.accessToken}
+          emptyStateBehavior="enable"
+          deferMainContextRequestsUntilClick={false}
+          staticFlowData={[shareAction]}
+        >
+          {getTranslationFromI18nKeyAndLabel('crm.common.actions', 'Actions')}
+        </AppActionButton>
+        {ShareDialog}
+      </>
     ),
-    [leadId, props.accessToken]
+    [leadId, props.accessToken, shareAction, ShareDialog]
   )
 
   // Action props for sections - must be defined before subViewsConfig
@@ -483,12 +503,12 @@ const LeadRecordContent: React.FC<LeadRecordContentProps> = ({ leadId, onBack, f
     )
   }
 
-  const leadName = lead.name || getTranslationFromI18nKeyAndLabel('crm.lead.unnamed', 'Unnamed Lead')
+  const displayLeadName = lead.name || getTranslationFromI18nKeyAndLabel('crm.lead.unnamed', 'Unnamed Lead')
 
   // Create header title with sensitive badge
   const headerTitle = (
     <div className="gba:flex gba:items-center gba:gap-2">
-      <span>{leadName}</span>
+      <span>{displayLeadName}</span>
       {(leadData?.sensitive === true || lead.sensitive === true) && (
         <TooltipProvider>
           <Tooltip>
