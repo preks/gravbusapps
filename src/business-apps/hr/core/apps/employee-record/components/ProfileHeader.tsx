@@ -9,7 +9,6 @@ import {
   PiUser,
   PiMapPin,
   PiCalendar,
-  PiPencilSimple,
   PiVideoCamera,
   PiChat,
   PiCurrencyDollar,
@@ -27,7 +26,7 @@ import { getTranslationFromI18nKeyAndLabel } from '@/common/utils/windowUtils'
 import { notification } from 'antd'
 import { StarIcon } from 'lucide-react'
 import { TeamOutlined } from '@ant-design/icons'
-import AppActionMenu from '@/components/app-action-menu/AppActionMenu'
+import AppAction from '@/components/app-action/AppAction'
 
 // Team item type
 interface MatrixUnitEmployee {
@@ -290,19 +289,20 @@ const ProfileHeader: React.FC<BusinessAppContextProps & ProfileHeaderProps> = ({
                         "
                         aria-label={'Edit profile picture'}
                       >
-                        <AppActionMenu
-                          data-testid="employee-profile-picture-edit-button"
-                          contextsArray={[FlowContextName.employeeProfilePicture]}
-                          externalContextData={{
-                            employeeId: employee?.id
-                          }}
-                          prefixDataTestId="employee-profile-picture-edit"
+                        <AppAction
+                          variant="update-secondary" // or variant="header"
+                          mode="button"
+                          contexts={[
+                            {
+                              context: FlowContextName.employeeProfilePicture,
+                              contextData: { employeeId: employee.id }
+                            }
+                          ]}
                           accessToken={accessToken}
-                          autoExecuteSingleAction={true}
-                          emptyStateBehavior="hide"
-                        >
-                          <PiPencilSimple className="gba:h-5 gba:w-5" />
-                        </AppActionMenu>
+                          emptyState="enable" // ensure it’s visible even before data loads
+                          autoExecute
+                          onClick={e => e.stopPropagation()}
+                        />
                       </div>
                     )}
                   </div>

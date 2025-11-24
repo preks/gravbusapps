@@ -106,6 +106,9 @@ export const useGetInvestmentOpportunities = (context: BusinessAppContextProps) 
       if (variables.accountSearch?.trim()) {
         customConditions.push({ account: { name: { _ilike: `%${variables.accountSearch.trim()}%` } } })
       }
+      if (variables.currencyCode?.trim()) {
+        customConditions.push({ currency: { code: { _eq: variables.currencyCode.trim() } } })
+      }
 
       // Custom ranged filters for estimatedAmount (treat null as 0)
       if (variables.estimatedAmountRanges?.length) {
@@ -353,6 +356,9 @@ export const useGetInvestmentOpportunityAggregates = (context: BusinessAppContex
       }
       if (variables.accountSearch?.trim()) {
         customConditions.push({ investmentAccount: { name: { _ilike: `%${variables.accountSearch.trim()}%` } } })
+      }
+      if (variables.currencyCode?.trim()) {
+        customConditions.push({ currency: { code: { _eq: variables.currencyCode.trim() } } })
       }
 
       if (variables.estimatedAmountRanges?.length) {

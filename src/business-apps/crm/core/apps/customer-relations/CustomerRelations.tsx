@@ -20,7 +20,7 @@ import { DashboardView } from './views/dashboard-view'
 import { AnalyticsView } from './views/analytics-view'
 import { useSalesDashboard } from './views/dashboard-view/hooks/useSalesDashboard'
 import { DateRange } from './views/dashboard-view/types/dashboardTypes'
-import CampaignView from './views/campaign-view'
+import { CampaignManagement } from '@/business-apps/crm/campaigns/apps/campaign-management'
 import { TaskView } from './views/task-view'
 import { MODULE_COLORS } from '@/common/constants/ui'
 
@@ -235,7 +235,7 @@ export const CustomerRelations: React.FC<CustomerRelationsProps> = context => {
       case 'campaigns':
         return (
           <div data-testid="campaigns-tab-content">
-            <CampaignView {...context} />
+            <CampaignManagement {...context} />
           </div>
         )
       case 'opportunities':

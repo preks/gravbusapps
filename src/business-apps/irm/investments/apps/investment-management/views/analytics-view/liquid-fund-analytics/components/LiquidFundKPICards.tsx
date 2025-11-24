@@ -6,6 +6,7 @@ import { LiquidFundInvestmentKPIs } from '../LiquidFundInvestmentsReport'
 
 interface LiquidFundKPICardsProps {
   kpis: LiquidFundInvestmentKPIs
+  currency?: string
   isLoading?: boolean
   error?: Error | null
   onRetry?: () => void
@@ -24,6 +25,7 @@ const calculateChange = (current: number, previous: number): { value: string; po
 
 export const LiquidFundKPICards: React.FC<LiquidFundKPICardsProps> = ({
   kpis,
+  currency = 'EUR',
   isLoading = false,
   error = null,
   onRetry,
@@ -56,7 +58,7 @@ export const LiquidFundKPICards: React.FC<LiquidFundKPICardsProps> = ({
     {
       key: 'average-investment-value',
       title: 'Average Investment Value',
-      value: formatCurrencyCompact(kpis.averageInvestmentValue, 'EUR', undefined, 1, true),
+      value: formatCurrencyCompact(kpis.averageInvestmentValue, currency, undefined, 1, true),
       prefix: <DollarCircleOutlined />,
       color: 'var(--nw-color-success-500)',
       valueIsString: true,
@@ -71,7 +73,7 @@ export const LiquidFundKPICards: React.FC<LiquidFundKPICardsProps> = ({
     {
       key: 'average-market-value',
       title: 'Average Market Value',
-      value: formatCurrencyCompact(kpis.averageMarketValue, 'EUR', undefined, 1, true),
+      value: formatCurrencyCompact(kpis.averageMarketValue, currency, undefined, 1, true),
       prefix: <RiseOutlined />,
       color: 'var(--nw-color-purple-500)',
       valueIsString: true,
@@ -86,7 +88,7 @@ export const LiquidFundKPICards: React.FC<LiquidFundKPICardsProps> = ({
     {
       key: 'total-fund-value',
       title: 'Total Fund Value',
-      value: formatCurrencyCompact(kpis.totalFundValue, 'EUR', undefined, 1, true),
+      value: formatCurrencyCompact(kpis.totalFundValue, currency, undefined, 1, true),
       prefix: <BankOutlined />,
       color: 'var(--nw-color-warning-500)',
       valueIsString: true,

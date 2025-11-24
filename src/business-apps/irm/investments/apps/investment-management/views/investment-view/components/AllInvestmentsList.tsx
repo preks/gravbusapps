@@ -73,9 +73,11 @@ const SortableTableHead: React.FC<{
   )
 }
 
-export type AllInvestmentsListProps = BusinessAppContextProps
+export interface AllInvestmentsListProps extends BusinessAppContextProps {
+  currencyCode?: string
+}
 
-const AllInvestmentsList: React.FC<AllInvestmentsListProps> = context => {
+const AllInvestmentsList: React.FC<AllInvestmentsListProps> = ({ currencyCode, ...context }) => {
   const { accessToken } = context
 
   // Use the investment list controller hook
@@ -120,6 +122,7 @@ const AllInvestmentsList: React.FC<AllInvestmentsListProps> = context => {
     { id: 'investment', label: 'Investment', visible: true },
     { id: 'group', label: 'Group', visible: true },
     { id: 'type', label: 'Type', visible: true },
+    { id: 'totalInvestment', label: 'Total Investment', visible: true },
     { id: 'owner', label: 'Owner', visible: true },
     { id: 'status', label: 'Status', visible: true },
     { id: 'created', label: 'Created', visible: true },
@@ -171,9 +174,10 @@ const AllInvestmentsList: React.FC<AllInvestmentsListProps> = context => {
       orderBy: sortField
         ? [{ field: sortField, direction: sortOrder === 'ASC' ? 'ASC_NULLS_LAST' : 'DESC_NULLS_LAST' }]
         : [{ field: 'createdAt', direction: 'DESC_NULLS_LAST' }],
+      currencyCode: currencyCode || undefined,
       ...getFilters()
     }),
-    [currentPage, pageSize, search, sortField, sortOrder, getFilters]
+    [currentPage, pageSize, search, sortField, sortOrder, currencyCode, getFilters]
   )
 
   const loadData = useCallback(async () => {
@@ -202,7 +206,7 @@ const AllInvestmentsList: React.FC<AllInvestmentsListProps> = context => {
   // Trigger search when search term changes
   useEffect(() => {
     if (initialLoadDone.current && filtersInitialized) {
-      updateURLParams({ search, page: 1 })
+      updateURLParams({ page: 1 })
       loadData()
     }
   }, [search, filtersInitialized, loadData, updateURLParams])
@@ -414,6 +418,17 @@ const AllInvestmentsList: React.FC<AllInvestmentsListProps> = context => {
                 )}
                 {visibleColumns.includes('group') && <TableHead>Group</TableHead>}
                 {visibleColumns.includes('type') && <TableHead>Type</TableHead>}
+                {visibleColumns.includes('totalInvestment') && (
+                  <SortableTableHead
+                    field="totalInvestmentAmount"
+                    currentSortField={sortField}
+                    currentSortOrder={sortOrder}
+                    onSort={handleSortingChange}
+                    className="gba:text-right"
+                  >
+                    Total Investment
+                  </SortableTableHead>
+                )}
                 {visibleColumns.includes('owner') && (
                   <SortableTableHead
                     field="ownerEmployee.displayName"
@@ -470,6 +485,11 @@ const AllInvestmentsList: React.FC<AllInvestmentsListProps> = context => {
                   {visibleColumns.includes('type') && (
                     <TableCell>
                       <Badge variant="secondary">{investment.investmentType?.value || 'Unknown'}</Badge>
+                    </TableCell>
+                  )}
+                  {visibleColumns.includes('totalInvestment') && (
+                    <TableCell className="gba:text-right">
+                      {renderAmount(investment.totalInvestmentAmount, investment.currency?.code)}
                     </TableCell>
                   )}
                   {visibleColumns.includes('owner') && (

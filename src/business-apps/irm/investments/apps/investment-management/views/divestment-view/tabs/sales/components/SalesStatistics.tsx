@@ -5,11 +5,13 @@ import { BusinessAppContextProps } from '@/common/BusinessAppContext'
 import { getTranslationFromI18nKeyAndLabel } from '@/common/utils/windowUtils'
 import { formatCompactCurrency } from '@/common/utils/numberFormatter'
 import { useGetInvestmentOpportunities } from '@/common/data/investment/hooks/useInvestmentOpportunities'
+import { useInvestmentOpportunityFilters } from '@/business-apps/irm/core/apps/investment-relations/views/opportunity-view/hooks/useInvestmentOpportunityFilters'
 import type { InvestmentOpportunityQueryVariables } from '@/common/data/investment/queries/investmentOpportunityQueries'
 import type { InvestmentOpportunity } from '@/common/data/investment/types/investmentOpportunityTypes'
 
 export interface SalesStatisticsProps extends BusinessAppContextProps {
   onRefresh?: () => void
+  currencyCode?: string
 }
 
 interface SalesMetrics {
@@ -21,9 +23,48 @@ interface SalesMetrics {
   totalRevenueChange: number
   averageRevenueChange: number
   salesThisYearChange: number
+  currencyCode: string
 }
 
-export const SalesStatistics: React.FC<SalesStatisticsProps> = ({ accessToken, userInfo }) => {
+// Helper: Calculate percentage change
+const calculatePercentageChange = (current: number, previous: number): number => {
+  if (previous === 0) return current > 0 ? 100 : 0
+  return ((current - previous) / previous) * 100
+}
+
+// Helper: Calculate metrics for a dataset (opportunities are already WON from server filter)
+const calculateMetrics = (opportunities: InvestmentOpportunity[], beforeDate?: Date) => {
+  let filteredOpportunities = opportunities
+
+  if (beforeDate) {
+    filteredOpportunities = opportunities.filter(opp => {
+      const updatedAt = new Date(opp.updatedAt)
+      return updatedAt <= beforeDate
+    })
+  }
+
+  // No need to filter for WON - server already did this
+  const totalValue = filteredOpportunities.reduce((sum, opp) => sum + (opp.estimatedAmount || 0), 0)
+  const averageValue = filteredOpportunities.length > 0 ? totalValue / filteredOpportunities.length : 0
+
+  // Count sales closed this year
+  const now = new Date()
+  const thisYearStart = new Date(now.getFullYear(), 0, 1)
+  const salesThisYear = filteredOpportunities.filter(opp => {
+    if (!opp.closeDate) return false
+    const closeDate = new Date(opp.closeDate)
+    return closeDate >= thisYearStart
+  }).length
+
+  return {
+    totalSold: filteredOpportunities.length,
+    totalRevenue: totalValue,
+    averageRevenue: averageValue,
+    salesThisYear
+  }
+}
+
+export const SalesStatistics: React.FC<SalesStatisticsProps> = ({ accessToken, userInfo, currencyCode }) => {
   const [metrics, setMetrics] = useState<SalesMetrics | null>(null)
   const [isLoading, setIsLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
@@ -31,97 +72,85 @@ export const SalesStatistics: React.FC<SalesStatisticsProps> = ({ accessToken, u
   const context = { accessToken, userInfo }
   const { fetchInvestmentOpportunities } = useGetInvestmentOpportunities(context)
 
+  // Get filter data to identify WON status IDs
+  const filterData = useInvestmentOpportunityFilters(context)
+  const { statuses } = filterData
+
+  // Identify WON status IDs for server-side filtering (same logic as SalesTab)
+  const wonStatusIds = React.useMemo(() => {
+    return statuses
+      .filter(status => {
+        const label = status.label?.toUpperCase() || ''
+        const wonVariations = ['WON', 'CLOSED WON', 'SOLD', 'SUCCESS', 'COMPLETED']
+        return wonVariations.some(variation => label.includes(variation) || label === variation)
+      })
+      .map(status => status.id)
+  }, [statuses])
+
   const loadMetrics = useCallback(async () => {
-    if (!accessToken) return
+    if (!accessToken || wonStatusIds.length === 0) {
+      // If no WON statuses found, set empty metrics
+      if (wonStatusIds.length === 0) {
+        setMetrics({
+          totalSold: 0,
+          totalRevenue: 0,
+          averageRevenue: 0,
+          salesThisYear: 0,
+          totalSoldChange: 0,
+          totalRevenueChange: 0,
+          averageRevenueChange: 0,
+          salesThisYearChange: 0,
+          currencyCode: currencyCode || 'EUR'
+        })
+        setIsLoading(false)
+      }
+      return
+    }
 
     setIsLoading(true)
     setError(null)
 
     try {
-      // Fetch current WON opportunities
+      // Fetch WON opportunities with currency filter (server-side filtering)
       const currentVariables: InvestmentOpportunityQueryVariables = {
         limit: 1000,
-        dealType: 'DIVESTMENT_DEAL'
+        dealType: 'DIVESTMENT_DEAL',
+        currencyCode: currencyCode || undefined,
+        statusIds: wonStatusIds // Server-side filter for WON status
       }
 
       const currentResult = await fetchInvestmentOpportunities(currentVariables)
 
-      // Filter for WON opportunities
-      const filterWonOpportunities = (opportunities: InvestmentOpportunity[]) => {
-        return opportunities.filter(opp => {
-          const statusValue = opp.opportunityStatus?.value?.toUpperCase()
-          const statusCode = opp.opportunityStatus?.code?.toUpperCase()
-          const wonVariations = ['WON', 'CLOSED WON', 'SOLD', 'SUCCESS', 'COMPLETED']
-
-          return wonVariations.some(
-            variation =>
-              statusValue === variation ||
-              statusCode === variation ||
-              statusValue?.includes('WON') ||
-              statusCode?.includes('WON')
-          )
-        })
-      }
-
-      // Calculate metrics for a dataset
-      const calculateMetrics = (opportunities: InvestmentOpportunity[], beforeDate?: Date) => {
-        let filteredOpportunities = opportunities
-
-        if (beforeDate) {
-          filteredOpportunities = opportunities.filter(opp => {
-            const updatedAt = new Date(opp.updatedAt)
-            return updatedAt <= beforeDate
-          })
-        }
-
-        const wonOpportunities = filterWonOpportunities(filteredOpportunities)
-        const totalValue = wonOpportunities.reduce((sum, opp) => sum + (opp.estimatedAmount || 0), 0)
-        const averageValue = wonOpportunities.length > 0 ? totalValue / wonOpportunities.length : 0
-
-        // Count sales closed this year
-        const now = new Date()
-        const thisYearStart = new Date(now.getFullYear(), 0, 1)
-        const salesThisYear = wonOpportunities.filter(opp => {
-          if (!opp.closeDate) return false
-          const closeDate = new Date(opp.closeDate)
-          return closeDate >= thisYearStart
-        }).length
-
-        return {
-          totalSold: wonOpportunities.length,
-          totalRevenue: totalValue,
-          averageRevenue: averageValue,
-          salesThisYear
-        }
-      }
+      // All opportunities are already WON (filtered by server)
+      const wonOpportunities = currentResult.InvestmentOpportunity || []
 
       // Calculate current and historical metrics
       const currentDate = new Date()
       const thirtyDaysAgo = new Date()
       thirtyDaysAgo.setDate(currentDate.getDate() - 30)
 
-      const current = calculateMetrics(currentResult.InvestmentOpportunity || [])
-      const historical = calculateMetrics(currentResult.InvestmentOpportunity || [], thirtyDaysAgo)
-
-      // Calculate percentage changes
-      const calculatePercentageChange = (current: number, previous: number): number => {
-        if (previous === 0) return current > 0 ? 100 : 0
-        return ((current - previous) / previous) * 100
-      }
+      const current = calculateMetrics(wonOpportunities)
+      const historical = calculateMetrics(wonOpportunities, thirtyDaysAgo)
 
       // Year-over-year for sales this year
       const lastYearStart = new Date(currentDate.getFullYear() - 1, 0, 1)
       const lastYearEnd = new Date(currentDate.getFullYear() - 1, currentDate.getMonth(), currentDate.getDate())
 
-      const wonOpportunities = filterWonOpportunities(currentResult.InvestmentOpportunity || [])
       const salesLastYearSamePeriod = wonOpportunities.filter(opp => {
         if (!opp.closeDate) return false
         const closeDate = new Date(opp.closeDate)
         return closeDate >= lastYearStart && closeDate <= lastYearEnd
       }).length
 
+      // Extract currency from opportunities or use provided currencyCode
+      const extractedCurrency =
+        wonOpportunities.length > 0 && wonOpportunities[0].currency
+          ? wonOpportunities[0].currency.code || 'EUR'
+          : currencyCode || 'EUR'
+
       setMetrics({
         ...current,
+        currencyCode: extractedCurrency,
         totalSoldChange: calculatePercentageChange(current.totalSold, historical.totalSold),
         totalRevenueChange: calculatePercentageChange(current.totalRevenue, historical.totalRevenue),
         averageRevenueChange: calculatePercentageChange(current.averageRevenue, historical.averageRevenue),
@@ -132,14 +161,11 @@ export const SalesStatistics: React.FC<SalesStatisticsProps> = ({ accessToken, u
     } finally {
       setIsLoading(false)
     }
-  }, [accessToken, fetchInvestmentOpportunities])
+  }, [accessToken, fetchInvestmentOpportunities, currencyCode, wonStatusIds])
 
   useEffect(() => {
     loadMetrics()
   }, [loadMetrics])
-
-  // Extract currency code
-  const currencyCode = 'EUR' // Default currency for sales metrics
 
   // Helper function to format percentage change
   const formatPercentageChange = (change: number): string => {
@@ -182,7 +208,7 @@ export const SalesStatistics: React.FC<SalesStatisticsProps> = ({ accessToken, u
     {
       key: 'average-sale-amount',
       title: getTranslationFromI18nKeyAndLabel('average_sale_amount', 'Average Sale Amount'),
-      value: formatCompactCurrency(metrics.averageRevenue, currencyCode),
+      value: formatCompactCurrency(metrics.averageRevenue, metrics.currencyCode),
       valueIsString: true,
       prefix: <Target className="gba:h-5 gba:w-5 gba:text-purple-600" />,
       color: '#722ed1',
@@ -197,7 +223,7 @@ export const SalesStatistics: React.FC<SalesStatisticsProps> = ({ accessToken, u
     {
       key: 'total-revenue',
       title: getTranslationFromI18nKeyAndLabel('total_revenue', 'Total Revenue'),
-      value: formatCompactCurrency(metrics.totalRevenue, currencyCode),
+      value: formatCompactCurrency(metrics.totalRevenue, metrics.currencyCode),
       valueIsString: true,
       prefix: <DollarSign className="gba:h-5 gba:w-5 gba:text-green-600" />,
       color: '#389e0d',

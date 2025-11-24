@@ -51,6 +51,7 @@ import { InvestmentTaskFields } from '../types/investmentTaskTypes'
 export interface InvestmentOpportunityQueryVariables extends CommonOpportunityQueryVariables {
   // IRM-specific filters
   dealType?: string
+  currencyCode?: string // Simple currency code like 'EUR', 'USD' - convenience parameter
   divestmentIds?: string[]
   investmentIds?: string[]
   investmentGroupIds?: string[]

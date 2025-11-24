@@ -4,6 +4,7 @@ import { PipelineInfo, DateRange } from '../types/dashboardTypes'
 import { useDashboardQueries } from '../queries/DashboardQueries'
 import { formatCurrency, extractCurrencyCode } from '../utils/dashboardUtils'
 import { getTranslationFromI18nKeyAndLabel } from '@/common/utils/windowUtils'
+import { useAvailableCurrencies } from '@/common/data/investment/hooks/useAvailableCurrencies'
 
 export interface OverviewData {
   aggregatedFunnel: Array<{
@@ -85,22 +86,7 @@ export interface UseOverviewDataReturn {
   refetch: () => void
 }
 
-// Helper function to extract and sort currencies
-const extractCurrencies = (opportunities: any[]): string[] => {
-  const availableCurrencies = new Set<string>()
-  for (const opp of opportunities) {
-    if (opp.currencyRef) {
-      const currency = extractCurrencyCode(opp.currencyRef)
-      availableCurrencies.add(currency)
-    }
-  }
-
-  return Array.from(availableCurrencies).sort((a, b) => {
-    if (a === 'EUR') return -1
-    if (b === 'EUR') return 1
-    return a.localeCompare(b)
-  })
-}
+// Note: Currency extraction is now handled by the centralized useAvailableCurrencies hook
 
 // Helper function to calculate funnel data
 const calculateFunnelData = (filteredOpportunities: any[]) => {
@@ -278,6 +264,12 @@ export const useOverviewData = (
   const [isLoading, setIsLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
 
+  // Use centralized currency hook for investment opportunities
+  const { currencies: availableCurrencies } = useAvailableCurrencies(context, {
+    filters: { entity: 'InvestmentOpportunity' },
+    returnFormat: 'codes'
+  })
+
   const {
     fetchPipelineOpportunities,
     fetchRecentLeads,
@@ -326,9 +318,6 @@ export const useOverviewData = (
 
       // Flatten all opportunities from all pipelines
       const allOpportunities = opportunityArrays.flat()
-
-      // Extract and sort currencies
-      const currencies = extractCurrencies(allOpportunities)
 
       // Filter opportunities by currency if specified
       const filteredOpportunities = selectedCurrency
@@ -484,7 +473,7 @@ export const useOverviewData = (
         keyDeals,
         todaysActivities: processedTodaysActivities,
         activeTasks: processedTodaysTasks,
-        availableCurrencies: currencies,
+        availableCurrencies: availableCurrencies as string[],
         selectedCurrency: selectedCurrency || 'EUR'
       }
 

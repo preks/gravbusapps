@@ -41,15 +41,9 @@ export const useEquityPerformanceData = (
     }
 
     if (isLoadingRef.current) {
-      console.log('⏭️ Performance data hook: Already loading, skipping duplicate request')
       return
     }
 
-    console.log('🚀 Performance data hook: Starting data load...', {
-      stakeAmountCurrency,
-      roleAmountCurrency,
-      concentrationCurrency
-    })
     isLoadingRef.current = true
     setIsLoading(true)
     setError(null)
@@ -65,14 +59,12 @@ export const useEquityPerformanceData = (
       setStakeVsAmountData(stakeResult.stakeVsAmountData)
       setRoleVsAmountData(roleResult.roleVsAmountData)
       setConcentrationData(concentrationResult.concentrationData)
-      console.log('✅ Performance data hook: Data set successfully')
     } catch (err) {
-      console.error('❌ Performance data hook: Error loading data:', err)
+      console.error('Error loading equity performance data:', err)
       setError(err instanceof Error ? err.message : 'Unknown error occurred')
     } finally {
       setIsLoading(false)
       isLoadingRef.current = false
-      console.log('🏁 Performance data hook: Load completed')
     }
   }, [context.accessToken, stakeAmountCurrency, roleAmountCurrency, concentrationCurrency, fetchPerformanceData])
 
