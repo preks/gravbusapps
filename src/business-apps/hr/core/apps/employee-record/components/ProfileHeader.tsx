@@ -141,6 +141,7 @@ const ProfileInfoItem: React.FC<ProfileInfoItemProps> = ({
 
 const ProfileHeader: React.FC<BusinessAppContextProps & ProfileHeaderProps> = ({ userInfo, employee, accessToken }) => {
   // Reference for container and observer
+  const skillsContainerRef = useRef<HTMLDivElement>(null)
   const resizeObserverRef = useRef<ResizeObserver | null>(null)
   const [containerHeight, setContainerHeight] = useState<number | null>(null)
 
