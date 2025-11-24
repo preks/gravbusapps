@@ -163,9 +163,9 @@ export const RealEstateDistributionCharts: React.FC<RealEstateDistributionCharts
   masterCurrency,
   availableCurrencies
 }) => {
-  // Currency state for count-based charts - start with "All Currencies", then sync with master
-  const [typeCountCurrency, setTypeCountCurrency] = useState<string>('All Currencies')
-  const [statusCountCurrency, setStatusCountCurrency] = useState<string>('All Currencies')
+  // Currency state for count-based charts - start with "All", then sync with master
+  const [typeCountCurrency, setTypeCountCurrency] = useState<string>('All')
+  const [statusCountCurrency, setStatusCountCurrency] = useState<string>('All')
 
   const prevMasterCurrencyForCount = useRef<string>(masterCurrency)
 
@@ -183,13 +183,13 @@ export const RealEstateDistributionCharts: React.FC<RealEstateDistributionCharts
     prevMasterCurrencyForCount.current = masterCurrency
   }, [masterCurrency])
 
-  // Enhanced currency options with "All Currencies" option for count charts
-  const currencyOptionsWithAll = ['All Currencies', ...availableCurrencies]
+  // Enhanced currency options with "All" option for count charts
+  const currencyOptionsWithAll = ['All', ...availableCurrencies]
 
   // Filter data for Type Count chart (can show all currencies or specific currency)
   const filteredTypeCountData = useMemo(() => {
     return rawInvestments
-      .filter(inv => typeCountCurrency === 'All Currencies' || (inv.currencyCode || 'EUR') === typeCountCurrency)
+      .filter(inv => typeCountCurrency === 'All' || (inv.currencyCode || 'EUR') === typeCountCurrency)
       .reduce((acc, investment) => {
         const type = investment.investment?.investmentType?.value || 'Unknown Type'
         const existing = acc.find((item: any) => item.type === type)
@@ -223,7 +223,7 @@ export const RealEstateDistributionCharts: React.FC<RealEstateDistributionCharts
   // Filter data for Status Count chart (can show all currencies or specific currency)
   const filteredStatusCountData = useMemo(() => {
     return rawInvestments
-      .filter(inv => statusCountCurrency === 'All Currencies' || (inv.currencyCode || 'EUR') === statusCountCurrency)
+      .filter(inv => statusCountCurrency === 'All' || (inv.currencyCode || 'EUR') === statusCountCurrency)
       .reduce((acc, investment) => {
         const status = investment.investment?.investmentStatus?.value || 'Unknown Status'
         const existing = acc.find((item: any) => item.status === status)
@@ -300,9 +300,7 @@ export const RealEstateDistributionCharts: React.FC<RealEstateDistributionCharts
               <div className="gba:flex gba:items-center gba:gap-3 gba:flex-1">
                 <IconAvatar icon={ChartPieSliceIcon} variant="default" size="md" decorative />
                 <div>
-                  <CardTitle>
-                    Type Distribution by Count ({typeCountCurrency === 'All Currencies' ? 'All' : typeCountCurrency})
-                  </CardTitle>
+                  <CardTitle>Type Distribution by Count ({typeCountCurrency})</CardTitle>
                   <CardDescription>Number of properties per type</CardDescription>
                 </div>
               </div>
@@ -428,10 +426,7 @@ export const RealEstateDistributionCharts: React.FC<RealEstateDistributionCharts
               <div className="gba:flex gba:items-center gba:gap-3 gba:flex-1">
                 <IconAvatar icon={HouseIcon} variant="success" size="md" decorative />
                 <div>
-                  <CardTitle>
-                    Status Distribution by Count (
-                    {statusCountCurrency === 'All Currencies' ? 'All' : statusCountCurrency})
-                  </CardTitle>
+                  <CardTitle>Status Distribution by Count ({statusCountCurrency})</CardTitle>
                   <CardDescription>Number of properties per status</CardDescription>
                 </div>
               </div>

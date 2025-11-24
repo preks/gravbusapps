@@ -36,20 +36,20 @@ interface PortfolioDistributionChartsProps extends BusinessAppContextProps {
 export const PortfolioDistributionCharts: React.FC<PortfolioDistributionChartsProps> = props => {
   const { masterCurrency, availableCurrencies } = props
 
-  // Currency filters with "All Currencies" support for count charts
-  const [groupCountCurrency, setGroupCountCurrency] = useState('All Currencies')
+  // Currency filters with "All" support for count charts
+  const [groupCountCurrency, setGroupCountCurrency] = useState('All')
   const [groupAmountCurrency, setGroupAmountCurrency] = useCurrencySync(masterCurrency)
-  const [statusCountCurrency, setStatusCountCurrency] = useState('All Currencies')
+  const [statusCountCurrency, setStatusCountCurrency] = useState('All')
   const [statusAmountCurrency, setStatusAmountCurrency] = useCurrencySync(masterCurrency)
 
   // Sync count currency with master when master changes
   useEffect(() => {
-    setGroupCountCurrency('All Currencies')
-    setStatusCountCurrency('All Currencies')
+    setGroupCountCurrency('All')
+    setStatusCountCurrency('All')
   }, [masterCurrency])
 
-  // Currency options with "All Currencies" for count charts
-  const currencyOptionsWithAll = useMemo(() => ['All Currencies', ...availableCurrencies], [availableCurrencies])
+  // Currency options with "All" for count charts
+  const currencyOptionsWithAll = useMemo(() => ['All', ...availableCurrencies], [availableCurrencies])
 
   // Fetch group distribution data using server-side queries
   const {
@@ -162,10 +162,7 @@ export const PortfolioDistributionCharts: React.FC<PortfolioDistributionChartsPr
                 <IconAvatar icon={ChartPieSliceIcon} variant="default" size="md" decorative />
                 <div>
                   <CardTitle>Group Distribution by Count</CardTitle>
-                  <CardDescription>
-                    Number of investments per investment group (
-                    {groupCountCurrency === 'All Currencies' ? 'All' : groupCountCurrency})
-                  </CardDescription>
+                  <CardDescription>Number of investments per investment group ({groupCountCurrency})</CardDescription>
                 </div>
               </div>
               <div className="gba:flex gba:items-center gba:gap-2 gba:ml-4">
@@ -378,10 +375,7 @@ export const PortfolioDistributionCharts: React.FC<PortfolioDistributionChartsPr
                 <IconAvatar icon={ChartDonutIcon} variant="secondary" size="md" decorative />
                 <div>
                   <CardTitle>Status Distribution by Count</CardTitle>
-                  <CardDescription>
-                    Number of investments per status (
-                    {statusCountCurrency === 'All Currencies' ? 'All' : statusCountCurrency})
-                  </CardDescription>
+                  <CardDescription>Number of investments per status ({statusCountCurrency})</CardDescription>
                 </div>
               </div>
               <div className="gba:flex gba:items-center gba:gap-2 gba:ml-4">
