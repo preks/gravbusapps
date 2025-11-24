@@ -15,7 +15,7 @@ import {
   AvatarFallback,
   Badge
 } from '@newwork/nw-design-system'
-import { Send, X, Users, Search } from 'lucide-react'
+import { Send, X, Users, Search, CheckCircle } from 'lucide-react'
 import { toast } from 'sonner'
 import { useEmployeeSearch, EmployeeLiteOption } from '@/common/data/employee/useEmployeeSearch'
 import { env } from '@/common/env/EnvUtils'
@@ -176,6 +176,7 @@ export const ShareEntityDialog: React.FC<ShareEntityDialogProps> = ({
   const [message, setMessage] = useState('')
   const [isSubmitting, setIsSubmitting] = useState(false)
   const [searchTerm, setSearchTerm] = useState('')
+  const [sentSuccess, setSentSuccess] = useState(false)
 
   const { employees, loading: employeesLoading, search, hasMore, loadMore } = useEmployeeSearch(accessToken)
 
@@ -185,6 +186,7 @@ export const ShareEntityDialog: React.FC<ShareEntityDialogProps> = ({
       setSelectedEmployees([])
       setMessage('')
       setSearchTerm('')
+      setSentSuccess(false)
     }
   }, [open])
 
@@ -241,14 +243,18 @@ export const ShareEntityDialog: React.FC<ShareEntityDialogProps> = ({
 
       if (result.success) {
         const count = result.count || selectedEmployees.length
-        toast.success(`Shared "${entity.entityName}" with ${count} ${count === 1 ? 'person' : 'people'}!`)
-        onOpenChange(false)
+        setSentSuccess(true)
+        // Close dialog after showing success state
+        setTimeout(() => {
+          toast.success(`Shared "${entity.entityName}" with ${count} ${count === 1 ? 'person' : 'people'}!`)
+          onOpenChange(false)
+        }, 1500)
       } else {
         toast.error(result.error || 'Failed to share')
+        setIsSubmitting(false)
       }
     } catch {
       toast.error('Failed to share')
-    } finally {
       setIsSubmitting(false)
     }
   }
@@ -278,147 +284,166 @@ export const ShareEntityDialog: React.FC<ShareEntityDialogProps> = ({
           </DialogDescription>
         </DialogHeader>
 
-        <div className="gba:flex-1 gba:overflow-y-auto gba:space-y-4 gba:py-4 gba:pr-2">
-          {/* Entity being shared */}
-          <div className="gba:p-3 gba:bg-muted gba:rounded-lg">
-            <p className="gba:text-sm gba:text-muted-foreground">Sharing {entity.entityType}:</p>
-            <p className="gba:font-medium gba:text-foreground">{entity.entityName}</p>
+        {/* Success State */}
+        {sentSuccess ? (
+          <div className="gba:flex-1 gba:flex gba:flex-col gba:items-center gba:justify-center gba:py-12">
+            <div className="gba:w-16 gba:h-16 gba:rounded-full gba:bg-success/10 gba:flex gba:items-center gba:justify-center gba:mb-4">
+              <CheckCircle className="gba:w-10 gba:h-10 gba:text-success" />
+            </div>
+            <h3 className="gba:text-xl gba:font-semibold gba:text-foreground gba:mb-2">Sent!</h3>
+            <p className="gba:text-sm gba:text-muted-foreground gba:text-center">
+              {selectedEmployees.length === 1
+                ? `${selectedEmployees[0].displayName} will receive a notification.`
+                : `${selectedEmployees.length} people will receive a notification.`}
+            </p>
           </div>
-
-          {/* Selected Employees */}
-          {selectedEmployees.length > 0 && (
-            <div className="gba:space-y-2">
-              <Label className="gba:flex gba:items-center gba:gap-2">
-                <Users className="gba:w-4 gba:h-4" />
-                Selected ({selectedEmployees.length})
-              </Label>
-              <div className="gba:flex gba:flex-wrap gba:gap-2">
-                {selectedEmployees.map(emp => (
-                  <Badge
-                    key={emp.id}
-                    variant="secondary"
-                    className="gba:flex gba:items-center gba:gap-2 gba:pr-1 gba:py-1"
-                  >
-                    <Avatar className="gba:w-5 gba:h-5">
-                      {emp.pictureThumbnail ? (
-                        <AvatarImage src={`data:image/jpeg;base64,${emp.pictureThumbnail}`} alt={emp.displayName} />
-                      ) : (
-                        <AvatarFallback className="gba:text-[10px]">{getInitials(emp.displayName)}</AvatarFallback>
-                      )}
-                    </Avatar>
-                    <span className="gba:text-sm">{emp.displayName}</span>
-                    <button
-                      type="button"
-                      onClick={() => removeEmployee(emp.id)}
-                      className="gba:ml-1 gba:p-0.5 gba:rounded-full gba:hover:bg-muted"
-                      data-testid={`remove-employee-${emp.id}`}
-                    >
-                      <X className="gba:w-3 gba:h-3" />
-                    </button>
-                  </Badge>
-                ))}
-              </div>
-            </div>
-          )}
-
-          {/* Employee Search */}
-          <div className="gba:space-y-2">
-            <Label>Send to *</Label>
-            <div className="gba:relative">
-              <Search className="gba:absolute gba:left-3 gba:top-1/2 gba:-translate-y-1/2 gba:w-4 gba:h-4 gba:text-muted-foreground" />
-              <Input
-                value={searchTerm}
-                onChange={e => setSearchTerm(e.target.value)}
-                placeholder="Search for employees..."
-                className="gba:pl-10"
-                data-testid="share-entity-search-input"
-              />
+        ) : (
+          <div className="gba:flex-1 gba:overflow-y-auto gba:space-y-4 gba:py-4 gba:pr-2">
+            {/* Entity being shared */}
+            <div className="gba:p-3 gba:bg-muted gba:rounded-lg">
+              <p className="gba:text-sm gba:text-muted-foreground">Sharing {entity.entityType}:</p>
+              <p className="gba:font-medium gba:text-foreground">{entity.entityName}</p>
             </div>
 
-            {/* Employee List */}
-            <div className="gba:border gba:rounded-lg gba:max-h-[200px] gba:overflow-y-auto">
-              {employeesLoading && availableEmployees.length === 0 ? (
-                <div className="gba:text-center gba:text-sm gba:text-muted-foreground gba:py-8">Loading...</div>
-              ) : availableEmployees.length === 0 ? (
-                <div className="gba:text-center gba:text-sm gba:text-muted-foreground gba:py-8">
-                  {searchTerm ? 'No employees found' : 'Type to search employees'}
-                </div>
-              ) : (
-                <>
-                  {availableEmployees.map(emp => (
-                    <button
+            {/* Selected Employees */}
+            {selectedEmployees.length > 0 && (
+              <div className="gba:space-y-2">
+                <Label className="gba:flex gba:items-center gba:gap-2">
+                  <Users className="gba:w-4 gba:h-4" />
+                  Selected ({selectedEmployees.length})
+                </Label>
+                <div className="gba:flex gba:flex-wrap gba:gap-2">
+                  {selectedEmployees.map(emp => (
+                    <Badge
                       key={emp.id}
-                      type="button"
-                      onClick={() => toggleEmployee(emp)}
-                      className="gba:w-full gba:flex gba:items-center gba:gap-3 gba:p-3 gba:hover:bg-muted gba:transition-colors gba:border-b gba:last:border-b-0"
-                      data-testid={`employee-option-${emp.id}`}
+                      variant="secondary"
+                      className="gba:flex gba:items-center gba:gap-2 gba:pr-1 gba:py-1"
                     >
-                      <Avatar className="gba:w-8 gba:h-8">
+                      <Avatar className="gba:w-5 gba:h-5">
                         {emp.pictureThumbnail ? (
                           <AvatarImage src={`data:image/jpeg;base64,${emp.pictureThumbnail}`} alt={emp.displayName} />
                         ) : (
-                          <AvatarFallback className="gba:text-xs">{getInitials(emp.displayName)}</AvatarFallback>
+                          <AvatarFallback className="gba:text-[10px]">{getInitials(emp.displayName)}</AvatarFallback>
                         )}
                       </Avatar>
-                      <div className="gba:flex-1 gba:min-w-0 gba:text-left">
-                        <div className="gba:text-sm gba:font-medium gba:truncate">{emp.displayName}</div>
-                        <div className="gba:text-xs gba:text-muted-foreground gba:flex gba:flex-wrap gba:gap-1">
-                          {emp.organizationalUnitName && <span>{emp.organizationalUnitName}</span>}
-                          {emp.organizationalUnitName && emp.jobPositionName && <span>·</span>}
-                          {emp.jobPositionName && <span>{emp.jobPositionName}</span>}
-                        </div>
-                      </div>
-                    </button>
+                      <span className="gba:text-sm">{emp.displayName}</span>
+                      <button
+                        type="button"
+                        onClick={() => removeEmployee(emp.id)}
+                        className="gba:ml-1 gba:p-0.5 gba:rounded-full gba:hover:bg-muted"
+                        data-testid={`remove-employee-${emp.id}`}
+                      >
+                        <X className="gba:w-3 gba:h-3" />
+                      </button>
+                    </Badge>
                   ))}
-                  {hasMore && (
-                    <button
-                      type="button"
-                      onClick={loadMore}
-                      className="gba:w-full gba:p-2 gba:text-sm gba:text-primary gba:hover:bg-muted gba:transition-colors"
-                      disabled={employeesLoading}
-                    >
-                      {employeesLoading ? 'Loading...' : 'Load more'}
-                    </button>
-                  )}
-                </>
-              )}
+                </div>
+              </div>
+            )}
+
+            {/* Employee Search */}
+            <div className="gba:space-y-2">
+              <Label>Send to</Label>
+              <div className="gba:relative">
+                <Search className="gba:absolute gba:left-3 gba:top-1/2 gba:-translate-y-1/2 gba:w-4 gba:h-4 gba:text-muted-foreground gba:pointer-events-none gba:z-10" />
+                <Input
+                  value={searchTerm}
+                  onChange={e => setSearchTerm(e.target.value)}
+                  placeholder="Search for employees..."
+                  className="gba:pl-10"
+                  data-testid="share-entity-search-input"
+                />
+              </div>
+
+              {/* Employee List */}
+              <div className="gba:border gba:rounded-lg gba:max-h-[200px] gba:overflow-y-auto">
+                {employeesLoading && availableEmployees.length === 0 ? (
+                  <div className="gba:text-center gba:text-sm gba:text-muted-foreground gba:py-8">Loading...</div>
+                ) : availableEmployees.length === 0 ? (
+                  <div className="gba:text-center gba:text-sm gba:text-muted-foreground gba:py-8">
+                    {searchTerm ? 'No employees found' : 'Type to search employees'}
+                  </div>
+                ) : (
+                  <>
+                    {availableEmployees.map(emp => (
+                      <button
+                        key={emp.id}
+                        type="button"
+                        onClick={() => toggleEmployee(emp)}
+                        className="gba:w-full gba:flex gba:items-center gba:gap-3 gba:p-3 gba:hover:bg-muted gba:transition-colors gba:border-b gba:last:border-b-0"
+                        data-testid={`employee-option-${emp.id}`}
+                      >
+                        <Avatar className="gba:w-8 gba:h-8">
+                          {emp.pictureThumbnail ? (
+                            <AvatarImage src={`data:image/jpeg;base64,${emp.pictureThumbnail}`} alt={emp.displayName} />
+                          ) : (
+                            <AvatarFallback className="gba:text-xs">{getInitials(emp.displayName)}</AvatarFallback>
+                          )}
+                        </Avatar>
+                        <div className="gba:flex-1 gba:min-w-0 gba:text-left">
+                          <div className="gba:text-sm gba:font-medium gba:truncate">{emp.displayName}</div>
+                          <div className="gba:text-xs gba:text-muted-foreground gba:flex gba:flex-wrap gba:gap-1">
+                            {emp.organizationalUnitName && <span>{emp.organizationalUnitName}</span>}
+                            {emp.organizationalUnitName && emp.jobPositionName && <span>·</span>}
+                            {emp.jobPositionName && <span>{emp.jobPositionName}</span>}
+                          </div>
+                        </div>
+                      </button>
+                    ))}
+                    {hasMore && (
+                      <button
+                        type="button"
+                        onClick={loadMore}
+                        className="gba:w-full gba:p-2 gba:text-sm gba:text-primary gba:hover:bg-muted gba:transition-colors"
+                        disabled={employeesLoading}
+                      >
+                        {employeesLoading ? 'Loading...' : 'Load more'}
+                      </button>
+                    )}
+                  </>
+                )}
+              </div>
+            </div>
+
+            {/* Optional Message */}
+            <div className="gba:space-y-2">
+              <Label htmlFor="message">Message (optional)</Label>
+              <Textarea
+                id="message"
+                placeholder="Add a personal message..."
+                value={message}
+                onChange={e => setMessage(e.target.value)}
+                className="gba:min-h-[80px] gba:resize-none"
+                data-testid="share-entity-message"
+              />
             </div>
           </div>
+        )}
 
-          {/* Optional Message */}
-          <div className="gba:space-y-2">
-            <Label htmlFor="message">Message (optional)</Label>
-            <Textarea
-              id="message"
-              placeholder="Add a personal message..."
-              value={message}
-              onChange={e => setMessage(e.target.value)}
-              className="gba:min-h-[80px] gba:resize-none"
-              data-testid="share-entity-message"
-            />
-          </div>
-        </div>
-
-        <DialogFooter className="gba:gap-2 gba:pt-4 gba:border-t">
-          <Button
-            variant="outline"
-            onClick={() => onOpenChange(false)}
-            disabled={isSubmitting}
-            data-testid="share-entity-cancel-button"
-          >
-            Cancel
-          </Button>
-          <Button
-            onClick={handleSubmit}
-            disabled={selectedEmployees.length === 0 || isSubmitting}
-            data-testid="share-entity-send-button"
-          >
-            <Send className="gba:w-4 gba:h-4 gba:mr-2" />
-            {isSubmitting
-              ? 'Sending...'
-              : `Send to ${selectedEmployees.length || ''} ${selectedEmployees.length === 1 ? 'person' : 'people'}`}
-          </Button>
-        </DialogFooter>
+        {!sentSuccess && (
+          <DialogFooter className="gba:gap-2 gba:pt-4 gba:border-t">
+            <Button
+              variant="outline"
+              onClick={() => onOpenChange(false)}
+              disabled={isSubmitting}
+              data-testid="share-entity-cancel-button"
+            >
+              Cancel
+            </Button>
+            <Button
+              onClick={handleSubmit}
+              disabled={selectedEmployees.length === 0 || isSubmitting}
+              data-testid="share-entity-send-button"
+            >
+              <Send className="gba:w-4 gba:h-4 gba:mr-2" />
+              {isSubmitting
+                ? 'Sending...'
+                : selectedEmployees.length === 0
+                  ? 'Select recipients'
+                  : `Send to ${selectedEmployees.length} ${selectedEmployees.length === 1 ? 'person' : 'people'}`}
+            </Button>
+          </DialogFooter>
+        )}
       </DialogContent>
     </Dialog>
   )
