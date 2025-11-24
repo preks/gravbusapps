@@ -74,7 +74,7 @@ const EmploymentStatistics: React.FC<EmploymentStatisticsProps> = ({ statistics,
     // Create loading placeholder cards
     const loadingCards: KpiCardData[] = kpiCards.map(card => ({
       ...card,
-      value: 'Loading...'
+      value: t('hr-data-filter-loading')
     }))
 
     return (
