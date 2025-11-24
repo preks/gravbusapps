@@ -27,12 +27,14 @@ export const Chat: React.FC<ChatProps> = ({ accessToken, prefixDataTestId = 'cha
   baseUrl = baseUrl.endsWith('/') ? baseUrl.slice(0, -1) : baseUrl
 
   const apiUrl = env('NEXT_PUBLIC_CHAT_API') || `${baseUrl}/chat-service/api/v1` || ''
-  const wsUrl = env('NEXT_PUBLIC_CHAT_WEB_SOCKET') || `${baseUrl}/chat-service/chat` || ''
+  const wsUrl = env('NEXT_PUBLIC_CHAT_WEB_SOCKET') || `${baseUrl}/chat-service` || ''
+  const wsSocketPath = env('NEXT_PUBLIC_CHAT_WEB_SOCKET') ? undefined : '/chat-service/socket.io'
 
   const chatClient = useChatClient({
     accessToken,
     apiUrl,
-    wsUrl
+    wsUrl,
+    wsSocketPath
   })
 
   const {
