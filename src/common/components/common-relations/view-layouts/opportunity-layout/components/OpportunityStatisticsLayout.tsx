@@ -23,11 +23,13 @@ export interface OpportunityStatisticsData {
 
 interface OpportunityStatisticsLayoutProps {
   statistics: OpportunityStatisticsData
+  selectedCurrency?: string
   'data-testid'?: string
 }
 
 export const OpportunityStatisticsLayout: React.FC<OpportunityStatisticsLayoutProps> = ({
   statistics,
+  selectedCurrency = 'EUR',
   'data-testid': dataTestId = 'opportunity-statistics'
 }) => {
   const { recentOpportunities, opportunityValue, winRate, opportunitiesThisYear, isLoading, error, refetch } =
@@ -36,10 +38,10 @@ export const OpportunityStatisticsLayout: React.FC<OpportunityStatisticsLayoutPr
   const formatCurrency = (amount: number): string => {
     try {
       // Try formatCurrencyCompact first (for Investment)
-      return formatCurrencyCompact(amount, 'USD', undefined, 1, true)
+      return formatCurrencyCompact(amount, selectedCurrency, undefined, 1, true)
     } catch {
       // Fallback to formatCompactCurrency (for Customer)
-      return formatCompactCurrency(amount, 'USD')
+      return formatCompactCurrency(amount, selectedCurrency)
     }
   }
 

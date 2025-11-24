@@ -99,6 +99,7 @@ export const useBenefitsCatalog = (
           parentEntryId: catalogEntry.parentEntryId,
           availableProviders: catalogEntry.childEntries || [], // Available providers for this benefit type
           catalogEntry: catalogEntry, // Store full entry with translations for runtime translation
+          type: catalogEntry.type,
 
           // Employee benefit data (if exists)
           isActive,
@@ -168,6 +169,7 @@ export const useBenefitsCatalog = (
           description: entry.description,
           displayOrder: entry.displayOrder || 0,
           parentEntryId: entry.parentEntryId,
+          type: entry.type,
           additionalValue1: entry.additionalValue1,
           additionalValue2: entry.additionalValue2,
           additionalValue3: entry.additionalValue3,

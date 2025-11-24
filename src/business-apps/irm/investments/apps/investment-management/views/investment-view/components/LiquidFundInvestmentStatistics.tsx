@@ -5,10 +5,21 @@ import { BusinessAppContextProps } from '@/common/BusinessAppContext'
 import { useLiquidFundKPIIntegration } from '../../analytics-view/liquid-fund-analytics/hooks/useLiquidFundKPIIntegration'
 import { formatCurrencyCompact } from '@/common/utils/numberFormatter'
 
-type LiquidFundInvestmentStatisticsProps = BusinessAppContextProps
+export interface LiquidFundInvestmentStatisticsProps extends BusinessAppContextProps {
+  currencyCode?: string
+}
 
-export const LiquidFundInvestmentStatistics: React.FC<LiquidFundInvestmentStatisticsProps> = ({ ...context }) => {
-  const { current: kpis, previous: previousKpis, isLoading, error, refetch } = useLiquidFundKPIIntegration(context)
+export const LiquidFundInvestmentStatistics: React.FC<LiquidFundInvestmentStatisticsProps> = ({
+  currencyCode,
+  ...context
+}) => {
+  const {
+    current: kpis,
+    previous: previousKpis,
+    isLoading,
+    error,
+    refetch
+  } = useLiquidFundKPIIntegration(context, currencyCode)
 
   // Calculate percentage change between current and previous values
   const calculateChange = (current: number, previous: number): { value: string; positive: boolean } => {
@@ -35,13 +46,13 @@ export const LiquidFundInvestmentStatistics: React.FC<LiquidFundInvestmentStatis
       trend: {
         value: calculateChange(kpis.totalInvestments, previousKpis.totalInvestments).value,
         positive: calculateChange(kpis.totalInvestments, previousKpis.totalInvestments).positive,
-        description: 'vs 7 days ago'
+        description: 'vs 30 days ago'
       }
     },
     {
       key: 'average-investment-value',
       title: 'Average Investment Value',
-      value: formatCurrencyCompact(kpis.averageInvestmentValue, 'EUR', undefined, 1, true),
+      value: formatCurrencyCompact(kpis.averageInvestmentValue, currencyCode || 'EUR', undefined, 1, true),
       prefix: <DollarCircleOutlined />,
       color: '#52c41a',
       valueIsString: true,
@@ -50,13 +61,13 @@ export const LiquidFundInvestmentStatistics: React.FC<LiquidFundInvestmentStatis
       trend: {
         value: calculateChange(kpis.averageInvestmentValue, previousKpis.averageInvestmentValue).value,
         positive: calculateChange(kpis.averageInvestmentValue, previousKpis.averageInvestmentValue).positive,
-        description: 'vs 7 days ago'
+        description: 'vs 30 days ago'
       }
     },
     {
       key: 'average-market-value',
       title: 'Average Market Value',
-      value: formatCurrencyCompact(kpis.averageMarketValue, 'EUR', undefined, 1, true),
+      value: formatCurrencyCompact(kpis.averageMarketValue, currencyCode || 'EUR', undefined, 1, true),
       prefix: <RiseOutlined />,
       color: '#faad14',
       valueIsString: true,
@@ -65,13 +76,13 @@ export const LiquidFundInvestmentStatistics: React.FC<LiquidFundInvestmentStatis
       trend: {
         value: calculateChange(kpis.averageMarketValue, previousKpis.averageMarketValue).value,
         positive: calculateChange(kpis.averageMarketValue, previousKpis.averageMarketValue).positive,
-        description: 'vs 7 days ago'
+        description: 'vs 30 days ago'
       }
     },
     {
       key: 'total-fund-value',
       title: 'Total Fund Value',
-      value: formatCurrencyCompact(kpis.totalMarketValue, 'EUR', undefined, 1, true),
+      value: formatCurrencyCompact(kpis.totalMarketValue, currencyCode || 'EUR', undefined, 1, true),
       prefix: <BankOutlined />,
       color: '#722ed1',
       valueIsString: true,
@@ -80,7 +91,7 @@ export const LiquidFundInvestmentStatistics: React.FC<LiquidFundInvestmentStatis
       trend: {
         value: calculateChange(kpis.totalMarketValue, previousKpis.totalMarketValue).value,
         positive: calculateChange(kpis.totalMarketValue, previousKpis.totalMarketValue).positive,
-        description: 'vs 7 days ago'
+        description: 'vs 30 days ago'
       }
     }
   ]

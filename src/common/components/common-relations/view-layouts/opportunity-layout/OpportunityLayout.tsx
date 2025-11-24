@@ -13,6 +13,7 @@ import {
 import type { ColumnDef } from '@tanstack/react-table'
 import { Plus } from 'lucide-react'
 import { BusinessAppContextProps } from '@/common/BusinessAppContext'
+import { useAvailableCurrencies } from '@/common/data/investment/hooks/useAvailableCurrencies'
 import { AppAction } from '@/components/app-action/AppAction'
 import { FlowContextName } from '@/common/types/FlowRegistryTypes'
 import { getTranslationFromI18nKeyAndLabel } from '@/common/utils/windowUtils'
@@ -126,7 +127,7 @@ export interface OpportunityViewConfig<TOpportunity extends { id: string }, TQue
   buildAccountUrl: (id: string) => string
 
   opportunityStatistics?: OpportunityStatisticsData
-  renderStatistics?: () => React.ReactNode
+  renderStatistics?: (selectedCurrency?: string) => React.ReactNode
 
   boardConfig: import('./config/opportunityBoardTypes').OpportunityBoardConfig
   fetchOpportunitiesForBoard: (
@@ -185,37 +186,94 @@ const OpportunityRowActions = <TOpportunity extends { id: string } = any>({
   </AppActionMenu>
 )
 
+interface CurrencyFilterProps {
+  selectedCurrency: string
+  currencies: Array<{ code: string; label: string }>
+  onCurrencyChange: (currencyCode: string) => void
+}
+
+const CurrencyFilter: React.FC<CurrencyFilterProps> = ({ selectedCurrency, currencies, onCurrencyChange }) => {
+  if (currencies.length === 0) return null
+
+  return (
+    <div className="gba:flex gba:items-center gba:gap-2">
+      <Label className="gba:text-sm gba:font-medium gba:whitespace-nowrap">Currency:</Label>
+      <Select value={selectedCurrency} onValueChange={onCurrencyChange}>
+        <SelectTrigger className="gba:w-32">
+          <SelectValue />
+        </SelectTrigger>
+        <SelectContent>
+          {currencies.map(currency => (
+            <SelectItem key={currency.code} value={currency.code}>
+              {currency.label}
+            </SelectItem>
+          ))}
+        </SelectContent>
+      </Select>
+    </div>
+  )
+}
+
 interface BoardSecondaryActionsProps {
   currentSection: 'list' | 'board'
   boardPipelineId: string
   pipelines?: Array<{ id: string; label: string }>
   onPipelineChange: (pipelineId: string) => void
+  selectedCurrency: string
+  currencies: Array<{ code: string; label: string }>
+  onCurrencyChange: (currencyCode: string) => void
 }
 
 const BoardSecondaryActions: React.FC<BoardSecondaryActionsProps> = ({
   currentSection,
   boardPipelineId,
   pipelines,
-  onPipelineChange
+  onPipelineChange,
+  selectedCurrency,
+  currencies,
+  onCurrencyChange
 }) => {
   if (currentSection !== 'board') return undefined
 
   return (
-    <div className="gba:flex gba:items-center gba:gap-2">
-      <Label className="gba:text-sm gba:font-medium gba:whitespace-nowrap">Pipeline:</Label>
-      <Select value={boardPipelineId} onValueChange={onPipelineChange}>
-        <SelectTrigger className="gba:w-48">
-          <SelectValue placeholder="Select Pipeline" />
-        </SelectTrigger>
-        <SelectContent>
-          {pipelines?.map(pipeline => (
-            <SelectItem key={pipeline.id} value={pipeline.id}>
-              {pipeline.label}
-            </SelectItem>
-          ))}
-        </SelectContent>
-      </Select>
+    <div className="gba:flex gba:items-center gba:gap-4">
+      <div className="gba:flex gba:items-center gba:gap-2">
+        <Label className="gba:text-sm gba:font-medium gba:whitespace-nowrap">Pipeline:</Label>
+        <Select value={boardPipelineId} onValueChange={onPipelineChange}>
+          <SelectTrigger className="gba:w-48">
+            <SelectValue placeholder="Select Pipeline" />
+          </SelectTrigger>
+          <SelectContent>
+            {pipelines?.map(pipeline => (
+              <SelectItem key={pipeline.id} value={pipeline.id}>
+                {pipeline.label}
+              </SelectItem>
+            ))}
+          </SelectContent>
+        </Select>
+      </div>
+      <CurrencyFilter selectedCurrency={selectedCurrency} currencies={currencies} onCurrencyChange={onCurrencyChange} />
     </div>
+  )
+}
+
+interface ListSecondaryActionsProps {
+  currentSection: 'list' | 'board'
+  selectedCurrency: string
+  currencies: Array<{ code: string; label: string }>
+  onCurrencyChange: (currencyCode: string) => void
+}
+
+const ListSecondaryActions: React.FC<ListSecondaryActionsProps> = ({
+  currentSection,
+  selectedCurrency,
+  currencies,
+  onCurrencyChange
+}) => {
+  if (currentSection !== 'list') return undefined
+
+  return (
+    <CurrencyFilter selectedCurrency={selectedCurrency} currencies={currencies} onCurrencyChange={onCurrencyChange} />
   )
 }
 
@@ -254,6 +312,7 @@ function ConfigOpportunityLayout<TOpportunity extends { id: string } = any, TQue
 
   // Board View State
   const [boardPipelineId, setBoardPipelineId] = useState('')
+  const [selectedCurrency, setSelectedCurrency] = useState('EUR')
   const [boardFilters, setBoardFilters] = useState<Record<string, any>>({})
   const [boardSearch, setBoardSearch] = useState('')
   const [boardOpportunities, setBoardOpportunities] = useState<TOpportunity[]>([])
@@ -276,6 +335,20 @@ function ConfigOpportunityLayout<TOpportunity extends { id: string } = any, TQue
     'amountRange' in filterData && typeof filterData.amountRange === 'object'
       ? (filterData.amountRange as { min: number; max: number })
       : { min: 0, max: 1000000 }
+
+  // Fetch available currencies efficiently using distinctOn
+  const { currencies: currencyOptions } = useAvailableCurrencies(context, {
+    filters: {
+      entity: 'InvestmentOpportunity',
+      dealType: config.boardConfig.dealType
+    },
+    returnFormat: 'codes'
+  })
+
+  const availableCurrencies = useMemo(
+    () => currencyOptions.map((code: string) => ({ code, label: code })),
+    [currencyOptions]
+  )
 
   // Board Employees (for owner filter in board view)
   const { employees: boardEmployees } = useBoardEmployees({
@@ -334,14 +407,16 @@ function ConfigOpportunityLayout<TOpportunity extends { id: string } = any, TQue
 
   // List Query Variables
   const queryVariables = useMemo(
-    () =>
-      config.buildQueryVariables({
+    () => ({
+      ...config.buildQueryVariables({
         pagination,
         searchTerm,
         selectedFilters,
         sorting
       }),
-    [pagination, searchTerm, selectedFilters, sorting, config]
+      currencyCode: selectedCurrency || undefined
+    }),
+    [pagination, searchTerm, selectedFilters, sorting, selectedCurrency, config]
   )
 
   // Load List Data
@@ -378,11 +453,12 @@ function ConfigOpportunityLayout<TOpportunity extends { id: string } = any, TQue
       const currentEmployeeId = context.userInfo?.employeeDetails?.employeeId
       const { opportunityFilter, ownerEmployeeIds } = determineOpportunityFilter(boardFilters, currentEmployeeId)
 
-      const boardFiltersObj: OpportunityBoardFilters = {
+      const boardFiltersObj: OpportunityBoardFilters & { currencyCode?: string } = {
         selectedPipelineId: boardPipelineId,
         opportunityFilter,
         selectedEmployeeIds: ownerEmployeeIds || [],
-        search: boardSearch.trim() || undefined
+        search: boardSearch.trim() || undefined,
+        currencyCode: selectedCurrency || undefined
       }
 
       const result = await config.fetchOpportunitiesForBoard(boardFiltersObj)
@@ -394,7 +470,15 @@ function ConfigOpportunityLayout<TOpportunity extends { id: string } = any, TQue
     } finally {
       setBoardLoading(false)
     }
-  }, [accessToken, config, boardPipelineId, boardFilters, boardSearch, context.userInfo?.employeeDetails?.employeeId])
+  }, [
+    accessToken,
+    config,
+    boardPipelineId,
+    boardFilters,
+    boardSearch,
+    selectedCurrency,
+    context.userInfo?.employeeDetails?.employeeId
+  ])
 
   // Set default board pipeline FIRST
   useEffect(() => {
@@ -425,11 +509,20 @@ function ConfigOpportunityLayout<TOpportunity extends { id: string } = any, TQue
     loadListData(false)
   }, [queryVariables, isInitialLoad, accessToken, loadListData])
 
-  // Reload board data when filters/search change (only when board is active, skip initial load)
+  // Reload board data when filters/search/currency change (only when board is active, skip initial load)
   useEffect(() => {
     if (isInitialLoad || !accessToken || currentSection !== 'board' || !boardPipelineId) return
     loadBoardData()
-  }, [boardPipelineId, boardFilters, boardSearch, isInitialLoad, accessToken, loadBoardData])
+  }, [
+    boardPipelineId,
+    boardFilters,
+    boardSearch,
+    selectedCurrency,
+    isInitialLoad,
+    accessToken,
+    loadBoardData,
+    currentSection
+  ])
 
   // Process Completion Handlers
   const handleProcessComplete = useCallback(() => {
@@ -502,7 +595,7 @@ function ConfigOpportunityLayout<TOpportunity extends { id: string } = any, TQue
     [config, accessToken]
   )
 
-  // Board secondary action: Pipeline selector
+  // Board secondary actions: Pipeline selector + Currency filter
   const boardSecondaryActions = useMemo(
     () => (
       <BoardSecondaryActions
@@ -510,19 +603,36 @@ function ConfigOpportunityLayout<TOpportunity extends { id: string } = any, TQue
         boardPipelineId={boardPipelineId}
         pipelines={pipelines}
         onPipelineChange={setBoardPipelineId}
+        selectedCurrency={selectedCurrency}
+        currencies={availableCurrencies}
+        onCurrencyChange={setSelectedCurrency}
       />
     ),
-    [currentSection, boardPipelineId, pipelines]
+    [currentSection, boardPipelineId, pipelines, selectedCurrency, availableCurrencies]
+  )
+
+  // List secondary actions: Currency filter
+  const listSecondaryActions = useMemo(
+    () => (
+      <ListSecondaryActions
+        currentSection={currentSection}
+        selectedCurrency={selectedCurrency}
+        currencies={availableCurrencies}
+        onCurrencyChange={setSelectedCurrency}
+      />
+    ),
+    [currentSection, selectedCurrency, availableCurrencies]
   )
 
   return (
     <div data-testid={dataTestId}>
       {/* Statistics */}
       {config.renderStatistics ? (
-        <div data-testid={`${dataTestId}-statistics`}>{config.renderStatistics()}</div>
+        <div data-testid={`${dataTestId}-statistics`}>{config.renderStatistics(selectedCurrency)}</div>
       ) : config.opportunityStatistics ? (
         <OpportunityStatisticsLayout
           statistics={config.opportunityStatistics}
+          selectedCurrency={selectedCurrency}
           data-testid={`${dataTestId}-statistics`}
         />
       ) : null}
@@ -596,7 +706,7 @@ function ConfigOpportunityLayout<TOpportunity extends { id: string } = any, TQue
             </AppAction>
           ) : undefined)
         }
-        secondaryActions={boardSecondaryActions}
+        secondaryActions={currentSection === 'board' ? boardSecondaryActions : listSecondaryActions}
         toolbarDensity="default"
         enableLiveFiltering={currentSection === 'board'}
         filterSheetTitle={currentSection === 'board' ? 'Filter Board' : 'Filter Opportunities'}

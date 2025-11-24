@@ -9,12 +9,37 @@ import { FlowContextName } from '@/common/types/FlowRegistryTypes'
 import { useInvestmentOpportunityFilters } from './hooks/useInvestmentOpportunityFilters'
 import { useInvestmentOpportunityStatistics } from '@/common/data/investment/hooks/useInvestmentOpportunityStatistics'
 import { INVESTMENT_OPPORTUNITY_DESCRIPTORS } from '@/common/data/investment/types/investmentOpportunityTypes'
+import { OpportunityStatisticsLayout } from '@/common/components/common-relations/view-layouts/opportunity-layout/components/OpportunityStatisticsLayout'
+
+// Separate component to properly use hooks
+const InvestmentOpportunityStatistics: React.FC<{
+  context: BusinessAppContextProps
+  selectedCurrency?: string
+}> = ({ context, selectedCurrency }) => {
+  const opportunityStatistics = useInvestmentOpportunityStatistics(context, selectedCurrency)
+
+  if (!opportunityStatistics.trendData) return null
+
+  return (
+    <OpportunityStatisticsLayout
+      statistics={{
+        recentOpportunities: opportunityStatistics.trendData.recentOpportunities,
+        opportunityValue: opportunityStatistics.trendData.opportunityValue,
+        winRate: opportunityStatistics.trendData.winRate,
+        opportunitiesThisYear: opportunityStatistics.trendData.opportunitiesThisYear,
+        isLoading: opportunityStatistics.isLoading,
+        error: opportunityStatistics.error,
+        refetch: () => void opportunityStatistics.refetch()
+      }}
+      selectedCurrency={selectedCurrency}
+    />
+  )
+}
 
 export type OpportunityViewProps = BusinessAppContextProps
 
 export const OpportunityView: React.FC<OpportunityViewProps> = context => {
   const { fetchInvestmentOpportunities } = useGetInvestmentOpportunities(context)
-  const opportunityStatistics = useInvestmentOpportunityStatistics(context)
 
   const config = useMemo(
     () =>
@@ -69,23 +94,15 @@ export const OpportunityView: React.FC<OpportunityViewProps> = context => {
         fetchBoardOpportunities: fetchInvestmentOpportunities,
         extractBoardOpportunities: result => result.InvestmentOpportunity || [],
         extractBoardTotalCount: result => result.InvestmentOpportunityAggregate?.aggregate?.count || 0,
-        opportunityStatistics: opportunityStatistics.trendData
-          ? {
-              recentOpportunities: opportunityStatistics.trendData.recentOpportunities,
-              opportunityValue: opportunityStatistics.trendData.opportunityValue,
-              winRate: opportunityStatistics.trendData.winRate,
-              opportunitiesThisYear: opportunityStatistics.trendData.opportunitiesThisYear,
-              isLoading: opportunityStatistics.isLoading,
-              error: opportunityStatistics.error,
-              refetch: () => void opportunityStatistics.refetch()
-            }
-          : undefined,
+        renderStatistics: (selectedCurrency?: string) => (
+          <InvestmentOpportunityStatistics context={context} selectedCurrency={selectedCurrency} />
+        ),
         rowActionsContextArray: [FlowContextName.investmentOpportunityEntity],
         buildRowActionsExternalContextData: (row: { original: InvestmentOpportunity }) => ({
           opportunityId: row.original.id
         })
       }),
-    [context, fetchInvestmentOpportunities, opportunityStatistics]
+    [context, fetchInvestmentOpportunities]
   )
 
   return <OpportunityLayout context={context} config={config} dataTestId="investment-opportunities-view" />
