@@ -21,7 +21,12 @@ export const OpportunityView: React.FC<OpportunityViewProps> = context => {
       createOpportunityConfig<InvestmentOpportunity, InvestmentOpportunityQueryVariables>({
         contextType: 'investment',
 
-        extendQueryVariables: vars => ({ ...vars, dealType: 'INVESTMENT_DEAL' }),
+        extendQueryVariables: vars => ({
+          ...vars,
+          dealType: 'INVESTMENT_DEAL',
+          // Filter for OPEN status only on kanban board
+          opportunityStatusIds: ['InvestmentOpportunityStatus:v1:OPEN']
+        }),
 
         fetchOpportunities: async variables => {
           const result = await fetchInvestmentOpportunities(variables)
