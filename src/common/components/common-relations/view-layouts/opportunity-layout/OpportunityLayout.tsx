@@ -489,11 +489,15 @@ function ConfigOpportunityLayout<TOpportunity extends { id: string } = any, TQue
 
   // Initial parallel load: Load BOTH list and board data for badge counts
   useEffect(() => {
-    if (!accessToken || !isInitialLoad || !boardPipelineId) return
+    if (!accessToken || !isInitialLoad) return
 
     const loadBothSections = async () => {
-      // Load both sections in parallel
-      await Promise.all([loadListData(true), loadBoardData()])
+      // Always load list; load board only when a pipeline is available
+      const tasks = [loadListData(true)]
+      if (boardPipelineId) {
+        tasks.push(loadBoardData())
+      }
+      await Promise.all(tasks)
     }
 
     loadBothSections()

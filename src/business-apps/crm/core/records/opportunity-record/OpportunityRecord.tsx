@@ -246,8 +246,8 @@ const OpportunityRecordContent: React.FC<OpportunityRecordContentProps> = ({
     setStatusUpdatePopup({
       open: true,
       opportunityId: opportunityId,
-      opportunityVersion: Number.parseInt(opportunity?.version || '0', 10),
-      opportunityName: opportunity?.name || opportunityData?.name || 'Unnamed Opportunity'
+      opportunityVersion: Number.parseInt(String(opportunityData?.version || '0'), 10),
+      opportunityName: opportunityData?.name || 'Unnamed Opportunity'
     })
   }
 
@@ -599,7 +599,7 @@ const OpportunityRecordContent: React.FC<OpportunityRecordContentProps> = ({
           opportunityVersion={statusUpdatePopup.opportunityVersion}
           opportunityName={statusUpdatePopup.opportunityName}
           onSuccess={() => {
-            refetchOpportunityData()
+            fetchOpportunityData()
             setStatusUpdatePopup({ open: false })
           }}
           onError={() => {
