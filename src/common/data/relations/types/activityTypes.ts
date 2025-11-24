@@ -52,7 +52,7 @@ export const ActivityFields = {
 export const ActivityFormFields = {
   ...ActivityFields,
   accountId: 'account',
-  activityTypeRef: 'activityType',
+  activityTypeRef: 'activityTypeRef',
   completedAt: 'completedAt',
   contactId: 'contact',
   description: 'description',
