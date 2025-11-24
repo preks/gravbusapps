@@ -141,9 +141,6 @@ export const buildCustomerContactPayload = (contact: Partial<CustomerContact>) =
           } else {
             delete addr.addressLine
           }
-        } else {
-          // Already a string, keep as is
-          addr.addressLine = addr.addressLine
         }
       }
       return addr

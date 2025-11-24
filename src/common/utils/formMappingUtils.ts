@@ -36,6 +36,54 @@ function transformDateForForm(value: string, fieldName: string): string {
  * - ISO datetime strings → date-only strings (for date inputs)
  * - numbers → strings (for number inputs)
  */
+/**
+ * Checks if schema field expects a number type
+ */
+const isNumberSchemaType = (schemaField: z.ZodTypeAny): boolean => {
+  return (
+    schemaField instanceof z.ZodNumber ||
+    (schemaField instanceof z.ZodOptional && schemaField._def.innerType instanceof z.ZodNumber) ||
+    (schemaField instanceof z.ZodNullable && schemaField._def.innerType instanceof z.ZodNumber)
+  )
+}
+
+/**
+ * Transforms a number value based on schema type
+ */
+const transformNumberValue = (value: number, schemaField: z.ZodTypeAny): any => {
+  if (isNumberSchemaType(schemaField)) {
+    // Schema expects number (e.g., version), keep it as number
+    return value
+  }
+  // Schema expects string (for form inputs), convert to string
+  return value.toString()
+}
+
+/**
+ * Transforms a single field value
+ */
+const transformFieldValue = (
+  value: any,
+  key: string,
+  schemaField: z.ZodTypeAny,
+  transformations?: Partial<Record<string, (value: any) => any>>
+): any => {
+  // Apply custom transformation if provided (takes precedence)
+  if (transformations && key in transformations) {
+    return transformations[key]?.(value)
+  }
+  // Automatic date transformation: ISO datetime → date-only string or preserve datetime
+  if (isISODateTimeString(value)) {
+    return transformDateForForm(value, key)
+  }
+  // Automatic number → string transformation (for form inputs)
+  if (typeof value === 'number') {
+    return transformNumberValue(value, schemaField)
+  }
+  // Default: use value as-is
+  return value
+}
+
 export function mapToFormValues<TEntity extends Record<string, any>, TSchema extends z.ZodObject<any>>(
   entity: TEntity | null,
   schema: TSchema,
@@ -53,36 +101,7 @@ export function mapToFormValues<TEntity extends Record<string, any>, TSchema ext
     if (key in entity) {
       const value = entity[key]
       const schemaField = schema.shape[key]
-
-      // Apply custom transformation if provided (takes precedence)
-      if (transformations && key in transformations) {
-        result[key] = transformations[key as keyof TEntity]?.(value)
-      }
-      // Automatic date transformation: ISO datetime → date-only string or preserve datetime
-      else if (isISODateTimeString(value)) {
-        result[key] = transformDateForForm(value, key)
-      }
-      // Automatic number → string transformation (for form inputs)
-      // BUT: Keep numbers as numbers if schema expects number type (e.g., version from BaseEntity)
-      else if (typeof value === 'number') {
-        // Check if schema field is z.number() or z.number().optional()
-        const isNumberType =
-          schemaField instanceof z.ZodNumber ||
-          (schemaField instanceof z.ZodOptional && schemaField._def.innerType instanceof z.ZodNumber) ||
-          (schemaField instanceof z.ZodNullable && schemaField._def.innerType instanceof z.ZodNumber)
-
-        if (isNumberType) {
-          // Schema expects number (e.g., version), keep it as number
-          result[key] = value
-        } else {
-          // Schema expects string (for form inputs), convert to string
-          result[key] = value.toString()
-        }
-      }
-      // Default: use value as-is
-      else {
-        result[key] = value
-      }
+      result[key] = transformFieldValue(value, key, schemaField, transformations)
     }
   }
 

@@ -14,45 +14,40 @@ interface UseFilteredInvestmentTypesReturn {
 }
 
 /**
+ * Parse objectValue from catalog entry
+ */
+const parseObjectValue = (entry: any): any => {
+  if (!entry.objectValue) return null
+  try {
+    return typeof entry.objectValue === 'string' ? JSON.parse(entry.objectValue) : entry.objectValue
+  } catch {
+    return entry.objectValue
+  }
+}
+
+/**
+ * Check if objectValue has referenceFields
+ */
+const hasReferenceFieldsInObject = (objectValue: any): boolean => {
+  return (
+    objectValue?.referenceFields && Array.isArray(objectValue.referenceFields) && objectValue.referenceFields.length > 0
+  )
+}
+
+/**
  * Check if a type has referenceFields (either directly or in its parent group)
  */
 const typeHasReferenceFields = (typeEntry: any, groupEntry: any | null): boolean => {
   // Check type's own referenceFields
-  let typeObjectValue: any = null
-  if (typeEntry.objectValue) {
-    try {
-      typeObjectValue =
-        typeof typeEntry.objectValue === 'string' ? JSON.parse(typeEntry.objectValue) : typeEntry.objectValue
-    } catch {
-      typeObjectValue = typeEntry.objectValue
-    }
-  }
-
-  if (
-    typeObjectValue?.referenceFields &&
-    Array.isArray(typeObjectValue.referenceFields) &&
-    typeObjectValue.referenceFields.length > 0
-  ) {
+  const typeObjectValue = parseObjectValue(typeEntry)
+  if (hasReferenceFieldsInObject(typeObjectValue)) {
     return true
   }
 
   // Check group's referenceFields if provided
   if (groupEntry) {
-    let groupObjectValue: any = null
-    if (groupEntry.objectValue) {
-      try {
-        groupObjectValue =
-          typeof groupEntry.objectValue === 'string' ? JSON.parse(groupEntry.objectValue) : groupEntry.objectValue
-      } catch {
-        groupObjectValue = groupEntry.objectValue
-      }
-    }
-
-    if (
-      groupObjectValue?.referenceFields &&
-      Array.isArray(groupObjectValue.referenceFields) &&
-      groupObjectValue.referenceFields.length > 0
-    ) {
+    const groupObjectValue = parseObjectValue(groupEntry)
+    if (hasReferenceFieldsInObject(groupObjectValue)) {
       return true
     }
   }

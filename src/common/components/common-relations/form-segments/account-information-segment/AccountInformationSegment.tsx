@@ -291,25 +291,18 @@ const AccountInformationSegment: React.FC<AccountInformationSegmentProps> = ({
               })
             }, [field.value])
 
-            // Handle onChange - transform back to accountContacts format
-            const handleChange = (
-              contactIds:
-                | Array<string | { id: string; name: string; contactType?: string }>
-                | string
-                | { id: string; name: string; contactType?: string }
-                | null
-            ) => {
-              // Normalize to array: handle null, single values, and arrays
-              const normalizedValue: Array<string | { id: string; name: string; contactType?: string }> =
-                contactIds === null ? [] : Array.isArray(contactIds) ? contactIds : [contactIds]
-
-              const accountId = form.getValues('id')
-              const accountContacts = normalizedValue.map((contactValue: any) => {
+            /**
+             * Transforms a contact value to accountContact format
+             */
+            const transformContactValueToAccountContact = useCallback(
+              (contactValue: any, accountId: string | undefined, existingAccountContacts: any[]) => {
                 const contactId = typeof contactValue === 'object' ? contactValue.id : contactValue
                 const contactType = typeof contactValue === 'object' ? contactValue.contactType : undefined
 
                 // Find existing accountContact to preserve id and version
-                const existingAc = (field.value || []).find((ac: any) => (ac.contactId || ac.contact?.id) === contactId)
+                const existingAc = existingAccountContacts.find(
+                  (ac: any) => (ac.contactId || ac.contact?.id) === contactId
+                )
 
                 return {
                   ...(existingAc?.id && { id: existingAc.id }),
@@ -318,9 +311,37 @@ const AccountInformationSegment: React.FC<AccountInformationSegmentProps> = ({
                   contactId: contactId,
                   contactType: contactType || null
                 }
-              })
-              field.onChange(accountContacts)
-            }
+              },
+              []
+            )
+
+            // Handle onChange - transform back to accountContacts format
+            const handleChange = useCallback(
+              (
+                contactIds:
+                  | Array<string | { id: string; name: string; contactType?: string }>
+                  | string
+                  | { id: string; name: string; contactType?: string }
+                  | null
+              ) => {
+                // Normalize to array: handle null, single values, and arrays
+                let normalizedValue: Array<string | { id: string; name: string; contactType?: string }>
+                if (contactIds === null) {
+                  normalizedValue = []
+                } else if (Array.isArray(contactIds)) {
+                  normalizedValue = contactIds
+                } else {
+                  normalizedValue = [contactIds]
+                }
+
+                const accountId = form.getValues('id')
+                const accountContacts = normalizedValue.map((contactValue: any) =>
+                  transformContactValueToAccountContact(contactValue, accountId, field.value || [])
+                )
+                field.onChange(accountContacts)
+              },
+              [form, field, transformContactValueToAccountContact]
+            )
 
             return (
               <FormItem>

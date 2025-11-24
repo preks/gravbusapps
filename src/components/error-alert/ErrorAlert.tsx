@@ -1,5 +1,6 @@
 import React from 'react'
 import { Alert, AlertDescription, useTranslation } from '@newwork/nw-design-system'
+import { formatDataTestId } from '@/common/utils/formatDataTestId'
 import translations from './_i18n'
 
 export type ErrorType =
@@ -13,11 +14,22 @@ export type ErrorType =
   | 'restError'
   | 'unknown'
 
+export interface ErrorItem {
+  error?: string | Error
+  type?: ErrorType
+  context?: string
+}
+
 export interface ErrorAlertProps {
-  error: Error | string | unknown
+  // Single error mode
+  error?: Error | string | unknown
   type?: ErrorType // Optional: Auto-detect wenn nicht angegeben
   context?: string // Optional: Zusätzlicher Kontext
   dataTestId?: string
+
+  // Collection mode
+  errors?: ErrorItem[]
+  prefixDataTestId?: string // For error collection (e.g., 'customer-activity-form')
 }
 
 const getErrorType = (error: unknown): ErrorType => {
@@ -52,10 +64,45 @@ const getErrorType = (error: unknown): ErrorType => {
   return 'unknown'
 }
 
-export const ErrorAlert: React.FC<ErrorAlertProps> = ({ error, type, context, dataTestId = 'error-alert' }) => {
+export const ErrorAlert: React.FC<ErrorAlertProps> = ({
+  error,
+  type,
+  context,
+  dataTestId = 'error-alert',
+  errors,
+  prefixDataTestId
+}) => {
   const { t } = useTranslation(translations)
-  const errorType = type || getErrorType(error)
 
+  // Collection mode: render multiple errors
+  if (errors && errors.length > 0) {
+    return (
+      <>
+        {errors.map((err, index) => {
+          const errorType = err.type || getErrorType(err.error)
+          const translationKey = `error-${errorType}` as const
+          const message = t(translationKey)
+          const itemDataTestId = prefixDataTestId
+            ? formatDataTestId(prefixDataTestId, `error-alert-${index}`)
+            : `error-alert-${index}`
+
+          return (
+            <Alert key={err.type || `error-${index}`} variant="destructive" data-testid={itemDataTestId}>
+              <AlertDescription>
+                {message}
+                {err.context && <span className="gba:block gba:mt-2 gba:text-sm gba:opacity-80">{err.context}</span>}
+              </AlertDescription>
+            </Alert>
+          )
+        })}
+      </>
+    )
+  }
+
+  // Single error mode
+  if (!error) return null
+
+  const errorType = type || getErrorType(error)
   const translationKey = `error-${errorType}` as const
   const message = t(translationKey)
 

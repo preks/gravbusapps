@@ -12,8 +12,8 @@ interface DynamicInvestmentFieldsProps {
 
 // Helper function to format currency values using currency catalog entry
 const formatCurrency = (amount: number | string, investmentData?: any): string => {
-  const numericAmount = typeof amount === 'string' ? parseFloat(amount) : amount
-  if (isNaN(numericAmount) || amount === null || amount === undefined || amount === '') {
+  const numericAmount = typeof amount === 'string' ? Number.parseFloat(amount) : amount
+  if (Number.isNaN(numericAmount) || amount === null || amount === undefined || amount === '') {
     return getTranslationFromI18nKeyAndLabel('crm.common.notSet', 'Not set')
   }
 
@@ -68,8 +68,8 @@ const resolvePrefixSuffix = (prefixSuffix: any, investmentData: any): string => 
       case 'TEXT':
         return convertUnicodeSymbol(String(fieldValue))
       case 'NUMBER':
-        const numericValue = typeof fieldValue === 'string' ? parseFloat(fieldValue) : fieldValue
-        return isNaN(numericValue) ? '' : numericValue.toLocaleString('en-US')
+        const numericValue = typeof fieldValue === 'string' ? Number.parseFloat(fieldValue) : fieldValue
+        return Number.isNaN(numericValue) ? '' : numericValue.toLocaleString('en-US')
       default:
         return convertUnicodeSymbol(String(fieldValue))
     }
@@ -113,11 +113,7 @@ const convertUnicodeSymbol = (value: string): string => {
   return value
 }
 
-const DynamicInvestmentFields: React.FC<DynamicInvestmentFieldsProps> = ({
-  investmentData,
-  fields,
-  accessToken
-}) => {
+const DynamicInvestmentFields: React.FC<DynamicInvestmentFieldsProps> = ({ investmentData, fields, accessToken }) => {
   const [fetchedFields, setFetchedFields] = useState<any[]>([])
   const [isLoading, setIsLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)
@@ -151,7 +147,8 @@ const DynamicInvestmentFields: React.FC<DynamicInvestmentFieldsProps> = ({
         // Validate IDs
         const isValidId = (id: string) => {
           if (!id) return false
-          if (id.match(/^(ig_|it_|test_|mock_|demo_)\d+$/)) return false
+          const testIdPattern = /^(ig_|it_|test_|mock_|demo_)\d+$/
+          if (testIdPattern.exec(id)) return false
           return id.length > 10
         }
 
@@ -171,47 +168,31 @@ const DynamicInvestmentFields: React.FC<DynamicInvestmentFieldsProps> = ({
         ])
 
         // Parse objectValue
-        let typeObjectValue: any = null
-        let groupObjectValue: any = null
-
-        if (typeData?.objectValue) {
+        const parseObjectValue = (data: any): any => {
+          if (!data?.objectValue) return null
           try {
-            typeObjectValue =
-              typeof typeData.objectValue === 'string' ? JSON.parse(typeData.objectValue) : typeData.objectValue
+            return typeof data.objectValue === 'string' ? JSON.parse(data.objectValue) : data.objectValue
           } catch (err) {
-            console.error('Error parsing type objectValue:', err)
-            typeObjectValue = typeData.objectValue
+            console.error('Error parsing objectValue:', err)
+            return data.objectValue
           }
         }
 
-        if (groupData?.objectValue) {
-          try {
-            groupObjectValue =
-              typeof groupData.objectValue === 'string' ? JSON.parse(groupData.objectValue) : groupData.objectValue
-          } catch (err) {
-            console.error('Error parsing group objectValue:', err)
-            groupObjectValue = groupData.objectValue
-          }
-        }
+        const typeObjectValue = parseObjectValue(typeData)
+        const groupObjectValue = parseObjectValue(groupData)
 
         // Extract formFields (nested paths for Investment/Account/Contact records)
-        let catalogFields: any[] = []
-
-        if (typeObjectValue?.formFields && Array.isArray(typeObjectValue.formFields)) {
-          const flattenedFields = typeObjectValue.formFields.flatMap((group: any) => group.fields || [])
-          const recordFields = flattenedFields.filter((field: any) => field.record === true)
-          if (recordFields.length > 0) {
-            catalogFields = recordFields
+        const extractRecordFields = (objectValue: any): any[] => {
+          if (!objectValue?.formFields || !Array.isArray(objectValue.formFields)) {
+            return []
           }
+          const flattenedFields = objectValue.formFields.flatMap((group: any) => group.fields || [])
+          return flattenedFields.filter((field: any) => field.record === true)
         }
 
-        if (catalogFields.length === 0 && groupObjectValue?.formFields && Array.isArray(groupObjectValue.formFields)) {
-          const flattenedFields = groupObjectValue.formFields.flatMap((group: any) => group.fields || [])
-          const recordFields = flattenedFields.filter((field: any) => field.record === true)
-          if (recordFields.length > 0) {
-            catalogFields = recordFields
-          }
-        }
+        const typeFields = extractRecordFields(typeObjectValue)
+        const groupFields = extractRecordFields(groupObjectValue)
+        const catalogFields = typeFields.length > 0 ? typeFields : groupFields
 
         setFetchedFields(catalogFields)
       } catch (err) {
@@ -300,8 +281,8 @@ const DynamicInvestmentFields: React.FC<DynamicInvestmentFieldsProps> = ({
           if (fieldValue === null || fieldValue === undefined || fieldValue === '') {
             formattedValue = getTranslationFromI18nKeyAndLabel('crm.common.notSet', 'Not set')
           } else {
-            const numericValue = typeof fieldValue === 'string' ? parseFloat(fieldValue) : fieldValue
-            if (isNaN(numericValue)) {
+            const numericValue = typeof fieldValue === 'string' ? Number.parseFloat(fieldValue) : fieldValue
+            if (Number.isNaN(numericValue)) {
               formattedValue = getTranslationFromI18nKeyAndLabel('crm.common.notSet', 'Not set')
             } else {
               formattedValue = `${numericValue}%`
@@ -314,8 +295,8 @@ const DynamicInvestmentFields: React.FC<DynamicInvestmentFieldsProps> = ({
           if (fieldValue === null || fieldValue === undefined || fieldValue === '') {
             formattedValue = getTranslationFromI18nKeyAndLabel('crm.common.notSet', 'Not set')
           } else {
-            const numericValue = typeof fieldValue === 'string' ? parseFloat(fieldValue) : fieldValue
-            if (isNaN(numericValue)) {
+            const numericValue = typeof fieldValue === 'string' ? Number.parseFloat(fieldValue) : fieldValue
+            if (Number.isNaN(numericValue)) {
               formattedValue = getTranslationFromI18nKeyAndLabel('crm.common.notSet', 'Not set')
             } else {
               formattedValue = numericValue.toLocaleString('en-US')

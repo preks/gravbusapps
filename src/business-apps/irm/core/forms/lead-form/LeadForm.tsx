@@ -21,7 +21,7 @@ import {
   COMPANY_SIZE,
   ANNUAL_REVENUE
 } from '@/common/data/investment/constants/catalogConstants'
-import { ErrorAlert } from '@/components/error-alert/ErrorAlert'
+import { ErrorAlert } from '@/components/error-alert'
 import { formatDataTestId } from '@/common/utils/formatDataTestId'
 
 type LeadFormProps = BusinessAppContextProps
@@ -156,7 +156,7 @@ const LeadForm: React.FC<LeadFormProps> = ({ accessToken, userInfo, additionalDa
   }
 
   // Collect all errors for centralized early return (AFTER all hooks)
-  const errors: Array<{ error?: string | unknown; type?: 'accessToken'; context?: string }> = []
+  const errors: Array<{ error?: string | Error; type?: 'accessToken'; context?: string }> = []
   if (!accessToken) {
     errors.push({ type: 'accessToken' })
   }
@@ -166,19 +166,7 @@ const LeadForm: React.FC<LeadFormProps> = ({ accessToken, userInfo, additionalDa
 
   // Early return if any errors exist (now safe - all hooks called above)
   if (errors.length > 0) {
-    return (
-      <>
-        {errors.map((err, index) => (
-          <ErrorAlert
-            key={err.type || `error-${index}`}
-            error={err.error}
-            type={err.type}
-            context={err.context}
-            dataTestId={formatDataTestId('investment-lead-form', `error-alert-${index}`)}
-          />
-        ))}
-      </>
-    )
+    return <ErrorAlert errors={errors} prefixDataTestId="investment-lead-form" />
   }
 
   const processType = lead?.id ? 'update' : 'create'

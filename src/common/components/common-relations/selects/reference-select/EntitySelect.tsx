@@ -2,12 +2,10 @@ import React from 'react'
 import { Combobox, Avatar, AvatarImage, AvatarFallback, Badge } from '@newwork/nw-design-system'
 import { Rocket } from 'lucide-react'
 
-export type EntityType = string
-
 export interface EntitySelectOption {
   id: string
   name: string
-  type: EntityType
+  type: string
   subtitle?: string
   pictureThumbnail?: string
 }

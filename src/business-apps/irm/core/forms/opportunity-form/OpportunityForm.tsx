@@ -35,7 +35,7 @@ import {
 } from '@newwork/nw-design-system'
 import { useInvestmentAccountsList } from '@/common/data/investment/hooks/useInvestmentAccounts'
 import { useInvestmentContactsList } from '@/common/data/investment/hooks/useInvestmentContacts'
-import { ErrorAlert } from '@/components/error-alert/ErrorAlert'
+import { ErrorAlert } from '@/components/error-alert'
 import { getCurrencySymbol } from '@/common/utils/numberFormatter'
 import {
   OPPORTUNITY_PIPELINE,
@@ -253,7 +253,7 @@ const InvestmentOpportunityForm: React.FC<InvestmentOpportunityFormProps> = ({
   ) : null
 
   // Collect all errors for centralized early return (AFTER all hooks)
-  const errors: Array<{ error?: string | unknown; type?: 'accessToken'; context?: string }> = []
+  const errors: Array<{ error?: string | Error; type?: 'accessToken'; context?: string }> = []
   if (!accessToken) {
     errors.push({ type: 'accessToken' })
   }
@@ -269,19 +269,7 @@ const InvestmentOpportunityForm: React.FC<InvestmentOpportunityFormProps> = ({
 
   // Early return if any errors exist (now safe - all hooks called above)
   if (errors.length > 0) {
-    return (
-      <>
-        {errors.map((err, index) => (
-          <ErrorAlert
-            key={err.type || `error-${index}`}
-            error={err.error}
-            type={err.type}
-            context={err.context}
-            dataTestId={formatDataTestId('investment-opportunity-form', `error-alert-${index}`)}
-          />
-        ))}
-      </>
-    )
+    return <ErrorAlert errors={errors} prefixDataTestId="investment-opportunity-form" />
   }
 
   const processType = opportunity?.id ? 'update' : 'create'

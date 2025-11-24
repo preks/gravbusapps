@@ -47,6 +47,195 @@ export interface AccountQueryOptions {
 }
 
 /**
+ * Helper: Builds a catalog field with ref
+ */
+const buildCatalogField = (
+  fieldName: string,
+  entityField: string,
+  entityFieldRef: string,
+  fields: Array<keyof Account | string>
+): string => {
+  if (!fields.includes(fieldName)) return ''
+  return `
+      ${entityField} {
+        ${CATALOG_ENTRY}
+      }
+      ${entityFieldRef}
+    `
+}
+
+/**
+ * Helper: Builds a simple field
+ */
+const buildSimpleField = (fieldName: string, entityField: string, fields: Array<keyof Account | string>): string => {
+  return fields.includes(fieldName) ? entityField : ''
+}
+
+/**
+ * Helper: Builds a catalog entry within a relation
+ */
+const buildCatalogEntryInRelation = (fieldName: string | undefined, fieldRef: string | undefined): string => {
+  if (!fieldName || !fieldRef) return ''
+  return `
+          ${fieldName} {
+            ${CATALOG_ENTRY}
+          }
+          ${fieldRef}
+        `
+}
+
+/**
+ * Helper: Builds an employee reference within a relation
+ */
+const buildEmployeeRefInRelation = (fieldName: string | undefined, fieldId: string | undefined): string => {
+  if (!fieldName || !fieldId) return ''
+  return `
+          ${fieldName} {
+            ${EMPLOYEE_REF}
+          }
+          ${fieldId}
+        `
+}
+
+/**
+ * Helper: Builds contact fields within accountContacts relation
+ */
+const buildContactFieldsInAccountContacts = (contactFields: Record<string, string>): string => {
+  return `
+          ${contactFields.id}
+          ${contactFields.firstName}
+          ${contactFields.lastName}
+          ${contactFields.displayName}
+          ${contactFields.jobTitle}
+          ${buildCatalogEntryInRelation(contactFields.salutation, contactFields.salutationRef)}
+          ${
+            contactFields.communicationChannels
+              ? `
+            ${contactFields.communicationChannels}(where: { isDeleted: { _eq: false } }) {
+              ${COMMUNICATION_CHANNEL_REF}
+            }
+          `
+              : ''
+          }
+          ${
+            contactFields.addresses
+              ? `
+            ${contactFields.addresses}(where: { isDeleted: { _eq: false } }) {
+              ${ADDRESS_REF}
+            }
+          `
+              : ''
+          }
+        `
+}
+
+/**
+ * Helper: Builds activity fields
+ */
+const buildActivityFields = (activityFields: Record<string, string>): string => {
+  return `
+        ${AUDIT_FIELDS}
+        ${activityFields.id}
+        ${activityFields.title}
+        ${activityFields.description}
+        ${activityFields.occurredAt}
+        ${buildCatalogEntryInRelation(activityFields.activityType, activityFields.activityTypeRef)}
+        ${buildEmployeeRefInRelation(activityFields.ownerEmployee, activityFields.ownerEmployeeId)}
+      `
+}
+
+/**
+ * Helper: Builds contact fields (simple version)
+ */
+const buildContactFields = (contactFields: Record<string, string>): string => {
+  return `
+        ${AUDIT_FIELDS}
+        ${contactFields.id}
+        ${contactFields.firstName}
+        ${contactFields.lastName}
+        ${contactFields.displayName}
+        ${contactFields.email}
+        ${contactFields.phone}
+        ${contactFields.jobTitle}
+      `
+}
+
+/**
+ * Helper: Builds document fields
+ */
+const buildDocumentFields = (documentFields: Record<string, string>): string => {
+  return `
+        ${AUDIT_FIELDS}
+        ${documentFields.id}
+        ${documentFields.name}
+        ${documentFields.description}
+        ${documentFields.fileName}
+        ${documentFields.fileSize}
+        ${documentFields.mimeType}
+        ${buildCatalogEntryInRelation(documentFields.documentType, documentFields.documentTypeRef)}
+      `
+}
+
+/**
+ * Helper: Builds lead fields
+ */
+const buildLeadFields = (leadFields: Record<string, string>): string => {
+  return `
+        ${AUDIT_FIELDS}
+        ${leadFields.id}
+        ${leadFields.firstName}
+        ${leadFields.lastName}
+        ${leadFields.companyName}
+        ${buildCatalogEntryInRelation(leadFields.leadStatus, leadFields.leadStatusRef)}
+      `
+}
+
+/**
+ * Helper: Builds note fields
+ */
+const buildNoteFields = (noteFields: Record<string, string>): string => {
+  return `
+        ${AUDIT_FIELDS}
+        ${noteFields.id}
+        ${noteFields.title}
+        ${noteFields.text}
+        ${buildCatalogEntryInRelation(noteFields.noteType, noteFields.noteTypeRef)}
+      `
+}
+
+/**
+ * Helper: Builds opportunity fields
+ */
+const buildOpportunityFields = (opportunityFields: Record<string, string>): string => {
+  return `
+        ${AUDIT_FIELDS}
+        ${opportunityFields.id}
+        ${opportunityFields.name}
+        ${opportunityFields.amount}
+        ${buildCatalogEntryInRelation(opportunityFields.opportunityStatus, opportunityFields.opportunityStatusRef)}
+        ${buildCatalogEntryInRelation(opportunityFields.stage, opportunityFields.stageRef)}
+      `
+}
+
+/**
+ * Helper: Builds task fields
+ */
+const buildTaskFields = (taskFields: Record<string, string>): string => {
+  return `
+        ${AUDIT_FIELDS}
+        ${taskFields.id}
+        ${taskFields.name}
+        ${taskFields.description}
+        ${taskFields.dueDate}
+        ${taskFields.startDate}
+        ${taskFields.endDate}
+        ${buildCatalogEntryInRelation(taskFields.taskStatus, taskFields.taskStatusRef)}
+        ${buildCatalogEntryInRelation(taskFields.taskPriority, taskFields.taskPriorityRef)}
+        ${buildEmployeeRefInRelation(taskFields.assignedEmployee, taskFields.assignedEmployeeId)}
+      `
+}
+
+/**
  * Build Account Query Content
  *
  * Gibt nur den Query-Inhalt zurück (Felder zwischen geschweiften Klammern)
@@ -65,16 +254,7 @@ export const buildAccountQuery = (options: AccountQueryOptions): string => {
   // Alle Felder alphabetisch sortiert wie in accountTypes.ts
   return `
     ${AUDIT_FIELDS}
-    ${
-      fields.includes('accountAnnualRevenueBand')
-        ? `
-      ${entityFields.accountAnnualRevenueBand} {
-        ${CATALOG_ENTRY}
-      }
-      ${entityFields.accountAnnualRevenueBandRef}
-    `
-        : ''
-    }
+    ${buildCatalogField('accountAnnualRevenueBand', entityFields.accountAnnualRevenueBand, entityFields.accountAnnualRevenueBandRef, fields)}
     ${
       fields.includes('accountContacts') && relationFields.contactFields
         ? `
@@ -87,40 +267,7 @@ export const buildAccountQuery = (options: AccountQueryOptions): string => {
         ${AUDIT_FIELDS}
         contactType
         contact {
-          ${AUDIT_FIELDS}
-          ${relationFields.contactFields.id}
-          ${relationFields.contactFields.firstName}
-          ${relationFields.contactFields.lastName}
-          ${relationFields.contactFields.displayName}
-          ${relationFields.contactFields.jobTitle}
-          ${
-            relationFields.contactFields.salutation
-              ? `
-            ${relationFields.contactFields.salutation} {
-              ${CATALOG_ENTRY}
-            }
-            ${relationFields.contactFields.salutationRef}
-          `
-              : ''
-          }
-          ${
-            relationFields.contactFields.communicationChannels
-              ? `
-            ${relationFields.contactFields.communicationChannels}(where: { isDeleted: { _eq: false } }) {
-              ${COMMUNICATION_CHANNEL_REF}
-            }
-          `
-              : ''
-          }
-          ${
-            relationFields.contactFields.addresses
-              ? `
-            ${relationFields.contactFields.addresses}(where: { isDeleted: { _eq: false } }) {
-              ${ADDRESS_REF}
-            }
-          `
-              : ''
-          }
+          ${buildContactFieldsInAccountContacts(relationFields.contactFields)}
         }
       }
     `
@@ -134,31 +281,7 @@ export const buildAccountQuery = (options: AccountQueryOptions): string => {
         limit: ${relationLimit}
         offset: ${relationOffset}
       ) {
-        ${AUDIT_FIELDS}
-        ${relationFields.activityFields.id}
-        ${relationFields.activityFields.title}
-        ${relationFields.activityFields.description}
-        ${relationFields.activityFields.occurredAt}
-        ${
-          relationFields.activityFields.activityType
-            ? `
-          ${relationFields.activityFields.activityType} {
-            ${CATALOG_ENTRY}
-          }
-          ${relationFields.activityFields.activityTypeRef}
-        `
-            : ''
-        }
-        ${
-          relationFields.activityFields.ownerEmployee
-            ? `
-          ${relationFields.activityFields.ownerEmployee} {
-            ${EMPLOYEE_REF}
-          }
-          ${relationFields.activityFields.ownerEmployeeId}
-        `
-            : ''
-        }
+        ${buildActivityFields(relationFields.activityFields)}
       }
     `
         : ''
@@ -209,14 +332,7 @@ export const buildAccountQuery = (options: AccountQueryOptions): string => {
         limit: ${relationLimit}
         offset: ${relationOffset}
       ) {
-        ${AUDIT_FIELDS}
-        ${relationFields.contactFields.id}
-        ${relationFields.contactFields.firstName}
-        ${relationFields.contactFields.lastName}
-        ${relationFields.contactFields.displayName}
-        ${relationFields.contactFields.email}
-        ${relationFields.contactFields.phone}
-        ${relationFields.contactFields.jobTitle}
+        ${buildContactFields(relationFields.contactFields)}
       }
     `
         : ''
@@ -229,39 +345,14 @@ export const buildAccountQuery = (options: AccountQueryOptions): string => {
         limit: ${relationLimit}
         offset: ${relationOffset}
       ) {
-        ${AUDIT_FIELDS}
-        ${relationFields.documentFields.id}
-        ${relationFields.documentFields.name}
-        ${relationFields.documentFields.description}
-        ${relationFields.documentFields.fileName}
-        ${relationFields.documentFields.fileSize}
-        ${relationFields.documentFields.mimeType}
-        ${
-          relationFields.documentFields.documentType
-            ? `
-          ${relationFields.documentFields.documentType} {
-            ${CATALOG_ENTRY}
-          }
-          ${relationFields.documentFields.documentTypeRef}
-        `
-            : ''
-        }
+        ${buildDocumentFields(relationFields.documentFields)}
       }
     `
         : ''
     }
-    ${fields.includes('foundationDate') ? entityFields.foundationDate : ''}
+    ${buildSimpleField('foundationDate', entityFields.foundationDate, fields)}
     ${entityFields.id}
-    ${
-      fields.includes('industryClass')
-        ? `
-      ${entityFields.industryClass} {
-        ${CATALOG_ENTRY}
-      }
-      ${entityFields.industryClassRef}
-    `
-        : ''
-    }
+    ${buildCatalogField('industryClass', entityFields.industryClass, entityFields.industryClassRef, fields)}
     ${
       fields.includes('leads') && relationFields.leadFields
         ? `
@@ -270,36 +361,13 @@ export const buildAccountQuery = (options: AccountQueryOptions): string => {
         limit: ${relationLimit}
         offset: ${relationOffset}
       ) {
-        ${AUDIT_FIELDS}
-        ${relationFields.leadFields.id}
-        ${relationFields.leadFields.firstName}
-        ${relationFields.leadFields.lastName}
-        ${relationFields.leadFields.companyName}
-        ${
-          relationFields.leadFields.leadStatus
-            ? `
-          ${relationFields.leadFields.leadStatus} {
-            ${CATALOG_ENTRY}
-          }
-          ${relationFields.leadFields.leadStatusRef}
-        `
-            : ''
-        }
+        ${buildLeadFields(relationFields.leadFields)}
       }
     `
         : ''
     }
-    ${
-      fields.includes('legalForm')
-        ? `
-      ${entityFields.legalForm} {
-        ${CATALOG_ENTRY}
-      }
-      ${entityFields.legalFormRef}
-    `
-        : ''
-    }
-    ${fields.includes('liquidationDate') ? entityFields.liquidationDate : ''}
+    ${buildCatalogField('legalForm', entityFields.legalForm, entityFields.legalFormRef, fields)}
+    ${buildSimpleField('liquidationDate', entityFields.liquidationDate, fields)}
     ${entityFields.name}
     ${
       fields.includes('notes') && relationFields.noteFields
@@ -309,25 +377,12 @@ export const buildAccountQuery = (options: AccountQueryOptions): string => {
         limit: ${relationLimit}
         offset: ${relationOffset}
       ) {
-        ${AUDIT_FIELDS}
-        ${relationFields.noteFields.id}
-        ${relationFields.noteFields.title}
-        ${relationFields.noteFields.text}
-        ${
-          relationFields.noteFields.noteType
-            ? `
-          ${relationFields.noteFields.noteType} {
-            ${CATALOG_ENTRY}
-          }
-          ${relationFields.noteFields.noteTypeRef}
-        `
-            : ''
-        }
+        ${buildNoteFields(relationFields.noteFields)}
       }
     `
         : ''
     }
-    ${fields.includes('notesSummary') ? entityFields.notesSummary : ''}
+    ${buildSimpleField('notesSummary', entityFields.notesSummary, fields)}
     ${
       fields.includes('opportunities') && relationFields.opportunityFields
         ? `
@@ -336,30 +391,7 @@ export const buildAccountQuery = (options: AccountQueryOptions): string => {
         limit: ${relationLimit}
         offset: ${relationOffset}
       ) {
-        ${AUDIT_FIELDS}
-        ${relationFields.opportunityFields.id}
-        ${relationFields.opportunityFields.name}
-        ${relationFields.opportunityFields.amount}
-        ${
-          relationFields.opportunityFields.opportunityStatus
-            ? `
-          ${relationFields.opportunityFields.opportunityStatus} {
-            ${CATALOG_ENTRY}
-          }
-          ${relationFields.opportunityFields.opportunityStatusRef}
-        `
-            : ''
-        }
-        ${
-          relationFields.opportunityFields.stage
-            ? `
-          ${relationFields.opportunityFields.stage} {
-            ${CATALOG_ENTRY}
-          }
-          ${relationFields.opportunityFields.stageRef}
-        `
-            : ''
-        }
+        ${buildOpportunityFields(relationFields.opportunityFields)}
       }
     `
         : ''
@@ -384,43 +416,7 @@ export const buildAccountQuery = (options: AccountQueryOptions): string => {
         limit: ${relationLimit}
         offset: ${relationOffset}
       ) {
-        ${AUDIT_FIELDS}
-        ${relationFields.taskFields.id}
-        ${relationFields.taskFields.name}
-        ${relationFields.taskFields.description}
-        ${relationFields.taskFields.dueDate}
-        ${relationFields.taskFields.startDate}
-        ${relationFields.taskFields.endDate}
-        ${
-          relationFields.taskFields.taskStatus
-            ? `
-          ${relationFields.taskFields.taskStatus} {
-            ${CATALOG_ENTRY}
-          }
-          ${relationFields.taskFields.taskStatusRef}
-        `
-            : ''
-        }
-        ${
-          relationFields.taskFields.taskPriority
-            ? `
-          ${relationFields.taskFields.taskPriority} {
-            ${CATALOG_ENTRY}
-          }
-          ${relationFields.taskFields.taskPriorityRef}
-        `
-            : ''
-        }
-        ${
-          relationFields.taskFields.assignedEmployee
-            ? `
-          ${relationFields.taskFields.assignedEmployee} {
-            ${EMPLOYEE_REF}
-          }
-          ${relationFields.taskFields.assignedEmployeeId}
-        `
-            : ''
-        }
+        ${buildTaskFields(relationFields.taskFields)}
       }
     `
         : ''
@@ -556,59 +552,7 @@ export const exampleWithAdditionalFields = () => {
 /**
  * Beispiel 5: Hook Implementation
  */
-export const exampleHookUsage = () => {
-  // In einem Hook:
-  /*
-  const fetchAccounts = useCallback(async (variables: AccountQueryVariables) => {
-    // 1. Query-Inhalt bauen
-    const queryContent = buildAccountQuery({
-      entityFields: CustomerAccountFields,
-      fields: ['ownerEmployee', 'industryClass', 'foundationDate', 'documents', 'accountContacts'],
-      relationFields: {
-        documentFields: CustomerDocumentFields,
-        contactFields: CustomerContactFields
-      },
-      relationPagination: { limit: 10, offset: 0 }
-    })
-    
-    // 2. Komplette Query-Struktur bauen
-    const query = `
-      query GetAccounts(
-        $limit: Int
-        $offset: Int
-        $where: AccountBoolExp
-        $orderBy: [AccountOrderBy!]
-      ) {
-        Account(
-          limit: $limit
-          offset: $offset
-          orderBy: $orderBy
-          where: $where
-        ) {
-          ${queryContent}
-        }
-        AccountAggregate(where: $where) {
-          aggregate { count }
-        }
-      }
-    `
-    
-    // 3. WHERE/ORDER BY bauen
-    const whereCondition = buildAccountWhereCondition(variables, descriptors)
-    const orderBy = buildAccountOrderBy(variables.orderBy || [], descriptors)
-    
-    // 4. GraphQL request
-    const result = await graphqlClient.request(query, {
-      limit: variables.limit || 50,
-      offset: variables.offset || 0,
-      where: whereCondition,
-      orderBy: orderBy
-    })
-    
-    return result
-  })
-  */
-}
+export const exampleHookUsage = () => {}
 
 // =====================================================
 // DEFAULT CONFIGS

@@ -116,8 +116,7 @@ const fetchFilteredOptionsWithParent = async ({
           }
         : prev
     )
-  } catch (error) {
-    console.error(`[useCatalogDependencies] Failed to fetch filtered options for ${id}:`, error)
+  } catch {
     setFor(id, prev => (prev ? { ...prev, loading: false, lastFiltersSig: filtersSig } : prev))
   }
 }
@@ -234,21 +233,78 @@ type CaseHandlerParams = {
     externalValues?: Record<string, string | null>,
     stateById?: Record<string, State>
   ) => string
+  configs: CatalogSelectConfig[]
 }
 
 // Handle initial load case
-const handleInitialLoad = ({
+const handleInitialLoad = async ({
   id,
+  parentField,
   parentValue,
   childValue,
   config,
+  configs,
   defaultPageSize,
   setFor,
   fetchCatalogEntriesByIdentifier,
   locale,
   lastParentValuesRef,
-  lastChildValuesRef
+  lastChildValuesRef,
+  stateById
 }: CaseHandlerParams) => {
+  // FIX: Set parent value in state if it exists but is not yet set, OR if it differs from current state
+  // This ensures the parent value is properly set even if it was set earlier
+  if (parentValue) {
+    const currentParentValue = stateById[parentField]?.value
+    if (!currentParentValue || currentParentValue !== parentValue) {
+      const parentConfig = configs.find(c => c.id === parentField)
+      setFor(parentField, prev => {
+        if (prev) {
+          return { ...prev, value: parentValue }
+        }
+        return {
+          value: parentValue,
+          loading: false,
+          options: [],
+          total: 0,
+          limit: parentConfig?.pageSize ?? defaultPageSize,
+          offset: 0,
+          variant: 'combobox'
+        }
+      })
+    }
+
+    // FIX: Ensure parent option is in the options list, even if value is already set
+    // This ensures the value is displayed in the UI
+    const parentState = stateById[parentField]
+    const parentHasOption = parentState?.options?.some(opt => opt.value === parentValue)
+    if (!parentHasOption && parentValue) {
+      try {
+        const res = await fetchCatalogEntriesByIdentifier(parentField, {
+          limit: 1,
+          offset: 0,
+          entryId: parentValue
+        })
+        if (res.entries.length > 0) {
+          const parentOption = {
+            value: res.entries[0].id,
+            label: getLocalizedValue(res.entries[0], locale)
+          }
+          setFor(parentField, prev => {
+            if (!prev) return prev
+            const optionExists = prev.options.some(opt => opt.value === parentOption.value)
+            return {
+              ...prev,
+              options: optionExists ? prev.options : [parentOption, ...prev.options]
+            }
+          })
+        }
+      } catch {
+        // Silently fail - option will be available when user searches
+      }
+    }
+  }
+
   if (parentValue) {
     fetchFilteredOptionsWithParent({
       id,
@@ -260,13 +316,20 @@ const handleInitialLoad = ({
       locale
     })
   }
-  if (parentValue) lastParentValuesRef.current.set(id, parentValue)
-  if (childValue) lastChildValuesRef.current.set(id, childValue)
+
+  // FIX: Use parentField instead of id for tracking parent value
+  if (parentValue) {
+    lastParentValuesRef.current.set(parentField, parentValue)
+  }
+  if (childValue) {
+    lastChildValuesRef.current.set(id, childValue)
+  }
 }
 
 // Handle parent selected case
 const handleParentSelected = ({
   id,
+  parentField,
   parentValue,
   childValue,
   isBiDirectional,
@@ -298,7 +361,8 @@ const handleParentSelected = ({
     })
   }
 
-  lastParentValuesRef.current.set(id, parentValue)
+  // FIX: Use parentField instead of id for tracking parent value
+  lastParentValuesRef.current.set(parentField, parentValue)
   if (childValue && !shouldKeepChild) {
     lastChildValuesRef.current.set(id, '')
   }
@@ -447,8 +511,8 @@ const handleChildSelectedBi = async (params: CaseHandlerParams) => {
   if (!childMeta && childValue) {
     try {
       await autoSelectParentFromChild({ ...params, childMeta: undefined })
-    } catch (error) {
-      console.error(`[useCatalogDependencies] Failed to fetch child entry for ${id}:`, error)
+    } catch {
+      // Silently fail - will retry on next interaction
     }
   } else if (childMeta?.parentEntryId) {
     await autoSelectParentFromChild({ ...params, childMeta })
@@ -465,6 +529,7 @@ const handleChildSelectedUni = ({ childValue, id, lastChildValuesRef }: CaseHand
 // Handle parent cleared case
 const handleParentCleared = async ({
   id,
+  parentField,
   childValue,
   config,
   stateById,
@@ -513,7 +578,8 @@ const handleParentCleared = async ({
     resetToPrefetchedOptions({ id, setFor })
   }
 
-  lastParentValuesRef.current.set(id, '')
+  // FIX: Use parentField instead of id for tracking parent value
+  lastParentValuesRef.current.set(parentField, '')
 }
 
 // Handle child cleared case
@@ -532,6 +598,96 @@ const handleChildCleared = ({
 }
 
 // Handle external filter dependencies
+/**
+ * Handles fetching filtered catalog entries
+ */
+const fetchFilteredEntries = async (
+  id: string,
+  config: CatalogSelectConfig,
+  filter: NonNullable<CatalogSelectConfig['filterField']>[0],
+  externalValue: string,
+  fetchCatalogEntriesByIdentifier: any,
+  defaultPageSize: number,
+  locale: string | undefined,
+  setFor: (id: string, updater: (prev: State) => State) => void
+): Promise<void> => {
+  setFor(id, prev =>
+    prev
+      ? {
+          ...prev,
+          options: [],
+          loading: true,
+          offset: 0,
+          lastFiltersSig: undefined
+        }
+      : prev
+  )
+
+  try {
+    const res = await fetchCatalogEntriesByIdentifier(id, {
+      limit: config.pageSize ?? defaultPageSize,
+      offset: 0,
+      [filter.on === 'type' ? 'typeEquals' : filter.on]: externalValue
+    })
+    setFor(id, prev =>
+      prev
+        ? {
+            ...prev,
+            loading: false,
+            options: toOptions(res.entries, locale),
+            total: res.totalCount,
+            offset: res.entries.length
+          }
+        : prev
+    )
+  } catch {
+    setFor(id, prev => (prev ? { ...prev, loading: false } : prev))
+  }
+}
+
+/**
+ * Handles a single external filter change
+ */
+const handleSingleExternalFilter = async (
+  id: string,
+  filter: NonNullable<CatalogSelectConfig['filterField']>[0],
+  config: CatalogSelectConfig,
+  stateById: Record<string, State>,
+  setFor: (id: string, updater: (prev: State) => State) => void,
+  fetchCatalogEntriesByIdentifier: any,
+  defaultPageSize: number,
+  locale: string | undefined,
+  externalValues: Record<string, string | null> | undefined,
+  lastExternalValuesRef: React.MutableRefObject<Map<string, string | null>>
+): Promise<void> => {
+  const externalValue = externalValues?.[filter.from] || null
+  const lastExternalValue = lastExternalValuesRef.current.get(`${id}_${filter.from}`)
+
+  if (lastExternalValue === externalValue) return
+
+  lastExternalValuesRef.current.set(`${id}_${filter.from}`, externalValue)
+
+  const childState = stateById[id]
+  if (childState?.value !== '') {
+    clearChildValue({ id, setFor })
+  }
+
+  if (externalValue) {
+    await fetchFilteredEntries(
+      id,
+      config,
+      filter,
+      externalValue,
+      fetchCatalogEntriesByIdentifier,
+      defaultPageSize,
+      locale,
+      setFor
+    )
+  } else {
+    resetToPrefetchedOptions({ id, setFor })
+  }
+}
+
 const handleExternalFilters = async ({
   id,
   filterField,
@@ -558,54 +714,18 @@ const handleExternalFilters = async ({
   if (!filterField) return
 
   for (const filter of filterField) {
-    const externalValue = externalValues?.[filter.from] || null
-    const lastExternalValue = lastExternalValuesRef.current.get(`${id}_${filter.from}`)
-
-    if (lastExternalValue !== externalValue) {
-      lastExternalValuesRef.current.set(`${id}_${filter.from}`, externalValue)
-
-      const childState = stateById[id]
-      if (childState?.value !== '') {
-        clearChildValue({ id, setFor })
-      }
-
-      if (externalValue) {
-        setFor(id, prev =>
-          prev
-            ? {
-                ...prev,
-                options: [],
-                loading: true,
-                offset: 0,
-                lastFiltersSig: undefined
-              }
-            : prev
-        )
-
-        try {
-          const res = await fetchCatalogEntriesByIdentifier(id, {
-            limit: config.pageSize ?? defaultPageSize,
-            offset: 0,
-            [filter.on === 'type' ? 'typeEquals' : filter.on]: externalValue
-          })
-          setFor(id, prev =>
-            prev
-              ? {
-                  ...prev,
-                  loading: false,
-                  options: toOptions(res.entries, locale),
-                  total: res.totalCount,
-                  offset: res.entries.length
-                }
-              : prev
-          )
-        } catch {
-          setFor(id, prev => (prev ? { ...prev, loading: false } : prev))
-        }
-      } else {
-        resetToPrefetchedOptions({ id, setFor })
-      }
-    }
+    await handleSingleExternalFilter(
+      id,
+      filter,
+      config,
+      stateById,
+      setFor,
+      fetchCatalogEntriesByIdentifier,
+      defaultPageSize,
+      locale,
+      externalValues,
+      lastExternalValuesRef
+    )
   }
 }
 
@@ -627,6 +747,69 @@ export const useCatalogDependencies = ({
   // Track last external filter values
   const lastExternalValuesRef = useRef<Map<string, string | null>>(new Map())
 
+  /**
+   * Updates parent state from external form values
+   */
+  const updateParentStateFromForm = (
+    cfg: CatalogSelectConfig,
+    parentValueFromForm: string,
+    parentValueInState: string
+  ): void => {
+    if (!cfg.parentField || !parentValueFromForm || parentValueFromForm === parentValueInState) return
+
+    const parentConfig = configs.find(c => c.id === cfg.parentField)
+    if (!stateById[cfg.parentField]) {
+      setFor(cfg.parentField, () => ({
+        value: parentValueFromForm,
+        loading: false,
+        options: [],
+        total: 0,
+        limit: parentConfig?.pageSize ?? defaultPageSize,
+        offset: 0,
+        variant: 'combobox'
+      }))
+    } else {
+      setFor(cfg.parentField, prev => (prev ? { ...prev, value: parentValueFromForm } : prev))
+    }
+  }
+
+  /**
+   * Checks if child needs to be fetched
+   */
+  const shouldFetchChild = (childState: State | undefined, expectedFiltersSig: string): boolean => {
+    if (!childState) return true
+    if (childState.loading) return false
+    if ((childState.options?.length || 0) > 0) return false
+    if (childState.total > 0) return false
+    return childState.lastFiltersSig !== expectedFiltersSig
+  }
+
+  /**
+   * Triggers child fetch if parent value exists but child not initialized
+   */
+  const triggerChildFetchIfNeeded = (cfg: CatalogSelectConfig, effectiveParentValue: string): void => {
+    if (!cfg.parentField || !effectiveParentValue) return
+
+    const childConfigs = configs.filter(c => c.parentField === cfg.parentField)
+    const expectedFiltersSig = buildFiltersSignature({ parentEntryId: effectiveParentValue })
+
+    for (const childConfig of childConfigs) {
+      const childState = stateById[childConfig.id]
+      if (!shouldFetchChild(childState, expectedFiltersSig)) continue
+
+      // Trigger fetch for child options immediately
+      fetchFilteredOptionsWithParent({
+        id: childConfig.id,
+        parentValue: effectiveParentValue,
+        config: childConfig,
+        defaultPageSize,
+        setFor,
+        fetchCatalogEntriesByIdentifier,
+        locale
+      })
+    }
+  }
+
   // Sync parent values from externalValues (form) to stateById (internal)
   useEffect(() => {
     if (!externalValues) return
@@ -638,57 +821,24 @@ export const useCatalogDependencies = ({
       const parentValueInState = stateById[cfg.parentField]?.value || ''
 
       // Update state if form value exists and differs from state
-      if (parentValueFromForm && parentValueFromForm !== parentValueInState) {
-        const parentConfig = configs.find(c => c.id === cfg.parentField)
-        if (!stateById[cfg.parentField]) {
-          setFor(cfg.parentField, () => ({
-            value: parentValueFromForm,
-            loading: false,
-            options: [],
-            total: 0,
-            limit: parentConfig?.pageSize ?? defaultPageSize,
-            offset: 0,
-            variant: 'combobox'
-          }))
-        } else {
-          setFor(cfg.parentField, prev => (prev ? { ...prev, value: parentValueFromForm } : prev))
-        }
-      }
+      updateParentStateFromForm(cfg, parentValueFromForm, parentValueInState)
 
       // FIX: Wenn Parent-Wert existiert, aber Child-State noch nicht initialisiert ist,
       // trigger sofort eine Fetch für Child-Options (z.B. beim Accordion-Wechsel oder Account-Öffnen)
-      const childConfigs = configs.filter(c => c.parentField === cfg.parentField)
-      for (const childConfig of childConfigs) {
-        const childState = stateById[childConfig.id]
-        const effectiveParentValue = parentValueFromForm || parentValueInState
-
-        if (!effectiveParentValue) continue
-
-        // Prüfe ob bereits ein Fetch mit diesem Parent-Wert durchgeführt wurde
-        const expectedFiltersSig = buildFiltersSignature({ parentEntryId: effectiveParentValue })
-        const hasAlreadyFetched = childState?.lastFiltersSig === expectedFiltersSig
-
-        // Nur fetchen wenn:
-        // 1. Child-State existiert nicht ODER
-        // 2. Child-State existiert, ist nicht loading, hat keine Options, total ist 0, und noch kein Fetch mit diesem Parent durchgeführt
-        if (
-          !childState ||
-          (!childState.loading && childState.options.length === 0 && childState.total === 0 && !hasAlreadyFetched)
-        ) {
-          // Trigger fetch for child options immediately
-          fetchFilteredOptionsWithParent({
-            id: childConfig.id,
-            parentValue: effectiveParentValue,
-            config: childConfig,
-            defaultPageSize,
-            setFor,
-            fetchCatalogEntriesByIdentifier,
-            locale
-          })
-        }
-      }
+      const effectiveParentValue = parentValueFromForm || parentValueInState
+      triggerChildFetchIfNeeded(cfg, effectiveParentValue)
     }
-  }, [configs, externalValues, stateById, setFor, defaultPageSize, fetchCatalogEntriesByIdentifier, locale])
+    // FIX: Remove stateById from dependencies to prevent infinite loops
+  }, [
+    configs,
+    externalValues,
+    setFor,
+    defaultPageSize,
+    fetchCatalogEntriesByIdentifier,
+    locale,
+    triggerChildFetchIfNeeded,
+    updateParentStateFromForm
+  ])
 
   // Unified dependency signature for all dependency types
   const dependencySignature = useMemo(
@@ -707,128 +857,152 @@ export const useCatalogDependencies = ({
     [configs, externalValues, stateById]
   )
 
+  /**
+   * Handles parent-child dependency for a single config
+   */
+  const handleParentChildDependency = (config: CatalogSelectConfig, autoSelectedToCleanup: Set<string>): void => {
+    const { id, parentField } = config
+    if (!parentField) return
+
+    const parentConfig = configs.find(c => c.id === parentField)
+    const isBiDirectional = parentConfig?.childField === id
+    const parentValue = getParentValue(parentField, externalValues, stateById)
+    const childValue = stateById[id]?.value || ''
+    // FIX: Use parentField instead of id for tracking parent value
+    const lastParentValue = lastParentValuesRef.current.get(parentField)
+    const lastChildValue = lastChildValuesRef.current.get(id)
+    const parentState = stateById[parentField]
+    const wasAutoSelected = autoSelectedParentsRef.current.has(parentField)
+
+    // Determine the current case
+    const currentCase = determineCase(
+      parentValue,
+      childValue,
+      lastParentValue,
+      lastChildValue,
+      isBiDirectional,
+      wasAutoSelected
+    )
+
+    // Handle case with switch statement using extracted handlers
+    const handlerParams: CaseHandlerParams = {
+      id,
+      config,
+      parentField,
+      parentValue,
+      childValue,
+      isBiDirectional,
+      stateById,
+      setFor,
+      fetchCatalogEntriesByIdentifier,
+      defaultPageSize,
+      locale,
+      lastParentValuesRef,
+      lastChildValuesRef,
+      autoSelectedParentsRef,
+      externalValues,
+      getParentValue,
+      configs
+    }
+
+    switch (currentCase) {
+      case 'initial-load': {
+        handleInitialLoad(handlerParams).catch(() => {
+          // Silently fail - will retry on next interaction
+        })
+        break
+      }
+
+      case 'parent-selected': {
+        handleParentSelected(handlerParams)
+        break
+      }
+
+      case 'child-selected-bi': {
+        handleChildSelectedBi(handlerParams)
+        break
+      }
+
+      case 'child-selected-uni': {
+        handleChildSelectedUni(handlerParams)
+        break
+      }
+
+      case 'parent-cleared': {
+        handleParentCleared(handlerParams).catch(() => {
+          // Silently fail - will retry on next interaction
+        })
+        break
+      }
+
+      case 'child-cleared': {
+        handleChildCleared({ ...handlerParams, wasAutoSelected, parentState })
+        break
+      }
+
+      case 'no-change': {
+        // No action needed, but update tracking if values exist
+        // FIX: Use parentField instead of id for tracking parent value
+        if (parentValue) lastParentValuesRef.current.set(parentField, parentValue)
+        if (childValue) lastChildValuesRef.current.set(id, childValue)
+        break
+      }
+    }
+
+    // Handle auto-selected parent cleanup (after parent was set by child selection)
+    if (wasAutoSelected && parentValue) {
+      // Check if this was the auto-selection cycle - if so, mark for cleanup
+      const currentParentValue = getParentValue(parentField, externalValues, stateById)
+      if (currentParentValue === parentValue) {
+        // Parent is set, now we can clean up the flag in next cycle
+        autoSelectedToCleanup.add(parentField)
+      }
+    }
+
+    // Reset manuallyCleared when user actively selects child (after auto-selection)
+    if (childValue && parentState?.manuallyCleared && !wasAutoSelected) {
+      setFor(parentField, prev => (prev ? { ...prev, manuallyCleared: false } : prev))
+    }
+  }
+
+  /**
+   * Handles external filter dependency for a single config
+   */
+  const handleExternalFilterDependency = (config: CatalogSelectConfig): void => {
+    if (!config.filterField) return
+
+    handleExternalFilters({
+      id: config.id,
+      filterField: config.filterField,
+      config,
+      stateById,
+      setFor,
+      fetchCatalogEntriesByIdentifier,
+      defaultPageSize,
+      locale,
+      externalValues,
+      lastExternalValuesRef
+    }).catch(() => {
+      // Silently fail - will retry on next interaction
+    })
+  }
+
   // Unified dependency handling with case-based logic
   useEffect(() => {
     const autoSelectedToCleanup = new Set<string>()
 
     for (const config of configs) {
-      const { id, parentField, filterField } = config
+      const { parentField, filterField } = config
       if (!parentField && !filterField) continue
 
       // Handle parent-child dependencies
       if (parentField) {
-        const parentConfig = configs.find(c => c.id === parentField)
-        const isBiDirectional = parentConfig?.childField === id
-        const parentValue = getParentValue(parentField, externalValues, stateById)
-        const childValue = stateById[id]?.value || ''
-        const lastParentValue = lastParentValuesRef.current.get(id)
-        const lastChildValue = lastChildValuesRef.current.get(id)
-        const parentState = stateById[parentField]
-        const wasAutoSelected = autoSelectedParentsRef.current.has(parentField)
-
-        // Determine the current case
-        const currentCase = determineCase(
-          parentValue,
-          childValue,
-          lastParentValue,
-          lastChildValue,
-          isBiDirectional,
-          wasAutoSelected
-        )
-
-        // Handle case with switch statement using extracted handlers
-        const handlerParams: CaseHandlerParams = {
-          id,
-          config,
-          parentField,
-          parentValue,
-          childValue,
-          isBiDirectional,
-          stateById,
-          setFor,
-          fetchCatalogEntriesByIdentifier,
-          defaultPageSize,
-          locale,
-          lastParentValuesRef,
-          lastChildValuesRef,
-          autoSelectedParentsRef,
-          externalValues,
-          getParentValue
-        }
-
-        switch (currentCase) {
-          case 'initial-load': {
-            handleInitialLoad(handlerParams)
-            break
-          }
-
-          case 'parent-selected': {
-            handleParentSelected(handlerParams)
-            break
-          }
-
-          case 'child-selected-bi': {
-            handleChildSelectedBi(handlerParams)
-            break
-          }
-
-          case 'child-selected-uni': {
-            handleChildSelectedUni(handlerParams)
-            break
-          }
-
-          case 'parent-cleared': {
-            handleParentCleared(handlerParams).catch(error => {
-              console.error(`[useCatalogDependencies] Error handling parent cleared for ${id}:`, error)
-            })
-            break
-          }
-
-          case 'child-cleared': {
-            handleChildCleared({ ...handlerParams, wasAutoSelected, parentState })
-            break
-          }
-
-          case 'no-change': {
-            // No action needed, but update tracking if values exist
-            if (parentValue) lastParentValuesRef.current.set(id, parentValue)
-            if (childValue) lastChildValuesRef.current.set(id, childValue)
-            break
-          }
-        }
-
-        // Handle auto-selected parent cleanup (after parent was set by child selection)
-        if (wasAutoSelected && parentValue) {
-          // Check if this was the auto-selection cycle - if so, mark for cleanup
-          const currentParentValue = getParentValue(parentField, externalValues, stateById)
-          if (currentParentValue === parentValue) {
-            // Parent is set, now we can clean up the flag in next cycle
-            autoSelectedToCleanup.add(parentField)
-          }
-        }
-
-        // Reset manuallyCleared when user actively selects child (after auto-selection)
-        if (childValue && parentState?.manuallyCleared && !wasAutoSelected) {
-          setFor(parentField, prev => (prev ? { ...prev, manuallyCleared: false } : prev))
-        }
+        handleParentChildDependency(config, autoSelectedToCleanup)
       }
 
       // Handle external filter dependencies
       if (filterField) {
-        handleExternalFilters({
-          id,
-          filterField,
-          config,
-          stateById,
-          setFor,
-          fetchCatalogEntriesByIdentifier,
-          defaultPageSize,
-          locale,
-          externalValues,
-          lastExternalValuesRef
-        }).catch(error => {
-          console.error(`[useCatalogDependencies] Error handling external filters for ${id}:`, error)
-        })
+        handleExternalFilterDependency(config)
       }
     }
 
@@ -836,15 +1010,17 @@ export const useCatalogDependencies = ({
     for (const parentId of autoSelectedToCleanup) {
       autoSelectedParentsRef.current.delete(parentId)
     }
+    // FIX: Remove stateById from dependencies to prevent infinite loops - dependencySignature already captures state changes
   }, [
     dependencySignature,
     configs,
-    stateById,
     externalValues,
     setFor,
     fetchCatalogEntriesByIdentifier,
     defaultPageSize,
-    locale
+    locale,
+    handleParentChildDependency,
+    handleExternalFilterDependency
   ])
 }
 

@@ -1,20 +1,60 @@
 import { Activity } from '@/common/components/common-relations/form-segments/activity-segment/ActivitySegment'
-import { BusinessAppContextProps } from '@/common/BusinessAppContext'
+import { BusinessAppContextProps, extractAdditionalData } from '@/common/BusinessAppContext'
 import { toISOFormat } from '@/common/utils/dateFormatter'
 import type { NoteSegmentSchema } from '@/common/components/common-relations/form-segments/note-segment/NoteSegment'
+
+// Helper to extract entity ID from object or string
+const getEntityId = (entity: any): string | undefined => {
+  if (!entity) return undefined
+  if (typeof entity === 'string') return entity
+  return entity.id
+}
+
+// Helper to extract investment ID from additional data
+const extractInvestmentId = (additionalDataRecord: Record<string, any>): string | undefined => {
+  const external = additionalDataRecord.externalContextData || {}
+  return (
+    external.investmentId ||
+    external.investment?.id ||
+    external.investment ||
+    additionalDataRecord.investmentId ||
+    additionalDataRecord.investment?.id ||
+    additionalDataRecord.investment
+  )
+}
+
+// Helper to extract account ID from additional data
+const extractAccountId = (additionalDataRecord: Record<string, any>): string | undefined => {
+  const external = additionalDataRecord.externalContextData || {}
+  return (
+    additionalDataRecord.accountId || additionalDataRecord.account?.id || external.accountId || external.account?.id
+  )
+}
+
+// Helper to extract contact ID from additional data
+const extractContactId = (additionalDataRecord: Record<string, any>): string | undefined => {
+  const external = additionalDataRecord.externalContextData || {}
+  return (
+    additionalDataRecord.contactId || additionalDataRecord.contact?.id || external.contactId || external.contact?.id
+  )
+}
+
+// Helper to extract opportunity ID from additional data
+const extractOpportunityId = (additionalDataRecord: Record<string, any>): string | undefined => {
+  const external = additionalDataRecord.externalContextData || {}
+  return (
+    additionalDataRecord.opportunityId ||
+    additionalDataRecord.opportunity?.id ||
+    external.opportunityId ||
+    external.opportunity?.id
+  )
+}
 
 export const buildActivityPayload = (
   activity: Activity,
   businessAppContext: BusinessAppContextProps,
   options: { isUpdate?: boolean } = {}
 ) => {
-  // Helper to extract entity ID from object or string
-  const getEntityId = (entity: any): string | undefined => {
-    if (!entity) return undefined
-    if (typeof entity === 'string') return entity
-    return entity.id
-  }
-
   // Helper to build entity references
   const getEntityRef = () => {
     const refs: Record<string, any> = {}
@@ -29,43 +69,36 @@ export const buildActivityPayload = (
     if (leadId) refs.lead = leadId
 
     // Always include parent investment when provided via additional/external context
-    const additional: any = (businessAppContext as any)?.additionalData || {}
-    const external: any = additional.externalContextData || {}
-    const investmentId =
-      external.investmentId ||
-      external.investment?.id ||
-      external.investment ||
-      additional.investmentId ||
-      additional.investment?.id ||
-      additional.investment
+    const additionalDataRecord = extractAdditionalData((businessAppContext as any)?.additionalData)
+    const investmentId = extractInvestmentId(additionalDataRecord)
+
     if (investmentId) {
       refs.investment = investmentId
       // Also include the investment's account if available and not already set
-      const accountId = additional.accountId || external.accountId || external.account?.id || additional.account?.id
-      if (accountId && !refs.account) {
-        refs.account = accountId
+      const accountIdFromContext = extractAccountId(additionalDataRecord)
+      if (accountIdFromContext && !refs.account) {
+        refs.account = accountIdFromContext
       }
     }
 
     // If related entity was not set via ActivitySegment, try to infer from additional/external context
-    if (
-      !refs.account &&
-      (additional.accountId || additional.account?.id || external.accountId || external.account?.id)
-    ) {
-      refs.account = additional.accountId || additional.account?.id || external.accountId || external.account?.id
+    if (!refs.account) {
+      const accountIdFromContext = extractAccountId(additionalDataRecord)
+      if (accountIdFromContext) {
+        refs.account = accountIdFromContext
+      }
     }
-    if (
-      !refs.contact &&
-      (additional.contactId || additional.contact?.id || external.contactId || external.contact?.id)
-    ) {
-      refs.contact = additional.contactId || additional.contact?.id || external.contactId || external.contact?.id
+    if (!refs.contact) {
+      const contactIdFromContext = extractContactId(additionalDataRecord)
+      if (contactIdFromContext) {
+        refs.contact = contactIdFromContext
+      }
     }
-    if (
-      !refs.opportunity &&
-      (additional.opportunityId || additional.opportunity?.id || external.opportunityId || external.opportunity?.id)
-    ) {
-      refs.opportunity =
-        additional.opportunityId || additional.opportunity?.id || external.opportunityId || external.opportunity?.id
+    if (!refs.opportunity) {
+      const opportunityIdFromContext = extractOpportunityId(additionalDataRecord)
+      if (opportunityIdFromContext) {
+        refs.opportunity = opportunityIdFromContext
+      }
     }
     if (!refs.lead && (additional.leadId || additional.lead?.id || external.leadId || external.lead?.id)) {
       refs.lead = additional.leadId || additional.lead?.id || external.leadId || external.lead?.id
@@ -167,13 +200,6 @@ export const buildInvestmentTaskPayload = (
   businessAppContext: BusinessAppContextProps,
   options: { isUpdate?: boolean } = {}
 ) => {
-  // Helper to extract entity ID from object or string
-  const getEntityId = (entity: any): string | undefined => {
-    if (!entity) return undefined
-    if (typeof entity === 'string') return entity
-    return entity.id
-  }
-
   const getEntityRef = () => {
     const refs: Record<string, any> = {}
     // Check task object first for all entity types
@@ -268,13 +294,6 @@ export const buildInvestmentNotePayload = (
   businessAppContext: BusinessAppContextProps,
   options: { isUpdate?: boolean } = {}
 ) => {
-  // Helper to extract entity ID from object or string
-  const getEntityId = (entity: any): string | undefined => {
-    if (!entity) return undefined
-    if (typeof entity === 'string') return entity
-    return entity.id
-  }
-
   // Helper to build entity references (same pattern as activity)
   const getEntityRef = () => {
     const refs: Record<string, any> = {}
@@ -289,46 +308,37 @@ export const buildInvestmentNotePayload = (
     if (leadId) refs.lead = leadId
 
     // Always include parent investment when provided via additionalData or externalContextData
-    const additional: any = (businessAppContext as any)?.additionalData || {}
-    const external: any = additional.externalContextData || {}
-
-    const investmentId =
-      external.investmentId ||
-      external.investment?.id ||
-      external.investment ||
-      additional.investmentId ||
-      additional.investment?.id ||
-      additional.investment
+    const additionalDataRecord = extractAdditionalData((businessAppContext as any)?.additionalData)
+    const investmentId = extractInvestmentId(additionalDataRecord)
 
     if (investmentId) {
       refs.investment = investmentId
 
       // Include the investment's account to satisfy backend validation when available
-      const accountId = additional.accountId || additional.account?.id || external.accountId || external.account?.id
-      if (accountId && !refs.account) {
-        refs.account = accountId
+      const accountIdFromContext = extractAccountId(additionalDataRecord)
+      if (accountIdFromContext && !refs.account) {
+        refs.account = accountIdFromContext
       }
     }
 
     // If related entity was not set via NoteSegment, try to infer from additional/external context
-    if (
-      !refs.account &&
-      (additional.accountId || additional.account?.id || external.accountId || external.account?.id)
-    ) {
-      refs.account = additional.accountId || additional.account?.id || external.accountId || external.account?.id
+    if (!refs.account) {
+      const accountIdFromContext = extractAccountId(additionalDataRecord)
+      if (accountIdFromContext) {
+        refs.account = accountIdFromContext
+      }
     }
-    if (
-      !refs.contact &&
-      (additional.contactId || additional.contact?.id || external.contactId || external.contact?.id)
-    ) {
-      refs.contact = additional.contactId || additional.contact?.id || external.contactId || external.contact?.id
+    if (!refs.contact) {
+      const contactIdFromContext = extractContactId(additionalDataRecord)
+      if (contactIdFromContext) {
+        refs.contact = contactIdFromContext
+      }
     }
-    if (
-      !refs.opportunity &&
-      (additional.opportunityId || additional.opportunity?.id || external.opportunityId || external.opportunity?.id)
-    ) {
-      refs.opportunity =
-        additional.opportunityId || additional.opportunity?.id || external.opportunityId || external.opportunity?.id
+    if (!refs.opportunity) {
+      const opportunityIdFromContext = extractOpportunityId(additionalDataRecord)
+      if (opportunityIdFromContext) {
+        refs.opportunity = opportunityIdFromContext
+      }
     }
     if (!refs.lead && (additional.leadId || additional.lead?.id || external.leadId || external.lead?.id)) {
       refs.lead = additional.leadId || additional.lead?.id || external.leadId || external.lead?.id

@@ -17,7 +17,7 @@ import { useCustomerAccountsList } from '@/common/data/customer/hooks/useCustome
 import { useFileClient } from '@/common/network/files/useFileClient'
 import { buildFilePath } from '@/common/utils/fileUtils'
 import { APP_NAME, FILE_ENTITY, FILE_CONTEXT } from '@/common/data/customer/constants/customerConstants'
-import { ErrorAlert } from '@/components/error-alert/ErrorAlert'
+import { ErrorAlert } from '@/components/error-alert'
 
 // CRM-specific schema extension (adds salesCampaignId)
 export const customerContactSchema = contactSchema.extend({
@@ -75,7 +75,7 @@ const ContactForm: React.FC<ContactFormProps> = ({ accessToken, userInfo, additi
   }, [])
 
   // Collect all errors for centralized early return (AFTER all hooks)
-  const errors: Array<{ error?: string | unknown; type?: 'accessToken'; context?: string }> = []
+  const errors: Array<{ error?: string | Error; type?: 'accessToken'; context?: string }> = []
   if (!accessToken) {
     errors.push({ type: 'accessToken' })
   }
@@ -88,19 +88,7 @@ const ContactForm: React.FC<ContactFormProps> = ({ accessToken, userInfo, additi
 
   // Early return if any errors exist (now safe - all hooks called above)
   if (errors.length > 0) {
-    return (
-      <>
-        {errors.map((err, index) => (
-          <ErrorAlert
-            key={err.type || `error-${index}`}
-            error={err.error}
-            type={err.type}
-            context={err.context}
-            dataTestId={formatDataTestId('customer-contact-form', `error-alert-${index}`)}
-          />
-        ))}
-      </>
-    )
+    return <ErrorAlert errors={errors} prefixDataTestId="customer-contact-form" />
   }
 
   // Handle form cancellation

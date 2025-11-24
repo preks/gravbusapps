@@ -12,11 +12,11 @@ import { CatalogSelect } from '@/components/catalog-select'
 import { useForm } from 'react-hook-form'
 import { useFileClient } from '@/common/network/files/useFileClient'
 import { mapToFormValues } from '@/common/utils/formMappingUtils'
-import { ErrorAlert } from '@/components/error-alert/ErrorAlert'
+import { ErrorAlert } from '@/components/error-alert'
 import { formatDataTestId } from '@/common/utils/formatDataTestId'
 import { getReferenceEntityType } from '@/common/data/investment/utils'
 import { FILE_CONTEXT, APP_NAME, getFileEntityFromType } from '@/common/data/investment/constants/investmentConstants'
-import { uploadFiles } from '@/common/utils/fileUtils'
+import { createFormPreSubmitHandler } from '@/common/data/relations/utils/formPreSubmitUtils'
 
 export interface NoteFormProps extends BusinessAppContextProps {
   onSuccess?: (note: Partial<z.infer<typeof noteSchema>>) => void
@@ -24,34 +24,21 @@ export interface NoteFormProps extends BusinessAppContextProps {
 }
 
 export const NoteForm: React.FC<NoteFormProps> = ({ accessToken, userInfo, additionalData, onSuccess, onCancel }) => {
-  const platformParams = useMemo(() => {
-    const nested =
-      (additionalData as any)?.psi_taskPayload?.psi_initialParameters ||
-      (additionalData as any)?.psi_initialParameters ||
-      {}
-    return {
-      noteId: (additionalData as any)?.noteId || nested?.noteId,
-      investmentId: (additionalData as any)?.investmentId || nested?.investmentId,
-      accountId: (additionalData as any)?.accountId || nested?.accountId,
-      contactId: (additionalData as any)?.contactId || nested?.contactId,
-      opportunityId: (additionalData as any)?.opportunityId || nested?.opportunityId,
-      leadId: (additionalData as any)?.leadId || nested?.leadId
-    }
-  }, [additionalData])
+  const additionalDataRecord = useMemo(() => extractAdditionalData(additionalData), [additionalData])
 
   // Check if we're in update mode
-  const noteId = platformParams.noteId
+  const noteId = additionalDataRecord.noteId
   const isUpdateMode = !!noteId
 
   // Investment note hook - declarative single-by-PK
   const { note, loading: noteLoading, error } = useInvestmentNote(accessToken || '', noteId)
 
-  // Get entity IDs from platform params
-  const accountId = platformParams.accountId
-  const contactId = platformParams.contactId
-  const opportunityId = platformParams.opportunityId
-  const leadId = platformParams.leadId
-  const investmentId = platformParams.investmentId
+  // Get entity IDs from additionalDataRecord
+  const accountId = additionalDataRecord.accountId
+  const contactId = additionalDataRecord.contactId
+  const opportunityId = additionalDataRecord.opportunityId
+  const leadId = additionalDataRecord.leadId
+  const investmentId = additionalDataRecord.investmentId
 
   // For investment notes, we hide entity selection since investment + account context is sufficient
   const isInvestmentContext = Boolean(investmentId)
@@ -238,58 +225,17 @@ export const NoteForm: React.FC<NoteFormProps> = ({ accessToken, userInfo, addit
   }, [])
 
   const handlePreSubmit = useCallback(
-    async (data: any) => {
-      // Set author fields if not present (Notes use authorEmployeeId, not creatorEmployeeId)
-      if (!data.authorEmployeeId && userInfo?.employeeDetails?.employeeId) {
-        data.authorEmployeeId = userInfo.employeeDetails.employeeId
-      }
-
-      // Upload pending files if any
-      let uploadedDocuments: Array<{ name: string; fileInfo: any }> = []
-      if (data._pendingFiles && data._pendingFiles.length > 0) {
-        try {
-          // Determine reference entity from form data (including investmentId)
-          const referenceEntityId =
-            data.investmentId ||
-            data.accountId ||
-            data.contactId ||
-            data.leadId ||
-            data.opportunityId ||
-            'temp-' + Date.now()
-          const referenceEntityType = getReferenceEntityType(data)
-
-          const fileEntity = getFileEntityFromType(referenceEntityType)
-          uploadedDocuments = await uploadFiles(
-            data._pendingFiles,
-            referenceEntityId,
-            fileEntity,
-            FILE_CONTEXT.NOTE,
-            APP_NAME,
-            fileClient
-          )
-        } catch (error) {
-          console.error('Failed to upload files:', error)
-          throw error
-        }
-      }
-
-      // Combine existing documents (as objects with ID) and newly uploaded documents
-      const existingDocumentsAsObjects = (data.documents || [])
-        .filter((doc: any) => doc.id)
-        .map((doc: any) => ({
-          id: doc.id,
-          version: doc.version
-        }))
-
-      const allDocuments = [...existingDocumentsAsObjects, ...uploadedDocuments]
-
-      // Return enhanced data with documents
-      return {
-        ...data,
-        documents: allDocuments
-      }
-    },
-    [uploadFiles, userInfo]
+    createFormPreSubmitHandler({
+      userInfo,
+      fileClient,
+      fileContext: FILE_CONTEXT.NOTE,
+      appName: APP_NAME,
+      getFileEntityFromType,
+      getReferenceEntityType,
+      useCreatorFields: false, // Notes use authorEmployeeId
+      additionalEntityIdFields: ['investmentId']
+    }),
+    [userInfo, fileClient]
   )
 
   const handleSuccess = useCallback(() => {
@@ -300,7 +246,7 @@ export const NoteForm: React.FC<NoteFormProps> = ({ accessToken, userInfo, addit
     onCancel?.()
   }, [onCancel])
 
-  const errors: Array<{ error?: string | unknown; type?: 'accessToken'; context?: string }> = []
+  const errors: Array<{ error?: string | Error; type?: 'accessToken'; context?: string }> = []
   if (!accessToken) {
     errors.push({ type: 'accessToken' })
   }
@@ -309,19 +255,7 @@ export const NoteForm: React.FC<NoteFormProps> = ({ accessToken, userInfo, addit
   }
 
   if (errors.length > 0) {
-    return (
-      <>
-        {errors.map((err, index) => (
-          <ErrorAlert
-            key={err.type || `error-${index}`}
-            error={err.error}
-            type={err.type}
-            context={err.context}
-            dataTestId={formatDataTestId('investment-note-form', `error-alert-${index}`)}
-          />
-        ))}
-      </>
-    )
+    return <ErrorAlert errors={errors} prefixDataTestId="investment-note-form" />
   }
 
   const processType = isUpdateMode ? 'update' : 'create'

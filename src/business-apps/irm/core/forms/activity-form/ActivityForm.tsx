@@ -1,5 +1,5 @@
 import React, { useMemo, useEffect, useCallback, useRef } from 'react'
-import { BusinessAppContextProps } from '@/common/BusinessAppContext'
+import { BusinessAppContextProps, extractAdditionalData } from '@/common/BusinessAppContext'
 import { getTranslationFromI18nKeyAndLabel } from '@/common/utils/windowUtils'
 import { ActivityLayout, activitySchema } from '@/common/components/common-relations/form-layouts/activity-layout'
 import { zodResolver } from '@hookform/resolvers/zod'
@@ -17,11 +17,11 @@ import { useForm } from 'react-hook-form'
 import { z } from 'zod'
 import { useFileClient } from '@/common/network/files/useFileClient'
 import { mapToFormValues } from '@/common/utils/formMappingUtils'
-import { ErrorAlert } from '@/components/error-alert/ErrorAlert'
+import { ErrorAlert } from '@/components/error-alert'
 import { formatDataTestId } from '@/common/utils/formatDataTestId'
 import { getReferenceEntityType } from '@/common/data/investment/utils'
 import { FILE_CONTEXT, APP_NAME, getFileEntityFromType } from '@/common/data/investment/constants/investmentConstants'
-import { uploadFiles } from '@/common/utils/fileUtils'
+import { createFormPreSubmitHandler } from '@/common/data/relations/utils/formPreSubmitUtils'
 
 export interface ActivityFormProps extends BusinessAppContextProps {
   onSuccess?: (activity: Partial<ActivitySchema>) => void
@@ -35,33 +35,21 @@ export const ActivityForm: React.FC<ActivityFormProps> = ({
   onSuccess,
   onCancel
 }) => {
-  const platformParams = useMemo(() => {
-    const additionalDataRecord = additionalData as Record<string, any>
-    const nested =
-      additionalDataRecord?.psi_taskPayload?.psi_initialParameters || additionalDataRecord?.psi_initialParameters || {}
-    return {
-      activityId: additionalDataRecord?.activityId || nested?.activityId,
-      investmentId: additionalDataRecord?.investmentId || nested?.investmentId,
-      accountId: additionalDataRecord?.accountId || nested?.accountId,
-      contactId: additionalDataRecord?.contactId || nested?.contactId,
-      opportunityId: additionalDataRecord?.opportunityId || nested?.opportunityId,
-      leadId: additionalDataRecord?.leadId || nested?.leadId
-    }
-  }, [additionalData])
+  const additionalDataRecord = useMemo(() => extractAdditionalData(additionalData), [additionalData])
 
   // Check if we're in update mode
-  const activityId = platformParams.activityId
+  const activityId = additionalDataRecord.activityId
   const isUpdateMode = !!activityId
 
   // Investment activity hook - declarative single-by-PK
   const { activity, loading: activityLoading, error } = useInvestmentActivity(accessToken || '', activityId)
 
   // Get entity IDs from platform params
-  const accountId = platformParams.accountId
-  const contactId = platformParams.contactId
-  const opportunityId = platformParams.opportunityId
-  const leadId = platformParams.leadId
-  const investmentId = platformParams.investmentId
+  const accountId = additionalDataRecord.accountId
+  const contactId = additionalDataRecord.contactId
+  const opportunityId = additionalDataRecord.opportunityId
+  const leadId = additionalDataRecord.leadId
+  const investmentId = additionalDataRecord.investmentId
 
   // Determine if entity selection should be shown
   // For investment context, we hide entity selection since investment + account context is sufficient
@@ -139,61 +127,17 @@ export const ActivityForm: React.FC<ActivityFormProps> = ({
   }, [])
 
   const handlePreSubmit = useCallback(
-    async (data: any) => {
-      // Set creator fields if not present
-      if (!data.creatorEmployeeId && userInfo?.employeeDetails?.employeeId) {
-        data.creatorEmployeeId = userInfo.employeeDetails.employeeId
-      }
-      if (!data.creatorUserId && userInfo?.id) {
-        data.creatorUserId = userInfo.id
-      }
-
-      // Upload pending files if any
-      let uploadedDocuments: Array<{ name: string; fileInfo: any }> = []
-      if (data._pendingFiles && data._pendingFiles.length > 0) {
-        try {
-          // Determine reference entity from form data (including investmentId)
-          const referenceEntityId =
-            data.investmentId ||
-            data.accountId ||
-            data.contactId ||
-            data.leadId ||
-            data.opportunityId ||
-            'temp-' + Date.now()
-          const referenceEntityType = getReferenceEntityType(data)
-
-          const fileEntity = getFileEntityFromType(referenceEntityType)
-          uploadedDocuments = await uploadFiles(
-            data._pendingFiles,
-            referenceEntityId,
-            fileEntity,
-            FILE_CONTEXT.ACTIVITY,
-            APP_NAME,
-            fileClient
-          )
-        } catch (error) {
-          console.error('Failed to upload files:', error)
-          throw error
-        }
-      }
-
-      // Combine existing documents (as objects with ID) and newly uploaded documents
-      const existingDocumentsAsObjects = (data.documents || [])
-        .filter((doc: any) => doc.id)
-        .map((doc: any) => ({
-          id: doc.id,
-          version: doc.version
-        }))
-
-      const allDocuments = [...existingDocumentsAsObjects, ...uploadedDocuments]
-
-      // Return enhanced data with documents
-      return {
-        ...data,
-        documents: allDocuments
-      }
-    },
-    [uploadFiles, userInfo]
+    createFormPreSubmitHandler({
+      userInfo,
+      fileClient,
+      fileContext: FILE_CONTEXT.ACTIVITY,
+      appName: APP_NAME,
+      getFileEntityFromType,
+      getReferenceEntityType,
+      useCreatorFields: true,
+      additionalEntityIdFields: ['investmentId']
+    }),
+    [userInfo, fileClient]
   )
 
   const handleSuccess = useCallback(() => {
@@ -300,7 +244,7 @@ export const ActivityForm: React.FC<ActivityFormProps> = ({
     [shouldShowEntitySelection]
   )
 
-  const errors: Array<{ error?: string | unknown; type?: 'accessToken'; context?: string }> = []
+  const errors: Array<{ error?: string | Error; type?: 'accessToken'; context?: string }> = []
   if (!accessToken) {
     errors.push({ type: 'accessToken' })
   }
@@ -309,19 +253,7 @@ export const ActivityForm: React.FC<ActivityFormProps> = ({
   }
 
   if (errors.length > 0) {
-    return (
-      <>
-        {errors.map((err, index) => (
-          <ErrorAlert
-            key={err.type || `error-${index}`}
-            error={err.error}
-            type={err.type}
-            context={err.context}
-            dataTestId={formatDataTestId('investment-activity-form', `error-alert-${index}`)}
-          />
-        ))}
-      </>
-    )
+    return <ErrorAlert errors={errors} prefixDataTestId="investment-activity-form" />
   }
 
   const processType = isUpdateMode ? 'update' : 'create'

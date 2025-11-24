@@ -48,6 +48,51 @@ export interface CatalogSelectProps {
 
 import { useCatalogSelectController, CatalogSelectContext } from './CatalogSelectProvider'
 
+// Component for truncated text with conditional tooltip (only shows tooltip if actually truncated)
+const TruncatedText: React.FC<{ text: string; className?: string }> = ({ text, className }) => {
+  const textRef = React.useRef<HTMLSpanElement>(null)
+  const [isTruncated, setIsTruncated] = React.useState(false)
+
+  React.useEffect(() => {
+    const checkTruncation = () => {
+      if (textRef.current) {
+        const isTextTruncated = textRef.current.scrollWidth > textRef.current.clientWidth
+        setIsTruncated(isTextTruncated)
+      }
+    }
+
+    // Check after a small delay to ensure DOM is ready
+    const timer = setTimeout(checkTruncation, 0)
+    // Re-check on resize
+    window.addEventListener('resize', checkTruncation)
+    return () => {
+      clearTimeout(timer)
+      window.removeEventListener('resize', checkTruncation)
+    }
+  }, [text])
+
+  const textSpan = (
+    <span ref={textRef} className={`gba:block gba:truncate ${className || ''}`}>
+      {text}
+    </span>
+  )
+
+  if (!isTruncated) {
+    return textSpan
+  }
+
+  return (
+    <TooltipProvider>
+      <Tooltip>
+        <TooltipTrigger asChild>{textSpan}</TooltipTrigger>
+        <TooltipContent>
+          <p>{text}</p>
+        </TooltipContent>
+      </Tooltip>
+    </TooltipProvider>
+  )
+}
+
 const CatalogSelect: React.FC<CatalogSelectProps> = ({
   // Self-registration config props
   catalogIdentifier,
@@ -238,51 +283,6 @@ const CatalogSelect: React.FC<CatalogSelectProps> = ({
     [wiredHasMore, wiredOnLoadMore]
   )
 
-  // Component for truncated text with conditional tooltip (only shows tooltip if actually truncated)
-  const TruncatedText: React.FC<{ text: string; className?: string }> = ({ text, className }) => {
-    const textRef = React.useRef<HTMLSpanElement>(null)
-    const [isTruncated, setIsTruncated] = React.useState(false)
-
-    React.useEffect(() => {
-      const checkTruncation = () => {
-        if (textRef.current) {
-          const isTextTruncated = textRef.current.scrollWidth > textRef.current.clientWidth
-          setIsTruncated(isTextTruncated)
-        }
-      }
-
-      // Check after a small delay to ensure DOM is ready
-      const timer = setTimeout(checkTruncation, 0)
-      // Re-check on resize
-      window.addEventListener('resize', checkTruncation)
-      return () => {
-        clearTimeout(timer)
-        window.removeEventListener('resize', checkTruncation)
-      }
-    }, [text])
-
-    const textSpan = (
-      <span ref={textRef} className={`gba:block gba:truncate ${className || ''}`}>
-        {text}
-      </span>
-    )
-
-    if (!isTruncated) {
-      return textSpan
-    }
-
-    return (
-      <TooltipProvider>
-        <Tooltip>
-          <TooltipTrigger asChild>{textSpan}</TooltipTrigger>
-          <TooltipContent>
-            <p>{text}</p>
-          </TooltipContent>
-        </Tooltip>
-      </TooltipProvider>
-    )
-  }
-
   // Render truncated text with tooltip (shared for both Combobox and Select)
   const renderTruncatedText = React.useCallback((text: string, className?: string) => {
     if (!text) return null
@@ -315,14 +315,14 @@ const CatalogSelect: React.FC<CatalogSelectProps> = ({
 
       return {
         value: String(o.value),
-        label: IconComponent ? (
+        label: (IconComponent ? (
           <div className="gba:flex gba:items-center gba:gap-2 gba:min-w-0 gba:w-full">
-            <IconComponent className="gba:w-4 gba:h-4 gba:flex-shrink-0" title={labelText} />
+            <IconComponent className="gba:w-4 gba:h-4 gba:flex-shrink-0" aria-label={labelText} />
             {renderTruncatedText(labelText, 'gba:flex-1 gba:min-w-0')}
           </div>
         ) : (
           renderTruncatedText(labelText, 'gba:block')
-        ),
+        )) as any,
         icon: o.icon
       }
     })
@@ -406,15 +406,20 @@ const CatalogSelect: React.FC<CatalogSelectProps> = ({
           {selectedOption?.icon && isValidIconName(selectedOption.icon)
             ? (() => {
                 const IconComponent = getPhosphorIcon(selectedOption.icon)
+                const labelText =
+                  typeof selectedOption.label === 'string' ? selectedOption.label : String(selectedOption.label || '')
                 return (
                   <div className="gba:flex gba:items-center gba:gap-2 gba:min-w-0 gba:max-w-full">
-                    <IconComponent className="gba:w-4 gba:h-4 gba:flex-shrink-0" title={selectedOption.label} />
-                    {renderTruncatedText(selectedOption.label, 'gba:flex-1 gba:min-w-0')}
+                    <IconComponent className="gba:w-4 gba:h-4 gba:flex-shrink-0" aria-label={labelText} />
+                    {renderTruncatedText(labelText, 'gba:flex-1 gba:min-w-0')}
                   </div>
                 )
               })()
             : selectedOption?.label
-              ? renderTruncatedText(selectedOption.label, 'gba:block')
+              ? renderTruncatedText(
+                  typeof selectedOption.label === 'string' ? selectedOption.label : String(selectedOption.label || ''),
+                  'gba:block'
+                )
               : 'Select...'}
         </SelectValue>
       </SelectTrigger>
@@ -432,7 +437,7 @@ const CatalogSelect: React.FC<CatalogSelectProps> = ({
             >
               {IconComponent ? (
                 <div className="gba:flex gba:items-center gba:gap-2 gba:min-w-0 gba:max-w-full">
-                  <IconComponent className="gba:w-4 gba:h-4 gba:flex-shrink-0" title={opt.label} />
+                  <IconComponent className="gba:w-4 gba:h-4 gba:flex-shrink-0" aria-label={opt.label} />
                   {renderTruncatedText(opt.label, 'gba:flex-1 gba:min-w-0')}
                 </div>
               ) : (

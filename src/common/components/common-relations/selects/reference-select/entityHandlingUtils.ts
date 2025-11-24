@@ -85,6 +85,63 @@ export interface Entity {
 }
 
 /**
+ * Helper to clear all standard entity fields
+ */
+const clearAllStandardEntityFields = (form: EntityHandlingConfig['form'], useIdFields: boolean): void => {
+  const clearField = (entityType: 'account' | 'contact' | 'opportunity' | 'lead') => {
+    const fieldName = useIdFields ? `${entityType}Id` : entityType
+    form.setValue(fieldName, undefined)
+  }
+
+  clearField('account')
+  clearField('contact')
+  clearField('opportunity')
+  clearField('lead')
+}
+
+/**
+ * Helper to clear additional entities via handler
+ */
+const clearAdditionalEntities = (
+  form: EntityHandlingConfig['form'],
+  entities: Entity[],
+  onAdditionalEntityChange?: (type: string, entityId: string | null) => void
+): void => {
+  if (!onAdditionalEntityChange) return
+
+  const currentRelatedId = form.getValues('relatedEntityId')
+  if (!currentRelatedId) return
+
+  const currentEntity = entities.find(x => x.id === currentRelatedId)
+  if (currentEntity && !['account', 'contact', 'opportunity', 'lead'].includes(currentEntity.type)) {
+    onAdditionalEntityChange(currentEntity.type, null)
+  }
+}
+
+/**
+ * Helper to handle standard entity types (account, contact, opportunity, lead)
+ */
+const handleStandardEntity = (entity: Entity, form: EntityHandlingConfig['form'], useIdFields: boolean): void => {
+  const fieldName = useIdFields ? `${entity.type}Id` : entity.type
+  form.setValue(fieldName, entity.id)
+  form.setValue('relatedEntityId', entity.id)
+}
+
+/**
+ * Helper to handle additional entity types (e.g. investment)
+ */
+const handleAdditionalEntity = (
+  entity: Entity,
+  form: EntityHandlingConfig['form'],
+  onAdditionalEntityChange?: (type: string, entityId: string | null) => void
+): void => {
+  if (onAdditionalEntityChange) {
+    onAdditionalEntityChange(entity.type, entity.id)
+  }
+  form.setValue('relatedEntityId', entity.id)
+}
+
+/**
  * Creates a handler for EntitySelect onValueChange that properly manages common entity form fields
  * Handles account, contact, opportunity, lead (common entities)
  *
@@ -103,44 +160,20 @@ export const createCommonEntitySelectHandler = (
     const id = String(value || '')
     const entity = entities.find(x => x.id === id)
 
-    // Helper to clear field based on entity type
-    const clearField = (entityType: 'account' | 'contact' | 'opportunity' | 'lead') => {
-      const fieldName = useIdFields ? `${entityType}Id` : entityType
-      form.setValue(fieldName, undefined)
-    }
-
     // Clear all standard entity fields
-    clearField('account')
-    clearField('contact')
-    clearField('opportunity')
-    clearField('lead')
+    clearAllStandardEntityFields(form, useIdFields)
 
     // Clear additional entities via handler (if provided)
-    // This is for non-common entities like investment (IRM-specific)
-    if (onAdditionalEntityChange) {
-      const currentRelatedId = form.getValues('relatedEntityId')
-      if (currentRelatedId) {
-        const currentEntity = entities.find(x => x.id === currentRelatedId)
-        if (currentEntity && !['account', 'contact', 'opportunity', 'lead'].includes(currentEntity.type)) {
-          onAdditionalEntityChange(currentEntity.type, null)
-        }
-      }
-    }
+    clearAdditionalEntities(form, entities, onAdditionalEntityChange)
 
-    if (entity) {
-      // Handle standard entity types (account, contact, opportunity, lead)
-      if (['account', 'contact', 'opportunity', 'lead'].includes(entity.type)) {
-        const fieldName = useIdFields ? `${entity.type}Id` : entity.type
-        form.setValue(fieldName, entity.id)
-        form.setValue('relatedEntityId', entity.id)
-      } else {
-        // Handle additional entity types via handler (e.g. investment)
-        // This delegates to domain-specific logic (e.g. IRM investment handling)
-        if (onAdditionalEntityChange) {
-          onAdditionalEntityChange(entity.type, entity.id)
-        }
-        form.setValue('relatedEntityId', entity.id)
-      }
+    if (!entity) return
+
+    // Handle standard entity types (account, contact, opportunity, lead)
+    if (['account', 'contact', 'opportunity', 'lead'].includes(entity.type)) {
+      handleStandardEntity(entity, form, useIdFields)
+    } else {
+      // Handle additional entity types via handler (e.g. investment)
+      handleAdditionalEntity(entity, form, onAdditionalEntityChange)
     }
   }
 }

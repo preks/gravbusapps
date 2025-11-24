@@ -151,6 +151,87 @@ export const useCatalogSelect = (
     [configs, stateById, externalValues]
   )
 
+  /**
+   * Checks if a config already has prefetched data
+   */
+  const hasPrefetchedData = (cfg: CatalogSelectConfig): boolean => {
+    const currentState = stateById[cfg.id]
+    return !!(currentState?.prefetchedOptions && currentState.prefetchedOptions.length > 0)
+  }
+
+  /**
+   * Finds a source config with reusable data for the given config
+   */
+  const findReusableSourceConfig = (cfg: CatalogSelectConfig): CatalogSelectConfig | undefined => {
+    if (cfg.parentField || cfg.filterField) {
+      return undefined // Cannot reuse if filters are applied
+    }
+
+    return configs.find(c => c.id !== cfg.id && c.catalogIdentifier === cfg.catalogIdentifier && hasPrefetchedData(c))
+  }
+
+  /**
+   * Reuses data from source config for target config
+   */
+  const reuseConfigData = (targetCfg: CatalogSelectConfig, sourceCfg: CatalogSelectConfig): void => {
+    const sourceState = stateById[sourceCfg.id]
+    setFor(targetCfg.id, prev => ({
+      ...prev,
+      loading: false,
+      options: sourceState.prefetchedOptions || [],
+      prefetchedOptions: sourceState.prefetchedOptions || [],
+      total: sourceState.fullTotal || sourceState.total || 0,
+      fullTotal: sourceState.fullTotal || sourceState.total || 0,
+      limit: targetCfg.pageSize ?? defaultPageSize,
+      offset: (sourceState.prefetchedOptions || []).length,
+      variant: sourceState.variant || 'combobox',
+      metaByValue: sourceState.metaByValue || {}
+    }))
+  }
+
+  /**
+   * Processes catalog entries and updates config states
+   */
+  const processCatalogEntries = (cat: any, configsToReuse: Map<string, string>): void => {
+    const catalogIdentifierWithVersion = `${cat.identifier}:${cat.version || 'v1'}`
+    const matchingConfigs = configs.filter(
+      c =>
+        (c.catalogIdentifier === catalogIdentifierWithVersion ||
+          (c.catalogIdentifier === cat.identifier && (cat.version || 'v1') === 'v1')) &&
+        !configsToReuse.has(c.id)
+    )
+    if (matchingConfigs.length === 0) return
+
+    for (const cfg of matchingConfigs) {
+      const limit = cfg.pageSize ?? defaultPageSize
+      const total = cat.total ?? cat.entriesCount ?? 0
+      const initialEntries = (cat.entries || []).slice(0, limit)
+      const metaByValue = buildEntryMeta(initialEntries)
+      const hasParentWithValue =
+        cfg.parentField && (externalValues?.[cfg.parentField] || stateById[cfg.parentField]?.value)
+      const prefetchedOptions = toOptions(initialEntries, locale)
+
+      setFor(cfg.id, prev => {
+        if (prev?.lastFiltersSig) {
+          return prev
+        }
+
+        return {
+          ...prev,
+          loading: false,
+          options: hasParentWithValue ? [] : prefetchedOptions,
+          prefetchedOptions,
+          total: hasParentWithValue ? 0 : total,
+          fullTotal: total,
+          limit,
+          offset: hasParentWithValue ? 0 : initialEntries.length,
+          variant: total <= defaultThreshold ? 'select' : 'combobox',
+          metaByValue
+        }
+      })
+    }
+  }
+
   const preload = useCallback(async () => {
     const allIdentifiers = configs.filter(c => c.prefetch !== false).map(c => c.catalogIdentifier)
     const identifiers = [...new Set(allIdentifiers)]
@@ -162,40 +243,16 @@ export const useCatalogSelect = (
 
     for (const cfg of configs.filter(c => c.prefetch !== false)) {
       // Check if this config already has data
-      const currentState = stateById[cfg.id]
-      if (currentState && currentState.prefetchedOptions && currentState.prefetchedOptions.length > 0) {
+      if (hasPrefetchedData(cfg)) {
         continue // Already has data
       }
 
       // Check if another config with same catalogIdentifier has data we can reuse
-      // Only if no parentField or filterField (those would filter the data)
-      if (!cfg.parentField && !cfg.filterField) {
-        const sourceConfig = configs.find(
-          c =>
-            c.id !== cfg.id &&
-            c.catalogIdentifier === cfg.catalogIdentifier &&
-            stateById[c.id]?.prefetchedOptions &&
-            stateById[c.id].prefetchedOptions.length > 0
-        )
-
-        if (sourceConfig) {
-          // Reuse data from source config
-          const sourceState = stateById[sourceConfig.id]
-          setFor(cfg.id, prev => ({
-            ...prev,
-            loading: false,
-            options: sourceState.prefetchedOptions || [],
-            prefetchedOptions: sourceState.prefetchedOptions || [],
-            total: sourceState.fullTotal || sourceState.total || 0,
-            fullTotal: sourceState.fullTotal || sourceState.total || 0,
-            limit: cfg.pageSize ?? defaultPageSize,
-            offset: (sourceState.prefetchedOptions || []).length,
-            variant: sourceState.variant || 'combobox',
-            metaByValue: sourceState.metaByValue || {}
-          }))
-          configsToReuse.set(cfg.id, sourceConfig.id)
-          continue // Skip API call for this config
-        }
+      const sourceConfig = findReusableSourceConfig(cfg)
+      if (sourceConfig) {
+        reuseConfigData(cfg, sourceConfig)
+        configsToReuse.set(cfg.id, sourceConfig.id)
+        continue // Skip API call for this config
       }
 
       // Need to fetch data for this config
@@ -216,43 +273,7 @@ export const useCatalogSelect = (
     })
 
     for (const cat of list.items || []) {
-      const catalogIdentifierWithVersion = `${cat.identifier}:${cat.version || 'v1'}`
-      const matchingConfigs = configs.filter(
-        c =>
-          (c.catalogIdentifier === catalogIdentifierWithVersion ||
-            (c.catalogIdentifier === cat.identifier && (cat.version || 'v1') === 'v1')) &&
-          !configsToReuse.has(c.id) // Skip configs that already reused data
-      )
-      if (matchingConfigs.length === 0) continue
-
-      for (const cfg of matchingConfigs) {
-        const limit = cfg.pageSize ?? defaultPageSize
-        const total = cat.total ?? cat.entriesCount ?? 0
-        const initialEntries = (cat.entries || []).slice(0, limit)
-        const metaByValue = buildEntryMeta(initialEntries)
-        const hasParentWithValue =
-          cfg.parentField && (externalValues?.[cfg.parentField] || stateById[cfg.parentField]?.value)
-        const prefetchedOptions = toOptions(initialEntries, locale)
-
-        setFor(cfg.id, prev => {
-          if (prev?.lastFiltersSig) {
-            return prev
-          }
-
-          return {
-            ...prev,
-            loading: false,
-            options: hasParentWithValue ? [] : prefetchedOptions,
-            prefetchedOptions,
-            total: hasParentWithValue ? 0 : total,
-            fullTotal: total,
-            limit,
-            offset: hasParentWithValue ? 0 : initialEntries.length,
-            variant: total <= defaultThreshold ? 'select' : 'combobox',
-            metaByValue
-          }
-        })
-      }
+      processCatalogEntries(cat, configsToReuse)
     }
   }, [configs, fetchCatalogs, locale, stateById, externalValues, setFor])
 
@@ -273,6 +294,26 @@ export const useCatalogSelect = (
           const entries = full?.entries || []
           const hasParentWithValue =
             cfg.parentField && (externalValues?.[cfg.parentField] || stateById[cfg.parentField]?.value)
+          // Determine options based on conditions
+          let options: any[]
+          if (hasParentWithValue) {
+            options = []
+          } else if (total <= defaultThreshold) {
+            options = toOptions(entries, locale)
+          } else {
+            options = []
+          }
+
+          // Determine offset based on conditions
+          let offset: number
+          if (hasParentWithValue) {
+            offset = 0
+          } else if (total <= defaultThreshold) {
+            offset = entries.length
+          } else {
+            offset = 0
+          }
+
           setFor(cfg.id, prev => {
             if (prev?.lastFiltersSig) {
               return prev
@@ -281,12 +322,12 @@ export const useCatalogSelect = (
             return {
               ...prev,
               loading: false,
-              options: hasParentWithValue ? [] : total <= defaultThreshold ? toOptions(entries, locale) : [],
+              options,
               prefetchedOptions: total <= defaultThreshold ? toOptions(entries, locale) : [],
               total: hasParentWithValue ? 0 : total,
               fullTotal: total,
               limit: cfg.pageSize ?? defaultPageSize,
-              offset: hasParentWithValue ? 0 : total <= defaultThreshold ? entries.length : 0,
+              offset,
               variant: total <= defaultThreshold ? 'select' : 'combobox'
             }
           })
@@ -316,73 +357,98 @@ export const useCatalogSelect = (
     }
   }, [preload, primeNonPrefetch, configs, setFor])
 
+  /**
+   * Checks if all configs are ready (not loading)
+   */
+  const areAllConfigsReady = useCallback((): boolean => {
+    return configs.every(cfg => {
+      const state = stateById[cfg.id]
+      return state && !state.loading
+    })
+  }, [configs, stateById])
+
+  /**
+   * Collects missing options that need to be fetched
+   */
+  const collectMissingOptions = useCallback((): Array<{ cfg: CatalogSelectConfig; value: string }> => {
+    const missing: Array<{ cfg: CatalogSelectConfig; value: string }> = []
+    configs.forEach(cfg => {
+      const state = stateById[cfg.id]
+      const externalValue = externalValues?.[cfg.id] || ''
+      const stateValue = state?.value || ''
+      const effectiveValue = externalValue || stateValue
+
+      if (!effectiveValue || !state?.options) return
+
+      const hasOption = state.options.some(opt => opt.value === effectiveValue)
+      if (!hasOption) {
+        missing.push({ cfg, value: effectiveValue })
+      }
+    })
+    return missing
+  }, [configs, stateById, externalValues])
+
+  /**
+   * Fetches a single missing option and updates state
+   */
+  const fetchSingleMissingOption = useCallback(
+    async (cfg: CatalogSelectConfig, value: string): Promise<void> => {
+      try {
+        const res = await fetchCatalogEntriesByIdentifier(cfg.id, { limit: 1, offset: 0, entryId: value })
+        if (res.entries.length === 0) return
+
+        const entry = res.entries[0]
+        const option = { value: entry.id, label: getLocalizedValue(entry, locale) }
+        const meta = { parentEntryId: entry.parentEntryId, type: entry.type }
+
+        setFor(cfg.id, prev => {
+          if (!prev) return prev
+          const optionExists = prev.options.some(opt => opt.value === option.value)
+          return {
+            ...prev,
+            options: optionExists ? prev.options : [option, ...prev.options],
+            metaByValue: { ...prev.metaByValue, [entry.id]: meta }
+          }
+        })
+      } catch {
+        // Ignore fetch errors
+      }
+    },
+    [fetchCatalogEntriesByIdentifier, locale, setFor]
+  )
+
+  /**
+   * Fetches all missing options for initial values after preload
+   */
+  const fetchMissingOptions = useCallback(async (): Promise<void> => {
+    // Wait for configs to be registered
+    if (configs.length === 0) return
+
+    // Wait for preload to finish (all configs have finished loading)
+    if (!areAllConfigsReady()) return
+
+    // Collect all missing options
+    const missing = collectMissingOptions()
+    if (missing.length === 0) return
+
+    // Fetch all missing options in parallel
+    await Promise.all(missing.map(({ cfg, value }) => fetchSingleMissingOption(cfg, value)))
+  }, [configs, areAllConfigsReady, collectMissingOptions, fetchSingleMissingOption])
+
   // Fetch missing options for initial values after preload (run once)
   const missingOptionsFetchedRef = useRef(false)
   useEffect(() => {
-    const fetchMissingOptions = async () => {
-      // Only run once
-      if (missingOptionsFetchedRef.current) return
-
-      // Wait for configs to be registered
-      if (configs.length === 0) return
-
-      // Wait for preload to finish (all configs have finished loading)
-      const allReady = configs.every(cfg => {
-        const state = stateById[cfg.id]
-        return state && !state.loading
-      })
-      if (!allReady) return
-
-      // Mark as fetched to prevent re-runs
-      missingOptionsFetchedRef.current = true
-
-      // Collect all missing options
-      const missing: Array<{ cfg: CatalogSelectConfig; value: string }> = []
-      configs.forEach(cfg => {
-        const state = stateById[cfg.id]
-        const externalValue = externalValues?.[cfg.id] || ''
-        const stateValue = state?.value || ''
-        const effectiveValue = externalValue || stateValue
-
-        if (!effectiveValue || !state?.options) return
-
-        const hasOption = state.options.some(opt => opt.value === effectiveValue)
-        if (!hasOption) {
-          missing.push({ cfg, value: effectiveValue })
-        }
-      })
-
-      if (missing.length === 0) return
-
-      // Fetch all missing options in parallel
-      await Promise.all(
-        missing.map(async ({ cfg, value }) => {
-          try {
-            const res = await fetchCatalogEntriesByIdentifier(cfg.id, { limit: 1, offset: 0, entryId: value })
-            if (res.entries.length === 0) return
-
-            const entry = res.entries[0]
-            const option = { value: entry.id, label: getLocalizedValue(entry, locale) }
-            const meta = { parentEntryId: entry.parentEntryId, type: entry.type }
-
-            setFor(cfg.id, prev => {
-              if (!prev) return prev
-              const optionExists = prev.options.some(opt => opt.value === option.value)
-              return {
-                ...prev,
-                options: optionExists ? prev.options : [option, ...prev.options],
-                metaByValue: { ...prev.metaByValue, [entry.id]: meta }
-              }
-            })
-          } catch {
-            // Ignore fetch errors
-          }
-        })
-      )
-    }
+    // Only run once
+    if (missingOptionsFetchedRef.current) return
 
     fetchMissingOptions()
-  }, [configs, stateById, externalValues, fetchCatalogEntriesByIdentifier, locale, setFor])
+      .then(() => {
+        missingOptionsFetchedRef.current = true
+      })
+      .catch(() => {
+        // Ignore errors
+      })
+  }, [fetchMissingOptions])
 
   const createOnSearch = useCallback(
     (id: string, cfg: CatalogSelectConfig) => async (q: string) => {

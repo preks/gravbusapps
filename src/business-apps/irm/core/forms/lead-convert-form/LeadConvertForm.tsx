@@ -34,13 +34,14 @@ import {
 } from '@/common/components/common-relations/form-layouts/lead-convert-layout'
 import { FormProvider } from 'react-hook-form'
 import { CatalogSelect } from '@/components/catalog-select'
-import { ErrorAlert } from '@/components/error-alert/ErrorAlert'
+import { ErrorAlert } from '@/components/error-alert'
 import { formatDataTestId } from '@/common/utils/formatDataTestId'
 import { useFileClient } from '@/common/network/files/useFileClient'
 import { buildFilePath } from '@/common/utils/fileUtils'
 import { APP_NAME, FILE_ENTITY, FILE_CONTEXT } from '@/common/data/investment/constants/investmentConstants'
 import type { InvestmentAccount } from '@/common/data/investment/types/investmentAccountTypes'
 import type { InvestmentContact } from '@/common/data/investment/types/investmentContactTypes'
+import type { InvestmentOpportunity } from '@/common/data/investment/types/investmentOpportunityTypes'
 import type { SelectOption as AccountSelectOption } from '@/common/components/common-relations/selects/account-select'
 import type { SelectOption as ContactSelectOption } from '@/common/components/common-relations/selects/contact-select'
 import {
@@ -580,14 +581,14 @@ export const ConvertInvestmentLeadForm = ({
         data.accountOption === 'match' && data.selectedAccountId
           ? { id: data.selectedAccountId }
           : data.accountOption === 'create'
-            ? accountForm.getValues()
+            ? (accountForm.getValues() as Partial<InvestmentAccount>)
             : undefined
 
       const contact =
         data.contactOption === 'match' && data.selectedContactId
           ? { id: data.selectedContactId }
           : data.contactOption === 'create'
-            ? contactForm.getValues()
+            ? (contactForm.getValues() as Partial<InvestmentContact>)
             : undefined
 
       // For opportunity: merge base form values with dynamic prospect fields
@@ -598,7 +599,7 @@ export const ConvertInvestmentLeadForm = ({
             return {
               ...opportunityValues,
               ...prospectFields
-            }
+            } as Partial<InvestmentOpportunity>
           })()
         : undefined
 
@@ -617,7 +618,7 @@ export const ConvertInvestmentLeadForm = ({
   )
 
   // Collect all errors for centralized early return (AFTER all hooks)
-  const errors: Array<{ error?: string | unknown; type?: 'accessToken'; context?: string }> = []
+  const errors: Array<{ error?: string | Error; type?: 'accessToken'; context?: string }> = []
   if (!accessToken) {
     errors.push({ type: 'accessToken' })
   }
@@ -633,19 +634,7 @@ export const ConvertInvestmentLeadForm = ({
 
   // Early return if any errors exist (now safe - all hooks called above)
   if (errors.length > 0) {
-    return (
-      <>
-        {errors.map((err, index) => (
-          <ErrorAlert
-            key={err.type || `error-${index}`}
-            error={err.error}
-            type={err.type}
-            context={err.context}
-            dataTestId={formatDataTestId('convert-investment-lead-form', `error-alert-${index}`)}
-          />
-        ))}
-      </>
-    )
+    return <ErrorAlert errors={errors} prefixDataTestId="convert-investment-lead-form" />
   }
 
   return (
@@ -668,7 +657,9 @@ export const ConvertInvestmentLeadForm = ({
       submitButtonText={getTranslationFromI18nKeyAndLabel('crm:convertLead.convertLead', 'Convert Lead')}
       cancelButtonText={getTranslationFromI18nKeyAndLabel('common:button.cancel', 'Cancel')}
       data-testid="convert-lead-process-dialog"
-    ></AppActionForm>
+    >
+      {null}
+    </AppActionForm>
   )
 }
 

@@ -253,15 +253,18 @@ const OpportunityInformationSegment: React.FC<OpportunityInformationSegmentProps
               })
             }, [field.value])
 
-            // Handle onChange - transform back to opportunityContacts format
-            const handleChange = (newValue: Array<string | { id: string; name: string; contactType?: string }>) => {
-              const opportunityId = form.getValues('id')
-              const opportunityContacts = newValue.map((contactValue: any) => {
+            /**
+             * Transforms a contact value to opportunityContact format
+             */
+            const transformContactValueToOpportunityContact = useCallback(
+              (contactValue: any, opportunityId: string | undefined, existingOpportunityContacts: any[]) => {
                 const contactId = typeof contactValue === 'object' ? contactValue.id : contactValue
                 const contactType = typeof contactValue === 'object' ? contactValue.contactType : undefined
 
                 // Find existing opportunityContact to preserve id and version
-                const existingOc = (field.value || []).find((oc: any) => (oc.contactId || oc.contact?.id) === contactId)
+                const existingOc = existingOpportunityContacts.find(
+                  (oc: any) => (oc.contactId || oc.contact?.id) === contactId
+                )
 
                 return {
                   ...(existingOc?.id && { id: existingOc.id }),
@@ -270,9 +273,21 @@ const OpportunityInformationSegment: React.FC<OpportunityInformationSegmentProps
                   contactId: contactId,
                   contactType: contactType || null
                 }
-              })
-              field.onChange(opportunityContacts)
-            }
+              },
+              []
+            )
+
+            // Handle onChange - transform back to opportunityContacts format
+            const handleChange = useCallback(
+              (newValue: Array<string | { id: string; name: string; contactType?: string }>) => {
+                const opportunityId = form.getValues('id')
+                const opportunityContacts = newValue.map((contactValue: any) =>
+                  transformContactValueToOpportunityContact(contactValue, opportunityId, field.value || [])
+                )
+                field.onChange(opportunityContacts)
+              },
+              [form, field, transformContactValueToOpportunityContact]
+            )
 
             return (
               <FormItem>

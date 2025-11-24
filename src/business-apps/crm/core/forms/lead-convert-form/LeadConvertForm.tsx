@@ -35,8 +35,7 @@ import {
 import { FormProvider } from 'react-hook-form'
 import { CatalogSelect } from '@/components/catalog-select'
 import { CampaignSelect } from '@/common/components/customer/selects/campaign-select'
-import { ErrorAlert } from '@/components/error-alert/ErrorAlert'
-import { formatDataTestId } from '@/common/utils/formatDataTestId'
+import { ErrorAlert } from '@/components/error-alert'
 import { useFileClient } from '@/common/network/files/useFileClient'
 import { buildFilePath } from '@/common/utils/fileUtils'
 import { APP_NAME, FILE_ENTITY, FILE_CONTEXT } from '@/common/data/customer/constants/customerConstants'
@@ -526,7 +525,7 @@ export const LeadConvertForm = ({ accessToken, userInfo, additionalData, onSucce
   )
 
   // Collect all errors for centralized early return (AFTER all hooks)
-  const errors: Array<{ error?: string | unknown; type?: 'accessToken'; context?: string }> = []
+  const errors: Array<{ error?: string | Error; type?: 'accessToken'; context?: string }> = []
   if (!accessToken) {
     errors.push({ type: 'accessToken' })
   }
@@ -542,19 +541,7 @@ export const LeadConvertForm = ({ accessToken, userInfo, additionalData, onSucce
 
   // Early return if any errors exist (now safe - all hooks called above)
   if (errors.length > 0) {
-    return (
-      <>
-        {errors.map((err, index) => (
-          <ErrorAlert
-            key={err.type || `error-${index}`}
-            error={err.error}
-            type={err.type}
-            context={err.context}
-            dataTestId={formatDataTestId('convert-lead-form', `error-alert-${index}`)}
-          />
-        ))}
-      </>
-    )
+    return <ErrorAlert errors={errors} prefixDataTestId="convert-lead-form" />
   }
 
   return (

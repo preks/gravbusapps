@@ -137,8 +137,8 @@ const convertReferenceFieldsToFormConfiguration = (referenceFields: any[]): Dyna
 
   // Sort fields by displayOrder
   fields.sort((a, b) => {
-    const orderA = typeof a.displayOrder === 'string' ? parseFloat(a.displayOrder) : a.displayOrder
-    const orderB = typeof b.displayOrder === 'string' ? parseFloat(b.displayOrder) : b.displayOrder
+    const orderA = typeof a.displayOrder === 'string' ? Number.parseFloat(a.displayOrder) : a.displayOrder
+    const orderB = typeof b.displayOrder === 'string' ? Number.parseFloat(b.displayOrder) : b.displayOrder
     return orderA - orderB
   })
 
@@ -171,8 +171,8 @@ const convertReferenceFieldsToFormFieldsDefinition = (referenceFields: any[]): F
 
   // Sort fields by displayOrder
   fields.sort((a, b) => {
-    const orderA = parseFloat(a.displayOrder)
-    const orderB = parseFloat(b.displayOrder)
+    const orderA = Number.parseFloat(a.displayOrder)
+    const orderB = Number.parseFloat(b.displayOrder)
     return orderA - orderB
   })
 
@@ -300,7 +300,8 @@ export const useProspectFields = ({
       // Check if IDs are valid (not test/mock IDs)
       const isValidId = (id: string | null | undefined): boolean => {
         if (!id) return false
-        if (id.match(/^(ig_|it_|test_|mock_|demo_)\d+$/)) return false
+        const testIdPattern = /^(ig_|it_|test_|mock_|demo_)\d+$/
+        if (testIdPattern.exec(id)) return false
         return id.length > 10
       }
 

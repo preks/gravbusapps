@@ -201,8 +201,16 @@ const OpportunitySelect: React.FC<OpportunitySelectProps> = ({
     return (
       <div className="gba:space-y-2">
         <div
+          role="button"
+          tabIndex={0}
           className="gba:border-2 gba:border-dashed gba:border-muted-foreground/25 gba:rounded-lg gba:p-6 gba:text-center gba:cursor-pointer hover:gba:border-muted-foreground/50 gba:transition-colors"
           onClick={() => setShowAddExisting(true)}
+          onKeyDown={e => {
+            if (e.key === 'Enter' || e.key === ' ') {
+              e.preventDefault()
+              setShowAddExisting(true)
+            }
+          }}
           data-testid={formatDataTestId(dataTestId || 'opportunity-list', 'empty-state')}
         >
           <PiPlus className="gba:mx-auto gba:h-8 gba:w-8 gba:text-muted-foreground gba:mb-2" />

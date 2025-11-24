@@ -62,7 +62,7 @@ export function useInvestmentAccount(accessToken: string, id: string | undefined
 
       // Execute query with ID as GraphQL variable
       const result = await graphqlClient.request<{
-        InvestmentAccountByPk: any & {
+        InvestmentAccountByPk: {
           investmentAccountContact?: Array<{
             id: string
             contactType?: string

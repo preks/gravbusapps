@@ -102,11 +102,6 @@ export interface UploadFileResult {
 }
 
 /**
- * Generic type for reference entity types (can be extended by domain-specific types)
- */
-export type ReferenceEntityType = string
-
-/**
  * Generic function to upload files to storage
  * @param files - Array of files to upload
  * @param referenceEntityId - ID of the reference entity

@@ -206,9 +206,9 @@ const TaskSegment: React.FC<TaskSegmentProps> = ({
 
     // If no common entity was applied, handle additional entity types (e.g. investmentId) via handler
     if (!commonEntityApplied && onAdditionalEntityChange) {
-      const standardEntityKeys = ['accountId', 'contactId', 'opportunityId', 'leadId']
+      const standardEntityKeys = new Set(['accountId', 'contactId', 'opportunityId', 'leadId'])
       for (const [key, value] of Object.entries(initialEntityFromContext)) {
-        if (value && !standardEntityKeys.includes(key)) {
+        if (value && !standardEntityKeys.has(key)) {
           // Extract type from field name (e.g. 'investmentId' -> 'investment')
           const type = key.replace(/Id$/, '').toLowerCase()
           const currentValue = form.getValues(key as any)

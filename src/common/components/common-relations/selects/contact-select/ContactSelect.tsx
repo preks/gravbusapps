@@ -318,6 +318,40 @@ const ContactSelect: React.FC<ContactSelectProps> = ({
     return null
   }
 
+  /**
+   * Creates a ContactValue object from contact data
+   */
+  const createContactValue = (contactId: string, contactData: SelectOption): ContactValue => {
+    return {
+      id: contactId,
+      name: contactData.label || contactData.name,
+      contactType: undefined,
+      pictureThumbnail: contactData.pictureThumbnail,
+      jobPosition: contactData.extraInfo?.jobPosition,
+      department: contactData.extraInfo?.department
+    }
+  }
+
+  /**
+   * Handles adding a contact in multiple mode (appends to array)
+   */
+  const handleAddContactMultiple = (newContact: ContactValue) => {
+    const newValue = [...internalValue, newContact]
+    setInternalValue(newValue)
+    onChange(newValue)
+    setShowAddExisting(false)
+  }
+
+  /**
+   * Handles adding a contact in single mode (replaces current value)
+   */
+  const handleAddContactSingle = (newContact: ContactValue) => {
+    const newValue = [newContact]
+    setInternalValue(newValue)
+    onChange(newContact)
+    setShowAddExisting(false)
+  }
+
   // Handle add contact (appends to array or replaces in single mode)
   const handleAddContact = (contactId: string) => {
     if (!contactId) return
@@ -327,35 +361,23 @@ const ContactSelect: React.FC<ContactSelectProps> = ({
       // Fallback: try to find in contacts list
       const contactFromList = contacts.find(c => c.id === contactId)
       if (contactFromList) {
-        const newContact: ContactValue = {
-          id: contactId,
-          name: contactFromList.label || contactFromList.name,
-          contactType: undefined,
-          pictureThumbnail: contactFromList.pictureThumbnail,
-          jobPosition: contactFromList.extraInfo?.jobPosition,
-          department: contactFromList.extraInfo?.department
+        const newContact = createContactValue(contactId, contactFromList)
+        if (multiple) {
+          handleAddContactMultiple(newContact)
+        } else {
+          handleAddContactSingle(newContact)
         }
-        const newValue = multiple ? [...internalValue, newContact] : [newContact]
-        setInternalValue(newValue)
-        onChange(multiple ? newValue : newContact)
-        setShowAddExisting(false)
       }
       return
     }
 
     // Add to existing contacts array with FULL contact data (preserve all fields)
-    const newContact: ContactValue = {
-      id: contactId,
-      name: selectedContact.label || selectedContact.name,
-      contactType: undefined,
-      pictureThumbnail: selectedContact.pictureThumbnail,
-      jobPosition: selectedContact.extraInfo?.jobPosition,
-      department: selectedContact.extraInfo?.department
+    const newContact = createContactValue(contactId, selectedContact)
+    if (multiple) {
+      handleAddContactMultiple(newContact)
+    } else {
+      handleAddContactSingle(newContact)
     }
-    const newValue = multiple ? [...internalValue, newContact] : [newContact]
-    setInternalValue(newValue)
-    onChange(multiple ? newValue : newContact)
-    setShowAddExisting(false)
   }
 
   // Handle contact type change
@@ -371,15 +393,29 @@ const ContactSelect: React.FC<ContactSelectProps> = ({
     onChange(newValue)
   }
 
+  /**
+   * Handles removing a contact in multiple mode (filters out from array)
+   */
+  const handleRemoveContactMultiple = (contactId: string) => {
+    const newValue = internalValue.filter(c => getContactId(c) !== contactId)
+    setInternalValue(newValue)
+    onChange(newValue)
+  }
+
+  /**
+   * Handles removing a contact in single mode (clears value)
+   */
+  const handleRemoveContactSingle = () => {
+    setInternalValue([])
+    onChange(null)
+  }
+
   // Handle remove contact (filters out or clears in single mode)
   const handleRemoveContact = (contactId: string) => {
     if (multiple) {
-      const newValue = internalValue.filter(c => getContactId(c) !== contactId)
-      setInternalValue(newValue)
-      onChange(newValue)
+      handleRemoveContactMultiple(contactId)
     } else {
-      setInternalValue([])
-      onChange(null)
+      handleRemoveContactSingle()
     }
   }
 
@@ -417,8 +453,16 @@ const ContactSelect: React.FC<ContactSelectProps> = ({
       {/* Empty State with Clickable Dashed Outline */}
       {internalValue.length === 0 && !showAddExisting && (
         <div
+          role="button"
+          tabIndex={0}
           className="gba:border-2 gba:border-dashed gba:border-muted-foreground/25 gba:rounded-lg gba:p-6 gba:text-center gba:cursor-pointer hover:gba:border-muted-foreground/50 gba:transition-colors"
           onClick={() => setShowAddExisting(true)}
+          onKeyDown={e => {
+            if (e.key === 'Enter' || e.key === ' ') {
+              e.preventDefault()
+              setShowAddExisting(true)
+            }
+          }}
           data-testid={formatDataTestId(dataTestId || 'contact-list', 'empty-state')}
         >
           <PiPlus className="gba:mx-auto gba:h-8 gba:w-8 gba:text-muted-foreground gba:mb-2" />

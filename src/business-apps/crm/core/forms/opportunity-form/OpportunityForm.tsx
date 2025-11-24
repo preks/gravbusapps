@@ -18,7 +18,7 @@ import { CampaignSelect } from '@/common/components/customer/selects/campaign-se
 import { FormField, FormItem, FormLabel, FormControl, FormMessage } from '@newwork/nw-design-system'
 import { useCustomerAccountsList } from '@/common/data/customer/hooks/useCustomerAccounts'
 import { useCustomerContactsList } from '@/common/data/customer/hooks/useCustomerContacts'
-import { ErrorAlert } from '@/components/error-alert/ErrorAlert'
+import { ErrorAlert } from '@/components/error-alert'
 
 // CRM-specific schema extension (adds salesCampaignId only)
 export const customerOpportunitySchema = opportunitySchema.extend({
@@ -74,7 +74,7 @@ const OpportunityForm: React.FC<OpportunityFormProps> = ({ accessToken, userInfo
   }, [])
 
   // Collect all errors for centralized early return (AFTER all hooks)
-  const errors: Array<{ error?: string | unknown; type?: 'accessToken'; context?: string }> = []
+  const errors: Array<{ error?: string | Error; type?: 'accessToken'; context?: string }> = []
   if (!accessToken) {
     errors.push({ type: 'accessToken' })
   }
@@ -90,19 +90,7 @@ const OpportunityForm: React.FC<OpportunityFormProps> = ({ accessToken, userInfo
 
   // Early return if any errors exist (now safe - all hooks called above)
   if (errors.length > 0) {
-    return (
-      <>
-        {errors.map((err, index) => (
-          <ErrorAlert
-            key={err.type || `error-${index}`}
-            error={err.error}
-            type={err.type}
-            context={err.context}
-            dataTestId={formatDataTestId('customer-opportunity-form', `error-alert-${index}`)}
-          />
-        ))}
-      </>
-    )
+    return <ErrorAlert errors={errors} prefixDataTestId="customer-opportunity-form" />
   }
 
   // Handle form cancellation

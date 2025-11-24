@@ -45,6 +45,73 @@ const transformIdFields = (value: any): any => {
 }
 
 /**
+ * Determines the type of a value for transformation
+ */
+const getValueType = (value: any): 'date' | 'array' | 'object' | 'primitive' => {
+  if (value instanceof Date) return 'date'
+  if (Array.isArray(value)) return 'array'
+  if (typeof value === 'object' && value !== null) return 'object'
+  return 'primitive'
+}
+
+/**
+ * Transforms a date value to ISO format
+ */
+const transformDateValue = (value: Date): string | undefined => {
+  return toISOFormat(value.toISOString())
+}
+
+/**
+ * Transforms an array value
+ */
+const transformArrayValue = (value: any): any => {
+  // Arrays: Empty array [] means explicit deletion - include it in payload
+  // null/undefined means not set - ignore it
+  if (value === null || value === undefined) {
+    return undefined
+  }
+  // Empty array [] should be included for explicit deletions
+  return transformIdFields(value)
+}
+
+/**
+ * Transforms an object value
+ */
+const transformObjectValue = (value: any): any => {
+  // Objects: Transform Id fields and include only if not empty
+  return Object.keys(value).length > 0 ? transformIdFields(value) : undefined
+}
+
+/**
+ * Transforms a primitive value
+ */
+const transformPrimitiveValue = (value: any): any => {
+  // Primitives: Keep numbers as numbers, convert others to string or undefined
+  if (typeof value === 'number') {
+    return Number.isNaN(value) ? undefined : value
+  }
+  return toStringOrUndefined(value)
+}
+
+/**
+ * Transforms a value based on its type
+ */
+const transformValueByType = (value: any, valueType: 'date' | 'array' | 'object' | 'primitive'): any => {
+  switch (valueType) {
+    case 'date':
+      return transformDateValue(value)
+    case 'array':
+      return transformArrayValue(value)
+    case 'object':
+      return transformObjectValue(value)
+    case 'primitive':
+      return transformPrimitiveValue(value)
+    default:
+      return undefined
+  }
+}
+
+/**
  * Generic entity payload builder
  * Processes form fields with automatic type-based transformations
  *
@@ -83,51 +150,8 @@ export const buildPayload = <T extends Record<string, any>>(entity: Partial<T>, 
 
     if (value === undefined) continue
 
-    // Determine value type and transform accordingly
-    let transformedValue: any
-    const valueType =
-      value instanceof Date
-        ? 'date'
-        : Array.isArray(value)
-          ? 'array'
-          : typeof value === 'object' && value !== null
-            ? 'object'
-            : 'primitive'
-
-    switch (valueType) {
-      case 'date':
-        // Dates: Convert to ISO format (toISOFormat expects a string)
-        transformedValue = toISOFormat((value as Date).toISOString())
-        break
-
-      case 'array':
-        // Arrays: Empty array [] means explicit deletion - include it in payload
-        // null/undefined means not set - ignore it
-        if (value === null || value === undefined) {
-          transformedValue = undefined
-        } else {
-          // Empty array [] should be included for explicit deletions
-          transformedValue = transformIdFields(value)
-        }
-        break
-
-      case 'object':
-        // Objects: Transform Id fields and include only if not empty
-        transformedValue = Object.keys(value).length > 0 ? transformIdFields(value) : undefined
-        break
-
-      case 'primitive':
-        // Primitives: Keep numbers as numbers, convert others to string or undefined
-        if (typeof value === 'number') {
-          transformedValue = isNaN(value) ? undefined : value
-        } else {
-          transformedValue = toStringOrUndefined(value)
-        }
-        break
-
-      default:
-        transformedValue = undefined
-    }
+    const valueType = getValueType(value)
+    const transformedValue = transformValueByType(value, valueType)
 
     if (transformedValue !== undefined) {
       // Use targetKey directly from formFields configuration

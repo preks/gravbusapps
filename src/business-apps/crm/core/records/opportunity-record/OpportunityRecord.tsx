@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useMemo } from 'react'
+import React, { useState, useEffect, useMemo, useCallback } from 'react'
 import { Spinner, Button, RecordLayout, Badge } from '@newwork/nw-design-system'
 import { User, FileText, Star, Lightbulb, Bot } from 'lucide-react'
 import { BusinessAppContextProps } from '@/common/BusinessAppContext'
@@ -86,7 +86,28 @@ const OpportunityRecordContent: React.FC<OpportunityRecordContentProps> = ({
   // Extract stageConditionStatuses from opportunityData
   const stageConditionStatuses = opportunityData?.opportunityStageConditions || []
 
-  // Helper function to extract CRM stage conditions
+  /**
+   * Transforms a catalog condition to a stage condition
+   */
+  const transformCatalogConditionToStageCondition = useCallback(
+    (catalogCondition: any, statusRecord: any): StageCondition => {
+      const config = statusRecord?.configSnapshot || catalogCondition.objectValue || {}
+      const checkedType = config.check_type === 'MANUAL' ? 'User' : 'Automated'
+
+      return {
+        id: catalogCondition.id,
+        title: catalogCondition.value || 'Unknown Condition',
+        isCompleted: statusRecord?.completed || false,
+        checkedType: checkedType as 'Automated' | 'User' | 'Manager' | 'Owner',
+        completedBy: statusRecord?.completedByEmployee ? getEmployeeName(statusRecord.completedByEmployee) : null
+      }
+    },
+    []
+  )
+
+  /**
+   * Helper function to extract CRM stage conditions
+   */
   const extractCrmStageConditions = useMemo(
     () =>
       (stageConditionStatuses: any[], stage: Stage): StageCondition[] => {
@@ -98,20 +119,10 @@ const OpportunityRecordContent: React.FC<OpportunityRecordContentProps> = ({
           const statusRecord = stageConditionStatuses.find(
             statusData => statusData.opportunityPipelineStageConditionRef === catalogCondition.id
           )
-
-          const config = statusRecord?.configSnapshot || catalogCondition.objectValue || {}
-          const checkedType = config.check_type === 'MANUAL' ? 'User' : 'Automated'
-
-          return {
-            id: catalogCondition.id,
-            title: catalogCondition.value || 'Unknown Condition',
-            isCompleted: statusRecord?.completed || false,
-            checkedType: checkedType as 'Automated' | 'User' | 'Manager' | 'Owner',
-            completedBy: statusRecord?.completedByEmployee ? getEmployeeName(statusRecord.completedByEmployee) : null
-          }
+          return transformCatalogConditionToStageCondition(catalogCondition, statusRecord)
         })
       },
-    [catalogStageConditions]
+    [catalogStageConditions, transformCatalogConditionToStageCondition]
   )
 
   // Check if opportunity is open (for tooltip enabling)

@@ -2,6 +2,161 @@ import { z } from 'zod'
 import { FormFieldsDefinition } from './useInvestmentProspectFields'
 
 /**
+ * Preprocess function for number fields
+ */
+const preprocessNumber = (val: any): number | undefined => {
+  if (val === null || val === undefined || val === '') return undefined
+  const num = Number(val)
+  return Number.isNaN(num) ? undefined : num
+}
+
+/**
+ * Creates a catalog entry validation rule (required)
+ */
+const createRequiredCatalogRule = (errorMessage: string): z.ZodTypeAny => {
+  return z
+    .union([
+      z.string().min(1),
+      z
+        .object({
+          id: z.string().min(1),
+          code: z.string().optional(),
+          value: z.string().optional()
+        })
+        .passthrough(),
+      z.null()
+    ])
+    .refine(val => val !== null && val !== undefined, {
+      message: errorMessage
+    })
+}
+
+/**
+ * Creates a catalog entry validation rule (optional)
+ */
+const createOptionalCatalogRule = (): z.ZodTypeAny => {
+  return z
+    .union([
+      z.string().min(1),
+      z
+        .object({
+          id: z.string().min(1),
+          code: z.string().optional(),
+          value: z.string().optional()
+        })
+        .passthrough(),
+      z.null()
+    ])
+    .optional()
+}
+
+/**
+ * Creates a reference field validation rule (required)
+ */
+const createRequiredReferenceRule = (errorMessage: string): z.ZodTypeAny => {
+  return z
+    .union([
+      z.string().min(1, errorMessage),
+      z
+        .object({
+          id: z.string().min(1, errorMessage)
+        })
+        .passthrough()
+    ])
+    .refine(val => val !== null && val !== undefined, {
+      message: errorMessage
+    })
+}
+
+/**
+ * Creates a reference field validation rule (optional)
+ */
+const createOptionalReferenceRule = (): z.ZodTypeAny => {
+  return z
+    .union([
+      z.string().optional(),
+      z
+        .object({
+          id: z.string().optional()
+        })
+        .passthrough()
+    ])
+    .optional()
+}
+
+/**
+ * Creates validation rule for required fields
+ */
+const createRequiredFieldRule = (field: { type: string; label: string }): z.ZodTypeAny => {
+  const errorMessage = `${field.label} is required`
+
+  switch (field.type) {
+    case 'TEXT':
+    case 'TEXTAREA':
+      return z.string().min(1, errorMessage)
+    case 'AMOUNT':
+      return z.preprocess(
+        preprocessNumber,
+        z.number({ message: errorMessage }).min(0, `${field.label} must be positive`)
+      )
+    case 'PERCENTAGE':
+      return z.preprocess(
+        preprocessNumber,
+        z
+          .number({ message: errorMessage })
+          .min(0, `${field.label} must be at least 0%`)
+          .max(100, `${field.label} must be at most 100%`)
+      )
+    case 'NUMBER':
+      return z.preprocess(preprocessNumber, z.number({ message: errorMessage }))
+    case 'DATE':
+    case 'DATETIME':
+      return z.string().min(1, errorMessage)
+    default:
+      if (field.type.startsWith('CATALOG_')) {
+        return createRequiredCatalogRule(errorMessage)
+      }
+      if (field.type.startsWith('REF_')) {
+        return createRequiredReferenceRule(errorMessage)
+      }
+      return z.string().min(1, errorMessage)
+  }
+}
+
+/**
+ * Creates validation rule for optional fields
+ */
+const createOptionalFieldRule = (field: { type: string; label: string }): z.ZodTypeAny => {
+  switch (field.type) {
+    case 'TEXT':
+    case 'TEXTAREA':
+      return z.string().optional()
+    case 'AMOUNT':
+      return z.preprocess(preprocessNumber, z.number().min(0, `${field.label} must be positive`).optional())
+    case 'PERCENTAGE':
+      return z
+        .preprocess(
+          preprocessNumber,
+          z.number().min(0, `${field.label} must be at least 0%`).max(100, `${field.label} must be at most 100%`)
+        )
+        .optional()
+    case 'NUMBER':
+      return z.preprocess(preprocessNumber, z.number().optional())
+    case 'DATE':
+    case 'DATETIME':
+      return z.string().optional()
+    default:
+      if (field.type.startsWith('CATALOG_')) {
+        return createOptionalCatalogRule()
+      }
+      if (field.type.startsWith('REF_')) {
+        return createOptionalReferenceRule()
+      }
+      return z.string().optional()
+  }
+}
+
+/**
  * Builds dynamic prospect field validations from FormFieldsDefinition
  * Returns only the dynamic fields as Record<string, z.ZodTypeAny>
  *
@@ -29,166 +184,7 @@ export const buildInvestmentProspectSchema = (
       }
 
       // Build validation rule based on field type and required status
-      let validationRule: z.ZodTypeAny
-
-      if (field.required) {
-        const errorMessage = `${field.label} is required`
-
-        switch (field.type) {
-          case 'TEXT':
-          case 'TEXTAREA':
-            validationRule = z.string().min(1, errorMessage)
-            break
-          case 'AMOUNT':
-            validationRule = z.preprocess(
-              val => {
-                if (val === null || val === undefined || val === '') return undefined
-                const num = Number(val)
-                return isNaN(num) ? undefined : num
-              },
-              z.number({ message: errorMessage }).min(0, `${field.label} must be positive`)
-            )
-            break
-          case 'PERCENTAGE':
-            validationRule = z.preprocess(
-              val => {
-                if (val === null || val === undefined || val === '') return undefined
-                const num = Number(val)
-                return isNaN(num) ? undefined : num
-              },
-              z
-                .number({ message: errorMessage })
-                .min(0, `${field.label} must be at least 0%`)
-                .max(100, `${field.label} must be at most 100%`)
-            )
-            break
-          case 'NUMBER':
-            validationRule = z.preprocess(
-              val => {
-                if (val === null || val === undefined || val === '') return undefined
-                const num = Number(val)
-                return isNaN(num) ? undefined : num
-              },
-              z.number({ message: errorMessage })
-            )
-            break
-          case 'DATE':
-          case 'DATETIME':
-            validationRule = z.string().min(1, errorMessage)
-            break
-          default:
-            if (field.type.startsWith('CATALOG_')) {
-              // Catalog entry - accepts either string ID, catalog object, or null (for clearing)
-              validationRule = z
-                .union([
-                  z.string().min(1),
-                  z
-                    .object({
-                      id: z.string().min(1),
-                      code: z.string().optional(),
-                      value: z.string().optional()
-                    })
-                    .passthrough(),
-                  z.null()
-                ])
-                .refine(val => val !== null && val !== undefined, {
-                  message: errorMessage
-                })
-            } else if (field.type.startsWith('REF_')) {
-              // Reference fields - accepts string or object
-              validationRule = z
-                .union([
-                  z.string().min(1, errorMessage),
-                  z
-                    .object({
-                      id: z.string().min(1, errorMessage)
-                    })
-                    .passthrough()
-                ])
-                .refine(val => val !== null && val !== undefined, {
-                  message: errorMessage
-                })
-            } else {
-              validationRule = z.string().min(1, errorMessage)
-            }
-            break
-        }
-      } else {
-        // Optional fields
-        switch (field.type) {
-          case 'TEXT':
-          case 'TEXTAREA':
-            validationRule = z.string().optional()
-            break
-          case 'AMOUNT':
-            validationRule = z.preprocess(
-              val => {
-                if (val === null || val === undefined || val === '') return undefined
-                const num = Number(val)
-                return isNaN(num) ? undefined : num
-              },
-              z.number().min(0, `${field.label} must be positive`).optional()
-            )
-            break
-          case 'PERCENTAGE':
-            validationRule = z.preprocess(
-              val => {
-                if (val === null || val === undefined || val === '') return undefined
-                const num = Number(val)
-                return isNaN(num) ? undefined : num
-              },
-              z
-                .number()
-                .min(0, `${field.label} must be at least 0%`)
-                .max(100, `${field.label} must be at most 100%`)
-                .optional()
-            )
-            break
-          case 'NUMBER':
-            validationRule = z.preprocess(val => {
-              if (val === null || val === undefined || val === '') return undefined
-              const num = Number(val)
-              return isNaN(num) ? undefined : num
-            }, z.number().optional())
-            break
-          case 'DATE':
-          case 'DATETIME':
-            validationRule = z.string().optional()
-            break
-          default:
-            if (field.type.startsWith('CATALOG_')) {
-              // Catalog entry - accepts either string ID, catalog object, or null (for clearing)
-              validationRule = z
-                .union([
-                  z.string().min(1),
-                  z
-                    .object({
-                      id: z.string().min(1),
-                      code: z.string().optional(),
-                      value: z.string().optional()
-                    })
-                    .passthrough(),
-                  z.null()
-                ])
-                .optional()
-            } else if (field.type.startsWith('REF_')) {
-              // Reference fields - accepts string or object
-              validationRule = z
-                .union([
-                  z.string().optional(),
-                  z
-                    .object({
-                      id: z.string().optional()
-                    })
-                    .passthrough()
-                ])
-                .optional()
-            } else {
-              validationRule = z.string().optional()
-            }
-            break
-        }
-      }
+      const validationRule = field.required ? createRequiredFieldRule(field) : createOptionalFieldRule(field)
 
       dynamicFields[fieldName] = validationRule
     }

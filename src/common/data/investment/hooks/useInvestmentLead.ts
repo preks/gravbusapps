@@ -84,7 +84,10 @@ export function useInvestmentLead(
         // Insert additional queries before the closing brace of the query
         // Pattern: query GetInvestmentLeadById($id: uuid!) { InvestmentLeadByPk(...) { ... } }
         // becomes: query GetInvestmentLeadById($id: uuid!) { InvestmentLeadByPk(...) { ... } additionalQueries }
-        combinedQuery = combinedQuery.replace(/(\s*}\s*)$/, `\n${additionalQueryBodies}\n$1`)
+        const lastBraceIndex = combinedQuery.lastIndexOf('}')
+        if (lastBraceIndex !== -1) {
+          combinedQuery = combinedQuery.slice(0, lastBraceIndex) + `\n${additionalQueryBodies}\n}`
+        }
       }
 
       // Execute combined query with ID as GraphQL variable

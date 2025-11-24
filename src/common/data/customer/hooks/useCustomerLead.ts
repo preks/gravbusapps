@@ -84,7 +84,10 @@ export function useCustomerLead(
         // Insert additional queries before the closing brace of the query
         // Pattern: query GetLeadById($id: uuid!) { LeadByPk(...) { ... } }
         // becomes: query GetLeadById($id: uuid!) { LeadByPk(...) { ... } additionalQueries }
-        combinedQuery = combinedQuery.replace(/(\s*}\s*)$/, `\n${additionalQueryBodies}\n$1`)
+        const lastBraceIndex = combinedQuery.lastIndexOf('}')
+        if (lastBraceIndex !== -1) {
+          combinedQuery = combinedQuery.slice(0, lastBraceIndex) + `\n${additionalQueryBodies}\n}`
+        }
       }
 
       // Execute combined query with ID as GraphQL variable

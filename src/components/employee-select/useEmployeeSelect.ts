@@ -6,7 +6,7 @@ import type { BusinessAppContextProps } from '@/common/BusinessAppContext'
 
 // Query to fetch employee with all necessary fields for select
 const GET_EMPLOYEE_FOR_SELECT = (id: string): string => {
-  const safeId = (id || '').replace(/"/g, '')
+  const safeId = (id || '').replaceAll('"', '')
   return `
     query GetEmployeeForSelect {
       Employee(where: { id: { _eq: "${safeId}" } }, limit: 1) {

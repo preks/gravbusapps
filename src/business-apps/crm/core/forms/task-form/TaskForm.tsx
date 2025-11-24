@@ -1,5 +1,5 @@
 import React, { useMemo, useCallback, useEffect, useRef } from 'react'
-import { BusinessAppContextProps } from '@/common/BusinessAppContext'
+import { BusinessAppContextProps, extractAdditionalData } from '@/common/BusinessAppContext'
 import { getTranslationFromI18nKeyAndLabel } from '@/common/utils/windowUtils'
 import { TaskLayout, taskSchema } from '@/common/components/common-relations/form-layouts/task-layout'
 import { zodResolver } from '@hookform/resolvers/zod'
@@ -12,11 +12,11 @@ import { useCustomerTask } from '@/common/data/customer/hooks/useCustomerTask'
 import { useForm } from 'react-hook-form'
 import { useFileClient } from '@/common/network/files/useFileClient'
 import { mapToFormValues } from '@/common/utils/formMappingUtils'
-import { ErrorAlert } from '@/components/error-alert/ErrorAlert'
+import { ErrorAlert } from '@/components/error-alert'
 import { formatDataTestId } from '@/common/utils/formatDataTestId'
 import { getReferenceEntityType } from '@/common/data/customer/utils'
 import { FILE_CONTEXT, APP_NAME, getFileEntityFromType } from '@/common/data/customer/constants/customerConstants'
-import { uploadFiles } from '@/common/utils/fileUtils'
+import { createFormPreSubmitHandler } from '@/common/data/relations/utils/formPreSubmitUtils'
 
 type TaskFormData = z.infer<typeof taskSchema> & {
   id?: string
@@ -45,19 +45,7 @@ export const TaskForm: React.FC<TaskFormProps> = ({
   onSuccess,
   onCancel
 }: TaskFormProps) => {
-  const platformParams = useMemo(() => {
-    const additionalDataRecord = additionalData as Record<string, any>
-    const nested =
-      additionalDataRecord?.psi_taskPayload?.psi_initialParameters || additionalDataRecord?.psi_initialParameters || {}
-    return {
-      taskId: (additionalData as any)?.taskId || nested?.taskId,
-      employeeId: (additionalData as any)?.employeeId || nested?.employeeId,
-      accountId: additionalDataRecord?.accountId || nested?.accountId,
-      contactId: additionalDataRecord?.contactId || nested?.contactId,
-      opportunityId: additionalDataRecord?.opportunityId || nested?.opportunityId,
-      leadId: additionalDataRecord?.leadId || nested?.leadId
-    }
-  }, [additionalData])
+  const additionalDataRecord = useMemo(() => extractAdditionalData(additionalData), [additionalData])
 
   const {
     entities,
@@ -69,16 +57,16 @@ export const TaskForm: React.FC<TaskFormProps> = ({
   } = useCustomerRelatedEntities({ accessToken, additionalData })
 
   // Customer task hook - declarative single-by-PK
-  const taskId = platformParams.taskId
+  const taskId = additionalDataRecord.taskId
   const { task, loading: taskLoading, error } = useCustomerTask(accessToken || '', taskId)
 
   // File client for document uploads
   const fileClient = useFileClient({ accessToken, userInfo, additionalData })
 
-  const accountId = platformParams.accountId
-  const contactId = platformParams.contactId
-  const opportunityId = platformParams.opportunityId
-  const leadId = platformParams.leadId
+  const accountId = additionalDataRecord.accountId
+  const contactId = additionalDataRecord.contactId
+  const opportunityId = additionalDataRecord.opportunityId
+  const leadId = additionalDataRecord.leadId
 
   // Determine if entity selection should be shown
   const hasEntityFromContext = accountId || contactId || opportunityId || leadId
@@ -132,56 +120,16 @@ export const TaskForm: React.FC<TaskFormProps> = ({
   )
 
   const handlePreSubmit = useCallback(
-    async (data: any) => {
-      // Set creator fields if not present
-      if (!data.creatorEmployeeId && userInfo?.employeeDetails?.employeeId) {
-        data.creatorEmployeeId = userInfo.employeeDetails.employeeId
-      }
-      if (!data.creatorUserId && userInfo?.id) {
-        data.creatorUserId = userInfo.id
-      }
-
-      // Upload pending files if any
-      let uploadedDocuments: Array<{ name: string; fileInfo: any }> = []
-      if (data._pendingFiles && data._pendingFiles.length > 0) {
-        try {
-          // Determine reference entity from form data
-          const referenceEntityId =
-            data.accountId || data.contactId || data.leadId || data.opportunityId || 'temp-' + Date.now()
-          const referenceEntityType = getReferenceEntityType(data)
-
-          const fileEntity = getFileEntityFromType(referenceEntityType)
-          uploadedDocuments = await uploadFiles(
-            data._pendingFiles,
-            referenceEntityId,
-            fileEntity,
-            FILE_CONTEXT.TASK,
-            APP_NAME,
-            fileClient
-          )
-        } catch (error) {
-          console.error('Failed to upload files:', error)
-          throw error
-        }
-      }
-
-      // Combine existing documents (as objects with ID) and newly uploaded documents
-      const existingDocumentsAsObjects = (data.documents || [])
-        .filter((doc: any) => doc.id)
-        .map((doc: any) => ({
-          id: doc.id,
-          version: doc.version
-        }))
-
-      const allDocuments = [...existingDocumentsAsObjects, ...uploadedDocuments]
-
-      // Return enhanced data with documents
-      return {
-        ...data,
-        documents: allDocuments
-      }
-    },
-    [uploadFiles, userInfo]
+    createFormPreSubmitHandler({
+      userInfo,
+      fileClient,
+      fileContext: FILE_CONTEXT.TASK,
+      appName: APP_NAME,
+      getFileEntityFromType,
+      getReferenceEntityType,
+      useCreatorFields: true
+    }),
+    [userInfo, fileClient]
   )
 
   const handleSuccess = useCallback(() => {
@@ -244,11 +192,11 @@ export const TaskForm: React.FC<TaskFormProps> = ({
   }, [task?.id, task, form, hydrateEntityById])
 
   useEffect(() => {
-    if (accessToken && !platformParams.taskId) {
+    if (accessToken && !additionalDataRecord.taskId) {
       // Only trigger initial search in create mode
       searchEntities('')
     }
-  }, [accessToken, platformParams.taskId, searchEntities])
+  }, [accessToken, additionalDataRecord.taskId, searchEntities])
 
   useEffect(() => {
     if (!accountId && !contactId && !opportunityId && !leadId) return
@@ -280,7 +228,7 @@ export const TaskForm: React.FC<TaskFormProps> = ({
     }
   }, [accountId, contactId, opportunityId, leadId, form, hydrateEntityById])
 
-  const errors: Array<{ error?: string | unknown; type?: 'accessToken'; context?: string }> = []
+  const errors: Array<{ error?: string | Error; type?: 'accessToken'; context?: string }> = []
   if (!accessToken) {
     errors.push({ type: 'accessToken' })
   }
@@ -289,19 +237,7 @@ export const TaskForm: React.FC<TaskFormProps> = ({
   }
 
   if (errors.length > 0) {
-    return (
-      <>
-        {errors.map((err, index) => (
-          <ErrorAlert
-            key={err.type || `error-${index}`}
-            error={err.error}
-            type={err.type}
-            context={err.context}
-            dataTestId={formatDataTestId('customer-task-form', `error-alert-${index}`)}
-          />
-        ))}
-      </>
-    )
+    return <ErrorAlert errors={errors} prefixDataTestId="customer-task-form" />
   }
 
   const processType = taskId ? 'update' : 'create'

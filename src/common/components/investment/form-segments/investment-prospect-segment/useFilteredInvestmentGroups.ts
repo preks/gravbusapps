@@ -15,47 +15,53 @@ interface UseFilteredInvestmentGroupsReturn {
 }
 
 /**
+ * Parse objectValue from catalog entry
+ */
+const parseObjectValue = (entry: any): any => {
+  if (!entry.objectValue) return null
+  try {
+    return typeof entry.objectValue === 'string' ? JSON.parse(entry.objectValue) : entry.objectValue
+  } catch {
+    return entry.objectValue
+  }
+}
+
+/**
+ * Check if objectValue has referenceFields
+ */
+const hasReferenceFieldsInObject = (objectValue: any): boolean => {
+  return (
+    objectValue?.referenceFields && Array.isArray(objectValue.referenceFields) && objectValue.referenceFields.length > 0
+  )
+}
+
+/**
+ * Check if any child entry has referenceFields
+ */
+const hasReferenceFieldsInChildren = (childEntries: any[]): boolean => {
+  for (const child of childEntries) {
+    const childObjectValue = parseObjectValue(child)
+    if (hasReferenceFieldsInObject(childObjectValue)) {
+      return true
+    }
+  }
+  return false
+}
+
+/**
  * Check if a catalog entry has referenceFields (either directly or in child types)
  */
 const hasReferenceFields = (entry: any, childEntries?: any[]): boolean => {
-  // Parse objectValue
-  let objectValue: any = null
-  if (entry.objectValue) {
-    try {
-      objectValue = typeof entry.objectValue === 'string' ? JSON.parse(entry.objectValue) : entry.objectValue
-    } catch {
-      objectValue = entry.objectValue
-    }
-  }
+  const objectValue = parseObjectValue(entry)
 
   // Check if group itself has referenceFields
-  if (
-    objectValue?.referenceFields &&
-    Array.isArray(objectValue.referenceFields) &&
-    objectValue.referenceFields.length > 0
-  ) {
+  if (hasReferenceFieldsInObject(objectValue)) {
     return true
   }
 
   // Check child entries (types) if provided
   if (childEntries && childEntries.length > 0) {
-    for (const child of childEntries) {
-      let childObjectValue: any = null
-      if (child.objectValue) {
-        try {
-          childObjectValue = typeof child.objectValue === 'string' ? JSON.parse(child.objectValue) : child.objectValue
-        } catch {
-          childObjectValue = child.objectValue
-        }
-      }
-      if (
-        childObjectValue?.referenceFields &&
-        Array.isArray(childObjectValue.referenceFields) &&
-        childObjectValue.referenceFields.length > 0
-      ) {
-        return true
-      }
-    }
+    return hasReferenceFieldsInChildren(childEntries)
   }
 
   return false
