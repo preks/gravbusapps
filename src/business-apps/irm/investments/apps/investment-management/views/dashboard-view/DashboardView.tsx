@@ -1,6 +1,5 @@
 import React from 'react'
-import { Button, Alert, AlertTitle, AlertDescription } from '@newwork/nw-design-system'
-import { Spinner } from '@newwork/nw-design-system'
+import { Button, Alert, AlertTitle, AlertDescription, Spinner } from '@newwork/nw-design-system'
 import { BarChart3, Home, Banknote } from 'lucide-react'
 import { getTranslationFromI18nKeyAndLabel } from '@/common/utils/windowUtils'
 import { BusinessAppContextProps } from '@/common/BusinessAppContext'
