@@ -32,66 +32,77 @@ const GET_ALL_INVESTMENT_OPPORTUNITY_STATISTICS_WITH_TREND = `
     $lastQuarter: timestamptz!,
     $thisYearStart: timestamptz!,
     $lastYearStart: timestamptz!,
-    $lastYearEnd: timestamptz!
+    $lastYearEnd: timestamptz!,
+    $currencyCode: String
   ) {
     recentOpportunitiesCurrent: InvestmentOpportunityAggregate(where: {
       createdAt: {_gte: $currentStart},
-      isDeleted: {_eq: false}
+      isDeleted: {_eq: false},
+      _and: [{ currency: { code: { _eq: $currencyCode } } }]
     }) {
       aggregate { count }
     }
     recentOpportunitiesPrevious: InvestmentOpportunityAggregate(where: {
       createdAt: {_gte: $previousStart, _lt: $previousEnd},
-      isDeleted: {_eq: false}
+      isDeleted: {_eq: false},
+      _and: [{ currency: { code: { _eq: $currencyCode } } }]
     }) {
       aggregate { count }
     }
     opportunityValueCurrent: InvestmentOpportunityAggregate(where: {
       isDeleted: {_eq: false},
-      estimatedAmount: {_isNull: false}
+      estimatedAmount: {_isNull: false},
+      _and: [{ currency: { code: { _eq: $currencyCode } } }]
     }) {
       aggregate { sum { estimatedAmount } }
     }
     opportunityValuePrevious: InvestmentOpportunityAggregate(where: {
       isDeleted: {_eq: false},
       estimatedAmount: {_isNull: false},
-      createdAt: {_lt: $lastQuarter}
+      createdAt: {_lt: $lastQuarter},
+      _and: [{ currency: { code: { _eq: $currencyCode } } }]
     }) {
       aggregate { sum { estimatedAmount } }
     }
     winRateCurrentTotal: InvestmentOpportunityAggregate(where: {
-      isDeleted: {_eq: false}
+      isDeleted: {_eq: false},
+      _and: [{ currency: { code: { _eq: $currencyCode } } }]
     }) {
       aggregate { count }
     }
     winRateCurrentWins: InvestmentOpportunityAggregate(where: {
       isDeleted: {_eq: false},
-      opportunityStatus: { code: {_eq: "WON"} }
+      opportunityStatus: { code: {_eq: "WON"} },
+      _and: [{ currency: { code: { _eq: $currencyCode } } }]
     }) {
       aggregate { count }
     }
     winRatePreviousTotal: InvestmentOpportunityAggregate(where: {
       isDeleted: {_eq: false},
-      createdAt: {_lt: $lastQuarter}
+      createdAt: {_lt: $lastQuarter},
+      _and: [{ currency: { code: { _eq: $currencyCode } } }]
     }) {
       aggregate { count }
     }
     winRatePreviousWins: InvestmentOpportunityAggregate(where: {
       isDeleted: {_eq: false},
       opportunityStatus: { code: {_eq: "WON"} },
-      createdAt: {_lt: $lastQuarter}
+      createdAt: {_lt: $lastQuarter},
+      _and: [{ currency: { code: { _eq: $currencyCode } } }]
     }) {
       aggregate { count }
     }
     opportunitiesThisYearCurrent: InvestmentOpportunityAggregate(where: {
       createdAt: {_gte: $thisYearStart},
-      isDeleted: {_eq: false}
+      isDeleted: {_eq: false},
+      _and: [{ currency: { code: { _eq: $currencyCode } } }]
     }) {
       aggregate { count }
     }
     opportunitiesThisYearPrevious: InvestmentOpportunityAggregate(where: {
       createdAt: {_gte: $lastYearStart, _lt: $lastYearEnd},
-      isDeleted: {_eq: false}
+      isDeleted: {_eq: false},
+      _and: [{ currency: { code: { _eq: $currencyCode } } }]
     }) {
       aggregate { count }
     }
@@ -119,7 +130,8 @@ const calculateTrend = (current: number, previous: number): TrendData => {
 }
 
 export const useInvestmentOpportunityStatistics = (
-  context: BusinessAppContextProps
+  context: BusinessAppContextProps,
+  selectedCurrency?: string
 ): UseInvestmentOpportunityStatisticsReturn => {
   const [trendData, setTrendData] = useState<OpportunityStatisticsTrendData | null>(null)
   const [isLoading, setIsLoading] = useState(false)
@@ -163,7 +175,8 @@ export const useInvestmentOpportunityStatistics = (
         lastQuarter: lastQuarter.toISOString(),
         thisYearStart: thisYearStart.toISOString(),
         lastYearStart: lastYearStart.toISOString(),
-        lastYearEnd: lastYearEnd.toISOString()
+        lastYearEnd: lastYearEnd.toISOString(),
+        currencyCode: selectedCurrency || null
       })
 
       const currentRate =
@@ -196,7 +209,7 @@ export const useInvestmentOpportunityStatistics = (
     } finally {
       setIsLoading(false)
     }
-  }, [context.accessToken, graphqlClient])
+  }, [context.accessToken, graphqlClient, selectedCurrency])
 
   useEffect(() => {
     if (context.accessToken) {

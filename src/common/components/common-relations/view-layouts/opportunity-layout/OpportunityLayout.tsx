@@ -632,6 +632,7 @@ function ConfigOpportunityLayout<TOpportunity extends { id: string } = any, TQue
       ) : config.opportunityStatistics ? (
         <OpportunityStatisticsLayout
           statistics={config.opportunityStatistics}
+          selectedCurrency={selectedCurrency}
           data-testid={`${dataTestId}-statistics`}
         />
       ) : null}

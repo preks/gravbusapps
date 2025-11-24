@@ -1,7 +1,6 @@
 import { useCallback } from 'react'
 import { useGraphQLClient } from '@/common/network/graphql/useGraphQLClient'
 import { BusinessAppContextProps } from '@/common/BusinessAppContext'
-import { extractCurrencyCode } from '@/common/utils/numberFormatter'
 
 export interface InvestmentKPIData {
   totalInvestments: number
@@ -131,10 +130,8 @@ export const useGetInvestmentKPIs = (context: BusinessAppContextProps, currency?
     thirtyDaysAgo.setDate(thirtyDaysAgo.getDate() - 30)
     const comparisonDate = thirtyDaysAgo.toISOString()
 
-    // Extract currency code from full ID (e.g., "Currency:v1:EUR" -> "EUR")
-    const currencyCode = currency ? extractCurrencyCode(currency) : undefined
-
-    const query = GET_INVESTMENT_KPIS_WITH_COMPARISON(comparisonDate, currencyCode)
+    // Currency is already a code (e.g., "EUR", "USD") - use directly
+    const query = GET_INVESTMENT_KPIS_WITH_COMPARISON(comparisonDate, currency)
     try {
       const result = await graphqlClient.request<InvestmentKPIResponse>(query)
 

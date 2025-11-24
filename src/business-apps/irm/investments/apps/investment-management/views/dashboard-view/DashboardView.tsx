@@ -1,15 +1,5 @@
 import React from 'react'
-import {
-  Button,
-  Alert,
-  AlertTitle,
-  AlertDescription,
-  Select,
-  SelectTrigger,
-  SelectValue,
-  SelectContent,
-  SelectItem
-} from '@newwork/nw-design-system'
+import { Button, Alert, AlertTitle, AlertDescription } from '@newwork/nw-design-system'
 import { Spinner } from '@newwork/nw-design-system'
 import { BarChart3, Home, Banknote } from 'lucide-react'
 import { getTranslationFromI18nKeyAndLabel } from '@/common/utils/windowUtils'
@@ -20,6 +10,7 @@ import { useGetInvestments } from '@/common/data/investment/hooks/useInvestments
 import { Investment } from '@/common/data/investment/types/investmentTypes'
 import { useAvailableCurrencies } from '@/common/data/investment/hooks/useAvailableCurrencies'
 import { useInvestmentGroupsAndTypes } from './hooks/useInvestmentGroupsAndTypes'
+import { CurrencyFilter } from '../analytics-view/shared/components'
 
 interface DashboardViewProps extends BusinessAppContextProps {
   moduleColor?: string
@@ -121,20 +112,15 @@ const DashboardView: React.FC<DashboardViewProps> = ({
   const [investments, setInvestments] = React.useState<Investment[]>([])
   const [isLoading, setIsLoading] = React.useState(true)
   const [error, setError] = React.useState<string | null>(null)
-  const [masterCurrency, setMasterCurrency] = React.useState<string>('Currency:v1:EUR')
+  const [masterCurrency, setMasterCurrency] = React.useState<string>('EUR')
 
-  // Fetch available currencies efficiently using distinctOn
-  const { currencies: currencyOptions } = useAvailableCurrencies(
+  // Fetch available currencies efficiently using distinctOn (code-only format)
+  const { currencies: availableCurrencies } = useAvailableCurrencies(
     { accessToken, userInfo },
     {
       filters: { entity: 'Investment' },
-      returnFormat: 'full'
+      returnFormat: 'codes'
     }
-  )
-
-  const availableCurrencies = React.useMemo(
-    () => currencyOptions as Array<{ id: string; code: string; value: string }>,
-    [currencyOptions]
   )
 
   // Use centralized groups and types data
@@ -288,30 +274,17 @@ const DashboardView: React.FC<DashboardViewProps> = ({
 
   return (
     <div data-testid="dashboard-content">
-      {/* Header with Currency Selector */}
+      {/* Header with Currency Filter */}
       <div className="gba:flex gba:justify-between gba:items-center gba:mb-6">
-        <div className="gba:flex gba:items-center gba:gap-4">
-          <h1 className="gba:text-3xl gba:font-bold gba:text-gray-900 gba:m-0">
-            {getTranslationFromI18nKeyAndLabel('dashboard.title', 'Investment Dashboard')}
-          </h1>
-        </div>
-        <div className="gba:flex gba:items-center gba:gap-2">
-          <span className="gba:text-sm gba:font-medium gba:text-gray-700">
-            {getTranslationFromI18nKeyAndLabel('currency.filter', 'Currency:')}
-          </span>
-          <Select value={masterCurrency} onValueChange={setMasterCurrency}>
-            <SelectTrigger className="gba:w-24 gba:h-8" data-testid="dashboard-master-currency-selector">
-              <SelectValue />
-            </SelectTrigger>
-            <SelectContent>
-              {availableCurrencies.map(currency => (
-                <SelectItem key={currency.id} value={currency.id}>
-                  {currency.code}
-                </SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
-        </div>
+        <h1 className="gba:text-3xl gba:font-bold gba:text-gray-900 gba:m-0">
+          {getTranslationFromI18nKeyAndLabel('dashboard.title', 'Investment Dashboard')}
+        </h1>
+        <CurrencyFilter
+          value={masterCurrency}
+          onChange={setMasterCurrency}
+          currencies={availableCurrencies}
+          dataTestId="dashboard-master-currency-filter"
+        />
       </div>
 
       {/* Key Metrics Cards */}
