@@ -297,7 +297,7 @@ export const ShareEntityDialog: React.FC<ShareEntityDialogProps> = ({
             </p>
           </div>
         ) : (
-          <div className="gba:flex-1 gba:overflow-y-auto gba:space-y-4 gba:py-4 gba:pr-2">
+          <div className="gba:flex-1 gba:overflow-y-auto gba:space-y-4 gba:py-4 gba:px-1">
             {/* Entity being shared */}
             <div className="gba:p-3 gba:bg-muted gba:rounded-lg">
               <p className="gba:text-sm gba:text-muted-foreground">Sharing {entity.entityType}:</p>
