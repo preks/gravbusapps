@@ -101,8 +101,8 @@ const requiredEnvVars = [
   { name: 'BITBUCKET_BUILD_NUMBER', value: BITBUCKET_BUILD_NUMBER },
   { name: 'SCREEN_MANAGEMENT_SERVICE_API_PROD', value: SCREEN_MANAGEMENT_SERVICE_API_PROD },
   { name: 'NAVIGATION_SERVICE_API_PROD', value: NAVIGATION_SERVICE_API_PROD },
-  { name: 'OAUTH_CLIENT_ID', value: OAUTH_CLIENT_ID_PROD },
-  { name: 'OAUTH_CLIENT_SECRET', value: OAUTH_CLIENT_SECRET_PROD }
+  { name: 'OAUTH_CLIENT_ID_PROD', value: OAUTH_CLIENT_ID_PROD },
+  { name: 'OAUTH_CLIENT_SECRET_PROD', value: OAUTH_CLIENT_SECRET_PROD }
 ]
 
 const missingVars = requiredEnvVars.filter(envVar => !envVar.value)
@@ -557,7 +557,8 @@ async function handleResourceUrlSynchronization(screenPath, azureDestinationPath
           accept: 'application/json',
           authorization: `Bearer ${accessToken}`,
           'content-type': 'application/json'
-        }
+        },
+        timeout: 10000
       })
 
       console.log(`   ✅ Resource URL successfully registered in prod: ${devResourceUrl.url}`)
@@ -1786,7 +1787,6 @@ async function main() {
         const result = await publishScreen(screen, {
           skipResourceUrlSync: true,
           skipScreenRegistration: true,
-          buildOnly: true,
           azureTargets,
           targets
         })
