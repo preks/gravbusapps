@@ -16,6 +16,7 @@ import translations from '@/business-apps/hr/core/apps/employee-record/_i18n'
 import FormHeader from '../components/FormHeader'
 import flowIconUrl from '@/assets/icons/flowSmall.svg'
 import { useCatalogManagerClient } from '@/common/network/catalogs/useCatalogManagerClient'
+import { fetchBenefitProvidersForBenefit } from './utils'
 export interface BenefitRequestScreenProps extends BusinessAppContextProps {
   /**
    * Translation function
@@ -74,51 +75,12 @@ const BenefitRequestScreen: React.FC<BenefitRequestScreenProps> = ({
   const { t } = useTranslation(translations)
   const selectedBenefit =
     benefit || additionalData?.benefit || additionalData?.psi_taskPayload?.psi_initialParameters?.benefit
-  console.log('selectedBenefit', selectedBenefit)
 
   // TEMP: Fetch BenefitProvider catalog and log it
   React.useEffect(() => {
     ;(async () => {
       try {
-        const providersResponse = await catalogClient.getCatalogEntriesList(
-          { catalogIdentifier: 'BenefitProvider', version: 'v1' },
-          {
-            includeTranslations: true,
-            returnTotalRecords: true,
-            includeChildCatalogEntries: true,
-            limit: 1000,
-            offset: 0
-          }
-        )
-
-        console.log('BenefitProvider catalog entries', providersResponse)
-
-        // Map providers only for the current benefit
-        const benefitType = selectedBenefit?.catalogEntry?.type
-        const benefitCatalogId = selectedBenefit?.catalogId
-        const mapped: ProviderEntry[] = (providersResponse?.data || [])
-          .filter(p => {
-            // Primary rule: provider.type matches benefit type
-            const typeMatches = !!benefitType && p.type === benefitType
-            // Fallback: provider is a direct child of benefit type entry
-            const parentMatches = !!benefitCatalogId && p.parentEntryId === benefitCatalogId
-            return typeMatches || parentMatches
-          })
-          .map(p => ({
-            id: p.id,
-            value: p.value,
-            code: p.code,
-            description: p.additionalValue1,
-            parentEntryId: p.parentEntryId,
-            translations: (p.translations || []).map(tr => ({
-              localeCode: tr.localeCode || '',
-              value: tr.value || '',
-              additionalValue1: tr.additionalValue1,
-              additionalValue2: tr.additionalValue2,
-              additionalValue3: tr.additionalValue3
-            }))
-          }))
-
+        const mapped = await fetchBenefitProvidersForBenefit(catalogClient, selectedBenefit)
         setProvidersFromCatalog(mapped)
       } catch (err) {
         console.error('Failed to fetch BenefitProvider catalog', err)
@@ -258,7 +220,7 @@ const BenefitRequestScreen: React.FC<BenefitRequestScreenProps> = ({
 
       <div
         className="gba:flex gba:flex-col gba:gap-4 gba:[&>div[data-testid='add-skill-form']]:!py-0"
-        data-testid="add-skill-form-content"
+        data-testid="activate-benefit-form-content"
       >
         <AppActionForm
           processType="create"

@@ -60,7 +60,6 @@ const BenefitCatalogCard: React.FC<BenefitCatalogCardProps> = ({
   userInfo
 }) => {
   const employeeId = userInfo?.employeeDetails?.employeeId
-  console.log('benefit', benefit)
   /**
    * Get status badge variant based on benefit state
    */
