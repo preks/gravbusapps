@@ -204,33 +204,19 @@ async function getSourceArtifactsHashes(directory) {
 }
 
 /**
- * Get Azure's Content-MD5 property from blob metadata (no download!)
- * @param {string} blobName - Full blob path
- * @param {Object} azureTarget - Azure configuration object
- * @returns {Promise<string|null>} MD5 hash in hex or null
+ * Convert Azure's contentMD5 (Uint8Array) to hex string
+ * @param {Uint8Array} contentMD5 - Content-MD5 from Azure blob properties
+ * @returns {string|null} MD5 hash in hex or null
  */
-async function getAzureBlobContentMd5(blobName, azureTarget) {
-  try {
-    const { accountName, sasToken, containerName } = azureTarget
-    const blobServiceUrl = `https://${accountName}.blob.core.windows.net/?${sasToken}`
-    const blobServiceClient = new BlobServiceClient(blobServiceUrl)
-    const containerClient = blobServiceClient.getContainerClient(containerName)
-    const blockBlobClient = containerClient.getBlockBlobClient(blobName)
-
-    const properties = await blockBlobClient.getProperties()
-
-    // Content-MD5 is base64-encoded, convert to hex
-    if (properties.contentMD5) {
-      const md5Hex = Buffer.from(properties.contentMD5, 'base64').toString('hex')
-      return md5Hex
-    }
-
+function convertContentMd5ToHex(contentMD5) {
+  if (!contentMD5) {
     return null
+  }
+  try {
+    // contentMD5 is already a Uint8Array (base64-decoded bytes), convert to hex
+    return Buffer.from(contentMD5).toString('hex')
   } catch (error) {
-    if (error.statusCode === 404) {
-      return null // File doesn't exist
-    }
-    console.log(`   ⚠️  Error getting MD5 for ${blobName}: ${error.message}`)
+    console.log(`   ⚠️  Error converting MD5: ${error.message}`)
     return null
   }
 }
@@ -256,14 +242,15 @@ async function getTargetArtifactsHashes(azureDestinationPath, azureTarget, deplo
     const versionSuffix = `-${deployedVersion}.`
 
     // Iterate through blobs matching the prefix
+    // Note: contentMD5 is already included in the list response, no separate API calls needed!
     for await (const blob of containerClient.listBlobsFlat({ prefix })) {
       // Check if blob name contains the version suffix (e.g., "-1233.js" or "-1233.css")
       if (blob.name.includes(versionSuffix)) {
         // Extract just the filename (not the full path)
         const filename = blob.name.substring(prefix.length)
 
-        // Get the Content-MD5 from blob properties
-        const md5 = await getAzureBlobContentMd5(blob.name, azureTarget)
+        // Get the Content-MD5 directly from blob properties (already in list response!)
+        const md5 = convertContentMd5ToHex(blob.properties?.contentMD5)
 
         if (md5) {
           hashes[filename] = md5
@@ -291,13 +278,13 @@ function compareArtifactHashes(sourceHashes, targetHashes, sourceVersion, target
 
   // Map source filenames to target filenames (version numbers differ)
   const sourceToTargetMap = {}
-  for (const sourceFile in sourceHashes) {
+  for (const sourceFile of Object.keys(sourceHashes)) {
     const targetFile = sourceFile.replace(`-${sourceVersion}.`, `-${targetVersion}.`)
     sourceToTargetMap[sourceFile] = targetFile
   }
 
   // Check each source file
-  for (const sourceFile in sourceHashes) {
+  for (const sourceFile of Object.keys(sourceHashes)) {
     const targetFile = sourceToTargetMap[sourceFile]
     const sourceHash = sourceHashes[sourceFile]
     const targetHash = targetHashes[targetFile]
@@ -320,7 +307,7 @@ function compareArtifactHashes(sourceHashes, targetHashes, sourceVersion, target
   }
 
   // Check for removed files (in target but not in source)
-  for (const targetFile in targetHashes) {
+  for (const targetFile of Object.keys(targetHashes)) {
     const sourceFile = targetFile.replace(`-${targetVersion}.`, `-${sourceVersion}.`)
     if (!sourceHashes[sourceFile]) {
       differences.push({
@@ -340,27 +327,52 @@ function compareArtifactHashes(sourceHashes, targetHashes, sourceVersion, target
 
 /**
  * Query Screen Management API for deployed version (FIRST STEP)
+ * Uses the same pattern as comprehensive sync: get screen from dev first to get correct key
  * @param {string} screenPath - Screen path
  * @param {Object} target - Target configuration
  * @returns {Promise<string|null>} Version string or null
  */
 async function getCurrentDeployedVersion(screenPath, target) {
   try {
-    const screenKey = generateScreenKeyFromPath(screenPath)
+    // Step 1: Get all NATIVE_SCREEN screens from dev environment
+    const devOauthConfig = {} // Use dev environment variables (default)
+    const devScreens = await getAllNativeScreens(process.env.NEXT_PUBLIC_SCREEN_MANAGEMENT_SERVICE_API, devOauthConfig)
 
-    const oauthConfig = {
+    // Step 2: Find the screen that matches our component path
+    const componentPath = screenPath // e.g., "hr/core/apps/employee-directory"
+    const matchingScreen = devScreens.find(screen => {
+      if (!screen.screenComponents?.formDefinition?.componentPath) {
+        return false
+      }
+      const screenComponentPath = screen.screenComponents.formDefinition.componentPath.replace(/^\//, '')
+      return screenComponentPath === componentPath || screenComponentPath.endsWith(`/${componentPath}`)
+    })
+
+    if (!matchingScreen) {
+      console.log(`   No screen found in dev for path: ${componentPath}`)
+      return null
+    }
+
+    const screenKey = matchingScreen.screenKey
+    console.log(`   Found screen key from dev: ${screenKey}`)
+
+    // Step 3: Query prod using the correct screen key from dev
+    const prodOauthConfig = {
       clientId: target.oauth.clientId,
       clientSecret: target.oauth.clientSecret,
       oauthUrl: target.oauth.oauthUrl,
       realm: target.oauth.realm
     }
 
-    const screen = await getScreenByKey(screenKey, target.services.screenManagementApi, oauthConfig)
+    const prodScreen = await getScreenByKey(screenKey, target.services.screenManagementApi, prodOauthConfig)
 
-    if (screen?.screenComponents?.formDefinition?.version) {
-      return screen.screenComponents.formDefinition.version
+    if (prodScreen?.screenComponents?.formDefinition?.version) {
+      const version = prodScreen.screenComponents.formDefinition.version
+      console.log(`   Found deployed version in prod: ${version}`)
+      return version
     }
 
+    console.log(`   Screen exists in dev but not in prod (new screen)`)
     return null
   } catch (error) {
     console.log(`   ⚠️  Unable to get deployed version: ${error.message}`)
@@ -1747,86 +1759,114 @@ async function main() {
   existingScreens.forEach(screen => console.log(`   - ${screen}`))
 
   const changedScreens = existingScreens
-
-  // NEW: Comprehensive Screen Synchronization Step (run per target)
-  console.log(`\n${'='.repeat(80)}`)
-  console.log(`🔄 COMPREHENSIVE SCREEN SYNCHRONIZATION`)
-  console.log(`${'='.repeat(80)}`)
   const targets = [PRIMARY_TARGET]
   if (SECONDARY_TARGET) targets.push(SECONDARY_TARGET)
 
-  const comprehensiveSyncResults = []
-  for (const target of targets) {
-    console.log(
-      `\n▶️ Target: ${target.label.toUpperCase()} | ScreenMgmt: ${target.services.screenManagementApi} | Nav: ${target.services.navigationApi}`
-    )
-    const result = await handleComprehensiveScreenSyncForTarget(changedScreens, target)
-    comprehensiveSyncResults.push({ label: target.label, result })
-    if (result.success) {
-      console.log(`✅ [${target.label}] Comprehensive sync completed successfully!`)
-      console.log(`   📋 Processed screens: ${result.processedScreens}`)
-      console.log(`   🔗 Synced resource URLs: ${result.syncedResources}`)
-      console.log(`   📱 Synced screens: ${result.syncedScreens}`)
-    } else {
-      console.error(`❌ [${target.label}] Comprehensive sync failed: ${result.error}`)
-      console.log('⚠️  Continuing with individual screen publishing as fallback for uploads...')
-    }
-  }
-
-  // STREAMLINED: Individual Screen Building and Azure Upload
-  // (Resource URLs and screen registration handled by comprehensive sync above)
+  // ============================================================================
+  // STEP 1: Build all screens and check hashes (before comprehensive sync)
+  // ============================================================================
   console.log(`\n${'='.repeat(80)}`)
-  console.log(`🔨 INDIVIDUAL SCREEN BUILDING AND AZURE UPLOAD`)
+  console.log(`🔨 STEP 1: BUILD AND HASH CHECK (${changedScreens.length} screens)`)
   console.log(`${'='.repeat(80)}`)
 
   const failedScreens = []
-  const skippedScreens = [] // Track skipped screens
-
-  // Add comprehensive sync failures to failed screens list (aggregate)
-  for (const { result, label } of comprehensiveSyncResults) {
-    if (result.failedSyncScreens && result.failedSyncScreens.length > 0) {
-      failedScreens.push(...result.failedSyncScreens.map(f => ({ ...f, target: label })))
-      console.log(`⚠️  [${label}] ${result.failedSyncScreens.length} screen(s) failed during comprehensive sync`)
-    }
-  }
+  const skippedScreens = []
+  const screensToPublish = [] // Only screens with actual content changes
 
   for (const screen of changedScreens) {
-    console.log(`\n📦 Building and uploading screen: ${screen}`)
+    console.log(`\n📦 Building and checking: ${screen}`)
 
     try {
-      // Use existing publishScreen function but skip resource URL and screen registration
-      // since those are handled by comprehensive sync above; upload to all Azure targets
       const azureTargets = targets.map(t => t.azure).filter(t => t !== null)
-      const result = await publishScreen(screen, {
-        skipResourceUrlSync: true,
-        skipScreenRegistration: true,
-        buildOnly: true,
-        azureTargets,
-        targets
-      })
+      console.log(`   Building screen...`)
 
-      if (result.skipped) {
-        console.log(`   ⏩ Screen skipped - all artifact hashes match`)
-        console.log(`   Build ${result.sourceVersion} identical to deployed ${result.targetVersion}`)
-        skippedScreens.push({
-          screen,
-          reason: result.reason,
-          fileCount: Object.keys(result.sourceHashes || {}).length,
-          sourceVersion: result.sourceVersion,
-          targetVersion: result.targetVersion
+      // Run simplified build (without hash check and upload)
+      try {
+        // Simplified build call - we'll handle hash check separately
+        const result = await publishScreen(screen, {
+          skipResourceUrlSync: true,
+          skipScreenRegistration: true,
+          buildOnly: true,
+          azureTargets,
+          targets
         })
-      } else {
-        console.log(`   ✅ Screen built and uploaded successfully`)
+
+        if (result.skipped) {
+          console.log(`   ⏩ Content unchanged - skipping publish`)
+          console.log(`   Build ${result.sourceVersion} matches deployed ${result.targetVersion}`)
+          skippedScreens.push({
+            screen,
+            reason: result.reason,
+            fileCount: Object.keys(result.sourceHashes || {}).length,
+            sourceVersion: result.sourceVersion,
+            targetVersion: result.targetVersion
+          })
+        } else {
+          console.log(`   ✅ Content changed or new screen - will publish`)
+          screensToPublish.push(screen)
+        }
+      } catch (buildError) {
+        console.error(`   ❌ Build/check failed: ${buildError.message}`)
+        failedScreens.push({
+          screen,
+          error: buildError.message,
+          stage: 'build_check',
+          target: buildError.targetLabel || 'unknown'
+        })
       }
     } catch (error) {
-      console.error(`   ❌ Error building/uploading ${screen}: ${error.message}`)
+      console.error(`   ❌ Error processing ${screen}: ${error.message}`)
       failedScreens.push({
         screen,
         error: error.message,
-        stage: 'build_upload',
+        stage: 'build_check',
         target: error.targetLabel || 'unknown'
       })
     }
+  }
+
+  console.log(`\n📊 Hash Check Summary:`)
+  console.log(`   📝 Total screens: ${changedScreens.length}`)
+  console.log(`   ✅ Changed screens: ${screensToPublish.length}`)
+  console.log(`   ⏩ Unchanged screens: ${skippedScreens.length}`)
+  console.log(`   ❌ Failed: ${failedScreens.length}`)
+
+  // ============================================================================
+  // STEP 2: Comprehensive Sync - ONLY for screens that actually changed
+  // ============================================================================
+  let comprehensiveSyncResults = []
+
+  if (screensToPublish.length > 0) {
+    console.log(`\n${'='.repeat(80)}`)
+    console.log(`🔄 STEP 2: COMPREHENSIVE SYNC (${screensToPublish.length} changed screens)`)
+    console.log(`${'='.repeat(80)}`)
+
+    for (const target of targets) {
+      console.log(
+        `\n▶️ Target: ${target.label.toUpperCase()} | ScreenMgmt: ${target.services.screenManagementApi} | Nav: ${target.services.navigationApi}`
+      )
+      const result = await handleComprehensiveScreenSyncForTarget(screensToPublish, target)
+      comprehensiveSyncResults.push({ label: target.label, result })
+      if (result.success) {
+        console.log(`✅ [${target.label}] Comprehensive sync completed successfully!`)
+        console.log(`   📋 Processed screens: ${result.processedScreens}`)
+        console.log(`   🔗 Synced resource URLs: ${result.syncedResources}`)
+        console.log(`   📱 Synced screens: ${result.syncedScreens}`)
+      } else {
+        console.error(`❌ [${target.label}] Comprehensive sync failed: ${result.error}`)
+        console.log('⚠️  Continuing with individual screen uploads as fallback...')
+      }
+    }
+
+    // Add comprehensive sync failures to failed screens list
+    for (const { result, label } of comprehensiveSyncResults) {
+      if (result.failedSyncScreens && result.failedSyncScreens.length > 0) {
+        failedScreens.push(...result.failedSyncScreens.map(f => ({ ...f, target: label })))
+        console.log(`⚠️  [${label}] ${result.failedSyncScreens.length} screen(s) failed during comprehensive sync`)
+      }
+    }
+  } else {
+    console.log(`\n⏩ No screens need comprehensive sync - all ${skippedScreens.length} screen(s) unchanged!`)
   }
 
   // Print final summary
