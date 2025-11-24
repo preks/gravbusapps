@@ -4,7 +4,7 @@ import { PipelineInfo, DateRange } from '../types/dashboardTypes'
 import { useDashboardQueries } from '../queries/DashboardQueries'
 import { formatCurrency, extractCurrencyCode } from '../utils/dashboardUtils'
 import { getTranslationFromI18nKeyAndLabel } from '@/common/utils/windowUtils'
-import { useAvailableCurrencies } from '@/common/data/investment/hooks/useAvailableCurrencies'
+import { useAvailableCurrencies } from '@/common/data/common/hooks/useAvailableCurrencies'
 
 export interface OverviewData {
   aggregatedFunnel: Array<{

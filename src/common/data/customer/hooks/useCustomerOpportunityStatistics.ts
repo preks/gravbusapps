@@ -24,6 +24,10 @@ export interface UseCustomerOpportunityStatisticsReturn {
   refetch: () => Promise<void>
 }
 
+export interface UseCustomerOpportunityStatisticsOptions {
+  selectedCurrency?: string
+}
+
 const GET_ALL_CUSTOMER_OPPORTUNITY_STATISTICS_WITH_TREND = `
   query GetAllCustomerOpportunityStatisticsWithTrend(
     $currentStart: timestamptz!,
@@ -32,27 +36,37 @@ const GET_ALL_CUSTOMER_OPPORTUNITY_STATISTICS_WITH_TREND = `
     $lastQuarter: timestamptz!,
     $thisYearStart: timestamptz!,
     $lastYearStart: timestamptz!,
-    $lastYearEnd: timestamptz!
+    $lastYearEnd: timestamptz!,
+    $currencyCode: String
   ) {
     recentOpportunitiesCurrent: OpportunityAggregate(where: {
-      createdAt: {_gte: $currentStart},
-      isDeleted: {_eq: false}
+      _and: [
+        { createdAt: {_gte: $currentStart} },
+        { isDeleted: {_eq: false} },
+        { currency: { code: { _eq: $currencyCode } } }
+      ]
     }) {
       aggregate {
         count
       }
     }
     recentOpportunitiesPrevious: OpportunityAggregate(where: {
-      createdAt: {_gte: $previousStart, _lt: $previousEnd},
-      isDeleted: {_eq: false}
+      _and: [
+        { createdAt: {_gte: $previousStart, _lt: $previousEnd} },
+        { isDeleted: {_eq: false} },
+        { currency: { code: { _eq: $currencyCode } } }
+      ]
     }) {
       aggregate {
         count
       }
     }
     opportunityValueCurrent: OpportunityAggregate(where: {
-      isDeleted: {_eq: false},
-      estimatedAmount: {_isNull: false}
+      _and: [
+        { isDeleted: {_eq: false} },
+        { estimatedAmount: {_isNull: false} },
+        { currency: { code: { _eq: $currencyCode } } }
+      ]
     }) {
       aggregate {
         sum {
@@ -61,9 +75,12 @@ const GET_ALL_CUSTOMER_OPPORTUNITY_STATISTICS_WITH_TREND = `
       }
     }
     opportunityValuePrevious: OpportunityAggregate(where: {
-      isDeleted: {_eq: false},
-      estimatedAmount: {_isNull: false},
-      createdAt: {_lt: $lastQuarter}
+      _and: [
+        { isDeleted: {_eq: false} },
+        { estimatedAmount: {_isNull: false} },
+        { createdAt: {_lt: $lastQuarter} },
+        { currency: { code: { _eq: $currencyCode } } }
+      ]
     }) {
       aggregate {
         sum {
@@ -72,52 +89,70 @@ const GET_ALL_CUSTOMER_OPPORTUNITY_STATISTICS_WITH_TREND = `
       }
     }
     winRateCurrentWon: OpportunityAggregate(where: {
-      createdAt: {_gte: $thisYearStart},
-      isDeleted: {_eq: false},
-      opportunityStatus: {code: {_eq: "WON"}}
+      _and: [
+        { createdAt: {_gte: $thisYearStart} },
+        { isDeleted: {_eq: false} },
+        { opportunityStatus: {code: {_eq: "WON"}} },
+        { currency: { code: { _eq: $currencyCode } } }
+      ]
     }) {
       aggregate {
         count
       }
     }
     winRateCurrentClosed: OpportunityAggregate(where: {
-      createdAt: {_gte: $thisYearStart},
-      isDeleted: {_eq: false},
-      opportunityStatus: {code: {_in: ["WON", "LOST"]}}
+      _and: [
+        { createdAt: {_gte: $thisYearStart} },
+        { isDeleted: {_eq: false} },
+        { opportunityStatus: {code: {_in: ["WON", "LOST"]}} },
+        { currency: { code: { _eq: $currencyCode } } }
+      ]
     }) {
       aggregate {
         count
       }
     }
     winRatePreviousWon: OpportunityAggregate(where: {
-      createdAt: {_gte: $lastYearStart, _lt: $lastYearEnd},
-      isDeleted: {_eq: false},
-      opportunityStatus: {code: {_eq: "WON"}}
+      _and: [
+        { createdAt: {_gte: $lastYearStart, _lt: $lastYearEnd} },
+        { isDeleted: {_eq: false} },
+        { opportunityStatus: {code: {_eq: "WON"}} },
+        { currency: { code: { _eq: $currencyCode } } }
+      ]
     }) {
       aggregate {
         count
       }
     }
     winRatePreviousClosed: OpportunityAggregate(where: {
-      createdAt: {_gte: $lastYearStart, _lt: $lastYearEnd},
-      isDeleted: {_eq: false},
-      opportunityStatus: {code: {_in: ["WON", "LOST"]}}
+      _and: [
+        { createdAt: {_gte: $lastYearStart, _lt: $lastYearEnd} },
+        { isDeleted: {_eq: false} },
+        { opportunityStatus: {code: {_in: ["WON", "LOST"]}} },
+        { currency: { code: { _eq: $currencyCode } } }
+      ]
     }) {
       aggregate {
         count
       }
     }
     opportunitiesThisYearCurrent: OpportunityAggregate(where: {
-      createdAt: {_gte: $thisYearStart},
-      isDeleted: {_eq: false}
+      _and: [
+        { createdAt: {_gte: $thisYearStart} },
+        { isDeleted: {_eq: false} },
+        { currency: { code: { _eq: $currencyCode } } }
+      ]
     }) {
       aggregate {
         count
       }
     }
     opportunitiesThisYearPrevious: OpportunityAggregate(where: {
-      createdAt: {_gte: $lastYearStart, _lt: $lastYearEnd},
-      isDeleted: {_eq: false}
+      _and: [
+        { createdAt: {_gte: $lastYearStart, _lt: $lastYearEnd} },
+        { isDeleted: {_eq: false} },
+        { currency: { code: { _eq: $currencyCode } } }
+      ]
     }) {
       aggregate {
         count
@@ -145,8 +180,10 @@ const calculateTrend = (current: number, previous: number): TrendData => {
 }
 
 export const useCustomerOpportunityStatistics = (
-  props: BusinessAppContextProps
+  props: BusinessAppContextProps,
+  options: UseCustomerOpportunityStatisticsOptions = {}
 ): UseCustomerOpportunityStatisticsReturn => {
+  const { selectedCurrency } = options
   const [trendData, setTrendData] = useState<OpportunityStatisticsTrendData | null>(null)
   const [isLoading, setIsLoading] = useState(false)
   const [error, setError] = useState<Error | null>(null)
@@ -189,7 +226,8 @@ export const useCustomerOpportunityStatistics = (
         lastQuarter: lastQuarter.toISOString(),
         thisYearStart: thisYearStart.toISOString(),
         lastYearStart: lastYearStart.toISOString(),
-        lastYearEnd: lastYearEnd.toISOString()
+        lastYearEnd: lastYearEnd.toISOString(),
+        currencyCode: selectedCurrency || null
       })
 
       const currentWon = result.winRateCurrentWon.aggregate.count || 0
@@ -221,7 +259,7 @@ export const useCustomerOpportunityStatistics = (
     } finally {
       setIsLoading(false)
     }
-  }, [props.accessToken, graphqlClient])
+  }, [props.accessToken, graphqlClient, selectedCurrency])
 
   // Fetch statistics on mount and when access token changes
   useEffect(() => {

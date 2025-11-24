@@ -47,6 +47,7 @@ export interface OpportunityRelationFields {
 export interface CommonOpportunityQueryVariables extends BaseQueryVariables {
   accountIds?: string[]
   currencyIds?: string[]
+  currencyCode?: string // Filter by currency code (e.g., 'EUR', 'USD')
   opportunityPipelineIds?: string[]
   opportunityPipelineStageIds?: string[]
   opportunityStatusIds?: string[]

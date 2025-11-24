@@ -12,7 +12,7 @@ import {
 } from '@newwork/nw-design-system'
 import { LayoutGrid, TrendingUp, Building2, PieChart } from 'lucide-react'
 import { BusinessAppContextProps } from '@/common/BusinessAppContext'
-import { useAvailableCurrencies } from '@/common/data/investment/hooks/useAvailableCurrencies'
+import { useAvailableCurrencies } from '@/common/data/common/hooks/useAvailableCurrencies'
 import AllInvestmentsList from './components/AllInvestmentsList'
 import EquityInvestmentsList from './components/EquityInvestmentsList'
 import RealEstateInvestmentsList from './components/RealEstateInvestmentsList'
