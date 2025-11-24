@@ -312,7 +312,7 @@ const ConfigureDayType: React.FC<ConfigureDayTypeProps> = ({
         setOverlapWarning(
           getTranslationFromI18nKeyAndLabel(
             'master-data:hr.time_attendance.day_types_version.warnings.planned_version_after_start',
-            `A version is already planned after the start date of this version. The planned version starts on {${nextVersionActiveFromStr}. Please set an end date for this version before the planned version starts, or modify the planned version.`,
+            `A version is already planned after the start date of this version. The planned version starts on ${nextVersionActiveFromStr}. Please set an end date for this version before the planned version starts, or modify the planned version.`,
             { plannedStartDate: nextVersionActiveFromStr }
           )
         )
