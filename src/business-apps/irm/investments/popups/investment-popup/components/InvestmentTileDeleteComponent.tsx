@@ -10,7 +10,7 @@ import {
   deleteTile,
   loadTilesFromInvestment,
   parseAdditionalProperties
-} from '@/business-apps/irm/investments/records/investment-record/tiles/utils/tileUtils'
+} from '@/common/components/investment/tiles/utils/tileUtils'
 
 interface InvestmentTileDeleteComponentProps extends BusinessAppContextProps {
   onClose: () => void

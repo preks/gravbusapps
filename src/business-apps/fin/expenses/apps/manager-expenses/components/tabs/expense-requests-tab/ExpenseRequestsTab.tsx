@@ -137,6 +137,21 @@ const ExpenseRequestsTab: React.FC<ExpenseRequestsTabProps> = props => {
   const requestsError = overview.error
   const totalCount = overview.data?.expenseRequestsTotal ?? 0
 
+  // Reset pagination when filters or search change so filtered results are visible from page 1.
+  const prevFilterSignatureRef = useRef<string | null>(null)
+  useEffect(() => {
+    const signature = JSON.stringify({
+      searchTerm,
+      selectedFilters,
+      primaryCurrency
+    })
+    const prev = prevFilterSignatureRef.current
+    if (prev !== null && prev !== signature) {
+      setCurrentPage(1)
+    }
+    prevFilterSignatureRef.current = signature
+  }, [searchTerm, selectedFilters, primaryCurrency])
+
   const fetchRequests = useCallback(
     (newSearchTerm?: string, page?: number, newPageSize?: number, newSortBy?: string) => {
       if (typeof newSearchTerm === 'string') setSearchTerm(newSearchTerm)

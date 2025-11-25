@@ -1,7 +1,6 @@
 import { useCallback } from 'react'
 import { useGraphQLClient } from '@/common/network/graphql/useGraphQLClient'
 import { BusinessAppContextProps } from '@/common/BusinessAppContext'
-import { extractCurrencyCode } from '@/common/utils/numberFormatter'
 
 export interface InvestmentKPIData {
   totalInvestments: number
@@ -16,9 +15,9 @@ export interface InvestmentKPIComparison {
 }
 
 export const GET_INVESTMENT_KPIS_WITH_COMPARISON = (comparisonDate: string, currencyFilter?: string): string => {
-  // Currency codes are stored as "Currency:v1:EUR" so we match the suffix pattern
-  // The _ilike pattern will naturally exclude null currency values
-  const currencyCondition = currencyFilter ? `{ currency: { code: { _ilike: "%${currencyFilter}%" } } }` : ''
+  // Currency codes are stored exactly as "EUR", "USD", etc.
+  // Use exact match for reliable filtering
+  const currencyCondition = currencyFilter ? `{ currency: { code: { _eq: "${currencyFilter}" } } }` : ''
 
   return `
     query GetInvestmentKPIsWithComparison {
@@ -48,7 +47,7 @@ export const GET_INVESTMENT_KPIS_WITH_COMPARISON = (comparisonDate: string, curr
         where: {
           _and: [
             { isDeleted: { _eq: false } }
-            { createdAt: { _lt: "${comparisonDate}" } }
+            { createdAt: { _lte: "${comparisonDate}" } }
             ${currencyCondition}
           ]
         }
@@ -131,10 +130,8 @@ export const useGetInvestmentKPIs = (context: BusinessAppContextProps, currency?
     thirtyDaysAgo.setDate(thirtyDaysAgo.getDate() - 30)
     const comparisonDate = thirtyDaysAgo.toISOString()
 
-    // Extract currency code from full ID (e.g., "Currency:v1:EUR" -> "EUR")
-    const currencyCode = currency ? extractCurrencyCode(currency) : undefined
-
-    const query = GET_INVESTMENT_KPIS_WITH_COMPARISON(comparisonDate, currencyCode)
+    // Currency is already a code (e.g., "EUR", "USD") - use directly
+    const query = GET_INVESTMENT_KPIS_WITH_COMPARISON(comparisonDate, currency)
     try {
       const result = await graphqlClient.request<InvestmentKPIResponse>(query)
 

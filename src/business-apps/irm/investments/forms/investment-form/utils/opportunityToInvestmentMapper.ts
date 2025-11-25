@@ -1,4 +1,4 @@
-import { InvestmentOpportunity } from '@/common/data/investment'
+import { InvestmentOpportunity } from '@/common/data/investment/types/investmentOpportunityTypes'
 import { InvestmentFormValues } from '../types'
 import { FormFieldsDefinition } from '../queries/InvestmentCatalogQueries'
 

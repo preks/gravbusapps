@@ -19,6 +19,7 @@ export interface InvestmentQueryVariables {
   investmentPhaseIds?: string[]
   investmentRiskLevelIds?: string[]
   currencyIds?: string[]
+  currencyCode?: string // Simple currency code like 'EUR', 'USD' - convenience parameter
   ownerEmployeeIds?: string[]
   accountIds?: string[]
   opportunityIds?: string[]
@@ -109,6 +110,9 @@ export const buildInvestmentWhereCondition = (variables: InvestmentQueryVariable
 
   if (variables.currencyIds?.length) {
     whereClause += `, currency: { id: { _in: [${variables.currencyIds.map(id => `"${id}"`).join(', ')}] } }`
+  } else if (variables.currencyCode?.trim()) {
+    // Simple currency code filter - uses currency.code instead of currency.id
+    whereClause += `, currency: { code: { _eq: "${variables.currencyCode.trim()}" } }`
   }
 
   // Text contains filters

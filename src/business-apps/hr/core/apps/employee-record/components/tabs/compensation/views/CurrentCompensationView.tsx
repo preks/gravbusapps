@@ -3,11 +3,12 @@
 import React from 'react'
 import { Card, Button } from '@newwork/nw-design-system'
 import { CompensationData } from '../types/compensationTypes'
-import { PiCurrencyEur, PiGift, PiHeartbeat } from 'react-icons/pi'
 import { BusinessAppContextProps } from '@/common/BusinessAppContext'
 import TotalRewardsCard from '../components/current/TotalRewardsCard'
 import BenefitsPerksSection from '../components/current/BenefitsPerksSection'
-import { formatCurrencyString } from '@/common/utils/numberFormatter'
+import CompensationKPICards from '../components/current/CompensationKPICards'
+import { ScopePermissionCheckResult, useScopePermissionCheck } from '@/common/hooks/useScopePermissionCheck'
+import { useCompensationPermissions } from '../hooks/useCompensationPermissions'
 
 interface CurrentCompensationViewProps extends BusinessAppContextProps {
   t: (key: string, params?: any) => string
@@ -17,6 +18,9 @@ interface CurrentCompensationViewProps extends BusinessAppContextProps {
   onRetry?: () => void
   employeeId: string
   locale: string
+  employeeRecordHrBackoffice: ScopePermissionCheckResult
+  isSelfView: boolean // Whether user is viewing their own profile
+  supervisorEmployeeId?: string | null // Employee's supervisor ID for manager check
 }
 
 /**
@@ -33,8 +37,40 @@ const CurrentCompensationView: React.FC<CurrentCompensationViewProps> = ({
   accessToken,
   userInfo,
   additionalData,
-  locale
+  locale,
+  employeeRecordHrBackoffice,
+  isSelfView,
+  supervisorEmployeeId
 }) => {
+  // Compute permissions locally using hooks (avoids prop drilling)
+  const employeeRecordAllHrBackoffice = useScopePermissionCheck(
+    '/platform/employee-record',
+    'employee-record-all-hr-backoffice',
+    accessToken
+  )
+  const employeeGrowthPermission = useScopePermissionCheck('/platform/employee-record', 'employee-growth', accessToken)
+
+  // Determine if current user is the employee's manager
+  const currentUserEmployeeId = userInfo?.employeeDetails?.employeeId || ''
+  const isManager = !!(supervisorEmployeeId && currentUserEmployeeId && supervisorEmployeeId === currentUserEmployeeId)
+
+  // Check if permissions are still loading
+  const permissionsLoading = employeeRecordAllHrBackoffice.loading || employeeGrowthPermission.loading
+
+  // Use centralized permission hook for consistent permission logic
+  // Only compute permissions when loading is complete to avoid incorrect evaluation
+  const { canManageCompensation } = useCompensationPermissions({
+    isSelfView,
+    isManager,
+    hasEmployeeGrowthPermission: !employeeGrowthPermission.loading && employeeGrowthPermission.hasPermission === true,
+    hasEmployeeRecordAllHrBackoffice: employeeRecordAllHrBackoffice?.hasPermission === true
+  })
+
+  // Both salary adjustment and bonus granting use the same permission logic
+  // Hide actions during permission loading to avoid flickering UI
+  const showSalaryAction = !permissionsLoading && canManageCompensation
+  const showBonusAction = !permissionsLoading && canManageCompensation
+
   // Handle loading state - show loading indicators when data is not yet available
   if (loading && !compensationData) {
     return (
@@ -84,81 +120,22 @@ const CurrentCompensationView: React.FC<CurrentCompensationViewProps> = ({
     )
   }
 
-  const { currentCompensation, totalBonusesYTD, activeBenefitsCount, bonuses } = compensationData
-
-  const baseSalary = currentCompensation?.baseSalary || 0
+  const { currentCompensation } = compensationData
   const currencyCode = currentCompensation?.currency?.code || 'EUR'
 
   return (
     <div className="gba:space-y-6" data-testid="current-compensation-view">
       {/* KPI Cards Row */}
-      <div className="gba:grid gba:grid-cols-1 gba:md:grid-cols-3 gba:gap-4">
-        {/* Base Salary Card */}
-        <Card className="gba:p-6" data-testid="compensation-base-salary-card">
-          <div className="gba:flex gba:items-start gba:justify-between">
-            <div className="gba:flex-1">
-              <div className="gba:text-sm gba:text-muted-foreground gba:mb-2">{t('current-base-salary')}</div>
-              <div className="gba:text-3xl gba:font-bold gba:text-foreground">
-                {loading
-                  ? '-'
-                  : formatCurrencyString(baseSalary, {
-                      currency: currencyCode,
-                      locale: locale,
-                      minimumFractionDigits: 0,
-                      maximumFractionDigits: 0
-                    })}
-              </div>
-              {currentCompensation?.payFrequency && (
-                <div className="gba:text-xs gba:text-muted-foreground gba:mt-1">
-                  {currentCompensation.payFrequency.value}
-                </div>
-              )}
-            </div>
-            <div className="gba:p-3 gba:rounded-lg gba:bg-muted">
-              <PiCurrencyEur className="gba:w-6 gba:h-6 gba:text-primary" />
-            </div>
-          </div>
-        </Card>
-
-        {/* Total Bonuses Card */}
-        <Card className="gba:p-6" data-testid="compensation-bonuses-card">
-          <div className="gba:flex gba:items-start gba:justify-between">
-            <div className="gba:flex-1">
-              <div className="gba:text-sm gba:text-muted-foreground gba:mb-2">{t('current-total-bonuses-ytd')}</div>
-              <div className="gba:text-3xl gba:font-bold gba:text-foreground">
-                {loading
-                  ? '-'
-                  : formatCurrencyString(totalBonusesYTD, {
-                      currency: currencyCode,
-                      locale: locale,
-                      minimumFractionDigits: 0,
-                      maximumFractionDigits: 0
-                    })}
-              </div>
-              <div className="gba:text-xs gba:text-muted-foreground gba:mt-1">
-                {bonuses.length} {bonuses.length === 1 ? t('current-bonus') : t('current-bonuses')}
-              </div>
-            </div>
-            <div className="gba:p-3 gba:rounded-lg gba:bg-muted">
-              <PiGift className="gba:w-6 gba:h-6 gba:text-primary" />
-            </div>
-          </div>
-        </Card>
-
-        {/* Benefits Value Card */}
-        <Card className="gba:p-6" data-testid="compensation-benefits-card">
-          <div className="gba:flex gba:items-start gba:justify-between">
-            <div className="gba:flex-1">
-              <div className="gba:text-sm gba:text-muted-foreground gba:mb-2">{t('current-benefits-value')}</div>
-              <div className="gba:text-3xl gba:font-bold gba:text-foreground">{activeBenefitsCount}</div>
-              <div className="gba:text-xs gba:text-muted-foreground gba:mt-1">{t('current-active-benefits')}</div>
-            </div>
-            <div className="gba:p-3 gba:rounded-lg gba:bg-muted">
-              <PiHeartbeat className="gba:w-6 gba:h-6 gba:text-primary" />
-            </div>
-          </div>
-        </Card>
-      </div>
+      <CompensationKPICards
+        t={t}
+        compensationData={compensationData}
+        loading={loading}
+        employeeId={employeeId}
+        accessToken={accessToken}
+        locale={locale}
+        hasPermissionToAdjustSalary={showSalaryAction}
+        hasPermissionToGrantBonus={showBonusAction}
+      />
 
       {/* Total Rewards 360° View */}
       <TotalRewardsCard t={t} compensationData={compensationData} loading={loading} locale={locale} />
@@ -173,6 +150,7 @@ const CurrentCompensationView: React.FC<CurrentCompensationViewProps> = ({
         loading={loading}
         currencyCode={currencyCode}
         locale={locale}
+        hrBackofficeHasPermission={employeeRecordHrBackoffice?.hasPermission}
       />
     </div>
   )

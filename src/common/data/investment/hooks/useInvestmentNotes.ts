@@ -1,9 +1,9 @@
 import { useCallback } from 'react'
 import { useGraphQLClient } from '@/common/network/graphql/useGraphQLClient'
 import { BusinessAppContextProps } from '@/common/BusinessAppContext'
-import type { InvestmentNote } from '../types'
+import type { InvestmentNote } from '../types/investmentNoteTypes'
 import { buildInvestmentNoteByIdQuery } from '../queries/investmentNoteQueries'
-import { toInvestmentNote } from '../mappers'
+import { toInvestmentNote } from '../mappers/investmentRelatedEntityMappers'
 
 // Response interfaces
 export interface InvestmentNoteByIdData {

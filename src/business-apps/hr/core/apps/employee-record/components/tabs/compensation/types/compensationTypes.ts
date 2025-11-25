@@ -54,6 +54,7 @@ export interface EmployeeCompensation {
   endDate: string | null // Maps to effectiveTo
   // Additional fields from EmployeeWorkingCondition
   monthlyGrossSalary?: number
+  hourlyGrossSalary?: number
   stockOptions?: number
 }
 

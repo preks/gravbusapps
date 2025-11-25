@@ -5,10 +5,18 @@ import { BusinessAppContextProps } from '@/common/BusinessAppContext'
 import { useEquityKPIIntegration } from '../../analytics-view/equity-analytics/hooks/useEquityKPIIntegration'
 import { formatCurrencyCompact } from '@/common/utils/numberFormatter'
 
-type EquityInvestmentStatisticsProps = BusinessAppContextProps
+export interface EquityInvestmentStatisticsProps extends BusinessAppContextProps {
+  currencyCode?: string
+}
 
-export const EquityInvestmentStatistics: React.FC<EquityInvestmentStatisticsProps> = ({ ...context }) => {
-  const { current: kpis, previous: previousKpis, isLoading, error, refetch } = useEquityKPIIntegration(context)
+export const EquityInvestmentStatistics: React.FC<EquityInvestmentStatisticsProps> = ({ currencyCode, ...context }) => {
+  const {
+    current: kpis,
+    previous: previousKpis,
+    isLoading,
+    error,
+    refetch
+  } = useEquityKPIIntegration(context, currencyCode)
 
   // Calculate percentage change between current and previous values
   const calculateChange = (current: number, previous: number): { value: string; positive: boolean } => {
@@ -35,13 +43,13 @@ export const EquityInvestmentStatistics: React.FC<EquityInvestmentStatisticsProp
       trend: {
         value: calculateChange(kpis.totalInvestments, previousKpis.totalInvestments).value,
         positive: calculateChange(kpis.totalInvestments, previousKpis.totalInvestments).positive,
-        description: 'vs 7 days ago'
+        description: 'vs 30 days ago'
       }
     },
     {
       key: 'total-amount-invested',
       title: 'Total Amount Invested',
-      value: formatCurrencyCompact(kpis.totalAmountInvested, 'EUR', undefined, 1, true),
+      value: formatCurrencyCompact(kpis.totalAmountInvested, currencyCode || 'EUR', undefined, 1, true),
       prefix: <DollarCircleOutlined />,
       color: '#52c41a',
       valueIsString: true,
@@ -50,7 +58,7 @@ export const EquityInvestmentStatistics: React.FC<EquityInvestmentStatisticsProp
       trend: {
         value: calculateChange(kpis.totalAmountInvested, previousKpis.totalAmountInvested).value,
         positive: calculateChange(kpis.totalAmountInvested, previousKpis.totalAmountInvested).positive,
-        description: 'vs 7 days ago'
+        description: 'vs 30 days ago'
       }
     },
     {
@@ -65,7 +73,7 @@ export const EquityInvestmentStatistics: React.FC<EquityInvestmentStatisticsProp
       trend: {
         value: calculateChange(kpis.portfolioMoic, previousKpis.portfolioMoic).value,
         positive: calculateChange(kpis.portfolioMoic, previousKpis.portfolioMoic).positive,
-        description: 'vs 7 days ago'
+        description: 'vs 30 days ago'
       }
     },
     {
@@ -80,7 +88,7 @@ export const EquityInvestmentStatistics: React.FC<EquityInvestmentStatisticsProp
       trend: {
         value: calculateChange(kpis.averageDuration, previousKpis.averageDuration).value,
         positive: calculateChange(kpis.averageDuration, previousKpis.averageDuration).positive,
-        description: 'vs 7 days ago'
+        description: 'vs 30 days ago'
       }
     }
   ]

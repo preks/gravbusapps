@@ -117,12 +117,18 @@ const ExpenseRequestsTable: React.FC<ExpenseRequestsTableProps> = React.memo(pro
 
   // Track if any filters are active to show conditional messages
   const hasActiveFilters = useMemo(() => {
-    // When there's no data, don't show active filters
-    if (totalCount === 0 && !isLoading) {
-      return false
+    const trimmedSearch = (search || '').trim()
+    return trimmedSearch !== '' || selectedFilters.length > 0
+  }, [search, selectedFilters])
+
+  useEffect(() => {
+    if (!isLoading && totalCount > 0 && currentPage > 1 && onTableChange) {
+      const lastPage = Math.max(1, Math.ceil(totalCount / pageSize))
+      if (currentPage > lastPage) {
+        onTableChange({ current: lastPage, pageSize }, {}, { field: sortField, order: sortOrder })
+      }
     }
-    return search || selectedFilters.length > 0
-  }, [search, selectedFilters, totalCount, isLoading])
+  }, [isLoading, totalCount, currentPage, pageSize, onTableChange, sortField, sortOrder])
 
   // Sync local search input with prop changes
   useEffect(() => {
@@ -137,7 +143,7 @@ const ExpenseRequestsTable: React.FC<ExpenseRequestsTableProps> = React.memo(pro
     // Manage pagination transitions for search
     if (prev === '' && next !== '') {
       // Starting a new search → save current page and jump to page 1
-      if (onTableChange) {
+      if (onTableChange && currentPage !== 1) {
         onTableChange({ current: 1, pageSize }, {}, { field: sortField, order: sortOrder })
       }
       savedPageBeforeSearchRef.current = currentPage
@@ -151,9 +157,9 @@ const ExpenseRequestsTable: React.FC<ExpenseRequestsTableProps> = React.memo(pro
         )
       }
       savedPageBeforeSearchRef.current = null
-    } else if (next !== '' && currentPage !== 1) {
-      // While typing within search mode, keep on page 1
-      if (onTableChange) {
+    } else if (prev !== next && next !== '') {
+      // Search term changed while already in search mode → reset to first page
+      if (onTableChange && currentPage !== 1) {
         onTableChange({ current: 1, pageSize }, {}, { field: sortField, order: sortOrder })
       }
     }
@@ -330,12 +336,6 @@ const ExpenseRequestsTable: React.FC<ExpenseRequestsTableProps> = React.memo(pro
       <div className="expense-requests-table">
         <Card data-testid="expense-requests-table-container">
           <CardContent className="gba:p-0">
-            {isLoading && (
-              <div className="gba:flex gba:justify-center gba:p-4">
-                <Spinner />
-              </div>
-            )}
-
             <div className="gba:overflow-x-auto">
               <Table data-testid="expense-requests-data-table">
                 <TableHeader>
@@ -754,10 +754,6 @@ const ExpenseRequestsTable: React.FC<ExpenseRequestsTableProps> = React.memo(pro
         }}
         dataFilterProps={{
           filterGroups: useMemo(() => {
-            // Hide filters when there's no data
-            if (totalCount === 0 && !isLoading) {
-              return []
-            }
             const currencyFilters =
               (props as any).currencyStats?.map((cs: any) => ({
                 id: `currency:${cs.ref}`,
@@ -778,7 +774,7 @@ const ExpenseRequestsTable: React.FC<ExpenseRequestsTableProps> = React.memo(pro
                   ]
                 : []
             return [...currencyGroup, ...filterGroups]
-          }, [filterGroups, selectedFilters, (props as any).currencyStats, totalCount, isLoading]),
+          }, [filterGroups, selectedFilters, (props as any).currencyStats]),
           onFilterChange: handleFilterChangeCallback
         }}
         dataBody={renderDataBody()}

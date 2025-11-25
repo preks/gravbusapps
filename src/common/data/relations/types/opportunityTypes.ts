@@ -28,6 +28,8 @@ export interface Opportunity extends BaseEntity {
   opportunityStageConditions?: any[] // IRM | TODO (stageConditionStatuses in CRM, investmentOpportunityStageCondition in IRM)
   opportunityStatus?: CatalogEntry // IRM | CRM
   opportunityStatusRef?: string // IRM | CRM
+  opportunityForecast?: CatalogEntry // IRM | CRM
+  opportunityForecastRef?: string // IRM | CRM
   ownerEmployee?: Employee // IRM | CRM
   ownerEmployeeId?: string // IRM | CRM
   rejectionReasons?: any[] // IRM | CRM
@@ -63,6 +65,8 @@ export const OpportunityFields = {
   opportunityStageConditions: 'opportunityStageConditions',
   opportunityStatus: 'opportunityStatus',
   opportunityStatusRef: 'opportunityStatusRef',
+  opportunityForecast: 'opportunityForecast',
+  opportunityForecastRef: 'opportunityForecastRef',
   ownerEmployee: 'ownerEmployee',
   ownerEmployeeId: 'ownerEmployeeId',
   rejectionReasons: 'rejectionReasons',
@@ -189,6 +193,21 @@ export const createOpportunityDescriptors = (
     type: 'text'
   },
   {
+    key: 'opportunityForecast',
+    searchPaths: [
+      `${fields.opportunityForecast}.value`,
+      `${fields.opportunityForecast}.code`,
+      `${fields.opportunityForecast}.additionalValue1`
+    ],
+    sortPath: `${fields.opportunityForecast}.value`,
+    type: 'text'
+  },
+  {
+    key: 'opportunityForecastRef',
+    sortPath: fields.opportunityForecastRef,
+    type: 'text'
+  },
+  {
     key: 'ownerEmployee',
     searchPaths: [
       `${fields.ownerEmployee}.displayName`,
@@ -218,6 +237,23 @@ export const createOpportunityDescriptors = (
   { key: 'opportunityPipelineIds', path: fields.opportunityPipelineRef, kind: 'inIds' },
   { key: 'opportunityPipelineStageIds', path: fields.opportunityPipelineStageRef, kind: 'inIds' },
   { key: 'opportunityStatusIds', path: fields.opportunityStatusRef, kind: 'inIds' },
+  {
+    key: 'opportunityForecastIds',
+    path: fields.opportunityForecastRef,
+    filterLabel: 'Opportunity Forecast',
+    optionSelectPaths: [
+      `${fields.opportunityForecast}.id`,
+      `${fields.opportunityForecast}.value`,
+      `${fields.opportunityForecast}.code`
+    ],
+    optionSearchPaths: [
+      `${fields.opportunityForecast}.value`,
+      `${fields.opportunityForecast}.code`,
+      `${fields.opportunityForecast}.additionalValue1`
+    ],
+    optionDistinctOn: [fields.opportunityForecastRef],
+    kind: 'inIds'
+  },
   { key: 'ownerEmployeeIds', path: fields.ownerEmployeeId, kind: 'inIds' },
 
   // Date range filters
@@ -345,3 +381,71 @@ export const createOpportunityStageConditionDescriptors = (
   { key: 'deadlineAtFrom', path: fields.deadlineAt, kind: 'dateFrom' },
   { key: 'deadlineAtTo', path: fields.deadlineAt, kind: 'dateTo' }
 ]
+
+/**
+ * Opportunity Form Fields Configuration
+ * Defines which fields to include in payload
+ * Sorted alphabetically by sourceKey
+ *
+ * Transformations are handled automatically:
+ * - Dates → ISO format
+ * - Arrays → included only if not empty
+ * - Objects → included only if not empty
+ * - Primitives → string or undefined
+ */
+export const opportunityFormFields = {
+  accountId: 'account',
+  businessKey: 'businessKey',
+  closeDate: 'closeDate',
+  code: 'code',
+  currencyRef: 'currencyRef',
+  estimatedAmount: 'estimatedAmount',
+  id: 'id',
+  leadId: 'lead',
+  name: 'name',
+  notesSummary: 'notesSummary',
+  opportunityContacts: 'opportunityContacts',
+  opportunityPipelineRef: 'opportunityPipelineRef',
+  opportunityPipelineStageRef: 'opportunityPipelineStageRef',
+  opportunityStatusRef: 'opportunityStatusRef',
+  opportunityForecastRef: 'opportunityForecastRef',
+  ownerEmployeeId: 'ownerEmployee',
+  personal: 'personal',
+  version: 'version',
+  winningChance: 'winningChance'
+} as const
+
+/**
+ * Helper function to build opportunity contact associations
+ * Used for managing many-to-many relationships between opportunities and contacts
+ */
+export const buildOpportunityContactAssociations = (contactIds: string[] = [], opportunityId?: string): any[] => {
+  return contactIds.map(contactId => {
+    if (typeof contactId === 'object' && (contactId as any).id) {
+      // Existing association with metadata
+      const contact = contactId as any
+      const association: any = {
+        contactType: contact.contactType || null,
+        opportunity: opportunityId,
+        contact: contact.id
+      }
+
+      // Include association ID and version if it exists (for updates)
+      if (contact.associationId) {
+        association.id = contact.associationId
+        if (contact.associationVersion !== undefined) {
+          association.version = contact.associationVersion
+        }
+      }
+
+      return association
+    }
+
+    // New association - simple format
+    return {
+      contactType: null,
+      opportunity: opportunityId,
+      contact: typeof contactId === 'string' ? contactId : (contactId as any).id
+    }
+  })
+}
