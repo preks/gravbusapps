@@ -152,7 +152,6 @@ export interface LeadConvertOpportunityStepProps {
   }
   loading?: boolean
   opportunityInformationCustomFields?: React.ReactNode
-  opportunityDetailsCustomFields?: React.ReactNode
   opportunityPipelineCustomFields?: React.ReactNode
   customSegments?: Array<{ id: string; title: string; content: React.ReactNode }>
   // Hide related entities (account/contact) - true for Lead Convert context
@@ -161,6 +160,7 @@ export interface LeadConvertOpportunityStepProps {
   stageCatalogIdentifier?: string
   opportunityStatusCatalogIdentifier?: string
   opportunityForecastCatalogIdentifier?: string
+  currencyCatalogIdentifier?: string
 }
 
 export const LeadConvertOpportunityStep: React.FC<LeadConvertOpportunityStepProps> = ({
@@ -170,14 +170,14 @@ export const LeadConvertOpportunityStep: React.FC<LeadConvertOpportunityStepProp
   useContacts,
   loading = false,
   opportunityInformationCustomFields,
-  opportunityDetailsCustomFields,
   opportunityPipelineCustomFields,
   customSegments,
   hideRelatedEntities = true, // Default to true for Lead Convert context
   pipelineCatalogIdentifier,
   stageCatalogIdentifier,
   opportunityStatusCatalogIdentifier,
-  opportunityForecastCatalogIdentifier
+  opportunityForecastCatalogIdentifier,
+  currencyCatalogIdentifier
 }) => {
   const { t } = useTranslation(translations)
 
@@ -197,7 +197,6 @@ export const LeadConvertOpportunityStep: React.FC<LeadConvertOpportunityStepProp
             useAccounts={useAccounts}
             useContacts={useContacts}
             opportunityInformationCustomFields={opportunityInformationCustomFields}
-            opportunityDetailsCustomFields={opportunityDetailsCustomFields}
             opportunityPipelineCustomFields={opportunityPipelineCustomFields}
             customSegments={customSegments}
             hideRelatedEntities={hideRelatedEntities}
@@ -205,6 +204,7 @@ export const LeadConvertOpportunityStep: React.FC<LeadConvertOpportunityStepProp
             stageCatalogIdentifier={stageCatalogIdentifier}
             opportunityStatusCatalogIdentifier={opportunityStatusCatalogIdentifier}
             opportunityForecastCatalogIdentifier={opportunityForecastCatalogIdentifier}
+            currencyCatalogIdentifier={currencyCatalogIdentifier}
           />
         )}
       </div>

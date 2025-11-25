@@ -9,8 +9,8 @@ import {
   FormAccordionContent
 } from '@newwork/nw-design-system'
 import { OpportunityInformationSegment } from '../../form-segments/opportunity-information-segment'
-import { OpportunityDetailsSegment } from '../../form-segments/opportunity-details-segment'
 import { OpportunityPipelineSegment } from '../../form-segments/opportunity-pipeline-segment'
+import { CURRENCY } from '@/common/constants/commonCatalogs'
 import translations from './_i18n'
 
 interface OpportunityLayoutProps {
@@ -40,8 +40,8 @@ interface OpportunityLayoutProps {
   stageCatalogIdentifier?: string
   opportunityStatusCatalogIdentifier?: string
   opportunityForecastCatalogIdentifier?: string
+  currencyCatalogIdentifier?: string
   opportunityInformationCustomFields?: React.ReactNode
-  opportunityDetailsCustomFields?: React.ReactNode
   opportunityPipelineCustomFields?: React.ReactNode
   customSegments?: Array<{ id: string; title: string; content: React.ReactNode }>
 
@@ -65,8 +65,8 @@ const OpportunityLayout: React.FC<OpportunityLayoutProps> = ({
   stageCatalogIdentifier,
   opportunityStatusCatalogIdentifier,
   opportunityForecastCatalogIdentifier,
+  currencyCatalogIdentifier = CURRENCY,
   opportunityInformationCustomFields,
-  opportunityDetailsCustomFields,
   opportunityPipelineCustomFields,
   customSegments = [],
   loading = false,
@@ -109,6 +109,7 @@ const OpportunityLayout: React.FC<OpportunityLayoutProps> = ({
         customFields={opportunityInformationCustomFields}
         hideRelatedEntities={hideRelatedEntities}
         opportunityForecastCatalogIdentifier={opportunityForecastCatalogIdentifier}
+        currencyCatalogIdentifier={currencyCatalogIdentifier}
       />
       <FormAccordion type="multiple" className="gba:w-full" data-testid="opportunity-layout-FormAccordion">
         <FormAccordionItem value="pipeline-stage">
@@ -120,12 +121,6 @@ const OpportunityLayout: React.FC<OpportunityLayoutProps> = ({
               opportunityStatusCatalogIdentifier={opportunityStatusCatalogIdentifier}
               customFields={opportunityPipelineCustomFields}
             />
-          </FormAccordionContent>
-        </FormAccordionItem>
-        <FormAccordionItem value="amount-date">
-          <FormAccordionTrigger>{t('amount-title')}</FormAccordionTrigger>
-          <FormAccordionContent>
-            <OpportunityDetailsSegment customFields={opportunityDetailsCustomFields} />
           </FormAccordionContent>
         </FormAccordionItem>
         {customSegments.map(segment => (

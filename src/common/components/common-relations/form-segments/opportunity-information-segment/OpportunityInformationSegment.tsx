@@ -6,12 +6,14 @@ import {
   FormControl,
   FormMessage,
   Input,
-  useTranslation
+  useTranslation,
+  DateInput
 } from '@newwork/nw-design-system'
 import { useFormContext } from 'react-hook-form'
 import { EmployeeSelect } from '@/components/employee-select'
 import { BusinessAppContextProps } from '@/common/BusinessAppContext'
 import { CatalogSelect } from '@/components/catalog-select'
+import { CURRENCY } from '@/common/constants/commonCatalogs'
 import AccountSelect from '@/common/components/common-relations/selects/account-select/AccountSelect'
 import ContactSelect, {
   type SelectOption as ContactSelectOption
@@ -50,6 +52,8 @@ interface OpportunityInformationSegmentProps {
   hideRelatedEntities?: boolean
   // Catalog identifier for opportunity forecast (context-specific)
   opportunityForecastCatalogIdentifier?: string
+  // Currency catalog identifier
+  currencyCatalogIdentifier?: string
 }
 
 const OpportunityInformationSegment: React.FC<OpportunityInformationSegmentProps> = ({
@@ -61,7 +65,8 @@ const OpportunityInformationSegment: React.FC<OpportunityInformationSegmentProps
   useContacts,
   customFields,
   hideRelatedEntities = false,
-  opportunityForecastCatalogIdentifier
+  opportunityForecastCatalogIdentifier,
+  currencyCatalogIdentifier = CURRENCY
 }) => {
   const form = useFormContext<any>()
   const { t } = useTranslation(translations)
@@ -276,6 +281,74 @@ const OpportunityInformationSegment: React.FC<OpportunityInformationSegmentProps
           )}
         />
       )}
+
+      {/* Estimated Amount and Currency - Same Row */}
+      <div className="gba:grid gba:grid-cols-1 gba:gap-6 gba:md:grid-cols-2">
+        <FormField
+          control={form.control}
+          name="estimatedAmount"
+          render={({ field }) => (
+            <FormItem>
+              <FormLabel>{t('opportunity-estimated-amount-label')}</FormLabel>
+              <FormControl>
+                <Input
+                  type="number"
+                  min="0"
+                  step="0.01"
+                  placeholder={t('opportunity-estimated-amount-placeholder') || 'Please enter estimated amount...'}
+                  data-testid="opportunity-segment-estimated-amount"
+                  {...field}
+                />
+              </FormControl>
+              <FormMessage />
+            </FormItem>
+          )}
+        />
+
+        <FormField
+          control={form.control}
+          name="currencyRef"
+          render={({ field }) => (
+            <FormItem>
+              <FormLabel>{t('opportunity-currency-label')}</FormLabel>
+              <FormControl>
+                <CatalogSelect
+                  catalogIdentifier={currencyCatalogIdentifier}
+                  variant="combobox"
+                  value={field.value || ''}
+                  onValueChange={field.onChange}
+                  data-testid="opportunity-segment-currency-select"
+                />
+              </FormControl>
+              <FormMessage />
+            </FormItem>
+          )}
+        />
+      </div>
+
+      {/* Close Date - 50% width */}
+      <div className="gba:grid gba:grid-cols-1 gba:md:grid-cols-2">
+        <FormField
+          control={form.control}
+          name="closeDate"
+          render={({ field }) => (
+            <FormItem>
+              <FormLabel>{t('opportunity-close-date-label') || 'Expected Close Date'}</FormLabel>
+              <FormControl>
+                <DateInput
+                  value={field.value || ''}
+                  onChange={value => field.onChange(value || '')}
+                  placeholder={t('opportunity-close-date-placeholder') || 'Select date...'}
+                  data-testid="opportunity-segment-close-date"
+                  outputFormat="iso"
+                />
+              </FormControl>
+              <FormMessage />
+            </FormItem>
+          )}
+        />
+        <div></div>
+      </div>
 
       {/* Custom fields (context-specific, e.g., CRM Sales Campaign, IRM Deal Type) */}
       {customFields && <div>{customFields}</div>}
