@@ -233,7 +233,7 @@ export const InvestmentHomeTab: React.FC<InvestmentHomeTabProps> = ({ investment
             props: {
               ...context,
               contacts:
-                investment?.investmentAccount?.investmentAccountContact
+                investment?.investmentAccount?.accountContacts
                   ?.map((iac: any) => ({
                     id: iac.contact?.id,
                     firstName: iac.contact?.firstName,
@@ -245,19 +245,19 @@ export const InvestmentHomeTab: React.FC<InvestmentHomeTabProps> = ({ investment
                     communicationChannels: iac.contact?.communicationChannels
                   }))
                   .filter(Boolean) || [],
-              contactId: investment?.investmentAccount?.investmentAccountContact?.[0]?.contact?.id || null,
-              recordUrl: investment?.investmentAccount?.investmentAccountContact?.[0]?.contact?.id
+              contactId: investment?.investmentAccount?.accountContacts?.[0]?.contact?.id || null,
+              recordUrl: investment?.investmentAccount?.accountContacts?.[0]?.contact?.id
                 ? buildPlatformUrl('/platform/irm/contact-record', {
-                    contactId: investment.investmentAccount.investmentAccountContact[0].contact.id,
+                    contactId: investment.investmentAccount.accountContacts[0].contact.id,
                     source: 'investment-relations',
                     fromEntity: 'investments'
                   })
                 : undefined,
-              actionButtonProps: investment?.investmentAccount?.investmentAccountContact?.[0]?.contact?.id
+              actionButtonProps: investment?.investmentAccount?.accountContacts?.[0]?.contact?.id
                 ? {
                     contextsArray: [FlowContextName.investmentContactEntity],
                     externalContextData: {
-                      contactId: investment.investmentAccount.investmentAccountContact[0].contact.id
+                      contactId: investment.investmentAccount.accountContacts[0].contact.id
                     },
                     prefixDataTestId: 'investment-record-contact-action'
                   }

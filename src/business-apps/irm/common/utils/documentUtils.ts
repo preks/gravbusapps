@@ -1,5 +1,5 @@
 import { useCallback } from 'react'
-import { InvestmentDocument } from '@/common/data/investment/types'
+import { InvestmentDocument } from '@/common/data/investment/types/investmentDocumentTypes'
 import { DocumentItem } from '@/components/document-section'
 import { BusinessAppContextProps } from '@/common/BusinessAppContext'
 import { useGraphQLClient } from '@/common/network/graphql/useGraphQLClient'

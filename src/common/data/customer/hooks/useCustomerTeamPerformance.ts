@@ -17,7 +17,7 @@ import type {
   CustomerTeamPerformanceSummary,
   CustomerTeamPerformanceStatistics,
   CustomerTeamPerformanceLeaderboard
-} from '../types'
+} from '../types/customerTeamPerformanceTypes'
 
 // Queries
 import {

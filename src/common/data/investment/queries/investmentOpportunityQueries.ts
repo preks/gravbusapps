@@ -122,8 +122,7 @@ export const buildInvestmentOpportunityQuery = (
  * Build Investment Opportunity by ID query
  */
 export const buildInvestmentOpportunityByIdQuery = (
-  fields: typeof InvestmentOpportunityFields = InvestmentOpportunityFields,
-  id: string
+  fields: typeof InvestmentOpportunityFields = InvestmentOpportunityFields
 ): string => {
   // Build relation builders and fields for common relations
   const relationBuilders: OpportunityRelationBuilders = {
@@ -194,7 +193,7 @@ export const buildInvestmentOpportunityByIdQuery = (
     sizeMeasurementUnitRef
   `
 
-  return buildOpportunityByIdQuery('InvestmentOpportunity', id, fields, relationBuilders, relationFields, entityFields)
+  return buildOpportunityByIdQuery('InvestmentOpportunity', fields, relationBuilders, relationFields, entityFields)
 }
 
 /**

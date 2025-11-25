@@ -90,7 +90,7 @@ export const buildInvestmentLeadQuery = (fields: typeof LeadFields = LeadFields)
 /**
  * Build Investment Lead by ID query
  */
-export const buildInvestmentLeadByIdQuery = (fields: typeof LeadFields = LeadFields, id: string): string => {
+export const buildInvestmentLeadByIdQuery = (fields: typeof LeadFields = LeadFields): string => {
   // Build relation builders and fields for common relations
   const relationBuilders: LeadRelationBuilders = {
     buildActivityFragment,
@@ -148,15 +148,7 @@ export const buildInvestmentLeadByIdQuery = (fields: typeof LeadFields = LeadFie
     sizeMeasurementUnitRef
   `
 
-  return buildLeadByIdQuery(
-    'InvestmentLead',
-    id,
-    fields,
-    relationBuilders,
-    relationFields,
-    entityFields,
-    'InvestmentLeadStatus'
-  )
+  return buildLeadByIdQuery('InvestmentLead', fields, relationBuilders, relationFields, entityFields)
 }
 
 /**

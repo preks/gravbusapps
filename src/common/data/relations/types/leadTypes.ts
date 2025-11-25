@@ -8,7 +8,7 @@ export interface Lead extends BaseEntity {
   accountAnnualRevenueBand?: CatalogEntry // IRM | TODO
   accountAnnualRevenueBandRef?: string // IRM / TODO
   activities?: any[] // IRM / CRM
-  addressLine?: string | { lines: string[] } | any // IRM / CRM is string
+  addressLine?: { lines: string[] } // IRM / CRM is string
   code?: string // IRM / CRM
   companyEmail?: string // IRM / CRM
   companyName?: string // IRM / CRM
@@ -41,12 +41,12 @@ export interface Lead extends BaseEntity {
   leadStatusRef?: string // IRM / CRM
   legalForm?: CatalogEntry // IRM / CRM
   legalFormRef?: string // IRM / CRM
-  locality?: string // IRM / TODO (city)
+  locality?: string // IRM / CRM
   notes?: any[] // IRM / CRM
   ownerEmployee?: Employee // IRM / CRM
   ownerEmployeeId?: string // IRM / CRM
   phoneNumber?: string // IRM / CRM
-  position?: string // IRM / CRM
+  jobPosition?: string // IRM / CRM
   postalCode?: string // IRM / CRM
   region?: CatalogEntry // IRM / CRM
   regionRef?: string // IRM / CRM
@@ -106,7 +106,7 @@ export const LeadFields = {
   ownerEmployee: 'ownerEmployee',
   ownerEmployeeId: 'ownerEmployeeId',
   phoneNumber: 'phoneNumber',
-  position: 'position',
+  jobPosition: 'position',
   postalCode: 'postalCode',
   region: 'region',
   regionRef: 'regionRef',
@@ -118,8 +118,6 @@ export const LeadFields = {
   sourceIndividualName: 'sourceIndividualName',
   tasks: 'tasks'
 } as const
-
-export type LeadFieldName = (typeof LeadFields)[keyof typeof LeadFields]
 
 /**
  * Create Common Lead Descriptors with fields mapping
@@ -251,7 +249,7 @@ export const createLeadDescriptors = (fields: Record<keyof typeof LeadFields, st
     type: 'text'
   },
   { key: 'phoneNumber', searchPaths: [fields.phoneNumber], sortPath: fields.phoneNumber, type: 'text' },
-  { key: 'position', searchPaths: [fields.position], sortPath: fields.position, type: 'text' },
+  { key: 'jobPosition', searchPaths: [fields.jobPosition], sortPath: fields.jobPosition, type: 'text' },
   { key: 'postalCode', searchPaths: [fields.postalCode], sortPath: fields.postalCode, type: 'text' },
   {
     key: 'region',
@@ -380,3 +378,53 @@ export const createLeadDescriptors = (fields: Record<keyof typeof LeadFields, st
     type: 'text'
   }
 ]
+
+/**
+ * Lead Form Fields Configuration
+ * Defines which fields to include in payload
+ * Sorted alphabetically by sourceKey
+ *
+ * Transformations are handled automatically:
+ * - Dates → ISO format
+ * - Arrays → included only if not empty
+ * - Objects → included only if not empty
+ * - Primitives → string or undefined
+ */
+export const leadFormFields = {
+  academicTitleRef: 'academicTitleRef',
+  accountAnnualRevenueBandRef: 'accountAnnualRevenueBandRef',
+  addressLine: 'addressLine',
+  code: 'code',
+  companyEmail: 'companyEmail',
+  companyName: 'companyName',
+  companyPhone: 'companyPhone',
+  companySizeRef: 'companySizeRef',
+  companyWebsite: 'companyWebsite',
+  conversionDate: 'conversionDate',
+  convertedAccountId: 'convertedAccountId',
+  convertedContactId: 'convertedContactId',
+  convertedOpportunityId: 'convertedOpportunityId',
+  countryRef: 'countryRef',
+  description: 'description',
+  email: 'email',
+  firstName: 'firstName',
+  id: 'id',
+  industryClassRef: 'industryClassRef',
+  lastName: 'lastName',
+  leadRatingRef: 'leadRatingRef',
+  leadSourceRef: 'leadSourceRef',
+  leadStatusRef: 'leadStatusRef',
+  legalFormRef: 'legalFormRef',
+  locality: 'locality',
+  ownerEmployeeId: 'ownerEmployee',
+  phoneNumber: 'phoneNumber',
+  jobPosition: 'position',
+  postalCode: 'postalCode',
+  regionRef: 'regionRef',
+  salutationRef: 'salutationRef',
+  sensitive: 'sensitive',
+  sourceCompanyName: 'sourceCompanyName',
+  sourceIndividualName: 'sourceIndividualName',
+  timeZoneRef: 'timeZoneRef',
+  version: 'version'
+} as const

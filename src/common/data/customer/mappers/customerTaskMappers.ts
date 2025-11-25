@@ -1,6 +1,6 @@
 // Customer Task Mappers - Transform base types to enhanced types with computed fields
 
-import { CustomerTask } from '../types'
+import { CustomerTask } from '../types/customerTaskTypes'
 
 /**
  * Transform CustomerTask (GraphQL response) to CustomerTask (enhanced with computed fields)

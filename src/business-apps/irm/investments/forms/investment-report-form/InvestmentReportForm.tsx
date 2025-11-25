@@ -21,8 +21,9 @@ import { useForm } from 'react-hook-form'
 import { getTranslationFromI18nKeyAndLabel } from '@/common/utils/windowUtils'
 import { formatDataTestId } from '@/common/utils/formatDataTestId'
 import { BusinessAppContextProps } from '@/common/BusinessAppContext'
-import { useGetInvestments } from '@/common/data/investment'
-import type { InvestmentReport, Investment, ReportScope } from '@/common/data/investment'
+import { useGetInvestments } from '@/common/data/investment/hooks/useInvestments'
+import type { InvestmentReport, Investment } from '@/common/data/investment/types/investmentTypes'
+import type { ReportScope } from '@/common/data/investment/types/investmentEnums'
 import dayjs from 'dayjs'
 
 interface InvestmentReportFormProps extends BusinessAppContextProps {
