@@ -112,10 +112,18 @@ export const GET_EMPLOYEE_DETAILS = /*sql*/ `
           probationEnd
           contractType {
             value
+            translations {
+              value
+              localeCode
+            }
             id
           }
           employmentType {
             value
+            translations {
+              value
+              localeCode
+            }
             id
           }
           region {

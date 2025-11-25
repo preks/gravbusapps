@@ -1,39 +1,61 @@
 import React, { useState, useEffect, useCallback } from 'react'
-import { Button, Form, Input, DatePicker, message } from 'antd'
 import { BusinessAppContextProps } from '@/common/BusinessAppContext'
-import { dispatchProcessContinueEvent } from '@/common/utils/processEventUtils'
-import { getTranslationFromI18nKeyAndLabel } from '@/common/utils/windowUtils'
-import { FileUpload } from '@newwork/nw-design-system'
+import { getTranslationFromI18nKeyAndLabel, getCurrentActiveUserLocale } from '@/common/utils/windowUtils'
+import NoteSegment, {
+  NoteSegmentSchema,
+  createNoteSegmentResolver
+} from '@/common/components/common-relations/form-segments/note-segment/NoteSegment'
+import { AppActionForm } from '@/components/app-action-form'
+import { useForm } from 'react-hook-form'
+import { Spinner, Alert, LocalizationProvider, type SupportedLocale } from '@newwork/nw-design-system'
 import { useFileClient } from '@/common/network/files/useFileClient'
-import dayjs from 'dayjs'
+import { useGraphQLClient } from '@/common/network/graphql/useGraphQLClient'
 
-export type NotesFormProps = BusinessAppContextProps
-
-const { TextArea } = Input
-
-const initialValues = {
-  noteTitle: '',
-  noteText: '',
-  reminderDate: null
+const initialFormData: NoteSegmentSchema = {
+  title: '',
+  text: '',
+  reminderDate: undefined,
+  documents: [],
+  _pendingFiles: []
 }
 
-interface DocumentState {
-  documents: Array<{
-    id: string
-    name?: string
-    version?: number
-  }>
-  _pendingFiles: File[]
+export interface NotesFormProps extends BusinessAppContextProps {
+  onSuccess?: (note: NoteSegmentSchema) => void
+  onCancel?: () => void
 }
 
-export const NotesForm: React.FC<NotesFormProps> = props => {
-  const { accessToken, additionalData } = props
-  const [form] = Form.useForm()
-  const [loading, setLoading] = useState(false)
-  const [documentState, setDocumentState] = useState<DocumentState>({
-    documents: [],
-    _pendingFiles: []
-  })
+const NotesForm: React.FC<NotesFormProps> = ({ accessToken, userInfo, additionalData, onSuccess, onCancel }) => {
+  const [formData, setFormData] = useState<NoteSegmentSchema>(initialFormData)
+  const [isLoadingNote, setIsLoadingNote] = useState(false)
+  const [loadError, setLoadError] = useState<string | null>(null)
+
+  const graphqlClient = useGraphQLClient(accessToken)
+
+  // Resolve IDs from additionalData (platform may pass ids inside psi_taskPayload.psi_initialParameters)
+  const platformParams = React.useMemo(() => {
+    const nested =
+      (additionalData as any)?.psi_taskPayload?.psi_initialParameters ||
+      (additionalData as any)?.psi_initialParameters ||
+      {}
+    return {
+      noteId: (additionalData as any)?.noteId || nested?.noteId,
+      accountId: (additionalData as any)?.accountId || nested?.accountId,
+      contactId: (additionalData as any)?.contactId || nested?.contactId,
+      opportunityId: (additionalData as any)?.opportunityId || nested?.opportunityId,
+      leadId: (additionalData as any)?.leadId || nested?.leadId
+    }
+  }, [additionalData])
+
+  // Check if we're in update mode
+  const noteId = platformParams.noteId
+  const isUpdateMode = !!noteId
+
+  // Get entity IDs from platform params
+  const { accountId, leadId, contactId, opportunityId } = platformParams
+  const hasEntityFromContext = accountId || leadId || contactId || opportunityId
+
+  // For CRM notes from context (account/contact/opportunity/lead), we hide entity selection
+  const shouldShowEntitySelection = !hasEntityFromContext
 
   // File upload client
   const fileClient = useFileClient({ accessToken } as any)
@@ -67,40 +89,139 @@ export const NotesForm: React.FC<NotesFormProps> = props => {
     [fileClient]
   )
 
+  // Load existing note if in update mode
   useEffect(() => {
-    const handleProcessComplete = () => {
-      setLoading(false)
-      message.success('Note saved successfully!')
+    if (!isUpdateMode || !noteId) {
+      return
     }
 
-    const handleProcessError = () => {
-      setLoading(false)
-      message.error('Failed to save note. Please try again.')
+    let isMounted = true
+    const loadExistingNote = async () => {
+      setIsLoadingNote(true)
+      setLoadError(null)
+
+      try {
+        const query = `
+          query GetCrmNoteById($id: uuid!) {
+            CrmNote(where: { id: { _eq: $id }, isDeleted: { _eq: false } }) {
+              id
+              version
+              noteTitle
+              noteText
+              reminderDate
+              account {
+                id
+                name
+              }
+              contact {
+                id
+                firstName
+                lastName
+              }
+              documents {
+                id
+                name
+                version
+                fileInfo
+              }
+              opportunity {
+                id
+                name
+              }
+              lead {
+                id
+                firstName
+                lastName
+              }
+              authorEmployee {
+                id
+                displayName
+              }
+            }
+          }
+        `
+
+        const result = await graphqlClient.request<{ CrmNote: any[] }>(query, { id: noteId })
+
+        if (!isMounted || !result?.CrmNote || result.CrmNote.length === 0) {
+          return
+        }
+
+        const note = result.CrmNote[0]
+
+        // Set form data
+        const newFormData = {
+          id: note.id,
+          title: note.noteTitle || '',
+          text: note.noteText || '',
+          reminderDate: note.reminderDate || undefined,
+          documents: (note.documents || []).map((doc: any) => ({
+            id: doc.id,
+            name: doc.name || '',
+            version: doc.version,
+            fileInfo: doc.fileInfo
+          })),
+          _pendingFiles: [],
+          account: note.account,
+          contact: note.contact,
+          opportunity: note.opportunity,
+          lead: note.lead,
+          authorEmployee: note.authorEmployee,
+          version: note.version
+        } as any
+
+        setFormData(newFormData)
+
+        // CRITICAL: Also update the React Hook Form values
+        form.reset(newFormData)
+
+        if (isMounted) {
+          setIsLoadingNote(false)
+        }
+      } catch (error) {
+        console.error('Failed to load CRM note', error)
+        if (isMounted) {
+          setLoadError(
+            getTranslationFromI18nKeyAndLabel('crm:notes.loadError', 'Failed to load note. Please try again.')
+          )
+          setIsLoadingNote(false)
+        }
+      }
     }
 
-    // Listen for process completion events
-    window.addEventListener('kogito-process-task-completed', handleProcessComplete)
-    window.addEventListener('kogito-process-error', handleProcessError)
-
+    loadExistingNote()
     return () => {
-      window.removeEventListener('kogito-process-task-completed', handleProcessComplete)
-      window.removeEventListener('kogito-process-error', handleProcessError)
+      isMounted = false
     }
+  }, [isUpdateMode, noteId])
+
+  // Compose validation
+  const validateForm = useCallback((data: any): string[] | null => {
+    const errors: string[] = []
+
+    if (!data.title || data.title.trim() === '') {
+      errors.push('Title is required')
+    }
+
+    if (!data.text || data.text.trim() === '') {
+      errors.push('Note text is required')
+    }
+
+    return errors.length > 0 ? errors : null
   }, [])
 
-  const handleSubmit = async (values: any) => {
-    setLoading(true)
-
-    try {
+  // Form submission handler - business logic only
+  const handleSubmit = useCallback(
+    async (data: NoteSegmentSchema) => {
       // Upload pending files if any
       let uploadedDocuments: Array<{ name: string; fileInfo: any }> = []
-      if (documentState._pendingFiles && documentState._pendingFiles.length > 0) {
-        const tempId = 'temp-' + Date.now()
-        uploadedDocuments = await uploadFiles(documentState._pendingFiles, tempId)
+      if (formData._pendingFiles && formData._pendingFiles.length > 0) {
+        const tempId = formData.id || 'temp-' + Date.now()
+        uploadedDocuments = await uploadFiles(formData._pendingFiles, tempId)
       }
 
       // Combine existing documents (as objects with ID) and newly uploaded documents
-      const existingDocumentsAsObjects = (documentState.documents || [])
+      const existingDocumentsAsObjects = (formData.documents || [])
         .filter(doc => doc.id)
         .map(doc => ({
           id: doc.id,
@@ -109,187 +230,125 @@ export const NotesForm: React.FC<NotesFormProps> = props => {
 
       const allDocuments = [...existingDocumentsAsObjects, ...uploadedDocuments]
 
-      const payload = {
-        employeeId: additionalData?.employeeId,
+      // Build CRM Note payload
+      const payload: any = {
+        employeeId: (userInfo as any)?.employeeDetails?.employeeId || (userInfo as any)?.employeeId,
         managerId: additionalData?.managerId,
         structureId: additionalData?.structureId,
         locationId: additionalData?.locationId,
         organizationalUnitId: additionalData?.organizationalUnitId,
-        ...(additionalData?.contactId && { contactId: additionalData.contactId }),
-        changeMode: 'INSERT',
+        changeMode: isUpdateMode ? 'UPDATE' : 'INSERT',
         crmNote: {
-          noteTitle: values.noteTitle,
-          noteText: values.noteText,
-          reminderDate: values.reminderDate ? dayjs(values.reminderDate).toISOString() : null,
+          noteTitle: data.title,
+          noteText: data.text,
+          reminderDate: data.reminderDate,
           lastEditDate: new Date().toISOString(),
-          authorEmployee: additionalData?.employeeId,
-          documents: allDocuments, // Always send array (empty array deletes all documents)
-          ...(additionalData?.leadId && { lead: additionalData.leadId }),
-          ...(additionalData?.opportunityId && { opportunity: additionalData.opportunityId }),
-          ...(additionalData?.contactId && { contact: additionalData.contactId }),
-          ...(additionalData?.accountId && { account: additionalData.accountId })
+          authorEmployee: (userInfo as any)?.employeeDetails?.employeeId || (userInfo as any)?.employeeId,
+          documents: allDocuments,
+          ...(platformParams.leadId && { lead: platformParams.leadId }),
+          ...(platformParams.opportunityId && { opportunity: platformParams.opportunityId }),
+          ...(platformParams.contactId && { contact: platformParams.contactId }),
+          ...(platformParams.accountId && { account: platformParams.accountId })
         }
       }
 
-      console.log('NotesForm final payload:', payload)
+      // Add ID and version for update mode
+      if (isUpdateMode) {
+        payload.crmNote.id = formData.id
+        payload.crmNote.version = formData.version
+        payload.noteId = formData.id
+      }
 
-      dispatchProcessContinueEvent('pse_submit', payload)
-      // Note: loading state will be cleared by event listeners
-    } catch (error) {
-      setLoading(false)
-      message.error('Failed to save note. Please try again.')
-      console.error('Error submitting note:', error)
+      return payload
+    },
+    [userInfo, additionalData, isUpdateMode, formData, uploadFiles, platformParams]
+  )
+
+  // Success handler
+  const handleSuccess = useCallback(() => {
+    if (onSuccess) {
+      onSuccess(formData)
     }
-  }
+  }, [formData, onSuccess])
 
-  const handleCancel = () => {
-    dispatchProcessContinueEvent('pse_pause', {})
-  }
+  // RHF + Zod resolver provided to AppActionForm
+  const form = useForm<any>({
+    resolver: createNoteSegmentResolver(),
+    defaultValues: formData,
+    mode: 'onChange'
+  })
 
-  // Helper: Extract File objects from FileWithPreview
-  const extractNewFiles = (files: any[]): File[] => {
-    const extractedFiles = files.map(f => (f.file instanceof File ? f.file : null)).filter((f): f is File => f !== null)
-    return extractedFiles
-  }
-
-  // Helper: Check if a file ID is in the current list
-  const isFileIdInList = (fileId: string, currentFileIds: Set<string>): boolean => {
-    return currentFileIds.has(fileId)
-  }
-
-  // Helper: Check if a document was removed
-  const isDocumentRemoved = (docId: string, removedDocs: any[]): boolean => {
-    return removedDocs.some(removed => removed.id === docId)
-  }
-
-  // Helper: Map documents to initial file format
-  const mapDocumentsToInitialFiles = (documents: DocumentState['documents']) => {
-    return documents.map(doc => ({
-      id: doc.id,
-      name: doc.name || 'Unnamed Document',
-      size: 0,
-      type: '',
-      url: doc.id
-    }))
-  }
-
-  // Handler: Process file changes
-  const handleFilesChange = (files: any[]) => {
-    // Add new files
-    const newFiles = extractNewFiles(files)
-    if (newFiles.length > 0) {
-      setDocumentState(prev => ({
-        ...prev,
-        _pendingFiles: [...(prev._pendingFiles || []), ...newFiles]
-      }))
-    }
-
-    // Handle file removal
-    const currentFileIds = new Set(files.map(f => f.id))
-    const initialFiles = mapDocumentsToInitialFiles(documentState.documents)
-    const removedDocs = initialFiles.filter(initial => !isFileIdInList(initial.id, currentFileIds))
-
-    if (removedDocs.length > 0) {
-      setDocumentState(prev => ({
-        ...prev,
-        documents: prev.documents.filter(doc => !isDocumentRemoved(doc.id, removedDocs))
-      }))
-    }
-  }
+  // Get locale for LocalizationProvider (needed for FileUpload component)
+  const locale = getCurrentActiveUserLocale() as SupportedLocale
 
   return (
-    <div
-      className="gba:p-6 gba:bg-hsl(var(--background)) gba:rounded-lg gba:shadow-md"
-      data-testid="notes-form-container"
-    >
-      <Form
+    <LocalizationProvider locale={locale}>
+      <AppActionForm
+        processType={isUpdateMode ? 'update' : 'create'}
+        onSubmit={handleSubmit}
+        onSuccess={handleSuccess}
+        onCancel={onCancel}
+        formData={formData}
         form={form}
-        layout="vertical"
-        initialValues={initialValues}
-        onFinish={handleSubmit}
-        data-testid="notes-form"
+        validateForm={validateForm}
+        submitButtonText={getTranslationFromI18nKeyAndLabel('crm:common.submit', 'Submit')}
+        cancelButtonText={getTranslationFromI18nKeyAndLabel('crm:common.cancel', 'Cancel')}
+        data-testid="customer-note-process-dialog"
       >
-        <h2 className="gba:text-xl gba:!font-bold gba:mb-4 gba:text-center gba:!text-[20px]" data-testid="form-title">
-          {getTranslationFromI18nKeyAndLabel('crm:notes.newNote', 'New Note')}
-        </h2>
+        {isLoadingNote && (
+          <div className="gba:flex gba:justify-center gba:items-center gba:py-8" data-testid="note-loading-spinner">
+            <Spinner size="lg" />
+          </div>
+        )}
 
-        <Form.Item
-          label={getTranslationFromI18nKeyAndLabel('crm:notes.title', 'Note Title')}
-          name="noteTitle"
-          rules={[
-            {
-              required: true,
-              message: getTranslationFromI18nKeyAndLabel('crm:notes.titleRequired', 'Note title is required')
-            }
-          ]}
-        >
-          <Input
-            placeholder={getTranslationFromI18nKeyAndLabel('crm:notes.titlePlaceholder', 'Enter note title...')}
-            data-testid="title-input"
-            className="gba:w-full"
-            maxLength={100}
-          />
-        </Form.Item>
+        {loadError && (
+          <Alert variant="destructive" className="gba:mb-4" data-testid="note-load-error-alert">
+            {loadError}
+          </Alert>
+        )}
 
-        <Form.Item
-          label={getTranslationFromI18nKeyAndLabel('crm:notes.text', 'Note Content')}
-          name="noteText"
-          rules={[
-            {
-              required: true,
-              message: getTranslationFromI18nKeyAndLabel('crm:notes.textRequired', 'Note content is required')
-            }
-          ]}
-        >
-          <TextArea
-            rows={4}
-            placeholder={getTranslationFromI18nKeyAndLabel('crm:notes.textPlaceholder', 'Write your note here...')}
-            data-testid="text-textarea"
-            className="gba:w-full"
-            maxLength={1000}
-          />
-        </Form.Item>
-
-        <Form.Item
-          label={getTranslationFromI18nKeyAndLabel('crm:notes.reminderDate', 'Reminder Date (Optional)')}
-          name="reminderDate"
-        >
-          <DatePicker
-            showTime
-            format="YYYY-MM-DD HH:mm:ss"
-            placeholder={getTranslationFromI18nKeyAndLabel(
+        {!isLoadingNote && (
+          <NoteSegment
+            // No entity search for CRM - context provides the entity
+            entities={[]}
+            entitiesLoading={false}
+            entitiesHasMore={false}
+            onEntityLoadMore={() => {}}
+            onEntitySearch={() => {}}
+            showEntitySelection={shouldShowEntitySelection}
+            initialEntityFromContext={{ accountId, contactId, opportunityId, leadId }}
+            titleLabel={getTranslationFromI18nKeyAndLabel('crm:notes.title', 'Note Title')}
+            textLabel={getTranslationFromI18nKeyAndLabel('crm:notes.text', 'Note Content')}
+            reminderLabel={getTranslationFromI18nKeyAndLabel('crm:notes.reminderDate', 'Reminder Date (Optional)')}
+            entityLabel={getTranslationFromI18nKeyAndLabel('crm:notes.relatedEntity', 'Related Entity')}
+            titlePlaceholder={getTranslationFromI18nKeyAndLabel('crm:notes.titlePlaceholder', 'Enter note title...')}
+            textPlaceholder={getTranslationFromI18nKeyAndLabel('crm:notes.textPlaceholder', 'Write your note here...')}
+            reminderPlaceholder={getTranslationFromI18nKeyAndLabel(
               'crm:notes.reminderDatePlaceholder',
               'Select reminder date...'
             )}
-            data-testid="reminder-date-picker"
-            className="gba:w-full"
+            uploadFileLabel={getTranslationFromI18nKeyAndLabel('crm:notes.uploadFile', 'Attach Documents')}
+            // File upload handlers
+            onFilesChange={(files: File[]) => {
+              setFormData(prev => ({
+                ...prev,
+                _pendingFiles: [...(prev._pendingFiles || []), ...files]
+              }))
+            }}
+            existingDocuments={formData.documents || []}
+            onDocumentRemove={(documentId: string) => {
+              setFormData(prev => ({
+                ...prev,
+                documents: prev.documents?.filter(doc => doc.id !== documentId) || []
+              }))
+            }}
+            data-testid="note-segment"
           />
-        </Form.Item>
-
-        <Form.Item label={getTranslationFromI18nKeyAndLabel('crm:notes.uploadFile', 'Attach Documents')}>
-          <FileUpload
-            key={documentState.documents.map(d => d.id).join(',') || 'empty'}
-            layout="list"
-            preview="icon"
-            maxFiles={10}
-            maxSizeMB={10}
-            multiple={true}
-            accept=".pdf,.doc,.docx,.xls,.xlsx,.txt,.jpg,.jpeg,.png"
-            initialFiles={mapDocumentsToInitialFiles(documentState.documents)}
-            onFilesChange={handleFilesChange}
-            data-testid="notes-file-upload"
-          />
-        </Form.Item>
-
-        <div className="gba:flex gba:justify-end gba:gap-3 gba:mt-6">
-          <Button onClick={handleCancel} data-testid="cancel-button" disabled={loading}>
-            {getTranslationFromI18nKeyAndLabel('common:cancel', 'Cancel')}
-          </Button>
-          <Button type="primary" htmlType="submit" loading={loading} data-testid="submit-button">
-            {getTranslationFromI18nKeyAndLabel('crm:notes.saveNote', 'Save Note')}
-          </Button>
-        </div>
-      </Form>
-    </div>
+        )}
+      </AppActionForm>
+    </LocalizationProvider>
   )
 }
+
+export default NotesForm
+export { NotesForm }

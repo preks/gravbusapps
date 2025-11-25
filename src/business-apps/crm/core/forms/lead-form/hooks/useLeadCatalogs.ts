@@ -16,6 +16,7 @@ export const COUNTRY_CATALOG = 'Country'
 export const EMPLOYEE_SIZE_CATALOG = 'EmployeeSize'
 export const REVENUE_SIZE_CATALOG = 'RevenueSize'
 export const TIMEZONE_CATALOG = 'TimeZone'
+export const ACADEMIC_TITLE_CATALOG = 'AcademicTitle'
 export const CATALOG_VERSION = 'v1'
 
 export const useLeadCatalogs = ({ accessToken }: LeadCatalogsHookParams) => {

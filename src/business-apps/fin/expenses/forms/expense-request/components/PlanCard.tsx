@@ -1,6 +1,6 @@
 import React from 'react'
 import { formatDate } from '@/common/utils/windowUtils'
-import { useTranslation } from 'react-i18next'
+import { getTranslationFromI18nKeyAndLabel } from '@/common/utils/windowUtils'
 import { ICONS } from '../../../utils/icons'
 import { PLAN_TYPE_ENUM, DEFAULT_PLAN_CURRENCY_CODE } from '../constants/constants'
 
@@ -28,11 +28,9 @@ interface PlanCardProps {
 const PlanCard: React.FC<PlanCardProps> = ({ plan, onClick, selectable = true }) => {
   const { planType, title, creationDate, tripInterval, paymentAmount, paymentCurrency, planAmount, planCurrency } = plan
 
-  const { t } = useTranslation()
-
   const formattedCreationDate = creationDate
     ? formatDate(creationDate, 'date.long')
-    : t('lowcoder:expense_summary_request.no_creation_date', 'No creation date')
+    : getTranslationFromI18nKeyAndLabel('lowcoder:expense_summary_request.no_creation_date', 'No creation date')
 
   const iconPath = planType === PLAN_TYPE_ENUM.TRIP ? ICONS.TRIP_ICON : ICONS.RECEIPT_ICON
   const iconTitle = planType === PLAN_TYPE_ENUM.TRIP ? 'Trip' : 'Expense'
@@ -99,7 +97,7 @@ const PlanCard: React.FC<PlanCardProps> = ({ plan, onClick, selectable = true })
           data-testid="plan-card-title-container"
         >
           <span style={{ fontSize: '18px', fontWeight: 500 }} data-testid="plan-card-title">
-            {title || t('lowcoder:expense_item_request_card.no_title', 'No Title')}
+            {title || getTranslationFromI18nKeyAndLabel('lowcoder:expense_item_request_card.no_title', 'No Title')}
           </span>
           {tripInterval && (
             <span
@@ -120,7 +118,8 @@ const PlanCard: React.FC<PlanCardProps> = ({ plan, onClick, selectable = true })
             style={{ fontSize: '14px', fontWeight: 'normal', width: '33%', textAlign: 'left', display: 'inline-block' }}
             data-testid="plan-card-creation-date"
           >
-            {t('lowcoder:expense_item_request_card.created', 'Created')}: {formattedCreationDate}
+            {getTranslationFromI18nKeyAndLabel('lowcoder:expense_item_request_card.created', 'Created')}:{' '}
+            {formattedCreationDate}
           </span>
 
           {paymentAmount ? (

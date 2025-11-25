@@ -89,13 +89,11 @@ export const AbsenceStatisticsSimple: React.FC<AbsenceStatisticsSimpleProps> = p
       ),
       onClick: () => {
         const currentYear = new Date().getFullYear()
-        const monthName = statistics.sickAbsencesByMonth.month
+        const monthNumber = statistics.sickAbsencesByMonth.monthNumber
 
-        const monthNumber = dayjs(`${monthName} 1, ${currentYear}`).month()
-
-        const startOfMonth = dayjs(`${currentYear}-${String(monthNumber + 1).padStart(2, '0')}-01`)
+        const targetMonth = monthNumber !== null ? monthNumber : dayjs().month()
+        const startOfMonth = dayjs(`${currentYear}-${String(targetMonth + 1).padStart(2, '0')}-01`)
         const endOfMonth = startOfMonth.endOf('month')
-
         const startDate = startOfMonth.format('YYYY-MM-DD')
         const endDate = endOfMonth.format('YYYY-MM-DD')
 

@@ -6,6 +6,7 @@ import { navigateTo } from '@/common/utils/navigationUtils'
 import { Button, Spinner } from '@newwork/nw-design-system'
 import { Employee } from '../../../hooks/useEmployeeData'
 import { useJobLevelEmployeeCount } from '../../../hooks/useJobLevelEmployeeCount'
+import { getTranslationFromI18nKeyAndLabel } from '@/common/utils/windowUtils'
 
 interface JobLevelDrawerContentProps {
   employee: Employee
@@ -77,6 +78,7 @@ export const getJobLevelIcon = () => <PiListNumbers className="gba:h-5 gba:w-5" 
 
 // Export the title to use for the drawer
 export const getJobLevelTitle = (employee: Employee) =>
-  employee?.employeePosition?.jobPosition?.jobLevel?.name || 'Not assigned'
+  employee?.employeePosition?.jobPosition?.jobLevel?.name ||
+  getTranslationFromI18nKeyAndLabel('lowcoder:employee_profile.left_side_bar.not_assigned', 'Not assigned')
 
 export default JobLevelDrawerContent

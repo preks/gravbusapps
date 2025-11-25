@@ -26,6 +26,7 @@ export const GET_EMPLOYEE_DATA = /*sql*/ `
   EmployeePosition(where: {employeeId: {_eq: $employeeId}}) {
     id
     organizationalUnitId
+    supervisorEmployeeId
     organizationalUnit {
       id
       name
@@ -99,6 +100,7 @@ export const GET_EMPLOYEE_DATA = /*sql*/ `
       displayName
       workspace
       version
+      externalId
       pictureThumbnail
       userId
       additionalProperties
@@ -457,6 +459,7 @@ export interface Employee {
   code: string
   workspace: string
   version: number
+  externalId?: string | null
   pictureThumbnail: string
   userId?: string
   skills: EmployeeSkill[]
@@ -465,6 +468,7 @@ export interface Employee {
     phone: string
     mobile: string
     userId?: string
+    SAPNumber?: string
   }
   salutation: CodeValue
   maritalStatus: CodeValue
@@ -495,6 +499,7 @@ export interface Employee {
 
 interface EmployeePosition {
   organizationalUnitId: string
+  supervisorEmployeeId?: string | null
   organizationalUnit: {
     name: string
   }

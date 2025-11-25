@@ -47,6 +47,9 @@ export interface OpportunityFormValues {
   // Campaign Information
   salesCampaignId: string // Campaign ID for backend
 
+  // Contact Information (CRM-specific)
+  contactIds: any[] // Array of contact IDs or objects for opportunity-contact associations
+
   // Business Information
   businessKey: string
   code: string

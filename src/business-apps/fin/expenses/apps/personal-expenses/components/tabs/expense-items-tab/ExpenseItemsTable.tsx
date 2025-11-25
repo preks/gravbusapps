@@ -9,7 +9,6 @@ import {
   TableCell,
   Card,
   CardContent,
-  Spinner,
   Button,
   Alert,
   Checkbox,
@@ -110,12 +109,13 @@ const ExpenseItemsTable: React.FC<ExpenseItemsTableProps> = React.memo(props => 
 
   // currency fetching now handled by useExpenseCurrencies
 
-  useEffect(() => {
-    if (!initialized) return
+  const buildApiFilters = useCallback(() => {
     const apiFilters = { ...getFilters(allSelectedFilters) } as ExpenseFilter
+
     if (selectedCurrencyRef) {
       apiFilters.currencyRef = selectedCurrencyRef
     }
+
     // Apply widget-driven filters directly to API request
     if (props.activeWidgetKey === 'total-expenses') {
       const start = new Date()
@@ -132,40 +132,25 @@ const ExpenseItemsTable: React.FC<ExpenseItemsTableProps> = React.memo(props => 
       apiFilters.expenseDateEnd = end.toISOString().split('T')[0]
       apiFilters.status = ['PENDING']
     }
+
+    return apiFilters
+  }, [getFilters, allSelectedFilters, selectedCurrencyRef, props.activeWidgetKey])
+
+  useEffect(() => {
+    if (!initialized) return
+    const apiFilters = buildApiFilters()
     fetchItems(search, currentPage, pageSize, apiFilters, sortField, sortOrder)
-  }, [
-    fetchItems,
-    currentPage,
-    pageSize,
-    search,
-    allSelectedFilters,
-    getFilters,
-    sortField,
-    sortOrder,
-    selectedCurrencyRef,
-    props.activeWidgetKey,
-    initialized
-  ])
+  }, [fetchItems, currentPage, pageSize, search, sortField, sortOrder, initialized, buildApiFilters])
 
   // Refresh data when tableRefreshTrigger changes (triggered from parent tab)
   useEffect(() => {
     if (props.tableRefreshTrigger && props.tableRefreshTrigger > 0) {
-      const apiFilters = getFilters(allSelectedFilters)
+      const apiFilters = buildApiFilters()
       fetchItems(search, currentPage, pageSize, apiFilters, sortField, sortOrder)
       // Clear selection when table is refreshed (process finished)
       setSelectedRowKeys([])
     }
-  }, [
-    props.tableRefreshTrigger,
-    fetchItems,
-    search,
-    currentPage,
-    pageSize,
-    allSelectedFilters,
-    getFilters,
-    sortField,
-    sortOrder
-  ])
+  }, [props.tableRefreshTrigger, fetchItems, search, currentPage, pageSize, sortField, sortOrder, buildApiFilters])
 
   const [selectedItem, setSelectedItem] = useState<any>(null)
   const [selectedRowKeys, setSelectedRowKeys] = useState<React.Key[]>([])
@@ -512,7 +497,10 @@ const ExpenseItemsTable: React.FC<ExpenseItemsTableProps> = React.memo(props => 
               currencyStats.length > 0
                 ? {
                     id: 'currency',
-                    title: getTranslationFromI18nKeyAndLabel('lowcoder:expense_item_list.currency', 'Currency'),
+                    title: getTranslationFromI18nKeyAndLabel(
+                      'lowcoder:create_expense_item.change_expense_item_container.current_currency_label',
+                      'Currency'
+                    ),
                     filters: currencyStats.map(cs => ({
                       id: `currency:${cs.ref}`,
                       label: cs.code,
@@ -524,17 +512,11 @@ const ExpenseItemsTable: React.FC<ExpenseItemsTableProps> = React.memo(props => 
           }, [currencyStats, filterGroups, allSelectedFilters]),
           onFilterChange: handleFilterChange as (filterId: string, selected: boolean) => void
         }}
-        contentBackground="background"
+        contentBackground="white"
         dataBody={
           <div className="">
             <Card data-testid={`${DATA_TEST_ID_PREFIX}-container`}>
               <CardContent className="gba:p-0">
-                {isLoading && (
-                  <div className="gba:flex gba:justify-center gba:p-4">
-                    <Spinner />
-                  </div>
-                )}
-
                 <div className="gba:overflow-x-auto">
                   <Table data-testid={`${DATA_TEST_ID_PREFIX}-table`}>
                     <TableHeader>
@@ -673,7 +655,7 @@ const ExpenseItemsTable: React.FC<ExpenseItemsTableProps> = React.memo(props => 
                                     },
                                     {
                                       includeDetails: true,
-                                      includeAssignToRequest: false
+                                      includeAssignToRequest: true
                                     }
                                   ).map(action => {
                                     // Override the details action onClick to use the table's handleSelectItem
@@ -857,7 +839,9 @@ const ExpenseItemsTable: React.FC<ExpenseItemsTableProps> = React.memo(props => 
                       {`${totalCount} ${getTranslationFromI18nKeyAndLabel('lowcoder:employee_list.flows_button.expense_items', 'Expense Items')}`}
                     </div>
                     <div className="gba:flex gba:items-center gba:space-x-2">
-                      <p className="gba:text-sm gba:font-medium">Rows per page</p>
+                      <p className="gba:text-sm gba:font-medium">
+                        {getTranslationFromI18nKeyAndLabel('lowcoder:personal_expenses.rows_per_page', 'Rows per page')}
+                      </p>
                       <select
                         value={pageSize}
                         onChange={e => handlePaginationChange(1, Number(e.target.value))}

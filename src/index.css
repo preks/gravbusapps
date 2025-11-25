@@ -133,6 +133,29 @@
       transform: rotate(360deg);
     }
   }
+
+  /* AI Button gradient animation */
+  @keyframes gradient-shift {
+    0% {
+      background-position: 0% 50%;
+    }
+    50% {
+      background-position: 100% 50%;
+    }
+    100% {
+      background-position: 0% 50%;
+    }
+  }
+
+  /* AI Button shimmer animation */
+  @keyframes shimmer {
+    0% {
+      transform: translateX(-200%) skewX(-15deg);
+    }
+    100% {
+      transform: translateX(400%) skewX(-15deg);
+    }
+  }
 }
 
 @layer utilities {

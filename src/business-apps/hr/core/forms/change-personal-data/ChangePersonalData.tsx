@@ -273,6 +273,9 @@ const ChangePersonalDataContent: React.FC<BusinessAppContextProps> = ({ accessTo
           }}
           onSubmit={async (values: PersonalDataFormValues) => {
             const uploadedEmployeeDocumentId = values.employeeDocumentId || ''
+            const firstName = values.firstName || ''
+            const lastName = values.lastName || ''
+            const fullName = [firstName, lastName].filter(Boolean).join(' ')
             const payload = {
               event: 'pse_submit',
               employeeDocument: null,
@@ -284,10 +287,11 @@ const ChangePersonalDataContent: React.FC<BusinessAppContextProps> = ({ accessTo
                 version: employee?.version ?? 0,
                 academicTitleRef: values.academicTitleRefs || [],
                 salutationRef: values.salutationRef || '',
-                firstName: values.firstName || '',
-                lastName: values.lastName || '',
+                firstName: firstName,
+                lastName: lastName,
                 preferredName: values.preferredName || '',
                 displayName: values.displayName || '',
+                fullName: fullName,
                 birthName: values.birthName || '',
                 birthDate: values.birthDate ? formatDateToISO(new Date(values.birthDate)) : '',
                 genderRef: values.genderRef || '',
@@ -306,7 +310,7 @@ const ChangePersonalDataContent: React.FC<BusinessAppContextProps> = ({ accessTo
                 salutationRef: employee?.salutationRef || '',
                 firstName: employee?.firstName || '',
                 lastName: employee?.lastName || '',
-                displayName: employee?.displayName || '',
+                fullName: employee?.fullName || '',
                 preferredName: employee?.preferredName || '',
                 birthName: employee?.birthName || '',
                 birthDate: employee?.birthDate ? formatDateToISO(new Date(employee.birthDate)) : '',
@@ -317,7 +321,9 @@ const ChangePersonalDataContent: React.FC<BusinessAppContextProps> = ({ accessTo
                 birthPlace: employee?.birthPlace || '',
                 severelyDisabilityDegree: employee?.severelyDisabilityDegree ?? '',
                 schoolQualificationRef: employee?.schoolQualificationRef || '',
-                userId: employee?.userId || ''
+                userId: employee?.userId || '',
+                notes: employee?.notes || '',
+                title: employee?.title || ''
               }
             }
             return payload
@@ -326,7 +332,7 @@ const ChangePersonalDataContent: React.FC<BusinessAppContextProps> = ({ accessTo
         >
           <div className="gba:flex-1 gba:space-y-4" data-testid="change-personal-data-groups">
             {/* Group 1: Names */}
-            <NamesGroup control={form.control} catalogs={{ salutation: catalogSalutation }} />
+            <NamesGroup control={form.control} catalogs={{ salutation: catalogSalutation }} setValue={form.setValue} />
 
             {/* Group 2: Birth and Gender (includes DOB & Place) */}
             <BirthAndGenderGroup control={form.control} catalogs={{ gender: catalogs.gender }} />

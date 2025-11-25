@@ -359,7 +359,10 @@ export const handleSubmit = async (
       }
     })
     const computedExpenseRequestId =
-      normalizedExpenseRequestId ?? coerceRequestId(values?.expenseRequestId) ?? additionalData?.expenseRequestId ?? ''
+      normalizedExpenseRequestId ??
+      coerceRequestId(values?.expenseRequestId) ??
+      additionalData?.expenseRequestId ??
+      null
 
     const submitData = {
       expenseItem: {

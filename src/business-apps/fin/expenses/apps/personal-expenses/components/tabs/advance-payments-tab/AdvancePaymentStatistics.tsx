@@ -3,9 +3,9 @@ import { FileTextOutlined, DollarOutlined, CalendarOutlined, BankOutlined } from
 import { WidgetGroup, WidgetItem } from '@/components/widget-group'
 import { useGetAdvancePaymentStatistics } from '../../../hooks/useGetAdvancePaymentStatistics'
 import { BusinessAppContextProps } from '@/common/BusinessAppContext'
-import dayjs from 'dayjs'
 import { getTranslationFromI18nKeyAndLabel } from '@/common/utils/windowUtils'
 import { formatCurrencyDisplay } from '../../../utils'
+import { getTranslatedMonthName } from '../../../utils/monthTranslationUtils'
 
 interface AdvancePaymentStatisticsProps extends BusinessAppContextProps {
   statsLoading?: boolean
@@ -48,7 +48,7 @@ const AdvancePaymentStatistics: React.FC<AdvancePaymentStatisticsProps> = ({
   // Fetching is handled inside the hook; avoid duplicate calls from here
 
   // Calculate current month name
-  const currentMonthName = dayjs().format('MMMM')
+  const currentMonthName = getTranslatedMonthName(new Date())
 
   // Calculate percentage changes
   const paymentsPercentageChange = useMemo(() => {

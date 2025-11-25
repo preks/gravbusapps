@@ -1,7 +1,18 @@
 import React, { useEffect, useState, useCallback } from 'react'
-import { Tabs, TabsContent, TabsList, TabsTrigger } from '@newwork/nw-design-system'
+import {
+  Tabs,
+  TabsContent,
+  TabsList,
+  TabsTrigger,
+  Select,
+  SelectTrigger,
+  SelectValue,
+  SelectContent,
+  SelectItem
+} from '@newwork/nw-design-system'
 import { LayoutGrid, TrendingUp, Building2, PieChart } from 'lucide-react'
 import { BusinessAppContextProps } from '@/common/BusinessAppContext'
+import { useAvailableCurrencies } from '@/common/data/investment/hooks/useAvailableCurrencies'
 import AllInvestmentsList from './components/AllInvestmentsList'
 import EquityInvestmentsList from './components/EquityInvestmentsList'
 import RealEstateInvestmentsList from './components/RealEstateInvestmentsList'
@@ -26,6 +37,13 @@ export const InvestmentView: React.FC<InvestmentViewProps> = context => {
   }, [])
 
   const [activeTab, setActiveTab] = useState(normalize(initialSubTab))
+  const [selectedCurrency, setSelectedCurrency] = useState<string>('EUR')
+
+  // Fetch available currencies efficiently using distinctOn
+  const { currencies: availableCurrencies } = useAvailableCurrencies(context, {
+    filters: { entity: 'Investment' },
+    returnFormat: 'codes'
+  })
 
   useEffect(() => {
     setActiveTab(normalize(initialSubTab))
@@ -41,22 +59,41 @@ export const InvestmentView: React.FC<InvestmentViewProps> = context => {
 
   return (
     <div data-testid="investment-view">
-      {/* Header */}
+      {/* Header with Currency Filter */}
       <div className="gba:mb-6">
         <div className="gba:flex gba:items-center gba:justify-between gba:mb-4">
           <div>
             <h1 className="gba:text-2xl gba:font-bold gba:text-gray-900">Investment Portfolio</h1>
             <p className="gba:text-gray-600">Manage and track investment portfolio across asset classes</p>
           </div>
+
+          {/* Currency Filter - Top Right */}
+          <div className="gba:flex gba:items-center gba:gap-2">
+            <span className="gba:text-sm gba:font-medium gba:text-gray-700">Currency:</span>
+            <Select value={selectedCurrency} onValueChange={setSelectedCurrency}>
+              <SelectTrigger className="gba:w-[120px]" data-testid="investment-view-currency-filter">
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                {availableCurrencies.map(currency => (
+                  <SelectItem key={currency} value={currency}>
+                    {currency}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          </div>
         </div>
       </div>
 
-      {/* Statistics - Render different KPIs based on active tab */}
+      {/* Statistics - Render different KPIs based on active tab with selected currency */}
       <div className="gba:mb-6">
-        {activeTab === 'overview' && <InvestmentStatistics {...context} />}
-        {activeTab === 'equity' && <EquityInvestmentStatistics {...context} />}
-        {activeTab === 'liquid-funds' && <LiquidFundInvestmentStatistics {...context} />}
-        {activeTab === 'real-estate' && <RealEstateInvestmentStatistics {...context} />}
+        {activeTab === 'overview' && <InvestmentStatistics {...context} currencyCode={selectedCurrency} />}
+        {activeTab === 'equity' && <EquityInvestmentStatistics {...context} currencyCode={selectedCurrency} />}
+        {activeTab === 'liquid-funds' && (
+          <LiquidFundInvestmentStatistics {...context} currencyCode={selectedCurrency} />
+        )}
+        {activeTab === 'real-estate' && <RealEstateInvestmentStatistics {...context} currencyCode={selectedCurrency} />}
       </div>
 
       {/* Tabs */}
@@ -77,19 +114,19 @@ export const InvestmentView: React.FC<InvestmentViewProps> = context => {
         </TabsList>
 
         <TabsContent value="overview" className="gba:mt-6">
-          <AllInvestmentsList {...context} />
+          <AllInvestmentsList {...context} currencyCode={selectedCurrency} />
         </TabsContent>
 
         <TabsContent value="equity" className="gba:mt-6">
-          <EquityInvestmentsList {...context} />
+          <EquityInvestmentsList {...context} currencyCode={selectedCurrency} />
         </TabsContent>
 
         <TabsContent value="real-estate" className="gba:mt-6">
-          <RealEstateInvestmentsList {...context} />
+          <RealEstateInvestmentsList {...context} currencyCode={selectedCurrency} />
         </TabsContent>
 
         <TabsContent value="liquid-funds" className="gba:mt-6">
-          <LiquidFundInvestmentsList {...context} />
+          <LiquidFundInvestmentsList {...context} currencyCode={selectedCurrency} />
         </TabsContent>
       </Tabs>
     </div>

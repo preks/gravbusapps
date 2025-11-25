@@ -1,32 +1,41 @@
-// Customer Contact Mapper - Transform base type to enhanced type with computed fields
+// Customer Contact Mapper - Transform base type to enhanced type with field mappings
 
-import { BaseCustomerContact, CustomerContact } from '../types'
+import { CustomerContact } from '../types'
+import type { CustomerAccountContact } from '../types/customerRelationTypes'
+import { toCustomerAccount } from './customerAccountMappers'
 
 /**
- * Transform BaseCustomerContact (GraphQL response) to CustomerContact (enhanced with computed fields)
+ * Transform CustomerContact (GraphQL response) to CustomerContact (enhanced with field mappings)
+ *
+ * Handles CRM-specific field name mappings:
+ * - jobTitle → jobPosition
+ * - contactType → type
+ * - pictureUrl → picture
+ * - pictureThumbnailUrl → pictureThumbnail
+ * - accountId/account → accountContacts array (CRM uses deprecated accountId instead of accountContacts)
  */
-export function toCustomerContact(base: BaseCustomerContact): CustomerContact {
-  // Extract labels from catalog entries
-  const salutationLabel = base.salutation?.value || base.salutation?.code
-  const academicTitleLabel = base.academicTitle?.value || base.academicTitle?.code
-  const languageLabel = base.language?.value || base.language?.code
-  const ownerDisplayName =
-    base.ownerEmployee?.displayName ||
-    `${base.ownerEmployee?.firstName || ''} ${base.ownerEmployee?.lastName || ''}`.trim()
+export function toCustomerContact(base: CustomerContact): CustomerContact {
+  // Map CRM field names to Contact standard (IRM naming)
+  const jobPosition = base.jobTitle
+  const type = base.contactType
+  const picture = base.pictureUrl
+  const pictureThumbnail = base.pictureThumbnailUrl
 
-  // Create computed names
-  const fullName = base.fullName || `${base.firstName || ''} ${base.lastName || ''}`.trim()
-  const displayName = fullName || base.code || `Contact ${base.id}`
+  // Use accountContacts from GraphQL if available, otherwise fallback to deprecated accountId/account
+  const accountContacts: CustomerAccountContact[] | undefined = base.accountContacts
+    ? base.accountContacts.map(ac => ({
+        ...ac,
+        account: ac.account ? toCustomerAccount(ac.account) : ac.account
+      }))
+    : undefined
 
   return {
     ...base,
-
-    // Computed UI fields (only those defined in CustomerContact interface)
-    displayName,
-    fullName,
-    salutationLabel,
-    academicTitleLabel,
-    languageLabel,
-    ownerDisplayName
-  }
+    // Map CRM fields to Contact standard
+    jobPosition,
+    type,
+    picture,
+    pictureThumbnail,
+    accountContacts
+  } as CustomerContact
 }

@@ -3,12 +3,36 @@ import { WidgetGroup, WidgetItem } from '@/components/widget-group'
 import { DollarCircleOutlined, RiseOutlined, TeamOutlined, PercentageOutlined } from '@ant-design/icons'
 import { BusinessAppContextProps } from '@/common/BusinessAppContext'
 import { useRealEstateKPIIntegration } from '../../analytics-view/real-estate-analytics/hooks/useRealEstateKPIIntegration'
-import { formatCurrency, formatPercentage, calculateChange } from '../../analytics-view/shared/utils'
+import { formatCurrencyCompact, formatPercentage } from '@/common/utils/numberFormatter'
 
-type RealEstateInvestmentStatisticsProps = BusinessAppContextProps
+export interface RealEstateInvestmentStatisticsProps extends BusinessAppContextProps {
+  currencyCode?: string
+}
 
-export const RealEstateInvestmentStatistics: React.FC<RealEstateInvestmentStatisticsProps> = ({ ...context }) => {
-  const { current: kpis, previous: previousKpis, isLoading, error, refetch } = useRealEstateKPIIntegration(context)
+export const RealEstateInvestmentStatistics: React.FC<RealEstateInvestmentStatisticsProps> = ({
+  currencyCode,
+  ...context
+}) => {
+  const {
+    current: kpis,
+    previous: previousKpis,
+    isLoading,
+    error,
+    refetch
+  } = useRealEstateKPIIntegration(context, currencyCode)
+
+  // Calculate percentage change between current and previous values
+  const calculateChange = (current: number, previous: number): { value: string; positive: boolean } => {
+    if (previous === 0) {
+      return { value: current > 0 ? '+100%' : '0%', positive: current > 0 }
+    }
+    const change = ((current - previous) / Math.abs(previous)) * 100
+    const formattedChange = Math.abs(change).toFixed(1)
+    return {
+      value: `${change >= 0 ? '+' : '-'}${formattedChange}%`,
+      positive: change >= 0
+    }
+  }
 
   const widgets: WidgetItem[] = [
     {
@@ -22,13 +46,13 @@ export const RealEstateInvestmentStatistics: React.FC<RealEstateInvestmentStatis
       trend: {
         value: calculateChange(kpis.totalInvestments, previousKpis.totalInvestments).value,
         positive: calculateChange(kpis.totalInvestments, previousKpis.totalInvestments).positive,
-        description: 'vs 7 days ago'
+        description: 'vs 30 days ago'
       }
     },
     {
       key: 'total-amount-invested',
       title: 'Total Amount Invested',
-      value: formatCurrency(kpis.totalAmountInvested),
+      value: formatCurrencyCompact(kpis.totalAmountInvested, currencyCode || 'EUR', undefined, 1, true),
       prefix: <DollarCircleOutlined />,
       color: '#52c41a',
       valueIsString: true,
@@ -37,13 +61,13 @@ export const RealEstateInvestmentStatistics: React.FC<RealEstateInvestmentStatis
       trend: {
         value: calculateChange(kpis.totalAmountInvested, previousKpis.totalAmountInvested).value,
         positive: calculateChange(kpis.totalAmountInvested, previousKpis.totalAmountInvested).positive,
-        description: 'vs 7 days ago'
+        description: 'vs 30 days ago'
       }
     },
     {
       key: 'total-market-value',
       title: 'Total Market Value',
-      value: formatCurrency(kpis.totalMarketValue),
+      value: formatCurrencyCompact(kpis.totalMarketValue, currencyCode || 'EUR', undefined, 1, true),
       prefix: <RiseOutlined />,
       color: '#faad14',
       valueIsString: true,
@@ -52,7 +76,7 @@ export const RealEstateInvestmentStatistics: React.FC<RealEstateInvestmentStatis
       trend: {
         value: calculateChange(kpis.totalMarketValue, previousKpis.totalMarketValue).value,
         positive: calculateChange(kpis.totalMarketValue, previousKpis.totalMarketValue).positive,
-        description: 'vs 7 days ago'
+        description: 'vs 30 days ago'
       }
     },
     {
@@ -67,7 +91,7 @@ export const RealEstateInvestmentStatistics: React.FC<RealEstateInvestmentStatis
       trend: {
         value: calculateChange(kpis.averageOccupancyRate, previousKpis.averageOccupancyRate).value,
         positive: calculateChange(kpis.averageOccupancyRate, previousKpis.averageOccupancyRate).positive,
-        description: 'vs 7 days ago'
+        description: 'vs 30 days ago'
       }
     }
   ]

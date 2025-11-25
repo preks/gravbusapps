@@ -39,17 +39,70 @@ interface InvestmentWithSpecializations extends Investment {
     }
   }>
 }
-import { useEquityKPIIntegration, useEquityAvailableCurrencies } from './hooks'
-import {
-  calculateChange,
-  getInvestmentStatusColor,
-  getRiskLevelColor,
-  getInvestmentRoleColor,
-  safeCurrencyExtraction,
-  formatDuration
-} from '../shared/utils'
+import { useEquityKPIIntegration } from './hooks'
+import { useAvailableCurrencies } from '@/common/data/investment/hooks/useAvailableCurrencies'
+import { safeCurrencyExtraction } from '@/common/utils/numberFormatter'
+import { formatDuration } from '../shared/utils/dateUtils'
 import type { EquityInvestmentSummary } from '../shared/types'
 import { EquityTimelineCharts, EquityAnalyticsCharts, EquityDistributionCharts } from './components'
+
+// Helper functions for investment-specific business logic
+const calculateChange = (current: number, previous: number): { value: string; positive: boolean } => {
+  if (previous === 0) {
+    return { value: current > 0 ? '+100%' : '0%', positive: current > 0 }
+  }
+  const change = ((current - previous) / Math.abs(previous)) * 100
+  const formattedChange = Math.abs(change).toFixed(1)
+  return {
+    value: `${change >= 0 ? '+' : '-'}${formattedChange}%`,
+    positive: change >= 0
+  }
+}
+
+const getInvestmentStatusColor = (status: string): string => {
+  switch (status?.toLowerCase()) {
+    case 'active':
+      return 'green'
+    case 'inactive':
+      return 'red'
+    case 'pending':
+      return 'orange'
+    case 'completed':
+      return 'blue'
+    case 'cancelled':
+      return 'gray'
+    default:
+      return 'blue'
+  }
+}
+
+const getRiskLevelColor = (riskLevel: string): string => {
+  switch (riskLevel?.toLowerCase()) {
+    case 'low':
+      return 'green'
+    case 'medium':
+      return 'orange'
+    case 'high':
+      return 'red'
+    default:
+      return 'blue'
+  }
+}
+
+const getInvestmentRoleColor = (role: string): string => {
+  switch (role?.toLowerCase()) {
+    case 'lead':
+      return 'purple'
+    case 'co-investor':
+      return 'blue'
+    case 'minority':
+      return 'green'
+    case 'majority':
+      return 'orange'
+    default:
+      return 'gray'
+  }
+}
 
 // Legacy interface - kept for compatibility but not used for KPIs anymore
 export interface EquityInvestmentKPIs {
@@ -79,12 +132,20 @@ const EquityInvestmentsReport: React.FC<EquityInvestmentsReportProps> = props =>
   // Extract currency code from ID for KPI hook (it expects "EUR", not "Currency:v1:EUR")
   const selectedCurrencyCode = selectedCurrency.split(':').pop() || 'EUR'
 
-  // Fetch available currencies from equity investments
+  // Fetch available currencies efficiently using distinctOn
   const {
-    currencies: availableCurrencies,
+    currencies: currencyOptions,
     isLoading: currenciesLoading,
     error: currenciesError
-  } = useEquityAvailableCurrencies(props)
+  } = useAvailableCurrencies(props, {
+    filters: { entity: 'Investment', investmentGroupId: 'InvestmentGroup:v1:EQUITY' },
+    returnFormat: 'full'
+  })
+
+  const availableCurrencies = React.useMemo(
+    () => currencyOptions as Array<{ id: string; code: string; value: string }>,
+    [currencyOptions]
+  )
 
   // Use the new KPI integration hook for real GraphQL aggregate queries
   const {

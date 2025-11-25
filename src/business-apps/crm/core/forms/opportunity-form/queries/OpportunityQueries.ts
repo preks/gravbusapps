@@ -127,6 +127,11 @@ export interface OpportunityQueryResult {
     createdAt?: string
   }>
 
+  // Opportunity Contacts - NOT AVAILABLE in CRM Opportunity schema
+  // CRM does NOT have a relationship field for contacts on Opportunity
+  // Contacts would need to be fetched separately via OpportunityContact junction table
+  // For now, form will work without pre-filled contacts
+
   // Tags (array relationship) - commented out - field may not exist in schema
   // tags?: Array<{
   //   id?: string;
@@ -134,10 +139,9 @@ export interface OpportunityQueryResult {
   //   tagValue: string;
   // }>;
 
-  // Additional Properties and Express fields
+  // Additional Properties (JSONB field)
   additionalProperties?: Record<string, any>
-  express1?: Record<string, any>
-  express2?: Record<string, any>
+  // Note: CRM schema does NOT have express1/express2 fields
 
   // Audit information
   activeFrom?: string
@@ -149,8 +153,22 @@ export interface OpportunityQueryResult {
   synchronizedAt?: string
 }
 
+export interface OpportunityContactResult {
+  id: string
+  version?: number
+  contactType?: string
+  contactId: string
+  contact?: {
+    id: string
+    firstName?: string
+    lastName?: string
+    email?: string
+  }
+}
+
 export interface OpportunityDataResponse {
   Opportunity: OpportunityQueryResult[]
+  OpportunityContact?: OpportunityContactResult[]
 }
 
 export const GET_OPPORTUNITY_BY_ID = `
@@ -164,7 +182,9 @@ export const GET_OPPORTUNITY_BY_ID = `
       sourceApp
       personal
       
-      # Sales Information
+      # Sales Information (matching IRM's financial fields pattern)
+      # CRM: estimatedAmount, winningChance, closeDate
+      # IRM: estimatedAmount, forecastedProfitAmount, initialInvestmentAmount, closeDate
       estimatedAmount
       currency {
         id
@@ -176,12 +196,14 @@ export const GET_OPPORTUNITY_BY_ID = `
       winningChance
       closeDate
       
-      # Relationships
+      # Relationships (CRM has account, lead, salesCampaign)
+      # IRM only has: account, divestment
       account {
         id
         name
       }
       accountId
+      
       lead {
         id
         name
@@ -190,7 +212,14 @@ export const GET_OPPORTUNITY_BY_ID = `
       }
       leadId
       
-      # Owner Information
+      # Campaign Information (CRM-specific, NOT in IRM)
+      salesCampaign {
+        id
+        name
+      }
+      salesCampaignId
+      
+      # Owner Information (similar to IRM pattern)
       ownerEmployee {
         id
         firstName
@@ -205,7 +234,9 @@ export const GET_OPPORTUNITY_BY_ID = `
       }
       ownerOrganizationId
       
-      # Status and Pipeline Information
+      # Pipeline and Status Information
+      # CRM uses: salesPipeline, salesPipelineStage, opportunityStatus
+      # IRM uses: opportunityPipeline, opportunityPipelineStage, opportunityStatus
       opportunityStatus {
         id
         code
@@ -213,6 +244,7 @@ export const GET_OPPORTUNITY_BY_ID = `
         objectValue
       }
       opportunityStatusRef
+      
       salesPipeline {
         id
         code
@@ -220,6 +252,7 @@ export const GET_OPPORTUNITY_BY_ID = `
         objectValue
       }
       salesPipelineRef
+      
       salesPipelineStage {
         id
         code
@@ -227,15 +260,10 @@ export const GET_OPPORTUNITY_BY_ID = `
         objectValue
       }
       salesPipelineStageRef
+      
+      # Deprecated fields (for backward compatibility)
       stage
       status
-      
-      # Campaign Information
-      salesCampaign {
-        id
-        name
-      }
-      salesCampaignId
       
       # Additional Information
       notesSummary
@@ -245,9 +273,10 @@ export const GET_OPPORTUNITY_BY_ID = `
       processInstanceId
       recordState
       
-      # Addresses
+      # Addresses (similar to IRM pattern)
       addresses {
         id
+        version
         addressType
         addressLine
         postalCode
@@ -257,14 +286,19 @@ export const GET_OPPORTUNITY_BY_ID = `
           code
           value
         }
+        regionRef
         country {
           id
           code
           value
         }
+        countryRef
+        activeFrom
+        activeTo
+        createdAt
       }
       
-      # Communication Channels
+      # Communication Channels (CRM-specific, NOT in IRM)
       communicationChannels {
         id
         communicationChannelRef
@@ -276,19 +310,16 @@ export const GET_OPPORTUNITY_BY_ID = `
         createdAt
       }
       
-      # Tags (commented out - field may not exist in schema)
-      # tags {
-      #   id
-      #   tagName
-      #   tagValue
-      # }
+      # Contact Relationships - NOT AVAILABLE in CRM Opportunity schema
+      # IRM has: investmentOpportunityContact(where: { isDeleted: { _eq: false } })
+      # CRM does NOT have a direct relationship field for contacts on Opportunity
+      # Contacts must be fetched separately via OpportunityContact junction table
+      # or managed through the form UI state only
       
-      # Additional Properties and Express fields
+      # Additional Properties (JSONB field)
       additionalProperties
-      express1
-      express2
       
-      # Audit information
+      # Audit information (matching IRM pattern)
       activeFrom
       activeTo
       createdAt
@@ -296,6 +327,19 @@ export const GET_OPPORTUNITY_BY_ID = `
       updatedAt
       updatedBy
       synchronizedAt
+    }
+
+    OpportunityContact(where: { opportunityId: { _eq: $opportunityId }, isDeleted: { _eq: false } }) {
+      id
+      version
+      contactType
+      contactId
+      contact {
+        id
+        firstName
+        lastName
+        email
+      }
     }
   }
 `

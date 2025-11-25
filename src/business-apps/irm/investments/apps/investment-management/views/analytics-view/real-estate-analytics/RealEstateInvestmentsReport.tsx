@@ -1,4 +1,4 @@
-import React, { useState, useCallback, useEffect, useMemo } from 'react'
+import React, { useState, useCallback, useEffect } from 'react'
 import {
   Alert,
   AlertTitle,
@@ -24,17 +24,64 @@ import { getTranslationFromI18nKeyAndLabel } from '@/common/utils/windowUtils'
 import { formatDataTestId } from '@/common/utils/formatDataTestId'
 import { useGetInvestments } from '@/common/data/investment'
 import type { Investment } from '@/common/data/investment'
+import { useAvailableCurrencies } from '@/common/data/investment/hooks/useAvailableCurrencies'
 import { useRealEstateKPIIntegration } from './hooks'
 import { RealEstateDistributionCharts, RealEstateTimelineCharts, RealEstateAnalyticsCharts } from './components'
 import {
-  calculateChange,
-  formatCurrency,
-  formatPercentage,
   safeCurrencyExtraction,
-  getInvestmentStatusColor,
-  getRiskLevelColor
-} from '../shared/utils'
+  formatPercentage,
+  formatCurrencyCompact,
+  extractCurrencyCode
+} from '@/common/utils/numberFormatter'
 import type { RealEstateInvestmentSummary } from '../shared/types'
+
+// Helper functions for investment-specific business logic
+const calculateChange = (current: number, previous: number): { value: string; positive: boolean } => {
+  if (previous === 0) {
+    return { value: current > 0 ? '+100%' : '0%', positive: current > 0 }
+  }
+  const change = ((current - previous) / Math.abs(previous)) * 100
+  const formattedChange = Math.abs(change).toFixed(1)
+  return {
+    value: `${change >= 0 ? '+' : '-'}${formattedChange}%`,
+    positive: change >= 0
+  }
+}
+
+const formatCurrency = (amount: number, currency: string = 'EUR'): string => {
+  const currencyCode = extractCurrencyCode(currency)
+  return formatCurrencyCompact(amount, currencyCode, undefined, 1, true)
+}
+
+const getInvestmentStatusColor = (status: string): string => {
+  switch (status?.toLowerCase()) {
+    case 'active':
+      return 'green'
+    case 'inactive':
+      return 'red'
+    case 'pending':
+      return 'orange'
+    case 'completed':
+      return 'blue'
+    case 'cancelled':
+      return 'gray'
+    default:
+      return 'blue'
+  }
+}
+
+const getRiskLevelColor = (riskLevel: string): string => {
+  switch (riskLevel?.toLowerCase()) {
+    case 'low':
+      return 'green'
+    case 'medium':
+      return 'orange'
+    case 'high':
+      return 'red'
+    default:
+      return 'blue'
+  }
+}
 
 // Legacy interface - kept for compatibility
 export interface RealEstateInvestmentKPIs {
@@ -57,18 +104,11 @@ const RealEstateInvestmentsReport: React.FC<RealEstateInvestmentsReportProps> = 
   const [dataLoading, setDataLoading] = useState(true)
   const [dataError, setDataError] = useState<string | null>(null)
 
-  // Extract unique currencies from real estate investments
-  const availableCurrencies = useMemo(() => {
-    const currencies = new Set<string>()
-    for (const inv of realEstateInvestments) {
-      if (inv.currencyCode) {
-        currencies.add(inv.currencyCode)
-      }
-    }
-    const currencyArray = Array.from(currencies).sort((a, b) => a.localeCompare(b))
-    // Ensure at least the default currency is available
-    return currencyArray.length > 0 ? currencyArray : ['EUR']
-  }, [realEstateInvestments])
+  // Fetch available currencies efficiently using distinctOn
+  const { currencies: availableCurrencies } = useAvailableCurrencies(props, {
+    filters: { entity: 'Investment', investmentGroupId: 'InvestmentGroup:v1:REAL_ESTATE' },
+    returnFormat: 'codes'
+  })
 
   // Use the new KPI integration hook for real GraphQL aggregate queries with currency filter
   const {
@@ -236,7 +276,7 @@ const RealEstateInvestmentsReport: React.FC<RealEstateInvestmentsReportProps> = 
             {
               key: 'total-amount-invested',
               title: getTranslationFromI18nKeyAndLabel('kpi.totalAmountInvested', 'Total Amount Invested'),
-              value: formatCurrency(kpis.totalAmountInvested),
+              value: formatCurrency(kpis.totalAmountInvested, selectedCurrency),
               prefix: <DollarCircleOutlined />,
               color: 'var(--nw-color-success-500)',
               valueIsString: true,
@@ -251,7 +291,7 @@ const RealEstateInvestmentsReport: React.FC<RealEstateInvestmentsReportProps> = 
             {
               key: 'total-market-value',
               title: getTranslationFromI18nKeyAndLabel('kpi.totalMarketValue', 'Total Market Value'),
-              value: formatCurrency(kpis.totalMarketValue),
+              value: formatCurrency(kpis.totalMarketValue, selectedCurrency),
               prefix: <RiseOutlined />,
               color: 'var(--nw-color-warning-500)',
               valueIsString: true,

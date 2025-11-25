@@ -1,12 +1,18 @@
 /**
  * Query helper functions for opportunity views
- * Shared between CRM and IRM opportunity filtering
+ *
+ * NOTE: These functions are no longer used by Opportunity views (CRM/IRM) after refactoring
+ * to align Filter-IDs with Descriptor-Keys. They are kept for backward compatibility with
+ * other features (e.g., Divestment SalesTab) that may still use them.
+ *
+ * For new Opportunity views, filter values are now directly copied from selectedFilters
+ * to query variables, with special handling for 'amount' and 'closeDate' filters.
  */
 
 interface OpportunityQueryVars {
   stageIds?: string[]
   statusIds?: string[]
-  pipelineIds?: string[]
+  opportunityPipelineIds?: string[]
   ownerEmployeeIds?: string[]
   accountIds?: string[]
   estimatedAmountRanges?: Array<{ min?: number; max?: number }>
@@ -15,9 +21,9 @@ interface OpportunityQueryVars {
 }
 
 export const applyBasicFilters = <T extends OpportunityQueryVars>(vars: T, selectedFilters: Record<string, any>) => {
-  if (selectedFilters.stage?.length > 0) vars.stageIds = selectedFilters.stage
-  if (selectedFilters.status?.length > 0) vars.statusIds = selectedFilters.status
-  if (selectedFilters.pipeline?.length > 0) vars.pipelineIds = selectedFilters.pipeline
+  if (selectedFilters.opportunityPipelineStage?.length > 0) vars.stageIds = selectedFilters.opportunityPipelineStage
+  if (selectedFilters.opportunityStatus?.length > 0) vars.statusIds = selectedFilters.opportunityStatus
+  if (selectedFilters.opportunityPipeline?.length > 0) vars.opportunityPipelineIds = selectedFilters.opportunityPipeline
   if (selectedFilters.owner?.length > 0) vars.ownerEmployeeIds = selectedFilters.owner
   if (selectedFilters.account?.length > 0) vars.accountIds = selectedFilters.account
 }

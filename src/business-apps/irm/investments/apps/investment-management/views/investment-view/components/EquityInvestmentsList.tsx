@@ -21,10 +21,11 @@ import { getTranslationFromI18nKeyAndLabel } from '@/common/utils/windowUtils'
 
 export interface EquityInvestmentsListProps extends BusinessAppContextProps {
   sourceApp?: string
+  currencyCode?: string
 }
 
 const EquityInvestmentsList: React.FC<EquityInvestmentsListProps> = props => {
-  const { accessToken } = props
+  const { accessToken, currencyCode } = props
 
   // Use the shared controller for URL sync and state management
   const {
@@ -110,12 +111,13 @@ const EquityInvestmentsList: React.FC<EquityInvestmentsListProps> = props => {
       orderBy: sortField
         ? [{ field: sortField, direction: sortOrder === 'ASC' ? 'ASC_NULLS_LAST' : 'DESC_NULLS_LAST' }]
         : [{ field: 'createdAt', direction: 'DESC_NULLS_LAST' }],
+      currencyCode: currencyCode || undefined,
       ...filters
     }
     // Always filter by equity investment types
     v.investmentGroupIds = ['InvestmentGroup:v1:EQUITY']
     return v
-  }, [currentPage, pageSize, search, sortField, sortOrder, getFilters])
+  }, [currentPage, pageSize, search, sortField, sortOrder, currencyCode, getFilters])
 
   const loadData = useCallback(async () => {
     if (!accessToken) return
@@ -139,7 +141,7 @@ const EquityInvestmentsList: React.FC<EquityInvestmentsListProps> = props => {
   // Trigger search when search term changes
   useEffect(() => {
     if (initialLoadDone.current && filtersInitialized) {
-      updateURLParams({ search, page: 1 })
+      updateURLParams({ page: 1 })
       loadData()
     }
   }, [search, filtersInitialized, loadData, updateURLParams])
@@ -470,10 +472,31 @@ const EquityInvestmentsList: React.FC<EquityInvestmentsListProps> = props => {
                     </TableCell>
                   )}
                   {visibleColumns.includes('ebitda') && (
-                    <TableCell>
-                      <div className="gba:flex gba:items-center gba:gap-2">
-                        <span>N/A</span>
-                      </div>
+                    <TableCell className="gba:text-right">
+                      {(() => {
+                        // equityInvestment is an array relationship, get first element
+                        const equityInvestment = Array.isArray(investment.equityInvestment)
+                          ? investment.equityInvestment[0]
+                          : investment.equityInvestment
+                        const ebitdaAmount = equityInvestment?.ebitdaAmount
+
+                        if (!ebitdaAmount) return <span className="gba:text-gray-400">N/A</span>
+
+                        const { number, symbol } = formatCurrencyParts(ebitdaAmount, {
+                          currency: investment.currency?.code,
+                          minimumFractionDigits: 0,
+                          maximumFractionDigits: 2
+                        })
+
+                        return (
+                          <>
+                            <span className="gba:text-sm gba:[font-variant-numeric:tabular-nums]">{number}</span>
+                            <span className="gba:text-xs gba:text-gray-400 gba:inline-block gba:text-right gba:shrink-0 gba:w-[5ch]">
+                              {symbol}
+                            </span>
+                          </>
+                        )
+                      })()}
                     </TableCell>
                   )}
                   {visibleColumns.includes('owner') && (
