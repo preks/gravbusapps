@@ -96,8 +96,8 @@ export const EmployeeRecord: React.FC<BusinessAppContextProps> = props => {
       return urlParams.tab
     }
 
-    const legacyHrAdminTabs = ['details', 'employment', 'documents', 'changeLog', 'hrNotes']
-    if (legacyHrAdminTabs.includes(urlParams.tab)) {
+    const hrAdminTabs = ['details', 'employment', 'documents', 'changeLog', 'hrNotes']
+    if (hrAdminTabs.includes(urlParams.tab)) {
       if (typeof window !== 'undefined') {
         const searchParams = new URLSearchParams(window.location.search)
         searchParams.set('tab', TAB_KEYS.hrAdmin)
@@ -117,8 +117,8 @@ export const EmployeeRecord: React.FC<BusinessAppContextProps> = props => {
       return TAB_KEYS.hrAdmin
     }
 
-    const legacyHrGrowthTabs = ['skills', 'feedback', 'performance']
-    if (legacyHrGrowthTabs.includes(urlParams.tab)) {
+    const hrGrowthTabs = ['skills', 'feedback', 'performance']
+    if (hrGrowthTabs.includes(urlParams.tab)) {
       if (typeof window !== 'undefined') {
         const searchParams = new URLSearchParams(window.location.search)
         searchParams.set('tab', TAB_KEYS.hrGrowth)
@@ -136,8 +136,8 @@ export const EmployeeRecord: React.FC<BusinessAppContextProps> = props => {
       return TAB_KEYS.hrGrowth
     }
 
-    const legacyCompensationTabs = ['currentCompensation', 'compensationHistory']
-    if (legacyCompensationTabs.includes(urlParams.tab)) {
+    const compensationTabs = ['currentCompensation', 'compensationHistory']
+    if (compensationTabs.includes(urlParams.tab)) {
       if (typeof window !== 'undefined') {
         const searchParams = new URLSearchParams(window.location.search)
         searchParams.set('tab', TAB_KEYS.compensation)
