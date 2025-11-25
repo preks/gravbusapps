@@ -101,7 +101,7 @@ const MonthlySummary: React.FC<MonthlySummaryProps> = ({ employee, employeeId, a
       </div>
 
       {error && (
-        <Alert variant="destructive" className="gba:w-full gba:whitespace-normal gba:inline-block! gba:mt-4">
+        <Alert variant="destructive" className="gba:w-full gba:whitespace-normal gba:!inline-block gba:mt-4">
           {error}
         </Alert>
       )}
