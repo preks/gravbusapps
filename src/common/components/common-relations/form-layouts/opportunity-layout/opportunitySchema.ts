@@ -11,6 +11,7 @@ export const opportunitySchema = z.object({
   opportunityPipelineRef: z.string().nullable().optional(),
   opportunityPipelineStageRef: z.string().nullable().optional(),
   opportunityStatusRef: z.string().nullable().optional(),
+  opportunityForecastRef: z.string().nullable().optional(),
   winningChance: z.string().nullable().optional(),
   description: z.string().nullable().optional(),
   notesSummary: z.string().nullable().optional(),

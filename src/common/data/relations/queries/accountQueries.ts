@@ -22,6 +22,7 @@ export interface AccountQueryVariables extends BaseQueryVariables {
   legalFormIds?: string[]
   companySizeIds?: string[]
   revenueBandIds?: string[]
+  accountPriorityIds?: string[]
   countryIds?: string[]
   regionIds?: string[]
 
@@ -65,6 +66,10 @@ export const buildAccountQuery = (
           ${CATALOG_ENTRY}
         }
         ${entityFields.accountAnnualRevenueBandRef}
+        ${entityFields.accountPriority} {
+          ${CATALOG_ENTRY}
+        }
+        ${entityFields.accountPriorityRef}
         ${entityFields.code}
         ${entityFields.companySize} {
           ${CATALOG_ENTRY}
@@ -133,6 +138,10 @@ export const buildAccountByPkQuery = (
           ${CATALOG_ENTRY}
         }
         ${entityFields.accountAnnualRevenueBandRef}
+        ${entityFields.accountPriority} {
+          ${CATALOG_ENTRY}
+        }
+        ${entityFields.accountPriorityRef}
         ${entityFields.code}
         ${entityFields.companySize} {
           ${CATALOG_ENTRY}

@@ -3,6 +3,8 @@
 # Labels
 opportunity-owner-label = Inhaber
 opportunity-name-label = Opportunity-Name
+forecast-label = Prognose
+forecast-placeholder = Bitte auswählen...
 opportunity-related-account-label = Zugehöriges Konto
 opportunity-related-contacts-label = Zugehörige Kontakte
 

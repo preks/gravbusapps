@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useMemo, useCallback } from 'react'
-import { Button, Spinner, RecordLayout } from '@newwork/nw-design-system'
+import { Button, Spinner, RecordLayout, Badge } from '@newwork/nw-design-system'
 import { UsersIcon, TrendUpIcon, FileTextIcon, BankIcon } from '@phosphor-icons/react'
 import { BusinessAppContextProps } from '@/common/BusinessAppContext'
 import { navigateTo, buildPlatformUrl } from '@/common/utils/navigationUtils'
@@ -15,6 +15,7 @@ import { OpportunityView } from './views/opportunity-view/OpportunityView'
 import { DocumentView } from './views/document-view/DocumentView'
 import { HomeView } from './views/home-view/HomeView'
 import { getEmailChannel, getPhoneChannel } from '@/common/data/common/utils/communicationChannelHelpers'
+import { getAccountPriorityBadgeVariant } from '@/common/utils/badgeUtils'
 
 interface AccountRecordContentProps extends BusinessAppContextProps {
   accountId: string
@@ -158,6 +159,25 @@ const InvestmentAccountRecordContent: React.FC<AccountRecordContentProps> = ({ a
     [accountData?.email, accountData?.foundationDate, accountData?.ownerEmployee]
   )
 
+  const headerMeta = useMemo(() => {
+    if (!accountData?.accountPriority) {
+      return null
+    }
+
+    const priority = accountData.accountPriority
+    const value = priority.value || priority.code || ''
+    const additionalValue1 = priority.additionalValue1 || ''
+    const displayValue = additionalValue1 ? `${value}: ${additionalValue1}` : value
+
+    return (
+      <div className="gba:flex gba:items-center gba:gap-2">
+        <Badge variant={getAccountPriorityBadgeVariant(priority)} data-testid="account-priority-badge">
+          {displayValue}
+        </Badge>
+      </div>
+    )
+  }, [accountData?.accountPriority])
+
   const headerActions = useMemo(() => {
     const aiActions: AiAction[] = props.accessToken
       ? [
@@ -300,6 +320,7 @@ const InvestmentAccountRecordContent: React.FC<AccountRecordContentProps> = ({ a
         headerCategory={getTranslationFromI18nKeyAndLabel('crm.common.account', 'ACCOUNT')}
         onBack={onBack}
         headerTitle={accountData.name}
+        headerMeta={headerMeta}
         headerDetailGroups={headerDetailGroups}
         headerActions={headerActions}
         headerActionButton={headerActionButton}

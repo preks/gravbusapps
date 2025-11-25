@@ -304,6 +304,7 @@ function ConfigOpportunityLayout<TOpportunity extends { id: string } = any, TQue
     'opportunityPipeline',
     'opportunityPipelineStage',
     'opportunityStatus',
+    'opportunityForecast',
     'closeDate',
     'account',
     'owner',
@@ -330,7 +331,7 @@ function ConfigOpportunityLayout<TOpportunity extends { id: string } = any, TQue
 
   // Dynamic Filter Data
   const filterData = config.filterDataHook(context)
-  const { owners, stages, pipelines, accounts, statuses } = filterData
+  const { owners, stages, pipelines, accounts, statuses, forecasts } = filterData
   const amountRange =
     'amountRange' in filterData && typeof filterData.amountRange === 'object'
       ? (filterData.amountRange as { min: number; max: number })
@@ -383,6 +384,12 @@ function ConfigOpportunityLayout<TOpportunity extends { id: string } = any, TQue
     )
     updateFilterOptions(
       filterConfig,
+      'forecast-group',
+      'opportunityForecastIds',
+      (forecasts || []).map(f => ({ id: f.id, label: f.label }))
+    )
+    updateFilterOptions(
+      filterConfig,
       'pipeline-group',
       'opportunityPipelineIds',
       pipelines.map(p => ({ id: p.id, label: p.label }))
@@ -403,7 +410,7 @@ function ConfigOpportunityLayout<TOpportunity extends { id: string } = any, TQue
     updateAmountRangeFilter(filterConfig, amountRange)
 
     return filterConfig
-  }, [owners, stages, pipelines, accounts, statuses, amountRange, config.baseFilterConfig])
+  }, [owners, stages, pipelines, accounts, statuses, forecasts, amountRange, config.baseFilterConfig])
 
   // List Query Variables
   const queryVariables = useMemo(

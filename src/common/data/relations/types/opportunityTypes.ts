@@ -28,6 +28,8 @@ export interface Opportunity extends BaseEntity {
   opportunityStageConditions?: any[] // IRM | TODO (stageConditionStatuses in CRM, investmentOpportunityStageCondition in IRM)
   opportunityStatus?: CatalogEntry // IRM | CRM
   opportunityStatusRef?: string // IRM | CRM
+  opportunityForecast?: CatalogEntry // IRM | CRM
+  opportunityForecastRef?: string // IRM | CRM
   ownerEmployee?: Employee // IRM | CRM
   ownerEmployeeId?: string // IRM | CRM
   rejectionReasons?: any[] // IRM | CRM
@@ -63,6 +65,8 @@ export const OpportunityFields = {
   opportunityStageConditions: 'opportunityStageConditions',
   opportunityStatus: 'opportunityStatus',
   opportunityStatusRef: 'opportunityStatusRef',
+  opportunityForecast: 'opportunityForecast',
+  opportunityForecastRef: 'opportunityForecastRef',
   ownerEmployee: 'ownerEmployee',
   ownerEmployeeId: 'ownerEmployeeId',
   rejectionReasons: 'rejectionReasons',
@@ -189,6 +193,21 @@ export const createOpportunityDescriptors = (
     type: 'text'
   },
   {
+    key: 'opportunityForecast',
+    searchPaths: [
+      `${fields.opportunityForecast}.value`,
+      `${fields.opportunityForecast}.code`,
+      `${fields.opportunityForecast}.additionalValue1`
+    ],
+    sortPath: `${fields.opportunityForecast}.value`,
+    type: 'text'
+  },
+  {
+    key: 'opportunityForecastRef',
+    sortPath: fields.opportunityForecastRef,
+    type: 'text'
+  },
+  {
     key: 'ownerEmployee',
     searchPaths: [
       `${fields.ownerEmployee}.displayName`,
@@ -218,6 +237,23 @@ export const createOpportunityDescriptors = (
   { key: 'opportunityPipelineIds', path: fields.opportunityPipelineRef, kind: 'inIds' },
   { key: 'opportunityPipelineStageIds', path: fields.opportunityPipelineStageRef, kind: 'inIds' },
   { key: 'opportunityStatusIds', path: fields.opportunityStatusRef, kind: 'inIds' },
+  {
+    key: 'opportunityForecastIds',
+    path: fields.opportunityForecastRef,
+    filterLabel: 'Opportunity Forecast',
+    optionSelectPaths: [
+      `${fields.opportunityForecast}.id`,
+      `${fields.opportunityForecast}.value`,
+      `${fields.opportunityForecast}.code`
+    ],
+    optionSearchPaths: [
+      `${fields.opportunityForecast}.value`,
+      `${fields.opportunityForecast}.code`,
+      `${fields.opportunityForecast}.additionalValue1`
+    ],
+    optionDistinctOn: [fields.opportunityForecastRef],
+    kind: 'inIds'
+  },
   { key: 'ownerEmployeeIds', path: fields.ownerEmployeeId, kind: 'inIds' },
 
   // Date range filters
@@ -372,6 +408,7 @@ export const opportunityFormFields = {
   opportunityPipelineRef: 'opportunityPipelineRef',
   opportunityPipelineStageRef: 'opportunityPipelineStageRef',
   opportunityStatusRef: 'opportunityStatusRef',
+  opportunityForecastRef: 'opportunityForecastRef',
   ownerEmployeeId: 'ownerEmployee',
   personal: 'personal',
   version: 'version',

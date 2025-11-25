@@ -15,6 +15,8 @@ export interface Account extends BaseEntity {
   accountAnnualRevenueBand?: CatalogEntry // IRM | TODO (annualRevenue in CRM)
   accountAnnualRevenueBandRef?: string // IRM | TODO (annualRevenueRef in CRM)
   accountContacts?: CommonAccountContact[] // IRM | TODO (accountContacts in CRM)
+  accountPriority?: CatalogEntry // IRM | CRM
+  accountPriorityRef?: string // IRM | CRM
   activities?: Activity[] // IRM | TODO (CRM missing)
   addresses?: Address[] // IRM | CRM
   code?: string // IRM | CRM
@@ -49,6 +51,8 @@ export const AccountFields = {
   accountAnnualRevenueBand: 'accountAnnualRevenueBand',
   accountAnnualRevenueBandRef: 'accountAnnualRevenueBandRef',
   accountContacts: 'accountContacts',
+  accountPriority: 'accountPriority',
+  accountPriorityRef: 'accountPriorityRef',
   activities: 'activities',
   addresses: 'addresses',
   code: 'code',
@@ -82,6 +86,7 @@ export const AccountFields = {
 export const AccountFormFields = {
   accountAnnualRevenueBandRef: 'accountAnnualRevenueBandRef',
   accountContacts: 'accountContacts',
+  accountPriorityRef: 'accountPriorityRef',
   additionalProperties: 'additionalProperties',
   addresses: 'addresses',
   code: 'code',
@@ -112,6 +117,16 @@ export const createAccountDescriptors = (
     key: 'accountAnnualRevenueBand',
     searchPaths: [`${fields.accountAnnualRevenueBand}.value`, `${fields.accountAnnualRevenueBand}.code`],
     sortPath: `${fields.accountAnnualRevenueBand}.value`,
+    type: 'text'
+  },
+  {
+    key: 'accountPriority',
+    searchPaths: [
+      `${fields.accountPriority}.value`,
+      `${fields.accountPriority}.code`,
+      `${fields.accountPriority}.additionalValue1`
+    ],
+    sortPath: `${fields.accountPriority}.value`,
     type: 'text'
   },
   {
@@ -286,6 +301,23 @@ export const createAccountDescriptors = (
       `${fields.ownerEmployee}.lastName`
     ],
     optionDistinctOn: [fields.ownerEmployeeId],
+    kind: 'inIds'
+  },
+  {
+    key: 'accountPriorityIds',
+    path: fields.accountPriorityRef,
+    filterLabel: 'Account Priority',
+    optionSelectPaths: [
+      `${fields.accountPriority}.id`,
+      `${fields.accountPriority}.value`,
+      `${fields.accountPriority}.code`
+    ],
+    optionSearchPaths: [
+      `${fields.accountPriority}.value`,
+      `${fields.accountPriority}.code`,
+      `${fields.accountPriority}.additionalValue1`
+    ],
+    optionDistinctOn: [fields.accountPriorityRef],
     kind: 'inIds'
   },
   { key: 'timeZoneIds', path: fields.timeZoneRef, kind: 'inIds' },

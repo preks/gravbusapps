@@ -50,6 +50,7 @@ export interface CommonOpportunityQueryVariables extends BaseQueryVariables {
   opportunityPipelineIds?: string[]
   opportunityPipelineStageIds?: string[]
   opportunityStatusIds?: string[]
+  opportunityForecastIds?: string[]
   ownerEmployeeIds?: string[]
   closeDateFrom?: string
   closeDateTo?: string
@@ -108,6 +109,10 @@ export const buildOpportunityQuery = (
           ${CATALOG_ENTRY}
         }
         ${entityFields.opportunityStatusRef}
+        ${entityFields.opportunityForecast} {
+          ${CATALOG_ENTRY}
+        }
+        ${entityFields.opportunityForecastRef}
         ${entityFields.ownerEmployee} {
           ${EMPLOYEE_REF}
         }
@@ -178,6 +183,10 @@ export const buildOpportunityByIdQuery = (
           ${CATALOG_ENTRY}
         }
         ${entityFields.opportunityStatusRef}
+        ${entityFields.opportunityForecast} {
+          ${CATALOG_ENTRY}
+        }
+        ${entityFields.opportunityForecastRef}
         ${entityFields.ownerEmployee} {
           ${EMPLOYEE_REF}
         }

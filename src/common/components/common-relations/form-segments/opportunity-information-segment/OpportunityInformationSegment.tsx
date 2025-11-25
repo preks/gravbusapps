@@ -11,6 +11,7 @@ import {
 import { useFormContext } from 'react-hook-form'
 import { EmployeeSelect } from '@/components/employee-select'
 import { BusinessAppContextProps } from '@/common/BusinessAppContext'
+import { CatalogSelect } from '@/components/catalog-select'
 import AccountSelect from '@/common/components/common-relations/selects/account-select/AccountSelect'
 import ContactSelect, {
   type SelectOption as ContactSelectOption
@@ -47,6 +48,8 @@ interface OpportunityInformationSegmentProps {
   customFields?: React.ReactNode
   // Hide related entities (account/contact) sections - useful in Lead Convert context
   hideRelatedEntities?: boolean
+  // Catalog identifier for opportunity forecast (context-specific)
+  opportunityForecastCatalogIdentifier?: string
 }
 
 const OpportunityInformationSegment: React.FC<OpportunityInformationSegmentProps> = ({
@@ -57,7 +60,8 @@ const OpportunityInformationSegment: React.FC<OpportunityInformationSegmentProps
   useAccounts,
   useContacts,
   customFields,
-  hideRelatedEntities = false
+  hideRelatedEntities = false,
+  opportunityForecastCatalogIdentifier
 }) => {
   const form = useFormContext<any>()
   const { t } = useTranslation(translations)
@@ -250,6 +254,28 @@ const OpportunityInformationSegment: React.FC<OpportunityInformationSegmentProps
           </FormItem>
         )}
       />
+
+      {/* Opportunity Forecast */}
+      {opportunityForecastCatalogIdentifier && (
+        <FormField
+          control={form.control}
+          name="opportunityForecastRef"
+          render={({ field }) => (
+            <FormItem>
+              <FormLabel>{t('forecast-label')}</FormLabel>
+              <FormControl>
+                <CatalogSelect
+                  catalogIdentifier={opportunityForecastCatalogIdentifier}
+                  value={field.value || ''}
+                  onValueChange={v => field.onChange(v)}
+                  data-testid="opportunity-information-segment-forecast"
+                />
+              </FormControl>
+              <FormMessage />
+            </FormItem>
+          )}
+        />
+      )}
 
       {/* Custom fields (context-specific, e.g., CRM Sales Campaign, IRM Deal Type) */}
       {customFields && <div>{customFields}</div>}

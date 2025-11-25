@@ -19,7 +19,7 @@ import { useCustomerLead } from '@/common/data/customer/hooks/useCustomerLead'
 import {
   mapLeadToAccount,
   mapLeadToContact,
-  mapLeadToCustomerOpportunity
+  mapLeadToOpportunity
 } from '@/common/components/common-relations/form-layouts/lead-convert-layout/utils'
 import { buildCustomerLeadConvertPayload } from '@/common/data/customer/types/customerLeadTypes'
 import {
@@ -38,7 +38,15 @@ import { ErrorAlert } from '@/components/error-alert'
 import { useFileClient } from '@/common/network/files/useFileClient'
 import { buildFilePath } from '@/common/utils/fileUtils'
 import { APP_NAME, FILE_ENTITY, FILE_CONTEXT } from '@/common/data/customer/constants/customerConstants'
-import { COMPANY_SIZE, ANNUAL_REVENUE } from '@/common/data/customer/constants/customerCatalogs'
+import {
+  COMPANY_SIZE,
+  ANNUAL_REVENUE,
+  ACCOUNT_PRIORITY,
+  OPPORTUNITY_PIPELINE,
+  OPPORTUNITY_PIPELINE_STAGE,
+  OPPORTUNITY_STATUS,
+  OPPORTUNITY_FORECAST
+} from '@/common/data/customer/constants/customerCatalogs'
 import type { CustomerAccount } from '@/common/data/customer/types/customerAccountTypes'
 import type { CustomerContact } from '@/common/data/customer/types/customerContactTypes'
 import type { CustomerOpportunity } from '@/common/data/customer/types/customerOpportunityTypes'
@@ -123,28 +131,46 @@ export const LeadConvertForm = ({ accessToken, userInfo, additionalData, onSucce
   // Nested forms for entity creation with CRM-specific schemas
   const accountForm = useForm<z.infer<typeof customerAccountSchema>>({
     resolver: zodResolver(customerAccountSchema),
-    defaultValues: mapLeadToAccount<CustomerAccount>(leadData),
+    defaultValues: {
+      ...mapLeadToAccount(leadData),
+      salesCampaignId: (leadData as any)?.salesCampaignId || undefined
+    },
     mode: 'onChange'
   })
 
   const contactForm = useForm<z.infer<typeof customerContactSchema>>({
     resolver: zodResolver(customerContactSchema),
-    defaultValues: mapLeadToContact<CustomerContact>(leadData),
+    defaultValues: {
+      ...mapLeadToContact(leadData),
+      salesCampaignId: (leadData as any)?.salesCampaignId || undefined
+    },
     mode: 'onChange'
   })
 
   const opportunityForm = useForm<z.infer<typeof customerOpportunitySchema>>({
     resolver: zodResolver(customerOpportunitySchema),
-    defaultValues: mapLeadToCustomerOpportunity(leadData),
+    defaultValues: {
+      ...mapLeadToOpportunity(leadData),
+      salesCampaignId: (leadData as any)?.salesCampaignId || undefined
+    },
     mode: 'onChange'
   })
 
   // Update forms when leadData is loaded
   useEffect(() => {
     if (leadData?.id) {
-      accountForm.reset(mapLeadToAccount<CustomerAccount>(leadData))
-      contactForm.reset(mapLeadToContact<CustomerContact>(leadData))
-      opportunityForm.reset(mapLeadToCustomerOpportunity(leadData))
+      accountForm.reset({
+        ...mapLeadToAccount(leadData),
+        salesCampaignId: (leadData as any)?.salesCampaignId || undefined
+      })
+      contactForm.reset({
+        ...mapLeadToContact(leadData),
+        salesCampaignId: (leadData as any)?.salesCampaignId || undefined
+      })
+      opportunityForm.reset({
+        ...mapLeadToOpportunity(leadData),
+        salesCampaignId: (leadData as any)?.salesCampaignId || undefined
+      })
     }
   }, [leadData?.id, accountForm, contactForm, opportunityForm])
 
@@ -385,6 +411,7 @@ export const LeadConvertForm = ({ accessToken, userInfo, additionalData, onSucce
                 ownerEmployee={leadData?.ownerEmployee}
                 annualRevenueCatalogIdentifier={ANNUAL_REVENUE}
                 companySizeCatalogIdentifier={COMPANY_SIZE}
+                accountPriorityCatalogIdentifier={ACCOUNT_PRIORITY}
                 useContacts={{
                   contacts: contactsList,
                   loading: contactsLoading,
@@ -458,6 +485,10 @@ export const LeadConvertForm = ({ accessToken, userInfo, additionalData, onSucce
                   refetch: refetchContacts
                 }}
                 loading={loading}
+                pipelineCatalogIdentifier={OPPORTUNITY_PIPELINE}
+                stageCatalogIdentifier={OPPORTUNITY_PIPELINE_STAGE}
+                opportunityStatusCatalogIdentifier={OPPORTUNITY_STATUS}
+                opportunityForecastCatalogIdentifier={OPPORTUNITY_FORECAST}
                 opportunityInformationCustomFields={createCampaignSelectField(
                   opportunityForm.control,
                   'salesCampaignId'

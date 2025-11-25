@@ -19,7 +19,7 @@ import { useInvestmentLead } from '@/common/data/investment/hooks/useInvestmentL
 import {
   mapLeadToAccount,
   mapLeadToContact,
-  mapLeadToInvestmentOpportunity
+  mapLeadToOpportunity
 } from '@/common/components/common-relations/form-layouts/lead-convert-layout/utils'
 import { buildInvestmentLeadConvertPayload } from '@/common/data/investment/types/investmentLeadTypes'
 import {
@@ -38,7 +38,15 @@ import { formatDataTestId } from '@/common/utils/formatDataTestId'
 import { useFileClient } from '@/common/network/files/useFileClient'
 import { buildFilePath } from '@/common/utils/fileUtils'
 import { APP_NAME, FILE_ENTITY, FILE_CONTEXT } from '@/common/data/investment/constants/investmentConstants'
-import { COMPANY_SIZE, ANNUAL_REVENUE } from '@/common/data/investment/constants/investmentCatalogs'
+import {
+  COMPANY_SIZE,
+  ANNUAL_REVENUE,
+  ACCOUNT_PRIORITY,
+  OPPORTUNITY_PIPELINE,
+  OPPORTUNITY_PIPELINE_STAGE,
+  OPPORTUNITY_STATUS,
+  OPPORTUNITY_FORECAST
+} from '@/common/data/investment/constants/investmentCatalogs'
 import type { InvestmentAccount } from '@/common/data/investment/types/investmentAccountTypes'
 import type { InvestmentContact } from '@/common/data/investment/types/investmentContactTypes'
 import type { InvestmentOpportunity } from '@/common/data/investment/types/investmentOpportunityTypes'
@@ -117,19 +125,46 @@ export const ConvertInvestmentLeadForm = ({
   // Nested forms for entity creation
   const accountForm = useForm<z.infer<typeof accountSchema>>({
     resolver: zodResolver(accountSchema),
-    defaultValues: mapLeadToAccount<InvestmentAccount>(leadData),
+    defaultValues: mapLeadToAccount(leadData),
     mode: 'onChange'
   })
 
   const contactForm = useForm<z.infer<typeof contactSchema>>({
     resolver: zodResolver(contactSchema),
-    defaultValues: mapLeadToContact<InvestmentContact>(leadData),
+    defaultValues: mapLeadToContact(leadData),
     mode: 'onChange'
   })
 
   // Base opportunity values from lead - memoized to prevent re-renders
   // Use leadData?.id as dependency to only recalculate when lead actually changes
-  const baseOpportunityValues = useMemo(() => mapLeadToInvestmentOpportunity(leadData), [leadData?.id, leadData])
+  // Common fields from mapper + IRM-specific investment fields
+  const baseOpportunityValues = useMemo(() => {
+    const commonValues = mapLeadToOpportunity(leadData)
+    return {
+      ...commonValues,
+      // IRM-specific investment fields
+      name: (leadData as any)?.investmentName || (leadData as any)?.companyName || commonValues.name || '',
+      investmentName: (leadData as any)?.investmentName || '',
+      dealType: 'INVESTMENT_DEAL',
+      code: (leadData as any)?.code || '',
+      estimatedAmount: (leadData as any)?.initialInvestmentAmount || commonValues.estimatedAmount,
+      forecastedProfitAmount: (leadData as any)?.forecastedProfitAmount || undefined,
+      initialInvestmentAmount: (leadData as any)?.initialInvestmentAmount || undefined,
+      stakePercentage: (leadData as any)?.stakePercentage || undefined,
+      loanAmount: (leadData as any)?.loanAmount || undefined,
+      loanInterestRate: (leadData as any)?.loanInterestRate || undefined,
+      marketValue: (leadData as any)?.marketValue || undefined,
+      requiredCapitalAmount: (leadData as any)?.requiredCapitalAmount || undefined,
+      annualNetColdRent: (leadData as any)?.annualNetColdRent || undefined,
+      buildingYear: (leadData as any)?.buildingYear || undefined,
+      size: (leadData as any)?.size || undefined,
+      sizeMeasurementUnitRef: (leadData as any)?.sizeMeasurementUnitRef || '',
+      investmentGroupRef: (leadData as any)?.investmentGroupRef || '',
+      investmentRoleRef: (leadData as any)?.investmentRoleRef || '',
+      investmentStakeTypeRef: (leadData as any)?.investmentStakeTypeRef || '',
+      investmentTypeRef: (leadData as any)?.investmentTypeRef || ''
+    }
+  }, [leadData?.id, leadData])
 
   // Opportunity form with base schema (will be updated when prospect schema is available)
   const opportunityForm = useForm<z.infer<typeof investmentOpportunitySchema>>({
@@ -189,13 +224,35 @@ export const ConvertInvestmentLeadForm = ({
   useEffect(() => {
     // Only reset forms if leadData ID actually changed
     if (leadData?.id && leadDataRef.current !== leadData?.id) {
-      accountForm.reset(mapLeadToAccount<InvestmentAccount>(leadData))
-      contactForm.reset(mapLeadToContact<InvestmentContact>(leadData))
+      accountForm.reset(mapLeadToAccount(leadData))
+      contactForm.reset(mapLeadToContact(leadData))
 
-      // For opportunity: merge base values with dynamic field values
+      // For opportunity: merge common values + IRM-specific fields + dynamic field values
+      const commonValues = mapLeadToOpportunity(leadData)
       const dynamicFieldValues = extractDynamicFieldValuesFromEntity()
       const allOpportunityValues = {
-        ...mapLeadToInvestmentOpportunity(leadData),
+        ...commonValues,
+        // IRM-specific investment fields
+        name: (leadData as any)?.investmentName || (leadData as any)?.companyName || commonValues.name || '',
+        investmentName: (leadData as any)?.investmentName || '',
+        dealType: 'INVESTMENT_DEAL',
+        code: (leadData as any)?.code || '',
+        estimatedAmount: (leadData as any)?.initialInvestmentAmount || commonValues.estimatedAmount,
+        forecastedProfitAmount: (leadData as any)?.forecastedProfitAmount || undefined,
+        initialInvestmentAmount: (leadData as any)?.initialInvestmentAmount || undefined,
+        stakePercentage: (leadData as any)?.stakePercentage || undefined,
+        loanAmount: (leadData as any)?.loanAmount || undefined,
+        loanInterestRate: (leadData as any)?.loanInterestRate || undefined,
+        marketValue: (leadData as any)?.marketValue || undefined,
+        requiredCapitalAmount: (leadData as any)?.requiredCapitalAmount || undefined,
+        annualNetColdRent: (leadData as any)?.annualNetColdRent || undefined,
+        buildingYear: (leadData as any)?.buildingYear || undefined,
+        size: (leadData as any)?.size || undefined,
+        sizeMeasurementUnitRef: (leadData as any)?.sizeMeasurementUnitRef || '',
+        investmentGroupRef: (leadData as any)?.investmentGroupRef || '',
+        investmentRoleRef: (leadData as any)?.investmentRoleRef || '',
+        investmentStakeTypeRef: (leadData as any)?.investmentStakeTypeRef || '',
+        investmentTypeRef: (leadData as any)?.investmentTypeRef || '',
         ...dynamicFieldValues
       }
       opportunityForm.reset(allOpportunityValues as any)
@@ -432,6 +489,7 @@ export const ConvertInvestmentLeadForm = ({
                 ownerEmployee={leadData?.ownerEmployee}
                 annualRevenueCatalogIdentifier={ANNUAL_REVENUE}
                 companySizeCatalogIdentifier={COMPANY_SIZE}
+                accountPriorityCatalogIdentifier={ACCOUNT_PRIORITY}
                 useContacts={{
                   contacts: contactsList,
                   loading: contactsLoading,
@@ -503,6 +561,10 @@ export const ConvertInvestmentLeadForm = ({
                   refetch: refetchContacts
                 }}
                 loading={loading}
+                pipelineCatalogIdentifier={OPPORTUNITY_PIPELINE}
+                stageCatalogIdentifier={OPPORTUNITY_PIPELINE_STAGE}
+                opportunityStatusCatalogIdentifier={OPPORTUNITY_STATUS}
+                opportunityForecastCatalogIdentifier={OPPORTUNITY_FORECAST}
                 customSegments={[
                   {
                     id: 'investment-prospect',

@@ -11,7 +11,7 @@ import { useCustomerTasks } from '@/common/data/customer/hooks/useCustomerTasks'
 import { useSalesPipelineStages } from './hooks/useSalesPipelineStages'
 import { useProcessCompletion } from '@/common/hooks/useProcessCompletion'
 import { formatCurrency, extractCurrencyCode } from '@/business-apps/crm/common/utils/currencyUtils'
-import { getOpportunityStatusBadgeVariant } from '@/common/utils/badgeUtils'
+import { getOpportunityStatusBadgeVariant, getOpportunityForecastBadgeVariant } from '@/common/utils/badgeUtils'
 import { useAiSummary } from './hooks/useAiSummary'
 import { AiActions, AiAction } from '@/common/components/common-relations/record-sections/header-section/ai-actions'
 import { AppActionButton } from '@/components/app-action-button/AppActionButton'
@@ -294,6 +294,14 @@ const OpportunityRecordContent: React.FC<OpportunityRecordContentProps> = ({
 
     const statusLabel = opportunityData?.opportunityStatus ? formatStatus(rawStatus) : ''
 
+    // Forecast badge
+    const forecast = opportunityData?.opportunityForecast
+    const forecastValue = forecast?.value || forecast?.code || ''
+    const forecastAdditionalValue1 = forecast?.additionalValue1 || ''
+    const forecastDisplayValue = forecastAdditionalValue1
+      ? `${forecastValue}: ${forecastAdditionalValue1}`
+      : forecastValue
+
     return (
       <div className="gba:flex gba:items-center gba:gap-2">
         {statusLabel && (
@@ -306,6 +314,11 @@ const OpportunityRecordContent: React.FC<OpportunityRecordContentProps> = ({
             {statusLabel}
           </Badge>
         )}
+        {forecast && forecastDisplayValue && (
+          <Badge variant={getOpportunityForecastBadgeVariant(forecast)} data-testid="opportunity-forecast-badge">
+            {forecastDisplayValue}
+          </Badge>
+        )}
         {opportunityData?.estimatedAmount && (
           <Badge variant="outline" className="gba:gap-1">
             {formatCurrency(opportunityData.estimatedAmount, opportunityData?.currency?.id || 'Currency:v1:EUR')}
@@ -313,7 +326,13 @@ const OpportunityRecordContent: React.FC<OpportunityRecordContentProps> = ({
         )}
       </div>
     )
-  }, [opportunityData?.estimatedAmount, opportunityData?.currency?.id, opportunityData?.opportunityStatus])
+  }, [
+    opportunityData?.estimatedAmount,
+    opportunityData?.currency?.id,
+    opportunityData?.opportunityStatus,
+    opportunityData?.opportunityForecast,
+    handleUpdateStatus
+  ])
 
   const headerDetailGroups = useMemo(() => {
     // Format status to remove prefixes - only if opportunityStatus catalog exists

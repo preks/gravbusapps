@@ -40,7 +40,8 @@ import { getCurrencySymbol } from '@/common/utils/numberFormatter'
 import {
   OPPORTUNITY_PIPELINE,
   OPPORTUNITY_PIPELINE_STAGE,
-  OPPORTUNITY_STATUS
+  OPPORTUNITY_STATUS,
+  OPPORTUNITY_FORECAST
 } from '@/common/data/investment/constants/investmentCatalogs'
 
 const prefixDataTestId = 'InvestmentOpportunityForm'
@@ -303,11 +304,10 @@ const InvestmentOpportunityForm: React.FC<InvestmentOpportunityFormProps> = ({
           useAccounts={useAccounts}
           opportunityContacts={opportunity?.opportunityContacts}
           useContacts={useContacts}
-          pipelineFieldName="opportunityPipelineRef"
-          stageFieldName="opportunityPipelineStageRef"
           pipelineCatalogIdentifier={OPPORTUNITY_PIPELINE}
           stageCatalogIdentifier={OPPORTUNITY_PIPELINE_STAGE}
           opportunityStatusCatalogIdentifier={OPPORTUNITY_STATUS}
+          opportunityForecastCatalogIdentifier={OPPORTUNITY_FORECAST}
           opportunityInformationCustomFields={dealTypeField}
           loading={loading && !!opportunityId}
           customSegments={[

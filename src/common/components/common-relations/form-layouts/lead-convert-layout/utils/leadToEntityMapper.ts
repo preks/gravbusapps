@@ -1,27 +1,23 @@
 import type { Lead } from '@/common/data/relations/types/leadTypes'
-import type { CustomerAccount } from '@/common/data/customer/types/customerAccountTypes'
-import type { InvestmentAccount } from '@/common/data/investment/types/investmentAccountTypes'
-import type { CustomerContact } from '@/common/data/customer/types/customerContactTypes'
-import type { InvestmentContact } from '@/common/data/investment/types/investmentContactTypes'
-import type { InvestmentOpportunity } from '@/common/data/investment/types/investmentOpportunityTypes'
+import type { Account } from '@/common/data/relations/types/accountTypes'
+import type { Contact } from '@/common/data/relations/types/contactTypes'
+import type { Address, CommunicationChannel } from '@/common/data/common/types/commonTypes'
 import { opportunitySchema } from '@/common/components/common-relations/form-layouts/opportunity-layout'
 import { z } from 'zod'
 import { mapLeadAddresses, mapLeadCommunicationChannels } from './index'
 
 /**
- * Map Lead data to Account initial values
- * Works for both CustomerAccount and InvestmentAccount
+ * Map Lead data to Account initial values (common fields only)
+ * CRM/IRM-specific fields should be added in the respective forms
  */
-export function mapLeadToAccount<T extends CustomerAccount | InvestmentAccount>(
-  leadData: Lead | Record<string, unknown>
-): Partial<T> {
+export function mapLeadToAccount(leadData: Lead | Record<string, unknown> | null): Partial<Account> {
   if (!leadData) return {}
 
   const addressData = mapLeadAddresses(leadData)
   const communicationData = mapLeadCommunicationChannels(leadData, 'companyEmail', 'companyPhone')
 
   // Convert flat address fields to addresses array format for Account
-  const addresses: Partial<T>['addresses'] =
+  const addresses: Partial<Address>[] | undefined =
     addressData.addressLines.length > 0 ||
     addressData.postalCode ||
     addressData.locality ||
@@ -35,139 +31,99 @@ export function mapLeadToAccount<T extends CustomerAccount | InvestmentAccount>(
             locality: addressData.locality || undefined,
             regionRef: addressData.regionRef || undefined,
             countryRef: addressData.countryRef || undefined
-          } as Partial<T>['addresses'] extends (infer U)[] ? U : never
+          }
         ]
       : undefined
 
   // Convert flat communication fields to communicationChannels array format for Account
-  const communicationChannels: Array<{
-    communicationChannelRef: string
-    value: string
-    valueExtension: string | null
-  }> = []
+  const communicationChannels: Partial<CommunicationChannel>[] = []
   if (communicationData.email) {
     communicationChannels.push({
       communicationChannelRef: 'CommunicationChannel:v1:EMAIL',
       value: communicationData.email,
-      valueExtension: null
+      valueExtension: undefined
     })
   }
   if (communicationData.phoneNumber) {
     communicationChannels.push({
       communicationChannelRef: 'CommunicationChannel:v1:PHONE',
       value: communicationData.phoneNumber,
-      valueExtension: null
+      valueExtension: undefined
     })
   }
 
   return {
-    name: leadData.companyName || '',
-    code: leadData.code || '',
-    ownerEmployeeId: leadData.ownerEmployeeId || '',
-    website: leadData.companyWebsite || '',
-    legalFormRef: leadData.legalFormRef || '',
-    industryClassRef: leadData.industryClassRef || '',
-    companySizeRef: leadData.companySizeRef || '',
-    accountAnnualRevenueBandRef: leadData.accountAnnualRevenueBandRef || '',
-    notesSummary: leadData.description || '',
-    addresses: addresses,
-    communicationChannels: communicationChannels.length > 0 ? communicationChannels : undefined
-  } as Partial<T>
+    name: (leadData.companyName as string) || '',
+    code: (leadData.code as string) || '',
+    ownerEmployeeId: (leadData.ownerEmployeeId as string) || '',
+    website: (leadData.companyWebsite as string) || '',
+    legalFormRef: (leadData.legalFormRef as string) || '',
+    industryClassRef: (leadData.industryClassRef as string) || '',
+    companySizeRef: (leadData.companySizeRef as string) || '',
+    accountAnnualRevenueBandRef: (leadData.accountAnnualRevenueBandRef as string) || '',
+    notesSummary: (leadData.description as string) || '',
+    addresses: addresses as Address[] | undefined,
+    communicationChannels:
+      communicationChannels.length > 0 ? (communicationChannels as CommunicationChannel[]) : undefined
+  }
 }
 
 /**
- * Map Lead data to Contact initial values
- * Works for both CustomerContact and InvestmentContact
+ * Map Lead data to Contact initial values (common fields only)
+ * CRM/IRM-specific fields should be added in the respective forms
  */
-export function mapLeadToContact<T extends CustomerContact | InvestmentContact>(
-  leadData: Lead | Record<string, unknown>
-): Partial<T> {
+export function mapLeadToContact(leadData: Lead | Record<string, unknown> | null): Partial<Contact> {
   if (!leadData) return {}
 
   const communicationData = mapLeadCommunicationChannels(leadData, 'email', 'phoneNumber')
 
   // Convert flat communication fields to communicationChannels array format for Contact
-  const communicationChannels: Array<{
-    communicationChannelRef: string
-    value: string
-    valueExtension: string | null
-  }> = []
+  const communicationChannels: Partial<CommunicationChannel>[] = []
   if (communicationData.email) {
     communicationChannels.push({
       communicationChannelRef: 'CommunicationChannel:v1:EMAIL',
       value: communicationData.email,
-      valueExtension: null
+      valueExtension: undefined
     })
   }
   if (communicationData.phoneNumber) {
     communicationChannels.push({
       communicationChannelRef: 'CommunicationChannel:v1:PHONE',
       value: communicationData.phoneNumber,
-      valueExtension: null
+      valueExtension: undefined
     })
   }
 
   return {
-    firstName: leadData.firstName || '',
-    lastName: leadData.lastName || '',
-    code: leadData.code || '',
-    jobPosition: leadData.jobPosition || '',
-    academicTitleRef: leadData.academicTitleRef || '',
-    salutationRef: leadData.salutationRef || '',
-    description: leadData.description || '',
-    ownerEmployeeId: leadData.ownerEmployeeId || '',
-    communicationChannels: communicationChannels.length > 0 ? communicationChannels : undefined
-  } as Partial<T>
-}
-
-/**
- * Map Lead data to Customer Opportunity initial values
- */
-export function mapLeadToCustomerOpportunity(
-  leadData: Lead | Record<string, unknown>
-): Partial<z.infer<typeof opportunitySchema>> {
-  if (!leadData) return {}
-
-  return {
-    name: leadData.companyName || '',
-    estimatedAmount: leadData.initialInvestmentAmount ? String(leadData.initialInvestmentAmount) : undefined,
-    ownerEmployeeId: leadData.ownerEmployeeId || '',
-    notesSummary: leadData.description || '',
-    accountId: leadData.convertedAccountId || undefined
+    firstName: (leadData.firstName as string) || '',
+    lastName: (leadData.lastName as string) || '',
+    code: (leadData.code as string) || '',
+    jobPosition: (leadData.jobPosition as string) || '',
+    academicTitleRef: (leadData.academicTitleRef as string) || '',
+    salutationRef: (leadData.salutationRef as string) || '',
+    description: (leadData.description as string) || '',
+    ownerEmployeeId: (leadData.ownerEmployeeId as string) || '',
+    communicationChannels:
+      communicationChannels.length > 0 ? (communicationChannels as CommunicationChannel[]) : undefined
   }
 }
 
 /**
- * Map Lead data to Investment Opportunity initial values
+ * Map Lead data to Opportunity initial values (common fields only)
+ * CRM/IRM-specific fields should be added in the respective forms
  */
-export function mapLeadToInvestmentOpportunity(
-  leadData: Lead | Record<string, unknown>
-): Partial<InvestmentOpportunity> {
+export function mapLeadToOpportunity(
+  leadData: Lead | Record<string, unknown> | null
+): Partial<z.infer<typeof opportunitySchema>> {
   if (!leadData) return {}
 
   return {
-    name: leadData.investmentName || leadData.companyName || '',
-    investmentName: leadData.investmentName || '',
-    dealType: 'INVESTMENT_DEAL',
-    code: leadData.code || '',
-    estimatedAmount: leadData.initialInvestmentAmount || undefined,
-    forecastedProfitAmount: leadData.forecastedProfitAmount || undefined,
-    initialInvestmentAmount: leadData.initialInvestmentAmount || undefined,
-    stakePercentage: leadData.stakePercentage || undefined,
-    loanAmount: leadData.loanAmount || undefined,
-    loanInterestRate: leadData.loanInterestRate || undefined,
-    marketValue: leadData.marketValue || undefined,
-    requiredCapitalAmount: leadData.requiredCapitalAmount || undefined,
-    annualNetColdRent: leadData.annualNetColdRent || undefined,
-    buildingYear: leadData.buildingYear || undefined,
-    size: leadData.size || undefined,
-    sizeMeasurementUnitRef: leadData.sizeMeasurementUnitRef || '',
-    investmentGroupRef: leadData.investmentGroupRef || '',
-    investmentRoleRef: leadData.investmentRoleRef || '',
-    investmentStakeTypeRef: leadData.investmentStakeTypeRef || '',
-    investmentTypeRef: leadData.investmentTypeRef || '',
-    ownerEmployeeId: leadData.ownerEmployeeId || '',
-    notesSummary: leadData.description || '',
-    accountId: leadData.convertedAccountId || undefined
+    name: (leadData.companyName as string) || '',
+    estimatedAmount: (leadData as any).initialInvestmentAmount
+      ? String((leadData as any).initialInvestmentAmount)
+      : undefined,
+    ownerEmployeeId: (leadData.ownerEmployeeId as string) || '',
+    notesSummary: (leadData.description as string) || '',
+    accountId: (leadData.convertedAccountId as string) || undefined
   }
 }

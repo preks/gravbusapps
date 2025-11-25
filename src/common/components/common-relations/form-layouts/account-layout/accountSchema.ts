@@ -6,6 +6,7 @@ export const accountSchema = z.object({
   name: z.string().min(1, 'Account name is required'),
   legalFormRef: z.string().nullable().optional(),
   industryClassRef: z.string().nullable().optional(),
+  accountPriorityRef: z.string().nullable().optional(),
   website: z.string().nullable().optional(),
   description: z.string().nullable().optional(),
   companySizeRef: z.string().nullable().optional(),

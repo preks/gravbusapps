@@ -3,6 +3,8 @@
 # Labels
 opportunity-owner-label = Owner
 opportunity-name-label = Opportunity Name
+forecast-label = Forecast
+forecast-placeholder = Please Select...
 opportunity-related-account-label = Related Account
 opportunity-related-contacts-label = Related Contacts
 

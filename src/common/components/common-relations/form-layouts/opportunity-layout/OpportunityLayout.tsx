@@ -36,12 +36,10 @@ interface OpportunityLayoutProps {
     refetch: (variables?: any) => Promise<void>
   }
   onNewContact?: () => void
-  pipelineFieldName?: string
-  stageFieldName?: string
-  opportunityStatusFieldName?: string
   pipelineCatalogIdentifier?: string
   stageCatalogIdentifier?: string
   opportunityStatusCatalogIdentifier?: string
+  opportunityForecastCatalogIdentifier?: string
   opportunityInformationCustomFields?: React.ReactNode
   opportunityDetailsCustomFields?: React.ReactNode
   opportunityPipelineCustomFields?: React.ReactNode
@@ -63,12 +61,10 @@ const OpportunityLayout: React.FC<OpportunityLayoutProps> = ({
   opportunityContacts,
   useContacts,
   onNewContact,
-  pipelineFieldName,
-  stageFieldName,
-  opportunityStatusFieldName,
   pipelineCatalogIdentifier,
   stageCatalogIdentifier,
   opportunityStatusCatalogIdentifier,
+  opportunityForecastCatalogIdentifier,
   opportunityInformationCustomFields,
   opportunityDetailsCustomFields,
   opportunityPipelineCustomFields,
@@ -112,15 +108,13 @@ const OpportunityLayout: React.FC<OpportunityLayoutProps> = ({
         onNewContact={onNewContact}
         customFields={opportunityInformationCustomFields}
         hideRelatedEntities={hideRelatedEntities}
+        opportunityForecastCatalogIdentifier={opportunityForecastCatalogIdentifier}
       />
       <FormAccordion type="multiple" className="gba:w-full" data-testid="opportunity-layout-FormAccordion">
         <FormAccordionItem value="pipeline-stage">
           <FormAccordionTrigger>{t('pipeline-title')}</FormAccordionTrigger>
           <FormAccordionContent>
             <OpportunityPipelineSegment
-              pipelineFieldName={pipelineFieldName}
-              stageFieldName={stageFieldName}
-              opportunityStatusFieldName={opportunityStatusFieldName}
               pipelineCatalogIdentifier={pipelineCatalogIdentifier}
               stageCatalogIdentifier={stageCatalogIdentifier}
               opportunityStatusCatalogIdentifier={opportunityStatusCatalogIdentifier}

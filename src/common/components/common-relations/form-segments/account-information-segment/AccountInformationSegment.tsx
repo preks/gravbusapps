@@ -41,6 +41,9 @@ interface AccountInformationSegmentProps {
 
   // Ref to store current file and thumbnail (for handlePreSubmit in form component)
   avatarFileRef?: React.MutableRefObject<{ file: File; thumbnail: string } | null>
+
+  // Catalog identifier for account priority (context-specific)
+  accountPriorityCatalogIdentifier?: string
 }
 
 const AccountInformationSegment: React.FC<AccountInformationSegmentProps> = ({
@@ -49,7 +52,8 @@ const AccountInformationSegment: React.FC<AccountInformationSegmentProps> = ({
   entityId,
   useContacts,
   customFields,
-  avatarFileRef
+  avatarFileRef,
+  accountPriorityCatalogIdentifier
 }) => {
   const form = useFormContext<any>()
   const { t } = useTranslation(translations)
@@ -250,6 +254,28 @@ const AccountInformationSegment: React.FC<AccountInformationSegmentProps> = ({
           </FormItem>
         )}
       />
+
+      {/* Priority - Above Legal Form and Industry */}
+      {accountPriorityCatalogIdentifier && (
+        <FormField
+          control={form.control}
+          name="accountPriorityRef"
+          render={({ field }) => (
+            <FormItem>
+              <FormLabel>{t('priority-label')}</FormLabel>
+              <FormControl>
+                <CatalogSelect
+                  catalogIdentifier={accountPriorityCatalogIdentifier}
+                  value={field.value || ''}
+                  onValueChange={v => field.onChange(v)}
+                  data-testid="account-information-segment-priority"
+                />
+              </FormControl>
+              <FormMessage />
+            </FormItem>
+          )}
+        />
+      )}
 
       {/* Legal Form and Industry - Side by side */}
       <div className="gba:grid gba:grid-cols-1 gba:gap-6 gba:md:grid-cols-2 gba:w-full gba:max-w-full gba:overflow-hidden">

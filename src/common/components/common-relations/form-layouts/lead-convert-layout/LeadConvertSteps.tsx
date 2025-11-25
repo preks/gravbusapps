@@ -11,6 +11,7 @@ export interface LeadConvertAccountStepProps {
   ownerEmployee?: any
   annualRevenueCatalogIdentifier?: string
   companySizeCatalogIdentifier?: string
+  accountPriorityCatalogIdentifier?: string
   useContacts?: {
     contacts: any[]
     loading: boolean
@@ -31,6 +32,7 @@ export const LeadConvertAccountStep: React.FC<LeadConvertAccountStepProps> = ({
   ownerEmployee,
   annualRevenueCatalogIdentifier,
   companySizeCatalogIdentifier,
+  accountPriorityCatalogIdentifier,
   useContacts,
   loading = false,
   accountInformationCustomFields,
@@ -57,6 +59,7 @@ export const LeadConvertAccountStep: React.FC<LeadConvertAccountStepProps> = ({
             ownerEmployee={ownerEmployee}
             annualRevenueCatalogIdentifier={annualRevenueCatalogIdentifier}
             companySizeCatalogIdentifier={companySizeCatalogIdentifier}
+            accountPriorityCatalogIdentifier={accountPriorityCatalogIdentifier}
             useContacts={useContacts}
             accountInformationCustomFields={accountInformationCustomFields}
             accountDetailsCustomFields={accountDetailsCustomFields}
@@ -154,6 +157,10 @@ export interface LeadConvertOpportunityStepProps {
   customSegments?: Array<{ id: string; title: string; content: React.ReactNode }>
   // Hide related entities (account/contact) - true for Lead Convert context
   hideRelatedEntities?: boolean
+  pipelineCatalogIdentifier?: string
+  stageCatalogIdentifier?: string
+  opportunityStatusCatalogIdentifier?: string
+  opportunityForecastCatalogIdentifier?: string
 }
 
 export const LeadConvertOpportunityStep: React.FC<LeadConvertOpportunityStepProps> = ({
@@ -166,7 +173,11 @@ export const LeadConvertOpportunityStep: React.FC<LeadConvertOpportunityStepProp
   opportunityDetailsCustomFields,
   opportunityPipelineCustomFields,
   customSegments,
-  hideRelatedEntities = true // Default to true for Lead Convert context
+  hideRelatedEntities = true, // Default to true for Lead Convert context
+  pipelineCatalogIdentifier,
+  stageCatalogIdentifier,
+  opportunityStatusCatalogIdentifier,
+  opportunityForecastCatalogIdentifier
 }) => {
   const { t } = useTranslation(translations)
 
@@ -190,6 +201,10 @@ export const LeadConvertOpportunityStep: React.FC<LeadConvertOpportunityStepProp
             opportunityPipelineCustomFields={opportunityPipelineCustomFields}
             customSegments={customSegments}
             hideRelatedEntities={hideRelatedEntities}
+            pipelineCatalogIdentifier={pipelineCatalogIdentifier}
+            stageCatalogIdentifier={stageCatalogIdentifier}
+            opportunityStatusCatalogIdentifier={opportunityStatusCatalogIdentifier}
+            opportunityForecastCatalogIdentifier={opportunityForecastCatalogIdentifier}
           />
         )}
       </div>

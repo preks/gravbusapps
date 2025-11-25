@@ -5,22 +5,15 @@ import { CatalogSelect } from '@/components/catalog-select'
 import translations from './_i18n'
 
 interface OpportunityPipelineSegmentProps {
-  // Field names (for context-specific differences)
-  pipelineFieldName?: string // Default: 'pipeline'
-  stageFieldName?: string // Default: 'pipelineStage' (IRM) or 'salesPipelineStage' (CRM)
-  opportunityStatusFieldName?: string // Default: 'opportunityStatus' (CRM only)
   // Catalog identifiers (context-specific)
-  pipelineCatalogIdentifier?: string // Default: 'SalesPipeline:v1' (CRM) or 'InvestmentOpportunityPipeline:v1' (IRM)
-  stageCatalogIdentifier?: string // Default: 'SalesPipelineStage:v1' (CRM) or 'InvestmentOpportunityPipelineStage:v1' (IRM)
-  opportunityStatusCatalogIdentifier?: string // Default: 'SalesOpportunityStatus:v1' (CRM only)
+  pipelineCatalogIdentifier?: string
+  stageCatalogIdentifier?: string
+  opportunityStatusCatalogIdentifier?: string
   // Custom fields
   customFields?: React.ReactNode
 }
 
 const OpportunityPipelineSegment: React.FC<OpportunityPipelineSegmentProps> = ({
-  pipelineFieldName = 'opportunityPipelineRef',
-  stageFieldName = 'opportunityPipelineStageRef',
-  opportunityStatusFieldName = 'opportunityStatusRef',
   pipelineCatalogIdentifier,
   stageCatalogIdentifier,
   opportunityStatusCatalogIdentifier,
@@ -28,6 +21,11 @@ const OpportunityPipelineSegment: React.FC<OpportunityPipelineSegmentProps> = ({
 }) => {
   const form = useFormContext<any>()
   const { t } = useTranslation(translations)
+
+  // Fixed field names
+  const pipelineFieldName = 'opportunityPipelineRef'
+  const stageFieldName = 'opportunityPipelineStageRef'
+  const opportunityStatusFieldName = 'opportunityStatusRef'
 
   // Watch pipeline value
   const pipelineValue = form.watch(pipelineFieldName)

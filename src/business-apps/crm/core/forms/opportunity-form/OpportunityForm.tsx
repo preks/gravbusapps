@@ -21,7 +21,8 @@ import { useCustomerContactsList } from '@/common/data/customer/hooks/useCustome
 import {
   OPPORTUNITY_PIPELINE,
   OPPORTUNITY_PIPELINE_STAGE,
-  OPPORTUNITY_STATUS
+  OPPORTUNITY_STATUS,
+  OPPORTUNITY_FORECAST
 } from '@/common/data/customer/constants/customerCatalogs'
 import { ErrorAlert } from '@/components/error-alert'
 
@@ -165,12 +166,10 @@ const OpportunityForm: React.FC<OpportunityFormProps> = ({ accessToken, userInfo
           useAccounts={useAccounts}
           opportunityContacts={opportunity?.opportunityContacts}
           useContacts={useContacts}
-          pipelineFieldName="opportunityPipelineRef"
-          stageFieldName="opportunityPipelineStageRef"
-          opportunityStatusFieldName="opportunityStatusRef"
           pipelineCatalogIdentifier={OPPORTUNITY_PIPELINE}
           stageCatalogIdentifier={OPPORTUNITY_PIPELINE_STAGE}
           opportunityStatusCatalogIdentifier={OPPORTUNITY_STATUS}
+          opportunityForecastCatalogIdentifier={OPPORTUNITY_FORECAST}
           opportunityInformationCustomFields={salesCampaignSelect}
           loading={loading && !!opportunityId}
         />

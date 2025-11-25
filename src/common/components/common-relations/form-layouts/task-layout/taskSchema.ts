@@ -15,14 +15,7 @@ export const taskSchema = z.object({
   timingType: z.enum(['DEADLINE', 'SCHEDULED']).refine(v => !!v, {
     message: 'Timing is required'
   }),
-  dueDate: z
-    .union([z.string(), z.date(), z.null(), z.undefined()])
-    .transform(val => {
-      if (val == null) return ''
-      if (val instanceof Date) return val.toISOString()
-      return String(val)
-    })
-    .pipe(z.string().min(1, 'Deadline is required')),
+  dueDate: z.string().min(1, 'Deadline is required'),
   startDate: z.string().nullable().optional(),
   endDate: z.string().nullable().optional(),
   templateStartDate: z.string().nullable().optional(),

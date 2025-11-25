@@ -23,7 +23,7 @@ import { getTranslationFromI18nKeyAndLabel, formatDate } from '@/common/utils/wi
 import { useProcessCompletion } from '@/common/hooks/useProcessCompletion'
 import { useInvestmentOpportunity } from '@/common/data/investment/hooks/useInvestmentOpportunity'
 import { formatCurrency, extractCurrencyCode } from '@/common/utils/numberFormatter'
-import { getOpportunityStatusBadgeVariant } from '@/common/utils/badgeUtils'
+import { getOpportunityStatusBadgeVariant, getOpportunityForecastBadgeVariant } from '@/common/utils/badgeUtils'
 import { useAiSummary } from './hooks/useAiSummary'
 import { AiActions, AiAction } from '@/common/components/common-relations/record-sections/header-section/ai-actions'
 import { AppActionButton } from '@/components/app-action-button/AppActionButton'
@@ -607,8 +607,16 @@ const InvestmentOpportunityRecordContent: React.FC<OpportunityRecordContentProps
   }
 
   // Memoize RecordLayout data to prevent unnecessary re-renders (must be before early returns)
-  const headerMeta = useMemo(
-    () => (
+  const headerMeta = useMemo(() => {
+    // Forecast badge
+    const forecast = opportunityData?.opportunityForecast
+    const forecastValue = forecast?.value || forecast?.code || ''
+    const forecastAdditionalValue1 = forecast?.additionalValue1 || ''
+    const forecastDisplayValue = forecastAdditionalValue1
+      ? `${forecastValue}: ${forecastAdditionalValue1}`
+      : forecastValue
+
+    return (
       <div className="gba:flex gba:items-center gba:gap-2">
         {opportunityData?.opportunityStatus?.value && (
           <Badge
@@ -620,15 +628,25 @@ const InvestmentOpportunityRecordContent: React.FC<OpportunityRecordContentProps
             {opportunityData.opportunityStatus.value}
           </Badge>
         )}
+        {forecast && forecastDisplayValue && (
+          <Badge variant={getOpportunityForecastBadgeVariant(forecast)} data-testid="opportunity-forecast-badge">
+            {forecastDisplayValue}
+          </Badge>
+        )}
         {opportunityData?.estimatedAmount && (
           <Badge variant="outline" className="gba:gap-1">
             {formatCurrency(opportunityData.estimatedAmount, opportunityData?.currency?.id || 'Currency:v1:EUR')}
           </Badge>
         )}
       </div>
-    ),
-    [opportunityData?.estimatedAmount, opportunityData?.currency?.id, opportunityData?.opportunityStatus?.value]
-  )
+    )
+  }, [
+    opportunityData?.estimatedAmount,
+    opportunityData?.currency?.id,
+    opportunityData?.opportunityStatus?.value,
+    opportunityData?.opportunityForecast,
+    handleUpdateStatus
+  ])
 
   // Transform catalog referenceFields to formFields format for InvestmentSection
   const investmentFields = useMemo(

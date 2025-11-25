@@ -27,6 +27,8 @@ interface AccountLayoutProps {
   // Catalog identifiers for financial info (CRM vs IRM differences)
   annualRevenueCatalogIdentifier?: string // e.g., "RevenueSize:v1" (CRM) or "AccountAnnualRevenueBand:v1" (IRM)
   companySizeCatalogIdentifier?: string // e.g., "EmployeeSize:v1" (CRM) or "CompanySize:v1" (IRM)
+  // Catalog identifier for account priority (context-specific)
+  accountPriorityCatalogIdentifier?: string
 
   // Contact selection hook result - raw entities and refetch function - generic types for context-agnostic component
   useContacts?: {
@@ -65,6 +67,7 @@ const AccountLayout: React.FC<AccountLayoutProps> = ({
   entityId,
   annualRevenueCatalogIdentifier,
   companySizeCatalogIdentifier,
+  accountPriorityCatalogIdentifier,
   useContacts,
   accountInformationCustomFields,
   accountDetailsCustomFields,
@@ -115,6 +118,7 @@ const AccountLayout: React.FC<AccountLayoutProps> = ({
         useContacts={useContacts}
         customFields={accountInformationCustomFields}
         avatarFileRef={avatarFileRef}
+        accountPriorityCatalogIdentifier={accountPriorityCatalogIdentifier}
       />
 
       {/* Other Segments in FormAccordion */}

@@ -3,6 +3,8 @@
 # Labels
 opportunity-owner-label = Proprietar
 opportunity-name-label = Nume oportunitate
+forecast-label = Prognoză
+forecast-placeholder = Vă rugăm să selectați...
 opportunity-related-account-label = Cont asociat
 opportunity-related-contacts-label = Contacte asociate
 
