@@ -119,9 +119,23 @@ export const DEV_SCREEN_OVERRIDES: DevScreenOverride[] = [
     builderType: 'NATIVE_SCREEN'
   },
 
+  // Approve Expense Request Store Director V2 - NATIVE_SCREEN override
+  {
+    screenKey: 'frm_approveExpenseRequestApproveExpenseRequestStoreDirector',
+    componentPath: 'fin/expenses/forms/approve-expense-request-v2',
+    builderType: 'NATIVE_SCREEN'
+  },
+
   // Approve Expense Plan V2 - NATIVE_SCREEN override
   {
     screenKey: 'frm_approveExpensePlanApproveExpensePlan',
+    componentPath: 'fin/expenses/forms/approve-expense-plan-v2',
+    builderType: 'NATIVE_SCREEN'
+  },
+
+  // Approve Expense Plan Store Director V2 - NATIVE_SCREEN override
+  {
+    screenKey: 'frm_approveExpensePlanApproveExpensePlanStoreDirector',
     componentPath: 'fin/expenses/forms/approve-expense-plan-v2',
     builderType: 'NATIVE_SCREEN'
   },
@@ -136,6 +150,13 @@ export const DEV_SCREEN_OVERRIDES: DevScreenOverride[] = [
   // Approve Advance Payment V2 - NATIVE_SCREEN override
   {
     screenKey: 'frm_approveAdvancePaymentApproveAdvancePayment',
+    componentPath: 'fin/expenses/forms/advance-payment-approval-v2',
+    builderType: 'NATIVE_SCREEN'
+  },
+
+  // Approve Advance Payment Store Director V2 - NATIVE_SCREEN override
+  {
+    screenKey: 'frm_approveAdvancePaymentApproveAdvancePaymentStoreDirector',
     componentPath: 'fin/expenses/forms/advance-payment-approval-v2',
     builderType: 'NATIVE_SCREEN'
   },
@@ -188,20 +209,6 @@ export function findDevScreenOverride(
   taskName: string | undefined
 ): DevScreenOverride | null {
   if (!ENABLE_DEV_SCREEN_OVERRIDES) {
-    return null
-  }
-
-  // Check if we're in development mode (localhost or dev environment)
-  if (typeof window === 'undefined') {
-    return null
-  }
-
-  const isDevelopment =
-    window.location.hostname === 'localhost' ||
-    window.location.hostname === '127.0.0.1' ||
-    window.location.hostname === 'newwork-dev.newwork.com'
-
-  if (!isDevelopment) {
     return null
   }
 
