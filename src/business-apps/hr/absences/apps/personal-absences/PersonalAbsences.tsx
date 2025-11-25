@@ -8,6 +8,12 @@ import { useGraphqlClient } from '@/common/network/graphql/useGraphQLClient'
 import { GET_EMPLOYEE_ABSENCES, GET_EMPLOYEE_ENTITLEMENTS } from './queries/graphql'
 import { getAbsenceGroups } from '@/business-apps/hr/core/forms/create-new-absence/queries/getAbsenceGroups'
 import dayjs from 'dayjs'
+import isSameOrAfter from 'dayjs/plugin/isSameOrAfter'
+import isSameOrBefore from 'dayjs/plugin/isSameOrBefore'
+
+dayjs.extend(isSameOrAfter)
+dayjs.extend(isSameOrBefore)
+
 import {
   getCurrentActiveUserLocale,
   getTranslationFromI18nKeyAndLabel,
@@ -147,8 +153,23 @@ export const PersonalAbsences = (props: BusinessAppContextProps) => {
             }))
         )
 
+        const currentYear = dayjs().year()
+        const firstDayOfYear = dayjs(`${currentYear}-01-01`).startOf('day')
+        const lastDayOfYear = dayjs(`${currentYear}-12-31`).endOf('day')
+
+        const currentYearEntitlements = (entitlementRes?.EmployeeAbsenceEntitlement || []).filter((ent: any) => {
+          if (!ent.validFrom || !ent.validTo) {
+            return false
+          }
+
+          const validFrom = dayjs(ent.validFrom)
+          const validTo = dayjs(ent.validTo)
+
+          return validFrom.isSameOrBefore(lastDayOfYear) && validTo.isSameOrAfter(firstDayOfYear)
+        })
+
         setEntitlements(
-          (entitlementRes?.EmployeeAbsenceEntitlement || []).map((ent: any) => ({
+          currentYearEntitlements.map((ent: any) => ({
             type: ent.type ? getCatalogValue(ent.type) || '' : '',
             color: ent.type?.objectValue?.color || 'blue',
             used: ent.approved,
@@ -167,8 +188,9 @@ export const PersonalAbsences = (props: BusinessAppContextProps) => {
           }))
         )
 
+        // Use the same filtered entitlements for stats
         setStats(
-          (entitlementRes?.EmployeeAbsenceEntitlement || []).map((ent: any) => ({
+          currentYearEntitlements.map((ent: any) => ({
             title: ent.type ? getCatalogValue(ent.type) || '' : '',
             used: ent.approved,
             total: ent.total,
