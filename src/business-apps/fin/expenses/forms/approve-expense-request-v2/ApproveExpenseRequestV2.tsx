@@ -17,9 +17,9 @@ import {
   ExpenseRequestTotalsSection,
   ApprovalDetailsSection,
   ExpenseRequestDetailsSection,
-  EnhancedTripSection
+  EnhancedTripSection,
+  ExpensesSection
 } from './components'
-import ExpensesSection from '../../reusable-components/approval/ExpensesSection'
 import { AllowancesSection } from '../../reusable-components/approval'
 
 interface ApproveExpenseRequestV2Props extends BusinessAppContextProps {
