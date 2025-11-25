@@ -5,9 +5,14 @@ import { AppAction } from '@/components/app-action/AppAction'
 import { FlowContextName } from '@/common/types/FlowRegistryTypes'
 import { CampaignHeaderProps } from '../types'
 import { getTranslationFromI18nKeyAndLabel } from '@/common/utils/windowUtils'
+import { useShareAction } from '@/components/share-entity'
 import dayjs from 'dayjs'
 
-const CampaignHeader: React.FC<CampaignHeaderProps> = ({ campaign, isLoading, accessToken, campaignId }) => {
+interface ExtendedCampaignHeaderProps extends CampaignHeaderProps {
+  currentUserId?: string
+}
+
+const CampaignHeader: React.FC<ExtendedCampaignHeaderProps> = ({ campaign, isLoading, accessToken, currentUserId, campaignId }) => {
   // (no single-date display in header)
 
   // Helper function to calculate campaign duration
@@ -75,6 +80,18 @@ const CampaignHeader: React.FC<CampaignHeaderProps> = ({ campaign, isLoading, ac
     return 'secondary'
   }
 
+  // Use the reusable share action hook
+  const { shareAction, ShareDialog } = useShareAction({
+    accessToken: accessToken || '',
+    currentUserId: currentUserId || '',
+    entity: {
+      entityType: 'campaign',
+      entityId: campaign.id,
+      entityName: campaign.name,
+      entityUrl: `/platform/crm/campaign-record?campaignId=${campaign.id}`
+    }
+  })
+
   return (
     <div className="gba:account-header gba:mb-6 gba:bg-card gba:rounded-lg gba:p-5">
       <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
@@ -121,10 +138,14 @@ const CampaignHeader: React.FC<CampaignHeaderProps> = ({ campaign, isLoading, ac
               emptyState="enable"
               lazyLoad
               onClick={e => e.stopPropagation()}
+              customActions={[shareAction]}
             />
           )}
         </div>
       </div>
+
+      {/* Share Dialog */}
+      {ShareDialog}
     </div>
   )
 }

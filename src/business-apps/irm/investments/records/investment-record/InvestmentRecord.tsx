@@ -6,6 +6,7 @@ import { useGetInvestmentCatalogData } from '@/business-apps/irm/investments/for
 import { AiActions, AiAction } from '@/common/components/common-relations/record-sections/header-section/ai-actions'
 import { AppActionButton } from '@/components/app-action-button/AppActionButton'
 import { FlowContextName } from '@/common/types/FlowRegistryTypes'
+import { useShareAction } from '@/components/share-entity'
 import { Bot } from 'lucide-react'
 import { getTranslationFromI18nKeyAndLabel } from '@/common/utils/windowUtils'
 import { navigateTo, buildPlatformUrl } from '@/common/utils/navigationUtils'
@@ -207,6 +208,18 @@ const InvestmentRecord: React.FC<InvestmentRecordProps> = props => {
   const { processedTiles } = useInvestmentTileFields(props, investmentData)
   const aiSummaryHook = useInvestmentAiSummary(investmentId || '', props.accessToken)
 
+  // Share action hook (must be called unconditionally before any returns)
+  const { shareAction, ShareDialog } = useShareAction({
+    accessToken: props.accessToken,
+    currentUserId: props.userInfo?.id || '',
+    entity: {
+      entityType: investmentType || 'investment',
+      entityId: investmentId || '',
+      entityName: investmentData?.name || 'Investment',
+      entityUrl: `/platform/irm/investment-record?investmentId=${investmentId}`
+    }
+  })
+
   // Navigation
   const handleBack = useCallback(() => {
     // Get the fromView and fromSubView parameters from URL
@@ -340,6 +353,7 @@ const InvestmentRecord: React.FC<InvestmentRecordProps> = props => {
       emptyStateBehavior="enable"
       deferMainContextRequestsUntilClick={false}
       accessToken={props.accessToken}
+      staticFlowData={[shareAction]}
     />
   )
 
@@ -384,10 +398,16 @@ const InvestmentRecord: React.FC<InvestmentRecordProps> = props => {
             investmentId={investmentId}
             investmentName={investmentData.name}
             accessToken={props.accessToken}
-            currency={extractCurrencyCode(investmentData.currency)}
+            currency={extractCurrencyCode(
+              typeof investmentData.currency === 'string'
+                ? investmentData.currency
+                : investmentData.currency?.code || null
+            )}
           />
         </div>
       )}
+      {/* Share Dialog */}
+      {ShareDialog}
     </div>
   )
 }

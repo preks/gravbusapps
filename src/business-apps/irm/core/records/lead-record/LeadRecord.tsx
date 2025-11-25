@@ -41,6 +41,7 @@ import { AiActions, AiAction } from '@/common/components/common-relations/record
 import { useAiSummary } from './hooks/useAiSummary'
 import { AppActionButton } from '@/components/app-action-button/AppActionButton'
 import { AppAction } from '@/components/app-action/AppAction'
+import { useShareAction } from '@/components/share-entity'
 import { Bot, Flag } from 'lucide-react'
 import type { TaskReference } from '@/common/components/common-relations/detail-sheets/task-detail-sheet'
 import { useProspectRejectionReasons } from '@/common/data/investment/hooks/useProspectRejectionReasons'
@@ -421,6 +422,18 @@ const InvestmentLeadRecordContent: React.FC<LeadRecordContentProps> = ({ leadId,
     )
   }, [props.accessToken, leadId, aiSummary])
 
+  // Use the reusable share action hook
+  const { shareAction, ShareDialog } = useShareAction({
+    accessToken: props.accessToken,
+    currentUserId: props.userInfo?.id || '',
+    entity: {
+      entityType: 'investment-lead',
+      entityId: leadId,
+      entityName: lead?.displayName || `${lead?.firstName || ''} ${lead?.lastName || ''}`.trim() || 'Investment Lead',
+      entityUrl: `/platform/irm/lead-record?leadId=${leadId}`
+    }
+  })
+
   const headerActionButton = useMemo(
     () =>
       props.accessToken && (
@@ -433,11 +446,12 @@ const InvestmentLeadRecordContent: React.FC<LeadRecordContentProps> = ({ leadId,
           }}
           prefixDataTestId="lead-record-action"
           accessToken={props.accessToken}
-          emptyStateBehavior="hide"
+          emptyStateBehavior="enable"
           deferMainContextRequestsUntilClick={false}
+          staticFlowData={[shareAction]}
         />
       ),
-    [props.accessToken, leadId]
+    [props.accessToken, leadId, shareAction]
   )
 
   // Tab handling hooks - MUST be before conditional returns to comply with Rules of Hooks
@@ -709,6 +723,8 @@ const InvestmentLeadRecordContent: React.FC<LeadRecordContentProps> = ({ leadId,
         headerContent={headerContent}
         subViews={subViewsConfig}
       />
+      {/* Share Dialog */}
+      {ShareDialog}
     </div>
   )
 }

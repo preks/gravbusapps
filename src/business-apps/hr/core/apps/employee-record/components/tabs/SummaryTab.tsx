@@ -29,6 +29,8 @@ import { getTranslationFromI18nKeyAndLabel } from '@/common/utils/windowUtils'
 import { UserInfoProps } from '@/common/BusinessAppContext'
 import { AppActionMenu } from '@/components/app-action-menu'
 import { FlowContextName } from '@/common/types/FlowRegistryTypes'
+import { useShareAction } from '@/components/share-entity'
+import { getEmployeeFullName } from '../../utils/formatters'
 import { Button, Tooltip } from 'antd'
 import JobDetailsDrawer from './JobDetailsDrawer'
 import JobFamilyDrawerContent, { getJobFamilyIcon, getJobFamilyTitle } from './drawer-content/JobFamilyDrawerContent'
@@ -61,8 +63,32 @@ const SummaryTab: React.FC<SummaryTabProps> = ({
   employee,
   accessToken,
   currentUserEmployeeId,
-  employeeAbsenceEntitlement
+  employeeAbsenceEntitlement,
+  userInfo
 }) => {
+  // Use the reusable share action hook
+  const { shareAction, ShareDialog } = useShareAction({
+    accessToken: accessToken || '',
+    currentUserId: userInfo?.id || '',
+    entity: {
+      entityType: 'employee',
+      entityId: employee?.id || '',
+      entityName: getEmployeeFullName(employee),
+      entityUrl: `/platform/employee-record?employeeId=${employee?.id}`
+    }
+  })
+
+  // Static actions for the AppActionMenu (including share)
+  const staticActions = useMemo(
+    () => [
+      {
+        ...shareAction,
+        category: 'Sharing'
+      }
+    ],
+    [shareAction]
+  )
+
   // Fetch upcoming absence for this employee
   const { loading: absenceLoading, upcomingAbsence } = useEmployeeUpcomingAbsence(accessToken, employee.id)
 
@@ -178,24 +204,28 @@ const SummaryTab: React.FC<SummaryTabProps> = ({
                   managerId: employee?.employeePosition?.supervisor?.id,
                   organizationalUnitId: employee?.employeePosition?.organizationalUnitId
                 }}
+                staticFlowData={staticActions}
                 prefixDataTestId="employee-actions"
                 accessToken={accessToken}
                 autoExecuteSingleAction={false}
                 deferMainContextRequestsUntilClick={false}
-                emptyStateBehavior="hide"
+                emptyStateBehavior="enable"
               >
                 <div className="gba:flex gba:items-center gba:gap-2 gba:cursor-pointer">
                   <PiDotsThreeVertical className="gba:h-4 gba:w-4" />
                   {getTranslationFromI18nKeyAndLabel('lowcoder:hr_employee.action', 'Actions')}
                 </div>
               </AppActionMenu>
+              {ShareDialog}
             </div>
           ),
           [
             employee?.id,
             employee?.employeePosition?.supervisor?.id,
             employee?.employeePosition?.organizationalUnitId,
-            accessToken
+            accessToken,
+            staticActions,
+            ShareDialog
           ]
         )}
       </div>

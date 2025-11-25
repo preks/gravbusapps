@@ -19,6 +19,7 @@ import { useCustomerTasks } from '@/common/data/customer/hooks/useCustomerTasks'
 import { useCustomerNotes } from '@/common/data/customer/hooks/useCustomerNotes'
 import { AppActionButton } from '@/components/app-action-button/AppActionButton'
 import { FlowContextName } from '@/common/types/FlowRegistryTypes'
+import { useShareAction } from '@/components/share-entity'
 import { HomeView } from './views/home-view/HomeView'
 import { OpportunityView } from './views/opportunity-view/OpportunityView'
 import { DocumentView } from './views/document-view/DocumentView'
@@ -44,6 +45,21 @@ const ContactRecordContent: React.FC<ContactRecordContentProps> = ({ contactId, 
     error,
     refetch: refetchContactData
   } = useCustomerContact(props.accessToken, contactId)
+
+  // Share action hook
+  const contactDisplayName =
+    `${contactData?.firstName || contactData?.firstName || ''} ${contactData?.lastName || contactData?.lastName || ''}`.trim() ||
+    getTranslationFromI18nKeyAndLabel('crm.common.unnamedContact', 'Unnamed Contact')
+  const { shareAction, ShareDialog } = useShareAction({
+    accessToken: props.accessToken,
+    currentUserId: props.userInfo?.id || '',
+    entity: {
+      entityType: 'contact',
+      entityId: contactId,
+      entityName: contactDisplayName,
+      entityUrl: `/platform/crm/contact-record?contactId=${contactId}`
+    }
+  })
 
   // Data fetching hooks for sections - using central hooks
   const { fetchCustomerActivitiesByContactId } = useCustomerActivities(props)
@@ -261,20 +277,26 @@ const ContactRecordContent: React.FC<ContactRecordContentProps> = ({ contactId, 
 
   const headerActionButton = useMemo(
     () => (
-      <AppActionButton
-        data-testid="customer-contact-record-action-button"
-        size="icon"
-        contextsArray={[FlowContextName.customerContactEntity]}
-        externalContextData={{
-          contactId: contactId
-        }}
-        prefixDataTestId="customer-contact-record-action"
-        accessToken={props.accessToken}
-        emptyStateBehavior="hide"
-        deferMainContextRequestsUntilClick={false}
-      />
+      <>
+        <AppActionButton
+          data-testid="customer-contact-record-action-button"
+          size="lg"
+          contextsArray={[FlowContextName.customerContactEntity]}
+          externalContextData={{
+            contactId: contactId
+          }}
+          prefixDataTestId="customer-contact-record-action"
+          accessToken={props.accessToken}
+          emptyStateBehavior="enable"
+          deferMainContextRequestsUntilClick={false}
+          staticFlowData={[shareAction]}
+        >
+          {getTranslationFromI18nKeyAndLabel('crm.common.actions', 'Actions')}
+        </AppActionButton>
+        {ShareDialog}
+      </>
     ),
-    [contactId, props.accessToken]
+    [contactId, props.accessToken, shareAction, ShareDialog]
   )
 
   // Action props for sections - must be defined before subViews
@@ -437,7 +459,7 @@ const ContactRecordContent: React.FC<ContactRecordContentProps> = ({ contactId, 
     `${contactData?.firstName || ''} ${contactData?.lastName || ''}`.trim() ||
     getTranslationFromI18nKeyAndLabel('crm.common.unnamedContact', 'Unnamed Contact')
 
-  const contactType = contactData?.contactType || contactData?.type
+  const contactType = contactData?.type
   const contactTypeDisplay = getContactTypeDisplayValue(contactType)
 
   const headerTitle = (

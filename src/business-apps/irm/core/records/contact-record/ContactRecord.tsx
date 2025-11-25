@@ -15,6 +15,7 @@ import { navigateTo, buildPlatformUrl } from '@/common/utils/navigationUtils'
 import { getTranslationFromI18nKeyAndLabel } from '@/common/utils/windowUtils'
 import { AppActionButton } from '@/components/app-action-button/AppActionButton'
 import { FlowContextName } from '@/common/types/FlowRegistryTypes'
+import { useShareAction } from '@/components/share-entity'
 import { AiActions, AiAction } from '@/common/components/common-relations/record-sections/header-section/ai-actions'
 import { getContactTypeDisplayValue, getContactFullName } from './utils'
 import { useContactAiSummary } from './hooks/useContactAiSummary'
@@ -298,6 +299,21 @@ const InvestmentContactRecordContent: React.FC<ContactRecordContentProps> = ({
     )
   }, [aiSummaryHook, contactId])
 
+  // Use the reusable share action hook
+  const { shareAction, ShareDialog } = useShareAction({
+    accessToken: props.accessToken,
+    currentUserId: props.userInfo?.id || '',
+    entity: {
+      entityType: 'investment-contact',
+      entityId: contactId,
+      entityName:
+        contactData?.fullName ||
+        `${contactData?.firstName || ''} ${contactData?.lastName || ''}`.trim() ||
+        'Investment Contact',
+      entityUrl: `/platform/irm/contact-record?contactId=${contactId}`
+    }
+  })
+
   const headerActionButton = useMemo(
     () => (
       <AppActionButton
@@ -309,11 +325,12 @@ const InvestmentContactRecordContent: React.FC<ContactRecordContentProps> = ({
         }}
         prefixDataTestId="investment-contact-record-action"
         accessToken={props.accessToken}
-        emptyStateBehavior="hide"
+        emptyStateBehavior="enable"
         deferMainContextRequestsUntilClick={false}
+        staticFlowData={[shareAction]}
       />
     ),
-    [contactId, props.accessToken]
+    [contactId, props.accessToken, shareAction]
   )
 
   // Action props for sections - must be defined before subViewsConfig
@@ -495,6 +512,8 @@ const InvestmentContactRecordContent: React.FC<ContactRecordContentProps> = ({
         headerActionButton={headerActionButton}
         subViews={subViewsConfig}
       />
+      {/* Share Dialog */}
+      {ShareDialog}
     </div>
   )
 }
