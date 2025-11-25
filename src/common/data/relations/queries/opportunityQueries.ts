@@ -9,7 +9,7 @@ import { COMMUNICATION_CHANNEL_REF } from '@/common/data/common/queries/communic
 import { buildWhere, buildOrderBy, type Descriptor } from '@/common/network/graphql/queryHelpers'
 import { OpportunityFields } from '../types/opportunityTypes'
 import type { BaseQueryVariables } from '@/common/network/graphql/commonTypes'
-import { buildAddressFragment } from './_tempAddress'
+import { ADDRESS_REF } from '@/common/data/common/queries/addressFragments'
 
 // =====================================================
 // OPPORTUNITY RELATION TYPES
@@ -46,11 +46,13 @@ export interface OpportunityRelationFields {
 
 export interface CommonOpportunityQueryVariables extends BaseQueryVariables {
   accountIds?: string[]
+  contactIds?: string[]
   currencyIds?: string[]
   currencyCode?: string // Filter by currency code (e.g., 'EUR', 'USD')
   opportunityPipelineIds?: string[]
   opportunityPipelineStageIds?: string[]
   opportunityStatusIds?: string[]
+  opportunityForecastIds?: string[]
   ownerEmployeeIds?: string[]
   closeDateFrom?: string
   closeDateTo?: string
@@ -109,6 +111,10 @@ export const buildOpportunityQuery = (
           ${CATALOG_ENTRY}
         }
         ${entityFields.opportunityStatusRef}
+        ${entityFields.opportunityForecast} {
+          ${CATALOG_ENTRY}
+        }
+        ${entityFields.opportunityForecastRef}
         ${entityFields.ownerEmployee} {
           ${EMPLOYEE_REF}
         }
@@ -141,7 +147,6 @@ export const buildOpportunityQuery = (
  */
 export const buildOpportunityByIdQuery = (
   entityName: string,
-  id: string,
   entityFields: Record<keyof typeof OpportunityFields, string> = OpportunityFields,
   relationBuilders?: OpportunityRelationBuilders,
   relationFields?: OpportunityRelationFields,
@@ -180,6 +185,10 @@ export const buildOpportunityByIdQuery = (
           ${CATALOG_ENTRY}
         }
         ${entityFields.opportunityStatusRef}
+        ${entityFields.opportunityForecast} {
+          ${CATALOG_ENTRY}
+        }
+        ${entityFields.opportunityForecastRef}
         ${entityFields.ownerEmployee} {
           ${EMPLOYEE_REF}
         }
@@ -187,26 +196,32 @@ export const buildOpportunityByIdQuery = (
         ${entityFields.winningChance}
   `
 
+  // Helper function to build account relation string
+  const buildAccountRelation = (
+    accountField: string | undefined,
+    relationBuilders: OpportunityRelationBuilders,
+    accountFields: any
+  ): string => {
+    if (!accountField) return ''
+    return `${accountField} {
+      ${relationBuilders.buildAccountFragment(accountFields)}
+      # ✅ Relations direkt hier hinzufügen (nicht im Fragment)
+      ${accountFields.communicationChannels}(where: { isDeleted: { _eq: false } }) {
+        ${COMMUNICATION_CHANNEL_REF}
+      }
+      ${accountFields.addresses}(where: { isDeleted: { _eq: false } }) {
+        ${ADDRESS_REF}
+      }
+    }`
+  }
+
   // Common entity relations
   const commonRelations =
     relationBuilders && relationFields
       ? `
     # Account relation
     ${entityFields.accountId}
-    ${
-      entityFields.account
-        ? `${entityFields.account} {
-      ${relationBuilders.buildAccountFragment(relationFields.accountFields)}
-      # ✅ Relations direkt hier hinzufügen (nicht im Fragment)
-      ${relationFields.accountFields.communicationChannels}(where: { isDeleted: { _eq: false } }) {
-        ${COMMUNICATION_CHANNEL_REF}
-      }
-      ${relationFields.accountFields.addresses}(where: { isDeleted: { _eq: false } }) {
-        ${buildAddressFragment(entityName)}
-      }
-    }`
-        : ''
-    }
+    ${buildAccountRelation(entityFields.account, relationBuilders, relationFields.accountFields)}
     
     # Common entity relations (present in both IRM and CRM)
     ${entityFields.communicationChannels}(where: { isDeleted: { _eq: false } }) {
@@ -242,6 +257,8 @@ export const buildOpportunityByIdQuery = (
       contact {
         ${relationBuilders.buildContactFragment(relationFields.contactFields)}
       }
+      contactId
+      opportunityId
     }
     
     # OpportunityStageConditions relation (field name varies: opportunityStageConditions vs investmentOpportunityStageCondition vs stageConditionStatuses)
@@ -295,8 +312,8 @@ export const buildOpportunityByIdQuery = (
       : ''
 
   return `
-    query Get${entityName}ById {
-      ${entityName}ByPk(id: "${id}") {
+    query Get${entityName}ById($id: uuid!) {
+      ${entityName}ByPk(id: $id) {
         ${baseFields}
         ${commonRelations}
         ${additionalFields || ''}

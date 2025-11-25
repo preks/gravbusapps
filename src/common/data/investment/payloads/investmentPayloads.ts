@@ -2,7 +2,7 @@ import { BusinessAppContextProps } from '@/common/BusinessAppContext'
 import { toISOFormat } from '@/common/utils/dateFormatter'
 import { CatalogEntry } from '@/common/network/graphql/commonTypes'
 import { EmployeeRef } from '@/common/data/employee/types/employeeBaseTypes'
-import { InvestmentAccount } from '@/common/data/investment/types/'
+import { InvestmentAccount } from '@/common/data/investment/types/investmentAccountTypes'
 
 // ==============================
 // Investment Payload Types
@@ -163,8 +163,8 @@ export const buildInvestmentPayload = (
   // Helper to convert string/number to number
   const toNumber = (value: number | string | undefined): number | undefined => {
     if (value === undefined || value === null || value === '') return undefined
-    const num = typeof value === 'string' ? parseFloat(value) : value
-    return isNaN(num) ? undefined : num
+    const num = typeof value === 'string' ? Number.parseFloat(value) : value
+    return Number.isNaN(num) ? undefined : num
   }
 
   // Helper to extract and build additionalProperties object from form data

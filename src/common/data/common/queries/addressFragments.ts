@@ -1,18 +1,17 @@
 /**
  * Common Address Fragment (REF)
  *
- * Base address fields for IRM (uses "locality").
+ * Base address fields using "locality" (standardized across IRM and CRM).
+ * CRM uses GraphQL alias "locality: city" to map to standard field name.
  * Does NOT include entity relations to avoid recursive loops.
  * Catalog entries are always safe to include.
- *
- * NOTE: CRM uses "city" instead of "locality", so CRM must define its own address structure inline.
  */
 
 import { AUDIT_FIELDS, CATALOG_ENTRY } from '@/common/network/graphql/commonFragments'
 
 /**
  * ADDRESS_REF
- * Core fields for IRM addresses (uses "locality")
+ * Core address fields using "locality" (standardized)
  * Includes catalog entries, no entity relations
  */
 export const ADDRESS_REF = `

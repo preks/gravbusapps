@@ -23,7 +23,7 @@ import { OpportunityListLayout } from './components/OpportunityListLayout'
 import { useProcessCompletion } from '@/common/hooks/useProcessCompletion'
 import { useBoardEmployees } from './hooks/useBoardEmployees'
 import { opportunityBoardFilterConfig } from './config/opportunityBoardFilters'
-import type { OpportunityBoardFilters } from './config/opportunityBoardTypes'
+import type { OpportunityBoardFilters, OpportunityBoardConfig } from './config/opportunityBoardTypes'
 import {
   getFiltersForSection,
   getFilterConfigForSection,
@@ -129,9 +129,9 @@ export interface OpportunityViewConfig<TOpportunity extends { id: string }, TQue
   opportunityStatistics?: OpportunityStatisticsData
   renderStatistics?: (selectedCurrency?: string) => React.ReactNode
 
-  boardConfig: import('./config/opportunityBoardTypes').OpportunityBoardConfig
+  boardConfig: OpportunityBoardConfig
   fetchOpportunitiesForBoard: (
-    filters: import('./config/opportunityBoardTypes').OpportunityBoardFilters & {
+    filters: OpportunityBoardFilters & {
       additionalFilters?: Record<string, any>
     }
   ) => Promise<{ opportunities: TOpportunity[]; total: number }>
@@ -304,6 +304,7 @@ function ConfigOpportunityLayout<TOpportunity extends { id: string } = any, TQue
     'opportunityPipeline',
     'opportunityPipelineStage',
     'opportunityStatus',
+    'opportunityForecast',
     'closeDate',
     'account',
     'owner',
@@ -330,7 +331,7 @@ function ConfigOpportunityLayout<TOpportunity extends { id: string } = any, TQue
 
   // Dynamic Filter Data
   const filterData = config.filterDataHook(context)
-  const { owners, stages, pipelines, accounts, statuses } = filterData
+  const { owners, stages, pipelines, accounts, statuses, forecasts } = filterData
   const amountRange =
     'amountRange' in filterData && typeof filterData.amountRange === 'object'
       ? (filterData.amountRange as { min: number; max: number })
@@ -386,6 +387,12 @@ function ConfigOpportunityLayout<TOpportunity extends { id: string } = any, TQue
     )
     updateFilterOptions(
       filterConfig,
+      'forecast-group',
+      'opportunityForecastIds',
+      (forecasts || []).map(f => ({ id: f.id, label: f.label }))
+    )
+    updateFilterOptions(
+      filterConfig,
       'pipeline-group',
       'opportunityPipelineIds',
       pipelines.map(p => ({ id: p.id, label: p.label }))
@@ -406,7 +413,7 @@ function ConfigOpportunityLayout<TOpportunity extends { id: string } = any, TQue
     updateAmountRangeFilter(filterConfig, amountRange)
 
     return filterConfig
-  }, [owners, stages, pipelines, accounts, statuses, amountRange, config.baseFilterConfig])
+  }, [owners, stages, pipelines, accounts, statuses, forecasts, amountRange, config.baseFilterConfig])
 
   // List Query Variables
   const queryVariables = useMemo(

@@ -12,7 +12,7 @@ import { AccountFields, type Account } from '../types/accountTypes'
 import { AUDIT_FIELDS, CATALOG_ENTRY } from '@/common/network/graphql/commonFragments'
 import { EMPLOYEE_REF } from '@/common/data/employee/queries/fragments/employeeFragments'
 import { COMMUNICATION_CHANNEL_REF } from '@/common/data/common/queries/communicationChannelFragments'
-import { buildAddressFragment } from './_tempAddress'
+import { ADDRESS_REF } from '@/common/data/common/queries/addressFragments'
 
 /**
  * Account Query Options
@@ -25,12 +25,10 @@ export interface AccountQueryOptions {
 
   // Welche Felder sollen geholt werden? (Array von Account Interface Keys)
   // Leer = nur Basis-Felder (id, code, name, audit fields)
+  // Enthält sowohl normale Felder als auch Relations (z.B. 'documents', 'notes', 'tasks')
   fields?: Array<keyof Account>
 
-  // Welche Relations sollen geholt werden?
-  relations?: string[] // z.B. ['documents', 'notes', 'tasks', 'accountContacts']
-
-  // Relation field mappings (nur wenn relations angegeben)
+  // Field mappings für Relations
   relationFields?: {
     contactFields?: Record<string, string>
     documentFields?: Record<string, string>
@@ -49,39 +47,231 @@ export interface AccountQueryOptions {
 }
 
 /**
- * Build Account Query Content
- *
- * Gibt nur den Query-Inhalt zurück (Felder zwischen geschweiften Klammern)
- * Die komplette Query-Struktur wird vom Hook gebaut
- *
- * @param entityName - GraphQL entity name (z.B. 'Account', 'InvestmentAccount')
- * @param options - Query options mit fields, relations, etc.
- * @returns GraphQL query content string
+ * Helper: Builds a catalog field with ref
  */
-export const buildAccountQuery = (entityName: string, options: AccountQueryOptions): string => {
-  const { entityFields, fields = [], relations = [], relationFields = {}, relationPagination = {} } = options
-
-  // Default values für Relations (immer gesetzt)
-  const relationLimit = relationPagination.limit ?? 10
-  const relationOffset = relationPagination.offset ?? 0
-
-  // Alle Felder alphabetisch sortiert wie in accountTypes.ts
+const buildCatalogField = (
+  fieldName: string,
+  entityField: string,
+  entityFieldRef: string,
+  fields: Array<keyof Account>
+): string => {
+  if (!fields.includes(fieldName as keyof Account)) return ''
   return `
-    ${AUDIT_FIELDS}
-    ${
-      fields.includes('accountAnnualRevenueBand')
-        ? `
-      ${entityFields.accountAnnualRevenueBand} {
+      ${entityField} {
         ${CATALOG_ENTRY}
       }
-      ${entityFields.accountAnnualRevenueBandRef}
+      ${entityFieldRef}
     `
-        : ''
-    }
-    ${
-      relations.includes('accountContacts') && relationFields.contactFields
-        ? `
-      ${entityFields.accountContacts}(
+}
+
+/**
+ * Helper: Builds a simple field
+ */
+const buildSimpleField = (fieldName: string, entityField: string, fields: Array<keyof Account>): string => {
+  return fields.includes(fieldName as keyof Account) ? entityField : ''
+}
+
+/**
+ * Helper: Builds a catalog entry within a relation
+ */
+const buildCatalogEntryInRelation = (fieldName: string | undefined, fieldRef: string | undefined): string => {
+  if (!fieldName || !fieldRef) return ''
+  return `
+          ${fieldName} {
+            ${CATALOG_ENTRY}
+          }
+          ${fieldRef}
+        `
+}
+
+/**
+ * Helper: Builds an employee reference within a relation
+ */
+const buildEmployeeRefInRelation = (fieldName: string | undefined, fieldId: string | undefined): string => {
+  if (!fieldName || !fieldId) return ''
+  return `
+          ${fieldName} {
+            ${EMPLOYEE_REF}
+          }
+          ${fieldId}
+        `
+}
+
+/**
+ * Helper: Builds contact fields within accountContacts relation
+ */
+const buildContactFieldsInAccountContacts = (contactFields: Record<string, string>): string => {
+  return `
+          ${contactFields.id}
+          ${contactFields.firstName}
+          ${contactFields.lastName}
+          ${contactFields.displayName}
+          ${contactFields.jobTitle}
+          ${buildCatalogEntryInRelation(contactFields.salutation, contactFields.salutationRef)}
+          ${
+            contactFields.communicationChannels
+              ? `
+            ${contactFields.communicationChannels}(where: { isDeleted: { _eq: false } }) {
+              ${COMMUNICATION_CHANNEL_REF}
+            }
+          `
+              : ''
+          }
+          ${
+            contactFields.addresses
+              ? `
+            ${contactFields.addresses}(where: { isDeleted: { _eq: false } }) {
+              ${ADDRESS_REF}
+            }
+          `
+              : ''
+          }
+        `
+}
+
+/**
+ * Helper: Builds activity fields
+ */
+const buildActivityFields = (activityFields: Record<string, string>): string => {
+  return `
+        ${AUDIT_FIELDS}
+        ${activityFields.id}
+        ${activityFields.title}
+        ${activityFields.description}
+        ${activityFields.occurredAt}
+        ${buildCatalogEntryInRelation(activityFields.activityType, activityFields.activityTypeRef)}
+        ${buildEmployeeRefInRelation(activityFields.ownerEmployee, activityFields.ownerEmployeeId)}
+      `
+}
+
+/**
+ * Helper: Builds contact fields (simple version)
+ */
+const buildContactFields = (contactFields: Record<string, string>): string => {
+  return `
+        ${AUDIT_FIELDS}
+        ${contactFields.id}
+        ${contactFields.firstName}
+        ${contactFields.lastName}
+        ${contactFields.displayName}
+        ${contactFields.email}
+        ${contactFields.phone}
+        ${contactFields.jobTitle}
+      `
+}
+
+/**
+ * Helper: Builds document fields
+ */
+const buildDocumentFields = (documentFields: Record<string, string>): string => {
+  return `
+        ${AUDIT_FIELDS}
+        ${documentFields.id}
+        ${documentFields.name}
+        ${documentFields.description}
+        ${documentFields.fileName}
+        ${documentFields.fileSize}
+        ${documentFields.mimeType}
+        ${buildCatalogEntryInRelation(documentFields.documentType, documentFields.documentTypeRef)}
+      `
+}
+
+/**
+ * Helper: Builds lead fields
+ */
+const buildLeadFields = (leadFields: Record<string, string>): string => {
+  return `
+        ${AUDIT_FIELDS}
+        ${leadFields.id}
+        ${leadFields.firstName}
+        ${leadFields.lastName}
+        ${leadFields.companyName}
+        ${buildCatalogEntryInRelation(leadFields.leadStatus, leadFields.leadStatusRef)}
+      `
+}
+
+/**
+ * Helper: Builds note fields
+ */
+const buildNoteFields = (noteFields: Record<string, string>): string => {
+  return `
+        ${AUDIT_FIELDS}
+        ${noteFields.id}
+        ${noteFields.title}
+        ${noteFields.text}
+        ${buildCatalogEntryInRelation(noteFields.noteType, noteFields.noteTypeRef)}
+      `
+}
+
+/**
+ * Helper: Builds opportunity fields
+ */
+const buildOpportunityFields = (opportunityFields: Record<string, string>): string => {
+  return `
+        ${AUDIT_FIELDS}
+        ${opportunityFields.id}
+        ${opportunityFields.name}
+        ${opportunityFields.amount}
+        ${buildCatalogEntryInRelation(opportunityFields.opportunityStatus, opportunityFields.opportunityStatusRef)}
+        ${buildCatalogEntryInRelation(opportunityFields.stage, opportunityFields.stageRef)}
+      `
+}
+
+/**
+ * Helper: Builds task fields
+ */
+const buildTaskFields = (taskFields: Record<string, string>): string => {
+  return `
+        ${AUDIT_FIELDS}
+        ${taskFields.id}
+        ${taskFields.name}
+        ${taskFields.description}
+        ${taskFields.dueDate}
+        ${taskFields.startDate}
+        ${taskFields.endDate}
+        ${buildCatalogEntryInRelation(taskFields.taskStatus, taskFields.taskStatusRef)}
+        ${buildCatalogEntryInRelation(taskFields.taskPriority, taskFields.taskPriorityRef)}
+        ${buildEmployeeRefInRelation(taskFields.assignedEmployee, taskFields.assignedEmployeeId)}
+      `
+}
+
+/**
+ * Helper: Build relation field with pagination
+ */
+const buildRelationFieldWithPagination = (
+  fieldName: string,
+  entityField: string,
+  fields: Array<keyof Account>,
+  relationFieldsConfig: Record<string, string> | undefined,
+  buildFieldsFn: (config: Record<string, string>) => string,
+  relationLimit: number,
+  relationOffset: number
+): string => {
+  if (!fields.includes(fieldName as keyof Account) || !relationFieldsConfig) return ''
+  return `
+      ${entityField}(
+        where: { isDeleted: { _eq: false } }
+        limit: ${relationLimit}
+        offset: ${relationOffset}
+      ) {
+        ${buildFieldsFn(relationFieldsConfig)}
+      }
+    `
+}
+
+/**
+ * Helper: Build accountContacts relation field
+ */
+const buildAccountContactsRelation = (
+  entityField: string,
+  fields: Array<keyof Account>,
+  relationFieldsConfig: Record<string, string> | undefined,
+  relationLimit: number,
+  relationOffset: number
+): string => {
+  if (!fields.includes('accountContacts' as keyof Account) || !relationFieldsConfig) return ''
+  return `
+      ${entityField}(
         where: { isDeleted: { _eq: false } }
         limit: ${relationLimit}
         offset: ${relationOffset}
@@ -90,100 +280,40 @@ export const buildAccountQuery = (entityName: string, options: AccountQueryOptio
         ${AUDIT_FIELDS}
         contactType
         contact {
-          ${AUDIT_FIELDS}
-          ${relationFields.contactFields.id}
-          ${relationFields.contactFields.firstName}
-          ${relationFields.contactFields.lastName}
-          ${relationFields.contactFields.displayName}
-          ${relationFields.contactFields.jobTitle}
-          ${
-            relationFields.contactFields.salutation
-              ? `
-            ${relationFields.contactFields.salutation} {
-              ${CATALOG_ENTRY}
-            }
-            ${relationFields.contactFields.salutationRef}
-          `
-              : ''
-          }
-          ${
-            relationFields.contactFields.communicationChannels
-              ? `
-            ${relationFields.contactFields.communicationChannels}(where: { isDeleted: { _eq: false } }) {
-              ${COMMUNICATION_CHANNEL_REF}
-            }
-          `
-              : ''
-          }
-          ${
-            relationFields.contactFields.addresses
-              ? `
-            ${relationFields.contactFields.addresses}(where: { isDeleted: { _eq: false } }) {
-              ${buildAddressFragment(entityName)}
-            }
-          `
-              : ''
-          }
+          ${buildContactFieldsInAccountContacts(relationFieldsConfig)}
         }
       }
     `
-        : ''
-    }
-    ${
-      relations.includes('activities') && relationFields.activityFields
-        ? `
-      ${entityFields.activities}(
+}
+
+/**
+ * Helper: Build addresses relation field
+ */
+const buildAddressesRelation = (
+  entityField: string,
+  fields: Array<keyof Account>,
+  relationLimit: number,
+  relationOffset: number
+): string => {
+  if (!fields.includes('addresses' as keyof Account)) return ''
+  return `
+      ${entityField}(
         where: { isDeleted: { _eq: false } }
         limit: ${relationLimit}
         offset: ${relationOffset}
       ) {
-        ${AUDIT_FIELDS}
-        ${relationFields.activityFields.id}
-        ${relationFields.activityFields.title}
-        ${relationFields.activityFields.description}
-        ${relationFields.activityFields.occurredAt}
-        ${
-          relationFields.activityFields.activityType
-            ? `
-          ${relationFields.activityFields.activityType} {
-            ${CATALOG_ENTRY}
-          }
-          ${relationFields.activityFields.activityTypeRef}
-        `
-            : ''
-        }
-        ${
-          relationFields.activityFields.ownerEmployee
-            ? `
-          ${relationFields.activityFields.ownerEmployee} {
-            ${EMPLOYEE_REF}
-          }
-          ${relationFields.activityFields.ownerEmployeeId}
-        `
-            : ''
-        }
+        ${ADDRESS_REF}
       }
     `
-        : ''
-    }
-    ${
-      relations.includes('addresses')
-        ? `
-      ${entityFields.addresses}(
-        where: { isDeleted: { _eq: false } }
-        limit: ${relationLimit}
-        offset: ${relationOffset}
-      ) {
-        ${buildAddressFragment(entityName)}
-      }
-    `
-        : ''
-    }
-    ${entityFields.code}
-    ${
-      fields.includes('communicationChannels')
-        ? `
-      ${entityFields.communicationChannels}(where: { isDeleted: { _eq: false } }) {
+}
+
+/**
+ * Helper: Build communicationChannels field
+ */
+const buildCommunicationChannelsField = (entityField: string, fields: Array<keyof Account>): string => {
+  if (!fields.includes('communicationChannels' as keyof Account)) return ''
+  return `
+      ${entityField}(where: { isDeleted: { _eq: false } }) {
         value
         valueExtension
         communicationChannel {
@@ -192,253 +322,91 @@ export const buildAccountQuery = (entityName: string, options: AccountQueryOptio
         communicationChannelRef
       }
     `
-        : ''
-    }
-    ${
-      fields.includes('companySize')
-        ? `
-      ${entityFields.companySize} {
+}
+
+/**
+ * Helper: Build companySize catalog field
+ */
+const buildCompanySizeField = (entityField: string, entityFieldRef: string, fields: Array<keyof Account>): string => {
+  if (!fields.includes('companySize' as keyof Account)) return ''
+  return `
+      ${entityField} {
         ${CATALOG_ENTRY}
       }
-      ${entityFields.companySizeRef}
+      ${entityFieldRef}
     `
-        : ''
-    }
-    ${
-      relations.includes('contacts') && relationFields.contactFields
-        ? `
-      ${entityFields.contacts}(
-        where: { isDeleted: { _eq: false } }
-        limit: ${relationLimit}
-        offset: ${relationOffset}
-      ) {
-        ${AUDIT_FIELDS}
-        ${relationFields.contactFields.id}
-        ${relationFields.contactFields.firstName}
-        ${relationFields.contactFields.lastName}
-        ${relationFields.contactFields.displayName}
-        ${relationFields.contactFields.email}
-        ${relationFields.contactFields.phone}
-        ${relationFields.contactFields.jobTitle}
-      }
-    `
-        : ''
-    }
-    ${
-      relations.includes('documents') && relationFields.documentFields
-        ? `
-      ${entityFields.documents}(
-        where: { isDeleted: { _eq: false } }
-        limit: ${relationLimit}
-        offset: ${relationOffset}
-      ) {
-        ${AUDIT_FIELDS}
-        ${relationFields.documentFields.id}
-        ${relationFields.documentFields.name}
-        ${relationFields.documentFields.description}
-        ${relationFields.documentFields.fileName}
-        ${relationFields.documentFields.fileSize}
-        ${relationFields.documentFields.mimeType}
-        ${
-          relationFields.documentFields.documentType
-            ? `
-          ${relationFields.documentFields.documentType} {
-            ${CATALOG_ENTRY}
-          }
-          ${relationFields.documentFields.documentTypeRef}
-        `
-            : ''
-        }
-      }
-    `
-        : ''
-    }
-    ${fields.includes('foundationDate') ? entityFields.foundationDate : ''}
-    ${entityFields.id}
-    ${
-      fields.includes('industryClass')
-        ? `
-      ${entityFields.industryClass} {
-        ${CATALOG_ENTRY}
-      }
-      ${entityFields.industryClassRef}
-    `
-        : ''
-    }
-    ${
-      relations.includes('leads') && relationFields.leadFields
-        ? `
-      ${entityFields.leads}(
-        where: { isDeleted: { _eq: false } }
-        limit: ${relationLimit}
-        offset: ${relationOffset}
-      ) {
-        ${AUDIT_FIELDS}
-        ${relationFields.leadFields.id}
-        ${relationFields.leadFields.firstName}
-        ${relationFields.leadFields.lastName}
-        ${relationFields.leadFields.companyName}
-        ${
-          relationFields.leadFields.leadStatus
-            ? `
-          ${relationFields.leadFields.leadStatus} {
-            ${CATALOG_ENTRY}
-          }
-          ${relationFields.leadFields.leadStatusRef}
-        `
-            : ''
-        }
-      }
-    `
-        : ''
-    }
-    ${
-      fields.includes('legalForm')
-        ? `
-      ${entityFields.legalForm} {
-        ${CATALOG_ENTRY}
-      }
-      ${entityFields.legalFormRef}
-    `
-        : ''
-    }
-    ${fields.includes('liquidationDate') ? entityFields.liquidationDate : ''}
-    ${entityFields.name}
-    ${
-      relations.includes('notes') && relationFields.noteFields
-        ? `
-      ${entityFields.notes}(
-        where: { isDeleted: { _eq: false } }
-        limit: ${relationLimit}
-        offset: ${relationOffset}
-      ) {
-        ${AUDIT_FIELDS}
-        ${relationFields.noteFields.id}
-        ${relationFields.noteFields.title}
-        ${relationFields.noteFields.text}
-        ${
-          relationFields.noteFields.noteType
-            ? `
-          ${relationFields.noteFields.noteType} {
-            ${CATALOG_ENTRY}
-          }
-          ${relationFields.noteFields.noteTypeRef}
-        `
-            : ''
-        }
-      }
-    `
-        : ''
-    }
-    ${fields.includes('notesSummary') ? entityFields.notesSummary : ''}
-    ${
-      relations.includes('opportunities') && relationFields.opportunityFields
-        ? `
-      ${entityFields.opportunities}(
-        where: { isDeleted: { _eq: false } }
-        limit: ${relationLimit}
-        offset: ${relationOffset}
-      ) {
-        ${AUDIT_FIELDS}
-        ${relationFields.opportunityFields.id}
-        ${relationFields.opportunityFields.name}
-        ${relationFields.opportunityFields.amount}
-        ${
-          relationFields.opportunityFields.opportunityStatus
-            ? `
-          ${relationFields.opportunityFields.opportunityStatus} {
-            ${CATALOG_ENTRY}
-          }
-          ${relationFields.opportunityFields.opportunityStatusRef}
-        `
-            : ''
-        }
-        ${
-          relationFields.opportunityFields.stage
-            ? `
-          ${relationFields.opportunityFields.stage} {
-            ${CATALOG_ENTRY}
-          }
-          ${relationFields.opportunityFields.stageRef}
-        `
-            : ''
-        }
-      }
-    `
-        : ''
-    }
-    ${
-      fields.includes('ownerEmployee')
-        ? `
-      ${entityFields.ownerEmployee} {
+}
+
+/**
+ * Helper: Build ownerEmployee field
+ */
+const buildOwnerEmployeeField = (entityField: string, entityFieldId: string, fields: Array<keyof Account>): string => {
+  if (!fields.includes('ownerEmployee' as keyof Account)) return ''
+  return `
+      ${entityField} {
         ${EMPLOYEE_REF}
       }
-      ${entityFields.ownerEmployeeId}
+      ${entityFieldId}
     `
-        : ''
-    }
-    ${fields.includes('picture') ? entityFields.picture : ''}
-    ${fields.includes('pictureThumbnail') ? entityFields.pictureThumbnail : ''}
-    ${
-      relations.includes('tasks') && relationFields.taskFields
-        ? `
-      ${entityFields.tasks}(
-        where: { isDeleted: { _eq: false } }
-        limit: ${relationLimit}
-        offset: ${relationOffset}
-      ) {
-        ${AUDIT_FIELDS}
-        ${relationFields.taskFields.id}
-        ${relationFields.taskFields.name}
-        ${relationFields.taskFields.description}
-        ${relationFields.taskFields.dueDate}
-        ${relationFields.taskFields.startDate}
-        ${relationFields.taskFields.endDate}
-        ${
-          relationFields.taskFields.taskStatus
-            ? `
-          ${relationFields.taskFields.taskStatus} {
-            ${CATALOG_ENTRY}
-          }
-          ${relationFields.taskFields.taskStatusRef}
-        `
-            : ''
-        }
-        ${
-          relationFields.taskFields.taskPriority
-            ? `
-          ${relationFields.taskFields.taskPriority} {
-            ${CATALOG_ENTRY}
-          }
-          ${relationFields.taskFields.taskPriorityRef}
-        `
-            : ''
-        }
-        ${
-          relationFields.taskFields.assignedEmployee
-            ? `
-          ${relationFields.taskFields.assignedEmployee} {
-            ${EMPLOYEE_REF}
-          }
-          ${relationFields.taskFields.assignedEmployeeId}
-        `
-            : ''
-        }
-      }
-    `
-        : ''
-    }
-    ${
-      fields.includes('timeZone')
-        ? `
-      ${entityFields.timeZone} {
+}
+
+/**
+ * Helper: Build timeZone catalog field
+ */
+const buildTimeZoneField = (entityField: string, entityFieldRef: string, fields: Array<keyof Account>): string => {
+  if (!fields.includes('timeZone' as keyof Account)) return ''
+  return `
+      ${entityField} {
         ${CATALOG_ENTRY}
       }
-      ${entityFields.timeZoneRef}
+      ${entityFieldRef}
     `
-        : ''
-    }
-    ${fields.includes('wesbite') ? entityFields.website : ''}
+}
+
+/**
+ * Build Account Query Content
+ *
+ * Gibt nur den Query-Inhalt zurück (Felder zwischen geschweiften Klammern)
+ * Die komplette Query-Struktur wird vom Hook gebaut
+ *
+ * @param options - Query options mit fields, etc.
+ * @returns GraphQL query content string
+ */
+export const buildAccountQuery = (options: AccountQueryOptions): string => {
+  const { entityFields, fields = [], relationFields = {}, relationPagination = {} } = options
+
+  // Default values für Relations (immer gesetzt)
+  const relationLimit = relationPagination.limit ?? 10
+  const relationOffset = relationPagination.offset ?? 0
+
+  // Alle Felder alphabetisch sortiert wie in accountTypes.ts
+  return `
+    ${AUDIT_FIELDS}
+    ${buildCatalogField('accountAnnualRevenueBand', entityFields.accountAnnualRevenueBand, entityFields.accountAnnualRevenueBandRef, fields)}
+    ${buildAccountContactsRelation(entityFields.accountContacts, fields, relationFields.contactFields, relationLimit, relationOffset)}
+    ${buildRelationFieldWithPagination('activities', entityFields.activities, fields, relationFields.activityFields, buildActivityFields, relationLimit, relationOffset)}
+    ${buildAddressesRelation(entityFields.addresses, fields, relationLimit, relationOffset)}
+    ${entityFields.code}
+    ${buildCommunicationChannelsField(entityFields.communicationChannels, fields)}
+    ${buildCompanySizeField(entityFields.companySize, entityFields.companySizeRef, fields)}
+    ${buildRelationFieldWithPagination('contacts', entityFields.contacts, fields, relationFields.contactFields, buildContactFields, relationLimit, relationOffset)}
+    ${buildRelationFieldWithPagination('documents', entityFields.documents, fields, relationFields.documentFields, buildDocumentFields, relationLimit, relationOffset)}
+    ${buildSimpleField('foundationDate', entityFields.foundationDate, fields)}
+    ${entityFields.id}
+    ${buildCatalogField('industryClass', entityFields.industryClass, entityFields.industryClassRef, fields)}
+    ${buildRelationFieldWithPagination('leads', entityFields.leads, fields, relationFields.leadFields, buildLeadFields, relationLimit, relationOffset)}
+    ${buildCatalogField('legalForm', entityFields.legalForm, entityFields.legalFormRef, fields)}
+    ${buildSimpleField('liquidationDate', entityFields.liquidationDate, fields)}
+    ${entityFields.name}
+    ${buildRelationFieldWithPagination('notes', entityFields.notes, fields, relationFields.noteFields, buildNoteFields, relationLimit, relationOffset)}
+    ${buildSimpleField('notesSummary', entityFields.notesSummary, fields)}
+    ${buildRelationFieldWithPagination('opportunities', entityFields.opportunities, fields, relationFields.opportunityFields, buildOpportunityFields, relationLimit, relationOffset)}
+    ${buildOwnerEmployeeField(entityFields.ownerEmployee, entityFields.ownerEmployeeId, fields)}
+    ${fields.includes('picture' as keyof Account) ? entityFields.picture : ''}
+    ${fields.includes('pictureThumbnail' as keyof Account) ? entityFields.pictureThumbnail : ''}
+    ${buildRelationFieldWithPagination('tasks', entityFields.tasks, fields, relationFields.taskFields, buildTaskFields, relationLimit, relationOffset)}
+    ${buildTimeZoneField(entityFields.timeZone, entityFields.timeZoneRef, fields)}
+    ${fields.includes('website' as keyof Account) ? entityFields.website : ''}
   `
 }
 
@@ -450,7 +418,7 @@ export const buildAccountQuery = (entityName: string, options: AccountQueryOptio
  * Beispiel 1: Minimal - nur Basis-Felder
  */
 export const exampleMinimal = () => {
-  buildAccountQuery('Account', {
+  buildAccountQuery({
     entityFields: AccountFields,
     fields: [] // nur id, code, name, audit fields
   })
@@ -470,9 +438,9 @@ export const exampleMinimal = () => {
  * Beispiel 2: Mit Feldern
  */
 export const exampleWithFields = () => {
-  buildAccountQuery('Account', {
+  buildAccountQuery({
     entityFields: AccountFields,
-    fields: ['ownerEmployee', 'industryClass', 'foundationDate', 'wesbite', 'legalForm', 'companySize']
+    fields: ['ownerEmployee', 'industryClass', 'foundationDate', 'website', 'legalForm', 'companySize']
   })
 }
 
@@ -481,10 +449,9 @@ export const exampleWithFields = () => {
  */
 export const exampleWithRelations = () => {
   // Annahme: CustomerDocumentFields, CustomerContactFields existieren
-  buildAccountQuery('Account', {
+  buildAccountQuery({
     entityFields: AccountFields,
-    fields: ['ownerEmployee', 'industryClass'],
-    relations: ['documents', 'accountContacts', 'tasks'],
+    fields: ['ownerEmployee', 'industryClass', 'documents', 'accountContacts', 'tasks'],
     relationFields: {
       documentFields: {
         id: 'id',
@@ -534,10 +501,9 @@ export const exampleWithRelations = () => {
  * Beispiel 4: Mit Domain-specific Fields (Investment)
  */
 export const exampleWithAdditionalFields = () => {
-  buildAccountQuery('InvestmentAccount', {
+  buildAccountQuery({
     entityFields: AccountFields, // InvestmentAccountFields in real
-    fields: ['ownerEmployee', 'industryClass'],
-    relations: ['documents', 'accountContacts'],
+    fields: ['ownerEmployee', 'industryClass', 'documents', 'accountContacts'],
     relationFields: {
       documentFields: {
         id: 'id',
@@ -561,60 +527,7 @@ export const exampleWithAdditionalFields = () => {
 /**
  * Beispiel 5: Hook Implementation
  */
-export const exampleHookUsage = () => {
-  // In einem Hook:
-  /*
-  const fetchAccounts = useCallback(async (variables: AccountQueryVariables) => {
-    // 1. Query-Inhalt bauen
-    const queryContent = buildAccountQuery('Account', {
-      entityFields: CustomerAccountFields,
-      fields: ['ownerEmployee', 'industryClass', 'foundationDate'],
-      relations: ['documents', 'accountContacts'],
-      relationFields: {
-        documentFields: CustomerDocumentFields,
-        contactFields: CustomerContactFields
-      },
-      relationPagination: { limit: 10, offset: 0 }
-    })
-    
-    // 2. Komplette Query-Struktur bauen
-    const query = `
-      query GetAccounts(
-        $limit: Int
-        $offset: Int
-        $where: AccountBoolExp
-        $orderBy: [AccountOrderBy!]
-      ) {
-        Account(
-          limit: $limit
-          offset: $offset
-          orderBy: $orderBy
-          where: $where
-        ) {
-          ${queryContent}
-        }
-        AccountAggregate(where: $where) {
-          aggregate { count }
-        }
-      }
-    `
-    
-    // 3. WHERE/ORDER BY bauen
-    const whereCondition = buildAccountWhereCondition(variables, descriptors)
-    const orderBy = buildAccountOrderBy(variables.orderBy || [], descriptors)
-    
-    // 4. GraphQL request
-    const result = await graphqlClient.request(query, {
-      limit: variables.limit || 50,
-      offset: variables.offset || 0,
-      where: whereCondition,
-      orderBy: orderBy
-    })
-    
-    return result
-  })
-  */
-}
+export const exampleHookUsage = () => {}
 
 // =====================================================
 // DEFAULT CONFIGS
@@ -640,9 +553,9 @@ export const ACCOUNT_LIST_CONFIG: AccountQueryOptions = {
     'companySize',
     'ownerEmployee',
     'foundationDate',
-    'pictureThumbnail' // Für Avatar in Tabelle
+    'pictureThumbnail', // Für Avatar in Tabelle
+    'addresses' // Für Adress-Anzeige in Tabelle
   ],
-  relations: ['addresses'], // Für Adress-Anzeige in Tabelle
   relationPagination: {
     limit: 1, // Nur erste Adresse für Tabelle
     offset: 0
@@ -671,12 +584,10 @@ export const ACCOUNT_RECORD_CONFIG: AccountQueryOptions = {
     'timeZone',
     'ownerEmployee',
     'communicationChannels',
-    'wesbite',
+    'website',
     'picture',
     'pictureThumbnail',
-    'notesSummary'
-  ],
-  relations: [
+    'notesSummary',
     'addresses',
     'documents',
     'notes',

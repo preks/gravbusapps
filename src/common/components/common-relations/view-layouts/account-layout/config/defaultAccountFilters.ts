@@ -109,6 +109,26 @@ export const commonAccountFilterConfig: FilterConfiguration = {
       ]
     },
     {
+      id: 'priority-group',
+      label: 'Priority',
+      collapsible: true,
+      defaultExpanded: false,
+      filters: [
+        {
+          id: 'accountPriorityIds',
+          field: 'accountPriorityIds',
+          label: 'Priority',
+          type: 'multi-select',
+          config: {
+            options: [],
+            searchPlaceholder: 'Search priorities...',
+            totalCount: 0,
+            hasMore: false
+          }
+        }
+      ]
+    },
+    {
       id: 'status-group',
       label: 'Status',
       collapsible: true,

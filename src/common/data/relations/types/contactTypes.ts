@@ -80,8 +80,6 @@ export const ContactFields = {
   type: 'type'
 } as const
 
-export type ContactFieldName = (typeof ContactFields)[keyof typeof ContactFields]
-
 /**
  * Create Common Contact Descriptors with fields mapping
  */
@@ -265,3 +263,41 @@ export const createContactDescriptors = (
     type: 'text'
   }
 ]
+
+/**
+ * Contact Form Fields Configuration
+ * Defines which fields to include in payload
+ * Sorted alphabetically by sourceKey
+ *
+ * Transformations are handled automatically:
+ * - Dates → ISO format
+ * - Arrays → included only if not empty
+ * - Objects → included only if not empty
+ * - Primitives → string or undefined
+ */
+export const contactFormFields = {
+  academicTitleRef: 'academicTitleRef',
+  accountContacts: 'accountContacts',
+  addresses: 'addresses',
+  birthDate: 'birthDate',
+  businessKey: 'businessKey',
+  code: 'code',
+  communicationChannels: 'communicationChannels',
+  department: 'department',
+  description: 'description',
+  documents: 'documents',
+  firstName: 'firstName',
+  fullName: 'fullName',
+  id: 'id',
+  jobPosition: 'jobPosition',
+  languageRef: 'languageRef',
+  lastName: 'lastName',
+  notesSummary: 'notesSummary',
+  ownerEmployeeId: 'ownerEmployee',
+  picture: 'picture',
+  pictureThumbnail: 'pictureThumbnail',
+  professionalTitleRef: 'professionalTitleRef',
+  salutationRef: 'salutationRef',
+  type: 'type',
+  version: 'version'
+} as const

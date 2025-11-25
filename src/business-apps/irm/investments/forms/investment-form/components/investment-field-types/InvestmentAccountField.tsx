@@ -3,7 +3,7 @@ import { Controller, Control, FieldValues } from 'react-hook-form'
 import { Combobox, FormItem, FormLabel, FormControl, FormMessage } from '@newwork/nw-design-system'
 import { formatDataTestId } from '@/common/utils/formatDataTestId'
 import { getTranslationFromI18nKeyAndLabel } from '@/common/utils/windowUtils'
-import { useGetInvestmentAccounts } from '@/common/data/investment'
+import { useGetInvestmentAccounts } from '@/common/data/investment/hooks/useInvestmentAccounts'
 import { BusinessAppContextProps } from '@/common/BusinessAppContext'
 import { DynamicFormFieldDefinition } from '@/components/dynamic-form'
 

@@ -25,13 +25,13 @@ import { getTranslationFromI18nKeyAndLabel } from '@/common/utils/windowUtils'
 import { useCatalogEntries } from '@/common/data/catalog/hooks/useCatalogEntries'
 import type { CatalogEntry } from '@/common/data/catalog/types/catalogTypes'
 import { useProspectRejectionReasons } from '@/common/data/investment/hooks/useProspectRejectionReasons'
-import { useGetInvestmentLeadById } from '@/business-apps/irm/core/forms/lead-form/queries/LeadQueries'
-import { useGetInvestmentOpportunityById } from '@/business-apps/irm/core/forms/opportunity-form/queries/OpportunityQueries'
+import { useGetInvestmentLeadById } from '@/common/data/investment/hooks/useInvestmentLeads'
+import { useGetInvestmentOpportunityById } from '@/common/data/investment/hooks/useInvestmentOpportunities'
 import {
   buildRejectionReasonPayload,
   type RejectionReasonFormData,
   type ExistingRejectionReason
-} from '@/common/data/investment/payloads'
+} from '@/common/data/investment/payloads/rejectionReasonPayloads'
 import { RejectionReasonPopupProps } from './types'
 
 const prefixDataTestId = 'rejection-reason-popup'
@@ -212,10 +212,10 @@ export const RejectionReasonPopup: React.FC<RejectionReasonPopupProps> = ({
       // Fetch entity version
       if (entityType === 'LEAD') {
         const leadData = await fetchInvestmentLeadById(entityId)
-        setEntityVersion(leadData?.version)
+        setEntityVersion(leadData?.lead?.version)
       } else {
         const opportunityData = await fetchInvestmentOpportunityById(entityId)
-        setEntityVersion(opportunityData?.version)
+        setEntityVersion(opportunityData?.opportunity?.version)
       }
 
       // Fetch based on entity type
