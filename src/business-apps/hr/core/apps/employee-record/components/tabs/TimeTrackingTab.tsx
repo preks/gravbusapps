@@ -6,6 +6,7 @@ import { BusinessAppContextProps } from '@/common/BusinessAppContext'
 import { getTranslationFromI18nKeyAndLabel } from '@/common/utils/windowUtils'
 import MonthlySummary from './components/MonthlySummary'
 import SmartBooking from './components/SmartBooking'
+import History from './components/History'
 
 interface TimeTrackingTabProps extends BusinessAppContextProps {
   employee: any
@@ -15,7 +16,8 @@ interface TimeTrackingTabProps extends BusinessAppContextProps {
 
 enum TimeTrackingTabEnum {
   MonthlySummary = 'monthly-summary',
-  SmartBooking = 'smart-booking'
+  SmartBooking = 'smart-booking',
+  History = 'history'
 }
 
 const TimeTrackingTab: React.FC<TimeTrackingTabProps> = ({ employee, accessToken, employeeId, isSelfView }) => {
@@ -50,6 +52,11 @@ const TimeTrackingTab: React.FC<TimeTrackingTabProps> = ({ employee, accessToken
               </span>
             </div>
           </TabsTrigger>
+          <TabsTrigger value="history" data-testid="history-subtab" className="gba:flex-1">
+            <div className="gba:flex gba:items-center gba:gap-2 gba:justify-center">
+              <span>{getTranslationFromI18nKeyAndLabel('lowcoder:time_tracking.history.title', 'History')}</span>
+            </div>
+          </TabsTrigger>
           {/* Disable smart booking tab for now until it is implemented on BE */}
           {/* <TabsTrigger value="smart-booking" data-testid="smart-booking-subtab" className="gba:flex-1">
             <div className="gba:flex gba:items-center gba:gap-2 gba:justify-center">
@@ -66,6 +73,9 @@ const TimeTrackingTab: React.FC<TimeTrackingTabProps> = ({ employee, accessToken
             accessToken={accessToken}
             isSelfView={isSelfView}
           />
+        </TabsContent>
+        <TabsContent value="history" data-testid="history-content" className="gba:mt-4">
+          <History employeeId={employeeId} accessToken={accessToken} />
         </TabsContent>
         <TabsContent value="smart-booking" data-testid="smart-booking-content" className="gba:mt-4">
           <SmartBooking prefixDataTestId="smart-booking" accessToken={accessToken} employeeId={employeeId} />
