@@ -100,6 +100,7 @@ export const GET_EMPLOYEE_DATA = /*sql*/ `
       displayName
       workspace
       version
+      externalId
       pictureThumbnail
       userId
       additionalProperties
@@ -458,6 +459,7 @@ export interface Employee {
   code: string
   workspace: string
   version: number
+  externalId?: string | null
   pictureThumbnail: string
   userId?: string
   skills: EmployeeSkill[]
