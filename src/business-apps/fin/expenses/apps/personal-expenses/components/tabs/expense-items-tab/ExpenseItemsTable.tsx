@@ -109,12 +109,13 @@ const ExpenseItemsTable: React.FC<ExpenseItemsTableProps> = React.memo(props => 
 
   // currency fetching now handled by useExpenseCurrencies
 
-  useEffect(() => {
-    if (!initialized) return
+  const buildApiFilters = useCallback(() => {
     const apiFilters = { ...getFilters(allSelectedFilters) } as ExpenseFilter
+
     if (selectedCurrencyRef) {
       apiFilters.currencyRef = selectedCurrencyRef
     }
+
     // Apply widget-driven filters directly to API request
     if (props.activeWidgetKey === 'total-expenses') {
       const start = new Date()
@@ -131,40 +132,25 @@ const ExpenseItemsTable: React.FC<ExpenseItemsTableProps> = React.memo(props => 
       apiFilters.expenseDateEnd = end.toISOString().split('T')[0]
       apiFilters.status = ['PENDING']
     }
+
+    return apiFilters
+  }, [getFilters, allSelectedFilters, selectedCurrencyRef, props.activeWidgetKey])
+
+  useEffect(() => {
+    if (!initialized) return
+    const apiFilters = buildApiFilters()
     fetchItems(search, currentPage, pageSize, apiFilters, sortField, sortOrder)
-  }, [
-    fetchItems,
-    currentPage,
-    pageSize,
-    search,
-    allSelectedFilters,
-    getFilters,
-    sortField,
-    sortOrder,
-    selectedCurrencyRef,
-    props.activeWidgetKey,
-    initialized
-  ])
+  }, [fetchItems, currentPage, pageSize, search, sortField, sortOrder, initialized, buildApiFilters])
 
   // Refresh data when tableRefreshTrigger changes (triggered from parent tab)
   useEffect(() => {
     if (props.tableRefreshTrigger && props.tableRefreshTrigger > 0) {
-      const apiFilters = getFilters(allSelectedFilters)
+      const apiFilters = buildApiFilters()
       fetchItems(search, currentPage, pageSize, apiFilters, sortField, sortOrder)
       // Clear selection when table is refreshed (process finished)
       setSelectedRowKeys([])
     }
-  }, [
-    props.tableRefreshTrigger,
-    fetchItems,
-    search,
-    currentPage,
-    pageSize,
-    allSelectedFilters,
-    getFilters,
-    sortField,
-    sortOrder
-  ])
+  }, [props.tableRefreshTrigger, fetchItems, search, currentPage, pageSize, sortField, sortOrder, buildApiFilters])
 
   const [selectedItem, setSelectedItem] = useState<any>(null)
   const [selectedRowKeys, setSelectedRowKeys] = useState<React.Key[]>([])
