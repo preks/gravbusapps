@@ -3,10 +3,10 @@ import { BusinessAppContextProps } from '@/common/BusinessAppContext'
 import {
   useTranslation,
   Skeleton,
-  FormAccordion,
-  FormAccordionItem,
-  FormAccordionTrigger,
-  FormAccordionContent
+  Accordion,
+  AccordionItem,
+  AccordionTrigger,
+  AccordionContent
 } from '@newwork/nw-design-system'
 import { AccountInformationSegment } from '../../form-segments/account-information-segment'
 import { AccountDetailsSegment } from '../../form-segments/account-details-segment'
@@ -118,36 +118,36 @@ const AccountLayout: React.FC<AccountLayoutProps> = ({
       />
 
       {/* Other Segments in Accordion */}
-      <FormAccordion type="multiple" className="gba:w-full" data-testid="account-layout-accordion">
-        <FormAccordionItem value="communication-channels">
-          <FormAccordionTrigger>{t('communication-title')}</FormAccordionTrigger>
-          <FormAccordionContent>
+      <Accordion type="multiple" className="gba:w-full" data-testid="account-layout-accordion">
+        <AccordionItem value="communication-channels">
+          <AccordionTrigger>{t('communication-title')}</AccordionTrigger>
+          <AccordionContent>
             <CommunicationSegment customFields={communicationCustomFields} />
-          </FormAccordionContent>
-        </FormAccordionItem>
-        <FormAccordionItem value="address-information">
-          <FormAccordionTrigger>{t('address-title')}</FormAccordionTrigger>
-          <FormAccordionContent>
+          </AccordionContent>
+        </AccordionItem>
+        <AccordionItem value="address-information">
+          <AccordionTrigger>{t('address-title')}</AccordionTrigger>
+          <AccordionContent>
             <AddressSegment customFields={addressCustomFields} />
-          </FormAccordionContent>
-        </FormAccordionItem>
-        <FormAccordionItem value="financial-information">
-          <FormAccordionTrigger>{t('financial-title')}</FormAccordionTrigger>
-          <FormAccordionContent>
+          </AccordionContent>
+        </AccordionItem>
+        <AccordionItem value="financial-information">
+          <AccordionTrigger>{t('financial-title')}</AccordionTrigger>
+          <AccordionContent>
             <AccountDetailsSegment
               annualRevenueCatalogIdentifier={annualRevenueCatalogIdentifier}
               companySizeCatalogIdentifier={companySizeCatalogIdentifier}
               customFields={accountDetailsCustomFields}
             />
-          </FormAccordionContent>
-        </FormAccordionItem>
+          </AccordionContent>
+        </AccordionItem>
         {customSegments.map(segment => (
-          <FormAccordionItem key={segment.id} value={segment.id}>
-            <FormAccordionTrigger>{segment.title}</FormAccordionTrigger>
-            <FormAccordionContent>{segment.content}</FormAccordionContent>
-          </FormAccordionItem>
+          <AccordionItem key={segment.id} value={segment.id}>
+            <AccordionTrigger>{segment.title}</AccordionTrigger>
+            <AccordionContent>{segment.content}</AccordionContent>
+          </AccordionItem>
         ))}
-      </FormAccordion>
+      </Accordion>
     </div>
   )
 }

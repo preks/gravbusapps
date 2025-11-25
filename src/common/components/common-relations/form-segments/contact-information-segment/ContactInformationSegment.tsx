@@ -182,7 +182,7 @@ const ContactInformationSegment: React.FC<ContactInformationSegmentProps> = ({
               <EmployeeSelect
                 value={field.value || null}
                 onValueChange={(v: string | null) => field.onChange(v || '')}
-                businessAppContext={businessAppContext!}
+                businessAppContext={businessAppContext}
                 initialEmployee={ownerEmployee}
                 autoSelect={entityId ? undefined : 'current-user'}
                 placeholder={t('please-select')}

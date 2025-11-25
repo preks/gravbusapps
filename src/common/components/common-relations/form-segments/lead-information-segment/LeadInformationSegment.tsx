@@ -66,7 +66,7 @@ const LeadInformationSegment: React.FC<LeadInformationSegmentProps> = ({
               <EmployeeSelect
                 value={field.value || null}
                 onValueChange={(v: string | null) => field.onChange(v || '')}
-                businessAppContext={businessAppContext!}
+                businessAppContext={businessAppContext}
                 initialEmployee={ownerEmployee}
                 autoSelect={entityId ? undefined : 'current-user'}
                 placeholder={t('lead-segment-placeholder-select')}

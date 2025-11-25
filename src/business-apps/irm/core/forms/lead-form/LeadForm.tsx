@@ -101,7 +101,7 @@ const LeadForm: React.FC<LeadFormProps> = ({ accessToken, userInfo, additionalDa
   useEffect(() => {
     // Update resolver when schema changes
     if (form.control._options.resolver !== resolver) {
-      ;(form.control._options as any).resolver = resolver
+      form.control._options.resolver = resolver
     }
 
     const schemaChanged =
@@ -176,15 +176,10 @@ const LeadForm: React.FC<LeadFormProps> = ({ accessToken, userInfo, additionalDa
   const processType = lead?.id ? 'update' : 'create'
 
   return (
-    <CatalogSelect.Provider
-      accessToken={accessToken}
-      userInfo={userInfo}
-      additionalData={additionalData}
-      form={form as any}
-    >
+    <CatalogSelect.Provider accessToken={accessToken} userInfo={userInfo} additionalData={additionalData} form={form}>
       <AppActionForm
         processType={processType}
-        form={form as any}
+        form={form}
         schema={schema}
         onSubmit={handleSubmit}
         onCancel={handleCancel}

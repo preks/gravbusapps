@@ -20,7 +20,7 @@ const parseAddressLineFromObject = (addressLine: { lines?: string[] }): string[]
 
 // Helper function to parse address line from array
 const parseAddressLineFromArray = (addressLine: string[]): string[] => {
-  return addressLine.filter((line: string) => line && line.trim())
+  return addressLine?.filter((line: string) => line && line.trim()) ?? []
 }
 
 // Helper function to map address line to address lines array

@@ -35,8 +35,6 @@ interface OpportunityInformationSegmentProps {
     error: string | null
     refetch: (variables?: any) => Promise<void>
   }
-  // Contact selection props
-  opportunityContacts?: any[]
   // Contact selection hook result - raw entities and refetch function
   useContacts?: {
     contacts: any[]

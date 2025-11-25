@@ -157,7 +157,7 @@ const InvestmentOpportunityForm: React.FC<InvestmentOpportunityFormProps> = ({
   useEffect(() => {
     // Update resolver when schema changes
     if (form.control._options.resolver !== resolver) {
-      ;(form.control._options as any).resolver = resolver
+      form.control._options.resolver = resolver
     }
 
     const schemaChanged =
@@ -227,7 +227,7 @@ const InvestmentOpportunityForm: React.FC<InvestmentOpportunityFormProps> = ({
   // Deal Type selector (IRM-specific custom field)
   const dealTypeField = dealType ? null : (
     <FormField
-      control={form.control as any}
+      control={form.control}
       name="dealType"
       render={({ field }) => (
         <FormItem>
@@ -282,19 +282,14 @@ const InvestmentOpportunityForm: React.FC<InvestmentOpportunityFormProps> = ({
     typeof currencyRefValue === 'string' && currencyRefValue ? getCurrencySymbol(currencyRefValue) : undefined
 
   return (
-    <CatalogSelect.Provider
-      accessToken={accessToken}
-      userInfo={userInfo}
-      additionalData={additionalData}
-      form={form as any}
-    >
+    <CatalogSelect.Provider accessToken={accessToken} userInfo={userInfo} additionalData={additionalData} form={form}>
       <AppActionForm
         processType={processType}
         onSubmit={handleSubmit}
         onCancel={handleCancel}
         handlePreSubmit={handlePreSubmit}
         formData={form.getValues()}
-        form={form as any}
+        form={form}
         schema={schema}
         data-testid={formatDataTestId('investment-opportunity-form', 'Form')}
         submitButtonText={opportunity?.id ? 'Update Opportunity' : 'Create Opportunity'}

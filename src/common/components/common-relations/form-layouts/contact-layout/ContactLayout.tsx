@@ -3,10 +3,10 @@ import { BusinessAppContextProps } from '@/common/BusinessAppContext'
 import {
   useTranslation,
   Skeleton,
-  FormAccordion,
-  FormAccordionItem,
-  FormAccordionTrigger,
-  FormAccordionContent
+  Accordion,
+  AccordionItem,
+  AccordionTrigger,
+  AccordionContent
 } from '@newwork/nw-design-system'
 import { ContactInformationSegment } from '../../form-segments/contact-information-segment'
 import { ContactDetailsSegment } from '../../form-segments/contact-details-segment'
@@ -112,32 +112,32 @@ const ContactLayout: React.FC<ContactLayoutProps> = ({
       />
 
       {/* Other Segments in Accordion */}
-      <FormAccordion type="multiple" className="gba:w-full" data-testid="contact-layout-accordion">
-        <FormAccordionItem value="personal-information">
-          <FormAccordionTrigger>{t('personal-title')}</FormAccordionTrigger>
-          <FormAccordionContent>
+      <Accordion type="multiple" className="gba:w-full" data-testid="contact-layout-accordion">
+        <AccordionItem value="personal-information">
+          <AccordionTrigger>{t('personal-title')}</AccordionTrigger>
+          <AccordionContent>
             <ContactDetailsSegment customFields={contactDetailsCustomFields} />
-          </FormAccordionContent>
-        </FormAccordionItem>
-        <FormAccordionItem value="communication-channels">
-          <FormAccordionTrigger>{t('communication-title')}</FormAccordionTrigger>
-          <FormAccordionContent>
+          </AccordionContent>
+        </AccordionItem>
+        <AccordionItem value="communication-channels">
+          <AccordionTrigger>{t('communication-title')}</AccordionTrigger>
+          <AccordionContent>
             <CommunicationSegment customFields={communicationCustomFields} />
-          </FormAccordionContent>
-        </FormAccordionItem>
-        <FormAccordionItem value="address-information">
-          <FormAccordionTrigger>{t('address-title')}</FormAccordionTrigger>
-          <FormAccordionContent>
+          </AccordionContent>
+        </AccordionItem>
+        <AccordionItem value="address-information">
+          <AccordionTrigger>{t('address-title')}</AccordionTrigger>
+          <AccordionContent>
             <AddressSegment customFields={addressCustomFields} />
-          </FormAccordionContent>
-        </FormAccordionItem>
+          </AccordionContent>
+        </AccordionItem>
         {customSegments.map(segment => (
-          <FormAccordionItem key={segment.id} value={segment.id}>
-            <FormAccordionTrigger>{segment.title}</FormAccordionTrigger>
-            <FormAccordionContent>{segment.content}</FormAccordionContent>
-          </FormAccordionItem>
+          <AccordionItem key={segment.id} value={segment.id}>
+            <AccordionTrigger>{segment.title}</AccordionTrigger>
+            <AccordionContent>{segment.content}</AccordionContent>
+          </AccordionItem>
         ))}
-      </FormAccordion>
+      </Accordion>
     </div>
   )
 }
