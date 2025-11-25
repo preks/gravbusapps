@@ -8,7 +8,7 @@ interface AdditionalDataWithContext {
   externalContextData?: ExternalContextData
   psi_taskPayload?: {
     employeeId?: string
-    initialParameters?: {
+    psi_initialParameters?: {
       employeeId?: string
     }
   }
@@ -35,7 +35,7 @@ export const extractEmployeeId = (
   return (
     externalContext?.employeeId || // From AppAction externalContextData (highest priority)
     (additionalData as AdditionalDataWithContext)?.psi_taskPayload?.employeeId ||
-    (additionalData as AdditionalDataWithContext)?.psi_taskPayload?.initialParameters?.employeeId ||
+    (additionalData as AdditionalDataWithContext)?.psi_taskPayload?.psi_initialParameters?.employeeId ||
     (additionalData as AdditionalDataWithContext)?.employeeId ||
     userInfo?.employeeDetails?.employeeId ||
     employee?.code ||
