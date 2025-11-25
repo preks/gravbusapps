@@ -3,10 +3,10 @@ import { BusinessAppContextProps } from '@/common/BusinessAppContext'
 import {
   useTranslation,
   Skeleton,
-  Accordion,
-  AccordionItem,
-  AccordionTrigger,
-  AccordionContent
+  FormAccordion,
+  FormAccordionItem,
+  FormAccordionTrigger,
+  FormAccordionContent
 } from '@newwork/nw-design-system'
 import { OpportunityInformationSegment } from '../../form-segments/opportunity-information-segment'
 import { OpportunityDetailsSegment } from '../../form-segments/opportunity-details-segment'
@@ -90,7 +90,7 @@ const OpportunityLayout: React.FC<OpportunityLayoutProps> = ({
           <Skeleton className="gba:h-10 gba:w-full" />
           <Skeleton className="gba:h-32 gba:w-full" />
         </div>
-        {/* Accordion Skeleton */}
+        {/* FormAccordion Skeleton */}
         <div className="gba:space-y-2">
           <Skeleton className="gba:h-12 gba:w-full" />
           <Skeleton className="gba:h-12 gba:w-full" />
@@ -113,10 +113,10 @@ const OpportunityLayout: React.FC<OpportunityLayoutProps> = ({
         customFields={opportunityInformationCustomFields}
         hideRelatedEntities={hideRelatedEntities}
       />
-      <Accordion type="multiple" className="gba:w-full" data-testid="opportunity-layout-accordion">
-        <AccordionItem value="pipeline-stage">
-          <AccordionTrigger>{t('pipeline-title')}</AccordionTrigger>
-          <AccordionContent>
+      <FormAccordion type="multiple" className="gba:w-full" data-testid="opportunity-layout-FormAccordion">
+        <FormAccordionItem value="pipeline-stage">
+          <FormAccordionTrigger>{t('pipeline-title')}</FormAccordionTrigger>
+          <FormAccordionContent>
             <OpportunityPipelineSegment
               pipelineFieldName={pipelineFieldName}
               stageFieldName={stageFieldName}
@@ -126,21 +126,21 @@ const OpportunityLayout: React.FC<OpportunityLayoutProps> = ({
               opportunityStatusCatalogIdentifier={opportunityStatusCatalogIdentifier}
               customFields={opportunityPipelineCustomFields}
             />
-          </AccordionContent>
-        </AccordionItem>
-        <AccordionItem value="amount-date">
-          <AccordionTrigger>{t('amount-title')}</AccordionTrigger>
-          <AccordionContent>
+          </FormAccordionContent>
+        </FormAccordionItem>
+        <FormAccordionItem value="amount-date">
+          <FormAccordionTrigger>{t('amount-title')}</FormAccordionTrigger>
+          <FormAccordionContent>
             <OpportunityDetailsSegment customFields={opportunityDetailsCustomFields} />
-          </AccordionContent>
-        </AccordionItem>
+          </FormAccordionContent>
+        </FormAccordionItem>
         {customSegments.map(segment => (
-          <AccordionItem key={segment.id} value={segment.id}>
-            <AccordionTrigger>{segment.title}</AccordionTrigger>
-            <AccordionContent>{segment.content}</AccordionContent>
-          </AccordionItem>
+          <FormAccordionItem key={segment.id} value={segment.id}>
+            <FormAccordionTrigger>{segment.title}</FormAccordionTrigger>
+            <FormAccordionContent>{segment.content}</FormAccordionContent>
+          </FormAccordionItem>
         ))}
-      </Accordion>
+      </FormAccordion>
     </div>
   )
 }

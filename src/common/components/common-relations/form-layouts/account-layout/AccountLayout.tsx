@@ -3,10 +3,10 @@ import { BusinessAppContextProps } from '@/common/BusinessAppContext'
 import {
   useTranslation,
   Skeleton,
-  Accordion,
-  AccordionItem,
-  AccordionTrigger,
-  AccordionContent
+  FormAccordion,
+  FormAccordionItem,
+  FormAccordionTrigger,
+  FormAccordionContent
 } from '@newwork/nw-design-system'
 import { AccountInformationSegment } from '../../form-segments/account-information-segment'
 import { AccountDetailsSegment } from '../../form-segments/account-details-segment'
@@ -45,7 +45,7 @@ interface AccountLayoutProps {
   // Custom fields injection for CommunicationSegment
   communicationCustomFields?: React.ReactNode
 
-  // Custom segments to add to the accordion (after standard segments)
+  // Custom segments to add to the FormAccordion (after standard segments)
   customSegments?: Array<{
     id: string
     title: string
@@ -95,7 +95,7 @@ const AccountLayout: React.FC<AccountLayoutProps> = ({
           <Skeleton className="gba:h-10 gba:w-full" />
           <Skeleton className="gba:h-32 gba:w-full" />
         </div>
-        {/* Accordion Skeleton */}
+        {/* FormAccordion Skeleton */}
         <div className="gba:space-y-2">
           <Skeleton className="gba:h-12 gba:w-full" />
           <Skeleton className="gba:h-12 gba:w-full" />
@@ -107,7 +107,7 @@ const AccountLayout: React.FC<AccountLayoutProps> = ({
 
   return (
     <div data-testid="account-layout">
-      {/* Account Information - Not in Accordion */}
+      {/* Account Information - Not in FormAccordion */}
       <AccountInformationSegment
         businessAppContext={businessAppContext}
         ownerEmployee={ownerEmployee}
@@ -117,37 +117,37 @@ const AccountLayout: React.FC<AccountLayoutProps> = ({
         avatarFileRef={avatarFileRef}
       />
 
-      {/* Other Segments in Accordion */}
-      <Accordion type="multiple" className="gba:w-full" data-testid="account-layout-accordion">
-        <AccordionItem value="communication-channels">
-          <AccordionTrigger>{t('communication-title')}</AccordionTrigger>
-          <AccordionContent>
+      {/* Other Segments in FormAccordion */}
+      <FormAccordion type="multiple" className="gba:w-full" data-testid="account-layout-FormAccordion">
+        <FormAccordionItem value="communication-channels">
+          <FormAccordionTrigger>{t('communication-title')}</FormAccordionTrigger>
+          <FormAccordionContent>
             <CommunicationSegment customFields={communicationCustomFields} />
-          </AccordionContent>
-        </AccordionItem>
-        <AccordionItem value="address-information">
-          <AccordionTrigger>{t('address-title')}</AccordionTrigger>
-          <AccordionContent>
+          </FormAccordionContent>
+        </FormAccordionItem>
+        <FormAccordionItem value="address-information">
+          <FormAccordionTrigger>{t('address-title')}</FormAccordionTrigger>
+          <FormAccordionContent>
             <AddressSegment customFields={addressCustomFields} />
-          </AccordionContent>
-        </AccordionItem>
-        <AccordionItem value="financial-information">
-          <AccordionTrigger>{t('financial-title')}</AccordionTrigger>
-          <AccordionContent>
+          </FormAccordionContent>
+        </FormAccordionItem>
+        <FormAccordionItem value="financial-information">
+          <FormAccordionTrigger>{t('financial-title')}</FormAccordionTrigger>
+          <FormAccordionContent>
             <AccountDetailsSegment
               annualRevenueCatalogIdentifier={annualRevenueCatalogIdentifier}
               companySizeCatalogIdentifier={companySizeCatalogIdentifier}
               customFields={accountDetailsCustomFields}
             />
-          </AccordionContent>
-        </AccordionItem>
+          </FormAccordionContent>
+        </FormAccordionItem>
         {customSegments.map(segment => (
-          <AccordionItem key={segment.id} value={segment.id}>
-            <AccordionTrigger>{segment.title}</AccordionTrigger>
-            <AccordionContent>{segment.content}</AccordionContent>
-          </AccordionItem>
+          <FormAccordionItem key={segment.id} value={segment.id}>
+            <FormAccordionTrigger>{segment.title}</FormAccordionTrigger>
+            <FormAccordionContent>{segment.content}</FormAccordionContent>
+          </FormAccordionItem>
         ))}
-      </Accordion>
+      </FormAccordion>
     </div>
   )
 }
