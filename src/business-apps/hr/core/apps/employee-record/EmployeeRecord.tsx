@@ -61,24 +61,36 @@ const LoadingUI = () => (
 const ErrorUI = () => {
   React.useEffect(() => {
     notification.error({
-      message: 'Error',
-      description: 'Error loading employee data.',
+      message: getTranslationFromI18nKeyAndLabel('lowcoder:employee_profile.error.title', 'Error'),
+      description: getTranslationFromI18nKeyAndLabel(
+        'lowcoder:employee_profile.error.loading_data',
+        'Error loading employee data.'
+      ),
       placement: 'bottomRight'
     })
   }, [])
 
   return (
     <div className="gba:flex gba:justify-center gba:items-center gba:h-full gba:text-destructive">
-      <p className="gba:text-xl gba:font-medium">Error</p>
-      <p>Error loading employee data.</p>
+      <p className="gba:text-xl gba:font-medium">
+        {getTranslationFromI18nKeyAndLabel('lowcoder:employee_profile.error.title', 'Error')}
+      </p>
+      <p>
+        {getTranslationFromI18nKeyAndLabel(
+          'lowcoder:employee_profile.error.loading_data',
+          'Error loading employee data.'
+        )}
+      </p>
     </div>
   )
 }
 
 const NotFoundUI = () => (
   <div className="gba:flex gba:justify-center gba:items-center gba:h-full gba:text-muted-foreground">
-    <p className="gba:text-xl gba:font-medium">Not Found</p>
-    <p>Employee not found.</p>
+    <p className="gba:text-xl gba:font-medium">
+      {getTranslationFromI18nKeyAndLabel('lowcoder:employee_profile.not_found.title', 'Not Found')}
+    </p>
+    <p>{getTranslationFromI18nKeyAndLabel('lowcoder:employee_profile.not_found.message', 'Employee not found.')}</p>
   </div>
 )
 

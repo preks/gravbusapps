@@ -1,4 +1,4 @@
-import { useCallback, useRef, useState } from 'react'
+import { useCallback, useRef, useState, useEffect } from 'react'
 import { useGraphQLClient } from '@/common/network/graphql/useGraphQLClient'
 import { SEARCH_EMPLOYEES_LIGHT, GET_EMPLOYEE_LIGHT_BY_ID } from './queries/employeeQueries'
 
@@ -13,9 +13,9 @@ export interface EmployeeLiteOption {
   jobPositionName?: string
 }
 
-export const useEmployeeSearch = (accessToken?: string) => {
+export const useEmployeeSearch = (accessToken?: string, initialEmployee?: EmployeeLiteOption | null) => {
   const graphqlClient = useGraphQLClient(accessToken || '')
-  const [employees, setEmployees] = useState<EmployeeLiteOption[]>([])
+  const [employees, setEmployees] = useState<EmployeeLiteOption[]>(initialEmployee ? [initialEmployee] : [])
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const [hasMore, setHasMore] = useState(false)
@@ -25,10 +25,33 @@ export const useEmployeeSearch = (accessToken?: string) => {
   const inFlightRef = useRef<{ key: string; promise: Promise<any> } | null>(null)
   // Keep fully-hydrated records here so they persist across searches/pages
   const pinnedRef = useRef<Map<string, EmployeeLiteOption>>(new Map())
+  // Track if we've failed with auth error to prevent retry loops
+  const hasFailedRef = useRef(false)
+
+  // Pin initial employee if provided and update state
+  useEffect(() => {
+    if (initialEmployee && !pinnedRef.current.has(initialEmployee.id)) {
+      pinnedRef.current.set(initialEmployee.id, initialEmployee)
+
+      // Update employees list to include initial employee
+      setEmployees(prev => {
+        const map = new Map<string, EmployeeLiteOption>()
+        prev.forEach(p => map.set(p.id, p))
+        map.set(initialEmployee.id, initialEmployee)
+        return Array.from(map.values())
+      })
+    }
+  }, [initialEmployee])
 
   const fetchPage = useCallback(
     async (term: string, pageOffset: number, append: boolean) => {
       if (!accessToken) return
+
+      // Don't retry if we've already failed with auth error on initial search
+      if (hasFailedRef.current && pageOffset === 0 && !append) {
+        return
+      }
+
       setLoading(true)
       setError(null)
       try {
@@ -71,8 +94,19 @@ export const useEmployeeSearch = (accessToken?: string) => {
         // More pages only if a full page was returned
         setHasMore(next.length === PAGE_SIZE)
         setOffset(pageOffset)
+        hasFailedRef.current = false // Reset on success
       } catch (err) {
-        setError(err instanceof Error ? err.message : 'Failed to search employees')
+        const errorMessage = err instanceof Error ? err.message : 'Failed to search employees'
+        setError(errorMessage)
+
+        // Mark as failed if it's an auth error (401)
+        if (
+          errorMessage.includes('401') ||
+          errorMessage.includes('unauthorized') ||
+          errorMessage.includes('GraphQL request failed: 401')
+        ) {
+          hasFailedRef.current = true
+        }
       } finally {
         inFlightRef.current = null
         setLoading(false)
@@ -85,6 +119,8 @@ export const useEmployeeSearch = (accessToken?: string) => {
     async (q: string) => {
       const term = (q || '').trim()
       setSearchTerm(term)
+      // Reset failure flag on new search attempt
+      hasFailedRef.current = false
       await fetchPage(term, 0, false)
     },
     [fetchPage]

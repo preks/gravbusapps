@@ -1,7 +1,7 @@
 import { useState, useEffect, useCallback } from 'react'
 import { BusinessAppContextProps } from '@/common/BusinessAppContext'
-import type { Investment } from '@/common/data/investment'
-import { useGetInvestments } from '@/common/data/investment'
+import type { Investment } from '@/common/data/investment/types/investmentTypes'
+import { useGetInvestments } from '@/common/data/investment/hooks/useInvestments'
 
 /**
  * @interface LiquidFundDataIntegration

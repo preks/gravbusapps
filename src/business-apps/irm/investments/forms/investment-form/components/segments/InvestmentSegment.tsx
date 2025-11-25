@@ -15,7 +15,7 @@ import { EmployeeSelect } from '@/components/employee-select'
 import { formatDataTestId } from '@/common/utils/formatDataTestId'
 import { getTranslationFromI18nKeyAndLabel } from '@/common/utils/windowUtils'
 import { useInvestmentFormContext } from '../../context/InvestmentFormContext'
-import { useGetInvestmentAccounts } from '@/common/data/investment'
+import { useGetInvestmentAccounts } from '@/common/data/investment/hooks/useInvestmentAccounts'
 import { SelectOption, InvestmentFormValues } from '../../types'
 import { useCatalogManagerClient } from '@/common/network/catalogs/useCatalogManagerClient'
 

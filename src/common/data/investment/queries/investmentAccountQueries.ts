@@ -82,8 +82,7 @@ export const buildInvestmentAccountQuery = (
  * Build Investment Account by ID query
  */
 export const buildInvestmentAccountByIdQuery = (
-  fields: typeof InvestmentAccountFields = InvestmentAccountFields,
-  id: string
+  fields: typeof InvestmentAccountFields = InvestmentAccountFields
 ): string => {
   // Build relation builders and fields for common relations
   const relationBuilders: AccountRelationBuilders = {
@@ -128,7 +127,7 @@ export const buildInvestmentAccountByIdQuery = (
     }
   `
 
-  return buildAccountByPkQuery('InvestmentAccount', id, fields, relationBuilders, relationFields, entityFields)
+  return buildAccountByPkQuery('InvestmentAccount', fields, relationBuilders, relationFields, entityFields)
 }
 
 /**

@@ -1,10 +1,10 @@
 // Customer Contact hooks - list and by-id operations for contacts
-import { useCallback, useState, useEffect } from 'react'
+import { useCallback, useState, useEffect, useMemo } from 'react'
 import { useGraphQLClient } from '@/common/network/graphql/useGraphQLClient'
 import { BusinessAppContextProps } from '@/common/BusinessAppContext'
 
 // Types
-import type { CustomerContact } from '../types'
+import type { CustomerContact } from '../types/customerContactTypes'
 
 // Queries (New)
 import {
@@ -17,7 +17,7 @@ import {
 } from '../queries/customerContactQueries'
 
 // Mapper
-import { toCustomerContact } from '../mappers/customerContactMappers'
+import { toCustomerContact } from '../types/customerContactTypes'
 
 export interface CustomerContactListQueryResponse {
   Contact: CustomerContact[]
@@ -70,6 +70,13 @@ interface StatefulReturn {
   initialize: () => void
 }
 
+/**
+ * @deprecated This hook is in transition. Use `useCustomerContactsList` instead.
+ * The name `useCustomerContacts` will be restored to the new declarative hook after migration.
+ *
+ * Legacy dual-mode hook for customer contacts (function-only or stateful).
+ * Prefer the new declarative `useCustomerContactsList` hook.
+ */
 // Function overloads for type safety
 export function useGetCustomerContacts(
   context: BusinessAppContextProps,
@@ -181,9 +188,11 @@ export function useGetCustomerContacts(
                   contact.fullName ||
                   `${contact.firstName || ''} ${contact.lastName || ''}`.trim() ||
                   'Unnamed Contact',
+                pictureThumbnail: contact.pictureThumbnail || undefined,
                 extraInfo: {
                   email,
-                  jobTitle: contact.jobPosition,
+                  jobPosition: contact.jobPosition,
+                  department: contact.department,
                   organizationalUnit: contact.ownerEmployee?.displayName || 'Unknown'
                 }
               } as SelectOption
@@ -270,6 +279,13 @@ export function useGetCustomerContacts(
   return { fetchCustomerContacts }
 }
 
+/**
+ * @deprecated This hook is in transition. Use `useCustomerContactsList` instead.
+ * The name `useCustomerContacts` will be restored to the new declarative hook after migration.
+ *
+ * Legacy function-only hook for customer contacts.
+ * Returns fetch functions without state management.
+ */
 export const useCustomerContacts = (context: BusinessAppContextProps) => {
   const graphqlClient = useGraphQLClient(context.accessToken)
 
@@ -303,8 +319,8 @@ export const useCustomerContacts = (context: BusinessAppContextProps) => {
 
   const fetchCustomerContactById = useCallback(
     async (id: string): Promise<CustomerContact | null> => {
-      const query = buildCustomerContactByIdQuery(undefined, id)
-      const result = await graphqlClient.request<{ ContactByPk: CustomerContact | null }>(query)
+      const query = buildCustomerContactByIdQuery()
+      const result = await graphqlClient.request<{ ContactByPk: CustomerContact | null }>(query, { id })
       return result.ContactByPk ? toCustomerContact(result.ContactByPk) : null
     },
     [graphqlClient]
@@ -325,4 +341,99 @@ export const useCustomerContacts = (context: BusinessAppContextProps) => {
   )
 
   return { fetchCustomerContacts, fetchCustomerContactById, searchCustomerContacts }
+}
+
+/**
+ * Declarative List Hook for Customer Contacts
+ *
+ * Automatically fetches and manages state for a list of customer contacts.
+ * Follows the Hook Refactoring Guide Pattern 2.
+ *
+ * @example
+ * const { contacts, loading, error, refetch } = useCustomerContactsList(context, { limit: 20 })
+ *
+ * @todo MIGRATION: Replace all usages of deprecated `useGetCustomerContacts` and `useCustomerContacts` with this hook
+ * @todo RENAME: After migration is complete, rename this hook to `useCustomerContacts` and remove the deprecated hooks
+ */
+export interface UseCustomerContactsListResult {
+  contacts: CustomerContact[]
+  total: number
+  loading: boolean
+  error: string | null
+  refetch: (variables?: CustomerContactQueryVariables) => Promise<void>
+}
+
+export function useCustomerContactsList(
+  context: BusinessAppContextProps,
+  variables?: CustomerContactQueryVariables
+): UseCustomerContactsListResult {
+  const graphqlClient = useGraphQLClient(context.accessToken)
+
+  // Memoize variables to prevent infinite loops when object is recreated on each render
+  const stableVariables = useMemo(() => variables, [JSON.stringify(variables)])
+
+  const [state, setState] = useState({
+    contacts: [] as CustomerContact[],
+    total: 0,
+    loading: true,
+    error: null as string | null
+  })
+
+  const fetchContacts = useCallback(
+    async (queryVariables?: CustomerContactQueryVariables) => {
+      if (!context.accessToken) {
+        setState(prev => ({ ...prev, loading: false }))
+        return
+      }
+
+      setState(prev => ({ ...prev, loading: true, error: null }))
+
+      try {
+        const vars = { ...stableVariables, ...queryVariables }
+        const query = buildCustomerContactQuery()
+
+        const customConditions: Record<string, any>[] = []
+        if (vars.hasEmail) customConditions.push({ email: { _isNull: false, _neq: '' } })
+        if (vars.missingEmail) customConditions.push({ _or: [{ email: { _isNull: true } }, { email: { _eq: '' } }] })
+        if (vars.hasPhone) customConditions.push({ phone: { _isNull: false, _neq: '' } })
+        if (vars.missingPhone) customConditions.push({ _or: [{ phone: { _isNull: true } }, { phone: { _eq: '' } }] })
+
+        const whereCondition = buildCustomerContactWhereCondition(vars, [], customConditions)
+        const orderBy = buildCustomerContactOrderBy(vars.orderBy || [])
+
+        const graphQLVariables: Record<string, any> = {
+          limit: Math.min(vars.limit || 50, 100),
+          offset: vars.offset || 0,
+          where: whereCondition,
+          orderBy: orderBy
+        }
+
+        const result = await graphqlClient.request<CustomerContactListQueryResponse>(query, graphQLVariables)
+        const contacts = result.Contact.map(toCustomerContact)
+        const total = result.ContactAggregate?.aggregate?.count || 0
+
+        setState({ contacts, total, loading: false, error: null })
+      } catch (error) {
+        const errorMessage = error instanceof Error ? error.message : 'Failed to fetch customer contacts'
+
+        setState(prev => ({
+          ...prev,
+          contacts: [],
+          total: 0,
+          loading: false,
+          error: errorMessage
+        }))
+      }
+    },
+    [context.accessToken, graphqlClient, stableVariables]
+  )
+
+  useEffect(() => {
+    fetchContacts()
+  }, [fetchContacts])
+
+  return {
+    ...state,
+    refetch: fetchContacts
+  }
 }

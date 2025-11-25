@@ -82,3 +82,63 @@ export const getFileIcon = (mimeType?: string): Icon => {
 
   return FileIcon
 }
+
+export type FileEntity = string & { readonly __brand: 'FileEntity' }
+export type FileContext = string & { readonly __brand: 'FileContext' }
+
+export const buildFilePath = (entity: FileEntity, entityId: string | null, context: FileContext): string => {
+  if (!entityId) {
+    entityId = 'temp-' + crypto.randomUUID()
+  }
+  return `/${entity}/${entityId}/${context}`
+}
+
+/**
+ * Generic interface for file upload results
+ */
+export interface UploadFileResult {
+  name: string
+  fileInfo: any
+}
+
+/**
+ * Generic function to upload files to storage
+ * @param files - Array of files to upload
+ * @param referenceEntityId - ID of the reference entity
+ * @param fileEntity - File entity constant (e.g., FILE_ENTITY.ACCOUNT)
+ * @param fileContext - Context for file storage (e.g., FILE_CONTEXT.ACTIVITY)
+ * @param appName - Application name for file storage
+ * @param fileClient - File client instance for uploading
+ * @returns Array of uploaded file metadata
+ */
+export const uploadFiles = async (
+  files: File[],
+  referenceEntityId: string,
+  fileEntity: FileEntity,
+  fileContext: FileContext,
+  appName: string,
+  fileClient: { uploadFile: (file: File, pathParams: any, queryParams: any) => Promise<{ fileInfo: any }> }
+): Promise<UploadFileResult[]> => {
+  if (!files || files.length === 0) return []
+
+  const folderPath = buildFilePath(fileEntity, referenceEntityId, fileContext)
+
+  const uploadPromises = files.map(async file => {
+    const result = await fileClient.uploadFile(
+      file,
+      { accessScope: 'tenant' },
+      {
+        appName: appName,
+        folderPath: folderPath,
+        mimeType: file.type
+      }
+    )
+
+    return {
+      name: file.name,
+      fileInfo: result.fileInfo
+    }
+  })
+
+  return await Promise.all(uploadPromises)
+}
