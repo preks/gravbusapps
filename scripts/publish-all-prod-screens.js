@@ -7,9 +7,8 @@
  * - ⚠️  WARNING: This will publish EVERY screen in the repository!
  */
 
-import path from 'node:path'
+import path, { dirname } from 'node:path'
 import fs from 'node:fs'
-import { dirname } from 'node:path'
 import { fileURLToPath } from 'node:url'
 import { glob } from 'glob'
 import { execSync } from 'node:child_process'

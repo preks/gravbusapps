@@ -172,57 +172,59 @@ const SECONDARY_TARGET =
 // ============================================================================
 
 /**
- * Calculate MD5 hash of a single file
+ * Calculate a hash of a single file
  * @param {string} filePath - Absolute path to file
- * @returns {string} MD5 hash in hex format
+ * @param {string} algorithm - Hash algorithm (e.g. 'md5', 'sha1', 'sha256', 'sha512')
+ * @returns {string} hash in hex format
  */
-function calculateFileMd5(filePath) {
+function calculateFileHash(filePath, algorithm) {
   const content = fs.readFileSync(filePath)
-  const hash = crypto.createHash('md5')
+  const hash = crypto.createHash(algorithm)
   hash.update(content)
   return hash.digest('hex')
 }
 
 /**
- * Get MD5 hashes for all source artifacts (per-file)
+ * Get hashes for all source artifacts (per-file)
  * @param {string} directory - Build output directory
+ * @param {string} algorithm - Hash algorithm (e.g. 'md5', 'sha1', 'sha256', 'sha512')
  * @returns {Promise<Object>} Object with filename -> hash mapping
  */
-async function getSourceArtifactsHashes(directory) {
+async function getSourceArtifactsHashes(directory, algorithm) {
   const files = await glob('**/*', { cwd: directory, nodir: true })
   const hashes = {}
 
   for (const file of files) {
     const filePath = path.join(directory, file)
-    const md5 = calculateFileMd5(filePath)
+    const hash = calculateFileHash(filePath, algorithm)
 
     // Store with relative filename as key
-    hashes[file] = md5
+    hashes[file] = hash
   }
 
   return hashes
 }
 
 /**
- * Convert Azure's contentMD5 (Uint8Array) to hex string
- * @param {Uint8Array} contentMD5 - Content-MD5 from Azure blob properties
- * @returns {string|null} MD5 hash in hex or null
+ * Convert content to hex string
+ * @param {Uint8Array} content - Content
+ * @returns {string|null} content in hex or null
  */
-function convertContentMd5ToHex(contentMD5) {
-  if (!contentMD5) {
+function convertContentToHex(content) {
+  if (!content) {
     return null
   }
+
   try {
-    // contentMD5 is already a Uint8Array (base64-decoded bytes), convert to hex
-    return Buffer.from(contentMD5).toString('hex')
+    return Buffer.from(content).toString('hex')
   } catch (error) {
-    console.log(`   ⚠️  Error converting MD5: ${error.message}`)
+    console.log(`   ⚠️  Error converting content: ${error.message}`)
     return null
   }
 }
 
 /**
- * Dynamically discover and get per-file MD5 hashes from Azure
+ * Dynamically discover and get per-file hashes from Azure
  * @param {string} azureDestinationPath - Azure blob path
  * @param {Object} azureTarget - Azure configuration object
  * @param {string} deployedVersion - Currently deployed version
@@ -250,10 +252,10 @@ async function getTargetArtifactsHashes(azureDestinationPath, azureTarget, deplo
         const filename = blob.name.substring(prefix.length)
 
         // Get the Content-MD5 directly from blob properties (already in list response!)
-        const md5 = convertContentMd5ToHex(blob.properties?.contentMD5)
+        const hex = convertContentToHex(blob.properties?.contentMD5)
 
-        if (md5) {
-          hashes[filename] = md5
+        if (hex) {
+          hashes[filename] = hex
         }
       }
     }
@@ -1129,8 +1131,9 @@ async function uploadDirectory(buildOutputDir, azureDestinationPath, azureTarget
 
 async function publishScreen(
   screenPath,
-  options = { skipResourceUrlSync: false, skipScreenRegistration: false, azureTargets: [], targets: [] }
+  { skipResourceUrlSync = false, skipScreenRegistration = false, azureTargets = [], targets = [] } = {}
 ) {
+  const options = { skipResourceUrlSync, skipScreenRegistration, azureTargets, targets }
   console.log(`🚀 Publishing screen: ${screenPath} (Version: ${PUBLISH_VERSION})`)
 
   const projectRootDir = path.resolve(__dirname, '..')
@@ -1284,7 +1287,7 @@ async function publishScreen(
     console.log('   ✅ New screen or unable to retrieve target - proceeding with publish')
   } else {
     // STEP 4: Calculate source hashes (per-file, matching Azure format)
-    const sourceHashes = await getSourceArtifactsHashes(buildOutputDir)
+    const sourceHashes = await getSourceArtifactsHashes(buildOutputDir, 'md5')
     console.log(`   Found ${Object.keys(sourceHashes).length} source artifact(s):`)
 
     // STEP 5: Compare file-by-file
