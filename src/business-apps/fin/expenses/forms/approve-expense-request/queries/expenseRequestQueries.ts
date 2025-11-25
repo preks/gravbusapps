@@ -146,19 +146,6 @@ export const GET_EXPENSE_REQUEST_FOR_APPROVAL = `
           code
         }
       }
-      expenseRequestComment(where: {isDeleted: {_eq: false}}, orderBy: {commentDate: DESC}) {
-        id
-        comment
-        commentDate
-        commentType
-        authorEmployee {
-          id
-          firstName
-          lastName
-          displayName
-          pictureThumbnail
-        }
-      }
     }
   }
 `
