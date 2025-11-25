@@ -48,9 +48,9 @@ export const ChangeExternalId: React.FC<BusinessAppContextProps> = ({ accessToke
           setEmployee(emp)
           if (!ignorePrefillAfterSubmitRef.current) {
             form.reset({
-              externalId: emp?.externalId || ''
+              externalId: emp?.externalId || emp?.additionalProperties?.SAPNumber || ''
             })
-            initialRef.current = { externalId: emp?.externalId || '' }
+            initialRef.current = { externalId: emp?.externalId || emp?.additionalProperties?.SAPNumber || '' }
           }
         } else {
           setEmployee(null)
