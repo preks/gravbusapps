@@ -1133,9 +1133,23 @@ async function publishScreen(
   screenPath,
   { skipResourceUrlSync = false, skipScreenRegistration = false, azureTargets = [], targets = [] } = {}
 ) {
-  const options = { skipResourceUrlSync, skipScreenRegistration, azureTargets, targets }
-  console.log(`🚀 Publishing screen: ${screenPath} (Version: ${PUBLISH_VERSION})`)
+  if (!skipResourceUrlSync) {
+    skipResourceUrlSync = process.env.SKIP_RESOURCE_URL_SYNC === 'true'
+  }
 
+  if (!skipScreenRegistration) {
+    skipScreenRegistration = false
+  }
+
+  if (!azureTargets || azureTargets.length === 0) {
+    azureTargets = [PRIMARY_TARGET.azure]
+  }
+
+  if (!targets || targets.length === 0) {
+    targets = [PRIMARY_TARGET]
+  }
+
+  console.log(`🚀 Publishing screen: ${screenPath} (Version: ${PUBLISH_VERSION})`)
   const projectRootDir = path.resolve(__dirname, '..')
   console.log(`   Project Root Dir: ${projectRootDir}`)
 
@@ -1223,6 +1237,7 @@ async function publishScreen(
     TEMP_INDEX_CSS: tempIndexCssPath.replace(/\\/g, '/'),
     SINGLE_SCREEN_CSS: 'true',
     NODE_ENV: 'production',
+    VITE_BUILD_FOR_DEPLOYMENT: 'false',
     // Add build number to filename
     VITE_BUILD_NUMBER: BITBUCKET_BUILD_NUMBER
   }
@@ -1257,8 +1272,6 @@ async function publishScreen(
   // HASH COMPARISON STEP - Optimized order: target first, then source
   // ============================================================================
   console.log('🔍 Checking if content changed...')
-
-  const targets = options.targets && options.targets.length > 0 ? options.targets : [PRIMARY_TARGET]
 
   // STEP 1: Get deployed version from Screen Management API
   let deployedVersion = null
@@ -1324,8 +1337,6 @@ async function publishScreen(
   }
 
   // Continue with existing upload logic
-  const azureTargets =
-    options.azureTargets && options.azureTargets.length > 0 ? options.azureTargets : [PRIMARY_TARGET.azure]
   for (const target of azureTargets) {
     try {
       await uploadDirectory(buildOutputDir, azureDestinationPath, target, PUBLISH_VERSION)
@@ -1403,11 +1414,6 @@ async function publishScreen(
   }
 
   // Handle both forms and regular screens with resource URL synchronization across targets
-
-  // Check if resource URL sync should be skipped
-  const skipResourceUrlSync = options.skipResourceUrlSync || process.env.SKIP_RESOURCE_URL_SYNC === 'true'
-  const skipScreenRegistration = options.skipScreenRegistration || false
-
   for (const target of targets) {
     let resourceUrlResult
     if (!skipResourceUrlSync) {
@@ -1733,6 +1739,7 @@ async function main() {
     .map(line => line.trim())
     .filter(line => line.length > 0)
     .map(line => line.replace(/^src\/business-apps\//, ''))
+    .map(line => line.replace(/^\/+/, ''))
 
   console.log(`📋 Detected ${detectedScreens.length} screen(s) from change detection:`)
   detectedScreens.forEach(screen => console.log(`   - ${screen}`))

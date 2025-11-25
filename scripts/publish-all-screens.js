@@ -1,6 +1,6 @@
 #!/usr/bin/env node
 /**
- * Publish ALL screens (apps and forms) to DEV
+ * Publish ALL screens to DEV
  * - Uses the existing single-screen dev publisher
  * - Does NOT rely on change detection; iterates every screen
  * - Non-interactive: passes --no-interaction to avoid prompts

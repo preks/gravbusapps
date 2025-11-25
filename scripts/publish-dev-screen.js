@@ -373,7 +373,9 @@ async function main() {
     TARGET_ENTRY_FILE: sourceEntryFile,
     TARGET_ENTRY_KEY: viteEntryKey,
     TEMP_INDEX_CSS: tempIndexCssPath.replace(/\\/g, '/'),
-    SINGLE_SCREEN_CSS: 'true'
+    SINGLE_SCREEN_CSS: 'true',
+    NODE_ENV: 'production',
+    VITE_BUILD_FOR_DEPLOYMENT: 'false'
   }
 
   const viteBuildCommand = `vite build`

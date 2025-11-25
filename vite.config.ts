@@ -173,6 +173,7 @@ export default defineConfig(({ command, mode }) => {
   // --- End of original logic ---
 
   let dynamicEntries = {}
+  const isUnversionedBuild = env.VITE_BUILD_NUMBER === undefined || env.VITE_BUILD_NUMBER === null
   const isProduction = mode === 'production'
   const shouldHashFilesForDeployment = isProduction && env.VITE_BUILD_FOR_DEPLOYMENT === 'true'
   const isBuildCommand = command === 'build'
@@ -234,12 +235,11 @@ if (globalThis.__APP_BUILD_INFO__) {
   const prependBuildInfoBannerPlugin = {
     name: 'prepend-custom-build-info-banner',
     renderChunk(code: string, chunk: any) {
-      // isProduction is from the outer closure
       if (
         !shouldHashFilesForDeployment &&
-        isProduction &&
+        isUnversionedBuild &&
         chunk.isEntry &&
-        chunk.facadeModuleId?.endsWith('index.ts') &&
+        chunk.facadeModuleId?.endsWith('.ts') &&
         chunk.name !== 'index' &&
         chunk.exports.length > 0
       ) {
