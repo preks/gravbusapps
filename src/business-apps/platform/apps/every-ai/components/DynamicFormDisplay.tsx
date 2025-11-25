@@ -283,7 +283,7 @@ export const DynamicFormDisplay: React.FC<DynamicFormDisplayProps> = ({ data, on
 
   useEffect(() => {
     setUiState(currentFormState)
-  }, [currentFormState])
+  }, [JSON.stringify(currentFormState)])
 
   // Extract initial form values
   const { initialValues, objectKey, sourceType } = useMemo(() => {
