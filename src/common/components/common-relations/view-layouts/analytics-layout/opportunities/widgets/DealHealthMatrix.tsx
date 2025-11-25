@@ -14,6 +14,7 @@ import {
 import { ScatterChart, Scatter, XAxis, YAxis } from 'recharts'
 import { HeartOutlined, WarningOutlined, CheckCircleOutlined, ExclamationCircleOutlined } from '@ant-design/icons'
 import { HeartIcon } from '@phosphor-icons/react'
+import { navigateTo, buildPlatformUrl } from '@/common/utils/navigationUtils'
 
 export interface DealHealthItem {
   id: string
@@ -50,11 +51,8 @@ export const DealHealthMatrix: React.FC<DealHealthMatrixProps> = ({ data, module
 
   // Helper function to navigate to opportunity record
   const handleOpportunityClick = (opportunityId: string) => {
-    window.dispatchEvent(
-      new CustomEvent('navigate', {
-        detail: { path: `/opportunity/${opportunityId}` }
-      })
-    )
+    const url = buildPlatformUrl('/platform/crm/opportunity-record', { opportunityId })
+    navigateTo(url)
   }
 
   // Helper function to format currency
@@ -102,15 +100,28 @@ export const DealHealthMatrix: React.FC<DealHealthMatrixProps> = ({ data, module
     <Card data-testid="deal-health-matrix">
       <CardHeader className="gba:flex gba:items-center gba:gap-3">
         <IconAvatar icon={HeartIcon} variant={moduleColor as any} size="md" iconWeight="regular" decorative={true} />
-        <div>
+        <div className="gba:flex-1">
           <CardTitle>Deal Health Matrix</CardTitle>
           <CardDescription>Opportunity health analysis and risk assessment</CardDescription>
         </div>
+        {selectedCategory !== 'all' && (
+          <Badge
+            variant="outline"
+            className="gba:cursor-pointer gba:hover:bg-gray-100"
+            onClick={() => setSelectedCategory('all')}
+          >
+            Clear Filter
+          </Badge>
+        )}
       </CardHeader>
       <CardContent>
         <div className="gba:grid gba:grid-cols-2 md:gba:grid-cols-4 gba:gap-4 gba:mb-6">
           <div
-            className="gba:bg-green-50 gba:p-4 gba:rounded-lg gba:cursor-pointer"
+            className={`gba:bg-green-50 gba:p-4 gba:rounded-lg gba:cursor-pointer gba:transition-all ${
+              selectedCategory === 'excellent'
+                ? 'gba:ring-2 gba:ring-green-500 gba:bg-green-100 gba:shadow-md'
+                : 'gba:hover:bg-green-100'
+            }`}
             onClick={() => setSelectedCategory(selectedCategory === 'excellent' ? 'all' : 'excellent')}
             data-testid="excellent-deals-filter"
           >
@@ -121,7 +132,11 @@ export const DealHealthMatrix: React.FC<DealHealthMatrixProps> = ({ data, module
             <div className="gba:text-2xl gba:font-bold gba:text-green-900">{data.healthDistribution.excellent}</div>
           </div>
           <div
-            className="gba:bg-blue-50 gba:p-4 gba:rounded-lg gba:cursor-pointer"
+            className={`gba:bg-blue-50 gba:p-4 gba:rounded-lg gba:cursor-pointer gba:transition-all ${
+              selectedCategory === 'healthy'
+                ? 'gba:ring-2 gba:ring-blue-500 gba:bg-blue-100 gba:shadow-md'
+                : 'gba:hover:bg-blue-100'
+            }`}
             onClick={() => setSelectedCategory(selectedCategory === 'healthy' ? 'all' : 'healthy')}
             data-testid="healthy-deals-filter"
           >
@@ -132,7 +147,11 @@ export const DealHealthMatrix: React.FC<DealHealthMatrixProps> = ({ data, module
             <div className="gba:text-2xl gba:font-bold gba:text-blue-900">{data.healthDistribution.healthy}</div>
           </div>
           <div
-            className="gba:bg-yellow-50 gba:p-4 gba:rounded-lg gba:cursor-pointer"
+            className={`gba:bg-yellow-50 gba:p-4 gba:rounded-lg gba:cursor-pointer gba:transition-all ${
+              selectedCategory === 'warning'
+                ? 'gba:ring-2 gba:ring-yellow-500 gba:bg-yellow-100 gba:shadow-md'
+                : 'gba:hover:bg-yellow-100'
+            }`}
             onClick={() => setSelectedCategory(selectedCategory === 'warning' ? 'all' : 'warning')}
             data-testid="warning-deals-filter"
           >
@@ -143,7 +162,11 @@ export const DealHealthMatrix: React.FC<DealHealthMatrixProps> = ({ data, module
             <div className="gba:text-2xl gba:font-bold gba:text-yellow-900">{data.healthDistribution.warning}</div>
           </div>
           <div
-            className="gba:bg-red-50 gba:p-4 gba:rounded-lg gba:cursor-pointer"
+            className={`gba:bg-red-50 gba:p-4 gba:rounded-lg gba:cursor-pointer gba:transition-all ${
+              selectedCategory === 'critical'
+                ? 'gba:ring-2 gba:ring-red-500 gba:bg-red-100 gba:shadow-md'
+                : 'gba:hover:bg-red-100'
+            }`}
             onClick={() => setSelectedCategory(selectedCategory === 'critical' ? 'all' : 'critical')}
             data-testid="critical-deals-filter"
           >

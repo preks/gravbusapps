@@ -25,31 +25,61 @@ export const useTopRevenueEarners = (accessToken: string, currencyCode?: string)
         const currencyFilter = currencyCode ? `, currency: { code: { _eq: "${currencyCode}" } }` : ''
 
         const query = `
-          query GetTopRevenueContacts {
-            contacts: Contact(where: { isDeleted: { _eq: false }, accountId: { _neq: null } }, orderBy: [{ createdAt: DESC }]) { id firstName lastName email accountId account { id name } }
-            opportunities: Opportunity(where: { isDeleted: { _eq: false }, accountId: { _neq: null }${currencyFilter} }) { id name estimatedAmount stage status accountId }
+          query GetTopRevenueEarners {
+            opportunities: Opportunity(
+              where: { 
+                isDeleted: { _eq: false }
+                opportunityStatus: { code: { _eq: "WON" } }
+                ownerEmployeeId: { _neq: null }${currencyFilter}
+              }
+            ) { 
+              id 
+              name 
+              estimatedAmount 
+              ownerEmployee {
+                id
+                firstName
+                lastName
+                displayName
+              }
+            }
           }
         `
         const result = await graphqlClient.request<any>(query)
-        const c = result.contacts || []
-        const o = result.opportunities || []
-        const list = c
-          .map((contact: any) => {
-            const accOpps = o.filter((opp: any) => opp.accountId === contact.accountId)
-            const won = accOpps.filter((opp: any) => opp.status === 'won' || opp.stage === 'won')
-            const totalRevenue = won.reduce((s: number, opp: any) => s + (opp.estimatedAmount || 0), 0)
-            return {
-              id: contact.id,
-              firstName: contact.firstName || 'Unknown',
-              lastName: contact.lastName || 'Contact',
-              email: contact.email || 'No email',
-              accountName: contact.account?.name || 'No Account',
-              totalRevenue,
-              wonOpportunities: won.length
-            } as TopRevenueContact
-          })
-          .filter((x: TopRevenueContact) => x.totalRevenue > 0)
-          .sort((a: TopRevenueContact, b: TopRevenueContact) => b.totalRevenue - a.totalRevenue)
+        const opportunities = result.opportunities || []
+
+        // Group opportunities by owner employee
+        const employeeMap = new Map<string, { employee: any; totalRevenue: number; wonOpportunities: number }>()
+
+        opportunities.forEach((opp: any) => {
+          const ownerId = opp.ownerEmployee?.id
+          if (!ownerId) return
+
+          if (!employeeMap.has(ownerId)) {
+            employeeMap.set(ownerId, {
+              employee: opp.ownerEmployee,
+              totalRevenue: 0,
+              wonOpportunities: 0
+            })
+          }
+
+          const data = employeeMap.get(ownerId)!
+          data.totalRevenue += opp.estimatedAmount || 0
+          data.wonOpportunities += 1
+        })
+
+        // Convert to array and sort
+        const list = Array.from(employeeMap.values())
+          .map(({ employee, totalRevenue, wonOpportunities }) => ({
+            id: employee.id,
+            firstName: employee.firstName || 'Unknown',
+            lastName: employee.lastName || 'Employee',
+            email: '', // Not available in this query
+            accountName: '', // Not relevant for employee-based ranking
+            totalRevenue,
+            wonOpportunities
+          }))
+          .sort((a, b) => b.totalRevenue - a.totalRevenue)
           .slice(0, 10)
         setContacts(list)
       } finally {

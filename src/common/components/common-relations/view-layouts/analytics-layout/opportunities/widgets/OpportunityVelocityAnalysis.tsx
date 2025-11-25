@@ -17,6 +17,7 @@ import {
 import { LineChart, Line, XAxis, YAxis } from 'recharts'
 import { ClockCircleOutlined, RiseOutlined, TrophyOutlined } from '@ant-design/icons'
 import { TrendUpIcon } from '@phosphor-icons/react'
+import { navigateTo, buildPlatformUrl } from '@/common/utils/navigationUtils'
 
 export interface OpportunityVelocityData {
   averageDaysInPipeline: number
@@ -70,11 +71,8 @@ export const OpportunityVelocityAnalysis: React.FC<OpportunityVelocityAnalysisPr
 
   // Helper function to navigate to opportunity record
   const handleOpportunityClick = (opportunityId: string) => {
-    window.dispatchEvent(
-      new CustomEvent('navigate', {
-        detail: { path: `/opportunity/${opportunityId}` }
-      })
-    )
+    const url = buildPlatformUrl('/platform/crm/opportunity-record', { opportunityId })
+    navigateTo(url)
   }
 
   return (

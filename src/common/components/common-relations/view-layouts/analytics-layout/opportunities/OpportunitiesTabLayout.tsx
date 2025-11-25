@@ -26,8 +26,7 @@ import {
   SelectValue,
   Label
 } from '@newwork/nw-design-system'
-import { OpportunitiesByStageBar } from './widgets/OpportunitiesByStageBar'
-import { OpportunitiesByPipelinePie } from './widgets/OpportunitiesByPipelinePie'
+import { OpportunitiesByStagePie } from './widgets/OpportunitiesByStagePie'
 import { formatCurrencyCompact } from '@/common/utils/numberFormatter'
 
 export interface OpportunitiesTrendData {
@@ -77,7 +76,6 @@ export interface OpportunitiesTabLayoutProps {
   opportunitiesByStage: Array<{ stage: string; count: number; value: number }>
   selectedStagePipelineId?: string
   onStagePipelineChange?: (id: string | undefined) => void
-  opportunitiesByPipeline: Array<{ pipelineId: string; pipeline: string; count: number; percentage: number }>
   topDeals: Array<{
     id: string
     name: string
@@ -120,7 +118,6 @@ export const OpportunitiesTabLayout: React.FC<OpportunitiesTabLayoutProps> = ({
   opportunitiesByStage,
   selectedStagePipelineId,
   onStagePipelineChange,
-  opportunitiesByPipeline,
   topDeals,
   velocityData,
   dealHealthData,
@@ -339,20 +336,13 @@ export const OpportunitiesTabLayout: React.FC<OpportunitiesTabLayoutProps> = ({
         />
       </div>
 
-      <div className="gba:flex gba:flex-col lg:gba:flex-row gba:gap-6">
-        <div className="gba:flex-1 lg:gba:w-3/4">
-          <OpportunitiesByStageBar
-            data={opportunitiesByStage}
-            moduleColor={moduleColor}
-            pipelines={pipelines}
-            selectedPipelineId={selectedStagePipelineId}
-            onPipelineChange={onStagePipelineChange}
-          />
-        </div>
-        <div className="gba:flex-1 lg:gba:w-1/4 lg:gba:flex-none">
-          <OpportunitiesByPipelinePie data={opportunitiesByPipeline} moduleColor={moduleColor} />
-        </div>
-      </div>
+      <OpportunitiesByStagePie
+        data={opportunitiesByStage}
+        moduleColor={moduleColor}
+        pipelines={pipelines}
+        selectedPipelineId={selectedStagePipelineId}
+        onPipelineChange={onStagePipelineChange}
+      />
 
       <Card data-testid="top-deals-section">
         <CardHeader>

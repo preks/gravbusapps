@@ -170,12 +170,18 @@ export const AnalyticsView: React.FC<AnalyticsViewProps> = ({ moduleColor = 'def
   })
   const { data: contactInsights } = useContactInsights(context.accessToken)
   const { data: contactQuality } = useContactQualityData(context.accessToken)
-  const { contacts: topRevenueContacts, isLoading: topRevenueLoading } = useTopRevenueEarners(
-    context.accessToken,
-    topPerformersCurrency
-  )
+  const { contacts: topRevenueContacts } = useTopRevenueEarners(context.accessToken, topPerformersCurrency)
   const { count: customerAccountCount } = useAccountsCount(context.accessToken)
   const { data: topDealsData } = useTopDeals(context.accessToken, topDealsCurrency)
+
+  // Initialize selectedStagePipelineId to first pipeline when data is loaded
+  useEffect(() => {
+    if (data?.opportunities?.opportunitiesByPipeline && data.opportunities.opportunitiesByPipeline.length > 0) {
+      if (!selectedStagePipelineId) {
+        setSelectedStagePipelineId(data.opportunities.opportunitiesByPipeline[0].pipelineId)
+      }
+    }
+  }, [data?.opportunities?.opportunitiesByPipeline, selectedStagePipelineId])
 
   if (isLoading) {
     return (
@@ -237,7 +243,12 @@ export const AnalyticsView: React.FC<AnalyticsViewProps> = ({ moduleColor = 'def
           data: activityHeatmap || [],
           isLoading: activityLoading
         },
-        topPerformers: data.overview.topPerformers,
+        topPerformers: topRevenueContacts.map(contact => ({
+          employeeId: contact.id,
+          employeeName: `${contact.firstName} ${contact.lastName}`,
+          dealsWon: contact.wonOpportunities,
+          totalValue: contact.totalRevenue
+        })),
         kpiCurrency,
         onKpiCurrencyChange: setKpiCurrency,
         availableCurrencies,
@@ -335,12 +346,6 @@ export const AnalyticsView: React.FC<AnalyticsViewProps> = ({ moduleColor = 'def
         opportunitiesByStage: (oppStageData || []).map(s => ({ stage: s.stage, count: s.count, value: s.value })),
         selectedStagePipelineId: selectedStagePipelineId,
         onStagePipelineChange: (id: string | undefined) => setSelectedStagePipelineId(id),
-        opportunitiesByPipeline: data.opportunities.opportunitiesByPipeline.map(p => ({
-          pipelineId: p.pipelineId,
-          pipeline: p.pipeline,
-          count: p.count,
-          percentage: p.percentage
-        })),
         topDeals: topDealsData,
         velocityData: oppVelocityData || null,
         dealHealthData: oppHealthData || null,
@@ -375,8 +380,6 @@ export const AnalyticsView: React.FC<AnalyticsViewProps> = ({ moduleColor = 'def
             recentContacts: contactInsights.recentContacts
           },
           qualityData: contactQuality || undefined,
-          topRevenueContacts: topRevenueContacts,
-          topRevenueLoading: topRevenueLoading,
           avgPerAccount:
             customerAccountCount > 0 ? Math.round((contactsMetrics.total / customerAccountCount) * 10) / 10 : 0,
           avgPerAccountLastMonth:

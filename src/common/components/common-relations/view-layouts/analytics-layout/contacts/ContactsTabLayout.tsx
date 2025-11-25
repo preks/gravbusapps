@@ -4,7 +4,6 @@ import { ContactsOutlined, TeamOutlined, DollarCircleOutlined, RiseOutlined } fr
 import { Card, CardContent, CardHeader, CardTitle } from '@newwork/nw-design-system'
 import { ContactInsightsDashboard, ContactInsightsDashboardData } from './widgets/ContactInsightsDashboard'
 import { ContactQualityMatrix, ContactQualityData } from './widgets/ContactQualityMatrix'
-import { TopRevenueEarners, TopRevenueContact } from './widgets/TopRevenueEarners'
 import { ContactLifecycleChart } from './widgets/ContactLifecycleChart'
 
 export type TimeFilter = 'month' | 'quarter' | 'year' | 'historical'
@@ -38,8 +37,6 @@ export interface ContactsTabLayoutProps {
   }>
   insightsData?: ContactInsightsDashboardData // optional: if provided, show dashboard widget
   qualityData?: ContactQualityData
-  topRevenueContacts?: TopRevenueContact[]
-  topRevenueLoading?: boolean
   moduleColor?: string
 }
 
@@ -60,8 +57,6 @@ export const ContactsTabLayout: React.FC<ContactsTabLayoutProps> = ({
   recentContacts,
   insightsData,
   qualityData,
-  topRevenueContacts,
-  topRevenueLoading,
   moduleColor = 'default'
 }) => {
   const safeThisMonth = thisMonth || 0
@@ -229,8 +224,6 @@ export const ContactsTabLayout: React.FC<ContactsTabLayoutProps> = ({
       )}
 
       {qualityData && <ContactQualityMatrix data={qualityData} moduleColor={moduleColor} />}
-
-      {topRevenueContacts && <TopRevenueEarners contacts={topRevenueContacts} isLoading={topRevenueLoading} />}
     </div>
   )
 }

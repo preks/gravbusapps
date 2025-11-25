@@ -10,8 +10,6 @@ import {
   ChartContainer,
   ChartTooltip,
   ChartTooltipContent,
-  ChartLegend,
-  ChartLegendContent,
   Select,
   SelectContent,
   SelectItem,
@@ -42,8 +40,11 @@ export const OpportunitiesByStageBar: React.FC<OpportunitiesByStageBarProps> = (
   selectedPipelineId,
   onPipelineChange
 }) => {
+  // Use first pipeline as default if no selection
+  const effectivePipelineId = selectedPipelineId || (pipelines.length > 0 ? pipelines[0].id : undefined)
+
   const handlePipelineChange = (value: string) => {
-    onPipelineChange?.(value === 'all' ? undefined : value)
+    onPipelineChange?.(value)
   }
 
   // Format large numbers for Y-axis
@@ -62,9 +63,6 @@ export const OpportunitiesByStageBar: React.FC<OpportunitiesByStageBarProps> = (
       ({
         count: {
           label: 'Opportunities'
-        },
-        value: {
-          label: 'Total Value'
         }
       }) satisfies ChartConfig,
     []
@@ -88,12 +86,11 @@ export const OpportunitiesByStageBar: React.FC<OpportunitiesByStageBarProps> = (
           </div>
           {pipelines.length > 0 && onPipelineChange && (
             <div className="gba:min-w-48">
-              <Select value={selectedPipelineId || 'all'} onValueChange={handlePipelineChange}>
+              <Select value={effectivePipelineId} onValueChange={handlePipelineChange}>
                 <SelectTrigger data-testid="opportunities-stage-pipeline-selector">
                   <SelectValue placeholder="Select pipeline" />
                 </SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="all">All Pipelines</SelectItem>
                   {pipelines.map(pipeline => (
                     <SelectItem key={pipeline.id} value={pipeline.id}>
                       {pipeline.name}
@@ -111,18 +108,9 @@ export const OpportunitiesByStageBar: React.FC<OpportunitiesByStageBarProps> = (
             <XAxis dataKey="stage" angle={-45} textAnchor="end" height={80} tick={{ fontSize: 11 }} interval={0} />
             <YAxis tick={{ fontSize: 11 }} tickFormatter={formatYAxis} width={60} />
             <ChartTooltip
-              content={
-                <ChartTooltipContent
-                  formatter={(value: number, name: string) => [
-                    name === 'count' ? `${value}` : `€${Number(value).toLocaleString()}`,
-                    name === 'count' ? 'Opportunities' : 'Total Value'
-                  ]}
-                />
-              }
+              content={<ChartTooltipContent formatter={(value: number) => [`${value}`, 'Opportunities']} />}
             />
-            <ChartLegend content={<ChartLegendContent />} />
             <Bar dataKey="count" fill="var(--color-count)" radius={[2, 2, 0, 0]} />
-            <Bar dataKey="value" fill="var(--color-value)" radius={[2, 2, 0, 0]} />
           </BarChart>
         </ChartContainer>
       </CardContent>

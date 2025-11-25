@@ -40,11 +40,12 @@ export const useCrmAnalyticsData = (
 
     try {
       // Fetch all analytics data in parallel with optional currency filter
-      // Fetch opportunities twice: once for accounts tab, once for opportunities tab
+      // Fetch opportunities three times: once for overview KPIs, once for accounts tab, once for opportunities tab
       const [
         overviewResponse,
         leadsResponse,
         accountsResponse,
+        opportunitiesForKPIResponse,
         opportunitiesForAccountsResponse,
         opportunitiesResponse,
         contactsResponse
@@ -52,6 +53,7 @@ export const useCrmAnalyticsData = (
         graphqlClient.request(GET_CRM_OVERVIEW_ANALYTICS(kpiCurrency)),
         graphqlClient.request(GET_LEADS_ANALYTICS, {}),
         graphqlClient.request(GET_ACCOUNTS_ANALYTICS, {}),
+        graphqlClient.request(GET_OPPORTUNITIES_ANALYTICS(kpiCurrency)), // For overview KPIs
         graphqlClient.request(GET_OPPORTUNITIES_ANALYTICS(accountsCurrency || kpiCurrency)), // For accounts tab (topAccounts)
         graphqlClient.request(GET_OPPORTUNITIES_ANALYTICS(opportunitiesCurrency || kpiCurrency)), // For opportunities tab
         graphqlClient.request(GET_CONTACTS_ANALYTICS, {})
@@ -63,7 +65,7 @@ export const useCrmAnalyticsData = (
           overviewResponse,
           leadsResponse,
           accountsResponse,
-          opportunitiesResponse,
+          opportunitiesForKPIResponse, // Use KPI-specific opportunities
           contactsResponse
         ),
         leads: transformLeadsData(leadsResponse),

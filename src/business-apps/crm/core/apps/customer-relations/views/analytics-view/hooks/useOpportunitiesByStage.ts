@@ -30,7 +30,9 @@ export const useOpportunitiesByStage = (accessToken: string, pipelineId?: string
               where: { ${whereClause} }
             ) {
               id
-              stage
+              salesPipelineStage {
+                value
+              }
               estimatedAmount
             }
           }
@@ -38,7 +40,7 @@ export const useOpportunitiesByStage = (accessToken: string, pipelineId?: string
 
         const result = await graphqlClient.request<any>(query)
         const stageGroups = (result.opportunities || []).reduce((acc: Record<string, StageItem>, opp: any) => {
-          const stage = opp.stage || 'Unknown'
+          const stage = opp.salesPipelineStage?.value || 'Unknown'
           if (!acc[stage]) acc[stage] = { stage, count: 0, value: 0 }
           acc[stage].count += 1
           acc[stage].value += opp.estimatedAmount || 0
