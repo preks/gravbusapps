@@ -1,11 +1,11 @@
-import { Avatar, AvatarImage, AvatarFallback, Badge } from '@newwork/nw-design-system';
-import { DirectReport } from '../hooks/useDirectReports';
-import { formatDate, getTranslationFromI18nKeyAndLabel } from '@/common/utils/windowUtils';
+import { Avatar, AvatarImage, AvatarFallback, Badge } from '@newwork/nw-design-system'
+import { DirectReport } from '../hooks/useDirectReports'
+import { formatDate, getTranslationFromI18nKeyAndLabel } from '@/common/utils/windowUtils'
 
 type DirectMemberProps = {
-  report: DirectReport;
-  handleNavigateToEmployee: (_employeeId: string) => void;
-};
+  report: DirectReport
+  handleNavigateToEmployee: (_employeeId: string) => void
+}
 
 const DirectMember = ({ report, handleNavigateToEmployee }: DirectMemberProps) => {
   return (
@@ -17,7 +17,7 @@ const DirectMember = ({ report, handleNavigateToEmployee }: DirectMemberProps) =
       title={getTranslationFromI18nKeyAndLabel(
         'master-data:hr.manager_dashboard.view_profile',
         `View ${report.fullName}'s profile`,
-        { name: report.fullName },
+        { name: report.fullName }
       )}
     >
       <div className="gba:flex gba:items-center">
@@ -35,9 +35,7 @@ const DirectMember = ({ report, handleNavigateToEmployee }: DirectMemberProps) =
               }
               alt={`${report.firstName} ${report.lastName}`}
             />
-            <AvatarFallback>
-              {`${report.firstName[0]}${report.lastName[0]}`.toUpperCase()}
-            </AvatarFallback>
+            <AvatarFallback>{`${report.firstName[0]}${report.lastName[0]}`.toUpperCase()}</AvatarFallback>
           </Avatar>
         </div>
         <div>
@@ -52,10 +50,7 @@ const DirectMember = ({ report, handleNavigateToEmployee }: DirectMemberProps) =
             data-testid={`manager-dashboard-direct-report-title-${report.id}`}
           >
             {report.jobPositionName ||
-              getTranslationFromI18nKeyAndLabel(
-                'master-data:hr.manager_dashboard.direct_report',
-                'Direct Report',
-              )}
+              getTranslationFromI18nKeyAndLabel('master-data:hr.manager_dashboard.direct_report', 'Direct Report')}
           </div>
           {report.organizationalUnitName && (
             <div className="gba:text-xs gba:text-neutral-400">{report.organizationalUnitName}</div>
@@ -80,21 +75,14 @@ const DirectMember = ({ report, handleNavigateToEmployee }: DirectMemberProps) =
         </div>
       </div>
       <div className="gba:flex gba:flex-col gba:items-end">
-        <Badge
-          variant={report.status === 'On Leave' ? 'destructive' : 'outline'}
-          size="sm"
-          className="gba:mb-1"
-        >
+        <Badge variant={report.status === 'On Leave' ? 'destructive' : 'outline'} size="sm" className="gba:mb-1">
           {report.status === 'On Leave'
-            ? getTranslationFromI18nKeyAndLabel(
-                'master-data:manager_dashboard.on_leave',
-                'On Leave',
-              )
+            ? getTranslationFromI18nKeyAndLabel('master-data:manager_dashboard.on_leave', 'On Leave')
             : getTranslationFromI18nKeyAndLabel('lowcoder:hr_absences.available', 'Available')}
         </Badge>
       </div>
     </div>
-  );
-};
+  )
+}
 
-export default DirectMember;
+export default DirectMember

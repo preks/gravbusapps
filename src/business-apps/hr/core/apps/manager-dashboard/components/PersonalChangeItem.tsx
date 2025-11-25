@@ -1,125 +1,121 @@
-import { Avatar, AvatarImage, AvatarFallback, Badge, Button } from '@newwork/nw-design-system';
+import { Avatar, AvatarImage, AvatarFallback, Badge, Button } from '@newwork/nw-design-system'
 import {
   PersonalDataApproval,
   getPersonalChangePriorityLabel,
-  getPersonalChangePriorityVariant,
-} from '../hooks/usePersonalDataApprovals';
-import { ClockIcon, NotePencilIcon } from '@phosphor-icons/react';
-import { useState } from 'react';
-import { toast } from 'sonner';
-import { getTranslationFromI18nKeyAndLabel } from '@/common/utils/windowUtils';
-import { getTimeAgo } from '../hooks/useAbsencesApprovals';
+  getPersonalChangePriorityVariant
+} from '../hooks/usePersonalDataApprovals'
+import { ClockIcon, NotePencilIcon } from '@phosphor-icons/react'
+import { useState } from 'react'
+import { toast } from 'sonner'
+import { getTranslationFromI18nKeyAndLabel } from '@/common/utils/windowUtils'
+import { getTimeAgo } from '../hooks/useAbsencesApprovals'
 
 export const handleApprovePersonalChange = async ({
   change,
   userId,
   accessToken,
   refetchPersonalData,
-  setIsSubmitting,
+  setIsSubmitting
 }: {
-  change: PersonalDataApproval;
-  userId?: string;
-  accessToken?: string;
-  refetchPersonalData?: () => void;
-  setIsSubmitting: (_isSubmitting: boolean) => void;
+  change: PersonalDataApproval
+  userId?: string
+  accessToken?: string
+  refetchPersonalData?: () => void
+  setIsSubmitting: (_isSubmitting: boolean) => void
 }) => {
-  setIsSubmitting(true);
+  setIsSubmitting(true)
   try {
-    const urlEndpoint = `${change?.endpoint}?phase=complete&user=${userId}`;
+    const urlEndpoint = `${change?.endpoint}?phase=complete&user=${userId}`
 
     const approvalPersonalChangePayload = {
       event: 'pse_submit',
-      approvalNote: 'Acknowledged from manager dashboard',
-    };
+      approvalNote: 'Acknowledged from manager dashboard'
+    }
 
     const postResponse = await fetch(urlEndpoint, {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
-        Authorization: `Bearer ${accessToken}`,
+        Authorization: `Bearer ${accessToken}`
       },
-      body: JSON.stringify(approvalPersonalChangePayload),
-    });
+      body: JSON.stringify(approvalPersonalChangePayload)
+    })
 
     if (!postResponse.ok) {
-      const responseText = await postResponse.text();
-      throw new Error(
-        `POST request failed: ${postResponse.status} - ${postResponse.statusText} - ${responseText}`,
-      );
+      const responseText = await postResponse.text()
+      throw new Error(`POST request failed: ${postResponse.status} - ${postResponse.statusText} - ${responseText}`)
     }
-    await postResponse.json();
-    refetchPersonalData?.();
+    await postResponse.json()
+    refetchPersonalData?.()
   } catch (err) {
-    console.error('Error approving personal change request:', err);
-    const defaultErrorMessage = 'Something went wrong';
-    const errorMsg = err instanceof Error ? err.message : defaultErrorMessage;
-    toast.error(errorMsg);
+    console.error('Error approving personal change request:', err)
+    const defaultErrorMessage = 'Something went wrong'
+    const errorMsg = err instanceof Error ? err.message : defaultErrorMessage
+    toast.error(errorMsg)
   } finally {
-    setIsSubmitting(false);
+    setIsSubmitting(false)
   }
-};
+}
 
 export const handleRejectPersonalChange = async ({
   change,
   userId,
   accessToken,
   refetchPersonalData,
-  setIsSubmitting,
+  setIsSubmitting
 }: {
-  change: PersonalDataApproval;
-  userId?: string;
-  accessToken?: string;
-  refetchPersonalData?: () => void;
-  setIsSubmitting: (_isSubmitting: boolean) => void;
+  change: PersonalDataApproval
+  userId?: string
+  accessToken?: string
+  refetchPersonalData?: () => void
+  setIsSubmitting: (_isSubmitting: boolean) => void
 }) => {
-  setIsSubmitting(true);
+  setIsSubmitting(true)
   try {
-    const urlEndpoint = `${change?.endpoint}?phase=complete&user=${userId}`;
+    const urlEndpoint = `${change?.endpoint}?phase=complete&user=${userId}`
 
     const rejectionPersonalChangePayload = {
       event: 'pse_submit',
-      approvalNote: 'Rejected from manager dashboard',
-    };
+      approvalNote: 'Rejected from manager dashboard'
+    }
 
     const postResponse = await fetch(urlEndpoint, {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
-        Authorization: `Bearer ${accessToken}`,
+        Authorization: `Bearer ${accessToken}`
       },
-      body: JSON.stringify(rejectionPersonalChangePayload),
-    });
+      body: JSON.stringify(rejectionPersonalChangePayload)
+    })
 
     if (!postResponse.ok) {
-      const responseText = await postResponse.text();
-      throw new Error(
-        `POST request failed: ${postResponse.status} - ${postResponse.statusText} - ${responseText}`,
-      );
+      const responseText = await postResponse.text()
+      throw new Error(`POST request failed: ${postResponse.status} - ${postResponse.statusText} - ${responseText}`)
     }
-    await postResponse.json();
-    refetchPersonalData?.();
+    await postResponse.json()
+    refetchPersonalData?.()
   } catch (err) {
-    console.error(`Error rejecting personal change:`, err);
-    const defaultErrorMessage = 'Something went wrong';
-    const errorMsg = err instanceof Error ? err.message : defaultErrorMessage;
-    toast.error(errorMsg);
+    console.error(`Error rejecting personal change:`, err)
+    const defaultErrorMessage = 'Something went wrong'
+    const errorMsg = err instanceof Error ? err.message : defaultErrorMessage
+    toast.error(errorMsg)
   } finally {
-    setIsSubmitting(false);
+    setIsSubmitting(false)
   }
-};
+}
 
 export const PersonalChangeItem = ({
   change,
   userId,
   accessToken,
-  refetchPersonalData,
+  refetchPersonalData
 }: {
-  change: PersonalDataApproval;
-  userId?: string;
-  accessToken?: string;
-  refetchPersonalData?: () => void;
+  change: PersonalDataApproval
+  userId?: string
+  accessToken?: string
+  refetchPersonalData?: () => void
 }) => {
-  const [isSubmitting, setIsSubmitting] = useState(false);
+  const [isSubmitting, setIsSubmitting] = useState(false)
 
   return (
     <div
@@ -142,7 +138,7 @@ export const PersonalChangeItem = ({
               <AvatarFallback>
                 {(change.employee?.fullName || 'U E')
                   .split(' ')
-                  .map((p) => p[0])
+                  .map(p => p[0])
                   .join('')
                   .slice(0, 2)
                   .toUpperCase()}
@@ -179,16 +175,13 @@ export const PersonalChangeItem = ({
               userId,
               accessToken,
               refetchPersonalData,
-              setIsSubmitting,
+              setIsSubmitting
             })
           }
         >
-          {getTranslationFromI18nKeyAndLabel(
-            'lowcoder:acknowledge_sick_leave.acknowledge',
-            'Acknowledge',
-          )}
+          {getTranslationFromI18nKeyAndLabel('lowcoder:acknowledge_sick_leave.acknowledge', 'Acknowledge')}
         </Button>
       </div>
     </div>
-  );
-};
+  )
+}

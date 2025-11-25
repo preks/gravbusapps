@@ -1,21 +1,18 @@
 'use client'
 
-import React, { useMemo, useState } from 'react';
-import { BusinessAppContextProps } from '@/common/BusinessAppContext';
-import { useDirectReports } from './hooks/useDirectReports';
-import { useMatrixTeams } from './hooks/useMatrixTeams';
-import { useTeamBirthdays, TeamBirthday } from './hooks/useTeamBirthdays';
-import { useTeamAnniversaries, TeamAnniversary } from './hooks/useTeamAnniversaries';
-import { useMissingJobProfiles } from './hooks/useMissingJobProfiles';
-import { useCurrentUserProfile } from './hooks/useCurrentUserProfile';
-import { useExpensesApprovals, ExpenseApproval } from './hooks/useExpensesApprovals';
-import { useAbsencesApprovals, AbsenceApproval } from './hooks/useAbsencesApprovals';
-import { usePersonalDataApprovals, PersonalDataApproval } from './hooks/usePersonalDataApprovals';
-import {
-  getCurrentActiveStructureId,
-  getTranslationFromI18nKeyAndLabel,
-} from '@/common/utils/windowUtils';
-import { navigateTo, buildPlatformUrl } from '@/common/utils/navigationUtils';
+import React, { useMemo, useState } from 'react'
+import { BusinessAppContextProps } from '@/common/BusinessAppContext'
+import { useDirectReports } from './hooks/useDirectReports'
+import { useMatrixTeams } from './hooks/useMatrixTeams'
+import { useTeamBirthdays, TeamBirthday } from './hooks/useTeamBirthdays'
+import { useTeamAnniversaries, TeamAnniversary } from './hooks/useTeamAnniversaries'
+import { useMissingJobProfiles } from './hooks/useMissingJobProfiles'
+import { useCurrentUserProfile } from './hooks/useCurrentUserProfile'
+import { useExpensesApprovals, ExpenseApproval } from './hooks/useExpensesApprovals'
+import { useAbsencesApprovals, AbsenceApproval } from './hooks/useAbsencesApprovals'
+import { usePersonalDataApprovals, PersonalDataApproval } from './hooks/usePersonalDataApprovals'
+import { getCurrentActiveStructureId, getTranslationFromI18nKeyAndLabel } from '@/common/utils/windowUtils'
+import { navigateTo, buildPlatformUrl } from '@/common/utils/navigationUtils'
 import {
   Card,
   CardHeader,
@@ -31,11 +28,11 @@ import {
   Avatar,
   AvatarImage,
   AvatarFallback,
-  Toaster,
-} from '@newwork/nw-design-system';
-import { Employee } from '@/business-apps/hr/core/hooks/useGetEmployees';
-import { notification } from 'antd';
-import DirectMember from './components/DirectMember';
+  Toaster
+} from '@newwork/nw-design-system'
+import { Employee } from '@/business-apps/hr/core/hooks/useGetEmployees'
+import { notification } from 'antd'
+import DirectMember from './components/DirectMember'
 import {
   UsersIcon,
   UserIcon,
@@ -53,50 +50,46 @@ import {
   CalendarDotsIcon,
   XCircleIcon,
   WalletIcon,
-  AirplaneTiltIcon,
-} from '@phosphor-icons/react';
-import { AbsenceItem } from './components/AbsenceItem';
-import { ExpenseItem } from './components/ExpenseItem';
-import { PersonalChangeItem } from './components/PersonalChangeItem';
-import RequestsToApproveTable from './components/RequestsToApproveTable';
-import MyTeammatesTable from './components/MyTeammatesTable';
+  AirplaneTiltIcon
+} from '@phosphor-icons/react'
+import { AbsenceItem } from './components/AbsenceItem'
+import { ExpenseItem } from './components/ExpenseItem'
+import { PersonalChangeItem } from './components/PersonalChangeItem'
+import RequestsToApproveTable from './components/RequestsToApproveTable'
+import MyTeammatesTable from './components/MyTeammatesTable'
 
 /**
  * Manager Dashboard
  * Displays a dashboard for managers with key metrics and insights
  */
 export const ManagerDashboard: React.FC<BusinessAppContextProps> = ({ userInfo, accessToken }) => {
-  const employeeId = userInfo?.employeeDetails?.employeeId;
+  const employeeId = userInfo?.employeeDetails?.employeeId
 
   // State for team tabs
-  const [activeTeamTab, setActiveTeamTab] = useState<'my-team' | 'my-teams'>('my-team');
+  const [activeTeamTab, setActiveTeamTab] = useState<'my-team' | 'my-teams'>('my-team')
 
   // State for team insights tabs
-  const [activeInsightsTab, setActiveInsightsTab] = useState<
-    'birthdays' | 'anniversaries' | 'missing-profiles'
-  >('birthdays');
+  const [activeInsightsTab, setActiveInsightsTab] = useState<'birthdays' | 'anniversaries' | 'missing-profiles'>(
+    'birthdays'
+  )
 
   // State for approval tabs
-  const [activeApprovalTab, setActiveApprovalTab] = useState<
-    'expenses' | 'absences' | 'personal-changes'
-  >('expenses');
+  const [activeApprovalTab, setActiveApprovalTab] = useState<'expenses' | 'absences' | 'personal-changes'>('expenses')
 
   // State for current view (dashboard or detailed pages)
-  const [currentView, setCurrentView] = useState<'dashboard' | 'teammates' | 'approvals'>(
-    'dashboard',
-  );
+  const [currentView, setCurrentView] = useState<'dashboard' | 'teammates' | 'approvals'>('dashboard')
 
   // Get the current structure ID for matrix team queries
-  const structureId = getCurrentActiveStructureId();
+  const structureId = getCurrentActiveStructureId()
 
   // Navigation handlers
   const handleNavigateToTeammates = () => {
-    setCurrentView('teammates');
-  };
+    setCurrentView('teammates')
+  }
 
   const handleNavigateToApprovals = () => {
-    setCurrentView('approvals');
-  };
+    setCurrentView('approvals')
+  }
 
   const handleNavigateBackToDashboard = () => {
     setCurrentView('dashboard')
@@ -106,10 +99,10 @@ export const ManagerDashboard: React.FC<BusinessAppContextProps> = ({ userInfo, 
   const handleNavigateToEmployee = (employeeId: string) => {
     const profileUrl = buildPlatformUrl('/platform/employee-record', {
       employeeId,
-      tab: 'summary',
-    });
-    navigateTo(profileUrl);
-  };
+      tab: 'summary'
+    })
+    navigateTo(profileUrl)
+  }
 
   // Email template functions
   const generateBirthdayEmail = (employeeName: string, managerName: string = 'Your Manager') => {
@@ -123,17 +116,17 @@ I hope you have a wonderful day celebrating with family and friends. Thank you f
 Wishing you all the best in the year ahead!
 
 Best regards,
-${managerName}`;
+${managerName}`
 
-    return { subject, body };
-  };
+    return { subject, body }
+  }
 
   const generateAnniversaryEmail = (
     employeeName: string,
     yearsOfService: number,
-    managerName: string = 'Your Manager',
+    managerName: string = 'Your Manager'
   ) => {
-    const subject = `🎊 Congratulations on Your ${yearsOfService}-Year Anniversary!`;
+    const subject = `🎊 Congratulations on Your ${yearsOfService}-Year Anniversary!`
     const body = `Hi ${employeeName},
 
 Congratulations on reaching your ${yearsOfService}-year anniversary with us! 🎊
@@ -141,10 +134,10 @@ Congratulations on reaching your ${yearsOfService}-year anniversary with us! �
 Your contributions over the years have been invaluable to our team's success. Thank you for your hard work, dedication, and the positive impact you've made. Here's to many more years of growth and achievement together!
 
 Best regards,
-${managerName}`;
+${managerName}`
 
-    return { subject, body };
-  };
+    return { subject, body }
+  }
 
   const openEmailClient = (to: string, subject: string, body: string) => {
     try {
@@ -156,120 +149,115 @@ ${managerName}`;
       notification.error({
         message: 'Unable to open email client',
         description: 'Please check that a default email application is configured on your device.',
-        placement: 'bottomRight',
-      });
+        placement: 'bottomRight'
+      })
     }
   }
 
   const handleSendBirthdayEmail = (birthday: TeamBirthday, e: React.MouseEvent) => {
-    e.stopPropagation(); // Prevent navigation to employee profile
+    e.stopPropagation() // Prevent navigation to employee profile
 
     if (!birthday.email) {
       notification.warning({
         message: 'Email address unavailable',
         description: `We could not find a work email for ${birthday.firstName}. Please check their profile or contact them directly.`,
-        placement: 'bottomRight',
-      });
-      return;
+        placement: 'bottomRight'
+      })
+      return
     }
 
     const managerName =
       userProfile?.firstName && userProfile?.lastName
         ? `${userProfile.firstName} ${userProfile.lastName}`
-        : 'Your Manager';
+        : 'Your Manager'
 
-    const emailTemplate = generateBirthdayEmail(birthday.firstName, managerName);
-    openEmailClient(birthday.email, emailTemplate.subject, emailTemplate.body);
-  };
+    const emailTemplate = generateBirthdayEmail(birthday.firstName, managerName)
+    openEmailClient(birthday.email, emailTemplate.subject, emailTemplate.body)
+  }
 
   const handleSendAnniversaryEmail = (anniversary: TeamAnniversary, e: React.MouseEvent) => {
-    e.stopPropagation(); // Prevent navigation to employee profile
+    e.stopPropagation() // Prevent navigation to employee profile
 
     if (!anniversary.email) {
       notification.warning({
         message: 'Email address unavailable',
         description: `We could not find a work email for ${anniversary.firstName}. Please check their profile or contact them directly.`,
-        placement: 'bottomRight',
-      });
-      return;
+        placement: 'bottomRight'
+      })
+      return
     }
 
     const managerName =
       userProfile?.firstName && userProfile?.lastName
         ? `${userProfile.firstName} ${userProfile.lastName}`
-        : 'Your Manager';
+        : 'Your Manager'
 
-    const emailTemplate = generateAnniversaryEmail(
-      anniversary.firstName,
-      anniversary.yearsOfService,
-      managerName,
-    );
-    openEmailClient(anniversary.email, emailTemplate.subject, emailTemplate.body);
-  };
+    const emailTemplate = generateAnniversaryEmail(anniversary.firstName, anniversary.yearsOfService, managerName)
+    openEmailClient(anniversary.email, emailTemplate.subject, emailTemplate.body)
+  }
 
   // Note: Removed useUserAvatar hook as it queries non-existent 'User' entity
   // We now use useCurrentUserProfile which works correctly with Employee entity
-
 
   // Fetch direct reports for "My Team" tab (subordinates)
   const {
     directReports,
     loading: loadingDirectReports,
-    error: directReportsError,
+    error: directReportsError
   } = useDirectReports({
     accessToken: accessToken || '',
-    managerId: employeeId || '',
-  });
+    managerId: employeeId || ''
+  })
 
   // Fetch matrix team members for "My Teams" tab using enhanced hook
   const {
     matrixTeamMembers,
     loading: loadingMatrixTeams,
-    error: matrixTeamsError,
+    error: matrixTeamsError
   } = useMatrixTeams({
     accessToken: accessToken || '',
     employeeId: employeeId || '',
-    structureId: structureId || undefined,
-  });
+    structureId: structureId || undefined
+  })
 
   // Fetch upcoming birthdays for Team Insights
   const {
     upcomingBirthdays,
-    loading: loadingBirthdays,
+    loading: loadingBirthdays
     // error: birthdaysError,
   } = useTeamBirthdays({
     accessToken: accessToken || '',
-    managerId: employeeId || '',
-  });
+    managerId: employeeId || ''
+  })
 
   // Fetch upcoming anniversaries for Team Insights
   const {
     upcomingAnniversaries,
-    loading: loadingAnniversaries,
+    loading: loadingAnniversaries
     // error: anniversariesError,
   } = useTeamAnniversaries({
     accessToken: accessToken || '',
-    managerId: employeeId || '',
-  });
+    managerId: employeeId || ''
+  })
 
   // Fetch employees with missing job profiles for Team Insights
   const {
     employeesWithMissingProfiles,
-    loading: loadingMissingProfiles,
+    loading: loadingMissingProfiles
     // error: missingProfilesError,
   } = useMissingJobProfiles({
     accessToken: accessToken || '',
-    managerId: employeeId || '',
-  });
+    managerId: employeeId || ''
+  })
 
   // Memoize directReports to prevent infinite loops
   const memoizedDirectReports = useMemo(() => {
-    return (directReports || []).map((employee) => ({
+    return (directReports || []).map(employee => ({
       userId: employee.userId,
       displayName: employee.displayName,
-      pictureThumbnail: employee.pictureThumbnail,
-    }));
-  }, [directReports]);
+      pictureThumbnail: employee.pictureThumbnail
+    }))
+  }, [directReports])
 
   // Fetch all requests (we'll slice them in the component based on showAll)
   // New hooks for each tab
@@ -278,118 +266,106 @@ ${managerName}`;
     totalCount: expenseApprovalsCount,
     isLoading: loadingExpenseApprovals,
     error: expenseApprovalsError,
-    refetch: refetchExpenseApprovals,
+    refetch: refetchExpenseApprovals
   } = useExpensesApprovals({
     accessToken: accessToken || '',
-    directReports: memoizedDirectReports,
-  });
+    directReports: memoizedDirectReports
+  })
 
   const {
     absenceApprovals,
     totalCount: absenceApprovalsCount,
     isLoading: loadingAbsenceApprovals,
     error: absenceApprovalsError,
-    refetch: refetchAbsenceApprovals,
+    refetch: refetchAbsenceApprovals
   } = useAbsencesApprovals({
     accessToken: accessToken || '',
-    directReports: memoizedDirectReports,
-  });
+    directReports: memoizedDirectReports
+  })
 
   // Simple tab change handler
   const handleApprovalTabChange = (tab: 'expenses' | 'absences' | 'personal-changes') => {
-    setActiveApprovalTab(tab);
-  };
+    setActiveApprovalTab(tab)
+  }
 
   const {
     personalDataApprovals,
     totalCount: personalDataApprovalsCount,
     isLoading: loadingPersonalDataApprovals,
     error: personalDataApprovalsError,
-    refetch: refetchPersonalDataApprovals,
+    refetch: refetchPersonalDataApprovals
   } = usePersonalDataApprovals({
     accessToken: accessToken || '',
-    directReports: memoizedDirectReports,
-  });
+    directReports: memoizedDirectReports
+  })
 
   // Create dashboard-limited versions using useMemo
   const approvalTasks = useMemo(() => {
     // Combine all approval types based on active tab
-    let combinedTasks: (ExpenseApproval | AbsenceApproval | PersonalDataApproval)[] = [];
+    let combinedTasks: (ExpenseApproval | AbsenceApproval | PersonalDataApproval)[] = []
     if (activeApprovalTab === 'expenses') {
-      combinedTasks = [...expenseApprovals];
+      combinedTasks = [...expenseApprovals]
     } else if (activeApprovalTab === 'absences') {
-      combinedTasks = [...absenceApprovals];
+      combinedTasks = [...absenceApprovals]
     } else if (activeApprovalTab === 'personal-changes') {
-      combinedTasks = [...personalDataApprovals];
+      combinedTasks = [...personalDataApprovals]
     }
 
     // Sort by creation date (newest first)
     const sortedTasks = [...combinedTasks].sort(
-      (a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime(),
-    );
+      (a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime()
+    )
 
-    return sortedTasks.slice(0, 5); // Limit to 5 for dashboard
-  }, [activeApprovalTab, expenseApprovals, absenceApprovals, personalDataApprovals]);
+    return sortedTasks.slice(0, 5) // Limit to 5 for dashboard
+  }, [activeApprovalTab, expenseApprovals, absenceApprovals, personalDataApprovals])
 
   // Create dashboard-limited versions using useMemo
   const personalChanges = useMemo(() => {
-    return personalDataApprovals.slice(0, 5); // Limit to 5 for dashboard
-  }, [personalDataApprovals]);
+    return personalDataApprovals.slice(0, 5) // Limit to 5 for dashboard
+  }, [personalDataApprovals])
 
   const personalChangesCount = useMemo(() => {
-    return personalDataApprovalsCount; // Show actual total count
-  }, [personalDataApprovalsCount]);
+    return personalDataApprovalsCount // Show actual total count
+  }, [personalDataApprovalsCount])
 
   // Combined loading and error states - only show loading for active tab
   const isLoadingApprovals = useMemo(() => {
     if (activeApprovalTab === 'expenses') {
-      return loadingExpenseApprovals;
+      return loadingExpenseApprovals
     } else if (activeApprovalTab === 'absences') {
-      return loadingAbsenceApprovals;
+      return loadingAbsenceApprovals
     } else if (activeApprovalTab === 'personal-changes') {
-      return loadingPersonalDataApprovals;
+      return loadingPersonalDataApprovals
     }
-    return false;
-  }, [
-    activeApprovalTab,
-    loadingExpenseApprovals,
-    loadingAbsenceApprovals,
-    loadingPersonalDataApprovals,
-  ]);
+    return false
+  }, [activeApprovalTab, loadingExpenseApprovals, loadingAbsenceApprovals, loadingPersonalDataApprovals])
 
   const hasApprovalsError = useMemo(() => {
     if (activeApprovalTab === 'expenses') {
-      return expenseApprovalsError;
+      return expenseApprovalsError
     } else if (activeApprovalTab === 'absences') {
-      return absenceApprovalsError;
+      return absenceApprovalsError
     } else if (activeApprovalTab === 'personal-changes') {
-      return personalDataApprovalsError;
+      return personalDataApprovalsError
     }
-    return false;
-  }, [activeApprovalTab, expenseApprovalsError, absenceApprovalsError, personalDataApprovalsError]);
+    return false
+  }, [activeApprovalTab, expenseApprovalsError, absenceApprovalsError, personalDataApprovalsError])
 
   // Combined expense count (requests + plans)
-  const combinedExpenseCount = expenseApprovalsCount;
+  const combinedExpenseCount = expenseApprovalsCount
 
   // Fetch current user profile to get profile picture
   const { userProfile } = useCurrentUserProfile({
     accessToken: accessToken || '',
-    employeeId: employeeId || '',
-  });
+    employeeId: employeeId || ''
+  })
 
   const mainContent = (
-    <div
-      className="gba:p-6 gba:h-full gba:flex gba:flex-col"
-      data-testid="manager-dashboard-content"
-    >
+    <div className="gba:p-6 gba:h-full gba:flex gba:flex-col" data-testid="manager-dashboard-content">
       <div className="gba:mb-8" data-testid="manager-dashboard-welcome-section">
         <div className="gba:flex gba:items-center gba:mb-2">
           <div className="gba:mr-3" data-testid="manager-dashboard-user-avatar">
-            <Avatar
-              size="lg"
-              className="gba:h-12 gba:w-12"
-              data-testid="manager-dashboard-user-avatar-image"
-            >
+            <Avatar size="lg" className="gba:h-12 gba:w-12" data-testid="manager-dashboard-user-avatar-image">
               <AvatarImage
                 src={
                   userProfile?.pictureThumbnail && !userProfile.pictureThumbnail.startsWith('{')
@@ -404,15 +380,12 @@ ${managerName}`;
             </Avatar>
           </div>
           <div>
-            <h1
-              className="gba:text-xl gba:font-semibold"
-              data-testid="manager-dashboard-welcome-title"
-            >
+            <h1 className="gba:text-xl gba:font-semibold" data-testid="manager-dashboard-welcome-title">
               {getTranslationFromI18nKeyAndLabel('setup:welcome.title', 'Welcome')},{' '}
               {userInfo?.employeeDetails?.firstName ||
                 getTranslationFromI18nKeyAndLabel(
                   'lowcoder:employee_profile.profile_icon_list.manager_title',
-                  'Manager',
+                  'Manager'
                 )}
               !
             </h1>
@@ -421,7 +394,7 @@ ${managerName}`;
                 {userInfo?.employeeDetails?.organizationalUnit?.name ||
                   getTranslationFromI18nKeyAndLabel(
                     'lowcoder:employee_list.search_employee_list.recent_employees_table.department',
-                    'Department',
+                    'Department'
                   )}
               </p>
             </div>
@@ -443,10 +416,7 @@ ${managerName}`;
           <CardHeader>
             <CardTitle className="gba:text-base gba:font-semibold gba:flex gba:items-center">
               <UsersIcon className="gba:mr-2 gba:h-5 gba:w-5 gba:text-primary-500" />
-              {getTranslationFromI18nKeyAndLabel(
-                'master-data:hr.manager_dashboard.my_teammates',
-                'My Teammates',
-              )}
+              {getTranslationFromI18nKeyAndLabel('master-data:hr.manager_dashboard.my_teammates', 'My Teammates')}
             </CardTitle>
             <CardAction>
               <Button
@@ -456,10 +426,7 @@ ${managerName}`;
                 data-testid="manager-dashboard-teammates-view-all-button"
                 onClick={handleNavigateToTeammates}
               >
-                {getTranslationFromI18nKeyAndLabel(
-                  'lowcoder:personal_expenses.view_all',
-                  'View All',
-                )}
+                {getTranslationFromI18nKeyAndLabel('lowcoder:personal_expenses.view_all', 'View All')}
                 <CaretRightIcon size={16} className="gba:ml-1" />
               </Button>
             </CardAction>
@@ -467,7 +434,7 @@ ${managerName}`;
           <CardContent className="gba:flex-1 gba:min-h-0 gba:px-2">
             <Tabs
               value={activeTeamTab}
-              onValueChange={(value) => setActiveTeamTab(value as 'my-team' | 'my-teams')}
+              onValueChange={value => setActiveTeamTab(value as 'my-team' | 'my-teams')}
               className="gba:h-full gba:flex gba:flex-col"
             >
               <TabsList className="gba:w-full gba:mb-3">
@@ -476,21 +443,17 @@ ${managerName}`;
                     <UsersThreeIcon size={16} />
                     {getTranslationFromI18nKeyAndLabel(
                       'master-data:hr.manager_dashboard.my_direct_reports',
-                      'My Directs',
+                      'My Directs'
                     )}
                   </div>
                 </TabsTrigger>
                 <TabsTrigger value="my-teams">
                   <div className="gba:flex gba:items-center gba:gap-1 gba:!w-full">
                     <TreeStructureIcon size={16} />
-                    {getTranslationFromI18nKeyAndLabel(
-                      'master-data:hr.manager_dashboard.my_teams',
-                      'My Teams',
-                    )}
+                    {getTranslationFromI18nKeyAndLabel('master-data:hr.manager_dashboard.my_teams', 'My Teams')}
                   </div>
                 </TabsTrigger>
               </TabsList>
-
 
               <TabsContent value="my-team" className="gba:flex-1 gba:min-h-0 gba:mt-0">
                 <div className="gba:h-full gba:overflow-y-auto gba:pr-2">
@@ -503,12 +466,11 @@ ${managerName}`;
                         <span className="gba:mr-2 gba:animate-spin">⏳</span>{' '}
                         {getTranslationFromI18nKeyAndLabel(
                           'master-data:hr.manager_dashboard.status.loading_direct_reports',
-                          'Loading direct reports...',
+                          'Loading direct reports...'
                         )}
                       </div>
                     </div>
                   )}
-
 
                   {directReportsError && (
                     <div
@@ -517,11 +479,10 @@ ${managerName}`;
                     >
                       {getTranslationFromI18nKeyAndLabel(
                         'master-data:hr.manager_dashboard.status.failed_load_direct_reports',
-                        'Failed to load direct reports',
+                        'Failed to load direct reports'
                       )}
                     </div>
                   )}
-
 
                   {!loadingDirectReports && !directReportsError && directReports.length === 0 && (
                     <div
@@ -530,18 +491,14 @@ ${managerName}`;
                     >
                       {getTranslationFromI18nKeyAndLabel(
                         'master-data:hr.manager_dashboard.status.no_direct_reports',
-                        'No direct reports found',
+                        'No direct reports found'
                       )}
                     </div>
                   )}
 
-
                   {!loadingDirectReports && !directReportsError && directReports.length > 0 && (
-                    <div
-                      className="gba:space-y-3"
-                      data-testid="manager-dashboard-direct-reports-container"
-                    >
-                      {directReports.map((report) => (
+                    <div className="gba:space-y-3" data-testid="manager-dashboard-direct-reports-container">
+                      {directReports.map(report => (
                         <DirectMember
                           report={report}
                           handleNavigateToEmployee={handleNavigateToEmployee}
@@ -552,7 +509,6 @@ ${managerName}`;
                   )}
                 </div>
               </TabsContent>
-
 
               <TabsContent value="my-teams" className="gba:flex-1 gba:min-h-0 gba:mt-0">
                 <div className="gba:h-full gba:overflow-y-auto gba:pr-2">
@@ -565,12 +521,11 @@ ${managerName}`;
                         <span className="gba:mr-2 gba:animate-spin">⏳</span>{' '}
                         {getTranslationFromI18nKeyAndLabel(
                           'master-data:hr.manager_dashboard.status.loading_teams',
-                          'Loading matrix teams...',
+                          'Loading matrix teams...'
                         )}
                       </div>
                     </div>
                   )}
-
 
                   {matrixTeamsError && (
                     <div
@@ -579,11 +534,10 @@ ${managerName}`;
                     >
                       {getTranslationFromI18nKeyAndLabel(
                         'master-data:hr.manager_dashboard.status.failed_load_teams',
-                        'Failed to load matrix teams',
+                        'Failed to load matrix teams'
                       )}
                     </div>
                   )}
-
 
                   {!loadingMatrixTeams && !matrixTeamsError && matrixTeamMembers.length === 0 && (
                     <div
@@ -592,18 +546,14 @@ ${managerName}`;
                     >
                       {getTranslationFromI18nKeyAndLabel(
                         'master-data:hr.manager_dashboard.status.no_teams',
-                        'No matrix teams found',
+                        'No matrix teams found'
                       )}
                     </div>
                   )}
 
-
                   {!loadingMatrixTeams && !matrixTeamsError && matrixTeamMembers.length > 0 && (
-                    <div
-                      className="gba:space-y-3"
-                      data-testid="manager-dashboard-matrix-teams-container"
-                    >
-                      {matrixTeamMembers.map((member) => (
+                    <div className="gba:space-y-3" data-testid="manager-dashboard-matrix-teams-container">
+                      {matrixTeamMembers.map(member => (
                         <div
                           key={member.id}
                           className="gba:flex gba:items-center gba:justify-between gba:py-2 gba:cursor-pointer gba:hover:bg-gray-50 gba:rounded-lg gba:px-2 gba:transition-colors"
@@ -612,7 +562,7 @@ ${managerName}`;
                           title={getTranslationFromI18nKeyAndLabel(
                             'master-data:hr.manager_dashboard.view_profile',
                             `View ${member.fullName}'s profile`,
-                            { name: member.fullName },
+                            { name: member.fullName }
                           )}
                         >
                           <div className="gba:flex gba:items-center">
@@ -624,8 +574,7 @@ ${managerName}`;
                               >
                                 <AvatarImage
                                   src={
-                                    member.pictureThumbnail &&
-                                    !member.pictureThumbnail.startsWith('{')
+                                    member.pictureThumbnail && !member.pictureThumbnail.startsWith('{')
                                       ? `data:image/jpeg;base64,${member.pictureThumbnail}`
                                       : undefined
                                   }
@@ -650,16 +599,13 @@ ${managerName}`;
                                 {member.jobPositionName ||
                                   getTranslationFromI18nKeyAndLabel(
                                     'master-data:hr.manager_dashboard.matrix_team_member',
-                                    'Matrix Team Member',
+                                    'Matrix Team Member'
                                   )}
                               </div>
                               {member.matrixUnitName && (
                                 <div className="gba:text-xs gba:text-neutral-400">
-                                  {getTranslationFromI18nKeyAndLabel(
-                                    'master-data:forms.team.title',
-                                    'Team',
-                                  )}
-                                  : {member.matrixUnitName}
+                                  {getTranslationFromI18nKeyAndLabel('master-data:forms.team.title', 'Team')}:{' '}
+                                  {member.matrixUnitName}
                                 </div>
                               )}
                             </div>
@@ -673,12 +619,9 @@ ${managerName}`;
                               {member.status === 'On Leave'
                                 ? getTranslationFromI18nKeyAndLabel(
                                     'master-data:manager_dashboard.on_leave',
-                                    'On Leave',
+                                    'On Leave'
                                   )
-                                : getTranslationFromI18nKeyAndLabel(
-                                    'lowcoder:hr_absences.available',
-                                    'Available',
-                                  )}
+                                : getTranslationFromI18nKeyAndLabel('lowcoder:hr_absences.available', 'Available')}
                             </Badge>
                           </div>
                         </div>
@@ -701,7 +644,7 @@ ${managerName}`;
               <CheckSquareIcon className="gba:mr-2 gba:h-5 gba:w-5 gba:text-primary-500" />
               {getTranslationFromI18nKeyAndLabel(
                 'master-data:hr.manager_dashboard.requests_to_approve',
-                'Requests to Approve',
+                'Requests to Approve'
               )}
             </CardTitle>
             <CardAction>
@@ -712,25 +655,19 @@ ${managerName}`;
                 data-testid="manager-dashboard-requests-view-all-button"
                 onClick={handleNavigateToApprovals}
               >
-                {getTranslationFromI18nKeyAndLabel(
-                  'lowcoder:personal_expenses.view_all',
-                  'View All',
-                )}
+                {getTranslationFromI18nKeyAndLabel('lowcoder:personal_expenses.view_all', 'View All')}
                 <CaretRightIcon size={16} className="gba:ml-1" />
               </Button>
             </CardAction>
           </CardHeader>
           <CardContent className="gba:flex-1 gba:min-h-0 gba:px-2">
             {isLoadingApprovals && (
-              <div
-                className="gba:flex gba:justify-center gba:py-4"
-                data-testid="manager-dashboard-requests-loading"
-              >
+              <div className="gba:flex gba:justify-center gba:py-4" data-testid="manager-dashboard-requests-loading">
                 <div className="gba:flex gba:items-center gba:text-neutral-500">
                   <span className="gba:mr-2 gba:animate-spin">⏳</span>{' '}
                   {getTranslationFromI18nKeyAndLabel(
                     'master-data:hr.manager_dashboard.status.loading_requests',
-                    'Loading requests...',
+                    'Loading requests...'
                   )}
                 </div>
               </div>
@@ -743,7 +680,7 @@ ${managerName}`;
               >
                 {getTranslationFromI18nKeyAndLabel(
                   'master-data:hr.manager_dashboard.status.failed_load_requests',
-                  'Failed to load approval requests',
+                  'Failed to load approval requests'
                 )}
               </div>
             )}
@@ -753,21 +690,18 @@ ${managerName}`;
               expenseApprovals.length === 0 &&
               absenceApprovals.length === 0 &&
               personalDataApprovals.length === 0 && (
-                <div
-                  className="gba:text-center gba:py-6"
-                  data-testid="manager-dashboard-no-requests"
-                >
+                <div className="gba:text-center gba:py-6" data-testid="manager-dashboard-no-requests">
                   <CheckCircleIcon className="gba:h-12 gba:w-12 gba:text-success-300 gba:mx-auto gba:mb-3" />
                   <h3 className="gba:text-lg gba:font-medium gba:text-neutral-900 gba:mb-1">
                     {getTranslationFromI18nKeyAndLabel(
                       'master-data:hr.manager_dashboard.status.all_caught_up',
-                      'All caught up!',
+                      'All caught up!'
                     )}
                   </h3>
                   <p className="gba:text-neutral-500">
                     {getTranslationFromI18nKeyAndLabel(
                       'master-data:hr.manager_dashboard.status.no_pending_requests',
-                      'There are no pending approval requests at the moment.',
+                      'There are no pending approval requests at the moment.'
                     )}
                   </p>
                 </div>
@@ -775,27 +709,22 @@ ${managerName}`;
 
             {!isLoadingApprovals &&
               !hasApprovalsError &&
-              (expenseApprovals.length > 0 ||
-                absenceApprovals.length > 0 ||
-                personalDataApprovals.length > 0) && (
+              (expenseApprovals.length > 0 || absenceApprovals.length > 0 || personalDataApprovals.length > 0) && (
                 <Tabs
                   value={activeApprovalTab}
-                  onValueChange={(value) =>
+                  onValueChange={value =>
                     handleApprovalTabChange(value as 'expenses' | 'absences' | 'personal-changes')
                   }
                   className="gba:h-full gba:flex gba:flex-col"
                 >
                   <TabsList className="gba:grid gba:w-full gba:grid-cols-3 gba:mb-4">
-                    <TabsTrigger
-                      value="expenses"
-                      className="gba:flex gba:items-center gba:space-x-2"
-                    >
+                    <TabsTrigger value="expenses" className="gba:flex gba:items-center gba:space-x-2">
                       <div className="gba:flex gba:w-full gba:items-center">
                         <WalletIcon size={16} className="gba:mr-0.5" />
                         <span>
                           {getTranslationFromI18nKeyAndLabel(
                             'lowcoder:modify_expense_request.expense_items_sum',
-                            'Expenses',
+                            'Expenses'
                           )}
                         </span>
                         <Badge variant="secondary" className="gba:ml-1">
@@ -803,16 +732,13 @@ ${managerName}`;
                         </Badge>
                       </div>
                     </TabsTrigger>
-                    <TabsTrigger
-                      value="absences"
-                      className="gba:flex gba:items-center gba:space-x-2"
-                    >
+                    <TabsTrigger value="absences" className="gba:flex gba:items-center gba:space-x-2">
                       <div className="gba:flex gba:w-full gba:items-center gba:justify-center">
                         <AirplaneTiltIcon size={16} className="gba:mr-0.5" />
                         <span>
                           {getTranslationFromI18nKeyAndLabel(
                             'lowcoder:absence_management_hub_manager.absence_list_screen.title',
-                            'Absences',
+                            'Absences'
                           )}
                         </span>
                         <Badge variant="secondary" className="gba:ml-1">
@@ -820,16 +746,13 @@ ${managerName}`;
                         </Badge>
                       </div>
                     </TabsTrigger>
-                    <TabsTrigger
-                      value="personal-changes"
-                      className="gba:flex gba:items-center gba:space-x-1"
-                    >
+                    <TabsTrigger value="personal-changes" className="gba:flex gba:items-center gba:space-x-1">
                       <div className="gba:flex gba:w-full gba:items-center">
                         <UserIcon size={16} className="gba:mr-0.5" />
                         <span>
                           {getTranslationFromI18nKeyAndLabel(
                             'master-data:hr.manager_dashboard.personal_changes',
-                            'Personal',
+                            'Personal'
                           )}
                         </span>
                         <Badge variant="secondary" className="gba:ml-1">
@@ -840,27 +763,20 @@ ${managerName}`;
                   </TabsList>
 
                   <div className="gba:flex-1 gba:min-h-0 gba:overflow-hidden">
-                    <TabsContent
-                      value="expenses"
-                      className="gba:h-full gba:overflow-y-auto gba:pr-2"
-                    >
-                      {approvalTasks.filter(
-                        (task) => task.type === 'expense-request' || task.type === 'expense-plan',
-                      ).length === 0 ? (
+                    <TabsContent value="expenses" className="gba:h-full gba:overflow-y-auto gba:pr-2">
+                      {approvalTasks.filter(task => task.type === 'expense-request' || task.type === 'expense-plan')
+                        .length === 0 ? (
                         <div className="gba:text-center gba:bg-blue-50 gba:p-3 gba:text-neutral-500 gba:text-xs">
                           <p className="gba:text-neutral-500">
                             {getTranslationFromI18nKeyAndLabel(
                               'master-data:hr.manager_dashboard.status.no_pending_requests',
-                              'There are no pending approval requests at the moment.',
+                              'There are no pending approval requests at the moment.'
                             )}
                           </p>
                         </div>
                       ) : (
-                        <div
-                          className="gba:space-y-3"
-                          data-testid="manager-dashboard-expense-requests"
-                        >
-                          {expenseApprovals.slice(0, 5).map((task) => (
+                        <div className="gba:space-y-3" data-testid="manager-dashboard-expense-requests">
+                          {expenseApprovals.slice(0, 5).map(task => (
                             <ExpenseItem
                               key={task.id}
                               task={task}
@@ -875,7 +791,7 @@ ${managerName}`;
                               +{combinedExpenseCount - 5}{' '}
                               {getTranslationFromI18nKeyAndLabel(
                                 'master-data:hr.manager_dashboard.more_expense_items',
-                                'more expense items',
+                                'more expense items'
                               ).toLowerCase()}
                             </div>
                           )}
@@ -883,25 +799,19 @@ ${managerName}`;
                       )}
                     </TabsContent>
 
-                    <TabsContent
-                      value="absences"
-                      className="gba:h-full gba:overflow-y-auto gba:pr-3"
-                    >
+                    <TabsContent value="absences" className="gba:h-full gba:overflow-y-auto gba:pr-3">
                       {absenceApprovals.length === 0 ? (
                         <div className="gba:text-center gba:bg-blue-50 gba:p-3 gba:text-neutral-500 gba:text-xs">
                           <p className="gba:text-neutral-500">
                             {getTranslationFromI18nKeyAndLabel(
                               'master-data:hr.manager_dashboard.status.no_expense_items',
-                              'No absence requests to approve',
+                              'No absence requests to approve'
                             )}
                           </p>
                         </div>
                       ) : (
-                        <div
-                          className="gba:space-y-3"
-                          data-testid="manager-dashboard-absence-requests"
-                        >
-                          {absenceApprovals.slice(0, 5).map((task) => (
+                        <div className="gba:space-y-3" data-testid="manager-dashboard-absence-requests">
+                          {absenceApprovals.slice(0, 5).map(task => (
                             <AbsenceItem
                               key={task.id}
                               task={task}
@@ -919,25 +829,19 @@ ${managerName}`;
                       )}
                     </TabsContent>
 
-                    <TabsContent
-                      value="personal-changes"
-                      className="gba:h-full gba:overflow-y-auto gba:pr-3"
-                    >
+                    <TabsContent value="personal-changes" className="gba:h-full gba:overflow-y-auto gba:pr-3">
                       {personalChanges.length === 0 ? (
                         <div className="gba:text-center gba:bg-blue-50 gba:p-3 gba:text-neutral-500 gba:text-xs">
                           <p className="gba:text-neutral-500">
                             {getTranslationFromI18nKeyAndLabel(
                               'master-data:hr.manager_dashboard.status.no_personal_changes',
-                              'No personal data changes to review',
+                              'No personal data changes to review'
                             )}
                           </p>
                         </div>
                       ) : (
-                        <div
-                          className="gba:space-y-3"
-                          data-testid="manager-dashboard-personal-changes"
-                        >
-                          {personalChanges.map((change) => (
+                        <div className="gba:space-y-3" data-testid="manager-dashboard-personal-changes">
+                          {personalChanges.map(change => (
                             <PersonalChangeItem
                               key={change.id}
                               change={change}
@@ -968,50 +872,35 @@ ${managerName}`;
           <CardHeader>
             <CardTitle className="gba:text-base gba:font-semibold gba:flex gba:items-center">
               <UserIcon className="gba:mr-2 gba:h-5 gba:w-5 gba:text-primary-500" />
-              {getTranslationFromI18nKeyAndLabel(
-                'master-data:hr.manager_dashboard.team_insights',
-                'Team Insights',
-              )}
+              {getTranslationFromI18nKeyAndLabel('master-data:hr.manager_dashboard.team_insights', 'Team Insights')}
             </CardTitle>
           </CardHeader>
           <CardContent className="gba:flex-1 gba:min-h-0 gba:px-2">
             <Tabs
               value={activeInsightsTab}
-              onValueChange={(value) =>
-                setActiveInsightsTab(value as 'birthdays' | 'anniversaries' | 'missing-profiles')
-              }
+              onValueChange={value => setActiveInsightsTab(value as 'birthdays' | 'anniversaries' | 'missing-profiles')}
               className="gba:h-full gba:flex gba:flex-col"
             >
               <TabsList className="gba:w-full gba:mb-3">
                 <TabsTrigger value="birthdays">
                   <div className="gba:flex-1 gba:flex gba:items-center gba:gap-1">
                     <CakeIcon size={16} />
-                    {getTranslationFromI18nKeyAndLabel(
-                      'lowcoder:hr_insights.birthdays',
-                      'Birthdays',
-                    )}
+                    {getTranslationFromI18nKeyAndLabel('lowcoder:hr_insights.birthdays', 'Birthdays')}
                   </div>
                 </TabsTrigger>
                 <TabsTrigger value="anniversaries">
                   <div className="gba:flex-1 gba:flex gba:items-center gba:gap-1">
                     <TrophyIcon size={16} />
-                    {getTranslationFromI18nKeyAndLabel(
-                      'lowcoder:hr_insights.anniversaries',
-                      'Anniversaries',
-                    )}
+                    {getTranslationFromI18nKeyAndLabel('lowcoder:hr_insights.anniversaries', 'Anniversaries')}
                   </div>
                 </TabsTrigger>
                 <TabsTrigger value="missing-profiles">
                   <div className="gba:flex-1 gba:flex gba:items-center gba:gap-1">
                     <WarningIcon size={16} />
-                    {getTranslationFromI18nKeyAndLabel(
-                      'master-data:hr.manager_dashboard.profiles',
-                      'Profiles',
-                    )}
+                    {getTranslationFromI18nKeyAndLabel('master-data:hr.manager_dashboard.profiles', 'Profiles')}
                   </div>
                 </TabsTrigger>
               </TabsList>
-
 
               <TabsContent value="birthdays" className="gba:flex-1 gba:min-h-0 gba:mt-0">
                 <div className="gba:h-full gba:overflow-y-auto gba:pr-2">
@@ -1021,21 +910,19 @@ ${managerName}`;
                         <span className="gba:animate-spin">⏳</span>
                         {getTranslationFromI18nKeyAndLabel(
                           'master-data:hr.manager_dashboard.status.loading_birthdays',
-                          'Loading birthdays...',
+                          'Loading birthdays...'
                         )}
                       </div>
                     )}
-
 
                     {!loadingBirthdays && upcomingBirthdays.length === 0 && (
                       <div className="gba:text-center gba:bg-blue-50 gba:p-3 gba:text-neutral-500 gba:text-xs">
                         {getTranslationFromI18nKeyAndLabel(
                           'master-data:hr.manager_dashboard.status.no_birthdays_in_next_30_days',
-                          'No upcoming birthdays in the next 30 days',
+                          'No upcoming birthdays in the next 30 days'
                         )}
                       </div>
                     )}
-
 
                     {!loadingBirthdays && upcomingBirthdays.length > 0 && (
                       <div className="gba:space-y-3">
@@ -1043,7 +930,7 @@ ${managerName}`;
                           <CakeIcon size={16} />
                           <span>{`${getTranslationFromI18nKeyAndLabel('master-data:hr.manager_dashboard.next_30_days', 'Next 30 days')} (${upcomingBirthdays.length} ${upcomingBirthdays.length > 1 ? getTranslationFromI18nKeyAndLabel('lowcoder:hr_insights.birthdays', 'Birthdays') : getTranslationFromI18nKeyAndLabel('lowcoder:employee_profile.profile_icon_list.birthday', 'Birthday')})`}</span>
                         </div>
-                        {upcomingBirthdays.map((birthday) => (
+                        {upcomingBirthdays.map(birthday => (
                           <div
                             key={birthday.id}
                             className="gba:flex gba:items-center gba:justify-between gba:py-2 gba:cursor-pointer gba:hover:bg-gray-50 gba:rounded-lg gba:px-2 gba:transition-colors"
@@ -1051,7 +938,7 @@ ${managerName}`;
                             title={getTranslationFromI18nKeyAndLabel(
                               'master-data:hr.manager_dashboard.view_profile',
                               `View ${birthday.fullName}'s profile`,
-                              { name: birthday.fullName },
+                              { name: birthday.fullName }
                             )}
                           >
                             <div className="gba:flex gba:items-center gba:flex-1">
@@ -1059,8 +946,7 @@ ${managerName}`;
                                 <Avatar size="default" className="gba:h-10 gba:w-10">
                                   <AvatarImage
                                     src={
-                                      birthday.pictureThumbnail &&
-                                      !birthday.pictureThumbnail.startsWith('{')
+                                      birthday.pictureThumbnail && !birthday.pictureThumbnail.startsWith('{')
                                         ? `data:image/jpeg;base64,${birthday.pictureThumbnail}`
                                         : undefined
                                     }
@@ -1080,18 +966,12 @@ ${managerName}`;
                                   {birthday.daysUntilBirthday === 0 ? (
                                     <div className="gba:flex gba:items-center gba:justify-start gba:gap-1 gba:w-full">
                                       <ConfettiIcon size={16} />{' '}
-                                      {getTranslationFromI18nKeyAndLabel(
-                                        'lowcoder:absence_hub.today',
-                                        'Today',
-                                      )}
+                                      {getTranslationFromI18nKeyAndLabel('lowcoder:absence_hub.today', 'Today')}
                                     </div>
                                   ) : birthday.daysUntilBirthday === 1 ? (
                                     <div className="gba:flex gba:items-center gba:justify-start gba:gap-1 gba:w-full">
                                       <CakeIcon size={16} />{' '}
-                                      {getTranslationFromI18nKeyAndLabel(
-                                        'lowcoder:absence_hub.tomorrow',
-                                        'Tomorrow',
-                                      )}
+                                      {getTranslationFromI18nKeyAndLabel('lowcoder:absence_hub.tomorrow', 'Tomorrow')}
                                     </div>
                                   ) : (
                                     <div className="gba:flex gba:items-center gba:justify-start gba:gap-1 gba:w-full">
@@ -1099,7 +979,7 @@ ${managerName}`;
                                       {getTranslationFromI18nKeyAndLabel(
                                         'master-data:hr.manager_dashboard.in_days',
                                         `In ${birthday.daysUntilBirthday} days`,
-                                        { days: birthday.daysUntilBirthday },
+                                        { days: birthday.daysUntilBirthday }
                                       )}
                                     </div>
                                   )}
@@ -1111,11 +991,11 @@ ${managerName}`;
                                 variant="ghost"
                                 size="sm"
                                 className="gba:h-8 gba:w-8 gba:p-0 gba:text-neutral-500 gba:hover:text-primary-600 gba:hover:bg-primary-50"
-                                onClick={(e) => handleSendBirthdayEmail(birthday, e)}
+                                onClick={e => handleSendBirthdayEmail(birthday, e)}
                                 title={getTranslationFromI18nKeyAndLabel(
                                   'master-data:hr.manager_dashboard.send_birthday_email',
                                   `Send birthday email to ${birthday.firstName}`,
-                                  { name: birthday.firstName },
+                                  { name: birthday.firstName }
                                 )}
                                 data-testid={`birthday-email-button-${birthday.id}`}
                               >
@@ -1130,7 +1010,6 @@ ${managerName}`;
                 </div>
               </TabsContent>
 
-
               <TabsContent value="anniversaries" className="gba:flex-1 gba:min-h-0 gba:mt-0">
                 <div className="gba:h-full gba:overflow-y-auto gba:pr-2">
                   <div className="gba:rounded-lg gba:p-3">
@@ -1139,21 +1018,19 @@ ${managerName}`;
                         <span className="gba:animate-spin">⏳</span>{' '}
                         {getTranslationFromI18nKeyAndLabel(
                           'master-data:hr.manager_dashboard.status.loading_anniversaries',
-                          'Loading anniversaries...',
+                          'Loading anniversaries...'
                         )}
                       </div>
                     )}
-
 
                     {!loadingAnniversaries && upcomingAnniversaries.length === 0 && (
                       <div className="gba:text-center gba:bg-blue-50 gba:p-3 gba:text-neutral-500 gba:text-xs">
                         {getTranslationFromI18nKeyAndLabel(
                           'master-data:hr.manager_dashboard.status.no_anniversaries_in_next_30_days',
-                          'No upcoming anniversaries in the next 30 days',
+                          'No upcoming anniversaries in the next 30 days'
                         )}
                       </div>
                     )}
-
 
                     {!loadingAnniversaries && upcomingAnniversaries.length > 0 && (
                       <div className="gba:space-y-3">
@@ -1161,7 +1038,7 @@ ${managerName}`;
                           <TrophyIcon size={16} />
                           <span>{`${getTranslationFromI18nKeyAndLabel('master-data:hr.manager_dashboard.next_30_days', 'Next 30 days')} (${upcomingAnniversaries.length} ${upcomingAnniversaries.length > 1 ? getTranslationFromI18nKeyAndLabel('lowcoder:hr_insights.anniversaries', 'Anniversaries') : getTranslationFromI18nKeyAndLabel('lowcoder:hr_insights.anniversary_date', 'Anniversary')})`}</span>
                         </div>
-                        {upcomingAnniversaries.map((anniversary) => (
+                        {upcomingAnniversaries.map(anniversary => (
                           <div
                             key={anniversary.id}
                             className="gba:flex gba:items-center gba:justify-between gba:py-2 gba:cursor-pointer gba:hover:bg-gray-50 gba:rounded-lg gba:px-2 gba:transition-colors"
@@ -1169,7 +1046,7 @@ ${managerName}`;
                             title={getTranslationFromI18nKeyAndLabel(
                               'master-data:hr.manager_dashboard.view_profile',
                               `View ${anniversary.fullName}'s profile`,
-                              { name: anniversary.fullName },
+                              { name: anniversary.fullName }
                             )}
                           >
                             <div className="gba:flex gba:items-center gba:flex-1">
@@ -1177,8 +1054,7 @@ ${managerName}`;
                                 <Avatar size="default" className="gba:h-10 gba:w-10">
                                   <AvatarImage
                                     src={
-                                      anniversary.pictureThumbnail &&
-                                      !anniversary.pictureThumbnail.startsWith('{')
+                                      anniversary.pictureThumbnail && !anniversary.pictureThumbnail.startsWith('{')
                                         ? `data:image/jpeg;base64,${anniversary.pictureThumbnail}`
                                         : undefined
                                     }
@@ -1201,7 +1077,7 @@ ${managerName}`;
                                       <ConfettiIcon size={16} />
                                       {`${getTranslationFromI18nKeyAndLabel(
                                         'lowcoder:absence_hub.today',
-                                        'today',
+                                        'today'
                                       ).toLowerCase()}!`}
                                     </div>
                                   ) : anniversary.daysUntilAnniversary === 1 ? (
@@ -1209,7 +1085,7 @@ ${managerName}`;
                                       <TrophyIcon size={16} />
                                       {getTranslationFromI18nKeyAndLabel(
                                         'lowcoder:absence_hub.tomorrow',
-                                        'tomorrow',
+                                        'tomorrow'
                                       ).toLowerCase()}
                                     </div>
                                   ) : (
@@ -1218,7 +1094,7 @@ ${managerName}`;
                                       {getTranslationFromI18nKeyAndLabel(
                                         'master-data:hr.manager_dashboard.in_days',
                                         `In ${anniversary.daysUntilAnniversary} days`,
-                                        { days: anniversary.daysUntilAnniversary },
+                                        { days: anniversary.daysUntilAnniversary }
                                       )}
                                     </div>
                                   )}
@@ -1235,11 +1111,11 @@ ${managerName}`;
                                 variant="ghost"
                                 size="sm"
                                 className="gba:h-8 gba:w-8 gba:p-0 gba:text-neutral-500 gba:hover:text-primary-600 gba:hover:bg-primary-50"
-                                onClick={(e) => handleSendAnniversaryEmail(anniversary, e)}
+                                onClick={e => handleSendAnniversaryEmail(anniversary, e)}
                                 title={getTranslationFromI18nKeyAndLabel(
                                   'master-data:hr.manager_dashboard.sent_anniversary_email',
                                   `Send anniversary email to ${anniversary.firstName}`,
-                                  { name: anniversary.firstName },
+                                  { name: anniversary.firstName }
                                 )}
                                 data-testid={`anniversary-email-button-${anniversary.id}`}
                               >
@@ -1254,7 +1130,6 @@ ${managerName}`;
                 </div>
               </TabsContent>
 
-
               <TabsContent value="missing-profiles" className="gba:flex-1 gba:min-h-0 gba:mt-0">
                 <div className="gba:h-full gba:overflow-y-auto gba:pr-2">
                   <div className="gba:bg-warning-50 gba:rounded-lg gba:p-3">
@@ -1263,21 +1138,19 @@ ${managerName}`;
                         <span className="gba:animate-spin">⏳</span>{' '}
                         {getTranslationFromI18nKeyAndLabel(
                           'master-data:hr.manager_dashboard.status.loading_job_profiles',
-                          'Loading job profiles...',
+                          'Loading job profiles...'
                         )}
                       </div>
                     )}
-
 
                     {!loadingMissingProfiles && employeesWithMissingProfiles.length === 0 && (
                       <div className="gba:text-center gba:bg-blue-50 gba:p-3 gba:text-neutral-500 gba:text-xs gba:flex gba:items-center gba:justify-center gba:gap-1">
                         {getTranslationFromI18nKeyAndLabel(
                           'master-data:hr.manager_dashboard.status.all_job_profiles_completed',
-                          'All team members have complete job profiles',
+                          'All team members have complete job profiles'
                         )}
                       </div>
                     )}
-
 
                     {!loadingMissingProfiles && employeesWithMissingProfiles.length > 0 && (
                       <div className="gba:space-y-3">
@@ -1287,14 +1160,14 @@ ${managerName}`;
                             ? getTranslationFromI18nKeyAndLabel(
                                 'master-data:hr.manager_dashboard.team_members_need_attention',
                                 `${employeesWithMissingProfiles.length} team members need attention`,
-                                { count: employeesWithMissingProfiles.length },
+                                { count: employeesWithMissingProfiles.length }
                               )
                             : getTranslationFromI18nKeyAndLabel(
                                 'master-data:hr.manager_dashboard.team_member_needs_attention',
-                                '1 team member needs attention',
+                                '1 team member needs attention'
                               )}
                         </div>
-                        {employeesWithMissingProfiles.map((employee) => (
+                        {employeesWithMissingProfiles.map(employee => (
                           <div
                             key={employee.id}
                             className="gba:flex gba:items-center gba:justify-between gba:py-2 gba:cursor-pointer gba:hover:bg-gray-50 gba:rounded-lg gba:px-2 gba:transition-colors"
@@ -1302,7 +1175,7 @@ ${managerName}`;
                             title={getTranslationFromI18nKeyAndLabel(
                               'master-data:hr.manager_dashboard.view_profile',
                               `View ${employee.fullName}'s profile`,
-                              { name: employee.fullName },
+                              { name: employee.fullName }
                             )}
                           >
                             <div className="gba:flex gba:items-center">
@@ -1310,8 +1183,7 @@ ${managerName}`;
                                 <Avatar size="default" className="gba:h-10 gba:w-10">
                                   <AvatarImage
                                     src={
-                                      employee.pictureThumbnail &&
-                                      !employee.pictureThumbnail.startsWith('{')
+                                      employee.pictureThumbnail && !employee.pictureThumbnail.startsWith('{')
                                         ? `data:image/jpeg;base64,${employee.pictureThumbnail}`
                                         : undefined
                                     }
@@ -1332,7 +1204,7 @@ ${managerName}`;
                                       <XCircleIcon size={16} />
                                       {getTranslationFromI18nKeyAndLabel(
                                         'master-data:hr.manager_dashboard.status.no_job_position',
-                                        'No job position',
+                                        'No job position'
                                       )}
                                     </div>
                                   ) : employee.missingProfileReason === 'incomplete_profile' ? (
@@ -1340,7 +1212,7 @@ ${managerName}`;
                                       <WarningIcon size={16} />
                                       {getTranslationFromI18nKeyAndLabel(
                                         'master-data:hr.manager_dashboard.status.incomplete_profile',
-                                        'Incomplete profile',
+                                        'Incomplete profile'
                                       )}
                                     </div>
                                   ) : (
@@ -1348,7 +1220,7 @@ ${managerName}`;
                                       <XCircleIcon size={16} />
                                       {getTranslationFromI18nKeyAndLabel(
                                         'master-data:hr.manager_dashboard.status.missing_job_profile',
-                                        'Missing job profile',
+                                        'Missing job profile'
                                       )}
                                     </div>
                                   )}
@@ -1368,12 +1240,12 @@ ${managerName}`;
       </div>
       <Toaster position="bottom-right" richColors />
     </div>
-  );
+  )
 
   // Teammates detailed view - using the same header structure as "Requests to Approve"
   if (currentView === 'teammates') {
     // Transform DirectReport data to Employee interface format with proper data mapping
-    const transformedDirectReports: Employee[] = directReports.map((report) => ({
+    const transformedDirectReports: Employee[] = directReports.map(report => ({
       id: report.id,
       userId: undefined, // DirectReport doesn't have userId
       supervisorEmployeeId: employeeId, // Current user is the supervisor
@@ -1385,11 +1257,11 @@ ${managerName}`;
       profilePicture: report.pictureThumbnail || '',
       employmentType: '', // DirectReport doesn't have employment type - leave empty
       contractType: '', // DirectReport doesn't have contract type - leave empty
-      matrixTeams: [], // DirectReport doesn't have matrix teams
-    }));
+      matrixTeams: [] // DirectReport doesn't have matrix teams
+    }))
 
     // Transform MatrixTeamMember data to Employee interface format
-    const transformedMatrixTeamMembers: Employee[] = matrixTeamMembers.map((member) => ({
+    const transformedMatrixTeamMembers: Employee[] = matrixTeamMembers.map(member => ({
       id: member.id,
       userId: undefined, // MatrixTeamMember doesn't have userId
       supervisorEmployeeId: employeeId, // Current user is the supervisor
@@ -1401,8 +1273,8 @@ ${managerName}`;
       profilePicture: member.pictureThumbnail || '',
       employmentType: '', // MatrixTeamMember doesn't have employment type - leave empty
       contractType: '', // MatrixTeamMember doesn't have contract type - leave empty
-      matrixTeams: [], // MatrixTeamMember doesn't have matrix teams
-    }));
+      matrixTeams: [] // MatrixTeamMember doesn't have matrix teams
+    }))
 
     const handleSelectEmployee = (employee: Employee) => {
       handleNavigateToEmployee(employee.id)
@@ -1423,14 +1295,11 @@ ${managerName}`;
               <CaretLeftIcon size={16} className="gba:mr-1" />
               {getTranslationFromI18nKeyAndLabel(
                 'lowcoder:absence_management_hub_backoffice.absence_details.back_to_dashboard',
-                'Back to Dashboard',
+                'Back to Dashboard'
               )}
             </Button>
             <h1 className="gba:text-xl gba:font-semibold">
-              {getTranslationFromI18nKeyAndLabel(
-                'master-data:hr.manager_dashboard.my_teammates',
-                'My Teammates',
-              )}
+              {getTranslationFromI18nKeyAndLabel('master-data:hr.manager_dashboard.my_teammates', 'My Teammates')}
             </h1>
             <Badge variant="info" className="gba:ml-3">
               {`${directReports.length + matrixTeamMembers.length} ${getTranslationFromI18nKeyAndLabel('master-data:hr.manager_dashboard.total_teammates', 'total teammates').toLowerCase()}`}
@@ -1459,30 +1328,25 @@ ${managerName}`;
 
   if (currentView === 'approvals') {
     // Use data from new hooks based on active tab
-    const expenseRequests = activeApprovalTab === 'expenses' ? expenseApprovals : [];
-    const leaveRequests = activeApprovalTab === 'absences' ? absenceApprovals : [];
-    const personalChanges = activeApprovalTab === 'personal-changes' ? personalDataApprovals : [];
+    const expenseRequests = activeApprovalTab === 'expenses' ? expenseApprovals : []
+    const leaveRequests = activeApprovalTab === 'absences' ? absenceApprovals : []
+    const personalChanges = activeApprovalTab === 'personal-changes' ? personalDataApprovals : []
 
     return (
       <div className="gba:p-6 gba:h-full gba:flex gba:flex-col">
         <div className="gba:flex gba:items-center gba:justify-between gba:mb-6">
           <div className="gba:flex gba:items-center">
-            <Button
-              variant="ghost"
-              size="sm"
-              onClick={handleNavigateBackToDashboard}
-              className="gba:mr-4"
-            >
+            <Button variant="ghost" size="sm" onClick={handleNavigateBackToDashboard} className="gba:mr-4">
               <CaretLeftIcon size={16} className="gba:mr-1" />
               {getTranslationFromI18nKeyAndLabel(
                 'lowcoder:absence_management_hub_backoffice.absence_details.back_to_dashboard',
-                'Back to Dashboard',
+                'Back to Dashboard'
               )}
             </Button>
             <h1 className="gba:text-xl gba:font-semibold">
               {getTranslationFromI18nKeyAndLabel(
                 'master-data:hr.manager_dashboard.requests_to_approve',
-                'Requests to Approve',
+                'Requests to Approve'
               )}
             </h1>
             <Badge variant="info" className="gba:ml-3">
@@ -1498,7 +1362,7 @@ ${managerName}`;
               <span className="gba:mr-2 gba:animate-spin">⏳</span>{' '}
               {getTranslationFromI18nKeyAndLabel(
                 'master-data:hr.manager_dashboard.status.loading_approval_requests',
-                'Loading approval requests...',
+                'Loading approval requests...'
               )}
             </div>
           </div>
@@ -1510,14 +1374,11 @@ ${managerName}`;
             <div className="gba:text-destructive-600 gba:mb-4">
               {getTranslationFromI18nKeyAndLabel(
                 'master-data:hr.manager_dashboard.status.failed_load_requests',
-                'Failed to load approval requests',
+                'Failed to load approval requests'
               )}
             </div>
             <Button onClick={() => window.location.reload()} variant="outline">
-              {getTranslationFromI18nKeyAndLabel(
-                'lowcoder:personal_expenses.try_again',
-                'Try Again',
-              )}
+              {getTranslationFromI18nKeyAndLabel('lowcoder:personal_expenses.try_again', 'Try Again')}
             </Button>
           </div>
         )}
@@ -1533,13 +1394,13 @@ ${managerName}`;
               <h3 className="gba:text-lg gba:font-medium gba:text-neutral-900 gba:mb-2">
                 {`${getTranslationFromI18nKeyAndLabel(
                   'master-data:hr.manager_dashboard.status.all_caught_up',
-                  'All caught up',
+                  'All caught up'
                 )}!`}
               </h3>
               <p className="gba:text-neutral-500">
                 {getTranslationFromI18nKeyAndLabel(
                   'master-data:hr.manager_dashboard.status.no_pending_requests',
-                  'There are no pending approval requests at the moment.',
+                  'There are no pending approval requests at the moment.'
                 )}
               </p>
             </div>
@@ -1548,9 +1409,7 @@ ${managerName}`;
         {/* Tabs for Detailed Approval View */}
         {!isLoadingApprovals &&
           !hasApprovalsError &&
-          (expenseApprovals.length > 0 ||
-            absenceApprovals.length > 0 ||
-            personalDataApprovals.length > 0) && (
+          (expenseApprovals.length > 0 || absenceApprovals.length > 0 || personalDataApprovals.length > 0) && (
             <RequestsToApproveTable
               activeApprovalTab={activeApprovalTab}
               setActiveApprovalTab={handleApprovalTabChange}
@@ -1572,7 +1431,7 @@ ${managerName}`;
     )
   }
 
-  return <div className="gba:flex gba:flex-col gba:h-full">{mainContent}</div>;
-};
+  return <div className="gba:flex gba:flex-col gba:h-full">{mainContent}</div>
+}
 
 export default ManagerDashboard

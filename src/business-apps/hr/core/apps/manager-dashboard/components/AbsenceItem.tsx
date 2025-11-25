@@ -1,124 +1,115 @@
-import { Button, Badge } from '@newwork/nw-design-system';
-import { UserIcon, ClockIcon, ClipboardIcon } from '@phosphor-icons/react';
-import { formatDate, getTranslationFromI18nKeyAndLabel } from '@/common/utils/windowUtils';
-import { useState } from 'react';
-import {
-  AbsenceApproval,
-  getPriorityLabel,
-  getPriorityVariant,
-  getTimeAgo,
-} from '../hooks/useAbsencesApprovals';
-import { toast } from 'sonner';
+import { Button, Badge } from '@newwork/nw-design-system'
+import { UserIcon, ClockIcon, ClipboardIcon } from '@phosphor-icons/react'
+import { formatDate, getTranslationFromI18nKeyAndLabel } from '@/common/utils/windowUtils'
+import { useState } from 'react'
+import { AbsenceApproval, getPriorityLabel, getPriorityVariant, getTimeAgo } from '../hooks/useAbsencesApprovals'
+import { toast } from 'sonner'
 
 type AbsenceItemProps = {
-  task: AbsenceApproval;
-  userId?: string;
-  accessToken?: string;
-  refetchAbsences?: () => void;
-};
+  task: AbsenceApproval
+  userId?: string
+  accessToken?: string
+  refetchAbsences?: () => void
+}
 
 export const handleApproveAbsence = async ({
   task,
   userId,
   accessToken,
   refetchAbsences,
-  setIsSubmitting,
+  setIsSubmitting
 }: {
-  task: AbsenceApproval;
-  userId?: string;
-  accessToken?: string;
-  refetchAbsences?: () => void;
-  setIsSubmitting: (_isSubmitting: boolean) => void;
+  task: AbsenceApproval
+  userId?: string
+  accessToken?: string
+  refetchAbsences?: () => void
+  setIsSubmitting: (_isSubmitting: boolean) => void
 }) => {
-  setIsSubmitting(true);
+  setIsSubmitting(true)
   try {
-    const urlEndpoint = `${task?.endpoint}?phase=complete&user=${userId}`;
+    const urlEndpoint = `${task?.endpoint}?phase=complete&user=${userId}`
 
     const approvalAbsencePayload = {
       approval: 'APPROVED',
       event: 'pse_submit',
-      approvalNote: 'Approved from manager dashboard',
-    };
+      approvalNote: 'Approved from manager dashboard'
+    }
 
     const postResponse = await fetch(urlEndpoint, {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
-        Authorization: `Bearer ${accessToken}`,
+        Authorization: `Bearer ${accessToken}`
       },
-      body: JSON.stringify(approvalAbsencePayload),
-    });
+      body: JSON.stringify(approvalAbsencePayload)
+    })
 
     if (!postResponse.ok) {
-      const responseText = await postResponse.text();
-      throw new Error(
-        `POST request failed: ${postResponse.status} - ${postResponse.statusText} - ${responseText}`,
-      );
+      const responseText = await postResponse.text()
+      throw new Error(`POST request failed: ${postResponse.status} - ${postResponse.statusText} - ${responseText}`)
     }
-    await postResponse.json();
-    refetchAbsences?.();
+    await postResponse.json()
+    refetchAbsences?.()
   } catch (err) {
-    console.error('Error approving absence request:', err);
-    const defaultErrorMessage = 'Something went wrong';
-    const errorMsg = err instanceof Error ? err.message : defaultErrorMessage;
-    toast.error(errorMsg);
+    console.error('Error approving absence request:', err)
+    const defaultErrorMessage = 'Something went wrong'
+    const errorMsg = err instanceof Error ? err.message : defaultErrorMessage
+    toast.error(errorMsg)
   } finally {
-    setIsSubmitting(false);
+    setIsSubmitting(false)
   }
-};
+}
 
 export const handleRejectAbsence = async ({
   task,
   userId,
   accessToken,
   refetchAbsences,
-  setIsSubmitting,
+  setIsSubmitting
 }: {
-  task: AbsenceApproval;
-  userId?: string;
-  accessToken?: string;
-  refetchAbsences?: () => void;
-  setIsSubmitting: (_isSubmitting: boolean) => void;
+  task: AbsenceApproval
+  userId?: string
+  accessToken?: string
+  refetchAbsences?: () => void
+  setIsSubmitting: (_isSubmitting: boolean) => void
 }) => {
-  setIsSubmitting(true);
+  setIsSubmitting(true)
   try {
-    const urlEndpoint = `${task?.endpoint}?phase=complete&user=${userId}`;
+    const urlEndpoint = `${task?.endpoint}?phase=complete&user=${userId}`
 
     const rejectionAbsencePayload = {
       approval: 'REJECTED',
       event: 'pse_submit',
-      approvalNote: 'Rejected from manager dashboard',
-    };
+      approvalNote: 'Rejected from manager dashboard'
+    }
 
     const postResponse = await fetch(urlEndpoint, {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
-        Authorization: `Bearer ${accessToken}`,
+        Authorization: `Bearer ${accessToken}`
       },
-      body: JSON.stringify(rejectionAbsencePayload),
-    });
+      body: JSON.stringify(rejectionAbsencePayload)
+    })
 
     if (!postResponse.ok) {
-      const responseText = await postResponse.text();
-      throw new Error(
-        `POST request failed: ${postResponse.status} - ${postResponse.statusText} - ${responseText}`,
-      );
+      const responseText = await postResponse.text()
+      throw new Error(`POST request failed: ${postResponse.status} - ${postResponse.statusText} - ${responseText}`)
     }
-    await postResponse.json();
-    refetchAbsences?.();
+    await postResponse.json()
+    refetchAbsences?.()
   } catch (err) {
-    console.error(`Error rejecting absence:`, err);
-    const defaultErrorMessage = 'Something went wrong';
-    const errorMsg = err instanceof Error ? err.message : defaultErrorMessage;
-    toast.error(errorMsg);
+    console.error(`Error rejecting absence:`, err)
+    const defaultErrorMessage = 'Something went wrong'
+    const errorMsg = err instanceof Error ? err.message : defaultErrorMessage
+    toast.error(errorMsg)
   } finally {
-    setIsSubmitting(false);
+    setIsSubmitting(false)
   }
-};
+}
 
 export const AbsenceItem = ({ task, userId, accessToken, refetchAbsences }: AbsenceItemProps) => {
-  const [isSubmitting, setIsSubmitting] = useState(false);
+  const [isSubmitting, setIsSubmitting] = useState(false)
 
   return (
     <div
@@ -128,15 +119,11 @@ export const AbsenceItem = ({ task, userId, accessToken, refetchAbsences }: Abse
     >
       <div className="gba:flex gba:items-start gba:justify-between gba:mb-2">
         <div className="gba:flex-1">
-          <div className="gba:font-medium gba:text-neutral-900 gba:text-sm gba:mb-1">
-            {task.title}
-          </div>
+          <div className="gba:font-medium gba:text-neutral-900 gba:text-sm gba:mb-1">{task.title}</div>
           <div className="gba:text-xs gba:text-neutral-500 gba:flex gba:items-center gba:mb-1">
             <UserIcon className="gba:mr-1" size={12} />
-            {getTranslationFromI18nKeyAndLabel(
-              'lowcoder:personal_expenses.from_date',
-              'From',
-            )}: {task.employee.fullName}
+            {getTranslationFromI18nKeyAndLabel('lowcoder:personal_expenses.from_date', 'From')}:{' '}
+            {task.employee.fullName}
           </div>
           <div className="gba:text-xs gba:text-neutral-500 gba:flex gba:items-center gba:mb-1">
             <ClockIcon className="gba:mr-1" size={12} />
@@ -146,35 +133,29 @@ export const AbsenceItem = ({ task, userId, accessToken, refetchAbsences }: Abse
             {task.startDate && task.endDate
               ? `${getTranslationFromI18nKeyAndLabel(
                   'lowcoder:personal_expenses.from_date',
-                  'From',
+                  'From'
                 )} ${formatDate(task.startDate)} ${getTranslationFromI18nKeyAndLabel('lowcoder:absence_overview_screen.absence_overview_table.to', 'to').toLowerCase()} ${formatDate(task.endDate)}`
               : getTranslationFromI18nKeyAndLabel(
                   'master-data:hr.manager_dashboard.date_range_not_specified',
-                  'Date range not specified',
+                  'Date range not specified'
                 )}
           </div>
           {task.leaveType && (
             <div className="gba:text-xs gba:font-medium gba:text-neutral-500 gba:flex gba:items-center gba:gap-1">
               <ClipboardIcon size={16} />
               {task.leaveType === 'ABSENCE'
-                ? getTranslationFromI18nKeyAndLabel(
-                    'master-data:hr.manager_dashboard.absence',
-                    'Absence',
-                  )
+                ? getTranslationFromI18nKeyAndLabel('master-data:hr.manager_dashboard.absence', 'Absence')
                 : task.leaveType === 'VACATION'
                   ? getTranslationFromI18nKeyAndLabel(
                       'lowcoder:absence_landing_page.vacation_card_header_container.vacation_card_title_text',
-                      'Vacation',
+                      'Vacation'
                     )
                   : task.leaveType === 'SPECIAL LEAVE'
                     ? getTranslationFromI18nKeyAndLabel(
                         'lowcoder:absence_landing_page.special_leave_card_header_container.special_leave_card_title_text',
-                        'Special Leave',
+                        'Special Leave'
                       )
-                    : getTranslationFromI18nKeyAndLabel(
-                        'master-data:hr.manager_dashboard.work_leave',
-                        'Work Leave',
-                      )}
+                    : getTranslationFromI18nKeyAndLabel('master-data:hr.manager_dashboard.work_leave', 'Work Leave')}
             </div>
           )}
         </div>
@@ -195,14 +176,9 @@ export const AbsenceItem = ({ task, userId, accessToken, refetchAbsences }: Abse
           className="gba:flex-1"
           data-testid={`manager-dashboard-reject-${task.id}-button`}
           disabled={isSubmitting}
-          onClick={() =>
-            handleRejectAbsence({ task, userId, accessToken, refetchAbsences, setIsSubmitting })
-          }
+          onClick={() => handleRejectAbsence({ task, userId, accessToken, refetchAbsences, setIsSubmitting })}
         >
-          {getTranslationFromI18nKeyAndLabel(
-            'lowcoder:approve_expense_request.reject_button',
-            'Reject',
-          )}
+          {getTranslationFromI18nKeyAndLabel('lowcoder:approve_expense_request.reject_button', 'Reject')}
         </Button>
 
         <Button
@@ -210,16 +186,11 @@ export const AbsenceItem = ({ task, userId, accessToken, refetchAbsences }: Abse
           className="gba:flex-1"
           data-testid={`manager-dashboard-approve-${task.id}-button`}
           disabled={isSubmitting}
-          onClick={() =>
-            handleApproveAbsence({ task, userId, accessToken, refetchAbsences, setIsSubmitting })
-          }
+          onClick={() => handleApproveAbsence({ task, userId, accessToken, refetchAbsences, setIsSubmitting })}
         >
-          {getTranslationFromI18nKeyAndLabel(
-            'lowcoder:approve_expense_request.approve_button',
-            'Approve',
-          )}
+          {getTranslationFromI18nKeyAndLabel('lowcoder:approve_expense_request.approve_button', 'Approve')}
         </Button>
       </div>
     </div>
-  );
-};
+  )
+}

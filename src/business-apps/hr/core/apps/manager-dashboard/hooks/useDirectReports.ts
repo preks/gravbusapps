@@ -1,17 +1,17 @@
-import { useState, useEffect } from 'react';
-import { useGraphQLClient } from '@/common/network/graphql/useGraphQLClient';
-import { Employee, EmployeeAbsence } from '../types/employee.types';
+import { useState, useEffect } from 'react'
+import { useGraphQLClient } from '@/common/network/graphql/useGraphQLClient'
+import { Employee, EmployeeAbsence } from '../types/employee.types'
 
 export interface DirectReport {
-  displayName: string;
-  id: string;
-  firstName: string;
-  lastName: string;
-  fullName: string;
-  pictureThumbnail?: string;
-  jobPositionName?: string;
-  organizationalUnitName?: string;
-  status?: 'Available' | 'On Leave' | 'Away';
+  displayName: string
+  id: string
+  firstName: string
+  lastName: string
+  fullName: string
+  pictureThumbnail?: string
+  jobPositionName?: string
+  organizationalUnitName?: string
+  status?: 'Available' | 'On Leave' | 'Away'
 
   // Absence information
   currentAbsence?: {
@@ -21,19 +21,19 @@ export interface DirectReport {
     status: string // APPROVED, PENDING, etc.
   }
   nextAbsence?: {
-    type: string;
-    startDate: string;
-    endDate: string;
-    status: string; // APPROVED, PENDING, etc.
-  };
-  userId: string;
+    type: string
+    startDate: string
+    endDate: string
+    status: string // APPROVED, PENDING, etc.
+  }
+  userId: string
 }
 
 export interface UseDirectReportsResult {
-  directReports: DirectReport[];
-  loading: boolean;
-  error: Error | null;
-  refetch: () => Promise<void>;
+  directReports: DirectReport[]
+  loading: boolean
+  error: Error | null
+  refetch: () => Promise<void>
 }
 
 interface UseDirectReportsProps {
@@ -126,23 +126,19 @@ export const useDirectReports = ({ accessToken, managerId }: UseDirectReportsPro
             }
           }
         }
-      `;
+      `
 
       // Calculate today's timestamp for the absence filters (start of day)
-      const today = new Date();
-      const todayTimestamp = new Date(
-        today.getFullYear(),
-        today.getMonth(),
-        today.getDate(),
-      ).toISOString(); // Format: YYYY-MM-DDTHH:mm:ss.sssZ
+      const today = new Date()
+      const todayTimestamp = new Date(today.getFullYear(), today.getMonth(), today.getDate()).toISOString() // Format: YYYY-MM-DDTHH:mm:ss.sssZ
 
       const response = await graphQLClient.request(directReportsQuery, {
-        managerId,
-      });
+        managerId
+      })
 
       if (response?.Employee && response.Employee.length > 0) {
-        const employees = response.Employee;
-        const employeeIds = employees.map((emp: Employee) => emp.id);
+        const employees = response.Employee
+        const employeeIds = employees.map((emp: Employee) => emp.id)
 
         // Fetch absences for all employees
         let absencesData: EmployeeAbsence[] = []
@@ -150,9 +146,9 @@ export const useDirectReports = ({ accessToken, managerId }: UseDirectReportsPro
           try {
             const absencesResponse = await graphQLClient.request(getEmployeeAbsencesQuery, {
               employeeIds,
-              todayTimestamp,
-            });
-            absencesData = absencesResponse?.EmployeeAbsence || [];
+              todayTimestamp
+            })
+            absencesData = absencesResponse?.EmployeeAbsence || []
           } catch (absenceErr) {
             console.warn('Could not fetch absence data:', absenceErr)
             // Continue without absence data if it fails
@@ -163,38 +159,38 @@ export const useDirectReports = ({ accessToken, managerId }: UseDirectReportsPro
         const absencesByEmployee = absencesData.reduce(
           (acc: Record<string, EmployeeAbsence[]>, absence: EmployeeAbsence) => {
             if (!acc[absence.employeeId]) {
-              acc[absence.employeeId] = [];
+              acc[absence.employeeId] = []
             }
-            acc[absence.employeeId].push(absence);
-            return acc;
+            acc[absence.employeeId].push(absence)
+            return acc
           },
-          {},
-        );
+          {}
+        )
 
         const formattedReports: DirectReport[] = employees.map((employee: Employee) => {
-          const absences = absencesByEmployee[employee.id] || [];
-          const now = new Date();
+          const absences = absencesByEmployee[employee.id] || []
+          const now = new Date()
 
           // Find current absence (currently active)
           const currentAbsence = absences.find((absence: EmployeeAbsence) => {
             const startDate = new Date(absence.startDate)
             const endDate = new Date(absence.endDate)
             // Add 24 hours to end date to make it inclusive of the full end day
-            const endDateInclusive = new Date(endDate.getTime() + 24 * 60 * 60 * 1000);
-            const isCurrentlyActive = startDate <= now && endDateInclusive >= now;
+            const endDateInclusive = new Date(endDate.getTime() + 24 * 60 * 60 * 1000)
+            const isCurrentlyActive = startDate <= now && endDateInclusive >= now
 
-            return isCurrentlyActive;
-          });
+            return isCurrentlyActive
+          })
 
           // Find next planned absence (starts in the future)
           const futureAbsences = absences.filter((absence: EmployeeAbsence) => {
-            const startDate = new Date(absence.startDate);
-            return startDate > now;
-          });
-          const nextAbsence = futureAbsences.length > 0 ? futureAbsences[0] : null;
+            const startDate = new Date(absence.startDate)
+            return startDate > now
+          })
+          const nextAbsence = futureAbsences.length > 0 ? futureAbsences[0] : null
 
           // Determine status based on absence approval status
-          let status: 'Available' | 'On Leave' = 'Available';
+          let status: 'Available' | 'On Leave' = 'Available'
 
           if (currentAbsence) {
             if (currentAbsence.status === 'APPROVED') {
@@ -222,7 +218,7 @@ export const useDirectReports = ({ accessToken, managerId }: UseDirectReportsPro
                   type: currentAbsence.type?.value || 'Leave',
                   startDate: currentAbsence.startDate,
                   endDate: currentAbsence.endDate,
-                  status: currentAbsence.status,
+                  status: currentAbsence.status
                 }
               : undefined,
             nextAbsence: nextAbsence
@@ -230,13 +226,13 @@ export const useDirectReports = ({ accessToken, managerId }: UseDirectReportsPro
                   type: nextAbsence.type?.value || 'Leave',
                   startDate: nextAbsence.startDate,
                   endDate: nextAbsence.endDate,
-                  status: nextAbsence.status,
+                  status: nextAbsence.status
                 }
-              : undefined,
-          };
-        });
+              : undefined
+          }
+        })
 
-        setDirectReports(formattedReports);
+        setDirectReports(formattedReports)
       } else {
         setDirectReports([])
       }
@@ -246,16 +242,16 @@ export const useDirectReports = ({ accessToken, managerId }: UseDirectReportsPro
     } finally {
       setLoading(false)
     }
-  };
+  }
 
   useEffect(() => {
-    fetchDirectReports();
-  }, [managerId, accessToken]);
+    fetchDirectReports()
+  }, [managerId, accessToken])
 
   return {
     directReports,
     loading,
     error,
-    refetch: fetchDirectReports,
-  };
-};
+    refetch: fetchDirectReports
+  }
+}
