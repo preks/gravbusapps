@@ -20,6 +20,7 @@ export interface EmployeeByPk {
   lastName?: string
   preferredName?: string
   displayName?: string
+  fullName?: string
   birthName?: string
   birthDate?: string | null
   birthPlace?: string

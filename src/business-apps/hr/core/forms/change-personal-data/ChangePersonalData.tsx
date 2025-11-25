@@ -273,6 +273,9 @@ const ChangePersonalDataContent: React.FC<BusinessAppContextProps> = ({ accessTo
           }}
           onSubmit={async (values: PersonalDataFormValues) => {
             const uploadedEmployeeDocumentId = values.employeeDocumentId || ''
+            const firstName = values.firstName || ''
+            const lastName = values.lastName || ''
+            const fullName = [firstName, lastName].filter(Boolean).join(' ')
             const payload = {
               event: 'pse_submit',
               employeeDocument: null,
@@ -284,10 +287,11 @@ const ChangePersonalDataContent: React.FC<BusinessAppContextProps> = ({ accessTo
                 version: employee?.version ?? 0,
                 academicTitleRef: values.academicTitleRefs || [],
                 salutationRef: values.salutationRef || '',
-                firstName: values.firstName || '',
-                lastName: values.lastName || '',
+                firstName: firstName,
+                lastName: lastName,
                 preferredName: values.preferredName || '',
                 displayName: values.displayName || '',
+                fullName: fullName,
                 birthName: values.birthName || '',
                 birthDate: values.birthDate ? formatDateToISO(new Date(values.birthDate)) : '',
                 genderRef: values.genderRef || '',
@@ -306,7 +310,7 @@ const ChangePersonalDataContent: React.FC<BusinessAppContextProps> = ({ accessTo
                 salutationRef: employee?.salutationRef || '',
                 firstName: employee?.firstName || '',
                 lastName: employee?.lastName || '',
-                displayName: employee?.displayName || '',
+                fullName: employee?.fullName || '',
                 preferredName: employee?.preferredName || '',
                 birthName: employee?.birthName || '',
                 birthDate: employee?.birthDate ? formatDateToISO(new Date(employee.birthDate)) : '',
