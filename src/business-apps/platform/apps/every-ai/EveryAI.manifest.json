@@ -1,0 +1,16 @@
+{
+  "type": "global-sidepanel",
+  "enabled": true,
+  "position": "right",
+  "width": 450,
+  "minWidth": 350,
+  "maxWidth": 800,
+  "icon": "lightning",
+  "hotkey": "Ctrl+Shift+A",
+  "fab": {
+    "show": true,
+    "position": "bottom-right"
+  },
+  "persistent": true,
+  "contexts": ["*"]
+}
