@@ -1,3 +1,4 @@
+import { useCallback, useRef } from 'react'
 import { useGraphQLClient } from '@/common/network/graphql/useGraphQLClient'
 import { AdvancePaymentData } from './types'
 
@@ -67,10 +68,13 @@ export const GET_ADVANCE_PAYMENT_FOR_APPROVAL = `
 
 export const useGetAdvancePaymentForApproval = (accessToken: string) => {
   const graphqlClient = useGraphQLClient(accessToken)
+  // Use ref to avoid endless loop - graphqlClient changes reference on every render
+  const graphqlClientRef = useRef(graphqlClient)
+  graphqlClientRef.current = graphqlClient
 
-  const fetchAdvancePaymentData = async (paymentId: string): Promise<AdvancePaymentData | null> => {
+  const fetchAdvancePaymentData = useCallback(async (paymentId: string): Promise<AdvancePaymentData | null> => {
     try {
-      const result = await graphqlClient.request<{
+      const result = await graphqlClientRef.current.request<{
         AdvancePaymentByPk: AdvancePaymentData
       }>(GET_ADVANCE_PAYMENT_FOR_APPROVAL, {
         paymentId
@@ -80,7 +84,7 @@ export const useGetAdvancePaymentForApproval = (accessToken: string) => {
       console.error('Error fetching advance payment data:', error)
       throw error
     }
-  }
+  }, [])
 
   return { fetchAdvancePaymentData }
 }
