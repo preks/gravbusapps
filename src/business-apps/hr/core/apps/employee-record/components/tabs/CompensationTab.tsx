@@ -19,6 +19,7 @@ import PayHistoryView from './compensation/views/PayHistoryView'
 import { useCompensationData } from './compensation/hooks/useCompensationData'
 import { BusinessAppContextProps } from '@/common/BusinessAppContext'
 import { useEmployeePermissions } from '../../hooks/useEmployeePermissions'
+import { useCompensationPermissions } from './compensation/hooks/useCompensationPermissions'
 import translations from '../../_i18n'
 import { ScopePermissionCheckResult } from '@/common/hooks/useScopePermissionCheck'
 import { useScopePermissionCheck } from '@/common/hooks/useScopePermissionCheck'
@@ -76,15 +77,20 @@ const CompensationTab: React.FC<CompensationTabProps> = ({
   const supervisorIdFromRelation = employee?.employeePosition?.supervisor?.id
   const managerId = supervisorEmployeeId || supervisorIdFromRelation
   const isManager = !!(managerId && currentUserEmployeeId && managerId === currentUserEmployeeId)
-  const hasManagerEmployeeGrowthPermission =
-    isManager && !employeeGrowthPermission.loading && employeeGrowthPermission.hasPermission === true
+
+  // Use centralized permission hook
+  const compensationPermissions = useCompensationPermissions({
+    isSelfView,
+    isManager,
+    hasEmployeeGrowthPermission: !employeeGrowthPermission.loading && employeeGrowthPermission.hasPermission === true,
+    hasEmployeeRecordAllHrBackoffice:
+      !employeeRecordAllHrBackoffice?.loading && employeeRecordAllHrBackoffice?.hasPermission === true
+  })
 
   const hasCompensationPermission =
     permissionsLoading || employeeRecordAllHrBackoffice.loading || employeeGrowthPermission.loading
       ? false
-      : isSelfView ||
-        hasManagerEmployeeGrowthPermission ||
-        (employeeRecordAllHrBackoffice?.hasPermission === true && !employeeGrowthPermission.hasPermission)
+      : compensationPermissions.canViewCompensationTab
 
   const shouldShowCompensationTabs =
     devFeatureFlag &&
@@ -256,9 +262,7 @@ const CompensationTab: React.FC<CompensationTabProps> = ({
               locale={currentLocale}
               isSelfView={isSelfView}
               employeeRecordHrBackoffice={employeeRecordHrBackoffice}
-              isManager={isManager}
-              hasEmployeeGrowthPermission={employeeGrowthPermission.hasPermission === true}
-              hasEmployeeRecordAllHrBackoffice={employeeRecordAllHrBackoffice?.hasPermission === true}
+              supervisorEmployeeId={supervisorEmployeeId || supervisorIdFromRelation}
             />
           )}
         </TabsContent>
