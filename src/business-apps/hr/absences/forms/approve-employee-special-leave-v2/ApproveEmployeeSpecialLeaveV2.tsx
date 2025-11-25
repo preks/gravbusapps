@@ -16,8 +16,8 @@ import { TaskDetailFooter } from '@/business-apps/platform/apps/every-box/compon
 import { TaskFormLayout } from '@/business-apps/platform/apps/every-box/components/TaskFormLayout'
 import { useGraphqlClient } from '@/common/network/graphql/useGraphQLClient'
 import { formatDateTime } from '@/business-apps/platform/apps/every-box/utils/taskFormatters'
-import { useEntityDates } from '@/business-apps/common/hooks/useEntityDates'
-import { useApproverData } from '@/business-apps/common/hooks/useApproverData'
+import { useEntityDates } from '@/common/data/common/hooks/useEntityDates'
+import { useApproverData } from '@/common/data/employee/hooks/useApproverData'
 import dayjs from 'dayjs'
 
 interface ApproveEmployeeSpecialLeaveV2Props extends BusinessAppContextProps {

@@ -20,8 +20,8 @@ import { splitExpenseItems } from './utils/expenseItemUtils'
 import { useExpensePlanData } from './hooks/useExpensePlanData'
 import { formatCurrency, getCatalogValue } from './utils/formatters'
 import { REQUEST_TYPES } from '../expense-request/constants/constants'
-import { useEntityDates } from '@/business-apps/common/hooks/useEntityDates'
-import { useApproverData } from '@/business-apps/common/hooks/useApproverData'
+import { useEntityDates } from '@/common/data/common/hooks/useEntityDates'
+import { useApproverData } from '@/common/data/employee/hooks/useApproverData'
 
 // Component imports
 import {

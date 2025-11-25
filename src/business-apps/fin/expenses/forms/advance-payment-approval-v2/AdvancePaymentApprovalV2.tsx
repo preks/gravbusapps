@@ -8,8 +8,8 @@ import { TaskDetailHeader } from '@/business-apps/platform/apps/every-box/compon
 import { TaskDetailFooter } from '@/business-apps/platform/apps/every-box/components/TaskDetailFooter'
 import { TaskFormLayout } from '@/business-apps/platform/apps/every-box/components/TaskFormLayout'
 import { useAdvancePaymentData } from './hooks/useAdvancePaymentData'
-import { useEntityDates } from '@/business-apps/common/hooks/useEntityDates'
-import { useApproverData } from '@/business-apps/common/hooks/useApproverData'
+import { useEntityDates } from '@/common/data/common/hooks/useEntityDates'
+import { useApproverData } from '@/common/data/employee/hooks/useApproverData'
 
 // Component imports
 import { AdvancePaymentDetailsSection, ExpensePlanInfoSection, ApprovalDetailsSection } from './components'

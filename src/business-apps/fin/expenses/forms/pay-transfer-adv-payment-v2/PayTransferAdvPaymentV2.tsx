@@ -8,7 +8,7 @@ import { TaskDetailHeader } from '@/business-apps/platform/apps/every-box/compon
 import { TaskDetailFooter } from '@/business-apps/platform/apps/every-box/components/TaskDetailFooter'
 import { TaskFormLayout } from '@/business-apps/platform/apps/every-box/components/TaskFormLayout'
 import { useAdvancePaymentData } from './hooks/useAdvancePaymentData'
-import { useEntityDates } from '@/business-apps/common/hooks/useEntityDates'
+import { useEntityDates } from '@/common/data/common/hooks/useEntityDates'
 import { formatDateToISO } from './utils/formatters'
 
 // Component imports

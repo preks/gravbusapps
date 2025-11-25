@@ -15,7 +15,7 @@ import { TaskDetailHeader } from '@/business-apps/platform/apps/every-box/compon
 import { TaskDetailFooter } from '@/business-apps/platform/apps/every-box/components/TaskDetailFooter'
 import { TaskFormLayout } from '@/business-apps/platform/apps/every-box/components/TaskFormLayout'
 import { formatDateTime } from '@/business-apps/platform/apps/every-box/utils/taskFormatters'
-import { useEntityDates } from '@/business-apps/common/hooks/useEntityDates'
+import { useEntityDates } from '@/common/data/common/hooks/useEntityDates'
 import dayjs from 'dayjs'
 
 interface AcknowledgeEmployeeSickLeaveHRV2Props extends BusinessAppContextProps {

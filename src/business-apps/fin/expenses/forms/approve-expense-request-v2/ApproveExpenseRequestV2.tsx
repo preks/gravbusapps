@@ -9,8 +9,8 @@ import { formatCurrency, getCatalogValue } from './utils/formatters'
 import { TaskDetailHeader } from '@/business-apps/platform/apps/every-box/components/TaskDetailHeader'
 import { TaskDetailFooter } from '@/business-apps/platform/apps/every-box/components/TaskDetailFooter'
 import { TaskFormLayout } from '@/business-apps/platform/apps/every-box/components/TaskFormLayout'
-import { useEntityDates } from '@/business-apps/common/hooks/useEntityDates'
-import { useApproverData } from '@/business-apps/common/hooks/useApproverData'
+import { useEntityDates } from '@/common/data/common/hooks/useEntityDates'
+import { useApproverData } from '@/common/data/employee/hooks/useApproverData'
 
 // Component imports
 import {
