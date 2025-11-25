@@ -298,7 +298,9 @@ export const useTimeTrackingData = ({ employeeId, accessToken, workingHours }: U
     try {
       const now = new Date()
       const today = now.toISOString().slice(0, 10)
-      const isoNow = now.toISOString()
+      // Simulate clock-out 5 hours later than current time
+      const simulatedEndTime = new Date(now.getTime() + 5 * 60 * 60 * 1000)
+      const isoNow = simulatedEndTime.toISOString()
 
       // Server-verified check: query today's attendance rows
       const todayRows = await graphqlClient.request<any>(employeeAttendanceForDateQuery, {
