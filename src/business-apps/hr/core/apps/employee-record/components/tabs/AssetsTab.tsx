@@ -42,7 +42,6 @@ const AssetsTab: React.FC<AssetsTabProps> = ({ employee, accessToken, employeeId
   const conditionLookup = useMemo(() => {
     const lookup = new Map<string, string>()
     conditionOptions.forEach((option: AssetConditionOption) => {
-      // Use the value field from the catalog query
       lookup.set(option.id, option.value)
     })
     return lookup
