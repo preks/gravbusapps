@@ -216,8 +216,9 @@ const ChangePersonalDataContent: React.FC<BusinessAppContextProps> = ({ accessTo
               if (fileList && fileList.length > 0 && fileList[0]?.originFileObj) {
                 const file: File = fileList[0].originFileObj as File
                 const employeeId =
+                  additionalData?.employeeId ||
                   additionalData?.psi_taskPayload?.employeeId ||
-                  additionalData?.psi_taskPayload?.initialParameters?.employeeId ||
+                  additionalData?.psi_taskPayload?.psi_initialParameters?.employeeId ||
                   data?.employee?.EmployeeByPk?.id ||
                   data?.employee?.EmployeeByPk?.employeeId
 
