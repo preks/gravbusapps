@@ -15,7 +15,7 @@ import { PiCalendarDuotone, PiClock, PiMapPin } from 'react-icons/pi'
 import { ThumbsUp, XCircle } from 'lucide-react'
 import { BusinessAppContextProps } from '@/common/BusinessAppContext'
 import { dispatchProcessContinueEvent } from '@/common/utils/processEventUtils'
-import { formatDateTime } from '@/business-apps/platform/apps/every-box/utils/taskFormatters'
+import { formatDateTime } from '@/business-apps/core/every/apps/every-box/utils/taskFormatters'
 import { splitExpenseItems } from './utils/expenseItemUtils'
 import { useExpensePlanData } from './hooks/useExpensePlanData'
 import { formatCurrency, getCatalogValue } from './utils/formatters'
@@ -32,9 +32,9 @@ import {
   ExpensePlanRequestDetailsSection,
   ApprovalDetailsSection
 } from './components'
-import { TaskDetailHeader } from '@/business-apps/platform/apps/every-box/components/TaskDetailHeader'
-import { TaskDetailFooter } from '@/business-apps/platform/apps/every-box/components/TaskDetailFooter'
-import { TaskFormLayout } from '@/business-apps/platform/apps/every-box/components/TaskFormLayout'
+import { TaskDetailHeader } from '@/business-apps/core/every/apps/every-box/components/TaskDetailHeader'
+import { TaskDetailFooter } from '@/business-apps/core/every/apps/every-box/components/TaskDetailFooter'
+import { TaskFormLayout } from '@/business-apps/core/every/apps/every-box/components/TaskFormLayout'
 
 interface ApproveExpensePlanV2Props extends BusinessAppContextProps {
   onClose?: () => void

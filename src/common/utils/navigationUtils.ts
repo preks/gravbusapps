@@ -68,7 +68,7 @@ const PLATFORM_URL_TO_APP_MAPPING: NavigationMapping = {
   '/platform/mdm/engagement-data': 'mdm/apps/engagement-data',
 
   // Platform
-  '/platform/every-box': 'platform/apps/every-box',
+  '/platform/every-box': 'core/every/apps/every-box',
 
   // Core
   '/platform/core/content-hub': 'core/content/apps/content-hub',

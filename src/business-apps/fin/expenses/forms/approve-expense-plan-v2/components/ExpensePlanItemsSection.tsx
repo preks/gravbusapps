@@ -16,7 +16,7 @@ import {
 import { PiLink } from 'react-icons/pi'
 import { ExpensePlanItem } from '../types/expensePlanV2Types'
 import { getTranslationFromI18nKeyAndLabel } from '@/common/utils/windowUtils'
-import { formatDateTime } from '@/business-apps/platform/apps/every-box/utils/taskFormatters'
+import { formatDateTime } from '@/business-apps/core/every/apps/every-box/utils/taskFormatters'
 import Pill from '@/components/pill'
 
 interface ExpensePlanItemsSectionProps {

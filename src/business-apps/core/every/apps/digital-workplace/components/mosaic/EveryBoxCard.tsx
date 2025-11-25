@@ -7,7 +7,7 @@
 import React from 'react'
 import { Inbox, Maximize2, Minimize2 } from 'lucide-react'
 import { BusinessAppContextProps } from '@/common/BusinessAppContext'
-import EveryBox from '@/business-apps/platform/apps/every-box'
+import EveryBox from '@/business-apps/core/every/apps/every-box'
 import { useInboxTasks } from '../../hooks/useInboxTasks'
 import dayjs from 'dayjs'
 import relativeTime from 'dayjs/plugin/relativeTime'

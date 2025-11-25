@@ -2,7 +2,7 @@ import React from 'react'
 import { Card, CardContent, CardHeader, CardTitle, Badge, Separator, Label } from '@newwork/nw-design-system'
 import { PiReceipt } from 'react-icons/pi'
 import { getTranslationFromI18nKeyAndLabel } from '@/common/utils/windowUtils'
-import { formatDateTime } from '@/business-apps/platform/apps/every-box/utils/taskFormatters'
+import { formatDateTime } from '@/business-apps/core/every/apps/every-box/utils/taskFormatters'
 
 interface ExpenseRequestDetailsSectionProps {
   expenseRequest: {

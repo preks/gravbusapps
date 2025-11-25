@@ -3,7 +3,7 @@ import { Card, CardContent, CardHeader, CardTitle, Badge, Separator, Label, Spin
 import { PiReceipt } from 'react-icons/pi'
 import { ExpensePlanApprovalData } from '../types/expensePlanV2Types'
 import { getTranslationFromI18nKeyAndLabel } from '@/common/utils/windowUtils'
-import { formatDateTime } from '@/business-apps/platform/apps/every-box/utils/taskFormatters'
+import { formatDateTime } from '@/business-apps/core/every/apps/every-box/utils/taskFormatters'
 
 interface ExpensePlanRequestDetailsSectionProps {
   expensePlan: ExpensePlanApprovalData

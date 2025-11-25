@@ -18,9 +18,9 @@ import { BusinessAppContextProps } from '@/common/BusinessAppContext'
 dayjs.extend(utc)
 import { dispatchProcessContinueEvent } from '@/common/utils/processEventUtils'
 import { getTranslationFromI18nKeyAndLabel } from '@/common/utils/windowUtils'
-import { TaskDetailHeader } from '@/business-apps/platform/apps/every-box/components/TaskDetailHeader'
-import { TaskDetailFooter } from '@/business-apps/platform/apps/every-box/components/TaskDetailFooter'
-import { TaskFormLayout } from '@/business-apps/platform/apps/every-box/components/TaskFormLayout'
+import { TaskDetailHeader } from '@/business-apps/core/every/apps/every-box/components/TaskDetailHeader'
+import { TaskDetailFooter } from '@/business-apps/core/every/apps/every-box/components/TaskDetailFooter'
+import { TaskFormLayout } from '@/business-apps/core/every/apps/every-box/components/TaskFormLayout'
 import { useGetAdvancePaymentForApproval } from './queries'
 import { AdvancePaymentData } from './types'
 

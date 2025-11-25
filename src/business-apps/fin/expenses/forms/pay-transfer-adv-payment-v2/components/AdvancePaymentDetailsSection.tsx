@@ -4,7 +4,7 @@ import { PiHandCoins } from 'react-icons/pi'
 import { AdvancePaymentData } from '../types'
 import { getTranslationFromI18nKeyAndLabel } from '@/common/utils/windowUtils'
 import { formatCurrency } from '../utils/formatters'
-import { formatDateTime } from '@/business-apps/platform/apps/every-box/utils/taskFormatters'
+import { formatDateTime } from '@/business-apps/core/every/apps/every-box/utils/taskFormatters'
 
 interface AdvancePaymentDetailsSectionProps {
   advancePayment: AdvancePaymentData

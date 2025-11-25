@@ -1,7 +1,7 @@
 import React, { useMemo } from 'react'
 import { Card, CardContent, CardHeader, CardTitle, Separator, Label, Spinner } from '@newwork/nw-design-system'
 import { CheckCircle, AlertCircle } from 'lucide-react'
-import { formatDateTime } from '@/business-apps/platform/apps/every-box/utils/taskFormatters'
+import { formatDateTime } from '@/business-apps/core/every/apps/every-box/utils/taskFormatters'
 
 interface ApprovalDetailsSectionProps {
   approvalStatus?: string | null
