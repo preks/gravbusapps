@@ -6,10 +6,10 @@
  * - Used for PR validation to prevent merging broken screens
  */
 
-import { execSync } from 'child_process'
-import path, { dirname } from 'path'
-import fs from 'fs'
-import { fileURLToPath } from 'url'
+import { execSync } from 'node:child_process'
+import path, { dirname } from 'node:path'
+import fs from 'node:fs'
+import { fileURLToPath } from 'node:url'
 import dotenv from '@dotenvx/dotenvx'
 
 const __filename = fileURLToPath(import.meta.url)

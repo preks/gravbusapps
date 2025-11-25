@@ -5,9 +5,9 @@
  * Keeps only the N most recent log files to prevent disk space issues
  */
 
-import fs from 'fs'
-import path from 'path'
-import { fileURLToPath } from 'url'
+import fs from 'node:fs'
+import path from 'node:path'
+import { fileURLToPath } from 'node:url'
 
 // Get __dirname equivalent in ES modules
 const __filename = fileURLToPath(import.meta.url)

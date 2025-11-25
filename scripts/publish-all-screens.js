@@ -6,9 +6,9 @@
  * - Non-interactive: passes --no-interaction to avoid prompts
  */
 
-import path from 'path'
-import fs from 'fs'
-import { execSync } from 'child_process'
+import path from 'node:path'
+import fs from 'node:fs'
+import { execSync } from 'node:child_process'
 import { glob } from 'glob'
 
 async function findAllScreenDirectories() {

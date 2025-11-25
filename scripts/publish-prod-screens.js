@@ -6,15 +6,15 @@
  * - Executed on master merge
  */
 
-import { execSync } from 'child_process'
-import path, { dirname } from 'path'
-import fs from 'fs'
-import { fileURLToPath } from 'url'
+import { execSync } from 'node:child_process'
+import path, { dirname } from 'node:path'
+import fs from 'node:fs'
+import { fileURLToPath } from 'node:url'
 import dotenv from '@dotenvx/dotenvx'
 import { BlobServiceClient } from '@azure/storage-blob'
 import { glob } from 'glob'
 import axios from 'axios'
-import crypto from 'crypto'
+import crypto from 'node:crypto'
 import {
   OAuthClient,
   getResourceUrls,
@@ -1127,7 +1127,10 @@ async function uploadDirectory(buildOutputDir, azureDestinationPath, azureTarget
   console.log('✅ All files uploaded successfully.')
 }
 
-async function publishScreen(screenPath, options = {}) {
+async function publishScreen(
+  screenPath,
+  options = { skipResourceUrlSync: false, skipScreenRegistration: false, azureTargets: [], targets: [] }
+) {
   console.log(`🚀 Publishing screen: ${screenPath} (Version: ${PUBLISH_VERSION})`)
 
   const projectRootDir = path.resolve(__dirname, '..')
@@ -1271,9 +1274,6 @@ async function publishScreen(screenPath, options = {}) {
 
       if (targetHashes) {
         console.log(`   Found ${Object.keys(targetHashes).length} deployed artifact(s):`)
-        for (const [file, hash] of Object.entries(targetHashes)) {
-          console.log(`     - ${file}: ${hash.substring(0, 8)}...`)
-        }
         break // Use first successful result
       }
     }
@@ -1282,16 +1282,10 @@ async function publishScreen(screenPath, options = {}) {
   // STEP 3: If no target version exists, this is a new screen - skip hash calculation
   if (!deployedVersion || !targetHashes) {
     console.log('   ✅ New screen or unable to retrieve target - proceeding with publish')
-    // Continue with upload...
   } else {
     // STEP 4: Calculate source hashes (per-file, matching Azure format)
-    console.log('   Calculating source artifact hashes...')
     const sourceHashes = await getSourceArtifactsHashes(buildOutputDir)
-
     console.log(`   Found ${Object.keys(sourceHashes).length} source artifact(s):`)
-    for (const [file, hash] of Object.entries(sourceHashes)) {
-      console.log(`     - ${file}: ${hash.substring(0, 8)}...`)
-    }
 
     // STEP 5: Compare file-by-file
     const comparison = compareArtifactHashes(sourceHashes, targetHashes, PUBLISH_VERSION, deployedVersion)
@@ -1783,7 +1777,6 @@ async function main() {
 
       // Run simplified build (without hash check and upload)
       try {
-        // Simplified build call - we'll handle hash check separately
         const result = await publishScreen(screen, {
           skipResourceUrlSync: true,
           skipScreenRegistration: true,
