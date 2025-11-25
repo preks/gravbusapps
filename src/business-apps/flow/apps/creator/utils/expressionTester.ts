@@ -49,7 +49,7 @@ export interface BatchResolveResult {
  * Test a single expression with mock context
  */
 export async function testResolveExpression(expression: string, context: TestContext): Promise<ResolveResult> {
-  const apiUrl = env('NEXT_PUBLIC_CUSTOM_FLOW_ENGINE_API_URL') || 'http://localhost:3000'
+  const apiUrl = env('NEXT_PUBLIC_CUSTOM_FLOW_ENGINE_API_URL') || env('NEXT_PUBLIC_BASE_URL') + '/flow-engine'
 
   try {
     const response = await fetch(`${apiUrl}/api/expressions/test-resolve`, {
@@ -90,7 +90,7 @@ export async function testResolveExpression(expression: string, context: TestCon
  * Test multiple expressions with the same context
  */
 export async function testResolveBatch(expressions: string[], context: TestContext): Promise<BatchResolveResult> {
-  const apiUrl = env('NEXT_PUBLIC_CUSTOM_FLOW_ENGINE_API_URL') || 'http://localhost:3000'
+  const apiUrl = env('NEXT_PUBLIC_CUSTOM_FLOW_ENGINE_API_URL') || env('NEXT_PUBLIC_BASE_URL') + '/flow-engine'
 
   try {
     const response = await fetch(`${apiUrl}/api/expressions/test-resolve-batch`, {
@@ -137,7 +137,7 @@ export async function getExampleContext(): Promise<{
   }
   documentation: any
 }> {
-  const apiUrl = env('NEXT_PUBLIC_CUSTOM_FLOW_ENGINE_API_URL') || 'http://localhost:3000'
+  const apiUrl = env('NEXT_PUBLIC_CUSTOM_FLOW_ENGINE_API_URL') || env('NEXT_PUBLIC_BASE_URL') + '/flow-engine'
 
   try {
     const response = await fetch(`${apiUrl}/api/expressions/example-context`, {
