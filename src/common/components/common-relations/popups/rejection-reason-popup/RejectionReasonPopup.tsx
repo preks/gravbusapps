@@ -25,8 +25,8 @@ import { getTranslationFromI18nKeyAndLabel } from '@/common/utils/windowUtils'
 import { useCatalogEntries } from '@/common/data/catalog/hooks/useCatalogEntries'
 import type { CatalogEntry } from '@/common/data/catalog/types/catalogTypes'
 import { useProspectRejectionReasons } from '@/common/data/investment/hooks/useProspectRejectionReasons'
-import { useGetInvestmentLeadById } from '@/business-apps/irm/core/forms/lead-form/queries/LeadQueries'
-import { useGetInvestmentOpportunityById } from '@/business-apps/irm/core/forms/opportunity-form/queries/OpportunityQueries'
+import { useGetInvestmentLeadById } from '@/common/data/investment/hooks/useInvestmentLeads'
+import { useGetInvestmentOpportunityById } from '@/common/data/investment/hooks/useInvestmentOpportunities'
 import {
   buildRejectionReasonPayload,
   type RejectionReasonFormData,

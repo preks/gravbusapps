@@ -10,7 +10,7 @@ import {
   useGetInvestmentNotesByAccountId,
   useGetInvestmentTasksByAccountId
 } from '@/common/data/investment/hooks/useInvestmentAccounts'
-import { useGetInvestmentsByAccountId } from '@/common/data/investment'
+import { useGetInvestmentsByAccountId } from '@/common/data/investment/hooks/useInvestments'
 import AccountSection from '@/common/components/common-relations/record-sections/account-section/AccountSection'
 import ContactSection from '@/common/components/common-relations/record-sections/contact-section/ContactSection'
 import InvestmentSection from '@/common/components/common-relations/record-sections/investment-section/InvestmentSection'
