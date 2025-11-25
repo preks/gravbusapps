@@ -14,13 +14,15 @@ import {
   PiCalendar,
   PiClockCounterClockwise,
   PiReceipt,
-  PiPackage
+  PiPackage,
+  PiCurrencyEur
 } from 'react-icons/pi'
 import SummaryTab from './components/tabs/SummaryTab'
 import AbsencesTab from './components/tabs/AbsencesTab'
 import ServiceRequestsTab from './components/tabs/ServiceRequestsTab'
 import HrAdminTab from './components/tabs/HrAdminTab'
 import HrGrowthTab from './components/tabs/HrGrowthTab'
+import CompensationTab from './components/tabs/CompensationTab'
 import AssetsTab from './components/tabs/AssetsTab'
 import { BusinessAppContextProps } from '../../../../../common/BusinessAppContext'
 import { getCurrentActiveStructureId, getTranslationFromI18nKeyAndLabel } from '@/common/utils/windowUtils'
@@ -35,6 +37,7 @@ const TAB_KEYS = {
   absences: 'absences',
   hrAdmin: 'hrAdmin',
   hrGrowth: 'hrGrowth',
+  compensation: 'compensation',
   serviceRequests: 'serviceRequests'
 }
 
@@ -133,6 +136,24 @@ export const EmployeeRecord: React.FC<BusinessAppContextProps> = props => {
       return TAB_KEYS.hrGrowth
     }
 
+    const legacyCompensationTabs = ['currentCompensation', 'compensationHistory']
+    if (legacyCompensationTabs.includes(urlParams.tab)) {
+      if (typeof window !== 'undefined') {
+        const searchParams = new URLSearchParams(window.location.search)
+        searchParams.set('tab', TAB_KEYS.compensation)
+        const subViewMap: Record<string, string> = {
+          currentCompensation: 'currentCompensation',
+          compensationHistory: 'compensationHistory'
+        }
+        if (subViewMap[urlParams.tab]) {
+          searchParams.set('subView', subViewMap[urlParams.tab])
+        }
+        const newUrl = `${window.location.pathname}?${searchParams.toString()}`
+        window.history.replaceState({}, '', newUrl)
+      }
+      return TAB_KEYS.compensation
+    }
+
     return TAB_KEYS.summary
   }
 
@@ -175,7 +196,7 @@ const EmployeeRecordContent: React.FC<EmployeeRecordContentProps> = ({
     const searchParams = new URLSearchParams(window.location.search)
     searchParams.set('tab', activeTab)
 
-    if (activeTab !== TAB_KEYS.hrAdmin && activeTab !== TAB_KEYS.hrGrowth) {
+    if (activeTab !== TAB_KEYS.hrAdmin && activeTab !== TAB_KEYS.hrGrowth && activeTab !== TAB_KEYS.compensation) {
       searchParams.delete('subView')
     }
 
@@ -247,19 +268,40 @@ const EmployeeRecordContent: React.FC<EmployeeRecordContentProps> = ({
     loading: scopePermissionLoading,
     error: scopePermissionError
   } = useScopePermissionCheck('/platform/employee-record', 'employee-record-notes', accessToken)
-  const absencesScopeCheck = useScopePermissionCheck(
-    '/platform/employee-record',
-    'employee-record-absences',
-    accessToken
-  )
-
   const employeeRecordHrBackoffice = useScopePermissionCheck(
     '/platform/employee-record',
     'employee-record-hr-backoffice',
     accessToken
   )
 
+  const employeeRecordAllHrBackoffice = useScopePermissionCheck(
+    '/platform/employee-record',
+    'employee-record-all-hr-backoffice',
+    accessToken
+  )
+
+  const employeeRecordAllItAdmin = useScopePermissionCheck(
+    '/platform/employee-record',
+    'employee-record-all-IT-admin',
+    accessToken
+  )
+
+  const employeeRecordAllEmployees = useScopePermissionCheck(
+    '/platform/employee-record',
+    'employee-record-all-employees',
+    accessToken
+  )
+
+  const employeeGrowthPermission = useScopePermissionCheck('/platform/employee-record', 'employee-growth', accessToken)
+
   const isSelfView: boolean = !!(currentUserEmployeeId && employeeIdToShow === currentUserEmployeeId)
+
+  const supervisorEmployeeId = employee?.employeePosition?.supervisorEmployeeId
+  const supervisorIdFromRelation = employee?.employeePosition?.supervisor?.id
+  const managerId = supervisorEmployeeId || supervisorIdFromRelation
+  const isManager = !!(managerId && currentUserEmployeeId && managerId === currentUserEmployeeId)
+  const hasManagerEmployeeGrowthPermission =
+    isManager && !employeeGrowthPermission.loading && employeeGrowthPermission.hasPermission === true
 
   const getTabItems = () => {
     if (!employee) return []
@@ -351,6 +393,9 @@ const EmployeeRecordContent: React.FC<EmployeeRecordContentProps> = ({
               hasHrNotesAccess = hasRegularPermission && hasScope
             }
           }
+          if (hasManagerEmployeeGrowthPermission) {
+            hasHrNotesAccess = true
+          }
 
           return (
             <HrAdminTab
@@ -388,13 +433,37 @@ const EmployeeRecordContent: React.FC<EmployeeRecordContentProps> = ({
             devFeatureFlag={devFeatureFlag as boolean}
             employeePerformanceGoals={performanceGoals}
             feedback={feedback}
-            additionalData={additionalData}
-            employeeRecordHrBackoffice={employeeRecordHrBackoffice}
           />
         )
       },
       ...(devFeatureFlag
         ? [
+            {
+              key: TAB_KEYS.compensation,
+              label: (
+                <div className="gba:flex gba:items-center gba:gap-2">
+                  <PiCurrencyEur className="gba:text-xl gba:inline-block gba:align-middle" />
+                  <span className="gba:inline-block gba:align-middle">
+                    {getTranslationFromI18nKeyAndLabel(
+                      'lowcoder:employee_profile.employee_tabs.compensation',
+                      'Compensation'
+                    )}
+                  </span>
+                </div>
+              ),
+              children: (
+                <CompensationTab
+                  employee={employee}
+                  employeeId={employeeIdToShow}
+                  accessToken={accessToken}
+                  userInfo={userInfo}
+                  isSelfView={isSelfView}
+                  devFeatureFlag={devFeatureFlag as boolean}
+                  employeeRecordHrBackoffice={employeeRecordHrBackoffice}
+                  additionalData={additionalData}
+                />
+              )
+            },
             {
               key: TAB_KEYS.assets,
               label: (
@@ -448,38 +517,67 @@ const EmployeeRecordContent: React.FC<EmployeeRecordContentProps> = ({
       }
 
       if (tabKey === TAB_KEYS.absences) {
-        return tabPermissions?.[tabKey]?.hasAccess === true || absencesScopeCheck?.hasPermission === true
+        return (
+          isSelfView ||
+          hasManagerEmployeeGrowthPermission ||
+          (employeeRecordAllHrBackoffice?.hasPermission === true && !employeeGrowthPermission.hasPermission)
+        )
       }
 
-      if (tabKey === TAB_KEYS.serviceRequests || tabKey === TAB_KEYS.timeTracking) {
-        return tabPermissions?.[tabKey]?.hasAccess === true
+      if (tabKey === TAB_KEYS.serviceRequests) {
+        return isSelfView
+      }
+
+      if (tabKey === TAB_KEYS.timeTracking) {
+        return (
+          isSelfView ||
+          hasManagerEmployeeGrowthPermission ||
+          (employeeRecordAllHrBackoffice?.hasPermission === true && !employeeGrowthPermission.hasPermission)
+        )
+      }
+
+      if (tabKey === TAB_KEYS.compensation) {
+        return (
+          isSelfView ||
+          hasManagerEmployeeGrowthPermission ||
+          (employeeRecordAllHrBackoffice?.hasPermission === true && !employeeGrowthPermission.hasPermission)
+        )
       }
 
       if (tabKey === TAB_KEYS.hrAdmin) {
-        const hasEmploymentAccess = tabPermissions?.['employment']?.hasAccess === true
-        const hasDocumentsAccess = tabPermissions?.['documents']?.hasAccess === true
-        const hasChangeLogAccess = devFeatureFlag && tabPermissions?.['changeLog']?.hasAccess === true
+        return (
+          isSelfView ||
+          hasManagerEmployeeGrowthPermission ||
+          (employeeRecordAllHrBackoffice?.hasPermission === true && !employeeGrowthPermission.hasPermission)
+        )
+      }
 
-        let hasHrNotesAccess = false
-        if (!scopePermissionLoading) {
-          const hasRegularPermission = tabPermissions?.['hrNotes']?.hasAccess === true
-          const hasScope = hasNotesScopePermission === true
-          if (scopePermissionError && hasRegularPermission) {
-            hasHrNotesAccess = true
-          } else {
-            hasHrNotesAccess = hasRegularPermission && hasScope
-          }
-        }
-
-        return hasEmploymentAccess || hasDocumentsAccess || hasChangeLogAccess || hasHrNotesAccess || devFeatureFlag
+      if (tabKey === TAB_KEYS.summary) {
+        return (
+          isSelfView ||
+          tabPermissions?.[tabKey]?.hasAccess === true ||
+          employeeRecordAllEmployees?.hasPermission === true
+        )
       }
 
       if (tabKey === TAB_KEYS.hrGrowth) {
         const hasSkillsAccess = tabPermissions?.['skills']?.hasAccess !== false
         const hasFeedbackAccess = devFeatureFlag && tabPermissions?.['feedback']?.hasAccess === true
-        const hasPerformanceAccess = tabPermissions?.['performance']?.hasAccess !== false
-        const hasCompensationAccess = tabPermissions?.['compensation']?.hasAccess === true
-        return hasSkillsAccess || hasFeedbackAccess || hasPerformanceAccess || hasCompensationAccess || devFeatureFlag
+        const hasPerformanceAccess =
+          isSelfView ||
+          hasManagerEmployeeGrowthPermission ||
+          (employeeRecordAllHrBackoffice?.hasPermission === true && !employeeGrowthPermission.hasPermission)
+        return (
+          employeeRecordAllEmployees?.hasPermission === true ||
+          hasSkillsAccess ||
+          hasFeedbackAccess ||
+          hasPerformanceAccess ||
+          devFeatureFlag
+        )
+      }
+
+      if (tabKey === TAB_KEYS.assets) {
+        return isSelfView || hasManagerEmployeeGrowthPermission || employeeRecordAllItAdmin?.hasPermission === true
       }
 
       return true
