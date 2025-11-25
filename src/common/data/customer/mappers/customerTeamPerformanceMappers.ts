@@ -8,7 +8,7 @@ import {
   CustomerActivityPerformance,
   CustomerTeamComparison,
   TrendIndicator
-} from '../types'
+} from '../types/customerTeamPerformanceTypes'
 
 import {
   formatCustomerRevenue,
@@ -34,8 +34,7 @@ import { calculateCustomerPerformanceTrend } from '../utils/customerTrendAnalysi
  */
 export function toCustomerTeamPerformanceMetrics(
   base: BaseCustomerTeamPerformanceMetrics,
-  previousPeriodData?: BaseCustomerTeamPerformanceMetrics,
-  teamAverages?: { revenue: number; activityScore: number; conversionRate: number }
+  previousPeriodData?: BaseCustomerTeamPerformanceMetrics
 ): CustomerTeamPerformanceMetrics {
   // Extract labels from catalog entries and employee references
   const employeeDisplayName =

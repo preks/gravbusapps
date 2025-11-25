@@ -3,7 +3,7 @@ import { InvestmentFormValues, SelectOption, InvestmentContextState } from '../t
 import { BusinessAppContextProps } from '@/common/BusinessAppContext'
 import { useEmployeeSearch, EmployeeLiteOption } from '@/common/data/employee/useEmployeeSearch'
 import { useEmployeeById, EmployeeByIdData } from '../hooks/useEmployeeById'
-import { useGetInvestmentAccounts } from '@/common/data/investment'
+import { useGetInvestmentAccounts } from '@/common/data/investment/hooks/useInvestmentAccounts'
 import { useInvestmentGroups } from '../hooks/useInvestmentGroupCatalog'
 import { useInvestmentRoleCatalog } from '../hooks/useInvestmentRoleCatalog'
 import { useRealEstateTypes } from '../hooks/useRealEstateTypeCatalog'

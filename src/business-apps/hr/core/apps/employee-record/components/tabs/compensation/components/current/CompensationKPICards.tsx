@@ -68,7 +68,7 @@ const CompensationKPICards: React.FC<CompensationKPICardsProps> = ({
     <div className="gba:grid gba:grid-cols-1 gba:md:grid-cols-3 gba:gap-4">
       {/* Base Salary Card */}
       <Card className="gba:p-6 gba:relative" data-testid="compensation-base-salary-card">
-        {/* Show pencil icon only if user has permission to adjust salary (managers/HR admins) */}
+        {/* Show pencil icon only for managers/HR admins (permission already excludes self-view) */}
         {hasPermissionToAdjustSalary && (
           <div className="gba:absolute gba:top-4 gba:right-4">
             <AppAction
@@ -144,7 +144,7 @@ const CompensationKPICards: React.FC<CompensationKPICardsProps> = ({
 
       {/* Total Bonuses Card */}
       <Card className="gba:p-6 gba:relative" data-testid="compensation-bonuses-card">
-        {/* Show pencil icon only if user has permission to grant bonuses (managers/HR admins) */}
+        {/* Show pencil icon only for managers/HR admins (permission already excludes self-view) */}
         {hasPermissionToGrantBonus && (
           <div className="gba:absolute gba:top-4 gba:right-4">
             <AppAction

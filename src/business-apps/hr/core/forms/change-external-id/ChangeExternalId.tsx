@@ -37,20 +37,20 @@ export const ChangeExternalId: React.FC<BusinessAppContextProps> = ({ accessToke
       try {
         setIsLoading(true)
         const employeeId =
+          additionalData?.employeeId ||
           additionalData?.psi_taskPayload?.employeeId ||
-          additionalData?.psi_taskPayload?.initialParameters?.employeeId ||
+          additionalData?.psi_taskPayload?.psi_initialParameters?.employeeId ||
           userInfo?.employeeDetails?.employeeId ||
           ''
-
         if (employeeId) {
           const res = await graphqlClient.request<any>(EMPLOYEE_DATA_QUERY, { idEmployee: employeeId })
           const emp = res?.EmployeeByPk || null
           setEmployee(emp)
           if (!ignorePrefillAfterSubmitRef.current) {
             form.reset({
-              externalId: emp?.externalId || ''
+              externalId: emp?.externalId || emp?.additionalProperties?.SAPNumber || ''
             })
-            initialRef.current = { externalId: emp?.externalId || '' }
+            initialRef.current = { externalId: emp?.externalId || emp?.additionalProperties?.SAPNumber || '' }
           }
         } else {
           setEmployee(null)
@@ -136,8 +136,9 @@ export const ChangeExternalId: React.FC<BusinessAppContextProps> = ({ accessToke
             // Prevent prefill reset while the process is completing and the modal is about to close
             ignorePrefillAfterSubmitRef.current = true
             const employeeId =
+              additionalData?.employeeId ||
               additionalData?.psi_taskPayload?.employeeId ||
-              additionalData?.psi_taskPayload?.initialParameters?.employeeId ||
+              additionalData?.psi_taskPayload?.psi_initialParameters?.employeeId ||
               userInfo?.employeeDetails?.employeeId ||
               employee?.id ||
               ''

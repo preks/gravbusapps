@@ -31,7 +31,6 @@ import { PiArrowUp, PiArrowDown } from 'react-icons/pi'
 import { navigateTo, buildPlatformUrl } from '@/common/utils/navigationUtils'
 
 const DATA_TEST_ID_PREFIX = 'AdvancePaymentsTable'
-// Default status pre-filter used by useAdvancePaymentFilters
 const DEFAULT_STATUS_FILTER = ['PREPARED', 'PENDING']
 
 export interface AdvancePaymentsTableProps extends BusinessAppContextProps {

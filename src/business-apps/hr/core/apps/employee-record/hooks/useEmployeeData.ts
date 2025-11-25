@@ -26,6 +26,7 @@ export const GET_EMPLOYEE_DATA = /*sql*/ `
   EmployeePosition(where: {employeeId: {_eq: $employeeId}}) {
     id
     organizationalUnitId
+    supervisorEmployeeId
     organizationalUnit {
       id
       name
@@ -99,6 +100,7 @@ export const GET_EMPLOYEE_DATA = /*sql*/ `
       displayName
       workspace
       version
+      externalId
       pictureThumbnail
       userId
       additionalProperties
@@ -305,6 +307,8 @@ export const GET_EMPLOYEE_DATA = /*sql*/ `
     pending
     total
     approved
+    validFrom
+    validTo
   }
   EmployeePerformanceGoal(where: {isDeleted: {_eq: false}, employeeId: {_eq: $employeeId}}, orderBy: {progressPercent: DESC}) {
     id 
@@ -457,6 +461,7 @@ export interface Employee {
   code: string
   workspace: string
   version: number
+  externalId?: string | null
   pictureThumbnail: string
   userId?: string
   skills: EmployeeSkill[]
@@ -496,6 +501,7 @@ export interface Employee {
 
 interface EmployeePosition {
   organizationalUnitId: string
+  supervisorEmployeeId?: string | null
   organizationalUnit: {
     name: string
   }
@@ -718,6 +724,8 @@ export interface EmployeeAbsenceEntitlement {
   pending: number
   total: number
   approved: number
+  validFrom: string
+  validTo: string
 }
 
 export interface EmployeePerformanceGoal {

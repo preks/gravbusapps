@@ -1,7 +1,7 @@
 import React from 'react'
 import { Card } from 'antd'
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from 'recharts'
-import { getTranslationFromI18nKeyAndLabel } from '@/common/utils/windowUtils'
+import { getCurrentActiveUserLocale, getTranslationFromI18nKeyAndLabel } from '@/common/utils/windowUtils'
 import { useDepartmentMonthlySalaryStack } from '../../../../../hooks/useDepartmentMonthlySalaryStack'
 import { BusinessAppContextProps } from '@/common/BusinessAppContext'
 
@@ -24,7 +24,11 @@ const SalaryChangesChart: React.FC<BusinessAppContextProps> = props => {
       return (
         <div className="gba:bg-primary-foreground gba:shadow-lg gba:rounded gba:p-4" data-testid="salary-tooltip">
           <div className="gba:font-semibold gba:text-base gba:mb-1">
-            {d.month && new Date(d.month + '-01').toLocaleString(undefined, { month: 'short', year: 'numeric' })}
+            {d.month &&
+              new Date(d.month + '-01').toLocaleString(getCurrentActiveUserLocale() ?? 'en-US', {
+                month: 'short',
+                year: 'numeric'
+              })}
           </div>
           <div className={value > 0 ? 'gba:text-success gba:text-sm' : 'gba:text-destructive gba:text-sm'}>
             <span className="gba:font-medium">
@@ -50,7 +54,12 @@ const SalaryChangesChart: React.FC<BusinessAppContextProps> = props => {
           <CartesianGrid strokeDasharray="3 3" />
           <XAxis
             dataKey="month"
-            tickFormatter={m => new Date(m + '-01').toLocaleString(undefined, { month: 'short', year: '2-digit' })}
+            tickFormatter={m =>
+              new Date(m + '-01').toLocaleString(getCurrentActiveUserLocale() ?? 'en-US', {
+                month: 'short',
+                year: '2-digit'
+              })
+            }
             className="gba:text-xs"
             data-testid="salary-xaxis"
           />
