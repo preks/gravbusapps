@@ -256,6 +256,9 @@ const CompensationTab: React.FC<CompensationTabProps> = ({
               locale={currentLocale}
               isSelfView={isSelfView}
               employeeRecordHrBackoffice={employeeRecordHrBackoffice}
+              isManager={isManager}
+              hasEmployeeGrowthPermission={employeeGrowthPermission.hasPermission === true}
+              hasEmployeeRecordAllHrBackoffice={employeeRecordAllHrBackoffice?.hasPermission === true}
             />
           )}
         </TabsContent>

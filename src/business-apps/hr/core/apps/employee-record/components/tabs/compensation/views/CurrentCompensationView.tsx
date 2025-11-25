@@ -7,7 +7,6 @@ import { BusinessAppContextProps } from '@/common/BusinessAppContext'
 import TotalRewardsCard from '../components/current/TotalRewardsCard'
 import BenefitsPerksSection from '../components/current/BenefitsPerksSection'
 import CompensationKPICards from '../components/current/CompensationKPICards'
-import { useCompensationPermissions } from '../../../../hooks/useCompensationPermissions'
 import { ScopePermissionCheckResult } from '@/common/hooks/useScopePermissionCheck'
 
 interface CurrentCompensationViewProps extends BusinessAppContextProps {
@@ -20,6 +19,9 @@ interface CurrentCompensationViewProps extends BusinessAppContextProps {
   locale: string
   employeeRecordHrBackoffice: ScopePermissionCheckResult
   isSelfView: boolean // Whether user is viewing their own profile
+  isManager: boolean // Whether current user is the employee's manager
+  hasEmployeeGrowthPermission: boolean // Raw employee-growth scope permission (not combined with manager check)
+  hasEmployeeRecordAllHrBackoffice: boolean // Whether user has all HR backoffice access
 }
 
 /**
@@ -38,15 +40,23 @@ const CurrentCompensationView: React.FC<CurrentCompensationViewProps> = ({
   additionalData,
   locale,
   employeeRecordHrBackoffice,
-  isSelfView
+  isSelfView,
+  isManager,
+  hasEmployeeGrowthPermission,
+  hasEmployeeRecordAllHrBackoffice
 }) => {
-  // Check compensation-related permissions
-  // Only managers and HR admins should have write permission on employee_working_condition and employee_bonus
-  // Note: We check permission on the employee being viewed (employeeId) - managers should have write access to their employees' salaries
-  const { hasPermissionToAdjustSalary, hasPermissionToGrantBonus } = useCompensationPermissions(
-    employeeId,
-    accessToken || ''
-  )
+  // Compute action visibility based on existing permission architecture
+  // Uses the EXACT same logic as tab visibility in EmployeeRecord.tsx (lines 542-543)
+  // - Managers with employee-growth permission: (isManager && hasEmployeeGrowthPermission)
+  // - HR backoffice admins WITHOUT employee-growth: (hasEmployeeRecordAllHrBackoffice && !hasEmployeeGrowthPermission)
+  const hasManagerEmployeeGrowthPermission = isManager && hasEmployeeGrowthPermission
+  const canManageCompensation =
+    !isSelfView &&
+    (hasManagerEmployeeGrowthPermission || (hasEmployeeRecordAllHrBackoffice && !hasEmployeeGrowthPermission))
+
+  // Both salary adjustment and bonus granting use the same permission logic
+  const showSalaryAction = canManageCompensation
+  const showBonusAction = canManageCompensation
 
   // Handle loading state - show loading indicators when data is not yet available
   if (loading && !compensationData) {
@@ -110,8 +120,8 @@ const CurrentCompensationView: React.FC<CurrentCompensationViewProps> = ({
         employeeId={employeeId}
         accessToken={accessToken}
         locale={locale}
-        hasPermissionToAdjustSalary={hasPermissionToAdjustSalary ?? false}
-        hasPermissionToGrantBonus={hasPermissionToGrantBonus ?? false}
+        hasPermissionToAdjustSalary={showSalaryAction}
+        hasPermissionToGrantBonus={showBonusAction}
       />
 
       {/* Total Rewards 360° View */}
