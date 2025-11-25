@@ -451,7 +451,7 @@ const InvestmentOpportunityRecordContent: React.FC<OpportunityRecordContentProps
         emptyStateBehavior="enable"
         deferMainContextRequestsUntilClick={false}
         accessToken={props.accessToken}
-        staticFlowData={[shareAction]}
+        staticFlowData={[shareAction].filter(Boolean)}
       />
     ),
     [opportunityId, props.accessToken, shareAction]

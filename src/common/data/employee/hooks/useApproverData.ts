@@ -4,7 +4,7 @@
  * Used in approval/acknowledgment forms to resolve approver UUID to human-readable name
  */
 
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useRef } from 'react'
 import { useGraphqlClient } from '@/common/network/graphql/useGraphQLClient'
 
 interface UseApproverDataProps {
@@ -24,6 +24,9 @@ export const useApproverData = ({ accessToken, approverId }: UseApproverDataProp
   const [error, setError] = useState<string | null>(null)
 
   const graphqlClient = useGraphqlClient(accessToken)
+  // Use ref to avoid endless loop - graphqlClient changes reference on every render
+  const graphqlClientRef = useRef(graphqlClient)
+  graphqlClientRef.current = graphqlClient
 
   useEffect(() => {
     const fetchApproverName = async () => {
@@ -45,7 +48,7 @@ export const useApproverData = ({ accessToken, approverId }: UseApproverDataProp
           }
         `
 
-        const response = await graphqlClient.request<{
+        const response = await graphqlClientRef.current.request<{
           Employee: any[]
         }>(query, {
           approverId
@@ -66,7 +69,7 @@ export const useApproverData = ({ accessToken, approverId }: UseApproverDataProp
     }
 
     fetchApproverName()
-  }, [accessToken, approverId, graphqlClient])
+  }, [accessToken, approverId])
 
   return {
     approverName,

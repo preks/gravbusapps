@@ -53,8 +53,7 @@ const AccountRecordContent: React.FC<AccountRecordContentProps> = ({ accountId, 
   const { account: accountData, loading, error, refetch } = useCustomerAccount(props.accessToken, accountId)
 
   // Share action hook
-  const accountName =
-    accountData?.name || getTranslationFromI18nKeyAndLabel('crm.account.unnamed', 'Unnamed Account')
+  const accountName = accountData?.name || getTranslationFromI18nKeyAndLabel('crm.account.unnamed', 'Unnamed Account')
   const { shareAction, ShareDialog } = useShareAction({
     accessToken: props.accessToken,
     currentUserId: props.userInfo?.id || '',
@@ -191,7 +190,7 @@ const AccountRecordContent: React.FC<AccountRecordContentProps> = ({ accountId, 
           accessToken={props.accessToken}
           emptyStateBehavior="enable"
           deferMainContextRequestsUntilClick={false}
-          staticFlowData={[shareAction]}
+          staticFlowData={[shareAction].filter(Boolean)}
         >
           {getTranslationFromI18nKeyAndLabel('crm.common.actions', 'Actions')}
         </AppActionButton>

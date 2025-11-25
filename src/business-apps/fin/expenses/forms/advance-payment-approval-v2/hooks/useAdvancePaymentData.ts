@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback } from 'react'
+import { useState, useEffect, useCallback, useRef } from 'react'
 import { useGetAdvancePaymentForApproval } from '../queries'
 import { AdvancePaymentData } from '../types'
 
@@ -13,6 +13,9 @@ export const useAdvancePaymentData = ({ paymentId, accessToken }: UseAdvancePaym
   const [error, setError] = useState<string | null>(null)
 
   const { fetchAdvancePaymentData } = useGetAdvancePaymentForApproval(accessToken)
+  // Use ref to avoid endless loop - fetchAdvancePaymentData changes reference on every render
+  const fetchAdvancePaymentDataRef = useRef(fetchAdvancePaymentData)
+  fetchAdvancePaymentDataRef.current = fetchAdvancePaymentData
 
   const fetchPayment = useCallback(async () => {
     if (!paymentId) {
@@ -31,7 +34,7 @@ export const useAdvancePaymentData = ({ paymentId, accessToken }: UseAdvancePaym
       setLoading(true)
       setError(null)
 
-      const data = await fetchAdvancePaymentData(paymentId)
+      const data = await fetchAdvancePaymentDataRef.current(paymentId)
 
       if (!data) {
         setError(`No advance payment found with ID: ${paymentId}`)
@@ -46,7 +49,7 @@ export const useAdvancePaymentData = ({ paymentId, accessToken }: UseAdvancePaym
     } finally {
       setLoading(false)
     }
-  }, [paymentId, accessToken, fetchAdvancePaymentData])
+  }, [paymentId, accessToken])
 
   useEffect(() => {
     fetchPayment()

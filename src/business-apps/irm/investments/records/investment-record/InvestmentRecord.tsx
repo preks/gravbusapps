@@ -353,7 +353,7 @@ const InvestmentRecord: React.FC<InvestmentRecordProps> = props => {
       emptyStateBehavior="enable"
       deferMainContextRequestsUntilClick={false}
       accessToken={props.accessToken}
-      staticFlowData={[shareAction]}
+      staticFlowData={[shareAction].filter(Boolean)}
     />
   )
 

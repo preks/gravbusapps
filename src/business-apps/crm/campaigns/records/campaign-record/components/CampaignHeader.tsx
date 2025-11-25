@@ -12,7 +12,13 @@ interface ExtendedCampaignHeaderProps extends CampaignHeaderProps {
   currentUserId?: string
 }
 
-const CampaignHeader: React.FC<ExtendedCampaignHeaderProps> = ({ campaign, isLoading, accessToken, currentUserId, campaignId }) => {
+const CampaignHeader: React.FC<ExtendedCampaignHeaderProps> = ({
+  campaign,
+  isLoading,
+  accessToken,
+  currentUserId,
+  campaignId
+}) => {
   // (no single-date display in header)
 
   // Helper function to calculate campaign duration
@@ -138,7 +144,7 @@ const CampaignHeader: React.FC<ExtendedCampaignHeaderProps> = ({ campaign, isLoa
               emptyState="enable"
               lazyLoad
               onClick={e => e.stopPropagation()}
-              customActions={[shareAction]}
+              customActions={[shareAction].filter(Boolean)}
             />
           )}
         </div>

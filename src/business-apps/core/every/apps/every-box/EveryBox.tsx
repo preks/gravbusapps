@@ -44,6 +44,8 @@ import {
   QuickTaskFormData,
   QuickTaskFlowService
 } from '@/business-apps/flow/common/components/flow-quick-task'
+import { useFeature } from '@/common/hooks/useFeature'
+import { Feature } from '@/common/types/constants/FeatureHub'
 
 interface EveryBoxProps extends BusinessAppContextProps {
   prefixDataTestId?: string
@@ -87,6 +89,14 @@ const POLLING_CONFIG = {
 }
 
 export const EveryBox: React.FC<EveryBoxProps> = ({ prefixDataTestId = 'every-box', ...context }) => {
+  // Feature flag guard - EveryBox only available when preview.enabled is true
+  const previewFeature = useFeature(Feature.Preview.Enabled.Key)
+  const isPreviewEnabled = previewFeature !== false // true if undefined (development) or 'true'
+
+  if (!isPreviewEnabled) {
+    return null
+  }
+
   // Separate interval refs for each data source (for staggered polling)
   const activeTasksIntervalRef = useRef<NodeJS.Timeout | null>(null)
   const completedTasksIntervalRef = useRef<NodeJS.Timeout | null>(null)

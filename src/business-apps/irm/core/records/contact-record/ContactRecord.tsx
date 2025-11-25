@@ -327,7 +327,7 @@ const InvestmentContactRecordContent: React.FC<ContactRecordContentProps> = ({
         accessToken={props.accessToken}
         emptyStateBehavior="enable"
         deferMainContextRequestsUntilClick={false}
-        staticFlowData={[shareAction]}
+        staticFlowData={[shareAction].filter(Boolean)}
       />
     ),
     [contactId, props.accessToken, shareAction]

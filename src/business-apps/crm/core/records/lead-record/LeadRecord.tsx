@@ -346,7 +346,7 @@ const LeadRecordContent: React.FC<LeadRecordContentProps> = ({ leadId, onBack, f
           accessToken={props.accessToken}
           emptyStateBehavior="enable"
           deferMainContextRequestsUntilClick={false}
-          staticFlowData={[shareAction]}
+          staticFlowData={[shareAction].filter(Boolean)}
         >
           {getTranslationFromI18nKeyAndLabel('crm.common.actions', 'Actions')}
         </AppActionButton>

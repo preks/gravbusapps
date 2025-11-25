@@ -4,7 +4,7 @@
  * Supports: EmployeeAbsence, ExpenseRequest, ExpensePlan, AdvancePayment, Feedback, etc.
  */
 
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useRef } from 'react'
 import { useGraphqlClient } from '@/common/network/graphql/useGraphQLClient'
 
 interface UseEntityDatesProps {
@@ -27,6 +27,9 @@ export const useEntityDates = ({ accessToken, entityId, entityType }: UseEntityD
   const [error, setError] = useState<string | null>(null)
 
   const graphqlClient = useGraphqlClient(accessToken)
+  // Use ref to avoid endless loop - graphqlClient changes reference on every render
+  const graphqlClientRef = useRef(graphqlClient)
+  graphqlClientRef.current = graphqlClient
 
   useEffect(() => {
     const fetchEntityDates = async () => {
@@ -49,7 +52,7 @@ export const useEntityDates = ({ accessToken, entityId, entityType }: UseEntityD
           }
         `
 
-        const response = await graphqlClient.request<{
+        const response = await graphqlClientRef.current.request<{
           [key: string]: any[]
         }>(query, {
           entityId
@@ -68,7 +71,7 @@ export const useEntityDates = ({ accessToken, entityId, entityType }: UseEntityD
     }
 
     fetchEntityDates()
-  }, [accessToken, entityId, entityType, graphqlClient])
+  }, [accessToken, entityId, entityType])
 
   return {
     createdAt,

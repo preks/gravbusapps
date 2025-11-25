@@ -289,7 +289,7 @@ const ContactRecordContent: React.FC<ContactRecordContentProps> = ({ contactId, 
           accessToken={props.accessToken}
           emptyStateBehavior="enable"
           deferMainContextRequestsUntilClick={false}
-          staticFlowData={[shareAction]}
+          staticFlowData={[shareAction].filter(Boolean)}
         >
           {getTranslationFromI18nKeyAndLabel('crm.common.actions', 'Actions')}
         </AppActionButton>

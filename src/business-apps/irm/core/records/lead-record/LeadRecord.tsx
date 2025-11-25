@@ -448,7 +448,7 @@ const InvestmentLeadRecordContent: React.FC<LeadRecordContentProps> = ({ leadId,
           accessToken={props.accessToken}
           emptyStateBehavior="enable"
           deferMainContextRequestsUntilClick={false}
-          staticFlowData={[shareAction]}
+          staticFlowData={[shareAction].filter(Boolean)}
         />
       ),
     [props.accessToken, leadId, shareAction]

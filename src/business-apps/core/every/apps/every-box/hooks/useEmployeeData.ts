@@ -16,7 +16,7 @@
  * ```
  */
 
-import { useState, useEffect, useMemo } from 'react'
+import { useState, useEffect, useMemo, useRef } from 'react'
 import { useGraphqlClient } from '@/common/network/graphql/useGraphQLClient'
 
 export interface EmployeeData {
@@ -103,6 +103,9 @@ export const useEmployeeData = ({
   const [refetchTrigger, setRefetchTrigger] = useState(0)
 
   const graphqlClient = useGraphqlClient(accessToken)
+  // Use ref to avoid endless loop - graphqlClient changes reference on every render
+  const graphqlClientRef = useRef(graphqlClient)
+  graphqlClientRef.current = graphqlClient
 
   // Cache key based on ID
   const cacheKey = useMemo(() => {
@@ -183,7 +186,7 @@ export const useEmployeeData = ({
           throw new Error('Either employeeId or userId must be provided')
         }
 
-        const response = await graphqlClient.request<any>(query, variables)
+        const response = await graphqlClientRef.current.request<any>(query, variables)
 
         let employee: any = null
         if (employeeId && response.Employee && response.Employee.length > 0) {
@@ -237,7 +240,7 @@ export const useEmployeeData = ({
     }
 
     fetchEmployeeData()
-  }, [cacheKey, accessToken, employeeId, userId, fallbackName, skip, graphqlClient, refetchTrigger])
+  }, [cacheKey, accessToken, employeeId, userId, fallbackName, skip, refetchTrigger])
 
   const refetch = () => {
     // Clear cache and trigger refetch

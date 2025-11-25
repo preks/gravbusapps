@@ -255,7 +255,7 @@ const InvestmentAccountRecordContent: React.FC<AccountRecordContentProps> = ({ a
         accessToken={props.accessToken}
         emptyStateBehavior="enable"
         deferMainContextRequestsUntilClick={false}
-        staticFlowData={[shareAction]}
+        staticFlowData={[shareAction].filter(Boolean)}
       />
     ),
     [accountId, props.accessToken, shareAction]

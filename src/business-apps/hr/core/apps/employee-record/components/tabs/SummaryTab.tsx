@@ -30,6 +30,7 @@ import { UserInfoProps } from '@/common/BusinessAppContext'
 import { AppActionMenu } from '@/components/app-action-menu'
 import { FlowContextName } from '@/common/types/FlowRegistryTypes'
 import { useShareAction } from '@/components/share-entity'
+import { ActionOption } from '@newwork/nw-design-system'
 import { getEmployeeFullName } from '../../utils/formatters'
 import { Button, Tooltip } from 'antd'
 import JobDetailsDrawer from './JobDetailsDrawer'
@@ -79,15 +80,7 @@ const SummaryTab: React.FC<SummaryTabProps> = ({
   })
 
   // Static actions for the AppActionMenu (including share)
-  const staticActions = useMemo(
-    () => [
-      {
-        ...shareAction,
-        category: 'Sharing'
-      }
-    ],
-    [shareAction]
-  )
+  const staticActions = useMemo(() => [shareAction].filter(Boolean) as ActionOption[], [shareAction])
 
   // Fetch upcoming absence for this employee
   const { loading: absenceLoading, upcomingAbsence } = useEmployeeUpcomingAbsence(accessToken, employee.id)
