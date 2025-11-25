@@ -50,12 +50,12 @@ export const InvestmentAccountFields = {
   ...AccountFields,
   // Override IRM-specific field names
   accountContacts: 'investmentAccountContact',
-  activities: 'investmentActivity',
-  documents: 'investmentDocument',
+  //activities: 'investmentActivity',
+  //documents: 'investmentDocument',
   leads: 'investmentLead',
-  notes: 'investmentNote',
-  opportunities: 'investmentOpportunity',
-  tasks: 'investmentTask'
+  //notes: 'investmentNote',
+  opportunities: 'investmentOpportunity'
+  //tasks: 'investmentTask'
 } as const
 
 /**
@@ -120,14 +120,10 @@ export function toInvestmentAccount(raw: any): InvestmentAccount {
     investment,
     investmentReport,
     investmentAccountContact,
-    investmentActivity,
     investmentAddress,
     investmentCommunicationChannel,
-    investmentDocument,
     investmentLead,
-    investmentNote,
     investmentOpportunity,
-    investmentTask,
     ...rest
   } = raw
 
@@ -137,13 +133,9 @@ export function toInvestmentAccount(raw: any): InvestmentAccount {
     investments: raw.investments ?? investment,
     investmentReports: raw.investmentReports ?? investmentReport,
     accountContacts: raw.accountContacts ?? investmentAccountContact,
-    activities: raw.activities ?? investmentActivity,
     addresses: raw.addresses ?? investmentAddress,
     communicationChannels: raw.communicationChannels ?? investmentCommunicationChannel,
-    documents: raw.documents ?? investmentDocument,
     leads: raw.leads ?? investmentLead,
-    notes: raw.notes ?? investmentNote,
-    opportunities: raw.opportunities ?? investmentOpportunity,
-    tasks: raw.tasks ?? investmentTask
+    opportunities: raw.opportunities ?? investmentOpportunity
   } as InvestmentAccount
 }
