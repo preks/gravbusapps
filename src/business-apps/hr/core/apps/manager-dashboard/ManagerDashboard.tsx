@@ -58,6 +58,11 @@ import { PersonalChangeItem } from './components/PersonalChangeItem'
 import RequestsToApproveTable from './components/RequestsToApproveTable'
 import MyTeammatesTable from './components/MyTeammatesTable'
 
+type ApprovalTab = 'expenses' | 'absences' | 'personal-changes'
+type TeamTab = 'my-team' | 'my-teams'
+type InsightsTab = 'birthdays' | 'anniversaries' | 'missing-profiles'
+type CurrentView = 'dashboard' | 'teammates' | 'approvals'
+
 /**
  * Manager Dashboard
  * Displays a dashboard for managers with key metrics and insights
@@ -66,18 +71,16 @@ export const ManagerDashboard: React.FC<BusinessAppContextProps> = ({ userInfo, 
   const employeeId = userInfo?.employeeDetails?.employeeId
 
   // State for team tabs
-  const [activeTeamTab, setActiveTeamTab] = useState<'my-team' | 'my-teams'>('my-team')
+  const [activeTeamTab, setActiveTeamTab] = useState<TeamTab>('my-team')
 
   // State for team insights tabs
-  const [activeInsightsTab, setActiveInsightsTab] = useState<'birthdays' | 'anniversaries' | 'missing-profiles'>(
-    'birthdays'
-  )
+  const [activeInsightsTab, setActiveInsightsTab] = useState<InsightsTab>('birthdays')
 
   // State for approval tabs
-  const [activeApprovalTab, setActiveApprovalTab] = useState<'expenses' | 'absences' | 'personal-changes'>('expenses')
+  const [activeApprovalTab, setActiveApprovalTab] = useState<ApprovalTab>('expenses')
 
   // State for current view (dashboard or detailed pages)
-  const [currentView, setCurrentView] = useState<'dashboard' | 'teammates' | 'approvals'>('dashboard')
+  const [currentView, setCurrentView] = useState<CurrentView>('dashboard')
 
   // Get the current structure ID for matrix team queries
   const structureId = getCurrentActiveStructureId()
@@ -199,6 +202,97 @@ ${managerName}`
   // Note: Removed useUserAvatar hook as it queries non-existent 'User' entity
   // We now use useCurrentUserProfile which works correctly with Employee entity
 
+  // Helper function to render birthday days until text
+  const renderBirthdayDaysUntil = (daysUntilBirthday: number) => {
+    if (daysUntilBirthday === 0) {
+      return (
+        <div className="gba:flex gba:items-center gba:justify-start gba:gap-1 gba:w-full">
+          <ConfettiIcon size={16} /> {getTranslationFromI18nKeyAndLabel('lowcoder:absence_hub.today', 'Today')}
+        </div>
+      )
+    }
+    if (daysUntilBirthday === 1) {
+      return (
+        <div className="gba:flex gba:items-center gba:justify-start gba:gap-1 gba:w-full">
+          <CakeIcon size={16} /> {getTranslationFromI18nKeyAndLabel('lowcoder:absence_hub.tomorrow', 'Tomorrow')}
+        </div>
+      )
+    }
+    return (
+      <div className="gba:flex gba:items-center gba:justify-start gba:gap-1 gba:w-full">
+        <CalendarDotsIcon size={16} />
+        {getTranslationFromI18nKeyAndLabel('master-data:hr.manager_dashboard.in_days', `In ${daysUntilBirthday} days`, {
+          days: daysUntilBirthday
+        })}
+      </div>
+    )
+  }
+
+  // Helper function to render anniversary days until text
+  const renderAnniversaryDaysUntil = (daysUntilAnniversary: number) => {
+    if (daysUntilAnniversary === 0) {
+      return (
+        <div className="gba:flex gba:items-center gba:justify-start gba:gap-1">
+          <ConfettiIcon size={16} />
+          {`${getTranslationFromI18nKeyAndLabel('lowcoder:absence_hub.today', 'today').toLowerCase()}!`}
+        </div>
+      )
+    }
+    if (daysUntilAnniversary === 1) {
+      return (
+        <div className="gba:flex gba:items-center gba:justify-start gba:gap-1">
+          <TrophyIcon size={16} />
+          {getTranslationFromI18nKeyAndLabel('lowcoder:absence_hub.tomorrow', 'tomorrow').toLowerCase()}
+        </div>
+      )
+    }
+    return (
+      <div className="gba:flex gba:items-center gba:justify-start gba:gap-1">
+        <CalendarDotsIcon size={16} />
+        {getTranslationFromI18nKeyAndLabel(
+          'master-data:hr.manager_dashboard.in_days',
+          `In ${daysUntilAnniversary} days`,
+          { days: daysUntilAnniversary }
+        )}
+      </div>
+    )
+  }
+
+  // Helper function to render missing profile reason
+  const renderMissingProfileReason = (reason: string | undefined) => {
+    if (reason === 'no_job_position') {
+      return (
+        <div className="gba:flex gba:items-center gba:justify-start gba:gap-1">
+          <XCircleIcon size={16} />
+          {getTranslationFromI18nKeyAndLabel(
+            'master-data:hr.manager_dashboard.status.no_job_position',
+            'No job position'
+          )}
+        </div>
+      )
+    }
+    if (reason === 'incomplete_profile') {
+      return (
+        <div className="gba:flex gba:items-center gba:justify-start gba:gap-1">
+          <WarningIcon size={16} />
+          {getTranslationFromI18nKeyAndLabel(
+            'master-data:hr.manager_dashboard.status.incomplete_profile',
+            'Incomplete profile'
+          )}
+        </div>
+      )
+    }
+    return (
+      <div className="gba:flex gba:items-center gba:justify-start gba:gap-1">
+        <XCircleIcon size={16} />
+        {getTranslationFromI18nKeyAndLabel(
+          'master-data:hr.manager_dashboard.status.missing_job_profile',
+          'Missing job profile'
+        )}
+      </div>
+    )
+  }
+
   // Fetch direct reports for "My Team" tab (subordinates)
   const {
     directReports,
@@ -284,7 +378,7 @@ ${managerName}`
   })
 
   // Simple tab change handler
-  const handleApprovalTabChange = (tab: 'expenses' | 'absences' | 'personal-changes') => {
+  const handleApprovalTabChange = (tab: ApprovalTab) => {
     setActiveApprovalTab(tab)
   }
 
@@ -434,7 +528,7 @@ ${managerName}`
           <CardContent className="gba:flex-1 gba:min-h-0 gba:px-2">
             <Tabs
               value={activeTeamTab}
-              onValueChange={value => setActiveTeamTab(value as 'my-team' | 'my-teams')}
+              onValueChange={value => setActiveTeamTab(value as TeamTab)}
               className="gba:h-full gba:flex gba:flex-col"
             >
               <TabsList className="gba:w-full gba:mb-3">
@@ -554,9 +648,10 @@ ${managerName}`
                   {!loadingMatrixTeams && !matrixTeamsError && matrixTeamMembers.length > 0 && (
                     <div className="gba:space-y-3" data-testid="manager-dashboard-matrix-teams-container">
                       {matrixTeamMembers.map(member => (
-                        <div
+                        <button
                           key={member.id}
-                          className="gba:flex gba:items-center gba:justify-between gba:py-2 gba:cursor-pointer gba:hover:bg-gray-50 gba:rounded-lg gba:px-2 gba:transition-colors"
+                          type="button"
+                          className="gba:flex gba:items-center gba:justify-between gba:py-2 gba:cursor-pointer gba:hover:bg-gray-50 gba:rounded-lg gba:px-2 gba:transition-colors gba:w-full gba:text-left gba:bg-transparent gba:border-0"
                           data-testid={`manager-dashboard-matrix-member-${member.id}`}
                           onClick={() => handleNavigateToEmployee(member.id)}
                           title={getTranslationFromI18nKeyAndLabel(
@@ -624,7 +719,7 @@ ${managerName}`
                                 : getTranslationFromI18nKeyAndLabel('lowcoder:hr_absences.available', 'Available')}
                             </Badge>
                           </div>
-                        </div>
+                        </button>
                       ))}
                     </div>
                   )}
@@ -712,9 +807,7 @@ ${managerName}`
               (expenseApprovals.length > 0 || absenceApprovals.length > 0 || personalDataApprovals.length > 0) && (
                 <Tabs
                   value={activeApprovalTab}
-                  onValueChange={value =>
-                    handleApprovalTabChange(value as 'expenses' | 'absences' | 'personal-changes')
-                  }
+                  onValueChange={value => handleApprovalTabChange(value as ApprovalTab)}
                   className="gba:h-full gba:flex gba:flex-col"
                 >
                   <TabsList className="gba:grid gba:w-full gba:grid-cols-3 gba:mb-4">
@@ -878,7 +971,7 @@ ${managerName}`
           <CardContent className="gba:flex-1 gba:min-h-0 gba:px-2">
             <Tabs
               value={activeInsightsTab}
-              onValueChange={value => setActiveInsightsTab(value as 'birthdays' | 'anniversaries' | 'missing-profiles')}
+              onValueChange={value => setActiveInsightsTab(value as InsightsTab)}
               className="gba:h-full gba:flex gba:flex-col"
             >
               <TabsList className="gba:w-full gba:mb-3">
@@ -931,9 +1024,10 @@ ${managerName}`
                           <span>{`${getTranslationFromI18nKeyAndLabel('master-data:hr.manager_dashboard.next_30_days', 'Next 30 days')} (${upcomingBirthdays.length} ${upcomingBirthdays.length > 1 ? getTranslationFromI18nKeyAndLabel('lowcoder:hr_insights.birthdays', 'Birthdays') : getTranslationFromI18nKeyAndLabel('lowcoder:employee_profile.profile_icon_list.birthday', 'Birthday')})`}</span>
                         </div>
                         {upcomingBirthdays.map(birthday => (
-                          <div
+                          <button
                             key={birthday.id}
-                            className="gba:flex gba:items-center gba:justify-between gba:py-2 gba:cursor-pointer gba:hover:bg-gray-50 gba:rounded-lg gba:px-2 gba:transition-colors"
+                            type="button"
+                            className="gba:flex gba:items-center gba:justify-between gba:py-2 gba:cursor-pointer gba:hover:bg-gray-50 gba:rounded-lg gba:px-2 gba:transition-colors gba:w-full gba:text-left gba:bg-transparent gba:border-0"
                             onClick={() => handleNavigateToEmployee(birthday.id)}
                             title={getTranslationFromI18nKeyAndLabel(
                               'master-data:hr.manager_dashboard.view_profile',
@@ -963,26 +1057,7 @@ ${managerName}`
                                 </div>
 
                                 <div className="gba:text-sm gba:text-neutral-500">
-                                  {birthday.daysUntilBirthday === 0 ? (
-                                    <div className="gba:flex gba:items-center gba:justify-start gba:gap-1 gba:w-full">
-                                      <ConfettiIcon size={16} />{' '}
-                                      {getTranslationFromI18nKeyAndLabel('lowcoder:absence_hub.today', 'Today')}
-                                    </div>
-                                  ) : birthday.daysUntilBirthday === 1 ? (
-                                    <div className="gba:flex gba:items-center gba:justify-start gba:gap-1 gba:w-full">
-                                      <CakeIcon size={16} />{' '}
-                                      {getTranslationFromI18nKeyAndLabel('lowcoder:absence_hub.tomorrow', 'Tomorrow')}
-                                    </div>
-                                  ) : (
-                                    <div className="gba:flex gba:items-center gba:justify-start gba:gap-1 gba:w-full">
-                                      <CalendarDotsIcon size={16} />
-                                      {getTranslationFromI18nKeyAndLabel(
-                                        'master-data:hr.manager_dashboard.in_days',
-                                        `In ${birthday.daysUntilBirthday} days`,
-                                        { days: birthday.daysUntilBirthday }
-                                      )}
-                                    </div>
-                                  )}
+                                  {renderBirthdayDaysUntil(birthday.daysUntilBirthday)}
                                 </div>
                               </div>
                             </div>
@@ -1002,7 +1077,7 @@ ${managerName}`
                                 <EnvelopeSimpleOpenIcon size={16} />
                               </Button>
                             </div>
-                          </div>
+                          </button>
                         ))}
                       </div>
                     )}
@@ -1039,9 +1114,10 @@ ${managerName}`
                           <span>{`${getTranslationFromI18nKeyAndLabel('master-data:hr.manager_dashboard.next_30_days', 'Next 30 days')} (${upcomingAnniversaries.length} ${upcomingAnniversaries.length > 1 ? getTranslationFromI18nKeyAndLabel('lowcoder:hr_insights.anniversaries', 'Anniversaries') : getTranslationFromI18nKeyAndLabel('lowcoder:hr_insights.anniversary_date', 'Anniversary')})`}</span>
                         </div>
                         {upcomingAnniversaries.map(anniversary => (
-                          <div
+                          <button
                             key={anniversary.id}
-                            className="gba:flex gba:items-center gba:justify-between gba:py-2 gba:cursor-pointer gba:hover:bg-gray-50 gba:rounded-lg gba:px-2 gba:transition-colors"
+                            type="button"
+                            className="gba:flex gba:items-center gba:justify-between gba:py-2 gba:cursor-pointer gba:hover:bg-gray-50 gba:rounded-lg gba:px-2 gba:transition-colors gba:w-full gba:text-left gba:bg-transparent gba:border-0"
                             onClick={() => handleNavigateToEmployee(anniversary.id)}
                             title={getTranslationFromI18nKeyAndLabel(
                               'master-data:hr.manager_dashboard.view_profile',
@@ -1071,33 +1147,8 @@ ${managerName}`
                                 </div>
 
                                 <div className="gba:text-sm gba:text-neutral-500 gba:flex gba:items-center gba:justify-start gba:gap-1">
-                                  <span>{`${anniversary.yearsOfService} ${anniversary.yearsOfService !== 1 ? getTranslationFromI18nKeyAndLabel('lowcoder:hr_insights.years', 'years') : getTranslationFromI18nKeyAndLabel('lowcoder:hr_insights.year', 'year')}`}</span>
-                                  {anniversary.daysUntilAnniversary === 0 ? (
-                                    <div className="gba:flex gba:items-center gba:justify-start gba:gap-1">
-                                      <ConfettiIcon size={16} />
-                                      {`${getTranslationFromI18nKeyAndLabel(
-                                        'lowcoder:absence_hub.today',
-                                        'today'
-                                      ).toLowerCase()}!`}
-                                    </div>
-                                  ) : anniversary.daysUntilAnniversary === 1 ? (
-                                    <div className="gba:flex gba:items-center gba:justify-start gba:gap-1">
-                                      <TrophyIcon size={16} />
-                                      {getTranslationFromI18nKeyAndLabel(
-                                        'lowcoder:absence_hub.tomorrow',
-                                        'tomorrow'
-                                      ).toLowerCase()}
-                                    </div>
-                                  ) : (
-                                    <div className="gba:flex gba:items-center gba:justify-start gba:gap-1">
-                                      <CalendarDotsIcon size={16} />
-                                      {getTranslationFromI18nKeyAndLabel(
-                                        'master-data:hr.manager_dashboard.in_days',
-                                        `In ${anniversary.daysUntilAnniversary} days`,
-                                        { days: anniversary.daysUntilAnniversary }
-                                      )}
-                                    </div>
-                                  )}
+                                  <span>{`${anniversary.yearsOfService} ${anniversary.yearsOfService === 1 ? getTranslationFromI18nKeyAndLabel('lowcoder:hr_insights.year', 'year') : getTranslationFromI18nKeyAndLabel('lowcoder:hr_insights.years', 'years')}`}</span>
+                                  {renderAnniversaryDaysUntil(anniversary.daysUntilAnniversary)}
                                 </div>
                                 {anniversary.anniversaryDate && (
                                   <div className="gba:text-sm gba:text-muted-foreground">
@@ -1122,7 +1173,7 @@ ${managerName}`
                                 <EnvelopeSimpleOpenIcon size={16} />
                               </Button>
                             </div>
-                          </div>
+                          </button>
                         ))}
                       </div>
                     )}
@@ -1168,9 +1219,10 @@ ${managerName}`
                               )}
                         </div>
                         {employeesWithMissingProfiles.map(employee => (
-                          <div
+                          <button
                             key={employee.id}
-                            className="gba:flex gba:items-center gba:justify-between gba:py-2 gba:cursor-pointer gba:hover:bg-gray-50 gba:rounded-lg gba:px-2 gba:transition-colors"
+                            type="button"
+                            className="gba:flex gba:items-center gba:justify-between gba:py-2 gba:cursor-pointer gba:hover:bg-gray-50 gba:rounded-lg gba:px-2 gba:transition-colors gba:w-full gba:text-left gba:bg-transparent gba:border-0"
                             onClick={() => handleNavigateToEmployee(employee.id)}
                             title={getTranslationFromI18nKeyAndLabel(
                               'master-data:hr.manager_dashboard.view_profile',
@@ -1199,35 +1251,11 @@ ${managerName}`
                                   {employee.fullName}
                                 </div>
                                 <div className="gba:text-sm gba:text-neutral-500">
-                                  {employee.missingProfileReason === 'no_job_position' ? (
-                                    <div className="gba:flex gba:items-center gba:justify-start gba:gap-1">
-                                      <XCircleIcon size={16} />
-                                      {getTranslationFromI18nKeyAndLabel(
-                                        'master-data:hr.manager_dashboard.status.no_job_position',
-                                        'No job position'
-                                      )}
-                                    </div>
-                                  ) : employee.missingProfileReason === 'incomplete_profile' ? (
-                                    <div className="gba:flex gba:items-center gba:justify-start gba:gap-1">
-                                      <WarningIcon size={16} />
-                                      {getTranslationFromI18nKeyAndLabel(
-                                        'master-data:hr.manager_dashboard.status.incomplete_profile',
-                                        'Incomplete profile'
-                                      )}
-                                    </div>
-                                  ) : (
-                                    <div className="gba:flex gba:items-center gba:justify-start gba:gap-1">
-                                      <XCircleIcon size={16} />
-                                      {getTranslationFromI18nKeyAndLabel(
-                                        'master-data:hr.manager_dashboard.status.missing_job_profile',
-                                        'Missing job profile'
-                                      )}
-                                    </div>
-                                  )}
+                                  {renderMissingProfileReason(employee.missingProfileReason)}
                                 </div>
                               </div>
                             </div>
-                          </div>
+                          </button>
                         ))}
                       </div>
                     )}
@@ -1377,7 +1405,7 @@ ${managerName}`
                 'Failed to load approval requests'
               )}
             </div>
-            <Button onClick={() => window.location.reload()} variant="outline">
+            <Button onClick={() => globalThis.location.reload()} variant="outline">
               {getTranslationFromI18nKeyAndLabel('lowcoder:personal_expenses.try_again', 'Try Again')}
             </Button>
           </div>

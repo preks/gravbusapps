@@ -9,9 +9,10 @@ type DirectMemberProps = {
 
 const DirectMember = ({ report, handleNavigateToEmployee }: DirectMemberProps) => {
   return (
-    <div
+    <button
       key={report.id}
-      className="gba:flex gba:items-center gba:justify-between gba:py-2 gba:cursor-pointer gba:hover:bg-gray-50 gba:rounded-lg gba:px-2 gba:transition-colors"
+      type="button"
+      className="gba:flex gba:items-center gba:justify-between gba:py-2 gba:cursor-pointer gba:hover:bg-gray-50 gba:rounded-lg gba:px-2 gba:transition-colors gba:w-full gba:text-left gba:bg-transparent gba:border-0"
       data-testid={`manager-dashboard-direct-report-${report.id}`}
       onClick={() => handleNavigateToEmployee(report.id)}
       title={getTranslationFromI18nKeyAndLabel(
@@ -81,7 +82,7 @@ const DirectMember = ({ report, handleNavigateToEmployee }: DirectMemberProps) =
             : getTranslationFromI18nKeyAndLabel('lowcoder:hr_absences.available', 'Available')}
         </Badge>
       </div>
-    </div>
+    </button>
   )
 }
 
