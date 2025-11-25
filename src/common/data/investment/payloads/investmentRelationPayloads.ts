@@ -117,11 +117,8 @@ export const buildActivityPayload = (
 
     // Always include parent investment when provided via additional/external context
     const additionalData = (businessAppContext as any)?.additionalData || {}
-    const initialParameters = additionalData?.psi_taskPayload?.psi_initialParameters || null
-    const additionalDataRecord = {
-      ...additionalData,
-      ...(initialParameters || {})
-    }
+    const initialParameters = additionalData?.psi_taskPayload?.psi_initialParameters
+    const additionalDataRecord = initialParameters ? { ...additionalData, ...initialParameters } : additionalData
     addInvestmentAndAccountFromContext(refs, additionalDataRecord)
     addEntitiesFromContextFallback(refs, additionalDataRecord)
     addLeadFromContext(refs, additionalDataRecord)
@@ -331,11 +328,8 @@ export const buildInvestmentNotePayload = (
 
     // Always include parent investment when provided via additionalData or externalContextData
     const additionalData = (businessAppContext as any)?.additionalData || {}
-    const initialParameters = additionalData?.psi_taskPayload?.psi_initialParameters || null
-    const additionalDataRecord = {
-      ...additionalData,
-      ...(initialParameters || {})
-    }
+    const initialParameters = additionalData?.psi_taskPayload?.psi_initialParameters
+    const additionalDataRecord = initialParameters ? { ...additionalData, ...initialParameters } : additionalData
     addInvestmentAndAccountFromContext(refs, additionalDataRecord)
     addEntitiesFromContextFallback(refs, additionalDataRecord)
     addLeadFromContext(refs, additionalDataRecord)
