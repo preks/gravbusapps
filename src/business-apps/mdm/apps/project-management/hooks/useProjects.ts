@@ -50,43 +50,106 @@ export type Account = {
 // Transform API project data to UI-friendly Project interface
 const transformProject = (projectData: ProjectData): Project => {
   const now = new Date()
-  let status: 'Active' | 'Expired' | 'Expiring Soon' = 'Active'
+  let status: 'Active' | 'Planned' | 'Delayed' | 'Closed' = 'Active'
   let isActive = true
   let daysUntilExpiry: number | undefined
+  let daysUntilStart: number | undefined
+  let daysDelayed: number | undefined
   let formattedValidTo: string | undefined
+  let formattedValidFrom: string | undefined
 
+  // Format validFrom date
+  if (projectData.validFrom) {
+    const validFromDate = new Date(projectData.validFrom)
+    formattedValidFrom = validFromDate.toLocaleDateString('en-US', {
+      year: 'numeric',
+      month: 'short',
+      day: 'numeric'
+    })
+    const timeDiffFrom = validFromDate.getTime() - now.getTime()
+    daysUntilStart = Math.ceil(timeDiffFrom / (1000 * 3600 * 24))
+  }
+
+  // Format validTo date
   if (projectData.validTo) {
     const validToDate = new Date(projectData.validTo)
-    const timeDiff = validToDate.getTime() - now.getTime()
-    daysUntilExpiry = Math.ceil(timeDiff / (1000 * 3600 * 24))
-
-    // Format the date for display
     formattedValidTo = validToDate.toLocaleDateString('en-US', {
       year: 'numeric',
       month: 'short',
       day: 'numeric'
     })
+    const timeDiffTo = validToDate.getTime() - now.getTime()
+    daysUntilExpiry = Math.ceil(timeDiffTo / (1000 * 3600 * 24))
+  }
 
-    if (daysUntilExpiry < 0) {
-      status = 'Expired'
+  // Calculate status based on new rules
+  // Priority 1: Closed status (overrides everything)
+  if (projectData.projectStatus === 'Closed') {
+    status = 'Closed'
+    isActive = false
+  } else if (projectData.validFrom) {
+    const validFromDate = new Date(projectData.validFrom)
+    const timeDiffFrom = validFromDate.getTime() - now.getTime()
+    // Priority 2: Planned (validFrom is in the future)
+    if (timeDiffFrom > 0) {
+      status = 'Planned'
       isActive = false
-    } else if (daysUntilExpiry <= 30) {
-      status = 'Expiring Soon'
+    } else if (projectData.validTo) {
+      const validToDate = new Date(projectData.validTo)
+      const timeDiffTo = validToDate.getTime() - now.getTime()
+      // Priority 3: Delayed (validTo has passed but not closed)
+      if (timeDiffTo < 0) {
+        status = 'Delayed'
+        isActive = false
+        daysDelayed = Math.abs(Math.ceil(timeDiffTo / (1000 * 3600 * 24)))
+      } else {
+        // Priority 4: Active (between validFrom and validTo)
+        status = 'Active'
+        isActive = true
+      }
+    } else {
+      // No validTo, but validFrom has passed
+      status = 'Active'
+      isActive = true
     }
+  } else if (projectData.validTo) {
+    const validToDate = new Date(projectData.validTo)
+    const timeDiffTo = validToDate.getTime() - now.getTime()
+    // No validFrom, check validTo
+    if (timeDiffTo < 0) {
+      status = 'Delayed'
+      isActive = false
+      daysDelayed = Math.abs(Math.ceil(timeDiffTo / (1000 * 3600 * 24)))
+    } else {
+      status = 'Active'
+      isActive = true
+    }
+  } else {
+    // No dates, default to Active
+    status = 'Active'
+    isActive = true
   }
 
   return {
     id: projectData.id,
     name: projectData.name,
     description: projectData.description,
+    validFrom: projectData.validFrom,
     validTo: projectData.validTo,
     structureId: projectData.structureId,
     projectType: projectData.projectType,
     customerId: projectData.customerId,
+    projectManagerId: projectData.projectManagerId,
+    projectStatus: projectData.projectStatus,
+    manager: projectData.manager,
+    matrixTeam: projectData.matrixTeam,
     status,
     isActive,
     daysUntilExpiry,
-    formattedValidTo
+    daysUntilStart,
+    daysDelayed,
+    formattedValidTo,
+    formattedValidFrom
   }
 }
 
@@ -248,14 +311,14 @@ export const useProjects = (context: BusinessAppContextProps) => {
     return projects.filter(project => project.isActive)
   }, [projects])
 
-  // Get expired projects
-  const getExpiredProjects = useCallback((): Project[] => {
-    return projects.filter(project => project.status === 'Expired')
+  // Get delayed projects
+  const getDelayedProjects = useCallback((): Project[] => {
+    return projects.filter(project => project.status === 'Delayed')
   }, [projects])
 
-  // Get projects expiring soon
-  const getExpiringProjects = useCallback((): Project[] => {
-    return projects.filter(project => project.status === 'Expiring Soon')
+  // Get planned projects
+  const getPlannedProjects = useCallback((): Project[] => {
+    return projects.filter(project => project.status === 'Planned')
   }, [projects])
 
   // Search projects by name or description
@@ -326,8 +389,8 @@ export const useProjects = (context: BusinessAppContextProps) => {
     filterProjects,
     getProjectsByType,
     getActiveProjects,
-    getExpiredProjects,
-    getExpiringProjects,
+    getDelayedProjects,
+    getPlannedProjects,
     searchProjects,
     getProjectById,
 
@@ -336,8 +399,8 @@ export const useProjects = (context: BusinessAppContextProps) => {
     internalProjects: getProjectsByType('INTERNAL').length,
     externalProjects: getProjectsByType('EXTERNAL').length,
     activeProjects: getActiveProjects().length,
-    expiredProjects: getExpiredProjects().length,
-    expiringProjects: getExpiringProjects().length,
+    delayedProjects: getDelayedProjects().length,
+    plannedProjects: getPlannedProjects().length,
 
     // Raw fetch function for advanced usage
     fetchProjects
