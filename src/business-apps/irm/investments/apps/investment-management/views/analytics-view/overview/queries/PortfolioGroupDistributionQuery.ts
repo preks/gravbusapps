@@ -107,7 +107,7 @@ const BUILD_GROUP_COUNT_DISTRIBUTION_QUERY = (groups: string[], currency: string
   const groupAliases = groups
     .map(group => {
       const alias = group.replaceAll(/[^a-zA-Z0-9]/g, '_')
-      const currencyCondition = currency === 'All Currencies' ? '' : `{ currency: { code: { _eq: "${currency}" } } }`
+      const currencyCondition = currency === 'All' ? '' : `{ currency: { code: { _eq: "${currency}" } } }`
 
       return `
       ${alias}: InvestmentAggregate(

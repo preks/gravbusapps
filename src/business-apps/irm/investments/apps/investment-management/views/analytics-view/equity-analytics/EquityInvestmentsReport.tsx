@@ -39,7 +39,8 @@ interface InvestmentWithSpecializations extends Investment {
     }
   }>
 }
-import { useEquityKPIIntegration, useEquityAvailableCurrencies } from './hooks'
+import { useEquityKPIIntegration } from './hooks'
+import { useAvailableCurrencies } from '@/common/data/investment/hooks/useAvailableCurrencies'
 import { safeCurrencyExtraction } from '@/common/utils/numberFormatter'
 import { formatDuration } from '../shared/utils/dateUtils'
 import type { EquityInvestmentSummary } from '../shared/types'
@@ -131,12 +132,20 @@ const EquityInvestmentsReport: React.FC<EquityInvestmentsReportProps> = props =>
   // Extract currency code from ID for KPI hook (it expects "EUR", not "Currency:v1:EUR")
   const selectedCurrencyCode = selectedCurrency.split(':').pop() || 'EUR'
 
-  // Fetch available currencies from equity investments
+  // Fetch available currencies efficiently using distinctOn
   const {
-    currencies: availableCurrencies,
+    currencies: currencyOptions,
     isLoading: currenciesLoading,
     error: currenciesError
-  } = useEquityAvailableCurrencies(props)
+  } = useAvailableCurrencies(props, {
+    filters: { entity: 'Investment', investmentGroupId: 'InvestmentGroup:v1:EQUITY' },
+    returnFormat: 'full'
+  })
+
+  const availableCurrencies = React.useMemo(
+    () => currencyOptions as Array<{ id: string; code: string; value: string }>,
+    [currencyOptions]
+  )
 
   // Use the new KPI integration hook for real GraphQL aggregate queries
   const {

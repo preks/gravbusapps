@@ -53,7 +53,7 @@ export const useCustomerOpportunityFilters = (context: BusinessAppContextProps) 
         }>
       }>(`
         query GetOppStages {
-          Opportunity(where: { isDeleted: { _eq: false } }, limit: 50) {
+          Opportunity(where: { isDeleted: { _eq: false } }, distinctOn: [salesPipelineStageRef], limit: 50) {
             salesPipelineStage { id code value }
           }
         }
@@ -76,7 +76,7 @@ export const useCustomerOpportunityFilters = (context: BusinessAppContextProps) 
         Opportunity: Array<{ salesPipeline?: { id: string; code?: string; value?: string } | null }>
       }>(`
         query GetOppPipelines {
-          Opportunity(where: { isDeleted: { _eq: false } }, limit: 50) {
+          Opportunity(where: { isDeleted: { _eq: false } }, distinctOn: [salesPipelineRef], limit: 50) {
             salesPipeline { id code value }
           }
         }
@@ -122,7 +122,7 @@ export const useCustomerOpportunityFilters = (context: BusinessAppContextProps) 
         Opportunity: Array<{ opportunityStatus?: { id: string; code?: string; value?: string } | null }>
       }>(`
         query GetOppStatuses {
-          Opportunity(where: { isDeleted: { _eq: false } }, limit: 50) {
+          Opportunity(where: { isDeleted: { _eq: false } }, distinctOn: [opportunityStatusRef], limit: 50) {
             opportunityStatus { id code value }
           }
         }

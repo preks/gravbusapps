@@ -11,9 +11,10 @@ interface UseChatClientOptions {
   accessToken: string
   apiUrl: string
   wsUrl: string
+  wsSocketPath?: string
 }
 
-export function useChatClient({ accessToken, apiUrl, wsUrl }: UseChatClientOptions) {
+export function useChatClient({ accessToken, apiUrl, wsUrl, wsSocketPath }: UseChatClientOptions) {
   const [isConnected, setIsConnected] = useState(false)
   const [currentUser, setCurrentUser] = useState<User | null>(null)
   const [activeConversationId, setActiveConversationId] = useState<string | null>(null)
@@ -127,7 +128,7 @@ export function useChatClient({ accessToken, apiUrl, wsUrl }: UseChatClientOptio
   // Initialize WebSocket client
   useEffect(() => {
     if (accessToken && apiClientRef.current) {
-      wsClientRef.current = new ChatWebSocketClient(wsUrl)
+      wsClientRef.current = new ChatWebSocketClient(wsUrl, { path: wsSocketPath })
 
       const socket = wsClientRef.current.connect(accessToken)
 

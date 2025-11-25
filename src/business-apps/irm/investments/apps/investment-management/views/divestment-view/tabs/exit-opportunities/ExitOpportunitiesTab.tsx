@@ -19,7 +19,10 @@ export const ExitOpportunitiesTab: React.FC<ExitOpportunitiesTabProps> = context
       createOpportunityConfig<InvestmentOpportunity & { id: string }, InvestmentOpportunityQueryVariables>({
         contextType: 'investment',
 
-        extendQueryVariables: vars => ({ ...vars, dealType: 'DIVESTMENT_DEAL' }),
+        extendQueryVariables: vars => ({
+          ...vars,
+          dealType: 'DIVESTMENT_DEAL'
+        }),
 
         fetchOpportunities: async variables => {
           const result = await fetchInvestmentOpportunities(variables)
@@ -62,7 +65,9 @@ export const ExitOpportunitiesTab: React.FC<ExitOpportunitiesTabProps> = context
         fetchBoardOpportunities: fetchInvestmentOpportunities,
         extractBoardOpportunities: result => result.InvestmentOpportunity || [],
         extractBoardTotalCount: result => result.InvestmentOpportunityAggregate?.aggregate?.count || 0,
-        renderStatistics: () => <ExitOpportunityStatistics {...context} />,
+        renderStatistics: (selectedCurrency?: string) => (
+          <ExitOpportunityStatistics {...context} currencyCode={selectedCurrency} />
+        ),
         rowActionsContextArray: [FlowContextName.investmentOpportunityEntity],
         buildRowActionsExternalContextData: (row: { original: InvestmentOpportunity & { id: string } }) => ({
           opportunityId: row.original.id
