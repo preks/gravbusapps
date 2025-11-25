@@ -21,17 +21,15 @@ import {
 import { BusinessAppContextProps } from '@/common/BusinessAppContext'
 
 // Import investment data hooks
-import {
-  useGetInvestments,
-  useSearchInvestments,
-  useGetInvestmentAccounts,
-  useGetInvestmentContacts,
-  useGetInvestmentLeads,
-  useGetInvestmentLeadById,
-  useGetInvestmentOpportunities,
-  useGetInvestmentReports,
-  useInvestmentDataIntegration
-} from '@/common/data/investment'
+import { useGetInvestments, useSearchInvestments } from '@/common/data/investment/hooks/useInvestments'
+import { useGetInvestmentAccounts } from '@/common/data/investment/hooks/useInvestmentAccounts'
+import { useGetInvestmentContacts } from '@/common/data/investment/hooks/useInvestmentContacts'
+import { useGetInvestmentLeads, useGetInvestmentLeadById } from '@/common/data/investment/hooks/useInvestmentLeads'
+// Note: Using deprecated hook for imperative API in debug tool
+// TODO: Migrate to useInvestmentOpportunitiesList when imperative API is available
+import { useGetInvestmentOpportunities } from '@/common/data/investment/hooks/useInvestmentOpportunities'
+import { useGetInvestmentReports } from '@/common/data/investment/hooks/useInvestmentReports'
+import { useInvestmentDataIntegration } from '@/common/data/investment/hooks/useInvestmentDataIntegration'
 
 // Import mappers for demonstrating type transformation
 // NOTE: Mappers are already applied in hooks!

@@ -3,7 +3,7 @@ import { BusinessAppContextProps } from '@/common/BusinessAppContext'
 import { InvestmentPortfolioKPIs, InvestmentQueryVariables } from '../types'
 import { useGetInvestments } from '@/common/data/investment/hooks/useInvestments'
 import { useGetPortfolioKPIs } from '../queries/PortfolioKPIQueries'
-import type { Investment as CentralInvestment } from '@/common/data/investment/types'
+import type { Investment as CentralInvestment } from '@/common/data/investment/types/investmentTypes'
 import { safeCurrencyExtraction } from '@/common/utils/numberFormatter'
 import { calculateInvestmentDuration } from '../../shared/utils/dateUtils'
 

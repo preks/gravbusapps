@@ -1,6 +1,8 @@
 // Customer Related Entity Mappers - Transform base types to enhanced types with computed fields
 
-import { CustomerActivity, CustomerNote, CustomerDocument } from '../types'
+import { CustomerActivity } from '../types/customerActivityTypes'
+import { CustomerNote } from '../types/customerNoteTypes'
+import { CustomerDocument } from '../types/customerDocumentTypes'
 
 /**
  * Transform CustomerActivity (GraphQL response) to CustomerActivity
