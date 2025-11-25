@@ -95,7 +95,7 @@ const dayTypeConfigSchema = z
     },
     {
       message: getTranslationFromI18nKeyAndLabel(
-        'master-data:hr.time_attendance.day_types.version.valid_to_date_cannot_be_earlier_than_valid_from_date',
+        'master-data:hr.time_attendance.day_type_versions.warnings.valid_to_date_cannot_be_earlier_than_valid_from_date',
         'End date cannot be earlier than start date'
       ),
       path: ['activeTo']
@@ -289,12 +289,12 @@ const ConfigureDayType: React.FC<ConfigureDayTypeProps> = ({
       const versionActiveFrom = new Date(versionWithoutEndDate.activeFrom || '')
       // If version starts after the infinite version starts, there will be overlap
       if (newActiveFrom >= versionActiveFrom) {
-        const versionActiveFromStr = formatDate(versionActiveFrom.toISOString().split('T')[0])
+        const versionActiveFromStr = formatDate(versionActiveFrom)
         setOverlapWarning(
           getTranslationFromI18nKeyAndLabel(
-            'master-data:hr.time_attendance.day_types_version.warnings.version_without_end_date',
+            'master-data:hr.time_attendance.day_type_versions.warnings.version_without_end_date',
             `A version without an end date exists for this day type. The existing version starts on ${versionActiveFromStr} and has no end date. Please close the existing version first by setting an end date, then create the version.`,
-            { startDate: versionActiveFromStr }
+            { startDate: formatDate(versionActiveFrom), interpolation: { escapeValue: false } }
           )
         )
         return
@@ -308,12 +308,12 @@ const ConfigureDayType: React.FC<ConfigureDayTypeProps> = ({
       const nextVersionActiveFrom = new Date(nextPlannedVersion.activeFrom || '')
       // If version doesn't have end date OR version's end date is after or equal to next version's start date
       if (!newActiveTo || newActiveTo >= nextVersionActiveFrom) {
-        const nextVersionActiveFromStr = formatDate(nextVersionActiveFrom.toISOString().split('T')[0])
+        const nextVersionActiveFromStr = formatDate(nextVersionActiveFrom)
         setOverlapWarning(
           getTranslationFromI18nKeyAndLabel(
-            'master-data:hr.time_attendance.day_types_version.warnings.planned_version_after_start',
+            'master-data:hr.time_attendance.day_type_versions.warnings.planned_version_after_start',
             `A version is already planned after the start date of this version. The planned version starts on ${nextVersionActiveFromStr}. Please set an end date for this version before the planned version starts, or modify the planned version.`,
-            { plannedStartDate: nextVersionActiveFromStr }
+            { plannedStartDate: nextVersionActiveFromStr, interpolation: { escapeValue: false } }
           )
         )
         return
@@ -339,11 +339,12 @@ const ConfigureDayType: React.FC<ConfigureDayTypeProps> = ({
 
         setOverlapWarning(
           getTranslationFromI18nKeyAndLabel(
-            'master-data:hr.time_attendance.day_types.version.a_version_already_exists_for_this_period',
+            'master-data:hr.time_attendance.day_type_versions.warnings.period_overlap',
             `A version already exists for this period. The existing version ends on ${formatDate(latestActiveTo.toISOString().split('T')[0])}. Please either modify the existing version or create the version starting from ${formatDate(suggestedDateStr)}.`,
             {
-              endDate: formatDate(latestActiveTo.toISOString().split('T')[0]),
-              suggestedDate: formatDate(suggestedDateStr)
+              endDate: formatDate(latestActiveTo),
+              suggestedDate: formatDate(suggestedDateStr),
+              interpolation: { escapeValue: false }
             }
           )
         )
