@@ -3,6 +3,7 @@
 import React, { useState, useEffect } from 'react'
 import { useEmployeeData } from './hooks/useEmployeeData'
 import { useEmployeePermissions } from './hooks/useEmployeePermissions'
+import { useCompensationPermissions } from './components/tabs/compensation/hooks/useCompensationPermissions'
 import ProfileHeader from './components/ProfileHeader'
 import { ScreenBody, Spinner, notification, Tabs } from '@newwork/gravity-ui-catalog'
 import { ProfileLayout } from '@/components/layout/profileLayout'
@@ -101,6 +102,16 @@ export const EmployeeRecord: React.FC<BusinessAppContextProps> = props => {
 
   const employeeIdToShow = urlEmployeeId || currentUserEmployeeId
 
+  const updateUrlWithSubView = (targetTab: string, subView: string) => {
+    if (typeof window !== 'undefined') {
+      const searchParams = new URLSearchParams(window.location.search)
+      searchParams.set('tab', targetTab)
+      searchParams.set('subView', subView)
+      const newUrl = `${window.location.pathname}?${searchParams.toString()}`
+      window.history.replaceState({}, '', newUrl)
+    }
+  }
+
   const getInitialTab = () => {
     if (!urlParams.tab) return TAB_KEYS.summary
 
@@ -108,62 +119,39 @@ export const EmployeeRecord: React.FC<BusinessAppContextProps> = props => {
       return urlParams.tab
     }
 
-    const legacyHrAdminTabs = ['details', 'employment', 'documents', 'changeLog', 'hrNotes']
-    if (legacyHrAdminTabs.includes(urlParams.tab)) {
-      if (typeof window !== 'undefined') {
-        const searchParams = new URLSearchParams(window.location.search)
-        searchParams.set('tab', TAB_KEYS.hrAdmin)
-        const subViewMap: Record<string, string> = {
+    const tabMappings: Record<string, { targetTab: string; subViewMap: Record<string, string> }> = {
+      hrAdmin: {
+        targetTab: TAB_KEYS.hrAdmin,
+        subViewMap: {
           details: 'details',
           employment: 'employment',
           documents: 'documents',
           changeLog: 'changeLog',
           hrNotes: 'hrNotes'
         }
-        if (subViewMap[urlParams.tab]) {
-          searchParams.set('subView', subViewMap[urlParams.tab])
-        }
-        const newUrl = `${window.location.pathname}?${searchParams.toString()}`
-        window.history.replaceState({}, '', newUrl)
-      }
-      return TAB_KEYS.hrAdmin
-    }
-
-    const legacyHrGrowthTabs = ['skills', 'feedback', 'performance']
-    if (legacyHrGrowthTabs.includes(urlParams.tab)) {
-      if (typeof window !== 'undefined') {
-        const searchParams = new URLSearchParams(window.location.search)
-        searchParams.set('tab', TAB_KEYS.hrGrowth)
-        const subViewMap: Record<string, string> = {
+      },
+      hrGrowth: {
+        targetTab: TAB_KEYS.hrGrowth,
+        subViewMap: {
           skills: 'skills',
           feedback: 'feedback',
           performance: 'performance'
         }
-        if (subViewMap[urlParams.tab]) {
-          searchParams.set('subView', subViewMap[urlParams.tab])
-        }
-        const newUrl = `${window.location.pathname}?${searchParams.toString()}`
-        window.history.replaceState({}, '', newUrl)
-      }
-      return TAB_KEYS.hrGrowth
-    }
-
-    const legacyCompensationTabs = ['currentCompensation', 'compensationHistory']
-    if (legacyCompensationTabs.includes(urlParams.tab)) {
-      if (typeof window !== 'undefined') {
-        const searchParams = new URLSearchParams(window.location.search)
-        searchParams.set('tab', TAB_KEYS.compensation)
-        const subViewMap: Record<string, string> = {
+      },
+      compensation: {
+        targetTab: TAB_KEYS.compensation,
+        subViewMap: {
           currentCompensation: 'currentCompensation',
           compensationHistory: 'compensationHistory'
         }
-        if (subViewMap[urlParams.tab]) {
-          searchParams.set('subView', subViewMap[urlParams.tab])
-        }
-        const newUrl = `${window.location.pathname}?${searchParams.toString()}`
-        window.history.replaceState({}, '', newUrl)
       }
-      return TAB_KEYS.compensation
+    }
+
+    for (const [, config] of Object.entries(tabMappings)) {
+      if (urlParams.tab in config.subViewMap) {
+        updateUrlWithSubView(config.targetTab, config.subViewMap[urlParams.tab])
+        return config.targetTab
+      }
     }
 
     return TAB_KEYS.summary
@@ -314,6 +302,14 @@ const EmployeeRecordContent: React.FC<EmployeeRecordContentProps> = ({
   const isManager = !!(managerId && currentUserEmployeeId && managerId === currentUserEmployeeId)
   const hasManagerEmployeeGrowthPermission =
     isManager && !employeeGrowthPermission.loading && employeeGrowthPermission.hasPermission === true
+
+  // Centralized compensation permissions
+  const compensationPermissions = useCompensationPermissions({
+    isSelfView,
+    isManager,
+    hasEmployeeGrowthPermission: !employeeGrowthPermission.loading && employeeGrowthPermission.hasPermission === true,
+    hasEmployeeRecordAllHrBackoffice: employeeRecordAllHrBackoffice?.hasPermission === true
+  })
 
   const getTabItems = () => {
     if (!employee) return []
@@ -549,11 +545,7 @@ const EmployeeRecordContent: React.FC<EmployeeRecordContentProps> = ({
       }
 
       if (tabKey === TAB_KEYS.compensation) {
-        return (
-          isSelfView ||
-          hasManagerEmployeeGrowthPermission ||
-          (employeeRecordAllHrBackoffice?.hasPermission === true && !employeeGrowthPermission.hasPermission)
-        )
+        return compensationPermissions.canViewCompensationTab
       }
 
       if (tabKey === TAB_KEYS.hrAdmin) {

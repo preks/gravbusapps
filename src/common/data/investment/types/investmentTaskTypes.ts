@@ -4,19 +4,18 @@ import {
   type TaskComment,
   type TaskTemplate,
   TaskFields,
+  TaskFormFields,
   createTaskDescriptors
 } from '@/common/data/relations/types/taskTypes'
 import type { Descriptor } from '@/common/network/graphql/queryHelpers'
 import type { SourceTable } from './investmentEnums'
-import type {
-  Investment,
-  InvestmentAccount,
-  InvestmentContact,
-  InvestmentDocument,
-  InvestmentLead,
-  InvestmentOpportunityStageCondition,
-  InvestmentOpportunity
-} from './'
+import type { Investment } from './investmentTypes'
+import type { InvestmentAccount } from './investmentAccountTypes'
+import type { InvestmentContact } from './investmentContactTypes'
+import type { InvestmentDocument } from './investmentDocumentTypes'
+import type { InvestmentLead } from './investmentLeadTypes'
+import type { InvestmentOpportunity, InvestmentOpportunityStageCondition } from './investmentOpportunityTypes'
+import { buildPayload } from '@/common/data/common/utils/payloadBuilder'
 
 export interface InvestmentTask extends Task {
   account?: InvestmentAccount
@@ -24,6 +23,7 @@ export interface InvestmentTask extends Task {
   contact?: InvestmentContact
   documents?: InvestmentDocument[]
   investment?: Investment
+  investmentId?: string
   lead?: InvestmentLead
   opportunityStageCondition?: InvestmentOpportunityStageCondition // Mapped from investmentOpportunityStageCondition
   opportunity?: InvestmentOpportunity
@@ -61,10 +61,16 @@ export interface InvestmentTaskComment extends TaskComment {
 export const InvestmentTaskFields = {
   ...TaskFields,
   // Override IRM-specific field names
-  opportunityStageCondition: 'investmentOpportunityStageCondition'
+  opportunityStageCondition: 'investmentOpportunityStageCondition',
+  // Add IRM-specific investment fields
+  investment: 'investment',
+  investmentId: 'investmentId'
 } as const
 
-export type InvestmentTaskFieldName = (typeof InvestmentTaskFields)[keyof typeof InvestmentTaskFields]
+export const InvestmentTaskFormFields = {
+  ...TaskFormFields,
+  investmentId: 'investment'
+} as const
 
 /**
  * Investment Task Descriptors
@@ -90,3 +96,16 @@ export const INVESTMENT_TASK_DESCRIPTORS: Descriptor[] = [
     type: 'text'
   }
 ]
+
+/**
+ * Build Investment Task Payload
+ * Uses buildPayload utility with InvestmentTaskFormFields mapping
+ */
+export const buildInvestmentTaskPayload = (task: Partial<InvestmentTask> & Record<string, any>) => {
+  // Build base payload using buildPayload utility
+  const payload = buildPayload(task, InvestmentTaskFormFields)
+
+  return {
+    investmentTask: payload
+  }
+}

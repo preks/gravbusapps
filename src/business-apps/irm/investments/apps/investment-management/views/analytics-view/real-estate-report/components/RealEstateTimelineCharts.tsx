@@ -13,7 +13,7 @@ import {
 } from '@newwork/nw-design-system'
 import { ComposedChart, Bar, Line, XAxis, YAxis } from 'recharts'
 import { ChartLineUpIcon, TrendUpIcon, CalendarIcon } from '@phosphor-icons/react'
-import { formatCurrency } from '@/common/data/investment'
+import { formatCurrency } from '@/common/data/investment/utils/formatters'
 import { formatCompactNumber } from '@/common/utils/numberFormatter'
 
 interface RealEstateTimelineChartsProps {

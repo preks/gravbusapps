@@ -3,7 +3,7 @@ import { TrendingDown, DollarSign, TrendingUp, BarChart3 } from 'lucide-react'
 import { getTranslationFromI18nKeyAndLabel } from '@/common/utils/windowUtils'
 import { WidgetGroup, WidgetItem } from '@/components/widget-group'
 import { BusinessAppContextProps } from '@/common/BusinessAppContext'
-import { useGetInvestments } from '@/common/data/investment'
+import { useGetInvestments } from '@/common/data/investment/hooks/useInvestments'
 import { formatCurrencyCompact, extractCurrencyCode } from '@/common/utils/numberFormatter'
 
 interface PlannedExitsMetrics {

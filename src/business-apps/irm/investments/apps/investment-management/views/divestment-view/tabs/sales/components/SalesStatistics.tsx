@@ -7,7 +7,7 @@ import { formatCompactCurrency } from '@/common/utils/numberFormatter'
 import { useGetInvestmentOpportunities } from '@/common/data/investment/hooks/useInvestmentOpportunities'
 import { useInvestmentOpportunityFilters } from '@/business-apps/irm/core/apps/investment-relations/views/opportunity-view/hooks/useInvestmentOpportunityFilters'
 import type { InvestmentOpportunityQueryVariables } from '@/common/data/investment/queries/investmentOpportunityQueries'
-import type { InvestmentOpportunity } from '@/common/data/investment/types'
+import type { InvestmentOpportunity } from '@/common/data/investment/types/investmentOpportunityTypes'
 
 export interface SalesStatisticsProps extends BusinessAppContextProps {
   onRefresh?: () => void

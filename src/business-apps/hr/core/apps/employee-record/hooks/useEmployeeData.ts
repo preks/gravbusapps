@@ -307,6 +307,8 @@ export const GET_EMPLOYEE_DATA = /*sql*/ `
     pending
     total
     approved
+    validFrom
+    validTo
   }
   EmployeePerformanceGoal(where: {isDeleted: {_eq: false}, employeeId: {_eq: $employeeId}}, orderBy: {progressPercent: DESC}) {
     id 
@@ -722,6 +724,8 @@ export interface EmployeeAbsenceEntitlement {
   pending: number
   total: number
   approved: number
+  validFrom: string
+  validTo: string
 }
 
 export interface EmployeePerformanceGoal {

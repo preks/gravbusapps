@@ -3,7 +3,7 @@ import { Card } from '@newwork/nw-design-system'
 import { HomeOutlined, BarChartOutlined, DollarOutlined, BuildOutlined } from '@ant-design/icons'
 import { getTranslationFromI18nKeyAndLabel } from '@/common/utils/windowUtils'
 import { formatDataTestId } from '@/common/utils/formatDataTestId'
-import { formatCurrency, formatNumber, formatPercentage } from '@/common/data/investment'
+import { formatCurrency, formatNumber, formatPercentage } from '@/common/data/investment/utils/formatters'
 
 // Typography components removed - using native HTML elements with nw-design-system styling
 

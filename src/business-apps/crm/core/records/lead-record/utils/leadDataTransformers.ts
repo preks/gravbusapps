@@ -6,7 +6,9 @@
  * to avoid generating unnecessary data before conversion.
  */
 
-import type { CustomerAccount, CustomerContact, CustomerLead } from '@/common/data/customer/types'
+import type { CustomerAccount } from '@/common/data/customer/types/customerAccountTypes'
+import type { CustomerContact } from '@/common/data/customer/types/customerContactTypes'
+import type { CustomerLead } from '@/common/data/customer/types/customerLeadTypes'
 import {
   type Address,
   type CommunicationChannel,

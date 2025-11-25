@@ -4,7 +4,7 @@ import { useGraphQLClient } from '@/common/network/graphql/useGraphQLClient'
 import { BusinessAppContextProps } from '@/common/BusinessAppContext'
 
 // Types
-import type { BaseCustomerActivity, CustomerActivity } from '../types'
+import type { BaseCustomerActivity, CustomerActivity } from '../types/customerActivityTypes'
 
 // Use the new query builder functions
 import {
@@ -19,7 +19,7 @@ import {
 } from '../queries/customerActivityQueries'
 
 // Mapper
-import { toCustomerActivity } from '../mappers'
+import { toCustomerActivity } from '../mappers/customerRelatedEntityMappers'
 
 export interface CustomerActivityListQueryResponse {
   SalesActivity: BaseCustomerActivity[]
