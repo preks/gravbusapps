@@ -77,13 +77,6 @@ export const useTeamAbsences = ({
     setIsLoading(true)
     setError(null)
 
-    // Debug logging
-    console.log('🔍 useTeamAbsences - Query params:', {
-      supervisorId,
-      startDate,
-      endDate
-    })
-
     try {
       const query = `
     query GetTeamAbsences($supervisorId: uuid!) {
@@ -142,14 +135,6 @@ export const useTeamAbsences = ({
         EmployeeAbsence: TeamAbsence[]
       }>(query, {
         supervisorId
-      })
-
-      // Debug logging
-      console.log('🔍 useTeamAbsences - Query result:', {
-        employeeCount: result.Employee?.length || 0,
-        absenceCount: result.EmployeeAbsence?.length || 0,
-        employees: result.Employee,
-        absences: result.EmployeeAbsence
       })
 
       setEmployees(result.Employee || [])

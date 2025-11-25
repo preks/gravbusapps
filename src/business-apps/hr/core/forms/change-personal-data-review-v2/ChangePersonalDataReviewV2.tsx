@@ -5,163 +5,111 @@
  */
 
 import React, { useState, useMemo } from 'react'
-import { Separator, Alert, Badge, Textarea, Switch, Label, Spinner } from '@newwork/nw-design-system'
-import { XCircle, CheckCircle, FileText, MessageSquare, AlertCircle } from 'lucide-react'
+import {
+  Separator,
+  Alert,
+  AlertDescription,
+  AlertTitle,
+  Badge,
+  Label,
+  Spinner,
+  Collapsible,
+  CollapsibleTrigger,
+  CollapsibleContent
+} from '@newwork/nw-design-system'
+import {
+  User,
+  Calendar,
+  MapPin,
+  Globe,
+  Heart,
+  GraduationCap,
+  ChevronDown,
+  CheckCircle,
+  FileText,
+  ArrowRight
+} from 'lucide-react'
 import { BusinessAppContextProps } from '@/common/BusinessAppContext'
 import { dispatchProcessContinueEvent } from '@/common/utils/processEventUtils'
-import { TaskDetailHeader } from '@/business-apps/platform/apps/every-box-2/components/TaskDetailHeader'
-import { TaskDetailFooter } from '@/business-apps/platform/apps/every-box-2/components/TaskDetailFooter'
-import { useChangeDataDetails } from './hooks/useChangeDataDetails'
-import { formatDateTime } from '@/business-apps/platform/apps/every-box-2/utils/taskFormatters'
+import { TaskDetailHeader } from '@/business-apps/platform/apps/every-box/components/TaskDetailHeader'
+import { TaskDetailFooter } from '@/business-apps/platform/apps/every-box/components/TaskDetailFooter'
+import { TaskFormLayout } from '@/business-apps/platform/apps/every-box/components/TaskFormLayout'
+import { usePersonalDataReviewData } from './hooks/usePersonalDataReviewData'
 import dayjs from 'dayjs'
 
 interface ChangePersonalDataReviewV2Props extends BusinessAppContextProps {
   onClose?: () => void
 }
 
-const ChangePersonalDataReviewV2: React.FC<ChangePersonalDataReviewV2Props> = ({
+interface PersonalInformationData {
+  salutationRef?: string | null
+  title?: string | null
+  firstName?: string | null
+  lastName?: string | null
+  displayName?: string | null
+  preferredName?: string | null
+  birthName?: string | null
+  birthDate?: string | null
+  birthPlace?: string | null
+  genderRef?: string | null
+  nationalityRef?: string | null
+  languageRef?: string | null
+  maritalStatusRef?: string | null
+  severelyDisabilityDegree?: number | null
+  schoolQualificationRef?: string | null
+  notes?: string | null
+  id?: string | null
+}
+
+const ChangePersonalDataReviewV2Content: React.FC<ChangePersonalDataReviewV2Props> = ({
   accessToken,
   additionalData,
+  userInfo,
   onClose
 }) => {
-  const [showComment, setShowComment] = useState(false)
-  const [comment, setComment] = useState('')
-  const [isApproving, setIsApproving] = useState(false)
-  const [isRejecting, setIsRejecting] = useState(false)
-  const [successMessage, setSuccessMessage] = useState<string | null>(null)
-  const [errorMessage, setErrorMessage] = useState<string | null>(null)
+  const [isAcknowledging, setIsAcknowledging] = useState(false)
+  const [isUnchangedExpanded, setIsUnchangedExpanded] = useState(false)
 
-  // Extract task data
+  // Extract task metadata
   const taskPayload = additionalData?.psi_taskPayload || {}
   const processMetadata = additionalData?.psi_processMetadata || {}
-
   const taskStatus = additionalData?.psi_taskStatus || processMetadata?.status || 'IN_PROGRESS'
-  const isTaskCompleted = taskStatus === 'COMPLETED'
-
+  const taskCompletedAt = processMetadata?.completedAt || (additionalData as any)?.psi_taskCompletedAt
+  const isTaskCompleted = taskStatus === 'COMPLETED' || !!taskCompletedAt
   const taskTitle = processMetadata?.referenceTaskName || processMetadata?.nodeName || 'Review Personal Data Change'
+  const taskSource: 'kogito' | 'cflow' = processMetadata?.source || (processMetadata?.endpoint ? 'kogito' : 'kogito')
+  const creatorName = taskPayload?.creatorName as string | undefined
 
-  // Extract personal information changes
-  const personalInformation = useMemo(() => {
-    return taskPayload?.personalInformation || processMetadata?.inputs?.personalInformation || null
-  }, [taskPayload, processMetadata])
+  // Extract personal information data from payload
+  const newPersonalInformation: PersonalInformationData = taskPayload?.personalInformation || {}
+  const oldPersonalInformation: PersonalInformationData = taskPayload?.oldPersonalInformation || {}
+  const employeeIdFromPayload: string | undefined =
+    taskPayload?.personalInformation?.id || userInfo?.employeeDetails?.employeeId
 
-  const oldPersonalInformation = useMemo(() => {
-    return taskPayload?.oldPersonalInformation || processMetadata?.inputs?.oldPersonalInformation || null
-  }, [taskPayload, processMetadata])
+  // Fetch employee and catalog data
+  const { employeeData, catalogMap, loading, error, refetch } = usePersonalDataReviewData({
+    accessToken,
+    employeeId: employeeIdFromPayload,
+    newPersonalInformation,
+    oldPersonalInformation
+  })
 
-  // Fetch employee details
-  const {
-    employee,
-    loading: employeeLoading,
-    error: employeeError
-  } = useChangeDataDetails(accessToken, personalInformation?.id || oldPersonalInformation?.id)
+  // Detect if we're in every-box context
+  const isEveryBoxContext = !!onClose
 
-  // Convert employee data for header
-  const employeeDataForHeader = useMemo(() => {
-    if (!employee) return undefined
+  // Helper: check if old personal information exists
+  const hasOldPersonalInformation = Boolean(
+    oldPersonalInformation?.firstName || oldPersonalInformation?.lastName || oldPersonalInformation?.birthDate
+  )
 
-    return {
-      displayName: employee.displayName || `${employee.firstName} ${employee.lastName}`,
-      firstName: employee.firstName,
-      lastName: employee.lastName,
-      avatarUrl: employee.picture,
-      position: employee.position
-    }
-  }, [employee])
+  const changeMode = hasOldPersonalInformation ? 'UPDATE' : 'INSERT'
+  const isInsertMode = changeMode === 'INSERT'
 
-  const taskSource: 'kogito' | 'cflow' = processMetadata?.source || 'kogito'
+  // Count total changes - MUST BE BEFORE CONDITIONAL RETURNS
+  const changesCount = useMemo(() => {
+    if (!hasOldPersonalInformation) return 0
 
-  // Extract approval data for completed tasks
-  const taskOutputApprovalStatus = useMemo(() => {
-    if (!isTaskCompleted) return null
-    return processMetadata?.outputs?.approval || processMetadata?.approval || taskPayload?.approval || null
-  }, [isTaskCompleted, processMetadata, taskPayload])
-
-  const taskOutputApprovalNote = useMemo(() => {
-    if (!isTaskCompleted) return null
-    return (
-      processMetadata?.outputs?.approvalNote ||
-      processMetadata?.approvalNote ||
-      taskPayload?.approvalNote ||
-      processMetadata?.outputs?.comment ||
-      null
-    )
-  }, [isTaskCompleted, processMetadata, taskPayload])
-
-  const completedAt = processMetadata?.completedAt || (additionalData as any)?.psi_taskCompletedAt || null
-
-  const handleApprove = async () => {
-    setIsApproving(true)
-    setErrorMessage(null)
-    setSuccessMessage(null)
-
-    try {
-      dispatchProcessContinueEvent('pse_submit', {
-        approval: 'approved',
-        approvalNote: comment || '',
-        event: 'pse_submit'
-      })
-
-      setSuccessMessage('Personal data change approved successfully!')
-
-      setTimeout(() => {
-        // Platform will handle closing
-      }, 1500)
-    } catch (err) {
-      const errorMsg = err instanceof Error ? err.message : 'Failed to approve'
-      setErrorMessage(`Failed to approve: ${errorMsg}`)
-    } finally {
-      setIsApproving(false)
-    }
-  }
-
-  const handleReject = async () => {
-    if (!comment.trim()) {
-      setErrorMessage('Please provide a reason for rejection')
-      setShowComment(true)
-      return
-    }
-
-    setIsRejecting(true)
-    setErrorMessage(null)
-    setSuccessMessage(null)
-
-    try {
-      dispatchProcessContinueEvent('pse_submit', {
-        approval: 'rejected',
-        approvalNote: comment,
-        event: 'pse_submit'
-      })
-
-      setSuccessMessage('Personal data change rejected successfully!')
-
-      setTimeout(() => {
-        // Platform will handle closing
-      }, 1500)
-    } catch (err) {
-      const errorMsg = err instanceof Error ? err.message : 'Failed to reject'
-      setErrorMessage(`Failed to reject: ${errorMsg}`)
-    } finally {
-      setIsRejecting(false)
-    }
-  }
-
-  const handleCancel = () => {
-    if (onClose) {
-      onClose()
-    } else {
-      dispatchProcessContinueEvent('pse_pause', {})
-    }
-  }
-
-  const isEveryBox2Context = !!onClose
-
-  // Calculate changed fields count
-  const changedFieldsCount = useMemo(() => {
-    if (!personalInformation || !oldPersonalInformation) return 0
-
-    let count = 0
-    const fields = [
+    const fields: (keyof PersonalInformationData)[] = [
       'salutationRef',
       'title',
       'firstName',
@@ -179,347 +127,559 @@ const ChangePersonalDataReviewV2: React.FC<ChangePersonalDataReviewV2Props> = ({
       'schoolQualificationRef'
     ]
 
-    fields.forEach(field => {
-      if (oldPersonalInformation[field] !== personalInformation[field]) {
-        count++
-      }
-    })
-
-    return count
-  }, [personalInformation, oldPersonalInformation])
-
-  // Helper function to render field changes - ONLY for changed fields
-  const renderFieldChange = (label: string, oldValue: any, newValue: any, catalogLabels?: Record<string, string>) => {
-    const oldDisplay = catalogLabels?.[oldValue] || oldValue || '-'
-    const newDisplay = catalogLabels?.[newValue] || newValue || '-'
-    const hasChanged = oldValue !== newValue
-
-    // Return null if field hasn't changed (won't render)
-    if (!hasChanged) {
-      return null
+    const compareField = (newVal: any, oldVal: any): boolean => {
+      const format = (v: any) => String(v || 'N/A')
+      return format(newVal) !== format(oldVal)
     }
 
+    return fields.reduce((count, field) => {
+      return compareField(newPersonalInformation[field], oldPersonalInformation[field]) ? count + 1 : count
+    }, 0)
+  }, [newPersonalInformation, oldPersonalInformation, hasOldPersonalInformation])
+
+  const handleClose = () => {
+    if (onClose) {
+      onClose()
+    } else {
+      dispatchProcessContinueEvent('pse_abort', {
+        event: 'pse_abort'
+      })
+    }
+  }
+
+  const handleAcknowledge = async () => {
+    setIsAcknowledging(true)
+    try {
+      dispatchProcessContinueEvent('pse_submit', {
+        acknowledge: 'acknowledged'
+      })
+    } catch (err) {
+      console.error('Error acknowledging personal data change:', err)
+    } finally {
+      setIsAcknowledging(false)
+    }
+  }
+
+  if (loading) {
     return (
       <div
-        className="gba:flex gba:items-start gba:gap-3"
-        data-testid={`field-${label.toLowerCase().replace(/\s+/g, '-')}`}
+        className="gba:flex gba:justify-center gba:items-center gba:min-h-[400px]"
+        data-testid="change-personal-data-review-v2-loading"
       >
-        <span className="gba:text-sm gba:font-medium gba:text-muted-foreground gba:min-w-[180px]">{label}:</span>
-        <div className="gba:flex-1">
-          <div className="gba:space-y-1">
-            <div className="gba:flex gba:items-center gba:gap-2">
-              <span className="gba:text-sm gba:text-muted-foreground gba:line-through">{oldDisplay}</span>
-              <Badge variant="destructive" className="gba:text-xs">
-                Old
-              </Badge>
-            </div>
-            <div className="gba:flex gba:items-center gba:gap-2">
-              <span className="gba:text-sm gba:font-semibold">{newDisplay}</span>
-              <Badge variant="success" className="gba:text-xs">
-                New
-              </Badge>
-            </div>
+        <Spinner size="lg" />
+      </div>
+    )
+  }
+
+  if (error) {
+    return (
+      <Alert variant="destructive" data-testid="change-personal-data-review-v2-error">
+        <AlertTitle>Error Loading Personal Data</AlertTitle>
+        <AlertDescription>
+          {error}
+          <button
+            onClick={refetch}
+            className="gba:mt-2 gba:px-3 gba:py-1 gba:bg-destructive gba:text-destructive-foreground gba:rounded gba:text-sm"
+          >
+            Retry
+          </button>
+        </AlertDescription>
+      </Alert>
+    )
+  }
+
+  // Helper functions
+  const getCatalogValue = (ref?: string | null): string => {
+    if (!ref) return 'N/A'
+    const entry = catalogMap[ref]
+    if (!entry) return ref.split(':').pop() || ref
+
+    // Use translation if available, otherwise use default value
+    return entry.translations?.[0]?.value || entry.value || entry.code || ref
+  }
+
+  const displayName = employeeData
+    ? `${employeeData.firstName || ''} ${employeeData.lastName || ''}`.trim() || 'Employee'
+    : 'Employee'
+
+  // Field comparison
+  interface FieldComparison {
+    changed: boolean
+    oldValue: string
+    newValue: string
+  }
+
+  const compareField = (newVal: any, oldVal: any, formatter?: (val: any) => string): FieldComparison => {
+    const format = formatter || ((v: any) => String(v || 'N/A'))
+    const newFormatted = format(newVal)
+    const oldFormatted = format(oldVal)
+
+    return {
+      changed: newFormatted !== oldFormatted,
+      oldValue: oldFormatted,
+      newValue: newFormatted
+    }
+  }
+
+  // Render comparison field - Show ONLY changed fields with old → new
+  const renderComparisonField = (label: string, comparison: FieldComparison, icon?: React.ReactNode) => {
+    // Only show changed fields
+    if (!comparison.changed) return null
+
+    const isNewData = !hasOldPersonalInformation || changeMode === 'INSERT'
+    // Display "Not set" if old value was empty/null/N/A
+    const displayOldValue = comparison.oldValue === 'N/A' || !comparison.oldValue ? 'Not set' : comparison.oldValue
+
+    return (
+      <div className="gba:space-y-2">
+        <Label className="gba:text-muted-foreground gba:flex gba:items-center gba:gap-2">
+          {icon}
+          {label}
+          <Badge variant={isNewData ? 'success' : 'warning'} className="gba:ml-2">
+            {isNewData ? 'New' : 'Changed'}
+          </Badge>
+        </Label>
+
+        {/* Always show old → new for changed fields */}
+        <div className="gba:flex gba:items-center gba:gap-2 gba:flex-wrap">
+          {!isNewData && (
+            <>
+              <div className="gba:px-3 gba:py-2 gba:bg-destructive/10 gba:text-destructive gba:rounded gba:text-sm gba:line-through">
+                {displayOldValue}
+              </div>
+              <ArrowRight className="gba:h-4 gba:w-4 gba:text-muted-foreground" />
+            </>
+          )}
+          <div className="gba:px-3 gba:py-2 gba:bg-success/10 gba:text-success gba:rounded gba:text-sm gba:font-medium">
+            {comparison.newValue}
           </div>
         </div>
       </div>
     )
   }
 
-  // If no data available
-  if (!personalInformation && !oldPersonalInformation) {
+  // Render unchanged field - Show current value for unchanged fields
+  const renderUnchangedField = (label: string, value: string, icon?: React.ReactNode) => {
+    // Skip empty values
+    if (!value || value === 'N/A') return null
+
     return (
-      <div className="gba:flex gba:flex-col gba:h-full gba:relative" data-testid="change-personal-data-review-v2">
-        <TaskDetailHeader
-          title={taskTitle}
-          status={taskStatus}
-          source={taskSource}
-          onClose={isEveryBox2Context ? handleCancel : undefined}
-        />
-        <div className="gba:flex-1 gba:overflow-y-auto gba:flex gba:items-center gba:justify-center gba:p-6">
-          <Alert variant="destructive" data-testid="error-message">
-            No personal data change information available
-          </Alert>
-        </div>
+      <div className="gba:space-y-2">
+        <Label className="gba:text-muted-foreground gba:flex gba:items-center gba:gap-2">
+          {icon}
+          {label}
+        </Label>
+        <div className="gba:px-3 gba:py-2 gba:bg-muted gba:rounded gba:text-sm">{value}</div>
       </div>
     )
   }
 
   return (
-    <div className="gba:flex gba:flex-col gba:h-full gba:relative" data-testid="change-personal-data-review-v2">
-      <TaskDetailHeader
-        title={taskTitle}
-        status={taskStatus}
-        source={taskSource}
-        showEmployeeInfo={true}
-        employeeData={employeeDataForHeader}
-        isLoadingEmployee={employeeLoading}
-        onClose={isEveryBox2Context ? handleCancel : undefined}
-      />
+    <TaskFormLayout
+      data-testid="change-personal-data-review-v2-container"
+      header={
+        <TaskDetailHeader
+          title={taskTitle}
+          status={taskStatus}
+          source={taskSource}
+          showEmployeeInfo={true}
+          employeeData={
+            employeeData
+              ? {
+                  displayName,
+                  firstName: employeeData.firstName,
+                  lastName: employeeData.lastName,
+                  avatarUrl: employeeData.picture,
+                  position: employeeData.position
+                }
+              : undefined
+          }
+          isLoadingEmployee={loading}
+          creatorName={creatorName}
+          onClose={isEveryBoxContext ? handleClose : undefined}
+          customBadges={
+            <Badge variant={changeMode === 'INSERT' ? 'success' : 'info'} data-testid="personal-data-change-mode-badge">
+              {changeMode === 'INSERT' ? 'New Data' : 'Data Update'}
+            </Badge>
+          }
+        />
+      }
+      footer={
+        !isTaskCompleted ? (
+          <TaskDetailFooter
+            data-testid="change-personal-data-review-v2-actions"
+            actions={[
+              {
+                label: 'Acknowledge',
+                onClick: handleAcknowledge,
+                variant: 'default' as const,
+                disabled: isAcknowledging,
+                loading: isAcknowledging,
+                icon: CheckCircle,
+                className: 'gba:bg-success gba:text-success-foreground hover:gba:bg-success/90',
+                testId: 'acknowledge-button'
+              }
+            ]}
+          />
+        ) : undefined
+      }
+      contentClassName="gba:space-y-4"
+    >
+      {/* Change Mode Alert */}
+      <Alert>
+        <FileText className="gba:h-4 gba:w-4" />
+        <AlertDescription>
+          {changeMode === 'INSERT'
+            ? 'This is new personal data being added to the employee record.'
+            : hasOldPersonalInformation && changesCount > 0
+              ? `This is an update with ${changesCount} ${changesCount === 1 ? 'change' : 'changes'} to the existing personal data. Changed fields are highlighted below.`
+              : 'This is an update to existing personal data in the employee record.'}
+        </AlertDescription>
+      </Alert>
 
-      <div className="gba:flex-1 gba:overflow-y-auto gba:space-y-6 gba:min-h-0">
-        {errorMessage && (
-          <Alert variant="destructive" data-testid="error-message">
-            {errorMessage}
-          </Alert>
-        )}
-
-        {employeeError && (
-          <Alert variant="destructive" data-testid="employee-error-message">
-            {employeeError}
-          </Alert>
-        )}
-
-        {employeeLoading ? (
-          <div className="gba:flex gba:justify-center gba:p-6">
-            <Spinner size="lg" />
+      {/* Personal Data Comparison Card */}
+      <div className="gba:bg-card gba:rounded-lg gba:border gba:border-border">
+        <div className="gba:p-6 gba:border-b gba:border-border">
+          <div className="gba:flex gba:items-center gba:justify-between">
+            <h4 className="gba:flex gba:items-center gba:gap-2 gba:text-lg gba:font-semibold">
+              <User className="gba:h-5 gba:w-5" />
+              {changeMode === 'INSERT' ? 'New Personal Data' : 'Personal Data Changes'}
+            </h4>
+            {hasOldPersonalInformation && changesCount > 0 && (
+              <Badge variant="warning">
+                {changesCount} {changesCount === 1 ? 'Change' : 'Changes'}
+              </Badge>
+            )}
           </div>
-        ) : (
-          <>
-            {/* Personal Information Changes */}
-            {personalInformation && oldPersonalInformation && (
-              <>
-                <div data-testid="personal-data-changes-section">
-                  <div className="gba:flex gba:items-center gba:justify-between gba:mb-4">
-                    <h4 className="gba:font-semibold gba:text-lg">Requested Changes</h4>
-                    <Badge variant="default" className="gba:text-xs gba:bg-info gba:text-info-foreground">
-                      {changedFieldsCount} {changedFieldsCount === 1 ? 'field' : 'fields'} changed
-                    </Badge>
-                  </div>
-
-                  {changedFieldsCount === 0 ? (
-                    <div
-                      className="gba:bg-info-secondary gba:border gba:border-info gba:rounded-lg gba:p-4"
-                      data-testid="no-changes-message"
-                    >
-                      <p className="gba:text-sm gba:text-info-secondary-foreground">
-                        No changes detected in personal data
-                      </p>
-                    </div>
-                  ) : (
-                    <div className="gba:bg-muted gba:p-4 gba:rounded-lg gba:space-y-3">
-                      {/* Names Section */}
-                      {renderFieldChange(
-                        'Salutation',
-                        oldPersonalInformation.salutationRef,
-                        personalInformation.salutationRef
-                      )}
-                      {renderFieldChange('Title', oldPersonalInformation.title, personalInformation.title)}
-                      {renderFieldChange('First Name', oldPersonalInformation.firstName, personalInformation.firstName)}
-                      {renderFieldChange('Last Name', oldPersonalInformation.lastName, personalInformation.lastName)}
-                      {renderFieldChange(
-                        'Display Name',
-                        oldPersonalInformation.displayName,
-                        personalInformation.displayName
-                      )}
-                      {renderFieldChange(
-                        'Preferred Name',
-                        oldPersonalInformation.preferredName,
-                        personalInformation.preferredName
-                      )}
-                      {renderFieldChange('Birth Name', oldPersonalInformation.birthName, personalInformation.birthName)}
-
-                      <Separator />
-
-                      {/* Birth and Gender Section */}
-                      {renderFieldChange(
-                        'Birth Date',
-                        oldPersonalInformation.birthDate
-                          ? dayjs(oldPersonalInformation.birthDate).format('MMM D, YYYY')
-                          : '',
-                        personalInformation.birthDate ? dayjs(personalInformation.birthDate).format('MMM D, YYYY') : ''
-                      )}
-                      {renderFieldChange(
-                        'Birth Place',
-                        oldPersonalInformation.birthPlace,
-                        personalInformation.birthPlace
-                      )}
-                      {renderFieldChange('Gender', oldPersonalInformation.genderRef, personalInformation.genderRef)}
-
-                      <Separator />
-
-                      {/* Additional Information */}
-                      {renderFieldChange(
-                        'Nationality',
-                        oldPersonalInformation.nationalityRef,
-                        personalInformation.nationalityRef
-                      )}
-                      {renderFieldChange(
-                        'Language',
-                        oldPersonalInformation.languageRef,
-                        personalInformation.languageRef
-                      )}
-                      {renderFieldChange(
-                        'Marital Status',
-                        oldPersonalInformation.maritalStatusRef,
-                        personalInformation.maritalStatusRef
-                      )}
-                      {renderFieldChange(
-                        'Disability Degree',
-                        oldPersonalInformation.severelyDisabilityDegree,
-                        personalInformation.severelyDisabilityDegree
-                      )}
-                      {renderFieldChange(
-                        'School Qualification',
-                        oldPersonalInformation.schoolQualificationRef,
-                        personalInformation.schoolQualificationRef
-                      )}
-                    </div>
-                  )}
-                </div>
-
-                {personalInformation.notes && (
-                  <>
-                    <Separator />
-                    <div data-testid="notes-section">
-                      <div className="gba:flex gba:items-center gba:gap-2 gba:mb-3">
-                        <FileText className="gba:h-4 gba:w-4 gba:text-muted-foreground" />
-                        <span className="gba:text-xs gba:font-medium gba:text-muted-foreground gba:uppercase gba:tracking-wide">
-                          NOTES
-                        </span>
-                      </div>
-                      <div className="gba:bg-card gba:border gba:border-border gba:rounded-lg gba:p-4">
-                        <p className="gba:text-sm gba:text-foreground gba:whitespace-pre-wrap">
-                          {personalInformation.notes}
-                        </p>
-                      </div>
-                    </div>
-                  </>
-                )}
-
-                <Separator />
-              </>
+        </div>
+        <div className="gba:p-6 gba:space-y-4">
+          {/* Names Section */}
+          <div className="gba:space-y-4">
+            {renderComparisonField(
+              'Salutation',
+              compareField(newPersonalInformation.salutationRef, oldPersonalInformation.salutationRef, getCatalogValue)
             )}
-
-            {/* Approval Details - Only for completed tasks */}
-            {isTaskCompleted && taskOutputApprovalStatus && (
-              <>
-                <div data-testid="approval-details-section">
-                  <h4 className="gba:font-semibold gba:mb-4 gba:text-lg">Approval Details</h4>
-                  <div className="gba:bg-muted gba:p-4 gba:rounded-lg gba:space-y-3">
-                    <div className="gba:flex gba:items-start gba:gap-3">
-                      <span className="gba:text-sm gba:font-medium gba:text-muted-foreground gba:min-w-[140px]">
-                        Status:
-                      </span>
-                      <span
-                        className={`gba:text-sm gba:flex-1 gba:font-medium ${
-                          taskOutputApprovalStatus === 'approved' || taskOutputApprovalStatus === 'APPROVED'
-                            ? 'gba:text-success'
-                            : 'gba:text-destructive'
-                        }`}
-                      >
-                        {taskOutputApprovalStatus === 'approved' || taskOutputApprovalStatus === 'APPROVED' ? (
-                          <span className="gba:flex gba:items-center gba:gap-2">
-                            <CheckCircle className="gba:h-4 gba:w-4" />
-                            Approved
-                          </span>
-                        ) : (
-                          <span className="gba:flex gba:items-center gba:gap-2">
-                            <AlertCircle className="gba:h-4 gba:w-4" />
-                            Rejected
-                          </span>
-                        )}
-                      </span>
-                    </div>
-
-                    {completedAt && (
-                      <div className="gba:flex gba:items-start gba:gap-3">
-                        <span className="gba:text-sm gba:font-medium gba:text-muted-foreground gba:min-w-[140px]">
-                          Date:
-                        </span>
-                        <span className="gba:text-sm gba:flex-1">{formatDateTime(completedAt)}</span>
-                      </div>
-                    )}
-
-                    {taskOutputApprovalNote?.trim() && (
-                      <>
-                        <Separator />
-                        <div className="gba:flex gba:items-start gba:gap-3">
-                          <span className="gba:text-sm gba:font-medium gba:text-muted-foreground gba:min-w-[140px]">
-                            Comment:
-                          </span>
-                          <span className="gba:text-sm gba:flex-1 gba:text-muted-foreground gba:whitespace-pre-wrap">
-                            {taskOutputApprovalNote.trim()}
-                          </span>
-                        </div>
-                      </>
-                    )}
-                  </div>
-                </div>
-                <Separator />
-              </>
+            {renderComparisonField('Title', compareField(newPersonalInformation.title, oldPersonalInformation.title))}
+            {renderComparisonField(
+              'First Name',
+              compareField(newPersonalInformation.firstName, oldPersonalInformation.firstName)
             )}
-
-            {/* Comment Section - Only for non-completed tasks */}
-            {!isTaskCompleted && (
-              <div data-testid="comment-section">
-                <div className="gba:flex gba:items-center gba:gap-2 gba:mb-3">
-                  <MessageSquare className="gba:h-4 gba:w-4" />
-                  <Label htmlFor="approval-comment" className="gba:text-sm gba:font-medium">
-                    Add Comment (Required for rejection)
-                  </Label>
-                  <Switch
-                    id="approval-comment"
-                    checked={showComment}
-                    onCheckedChange={checked => {
-                      setShowComment(checked)
-                      if (!checked) {
-                        setComment('')
-                      }
-                    }}
-                    data-testid="comment-toggle"
-                  />
-                </div>
-                {showComment && (
-                  <Textarea
-                    rows={3}
-                    placeholder="Add your approval comment or rejection reason..."
-                    value={comment}
-                    onChange={e => setComment(e.target.value)}
-                    maxLength={500}
-                    className="gba:w-full"
-                    data-testid="approval-comment-input"
-                  />
-                )}
-              </div>
+            {renderComparisonField(
+              'Last Name',
+              compareField(newPersonalInformation.lastName, oldPersonalInformation.lastName)
             )}
-          </>
-        )}
+            {renderComparisonField(
+              'Display Name',
+              compareField(newPersonalInformation.displayName, oldPersonalInformation.displayName)
+            )}
+            {renderComparisonField(
+              'Preferred Name',
+              compareField(newPersonalInformation.preferredName, oldPersonalInformation.preferredName)
+            )}
+            {renderComparisonField(
+              'Birth Name',
+              compareField(newPersonalInformation.birthName, oldPersonalInformation.birthName)
+            )}
+          </div>
+
+          <Separator />
+
+          {/* Birth and Gender Section */}
+          <div className="gba:space-y-4">
+            {renderComparisonField(
+              'Birth Date',
+              compareField(newPersonalInformation.birthDate, oldPersonalInformation.birthDate, date =>
+                date ? dayjs(date).format('MMM D, YYYY') : 'N/A'
+              ),
+              <Calendar className="gba:h-4 gba:w-4" />
+            )}
+            {renderComparisonField(
+              'Birth Place',
+              compareField(newPersonalInformation.birthPlace, oldPersonalInformation.birthPlace),
+              <MapPin className="gba:h-4 gba:w-4" />
+            )}
+            {renderComparisonField(
+              'Gender',
+              compareField(newPersonalInformation.genderRef, oldPersonalInformation.genderRef, getCatalogValue),
+              <User className="gba:h-4 gba:w-4" />
+            )}
+          </div>
+
+          <Separator />
+
+          {/* Additional Information */}
+          <div className="gba:space-y-4">
+            {renderComparisonField(
+              'Nationality',
+              compareField(
+                newPersonalInformation.nationalityRef,
+                oldPersonalInformation.nationalityRef,
+                getCatalogValue
+              ),
+              <Globe className="gba:h-4 gba:w-4" />
+            )}
+            {renderComparisonField(
+              'Language',
+              compareField(newPersonalInformation.languageRef, oldPersonalInformation.languageRef, getCatalogValue),
+              <Globe className="gba:h-4 gba:w-4" />
+            )}
+            {renderComparisonField(
+              'Marital Status',
+              compareField(
+                newPersonalInformation.maritalStatusRef,
+                oldPersonalInformation.maritalStatusRef,
+                getCatalogValue
+              ),
+              <Heart className="gba:h-4 gba:w-4" />
+            )}
+            {renderComparisonField(
+              'Disability Degree',
+              compareField(
+                newPersonalInformation.severelyDisabilityDegree,
+                oldPersonalInformation.severelyDisabilityDegree
+              )
+            )}
+            {renderComparisonField(
+              'School Qualification',
+              compareField(
+                newPersonalInformation.schoolQualificationRef,
+                oldPersonalInformation.schoolQualificationRef,
+                getCatalogValue
+              ),
+              <GraduationCap className="gba:h-4 gba:w-4" />
+            )}
+          </div>
+
+          {/* Notes - only show if present */}
+          {(newPersonalInformation.notes || oldPersonalInformation.notes) && (
+            <>
+              <Separator />
+              {renderComparisonField('Notes', compareField(newPersonalInformation.notes, oldPersonalInformation.notes))}
+            </>
+          )}
+        </div>
       </div>
 
-      {/* Action Footer */}
-      {!isTaskCompleted && (
-        <TaskDetailFooter
-          data-testid="action-footer"
-          actions={[
-            {
-              label: 'Cancel',
-              onClick: handleCancel,
-              variant: 'outline' as const,
-              disabled: isRejecting || isApproving || !!successMessage,
-              testId: 'cancel-button'
-            },
-            {
-              label: 'Reject',
-              onClick: handleReject,
-              variant: 'destructive' as const,
-              disabled: isRejecting || isApproving || !!successMessage,
-              loading: isRejecting,
-              icon: XCircle,
-              testId: 'reject-button'
-            },
-            {
-              label: 'Approve',
-              onClick: handleApprove,
-              variant: 'default' as const,
-              disabled: isApproving || isRejecting || !!successMessage,
-              loading: isApproving,
-              icon: CheckCircle,
-              className: 'gba:bg-success gba:text-success-foreground hover:gba:bg-success/90',
-              testId: 'approve-button'
-            }
-          ]}
-        />
+      {/* Unchanged Fields - Collapsible Section */}
+      {!isInsertMode && hasOldPersonalInformation && (
+        <div className="gba:bg-card gba:rounded-lg gba:border gba:border-border">
+          <Collapsible open={isUnchangedExpanded} onOpenChange={setIsUnchangedExpanded}>
+            <CollapsibleTrigger asChild>
+              <div className="gba:p-6 gba:cursor-pointer hover:gba:bg-muted/50 gba:transition-colors gba:border-b gba:border-border">
+                <div className="gba:flex gba:items-center gba:justify-between">
+                  <h4 className="gba:flex gba:items-center gba:gap-2 gba:text-lg gba:font-semibold">
+                    <User className="gba:h-5 gba:w-5" />
+                    All Other Fields
+                    <Badge variant="secondary" className="gba:ml-2">
+                      Unchanged
+                    </Badge>
+                  </h4>
+                  <ChevronDown
+                    className={`gba:h-5 gba:w-5 gba:transition-transform ${
+                      isUnchangedExpanded ? 'gba:rotate-180' : ''
+                    }`}
+                  />
+                </div>
+              </div>
+            </CollapsibleTrigger>
+
+            <CollapsibleContent>
+              <div className="gba:p-6 gba:space-y-4">
+                {/* Names Section */}
+                <div className="gba:space-y-4">
+                  {(() => {
+                    const comparison = compareField(
+                      newPersonalInformation.salutationRef,
+                      oldPersonalInformation.salutationRef,
+                      getCatalogValue
+                    )
+                    return !comparison.changed && renderUnchangedField('Salutation', comparison.newValue)
+                  })()}
+
+                  {(() => {
+                    const comparison = compareField(newPersonalInformation.title, oldPersonalInformation.title)
+                    return !comparison.changed && renderUnchangedField('Title', comparison.newValue)
+                  })()}
+
+                  {(() => {
+                    const comparison = compareField(newPersonalInformation.firstName, oldPersonalInformation.firstName)
+                    return !comparison.changed && renderUnchangedField('First Name', comparison.newValue)
+                  })()}
+
+                  {(() => {
+                    const comparison = compareField(newPersonalInformation.lastName, oldPersonalInformation.lastName)
+                    return !comparison.changed && renderUnchangedField('Last Name', comparison.newValue)
+                  })()}
+
+                  {(() => {
+                    const comparison = compareField(
+                      newPersonalInformation.displayName,
+                      oldPersonalInformation.displayName
+                    )
+                    return !comparison.changed && renderUnchangedField('Display Name', comparison.newValue)
+                  })()}
+
+                  {(() => {
+                    const comparison = compareField(
+                      newPersonalInformation.preferredName,
+                      oldPersonalInformation.preferredName
+                    )
+                    return !comparison.changed && renderUnchangedField('Preferred Name', comparison.newValue)
+                  })()}
+
+                  {(() => {
+                    const comparison = compareField(newPersonalInformation.birthName, oldPersonalInformation.birthName)
+                    return !comparison.changed && renderUnchangedField('Birth Name', comparison.newValue)
+                  })()}
+                </div>
+
+                <Separator />
+
+                {/* Birth and Gender Section */}
+                <div className="gba:space-y-4">
+                  {(() => {
+                    const comparison = compareField(
+                      newPersonalInformation.birthDate,
+                      oldPersonalInformation.birthDate,
+                      date => (date ? dayjs(date).format('MMM D, YYYY') : 'N/A')
+                    )
+                    return (
+                      !comparison.changed &&
+                      renderUnchangedField('Birth Date', comparison.newValue, <Calendar className="gba:h-4 gba:w-4" />)
+                    )
+                  })()}
+
+                  {(() => {
+                    const comparison = compareField(
+                      newPersonalInformation.birthPlace,
+                      oldPersonalInformation.birthPlace
+                    )
+                    return (
+                      !comparison.changed &&
+                      renderUnchangedField('Birth Place', comparison.newValue, <MapPin className="gba:h-4 gba:w-4" />)
+                    )
+                  })()}
+
+                  {(() => {
+                    const comparison = compareField(
+                      newPersonalInformation.genderRef,
+                      oldPersonalInformation.genderRef,
+                      getCatalogValue
+                    )
+                    return (
+                      !comparison.changed &&
+                      renderUnchangedField('Gender', comparison.newValue, <User className="gba:h-4 gba:w-4" />)
+                    )
+                  })()}
+                </div>
+
+                <Separator />
+
+                {/* Additional Information */}
+                <div className="gba:space-y-4">
+                  {(() => {
+                    const comparison = compareField(
+                      newPersonalInformation.nationalityRef,
+                      oldPersonalInformation.nationalityRef,
+                      getCatalogValue
+                    )
+                    return (
+                      !comparison.changed &&
+                      renderUnchangedField('Nationality', comparison.newValue, <Globe className="gba:h-4 gba:w-4" />)
+                    )
+                  })()}
+
+                  {(() => {
+                    const comparison = compareField(
+                      newPersonalInformation.languageRef,
+                      oldPersonalInformation.languageRef,
+                      getCatalogValue
+                    )
+                    return (
+                      !comparison.changed &&
+                      renderUnchangedField('Language', comparison.newValue, <Globe className="gba:h-4 gba:w-4" />)
+                    )
+                  })()}
+
+                  {(() => {
+                    const comparison = compareField(
+                      newPersonalInformation.maritalStatusRef,
+                      oldPersonalInformation.maritalStatusRef,
+                      getCatalogValue
+                    )
+                    return (
+                      !comparison.changed &&
+                      renderUnchangedField('Marital Status', comparison.newValue, <Heart className="gba:h-4 gba:w-4" />)
+                    )
+                  })()}
+
+                  {(() => {
+                    const comparison = compareField(
+                      newPersonalInformation.severelyDisabilityDegree,
+                      oldPersonalInformation.severelyDisabilityDegree
+                    )
+                    return !comparison.changed && renderUnchangedField('Disability Degree', comparison.newValue)
+                  })()}
+
+                  {(() => {
+                    const comparison = compareField(
+                      newPersonalInformation.schoolQualificationRef,
+                      oldPersonalInformation.schoolQualificationRef,
+                      getCatalogValue
+                    )
+                    return (
+                      !comparison.changed &&
+                      renderUnchangedField(
+                        'School Qualification',
+                        comparison.newValue,
+                        <GraduationCap className="gba:h-4 gba:w-4" />
+                      )
+                    )
+                  })()}
+                </div>
+
+                {/* Notes */}
+                {(newPersonalInformation.notes || oldPersonalInformation.notes) &&
+                  (() => {
+                    const comparison = compareField(newPersonalInformation.notes, oldPersonalInformation.notes)
+                    if (!comparison.changed) {
+                      return (
+                        <>
+                          <Separator />
+                          {renderUnchangedField('Notes', comparison.newValue)}
+                        </>
+                      )
+                    }
+                    return null
+                  })()}
+              </div>
+            </CollapsibleContent>
+          </Collapsible>
+        </div>
       )}
+    </TaskFormLayout>
+  )
+}
+
+const ChangePersonalDataReviewV2: React.FC<ChangePersonalDataReviewV2Props> = props => {
+  const { accessToken, additionalData, userInfo, onClose } = props
+
+  // Fallback additional data for testing
+  const fallbackAdditionalData = additionalData || {
+    psi_taskPayload: {
+      personalInformation: {},
+      oldPersonalInformation: {}
+    }
+  }
+
+  return (
+    <div className="gba:h-full" data-testid="change-personal-data-review-v2-wrapper">
+      <ChangePersonalDataReviewV2Content
+        accessToken={accessToken}
+        additionalData={fallbackAdditionalData}
+        userInfo={userInfo}
+        onClose={onClose}
+      />
     </div>
   )
 }

@@ -1,16 +1,21 @@
 import React from 'react'
-import { Card, CardContent, CardHeader, CardTitle, Badge, Separator, Label } from '@newwork/nw-design-system'
+import { Card, CardContent, CardHeader, CardTitle, Badge, Separator, Label, Spinner } from '@newwork/nw-design-system'
 import { PiReceipt } from 'react-icons/pi'
 import { ExpensePlanApprovalData } from '../types/expensePlanV2Types'
 import { getTranslationFromI18nKeyAndLabel } from '@/common/utils/windowUtils'
+import { formatDateTime } from '@/business-apps/platform/apps/every-box/utils/taskFormatters'
 
 interface ExpensePlanRequestDetailsSectionProps {
   expensePlan: ExpensePlanApprovalData
+  requestCreatedAt?: string | null
+  isLoadingRequestDate?: boolean
   prefixDataTestId?: string
 }
 
 const ExpensePlanRequestDetailsSection: React.FC<ExpensePlanRequestDetailsSectionProps> = ({
   expensePlan,
+  requestCreatedAt,
+  isLoadingRequestDate = false,
   prefixDataTestId = 'approve-expense-plan-v2'
 }) => {
   // Format request type for display
@@ -130,6 +135,23 @@ const ExpensePlanRequestDetailsSection: React.FC<ExpensePlanRequestDetailsSectio
               {getTranslationFromI18nKeyAndLabel('lowcoder:expense_request_overview.currency', 'Currency')}
             </Label>
             <p className="gba:text-sm gba:font-medium">{expensePlan.currency.code}</p>
+          </div>
+        )}
+
+        {requestCreatedAt && <Separator />}
+
+        {/* Request Created - Show when available */}
+        {requestCreatedAt && (
+          <div>
+            <Label className="gba:text-sm gba:text-muted-foreground">
+              {getTranslationFromI18nKeyAndLabel(
+                'lowcoder:expense_request_overview.request_created',
+                'Request Created'
+              )}
+            </Label>
+            <p className="gba:text-sm gba:font-medium">
+              {isLoadingRequestDate ? <Spinner size="sm" /> : formatDateTime(requestCreatedAt)}
+            </p>
           </div>
         )}
       </CardContent>

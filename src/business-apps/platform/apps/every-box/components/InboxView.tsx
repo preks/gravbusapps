@@ -95,13 +95,37 @@ export const InboxView: React.FC<InboxViewProps> = ({
   const [localCompletedTasks, setLocalCompletedTasks] = useState<UnifiedTask[]>(completedTasks)
   const [isInitialized, setIsInitialized] = useState(false)
 
+  // Get logged-in user info
+  const loggedInUserId = context.userInfo?.id || context.userInfo?.employeeDetails?.employeeId || 'user-001'
+
   // Sync local tasks with props
+  // Filter out completed tasks from active tasks to prevent duplicates
   useEffect(() => {
-    setLocalTasks(tasks)
+    const activeTasks = tasks.filter(task => {
+      if (task.status === 'COMPLETED') return false
+      if (task.completedAt) return false
+      return true
+    })
+    setLocalTasks(activeTasks)
   }, [tasks])
 
   useEffect(() => {
-    setLocalCompletedTasks(completedTasks)
+    // Ensure completed tasks only include truly completed tasks
+    // Task is completed if:
+    // 1. status is COMPLETED, OR
+    // 2. has completedAt AND status is not an active status (PENDING, IN_PROGRESS, SCHEDULED)
+    const trulyCompletedTasks = completedTasks.filter(task => {
+      if (task.status === 'COMPLETED') return true
+      // Only consider completedAt if status is not an active status
+      if (task.completedAt) {
+        const activeStatuses = ['PENDING', 'IN_PROGRESS', 'SCHEDULED']
+        if (!activeStatuses.includes(task.status)) {
+          return true
+        }
+      }
+      return false
+    })
+    setLocalCompletedTasks(trulyCompletedTasks)
   }, [completedTasks])
 
   // Initialize selected task from URL when tasks are loaded
@@ -254,11 +278,41 @@ export const InboxView: React.FC<InboxViewProps> = ({
 
       // Apply same filtering logic as filteredTasks
       if (filterType !== 'completed') {
+        // Filter cFlow tasks: only show tasks with assignmentMode === 'assign' (case-insensitive) and assigned to current user
+        tasksToNavigate = tasksToNavigate.filter(task => {
+          // Only filter cFlow tasks
+          if (task.source !== 'cflow') return true
+
+          // Must have assignmentMode === 'assign' (case-insensitive check)
+          const assignmentMode = task.assignment?.assignmentMode?.toLowerCase()
+          if (assignmentMode !== 'assign') return false
+
+          // Must be assigned to current user
+          if (task.assignment?.assignedTo !== loggedInUserId) return false
+
+          return true
+        })
+
         if (filterType === 'blinks') {
           tasksToNavigate = tasksToNavigate.filter(isBlinkTask)
         } else if (filterType === 'approvals') {
           tasksToNavigate = tasksToNavigate.filter(isApprovalTask)
         }
+      } else {
+        // For completed view, apply cFlow filtering
+        tasksToNavigate = tasksToNavigate.filter(task => {
+          // Only filter cFlow tasks
+          if (task.source !== 'cflow') return true
+
+          // Must have assignmentMode === 'assign' (case-insensitive check)
+          const assignmentMode = task.assignment?.assignmentMode?.toLowerCase()
+          if (assignmentMode !== 'assign') return false
+
+          // Must be assigned to current user
+          if (task.assignment?.assignedTo !== loggedInUserId) return false
+
+          return true
+        })
       }
 
       // Apply search filter if active
@@ -288,7 +342,16 @@ export const InboxView: React.FC<InboxViewProps> = ({
 
     window.addEventListener('keydown', handleKeyDown)
     return () => window.removeEventListener('keydown', handleKeyDown)
-  }, [selectedTask, localTasks, localCompletedTasks, filterType, searchQuery, employeeMap, handleSelectTask])
+  }, [
+    selectedTask,
+    localTasks,
+    localCompletedTasks,
+    filterType,
+    searchQuery,
+    employeeMap,
+    handleSelectTask,
+    loggedInUserId
+  ])
 
   // Filter tasks (tasks are already sorted by date from the API)
   const filteredTasks = useMemo(() => {
@@ -296,12 +359,76 @@ export const InboxView: React.FC<InboxViewProps> = ({
 
     // Apply task type filter (only for active/inbox tasks, not completed)
     if (filterType !== 'completed') {
+      // Exclude completed tasks from "all" view
+      // Task is completed if:
+      // 1. status is COMPLETED, OR
+      // 2. has completedAt AND status is not an active status (PENDING, IN_PROGRESS, SCHEDULED)
+      result = result.filter(task => {
+        // Exclude if status is COMPLETED
+        if (task.status === 'COMPLETED') return false
+        // Only exclude if completedAt exists AND status is not an active status
+        if (task.completedAt) {
+          const activeStatuses = ['PENDING', 'IN_PROGRESS', 'SCHEDULED']
+          if (!activeStatuses.includes(task.status)) {
+            return false // Exclude - this is a completed task
+          }
+        }
+        return true
+      })
+
+      // Filter cFlow tasks: only show tasks with assignmentMode === 'assign' (case-insensitive) and assigned to current user
+      result = result.filter(task => {
+        // Only filter cFlow tasks
+        if (task.source !== 'cflow') return true
+
+        // Must have assignmentMode === 'assign' (case-insensitive check)
+        const assignmentMode = task.assignment?.assignmentMode?.toLowerCase()
+        if (assignmentMode !== 'assign') return false
+
+        // Must be assigned to current user
+        if (task.assignment?.assignedTo !== loggedInUserId) return false
+
+        return true
+      })
+
       if (filterType === 'blinks') {
         result = result.filter(isBlinkTask)
       } else if (filterType === 'approvals') {
         result = result.filter(isApprovalTask)
       }
-      // 'all' shows all active tasks - no filtering
+      // 'all' shows all active tasks (excluding completed)
+    } else {
+      // For completed view, ensure we only show truly completed tasks
+      // Task is completed if:
+      // 1. status is COMPLETED, OR
+      // 2. has completedAt AND status is not an active status (PENDING, IN_PROGRESS, SCHEDULED)
+      result = result.filter(task => {
+        // Include if status is COMPLETED
+        if (task.status === 'COMPLETED') return true
+        // Only include if completedAt exists AND status is not an active status
+        if (task.completedAt) {
+          const activeStatuses = ['PENDING', 'IN_PROGRESS', 'SCHEDULED']
+          if (!activeStatuses.includes(task.status)) {
+            return true // Include - this is a completed task
+          }
+        }
+        return false
+      })
+
+      // Filter cFlow tasks: only show completed tasks with assignmentMode === 'assign' (case-insensitive) and assigned to current user
+      result = result.filter(task => {
+        // Only filter cFlow tasks
+        if (task.source !== 'cflow') return true
+
+        // Must have assignmentMode === 'assign' (case-insensitive check)
+        const assignmentMode = task.assignment?.assignmentMode?.toLowerCase()
+        if (assignmentMode !== 'assign') return false
+
+        // Must be assigned to current user
+        if (task.assignment?.assignedTo !== loggedInUserId) return false
+
+        return true
+      })
     }
 
     // Apply search filter (including sender name search)
@@ -313,22 +440,53 @@ export const InboxView: React.FC<InboxViewProps> = ({
     // No additional sorting needed here
 
     return result
-  }, [currentTasks, searchQuery, filterType])
+  }, [currentTasks, searchQuery, filterType, loggedInUserId, employeeMap])
 
   // Count tasks by type for badges
   // Note: Shows counts from loaded tasks. Adds "+" suffix if more tasks exist
   const taskCounts = useMemo(() => {
+    // Filter out completed tasks from active tasks for accurate counts
+    // Task is completed if:
+    // 1. status is COMPLETED, OR
+    // 2. has completedAt AND status is not an active status (PENDING, IN_PROGRESS, SCHEDULED)
+    let activeTasks = tasks.filter(task => {
+      if (task.status === 'COMPLETED') return false
+      // Only exclude if completedAt exists AND status is not an active status
+      if (task.completedAt) {
+        const activeStatuses = ['PENDING', 'IN_PROGRESS', 'SCHEDULED']
+        if (!activeStatuses.includes(task.status)) {
+          return false // Exclude - this is a completed task
+        }
+      }
+      return true
+    })
+
+    // Apply cFlow filtering: only show tasks with assignmentMode === 'assign' (case-insensitive) and assigned to current user
+    activeTasks = activeTasks.filter(task => {
+      // Only filter cFlow tasks
+      if (task.source !== 'cflow') return true
+
+      // Must have assignmentMode === 'assign' (case-insensitive check)
+      const assignmentMode = task.assignment?.assignmentMode?.toLowerCase()
+      if (assignmentMode !== 'assign') return false
+
+      // Must be assigned to current user
+      if (task.assignment?.assignedTo !== loggedInUserId) return false
+
+      return true
+    })
+
     return {
-      all: totalCount,
+      all: activeTasks.length,
       allHasMore: hasMore,
-      blinks: tasks.filter(isBlinkTask).length,
+      blinks: activeTasks.filter(isBlinkTask).length,
       blinksHasMore: hasMore, // Blinks might exist in un-fetched tasks
-      approvals: tasks.filter(isApprovalTask).length,
+      approvals: activeTasks.filter(isApprovalTask).length,
       approvalsHasMore: hasMore, // Approvals might exist in un-fetched tasks
       completed: completedTotalCount,
       completedHasMore: completedHasMore
     }
-  }, [tasks, totalCount, hasMore, completedTotalCount, completedHasMore])
+  }, [tasks, totalCount, hasMore, completedTotalCount, completedHasMore, loggedInUserId])
 
   if (currentIsLoading && currentTasks.length === 0) {
     return <LoadingSkeleton count={5} type="task" />
@@ -537,7 +695,6 @@ export const InboxView: React.FC<InboxViewProps> = ({
             onTaskCompleted={handleTaskCompleted}
             accessToken={context.accessToken}
             userId={context.userInfo?.id}
-            employeeId={context.userInfo?.employeeDetails?.employeeId}
             userInfo={context.userInfo}
           />
         )}

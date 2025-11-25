@@ -1,5 +1,5 @@
 /**
- * EveryBox Module Exports
+ * EveryBox2 Module Exports
  */
 
 export { EveryBox as default } from './EveryBox'

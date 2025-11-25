@@ -39,6 +39,7 @@ export const useCompletedTasks = (context: BusinessAppContextProps): UseComplete
   const userId = context.userInfo?.id || ''
   const hasInitialFetchRef = useRef(false)
   const lastTaskIdsRef = useRef<Set<string>>(new Set())
+  const previousUserIdRef = useRef<string>('')
 
   const ITEMS_PER_PAGE = 50
   const FETCH_SIZE = 50
@@ -52,9 +53,7 @@ export const useCompletedTasks = (context: BusinessAppContextProps): UseComplete
 
       const response = await fetchCompletedUserTasks(userId, context.accessToken || '', {
         limit: FETCH_SIZE,
-        offset,
-        sortBy: 'completedAt',
-        sortOrder: 'desc'
+        offset
       })
 
       const hasMore = response.tasks.length >= FETCH_SIZE
@@ -182,8 +181,19 @@ export const useCompletedTasks = (context: BusinessAppContextProps): UseComplete
   }, [currentPage, allFetchedTasks, hasMoreToFetch, fetchBatch])
 
   useEffect(() => {
+    // Reset when userId changes
+    if (previousUserIdRef.current && previousUserIdRef.current !== userId) {
+      hasInitialFetchRef.current = false
+      setAllFetchedTasks([])
+      setDisplayedTasks([])
+      setCurrentPage(1)
+      setHasMoreToFetch(true)
+      lastTaskIdsRef.current.clear()
+    }
+
     if (!hasInitialFetchRef.current && userId) {
       hasInitialFetchRef.current = true
+      previousUserIdRef.current = userId
       loadInitial()
     }
   }, [userId, loadInitial])

@@ -52,15 +52,6 @@ export const useKogitoProcess = ({ task, accessToken, onSuccess, onError }: UseK
     }
   }
 
-  // Debug: Log task structure to help find processInstanceId and endpoint
-  console.log('🔍 useKogitoProcess - Task Debug:', {
-    taskId: task.id,
-    taskName: task.name,
-    endpoint: task.sourceMetadata?.endpoint,
-    processInstanceId,
-    workflowMeta: (task as any).workflowMeta
-  })
-
   /**
    * Continue the Kogito process with the provided payload
    * Makes direct HTTP POST to Kogito task completion endpoint
@@ -90,30 +81,23 @@ export const useKogitoProcess = ({ task, accessToken, onSuccess, onError }: UseK
       if (task.sourceMetadata?.endpoint) {
         const originalEndpoint = task.sourceMetadata.endpoint as string
 
-        console.log('🔍 Processing original endpoint:', originalEndpoint)
-        console.log('🔍 Kogito base URL:', kogitoBaseUrl)
-
         // Parse the endpoint to ensure it's a proper URL
         if (originalEndpoint.startsWith('http://') || originalEndpoint.startsWith('https://')) {
           // Full URL provided - use the pathname only
           const parsedUrl = new URL(originalEndpoint)
           completionEndpoint = parsedUrl.pathname
-          console.log('🔍 Extracted pathname from full URL:', completionEndpoint)
         } else {
           // Relative path provided - use as is
           completionEndpoint = originalEndpoint
-          console.log('🔍 Using relative path as-is:', completionEndpoint)
         }
 
         // Ensure the endpoint starts with /
         if (!completionEndpoint.startsWith('/')) {
           completionEndpoint = `/${completionEndpoint}`
-          console.log('🔍 Added leading slash:', completionEndpoint)
         }
 
         // Build full URL
         completionEndpoint = `${kogitoBaseUrl}${completionEndpoint}`
-        console.log('✅ Final completion endpoint:', completionEndpoint)
       } else {
         // Fallback: Build endpoint manually if no original endpoint available
         if (!processInstanceId) {
@@ -128,13 +112,6 @@ export const useKogitoProcess = ({ task, accessToken, onSuccess, onError }: UseK
 
         completionEndpoint = `${kogitoBaseUrl}/processes/${domain}/${processName}/${processInstanceId}/${taskName}/${task.id}`
       }
-
-      console.log('🚀 useKogitoProcess - Calling endpoint:', {
-        originalEndpoint: task.sourceMetadata?.endpoint,
-        completionEndpoint,
-        taskId: task.id,
-        userId
-      })
 
       try {
         const response = await fetch(`${completionEndpoint}?phase=complete${userId ? `&user=${userId}` : ''}`, {

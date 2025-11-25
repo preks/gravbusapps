@@ -15,11 +15,13 @@ import { PiCalendarDuotone, PiClock, PiMapPin } from 'react-icons/pi'
 import { ThumbsUp, XCircle } from 'lucide-react'
 import { BusinessAppContextProps } from '@/common/BusinessAppContext'
 import { dispatchProcessContinueEvent } from '@/common/utils/processEventUtils'
-import { formatDateTime } from '@/business-apps/platform/apps/every-box-2/utils/taskFormatters'
+import { formatDateTime } from '@/business-apps/platform/apps/every-box/utils/taskFormatters'
 import { splitExpenseItems } from './utils/expenseItemUtils'
 import { useExpensePlanData } from './hooks/useExpensePlanData'
 import { formatCurrency, getCatalogValue } from './utils/formatters'
 import { REQUEST_TYPES } from '../expense-request/constants/constants'
+import { useEntityDates } from '@/business-apps/common/hooks/useEntityDates'
+import { useApproverData } from '@/business-apps/common/hooks/useApproverData'
 
 // Component imports
 import {
@@ -30,8 +32,9 @@ import {
   ExpensePlanRequestDetailsSection,
   ApprovalDetailsSection
 } from './components'
-import { TaskDetailHeader } from '@/business-apps/platform/apps/every-box-2/components/TaskDetailHeader'
-import { TaskDetailFooter } from '@/business-apps/platform/apps/every-box-2/components/TaskDetailFooter'
+import { TaskDetailHeader } from '@/business-apps/platform/apps/every-box/components/TaskDetailHeader'
+import { TaskDetailFooter } from '@/business-apps/platform/apps/every-box/components/TaskDetailFooter'
+import { TaskFormLayout } from '@/business-apps/platform/apps/every-box/components/TaskFormLayout'
 
 interface ApproveExpensePlanV2Props extends BusinessAppContextProps {
   onClose?: () => void
@@ -65,6 +68,23 @@ const ApproveExpensePlanV2Content: React.FC<ApproveExpensePlanV2Props> = ({
     processMetadata?.referenceTaskName || processMetadata?.nodeName || expensePlan?.title || 'Approve Expense Plan'
   const taskSource: 'kogito' | 'cflow' = processMetadata?.source || (processMetadata?.endpoint ? 'kogito' : 'kogito')
   const creatorName = taskPayload?.creatorName as string | undefined
+
+  // Use generic hooks for entity dates (request created)
+  const { createdAt: requestCreatedAt, isLoading: isLoadingRequestDate } = useEntityDates({
+    accessToken,
+    entityId: expensePlan?.id,
+    entityType: 'ExpensePlan'
+  })
+
+  // For completed tasks, fetch approver name
+  const approverId = isTaskCompleted
+    ? processMetadata?.outputs?.approverId || processMetadata?.inputs?.approverId || null
+    : null
+
+  const { approverName, isLoading: isLoadingApproverName } = useApproverData({
+    accessToken,
+    approverId
+  })
 
   // Extract approval data from task outputs/inputs (for completed tasks)
   const taskOutputApprovalStatus = useMemo(() => {
@@ -189,8 +209,8 @@ const ApproveExpensePlanV2Content: React.FC<ApproveExpensePlanV2Props> = ({
   // Determine approval date (priority: completedAt > expensePlanComment date)
   const approvalDate = completedAt || approvalDateFromPlan
 
-  // Detect if we're in every-box-2 context (has onClose callback)
-  const isEveryBox2Context = !!onClose
+  // Detect if we're in every-box context (has onClose callback)
+  const isEveryBoxContext = !!onClose
 
   const handleClose = () => {
     if (onClose) {
@@ -358,155 +378,162 @@ const ApproveExpensePlanV2Content: React.FC<ApproveExpensePlanV2Props> = ({
     `${expensePlan.employee?.firstName || ''} ${expensePlan.employee?.lastName || ''}`.trim() || 'Employee'
 
   return (
-    <div className="gba:flex gba:flex-col gba:h-full gba:relative" data-testid="approve-expense-plan-v2-container">
-      {/* Task Header with Employee Info */}
-      <TaskDetailHeader
-        title={taskTitle}
-        status={taskStatus}
-        source={taskSource}
-        showEmployeeInfo={true}
-        employeeData={
-          expensePlan?.employee
-            ? {
-                displayName,
-                firstName: expensePlan.employee.firstName,
-                lastName: expensePlan.employee.lastName,
-                avatarUrl: expensePlan.employee.pictureThumbnail
-                  ? `data:image/jpeg;base64,${expensePlan.employee.pictureThumbnail}`
-                  : undefined,
-                position: expensePlan.employee.employeePosition?.jobPosition?.name
-              }
-            : undefined
-        }
-        isLoadingEmployee={loading}
-        creatorName={creatorName}
-        onClose={isEveryBox2Context ? handleClose : undefined}
-        customBadges={
-          <Badge variant={statusDisplay.variant} data-testid="expense-plan-status-badge">
-            {statusDisplay.label}
-          </Badge>
-        }
-      />
-
-      {/* Content with padding - matches header padding for alignment */}
-      <div className="gba:flex-1 gba:overflow-y-auto gba:space-y-4 gba:min-h-0 gba:p-6">
-        {/* 1. Approval Details (only for completed tasks) */}
-        {isTaskCompleted && (
-          <ApprovalDetailsSection
-            approvalStatus={approvalStatus}
-            approvalComment={approvalComment}
-            approvalDate={approvalDate}
-            isLoading={loading}
-            prefixDataTestId="approve-expense-plan-v2"
-          />
-        )}
-
-        {/* 2. Expense Plan Request Details */}
-        <ExpensePlanRequestDetailsSection expensePlan={expensePlan} prefixDataTestId="approve-expense-plan-v2" />
-
-        {/* 3. Financial Overview */}
-        <ExpensePlanTotalsSection
-          totalAmount={totalAmount}
-          totalAmountExpense={totalAmountExpense}
-          totalAmountAllowance={totalAmountAllowance}
-          reimbursableAmount={reimbursableAmount}
-          nonReimbursableAmount={nonReimbursableAmount}
-          deductibleAmount={deductibleAmount}
-          nonDeductibleAmount={nonDeductibleAmount}
-          advancePaymentAmount={advancePaymentAmount}
-          currencyCode={currencyCode}
-          formatCurrency={formatCurrency}
+    <TaskFormLayout
+      data-testid="approve-expense-plan-v2-container"
+      header={
+        <TaskDetailHeader
+          title={taskTitle}
+          status={taskStatus}
+          source={taskSource}
+          showEmployeeInfo={true}
+          employeeData={
+            expensePlan?.employee
+              ? {
+                  displayName,
+                  firstName: expensePlan.employee.firstName,
+                  lastName: expensePlan.employee.lastName,
+                  avatarUrl: expensePlan.employee.pictureThumbnail
+                    ? `data:image/jpeg;base64,${expensePlan.employee.pictureThumbnail}`
+                    : undefined,
+                  position: expensePlan.employee.employeePosition?.jobPosition?.name
+                }
+              : undefined
+          }
+          isLoadingEmployee={loading}
+          creatorName={creatorName}
+          onClose={isEveryBoxContext ? handleClose : undefined}
+          customBadges={
+            <Badge variant={statusDisplay.variant} data-testid="expense-plan-status-badge">
+              {statusDisplay.label}
+            </Badge>
+          }
         />
-
-        {/* 4. Items */}
-        {expensePlan.expensePlanItem && expensePlan.expensePlanItem.length > 0 && (
-          <ExpensePlanItemsSection
-            expensePlanItems={expensePlan.expensePlanItem}
-            currencyCode={currencyCode}
-            formatCurrency={formatCurrency}
-            getCatalogValue={getCatalogValue}
-            prefixDataTestId="approve-expense-plan-v2"
+      }
+      footer={
+        !isTaskCompleted ? (
+          <TaskDetailFooter
+            data-testid="approve-expense-plan-v2-actions"
+            actions={[
+              {
+                label: 'Return',
+                onClick: handleReject,
+                variant: 'outline' as const,
+                disabled: isRejecting || isApproving,
+                loading: isRejecting,
+                icon: XCircle,
+                testId: 'return-button'
+              },
+              {
+                label: 'Approve',
+                onClick: handleApprove,
+                variant: 'default' as const,
+                disabled: isApproving || isRejecting,
+                loading: isApproving,
+                icon: ThumbsUp,
+                className: 'gba:bg-success gba:text-success-foreground hover:gba:bg-success/90',
+                testId: 'approve-button'
+              }
+            ]}
           />
-        )}
-
-        {/* 5. Trip Details (only if has trips) */}
-        {expensePlan.expenseRequestTrip && expensePlan.expenseRequestTrip.length > 0 && (
-          <Card>
-            <CardHeader>
-              <CardTitle className="gba:flex gba:items-center gba:gap-2">
-                <PiMapPin className="gba:h-5 gba:w-5" />
-                Trip Details
-              </CardTitle>
-            </CardHeader>
-            <CardContent className="gba:space-y-4">
-              {/* Dates */}
-              <div className="gba:grid gba:grid-cols-2 gba:gap-4">
-                <div className="gba:flex gba:items-start gba:gap-2">
-                  <PiCalendarDuotone className="gba:h-5 gba:w-5 gba:text-muted-foreground gba:mt-0.5" />
-                  <div>
-                    <Label className="gba:text-sm gba:font-medium gba:text-muted-foreground">Start Date</Label>
-                    <p className="gba:text-sm">{formatDateTime(expensePlan.startDate)}</p>
-                  </div>
-                </div>
-                <div className="gba:flex gba:items-start gba:gap-2">
-                  <PiClock className="gba:h-5 gba:w-5 gba:text-muted-foreground gba:mt-0.5" />
-                  <div>
-                    <Label className="gba:text-sm gba:font-medium gba:text-muted-foreground">End Date</Label>
-                    <p className="gba:text-sm">{formatDateTime(expensePlan.endDate)}</p>
-                  </div>
-                </div>
-              </div>
-
-              {/* Trip Table/Timeline */}
-              <EnhancedTripSection
-                expenseRequestTrip={expensePlan.expenseRequestTrip}
-                startDate={expensePlan.startDate}
-                endDate={expensePlan.endDate}
-                prefixDataTestId="approve-expense-plan-v2"
-              />
-            </CardContent>
-          </Card>
-        )}
-
-        {/* 6. Advance Payment (only if has advance payments) */}
-        {expensePlan.advancePayment && expensePlan.advancePayment.length > 0 && (
-          <AdvancePaymentSection
-            advancePayments={expensePlan.advancePayment}
-            currencyCode={currencyCode}
-            formatCurrency={formatCurrency}
-            prefixDataTestId="approve-expense-plan-v2"
-          />
-        )}
-      </div>
-
-      {/* Action Footer - Fixed at bottom */}
-      {!isTaskCompleted && (
-        <TaskDetailFooter
-          data-testid="approve-expense-plan-v2-actions"
-          actions={[
-            {
-              label: 'Return',
-              onClick: handleReject,
-              variant: 'outline' as const,
-              disabled: isRejecting || isApproving,
-              loading: isRejecting,
-              icon: XCircle,
-              testId: 'return-button'
-            },
-            {
-              label: 'Approve',
-              onClick: handleApprove,
-              variant: 'default' as const,
-              disabled: isApproving || isRejecting,
-              loading: isApproving,
-              icon: ThumbsUp,
-              className: 'gba:bg-success gba:text-success-foreground hover:gba:bg-success/90',
-              testId: 'approve-button'
-            }
-          ]}
+        ) : undefined
+      }
+      contentClassName="gba:space-y-6"
+    >
+      {/* 1. Approval Details (only for completed tasks) */}
+      {isTaskCompleted && (
+        <ApprovalDetailsSection
+          approvalStatus={approvalStatus}
+          approvalComment={approvalComment}
+          approvalDate={approvalDate}
+          approverName={approverName}
+          isLoadingApprover={isLoadingApproverName}
+          isLoading={loading}
+          prefixDataTestId="approve-expense-plan-v2"
         />
       )}
-    </div>
+
+      {/* 2. Expense Plan Request Details */}
+      <ExpensePlanRequestDetailsSection
+        expensePlan={expensePlan}
+        requestCreatedAt={requestCreatedAt}
+        isLoadingRequestDate={isLoadingRequestDate}
+        prefixDataTestId="approve-expense-plan-v2"
+      />
+
+      {/* 3. Financial Overview */}
+      <ExpensePlanTotalsSection
+        totalAmount={totalAmount}
+        totalAmountExpense={totalAmountExpense}
+        totalAmountAllowance={totalAmountAllowance}
+        reimbursableAmount={reimbursableAmount}
+        nonReimbursableAmount={nonReimbursableAmount}
+        deductibleAmount={deductibleAmount}
+        nonDeductibleAmount={nonDeductibleAmount}
+        advancePaymentAmount={advancePaymentAmount}
+        currencyCode={currencyCode}
+        formatCurrency={formatCurrency}
+      />
+
+      {/* 4. Items */}
+      {expensePlan.expensePlanItem && expensePlan.expensePlanItem.length > 0 && (
+        <ExpensePlanItemsSection
+          expensePlanItems={expensePlan.expensePlanItem}
+          currencyCode={currencyCode}
+          formatCurrency={formatCurrency}
+          getCatalogValue={getCatalogValue}
+          prefixDataTestId="approve-expense-plan-v2"
+        />
+      )}
+
+      {/* 5. Trip Details (only if has trips) */}
+      {expensePlan.expenseRequestTrip && expensePlan.expenseRequestTrip.length > 0 && (
+        <Card>
+          <CardHeader>
+            <CardTitle className="gba:flex gba:items-center gba:gap-2">
+              <PiMapPin className="gba:h-5 gba:w-5" />
+              Trip Details
+            </CardTitle>
+          </CardHeader>
+          <CardContent className="gba:space-y-4">
+            {/* Dates */}
+            <div className="gba:grid gba:grid-cols-2 gba:gap-4">
+              <div className="gba:flex gba:items-start gba:gap-2">
+                <PiCalendarDuotone className="gba:h-5 gba:w-5 gba:text-muted-foreground gba:mt-0.5" />
+                <div>
+                  <Label className="gba:text-sm gba:font-medium gba:text-muted-foreground">Start Date</Label>
+                  <p className="gba:text-sm">{formatDateTime(expensePlan.startDate)}</p>
+                </div>
+              </div>
+              <div className="gba:flex gba:items-start gba:gap-2">
+                <PiClock className="gba:h-5 gba:w-5 gba:text-muted-foreground gba:mt-0.5" />
+                <div>
+                  <Label className="gba:text-sm gba:font-medium gba:text-muted-foreground">End Date</Label>
+                  <p className="gba:text-sm">{formatDateTime(expensePlan.endDate)}</p>
+                </div>
+              </div>
+            </div>
+
+            {/* Trip Table/Timeline */}
+            <EnhancedTripSection
+              expenseRequestTrip={expensePlan.expenseRequestTrip}
+              startDate={expensePlan.startDate}
+              endDate={expensePlan.endDate}
+              prefixDataTestId="approve-expense-plan-v2"
+            />
+          </CardContent>
+        </Card>
+      )}
+
+      {/* 6. Advance Payment (only if has advance payments) */}
+      {expensePlan.advancePayment && expensePlan.advancePayment.length > 0 && (
+        <AdvancePaymentSection
+          advancePayments={expensePlan.advancePayment}
+          currencyCode={currencyCode}
+          formatCurrency={formatCurrency}
+          prefixDataTestId="approve-expense-plan-v2"
+        />
+      )}
+    </TaskFormLayout>
   )
 }
 

@@ -16,7 +16,7 @@ import {
   AvatarImage,
   AvatarFallback
 } from '@newwork/nw-design-system'
-import { Calendar, CheckCircle, Circle, Users, Clock, X, Link as LinkIcon, ExternalLink } from 'lucide-react'
+import { Calendar, CheckCircle, Circle, Users, Clock, X } from 'lucide-react'
 import { Flow } from '../types'
 import {
   formatDateTime,
@@ -26,7 +26,6 @@ import {
 } from '../utils/taskFormatters'
 import { useEmployeeAvatar } from '../hooks/useEmployeeAvatar'
 import { base64ToObjectURL } from '../utils/avatarUtils'
-import { navigateTo } from '@/common/utils/navigationUtils'
 
 interface FlowDetailDialogProps {
   flow: Flow | null
@@ -261,33 +260,6 @@ export const FlowDetailDialog: React.FC<FlowDetailDialogProps> = ({ flow, onClos
               <div className="gba:text-xs gba:text-muted-foreground">Template</div>
               <div className="gba:font-medium">{flow.templateId}</div>
             </div>
-
-            {/* Entity Reference (if linked to an entity) */}
-            {flow.entityType && flow.entityId && flow.entityName && (
-              <div className="gba:border gba:rounded-lg gba:p-4 gba:bg-muted/30">
-                <div className="gba:text-xs gba:text-muted-foreground gba:mb-2 gba:font-medium">Related To</div>
-                <a
-                  href={flow.entityDisplayUrl || '#'}
-                  onClick={e => {
-                    e.preventDefault()
-                    if (flow.entityDisplayUrl) {
-                      navigateTo(flow.entityDisplayUrl)
-                    }
-                  }}
-                  className="gba:flex gba:items-center gba:gap-2 gba:cursor-pointer gba:p-2 gba:-mx-2 gba:rounded-md hover:gba:bg-accent gba:transition-colors gba:no-underline"
-                  data-testid="flow-entity-reference-link"
-                >
-                  <LinkIcon className="gba:h-4 gba:w-4 gba:text-primary" />
-                  <Badge variant="outline" className="gba:text-xs">
-                    {flow.entityType}
-                  </Badge>
-                  <span className="gba:font-medium gba:text-sm gba:text-primary hover:gba:underline">
-                    {flow.entityName}
-                  </span>
-                  <ExternalLink className="gba:h-3 gba:w-3 gba:text-muted-foreground gba:ml-auto" />
-                </a>
-              </div>
-            )}
           </div>
 
           {/* Assignee Status List (for grouped multi-user blinks) */}

@@ -1,9 +1,8 @@
 import { useGraphQLClient } from '@/common/network/graphql/useGraphQLClient'
-import { getCurrentActiveUserLocale } from '@/common/utils/windowUtils'
 import { AdvancePaymentData } from './types'
 
 export const GET_ADVANCE_PAYMENT_FOR_APPROVAL = `
-  query GetAdvancePaymentForApproval($paymentId: uuid!, $activeUserLocale: String!) {
+  query GetAdvancePaymentForApproval($paymentId: uuid!) {
     AdvancePaymentByPk(id: $paymentId) {
       id
       expensePlanId
@@ -53,8 +52,14 @@ export const GET_ADVANCE_PAYMENT_FOR_APPROVAL = `
         commentDate
         comment
         commentType
-        authorEmployee
-        advancePayment
+        authorEmployee {
+          id
+          firstName
+          lastName
+        }
+        advancePayment {
+          id
+        }
       }
     }
   }
@@ -62,15 +67,13 @@ export const GET_ADVANCE_PAYMENT_FOR_APPROVAL = `
 
 export const useGetAdvancePaymentForApproval = (accessToken: string) => {
   const graphqlClient = useGraphQLClient(accessToken)
-  const activeUserLocale = getCurrentActiveUserLocale()
 
   const fetchAdvancePaymentData = async (paymentId: string): Promise<AdvancePaymentData | null> => {
     try {
       const result = await graphqlClient.request<{
         AdvancePaymentByPk: AdvancePaymentData
       }>(GET_ADVANCE_PAYMENT_FOR_APPROVAL, {
-        paymentId,
-        activeUserLocale
+        paymentId
       })
       return result.AdvancePaymentByPk
     } catch (error) {

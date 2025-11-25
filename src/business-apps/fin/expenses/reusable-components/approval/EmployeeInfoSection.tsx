@@ -32,7 +32,7 @@ interface EmployeeInfoSectionProps {
 
 /**
  * Convert base64 image data to Object URL for browser caching
- * Similar to every-box-2 implementation
+ * Similar to every-box implementation
  */
 const base64ToObjectURL = (base64Data: string): string | undefined => {
   try {
@@ -72,7 +72,7 @@ const EmployeeInfoSection: React.FC<EmployeeInfoSectionProps> = ({
   const displayName = `${employee.firstName || ''} ${employee.lastName || ''}`.trim() || 'Employee'
   const initials = `${employee.firstName?.[0] || ''}${employee.lastName?.[0] || ''}`.toUpperCase() || '?'
 
-  // Convert base64 avatar to URL (like in every-box-2)
+  // Convert base64 avatar to URL (like in every-box)
   const avatarUrl = useMemo(() => {
     if (employee.pictureThumbnail) {
       return base64ToObjectURL(employee.pictureThumbnail)

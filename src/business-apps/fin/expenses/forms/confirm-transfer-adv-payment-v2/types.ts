@@ -60,6 +60,11 @@ export interface AdvancePaymentData {
   version: number
   transactionDate?: string
   transactionNumber?: string
+  transactionConfirmedByEmployee?: {
+    id: string
+    firstName: string
+    lastName: string
+  }
   expensePlan: ExpensePlan
   amount: number
   currency: Currency

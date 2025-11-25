@@ -44,7 +44,6 @@ import {
   QuickTaskFormData,
   QuickTaskFlowService
 } from '@/business-apps/flow/common/components/flow-quick-task'
-import { FileClient } from '@/common/network/files/FileClient'
 
 interface EveryBoxProps extends BusinessAppContextProps {
   prefixDataTestId?: string
@@ -198,50 +197,10 @@ export const EveryBox: React.FC<EveryBoxProps> = ({ prefixDataTestId = 'every-bo
     try {
       const baseUrl = env('NEXT_PUBLIC_CUSTOM_FLOW_ENGINE_API_URL') || 'https://newwork-dev.newwork.com/flow-engine'
 
-      // Upload files if any were selected
-      let uploadResults: any[] = []
-      if (data.documents && data.documents.length > 0) {
-        console.log('[EveryBox] Starting file upload, documents:', data.documents.length, data.documents)
-
-        const fileClient = new FileClient()
-        fileClient.setAccessToken(context.accessToken)
-
-        // Upload all files in parallel
-        uploadResults = await Promise.all(
-          data.documents
-            .filter(doc => doc.originFileObj) // Only upload files with originFileObj
-            .map(async doc => {
-              console.log('[EveryBox] Uploading file:', doc.name, 'originFileObj:', doc.originFileObj)
-              try {
-                const result = await fileClient.uploadFile(
-                  doc.originFileObj!,
-                  { accessScope: 'tenant' },
-                  {
-                    appName: 'quick-task',
-                    folderPath: '/blinks',
-                    originalFileName: doc.name
-                  }
-                )
-                console.log('[EveryBox] File uploaded successfully:', doc.name, result)
-                return result
-              } catch (error) {
-                console.error(`[EveryBox] Failed to upload file ${doc.name}:`, error)
-                return null
-              }
-            })
-        )
-
-        // Filter out failed uploads
-        uploadResults = uploadResults.filter(result => result !== null)
-        console.log('[EveryBox] Final upload results:', uploadResults.length, uploadResults)
-      } else {
-        console.log('[EveryBox] No documents to upload', data.documents)
-      }
-
       // Execute the quick task using the service method
       await QuickTaskFlowService.executeQuickTask({
         formData: data,
-        uploadResults,
+        uploadResults: [], // File upload results if needed
         accessToken: context.accessToken,
         initiatorId: context.userInfo?.id || context.userInfo?.employeeDetails?.employeeId || 'unknown',
         apiBaseUrl: baseUrl

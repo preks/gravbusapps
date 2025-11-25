@@ -1,7 +1,10 @@
 /**
  * FeedbackApprovalV2 Component
  * Standalone form for approving feedback requests from Kogito processes
- * Based on ApproveEmployeeVacationV2 structure with header, content, and footer
+ *
+ * Refactored to use:
+ * - TaskFormLayout: Proper layout wrapper with sticky header/footer
+ * - Auto-fetching: TaskDetailHeader automatically fetches employee data
  */
 
 import React, { useState, useMemo } from 'react'
@@ -9,9 +12,12 @@ import { Separator, Alert, Badge, Textarea, Switch, Label } from '@newwork/nw-de
 import { XCircle, CheckCircle, Calendar, Lock, Globe, MessageSquare, AlertCircle } from 'lucide-react'
 import { BusinessAppContextProps } from '@/common/BusinessAppContext'
 import { dispatchProcessContinueEvent } from '@/common/utils/processEventUtils'
-import { TaskDetailHeader } from '@/business-apps/platform/apps/every-box-2/components/TaskDetailHeader'
-import { TaskDetailFooter } from '@/business-apps/platform/apps/every-box-2/components/TaskDetailFooter'
-import { useEmployeeDetails } from '../feedback-form/hooks/useEmployeeDetails'
+import { TaskDetailHeader } from '@/business-apps/platform/apps/every-box/components/TaskDetailHeader'
+import { TaskDetailFooter } from '@/business-apps/platform/apps/every-box/components/TaskDetailFooter'
+import { TaskFormLayout } from '@/business-apps/platform/apps/every-box/components/TaskFormLayout'
+import { formatDateTime } from '@/business-apps/platform/apps/every-box/utils/taskFormatters'
+import { useEntityDates } from '@/business-apps/common/hooks/useEntityDates'
+import { useApproverData } from '@/business-apps/common/hooks/useApproverData'
 import dayjs from 'dayjs'
 
 type AnyObject = Record<string, any>
@@ -69,59 +75,24 @@ const FeedbackApprovalV2: React.FC<FeedbackApprovalV2Props> = ({ accessToken, ad
     }
   }, [additionalData])
 
-  // Fetch sender employee details
-  const {
-    employee: senderEmployee,
-    loading: senderLoading,
-    rawEmployee
-  } = useEmployeeDetails(accessToken, feedbackData?.senderEmployeeId)
-
-  // Note: Receiver employee details are not currently displayed in the UI
-
-  // Convert rawEmployee data to format expected by TaskDetailHeader
-  const employeeDataForHeader = useMemo(() => {
-    if (!rawEmployee) {
-      // Fallback to senderEmployee if rawEmployee is not available
-      if (senderEmployee) {
-        return {
-          displayName: senderEmployee.name || 'Unknown',
-          position: senderEmployee.jobTitle
-        }
-      }
-      return undefined
-    }
-
-    // Convert pictureThumbnail to data URL format
-    const toDataUrl = (raw: string | null | undefined): string | undefined => {
-      if (!raw) return undefined
-      if (raw.startsWith('data:')) return raw
-      try {
-        JSON.parse(raw)
-        return undefined // JSON metadata, cannot use directly
-      } catch {
-        // Not JSON, proceed with base64 conversion
-      }
-      if (raw.startsWith('/9j/')) return `data:image/jpeg;base64,${raw}`
-      if (raw.startsWith('iVBOR')) return `data:image/png;base64,${raw}`
-      if (raw.startsWith('R0lGOD')) return `data:image/gif;base64,${raw}`
-      return `data:image/gif;base64,${raw}` // Default to GIF
-    }
-
-    // rawEmployee is EmployeeByIdData from useEmployeeById
-    const employee = rawEmployee.employee
-    const jobPosition = rawEmployee.jobPosition
-
-    return {
-      displayName: employee?.displayName || senderEmployee?.name || 'Unknown',
-      firstName: rawEmployee.firstName,
-      lastName: rawEmployee.lastName,
-      avatarUrl: toDataUrl(employee?.pictureThumbnail),
-      position: jobPosition?.name || senderEmployee?.jobTitle
-    }
-  }, [rawEmployee, senderEmployee])
+  // NOTE: No need to manually fetch employee data anymore!
+  // TaskDetailHeader will auto-fetch using employeeId prop + accessToken
 
   // Get task source from process metadata (fallback to 'kogito' if not available)
   const taskSource: 'kogito' | 'cflow' = processMetadata?.source || (processMetadata?.endpoint ? 'kogito' : 'kogito')
+
+  // Use generic hooks for entity dates (request created)
+  const { createdAt: requestCreatedAt, isLoading: isLoadingRequestDate } = useEntityDates({
+    accessToken,
+    entityId: feedbackData?.id,
+    entityType: 'Feedback'
+  })
+
+  // For completed tasks, fetch approver name (assuming feedback has approverId field)
+  const { approverName, isLoading: isLoadingApproverName } = useApproverData({
+    accessToken,
+    approverId: isTaskCompleted && feedbackData ? (feedbackData as any).approverId : null
+  })
 
   // Format feedback date
   const formattedDate = feedbackData?.feedbackDate
@@ -263,257 +234,278 @@ const FeedbackApprovalV2: React.FC<FeedbackApprovalV2Props> = ({ accessToken, ad
     }
   }
 
-  // Detect if we're in every-box-2 context (has onClose callback)
-  const isEveryBox2Context = !!onClose
+  // Detect if we're in every-box context (has onClose callback)
+  const isEveryBoxContext = !!onClose
 
   // If we don't have feedback data, show error
   if (!feedbackData) {
     return (
-      <div className="gba:flex gba:flex-col gba:h-full gba:relative" data-testid="feedback-approval-v2">
-        <TaskDetailHeader
-          title={taskTitle}
-          status={taskStatus}
-          source={taskSource}
-          onClose={isEveryBox2Context ? handleCancel : undefined}
-        />
-        <div className="gba:flex-1 gba:overflow-y-auto gba:flex gba:items-center gba:justify-center gba:p-6">
+      <TaskFormLayout
+        data-testid="feedback-approval-v2"
+        header={
+          <TaskDetailHeader
+            title={taskTitle}
+            status={taskStatus}
+            source={taskSource}
+            onClose={isEveryBoxContext ? handleCancel : undefined}
+          />
+        }
+      >
+        <div className="gba:flex gba:items-center gba:justify-center gba:h-full">
           <Alert variant="destructive" data-testid="error-message">
             No feedback data available
           </Alert>
         </div>
-      </div>
+      </TaskFormLayout>
     )
   }
 
   return (
-    <div className="gba:flex gba:flex-col gba:h-full gba:relative" data-testid="feedback-approval-v2">
-      {/* Task Header with Employee Info - Always full width, X button only in every-box-2 */}
-      {/* Header uses absolute positioning to extend to edges of RemoteScreenLoader container */}
-      <TaskDetailHeader
-        title={taskTitle}
-        status={taskStatus}
-        source={taskSource}
-        showEmployeeInfo={true}
-        employeeData={employeeDataForHeader}
-        isLoadingEmployee={senderLoading}
-        creatorName={senderEmployee?.name}
-        onClose={isEveryBox2Context ? handleCancel : undefined}
-      />
+    <TaskFormLayout
+      data-testid="feedback-approval-v2"
+      header={
+        <TaskDetailHeader
+          title={taskTitle}
+          status={taskStatus}
+          source={taskSource}
+          showEmployeeInfo={true}
+          employeeId={feedbackData.senderEmployeeId}
+          accessToken={accessToken}
+          onClose={isEveryBoxContext ? handleCancel : undefined}
+        />
+      }
+      footer={
+        // Action Footer - Only show when task is not completed
+        !isTaskCompleted ? (
+          <TaskDetailFooter
+            data-testid="action-footer"
+            actions={[
+              {
+                label: 'Cancel',
+                onClick: handleCancel,
+                variant: 'outline' as const,
+                disabled: isRejecting || isAccepting || !!successMessage,
+                testId: 'cancel-button'
+              },
+              {
+                label: 'Reject',
+                onClick: handleReject,
+                variant: 'destructive' as const,
+                disabled: isRejecting || isAccepting || !!successMessage,
+                loading: isRejecting,
+                icon: XCircle,
+                testId: 'reject-button'
+              },
+              {
+                label: 'Accept',
+                onClick: handleAccept,
+                variant: 'default' as const,
+                disabled: isAccepting || isRejecting || !!successMessage,
+                loading: isAccepting,
+                icon: CheckCircle,
+                className: 'gba:bg-success gba:text-success-foreground hover:gba:bg-success/90',
+                testId: 'accept-button'
+              }
+            ]}
+          />
+        ) : undefined
+      }
+      contentClassName="gba:space-y-6"
+    >
+      {/* Error Messages */}
+      {errorMessage && (
+        <Alert variant="destructive" data-testid="error-message">
+          {errorMessage}
+        </Alert>
+      )}
 
-      {/* Content with padding - matches header padding for alignment */}
-      <div className="gba:flex-1 gba:overflow-y-auto gba:space-y-6 gba:min-h-0">
-        {/* Error Messages */}
-        {errorMessage && (
-          <Alert variant="destructive" data-testid="error-message">
-            {errorMessage}
-          </Alert>
-        )}
+      {/* Feedback Details */}
+      {feedbackData && (
+        <>
+          <div data-testid="feedback-details-section">
+            <h4 className="gba:font-semibold gba:mb-4 gba:text-lg">Feedback Details</h4>
 
-        {/* Feedback Details */}
-        {feedbackData && (
-          <>
-            <div data-testid="feedback-details-section">
-              <h4 className="gba:font-semibold gba:mb-4 gba:text-lg">Feedback Details</h4>
-
-              {/* SECTION 1: Meta Information (Date + Visibility) */}
-              <div className="gba:grid gba:grid-cols-2 gba:gap-4 gba:mb-6">
-                {/* Date Card */}
-                {formattedDate && (
-                  <div className="gba:bg-muted gba:border gba:border-border gba:rounded-lg gba:p-4">
-                    <div className="gba:flex gba:items-center gba:gap-2 gba:mb-2">
-                      <Calendar className="gba:h-4 gba:w-4 gba:text-muted-foreground" />
-                      <span className="gba:text-xs gba:font-medium gba:text-muted-foreground gba:uppercase gba:tracking-wide">
-                        DATE
-                      </span>
-                    </div>
-                    <p className="gba:text-sm gba:font-semibold gba:text-foreground gba:leading-tight">
-                      {formattedDate}
-                    </p>
+            {/* SECTION 1: Meta Information (Date + Visibility) */}
+            <div className="gba:grid gba:grid-cols-2 gba:gap-4 gba:mb-6">
+              {/* Date Card */}
+              {formattedDate && (
+                <div className="gba:bg-muted gba:border gba:border-border gba:rounded-lg gba:p-4">
+                  <div className="gba:flex gba:items-center gba:gap-2 gba:mb-2">
+                    <Calendar className="gba:h-4 gba:w-4 gba:text-muted-foreground" />
+                    <span className="gba:text-xs gba:font-medium gba:text-muted-foreground gba:uppercase gba:tracking-wide">
+                      DATE
+                    </span>
                   </div>
-                )}
-
-                {/* Visibility Card */}
-                {feedbackData.public !== undefined && (
-                  <div className="gba:bg-muted gba:border gba:border-border gba:rounded-lg gba:p-4">
-                    <div className="gba:flex gba:items-center gba:gap-2 gba:mb-2">
-                      {feedbackData.public ? (
-                        <Globe className="gba:h-4 gba:w-4 gba:text-muted-foreground" />
-                      ) : (
-                        <Lock className="gba:h-4 gba:w-4 gba:text-muted-foreground" />
-                      )}
-                      <span className="gba:text-xs gba:font-medium gba:text-muted-foreground gba:uppercase gba:tracking-wide">
-                        VISIBILITY
-                      </span>
-                    </div>
-                    <div className="gba:flex gba:items-center gba:gap-2">
-                      {feedbackData.public ? (
-                        <Badge variant="default" className="gba:bg-blue-500 gba:text-white gba:font-semibold">
-                          <Globe className="gba:h-3 gba:w-3 gba:mr-1" />
-                          Public
-                        </Badge>
-                      ) : (
-                        <Badge variant="outline" className="gba:font-semibold">
-                          <Lock className="gba:h-3 gba:w-3 gba:mr-1" />
-                          Private
-                        </Badge>
-                      )}
-                    </div>
-                  </div>
-                )}
-              </div>
-
-              {/* SECTION 2: Feedback Content */}
-              <div>
-                <div className="gba:flex gba:items-center gba:gap-2 gba:mb-3">
-                  <MessageSquare className="gba:h-4 gba:w-4 gba:text-muted-foreground" />
-                  <span className="gba:text-xs gba:font-medium gba:text-muted-foreground gba:uppercase gba:tracking-wide">
-                    FEEDBACK
-                  </span>
+                  <p className="gba:text-sm gba:font-semibold gba:text-foreground gba:leading-tight">{formattedDate}</p>
                 </div>
-                <div className="gba:bg-card gba:border gba:border-border gba:rounded-lg gba:p-5">
-                  <p className="gba:text-sm gba:text-foreground gba:whitespace-pre-wrap gba:leading-relaxed">
-                    {feedbackData.text || 'No feedback text available'}
-                  </p>
-                </div>
-              </div>
-            </div>
-            <Separator />
-          </>
-        )}
+              )}
 
-        {/* Approval Details - Only show when task is completed */}
-        {isTaskCompleted && taskOutputApprovalStatus && (
-          <>
-            <div data-testid="approval-details-section">
-              <h4 className="gba:font-semibold gba:mb-4 gba:text-lg">Approval Details</h4>
-              <div className="gba:bg-muted gba:p-4 gba:rounded-lg gba:space-y-3">
-                {/* Approval Status */}
-                <div className="gba:flex gba:items-start gba:gap-3">
-                  <span className="gba:text-sm gba:font-medium gba:text-muted-foreground gba:min-w-[140px]">
-                    Approval Status:
-                  </span>
-                  <span
-                    className={`gba:text-sm gba:flex-1 gba:font-medium ${
-                      taskOutputApprovalStatus === 'approved' || taskOutputApprovalStatus === 'APPROVED'
-                        ? 'gba:text-success'
-                        : 'gba:text-destructive'
-                    }`}
-                  >
-                    {taskOutputApprovalStatus === 'approved' || taskOutputApprovalStatus === 'APPROVED' ? (
-                      <span className="gba:flex gba:items-center gba:gap-2">
-                        <CheckCircle className="gba:h-4 gba:w-4" />
-                        Approved
-                      </span>
+              {/* Visibility Card */}
+              {feedbackData.public !== undefined && (
+                <div className="gba:bg-muted gba:border gba:border-border gba:rounded-lg gba:p-4">
+                  <div className="gba:flex gba:items-center gba:gap-2 gba:mb-2">
+                    {feedbackData.public ? (
+                      <Globe className="gba:h-4 gba:w-4 gba:text-muted-foreground" />
                     ) : (
-                      <span className="gba:flex gba:items-center gba:gap-2">
-                        <AlertCircle className="gba:h-4 gba:w-4" />
-                        Rejected
-                      </span>
+                      <Lock className="gba:h-4 gba:w-4 gba:text-muted-foreground" />
                     )}
-                  </span>
+                    <span className="gba:text-xs gba:font-medium gba:text-muted-foreground gba:uppercase gba:tracking-wide">
+                      VISIBILITY
+                    </span>
+                  </div>
+                  <div className="gba:flex gba:items-center gba:gap-2">
+                    {feedbackData.public ? (
+                      <Badge variant="default" className="gba:bg-blue-500 gba:text-white gba:font-semibold">
+                        <Globe className="gba:h-3 gba:w-3 gba:mr-1" />
+                        Public
+                      </Badge>
+                    ) : (
+                      <Badge variant="outline" className="gba:font-semibold">
+                        <Lock className="gba:h-3 gba:w-3 gba:mr-1" />
+                        Private
+                      </Badge>
+                    )}
+                  </div>
                 </div>
+              )}
+            </div>
 
-                {/* Approval Time */}
-                {completedAt && (
-                  <div className="gba:flex gba:items-start gba:gap-3">
-                    <span className="gba:text-sm gba:font-medium gba:text-muted-foreground gba:min-w-[140px]">
-                      Approval Time:
-                    </span>
-                    <span className="gba:text-sm gba:flex-1">
-                      {dayjs(completedAt).format('MMM D, YYYY [at] h:mm A')}
-                    </span>
-                  </div>
-                )}
-
-                {/* Approval Comment - Only show if there is a comment */}
-                {taskOutputApprovalNote?.trim() && (
-                  <div className="gba:flex gba:items-start gba:gap-3">
-                    <span className="gba:text-sm gba:font-medium gba:text-muted-foreground gba:min-w-[140px]">
-                      Approval Comment:
-                    </span>
-                    <span className="gba:text-sm gba:flex-1 gba:text-muted-foreground">
-                      {taskOutputApprovalNote.trim()}
-                    </span>
-                  </div>
-                )}
+            {/* SECTION 2: Feedback Content */}
+            <div>
+              <div className="gba:flex gba:items-center gba:gap-2 gba:mb-3">
+                <MessageSquare className="gba:h-4 gba:w-4 gba:text-muted-foreground" />
+                <span className="gba:text-xs gba:font-medium gba:text-muted-foreground gba:uppercase gba:tracking-wide">
+                  FEEDBACK
+                </span>
+              </div>
+              <div className="gba:bg-card gba:border gba:border-border gba:rounded-lg gba:p-5">
+                <p className="gba:text-sm gba:text-foreground gba:whitespace-pre-wrap gba:leading-relaxed">
+                  {feedbackData.text || 'No feedback text available'}
+                </p>
               </div>
             </div>
-            <Separator />
-          </>
-        )}
 
-        {/* Comment Section - Only show for non-completed tasks */}
-        {!isTaskCompleted && (
-          <div data-testid="comment-section">
-            <div className="gba:flex gba:items-center gba:gap-2 gba:mb-3">
-              <MessageSquare className="gba:h-4 gba:w-4" />
-              <Label htmlFor="approval-comment" className="gba:text-sm gba:font-medium">
-                Add Comment (Required for rejection)
-              </Label>
-              <Switch
-                id="approval-comment"
-                checked={showComment}
-                onCheckedChange={checked => {
-                  setShowComment(checked)
-                  if (!checked) {
-                    setComment('')
-                  }
-                }}
-                data-testid="comment-toggle"
-              />
-            </div>
-            {showComment && (
-              <Textarea
-                rows={3}
-                placeholder="Add your approval comment or rejection reason..."
-                value={comment}
-                onChange={e => setComment(e.target.value)}
-                maxLength={500}
-                className="gba:w-full"
-                data-testid="approval-comment-input"
-              />
+            {/* Request Created - Show when available */}
+            {requestCreatedAt && (
+              <div className="gba:mt-6">
+                <div className="gba:bg-muted gba:border gba:border-border gba:rounded-lg gba:p-4">
+                  <div className="gba:flex gba:items-center gba:justify-between">
+                    <span className="gba:text-sm gba:font-medium gba:text-muted-foreground">Request Created</span>
+                    <span className="gba:text-sm gba:font-semibold gba:text-foreground">
+                      {isLoadingRequestDate ? '...' : formatDateTime(requestCreatedAt)}
+                    </span>
+                  </div>
+                </div>
+              </div>
             )}
           </div>
-        )}
-      </div>
-
-      {/* Action Footer - Fixed at bottom */}
-      {/* Hardcoded actions for Kogito tasks - always show Cancel/Reject/Accept unless task is completed */}
-      {/* CFlow tasks will be handled later */}
-      {!isTaskCompleted && (
-        <TaskDetailFooter
-          data-testid="action-footer"
-          actions={[
-            {
-              label: 'Cancel',
-              onClick: handleCancel,
-              variant: 'outline' as const,
-              disabled: isRejecting || isAccepting || !!successMessage,
-              testId: 'cancel-button'
-            },
-            {
-              label: 'Reject',
-              onClick: handleReject,
-              variant: 'destructive' as const,
-              disabled: isRejecting || isAccepting || !!successMessage,
-              loading: isRejecting,
-              icon: XCircle,
-              testId: 'reject-button'
-            },
-            {
-              label: 'Accept',
-              onClick: handleAccept,
-              variant: 'default' as const,
-              disabled: isAccepting || isRejecting || !!successMessage,
-              loading: isAccepting,
-              icon: CheckCircle,
-              className: 'gba:bg-success gba:text-success-foreground hover:gba:bg-success/90',
-              testId: 'accept-button'
-            }
-          ]}
-        />
+          <Separator />
+        </>
       )}
-    </div>
+
+      {/* Approval Details - Only show when task is completed */}
+      {isTaskCompleted && taskOutputApprovalStatus && (
+        <>
+          <div data-testid="approval-details-section">
+            <h4 className="gba:font-semibold gba:mb-4 gba:text-lg">Approval Details</h4>
+            <div className="gba:bg-muted gba:p-4 gba:rounded-lg gba:space-y-3">
+              {/* Approval Status */}
+              <div className="gba:flex gba:items-start gba:gap-3">
+                <span className="gba:text-sm gba:font-medium gba:text-muted-foreground gba:min-w-[140px]">
+                  Approval Status:
+                </span>
+                <span
+                  className={`gba:text-sm gba:flex-1 gba:font-medium ${
+                    taskOutputApprovalStatus === 'approved' || taskOutputApprovalStatus === 'APPROVED'
+                      ? 'gba:text-success'
+                      : 'gba:text-destructive'
+                  }`}
+                >
+                  {taskOutputApprovalStatus === 'approved' || taskOutputApprovalStatus === 'APPROVED' ? (
+                    <span className="gba:flex gba:items-center gba:gap-2">
+                      <CheckCircle className="gba:h-4 gba:w-4" />
+                      Approved
+                    </span>
+                  ) : (
+                    <span className="gba:flex gba:items-center gba:gap-2">
+                      <AlertCircle className="gba:h-4 gba:w-4" />
+                      Rejected
+                    </span>
+                  )}
+                </span>
+              </div>
+
+              {/* Approved By - Show approver name when available */}
+              {approverName && (
+                <div className="gba:flex gba:items-start gba:gap-3">
+                  <span className="gba:text-sm gba:font-medium gba:text-muted-foreground gba:min-w-[140px]">
+                    Approved By:
+                  </span>
+                  <span className="gba:text-sm gba:flex-1">{isLoadingApproverName ? '...' : approverName}</span>
+                </div>
+              )}
+
+              {/* Approval Time */}
+              {completedAt && (
+                <div className="gba:flex gba:items-start gba:gap-3">
+                  <span className="gba:text-sm gba:font-medium gba:text-muted-foreground gba:min-w-[140px]">
+                    Approval Time:
+                  </span>
+                  <span className="gba:text-sm gba:flex-1">{dayjs(completedAt).format('MMM D, YYYY [at] h:mm A')}</span>
+                </div>
+              )}
+
+              {/* Approval Comment - Only show if there is a comment */}
+              {taskOutputApprovalNote?.trim() && (
+                <div className="gba:flex gba:items-start gba:gap-3">
+                  <span className="gba:text-sm gba:font-medium gba:text-muted-foreground gba:min-w-[140px]">
+                    Approval Comment:
+                  </span>
+                  <span className="gba:text-sm gba:flex-1 gba:text-muted-foreground">
+                    {taskOutputApprovalNote.trim()}
+                  </span>
+                </div>
+              )}
+            </div>
+          </div>
+          <Separator />
+        </>
+      )}
+
+      {/* Comment Section - Only show for non-completed tasks */}
+      {!isTaskCompleted && (
+        <div data-testid="comment-section">
+          <div className="gba:flex gba:items-center gba:gap-2 gba:mb-3">
+            <MessageSquare className="gba:h-4 gba:w-4" />
+            <Label htmlFor="approval-comment" className="gba:text-sm gba:font-medium">
+              Add Comment (Required for rejection)
+            </Label>
+            <Switch
+              id="approval-comment"
+              checked={showComment}
+              onCheckedChange={checked => {
+                setShowComment(checked)
+                if (!checked) {
+                  setComment('')
+                }
+              }}
+              data-testid="comment-toggle"
+            />
+          </div>
+          {showComment && (
+            <Textarea
+              rows={3}
+              placeholder="Add your approval comment or rejection reason..."
+              value={comment}
+              onChange={e => setComment(e.target.value)}
+              maxLength={500}
+              className="gba:w-full"
+              data-testid="approval-comment-input"
+            />
+          )}
+        </div>
+      )}
+    </TaskFormLayout>
   )
 }
 

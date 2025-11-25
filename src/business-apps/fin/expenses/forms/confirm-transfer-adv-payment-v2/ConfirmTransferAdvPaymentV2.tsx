@@ -18,8 +18,9 @@ import { BusinessAppContextProps } from '@/common/BusinessAppContext'
 dayjs.extend(utc)
 import { dispatchProcessContinueEvent } from '@/common/utils/processEventUtils'
 import { getTranslationFromI18nKeyAndLabel } from '@/common/utils/windowUtils'
-import { TaskDetailHeader } from '@/business-apps/platform/apps/every-box-2/components/TaskDetailHeader'
-import { TaskDetailFooter } from '@/business-apps/platform/apps/every-box-2/components/TaskDetailFooter'
+import { TaskDetailHeader } from '@/business-apps/platform/apps/every-box/components/TaskDetailHeader'
+import { TaskDetailFooter } from '@/business-apps/platform/apps/every-box/components/TaskDetailFooter'
+import { TaskFormLayout } from '@/business-apps/platform/apps/every-box/components/TaskFormLayout'
 import { useGetAdvancePaymentForApproval } from './queries'
 import { AdvancePaymentData } from './types'
 
@@ -185,8 +186,8 @@ const ConfirmTransferAdvPaymentV2Content: React.FC<ConfirmTransferAdvPaymentV2Pr
     }
   }
 
-  // Detect if we're in every-box-2 context (has onClose callback)
-  const isEveryBox2Context = !!onClose
+  // Detect if we're in every-box context (has onClose callback)
+  const isEveryBoxContext = !!onClose
 
   // Prepare employee data for header
   const employeeDataForHeader = useMemo(() => {
@@ -220,14 +221,14 @@ const ConfirmTransferAdvPaymentV2Content: React.FC<ConfirmTransferAdvPaymentV2Pr
   if (isLoading) {
     return (
       <div
-        className="gba:flex gba:flex-col gba:h-full gba:relative"
+        className="gba:flex gba:flex-col gba:h-full gba:px-6"
         data-testid="confirm-transfer-adv-payment-v2-container"
       >
         <TaskDetailHeader
           title={taskTitle}
           status={taskStatus}
           source={taskSource}
-          onClose={isEveryBox2Context ? handleClose : undefined}
+          onClose={isEveryBoxContext ? handleClose : undefined}
         />
         <div
           className="gba:flex gba:justify-center gba:items-center gba:min-h-[400px] gba:flex-1"
@@ -242,16 +243,16 @@ const ConfirmTransferAdvPaymentV2Content: React.FC<ConfirmTransferAdvPaymentV2Pr
   if (error) {
     return (
       <div
-        className="gba:flex gba:flex-col gba:h-full gba:relative"
+        className="gba:flex gba:flex-col gba:h-full gba:px-6"
         data-testid="confirm-transfer-adv-payment-v2-container"
       >
         <TaskDetailHeader
           title={taskTitle}
           status={taskStatus}
           source={taskSource}
-          onClose={isEveryBox2Context ? handleClose : undefined}
+          onClose={isEveryBoxContext ? handleClose : undefined}
         />
-        <div className="gba:flex-1 gba:overflow-y-auto gba:p-6">
+        <div className="gba:flex-1 gba:overflow-y-auto gba:py-6">
           <Alert variant="destructive" data-testid="confirm-transfer-adv-payment-v2-error">
             <AlertTitle>Error Loading Payment Data</AlertTitle>
             <AlertDescription>
@@ -279,16 +280,16 @@ const ConfirmTransferAdvPaymentV2Content: React.FC<ConfirmTransferAdvPaymentV2Pr
   if (!paymentData) {
     return (
       <div
-        className="gba:flex gba:flex-col gba:h-full gba:relative"
+        className="gba:flex gba:flex-col gba:h-full gba:px-6"
         data-testid="confirm-transfer-adv-payment-v2-container"
       >
         <TaskDetailHeader
           title={taskTitle}
           status={taskStatus}
           source={taskSource}
-          onClose={isEveryBox2Context ? handleClose : undefined}
+          onClose={isEveryBoxContext ? handleClose : undefined}
         />
-        <div className="gba:flex-1 gba:overflow-y-auto gba:flex gba:items-center gba:justify-center gba:p-6">
+        <div className="gba:flex-1 gba:overflow-y-auto gba:flex gba:items-center gba:justify-center gba:py-6">
           <Alert data-testid="confirm-transfer-adv-payment-v2-no-data">
             <AlertTitle>No Payment Data</AlertTitle>
             <AlertDescription>Unable to load payment information. Please try refreshing the page.</AlertDescription>
@@ -314,139 +315,141 @@ const ConfirmTransferAdvPaymentV2Content: React.FC<ConfirmTransferAdvPaymentV2Pr
   }
 
   return (
-    <div
-      className="gba:flex gba:flex-col gba:h-full gba:relative"
+    <TaskFormLayout
       data-testid="confirm-transfer-adv-payment-v2-container"
+      header={
+        <TaskDetailHeader
+          title={taskTitle}
+          status={taskStatus}
+          source={taskSource}
+          showEmployeeInfo={true}
+          employeeData={employeeDataForHeader}
+          isLoadingEmployee={isLoading}
+          onClose={isEveryBoxContext ? handleClose : undefined}
+          customBadges={
+            <Badge variant={statusDisplay.variant} data-testid="payment-status-badge">
+              {statusDisplay.label}
+            </Badge>
+          }
+        />
+      }
+      footer={
+        !isTaskCompleted ? (
+          <TaskDetailFooter
+            data-testid="confirm-transfer-adv-payment-v2-actions"
+            actions={[
+              {
+                label: 'Confirm',
+                onClick: handleConfirm,
+                variant: 'default' as const,
+                disabled: isConfirming || !confirmationChecked,
+                loading: isConfirming,
+                icon: CheckCircle,
+                className: 'gba:bg-success gba:text-success-foreground hover:gba:bg-success/90',
+                testId: 'confirm-button'
+              }
+            ]}
+          />
+        ) : undefined
+      }
+      contentClassName="gba:space-y-4"
     >
-      {/* Task Header with Employee Info */}
-      <TaskDetailHeader
-        title={taskTitle}
-        status={taskStatus}
-        source={taskSource}
-        showEmployeeInfo={true}
-        employeeData={employeeDataForHeader}
-        isLoadingEmployee={isLoading}
-        onClose={isEveryBox2Context ? handleClose : undefined}
-        customBadges={
-          <Badge variant={statusDisplay.variant} data-testid="payment-status-badge">
-            {statusDisplay.label}
-          </Badge>
-        }
-      />
+      {/* Error Messages */}
+      {error && (
+        <Alert variant="destructive" data-testid="error-message">
+          <AlertTitle>Error</AlertTitle>
+          <AlertDescription>{error}</AlertDescription>
+        </Alert>
+      )}
 
-      {/* Content with padding - matches header padding for alignment */}
-      <div className="gba:flex-1 gba:overflow-y-auto gba:space-y-4 gba:min-h-0 gba:p-6">
-        {/* Error Messages */}
-        {error && (
-          <Alert variant="destructive" data-testid="error-message">
-            <AlertTitle>Error</AlertTitle>
-            <AlertDescription>{error}</AlertDescription>
-          </Alert>
-        )}
+      {/* Request Details Section */}
+      <Card>
+        <CardHeader>
+          <CardTitle>
+            {getTranslationFromI18nKeyAndLabel(
+              'lowcoder:confirm_transfer_advance_payment.request_details',
+              'Request Details'
+            )}
+          </CardTitle>
+        </CardHeader>
+        <CardContent>
+          <EmployeeInfoSection
+            employee={employee}
+            amount={paymentData.amount}
+            currency={paymentData.currency}
+            status={paymentData.status}
+            expensePlan={expensePlan}
+            accessToken={accessToken}
+          />
+        </CardContent>
+      </Card>
 
-        {/* Request Details Section */}
+      {/* Approved By Section */}
+      {employee.employeePosition?.supervisor && (
         <Card>
           <CardHeader>
             <CardTitle>
               {getTranslationFromI18nKeyAndLabel(
-                'lowcoder:confirm_transfer_advance_payment.request_details',
-                'Request Details'
+                'lowcoder:confirm_transfer_advance_payment.approved_by',
+                'Approved By'
               )}
             </CardTitle>
           </CardHeader>
           <CardContent>
-            <EmployeeInfoSection
-              employee={employee}
-              amount={paymentData.amount}
-              currency={paymentData.currency}
-              status={paymentData.status}
-              expensePlan={expensePlan}
-              accessToken={accessToken}
+            <SupervisorInfoSection supervisor={employee.employeePosition.supervisor} />
+          </CardContent>
+        </Card>
+      )}
+
+      {/* Transaction Confirmation Section - Only for non-completed tasks */}
+      {!isTaskCompleted && (
+        <Card>
+          <CardHeader>
+            <CardTitle>
+              {getTranslationFromI18nKeyAndLabel(
+                'lowcoder:confirm_transfer_advance_payment.transaction_confirmation_text',
+                'Transaction Confirmation'
+              )}
+            </CardTitle>
+          </CardHeader>
+          <CardContent>
+            <TransactionSection
+              transactionDate={transactionDate}
+              transactionId={transactionId}
+              confirmationChecked={confirmationChecked}
+              onTransactionDateChange={handleTransactionDateChange}
+              onTransactionIdChange={handleTransactionIdChange}
+              onConfirmationChange={handleConfirmationChange}
             />
           </CardContent>
         </Card>
-
-        {/* Approved By Section */}
-        {employee.employeePosition?.supervisor && (
-          <Card>
-            <CardHeader>
-              <CardTitle>
-                {getTranslationFromI18nKeyAndLabel(
-                  'lowcoder:confirm_transfer_advance_payment.approved_by',
-                  'Approved By'
-                )}
-              </CardTitle>
-            </CardHeader>
-            <CardContent>
-              <SupervisorInfoSection supervisor={employee.employeePosition.supervisor} />
-            </CardContent>
-          </Card>
-        )}
-
-        {/* Transaction Confirmation Section - Only for non-completed tasks */}
-        {!isTaskCompleted && (
-          <Card>
-            <CardHeader>
-              <CardTitle>
-                {getTranslationFromI18nKeyAndLabel(
-                  'lowcoder:confirm_transfer_advance_payment.transaction_confirmation_text',
-                  'Transaction Confirmation'
-                )}
-              </CardTitle>
-            </CardHeader>
-            <CardContent>
-              <TransactionSection
-                transactionDate={transactionDate}
-                transactionId={transactionId}
-                confirmationChecked={confirmationChecked}
-                onTransactionDateChange={handleTransactionDateChange}
-                onTransactionIdChange={handleTransactionIdChange}
-                onConfirmationChange={handleConfirmationChange}
-              />
-            </CardContent>
-          </Card>
-        )}
-
-        {/* Transaction Confirmation Details - Only for completed tasks */}
-        {isTaskCompleted && (paymentData.transactionDate || paymentData.transactionNumber) && (
-          <Card>
-            <CardHeader>
-              <CardTitle>
-                {getTranslationFromI18nKeyAndLabel(
-                  'lowcoder:confirm_transfer_advance_payment.transaction_confirmation_details',
-                  'Transaction Confirmation Details'
-                )}
-              </CardTitle>
-            </CardHeader>
-            <CardContent>
-              <TransactionConfirmationDetailsSection
-                transactionDate={paymentData.transactionDate}
-                transactionId={paymentData.transactionNumber}
-              />
-            </CardContent>
-          </Card>
-        )}
-      </div>
-
-      {/* Action Footer - Fixed at bottom */}
-      {!isTaskCompleted && (
-        <TaskDetailFooter
-          data-testid="confirm-transfer-adv-payment-v2-actions"
-          actions={[
-            {
-              label: 'Confirm',
-              onClick: handleConfirm,
-              variant: 'default' as const,
-              disabled: isConfirming || !confirmationChecked,
-              loading: isConfirming,
-              icon: CheckCircle,
-              className: 'gba:bg-success gba:text-success-foreground hover:gba:bg-success/90',
-              testId: 'confirm-button'
-            }
-          ]}
-        />
       )}
-    </div>
+
+      {/* Transaction Confirmation Details - Only for completed tasks */}
+      {isTaskCompleted && paymentData.transactionDate && (
+        <Card>
+          <CardHeader>
+            <CardTitle>
+              {getTranslationFromI18nKeyAndLabel(
+                'lowcoder:confirm_transfer_advance_payment.transaction_confirmation_details',
+                'Transaction Confirmation Details'
+              )}
+            </CardTitle>
+          </CardHeader>
+          <CardContent>
+            <TransactionConfirmationDetailsSection
+              transactionDate={paymentData.transactionDate}
+              transactionId={paymentData.transactionNumber}
+              transactionConfirmedBy={
+                paymentData.transactionConfirmedByEmployee
+                  ? `${paymentData.transactionConfirmedByEmployee.firstName} ${paymentData.transactionConfirmedByEmployee.lastName}`
+                  : undefined
+              }
+            />
+          </CardContent>
+        </Card>
+      )}
+    </TaskFormLayout>
   )
 }
 

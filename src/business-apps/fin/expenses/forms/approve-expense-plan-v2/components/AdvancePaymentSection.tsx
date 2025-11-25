@@ -16,7 +16,7 @@ import { PiHandCoins } from 'react-icons/pi'
 import { CheckCircle2, XCircle } from 'lucide-react'
 import { AdvancePayment } from '../types/expensePlanV2Types'
 import { getTranslationFromI18nKeyAndLabel } from '@/common/utils/windowUtils'
-import { formatDateTime } from '@/business-apps/platform/apps/every-box-2/utils/taskFormatters'
+import { formatDateTime } from '@/business-apps/platform/apps/every-box/utils/taskFormatters'
 import Pill from '@/components/pill'
 
 interface AdvancePaymentSectionProps {
@@ -32,7 +32,7 @@ const AdvancePaymentSection: React.FC<AdvancePaymentSectionProps> = ({
   formatCurrency,
   prefixDataTestId = 'approve-expense-plan-v2'
 }) => {
-  // Date formatting helper - use formatDateTime from every-box-2
+  // Date formatting helper - use formatDateTime from every-box
   const formatDateDisplay = (dateString: string | null | undefined) => {
     if (!dateString) return '-'
     return formatDateTime(dateString)

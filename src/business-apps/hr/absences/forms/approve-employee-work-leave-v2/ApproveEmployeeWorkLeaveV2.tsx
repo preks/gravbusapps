@@ -4,17 +4,20 @@
  * Based on ApproveEmployeeVacationV2 with adapted UI for work leave approval
  */
 
-import React, { useState, useEffect, useMemo } from 'react'
+import React, { useState, useEffect, useMemo, useRef } from 'react'
 import { Separator, Textarea, Switch, Label, Spinner, Alert } from '@newwork/nw-design-system'
 import { ThumbsUp, XCircle, MessageSquare, CheckCircle, AlertCircle } from 'lucide-react'
 import { BusinessAppContextProps } from '@/common/BusinessAppContext'
 import { dispatchProcessContinueEvent } from '@/common/utils/processEventUtils'
 import { useVacationApprovalData } from '../approve-employee-vacation-v2/hooks/useVacationApprovalData'
 import { TeamAbsenceCalendar } from '@/business-apps/platform/apps/every-box/components/TeamAbsenceCalendar'
-import { TaskDetailHeader } from '@/business-apps/platform/apps/every-box-2/components/TaskDetailHeader'
-import { TaskDetailFooter } from '@/business-apps/platform/apps/every-box-2/components/TaskDetailFooter'
+import { TaskDetailHeader } from '@/business-apps/platform/apps/every-box/components/TaskDetailHeader'
+import { TaskDetailFooter } from '@/business-apps/platform/apps/every-box/components/TaskDetailFooter'
+import { TaskFormLayout } from '@/business-apps/platform/apps/every-box/components/TaskFormLayout'
 import { useGraphqlClient } from '@/common/network/graphql/useGraphQLClient'
-import { formatDateTime } from '@/business-apps/platform/apps/every-box-2/utils/taskFormatters'
+import { formatDateTime } from '@/business-apps/platform/apps/every-box/utils/taskFormatters'
+import { useEntityDates } from '@/business-apps/common/hooks/useEntityDates'
+import { useApproverData } from '@/business-apps/common/hooks/useApproverData'
 import dayjs from 'dayjs'
 
 interface ApproveEmployeeWorkLeaveV2Props extends BusinessAppContextProps {
@@ -39,6 +42,9 @@ const ApproveEmployeeWorkLeaveV2: React.FC<ApproveEmployeeWorkLeaveV2Props> = ({
   const [actualApprovalDate, setActualApprovalDate] = useState<string | null>(null)
   const [isLoadingApprovalData, setIsLoadingApprovalData] = useState(false)
 
+  // Ref for comment section to scroll into view
+  const commentSectionRef = useRef<HTMLDivElement>(null)
+
   const graphqlClient = useGraphqlClient(accessToken)
 
   // Extract task data from additionalData
@@ -53,6 +59,19 @@ const ApproveEmployeeWorkLeaveV2: React.FC<ApproveEmployeeWorkLeaveV2Props> = ({
 
   // Get task title from process metadata or use default
   const taskTitle = processMetadata?.referenceTaskName || processMetadata?.nodeName || 'Approve Work Leave Request'
+
+  // Use generic hooks for entity dates (request created)
+  const { createdAt: requestCreatedAt, isLoading: isLoadingRequestDate } = useEntityDates({
+    accessToken,
+    entityId: employeeAbsence?.id,
+    entityType: 'EmployeeAbsence'
+  })
+
+  // For completed tasks, fetch approver name
+  const { approverName, isLoading: isLoadingApproverName } = useApproverData({
+    accessToken,
+    approverId: isTaskCompleted ? employeeAbsence?.approverId : null
+  })
 
   // Extract approval data from task outputs/inputs (for completed tasks)
   const taskOutputApprovalStatus = useMemo(() => {
@@ -131,6 +150,19 @@ const ApproveEmployeeWorkLeaveV2: React.FC<ApproveEmployeeWorkLeaveV2Props> = ({
 
   // Get supervisor ID for TeamAbsenceCalendar
   const supervisorId = userInfo?.employeeDetails?.employeeId
+
+  // Auto-scroll to comment section when toggle is enabled
+  useEffect(() => {
+    if (showComment && commentSectionRef.current) {
+      // Small delay to ensure the textarea has rendered
+      setTimeout(() => {
+        commentSectionRef.current?.scrollIntoView({
+          behavior: 'smooth',
+          block: 'center'
+        })
+      }, 100)
+    }
+  }, [showComment])
 
   // Fetch approval data from absence record for completed tasks
   useEffect(() => {
@@ -305,284 +337,304 @@ const ApproveEmployeeWorkLeaveV2: React.FC<ApproveEmployeeWorkLeaveV2Props> = ({
     }
   }
 
-  // Detect if we're in every-box-2 context (has onClose callback)
-  const isEveryBox2Context = !!onClose
+  // Detect if we're in every-box context (has onClose callback)
+  const isEveryBoxContext = !!onClose
 
   return (
-    <div className="gba:flex gba:flex-col gba:h-full gba:relative" data-testid="approve-employee-work-leave-v2">
-      {/* Task Header with Employee Info - Always full width, X button only in every-box-2 */}
-      {/* Header uses absolute positioning to extend to edges of RemoteScreenLoader container */}
-      <TaskDetailHeader
-        title={taskTitle}
-        status={taskStatus}
-        source={taskSource}
-        showEmployeeInfo={true}
-        employeeData={
-          employeeData
-            ? {
-                displayName: employeeData.displayName,
-                firstName: employeeData.firstName,
-                lastName: employeeData.lastName,
-                avatarUrl: employeeData.avatarUrl,
-                position: employeeData.position
+    <TaskFormLayout
+      data-testid="approve-employee-work-leave-v2"
+      header={
+        <TaskDetailHeader
+          title={taskTitle}
+          status={taskStatus}
+          source={taskSource}
+          showEmployeeInfo={true}
+          employeeData={
+            employeeData
+              ? {
+                  displayName: employeeData.displayName,
+                  firstName: employeeData.firstName,
+                  lastName: employeeData.lastName,
+                  avatarUrl: employeeData.avatarUrl,
+                  position: employeeData.position
+                }
+              : undefined
+          }
+          isLoadingEmployee={isLoadingEmployee}
+          creatorName={creatorName}
+          onClose={isEveryBoxContext ? handleClose : undefined}
+        />
+      }
+      footer={
+        !isTaskCompleted ? (
+          <TaskDetailFooter
+            data-testid="action-footer"
+            actions={[
+              {
+                label: 'Reject',
+                onClick: handleReject,
+                variant: 'destructive' as const,
+                disabled: isRejecting || isApproving || !!successMessage,
+                loading: isRejecting,
+                icon: XCircle,
+                testId: 'reject-button'
+              },
+              {
+                label: 'Approve',
+                onClick: handleApprove,
+                variant: 'default' as const,
+                disabled: isApproving || isRejecting || !!successMessage,
+                loading: isApproving,
+                icon: ThumbsUp,
+                className: 'gba:bg-success gba:text-success-foreground hover:gba:bg-success/90',
+                testId: 'approve-button'
               }
-            : undefined
-        }
-        isLoadingEmployee={isLoadingEmployee}
-        creatorName={creatorName}
-        onClose={isEveryBox2Context ? handleClose : undefined}
-      />
+            ]}
+          />
+        ) : undefined
+      }
+      contentClassName="gba:space-y-6"
+    >
+      {/* Error Messages */}
+      {errorMessage && (
+        <Alert variant="destructive" data-testid="error-message">
+          {errorMessage}
+        </Alert>
+      )}
+      {dataError && (
+        <Alert variant="destructive" data-testid="data-error-message">
+          {dataError}
+        </Alert>
+      )}
 
-      {/* Content with padding - matches header padding for alignment */}
-      <div className="gba:flex-1 gba:overflow-y-auto gba:space-y-6 gba:min-h-0">
-        {/* Error Messages */}
-        {errorMessage && (
-          <Alert variant="destructive" data-testid="error-message">
-            {errorMessage}
-          </Alert>
-        )}
-        {dataError && (
-          <Alert variant="destructive" data-testid="data-error-message">
-            {dataError}
-          </Alert>
-        )}
+      {/* Request Details */}
+      {employeeAbsence && typeof employeeAbsence === 'object' && (
+        <>
+          <div data-testid="request-details-section">
+            <h4 className="gba:font-semibold gba:mb-4 gba:text-lg">Request Details</h4>
+            <div className="gba:bg-muted gba:p-4 gba:rounded-lg gba:space-y-3">
+              {/* Type */}
+              {absenceTypeName && (
+                <div className="gba:flex gba:items-start gba:gap-3">
+                  <span className="gba:text-sm gba:font-medium gba:text-muted-foreground gba:min-w-[140px]">Type:</span>
+                  <span className="gba:text-sm gba:flex-1">{absenceTypeName}</span>
+                </div>
+              )}
 
-        {/* Request Details */}
-        {employeeAbsence && typeof employeeAbsence === 'object' && (
-          <>
-            <div data-testid="request-details-section">
-              <h4 className="gba:font-semibold gba:mb-4 gba:text-lg">Request Details</h4>
-              <div className="gba:bg-muted gba:p-4 gba:rounded-lg gba:space-y-3">
-                {/* Type */}
-                {absenceTypeName && (
-                  <div className="gba:flex gba:items-start gba:gap-3">
-                    <span className="gba:text-sm gba:font-medium gba:text-muted-foreground gba:min-w-[140px]">
-                      Type:
-                    </span>
-                    <span className="gba:text-sm gba:flex-1">{absenceTypeName}</span>
-                  </div>
-                )}
+              {/* Duration */}
+              {employeeAbsence.startDate && employeeAbsence.endDate && (
+                <div className="gba:flex gba:items-start gba:gap-3">
+                  <span className="gba:text-sm gba:font-medium gba:text-muted-foreground gba:min-w-[140px]">
+                    Duration:
+                  </span>
+                  <span className="gba:text-sm gba:flex-1">
+                    {(() => {
+                      const startDate = dayjs(employeeAbsence.startDate)
+                      const endDate = dayjs(employeeAbsence.endDate)
+                      const isSameDay = startDate.isSame(endDate, 'day')
 
-                {/* Duration */}
-                {employeeAbsence.startDate && employeeAbsence.endDate && (
-                  <div className="gba:flex gba:items-start gba:gap-3">
-                    <span className="gba:text-sm gba:font-medium gba:text-muted-foreground gba:min-w-[140px]">
-                      Duration:
-                    </span>
-                    <span className="gba:text-sm gba:flex-1">
-                      {(() => {
-                        const startDate = dayjs(employeeAbsence.startDate)
-                        const endDate = dayjs(employeeAbsence.endDate)
-                        const isSameDay = startDate.isSame(endDate, 'day')
+                      if (isSameDay) {
+                        return startDate.format('MMM D, YYYY')
+                      }
+                      return `${startDate.format('MMM D, YYYY')} → ${endDate.format('MMM D, YYYY')}`
+                    })()}
+                  </span>
+                </div>
+              )}
 
-                        if (isSameDay) {
-                          return startDate.format('MMM D, YYYY')
-                        }
-                        return `${startDate.format('MMM D, YYYY')} → ${endDate.format('MMM D, YYYY')}`
-                      })()}
-                    </span>
-                  </div>
-                )}
+              {/* Working Days */}
+              {(employeeAbsence.workingDays !== undefined || employeeAbsence.workingHours !== undefined) && (
+                <div className="gba:flex gba:items-start gba:gap-3">
+                  <span className="gba:text-sm gba:font-medium gba:text-muted-foreground gba:min-w-[140px]">
+                    Working Days:
+                  </span>
+                  <span className="gba:text-sm gba:flex-1">
+                    {employeeAbsence.workingDays !== undefined
+                      ? `${employeeAbsence.workingDays} ${employeeAbsence.workingDays === 1 ? 'day' : 'days'}`
+                      : ''}
+                    {employeeAbsence.workingDays !== undefined && employeeAbsence.workingHours !== undefined && ' '}
+                    {employeeAbsence.workingHours !== undefined &&
+                      `(${employeeAbsence.workingHours} ${employeeAbsence.workingHours === 1 ? 'hour' : 'hours'})`}
+                  </span>
+                </div>
+              )}
 
-                {/* Working Days */}
-                {(employeeAbsence.workingDays !== undefined || employeeAbsence.workingHours !== undefined) && (
-                  <div className="gba:flex gba:items-start gba:gap-3">
-                    <span className="gba:text-sm gba:font-medium gba:text-muted-foreground gba:min-w-[140px]">
-                      Working Days:
-                    </span>
-                    <span className="gba:text-sm gba:flex-1">
-                      {employeeAbsence.workingDays !== undefined
-                        ? `${employeeAbsence.workingDays} ${employeeAbsence.workingDays === 1 ? 'day' : 'days'}`
-                        : ''}
-                      {employeeAbsence.workingDays !== undefined && employeeAbsence.workingHours !== undefined && ' '}
-                      {employeeAbsence.workingHours !== undefined &&
-                        `(${employeeAbsence.workingHours} ${employeeAbsence.workingHours === 1 ? 'hour' : 'hours'})`}
-                    </span>
-                  </div>
-                )}
+              {/* Substitute Employee - Only show if there is a substitute */}
+              {employeeAbsence.substituteEmployee && (
+                <div className="gba:flex gba:items-start gba:gap-3">
+                  <span className="gba:text-sm gba:font-medium gba:text-muted-foreground gba:min-w-[140px]">
+                    Substitute:
+                  </span>
+                  <span className="gba:text-sm gba:flex-1 gba:text-muted-foreground">
+                    {isLoadingSubstitute ? <Spinner size="sm" /> : substituteEmployeeName || 'Loading...'}
+                  </span>
+                </div>
+              )}
 
-                {/* Substitute Employee - Only show if there is a substitute */}
-                {employeeAbsence.substituteEmployee && (
-                  <div className="gba:flex gba:items-start gba:gap-3">
-                    <span className="gba:text-sm gba:font-medium gba:text-muted-foreground gba:min-w-[140px]">
-                      Substitute:
-                    </span>
-                    <span className="gba:text-sm gba:flex-1 gba:text-muted-foreground">
-                      {isLoadingSubstitute ? <Spinner size="sm" /> : substituteEmployeeName || 'Loading...'}
-                    </span>
-                  </div>
-                )}
+              {/* Description - Only show if there is a description */}
+              {employeeAbsence.description?.trim() && (
+                <div className="gba:flex gba:items-start gba:gap-3">
+                  <span className="gba:text-sm gba:font-medium gba:text-muted-foreground gba:min-w-[140px]">
+                    Description:
+                  </span>
+                  <span className="gba:text-sm gba:flex-1 gba:text-muted-foreground">
+                    {employeeAbsence.description.trim()}
+                  </span>
+                </div>
+              )}
 
-                {/* Description - Only show if there is a description */}
-                {employeeAbsence.description?.trim() && (
-                  <div className="gba:flex gba:items-start gba:gap-3">
-                    <span className="gba:text-sm gba:font-medium gba:text-muted-foreground gba:min-w-[140px]">
-                      Description:
-                    </span>
-                    <span className="gba:text-sm gba:flex-1 gba:text-muted-foreground">
-                      {employeeAbsence.description.trim()}
-                    </span>
-                  </div>
-                )}
-              </div>
+              {/* Request Created - Show when available */}
+              {requestCreatedAt && (
+                <div className="gba:flex gba:items-start gba:gap-3">
+                  <span className="gba:text-sm gba:font-medium gba:text-muted-foreground gba:min-w-[140px]">
+                    Request Created:
+                  </span>
+                  <span className="gba:text-sm gba:flex-1">
+                    {isLoadingRequestDate ? <Spinner size="sm" /> : formatDateTime(requestCreatedAt)}
+                  </span>
+                </div>
+              )}
             </div>
-            <Separator />
-          </>
-        )}
+          </div>
+          <Separator />
+        </>
+      )}
 
-        {/* Approval Details - Only show when task is completed */}
-        {isTaskCompleted && (
-          <>
-            {isLoadingApprovalData ? (
-              <div className="gba:flex gba:justify-center gba:p-6">
-                <Spinner size="lg" />
-              </div>
-            ) : (
-              approvalStatus && (
-                <div data-testid="approval-details-section">
-                  <h4 className="gba:font-semibold gba:mb-4 gba:text-lg">Approval Details</h4>
-                  <div className="gba:bg-muted gba:p-4 gba:rounded-lg gba:space-y-3">
-                    {/* Status */}
+      {/* Approval Details - Only show when task is completed */}
+      {isTaskCompleted && (
+        <>
+          {isLoadingApprovalData ? (
+            <div className="gba:flex gba:justify-center gba:p-6">
+              <Spinner size="lg" />
+            </div>
+          ) : (
+            approvalStatus && (
+              <div data-testid="approval-details-section">
+                <h4 className="gba:font-semibold gba:mb-4 gba:text-lg">Approval Details</h4>
+                <div className="gba:bg-muted gba:p-4 gba:rounded-lg gba:space-y-3">
+                  {/* Status */}
+                  <div className="gba:flex gba:items-start gba:gap-3">
+                    <span className="gba:text-sm gba:font-medium gba:text-muted-foreground gba:min-w-[140px]">
+                      Status:
+                    </span>
+                    <span
+                      className={`gba:text-sm gba:flex-1 gba:font-medium ${
+                        approvalStatus === 'APPROVED' ||
+                        approvalStatus === 'APPROVED_BY_MANAGER' ||
+                        approvalStatus === 'APPROVED_BY_HR'
+                          ? 'gba:text-success'
+                          : 'gba:text-destructive'
+                      }`}
+                    >
+                      {approvalStatus === 'APPROVED' ||
+                      approvalStatus === 'APPROVED_BY_MANAGER' ||
+                      approvalStatus === 'APPROVED_BY_HR' ? (
+                        <span className="gba:flex gba:items-center gba:gap-2">
+                          <CheckCircle className="gba:h-4 gba:w-4" />
+                          Approved
+                        </span>
+                      ) : (
+                        <span className="gba:flex gba:items-center gba:gap-2">
+                          <AlertCircle className="gba:h-4 gba:w-4" />
+                          Rejected
+                        </span>
+                      )}
+                    </span>
+                  </div>
+
+                  {/* Approved By - Show approver name when available */}
+                  {approverName && (
                     <div className="gba:flex gba:items-start gba:gap-3">
                       <span className="gba:text-sm gba:font-medium gba:text-muted-foreground gba:min-w-[140px]">
-                        Status:
+                        Approved By:
                       </span>
-                      <span
-                        className={`gba:text-sm gba:flex-1 gba:font-medium ${
-                          approvalStatus === 'APPROVED' ||
-                          approvalStatus === 'APPROVED_BY_MANAGER' ||
-                          approvalStatus === 'APPROVED_BY_HR'
-                            ? 'gba:text-success'
-                            : 'gba:text-destructive'
-                        }`}
-                      >
-                        {approvalStatus === 'APPROVED' ||
-                        approvalStatus === 'APPROVED_BY_MANAGER' ||
-                        approvalStatus === 'APPROVED_BY_HR' ? (
-                          <span className="gba:flex gba:items-center gba:gap-2">
-                            <CheckCircle className="gba:h-4 gba:w-4" />
-                            Approved
-                          </span>
-                        ) : (
-                          <span className="gba:flex gba:items-center gba:gap-2">
-                            <AlertCircle className="gba:h-4 gba:w-4" />
-                            Rejected
-                          </span>
-                        )}
+                      <span className="gba:text-sm gba:flex-1">
+                        {isLoadingApproverName ? <Spinner size="sm" /> : approverName}
                       </span>
                     </div>
+                  )}
 
-                    {/* Date */}
-                    {approvalDate && (
-                      <div className="gba:flex gba:items-start gba:gap-3">
-                        <span className="gba:text-sm gba:font-medium gba:text-muted-foreground gba:min-w-[140px]">
-                          Date:
-                        </span>
-                        <span className="gba:text-sm gba:flex-1">{formatDateTime(approvalDate)}</span>
-                      </div>
-                    )}
+                  {/* Date */}
+                  {approvalDate && (
+                    <div className="gba:flex gba:items-start gba:gap-3">
+                      <span className="gba:text-sm gba:font-medium gba:text-muted-foreground gba:min-w-[140px]">
+                        Date:
+                      </span>
+                      <span className="gba:text-sm gba:flex-1">{formatDateTime(approvalDate)}</span>
+                    </div>
+                  )}
 
-                    {/* Comment - Only show if there is a comment */}
-                    {approvalNote?.trim() && (
-                      <div className="gba:flex gba:items-start gba:gap-3">
-                        <span className="gba:text-sm gba:font-medium gba:text-muted-foreground gba:min-w-[140px]">
-                          Comment:
-                        </span>
-                        <span className="gba:text-sm gba:flex-1 gba:text-muted-foreground">{approvalNote.trim()}</span>
-                      </div>
-                    )}
-                  </div>
+                  {/* Comment - Only show if there is a comment */}
+                  {approvalNote?.trim() && (
+                    <div className="gba:flex gba:items-start gba:gap-3">
+                      <span className="gba:text-sm gba:font-medium gba:text-muted-foreground gba:min-w-[140px]">
+                        Comment:
+                      </span>
+                      <span className="gba:text-sm gba:flex-1 gba:text-muted-foreground">{approvalNote.trim()}</span>
+                    </div>
+                  )}
                 </div>
-              )
-            )}
-            {approvalStatus && <Separator />}
-          </>
-        )}
-
-        {/* Team Absence Calendar - Show team coverage during this absence period */}
-        {employeeAbsence?.startDate && employeeAbsence?.endDate && supervisorId && !isLoadingEmployee && (
-          <>
-            <TeamAbsenceCalendar
-              accessToken={accessToken}
-              supervisorId={supervisorId}
-              startDate={employeeAbsence.startDate}
-              endDate={employeeAbsence.endDate}
-              currentAbsence={{
-                employeeId: employeeAbsence.employeeId || employeeData?.id || '',
-                employeeName: employeeData?.displayName || creatorName || 'Unknown',
-                position: employeeData?.position || undefined,
-                type: absenceTypeName,
-                status: 'PENDING_APPROVAL'
-              }}
-            />
-            <Separator />
-          </>
-        )}
-
-        {/* Comment Section - Only show for non-completed tasks */}
-        {!isTaskCompleted && (
-          <div data-testid="comment-section">
-            <div className="gba:flex gba:items-center gba:gap-2 gba:mb-3">
-              <MessageSquare className="gba:h-4 gba:w-4" />
-              <Label htmlFor="approval-comment" className="gba:text-sm gba:font-medium">
-                Add Comment (Required for rejection)
-              </Label>
-              <Switch
-                id="approval-comment"
-                checked={showComment}
-                onCheckedChange={checked => {
-                  setShowComment(checked)
-                  if (!checked) {
-                    setComment('')
-                  }
-                }}
-                data-testid="comment-toggle"
-              />
-            </div>
-            {showComment && (
-              <Textarea
-                rows={3}
-                placeholder="Add your approval comment or rejection reason..."
-                value={comment}
-                onChange={e => setComment(e.target.value)}
-                maxLength={500}
-                className="gba:w-full"
-                data-testid="approval-comment-input"
-              />
-            )}
-          </div>
-        )}
-      </div>
-
-      {/* Action Footer - Fixed at bottom */}
-      {/* Hardcoded actions for Kogito tasks - always show Approve/Reject unless task is completed */}
-      {!isTaskCompleted && (
-        <TaskDetailFooter
-          data-testid="action-footer"
-          actions={[
-            {
-              label: 'Reject',
-              onClick: handleReject,
-              variant: 'destructive' as const,
-              disabled: isRejecting || isApproving || !!successMessage,
-              loading: isRejecting,
-              icon: XCircle,
-              testId: 'reject-button'
-            },
-            {
-              label: 'Approve',
-              onClick: handleApprove,
-              variant: 'default' as const,
-              disabled: isApproving || isRejecting || !!successMessage,
-              loading: isApproving,
-              icon: ThumbsUp,
-              className: 'gba:bg-success gba:text-success-foreground hover:gba:bg-success/90',
-              testId: 'approve-button'
-            }
-          ]}
-        />
+              </div>
+            )
+          )}
+          {approvalStatus && <Separator />}
+        </>
       )}
-    </div>
+
+      {/* Team Absence Calendar - Show team coverage during this absence period */}
+      {employeeAbsence?.startDate && employeeAbsence?.endDate && supervisorId && !isLoadingEmployee && (
+        <>
+          <TeamAbsenceCalendar
+            accessToken={accessToken}
+            supervisorId={supervisorId}
+            startDate={employeeAbsence.startDate}
+            endDate={employeeAbsence.endDate}
+            currentAbsence={{
+              employeeId: employeeAbsence.employeeId || employeeData?.id || '',
+              employeeName: employeeData?.displayName || creatorName || 'Unknown',
+              position: employeeData?.position || undefined,
+              type: absenceTypeName,
+              status: 'PENDING_APPROVAL'
+            }}
+          />
+          <Separator />
+        </>
+      )}
+
+      {/* Comment Section - Only show for non-completed tasks */}
+      {!isTaskCompleted && (
+        <div ref={commentSectionRef} data-testid="comment-section">
+          <div className="gba:flex gba:items-center gba:gap-2 gba:mb-3">
+            <MessageSquare className="gba:h-4 gba:w-4" />
+            <Label htmlFor="approval-comment" className="gba:text-sm gba:font-medium">
+              Add Comment (Required for rejection)
+            </Label>
+            <Switch
+              id="approval-comment"
+              checked={showComment}
+              onCheckedChange={checked => {
+                setShowComment(checked)
+                if (!checked) {
+                  setComment('')
+                }
+              }}
+              data-testid="comment-toggle"
+            />
+          </div>
+          {showComment && (
+            <Textarea
+              rows={3}
+              placeholder="Add your approval comment or rejection reason..."
+              value={comment}
+              onChange={e => setComment(e.target.value)}
+              maxLength={500}
+              className="gba:w-full"
+              data-testid="approval-comment-input"
+            />
+          )}
+        </div>
+      )}
+    </TaskFormLayout>
   )
 }
 

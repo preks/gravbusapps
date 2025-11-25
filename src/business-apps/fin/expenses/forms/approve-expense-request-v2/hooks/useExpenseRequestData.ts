@@ -7,9 +7,10 @@ import { ExpenseRequestApprovalData } from '../approve-expense-request/types/exp
 interface UseExpenseRequestDataProps {
   expenseId: string | null
   accessToken: string
+  payloadData?: any // Expense request data from task payload
 }
 
-export const useExpenseRequestData = ({ expenseId, accessToken }: UseExpenseRequestDataProps) => {
+export const useExpenseRequestData = ({ expenseId, accessToken, payloadData }: UseExpenseRequestDataProps) => {
   const [expenseRequest, setExpenseRequest] = useState<ExpenseRequestApprovalData | null>(null)
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
@@ -18,6 +19,16 @@ export const useExpenseRequestData = ({ expenseId, accessToken }: UseExpenseRequ
   const activeUserLocale = getCurrentActiveUserLocale()
 
   const fetchExpenseRequest = async () => {
+    // If we have payload data, use it directly (like vacation component does)
+    if (payloadData) {
+      console.log('✅ Using expense request data from task payload')
+      setExpenseRequest(payloadData)
+      setLoading(false)
+      setError(null)
+      return
+    }
+
+    // Otherwise, fetch from GraphQL (for standalone usage)
     if (!expenseId) {
       setError('No expense request ID provided. Please provide a valid request ID.')
       setLoading(false)
@@ -34,6 +45,7 @@ export const useExpenseRequestData = ({ expenseId, accessToken }: UseExpenseRequ
       setLoading(true)
       setError(null)
 
+      console.log('🔍 Fetching expense request from GraphQL API...')
       const result = await graphqlClient.request(GET_EXPENSE_REQUEST_FOR_APPROVAL, {
         expenseId,
         activeUserLocale
@@ -56,7 +68,7 @@ export const useExpenseRequestData = ({ expenseId, accessToken }: UseExpenseRequ
 
   useEffect(() => {
     fetchExpenseRequest()
-  }, [expenseId, accessToken])
+  }, [expenseId, accessToken, payloadData])
 
   return {
     expenseRequest,

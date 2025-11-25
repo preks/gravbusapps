@@ -1,34 +1,36 @@
-# EveryBox - Unified Inbox & Outbox
+# EveryBox - Unified Task & Flow Management
 
-A modern, professional inbox/outbox component that consolidates all user tasks and workflows in one place.
+A modern, professional inbox/outbox component that consolidates all user tasks and workflows in one place. Built with `@newwork/nw-design-system` and optimized for performance.
 
 ## Features
 
 ### Inbox
 
-- **Multi-source Task Aggregation**:
-  - Flow Engine tasks (ASSIGN mode only)
-  - CRM Opportunities (owned by user)
-  - CRM Leads (owned by user)
-- **Real-time Updates**: Auto-refresh every 15 seconds
+- **Multi-source Task Aggregation**: Flow Engine tasks (cFlow) and Kogito process tasks
+- **Real-time Updates**: Auto-refresh with configurable polling interval
 - **Search**: Full-text search across titles, descriptions, and flow names
-- **Task Actions**: Complete, Reject, Reassign tasks directly
+- **Task Actions**: Complete, Reject, Reassign tasks with comment support
 - **Priority Indicators**: Visual badges for overdue and due soon tasks
-- **Dynamic Detail Views**: Different views for flow tasks, CRM tasks, and approvals
+- **Dynamic Detail Views**: Automatic form rendering based on task type
 
 ### Outbox
 
 - **Initiated Workflows**: All workflows started by the user
 - **Status Tracking**: Visual progress indicators for each flow
 - **Flow Details**: Step-by-step progress with completion status
-- **Search**: Filter flows by name or template
+- **Blink Grouping**: Multi-assignee workflow support
+
+### Completed
+
+- **Task History**: View completed tasks with full details
+- **Read-only Forms**: Review submitted form data
 
 ## Tech Stack
 
 - **UI Components**: 100% `@newwork/nw-design-system`
 - **Styling**: Tailwind CSS with `gba:` prefix
 - **State Management**: React hooks
-- **Data Fetching**: REST API (Flow Engine) + GraphQL (CRM)
+- **Data Fetching**: REST API (Flow Engine) + GraphQL
 - **Performance**: React.memo, optimized re-renders
 - **Error Handling**: ErrorBoundary for graceful failures
 - **Loading States**: Skeleton loaders
@@ -46,73 +48,97 @@ const MyComponent: React.FC<BusinessAppContextProps> = (context) => {
 
 ## Navigation
 
-The component is accessible via:
-
 - **URL**: `/platform/every-box`
 - **Development**: `?app=platform/apps/every-box`
-
-## API Endpoints
-
-### Flow Engine
-
-**Endpoint Configuration:**
-
-- **Always uses production endpoint**: `https://newwork-dev.newwork.com/flow-engine`
-- Environment variables are ignored to ensure consistent behavior
-- All task and flow data is fetched from the production flow engine
-
-**Endpoints:**
-
-- `GET /api/tasks/user/{userId}?includeAssigned=true&includeClaimable=false` - Inbox tasks
-- `GET /api/tasks/user/{userId}/completed` - Completed tasks
-- `GET /api/flows/user/{userId}/initiated` - Outbox flows
-- `POST /api/tasks/{taskId}/complete` - Complete task
-- `POST /api/tasks/{taskId}/reject` - Reject task
-- `POST /api/tasks/{taskId}/reassign` - Reassign task
-
-### GraphQL (CRM)
-
-- Opportunities query with owner filter
-- Leads query with owner filter
 
 ## Architecture
 
 ```
 every-box/
-├── EveryBox.tsx              # Main component with tabs & polling
-├── index.ts                  # Exports
-├── README.md                 # This file
-├── hooks/
-│   ├── useInboxTasks.ts      # Fetch & combine inbox tasks
-│   ├── useOutboxFlows.ts     # Fetch initiated workflows
-│   └── useTaskActions.ts     # Task action handlers
+├── EveryBox.tsx                    # Main component with tabs & polling
+├── index.ts                        # Exports
+├── README.md                       # This file
+│
 ├── components/
-│   ├── InboxView.tsx         # Inbox tab
-│   ├── OutboxView.tsx        # Outbox tab
-│   ├── TaskCard.tsx          # Task card (memoized)
-│   ├── FlowCard.tsx          # Flow card (memoized)
-│   ├── TaskDetailDialog.tsx  # Task details modal
-│   ├── FlowDetailDialog.tsx  # Flow details modal
-│   ├── EmptyState.tsx        # Empty states
-│   ├── LoadingSkeleton.tsx   # Loading states
-│   └── ErrorBoundary.tsx     # Error handling
+│   ├── InboxView.tsx               # Inbox tab with task list
+│   ├── OutboxView.tsx              # Outbox tab with initiated flows
+│   ├── CompletedView.tsx           # Completed tasks view
+│   ├── TaskCard.tsx                # Task card (memoized)
+│   ├── FlowCard.tsx                # Flow card (memoized)
+│   ├── TaskDetailDialog.tsx        # Task details modal with dynamic forms
+│   ├── TaskDetailHeader.tsx        # Shared task header component
+│   ├── TaskDetailFooter.tsx        # Shared task footer with auto-actions
+│   ├── TaskFormLayout.tsx          # Layout wrapper for task forms
+│   ├── FlowDetailDialog.tsx        # Flow details modal
+│   ├── UniversalCflowTaskDetails.tsx # Universal cFlow task renderer
+│   ├── RemoteScreenLoader.tsx      # Native screen loader for NATIVE_SCREEN tasks
+│   ├── LowcoderScreenLoader.tsx    # Lowcoder screen loader
+│   ├── TeamAbsenceCalendar.tsx     # Team absence calendar component
+│   ├── EmptyState.tsx              # Empty states
+│   ├── LoadingSkeleton.tsx         # Loading states
+│   └── ErrorBoundary.tsx           # Error handling
+│
+├── hooks/
+│   ├── useInboxTasks.ts            # Fetch & combine inbox tasks
+│   ├── useOutboxFlows.ts           # Fetch initiated workflows
+│   ├── useCompletedTasks.ts        # Fetch completed tasks
+│   ├── useFlowStepData.ts          # Fetch flow step data for completed tasks
+│   ├── useKogitoProcess.ts         # Kogito process operations
+│   ├── useScreenManagementApi.ts   # Screen management API client
+│   ├── useEmployeeAvatar.ts        # Single employee avatar fetching
+│   ├── useEmployeeAvatarsBatch.ts  # Batch employee avatar fetching
+│   ├── useEmployeeData.ts          # Employee data fetching
+│   └── useTeamAbsences.ts          # Team absences data
+│
+├── config/
+│   └── dev-screen-overrides.ts     # Development screen overrides for NATIVE_SCREEN
+│
 ├── types/
-│   └── index.ts              # TypeScript interfaces
-└── utils/
-    ├── taskFormatters.ts     # Date & status formatters
-    └── taskGrouping.ts       # Grouping & filtering utils
+│   └── index.ts                    # TypeScript interfaces (UnifiedTask, Flow, etc.)
+│
+├── utils/
+│   ├── taskFormatters.ts           # Date & status formatters
+│   ├── taskGrouping.ts             # Grouping & filtering utils
+│   ├── avatarUtils.ts              # Avatar utilities (base64, initials)
+│   └── moduleIcons.tsx             # Module icon mappings
+│
+└── docs/
+    ├── README.md                   # Additional documentation
+    ├── TASK_FOOTER_AUTO_ACTIONS.md # Task footer auto-actions guide
+    └── DEV_OVERRIDES_README.md     # Dev screen overrides documentation
 ```
+
+## API Endpoints
+
+### Flow Engine
+
+**Base URL**: `https://newwork-dev.newwork.com/flow-engine`
+
+| Endpoint                                  | Method | Description     |
+| ----------------------------------------- | ------ | --------------- |
+| `/api/tasks/user/{userId}`                | GET    | Inbox tasks     |
+| `/api/tasks/user/{userId}/completed`      | GET    | Completed tasks |
+| `/api/flows/user/{userId}/initiated`      | GET    | Outbox flows    |
+| `/api/flows/{flowId}/steps/{stepNo}/data` | GET    | Flow step data  |
+| `/api/tasks/{taskId}/complete`            | POST   | Complete task   |
+| `/api/tasks/{taskId}/reject`              | POST   | Reject task     |
+
+### Screen Management
+
+**Base URL**: Environment configured
+
+| Endpoint                    | Method | Description            |
+| --------------------------- | ------ | ---------------------- |
+| `/api/screen/v1/definition` | GET    | Get screen definitions |
 
 ## Data Models
 
 ### UnifiedTask
 
-Represents tasks from all sources in a consistent format:
-
 ```typescript
 interface UnifiedTask {
   id: string
-  source: 'flow-engine' | 'crm-opportunity' | 'crm-lead' | 'approval'
+  source: 'cflow' | 'kogito'
   type: string
   title: string
   description?: string
@@ -120,26 +146,48 @@ interface UnifiedTask {
   priority: TaskPriority
   dueDate?: string
   assignedAt: string
-  availableActions: string[]
+  availableActions: TaskAvailableActions
+  form?: any[] // Dynamic form fields
   // ... more fields
 }
 ```
 
 ### Flow
 
-Represents initiated workflows:
-
 ```typescript
 interface Flow {
   id: string
   templateName: string
+  templateId: string
   status: FlowStatus
   initiatedBy: string
   startedAt: string
   currentStep: number
   totalSteps: number
   steps: FlowStep[]
+  tags?: Record<string, any>
+  blinkGroupId?: string
   // ... more fields
+}
+```
+
+## Task Detail Rendering
+
+Task details are rendered based on task type and configuration:
+
+1. **cFlow Tasks** → `UniversalCflowTaskDetails` (universal form renderer)
+2. **NATIVE_SCREEN** → `RemoteScreenLoader` (loads native React forms)
+3. **LOWCODER** → `LowcoderScreenLoader` (loads Lowcoder screens)
+
+### Dev Screen Overrides
+
+For development, screens can be overridden in `config/dev-screen-overrides.ts`:
+
+```typescript
+{
+  screenKey: 'frm_processNameTaskName',
+  componentPath: 'module/sub-module/forms/form-name',
+  builderType: 'NATIVE_SCREEN',
 }
 ```
 
@@ -158,29 +206,27 @@ interface Flow {
 
 All interactive elements have `data-testid` attributes:
 
-- `every-box-container` - Main container
-- `every-box-inbox-tab` - Inbox tab
-- `every-box-outbox-tab` - Outbox tab
-- `task-card-{id}` - Individual task cards
-- `flow-card-{id}` - Individual flow cards
-- `inbox-search-input` - Inbox search
-- `outbox-search-input` - Outbox search
+| Element        | Test ID                                     |
+| -------------- | ------------------------------------------- |
+| Main container | `every-box-container`                       |
+| Inbox tab      | `every-box-inbox-tab`                       |
+| Outbox tab     | `every-box-outbox-tab`                      |
+| Completed tab  | `every-box-completed-tab`                   |
+| Task cards     | `task-card-{id}`                            |
+| Flow cards     | `flow-card-{id}`                            |
+| Search inputs  | `inbox-search-input`, `outbox-search-input` |
 
 ## Performance
 
-- **Polling**: 15-second interval with cleanup on unmount
+- **Polling**: Configurable interval with cleanup on unmount
 - **Memoization**: TaskCard and FlowCard use React.memo
 - **Optimized Queries**: Parallel data fetching
 - **Lazy Loading**: Dialogs rendered only when needed
-- **Search Debouncing**: Implemented in component state
+- **Avatar Caching**: Object URLs for base64 images
+- **Batch Operations**: Employee avatars fetched in batches
 
-## Future Enhancements (Out of Scope)
+## Related Documentation
 
-- Advanced filtering sidebar
-- Batch task operations
-- Task templates
-- Push notifications
-- Email digests
-- Mobile app integration
-- IRM service request integration
-- Analytics dashboard
+- [Task Footer Auto Actions](./docs/TASK_FOOTER_AUTO_ACTIONS.md)
+- [Dev Screen Overrides](./docs/DEV_OVERRIDES_README.md)
+- [Flow Step Data Integration](./docs/FLOW_STEP_DATA_INTEGRATION.md)

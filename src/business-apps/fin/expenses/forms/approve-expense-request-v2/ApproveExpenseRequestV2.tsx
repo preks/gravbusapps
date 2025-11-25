@@ -6,8 +6,11 @@ import { dispatchProcessContinueEvent } from '@/common/utils/processEventUtils'
 import { splitExpenseItems } from './utils/expenseItemUtils'
 import { useExpenseRequestData } from './hooks/useExpenseRequestData'
 import { formatCurrency, getCatalogValue } from './utils/formatters'
-import { TaskDetailHeader } from '@/business-apps/platform/apps/every-box-2/components/TaskDetailHeader'
-import { TaskDetailFooter } from '@/business-apps/platform/apps/every-box-2/components/TaskDetailFooter'
+import { TaskDetailHeader } from '@/business-apps/platform/apps/every-box/components/TaskDetailHeader'
+import { TaskDetailFooter } from '@/business-apps/platform/apps/every-box/components/TaskDetailFooter'
+import { TaskFormLayout } from '@/business-apps/platform/apps/every-box/components/TaskFormLayout'
+import { useEntityDates } from '@/business-apps/common/hooks/useEntityDates'
+import { useApproverData } from '@/business-apps/common/hooks/useApproverData'
 
 // Component imports
 import {
@@ -29,19 +32,27 @@ const ApproveExpenseRequestV2Content: React.FC<ApproveExpenseRequestV2Props> = (
   userInfo,
   onClose
 }) => {
+  // Extract task metadata first
+  const taskPayload = additionalData?.psi_taskPayload || {}
+
+  // Extract expense request data from task payload (like vacation component does)
+  const payloadExpenseRequest = taskPayload?.expenseRequest
+
   // Extract expenseId from additionalData or URL parameters
   const expenseId =
     additionalData?.expenseId ||
-    additionalData?.psi_taskPayload?.expenseRequest?.id ||
+    payloadExpenseRequest?.id ||
     new URLSearchParams(window.location.search).get('expenseId')
 
   const [isApproving, setIsApproving] = useState(false)
   const [isRejecting, setIsRejecting] = useState(false)
 
-  const { expenseRequest, loading, error, refetch } = useExpenseRequestData({ expenseId, accessToken })
-
-  // Extract task metadata
-  const taskPayload = additionalData?.psi_taskPayload || {}
+  // Use payload data if available, otherwise fetch from GraphQL
+  const { expenseRequest, loading, error, refetch } = useExpenseRequestData({
+    expenseId,
+    accessToken,
+    payloadData: payloadExpenseRequest // Pass payload data to avoid unnecessary GraphQL query
+  })
   const processMetadata = additionalData?.psi_processMetadata || {}
   const taskStatus = additionalData?.psi_taskStatus || processMetadata?.status || 'IN_PROGRESS'
   const taskCompletedAt = processMetadata?.completedAt || (additionalData as any)?.psi_taskCompletedAt
@@ -54,6 +65,19 @@ const ApproveExpenseRequestV2Content: React.FC<ApproveExpenseRequestV2Props> = (
     'Approve Expense Request'
   const taskSource: 'kogito' | 'cflow' = processMetadata?.source || (processMetadata?.endpoint ? 'kogito' : 'kogito')
   const creatorName = taskPayload?.creatorName as string | undefined
+
+  // Use generic hooks for entity dates (request created)
+  const { createdAt: requestCreatedAt, isLoading: isLoadingRequestDate } = useEntityDates({
+    accessToken,
+    entityId: expenseRequest?.id,
+    entityType: 'ExpenseRequest'
+  })
+
+  // For completed tasks, fetch approver name
+  const { approverName, isLoading: isLoadingApproverName } = useApproverData({
+    accessToken,
+    approverId: isTaskCompleted ? expenseRequest?.approverId : null
+  })
 
   // Extract approval data from task outputs/inputs (for completed tasks)
   const taskOutputApprovalStatus = useMemo(() => {
@@ -179,8 +203,8 @@ const ApproveExpenseRequestV2Content: React.FC<ApproveExpenseRequestV2Props> = (
   // Determine approval date (priority: completedAt > expenseRequestComment date)
   const approvalDate = completedAt || approvalDateFromRequest
 
-  // Detect if we're in every-box-2 context (has onClose callback)
-  const isEveryBox2Context = !!onClose
+  // Detect if we're in every-box context (has onClose callback)
+  const isEveryBoxContext = !!onClose
 
   const handleClose = () => {
     if (onClose) {
@@ -356,128 +380,132 @@ const ApproveExpenseRequestV2Content: React.FC<ApproveExpenseRequestV2Props> = (
   }
 
   const statusDisplay = getStatusDisplay(approvalStatus || undefined)
-  const displayName =
-    `${expenseRequest.employee?.firstName || ''} ${expenseRequest.employee?.lastName || ''}`.trim() || 'Employee'
+
+  // Get employee ID - check multiple possible locations
+  const employeeId = expenseRequest?.employee?.id || (expenseRequest as any)?.employeeId
+
+  // Debug: Log employee data structure
+  console.log('🔍 [ApproveExpenseRequestV2] Employee data:', {
+    employeeId,
+    employeeObject: expenseRequest?.employee,
+    hasId: !!expenseRequest?.employee?.id,
+    directEmployeeId: (expenseRequest as any)?.employeeId
+  })
 
   return (
-    <div className="gba:flex gba:flex-col gba:h-full gba:relative" data-testid="approve-expense-request-v2-container">
-      {/* Task Header with Employee Info */}
-      <TaskDetailHeader
-        title={taskTitle}
-        status={taskStatus}
-        source={taskSource}
-        showEmployeeInfo={true}
-        employeeData={
-          expenseRequest?.employee
-            ? {
-                displayName,
-                firstName: expenseRequest.employee.firstName,
-                lastName: expenseRequest.employee.lastName,
-                avatarUrl: expenseRequest.employee.pictureThumbnail
-                  ? `data:image/jpeg;base64,${expenseRequest.employee.pictureThumbnail}`
-                  : undefined,
-                position: expenseRequest.employee.employeePosition?.jobPosition?.name
-              }
-            : undefined
-        }
-        isLoadingEmployee={loading}
-        creatorName={creatorName}
-        onClose={isEveryBox2Context ? handleClose : undefined}
-        customBadges={
-          approvalStatus && (
-            <Badge variant={statusDisplay.variant} data-testid="expense-request-status-badge">
-              {statusDisplay.label}
-            </Badge>
-          )
-        }
-      />
-
-      {/* Content with padding - matches header padding for alignment */}
-      <div className="gba:flex-1 gba:overflow-y-auto gba:space-y-4 gba:min-h-0 gba:p-6">
-        {/* 1. Approval Details (only for completed tasks) */}
-        {isTaskCompleted && (
-          <ApprovalDetailsSection
-            approvalStatus={approvalStatus}
-            approvalComment={approvalComment}
-            approvalDate={approvalDate}
-            isLoading={loading}
-            prefixDataTestId="approve-expense-request-v2"
-          />
-        )}
-
-        {/* 2. Expense Request Details */}
-        <ExpenseRequestDetailsSection expenseRequest={expenseRequest} prefixDataTestId="approve-expense-request-v2" />
-
-        {/* 3. Financial Overview */}
-        <ExpenseRequestTotalsSection
-          totalAmount={totalAmount}
-          reimbursableAmount={reimbursableAmount}
-          nonReimbursableAmount={nonReimbursableAmount}
-          advancePaymentAmount={advancePaymentAmount}
-          currencyCode={currencyCode}
-          formatCurrency={formatCurrency}
-          expensePlanTotalAmount={expenseRequest.expensePlan?.totalAmount}
-          remainingAmount={remainingAmount}
-          isExpensePlan={expenseRequest.expensePlan !== null}
+    <TaskFormLayout
+      data-testid="approve-expense-request-v2-container"
+      header={
+        <TaskDetailHeader
+          title={taskTitle}
+          status={taskStatus}
+          source={taskSource}
+          showEmployeeInfo={true}
+          employeeId={employeeId}
+          accessToken={accessToken}
+          creatorName={creatorName}
+          onClose={isEveryBoxContext ? handleClose : undefined}
+          customBadges={
+            approvalStatus && (
+              <Badge variant={statusDisplay.variant} data-testid="expense-request-status-badge">
+                {statusDisplay.label}
+              </Badge>
+            )
+          }
         />
-
-        {/* 4. Items */}
-        {expenseItems && expenseItems.length > 0 && (
-          <ExpensesSection
-            expenseItems={expenseItems}
-            currencyCode={currencyCode}
-            formatCurrency={formatCurrency}
-            getCatalogValue={getCatalogValue}
+      }
+      footer={
+        !isTaskCompleted ? (
+          <TaskDetailFooter
+            data-testid="approve-expense-request-v2-actions"
+            actions={[
+              {
+                label: 'Return',
+                onClick: handleReject,
+                variant: 'outline' as const,
+                disabled: isRejecting || isApproving,
+                loading: isRejecting,
+                icon: XCircle,
+                testId: 'return-button'
+              },
+              {
+                label: 'Approve',
+                onClick: handleApprove,
+                variant: 'default' as const,
+                disabled: isApproving || isRejecting,
+                loading: isApproving,
+                icon: ThumbsUp,
+                className: 'gba:bg-success gba:text-success-foreground hover:gba:bg-success/90',
+                testId: 'approve-button'
+              }
+            ]}
           />
-        )}
-
-        {/* 5. Trip Details (only if has trips) */}
-        {expenseRequest.expenseRequestTrip && expenseRequest.expenseRequestTrip.length > 0 && (
-          <EnhancedTripSection
-            expenseRequestTrip={expenseRequest.expenseRequestTrip}
-            prefixDataTestId="approve-expense-request-v2"
-          />
-        )}
-
-        {/* 6. Allowances (only if has allowances) */}
-        {allAllowances && allAllowances.length > 0 && (
-          <AllowancesSection
-            allowanceItems={allAllowances}
-            currencyCode={currencyCode}
-            formatCurrency={formatCurrency}
-            prefixDataTestId="approve-expense-request-v2"
-          />
-        )}
-      </div>
-
-      {/* Action Footer - Fixed at bottom */}
-      {!isTaskCompleted && (
-        <TaskDetailFooter
-          data-testid="approve-expense-request-v2-actions"
-          actions={[
-            {
-              label: 'Return',
-              onClick: handleReject,
-              variant: 'outline' as const,
-              disabled: isRejecting || isApproving,
-              loading: isRejecting,
-              icon: XCircle,
-              testId: 'return-button'
-            },
-            {
-              label: 'Approve',
-              onClick: handleApprove,
-              variant: 'default' as const,
-              disabled: isApproving || isRejecting,
-              loading: isApproving,
-              icon: ThumbsUp,
-              className: 'gba:bg-success gba:text-success-foreground hover:gba:bg-success/90',
-              testId: 'approve-button'
-            }
-          ]}
+        ) : undefined
+      }
+      contentClassName="gba:space-y-6"
+    >
+      {/* 1. Approval Details (only for completed tasks) */}
+      {isTaskCompleted && (
+        <ApprovalDetailsSection
+          approvalStatus={approvalStatus}
+          approvalComment={approvalComment}
+          approvalDate={approvalDate}
+          approverName={approverName}
+          isLoadingApprover={isLoadingApproverName}
+          isLoading={loading}
+          prefixDataTestId="approve-expense-request-v2"
         />
       )}
-    </div>
+
+      {/* 2. Expense Request Details */}
+      <ExpenseRequestDetailsSection
+        expenseRequest={expenseRequest}
+        requestCreatedAt={requestCreatedAt}
+        isLoadingRequestDate={isLoadingRequestDate}
+        prefixDataTestId="approve-expense-request-v2"
+      />
+
+      {/* 3. Financial Overview */}
+      <ExpenseRequestTotalsSection
+        totalAmount={totalAmount}
+        reimbursableAmount={reimbursableAmount}
+        nonReimbursableAmount={nonReimbursableAmount}
+        advancePaymentAmount={advancePaymentAmount}
+        currencyCode={currencyCode}
+        formatCurrency={formatCurrency}
+        expensePlanTotalAmount={expenseRequest.expensePlan?.totalAmount}
+        remainingAmount={remainingAmount}
+        isExpensePlan={expenseRequest.expensePlan !== null}
+      />
+
+      {/* 4. Items */}
+      {expenseItems && expenseItems.length > 0 && (
+        <ExpensesSection
+          expenseItems={expenseItems}
+          currencyCode={currencyCode}
+          formatCurrency={formatCurrency}
+          getCatalogValue={getCatalogValue}
+        />
+      )}
+
+      {/* 5. Trip Details (only if has trips) */}
+      {expenseRequest.expenseRequestTrip && expenseRequest.expenseRequestTrip.length > 0 && (
+        <EnhancedTripSection
+          expenseRequestTrip={expenseRequest.expenseRequestTrip}
+          prefixDataTestId="approve-expense-request-v2"
+        />
+      )}
+
+      {/* 6. Allowances (only if has allowances) */}
+      {allAllowances && allAllowances.length > 0 && (
+        <AllowancesSection
+          allowanceItems={allAllowances}
+          currencyCode={currencyCode}
+          formatCurrency={formatCurrency}
+          prefixDataTestId="approve-expense-request-v2"
+        />
+      )}
+    </TaskFormLayout>
   )
 }
 

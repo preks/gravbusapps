@@ -135,14 +135,7 @@ const transformFlow = (rawFlow: any): Flow => {
   const blinkGroupId = tags.blinkGroupId || undefined
   const assignedUserId = tags.assignedUserId || undefined
 
-  // Extract entity reference from tags (list API doesn't return links)
-  // Entity references are stored in BOTH links (for inbox) and tags (for outbox)
-  const entityType = tags.entityType || undefined
-  const entityId = tags.entityId || undefined
-  const entityName = tags.entityName || undefined
-  const entityDisplayUrl = tags.entityDisplayUrl || undefined
-
-  const transformedFlow = {
+  return {
     id: (rawFlow as any).flowId || rawFlow.workflowId,
     templateName: (rawFlow as any).flowName || rawFlow.templateName || rawFlow.name || 'Unnamed Flow',
     templateId: rawFlow.templateId,
@@ -157,17 +150,10 @@ const transformFlow = (rawFlow: any): Flow => {
     tags: rawFlow.tags, // Include tags for filtering and badge display
     blinkGroupId, // Add blinkGroupId for grouping
     assignedUserId, // Add assignedUserId to identify who this workflow is for
-    // Entity reference fields (from links)
-    entityType,
-    entityId,
-    entityName,
-    entityDisplayUrl,
     metadata: {
       rawFlow
     }
   }
-
-  return transformedFlow
 }
 
 /**

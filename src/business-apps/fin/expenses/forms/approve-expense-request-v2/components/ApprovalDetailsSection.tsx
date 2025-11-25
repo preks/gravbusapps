@@ -1,12 +1,14 @@
 import React, { useMemo } from 'react'
 import { Card, CardContent, CardHeader, CardTitle, Separator, Label, Spinner } from '@newwork/nw-design-system'
 import { CheckCircle, AlertCircle } from 'lucide-react'
-import { formatDateTime } from '@/business-apps/platform/apps/every-box-2/utils/taskFormatters'
+import { formatDateTime } from '@/business-apps/platform/apps/every-box/utils/taskFormatters'
 
 interface ApprovalDetailsSectionProps {
   approvalStatus?: string | null
   approvalComment?: string | null
   approvalDate?: string | null
+  approverName?: string | null
+  isLoadingApprover?: boolean
   isLoading?: boolean
   prefixDataTestId?: string
 }
@@ -15,6 +17,8 @@ const ApprovalDetailsSection: React.FC<ApprovalDetailsSectionProps> = ({
   approvalStatus,
   approvalComment,
   approvalDate,
+  approverName,
+  isLoadingApprover = false,
   isLoading = false,
   prefixDataTestId = 'approve-expense-request-v2'
 }) => {
@@ -79,6 +83,17 @@ const ApprovalDetailsSection: React.FC<ApprovalDetailsSectionProps> = ({
             )}
           </div>
         </div>
+
+        {/* Approved By - Show approver name when available */}
+        {approverName && (
+          <>
+            <Separator />
+            <div>
+              <Label className="gba:text-sm gba:text-muted-foreground">Approved By</Label>
+              <p className="gba:text-sm gba:mt-1">{isLoadingApprover ? <Spinner size="sm" /> : approverName}</p>
+            </div>
+          </>
+        )}
 
         {/* Date */}
         {approvalDate && (

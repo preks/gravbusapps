@@ -16,7 +16,7 @@ import {
 import { PiLink } from 'react-icons/pi'
 import { ExpensePlanItem } from '../types/expensePlanV2Types'
 import { getTranslationFromI18nKeyAndLabel } from '@/common/utils/windowUtils'
-import { formatDateTime } from '@/business-apps/platform/apps/every-box-2/utils/taskFormatters'
+import { formatDateTime } from '@/business-apps/platform/apps/every-box/utils/taskFormatters'
 import Pill from '@/components/pill'
 
 interface ExpensePlanItemsSectionProps {
@@ -34,7 +34,7 @@ const ExpensePlanItemsSection: React.FC<ExpensePlanItemsSectionProps> = ({
   getCatalogValue,
   prefixDataTestId = 'approve-expense-plan-v2'
 }) => {
-  // Date formatting helper - use formatDateTime from every-box-2
+  // Date formatting helper - use formatDateTime from every-box
   const formatDateDisplay = (dateString: string | null) => {
     if (!dateString) return '-'
     return formatDateTime(dateString)

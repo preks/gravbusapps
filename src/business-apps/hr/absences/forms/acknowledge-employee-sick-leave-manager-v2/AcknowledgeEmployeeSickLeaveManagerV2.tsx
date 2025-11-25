@@ -11,8 +11,11 @@ import { BusinessAppContextProps } from '@/common/BusinessAppContext'
 import { dispatchProcessContinueEvent } from '@/common/utils/processEventUtils'
 import { useVacationApprovalData } from '../approve-employee-vacation-v2/hooks/useVacationApprovalData'
 import { TeamAbsenceCalendar } from '@/business-apps/platform/apps/every-box/components/TeamAbsenceCalendar'
-import { TaskDetailHeader } from '@/business-apps/platform/apps/every-box-2/components/TaskDetailHeader'
-import { TaskDetailFooter } from '@/business-apps/platform/apps/every-box-2/components/TaskDetailFooter'
+import { TaskDetailHeader } from '@/business-apps/platform/apps/every-box/components/TaskDetailHeader'
+import { TaskDetailFooter } from '@/business-apps/platform/apps/every-box/components/TaskDetailFooter'
+import { TaskFormLayout } from '@/business-apps/platform/apps/every-box/components/TaskFormLayout'
+import { formatDateTime } from '@/business-apps/platform/apps/every-box/utils/taskFormatters'
+import { useEntityDates } from '@/business-apps/common/hooks/useEntityDates'
 import dayjs from 'dayjs'
 
 interface AcknowledgeEmployeeSickLeaveManagerV2Props extends BusinessAppContextProps {
@@ -42,6 +45,13 @@ const AcknowledgeEmployeeSickLeaveManagerV2: React.FC<AcknowledgeEmployeeSickLea
 
   // Get task title from process metadata or use default
   const taskTitle = processMetadata?.referenceTaskName || processMetadata?.nodeName || 'Acknowledge Sick Leave'
+
+  // Use generic hooks for entity dates (request created)
+  const { createdAt: requestCreatedAt, isLoading: isLoadingRequestDate } = useEntityDates({
+    accessToken,
+    entityId: employeeAbsence?.id,
+    entityType: 'EmployeeAbsence'
+  })
 
   // Get task source from process metadata (fallback to 'kogito' if not available)
   // Source can be 'kogito' or 'cflow'
@@ -104,188 +114,193 @@ const AcknowledgeEmployeeSickLeaveManagerV2: React.FC<AcknowledgeEmployeeSickLea
     }
   }
 
-  // Detect if we're in every-box-2 context (has onClose callback)
-  const isEveryBox2Context = !!onClose
+  // Detect if we're in every-box context (has onClose callback)
+  const isEveryBoxContext = !!onClose
 
   // Get submission date (use createdAt or startDate as fallback)
   const submissionDate = employeeAbsence?.createdAt || employeeAbsence?.startDate || null
 
   return (
-    <div
-      className="gba:flex gba:flex-col gba:h-full gba:relative"
+    <TaskFormLayout
       data-testid="acknowledge-employee-sick-leave-manager-v2"
-    >
-      {/* Task Header with Employee Info - Always full width, X button only in every-box-2 */}
-      {/* Header uses absolute positioning to extend to edges of RemoteScreenLoader container */}
-      <TaskDetailHeader
-        title={taskTitle}
-        status={taskStatus}
-        source={taskSource}
-        showEmployeeInfo={true}
-        employeeData={
-          employeeData
-            ? {
-                displayName: employeeData.displayName,
-                firstName: employeeData.firstName,
-                lastName: employeeData.lastName,
-                avatarUrl: employeeData.avatarUrl,
-                position: employeeData.position
-              }
-            : undefined
-        }
-        isLoadingEmployee={isLoadingEmployee}
-        creatorName={creatorName}
-        onClose={isEveryBox2Context ? handleClose : undefined}
-      />
-
-      {/* Content with padding - matches header padding for alignment */}
-      <div className="gba:flex-1 gba:overflow-y-auto gba:space-y-6 gba:min-h-0">
-        {/* Error Messages */}
-        {errorMessage && (
-          <Alert variant="destructive" data-testid="error-message">
-            {errorMessage}
-          </Alert>
-        )}
-        {dataError && (
-          <Alert variant="destructive" data-testid="data-error-message">
-            {dataError}
-          </Alert>
-        )}
-
-        {/* Request Details */}
-        {employeeAbsence && typeof employeeAbsence === 'object' && (
-          <>
-            <div data-testid="request-details-section">
-              <h4 className="gba:font-semibold gba:mb-4 gba:text-lg">Request Details</h4>
-              <div className="gba:bg-muted gba:p-4 gba:rounded-lg gba:space-y-3">
-                {/* Type */}
-                {absenceTypeName && (
-                  <div className="gba:flex gba:items-start gba:gap-3">
-                    <span className="gba:text-sm gba:font-medium gba:text-muted-foreground gba:min-w-[140px]">
-                      Type:
-                    </span>
-                    <span className="gba:text-sm gba:flex-1">{absenceTypeName}</span>
-                  </div>
-                )}
-
-                {/* Submission Date */}
-                {submissionDate && (
-                  <div className="gba:flex gba:items-start gba:gap-3">
-                    <span className="gba:text-sm gba:font-medium gba:text-muted-foreground gba:min-w-[140px]">
-                      Submission Date:
-                    </span>
-                    <span className="gba:text-sm gba:flex-1">{dayjs(submissionDate).format('MMM D, YYYY')}</span>
-                  </div>
-                )}
-
-                {/* Absence Duration */}
-                {employeeAbsence.startDate && employeeAbsence.endDate && (
-                  <div className="gba:flex gba:items-start gba:gap-3">
-                    <span className="gba:text-sm gba:font-medium gba:text-muted-foreground gba:min-w-[140px]">
-                      Absence Duration:
-                    </span>
-                    <span className="gba:text-sm gba:flex-1">
-                      {(() => {
-                        const startDate = dayjs(employeeAbsence.startDate)
-                        const endDate = dayjs(employeeAbsence.endDate)
-                        const isSameDay = startDate.isSame(endDate, 'day')
-
-                        if (isSameDay) {
-                          return startDate.format('MMM D, YYYY')
-                        }
-                        return `${startDate.format('MMM D, YYYY')} → ${endDate.format('MMM D, YYYY')}`
-                      })()}
-                    </span>
-                  </div>
-                )}
-
-                {/* Working Days */}
-                {(employeeAbsence.workingDays !== undefined || employeeAbsence.workingHours !== undefined) && (
-                  <div className="gba:flex gba:items-start gba:gap-3">
-                    <span className="gba:text-sm gba:font-medium gba:text-muted-foreground gba:min-w-[140px]">
-                      Working Days:
-                    </span>
-                    <span className="gba:text-sm gba:flex-1">
-                      {employeeAbsence.workingDays !== undefined
-                        ? `${employeeAbsence.workingDays} ${employeeAbsence.workingDays === 1 ? 'day' : 'days'}`
-                        : ''}
-                      {employeeAbsence.workingDays !== undefined && employeeAbsence.workingHours !== undefined && ' '}
-                      {employeeAbsence.workingHours !== undefined &&
-                        `(${employeeAbsence.workingHours} ${employeeAbsence.workingHours === 1 ? 'hour' : 'hours'})`}
-                    </span>
-                  </div>
-                )}
-
-                {/* Substitute Employee - Only show if there is a substitute */}
-                {employeeAbsence.substituteEmployee && (
-                  <div className="gba:flex gba:items-start gba:gap-3">
-                    <span className="gba:text-sm gba:font-medium gba:text-muted-foreground gba:min-w-[140px]">
-                      Substitute:
-                    </span>
-                    <span className="gba:text-sm gba:flex-1 gba:text-muted-foreground">
-                      {isLoadingSubstitute ? <Spinner size="sm" /> : substituteEmployeeName || 'Loading...'}
-                    </span>
-                  </div>
-                )}
-
-                {/* Description - Only show if there is a description */}
-                {employeeAbsence.description?.trim() && (
-                  <div className="gba:flex gba:items-start gba:gap-3">
-                    <span className="gba:text-sm gba:font-medium gba:text-muted-foreground gba:min-w-[140px]">
-                      Description:
-                    </span>
-                    <span className="gba:text-sm gba:flex-1 gba:text-muted-foreground">
-                      {employeeAbsence.description.trim()}
-                    </span>
-                  </div>
-                )}
-              </div>
-            </div>
-            <Separator />
-          </>
-        )}
-
-        {/* Team Absence Calendar - Show team coverage during this absence period */}
-        {employeeAbsence?.startDate && employeeAbsence?.endDate && supervisorId && !isLoadingEmployee && (
-          <>
-            <TeamAbsenceCalendar
-              accessToken={accessToken}
-              supervisorId={supervisorId}
-              startDate={employeeAbsence.startDate}
-              endDate={employeeAbsence.endDate}
-              currentAbsence={{
-                employeeId: employeeAbsence.employeeId || employeeData?.id || '',
-                employeeName: employeeData?.displayName || creatorName || 'Unknown',
-                position: employeeData?.position || undefined,
-                type: absenceTypeName,
-                status: 'PENDING_APPROVAL'
-              }}
-            />
-            <Separator />
-          </>
-        )}
-      </div>
-
-      {/* Action Footer - Fixed at bottom */}
-      {/* Only show Acknowledge button for non-completed tasks */}
-      {!isTaskCompleted && (
-        <TaskDetailFooter
-          data-testid="action-footer"
-          actions={[
-            {
-              label: 'Acknowledge',
-              onClick: handleAcknowledge,
-              variant: 'default' as const,
-              disabled: isAcknowledging || !!successMessage,
-              loading: isAcknowledging,
-              icon: CheckCircle,
-              className: 'gba:bg-success gba:text-success-foreground hover:gba:bg-success/90',
-              testId: 'acknowledge-button'
-            }
-          ]}
+      header={
+        <TaskDetailHeader
+          title={taskTitle}
+          status={taskStatus}
+          source={taskSource}
+          showEmployeeInfo={true}
+          employeeData={
+            employeeData
+              ? {
+                  displayName: employeeData.displayName,
+                  firstName: employeeData.firstName,
+                  lastName: employeeData.lastName,
+                  avatarUrl: employeeData.avatarUrl,
+                  position: employeeData.position
+                }
+              : undefined
+          }
+          isLoadingEmployee={isLoadingEmployee}
+          creatorName={creatorName}
+          onClose={isEveryBoxContext ? handleClose : undefined}
         />
+      }
+      footer={
+        !isTaskCompleted ? (
+          <TaskDetailFooter
+            data-testid="action-footer"
+            actions={[
+              {
+                label: 'Acknowledge',
+                onClick: handleAcknowledge,
+                variant: 'default' as const,
+                disabled: isAcknowledging || !!successMessage,
+                loading: isAcknowledging,
+                icon: CheckCircle,
+                className: 'gba:bg-success gba:text-success-foreground hover:gba:bg-success/90',
+                testId: 'acknowledge-button'
+              }
+            ]}
+          />
+        ) : undefined
+      }
+      contentClassName="gba:space-y-6"
+    >
+      {/* Error Messages */}
+      {errorMessage && (
+        <Alert variant="destructive" data-testid="error-message">
+          {errorMessage}
+        </Alert>
       )}
-    </div>
+      {dataError && (
+        <Alert variant="destructive" data-testid="data-error-message">
+          {dataError}
+        </Alert>
+      )}
+
+      {/* Request Details */}
+      {employeeAbsence && typeof employeeAbsence === 'object' && (
+        <>
+          <div data-testid="request-details-section">
+            <h4 className="gba:font-semibold gba:mb-4 gba:text-lg">Request Details</h4>
+            <div className="gba:bg-muted gba:p-4 gba:rounded-lg gba:space-y-3">
+              {/* Type */}
+              {absenceTypeName && (
+                <div className="gba:flex gba:items-start gba:gap-3">
+                  <span className="gba:text-sm gba:font-medium gba:text-muted-foreground gba:min-w-[140px]">Type:</span>
+                  <span className="gba:text-sm gba:flex-1">{absenceTypeName}</span>
+                </div>
+              )}
+
+              {/* Submission Date */}
+              {submissionDate && (
+                <div className="gba:flex gba:items-start gba:gap-3">
+                  <span className="gba:text-sm gba:font-medium gba:text-muted-foreground gba:min-w-[140px]">
+                    Submission Date:
+                  </span>
+                  <span className="gba:text-sm gba:flex-1">{dayjs(submissionDate).format('MMM D, YYYY')}</span>
+                </div>
+              )}
+
+              {/* Absence Duration */}
+              {employeeAbsence.startDate && employeeAbsence.endDate && (
+                <div className="gba:flex gba:items-start gba:gap-3">
+                  <span className="gba:text-sm gba:font-medium gba:text-muted-foreground gba:min-w-[140px]">
+                    Absence Duration:
+                  </span>
+                  <span className="gba:text-sm gba:flex-1">
+                    {(() => {
+                      const startDate = dayjs(employeeAbsence.startDate)
+                      const endDate = dayjs(employeeAbsence.endDate)
+                      const isSameDay = startDate.isSame(endDate, 'day')
+
+                      if (isSameDay) {
+                        return startDate.format('MMM D, YYYY')
+                      }
+                      return `${startDate.format('MMM D, YYYY')} → ${endDate.format('MMM D, YYYY')}`
+                    })()}
+                  </span>
+                </div>
+              )}
+
+              {/* Working Days */}
+              {(employeeAbsence.workingDays !== undefined || employeeAbsence.workingHours !== undefined) && (
+                <div className="gba:flex gba:items-start gba:gap-3">
+                  <span className="gba:text-sm gba:font-medium gba:text-muted-foreground gba:min-w-[140px]">
+                    Working Days:
+                  </span>
+                  <span className="gba:text-sm gba:flex-1">
+                    {employeeAbsence.workingDays !== undefined
+                      ? `${employeeAbsence.workingDays} ${employeeAbsence.workingDays === 1 ? 'day' : 'days'}`
+                      : ''}
+                    {employeeAbsence.workingDays !== undefined && employeeAbsence.workingHours !== undefined && ' '}
+                    {employeeAbsence.workingHours !== undefined &&
+                      `(${employeeAbsence.workingHours} ${employeeAbsence.workingHours === 1 ? 'hour' : 'hours'})`}
+                  </span>
+                </div>
+              )}
+
+              {/* Substitute Employee - Only show if there is a substitute */}
+              {employeeAbsence.substituteEmployee && (
+                <div className="gba:flex gba:items-start gba:gap-3">
+                  <span className="gba:text-sm gba:font-medium gba:text-muted-foreground gba:min-w-[140px]">
+                    Substitute:
+                  </span>
+                  <span className="gba:text-sm gba:flex-1 gba:text-muted-foreground">
+                    {isLoadingSubstitute ? <Spinner size="sm" /> : substituteEmployeeName || 'Loading...'}
+                  </span>
+                </div>
+              )}
+
+              {/* Description - Only show if there is a description */}
+              {employeeAbsence.description?.trim() && (
+                <div className="gba:flex gba:items-start gba:gap-3">
+                  <span className="gba:text-sm gba:font-medium gba:text-muted-foreground gba:min-w-[140px]">
+                    Description:
+                  </span>
+                  <span className="gba:text-sm gba:flex-1 gba:text-muted-foreground">
+                    {employeeAbsence.description.trim()}
+                  </span>
+                </div>
+              )}
+
+              {/* Request Created - Show when available */}
+              {requestCreatedAt && (
+                <div className="gba:flex gba:items-start gba:gap-3">
+                  <span className="gba:text-sm gba:font-medium gba:text-muted-foreground gba:min-w-[140px]">
+                    Request Created:
+                  </span>
+                  <span className="gba:text-sm gba:flex-1">
+                    {isLoadingRequestDate ? <Spinner size="sm" /> : formatDateTime(requestCreatedAt)}
+                  </span>
+                </div>
+              )}
+            </div>
+          </div>
+          <Separator />
+        </>
+      )}
+
+      {/* Team Absence Calendar - Show team coverage during this absence period */}
+      {employeeAbsence?.startDate && employeeAbsence?.endDate && supervisorId && !isLoadingEmployee && (
+        <>
+          <TeamAbsenceCalendar
+            accessToken={accessToken}
+            supervisorId={supervisorId}
+            startDate={employeeAbsence.startDate}
+            endDate={employeeAbsence.endDate}
+            currentAbsence={{
+              employeeId: employeeAbsence.employeeId || employeeData?.id || '',
+              employeeName: employeeData?.displayName || creatorName || 'Unknown',
+              position: employeeData?.position || undefined,
+              type: absenceTypeName,
+              status: 'PENDING_APPROVAL'
+            }}
+          />
+          <Separator />
+        </>
+      )}
+    </TaskFormLayout>
   )
 }
 

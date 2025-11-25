@@ -1,17 +1,22 @@
 import React from 'react'
-import { Card, CardContent, CardHeader, CardTitle, Separator, Label } from '@newwork/nw-design-system'
+import { Card, CardContent, CardHeader, CardTitle, Separator, Label, Spinner } from '@newwork/nw-design-system'
 import { PiHandCoins } from 'react-icons/pi'
 import { AdvancePaymentData } from '../types'
 import { getTranslationFromI18nKeyAndLabel } from '@/common/utils/windowUtils'
 import { formatCurrency } from '../utils/formatters'
+import { formatDateTime } from '@/business-apps/platform/apps/every-box/utils/taskFormatters'
 
 interface AdvancePaymentDetailsSectionProps {
   advancePayment: AdvancePaymentData
+  requestCreatedAt?: string | null
+  isLoadingRequestDate?: boolean
   prefixDataTestId?: string
 }
 
 const AdvancePaymentDetailsSection: React.FC<AdvancePaymentDetailsSectionProps> = ({
   advancePayment,
+  requestCreatedAt,
+  isLoadingRequestDate = false,
   prefixDataTestId = 'advance-payment-approval-v2'
 }) => {
   // Format payment method
@@ -114,6 +119,23 @@ const AdvancePaymentDetailsSection: React.FC<AdvancePaymentDetailsSectionProps> 
               </p>
             </div>
           </>
+        )}
+
+        {requestCreatedAt && <Separator />}
+
+        {/* Request Created - Show when available */}
+        {requestCreatedAt && (
+          <div>
+            <Label className="gba:text-sm gba:text-muted-foreground">
+              {getTranslationFromI18nKeyAndLabel(
+                'lowcoder:expense_request_overview.request_created',
+                'Request Created'
+              )}
+            </Label>
+            <div className="gba:text-sm gba:font-medium gba:mt-1">
+              {isLoadingRequestDate ? <Spinner size="sm" /> : formatDateTime(requestCreatedAt)}
+            </div>
+          </div>
         )}
       </CardContent>
     </Card>

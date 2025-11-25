@@ -15,7 +15,7 @@ import {
 } from '@newwork/nw-design-system'
 import { PiMapPin, PiMapTrifold, PiFlag, PiTable, PiChartLine } from 'react-icons/pi'
 import { getTranslationFromI18nKeyAndLabel } from '@/common/utils/windowUtils'
-import { formatDateTime } from '@/business-apps/platform/apps/every-box-2/utils/taskFormatters'
+import { formatDateTime } from '@/business-apps/platform/apps/every-box/utils/taskFormatters'
 import { getCatalogValue } from '../utils/formatters'
 import { ExpenseRequestTrip } from '../types/expenseRequestV2Types'
 import Pill from '@/components/pill'

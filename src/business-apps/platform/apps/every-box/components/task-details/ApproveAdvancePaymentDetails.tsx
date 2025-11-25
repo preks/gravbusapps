@@ -289,13 +289,11 @@ export const ApproveAdvancePaymentDetails: React.FC<ApproveAdvancePaymentDetails
     setIsApproving(true)
     try {
       await continueProcess({
-        domain: 'employee-expense',
-        processName: 'approveAdvancePayment',
         payload: {
-          event: 'approve',
+          event: 'pse_approve',
           advancePaymentComment: {
             commentDate: new Date().toISOString().slice(0, 19),
-            comment: comment || '',
+            comment: showComment && comment.trim() ? comment.trim() : '',
             commentType: 'APPROVE_COMMENT',
             authorEmployee: employeeId,
             advancePayment: advancePayment.id
@@ -319,13 +317,11 @@ export const ApproveAdvancePaymentDetails: React.FC<ApproveAdvancePaymentDetails
     setIsRejecting(true)
     try {
       await continueProcess({
-        domain: 'employee-expense',
-        processName: 'approveAdvancePayment',
         payload: {
-          event: 'reject',
+          event: 'pse_reject',
           advancePaymentComment: {
             commentDate: new Date().toISOString().slice(0, 19),
-            comment: comment,
+            comment: comment.trim(),
             commentType: 'REJECT_COMMENT',
             authorEmployee: employeeId,
             advancePayment: advancePayment.id

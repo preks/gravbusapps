@@ -21,8 +21,12 @@ interface TaskCardProps {
 
 export const TaskCard: React.FC<TaskCardProps> = memo(
   ({ task, onView, employeeMap, isSelected = false, isDetailViewOpen = false }) => {
-    const overdue = isOverdue(task.dueDate)
-    const dueSoon = isDueSoon(task.dueDate)
+    // Check if task is completed
+    const isCompleted = task.status === 'COMPLETED' || !!task.completedAt
+
+    // Only show overdue/due soon for non-completed tasks
+    const overdue = !isCompleted && isOverdue(task.dueDate)
+    const dueSoon = !isCompleted && isDueSoon(task.dueDate)
 
     const getSourceBadgeText = (source: UnifiedTask['source']): string => {
       switch (source) {
@@ -196,7 +200,8 @@ export const TaskCard: React.FC<TaskCardProps> = memo(
             </div>
 
             {/* Right side: Due date only - Hidden when selected except for Blink icon */}
-            {!isSelected && (
+            {/* Don't show due date for completed tasks */}
+            {!isSelected && !isCompleted && (
               <div className="gba:flex gba:flex-col gba:gap-1 gba:items-end gba:flex-shrink-0">
                 {task.dueDate && (
                   <div className="gba:flex gba:items-center gba:gap-1">

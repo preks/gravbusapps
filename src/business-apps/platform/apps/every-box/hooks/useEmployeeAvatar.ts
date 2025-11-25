@@ -13,6 +13,7 @@ export interface EmployeeAvatarData {
   lastName: string
   displayName: string
   pictureThumbnail?: string
+  position?: string
 }
 
 const GET_EMPLOYEE_AVATAR_BY_USER_ID = `
@@ -29,6 +30,11 @@ const GET_EMPLOYEE_AVATAR_BY_USER_ID = `
       lastName
       displayName
       pictureThumbnail
+      employeePosition {
+        jobPosition {
+          name
+        }
+      }
     }
   }
 `
@@ -48,6 +54,11 @@ const GET_EMPLOYEE_AVATAR_BY_EMPLOYEE_ID = `
         lastName
         displayName
         pictureThumbnail
+        employeePosition {
+          jobPosition {
+            name
+          }
+        }
       }
     }
   }
@@ -73,24 +84,68 @@ export const useEmployeeAvatar = (accessToken: string, id?: string) => {
       try {
         // Try querying by userId first (Kogito tasks use userId)
         const userIdResult = await graphqlClient.request<{
-          Employee: EmployeeAvatarData[]
+          Employee: Array<{
+            id: string
+            firstName: string
+            lastName: string
+            displayName: string
+            pictureThumbnail?: string
+            employeePosition?: {
+              jobPosition?: {
+                name?: string
+              }
+            }
+          }>
         }>(GET_EMPLOYEE_AVATAR_BY_USER_ID, {
           userId: id
         })
 
-        let employee = userIdResult?.Employee?.[0]
+        const rawEmployee = userIdResult?.Employee?.[0]
+        let employee: EmployeeAvatarData | null = null
+
+        if (rawEmployee) {
+          employee = {
+            id: rawEmployee.id,
+            firstName: rawEmployee.firstName,
+            lastName: rawEmployee.lastName,
+            displayName: rawEmployee.displayName,
+            pictureThumbnail: rawEmployee.pictureThumbnail,
+            position: rawEmployee.employeePosition?.jobPosition?.name
+          }
+        }
 
         // If not found by userId, try by employeeId (CFlow might use employeeId)
         if (!employee) {
           const employeeIdResult = await graphqlClient.request<{
             EmployeePosition: Array<{
-              employee: EmployeeAvatarData
+              employee: {
+                id: string
+                firstName: string
+                lastName: string
+                displayName: string
+                pictureThumbnail?: string
+                employeePosition?: {
+                  jobPosition?: {
+                    name?: string
+                  }
+                }
+              }
             }>
           }>(GET_EMPLOYEE_AVATAR_BY_EMPLOYEE_ID, {
             employeeId: id
           })
 
-          employee = employeeIdResult?.EmployeePosition?.[0]?.employee
+          const rawEmployeeFromPosition = employeeIdResult?.EmployeePosition?.[0]?.employee
+          if (rawEmployeeFromPosition) {
+            employee = {
+              id: rawEmployeeFromPosition.id,
+              firstName: rawEmployeeFromPosition.firstName,
+              lastName: rawEmployeeFromPosition.lastName,
+              displayName: rawEmployeeFromPosition.displayName,
+              pictureThumbnail: rawEmployeeFromPosition.pictureThumbnail,
+              position: rawEmployeeFromPosition.employeePosition?.jobPosition?.name
+            }
+          }
         }
 
         if (employee) {

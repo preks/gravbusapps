@@ -63,11 +63,6 @@ export interface Flow {
   groupedFlows?: Flow[] // All flows in the group (for grouped display)
   assigneeCount?: number // Total number of assignees in the group
   completedAssignees?: number // Number of completed assignees
-  // Entity reference support
-  entityType?: string // Type of entity (account, contact, employee, etc.)
-  entityId?: string // ID of the linked entity
-  entityName?: string // Display name of the entity
-  entityDisplayUrl?: string // URL for navigating to the entity
 }
 
 /**

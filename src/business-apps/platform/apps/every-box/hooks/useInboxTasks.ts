@@ -39,6 +39,7 @@ export const useInboxTasks = (context: BusinessAppContextProps): UseInboxTasksRe
   const userId = context.userInfo?.id || ''
   const hasInitialFetchRef = useRef(false)
   const lastTaskIdsRef = useRef<Set<string>>(new Set())
+  const previousUserIdRef = useRef<string>('')
 
   const ITEMS_PER_PAGE = 50
   const FETCH_SIZE = 50 // Fetch 50 from each source (100 total per fetch)
@@ -56,9 +57,7 @@ export const useInboxTasks = (context: BusinessAppContextProps): UseInboxTasksRe
       const response = await fetchAllUserTasks(userId, context.accessToken || '', {
         assignedOnly: true,
         limit: FETCH_SIZE,
-        offset,
-        sortBy: 'createdAt',
-        sortOrder: 'desc'
+        offset
       })
 
       const hasMore = response.tasks.length >= FETCH_SIZE
@@ -211,11 +210,22 @@ export const useInboxTasks = (context: BusinessAppContextProps): UseInboxTasksRe
   }, [currentPage, allFetchedTasks, hasMoreToFetch, fetchBatch])
 
   /**
-   * Initial fetch on mount
+   * Initial fetch on mount and when userId changes
    */
   useEffect(() => {
+    // Reset when userId changes
+    if (previousUserIdRef.current && previousUserIdRef.current !== userId) {
+      hasInitialFetchRef.current = false
+      setAllFetchedTasks([])
+      setDisplayedTasks([])
+      setCurrentPage(1)
+      setHasMoreToFetch(true)
+      lastTaskIdsRef.current.clear()
+    }
+
     if (!hasInitialFetchRef.current && userId) {
       hasInitialFetchRef.current = true
+      previousUserIdRef.current = userId
       loadInitial()
     }
   }, [userId, loadInitial])
