@@ -26,6 +26,7 @@ export const GET_EMPLOYEE_DATA = /*sql*/ `
   EmployeePosition(where: {employeeId: {_eq: $employeeId}}) {
     id
     organizationalUnitId
+    supervisorEmployeeId
     organizationalUnit {
       id
       name
@@ -498,6 +499,7 @@ export interface Employee {
 
 interface EmployeePosition {
   organizationalUnitId: string
+  supervisorEmployeeId?: string | null
   organizationalUnit: {
     name: string
   }
