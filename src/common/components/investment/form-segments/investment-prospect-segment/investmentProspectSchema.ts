@@ -2,10 +2,31 @@ import { z } from 'zod'
 import { FormFieldsDefinition } from './useInvestmentProspectFields'
 
 /**
- * Preprocess function for number fields
+ * Preprocess function for number fields (required)
+ * Handles empty strings, null, undefined, and converts valid numbers
+ * Allows 0 as a valid value
+ * Converts null to undefined for required fields
  */
 const preprocessNumber = (val: any): number | undefined => {
+  // Handle empty/null/undefined
   if (val === null || val === undefined || val === '') return undefined
+  // Convert to number - 0 is a valid value
+  const num = Number(val)
+  return Number.isNaN(num) ? undefined : num
+}
+
+/**
+ * Preprocess function for number fields (optional)
+ * Handles empty strings, null, undefined, and converts valid numbers
+ * Allows 0 as a valid value
+ * Preserves null for optional fields (to work with API null values)
+ */
+const preprocessNumberOptional = (val: any): number | null | undefined => {
+  // Preserve null for optional fields (API may send null)
+  if (val === null) return null
+  // Handle empty/undefined
+  if (val === undefined || val === '') return undefined
+  // Convert to number - 0 is a valid value
   const num = Number(val)
   return Number.isNaN(num) ? undefined : num
 }
@@ -132,16 +153,22 @@ const createOptionalFieldRule = (field: { type: string; label: string }): z.ZodT
     case 'TEXTAREA':
       return z.string().optional()
     case 'AMOUNT':
-      return z.preprocess(preprocessNumber, z.number().min(0, `${field.label} must be positive`).optional())
+      return z
+        .preprocess(preprocessNumberOptional, z.number().min(0, `${field.label} must be positive`).nullable())
+        .optional()
     case 'PERCENTAGE':
       return z
         .preprocess(
-          preprocessNumber,
-          z.number().min(0, `${field.label} must be at least 0%`).max(100, `${field.label} must be at most 100%`)
+          preprocessNumberOptional,
+          z
+            .number()
+            .min(0, `${field.label} must be at least 0%`)
+            .max(100, `${field.label} must be at most 100%`)
+            .nullable()
         )
         .optional()
     case 'NUMBER':
-      return z.preprocess(preprocessNumber, z.number().optional())
+      return z.preprocess(preprocessNumberOptional, z.number().nullable()).optional()
     case 'DATE':
     case 'DATETIME':
       return z.string().optional()

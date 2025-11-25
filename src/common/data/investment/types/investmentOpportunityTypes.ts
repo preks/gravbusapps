@@ -226,7 +226,8 @@ export const INVESTMENT_OPPORTUNITY_DESCRIPTORS: Descriptor[] = [
   { key: 'investmentRoleIds', path: 'investmentRoleRef', kind: 'inIds' },
   { key: 'investmentStakeTypeIds', path: 'investmentStakeTypeRef', kind: 'inIds' },
   { key: 'investmentTypeIds', path: 'investmentTypeRef', kind: 'inIds' },
-  { key: 'sizeMeasurementUnitIds', path: 'sizeMeasurementUnitRef', kind: 'inIds' }
+  { key: 'sizeMeasurementUnitIds', path: 'sizeMeasurementUnitRef', kind: 'inIds' },
+  { key: 'contactIds', path: 'investmentOpportunityContact.contact.id', kind: 'inIds' } // IRM uses "investmentOpportunityContact" not "opportunityContacts"
 ]
 
 /**
@@ -323,8 +324,6 @@ export function toInvestmentOpportunity(raw: any): InvestmentOpportunity {
   const {
     investment,
     investmentActivity,
-    investmentAddress,
-    investmentCommunicationChannel,
     investmentDocument,
     investmentLead,
     investmentNote,
@@ -339,8 +338,6 @@ export function toInvestmentOpportunity(raw: any): InvestmentOpportunity {
     // Map only if target field doesn't already exist (fallback mapping)
     investments: raw.investments ?? investment,
     activities: raw.activities ?? investmentActivity,
-    addresses: raw.addresses ?? investmentAddress,
-    communicationChannels: raw.communicationChannels ?? investmentCommunicationChannel,
     documents: raw.documents ?? investmentDocument,
     leads: raw.leads ?? investmentLead,
     notes: raw.notes ?? investmentNote,

@@ -146,7 +146,6 @@ export const InvestmentProspectSegment: React.FC<InvestmentProspectSegmentProps>
           <InvestmentTypeSelect
             investmentGroupRef={currentInvestmentGroupRef}
             fieldName="investmentTypeRef"
-            businessAppContext={businessAppContext}
             testIdPrefix={formatDataTestId(testIdPrefix, 'type-select')}
             required={false}
             readOnly={false}

@@ -117,7 +117,8 @@ export const CUSTOMER_OPPORTUNITY_DESCRIPTORS: Descriptor[] = [
   },
 
   // CRM-specific additional fields
-  { key: 'salesCampaignIds', path: 'salesCampaignId', kind: 'inIds' }
+  { key: 'salesCampaignIds', path: 'salesCampaignId', kind: 'inIds' },
+  { key: 'contactIds', path: 'contacts.contact.id', kind: 'inIds' } // CRM uses "contacts" not "opportunityContacts"
 ]
 
 /**

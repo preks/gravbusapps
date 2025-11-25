@@ -36,7 +36,9 @@ export const investmentLeadSchema = leadSchema.extend({
         .catchall(z.unknown()),
       z.null()
     ])
-    .optional(),
+    .refine(val => val !== null && val !== undefined && val !== '', {
+      message: 'Investment group is required'
+    }),
   investmentTypeRef: z
     .union([
       z.string().min(1),
@@ -71,6 +73,9 @@ const LeadForm: React.FC<LeadFormProps> = ({ accessToken, userInfo, additionalDa
   const watchedTypeRef = form.watch('investmentTypeRef')
 
   // Investment Prospect Fields Hook (reactive with watched values)
+  const effectiveGroupRef = (watchedGroupRef as string) || lead?.investmentGroupRef || null
+  const effectiveTypeRef = (watchedTypeRef as string) || lead?.investmentTypeRef || null
+
   const {
     formFieldsDefinition,
     groups,
@@ -78,8 +83,8 @@ const LeadForm: React.FC<LeadFormProps> = ({ accessToken, userInfo, additionalDa
     configuration,
     loading: catalogLoading
   } = useProspectFields({
-    investmentGroupRef: (watchedGroupRef as string) || lead?.investmentGroupRef || null,
-    investmentTypeRef: (watchedTypeRef as string) || lead?.investmentTypeRef || null,
+    investmentGroupRef: effectiveGroupRef,
+    investmentTypeRef: effectiveTypeRef,
     accessToken
   })
 
@@ -115,12 +120,26 @@ const LeadForm: React.FC<LeadFormProps> = ({ accessToken, userInfo, additionalDa
       // Entity ID changed: Load all values (like CRM LeadForm)
       const baseValues = mapToFormValues(lead || {}, prospectSchema)
       const dynamicFieldValues = extractDynamicFieldValuesFromEntity()
-      form.reset({ ...baseValues, ...dynamicFieldValues } as Partial<InvestmentLead>)
+
+      const mergedValues = { ...baseValues, ...dynamicFieldValues }
+
+      form.reset(mergedValues as Partial<InvestmentLead>)
+
       leadRef.current = lead
     } else if (schemaChanged) {
       // Schema changed: Update only dynamic fields
       const currentValues = form.getValues()
       const updatedValues = updateDynamicFieldsInFormValues(currentValues)
+
+      // Preserve base fields (investmentGroupRef, investmentTypeRef) from entity if they're empty in form
+      // These are not dynamic fields, so they won't be updated by updateDynamicFieldsInFormValues
+      if (!updatedValues.investmentGroupRef && lead?.investmentGroupRef) {
+        updatedValues.investmentGroupRef = lead.investmentGroupRef
+      }
+      if (!updatedValues.investmentTypeRef && lead?.investmentTypeRef) {
+        updatedValues.investmentTypeRef = lead.investmentTypeRef
+      }
+
       form.reset(updatedValues as Partial<InvestmentLead>)
     }
   }, [

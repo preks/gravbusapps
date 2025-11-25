@@ -100,11 +100,6 @@ export const CatalogSelectProvider = <TFormValues extends FieldValues = FieldVal
 
     // Performance: Track subscription creation
     const subscriptionStartTime = performance.now()
-    console.log(`[PERF] CatalogSelectProvider: Creating form.watch() subscription`, {
-      externalKeys,
-      externalKeysLength: externalKeys.length,
-      timestamp: new Date().toISOString()
-    })
 
     // Subscribe to form changes for external keys
     const subscription = activeForm.watch(values => {

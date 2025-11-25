@@ -244,7 +244,7 @@ export const useProspectFields = ({
         setAllGroups(groupsResult.entries || [])
         setAllTypes(typesResult.entries || [])
       } catch (err) {
-        console.error('useProspectFields: Error fetching catalog data:', err)
+        console.error('[useProspectFields] Error fetching catalog data:', err)
         setError(err instanceof Error ? err.message : 'Unknown error')
         setAllGroups([])
         setAllTypes([])
@@ -272,7 +272,9 @@ export const useProspectFields = ({
 
   // Compute filtered types for selected group
   const filteredTypes = useMemo<FilteredType[]>(() => {
-    if (!investmentGroupRef) return []
+    if (!investmentGroupRef) {
+      return []
+    }
 
     const groupCode = investmentGroupRef.split(':').pop()
     const expectedParentRef = `InvestmentGroup:v1:${groupCode}`
@@ -280,7 +282,7 @@ export const useProspectFields = ({
       g => g.id === investmentGroupRef || `InvestmentGroup:v1:${g.code}` === investmentGroupRef || g.code === groupCode
     )
 
-    const filtered = allTypes
+    return allTypes
       .filter(
         type =>
           type.parentEntryId === expectedParentRef ||
@@ -293,8 +295,6 @@ export const useProspectFields = ({
         value: `InvestmentType:v1:${type.code || type.id}`,
         label: type.value || type.displayValue || 'Unknown'
       }))
-
-    return filtered
   }, [allTypes, allGroups, investmentGroupRef])
 
   // Compute prospect fields configuration from cached data

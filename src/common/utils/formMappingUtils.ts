@@ -1,50 +1,21 @@
 import { z } from 'zod'
 
 /**
- * Checks if a value is an ISO datetime string (e.g., "2024-01-15T00:00:00Z" or "2024-01-15T00:00:00")
- */
-function isISODateTimeString(value: any): boolean {
-  if (typeof value !== 'string') return false
-  // Matches ISO datetime format: YYYY-MM-DDTHH:mm or YYYY-MM-DDTHH:mm:ss with optional timezone
-  return /^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}/.test(value)
-}
-
-/**
- * Transforms ISO datetime string for form inputs
- * - Date-only fields (dueDate, closeDate, birthDate, etc.): strip time
- * - Datetime fields (occurredAt, completedAt, reminderDate, etc.): preserve time
- */
-function transformDateForForm(value: string, fieldName: string): string {
-  if (!value) return ''
-
-  // List of fields that should be date-only (no time component)
-  const dateOnlyFields = ['dueDate', 'closeDate', 'birthDate', 'foundationDate', 'startDate', 'endDate']
-
-  // If it's a date-only field, strip the time
-  if (dateOnlyFields.includes(fieldName)) {
-    return value.split('T')[0]
-  }
-
-  // Otherwise preserve the full datetime string
-  return value
-}
-
-/**
  * Automatically maps entity to form values by matching field names.
  * Only includes fields that exist in both the entity and the schema.
  * Handles automatic type conversions:
- * - ISO datetime strings → date-only strings (for date inputs)
- * - numbers → strings (for number inputs)
+ * - Date objects → ISO strings
+ * - numbers → strings (for form inputs)
  */
 /**
- * Helper to unwrap ZodOptional or ZodNullable to get inner type
+ * Helper to unwrap ZodOptional or ZodNullable to get inner type (recursively)
  */
 const unwrapZodType = (schemaField: z.ZodTypeAny): z.ZodTypeAny => {
   if (schemaField instanceof z.ZodOptional) {
-    return schemaField.unwrap()
+    return unwrapZodType(schemaField.unwrap() as z.ZodTypeAny)
   }
   if (schemaField instanceof z.ZodNullable) {
-    return schemaField.unwrap()
+    return unwrapZodType(schemaField.unwrap() as z.ZodTypeAny)
   }
   return schemaField
 }
@@ -82,15 +53,18 @@ const transformFieldValue = (
   if (transformations && key in transformations) {
     return transformations[key]?.(value)
   }
-  // Automatic date transformation: ISO datetime → date-only string or preserve datetime
-  if (isISODateTimeString(value)) {
-    return transformDateForForm(value, key)
+
+  // Convert Date objects to ISO strings (API might return Date objects)
+  if (value instanceof Date) {
+    return value.toISOString()
   }
+
   // Automatic number → string transformation (for form inputs)
   if (typeof value === 'number') {
     return transformNumberValue(value, schemaField)
   }
-  // Default: use value as-is
+
+  // Default: use value as-is (strings, null, undefined, etc.)
   return value
 }
 
@@ -111,7 +85,8 @@ export function mapToFormValues<TEntity extends Record<string, any>, TSchema ext
     if (key in entity) {
       const value = entity[key]
       const schemaField = schema.shape[key]
-      result[key] = transformFieldValue(value, key, schemaField, transformations)
+      const transformedValue = transformFieldValue(value, key, schemaField, transformations)
+      result[key] = transformedValue
     }
   }
 

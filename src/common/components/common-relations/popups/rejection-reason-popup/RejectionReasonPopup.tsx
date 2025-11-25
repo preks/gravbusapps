@@ -212,10 +212,10 @@ export const RejectionReasonPopup: React.FC<RejectionReasonPopupProps> = ({
       // Fetch entity version
       if (entityType === 'LEAD') {
         const leadData = await fetchInvestmentLeadById(entityId)
-        setEntityVersion(leadData?.version)
+        setEntityVersion(leadData?.lead?.version)
       } else {
         const opportunityData = await fetchInvestmentOpportunityById(entityId)
-        setEntityVersion(opportunityData?.version)
+        setEntityVersion(opportunityData?.opportunity?.version)
       }
 
       // Fetch based on entity type

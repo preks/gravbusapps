@@ -46,6 +46,7 @@ export interface OpportunityRelationFields {
 
 export interface CommonOpportunityQueryVariables extends BaseQueryVariables {
   accountIds?: string[]
+  contactIds?: string[]
   currencyIds?: string[]
   opportunityPipelineIds?: string[]
   opportunityPipelineStageIds?: string[]

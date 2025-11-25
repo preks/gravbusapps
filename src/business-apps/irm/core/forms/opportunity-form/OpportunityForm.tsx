@@ -56,7 +56,9 @@ export const investmentOpportunitySchema = opportunitySchema.extend({
         .catchall(z.unknown()),
       z.null()
     ])
-    .optional(),
+    .refine(val => val !== null && val !== undefined && val !== '', {
+      message: 'Investment group is required'
+    }),
   investmentTypeRef: z
     .union([
       z.string().min(1),
@@ -128,6 +130,9 @@ const InvestmentOpportunityForm: React.FC<InvestmentOpportunityFormProps> = ({
   const watchedTypeRef = form.watch('investmentTypeRef')
 
   // Investment Prospect Fields Hook (reactive with watched values)
+  const effectiveGroupRef = (watchedGroupRef as string) || opportunity?.investmentGroupRef || null
+  const effectiveTypeRef = (watchedTypeRef as string) || opportunity?.investmentTypeRef || null
+
   const {
     formFieldsDefinition,
     groups,
@@ -135,8 +140,8 @@ const InvestmentOpportunityForm: React.FC<InvestmentOpportunityFormProps> = ({
     configuration,
     loading: catalogLoading
   } = useProspectFields({
-    investmentGroupRef: (watchedGroupRef as string) || opportunity?.investmentGroupRef || null,
-    investmentTypeRef: (watchedTypeRef as string) || opportunity?.investmentTypeRef || null,
+    investmentGroupRef: effectiveGroupRef,
+    investmentTypeRef: effectiveTypeRef,
     accessToken
   })
 
@@ -173,16 +178,30 @@ const InvestmentOpportunityForm: React.FC<InvestmentOpportunityFormProps> = ({
       const baseValues = mapToFormValues(opportunity || {}, prospectSchema)
       const dynamicFieldValues = extractDynamicFieldValuesFromEntity()
       const currentUserEmployeeId = userInfo?.employeeDetails?.employeeId
-      form.reset({
+
+      const mergedValues = {
         ...baseValues,
         ...dynamicFieldValues,
         ownerEmployeeId: (baseValues.ownerEmployeeId || currentUserEmployeeId || '') as string
-      } as Partial<InvestmentOpportunity>)
+      }
+
+      form.reset(mergedValues as Partial<InvestmentOpportunity>)
+
       opportunityRef.current = opportunity
     } else if (schemaChanged) {
       // Schema changed: Update only dynamic fields
       const currentValues = form.getValues()
       const updatedValues = updateDynamicFieldsInFormValues(currentValues)
+
+      // Preserve base fields (investmentGroupRef, investmentTypeRef) from entity if they're empty in form
+      // These are not dynamic fields, so they won't be updated by updateDynamicFieldsInFormValues
+      if (!updatedValues.investmentGroupRef && opportunity?.investmentGroupRef) {
+        updatedValues.investmentGroupRef = opportunity.investmentGroupRef
+      }
+      if (!updatedValues.investmentTypeRef && opportunity?.investmentTypeRef) {
+        updatedValues.investmentTypeRef = opportunity.investmentTypeRef
+      }
+
       form.reset(updatedValues as Partial<InvestmentOpportunity>)
     }
   }, [
