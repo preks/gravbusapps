@@ -4,7 +4,6 @@ import { env } from '@/common/env/EnvUtils'
 export interface FlowExecutionTask {
   id: string
   name: string
-  nodeName?: string
   referenceName?: string
   description?: string
   priority?: number
@@ -91,7 +90,6 @@ export class FlowMetricsClient extends RestClient {
       taskName,
       filterProcessName,
       filterTaskName,
-      state,
       filterState
     } = params
 
@@ -127,24 +125,16 @@ export class FlowMetricsClient extends RestClient {
       queryParams.searchItem = search
     }
 
-    // Build URL with query params
-    const url = new URL('/flow-executions/tasks', this.baseUrl)
-
-    // Add query params
-    Object.entries(queryParams).forEach(([key, value]) => {
-      url.searchParams.append(key, String(value))
+    return this.get<FlowExecutionTasksResponse>('/flow-executions/tasks', {
+      params: queryParams
     })
-
-    return this.get<FlowExecutionTasksResponse>(url.pathname + url.search)
   }
 
   /**
    * Get a specific flow execution task by ID
-   * @param processInstanceId - The process instance (execution) ID
-   * @param taskId - The task ID
    */
-  async getFlowExecutionTask(processInstanceId: string, taskId: string): Promise<FlowExecutionTask> {
-    return this.get<FlowExecutionTask>(`/flow-executions/${processInstanceId}/tasks/${taskId}`)
+  async getFlowExecutionTask(taskId: string): Promise<FlowExecutionTask> {
+    return this.get<FlowExecutionTask>(`/flow-executions/tasks/${taskId}`)
   }
 
   /**
