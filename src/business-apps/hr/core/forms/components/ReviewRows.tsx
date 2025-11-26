@@ -42,7 +42,7 @@ export const ReviewRows: React.FC<ReviewRowsProps> = ({
             mode === 'delete'
               ? 'gba:bg-destructive gba:text-destructive-foreground'
               : hasDiff
-                ? 'gba:bg-success-secondary gba:text-success-secondary-foreground'
+                ? 'gba:bg-success-secondary/30 gba:text-success-secondary-foreground'
                 : 'gba:bg-muted gba:text-muted-foreground'
           return (
             <div

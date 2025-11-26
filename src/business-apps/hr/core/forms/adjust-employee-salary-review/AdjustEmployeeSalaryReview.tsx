@@ -1,21 +1,28 @@
 import React, { useEffect, useState, useMemo } from 'react'
 import { useForm } from 'react-hook-form'
 import { BusinessAppContextProps } from '@/common/BusinessAppContext'
-import { getTranslationFromI18nKeyAndLabel, getCurrentActiveUserLocale } from '@/common/utils/windowUtils'
+import { getCurrentActiveUserLocale } from '@/common/utils/windowUtils'
+import { useTranslation } from '@newwork/nw-design-system'
 import { AppActionForm } from '@/components/app-action-form/AppActionForm'
 import FormHeader from '../components/FormHeader'
 import flowIconUrl from '@/assets/icons/flowSmall.svg'
 import { useGraphQLClient } from '@/common/network/graphql/useGraphQLClient'
-import { GET_EMPLOYEE_NAME, GET_INITIATOR_EMPLOYEE_NAME } from './AdjustEmployeeSalaryReviewQueries'
+import {
+  GET_EMPLOYEE_NAME,
+  GET_INITIATOR_EMPLOYEE_NAME,
+  SALARY_ADJUST_REASON_CATALOG_QUERY
+} from './AdjustEmployeeSalaryReviewQueries'
 import ReviewRows from '../components/ReviewRows'
 import { buildSalaryComparisonRows, buildAdjustmentDetails } from './buildRows'
 import type { SalaryChangePayload } from './types'
+import translations from '../_i18n'
 
 export const AdjustEmployeeSalaryReview: React.FC<BusinessAppContextProps> = ({
   accessToken,
   userInfo,
   additionalData
 }) => {
+  const { t } = useTranslation(translations)
   const form = useForm({
     defaultValues: {},
     mode: 'onChange'
@@ -24,12 +31,29 @@ export const AdjustEmployeeSalaryReview: React.FC<BusinessAppContextProps> = ({
   const graphqlClient = useGraphQLClient(accessToken as any)
   const [employeeName, setEmployeeName] = useState<string>('')
   const [initiatorName, setInitiatorName] = useState<string>('')
+  const [salaryAdjustReasonEntries, setSalaryAdjustReasonEntries] = useState<
+    Array<{
+      id: string
+      code: string
+      value: string
+      displayOrder: number | null
+      translations: Array<{
+        localeCode: string
+        value: string
+      }>
+      catalog: {
+        identifier: string
+        version: string
+        defaultLocale: string
+      }
+    }>
+  >([])
   const locale = useMemo(() => getCurrentActiveUserLocale(), [])
 
   // Extract payload data
   const payload: SalaryChangePayload = (additionalData as any)?.psi_taskPayload || {}
   const newSalaryData = payload?.employeeSalary || {}
-  const oldCompensation = payload?.oldEmployeeCompensation || {}
+  const oldCompensation = payload?.oldEmployeeSalary || {}
 
   // Determine employee ID with fallback priority
   const employeeIdFromPayload: string | undefined =
@@ -78,15 +102,46 @@ export const AdjustEmployeeSalaryReview: React.FC<BusinessAppContextProps> = ({
     fetchInitiatorName()
   }, [accessToken, initiatorEmployeeId, graphqlClient])
 
+  // Fetch salary adjustment reason catalog
+  useEffect(() => {
+    const fetchCatalog = async () => {
+      try {
+        if (!accessToken) return
+        const result = await graphqlClient.request<{
+          CatalogEntry: Array<{
+            id: string
+            code: string
+            value: string
+            displayOrder: number | null
+            translations: Array<{
+              localeCode: string
+              value: string
+            }>
+            catalog: {
+              identifier: string
+              version: string
+              defaultLocale: string
+            }
+          }>
+        }>(SALARY_ADJUST_REASON_CATALOG_QUERY)
+        setSalaryAdjustReasonEntries(result?.CatalogEntry || [])
+      } catch {
+        // ignore
+      }
+    }
+    fetchCatalog()
+  }, [accessToken, graphqlClient])
+
   // Build salary comparison rows (only actual salary changes)
   const comparisonRows = useMemo(() => {
     if (!oldCompensation || !newSalaryData) return []
     return buildSalaryComparisonRows({
       oldCompensation: oldCompensation as any,
       newSalaryData: newSalaryData as any,
-      locale
+      locale,
+      t
     })
-  }, [oldCompensation, newSalaryData, locale])
+  }, [oldCompensation, newSalaryData, locale, t])
 
   // Build adjustment details (informational data)
   const adjustmentDetails = useMemo(() => {
@@ -94,22 +149,23 @@ export const AdjustEmployeeSalaryReview: React.FC<BusinessAppContextProps> = ({
     return buildAdjustmentDetails({
       oldCompensation: oldCompensation as any,
       newSalaryData: newSalaryData as any,
-      locale
+      locale,
+      salaryAdjustReasonEntries,
+      t
     })
-  }, [oldCompensation, newSalaryData, locale])
+  }, [oldCompensation, newSalaryData, locale, salaryAdjustReasonEntries, t])
 
   // Build title with employee name
-  const titleText = getTranslationFromI18nKeyAndLabel(
-    'lowcoder:review_forms.employee_salary_change_review_title',
-    `Employee Salary Adjustment Review for ${employeeName || ''}`,
-    { employeeName: employeeName || '', interpolation: { escapeValue: false } }
-  )
+  const titleText = t('adjust-salary-review-title', {
+    employeeName: employeeName || '',
+    defaultValue: `Employee Salary Adjustment Review for ${employeeName || ''}`
+  })
 
   // Build initiator subtitle
   const initiatorText = initiatorName
-    ? getTranslationFromI18nKeyAndLabel('lowcoder:review_forms.initiated_by_text', `Initiated by ${initiatorName}`, {
+    ? t('adjust-salary-review-initiated-by', {
         initiatorName,
-        interpolation: { escapeValue: false }
+        defaultValue: `Initiated by ${initiatorName}`
       })
     : ''
 
@@ -140,37 +196,32 @@ export const AdjustEmployeeSalaryReview: React.FC<BusinessAppContextProps> = ({
           formData={{}}
           submitEventType="pse_submit"
           cancelEventType="pse_cancel"
-          submitButtonText={getTranslationFromI18nKeyAndLabel(
-            'lowcoder:approve_expense_request.approve_button',
-            'Approve'
-          )}
-          cancelButtonText={getTranslationFromI18nKeyAndLabel(
-            'lowcoder:approve_expense_request.reject_button',
-            'Reject'
-          )}
+          submitButtonText={t('adjust-salary-review-acknowledge', { defaultValue: 'Acknowledge' })}
+          cancelButtonText={t('adjust-salary-review-reject', { defaultValue: 'Reject' })}
           submitButtonTestId="review-employee-salary-change-confirm-button"
           cancelButtonTestId="review-employee-salary-change-cancel-button"
           onSubmit={async () => {
-            return { approval: 'approved' }
+            return {
+              approval: 'approved'
+            }
           }}
           onCancel={async () => {
-            return { approval: 'rejected' }
+            return {
+              approval: 'rejected'
+            }
           }}
           data-testid="review-employee-salary-change"
         >
           {/* Salary Comparison Section */}
           <div className="gba:mb-6" data-testid="review-employee-salary-change-comparison-section">
             <h3 className="gba:text-lg gba:font-semibold gba:mb-4">
-              {getTranslationFromI18nKeyAndLabel('lowcoder:review_forms.salary_comparison', 'Salary Comparison')}
+              {t('adjust-salary-review-salary-comparison', { defaultValue: 'Salary Comparison' })}
             </h3>
             <ReviewRows
               rows={comparisonRows}
               dataTestIdPrefix="review-employee-salary-change-row"
-              oldDataText={getTranslationFromI18nKeyAndLabel(
-                'lowcoder:review_forms.current_salary_text',
-                'Current Salary'
-              )}
-              currentDataText={getTranslationFromI18nKeyAndLabel('lowcoder:review_forms.new_salary_text', 'New Salary')}
+              oldDataText={t('adjust-salary-review-current-salary', { defaultValue: 'Current Salary' })}
+              currentDataText={t('adjust-salary-review-new-salary', { defaultValue: 'New Salary' })}
               mode="diff"
             />
           </div>
@@ -179,16 +230,16 @@ export const AdjustEmployeeSalaryReview: React.FC<BusinessAppContextProps> = ({
           {adjustmentDetails && (
             <div className="gba:mb-4 gba:space-y-3" data-testid="adjust-employee-salary-review-details-section">
               <h3 className="gba:text-lg gba:font-semibold gba:mb-4">
-                {getTranslationFromI18nKeyAndLabel('lowcoder:review_forms.adjustment_details', 'Adjustment Details')}
+                {t('adjust-salary-review-adjustment-details', { defaultValue: 'Adjustment Details' })}
               </h3>
 
               {/* Increase Summary - Highlighted */}
               <div
-                className="gba:bg-success-secondary gba:text-success-secondary-foreground gba:p-3 gba:rounded-md"
+                className="gba:bg-card gba:text-card-foreground gba:border gba:border-foreground gba:p-3 gba:rounded-md"
                 data-testid="adjust-employee-salary-review-increase-summary"
               >
                 <div className="gba:text-sm gba:font-medium gba:mb-1">
-                  {getTranslationFromI18nKeyAndLabel('lowcoder:review_forms.total_increase', 'Total Increase')}
+                  {t('adjust-salary-review-total-increase', { defaultValue: 'Total Increase' })}
                 </div>
                 <div className="gba:text-lg gba:font-semibold">{adjustmentDetails.increaseSummary}</div>
               </div>
@@ -196,7 +247,7 @@ export const AdjustEmployeeSalaryReview: React.FC<BusinessAppContextProps> = ({
               {/* Effective Date */}
               <div data-testid="adjust-employee-salary-review-effective-date">
                 <div className="gba:text-sm gba:text-muted-foreground gba:mb-1">
-                  {getTranslationFromI18nKeyAndLabel('lowcoder:review_forms.effective_date', 'Effective Date')}
+                  {t('adjust-salary-review-effective-date', { defaultValue: 'Effective Date' })}
                 </div>
                 <div className="gba:font-medium">{adjustmentDetails.effectiveDate}</div>
               </div>
@@ -204,7 +255,7 @@ export const AdjustEmployeeSalaryReview: React.FC<BusinessAppContextProps> = ({
               {/* Reason */}
               <div data-testid="adjust-employee-salary-review-reason">
                 <div className="gba:text-sm gba:text-muted-foreground gba:mb-1">
-                  {getTranslationFromI18nKeyAndLabel('lowcoder:review_forms.reason_text', 'Reason')}
+                  {t('adjust-salary-review-reason', { defaultValue: 'Reason' })}
                 </div>
                 <div className="gba:font-medium">{adjustmentDetails.reason}</div>
               </div>
@@ -213,10 +264,7 @@ export const AdjustEmployeeSalaryReview: React.FC<BusinessAppContextProps> = ({
               {adjustmentDetails.notes && (
                 <div data-testid="adjust-employee-salary-review-notes">
                   <div className="gba:text-sm gba:text-muted-foreground gba:mb-1">
-                    {getTranslationFromI18nKeyAndLabel(
-                      'lowcoder:initiate_expense_plan.create_expense_plan.comment_text_area',
-                      'Notes'
-                    )}
+                    {t('adjust-salary-review-notes', { defaultValue: 'Notes' })}
                   </div>
                   <div className="gba:font-medium gba:whitespace-pre-wrap">{adjustmentDetails.notes}</div>
                 </div>
