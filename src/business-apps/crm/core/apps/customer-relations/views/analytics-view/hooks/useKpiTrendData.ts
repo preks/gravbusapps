@@ -40,6 +40,14 @@ export interface KpiTrendData {
   actualOpportunityWinRateLastMonth: number
   actualAvgDealSizeThisMonth: number
   actualAvgDealSizeLastMonth: number
+
+  // Aliases for OverviewTabLayout compatibility
+  currentMonthLeadConversionRate: number
+  previousMonthLeadConversionRate: number
+  currentMonthAvgDealSize: number
+  previousMonthAvgDealSize: number
+  currentMonthSalesCycleLength: number
+  previousMonthSalesCycleLength: number
 }
 
 // Custom hook for KPI trend data
@@ -267,7 +275,28 @@ export const useKpiTrendData = (accessToken: string, currencyCode?: string) => {
             result.previousMonthWonOpportunities.aggregate.count > 0
               ? (result.previousMonthWonOpportunities.aggregate.sum?.estimatedAmount || 0) /
                 result.previousMonthWonOpportunities.aggregate.count
-              : 0
+              : 0,
+          // Aliases for OverviewTabLayout compatibility
+          currentMonthLeadConversionRate:
+            result.currentMonthLeads.aggregate.count > 0
+              ? (result.currentMonthConvertedLeads.aggregate.count / result.currentMonthLeads.aggregate.count) * 100
+              : 0,
+          previousMonthLeadConversionRate:
+            result.previousMonthLeads.aggregate.count > 0
+              ? (result.previousMonthConvertedLeads.aggregate.count / result.previousMonthLeads.aggregate.count) * 100
+              : 0,
+          currentMonthAvgDealSize:
+            result.currentMonthWonOpportunities.aggregate.count > 0
+              ? (result.currentMonthWonOpportunities.aggregate.sum?.estimatedAmount || 0) /
+                result.currentMonthWonOpportunities.aggregate.count
+              : 0,
+          previousMonthAvgDealSize:
+            result.previousMonthWonOpportunities.aggregate.count > 0
+              ? (result.previousMonthWonOpportunities.aggregate.sum?.estimatedAmount || 0) /
+                result.previousMonthWonOpportunities.aggregate.count
+              : 0,
+          currentMonthSalesCycleLength: 0, // TODO: Calculate sales cycle length
+          previousMonthSalesCycleLength: 0 // TODO: Calculate sales cycle length
         })
       } catch {
         // console.error('Error fetching KPI trend data:', err);
