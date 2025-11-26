@@ -115,21 +115,14 @@ export const DealHealthMatrix: React.FC<DealHealthMatrixProps> = ({ data, module
       </CardHeader>
       <CardContent>
         <div className="gba:grid gba:grid-cols-2 md:gba:grid-cols-4 gba:gap-4 gba:mb-6">
-          <div
-            role="button"
-            tabIndex={0}
-            className={`gba:bg-green-50 gba:p-4 gba:rounded-lg gba:cursor-pointer gba:transition-all ${
+          <button
+            type="button"
+            className={`gba:bg-green-50 gba:p-4 gba:rounded-lg gba:cursor-pointer gba:transition-all gba:text-left gba:border-0 gba:w-full ${
               selectedCategory === 'excellent'
                 ? 'gba:ring-2 gba:ring-green-500 gba:bg-green-100 gba:shadow-md'
                 : 'gba:hover:bg-green-100'
             }`}
             onClick={() => setSelectedCategory(selectedCategory === 'excellent' ? 'all' : 'excellent')}
-            onKeyDown={e => {
-              if (e.key === 'Enter' || e.key === ' ') {
-                e.preventDefault()
-                setSelectedCategory(selectedCategory === 'excellent' ? 'all' : 'excellent')
-              }
-            }}
             data-testid="excellent-deals-filter"
           >
             <div className="gba:flex gba:items-center gba:gap-2 gba:mb-2">
@@ -137,22 +130,15 @@ export const DealHealthMatrix: React.FC<DealHealthMatrixProps> = ({ data, module
               <span className="gba:text-sm gba:font-medium gba:text-green-600">Excellent</span>
             </div>
             <div className="gba:text-2xl gba:font-bold gba:text-green-900">{data.healthDistribution.excellent}</div>
-          </div>
-          <div
-            role="button"
-            tabIndex={0}
-            className={`gba:bg-blue-50 gba:p-4 gba:rounded-lg gba:cursor-pointer gba:transition-all ${
+          </button>
+          <button
+            type="button"
+            className={`gba:bg-blue-50 gba:p-4 gba:rounded-lg gba:cursor-pointer gba:transition-all gba:text-left gba:border-0 gba:w-full ${
               selectedCategory === 'healthy'
                 ? 'gba:ring-2 gba:ring-blue-500 gba:bg-blue-100 gba:shadow-md'
                 : 'gba:hover:bg-blue-100'
             }`}
             onClick={() => setSelectedCategory(selectedCategory === 'healthy' ? 'all' : 'healthy')}
-            onKeyDown={e => {
-              if (e.key === 'Enter' || e.key === ' ') {
-                e.preventDefault()
-                setSelectedCategory(selectedCategory === 'healthy' ? 'all' : 'healthy')
-              }
-            }}
             data-testid="healthy-deals-filter"
           >
             <div className="gba:flex gba:items-center gba:gap-2 gba:mb-2">
@@ -160,22 +146,15 @@ export const DealHealthMatrix: React.FC<DealHealthMatrixProps> = ({ data, module
               <span className="gba:text-sm gba:font-medium gba:text-blue-600">Healthy</span>
             </div>
             <div className="gba:text-2xl gba:font-bold gba:text-blue-900">{data.healthDistribution.healthy}</div>
-          </div>
-          <div
-            role="button"
-            tabIndex={0}
-            className={`gba:bg-yellow-50 gba:p-4 gba:rounded-lg gba:cursor-pointer gba:transition-all ${
+          </button>
+          <button
+            type="button"
+            className={`gba:bg-yellow-50 gba:p-4 gba:rounded-lg gba:cursor-pointer gba:transition-all gba:text-left gba:border-0 gba:w-full ${
               selectedCategory === 'warning'
                 ? 'gba:ring-2 gba:ring-yellow-500 gba:bg-yellow-100 gba:shadow-md'
                 : 'gba:hover:bg-yellow-100'
             }`}
             onClick={() => setSelectedCategory(selectedCategory === 'warning' ? 'all' : 'warning')}
-            onKeyDown={e => {
-              if (e.key === 'Enter' || e.key === ' ') {
-                e.preventDefault()
-                setSelectedCategory(selectedCategory === 'warning' ? 'all' : 'warning')
-              }
-            }}
             data-testid="warning-deals-filter"
           >
             <div className="gba:flex gba:items-center gba:gap-2 gba:mb-2">
@@ -183,22 +162,15 @@ export const DealHealthMatrix: React.FC<DealHealthMatrixProps> = ({ data, module
               <span className="gba:text-sm gba:font-medium gba:text-yellow-600">Warning</span>
             </div>
             <div className="gba:text-2xl gba:font-bold gba:text-yellow-900">{data.healthDistribution.warning}</div>
-          </div>
-          <div
-            role="button"
-            tabIndex={0}
-            className={`gba:bg-red-50 gba:p-4 gba:rounded-lg gba:cursor-pointer gba:transition-all ${
+          </button>
+          <button
+            type="button"
+            className={`gba:bg-red-50 gba:p-4 gba:rounded-lg gba:cursor-pointer gba:transition-all gba:text-left gba:border-0 gba:w-full ${
               selectedCategory === 'critical'
                 ? 'gba:ring-2 gba:ring-red-500 gba:bg-red-100 gba:shadow-md'
                 : 'gba:hover:bg-red-100'
             }`}
             onClick={() => setSelectedCategory(selectedCategory === 'critical' ? 'all' : 'critical')}
-            onKeyDown={e => {
-              if (e.key === 'Enter' || e.key === ' ') {
-                e.preventDefault()
-                setSelectedCategory(selectedCategory === 'critical' ? 'all' : 'critical')
-              }
-            }}
             data-testid="critical-deals-filter"
           >
             <div className="gba:flex gba:items-center gba:gap-2 gba:mb-2">
@@ -206,7 +178,7 @@ export const DealHealthMatrix: React.FC<DealHealthMatrixProps> = ({ data, module
               <span className="gba:text-sm gba:font-medium gba:text-red-600">Critical</span>
             </div>
             <div className="gba:text-2xl gba:font-bold gba:text-red-900">{data.healthDistribution.critical}</div>
-          </div>
+          </button>
         </div>
 
         <div className="gba:h-80 gba:mb-6">
@@ -251,19 +223,12 @@ export const DealHealthMatrix: React.FC<DealHealthMatrixProps> = ({ data, module
                 .sort((a, b) => b.estimatedAmount - a.estimatedAmount)
                 .slice(0, 5)
                 .map((deal, index) => (
-                  <div
+                  <button
                     key={deal.id}
-                    role="button"
-                    tabIndex={0}
-                    className="gba:p-4 gba:border-l-4 gba:border-red-500 gba:bg-red-50 gba:rounded gba:cursor-pointer gba:hover:bg-red-100 gba:transition-colors"
+                    type="button"
+                    className="gba:p-4 gba:border-l-4 gba:border-red-500 gba:bg-red-50 gba:rounded gba:cursor-pointer gba:hover:bg-red-100 gba:transition-colors gba:text-left gba:border-0 gba:w-full"
                     data-testid={`critical-deal-${index}`}
                     onClick={() => handleOpportunityClick(deal.id)}
-                    onKeyDown={e => {
-                      if (e.key === 'Enter' || e.key === ' ') {
-                        e.preventDefault()
-                        handleOpportunityClick(deal.id)
-                      }
-                    }}
                   >
                     <div className="gba:flex gba:justify-between gba:items-start gba:mb-2">
                       <div>
@@ -284,7 +249,7 @@ export const DealHealthMatrix: React.FC<DealHealthMatrixProps> = ({ data, module
                     <div className="gba:text-sm gba:text-red-700">
                       <strong>Risk Factors:</strong> {deal.riskFactors.join(', ')}
                     </div>
-                  </div>
+                  </button>
                 ))}
             </div>
           </div>

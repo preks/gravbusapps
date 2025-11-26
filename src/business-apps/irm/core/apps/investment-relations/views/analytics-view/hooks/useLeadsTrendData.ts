@@ -104,6 +104,7 @@ export const useLeadsTrendData = (accessToken: string, selectedTimeFilter: TimeF
           totalLeadsLastMonth: result.totalLeadsLastMonth.aggregate.count,
           actualConversionRateThisMonth: Math.round(currentMonthConversionRate),
           actualConversionRateLastMonth: Math.round(previousMonthConversionRate),
+          // TODO: Calculate average conversion time - requires convertedAt field on InvestmentLead entity
           actualAvgConversionTimeThisMonth: 0,
           actualAvgConversionTimeLastMonth: 0,
           currentPeriodLeads: result.currentPeriodLeads.aggregate.count,

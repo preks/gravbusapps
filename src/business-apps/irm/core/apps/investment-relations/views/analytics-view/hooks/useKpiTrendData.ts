@@ -375,8 +375,8 @@ export const useKpiTrendData = (accessToken: string, currencyCode?: string) => {
             WonOpportunitiesAndWithCloseDate: result.previousMonthWonOpportunitiesWithCloseDate || []
           })
         })
-      } catch {
-        // console.error('Error fetching KPI trend data:', err);
+      } catch (err) {
+        console.error('Error fetching KPI trend data:', err)
       } finally {
         setIsLoading(false)
       }

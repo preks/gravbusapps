@@ -214,6 +214,7 @@ const transformLeadsData = (data: any): LeadsAnalytics => {
   const leadsOverTime = createLeadLifecycleTimeSeriesData(leads, 'daily') // Generate daily dataset for past year
   const convertedLeads = data.convertedLeads?.aggregate?.count || 0
   const conversionRate = totalLeads > 0 ? Math.round((convertedLeads / totalLeads) * 100) : 0
+
   return {
     totalLeads,
     leadsByStatus,
@@ -223,7 +224,7 @@ const transformLeadsData = (data: any): LeadsAnalytics => {
     leadsByCompanySize,
     leadsOverTime,
     conversionRate: conversionRate,
-    avgTimeToConversion: 0, // TODO: Calculate
+    avgTimeToConversion: 0, // TODO: Calculate - requires convertedAt field on Lead entity
     topOwners: extractTopLeadOwners(leads)
   }
 }
