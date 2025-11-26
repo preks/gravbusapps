@@ -22,7 +22,8 @@ export const LowcoderScreenLoader: React.FC<LowcoderScreenLoaderProps> = ({
   onTaskUpdated
 }) => {
   const [loading, setLoading] = useState(true)
-  const [, setError] = useState<string | null>(null)
+  // eslint-disable-next-line @typescript-eslint/no-unused-vars
+  const [_error, setError] = useState<string | null>(null)
   const iframeRef = useRef<HTMLIFrameElement>(null)
 
   useEffect(() => {

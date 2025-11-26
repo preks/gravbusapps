@@ -74,6 +74,70 @@ export function parseFilters(filters?: Partial<TaskFilters>): ParsedTaskFilters 
 }
 
 /**
+ * Filter tasks by date range (due date or created date)
+ */
+function filterByDateRange(
+  tasks: UnifiedTask[],
+  dateRange: { from?: string; to?: string } | undefined,
+  getDate: (task: UnifiedTask) => Date | null
+): UnifiedTask[] {
+  if (!dateRange) return tasks
+
+  let result = tasks
+  if (dateRange.from) {
+    const fromDate = new Date(dateRange.from)
+    result = result.filter(task => {
+      const taskDate = getDate(task)
+      return taskDate !== null && taskDate >= fromDate
+    })
+  }
+  if (dateRange.to) {
+    const toDate = new Date(dateRange.to)
+    result = result.filter(task => {
+      const taskDate = getDate(task)
+      return taskDate !== null && taskDate <= toDate
+    })
+  }
+  return result
+}
+
+/**
+ * Get sort value for a task based on sort field
+ */
+function getSortValue(task: UnifiedTask, sortBy: string): any {
+  switch (sortBy) {
+    case 'priority':
+      return task.priority ?? 999
+    case 'dueDate':
+      return task.dueDate ? new Date(task.dueDate).getTime() : 0
+    case 'status':
+      return task.status
+    case 'title':
+      return (task.title || task.name || '').toLowerCase()
+    case 'createdAt':
+    default:
+      if (task.status === 'COMPLETED' && task.completedAt) {
+        return new Date(task.completedAt).getTime()
+      }
+      return task.createdAt || task.scheduledAt ? new Date(task.createdAt || task.scheduledAt!).getTime() : 0
+  }
+}
+
+/**
+ * Compare two values for sorting
+ */
+function compareSortValues(aValue: any, bValue: any, sortOrder: string): number {
+  if (sortOrder === 'asc') {
+    if (aValue > bValue) return 1
+    if (aValue < bValue) return -1
+    return 0
+  }
+  if (aValue < bValue) return 1
+  if (aValue > bValue) return -1
+  return 0
+}
+
+/**
  * Apply filters to a list of tasks
  */
 export function applyFilters(tasks: UnifiedTask[], filters: ParsedTaskFilters): UnifiedTask[] {
@@ -117,42 +181,12 @@ export function applyFilters(tasks: UnifiedTask[], filters: ParsedTaskFilters): 
   }
 
   // Filter by due date range
-  if (filters.dueDate) {
-    if (filters.dueDate.from) {
-      const fromDate = new Date(filters.dueDate.from)
-      filtered = filtered.filter(task => {
-        if (!task.dueDate) return false
-        return new Date(task.dueDate) >= fromDate
-      })
-    }
-    if (filters.dueDate.to) {
-      const toDate = new Date(filters.dueDate.to)
-      filtered = filtered.filter(task => {
-        if (!task.dueDate) return false
-        return new Date(task.dueDate) <= toDate
-      })
-    }
-  }
+  filtered = filterByDateRange(filtered, filters.dueDate, task => (task.dueDate ? new Date(task.dueDate) : null))
 
   // Filter by creation date range
-  if (filters.createdAt) {
-    if (filters.createdAt.from) {
-      const fromDate = new Date(filters.createdAt.from)
-      filtered = filtered.filter(task => {
-        if (!task.createdAt && !task.scheduledAt) return false
-        const taskDate = new Date(task.createdAt || task.scheduledAt!)
-        return taskDate >= fromDate
-      })
-    }
-    if (filters.createdAt.to) {
-      const toDate = new Date(filters.createdAt.to)
-      filtered = filtered.filter(task => {
-        if (!task.createdAt && !task.scheduledAt) return false
-        const taskDate = new Date(task.createdAt || task.scheduledAt!)
-        return taskDate <= toDate
-      })
-    }
-  }
+  filtered = filterByDateRange(filtered, filters.createdAt, task =>
+    task.createdAt || task.scheduledAt ? new Date(task.createdAt || task.scheduledAt!) : null
+  )
 
   // Filter claimable only
   if (filters.claimableOnly) {
@@ -166,48 +200,9 @@ export function applyFilters(tasks: UnifiedTask[], filters: ParsedTaskFilters): 
 
   // Sort tasks
   filtered.sort((a, b) => {
-    let aValue: any
-    let bValue: any
-
-    switch (filters.sortBy) {
-      case 'priority':
-        aValue = a.priority ?? 999
-        bValue = b.priority ?? 999
-        break
-      case 'dueDate':
-        aValue = a.dueDate ? new Date(a.dueDate).getTime() : 0
-        bValue = b.dueDate ? new Date(b.dueDate).getTime() : 0
-        break
-      case 'status':
-        aValue = a.status
-        bValue = b.status
-        break
-      case 'title':
-        aValue = (a.title || a.name || '').toLowerCase()
-        bValue = (b.title || b.name || '').toLowerCase()
-        break
-      case 'createdAt':
-      default:
-        // For completed tasks, sort by completedAt; otherwise use createdAt/scheduledAt
-        if (a.status === 'COMPLETED' && b.status === 'COMPLETED') {
-          aValue = a.completedAt ? new Date(a.completedAt).getTime() : 0
-          bValue = b.completedAt ? new Date(b.completedAt).getTime() : 0
-        } else {
-          aValue = a.createdAt || a.scheduledAt ? new Date(a.createdAt || a.scheduledAt!).getTime() : 0
-          bValue = b.createdAt || b.scheduledAt ? new Date(b.createdAt || b.scheduledAt!).getTime() : 0
-        }
-        break
-    }
-
-    if (filters.sortOrder === 'asc') {
-      if (aValue > bValue) return 1
-      if (aValue < bValue) return -1
-      return 0
-    } else {
-      if (aValue < bValue) return 1
-      if (aValue > bValue) return -1
-      return 0
-    }
+    const aValue = getSortValue(a, filters.sortBy)
+    const bValue = getSortValue(b, filters.sortBy)
+    return compareSortValues(aValue, bValue, filters.sortOrder)
   })
 
   return filtered

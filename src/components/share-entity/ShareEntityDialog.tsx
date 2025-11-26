@@ -81,7 +81,7 @@ const sendBlink = async (
       // Build entity link for the links array (displayed in task inbox)
       const entityLink = {
         name: payload.entityName,
-        url: `${window.location.origin}${payload.entityDisplayUrl}`,
+        url: `${globalThis.location.origin}${payload.entityDisplayUrl}`,
         type: `entity:${payload.entityType}`,
         metadata: {
           entityType: payload.entityType,
@@ -267,6 +267,13 @@ export const ShareEntityDialog: React.FC<ShareEntityDialogProps> = ({
       .toUpperCase()
   }
 
+  const getSendButtonText = (submitting: boolean, count: number): string => {
+    if (submitting) return 'Sending...'
+    if (count === 0) return 'Select recipients'
+    const personWord = count === 1 ? 'person' : 'people'
+    return `Send to ${count} ${personWord}`
+  }
+
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent
@@ -436,11 +443,7 @@ export const ShareEntityDialog: React.FC<ShareEntityDialogProps> = ({
               data-testid="share-entity-send-button"
             >
               <Send className="gba:w-4 gba:h-4 gba:mr-2" />
-              {isSubmitting
-                ? 'Sending...'
-                : selectedEmployees.length === 0
-                  ? 'Select recipients'
-                  : `Send to ${selectedEmployees.length} ${selectedEmployees.length === 1 ? 'person' : 'people'}`}
+              {getSendButtonText(isSubmitting, selectedEmployees.length)}
             </Button>
           </DialogFooter>
         )}

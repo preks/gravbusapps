@@ -30,15 +30,14 @@ import {
   Popover,
   PopoverContent,
   PopoverTrigger,
-  Badge
+  Badge,
+  cn
 } from '@newwork/nw-design-system'
-import { cn } from '@newwork/nw-design-system'
 import { useUniversalEntitySearch, UniversalEntityOption, UniversalEntityType } from './hooks/useUniversalEntitySearch'
 import { base64ToObjectURL } from '@/business-apps/core/every/apps/every-box/utils/avatarUtils'
 
 interface SearchableEntityComboboxProps {
   accessToken: string
-  value?: string
   onChange?: (entityId: string, entityData: UniversalEntityOption | null) => void
   placeholder?: string
   disabled?: boolean

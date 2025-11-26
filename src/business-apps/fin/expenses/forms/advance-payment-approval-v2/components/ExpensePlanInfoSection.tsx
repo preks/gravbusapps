@@ -102,7 +102,7 @@ const ExpensePlanInfoSection: React.FC<ExpensePlanInfoSectionProps> = ({
           </div>
         )}
 
-        {(expensePlan.title || expensePlan.description) && <Separator />}
+        {Boolean(expensePlan.title || expensePlan.description) && <Separator />}
 
         {/* Title */}
         {expensePlan.title && (
@@ -132,10 +132,10 @@ const ExpensePlanInfoSection: React.FC<ExpensePlanInfoSectionProps> = ({
           </>
         )}
 
-        {expensePlan.totalAmount && <Separator />}
+        {Boolean(expensePlan.totalAmount) && <Separator />}
 
         {/* Total Amount */}
-        {expensePlan.totalAmount && (
+        {Boolean(expensePlan.totalAmount) && (
           <div>
             <Label className="gba:text-sm gba:text-muted-foreground">
               {getTranslationFromI18nKeyAndLabel('lowcoder:expense_request_list.expense_plan_table.amount', 'Amount')}

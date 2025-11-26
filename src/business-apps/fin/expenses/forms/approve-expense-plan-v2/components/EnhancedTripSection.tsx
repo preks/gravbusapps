@@ -225,8 +225,8 @@ const EnhancedTripSection: React.FC<EnhancedTripSectionProps> = ({
               {/* Timeline dot */}
               <div
                 className={`gba:absolute gba:left-0 gba:top-1 gba:w-3 gba:h-3 gba:rounded-full gba:-translate-x-[7px] ${
-                  isGo ? 'gba:bg-blue-600' : isBack ? 'gba:bg-orange-600' : 'gba:bg-gray-400'
-                }`}
+                  isGo ? 'gba:bg-blue-600' : ''
+                }${isBack ? 'gba:bg-orange-600' : ''}${!isGo && !isBack ? 'gba:bg-gray-400' : ''}`}
               />
 
               {/* Content */}

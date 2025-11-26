@@ -64,7 +64,7 @@ export interface AdvancePaymentComment {
   id: string
   commentDate: string
   comment: string
-  commentType: 'APPROVE_COMMENT' | 'REJECT_COMMENT' | 'TRANSFER_COMMENT' | string
+  commentType: string
   authorEmployee?: string
   advancePayment?: string
 }

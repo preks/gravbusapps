@@ -19,7 +19,7 @@ export const formatDateToISO = (dateString: string): string => {
     const dateWithTime = dateString + 'T00:00:00'
     const date = new Date(dateWithTime)
 
-    if (isNaN(date.getTime())) {
+    if (Number.isNaN(date.getTime())) {
       return new Date().toISOString()
     }
 

@@ -45,8 +45,10 @@ export const TaskDetailDialog: React.FC<TaskDetailDialogProps> = ({
   const [isCompleting, setIsCompleting] = React.useState(false)
   const [screenMetadata, setScreenMetadata] = React.useState<any>(null)
   const [loadingScreen, setLoadingScreen] = React.useState(true)
-  const [, setGeneratedScreenKey] = React.useState<string | null>(null)
-  const [, setEmployeeData] = React.useState<{
+  // eslint-disable-next-line @typescript-eslint/no-unused-vars
+  const [_generatedScreenKey, setGeneratedScreenKey] = React.useState<string | null>(null)
+  // eslint-disable-next-line @typescript-eslint/no-unused-vars
+  const [_employeeData, setEmployeeData] = React.useState<{
     displayName: string
     firstName?: string
     lastName?: string
@@ -54,7 +56,8 @@ export const TaskDetailDialog: React.FC<TaskDetailDialogProps> = ({
     jobPosition?: string
     organizationalUnit?: string
   } | null>(null)
-  const [, setIsLoadingEmployee] = React.useState(false)
+  // eslint-disable-next-line @typescript-eslint/no-unused-vars
+  const [_isLoadingEmployee, setIsLoadingEmployee] = React.useState(false)
   const { fetchScreenByKey } = useScreenManagementApi(accessToken)
   const graphqlClient = useGraphqlClient(accessToken)
 
@@ -149,6 +152,100 @@ export const TaskDetailDialog: React.FC<TaskDetailDialogProps> = ({
 
   // Note: processInfo and taskDetails removed - Screen Management API handles all rendering
 
+  // Check if this is an approveEmployeeVacation task and extract employee info
+  // NOTE: Must be called before any conditional returns to satisfy React hooks rules
+  const isApproveVacationTask = React.useMemo(() => {
+    if (!task) return false
+    const processName = task.sourceMetadata?.endpoint
+      ? task.sourceMetadata.endpoint.split('/').filter(Boolean)[2]
+      : null
+    return processName === 'approveEmployeeVacation'
+  }, [task?.sourceMetadata?.endpoint, task])
+
+  // Extract task data for employee fetching - needed before conditional return
+  const taskInputsForEffect = task?.sourceMetadata?.inputs || task?.inputs
+  const employeeAbsenceForEffect = taskInputsForEffect?.employeeAbsence as any
+  const employeeIdForEffect = employeeAbsenceForEffect?.employeeId
+  const creatorNameForEffect = taskInputsForEffect?.creatorName as string | undefined
+
+  // Fetch employee data for approveEmployeeVacation tasks
+  // NOTE: Must be called before any conditional returns to satisfy React hooks rules
+  React.useEffect(() => {
+    const fetchEmployeeData = async () => {
+      if (!isApproveVacationTask || !employeeIdForEffect || !accessToken) {
+        setEmployeeData(null)
+        return
+      }
+
+      setIsLoadingEmployee(true)
+      try {
+        const employeeQuery = `
+          query GetEmployee($employeeId: uuid!) {
+            Employee(where: {id: {_eq: $employeeId}}, limit: 1) {
+              id
+              firstName
+              lastName
+              displayName
+              pictureThumbnail
+              employeePosition {
+                jobPosition {
+                  name
+                }
+                organizationalUnit {
+                  name
+                }
+              }
+            }
+          }
+        `
+
+        const response = await graphqlClient.request<{ Employee: any[] }>(employeeQuery, {
+          employeeId: employeeIdForEffect
+        })
+
+        if (response.Employee && response.Employee.length > 0) {
+          const employee = response.Employee[0]
+
+          // Convert pictureThumbnail to data URL format
+          const toDataUrl = (raw: string | null | undefined): string | undefined => {
+            if (!raw) return undefined
+            if (raw.startsWith('data:')) return raw
+            try {
+              JSON.parse(raw)
+              return undefined // JSON metadata, cannot use directly
+            } catch {
+              // Not JSON, proceed with base64 conversion
+            }
+            if (raw.startsWith('/9j/')) return `data:image/jpeg;base64,${raw}`
+            if (raw.startsWith('iVBOR')) return `data:image/png;base64,${raw}`
+            if (raw.startsWith('R0lGOD')) return `data:image/gif;base64,${raw}`
+            return `data:image/gif;base64,${raw}` // Default to GIF
+          }
+
+          setEmployeeData({
+            displayName: employee.displayName || `${employee.firstName} ${employee.lastName}`,
+            firstName: employee.firstName,
+            lastName: employee.lastName,
+            avatarUrl: toDataUrl(employee.pictureThumbnail),
+            jobPosition: employee.employeePosition?.jobPosition?.name,
+            organizationalUnit: employee.employeePosition?.organizationalUnit?.name
+          })
+        } else {
+          // Fallback to creatorName if employee not found
+          setEmployeeData(creatorNameForEffect ? { displayName: creatorNameForEffect } : null)
+        }
+      } catch (err) {
+        console.error('Error fetching employee data:', err)
+        // Fallback to creatorName on error
+        setEmployeeData(creatorNameForEffect ? { displayName: creatorNameForEffect } : null)
+      } finally {
+        setIsLoadingEmployee(false)
+      }
+    }
+
+    fetchEmployeeData()
+  }, [isApproveVacationTask, employeeIdForEffect, accessToken, graphqlClient, creatorNameForEffect])
+
   if (!task) return null
 
   const handleCompleteBlinkTask = async () => {
@@ -211,98 +308,6 @@ export const TaskDetailDialog: React.FC<TaskDetailDialogProps> = ({
 
   // Check if this is a blink (quick-task)
   const isBlinkTask = task.source === 'cflow' && task.tags?.app === 'quick-task'
-
-  // Extract task inputs
-  const taskInputs = task.sourceMetadata?.inputs || task.inputs
-
-  // Check if this is an approveEmployeeVacation task and extract employee info
-  const isApproveVacationTask = React.useMemo(() => {
-    const processName = task.sourceMetadata?.endpoint
-      ? task.sourceMetadata.endpoint.split('/').filter(Boolean)[2]
-      : null
-    return processName === 'approveEmployeeVacation'
-  }, [task.sourceMetadata?.endpoint])
-
-  const employeeAbsence = taskInputs?.employeeAbsence as any
-  const employeeId = employeeAbsence?.employeeId
-  const creatorName = taskInputs?.creatorName as string | undefined
-
-  // Fetch employee data for approveEmployeeVacation tasks
-  React.useEffect(() => {
-    const fetchEmployeeData = async () => {
-      if (!isApproveVacationTask || !employeeId || !accessToken) {
-        setEmployeeData(null)
-        return
-      }
-
-      setIsLoadingEmployee(true)
-      try {
-        const employeeQuery = `
-          query GetEmployee($employeeId: uuid!) {
-            Employee(where: {id: {_eq: $employeeId}}, limit: 1) {
-              id
-              firstName
-              lastName
-              displayName
-              pictureThumbnail
-              employeePosition {
-                jobPosition {
-                  name
-                }
-                organizationalUnit {
-                  name
-                }
-              }
-            }
-          }
-        `
-
-        const response = await graphqlClient.request<{ Employee: any[] }>(employeeQuery, {
-          employeeId
-        })
-
-        if (response.Employee && response.Employee.length > 0) {
-          const employee = response.Employee[0]
-
-          // Convert pictureThumbnail to data URL format
-          const toDataUrl = (raw: string | null | undefined): string | undefined => {
-            if (!raw) return undefined
-            if (raw.startsWith('data:')) return raw
-            try {
-              JSON.parse(raw)
-              return undefined // JSON metadata, cannot use directly
-            } catch {
-              // Not JSON, proceed with base64 conversion
-            }
-            if (raw.startsWith('/9j/')) return `data:image/jpeg;base64,${raw}`
-            if (raw.startsWith('iVBOR')) return `data:image/png;base64,${raw}`
-            if (raw.startsWith('R0lGOD')) return `data:image/gif;base64,${raw}`
-            return `data:image/gif;base64,${raw}` // Default to GIF
-          }
-
-          setEmployeeData({
-            displayName: employee.displayName || `${employee.firstName} ${employee.lastName}`,
-            firstName: employee.firstName,
-            lastName: employee.lastName,
-            avatarUrl: toDataUrl(employee.pictureThumbnail),
-            jobPosition: employee.employeePosition?.jobPosition?.name,
-            organizationalUnit: employee.employeePosition?.organizationalUnit?.name
-          })
-        } else {
-          // Fallback to creatorName if employee not found
-          setEmployeeData(creatorName ? { displayName: creatorName } : null)
-        }
-      } catch (err) {
-        console.error('Error fetching employee data:', err)
-        // Fallback to creatorName on error
-        setEmployeeData(creatorName ? { displayName: creatorName } : null)
-      } finally {
-        setIsLoadingEmployee(false)
-      }
-    }
-
-    fetchEmployeeData()
-  }, [isApproveVacationTask, employeeId, accessToken, graphqlClient, creatorName])
 
   // Generate screen key identical to Cockpit inbox approach
   const generateScreenKey = React.useCallback((task: UnifiedTask): string | null => {

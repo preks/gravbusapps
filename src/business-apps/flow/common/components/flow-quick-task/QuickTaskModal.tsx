@@ -40,15 +40,9 @@ export const QuickTaskModal: React.FC<QuickTaskModalProps> = ({
   }
 
   const handleSubmitWithClose = async (data: any) => {
-    try {
-      await onSubmit(data)
-      // Always close the modal after successful submission
-      onOpenChange(false)
-    } catch (error) {
-      // Let the error bubble up but still allow the modal to close on success
-      // The parent component should handle error messages
-      throw error
-    }
+    await onSubmit(data)
+    // Always close the modal after successful submission
+    onOpenChange(false)
   }
 
   // Merge title into config for button text

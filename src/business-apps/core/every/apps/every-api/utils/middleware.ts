@@ -76,7 +76,7 @@ export function requireQueryParam(params: Record<string, string>, paramName: str
  */
 export function extractUserId(pathname: string): string | null {
   // Match pattern: /tasks/user/:userId or /tasks/user/:userId.json
-  const match = /\/tasks\/user\/([^\/\.]+)/.exec(pathname)
+  const match = /\/tasks\/user\/([^/.]+)/.exec(pathname)
   return match ? match[1] : null
 }
 
@@ -85,7 +85,7 @@ export function extractUserId(pathname: string): string | null {
  */
 export function extractTaskId(pathname: string): string | null {
   // Match pattern: /tasks/:taskId or /tasks/:taskId.json
-  const match = /\/tasks\/([^\/\.]+)(?:\.json)?$/.exec(pathname)
+  const match = /\/tasks\/([^/.]+)(?:\.json)?$/.exec(pathname)
   return match ? match[1] : null
 }
 

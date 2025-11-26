@@ -219,6 +219,41 @@ const ChangeEmployeeAddressReviewV2Content: React.FC<ChangeEmployeeAddressReview
     return cc === 'DE' || cc === 'US' || cc === 'RO'
   }
 
+  // Get badge variant based on change mode
+  const getChangeModeBadgeVariant = (): 'success' | 'destructive' | 'info' => {
+    if (isInsertMode) return 'success'
+    if (isDeleteMode) return 'destructive'
+    return 'info'
+  }
+
+  // Get badge label based on change mode
+  const getChangeModeBadgeLabel = (): string => {
+    if (isInsertMode) return 'New Address'
+    if (isDeleteMode) return 'Delete Address'
+    return 'Address Update'
+  }
+
+  // Get alert message based on change mode and state
+  const getAlertMessage = (): string => {
+    if (isInsertMode) {
+      return 'This is a new address being added to the employee record.'
+    }
+    if (isDeleteMode) {
+      return 'The selected address was deleted by the employee.'
+    }
+    if (hasOldAddress && changesCount > 0) {
+      return `This is an update with ${changesCount} ${changesCount === 1 ? 'change' : 'changes'} to the existing address. Changed fields are highlighted below.`
+    }
+    return 'This is an update to an existing address in the employee record.'
+  }
+
+  // Get card title based on change mode
+  const getCardTitle = (): string => {
+    if (isInsertMode) return 'New Address Details'
+    if (isDeleteMode) return 'Deleted Address'
+    return 'Address Changes'
+  }
+
   // Field comparison
   interface FieldComparison {
     changed: boolean
@@ -321,11 +356,8 @@ const ChangeEmployeeAddressReviewV2Content: React.FC<ChangeEmployeeAddressReview
           creatorName={creatorName}
           onClose={isEveryBoxContext ? handleClose : undefined}
           customBadges={
-            <Badge
-              variant={isInsertMode ? 'success' : isDeleteMode ? 'destructive' : 'info'}
-              data-testid="address-change-mode-badge"
-            >
-              {isInsertMode ? 'New Address' : isDeleteMode ? 'Delete Address' : 'Address Update'}
+            <Badge variant={getChangeModeBadgeVariant()} data-testid="address-change-mode-badge">
+              {getChangeModeBadgeLabel()}
             </Badge>
           }
         />
@@ -354,15 +386,7 @@ const ChangeEmployeeAddressReviewV2Content: React.FC<ChangeEmployeeAddressReview
       {/* Change Mode Alert */}
       <Alert variant={isDeleteMode ? 'destructive' : 'default'}>
         <FileText className="gba:h-4 gba:w-4" />
-        <AlertDescription>
-          {isInsertMode
-            ? 'This is a new address being added to the employee record.'
-            : isDeleteMode
-              ? 'The selected address was deleted by the employee.'
-              : hasOldAddress && changesCount > 0
-                ? `This is an update with ${changesCount} ${changesCount === 1 ? 'change' : 'changes'} to the existing address. Changed fields are highlighted below.`
-                : 'This is an update to an existing address in the employee record.'}
-        </AlertDescription>
+        <AlertDescription>{getAlertMessage()}</AlertDescription>
       </Alert>
 
       {/* Address Comparison Card */}
@@ -371,7 +395,7 @@ const ChangeEmployeeAddressReviewV2Content: React.FC<ChangeEmployeeAddressReview
           <div className="gba:flex gba:items-center gba:justify-between">
             <CardTitle className="gba:flex gba:items-center gba:gap-2 gba:text-lg">
               <Home className="gba:h-5 gba:w-5" />
-              {isInsertMode ? 'New Address Details' : isDeleteMode ? 'Deleted Address' : 'Address Changes'}
+              {getCardTitle()}
             </CardTitle>
             {hasOldAddress && changesCount > 0 && !isDeleteMode && (
               <Badge variant="warning">

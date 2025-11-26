@@ -57,10 +57,6 @@ const getAvatarInitials = (
 export interface TaskDetailHeaderProps {
   // Task info (required)
   title: string
-  status?: string
-  priority?: number
-  source?: 'kogito' | 'cflow'
-  isBlinkTask?: boolean
 
   // Employee auto-fetching (provide either employeeId or userId)
   employeeId?: string // UUID of employee to fetch
@@ -83,9 +79,6 @@ export interface TaskDetailHeaderProps {
 
   // Callbacks
   onClose?: () => void // Optional - for close button if needed
-
-  // Additional badges (optional)
-  customBadges?: React.ReactNode
 }
 
 export const TaskDetailHeader: React.FC<TaskDetailHeaderProps> = ({
@@ -98,8 +91,6 @@ export const TaskDetailHeader: React.FC<TaskDetailHeaderProps> = ({
   creatorName,
   showEmployeeInfo = false,
   onClose
-  // Note: status, priority, source, isBlinkTask, customBadges are accepted via props interface
-  // but not currently used in this component's render logic
 }) => {
   // Auto-fetch employee data if IDs are provided and no manual data exists
   const shouldAutoFetch = showEmployeeInfo && !manualEmployeeData && (employeeId || userId) && accessToken

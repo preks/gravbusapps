@@ -6,13 +6,15 @@
 import React from 'react'
 import { Inbox, Send, CheckCircle, LucideIcon } from 'lucide-react'
 
+type EmptyStateType = 'inbox' | 'outbox' | 'completed'
+
 interface EmptyStateProps {
-  type: 'inbox' | 'outbox' | 'completed'
+  type: EmptyStateType
   message?: string
 }
 
 // Helper function to get the icon based on type
-const getEmptyStateIcon = (type: 'inbox' | 'outbox' | 'completed'): LucideIcon => {
+const getEmptyStateIcon = (type: EmptyStateType): LucideIcon => {
   switch (type) {
     case 'inbox':
       return Inbox
@@ -24,7 +26,7 @@ const getEmptyStateIcon = (type: 'inbox' | 'outbox' | 'completed'): LucideIcon =
 }
 
 // Helper function to get the default message based on type
-const getDefaultMessage = (type: 'inbox' | 'outbox' | 'completed'): string => {
+const getDefaultMessage = (type: EmptyStateType): string => {
   switch (type) {
     case 'inbox':
       return 'No tasks assigned to you at the moment'
@@ -36,7 +38,7 @@ const getDefaultMessage = (type: 'inbox' | 'outbox' | 'completed'): string => {
 }
 
 // Helper function to get the title based on type
-const getEmptyStateTitle = (type: 'inbox' | 'outbox' | 'completed'): string => {
+const getEmptyStateTitle = (type: EmptyStateType): string => {
   switch (type) {
     case 'inbox':
       return 'Inbox Empty'

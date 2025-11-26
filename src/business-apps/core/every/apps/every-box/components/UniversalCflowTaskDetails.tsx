@@ -113,11 +113,11 @@ export const UniversalCflowTaskDetails: React.FC<UniversalCflowTaskDetailsProps>
 
         // Priority 1: Use flowStepData if available (for completed tasks)
         // Only use flowStepData for completed tasks to avoid mixing data
-        if (isCompleted && flowStepData && flowStepData[fieldName] !== undefined) {
+        if (isCompleted && flowStepData?.[fieldName] !== undefined) {
           initialValues[fieldName] = flowStepData[fieldName]
         }
         // Priority 2: Use task.inputs if available
-        else if (task.inputs && task.inputs[fieldName] !== undefined) {
+        else if (task.inputs?.[fieldName] !== undefined) {
           initialValues[fieldName] = task.inputs[fieldName]
         }
         // Priority 3: Use field.value if available (for read-only fields or pre-filled values from cFlow)
