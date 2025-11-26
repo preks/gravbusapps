@@ -67,7 +67,22 @@ export const FormScreenComponent: React.FC<FormScreenComponentProps> = ({
   isEmbeddedInRequestWizard = false
 }) => {
   const t = getTranslationFromI18nKeyAndLabel
-  const { isProcessingFiles, isFormDisabled, expenseRuleError, handleCurrencyChange, isEditMode } = useExpenseItem()
+  const { isProcessingFiles, isFormDisabled, expenseRuleError, handleCurrencyChange, isEditMode, additionalData } =
+    useExpenseItem()
+
+  const expenseRequestOptions = expenseRequests.map(request => ({
+    id: request.id,
+    name: request.title || request.code
+  }))
+
+  // Remove the "None" option when the request is preselected from backend (edit mode or wizard payload)
+  const hasBackendPreselectedRequest =
+    isEditMode ||
+    !!(additionalData?.expenseRequestId || additionalData?.psi_taskPayload?.psi_initialParameters?.expenseRequest)
+
+  const filteredExpenseRequestOptions = hasBackendPreselectedRequest
+    ? expenseRequestOptions.filter(option => option.id !== '0')
+    : expenseRequestOptions
 
   // Memoize the submit handler to prevent re-creating on every render
   const handleCreateClick = useCallback(
@@ -365,12 +380,7 @@ export const FormScreenComponent: React.FC<FormScreenComponentProps> = ({
             allowClear
             name="expenseRequestId"
             data-testid="expense-request-select"
-            data={[
-              ...expenseRequests.map(request => ({
-                id: request.id,
-                name: request.title || request.code
-              }))
-            ]}
+            data={filteredExpenseRequestOptions}
             onChange={(value: any) => {
               form.setFieldsValue({ expenseRequestId: value.value })
             }}

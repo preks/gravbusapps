@@ -504,8 +504,11 @@ export const ExpenseItemProvider: React.FC<ExpenseItemProviderProps> = ({
             setCostCenters([])
           }
 
-          // Initialize cost centers for positions
-          await initializeCostCenters(employeePosition, costCenterData)
+          // Initialize cost centers for positions only when creating a new item.
+          // In edit mode, the backend values (hydrated via setByEdit) must not be overridden.
+          if (!expenseIdValue) {
+            await initializeCostCenters(employeePosition, costCenterData)
+          }
 
           // Initialize currencies
           initializeCurrencies(catalogueData)
