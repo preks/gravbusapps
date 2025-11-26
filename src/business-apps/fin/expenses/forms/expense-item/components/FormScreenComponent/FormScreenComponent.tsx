@@ -1,13 +1,12 @@
 import React, { useCallback } from 'react'
 import { Button, DateInputField, Divider, InputField, SelectField, Switch } from '@newwork/gravity-ui-catalog'
-import { Form, Row, Col } from 'antd'
+import { Form, Row, Col, Alert } from 'antd'
 import { ExpensePosition, ExpenseGroup, ExpenseType, CostCenter, Currency, CustomField } from '../../types'
 import UploadComponent from '../UploadComponent'
 import SinglePositionComponent from './SinglePositionComponent'
 import MultiPositionComponent from './MultiPositionComponent'
 import { useExpenseItem } from '../../context/ExpenseItemContext'
 
-import { Alert } from 'antd'
 import {
   getCurrentActiveUserLocale,
   getDateFormat,
@@ -67,13 +66,26 @@ export const FormScreenComponent: React.FC<FormScreenComponentProps> = ({
   isEmbeddedInRequestWizard = false
 }) => {
   const t = getTranslationFromI18nKeyAndLabel
-  const { isProcessingFiles, isFormDisabled, expenseRuleError, handleCurrencyChange, isEditMode } = useExpenseItem()
+  const {
+    isProcessingFiles,
+    isFormDisabled,
+    expenseRuleError,
+    receiptCurrencyError,
+    handleCurrencyChange,
+    isEditMode
+  } = useExpenseItem()
+
+  const hasReceiptCurrencyError = Boolean(receiptCurrencyError && fileList && fileList.length > 0)
 
   // Memoize the submit handler to prevent re-creating on every render
   const handleCreateClick = useCallback(
     async (e: React.MouseEvent) => {
       e.stopPropagation()
       e.preventDefault()
+
+      if (hasReceiptCurrencyError) {
+        return
+      }
 
       // Defer validation to next tick to prevent visual jumps
       setTimeout(async () => {
@@ -99,7 +111,7 @@ export const FormScreenComponent: React.FC<FormScreenComponentProps> = ({
         }
       }, 0)
     },
-    [form, expenseRuleError, handleSubmit]
+    [form, expenseRuleError, hasReceiptCurrencyError, handleSubmit]
   )
 
   return (
@@ -117,6 +129,15 @@ export const FormScreenComponent: React.FC<FormScreenComponentProps> = ({
       <div className="gba:m-0 gba:mb-[30px]" data-testid="form-upload-container">
         <UploadComponent fileList={fileList} setFileList={setFileList} />
       </div>
+
+      {hasReceiptCurrencyError && (
+        <div
+          className="gba:mb-4 gba:rounded-md gba:bg-destructive-secondary gba:text-destructive-secondary-foreground gba:px-4 gba:py-3"
+          data-testid="receipt-currency-error-container"
+        >
+          {receiptCurrencyError}
+        </div>
+      )}
 
       <div className="gba:mb-4" data-testid="title-field-container">
         <div className="gba:relative">
@@ -405,7 +426,7 @@ export const FormScreenComponent: React.FC<FormScreenComponentProps> = ({
         <Button
           variant="primary"
           onClick={handleCreateClick}
-          disabled={isProcessingFiles}
+          disabled={isProcessingFiles || hasReceiptCurrencyError}
           className="gba:min-w-[100px] gba:border-2 gba:text-base gba:font-semibold gba:px-4"
           style={{ borderRadius: '22px', width: 'auto', height: '40px' }}
           data-testid="submit-button"

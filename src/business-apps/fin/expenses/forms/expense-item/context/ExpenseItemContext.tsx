@@ -63,6 +63,7 @@ interface ExpenseItemContextProps {
 
   employeeRuleId: string | null | object
   expenseRuleError: string | null
+  receiptCurrencyError: string | null
   additionalData?: any
 
   calculateTotal: () => number
@@ -101,7 +102,7 @@ export const ExpenseItemProvider: React.FC<ExpenseItemProviderProps> = ({
   const [currentStep, setCurrentStep] = useState<FormStepType>(FORM_STEPS.START)
   const [loading, setLoading] = useState<boolean>(false)
   const [isInitialized, setIsInitialized] = useState<boolean>(false)
-  const [fileList, setFileList] = useState<any[]>([])
+  const [fileList, setFileListState] = useState<any[]>([])
   const [isProcessingFiles, setIsProcessingFiles] = useState<boolean>(false)
   const [isFormDisabled, setIsFormDisabled] = useState<boolean>(false)
   const [multiPosition, setMultiPosition] = useState<boolean>(false)
@@ -130,6 +131,7 @@ export const ExpenseItemProvider: React.FC<ExpenseItemProviderProps> = ({
   const [userCostCenter, setUserCostCenter] = useState<string>('')
   const [currentSelectedDate, setCurrentSelectedDate] = useState<Date | null>(null)
   const [itemValues, setItemValues] = useState<{ id: string; version: string | number } | null>(null)
+  const [receiptCurrencyError, setReceiptCurrencyError] = useState<string | null>(null)
 
   const graphqlClient = useMemo(() => createGraphQLClient(accessToken), [accessToken])
   const { dispatchProcessContinueEventIfEnabled, getIsProcessEventDispatched } = useProcessEventState(additionalData)
@@ -537,21 +539,42 @@ export const ExpenseItemProvider: React.FC<ExpenseItemProviderProps> = ({
    * Validates currency match between receipt and request
    */
   const validateReceiptCurrency = (data: any): boolean => {
-    if (!additionalData?.itemCurrency) return true
+    // Reset previous error
+    setReceiptCurrencyError(null)
+
+    // No wizard/request currency provided – keep current behaviour
+    if (!additionalData?.itemCurrency) {
+      return true
+    }
 
     const requestCurrency = currencies.find(c => c.id === additionalData.itemCurrency)
-    if (requestCurrency && requestCurrency.code !== data.currencyCode) {
-      showToast(
-        t(
-          'lowcoder:expense_item.currency_mismatchlowcoder:create_expense_type_item.process_error_currency_mismatch_detail',
-          'The Receipt could not be added as it does not match the request currency.'
-        ),
-        'error',
-        t('lowcoder:create_expense_type_item.process_error_currency_mismatch_title', 'Currency Mismatch')
+
+    // When single-currency is enforced, we must be able to resolve the rule/request currency
+    if (additionalData?.useSingleCurrency && !requestCurrency) {
+      const errorMsg = t(
+        'lowcoder:expense_item.currency_validation_unavailable',
+        'Unable to validate the receipt currency against your expense rule. Please try again or contact your administrator.'
       )
+      setReceiptCurrencyError(errorMsg)
       return false
     }
-    return true
+
+    if (!requestCurrency || !data?.currencyCode) {
+      return true
+    }
+
+    if (requestCurrency.code === data.currencyCode) {
+      return true
+    }
+
+    const detailedMessage = t(
+      'lowcoder:create_expense_item.currency_mismatch_detail',
+      `The receipt currency (${data.currencyCode}) does not match the expense request currency (${requestCurrency.code}). The expense item could not be created.`
+    )
+
+    setReceiptCurrencyError(detailedMessage)
+
+    return false
   }
 
   /**
@@ -715,6 +738,19 @@ export const ExpenseItemProvider: React.FC<ExpenseItemProviderProps> = ({
     try {
       const data = receiptData.data
 
+      // Ensure we can validate against the configured request currency when provided
+      if (
+        additionalData?.itemCurrency &&
+        (currencies.length === 0 || !currencies.some(currency => currency.id === additionalData.itemCurrency))
+      ) {
+        const errorMsg = t(
+          'lowcoder:expense_item.currency_validation_unavailable',
+          'Unable to validate the receipt currency against your expense rule. Please try again or contact your administrator.'
+        )
+        setReceiptCurrencyError(errorMsg)
+        return
+      }
+
       // Validate currency match
       if (!validateReceiptCurrency(data)) return
 
@@ -784,7 +820,7 @@ export const ExpenseItemProvider: React.FC<ExpenseItemProviderProps> = ({
       catalogueDataResponse,
       multiPosition,
       setPositions,
-      setFileList,
+      setFileListState,
       setCurrentStep,
       setLoading,
       t,
@@ -823,7 +859,7 @@ export const ExpenseItemProvider: React.FC<ExpenseItemProviderProps> = ({
       showToast(t('lowcoder:create_expense_type_item.error_flows', 'Error in flow process'), 'error')
       form.resetFields()
       setPositions([DEFAULT_POSITION])
-      setFileList([])
+      setFileListState([])
       setCurrentStep('start')
     }
   }
@@ -950,6 +986,14 @@ export const ExpenseItemProvider: React.FC<ExpenseItemProviderProps> = ({
     setItemValues({ id, version })
   }
 
+  const setFileList = (files: any[]) => {
+    setFileListState(files)
+    // Any change to the attached receipts should reset the previous
+    // currency validation error. It will be re-evaluated on the next
+    // receipt processing.
+    setReceiptCurrencyError(null)
+  }
+
   const contextValue: ExpenseItemContextProps = useMemo(
     () => ({
       form,
@@ -978,6 +1022,7 @@ export const ExpenseItemProvider: React.FC<ExpenseItemProviderProps> = ({
       expenseRequests,
       employeeRuleId,
       expenseRuleError,
+      receiptCurrencyError,
       additionalData,
       calculateTotal: calculateTotalWrapper,
       handleFileUpload: handleFileUploadWrapper,
@@ -1012,6 +1057,7 @@ export const ExpenseItemProvider: React.FC<ExpenseItemProviderProps> = ({
       expenseRequests,
       employeeRuleId,
       expenseRuleError,
+      receiptCurrencyError,
       additionalData,
       calculateTotalWrapper,
       handleFileUploadWrapper,

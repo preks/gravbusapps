@@ -18,6 +18,20 @@ interface ExpenseRequestStatisticsProps extends BusinessAppContextProps {
   currencyInitialized?: boolean
 }
 
+const getEffectiveCurrencyCode = (currencyCode?: string, selectedCurrencyRef?: string): string => {
+  const trimmedCurrency = currencyCode?.trim()
+  if (trimmedCurrency) {
+    return trimmedCurrency
+  }
+
+  const refCode = selectedCurrencyRef?.split(':').pop()?.trim()
+  if (refCode) {
+    return refCode
+  }
+
+  return 'EUR'
+}
+
 const ExpenseRequestStatistics: React.FC<ExpenseRequestStatisticsProps> = ({
   statsLoading = false,
   statsError = null,
@@ -29,6 +43,8 @@ const ExpenseRequestStatistics: React.FC<ExpenseRequestStatisticsProps> = ({
   currencyInitialized,
   ...contextProps
 }) => {
+  const effectiveCurrencyCode = getEffectiveCurrencyCode(currencyCode, selectedCurrencyRef)
+
   // Memoize context props to ensure stable reference
   const stableContextProps = useMemo(
     () => ({
@@ -175,10 +191,7 @@ const ExpenseRequestStatistics: React.FC<ExpenseRequestStatisticsProps> = ({
         ) +
         ' ' +
         currentMonthName,
-      value: `${formatCurrencyDisplay(String(statistics.currentMonthAmount || '0'), (contextProps as any).currencyCode || 'EUR')}`,
-      // currencyCode provided by parent (derived from selectedCurrencyRef)
-      // fallback to 'EUR' when not available
-
+      value: formatCurrencyDisplay(statistics.currentMonthAmount || 0, effectiveCurrencyCode),
       prefix: <DollarOutlined />,
       color: '#3f8600',
       precision: 2,
@@ -209,7 +222,7 @@ const ExpenseRequestStatistics: React.FC<ExpenseRequestStatisticsProps> = ({
     {
       key: 'reimbursable',
       title: getTranslationFromI18nKeyAndLabel('lowcoder:expense_item_list.expense_table.reimbursable', 'Reimbursable'),
-      value: formatCurrencyDisplay(statistics.reimbursableAmount, currencyCode || 'EUR'),
+      value: formatCurrencyDisplay(statistics.reimbursableAmount, effectiveCurrencyCode),
       prefix: <DollarOutlined />,
       color: '#722ed1',
       precision: 2,
