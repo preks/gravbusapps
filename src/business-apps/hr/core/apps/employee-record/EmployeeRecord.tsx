@@ -189,6 +189,7 @@ const EmployeeRecordContent: React.FC<EmployeeRecordContentProps> = ({
   const activeStructureId = getCurrentActiveStructureId()
   const devFeatureFlag = useFeature(Feature.Dev.Enabled.Key)
   const changeLogFeatureFlag = useFeature('dev.employee-record.changelog.enabled')
+  const previewFeatureFlag = useFeature('preview.enabled')
 
   useEffect(() => {
     if (typeof window === 'undefined') return
@@ -493,29 +494,33 @@ const EmployeeRecordContent: React.FC<EmployeeRecordContentProps> = ({
             }
           ]
         : []),
-      {
-        key: TAB_KEYS.serviceRequests,
-        label: (
-          <div className="gba:flex gba:items-center gba:gap-2">
-            <PiReceipt className="gba:text-xl gba:inline-block gba:align-middle" />
-            <span className="gba:inline-block gba:align-middle">
-              {getTranslationFromI18nKeyAndLabel(
-                'lowcoder:employee_profile.employee_tabs.service_requests',
-                'Service Requests'
-              )}
-            </span>
-          </div>
-        ),
-        children: (
-          <ServiceRequestsTab
-            employee={employee}
-            accessToken={accessToken}
-            employeeId={employeeIdToShow}
-            userInfo={userInfo}
-            isSelfView={isSelfView}
-          />
-        )
-      }
+      ...(previewFeatureFlag
+        ? [
+            {
+              key: TAB_KEYS.serviceRequests,
+              label: (
+                <div className="gba:flex gba:items-center gba:gap-2">
+                  <PiReceipt className="gba:text-xl gba:inline-block gba:align-middle" />
+                  <span className="gba:inline-block gba:align-middle">
+                    {getTranslationFromI18nKeyAndLabel(
+                      'lowcoder:employee_profile.employee_tabs.service_requests',
+                      'Service Requests'
+                    )}
+                  </span>
+                </div>
+              ),
+              children: (
+                <ServiceRequestsTab
+                  employee={employee}
+                  accessToken={accessToken}
+                  employeeId={employeeIdToShow}
+                  userInfo={userInfo}
+                  isSelfView={isSelfView}
+                />
+              )
+            }
+          ]
+        : [])
     ]
     return allTabs.filter(tab => {
       const tabKey = tab.key as string
