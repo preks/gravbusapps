@@ -185,28 +185,29 @@ export const VoiceOverlay: React.FC<VoiceOverlayProps> = ({
 
   return (
     <div
-      className="gba:fixed gba:inset-0 gba:z-50 gba:flex gba:flex-col gba:items-center gba:justify-center gba:bg-background/95 gba:backdrop-blur-xl"
+      className="gba:absolute gba:inset-0 gba:z-50 gba:flex gba:flex-col gba:items-center gba:justify-center gba:bg-background/95 gba:backdrop-blur-xl"
       data-testid="voice-overlay"
     >
-      {/* Close button */}
+      {/* Close button - More prominent for sidepanel */}
       <Button
-        variant="ghost"
-        size="icon"
-        className="gba:absolute gba:top-6 gba:right-6 gba:h-12 gba:w-12 gba:rounded-full gba:bg-muted/50 hover:gba:bg-muted gba:z-10"
+        variant="destructive"
+        size="sm"
+        className="gba:absolute gba:top-4 gba:right-4 gba:h-10 gba:px-4 gba:rounded-full gba:shadow-lg gba:z-10 gba:flex gba:items-center gba:gap-2"
         onClick={onClose}
         aria-label="Exit voice mode"
         data-testid="voice-overlay-close"
       >
-        <svg className="gba:h-6 gba:w-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+        <svg className="gba:h-4 gba:w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
           <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
         </svg>
+        <span className="gba:text-sm gba:font-medium">Exit</span>
       </Button>
 
       {/* Header */}
-      <div className="gba:absolute gba:top-6 gba:left-6 gba:flex gba:items-center gba:gap-3">
-        <div className="gba:h-10 gba:w-10 gba:rounded-full gba:bg-gradient-to-br gba:from-primary gba:to-info gba:flex gba:items-center gba:justify-center">
+      <div className="gba:absolute gba:top-4 gba:left-4 gba:flex gba:items-center gba:gap-3">
+        <div className="gba:h-9 gba:w-9 gba:rounded-full gba:bg-gradient-to-br gba:from-primary gba:to-info gba:flex gba:items-center gba:justify-center gba:shadow-md">
           <svg
-            className="gba:h-5 gba:w-5 gba:text-primary-foreground"
+            className="gba:h-4 gba:w-4 gba:text-primary-foreground"
             fill="none"
             stroke="currentColor"
             viewBox="0 0 24 24"
@@ -215,8 +216,8 @@ export const VoiceOverlay: React.FC<VoiceOverlayProps> = ({
           </svg>
         </div>
         <div>
-          <h2 className="gba:text-lg gba:font-bold gba:text-foreground">EveryAI Voice</h2>
-          <p className="gba:text-sm gba:text-muted-foreground gba:flex gba:items-center gba:gap-2">
+          <h2 className="gba:text-base gba:font-bold gba:text-foreground">Voice Mode</h2>
+          <p className="gba:text-xs gba:text-muted-foreground gba:flex gba:items-center gba:gap-2">
             {isListening && (
               <>
                 <span className="gba:inline-block gba:h-2 gba:w-2 gba:rounded-full gba:bg-success gba:animate-pulse" />
@@ -384,9 +385,9 @@ export const VoiceOverlay: React.FC<VoiceOverlayProps> = ({
 
       {/* Keyboard hint */}
       <div className="gba:absolute gba:bottom-2 gba:left-0 gba:right-0 gba:text-center">
-        <p className="gba:text-xs gba:text-muted-foreground gba:opacity-50">
-          Press <kbd className="gba:px-1.5 gba:py-0.5 gba:rounded gba:bg-muted gba:font-mono">Esc</kbd> to exit voice
-          mode
+        <p className="gba:text-xs gba:text-muted-foreground gba:opacity-60">
+          <kbd className="gba:px-1.5 gba:py-0.5 gba:rounded gba:bg-muted gba:font-mono gba:text-xs">Esc</kbd> or{' '}
+          <span className="gba:text-destructive gba:font-medium">Exit</span> button to close
         </p>
       </div>
     </div>
