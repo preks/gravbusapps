@@ -32,11 +32,12 @@ import { BusinessAppContextProps } from '@/common/BusinessAppContext'
 import { DebouncedInput } from '@/components/debounced-input/DebouncedInput'
 import { formatDataTestId } from '@/common/utils/formatDataTestId'
 import { ColumnDef, SortingState } from '@tanstack/react-table'
-import TimeTypeForm from '../../../../forms/time-types-form/TimeTypeForm'
-import { useTimeTypesData, TransformedTimeType } from '../../hooks/useTimeTypesData'
+import TimeTypeForm from '../../../../forms/time-attendance/TimeTypeForm'
+import { useTimeTypesData } from '../../hooks/useTimeTypesData'
 import { useRestClient } from '@/common/network/rest/useRestClient'
 import { env } from '@/common/env/EnvUtils'
 import { getTranslationFromI18nKeyAndLabel } from '@/common/utils/windowUtils'
+import { TransformedTimeType } from '../../types/time-types'
 
 export interface TimeTypesProps extends BusinessAppContextProps {
   prefixDataTestId?: string

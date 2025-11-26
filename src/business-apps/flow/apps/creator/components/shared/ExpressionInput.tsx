@@ -193,7 +193,7 @@ export const ExpressionInput: React.FC<ExpressionInputProps> = ({
           }
 
           // Call backend API for thorough validation
-          const apiUrl = env('NEXT_PUBLIC_CUSTOM_FLOW_ENGINE_API_URL') || 'http://localhost:3001'
+          const apiUrl = env('NEXT_PUBLIC_CUSTOM_FLOW_ENGINE_API_URL') || env('NEXT_PUBLIC_BASE_URL') + '/flow-engine'
 
           // Create validation template with the expression to validate
           // Preserve ALL steps with their form fields for cross-step validation
