@@ -218,31 +218,33 @@ export const EveryAI: React.FC<EveryAIProps> = props => {
         onSendTranscript={handleVoiceSend}
       />
 
-      {/* Reminders Bell / AI Icon - Top Right */}
-      <div className="gba:absolute gba:top-4 gba:right-4 gba:z-50">
-        <Button
-          variant="ghost"
-          size="sm"
-          onClick={() => setShowRemindersPanel(!showRemindersPanel)}
-          className="gba:relative gba:p-2 gba:rounded-full gba:bg-card/80 gba:backdrop-blur-sm gba:border gba:border-border hover:gba:bg-accent gba:transition-all hover:gba:shadow-lg gba:group"
-          data-testid="reminders-bell-button"
-          title={showRemindersPanel ? 'Back to Chat' : 'My Reminders'}
-        >
-          {showRemindersPanel ? (
-            <Sparkle
-              className="gba:h-5 gba:w-5 gba:text-muted-foreground group-hover:gba:text-primary gba:transition-colors"
-              weight="regular"
-              aria-hidden="true"
-            />
-          ) : (
-            <Bell
-              className="gba:h-5 gba:w-5 gba:text-muted-foreground group-hover:gba:text-primary gba:transition-colors"
-              weight="regular"
-              aria-hidden="true"
-            />
-          )}
-        </Button>
-      </div>
+      {/* Reminders Bell / AI Icon - Top Right (hidden in speech mode) */}
+      {!isSpeechMode && (
+        <div className="gba:absolute gba:top-4 gba:right-4 gba:z-50">
+          <Button
+            variant="ghost"
+            size="sm"
+            onClick={() => setShowRemindersPanel(!showRemindersPanel)}
+            className="gba:relative gba:p-2 gba:rounded-full gba:bg-card/80 gba:backdrop-blur-sm gba:border gba:border-border hover:gba:bg-accent gba:transition-all hover:gba:shadow-lg gba:group"
+            data-testid="reminders-bell-button"
+            title={showRemindersPanel ? 'Back to Chat' : 'My Reminders'}
+          >
+            {showRemindersPanel ? (
+              <Sparkle
+                className="gba:h-5 gba:w-5 gba:text-muted-foreground group-hover:gba:text-primary gba:transition-colors"
+                weight="regular"
+                aria-hidden="true"
+              />
+            ) : (
+              <Bell
+                className="gba:h-5 gba:w-5 gba:text-muted-foreground group-hover:gba:text-primary gba:transition-colors"
+                weight="regular"
+                aria-hidden="true"
+              />
+            )}
+          </Button>
+        </div>
+      )}
 
       {/* Reminders Panel - Always mounted to check for due reminders */}
       <div
