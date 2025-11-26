@@ -201,7 +201,7 @@ export const ExpressionBuilder: React.FC<ExpressionBuilderProps> = ({
         }
 
         // Then call backend API for thorough validation
-        const apiUrl = env('NEXT_PUBLIC_CUSTOM_FLOW_ENGINE_API_URL') || 'http://localhost:3001'
+        const apiUrl = env('NEXT_PUBLIC_CUSTOM_FLOW_ENGINE_API_URL') || env('NEXT_PUBLIC_BASE_URL') + '/flow-engine'
 
         // Create a complete template with ALL steps for cross-step validation
         const testTemplate = {

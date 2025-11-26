@@ -1,6 +1,6 @@
 // Investment Task Mappers - Transform base types to enhanced types with computed fields
 
-import { InvestmentTask } from '../types'
+import { InvestmentTask } from '../types/investmentTaskTypes'
 
 /**
  * Transform InvestmentTask (GraphQL response) to InvestmentTask (enhanced with computed fields)

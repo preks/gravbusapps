@@ -15,7 +15,7 @@ export const UpdateEmployeeEntitlements: React.FC<
     return (
       additionalData?.employeeId ||
       additionalData?.psi_taskPayload?.employeeId ||
-      additionalData?.psi_taskPayload?.initialParameters?.employeeId ||
+      additionalData?.psi_taskPayload?.psi_initialParameters?.employeeId ||
       userInfo?.employeeDetails?.employeeId ||
       ''
     )

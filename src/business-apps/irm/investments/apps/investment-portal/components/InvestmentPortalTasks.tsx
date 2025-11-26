@@ -13,8 +13,8 @@ import {
   TabsContent
 } from '@newwork/nw-design-system'
 import { BusinessAppContextProps } from '@/common/BusinessAppContext'
-import { useInvestmentTasks } from '@/common/data/investment'
-import type { InvestmentTask } from '@/common/data/investment/types'
+import { useInvestmentTasks } from '@/common/data/investment/hooks/useInvestmentTasks'
+import type { InvestmentTask } from '@/common/data/investment/types/investmentTaskTypes'
 import type { InvestmentTaskQueryVariables } from '@/common/data/investment/queries/investmentTaskQueries'
 import { useProcessCompletion } from '@/common/hooks/useProcessCompletion'
 import { FlowContextName } from '@/common/types/FlowRegistryTypes'

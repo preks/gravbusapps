@@ -37,7 +37,7 @@ export const useExpressionValidator = (template: FlowTemplate, stepIndex: number
 
       try {
         // Call backend validation API
-        const apiUrl = env('NEXT_PUBLIC_CUSTOM_FLOW_ENGINE_API_URL') || 'http://localhost:8081'
+        const apiUrl = env('NEXT_PUBLIC_CUSTOM_FLOW_ENGINE_API_URL') || env('NEXT_PUBLIC_BASE_URL') + '/flow-engine'
         const response = await fetch(`${apiUrl}/api/templates/validate-expressions`, {
           method: 'POST',
           headers: {

@@ -1,6 +1,8 @@
 import type { CommonAccountContact, CommonOpportunityContact } from '@/common/data/relations/types/relationTypes'
 import type { ContactType } from './investmentEnums'
-import type { InvestmentAccount, InvestmentContact, InvestmentOpportunity } from './'
+import type { InvestmentAccount } from './investmentAccountTypes'
+import type { InvestmentContact } from './investmentContactTypes'
+import type { InvestmentOpportunity } from './investmentOpportunityTypes'
 
 export interface InvestmentAccountContact extends CommonAccountContact {
   account?: InvestmentAccount // InvestmentAccount

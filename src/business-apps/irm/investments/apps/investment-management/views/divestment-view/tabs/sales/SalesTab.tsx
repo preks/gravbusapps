@@ -23,7 +23,7 @@ import {
   applyAmountFilter,
   applyDateFilter
 } from '@/common/components/common-relations/view-layouts/opportunity-layout/utils/queryHelpers'
-import type { InvestmentOpportunity } from '@/common/data/investment/types'
+import type { InvestmentOpportunity } from '@/common/data/investment/types/investmentOpportunityTypes'
 import type { InvestmentOpportunityQueryVariables } from '@/common/data/investment/queries/investmentOpportunityQueries'
 import { navigateTo, buildPlatformUrl } from '@/common/utils/navigationUtils'
 import { SalesStatistics } from './components/SalesStatistics'
