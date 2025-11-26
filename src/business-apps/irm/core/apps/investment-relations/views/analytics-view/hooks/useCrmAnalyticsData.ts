@@ -864,7 +864,7 @@ const calculatePipelineVelocity = (opportunities: any): number => {
     const daysDiff = Math.ceil((updated.getTime() - created.getTime()) / (1000 * 60 * 60 * 24))
 
     // Skip invalid dates
-    if (isNaN(daysDiff)) {
+    if (Number.isNaN(daysDiff)) {
       return sum
     }
 

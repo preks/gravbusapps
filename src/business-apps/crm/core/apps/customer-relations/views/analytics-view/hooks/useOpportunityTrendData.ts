@@ -34,6 +34,20 @@ interface OpportunityTrendData {
   previousPeriodPipelineValue: number
 }
 
+// Helper function to calculate pipeline velocity
+const calculatePipelineVelocity = (opportunities: Array<{ createdAt: string; updatedAt: string }>) => {
+  if (opportunities.length === 0) return 0
+
+  const totalDays = opportunities.reduce((sum, opp) => {
+    const created = new Date(opp.createdAt)
+    const updated = new Date(opp.updatedAt)
+    const days = Math.max(0, Math.ceil((updated.getTime() - created.getTime()) / (1000 * 60 * 60 * 24)))
+    return sum + days
+  }, 0)
+
+  return Math.round(totalDays / opportunities.length)
+}
+
 export const useOpportunityTrendData = (
   accessToken: string,
   selectedTimeFilter: TimeFilter,
@@ -250,19 +264,6 @@ export const useOpportunityTrendData = (
         // Debug: Log conversion rate calculations
 
         // Calculate pipeline velocity (average days from creation to last update for all opportunities)
-        const calculatePipelineVelocity = (opportunities: Array<{ createdAt: string; updatedAt: string }>) => {
-          if (opportunities.length === 0) return 0
-
-          const totalDays = opportunities.reduce((sum, opp) => {
-            const created = new Date(opp.createdAt)
-            const updated = new Date(opp.updatedAt)
-            const days = Math.max(0, Math.ceil((updated.getTime() - created.getTime()) / (1000 * 60 * 60 * 24)))
-            return sum + days
-          }, 0)
-
-          return Math.round(totalDays / opportunities.length)
-        }
-
         const currentPeriodPipelineVelocity = calculatePipelineVelocity(
           result.currentPeriodOpportunitiesForVelocity || []
         )

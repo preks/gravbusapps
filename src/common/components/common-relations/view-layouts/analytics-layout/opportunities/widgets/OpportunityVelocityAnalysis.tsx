@@ -148,9 +148,17 @@ export const OpportunityVelocityAnalysis: React.FC<OpportunityVelocityAnalysisPr
               {data.quickWins.map(win => (
                 <div
                   key={win.id}
+                  role="button"
+                  tabIndex={0}
                   className="gba:p-3 gba:bg-green-50 gba:border gba:border-green-200 gba:rounded-lg gba:cursor-pointer gba:hover:bg-green-100 gba:transition-colors"
                   data-testid={`recent-win-${win.id}`}
                   onClick={() => handleOpportunityClick(win.id)}
+                  onKeyDown={e => {
+                    if (e.key === 'Enter' || e.key === ' ') {
+                      e.preventDefault()
+                      handleOpportunityClick(win.id)
+                    }
+                  }}
                 >
                   <div className="gba:flex gba:justify-between gba:items-start">
                     <div className="gba:flex-1">
@@ -182,9 +190,17 @@ export const OpportunityVelocityAnalysis: React.FC<OpportunityVelocityAnalysisPr
               {data.slowMovers.map(mover => (
                 <div
                   key={mover.id}
+                  role="button"
+                  tabIndex={0}
                   className="gba:p-3 gba:bg-orange-50 gba:border gba:border-orange-200 gba:rounded-lg gba:cursor-pointer gba:hover:bg-orange-100 gba:transition-colors"
                   data-testid={`slow-mover-${mover.id}`}
                   onClick={() => handleOpportunityClick(mover.id)}
+                  onKeyDown={e => {
+                    if (e.key === 'Enter' || e.key === ' ') {
+                      e.preventDefault()
+                      handleOpportunityClick(mover.id)
+                    }
+                  }}
                 >
                   <div className="gba:flex gba:justify-between gba:items-start">
                     <div className="gba:flex-1">

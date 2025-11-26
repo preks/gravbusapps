@@ -38,8 +38,8 @@ interface OpportunitiesByStagePieProps {
 const toKey = (value: string): string =>
   value
     .toLowerCase()
-    .replace(/\s+/g, '-')
-    .replace(/[^a-z0-9-]/g, '')
+    .replaceAll(/\s+/g, '-')
+    .replaceAll(/[^a-z0-9-]/g, '')
 
 export const OpportunitiesByStagePie: React.FC<OpportunitiesByStagePieProps> = ({
   data,

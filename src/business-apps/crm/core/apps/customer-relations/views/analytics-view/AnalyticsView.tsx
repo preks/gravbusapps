@@ -66,7 +66,7 @@ export const AnalyticsView: React.FC<AnalyticsViewProps> = ({ moduleColor = 'def
 
   // Get initial analytics tab from URL
   const getInitialAnalyticsTab = useCallback(() => {
-    const urlParams = new URLSearchParams(window.location.search)
+    const urlParams = new URLSearchParams(globalThis.location.search)
     const tabFromUrl = urlParams.get('analyticsTab')
 
     // Valid analytics tab values
@@ -82,10 +82,10 @@ export const AnalyticsView: React.FC<AnalyticsViewProps> = ({ moduleColor = 'def
 
   // Update URL when analytics tab changes
   const updateAnalyticsTabUrl = useCallback((tab: AnalyticsTabKey) => {
-    const urlParams = new URLSearchParams(window.location.search)
+    const urlParams = new URLSearchParams(globalThis.location.search)
     urlParams.set('analyticsTab', tab)
-    const newUrl = `${window.location.pathname}?${urlParams.toString()}`
-    window.history.replaceState({}, '', newUrl)
+    const newUrl = `${globalThis.location.pathname}?${urlParams.toString()}`
+    globalThis.history.replaceState({}, '', newUrl)
   }, [])
 
   const handleAnalyticsTabChange = useCallback(
@@ -98,7 +98,7 @@ export const AnalyticsView: React.FC<AnalyticsViewProps> = ({ moduleColor = 'def
 
   // Initialize URL on mount if not present
   useEffect(() => {
-    const urlParams = new URLSearchParams(window.location.search)
+    const urlParams = new URLSearchParams(globalThis.location.search)
     if (!urlParams.has('analyticsTab')) {
       updateAnalyticsTabUrl(activeAnalyticsTab)
     }
@@ -111,8 +111,8 @@ export const AnalyticsView: React.FC<AnalyticsViewProps> = ({ moduleColor = 'def
       setActiveAnalyticsTab(newTab)
     }
 
-    window.addEventListener('popstate', handlePopState)
-    return () => window.removeEventListener('popstate', handlePopState)
+    globalThis.addEventListener('popstate', handlePopState)
+    return () => globalThis.removeEventListener('popstate', handlePopState)
   }, [getInitialAnalyticsTab])
 
   // Fetch available currencies
@@ -314,7 +314,7 @@ export const AnalyticsView: React.FC<AnalyticsViewProps> = ({ moduleColor = 'def
         topAccounts: data.accounts.topAccounts,
         selectedCurrency: accountsCurrency,
         onCurrencyChange: setAccountsCurrency,
-        availableCurrencies: availableCurrencies as string[]
+        availableCurrencies: availableCurrencies
       }
     : undefined
 
@@ -353,7 +353,7 @@ export const AnalyticsView: React.FC<AnalyticsViewProps> = ({ moduleColor = 'def
         onKpiCurrencyChange: setOpportunitiesKpiCurrency,
         topDealsCurrency: topDealsCurrency,
         onTopDealsCurrencyChange: setTopDealsCurrency,
-        availableCurrencies: availableCurrencies as string[]
+        availableCurrencies: availableCurrencies
       }
     : undefined
 
